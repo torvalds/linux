@@ -65,7 +65,7 @@ struct mutex {
 
 static inline struct task_struct *__mutex_owner(struct mutex *lock)
 {
-	return (struct task_struct *)(atomic_long_read(&lock->owner) & ~0x03);
+	return (struct task_struct *)(atomic_long_read(&lock->owner) & ~0x07);
 }
 
 /*
