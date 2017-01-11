@@ -119,13 +119,7 @@ static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *st
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
-	int i;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
-
-	for_each_plane_in_state(state, plane, plane_state, i)
-		mdp5_plane_complete_commit(plane, plane_state);
 
 	if (mdp5_kms->smp)
 		mdp5_smp_complete_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
