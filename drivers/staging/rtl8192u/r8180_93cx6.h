@@ -39,5 +39,4 @@
 #define EPROM_TXPW2 0x1b
 #define EPROM_TXPW1 0x3d
 
-
 int eprom_read(struct net_device *dev, u32 addr); /* reads a 16 bits word */
