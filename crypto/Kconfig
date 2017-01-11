@@ -295,6 +295,7 @@ config CRYPTO_HEH
 	select CRYPTO_ECB
 	select CRYPTO_GF128MUL
 	select CRYPTO_MANAGER
+	select CRYPTO_POLY_HASH_ARM64_CE if ARM64 && KERNEL_MODE_NEON
 	help
 	  HEH: Hash-Encrypt-Hash mode
 	  HEH is a proposed block cipher mode of operation which extends the
