@@ -1014,9 +1014,6 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 	u32 max_size = inode->i_sb->s_blocksize;
 	int res;
 
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
-
 	res = fscrypt_get_encryption_info(inode);
 	if (res)
 		return ERR_PTR(res);
