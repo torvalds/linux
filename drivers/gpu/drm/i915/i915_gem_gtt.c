@@ -3555,6 +3555,58 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 }
 
 /**
+ * i915_gem_gtt_reserve - reserve a node in an address_space (GTT)
+ * @vm - the &struct i915_address_space
+ * @node - the &struct drm_mm_node (typically i915_vma.mode)
+ * @size - how much space to allocate inside the GTT,
+ *         must be #I915_GTT_PAGE_SIZE aligned
+ * @offset - where to insert inside the GTT,
+ *           must be #I915_GTT_MIN_ALIGNMENT aligned, and the node
+ *           (@offset + @size) must fit within the address space
+ * @color - color to apply to node, if this node is not from a VMA,
+ *          color must be #I915_COLOR_UNEVICTABLE
+ * @flags - control search and eviction behaviour
+ *
+ * i915_gem_gtt_reserve() tries to insert the @node at the exact @offset inside
+ * the address space (using @size and @color). If the @node does not fit, it
+ * tries to evict any overlapping nodes from the GTT, including any
+ * neighbouring nodes if the colors do not match (to ensure guard pages between
+ * differing domains). See i915_gem_evict_for_node() for the gory details
+ * on the eviction algorithm. #PIN_NONBLOCK may used to prevent waiting on
+ * evicting active overlapping objects, and any overlapping node that is pinned
+ * or marked as unevictable will also result in failure.
+ *
+ * Returns: 0 on success, -ENOSPC if no suitable hole is found, -EINTR if
+ * asked to wait for eviction and interrupted.
+ */
+int i915_gem_gtt_reserve(struct i915_address_space *vm,
+			 struct drm_mm_node *node,
+			 u64 size, u64 offset, unsigned long color,
+			 unsigned int flags)
+{
+	int err;
+
+	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
+	GEM_BUG_ON(!IS_ALIGNED(offset, I915_GTT_MIN_ALIGNMENT));
+	GEM_BUG_ON(range_overflows(offset, size, vm->total));
+
+	node->size = size;
+	node->start = offset;
+	node->color = color;
+
+	err = drm_mm_reserve_node(&vm->mm, node);
+	if (err != -ENOSPC)
+		return err;
+
+	err = i915_gem_evict_for_node(vm, node, flags);
+	if (err == 0)
+		err = drm_mm_reserve_node(&vm->mm, node);
+
+	return err;
+}
+
+/**
  * i915_gem_gtt_insert - insert a node into an address_space (GTT)
  * @vm - the &struct i915_address_space
  * @node - the &struct drm_mm_node (typically i915_vma.node)

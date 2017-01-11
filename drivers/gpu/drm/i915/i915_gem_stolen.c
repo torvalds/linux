@@ -694,10 +694,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
-	vma->node.start = gtt_offset;
-	vma->node.size = size;
-
-	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
+	ret = i915_gem_gtt_reserve(&ggtt->base, &vma->node,
+				   size, gtt_offset, obj->cache_level,
+				   0);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
 		goto err_pages;

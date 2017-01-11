@@ -419,17 +419,11 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 			goto err_unpin;
 		}
 
-		vma->node.start = offset;
-		vma->node.size = size;
-		vma->node.color = obj->cache_level;
-		ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
-		if (ret) {
-			ret = i915_gem_evict_for_vma(vma, flags);
-			if (ret == 0)
-				ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
-			if (ret)
-				goto err_unpin;
-		}
+		ret = i915_gem_gtt_reserve(vma->vm, &vma->node,
+					   size, offset, obj->cache_level,
+					   flags);
+		if (ret)
+			goto err_unpin;
 	} else {
 		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
 					  size, alignment, obj->cache_level,
