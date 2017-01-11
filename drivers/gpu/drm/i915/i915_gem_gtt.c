@@ -24,6 +24,7 @@
  */
 
 #include <linux/log2.h>
+#include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/stop_machine.h>
 
@@ -3606,6 +3607,31 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	return err;
 }
 
+static u64 random_offset(u64 start, u64 end, u64 len, u64 align)
+{
+	u64 range, addr;
+
+	GEM_BUG_ON(range_overflows(start, len, end));
+	GEM_BUG_ON(round_up(start, align) > round_down(end - len, align));
+
+	range = round_down(end - len, align) - round_up(start, align);
+	if (range) {
+		if (sizeof(unsigned long) == sizeof(u64)) {
+			addr = get_random_long();
+		} else {
+			addr = get_random_int();
+			if (range > U32_MAX) {
+				addr <<= 32;
+				addr |= get_random_int();
+			}
+		}
+		div64_u64_rem(addr, range, &addr);
+		start += addr;
+	}
+
+	return round_up(start, align);
+}
+
 /**
  * i915_gem_gtt_insert - insert a node into an address_space (GTT)
  * @vm - the &struct i915_address_space
@@ -3627,7 +3653,8 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
  * its @size must then fit entirely within the [@start, @end] bounds. The
  * nodes on either side of the hole must match @color, or else a guard page
  * will be inserted between the two nodes (or the node evicted). If no
- * suitable hole is found, then the LRU list of objects within the GTT
+ * suitable hole is found, first a victim is randomly selected and tested
+ * for eviction, otherwise then the LRU list of objects within the GTT
  * is scanned to find the first set of replacement nodes to create the hole.
  * Those old overlapping nodes are evicted from the GTT (and so must be
  * rebound before any future use). Any node that is currently pinned cannot
@@ -3645,6 +3672,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 			u64 start, u64 end, unsigned int flags)
 {
 	u32 search_flag, alloc_flag;
+	u64 offset;
 	int err;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
@@ -3687,6 +3715,35 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	if (err != -ENOSPC)
 		return err;
 
+	/* No free space, pick a slot at random.
+	 *
+	 * There is a pathological case here using a GTT shared between
+	 * mmap and GPU (i.e. ggtt/aliasing_ppgtt but not full-ppgtt):
+	 *
+	 *    |<-- 256 MiB aperture -->||<-- 1792 MiB unmappable -->|
+	 *         (64k objects)             (448k objects)
+	 *
+	 * Now imagine that the eviction LRU is ordered top-down (just because
+	 * pathology meets real life), and that we need to evict an object to
+	 * make room inside the aperture. The eviction scan then has to walk
+	 * the 448k list before it finds one within range. And now imagine that
+	 * it has to search for a new hole between every byte inside the memcpy,
+	 * for several simultaneous clients.
+	 *
+	 * On a full-ppgtt system, if we have run out of available space, there
+	 * will be lots and lots of objects in the eviction list! Again,
+	 * searching that LRU list may be slow if we are also applying any
+	 * range restrictions (e.g. restriction to low 4GiB) and so, for
+	 * simplicity and similarilty between different GTT, try the single
+	 * random replacement first.
+	 */
+	offset = random_offset(start, end,
+			       size, alignment ?: I915_GTT_MIN_ALIGNMENT);
+	err = i915_gem_gtt_reserve(vm, node, size, offset, color, flags);
+	if (err != -ENOSPC)
+		return err;
+
+	/* Randomly selected placement is pinned, do a search */
 	err = i915_gem_evict_something(vm, size, alignment, color,
 				       start, end, flags);
 	if (err)
