@@ -41,6 +41,10 @@ struct can_priv {
 	const u16 *termination_const;
 	unsigned int termination_const_cnt;
 	u16 termination;
+	const u32 *bitrate_const;
+	unsigned int bitrate_const_cnt;
+	const u32 *data_bitrate_const;
+	unsigned int data_bitrate_const_cnt;
 	struct can_clock clock;
 
 	enum can_state state;
