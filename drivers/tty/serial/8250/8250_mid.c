@@ -164,6 +164,8 @@ static int dnv_setup(struct mid8250 *mid, struct uart_port *p)
 	unsigned int bar = FL_GET_BASE(mid->board->flags);
 	int ret;
 
+	pci_set_master(pdev);
+
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		return ret;
@@ -288,8 +290,6 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
-
-	pci_set_master(pdev);
 
 	mid = devm_kzalloc(&pdev->dev, sizeof(*mid), GFP_KERNEL);
 	if (!mid)
