@@ -196,6 +196,8 @@ get_cache:
 	/* build merge flush thread */
 	if (SM_I(sbi)->fcc_info)
 		si->cache_mem += sizeof(struct flush_cmd_control);
+	if (SM_I(sbi)->dcc_info)
+		si->cache_mem += sizeof(struct discard_cmd_control);
 
 	/* free nids */
 	si->cache_mem += (NM_I(sbi)->nid_cnt[FREE_NID_LIST] +
