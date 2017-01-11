@@ -28,7 +28,7 @@ endif
 endif
 
 aes-arm-y	:= aes-cipher-core.o aes-cipher-glue.o
-aes-arm-bs-y	:= aes-armv4.o aesbs-core.o aesbs-glue.o
+aes-arm-bs-y	:= aes-neonbs-core.o aes-neonbs-glue.o
 sha1-arm-y	:= sha1-armv4-large.o sha1_glue.o
 sha1-arm-neon-y	:= sha1-armv7-neon.o sha1_neon_glue.o
 sha256-arm-neon-$(CONFIG_KERNEL_MODE_NEON) := sha256_neon_glue.o
@@ -46,13 +46,10 @@ chacha20-neon-y := chacha20-neon-core.o chacha20-neon-glue.o
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $(<) > $(@)
 
-$(src)/aesbs-core.S_shipped: $(src)/bsaes-armv7.pl
-	$(call cmd,perl)
-
 $(src)/sha256-core.S_shipped: $(src)/sha256-armv4.pl
 	$(call cmd,perl)
 
 $(src)/sha512-core.S_shipped: $(src)/sha512-armv4.pl
 	$(call cmd,perl)
 
-.PRECIOUS: $(obj)/aesbs-core.S $(obj)/sha256-core.S $(obj)/sha512-core.S
+.PRECIOUS: $(obj)/sha256-core.S $(obj)/sha512-core.S
