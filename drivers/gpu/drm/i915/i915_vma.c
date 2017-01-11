@@ -431,43 +431,11 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 				goto err_unpin;
 		}
 	} else {
-		u32 search_flag, alloc_flag;
-
-		if (flags & PIN_HIGH) {
-			search_flag = DRM_MM_SEARCH_BELOW;
-			alloc_flag = DRM_MM_CREATE_TOP;
-		} else {
-			search_flag = DRM_MM_SEARCH_DEFAULT;
-			alloc_flag = DRM_MM_CREATE_DEFAULT;
-		}
-
-		/* We only allocate in PAGE_SIZE/GTT_PAGE_SIZE (4096) chunks,
-		 * so we know that we always have a minimum alignment of 4096.
-		 * The drm_mm range manager is optimised to return results
-		 * with zero alignment, so where possible use the optimal
-		 * path.
-		 */
-		if (alignment <= I915_GTT_MIN_ALIGNMENT)
-			alignment = 0;
-
-search_free:
-		ret = drm_mm_insert_node_in_range_generic(&vma->vm->mm,
-							  &vma->node,
-							  size, alignment,
-							  obj->cache_level,
-							  start, end,
-							  search_flag,
-							  alloc_flag);
-		if (ret) {
-			ret = i915_gem_evict_something(vma->vm, size, alignment,
-						       obj->cache_level,
-						       start, end,
-						       flags);
-			if (ret == 0)
-				goto search_free;
-
+		ret = i915_gem_gtt_insert(vma->vm, &vma->node,
+					  size, alignment, obj->cache_level,
+					  start, end, flags);
+		if (ret)
 			goto err_unpin;
-		}
 
 		GEM_BUG_ON(vma->node.start < start);
 		GEM_BUG_ON(vma->node.start + vma->node.size > end);
