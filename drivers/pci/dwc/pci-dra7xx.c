@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of_gpio.h>
+#include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -63,11 +64,14 @@
 #define	LINK_UP						BIT(16)
 #define	DRA7XX_CPU_TO_BUS_ADDR				0x0FFFFFFF
 
+#define EXP_CAP_ID_OFFSET				0x70
+
 struct dra7xx_pcie {
 	struct pcie_port	pp;
 	void __iomem		*base;		/* DT ti_conf */
 	int			phy_count;	/* DT phy-names count */
 	struct phy		**phy;
+	int			link_gen;
 };
 
 #define to_dra7xx_pcie(x)	container_of((x), struct dra7xx_pcie, pp)
@@ -96,10 +100,31 @@ static int dra7xx_pcie_establish_link(struct dra7xx_pcie *dra7xx)
 	struct pcie_port *pp = &dra7xx->pp;
 	struct device *dev = pp->dev;
 	u32 reg;
+	u32 exp_cap_off = EXP_CAP_ID_OFFSET;
 
 	if (dw_pcie_link_up(pp)) {
 		dev_err(dev, "link is already up\n");
 		return 0;
+	}
+
+	if (dra7xx->link_gen == 1) {
+		dw_pcie_cfg_read(pp->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
+				 4, &reg);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			dw_pcie_cfg_write(pp->dbi_base + exp_cap_off +
+					  PCI_EXP_LNKCAP, 4, reg);
+		}
+
+		dw_pcie_cfg_read(pp->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
+				 2, &reg);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			dw_pcie_cfg_write(pp->dbi_base + exp_cap_off +
+					  PCI_EXP_LNKCTL2, 2, reg);
+		}
 	}
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
@@ -396,6 +421,10 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD);
 	reg &= ~LTSSM_EN;
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_DRA7XX_CONF_DEVICE_CMD, reg);
+
+	dra7xx->link_gen = of_pci_get_max_link_speed(np);
+	if (dra7xx->link_gen < 0 || dra7xx->link_gen > 2)
+		dra7xx->link_gen = 2;
 
 	ret = dra7xx_add_pcie_port(dra7xx, pdev);
 	if (ret < 0)
