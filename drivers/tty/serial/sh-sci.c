@@ -2574,8 +2574,14 @@ static int sci_init_single(struct platform_device *dev,
 
 	port->type		= p->type;
 	port->flags		= UPF_FIXED_PORT | UPF_BOOT_AUTOCONF | p->flags;
-	port->regshift		= p->regshift;
 	port->fifosize		= sci_port->params->fifosize;
+
+	if (port->type == PORT_SCI) {
+		if (sci_port->reg_size >= 0x20)
+			port->regshift = 2;
+		else
+			port->regshift = 1;
+	}
 
 	/*
 	 * The UART port needs an IRQ value, so we peg this to the RX IRQ

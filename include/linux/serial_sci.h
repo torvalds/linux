@@ -56,7 +56,6 @@ struct plat_sci_port {
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	unsigned char	regshift;
 	unsigned char	regtype;
 
 	struct plat_sci_port_ops	*ops;

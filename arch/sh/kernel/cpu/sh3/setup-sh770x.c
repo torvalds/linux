@@ -111,7 +111,6 @@ static struct platform_device rtc_device = {
 static struct plat_sci_port scif0_platform_data = {
 	.type		= PORT_SCI,
 	.ops		= &sh770x_sci_port_ops,
-	.regshift	= 1,
 };
 
 static struct resource scif0_resources[] = {

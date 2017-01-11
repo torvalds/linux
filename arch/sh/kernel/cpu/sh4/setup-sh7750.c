@@ -39,11 +39,10 @@ static struct platform_device rtc_device = {
 
 static struct plat_sci_port sci_platform_data = {
 	.type		= PORT_SCI,
-	.regshift	= 2,
 };
 
 static struct resource sci_resources[] = {
-	DEFINE_RES_MEM(0xffe00000, 0x100),
+	DEFINE_RES_MEM(0xffe00000, 0x20),
 	DEFINE_RES_IRQ(evt2irq(0x4e0)),
 };
 
