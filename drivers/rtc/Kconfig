@@ -1716,6 +1716,17 @@ config RTC_DRV_R7301
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-r7301.
 
+config RTC_DRV_STM32
+	tristate "STM32 RTC"
+	select REGMAP_MMIO
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	   If you say yes here you get support for the STM32 On-Chip
+	   Real Time Clock.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-stm32".
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
