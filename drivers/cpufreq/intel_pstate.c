@@ -857,13 +857,13 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 	NULL,
 };
 
-static void intel_pstate_hwp_set(const struct cpumask *cpumask)
+static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 {
 	int min, hw_min, max, hw_max, cpu, range, adj_range;
 	struct perf_limits *perf_limits = limits;
 	u64 value, cap;
 
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu(cpu, policy->cpus) {
 		int max_perf_pct, min_perf_pct;
 		struct cpudata *cpu_data = all_cpu_data[cpu];
 		s16 epp;
@@ -949,7 +949,7 @@ skip_epp:
 static int intel_pstate_hwp_set_policy(struct cpufreq_policy *policy)
 {
 	if (hwp_active)
-		intel_pstate_hwp_set(policy->cpus);
+		intel_pstate_hwp_set(policy);
 
 	return 0;
 }
@@ -968,19 +968,28 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
+	int ret;
+
 	if (!hwp_active)
 		return 0;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	all_cpu_data[policy->cpu]->epp_policy = 0;
 
-	return intel_pstate_hwp_set_policy(policy);
+	ret = intel_pstate_hwp_set_policy(policy);
+
+	mutex_unlock(&intel_pstate_limits_lock);
+
+	return ret;
 }
 
-static void intel_pstate_hwp_set_online_cpus(void)
+static void intel_pstate_update_policies(void)
 {
-	get_online_cpus();
-	intel_pstate_hwp_set(cpu_online_mask);
-	put_online_cpus();
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		cpufreq_update_policy(cpu);
 }
 
 /************************** debugfs begin ************************/
@@ -1017,10 +1026,6 @@ static void __init intel_pstate_debug_expose_params(void)
 {
 	struct dentry *debugfs_parent;
 	int i = 0;
-
-	if (hwp_active ||
-	    pstate_funcs.get_target_pstate == get_target_pstate_use_cpu_load)
-		return;
 
 	debugfs_parent = debugfs_create_dir("pstate_snb", NULL);
 	if (IS_ERR_OR_NULL(debugfs_parent))
@@ -1105,10 +1110,9 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	limits->no_turbo = clamp_t(int, input, 0, 1);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
@@ -1134,10 +1138,9 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->max_perf_pct);
 	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
@@ -1163,10 +1166,9 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->min_perf_pct);
 	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
@@ -2153,7 +2155,11 @@ static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 	if (per_cpu_limits)
 		perf_limits = cpu->perf_limits;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	intel_pstate_update_perf_limits(policy, perf_limits);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	return 0;
 }
@@ -2487,7 +2493,10 @@ hwp_cpu_matched:
 	if (rc)
 		goto out;
 
-	intel_pstate_debug_expose_params();
+	if (intel_pstate_driver == &intel_pstate && !hwp_active &&
+	    pstate_funcs.get_target_pstate != get_target_pstate_use_cpu_load)
+		intel_pstate_debug_expose_params();
+
 	intel_pstate_sysfs_expose_params();
 
 	if (hwp_active)
