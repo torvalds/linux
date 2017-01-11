@@ -439,9 +439,9 @@ static unsigned long lcdc_sys_read_data(void *handle)
 }
 
 static struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
-	lcdc_sys_write_index,
-	lcdc_sys_write_data,
-	lcdc_sys_read_data,
+	.write_index	= lcdc_sys_write_index,
+	.write_data	= lcdc_sys_write_data,
+	.read_data	= lcdc_sys_read_data,
 };
 
 static int sh_mobile_lcdc_sginit(struct fb_info *info,
