@@ -525,11 +525,13 @@ config VEXPRESS_SYSCFG
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
 
-config UID_CPUTIME
-	bool "Per-UID cpu time statistics"
+config UID_SYS_STATS
+	bool "Per-UID statistics"
 	depends on PROFILING
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
+	  Per UID based io statistics exported to /proc/uid_io
+	  Per UID based procstat control in /proc/uid_procstat
 
 config MEMORY_STATE_TIME
 	tristate "Memory freq/bandwidth time statistics"
