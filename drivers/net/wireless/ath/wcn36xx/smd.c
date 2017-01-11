@@ -19,6 +19,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/bitops.h>
+#include <linux/soc/qcom/smd.h>
 #include "smd.h"
 
 struct wcn36xx_cfg_val {
@@ -253,7 +254,7 @@ static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 
 	init_completion(&wcn->hal_rsp_compl);
 	start = jiffies;
-	ret = wcn->ctrl_ops->tx(wcn->hal_buf, len);
+	ret = qcom_smd_send(wcn->smd_channel, wcn->hal_buf, len);
 	if (ret) {
 		wcn36xx_err("HAL TX failed\n");
 		goto out;
@@ -2180,9 +2181,12 @@ out:
 	return ret;
 }
 
-static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
+int wcn36xx_smd_rsp_process(struct qcom_smd_channel *channel,
+			    const void *buf, size_t len)
 {
-	struct wcn36xx_hal_msg_header *msg_header = buf;
+	const struct wcn36xx_hal_msg_header *msg_header = buf;
+	struct ieee80211_hw *hw = qcom_smd_get_drvdata(channel);
+	struct wcn36xx *wcn = hw->priv;
 	struct wcn36xx_hal_ind_msg *msg_ind;
 	wcn36xx_dbg_dump(WCN36XX_DBG_SMD_DUMP, "SMD <<< ", buf, len);
 
@@ -2233,15 +2237,11 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_OTA_TX_COMPL_IND:
 	case WCN36XX_HAL_MISSED_BEACON_IND:
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
-		msg_ind = kmalloc(sizeof(*msg_ind) + len, GFP_KERNEL);
+		msg_ind = kmalloc(sizeof(*msg_ind) + len, GFP_ATOMIC);
 		if (!msg_ind) {
-			/*
-			 * FIXME: Do something smarter then just
-			 * printing an error.
-			 */
 			wcn36xx_err("Run out of memory while handling SMD_EVENT (%d)\n",
 				    msg_header->msg_type);
-			break;
+			return -ENOMEM;
 		}
 
 		msg_ind->msg_len = len;
@@ -2257,6 +2257,8 @@ static void wcn36xx_smd_rsp_process(struct wcn36xx *wcn, void *buf, size_t len)
 		wcn36xx_err("SMD_EVENT (%d) not supported\n",
 			      msg_header->msg_type);
 	}
+
+	return 0;
 }
 static void wcn36xx_ind_smd_work(struct work_struct *work)
 {
@@ -2315,22 +2317,13 @@ int wcn36xx_smd_open(struct wcn36xx *wcn)
 	INIT_LIST_HEAD(&wcn->hal_ind_queue);
 	spin_lock_init(&wcn->hal_ind_lock);
 
-	ret = wcn->ctrl_ops->open(wcn, wcn36xx_smd_rsp_process);
-	if (ret) {
-		wcn36xx_err("failed to open control channel\n");
-		goto free_wq;
-	}
+	return 0;
 
-	return ret;
-
-free_wq:
-	destroy_workqueue(wcn->hal_ind_wq);
 out:
 	return ret;
 }
 
 void wcn36xx_smd_close(struct wcn36xx *wcn)
 {
-	wcn->ctrl_ops->close();
 	destroy_workqueue(wcn->hal_ind_wq);
 }

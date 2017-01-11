@@ -1,6 +1,8 @@
 config WCN36XX
 	tristate "Qualcomm Atheros WCN3660/3680 support"
 	depends on MAC80211 && HAS_DMA
+	depends on QCOM_WCNSS_CTRL || QCOM_WCNSS_CTRL=n
+	depends on QCOM_SMD || QCOM_SMD=n
 	---help---
 	  This module adds support for wireless adapters based on
 	  Qualcomm Atheros WCN3660 and WCN3680 mobile chipsets.

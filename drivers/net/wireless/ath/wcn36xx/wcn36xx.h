@@ -103,19 +103,6 @@ struct nv_data {
 	u8	table;
 };
 
-/* Interface for platform control path
- *
- * @open: hook must be called when wcn36xx wants to open control channel.
- * @tx: sends a buffer.
- */
-struct wcn36xx_platform_ctrl_ops {
-	int (*open)(void *drv_priv, void *rsp_cb);
-	void (*close)(void);
-	int (*tx)(char *buf, size_t len);
-	int (*get_hw_mac)(u8 *addr);
-	int (*smsm_change_state)(u32 clear_mask, u32 set_mask);
-};
-
 /**
  * struct wcn36xx_vif - holds VIF related fields
  *
@@ -205,7 +192,13 @@ struct wcn36xx {
 	void __iomem		*ccu_base;
 	void __iomem		*dxe_base;
 
-	struct wcn36xx_platform_ctrl_ops *ctrl_ops;
+	struct qcom_smd_channel *smd_channel;
+
+	struct qcom_smem_state  *tx_enable_state;
+	unsigned		tx_enable_state_bit;
+	struct qcom_smem_state	*tx_rings_empty_state;
+	unsigned		tx_rings_empty_state_bit;
+
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
 	 * that all messages are sent one after another
