@@ -303,6 +303,41 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.update_time	= ovl_update_time,
 };
 
+/*
+ * It is possible to stack overlayfs instance on top of another
+ * overlayfs instance as lower layer. We need to annonate the
+ * stackable i_mutex locks according to stack level of the super
+ * block instance. An overlayfs instance can never be in stack
+ * depth 0 (there is always a real fs below it).  An overlayfs
+ * inode lock will use the lockdep annotaion ovl_i_mutex_key[depth].
+ *
+ * For example, here is a snip from /proc/lockdep_chains after
+ * dir_iterate of nested overlayfs:
+ *
+ * [...] &ovl_i_mutex_dir_key[depth]   (stack_depth=2)
+ * [...] &ovl_i_mutex_dir_key[depth]#2 (stack_depth=1)
+ * [...] &type->i_mutex_dir_key        (stack_depth=0)
+ */
+#define OVL_MAX_NESTING FILESYSTEM_MAX_STACK_DEPTH
+
+static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
+{
+#ifdef CONFIG_LOCKDEP
+	static struct lock_class_key ovl_i_mutex_key[OVL_MAX_NESTING];
+	static struct lock_class_key ovl_i_mutex_dir_key[OVL_MAX_NESTING];
+
+	int depth = inode->i_sb->s_stack_depth - 1;
+
+	if (WARN_ON_ONCE(depth < 0 || depth >= OVL_MAX_NESTING))
+		depth = 0;
+
+	if (S_ISDIR(inode->i_mode))
+		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_dir_key[depth]);
+	else
+		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_key[depth]);
+#endif
+}
+
 static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_ino = get_next_ino();
@@ -311,6 +346,8 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 #ifdef CONFIG_FS_POSIX_ACL
 	inode->i_acl = inode->i_default_acl = ACL_DONT_CACHE;
 #endif
+
+	ovl_lockdep_annotate_inode_mutex_key(inode);
 
 	switch (mode & S_IFMT) {
 	case S_IFREG:
