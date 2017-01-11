@@ -116,9 +116,6 @@ static int vv6410_init(struct sd *sd)
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++)
 		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
 
-	if (err < 0)
-		return err;
-
 	err = stv06xx_write_sensor_bytes(sd, (u8 *) vv6410_sensor_init,
 					 ARRAY_SIZE(vv6410_sensor_init));
 	return (err < 0) ? err : 0;
