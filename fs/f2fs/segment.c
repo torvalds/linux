@@ -653,6 +653,9 @@ static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *d
 {
 	int err = dc->bio->bi_error;
 
+	if (dc->state == D_DONE)
+		atomic_dec(&(SM_I(sbi)->dcc_info->submit_discard));
+
 	if (err == -EOPNOTSUPP)
 		err = 0;
 
@@ -678,6 +681,7 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 			if (dc->state == D_PREP) {
 				dc->state = D_SUBMIT;
 				submit_bio(dc->bio);
+				atomic_inc(&dcc->submit_discard);
 			}
 			wait_for_completion_io(&dc->wait);
 
@@ -723,6 +727,7 @@ repeat:
 		if (dc->state == D_PREP) {
 			dc->state = D_SUBMIT;
 			submit_bio(dc->bio);
+			atomic_inc(&dcc->submit_discard);
 			if (iter++ > DISCARD_ISSUE_RATE)
 				break;
 		} else if (dc->state == D_DONE) {
@@ -1049,6 +1054,7 @@ int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	INIT_LIST_HEAD(&dcc->discard_entry_list);
 	INIT_LIST_HEAD(&dcc->discard_cmd_list);
 	mutex_init(&dcc->cmd_lock);
+	atomic_set(&dcc->submit_discard, 0);
 	dcc->nr_discards = 0;
 	dcc->max_discards = 0;
 
