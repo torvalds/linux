@@ -432,30 +432,30 @@ static int amd_ntb_spad_write(struct ntb_dev *ntb,
 	return 0;
 }
 
-static u32 amd_ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
+static u32 amd_ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
 	void __iomem *mmio = ndev->self_mmio;
 	u32 offset;
 
-	if (idx < 0 || idx >= ndev->spad_count)
+	if (sidx < 0 || sidx >= ndev->spad_count)
 		return -EINVAL;
 
-	offset = ndev->peer_spad + (idx << 2);
+	offset = ndev->peer_spad + (sidx << 2);
 	return readl(mmio + AMD_SPAD_OFFSET + offset);
 }
 
-static int amd_ntb_peer_spad_write(struct ntb_dev *ntb,
-				   int idx, u32 val)
+static int amd_ntb_peer_spad_write(struct ntb_dev *ntb, int pidx,
+				   int sidx, u32 val)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
 	void __iomem *mmio = ndev->self_mmio;
 	u32 offset;
 
-	if (idx < 0 || idx >= ndev->spad_count)
+	if (sidx < 0 || sidx >= ndev->spad_count)
 		return -EINVAL;
 
-	offset = ndev->peer_spad + (idx << 2);
+	offset = ndev->peer_spad + (sidx << 2);
 	writel(val, mmio + AMD_SPAD_OFFSET + offset);
 
 	return 0;

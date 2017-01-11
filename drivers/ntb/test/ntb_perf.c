@@ -518,9 +518,9 @@ static void perf_link_work(struct work_struct *work)
 	if (max_mw_size && size > max_mw_size)
 		size = max_mw_size;
 
-	ntb_peer_spad_write(ndev, MW_SZ_HIGH, upper_32_bits(size));
-	ntb_peer_spad_write(ndev, MW_SZ_LOW, lower_32_bits(size));
-	ntb_peer_spad_write(ndev, VERSION, PERF_VERSION);
+	ntb_peer_spad_write(ndev, PIDX, MW_SZ_HIGH, upper_32_bits(size));
+	ntb_peer_spad_write(ndev, PIDX, MW_SZ_LOW, lower_32_bits(size));
+	ntb_peer_spad_write(ndev, PIDX, VERSION, PERF_VERSION);
 
 	/* now read what peer wrote */
 	val = ntb_spad_read(ndev, VERSION);

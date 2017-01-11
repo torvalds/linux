@@ -462,13 +462,22 @@ static TOOL_FOPS_RDWR(tool_spad_fops,
 		      tool_spad_read,
 		      tool_spad_write);
 
+static u32 ntb_tool_peer_spad_read(struct ntb_dev *ntb, int sidx)
+{
+	return ntb_peer_spad_read(ntb, PIDX, sidx);
+}
+
 static ssize_t tool_peer_spad_read(struct file *filep, char __user *ubuf,
 				   size_t size, loff_t *offp)
 {
 	struct tool_ctx *tc = filep->private_data;
 
-	return tool_spadfn_read(tc, ubuf, size, offp,
-				tc->ntb->ops->peer_spad_read);
+	return tool_spadfn_read(tc, ubuf, size, offp, ntb_tool_peer_spad_read);
+}
+
+static int ntb_tool_peer_spad_write(struct ntb_dev *ntb, int sidx, u32 val)
+{
+	return ntb_peer_spad_write(ntb, PIDX, sidx, val);
 }
 
 static ssize_t tool_peer_spad_write(struct file *filep, const char __user *ubuf,
@@ -477,7 +486,7 @@ static ssize_t tool_peer_spad_write(struct file *filep, const char __user *ubuf,
 	struct tool_ctx *tc = filep->private_data;
 
 	return tool_spadfn_write(tc, ubuf, size, offp,
-				 tc->ntb->ops->peer_spad_write);
+				 ntb_tool_peer_spad_write);
 }
 
 static TOOL_FOPS_RDWR(tool_peer_spad_fops,
@@ -922,6 +931,12 @@ static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
 
 	if (!ntb->ops->mw_set_trans) {
 		dev_dbg(&ntb->dev, "need inbound MW based NTB API\n");
+		rc = -EINVAL;
+		goto err_tc;
+	}
+
+	if (ntb_spad_count(ntb) < 1) {
+		dev_dbg(&ntb->dev, "no enough scratchpads\n");
 		rc = -EINVAL;
 		goto err_tc;
 	}

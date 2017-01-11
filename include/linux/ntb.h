@@ -288,13 +288,14 @@ struct ntb_dev_ops {
 	int (*spad_is_unsafe)(struct ntb_dev *ntb);
 	int (*spad_count)(struct ntb_dev *ntb);
 
-	u32 (*spad_read)(struct ntb_dev *ntb, int idx);
-	int (*spad_write)(struct ntb_dev *ntb, int idx, u32 val);
+	u32 (*spad_read)(struct ntb_dev *ntb, int sidx);
+	int (*spad_write)(struct ntb_dev *ntb, int sidx, u32 val);
 
-	int (*peer_spad_addr)(struct ntb_dev *ntb, int idx,
+	int (*peer_spad_addr)(struct ntb_dev *ntb, int pidx, int sidx,
 			      phys_addr_t *spad_addr);
-	u32 (*peer_spad_read)(struct ntb_dev *ntb, int idx);
-	int (*peer_spad_write)(struct ntb_dev *ntb, int idx, u32 val);
+	u32 (*peer_spad_read)(struct ntb_dev *ntb, int pidx, int sidx);
+	int (*peer_spad_write)(struct ntb_dev *ntb, int pidx, int sidx,
+			       u32 val);
 };
 
 static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
@@ -335,13 +336,12 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* ops->peer_db_read_mask		&& */
 		/* ops->peer_db_set_mask		&& */
 		/* ops->peer_db_clear_mask		&& */
-		/* ops->spad_is_unsafe			&& */
-		ops->spad_count				&&
-		ops->spad_read				&&
-		ops->spad_write				&&
-		/* ops->peer_spad_addr			&& */
-		/* ops->peer_spad_read			&& */
-		ops->peer_spad_write			&&
+		/* !ops->spad_is_unsafe == !ops->spad_count	&& */
+		!ops->spad_read == !ops->spad_count		&&
+		!ops->spad_write == !ops->spad_count		&&
+		/* !ops->peer_spad_addr == !ops->spad_count	&& */
+		/* !ops->peer_spad_read == !ops->spad_count	&& */
+		!ops->peer_spad_write == !ops->spad_count	&&
 		1;
 }
 
@@ -1176,47 +1176,58 @@ static inline int ntb_spad_is_unsafe(struct ntb_dev *ntb)
  * @ntb:	NTB device context.
  *
  * Hardware and topology may support a different number of scratchpads.
+ * Although it must be the same for all ports per NTB device.
  *
  * Return: the number of scratchpads.
  */
 static inline int ntb_spad_count(struct ntb_dev *ntb)
 {
+	if (!ntb->ops->spad_count)
+		return 0;
+
 	return ntb->ops->spad_count(ntb);
 }
 
 /**
  * ntb_spad_read() - read the local scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @sidx:	Scratchpad index.
  *
  * Read the local scratchpad register, and return the value.
  *
  * Return: The value of the local scratchpad register.
  */
-static inline u32 ntb_spad_read(struct ntb_dev *ntb, int idx)
+static inline u32 ntb_spad_read(struct ntb_dev *ntb, int sidx)
 {
-	return ntb->ops->spad_read(ntb, idx);
+	if (!ntb->ops->spad_read)
+		return ~(u32)0;
+
+	return ntb->ops->spad_read(ntb, sidx);
 }
 
 /**
  * ntb_spad_write() - write the local scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @sidx:	Scratchpad index.
  * @val:	Scratchpad value.
  *
  * Write the value to the local scratchpad register.
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
+static inline int ntb_spad_write(struct ntb_dev *ntb, int sidx, u32 val)
 {
-	return ntb->ops->spad_write(ntb, idx, val);
+	if (!ntb->ops->spad_write)
+		return -EINVAL;
+
+	return ntb->ops->spad_write(ntb, sidx, val);
 }
 
 /**
  * ntb_peer_spad_addr() - address of the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  * @spad_addr:	OUT - The address of the peer scratchpad register.
  *
  * Return the address of the peer doorbell register.  This may be used, for
@@ -1224,45 +1235,51 @@ static inline int ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
+static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx, int sidx,
 				     phys_addr_t *spad_addr)
 {
 	if (!ntb->ops->peer_spad_addr)
 		return -EINVAL;
 
-	return ntb->ops->peer_spad_addr(ntb, idx, spad_addr);
+	return ntb->ops->peer_spad_addr(ntb, pidx, sidx, spad_addr);
 }
 
 /**
  * ntb_peer_spad_read() - read the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  *
  * Read the peer scratchpad register, and return the value.
  *
  * Return: The value of the local scratchpad register.
  */
-static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
+static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx)
 {
 	if (!ntb->ops->peer_spad_read)
-		return 0;
+		return ~(u32)0;
 
-	return ntb->ops->peer_spad_read(ntb, idx);
+	return ntb->ops->peer_spad_read(ntb, pidx, sidx);
 }
 
 /**
  * ntb_peer_spad_write() - write the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  * @val:	Scratchpad value.
  *
  * Write the value to the peer scratchpad register.
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_peer_spad_write(struct ntb_dev *ntb, int idx, u32 val)
+static inline int ntb_peer_spad_write(struct ntb_dev *ntb, int pidx, int sidx,
+				      u32 val)
 {
-	return ntb->ops->peer_spad_write(ntb, idx, val);
+	if (!ntb->ops->peer_spad_write)
+		return -EINVAL;
+
+	return ntb->ops->peer_spad_write(ntb, pidx, sidx, val);
 }
 
 #endif

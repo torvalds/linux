@@ -1409,30 +1409,30 @@ static int intel_ntb_spad_write(struct ntb_dev *ntb,
 			       ndev->self_reg->spad);
 }
 
-static int intel_ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
+static int intel_ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx, int sidx,
 				    phys_addr_t *spad_addr)
 {
 	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
 
-	return ndev_spad_addr(ndev, idx, spad_addr, ndev->peer_addr,
+	return ndev_spad_addr(ndev, sidx, spad_addr, ndev->peer_addr,
 			      ndev->peer_reg->spad);
 }
 
-static u32 intel_ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
+static u32 intel_ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx)
 {
 	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
 
-	return ndev_spad_read(ndev, idx,
+	return ndev_spad_read(ndev, sidx,
 			      ndev->peer_mmio +
 			      ndev->peer_reg->spad);
 }
 
-static int intel_ntb_peer_spad_write(struct ntb_dev *ntb,
-				     int idx, u32 val)
+static int intel_ntb_peer_spad_write(struct ntb_dev *ntb, int pidx,
+				     int sidx, u32 val)
 {
 	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
 
-	return ndev_spad_write(ndev, idx, val,
+	return ndev_spad_write(ndev, sidx, val,
 			       ndev->peer_mmio +
 			       ndev->peer_reg->spad);
 }

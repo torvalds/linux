@@ -138,7 +138,7 @@ static void pp_ping(unsigned long ctx)
 			"Ping bits %#llx read %#x write %#x\n",
 			db_bits, spad_rd, spad_wr);
 
-		ntb_peer_spad_write(pp->ntb, 0, spad_wr);
+		ntb_peer_spad_write(pp->ntb, PIDX, 0, spad_wr);
 		ntb_peer_db_set(pp->ntb, db_bits);
 		ntb_db_clear_mask(pp->ntb, db_mask);
 
@@ -223,6 +223,12 @@ static int pp_probe(struct ntb_client *client,
 			rc = -EINVAL;
 			goto err_pp;
 		}
+	}
+
+	if (ntb_spad_count(ntb) < 1) {
+		dev_dbg(&ntb->dev, "no enough scratchpads\n");
+		rc = -EINVAL;
+		goto err_pp;
 	}
 
 	if (ntb_spad_is_unsafe(ntb)) {
