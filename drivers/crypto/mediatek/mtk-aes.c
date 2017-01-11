@@ -221,7 +221,7 @@ static int mtk_aes_info_map(struct mtk_cryp *cryp,
 	aes->ct_dma = dma_map_single(cryp->dev, info, sizeof(*info),
 					DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(cryp->dev, aes->ct_dma))) {
-		dev_err(cryp->dev, "dma %d bytes error\n", sizeof(*info));
+		dev_err(cryp->dev, "dma %zu bytes error\n", sizeof(*info));
 		return -EINVAL;
 	}
 	aes->tfm_dma = aes->ct_dma + sizeof(*ct);

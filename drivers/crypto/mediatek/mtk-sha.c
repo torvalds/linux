@@ -341,7 +341,7 @@ static int mtk_sha_info_map(struct mtk_cryp *cryp,
 	sha->ct_dma = dma_map_single(cryp->dev, info, sizeof(*info),
 				      DMA_BIDIRECTIONAL);
 	if (unlikely(dma_mapping_error(cryp->dev, sha->ct_dma))) {
-		dev_err(cryp->dev, "dma %d bytes error\n", sizeof(*info));
+		dev_err(cryp->dev, "dma %zu bytes error\n", sizeof(*info));
 		return -EINVAL;
 	}
 	sha->tfm_dma = sha->ct_dma + sizeof(*ct);
@@ -547,7 +547,7 @@ static int mtk_sha_update_slow(struct mtk_cryp *cryp,
 
 	final = (ctx->flags & SHA_FLAGS_FINUP) && !ctx->total;
 
-	dev_dbg(cryp->dev, "slow: bufcnt: %u\n", ctx->bufcnt);
+	dev_dbg(cryp->dev, "slow: bufcnt: %zu\n", ctx->bufcnt);
 
 	if (final) {
 		sha->flags |= SHA_FLAGS_FINAL;
