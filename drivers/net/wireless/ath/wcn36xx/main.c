@@ -1241,7 +1241,6 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform remove\n");
 
 	release_firmware(wcn->nv);
-	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);
 
@@ -1250,6 +1249,8 @@ static int wcn36xx_remove(struct platform_device *pdev)
 
 	iounmap(wcn->dxe_base);
 	iounmap(wcn->ccu_base);
+
+	mutex_destroy(&wcn->hal_mutex);
 	ieee80211_free_hw(hw);
 
 	return 0;
