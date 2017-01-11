@@ -626,14 +626,16 @@ __init void e820_setup_gap(void)
 	gapsize = 0x400000;
 	found  = e820_search_gap(&gapstart, &gapsize);
 
-#ifdef CONFIG_X86_64
 	if (!found) {
+#ifdef CONFIG_X86_64
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
 		printk(KERN_ERR
 	"e820: cannot find a gap in the 32bit address range\n"
 	"e820: PCI devices with unassigned 32bit BARs may break!\n");
-	}
+#else
+		gapstart = 0x10000000;
 #endif
+	}
 
 	/*
 	 * e820_reserve_resources_late protect stolen RAM already
