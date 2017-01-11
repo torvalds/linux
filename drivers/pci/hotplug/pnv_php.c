@@ -717,7 +717,8 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 	if (sts & PCI_EXP_SLTSTA_DLLSC) {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lsts);
 		added = !!(lsts & PCI_EXP_LNKSTA_DLLLA);
-	} else if (sts & PCI_EXP_SLTSTA_PDC) {
+	} else if (!(php_slot->flags & PNV_PHP_FLAG_BROKEN_PDC) &&
+		   (sts & PCI_EXP_SLTSTA_PDC)) {
 		ret = pnv_pci_get_presence_state(php_slot->id, &presence);
 		if (ret) {
 			dev_warn(&pdev->dev, "PCI slot [%s] error %d getting presence (0x%04x), to retry the operation.\n",
@@ -768,6 +769,7 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 {
 	struct pci_dev *pdev = php_slot->pdev;
+	u32 broken_pdc = 0;
 	u16 sts, ctrl;
 	int ret;
 
@@ -779,9 +781,18 @@ static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 		return;
 	}
 
+	/* Check PDC (Presence Detection Change) is broken or not */
+	ret = of_property_read_u32(php_slot->dn, "ibm,slot-broken-pdc",
+				   &broken_pdc);
+	if (!ret && broken_pdc)
+		php_slot->flags |= PNV_PHP_FLAG_BROKEN_PDC;
+
 	/* Clear pending interrupts */
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &sts);
-	sts |= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
+	if (php_slot->flags & PNV_PHP_FLAG_BROKEN_PDC)
+		sts |= PCI_EXP_SLTSTA_DLLSC;
+	else
+		sts |= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, sts);
 
 	/* Request the interrupt */
@@ -795,9 +806,15 @@ static void pnv_php_init_irq(struct pnv_php_slot *php_slot, int irq)
 
 	/* Enable the interrupts */
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &ctrl);
-	ctrl |= (PCI_EXP_SLTCTL_HPIE |
-		 PCI_EXP_SLTCTL_PDCE |
-		 PCI_EXP_SLTCTL_DLLSCE);
+	if (php_slot->flags & PNV_PHP_FLAG_BROKEN_PDC) {
+		ctrl &= ~PCI_EXP_SLTCTL_PDCE;
+		ctrl |= (PCI_EXP_SLTCTL_HPIE |
+			 PCI_EXP_SLTCTL_DLLSCE);
+	} else {
+		ctrl |= (PCI_EXP_SLTCTL_HPIE |
+			 PCI_EXP_SLTCTL_PDCE |
+			 PCI_EXP_SLTCTL_DLLSCE);
+	}
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, ctrl);
 
 	/* The interrupt is initialized successfully when @irq is valid */
