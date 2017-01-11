@@ -67,9 +67,12 @@ static int chacha20_simd(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha20_ctx *ctx = crypto_skcipher_ctx(tfm);
-	u32 state[16] __aligned(CHACHA20_STATE_ALIGN);
+	u32 *state, state_buf[16 + 2] __aligned(8);
 	struct skcipher_walk walk;
 	int err;
+
+	BUILD_BUG_ON(CHACHA20_STATE_ALIGN != 16);
+	state = PTR_ALIGN(state_buf + 0, CHACHA20_STATE_ALIGN);
 
 	if (req->cryptlen <= CHACHA20_BLOCK_SIZE || !may_use_simd())
 		return crypto_chacha20_crypt(req);
