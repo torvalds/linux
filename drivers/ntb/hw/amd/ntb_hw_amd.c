@@ -5,6 +5,7 @@
  *   GPL LICENSE SUMMARY
  *
  *   Copyright (C) 2016 Advanced Micro Devices, Inc. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -13,6 +14,7 @@
  *   BSD LICENSE
  *
  *   Copyright (C) 2016 Advanced Micro Devices, Inc. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -79,40 +81,42 @@ static int ndev_mw_to_bar(struct amd_ntb_dev *ndev, int idx)
 	return 1 << idx;
 }
 
-static int amd_ntb_mw_count(struct ntb_dev *ntb)
+static int amd_ntb_mw_count(struct ntb_dev *ntb, int pidx)
 {
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
 	return ntb_ndev(ntb)->mw_count;
 }
 
-static int amd_ntb_mw_get_range(struct ntb_dev *ntb, int idx,
-				phys_addr_t *base,
-				resource_size_t *size,
-				resource_size_t *align,
-				resource_size_t *align_size)
+static int amd_ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int idx,
+				resource_size_t *addr_align,
+				resource_size_t *size_align,
+				resource_size_t *size_max)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
 	int bar;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
 
 	bar = ndev_mw_to_bar(ndev, idx);
 	if (bar < 0)
 		return bar;
 
-	if (base)
-		*base = pci_resource_start(ndev->ntb.pdev, bar);
+	if (addr_align)
+		*addr_align = SZ_4K;
 
-	if (size)
-		*size = pci_resource_len(ndev->ntb.pdev, bar);
+	if (size_align)
+		*size_align = 1;
 
-	if (align)
-		*align = SZ_4K;
-
-	if (align_size)
-		*align_size = 1;
+	if (size_max)
+		*size_max = pci_resource_len(ndev->ntb.pdev, bar);
 
 	return 0;
 }
 
-static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
+static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 				dma_addr_t addr, resource_size_t size)
 {
 	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
@@ -121,6 +125,9 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	void __iomem *mmio, *peer_mmio;
 	u64 base_addr, limit, reg_val;
 	int bar;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
 
 	bar = ndev_mw_to_bar(ndev, idx);
 	if (bar < 0)
@@ -284,6 +291,31 @@ static int amd_ntb_link_disable(struct ntb_dev *ntb)
 	return 0;
 }
 
+static int amd_ntb_peer_mw_count(struct ntb_dev *ntb)
+{
+	/* The same as for inbound MWs */
+	return ntb_ndev(ntb)->mw_count;
+}
+
+static int amd_ntb_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
+				    phys_addr_t *base, resource_size_t *size)
+{
+	struct amd_ntb_dev *ndev = ntb_ndev(ntb);
+	int bar;
+
+	bar = ndev_mw_to_bar(ndev, idx);
+	if (bar < 0)
+		return bar;
+
+	if (base)
+		*base = pci_resource_start(ndev->ntb.pdev, bar);
+
+	if (size)
+		*size = pci_resource_len(ndev->ntb.pdev, bar);
+
+	return 0;
+}
+
 static u64 amd_ntb_db_valid_mask(struct ntb_dev *ntb)
 {
 	return ntb_ndev(ntb)->db_valid_mask;
@@ -431,8 +463,10 @@ static int amd_ntb_peer_spad_write(struct ntb_dev *ntb,
 
 static const struct ntb_dev_ops amd_ntb_ops = {
 	.mw_count		= amd_ntb_mw_count,
-	.mw_get_range		= amd_ntb_mw_get_range,
+	.mw_get_align		= amd_ntb_mw_get_align,
 	.mw_set_trans		= amd_ntb_mw_set_trans,
+	.peer_mw_count		= amd_ntb_peer_mw_count,
+	.peer_mw_get_addr	= amd_ntb_peer_mw_get_addr,
 	.link_is_up		= amd_ntb_link_is_up,
 	.link_enable		= amd_ntb_link_enable,
 	.link_disable		= amd_ntb_link_disable,
