@@ -125,10 +125,6 @@ struct sci_port {
 	resource_size_t		reg_size;
 	struct mctrl_gpios	*gpios;
 
-	/* Break timer */
-	struct timer_list	break_timer;
-	int			break_flag;
-
 	/* Clocks */
 	struct clk		*clks[SCI_NUM_CLKS];
 	unsigned long		clk_rates[SCI_NUM_CLKS];
@@ -517,14 +513,6 @@ static void sci_port_disable(struct sci_port *sci_port)
 	if (!sci_port->port.dev)
 		return;
 
-	/* Cancel the break timer to ensure that the timer handler will not try
-	 * to access the hardware with clocks and power disabled. Reset the
-	 * break flag to make the break debouncing state machine ready for the
-	 * next break.
-	 */
-	del_timer_sync(&sci_port->break_timer);
-	sci_port->break_flag = 0;
-
 	for (i = SCI_NUM_CLKS; i-- > 0; )
 		clk_disable_unprepare(sci_port->clks[i]);
 
@@ -751,20 +739,6 @@ static int sci_rxfill(struct uart_port *port)
 	return (serial_port_in(port, SCxSR) & SCxSR_RDxF(port)) != 0;
 }
 
-/*
- * SCI helper for checking the state of the muxed port/RXD pins.
- */
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	struct sci_port *s = to_sci_port(port);
-
-	if (s->cfg->port_reg <= 0)
-		return 1;
-
-	/* Cast for ARM damage */
-	return !!__raw_readb((void __iomem *)(uintptr_t)s->cfg->port_reg);
-}
-
 /* ********************************************************************** *
  *                   the interrupt related routines                       *
  * ********************************************************************** */
@@ -832,7 +806,6 @@ static void sci_transmit_chars(struct uart_port *port)
 
 static void sci_receive_chars(struct uart_port *port)
 {
-	struct sci_port *sci_port = to_sci_port(port);
 	struct tty_port *tport = &port->state->port;
 	int i, count, copied = 0;
 	unsigned short status;
@@ -852,8 +825,7 @@ static void sci_receive_chars(struct uart_port *port)
 
 		if (port->type == PORT_SCI) {
 			char c = serial_port_in(port, SCxRDR);
-			if (uart_handle_sysrq_char(port, c) ||
-			    sci_port->break_flag)
+			if (uart_handle_sysrq_char(port, c))
 				count = 0;
 			else
 				tty_insert_flip_char(tport, c, TTY_NORMAL);
@@ -862,25 +834,6 @@ static void sci_receive_chars(struct uart_port *port)
 				char c = serial_port_in(port, SCxRDR);
 
 				status = serial_port_in(port, SCxSR);
-#if defined(CONFIG_CPU_SH3)
-				/* Skip "chars" during break */
-				if (sci_port->break_flag) {
-					if ((c == 0) &&
-					    (status & SCxSR_FER(port))) {
-						count--; i--;
-						continue;
-					}
-
-					/* Nonzero => end-of-break */
-					dev_dbg(port->dev, "debounce<%02x>\n", c);
-					sci_port->break_flag = 0;
-
-					if (STEPFN(c)) {
-						count--; i--;
-						continue;
-					}
-				}
-#endif /* CONFIG_CPU_SH3 */
 				if (uart_handle_sysrq_char(port, c)) {
 					count--; i--;
 					continue;
@@ -918,37 +871,6 @@ static void sci_receive_chars(struct uart_port *port)
 	}
 }
 
-#define SCI_BREAK_JIFFIES (HZ/20)
-
-/*
- * The sci generates interrupts during the break,
- * 1 per millisecond or so during the break period, for 9600 baud.
- * So dont bother disabling interrupts.
- * But dont want more than 1 break event.
- * Use a kernel timer to periodically poll the rx line until
- * the break is finished.
- */
-static inline void sci_schedule_break_timer(struct sci_port *port)
-{
-	mod_timer(&port->break_timer, jiffies + SCI_BREAK_JIFFIES);
-}
-
-/* Ensure that two consecutive samples find the break over. */
-static void sci_break_timer(unsigned long data)
-{
-	struct sci_port *port = (struct sci_port *)data;
-
-	if (sci_rxd_in(&port->port) == 0) {
-		port->break_flag = 1;
-		sci_schedule_break_timer(port);
-	} else if (port->break_flag == 1) {
-		/* break is over. */
-		port->break_flag = 2;
-		sci_schedule_break_timer(port);
-	} else
-		port->break_flag = 0;
-}
-
 static int sci_handle_errors(struct uart_port *port)
 {
 	int copied = 0;
@@ -968,35 +890,13 @@ static int sci_handle_errors(struct uart_port *port)
 	}
 
 	if (status & SCxSR_FER(port)) {
-		if (sci_rxd_in(port) == 0) {
-			/* Notify of BREAK */
-			struct sci_port *sci_port = to_sci_port(port);
+		/* frame error */
+		port->icount.frame++;
 
-			if (!sci_port->break_flag) {
-				port->icount.brk++;
+		if (tty_insert_flip_char(tport, 0, TTY_FRAME))
+			copied++;
 
-				sci_port->break_flag = 1;
-				sci_schedule_break_timer(sci_port);
-
-				/* Do sysrq handling. */
-				if (uart_handle_break(port))
-					return 0;
-
-				dev_dbg(port->dev, "BREAK detected\n");
-
-				if (tty_insert_flip_char(tport, 0, TTY_BREAK))
-					copied++;
-			}
-
-		} else {
-			/* frame error */
-			port->icount.frame++;
-
-			if (tty_insert_flip_char(tport, 0, TTY_FRAME))
-				copied++;
-
-			dev_notice(port->dev, "frame error\n");
-		}
+		dev_notice(port->dev, "frame error\n");
 	}
 
 	if (status & SCxSR_PER(port)) {
@@ -1049,17 +949,11 @@ static int sci_handle_breaks(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = serial_port_in(port, SCxSR);
 	struct tty_port *tport = &port->state->port;
-	struct sci_port *s = to_sci_port(port);
 
 	if (uart_handle_break(port))
 		return 0;
 
-	if (!s->break_flag && status & SCxSR_BRK(port)) {
-#if defined(CONFIG_CPU_SH3)
-		/* Debounce break */
-		s->break_flag = 1;
-#endif
-
+	if (status & SCxSR_BRK(port)) {
 		port->icount.brk++;
 
 		/* Notify of BREAK */
@@ -2676,10 +2570,6 @@ static int sci_init_single(struct platform_device *dev,
 
 		pm_runtime_enable(&dev->dev);
 	}
-
-	sci_port->break_timer.data = (unsigned long)sci_port;
-	sci_port->break_timer.function = sci_break_timer;
-	init_timer(&sci_port->break_timer);
 
 	port->type		= p->type;
 	port->flags		= UPF_FIXED_PORT | UPF_BOOT_AUTOCONF | p->flags;

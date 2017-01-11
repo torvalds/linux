@@ -9,8 +9,6 @@
  * Generic header for SuperH (H)SCI(F) (used by sh/sh64 and related parts)
  */
 
-#define SCIx_NOT_SUPPORTED	(-1)
-
 /* Serial Control Register (@ = not supported by all parts) */
 #define SCSCR_TIE	BIT(7)	/* Transmit Interrupt Enable */
 #define SCSCR_RIE	BIT(6)	/* Receive Interrupt Enable */
@@ -41,8 +39,6 @@ enum {
 	SCIx_NR_REGTYPES,
 };
 
-struct device;
-
 struct plat_sci_port_ops {
 	void (*init_pins)(struct uart_port *, unsigned int cflag);
 };
@@ -66,7 +62,6 @@ struct plat_sci_port {
 	/*
 	 * Platform overrides if necessary, defaults otherwise.
 	 */
-	int		port_reg;
 	unsigned char	regshift;
 	unsigned char	regtype;
 
