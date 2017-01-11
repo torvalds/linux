@@ -430,9 +430,21 @@ static int pnv_php_enable(struct pnv_php_slot *php_slot, bool rescan)
 	if (ret)
 		return ret;
 
-	/* Proceed if there have nothing behind the slot */
-	if (presence == OPAL_PCI_SLOT_EMPTY)
+	/*
+	 * Proceed if there have nothing behind the slot. However,
+	 * we should leave the slot in registered state at the
+	 * beginning. Otherwise, the PCI devices inserted afterwards
+	 * won't be probed and populated.
+	 */
+	if (presence == OPAL_PCI_SLOT_EMPTY) {
+		if (!php_slot->power_state_check) {
+			php_slot->power_state_check = true;
+
+			return 0;
+		}
+
 		goto scan;
+	}
 
 	/*
 	 * If the power supply to the slot is off, we can't detect
