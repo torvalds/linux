@@ -55,6 +55,7 @@
 #include <linux/shm.h>
 #include <linux/kcov.h>
 #include <linux/random.h>
+#include <linux/rcuwait.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -280,6 +281,35 @@ retry:
 		return NULL;
 
 	return task;
+}
+
+void rcuwait_wake_up(struct rcuwait *w)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+
+	/*
+	 * Order condition vs @task, such that everything prior to the load
+	 * of @task is visible. This is the condition as to why the user called
+	 * rcuwait_trywake() in the first place. Pairs with set_current_state()
+	 * barrier (A) in rcuwait_wait_event().
+	 *
+	 *    WAIT                WAKE
+	 *    [S] tsk = current	  [S] cond = true
+	 *        MB (A)	      MB (B)
+	 *    [L] cond		  [L] tsk
+	 */
+	smp_rmb(); /* (B) */
+
+	/*
+	 * Avoid using task_rcu_dereference() magic as long as we are careful,
+	 * see comment in rcuwait_wait_event() regarding ->exit_state.
+	 */
+	task = rcu_dereference(w->task);
+	if (task)
+		wake_up_process(task);
+	rcu_read_unlock();
 }
 
 struct task_struct *try_get_task_struct(struct task_struct **ptask)
