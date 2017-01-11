@@ -640,8 +640,6 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 		mutex_lock(&vub300->irq_mutex);
 		if (vub300->irq_enabled)
 			mmc_signal_sdio_irq(vub300->mmc);
-		else if (vub300->irqs_queued)
-			vub300->irqs_queued += 1;
 		else
 			vub300->irqs_queued += 1;
 		vub300->irq_disabled = 0;
