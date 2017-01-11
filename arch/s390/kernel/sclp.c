@@ -132,15 +132,20 @@ static void _sclp_print_lm(const char *str)
 		0x10, 0x00,					/* 4 */
 		0x00, 0x00, 0x00, 0x00				/* 6 */
 	};
-	unsigned char *ptr, ch;
+	unsigned char *ptr, *end_ptr, ch;
 	unsigned int count;
 
 	memcpy(_sclp_work_area, write_head, sizeof(write_head));
 	ptr = _sclp_work_area + sizeof(write_head);
+	end_ptr = _sclp_work_area + sizeof(_sclp_work_area) - 1;
 	do {
+		if (ptr + sizeof(write_mto) > end_ptr)
+			break;
 		memcpy(ptr, write_mto, sizeof(write_mto));
 		for (count = sizeof(write_mto); (ch = *str++) != 0; count++) {
 			if (ch == 0x0a)
+				break;
+			if (ptr > end_ptr)
 				break;
 			ptr[count] = _ascebc[ch];
 		}
