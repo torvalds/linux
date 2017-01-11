@@ -102,6 +102,8 @@ int shash_register_instance(struct crypto_template *tmpl,
 			    struct shash_instance *inst);
 void shash_free_instance(struct crypto_instance *inst);
 
+int crypto_grab_shash(struct crypto_shash_spawn *spawn,
+		      const char *name, u32 type, u32 mask);
 int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 			    struct shash_alg *alg,
 			    struct crypto_instance *inst);
@@ -109,6 +111,12 @@ int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 static inline void crypto_drop_shash(struct crypto_shash_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
+}
+
+static inline struct shash_alg *crypto_spawn_shash_alg(
+	struct crypto_shash_spawn *spawn)
+{
+	return container_of(spawn->base.alg, struct shash_alg, base);
 }
 
 struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
