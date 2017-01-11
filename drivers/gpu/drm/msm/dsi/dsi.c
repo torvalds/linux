@@ -205,17 +205,15 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		goto fail;
 	}
 
+	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++)
+		msm_dsi->encoders[i] = encoders[i];
+
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->bridge)) {
 		ret = PTR_ERR(msm_dsi->bridge);
 		dev_err(dev->dev, "failed to create dsi bridge: %d\n", ret);
 		msm_dsi->bridge = NULL;
 		goto fail;
-	}
-
-	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
-		encoders[i]->bridge = msm_dsi->bridge;
-		msm_dsi->encoders[i] = encoders[i];
 	}
 
 	/*
