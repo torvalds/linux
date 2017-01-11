@@ -169,8 +169,8 @@ void vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word)
 	data[0] = (u8)(word & 0xff);
 	data[1] = (u8)(word >> 8);
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-		reg_ofs, MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, reg_ofs,
+			MESSAGE_REQUEST_MACREG, ARRAY_SIZE(data), data);
 }
 
 void vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr)
