@@ -8,6 +8,7 @@ enum bq27xxx_chip {
 	BQ2751X, /* bq27510, bq27520 deprecated alias */
 	BQ27500, /* bq27500/1 */
 	BQ27510G1, /* bq27510G1 */
+	BQ27510G2, /* bq27510G2 */
 	BQ27530, /* bq27530, bq27531 */
 	BQ27541, /* bq27541, bq27542, bq27546, bq27742 */
 	BQ27545, /* bq27545 */
