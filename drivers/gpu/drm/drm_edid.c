@@ -4296,11 +4296,13 @@ EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
  * drm_hdmi_avi_infoframe_quant_range() - fill the HDMI AVI infoframe
  *                                        quantization range information
  * @frame: HDMI AVI infoframe
+ * @mode: DRM display mode
  * @rgb_quant_range: RGB quantization range (Q)
  * @rgb_quant_range_selectable: Sink support selectable RGB quantization range (QS)
  */
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
 				   bool rgb_quant_range_selectable)
 {
@@ -4310,8 +4312,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 *  to the default RGB Quantization Range for the transmitted Picture
 	 *  unless the Sink indicates support for the Q bit in a Video
 	 *  Capabilities Data Block."
+	 *
+	 * HDMI 2.0 recommends sending non-zero Q when it does match the
+	 * default RGB quantization range for the mode, even when QS=0.
 	 */
-	if (rgb_quant_range_selectable)
+	if (rgb_quant_range_selectable ||
+	    rgb_quant_range == drm_default_rgb_quant_range(mode))
 		frame->quantization_range = rgb_quant_range;
 	else
 		frame->quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;

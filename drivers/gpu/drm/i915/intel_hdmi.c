@@ -455,17 +455,19 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       &crtc_state->base.adjusted_mode);
+						       adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi, adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
