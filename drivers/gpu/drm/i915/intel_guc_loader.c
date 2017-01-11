@@ -360,7 +360,8 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	vma = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
+	vma = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0,
+				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (IS_ERR(vma)) {
 		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
 		return PTR_ERR(vma);
