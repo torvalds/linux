@@ -44,17 +44,11 @@ struct plat_sci_port_ops {
 };
 
 /*
- * Port-specific capabilities
- */
-#define SCIx_HAVE_RTSCTS	BIT(0)
-
-/*
  * Platform device specific platform_data struct
  */
 struct plat_sci_port {
 	unsigned int	type;			/* SCI / SCIF / IRDA / HSCIF */
 	upf_t		flags;			/* UPF_* flags */
-	unsigned long	capabilities;		/* Port features/capabilities */
 
 	unsigned int	sampling_rate;
 	unsigned int	scscr;			/* SCSCR initialization */

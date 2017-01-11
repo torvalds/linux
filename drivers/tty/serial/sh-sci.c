@@ -149,6 +149,7 @@ struct sci_port {
 	unsigned int			rx_timeout;
 #endif
 
+	bool has_rtscts;
 	bool autorts;
 };
 
@@ -680,7 +681,7 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 
 		/* Enable RXD and TXD pin functions */
 		ctrl &= ~(SCPCR_RXDC | SCPCR_TXDC);
-		if (to_sci_port(port)->cfg->capabilities & SCIx_HAVE_RTSCTS) {
+		if (to_sci_port(port)->has_rtscts) {
 			/* RTS# is output, driven 1 */
 			ctrl |= SCPCR_RTSC;
 			serial_port_out(port, SCPDR,
@@ -1738,7 +1739,7 @@ static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	mctrl_gpio_set(s->gpios, mctrl);
 
-	if (!(s->cfg->capabilities & SCIx_HAVE_RTSCTS))
+	if (!s->has_rtscts)
 		return;
 
 	if (!(mctrl & TIOCM_RTS)) {
@@ -2809,6 +2810,7 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct plat_sci_port *p;
+	struct sci_port *sp;
 	int id;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
@@ -2829,13 +2831,14 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 		return NULL;
 	}
 
+	sp = &sci_ports[id];
 	*dev_id = id;
 
 	p->type = SCI_OF_TYPE(match->data);
 	p->regtype = SCI_OF_REGTYPE(match->data);
 
 	if (of_find_property(np, "uart-has-rtscts", NULL))
-		p->capabilities |= SCIx_HAVE_RTSCTS;
+		sp->has_rtscts = true;
 
 	return p;
 }
@@ -2863,7 +2866,7 @@ static int sci_probe_single(struct platform_device *dev,
 	if (IS_ERR(sciport->gpios) && PTR_ERR(sciport->gpios) != -ENOSYS)
 		return PTR_ERR(sciport->gpios);
 
-	if (p->capabilities & SCIx_HAVE_RTSCTS) {
+	if (sciport->has_rtscts) {
 		if (!IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(sciport->gpios,
 							UART_GPIO_CTS)) ||
 		    !IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(sciport->gpios,
