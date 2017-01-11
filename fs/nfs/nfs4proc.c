@@ -9116,10 +9116,8 @@ static bool nfs41_match_stateid(const nfs4_stateid *s1,
 
 	if (s1->seqid == s2->seqid)
 		return true;
-	if (s1->seqid == 0 || s2->seqid == 0)
-		return true;
 
-	return false;
+	return s1->seqid == 0 || s2->seqid == 0;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
