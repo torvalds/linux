@@ -751,6 +751,29 @@
 			};
 		};
 
+		decon_tv: decon@13880000 {
+			compatible = "samsung,exynos5433-decon-tv";
+			reg = <0x13880000 0x20b8>;
+			clocks = <&cmu_disp CLK_PCLK_DECON_TV>,
+				 <&cmu_disp CLK_ACLK_DECON_TV>,
+				 <&cmu_disp CLK_ACLK_SMMU_TV0X>,
+				 <&cmu_disp CLK_ACLK_XIU_TV0X>,
+				 <&cmu_disp CLK_PCLK_SMMU_TV0X>,
+				 <&cmu_disp CLK_SCLK_DECON_TV_VCLK>,
+				 <&cmu_disp CLK_SCLK_DECON_TV_ECLK>;
+			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
+				      "aclk_xiu_decon0x", "pclk_smmu_decon0x",
+				      "sclk_decon_vclk", "sclk_decon_eclk";
+			samsung,disp-sysreg = <&syscon_disp>;
+			interrupt-names = "fifo", "vsync", "lcd_sys";
+			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+			iommus = <&sysmmu_tv0x>, <&sysmmu_tv1x>;
+			iommu-names = "m0", "m1";
+		};
+
 		dsi: dsi@13900000 {
 			compatible = "samsung,exynos5433-mipi-dsi";
 			reg = <0x13900000 0xC0>;
@@ -909,6 +932,26 @@
 			clock-names = "pclk", "aclk";
 			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 				<&cmu_disp CLK_ACLK_SMMU_DECON1X>;
+			#iommu-cells = <0>;
+		};
+
+		sysmmu_tv0x: sysmmu@13a20000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13a20000 0x1000>;
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk";
+			clocks = <&cmu_disp CLK_PCLK_SMMU_TV0X>,
+				<&cmu_disp CLK_ACLK_SMMU_TV0X>;
+			#iommu-cells = <0>;
+		};
+
+		sysmmu_tv1x: sysmmu@13a30000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13a30000 0x1000>;
+			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk";
+			clocks = <&cmu_disp CLK_PCLK_SMMU_TV1X>,
+				<&cmu_disp CLK_ACLK_SMMU_TV1X>;
 			#iommu-cells = <0>;
 		};
 
