@@ -983,13 +983,13 @@ static void dsa_slave_poll_controller(struct net_device *dev)
 }
 #endif
 
-static int dsa_slave_get_phys_port_id(struct net_device *dev,
-				      struct netdev_phys_item_id *ppid)
+static int dsa_slave_get_phys_port_name(struct net_device *dev,
+					char *name, size_t len)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	ppid->id_len = sizeof(p->port);
-	memcpy(ppid->id, &p->port, ppid->id_len);
+	if (snprintf(name, len, "p%d", p->port) >= len)
+		return -EINVAL;
 
 	return 0;
 }
@@ -1041,7 +1041,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
-	.ndo_get_phys_port_id	= dsa_slave_get_phys_port_id,
+	.ndo_get_phys_port_name	= dsa_slave_get_phys_port_name,
 };
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
