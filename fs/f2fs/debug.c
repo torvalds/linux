@@ -258,8 +258,6 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->inline_dir);
 		seq_printf(s, "  - Orphan Inode: %u\n",
 			   si->orphans);
-		seq_printf(s, "  - Atomic write count: %4d (Max. %4d)\n",
-			   si->aw_cnt, si->max_aw_cnt);
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
 			   si->main_area_zones);
@@ -318,8 +316,10 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4d, wb_cp_data: %4d, wb_data: %4d\n",
-			   si->inmem_pages, si->nr_wb_cp_data, si->nr_wb_data);
+		seq_printf(s, "  - IO (CP: %4d, Data: %4d)\n",
+			   si->nr_wb_cp_data, si->nr_wb_data);
+		seq_printf(s, "  - inmem: %4d, atomic IO: %4d (Max. %4d)\n",
+			   si->inmem_pages, si->aw_cnt, si->max_aw_cnt);
 		seq_printf(s, "  - nodes: %4d in %4d\n",
 			   si->ndirty_node, si->node_pages);
 		seq_printf(s, "  - dents: %4d in dirs:%4d (%4d)\n",
