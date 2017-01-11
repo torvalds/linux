@@ -178,6 +178,9 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.hpost_st_end = VOP_REG(RK3288_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(RK3288_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end_f1 = VOP_REG(RK3288_POST_DSP_VACT_INFO_F1, 0x1fff1fff, 0),
+	.post_scl_factor = VOP_REG(RK3288_POST_SCL_FACTOR_YRGB, 0xffffffff, 0),
+	.post_scl_ctrl = VOP_REG(RK3288_POST_SCL_CTRL, 0x3, 0),
+
 	.dsp_interlace = VOP_REG(RK3288_DSP_CTRL0, 0x1, 10),
 	.auto_gate_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 23),
 	.dsp_layer_sel = VOP_REG(RK3288_DSP_CTRL1, 0xff, 8),

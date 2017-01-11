@@ -67,6 +67,10 @@ struct rockchip_atomic_commit {
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	int left_margin;
+	int right_margin;
+	int top_margin;
+	int bottom_margin;
 	int afbdc_win_format;
 	int afbdc_win_width;
 	int afbdc_win_height;
