@@ -44,7 +44,7 @@
  ---------------------------------------------------------------------------
  Issue 31/01/2006
 
- This file provides fast multiplication in GF(128) as required by several
+ This file provides fast multiplication in GF(2^128) as required by several
  cryptographic authentication modes
 */
 
@@ -130,9 +130,10 @@
 static const u16 gf128mul_table_le[256] = gf128mul_dat(xda_le);
 static const u16 gf128mul_table_be[256] = gf128mul_dat(xda_be);
 
-/* These functions multiply a field element by x, by x^4 and by x^8
- * in the polynomial field representation. It uses 32-bit word operations
- * to gain speed but compensates for machine endianess and hence works
+/*
+ * The following functions multiply a field element by x or by x^8 in
+ * the polynomial field representation.  They use 64-bit word operations
+ * to gain speed but compensate for machine endianness and hence work
  * correctly on both styles of machine.
  */
 
@@ -185,6 +186,16 @@ static void gf128mul_x8_bbe(be128 *x)
 
 	x->a = cpu_to_be64((a << 8) | (b >> 56));
 	x->b = cpu_to_be64((b << 8) ^ _tt);
+}
+
+static void gf128mul_x8_ble(be128 *x)
+{
+	u64 a = le64_to_cpu(x->b);
+	u64 b = le64_to_cpu(x->a);
+	u64 _tt = gf128mul_table_be[a >> 56];
+
+	x->b = cpu_to_le64((a << 8) | (b >> 56));
+	x->a = cpu_to_le64((b << 8) ^ _tt);
 }
 
 void gf128mul_lle(be128 *r, const be128 *b)
@@ -263,9 +274,48 @@ void gf128mul_bbe(be128 *r, const be128 *b)
 }
 EXPORT_SYMBOL(gf128mul_bbe);
 
+void gf128mul_ble(be128 *r, const be128 *b)
+{
+	be128 p[8];
+	int i;
+
+	p[0] = *r;
+	for (i = 0; i < 7; ++i)
+		gf128mul_x_ble((be128 *)&p[i + 1], (be128 *)&p[i]);
+
+	memset(r, 0, sizeof(*r));
+	for (i = 0;;) {
+		u8 ch = ((u8 *)b)[15 - i];
+
+		if (ch & 0x80)
+			be128_xor(r, r, &p[7]);
+		if (ch & 0x40)
+			be128_xor(r, r, &p[6]);
+		if (ch & 0x20)
+			be128_xor(r, r, &p[5]);
+		if (ch & 0x10)
+			be128_xor(r, r, &p[4]);
+		if (ch & 0x08)
+			be128_xor(r, r, &p[3]);
+		if (ch & 0x04)
+			be128_xor(r, r, &p[2]);
+		if (ch & 0x02)
+			be128_xor(r, r, &p[1]);
+		if (ch & 0x01)
+			be128_xor(r, r, &p[0]);
+
+		if (++i >= 16)
+			break;
+
+		gf128mul_x8_ble(r);
+	}
+}
+EXPORT_SYMBOL(gf128mul_ble);
+
+
 /*      This version uses 64k bytes of table space.
     A 16 byte buffer has to be multiplied by a 16 byte key
-    value in GF(128).  If we consider a GF(128) value in
+    value in GF(2^128).  If we consider a GF(2^128) value in
     the buffer's lowest byte, we can construct a table of
     the 256 16 byte values that result from the 256 values
     of this byte.  This requires 4096 bytes. But we also
@@ -399,7 +449,7 @@ EXPORT_SYMBOL(gf128mul_64k_bbe);
 
 /*      This version uses 4k bytes of table space.
     A 16 byte buffer has to be multiplied by a 16 byte key
-    value in GF(128).  If we consider a GF(128) value in a
+    value in GF(2^128).  If we consider a GF(2^128) value in a
     single byte, we can construct a table of the 256 16 byte
     values that result from the 256 values of this byte.
     This requires 4096 bytes. If we take the highest byte in
@@ -457,6 +507,28 @@ out:
 }
 EXPORT_SYMBOL(gf128mul_init_4k_bbe);
 
+struct gf128mul_4k *gf128mul_init_4k_ble(const be128 *g)
+{
+	struct gf128mul_4k *t;
+	int j, k;
+
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!t)
+		goto out;
+
+	t->t[1] = *g;
+	for (j = 1; j <= 64; j <<= 1)
+		gf128mul_x_ble(&t->t[j + j], &t->t[j]);
+
+	for (j = 2; j < 256; j += j)
+		for (k = 1; k < j; ++k)
+			be128_xor(&t->t[j + k], &t->t[j], &t->t[k]);
+
+out:
+	return t;
+}
+EXPORT_SYMBOL(gf128mul_init_4k_ble);
+
 void gf128mul_4k_lle(be128 *a, struct gf128mul_4k *t)
 {
 	u8 *ap = (u8 *)a;
@@ -486,6 +558,21 @@ void gf128mul_4k_bbe(be128 *a, struct gf128mul_4k *t)
 	*a = *r;
 }
 EXPORT_SYMBOL(gf128mul_4k_bbe);
+
+void gf128mul_4k_ble(be128 *a, struct gf128mul_4k *t)
+{
+	u8 *ap = (u8 *)a;
+	be128 r[1];
+	int i = 15;
+
+	*r = t->t[ap[15]];
+	while (i--) {
+		gf128mul_x8_ble(r);
+		be128_xor(r, r, &t->t[ap[i]]);
+	}
+	*a = *r;
+}
+EXPORT_SYMBOL(gf128mul_4k_ble);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Functions for multiplying elements of GF(2^128)");
