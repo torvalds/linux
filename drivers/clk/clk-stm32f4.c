@@ -1080,7 +1080,7 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 		unsigned long flags, spinlock_t *lock)
 {
 	struct clk_hw *hw;
-	struct clk_gate *gate;
+	struct clk_gate *gate = NULL;
 	struct clk_mux *mux = NULL;
 	struct clk_hw *mux_hw = NULL, *gate_hw = NULL;
 	const struct clk_ops *mux_ops = NULL, *gate_ops = NULL;
@@ -1103,7 +1103,6 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 	if (offset_mux != NO_MUX) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux) {
-			kfree(gate);
 			hw = ERR_PTR(-EINVAL);
 			goto fail;
 		}
@@ -1116,8 +1115,10 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 		mux_ops = &clk_mux_ops;
 	}
 
-	if (mux_hw == NULL && gate_hw == NULL)
-		return ERR_PTR(-EINVAL);
+	if (mux_hw == NULL && gate_hw == NULL) {
+		hw = ERR_PTR(-EINVAL);
+		goto fail;
+	}
 
 	hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
 			mux_hw, mux_ops,
@@ -1125,11 +1126,12 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 			gate_hw, gate_ops,
 			flags);
 
+fail:
 	if (IS_ERR(hw)) {
 		kfree(gate);
 		kfree(mux);
 	}
-fail:
+
 	return hw;
 }
 
