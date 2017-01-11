@@ -2296,6 +2296,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 				goto end_coredump;
 		}
 	}
+	dump_truncate(cprm);
 
 	if (!elf_core_write_extra_data(cprm))
 		goto end_coredump;
