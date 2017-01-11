@@ -143,6 +143,7 @@ struct rockchip_chg_det_reg {
  * @utmi_iddig: otg port id pin status register.
  * @utmi_ls: utmi linestate state register.
  * @utmi_hstdet: utmi host disconnect register.
+ * @vbus_det_en: vbus detect function power down register.
  */
 struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	phy_sus;
@@ -163,6 +164,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	utmi_iddig;
 	struct usb2phy_reg	utmi_ls;
 	struct usb2phy_reg	utmi_hstdet;
+	struct usb2phy_reg	vbus_det_en;
 };
 
 /**
@@ -569,11 +571,48 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 	return 0;
 }
 
+static int rockchip_usb2phy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(phy->dev.parent);
+	bool vbus_det_en;
+	int ret = 0;
+
+	if (rport->port_id != USB2PHY_PORT_OTG ||
+	    !rport->vbus_always_on)
+		return ret;
+
+	switch (mode) {
+	case PHY_MODE_USB_OTG:
+		/*
+		 * In case of using vbus to detect connect state by u2phy,
+		 * enable vbus detect on otg mode.
+		 *
+		 * fallthrough
+		 */
+	case PHY_MODE_USB_DEVICE:
+		vbus_det_en = true;
+		break;
+	case PHY_MODE_USB_HOST:
+		/* fallthrough */
+	case PHY_MODE_INVALID:
+		vbus_det_en = false;
+		break;
+	default:
+		dev_info(&rport->phy->dev, "illegal mode\n");
+		return ret;
+	}
+
+	ret = property_enable(rphy, &rport->port_cfg->vbus_det_en, vbus_det_en);
+
+	return ret;
+}
 static const struct phy_ops rockchip_usb2phy_ops = {
 	.init		= rockchip_usb2phy_init,
 	.exit		= rockchip_usb2phy_exit,
 	.power_on	= rockchip_usb2phy_power_on,
 	.power_off	= rockchip_usb2phy_power_off,
+	.set_mode	= rockchip_usb2phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -1481,6 +1520,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.utmi_bvalid	= { 0xe2ac, 12, 12, 0, 1 },
 				.utmi_iddig	= { 0xe2ac, 8, 8, 0, 1 },
 				.utmi_ls	= { 0xe2ac, 14, 13, 0, 1 },
+				.vbus_det_en    = { 0x449c, 15, 15, 1, 0 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe458, 1, 0, 0x2, 0x1 },
@@ -1528,6 +1568,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.utmi_bvalid    = { 0xe2ac, 16, 16, 0, 1 },
 				.utmi_iddig	= { 0xe2ac, 11, 11, 0, 1 },
 				.utmi_ls	= { 0xe2ac, 18, 17, 0, 1 },
+				.vbus_det_en    = { 0x451c, 15, 15, 1, 0 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe468, 1, 0, 0x2, 0x1 },
