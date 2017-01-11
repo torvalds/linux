@@ -3214,6 +3214,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "heh(aes)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = aes_heh_enc_tv_template,
+					.count = AES_HEH_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = aes_heh_dec_tv_template,
+					.count = AES_HEH_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "hmac(crc32)",
 		.test = alg_test_hash,
 		.suite = {
