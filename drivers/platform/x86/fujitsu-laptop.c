@@ -1059,11 +1059,13 @@ static void acpi_fujitsu_hotkey_release(void)
 	struct input_dev *input = fujitsu_hotkey->input;
 	int keycode, status;
 
-	while ((status = kfifo_out_locked(&fujitsu_hotkey->fifo,
+	while (true) {
+		status = kfifo_out_locked(&fujitsu_hotkey->fifo,
 					  (unsigned char *)&keycode,
 					  sizeof(keycode),
-					  &fujitsu_hotkey->fifo_lock))
-					  == sizeof(keycode)) {
+					  &fujitsu_hotkey->fifo_lock);
+		if (status != sizeof(keycode))
+			return;
 		input_report_key(input, keycode, 0);
 		input_sync(input);
 		vdbg_printk(FUJLAPTOP_DBG_TRACE,
