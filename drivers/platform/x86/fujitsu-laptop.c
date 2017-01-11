@@ -1040,18 +1040,18 @@ static void acpi_fujitsu_hotkey_press(int keycode)
 	struct input_dev *input = fujitsu_hotkey->input;
 	int status;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE,
-		    "Push keycode into ringbuffer [%d]\n", keycode);
 	status = kfifo_in_locked(&fujitsu_hotkey->fifo,
 				 (unsigned char *)&keycode, sizeof(keycode),
 				 &fujitsu_hotkey->fifo_lock);
 	if (status != sizeof(keycode)) {
 		vdbg_printk(FUJLAPTOP_DBG_WARN,
 			    "Could not push keycode [0x%x]\n", keycode);
-	} else {
-		input_report_key(input, keycode, 1);
-		input_sync(input);
+		return;
 	}
+	input_report_key(input, keycode, 1);
+	input_sync(input);
+	vdbg_printk(FUJLAPTOP_DBG_TRACE,
+		    "Push keycode into ringbuffer [%d]\n", keycode);
 }
 
 static void acpi_fujitsu_hotkey_release(void)
