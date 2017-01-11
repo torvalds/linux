@@ -35,6 +35,9 @@
 /* How many frames until we start a-mpdu TX session */
 #define WCN36XX_AMPDU_START_THRESH	20
 
+#define WCN36XX_MAX_SCAN_SSIDS		9
+#define WCN36XX_MAX_SCAN_IE_LEN		500
+
 extern unsigned int wcn36xx_dbg_mask;
 
 enum wcn36xx_debug_mask {
@@ -211,6 +214,12 @@ struct wcn36xx {
 	struct work_struct	hal_ind_work;
 	spinlock_t		hal_ind_lock;
 	struct list_head	hal_ind_queue;
+
+	struct work_struct	scan_work;
+	struct cfg80211_scan_request *scan_req;
+	int			scan_freq;
+	int			scan_band;
+	struct mutex		scan_lock;
 
 	/* DXE channels */
 	struct wcn36xx_dxe_ch	dxe_tx_l_ch;	/* TX low */

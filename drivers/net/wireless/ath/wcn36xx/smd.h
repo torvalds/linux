@@ -60,8 +60,8 @@ int wcn36xx_smd_load_nv(struct wcn36xx *wcn);
 int wcn36xx_smd_start(struct wcn36xx *wcn);
 int wcn36xx_smd_stop(struct wcn36xx *wcn);
 int wcn36xx_smd_init_scan(struct wcn36xx *wcn, enum wcn36xx_hal_sys_mode mode);
-int wcn36xx_smd_start_scan(struct wcn36xx *wcn);
-int wcn36xx_smd_end_scan(struct wcn36xx *wcn);
+int wcn36xx_smd_start_scan(struct wcn36xx *wcn, u8 scan_channel);
+int wcn36xx_smd_end_scan(struct wcn36xx *wcn, u8 scan_channel);
 int wcn36xx_smd_finish_scan(struct wcn36xx *wcn,
 			    enum wcn36xx_hal_sys_mode mode);
 int wcn36xx_smd_update_scan_params(struct wcn36xx *wcn, u8 *channels, size_t channel_count);
