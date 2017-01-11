@@ -1623,6 +1623,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 {
+	struct gpio_chip *gc = &vg->chip;
+	struct device *dev = &vg->pdev->dev;
 	void __iomem *reg;
 	u32 base, value;
 	int i;
@@ -1644,10 +1646,12 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 		}
 
 		value = readl(reg);
-		if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i) &&
-		    !(value & BYT_DIRECT_IRQ_EN)) {
+		if (value & BYT_DIRECT_IRQ_EN) {
+			clear_bit(i, gc->irq_valid_mask);
+			dev_dbg(dev, "excluding GPIO %d from IRQ domain\n", i);
+		} else if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i)) {
 			byt_gpio_clear_triggering(vg, i);
-			dev_dbg(&vg->pdev->dev, "disabling GPIO %d\n", i);
+			dev_dbg(dev, "disabling GPIO %d\n", i);
 		}
 	}
 
@@ -1686,6 +1690,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	gc->can_sleep	= false;
 	gc->parent	= &vg->pdev->dev;
 	gc->ngpio	= vg->soc_data->npins;
+	gc->irq_need_valid_mask	= true;
 
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,
