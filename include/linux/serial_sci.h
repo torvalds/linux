@@ -71,9 +71,6 @@ struct plat_sci_port {
 	unsigned char	regtype;
 
 	struct plat_sci_port_ops	*ops;
-
-	unsigned int	dma_slave_tx;
-	unsigned int	dma_slave_rx;
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */
