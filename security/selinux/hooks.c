@@ -1353,8 +1353,6 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_IPX_SOCKET;
 		case PF_NETROM:
 			return SECCLASS_NETROM_SOCKET;
-		case PF_BRIDGE:
-			return SECCLASS_BRIDGE_SOCKET;
 		case PF_ATMPVC:
 			return SECCLASS_ATMPVC_SOCKET;
 		case PF_X25:
@@ -1373,10 +1371,6 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_PPPOX_SOCKET;
 		case PF_LLC:
 			return SECCLASS_LLC_SOCKET;
-		case PF_IB:
-			return SECCLASS_IB_SOCKET;
-		case PF_MPLS:
-			return SECCLASS_MPLS_SOCKET;
 		case PF_CAN:
 			return SECCLASS_CAN_SOCKET;
 		case PF_TIPC:
