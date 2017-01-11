@@ -3978,7 +3978,7 @@ __init int intel_pmu_init(void)
 		     x86_pmu.num_counters, INTEL_PMC_MAX_GENERIC);
 		x86_pmu.num_counters = INTEL_PMC_MAX_GENERIC;
 	}
-	x86_pmu.intel_ctrl = (1 << x86_pmu.num_counters) - 1;
+	x86_pmu.intel_ctrl = (1ULL << x86_pmu.num_counters) - 1;
 
 	if (x86_pmu.num_counters_fixed > INTEL_PMC_MAX_FIXED) {
 		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
