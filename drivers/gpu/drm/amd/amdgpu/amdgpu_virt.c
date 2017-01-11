@@ -94,6 +94,10 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 {
+	/* enable virtual display */
+	adev->mode_info.num_crtc = 1;
+	adev->enable_virtual_display = true;
+
 	mutex_init(&adev->virt.lock);
 }
 
