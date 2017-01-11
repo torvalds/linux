@@ -15,41 +15,32 @@
 #ifndef __MACH_ROCKCHIP_PM_H
 #define __MACH_ROCKCHIP_PM_H
 
-extern unsigned long rkpm_bootdata_cpusp;
-extern unsigned long rkpm_bootdata_cpu_code;
-extern unsigned long rkpm_bootdata_l2ctlr_f;
-extern unsigned long rkpm_bootdata_l2ctlr;
-extern unsigned long rkpm_bootdata_ddr_code;
-extern unsigned long rkpm_bootdata_ddr_data;
-extern unsigned long rk3288_bootram_sz;
-
 void rockchip_slp_cpu_resume(void);
-#ifdef CONFIG_PM_SLEEP
 void __init rockchip_suspend_init(void);
-#else
-static inline void rockchip_suspend_init(void)
-{
-}
-#endif
+
+struct rk3288_ddr_save_data;
+int __init rk3288_ddr_suspend_init(struct rk3288_ddr_save_data *ddr_save);
+int rk3288_ddr_suspend(struct rk3288_ddr_save_data *ddr_save);
+void rk3288_ddr_resume(void);
 
 /****** following is rk3288 defined **********/
-#define RK3288_PMU_WAKEUP_CFG0		0x00
-#define RK3288_PMU_WAKEUP_CFG1		0x04
-#define RK3288_PMU_PWRMODE_CON		0x18
-#define RK3288_PMU_OSC_CNT		0x20
-#define RK3288_PMU_PLL_CNT		0x24
-#define RK3288_PMU_STABL_CNT		0x28
-#define RK3288_PMU_DDR0IO_PWRON_CNT	0x2c
-#define RK3288_PMU_DDR1IO_PWRON_CNT	0x30
-#define RK3288_PMU_CORE_PWRDWN_CNT	0x34
-#define RK3288_PMU_CORE_PWRUP_CNT	0x38
-#define RK3288_PMU_GPU_PWRDWN_CNT	0x3c
-#define RK3288_PMU_GPU_PWRUP_CNT	0x40
-#define RK3288_PMU_WAKEUP_RST_CLR_CNT	0x44
-#define RK3288_PMU_PWRMODE_CON1		0x90
+#define RK3288_PMU_WAKEUP_CFG0          0x00
+#define RK3288_PMU_WAKEUP_CFG1          0x04
+#define RK3288_PMU_PWRMODE_CON          0x18
+#define RK3288_PMU_OSC_CNT              0x20
+#define RK3288_PMU_PLL_CNT              0x24
+#define RK3288_PMU_STABL_CNT            0x28
+#define RK3288_PMU_DDR0IO_PWRON_CNT     0x2c
+#define RK3288_PMU_DDR1IO_PWRON_CNT     0x30
+#define RK3288_PMU_CORE_PWRDWN_CNT      0x34
+#define RK3288_PMU_CORE_PWRUP_CNT       0x38
+#define RK3288_PMU_GPU_PWRDWN_CNT       0x3c
+#define RK3288_PMU_GPU_PWRUP_CNT        0x40
+#define RK3288_PMU_WAKEUP_RST_CLR_CNT   0x44
+#define RK3288_PMU_PWRMODE_CON1         0x90
 
-#define RK3288_SGRF_SOC_CON0		(0x0000)
-#define RK3288_SGRF_FAST_BOOT_ADDR	(0x0120)
+#define RK3288_SGRF_SOC_CON0            (0x0000)
+#define RK3288_SGRF_FAST_BOOT_ADDR      (0x0120)
 #define SGRF_PCLK_WDT_GATE		BIT(6)
 #define SGRF_PCLK_WDT_GATE_WRITE	BIT(22)
 #define SGRF_FAST_BOOT_EN		BIT(8)
