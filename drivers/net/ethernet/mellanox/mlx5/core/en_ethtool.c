@@ -991,6 +991,7 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	bool hash_changed = false;
 	void *in;
 
 	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
@@ -1012,14 +1013,21 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, 0);
 	}
 
-	if (key)
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    hfunc != priv->params.rss_hfunc) {
+		priv->params.rss_hfunc = hfunc;
+		hash_changed = true;
+	}
+
+	if (key) {
 		memcpy(priv->params.toeplitz_hash_key, key,
 		       sizeof(priv->params.toeplitz_hash_key));
+		hash_changed = hash_changed ||
+			       priv->params.rss_hfunc == ETH_RSS_HASH_TOP;
+	}
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE)
-		priv->params.rss_hfunc = hfunc;
-
-	mlx5e_modify_tirs_hash(priv, in, inlen);
+	if (hash_changed)
+		mlx5e_modify_tirs_hash(priv, in, inlen);
 
 	mutex_unlock(&priv->state_lock);
 
