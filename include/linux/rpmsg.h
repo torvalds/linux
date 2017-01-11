@@ -41,6 +41,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/poll.h>
 
 #define RPMSG_ADDR_ANY		0xFFFFFFFF
 
@@ -156,6 +157,9 @@ int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
 int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len);
 
+unsigned int rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
+			poll_table *wait);
+
 #else
 
 static inline int register_rpmsg_device(struct rpmsg_device *dev)
@@ -252,6 +256,15 @@ static inline int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
 	WARN_ON(1);
 
 	return -ENXIO;
+}
+
+static inline unsigned int rpmsg_poll(struct rpmsg_endpoint *ept,
+				      struct file *filp, poll_table *wait)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+
+	return 0;
 }
 
 #endif /* IS_ENABLED(CONFIG_RPMSG) */
