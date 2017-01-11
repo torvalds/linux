@@ -252,6 +252,13 @@ struct discard_cmd {
 	struct bio *bio;		/* bio */
 };
 
+struct discard_cmd_control {
+	struct list_head discard_entry_list;	/* 4KB discard entry list */
+	int nr_discards;			/* # of discards in the list */
+	struct list_head discard_cmd_list;	/* discard cmd list */
+	int max_discards;			/* max. discards to be issued */
+};
+
 /* for the list of fsync inodes, used only during recovery */
 struct fsync_inode_entry {
 	struct list_head list;	/* list head */
@@ -695,12 +702,6 @@ struct f2fs_sm_info {
 	/* a threshold to reclaim prefree segments */
 	unsigned int rec_prefree_segments;
 
-	/* for small discard management */
-	struct list_head discard_entry_list;	/* 4KB discard entry list */
-	struct list_head discard_cmd_list;	/* discard cmd list */
-	int nr_discards;			/* # of discards in the list */
-	int max_discards;			/* max. discards to be issued */
-
 	struct list_head sit_entry_set;	/* sit entry set list */
 
 	unsigned int ipu_policy;	/* in-place-update policy */
@@ -709,6 +710,9 @@ struct f2fs_sm_info {
 
 	/* for flush command control */
 	struct flush_cmd_control *fcc_info;
+
+	/* for discard command control */
+	struct discard_cmd_control *dcc_info;
 };
 
 /*
