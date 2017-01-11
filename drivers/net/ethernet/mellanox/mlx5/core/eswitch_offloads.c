@@ -414,6 +414,7 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
+		err = -EOPNOTSUPP;
 		goto ns_err;
 	}
 
@@ -639,7 +640,7 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 		esw_warn(esw->dev, "Failed setting eswitch to offloads, err %d\n", err);
 		err1 = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
 		if (err1)
-			esw_warn(esw->dev, "Failed setting eswitch back to legacy, err %d\n", err);
+			esw_warn(esw->dev, "Failed setting eswitch back to legacy, err %d\n", err1);
 	}
 	return err;
 }
