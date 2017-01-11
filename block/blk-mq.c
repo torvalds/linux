@@ -1553,8 +1553,8 @@ run_queue:
 	return cookie;
 }
 
-void blk_mq_free_rq_map(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
-			unsigned int hctx_idx)
+void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx)
 {
 	struct page *page;
 
@@ -1580,33 +1580,30 @@ void blk_mq_free_rq_map(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		kmemleak_free(page_address(page));
 		__free_pages(page, page->private);
 	}
+}
 
+void blk_mq_free_rq_map(struct blk_mq_tags *tags)
+{
 	kfree(tags->rqs);
+	tags->rqs = NULL;
 
 	blk_mq_free_tags(tags);
 }
 
-static size_t order_to_size(unsigned int order)
-{
-	return (size_t)PAGE_SIZE << order;
-}
-
-struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
-				       unsigned int hctx_idx)
+struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
+					unsigned int hctx_idx,
+					unsigned int nr_tags,
+					unsigned int reserved_tags)
 {
 	struct blk_mq_tags *tags;
-	unsigned int i, j, entries_per_page, max_order = 4;
-	size_t rq_size, left;
 
-	tags = blk_mq_init_tags(set->queue_depth, set->reserved_tags,
+	tags = blk_mq_init_tags(nr_tags, reserved_tags,
 				set->numa_node,
 				BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags));
 	if (!tags)
 		return NULL;
 
-	INIT_LIST_HEAD(&tags->page_list);
-
-	tags->rqs = kzalloc_node(set->queue_depth * sizeof(struct request *),
+	tags->rqs = kzalloc_node(nr_tags * sizeof(struct request *),
 				 GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
 				 set->numa_node);
 	if (!tags->rqs) {
@@ -1614,15 +1611,31 @@ struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		return NULL;
 	}
 
+	return tags;
+}
+
+static size_t order_to_size(unsigned int order)
+{
+	return (size_t)PAGE_SIZE << order;
+}
+
+int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, unsigned int depth)
+{
+	unsigned int i, j, entries_per_page, max_order = 4;
+	size_t rq_size, left;
+
+	INIT_LIST_HEAD(&tags->page_list);
+
 	/*
 	 * rq_size is the size of the request plus driver payload, rounded
 	 * to the cacheline size
 	 */
 	rq_size = round_up(sizeof(struct request) + set->cmd_size,
 				cache_line_size());
-	left = rq_size * set->queue_depth;
+	left = rq_size * depth;
 
-	for (i = 0; i < set->queue_depth; ) {
+	for (i = 0; i < depth; ) {
 		int this_order = max_order;
 		struct page *page;
 		int to_do;
@@ -1656,7 +1669,7 @@ struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		 */
 		kmemleak_alloc(p, order_to_size(this_order), 1, GFP_NOIO);
 		entries_per_page = order_to_size(this_order) / rq_size;
-		to_do = min(entries_per_page, set->queue_depth - i);
+		to_do = min(entries_per_page, depth - i);
 		left -= to_do * rq_size;
 		for (j = 0; j < to_do; j++) {
 			tags->rqs[i] = p;
@@ -1673,11 +1686,11 @@ struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 			i++;
 		}
 	}
-	return tags;
+	return 0;
 
 fail:
-	blk_mq_free_rq_map(set, tags, hctx_idx);
-	return NULL;
+	blk_mq_free_rqs(set, tags, hctx_idx);
+	return -ENOMEM;
 }
 
 /*
@@ -1869,6 +1882,33 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 	}
 }
 
+static bool __blk_mq_alloc_rq_map(struct blk_mq_tag_set *set, int hctx_idx)
+{
+	int ret = 0;
+
+	set->tags[hctx_idx] = blk_mq_alloc_rq_map(set, hctx_idx,
+					set->queue_depth, set->reserved_tags);
+	if (!set->tags[hctx_idx])
+		return false;
+
+	ret = blk_mq_alloc_rqs(set, set->tags[hctx_idx], hctx_idx,
+				set->queue_depth);
+	if (!ret)
+		return true;
+
+	blk_mq_free_rq_map(set->tags[hctx_idx]);
+	set->tags[hctx_idx] = NULL;
+	return false;
+}
+
+static void blk_mq_free_map_and_requests(struct blk_mq_tag_set *set,
+					 unsigned int hctx_idx)
+{
+	blk_mq_free_rqs(set, set->tags[hctx_idx], hctx_idx);
+	blk_mq_free_rq_map(set->tags[hctx_idx]);
+	set->tags[hctx_idx] = NULL;
+}
+
 static void blk_mq_map_swqueue(struct request_queue *q,
 			       const struct cpumask *online_mask)
 {
@@ -1897,17 +1937,15 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 
 		hctx_idx = q->mq_map[i];
 		/* unmapped hw queue can be remapped after CPU topo changed */
-		if (!set->tags[hctx_idx]) {
-			set->tags[hctx_idx] = blk_mq_init_rq_map(set, hctx_idx);
-
+		if (!set->tags[hctx_idx] &&
+		    !__blk_mq_alloc_rq_map(set, hctx_idx)) {
 			/*
 			 * If tags initialization fail for some hctx,
 			 * that hctx won't be brought online.  In this
 			 * case, remap the current ctx to hctx[0] which
 			 * is guaranteed to always have tags allocated
 			 */
-			if (!set->tags[hctx_idx])
-				q->mq_map[i] = 0;
+			q->mq_map[i] = 0;
 		}
 
 		ctx = per_cpu_ptr(q->queue_ctx, i);
@@ -1930,10 +1968,9 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 			 * fallback in case of a new remap fails
 			 * allocation
 			 */
-			if (i && set->tags[i]) {
-				blk_mq_free_rq_map(set, set->tags[i], i);
-				set->tags[i] = NULL;
-			}
+			if (i && set->tags[i])
+				blk_mq_free_map_and_requests(set, i);
+
 			hctx->tags = NULL;
 			continue;
 		}
@@ -2100,10 +2137,8 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 		struct blk_mq_hw_ctx *hctx = hctxs[j];
 
 		if (hctx) {
-			if (hctx->tags) {
-				blk_mq_free_rq_map(set, hctx->tags, j);
-				set->tags[j] = NULL;
-			}
+			if (hctx->tags)
+				blk_mq_free_map_and_requests(set, j);
 			blk_mq_exit_hctx(q, set, hctx, j);
 			free_cpumask_var(hctx->cpumask);
 			kobject_put(&hctx->kobj);
@@ -2299,17 +2334,15 @@ static int __blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 {
 	int i;
 
-	for (i = 0; i < set->nr_hw_queues; i++) {
-		set->tags[i] = blk_mq_init_rq_map(set, i);
-		if (!set->tags[i])
+	for (i = 0; i < set->nr_hw_queues; i++)
+		if (!__blk_mq_alloc_rq_map(set, i))
 			goto out_unwind;
-	}
 
 	return 0;
 
 out_unwind:
 	while (--i >= 0)
-		blk_mq_free_rq_map(set, set->tags[i], i);
+		blk_mq_free_rq_map(set->tags[i]);
 
 	return -ENOMEM;
 }
@@ -2433,10 +2466,8 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 {
 	int i;
 
-	for (i = 0; i < nr_cpu_ids; i++) {
-		if (set->tags[i])
-			blk_mq_free_rq_map(set, set->tags[i], i);
-	}
+	for (i = 0; i < nr_cpu_ids; i++)
+		blk_mq_free_map_and_requests(set, i);
 
 	kfree(set->mq_map);
 	set->mq_map = NULL;

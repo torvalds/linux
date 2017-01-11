@@ -37,17 +37,21 @@ void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
 /*
  * Internal helpers for allocating/freeing the request map
  */
-void blk_mq_free_rq_map(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
-			unsigned int hctx_idx);
-struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
-					unsigned int hctx_idx);
+void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx);
+void blk_mq_free_rq_map(struct blk_mq_tags *tags);
+struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
+					unsigned int hctx_idx,
+					unsigned int nr_tags,
+					unsigned int reserved_tags);
+int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, unsigned int depth);
 
 /*
  * Internal helpers for request insertion into sw queues
  */
 void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 				bool at_head);
-
 /*
  * CPU hotplug helpers
  */
