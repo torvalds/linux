@@ -441,6 +441,15 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	/*
+	 * FIXME:enable psr2 only for y-cordinate psr2 panels
+	 * After gtc implementation , remove this restriction.
+	 */
+	if (!dev_priv->psr.y_cord_support &&  dev_priv->psr.psr2_support) {
+		DRM_DEBUG_KMS("PSR2 disabled, panel does not support Y coordinate\n");
+		return false;
+	}
+
 	dev_priv->psr.source_ok = true;
 	return true;
 }
