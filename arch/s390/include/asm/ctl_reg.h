@@ -62,7 +62,9 @@ union ctlreg0 {
 		unsigned long	   : 4;
 		unsigned long afp  : 1; /* AFP-register control */
 		unsigned long vx   : 1; /* Vector enablement control */
-		unsigned long	   : 17;
+		unsigned long	   : 7;
+		unsigned long sssm : 1; /* Service signal subclass mask */
+		unsigned long	   : 9;
 	};
 };
 

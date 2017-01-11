@@ -18,12 +18,16 @@ static bool have_linemode __section(data);
 
 static void _sclp_wait_int(void)
 {
-	unsigned long cr0, cr0_new, psw_mask, addr;
+	unsigned long psw_mask, addr, flags;
 	psw_t psw_ext_save, psw_wait;
+	union ctlreg0 cr0, cr0_new;
 
-	__ctl_store(cr0, 0, 0);
-	cr0_new = cr0 | 0x200;
-	__ctl_load(cr0_new, 0, 0);
+	raw_local_irq_save(flags);
+	__ctl_store(cr0.val, 0, 0);
+	cr0_new.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
+	cr0_new.lap = 0;
+	cr0_new.sssm = 1;
+	__ctl_load(cr0_new.val, 0, 0);
 
 	psw_ext_save = S390_lowcore.external_new_psw;
 	psw_mask = __extract_psw();
@@ -45,8 +49,9 @@ static void _sclp_wait_int(void)
 			: "cc", "memory");
 	} while (S390_lowcore.ext_int_code != EXT_IRQ_SERVICE_SIG);
 
-	__ctl_load(cr0, 0, 0);
 	S390_lowcore.external_new_psw = psw_ext_save;
+	__ctl_load(cr0.val, 0, 0);
+	raw_local_irq_restore(flags);
 }
 
 static int _sclp_servc(unsigned int cmd, char *sccb)
