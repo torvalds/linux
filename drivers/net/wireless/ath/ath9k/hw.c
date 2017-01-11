@@ -731,7 +731,7 @@ u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 		udelay(100);
 
 		if (WARN_ON_ONCE(i >= 100)) {
-			ath_err(common, "PLL4 meaurement not done\n");
+			ath_err(common, "PLL4 measurement not done\n");
 			break;
 		}
 
