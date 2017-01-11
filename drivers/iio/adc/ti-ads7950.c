@@ -411,15 +411,15 @@ static int ti_ads7950_probe(struct spi_device *spi)
 	spi_message_init_with_transfers(&st->scan_single_msg,
 					st->scan_single_xfer, 3);
 
-	st->reg = devm_regulator_get(&spi->dev, "refin");
+	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
-		dev_err(&spi->dev, "Failed get get regulator \"refin\"\n");
+		dev_err(&spi->dev, "Failed get get regulator \"vref\"\n");
 		return PTR_ERR(st->reg);
 	}
 
 	ret = regulator_enable(st->reg);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to enable regulator \"refin\"\n");
+		dev_err(&spi->dev, "Failed to enable regulator \"vref\"\n");
 		return ret;
 	}
 
