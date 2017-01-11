@@ -49,4 +49,8 @@ void dce110_opp_power_on_regamma_lut_v(
 	struct output_pixel_processor *opp,
 	bool power_on);
 
+void dce110_opp_set_regamma_mode_v(
+	struct output_pixel_processor *opp,
+	enum opp_regamma mode);
+
 #endif /* __DC_OPP_DCE110_V_H__ */

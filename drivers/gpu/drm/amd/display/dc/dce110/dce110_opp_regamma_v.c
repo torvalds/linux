@@ -548,3 +548,10 @@ void dce110_opp_power_on_regamma_lut_v(
 
 	dm_write_reg(opp->ctx, mmDCFEV_MEM_PWR_CTRL, value);
 }
+
+void dce110_opp_set_regamma_mode_v(
+	struct output_pixel_processor *opp,
+	enum opp_regamma mode)
+{
+	// TODO: need to implement the function
+}

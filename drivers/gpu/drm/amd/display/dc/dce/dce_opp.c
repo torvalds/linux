@@ -973,6 +973,10 @@ bool dce110_opp_construct(struct dce110_opp *opp110,
 
 	opp110->base.inst = inst;
 
+	opp110->base.regamma_params = dm_alloc(sizeof(struct pwl_params));
+	if (opp110->base.regamma_params == NULL)
+		return false;
+
 	opp110->regs = regs;
 	opp110->opp_shift = opp_shift;
 	opp110->opp_mask = opp_mask;
@@ -982,6 +986,9 @@ bool dce110_opp_construct(struct dce110_opp *opp110,
 
 void dce110_opp_destroy(struct output_pixel_processor **opp)
 {
+	dm_free((*opp)->regamma_params);
+	(*opp)->regamma_params = NULL;
+
 	dm_free(FROM_DCE11_OPP(*opp));
 	*opp = NULL;
 }

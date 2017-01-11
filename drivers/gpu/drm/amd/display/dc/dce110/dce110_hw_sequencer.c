@@ -721,43 +721,27 @@ static bool dce110_set_output_transfer_func(
 	const struct core_stream *stream)
 {
 	struct output_pixel_processor *opp = pipe_ctx->opp;
-	const struct core_gamma *ramp = NULL;
-	struct pwl_params *regamma_params;
-	bool result = false;
-
-	if (surface->public.gamma_correction)
-		ramp = DC_GAMMA_TO_CORE(surface->public.gamma_correction);
-
-	regamma_params = dm_alloc(sizeof(struct pwl_params));
-	if (regamma_params == NULL)
-		goto regamma_alloc_fail;
-
-	regamma_params->hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	opp->funcs->opp_power_on_regamma_lut(opp, true);
+	opp->regamma_params->hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->public.out_transfer_func &&
-			stream->public.out_transfer_func->type ==
+		stream->public.out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
-			stream->public.out_transfer_func->tf ==
+		stream->public.out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
 		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_SRGB);
 	} else if (dce110_translate_regamma_to_hw_format(
-			stream->public.out_transfer_func, regamma_params)) {
-		opp->funcs->opp_program_regamma_pwl(opp, regamma_params);
-		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
+				stream->public.out_transfer_func, opp->regamma_params)) {
+			opp->funcs->opp_program_regamma_pwl(opp, opp->regamma_params);
+			opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
 	} else {
 		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_BYPASS);
 	}
 
 	opp->funcs->opp_power_on_regamma_lut(opp, false);
 
-	result = true;
-
-	dm_free(regamma_params);
-
-regamma_alloc_fail:
-	return result;
+	return true;
 }
 
 static enum dc_status bios_parser_crtc_source_select(

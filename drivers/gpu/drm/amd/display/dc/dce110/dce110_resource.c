@@ -1114,14 +1114,22 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 			dce110_resource_build_bit_depth_reduction_params
 };
 
-static void underlay_create(struct dc_context *ctx, struct resource_pool *pool)
+static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	struct dce110_timing_generator *dce110_tgv = dm_alloc(sizeof (*dce110_tgv));
 	struct dce_transform *dce110_xfmv = dm_alloc(sizeof (*dce110_xfmv));
 	struct dce110_mem_input *dce110_miv = dm_alloc(sizeof (*dce110_miv));
 	struct dce110_opp *dce110_oppv = dm_alloc(sizeof (*dce110_oppv));
 
-	dce110_opp_v_construct(dce110_oppv, ctx);
+	if ((dce110_tgv == NULL) ||
+		(dce110_xfmv == NULL) ||
+		(dce110_miv == NULL) ||
+		(dce110_oppv == NULL))
+			return false;
+
+	if (!dce110_opp_v_construct(dce110_oppv, ctx))
+		return false;
+
 	dce110_timing_generator_v_construct(dce110_tgv, ctx);
 	dce110_mem_input_v_construct(dce110_miv, ctx);
 	dce110_transform_v_construct(dce110_xfmv, ctx);
@@ -1135,6 +1143,8 @@ static void underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 	/* update the public caps to indicate an underlay is available */
 	ctx->dc->caps.max_slave_planes = 1;
 	ctx->dc->caps.max_slave_planes = 1;
+
+	return true;
 }
 
 static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
@@ -1334,7 +1344,8 @@ static bool construct(
 		}
 	}
 
-	underlay_create(ctx, &pool->base);
+	if (!underlay_create(ctx, &pool->base))
+		goto res_create_fail;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))

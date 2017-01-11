@@ -192,7 +192,8 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream == stream) {
+		if ((pipe_ctx->stream == stream) &&
+			(pipe_ctx->ipp != NULL)) {
 			struct input_pixel_processor *ipp = pipe_ctx->ipp;
 
 			if (ipp->funcs->ipp_cursor_set_attributes(
@@ -231,7 +232,8 @@ bool dc_stream_set_cursor_position(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream == stream) {
+		if ((pipe_ctx->stream == stream) &&
+				(pipe_ctx->ipp != NULL)) {
 			struct input_pixel_processor *ipp = pipe_ctx->ipp;
 			struct dc_cursor_mi_param param = {
 				.pixel_clk_khz = dc_stream->timing.pix_clk_khz,
