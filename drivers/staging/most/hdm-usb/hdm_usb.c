@@ -145,7 +145,7 @@ static void wq_netinfo(struct work_struct *wq_obj);
 static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 {
 	int retval;
-	__le16 *dma_buf = kzalloc(sizeof(__le16), GFP_KERNEL);
+	__le16 *dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 
 	if (!dma_buf)
@@ -154,7 +154,7 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 	retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 				 DRCI_READ_REQ, req_type,
 				 0x0000,
-				 reg, dma_buf, sizeof(u16), 5 * HZ);
+				 reg, dma_buf, sizeof(*dma_buf), 5 * HZ);
 	*buf = le16_to_cpu(*dma_buf);
 	kfree(dma_buf);
 
