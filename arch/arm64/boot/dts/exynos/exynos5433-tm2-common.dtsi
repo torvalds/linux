@@ -278,6 +278,22 @@
 	};
 };
 
+&decon_tv {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			tv_to_hdmi: endpoint {
+				remote-endpoint = <&hdmi_to_tv>;
+			};
+		};
+	};
+};
+
 &dsi {
 	status = "okay";
 	vddcore-supply = <&ldo6_reg>;
@@ -296,6 +312,33 @@
 			dsi_out: endpoint {
 				samsung,burst-clock-frequency = <512000000>;
 				samsung,esc-clock-frequency = <16000000>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	hpd-gpios = <&gpa3 0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	vdd-supply = <&ldo6_reg>;
+	vdd_osc-supply = <&ldo7_reg>;
+	vdd_pll-supply = <&ldo6_reg>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			hdmi_to_tv: endpoint {
+				remote-endpoint = <&tv_to_hdmi>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			hdmi_to_mhl: endpoint {
+				remote-endpoint = <&mhl_to_hdmi>;
 			};
 		};
 	};
@@ -702,6 +745,28 @@
 	};
 };
 
+&hsi2c_7 {
+	status = "okay";
+
+	sii8620@39 {
+		reg = <0x39>;
+		compatible = "sil,sii8620";
+		cvcc10-supply = <&ldo36_reg>;
+		iovcc18-supply = <&ldo34_reg>;
+		interrupt-parent = <&gpf0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gpv7 0 GPIO_ACTIVE_LOW>;
+		clocks = <&pmu_system_controller 0>;
+		clock-names = "xtal";
+
+		port {
+			mhl_to_hdmi: endpoint {
+				remote-endpoint = <&hdmi_to_mhl>;
+			};
+		};
+	};
+};
+
 &hsi2c_8 {
 	status = "okay";
 
@@ -743,6 +808,10 @@
 			pwm-names = "haptic";
 		};
 	};
+};
+
+&hsi2c_11 {
+	status = "okay";
 };
 
 &i2s0 {
