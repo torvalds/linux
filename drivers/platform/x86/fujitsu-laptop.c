@@ -1044,89 +1044,7 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 
 	input = fujitsu_hotkey->input;
 
-	if (fujitsu_hotkey->rfkill_supported)
-		fujitsu_hotkey->rfkill_state =
-			call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
-
-	switch (event) {
-	case ACPI_FUJITSU_NOTIFY_CODE1:
-		i = 0;
-		while ((irb =
-			call_fext_func(FUNC_BUTTONS, 0x1, 0x0, 0x0)) != 0
-				&& (i++) < MAX_HOTKEY_RINGBUFFER_SIZE) {
-			switch (irb & 0x4ff) {
-			case KEY1_CODE:
-				keycode = fujitsu->keycode1;
-				break;
-			case KEY2_CODE:
-				keycode = fujitsu->keycode2;
-				break;
-			case KEY3_CODE:
-				keycode = fujitsu->keycode3;
-				break;
-			case KEY4_CODE:
-				keycode = fujitsu->keycode4;
-				break;
-			case KEY5_CODE:
-				keycode = fujitsu->keycode5;
-				break;
-			case 0:
-				keycode = 0;
-				break;
-			default:
-				vdbg_printk(FUJLAPTOP_DBG_WARN,
-					    "Unknown GIRB result [%x]\n", irb);
-				keycode = -1;
-				break;
-			}
-			if (keycode > 0) {
-				vdbg_printk(FUJLAPTOP_DBG_TRACE,
-					"Push keycode into ringbuffer [%d]\n",
-					keycode);
-				status = kfifo_in_locked(&fujitsu_hotkey->fifo,
-						   (unsigned char *)&keycode,
-						   sizeof(keycode),
-						   &fujitsu_hotkey->fifo_lock);
-				if (status != sizeof(keycode)) {
-					vdbg_printk(FUJLAPTOP_DBG_WARN,
-					    "Could not push keycode [0x%x]\n",
-					    keycode);
-				} else {
-					input_report_key(input, keycode, 1);
-					input_sync(input);
-				}
-			} else if (keycode == 0) {
-				while ((status =
-					kfifo_out_locked(
-					 &fujitsu_hotkey->fifo,
-					 (unsigned char *) &keycode_r,
-					 sizeof(keycode_r),
-					 &fujitsu_hotkey->fifo_lock))
-					 == sizeof(keycode_r)) {
-					input_report_key(input, keycode_r, 0);
-					input_sync(input);
-					vdbg_printk(FUJLAPTOP_DBG_TRACE,
-					  "Pop keycode from ringbuffer [%d]\n",
-					  keycode_r);
-				}
-			}
-		}
-
-		/* On some models (first seen on the Skylake-based Lifebook
-		 * E736/E746/E756), the touchpad toggle hotkey (Fn+F4) is
-		 * handled in software; its state is queried using FUNC_RFKILL
-		 */
-		if ((fujitsu_hotkey->rfkill_supported & BIT(26)) &&
-		    (call_fext_func(FUNC_RFKILL, 0x1, 0x0, 0x0) & BIT(26))) {
-			keycode = KEY_TOUCHPAD_TOGGLE;
-			input_report_key(input, keycode, 1);
-			input_sync(input);
-			input_report_key(input, keycode, 0);
-			input_sync(input);
-		}
-
-		break;
-	default:
+	if (event != ACPI_FUJITSU_NOTIFY_CODE1) {
 		keycode = KEY_UNKNOWN;
 		vdbg_printk(FUJLAPTOP_DBG_WARN,
 			    "Unsupported event [0x%x]\n", event);
@@ -1134,8 +1052,88 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 		input_sync(input);
 		input_report_key(input, keycode, 0);
 		input_sync(input);
-		break;
+		return;
 	}
+
+	if (fujitsu_hotkey->rfkill_supported)
+		fujitsu_hotkey->rfkill_state =
+			call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
+
+	i = 0;
+	while ((irb =
+		call_fext_func(FUNC_BUTTONS, 0x1, 0x0, 0x0)) != 0
+			&& (i++) < MAX_HOTKEY_RINGBUFFER_SIZE) {
+		switch (irb & 0x4ff) {
+		case KEY1_CODE:
+			keycode = fujitsu->keycode1;
+			break;
+		case KEY2_CODE:
+			keycode = fujitsu->keycode2;
+			break;
+		case KEY3_CODE:
+			keycode = fujitsu->keycode3;
+			break;
+		case KEY4_CODE:
+			keycode = fujitsu->keycode4;
+			break;
+		case KEY5_CODE:
+			keycode = fujitsu->keycode5;
+			break;
+		case 0:
+			keycode = 0;
+			break;
+		default:
+			vdbg_printk(FUJLAPTOP_DBG_WARN,
+				    "Unknown GIRB result [%x]\n", irb);
+			keycode = -1;
+			break;
+		}
+		if (keycode > 0) {
+			vdbg_printk(FUJLAPTOP_DBG_TRACE,
+				"Push keycode into ringbuffer [%d]\n",
+				keycode);
+			status = kfifo_in_locked(&fujitsu_hotkey->fifo,
+					   (unsigned char *)&keycode,
+					   sizeof(keycode),
+					   &fujitsu_hotkey->fifo_lock);
+			if (status != sizeof(keycode)) {
+				vdbg_printk(FUJLAPTOP_DBG_WARN,
+				    "Could not push keycode [0x%x]\n",
+				    keycode);
+			} else {
+				input_report_key(input, keycode, 1);
+				input_sync(input);
+			}
+		} else if (keycode == 0) {
+			while ((status =
+				kfifo_out_locked(
+				 &fujitsu_hotkey->fifo,
+				 (unsigned char *) &keycode_r,
+				 sizeof(keycode_r),
+				 &fujitsu_hotkey->fifo_lock))
+				 == sizeof(keycode_r)) {
+				input_report_key(input, keycode_r, 0);
+				input_sync(input);
+				vdbg_printk(FUJLAPTOP_DBG_TRACE,
+				  "Pop keycode from ringbuffer [%d]\n",
+				  keycode_r);
+			}
+		}
+	}
+
+	/* On some models (first seen on the Skylake-based Lifebook
+	 * E736/E746/E756), the touchpad toggle hotkey (Fn+F4) is
+	 * handled in software; its state is queried using FUNC_RFKILL
+	 */
+	if ((fujitsu_hotkey->rfkill_supported & BIT(26)) &&
+	    (call_fext_func(FUNC_RFKILL, 0x1, 0x0, 0x0) & BIT(26))) {
+		keycode = KEY_TOUCHPAD_TOGGLE;
+		input_report_key(input, keycode, 1);
+		input_sync(input);
+		input_report_key(input, keycode, 0);
+		input_sync(input);
+	}
+
 }
 
 /* Initialization */
