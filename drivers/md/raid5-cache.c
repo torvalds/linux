@@ -1393,8 +1393,6 @@ static void r5l_do_reclaim(struct r5l_log *log)
 	next_checkpoint = r5c_calculate_new_cp(conf);
 	spin_unlock_irq(&log->io_list_lock);
 
-	BUG_ON(reclaimable < 0);
-
 	if (reclaimable == 0 || !write_super)
 		return;
 
