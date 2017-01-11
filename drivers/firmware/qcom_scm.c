@@ -387,7 +387,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-apq8064",
-	  .data = (void *) SCM_HAS_CORE_CLK,
+	  /* FIXME: This should have .data = (void *) SCM_HAS_CORE_CLK */
 	},
 	{ .compatible = "qcom,scm-msm8660",
 	  .data = (void *) SCM_HAS_CORE_CLK,
