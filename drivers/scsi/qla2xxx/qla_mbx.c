@@ -101,12 +101,12 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
-	 /* if PCI error, then avoid mbx processing.*/
-	 if (test_bit(PCI_ERR, &base_vha->dpc_flags)) {
+	/* if PCI error, then avoid mbx processing.*/
+	if (test_bit(PCI_ERR, &base_vha->dpc_flags)) {
 		ql_log(ql_log_warn, vha, 0x1191,
 		    "PCI error, exiting.\n");
 		return QLA_FUNCTION_TIMEOUT;
-	 }
+	}
 
 	reg = ha->iobase;
 	io_lock_on = base_vha->flags.init_done;
