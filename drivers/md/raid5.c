@@ -281,13 +281,13 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 						atomic_dec(&conf->r5c_cached_partial_stripes);
 					list_add_tail(&sh->lru, &conf->r5c_full_stripe_list);
 					r5c_check_cached_full_stripe(conf);
-				} else {
-					/* partial stripe */
-					if (!test_and_set_bit(STRIPE_R5C_PARTIAL_STRIPE,
-							      &sh->state))
-						atomic_inc(&conf->r5c_cached_partial_stripes);
+				} else
+					/*
+					 * STRIPE_R5C_PARTIAL_STRIPE is set in
+					 * r5c_try_caching_write(). No need to
+					 * set it again.
+					 */
 					list_add_tail(&sh->lru, &conf->r5c_partial_stripe_list);
-				}
 			}
 		}
 	}
@@ -5062,6 +5062,13 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 		      rdev->recovery_offset >= end_sector)))
 			rdev = NULL;
 	}
+
+	if (r5c_big_stripe_cached(conf, align_bi->bi_iter.bi_sector)) {
+		rcu_read_unlock();
+		bio_put(align_bi);
+		return 0;
+	}
+
 	if (rdev) {
 		sector_t first_bad;
 		int bad_sectors;
@@ -5418,7 +5425,6 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	 * data on failed drives.
 	 */
 	if (rw == READ && mddev->degraded == 0 &&
-	    !r5c_is_writeback(conf->log) &&
 	    mddev->reshape_position == MaxSector) {
 		bi = chunk_aligned_read(mddev, bi);
 		if (!bi)
