@@ -837,6 +837,35 @@
 			};
 		};
 
+		hdmi: hdmi@13970000 {
+			compatible = "samsung,exynos5433-hdmi";
+			reg = <0x13970000 0x70000>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_disp CLK_PCLK_HDMI>,
+				<&cmu_disp CLK_PCLK_HDMIPHY>,
+				<&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO>,
+				<&cmu_disp CLK_PHYCLK_HDMI_PIXEL>,
+				<&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY>,
+				<&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_TMDS_CLKO_USER>,
+				<&cmu_disp CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY>,
+				<&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_PIXEL_CLKO_USER>,
+				<&xxti>, <&cmu_disp CLK_SCLK_HDMI_SPDIF>;
+			clock-names = "hdmi_pclk", "hdmi_i_pclk",
+				"i_tmds_clk", "i_pixel_clk",
+				"tmds_clko", "tmds_clko_user",
+				"pixel_clko", "pixel_clko_user",
+				"oscclk", "i_spdif_clk";
+			phy = <&hdmiphy>;
+			ddc = <&hsi2c_11>;
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			samsung,sysreg-phandle = <&syscon_disp>;
+			status = "disabled";
+		};
+
+		hdmiphy: hdmiphy@13af0000 {
+			reg = <0x13af0000 0x80>;
+		};
+
 		syscon_disp: syscon@13b80000 {
 			compatible = "syscon";
 			reg = <0x13b80000 0x1010>;
