@@ -1037,13 +1037,12 @@ static int gb_loopback_fn(void *data)
 
 		/* Else operations to perform */
 		if (gb->async) {
-			if (type == GB_LOOPBACK_TYPE_PING) {
+			if (type == GB_LOOPBACK_TYPE_PING)
 				error = gb_loopback_async_ping(gb);
-			} else if (type == GB_LOOPBACK_TYPE_TRANSFER) {
+			else if (type == GB_LOOPBACK_TYPE_TRANSFER)
 				error = gb_loopback_async_transfer(gb, size);
-			} else if (type == GB_LOOPBACK_TYPE_SINK) {
+			else if (type == GB_LOOPBACK_TYPE_SINK)
 				error = gb_loopback_async_sink(gb, size);
-			}
 
 			if (error)
 				gb->error++;
