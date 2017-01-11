@@ -563,14 +563,10 @@ static int rkvr_keys_event(struct hid_device *hdev, void *data, unsigned long le
 		rkvr_send_key_event(input, KEY_RIGHT, 1);
 		rkvr_send_key_event(input, KEY_RIGHT, 0);
 	} else if (rkvr_data->rkvr_data.key_map.key_enter_pressed) {
-		rkvr_send_key_event(input, KEY_ENTER, 1);
-		rkvr_send_key_event(input, KEY_ENTER, 0);
-#ifdef RK_HID_GEAR_TOUCH
 		input_event(input, EV_MSC, MSC_SCAN, 0x90001);
-		rkvr_send_key_event(input, 0x110, 1);
+		rkvr_send_key_event(input, BTN_MOUSE, 1);
 		input_event(input, EV_MSC, MSC_SCAN, 0x90001);
-		rkvr_send_key_event(input, 0x110, 0);
-#endif
+		rkvr_send_key_event(input, BTN_MOUSE, 0);
 	}
 
 	if (rkvr_data->rkvr_data.key_map.psensor_on) {
@@ -612,7 +608,6 @@ static int rkvr_report_event(struct hid_device *hid, u8 *data, int len)
 			list->buffer[list->head].value = kmemdup(data, len, GFP_ATOMIC);
 			if (!list->buffer[list->head].value) {
 				ret = -ENOMEM;
-				spin_unlock_irqrestore(&dev->list_lock, flags);
 				break;
 			}
 
@@ -760,9 +755,9 @@ static int hid_get_capability(struct device *dev, struct hid_capability *caps)
 static void hid_report_fill_rw(unsigned char *buf, u8 reg, u8 *data, int len, int w)
 {
 	if (w)
-		buf[0] = (1 << 7) | (len && 0x7f);
+		buf[0] = (1 << 7) | (len & 0x7f);
 	else
-		buf[0] = len && 0x7f;
+		buf[0] = len & 0x7f;
 	buf[1] = reg;
 	memcpy(&buf[2], data, len);
 }
@@ -1043,7 +1038,8 @@ static unsigned int key_codes[] = {
 	KEY_RIGHT,
 	KEY_UP,
 	KEY_DOWN,
-	KEY_ENTER
+	KEY_ENTER,
+	BTN_MOUSE
 };
 
 static int __must_check rkvr_keys_probe(struct hid_device *hdev)
