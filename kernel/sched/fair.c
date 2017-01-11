@@ -2657,6 +2657,18 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	if (tg_weight)
 		shares /= tg_weight;
 
+	/*
+	 * MIN_SHARES has to be unscaled here to support per-CPU partitioning
+	 * of a group with small tg->shares value. It is a floor value which is
+	 * assigned as a minimum load.weight to the sched_entity representing
+	 * the group on a CPU.
+	 *
+	 * E.g. on 64-bit for a group with tg->shares of scale_load(15)=15*1024
+	 * on an 8-core system with 8 tasks each runnable on one CPU shares has
+	 * to be 15*1024*1/8=1920 instead of scale_load(MIN_SHARES)=2*1024. In
+	 * case no task is runnable on a CPU MIN_SHARES=2 should be returned
+	 * instead of 0.
+	 */
 	if (shares < MIN_SHARES)
 		shares = MIN_SHARES;
 	if (shares > tg->shares)
