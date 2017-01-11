@@ -2754,7 +2754,6 @@ struct qla_msix_entry {
 	uint16_t entry;
 	char name[30];
 	void *handle;
-	struct irq_affinity_notify irq_notify;
 	int cpuid;
 };
 
