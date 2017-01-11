@@ -114,7 +114,7 @@ struct sci_port {
 
 	/* Platform configuration */
 	const struct sci_port_params *params;
-	struct plat_sci_port	*cfg;
+	const struct plat_sci_port *cfg;
 	unsigned int		overrun_reg;
 	unsigned int		overrun_mask;
 	unsigned int		error_mask;
@@ -418,41 +418,6 @@ static void sci_serial_out(struct uart_port *p, int offset, int value)
 		iowrite16(value, p->membase + (reg->offset << p->regshift));
 	else
 		WARN(1, "Invalid register access\n");
-}
-
-static int sci_probe_regmap(struct plat_sci_port *cfg)
-{
-	switch (cfg->type) {
-	case PORT_SCI:
-		cfg->regtype = SCIx_SCI_REGTYPE;
-		break;
-	case PORT_IRDA:
-		cfg->regtype = SCIx_IRDA_REGTYPE;
-		break;
-	case PORT_SCIFA:
-		cfg->regtype = SCIx_SCIFA_REGTYPE;
-		break;
-	case PORT_SCIFB:
-		cfg->regtype = SCIx_SCIFB_REGTYPE;
-		break;
-	case PORT_SCIF:
-		/*
-		 * The SH-4 is a bit of a misnomer here, although that's
-		 * where this particular port layout originated. This
-		 * configuration (or some slight variation thereof)
-		 * remains the dominant model for all SCIFs.
-		 */
-		cfg->regtype = SCIx_SH4_SCIF_REGTYPE;
-		break;
-	case PORT_HSCIF:
-		cfg->regtype = SCIx_HSCIF_REGTYPE;
-		break;
-	default:
-		pr_err("Can't probe register map for given port\n");
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static void sci_port_enable(struct sci_port *sci_port)
@@ -2541,9 +2506,50 @@ found:
 	return 0;
 }
 
+static const struct sci_port_params *
+sci_probe_regmap(const struct plat_sci_port *cfg)
+{
+	unsigned int regtype;
+
+	if (cfg->regtype != SCIx_PROBE_REGTYPE)
+		return &sci_port_params[cfg->regtype];
+
+	switch (cfg->type) {
+	case PORT_SCI:
+		regtype = SCIx_SCI_REGTYPE;
+		break;
+	case PORT_IRDA:
+		regtype = SCIx_IRDA_REGTYPE;
+		break;
+	case PORT_SCIFA:
+		regtype = SCIx_SCIFA_REGTYPE;
+		break;
+	case PORT_SCIFB:
+		regtype = SCIx_SCIFB_REGTYPE;
+		break;
+	case PORT_SCIF:
+		/*
+		 * The SH-4 is a bit of a misnomer here, although that's
+		 * where this particular port layout originated. This
+		 * configuration (or some slight variation thereof)
+		 * remains the dominant model for all SCIFs.
+		 */
+		regtype = SCIx_SH4_SCIF_REGTYPE;
+		break;
+	case PORT_HSCIF:
+		regtype = SCIx_HSCIF_REGTYPE;
+		break;
+	default:
+		pr_err("Can't probe register map for given port\n");
+		return NULL;
+	}
+
+	return &sci_port_params[regtype];
+}
+
 static int sci_init_single(struct platform_device *dev,
 			   struct sci_port *sci_port, unsigned int index,
-			   struct plat_sci_port *p, bool early)
+			   const struct plat_sci_port *p, bool early)
 {
 	struct uart_port *port = &sci_port->port;
 	const struct resource *res;
@@ -2580,13 +2586,9 @@ static int sci_init_single(struct platform_device *dev,
 		sci_port->irqs[3] = sci_port->irqs[0];
 	}
 
-	if (p->regtype == SCIx_PROBE_REGTYPE) {
-		ret = sci_probe_regmap(p);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	sci_port->params = &sci_port_params[p->regtype];
+	sci_port->params = sci_probe_regmap(p);
+	if (unlikely(sci_port->params == NULL))
+		return -EINVAL;
 
 	switch (p->type) {
 	case PORT_SCIFB:
@@ -2806,7 +2808,7 @@ static char early_serial_buf[32];
 
 static int sci_probe_earlyprintk(struct platform_device *pdev)
 {
-	struct plat_sci_port *cfg = dev_get_platdata(&pdev->dev);
+	const struct plat_sci_port *cfg = dev_get_platdata(&pdev->dev);
 
 	if (early_serial_console.data)
 		return -EEXIST;
@@ -3097,10 +3099,9 @@ static int __init early_console_setup(struct earlycon_device *device,
 	device->port.serial_out	= sci_serial_out;
 	device->port.type = type;
 	memcpy(&sci_ports[0].port, &device->port, sizeof(struct uart_port));
+	port_cfg.type = type;
 	sci_ports[0].cfg = &port_cfg;
-	sci_ports[0].cfg->type = type;
-	sci_probe_regmap(sci_ports[0].cfg);
-	sci_ports[0].params = &sci_port_params[sci_ports[0].cfg->regtype];
+	sci_ports[0].params = sci_probe_regmap(&port_cfg);
 	port_cfg.scscr = sci_serial_in(&sci_ports[0].port, SCSCR);
 	sci_serial_out(&sci_ports[0].port, SCSCR,
 		       SCSCR_RE | SCSCR_TE | port_cfg.scscr);
