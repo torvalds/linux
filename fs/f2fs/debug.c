@@ -54,6 +54,12 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->max_aw_cnt = atomic_read(&sbi->max_aw_cnt);
 	si->nr_wb_cp_data = get_pages(sbi, F2FS_WB_CP_DATA);
 	si->nr_wb_data = get_pages(sbi, F2FS_WB_DATA);
+	if (SM_I(sbi) && SM_I(sbi)->fcc_info)
+		si->nr_flush =
+			atomic_read(&SM_I(sbi)->fcc_info->submit_flush);
+	if (SM_I(sbi) && SM_I(sbi)->dcc_info)
+		si->nr_discard =
+			atomic_read(&SM_I(sbi)->dcc_info->submit_discard);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
@@ -318,8 +324,9 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - IO (CP: %4d, Data: %4d)\n",
-			   si->nr_wb_cp_data, si->nr_wb_data);
+		seq_printf(s, "  - IO (CP: %4d, Data: %4d, Flush: %4d, Discard: %4d)\n",
+			   si->nr_wb_cp_data, si->nr_wb_data,
+			   si->nr_flush, si->nr_discard);
 		seq_printf(s, "  - inmem: %4d, atomic IO: %4d (Max. %4d)\n",
 			   si->inmem_pages, si->aw_cnt, si->max_aw_cnt);
 		seq_printf(s, "  - nodes: %4d in %4d\n",
