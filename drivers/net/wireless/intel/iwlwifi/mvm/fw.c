@@ -1123,16 +1123,62 @@ out_free:
 	return ret;
 }
 
-static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
+int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	struct iwl_dev_tx_power_cmd cmd = {
 		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
-	int ret, i, j, idx;
+	int i, j, idx;
+	int profs[IWL_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
 	int len = sizeof(cmd);
+
+	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS < 2);
+	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
+		     IWL_MVM_SAR_TABLE_SIZE);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v3);
+
+	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+		struct iwl_mvm_sar_profile *prof;
+
+		/* don't allow SAR to be disabled (profile 0 means disable) */
+		if (profs[i] == 0)
+			return -EPERM;
+
+		/* we are off by one, so allow up to IWL_MVM_SAR_PROFILE_NUM */
+		if (profs[i] > IWL_MVM_SAR_PROFILE_NUM)
+			return -EINVAL;
+
+		/* profiles go from 1 to 4, so decrement to access the array */
+		prof = &mvm->sar_profiles[profs[i] - 1];
+
+		/* if the profile is disabled, do nothing */
+		if (!prof->enabled) {
+			IWL_DEBUG_RADIO(mvm, "SAR profile %d is disabled.\n",
+					profs[i]);
+			/* if one of the profiles is disabled, we fail all */
+			return -ENOENT;
+		}
+
+		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
+		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
+			idx = (i * IWL_NUM_SUB_BANDS) + j;
+			cmd.v3.per_chain_restriction[i][j] =
+				cpu_to_le16(prof->table[idx]);
+			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
+					j, prof->table[idx]);
+		}
+	}
+
+	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
+
+	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
+}
+
+static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
+{
+	int ret;
 
 	ret = iwl_mvm_sar_get_wrds_table(mvm);
 	if (ret < 0) {
@@ -1143,29 +1189,12 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 		return 0;
 	}
 
-	/* if profile 0 is disabled, there's nothing else to do here */
-	if (!mvm->sar_profiles[0].enabled)
+	/* choose profile 1 (WRDS) as default for both chains */
+	ret = iwl_mvm_sar_select_profile(mvm, 1, 1);
+
+	/* if we don't have profile 0 from BIOS, just skip it */
+	if (ret == -ENOENT)
 		return 0;
-
-	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
-
-	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
-		     IWL_MVM_SAR_TABLE_SIZE);
-
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
-		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
-		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
-			idx = (i * IWL_NUM_SUB_BANDS) + j;
-			cmd.v3.per_chain_restriction[i][j] =
-				cpu_to_le16(mvm->sar_profiles[0].table[idx]);
-			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
-					j, mvm->sar_profiles[0].table[idx]);
-		}
-	}
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
-	if (ret)
-		IWL_ERR(mvm, "failed to set per-chain TX power: %d\n", ret);
 
 	return ret;
 }
