@@ -262,7 +262,7 @@ static irqreturn_t armada38x_rtc_alarm_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops armada38x_rtc_ops = {
+static const struct rtc_class_ops armada38x_rtc_ops = {
 	.read_time = armada38x_rtc_read_time,
 	.set_time = armada38x_rtc_set_time,
 	.read_alarm = armada38x_rtc_read_alarm,
@@ -270,8 +270,15 @@ static struct rtc_class_ops armada38x_rtc_ops = {
 	.alarm_irq_enable = armada38x_rtc_alarm_irq_enable,
 };
 
+static const struct rtc_class_ops armada38x_rtc_ops_noirq = {
+	.read_time = armada38x_rtc_read_time,
+	.set_time = armada38x_rtc_set_time,
+	.read_alarm = armada38x_rtc_read_alarm,
+};
+
 static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
+	const struct rtc_class_ops *ops;
 	struct resource *res;
 	struct armada38x_rtc *rtc;
 	int ret;
@@ -307,22 +314,25 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 				0, pdev->name, rtc) < 0) {
 		dev_warn(&pdev->dev, "Interrupt not available.\n");
 		rtc->irq = -1;
+	}
+	platform_set_drvdata(pdev, rtc);
+
+	if (rtc->irq != -1) {
+		device_init_wakeup(&pdev->dev, 1);
+		ops = &armada38x_rtc_ops;
+	} else {
 		/*
 		 * If there is no interrupt available then we can't
 		 * use the alarm
 		 */
-		armada38x_rtc_ops.set_alarm = NULL;
-		armada38x_rtc_ops.alarm_irq_enable = NULL;
+		ops = &armada38x_rtc_ops_noirq;
 	}
-	platform_set_drvdata(pdev, rtc);
-	if (rtc->irq != -1)
-		device_init_wakeup(&pdev->dev, 1);
 
 	/* Update RTC-MBUS bridge timing parameters */
 	rtc_update_mbus_timing_params(rtc);
 
 	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&armada38x_rtc_ops, THIS_MODULE);
+						ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
