@@ -924,11 +924,9 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 		res->sr_timestamp = jiffies;
 		res->sr_status_flags = 0;
 		res->sr_status = 1;
-#ifdef CONFIG_NFS_V4_1
-		trace_nfs4_setup_sequence(session, args);
-#endif /* CONFIG_NFS_V4_1 */
 	}
 
+	trace_nfs4_setup_sequence(session, args);
 out_start:
 	rpc_call_start(task);
 	return 0;

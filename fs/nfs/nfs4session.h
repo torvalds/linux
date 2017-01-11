@@ -175,6 +175,8 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 	return 0;
 }
 
+#define nfs_session_id_hash(session) (0)
+
 #endif /* defined(CONFIG_NFS_V4_1) */
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */
 #endif /* __LINUX_FS_NFS_NFS4SESSION_H */
