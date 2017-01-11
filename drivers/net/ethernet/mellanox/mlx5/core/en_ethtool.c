@@ -595,7 +595,7 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	coal->rx_coalesce_usecs       = priv->params.rx_cq_moderation.usec;
 	coal->rx_max_coalesced_frames = priv->params.rx_cq_moderation.pkts;
@@ -620,7 +620,7 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	int i;
 
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->state_lock);
 
@@ -1296,7 +1296,7 @@ static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	u32 mlx5_wol_mode;
 
 	if (!wol_supported)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (wol->wolopts & ~wol_supported)
 		return -EINVAL;
@@ -1426,7 +1426,7 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 
 	if (rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
 	    !MLX5_CAP_GEN(mdev, cq_period_start_from_cqe))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!rx_mode_changed)
 		return 0;
@@ -1452,7 +1452,7 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	bool reset;
 
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (enable && priv->tstamp.hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE) {
 		netdev_err(netdev, "Can't enable cqe compression while timestamping is enabled.\n");

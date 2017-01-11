@@ -863,12 +863,12 @@ static inline void mlx5e_arfs_destroy_tables(struct mlx5e_priv *priv) {}
 
 static inline int mlx5e_arfs_enable(struct mlx5e_priv *priv)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline int mlx5e_arfs_disable(struct mlx5e_priv *priv)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 #else
 int mlx5e_arfs_create_tables(struct mlx5e_priv *priv);

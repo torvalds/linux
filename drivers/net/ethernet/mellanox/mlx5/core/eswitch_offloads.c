@@ -166,7 +166,7 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 	return 0;
 
 out_notsupp:
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
