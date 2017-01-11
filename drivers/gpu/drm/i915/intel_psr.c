@@ -590,6 +590,11 @@ static void hsw_psr_disable(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (dev_priv->psr.active) {
+		if (dev_priv->psr.aux_frame_sync)
+			drm_dp_dpcd_writeb(&intel_dp->aux,
+					DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
+					0);
+
 		if (dev_priv->psr.psr2_support) {
 			I915_WRITE(EDP_PSR2_CTL,
 				I915_READ(EDP_PSR2_CTL) &
@@ -728,6 +733,10 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 		return;
 
 	if (HAS_DDI(dev_priv)) {
+		if (dev_priv->psr.aux_frame_sync)
+			drm_dp_dpcd_writeb(&intel_dp->aux,
+					DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
+					0);
 		if (dev_priv->psr.psr2_support) {
 			val = I915_READ(EDP_PSR2_CTL);
 			WARN_ON(!(val & EDP_PSR2_ENABLE));
