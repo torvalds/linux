@@ -37,7 +37,6 @@ struct pinctrl_gpio_range;
  * @p: result of pinctrl_get() for this device
  * @hog_default: default state for pins hogged by this device
  * @hog_sleep: sleep state for pins hogged by this device
- * @late_init: delayed work for pin controller to finish registration
  * @mutex: mutex taken on each pin controller specific action
  * @device_root: debugfs root for this device
  */
@@ -60,7 +59,6 @@ struct pinctrl_dev {
 	struct pinctrl *p;
 	struct pinctrl_state *hog_default;
 	struct pinctrl_state *hog_sleep;
-	struct delayed_work late_init;
 	struct mutex mutex;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *device_root;

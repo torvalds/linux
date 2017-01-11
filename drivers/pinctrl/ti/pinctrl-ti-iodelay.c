@@ -891,10 +891,9 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 	iod->desc.name = dev_name(dev);
 	iod->desc.owner = THIS_MODULE;
 
-	iod->pctl = pinctrl_register(&iod->desc, dev, iod);
-	if (!iod->pctl) {
+	ret = pinctrl_register_and_init(&iod->desc, dev, iod, &iod->pctl);
+	if (ret) {
 		dev_err(dev, "Failed to register pinctrl\n");
-		ret = -ENODEV;
 		goto exit_out;
 	}
 

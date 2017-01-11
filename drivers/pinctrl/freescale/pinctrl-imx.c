@@ -774,11 +774,11 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	ipctl->info = info;
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
-	ipctl->pctl = devm_pinctrl_register(&pdev->dev,
-					    imx_pinctrl_desc, ipctl);
-	if (IS_ERR(ipctl->pctl)) {
+	ret = devm_pinctrl_register_and_init(&pdev->dev,
+					     imx_pinctrl_desc, ipctl,
+					     &ipctl->pctl);
+	if (ret) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
-		ret = PTR_ERR(ipctl->pctl);
 		goto free;
 	}
 
