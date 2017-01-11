@@ -707,8 +707,12 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 		added = !!(lsts & PCI_EXP_LNKSTA_DLLLA);
 	} else if (sts & PCI_EXP_SLTSTA_PDC) {
 		ret = pnv_pci_get_presence_state(php_slot->id, &presence);
-		if (!ret)
+		if (ret) {
+			dev_warn(&pdev->dev, "PCI slot [%s] error %d getting presence (0x%04x), to retry the operation.\n",
+				 php_slot->name, ret, sts);
 			return IRQ_HANDLED;
+		}
+
 		added = !!(presence == OPAL_PCI_SLOT_PRESENT);
 	} else {
 		return IRQ_NONE;
