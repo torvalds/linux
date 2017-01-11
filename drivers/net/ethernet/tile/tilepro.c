@@ -2090,11 +2090,7 @@ static void tile_net_get_stats64(struct net_device *dev,
 	stats->tx_bytes   = tx_bytes;
 	stats->rx_errors  = rx_errors;
 	stats->rx_dropped = rx_dropped;
-
-	return stats;
 }
-
-
 
 /*
  * Change the Ethernet Address of the NIC.
