@@ -2109,6 +2109,7 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 static int vop_create_crtc(struct vop *vop)
 {
 	struct device *dev = vop->dev;
+	const struct vop_data *vop_data = vop->data;
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
@@ -2190,7 +2191,7 @@ static int vop_create_crtc(struct vop *vop)
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
 #undef VOP_ATTACH_MODE_CONFIG_PROP
 
-	if (VOP_CTRL_SUPPORT(vop, afbdc_en))
+	if (vop_data->feature & VOP_FEATURE_AFBDC)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
 	drm_object_attach_property(&crtc->base, vop->feature_prop,
 				   feature);
@@ -2310,7 +2311,7 @@ static int vop_win_init(struct vop *vop)
 
 	vop->feature_prop = drm_property_create_bitmask(vop->drm_dev,
 				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
-				props, ARRAY_SIZE(crtc_props),
+				crtc_props, ARRAY_SIZE(crtc_props),
 				BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC));
 	if (!vop->feature_prop) {
 		DRM_ERROR("failed to create vop feature property\n");
