@@ -179,7 +179,7 @@ static inline int skl_getid_32(struct uuid_module *module, u64 *val,
 		index = ffz(mask_val);
 		pvt_id = index + word1_mask + word2_mask;
 		if (pvt_id <= (max_inst - 1)) {
-			*val |= 1 << (index + word1_mask);
+			*val |= 1ULL << (index + word1_mask);
 			return pvt_id;
 		}
 	}

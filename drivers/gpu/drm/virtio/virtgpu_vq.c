@@ -109,8 +109,10 @@ void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev)
 
 	spin_lock(&vgdev->free_vbufs_lock);
 	for (i = 0; i < count; i++) {
-		if (WARN_ON(list_empty(&vgdev->free_vbufs)))
+		if (WARN_ON(list_empty(&vgdev->free_vbufs))) {
+			spin_unlock(&vgdev->free_vbufs_lock);
 			return;
+		}
 		vbuf = list_first_entry(&vgdev->free_vbufs,
 					struct virtio_gpu_vbuffer, list);
 		list_del(&vbuf->list);
@@ -295,6 +297,8 @@ void virtio_gpu_dequeue_cursor_func(struct work_struct *work)
 
 static int virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
 					       struct virtio_gpu_vbuffer *vbuf)
+		__releases(&vgdev->ctrlq.qlock)
+		__acquires(&vgdev->ctrlq.qlock)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	struct scatterlist *sgs[3], vcmd, vout, vresp;

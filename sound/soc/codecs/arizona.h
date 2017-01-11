@@ -14,6 +14,8 @@
 #define _ASOC_ARIZONA_H
 
 #include <linux/completion.h>
+#include <linux/notifier.h>
+#include <linux/mfd/arizona/core.h>
 
 #include <sound/soc.h>
 
@@ -66,7 +68,6 @@
 /* Notifier events */
 #define ARIZONA_NOTIFY_VOICE_TRIGGER   0x1
 
-struct arizona;
 struct wm_adsp;
 
 struct arizona_dai_priv {
@@ -255,26 +256,24 @@ extern const struct soc_enum arizona_output_anc_src[];
 
 extern const struct snd_kcontrol_new arizona_voice_trigger_switch[];
 
-extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol,
-			 int event);
-extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
-			  struct snd_kcontrol *kcontrol,
-			  int event);
-extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol,
-			 int event);
-extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
-			  struct snd_kcontrol *kcontrol,
-			  int event);
+int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		  int event);
+int arizona_out_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		   int event);
+int arizona_hp_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		  int event);
+int arizona_anc_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		   int event);
 
-extern int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol);
-extern int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol);
+int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol);
+int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol);
 
-extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-			      int source, unsigned int freq, int dir);
+int arizona_clk_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
+		   int event);
+int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
+		       unsigned int freq, int dir);
 
 extern const struct snd_soc_dai_ops arizona_dai_ops;
 extern const struct snd_soc_dai_ops arizona_simple_dai_ops;
@@ -297,41 +296,57 @@ struct arizona_fll {
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
 };
 
-extern int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
-extern int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags);
-extern int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
-				  struct snd_kcontrol *kcontrol, int event);
-extern void arizona_init_dvfs(struct arizona_priv *priv);
+int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
+int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags);
+int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event);
+void arizona_init_dvfs(struct arizona_priv *priv);
 
-extern int arizona_init_fll(struct arizona *arizona, int id, int base,
-			    int lock_irq, int ok_irq, struct arizona_fll *fll);
-extern int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
-				  unsigned int Fref, unsigned int Fout);
-extern int arizona_set_fll(struct arizona_fll *fll, int source,
+int arizona_init_fll(struct arizona *arizona, int id, int base,
+		     int lock_irq, int ok_irq, struct arizona_fll *fll);
+int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
+int arizona_set_fll(struct arizona_fll *fll, int source,
+		    unsigned int Fref, unsigned int Fout);
 
-extern int arizona_init_spk(struct snd_soc_codec *codec);
-extern int arizona_init_gpio(struct snd_soc_codec *codec);
-extern int arizona_init_mono(struct snd_soc_codec *codec);
-extern int arizona_init_notifiers(struct snd_soc_codec *codec);
+int arizona_init_spk(struct snd_soc_codec *codec);
+int arizona_init_gpio(struct snd_soc_codec *codec);
+int arizona_init_mono(struct snd_soc_codec *codec);
+int arizona_init_notifiers(struct snd_soc_codec *codec);
 
-extern int arizona_free_spk(struct snd_soc_codec *codec);
+int arizona_init_spk_irqs(struct arizona *arizona);
+int arizona_free_spk_irqs(struct arizona *arizona);
 
-extern int arizona_init_dai(struct arizona_priv *priv, int dai);
+int arizona_init_dai(struct arizona_priv *priv, int dai);
 
 int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 			    bool diff);
 
-extern bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
+bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
 
-extern const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
+const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 
-extern int arizona_register_notifier(struct snd_soc_codec *codec,
-				     struct notifier_block *nb,
-				     int (*notify)(struct notifier_block *nb,
-						   unsigned long action,
-						   void *data));
-extern int arizona_unregister_notifier(struct snd_soc_codec *codec,
-				       struct notifier_block *nb);
+static inline int arizona_register_notifier(struct snd_soc_codec *codec,
+					    struct notifier_block *nb,
+					    int (*notify)
+					    (struct notifier_block *nb,
+					    unsigned long action, void *data))
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	nb->notifier_call = notify;
+
+	return blocking_notifier_chain_register(&arizona->notifier, nb);
+}
+
+static inline int arizona_unregister_notifier(struct snd_soc_codec *codec,
+					      struct notifier_block *nb)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
+}
 
 #endif

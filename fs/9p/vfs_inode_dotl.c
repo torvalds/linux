@@ -979,7 +979,6 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 };
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
-	.readlink = generic_readlink,
 	.get_link = v9fs_vfs_get_link_dotl,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,

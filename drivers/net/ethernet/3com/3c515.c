@@ -72,7 +72,7 @@ static int max_interrupt_work = 20;
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -627,6 +627,8 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 
 	spin_lock_init(&vp->lock);
 
+	setup_timer(&vp->timer, corkscrew_timer, (unsigned long) dev);
+
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
 	for (i = 0; i < 0x18; i++) {
@@ -707,6 +709,7 @@ static int corkscrew_open(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct corkscrew_private *vp = netdev_priv(dev);
+	bool armtimer = false;
 	__u32 config;
 	int i;
 
@@ -731,12 +734,7 @@ static int corkscrew_open(struct net_device *dev)
 		if (corkscrew_debug > 1)
 			pr_debug("%s: Initial media type %s.\n",
 			       dev->name, media_tbl[dev->if_port].name);
-
-		init_timer(&vp->timer);
-		vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
-		vp->timer.data = (unsigned long) dev;
-		vp->timer.function = corkscrew_timer;	/* timer handler */
-		add_timer(&vp->timer);
+		armtimer = true;
 	} else
 		dev->if_port = vp->default_media;
 
@@ -775,6 +773,9 @@ static int corkscrew_open(struct net_device *dev)
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}
+
+	if (armtimer)
+		mod_timer(&vp->timer, jiffies + media_tbl[dev->if_port].wait);
 
 	if (corkscrew_debug > 1) {
 		EL3WINDOW(4);
@@ -1426,7 +1427,7 @@ static int corkscrew_close(struct net_device *dev)
 			dev->name, rx_nocopy, rx_copy, queued_packet);
 	}
 
-	del_timer(&vp->timer);
+	del_timer_sync(&vp->timer);
 
 	/* Turn off statistics ASAP.  We update lp->stats below. */
 	outw(StatsDisable, ioaddr + EL3_CMD);

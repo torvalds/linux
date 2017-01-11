@@ -181,4 +181,10 @@ static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_
 	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
 }
 
+/* Does this inode have the reflink flag set? */
+static inline bool ocfs2_is_refcount_inode(struct inode *inode)
+{
+	return (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL);
+}
+
 #endif /* OCFS2_INODE_H */

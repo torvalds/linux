@@ -366,6 +366,8 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	struct in6_addr *nexthop;
 	int ret;
 
+	nf_reset(skb);
+
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
 
@@ -546,6 +548,8 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	struct neighbour *neigh;
 	u32 nexthop;
 	int ret = -EINVAL;
+
+	nf_reset(skb);
 
 	/* Be paranoid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
@@ -848,8 +852,6 @@ static struct sk_buff *vrf_rcv_nfhook(u8 pf, unsigned int hook,
 				      struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
-
-	nf_reset(skb);
 
 	if (NF_HOOK(pf, hook, net, NULL, skb, dev, NULL, vrf_rcv_finish) < 0)
 		skb = NULL;    /* kfree_skb(skb) handled by nf code */

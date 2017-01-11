@@ -460,6 +460,12 @@ static int emac_clks_phase1_init(struct platform_device *pdev,
 {
 	int ret;
 
+	/* On ACPI platforms, clocks are controlled by firmware and/or
+	 * ACPI, not by drivers.
+	 */
+	if (has_acpi_companion(&pdev->dev))
+		return 0;
+
 	ret = emac_clks_get(pdev, adpt);
 	if (ret)
 		return ret;
@@ -484,6 +490,9 @@ static int emac_clks_phase2_init(struct platform_device *pdev,
 				 struct emac_adapter *adpt)
 {
 	int ret;
+
+	if (has_acpi_companion(&pdev->dev))
+		return 0;
 
 	ret = clk_set_rate(adpt->clk[EMAC_CLK_TX], 125000000);
 	if (ret)

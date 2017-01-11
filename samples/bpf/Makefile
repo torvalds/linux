@@ -35,40 +35,43 @@ hostprogs-y += tc_l2_redirect
 hostprogs-y += lwt_len_hist
 hostprogs-y += xdp_tx_iptunnel
 
-test_lru_dist-objs := test_lru_dist.o libbpf.o
-sock_example-objs := sock_example.o libbpf.o
-fds_example-objs := bpf_load.o libbpf.o fds_example.o
-sockex1-objs := bpf_load.o libbpf.o sockex1_user.o
-sockex2-objs := bpf_load.o libbpf.o sockex2_user.o
-sockex3-objs := bpf_load.o libbpf.o sockex3_user.o
-tracex1-objs := bpf_load.o libbpf.o tracex1_user.o
-tracex2-objs := bpf_load.o libbpf.o tracex2_user.o
-tracex3-objs := bpf_load.o libbpf.o tracex3_user.o
-tracex4-objs := bpf_load.o libbpf.o tracex4_user.o
-tracex5-objs := bpf_load.o libbpf.o tracex5_user.o
-tracex6-objs := bpf_load.o libbpf.o tracex6_user.o
-test_probe_write_user-objs := bpf_load.o libbpf.o test_probe_write_user_user.o
-trace_output-objs := bpf_load.o libbpf.o trace_output_user.o
-lathist-objs := bpf_load.o libbpf.o lathist_user.o
-offwaketime-objs := bpf_load.o libbpf.o offwaketime_user.o
-spintest-objs := bpf_load.o libbpf.o spintest_user.o
-map_perf_test-objs := bpf_load.o libbpf.o map_perf_test_user.o
-test_overhead-objs := bpf_load.o libbpf.o test_overhead_user.o
-test_cgrp2_array_pin-objs := libbpf.o test_cgrp2_array_pin.o
-test_cgrp2_attach-objs := libbpf.o test_cgrp2_attach.o
-test_cgrp2_attach2-objs := libbpf.o test_cgrp2_attach2.o cgroup_helpers.o
-test_cgrp2_sock-objs := libbpf.o test_cgrp2_sock.o
-test_cgrp2_sock2-objs := bpf_load.o libbpf.o test_cgrp2_sock2.o
-xdp1-objs := bpf_load.o libbpf.o xdp1_user.o
+# Libbpf dependencies
+LIBBPF := ../../tools/lib/bpf/bpf.o
+
+test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
+sock_example-objs := sock_example.o $(LIBBPF)
+fds_example-objs := bpf_load.o $(LIBBPF) fds_example.o
+sockex1-objs := bpf_load.o $(LIBBPF) sockex1_user.o
+sockex2-objs := bpf_load.o $(LIBBPF) sockex2_user.o
+sockex3-objs := bpf_load.o $(LIBBPF) sockex3_user.o
+tracex1-objs := bpf_load.o $(LIBBPF) tracex1_user.o
+tracex2-objs := bpf_load.o $(LIBBPF) tracex2_user.o
+tracex3-objs := bpf_load.o $(LIBBPF) tracex3_user.o
+tracex4-objs := bpf_load.o $(LIBBPF) tracex4_user.o
+tracex5-objs := bpf_load.o $(LIBBPF) tracex5_user.o
+tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
+test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
+trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
+lathist-objs := bpf_load.o $(LIBBPF) lathist_user.o
+offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o
+spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o
+map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
+test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
+test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
+test_cgrp2_attach-objs := $(LIBBPF) test_cgrp2_attach.o
+test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o cgroup_helpers.o
+test_cgrp2_sock-objs := $(LIBBPF) test_cgrp2_sock.o
+test_cgrp2_sock2-objs := bpf_load.o $(LIBBPF) test_cgrp2_sock2.o
+xdp1-objs := bpf_load.o $(LIBBPF) xdp1_user.o
 # reuse xdp1 source intentionally
-xdp2-objs := bpf_load.o libbpf.o xdp1_user.o
-test_current_task_under_cgroup-objs := bpf_load.o libbpf.o cgroup_helpers.o \
+xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
+test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) cgroup_helpers.o \
 				       test_current_task_under_cgroup_user.o
-trace_event-objs := bpf_load.o libbpf.o trace_event_user.o
-sampleip-objs := bpf_load.o libbpf.o sampleip_user.o
-tc_l2_redirect-objs := bpf_load.o libbpf.o tc_l2_redirect_user.o
-lwt_len_hist-objs := bpf_load.o libbpf.o lwt_len_hist_user.o
-xdp_tx_iptunnel-objs := bpf_load.o libbpf.o xdp_tx_iptunnel_user.o
+trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
+sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
+tc_l2_redirect-objs := bpf_load.o $(LIBBPF) tc_l2_redirect_user.o
+lwt_len_hist-objs := bpf_load.o $(LIBBPF) lwt_len_hist_user.o
+xdp_tx_iptunnel-objs := bpf_load.o $(LIBBPF) xdp_tx_iptunnel_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -104,7 +107,10 @@ always += lwt_len_hist_kern.o
 always += xdp_tx_iptunnel_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
+HOSTCFLAGS += -I$(srctree)/tools/lib/
 HOSTCFLAGS += -I$(srctree)/tools/testing/selftests/bpf/
+HOSTCFLAGS += -I$(srctree)/tools/lib/ -I$(srctree)/tools/include
+HOSTCFLAGS += -I$(srctree)/tools/perf
 
 HOSTCFLAGS_bpf_load.o += -I$(objtree)/usr/include -Wno-unused-variable
 HOSTLOADLIBES_fds_example += -lelf
@@ -141,10 +147,10 @@ CLANG ?= clang
 
 # Trick to allow make to be run from this directory
 all:
-	$(MAKE) -C ../../ $$PWD/
+	$(MAKE) -C ../../ $(CURDIR)/
 
 clean:
-	$(MAKE) -C ../../ M=$$PWD clean
+	$(MAKE) -C ../../ M=$(CURDIR) clean
 	@rm -f *~
 
 # Verify LLVM compiler tools are available and bpf target is supported by llc

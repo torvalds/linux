@@ -947,6 +947,10 @@ extern int __disable_trace_on_warning;
 #define INIT_TRACE_RECURSION		.trace_recursion = 0,
 #endif
 
+int tracepoint_printk_sysctl(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp,
+			     loff_t *ppos);
+
 #else /* CONFIG_TRACING */
 static inline void  disable_trace_on_warning(void) { }
 #endif /* CONFIG_TRACING */

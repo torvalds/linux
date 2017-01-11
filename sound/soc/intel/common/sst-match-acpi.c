@@ -77,5 +77,62 @@ struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 }
 EXPORT_SYMBOL_GPL(sst_acpi_find_machine);
 
+static acpi_status sst_acpi_find_package(acpi_handle handle, u32 level,
+					void *context, void **ret)
+{
+	struct acpi_device *adev;
+	acpi_status status = AE_OK;
+	struct sst_acpi_package_context *pkg_ctx = context;
+
+	pkg_ctx->data_valid = false;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	if (adev->status.present && adev->status.functional) {
+		struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+		union acpi_object  *myobj = NULL;
+
+		status = acpi_evaluate_object_typed(handle, pkg_ctx->name,
+						NULL, &buffer,
+						ACPI_TYPE_PACKAGE);
+		if (ACPI_FAILURE(status))
+			return AE_OK;
+
+		myobj = buffer.pointer;
+		if (!myobj || myobj->package.count != pkg_ctx->length) {
+			kfree(buffer.pointer);
+			return AE_OK;
+		}
+
+		status = acpi_extract_package(myobj,
+					pkg_ctx->format, pkg_ctx->state);
+		if (ACPI_FAILURE(status)) {
+			kfree(buffer.pointer);
+			return AE_OK;
+		}
+
+		kfree(buffer.pointer);
+		pkg_ctx->data_valid = true;
+		return AE_CTRL_TERMINATE;
+	}
+
+	return AE_OK;
+}
+
+bool sst_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
+				struct sst_acpi_package_context *ctx)
+{
+	acpi_status status;
+
+	status = acpi_get_devices(hid, sst_acpi_find_package, ctx, NULL);
+
+	if (ACPI_FAILURE(status) || !ctx->data_valid)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(sst_acpi_find_package_from_hid);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel Common ACPI Match module");

@@ -13,7 +13,7 @@
 #include <linux/sched.h>
 #include <linux/blkdev.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "jfs_filsys.h"
 #include "jfs_debug.h"

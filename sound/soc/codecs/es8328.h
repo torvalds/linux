@@ -278,43 +278,6 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 
 #define ES8328_REG_MAX		0x35
 
-#define ES8328_PLL1		0
-#define ES8328_PLL2		1
-
-/* clock inputs */
-#define ES8328_MCLK		0
-#define ES8328_PCMCLK		1
-
-/* clock divider id's */
-#define ES8328_PCMDIV		0
-#define ES8328_BCLKDIV		1
-#define ES8328_VXCLKDIV		2
-
-/* PCM clock dividers */
-#define ES8328_PCM_DIV_1	(0 << 6)
-#define ES8328_PCM_DIV_3	(2 << 6)
-#define ES8328_PCM_DIV_5_5	(3 << 6)
-#define ES8328_PCM_DIV_2	(4 << 6)
-#define ES8328_PCM_DIV_4	(5 << 6)
-#define ES8328_PCM_DIV_6	(6 << 6)
-#define ES8328_PCM_DIV_8	(7 << 6)
-
-/* BCLK clock dividers */
-#define ES8328_BCLK_DIV_1	(0 << 7)
-#define ES8328_BCLK_DIV_2	(1 << 7)
-#define ES8328_BCLK_DIV_4	(2 << 7)
-#define ES8328_BCLK_DIV_8	(3 << 7)
-
-/* VXCLK clock dividers */
-#define ES8328_VXCLK_DIV_1	(0 << 6)
-#define ES8328_VXCLK_DIV_2	(1 << 6)
-#define ES8328_VXCLK_DIV_4	(2 << 6)
-#define ES8328_VXCLK_DIV_8	(3 << 6)
-#define ES8328_VXCLK_DIV_16	(4 << 6)
-
-#define ES8328_DAI_HIFI		0
-#define ES8328_DAI_VOICE	1
-
 #define ES8328_1536FS		1536
 #define ES8328_1024FS		1024
 #define ES8328_768FS		768

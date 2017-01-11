@@ -801,9 +801,13 @@ void media_device_unregister(struct media_device *mdev)
 	/* Remove all interfaces from the media device */
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
 				 graph_obj.list) {
+		/*
+		 * Unlink the interface, but don't free it here; the
+		 * module which created it is responsible for freeing
+		 * it
+		 */
 		__media_remove_intf_links(intf);
 		media_gobj_destroy(&intf->graph_obj);
-		kfree(intf);
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
@@ -816,32 +820,6 @@ void media_device_unregister(struct media_device *mdev)
 	mdev->devnode = NULL;
 }
 EXPORT_SYMBOL_GPL(media_device_unregister);
-
-static void media_device_release_devres(struct device *dev, void *res)
-{
-}
-
-struct media_device *media_device_get_devres(struct device *dev)
-{
-	struct media_device *mdev;
-
-	mdev = devres_find(dev, media_device_release_devres, NULL, NULL);
-	if (mdev)
-		return mdev;
-
-	mdev = devres_alloc(media_device_release_devres,
-				sizeof(struct media_device), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-	return devres_get(dev, mdev, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(media_device_get_devres);
-
-struct media_device *media_device_find_devres(struct device *dev)
-{
-	return devres_find(dev, media_device_release_devres, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(media_device_find_devres);
 
 #if IS_ENABLED(CONFIG_PCI)
 void media_device_pci_init(struct media_device *mdev,

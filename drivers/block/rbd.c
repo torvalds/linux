@@ -3756,7 +3756,7 @@ static void rbd_watch_cb(void *arg, u64 notify_id, u64 cookie,
 	struct rbd_device *rbd_dev = arg;
 	void *p = data;
 	void *const end = p + data_len;
-	u8 struct_v;
+	u8 struct_v = 0;
 	u32 len;
 	u32 notify_op;
 	int ret;

@@ -503,45 +503,59 @@ static void efx_mcdi_phy_remove(struct efx_nic *efx)
 	kfree(phy_data);
 }
 
-static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static void efx_mcdi_phy_get_link_ksettings(struct efx_nic *efx,
+					    struct ethtool_link_ksettings *cmd)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
 	int rc;
+	u32 supported, advertising, lp_advertising;
 
-	ecmd->supported =
-		mcdi_to_ethtool_cap(phy_cfg->media, phy_cfg->supported_cap);
-	ecmd->advertising = efx->link_advertising;
-	ethtool_cmd_speed_set(ecmd, efx->link_state.speed);
-	ecmd->duplex = efx->link_state.fd;
-	ecmd->port = mcdi_to_ethtool_media(phy_cfg->media);
-	ecmd->phy_address = phy_cfg->port;
-	ecmd->transceiver = XCVR_INTERNAL;
-	ecmd->autoneg = !!(efx->link_advertising & ADVERTISED_Autoneg);
-	ecmd->mdio_support = (efx->mdio.mode_support &
+	supported = mcdi_to_ethtool_cap(phy_cfg->media, phy_cfg->supported_cap);
+	advertising = efx->link_advertising;
+	cmd->base.speed = efx->link_state.speed;
+	cmd->base.duplex = efx->link_state.fd;
+	cmd->base.port = mcdi_to_ethtool_media(phy_cfg->media);
+	cmd->base.phy_address = phy_cfg->port;
+	cmd->base.autoneg = !!(efx->link_advertising & ADVERTISED_Autoneg);
+	cmd->base.mdio_support = (efx->mdio.mode_support &
 			      (MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22));
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc)
 		return;
-	ecmd->lp_advertising =
+	lp_advertising =
 		mcdi_to_ethtool_cap(phy_cfg->media,
 				    MCDI_DWORD(outbuf, GET_LINK_OUT_LP_CAP));
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
+						lp_advertising);
 }
 
-static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static int
+efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
+				const struct ethtool_link_ksettings *cmd)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 caps;
 	int rc;
+	u32 advertising;
 
-	if (ecmd->autoneg) {
-		caps = (ethtool_to_mcdi_cap(ecmd->advertising) |
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+
+	if (cmd->base.autoneg) {
+		caps = (ethtool_to_mcdi_cap(advertising) |
 			 1 << MC_CMD_PHY_CAP_AN_LBN);
-	} else if (ecmd->duplex) {
-		switch (ethtool_cmd_speed(ecmd)) {
+	} else if (cmd->base.duplex) {
+		switch (cmd->base.speed) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;  break;
@@ -550,7 +564,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 		default:    return -EINVAL;
 		}
 	} else {
-		switch (ethtool_cmd_speed(ecmd)) {
+		switch (cmd->base.speed) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;  break;
@@ -563,9 +577,9 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 	if (rc)
 		return rc;
 
-	if (ecmd->autoneg) {
+	if (cmd->base.autoneg) {
 		efx_link_set_advertising(
-			efx, ecmd->advertising | ADVERTISED_Autoneg);
+			efx, advertising | ADVERTISED_Autoneg);
 		phy_cfg->forced_cap = 0;
 	} else {
 		efx_link_set_advertising(efx, 0);
@@ -812,8 +826,8 @@ static const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.poll		= efx_mcdi_phy_poll,
 	.fini		= efx_port_dummy_op_void,
 	.remove		= efx_mcdi_phy_remove,
-	.get_settings	= efx_mcdi_phy_get_settings,
-	.set_settings	= efx_mcdi_phy_set_settings,
+	.get_link_ksettings = efx_mcdi_phy_get_link_ksettings,
+	.set_link_ksettings = efx_mcdi_phy_set_link_ksettings,
 	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= efx_mcdi_phy_run_tests,
 	.test_name	= efx_mcdi_phy_test_name,

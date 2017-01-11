@@ -447,7 +447,6 @@ static int pcc_parse_subspace_irq(int id,
  */
 static int __init acpi_pcc_probe(void)
 {
-	acpi_size pcct_tbl_header_size;
 	struct acpi_table_header *pcct_tbl;
 	struct acpi_subtable_header *pcct_entry;
 	struct acpi_table_pcct *acpi_pcct_tbl;
@@ -456,9 +455,7 @@ static int __init acpi_pcc_probe(void)
 	acpi_status status = AE_OK;
 
 	/* Search for PCCT */
-	status = acpi_get_table_with_size(ACPI_SIG_PCCT, 0,
-			&pcct_tbl,
-			&pcct_tbl_header_size);
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
 	if (ACPI_FAILURE(status) || !pcct_tbl) {
 		pr_warn("PCCT header not found.\n");

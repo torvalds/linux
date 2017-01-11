@@ -1113,8 +1113,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		}
 
 		/* Delay the timer. */
-		hrtimer_start(&ncm->task_timer,
-			      ktime_set(0, TX_TIMEOUT_NSECS),
+		hrtimer_start(&ncm->task_timer, TX_TIMEOUT_NSECS,
 			      HRTIMER_MODE_REL);
 
 		/* Add the datagram position entries */

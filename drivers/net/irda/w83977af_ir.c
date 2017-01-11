@@ -517,9 +517,9 @@ static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
 
 		mtt = irda_get_mtt(skb);
 		pr_debug("%s: %ld, mtt=%d\n", __func__, jiffies, mtt);
-			if (mtt > 1000)
-				mdelay(mtt / 1000);
-			else if (mtt)
+		if (mtt > 1000)
+			mdelay(mtt / 1000);
+		else if (mtt)
 			udelay(mtt);
 
 		/* Enable DMA interrupt */

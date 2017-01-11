@@ -2160,21 +2160,6 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 	}
 
 	/*
-	 * This can happen on physical hotplug. The sanity check at boot time
-	 * is done from native_smp_prepare_cpus() after num_possible_cpus() is
-	 * established.
-	 */
-	if (topology_update_package_map(apicid, cpu) < 0) {
-		int thiscpu = max + disabled_cpus;
-
-		pr_warning("APIC: Package limit reached. Processor %d/0x%x ignored.\n",
-			   thiscpu, apicid);
-
-		disabled_cpus++;
-		return -ENOSPC;
-	}
-
-	/*
 	 * Validate version
 	 */
 	if (version == 0x0) {

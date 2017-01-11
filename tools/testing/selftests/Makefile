@@ -7,6 +7,7 @@ TARGETS += exec
 TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
+TARGETS += gpio
 TARGETS += ipc
 TARGETS += kcmp
 TARGETS += lib
@@ -24,6 +25,7 @@ TARGETS += seccomp
 TARGETS += sigaltstack
 TARGETS += size
 TARGETS += static_keys
+TARGETS += sync
 TARGETS += sysctl
 ifneq (1, $(quicktest))
 TARGETS += timers

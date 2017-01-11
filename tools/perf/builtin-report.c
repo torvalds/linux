@@ -648,7 +648,7 @@ report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
 }
 
 static int
-parse_branch_mode(const struct option *opt __maybe_unused,
+parse_branch_mode(const struct option *opt,
 		  const char *str __maybe_unused, int unset)
 {
 	int *branch_mode = opt->value;

@@ -159,7 +159,7 @@ redo:
 	 * Allocate Partition table and process table for the
 	 * host.
 	 */
-	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 23), "Process table size too large.");
+	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 36), "Process table size too large.");
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT);
 	/*
 	 * Fill in the process table.
@@ -240,7 +240,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 		/* top 3 bit is AP encoding */
 		shift = be32_to_cpu(prop[0]) & ~(0xe << 28);
 		ap = be32_to_cpu(prop[0]) >> 29;
-		pr_info("Page size sift = %d AP=0x%x\n", shift, ap);
+		pr_info("Page size shift = %d AP=0x%x\n", shift, ap);
 
 		idx = get_idx_from_shift(shift);
 		if (idx < 0)
@@ -312,6 +312,38 @@ static void update_hid_for_radix(void)
 		cpu_relax();
 }
 
+static void radix_init_amor(void)
+{
+	/*
+	* In HV mode, we init AMOR (Authority Mask Override Register) so that
+	* the hypervisor and guest can setup IAMR (Instruction Authority Mask
+	* Register), enable key 0 and set it to 1.
+	*
+	* AMOR = 0b1100 .... 0000 (Mask for key 0 is 11)
+	*/
+	mtspr(SPRN_AMOR, (3ul << 62));
+}
+
+static void radix_init_iamr(void)
+{
+	unsigned long iamr;
+
+	/*
+	 * The IAMR should set to 0 on DD1.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		iamr = 0;
+	else
+		iamr = (1ul << 62);
+
+	/*
+	 * Radix always uses key0 of the IAMR to determine if an access is
+	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
+	 * fetch.
+	 */
+	mtspr(SPRN_IAMR, iamr);
+}
+
 void __init radix__early_init_mmu(void)
 {
 	unsigned long lpcr;
@@ -368,10 +400,12 @@ void __init radix__early_init_mmu(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
+		radix_init_amor();
 	}
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
+	radix_init_iamr();
 	radix_init_pgtable();
 }
 
@@ -391,7 +425,9 @@ void radix__early_init_mmu_secondary(void)
 
 		mtspr(SPRN_PTCR,
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+		radix_init_amor();
 	}
+	radix_init_iamr();
 }
 
 void radix__mmu_cleanup_all(void)

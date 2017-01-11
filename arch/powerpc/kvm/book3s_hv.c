@@ -39,7 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -1872,8 +1872,7 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 	}
 	dec_nsec = (vcpu->arch.dec_expires - now) * NSEC_PER_SEC
 		   / tb_ticks_per_sec;
-	hrtimer_start(&vcpu->arch.dec_timer, ktime_set(0, dec_nsec),
-		      HRTIMER_MODE_REL);
+	hrtimer_start(&vcpu->arch.dec_timer, dec_nsec, HRTIMER_MODE_REL);
 	vcpu->arch.timer_running = 1;
 }
 

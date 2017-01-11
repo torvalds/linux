@@ -674,7 +674,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0D:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No syn byte in count "
+				    "FORMAT 4 - No sync byte in count "
 				    "address area; offset active\n");
 			break;
 		case 0x0E:
@@ -684,7 +684,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0F:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No syn byte in data area; "
+				    "FORMAT 4 - No sync byte in data area; "
 				    "offset active\n");
 			break;
 		default:
@@ -999,7 +999,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		default:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT D - Reserved\n");
+				    "FORMAT F - Reserved\n");
 		}
 		break;
 

@@ -698,7 +698,8 @@ static inline int nla_len(const struct nlattr *nla)
  */
 static inline int nla_ok(const struct nlattr *nla, int remaining)
 {
-	return nla->nla_len >= sizeof(*nla) &&
+	return remaining >= (int) sizeof(*nla) &&
+	       nla->nla_len >= sizeof(*nla) &&
 	       nla->nla_len <= remaining;
 }
 

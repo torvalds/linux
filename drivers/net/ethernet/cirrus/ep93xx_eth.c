@@ -715,16 +715,18 @@ static void ep93xx_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
-static int ep93xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ep93xx_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
-	return mii_ethtool_gset(&ep->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&ep->mii, cmd);
 }
 
-static int ep93xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ep93xx_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct ep93xx_priv *ep = netdev_priv(dev);
-	return mii_ethtool_sset(&ep->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ep->mii, cmd);
 }
 
 static int ep93xx_nway_reset(struct net_device *dev)
@@ -741,10 +743,10 @@ static u32 ep93xx_get_link(struct net_device *dev)
 
 static const struct ethtool_ops ep93xx_ethtool_ops = {
 	.get_drvinfo		= ep93xx_get_drvinfo,
-	.get_settings		= ep93xx_get_settings,
-	.set_settings		= ep93xx_set_settings,
 	.nway_reset		= ep93xx_nway_reset,
 	.get_link		= ep93xx_get_link,
+	.get_link_ksettings	= ep93xx_get_link_ksettings,
+	.set_link_ksettings	= ep93xx_set_link_ksettings,
 };
 
 static const struct net_device_ops ep93xx_netdev_ops = {

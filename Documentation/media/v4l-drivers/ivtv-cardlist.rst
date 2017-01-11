@@ -1,29 +1,38 @@
 IVTV cards list
 ===============
 
-.. code-block:: none
-
-	 1 -> Hauppauge WinTV PVR-250
-	 2 -> Hauppauge WinTV PVR-350
-	 3 -> Hauppauge WinTV PVR-150 or PVR-500
-	 4 -> AVerMedia M179				[1461:a3ce,1461:a3cf]
-	 5 -> Yuan MPG600/Kuroutoshikou iTVC16-STVLP	[12ab:fff3,12ab:ffff]
-	 6 -> Yuan MPG160/Kuroutoshikou iTVC15-STVLP	[12ab:0000,10fc:40a0]
-	 7 -> Yuan PG600/DiamondMM PVR-550		[ff92:0070,ffab:0600]
-	 8 -> Adaptec AVC-2410				[9005:0093]
-	 9 -> Adaptec AVC-2010				[9005:0092]
-	10 -> NAGASE TRANSGEAR 5000TV			[1461:bfff]
-	11 -> AOpen VA2000MAX-STN6			[0000:ff5f]
-	12 -> YUAN MPG600GR/Kuroutoshikou CX23416GYC-STVLP [12ab:0600,fbab:0600,1154:0523]
-	13 -> I/O Data GV-MVP/RX			[10fc:d01e,10fc:d038,10fc:d039]
-	14 -> I/O Data GV-MVP/RX2E			[10fc:d025]
-	15 -> GOTVIEW PCI DVD (partial support only)	[12ab:0600]
-	16 -> GOTVIEW PCI DVD2 Deluxe			[ffac:0600]
-	17 -> Yuan MPC622				[ff01:d998]
-	18 -> Digital Cowboy DCT-MTVP1			[1461:bfff]
-	19 -> Yuan PG600V2/GotView PCI DVD Lite	[ffab:0600,ffad:0600]
-	20 -> Club3D ZAP-TV1x01				[ffab:0600]
-	21 -> AverTV MCE 116 Plus			[1461:c439]
-	22 -> ASUS Falcon2				[1043:4b66,1043:462e,1043:4b2e]
-	23 -> AverMedia PVR-150 Plus			[1461:c035]
-	24 -> AverMedia EZMaker PCI Deluxe		[1461:c03f]
+=========== ============================================================= ====================================================
+Card number Card name                                                     PCI IDs
+=========== ============================================================= ====================================================
+0           Hauppauge WinTV PVR-250                                       IVTV16 104d:813d
+1           Hauppauge WinTV PVR-350                                       IVTV16 104d:813d
+2           Hauppauge WinTV PVR-150                                       IVTV16 104d:813d
+3           AVerMedia M179                                                IVTV15 1461:a3cf, IVTV15 1461:a3ce
+4           Yuan MPG600, Kuroutoshikou ITVC16-STVLP                       IVTV16 12ab:fff3, IVTV16 12ab:ffff
+5           YUAN MPG160, Kuroutoshikou ITVC15-STVLP, I/O Data GV-M2TV/PCI IVTV15 10fc:40a0
+6           Yuan PG600, Diamond PVR-550                                   IVTV16 ff92:0070, IVTV16 ffab:0600
+7           Adaptec VideOh! AVC-2410                                      IVTV16 9005:0093
+8           Adaptec VideOh! AVC-2010                                      IVTV16 9005:0092
+9           Nagase Transgear 5000TV                                       IVTV16 1461:bfff
+10          AOpen VA2000MAX-SNT6                                          IVTV16 0000:ff5f
+11          Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP                 IVTV16 12ab:0600, IVTV16 fbab:0600, IVTV16 1154:0523
+12          I/O Data GV-MVP/RX, GV-MVP/RX2W (dual tuner)                  IVTV16 10fc:d01e, IVTV16 10fc:d038, IVTV16 10fc:d039
+13          I/O Data GV-MVP/RX2E                                          IVTV16 10fc:d025
+14          GotView PCI DVD                                               IVTV16 12ab:0600
+15          GotView PCI DVD2 Deluxe                                       IVTV16 ffac:0600
+16          Yuan MPC622                                                   IVTV16 ff01:d998
+17          Digital Cowboy DCT-MTVP1                                      IVTV16 1461:bfff
+18          Yuan PG600-2, GotView PCI DVD Lite                            IVTV16 ffab:0600, IVTV16 ffad:0600
+19          Club3D ZAP-TV1x01                                             IVTV16 ffab:0600
+20          AVerTV MCE 116 Plus                                           IVTV16 1461:c439
+21          ASUS Falcon2                                                  IVTV16 1043:4b66, IVTV16 1043:462e, IVTV16 1043:4b2e
+22          AVerMedia PVR-150 Plus / AVerTV M113 Partsnic (Daewoo) Tuner  IVTV16 1461:c034, IVTV16 1461:c035
+23          AVerMedia EZMaker PCI Deluxe                                  IVTV16 1461:c03f
+24          AVerMedia M104                                                IVTV16 1461:c136
+25          Buffalo PC-MV5L/PCI                                           IVTV16 1154:052b
+26          AVerMedia UltraTV 1500 MCE / AVerTV M113 Philips Tuner        IVTV16 1461:c019, IVTV16 1461:c01b
+27          Sony VAIO Giga Pocket (ENX Kikyou)                            IVTV16 104d:813d
+28          Hauppauge WinTV PVR-350 (V1)                                  IVTV16 104d:813d
+29          Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR)         IVTV16 104d:813d
+30          Yuan MPG600GR, Kuroutoshikou CX23416GYC-STVLP (no GR/YCS)     IVTV16 104d:813d
+=========== ============================================================= ====================================================

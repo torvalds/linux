@@ -755,10 +755,8 @@ static void alias_guid_work(struct work_struct *work)
 	struct mlx4_ib_dev *dev = container_of(ib_sriov, struct mlx4_ib_dev, sriov);
 
 	rec = kzalloc(sizeof *rec, GFP_KERNEL);
-	if (!rec) {
-		pr_err("alias_guid_work: No Memory\n");
+	if (!rec)
 		return;
-	}
 
 	pr_debug("starting [port: %d]...\n", sriov_alias_port->port + 1);
 	ret = get_next_record_to_update(dev, sriov_alias_port->port, rec);

@@ -224,7 +224,7 @@ static inline enum comp_state check_psn(struct rxe_qp *qp,
 		else
 			return COMPST_DONE;
 	} else if ((diff > 0) && (wqe->mask & WR_ATOMIC_OR_READ_MASK)) {
-		return COMPST_ERROR_RETRY;
+		return COMPST_DONE;
 	} else {
 		return COMPST_CHECK_ACK;
 	}
@@ -420,10 +420,11 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
 	    (qp->req.state == QP_STATE_ERROR)) {
 		make_send_cqe(qp, wqe, &cqe);
+		advance_consumer(qp->sq.queue);
 		rxe_cq_post(qp->scq, &cqe, 0);
+	} else {
+		advance_consumer(qp->sq.queue);
 	}
-
-	advance_consumer(qp->sq.queue);
 
 	/*
 	 * we completed something so let req run again
@@ -509,6 +510,8 @@ int rxe_completer(void *arg)
 	struct sk_buff *skb = NULL;
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;
+
+	rxe_add_ref(qp);
 
 	if (!qp->valid) {
 		while ((skb = skb_dequeue(&qp->resp_pkts))) {
@@ -739,11 +742,13 @@ exit:
 	/* we come here if we are done with processing and want the task to
 	 * exit from the loop calling us
 	 */
+	rxe_drop_ref(qp);
 	return -EAGAIN;
 
 done:
 	/* we come here if we have processed a packet we want the task to call
 	 * us again to see if there is anything else to do
 	 */
+	rxe_drop_ref(qp);
 	return 0;
 }

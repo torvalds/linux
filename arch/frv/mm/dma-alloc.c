@@ -44,7 +44,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/smp.h>
 
 static int map_page(unsigned long va, unsigned long pa, pgprot_t prot)

@@ -416,6 +416,12 @@ of ftrace. Here is a list of some of the key files:
 
 		trace_fd = open("trace_marker", WR_ONLY);
 
+  trace_marker_raw:
+
+	This is similar to trace_marker above, but is meant for for binary data
+	to be written to it, where a tool can be used to parse the data
+	from trace_pipe_raw.
+
   uprobe_events:
  
 	Add dynamic tracepoints in programs.
@@ -2238,16 +2244,13 @@ hrtimer_interrupt
 sys_nanosleep
 
 
-Perhaps this is not enough. The filters also allow simple wild
-cards. Only the following are currently available
+Perhaps this is not enough. The filters also allow glob(7) matching.
 
   <match>*  - will match functions that begin with <match>
   *<match>  - will match functions that end with <match>
   *<match>* - will match functions that have <match> in it
-
-These are the only wild cards which are supported.
-
-  <match>*<match> will not work.
+  <match1>*<match2> - will match functions that begin with
+                      <match1> and end with <match2>
 
 Note: It is better to use quotes to enclose the wild cards,
       otherwise the shell may expand the parameters into names

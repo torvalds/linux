@@ -27,6 +27,7 @@
 #include <linux/pm_qos.h>
 #include <linux/async.h>
 #include <linux/acpi.h>
+#include <linux/sysfs.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <asm/platform_sst_audio.h>
@@ -242,6 +243,32 @@ int sst_alloc_drv_context(struct intel_sst_drv **ctx,
 }
 EXPORT_SYMBOL_GPL(sst_alloc_drv_context);
 
+static ssize_t firmware_version_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+
+	if (ctx->fw_version.type == 0 && ctx->fw_version.major == 0 &&
+	    ctx->fw_version.minor == 0 && ctx->fw_version.build == 0)
+		return sprintf(buf, "FW not yet loaded\n");
+	else
+		return sprintf(buf, "v%02x.%02x.%02x.%02x\n",
+			       ctx->fw_version.type, ctx->fw_version.major,
+			       ctx->fw_version.minor, ctx->fw_version.build);
+
+}
+
+DEVICE_ATTR_RO(firmware_version);
+
+static const struct attribute *sst_fw_version_attrs[] = {
+	&dev_attr_firmware_version.attr,
+	NULL,
+};
+
+static const struct attribute_group sst_fw_version_attr_group = {
+	.attrs = (struct attribute **)sst_fw_version_attrs,
+};
+
 int sst_context_init(struct intel_sst_drv *ctx)
 {
 	int ret = 0, i;
@@ -315,8 +342,19 @@ int sst_context_init(struct intel_sst_drv *ctx)
 		dev_err(ctx->dev, "Firmware download failed:%d\n", ret);
 		goto do_free_mem;
 	}
+
+	ret = sysfs_create_group(&ctx->dev->kobj,
+				 &sst_fw_version_attr_group);
+	if (ret) {
+		dev_err(ctx->dev,
+			"Unable to create sysfs\n");
+		goto err_sysfs;
+	}
+
 	sst_register(ctx->dev);
 	return 0;
+err_sysfs:
+	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
 
 do_free_mem:
 	destroy_workqueue(ctx->post_msg_wq);
@@ -330,6 +368,7 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	pm_runtime_disable(ctx->dev);
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
+	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
 	flush_scheduled_work();
 	destroy_workqueue(ctx->post_msg_wq);
 	pm_qos_remove_request(ctx->qos);

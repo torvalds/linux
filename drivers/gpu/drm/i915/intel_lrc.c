@@ -1968,12 +1968,7 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 			  ret);
 	}
 
-	ret = logical_ring_init(engine);
-	if (ret) {
-		lrc_destroy_wa_ctx_obj(engine);
-	}
-
-	return ret;
+	return logical_ring_init(engine);
 }
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)

@@ -61,7 +61,7 @@
 
 #include <asm/mman.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <uapi/drm/drm.h>
 #include <uapi/drm/drm_mode.h>

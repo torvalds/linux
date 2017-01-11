@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
@@ -1693,7 +1694,7 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
 		if (!vscsi->rsp_q_timer.started) {
 			if (vscsi->rsp_q_timer.timer_pops <
 			    MAX_TIMER_POPS) {
-				kt = ktime_set(0, WAIT_NANO_SECONDS);
+				kt = WAIT_NANO_SECONDS;
 			} else {
 				/*
 				 * slide the timeslice if the maximum

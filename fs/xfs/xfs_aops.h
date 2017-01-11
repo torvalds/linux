@@ -55,12 +55,6 @@ struct xfs_ioend {
 
 extern const struct address_space_operations xfs_address_space_operations;
 
-int	xfs_get_blocks(struct inode *inode, sector_t offset,
-		       struct buffer_head *map_bh, int create);
-int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
-			      struct buffer_head *map_bh, int create);
-int	xfs_end_io_direct_write(struct kiocb *iocb, loff_t offset,
-		ssize_t size, void *private);
 int	xfs_setfilesize(struct xfs_inode *ip, xfs_off_t offset, size_t size);
 
 extern void xfs_count_page_state(struct page *, int *, int *);

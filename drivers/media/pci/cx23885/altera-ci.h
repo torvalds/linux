@@ -48,24 +48,24 @@ extern int altera_ci_tuner_reset(void *dev, int ci_nr);
 
 static inline int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;
 }
 
 static inline void altera_ci_release(void *dev, int ci_nr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 }
 
 static inline int altera_ci_irq(void *dev)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;
 }
 
 static inline int altera_ci_tuner_reset(void *dev, int ci_nr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;
 }
 
@@ -74,19 +74,19 @@ static inline int altera_ci_tuner_reset(void *dev, int ci_nr)
 static inline int altera_hw_filt_init(struct altera_ci_config *config,
 							int hw_filt_nr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;
 }
 
 static inline void altera_hw_filt_release(void *dev, int filt_nr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 }
 
 static inline int altera_pid_feed_control(void *dev, int filt_nr,
 		struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return 0;
 }
 

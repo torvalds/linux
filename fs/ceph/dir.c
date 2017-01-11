@@ -32,40 +32,19 @@ const struct dentry_operations ceph_dentry_ops;
 /*
  * Initialize ceph dentry state.
  */
-int ceph_init_dentry(struct dentry *dentry)
+static int ceph_d_init(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di;
-
-	if (dentry->d_fsdata)
-		return 0;
 
 	di = kmem_cache_zalloc(ceph_dentry_cachep, GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;          /* oh well */
 
-	spin_lock(&dentry->d_lock);
-	if (dentry->d_fsdata) {
-		/* lost a race */
-		kmem_cache_free(ceph_dentry_cachep, di);
-		goto out_unlock;
-	}
-
-	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_NOSNAP)
-		d_set_d_op(dentry, &ceph_dentry_ops);
-	else if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
-		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
-	else
-		d_set_d_op(dentry, &ceph_snap_dentry_ops);
-
 	di->dentry = dentry;
 	di->lease_session = NULL;
 	di->time = jiffies;
-	/* avoid reordering d_fsdata setup so that the check above is safe */
-	smp_mb();
 	dentry->d_fsdata = di;
 	ceph_dentry_lru_add(dentry);
-out_unlock:
-	spin_unlock(&dentry->d_lock);
 	return 0;
 }
 
@@ -737,10 +716,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	err = ceph_init_dentry(dentry);
-	if (err < 0)
-		return ERR_PTR(err);
-
 	/* can we conclude ENOENT locally? */
 	if (d_really_is_negative(dentry)) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
@@ -1323,16 +1298,6 @@ static void ceph_d_release(struct dentry *dentry)
 	kmem_cache_free(ceph_dentry_cachep, di);
 }
 
-static int ceph_snapdir_d_revalidate(struct dentry *dentry,
-					  unsigned int flags)
-{
-	/*
-	 * Eventually, we'll want to revalidate snapped metadata
-	 * too... probably...
-	 */
-	return 1;
-}
-
 /*
  * When the VFS prunes a dentry from the cache, we need to clear the
  * complete flag on the parent directory.
@@ -1349,6 +1314,9 @@ static void ceph_d_prune(struct dentry *dentry)
 
 	/* if we are not hashed, we don't affect dir's completeness */
 	if (d_unhashed(dentry))
+		return;
+
+	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
 		return;
 
 	/*
@@ -1521,14 +1489,5 @@ const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
 	.d_release = ceph_d_release,
 	.d_prune = ceph_d_prune,
-};
-
-const struct dentry_operations ceph_snapdir_dentry_ops = {
-	.d_revalidate = ceph_snapdir_d_revalidate,
-	.d_release = ceph_d_release,
-};
-
-const struct dentry_operations ceph_snap_dentry_ops = {
-	.d_release = ceph_d_release,
-	.d_prune = ceph_d_prune,
+	.d_init = ceph_d_init,
 };

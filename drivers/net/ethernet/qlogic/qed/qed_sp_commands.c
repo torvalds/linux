@@ -369,7 +369,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->personality = PERSONALITY_RDMA_AND_ETH;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unkown personality %d\n",
+		DP_NOTICE(p_hwfn, "Unknown personality %d\n",
 			  p_hwfn->hw_info.personality);
 		p_ramrod->personality = PERSONALITY_ETH;
 	}

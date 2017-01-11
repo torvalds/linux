@@ -13,6 +13,7 @@
 
 	aliases {
 		serial2 = &serial2;
+		ethernet0 = &eth0;
 	};
 
 	chosen {
@@ -122,7 +123,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
-	cd-gpios = <&gpio 64 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio 64 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -156,6 +157,14 @@
 	>;
 	tx-num-evt = <32>;
 	rx-num-evt = <32>;
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
 };
 
 &aemif {
@@ -218,4 +227,12 @@
 			};
 		};
 	};
+};
+
+&prictrl {
+	status = "okay";
+};
+
+&memctrl {
+	status = "okay";
 };

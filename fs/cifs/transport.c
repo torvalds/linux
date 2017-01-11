@@ -30,7 +30,7 @@
 #include <linux/tcp.h>
 #include <linux/bvec.h>
 #include <linux/highmem.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
 #include "cifspdu.h"

@@ -29,7 +29,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mpic.h>
 #include <asm/kvm_para.h>
 #include <asm/kvm_host.h>

@@ -539,7 +539,7 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	}
 
 	drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
-	tilcdc_crtc->last_vblank = ktime_set(0, 0);
+	tilcdc_crtc->last_vblank = 0;
 
 	tilcdc_crtc->enabled = false;
 	mutex_unlock(&tilcdc_crtc->enable_lock);

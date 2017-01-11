@@ -6,6 +6,37 @@
 
 #define FRAME_HEADER_SIZE (sizeof(long) * 2)
 
+static void unwind_dump(struct unwind_state *state, unsigned long *sp)
+{
+	static bool dumped_before = false;
+	bool prev_zero, zero = false;
+	unsigned long word;
+
+	if (dumped_before)
+		return;
+
+	dumped_before = true;
+
+	printk_deferred("unwind stack type:%d next_sp:%p mask:%lx graph_idx:%d\n",
+			state->stack_info.type, state->stack_info.next_sp,
+			state->stack_mask, state->graph_idx);
+
+	for (sp = state->orig_sp; sp < state->stack_info.end; sp++) {
+		word = READ_ONCE_NOCHECK(*sp);
+
+		prev_zero = zero;
+		zero = word == 0;
+
+		if (zero) {
+			if (!prev_zero)
+				printk_deferred("%p: %016x ...\n", sp, 0);
+			continue;
+		}
+
+		printk_deferred("%p: %016lx (%pB)\n", sp, word, (void *)word);
+	}
+}
+
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
 	unsigned long addr;
@@ -20,15 +51,7 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
 				     addr_p);
 
-	if (!__kernel_text_address(addr)) {
-		printk_deferred_once(KERN_WARNING
-			"WARNING: unrecognized kernel stack return address %p at %p in %s:%d\n",
-			(void *)addr, addr_p, state->task->comm,
-			state->task->pid);
-		return 0;
-	}
-
-	return addr;
+	return __kernel_text_address(addr) ? addr : 0;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
@@ -46,7 +69,14 @@ static bool is_last_task_frame(struct unwind_state *state)
 	unsigned long bp = (unsigned long)state->bp;
 	unsigned long regs = (unsigned long)task_pt_regs(state->task);
 
-	return bp == regs - FRAME_HEADER_SIZE;
+	/*
+	 * We have to check for the last task frame at two different locations
+	 * because gcc can occasionally decide to realign the stack pointer and
+	 * change the offset of the stack frame by a word in the prologue of a
+	 * function called by head/entry code.
+	 */
+	return bp == regs - FRAME_HEADER_SIZE ||
+	       bp == regs - FRAME_HEADER_SIZE - sizeof(long);
 }
 
 /*
@@ -67,6 +97,7 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 			       size_t len)
 {
 	struct stack_info *info = &state->stack_info;
+	enum stack_type orig_type = info->type;
 
 	/*
 	 * If addr isn't on the current stack, switch to the next one.
@@ -79,6 +110,9 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 		if (get_stack_info(info->next_sp, state->task, info,
 				   &state->stack_mask))
 			return false;
+
+	if (!state->orig_sp || info->type != orig_type)
+		state->orig_sp = addr;
 
 	return true;
 }
@@ -178,11 +212,13 @@ bad_address:
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
 			state->regs, state->task->comm,
 			state->task->pid, next_frame);
+		unwind_dump(state, (unsigned long *)state->regs);
 	} else {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
 			state->bp, state->task->comm,
 			state->task->pid, next_frame);
+		unwind_dump(state, state->bp);
 	}
 the_end:
 	state->stack_info.type = STACK_TYPE_UNKNOWN;

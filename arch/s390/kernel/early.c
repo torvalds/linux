@@ -417,7 +417,7 @@ static __init void memmove_early(void *dst, const void *src, size_t n)
 		"	brctg	%[n],0b\n"
 		"1:\n"
 		: [addr] "=&d" (addr),
-		  [psw_pgm_addr] "=&Q" (S390_lowcore.program_new_psw.addr),
+		  [psw_pgm_addr] "=Q" (S390_lowcore.program_new_psw.addr),
 		  [dst] "+&a" (dst), [src] "+&a" (src),  [n] "+d" (n)
 		: [incr] "d" (incr)
 		: "cc", "memory");

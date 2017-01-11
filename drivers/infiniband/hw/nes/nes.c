@@ -515,7 +515,6 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	/* Allocate hardware structure */
 	nesdev = kzalloc(sizeof(struct nes_device), GFP_KERNEL);
 	if (!nesdev) {
-		printk(KERN_ERR PFX "%s: Unable to alloc hardware struct\n", pci_name(pcidev));
 		ret = -ENOMEM;
 		goto bail2;
 	}

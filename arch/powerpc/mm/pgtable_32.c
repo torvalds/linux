@@ -42,43 +42,6 @@ EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
 extern char etext[], _stext[], _sinittext[], _einittext[];
 
-#define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
-
-#ifndef CONFIG_PPC_4K_PAGES
-static struct kmem_cache *pgtable_cache;
-
-void pgtable_cache_init(void)
-{
-	pgtable_cache = kmem_cache_create("PGDIR cache", 1 << PGDIR_ORDER,
-					  1 << PGDIR_ORDER, 0, NULL);
-	if (pgtable_cache == NULL)
-		panic("Couldn't allocate pgtable caches");
-}
-#endif
-
-pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	pgd_t *ret;
-
-	/* pgdir take page or two with 4K pages and a page fraction otherwise */
-#ifndef CONFIG_PPC_4K_PAGES
-	ret = kmem_cache_alloc(pgtable_cache, GFP_KERNEL | __GFP_ZERO);
-#else
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
-			PGDIR_ORDER - PAGE_SHIFT);
-#endif
-	return ret;
-}
-
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-#ifndef CONFIG_PPC_4K_PAGES
-	kmem_cache_free(pgtable_cache, (void *)pgd);
-#else
-	free_pages((unsigned long)pgd, PGDIR_ORDER - PAGE_SHIFT);
-#endif
-}
-
 __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;

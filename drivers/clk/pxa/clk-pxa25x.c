@@ -322,7 +322,7 @@ static struct dummy_clk dummy_clks[] __initdata = {
 	DUMMY_CLK("GPIO11_CLK", NULL, "osc_3_6864mhz"),
 	DUMMY_CLK("GPIO12_CLK", NULL, "osc_32_768khz"),
 	DUMMY_CLK(NULL, "sa1100-rtc", "osc_32_768khz"),
-	DUMMY_CLK("OSTIMER0", NULL, "osc_32_768khz"),
+	DUMMY_CLK("OSTIMER0", NULL, "osc_3_6864mhz"),
 	DUMMY_CLK("UARTCLK", "pxa2xx-ir", "STUART"),
 };
 

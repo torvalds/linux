@@ -127,7 +127,7 @@ static struct serial_state rs_table[1];
 
 #define NR_PORTS ARRAY_SIZE(rs_table)
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define serial_isroot()	(capable(CAP_SYS_ADMIN))
 

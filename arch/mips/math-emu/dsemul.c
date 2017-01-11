@@ -6,7 +6,7 @@
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
 #include <asm/mipsregs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * struct emuframe - The 'emulation' frame structure

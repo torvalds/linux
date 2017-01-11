@@ -8,6 +8,14 @@ menuconfig ARM64_CRYPTO
 
 if ARM64_CRYPTO
 
+config CRYPTO_SHA256_ARM64
+	tristate "SHA-224/SHA-256 digest algorithm for arm64"
+	select CRYPTO_HASH
+
+config CRYPTO_SHA512_ARM64
+	tristate "SHA-384/SHA-512 digest algorithm for arm64"
+	select CRYPTO_HASH
+
 config CRYPTO_SHA1_ARM64_CE
 	tristate "SHA-1 digest algorithm (ARMv8 Crypto Extensions)"
 	depends on ARM64 && KERNEL_MODE_NEON
@@ -21,6 +29,16 @@ config CRYPTO_SHA2_ARM64_CE
 config CRYPTO_GHASH_ARM64_CE
 	tristate "GHASH (for GCM chaining mode) using ARMv8 Crypto Extensions"
 	depends on ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_HASH
+
+config CRYPTO_CRCT10DIF_ARM64_CE
+	tristate "CRCT10DIF digest algorithm using PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC_T10DIF
+	select CRYPTO_HASH
+
+config CRYPTO_CRC32_ARM64_CE
+	tristate "CRC32 and CRC32C digest algorithms using PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC32
 	select CRYPTO_HASH
 
 config CRYPTO_AES_ARM64_CE
@@ -40,17 +58,18 @@ config CRYPTO_AES_ARM64_CE_BLK
 	depends on ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AES_ARM64_CE
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_SIMD
 
 config CRYPTO_AES_ARM64_NEON_BLK
 	tristate "AES in ECB/CBC/CTR/XTS modes using NEON instructions"
 	depends on ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AES
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_SIMD
 
 config CRYPTO_CRC32_ARM64
 	tristate "CRC32 and CRC32C using optional ARMv8 instructions"
 	depends on ARM64
 	select CRYPTO_HASH
+
 endif

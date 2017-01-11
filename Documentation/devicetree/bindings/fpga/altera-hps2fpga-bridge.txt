@@ -1,0 +1,39 @@
+Altera FPGA/HPS Bridge Driver
+
+Required properties:
+- regs		: base address and size for AXI bridge module
+- compatible	: Should contain one of:
+		  "altr,socfpga-lwhps2fpga-bridge",
+		  "altr,socfpga-hps2fpga-bridge", or
+		  "altr,socfpga-fpga2hps-bridge"
+- resets	: Phandle and reset specifier for this bridge's reset
+- clocks	: Clocks used by this module.
+
+Optional properties:
+- bridge-enable	: 0 if driver should disable bridge at startup.
+		  1 if driver should enable bridge at startup.
+		  Default is to leave bridge in its current state.
+
+Example:
+	fpga_bridge0: fpga-bridge@ff400000 {
+		compatible = "altr,socfpga-lwhps2fpga-bridge";
+		reg = <0xff400000 0x100000>;
+		resets = <&rst LWHPS2FPGA_RESET>;
+		clocks = <&l4_main_clk>;
+		bridge-enable = <0>;
+	};
+
+	fpga_bridge1: fpga-bridge@ff500000 {
+		compatible = "altr,socfpga-hps2fpga-bridge";
+		reg = <0xff500000 0x10000>;
+		resets = <&rst HPS2FPGA_RESET>;
+		clocks = <&l4_main_clk>;
+		bridge-enable = <1>;
+	};
+
+	fpga_bridge2: fpga-bridge@ff600000 {
+		compatible = "altr,socfpga-fpga2hps-bridge";
+		reg = <0xff600000 0x100000>;
+		resets = <&rst FPGA2HPS_RESET>;
+		clocks = <&l4_main_clk>;
+	};
