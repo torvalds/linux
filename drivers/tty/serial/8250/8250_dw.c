@@ -248,11 +248,11 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	if (!ret)
 		p->uartclk = rate;
 
+out:
 	p->status &= ~UPSTAT_AUTOCTS;
 	if (termios->c_cflag & CRTSCTS)
 		p->status |= UPSTAT_AUTOCTS;
 
-out:
 	serial8250_do_set_termios(p, termios, old);
 }
 
@@ -326,13 +326,11 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			p->serial_in = dw8250_serial_in32;
 			data->uart_16550_compatible = true;
 		}
-		p->set_termios = dw8250_set_termios;
 	}
 
 	/* Platforms with iDMA */
 	if (platform_get_resource_byname(to_platform_device(p->dev),
 					 IORESOURCE_MEM, "lpss_priv")) {
-		p->set_termios = dw8250_set_termios;
 		data->dma.rx_param = p->dev->parent;
 		data->dma.tx_param = p->dev->parent;
 		data->dma.fn = dw8250_idma_filter;
@@ -414,6 +412,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	p->serial_in	= dw8250_serial_in;
 	p->serial_out	= dw8250_serial_out;
 	p->set_ldisc	= dw8250_set_ldisc;
+	p->set_termios	= dw8250_set_termios;
 
 	p->membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!p->membase)
