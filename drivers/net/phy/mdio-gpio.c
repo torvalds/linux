@@ -137,6 +137,9 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	struct mii_bus *new_bus;
 	struct mdio_gpio_info *bitbang;
 	int i;
+	unsigned long mdc_flags = GPIOF_OUT_INIT_LOW;
+	unsigned long mdio_flags = GPIOF_DIR_IN;
+	unsigned long mdo_flags = GPIOF_OUT_INIT_HIGH;
 
 	bitbang = devm_kzalloc(dev, sizeof(*bitbang), GFP_KERNEL);
 	if (!bitbang)
@@ -174,20 +177,16 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	else
 		strncpy(new_bus->id, "gpio", MII_BUS_ID_SIZE);
 
-	if (devm_gpio_request(dev, bitbang->mdc, "mdc"))
+	if (devm_gpio_request_one(dev, bitbang->mdc, mdc_flags, "mdc"))
 		goto out_free_bus;
 
-	if (devm_gpio_request(dev, bitbang->mdio, "mdio"))
+	if (devm_gpio_request_one(dev, bitbang->mdio, mdio_flags, "mdio"))
 		goto out_free_bus;
 
 	if (bitbang->mdo) {
-		if (devm_gpio_request(dev, bitbang->mdo, "mdo"))
+		if (devm_gpio_request_one(dev, bitbang->mdo, mdo_flags, "mdo"))
 			goto out_free_bus;
-		gpio_direction_output(bitbang->mdo, 1);
-		gpio_direction_input(bitbang->mdio);
 	}
-
-	gpio_direction_output(bitbang->mdc, 0);
 
 	dev_set_drvdata(dev, new_bus);
 
