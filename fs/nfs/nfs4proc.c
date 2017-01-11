@@ -2216,11 +2216,8 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
 
 	nfs_fattr_map_and_free_names(NFS_SERVER(dir), &data->f_attr);
 
-	if (o_res->rflags & NFS4_OPEN_RESULT_CONFIRM) {
+	if (o_res->rflags & NFS4_OPEN_RESULT_CONFIRM)
 		status = _nfs4_proc_open_confirm(data);
-		if (status != 0)
-			return status;
-	}
 
 	return status;
 }
