@@ -62,6 +62,98 @@ struct dwc3_rockchip {
 	struct mutex		lock;
 };
 
+static int dwc3_rockchip_force_mode_show(struct seq_file *s, void *unused)
+{
+	struct dwc3_rockchip	*rockchip = s->private;
+	struct dwc3		*dwc = rockchip->dwc;
+
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_HOST:
+		seq_puts(s, "host\n");
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		seq_puts(s, "peripheral\n");
+		break;
+	case USB_DR_MODE_OTG:
+		seq_puts(s, "otg\n");
+		break;
+	default:
+		seq_puts(s, "UNKNOWN\n");
+	}
+
+	return 0;
+}
+
+static int dwc3_rockchip_force_mode_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dwc3_rockchip_force_mode_show,
+			   inode->i_private);
+}
+
+static ssize_t dwc3_rockchip_force_mode_write(struct file *file,
+					      const char __user *ubuf,
+					      size_t count, loff_t *ppos)
+{
+	struct seq_file		*s = file->private_data;
+	struct dwc3_rockchip	*rockchip = s->private;
+	struct dwc3		*dwc = rockchip->dwc;
+	enum usb_dr_mode	new_dr_mode;
+	char			buf[32];
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (!strncmp(buf, "0", 1) || !strncmp(buf, "otg", 3)) {
+		new_dr_mode = USB_DR_MODE_OTG;
+	} else if (!strncmp(buf, "1", 1) || !strncmp(buf, "host", 4)) {
+		new_dr_mode = USB_DR_MODE_HOST;
+	} else if (!strncmp(buf, "2", 1) || !strncmp(buf, "peripheral", 10)) {
+		new_dr_mode = USB_DR_MODE_PERIPHERAL;
+	} else {
+		dev_info(rockchip->dev, "illegal dr_mode\n");
+		return count;
+	}
+
+	if (dwc->dr_mode == new_dr_mode) {
+		dev_info(rockchip->dev, "Same with current dr_mode\n");
+		return count;
+	}
+
+	/*
+	 * Disconnect vbus to trigger gadget disconnect process by setting
+	 * the mode of phy to invalid if the current dr_mode of controller
+	 * is peripheral, than schedule otg work to change connect status
+	 * and suspend the controller.
+	 */
+	if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL)
+		phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_INVALID);
+	dwc->dr_mode = USB_DR_MODE_OTG;
+	schedule_work(&rockchip->otg_work);
+	flush_work(&rockchip->otg_work);
+
+	/*
+	 * Schedule otg work to change connect status and resume the
+	 * controller, than connect vbus to trigger connect interrupt
+	 * and connect gadget by setting the mode of phy to device if
+	 * the dr_mode is peripheral.
+	 */
+	dwc->dr_mode = new_dr_mode;
+	schedule_work(&rockchip->otg_work);
+	flush_work(&rockchip->otg_work);
+	if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL)
+		phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_USB_DEVICE);
+
+	return count;
+}
+
+static const struct file_operations dwc3_rockchip_force_mode_fops = {
+	.open			= dwc3_rockchip_force_mode_open,
+	.write			= dwc3_rockchip_force_mode_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 static int dwc3_rockchip_host_testmode_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_rockchip	*rockchip = s->private;
@@ -266,6 +358,17 @@ static void dwc3_rockchip_debugfs_init(struct dwc3_rockchip *rockchip)
 		if (!file)
 			dev_dbg(rockchip->dev, "Can't create debugfs host_testmode\n");
 	}
+
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) &&
+	    !rockchip->edev && (rockchip->dwc->dr_mode == USB_DR_MODE_OTG)) {
+		file = debugfs_create_file("rk_usb_force_mode",
+					   S_IRUSR | S_IWUSR,
+					   root, rockchip,
+					   &dwc3_rockchip_force_mode_fops);
+		if (!file)
+			dev_dbg(rockchip->dev,
+				"Can't create debugfs rk_usb_force_mode\n");
+	}
 }
 
 static int dwc3_rockchip_device_notifier(struct notifier_block *nb,
@@ -307,7 +410,8 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 	mutex_lock(&rockchip->lock);
 
-	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
+	if (rockchip->edev ? extcon_get_cable_state_(edev, EXTCON_USB) :
+	    (dwc->dr_mode == USB_DR_MODE_PERIPHERAL)) {
 		if (rockchip->connected)
 			goto out;
 
@@ -348,7 +452,9 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 		rockchip->connected = true;
 		dev_info(rockchip->dev, "USB peripheral connected\n");
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
+	} else if (rockchip->edev ?
+		   extcon_get_cable_state_(edev, EXTCON_USB_HOST) :
+		   (dwc->dr_mode == USB_DR_MODE_HOST)) {
 		if (rockchip->connected)
 			goto out;
 
@@ -535,9 +641,6 @@ static int dwc3_rockchip_extcon_register(struct dwc3_rockchip *rockchip)
 			return PTR_ERR(edev);
 		}
 
-		INIT_WORK(&rockchip->otg_work,
-			  dwc3_rockchip_otg_extcon_evt_work);
-
 		rockchip->device_nb.notifier_call =
 				dwc3_rockchip_device_notifier;
 		ret = extcon_register_notifier(edev, EXTCON_USB,
@@ -573,7 +676,6 @@ static void dwc3_rockchip_extcon_unregister(struct dwc3_rockchip *rockchip)
 				   &rockchip->device_nb);
 	extcon_unregister_notifier(rockchip->edev, EXTCON_USB_HOST,
 				   &rockchip->host_nb);
-	cancel_work_sync(&rockchip->otg_work);
 }
 
 static int dwc3_rockchip_probe(struct platform_device *pdev)
@@ -658,6 +760,8 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	INIT_WORK(&rockchip->otg_work, dwc3_rockchip_otg_extcon_evt_work);
+
 	child_pdev = of_find_device_by_node(child);
 	if (!child_pdev) {
 		dev_err(dev, "failed to find dwc3 core device\n");
@@ -676,7 +780,7 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err2;
 
-	if (rockchip->edev) {
+	if (rockchip->edev || (rockchip->dwc->dr_mode == USB_DR_MODE_OTG)) {
 		if (rockchip->dwc->dr_mode == USB_DR_MODE_HOST ||
 		    rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
 			struct usb_hcd *hcd =
@@ -715,6 +819,7 @@ err3:
 	dwc3_rockchip_extcon_unregister(rockchip);
 
 err2:
+	cancel_work_sync(&rockchip->otg_work);
 	of_platform_depopulate(dev);
 
 err1:
