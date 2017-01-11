@@ -232,8 +232,11 @@ i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	/* Pin early to prevent the shrinker/eviction logic from destroying
 	 * our vma as we insert and bind.
 	 */
-	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0))
+	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0)) {
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 		return 0;
+	}
 
 	return __i915_vma_do_pin(vma, size, alignment, flags);
 }

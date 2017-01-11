@@ -476,6 +476,7 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	if ((bound ^ vma->flags) & I915_VMA_GLOBAL_BIND)
 		__i915_vma_set_map_and_fenceable(vma);
 
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 	return 0;
 
