@@ -2343,7 +2343,8 @@ done:
 		serial_port_out(port, SCFCR, ctrl);
 	}
 
-	scr_val |= s->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0);
+	scr_val |= SCSCR_RE | SCSCR_TE |
+		   (s->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0));
 	dev_dbg(port->dev, "SCSCR 0x%x\n", scr_val);
 	serial_port_out(port, SCSCR, scr_val);
 	if ((srr + 1 == 5) &&
@@ -2793,7 +2794,8 @@ static void serial_console_write(struct console *co, const char *s,
 
 	/* first save SCSCR then disable interrupts, keep clock source */
 	ctrl = serial_port_in(port, SCSCR);
-	ctrl_temp = (sci_port->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0)) |
+	ctrl_temp = SCSCR_RE | SCSCR_TE |
+		    (sci_port->cfg->scscr & ~(SCSCR_CKE1 | SCSCR_CKE0)) |
 		    (ctrl & (SCSCR_CKE1 | SCSCR_CKE0));
 	serial_port_out(port, SCSCR, ctrl_temp);
 
@@ -2996,7 +2998,6 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 	p->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	p->type = SCI_OF_TYPE(match->data);
 	p->regtype = SCI_OF_REGTYPE(match->data);
-	p->scscr = SCSCR_RE | SCSCR_TE;
 
 	if (of_find_property(np, "uart-has-rtscts", NULL))
 		p->capabilities |= SCIx_HAVE_RTSCTS;
@@ -3164,9 +3165,9 @@ static int __init early_console_setup(struct earlycon_device *device,
 	sci_ports[0].cfg = &port_cfg;
 	sci_ports[0].cfg->type = type;
 	sci_probe_regmap(sci_ports[0].cfg);
-	port_cfg.scscr = sci_serial_in(&sci_ports[0].port, SCSCR) |
-			 SCSCR_RE | SCSCR_TE;
-	sci_serial_out(&sci_ports[0].port, SCSCR, port_cfg.scscr);
+	port_cfg.scscr = sci_serial_in(&sci_ports[0].port, SCSCR);
+	sci_serial_out(&sci_ports[0].port, SCSCR,
+		       SCSCR_RE | SCSCR_TE | port_cfg.scscr);
 
 	device->con->write = serial_console_write;
 	return 0;
