@@ -202,6 +202,9 @@ int blkcipher_aead_walk_virt_block(struct blkcipher_desc *desc,
 				   struct blkcipher_walk *walk,
 				   struct crypto_aead *tfm,
 				   unsigned int blocksize);
+int blkcipher_ablkcipher_walk_virt(struct blkcipher_desc *desc,
+				   struct blkcipher_walk *walk,
+				   struct crypto_ablkcipher *tfm);
 
 int ablkcipher_walk_done(struct ablkcipher_request *req,
 			 struct ablkcipher_walk *walk, int err);

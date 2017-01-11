@@ -373,6 +373,27 @@ int blkcipher_aead_walk_virt_block(struct blkcipher_desc *desc,
 }
 EXPORT_SYMBOL_GPL(blkcipher_aead_walk_virt_block);
 
+/*
+ * This function allows ablkcipher algorithms to use the blkcipher_walk API to
+ * walk over their data.  The specified crypto_ablkcipher tfm is used to
+ * initialize the struct blkcipher_walk, and the crypto_blkcipher specified in
+ * desc->tfm is never used so it can be left NULL.  (Yes, this design is ugly,
+ * but it parallels blkcipher_aead_walk_virt_block() above.  In the 4.10 kernel
+ * this is starting to be cleaned up...)
+ */
+int blkcipher_ablkcipher_walk_virt(struct blkcipher_desc *desc,
+				   struct blkcipher_walk *walk,
+				   struct crypto_ablkcipher *tfm)
+{
+	walk->flags &= ~BLKCIPHER_WALK_PHYS;
+	walk->walk_blocksize = crypto_ablkcipher_blocksize(tfm);
+	walk->cipher_blocksize = walk->walk_blocksize;
+	walk->ivsize = crypto_ablkcipher_ivsize(tfm);
+	walk->alignmask = crypto_ablkcipher_alignmask(tfm);
+	return blkcipher_walk_first(desc, walk);
+}
+EXPORT_SYMBOL_GPL(blkcipher_ablkcipher_walk_virt);
+
 static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
 {
