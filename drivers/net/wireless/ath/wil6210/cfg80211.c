@@ -1499,7 +1499,7 @@ static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	return rc;
 }
 
-static struct cfg80211_ops wil_cfg80211_ops = {
+static const struct cfg80211_ops wil_cfg80211_ops = {
 	.add_virtual_intf = wil_cfg80211_add_iface,
 	.del_virtual_intf = wil_cfg80211_del_iface,
 	.scan = wil_cfg80211_scan,
