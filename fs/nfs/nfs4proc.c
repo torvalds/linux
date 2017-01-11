@@ -4159,8 +4159,11 @@ static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 	if (nfs4_async_handle_error(task, res->server, NULL, &data->timeout) == -EAGAIN)
 		return 0;
 
-	update_changeattr(old_dir, &res->old_cinfo);
-	update_changeattr(new_dir, &res->new_cinfo);
+	if (task->tk_status == 0) {
+		update_changeattr(old_dir, &res->old_cinfo);
+		if (new_dir != old_dir)
+			update_changeattr(new_dir, &res->new_cinfo);
+	}
 	return 1;
 }
 
