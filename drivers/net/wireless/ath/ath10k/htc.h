@@ -337,7 +337,6 @@ struct ath10k_htc {
 	struct completion ctl_resp;
 
 	int total_transmit_credits;
-	struct ath10k_htc_svc_tx_credits service_tx_alloc[ATH10K_HTC_EP_COUNT];
 	int target_credit_size;
 };
 
