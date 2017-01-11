@@ -732,6 +732,10 @@ static int skl_probe(struct pci_dev *pci,
 		goto out_display_power_off;
 	}
 
+	err = skl_nhlt_create_sysfs(skl);
+	if (err < 0)
+		goto out_nhlt_free;
+
 	skl_nhlt_update_topology_bin(skl);
 
 	pci_set_drvdata(skl->pci, ebus);
@@ -852,6 +856,7 @@ static void skl_remove(struct pci_dev *pci)
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
+	skl_nhlt_remove_sysfs(skl);
 	skl_nhlt_free(skl->nhlt);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
