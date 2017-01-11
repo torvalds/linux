@@ -75,10 +75,10 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		*out_ring = &adev->uvd.ring;
 		break;
 	case AMDGPU_HW_IP_VCE:
-		if (ring < 2){
+		if (ring < adev->vce.num_rings){
 			*out_ring = &adev->vce.ring[ring];
 		} else {
-			DRM_ERROR("only two VCE rings are supported\n");
+			DRM_ERROR("only %d VCE rings are supported\n", adev->vce.num_rings);
 			return -EINVAL;
 		}
 		break;
