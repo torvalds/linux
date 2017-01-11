@@ -4125,7 +4125,8 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (nfs4_async_handle_error(task, res->server, NULL,
 				    &data->timeout) == -EAGAIN)
 		return 0;
-	update_changeattr(dir, &res->cinfo);
+	if (task->tk_status == 0)
+		update_changeattr(dir, &res->cinfo);
 	return 1;
 }
 
