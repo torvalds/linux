@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (C) 2015 Intel Deutschland GmbH
+ * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -644,20 +645,19 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 	return ret;
 }
 
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
-			unsigned int wdg_timeout)
+static bool iwl_mvm_update_txq_mapping(struct iwl_mvm *mvm, int queue,
+				       int mac80211_queue, u8 sta_id, u8 tid)
 {
 	bool enable_queue = true;
 
 	spin_lock_bh(&mvm->queue_info_lock);
 
 	/* Make sure this TID isn't already enabled */
-	if (mvm->queue_info[queue].tid_bitmap & BIT(cfg->tid)) {
+	if (mvm->queue_info[queue].tid_bitmap & BIT(tid)) {
 		spin_unlock_bh(&mvm->queue_info_lock);
 		IWL_ERR(mvm, "Trying to enable TXQ %d with existing TID %d\n",
-			queue, cfg->tid);
-		return;
+			queue, tid);
+		return false;
 	}
 
 	/* Update mappings and refcounts */
@@ -666,17 +666,17 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	mvm->queue_info[queue].hw_queue_to_mac80211 |= BIT(mac80211_queue);
 	mvm->queue_info[queue].hw_queue_refcount++;
-	mvm->queue_info[queue].tid_bitmap |= BIT(cfg->tid);
-	mvm->queue_info[queue].ra_sta_id = cfg->sta_id;
+	mvm->queue_info[queue].tid_bitmap |= BIT(tid);
+	mvm->queue_info[queue].ra_sta_id = sta_id;
 
 	if (enable_queue) {
-		if (cfg->tid != IWL_MAX_TID_COUNT)
+		if (tid != IWL_MAX_TID_COUNT)
 			mvm->queue_info[queue].mac80211_ac =
-				tid_to_mac80211_ac[cfg->tid];
+				tid_to_mac80211_ac[tid];
 		else
 			mvm->queue_info[queue].mac80211_ac = IEEE80211_AC_VO;
 
-		mvm->queue_info[queue].txq_tid = cfg->tid;
+		mvm->queue_info[queue].txq_tid = tid;
 	}
 
 	IWL_DEBUG_TX_QUEUES(mvm,
@@ -686,8 +686,16 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	spin_unlock_bh(&mvm->queue_info_lock);
 
+	return enable_queue;
+}
+
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
+			unsigned int wdg_timeout)
+{
 	/* Send the enabling command if we need to */
-	if (enable_queue) {
+	if (iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
+				       cfg->sta_id, cfg->tid)) {
 		struct iwl_scd_txq_cfg_cmd cmd = {
 			.scd_queue = queue,
 			.action = SCD_CFG_ENABLE_QUEUE,
