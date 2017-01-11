@@ -39,7 +39,6 @@ static struct platform_device rtc_device = {
 
 static struct plat_sci_port sci_platform_data = {
 	.port_reg	= 0xffe0001C,
-	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_SCI,
 	.regshift	= 2,
 };
@@ -60,7 +59,6 @@ static struct platform_device sci_device = {
 };
 
 static struct plat_sci_port scif_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };

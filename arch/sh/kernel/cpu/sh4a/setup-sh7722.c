@@ -179,7 +179,6 @@ struct platform_device dma_device = {
 
 /* Serial */
 static struct plat_sci_port scif0_platform_data = {
-	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,
@@ -202,7 +201,6 @@ static struct platform_device scif0_device = {
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,
@@ -225,7 +223,6 @@ static struct platform_device scif1_device = {
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.flags          = UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.ops		= &sh7722_sci_port_ops,

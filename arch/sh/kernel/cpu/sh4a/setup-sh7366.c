@@ -21,7 +21,6 @@
 
 static struct plat_sci_port scif0_platform_data = {
 	.port_reg	= 0xa405013e,
-	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };

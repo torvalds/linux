@@ -110,7 +110,6 @@ static struct platform_device rtc_device = {
 
 static struct plat_sci_port scif0_platform_data = {
 	.port_reg	= 0xa4000136,
-	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_SCI,
 	.ops		= &sh770x_sci_port_ops,
 	.regshift	= 1,
@@ -134,7 +133,6 @@ static struct platform_device scif0_device = {
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 static struct plat_sci_port scif1_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_SCIF,
 	.ops		= &sh770x_sci_port_ops,
 	.regtype	= SCIx_SH3_SCIF_REGTYPE,
@@ -159,7 +157,6 @@ static struct platform_device scif1_device = {
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 static struct plat_sci_port scif2_platform_data = {
 	.port_reg	= SCIx_NOT_SUPPORTED,
-	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_IRDA,
 	.ops		= &sh770x_sci_port_ops,
 	.regshift	= 1,
