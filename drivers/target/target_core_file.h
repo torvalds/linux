@@ -1,6 +1,8 @@
 #ifndef TARGET_CORE_FILE_H
 #define TARGET_CORE_FILE_H
 
+#include <target/target_core_base.h>
+
 #define FD_VERSION		"4.0"
 
 #define FD_MAX_DEV_NAME		256

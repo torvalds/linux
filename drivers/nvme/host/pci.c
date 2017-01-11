@@ -50,7 +50,7 @@
 #define NVME_AQ_DEPTH		256
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
-		
+
 /*
  * We handle AEN commands ourselves and don't even let the
  * block layer know about them.
@@ -712,15 +712,8 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 		req = blk_mq_tag_to_rq(*nvmeq->tags, cqe.command_id);
 		nvme_req(req)->result = cqe.result;
 		blk_mq_complete_request(req, le16_to_cpu(cqe.status) >> 1);
-
 	}
 
-	/* If the controller ignores the cq head doorbell and continuously
-	 * writes to the queue, it is theoretically possible to wrap around
-	 * the queue twice and mistakenly return IRQ_NONE.  Linux only
-	 * requires that 0.1% of your interrupts are handled, so this isn't
-	 * a big problem.
-	 */
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return;
 
@@ -1349,7 +1342,7 @@ static ssize_t nvme_cmb_show(struct device *dev,
 {
 	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
 
-	return snprintf(buf, PAGE_SIZE, "cmbloc : x%08x\ncmbsz  : x%08x\n",
+	return scnprintf(buf, PAGE_SIZE, "cmbloc : x%08x\ncmbsz  : x%08x\n",
 		       ndev->cmbloc, ndev->cmbsz);
 }
 static DEVICE_ATTR(cmb, S_IRUGO, nvme_cmb_show, NULL);
@@ -1909,10 +1902,10 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (!dev->bar)
 		goto release;
 
-       return 0;
+	return 0;
   release:
-       pci_release_mem_regions(pdev);
-       return -ENODEV;
+	pci_release_mem_regions(pdev);
+	return -ENODEV;
 }
 
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)

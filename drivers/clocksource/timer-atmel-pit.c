@@ -73,7 +73,7 @@ static inline void pit_write(void __iomem *base, unsigned int reg_offset, unsign
  * Clocksource:  just a monotonic counter of MCK/16 cycles.
  * We don't care whether or not PIT irqs are enabled.
  */
-static cycle_t read_pit_clk(struct clocksource *cs)
+static u64 read_pit_clk(struct clocksource *cs)
 {
 	struct pit_data *data = clksrc_to_pit_data(cs);
 	unsigned long flags;

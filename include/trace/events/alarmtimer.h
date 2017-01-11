@@ -31,7 +31,7 @@ TRACE_EVENT(alarmtimer_suspend,
 	),
 
 	TP_fast_assign(
-		__entry->expires = expires.tv64;
+		__entry->expires = expires;
 		__entry->alarm_type = flag;
 	),
 
@@ -57,8 +57,8 @@ DECLARE_EVENT_CLASS(alarm_class,
 	TP_fast_assign(
 		__entry->alarm = alarm;
 		__entry->alarm_type = alarm->type;
-		__entry->expires = alarm->node.expires.tv64;
-		__entry->now = now.tv64;
+		__entry->expires = alarm->node.expires;
+		__entry->now = now;
 	),
 
 	TP_printk("alarmtimer:%p type:%s expires:%llu now:%llu",

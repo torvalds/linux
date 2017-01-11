@@ -1251,6 +1251,7 @@ bool pnfs_roc(struct inode *ino,
 	nfs4_stateid stateid;
 	enum pnfs_iomode iomode = 0;
 	bool layoutreturn = false, roc = false;
+	bool skip_read = false;
 
 	if (!nfs_have_layout(ino))
 		return false;
@@ -1270,18 +1271,27 @@ retry:
 	}
 
 	/* no roc if we hold a delegation */
-	if (nfs4_check_delegation(ino, FMODE_READ))
-		goto out_noroc;
+	if (nfs4_check_delegation(ino, FMODE_READ)) {
+		if (nfs4_check_delegation(ino, FMODE_WRITE))
+			goto out_noroc;
+		skip_read = true;
+	}
 
 	list_for_each_entry(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
+		if (state == NULL)
+			continue;
 		/* Don't return layout if there is open file state */
-		if (state != NULL && state->state != 0)
+		if (state->state & FMODE_WRITE)
 			goto out_noroc;
+		if (state->state & FMODE_READ)
+			skip_read = true;
 	}
 
 
 	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list) {
+		if (skip_read && lseg->pls_range.iomode == IOMODE_READ)
+			continue;
 		/* If we are sending layoutreturn, invalidate all valid lsegs */
 		if (!test_and_clear_bit(NFS_LSEG_ROC, &lseg->pls_flags))
 			continue;

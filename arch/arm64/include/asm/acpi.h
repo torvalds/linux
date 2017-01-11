@@ -29,7 +29,7 @@
 
 /* Basic configuration for ACPI */
 #ifdef	CONFIG_ACPI
-/* ACPI table mapping after acpi_gbl_permanent_mmap is set */
+/* ACPI table mapping after acpi_permanent_mmap is set */
 static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 					    acpi_size size)
 {

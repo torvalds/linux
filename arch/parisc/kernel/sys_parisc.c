@@ -23,7 +23,7 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/elf.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -225,17 +225,15 @@ static unsigned long mmap_rnd(void)
 {
 	unsigned long rnd = 0;
 
-	/*
-	*  8 bits of randomness in 32bit mmaps, 20 address space bits
-	* 28 bits of randomness in 64bit mmaps, 40 address space bits
-	*/
-	if (current->flags & PF_RANDOMIZE) {
-		if (is_32bit_task())
-			rnd = get_random_int() % (1<<8);
-		else
-			rnd = get_random_int() % (1<<28);
-	}
+	if (current->flags & PF_RANDOMIZE)
+		rnd = get_random_int() & MMAP_RND_MASK;
+
 	return rnd << PAGE_SHIFT;
+}
+
+unsigned long arch_mmap_rnd(void)
+{
+	return (get_random_int() & MMAP_RND_MASK) << PAGE_SHIFT;
 }
 
 static unsigned long mmap_legacy_base(void)

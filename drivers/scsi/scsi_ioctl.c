@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

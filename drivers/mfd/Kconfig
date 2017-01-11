@@ -40,6 +40,22 @@ config MFD_ACT8945A
 	  linear regulators, along with a complete ActivePath battery
 	  charger.
 
+config MFD_SUN4I_GPADC
+	tristate "Allwinner sunxi platforms' GPADC MFD driver"
+	select MFD_CORE
+	select REGMAP_MMIO
+	select REGMAP_IRQ
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  Select this to get support for Allwinner SoCs (A10, A13 and A31) ADC.
+	  This driver will only map the hardware interrupt and registers, you
+	  have to select individual drivers based on this MFD to be able to use
+	  the ADC or the thermal sensor. This will try to probe the ADC driver
+	  sun4i-gpadc-iio and the hwmon driver iio_hwmon.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sun4i-gpadc.
+
 config MFD_AS3711
 	bool "AMS AS3711"
 	select MFD_CORE
@@ -293,6 +309,7 @@ config MFD_DLN2
 
 config MFD_EXYNOS_LPASS
 	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_MMIO
 	help
@@ -563,7 +580,7 @@ config MFD_MAX14577
 config MFD_MAX77620
 	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
-	depends on OF
+	depends on OF || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -578,7 +595,7 @@ config MFD_MAX77620
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
-	depends on OF
+	depends on OF || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -877,7 +894,8 @@ config MFD_RN5T618
 	select MFD_CORE
 	select REGMAP_I2C
 	help
-	  Say yes here to add support for the Ricoh RN5T567 or R5T618 PMIC.
+	  Say yes here to add support for the Ricoh RN5T567,
+          RN5T618, RC5T619 PMIC.
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
@@ -951,7 +969,7 @@ config MFD_SMSC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300 || ARCH_U8500
+	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.

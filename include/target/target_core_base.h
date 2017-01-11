@@ -1,14 +1,10 @@
 #ifndef TARGET_CORE_BASE_H
 #define TARGET_CORE_BASE_H
 
-#include <linux/in.h>
-#include <linux/configfs.h>
-#include <linux/dma-mapping.h>
-#include <linux/blkdev.h>
-#include <linux/percpu_ida.h>
-#include <linux/t10-pi.h>
-#include <net/sock.h>
-#include <net/tcp.h>
+#include <linux/configfs.h>      /* struct config_group */
+#include <linux/dma-direction.h> /* enum dma_data_direction */
+#include <linux/percpu_ida.h>    /* struct percpu_ida */
+#include <linux/semaphore.h>     /* struct semaphore */
 
 #define TARGET_CORE_VERSION		"v5.0"
 

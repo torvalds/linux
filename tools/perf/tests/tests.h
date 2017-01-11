@@ -80,6 +80,7 @@ const char *test__bpf_subtest_get_desc(int subtest);
 int test__bpf_subtest_get_nr(void);
 int test_session_topology(int subtest);
 int test__thread_map_synthesize(int subtest);
+int test__thread_map_remove(int subtest);
 int test__cpu_map_synthesize(int subtest);
 int test__synthesize_stat_config(int subtest);
 int test__synthesize_stat(int subtest);

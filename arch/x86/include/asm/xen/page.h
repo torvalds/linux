@@ -7,7 +7,7 @@
 #include <linux/pfn.h>
 #include <linux/mm.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 

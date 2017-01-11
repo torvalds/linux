@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>

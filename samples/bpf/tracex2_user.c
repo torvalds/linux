@@ -48,12 +48,12 @@ static void print_hist_for_pid(int fd, void *task)
 	long max_value = 0;
 	int i, ind;
 
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
 		if (memcmp(&next_key, task, SIZE)) {
 			key = next_key;
 			continue;
 		}
-		bpf_lookup_elem(fd, &next_key, values);
+		bpf_map_lookup_elem(fd, &next_key, values);
 		value = 0;
 		for (i = 0; i < nr_cpus; i++)
 			value += values[i];
@@ -83,7 +83,7 @@ static void print_hist(int fd)
 	int task_cnt = 0;
 	int i;
 
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
 		int found = 0;
 
 		for (i = 0; i < task_cnt; i++)
@@ -136,8 +136,8 @@ int main(int ac, char **argv)
 
 	for (i = 0; i < 5; i++) {
 		key = 0;
-		while (bpf_get_next_key(map_fd[0], &key, &next_key) == 0) {
-			bpf_lookup_elem(map_fd[0], &next_key, &value);
+		while (bpf_map_get_next_key(map_fd[0], &key, &next_key) == 0) {
+			bpf_map_lookup_elem(map_fd[0], &next_key, &value);
 			printf("location 0x%lx count %ld\n", next_key, value);
 			key = next_key;
 		}

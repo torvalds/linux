@@ -1,7 +1,9 @@
 * Cadence SD/SDIO/eMMC Host Controller
 
 Required properties:
-- compatible: should be "cdns,sd4hc".
+- compatible: should be one of the following:
+    "cdns,sd4hc"               - default of the IP
+    "socionext,uniphier-sd4hc" - for Socionext UniPhier SoCs
 - reg: offset and length of the register set for the device.
 - interrupts: a single interrupt specifier.
 - clocks: phandle to the input clock.
@@ -19,7 +21,7 @@ if supported.  See mmc.txt for details.
 
 Example:
 	emmc: sdhci@5a000000 {
-		compatible = "cdns,sd4hc";
+		compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
 		reg = <0x5a000000 0x400>;
 		interrupts = <0 78 4>;
 		clocks = <&clk 4>;

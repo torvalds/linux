@@ -256,6 +256,9 @@ xfs_ag_resv_init(
 			goto out;
 	}
 
+	ASSERT(xfs_perag_resv(pag, XFS_AG_RESV_METADATA)->ar_reserved +
+	       xfs_perag_resv(pag, XFS_AG_RESV_AGFL)->ar_reserved <=
+	       pag->pagf_freeblks + pag->pagf_flcount);
 out:
 	return error;
 }

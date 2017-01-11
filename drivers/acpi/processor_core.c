@@ -154,18 +154,16 @@ static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
 phys_cpuid_t __init acpi_map_madt_entry(u32 acpi_id)
 {
 	struct acpi_table_madt *madt = NULL;
-	acpi_size tbl_size;
 	phys_cpuid_t rv;
 
-	acpi_get_table_with_size(ACPI_SIG_MADT, 0,
-				 (struct acpi_table_header **)&madt,
-				 &tbl_size);
+	acpi_get_table(ACPI_SIG_MADT, 0,
+		       (struct acpi_table_header **)&madt);
 	if (!madt)
 		return PHYS_CPUID_INVALID;
 
 	rv = map_madt_entry(madt, 1, acpi_id, true);
 
-	early_acpi_os_unmap_memory(madt, tbl_size);
+	acpi_put_table((struct acpi_table_header *)madt);
 
 	return rv;
 }

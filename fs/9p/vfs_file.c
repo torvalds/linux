@@ -34,7 +34,7 @@
 #include <linux/list.h>
 #include <linux/pagemap.h>
 #include <linux/utsname.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/idr.h>
 #include <linux/uio.h>
 #include <linux/slab.h>

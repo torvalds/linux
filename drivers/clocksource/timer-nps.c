@@ -77,11 +77,11 @@ static int __init nps_get_timer_clk(struct device_node *node,
 	return 0;
 }
 
-static cycle_t nps_clksrc_read(struct clocksource *clksrc)
+static u64 nps_clksrc_read(struct clocksource *clksrc)
 {
 	int cluster = raw_smp_processor_id() >> NPS_CLUSTER_OFFSET;
 
-	return (cycle_t)ioread32be(nps_msu_reg_low_addr[cluster]);
+	return (u64)ioread32be(nps_msu_reg_low_addr[cluster]);
 }
 
 static int __init nps_setup_clocksource(struct device_node *node)

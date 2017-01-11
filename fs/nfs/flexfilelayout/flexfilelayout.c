@@ -619,12 +619,11 @@ nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 			    struct nfs4_ff_layoutstat *layoutstat,
 			    ktime_t now)
 {
-	static const ktime_t notime = {0};
 	s64 report_interval = FF_LAYOUTSTATS_REPORT_INTERVAL;
 	struct nfs4_flexfile_layout *ffl = FF_LAYOUT_FROM_HDR(mirror->layout);
 
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer, now);
-	if (ktime_equal(mirror->start_time, notime))
+	if (!mirror->start_time)
 		mirror->start_time = now;
 	if (mirror->report_interval != 0)
 		report_interval = (s64)mirror->report_interval * 1000LL;
@@ -1126,7 +1125,8 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		nfs4_mark_deviceid_unavailable(devid);
+		nfs4_delete_deviceid(devid->ld, devid->nfs_client,
+				&devid->deviceid);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
 	default:
@@ -1175,7 +1175,8 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	default:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		nfs4_mark_deviceid_unavailable(devid);
+		nfs4_delete_deviceid(devid->ld, devid->nfs_client,
+				&devid->deviceid);
 	}
 	/* FIXME: Need to prevent infinite looping here. */
 	return -NFS4ERR_RESET_TO_PNFS;

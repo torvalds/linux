@@ -519,7 +519,7 @@ static const struct acpi_device_id bxtwc_acpi_ids[] = {
 	{ "INT34D3", },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, pmic_acpi_ids);
+MODULE_DEVICE_TABLE(acpi, bxtwc_acpi_ids);
 
 static struct platform_driver bxtwc_driver = {
 	.probe = bxtwc_probe,
