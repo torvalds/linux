@@ -215,13 +215,15 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		add_sta_cmd.modify_mask |= STA_MODIFY_UAPSD_ACS;
 
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
-			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BK);
+			add_sta_cmd.uapsd_acs |= BIT(AC_BK);
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
-			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_BE);
+			add_sta_cmd.uapsd_acs |= BIT(AC_BE);
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
-			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VI);
+			add_sta_cmd.uapsd_acs |= BIT(AC_VI);
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
-			add_sta_cmd.uapsd_trigger_acs |= BIT(AC_VO);
+			add_sta_cmd.uapsd_acs |= BIT(AC_VO);
+		add_sta_cmd.uapsd_acs |= add_sta_cmd.uapsd_acs << 4;
+		add_sta_cmd.sp_length = sta->max_sp;
 	}
 
 	status = ADD_STA_SUCCESS;

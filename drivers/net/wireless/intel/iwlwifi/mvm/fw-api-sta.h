@@ -179,7 +179,7 @@ enum iwl_sta_key_flag {
  * enum iwl_sta_modify_flag - indicate to the fw what flag are being changed
  * @STA_MODIFY_QUEUE_REMOVAL: this command removes a queue
  * @STA_MODIFY_TID_DISABLE_TX: this command modifies %tid_disable_tx
- * @STA_MODIFY_UAPSD_ACS: this command modifies %uapsd_trigger_acs
+ * @STA_MODIFY_UAPSD_ACS: this command modifies %uapsd_acs
  * @STA_MODIFY_ADD_BA_TID: this command modifies %add_immediate_ba_tid
  * @STA_MODIFY_REMOVE_BA_TID: this command modifies %remove_immediate_ba_tid
  * @STA_MODIFY_SLEEPING_STA_TX_COUNT: this command modifies %sleep_tx_count
@@ -354,8 +354,9 @@ struct iwl_mvm_add_sta_cmd_v7 {
  * @tfd_queue_msk: tfd queues used by this station.
  *	Obselete for new TX API (9 and above).
  * @rx_ba_window: aggregation window size
- * @scd_queue_bank: queue bank in used. Each bank contains 32 queues. 0 means
- *	that the queues used by this station are in the first 32.
+ * @sp_length: the size of the SP as it appears in the WME IE
+ * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
+ *	enabled ACs.
  *
  * The device contains an internal table of per-station information, with info
  * on security keys, aggregation parameters, and Tx rates for initial Tx
@@ -385,8 +386,8 @@ struct iwl_mvm_add_sta_cmd {
 	__le16 beamform_flags;
 	__le32 tfd_queue_msk;
 	__le16 rx_ba_window;
-	u8 scd_queue_bank;
-	u8 uapsd_trigger_acs;
+	u8 sp_length;
+	u8 uapsd_acs;
 } __packed; /* ADD_STA_CMD_API_S_VER_9 */
 
 /**
