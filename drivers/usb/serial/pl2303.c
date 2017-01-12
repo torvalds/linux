@@ -449,7 +449,7 @@ static int pl2303_get_line_request(struct usb_serial_port *port,
 	if (ret != 7) {
 		dev_err(&port->dev, "%s - failed: %d\n", __func__, ret);
 
-		if (ret > 0)
+		if (ret >= 0)
 			ret = -EIO;
 
 		return ret;
@@ -469,12 +469,8 @@ static int pl2303_set_line_request(struct usb_serial_port *port,
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				SET_LINE_REQUEST, SET_LINE_REQUEST_TYPE,
 				0, 0, buf, 7, 100);
-	if (ret != 7) {
+	if (ret < 0) {
 		dev_err(&port->dev, "%s - failed: %d\n", __func__, ret);
-
-		if (ret > 0)
-			ret = -EIO;
-
 		return ret;
 	}
 
