@@ -3637,6 +3637,7 @@ static const struct wmi_peer_flags_map wmi_tlv_peer_flags_map = {
 	.vht = WMI_TLV_PEER_VHT,
 	.bw80 = WMI_TLV_PEER_80MHZ,
 	.pmf = WMI_TLV_PEER_PMF,
+	.bw160 = WMI_TLV_PEER_160MHZ,
 };
 
 /************/
