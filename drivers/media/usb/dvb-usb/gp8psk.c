@@ -278,7 +278,7 @@ static int gp8psk_fe_reload(void *priv)
 	return gp8psk_bcm4500_reload(d);
 }
 
-const struct gp8psk_fe_ops gp8psk_fe_ops = {
+static const struct gp8psk_fe_ops gp8psk_fe_ops = {
 	.in = gp8psk_fe_in,
 	.out = gp8psk_fe_out,
 	.reload = gp8psk_fe_reload,
