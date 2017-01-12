@@ -185,22 +185,26 @@ static void tpg110_init(struct device *dev, struct device_node *np,
 	dev_info(dev, "TPG110 display init\n");
 
 	/* This asserts the GRESTB signal, putting the display into reset */
-	grestb = devm_get_gpiod_from_child(dev, "grestb", &np->fwnode, GPIOD_OUT_HIGH);
+	grestb = devm_get_gpiod_from_child(dev, "grestb", &np->fwnode,
+					   GPIOD_OUT_HIGH, "grestb");
 	if (IS_ERR(grestb)) {
 		dev_err(dev, "no GRESTB GPIO\n");
 		return;
 	}
-	scen = devm_get_gpiod_from_child(dev, "scen", &np->fwnode, GPIOD_OUT_LOW);
+	scen = devm_get_gpiod_from_child(dev, "scen", &np->fwnode,
+					 GPIOD_OUT_LOW, "scen");
 	if (IS_ERR(scen)) {
 		dev_err(dev, "no SCEN GPIO\n");
 		return;
 	}
-	scl = devm_get_gpiod_from_child(dev, "scl", &np->fwnode, GPIOD_OUT_LOW);
+	scl = devm_get_gpiod_from_child(dev, "scl", &np->fwnode, GPIOD_OUT_LOW,
+					"scl");
 	if (IS_ERR(scl)) {
 		dev_err(dev, "no SCL GPIO\n");
 		return;
 	}
-	sda = devm_get_gpiod_from_child(dev, "sda", &np->fwnode, GPIOD_OUT_LOW);
+	sda = devm_get_gpiod_from_child(dev, "sda", &np->fwnode, GPIOD_OUT_LOW,
+					"sda");
 	if (IS_ERR(sda)) {
 		dev_err(dev, "no SDA GPIO\n");
 		return;

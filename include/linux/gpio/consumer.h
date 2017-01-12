@@ -136,11 +136,13 @@ struct fwnode_handle;
 
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname,
-					 enum gpiod_flags dflags);
+					 enum gpiod_flags dflags,
+					 const char *label);
 struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 					    const char *con_id,
 					    struct fwnode_handle *child,
-					    enum gpiod_flags flags);
+					    enum gpiod_flags flags,
+					    const char *label);
 #else /* CONFIG_GPIOLIB */
 
 static inline int gpiod_count(struct device *dev, const char *con_id)
@@ -416,7 +418,8 @@ struct fwnode_handle;
 static inline
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname,
-					 enum gpiod_flags dflags)
+					 enum gpiod_flags dflags,
+					 const char *label)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -425,7 +428,8 @@ static inline
 struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 					    const char *con_id,
 					    struct fwnode_handle *child,
-					    enum gpiod_flags flags)
+					    enum gpiod_flags flags,
+					    const char *label)
 {
 	return ERR_PTR(-ENOSYS);
 }

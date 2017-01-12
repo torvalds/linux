@@ -3325,7 +3325,8 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  */
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname,
-					 enum gpiod_flags dflags)
+					 enum gpiod_flags dflags,
+					 const char *label)
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	unsigned long lflags = 0;
@@ -3356,7 +3357,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (IS_ERR(desc))
 		return desc;
 
-	ret = gpiod_request(desc, NULL);
+	ret = gpiod_request(desc, label);
 	if (ret)
 		return ERR_PTR(ret);
 
