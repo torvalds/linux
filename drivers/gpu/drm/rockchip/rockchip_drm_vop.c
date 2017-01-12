@@ -862,7 +862,8 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 
 	spin_unlock(&vop->reg_lock);
 
-	wait_for_completion(&vop->dsp_hold_completion);
+	WARN_ON(!wait_for_completion_timeout(&vop->dsp_hold_completion,
+					     msecs_to_jiffies(50)));
 
 	vop_dsp_hold_valid_irq_disable(vop);
 
@@ -1463,7 +1464,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 
 		spin_unlock(&vop->reg_lock);
 
-		wait_for_completion(&vop->dsp_hold_completion);
+		WARN_ON(!wait_for_completion_timeout(&vop->dsp_hold_completion,
+						     msecs_to_jiffies(50)));
 
 		vop_dsp_hold_valid_irq_disable(vop);
 	}
