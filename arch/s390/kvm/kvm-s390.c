@@ -916,7 +916,7 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	memcpy(&mach->fac_mask, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	memcpy((unsigned long *)&mach->fac_list, S390_lowcore.stfle_fac_list,
-	       S390_ARCH_FAC_LIST_SIZE_BYTE);
+	       sizeof(S390_lowcore.stfle_fac_list));
 	if (copy_to_user((void __user *)attr->addr, mach, sizeof(*mach)))
 		ret = -EFAULT;
 	kfree(mach);
@@ -1437,7 +1437,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	/* Populate the facility mask initially. */
 	memcpy(kvm->arch.model.fac_mask, S390_lowcore.stfle_fac_list,
-	       S390_ARCH_FAC_LIST_SIZE_BYTE);
+	       sizeof(S390_lowcore.stfle_fac_list));
 	for (i = 0; i < S390_ARCH_FAC_LIST_SIZE_U64; i++) {
 		if (i < kvm_s390_fac_list_mask_size())
 			kvm->arch.model.fac_mask[i] &= kvm_s390_fac_list_mask[i];
