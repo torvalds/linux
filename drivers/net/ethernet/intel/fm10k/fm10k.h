@@ -1,5 +1,5 @@
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -249,6 +249,23 @@ struct fm10k_udp_port {
 /* one work queue for entire driver */
 extern struct workqueue_struct *fm10k_workqueue;
 
+/* The following enumeration contains flags which indicate or enable modified
+ * driver behaviors. To avoid race conditions, the flags are stored in
+ * a BITMAP in the fm10k_intfc structure. The BITMAP should be accessed using
+ * atomic *_bit() operations.
+ */
+enum fm10k_flags_t {
+	FM10K_FLAG_RESET_REQUESTED,
+	FM10K_FLAG_RSS_FIELD_IPV4_UDP,
+	FM10K_FLAG_RSS_FIELD_IPV6_UDP,
+	FM10K_FLAG_SWPRI_CONFIG,
+	/* __FM10K_FLAGS_SIZE__ is used to calculate the size of
+	 * interface->flags and must be the last value in this
+	 * enumeration.
+	 */
+	__FM10K_FLAGS_SIZE__
+};
+
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
@@ -256,11 +273,9 @@ struct fm10k_intfc {
 	struct pci_dev *pdev;
 	unsigned long state;
 
-	u32 flags;
-#define FM10K_FLAG_RESET_REQUESTED		(u32)(BIT(0))
-#define FM10K_FLAG_RSS_FIELD_IPV4_UDP		(u32)(BIT(1))
-#define FM10K_FLAG_RSS_FIELD_IPV6_UDP		(u32)(BIT(2))
-#define FM10K_FLAG_SWPRI_CONFIG			(u32)(BIT(3))
+	/* Access flag values using atomic *_bit() operations */
+	DECLARE_BITMAP(flags, __FM10K_FLAGS_SIZE__);
+
 	int xcast_mode;
 
 	/* Tx fast path data */

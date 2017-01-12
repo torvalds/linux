@@ -1,5 +1,5 @@
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -1207,7 +1207,7 @@ int fm10k_setup_tc(struct net_device *dev, u8 tc)
 		goto err_open;
 
 	/* flag to indicate SWPRI has yet to be updated */
-	interface->flags |= FM10K_FLAG_SWPRI_CONFIG;
+	set_bit(FM10K_FLAG_SWPRI_CONFIG, interface->flags);
 
 	return 0;
 err_open:
