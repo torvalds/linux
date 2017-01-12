@@ -1919,7 +1919,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 
 /**
  * set_link_hw_format - Set the HW audio format of the physical DAI link.
- * @tplg: topology context
+ * @link: &snd_soc_dai_link which should be updated
  * @cfg: physical link configs.
  *
  * Topology context contains a list of supported HW formats (configs) and
@@ -1970,7 +1970,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 /**
  * link_new_ver - Create a new physical link config from the old
  * version of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of phyical link config as a source
  * @link: latest version of physical link config created from the source
  *
@@ -2212,7 +2212,7 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 /**
  * manifest_new_ver - Create a new version of manifest from the old version
  * of source.
- * @toplogy: topology context
+ * @tplg: topology context
  * @src: old version of manifest as a source
  * @manifest: latest version of manifest created from the source
  *

@@ -979,7 +979,7 @@ EXPORT_SYMBOL_GPL(snd_soc_find_dai);
  * @card: soc card
  * @id: DAI link ID to match
  * @name: DAI link name to match, optional
- * @stream name: DAI link stream name to match, optional
+ * @stream_name: DAI link stream name to match, optional
  *
  * This function will search all existing DAI links of the soc card to
  * find the link of the same ID. Since DAI links may not have their

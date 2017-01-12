@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
 /**
  * snd_soc_free_ac97_codec - free AC97 codec device
- * @codec: audio codec
+ * @ac97: snd_ac97 device to be freed
  *
  * Frees AC97 codec device resources.
  */
