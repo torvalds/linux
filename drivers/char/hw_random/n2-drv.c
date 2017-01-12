@@ -589,6 +589,7 @@ static void n2rng_work(struct work_struct *work)
 {
 	struct n2rng *np = container_of(work, struct n2rng, work.work);
 	int err = 0;
+	static int retries = 4;
 
 	if (!(np->flags & N2RNG_FLAG_CONTROL)) {
 		err = n2rng_guest_check(np);
@@ -606,7 +607,9 @@ static void n2rng_work(struct work_struct *work)
 		dev_info(&np->op->dev, "RNG ready\n");
 	}
 
-	if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
+	if (--retries == 0)
+		dev_err(&np->op->dev, "Self-test retries failed, RNG not ready\n");
+	else if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
 		schedule_delayed_work(&np->work, HZ * 2);
 }
 
