@@ -468,12 +468,6 @@ struct ttm_bo_driver {
 	 * Called with LRU lock held immediately before the removal.
 	 */
 	void (*lru_removal)(struct ttm_buffer_object *bo);
-
-	/**
-	 * Return the list_head after which a BO should be inserted in the LRU.
-	 */
-	struct list_head *(*lru_tail)(struct ttm_buffer_object *bo);
-	struct list_head *(*swap_lru_tail)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -787,9 +781,6 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 
 extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
 extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
-
-struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo);
-struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo);
 
 /**
  * __ttm_bo_reserve:

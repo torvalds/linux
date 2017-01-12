@@ -163,6 +163,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_mem_type_manager *man;
 
 	lockdep_assert_held(&bo->resv->lock.base);
 
@@ -170,11 +171,13 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 
 		BUG_ON(!list_empty(&bo->lru));
 
-		list_add(&bo->lru, bdev->driver->lru_tail(bo));
+		man = &bdev->man[bo->mem.mem_type];
+		list_add_tail(&bo->lru, &man->lru[bo->priority]);
 		kref_get(&bo->list_kref);
 
 		if (bo->ttm && !(bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
-			list_add(&bo->swap, bdev->driver->swap_lru_tail(bo));
+			list_add_tail(&bo->swap,
+				      &bo->glob->swap_lru[bo->priority]);
 			kref_get(&bo->list_kref);
 		}
 	}
@@ -239,18 +242,6 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
 	ttm_bo_add_to_lru(bo);
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
-
-struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo)
-{
-	return bo->bdev->man[bo->mem.mem_type].lru[bo->priority].prev;
-}
-EXPORT_SYMBOL(ttm_bo_default_lru_tail);
-
-struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo)
-{
-	return bo->glob->swap_lru[bo->priority].prev;
-}
-EXPORT_SYMBOL(ttm_bo_default_swap_lru_tail);
 
 /*
  * Call bo->mutex locked.

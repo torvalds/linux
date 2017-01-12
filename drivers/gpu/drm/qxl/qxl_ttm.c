@@ -394,8 +394,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int qxl_ttm_init(struct qxl_device *qdev)
