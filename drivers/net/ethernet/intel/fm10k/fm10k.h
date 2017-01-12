@@ -65,14 +65,16 @@ enum fm10k_ring_state_t {
 	__FM10K_TX_DETECT_HANG,
 	__FM10K_HANG_CHECK_ARMED,
 	__FM10K_TX_XPS_INIT_DONE,
+	/* This must be last and is used to calculate BITMAP size */
+	__FM10K_TX_STATE_SIZE__,
 };
 
 #define check_for_tx_hang(ring) \
-	test_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+	test_bit(__FM10K_TX_DETECT_HANG, (ring)->state)
 #define set_check_for_tx_hang(ring) \
-	set_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+	set_bit(__FM10K_TX_DETECT_HANG, (ring)->state)
 #define clear_check_for_tx_hang(ring) \
-	clear_bit(__FM10K_TX_DETECT_HANG, &(ring)->state)
+	clear_bit(__FM10K_TX_DETECT_HANG, (ring)->state)
 
 struct fm10k_tx_buffer {
 	struct fm10k_tx_desc *next_to_watch;
@@ -126,7 +128,7 @@ struct fm10k_ring {
 		struct fm10k_rx_buffer *rx_buffer;
 	};
 	u32 __iomem *tail;
-	unsigned long state;
+	DECLARE_BITMAP(state, __FM10K_TX_STATE_SIZE__);
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	unsigned int size;		/* length in bytes */
 
@@ -266,12 +268,24 @@ enum fm10k_flags_t {
 	__FM10K_FLAGS_SIZE__
 };
 
+enum fm10k_state_t {
+	__FM10K_RESETTING,
+	__FM10K_DOWN,
+	__FM10K_SERVICE_SCHED,
+	__FM10K_SERVICE_DISABLE,
+	__FM10K_MBX_LOCK,
+	__FM10K_LINK_DOWN,
+	__FM10K_UPDATING_STATS,
+	/* This value must be last and determines the BITMAP size */
+	__FM10K_STATE_SIZE__,
+};
+
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
 	struct fm10k_l2_accel *l2_accel; /* pointer to L2 acceleration list */
 	struct pci_dev *pdev;
-	unsigned long state;
+	DECLARE_BITMAP(state, __FM10K_STATE_SIZE__);
 
 	/* Access flag values using atomic *_bit() operations */
 	DECLARE_BITMAP(flags, __FM10K_FLAGS_SIZE__);
@@ -367,22 +381,12 @@ struct fm10k_intfc {
 	u16 vid;
 };
 
-enum fm10k_state_t {
-	__FM10K_RESETTING,
-	__FM10K_DOWN,
-	__FM10K_SERVICE_SCHED,
-	__FM10K_SERVICE_DISABLE,
-	__FM10K_MBX_LOCK,
-	__FM10K_LINK_DOWN,
-	__FM10K_UPDATING_STATS,
-};
-
 static inline void fm10k_mbx_lock(struct fm10k_intfc *interface)
 {
 	/* busy loop if we cannot obtain the lock as some calls
 	 * such as ndo_set_rx_mode may be made in atomic context
 	 */
-	while (test_and_set_bit(__FM10K_MBX_LOCK, &interface->state))
+	while (test_and_set_bit(__FM10K_MBX_LOCK, interface->state))
 		udelay(20);
 }
 
@@ -390,12 +394,12 @@ static inline void fm10k_mbx_unlock(struct fm10k_intfc *interface)
 {
 	/* flush memory to make sure state is correct */
 	smp_mb__before_atomic();
-	clear_bit(__FM10K_MBX_LOCK, &interface->state);
+	clear_bit(__FM10K_MBX_LOCK, interface->state);
 }
 
 static inline int fm10k_mbx_trylock(struct fm10k_intfc *interface)
 {
-	return !test_and_set_bit(__FM10K_MBX_LOCK, &interface->state);
+	return !test_and_set_bit(__FM10K_MBX_LOCK, interface->state);
 }
 
 /* fm10k_test_staterr - test bits in Rx descriptor status and error fields */

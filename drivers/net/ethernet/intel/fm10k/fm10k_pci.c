@@ -93,18 +93,18 @@ static int fm10k_hw_ready(struct fm10k_intfc *interface)
 
 void fm10k_service_event_schedule(struct fm10k_intfc *interface)
 {
-	if (!test_bit(__FM10K_SERVICE_DISABLE, &interface->state) &&
-	    !test_and_set_bit(__FM10K_SERVICE_SCHED, &interface->state))
+	if (!test_bit(__FM10K_SERVICE_DISABLE, interface->state) &&
+	    !test_and_set_bit(__FM10K_SERVICE_SCHED, interface->state))
 		queue_work(fm10k_workqueue, &interface->service_task);
 }
 
 static void fm10k_service_event_complete(struct fm10k_intfc *interface)
 {
-	WARN_ON(!test_bit(__FM10K_SERVICE_SCHED, &interface->state));
+	WARN_ON(!test_bit(__FM10K_SERVICE_SCHED, interface->state));
 
 	/* flush memory to make sure state is correct before next watchog */
 	smp_mb__before_atomic();
-	clear_bit(__FM10K_SERVICE_SCHED, &interface->state);
+	clear_bit(__FM10K_SERVICE_SCHED, interface->state);
 }
 
 /**
@@ -159,7 +159,7 @@ static void fm10k_prepare_for_reset(struct fm10k_intfc *interface)
 	/* put off any impending NetWatchDogTimeout */
 	netif_trans_update(netdev);
 
-	while (test_and_set_bit(__FM10K_RESETTING, &interface->state))
+	while (test_and_set_bit(__FM10K_RESETTING, interface->state))
 		usleep_range(1000, 2000);
 
 	rtnl_lock();
@@ -242,7 +242,7 @@ static int fm10k_handle_reset(struct fm10k_intfc *interface)
 
 	rtnl_unlock();
 
-	clear_bit(__FM10K_RESETTING, &interface->state);
+	clear_bit(__FM10K_RESETTING, interface->state);
 
 	return err;
 err_open:
@@ -254,7 +254,7 @@ reinit_err:
 
 	rtnl_unlock();
 
-	clear_bit(__FM10K_RESETTING, &interface->state);
+	clear_bit(__FM10K_RESETTING, interface->state);
 
 	return err;
 }
@@ -316,11 +316,11 @@ static void fm10k_watchdog_update_host_state(struct fm10k_intfc *interface)
 	struct fm10k_hw *hw = &interface->hw;
 	s32 err;
 
-	if (test_bit(__FM10K_LINK_DOWN, &interface->state)) {
+	if (test_bit(__FM10K_LINK_DOWN, interface->state)) {
 		interface->host_ready = false;
 		if (time_is_after_jiffies(interface->link_down_event))
 			return;
-		clear_bit(__FM10K_LINK_DOWN, &interface->state);
+		clear_bit(__FM10K_LINK_DOWN, interface->state);
 	}
 
 	if (test_bit(FM10K_FLAG_SWPRI_CONFIG, interface->flags)) {
@@ -411,7 +411,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	int i;
 
 	/* ensure only one thread updates stats at a time */
-	if (test_and_set_bit(__FM10K_UPDATING_STATS, &interface->state))
+	if (test_and_set_bit(__FM10K_UPDATING_STATS, interface->state))
 		return;
 
 	/* do not allow stats update via service task for next second */
@@ -492,7 +492,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
 
-	clear_bit(__FM10K_UPDATING_STATS, &interface->state);
+	clear_bit(__FM10K_UPDATING_STATS, interface->state);
 }
 
 /**
@@ -532,8 +532,8 @@ static void fm10k_watchdog_flush_tx(struct fm10k_intfc *interface)
 static void fm10k_watchdog_subtask(struct fm10k_intfc *interface)
 {
 	/* if interface is down do nothing */
-	if (test_bit(__FM10K_DOWN, &interface->state) ||
-	    test_bit(__FM10K_RESETTING, &interface->state))
+	if (test_bit(__FM10K_DOWN, interface->state) ||
+	    test_bit(__FM10K_RESETTING, interface->state))
 		return;
 
 	if (interface->host_ready)
@@ -563,8 +563,8 @@ static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 	int i;
 
 	/* If we're down or resetting, just bail */
-	if (test_bit(__FM10K_DOWN, &interface->state) ||
-	    test_bit(__FM10K_RESETTING, &interface->state))
+	if (test_bit(__FM10K_DOWN, interface->state) ||
+	    test_bit(__FM10K_RESETTING, interface->state))
 		return;
 
 	/* rate limit tx hang checks to only once every 2 seconds */
@@ -663,7 +663,7 @@ static void fm10k_configure_tx_ring(struct fm10k_intfc *interface,
 			FM10K_PFVTCTL_FTAG_DESC_ENABLE);
 
 	/* Initialize XPS */
-	if (!test_and_set_bit(__FM10K_TX_XPS_INIT_DONE, &ring->state) &&
+	if (!test_and_set_bit(__FM10K_TX_XPS_INIT_DONE, ring->state) &&
 	    ring->q_vector)
 		netif_set_xps_queue(ring->netdev,
 				    &ring->q_vector->affinity_mask,
@@ -980,7 +980,7 @@ void fm10k_netpoll(struct net_device *netdev)
 	int i;
 
 	/* if interface is down do nothing */
-	if (test_bit(__FM10K_DOWN, &interface->state))
+	if (test_bit(__FM10K_DOWN, interface->state))
 		return;
 
 	for (i = 0; i < interface->num_q_vectors; i++)
@@ -1173,7 +1173,7 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 	if (eicr & FM10K_EICR_SWITCHNOTREADY) {
 		/* force link down for at least 4 seconds */
 		interface->link_down_event = jiffies + (4 * HZ);
-		set_bit(__FM10K_LINK_DOWN, &interface->state);
+		set_bit(__FM10K_LINK_DOWN, interface->state);
 
 		/* reset dglort_map back to no config */
 		hw->mac.dglort_map = FM10K_DGLORTMAP_NONE;
@@ -1325,7 +1325,7 @@ static s32 fm10k_lport_map(struct fm10k_hw *hw, u32 **results,
 	if (!err && hw->swapi.status) {
 		/* force link down for a reasonable delay */
 		interface->link_down_event = jiffies + (2 * HZ);
-		set_bit(__FM10K_LINK_DOWN, &interface->state);
+		set_bit(__FM10K_LINK_DOWN, interface->state);
 
 		/* reset dglort_map back to no config */
 		hw->mac.dglort_map = FM10K_DGLORTMAP_NONE;
@@ -1623,10 +1623,10 @@ void fm10k_up(struct fm10k_intfc *interface)
 	hw->mac.ops.update_int_moderator(hw);
 
 	/* enable statistics capture again */
-	clear_bit(__FM10K_UPDATING_STATS, &interface->state);
+	clear_bit(__FM10K_UPDATING_STATS, interface->state);
 
 	/* clear down bit to indicate we are ready to go */
-	clear_bit(__FM10K_DOWN, &interface->state);
+	clear_bit(__FM10K_DOWN, interface->state);
 
 	/* enable polling cleanups */
 	fm10k_napi_enable_all(interface);
@@ -1660,7 +1660,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 	int err, i = 0, count = 0;
 
 	/* signal that we are down to the interrupt handler and service task */
-	if (test_and_set_bit(__FM10K_DOWN, &interface->state))
+	if (test_and_set_bit(__FM10K_DOWN, interface->state))
 		return;
 
 	/* call carrier off first to avoid false dev_watchdog timeouts */
@@ -1680,7 +1680,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 	fm10k_update_stats(interface);
 
 	/* prevent updating statistics while we're down */
-	while (test_and_set_bit(__FM10K_UPDATING_STATS, &interface->state))
+	while (test_and_set_bit(__FM10K_UPDATING_STATS, interface->state))
 		usleep_range(1000, 2000);
 
 	/* skip waiting for TX DMA if we lost PCIe link */
@@ -1849,8 +1849,8 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	memcpy(interface->rssrk, rss_key, sizeof(rss_key));
 
 	/* Start off interface as being down */
-	set_bit(__FM10K_DOWN, &interface->state);
-	set_bit(__FM10K_UPDATING_STATS, &interface->state);
+	set_bit(__FM10K_DOWN, interface->state);
+	set_bit(__FM10K_UPDATING_STATS, interface->state);
 
 	return 0;
 }
@@ -2027,7 +2027,7 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * must ensure it is disabled since we haven't yet requested the timer
 	 * or work item.
 	 */
-	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
 
 	err = fm10k_mbx_request_irq(interface);
 	if (err)
@@ -2068,7 +2068,7 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fm10k_iov_configure(pdev, 0);
 
 	/* clear the service task disable bit to allow service task to start */
-	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
 
 	return 0;
 
@@ -2106,7 +2106,7 @@ static void fm10k_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&interface->service_timer);
 
-	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
 	cancel_work_sync(&interface->service_task);
 
 	/* free netdev, this may bounce the interrupts due to setup_tc */
@@ -2145,7 +2145,7 @@ static void fm10k_prepare_suspend(struct fm10k_intfc *interface)
 	 * stopped. We stop the watchdog task until after we resume software
 	 * activity.
 	 */
-	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
 	cancel_work_sync(&interface->service_task);
 
 	fm10k_prepare_for_reset(interface);
@@ -2171,10 +2171,10 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 
 	/* force link to stay down for a second to prevent link flutter */
 	interface->link_down_event = jiffies + (HZ);
-	set_bit(__FM10K_LINK_DOWN, &interface->state);
+	set_bit(__FM10K_LINK_DOWN, interface->state);
 
 	/* clear the service task disable bit to allow service task to start */
-	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
+	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
 	fm10k_service_event_schedule(interface);
 
 	return err;

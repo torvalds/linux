@@ -822,7 +822,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	/* Do not throw an error if the interface is down. We will sync once
 	 * we come up
 	 */
-	if (test_bit(__FM10K_DOWN, &interface->state))
+	if (test_bit(__FM10K_DOWN, interface->state))
 		return 0;
 
 	fm10k_mbx_lock(interface);
