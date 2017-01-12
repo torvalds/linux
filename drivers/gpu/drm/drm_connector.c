@@ -379,6 +379,9 @@ int drm_connector_register(struct drm_connector *connector)
 {
 	int ret = 0;
 
+	if (!connector->dev->registered)
+		return 0;
+
 	mutex_lock(&connector->mutex);
 	if (connector->registered)
 		goto unlock;
