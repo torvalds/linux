@@ -254,14 +254,6 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter);
 
 void rtw_reordering_ctrl_timeout_handler(unsigned long data);
 
-static inline u8 *get_rxmem(struct recv_frame *precvframe)
-{
-	/* always return rx_head... */
-	if (precvframe == NULL)
-		return NULL;
-	return precvframe->rx_head;
-}
-
 static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */
