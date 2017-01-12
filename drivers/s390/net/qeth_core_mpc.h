@@ -352,6 +352,16 @@ struct qeth_arp_query_info {
 	char *udata;
 };
 
+/* IPA set assist segmentation bit definitions for receive and
+ * transmit checksum offloading.
+ */
+enum qeth_ipa_checksum_bits {
+	QETH_IPA_CHECKSUM_IP_HDR	= 0x0002,
+	QETH_IPA_CHECKSUM_UDP		= 0x0008,
+	QETH_IPA_CHECKSUM_TCP		= 0x0010,
+	QETH_IPA_CHECKSUM_LP2LP		= 0x0020
+};
+
 /* IPA Assist checksum offload reply layout. */
 struct qeth_checksum_cmd {
 	__u32 supported;

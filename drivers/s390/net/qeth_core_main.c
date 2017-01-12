@@ -6104,11 +6104,19 @@ static int qeth_ipa_checksum_run_cmd(struct qeth_card *card,
 
 static int qeth_send_checksum_on(struct qeth_card *card, int cstype)
 {
+	const __u32 required_features = QETH_IPA_CHECKSUM_IP_HDR |
+					QETH_IPA_CHECKSUM_UDP |
+					QETH_IPA_CHECKSUM_TCP;
 	struct qeth_checksum_cmd chksum_cb;
 	int rc;
 
 	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_START, 0,
 				       &chksum_cb);
+	if (!rc) {
+		if ((required_features & chksum_cb.supported) !=
+		    required_features)
+			rc = -EIO;
+	}
 	if (rc) {
 		qeth_send_simple_setassparms(card, cstype, IPA_CMD_ASS_STOP, 0);
 		dev_warn(&card->gdev->dev,
@@ -6118,6 +6126,11 @@ static int qeth_send_checksum_on(struct qeth_card *card, int cstype)
 	}
 	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_ENABLE,
 				       chksum_cb.supported, &chksum_cb);
+	if (!rc) {
+		if ((required_features & chksum_cb.enabled) !=
+		    required_features)
+			rc = -EIO;
+	}
 	if (rc) {
 		qeth_send_simple_setassparms(card, cstype, IPA_CMD_ASS_STOP, 0);
 		dev_warn(&card->gdev->dev,
