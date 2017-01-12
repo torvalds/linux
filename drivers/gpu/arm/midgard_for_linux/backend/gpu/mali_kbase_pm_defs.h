@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -192,12 +192,14 @@ union kbase_pm_ca_policy_data {
  * @gpu_poweroff_pending: number of poweroff timer ticks until the GPU is
  *                        powered off
  * @shader_poweroff_pending_time: number of poweroff timer ticks until shaders
- *                        are powered off
+ *                        and/or timers are powered off
  * @gpu_poweroff_timer: Timer for powering off GPU
  * @gpu_poweroff_wq:   Workqueue to power off GPU on when timer fires
  * @gpu_poweroff_work: Workitem used on @gpu_poweroff_wq
  * @shader_poweroff_pending: Bit mask of shaders to be powered off on next
  *                           timer callback
+ * @tiler_poweroff_pending: Bit mask of tilers to be powered off on next timer
+ *                          callback
  * @poweroff_timer_needed: true if the poweroff timer is currently required,
  *                         false otherwise
  * @poweroff_timer_running: true if the poweroff timer is currently running,
@@ -219,9 +221,6 @@ union kbase_pm_ca_policy_data {
  *                              &struct kbase_pm_callback_conf
  * @callback_power_runtime_idle: Optional callback when the GPU may be idle. See
  *                              &struct kbase_pm_callback_conf
- * @callback_cci_snoop_ctrl: Callback when the GPU L2 power may transition.
- *                           If enable is set then snoops should be enabled
- *                           otherwise snoops should be disabled
  *
  * Note:
  * During an IRQ, @ca_current_policy or @pm_current_policy can be NULL when the
@@ -277,6 +276,7 @@ struct kbase_pm_backend_data {
 	struct work_struct gpu_poweroff_work;
 
 	u64 shader_poweroff_pending;
+	u64 tiler_poweroff_pending;
 
 	bool poweroff_timer_needed;
 	bool poweroff_timer_running;
@@ -288,7 +288,6 @@ struct kbase_pm_backend_data {
 	int (*callback_power_runtime_on)(struct kbase_device *kbdev);
 	void (*callback_power_runtime_off)(struct kbase_device *kbdev);
 	int (*callback_power_runtime_idle)(struct kbase_device *kbdev);
-
 };
 
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -42,6 +42,9 @@ int __init kbase_carveout_mem_reserve(phys_addr_t size)
 		kbase_mem_pool_size(pool),	\
 		kbase_mem_pool_max_size(pool),	\
 		##__VA_ARGS__)
+
+#define NOT_DIRTY false
+#define NOT_RECLAIMED false
 
 static inline void kbase_mem_pool_lock(struct kbase_mem_pool *pool)
 {
@@ -261,6 +264,8 @@ static size_t kbase_mem_pool_grow(struct kbase_mem_pool *pool,
 
 	for (i = 0; i < nr_to_grow && !kbase_mem_pool_is_full(pool); i++) {
 		p = kbase_mem_pool_alloc_page(pool);
+		if (!p)
+			break;
 		kbase_mem_pool_add(pool, p);
 	}
 
@@ -505,7 +510,7 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 	return 0;
 
 err_rollback:
-	kbase_mem_pool_free_pages(pool, i, pages, false);
+	kbase_mem_pool_free_pages(pool, i, pages, NOT_DIRTY, NOT_RECLAIMED);
 	return err;
 }
 
@@ -548,7 +553,7 @@ static void kbase_mem_pool_add_array(struct kbase_mem_pool *pool,
 }
 
 void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
-		phys_addr_t *pages, bool dirty)
+		phys_addr_t *pages, bool dirty, bool reclaimed)
 {
 	struct kbase_mem_pool *next_pool = pool->next_pool;
 	struct page *p;
@@ -558,22 +563,24 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 
 	pool_dbg(pool, "free_pages(%zu):\n", nr_pages);
 
-	/* Add to this pool */
-	nr_to_pool = kbase_mem_pool_capacity(pool);
-	nr_to_pool = min(nr_pages, nr_to_pool);
+	if (!reclaimed) {
+		/* Add to this pool */
+		nr_to_pool = kbase_mem_pool_capacity(pool);
+		nr_to_pool = min(nr_pages, nr_to_pool);
 
-	kbase_mem_pool_add_array(pool, nr_to_pool, pages, false, dirty);
+		kbase_mem_pool_add_array(pool, nr_to_pool, pages, false, dirty);
 
-	i += nr_to_pool;
-
-	if (i != nr_pages && next_pool) {
-		/* Spill to next pool (may overspill) */
-		nr_to_pool = kbase_mem_pool_capacity(next_pool);
-		nr_to_pool = min(nr_pages - i, nr_to_pool);
-
-		kbase_mem_pool_add_array(next_pool, nr_to_pool, pages + i,
-				true, dirty);
 		i += nr_to_pool;
+
+		if (i != nr_pages && next_pool) {
+			/* Spill to next pool (may overspill) */
+			nr_to_pool = kbase_mem_pool_capacity(next_pool);
+			nr_to_pool = min(nr_pages - i, nr_to_pool);
+
+			kbase_mem_pool_add_array(next_pool, nr_to_pool,
+					pages + i, true, dirty);
+			i += nr_to_pool;
+		}
 	}
 
 	/* Free any remaining pages to kernel */
@@ -582,6 +589,10 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 			continue;
 
 		p = phys_to_page(pages[i]);
+		if (reclaimed)
+			zone_page_state_add(-1, page_zone(p),
+					NR_SLAB_RECLAIMABLE);
+
 		kbase_mem_pool_free_page(pool, p);
 		pages[i] = 0;
 	}

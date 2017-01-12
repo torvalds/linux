@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,10 +19,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_debug.h>
-
-#if defined(CONFIG_MALI_MIPE_ENABLED)
 #include <mali_kbase_tlstream.h>
-#endif
 
 static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
@@ -38,10 +35,8 @@ static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, stru
 
 	KBASE_TIMELINE_ATOMS_IN_FLIGHT(kctx, atomic_sub_return(1, &kctx->timeline.jd_atoms_in_flight));
 
-#if defined(CONFIG_MALI_MIPE_ENABLED)
 	kbase_tlstream_tl_nret_atom_ctx(katom, kctx);
 	kbase_tlstream_tl_del_atom(katom);
-#endif
 
 	katom->status = KBASE_JD_ATOM_STATE_UNUSED;
 
@@ -147,6 +142,29 @@ static void kbase_event_process_noreport(struct kbase_context *kctx,
 	}
 }
 
+/**
+ * kbase_event_coalesce - Move pending events to the main event list
+ * @kctx:  Context pointer
+ *
+ * kctx->event_list and kctx->event_coalesce_count must be protected
+ * by a lock unless this is the last thread using them
+ * (and we're about to terminate the lock).
+ *
+ * Return: The number of pending events moved to the main event list
+ */
+static int kbase_event_coalesce(struct kbase_context *kctx)
+{
+	const int event_count = kctx->event_coalesce_count;
+
+	/* Join the list of pending events onto the tail of the main list
+	   and reset it */
+	list_splice_tail_init(&kctx->event_coalesce_list, &kctx->event_list);
+	kctx->event_coalesce_count = 0;
+
+	/* Return the number of events moved */
+	return event_count;
+}
+
 void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 {
 	if (atom->core_req & BASE_JD_REQ_EVENT_ONLY_ON_FAILURE) {
@@ -163,12 +181,24 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 		return;
 	}
 
-	mutex_lock(&ctx->event_mutex);
-	atomic_inc(&ctx->event_count);
-	list_add_tail(&atom->dep_item[0], &ctx->event_list);
-	mutex_unlock(&ctx->event_mutex);
+	if (atom->core_req & BASE_JD_REQ_EVENT_COALESCE) {
+		/* Don't report the event until other event(s) have completed */
+		mutex_lock(&ctx->event_mutex);
+		list_add_tail(&atom->dep_item[0], &ctx->event_coalesce_list);
+		++ctx->event_coalesce_count;
+		mutex_unlock(&ctx->event_mutex);
+	} else {
+		/* Report the event and any pending events now */
+		int event_count = 1;
 
-	kbase_event_wakeup(ctx);
+		mutex_lock(&ctx->event_mutex);
+		event_count += kbase_event_coalesce(ctx);
+		list_add_tail(&atom->dep_item[0], &ctx->event_list);
+		atomic_add(event_count, &ctx->event_count);
+		mutex_unlock(&ctx->event_mutex);
+
+		kbase_event_wakeup(ctx);
+	}
 }
 KBASE_EXPORT_TEST_API(kbase_event_post);
 
@@ -185,8 +215,10 @@ int kbase_event_init(struct kbase_context *kctx)
 	KBASE_DEBUG_ASSERT(kctx);
 
 	INIT_LIST_HEAD(&kctx->event_list);
+	INIT_LIST_HEAD(&kctx->event_coalesce_list);
 	mutex_init(&kctx->event_mutex);
 	atomic_set(&kctx->event_count, 0);
+	kctx->event_coalesce_count = 0;
 	atomic_set(&kctx->event_closed, false);
 	kctx->event_workq = alloc_workqueue("kbase_event", WQ_MEM_RECLAIM, 1);
 
@@ -200,6 +232,8 @@ KBASE_EXPORT_TEST_API(kbase_event_init);
 
 void kbase_event_cleanup(struct kbase_context *kctx)
 {
+	int event_count;
+
 	KBASE_DEBUG_ASSERT(kctx);
 	KBASE_DEBUG_ASSERT(kctx->event_workq);
 
@@ -212,6 +246,9 @@ void kbase_event_cleanup(struct kbase_context *kctx)
 	 * Note: use of kctx->event_list without a lock is safe because this must be the last
 	 * thread using it (because we're about to terminate the lock)
 	 */
+	event_count = kbase_event_coalesce(kctx);
+	atomic_add(event_count, &kctx->event_count);
+
 	while (!list_empty(&kctx->event_list)) {
 		struct base_jd_event_v2 event;
 

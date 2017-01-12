@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -77,17 +77,25 @@ static void mmu_get_as_setup(struct kbase_context *kctx,
 		(AS_MEMATTR_LPAE_IMPL_DEF_CACHE_POLICY <<
 		(AS_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY * 8)) |
 		(AS_MEMATTR_LPAE_FORCE_TO_CACHE_ALL    <<
-		(AS_MEMATTR_INDEX_FORCE_TO_CACHE_ALL * 8)) |
+		(AS_MEMATTR_INDEX_FORCE_TO_CACHE_ALL * 8))    |
 		(AS_MEMATTR_LPAE_WRITE_ALLOC           <<
-		(AS_MEMATTR_INDEX_WRITE_ALLOC * 8)) |
+		(AS_MEMATTR_INDEX_WRITE_ALLOC * 8))           |
+		(AS_MEMATTR_LPAE_OUTER_IMPL_DEF        <<
+		(AS_MEMATTR_INDEX_OUTER_IMPL_DEF * 8))        |
+		(AS_MEMATTR_LPAE_OUTER_WA              <<
+		(AS_MEMATTR_INDEX_OUTER_WA * 8))              |
 		0; /* The other indices are unused for now */
 
-	setup->transtab = (u64)kctx->pgd &
-		((0xFFFFFFFFULL << 32) | AS_TRANSTAB_LPAE_ADDR_SPACE_MASK);
+	setup->transtab = ((u64)kctx->pgd &
+		((0xFFFFFFFFULL << 32) | AS_TRANSTAB_LPAE_ADDR_SPACE_MASK)) |
+		AS_TRANSTAB_LPAE_ADRMODE_TABLE |
+		AS_TRANSTAB_LPAE_READ_INNER;
 
-	setup->transtab |= AS_TRANSTAB_LPAE_ADRMODE_TABLE;
-	setup->transtab |= AS_TRANSTAB_LPAE_READ_INNER;
-
+#ifdef CONFIG_MALI_GPU_MMU_AARCH64
+	setup->transcfg = AS_TRANSCFG_ADRMODE_LEGACY;
+#else
+	setup->transcfg = 0;
+#endif
 }
 
 static void mmu_update(struct kbase_context *kctx)
@@ -109,6 +117,9 @@ static void mmu_disable_as(struct kbase_device *kbdev, int as_nr)
 
 	current_setup->transtab = AS_TRANSTAB_LPAE_ADRMODE_UNMAPPED;
 
+#ifdef CONFIG_MALI_GPU_MMU_AARCH64
+	current_setup->transcfg = AS_TRANSCFG_ADRMODE_LEGACY;
+#endif
 
 	/* Apply the address space setting */
 	kbase_mmu_hw_configure(kbdev, as, NULL);

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,7 +33,9 @@ void kbase_reg_write(struct kbase_device *kbdev, u16 offset, u32 value,
 	KBASE_DEBUG_ASSERT(kctx == NULL || kctx->as_nr != KBASEP_AS_NR_INVALID);
 	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
 	dev_dbg(kbdev->dev, "w: reg %04x val %08x", offset, value);
+
 	writel(value, kbdev->reg + offset);
+
 	if (kctx && kctx->jctx.tb)
 		kbase_device_trace_register_access(kctx, REG_WRITE, offset,
 									value);
@@ -48,7 +50,9 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u16 offset,
 	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
 	KBASE_DEBUG_ASSERT(kctx == NULL || kctx->as_nr != KBASEP_AS_NR_INVALID);
 	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
+
 	val = readl(kbdev->reg + offset);
+
 	dev_dbg(kbdev->dev, "r: reg %04x val %08x", offset, val);
 	if (kctx && kctx->jctx.tb)
 		kbase_device_trace_register_access(kctx, REG_READ, offset, val);

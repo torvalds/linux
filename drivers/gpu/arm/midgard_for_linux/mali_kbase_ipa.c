@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -135,7 +135,7 @@ static void init_ipa_groups(struct kbase_ipa_context *ctx)
 	memcpy(ctx->groups, ipa_groups_def, sizeof(ctx->groups));
 }
 
-#if defined(CONFIG_OF) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
+#if defined(CONFIG_OF) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
 static int update_ipa_groups_from_dt(struct kbase_ipa_context *ctx)
 {
 	struct kbase_device *kbdev = ctx->kbdev;
@@ -145,7 +145,7 @@ static int update_ipa_groups_from_dt(struct kbase_ipa_context *ctx)
 	size_t i;
 	int err;
 
-	np = of_find_node_by_name(kbdev->dev->of_node, "ipa-groups");
+	np = of_get_child_by_name(kbdev->dev->of_node, "ipa-groups");
 	if (!np)
 		return 0;
 

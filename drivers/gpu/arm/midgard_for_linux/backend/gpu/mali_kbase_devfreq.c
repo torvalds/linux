@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -135,6 +135,14 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 
 	stat->private_data = NULL;
 
+#ifdef CONFIG_DEVFREQ_THERMAL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+	if (kbdev->devfreq_cooling)
+		memcpy(&kbdev->devfreq_cooling->last_status, stat,
+				sizeof(*stat));
+#endif
+#endif
+
 	return 0;
 }
 
@@ -205,7 +213,8 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	dp = &kbdev->devfreq_profile;
 
 	dp->initial_freq = kbdev->current_freq;
-	dp->polling_ms = 100;
+	/* .KP : set devfreq_dvfs_interval_in_ms */
+	dp->polling_ms = 20;
 	dp->target = kbase_devfreq_target;
 	dp->get_dev_status = kbase_devfreq_status;
 	dp->get_cur_freq = kbase_devfreq_cur_freq;

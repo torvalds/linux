@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -86,8 +86,20 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 void kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
 					struct kbase_gpuprops_regdump *regdump)
 {
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_COHERENCY_REG)) {
+		/* Ensure we can access the GPU registers */
+		kbase_pm_register_access_enable(kbdev);
+
+		regdump->coherency_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(COHERENCY_FEATURES), NULL);
+
+		/* We're done accessing the GPU registers for now. */
+		kbase_pm_register_access_disable(kbdev);
+	} else {
+		/* Pre COHERENCY_FEATURES we only supported ACE_LITE */
 		regdump->coherency_features =
 				COHERENCY_FEATURE_BIT(COHERENCY_NONE) |
 				COHERENCY_FEATURE_BIT(COHERENCY_ACE_LITE);
+	}
 }
 

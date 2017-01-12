@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -37,7 +37,8 @@ static u64 demand_get_core_mask(struct kbase_device *kbdev)
 static bool demand_get_core_active(struct kbase_device *kbdev)
 {
 	if (0 == kbdev->pm.active_count && !(kbdev->shader_needed_bitmap |
-			kbdev->shader_inuse_bitmap))
+			kbdev->shader_inuse_bitmap) && !kbdev->tiler_needed_cnt
+			&& !kbdev->tiler_inuse_cnt)
 		return false;
 
 	return true;

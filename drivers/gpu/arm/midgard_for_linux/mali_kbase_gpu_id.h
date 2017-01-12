@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -77,8 +77,9 @@
 /* Helper macro to create a complete GPU_ID (new format) */
 #define GPU_ID2_MAKE(arch_major, arch_minor, arch_rev, product_major, \
 	version_major, version_minor, version_status) \
-		(GPU_ID2_PRODUCT_MAKE(arch_major, arch_minor, arch_rev) | \
-		 GPU_ID2_VERSION_MAKE(version_major, version_minor,       \
+		(GPU_ID2_PRODUCT_MAKE(arch_major, arch_minor, arch_rev, \
+			product_major) | \
+		 GPU_ID2_VERSION_MAKE(version_major, version_minor,     \
 			version_status))
 
 /* Helper macro to create a partial GPU_ID (new format) that identifies
@@ -94,6 +95,7 @@
 		(((product_id) << GPU_ID2_PRODUCT_MAJOR_SHIFT) & \
 		    GPU_ID2_PRODUCT_MODEL)
 
+#define GPU_ID2_PRODUCT_TMIX              GPU_ID2_MODEL_MAKE(6, 0)
 
 /* Values for GPU_ID_VERSION_STATUS field for PRODUCT_ID GPU_ID_PI_T60X */
 #define GPU_ID_S_15DEV0                   0x1

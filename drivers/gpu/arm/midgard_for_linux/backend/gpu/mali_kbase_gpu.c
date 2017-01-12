@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,7 +20,6 @@
  * Register-based HW access backend APIs
  */
 #include <mali_kbase.h>
-#include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_hwaccess_backend.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>
@@ -81,7 +80,6 @@ int kbase_backend_late_init(struct kbase_device *kbdev)
 	if (err)
 		goto fail_timer;
 
-/* Currently disabled on the prototype */
 #ifdef CONFIG_MALI_DEBUG
 #ifndef CONFIG_MALI_NO_MALI
 	if (kbasep_common_test_interrupt_handlers(kbdev) != 0) {
@@ -101,12 +99,13 @@ int kbase_backend_late_init(struct kbase_device *kbdev)
 	return 0;
 
 fail_job_slot:
-/* Currently disabled on the prototype */
+
 #ifdef CONFIG_MALI_DEBUG
 #ifndef CONFIG_MALI_NO_MALI
 fail_interrupt_test:
 #endif /* !CONFIG_MALI_NO_MALI */
 #endif /* CONFIG_MALI_DEBUG */
+
 	kbase_backend_timer_term(kbdev);
 fail_timer:
 	kbase_hwaccess_pm_halt(kbdev);

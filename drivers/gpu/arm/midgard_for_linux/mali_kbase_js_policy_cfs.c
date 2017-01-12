@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -235,15 +235,10 @@ int kbasep_js_policy_init_ctx(struct kbase_device *kbdev, struct kbase_context *
 
 void kbasep_js_policy_term_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx)
 {
-	struct kbasep_js_policy_cfs_ctx *ctx_info;
-	struct kbasep_js_policy_cfs *policy_info;
 	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(js_policy != NULL);
 	KBASE_DEBUG_ASSERT(kctx != NULL);
-
-	policy_info = &js_policy->cfs;
-	ctx_info = &kctx->jctx.sched_info.runpool.policy_ctx.cfs;
 
 	kbdev = container_of(js_policy, struct kbase_device, js_data.policy);
 	KBASE_TRACE_ADD_REFCOUNT(kbdev, JS_POLICY_TERM_CTX, kctx, NULL, 0u, kbasep_js_policy_trace_get_refcnt(kbdev, kctx));

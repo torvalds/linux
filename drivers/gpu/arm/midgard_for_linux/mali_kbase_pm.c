@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,10 +21,10 @@
  * @file mali_kbase_pm.c
  * Base kernel power management APIs
  */
+
 #include <mali_kbase.h>
 #include <mali_midg_regmap.h>
-#include <mali_kbase_config_defaults.h>
-#include <mali_kbase_instr.h>
+#include <mali_kbase_vinstr.h>
 
 #include <mali_kbase_pm.h>
 
@@ -151,6 +151,10 @@ void kbase_pm_suspend(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev);
 
+	/* Suspend vinstr.
+	 * This call will block until vinstr is suspended. */
+	kbase_vinstr_suspend(kbdev->vinstr_ctx);
+
 	mutex_lock(&kbdev->pm.lock);
 	KBASE_DEBUG_ASSERT(!kbase_pm_is_suspending(kbdev));
 	kbdev->pm.suspending = true;
@@ -163,9 +167,6 @@ void kbase_pm_suspend(struct kbase_device *kbdev)
 	/* Suspend job scheduler and associated components, so that it releases all
 	 * the PM active count references */
 	kbasep_js_suspend(kbdev);
-
-	/* Suspend any counter collection that might be happening */
-	kbase_instr_hwcnt_suspend(kbdev);
 
 	/* Wait for the active count to reach zero. This is not the same as
 	 * waiting for a power down, since not all policies power down when this
@@ -186,9 +187,6 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 	/* Initial active call, to power on the GPU/cores if needed */
 	kbase_pm_context_active(kbdev);
 
-	/* Re-enable instrumentation, if it was previously disabled */
-	kbase_instr_hwcnt_resume(kbdev);
-
 	/* Resume any blocked atoms (which may cause contexts to be scheduled in
 	 * and dependent atoms to run) */
 	kbase_resume_suspended_soft_jobs(kbdev);
@@ -200,5 +198,8 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 	/* Matching idle call, to power off the GPU/cores if we didn't actually
 	 * need it and the policy doesn't want it on */
 	kbase_pm_context_idle(kbdev);
+
+	/* Resume vinstr operation */
+	kbase_vinstr_resume(kbdev->vinstr_ctx);
 }
 

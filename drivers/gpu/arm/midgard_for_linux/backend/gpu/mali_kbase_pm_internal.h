@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -501,5 +501,23 @@ void kbase_pm_power_changed(struct kbase_device *kbdev);
 void kbase_pm_metrics_update(struct kbase_device *kbdev,
 				ktime_t *now);
 
+/**
+ * kbase_pm_cache_snoop_enable - Allow CPU snoops on the GPU
+ * If the GPU does not have coherency this is a no-op
+ * @kbdev:	Device pointer
+ *
+ * This function should be called after L2 power up.
+ */
+
+void kbase_pm_cache_snoop_enable(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_cache_snoop_disable - Prevent CPU snoops on the GPU
+ * If the GPU does not have coherency this is a no-op
+ * @kbdev:	Device pointer
+ *
+ * This function should be called before L2 power off.
+ */
+void kbase_pm_cache_snoop_disable(struct kbase_device *kbdev);
 
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

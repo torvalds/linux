@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -39,10 +39,6 @@ enum kbase_instr_state {
 	/* Cache clean completed, and either a) a dump is complete, or
 	 * b) instrumentation can now be setup. */
 	KBASE_INSTR_STATE_CLEANED,
-	/* kbasep_reset_timeout_worker() has started (but not compelted) a
-	 * reset. This generally indicates the current action should be aborted,
-	 * and kbasep_reset_timeout_worker() will handle the cleanup */
-	KBASE_INSTR_STATE_RESETTING,
 	/* An error has occured during DUMPING (page fault). */
 	KBASE_INSTR_STATE_FAULT
 };

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -491,15 +491,22 @@ void kbasep_js_resume(struct kbase_device *kbdev);
  * @param[in] kctx  Context pointer
  * @param[in] atom  Pointer to the atom to submit
  *
- * @return 0 if submit succeeded
- *         error code if the atom can not be submitted at this
- *         time, due to insufficient space in the ringbuffer, or dependencies
- *         that can not be represented.
- */
-int kbase_js_dep_resolved_submit(struct kbase_context *kctx,
-					struct kbase_jd_atom *katom,
-					bool *enqueue_required);
+ * @return Whether the context requires to be enqueued. */
+bool kbase_js_dep_resolved_submit(struct kbase_context *kctx,
+					struct kbase_jd_atom *katom);
 
+/**
+  * jsctx_ll_flush_to_rb() - Pushes atoms from the linked list to ringbuffer.
+  * @kctx:  Context Pointer
+  * @prio:  Priority (specifies the queue together with js).
+  * @js:    Job slot (specifies the queue together with prio).
+  *
+  * Pushes all possible atoms from the linked list to the ringbuffer.
+  * Number of atoms are limited to free space in the ringbuffer and
+  * number of available atoms in the linked list.
+  *
+  */
+void jsctx_ll_flush_to_rb(struct kbase_context *kctx, int prio, int js);
 /**
  * @brief Pull an atom from a context in the job scheduler for execution.
  *
@@ -600,6 +607,16 @@ void kbase_js_zap_context(struct kbase_context *kctx);
  */
 bool kbase_js_is_atom_valid(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
+
+/**
+ * kbase_js_set_timeouts - update all JS timeouts with user specified data
+ * @kbdev: Device pointer
+ *
+ * Timeouts are specified through the 'js_timeouts' sysfs file. If a timeout is
+ * set to a positive number then that becomes the new value used, if a timeout
+ * is negative then the default is set.
+ */
+void kbase_js_set_timeouts(struct kbase_device *kbdev);
 
 /*
  * Helpers follow

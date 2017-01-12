@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -168,6 +168,7 @@ bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend)
 
 	/* Force all cores off */
 	kbdev->pm.backend.desired_shader_state = 0;
+	kbdev->pm.backend.desired_tiler_state = 0;
 
 	/* Force all cores to be unavailable, in the situation where
 	 * transitions are in progress for some cores but not others,

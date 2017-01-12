@@ -16,7 +16,7 @@
 include drivers/gpu/arm/midgard_for_linux/default_config.mk
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r9p0-05rel0"
+MALI_RELEASE_NAME ?= "r13p0-00rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -89,7 +89,6 @@ SRC := \
 	mali_kbase_context.c \
 	mali_kbase_pm.c \
 	mali_kbase_config.c \
-	mali_kbase_instr.c \
 	mali_kbase_vinstr.c \
 	mali_kbase_softjobs.c \
 	mali_kbase_10969_workaround.c \
@@ -105,24 +104,26 @@ SRC := \
 	mali_kbase_replay.c \
 	mali_kbase_mem_profile_debugfs.c \
 	mali_kbase_mmu_mode_lpae.c \
+	mali_kbase_mmu_mode_aarch64.c \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_gator_api.c \
 	mali_kbase_debug_mem_view.c \
 	mali_kbase_debug_job_fault.c \
 	mali_kbase_smc.c \
 	mali_kbase_mem_pool.c \
-	mali_kbase_mem_pool_debugfs.c
+	mali_kbase_mem_pool_debugfs.c \
+	mali_kbase_tlstream.c \
+	mali_kbase_strings.c \
+	mali_kbase_as_fault_debugfs.c
 
-ifeq ($(CONFIG_MALI_MIPE_ENABLED),y)
-	SRC += mali_kbase_tlstream.c
-	ifeq ($(MALI_UNIT_TEST),1)
-		SRC += mali_kbase_tlstream_test.c
-	endif
+ifeq ($(MALI_UNIT_TEST),1)
+	SRC += mali_kbase_tlstream_test.c
 endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 	SRC += mali_kbase_regs_dump_debugfs.c
 endif
+
 
 # Job Scheduler Policy: Completely Fair Scheduler
 SRC += mali_kbase_js_policy_cfs.c
@@ -201,13 +202,7 @@ obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
 # Tell the Linux build system to enable building of our .c files
 mali_kbase-y := $(SRC:.c=.o)
 
-ifneq ($(wildcard $(src)/internal/Kbuild),)
-ifeq ($(MALI_CUSTOMER_RELEASE),0)
-# This include may set MALI_BACKEND_PATH and CONFIG_MALI_BACKEND_REAL
-include  $(src)/internal/Kbuild
-mali_kbase-y += $(INTERNAL:.c=.o)
-endif
-endif
+mali_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
 
 MALI_BACKEND_PATH ?= backend
 CONFIG_MALI_BACKEND ?= gpu

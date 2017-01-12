@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2014, 2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,9 +23,6 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 
-#ifdef CONFIG_MACH_MANTA
-#include <plat/devs.h>
-#endif
 
 /*
  * This file is included only for type definitions and functions belonging to
@@ -62,6 +59,7 @@ static void kbasep_config_parse_io_resources(const struct kbase_io_resources *io
 	linux_resources[0].start = io_resources->io_memory_region.start;
 	linux_resources[0].end   = io_resources->io_memory_region.end;
 	linux_resources[0].flags = IORESOURCE_MEM;
+
 	linux_resources[1].start = io_resources->job_irq_number;
 	linux_resources[1].end   = io_resources->job_irq_number;
 	linux_resources[1].flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL;

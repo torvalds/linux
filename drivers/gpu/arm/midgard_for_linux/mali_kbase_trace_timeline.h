@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -213,7 +213,6 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 				js, _producerof_atom_number_completed);      \
 	} while (0)
 
-
 /** Trace beginning/end of a call to kbase_pm_check_transitions_nolock from a
  * certin caller */
 #define KBASE_TIMELINE_PM_CHECKTRANS(kbdev, trace_code)                      \
@@ -318,7 +317,6 @@ void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev);
 #define KBASE_TIMELINE_PM_CHECKTRANS(kbdev, trace_code) CSTD_NOP()
 
 #define KBASE_TIMELINE_CONTEXT_ACTIVE(kbdev, count) CSTD_NOP()
-
 
 static inline void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
 		struct kbase_jd_atom *katom, int js)

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,6 +51,18 @@
 #define VE_LOGIC_TILE_HBI_MASK (0x00000FFF)
 
 #define IS_SINGLE_BIT_SET(val, pos) (val&(1<<pos))
+
+/**
+ * Values used for determining the GPU frequency based on the LogicTile type
+ * Used by the function kbase_get_platform_logic_tile_type
+ */
+#define VE_VIRTEX6_GPU_FREQ_MIN 5000
+#define VE_VIRTEX6_GPU_FREQ_MAX 5000
+#define VE_VIRTEX7_GPU_FREQ_MIN 40000
+#define VE_VIRTEX7_GPU_FREQ_MAX 40000
+#define VE_DEFAULT_GPU_FREQ_MIN 5000
+#define VE_DEFAULT_GPU_FREQ_MAX 5000
+
 
 #define CPU_CLOCK_SPEED_UNDEFINED (0)
 
@@ -197,14 +209,71 @@ syscfg_reg_map_failed:
 	return err;
 }
 
-u32 kbase_get_platform_logic_tile_type(void)
+/**
+ * kbase_get_platform_logic_tile_type -  determines which LogicTile type
+ * is used by Versatile Express
+ *
+ * When platform_config build parameter is specified as vexpress, i.e.,
+ * platform_config=vexpress, GPU frequency may vary dependent on the
+ * particular platform. The GPU frequency depends on the LogicTile type.
+ *
+ * This function determines which LogicTile type is used by the platform by
+ * reading the HBI value of the daughterboard which holds the LogicTile:
+ *
+ * 0x217 HBI0217 Virtex-6
+ * 0x192 HBI0192 Virtex-5
+ * 0x247 HBI0247 Virtex-7
+ *
+ * Return: HBI value of the logic tile daughterboard, zero if not accessible
+ */
+static u32 kbase_get_platform_logic_tile_type(void)
 {
 	void __iomem *syscfg_reg = NULL;
 	u32 sys_procid1 = 0;
 
 	syscfg_reg = ioremap(VE_MOTHERBOARD_PERIPHERALS_SMB_CS7 + VE_SYS_PROC_ID1_OFFSET, 4);
-
-	sys_procid1 = (NULL != syscfg_reg) ? readl(syscfg_reg) : 0;
+	if (NULL != syscfg_reg) {
+		sys_procid1 = readl(syscfg_reg);
+		iounmap(syscfg_reg);
+	}
 
 	return sys_procid1 & VE_LOGIC_TILE_HBI_MASK;
+}
+
+u32 kbase_get_platform_min_freq(void)
+{
+	u32 ve_logic_tile = kbase_get_platform_logic_tile_type();
+
+	switch (ve_logic_tile) {
+	case 0x217:
+		/* Virtex 6, HBI0217 */
+		return VE_VIRTEX6_GPU_FREQ_MIN;
+	case 0x247:
+		/* Virtex 7, HBI0247 */
+		return VE_VIRTEX7_GPU_FREQ_MIN;
+	default:
+		/* all other logic tiles, i.e., Virtex 5 HBI0192
+		 * or unsuccessful reading from the platform -
+		 * fall back to some default value */
+		return VE_DEFAULT_GPU_FREQ_MIN;
+	}
+}
+
+u32 kbase_get_platform_max_freq(void)
+{
+	u32 ve_logic_tile = kbase_get_platform_logic_tile_type();
+
+	switch (ve_logic_tile) {
+	case 0x217:
+		/* Virtex 6, HBI0217 */
+		return VE_VIRTEX6_GPU_FREQ_MAX;
+	case 0x247:
+		/* Virtex 7, HBI0247 */
+		return VE_VIRTEX7_GPU_FREQ_MAX;
+	default:
+		/* all other logic tiles, i.e., Virtex 5 HBI0192
+		 * or unsuccessful reading from the platform -
+		 * fall back to some default value */
+		return VE_DEFAULT_GPU_FREQ_MAX;
+	}
 }

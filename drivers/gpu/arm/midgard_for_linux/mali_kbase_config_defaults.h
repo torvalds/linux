@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -149,11 +149,6 @@ enum {
 #define DEFAULT_AWID_LIMIT KBASE_AID_32
 
 /**
- * Default setting for using alternative hardware counters.
- */
-#define DEFAULT_ALTERNATIVE_HWC false
-
-/**
  * Default UMP device mapping. A UMP_DEVICE_<device>_SHIFT value which
  * defines which UMP device this GPU should be mapped to.
  */
@@ -219,6 +214,12 @@ enum {
  * during dumping
  */
 #define DEFAULT_JS_HARD_STOP_TICKS_DUMPING   (15000) /* 1500s */
+
+/*
+ * Default timeout for some software jobs, after which the software event wait
+ * jobs will be cancelled.
+ */
+#define DEFAULT_JS_SOFT_JOB_TIMEOUT ((u32)3000) /* 3s */
 
 /*
  * Default minimum number of scheduling ticks before the GPU is reset to clear a

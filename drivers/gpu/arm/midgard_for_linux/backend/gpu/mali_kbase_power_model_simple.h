@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,6 +38,10 @@
  */
 int kbase_power_model_simple_init(struct kbase_device *kbdev);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+extern struct devfreq_cooling_ops power_model_simple_ops;
+#else
 extern struct devfreq_cooling_power power_model_simple_ops;
+#endif
 
 #endif /* _BASE_POWER_MODEL_SIMPLE_H_ */

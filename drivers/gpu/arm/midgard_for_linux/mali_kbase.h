@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,6 +45,7 @@
 #include <mali_kbase_uku.h>
 #include <mali_kbase_linux.h>
 
+#include "mali_kbase_strings.h"
 #include "mali_kbase_pm.h"
 #include "mali_kbase_mem_lowlevel.h"
 #include "mali_kbase_defs.h"
@@ -139,7 +140,6 @@ void kbase_jd_done_worker(struct work_struct *data);
 void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr, ktime_t *end_timestamp,
 		kbasep_js_atom_done_code done_code);
 void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
-void kbase_jd_evict(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 void kbase_jd_zap_context(struct kbase_context *kctx);
 bool jd_done_nolock(struct kbase_jd_atom *katom,
 		struct list_head *completed_jobs_ctx);
@@ -147,6 +147,7 @@ void kbase_jd_free_external_resources(struct kbase_jd_atom *katom);
 bool jd_submit_atom(struct kbase_context *kctx,
 			 const struct base_jd_atom_v2 *user_atom,
 			 struct kbase_jd_atom *katom);
+void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom);
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done);
 
@@ -174,7 +175,7 @@ void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 		struct kbase_jd_atom *target_katom);
 void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
-		u16 core_reqs, struct kbase_jd_atom *target_katom);
+		base_jd_core_req core_reqs, struct kbase_jd_atom *target_katom);
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom);
 
@@ -191,8 +192,16 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom);
 void kbase_finish_soft_job(struct kbase_jd_atom *katom);
 void kbase_cancel_soft_job(struct kbase_jd_atom *katom);
 void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev);
+void kbasep_add_waiting_soft_job(struct kbase_jd_atom *katom);
+void kbasep_remove_waiting_soft_job(struct kbase_jd_atom *katom);
+int kbase_soft_event_update(struct kbase_context *kctx,
+			    u64 event,
+			    unsigned char new_status);
 
 bool kbase_replay_process(struct kbase_jd_atom *katom);
+
+void kbasep_soft_job_timeout_worker(unsigned long data);
+void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
 
 /* api used internally for register access. Contains validation and tracing */
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value);
@@ -203,7 +212,6 @@ void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx);
 /* api to be ported per OS, only need to do the raw register access */
 void kbase_os_reg_write(struct kbase_device *kbdev, u16 offset, u32 value);
 u32 kbase_os_reg_read(struct kbase_device *kbdev, u16 offset);
-
 
 void kbasep_as_do_poke(struct work_struct *work);
 
