@@ -2693,13 +2693,7 @@ static int liquidio_stop(struct net_device *netdev)
 	lio->linfo.link.s.link_up = 0;
 	lio->link_changes++;
 
-	/* Pause for a moment and wait for Octeon to flush out (to the wire) any
-	 * egress packets that are in-flight.
-	 */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(msecs_to_jiffies(100));
-
-	/* Now it should be safe to tell Octeon that nic interface is down. */
+	/* Tell Octeon that nic interface is down. */
 	send_rx_ctrl_cmd(lio, 0);
 
 	if (OCTEON_CN23XX_PF(oct)) {
