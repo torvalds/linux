@@ -151,8 +151,6 @@ struct recv_stat {
 	__le32 rxdw5;
 };
 
-#define EOR BIT(30)
-
 /*
 accesser of recv_priv: rtw_recv_entry(dispatch / passive level);
 recv_thread(passive) ; returnpkt(dispatch)
