@@ -36,4 +36,22 @@ struct sram_reserve {
 	bool pool;
 	const char *label;
 };
+
+#ifdef CONFIG_SRAM_EXEC
+int sram_check_protect_exec(struct sram_dev *sram, struct sram_reserve *block,
+			    struct sram_partition *part);
+int sram_add_protect_exec(struct sram_partition *part);
+#else
+static inline int sram_check_protect_exec(struct sram_dev *sram,
+					  struct sram_reserve *block,
+					  struct sram_partition *part)
+{
+	return -ENODEV;
+}
+
+static inline int sram_add_protect_exec(struct sram_partition *part)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_SRAM_EXEC */
 #endif /* __SRAM_H */
