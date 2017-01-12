@@ -1308,6 +1308,11 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	return rq;
 }
 
+static blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx, struct request *rq)
+{
+	return blk_tag_to_qc_t(rq->tag, hctx->queue_num, false);
+}
+
 static void blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie)
 {
 	int ret;
@@ -1318,7 +1323,7 @@ static void blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie)
 		.list = NULL,
 		.last = 1
 	};
-	blk_qc_t new_cookie = blk_tag_to_qc_t(rq->tag, hctx->queue_num);
+	blk_qc_t new_cookie = request_to_qc_t(hctx, rq);
 
 	if (blk_mq_hctx_stopped(hctx))
 		goto insert;
@@ -1387,7 +1392,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	wbt_track(&rq->issue_stat, wb_acct);
 
-	cookie = blk_tag_to_qc_t(rq->tag, data.hctx->queue_num);
+	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
@@ -1496,7 +1501,7 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 
 	wbt_track(&rq->issue_stat, wb_acct);
 
-	cookie = blk_tag_to_qc_t(rq->tag, data.hctx->queue_num);
+	cookie = request_to_qc_t(data.hctx, rq);
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
