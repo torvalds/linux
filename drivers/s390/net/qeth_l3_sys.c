@@ -250,9 +250,6 @@ static ssize_t qeth_l3_dev_hsuid_show(struct device *dev,
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		return -EPERM;
 
-	if (card->state == CARD_STATE_DOWN)
-		return -EPERM;
-
 	memcpy(tmp_hsuid, card->options.hsuid, sizeof(tmp_hsuid));
 	EBCASC(tmp_hsuid, 8);
 	return sprintf(buf, "%s\n", tmp_hsuid);
