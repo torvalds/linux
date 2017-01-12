@@ -94,8 +94,12 @@ static int fm10k_hw_ready(struct fm10k_intfc *interface)
 void fm10k_service_event_schedule(struct fm10k_intfc *interface)
 {
 	if (!test_bit(__FM10K_SERVICE_DISABLE, interface->state) &&
-	    !test_and_set_bit(__FM10K_SERVICE_SCHED, interface->state))
+	    !test_and_set_bit(__FM10K_SERVICE_SCHED, interface->state)) {
+		clear_bit(__FM10K_SERVICE_REQUEST, interface->state);
 		queue_work(fm10k_workqueue, &interface->service_task);
+	} else {
+		set_bit(__FM10K_SERVICE_REQUEST, interface->state);
+	}
 }
 
 static void fm10k_service_event_complete(struct fm10k_intfc *interface)
@@ -105,6 +109,13 @@ static void fm10k_service_event_complete(struct fm10k_intfc *interface)
 	/* flush memory to make sure state is correct before next watchog */
 	smp_mb__before_atomic();
 	clear_bit(__FM10K_SERVICE_SCHED, interface->state);
+
+	/* If a service event was requested since we started, immediately
+	 * re-schedule now. This ensures we don't drop a request until the
+	 * next timer event.
+	 */
+	if (test_bit(__FM10K_SERVICE_REQUEST, interface->state))
+		fm10k_service_event_schedule(interface);
 }
 
 /**
