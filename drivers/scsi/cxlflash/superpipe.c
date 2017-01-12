@@ -1287,6 +1287,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	int rc = 0;
 	u32 perms;
 	int ctxid = -1;
+	u64 flags = 0UL;
 	u64 rctxid = 0UL;
 	struct file *file = NULL;
 
@@ -1426,10 +1427,11 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 
 out_attach:
 	if (fd != -1)
-		attach->hdr.return_flags = DK_CXLFLASH_APP_CLOSE_ADAP_FD;
-	else
-		attach->hdr.return_flags = 0;
+		flags |= DK_CXLFLASH_APP_CLOSE_ADAP_FD;
+	if (afu_is_sq_cmd_mode(afu))
+		flags |= DK_CXLFLASH_CONTEXT_SQ_CMD_MODE;
 
+	attach->hdr.return_flags = flags;
 	attach->context_id = ctxi->ctxid;
 	attach->block_size = gli->blk_len;
 	attach->mmio_size = sizeof(afu->afu_map->hosts[0].harea);
@@ -1617,6 +1619,7 @@ static int cxlflash_afu_recover(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	struct ctx_info *ctxi = NULL;
 	struct mutex *mutex = &cfg->ctx_recovery_mutex;
+	u64 flags;
 	u64 ctxid = DECODE_CTXID(recover->context_id),
 	    rctxid = recover->context_id;
 	long reg;
@@ -1672,11 +1675,16 @@ retry_recover:
 		}
 
 		ctxi->err_recovery_active = false;
+
+		flags = DK_CXLFLASH_APP_CLOSE_ADAP_FD |
+			DK_CXLFLASH_RECOVER_AFU_CONTEXT_RESET;
+		if (afu_is_sq_cmd_mode(afu))
+			flags |= DK_CXLFLASH_CONTEXT_SQ_CMD_MODE;
+
+		recover->hdr.return_flags = flags;
 		recover->context_id = ctxi->ctxid;
 		recover->adap_fd = new_adap_fd;
 		recover->mmio_size = sizeof(afu->afu_map->hosts[0].harea);
-		recover->hdr.return_flags = DK_CXLFLASH_APP_CLOSE_ADAP_FD |
-			DK_CXLFLASH_RECOVER_AFU_CONTEXT_RESET;
 		goto out;
 	}
 

@@ -227,6 +227,17 @@ static void context_reset_ioarrin(struct afu_cmd *cmd)
 }
 
 /**
+ * context_reset_sq() - reset command owner context w/ SQ Context Reset register
+ * @cmd:	AFU command that timed out.
+ */
+static void context_reset_sq(struct afu_cmd *cmd)
+{
+	struct afu *afu = cmd->parent;
+
+	context_reset(cmd, &afu->host_map->sq_ctx_reset);
+}
+
+/**
  * send_cmd_ioarrin() - sends an AFU command via IOARRIN register
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command to send.
@@ -265,6 +276,49 @@ out:
 	spin_unlock_irqrestore(&afu->rrin_slock, lock_flags);
 	pr_devel("%s: cmd=%p len=%d ea=%p rc=%d\n", __func__, cmd,
 		 cmd->rcb.data_len, (void *)cmd->rcb.data_ea, rc);
+	return rc;
+}
+
+/**
+ * send_cmd_sq() - sends an AFU command via SQ ring
+ * @afu:	AFU associated with the host.
+ * @cmd:	AFU command to send.
+ *
+ * Return:
+ *	0 on success, SCSI_MLQUEUE_HOST_BUSY on failure
+ */
+static int send_cmd_sq(struct afu *afu, struct afu_cmd *cmd)
+{
+	struct cxlflash_cfg *cfg = afu->parent;
+	struct device *dev = &cfg->dev->dev;
+	int rc = 0;
+	int newval;
+	ulong lock_flags;
+
+	newval = atomic_dec_if_positive(&afu->hsq_credits);
+	if (newval <= 0) {
+		rc = SCSI_MLQUEUE_HOST_BUSY;
+		goto out;
+	}
+
+	cmd->rcb.ioasa = &cmd->sa;
+
+	spin_lock_irqsave(&afu->hsq_slock, lock_flags);
+
+	*afu->hsq_curr = cmd->rcb;
+	if (afu->hsq_curr < afu->hsq_end)
+		afu->hsq_curr++;
+	else
+		afu->hsq_curr = afu->hsq_start;
+	writeq_be((u64)afu->hsq_curr, &afu->host_map->sq_tail);
+
+	spin_unlock_irqrestore(&afu->hsq_slock, lock_flags);
+out:
+	dev_dbg(dev, "%s: cmd=%p len=%d ea=%p ioasa=%p rc=%d curr=%p "
+	       "head=%016llX tail=%016llX\n", __func__, cmd, cmd->rcb.data_len,
+	       (void *)cmd->rcb.data_ea, cmd->rcb.ioasa, rc, afu->hsq_curr,
+	       readq_be(&afu->host_map->sq_head),
+	       readq_be(&afu->host_map->sq_tail));
 	return rc;
 }
 
@@ -739,7 +793,7 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 	int rc = 0;
 	struct device *dev = &cfg->dev->dev;
 
-	/* AFU is ~12k, i.e. only one 64k page or up to four 4k pages */
+	/* AFU is ~28k, i.e. only one 64k page or up to seven 4k pages */
 	cfg->afu = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					    get_order(sizeof(struct afu)));
 	if (unlikely(!cfg->afu)) {
@@ -1127,6 +1181,8 @@ static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 {
 	struct afu *afu = (struct afu *)data;
 	struct afu_cmd *cmd;
+	struct sisl_ioasa *ioasa;
+	struct sisl_ioarcb *ioarcb;
 	bool toggle = afu->toggle;
 	u64 entry,
 	    *hrrq_start = afu->hrrq_start,
@@ -1140,7 +1196,16 @@ static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 		if ((entry & SISL_RESP_HANDLE_T_BIT) != toggle)
 			break;
 
-		cmd = (struct afu_cmd *)(entry & ~SISL_RESP_HANDLE_T_BIT);
+		entry &= ~SISL_RESP_HANDLE_T_BIT;
+
+		if (afu_is_sq_cmd_mode(afu)) {
+			ioasa = (struct sisl_ioasa *)entry;
+			cmd = container_of(ioasa, struct afu_cmd, sa);
+		} else {
+			ioarcb = (struct sisl_ioarcb *)entry;
+			cmd = container_of(ioarcb, struct afu_cmd, rcb);
+		}
+
 		cmd_complete(cmd);
 
 		/* Advance to next entry or wrap and flip the toggle bit */
@@ -1150,6 +1215,8 @@ static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 			hrrq_curr = hrrq_start;
 			toggle ^= SISL_RESP_HANDLE_T_BIT;
 		}
+
+		atomic_inc(&afu->hsq_credits);
 	}
 
 	afu->hrrq_curr = hrrq_curr;
@@ -1402,9 +1469,14 @@ static int init_global(struct cxlflash_cfg *cfg)
 
 	pr_debug("%s: wwpn0=0x%llX wwpn1=0x%llX\n", __func__, wwpn[0], wwpn[1]);
 
-	/* Set up RRQ in AFU for master issued cmds */
+	/* Set up RRQ and SQ in AFU for master issued cmds */
 	writeq_be((u64) afu->hrrq_start, &afu->host_map->rrq_start);
 	writeq_be((u64) afu->hrrq_end, &afu->host_map->rrq_end);
+
+	if (afu_is_sq_cmd_mode(afu)) {
+		writeq_be((u64)afu->hsq_start, &afu->host_map->sq_start);
+		writeq_be((u64)afu->hsq_end, &afu->host_map->sq_end);
+	}
 
 	/* AFU configuration */
 	reg = readq_be(&afu->afu_map->global.regs.afu_config);
@@ -1479,6 +1551,17 @@ static int start_afu(struct cxlflash_cfg *cfg)
 	afu->hrrq_end = &afu->rrq_entry[NUM_RRQ_ENTRY - 1];
 	afu->hrrq_curr = afu->hrrq_start;
 	afu->toggle = 1;
+
+	/* Initialize SQ */
+	if (afu_is_sq_cmd_mode(afu)) {
+		memset(&afu->sq, 0, sizeof(afu->sq));
+		afu->hsq_start = &afu->sq[0];
+		afu->hsq_end = &afu->sq[NUM_SQ_ENTRY - 1];
+		afu->hsq_curr = afu->hsq_start;
+
+		spin_lock_init(&afu->hsq_slock);
+		atomic_set(&afu->hsq_credits, NUM_SQ_ENTRY - 1);
+	}
 
 	rc = init_global(cfg);
 
@@ -1641,8 +1724,13 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		goto err2;
 	}
 
-	afu->send_cmd = send_cmd_ioarrin;
-	afu->context_reset = context_reset_ioarrin;
+	if (afu_is_sq_cmd_mode(afu)) {
+		afu->send_cmd = send_cmd_sq;
+		afu->context_reset = context_reset_sq;
+	} else {
+		afu->send_cmd = send_cmd_ioarrin;
+		afu->context_reset = context_reset_ioarrin;
+	}
 
 	pr_debug("%s: afu version %s, interface version 0x%llX\n", __func__,
 		 afu->version, afu->interface_version);
