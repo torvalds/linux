@@ -2533,6 +2533,21 @@ static bool ath10k_mac_sta_has_ofdm_only(struct ieee80211_sta *sta)
 	       ATH10K_MAC_FIRST_OFDM_RATE_IDX;
 }
 
+static enum wmi_phy_mode ath10k_mac_get_phymode_vht(struct ath10k *ar,
+						    struct ieee80211_sta *sta)
+{
+	if (sta->bandwidth == IEEE80211_STA_RX_BW_80)
+		return MODE_11AC_VHT80;
+
+	if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
+		return MODE_11AC_VHT40;
+
+	if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
+		return MODE_11AC_VHT20;
+
+	return MODE_UNKNOWN;
+}
+
 static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 					struct ieee80211_vif *vif,
 					struct ieee80211_sta *sta,
@@ -2579,12 +2594,7 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 		 */
 		if (sta->vht_cap.vht_supported &&
 		    !ath10k_peer_assoc_h_vht_masked(vht_mcs_mask)) {
-			if (sta->bandwidth == IEEE80211_STA_RX_BW_80)
-				phymode = MODE_11AC_VHT80;
-			else if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
-				phymode = MODE_11AC_VHT40;
-			else if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
-				phymode = MODE_11AC_VHT20;
+			phymode = ath10k_mac_get_phymode_vht(ar, sta);
 		} else if (sta->ht_cap.ht_supported &&
 			   !ath10k_peer_assoc_h_ht_masked(ht_mcs_mask)) {
 			if (sta->bandwidth >= IEEE80211_STA_RX_BW_40)
