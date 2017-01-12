@@ -28,6 +28,7 @@
 
 #include "vid.h"
 #include "amdgpu.h"
+#include "amdgpu_display.h"
 #include "atom.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_types.h"
@@ -715,6 +716,8 @@ const struct amdgpu_ip_block_version dm_ip_block =
 
 /* TODO: it is temporary non-const, should fixed later */
 static struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
+	.fb_create = amdgpu_user_framebuffer_create,
+	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
 	.atomic_commit = amdgpu_dm_atomic_commit
 };
@@ -1087,11 +1090,6 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	int r;
 
 	adev->mode_info.mode_config_initialized = true;
-
-	amdgpu_dm_mode_funcs.fb_create =
-		amdgpu_mode_funcs.fb_create;
-	amdgpu_dm_mode_funcs.output_poll_changed =
-		amdgpu_mode_funcs.output_poll_changed;
 
 	adev->ddev->mode_config.funcs = (void *)&amdgpu_dm_mode_funcs;
 
