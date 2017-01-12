@@ -776,6 +776,7 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
+	bool registered;
 
 	/* currently active master for this device. Protected by master_mutex */
 	struct drm_master *master;
