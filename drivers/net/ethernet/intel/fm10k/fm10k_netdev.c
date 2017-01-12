@@ -1115,8 +1115,8 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
  * @netdev: network interface device structure
  * @stats: storage space for 64bit statistics
  *
- * Returns 64bit statistics, for use in the ndo_get_stats64 callback. This
- * function replaces fm10k_get_stats for kernels which support it.
+ * Obtain 64bit statistics in a way that is safe for both 32bit and 64bit
+ * architectures.
  */
 static void fm10k_get_stats64(struct net_device *netdev,
 			      struct rtnl_link_stats64 *stats)
