@@ -164,6 +164,8 @@ struct nouveau_drm {
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
 	struct work_struct hpd_work;
+	struct work_struct fbcon_work;
+	int fbcon_new_state;
 #ifdef CONFIG_ACPI
 	struct notifier_block acpi_nb;
 #endif
