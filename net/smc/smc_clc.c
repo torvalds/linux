@@ -10,6 +10,7 @@
  */
 
 #include <linux/in.h>
+#include <linux/if_ether.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
@@ -151,8 +152,7 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 	pclc.hdr.version = SMC_CLC_V1;		/* SMC version */
 	memcpy(pclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
 	memcpy(&pclc.lcl.gid, &smcibdev->gid[ibport - 1], SMC_GID_SIZE);
-	memcpy(&pclc.lcl.mac, &smcibdev->mac[ibport - 1],
-	       sizeof(smcibdev->mac[ibport - 1]));
+	memcpy(&pclc.lcl.mac, &smcibdev->mac[ibport - 1], ETH_ALEN);
 
 	/* determine subnet and mask from internal TCP socket */
 	rc = smc_netinfo_by_tcpsk(smc->clcsock, &pclc.outgoing_subnet,
@@ -199,8 +199,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 	memcpy(cclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
 	memcpy(&cclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
 	       SMC_GID_SIZE);
-	memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
-	       sizeof(link->smcibdev->mac));
+	memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1], ETH_ALEN);
 	hton24(cclc.qpn, link->roce_qp->qp_num);
 	cclc.rmb_rkey =
 		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
@@ -252,8 +251,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	memcpy(aclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
 	memcpy(&aclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
 	       SMC_GID_SIZE);
-	memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
-	       sizeof(link->smcibdev->mac[link->ibport - 1]));
+	memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1], ETH_ALEN);
 	hton24(aclc.qpn, link->roce_qp->qp_num);
 	aclc.rmb_rkey =
 		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);

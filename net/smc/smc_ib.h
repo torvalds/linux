@@ -11,6 +11,7 @@
 #ifndef _SMC_IB_H
 #define _SMC_IB_H
 
+#include <linux/if_ether.h>
 #include <rdma/ib_verbs.h>
 
 #define SMC_MAX_PORTS			2	/* Max # of ports */
@@ -34,7 +35,8 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	struct ib_cq		*roce_cq_recv;	/* recv completion queue */
 	struct tasklet_struct	send_tasklet;	/* called by send cq handler */
 	struct tasklet_struct	recv_tasklet;	/* called by recv cq handler */
-	char			mac[SMC_MAX_PORTS][6]; /* mac address per port*/
+	char			mac[SMC_MAX_PORTS][ETH_ALEN];
+						/* mac address per port*/
 	union ib_gid		gid[SMC_MAX_PORTS]; /* gid per port */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 	struct work_struct	port_event_work;
