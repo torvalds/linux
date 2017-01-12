@@ -3509,11 +3509,13 @@ void decode_misc_enable_msr(void)
 	unsigned long long msr;
 
 	if (!get_msr(base_cpu, MSR_IA32_MISC_ENABLE, &msr))
-		fprintf(outf, "cpu%d: MSR_IA32_MISC_ENABLE: 0x%08llx (%s %s %s)\n",
+		fprintf(outf, "cpu%d: MSR_IA32_MISC_ENABLE: 0x%08llx (%sTCC %sEIST %sMWAIT %sPREFETCH %sTURBO)\n",
 			base_cpu, msr,
-			msr & (1 << 3) ? "TCC" : "",
-			msr & (1 << 16) ? "EIST" : "",
-			msr & (1 << 18) ? "MONITOR" : "");
+			msr & MSR_IA32_MISC_ENABLE_TM1 ? "" : "No-",
+			msr & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP ? "" : "No-",
+			msr & MSR_IA32_MISC_ENABLE_MWAIT ? "No-" : "",
+			msr & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE ? "No-" : "",
+			msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
 }
 
 /*
