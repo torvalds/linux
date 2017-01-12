@@ -195,11 +195,12 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 				seq_printf(s, "o");
 			seq_printf(s, ")");
 		}
-	} else
-		seq_printf(s, "current: UNKNOWN");
+	} else {
+		seq_puts(s, "current: UNKNOWN");
+	}
 
 	if (grp->num_settings > 1) {
-		seq_printf(s, ", available = [");
+		seq_puts(s, ", available = [");
 		for (n = 0; n < grp->num_settings; n++) {
 			if (curr == &grp->settings[n])
 				continue;
@@ -222,7 +223,7 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 				seq_printf(s, ")");
 			}
 		}
-		seq_printf(s, " ]");
+		seq_puts(s, " ]");
 	}
 }
 
