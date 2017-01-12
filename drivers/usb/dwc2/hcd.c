@@ -4492,8 +4492,8 @@ static void dwc2_dump_urb_info(struct usb_hcd *hcd, struct urb *urb,
 {
 #ifdef VERBOSE_DEBUG
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
-	char *pipetype;
-	char *speed;
+	char *pipetype = NULL;
+	char *speed = NULL;
 
 	dev_vdbg(hsotg->dev, "%s, urb %p\n", fn_name, urb);
 	dev_vdbg(hsotg->dev, "  Device address: %d\n",
