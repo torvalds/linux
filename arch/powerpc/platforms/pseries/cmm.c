@@ -76,7 +76,7 @@ module_param_named(delay, delay, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(delay, "Delay (in seconds) between polls to query hypervisor paging requests. "
 		 "[Default=" __stringify(CMM_DEFAULT_DELAY) "]");
 module_param_named(hotplug_delay, hotplug_delay, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(delay, "Delay (in seconds) after memory hotplug remove "
+MODULE_PARM_DESC(hotplug_delay, "Delay (in seconds) after memory hotplug remove "
 		 "before loaning resumes. "
 		 "[Default=" __stringify(CMM_HOTPLUG_DELAY) "]");
 module_param_named(oom_kb, oom_kb, uint, S_IRUGO | S_IWUSR);
