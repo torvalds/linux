@@ -674,8 +674,6 @@ struct qeth_card_info {
 	int broadcast_capable;
 	int unique_id;
 	struct qeth_card_blkt blkt;
-	__u32 csum_mask;
-	__u32 tx_csum_mask;
 	enum qeth_ipa_promisc_modes promisc_mode;
 	__u32 diagass_support;
 	__u32 hwtrap;
