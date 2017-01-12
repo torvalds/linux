@@ -216,7 +216,7 @@ static int qeth_l2_write_mac(struct qeth_card *card, struct qeth_mac *mac)
 	return rc;
 }
 
-static void qeth_l2_del_all_macs(struct qeth_card *card, int del)
+static void qeth_l2_del_all_macs(struct qeth_card *card)
 {
 	struct qeth_mac *mac;
 	struct hlist_node *tmp;
@@ -224,13 +224,6 @@ static void qeth_l2_del_all_macs(struct qeth_card *card, int del)
 
 	spin_lock_bh(&card->mclock);
 	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
-		if (del) {
-			if (mac->is_uc)
-				qeth_l2_send_setdelmac(card, mac->mac_addr,
-						IPA_CMD_DELVMAC);
-			else
-				qeth_l2_send_delgroupmac(card, mac->mac_addr);
-		}
 		hash_del(&mac->hnode);
 		kfree(mac);
 	}
@@ -425,7 +418,7 @@ static void qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 		card->state = CARD_STATE_SOFTSETUP;
 	}
 	if (card->state == CARD_STATE_SOFTSETUP) {
-		qeth_l2_del_all_macs(card, 0);
+		qeth_l2_del_all_macs(card);
 		qeth_clear_ipacmd_list(card);
 		card->state = CARD_STATE_HARDSETUP;
 	}
