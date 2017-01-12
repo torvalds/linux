@@ -409,6 +409,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST] = {
 		.len = sizeof(struct nl80211_bss_select_rssi_adjust)
 	},
+	[NL80211_ATTR_TIMEOUT_REASON] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -13231,7 +13232,9 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 				 struct net_device *netdev, const u8 *bssid,
 				 const u8 *req_ie, size_t req_ie_len,
 				 const u8 *resp_ie, size_t resp_ie_len,
-				 int status, gfp_t gfp)
+				 int status,
+				 enum nl80211_timeout_reason timeout_reason,
+				 gfp_t gfp)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -13252,7 +13255,9 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 	    nla_put_u16(msg, NL80211_ATTR_STATUS_CODE,
 			status < 0 ? WLAN_STATUS_UNSPECIFIED_FAILURE :
 			status) ||
-	    (status < 0 && nla_put_flag(msg, NL80211_ATTR_TIMED_OUT)) ||
+	    (status < 0 &&
+	     (nla_put_flag(msg, NL80211_ATTR_TIMED_OUT) ||
+	      nla_put_u32(msg, NL80211_ATTR_TIMEOUT_REASON, timeout_reason))) ||
 	    (req_ie &&
 	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ie_len, req_ie)) ||
 	    (resp_ie &&

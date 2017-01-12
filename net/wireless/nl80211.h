@@ -56,7 +56,9 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 				 struct net_device *netdev, const u8 *bssid,
 				 const u8 *req_ie, size_t req_ie_len,
 				 const u8 *resp_ie, size_t resp_ie_len,
-				 int status, gfp_t gfp);
+				 int status,
+				 enum nl80211_timeout_reason timeout_reason,
+				 gfp_t gfp);
 void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev, const u8 *bssid,
 			 const u8 *req_ie, size_t req_ie_len,

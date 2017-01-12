@@ -5090,6 +5090,12 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  *      %WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
  *      the real status code for failures.
  * @gfp: allocation flags
+ * @timeout_reason: reason for connection timeout. This is used when the
+ *	connection fails due to a timeout instead of an explicit rejection from
+ *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
+ *	not known. This value is used only if @status < 0 to indicate that the
+ *	failure is due to a timeout and not due to explicit rejection by the AP.
+ *	This value is ignored in other cases (@status >= 0).
  *
  * It should be called by the underlying driver whenever connect() has
  * succeeded. This is similar to cfg80211_connect_result(), but with the
@@ -5099,7 +5105,8 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 			  struct cfg80211_bss *bss, const u8 *req_ie,
 			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, int status, gfp_t gfp);
+			  size_t resp_ie_len, int status, gfp_t gfp,
+			  enum nl80211_timeout_reason timeout_reason);
 
 /**
  * cfg80211_connect_result - notify cfg80211 of connection result
@@ -5125,7 +5132,8 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			u16 status, gfp_t gfp)
 {
 	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, resp_ie,
-			     resp_ie_len, status, gfp);
+			     resp_ie_len, status, gfp,
+			     NL80211_TIMEOUT_UNSPECIFIED);
 }
 
 /**
@@ -5136,6 +5144,7 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  * @req_ie: association request IEs (maybe be %NULL)
  * @req_ie_len: association request IEs length
  * @gfp: allocation flags
+ * @timeout_reason: reason for connection timeout.
  *
  * It should be called by the underlying driver whenever connect() has failed
  * in a sequence where no explicit authentication/association rejection was
@@ -5145,10 +5154,11 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  */
 static inline void
 cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
-			 const u8 *req_ie, size_t req_ie_len, gfp_t gfp)
+			 const u8 *req_ie, size_t req_ie_len, gfp_t gfp,
+			 enum nl80211_timeout_reason timeout_reason)
 {
 	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, NULL, 0, -1,
-			     gfp);
+			     gfp, timeout_reason);
 }
 
 /**

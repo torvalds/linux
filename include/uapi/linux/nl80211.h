@@ -1996,6 +1996,10 @@ enum nl80211_commands {
  *	better BSSs. The attribute value is a packed structure
  *	value as specified by &struct nl80211_bss_select_rssi_adjust.
  *
+ * @NL80211_ATTR_TIMEOUT_REASON: The reason for which an operation timed out.
+ *	u32 attribute with an &enum nl80211_timeout_reason value. This is used,
+ *	e.g., with %NL80211_CMD_CONNECT event.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2404,6 +2408,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI,
 	NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST,
+
+	NL80211_ATTR_TIMEOUT_REASON,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4786,6 +4792,21 @@ enum nl80211_probe_resp_offload_support_attr {
 enum nl80211_connect_failed_reason {
 	NL80211_CONN_FAIL_MAX_CLIENTS,
 	NL80211_CONN_FAIL_BLOCKED_CLIENT,
+};
+
+/**
+ * enum nl80211_timeout_reason - timeout reasons
+ *
+ * @NL80211_TIMEOUT_UNSPECIFIED: Timeout reason unspecified.
+ * @NL80211_TIMEOUT_SCAN: Scan (AP discovery) timed out.
+ * @NL80211_TIMEOUT_AUTH: Authentication timed out.
+ * @NL80211_TIMEOUT_ASSOC: Association timed out.
+ */
+enum nl80211_timeout_reason {
+	NL80211_TIMEOUT_UNSPECIFIED,
+	NL80211_TIMEOUT_SCAN,
+	NL80211_TIMEOUT_AUTH,
+	NL80211_TIMEOUT_ASSOC,
 };
 
 /**
