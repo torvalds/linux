@@ -159,7 +159,7 @@ static enum led_brightness k90_backlight_get(struct led_classdev *led_cdev)
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 5) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
 		ret = -EIO;
@@ -274,7 +274,7 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 2,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 1) {
 		dev_warn(dev, "Failed to get K90 initial mode (error %d).\n",
 			 ret);
 		ret = -EIO;
@@ -351,7 +351,7 @@ static ssize_t k90_show_current_profile(struct device *dev,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 8) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
 		ret = -EIO;
