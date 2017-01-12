@@ -1184,6 +1184,13 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		delayed = 1;
 	}
 	ci->i_ceph_flags &= ~(CEPH_I_NODELAY | CEPH_I_FLUSH);
+	if (want & ~cap->mds_wanted) {
+		/* user space may open/close single file frequently.
+		 * This avoids droping mds_wanted immediately after
+		 * requesting new mds_wanted.
+		 */
+		__cap_set_timeouts(mdsc, ci);
+	}
 
 	cap->issued &= retain;  /* drop bits we don't want */
 	if (cap->implemented & ~cap->issued) {
@@ -2485,15 +2492,14 @@ again:
 				goto out_unlock;
 			}
 			mds_wanted = __ceph_caps_mds_wanted(ci);
-			if ((mds_wanted & need) != need) {
+			if (need & ~(mds_wanted & need)) {
 				dout("get_cap_refs %p caps were dropped"
 				     " (session killed?)\n", inode);
 				*err = -ESTALE;
 				ret = 1;
 				goto out_unlock;
 			}
-			if ((mds_wanted & file_wanted) ==
-			    (file_wanted & (CEPH_CAP_FILE_RD|CEPH_CAP_FILE_WR)))
+			if (!(file_wanted & ~mds_wanted))
 				ci->i_ceph_flags &= ~CEPH_I_CAP_DROPPED;
 		}
 
