@@ -188,12 +188,12 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		if (curr->subname)
 			seq_printf(s, "(%s)", curr->subname);
 		if (curr->flags & (MVEBU_SETTING_GPO | MVEBU_SETTING_GPI)) {
-			seq_printf(s, "(");
+			seq_putc(s, '(');
 			if (curr->flags & MVEBU_SETTING_GPI)
-				seq_printf(s, "i");
+				seq_putc(s, 'i');
 			if (curr->flags & MVEBU_SETTING_GPO)
-				seq_printf(s, "o");
-			seq_printf(s, ")");
+				seq_putc(s, 'o');
+			seq_putc(s, ')');
 		}
 	} else {
 		seq_puts(s, "current: UNKNOWN");
@@ -215,12 +215,12 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 				seq_printf(s, "(%s)", grp->settings[n].subname);
 			if (grp->settings[n].flags &
 				(MVEBU_SETTING_GPO | MVEBU_SETTING_GPI)) {
-				seq_printf(s, "(");
+				seq_putc(s, '(');
 				if (grp->settings[n].flags & MVEBU_SETTING_GPI)
-					seq_printf(s, "i");
+					seq_putc(s, 'i');
 				if (grp->settings[n].flags & MVEBU_SETTING_GPO)
-					seq_printf(s, "o");
-				seq_printf(s, ")");
+					seq_putc(s, 'o');
+				seq_putc(s, ')');
 			}
 		}
 		seq_puts(s, " ]");
