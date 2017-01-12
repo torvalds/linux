@@ -110,7 +110,8 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(dn->inode),
 		.type = DATA,
-		.rw = WRITE_SYNC | REQ_PRIO,
+		.op = REQ_OP_WRITE,
+		.op_flags = REQ_SYNC | REQ_NOIDLE | REQ_PRIO,
 		.page = page,
 		.encrypted_page = NULL,
 	};

@@ -59,7 +59,8 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 #define F2FS_BIO_MASK(t)	(t & (READA | WRITE_FLUSH_FUA))
 #define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
 
-#define show_bio_type(type)	show_bio_base(type), show_bio_extra(type)
+#define show_bio_type(op, op_flags)					\
+		show_bio_base((op|op_flags)), show_bio_extra((op|op_flags))
 
 #define show_bio_base(type)						\
 	__print_symbolic(F2FS_BIO_MASK(type),				\
@@ -734,7 +735,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__field(pgoff_t, index)
 		__field(block_t, old_blkaddr)
 		__field(block_t, new_blkaddr)
-		__field(int, rw)
+		__field(int, op)
+		__field(int, op_flags)
 		__field(int, type)
 	),
 
@@ -744,7 +746,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->index		= page->index;
 		__entry->old_blkaddr	= fio->old_blkaddr;
 		__entry->new_blkaddr	= fio->new_blkaddr;
-		__entry->rw		= fio->rw;
+		__entry->op		= fio->op;
+		__entry->op_flags	= fio->op_flags;
 		__entry->type		= fio->type;
 	),
 
@@ -754,7 +757,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->old_blkaddr,
 		(unsigned long long)__entry->new_blkaddr,
-		show_bio_type(__entry->rw),
+		show_bio_type(__entry->op, __entry->op_flags),
 		show_block_type(__entry->type))
 );
 
@@ -785,7 +788,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(int,	rw)
+		__field(int,	op)
+		__field(int,	op_flags)
 		__field(int,	type)
 		__field(sector_t,	sector)
 		__field(unsigned int,	size)
@@ -793,7 +797,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->rw		= fio->rw;
+		__entry->op		= fio->op;
+		__entry->op_flags	= fio->op_flags;
 		__entry->type		= fio->type;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->size		= bio->bi_iter.bi_size;
@@ -801,7 +806,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_printk("dev = (%d,%d), %s%s, %s, sector = %lld, size = %u",
 		show_dev(__entry),
-		show_bio_type(__entry->rw),
+		show_bio_type(__entry->op, __entry->op_flags),
 		show_block_type(__entry->type),
 		(unsigned long long)__entry->sector,
 		__entry->size)
