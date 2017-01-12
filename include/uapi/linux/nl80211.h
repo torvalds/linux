@@ -4699,6 +4699,10 @@ enum nl80211_feature_flags {
  *	configuration (AP/mesh) with VHT rates.
  * @NL80211_EXT_FEATURE_FILS_STA: This driver supports Fast Initial Link Setup
  *	with user space SME (NL80211_CMD_AUTHENTICATE) in station mode.
+ * @NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA: This driver supports randomized TA
+ *	in @NL80211_CMD_FRAME while not associated.
+ * @NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED: This driver supports
+ *	randomized TA in @NL80211_CMD_FRAME while associated.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4714,6 +4718,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_BEACON_RATE_HT,
 	NL80211_EXT_FEATURE_BEACON_RATE_VHT,
 	NL80211_EXT_FEATURE_FILS_STA,
+	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA,
+	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
