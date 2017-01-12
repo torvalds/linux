@@ -1439,10 +1439,13 @@ static int read_latency_timer(struct usb_serial_port *port)
 			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
 			     0, priv->interface,
 			     buf, 1, WDR_TIMEOUT);
-	if (rv < 0)
+	if (rv < 1) {
 		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
-	else
+		if (rv >= 0)
+			rv = -EIO;
+	} else {
 		priv->latency = buf[0];
+	}
 
 	kfree(buf);
 
