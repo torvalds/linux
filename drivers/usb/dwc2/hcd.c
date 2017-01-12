@@ -2150,7 +2150,7 @@ static int dwc2_hcd_endpoint_disable(struct dwc2_hsotg *hsotg,
 		}
 
 		spin_unlock_irqrestore(&hsotg->lock, flags);
-		usleep_range(20000, 40000);
+		msleep(20);
 		spin_lock_irqsave(&hsotg->lock, flags);
 		qh = ep->hcpriv;
 		if (!qh) {
@@ -3240,7 +3240,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 				 "Waiting for Peripheral Mode, Mode=%s\n",
 				 dwc2_is_host_mode(hsotg) ? "Host" :
 				 "Peripheral");
-			usleep_range(20000, 40000);
+			msleep(20);
 			if (++count > 250)
 				break;
 		}
@@ -3261,7 +3261,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 			dev_info(hsotg->dev, "Waiting for Host Mode, Mode=%s\n",
 				 dwc2_is_host_mode(hsotg) ?
 				 "Host" : "Peripheral");
-			usleep_range(20000, 40000);
+			msleep(20);
 			if (++count > 250)
 				break;
 		}
@@ -3354,7 +3354,7 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 
-		usleep_range(200000, 250000);
+		msleep(200);
 	} else {
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
@@ -3378,7 +3378,7 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 		pcgctl &= ~PCGCTL_STOPPCLK;
 		dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
-		usleep_range(20000, 40000);
+		msleep(20);
 		spin_lock_irqsave(&hsotg->lock, flags);
 	}
 
@@ -3691,7 +3691,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			}
 
 			/* Clear reset bit in 10ms (FS/LS) or 50ms (HS) */
-			usleep_range(50000, 70000);
+			msleep(50);
 			hprt0 &= ~HPRT0_RST;
 			dwc2_writel(hprt0, hsotg->regs + HPRT0);
 			hsotg->lx_state = DWC2_L0; /* Now back to On state */
