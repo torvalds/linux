@@ -399,12 +399,8 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	*map = kmalloc_array(nmaps, sizeof(**map), GFP_KERNEL);
-	if (*map == NULL) {
-		dev_err(pctl->dev,
-			"cannot allocate pinctrl_map memory for %s\n",
-			np->name);
+	if (!*map)
 		return -ENOMEM;
-	}
 
 	n = 0;
 	of_property_for_each_string(np, "marvell,pins", prop, group) {
@@ -563,10 +559,8 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pinctrl),
 			GFP_KERNEL);
-	if (!pctl) {
-		dev_err(&pdev->dev, "unable to alloc driver\n");
+	if (!pctl)
 		return -ENOMEM;
-	}
 
 	pctl->desc.name = dev_name(&pdev->dev);
 	pctl->desc.owner = THIS_MODULE;
@@ -604,10 +598,8 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 
 	pdesc = devm_kzalloc(&pdev->dev, pctl->desc.npins *
 			     sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
-	if (!pdesc) {
-		dev_err(&pdev->dev, "failed to alloc pinctrl pins\n");
+	if (!pdesc)
 		return -ENOMEM;
-	}
 
 	for (n = 0; n < pctl->desc.npins; n++)
 		pdesc[n].number = n;
