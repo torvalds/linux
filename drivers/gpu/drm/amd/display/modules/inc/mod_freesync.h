@@ -110,13 +110,6 @@ bool mod_freesync_remove_stream(struct mod_freesync *mod_freesync,
 		const struct dc_stream *stream);
 
 /*
- * Build additional parameters for dc_stream when creating stream for
- * sink to support freesync
- */
-void mod_freesync_update_stream(struct mod_freesync *mod_freesync,
-		struct dc_stream *stream);
-
-/*
  * Update the freesync state flags for each display and program
  * freesync accordingly
  */
