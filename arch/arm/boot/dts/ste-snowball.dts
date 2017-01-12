@@ -159,12 +159,6 @@
 				     "", "", "", "", "", "", "", "";
 		};
 
-		usb_per5@a03e0000 {
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&musb_default_mode>;
-			pinctrl-1 = <&musb_sleep_mode>;
-		};
-
 		sound {
 			compatible = "stericsson,snd-soc-mop500";
 
@@ -449,6 +443,12 @@
 						     "PM_GPIO40", /* AB8500 GPIO40 */
 						     "PM_GPIO41", /* AB8500 GPIO41 */
 						     "PM_GPIO42"; /* AB8500 GPIO42 */
+				};
+
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&musb_default_mode>;
+					pinctrl-1 = <&musb_sleep_mode>;
 				};
 
 				ext_regulators: ab8500-ext-regulators {

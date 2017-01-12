@@ -19,12 +19,6 @@
 	};
 
 	soc {
-		usb_per5@a03e0000 {
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&musb_default_mode>;
-			pinctrl-1 = <&musb_sleep_mode>;
-		};
-
 		uart@80120000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart0_default_mode>;
@@ -223,6 +217,12 @@
 		prcmu@80157000 {
 			ab8500 {
 				ab8500-gpio {
+				};
+
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&musb_default_mode>;
+					pinctrl-1 = <&musb_sleep_mode>;
 				};
 
 				ab8500-regulators {
