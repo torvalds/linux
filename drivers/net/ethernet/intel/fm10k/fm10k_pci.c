@@ -754,6 +754,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	/* disable queue to avoid issues while updating state */
 	rxqctl = fm10k_read_reg(hw, FM10K_RXQCTL(reg_idx));
 	rxqctl &= ~FM10K_RXQCTL_ENABLE;
+	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), rxqctl);
 	fm10k_write_flush(hw);
 
 	/* possible poll here to verify ring resources have been cleaned */
