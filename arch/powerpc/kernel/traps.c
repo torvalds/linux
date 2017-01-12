@@ -2130,13 +2130,13 @@ static int __init ppc_warn_emulated_init(void)
 	if (!dir)
 		return -ENOMEM;
 
-	d = debugfs_create_u32("do_warn", S_IRUGO | S_IWUSR, dir,
+	d = debugfs_create_u32("do_warn", 0644, dir,
 			       &ppc_warn_emulated);
 	if (!d)
 		goto fail;
 
 	for (i = 0; i < sizeof(ppc_emulated)/sizeof(*entries); i++) {
-		d = debugfs_create_u32(entries[i].name, S_IRUGO | S_IWUSR, dir,
+		d = debugfs_create_u32(entries[i].name, 0644, dir,
 				       (u32 *)&entries[i].val.counter);
 		if (!d)
 			goto fail;

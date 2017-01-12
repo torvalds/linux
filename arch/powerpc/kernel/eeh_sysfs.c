@@ -48,7 +48,7 @@ static ssize_t eeh_show_##_name(struct device *dev,      \
 	                                                      \
 	return sprintf(buf, _format "\n", edev->_memb);       \
 }                                                        \
-static DEVICE_ATTR(_name, S_IRUGO, eeh_show_##_name, NULL);
+static DEVICE_ATTR(_name, 0444, eeh_show_##_name, NULL);
 
 EEH_SHOW_ATTR(eeh_mode,            mode,            "0x%x");
 EEH_SHOW_ATTR(eeh_pe_config_addr,  pe_config_addr,  "0x%x");

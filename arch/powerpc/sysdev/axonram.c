@@ -83,7 +83,7 @@ axon_ram_sysfs_ecc(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%ld\n", bank->ecc_counter);
 }
 
-static DEVICE_ATTR(ecc, S_IRUGO, axon_ram_sysfs_ecc, NULL);
+static DEVICE_ATTR(ecc, 0444, axon_ram_sysfs_ecc, NULL);
 
 /**
  * axon_ram_irq_handler - interrupt handler for Axon RAM ECC

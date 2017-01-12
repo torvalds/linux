@@ -163,7 +163,7 @@ static int __init hcall_inst_init(void)
 
 	for_each_possible_cpu(cpu) {
 		snprintf(cpu_name_buf, CPU_NAME_BUF_SIZE, "cpu%d", cpu);
-		hcall_file = debugfs_create_file(cpu_name_buf, S_IRUGO,
+		hcall_file = debugfs_create_file(cpu_name_buf, 0444,
 						 hcall_root,
 						 per_cpu(hcall_stats, cpu),
 						 &hcall_inst_seq_fops);

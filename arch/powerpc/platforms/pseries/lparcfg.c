@@ -697,11 +697,11 @@ static const struct file_operations lparcfg_fops = {
 
 static int __init lparcfg_init(void)
 {
-	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
+	umode_t mode = 0444;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		mode |= S_IWUSR;
+		mode |= 0200;
 
 	if (!proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops)) {
 		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");
