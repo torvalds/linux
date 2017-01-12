@@ -35,7 +35,7 @@ MODULE_PARM_DESC(enable_ir, "enable ir (default is enable)");
 
 static unsigned int ir_clock_mhz = 12;
 module_param(ir_clock_mhz, int, 0644);
-MODULE_PARM_DESC(enable_ir, "ir clock, in MHz");
+MODULE_PARM_DESC(ir_clock_mhz, "ir clock, in MHz");
 
 #define URB_SUBMIT_DELAY	100	/* ms - Delay to submit an URB request on retrial and init */
 #define URB_INT_LED_DELAY	100	/* ms - Delay to turn led on again on int mode */
