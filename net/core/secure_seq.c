@@ -122,7 +122,9 @@ u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
 {
 	u64 seq;
 	net_secret_init();
-	seq = siphash_3u32(saddr, daddr, (u32)sport << 16 | dport, &net_secret);
+	seq = siphash_3u32((__force u32)saddr, (__force u32)daddr,
+			   (__force u32)sport << 16 | (__force u32)dport,
+			   &net_secret);
 	seq += ktime_get_real_ns();
 	seq &= (1ull << 48) - 1;
 	return seq;
