@@ -23,11 +23,6 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
-	};
-
 	status-leds {
 		compatible = "gpio-leds";
 		cpu0-led {
@@ -76,6 +71,11 @@
 	extcon = <&extcon_usb2>;
 };
 
+&extcon_usb2 {
+	id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+	vbus-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+};
+
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&v3_3d>;
@@ -86,4 +86,8 @@
 
 &sn65hvs882 {
 	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+};
+
+&pcie1 {
+	gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 };

@@ -579,8 +579,10 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		goto disable_ldos;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0) {
+		ret = irq;
 		goto disable_clk;
+	}
 
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));

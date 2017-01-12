@@ -3008,13 +3008,6 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
 	ret = 0;
 	count_vm_event(THP_FILE_MAPPED);
 out:
-	/*
-	 * If we are going to fallback to pte mapping, do a
-	 * withdraw with pmd lock held.
-	 */
-	if (arch_needs_pgtable_deposit() && ret == VM_FAULT_FALLBACK)
-		vmf->prealloc_pte = pgtable_trans_huge_withdraw(vma->vm_mm,
-								vmf->pmd);
 	spin_unlock(vmf->ptl);
 	return ret;
 }
@@ -3055,20 +3048,18 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 
 		ret = do_set_pmd(vmf, page);
 		if (ret != VM_FAULT_FALLBACK)
-			goto fault_handled;
+			return ret;
 	}
 
 	if (!vmf->pte) {
 		ret = pte_alloc_one_map(vmf);
 		if (ret)
-			goto fault_handled;
+			return ret;
 	}
 
 	/* Re-check under ptl */
-	if (unlikely(!pte_none(*vmf->pte))) {
-		ret = VM_FAULT_NOPAGE;
-		goto fault_handled;
-	}
+	if (unlikely(!pte_none(*vmf->pte)))
+		return VM_FAULT_NOPAGE;
 
 	flush_icache_page(vma, page);
 	entry = mk_pte(page, vma->vm_page_prot);
@@ -3088,15 +3079,8 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
 
 	/* no need to invalidate: a not-present page won't be cached */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
-	ret = 0;
 
-fault_handled:
-	/* preallocated pagetable is unused: free it */
-	if (vmf->prealloc_pte) {
-		pte_free(vmf->vma->vm_mm, vmf->prealloc_pte);
-		vmf->prealloc_pte = 0;
-	}
-	return ret;
+	return 0;
 }
 
 
@@ -3360,15 +3344,24 @@ static int do_shared_fault(struct vm_fault *vmf)
 static int do_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
+	int ret;
 
 	/* The VMA was not fully populated on mmap() or missing VM_DONTEXPAND */
 	if (!vma->vm_ops->fault)
-		return VM_FAULT_SIGBUS;
-	if (!(vmf->flags & FAULT_FLAG_WRITE))
-		return do_read_fault(vmf);
-	if (!(vma->vm_flags & VM_SHARED))
-		return do_cow_fault(vmf);
-	return do_shared_fault(vmf);
+		ret = VM_FAULT_SIGBUS;
+	else if (!(vmf->flags & FAULT_FLAG_WRITE))
+		ret = do_read_fault(vmf);
+	else if (!(vma->vm_flags & VM_SHARED))
+		ret = do_cow_fault(vmf);
+	else
+		ret = do_shared_fault(vmf);
+
+	/* preallocated pagetable is unused: free it */
+	if (vmf->prealloc_pte) {
+		pte_free(vma->vm_mm, vmf->prealloc_pte);
+		vmf->prealloc_pte = 0;
+	}
+	return ret;
 }
 
 static int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
