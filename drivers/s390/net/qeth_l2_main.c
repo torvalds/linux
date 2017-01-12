@@ -210,8 +210,7 @@ static int qeth_l2_write_mac(struct qeth_card *card, struct qeth_mac *mac)
 				qeth_l2_send_setdelmac(card, mac->mac_addr,
 						IPA_CMD_SETVMAC));
 	} else {
-		rc = qeth_setdel_makerc(card,
-				qeth_l2_send_setgroupmac(card, mac->mac_addr));
+		rc = qeth_l2_send_setgroupmac(card, mac->mac_addr);
 	}
 	return rc;
 }
