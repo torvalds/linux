@@ -174,8 +174,6 @@ struct afu {
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 
-	struct kref mapcount;
-
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 
 	atomic_t hsq_credits;
