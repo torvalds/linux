@@ -35,7 +35,10 @@ OPTIONS
 
 -e::
 --expr::
-	List of syscalls to show, currently only syscall names.
+--event::
+	List of syscalls and other perf events (tracepoints, HW cache events,
+	etc) to show.
+	See 'perf list' for a complete list of events.
 	Prefixing with ! shows all syscalls but the ones specified.  You may
 	need to escape it.
 
@@ -134,9 +137,6 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --kernel-syscall-graph::
 	 Show the kernel callchains on the syscall exit path.
-
---event::
-	Trace other events, see 'perf list' for a complete list.
 
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything

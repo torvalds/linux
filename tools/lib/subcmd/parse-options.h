@@ -1,6 +1,7 @@
 #ifndef __SUBCMD_PARSE_OPTIONS_H
 #define __SUBCMD_PARSE_OPTIONS_H
 
+#include <linux/kernel.h>
 #include <stdbool.h>
 #include <stdint.h>
 

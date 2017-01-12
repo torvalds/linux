@@ -23,6 +23,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix);
 int cmd_evlist(int argc, const char **argv, const char *prefix);
 int cmd_help(int argc, const char **argv, const char *prefix);
 int cmd_sched(int argc, const char **argv, const char *prefix);
+int cmd_kallsyms(int argc, const char **argv, const char *prefix);
 int cmd_list(int argc, const char **argv, const char *prefix);
 int cmd_record(int argc, const char **argv, const char *prefix);
 int cmd_report(int argc, const char **argv, const char *prefix);
