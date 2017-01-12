@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/wakelock.h>
 #include <linux/spinlock.h>
 #include <linux/usb/otg.h>
 
@@ -42,7 +41,7 @@ static DEFINE_SPINLOCK(otgwl_spinlock);
 
 struct otgwl_lock {
 	char name[40];
-	struct wake_lock wakelock;
+	struct wakeup_source wakesrc;
 	bool held;
 };
 
@@ -57,22 +56,21 @@ static struct otgwl_lock vbus_lock;
 static void otgwl_hold(struct otgwl_lock *lock)
 {
 	if (!lock->held) {
-		wake_lock(&lock->wakelock);
+		__pm_stay_awake(&lock->wakesrc);
 		lock->held = true;
 	}
 }
 
 static void otgwl_temporary_hold(struct otgwl_lock *lock)
 {
-	wake_lock_timeout(&lock->wakelock,
-			  msecs_to_jiffies(TEMPORARY_HOLD_TIME));
+	__pm_wakeup_event(&lock->wakesrc, TEMPORARY_HOLD_TIME);
 	lock->held = false;
 }
 
 static void otgwl_drop(struct otgwl_lock *lock)
 {
 	if (lock->held) {
-		wake_unlock(&lock->wakelock);
+		__pm_relax(&lock->wakesrc);
 		lock->held = false;
 	}
 }
@@ -151,8 +149,7 @@ static int __init otg_wakelock_init(void)
 
 	snprintf(vbus_lock.name, sizeof(vbus_lock.name), "vbus-%s",
 		 dev_name(otgwl_xceiv->dev));
-	wake_lock_init(&vbus_lock.wakelock, WAKE_LOCK_SUSPEND,
-		       vbus_lock.name);
+	wakeup_source_init(&vbus_lock.wakesrc, vbus_lock.name);
 
 	otgwl_nb.notifier_call = otgwl_otg_notifications;
 	ret = usb_register_notifier(otgwl_xceiv, &otgwl_nb);
@@ -162,7 +159,7 @@ static int __init otg_wakelock_init(void)
 		       " failed\n", __func__,
 		       dev_name(otgwl_xceiv->dev));
 		otgwl_xceiv = NULL;
-		wake_lock_destroy(&vbus_lock.wakelock);
+		wakeup_source_trash(&vbus_lock.wakesrc);
 		return ret;
 	}
 
