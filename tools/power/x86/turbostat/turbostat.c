@@ -1581,11 +1581,11 @@ dump_nhm_platform_info(void)
 	fprintf(outf, "cpu%d: MSR_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 40) & 0xFF;
-	fprintf(outf, "%d * %.0f = %.0f MHz max efficiency frequency\n",
+	fprintf(outf, "%d * %.1f = %.1f MHz max efficiency frequency\n",
 		ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 8) & 0xFF;
-	fprintf(outf, "%d * %.0f = %.0f MHz base frequency\n",
+	fprintf(outf, "%d * %.1f = %.1f MHz base frequency\n",
 		ratio, bclk, ratio * bclk);
 
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
@@ -1607,12 +1607,12 @@ dump_hsw_turbo_ratio_limits(void)
 
 	ratio = (msr >> 8) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 18 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 18 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 0) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 17 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 17 active cores\n",
 			ratio, bclk, ratio * bclk);
 	return;
 }
@@ -1629,42 +1629,42 @@ dump_ivt_turbo_ratio_limits(void)
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 16 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 16 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 48) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 15 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 15 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 40) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 14 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 14 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 32) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 13 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 13 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 24) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 12 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 12 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 16) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 11 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 11 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 8) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 10 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 10 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 0) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 9 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 9 active cores\n",
 			ratio, bclk, ratio * bclk);
 	return;
 }
@@ -1681,42 +1681,42 @@ dump_nhm_turbo_ratio_limits(void)
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 8 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 8 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 48) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 7 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 7 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 40) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 6 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 6 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 32) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 5 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 5 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 24) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 4 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 4 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 16) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 3 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 3 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 8) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 2 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 2 active cores\n",
 			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 0) & 0xFF;
 	if (ratio)
-		fprintf(outf, "%d * %.0f = %.0f MHz max turbo 1 active cores\n",
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 1 active cores\n",
 			ratio, bclk, ratio * bclk);
 	return;
 }
@@ -1776,7 +1776,7 @@ dump_knl_turbo_ratio_limits(void)
 	for (i = buckets_no - 1; i >= 0; i--)
 		if (i > 0 ? ratio[i] != ratio[i - 1] : 1)
 			fprintf(outf,
-				"%d * %.0f = %.0f MHz max turbo %d active cores\n",
+				"%d * %.1f = %.1f MHz max turbo %d active cores\n",
 				ratio[i], bclk, ratio[i] * bclk, cores[i]);
 }
 
