@@ -1746,7 +1746,7 @@ static void enable_engines_irq(struct drm_i915_private *dev_priv)
 
 /**
  * i915_reset - reset chip after a hang
- * @dev: drm device to reset
+ * @dev_priv: device private to reset
  *
  * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
  * on failure.
