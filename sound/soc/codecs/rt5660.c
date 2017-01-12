@@ -1152,7 +1152,7 @@ static int rt5660_resume(struct snd_soc_codec *codec)
 	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
 
 	if (rt5660->pdata.poweroff_codec_in_suspend)
-		usleep_range(350000, 400000);
+		msleep(350);
 
 	regcache_cache_only(rt5660->regmap, false);
 	regcache_sync(rt5660->regmap);
