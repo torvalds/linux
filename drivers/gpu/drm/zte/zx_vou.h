@@ -36,6 +36,31 @@ void vou_inf_hdmi_audio_sel(struct drm_crtc *crtc,
 void vou_inf_enable(enum vou_inf_id id, struct drm_crtc *crtc);
 void vou_inf_disable(enum vou_inf_id id, struct drm_crtc *crtc);
 
+enum vou_div_id {
+	VOU_DIV_VGA,
+	VOU_DIV_PIC,
+	VOU_DIV_TVENC,
+	VOU_DIV_HDMI_PNX,
+	VOU_DIV_HDMI,
+	VOU_DIV_INF,
+	VOU_DIV_LAYER,
+};
+
+enum vou_div_val {
+	VOU_DIV_1 = 0,
+	VOU_DIV_2 = 1,
+	VOU_DIV_4 = 3,
+	VOU_DIV_8 = 7,
+};
+
+struct vou_div_config {
+	enum vou_div_id id;
+	enum vou_div_val val;
+};
+
+void zx_vou_config_dividers(struct drm_crtc *crtc,
+			    struct vou_div_config *configs, int num);
+
 int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe);
 void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe);
 

@@ -72,6 +72,13 @@ struct zx_crtc_bits {
 	u32 sec_vactive_mask;
 	u32 interlace_select;
 	u32 pi_enable;
+	u32 div_vga_shift;
+	u32 div_pic_shift;
+	u32 div_tvenc_shift;
+	u32 div_hdmi_pnx_shift;
+	u32 div_hdmi_shift;
+	u32 div_inf_shift;
+	u32 div_layer_shift;
 };
 
 static const struct zx_crtc_bits main_crtc_bits = {
@@ -83,6 +90,13 @@ static const struct zx_crtc_bits main_crtc_bits = {
 	.sec_vactive_mask = SEC_VACT_MAIN_MASK,
 	.interlace_select = MAIN_INTERLACE_SEL,
 	.pi_enable = MAIN_PI_EN,
+	.div_vga_shift = VGA_MAIN_DIV_SHIFT,
+	.div_pic_shift = PIC_MAIN_DIV_SHIFT,
+	.div_tvenc_shift = TVENC_MAIN_DIV_SHIFT,
+	.div_hdmi_pnx_shift = HDMI_MAIN_PNX_DIV_SHIFT,
+	.div_hdmi_shift = HDMI_MAIN_DIV_SHIFT,
+	.div_inf_shift = INF_MAIN_DIV_SHIFT,
+	.div_layer_shift = LAYER_MAIN_DIV_SHIFT,
 };
 
 static const struct zx_crtc_bits aux_crtc_bits = {
@@ -94,6 +108,13 @@ static const struct zx_crtc_bits aux_crtc_bits = {
 	.sec_vactive_mask = SEC_VACT_AUX_MASK,
 	.interlace_select = AUX_INTERLACE_SEL,
 	.pi_enable = AUX_PI_EN,
+	.div_vga_shift = VGA_AUX_DIV_SHIFT,
+	.div_pic_shift = PIC_AUX_DIV_SHIFT,
+	.div_tvenc_shift = TVENC_AUX_DIV_SHIFT,
+	.div_hdmi_pnx_shift = HDMI_AUX_PNX_DIV_SHIFT,
+	.div_hdmi_shift = HDMI_AUX_DIV_SHIFT,
+	.div_inf_shift = INF_AUX_DIV_SHIFT,
+	.div_layer_shift = LAYER_AUX_DIV_SHIFT,
 };
 
 struct zx_crtc {
@@ -234,6 +255,64 @@ void vou_inf_disable(enum vou_inf_id id, struct drm_crtc *crtc)
 
 	/* Disable interface clocks */
 	zx_writel_mask(vou->vouctl + VOU_CLK_EN, inf->clocks_en_bits, 0);
+}
+
+void zx_vou_config_dividers(struct drm_crtc *crtc,
+			    struct vou_div_config *configs, int num)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	const struct zx_crtc_bits *bits = zcrtc->bits;
+	int i;
+
+	/* Clear update flag bit */
+	zx_writel_mask(vou->vouctl + VOU_DIV_PARA, DIV_PARA_UPDATE, 0);
+
+	for (i = 0; i < num; i++) {
+		struct vou_div_config *cfg = configs + i;
+		u32 reg, shift;
+
+		switch (cfg->id) {
+		case VOU_DIV_VGA:
+			reg = VOU_CLK_SEL;
+			shift = bits->div_vga_shift;
+			break;
+		case VOU_DIV_PIC:
+			reg = VOU_CLK_SEL;
+			shift = bits->div_pic_shift;
+			break;
+		case VOU_DIV_TVENC:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_tvenc_shift;
+			break;
+		case VOU_DIV_HDMI_PNX:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_hdmi_pnx_shift;
+			break;
+		case VOU_DIV_HDMI:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_hdmi_shift;
+			break;
+		case VOU_DIV_INF:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_inf_shift;
+			break;
+		case VOU_DIV_LAYER:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_layer_shift;
+			break;
+		default:
+			continue;
+		}
+
+		/* Each divider occupies 3 bits */
+		zx_writel_mask(vou->vouctl + reg, 0x7 << shift,
+			       cfg->val << shift);
+	}
+
+	/* Set update flag bit to get dividers effected */
+	zx_writel_mask(vou->vouctl + VOU_DIV_PARA, DIV_PARA_UPDATE,
+		       DIV_PARA_UPDATE);
 }
 
 static inline void vou_chn_set_update(struct zx_crtc *zcrtc)
