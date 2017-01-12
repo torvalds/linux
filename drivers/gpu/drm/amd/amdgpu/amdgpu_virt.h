@@ -44,6 +44,7 @@ struct amdgpu_virt {
 	uint32_t			caps;
 	struct amdgpu_bo		*csa_obj;
 	uint64_t			csa_vmid0_addr;
+	bool chained_ib_support;
 	uint32_t			reg_val_offs;
 	struct mutex			lock;
 	struct amdgpu_irq_src		ack_irq;
