@@ -821,6 +821,9 @@
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
 			clock-frequency	= <600000000>;
 			st,syscfg	= <&syscfg_core 0x224>;
+			#mbox-cells = <1>;
+			mbox-names = "vq0_rx", "vq0_tx", "vq1_rx", "vq1_tx";
+			mboxes = <&mailbox0 0 0>, <&mailbox3 0 1>, <&mailbox0 0 1>, <&mailbox3 0 0>;
 		};
 
 		/* fdma audio */
