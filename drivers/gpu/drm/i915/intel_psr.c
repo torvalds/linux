@@ -480,6 +480,9 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
+	u32 chicken;
 
 	if (!HAS_PSR(dev_priv)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
@@ -505,6 +508,10 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	if (HAS_DDI(dev_priv)) {
 		if (dev_priv->psr.psr2_support) {
 			skl_psr_setup_su_vsc(intel_dp);
+			chicken = PSR2_VSC_ENABLE_PROG_HEADER;
+			if (dev_priv->psr.y_cord_support)
+				chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
+			I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
 		} else {
 			/* set up vsc header for psr1 */
 			hsw_psr_setup_vsc(intel_dp);
