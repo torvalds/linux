@@ -294,6 +294,8 @@ put_iova(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
+		if (!priv->aspace[id])
+			continue;
 		msm_gem_unmap_vma(priv->aspace[id],
 				&msm_obj->domain[id], msm_obj->sgt);
 	}
