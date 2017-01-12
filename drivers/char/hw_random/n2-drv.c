@@ -21,11 +21,11 @@
 
 #define DRV_MODULE_NAME		"n2rng"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.2"
-#define DRV_MODULE_RELDATE	"July 27, 2011"
+#define DRV_MODULE_VERSION	"0.3"
+#define DRV_MODULE_RELDATE	"Jan 7, 2017"
 
 static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
+	DRV_MODULE_NAME " v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Niagara2 RNG driver");
@@ -765,7 +765,7 @@ static int n2rng_probe(struct platform_device *op)
 		  "multi-unit-capable" : "single-unit"),
 		 np->num_units);
 
-	np->hwrng.name = "n2rng";
+	np->hwrng.name = DRV_MODULE_NAME;
 	np->hwrng.data_read = n2rng_data_read;
 	np->hwrng.priv = (unsigned long) np;
 
