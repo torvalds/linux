@@ -405,6 +405,10 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_FILS_NONCES] = { .len = 2 * FILS_NONCE_LEN },
 	[NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED] = { .type = NLA_FLAG, },
 	[NL80211_ATTR_BSSID] = { .len = ETH_ALEN },
+	[NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI] = { .type = NLA_S8 },
+	[NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST] = {
+		.len = sizeof(struct nl80211_bss_select_rssi_adjust)
+	},
 };
 
 /* policy for the key attributes */
@@ -6950,6 +6954,12 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (!n_plans || n_plans > wiphy->max_sched_scan_plans)
 		return ERR_PTR(-EINVAL);
 
+	if (!wiphy_ext_feature_isset(
+		    wiphy, NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI) &&
+	    (attrs[NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI] ||
+	     attrs[NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST]))
+		return ERR_PTR(-EINVAL);
+
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*request->ssids) * n_ssids
 			+ sizeof(*request->match_sets) * n_match_sets
@@ -7155,6 +7165,26 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (attrs[NL80211_ATTR_SCHED_SCAN_DELAY])
 		request->delay =
 			nla_get_u32(attrs[NL80211_ATTR_SCHED_SCAN_DELAY]);
+
+	if (attrs[NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI]) {
+		request->relative_rssi = nla_get_s8(
+			attrs[NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI]);
+		request->relative_rssi_set = true;
+	}
+
+	if (request->relative_rssi_set &&
+	    attrs[NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST]) {
+		struct nl80211_bss_select_rssi_adjust *rssi_adjust;
+
+		rssi_adjust = nla_data(
+			attrs[NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST]);
+		request->rssi_adjust.band = rssi_adjust->band;
+		request->rssi_adjust.delta = rssi_adjust->delta;
+		if (!is_band_valid(wiphy, request->rssi_adjust.band)) {
+			err = -EINVAL;
+			goto out_free;
+		}
+	}
 
 	err = nl80211_parse_sched_scan_plans(wiphy, n_plans, request, attrs);
 	if (err)
@@ -9691,6 +9721,20 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 
 	if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_DELAY, req->delay))
 		return -ENOBUFS;
+
+	if (req->relative_rssi_set) {
+		struct nl80211_bss_select_rssi_adjust rssi_adjust;
+
+		if (nla_put_s8(msg, NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI,
+			       req->relative_rssi))
+			return -ENOBUFS;
+
+		rssi_adjust.band = req->rssi_adjust.band;
+		rssi_adjust.delta = req->rssi_adjust.delta;
+		if (nla_put(msg, NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST,
+			    sizeof(rssi_adjust), &rssi_adjust))
+			return -ENOBUFS;
+	}
 
 	freqs = nla_nest_start(msg, NL80211_ATTR_SCAN_FREQUENCIES);
 	if (!freqs)
