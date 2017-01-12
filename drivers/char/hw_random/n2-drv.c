@@ -625,24 +625,23 @@ static const struct of_device_id n2rng_match[];
 static int n2rng_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
-	int multi_capable;
 	int err = -ENOMEM;
 	struct n2rng *np;
 
 	match = of_match_device(n2rng_match, &op->dev);
 	if (!match)
 		return -EINVAL;
-	multi_capable = (match->data != NULL);
 
 	n2rng_driver_version();
 	np = devm_kzalloc(&op->dev, sizeof(*np), GFP_KERNEL);
 	if (!np)
 		goto out;
 	np->op = op;
+	np->data = (struct n2rng_template *)match->data;
 
 	INIT_DELAYED_WORK(&np->work, n2rng_work);
 
-	if (multi_capable)
+	if (np->data->multi_capable)
 		np->flags |= N2RNG_FLAG_MULTI;
 
 	err = -ENODEV;
@@ -673,8 +672,9 @@ static int n2rng_probe(struct platform_device *op)
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");
 			goto out_hvapi_unregister;
 		}
-	} else
+	} else {
 		np->num_units = 1;
+	}
 
 	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
 		 np->hvapi_major, np->hvapi_minor);
@@ -731,30 +731,61 @@ static int n2rng_remove(struct platform_device *op)
 	return 0;
 }
 
+static struct n2rng_template n2_template = {
+	.id = N2_n2_rng,
+	.multi_capable = 0,
+	.chip_version = 1,
+};
+
+static struct n2rng_template vf_template = {
+	.id = N2_vf_rng,
+	.multi_capable = 1,
+	.chip_version = 1,
+};
+
+static struct n2rng_template kt_template = {
+	.id = N2_kt_rng,
+	.multi_capable = 1,
+	.chip_version = 1,
+};
+
+static struct n2rng_template m4_template = {
+	.id = N2_m4_rng,
+	.multi_capable = 1,
+	.chip_version = 2,
+};
+
+static struct n2rng_template m7_template = {
+	.id = N2_m7_rng,
+	.multi_capable = 1,
+	.chip_version = 2,
+};
+
 static const struct of_device_id n2rng_match[] = {
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,n2-rng",
+		.data		= &n2_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,vf-rng",
-		.data		= (void *) 1,
+		.data		= &vf_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "SUNW,kt-rng",
-		.data		= (void *) 1,
+		.data		= &kt_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "ORCL,m4-rng",
-		.data		= (void *) 1,
+		.data		= &m4_template,
 	},
 	{
 		.name		= "random-number-generator",
 		.compatible	= "ORCL,m7-rng",
-		.data		= (void *) 1,
+		.data		= &m7_template,
 	},
 	{},
 };

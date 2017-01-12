@@ -60,6 +60,20 @@ extern unsigned long sun4v_rng_data_read_diag_v2(unsigned long data_ra,
 extern unsigned long sun4v_rng_data_read(unsigned long data_ra,
 					 unsigned long *tick_delta);
 
+enum n2rng_compat_id {
+	N2_n2_rng,
+	N2_vf_rng,
+	N2_kt_rng,
+	N2_m4_rng,
+	N2_m7_rng,
+};
+
+struct n2rng_template {
+	enum n2rng_compat_id id;
+	int multi_capable;
+	int chip_version;
+};
+
 struct n2rng_unit {
 	u64			control[HV_RNG_NUM_CONTROL];
 };
@@ -74,6 +88,7 @@ struct n2rng {
 #define N2RNG_FLAG_SHUTDOWN	0x00000010 /* Driver unregistering        */
 #define N2RNG_FLAG_BUFFER_VALID	0x00000020 /* u32 buffer holds valid data */
 
+	struct n2rng_template	*data;
 	int			num_units;
 	struct n2rng_unit	*units;
 
