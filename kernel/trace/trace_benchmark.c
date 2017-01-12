@@ -175,9 +175,9 @@ int trace_benchmark_reg(void)
 
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
-	if (!bm_event_thread) {
+	if (IS_ERR(bm_event_thread)) {
 		pr_warning("trace benchmark failed to create kernel thread\n");
-		return -ENOMEM;
+		return PTR_ERR(bm_event_thread);
 	}
 
 	return 0;
