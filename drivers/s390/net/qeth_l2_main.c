@@ -200,16 +200,22 @@ static inline u32 qeth_l2_mac_hash(const u8 *addr)
 
 static int qeth_l2_write_mac(struct qeth_card *card, struct qeth_mac *mac)
 {
-
-	int rc;
-
 	if (mac->is_uc) {
-		rc = qeth_l2_send_setdelmac(card, mac->mac_addr,
+		return qeth_l2_send_setdelmac(card, mac->mac_addr,
 						IPA_CMD_SETVMAC);
 	} else {
-		rc = qeth_l2_send_setgroupmac(card, mac->mac_addr);
+		return qeth_l2_send_setgroupmac(card, mac->mac_addr);
 	}
-	return rc;
+}
+
+static int qeth_l2_remove_mac(struct qeth_card *card, struct qeth_mac *mac)
+{
+	if (mac->is_uc) {
+		return qeth_l2_send_setdelmac(card, mac->mac_addr,
+						IPA_CMD_DELVMAC);
+	} else {
+		return qeth_l2_send_delgroupmac(card, mac->mac_addr);
+	}
 }
 
 static void qeth_l2_del_all_macs(struct qeth_card *card)
@@ -782,14 +788,7 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 
 	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
 		if (mac->disp_flag == QETH_DISP_ADDR_DELETE) {
-			if (!mac->is_uc)
-				rc = qeth_l2_send_delgroupmac(card,
-						mac->mac_addr);
-			else {
-				rc = qeth_l2_send_setdelmac(card, mac->mac_addr,
-						IPA_CMD_DELVMAC);
-			}
-
+			qeth_l2_remove_mac(card, mac);
 			hash_del(&mac->hnode);
 			kfree(mac);
 
