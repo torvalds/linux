@@ -992,8 +992,11 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 
 #ifdef CONFIG_ACPI
 #define ACPI_WRDS_METHOD		"WRDS"
-#define ACPI_WRDS_WIFI			(0x07)
+#define ACPI_EWRD_METHOD		"EWRD"
+#define ACPI_WIFI_DOMAIN		(0x07)
 #define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
+#define ACPI_EWRD_WIFI_DATA_SIZE	((IWL_MVM_SAR_PROFILE_NUM - 1) * \
+					 IWL_MVM_SAR_TABLE_SIZE + 3)
 
 static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
 				   union acpi_object *table,
@@ -1051,7 +1054,7 @@ static union acpi_object *iwl_mvm_sar_find_wifi_pkg(struct iwl_mvm *mvm,
 
 		domain = &wifi_pkg->package.elements[0];
 		if (domain->type == ACPI_TYPE_INTEGER &&
-		    domain->integer.value == ACPI_WRDS_WIFI)
+		    domain->integer.value == ACPI_WIFI_DOMAIN)
 			break;
 
 		wifi_pkg = NULL;
@@ -1123,6 +1126,78 @@ out_free:
 	return ret;
 }
 
+static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
+{
+	union acpi_object *wifi_pkg;
+	acpi_handle root_handle;
+	acpi_handle handle;
+	struct acpi_buffer ewrd = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+	bool enabled;
+	int i, n_profiles, ret;
+
+	root_handle = ACPI_HANDLE(mvm->dev);
+	if (!root_handle) {
+		IWL_DEBUG_RADIO(mvm,
+				"Could not retrieve root port ACPI handle\n");
+		return -ENOENT;
+	}
+
+	/* Get the method's handle */
+	status = acpi_get_handle(root_handle, (acpi_string)ACPI_EWRD_METHOD,
+				 &handle);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "EWRD method not found\n");
+		return -ENOENT;
+	}
+
+	/* Call EWRD with no arguments */
+	status = acpi_evaluate_object(handle, NULL, NULL, &ewrd);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "EWRD invocation failed (0x%x)\n", status);
+		return -ENOENT;
+	}
+
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, ewrd.pointer,
+					     ACPI_EWRD_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if ((wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) ||
+	    (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER)) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+	n_profiles = wifi_pkg->package.elements[2].integer.value;
+
+	for (i = 0; i < n_profiles; i++) {
+		/* the tables start at element 3 */
+		static int pos = 3;
+
+		/* The EWRD profiles officially go from 2 to 4, but we
+		 * save them in sar_profiles[1-3] (because we don't
+		 * have profile 0).  So in the array we start from 1.
+		 */
+		ret = iwl_mvm_sar_set_profile(mvm,
+					      &wifi_pkg->package.elements[pos],
+					      &mvm->sar_profiles[i + 1],
+					      enabled);
+		if (ret < 0)
+			break;
+
+		/* go to the next table */
+		pos += IWL_MVM_SAR_TABLE_SIZE;
+	}
+
+out_free:
+	kfree(ewrd.pointer);
+	return ret;
+}
+
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	struct iwl_dev_tx_power_cmd cmd = {
@@ -1176,6 +1251,18 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
+#else /* CONFIG_ACPI */
+static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_ACPI */
+
 static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
 	int ret;
@@ -1183,11 +1270,18 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 	ret = iwl_mvm_sar_get_wrds_table(mvm);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
-				"SAR BIOS table invalid or unavailable. (%d)\n",
+				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
-		/* we don't fail if the table is not available */
+		/* if not available, don't fail and don't bother with EWRD */
 		return 0;
 	}
+
+	ret = iwl_mvm_sar_get_ewrd_table(mvm);
+	/* if EWRD is not available, we can still use WRDS, so don't fail */
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm,
+				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
 
 	/* choose profile 1 (WRDS) as default for both chains */
 	ret = iwl_mvm_sar_select_profile(mvm, 1, 1);
@@ -1198,18 +1292,6 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 
 	return ret;
 }
-
-#else /* CONFIG_ACPI */
-static inline int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-
-static inline int iwl_mvm_sar_init(struct iwl_mvm *mvm)
-{
-	return 0;
-}
-#endif /* CONFIG_ACPI */
 
 static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 {
