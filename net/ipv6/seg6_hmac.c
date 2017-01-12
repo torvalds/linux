@@ -400,7 +400,7 @@ static int seg6_hmac_init_algo(void)
 			*p_tfm = tfm;
 		}
 
-		p_tfm = this_cpu_ptr(algo->tfms);
+		p_tfm = raw_cpu_ptr(algo->tfms);
 		tfm = *p_tfm;
 
 		shsize = sizeof(*shash) + crypto_shash_descsize(tfm);
