@@ -5086,9 +5086,14 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @status: status code, 0 for successful connection, use
- *      %WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
- *      the real status code for failures.
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful connection, use
+ *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *	the real status code for failures. If this call is used to report a
+ *	failure due to a timeout (e.g., not receiving an Authentication frame
+ *	from the AP) instead of an explicit rejection by the AP, -1 is used to
+ *	indicate that this is a failure, but without a status code.
+ *	@timeout_reason is used to report the reason for the timeout in that
+ *	case.
  * @gfp: allocation flags
  * @timeout_reason: reason for connection timeout. This is used when the
  *	connection fails due to a timeout instead of an explicit rejection from
@@ -5097,10 +5102,10 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  *	failure is due to a timeout and not due to explicit rejection by the AP.
  *	This value is ignored in other cases (@status >= 0).
  *
- * It should be called by the underlying driver whenever connect() has
- * succeeded. This is similar to cfg80211_connect_result(), but with the
- * option of identifying the exact bss entry for the connection. Only one of
- * these functions should be called.
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_result(), but with the option of identifying the exact bss
+ * entry for the connection. Only one of these functions should be called.
  */
 void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 			  struct cfg80211_bss *bss, const u8 *req_ie,
@@ -5117,13 +5122,15 @@ void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @status: status code, 0 for successful connection, use
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful connection, use
  *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
  *	the real status code for failures.
  * @gfp: allocation flags
  *
- * It should be called by the underlying driver whenever connect() has
- * succeeded.
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_bss() which allows the exact bss entry to be specified. Only
+ * one of these functions should be called.
  */
 static inline void
 cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
