@@ -86,7 +86,7 @@
 	 * The actual size is just 4K though 64K is reserved. Access to the
 	 * unmapped reserved region results in a DECERR response.
 	 */
-	etf@20010000 {
+	etf@20010000 { /* etf0 */
 		compatible = "arm,coresight-tmc", "arm,primecell";
 		reg = <0 0x20010000 0 0x1000>;
 
@@ -100,7 +100,7 @@
 			/* input port */
 			port@0 {
 				reg = <0>;
-				etf_in_port: endpoint {
+				etf0_in_port: endpoint {
 					slave-mode;
 					remote-endpoint = <&main_funnel_out_port>;
 				};
@@ -109,8 +109,7 @@
 			/* output port */
 			port@1 {
 				reg = <0>;
-				etf_out_port: endpoint {
-					remote-endpoint = <&replicator_in_port0>;
+				etf0_out_port: endpoint {
 				};
 			};
 		};
@@ -131,7 +130,8 @@
 		};
 	};
 
-	main-funnel@20040000 {
+	/* main funnel on Juno r0, cssys0 funnel on Juno r1/r2 as per TRM*/
+	main_funnel: funnel@20040000 {
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x20040000 0 0x1000>;
 
@@ -142,13 +142,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			/* output port */
 			port@0 {
 				reg = <0>;
 				main_funnel_out_port: endpoint {
-					remote-endpoint = <&etf_in_port>;
+					remote-endpoint = <&etf0_in_port>;
 				};
 			};
 
+			/* input ports */
 			port@1 {
 				reg = <0>;
 				main_funnel_in_port0: endpoint {
@@ -164,7 +166,6 @@
 					remote-endpoint = <&cluster1_funnel_out_port>;
 				};
 			};
-
 		};
 	};
 
@@ -198,7 +199,7 @@
 		};
 	};
 
-	cluster0-funnel@220c0000 {
+	funnel@220c0000 { /* cluster0 funnel */
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x220c0000 0 0x1000>;
 
@@ -262,7 +263,7 @@
 		};
 	};
 
-	cluster1-funnel@230c0000 {
+	funnel@230c0000 { /* cluster1 funnel */
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x230c0000 0 0x1000>;
 
@@ -385,7 +386,6 @@
 				reg = <0>;
 				replicator_in_port0: endpoint {
 					slave-mode;
-					remote-endpoint = <&etf_out_port>;
 				};
 			};
 		};

@@ -202,3 +202,11 @@
 &etm5 {
 	cpu = <&A53_3>;
 };
+
+&etf0_out_port {
+	remote-endpoint = <&replicator_in_port0>;
+};
+
+&replicator_in_port0 {
+	remote-endpoint = <&etf0_out_port>;
+};
