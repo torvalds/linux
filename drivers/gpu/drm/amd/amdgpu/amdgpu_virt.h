@@ -34,6 +34,7 @@ struct amdgpu_virt {
 	uint32_t caps;
 	struct amdgpu_bo *csa_obj;
 	uint64_t csa_vmid0_addr;
+	uint32_t		reg_val_offs;
 };
 
 #define AMDGPU_CSA_SIZE    (8 * 1024)
