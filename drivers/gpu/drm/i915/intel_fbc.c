@@ -1296,7 +1296,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 
 	for_each_intel_crtc(&dev_priv->drm, crtc)
 		if (intel_crtc_active(crtc) &&
-		    to_intel_plane_state(crtc->base.primary->state)->base.visible)
+		    crtc->base.primary->state->visible)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
 }
 

@@ -2796,7 +2796,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	to_intel_plane_state(plane_state)->base.visible = false;
+	plane_state->visible = false;
 	crtc_state->plane_mask &= ~(1 << drm_plane_index(primary));
 	intel_pre_disable_primary_noatomic(&intel_crtc->base);
 	intel_plane->disable_plane(primary, &intel_crtc->base);
@@ -6883,13 +6883,13 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	if (to_intel_plane_state(crtc->primary->state)->base.visible) {
+	if (crtc->primary->state->visible) {
 		WARN_ON(intel_crtc->flip_work);
 
 		intel_pre_disable_primary_noatomic(crtc);
 
 		intel_crtc_disable_planes(crtc, 1 << drm_plane_index(crtc->primary));
-		to_intel_plane_state(crtc->primary->state)->base.visible = false;
+		crtc->primary->state->visible = false;
 	}
 
 	state = drm_atomic_state_alloc(crtc->dev);
@@ -12463,7 +12463,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	}
 
 	was_visible = old_plane_state->base.visible;
-	visible = to_intel_plane_state(plane_state)->base.visible;
+	visible = plane_state->visible;
 
 	if (!was_crtc_enabled && WARN_ON(was_visible))
 		was_visible = false;
@@ -12479,7 +12479,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled)
-		to_intel_plane_state(plane_state)->base.visible = visible = false;
+		plane_state->visible = visible = false;
 
 	if (!was_visible && !visible)
 		return 0;
@@ -16841,7 +16841,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 * Temporarily change the plane mapping and disable everything
 		 * ...  */
 		plane = crtc->plane;
-		to_intel_plane_state(crtc->base.primary->state)->base.visible = true;
+		crtc->base.primary->state->visible = true;
 		crtc->plane = !plane;
 		intel_crtc_disable_noatomic(&crtc->base);
 		crtc->plane = plane;
