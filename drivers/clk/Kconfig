@@ -199,6 +199,16 @@ config COMMON_CLK_OXNAS
 	---help---
 	  Support for the OXNAS SoC Family clocks.
 
+config COMMON_CLK_VC5
+	tristate "Clock driver for IDT VersaClock5 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the IDT VersaClock5 programmable clock
+	  generator.
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
