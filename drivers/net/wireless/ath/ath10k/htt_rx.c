@@ -2250,7 +2250,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		rate *= 10;
 		if (rate == 60 && txrate.flags == WMI_RATE_PREAMBLE_CCK)
 			rate = rate - 5;
-		arsta->txrate.legacy = rate * 10;
+		arsta->txrate.legacy = rate;
 	} else if (txrate.flags == WMI_RATE_PREAMBLE_HT) {
 		arsta->txrate.flags = RATE_INFO_FLAGS_MCS;
 		arsta->txrate.mcs = txrate.mcs;
