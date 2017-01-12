@@ -521,7 +521,7 @@ static int esw_create_offloads_table(struct mlx5_eswitch *esw)
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_OFFLOADS);
 	if (!ns) {
 		esw_warn(esw->dev, "Failed to get offloads flow namespace\n");
-		return -ENOMEM;
+		return -EOPNOTSUPP;
 	}
 
 	ft_offloads = mlx5_create_flow_table(ns, 0, dev->priv.sriov.num_vfs + 2, 0);

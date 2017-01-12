@@ -352,7 +352,7 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -ENOMEM;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -961,7 +961,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -1078,7 +1078,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
