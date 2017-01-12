@@ -34,6 +34,7 @@ struct sram_reserve {
 	u32 size;
 	bool export;
 	bool pool;
+	bool protect_exec;
 	const char *label;
 };
 

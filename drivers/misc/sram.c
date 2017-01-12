@@ -122,6 +122,18 @@ static int sram_add_partition(struct sram_dev *sram, struct sram_reserve *block,
 		if (ret)
 			return ret;
 	}
+	if (block->protect_exec) {
+		ret = sram_check_protect_exec(sram, block, part);
+		if (ret)
+			return ret;
+
+		ret = sram_add_pool(sram, block, start, part);
+		if (ret)
+			return ret;
+
+		sram_add_protect_exec(part);
+	}
+
 	sram->partitions++;
 
 	return 0;
@@ -207,7 +219,11 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		if (of_find_property(child, "pool", NULL))
 			block->pool = true;
 
-		if ((block->export || block->pool) && block->size) {
+		if (of_find_property(child, "protect-exec", NULL))
+			block->protect_exec = true;
+
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			exports++;
 
 			label = NULL;
@@ -269,7 +285,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			goto err_chunks;
 		}
 
-		if ((block->export || block->pool) && block->size) {
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			ret = sram_add_partition(sram, block,
 						 res->start + block->start);
 			if (ret) {
