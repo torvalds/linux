@@ -52,7 +52,7 @@ static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, si
 }
 
 static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
-					size_t count, loff_t *ppos)
+				      size_t count, loff_t *ppos)
 {
 	int flag = 0;
 	int ret;
