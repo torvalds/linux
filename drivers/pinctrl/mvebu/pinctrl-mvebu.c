@@ -224,7 +224,6 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		}
 		seq_printf(s, " ]");
 	}
-	return;
 }
 
 static const struct pinconf_ops mvebu_pinconf_ops = {
