@@ -370,7 +370,8 @@ nouveau_display_init(struct drm_device *dev)
 		return ret;
 
 	/* enable polling for external displays */
-	drm_kms_helper_poll_enable(dev);
+	if (!dev->mode_config.poll_enabled)
+		drm_kms_helper_poll_enable(dev);
 
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
