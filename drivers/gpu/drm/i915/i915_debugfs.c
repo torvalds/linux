@@ -159,8 +159,35 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
 			   i915_vma_is_ggtt(vma) ? "g" : "pp",
 			   vma->node.start, vma->node.size);
-		if (i915_vma_is_ggtt(vma))
-			seq_printf(m, ", type: %u", vma->ggtt_view.type);
+		if (i915_vma_is_ggtt(vma)) {
+			switch (vma->ggtt_view.type) {
+			case I915_GGTT_VIEW_NORMAL:
+				seq_puts(m, ", normal");
+				break;
+
+			case I915_GGTT_VIEW_PARTIAL:
+				seq_printf(m, ", partial [%08llx+%x]",
+					   vma->ggtt_view.params.partial.offset << PAGE_SHIFT,
+					   vma->ggtt_view.params.partial.size << PAGE_SHIFT);
+				break;
+
+			case I915_GGTT_VIEW_ROTATED:
+				seq_printf(m, ", rotated [(%ux%u, stride=%u, offset=%u), (%ux%u, stride=%u, offset=%u)]",
+					   vma->ggtt_view.params.rotated.plane[0].width,
+					   vma->ggtt_view.params.rotated.plane[0].height,
+					   vma->ggtt_view.params.rotated.plane[0].stride,
+					   vma->ggtt_view.params.rotated.plane[0].offset,
+					   vma->ggtt_view.params.rotated.plane[1].width,
+					   vma->ggtt_view.params.rotated.plane[1].height,
+					   vma->ggtt_view.params.rotated.plane[1].stride,
+					   vma->ggtt_view.params.rotated.plane[1].offset);
+				break;
+
+			default:
+				MISSING_CASE(vma->ggtt_view.type);
+				break;
+			}
+		}
 		if (vma->fence)
 			seq_printf(m, " , fence: %d%s",
 				   vma->fence->id,
