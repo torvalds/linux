@@ -352,7 +352,7 @@ static int bpf_encap_nlsize(struct lwtunnel_state *lwtstate)
 	       0;
 }
 
-int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
+static int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
 {
 	/* FIXME:
 	 * The LWT state is currently rebuilt for delete requests which
