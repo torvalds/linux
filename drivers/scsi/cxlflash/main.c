@@ -188,10 +188,11 @@ static void cmd_complete(struct afu_cmd *cmd)
 }
 
 /**
- * context_reset_ioarrin() - reset command owner context via IOARRIN register
+ * context_reset() - reset command owner context via specified register
  * @cmd:	AFU command that timed out.
+ * @reset_reg:	MMIO register to perform reset.
  */
-static void context_reset_ioarrin(struct afu_cmd *cmd)
+static void context_reset(struct afu_cmd *cmd, __be64 __iomem *reset_reg)
 {
 	int nretry = 0;
 	u64 rrin = 0x1;
@@ -201,9 +202,9 @@ static void context_reset_ioarrin(struct afu_cmd *cmd)
 
 	pr_debug("%s: cmd=%p\n", __func__, cmd);
 
-	writeq_be(rrin, &afu->host_map->ioarrin);
+	writeq_be(rrin, reset_reg);
 	do {
-		rrin = readq_be(&afu->host_map->ioarrin);
+		rrin = readq_be(reset_reg);
 		if (rrin != 0x1)
 			break;
 		/* Double delay each time */
@@ -212,6 +213,17 @@ static void context_reset_ioarrin(struct afu_cmd *cmd)
 
 	dev_dbg(dev, "%s: returning rrin=0x%016llX nretry=%d\n",
 		__func__, rrin, nretry);
+}
+
+/**
+ * context_reset_ioarrin() - reset command owner context via IOARRIN register
+ * @cmd:	AFU command that timed out.
+ */
+static void context_reset_ioarrin(struct afu_cmd *cmd)
+{
+	struct afu *afu = cmd->parent;
+
+	context_reset(cmd, &afu->host_map->ioarrin);
 }
 
 /**
