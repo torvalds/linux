@@ -889,7 +889,16 @@ static void ci_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 
 	pi->uvd_power_gated = gate;
 
-	ci_update_uvd_dpm(adev, gate);
+	if (gate) {
+		/* stop the UVD block */
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_GATE);
+		ci_update_uvd_dpm(adev, gate);
+	} else {
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_UNGATE);
+		ci_update_uvd_dpm(adev, gate);
+	}
 }
 
 static bool ci_dpm_vblank_too_short(struct amdgpu_device *adev)
