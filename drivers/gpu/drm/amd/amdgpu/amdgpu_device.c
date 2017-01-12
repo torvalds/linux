@@ -94,6 +94,11 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 {
 	uint32_t ret;
 
+	if (amdgpu_sriov_runtime(adev)) {
+		BUG_ON(in_interrupt());
+		return amdgpu_virt_kiq_rreg(adev, reg);
+	}
+
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
 	else {
@@ -112,6 +117,11 @@ void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    bool always_indirect)
 {
 	trace_amdgpu_mm_wreg(adev->pdev->device, reg, v);
+
+	if (amdgpu_sriov_runtime(adev)) {
+		BUG_ON(in_interrupt());
+		return amdgpu_virt_kiq_wreg(adev, reg, v);
+	}
 
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
