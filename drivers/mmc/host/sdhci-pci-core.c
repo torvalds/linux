@@ -865,6 +865,86 @@ enum amd_chipset_gen {
 	AMD_CHIPSET_UNKNOWN,
 };
 
+/* AMD registers */
+#define AMD_SD_AUTO_PATTERN		0xB8
+#define AMD_MSLEEP_DURATION		4
+#define AMD_SD_MISC_CONTROL		0xD0
+#define AMD_MAX_TUNE_VALUE		0x0B
+#define AMD_AUTO_TUNE_SEL		0x10800
+#define AMD_FIFO_PTR			0x30
+#define AMD_BIT_MASK			0x1F
+
+static void amd_tuning_reset(struct sdhci_host *host)
+{
+	unsigned int val;
+
+	val = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	val |= SDHCI_CTRL_PRESET_VAL_ENABLE | SDHCI_CTRL_EXEC_TUNING;
+	sdhci_writew(host, val, SDHCI_HOST_CONTROL2);
+
+	val = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	val &= ~SDHCI_CTRL_EXEC_TUNING;
+	sdhci_writew(host, val, SDHCI_HOST_CONTROL2);
+}
+
+static void amd_config_tuning_phase(struct pci_dev *pdev, u8 phase)
+{
+	unsigned int val;
+
+	pci_read_config_dword(pdev, AMD_SD_AUTO_PATTERN, &val);
+	val &= ~AMD_BIT_MASK;
+	val |= (AMD_AUTO_TUNE_SEL | (phase << 1));
+	pci_write_config_dword(pdev, AMD_SD_AUTO_PATTERN, val);
+}
+
+static void amd_enable_manual_tuning(struct pci_dev *pdev)
+{
+	unsigned int val;
+
+	pci_read_config_dword(pdev, AMD_SD_MISC_CONTROL, &val);
+	val |= AMD_FIFO_PTR;
+	pci_write_config_dword(pdev, AMD_SD_MISC_CONTROL, val);
+}
+
+static int amd_execute_tuning(struct sdhci_host *host, u32 opcode)
+{
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+	struct pci_dev *pdev = slot->chip->pdev;
+	u8 valid_win = 0;
+	u8 valid_win_max = 0;
+	u8 valid_win_end = 0;
+	u8 ctrl, tune_around;
+
+	amd_tuning_reset(host);
+
+	for (tune_around = 0; tune_around < 12; tune_around++) {
+		amd_config_tuning_phase(pdev, tune_around);
+
+		if (mmc_send_tuning(host->mmc, opcode, NULL)) {
+			valid_win = 0;
+			msleep(AMD_MSLEEP_DURATION);
+			ctrl = SDHCI_RESET_CMD | SDHCI_RESET_DATA;
+			sdhci_writeb(host, ctrl, SDHCI_SOFTWARE_RESET);
+		} else if (++valid_win > valid_win_max) {
+			valid_win_max = valid_win;
+			valid_win_end = tune_around;
+		}
+	}
+
+	if (!valid_win_max) {
+		dev_err(&pdev->dev, "no tuning point found\n");
+		return -EIO;
+	}
+
+	amd_config_tuning_phase(pdev, valid_win_end - valid_win_max / 2);
+
+	amd_enable_manual_tuning(pdev);
+
+	host->mmc->retune_period = 0;
+
+	return 0;
+}
+
 static int amd_probe(struct sdhci_pci_chip *chip)
 {
 	struct pci_dev	*smbus_dev;
@@ -887,16 +967,24 @@ static int amd_probe(struct sdhci_pci_chip *chip)
 		}
 	}
 
-	if ((gen == AMD_CHIPSET_BEFORE_ML) || (gen == AMD_CHIPSET_CZ)) {
+	if (gen == AMD_CHIPSET_BEFORE_ML || gen == AMD_CHIPSET_CZ)
 		chip->quirks2 |= SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD;
-		chip->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
-	}
 
 	return 0;
 }
 
+static const struct sdhci_ops amd_sdhci_pci_ops = {
+	.set_clock			= sdhci_set_clock,
+	.enable_dma			= sdhci_pci_enable_dma,
+	.set_bus_width			= sdhci_pci_set_bus_width,
+	.reset				= sdhci_reset,
+	.set_uhs_signaling		= sdhci_set_uhs_signaling,
+	.platform_execute_tuning	= amd_execute_tuning,
+};
+
 static const struct sdhci_pci_fixes sdhci_amd = {
 	.probe		= amd_probe,
+	.ops		= &amd_sdhci_pci_ops,
 };
 
 static const struct pci_device_id pci_ids[] = {
