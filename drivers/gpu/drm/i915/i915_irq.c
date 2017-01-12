@@ -2730,12 +2730,13 @@ static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  * i915_handle_error - handle a gpu error
  * @dev_priv: i915 device private
  * @engine_mask: mask representing engines that are hung
+ * @fmt: Error message format string
+ *
  * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
- * @fmt: Error message format string
  */
 void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,
