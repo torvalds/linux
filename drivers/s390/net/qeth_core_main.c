@@ -6116,6 +6116,11 @@ static int qeth_send_checksum_on(struct qeth_card *card, int cstype)
 		if ((required_features & chksum_cb.supported) !=
 		    required_features)
 			rc = -EIO;
+		else if (!(QETH_IPA_CHECKSUM_LP2LP & chksum_cb.supported) &&
+			 cstype == IPA_INBOUND_CHECKSUM)
+			dev_warn(&card->gdev->dev,
+				 "Hardware checksumming is performed only if %s and its peer use different OSA Express 3 ports\n",
+				 QETH_CARD_IFNAME(card));
 	}
 	if (rc) {
 		qeth_send_simple_setassparms(card, cstype, IPA_CMD_ASS_STOP, 0);
