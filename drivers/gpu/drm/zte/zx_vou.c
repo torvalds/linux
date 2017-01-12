@@ -158,6 +158,28 @@ struct zx_vou_hw {
 	struct zx_crtc *aux_crtc;
 };
 
+enum vou_inf_data_sel {
+	VOU_YUV444	= 0,
+	VOU_RGB_101010	= 1,
+	VOU_RGB_888	= 2,
+	VOU_RGB_666	= 3,
+};
+
+struct vou_inf {
+	enum vou_inf_id id;
+	enum vou_inf_data_sel data_sel;
+	u32 clocks_en_bits;
+	u32 clocks_sel_bits;
+};
+
+static struct vou_inf vou_infs[] = {
+	[VOU_HDMI] = {
+		.data_sel = VOU_YUV444,
+		.clocks_en_bits = BIT(24) | BIT(18) | BIT(6),
+		.clocks_sel_bits = BIT(13) | BIT(2),
+	},
+};
+
 static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
@@ -174,20 +196,21 @@ void vou_inf_hdmi_audio_sel(struct drm_crtc *crtc,
 	zx_writel_mask(vou->vouctl + VOU_INF_HDMI_CTRL, VOU_HDMI_AUD_MASK, aud);
 }
 
-void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc)
+void vou_inf_enable(enum vou_inf_id id, struct drm_crtc *crtc)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
+	struct vou_inf *inf = &vou_infs[id];
 	bool is_main = zcrtc->chn_type == VOU_CHN_MAIN;
-	u32 data_sel_shift = inf->id << 1;
+	u32 data_sel_shift = id << 1;
 
 	/* Select data format */
 	zx_writel_mask(vou->vouctl + VOU_INF_DATA_SEL, 0x3 << data_sel_shift,
 		       inf->data_sel << data_sel_shift);
 
 	/* Select channel */
-	zx_writel_mask(vou->vouctl + VOU_INF_CH_SEL, 0x1 << inf->id,
-		       zcrtc->chn_type << inf->id);
+	zx_writel_mask(vou->vouctl + VOU_INF_CH_SEL, 0x1 << id,
+		       zcrtc->chn_type << id);
 
 	/* Select interface clocks */
 	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, inf->clocks_sel_bits,
@@ -198,15 +221,16 @@ void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc)
 		       inf->clocks_en_bits);
 
 	/* Enable the device */
-	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << inf->id, 1 << inf->id);
+	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << id, 1 << id);
 }
 
-void vou_inf_disable(const struct vou_inf *inf, struct drm_crtc *crtc)
+void vou_inf_disable(enum vou_inf_id id, struct drm_crtc *crtc)
 {
 	struct zx_vou_hw *vou = crtc_to_vou(crtc);
+	struct vou_inf *inf = &vou_infs[id];
 
 	/* Disable the device */
-	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << inf->id, 0);
+	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << id, 0);
 
 	/* Disable interface clocks */
 	zx_writel_mask(vou->vouctl + VOU_CLK_EN, inf->clocks_en_bits, 0);

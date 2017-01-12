@@ -56,13 +56,6 @@ struct zx_hdmi {
 
 #define to_zx_hdmi(x) container_of(x, struct zx_hdmi, x)
 
-static const struct vou_inf vou_inf_hdmi = {
-	.id = VOU_HDMI,
-	.data_sel = VOU_YUV444,
-	.clocks_en_bits = BIT(24) | BIT(18) | BIT(6),
-	.clocks_sel_bits = BIT(13) | BIT(2),
-};
-
 static inline u8 hdmi_readb(struct zx_hdmi *hdmi, u16 offset)
 {
 	return readl_relaxed(hdmi->mmio + offset * 4);
@@ -241,14 +234,14 @@ static void zx_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	zx_hdmi_hw_enable(hdmi);
 
-	vou_inf_enable(hdmi->inf, encoder->crtc);
+	vou_inf_enable(VOU_HDMI, encoder->crtc);
 }
 
 static void zx_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct zx_hdmi *hdmi = to_zx_hdmi(encoder);
 
-	vou_inf_disable(hdmi->inf, encoder->crtc);
+	vou_inf_disable(VOU_HDMI, encoder->crtc);
 
 	zx_hdmi_hw_disable(hdmi);
 
@@ -662,7 +655,6 @@ static int zx_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi->dev = dev;
 	hdmi->drm = drm;
-	hdmi->inf = &vou_inf_hdmi;
 
 	dev_set_drvdata(dev, hdmi);
 
