@@ -191,7 +191,7 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		for_each_child_of_node(np, plat->mdio_node) {
 			if (of_device_is_compatible(plat->mdio_node,
 						    "snps,dwmac-mdio"))
-			break;
+				break;
 		}
 	}
 
