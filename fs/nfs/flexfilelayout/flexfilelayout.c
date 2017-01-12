@@ -2076,7 +2076,7 @@ ff_layout_free_layoutreturn(struct nfs4_xdr_opaque_data *args)
 	kfree(ff_args);
 }
 
-const struct nfs4_xdr_opaque_ops layoutreturn_ops = {
+static const struct nfs4_xdr_opaque_ops layoutreturn_ops = {
 	.encode = ff_layout_encode_layoutreturn,
 	.free = ff_layout_free_layoutreturn,
 };
