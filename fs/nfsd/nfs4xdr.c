@@ -58,7 +58,7 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
-u32 nfsd_suppattrs[3][3] = {
+const u32 nfsd_suppattrs[3][3] = {
 	{NFSD4_SUPPORTED_ATTRS_WORD0,
 	 NFSD4_SUPPORTED_ATTRS_WORD1,
 	 NFSD4_SUPPORTED_ATTRS_WORD2},
