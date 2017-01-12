@@ -1355,7 +1355,7 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	return ret < 0 ? ret : 0;
 }
 
-void release_crtc_commit(struct completion *completion)
+static void release_crtc_commit(struct completion *completion)
 {
 	struct drm_crtc_commit *commit = container_of(completion,
 						      typeof(*commit),
