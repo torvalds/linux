@@ -31,35 +31,9 @@
 #include <linux/mfd/syscon.h>
 #include <soc/at91/atmel-secumod.h>
 
+#include "sram.h"
+
 #define SRAM_GRANULARITY	32
-
-struct sram_partition {
-	void __iomem *base;
-
-	struct gen_pool *pool;
-	struct bin_attribute battr;
-	struct mutex lock;
-};
-
-struct sram_dev {
-	struct device *dev;
-	void __iomem *virt_base;
-
-	struct gen_pool *pool;
-	struct clk *clk;
-
-	struct sram_partition *partition;
-	u32 partitions;
-};
-
-struct sram_reserve {
-	struct list_head list;
-	u32 start;
-	u32 size;
-	bool export;
-	bool pool;
-	const char *label;
-};
 
 static ssize_t sram_read(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr,
