@@ -131,6 +131,7 @@ int octeon_mbox_write(struct octeon_device *oct,
 {
 	struct octeon_mbox *mbox = oct->mbox[mbox_cmd->q_no];
 	u32 count, i, ret = OCTEON_MBOX_STATUS_SUCCESS;
+	long timeout = LIO_MBOX_WRITE_WAIT_TIME;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mbox->lock, flags);
@@ -158,7 +159,7 @@ int octeon_mbox_write(struct octeon_device *oct,
 	count = 0;
 
 	while (readq(mbox->mbox_write_reg) != OCTEON_PFVFSIG) {
-		schedule_timeout_uninterruptible(LIO_MBOX_WRITE_WAIT_TIME);
+		schedule_timeout_uninterruptible(timeout);
 		if (count++ == LIO_MBOX_WRITE_WAIT_CNT) {
 			ret = OCTEON_MBOX_STATUS_FAILED;
 			break;
@@ -171,7 +172,7 @@ int octeon_mbox_write(struct octeon_device *oct,
 			count = 0;
 			while (readq(mbox->mbox_write_reg) !=
 			       OCTEON_PFVFACK) {
-				schedule_timeout_uninterruptible(10);
+				schedule_timeout_uninterruptible(timeout);
 				if (count++ == LIO_MBOX_WRITE_WAIT_CNT) {
 					ret = OCTEON_MBOX_STATUS_FAILED;
 					break;
