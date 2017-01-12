@@ -400,6 +400,8 @@ enum aux_misc_master1_en {
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
 #define SB_CPU_1_STATUS			0xA01E30
 #define SB_CPU_2_STATUS			0xA01E34
+#define UMAG_SB_CPU_1_STATUS		0xA038C0
+#define UMAG_SB_CPU_2_STATUS		0xA038C4
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
