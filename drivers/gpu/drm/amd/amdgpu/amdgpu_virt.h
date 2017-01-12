@@ -46,6 +46,9 @@ struct amdgpu_virt {
 	uint64_t			csa_vmid0_addr;
 	uint32_t			reg_val_offs;
 	struct mutex			lock;
+	struct amdgpu_irq_src		ack_irq;
+	struct amdgpu_irq_src		rcv_irq;
+	struct delayed_work		flr_work;
 	const struct amdgpu_virt_ops	*ops;
 };
 
