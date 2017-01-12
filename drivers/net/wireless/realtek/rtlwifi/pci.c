@@ -663,9 +663,11 @@ tx_status_ok:
 	}
 
 	if (((rtlpriv->link_info.num_rx_inperiod +
-	      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-	      (rtlpriv->link_info.num_rx_inperiod > 2))
-		rtl_lps_leave(hw);
+		rtlpriv->link_info.num_tx_inperiod) > 8) ||
+		(rtlpriv->link_info.num_rx_inperiod > 2)) {
+		rtlpriv->enter_ps = false;
+		schedule_work(&rtlpriv->works.lps_change_work);
+	}
 }
 
 static int _rtl_pci_init_one_rxdesc(struct ieee80211_hw *hw,
@@ -916,8 +918,10 @@ new_trx_end:
 		}
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		      (rtlpriv->link_info.num_rx_inperiod > 2))
-			rtl_lps_leave(hw);
+		      (rtlpriv->link_info.num_rx_inperiod > 2)) {
+			rtlpriv->enter_ps = false;
+			schedule_work(&rtlpriv->works.lps_change_work);
+		}
 		skb = new_skb;
 no_new:
 		if (rtlpriv->use_new_trx_flow) {

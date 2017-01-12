@@ -1150,8 +1150,10 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			mstatus = RT_MEDIA_DISCONNECT;
 
-			if (mac->link_state == MAC80211_LINKED)
-				rtl_lps_leave(hw);
+			if (mac->link_state == MAC80211_LINKED) {
+				rtlpriv->enter_ps = false;
+				schedule_work(&rtlpriv->works.lps_change_work);
+			}
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
@@ -1429,7 +1431,8 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
-		rtl_lps_leave(hw);
+		rtlpriv->enter_ps = false;
+		schedule_work(&rtlpriv->works.lps_change_work);
 		mac->link_state = MAC80211_LINKED_SCANNING;
 	} else {
 		rtl_ips_nic_on(hw);
