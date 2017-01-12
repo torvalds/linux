@@ -40,6 +40,7 @@ struct zx_crtc_regs {
 	u32 fir_active;
 	u32 fir_htiming;
 	u32 fir_vtiming;
+	u32 sec_vtiming;
 	u32 timing_shift;
 	u32 timing_pi_shift;
 };
@@ -48,6 +49,7 @@ static const struct zx_crtc_regs main_crtc_regs = {
 	.fir_active = FIR_MAIN_ACTIVE,
 	.fir_htiming = FIR_MAIN_H_TIMING,
 	.fir_vtiming = FIR_MAIN_V_TIMING,
+	.sec_vtiming = SEC_MAIN_V_TIMING,
 	.timing_shift = TIMING_MAIN_SHIFT,
 	.timing_pi_shift = TIMING_MAIN_PI_SHIFT,
 };
@@ -56,6 +58,7 @@ static const struct zx_crtc_regs aux_crtc_regs = {
 	.fir_active = FIR_AUX_ACTIVE,
 	.fir_htiming = FIR_AUX_H_TIMING,
 	.fir_vtiming = FIR_AUX_V_TIMING,
+	.sec_vtiming = SEC_AUX_V_TIMING,
 	.timing_shift = TIMING_AUX_SHIFT,
 	.timing_pi_shift = TIMING_AUX_PI_SHIFT,
 };
@@ -65,6 +68,10 @@ struct zx_crtc_bits {
 	u32 polarity_shift;
 	u32 int_frame_mask;
 	u32 tc_enable;
+	u32 sec_vactive_shift;
+	u32 sec_vactive_mask;
+	u32 interlace_select;
+	u32 pi_enable;
 };
 
 static const struct zx_crtc_bits main_crtc_bits = {
@@ -72,6 +79,10 @@ static const struct zx_crtc_bits main_crtc_bits = {
 	.polarity_shift = MAIN_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_MAIN_FRAME,
 	.tc_enable = MAIN_TC_EN,
+	.sec_vactive_shift = SEC_VACT_MAIN_SHIFT,
+	.sec_vactive_mask = SEC_VACT_MAIN_MASK,
+	.interlace_select = MAIN_INTERLACE_SEL,
+	.pi_enable = MAIN_PI_EN,
 };
 
 static const struct zx_crtc_bits aux_crtc_bits = {
@@ -79,6 +90,10 @@ static const struct zx_crtc_bits aux_crtc_bits = {
 	.polarity_shift = AUX_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_AUX_FRAME,
 	.tc_enable = AUX_TC_EN,
+	.sec_vactive_shift = SEC_VACT_AUX_SHIFT,
+	.sec_vactive_mask = SEC_VACT_AUX_MASK,
+	.interlace_select = AUX_INTERLACE_SEL,
+	.pi_enable = AUX_PI_EN,
 };
 
 struct zx_crtc {
@@ -205,11 +220,13 @@ static inline void vou_chn_set_update(struct zx_crtc *zcrtc)
 static void zx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
 	const struct zx_crtc_regs *regs = zcrtc->regs;
 	const struct zx_crtc_bits *bits = zcrtc->bits;
 	struct videomode vm;
+	u32 scan_mask;
 	u32 pol = 0;
 	u32 val;
 	int ret;
@@ -217,7 +234,7 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	drm_display_mode_to_videomode(mode, &vm);
 
 	/* Set up timing parameters */
-	val = V_ACTIVE(vm.vactive - 1);
+	val = V_ACTIVE((interlaced ? vm.vactive / 2 : vm.vactive) - 1);
 	val |= H_ACTIVE(vm.hactive - 1);
 	zx_writel(vou->timing + regs->fir_active, val);
 
@@ -231,6 +248,25 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	val |= FRONT_PORCH(vm.vfront_porch - 1);
 	zx_writel(vou->timing + regs->fir_vtiming, val);
 
+	if (interlaced) {
+		u32 shift = bits->sec_vactive_shift;
+		u32 mask = bits->sec_vactive_mask;
+
+		val = zx_readl(vou->timing + SEC_V_ACTIVE);
+		val &= ~mask;
+		val |= ((vm.vactive / 2 - 1) << shift) & mask;
+		zx_writel(vou->timing + SEC_V_ACTIVE, val);
+
+		val = SYNC_WIDE(vm.vsync_len - 1);
+		/*
+		 * The vback_porch for the second field needs to shift one on
+		 * the value for the first field.
+		 */
+		val |= BACK_PORCH(vm.vback_porch);
+		val |= FRONT_PORCH(vm.vfront_porch - 1);
+		zx_writel(vou->timing + regs->sec_vtiming, val);
+	}
+
 	/* Set up polarities */
 	if (vm.flags & DISPLAY_FLAGS_VSYNC_LOW)
 		pol |= 1 << POL_VSYNC_SHIFT;
@@ -241,8 +277,16 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 		       pol << bits->polarity_shift);
 
 	/* Setup SHIFT register by following what ZTE BSP does */
-	zx_writel(vou->timing + regs->timing_shift, H_SHIFT_VAL);
+	val = H_SHIFT_VAL;
+	if (interlaced)
+		val |= V_SHIFT_VAL << 16;
+	zx_writel(vou->timing + regs->timing_shift, val);
 	zx_writel(vou->timing + regs->timing_pi_shift, H_PI_SHIFT_VAL);
+
+	/* Progressive or interlace scan select */
+	scan_mask = bits->interlace_select | bits->pi_enable;
+	zx_writel_mask(vou->timing + SCAN_CTRL, scan_mask,
+		       interlaced ? scan_mask : 0);
 
 	/* Enable TIMING_CTRL */
 	zx_writel_mask(vou->timing + TIMING_TC_ENABLE, bits->tc_enable,
@@ -253,6 +297,10 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 		       vm.hactive << CHN_SCREEN_W_SHIFT);
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL1, CHN_SCREEN_H_MASK,
 		       vm.vactive << CHN_SCREEN_H_SHIFT);
+
+	/* Configure channel interlace buffer control */
+	zx_writel_mask(zcrtc->chnreg + CHN_INTERLACE_BUF_CTRL, CHN_INTERLACE_EN,
+		       interlaced ? CHN_INTERLACE_EN : 0);
 
 	/* Update channel */
 	vou_chn_set_update(zcrtc);
