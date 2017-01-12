@@ -149,3 +149,70 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 		DRM_ERROR("wait for kiq fence error: %ld.\n", r);
 	dma_fence_put(f);
 }
+
+/**
+ * amdgpu_virt_request_full_gpu() - request full gpu access
+ * @amdgpu:	amdgpu device.
+ * @init:	is driver init time.
+ * When start to init/fini driver, first need to request full gpu access.
+ * Return: Zero if request success, otherwise will return error.
+ */
+int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+	int r;
+
+	if (virt->ops && virt->ops->req_full_gpu) {
+		r = virt->ops->req_full_gpu(adev, init);
+		if (r)
+			return r;
+
+		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_virt_release_full_gpu() - release full gpu access
+ * @amdgpu:	amdgpu device.
+ * @init:	is driver init time.
+ * When finishing driver init/fini, need to release full gpu access.
+ * Return: Zero if release success, otherwise will returen error.
+ */
+int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+	int r;
+
+	if (virt->ops && virt->ops->rel_full_gpu) {
+		r = virt->ops->rel_full_gpu(adev, init);
+		if (r)
+			return r;
+
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_RUNTIME;
+	}
+	return 0;
+}
+
+/**
+ * amdgpu_virt_reset_gpu() - reset gpu
+ * @amdgpu:	amdgpu device.
+ * Send reset command to GPU hypervisor to reset GPU that VM is using
+ * Return: Zero if reset success, otherwise will return error.
+ */
+int amdgpu_virt_reset_gpu(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+	int r;
+
+	if (virt->ops && virt->ops->reset_gpu) {
+		r = virt->ops->reset_gpu(adev);
+		if (r)
+			return r;
+
+		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	}
+
+	return 0;
+}

@@ -30,13 +30,23 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+/**
+ * struct amdgpu_virt_ops - amdgpu device virt operations
+ */
+struct amdgpu_virt_ops {
+	int (*req_full_gpu)(struct amdgpu_device *adev, bool init);
+	int (*rel_full_gpu)(struct amdgpu_device *adev, bool init);
+	int (*reset_gpu)(struct amdgpu_device *adev);
+};
+
 /* GPU virtualization */
 struct amdgpu_virt {
-	uint32_t caps;
-	struct amdgpu_bo *csa_obj;
-	uint64_t csa_vmid0_addr;
-	uint32_t		reg_val_offs;
-	struct mutex		lock;
+	uint32_t			caps;
+	struct amdgpu_bo		*csa_obj;
+	uint64_t			csa_vmid0_addr;
+	uint32_t			reg_val_offs;
+	struct mutex			lock;
+	const struct amdgpu_virt_ops	*ops;
 };
 
 #define AMDGPU_CSA_SIZE    (8 * 1024)
@@ -72,5 +82,8 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
+int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
+int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
+int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);
 
 #endif
