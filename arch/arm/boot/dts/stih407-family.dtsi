@@ -20,11 +20,10 @@
 		#size-cells = <1>;
 		ranges;
 
-		gp0_reserved: rproc@40000000 {
+		gp0_reserved: rproc@45000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x40000000 0x01000000>;
+			reg = <0x45000000 0x00400000>;
 			no-map;
-			status = "disabled";
 		};
 
 		gp1_reserved: rproc@41000000 {
