@@ -26,9 +26,9 @@
 			no-map;
 		};
 
-		dmu_reserved: rproc@43000000 {
+		delta_reserved: rproc@44000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x43000000 0x01000000>;
+			reg = <0x44000000 0x01000000>;
 			no-map;
 		};
 	};
@@ -810,9 +810,9 @@
 			st,syscfg	= <&syscfg_core 0x22c>;
 		};
 
-		st231_dmu: remote-processor {
+		st231_delta: remote-processor {
 			compatible	= "st,st231-rproc";
-			memory-region	= <&dmu_reserved>;
+			memory-region	= <&delta_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
 			reset-names	= "sw_reset";
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
