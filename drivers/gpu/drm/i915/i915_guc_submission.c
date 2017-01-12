@@ -579,9 +579,6 @@ static struct i915_vma *guc_allocate_vma(struct intel_guc *guc, u32 size)
 		goto err;
 	}
 
-	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
-	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-
 	return vma;
 
 err:

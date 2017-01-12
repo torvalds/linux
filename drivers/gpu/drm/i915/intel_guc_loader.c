@@ -367,9 +367,6 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return PTR_ERR(vma);
 	}
 
-	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
-	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* init WOPCM */
@@ -487,6 +484,9 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 	guc_interrupts_release(dev_priv);
 	gen9_reset_guc_interrupts(dev_priv);
 
+	/* We need to notify the guc whenever we change the GGTT */
+	i915_ggtt_enable_guc(dev_priv);
+
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
@@ -548,6 +548,7 @@ fail:
 	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
+	i915_ggtt_disable_guc(dev_priv);
 
 	/*
 	 * We've failed to load the firmware :(

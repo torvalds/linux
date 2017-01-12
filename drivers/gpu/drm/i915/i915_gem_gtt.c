@@ -110,6 +110,30 @@ const struct i915_ggtt_view i915_ggtt_view_rotated = {
 	.type = I915_GGTT_VIEW_ROTATED,
 };
 
+static void gen6_ggtt_invalidate(struct drm_i915_private *dev_priv)
+{
+	/* Note that as an uncached mmio write, this should flush the
+	 * WCB of the writes into the GGTT before it triggers the invalidate.
+	 */
+	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+}
+
+static void guc_ggtt_invalidate(struct drm_i915_private *dev_priv)
+{
+	gen6_ggtt_invalidate(dev_priv);
+	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
+}
+
+static void gmch_ggtt_invalidate(struct drm_i915_private *dev_priv)
+{
+	intel_gtt_chipset_flush();
+}
+
+static inline void i915_ggtt_invalidate(struct drm_i915_private *i915)
+{
+	i915->ggtt.invalidate(i915);
+}
+
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 			       	int enable_ppgtt)
 {
@@ -2307,16 +2331,6 @@ void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
 }
 
-static void i915_ggtt_flush(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_INFO(dev_priv)->gen < 6) {
-		intel_gtt_chipset_flush();
-	} else {
-		I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-		POSTING_READ(GFX_FLSH_CNTL_GEN6);
-	}
-}
-
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
@@ -2331,7 +2345,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 
 	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total);
 
-	i915_ggtt_flush(dev_priv);
+	i915_ggtt_invalidate(dev_priv);
 }
 
 int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
@@ -2370,15 +2384,13 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 				  enum i915_cache_level level,
 				  u32 unused)
 {
-	struct drm_i915_private *dev_priv = vm->i915;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen8_pte_t __iomem *pte =
-		(gen8_pte_t __iomem *)dev_priv->ggtt.gsm +
-		(offset >> PAGE_SHIFT);
+		(gen8_pte_t __iomem *)ggtt->gsm + (offset >> PAGE_SHIFT);
 
 	gen8_set_pte(pte, gen8_pte_encode(addr, level));
 
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+	ggtt->invalidate(vm->i915);
 }
 
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
@@ -2386,7 +2398,6 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level level, u32 unused)
 {
-	struct drm_i915_private *dev_priv = vm->i915;
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct sgt_iter sgt_iter;
 	gen8_pte_t __iomem *gtt_entries;
@@ -2415,8 +2426,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 * want to flush the TLBs only after we're certain all the PTE updates
 	 * have finished.
 	 */
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+	ggtt->invalidate(vm->i915);
 }
 
 struct insert_entries {
@@ -2451,15 +2461,13 @@ static void gen6_ggtt_insert_page(struct i915_address_space *vm,
 				  enum i915_cache_level level,
 				  u32 flags)
 {
-	struct drm_i915_private *dev_priv = vm->i915;
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *pte =
-		(gen6_pte_t __iomem *)dev_priv->ggtt.gsm +
-		(offset >> PAGE_SHIFT);
+		(gen6_pte_t __iomem *)ggtt->gsm + (offset >> PAGE_SHIFT);
 
 	iowrite32(vm->pte_encode(addr, level, flags), pte);
 
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+	ggtt->invalidate(vm->i915);
 }
 
 /*
@@ -2473,7 +2481,6 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level level, u32 flags)
 {
-	struct drm_i915_private *dev_priv = vm->i915;
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	struct sgt_iter sgt_iter;
 	gen6_pte_t __iomem *gtt_entries;
@@ -2501,8 +2508,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 * want to flush the TLBs only after we're certain all the PTE updates
 	 * have finished.
 	 */
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+	ggtt->invalidate(vm->i915);
 }
 
 static void nop_clear_range(struct i915_address_space *vm,
@@ -3062,6 +3068,8 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	if (IS_CHERRYVIEW(dev_priv))
 		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
 
+	ggtt->invalidate = gen6_ggtt_invalidate;
+
 	return ggtt_probe_common(ggtt, size);
 }
 
@@ -3098,6 +3106,8 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
 	ggtt->base.cleanup = gen6_gmch_remove;
+
+	ggtt->invalidate = gen6_ggtt_invalidate;
 
 	if (HAS_EDRAM(dev_priv))
 		ggtt->base.pte_encode = iris_pte_encode;
@@ -3141,6 +3151,8 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
 	ggtt->base.cleanup = i915_gmch_remove;
+
+	ggtt->invalidate = gmch_ggtt_invalidate;
 
 	if (unlikely(ggtt->do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
@@ -3260,6 +3272,16 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+void i915_ggtt_enable_guc(struct drm_i915_private *i915)
+{
+	i915->ggtt.invalidate = guc_ggtt_invalidate;
+}
+
+void i915_ggtt_disable_guc(struct drm_i915_private *i915)
+{
+	i915->ggtt.invalidate = gen6_ggtt_invalidate;
+}
+
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
@@ -3323,7 +3345,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	i915_ggtt_flush(dev_priv);
+	i915_ggtt_invalidate(dev_priv);
 }
 
 struct i915_vma *

@@ -811,12 +811,6 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 
 	ce->state->obj->mm.dirty = true;
 
-	/* Invalidate GuC TLB. */
-	if (i915.enable_guc_submission) {
-		struct drm_i915_private *dev_priv = ctx->i915;
-		I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-	}
-
 	i915_gem_context_get(ctx);
 	return 0;
 
