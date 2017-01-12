@@ -3579,16 +3579,16 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 
 /**
  * i915_gem_gtt_reserve - reserve a node in an address_space (GTT)
- * @vm - the &struct i915_address_space
- * @node - the &struct drm_mm_node (typically i915_vma.mode)
- * @size - how much space to allocate inside the GTT,
- *         must be #I915_GTT_PAGE_SIZE aligned
- * @offset - where to insert inside the GTT,
- *           must be #I915_GTT_MIN_ALIGNMENT aligned, and the node
- *           (@offset + @size) must fit within the address space
- * @color - color to apply to node, if this node is not from a VMA,
- *          color must be #I915_COLOR_UNEVICTABLE
- * @flags - control search and eviction behaviour
+ * @vm: the &struct i915_address_space
+ * @node: the &struct drm_mm_node (typically i915_vma.mode)
+ * @size: how much space to allocate inside the GTT,
+ *        must be #I915_GTT_PAGE_SIZE aligned
+ * @offset: where to insert inside the GTT,
+ *          must be #I915_GTT_MIN_ALIGNMENT aligned, and the node
+ *          (@offset + @size) must fit within the address space
+ * @color: color to apply to node, if this node is not from a VMA,
+ *         color must be #I915_COLOR_UNEVICTABLE
+ * @flags: control search and eviction behaviour
  *
  * i915_gem_gtt_reserve() tries to insert the @node at the exact @offset inside
  * the address space (using @size and @color). If the @node does not fit, it
@@ -3656,19 +3656,19 @@ static u64 random_offset(u64 start, u64 end, u64 len, u64 align)
 
 /**
  * i915_gem_gtt_insert - insert a node into an address_space (GTT)
- * @vm - the &struct i915_address_space
- * @node - the &struct drm_mm_node (typically i915_vma.node)
- * @size - how much space to allocate inside the GTT,
+ * @vm: the &struct i915_address_space
+ * @node: the &struct drm_mm_node (typically i915_vma.node)
+ * @size: how much space to allocate inside the GTT,
+ *        must be #I915_GTT_PAGE_SIZE aligned
+ * @alignment: required alignment of starting offset, may be 0 but
+ *             if specified, this must be a power-of-two and at least
+ *             #I915_GTT_MIN_ALIGNMENT
+ * @color: color to apply to node
+ * @start: start of any range restriction inside GTT (0 for all),
  *         must be #I915_GTT_PAGE_SIZE aligned
- * @alignment - required alignment of starting offset, may be 0 but
- *              if specified, this must be a power-of-two and at least
- *              #I915_GTT_MIN_ALIGNMENT
- * @color - color to apply to node
- * @start - start of any range restriction inside GTT (0 for all),
- *          must be #I915_GTT_PAGE_SIZE aligned
- * @end - end of any range restriction inside GTT (U64_MAX for all),
- *        must be #I915_GTT_PAGE_SIZE aligned if not U64_MAX
- * @flags - control search and eviction behaviour
+ * @end: end of any range restriction inside GTT (U64_MAX for all),
+ *       must be #I915_GTT_PAGE_SIZE aligned if not U64_MAX
+ * @flags: control search and eviction behaviour
  *
  * i915_gem_gtt_insert() first searches for an available hole into which
  * is can insert the node. The hole address is aligned to @alignment and
