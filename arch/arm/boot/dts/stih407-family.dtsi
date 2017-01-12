@@ -33,12 +33,6 @@
 			status = "disabled";
 		};
 
-		audio_reserved: rproc@42000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x42000000 0x01000000>;
-			no-map;
-			status = "disabled";
-		};
 
 		dmu_reserved: rproc@43000000 {
 			compatible = "shared-dma-pool";
@@ -833,16 +827,6 @@
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_1>;
 			clock-frequency = <600000000>;
 			st,syscfg	= <&syscfg_core 0x220>;
-		};
-
-		st231_audio: remote-processor {
-			compatible	= "st,st231-rproc";
-			memory-region	= <&audio_reserved>;
-			resets		= <&softreset STIH407_ST231_AUD_SOFTRESET>;
-			reset-names	= "sw_reset";
-			clocks		= <&clk_s_c0_flexgen CLK_ST231_AUD_0>;
-			clock-frequency	= <600000000>;
-			st,syscfg	= <&syscfg_core 0x228>;
 		};
 
 		st231_dmu: remote-processor {
