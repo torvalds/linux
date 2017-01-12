@@ -71,6 +71,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
@@ -128,6 +129,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
+				eeprom-length = <512>;
 
 				ports {
 					#address-cells = <1>;
