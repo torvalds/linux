@@ -4018,7 +4018,7 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 							GPIOD_OUT_HIGH);
 
 	/* Sleep for 300 ms miniumum */
-	usleep_range(300000, 350000);
+	msleep(300);
 
 	rt5659->regmap = devm_regmap_init_i2c(i2c, &rt5659_regmap);
 	if (IS_ERR(rt5659->regmap)) {
