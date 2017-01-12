@@ -1099,6 +1099,26 @@
 		status = "disabled";
 	};
 
+	cif_isp0: cif_isp@ff910000 {
+		compatible = "rockchip,rk3288-cif-isp";
+		rockchip,grf = <&grf>;
+		reg = <0xff910000 0x10000>, <0xff968000 0x4000>;
+		reg-names = "register", "csihost-register";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			<&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>,
+			<&cru PCLK_MIPI_CSI>, <&cru PCLK_ISP_IN>,
+			<&cru SCLK_MIPIDSI_24M>;
+		clock-names = "aclk_isp", "hclk_isp",
+			"sclk_isp", "sclk_isp_jpe",
+			"pclk_mipi_csi", "pclk_isp_in",
+			"sclk_mipidsi_24m";
+		resets = <&cru SRST_ISP>;
+		reset-names = "rst_isp";
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_isp10_irq";
+		status = "disabled";
+	};
+
 	rga: rga@ff920000 {
 		compatible = "rockchip,rk3288-rga";
 		reg = <0xff920000 0x180>;
@@ -1330,64 +1350,6 @@
 		};
 	};
 
-	gpu: gpu@ffa30000 {
-		compatible = "arm,malit764",
-			     "arm,malit76x",
-			     "arm,malit7xx",
-			     "arm,mali-midgard";
-		reg = <0xffa30000 0x10000>;
-		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "JOB", "MMU", "GPU";
-		clocks = <&cru ACLK_GPU>;
-		clock-names = "clk_mali";
-		operating-points-v2 = <&gpu_opp_table>;
-		#cooling-cells = <2>; /* min followed by max */
-		power-domains = <&power RK3288_PD_GPU>;
-		status = "disabled";
-
-		gpu_power_model: power_model {
-			compatible = "arm,mali-simple-power-model";
-			voltage = <950>;
-			frequency = <500>;
-			static-power = <300>;
-			dynamic-power = <396>;
-			ts = <32000 4700 (-80) 2>;
-			thermal-zone = "gpu_thermal";
-		};
-	};
-
-	gpu_opp_table: opp-table1 {
-		compatible = "operating-points-v2";
-
-		opp@100000000 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <950000>;
-		};
-		opp@200000000 {
-			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <950000>;
-		};
-		opp@300000000 {
-			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <1000000>;
-		};
-		opp@400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1100000>;
-		};
-		opp@600000000 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1250000>;
-		};
-	};
-
-	noc: syscon@ffac0000 {
-		compatible = "rockchip,rk3288-noc", "syscon";
-		reg = <0xffac0000 0x2000>;
-	};
-
 	vpu: video-codec@ff9a0000 {
 		compatible = "rockchip,rk3288-vpu";
 		reg = <0xff9a0000 0x800>;
@@ -1473,17 +1435,62 @@
 		#iommu-cells = <0>;
 	};
 
-	gic: interrupt-controller@ffc01000 {
-		compatible = "arm,gic-400";
-		interrupt-controller;
-		#interrupt-cells = <3>;
-		#address-cells = <0>;
+	gpu: gpu@ffa30000 {
+		compatible = "arm,malit764",
+			     "arm,malit76x",
+			     "arm,malit7xx",
+			     "arm,mali-midgard";
+		reg = <0xffa30000 0x10000>;
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
+		operating-points-v2 = <&gpu_opp_table>;
+		#cooling-cells = <2>; /* min followed by max */
+		power-domains = <&power RK3288_PD_GPU>;
+		status = "disabled";
 
-		reg = <0xffc01000 0x1000>,
-		      <0xffc02000 0x1000>,
-		      <0xffc04000 0x2000>,
-		      <0xffc06000 0x2000>;
-		interrupts = <GIC_PPI 9 0xf04>;
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <950>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu_thermal";
+		};
+	};
+
+	gpu_opp_table: opp-table1 {
+		compatible = "operating-points-v2";
+
+		opp@100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <950000>;
+		};
+		opp@200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp@300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp@400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1250000>;
+		};
+	};
+
+	noc: syscon@ffac0000 {
+		compatible = "rockchip,rk3288-noc", "syscon";
+		reg = <0xffac0000 0x2000>;
 	};
 
 	efuse: efuse@ffb40000 {
@@ -1499,24 +1506,17 @@
 		};
 	};
 
-	cif_isp0: cif_isp@ff910000 {
-		compatible = "rockchip,rk3288-cif-isp";
-		rockchip,grf = <&grf>;
-		reg = <0xff910000 0x10000>, <0xff968000 0x4000>;
-		reg-names = "register", "csihost-register";
-		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
-			<&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>,
-			<&cru PCLK_MIPI_CSI>, <&cru PCLK_ISP_IN>,
-			<&cru SCLK_MIPIDSI_24M>;
-		clock-names = "aclk_isp", "hclk_isp",
-			"sclk_isp", "sclk_isp_jpe",
-			"pclk_mipi_csi", "pclk_isp_in",
-			"sclk_mipidsi_24m";
-		resets = <&cru SRST_ISP>;
-		reset-names = "rst_isp";
-		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "cif_isp10_irq";
-		status = "disabled";
+	gic: interrupt-controller@ffc01000 {
+		compatible = "arm,gic-400";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+
+		reg = <0xffc01000 0x1000>,
+		      <0xffc02000 0x1000>,
+		      <0xffc04000 0x2000>,
+		      <0xffc06000 0x2000>;
+		interrupts = <GIC_PPI 9 0xf04>;
 	};
 
 	pinctrl: pinctrl {
