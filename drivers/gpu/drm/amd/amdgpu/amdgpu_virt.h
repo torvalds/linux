@@ -28,6 +28,7 @@
 #define AMDGPU_SRIOV_CAPS_ENABLE_IOV   (1 << 1) /* sr-iov is enabled on this GPU */
 #define AMDGPU_SRIOV_CAPS_IS_VF        (1 << 2) /* this GPU is a virtual function */
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
+#define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
 /* GPU virtualization */
 struct amdgpu_virt {
@@ -48,6 +49,9 @@ struct amdgpu_virt {
 
 #define amdgpu_sriov_bios(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_SRIOV_VBIOS)
+
+#define amdgpu_sriov_runtime(adev) \
+((adev)->virt.caps & AMDGPU_SRIOV_CAPS_RUNTIME)
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
