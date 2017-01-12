@@ -123,10 +123,7 @@ static LIST_HEAD(ab8500_btemp_list);
  */
 struct ab8500_btemp *ab8500_btemp_get(void)
 {
-	struct ab8500_btemp *btemp;
-	btemp = list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
-
-	return btemp;
+	return list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
 }
 EXPORT_SYMBOL(ab8500_btemp_get);
 
@@ -470,7 +467,7 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
 static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
 	const struct abx500_res_to_temp *tbl, int tbl_size, int res)
 {
-	int i, temp;
+	int i;
 	/*
 	 * Calculate the formula for the straight line
 	 * Simple interpolation if we are within
@@ -488,9 +485,8 @@ static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
 			i++;
 	}
 
-	temp = tbl[i].temp + ((tbl[i + 1].temp - tbl[i].temp) *
+	return tbl[i].temp + ((tbl[i + 1].temp - tbl[i].temp) *
 		(res - tbl[i].resist)) / (tbl[i + 1].resist - tbl[i].resist);
-	return temp;
 }
 
 /**
