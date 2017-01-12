@@ -2967,7 +2967,7 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
 			    TXSTS_QSPCAVAIL_SHIFT;
 		if (qspcavail == 0) {
-			no_queue_space = 1;
+			no_queue_space = true;
 			break;
 		}
 
@@ -2996,7 +2996,7 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 		if (status < 0) {
-			no_fifo_space = 1;
+			no_fifo_space = true;
 			break;
 		}
 
@@ -3296,7 +3296,7 @@ static void dwc2_wakeup_detected(unsigned long data)
 		dwc2_readl(hsotg->regs + HPRT0));
 
 	dwc2_hcd_rem_wakeup(hsotg);
-	hsotg->bus_suspended = 0;
+	hsotg->bus_suspended = false;
 
 	/* Change to L0 state */
 	hsotg->lx_state = DWC2_L0;
@@ -3332,7 +3332,7 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 	hprt0 |= HPRT0_SUSP;
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
 
-	hsotg->bus_suspended = 1;
+	hsotg->bus_suspended = true;
 
 	/*
 	 * If hibernation is supported, Phy clock will be suspended
@@ -3394,7 +3394,7 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 	hprt0 = dwc2_read_hprt0(hsotg);
 	hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
-	hsotg->bus_suspended = 0;
+	hsotg->bus_suspended = false;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
@@ -5000,7 +5000,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	    hsotg->dev->dma_mask == NULL) {
 		dev_warn(hsotg->dev,
 			 "dma_mask not set, disabling DMA\n");
-		hsotg->params.host_dma = 0;
+		hsotg->params.host_dma = false;
 		hsotg->params.dma_desc_enable = 0;
 	}
 
