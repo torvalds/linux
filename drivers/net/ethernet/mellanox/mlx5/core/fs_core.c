@@ -1822,7 +1822,7 @@ static int create_anchor_flow_table(struct mlx5_flow_steering *steering)
 	struct mlx5_flow_table *ft;
 
 	ns = mlx5_get_flow_namespace(steering->dev, MLX5_FLOW_NAMESPACE_ANCHOR);
-	if (!ns)
+	if (WARN_ON(!ns))
 		return -EINVAL;
 	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE, ANCHOR_LEVEL, 0);
 	if (IS_ERR(ft)) {
