@@ -3169,7 +3169,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	/* keep other bits untouched (so e.g. forced modes are not lost) */
 	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
 	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
-		GUSBCFG_HNPCAP);
+		GUSBCFG_HNPCAP | GUSBCFG_USBTRDTIM_MASK);
 
 	if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
 	    (hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
@@ -4123,7 +4123,7 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 	/* keep other bits untouched (so e.g. forced modes are not lost) */
 	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
 	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
-		GUSBCFG_HNPCAP);
+		GUSBCFG_HNPCAP | GUSBCFG_USBTRDTIM_MASK);
 
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
