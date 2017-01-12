@@ -1042,7 +1042,6 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 	ext4_update_dx_flag(dir);
 	dir->i_version++;
-	ext4_mark_inode_dirty(handle, dir);
 	return 1;
 }
 
@@ -1311,8 +1310,8 @@ int ext4_try_add_inline_entry(handle_t *handle, struct ext4_filename *fname,
 	ret = ext4_convert_inline_data_nolock(handle, dir, &iloc);
 
 out:
-	ext4_mark_inode_dirty(handle, dir);
 	ext4_write_unlock_xattr(dir, &no_expand);
+	ext4_mark_inode_dirty(handle, dir);
 	brelse(iloc.bh);
 	return ret;
 }
@@ -1708,13 +1707,11 @@ int ext4_delete_inline_entry(handle_t *handle,
 	if (err)
 		goto out;
 
-	err = ext4_mark_inode_dirty(handle, dir);
-	if (unlikely(err))
-		goto out;
-
 	ext4_show_inline_dir(dir, iloc.bh, inline_start, inline_size);
 out:
 	ext4_write_unlock_xattr(dir, &no_expand);
+	if (likely(err == 0))
+		err = ext4_mark_inode_dirty(handle, dir);
 	brelse(iloc.bh);
 	if (err != -ENOENT)
 		ext4_std_error(dir->i_sb, err);
