@@ -692,8 +692,10 @@ static int pm_genpd_prepare(struct device *dev)
 
 	mutex_lock(&genpd->lock);
 
-	if (genpd->prepared_count++ == 0)
+	if (genpd->prepared_count++ == 0) {
 		genpd->suspended_count = 0;
+		genpd->suspend_power_off = genpd->status == GPD_STATE_POWER_OFF;
+	}
 
 	mutex_unlock(&genpd->lock);
 
@@ -726,7 +728,8 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev))
+	if (genpd->suspend_power_off ||
+	    (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
 	/*
@@ -756,7 +759,8 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev))
+	if (genpd->suspend_power_off ||
+	    (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
 	/*
