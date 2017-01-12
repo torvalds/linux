@@ -2784,13 +2784,21 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
-	sdkp->zoned = (buffer[8] >> 4) & 3;
-	if (sdkp->zoned == 1)
-		q->limits.zoned = BLK_ZONED_HA;
-	else if (sdkp->device->type == TYPE_ZBC)
+	if (sdkp->device->type == TYPE_ZBC) {
+		/* Host-managed */
 		q->limits.zoned = BLK_ZONED_HM;
-	else
-		q->limits.zoned = BLK_ZONED_NONE;
+	} else {
+		sdkp->zoned = (buffer[8] >> 4) & 3;
+		if (sdkp->zoned == 1)
+			/* Host-aware */
+			q->limits.zoned = BLK_ZONED_HA;
+		else
+			/*
+			 * Treat drive-managed devices as
+			 * regular block devices.
+			 */
+			q->limits.zoned = BLK_ZONED_NONE;
+	}
 	if (blk_queue_is_zoned(q) && sdkp->first_scan)
 		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
 		      q->limits.zoned == BLK_ZONED_HM ? "managed" : "aware");
