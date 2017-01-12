@@ -302,26 +302,57 @@ static int n2rng_try_read_ctl(struct n2rng *np)
 	return n2rng_hv_err_trans(hv_err);
 }
 
-#define CONTROL_DEFAULT_BASE		\
-	((2 << RNG_CTL_ASEL_SHIFT) |	\
-	 (N2RNG_ACCUM_CYCLES_DEFAULT << RNG_CTL_WAIT_SHIFT) |	\
-	 RNG_CTL_LFSR)
+static u64 n2rng_control_default(struct n2rng *np, int ctl)
+{
+	u64 val = 0;
 
-#define CONTROL_DEFAULT_0		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (1 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES1)
-#define CONTROL_DEFAULT_1		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (2 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES2)
-#define CONTROL_DEFAULT_2		\
-	(CONTROL_DEFAULT_BASE |		\
-	 (3 << RNG_CTL_VCO_SHIFT) |	\
-	 RNG_CTL_ES3)
-#define CONTROL_DEFAULT_3		\
-	(CONTROL_DEFAULT_BASE |		\
-	 RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3)
+	if (np->data->chip_version == 1) {
+		val = ((2 << RNG_v1_CTL_ASEL_SHIFT) |
+			(N2RNG_ACCUM_CYCLES_DEFAULT << RNG_v1_CTL_WAIT_SHIFT) |
+			 RNG_CTL_LFSR);
+
+		switch (ctl) {
+		case 0:
+			val |= (1 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES1;
+			break;
+		case 1:
+			val |= (2 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES2;
+			break;
+		case 2:
+			val |= (3 << RNG_v1_CTL_VCO_SHIFT) | RNG_CTL_ES3;
+			break;
+		case 3:
+			val |= RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3;
+			break;
+		default:
+			break;
+		}
+
+	} else {
+		val = ((2 << RNG_v2_CTL_ASEL_SHIFT) |
+			(N2RNG_ACCUM_CYCLES_DEFAULT << RNG_v2_CTL_WAIT_SHIFT) |
+			 RNG_CTL_LFSR);
+
+		switch (ctl) {
+		case 0:
+			val |= (1 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES1;
+			break;
+		case 1:
+			val |= (2 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES2;
+			break;
+		case 2:
+			val |= (3 << RNG_v2_CTL_VCO_SHIFT) | RNG_CTL_ES3;
+			break;
+		case 3:
+			val |= RNG_CTL_ES1 | RNG_CTL_ES2 | RNG_CTL_ES3;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return val;
+}
 
 static void n2rng_control_swstate_init(struct n2rng *np)
 {
@@ -336,10 +367,10 @@ static void n2rng_control_swstate_init(struct n2rng *np)
 	for (i = 0; i < np->num_units; i++) {
 		struct n2rng_unit *up = &np->units[i];
 
-		up->control[0] = CONTROL_DEFAULT_0;
-		up->control[1] = CONTROL_DEFAULT_1;
-		up->control[2] = CONTROL_DEFAULT_2;
-		up->control[3] = CONTROL_DEFAULT_3;
+		up->control[0] = n2rng_control_default(np, 0);
+		up->control[1] = n2rng_control_default(np, 1);
+		up->control[2] = n2rng_control_default(np, 2);
+		up->control[3] = n2rng_control_default(np, 3);
 	}
 
 	np->hv_state = HV_RNG_STATE_UNCONFIGURED;
@@ -399,6 +430,7 @@ static int n2rng_data_read(struct hwrng *rng, u32 *data)
 	} else {
 		int err = n2rng_generic_read_data(ra);
 		if (!err) {
+			np->flags |= N2RNG_FLAG_BUFFER_VALID;
 			np->buffer = np->test_data >> 32;
 			*data = np->test_data & 0xffffffff;
 			len = 4;
@@ -487,8 +519,20 @@ static void n2rng_dump_test_buffer(struct n2rng *np)
 
 static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 {
-	u64 val = SELFTEST_VAL;
+	u64 val;
 	int err, matches, limit;
+
+	switch (np->data->id) {
+	case N2_n2_rng:
+	case N2_vf_rng:
+	case N2_kt_rng:
+	case N2_m4_rng:  /* yes, m4 uses the old value */
+		val = RNG_v1_SELFTEST_VAL;
+		break;
+	default:
+		val = RNG_v2_SELFTEST_VAL;
+		break;
+	}
 
 	matches = 0;
 	for (limit = 0; limit < SELFTEST_LOOPS_MAX; limit++) {
@@ -512,14 +556,32 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 static int n2rng_control_selftest(struct n2rng *np, unsigned long unit)
 {
 	int err;
+	u64 base, base3;
 
-	np->test_control[0] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[1] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[2] = (0x2 << RNG_CTL_ASEL_SHIFT);
-	np->test_control[3] = ((0x2 << RNG_CTL_ASEL_SHIFT) |
-			       RNG_CTL_LFSR |
-			       ((SELFTEST_TICKS - 2) << RNG_CTL_WAIT_SHIFT));
+	switch (np->data->id) {
+	case N2_n2_rng:
+	case N2_vf_rng:
+	case N2_kt_rng:
+		base = RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v1_CTL_WAIT_SHIFT);
+		break;
+	case N2_m4_rng:
+		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v2_CTL_WAIT_SHIFT);
+		break;
+	default:
+		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base3 = base | RNG_CTL_LFSR |
+			(RNG_v2_SELFTEST_TICKS << RNG_v2_CTL_WAIT_SHIFT);
+		break;
+	}
 
+	np->test_control[0] = base;
+	np->test_control[1] = base;
+	np->test_control[2] = base;
+	np->test_control[3] = base3;
 
 	err = n2rng_entropy_diag_read(np, unit, np->test_control,
 				      HV_RNG_STATE_HEALTHCHECK,
@@ -557,11 +619,19 @@ static int n2rng_control_configure_units(struct n2rng *np)
 		struct n2rng_unit *up = &np->units[unit];
 		unsigned long ctl_ra = __pa(&up->control[0]);
 		int esrc;
-		u64 base;
+		u64 base, shift;
 
-		base = ((np->accum_cycles << RNG_CTL_WAIT_SHIFT) |
-			(2 << RNG_CTL_ASEL_SHIFT) |
-			RNG_CTL_LFSR);
+		if (np->data->chip_version == 1) {
+			base = ((np->accum_cycles << RNG_v1_CTL_WAIT_SHIFT) |
+			      (RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT) |
+			      RNG_CTL_LFSR);
+			shift = RNG_v1_CTL_VCO_SHIFT;
+		} else {
+			base = ((np->accum_cycles << RNG_v2_CTL_WAIT_SHIFT) |
+			      (RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT) |
+			      RNG_CTL_LFSR);
+			shift = RNG_v2_CTL_VCO_SHIFT;
+		}
 
 		/* XXX This isn't the best.  We should fetch a bunch
 		 * XXX of words using each entropy source combined XXX
@@ -570,7 +640,7 @@ static int n2rng_control_configure_units(struct n2rng *np)
 		 */
 		for (esrc = 0; esrc < 3; esrc++)
 			up->control[esrc] = base |
-				(esrc << RNG_CTL_VCO_SHIFT) |
+				(esrc << shift) |
 				(RNG_CTL_ES1 << esrc);
 
 		up->control[3] = base |
