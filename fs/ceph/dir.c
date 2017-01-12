@@ -1255,7 +1255,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		struct ceph_mds_client *mdsc =
 			ceph_sb_to_client(dir->i_sb)->mdsc;
 		struct ceph_mds_request *req;
-		int op, mask, err;
+		int op, err;
+		u32 mask;
 
 		if (flags & LOOKUP_RCU)
 			return -ECHILD;
@@ -1270,7 +1271,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 			mask = CEPH_STAT_CAP_INODE | CEPH_CAP_AUTH_SHARED;
 			if (ceph_security_xattr_wanted(dir))
 				mask |= CEPH_CAP_XATTR_SHARED;
-			req->r_args.getattr.mask = mask;
+			req->r_args.getattr.mask = cpu_to_le32(mask);
 
 			err = ceph_mdsc_do_request(mdsc, NULL, req);
 			switch (err) {
