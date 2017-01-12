@@ -314,6 +314,7 @@ struct ath10k_peer {
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 
+	bool removed;
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	DECLARE_BITMAP(peer_ids, ATH10K_MAX_NUM_PEER_IDS);

@@ -3805,6 +3805,9 @@ struct ieee80211_txq *ath10k_mac_txq_lookup(struct ath10k *ar,
 	if (!peer)
 		return NULL;
 
+	if (peer->removed)
+		return NULL;
+
 	if (peer->sta)
 		return peer->sta->txq[tid];
 	else if (peer->vif)
@@ -7517,6 +7520,20 @@ ath10k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void ath10k_mac_op_sta_pre_rcu_remove(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif,
+					     struct ieee80211_sta *sta)
+{
+	struct ath10k *ar;
+	struct ath10k_peer *peer;
+
+	ar = hw->priv;
+
+	list_for_each_entry(peer, &ar->peers, list)
+		if (peer->sta == sta)
+			peer->removed = true;
+}
+
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_mac_op_tx,
 	.wake_tx_queue			= ath10k_mac_op_wake_tx_queue,
@@ -7557,6 +7574,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.assign_vif_chanctx		= ath10k_mac_op_assign_vif_chanctx,
 	.unassign_vif_chanctx		= ath10k_mac_op_unassign_vif_chanctx,
 	.switch_vif_chanctx		= ath10k_mac_op_switch_vif_chanctx,
+	.sta_pre_rcu_remove		= ath10k_mac_op_sta_pre_rcu_remove,
 
 	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
 
