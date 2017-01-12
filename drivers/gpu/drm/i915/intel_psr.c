@@ -261,7 +261,7 @@ static void vlv_psr_activate(struct intel_dp *intel_dp)
 		   VLV_EDP_PSR_ACTIVE_ENTRY);
 }
 
-static void hsw_psr_enable_source(struct intel_dp *intel_dp)
+static void intel_enable_source_psr1(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -312,14 +312,29 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 		val |= EDP_PSR_TP1_TP2_SEL;
 
 	I915_WRITE(EDP_PSR_CTL, val);
+}
 
-	if (!dev_priv->psr.psr2_support)
-		return;
+static void intel_enable_source_psr2(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	/*
+	 * Let's respect VBT in case VBT asks a higher idle_frame value.
+	 * Let's use 6 as the minimum to cover all known cases including
+	 * the off-by-one issue that HW has in some cases. Also there are
+	 * cases where sink should be able to train
+	 * with the 5 or 6 idle patterns.
+	 */
+	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+	uint32_t val;
+
+	val = idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
 	 * good enough. */
-	val = EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
+	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
 
 	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
 		val |= EDP_PSR2_TP2_TIME_2500;
@@ -331,6 +346,19 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 		val |= EDP_PSR2_TP2_TIME_50;
 
 	I915_WRITE(EDP_PSR2_CTL, val);
+}
+
+static void hsw_psr_enable_source(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	/* psr1 and psr2 are mutually exclusive.*/
+	if (dev_priv->psr.psr2_support)
+		intel_enable_source_psr2(intel_dp);
+	else
+		intel_enable_source_psr1(intel_dp);
 }
 
 static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
@@ -417,7 +445,10 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
+	if (dev_priv->psr.psr2_support)
+		WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
+	else
+		WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
@@ -468,10 +499,11 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
 	if (HAS_DDI(dev_priv)) {
-		hsw_psr_setup_vsc(intel_dp);
-
 		if (dev_priv->psr.psr2_support) {
 			skl_psr_setup_su_vsc(intel_dp);
+		} else {
+			/* set up vsc header for psr1 */
+			hsw_psr_setup_vsc(intel_dp);
 		}
 
 		/*
@@ -558,20 +590,35 @@ static void hsw_psr_disable(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (dev_priv->psr.active) {
-		I915_WRITE(EDP_PSR_CTL,
-			   I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
-
-		/* Wait till PSR is idle */
-		if (intel_wait_for_register(dev_priv,
-					    EDP_PSR_STATUS_CTL,
-					    EDP_PSR_STATUS_STATE_MASK,
-					    0,
-					    2000))
+		if (dev_priv->psr.psr2_support) {
+			I915_WRITE(EDP_PSR2_CTL,
+				I915_READ(EDP_PSR2_CTL) &
+					~(EDP_PSR2_ENABLE |
+					EDP_SU_TRACK_ENABLE));
+			/* Wait till PSR2 is idle */
+			if (intel_wait_for_register(dev_priv,
+						    EDP_PSR2_STATUS_CTL,
+						    EDP_PSR2_STATUS_STATE_MASK,
+						    0,
+						    2000))
+			DRM_ERROR("Timed out waiting for PSR2 Idle State\n");
+		} else {
+			I915_WRITE(EDP_PSR_CTL,
+				   I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
+			/* Wait till PSR1 is idle */
+			if (intel_wait_for_register(dev_priv,
+						    EDP_PSR_STATUS_CTL,
+						    EDP_PSR_STATUS_STATE_MASK,
+						    0,
+						    2000))
 			DRM_ERROR("Timed out waiting for PSR Idle State\n");
-
+		}
 		dev_priv->psr.active = false;
 	} else {
-		WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
+		if (dev_priv->psr.psr2_support)
+			WARN_ON(I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE);
+		else
+			WARN_ON(I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE);
 	}
 }
 
@@ -622,13 +669,24 @@ static void intel_psr_work(struct work_struct *work)
 	 * and be ready for re-enable.
 	 */
 	if (HAS_DDI(dev_priv)) {
-		if (intel_wait_for_register(dev_priv,
-					    EDP_PSR_STATUS_CTL,
-					    EDP_PSR_STATUS_STATE_MASK,
-					    0,
-					    50)) {
-			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
-			return;
+		if (dev_priv->psr.psr2_support) {
+			if (intel_wait_for_register(dev_priv,
+						EDP_PSR2_STATUS_CTL,
+						EDP_PSR2_STATUS_STATE_MASK,
+						0,
+						50)) {
+				DRM_ERROR("Timed out waiting for PSR2 Idle for re-enable\n");
+				return;
+			}
+		} else {
+			if (intel_wait_for_register(dev_priv,
+						EDP_PSR_STATUS_CTL,
+						EDP_PSR_STATUS_STATE_MASK,
+						0,
+						50)) {
+				DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+				return;
+			}
 		}
 	} else {
 		if (intel_wait_for_register(dev_priv,
@@ -670,11 +728,15 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 		return;
 
 	if (HAS_DDI(dev_priv)) {
-		val = I915_READ(EDP_PSR_CTL);
-
-		WARN_ON(!(val & EDP_PSR_ENABLE));
-
-		I915_WRITE(EDP_PSR_CTL, val & ~EDP_PSR_ENABLE);
+		if (dev_priv->psr.psr2_support) {
+			val = I915_READ(EDP_PSR2_CTL);
+			WARN_ON(!(val & EDP_PSR2_ENABLE));
+			I915_WRITE(EDP_PSR2_CTL, val & ~EDP_PSR2_ENABLE);
+		} else {
+			val = I915_READ(EDP_PSR_CTL);
+			WARN_ON(!(val & EDP_PSR_ENABLE));
+			I915_WRITE(EDP_PSR_CTL, val & ~EDP_PSR_ENABLE);
+		}
 	} else {
 		val = I915_READ(VLV_PSRCTL(pipe));
 
