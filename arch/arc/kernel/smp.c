@@ -98,13 +98,15 @@ static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 
 void arc_platform_smp_wait_to_boot(int cpu)
 {
+	/* for halt-on-reset, we've waited already */
+	if (IS_ENABLED(CONFIG_ARC_SMP_HALT_ON_RESET))
+		return;
+
 	while (wake_flag != cpu)
 		;
 
 	wake_flag = 0;
-	__asm__ __volatile__("j @first_lines_of_secondary	\n");
 }
-
 
 const char *arc_platform_smp_cpuinfo(void)
 {
