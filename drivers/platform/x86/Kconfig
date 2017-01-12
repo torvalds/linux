@@ -816,13 +816,6 @@ config INTEL_SCU_IPC_UTIL
 	  low level access for debug work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
 
-config GPIO_INTEL_PMIC
-	bool "Intel PMIC GPIO support"
-	depends on INTEL_SCU_IPC && GPIOLIB
-	---help---
-	  Say Y here to support GPIO via the SCU IPC interface
-	  on Intel MID platforms.
-
 config INTEL_MID_POWER_BUTTON
 	tristate "power button driver for Intel MID platforms"
 	depends on INTEL_SCU_IPC && INPUT

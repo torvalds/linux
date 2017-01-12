@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/scatterlist.h>
 #include <linux/sfi.h>
-#include <linux/intel_pmic_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/skbuff.h>
