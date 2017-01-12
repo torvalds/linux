@@ -3505,7 +3505,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
-				unsigned int size);
+				phys_addr_t size);
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,

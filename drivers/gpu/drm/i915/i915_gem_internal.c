@@ -151,9 +151,14 @@ static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
  */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,
-				unsigned int size)
+				phys_addr_t size)
 {
 	struct drm_i915_gem_object *obj;
+
+	GEM_BUG_ON(!size);
+
+	if (overflows_type(size, obj->base.size))
+		return ERR_PTR(-E2BIG);
 
 	obj = i915_gem_object_alloc(i915);
 	if (!obj)
