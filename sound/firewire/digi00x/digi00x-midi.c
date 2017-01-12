@@ -148,22 +148,22 @@ static void set_midi_substream_names(struct snd_dg00x *dg00x,
 
 int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x)
 {
-	static struct snd_rawmidi_ops phys_capture_ops = {
+	static const struct snd_rawmidi_ops phys_capture_ops = {
 		.open		= midi_phys_open,
 		.close		= midi_phys_close,
 		.trigger	= midi_phys_capture_trigger,
 	};
-	static struct snd_rawmidi_ops phys_playback_ops = {
+	static const struct snd_rawmidi_ops phys_playback_ops = {
 		.open		= midi_phys_open,
 		.close		= midi_phys_close,
 		.trigger	= midi_phys_playback_trigger,
 	};
-	static struct snd_rawmidi_ops ctl_capture_ops = {
+	static const struct snd_rawmidi_ops ctl_capture_ops = {
 		.open		= midi_ctl_open,
 		.close		= midi_ctl_capture_close,
 		.trigger	= midi_ctl_capture_trigger,
 	};
-	static struct snd_rawmidi_ops ctl_playback_ops = {
+	static const struct snd_rawmidi_ops ctl_playback_ops = {
 		.open		= midi_ctl_open,
 		.close		= midi_ctl_playback_close,
 		.trigger	= midi_ctl_playback_trigger,

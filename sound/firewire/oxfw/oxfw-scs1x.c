@@ -297,7 +297,7 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
 	}
 }
 
-static struct snd_rawmidi_ops midi_capture_ops = {
+static const struct snd_rawmidi_ops midi_capture_ops = {
 	.open    = midi_capture_open,
 	.close   = midi_capture_close,
 	.trigger = midi_capture_trigger,
@@ -338,7 +338,7 @@ static void midi_playback_drain(struct snd_rawmidi_substream *stream)
 	wait_event(scs->idle_wait, scs->output_idle);
 }
 
-static struct snd_rawmidi_ops midi_playback_ops = {
+static const struct snd_rawmidi_ops midi_playback_ops = {
 	.open    = midi_playback_open,
 	.close   = midi_playback_close,
 	.trigger = midi_playback_trigger,

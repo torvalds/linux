@@ -70,12 +70,12 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 
 int snd_tscm_create_midi_devices(struct snd_tscm *tscm)
 {
-	static struct snd_rawmidi_ops capture_ops = {
+	static const struct snd_rawmidi_ops capture_ops = {
 		.open		= midi_capture_open,
 		.close		= midi_capture_close,
 		.trigger	= midi_capture_trigger,
 	};
-	static struct snd_rawmidi_ops playback_ops = {
+	static const struct snd_rawmidi_ops playback_ops = {
 		.open		= midi_playback_open,
 		.close		= midi_playback_close,
 		.trigger	= midi_playback_trigger,
