@@ -3177,8 +3177,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		if (env->insn_aux_data[i].ptr_type != PTR_TO_CTX)
 			continue;
 
-		cnt = ops->convert_ctx_access(type, insn->dst_reg, insn->src_reg,
-					      insn->off, insn_buf, env->prog);
+		cnt = ops->convert_ctx_access(type, insn, insn_buf, env->prog);
 		if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
 			verbose("bpf verifier is misconfigured\n");
 			return -EINVAL;
