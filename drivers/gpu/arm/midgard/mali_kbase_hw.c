@@ -42,9 +42,6 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 		case GPU_ID2_PRODUCT_TMIX:
 			features = base_hw_features_tMIx;
 			break;
-		case GPU_ID2_PRODUCT_THEX:
-			features = base_hw_features_tHEx;
-			break;
 		default:
 			features = base_hw_features_generic;
 			break;
@@ -109,9 +106,6 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 				if ((gpu_id & GPU_ID2_PRODUCT_MODEL) ==
 							GPU_ID2_PRODUCT_TMIX) {
 					issues = base_hw_issues_tMIx_r0p0;
-				} else if ((gpu_id & GPU_ID2_PRODUCT_MODEL) ==
-							GPU_ID2_PRODUCT_THEX) {
-					issues = base_hw_issues_tHEx_r0p0;
 				} else {
 					dev_err(kbdev->dev,
 						"Unknown GPU ID %x", gpu_id);
@@ -220,9 +214,6 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 			switch (gpu_id & GPU_ID2_PRODUCT_MODEL) {
 			case GPU_ID2_PRODUCT_TMIX:
 				issues = base_hw_issues_model_tMIx;
-				break;
-			case GPU_ID2_PRODUCT_THEX:
-				issues = base_hw_issues_model_tHEx;
 				break;
 			default:
 				dev_err(kbdev->dev,

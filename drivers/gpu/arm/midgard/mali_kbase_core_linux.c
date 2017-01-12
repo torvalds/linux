@@ -35,7 +35,6 @@
 #if !MALI_CUSTOMER_RELEASE
 #include "mali_kbase_regs_dump_debugfs.h"
 #endif /* !MALI_CUSTOMER_RELEASE */
-#include "mali_kbase_regs_history_debugfs.h"
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_hwaccess_jm.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
@@ -117,6 +116,39 @@ static inline void __compile_time_asserts(void)
 {
 	CSTD_COMPILE_TIME_ASSERT(sizeof(KERNEL_SIDE_DDK_VERSION_STRING) <= KBASE_GET_VERSION_BUFFER_SIZE);
 }
+
+#ifdef CONFIG_KDS
+
+struct kbasep_kds_resource_set_file_data {
+	struct kds_resource_set *lock;
+};
+
+static int kds_resource_release(struct inode *inode, struct file *file);
+
+static const struct file_operations kds_resource_fops = {
+	.release = kds_resource_release
+};
+
+struct kbase_kds_resource_list_data {
+	struct kds_resource **kds_resources;
+	unsigned long *kds_access_bitmap;
+	int num_elems;
+};
+
+static int kds_resource_release(struct inode *inode, struct file *file)
+{
+	struct kbasep_kds_resource_set_file_data *data;
+
+	data = (struct kbasep_kds_resource_set_file_data *)file->private_data;
+	if (NULL != data) {
+		if (NULL != data->lock)
+			kds_resource_set_release(&data->lock);
+
+		kfree(data);
+	}
+	return 0;
+}
+#endif /* CONFIG_KDS */
 
 static void kbase_create_timeline_objects(struct kbase_context *kctx)
 {
@@ -259,7 +291,6 @@ enum {
 	inited_debugfs = (1u << 15),
 	inited_gpu_device = (1u << 16),
 	inited_registers_map = (1u << 17),
-	inited_io_history = (1u << 18),
 	inited_power_control = (1u << 19),
 	inited_buslogger = (1u << 20)
 };
@@ -371,7 +402,7 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 				goto bad_size;
 
 #if defined(CONFIG_64BIT)
-			if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
+			if (!kctx->is_compat) {
 				/* force SAME_VA if a 64-bit client */
 				mem->flags |= BASE_MEM_SAME_VA;
 			}
@@ -392,7 +423,7 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 			if (sizeof(*mem_import) != args_size)
 				goto bad_size;
 #ifdef CONFIG_COMPAT
-			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+			if (kctx->is_compat)
 				phandle = compat_ptr(mem_import->phandle.compat_value);
 			else
 #endif
@@ -433,7 +464,7 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 			}
 
 #ifdef CONFIG_COMPAT
-			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+			if (kctx->is_compat)
 				user_ai = compat_ptr(alias->ai.compat_value);
 			else
 #endif
@@ -871,14 +902,14 @@ copy_failed:
 			}
 
 #ifdef CONFIG_COMPAT
-			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+			if (kctx->is_compat)
 				user_buf = compat_ptr(add_data->buf.compat_value);
 			else
 #endif
 				user_buf = add_data->buf.value;
 
 			buf = kmalloc(add_data->len, GFP_KERNEL);
-			if (ZERO_OR_NULL_PTR(buf))
+			if (!buf)
 				goto out_bad;
 
 			if (0 != copy_from_user(buf, user_buf, add_data->len)) {
@@ -909,28 +940,7 @@ copy_failed:
 			break;
 		}
 #endif /* CONFIG_MALI_NO_MALI */
-#ifdef BASE_LEGACY_UK10_4_SUPPORT
-	case KBASE_FUNC_TLSTREAM_ACQUIRE_V10_4:
-		{
-			struct kbase_uk_tlstream_acquire_v10_4 *tlstream_acquire
-					= args;
 
-			if (sizeof(*tlstream_acquire) != args_size)
-				goto bad_size;
-
-			if (0 != kbase_tlstream_acquire(
-						kctx,
-						&tlstream_acquire->fd, 0)) {
-				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
-			} else if (0 <= tlstream_acquire->fd) {
-				/* Summary stream was cleared during acquire.
-				 * Create static timeline objects that will be
-				 * read by client. */
-				kbase_create_timeline_objects(kctx);
-			}
-			break;
-		}
-#endif /* BASE_LEGACY_UK10_4_SUPPORT */
 	case KBASE_FUNC_TLSTREAM_ACQUIRE:
 		{
 			struct kbase_uk_tlstream_acquire *tlstream_acquire =
@@ -939,13 +949,9 @@ copy_failed:
 			if (sizeof(*tlstream_acquire) != args_size)
 				goto bad_size;
 
-			if (tlstream_acquire->flags & ~BASE_TLSTREAM_FLAGS_MASK)
-				goto out_bad;
-
 			if (0 != kbase_tlstream_acquire(
 						kctx,
-						&tlstream_acquire->fd,
-						tlstream_acquire->flags)) {
+						&tlstream_acquire->fd)) {
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			} else if (0 <= tlstream_acquire->fd) {
 				/* Summary stream was cleared during acquire.
@@ -1128,63 +1134,6 @@ void kbase_release_device(struct kbase_device *kbdev)
 }
 EXPORT_SYMBOL(kbase_release_device);
 
-#if KERNEL_VERSION(4, 4, 0) > LINUX_VERSION_CODE
-/*
- * Older versions, before v4.6, of the kernel doesn't have
- * kstrtobool_from_user().
- */
-static int kstrtobool_from_user(const char __user *s, size_t count, bool *res)
-{
-	char buf[32];
-
-	count = min(sizeof(buf), count);
-
-	if (copy_from_user(buf, s, count))
-		return -EFAULT;
-	buf[count] = '\0';
-
-	return strtobool(buf, res);
-}
-#endif
-
-static ssize_t write_ctx_infinite_cache(struct file *f, const char __user *ubuf, size_t size, loff_t *off)
-{
-	struct kbase_context *kctx = f->private_data;
-	int err;
-	bool value;
-
-	err = kstrtobool_from_user(ubuf, size, &value);
-	if (err)
-		return err;
-
-	if (value)
-		kbase_ctx_flag_set(kctx, KCTX_INFINITE_CACHE);
-	else
-		kbase_ctx_flag_clear(kctx, KCTX_INFINITE_CACHE);
-
-	return size;
-}
-
-static ssize_t read_ctx_infinite_cache(struct file *f, char __user *ubuf, size_t size, loff_t *off)
-{
-	struct kbase_context *kctx = f->private_data;
-	char buf[32];
-	int count;
-	bool value;
-
-	value = kbase_ctx_flag(kctx, KCTX_INFINITE_CACHE);
-
-	count = scnprintf(buf, sizeof(buf), "%s\n", value ? "Y" : "N");
-
-	return simple_read_from_buffer(ubuf, size, off, buf, count);
-}
-
-static const struct file_operations kbase_infinite_cache_fops = {
-	.open = simple_open,
-	.write = write_ctx_infinite_cache,
-	.read = read_ctx_infinite_cache,
-};
-
 static int kbase_open(struct inode *inode, struct file *filp)
 {
 	struct kbase_device *kbdev = NULL;
@@ -1209,8 +1158,7 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	filp->private_data = kctx;
 	kctx->filp = filp;
 
-	if (kbdev->infinite_cache_active_default)
-		kbase_ctx_flag_set(kctx, KCTX_INFINITE_CACHE);
+	kctx->infinite_cache_active = kbdev->infinite_cache_active_default;
 
 #ifdef CONFIG_DEBUG_FS
 	snprintf(kctx_name, 64, "%d_%d", kctx->tgid, kctx->id);
@@ -1228,20 +1176,20 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	  * infinite cache control support from debugfs.
 	  */
 #else
-	debugfs_create_file("infinite_cache", 0644, kctx->kctx_dentry,
-			    kctx, &kbase_infinite_cache_fops);
+	debugfs_create_bool("infinite_cache", 0644, kctx->kctx_dentry,
+			(bool*)&(kctx->infinite_cache_active));
 #endif /* CONFIG_MALI_COH_USER */
 
 	mutex_init(&kctx->mem_profile_lock);
 
-	kbasep_jd_debugfs_ctx_init(kctx);
+	kbasep_jd_debugfs_ctx_add(kctx);
 	kbase_debug_mem_view_init(filp);
 
 	kbase_debug_job_fault_context_init(kctx);
 
-	kbase_mem_pool_debugfs_init(kctx->kctx_dentry, &kctx->mem_pool);
+	kbase_mem_pool_debugfs_add(kctx->kctx_dentry, &kctx->mem_pool);
 
-	kbase_jit_debugfs_init(kctx);
+	kbase_jit_debugfs_add(kctx);
 #endif /* CONFIG_DEBUG_FS */
 
 	dev_dbg(kbdev->dev, "created base context\n");
@@ -1538,7 +1486,7 @@ static unsigned long kbase_get_unmapped_area(struct file *filp,
 	if (len > TASK_SIZE - SZ_2M)
 		return -ENOMEM;
 
-	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
+	if (kctx->is_compat)
 		return current->mm->get_unmapped_area(filp, addr, len, pgoff,
 				flags);
 
@@ -1888,12 +1836,13 @@ static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, 
 						new_core_mask[2]) {
 			unsigned long flags;
 
-			spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+			spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
 
 			kbase_pm_set_debug_core_mask(kbdev, new_core_mask[0],
 					new_core_mask[1], new_core_mask[2]);
 
-			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+			spin_unlock_irqrestore(&kbdev->pm.power_change_lock,
+					flags);
 		}
 
 		return count;
@@ -2043,7 +1992,7 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 		struct kbasep_js_device_data *js_data = &kbdev->js_data;
 		unsigned long flags;
 
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		spin_lock_irqsave(&kbdev->js_data.runpool_irq.lock, flags);
 
 #define UPDATE_TIMEOUT(ticks_name, ms_name, default) do {\
 	js_data->ticks_name = timeout_ms_to_ticks(kbdev, ms_name, \
@@ -2078,7 +2027,7 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 
 		kbase_js_set_timeouts(kbdev);
 
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+		spin_unlock_irqrestore(&kbdev->js_data.runpool_irq.lock, flags);
 
 		return count;
 	}
@@ -2227,7 +2176,7 @@ static ssize_t set_js_scheduling_period(struct device *dev,
 
 	/* Update scheduling timeouts */
 	mutex_lock(&js_data->runpool_mutex);
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	spin_lock_irqsave(&js_data->runpool_irq.lock, flags);
 
 	/* If no contexts have been scheduled since js_timeouts was last written
 	 * to, the new timeouts might not have been latched yet. So check if an
@@ -2257,7 +2206,7 @@ static ssize_t set_js_scheduling_period(struct device *dev,
 
 	kbase_js_set_timeouts(kbdev);
 
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	spin_unlock_irqrestore(&js_data->runpool_irq.lock, flags);
 	mutex_unlock(&js_data->runpool_mutex);
 
 	dev_dbg(kbdev->dev, "JS scheduling period: %dms\n",
@@ -2591,8 +2540,6 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 		{ .id = GPU_ID_PI_TFRX, .name = "Mali-T88x" },
 		{ .id = GPU_ID2_PRODUCT_TMIX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G71" },
-		{ .id = GPU_ID2_PRODUCT_THEX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
-		  .name = "Mali-THEx" },
 	};
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
@@ -3085,8 +3032,7 @@ static int power_control_init(struct platform_device *pdev)
 
 #if defined(CONFIG_OF) && defined(CONFIG_PM_OPP)
 	/* Register the OPPs if they are available in device tree */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) \
-	|| defined(LSK_OPPV2_BACKPORT)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 	err = dev_pm_opp_of_add_table(kbdev->dev);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
 	err = of_init_opp_table(kbdev->dev);
@@ -3178,48 +3124,6 @@ MAKE_QUIRK_ACCESSORS(mmu);
 
 #endif /* KBASE_GPU_RESET_EN */
 
-/**
- * debugfs_protected_debug_mode_read - "protected_debug_mode" debugfs read
- * @file: File object to read is for
- * @buf:  User buffer to populate with data
- * @len:  Length of user buffer
- * @ppos: Offset within file object
- *
- * Retrieves the current status of protected debug mode
- * (0 = disabled, 1 = enabled)
- *
- * Return: Number of bytes added to user buffer
- */
-static ssize_t debugfs_protected_debug_mode_read(struct file *file,
-				char __user *buf, size_t len, loff_t *ppos)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)file->private_data;
-	u32 gpu_status;
-	ssize_t ret_val;
-
-	kbase_pm_context_active(kbdev);
-	gpu_status = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS), NULL);
-	kbase_pm_context_idle(kbdev);
-
-	if (gpu_status & GPU_DBGEN)
-		ret_val = simple_read_from_buffer(buf, len, ppos, "1\n", 2);
-	else
-		ret_val = simple_read_from_buffer(buf, len, ppos, "0\n", 2);
-
-	return ret_val;
-}
-
-/*
- * struct fops_protected_debug_mode - "protected_debug_mode" debugfs fops
- *
- * Contains the file operations for the "protected_debug_mode" debugfs file
- */
-static const struct file_operations fops_protected_debug_mode = {
-	.open = simple_open,
-	.read = debugfs_protected_debug_mode_read,
-	.llseek = default_llseek,
-};
-
 static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 {
 	struct dentry *debugfs_ctx_defaults_directory;
@@ -3250,9 +3154,8 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 	}
 
 #if !MALI_CUSTOMER_RELEASE
-	kbasep_regs_dump_debugfs_init(kbdev);
+	kbasep_regs_dump_debugfs_add(kbdev);
 #endif /* !MALI_CUSTOMER_RELEASE */
-	kbasep_regs_history_debugfs_init(kbdev);
 
 	kbase_debug_job_fault_debugfs_init(kbdev);
 	kbasep_gpu_memory_debugfs_init(kbdev);
@@ -3278,12 +3181,6 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 	debugfs_create_size_t("mem_pool_max_size", 0644,
 			debugfs_ctx_defaults_directory,
 			&kbdev->mem_pool_max_size_default);
-
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
-		debugfs_create_file("protected_debug_mode", S_IRUGO,
-				kbdev->mali_debugfs_directory, kbdev,
-				&fops_protected_debug_mode);
-	}
 
 #if KBASE_TRACE_ENABLE
 	kbasep_trace_debugfs_init(kbdev);
@@ -3507,11 +3404,6 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 		kbdev->inited_subsys &= ~inited_backend_early;
 	}
 
-	if (kbdev->inited_subsys & inited_io_history) {
-		kbase_io_history_term(&kbdev->io_history);
-		kbdev->inited_subsys &= ~inited_io_history;
-	}
-
 	if (kbdev->inited_subsys & inited_power_control) {
 		power_control_term(kbdev);
 		kbdev->inited_subsys &= ~inited_power_control;
@@ -3544,10 +3436,6 @@ static void kbase_platform_device_shutdown(struct platform_device *pdev)
 
 	kbase_platform_rk_shutdown(kbdev);
 }
-
-/* Number of register accesses for the buffer that we allocate during
- * initialization time. The buffer size can be changed later via debugfs. */
-#define KBASEP_DEFAULT_REGISTER_HISTORY_SIZE ((u16)512)
 
 static int kbase_platform_device_probe(struct platform_device *pdev)
 {
@@ -3608,15 +3496,6 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 		return err;
 	}
 	kbdev->inited_subsys |= inited_power_control;
-
-	err = kbase_io_history_init(&kbdev->io_history,
-			KBASEP_DEFAULT_REGISTER_HISTORY_SIZE);
-	if (err) {
-		dev_err(&pdev->dev, "Register access history initialization failed\n");
-		kbase_platform_device_remove(pdev);
-		return -ENOMEM;
-	}
-	kbdev->inited_subsys |= inited_io_history;
 
 	err = kbase_backend_early_init(kbdev);
 	if (err) {
@@ -3796,9 +3675,6 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 
 	return err;
 }
-
-#undef KBASEP_DEFAULT_REGISTER_HISTORY_SIZE
-
 
 /** Suspend callback from the OS.
  *

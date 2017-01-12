@@ -175,11 +175,11 @@ static void kbase_mem_pool_spill(struct kbase_mem_pool *next_pool,
 	kbase_mem_pool_add(next_pool, p);
 }
 
-struct page *kbase_mem_alloc_page(struct kbase_device *kbdev)
+static struct page *kbase_mem_pool_alloc_page(struct kbase_mem_pool *pool)
 {
 	struct page *p;
 	gfp_t gfp;
-	struct device *dev = kbdev->dev;
+	struct device *dev = pool->kbdev->dev;
 	dma_addr_t dma_addr;
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_HAVE_DMA_ATTRS) && \
@@ -209,6 +209,8 @@ struct page *kbase_mem_alloc_page(struct kbase_device *kbdev)
 	WARN_ON(dma_addr != page_to_phys(p));
 
 	kbase_set_dma_addr(p, dma_addr);
+
+	pool_dbg(pool, "alloced page from kernel\n");
 
 	return p;
 }
@@ -254,35 +256,36 @@ static size_t kbase_mem_pool_shrink(struct kbase_mem_pool *pool,
 	return nr_freed;
 }
 
-int kbase_mem_pool_grow(struct kbase_mem_pool *pool,
+static size_t kbase_mem_pool_grow(struct kbase_mem_pool *pool,
 		size_t nr_to_grow)
 {
 	struct page *p;
 	size_t i;
 
-	for (i = 0; i < nr_to_grow; i++) {
-		p = kbase_mem_alloc_page(pool->kbdev);
+	for (i = 0; i < nr_to_grow && !kbase_mem_pool_is_full(pool); i++) {
+		p = kbase_mem_pool_alloc_page(pool);
 		if (!p)
-			return -ENOMEM;
+			break;
 		kbase_mem_pool_add(pool, p);
 	}
 
-	return 0;
+	return i;
 }
 
-void kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size)
+size_t kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size)
 {
 	size_t cur_size;
 
 	cur_size = kbase_mem_pool_size(pool);
 
-	if (new_size > pool->max_size)
-		new_size = pool->max_size;
-
 	if (new_size < cur_size)
 		kbase_mem_pool_shrink(pool, cur_size - new_size);
 	else if (new_size > cur_size)
 		kbase_mem_pool_grow(pool, new_size - cur_size);
+
+	cur_size = kbase_mem_pool_size(pool);
+
+	return cur_size;
 }
 
 void kbase_mem_pool_set_max_size(struct kbase_mem_pool *pool, size_t max_size)
@@ -425,17 +428,21 @@ struct page *kbase_mem_pool_alloc(struct kbase_mem_pool *pool)
 {
 	struct page *p;
 
-	do {
-		pool_dbg(pool, "alloc()\n");
-		p = kbase_mem_pool_remove(pool);
+	pool_dbg(pool, "alloc()\n");
 
-		if (p)
-			return p;
+	p = kbase_mem_pool_remove(pool);
 
-		pool = pool->next_pool;
-	} while (pool);
+	if (!p && pool->next_pool) {
+		/* Allocate via next pool */
+		return kbase_mem_pool_alloc(pool->next_pool);
+	}
 
-	return NULL;
+	if (!p) {
+		/* Get page from kernel */
+		p = kbase_mem_pool_alloc_page(pool);
+	}
+
+	return p;
 }
 
 void kbase_mem_pool_free(struct kbase_mem_pool *pool, struct page *p,
@@ -492,7 +499,7 @@ int kbase_mem_pool_alloc_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 
 	/* Get any remaining pages from kernel */
 	for (; i < nr_pages; i++) {
-		p = kbase_mem_alloc_page(pool->kbdev);
+		p = kbase_mem_pool_alloc_page(pool);
 		if (!p)
 			goto err_rollback;
 		pages[i] = page_to_phys(p);
