@@ -241,6 +241,10 @@ struct thread_runtime {
 
 	struct stats run_stats;
 	u64 total_run_time;
+	u64 total_sleep_time;
+	u64 total_iowait_time;
+	u64 total_preempt_time;
+	u64 total_delay_time;
 
 	int last_state;
 	u64 migrations;
@@ -2008,7 +2012,12 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 	}
 
 	update_stats(&r->run_stats, r->dt_run);
-	r->total_run_time += r->dt_run;
+
+	r->total_run_time     += r->dt_run;
+	r->total_delay_time   += r->dt_delay;
+	r->total_sleep_time   += r->dt_sleep;
+	r->total_iowait_time  += r->dt_iowait;
+	r->total_preempt_time += r->dt_preempt;
 }
 
 static bool is_idle_sample(struct perf_sample *sample,
@@ -2593,7 +2602,26 @@ static void print_thread_runtime(struct thread *t,
 	printf("\n");
 }
 
+static void print_thread_waittime(struct thread *t,
+				  struct thread_runtime *r)
+{
+	printf("%*s   %5d  %9" PRIu64 " ",
+	       comm_width, timehist_get_commstr(t), t->ppid,
+	       (u64) r->run_stats.n);
+
+	print_sched_time(r->total_run_time, 8);
+	print_sched_time(r->total_sleep_time, 6);
+	printf(" ");
+	print_sched_time(r->total_iowait_time, 6);
+	printf(" ");
+	print_sched_time(r->total_preempt_time, 6);
+	printf(" ");
+	print_sched_time(r->total_delay_time, 6);
+	printf("\n");
+}
+
 struct total_run_stats {
+	struct perf_sched *sched;
 	u64  sched_count;
 	u64  task_count;
 	u64  total_run_time;
@@ -2612,7 +2640,11 @@ static int __show_thread_runtime(struct thread *t, void *priv)
 		stats->task_count++;
 		stats->sched_count += r->run_stats.n;
 		stats->total_run_time += r->total_run_time;
-		print_thread_runtime(t, r);
+
+		if (stats->sched->show_state)
+			print_thread_waittime(t, r);
+		else
+			print_thread_runtime(t, r);
 	}
 
 	return 0;
@@ -2700,18 +2732,24 @@ static void timehist_print_summary(struct perf_sched *sched,
 	u64 hist_time = sched->hist_time.end - sched->hist_time.start;
 
 	memset(&totals, 0, sizeof(totals));
+	totals.sched = sched;
 
 	if (sched->idle_hist) {
 		printf("\nIdle-time summary\n");
 		printf("%*s  parent  sched-out  ", comm_width, "comm");
 		printf("  idle-time   min-idle    avg-idle    max-idle  stddev  migrations\n");
+	} else if (sched->show_state) {
+		printf("\nWait-time summary\n");
+		printf("%*s  parent   sched-in  ", comm_width, "comm");
+		printf("   run-time      sleep      iowait     preempt       delay\n");
 	} else {
 		printf("\nRuntime summary\n");
 		printf("%*s  parent   sched-in  ", comm_width, "comm");
 		printf("   run-time    min-run     avg-run     max-run  stddev  migrations\n");
 	}
 	printf("%*s            (count)  ", comm_width, "");
-	printf("     (msec)     (msec)      (msec)      (msec)       %%\n");
+	printf("     (msec)     (msec)      (msec)      (msec)       %s\n",
+	       sched->show_state ? "(msec)" : "%");
 	printf("%.117s\n", graph_dotted_line);
 
 	machine__for_each_thread(m, show_thread_runtime, &totals);
