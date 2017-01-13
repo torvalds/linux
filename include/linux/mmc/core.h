@@ -163,8 +163,6 @@ extern struct mmc_async_req *mmc_start_req(struct mmc_host *,
 					   enum mmc_blk_status *);
 extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
-extern int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
-extern int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
 
 #define MMC_ERASE_ARG		0x00000000
 #define MMC_SECURE_ERASE_ARG	0x80000000
@@ -178,9 +176,5 @@ extern int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
 
 extern int mmc_hw_reset(struct mmc_host *host);
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);
-
-struct device_node;
-extern u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
-extern int mmc_of_parse_voltage(struct device_node *np, u32 *mask);
 
 #endif /* LINUX_MMC_CORE_H */
