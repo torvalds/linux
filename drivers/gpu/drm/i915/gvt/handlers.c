@@ -231,77 +231,45 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
-		void *p_data, unsigned int bytes, unsigned long bitmap)
-{
-	struct intel_gvt_workload_scheduler *scheduler =
-		&vgpu->gvt->scheduler;
-
-	vgpu->resetting = true;
-
-	intel_vgpu_stop_schedule(vgpu);
-	/*
-	 * The current_vgpu will set to NULL after stopping the
-	 * scheduler when the reset is triggered by current vgpu.
-	 */
-	if (scheduler->current_vgpu == NULL) {
-		mutex_unlock(&vgpu->gvt->lock);
-		intel_gvt_wait_vgpu_idle(vgpu);
-		mutex_lock(&vgpu->gvt->lock);
-	}
-
-	intel_vgpu_reset_execlist(vgpu, bitmap);
-
-	/* full GPU reset */
-	if (bitmap == 0xff) {
-		mutex_unlock(&vgpu->gvt->lock);
-		intel_vgpu_clean_gtt(vgpu);
-		mutex_lock(&vgpu->gvt->lock);
-		intel_vgpu_init_mmio(vgpu);
-		populate_pvinfo_page(vgpu);
-		intel_vgpu_init_gtt(vgpu);
-	}
-
-	vgpu->resetting = false;
-
-	return 0;
-}
-
 static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
-		void *p_data, unsigned int bytes)
+			    void *p_data, unsigned int bytes)
 {
+	unsigned int engine_mask = 0;
 	u32 data;
-	u64 bitmap = 0;
 
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
 	if (data & GEN6_GRDOM_FULL) {
 		gvt_dbg_mmio("vgpu%d: request full GPU reset\n", vgpu->id);
-		bitmap = 0xff;
+		engine_mask = ALL_ENGINES;
+	} else {
+		if (data & GEN6_GRDOM_RENDER) {
+			gvt_dbg_mmio("vgpu%d: request RCS reset\n", vgpu->id);
+			engine_mask |= (1 << RCS);
+		}
+		if (data & GEN6_GRDOM_MEDIA) {
+			gvt_dbg_mmio("vgpu%d: request VCS reset\n", vgpu->id);
+			engine_mask |= (1 << VCS);
+		}
+		if (data & GEN6_GRDOM_BLT) {
+			gvt_dbg_mmio("vgpu%d: request BCS Reset\n", vgpu->id);
+			engine_mask |= (1 << BCS);
+		}
+		if (data & GEN6_GRDOM_VECS) {
+			gvt_dbg_mmio("vgpu%d: request VECS Reset\n", vgpu->id);
+			engine_mask |= (1 << VECS);
+		}
+		if (data & GEN8_GRDOM_MEDIA2) {
+			gvt_dbg_mmio("vgpu%d: request VCS2 Reset\n", vgpu->id);
+			if (HAS_BSD2(vgpu->gvt->dev_priv))
+				engine_mask |= (1 << VCS2);
+		}
 	}
-	if (data & GEN6_GRDOM_RENDER) {
-		gvt_dbg_mmio("vgpu%d: request RCS reset\n", vgpu->id);
-		bitmap |= (1 << RCS);
-	}
-	if (data & GEN6_GRDOM_MEDIA) {
-		gvt_dbg_mmio("vgpu%d: request VCS reset\n", vgpu->id);
-		bitmap |= (1 << VCS);
-	}
-	if (data & GEN6_GRDOM_BLT) {
-		gvt_dbg_mmio("vgpu%d: request BCS Reset\n", vgpu->id);
-		bitmap |= (1 << BCS);
-	}
-	if (data & GEN6_GRDOM_VECS) {
-		gvt_dbg_mmio("vgpu%d: request VECS Reset\n", vgpu->id);
-		bitmap |= (1 << VECS);
-	}
-	if (data & GEN8_GRDOM_MEDIA2) {
-		gvt_dbg_mmio("vgpu%d: request VCS2 Reset\n", vgpu->id);
-		if (HAS_BSD2(vgpu->gvt->dev_priv))
-			bitmap |= (1 << VCS2);
-	}
-	return handle_device_reset(vgpu, offset, p_data, bytes, bitmap);
+
+	intel_gvt_reset_vgpu_locked(vgpu, false, engine_mask);
+
+	return 0;
 }
 
 static int gmbus_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
