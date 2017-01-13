@@ -442,7 +442,7 @@ static void mwifiex_delay_for_sleep_cookie(struct mwifiex_adapter *adapter,
 
 	for (count = 0; count < max_delay_loop_cnt; count++) {
 		buffer = card->cmdrsp_buf->data - INTF_HEADER_LEN;
-		sleep_cookie = *(u32 *)buffer;
+		sleep_cookie = READ_ONCE(*(u32 *)buffer);
 
 		if (sleep_cookie == MWIFIEX_DEF_SLEEP_COOKIE) {
 			mwifiex_dbg(adapter, INFO,
