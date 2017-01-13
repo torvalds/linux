@@ -51,12 +51,6 @@
  * 512K. In order to exclude 0-512K address space from GGTT, all gfx objects
  * used by GuC is pinned with PIN_OFFSET_BIAS along with size of WOPCM.
  *
- * Firmware log:
- * Firmware log is enabled by setting i915.guc_log_level to non-negative level.
- * Log data is printed out via reading debugfs i915_guc_log_dump. Reading from
- * i915_guc_load_status will print out firmware loading status and scratch
- * registers value.
- *
  */
 
 #define SKL_FW_MAJOR 6

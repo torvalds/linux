@@ -114,29 +114,3 @@ int intel_guc_sample_forcewake(struct intel_guc *guc)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-int intel_guc_log_flush_complete(struct intel_guc *guc)
-{
-	u32 action[] = { INTEL_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE };
-
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
-
-int intel_guc_log_flush(struct intel_guc *guc)
-{
-	u32 action[] = {
-		INTEL_GUC_ACTION_FORCE_LOG_BUFFER_FLUSH,
-		0
-	};
-
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
-
-int intel_guc_log_control(struct intel_guc *guc, u32 control_val)
-{
-	u32 action[] = {
-		INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING,
-		control_val
-	};
-
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
