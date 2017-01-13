@@ -71,6 +71,13 @@ __switch_governor()
 	echo $2 > $CPUFREQROOT/$1/scaling_governor
 }
 
+# param:
+# $1: cpu, $2: governor
+__switch_governor_for_cpu()
+{
+	echo $2 > $CPUROOT/$1/cpufreq/scaling_governor
+}
+
 # SWITCH GOVERNORS
 
 # $1: cpu, $2: governor

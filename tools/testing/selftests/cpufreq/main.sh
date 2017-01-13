@@ -4,6 +4,7 @@ source cpu.sh
 source cpufreq.sh
 source governor.sh
 source module.sh
+source special-tests.sh
 
 FUNC=basic	# do basic tests by default
 OUTFILE=cpufreq_selftest
@@ -19,7 +20,11 @@ helpme()
 	[-t <basic: Basic cpufreq testing
 	     suspend: suspend/resume,
 	     hibernate: hibernate/resume,
-	     modtest: test driver or governor modules. Only to be used with -d or -g options>]
+	     modtest: test driver or governor modules. Only to be used with -d or -g options,
+	     sptest1: Simple governor switch to produce lockdep.
+	     sptest2: Concurrent governor switch to produce lockdep.
+	     sptest3: Governor races, shuffle between governors quickly.
+	     sptest4: CPU hotplugs with updates to cpufreq files.>]
 	[-d <driver's module name: only with \"-t modtest>\"]
 	[-g <governor's module name: only with \"-t modtest>\"]
 	\n"
@@ -67,7 +72,7 @@ parse_arguments()
 				helpme
 				;;
 
-			t) # --func_type (Function to perform: basic, suspend, hibernate, modtest (default: basic))
+			t) # --func_type (Function to perform: basic, suspend, hibernate, modtest, sptest1/2/3/4 (default: basic))
 				FUNC=$OPTARG
 				;;
 
@@ -134,6 +139,22 @@ do_test()
 
 			module_governor_test $GOVERNOR_MOD
 		fi
+		;;
+
+		"sptest1")
+		simple_lockdep
+		;;
+
+		"sptest2")
+		concurrent_lockdep
+		;;
+
+		"sptest3")
+		governor_race
+		;;
+
+		"sptest4")
+		hotplug_with_updates
 		;;
 
 		*)
