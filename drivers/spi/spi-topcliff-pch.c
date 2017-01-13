@@ -915,7 +915,6 @@ static void pch_spi_release_dma(struct pch_spi_data *data)
 		dma_release_channel(dma->chan_rx);
 		dma->chan_rx = NULL;
 	}
-	return;
 }
 
 static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
@@ -1292,7 +1291,6 @@ static void pch_free_dma_buf(struct pch_spi_board_data *board_dat,
 	if (dma->rx_buf_dma)
 		dma_free_coherent(&board_dat->pdev->dev, PCH_BUF_SIZE,
 				  dma->rx_buf_virt, dma->rx_buf_dma);
-	return;
 }
 
 static void pch_alloc_dma_buf(struct pch_spi_board_data *board_dat,
