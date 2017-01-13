@@ -406,7 +406,6 @@ void tcp_init_sock(struct sock *sk)
 	tp->mss_cache = TCP_MSS_DEFAULT;
 
 	tp->reordering = sock_net(sk)->ipv4.sysctl_tcp_reordering;
-	tcp_enable_early_retrans(tp);
 	tcp_assign_congestion_control(sk);
 
 	tp->tsoffset = 0;
@@ -2477,8 +2476,6 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			err = -EINVAL;
 		else {
 			tp->thin_dupack = val;
-			if (tp->thin_dupack)
-				tcp_disable_early_retrans(tp);
 		}
 		break;
 

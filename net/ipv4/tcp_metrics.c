@@ -522,7 +522,6 @@ void tcp_init_metrics(struct sock *sk)
 	val = tcp_metric_get(tm, TCP_METRIC_REORDERING);
 	if (val && tp->reordering != val) {
 		tcp_disable_fack(tp);
-		tcp_disable_early_retrans(tp);
 		tp->reordering = val;
 	}
 

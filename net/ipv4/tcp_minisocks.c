@@ -468,7 +468,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
-		tcp_enable_early_retrans(newtp);
 		newtp->tlp_high_seq = 0;
 		newtp->lsndtime = treq->snt_synack.stamp_jiffies;
 		newsk->sk_txhash = treq->txhash;
