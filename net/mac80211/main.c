@@ -908,12 +908,17 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
 
-		if (sband->ht_cap.ht_supported)
-			local->rx_chains =
-				max(ieee80211_mcs_to_chains(&sband->ht_cap.mcs),
-				    local->rx_chains);
+		if (!sband->ht_cap.ht_supported)
+			continue;
 
 		/* TODO: consider VHT for RX chains, hopefully it's the same */
+		local->rx_chains =
+			max(ieee80211_mcs_to_chains(&sband->ht_cap.mcs),
+			    local->rx_chains);
+
+		/* no need to mask, SM_PS_DISABLED has all bits set */
+		sband->ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED <<
+			             IEEE80211_HT_CAP_SM_PS_SHIFT;
 	}
 
 	/* if low-level driver supports AP, we also support VLAN */
