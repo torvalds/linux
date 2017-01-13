@@ -657,7 +657,7 @@ err:
 	return ret;
 }
 
-static int __exit stm32_rtc_remove(struct platform_device *pdev)
+static int stm32_rtc_remove(struct platform_device *pdev)
 {
 	struct stm32_rtc *rtc = platform_get_drvdata(pdev);
 	unsigned int cr;
