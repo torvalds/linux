@@ -299,6 +299,16 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EBUSY;
 	}
 
+	/* If SAIF1 is configured as slave, the clk gate needs to be cleared
+	 * before the register can be written.
+	 */
+	if (saif->id != saif->master_id) {
+		__raw_writel(BM_SAIF_CTRL_SFTRST,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+		__raw_writel(BM_SAIF_CTRL_CLKGATE,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+	}
+
 	scr0 = __raw_readl(saif->base + SAIF_CTRL);
 	scr0 = scr0 & ~BM_SAIF_CTRL_BITCLK_EDGE & ~BM_SAIF_CTRL_LRCLK_POLARITY \
 		& ~BM_SAIF_CTRL_JUSTIFY & ~BM_SAIF_CTRL_DELAY;
