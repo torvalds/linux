@@ -32,7 +32,7 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
  * The current version is only used after recovery starts but can be
  * easily extended to detect the first loss.
  */
-static void tcp_rack_detect_loss(struct sock *sk)
+static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -62,13 +62,14 @@ static void tcp_rack_detect_loss(struct sock *sk)
 			continue;
 
 		if (skb_mstamp_after(&tp->rack.mstamp, &skb->skb_mstamp)) {
-
-			if (skb_mstamp_us_delta(&tp->rack.mstamp,
-						&skb->skb_mstamp) <= reo_wnd)
-				continue;
-
-			/* skb is lost if packet sent later is sacked */
-			tcp_rack_mark_skb_lost(sk, skb);
+			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
+			 * A packet is lost if its elapsed time is beyond
+			 * the recent RTT plus the reordering window.
+			 */
+			if (skb_mstamp_us_delta(now, &skb->skb_mstamp) >
+			    tp->rack.rtt_us + reo_wnd) {
+				tcp_rack_mark_skb_lost(sk, skb);
+			}
 		} else if (!(scb->sacked & TCPCB_RETRANS)) {
 			/* Original data are sent sequentially so stop early
 			 * b/c the rest are all sent after rack_sent
@@ -78,7 +79,7 @@ static void tcp_rack_detect_loss(struct sock *sk)
 	}
 }
 
-void tcp_rack_mark_lost(struct sock *sk)
+void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -86,20 +87,25 @@ void tcp_rack_mark_lost(struct sock *sk)
 		return;
 	/* Reset the advanced flag to avoid unnecessary queue scanning */
 	tp->rack.advanced = 0;
-	tcp_rack_detect_loss(sk);
+	tcp_rack_detect_loss(sk, now);
 }
 
-/* Record the most recently (re)sent time among the (s)acked packets */
-void tcp_rack_advance(struct tcp_sock *tp,
-		      const struct skb_mstamp *xmit_time, u8 sacked)
+/* Record the most recently (re)sent time among the (s)acked packets
+ * This is "Step 3: Advance RACK.xmit_time and update RACK.RTT" from
+ * draft-cheng-tcpm-rack-00.txt
+ */
+void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
+		      const struct skb_mstamp *xmit_time,
+		      const struct skb_mstamp *ack_time)
 {
+	u32 rtt_us;
+
 	if (tp->rack.mstamp.v64 &&
 	    !skb_mstamp_after(xmit_time, &tp->rack.mstamp))
 		return;
 
+	rtt_us = skb_mstamp_us_delta(ack_time, xmit_time);
 	if (sacked & TCPCB_RETRANS) {
-		struct skb_mstamp now;
-
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
 		 * retransmission) was sacked.
@@ -110,11 +116,10 @@ void tcp_rack_advance(struct tcp_sock *tp,
 		 * so it's at least one RTT (i.e., retransmission is at least
 		 * an RTT later).
 		 */
-		skb_mstamp_get(&now);
-		if (skb_mstamp_us_delta(&now, xmit_time) < tcp_min_rtt(tp))
+		if (rtt_us < tcp_min_rtt(tp))
 			return;
 	}
-
+	tp->rack.rtt_us = rtt_us;
 	tp->rack.mstamp = *xmit_time;
 	tp->rack.advanced = 1;
 }

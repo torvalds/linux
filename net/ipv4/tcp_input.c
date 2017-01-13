@@ -1135,6 +1135,7 @@ struct tcp_sacktag_state {
 	 */
 	struct skb_mstamp first_sackt;
 	struct skb_mstamp last_sackt;
+	struct skb_mstamp ack_time; /* Timestamp when the S/ACK was received */
 	struct rate_sample *rate;
 	int	flag;
 };
@@ -1217,7 +1218,7 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		return sacked;
 
 	if (!(sacked & TCPCB_SACKED_ACKED)) {
-		tcp_rack_advance(tp, xmit_time, sacked);
+		tcp_rack_advance(tp, sacked, xmit_time, &state->ack_time);
 
 		if (sacked & TCPCB_SACKED_RETRANS) {
 			/* If the segment is not tagged as lost,
@@ -2813,7 +2814,8 @@ static bool tcp_try_undo_partial(struct sock *sk, const int acked)
  * tcp_xmit_retransmit_queue().
  */
 static void tcp_fastretrans_alert(struct sock *sk, const int acked,
-				  bool is_dupack, int *ack_flag, int *rexmit)
+				  bool is_dupack, int *ack_flag, int *rexmit,
+				  const struct skb_mstamp *ack_time)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2868,7 +2870,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 	if (sysctl_tcp_recovery & TCP_RACK_LOST_RETRANS) {
 		u32 prior_retrans = tp->retrans_out;
 
-		tcp_rack_mark_lost(sk);
+		tcp_rack_mark_lost(sk, ack_time);
 		if (prior_retrans > tp->retrans_out) {
 			flag |= FLAG_LOST_RETRANS;
 			*ack_flag |= FLAG_LOST_RETRANS;
@@ -3105,11 +3107,11 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
  */
 static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			       u32 prior_snd_una, int *acked,
-			       struct tcp_sacktag_state *sack,
-			       struct skb_mstamp *now)
+			       struct tcp_sacktag_state *sack)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct skb_mstamp first_ackt, last_ackt;
+	struct skb_mstamp *now = &sack->ack_time;
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 prior_sacked = tp->sacked_out;
 	u32 reord = tp->packets_out;
@@ -3169,7 +3171,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		} else if (tcp_is_sack(tp)) {
 			tp->delivered += acked_pcount;
 			if (!tcp_skb_spurious_retrans(tp, skb))
-				tcp_rack_advance(tp, &skb->skb_mstamp, sacked);
+				tcp_rack_advance(tp, sacked,
+						 &skb->skb_mstamp,
+						 &sack->ack_time);
 		}
 		if (sacked & TCPCB_LOST)
 			tp->lost_out -= acked_pcount;
@@ -3599,7 +3603,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	u32 lost = tp->lost;
 	int acked = 0; /* Number of packets newly acked */
 	int rexmit = REXMIT_NONE; /* Flag to (re)transmit to recover losses */
-	struct skb_mstamp now;
 
 	sack_state.first_sackt.v64 = 0;
 	sack_state.rate = &rs;
@@ -3625,7 +3628,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (after(ack, tp->snd_nxt))
 		goto invalid_ack;
 
-	skb_mstamp_get(&now);
+	skb_mstamp_get(&sack_state.ack_time);
 
 	if (icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
@@ -3693,11 +3696,12 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una, &acked,
-				    &sack_state, &now);
+				    &sack_state);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
+				      &sack_state.ack_time);
 	}
 	if (tp->tlp_high_seq)
 		tcp_process_tlp_ack(sk, ack, flag);
@@ -3712,15 +3716,17 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		tcp_schedule_loss_probe(sk);
 	delivered = tp->delivered - delivered;	/* freshly ACKed or SACKed */
 	lost = tp->lost - lost;			/* freshly marked lost */
-	tcp_rate_gen(sk, delivered, lost, &now, &rs);
-	tcp_cong_control(sk, ack, delivered, flag, &rs);
+	tcp_rate_gen(sk, delivered, lost, &sack_state.ack_time,
+		     sack_state.rate);
+	tcp_cong_control(sk, ack, delivered, flag, sack_state.rate);
 	tcp_xmit_recovery(sk, rexmit);
 	return 1;
 
 no_queue:
 	/* If data was DSACKed, see if we can undo a cwnd reduction. */
 	if (flag & FLAG_DSACKING_ACK)
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
+				      &sack_state.ack_time);
 	/* If this ack opens up a zero window, clear backoff.  It was
 	 * being used to time the probes, and is probably far higher than
 	 * it needs to be for normal retransmission.
@@ -3741,9 +3747,11 @@ old_ack:
 	 * If data was DSACKed, see if we can undo a cwnd reduction.
 	 */
 	if (TCP_SKB_CB(skb)->sacked) {
+		skb_mstamp_get(&sack_state.ack_time);
 		flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
 						&sack_state);
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
+				      &sack_state.ack_time);
 		tcp_xmit_recovery(sk, rexmit);
 	}
 

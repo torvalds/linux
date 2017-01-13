@@ -207,6 +207,7 @@ struct tcp_sock {
 	/* Information of the most recently (s)acked skb */
 	struct tcp_rack {
 		struct skb_mstamp mstamp; /* (Re)sent time of the skb */
+		u32 rtt_us;  /* Associated RTT */
 		u8 advanced; /* mstamp advanced since last lost marking */
 		u8 reord;    /* reordering detected */
 	} rack;
