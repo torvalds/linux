@@ -47,14 +47,16 @@ config VGACON_SOFT_SCROLLBACK_SIZE
 	  buffers of VGA consoles. Each 64KB will give you approximately
 	  16 80x25 screenfuls of scrollback buffer.
 
-config VGACON_SOFT_SCROLLBACK_PERSISTENT
-	bool "Persistent Scrollback History for each console"
+config VGACON_SOFT_SCROLLBACK_PERSISTENT_ENABLE_BY_DEFAULT
+	bool "Persistent Scrollback History for each console by default"
 	depends on VGACON_SOFT_SCROLLBACK
 	default n
 	help
-	  Say Y here if the scrollback history should persist when switching
-	  between consoles. Otherwise, the scrollback history will be flushed
-	  each time the console is switched.
+	  Say Y here if the scrollback history should persist by default when
+	  switching between consoles. Otherwise, the scrollback history will be
+	  flushed each time the console is switched. This feature can also be
+	  enabled using the boot command line parameter
+	  'vgacon.scrollback_persistent=1'.
 
 	  This feature might break your tool of choice to flush the scrollback
 	  buffer, e.g. clear(1) will work fine but Debian's clear_console(1)
