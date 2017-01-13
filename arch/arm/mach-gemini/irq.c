@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/cpu.h>
 
+#include <asm/exception.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/system_misc.h>
@@ -65,6 +66,18 @@ static struct irq_chip gemini_irq_chip = {
 	.irq_unmask	= gemini_unmask_irq,
 };
 
+
+asmlinkage void __exception_irq_entry gemini_handle_irq(struct pt_regs *regs)
+{
+	int irq;
+	unsigned status;
+
+	while ((status = __raw_readl(IRQ_STATUS(IO_ADDRESS(GEMINI_INTERRUPT_BASE))))) {
+		irq = ffs(status) - 1;
+		handle_domain_irq(NULL, irq, regs);
+	}
+}
+
 static struct resource irq_resource = {
 	.name	= "irq_handler",
 	.start	= GEMINI_INTERRUPT_BASE,
@@ -102,4 +115,6 @@ void __init gemini_init_irq(void)
 	/* Set interrupt mode */
 	__raw_writel(mode, IRQ_TMODE(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
 	__raw_writel(level, IRQ_TLEVEL(IO_ADDRESS(GEMINI_INTERRUPT_BASE)));
+
+	set_handle_irq(gemini_handle_irq);
 }

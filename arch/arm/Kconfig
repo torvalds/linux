@@ -365,6 +365,7 @@ config ARCH_GEMINI
 	select CPU_FA526
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
