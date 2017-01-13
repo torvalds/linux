@@ -323,6 +323,7 @@ struct intel_vgpu_creation_params {
 
 int intel_vgpu_alloc_resource(struct intel_vgpu *vgpu,
 			      struct intel_vgpu_creation_params *param);
+void intel_vgpu_reset_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	u32 fence, u64 value);
