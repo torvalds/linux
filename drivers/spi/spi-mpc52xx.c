@@ -449,8 +449,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 			gpio_cs = of_get_gpio(op->dev.of_node, i);
 			if (gpio_cs < 0) {
 				dev_err(&op->dev,
-					"could not parse the gpio field "
-					"in oftree\n");
+					"could not parse the gpio field in oftree\n");
 				rc = -ENODEV;
 				goto err_gpio;
 			}
@@ -458,8 +457,8 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 			rc = gpio_request(gpio_cs, dev_name(&op->dev));
 			if (rc) {
 				dev_err(&op->dev,
-					"can't request spi cs gpio #%d "
-					"on gpio line %d\n", i, gpio_cs);
+					"can't request spi cs gpio #%d on gpio line %d\n",
+					i, gpio_cs);
 				goto err_gpio;
 			}
 
