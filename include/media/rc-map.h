@@ -237,6 +237,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_FLYVIDEO                  "rc-flyvideo"
 #define RC_MAP_FUSIONHDTV_MCE            "rc-fusionhdtv-mce"
 #define RC_MAP_GADMEI_RM008Z             "rc-gadmei-rm008z"
+#define RC_MAP_GEEKBOX                   "rc-geekbox"
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"

@@ -39,6 +39,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-flyvideo.o \
 			rc-fusionhdtv-mce.o \
 			rc-gadmei-rm008z.o \
+			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
 			rc-imon-mce.o \
