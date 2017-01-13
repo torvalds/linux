@@ -338,7 +338,9 @@ static void intel_enable_source_psr2(struct intel_dp *intel_dp)
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
 	 * good enough. */
-	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
+	val |= EDP_PSR2_ENABLE |
+		EDP_SU_TRACK_ENABLE |
+		EDP_FRAMES_BEFORE_SU_ENTRY;
 
 	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
 		val |= EDP_PSR2_TP2_TIME_2500;
@@ -512,19 +514,27 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 			if (dev_priv->psr.y_cord_support)
 				chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
 			I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
+			I915_WRITE(EDP_PSR_DEBUG_CTL,
+				   EDP_PSR_DEBUG_MASK_MEMUP |
+				   EDP_PSR_DEBUG_MASK_HPD |
+				   EDP_PSR_DEBUG_MASK_LPSP |
+				   EDP_PSR_DEBUG_MASK_MAX_SLEEP |
+				   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
 		} else {
 			/* set up vsc header for psr1 */
 			hsw_psr_setup_vsc(intel_dp);
+			/*
+			 * Per Spec: Avoid continuous PSR exit by masking MEMUP
+			 * and HPD. also mask LPSP to avoid dependency on other
+			 * drivers that might block runtime_pm besides
+			 * preventing  other hw tracking issues now we can rely
+			 * on frontbuffer tracking.
+			 */
+			I915_WRITE(EDP_PSR_DEBUG_CTL,
+				   EDP_PSR_DEBUG_MASK_MEMUP |
+				   EDP_PSR_DEBUG_MASK_HPD |
+				   EDP_PSR_DEBUG_MASK_LPSP);
 		}
-
-		/*
-		 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD.
-		 * Also mask LPSP to avoid dependency on other drivers that
-		 * might block runtime_pm besides preventing other hw tracking
-		 * issues now we can rely on frontbuffer tracking.
-		 */
-		I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);

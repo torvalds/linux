@@ -3597,9 +3597,12 @@ enum {
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
 #define EDP_PSR_DEBUG_CTL		_MMIO(dev_priv->psr_mmio_base + 0x60)
-#define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
-#define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
-#define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
+#define   EDP_PSR_DEBUG_MASK_MAX_SLEEP         (1<<28)
+#define   EDP_PSR_DEBUG_MASK_LPSP              (1<<27)
+#define   EDP_PSR_DEBUG_MASK_MEMUP             (1<<26)
+#define   EDP_PSR_DEBUG_MASK_HPD               (1<<25)
+#define   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE    (1<<16)
+#define   EDP_PSR_DEBUG_EXIT_ON_PIXEL_UNDERRUN (1<<15)
 
 #define EDP_PSR2_CTL			_MMIO(0x6f900)
 #define   EDP_PSR2_ENABLE		(1<<31)
@@ -3614,6 +3617,7 @@ enum {
 #define   EDP_PSR2_FRAME_BEFORE_SU_SHIFT 4
 #define   EDP_PSR2_FRAME_BEFORE_SU_MASK	(0xf<<4)
 #define   EDP_PSR2_IDLE_MASK		0xf
+#define   EDP_FRAMES_BEFORE_SU_ENTRY   (1<<4)
 
 #define EDP_PSR2_STATUS_CTL            _MMIO(0x6f940)
 #define EDP_PSR2_STATUS_STATE_MASK     (0xf<<28)
