@@ -2349,6 +2349,8 @@ void r5c_release_extra_page(struct stripe_head *sh)
 			struct page *p = sh->dev[i].orig_page;
 
 			sh->dev[i].orig_page = sh->dev[i].page;
+			clear_bit(R5_OrigPageUPTDODATE, &sh->dev[i].flags);
+
 			if (!using_disk_info_extra_page)
 				put_page(p);
 		}

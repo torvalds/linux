@@ -1015,7 +1015,17 @@ again:
 
 			if (test_bit(R5_SkipCopy, &sh->dev[i].flags))
 				WARN_ON(test_bit(R5_UPTODATE, &sh->dev[i].flags));
-			sh->dev[i].vec.bv_page = sh->dev[i].page;
+
+			if (!op_is_write(op) &&
+			    test_bit(R5_InJournal, &sh->dev[i].flags))
+				/*
+				 * issuing read for a page in journal, this
+				 * must be preparing for prexor in rmw; read
+				 * the data into orig_page
+				 */
+				sh->dev[i].vec.bv_page = sh->dev[i].orig_page;
+			else
+				sh->dev[i].vec.bv_page = sh->dev[i].page;
 			bi->bi_vcnt = 1;
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			bi->bi_io_vec[0].bv_offset = 0;
@@ -2380,6 +2390,13 @@ static void raid5_end_read_request(struct bio * bi)
 		} else if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
 			clear_bit(R5_ReadNoMerge, &sh->dev[i].flags);
 
+		if (test_bit(R5_InJournal, &sh->dev[i].flags))
+			/*
+			 * end read for a page in journal, this
+			 * must be preparing for prexor in rmw
+			 */
+			set_bit(R5_OrigPageUPTDODATE, &sh->dev[i].flags);
+
 		if (atomic_read(&rdev->read_errors))
 			atomic_set(&rdev->read_errors, 0);
 	} else {
@@ -3594,6 +3611,21 @@ unhash:
 		break_stripe_batch_list(head_sh, STRIPE_EXPAND_SYNC_FLAGS);
 }
 
+/*
+ * For RMW in write back cache, we need extra page in prexor to store the
+ * old data. This page is stored in dev->orig_page.
+ *
+ * This function checks whether we have data for prexor. The exact logic
+ * is:
+ *       R5_UPTODATE && (!R5_InJournal || R5_OrigPageUPTDODATE)
+ */
+static inline bool uptodate_for_rmw(struct r5dev *dev)
+{
+	return (test_bit(R5_UPTODATE, &dev->flags)) &&
+		(!test_bit(R5_InJournal, &dev->flags) ||
+		 test_bit(R5_OrigPageUPTDODATE, &dev->flags));
+}
+
 static int handle_stripe_dirtying(struct r5conf *conf,
 				  struct stripe_head *sh,
 				  struct stripe_head_state *s,
@@ -3625,9 +3657,7 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 		if ((dev->towrite || i == sh->pd_idx || i == sh->qd_idx ||
 		     test_bit(R5_InJournal, &dev->flags)) &&
 		    !test_bit(R5_LOCKED, &dev->flags) &&
-		    !((test_bit(R5_UPTODATE, &dev->flags) &&
-		       (!test_bit(R5_InJournal, &dev->flags) ||
-			dev->page != dev->orig_page)) ||
+		    !(uptodate_for_rmw(dev) ||
 		      test_bit(R5_Wantcompute, &dev->flags))) {
 			if (test_bit(R5_Insync, &dev->flags))
 				rmw++;
@@ -3639,7 +3669,6 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 		    i != sh->pd_idx && i != sh->qd_idx &&
 		    !test_bit(R5_LOCKED, &dev->flags) &&
 		    !(test_bit(R5_UPTODATE, &dev->flags) ||
-		      test_bit(R5_InJournal, &dev->flags) ||
 		      test_bit(R5_Wantcompute, &dev->flags))) {
 			if (test_bit(R5_Insync, &dev->flags))
 				rcw++;
@@ -3693,9 +3722,7 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 			     i == sh->pd_idx || i == sh->qd_idx ||
 			     test_bit(R5_InJournal, &dev->flags)) &&
 			    !test_bit(R5_LOCKED, &dev->flags) &&
-			    !((test_bit(R5_UPTODATE, &dev->flags) &&
-			       (!test_bit(R5_InJournal, &dev->flags) ||
-				dev->page != dev->orig_page)) ||
+			    !(uptodate_for_rmw(dev) ||
 			      test_bit(R5_Wantcompute, &dev->flags)) &&
 			    test_bit(R5_Insync, &dev->flags)) {
 				if (test_bit(STRIPE_PREREAD_ACTIVE,
@@ -3722,7 +3749,6 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 			    i != sh->pd_idx && i != sh->qd_idx &&
 			    !test_bit(R5_LOCKED, &dev->flags) &&
 			    !(test_bit(R5_UPTODATE, &dev->flags) ||
-			      test_bit(R5_InJournal, &dev->flags) ||
 			      test_bit(R5_Wantcompute, &dev->flags))) {
 				rcw++;
 				if (test_bit(R5_Insync, &dev->flags) &&

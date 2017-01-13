@@ -322,6 +322,11 @@ enum r5dev_flags {
 			 * data and parity being written are in the journal
 			 * device
 			 */
+	R5_OrigPageUPTDODATE,	/* with write back cache, we read old data into
+				 * dev->orig_page for prexor. When this flag is
+				 * set, orig_page contains latest data in the
+				 * raid disk.
+				 */
 };
 
 /*
