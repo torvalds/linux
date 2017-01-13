@@ -4685,8 +4685,10 @@ static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
 	 */
 	if ((!tx_pending_hw) && i40e_get_tx_pending(tx_ring, true) &&
 	    (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK))) {
+		local_bh_disable();
 		if (napi_reschedule(&tx_ring->q_vector->napi))
 			tx_ring->tx_stats.tx_lost_interrupt++;
+		local_bh_enable();
 	}
 }
 
