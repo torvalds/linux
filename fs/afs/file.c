@@ -267,7 +267,9 @@ static int afs_readpage(struct file *file, struct page *page)
  */
 static void afs_readpages_page_done(struct afs_call *call, struct afs_read *req)
 {
+#ifdef CONFIG_AFS_FSCACHE
 	struct afs_vnode *vnode = call->reply;
+#endif
 	struct page *page = req->pages[req->index];
 
 	req->pages[req->index] = NULL;
