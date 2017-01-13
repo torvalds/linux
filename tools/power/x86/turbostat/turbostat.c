@@ -1722,6 +1722,54 @@ dump_nhm_turbo_ratio_limits(void)
 }
 
 static void
+dump_atom_turbo_ratio_limits(void)
+{
+	unsigned long long msr;
+	unsigned int ratio;
+
+	get_msr(base_cpu, MSR_ATOM_CORE_RATIOS, &msr);
+	fprintf(outf, "cpu%d: MSR_ATOM_CORE_RATIOS: 0x%08llx\n", base_cpu, msr & 0xFFFFFFFF);
+
+	ratio = (msr >> 0) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz minimum operating frequency\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 8) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz low frequency mode (LFM)\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 16) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz base frequency\n",
+			ratio, bclk, ratio * bclk);
+
+	get_msr(base_cpu, MSR_ATOM_CORE_TURBO_RATIOS, &msr);
+	fprintf(outf, "cpu%d: MSR_ATOM_CORE_TURBO_RATIOS: 0x%08llx\n", base_cpu, msr & 0xFFFFFFFF);
+
+	ratio = (msr >> 24) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 4 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 16) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 3 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 8) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 2 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 0) & 0x3F;
+	if (ratio)
+		fprintf(outf, "%d * %.1f = %.1f MHz max turbo 1 active core\n",
+			ratio, bclk, ratio * bclk);
+}
+
+static void
 dump_knl_turbo_ratio_limits(void)
 {
 	const unsigned int buckets_no = 7;
@@ -2496,8 +2544,32 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	has_base_hz = 1;
 	return 1;
 }
+/*
+ * SLV client has supporet for unique MSRs:
+ *
+ * MSR_CC6_DEMOTION_POLICY_CONFIG
+ * MSR_MC6_DEMOTION_POLICY_CONFIG
+ */
+
+int has_slv_msrs(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_MERRIFIELD:
+	case INTEL_FAM6_ATOM_MOOREFIELD:
+		return 1;
+	}
+	return 0;
+}
+
 int has_nhm_turbo_ratio_limit(unsigned int family, unsigned int model)
 {
+	if (has_slv_msrs(family, model))
+		return 0;
+
 	switch (model) {
 	/* Nehalem compatible, but do not include turbo-ratio limit support */
 	case INTEL_FAM6_NEHALEM_EX:	/* Nehalem-EX Xeon - Beckton */
@@ -2508,6 +2580,13 @@ int has_nhm_turbo_ratio_limit(unsigned int family, unsigned int model)
 	default:
 		return 1;
 	}
+}
+int has_atom_turbo_ratio_limit(unsigned int family, unsigned int model)
+{
+	if (has_slv_msrs(family, model))
+		return 1;
+
+	return 0;
 }
 int has_ivt_turbo_ratio_limit(unsigned int family, unsigned int model)
 {
@@ -2605,6 +2684,9 @@ dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
 
 	if (has_nhm_turbo_ratio_limit(family, model))
 		dump_nhm_turbo_ratio_limits();
+
+	if (has_atom_turbo_ratio_limit(family, model))
+		dump_atom_turbo_ratio_limits();
 
 	if (has_knl_turbo_ratio_limit(family, model))
 		dump_knl_turbo_ratio_limits();
@@ -3281,27 +3363,6 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * SLV client has supporet for unique MSRs:
- *
- * MSR_CC6_DEMOTION_POLICY_CONFIG
- * MSR_MC6_DEMOTION_POLICY_CONFIG
- */
-
-int has_slv_msrs(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ATOM_SILVERMONT1:
-	case INTEL_FAM6_ATOM_MERRIFIELD:
-	case INTEL_FAM6_ATOM_MOOREFIELD:
 		return 1;
 	}
 	return 0;
