@@ -118,6 +118,11 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->hctx = hctx;
 }
 
+static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+{
+	return data->hctx->tags;
+}
+
 /*
  * Internal helpers for request allocation/init/free
  */

@@ -90,32 +90,46 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return atomic_read(&hctx->nr_active) < depth;
 }
 
-static int __bt_get(struct blk_mq_hw_ctx *hctx, struct sbitmap_queue *bt)
+static int __blk_mq_get_tag(struct blk_mq_hw_ctx *hctx, struct sbitmap_queue *bt)
 {
 	if (!hctx_may_queue(hctx, bt))
 		return -1;
 	return __sbitmap_queue_get(bt);
 }
 
-static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
-		  struct blk_mq_hw_ctx *hctx, struct blk_mq_tags *tags)
+unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 {
+	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+	struct sbitmap_queue *bt;
 	struct sbq_wait_state *ws;
 	DEFINE_WAIT(wait);
+	unsigned int tag_offset;
 	int tag;
 
-	tag = __bt_get(hctx, bt);
+	if (data->flags & BLK_MQ_REQ_RESERVED) {
+		if (unlikely(!tags->nr_reserved_tags)) {
+			WARN_ON_ONCE(1);
+			return BLK_MQ_TAG_FAIL;
+		}
+		bt = &tags->breserved_tags;
+		tag_offset = 0;
+	} else {
+		bt = &tags->bitmap_tags;
+		tag_offset = tags->nr_reserved_tags;
+	}
+
+	tag = __blk_mq_get_tag(data->hctx, bt);
 	if (tag != -1)
-		return tag;
+		goto found_tag;
 
 	if (data->flags & BLK_MQ_REQ_NOWAIT)
-		return -1;
+		return BLK_MQ_TAG_FAIL;
 
-	ws = bt_wait_ptr(bt, hctx);
+	ws = bt_wait_ptr(bt, data->hctx);
 	do {
 		prepare_to_wait(&ws->wait, &wait, TASK_UNINTERRUPTIBLE);
 
-		tag = __bt_get(hctx, bt);
+		tag = __blk_mq_get_tag(data->hctx, bt);
 		if (tag != -1)
 			break;
 
@@ -125,14 +139,14 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 		 * some to complete. Note that hctx can be NULL here for
 		 * reserved tag allocation.
 		 */
-		if (hctx)
-			blk_mq_run_hw_queue(hctx, false);
+		if (data->hctx)
+			blk_mq_run_hw_queue(data->hctx, false);
 
 		/*
 		 * Retry tag allocation after running the hardware queue,
 		 * as running the queue may also have found completions.
 		 */
-		tag = __bt_get(hctx, bt);
+		tag = __blk_mq_get_tag(data->hctx, bt);
 		if (tag != -1)
 			break;
 
@@ -142,61 +156,25 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 
 		data->ctx = blk_mq_get_ctx(data->q);
 		data->hctx = blk_mq_map_queue(data->q, data->ctx->cpu);
-		if (data->flags & BLK_MQ_REQ_RESERVED) {
-			bt = &data->hctx->tags->breserved_tags;
-		} else {
-			hctx = data->hctx;
-			bt = &hctx->tags->bitmap_tags;
-		}
+		tags = blk_mq_tags_from_data(data);
+		if (data->flags & BLK_MQ_REQ_RESERVED)
+			bt = &tags->breserved_tags;
+		else
+			bt = &tags->bitmap_tags;
+
 		finish_wait(&ws->wait, &wait);
-		ws = bt_wait_ptr(bt, hctx);
+		ws = bt_wait_ptr(bt, data->hctx);
 	} while (1);
 
 	finish_wait(&ws->wait, &wait);
-	return tag;
+
+found_tag:
+	return tag + tag_offset;
 }
 
-static unsigned int __blk_mq_get_tag(struct blk_mq_alloc_data *data)
+void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, struct blk_mq_tags *tags,
+		    struct blk_mq_ctx *ctx, unsigned int tag)
 {
-	int tag;
-
-	tag = bt_get(data, &data->hctx->tags->bitmap_tags, data->hctx,
-		     data->hctx->tags);
-	if (tag >= 0)
-		return tag + data->hctx->tags->nr_reserved_tags;
-
-	return BLK_MQ_TAG_FAIL;
-}
-
-static unsigned int __blk_mq_get_reserved_tag(struct blk_mq_alloc_data *data)
-{
-	int tag;
-
-	if (unlikely(!data->hctx->tags->nr_reserved_tags)) {
-		WARN_ON_ONCE(1);
-		return BLK_MQ_TAG_FAIL;
-	}
-
-	tag = bt_get(data, &data->hctx->tags->breserved_tags, NULL,
-		     data->hctx->tags);
-	if (tag < 0)
-		return BLK_MQ_TAG_FAIL;
-
-	return tag;
-}
-
-unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
-{
-	if (data->flags & BLK_MQ_REQ_RESERVED)
-		return __blk_mq_get_reserved_tag(data);
-	return __blk_mq_get_tag(data);
-}
-
-void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-		    unsigned int tag)
-{
-	struct blk_mq_tags *tags = hctx->tags;
-
 	if (tag >= tags->nr_reserved_tags) {
 		const int real_tag = tag - tags->nr_reserved_tags;
 
