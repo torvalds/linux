@@ -80,7 +80,8 @@
 			};
 
 			cps_sata0: sata@540000 {
-				compatible = "marvell,armada-8k-ahci";
+				compatible = "marvell,armada-8k-ahci",
+					     "generic-ahci";
 				reg = <0x540000 0x30000>;
 				interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_syscon0 1 15>;
