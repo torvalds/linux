@@ -653,26 +653,6 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 	u32 max_npdu, max_iso_npdu;
 
 	if (conn->login->leading_connection) {
-		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
-						  conn->param_list);
-		if (!param) {
-			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
-			return -1;
-		}
-
-		if (strcmp(param->value, YES))
-			return 0;
-
-		param = iscsi_find_param_from_key(DATAPDUINORDER,
-						  conn->param_list);
-		if (!param) {
-			pr_err("param not found key %s\n", DATAPDUINORDER);
-			return -1;
-		}
-
-		if (strcmp(param->value, YES))
-			return 0;
-
 		param = iscsi_find_param_from_key(MAXBURSTLENGTH,
 						  conn->param_list);
 		if (!param) {
@@ -683,11 +663,6 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 		if (kstrtou32(param->value, 0, &mbl) < 0)
 			return -1;
 	} else {
-		if (!conn->sess->sess_ops->DataSequenceInOrder)
-			return 0;
-		if (!conn->sess->sess_ops->DataPDUInOrder)
-			return 0;
-
 		mbl = conn->sess->sess_ops->MaxBurstLength;
 	}
 
@@ -702,6 +677,53 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 
 	if (csk->max_iso_npdu <= 1)
 		csk->max_iso_npdu = 0;
+
+	return 0;
+}
+
+/*
+ * cxgbit_seq_pdu_inorder()
+ * @csk: pointer to cxgbit socket structure
+ *
+ * This function checks whether data sequence and data
+ * pdu are in order.
+ *
+ * Return: returns -1 on error, 0 if data sequence and
+ * data pdu are in order, 1 if data sequence or data pdu
+ * is not in order.
+ */
+static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
+{
+	struct iscsi_conn *conn = csk->conn;
+	struct iscsi_param *param;
+
+	if (conn->login->leading_connection) {
+		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
+						  conn->param_list);
+		if (!param) {
+			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
+			return -1;
+		}
+
+		if (strcmp(param->value, YES))
+			return 1;
+
+		param = iscsi_find_param_from_key(DATAPDUINORDER,
+						  conn->param_list);
+		if (!param) {
+			pr_err("param not found key %s\n", DATAPDUINORDER);
+			return -1;
+		}
+
+		if (strcmp(param->value, YES))
+			return 1;
+
+	} else {
+		if (!conn->sess->sess_ops->DataSequenceInOrder)
+			return 1;
+		if (!conn->sess->sess_ops->DataPDUInOrder)
+			return 1;
+	}
 
 	return 0;
 }
@@ -732,11 +754,24 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 	}
 
 	if (!erl) {
+		int ret;
+
+		ret = cxgbit_seq_pdu_inorder(csk);
+		if (ret < 0) {
+			return -1;
+		} else if (ret > 0) {
+			if (is_t5(cdev->lldi.adapter_type))
+				goto enable_ddp;
+			else
+				goto enable_digest;
+		}
+
 		if (test_bit(CDEV_ISO_ENABLE, &cdev->flags)) {
 			if (cxgbit_set_iso_npdu(csk))
 				return -1;
 		}
 
+enable_ddp:
 		if (test_bit(CDEV_DDP_ENABLE, &cdev->flags)) {
 			if (cxgbit_setup_conn_pgidx(csk,
 						    ppm->tformat.pgsz_idx_dflt))
@@ -745,6 +780,7 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 		}
 	}
 
+enable_digest:
 	if (cxgbit_set_digest(csk))
 		return -1;
 
