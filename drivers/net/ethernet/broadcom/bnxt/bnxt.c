@@ -5621,6 +5621,45 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
+{
+	struct hwrm_port_led_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_port_led_qcaps_input req = {0};
+	struct bnxt_pf_info *pf = &bp->pf;
+	int rc;
+
+	if (BNXT_VF(bp) || bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_LED_QCAPS, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc) {
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		return rc;
+	}
+	if (resp->num_leds > 0 && resp->num_leds < BNXT_MAX_LED) {
+		int i;
+
+		bp->num_leds = resp->num_leds;
+		memcpy(bp->leds, &resp->led0_id, sizeof(bp->leds[0]) *
+						 bp->num_leds);
+		for (i = 0; i < bp->num_leds; i++) {
+			struct bnxt_led_info *led = &bp->leds[i];
+			__le16 caps = led->led_state_caps;
+
+			if (!led->led_group_id ||
+			    !BNXT_LED_ALT_BLINK_CAP(caps)) {
+				bp->num_leds = 0;
+				break;
+			}
+		}
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return 0;
+}
+
 static bool bnxt_eee_config_ok(struct bnxt *bp)
 {
 	struct ethtool_eee *eee = &bp->eee;
@@ -7244,6 +7283,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bnxt_hwrm_func_qcfg(bp);
+	bnxt_hwrm_port_led_qcaps(bp);
 
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
