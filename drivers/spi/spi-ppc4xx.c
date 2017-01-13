@@ -411,7 +411,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	if (num_gpios > 0) {
 		int i;
 
-		hw->gpios = kzalloc(sizeof(int) * num_gpios, GFP_KERNEL);
+		hw->gpios = kcalloc(num_gpios, sizeof(*hw->gpios), GFP_KERNEL);
 		if (!hw->gpios) {
 			ret = -ENOMEM;
 			goto free_master;
