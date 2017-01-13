@@ -726,8 +726,7 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		 */
 	} else if (vub300->card_present) {
 		check_vub300_port_status(vub300);
-	} else if (vub300->mmc && vub300->mmc->card &&
-		   mmc_card_present(vub300->mmc->card)) {
+	} else if (vub300->mmc && vub300->mmc->card) {
 		/*
 		 * the MMC core must not have responded
 		 * to the previous indication - lets
@@ -1754,8 +1753,7 @@ static void vub300_cmndwork_thread(struct work_struct *work)
 		int data_length;
 		mutex_lock(&vub300->cmd_mutex);
 		init_completion(&vub300->command_complete);
-		if (likely(vub300->vub_name[0]) || !vub300->mmc->card ||
-		    !mmc_card_present(vub300->mmc->card)) {
+		if (likely(vub300->vub_name[0]) || !vub300->mmc->card) {
 			/*
 			 * the name of the EMPTY Pseudo firmware file
 			 * is used as a flag to indicate that the file
