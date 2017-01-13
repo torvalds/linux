@@ -317,9 +317,7 @@ struct beiscsi_hba {
 	struct pci_dev *pcidev;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
-	struct msix_entry msix_entries[MAX_CPUS];
 	char *msi_name[MAX_CPUS];
-	bool msix_enabled;
 	struct be_mem_descriptor *init_mem;
 
 	unsigned short io_sgl_alloc_index;

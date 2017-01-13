@@ -796,12 +796,12 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	struct pci_dev *pcidev = phba->pcidev;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	int ret, msix_vec, i, j;
+	int ret, i, j;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 
-	if (phba->msix_enabled) {
+	if (pcidev->msix_enabled) {
 		for (i = 0; i < phba->num_cpus; i++) {
 			phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME,
 						    GFP_KERNEL);
@@ -812,9 +812,8 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 
 			sprintf(phba->msi_name[i], "beiscsi_%02x_%02x",
 				phba->shost->host_no, i);
-			msix_vec = phba->msix_entries[i].vector;
-			ret = request_irq(msix_vec, be_isr_msix, 0,
-					  phba->msi_name[i],
+			ret = request_irq(pci_irq_vector(pcidev, i),
+					  be_isr_msix, 0, phba->msi_name[i],
 					  &phwi_context->be_eq[i]);
 			if (ret) {
 				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -832,9 +831,8 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 		}
 		sprintf(phba->msi_name[i], "beiscsi_mcc_%02x",
 			phba->shost->host_no);
-		msix_vec = phba->msix_entries[i].vector;
-		ret = request_irq(msix_vec, be_isr_mcc, 0, phba->msi_name[i],
-				  &phwi_context->be_eq[i]);
+		ret = request_irq(pci_irq_vector(pcidev, i), be_isr_mcc, 0,
+				  phba->msi_name[i], &phwi_context->be_eq[i]);
 		if (ret) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT ,
 				    "BM_%d : beiscsi_init_irqs-"
@@ -856,9 +854,8 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	return 0;
 free_msix_irqs:
 	for (j = i - 1; j >= 0; j--) {
+		free_irq(pci_irq_vector(pcidev, i), &phwi_context->be_eq[j]);
 		kfree(phba->msi_name[j]);
-		msix_vec = phba->msix_entries[j].vector;
-		free_irq(msix_vec, &phwi_context->be_eq[j]);
 	}
 	return ret;
 }
@@ -3000,7 +2997,7 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 	num_eq_pages = PAGES_REQUIRED(phba->params.num_eq_entries * \
 				      sizeof(struct be_eq_entry));
 
-	if (phba->msix_enabled)
+	if (phba->pcidev->msix_enabled)
 		eq_for_mcc = 1;
 	else
 		eq_for_mcc = 0;
@@ -3510,7 +3507,7 @@ static int be_mcc_queues_create(struct beiscsi_hba *phba,
 			sizeof(struct be_mcc_compl)))
 		goto err;
 	/* Ask BE to create MCC compl queue; */
-	if (phba->msix_enabled) {
+	if (phba->pcidev->msix_enabled) {
 		if (beiscsi_cmd_cq_create(ctrl, cq, &phwi_context->be_eq
 					 [phba->num_cpus].q, false, true, 0))
 		goto mcc_cq_free;
@@ -3541,42 +3538,35 @@ err:
 	return -ENOMEM;
 }
 
-/**
- * find_num_cpus()- Get the CPU online count
- * @phba: ptr to priv structure
- *
- * CPU count is used for creating EQ.
- **/
-static void find_num_cpus(struct beiscsi_hba *phba)
+static void be2iscsi_enable_msix(struct beiscsi_hba *phba)
 {
-	int  num_cpus = 0;
-
-	num_cpus = num_online_cpus();
+	int nvec = 1;
 
 	switch (phba->generation) {
 	case BE_GEN2:
 	case BE_GEN3:
-		phba->num_cpus = (num_cpus > BEISCSI_MAX_NUM_CPUS) ?
-				  BEISCSI_MAX_NUM_CPUS : num_cpus;
+		nvec = BEISCSI_MAX_NUM_CPUS + 1;
 		break;
 	case BE_GEN4:
-		/*
-		 * If eqid_count == 1 fall back to
-		 * INTX mechanism
-		 **/
-		if (phba->fw_config.eqid_count == 1) {
-			enable_msix = 0;
-			phba->num_cpus = 1;
-			return;
-		}
-
-		phba->num_cpus =
-			(num_cpus > (phba->fw_config.eqid_count - 1)) ?
-			(phba->fw_config.eqid_count - 1) : num_cpus;
+		nvec = phba->fw_config.eqid_count;
 		break;
 	default:
-		phba->num_cpus = 1;
+		nvec = 2;
+		break;
 	}
+
+	/* if eqid_count == 1 fall back to INTX */
+	if (enable_msix && nvec > 1) {
+		const struct irq_affinity desc = { .post_vectors = 1 };
+
+		if (pci_alloc_irq_vectors_affinity(phba->pcidev, 2, nvec,
+				PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc) < 0) {
+			phba->num_cpus = nvec - 1;
+			return;
+		}
+	}
+
+	phba->num_cpus = 1;
 }
 
 static void hwi_purge_eq(struct beiscsi_hba *phba)
@@ -3593,7 +3583,7 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
-	if (phba->msix_enabled)
+	if (phba->pcidev->msix_enabled)
 		eq_msix = 1;
 	else
 		eq_msix = 0;
@@ -3671,7 +3661,7 @@ static void hwi_cleanup_port(struct beiscsi_hba *phba)
 	}
 
 	be_mcc_queues_destroy(phba);
-	if (phba->msix_enabled)
+	if (phba->pcidev->msix_enabled)
 		eq_for_mcc = 1;
 	else
 		eq_for_mcc = 0;
@@ -4117,7 +4107,7 @@ static void hwi_enable_intr(struct beiscsi_hba *phba)
 		iowrite32(reg, addr);
 	}
 
-	if (!phba->msix_enabled) {
+	if (!phba->pcidev->msix_enabled) {
 		eq = &phwi_context->be_eq[0].q;
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 			    "BM_%d : eq->id=%d\n", eq->id);
@@ -5240,19 +5230,6 @@ static void beiscsi_eqd_update_work(struct work_struct *work)
 			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
 }
 
-static void beiscsi_msix_enable(struct beiscsi_hba *phba)
-{
-	int i, status;
-
-	for (i = 0; i <= phba->num_cpus; i++)
-		phba->msix_entries[i].entry = i;
-
-	status = pci_enable_msix_range(phba->pcidev, phba->msix_entries,
-				       phba->num_cpus + 1, phba->num_cpus + 1);
-	if (status > 0)
-		phba->msix_enabled = true;
-}
-
 static void beiscsi_hw_tpe_check(unsigned long ptr)
 {
 	struct beiscsi_hba *phba;
@@ -5320,15 +5297,7 @@ static int beiscsi_enable_port(struct beiscsi_hba *phba)
 	if (ret)
 		return ret;
 
-	if (enable_msix)
-		find_num_cpus(phba);
-	else
-		phba->num_cpus = 1;
-	if (enable_msix) {
-		beiscsi_msix_enable(phba);
-		if (!phba->msix_enabled)
-			phba->num_cpus = 1;
-	}
+	be2iscsi_enable_msix(phba);
 
 	beiscsi_get_params(phba);
 	/* Re-enable UER. If different TPE occurs then it is recoverable. */
@@ -5357,7 +5326,7 @@ static int beiscsi_enable_port(struct beiscsi_hba *phba)
 		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget, be_iopoll);
 	}
 
-	i = (phba->msix_enabled) ? i : 0;
+	i = (phba->pcidev->msix_enabled) ? i : 0;
 	/* Work item for MCC handling */
 	pbe_eq = &phwi_context->be_eq[i];
 	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
@@ -5395,9 +5364,7 @@ cleanup_port:
 	hwi_cleanup_port(phba);
 
 disable_msix:
-	if (phba->msix_enabled)
-		pci_disable_msix(phba->pcidev);
-
+	pci_free_irq_vectors(phba->pcidev);
 	return ret;
 }
 
@@ -5414,7 +5381,7 @@ static void beiscsi_disable_port(struct beiscsi_hba *phba, int unload)
 	struct hwi_context_memory *phwi_context;
 	struct hwi_controller *phwi_ctrlr;
 	struct be_eq_obj *pbe_eq;
-	unsigned int i, msix_vec;
+	unsigned int i;
 
 	if (!test_and_clear_bit(BEISCSI_HBA_ONLINE, &phba->state))
 		return;
@@ -5422,16 +5389,16 @@ static void beiscsi_disable_port(struct beiscsi_hba *phba, int unload)
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 	hwi_disable_intr(phba);
-	if (phba->msix_enabled) {
+	if (phba->pcidev->msix_enabled) {
 		for (i = 0; i <= phba->num_cpus; i++) {
-			msix_vec = phba->msix_entries[i].vector;
-			free_irq(msix_vec, &phwi_context->be_eq[i]);
+			free_irq(pci_irq_vector(phba->pcidev, i),
+				&phwi_context->be_eq[i]);
 			kfree(phba->msi_name[i]);
 		}
 	} else
 		if (phba->pcidev->irq)
 			free_irq(phba->pcidev->irq, phba);
-	pci_disable_msix(phba->pcidev);
+	pci_free_irq_vectors(phba->pcidev);
 
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
@@ -5641,20 +5608,11 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	beiscsi_get_params(phba);
 	beiscsi_set_uer_feature(phba);
 
-	if (enable_msix)
-		find_num_cpus(phba);
-	else
-		phba->num_cpus = 1;
+	be2iscsi_enable_msix(phba);
 
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "BM_%d : num_cpus = %d\n",
 		    phba->num_cpus);
-
-	if (enable_msix) {
-		beiscsi_msix_enable(phba);
-		if (!phba->msix_enabled)
-			phba->num_cpus = 1;
-	}
 
 	phba->shost->max_id = phba->params.cxns_per_ctrl;
 	phba->shost->can_queue = phba->params.ios_per_ctrl;
@@ -5705,7 +5663,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget, be_iopoll);
 	}
 
-	i = (phba->msix_enabled) ? i : 0;
+	i = (phba->pcidev->msix_enabled) ? i : 0;
 	/* Work item for MCC handling */
 	pbe_eq = &phwi_context->be_eq[i];
 	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
@@ -5776,8 +5734,7 @@ free_port:
 			   phba->ctrl.mbox_mem_alloced.dma);
 	beiscsi_unmap_pci_function(phba);
 hba_free:
-	if (phba->msix_enabled)
-		pci_disable_msix(phba->pcidev);
+	pci_disable_msix(phba->pcidev);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
 	pci_set_drvdata(pcidev, NULL);
