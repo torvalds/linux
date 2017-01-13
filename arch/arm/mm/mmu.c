@@ -1157,6 +1157,7 @@ void __init adjust_lowmem_bounds(void)
 	phys_addr_t memblock_limit = 0;
 	u64 vmalloc_limit;
 	struct memblock_region *reg;
+	phys_addr_t lowmem_limit = 0;
 
 	/*
 	 * Let's use our own (unoptimized) equivalent of __pa() that is
@@ -1172,14 +1173,14 @@ void __init adjust_lowmem_bounds(void)
 		phys_addr_t block_end = reg->base + reg->size;
 
 		if (reg->base < vmalloc_limit) {
-			if (block_end > arm_lowmem_limit)
+			if (block_end > lowmem_limit)
 				/*
 				 * Compare as u64 to ensure vmalloc_limit does
 				 * not get truncated. block_end should always
 				 * fit in phys_addr_t so there should be no
 				 * issue with assignment.
 				 */
-				arm_lowmem_limit = min_t(u64,
+				lowmem_limit = min_t(u64,
 							 vmalloc_limit,
 							 block_end);
 
@@ -1200,11 +1201,13 @@ void __init adjust_lowmem_bounds(void)
 				if (!IS_ALIGNED(block_start, PMD_SIZE))
 					memblock_limit = block_start;
 				else if (!IS_ALIGNED(block_end, PMD_SIZE))
-					memblock_limit = arm_lowmem_limit;
+					memblock_limit = lowmem_limit;
 			}
 
 		}
 	}
+
+	arm_lowmem_limit = lowmem_limit;
 
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
