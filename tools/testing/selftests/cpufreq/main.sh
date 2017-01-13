@@ -15,7 +15,9 @@ helpme()
 	printf "Usage: $0 [-h] [-to args]
 	[-h <help>]
 	[-o <output-file-for-dump>]
-	[-t <basic: Basic cpufreq testing>]
+	[-t <basic: Basic cpufreq testing
+	     suspend: suspend/resume,
+	     hibernate: hibernate/resume>]
 	\n"
 	exit 2
 }
@@ -61,7 +63,7 @@ parse_arguments()
 				helpme
 				;;
 
-			t) # --func_type (Function to perform: basic (default: basic))
+			t) # --func_type (Function to perform: basic, suspend, hibernate (default: basic))
 				FUNC=$OPTARG
 				;;
 
@@ -89,6 +91,14 @@ do_test()
 	case "$FUNC" in
 		"basic")
 		cpufreq_basic_tests
+		;;
+
+		"suspend")
+		do_suspend "suspend" 1
+		;;
+
+		"hibernate")
+		do_suspend "hibernate" 1
 		;;
 
 		*)

@@ -199,3 +199,43 @@ cpufreq_basic_tests()
 	# Test all governors
 	shuffle_governors_for_all_cpus 1
 }
+
+# Suspend/resume
+# $1: "suspend" or "hibernate", $2: loop count
+do_suspend()
+{
+	printf "** Test: Running ${FUNCNAME[0]}: Trying $1 for $2 loops **\n\n"
+
+	# Is the directory available
+	if [ ! -d $SYSFS/power/ -o ! -f $SYSFS/power/state ]; then
+		printf "$SYSFS/power/state not available\n"
+		return 1
+	fi
+
+	if [ $1 = "suspend" ]; then
+		filename="mem"
+	elif [ $1 = "hibernate" ]; then
+		filename="disk"
+	else
+		printf "$1 is not a valid option\n"
+		return 1
+	fi
+
+	if [ -n $filename ]; then
+		present=$(cat $SYSFS/power/state | grep $filename)
+
+		if [ -z "$present" ]; then
+			printf "Tried to $1 but $filename isn't present in $SYSFS/power/state\n"
+			return 1;
+		fi
+
+		for i in `seq 1 $2`; do
+			printf "Starting $1\n"
+			echo $filename > $SYSFS/power/state
+			printf "Came out of $1\n"
+
+			printf "Do basic tests after finishing $1 to verify cpufreq state\n\n"
+			cpufreq_basic_tests
+		done
+	fi
+}
