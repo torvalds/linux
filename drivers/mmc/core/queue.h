@@ -1,6 +1,11 @@
 #ifndef MMC_QUEUE_H
 #define MMC_QUEUE_H
 
+#include <linux/types.h>
+#include <linux/blkdev.h>
+#include <linux/mmc/core.h>
+#include <linux/mmc/host.h>
+
 static inline bool mmc_req_is_special(struct request *req)
 {
 	return req &&
@@ -9,7 +14,6 @@ static inline bool mmc_req_is_special(struct request *req)
 		 req_op(req) == REQ_OP_SECURE_ERASE);
 }
 
-struct request;
 struct task_struct;
 struct mmc_blk_data;
 

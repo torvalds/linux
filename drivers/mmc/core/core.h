@@ -12,6 +12,10 @@
 #define _MMC_CORE_CORE_H
 
 #include <linux/delay.h>
+#include <linux/sched.h>
+
+struct mmc_host;
+struct mmc_card;
 
 #define MMC_CMD_RETRIES        3
 

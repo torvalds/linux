@@ -12,7 +12,11 @@
 #ifndef _MMC_SDIO_OPS_H
 #define _MMC_SDIO_OPS_H
 
+#include <linux/types.h>
 #include <linux/mmc/sdio.h>
+
+struct mmc_host;
+struct mmc_card;
 
 int mmc_send_io_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr);
 int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
