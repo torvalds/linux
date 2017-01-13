@@ -1,6 +1,7 @@
 TARGETS =  bpf
 TARGETS += breakpoints
 TARGETS += capabilities
+TARGETS += cpufreq
 TARGETS += cpu-hotplug
 TARGETS += efivarfs
 TARGETS += exec
