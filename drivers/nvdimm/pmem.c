@@ -89,7 +89,7 @@ static int read_pmem(struct page *page, unsigned int off,
 	int rc;
 	void *mem = kmap_atomic(page);
 
-	rc = memcpy_from_pmem(mem + off, pmem_addr, len);
+	rc = memcpy_mcsafe(mem + off, pmem_addr, len);
 	kunmap_atomic(mem);
 	if (rc)
 		return -EIO;
