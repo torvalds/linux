@@ -119,6 +119,7 @@
 #define SYS_ID_PFR0_EL1			sys_reg(3, 0, 0, 1, 0)
 #define SYS_ID_PFR1_EL1			sys_reg(3, 0, 0, 1, 1)
 #define SYS_ID_DFR0_EL1			sys_reg(3, 0, 0, 1, 2)
+#define SYS_ID_AFR0_EL1			sys_reg(3, 0, 0, 1, 3)
 #define SYS_ID_MMFR0_EL1		sys_reg(3, 0, 0, 1, 4)
 #define SYS_ID_MMFR1_EL1		sys_reg(3, 0, 0, 1, 5)
 #define SYS_ID_MMFR2_EL1		sys_reg(3, 0, 0, 1, 6)
@@ -149,10 +150,29 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
+#define SYS_SCTLR_EL1			sys_reg(3, 0, 1, 0, 0)
+#define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
+#define SYS_CPACR_EL1			sys_reg(3, 0, 1, 0, 2)
+
+#define SYS_TTBR0_EL1			sys_reg(3, 0, 2, 0, 0)
+#define SYS_TTBR1_EL1			sys_reg(3, 0, 2, 0, 1)
+#define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
+
 #define SYS_ICC_PMR_EL1			sys_reg(3, 0, 4, 6, 0)
+
+#define SYS_AFSR0_EL1			sys_reg(3, 0, 5, 1, 0)
+#define SYS_AFSR1_EL1			sys_reg(3, 0, 5, 1, 1)
+#define SYS_ESR_EL1			sys_reg(3, 0, 5, 2, 0)
+#define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
+#define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
 
 #define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
 #define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
+
+#define SYS_MAIR_EL1			sys_reg(3, 0, 10, 2, 0)
+#define SYS_AMAIR_EL1			sys_reg(3, 0, 10, 3, 0)
+
+#define SYS_VBAR_EL1			sys_reg(3, 0, 12, 0, 0)
 
 #define SYS_ICC_DIR_EL1			sys_reg(3, 0, 12, 11, 1)
 #define SYS_ICC_SGI1R_EL1		sys_reg(3, 0, 12, 11, 5)
@@ -162,6 +182,16 @@
 #define SYS_ICC_CTLR_EL1		sys_reg(3, 0, 12, 12, 4)
 #define SYS_ICC_SRE_EL1			sys_reg(3, 0, 12, 12, 5)
 #define SYS_ICC_GRPEN1_EL1		sys_reg(3, 0, 12, 12, 7)
+
+#define SYS_CONTEXTIDR_EL1		sys_reg(3, 0, 13, 0, 1)
+#define SYS_TPIDR_EL1			sys_reg(3, 0, 13, 0, 4)
+
+#define SYS_CNTKCTL_EL1			sys_reg(3, 0, 14, 1, 0)
+
+#define SYS_CLIDR_EL1			sys_reg(3, 1, 0, 0, 1)
+#define SYS_AIDR_EL1			sys_reg(3, 1, 0, 0, 7)
+
+#define SYS_CSSELR_EL1			sys_reg(3, 2, 0, 0, 0)
 
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
@@ -180,6 +210,9 @@
 #define SYS_PMUSERENR_EL0		sys_reg(3, 3, 9, 14, 0)
 #define SYS_PMOVSSET_EL0		sys_reg(3, 3, 9, 14, 3)
 
+#define SYS_TPIDR_EL0			sys_reg(3, 3, 13, 0, 2)
+#define SYS_TPIDRRO_EL0			sys_reg(3, 3, 13, 0, 3)
+
 #define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
 
 #define SYS_CNTP_TVAL_EL0		sys_reg(3, 3, 14, 2, 0)
@@ -193,6 +226,10 @@
 #define SYS_PMEVTYPERn_EL0(n)		sys_reg(3, 3, 14, __TYPER_CRm(n), __PMEV_op2(n))
 
 #define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
+
+#define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
+#define SYS_IFSR32_EL2			sys_reg(3, 4, 5, 0, 1)
+#define SYS_FPEXC32_EL2			sys_reg(3, 4, 5, 3, 0)
 
 #define __SYS__AP0Rx_EL2(x)		sys_reg(3, 4, 12, 8, x)
 #define SYS_ICH_AP0R0_EL2		__SYS__AP0Rx_EL2(0)
