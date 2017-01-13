@@ -550,6 +550,9 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	err = ida_simple_get(&port->ida, port->dev_id_start, 0xFFFE,
 			     GFP_KERNEL);
 	if (err < 0)
+		err = ida_simple_get(&port->ida, 0x1, port->dev_id_start,
+				     GFP_KERNEL);
+	if (err < 0)
 		goto destroy_ipvlan_port;
 	dev->dev_id = err;
 	/* Increment id-base to the next slot for the future assignment */
