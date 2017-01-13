@@ -41,7 +41,7 @@ struct reset_control {
 	struct list_head list;
 	unsigned int id;
 	unsigned int refcnt;
-	int shared;
+	bool shared;
 	atomic_t deassert_count;
 	atomic_t triggered_count;
 };
@@ -254,7 +254,7 @@ EXPORT_SYMBOL_GPL(reset_control_status);
 
 static struct reset_control *__reset_control_get(
 				struct reset_controller_dev *rcdev,
-				unsigned int index, int shared)
+				unsigned int index, bool shared)
 {
 	struct reset_control *rstc;
 
@@ -299,7 +299,7 @@ static void __reset_control_put(struct reset_control *rstc)
 }
 
 struct reset_control *__of_reset_control_get(struct device_node *node,
-				     const char *id, int index, int shared)
+				     const char *id, int index, bool shared)
 {
 	struct reset_control *rstc;
 	struct reset_controller_dev *r, *rcdev;
@@ -379,7 +379,7 @@ static void devm_reset_control_release(struct device *dev, void *res)
 }
 
 struct reset_control *__devm_reset_control_get(struct device *dev,
-				     const char *id, int index, int shared)
+				     const char *id, int index, bool shared)
 {
 	struct reset_control **ptr, *rstc;
 
