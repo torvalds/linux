@@ -1218,7 +1218,8 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		return sacked;
 
 	if (!(sacked & TCPCB_SACKED_ACKED)) {
-		tcp_rack_advance(tp, sacked, xmit_time, &state->ack_time);
+		tcp_rack_advance(tp, sacked, end_seq,
+				 xmit_time, &state->ack_time);
 
 		if (sacked & TCPCB_SACKED_RETRANS) {
 			/* If the segment is not tagged as lost,
@@ -3171,7 +3172,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		} else if (tcp_is_sack(tp)) {
 			tp->delivered += acked_pcount;
 			if (!tcp_skb_spurious_retrans(tp, skb))
-				tcp_rack_advance(tp, sacked,
+				tcp_rack_advance(tp, sacked, scb->end_seq,
 						 &skb->skb_mstamp,
 						 &sack->ack_time);
 		}

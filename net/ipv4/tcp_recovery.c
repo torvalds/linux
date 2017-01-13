@@ -16,6 +16,14 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
+static bool tcp_rack_sent_after(const struct skb_mstamp *t1,
+				const struct skb_mstamp *t2,
+				u32 seq1, u32 seq2)
+{
+	return skb_mstamp_after(t1, t2) ||
+	       (t1->v64 == t2->v64 && after(seq1, seq2));
+}
+
 /* Marks a packet lost, if some packet sent later has been (s)acked.
  * The underlying idea is similar to the traditional dupthresh and FACK
  * but they look at different metrics:
@@ -60,7 +68,8 @@ static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
 		    scb->sacked & TCPCB_SACKED_ACKED)
 			continue;
 
-		if (skb_mstamp_after(&tp->rack.mstamp, &skb->skb_mstamp)) {
+		if (tcp_rack_sent_after(&tp->rack.mstamp, &skb->skb_mstamp,
+					tp->rack.end_seq, scb->end_seq)) {
 			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
 			 * A packet is lost if its elapsed time is beyond
 			 * the recent RTT plus the reordering window.
@@ -113,14 +122,15 @@ void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
  * This is "Step 3: Advance RACK.xmit_time and update RACK.RTT" from
  * draft-cheng-tcpm-rack-00.txt
  */
-void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
+void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 		      const struct skb_mstamp *xmit_time,
 		      const struct skb_mstamp *ack_time)
 {
 	u32 rtt_us;
 
 	if (tp->rack.mstamp.v64 &&
-	    !skb_mstamp_after(xmit_time, &tp->rack.mstamp))
+	    !tcp_rack_sent_after(xmit_time, &tp->rack.mstamp,
+				 end_seq, tp->rack.end_seq))
 		return;
 
 	rtt_us = skb_mstamp_us_delta(ack_time, xmit_time);
@@ -140,6 +150,7 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
 	}
 	tp->rack.rtt_us = rtt_us;
 	tp->rack.mstamp = *xmit_time;
+	tp->rack.end_seq = end_seq;
 	tp->rack.advanced = 1;
 }
 
