@@ -428,8 +428,9 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 				/* Real CS - set the initial state. */
 				ret = gpio_request(gpio, np->name);
 				if (ret < 0) {
-					dev_err(dev, "can't request gpio "
-							"#%d: %d\n", i, ret);
+					dev_err(dev,
+						"can't request gpio #%d: %d\n",
+						i, ret);
 					goto free_gpios;
 				}
 
