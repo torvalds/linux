@@ -220,7 +220,7 @@ struct tcp_sock {
 		unused:5;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
-		thin_dupack : 1,/* Fast retransmit on first dupack      */
+		unused1	    : 1,
 		repair      : 1,
 		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
 	u8	repair_queue;
