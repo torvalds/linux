@@ -222,6 +222,7 @@ struct perf_sched {
 	bool		show_cpu_visual;
 	bool		show_wakeups;
 	bool		show_migrations;
+	bool		show_state;
 	u64		skipped_samples;
 	const char	*time_str;
 	struct perf_time_interval ptime;
@@ -1840,6 +1841,9 @@ static void timehist_header(struct perf_sched *sched)
 	printf(" %-*s  %9s  %9s  %9s", comm_width,
 		"task name", "wait time", "sch delay", "run time");
 
+	if (sched->show_state)
+		printf("  %s", "state");
+
 	printf("\n");
 
 	/*
@@ -1850,8 +1854,13 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %*s ", ncpus, "");
 
-	printf(" %-*s  %9s  %9s  %9s\n", comm_width,
+	printf(" %-*s  %9s  %9s  %9s", comm_width,
 	       "[tid/pid]", "(msec)", "(msec)", "(msec)");
+
+	if (sched->show_state)
+		printf("  %5s", "");
+
+	printf("\n");
 
 	/*
 	 * separator
@@ -1865,14 +1874,29 @@ static void timehist_header(struct perf_sched *sched)
 		graph_dotted_line, graph_dotted_line, graph_dotted_line,
 		graph_dotted_line);
 
+	if (sched->show_state)
+		printf("  %.5s", graph_dotted_line);
+
 	printf("\n");
+}
+
+static char task_state_char(struct thread *thread, int state)
+{
+	static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
+	unsigned bit = state ? ffs(state) : 0;
+
+	/* 'I' for idle */
+	if (thread->tid == 0)
+		return 'I';
+
+	return bit < sizeof(state_to_char) - 1 ? state_to_char[bit] : '?';
 }
 
 static void timehist_print_sample(struct perf_sched *sched,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct thread *thread,
-				  u64 t)
+				  u64 t, int state)
 {
 	struct thread_runtime *tr = thread__priv(thread);
 	u32 max_cpus = sched->max_cpu + 1;
@@ -1905,6 +1929,9 @@ static void timehist_print_sample(struct perf_sched *sched,
 
 	print_sched_time(tr->dt_delay, 6);
 	print_sched_time(tr->dt_run, 6);
+
+	if (sched->show_state)
+		printf(" %5c ", task_state_char(thread, state));
 
 	if (sched->show_wakeups)
 		printf("  %-*s", comm_width, "");
@@ -2406,6 +2433,8 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	struct thread_runtime *tr = NULL;
 	u64 tprev, t = sample->time;
 	int rc = 0;
+	int state = perf_evsel__intval(evsel, sample, "prev_state");
+
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
@@ -2493,7 +2522,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	}
 
 	if (!sched->summary_only)
-		timehist_print_sample(sched, sample, &al, thread, t);
+		timehist_print_sample(sched, sample, &al, thread, t, state);
 
 out:
 	if (sched->hist_time.start == 0 && t >= ptime->start)
@@ -2506,7 +2535,7 @@ out:
 		tr->last_time = sample->time;
 
 		/* last state is used to determine where to account wait time */
-		tr->last_state = perf_evsel__intval(evsel, sample, "prev_state");
+		tr->last_state = state;
 
 		/* sched out event for task so reset ready to run time */
 		tr->ready_to_run = 0;
@@ -3278,6 +3307,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('I', "idle-hist", &sched.idle_hist, "Show idle events only"),
 	OPT_STRING(0, "time", &sched.time_str, "str",
 		   "Time span for analysis (start,stop)"),
+	OPT_BOOLEAN(0, "state", &sched.show_state, "Show task state when sched-out"),
 	OPT_PARENT(sched_options)
 	};
 
