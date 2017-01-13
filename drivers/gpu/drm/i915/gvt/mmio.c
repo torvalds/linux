@@ -304,6 +304,26 @@ err:
 	return ret;
 }
 
+
+/**
+ * intel_vgpu_reset_mmio - reset virtual MMIO space
+ * @vgpu: a vGPU
+ *
+ */
+void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	const struct intel_gvt_device_info *info = &gvt->device_info;
+
+	memcpy(vgpu->mmio.vreg, gvt->firmware.mmio, info->mmio_size);
+	memcpy(vgpu->mmio.sreg, gvt->firmware.mmio, info->mmio_size);
+
+	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+
+	/* set the bit 0:2(Core C-State ) to C0 */
+	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+}
+
 /**
  * intel_vgpu_init_mmio - init MMIO  space
  * @vgpu: a vGPU
@@ -315,22 +335,13 @@ int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 
-	if (vgpu->mmio.vreg)
-		memset(vgpu->mmio.vreg, 0, info->mmio_size * 2);
-	else {
-		vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
-		if (!vgpu->mmio.vreg)
-			return -ENOMEM;
-	}
+	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+	if (!vgpu->mmio.vreg)
+		return -ENOMEM;
+
 	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
 
-	memcpy(vgpu->mmio.vreg, vgpu->gvt->firmware.mmio, info->mmio_size);
-	memcpy(vgpu->mmio.sreg, vgpu->gvt->firmware.mmio, info->mmio_size);
-
-	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
-
-	/* set the bit 0:2(Core C-State ) to C0 */
-	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+	intel_vgpu_reset_mmio(vgpu);
 
 	return 0;
 }
