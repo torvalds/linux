@@ -173,6 +173,16 @@ static struct vgacon_scrollback_info {
 	int restore;
 } vgacon_scrollback;
 
+static void vgacon_scrollback_reset(size_t reset_size)
+{
+	if (vgacon_scrollback.data && reset_size > 0)
+		memset(vgacon_scrollback.data, 0, reset_size);
+
+	vgacon_scrollback.cnt  = 0;
+	vgacon_scrollback.tail = 0;
+	vgacon_scrollback.cur  = 0;
+}
+
 static void vgacon_scrollback_init(int pitch)
 {
 	int rows = CONFIG_VGACON_SOFT_SCROLLBACK_SIZE * 1024/pitch;
@@ -305,6 +315,14 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines)
 	} else
 		vgacon_cursor(c, CM_MOVE);
 }
+
+static void vgacon_flush_scrollback(struct vc_data *c)
+{
+	size_t size = CONFIG_VGACON_SOFT_SCROLLBACK_SIZE * 1024;
+
+	if (c->vc_num == fg_console)
+		vgacon_scrollback_reset(size);
+}
 #else
 #define vgacon_scrollback_startup(...) do { } while (0)
 #define vgacon_scrollback_init(...)    do { } while (0)
@@ -321,6 +339,10 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines)
 	vc_scrolldelta_helper(c, lines, vga_rolled_over, (void *)vga_vram_base,
 			vga_vram_size);
 	vga_set_mem_top(c);
+}
+
+static void vgacon_flush_scrollback(struct vc_data *c)
+{
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
 
@@ -1329,7 +1351,6 @@ static bool vgacon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
 	return true;
 }
 
-
 /*
  *  The console `switch' structure for the VGA based console
  */
@@ -1362,6 +1383,7 @@ const struct consw vga_con = {
 	.con_save_screen = vgacon_save_screen,
 	.con_build_attr = vgacon_build_attr,
 	.con_invert_region = vgacon_invert_region,
+	.con_flush_scrollback = vgacon_flush_scrollback,
 };
 EXPORT_SYMBOL(vga_con);
 

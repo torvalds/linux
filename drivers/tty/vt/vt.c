@@ -625,6 +625,14 @@ static void save_screen(struct vc_data *vc)
 		vc->vc_sw->con_save_screen(vc);
 }
 
+static void flush_scrollback(struct vc_data *vc)
+{
+	WARN_CONSOLE_UNLOCKED();
+
+	if (vc->vc_sw->con_flush_scrollback)
+		vc->vc_sw->con_flush_scrollback(vc);
+}
+
 /*
  *	Redrawing of screen
  */
@@ -1171,6 +1179,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 		case 3: /* erase scroll-back buffer (and whole display) */
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size);
+			flush_scrollback(vc);
 			set_origin(vc);
 			if (con_is_visible(vc))
 				update_screen(vc);
