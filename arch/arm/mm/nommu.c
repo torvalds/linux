@@ -85,7 +85,7 @@ static unsigned long irbar_read(void)
 }
 
 /* MPU initialisation functions */
-void __init sanity_check_meminfo_mpu(void)
+void __init adjust_lowmem_bounds_mpu(void)
 {
 	phys_addr_t phys_offset = PHYS_OFFSET;
 	phys_addr_t aligned_region_size, specified_mem_size, rounded_mem_size;
@@ -274,7 +274,7 @@ void __init mpu_setup(void)
 	}
 }
 #else
-static void sanity_check_meminfo_mpu(void) {}
+static void adjust_lowmem_bounds_mpu(void) {}
 static void __init mpu_setup(void) {}
 #endif /* CONFIG_ARM_MPU */
 
@@ -295,10 +295,10 @@ void __init arm_mm_memblock_reserve(void)
 #endif
 }
 
-void __init sanity_check_meminfo(void)
+void __init adjust_lowmem_bounds(void)
 {
 	phys_addr_t end;
-	sanity_check_meminfo_mpu();
+	adjust_lowmem_bounds_mpu();
 	end = memblock_end_of_DRAM();
 	high_memory = __va(end - 1) + 1;
 	memblock_set_current_limit(end);
