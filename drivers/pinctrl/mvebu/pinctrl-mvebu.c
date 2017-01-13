@@ -23,6 +23,8 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include "pinctrl-mvebu.h"
 
@@ -775,6 +777,64 @@ int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < soc->ncontrols; i++)
 		mpp_data[i].base = base;
+
+	soc->control_data = mpp_data;
+
+	return mvebu_pinctrl_probe(pdev);
+}
+
+int mvebu_regmap_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data,
+			      unsigned int pid, unsigned long *config)
+{
+	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned int val;
+	int err;
+
+	err = regmap_read(data->regmap.map, data->regmap.offset + off, &val);
+	if (err)
+		return err;
+
+	*config = (val >> shift) & MVEBU_MPP_MASK;
+
+	return 0;
+}
+
+int mvebu_regmap_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data,
+			      unsigned int pid, unsigned long config)
+{
+	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
+
+	return regmap_update_bits(data->regmap.map, data->regmap.offset + off,
+				  MVEBU_MPP_MASK << shift, config << shift);
+}
+
+int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
+				      struct device *syscon_dev)
+{
+	struct mvebu_pinctrl_soc_info *soc = dev_get_platdata(&pdev->dev);
+	struct mvebu_mpp_ctrl_data *mpp_data;
+	struct regmap *regmap;
+	u32 offset;
+	int i;
+
+	regmap = syscon_node_to_regmap(syscon_dev->of_node);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	if (of_property_read_u32(pdev->dev.of_node, "offset", &offset))
+		return -EINVAL;
+
+	mpp_data = devm_kcalloc(&pdev->dev, soc->ncontrols, sizeof(*mpp_data),
+				GFP_KERNEL);
+	if (!mpp_data)
+		return -ENOMEM;
+
+	for (i = 0; i < soc->ncontrols; i++) {
+		mpp_data[i].regmap.map = regmap;
+		mpp_data[i].regmap.offset = offset;
+	}
 
 	soc->control_data = mpp_data;
 

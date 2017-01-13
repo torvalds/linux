@@ -16,9 +16,17 @@
 /**
  * struct mvebu_mpp_ctrl_data - private data for the mpp ctrl operations
  * @base: base address of pinctrl hardware
+ * @regmap.map: regmap structure
+ * @regmap.offset: regmap offset
  */
 struct mvebu_mpp_ctrl_data {
-	void __iomem *base;
+	union {
+		void __iomem *base;
+		struct {
+			struct regmap *map;
+			u32 offset;
+		} regmap;
+	};
 };
 
 /**
@@ -194,8 +202,14 @@ int mvebu_mmio_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 			       unsigned long *config);
 int mvebu_mmio_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 			       unsigned long config);
+int mvebu_regmap_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long *config);
+int mvebu_regmap_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long config);
 
 int mvebu_pinctrl_probe(struct platform_device *pdev);
 int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev);
+int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
+				      struct device *syscon_dev);
 
 #endif
