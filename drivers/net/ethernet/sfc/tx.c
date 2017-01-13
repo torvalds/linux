@@ -28,7 +28,6 @@
 
 #ifdef EFX_USE_PIO
 
-#define EFX_PIOBUF_SIZE_MAX ER_DZ_TX_PIOBUF_SIZE
 #define EFX_PIOBUF_SIZE_DEF ALIGN(256, L1_CACHE_BYTES)
 unsigned int efx_piobuf_size __read_mostly = EFX_PIOBUF_SIZE_DEF;
 

@@ -197,11 +197,15 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 	nic_data->datapath_caps =
 		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
 
-	if (outlen >= MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+	if (outlen >= MC_CMD_GET_CAPABILITIES_V2_OUT_LEN) {
 		nic_data->datapath_caps2 = MCDI_DWORD(outbuf,
 				GET_CAPABILITIES_V2_OUT_FLAGS2);
-	else
+		nic_data->piobuf_size = MCDI_WORD(outbuf,
+				GET_CAPABILITIES_V2_OUT_SIZE_PIO_BUFF);
+	} else {
 		nic_data->datapath_caps2 = 0;
+		nic_data->piobuf_size = ER_DZ_TX_PIOBUF_SIZE;
+	}
 
 	/* record the DPCPU firmware IDs to determine VEB vswitching support.
 	 */
@@ -823,8 +827,8 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 			offset = ((efx->tx_channel_offset + efx->n_tx_channels -
 				   tx_queue->channel->channel - 1) *
 				  efx_piobuf_size);
-			index = offset / ER_DZ_TX_PIOBUF_SIZE;
-			offset = offset % ER_DZ_TX_PIOBUF_SIZE;
+			index = offset / nic_data->piobuf_size;
+			offset = offset % nic_data->piobuf_size;
 
 			/* When the host page size is 4K, the first
 			 * host page in the WC mapping may be within
@@ -1159,11 +1163,11 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * functions of the controller.
 	 */
 	if (efx_piobuf_size != 0 &&
-	    ER_DZ_TX_PIOBUF_SIZE / efx_piobuf_size * EF10_TX_PIOBUF_COUNT >=
+	    nic_data->piobuf_size / efx_piobuf_size * EF10_TX_PIOBUF_COUNT >=
 	    efx->n_tx_channels) {
 		unsigned int n_piobufs =
 			DIV_ROUND_UP(efx->n_tx_channels,
-				     ER_DZ_TX_PIOBUF_SIZE / efx_piobuf_size);
+				     nic_data->piobuf_size / efx_piobuf_size);
 
 		rc = efx_ef10_alloc_piobufs(efx, n_piobufs);
 		if (rc)

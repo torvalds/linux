@@ -343,6 +343,7 @@ enum {
  * @pio_write_base: Base address for writing PIO buffers
  * @pio_write_vi_base: Relative VI number for @pio_write_base
  * @piobuf_handle: Handle of each PIO buffer allocated
+ * @piobuf_size: size of a single PIO buffer
  * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
  *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
@@ -380,6 +381,7 @@ struct efx_ef10_nic_data {
 	void __iomem *wc_membase, *pio_write_base;
 	unsigned int pio_write_vi_base;
 	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
+	u16 piobuf_size;
 	bool must_restore_piobufs;
 	u32 rx_rss_context;
 	bool rx_rss_context_exclusive;
