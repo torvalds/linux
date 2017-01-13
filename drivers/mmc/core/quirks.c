@@ -15,6 +15,8 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_ids.h>
 
+#include "card.h"
+
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x0097
 #endif

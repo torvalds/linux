@@ -20,6 +20,7 @@
 #include <linux/mmc/host.h>
 
 #include "core.h"
+#include "card.h"
 #include "mmc_ops.h"
 
 #ifdef CONFIG_FAIL_MMC_REQUEST

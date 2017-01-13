@@ -20,6 +20,7 @@
 #include <linux/mmc/sdio_ids.h>
 
 #include "core.h"
+#include "card.h"
 #include "bus.h"
 #include "sd.h"
 #include "sdio_bus.h"

@@ -23,6 +23,8 @@
 #include <linux/module.h>
 
 #include "core.h"
+#include "card.h"
+#include "bus.h"
 
 #define RESULT_OK		0
 #define RESULT_FAIL		1

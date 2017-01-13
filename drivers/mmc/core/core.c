@@ -40,6 +40,7 @@
 #include <trace/events/mmc.h>
 
 #include "core.h"
+#include "card.h"
 #include "bus.h"
 #include "host.h"
 #include "sdio_bus.h"

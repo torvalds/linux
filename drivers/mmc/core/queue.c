@@ -21,6 +21,7 @@
 #include "queue.h"
 #include "block.h"
 #include "core.h"
+#include "card.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
