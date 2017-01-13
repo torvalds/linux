@@ -89,7 +89,6 @@ static void sancov_start_unit(void __unused *gcc_data, void __unused *user_data)
 __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
 {
 	int i;
-	struct register_pass_info sancov_plugin_pass_info;
 	const char * const plugin_name = plugin_info->base_name;
 	const int argc = plugin_info->argc;
 	const struct plugin_argument * const argv = plugin_info->argv;
@@ -107,14 +106,11 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	};
 
 	/* BBs can be split afterwards?? */
-	sancov_plugin_pass_info.pass				= make_sancov_pass();
 #if BUILDING_GCC_VERSION >= 4009
-	sancov_plugin_pass_info.reference_pass_name		= "asan";
+	PASS_INFO(sancov, "asan", 0, PASS_POS_INSERT_BEFORE);
 #else
-	sancov_plugin_pass_info.reference_pass_name		= "nrv";
+	PASS_INFO(sancov, "nrv", 1, PASS_POS_INSERT_BEFORE);
 #endif
-	sancov_plugin_pass_info.ref_pass_instance_number	= 0;
-	sancov_plugin_pass_info.pos_op				= PASS_POS_INSERT_BEFORE;
 
 	if (!plugin_default_version_check(version, &gcc_version)) {
 		error(G_("incompatible gcc/plugin versions"));
