@@ -3,6 +3,7 @@
 source cpu.sh
 source cpufreq.sh
 source governor.sh
+source module.sh
 
 FUNC=basic	# do basic tests by default
 OUTFILE=cpufreq_selftest
@@ -12,12 +13,15 @@ CPUFREQROOT=
 
 helpme()
 {
-	printf "Usage: $0 [-h] [-to args]
+	printf "Usage: $0 [-h] [-todg args]
 	[-h <help>]
 	[-o <output-file-for-dump>]
 	[-t <basic: Basic cpufreq testing
 	     suspend: suspend/resume,
-	     hibernate: hibernate/resume>]
+	     hibernate: hibernate/resume,
+	     modtest: test driver or governor modules. Only to be used with -d or -g options>]
+	[-d <driver's module name: only with \"-t modtest>\"]
+	[-g <governor's module name: only with \"-t modtest>\"]
 	\n"
 	exit 2
 }
@@ -56,19 +60,27 @@ prerequisite()
 
 parse_arguments()
 {
-	while getopts ht:o: arg
+	while getopts ht:o:d:g: arg
 	do
 		case $arg in
 			h) # --help
 				helpme
 				;;
 
-			t) # --func_type (Function to perform: basic, suspend, hibernate (default: basic))
+			t) # --func_type (Function to perform: basic, suspend, hibernate, modtest (default: basic))
 				FUNC=$OPTARG
 				;;
 
 			o) # --output-file (Output file to store dumps)
 				OUTFILE=$OPTARG
+				;;
+
+			d) # --driver-mod-name (Name of the driver module)
+				DRIVER_MOD=$OPTARG
+				;;
+
+			g) # --governor-mod-name (Name of the governor module)
+				GOVERNOR_MOD=$OPTARG
 				;;
 
 			\?)
@@ -83,7 +95,7 @@ do_test()
 	# Check if CPUs are managed by cpufreq or not
 	count=$(count_cpufreq_managed_cpus)
 
-	if [ $count = 0 ]; then
+	if [ $count = 0 -a $FUNC != "modtest" ]; then
 		echo "No cpu is managed by cpufreq core, exiting"
 		exit 2;
 	fi
@@ -99,6 +111,29 @@ do_test()
 
 		"hibernate")
 		do_suspend "hibernate" 1
+		;;
+
+		"modtest")
+		# Do we have modules in place?
+		if [ -z $DRIVER_MOD ] && [ -z $GOVERNOR_MOD ]; then
+			echo "No driver or governor module passed with -d or -g"
+			exit 2;
+		fi
+
+		if [ $DRIVER_MOD ]; then
+			if [ $GOVERNOR_MOD ]; then
+				module_test $DRIVER_MOD $GOVERNOR_MOD
+			else
+				module_driver_test $DRIVER_MOD
+			fi
+		else
+			if [ $count = 0 ]; then
+				echo "No cpu is managed by cpufreq core, exiting"
+				exit 2;
+			fi
+
+			module_governor_test $GOVERNOR_MOD
+		fi
 		;;
 
 		*)
