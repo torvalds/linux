@@ -354,7 +354,7 @@ static int dove_twsi_ctrl_set(unsigned pid, unsigned long config)
 	return 0;
 }
 
-static struct mvebu_mpp_ctrl dove_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl dove_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 15, NULL, dove_pmu_mpp_ctrl),
 	MPP_FUNC_CTRL(16, 23, NULL, dove_mpp_ctrl),
 	MPP_FUNC_CTRL(24, 39, "mpp_camera", dove_mpp4_ctrl),

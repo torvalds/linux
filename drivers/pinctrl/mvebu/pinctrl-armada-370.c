@@ -384,7 +384,7 @@ static const struct of_device_id armada_370_pinctrl_of_match[] = {
 	{ },
 };
 
-static struct mvebu_mpp_ctrl mv88f6710_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv88f6710_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 65, NULL, armada_370_mpp_ctrl),
 };
 

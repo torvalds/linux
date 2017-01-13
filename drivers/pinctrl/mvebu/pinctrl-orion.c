@@ -161,7 +161,7 @@ static struct mvebu_mpp_mode orion_mpp_modes[] = {
 		 MPP_VAR_FUNCTION(0x5, "gpio", NULL,        V_5182)),
 };
 
-static struct mvebu_mpp_ctrl orion_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl orion_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 19, NULL, orion_mpp_ctrl),
 };
 

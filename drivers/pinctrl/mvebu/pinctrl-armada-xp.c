@@ -378,7 +378,7 @@ static const struct of_device_id armada_xp_pinctrl_of_match[] = {
 	{ },
 };
 
-static struct mvebu_mpp_ctrl mv78230_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv78230_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 48, NULL, armada_xp_mpp_ctrl),
 };
 
@@ -387,7 +387,7 @@ static struct pinctrl_gpio_range mv78230_mpp_gpio_ranges[] = {
 	MPP_GPIO_RANGE(1,  32, 32, 17),
 };
 
-static struct mvebu_mpp_ctrl mv78260_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv78260_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 66, NULL, armada_xp_mpp_ctrl),
 };
 
@@ -397,7 +397,7 @@ static struct pinctrl_gpio_range mv78260_mpp_gpio_ranges[] = {
 	MPP_GPIO_RANGE(2,  64, 64,  3),
 };
 
-static struct mvebu_mpp_ctrl mv78460_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv78460_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 66, NULL, armada_xp_mpp_ctrl),
 };
 

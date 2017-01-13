@@ -105,7 +105,7 @@ struct mvebu_mpp_mode {
  */
 struct mvebu_pinctrl_soc_info {
 	u8 variant;
-	struct mvebu_mpp_ctrl *controls;
+	const struct mvebu_mpp_ctrl *controls;
 	int ncontrols;
 	struct mvebu_mpp_mode *modes;
 	int nmodes;

@@ -370,7 +370,7 @@ static struct mvebu_mpp_mode mv88f6xxx_mpp_modes[] = {
 		MPP_VAR_FUNCTION(0xb, "lcd", "d17",      V(0, 0, 0, 0, 1, 0))),
 };
 
-static struct mvebu_mpp_ctrl mv88f6180_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv88f6180_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 44, NULL, kirkwood_mpp_ctrl),
 };
 
@@ -379,7 +379,7 @@ static struct pinctrl_gpio_range mv88f6180_gpio_ranges[] = {
 	MPP_GPIO_RANGE(1, 35, 35, 10),
 };
 
-static struct mvebu_mpp_ctrl mv88f619x_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv88f619x_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 35, NULL, kirkwood_mpp_ctrl),
 };
 
@@ -388,7 +388,7 @@ static struct pinctrl_gpio_range mv88f619x_gpio_ranges[] = {
 	MPP_GPIO_RANGE(1, 32, 32,  4),
 };
 
-static struct mvebu_mpp_ctrl mv88f628x_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl mv88f628x_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 49, NULL, kirkwood_mpp_ctrl),
 };
 

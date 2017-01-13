@@ -38,7 +38,7 @@ struct mvebu_pinctrl_function {
 
 struct mvebu_pinctrl_group {
 	const char *name;
-	struct mvebu_mpp_ctrl *ctrl;
+	const struct mvebu_mpp_ctrl *ctrl;
 	struct mvebu_mpp_ctrl_setting *settings;
 	unsigned num_settings;
 	unsigned gid;
@@ -576,7 +576,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	pctl->num_groups = 0;
 	pctl->desc.npins = 0;
 	for (n = 0; n < soc->ncontrols; n++) {
-		struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
+		const struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
 
 		pctl->desc.npins += ctrl->npins;
 		/* initialize control's pins[] array */
@@ -620,7 +620,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	/* assign mpp controls to groups */
 	gid = 0;
 	for (n = 0; n < soc->ncontrols; n++) {
-		struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
+		const struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
 		pctl->groups[gid].gid = gid;
 		pctl->groups[gid].ctrl = ctrl;
 		pctl->groups[gid].name = ctrl->name;
