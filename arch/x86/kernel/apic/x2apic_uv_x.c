@@ -1172,19 +1172,25 @@ static void __init decode_gam_rng_tbl(unsigned long ptr)
 		index, _min_socket, _max_socket, _min_pnode, _max_pnode);
 }
 
-static void __init decode_uv_systab(void)
+static int __init decode_uv_systab(void)
 {
 	struct uv_systab *st;
 	int i;
 
+	if (uv_hub_info->hub_revision < UV4_HUB_REVISION_BASE)
+		return 0;	/* No extended UVsystab required */
+
 	st = uv_systab;
-	if ((!st || st->revision < UV_SYSTAB_VERSION_UV4) && !is_uv4_hub())
-		return;
-	if (st->revision != UV_SYSTAB_VERSION_UV4_LATEST) {
-		pr_crit(
+	if ((!st) || (st->revision < UV_SYSTAB_VERSION_UV4_LATEST)) {
+		int rev = st ? st->revision : 0;
+
+		pr_err(
 		"UV: BIOS UVsystab version(%x) mismatch, expecting(%x)\n",
-			st->revision, UV_SYSTAB_VERSION_UV4_LATEST);
-		BUG();
+			rev, UV_SYSTAB_VERSION_UV4_LATEST);
+		pr_err(
+		"UV: Cannot support UV operations, switching to generic PC\n");
+		uv_system_type = UV_NONE;
+		return -EINVAL;
 	}
 
 	for (i = 0; st->entry[i].type != UV_SYSTAB_TYPE_UNUSED; i++) {
@@ -1205,6 +1211,7 @@ static void __init decode_uv_systab(void)
 			break;
 		}
 	}
+	return 0;
 }
 
 /*
@@ -1373,7 +1380,8 @@ void __init uv_system_init(void)
 	map_low_mmrs();
 
 	uv_bios_init();			/* get uv_systab for decoding */
-	decode_uv_systab();
+	if (decode_uv_systab() < 0)
+		return;			/* UVsystab problem, abort UV init */
 	build_socket_tables();
 	build_uv_gr_table();
 	uv_init_hub_info(&hub_info);
