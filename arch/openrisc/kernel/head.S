@@ -1530,6 +1530,7 @@ ENTRY(_early_uart_init)
 	l.jr	r9
 	l.nop
 
+	.section .rodata
 _string_copying_linux:
 	.string "\n\n\n\n\n\rCopying Linux... \0"
 
