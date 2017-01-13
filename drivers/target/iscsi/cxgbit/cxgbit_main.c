@@ -165,29 +165,24 @@ static int cxgbit_uld_state_change(void *handle, enum cxgb4_state state)
 }
 
 static void
-cxgbit_proc_ddp_status(unsigned int tid, struct cpl_rx_data_ddp *cpl,
-		       struct cxgbit_lro_pdu_cb *pdu_cb)
+cxgbit_process_ddpvld(struct cxgbit_sock *csk, struct cxgbit_lro_pdu_cb *pdu_cb,
+		      u32 ddpvld)
 {
-	unsigned int status = ntohl(cpl->ddpvld);
 
-	pdu_cb->flags |= PDUCBF_RX_STATUS;
-	pdu_cb->ddigest = ntohl(cpl->ulp_crc);
-	pdu_cb->pdulen = ntohs(cpl->len);
-
-	if (status & (1 << CPL_RX_ISCSI_DDP_STATUS_HCRC_SHIFT)) {
-		pr_info("tid 0x%x, status 0x%x, hcrc bad.\n", tid, status);
+	if (ddpvld & (1 << CPL_RX_ISCSI_DDP_STATUS_HCRC_SHIFT)) {
+		pr_info("tid 0x%x, status 0x%x, hcrc bad.\n", csk->tid, ddpvld);
 		pdu_cb->flags |= PDUCBF_RX_HCRC_ERR;
 	}
 
-	if (status & (1 << CPL_RX_ISCSI_DDP_STATUS_DCRC_SHIFT)) {
-		pr_info("tid 0x%x, status 0x%x, dcrc bad.\n", tid, status);
+	if (ddpvld & (1 << CPL_RX_ISCSI_DDP_STATUS_DCRC_SHIFT)) {
+		pr_info("tid 0x%x, status 0x%x, dcrc bad.\n", csk->tid, ddpvld);
 		pdu_cb->flags |= PDUCBF_RX_DCRC_ERR;
 	}
 
-	if (status & (1 << CPL_RX_ISCSI_DDP_STATUS_PAD_SHIFT))
-		pr_info("tid 0x%x, status 0x%x, pad bad.\n", tid, status);
+	if (ddpvld & (1 << CPL_RX_ISCSI_DDP_STATUS_PAD_SHIFT))
+		pr_info("tid 0x%x, status 0x%x, pad bad.\n", csk->tid, ddpvld);
 
-	if ((status & (1 << CPL_RX_ISCSI_DDP_STATUS_DDP_SHIFT)) &&
+	if ((ddpvld & (1 << CPL_RX_ISCSI_DDP_STATUS_DDP_SHIFT)) &&
 	    (!(pdu_cb->flags & PDUCBF_RX_DATA))) {
 		pdu_cb->flags |= PDUCBF_RX_DATA_DDPD;
 	}
@@ -201,13 +196,17 @@ cxgbit_lro_add_packet_rsp(struct sk_buff *skb, u8 op, const __be64 *rsp)
 						lro_cb->pdu_idx);
 	struct cpl_rx_iscsi_ddp *cpl = (struct cpl_rx_iscsi_ddp *)(rsp + 1);
 
-	cxgbit_proc_ddp_status(lro_cb->csk->tid, cpl, pdu_cb);
+	cxgbit_process_ddpvld(lro_cb->csk, pdu_cb, be32_to_cpu(cpl->ddpvld));
+
+	pdu_cb->flags |= PDUCBF_RX_STATUS;
+	pdu_cb->ddigest = ntohl(cpl->ulp_crc);
+	pdu_cb->pdulen = ntohs(cpl->len);
 
 	if (pdu_cb->flags & PDUCBF_RX_HDR)
 		pdu_cb->complete = true;
 
-	lro_cb->complete = true;
 	lro_cb->pdu_totallen += pdu_cb->pdulen;
+	lro_cb->complete = true;
 	lro_cb->pdu_idx++;
 }
 
@@ -257,7 +256,7 @@ cxgbit_lro_add_packet_gl(struct sk_buff *skb, u8 op, const struct pkt_gl *gl)
 			cxgbit_skcb_flags(skb) = 0;
 
 		lro_cb->complete = false;
-	} else {
+	} else if (op == CPL_ISCSI_DATA) {
 		struct cpl_iscsi_data *cpl = (struct cpl_iscsi_data *)gl->va;
 
 		offset = sizeof(struct cpl_iscsi_data);
@@ -267,6 +266,36 @@ cxgbit_lro_add_packet_gl(struct sk_buff *skb, u8 op, const struct pkt_gl *gl)
 		pdu_cb->doffset = lro_cb->offset;
 		pdu_cb->nr_dfrags = gl->nfrags;
 		pdu_cb->dfrag_idx = skb_shinfo(skb)->nr_frags;
+		lro_cb->complete = false;
+	} else {
+		struct cpl_rx_iscsi_cmp *cpl;
+
+		cpl = (struct cpl_rx_iscsi_cmp *)gl->va;
+		offset = sizeof(struct cpl_rx_iscsi_cmp);
+		pdu_cb->flags |= (PDUCBF_RX_HDR | PDUCBF_RX_STATUS);
+		len = be16_to_cpu(cpl->len);
+		pdu_cb->hdr = gl->va + offset;
+		pdu_cb->hlen = len;
+		pdu_cb->hfrag_idx = skb_shinfo(skb)->nr_frags;
+		pdu_cb->ddigest = be32_to_cpu(cpl->ulp_crc);
+		pdu_cb->pdulen = ntohs(cpl->len);
+
+		if (unlikely(gl->nfrags > 1))
+			cxgbit_skcb_flags(skb) = 0;
+
+		cxgbit_process_ddpvld(lro_cb->csk, pdu_cb,
+				      be32_to_cpu(cpl->ddpvld));
+
+		if (pdu_cb->flags & PDUCBF_RX_DATA_DDPD) {
+			pdu_cb->flags |= PDUCBF_RX_DDP_CMP;
+			pdu_cb->complete = true;
+		} else if (pdu_cb->flags & PDUCBF_RX_DATA) {
+			pdu_cb->complete = true;
+		}
+
+		lro_cb->pdu_totallen += pdu_cb->hlen + pdu_cb->dlen;
+		lro_cb->complete = true;
+		lro_cb->pdu_idx++;
 	}
 
 	cxgbit_copy_frags(skb, gl, offset);
@@ -413,6 +442,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 	switch (op) {
 	case CPL_ISCSI_HDR:
 	case CPL_ISCSI_DATA:
+	case CPL_RX_ISCSI_CMP:
 	case CPL_RX_ISCSI_DDP:
 	case CPL_FW4_ACK:
 		lro_flush = false;
@@ -459,7 +489,8 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 			return 0;
 		}
 
-		if (op == CPL_ISCSI_HDR || op == CPL_ISCSI_DATA) {
+		if ((op == CPL_ISCSI_HDR) || (op == CPL_ISCSI_DATA) ||
+		    (op == CPL_RX_ISCSI_CMP)) {
 			if (!cxgbit_lro_receive(csk, op, rsp, gl, lro_mgr,
 						napi))
 				return 0;

@@ -1114,6 +1114,9 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F | RSS_QUEUE_V(csk->rss_qid);
 
+	if (!is_t5(lldi->adapter_type))
+		opt2 |= RX_FC_DISABLE_F;
+
 	if (req->tcpopt.tstamp)
 		opt2 |= TSTAMPS_EN_F;
 	if (req->tcpopt.sack)

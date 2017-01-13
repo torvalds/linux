@@ -1021,11 +1021,36 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 	int rc, sg_nents, sg_off;
 	bool dcrc_err = false;
 
-	rc = iscsit_check_dataout_hdr(conn, (unsigned char *)hdr, &cmd);
-	if (rc < 0)
-		return rc;
-	else if (!cmd)
-		return 0;
+	if (pdu_cb->flags & PDUCBF_RX_DDP_CMP) {
+		u32 offset = be32_to_cpu(hdr->offset);
+		u32 ddp_data_len;
+		u32 payload_length = ntoh24(hdr->dlength);
+		bool success = false;
+
+		cmd = iscsit_find_cmd_from_itt_or_dump(conn, hdr->itt, 0);
+		if (!cmd)
+			return 0;
+
+		ddp_data_len = offset - cmd->write_data_done;
+		atomic_long_add(ddp_data_len, &conn->sess->rx_data_octets);
+
+		cmd->write_data_done = offset;
+		cmd->next_burst_len = ddp_data_len;
+		cmd->data_sn = be32_to_cpu(hdr->datasn);
+
+		rc = __iscsit_check_dataout_hdr(conn, (unsigned char *)hdr,
+						cmd, payload_length, &success);
+		if (rc < 0)
+			return rc;
+		else if (!success)
+			return 0;
+	} else {
+		rc = iscsit_check_dataout_hdr(conn, (unsigned char *)hdr, &cmd);
+		if (rc < 0)
+			return rc;
+		else if (!cmd)
+			return 0;
+	}
 
 	if (pdu_cb->flags & PDUCBF_RX_DCRC_ERR) {
 		pr_err("ITT: 0x%08x, Offset: %u, Length: %u,"
@@ -1389,6 +1414,9 @@ static void cxgbit_lro_hskb_reset(struct cxgbit_sock *csk)
 	for (i = 0; i < ssi->nr_frags; i++)
 		put_page(skb_frag_page(&ssi->frags[i]));
 	ssi->nr_frags = 0;
+	skb->data_len = 0;
+	skb->truesize -= skb->len;
+	skb->len = 0;
 }
 
 static void
@@ -1402,39 +1430,42 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 	unsigned int len = 0;
 
 	if (pdu_cb->flags & PDUCBF_RX_HDR) {
-		hpdu_cb->flags = pdu_cb->flags;
+		u8 hfrag_idx = hssi->nr_frags;
+
+		hpdu_cb->flags |= pdu_cb->flags;
 		hpdu_cb->seq = pdu_cb->seq;
 		hpdu_cb->hdr = pdu_cb->hdr;
 		hpdu_cb->hlen = pdu_cb->hlen;
 
-		memcpy(&hssi->frags[0], &ssi->frags[pdu_cb->hfrag_idx],
+		memcpy(&hssi->frags[hfrag_idx], &ssi->frags[pdu_cb->hfrag_idx],
 		       sizeof(skb_frag_t));
 
-		get_page(skb_frag_page(&hssi->frags[0]));
-		hssi->nr_frags = 1;
-		hpdu_cb->frags = 1;
-		hpdu_cb->hfrag_idx = 0;
+		get_page(skb_frag_page(&hssi->frags[hfrag_idx]));
+		hssi->nr_frags++;
+		hpdu_cb->frags++;
+		hpdu_cb->hfrag_idx = hfrag_idx;
 
-		len = hssi->frags[0].size;
-		hskb->len = len;
-		hskb->data_len = len;
-		hskb->truesize = len;
+		len = hssi->frags[hfrag_idx].size;
+		hskb->len += len;
+		hskb->data_len += len;
+		hskb->truesize += len;
 	}
 
 	if (pdu_cb->flags & PDUCBF_RX_DATA) {
-		u8 hfrag_idx = 1, i;
+		u8 dfrag_idx = hssi->nr_frags, i;
 
 		hpdu_cb->flags |= pdu_cb->flags;
+		hpdu_cb->dfrag_idx = dfrag_idx;
 
 		len = 0;
-		for (i = 0; i < pdu_cb->nr_dfrags; hfrag_idx++, i++) {
-			memcpy(&hssi->frags[hfrag_idx],
+		for (i = 0; i < pdu_cb->nr_dfrags; dfrag_idx++, i++) {
+			memcpy(&hssi->frags[dfrag_idx],
 			       &ssi->frags[pdu_cb->dfrag_idx + i],
 			       sizeof(skb_frag_t));
 
-			get_page(skb_frag_page(&hssi->frags[hfrag_idx]));
+			get_page(skb_frag_page(&hssi->frags[dfrag_idx]));
 
-			len += hssi->frags[hfrag_idx].size;
+			len += hssi->frags[dfrag_idx].size;
 
 			hssi->nr_frags++;
 			hpdu_cb->frags++;
@@ -1443,7 +1474,6 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 		hpdu_cb->dlen = pdu_cb->dlen;
 		hpdu_cb->doffset = hpdu_cb->hlen;
 		hpdu_cb->nr_dfrags = pdu_cb->nr_dfrags;
-		hpdu_cb->dfrag_idx = 1;
 		hskb->len += len;
 		hskb->data_len += len;
 		hskb->truesize += len;
@@ -1528,10 +1558,15 @@ static int cxgbit_rx_lro_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 static int cxgbit_rx_skb(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
+	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	int ret = -1;
 
-	if (likely(cxgbit_skcb_flags(skb) & SKCBF_RX_LRO))
-		ret = cxgbit_rx_lro_skb(csk, skb);
+	if (likely(cxgbit_skcb_flags(skb) & SKCBF_RX_LRO)) {
+		if (is_t5(lldi->adapter_type))
+			ret = cxgbit_rx_lro_skb(csk, skb);
+		else
+			ret = cxgbit_process_lro_skb(csk, skb);
+	}
 
 	__kfree_skb(skb);
 	return ret;
