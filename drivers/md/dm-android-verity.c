@@ -635,6 +635,7 @@ static int add_as_linear_device(struct dm_target *ti, char *dev)
 	android_verity_target.status = dm_linear_status,
 	android_verity_target.prepare_ioctl = dm_linear_prepare_ioctl,
 	android_verity_target.iterate_devices = dm_linear_iterate_devices,
+        android_verity_target.direct_access = dm_linear_direct_access,
 	android_verity_target.io_hints = NULL;
 
 	err = dm_linear_ctr(ti, DM_LINEAR_ARGS, linear_table_args);

@@ -118,4 +118,6 @@ extern int dm_linear_prepare_ioctl(struct dm_target *ti,
 extern int dm_linear_iterate_devices(struct dm_target *ti,
 			iterate_devices_callout_fn fn, void *data);
 extern int dm_linear_ctr(struct dm_target *ti, unsigned int argc, char **argv);
+extern long dm_linear_direct_access(struct dm_target *ti, sector_t sector,
+                                 void **kaddr, pfn_t *pfn, long size);
 #endif /* DM_ANDROID_VERITY_H */
