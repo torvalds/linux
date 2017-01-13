@@ -505,7 +505,7 @@ void virtio_crypto_ablkcipher_finalize_req(
 static struct crypto_alg virtio_crypto_algs[] = { {
 	.cra_name = "cbc(aes)",
 	.cra_driver_name = "virtio_crypto_aes_cbc",
-	.cra_priority = 501,
+	.cra_priority = 150,
 	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize = AES_BLOCK_SIZE,
 	.cra_ctxsize  = sizeof(struct virtio_crypto_ablkcipher_ctx),
