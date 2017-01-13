@@ -2236,6 +2236,8 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		return;
 	}
 
+	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
+
 	if (txrate.flags == WMI_RATE_PREAMBLE_CCK ||
 	    txrate.flags == WMI_RATE_PREAMBLE_OFDM) {
 		rate = ATH10K_HW_LEGACY_RATE(peer_stats->ratecode);
