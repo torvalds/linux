@@ -462,11 +462,22 @@ struct _mmc_csd {
 /*
  * MMC_SWITCH access modes
  */
-
 #define MMC_SWITCH_MODE_CMD_SET		0x00	/* Change the command set */
 #define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
 #define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
 #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+
+/*
+ * Erase/trim/discard
+ */
+#define MMC_ERASE_ARG			0x00000000
+#define MMC_SECURE_ERASE_ARG		0x80000000
+#define MMC_TRIM_ARG			0x00000001
+#define MMC_DISCARD_ARG			0x00000003
+#define MMC_SECURE_TRIM1_ARG		0x80000001
+#define MMC_SECURE_TRIM2_ARG		0x80008000
+#define MMC_SECURE_ARGS			0x80000000
+#define MMC_TRIM_ARGS			0x00008001
 
 #define mmc_driver_type_mask(n)		(1 << (n))
 

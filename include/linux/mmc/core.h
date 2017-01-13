@@ -164,16 +164,6 @@ extern struct mmc_async_req *mmc_start_req(struct mmc_host *,
 extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
 
-#define MMC_ERASE_ARG		0x00000000
-#define MMC_SECURE_ERASE_ARG	0x80000000
-#define MMC_TRIM_ARG		0x00000001
-#define MMC_DISCARD_ARG		0x00000003
-#define MMC_SECURE_TRIM1_ARG	0x80000001
-#define MMC_SECURE_TRIM2_ARG	0x80008000
-
-#define MMC_SECURE_ARGS		0x80000000
-#define MMC_TRIM_ARGS		0x00008001
-
 extern int mmc_hw_reset(struct mmc_host *host);
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);
 
