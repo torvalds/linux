@@ -1863,8 +1863,7 @@ extern int sysctl_tcp_recovery;
 /* Use TCP RACK to detect (some) tail and retransmit losses */
 #define TCP_RACK_LOST_RETRANS  0x1
 
-extern int tcp_rack_mark_lost(struct sock *sk);
-
+extern void tcp_rack_mark_lost(struct sock *sk);
 extern void tcp_rack_advance(struct tcp_sock *tp,
 			     const struct skb_mstamp *xmit_time, u8 sacked);
 

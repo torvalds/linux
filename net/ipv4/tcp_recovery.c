@@ -32,17 +32,11 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
  * The current version is only used after recovery starts but can be
  * easily extended to detect the first loss.
  */
-int tcp_rack_mark_lost(struct sock *sk)
+static void tcp_rack_detect_loss(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	u32 reo_wnd, prior_retrans = tp->retrans_out;
-
-	if (inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery || !tp->rack.advanced)
-		return 0;
-
-	/* Reset the advanced flag to avoid unnecessary queue scanning */
-	tp->rack.advanced = 0;
+	u32 reo_wnd;
 
 	/* To be more reordering resilient, allow min_rtt/4 settling delay
 	 * (lower-bounded to 1000uS). We use min_rtt instead of the smoothed
@@ -82,7 +76,17 @@ int tcp_rack_mark_lost(struct sock *sk)
 			break;
 		}
 	}
-	return prior_retrans - tp->retrans_out;
+}
+
+void tcp_rack_mark_lost(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery || !tp->rack.advanced)
+		return;
+	/* Reset the advanced flag to avoid unnecessary queue scanning */
+	tp->rack.advanced = 0;
+	tcp_rack_detect_loss(sk);
 }
 
 /* Record the most recently (re)sent time among the (s)acked packets */
