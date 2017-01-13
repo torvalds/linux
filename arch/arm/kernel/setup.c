@@ -1093,8 +1093,14 @@ void __init setup_arch(char **cmdline_p)
 	setup_dma_zone(mdesc);
 	xen_early_init();
 	efi_init();
+	/*
+	 * Make sure the calculation for lowmem/highmem is set appropriately
+	 * before reserving/allocating any mmeory
+	 */
 	adjust_lowmem_bounds();
 	arm_memblock_init(mdesc);
+	/* Memory may have been removed so recalculate the bounds. */
+	adjust_lowmem_bounds();
 
 	early_ioremap_reset();
 
