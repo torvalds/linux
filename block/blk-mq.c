@@ -2285,6 +2285,14 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	mutex_unlock(&all_q_mutex);
 	put_online_cpus();
 
+	if (!(set->flags & BLK_MQ_F_NO_SCHED)) {
+		int ret;
+
+		ret = blk_mq_sched_init(q);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
 	return q;
 
 err_hctxs:

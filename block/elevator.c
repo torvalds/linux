@@ -219,7 +219,13 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	if (!e) {
-		e = elevator_get(CONFIG_DEFAULT_IOSCHED, false);
+		if (q->mq_ops && q->nr_hw_queues == 1)
+			e = elevator_get(CONFIG_DEFAULT_SQ_IOSCHED, false);
+		else if (q->mq_ops)
+			e = elevator_get(CONFIG_DEFAULT_MQ_IOSCHED, false);
+		else
+			e = elevator_get(CONFIG_DEFAULT_IOSCHED, false);
+
 		if (!e) {
 			printk(KERN_ERR
 				"Default I/O scheduler not found. " \
