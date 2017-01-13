@@ -319,6 +319,13 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (ether_addr_equal(addr->sa_data, adapter->dev_mac))
 		return 0;
 
+	/* BE3 VFs without FILTMGMT privilege are not allowed to set its MAC
+	 * address
+	 */
+	if (BEx_chip(adapter) && be_virtfn(adapter) &&
+	    !check_privilege(adapter, BE_PRIV_FILTMGMT))
+		return -EPERM;
+
 	/* if device is not running, copy MAC to netdev->dev_addr */
 	if (!netif_running(netdev))
 		goto done;
@@ -3787,8 +3794,9 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	/* For BE3 VFs, the PF programs the initial MAC address */
-	if (!(BEx_chip(adapter) && be_virtfn(adapter))) {
+	/* Don't add MAC on BE3 VFs without FILTMGMT privilege */
+	if (!BEx_chip(adapter) || !be_virtfn(adapter) ||
+	    check_privilege(adapter, BE_PRIV_FILTMGMT)) {
 		status = be_dev_mac_add(adapter, adapter->netdev->dev_addr);
 		if (status)
 			return status;
