@@ -3312,13 +3312,6 @@ static int want_replace(struct stripe_head *sh, int disk_idx)
 	return rv;
 }
 
-/* fetch_block - checks the given member device to see if its data needs
- * to be read or computed to satisfy a request.
- *
- * Returns 1 when no more member devices need to be checked, otherwise returns
- * 0 to tell the loop in handle_stripe_fill to continue
- */
-
 static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 			   int disk_idx, int disks)
 {
@@ -3409,6 +3402,12 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	return 0;
 }
 
+/* fetch_block - checks the given member device to see if its data needs
+ * to be read or computed to satisfy a request.
+ *
+ * Returns 1 when no more member devices need to be checked, otherwise returns
+ * 0 to tell the loop in handle_stripe_fill to continue
+ */
 static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 		       int disk_idx, int disks)
 {
