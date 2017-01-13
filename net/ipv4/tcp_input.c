@@ -2129,10 +2129,25 @@ static bool tcp_pause_early_retransmit(struct sock *sk, int flag)
  *	F.e. after RTO, when all the queue is considered as lost,
  *	lost_out = packets_out and in_flight = retrans_out.
  *
- *		Essentially, we have now two algorithms counting
+ *		Essentially, we have now a few algorithms detecting
  *		lost packets.
  *
- *		FACK: It is the simplest heuristics. As soon as we decided
+ *		If the receiver supports SACK:
+ *
+ *		RFC6675/3517: It is the conventional algorithm. A packet is
+ *		considered lost if the number of higher sequence packets
+ *		SACKed is greater than or equal the DUPACK thoreshold
+ *		(reordering). This is implemented in tcp_mark_head_lost and
+ *		tcp_update_scoreboard.
+ *
+ *		RACK (draft-ietf-tcpm-rack-01): it is a newer algorithm
+ *		(2017-) that checks timing instead of counting DUPACKs.
+ *		Essentially a packet is considered lost if it's not S/ACKed
+ *		after RTT + reordering_window, where both metrics are
+ *		dynamically measured and adjusted. This is implemented in
+ *		tcp_rack_mark_lost.
+ *
+ *		FACK: it is the simplest heuristics. As soon as we decided
  *		that something is lost, we decide that _all_ not SACKed
  *		packets until the most forward SACK are lost. I.e.
  *		lost_out = fackets_out - sacked_out and left_out = fackets_out.
@@ -2141,15 +2156,13 @@ static bool tcp_pause_early_retransmit(struct sock *sk, int flag)
  *		takes place. We use FACK by default until reordering
  *		is suspected on the path to this destination.
  *
- *		NewReno: when Recovery is entered, we assume that one segment
+ *		If the receiver does not support SACK:
+ *
+ *		NewReno (RFC6582): in Recovery we assume that one segment
  *		is lost (classic Reno). While we are in Recovery and
  *		a partial ACK arrives, we assume that one more packet
  *		is lost (NewReno). This heuristics are the same in NewReno
  *		and SACK.
- *
- *  Imagine, that's all! Forget about all this shamanism about CWND inflation
- *  deflation etc. CWND is real congestion window, never inflated, changes
- *  only according to classic VJ rules.
  *
  * Really tricky (and requiring careful tuning) part of algorithm
  * is hidden in functions tcp_time_to_recover() and tcp_xmit_retransmit_queue().
@@ -2807,7 +2820,7 @@ static void tcp_rack_identify_loss(struct sock *sk, int *ack_flag,
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	/* Use RACK to detect loss */
-	if (sysctl_tcp_recovery & TCP_RACK_LOST_RETRANS) {
+	if (sysctl_tcp_recovery & TCP_RACK_LOSS_DETECTION) {
 		u32 prior_retrans = tp->retrans_out;
 
 		tcp_rack_mark_lost(sk, ack_time);

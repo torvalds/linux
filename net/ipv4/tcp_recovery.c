@@ -1,7 +1,7 @@
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
-int sysctl_tcp_recovery __read_mostly = TCP_RACK_LOST_RETRANS;
+int sysctl_tcp_recovery __read_mostly = TCP_RACK_LOSS_DETECTION;
 
 static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
@@ -24,7 +24,9 @@ static bool tcp_rack_sent_after(const struct skb_mstamp *t1,
 	       (t1->v64 == t2->v64 && after(seq1, seq2));
 }
 
-/* Marks a packet lost, if some packet sent later has been (s)acked.
+/* RACK loss detection (IETF draft draft-ietf-tcpm-rack-01):
+ *
+ * Marks a packet lost, if some packet sent later has been (s)acked.
  * The underlying idea is similar to the traditional dupthresh and FACK
  * but they look at different metrics:
  *
@@ -37,8 +39,10 @@ static bool tcp_rack_sent_after(const struct skb_mstamp *t1,
  * is being more resilient to reordering by simply allowing some
  * "settling delay", instead of tweaking the dupthresh.
  *
- * The current version is only used after recovery starts but can be
- * easily extended to detect the first loss.
+ * When tcp_rack_detect_loss() detects some packets are lost and we
+ * are not already in the CA_Recovery state, either tcp_rack_reo_timeout()
+ * or tcp_time_to_recover()'s "Trick#1: the loss is proven" code path will
+ * make us enter the CA_Recovery state.
  */
 static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
 				 u32 *reo_timeout)
@@ -54,7 +58,7 @@ static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
 	 * to queuing or delayed ACKs.
 	 */
 	reo_wnd = 1000;
-	if (tp->rack.reord && tcp_min_rtt(tp) != ~0U)
+	if ((tp->rack.reord || !tp->lost_out) && tcp_min_rtt(tp) != ~0U)
 		reo_wnd = max(tcp_min_rtt(tp) >> 2, reo_wnd);
 
 	tcp_for_write_queue(skb, sk) {
@@ -105,7 +109,7 @@ void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 timeout;
 
-	if (inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery || !tp->rack.advanced)
+	if (!tp->rack.advanced)
 		return;
 
 	/* Reset the advanced flag to avoid unnecessary queue scanning */

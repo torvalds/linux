@@ -262,6 +262,9 @@ extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_thin_linear_timeouts;
 extern int sysctl_tcp_thin_dupack;
 extern int sysctl_tcp_early_retrans;
+extern int sysctl_tcp_recovery;
+#define TCP_RACK_LOSS_DETECTION  0x1 /* Use RACK to detect losses */
+
 extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
 extern int sysctl_tcp_min_tso_segs;
@@ -1043,6 +1046,7 @@ static inline void tcp_enable_early_retrans(struct tcp_sock *tp)
 
 	tp->do_early_retrans = sysctl_tcp_early_retrans &&
 		sysctl_tcp_early_retrans < 4 && !sysctl_tcp_thin_dupack &&
+		!(sysctl_tcp_recovery & TCP_RACK_LOSS_DETECTION) &&
 		net->ipv4.sysctl_tcp_reordering == 3;
 }
 
@@ -1859,13 +1863,6 @@ void tcp_v4_init(void);
 void tcp_init(void);
 
 /* tcp_recovery.c */
-
-/* Flags to enable various loss recovery features. See below */
-extern int sysctl_tcp_recovery;
-
-/* Use TCP RACK to detect (some) tail and retransmit losses */
-#define TCP_RACK_LOST_RETRANS  0x1
-
 extern void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now);
 extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			     const struct skb_mstamp *xmit_time,
