@@ -11,7 +11,6 @@
 #define LINUX_MMC_CARD_H
 
 #include <linux/device.h>
-#include <linux/mmc/core.h>
 #include <linux/mod_devicetable.h>
 
 struct mmc_cid {
@@ -206,7 +205,6 @@ struct sdio_cis {
 };
 
 struct mmc_host;
-struct mmc_ios;
 struct sdio_func;
 struct sdio_func_tuple;
 

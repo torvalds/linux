@@ -8,10 +8,9 @@
 #ifndef LINUX_MMC_CORE_H
 #define LINUX_MMC_CORE_H
 
-#include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/types.h>
 
-struct request;
 struct mmc_data;
 struct mmc_request;
 
