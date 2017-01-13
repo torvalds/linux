@@ -872,7 +872,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			goto out;
 		csk->mtu = ndev->mtu;
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nchan;
 		csk->txq_idx = cxgb4_port_idx(ndev) * step;
@@ -907,7 +908,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		port_id = cxgb4_port_idx(ndev);
 		csk->mtu = dst_mtu(dst);
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nports;
 		csk->txq_idx = (port_id * step) +
