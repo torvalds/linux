@@ -2838,6 +2838,7 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 	dev->device_pause = d40_pause;
 	dev->device_resume = d40_resume;
 	dev->device_terminate_all = d40_terminate_all;
+	dev->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	dev->dev = base->dev;
 }
 
