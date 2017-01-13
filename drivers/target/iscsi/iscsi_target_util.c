@@ -417,6 +417,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 
 	return NULL;
 }
+EXPORT_SYMBOL(iscsit_find_cmd_from_itt_or_dump);
 
 struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 	struct iscsi_conn *conn,
