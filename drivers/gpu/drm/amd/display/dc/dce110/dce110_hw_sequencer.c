@@ -255,7 +255,7 @@ static bool dce110_set_input_transfer_func(
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
 		ipp->funcs->ipp_set_degamma(ipp,
-				IPP_DEGAMMA_MODE_BYPASS);
+				IPP_DEGAMMA_MODE_HW_sRGB);
 	} else if (tf->public.type == TF_TYPE_PREDEFINED) {
 		switch (tf->public.tf) {
 		case TRANSFER_FUNCTION_SRGB:
