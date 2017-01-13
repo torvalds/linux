@@ -2223,25 +2223,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 	wake_up_interruptible(&ctx->wc);
 }
 
-/**
- * \brief Select queue based on hash
- * @param dev Net device
- * @param skb sk_buff structure
- * @returns selected queue number
- */
-static u16 select_q(struct net_device *dev, struct sk_buff *skb,
-		    void *accel_priv __attribute__((unused)),
-		    select_queue_fallback_t fallback __attribute__((unused)))
-{
-	u32 qindex = 0;
-	struct lio *lio;
-
-	lio = GET_LIO(dev);
-	qindex = skb_tx_hash(dev, skb);
-
-	return (u16)(qindex % (lio->linfo.num_txpciq));
-}
-
 /** Routine to push packets arriving on Octeon interface upto network layer.
  * @param oct_id   - octeon device id.
  * @param skbuff   - skbuff struct to be passed to network layer.
@@ -3755,7 +3736,6 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
-	.ndo_select_queue	= select_q
 };
 
 /** \brief Entry point for the liquidio module
