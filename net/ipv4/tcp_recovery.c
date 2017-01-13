@@ -32,19 +32,18 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
  * The current version is only used after recovery starts but can be
  * easily extended to detect the first loss.
  */
-static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now)
+static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
+				 u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	u32 reo_wnd;
 
+	*reo_timeout = 0;
 	/* To be more reordering resilient, allow min_rtt/4 settling delay
 	 * (lower-bounded to 1000uS). We use min_rtt instead of the smoothed
 	 * RTT because reordering is often a path property and less related
 	 * to queuing or delayed ACKs.
-	 *
-	 * TODO: measure and adapt to the observed reordering delay, and
-	 * use a timer to retransmit like the delayed early retransmit.
 	 */
 	reo_wnd = 1000;
 	if (tp->rack.reord && tcp_min_rtt(tp) != ~0U)
@@ -66,10 +65,23 @@ static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now)
 			 * A packet is lost if its elapsed time is beyond
 			 * the recent RTT plus the reordering window.
 			 */
-			if (skb_mstamp_us_delta(now, &skb->skb_mstamp) >
-			    tp->rack.rtt_us + reo_wnd) {
+			u32 elapsed = skb_mstamp_us_delta(now,
+							  &skb->skb_mstamp);
+			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
+
+			if (remaining < 0) {
 				tcp_rack_mark_skb_lost(sk, skb);
+				continue;
 			}
+
+			/* Skip ones marked lost but not yet retransmitted */
+			if ((scb->sacked & TCPCB_LOST) &&
+			    !(scb->sacked & TCPCB_SACKED_RETRANS))
+				continue;
+
+			/* Record maximum wait time (+1 to avoid 0) */
+			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
+
 		} else if (!(scb->sacked & TCPCB_RETRANS)) {
 			/* Original data are sent sequentially so stop early
 			 * b/c the rest are all sent after rack_sent
@@ -82,12 +94,19 @@ static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now)
 void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	u32 timeout;
 
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery || !tp->rack.advanced)
 		return;
+
 	/* Reset the advanced flag to avoid unnecessary queue scanning */
 	tp->rack.advanced = 0;
-	tcp_rack_detect_loss(sk, now);
+	tcp_rack_detect_loss(sk, now, &timeout);
+	if (timeout) {
+		timeout = usecs_to_jiffies(timeout + TCP_REO_TIMEOUT_MIN);
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_REO_TIMEOUT,
+					  timeout, inet_csk(sk)->icsk_rto);
+	}
 }
 
 /* Record the most recently (re)sent time among the (s)acked packets
@@ -122,4 +141,28 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
 	tp->rack.rtt_us = rtt_us;
 	tp->rack.mstamp = *xmit_time;
 	tp->rack.advanced = 1;
+}
+
+/* We have waited long enough to accommodate reordering. Mark the expired
+ * packets lost and retransmit them.
+ */
+void tcp_rack_reo_timeout(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct skb_mstamp now;
+	u32 timeout, prior_inflight;
+
+	skb_mstamp_get(&now);
+	prior_inflight = tcp_packets_in_flight(tp);
+	tcp_rack_detect_loss(sk, &now, &timeout);
+	if (prior_inflight != tcp_packets_in_flight(tp)) {
+		if (inet_csk(sk)->icsk_ca_state != TCP_CA_Recovery) {
+			tcp_enter_recovery(sk, false);
+			if (!inet_csk(sk)->icsk_ca_ops->cong_control)
+				tcp_cwnd_reduction(sk, 1, 0);
+		}
+		tcp_xmit_retransmit_queue(sk);
+	}
+	if (inet_csk(sk)->icsk_pending != ICSK_TIME_RETRANS)
+		tcp_rearm_rto(sk);
 }
