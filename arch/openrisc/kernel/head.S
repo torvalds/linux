@@ -1530,11 +1530,7 @@ ENTRY(_early_uart_init)
 	l.jr	r9
 	l.nop
 
-_string_copying_linux:
-	.string "\n\n\n\n\n\rCopying Linux... \0"
-
-_string_ok_booting:
-	.string "Ok, booting the kernel.\n\r\0"
+	.section .rodata
 
 _string_unhandled_exception:
 	.string "\n\rRunarunaround: Unhandled exception 0x\0"
@@ -1544,12 +1540,6 @@ _string_epc_prefix:
 
 _string_nl:
 	.string "\n\r\0"
-
-	.global	_string_esr_irq_bug
-_string_esr_irq_bug:
-	.string "\n\rESR external interrupt bug, for details look into entry.S\n\r\0"
-
-
 
 /* ========================================[ page aligned structures ]=== */
 
