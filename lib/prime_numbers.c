@@ -124,7 +124,8 @@ static bool expand_to_next_prime(unsigned long x)
 		return false;
 
 	sz = round_up(sz, BITS_PER_LONG);
-	new = kmalloc(sizeof(*new) + bitmap_size(sz), GFP_KERNEL);
+	new = kmalloc(sizeof(*new) + bitmap_size(sz),
+		      GFP_KERNEL | __GFP_NOWARN);
 	if (!new)
 		return false;
 
