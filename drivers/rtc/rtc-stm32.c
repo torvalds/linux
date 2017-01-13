@@ -490,13 +490,11 @@ static const struct rtc_class_ops stm32_rtc_ops = {
 	.alarm_irq_enable = stm32_rtc_alarm_irq_enable,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id stm32_rtc_of_match[] = {
 	{ .compatible = "st,stm32-rtc" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, stm32_rtc_of_match);
-#endif
 
 static int stm32_rtc_init(struct platform_device *pdev,
 			  struct stm32_rtc *rtc)
