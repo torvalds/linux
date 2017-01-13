@@ -15,7 +15,6 @@
 #include <linux/mfd/abx500/ab8500-sysctrl.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
-#include <linux/mfd/dbx500-prcmu.h>
 #include "clk.h"
 
 /* Clock definitions for ab8500 */
@@ -38,13 +37,6 @@ static int ab8500_reg_clks(struct device *dev)
 	ret = ab8500_sysctrl_set(AB8500_SWATCTRL, AB8500_SWATCTRL_SWATENABLE);
 	if (ret)
 		return ret;
-
-	/* ab8500_sysclk */
-	clk = clk_reg_prcmu_gate("ab8500_sysclk", NULL, PRCMU_SYSCLK, 0);
-	clk_register_clkdev(clk, "sysclk", "ab8500-usb.0");
-	clk_register_clkdev(clk, "sysclk", "ab-iddet.0");
-	clk_register_clkdev(clk, "sysclk", "snd-soc-mop500.0");
-	clk_register_clkdev(clk, "sysclk", "shrm_bus");
 
 	/* ab8500_sysclk2 */
 	clk = clk_reg_sysctrl_gate(dev , "ab8500_sysclk2", "ab8500_sysclk",
