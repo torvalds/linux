@@ -1068,6 +1068,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	struct sk_buff *skb;
 	const struct tcphdr *tcph;
 	struct cpl_t5_pass_accept_rpl *rpl5;
+	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	unsigned int len = roundup(sizeof(*rpl5), 16);
 	unsigned int mtu_idx;
 	u64 opt0;
@@ -1121,8 +1122,13 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 		opt2 |= WND_SCALE_EN_F;
 
 	hlen = ntohl(req->hdr_len);
-	tcph = (const void *)(req + 1) + ETH_HDR_LEN_G(hlen) +
-		IP_HDR_LEN_G(hlen);
+
+	if (is_t5(lldi->adapter_type))
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       ETH_HDR_LEN_G(hlen) + IP_HDR_LEN_G(hlen));
+	else
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       T6_ETH_HDR_LEN_G(hlen) + T6_IP_HDR_LEN_G(hlen));
 
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
