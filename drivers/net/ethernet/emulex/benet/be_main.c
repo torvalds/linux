@@ -3630,7 +3630,11 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 
 static void be_disable_if_filters(struct be_adapter *adapter)
 {
-	be_dev_mac_del(adapter, adapter->pmac_id[0]);
+	/* Don't delete MAC on BE3 VFs without FILTMGMT privilege  */
+	if (!BEx_chip(adapter) || !be_virtfn(adapter) ||
+	    check_privilege(adapter, BE_PRIV_FILTMGMT))
+		be_dev_mac_del(adapter, adapter->pmac_id[0]);
+
 	be_clear_uc_list(adapter);
 	be_clear_mc_list(adapter);
 
