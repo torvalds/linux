@@ -437,8 +437,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
-		ms->gpio_cs = kmalloc(ms->gpio_cs_count * sizeof(unsigned int),
-				GFP_KERNEL);
+		ms->gpio_cs = kmalloc_array(ms->gpio_cs_count,
+					    sizeof(*ms->gpio_cs),
+					    GFP_KERNEL);
 		if (!ms->gpio_cs) {
 			rc = -ENOMEM;
 			goto err_alloc_gpio;
