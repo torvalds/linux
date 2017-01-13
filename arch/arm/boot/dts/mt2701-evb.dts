@@ -24,6 +24,10 @@
 	};
 };
 
+&auxadc {
+	status = "okay";
+};
+
 &pio {
 	spi_pins_a: spi0@0 {
 		pins_spi {
