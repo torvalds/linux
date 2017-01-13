@@ -2782,8 +2782,24 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 
 void t4_fatal_err(struct adapter *adap)
 {
-	t4_set_reg_field(adap, SGE_CONTROL_A, GLOBALENABLE_F, 0);
-	t4_intr_disable(adap);
+	int port;
+
+	/* Disable the SGE since ULDs are going to free resources that
+	 * could be exposed to the adapter.  RDMA MWs for example...
+	 */
+	t4_shutdown_adapter(adap);
+	for_each_port(adap, port) {
+		struct net_device *dev = adap->port[port];
+
+		/* If we get here in very early initialization the network
+		 * devices may not have been set up yet.
+		 */
+		if (!dev)
+			continue;
+
+		netif_tx_stop_all_queues(dev);
+		netif_carrier_off(dev);
+	}
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
 }
 

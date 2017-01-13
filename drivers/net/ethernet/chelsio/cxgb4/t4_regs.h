@@ -855,6 +855,14 @@
 #define PERR_INT_CAUSE_V(x) ((x) << PERR_INT_CAUSE_S)
 #define PERR_INT_CAUSE_F    PERR_INT_CAUSE_V(1U)
 
+#define DBG_GPIO_EN_A		0x6010
+#define XGMAC_PORT_CFG_A	0x1000
+#define MAC_PORT_CFG_A		0x800
+
+#define SIGNAL_DET_S    14
+#define SIGNAL_DET_V(x) ((x) << SIGNAL_DET_S)
+#define SIGNAL_DET_F    SIGNAL_DET_V(1U)
+
 #define MC_ECC_STATUS_A		0x751c
 #define MC_P_ECC_STATUS_A	0x4131c
 
