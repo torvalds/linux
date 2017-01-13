@@ -216,6 +216,31 @@ static int bcm7038_l1_set_affinity(struct irq_data *d,
 	return 0;
 }
 
+static void bcm7038_l1_cpu_offline(struct irq_data *d)
+{
+	struct cpumask *mask = irq_data_get_affinity_mask(d);
+	int cpu = smp_processor_id();
+	cpumask_t new_affinity;
+
+	/* This CPU was not on the affinity mask */
+	if (!cpumask_test_cpu(cpu, mask))
+		return;
+
+	if (cpumask_weight(mask) > 1) {
+		/*
+		 * Multiple CPU affinity, remove this CPU from the affinity
+		 * mask
+		 */
+		cpumask_copy(&new_affinity, mask);
+		cpumask_clear_cpu(cpu, &new_affinity);
+	} else {
+		/* Only CPU, put on the lowest online CPU */
+		cpumask_clear(&new_affinity);
+		cpumask_set_cpu(cpumask_first(cpu_online_mask), &new_affinity);
+	}
+	irq_set_affinity_locked(d, &new_affinity, false);
+}
+
 static int __init bcm7038_l1_init_one(struct device_node *dn,
 				      unsigned int idx,
 				      struct bcm7038_l1_chip *intc)
@@ -267,6 +292,7 @@ static struct irq_chip bcm7038_l1_irq_chip = {
 	.irq_mask		= bcm7038_l1_mask,
 	.irq_unmask		= bcm7038_l1_unmask,
 	.irq_set_affinity	= bcm7038_l1_set_affinity,
+	.irq_cpu_offline	= bcm7038_l1_cpu_offline,
 };
 
 static int bcm7038_l1_map(struct irq_domain *d, unsigned int virq,
