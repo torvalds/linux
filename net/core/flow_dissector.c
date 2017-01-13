@@ -407,9 +407,9 @@ mpls:
 
 		arp_eth = __skb_header_pointer(skb, nhoff + sizeof(_arp),
 					       sizeof(_arp_eth), data,
-					       hlen - sizeof(_arp),
+					       hlen,
 					       &_arp_eth);
-		if (!arp)
+		if (!arp_eth)
 			goto out_bad;
 
 		if (dissector_uses_key(flow_dissector,
