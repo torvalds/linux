@@ -172,8 +172,7 @@ static const struct of_device_id max77686_pmic_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max77686_pmic_dt_match);
 
-static int max77686_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max77686_i2c_probe(struct i2c_client *i2c)
 {
 	struct max77686_dev *max77686 = NULL;
 	unsigned int data;
@@ -294,7 +293,7 @@ static struct i2c_driver max77686_i2c_driver = {
 		   .pm = &max77686_pm,
 		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
 	},
-	.probe = max77686_i2c_probe,
+	.probe_new = max77686_i2c_probe,
 	.id_table = max77686_i2c_id,
 };
 
