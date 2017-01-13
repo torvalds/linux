@@ -622,8 +622,9 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 	if (n_writes > PCH_MAX_FIFO_DEPTH)
 		n_writes = PCH_MAX_FIFO_DEPTH;
 
-	dev_dbg(&data->master->dev, "\n%s:Pulling down SSN low - writing "
-		"0x2 to SSNXCR\n", __func__);
+	dev_dbg(&data->master->dev,
+		"\n%s:Pulling down SSN low - writing 0x2 to SSNXCR\n",
+		__func__);
 	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_LOW);
 
 	for (j = 0; j < n_writes; j++)
@@ -1180,14 +1181,16 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 			data->cur_trans =
 				list_entry(data->current_msg->transfers.next,
 					   struct spi_transfer, transfer_list);
-			dev_dbg(&data->master->dev, "%s "
-				":Getting 1st transfer message\n", __func__);
+			dev_dbg(&data->master->dev,
+				"%s :Getting 1st transfer message\n",
+				__func__);
 		} else {
 			data->cur_trans =
 				list_entry(data->cur_trans->transfer_list.next,
 					   struct spi_transfer, transfer_list);
-			dev_dbg(&data->master->dev, "%s "
-				":Getting next transfer message\n", __func__);
+			dev_dbg(&data->master->dev,
+				"%s :Getting next transfer message\n",
+				__func__);
 		}
 		spin_unlock(&data->lock);
 
@@ -1232,9 +1235,8 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 
 		/* check for delay */
 		if (data->cur_trans->delay_usecs) {
-			dev_dbg(&data->master->dev, "%s:"
-				"delay in usec=%d\n", __func__,
-				data->cur_trans->delay_usecs);
+			dev_dbg(&data->master->dev, "%s:delay in usec=%d\n",
+				__func__, data->cur_trans->delay_usecs);
 			udelay(data->cur_trans->delay_usecs);
 		}
 
