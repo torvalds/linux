@@ -33,12 +33,14 @@
 static void __iomem *mpp_base;
 static u32 *mpp_saved_regs;
 
-static int armada_xp_mpp_ctrl_get(unsigned pid, unsigned long *config)
+static int armada_xp_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data,
+				  unsigned pid, unsigned long *config)
 {
 	return default_mpp_ctrl_get(mpp_base, pid, config);
 }
 
-static int armada_xp_mpp_ctrl_set(unsigned pid, unsigned long config)
+static int armada_xp_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data,
+				  unsigned pid, unsigned long config)
 {
 	return default_mpp_ctrl_set(mpp_base, pid, config);
 }

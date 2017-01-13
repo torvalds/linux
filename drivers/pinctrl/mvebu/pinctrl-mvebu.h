@@ -14,6 +14,14 @@
 #define __PINCTRL_MVEBU_H__
 
 /**
+ * struct mvebu_mpp_ctrl_data - private data for the mpp ctrl operations
+ * @base: base address of pinctrl hardware
+ */
+struct mvebu_mpp_ctrl_data {
+	void __iomem *base;
+};
+
+/**
  * struct mvebu_mpp_ctrl - describe a mpp control
  * @name: name of the control group
  * @pid: first pin id handled by this control
@@ -37,10 +45,13 @@ struct mvebu_mpp_ctrl {
 	u8 pid;
 	u8 npins;
 	unsigned *pins;
-	int (*mpp_get)(unsigned pid, unsigned long *config);
-	int (*mpp_set)(unsigned pid, unsigned long config);
-	int (*mpp_gpio_req)(unsigned pid);
-	int (*mpp_gpio_dir)(unsigned pid, bool input);
+	int (*mpp_get)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+		       unsigned long *config);
+	int (*mpp_set)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+		       unsigned long config);
+	int (*mpp_gpio_req)(struct mvebu_mpp_ctrl_data *data, unsigned pid);
+	int (*mpp_gpio_dir)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			    bool input);
 };
 
 /**
@@ -93,6 +104,7 @@ struct mvebu_mpp_mode {
  * struct mvebu_pinctrl_soc_info - SoC specific info passed to pinctrl-mvebu
  * @variant: variant mask of soc_info
  * @controls: list of available mvebu_mpp_ctrls
+ * @control_data: optional array, one entry for each control
  * @ncontrols: number of available mvebu_mpp_ctrls
  * @modes: list of available mvebu_mpp_modes
  * @nmodes: number of available mvebu_mpp_modes
@@ -106,6 +118,7 @@ struct mvebu_mpp_mode {
 struct mvebu_pinctrl_soc_info {
 	u8 variant;
 	const struct mvebu_mpp_ctrl *controls;
+	struct mvebu_mpp_ctrl_data *control_data;
 	int ncontrols;
 	struct mvebu_mpp_mode *modes;
 	int nmodes;

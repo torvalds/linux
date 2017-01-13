@@ -39,6 +39,7 @@ struct mvebu_pinctrl_function {
 struct mvebu_pinctrl_group {
 	const char *name;
 	const struct mvebu_mpp_ctrl *ctrl;
+	struct mvebu_mpp_ctrl_data *data;
 	struct mvebu_mpp_ctrl_setting *settings;
 	unsigned num_settings;
 	unsigned gid;
@@ -146,7 +147,7 @@ static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 	if (!grp->ctrl)
 		return -EINVAL;
 
-	return grp->ctrl->mpp_get(grp->pins[0], config);
+	return grp->ctrl->mpp_get(grp->data, grp->pins[0], config);
 }
 
 static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
@@ -161,7 +162,7 @@ static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	for (i = 0; i < num_configs; i++) {
-		ret = grp->ctrl->mpp_set(grp->pins[0], configs[i]);
+		ret = grp->ctrl->mpp_set(grp->data, grp->pins[0], configs[i]);
 		if (ret)
 			return ret;
 	} /* for each config */
@@ -302,7 +303,7 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (grp->ctrl->mpp_gpio_req)
-		return grp->ctrl->mpp_gpio_req(offset);
+		return grp->ctrl->mpp_gpio_req(grp->data, offset);
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
@@ -325,7 +326,7 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	if (grp->ctrl->mpp_gpio_dir)
-		return grp->ctrl->mpp_gpio_dir(offset, input);
+		return grp->ctrl->mpp_gpio_dir(grp->data, offset, input);
 
 	setting = mvebu_pinctrl_find_gpio_setting(pctl, grp);
 	if (!setting)
@@ -621,8 +622,12 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	gid = 0;
 	for (n = 0; n < soc->ncontrols; n++) {
 		const struct mvebu_mpp_ctrl *ctrl = &soc->controls[n];
+		struct mvebu_mpp_ctrl_data *data = soc->control_data ?
+						   &soc->control_data[n] : NULL;
+
 		pctl->groups[gid].gid = gid;
 		pctl->groups[gid].ctrl = ctrl;
+		pctl->groups[gid].data = data;
 		pctl->groups[gid].name = ctrl->name;
 		pctl->groups[gid].pins = ctrl->pins;
 		pctl->groups[gid].npins = ctrl->npins;
@@ -642,6 +647,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 				gid++;
 				pctl->groups[gid].gid = gid;
 				pctl->groups[gid].ctrl = ctrl;
+				pctl->groups[gid].data = data;
 				pctl->groups[gid].name = noname_buf;
 				pctl->groups[gid].pins = &ctrl->pins[k];
 				pctl->groups[gid].npins = 1;

@@ -66,17 +66,20 @@ static void __iomem *mpp4_base;
 static void __iomem *pmu_base;
 static struct regmap *gconfmap;
 
-static int dove_mpp_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			     unsigned long *config)
 {
 	return default_mpp_ctrl_get(mpp_base, pid, config);
 }
 
-static int dove_mpp_ctrl_set(unsigned pid, unsigned long config)
+static int dove_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			     unsigned long config)
 {
 	return default_mpp_ctrl_set(mpp_base, pid, config);
 }
 
-static int dove_pmu_mpp_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_pmu_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data,
+				 unsigned pid, unsigned long *config)
 {
 	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
 	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
@@ -93,7 +96,8 @@ static int dove_pmu_mpp_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_pmu_mpp_ctrl_set(unsigned pid, unsigned long config)
+static int dove_pmu_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data,
+				 unsigned pid, unsigned long config)
 {
 	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
 	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
@@ -114,7 +118,8 @@ static int dove_pmu_mpp_ctrl_set(unsigned pid, unsigned long config)
 	return 0;
 }
 
-static int dove_mpp4_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_mpp4_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long *config)
 {
 	unsigned long mpp4 = readl(mpp4_base);
 	unsigned long mask;
@@ -144,7 +149,8 @@ static int dove_mpp4_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_mpp4_ctrl_set(unsigned pid, unsigned long config)
+static int dove_mpp4_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long config)
 {
 	unsigned long mpp4 = readl(mpp4_base);
 	unsigned long mask;
@@ -178,7 +184,8 @@ static int dove_mpp4_ctrl_set(unsigned pid, unsigned long config)
 	return 0;
 }
 
-static int dove_nand_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_nand_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long *config)
 {
 	unsigned int gmpp;
 
@@ -188,7 +195,8 @@ static int dove_nand_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_nand_ctrl_set(unsigned pid, unsigned long config)
+static int dove_nand_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long config)
 {
 	regmap_update_bits(gconfmap, MPP_GENERAL_CONFIG,
 			   NAND_GPIO_EN,
@@ -196,7 +204,8 @@ static int dove_nand_ctrl_set(unsigned pid, unsigned long config)
 	return 0;
 }
 
-static int dove_audio0_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_audio0_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+				unsigned long *config)
 {
 	unsigned long pmu = readl(mpp_base + PMU_MPP_GENERAL_CTRL);
 
@@ -205,7 +214,8 @@ static int dove_audio0_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_audio0_ctrl_set(unsigned pid, unsigned long config)
+static int dove_audio0_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+				unsigned long config)
 {
 	unsigned long pmu = readl(mpp_base + PMU_MPP_GENERAL_CTRL);
 
@@ -217,7 +227,8 @@ static int dove_audio0_ctrl_set(unsigned pid, unsigned long config)
 	return 0;
 }
 
-static int dove_audio1_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_audio1_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+				unsigned long *config)
 {
 	unsigned int mpp4 = readl(mpp4_base);
 	unsigned int sspc1;
@@ -247,7 +258,8 @@ static int dove_audio1_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_audio1_ctrl_set(unsigned pid, unsigned long config)
+static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+				unsigned long config)
 {
 	unsigned int mpp4 = readl(mpp4_base);
 
@@ -274,11 +286,12 @@ static int dove_audio1_ctrl_set(unsigned pid, unsigned long config)
  * break other functions. If you require all mpps as gpio
  * enforce gpio setting by pinctrl mapping.
  */
-static int dove_audio1_ctrl_gpio_req(unsigned pid)
+static int dove_audio1_ctrl_gpio_req(struct mvebu_mpp_ctrl_data *data,
+				     unsigned pid)
 {
 	unsigned long config;
 
-	dove_audio1_ctrl_get(pid, &config);
+	dove_audio1_ctrl_get(data, pid, &config);
 
 	switch (config) {
 	case 0x02: /* i2s1 : gpio[56:57] */
@@ -301,14 +314,16 @@ static int dove_audio1_ctrl_gpio_req(unsigned pid)
 }
 
 /* mpp[52:57] has gpio pins capable of in and out */
-static int dove_audio1_ctrl_gpio_dir(unsigned pid, bool input)
+static int dove_audio1_ctrl_gpio_dir(struct mvebu_mpp_ctrl_data *data,
+				     unsigned pid, bool input)
 {
 	if (pid < 52 || pid > 57)
 		return -ENOTSUPP;
 	return 0;
 }
 
-static int dove_twsi_ctrl_get(unsigned pid, unsigned long *config)
+static int dove_twsi_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long *config)
 {
 	unsigned int gcfg1;
 	unsigned int gcfg2;
@@ -327,7 +342,8 @@ static int dove_twsi_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int dove_twsi_ctrl_set(unsigned pid, unsigned long config)
+static int dove_twsi_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long config)
 {
 	unsigned int gcfg1 = 0;
 	unsigned int gcfg2 = 0;
