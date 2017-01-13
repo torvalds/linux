@@ -594,38 +594,87 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	struct fixed31_32 y3_max;
 
 	int32_t segment_start, segment_end;
-	uint32_t hw_points, start_index;
-	uint32_t i, j;
+	uint32_t i, j, k, seg_distr[16], increment, start_index;
+	uint32_t hw_points = 0;
 
 	memset(regamma_params, 0, sizeof(struct pwl_params));
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
-		/* 16 segments x 16 points
+		/* 16 segments
 		 * segments are from 2^-11 to 2^5
 		 */
 		segment_start = -11;
 		segment_end = 5;
 
+		seg_distr[0] = 2;
+		seg_distr[1] = 2;
+		seg_distr[2] = 2;
+		seg_distr[3] = 2;
+		seg_distr[4] = 2;
+		seg_distr[5] = 2;
+		seg_distr[6] = 3;
+		seg_distr[7] = 4;
+		seg_distr[8] = 4;
+		seg_distr[9] = 4;
+		seg_distr[10] = 4;
+		seg_distr[11] = 5;
+		seg_distr[12] = 5;
+		seg_distr[13] = 5;
+		seg_distr[14] = 5;
+		seg_distr[15] = 5;
+
 	} else {
-		/* 10 segments x 16 points
+		/* 10 segments
 		 * segment is from 2^-10 to 2^0
 		 */
 		segment_start = -10;
 		segment_end = 0;
+
+		seg_distr[0] = 3;
+		seg_distr[1] = 4;
+		seg_distr[2] = 4;
+		seg_distr[3] = 4;
+		seg_distr[4] = 4;
+		seg_distr[5] = 4;
+		seg_distr[6] = 4;
+		seg_distr[7] = 4;
+		seg_distr[8] = 5;
+		seg_distr[9] = 5;
+		seg_distr[10] = -1;
+		seg_distr[11] = -1;
+		seg_distr[12] = -1;
+		seg_distr[13] = -1;
+		seg_distr[14] = -1;
+		seg_distr[15] = -1;
 	}
 
-	hw_points = (segment_end - segment_start) * 16;
-	j = 0;
-	/* (segment + 25) * 32, every 2nd point */
-	start_index = (segment_start + 25) * 32;
-	for (i = start_index; i <= 1025; i += 2) {
-		if (j > hw_points)
-			break;
-		rgb_resulted[j].red = output_tf->tf_pts.red[i];
-		rgb_resulted[j].green = output_tf->tf_pts.green[i];
-		rgb_resulted[j].blue = output_tf->tf_pts.blue[i];
-		j++;
+	for (k = 0; k < 16; k++) {
+		if (seg_distr[k] != -1)
+			hw_points += (1 << seg_distr[k]);
 	}
+
+	j = 0;
+	for (k = 0; k < (segment_end - segment_start); k++) {
+		increment = 32 / (1 << seg_distr[k]);
+		start_index = (segment_start + k + 25) * 32;
+		for (i = start_index; i < start_index + 32; i += increment) {
+			if (j == hw_points - 1)
+				break;
+			rgb_resulted[j].red = output_tf->tf_pts.red[i];
+			rgb_resulted[j].green = output_tf->tf_pts.green[i];
+			rgb_resulted[j].blue = output_tf->tf_pts.blue[i];
+			j++;
+		}
+	}
+
+	/* last point */
+	start_index = (segment_end + 25) * 32;
+	rgb_resulted[hw_points - 1].red =
+			output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points - 1].green =
+			output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points - 1].blue =
+			output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
 			dal_fixed31_32_from_int(segment_start));
@@ -677,10 +726,21 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 	regamma_params->hw_points_num = hw_points;
 
-	for (i = 0; i < segment_end - segment_start; i++) {
-		regamma_params->arr_curve_points[i].offset = i * 16;
-		regamma_params->arr_curve_points[i].segments_num = 4;
+	i = 1;
+	for (k = 0; k < 16 && i < 16; k++) {
+		if (seg_distr[k] != -1) {
+			regamma_params->arr_curve_points[k].segments_num =
+					seg_distr[k];
+			regamma_params->arr_curve_points[i].offset =
+					regamma_params->arr_curve_points[k].
+					offset + (1 << seg_distr[k]);
+		}
+		i++;
 	}
+
+	if (seg_distr[k] != -1)
+		regamma_params->arr_curve_points[k].segments_num =
+				seg_distr[k];
 
 	struct pwl_result_data *rgb = rgb_resulted;
 	struct pwl_result_data *rgb_plus_1 = rgb_resulted + 1;

@@ -1310,6 +1310,20 @@ static void set_avi_info_frame(
 		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
 				COLORIMETRY_NO_DATA;
 
+	if (color_space == COLOR_SPACE_2020_RGB_FULLRANGE ||
+		color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE ||
+		color_space == COLOR_SPACE_2020_YCBCR) {
+		info_frame.avi_info_packet.info_packet_hdmi.bits.EC0_EC2 =
+				COLORIMETRYEX_BT2020RGBYCBCR;
+		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
+				COLORIMETRY_EXTENDED;
+	} else if (color_space == COLOR_SPACE_ADOBERGB) {
+		info_frame.avi_info_packet.info_packet_hdmi.bits.EC0_EC2 =
+				COLORIMETRYEX_ADOBERGB;
+		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
+				COLORIMETRY_EXTENDED;
+	}
+
 	/* TODO: un-hardcode aspect ratio */
 	aspect = stream->public.timing.aspect_ratio;
 
