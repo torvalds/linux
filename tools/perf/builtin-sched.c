@@ -77,6 +77,22 @@ struct sched_atom {
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtZXxKWP"
 
+/* task state bitmask, copied from include/linux/sched.h */
+#define TASK_RUNNING		0
+#define TASK_INTERRUPTIBLE	1
+#define TASK_UNINTERRUPTIBLE	2
+#define __TASK_STOPPED		4
+#define __TASK_TRACED		8
+/* in tsk->exit_state */
+#define EXIT_DEAD		16
+#define EXIT_ZOMBIE		32
+#define EXIT_TRACE		(EXIT_ZOMBIE | EXIT_DEAD)
+/* in tsk->state again */
+#define TASK_DEAD		64
+#define TASK_WAKEKILL		128
+#define TASK_WAKING		256
+#define TASK_PARKED		512
+
 enum thread_state {
 	THREAD_SLEEPING = 0,
 	THREAD_WAIT_CPU,
@@ -216,13 +232,16 @@ struct perf_sched {
 struct thread_runtime {
 	u64 last_time;      /* time of previous sched in/out event */
 	u64 dt_run;         /* run time */
-	u64 dt_wait;        /* time between CPU access (off cpu) */
+	u64 dt_sleep;       /* time between CPU access by sleep (off cpu) */
+	u64 dt_iowait;      /* time between CPU access by iowait (off cpu) */
+	u64 dt_preempt;     /* time between CPU access by preempt (off cpu) */
 	u64 dt_delay;       /* time between wakeup and sched-in */
 	u64 ready_to_run;   /* time of wakeup */
 
 	struct stats run_stats;
 	u64 total_run_time;
 
+	int last_state;
 	u64 migrations;
 };
 
@@ -1858,6 +1877,7 @@ static void timehist_print_sample(struct perf_sched *sched,
 	struct thread_runtime *tr = thread__priv(thread);
 	u32 max_cpus = sched->max_cpu + 1;
 	char tstr[64];
+	u64 wait_time;
 
 	timestamp__scnprintf_usec(t, tstr, sizeof(tstr));
 	printf("%15s [%04d] ", tstr, sample->cpu);
@@ -1880,7 +1900,9 @@ static void timehist_print_sample(struct perf_sched *sched,
 
 	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
 
-	print_sched_time(tr->dt_wait, 6);
+	wait_time = tr->dt_sleep + tr->dt_iowait + tr->dt_preempt;
+	print_sched_time(wait_time, 6);
+
 	print_sched_time(tr->dt_delay, 6);
 	print_sched_time(tr->dt_run, 6);
 
@@ -1930,8 +1952,11 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 					 u64 t, u64 tprev)
 {
 	r->dt_delay   = 0;
-	r->dt_wait    = 0;
+	r->dt_sleep   = 0;
+	r->dt_iowait  = 0;
+	r->dt_preempt = 0;
 	r->dt_run     = 0;
+
 	if (tprev) {
 		r->dt_run = t - tprev;
 		if (r->ready_to_run) {
@@ -1943,8 +1968,16 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 
 		if (r->last_time > tprev)
 			pr_debug("time travel: last sched out time for task > previous sched_switch event\n");
-		else if (r->last_time)
-			r->dt_wait = tprev - r->last_time;
+		else if (r->last_time) {
+			u64 dt_wait = tprev - r->last_time;
+
+			if (r->last_state == TASK_RUNNING)
+				r->dt_preempt = dt_wait;
+			else if (r->last_state == TASK_UNINTERRUPTIBLE)
+				r->dt_iowait = dt_wait;
+			else
+				r->dt_sleep = dt_wait;
+		}
 	}
 
 	update_stats(&r->run_stats, r->dt_run);
@@ -2447,8 +2480,10 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 			 * time.  we only care total run time and run stat.
 			 */
 			last_tr->dt_run = 0;
-			last_tr->dt_wait = 0;
 			last_tr->dt_delay = 0;
+			last_tr->dt_sleep = 0;
+			last_tr->dt_iowait = 0;
+			last_tr->dt_preempt = 0;
 
 			if (itr->cursor.nr)
 				callchain_append(&itr->callchain, &itr->cursor, t - tprev);
@@ -2469,6 +2504,9 @@ out:
 	if (tr) {
 		/* time of this sched_switch event becomes last time task seen */
 		tr->last_time = sample->time;
+
+		/* last state is used to determine where to account wait time */
+		tr->last_state = perf_evsel__intval(evsel, sample, "prev_state");
 
 		/* sched out event for task so reset ready to run time */
 		tr->ready_to_run = 0;
