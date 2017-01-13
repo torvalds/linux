@@ -1395,7 +1395,7 @@ tnl:
 			msg_set_seqno(hdr, seqno++);
 		pktlen = msg_size(hdr);
 		msg_set_size(&tnlhdr, pktlen + INT_H_SIZE);
-		tnlskb = tipc_buf_acquire(pktlen + INT_H_SIZE);
+		tnlskb = tipc_buf_acquire(pktlen + INT_H_SIZE, GFP_ATOMIC);
 		if (!tnlskb) {
 			pr_warn("%sunable to send packet\n", link_co_err);
 			return;
