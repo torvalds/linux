@@ -1276,12 +1276,6 @@ static bool kvmgt_check_guest(void)
  */
 static int kvmgt_detect_host(void)
 {
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped) {
-		gvt_err("Hardware IOMMU compatibility not yet supported, try to boot with intel_iommu=igfx_off\n");
-		return -ENODEV;
-	}
-#endif
 	return kvmgt_check_guest() ? -ENODEV : 0;
 }
 
