@@ -158,25 +158,13 @@ struct mmc_request {
 struct mmc_card;
 struct mmc_async_req;
 
-extern int mmc_stop_bkops(struct mmc_card *);
-extern int mmc_read_bkops_status(struct mmc_card *);
 extern struct mmc_async_req *mmc_start_req(struct mmc_host *,
 					   struct mmc_async_req *,
 					   enum mmc_blk_status *);
-extern int mmc_interrupt_hpi(struct mmc_card *);
 extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
-extern void mmc_wait_for_req_done(struct mmc_host *host,
-				  struct mmc_request *mrq);
-extern bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
-extern int mmc_app_cmd(struct mmc_host *, struct mmc_card *);
-extern int mmc_wait_for_app_cmd(struct mmc_host *, struct mmc_card *,
-	struct mmc_command *, int);
-extern void mmc_start_bkops(struct mmc_card *card, bool from_exception);
-extern int mmc_switch(struct mmc_card *, u8, u8, u8, unsigned int);
 extern int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
 extern int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
-extern int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
 
 #define MMC_ERASE_ARG		0x00000000
 #define MMC_SECURE_ERASE_ARG	0x80000000
@@ -188,46 +176,8 @@ extern int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
 #define MMC_SECURE_ARGS		0x80000000
 #define MMC_TRIM_ARGS		0x00008001
 
-extern int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
-		     unsigned int arg);
-extern int mmc_can_erase(struct mmc_card *card);
-extern int mmc_can_trim(struct mmc_card *card);
-extern int mmc_can_discard(struct mmc_card *card);
-extern int mmc_can_sanitize(struct mmc_card *card);
-extern int mmc_can_secure_erase_trim(struct mmc_card *card);
-extern int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
-				   unsigned int nr);
-extern unsigned int mmc_calc_max_discard(struct mmc_card *card);
-
-extern int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
-extern int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			      bool is_rel_write);
 extern int mmc_hw_reset(struct mmc_host *host);
-extern int mmc_can_reset(struct mmc_card *card);
-
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);
-extern unsigned int mmc_align_data_size(struct mmc_card *, unsigned int);
-
-extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
-extern void mmc_release_host(struct mmc_host *host);
-
-extern void mmc_get_card(struct mmc_card *card);
-extern void mmc_put_card(struct mmc_card *card);
-
-extern int mmc_flush_cache(struct mmc_card *);
-
-extern int mmc_detect_card_removed(struct mmc_host *host);
-
-/**
- *	mmc_claim_host - exclusively claim a host
- *	@host: mmc host to claim
- *
- *	Claim a host for a set of operations.
- */
-static inline void mmc_claim_host(struct mmc_host *host)
-{
-	__mmc_claim_host(host, NULL);
-}
 
 struct device_node;
 extern u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);

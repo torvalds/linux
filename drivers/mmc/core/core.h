@@ -16,6 +16,7 @@
 
 struct mmc_host;
 struct mmc_card;
+struct mmc_request;
 
 #define MMC_CMD_RETRIES        3
 
@@ -73,6 +74,7 @@ void mmc_start_host(struct mmc_host *host);
 void mmc_stop_host(struct mmc_host *host);
 
 int _mmc_detect_card_removed(struct mmc_host *host);
+int mmc_detect_card_removed(struct mmc_host *host);
 
 int mmc_attach_mmc(struct mmc_host *host);
 int mmc_attach_sd(struct mmc_host *host);
@@ -102,5 +104,38 @@ static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
 static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 #endif
 
-#endif
+void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq);
+bool mmc_is_req_done(struct mmc_host *host, struct mmc_request *mrq);
 
+int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
+		unsigned int arg);
+int mmc_can_erase(struct mmc_card *card);
+int mmc_can_trim(struct mmc_card *card);
+int mmc_can_discard(struct mmc_card *card);
+int mmc_can_sanitize(struct mmc_card *card);
+int mmc_can_secure_erase_trim(struct mmc_card *card);
+int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
+			unsigned int nr);
+unsigned int mmc_calc_max_discard(struct mmc_card *card);
+
+int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
+int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
+			bool is_rel_write);
+
+int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
+void mmc_release_host(struct mmc_host *host);
+void mmc_get_card(struct mmc_card *card);
+void mmc_put_card(struct mmc_card *card);
+
+/**
+ *	mmc_claim_host - exclusively claim a host
+ *	@host: mmc host to claim
+ *
+ *	Claim a host for a set of operations.
+ */
+static inline void mmc_claim_host(struct mmc_host *host)
+{
+	__mmc_claim_host(host, NULL);
+}
+
+#endif

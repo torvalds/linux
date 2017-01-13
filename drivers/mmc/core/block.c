@@ -47,6 +47,9 @@
 
 #include "queue.h"
 #include "block.h"
+#include "core.h"
+#include "mmc_ops.h"
+#include "sd_ops.h"
 
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX

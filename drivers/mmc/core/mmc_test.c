@@ -22,6 +22,8 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 
+#include "core.h"
+
 #define RESULT_OK		0
 #define RESULT_FAIL		1
 #define RESULT_UNSUP_HOST	2
