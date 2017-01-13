@@ -327,7 +327,75 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 }
 
 /**
- * intel_gvt_reset_vgpu - reset a virtual GPU
+ * intel_gvt_reset_vgpu_locked - reset a virtual GPU by DMLR or GT reset
+ * @vgpu: virtual GPU
+ * @dmlr: vGPU Device Model Level Reset or GT Reset
+ * @engine_mask: engines to reset for GT reset
+ *
+ * This function is called when user wants to reset a virtual GPU through
+ * device model reset or GT reset. The caller should hold the gvt lock.
+ *
+ * vGPU Device Model Level Reset (DMLR) simulates the PCI level reset to reset
+ * the whole vGPU to default state as when it is created. This vGPU function
+ * is required both for functionary and security concerns.The ultimate goal
+ * of vGPU FLR is that reuse a vGPU instance by virtual machines. When we
+ * assign a vGPU to a virtual machine we must isse such reset first.
+ *
+ * Full GT Reset and Per-Engine GT Reset are soft reset flow for GPU engines
+ * (Render, Blitter, Video, Video Enhancement). It is defined by GPU Spec.
+ * Unlike the FLR, GT reset only reset particular resource of a vGPU per
+ * the reset request. Guest driver can issue a GT reset by programming the
+ * virtual GDRST register to reset specific virtual GPU engine or all
+ * engines.
+ *
+ * The parameter dev_level is to identify if we will do DMLR or GT reset.
+ * The parameter engine_mask is to specific the engines that need to be
+ * resetted. If value ALL_ENGINES is given for engine_mask, it means
+ * the caller requests a full GT reset that we will reset all virtual
+ * GPU engines. For FLR, engine_mask is ignored.
+ */
+void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
+				 unsigned int engine_mask)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
+
+	gvt_dbg_core("------------------------------------------\n");
+	gvt_dbg_core("resseting vgpu%d, dmlr %d, engine_mask %08x\n",
+		     vgpu->id, dmlr, engine_mask);
+	vgpu->resetting = true;
+
+	intel_vgpu_stop_schedule(vgpu);
+	/*
+	 * The current_vgpu will set to NULL after stopping the
+	 * scheduler when the reset is triggered by current vgpu.
+	 */
+	if (scheduler->current_vgpu == NULL) {
+		mutex_unlock(&gvt->lock);
+		intel_gvt_wait_vgpu_idle(vgpu);
+		mutex_lock(&gvt->lock);
+	}
+
+	intel_vgpu_reset_execlist(vgpu, dmlr ? ALL_ENGINES : engine_mask);
+
+	/* full GPU reset or device model level reset */
+	if (engine_mask == ALL_ENGINES || dmlr) {
+		intel_vgpu_reset_gtt(vgpu, dmlr);
+		intel_vgpu_reset_resource(vgpu);
+		intel_vgpu_reset_mmio(vgpu);
+		populate_pvinfo_page(vgpu);
+
+		if (dmlr)
+			intel_vgpu_reset_cfg_space(vgpu);
+	}
+
+	vgpu->resetting = false;
+	gvt_dbg_core("reset vgpu%d done\n", vgpu->id);
+	gvt_dbg_core("------------------------------------------\n");
+}
+
+/**
+ * intel_gvt_reset_vgpu - reset a virtual GPU (Function Level)
  * @vgpu: virtual GPU
  *
  * This function is called when user wants to reset a virtual GPU.
@@ -335,4 +403,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
  */
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu)
 {
+	mutex_lock(&vgpu->gvt->lock);
+	intel_gvt_reset_vgpu_locked(vgpu, true, 0);
+	mutex_unlock(&vgpu->gvt->lock);
 }
