@@ -48,6 +48,8 @@
 	 ((crn) << CRn_shift) | ((crm) << CRm_shift) | \
 	 ((op2) << Op2_shift))
 
+#define sys_insn	sys_reg
+
 #define sys_reg_Op0(id)	(((id) >> Op0_shift) & Op0_mask)
 #define sys_reg_Op1(id)	(((id) >> Op1_shift) & Op1_mask)
 #define sys_reg_CRn(id)	(((id) >> CRn_shift) & CRn_mask)
@@ -88,6 +90,10 @@
 				      (!!x)<<8 | 0x1f)
 #define SET_PSTATE_UAO(x) __emit_inst(0xd5000000 | REG_PSTATE_UAO_IMM |	\
 				      (!!x)<<8 | 0x1f)
+
+#define SYS_DC_ISW			sys_insn(1, 0, 7, 6, 2)
+#define SYS_DC_CSW			sys_insn(1, 0, 7, 10, 2)
+#define SYS_DC_CISW			sys_insn(1, 0, 7, 14, 2)
 
 #define SYS_OSDTRRX_EL1			sys_reg(2, 0, 0, 0, 2)
 #define SYS_MDCCINT_EL1			sys_reg(2, 0, 0, 2, 0)
