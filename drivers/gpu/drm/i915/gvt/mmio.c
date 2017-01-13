@@ -303,3 +303,45 @@ err:
 	mutex_unlock(&gvt->lock);
 	return ret;
 }
+
+/**
+ * intel_vgpu_init_mmio - init MMIO  space
+ * @vgpu: a vGPU
+ *
+ * Returns:
+ * Zero on success, negative error code if failed
+ */
+int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
+{
+	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
+
+	if (vgpu->mmio.vreg)
+		memset(vgpu->mmio.vreg, 0, info->mmio_size * 2);
+	else {
+		vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+		if (!vgpu->mmio.vreg)
+			return -ENOMEM;
+	}
+	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
+
+	memcpy(vgpu->mmio.vreg, vgpu->gvt->firmware.mmio, info->mmio_size);
+	memcpy(vgpu->mmio.sreg, vgpu->gvt->firmware.mmio, info->mmio_size);
+
+	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+
+	/* set the bit 0:2(Core C-State ) to C0 */
+	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+
+	return 0;
+}
+
+/**
+ * intel_vgpu_clean_mmio - clean MMIO space
+ * @vgpu: a vGPU
+ *
+ */
+void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu)
+{
+	vfree(vgpu->mmio.vreg);
+	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
+}

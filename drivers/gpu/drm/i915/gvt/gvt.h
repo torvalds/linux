@@ -429,7 +429,6 @@ void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu);
 int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
-int setup_vgpu_mmio(struct intel_vgpu *vgpu);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
 
 struct intel_gvt_ops {

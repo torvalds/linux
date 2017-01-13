@@ -257,7 +257,7 @@ static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
 		mutex_unlock(&vgpu->gvt->lock);
 		intel_vgpu_clean_gtt(vgpu);
 		mutex_lock(&vgpu->gvt->lock);
-		setup_vgpu_mmio(vgpu);
+		intel_vgpu_init_mmio(vgpu);
 		populate_pvinfo_page(vgpu);
 		intel_vgpu_init_gtt(vgpu);
 	}

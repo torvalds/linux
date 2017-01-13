@@ -35,37 +35,6 @@
 #include "gvt.h"
 #include "i915_pvinfo.h"
 
-static void clean_vgpu_mmio(struct intel_vgpu *vgpu)
-{
-	vfree(vgpu->mmio.vreg);
-	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
-}
-
-int setup_vgpu_mmio(struct intel_vgpu *vgpu)
-{
-	struct intel_gvt *gvt = vgpu->gvt;
-	const struct intel_gvt_device_info *info = &gvt->device_info;
-
-	if (vgpu->mmio.vreg)
-		memset(vgpu->mmio.vreg, 0, info->mmio_size * 2);
-	else {
-		vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
-		if (!vgpu->mmio.vreg)
-			return -ENOMEM;
-	}
-
-	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
-
-	memcpy(vgpu->mmio.vreg, gvt->firmware.mmio, info->mmio_size);
-	memcpy(vgpu->mmio.sreg, gvt->firmware.mmio, info->mmio_size);
-
-	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
-
-	/* set the bit 0:2(Core C-State ) to C0 */
-	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
-	return 0;
-}
-
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
 	/* setup the ballooning information */
@@ -226,7 +195,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_vgpu_clean_gtt(vgpu);
 	intel_gvt_hypervisor_detach_vgpu(vgpu);
 	intel_vgpu_free_resource(vgpu);
-	clean_vgpu_mmio(vgpu);
+	intel_vgpu_clean_mmio(vgpu);
 	vfree(vgpu);
 
 	intel_gvt_update_vgpu_types(gvt);
@@ -260,7 +229,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	intel_vgpu_init_cfg_space(vgpu, param->primary);
 
-	ret = setup_vgpu_mmio(vgpu);
+	ret = intel_vgpu_init_mmio(vgpu);
 	if (ret)
 		goto out_clean_idr;
 
@@ -312,7 +281,7 @@ out_detach_hypervisor_vgpu:
 out_clean_vgpu_resource:
 	intel_vgpu_free_resource(vgpu);
 out_clean_vgpu_mmio:
-	clean_vgpu_mmio(vgpu);
+	intel_vgpu_clean_mmio(vgpu);
 out_clean_idr:
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
 out_free_vgpu:
