@@ -1190,6 +1190,7 @@
 		compatible = "rockchip,rk3399-pcie";
 		#address-cells = <3>;
 		#size-cells = <2>;
+		aspm-no-l0s;
 		clocks = <&cru ACLK_PCIE>, <&cru ACLK_PERF_PCIE>,
 			 <&cru PCLK_PCIE>, <&cru SCLK_PCIE_PM>;
 		clock-names = "aclk", "aclk-perf",
