@@ -190,8 +190,9 @@ int cros_ec_suspend(struct cros_ec_device *ec_dev)
 	int ret;
 	u8 sleep_event;
 
-	sleep_event = pm_suspend_via_firmware() ? HOST_SLEEP_EVENT_S3_RESUME :
-						  HOST_SLEEP_EVENT_S0IX_RESUME;
+	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
+		      HOST_SLEEP_EVENT_S3_RESUME :
+		      HOST_SLEEP_EVENT_S0IX_RESUME;
 
 	ret = cros_ec_sleep_event(ec_dev, sleep_event);
 	if (ret < 0)
@@ -224,8 +225,9 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 	ec_dev->suspended = false;
 	enable_irq(ec_dev->irq);
 
-	sleep_event = pm_suspend_via_firmware() ? HOST_SLEEP_EVENT_S3_RESUME :
-						  HOST_SLEEP_EVENT_S0IX_RESUME;
+	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
+		      HOST_SLEEP_EVENT_S3_RESUME :
+		      HOST_SLEEP_EVENT_S0IX_RESUME;
 
 	ret = cros_ec_sleep_event(ec_dev, sleep_event);
 	if (ret < 0)
