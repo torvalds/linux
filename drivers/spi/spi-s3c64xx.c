@@ -1147,7 +1147,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		if (IS_ERR(sdd->tx_dma.ch)) {
 			dev_err(&pdev->dev, "Failed to get TX DMA channel\n");
 			ret = PTR_ERR(sdd->tx_dma.ch);
-			goto err_release_tx_dma;
+			goto err_release_rx_dma;
 		}
 	}
 
@@ -1197,10 +1197,10 @@ err_pm_put:
 	pm_runtime_set_suspended(&pdev->dev);
 
 	if (!is_polling(sdd))
-		dma_release_channel(sdd->rx_dma.ch);
-err_release_tx_dma:
-	if (!is_polling(sdd))
 		dma_release_channel(sdd->tx_dma.ch);
+err_release_rx_dma:
+	if (!is_polling(sdd))
+		dma_release_channel(sdd->rx_dma.ch);
 err_disable_io_clk:
 	clk_disable_unprepare(sdd->ioclk);
 err_disable_src_clk:
