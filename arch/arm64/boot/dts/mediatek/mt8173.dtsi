@@ -182,12 +182,12 @@
 				map@0 {
 					trip = <&target>;
 					cooling-device = <&cpu0 0 0>;
-					contribution = <1024>;
+					contribution = <3072>;
 				};
 				map@1 {
 					trip = <&target>;
 					cooling-device = <&cpu2 0 0>;
-					contribution = <2048>;
+					contribution = <1024>;
 				};
 			};
 		};
