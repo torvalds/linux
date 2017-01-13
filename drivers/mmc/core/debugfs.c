@@ -21,6 +21,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "host.h"
 #include "mmc_ops.h"
 
 #ifdef CONFIG_FAIL_MMC_REQUEST

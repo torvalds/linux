@@ -24,6 +24,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "host.h"
 #include "bus.h"
 
 #define RESULT_OK		0

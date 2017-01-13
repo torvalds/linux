@@ -24,6 +24,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "host.h"
 #include "sdio_cis.h"
 #include "bus.h"
 

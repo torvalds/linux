@@ -473,54 +473,18 @@ static inline int mmc_card_wake_sdio_irq(struct mmc_host *host)
 	return host->pm_flags & MMC_PM_WAKE_SDIO_IRQ;
 }
 
-static inline int mmc_host_cmd23(struct mmc_host *host)
-{
-	return host->caps & MMC_CAP_CMD23;
-}
-
-static inline int mmc_boot_partition_access(struct mmc_host *host)
-{
-	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
-}
-
-static inline int mmc_host_uhs(struct mmc_host *host)
-{
-	return host->caps &
-		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
-		 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
-		 MMC_CAP_UHS_DDR50);
-}
-
+/* TODO: Move to private header */
 static inline int mmc_card_hs(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_SD_HS ||
 		card->host->ios.timing == MMC_TIMING_MMC_HS;
 }
 
+/* TODO: Move to private header */
 static inline int mmc_card_uhs(struct mmc_card *card)
 {
 	return card->host->ios.timing >= MMC_TIMING_UHS_SDR12 &&
 		card->host->ios.timing <= MMC_TIMING_UHS_DDR50;
-}
-
-static inline bool mmc_card_hs200(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_HS200;
-}
-
-static inline bool mmc_card_ddr52(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_DDR52;
-}
-
-static inline bool mmc_card_hs400(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_HS400;
-}
-
-static inline bool mmc_card_hs400es(struct mmc_card *card)
-{
-	return card->host->ios.enhanced_strobe;
 }
 
 void mmc_retune_timer_stop(struct mmc_host *host);
@@ -531,12 +495,6 @@ static inline void mmc_retune_needed(struct mmc_host *host)
 		host->need_retune = 1;
 }
 
-static inline void mmc_retune_recheck(struct mmc_host *host)
-{
-	if (host->hold_retune <= 1)
-		host->retune_now = 1;
-}
-
 static inline bool mmc_can_retune(struct mmc_host *host)
 {
 	return host->can_retune == 1;
@@ -544,7 +502,5 @@ static inline bool mmc_can_retune(struct mmc_host *host)
 
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
 int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
-void mmc_retune_pause(struct mmc_host *host);
-void mmc_retune_unpause(struct mmc_host *host);
 
 #endif /* LINUX_MMC_HOST_H */
