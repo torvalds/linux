@@ -155,6 +155,12 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* Intruder 24 port*/
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_CUTLASS_52)},
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_CUTLASS_53)},
+	/* VENTURA */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VENTURA)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_HARPOON)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_TOMCAT)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VENTURA_4PORT)},
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_CRUSADER_4PORT)},
 	{}
 };
 
@@ -1934,6 +1940,9 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 	}
 	/* Complete outstanding ioctls when adapter is killed */
 	megasas_complete_outstanding_ioctls(instance);
+	if (instance->is_ventura)
+		del_timer_sync(&instance->r1_fp_hold_timer);
+
 }
 
  /**
@@ -2430,6 +2439,24 @@ void megasas_sriov_heartbeat_handler(unsigned long instance_addr)
 		       "completed for scsi%d\n", instance->host->host_no);
 		schedule_work(&instance->work_init);
 	}
+}
+
+/*Handler for disabling/enabling raid 1 fast paths*/
+void megasas_change_r1_fp_status(unsigned long instance_addr)
+{
+	struct megasas_instance *instance =
+			(struct megasas_instance *)instance_addr;
+	if (atomic64_read(&instance->bytes_wrote) >=
+					instance->pci_threshold_bandwidth) {
+
+		atomic64_set(&instance->bytes_wrote, 0);
+		atomic_set(&instance->r1_write_fp_capable, 0);
+	} else {
+		atomic64_set(&instance->bytes_wrote, 0);
+		atomic_set(&instance->r1_write_fp_capable, 1);
+	}
+	mod_timer(&instance->r1_fp_hold_timer,
+	 jiffies + MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
 }
 
 /**
@@ -4418,8 +4445,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 {
 	struct fusion_context *fusion;
-	u32 old_map_sz;
-	u32 new_map_sz;
+	u32 ventura_map_sz = 0;
 
 	fusion = instance->ctrl_context;
 	/* For MFI based controllers return dummy success */
@@ -4449,21 +4475,38 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 		instance->supportmax256vd ? "Extended VD(240 VD)firmware" :
 		"Legacy(64 VD) firmware");
 
-	old_map_sz = sizeof(struct MR_FW_RAID_MAP) +
-				(sizeof(struct MR_LD_SPAN_MAP) *
-				(instance->fw_supported_vd_count - 1));
-	new_map_sz = sizeof(struct MR_FW_RAID_MAP_EXT);
-	fusion->drv_map_sz = sizeof(struct MR_DRV_RAID_MAP) +
-				(sizeof(struct MR_LD_SPAN_MAP) *
-				(instance->drv_supported_vd_count - 1));
+	if (instance->max_raid_mapsize) {
+		ventura_map_sz = instance->max_raid_mapsize *
+						MR_MIN_MAP_SIZE; /* 64k */
+		fusion->current_map_sz = ventura_map_sz;
+		fusion->max_map_sz = ventura_map_sz;
+	} else {
+		fusion->old_map_sz =  sizeof(struct MR_FW_RAID_MAP) +
+					(sizeof(struct MR_LD_SPAN_MAP) *
+					(instance->fw_supported_vd_count - 1));
+		fusion->new_map_sz =  sizeof(struct MR_FW_RAID_MAP_EXT);
 
-	fusion->max_map_sz = max(old_map_sz, new_map_sz);
+		fusion->max_map_sz =
+			max(fusion->old_map_sz, fusion->new_map_sz);
 
+		if (instance->supportmax256vd)
+			fusion->current_map_sz = fusion->new_map_sz;
+		else
+			fusion->current_map_sz = fusion->old_map_sz;
+	}
+	/* irrespective of FW raid maps, driver raid map is constant */
+	fusion->drv_map_sz = sizeof(struct MR_DRV_RAID_MAP_ALL);
 
-	if (instance->supportmax256vd)
-		fusion->current_map_sz = new_map_sz;
-	else
-		fusion->current_map_sz = old_map_sz;
+#if VD_EXT_DEBUG
+	dev_info(&instance->pdev->dev, "instance->max_raid_mapsize 0x%x\n ",
+		instance->max_raid_mapsize);
+	dev_info(&instance->pdev->dev, "new_map_sz = 0x%x, old_map_sz = 0x%x\n",
+		fusion->new_map_sz, fusion->old_map_sz);
+	dev_info(&instance->pdev->dev, "ventura_map_sz = 0x%x, current_map_sz = 0x%x\n",
+		ventura_map_sz, fusion->current_map_sz);
+	dev_info(&instance->pdev->dev, "fusion->drv_map_sz =0x%x, size of driver raid map 0x%lx\n",
+		fusion->drv_map_sz, sizeof(struct MR_DRV_RAID_MAP_ALL));
+#endif
 }
 
 /**
@@ -4533,6 +4576,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
 		le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
 		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
+		le16_to_cpus((u16 *)&ctrl_info->adapter_operations4);
 
 		/* Update the latest Ext VD info.
 		 * From Init path, store current firmware details.
@@ -4542,6 +4586,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		megasas_update_ext_vd_details(instance);
 		instance->use_seqnum_jbod_fp =
 			ctrl_info->adapterOperations3.useSeqNumJbodFP;
+		instance->support_morethan256jbod =
+			ctrl_info->adapter_operations4.support_pd_map_target_id;
 
 		/*Check whether controller is iMR or MR */
 		instance->is_imr = (ctrl_info->memory_size ? 0 : 1);
@@ -4990,12 +5036,12 @@ static int megasas_init_fw(struct megasas_instance *instance)
 {
 	u32 max_sectors_1;
 	u32 max_sectors_2;
-	u32 tmp_sectors, msix_enable, scratch_pad_2;
+	u32 tmp_sectors, msix_enable, scratch_pad_2, scratch_pad_3;
 	resource_size_t base_addr;
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
-	int i, loop, fw_msix_count = 0;
+	int i, j, loop, fw_msix_count = 0;
 	struct IOV_111 *iovPtr;
 	struct fusion_context *fusion;
 
@@ -5020,34 +5066,29 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	reg_set = instance->reg_set;
 
-	switch (instance->pdev->device) {
-	case PCI_DEVICE_ID_LSI_FUSION:
-	case PCI_DEVICE_ID_LSI_PLASMA:
-	case PCI_DEVICE_ID_LSI_INVADER:
-	case PCI_DEVICE_ID_LSI_FURY:
-	case PCI_DEVICE_ID_LSI_INTRUDER:
-	case PCI_DEVICE_ID_LSI_INTRUDER_24:
-	case PCI_DEVICE_ID_LSI_CUTLASS_52:
-	case PCI_DEVICE_ID_LSI_CUTLASS_53:
+	if (fusion)
 		instance->instancet = &megasas_instance_template_fusion;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1078R:
-	case PCI_DEVICE_ID_LSI_SAS1078DE:
-		instance->instancet = &megasas_instance_template_ppc;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1078GEN2:
-	case PCI_DEVICE_ID_LSI_SAS0079GEN2:
-		instance->instancet = &megasas_instance_template_gen2;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS0073SKINNY:
-	case PCI_DEVICE_ID_LSI_SAS0071SKINNY:
-		instance->instancet = &megasas_instance_template_skinny;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1064R:
-	case PCI_DEVICE_ID_DELL_PERC5:
-	default:
-		instance->instancet = &megasas_instance_template_xscale;
-		break;
+	else {
+		switch (instance->pdev->device) {
+		case PCI_DEVICE_ID_LSI_SAS1078R:
+		case PCI_DEVICE_ID_LSI_SAS1078DE:
+			instance->instancet = &megasas_instance_template_ppc;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1078GEN2:
+		case PCI_DEVICE_ID_LSI_SAS0079GEN2:
+			instance->instancet = &megasas_instance_template_gen2;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS0073SKINNY:
+		case PCI_DEVICE_ID_LSI_SAS0071SKINNY:
+			instance->instancet = &megasas_instance_template_skinny;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1064R:
+		case PCI_DEVICE_ID_DELL_PERC5:
+		default:
+			instance->instancet = &megasas_instance_template_xscale;
+			instance->pd_list_not_supported = 1;
+			break;
+		}
 	}
 
 	if (megasas_transition_to_ready(instance, 0)) {
@@ -5066,13 +5107,17 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			goto fail_ready_state;
 	}
 
-	/*
-	 * MSI-X host index 0 is common for all adapter.
-	 * It is used for all MPT based Adapters.
-	 */
-	instance->reply_post_host_index_addr[0] =
-		(u32 __iomem *)((u8 __iomem *)instance->reg_set +
-		MPI2_REPLY_POST_HOST_INDEX_OFFSET);
+	if (instance->is_ventura) {
+		scratch_pad_3 =
+			readl(&instance->reg_set->outbound_scratch_pad_3);
+#if VD_EXT_DEBUG
+		dev_info(&instance->pdev->dev, "scratch_pad3 0x%x\n",
+			scratch_pad_3);
+#endif
+		instance->max_raid_mapsize = ((scratch_pad_3 >>
+			MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
+			MR_MAX_RAID_MAP_SIZE_MASK);
+	}
 
 	/* Check if MSI-X is supported while in ready state */
 	msix_enable = (instance->instancet->read_fw_status_reg(reg_set) &
@@ -5092,6 +5137,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->msix_vectors = ((scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
+				if (instance->msix_vectors > 16)
+					instance->msix_combined = true;
+
 				if (rdpq_enable)
 					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
 								1 : 0;
@@ -5125,6 +5173,20 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		else
 			instance->msix_vectors = 0;
 	}
+	/*
+	 * MSI-X host index 0 is common for all adapter.
+	 * It is used for all MPT based Adapters.
+	 */
+	if (instance->msix_combined) {
+		instance->reply_post_host_index_addr[0] =
+				(u32 *)((u8 *)instance->reg_set +
+				MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET);
+	} else {
+		instance->reply_post_host_index_addr[0] =
+			(u32 *)((u8 *)instance->reg_set +
+			MPI2_REPLY_POST_HOST_INDEX_OFFSET);
+	}
+
 	i = pci_alloc_irq_vectors(instance->pdev, 1, 1, PCI_IRQ_LEGACY);
 	if (i < 0)
 		goto fail_setup_irqs;
@@ -5177,6 +5239,36 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+
+	/* stream detection initialization */
+	if (instance->is_ventura) {
+		fusion->stream_detect_by_ld =
+		kzalloc(sizeof(struct LD_STREAM_DETECT *)
+		* MAX_LOGICAL_DRIVES_EXT,
+		GFP_KERNEL);
+		if (!fusion->stream_detect_by_ld) {
+			dev_err(&instance->pdev->dev,
+					"unable to allocate stream detection for pool of LDs\n");
+			goto fail_get_ld_pd_list;
+		}
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
+			fusion->stream_detect_by_ld[i] =
+				kmalloc(sizeof(struct LD_STREAM_DETECT),
+				GFP_KERNEL);
+			if (!fusion->stream_detect_by_ld[i]) {
+				dev_err(&instance->pdev->dev,
+					"unable to allocate stream detect by LD\n ");
+				for (j = 0; j < i; ++j)
+					kfree(fusion->stream_detect_by_ld[j]);
+				kfree(fusion->stream_detect_by_ld);
+				fusion->stream_detect_by_ld = NULL;
+				goto fail_get_ld_pd_list;
+			}
+			fusion->stream_detect_by_ld[i]->mru_bit_map
+				= MR_STREAM_BITMAP;
+		}
+	}
+
 	if (megasas_ld_list_query(instance,
 				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 		megasas_get_ld_list(instance);
@@ -5294,8 +5386,21 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->skip_heartbeat_timer_del = 1;
 	}
 
+	if (instance->is_ventura) {
+		atomic64_set(&instance->bytes_wrote, 0);
+		atomic_set(&instance->r1_write_fp_capable, 1);
+		megasas_start_timer(instance,
+			    &instance->r1_fp_hold_timer,
+			    megasas_change_r1_fp_status,
+			    MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
+				dev_info(&instance->pdev->dev, "starting the raid 1 fp timer with interval %d\n",
+				MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
+	}
+
 	return 0;
 
+fail_get_ld_pd_list:
+	instance->instancet->disable_intr(instance);
 fail_get_pd_list:
 	instance->instancet->disable_intr(instance);
 fail_init_adapter:
@@ -5714,6 +5819,12 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->pdev = pdev;
 
 	switch (instance->pdev->device) {
+	case PCI_DEVICE_ID_LSI_VENTURA:
+	case PCI_DEVICE_ID_LSI_HARPOON:
+	case PCI_DEVICE_ID_LSI_TOMCAT:
+	case PCI_DEVICE_ID_LSI_VENTURA_4PORT:
+	case PCI_DEVICE_ID_LSI_CRUSADER_4PORT:
+	     instance->is_ventura = true;
 	case PCI_DEVICE_ID_LSI_FUSION:
 	case PCI_DEVICE_ID_LSI_PLASMA:
 	case PCI_DEVICE_ID_LSI_INVADER:
@@ -5738,6 +5849,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
 			(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA))
 			fusion->adapter_type = THUNDERBOLT_SERIES;
+		else if (instance->is_ventura)
+			fusion->adapter_type = VENTURA_SERIES;
 		else
 			fusion->adapter_type = INVADER_SERIES;
 	}
@@ -5823,6 +5936,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 
 	spin_lock_init(&instance->mfi_pool_lock);
 	spin_lock_init(&instance->hba_lock);
+	spin_lock_init(&instance->stream_lock);
 	spin_lock_init(&instance->completion_lock);
 
 	mutex_init(&instance->reset_mutex);
@@ -6073,6 +6187,9 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
 
+	if (instance->is_ventura)
+		del_timer_sync(&instance->r1_fp_hold_timer);
+
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_HIBERNATE_SHUTDOWN);
 
@@ -6199,6 +6316,16 @@ megasas_resume(struct pci_dev *pdev)
 	megasas_setup_jbod_map(instance);
 	instance->unload = 0;
 
+	if (instance->is_ventura) {
+		atomic64_set(&instance->bytes_wrote, 0);
+		atomic_set(&instance->r1_write_fp_capable, 1);
+		megasas_start_timer(instance,
+			    &instance->r1_fp_hold_timer,
+			    megasas_change_r1_fp_status,
+			    MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL);
+	}
+
+
 	/*
 	 * Initiate AEN (Asynchronous Event Notification)
 	 */
@@ -6287,6 +6414,9 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
 		del_timer_sync(&instance->sriov_heartbeat_timer);
 
+	if (instance->is_ventura)
+		del_timer_sync(&instance->r1_fp_hold_timer);
+
 	if (instance->fw_crash_state != UNAVAILABLE)
 		megasas_free_host_crash_buffer(instance);
 	scsi_remove_host(instance->host);
@@ -6329,6 +6459,14 @@ skip_firing_dcmds:
 
 	if (instance->msix_vectors)
 		pci_free_irq_vectors(instance->pdev);
+
+	if (instance->is_ventura) {
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i)
+			kfree(fusion->stream_detect_by_ld[i]);
+		kfree(fusion->stream_detect_by_ld);
+		fusion->stream_detect_by_ld = NULL;
+	}
+
 
 	if (instance->ctrl_context) {
 		megasas_release_fusion(instance);

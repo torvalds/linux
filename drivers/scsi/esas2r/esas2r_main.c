@@ -198,7 +198,7 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 					      GFP_KERNEL);
 		if (a->local_atto_ioctl == NULL) {
 			esas2r_log(ESAS2R_LOG_WARN,
-				   "write_hw kzalloc failed for %d bytes",
+				   "write_hw kzalloc failed for %zu bytes",
 				   sizeof(struct atto_ioctl));
 			return -ENOMEM;
 		}
@@ -1186,7 +1186,7 @@ retry:
 		} else {
 			esas2r_log(ESAS2R_LOG_CRIT,
 				   "unable to allocate a request for a "
-				   "device reset (%d:%d)!",
+				   "device reset (%d:%llu)!",
 				   cmd->device->id,
 				   cmd->device->lun);
 		}
