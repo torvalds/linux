@@ -591,7 +591,6 @@ static void pch_spi_set_tx(struct pch_spi_data *data, int *bpw)
 
 	if (!data->pkt_rx_buff) {
 		/* flush queue and set status of all transfers to -ENOMEM */
-		dev_err(&data->master->dev, "%s :kzalloc failed\n", __func__);
 		list_for_each_entry_safe(pmsg, tmp, data->queue.next, queue) {
 			pmsg->status = -ENOMEM;
 
