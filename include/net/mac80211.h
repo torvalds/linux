@@ -1768,15 +1768,6 @@ struct ieee80211_sta_rates {
  * @max_amsdu_subframes: indicates the maximal number of MSDUs in a single
  *	A-MSDU. Taken from the Extended Capabilities element. 0 means
  *	unlimited.
- * @max_amsdu_len: indicates the maximal length of an A-MSDU in bytes. This
- *	field is always valid for packets with a VHT preamble. For packets
- *	with a HT preamble, additional limits apply:
- *		+ If the skb is transmitted as part of a BA agreement, the
- *		  A-MSDU maximal size is min(max_amsdu_len, 4065) bytes.
- *		+ If the skb is not part of a BA aggreement, the A-MSDU maximal
- *		  size is min(max_amsdu_len, 7935) bytes.
- *	Both additional HT limits must be enforced by the low level driver.
- *	This is defined by the spec (IEEE 802.11-2012 section 8.3.2.2 NOTE 2).
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
@@ -1799,6 +1790,22 @@ struct ieee80211_sta {
 	bool tdls_initiator;
 	bool mfp;
 	u8 max_amsdu_subframes;
+
+	/**
+	 * @max_amsdu_len:
+	 * indicates the maximal length of an A-MSDU in bytes.
+	 * This field is always valid for packets with a VHT preamble.
+	 * For packets with a HT preamble, additional limits apply:
+	 *
+	 * * If the skb is transmitted as part of a BA agreement, the
+	 *   A-MSDU maximal size is min(max_amsdu_len, 4065) bytes.
+	 * * If the skb is not part of a BA aggreement, the A-MSDU maximal
+	 *   size is min(max_amsdu_len, 7935) bytes.
+	 *
+	 * Both additional HT limits must be enforced by the low level
+	 * driver. This is defined by the spec (IEEE 802.11-2012 section
+	 * 8.3.2.2 NOTE 2).
+	 */
 	u16 max_amsdu_len;
 	bool support_p2p_ps;
 	u16 max_rc_amsdu_len;
@@ -3203,26 +3210,6 @@ enum ieee80211_reconfig_type {
  *	Returns non-zero if this device sent the last beacon.
  *	The callback can sleep.
  *
- * @ampdu_action: Perform a certain A-MPDU action
- * 	The RA/TID combination determines the destination and TID we want
- * 	the ampdu action to be performed for. The action is defined through
- *	ieee80211_ampdu_mlme_action.
- *	When the action is set to %IEEE80211_AMPDU_TX_OPERATIONAL the driver
- *	may neither send aggregates containing more subframes than @buf_size
- *	nor send aggregates in a way that lost frames would exceed the
- *	buffer size. If just limiting the aggregate size, this would be
- *	possible with a buf_size of 8:
- *	 - TX: 1.....7
- *	 - RX:  2....7 (lost frame #1)
- *	 - TX:        8..1...
- *	which is invalid since #1 was now re-transmitted well past the
- *	buffer size of 8. Correct ways to retransmit #1 would be:
- *	 - TX:       1 or 18 or 81
- *	Even "189" would be wrong since 1 could be lost again.
- *
- *	Returns a negative error code on failure.
- *	The callback can sleep.
- *
  * @get_survey: Return per-channel survey information
  *
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
@@ -3575,6 +3562,35 @@ struct ieee80211_ops {
 			   s64 offset);
 	void (*reset_tsf)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
+
+	/**
+	 * @ampdu_action:
+	 * Perform a certain A-MPDU action.
+	 * The RA/TID combination determines the destination and TID we want
+	 * the ampdu action to be performed for. The action is defined through
+	 * ieee80211_ampdu_mlme_action.
+	 * When the action is set to %IEEE80211_AMPDU_TX_OPERATIONAL the driver
+	 * may neither send aggregates containing more subframes than @buf_size
+	 * nor send aggregates in a way that lost frames would exceed the
+	 * buffer size. If just limiting the aggregate size, this would be
+	 * possible with a buf_size of 8:
+	 *
+	 * - ``TX: 1.....7``
+	 * - ``RX:  2....7`` (lost frame #1)
+	 * - ``TX:        8..1...``
+	 *
+	 * which is invalid since #1 was now re-transmitted well past the
+	 * buffer size of 8. Correct ways to retransmit #1 would be:
+	 *
+	 * - ``TX:        1   or``
+	 * - ``TX:        18  or``
+	 * - ``TX:        81``
+	 *
+	 * Even ``189`` would be wrong since 1 could be lost again.
+	 *
+	 * Returns a negative error code on failure.
+	 * The callback can sleep.
+	 */
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_ampdu_params *params);
