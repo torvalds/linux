@@ -241,13 +241,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct i2c_device_id max77686_i2c_id[] = {
-	{ "max77686", TYPE_MAX77686 },
-	{ "max77802", TYPE_MAX77802 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, max77686_i2c_id);
-
 #ifdef CONFIG_PM_SLEEP
 static int max77686_suspend(struct device *dev)
 {
@@ -294,7 +287,6 @@ static struct i2c_driver max77686_i2c_driver = {
 		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
 	},
 	.probe_new = max77686_i2c_probe,
-	.id_table = max77686_i2c_id,
 };
 
 module_i2c_driver(max77686_i2c_driver);
