@@ -299,6 +299,8 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	reg = card->pcie.reg;
 	if (reg)
 		ret = mwifiex_read_reg(adapter, reg->fw_status, &fw_status);
+	else
+		fw_status = -1;
 
 	if (fw_status == FIRMWARE_READY_PCIE && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
