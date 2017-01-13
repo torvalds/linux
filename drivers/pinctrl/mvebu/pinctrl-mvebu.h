@@ -190,30 +190,6 @@ struct mvebu_pinctrl_soc_info {
 #define MVEBU_MPP_BITS		4
 #define MVEBU_MPP_MASK		0xf
 
-static inline int default_mpp_ctrl_get(void __iomem *base, unsigned int pid,
-				       unsigned long *config)
-{
-	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-
-	*config = (readl(base + off) >> shift) & MVEBU_MPP_MASK;
-
-	return 0;
-}
-
-static inline int default_mpp_ctrl_set(void __iomem *base, unsigned int pid,
-				       unsigned long config)
-{
-	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned long reg;
-
-	reg = readl(base + off) & ~(MVEBU_MPP_MASK << shift);
-	writel(reg | (config << shift), base + off);
-
-	return 0;
-}
-
 int mvebu_mmio_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
 			       unsigned long *config);
 int mvebu_mmio_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
