@@ -124,7 +124,7 @@ static DEFINE_IDA(loopback_ida);
 
 #define GB_LOOPBACK_FIFO_DEFAULT			8192
 
-static unsigned kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
+static unsigned int kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
 module_param(kfifo_depth, uint, 0444);
 
 /* Maximum size of any one send data buffer we support */
