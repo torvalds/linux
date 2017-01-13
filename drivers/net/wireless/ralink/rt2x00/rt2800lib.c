@@ -967,8 +967,6 @@ static void rt2800_update_beacons_setup(struct rt2x00_dev *rt2x00dev)
 		bcn_num++;
 	}
 
-	WARN_ON_ONCE(bcn_num != rt2x00dev->intf_beaconing);
-
 	rt2800_register_write(rt2x00dev, BCN_OFFSET0, (u32) reg);
 	rt2800_register_write(rt2x00dev, BCN_OFFSET1, (u32) (reg >> 32));
 
