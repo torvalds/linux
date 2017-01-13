@@ -460,7 +460,6 @@ static void mwifiex_delay_for_sleep_cookie(struct mwifiex_adapter *adapter,
 /* This function wakes up the card by reading fw_status register. */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
-	u32 fw_status;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
@@ -470,10 +469,10 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 	if (reg->sleep_cookie)
 		mwifiex_pcie_dev_wakeup_delay(adapter);
 
-	/* Reading fw_status register will wakeup device */
-	if (mwifiex_read_reg(adapter, reg->fw_status, &fw_status)) {
+	/* Accessing fw_status register will wakeup device */
+	if (mwifiex_write_reg(adapter, reg->fw_status, FIRMWARE_READY_PCIE)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "Reading fw_status register failed\n");
+			    "Writing fw_status register failed\n");
 		return -1;
 	}
 
