@@ -307,7 +307,6 @@ struct tcp_sock {
 					 */
 
 	int     lost_cnt_hint;
-	u32     retransmit_high;	/* L-bits may be on up to this seqno */
 
 	u32	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	high_seq;	/* snd_nxt at onset of congestion	*/
