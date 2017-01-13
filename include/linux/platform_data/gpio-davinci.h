@@ -21,9 +21,17 @@
 
 #include <asm-generic/gpio.h>
 
+#define MAX_REGS_BANKS		5
+
 struct davinci_gpio_platform_data {
 	u32	ngpio;
 	u32	gpio_unbanked;
+};
+
+struct davinci_gpio_irq_data {
+	void __iomem			*regs;
+	struct davinci_gpio_controller	*chip;
+	int				bank_num;
 };
 
 struct davinci_gpio_controller {
@@ -31,9 +39,9 @@ struct davinci_gpio_controller {
 	struct irq_domain	*irq_domain;
 	/* Serialize access to GPIO registers */
 	spinlock_t		lock;
-	void __iomem		*regs;
+	void __iomem		*regs[MAX_REGS_BANKS];
 	int			gpio_unbanked;
-	unsigned		gpio_irq;
+	unsigned int		base_irq;
 };
 
 /*
