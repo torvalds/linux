@@ -243,7 +243,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 		}
 		__skb_unlink(skb, &csk->txq);
 		set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-		skb->csum = credits_needed + flowclen16;
+		skb->csum = (__force __wsum)(credits_needed + flowclen16);
 		csk->wr_cred -= credits_needed;
 		csk->wr_una_cred += credits_needed;
 
