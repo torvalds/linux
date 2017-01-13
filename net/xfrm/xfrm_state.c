@@ -648,8 +648,10 @@ xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_afinfo_get_rcu(family);
 
-	if (afinfo)
-		afinfo->init_tempsel(&x->sel, fl);
+	if (!afinfo)
+		return;
+
+	afinfo->init_tempsel(&x->sel, fl);
 
 	if (family != tmpl->encap_family) {
 		afinfo = xfrm_state_afinfo_get_rcu(tmpl->encap_family);
