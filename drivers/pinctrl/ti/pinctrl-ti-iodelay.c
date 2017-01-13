@@ -665,12 +665,6 @@ static void ti_iodelay_pin_dbg_show(struct pinctrl_dev *pctldev,
 	r = iod->reg_data;
 
 	offset = ti_iodelay_pin_to_offset(iod, pin);
-	if (pin < 0) {
-		dev_err(iod->dev, "invalid pin offset for pin%i\n", pin);
-
-		return;
-	}
-
 	pd = &iod->pa[pin];
 	cfg = pd->drv_data;
 
