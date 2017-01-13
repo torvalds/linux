@@ -2801,6 +2801,21 @@ static bool tcp_try_undo_partial(struct sock *sk, const int acked)
 	return false;
 }
 
+static void tcp_rack_identify_loss(struct sock *sk, int *ack_flag,
+				   const struct skb_mstamp *ack_time)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	/* Use RACK to detect loss */
+	if (sysctl_tcp_recovery & TCP_RACK_LOST_RETRANS) {
+		u32 prior_retrans = tp->retrans_out;
+
+		tcp_rack_mark_lost(sk, ack_time);
+		if (prior_retrans > tp->retrans_out)
+			*ack_flag |= FLAG_LOST_RETRANS;
+	}
+}
+
 /* Process an event, which can update packets-in-flight not trivially.
  * Main goal of this function is to calculate new estimate for left_out,
  * taking into account both packets sitting in receiver's buffer and
@@ -2866,17 +2881,6 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 		}
 	}
 
-	/* Use RACK to detect loss */
-	if (sysctl_tcp_recovery & TCP_RACK_LOST_RETRANS) {
-		u32 prior_retrans = tp->retrans_out;
-
-		tcp_rack_mark_lost(sk, ack_time);
-		if (prior_retrans > tp->retrans_out) {
-			flag |= FLAG_LOST_RETRANS;
-			*ack_flag |= FLAG_LOST_RETRANS;
-		}
-	}
-
 	/* E. Process state. */
 	switch (icsk->icsk_ca_state) {
 	case TCP_CA_Recovery:
@@ -2894,11 +2898,13 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 			tcp_try_keep_open(sk);
 			return;
 		}
+		tcp_rack_identify_loss(sk, ack_flag, ack_time);
 		break;
 	case TCP_CA_Loss:
 		tcp_process_loss(sk, flag, is_dupack, rexmit);
-		if (icsk->icsk_ca_state != TCP_CA_Open &&
-		    !(flag & FLAG_LOST_RETRANS))
+		tcp_rack_identify_loss(sk, ack_flag, ack_time);
+		if (!(icsk->icsk_ca_state == TCP_CA_Open ||
+		      (*ack_flag & FLAG_LOST_RETRANS)))
 			return;
 		/* Change state if cwnd is undone or retransmits are lost */
 	default:
@@ -2912,6 +2918,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 		if (icsk->icsk_ca_state <= TCP_CA_Disorder)
 			tcp_try_undo_dsack(sk);
 
+		tcp_rack_identify_loss(sk, ack_flag, ack_time);
 		if (!tcp_time_to_recover(sk, flag)) {
 			tcp_try_to_open(sk, flag);
 			return;
