@@ -431,7 +431,8 @@ static int create_trace_uprobe(int argc, char **argv)
 		pr_info("Probe point is not specified.\n");
 		return -EINVAL;
 	}
-	arg = strchr(argv[1], ':');
+	/* Find the last occurrence, in case the path contains ':' too. */
+	arg = strrchr(argv[1], ':');
 	if (!arg) {
 		ret = -EINVAL;
 		goto fail_address_parse;
