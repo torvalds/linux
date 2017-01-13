@@ -41,6 +41,7 @@
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
 #include <asm/reboot.h>
+#include <asm/time.h>
 
 #define	SFI_SIG_OEM0	"OEM0"
 #define MAX_IPCDEVS	24
@@ -539,8 +540,21 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	return 0;
 }
 
+static int __init intel_mid_legacy_rtc_init(void)
+{
+	struct irq_alloc_info info;
+
+	if (!x86_platform.legacy.rtc)
+		return -ENODEV;
+
+	ioapic_set_alloc_attr(&info, NUMA_NO_NODE, 1, 0);
+	return mp_map_gsi_to_irq(RTC_IRQ, IOAPIC_MAP_ALLOC, &info);
+}
+
 static int __init intel_mid_platform_init(void)
 {
+	intel_mid_legacy_rtc_init();
+
 	sfi_table_parse(SFI_SIG_GPIO, NULL, NULL, sfi_parse_gpio);
 	sfi_table_parse(SFI_SIG_DEVS, NULL, NULL, sfi_parse_devs);
 	return 0;
