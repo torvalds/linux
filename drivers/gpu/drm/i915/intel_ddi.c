@@ -2116,45 +2116,6 @@ intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
 	return connector;
 }
 
-struct intel_shared_dpll *
-intel_ddi_get_link_dpll(struct intel_dp *intel_dp, int clock)
-{
-	struct intel_connector *connector = intel_dp->attached_connector;
-	struct intel_encoder *encoder = connector->encoder;
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_shared_dpll *pll = NULL;
-	struct intel_shared_dpll_state tmp_pll_state;
-	enum intel_dpll_id dpll_id;
-
-	if (IS_GEN9_LP(dev_priv)) {
-		dpll_id =  (enum intel_dpll_id)dig_port->port;
-		/*
-		 * Select the required PLL. This works for platforms where
-		 * there is no shared DPLL.
-		 */
-		pll = &dev_priv->shared_dplls[dpll_id];
-		if (WARN_ON(pll->active_mask)) {
-
-			DRM_ERROR("Shared DPLL in use. active_mask:%x\n",
-				  pll->active_mask);
-			return NULL;
-		}
-		tmp_pll_state = pll->state;
-		if (!bxt_ddi_dp_set_dpll_hw_state(clock,
-						  &pll->state.hw_state)) {
-			DRM_ERROR("Could not setup DPLL\n");
-			pll->state = tmp_pll_state;
-			return NULL;
-		}
-	} else if (IS_GEN9_BC(dev_priv)) {
-		pll = skl_find_link_pll(dev_priv, clock);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		pll = hsw_ddi_dp_get_dpll(encoder, clock);
-	}
-	return pll;
-}
-
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *intel_dig_port;

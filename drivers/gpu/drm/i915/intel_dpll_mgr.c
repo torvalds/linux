@@ -42,44 +42,6 @@
  * commit phase.
  */
 
-struct intel_shared_dpll *
-skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
-{
-	struct intel_shared_dpll *pll = NULL;
-	struct intel_dpll_hw_state dpll_hw_state;
-	enum intel_dpll_id i;
-	bool found = false;
-
-	if (!skl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
-		return pll;
-
-	for (i = DPLL_ID_SKL_DPLL1; i <= DPLL_ID_SKL_DPLL3; i++) {
-		pll = &dev_priv->shared_dplls[i];
-
-		/* Only want to check enabled timings first */
-		if (pll->state.crtc_mask == 0)
-			continue;
-
-		if (memcmp(&dpll_hw_state, &pll->state.hw_state,
-			   sizeof(pll->state.hw_state)) == 0) {
-			found = true;
-			break;
-		}
-	}
-
-	/* Ok no matching timings, maybe there's a free one? */
-	for (i = DPLL_ID_SKL_DPLL1;
-	     ((found == false) && (i <= DPLL_ID_SKL_DPLL3)); i++) {
-		pll = &dev_priv->shared_dplls[i];
-		if (pll->state.crtc_mask == 0) {
-			pll->state.hw_state = dpll_hw_state;
-			break;
-		}
-	}
-
-	return pll;
-}
-
 static void
 intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll_state *shared_dpll)
@@ -811,8 +773,8 @@ static struct intel_shared_dpll *hsw_ddi_hdmi_get_dpll(int clock,
 	return pll;
 }
 
-struct intel_shared_dpll *hsw_ddi_dp_get_dpll(struct intel_encoder *encoder,
-					      int clock)
+static struct intel_shared_dpll *
+hsw_ddi_dp_get_dpll(struct intel_encoder *encoder, int clock)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_shared_dpll *pll;
@@ -1360,8 +1322,9 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 }
 
 
-bool skl_ddi_dp_set_dpll_hw_state(int clock,
-				  struct intel_dpll_hw_state *dpll_hw_state)
+static bool
+skl_ddi_dp_set_dpll_hw_state(int clock,
+			     struct intel_dpll_hw_state *dpll_hw_state)
 {
 	uint32_t ctrl1;
 
@@ -1816,8 +1779,9 @@ static bool bxt_ddi_set_dpll_hw_state(int clock,
 	return true;
 }
 
-bool bxt_ddi_dp_set_dpll_hw_state(int clock,
-			  struct intel_dpll_hw_state *dpll_hw_state)
+static bool
+bxt_ddi_dp_set_dpll_hw_state(int clock,
+			     struct intel_dpll_hw_state *dpll_hw_state)
 {
 	struct bxt_clk_div clk_div = {0};
 
