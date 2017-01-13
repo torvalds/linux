@@ -5743,100 +5743,125 @@ done:
 	return target;
 }
 
+static int start_cpu(bool boosted)
+{
+	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
+
+	RCU_LOCKDEP_WARN(rcu_read_lock_sched_held(),
+			   "sched RCU must be held");
+
+	return boosted ? rd->max_cap_orig_cpu : rd->min_cap_orig_cpu;
+}
+
 static inline int find_best_target(struct task_struct *p, bool boosted, bool prefer_idle)
 {
-	int iter_cpu;
 	int target_cpu = -1;
 	int target_util = 0;
 	int backup_capacity = 0;
 	int best_idle_cpu = -1;
 	int best_idle_cstate = INT_MAX;
 	int backup_cpu = -1;
-	unsigned long task_util_boosted, new_util;
+	unsigned long min_util;
+	unsigned long new_util;
+	struct sched_domain *sd;
+	struct sched_group *sg;
+	int cpu = start_cpu(boosted);
 
-	task_util_boosted = boosted_task_util(p);
-	for (iter_cpu = 0; iter_cpu < NR_CPUS; iter_cpu++) {
-		int cur_capacity;
-		struct rq *rq;
-		int idle_idx;
+	if (cpu < 0)
+		return target_cpu;
 
-		/*
-		 * Iterate from higher cpus for boosted tasks.
-		 */
-		int i = boosted ? NR_CPUS-iter_cpu-1 : iter_cpu;
+	sd = rcu_dereference(per_cpu(sd_ea, cpu));
 
-		if (!cpu_online(i) || !cpumask_test_cpu(i, tsk_cpus_allowed(p)))
-			continue;
+	if (!sd)
+		return target_cpu;
 
-		/*
-		 * p's blocked utilization is still accounted for on prev_cpu
-		 * so prev_cpu will receive a negative bias due to the double
-		 * accounting. However, the blocked utilization may be zero.
-		 */
-		new_util = cpu_util(i) + task_util_boosted;
+	sg = sd->groups;
 
-		/*
-		 * Ensure minimum capacity to grant the required boost.
-		 * The target CPU can be already at a capacity level higher
-		 * than the one required to boost the task.
-		 */
-		if (new_util > capacity_orig_of(i))
-			continue;
+	min_util = boosted_task_util(p);
+
+	do {
+		int i;
+
+		for_each_cpu_and(i, tsk_cpus_allowed(p), sched_group_cpus(sg)) {
+			int cur_capacity;
+			struct rq *rq;
+			int idle_idx;
+
+			if (!cpu_online(i))
+				continue;
+
+			/*
+			 * p's blocked utilization is still accounted for on prev_cpu
+			 * so prev_cpu will receive a negative bias due to the double
+			 * accounting. However, the blocked utilization may be zero.
+			 */
+			new_util = cpu_util(i) + task_util(p);
+
+			/*
+			 * Ensure minimum capacity to grant the required boost.
+			 * The target CPU can be already at a capacity level higher
+			 * than the one required to boost the task.
+			 */
+			new_util = max(min_util, new_util);
+			if (new_util > capacity_orig_of(i))
+				continue;
 
 #ifdef CONFIG_SCHED_WALT
-		if (walt_cpu_high_irqload(i))
-			continue;
+			if (walt_cpu_high_irqload(i))
+				continue;
 #endif
-		/*
-		 * Unconditionally favoring tasks that prefer idle cpus to
-		 * improve latency.
-		 */
-		if (idle_cpu(i) && prefer_idle) {
-			if (best_idle_cpu < 0)
-				best_idle_cpu = i;
-			continue;
-		}
 
-		cur_capacity = capacity_curr_of(i);
-		rq = cpu_rq(i);
-		idle_idx = idle_get_state_idx(rq);
-
-		if (new_util < cur_capacity) {
-			if (cpu_rq(i)->nr_running) {
-				if (prefer_idle) {
-					/* Find a target cpu with highest
-					 * utilization.
-					 */
-					if (target_util == 0 ||
-						target_util < new_util) {
-						target_cpu = i;
-						target_util = new_util;
-					}
-				} else {
-					/* Find a target cpu with lowest
-					 * utilization.
-					 */
-					if (target_util == 0 ||
-						target_util > new_util) {
-						target_cpu = i;
-						target_util = new_util;
-					}
-				}
-			} else if (!prefer_idle) {
-				if (best_idle_cpu < 0 ||
-					(sysctl_sched_cstate_aware &&
-						best_idle_cstate > idle_idx)) {
-					best_idle_cstate = idle_idx;
+			/*
+			 * Unconditionally favoring tasks that prefer idle cpus to
+			 * improve latency.
+			 */
+			if (idle_cpu(i) && prefer_idle) {
+				if (best_idle_cpu < 0)
 					best_idle_cpu = i;
-				}
+				continue;
 			}
-		} else if (backup_capacity == 0 ||
-				backup_capacity > cur_capacity) {
-			// Find a backup cpu with least capacity.
-			backup_capacity = cur_capacity;
-			backup_cpu = i;
+
+			cur_capacity = capacity_curr_of(i);
+			rq = cpu_rq(i);
+			idle_idx = idle_get_state_idx(rq);
+
+			if (new_util < cur_capacity) {
+				if (cpu_rq(i)->nr_running) {
+					if (!prefer_idle) {
+						/* Find a target cpu with highest
+						 * utilization.
+						 */
+						if (target_util == 0 ||
+							target_util < new_util) {
+							target_cpu = i;
+							target_util = new_util;
+						}
+					} else {
+						/* Find a target cpu with lowest
+						 * utilization.
+						 */
+						if (target_util == 0 ||
+							target_util > new_util) {
+							target_cpu = i;
+							target_util = new_util;
+						}
+					}
+				} else if (!prefer_idle) {
+					if (best_idle_cpu < 0 ||
+						(sysctl_sched_cstate_aware &&
+							best_idle_cstate > idle_idx)) {
+						best_idle_cstate = idle_idx;
+						best_idle_cpu = i;
+					}
+				}
+			} else if (backup_capacity == 0 ||
+					backup_capacity > cur_capacity) {
+				// Find a backup cpu with least capacity.
+				backup_capacity = cur_capacity;
+				backup_cpu = i;
+			}
 		}
-	}
+	} while (sg = sg->next, sg != sd->groups);
 
 	if (prefer_idle && best_idle_cpu >= 0)
 		target_cpu = best_idle_cpu;
