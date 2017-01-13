@@ -1007,7 +1007,7 @@ bool dc_commit_streams(
 	struct dc_bios *dcb = core_dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
-	struct dc_validation_set set[MAX_STREAMS];
+	struct dc_validation_set set[MAX_STREAMS] = { 0 };
 	int i, j, k;
 
 	if (false == streams_changed(core_dc, streams, stream_count))
@@ -1018,13 +1018,20 @@ bool dc_commit_streams(
 
 	for (i = 0; i < stream_count; i++) {
 		const struct dc_stream *stream = streams[i];
+		const struct dc_stream_status *status = dc_stream_get_status(stream);
+		int j;
 
 		dc_stream_log(stream,
 				core_dc->ctx->logger,
 				LOG_DC);
 
 		set[i].stream = stream;
-		set[i].surface_count = 0;
+
+		if (status) {
+			set[i].surface_count = status->surface_count;
+			for (j = 0; j < status->surface_count; j++)
+				set[i].surfaces[j] = status->surfaces[j];
+		}
 
 	}
 

@@ -585,7 +585,7 @@ enum dc_status resource_build_scaling_params_for_context(
 			if (!resource_build_scaling_params(
 				&context->res_ctx.pipe_ctx[i].surface->public,
 				&context->res_ctx.pipe_ctx[i]))
-				return DC_FAIL_BANDWIDTH_VALIDATE;
+				return DC_FAIL_SCALING;
 	}
 
 	return DC_OK;
