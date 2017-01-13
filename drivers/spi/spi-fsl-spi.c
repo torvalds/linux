@@ -733,7 +733,7 @@ static int of_fsl_spi_get_chipselects(struct device *dev)
 		return -ENOMEM;
 	memset(pinfo->gpios, -1, ngpios * sizeof(*pinfo->gpios));
 
-	pinfo->alow_flags = kzalloc(ngpios * sizeof(*pinfo->alow_flags),
+	pinfo->alow_flags = kcalloc(ngpios, sizeof(*pinfo->alow_flags),
 				    GFP_KERNEL);
 	if (!pinfo->alow_flags) {
 		ret = -ENOMEM;
