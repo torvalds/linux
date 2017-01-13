@@ -8501,7 +8501,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	    && kvm_vmx_exit_handlers[exit_reason])
 		return kvm_vmx_exit_handlers[exit_reason](vcpu);
 	else {
-		WARN_ONCE(1, "vmx: unexpected exit reason 0x%x\n", exit_reason);
+		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
+				exit_reason);
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
 	}
