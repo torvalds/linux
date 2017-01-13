@@ -331,3 +331,28 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 		vgpu->cfg_space.bar[i].tracked = false;
 	}
 }
+
+/**
+ * intel_vgpu_reset_cfg_space - reset vGPU configuration space
+ *
+ * @vgpu: a vGPU
+ *
+ */
+void intel_vgpu_reset_cfg_space(struct intel_vgpu *vgpu)
+{
+	u8 cmd = vgpu_cfg_space(vgpu)[PCI_COMMAND];
+	bool primary = vgpu_cfg_space(vgpu)[PCI_CLASS_DEVICE] !=
+				INTEL_GVT_PCI_CLASS_VGA_OTHER;
+
+	if (cmd & PCI_COMMAND_MEMORY) {
+		trap_gttmmio(vgpu, false);
+		map_aperture(vgpu, false);
+	}
+
+	/**
+	 * Currently we only do such reset when vGPU is not
+	 * owned by any VM, so we simply restore entire cfg
+	 * space to default value.
+	 */
+	intel_vgpu_init_cfg_space(vgpu, primary);
+}
