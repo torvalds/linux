@@ -235,6 +235,17 @@ config IR_MESON
 	   To compile this driver as a module, choose M here: the
 	   module will be called meson-ir.
 
+config IR_MTK
+	tristate "Mediatek IR remote receiver"
+	depends on RC_CORE
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote receiver available
+	   on Mediatek SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mtk-cir.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
