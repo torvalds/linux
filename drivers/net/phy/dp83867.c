@@ -113,12 +113,16 @@ static int dp83867_of_init(struct phy_device *phydev)
 
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
-	if (ret)
+	if (ret &&
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	     phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID))
 		return ret;
 
 	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
 				   &dp83867->tx_id_delay);
-	if (ret)
+	if (ret &&
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	     phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID))
 		return ret;
 
 	return of_property_read_u32(of_node, "ti,fifo-depth",
