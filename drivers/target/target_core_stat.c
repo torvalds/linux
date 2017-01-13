@@ -795,16 +795,34 @@ static ssize_t target_stat_transport_dev_name_show(struct config_item *item,
 	return ret;
 }
 
+static ssize_t target_stat_transport_proto_id_show(struct config_item *item,
+		char *page)
+{
+	struct se_lun *lun = to_transport_stat(item);
+	struct se_device *dev;
+	struct se_portal_group *tpg = lun->lun_tpg;
+	ssize_t ret = -ENODEV;
+
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
+	if (dev)
+		ret = snprintf(page, PAGE_SIZE, "%u\n", tpg->proto_id);
+	rcu_read_unlock();
+	return ret;
+}
+
 CONFIGFS_ATTR_RO(target_stat_transport_, inst);
 CONFIGFS_ATTR_RO(target_stat_transport_, device);
 CONFIGFS_ATTR_RO(target_stat_transport_, indx);
 CONFIGFS_ATTR_RO(target_stat_transport_, dev_name);
+CONFIGFS_ATTR_RO(target_stat_transport_, proto_id);
 
 static struct configfs_attribute *target_stat_scsi_transport_attrs[] = {
 	&target_stat_transport_attr_inst,
 	&target_stat_transport_attr_device,
 	&target_stat_transport_attr_indx,
 	&target_stat_transport_attr_dev_name,
+	&target_stat_transport_attr_proto_id,
 	NULL,
 };
 
