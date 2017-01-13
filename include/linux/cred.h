@@ -377,7 +377,10 @@ extern struct user_namespace init_user_ns;
 #ifdef CONFIG_USER_NS
 #define current_user_ns()	(current_cred_xxx(user_ns))
 #else
-#define current_user_ns()	(&init_user_ns)
+static inline struct user_namespace *current_user_ns(void)
+{
+	return &init_user_ns;
+}
 #endif
 
 

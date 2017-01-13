@@ -40,8 +40,6 @@ struct inode;
 struct dentry;
 struct user_namespace;
 
-struct user_namespace *current_user_ns(void);
-
 extern const kernel_cap_t __cap_empty_set;
 extern const kernel_cap_t __cap_init_eff_set;
 

@@ -926,7 +926,7 @@ again:
 	next_tail = (tail + sizeof(*cmd)) % CMD_BUFFER_SIZE;
 	left      = (head - next_tail) % CMD_BUFFER_SIZE;
 
-	if (left <= 2) {
+	if (left <= 0x20) {
 		struct iommu_cmd sync_cmd;
 		volatile u64 sem = 0;
 		int ret;
