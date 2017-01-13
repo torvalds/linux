@@ -79,7 +79,7 @@
 int sysctl_tcp_timestamps __read_mostly = 1;
 int sysctl_tcp_window_scaling __read_mostly = 1;
 int sysctl_tcp_sack __read_mostly = 1;
-int sysctl_tcp_fack __read_mostly = 1;
+int sysctl_tcp_fack __read_mostly;
 int sysctl_tcp_max_reordering __read_mostly = 300;
 int sysctl_tcp_dsack __read_mostly = 1;
 int sysctl_tcp_app_win __read_mostly = 31;
@@ -2114,7 +2114,8 @@ static inline int tcp_dupack_heuristics(const struct tcp_sock *tp)
  *		dynamically measured and adjusted. This is implemented in
  *		tcp_rack_mark_lost.
  *
- *		FACK: it is the simplest heuristics. As soon as we decided
+ *		FACK (Disabled by default. Subsumbed by RACK):
+ *		It is the simplest heuristics. As soon as we decided
  *		that something is lost, we decide that _all_ not SACKed
  *		packets until the most forward SACK are lost. I.e.
  *		lost_out = fackets_out - sacked_out and left_out = fackets_out.
