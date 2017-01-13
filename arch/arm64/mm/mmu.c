@@ -360,8 +360,8 @@ static void create_mapping_late(phys_addr_t phys, unsigned long virt,
 
 static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end)
 {
-	unsigned long kernel_start = __pa_symbol(_text);
-	unsigned long kernel_end = __pa_symbol(__init_begin);
+	phys_addr_t kernel_start = __pa_symbol(_text);
+	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 
 	/*
 	 * Take care not to create a writable alias for the
