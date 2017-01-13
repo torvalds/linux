@@ -56,6 +56,7 @@ static struct {
 	unsigned int socketid_shift;	/* aka pnode_shift for UV1/2/3 */
 	unsigned int pnode_mask;
 	unsigned int gpa_shift;
+	unsigned int gnode_shift;
 } uv_cpuid;
 
 int uv_min_hub_revision_id;
@@ -133,6 +134,7 @@ static int __init early_get_pnodeid(void)
 		break;
 	case UV4_HUB_PART_NUMBER:
 		uv_min_hub_revision_id += UV4_HUB_REVISION_BASE - 1;
+		uv_cpuid.gnode_shift = 2; /* min partition is 4 sockets */
 		break;
 	}
 
@@ -1074,8 +1076,10 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 		(1UL << uv_cpuid.gpa_shift) - 1;
 
 	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
+	uv_cpuid.gnode_shift = max_t(unsigned int,
+					uv_cpuid.gnode_shift, mn.n_val);
 	hub_info->gnode_extra =
-		(node_id.s.node_id & ~((1 << mn.n_val) - 1)) >> 1;
+		(node_id.s.node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
 
 	hub_info->gnode_upper =
 		((unsigned long)hub_info->gnode_extra << mn.m_val);
