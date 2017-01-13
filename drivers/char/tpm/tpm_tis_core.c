@@ -264,7 +264,7 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc, status, burstcnt;
 	size_t count = 0;
-	bool itpm = priv->flags & TPM_TIS_ITPM_POSSIBLE;
+	bool itpm = priv->flags & TPM_TIS_ITPM_WORKAROUND;
 
 	if (request_locality(chip, 0) < 0)
 		return -EBUSY;
@@ -740,7 +740,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		 (chip->flags & TPM_CHIP_FLAG_TPM2) ? "2.0" : "1.2",
 		 vendor >> 16, rid);
 
-	if (!(priv->flags & TPM_TIS_ITPM_POSSIBLE)) {
+	if (!(priv->flags & TPM_TIS_ITPM_WORKAROUND)) {
 		probe = probe_itpm(chip);
 		if (probe < 0) {
 			rc = -ENODEV;
@@ -748,7 +748,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		}
 
 		if (!!probe)
-			priv->flags |= TPM_TIS_ITPM_POSSIBLE;
+			priv->flags |= TPM_TIS_ITPM_WORKAROUND;
 	}
 
 	/* Figure out the capabilities */
