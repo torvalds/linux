@@ -193,7 +193,7 @@ struct i915_ggtt_view {
 		/* Members need to contain no holes/padding */
 		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
-	} params;
+	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;

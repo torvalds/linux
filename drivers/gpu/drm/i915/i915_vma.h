@@ -212,10 +212,17 @@ i915_vma_compare(struct i915_vma *vma,
 	 * different views using it as a "type" and also use a compact (no
 	 * accessing of uninitialised padding bytes) memcmp without storing
 	 * an extra parameter or adding more code.
+	 *
+	 * To ensure that the memcmp is valid for all branches of the union,
+	 * even though the code looks like it is just comparing one branch,
+	 * we assert above that all branches have the same address, and that
+	 * each branch has a unique type/size.
 	 */
 	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
 	BUILD_BUG_ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
-	return memcmp(&vma->ggtt_view.params, &view->params, view->type);
+	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
+		     offsetof(typeof(*view), partial));
+	return memcmp(&vma->ggtt_view.partial, &view->partial, view->type);
 }
 
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,

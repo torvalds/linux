@@ -3511,7 +3511,7 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 {
 	struct sg_table *st;
 	struct scatterlist *sg, *iter;
-	unsigned int count = view->params.partial.size;
+	unsigned int count = view->partial.size;
 	unsigned int offset;
 	int ret = -ENOMEM;
 
@@ -3523,9 +3523,7 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 	if (ret)
 		goto err_sg_alloc;
 
-	iter = i915_gem_object_get_sg(obj,
-				      view->params.partial.offset,
-				      &offset);
+	iter = i915_gem_object_get_sg(obj, view->partial.offset, &offset);
 	GEM_BUG_ON(!iter);
 
 	sg = st->sgl;
@@ -3577,7 +3575,8 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 		vma->pages = vma->obj->mm.pages;
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
 		vma->pages =
-			intel_rotate_fb_obj_pages(&vma->ggtt_view.params.rotated, vma->obj);
+			intel_rotate_fb_obj_pages(&vma->ggtt_view.rotated,
+						  vma->obj);
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
 		vma->pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
 	else

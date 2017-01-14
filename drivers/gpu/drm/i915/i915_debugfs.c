@@ -167,20 +167,20 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 			case I915_GGTT_VIEW_PARTIAL:
 				seq_printf(m, ", partial [%08llx+%x]",
-					   vma->ggtt_view.params.partial.offset << PAGE_SHIFT,
-					   vma->ggtt_view.params.partial.size << PAGE_SHIFT);
+					   vma->ggtt_view.partial.offset << PAGE_SHIFT,
+					   vma->ggtt_view.partial.size << PAGE_SHIFT);
 				break;
 
 			case I915_GGTT_VIEW_ROTATED:
 				seq_printf(m, ", rotated [(%ux%u, stride=%u, offset=%u), (%ux%u, stride=%u, offset=%u)]",
-					   vma->ggtt_view.params.rotated.plane[0].width,
-					   vma->ggtt_view.params.rotated.plane[0].height,
-					   vma->ggtt_view.params.rotated.plane[0].stride,
-					   vma->ggtt_view.params.rotated.plane[0].offset,
-					   vma->ggtt_view.params.rotated.plane[1].width,
-					   vma->ggtt_view.params.rotated.plane[1].height,
-					   vma->ggtt_view.params.rotated.plane[1].stride,
-					   vma->ggtt_view.params.rotated.plane[1].offset);
+					   vma->ggtt_view.rotated.plane[0].width,
+					   vma->ggtt_view.rotated.plane[0].height,
+					   vma->ggtt_view.rotated.plane[0].stride,
+					   vma->ggtt_view.rotated.plane[0].offset,
+					   vma->ggtt_view.rotated.plane[1].width,
+					   vma->ggtt_view.rotated.plane[1].height,
+					   vma->ggtt_view.rotated.plane[1].stride,
+					   vma->ggtt_view.rotated.plane[1].offset);
 				break;
 
 			default:
