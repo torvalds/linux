@@ -1009,6 +1009,10 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					    adapter->event_skb->len -
 					    sizeof(eventcause));
 		break;
+	/* Debugging event; not used, but let's not print an ERROR for it. */
+	case EVENT_UNKNOWN_DEBUG:
+		mwifiex_dbg(adapter, EVENT, "event: debug\n");
+		break;
 	default:
 		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",
 			    eventcause);
