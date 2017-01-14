@@ -1936,18 +1936,21 @@ static int rs_check_reshape(struct raid_set *rs)
 	return -EPERM;
 }
 
-static int read_disk_sb(struct md_rdev *rdev, int size)
+static int read_disk_sb(struct md_rdev *rdev, int size, bool force_reload)
 {
 	BUG_ON(!rdev->sb_page);
 
-	if (rdev->sb_loaded)
+	if (rdev->sb_loaded && !force_reload)
 		return 0;
+
+	rdev->sb_loaded = 0;
 
 	if (!sync_page_io(rdev, 0, size, rdev->sb_page, REQ_OP_READ, 0, true)) {
 		DMERR("Failed to read superblock of device at position %d",
 		      rdev->raid_disk);
 		md_error(rdev->mddev, rdev);
-		return -EINVAL;
+		set_bit(Faulty, &rdev->flags);
+		return -EIO;
 	}
 
 	rdev->sb_loaded = 1;
@@ -2075,7 +2078,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		return -EINVAL;
 	}
 
-	r = read_disk_sb(rdev, rdev->sb_size);
+	r = read_disk_sb(rdev, rdev->sb_size, false);
 	if (r)
 		return r;
 
@@ -2453,7 +2456,6 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 			 * The rdev has to stay on the same_set list to allow for
 			 * the attempt to restore faulty devices on second resume.
 			 */
-			set_bit(Faulty, &rdev->flags);
 			rdev->raid_disk = rdev->saved_raid_disk = -1;
 			break;
 		}
@@ -3548,9 +3550,8 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 		if (test_bit(Journal, &r->flags))
 			continue;
 
-		if (test_bit(Faulty, &r->flags) && r->sb_page &&
-		    sync_page_io(r, 0, r->sb_size, r->sb_page,
-				 REQ_OP_READ, 0, true)) {
+		if (test_bit(Faulty, &r->flags) &&
+		    r->meta_bdev && !read_disk_sb(r, r->sb_size, true)) {
 			DMINFO("Faulty %s device #%d has readable super block."
 			       "  Attempting to revive it.",
 			       rs->raid_type->name, i);
