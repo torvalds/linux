@@ -3563,6 +3563,17 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL(ieee80211_nan_func_match);
 
+static int ieee80211_set_multicast_to_unicast(struct wiphy *wiphy,
+					      struct net_device *dev,
+					      const bool enabled)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	sdata->u.ap.multicast_to_unicast = enabled;
+
+	return 0;
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -3653,4 +3664,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.nan_change_conf = ieee80211_nan_change_conf,
 	.add_nan_func = ieee80211_add_nan_func,
 	.del_nan_func = ieee80211_del_nan_func,
+	.set_multicast_to_unicast = ieee80211_set_multicast_to_unicast,
 };

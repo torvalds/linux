@@ -311,6 +311,34 @@ struct ieee80211_supported_band {
 	struct ieee80211_sta_vht_cap vht_cap;
 };
 
+/**
+ * wiphy_read_of_freq_limits - read frequency limits from device tree
+ *
+ * @wiphy: the wireless device to get extra limits for
+ *
+ * Some devices may have extra limitations specified in DT. This may be useful
+ * for chipsets that normally support more bands but are limited due to board
+ * design (e.g. by antennas or external power amplifier).
+ *
+ * This function reads info from DT and uses it to *modify* channels (disable
+ * unavailable ones). It's usually a *bad* idea to use it in drivers with
+ * shared channel data as DT limitations are device specific. You should make
+ * sure to call it only if channels in wiphy are copied and can be modified
+ * without affecting other devices.
+ *
+ * As this function access device node it has to be called after set_wiphy_dev.
+ * It also modifies channels so they have to be set first.
+ * If using this helper, call it before wiphy_register().
+ */
+#ifdef CONFIG_OF
+void wiphy_read_of_freq_limits(struct wiphy *wiphy);
+#else /* CONFIG_OF */
+static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
+{
+}
+#endif /* !CONFIG_OF */
+
+
 /*
  * Wireless hardware/device configuration structures and methods
  */
@@ -1592,6 +1620,17 @@ struct cfg80211_sched_scan_plan {
 };
 
 /**
+ * struct cfg80211_bss_select_adjust - BSS selection with RSSI adjustment.
+ *
+ * @band: band of BSS which should match for RSSI level adjustment.
+ * @delta: value of RSSI level adjustment.
+ */
+struct cfg80211_bss_select_adjust {
+	enum nl80211_band band;
+	s8 delta;
+};
+
+/**
  * struct cfg80211_sched_scan_request - scheduled scan request description
  *
  * @ssids: SSIDs to scan for (passed in the probe_reqs in active scans)
@@ -1626,6 +1665,16 @@ struct cfg80211_sched_scan_plan {
  *	cycle.  The driver may ignore this parameter and start
  *	immediately (or at any other time), if this feature is not
  *	supported.
+ * @relative_rssi_set: Indicates whether @relative_rssi is set or not.
+ * @relative_rssi: Relative RSSI threshold in dB to restrict scan result
+ *	reporting in connected state to cases where a matching BSS is determined
+ *	to have better or slightly worse RSSI than the current connected BSS.
+ *	The relative RSSI threshold values are ignored in disconnected state.
+ * @rssi_adjust: delta dB of RSSI preference to be given to the BSSs that belong
+ *	to the specified band while deciding whether a better BSS is reported
+ *	using @relative_rssi. If delta is a negative number, the BSSs that
+ *	belong to the specified band will be penalized by delta dB in relative
+ *	comparisions.
  */
 struct cfg80211_sched_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1644,6 +1693,10 @@ struct cfg80211_sched_scan_request {
 
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+
+	bool relative_rssi_set;
+	s8 relative_rssi;
+	struct cfg80211_bss_select_adjust rssi_adjust;
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -1950,17 +2003,6 @@ struct cfg80211_ibss_params {
 	int mcast_rate[NUM_NL80211_BANDS];
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
-};
-
-/**
- * struct cfg80211_bss_select_adjust - BSS selection with RSSI adjustment.
- *
- * @band: band of BSS which should match for RSSI level adjustment.
- * @delta: value of RSSI level adjustment.
- */
-struct cfg80211_bss_select_adjust {
-	enum nl80211_band band;
-	s8 delta;
 };
 
 /**
@@ -3837,6 +3879,9 @@ struct cfg80211_cached_keys;
  * @conn: (private) cfg80211 software SME connection state machine data
  * @connect_keys: (private) keys to set after connection is established
  * @conn_bss_type: connecting/connected BSS type
+ * @conn_owner_nlportid: (private) connection owner socket port ID
+ * @disconnect_wk: (private) auto-disconnect work
+ * @disconnect_bssid: (private) the BSSID to use for auto-disconnect
  * @ibss_fixed: (private) IBSS is using fixed BSSID
  * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
  * @event_list: (private) list for internal event processing
@@ -3868,6 +3913,10 @@ struct wireless_dev {
 	struct cfg80211_conn *conn;
 	struct cfg80211_cached_keys *connect_keys;
 	enum ieee80211_bss_type conn_bss_type;
+	u32 conn_owner_nlportid;
+
+	struct work_struct disconnect_wk;
+	u8 disconnect_bssid[ETH_ALEN];
 
 	struct list_head event_list;
 	spinlock_t event_lock;
@@ -3955,26 +4004,15 @@ int ieee80211_channel_to_frequency(int chan, enum nl80211_band band);
  */
 int ieee80211_frequency_to_channel(int freq);
 
-/*
- * Name indirection necessary because the ieee80211 code also has
- * a function named "ieee80211_get_channel", so if you include
- * cfg80211's header file you get cfg80211's version, if you try
- * to include both header files you'll (rightfully!) get a symbol
- * clash.
- */
-struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
-						  int freq);
 /**
  * ieee80211_get_channel - get channel struct from wiphy for specified frequency
+ *
  * @wiphy: the struct wiphy to get the channel for
  * @freq: the center frequency of the channel
+ *
  * Return: The channel struct from @wiphy at @freq.
  */
-static inline struct ieee80211_channel *
-ieee80211_get_channel(struct wiphy *wiphy, int freq)
-{
-	return __ieee80211_get_channel(wiphy, freq);
-}
+struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy, int freq);
 
 /**
  * ieee80211_get_response_rate - get basic rate for a given rate
@@ -5048,20 +5086,32 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @status: status code, 0 for successful connection, use
- *      %WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
- *      the real status code for failures.
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful connection, use
+ *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *	the real status code for failures. If this call is used to report a
+ *	failure due to a timeout (e.g., not receiving an Authentication frame
+ *	from the AP) instead of an explicit rejection by the AP, -1 is used to
+ *	indicate that this is a failure, but without a status code.
+ *	@timeout_reason is used to report the reason for the timeout in that
+ *	case.
  * @gfp: allocation flags
+ * @timeout_reason: reason for connection timeout. This is used when the
+ *	connection fails due to a timeout instead of an explicit rejection from
+ *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
+ *	not known. This value is used only if @status < 0 to indicate that the
+ *	failure is due to a timeout and not due to explicit rejection by the AP.
+ *	This value is ignored in other cases (@status >= 0).
  *
- * It should be called by the underlying driver whenever connect() has
- * succeeded. This is similar to cfg80211_connect_result(), but with the
- * option of identifying the exact bss entry for the connection. Only one of
- * these functions should be called.
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_result(), but with the option of identifying the exact bss
+ * entry for the connection. Only one of these functions should be called.
  */
 void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 			  struct cfg80211_bss *bss, const u8 *req_ie,
 			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, int status, gfp_t gfp);
+			  size_t resp_ie_len, int status, gfp_t gfp,
+			  enum nl80211_timeout_reason timeout_reason);
 
 /**
  * cfg80211_connect_result - notify cfg80211 of connection result
@@ -5072,13 +5122,15 @@ void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @status: status code, 0 for successful connection, use
+ * @status: status code, %WLAN_STATUS_SUCCESS for successful connection, use
  *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
  *	the real status code for failures.
  * @gfp: allocation flags
  *
- * It should be called by the underlying driver whenever connect() has
- * succeeded.
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_bss() which allows the exact bss entry to be specified. Only
+ * one of these functions should be called.
  */
 static inline void
 cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -5087,7 +5139,8 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			u16 status, gfp_t gfp)
 {
 	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, resp_ie,
-			     resp_ie_len, status, gfp);
+			     resp_ie_len, status, gfp,
+			     NL80211_TIMEOUT_UNSPECIFIED);
 }
 
 /**
@@ -5098,6 +5151,7 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  * @req_ie: association request IEs (maybe be %NULL)
  * @req_ie_len: association request IEs length
  * @gfp: allocation flags
+ * @timeout_reason: reason for connection timeout.
  *
  * It should be called by the underlying driver whenever connect() has failed
  * in a sequence where no explicit authentication/association rejection was
@@ -5107,10 +5161,11 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  */
 static inline void
 cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
-			 const u8 *req_ie, size_t req_ie_len, gfp_t gfp)
+			 const u8 *req_ie, size_t req_ie_len, gfp_t gfp,
+			 enum nl80211_timeout_reason timeout_reason)
 {
 	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, NULL, 0, -1,
-			     gfp);
+			     gfp, timeout_reason);
 }
 
 /**

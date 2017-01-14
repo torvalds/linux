@@ -243,6 +243,31 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	return rv;
 }
 
+static ssize_t misc_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	/* Max len of each line is 16 characters, plus 9 for 'pending:\n' */
+	size_t bufsz = IEEE80211_MAX_QUEUES * 16 + 9;
+	char *buf = kzalloc(bufsz, GFP_KERNEL);
+	char *pos = buf, *end = buf + bufsz - 1;
+	ssize_t rv;
+	int i;
+	int ln;
+
+	pos += scnprintf(pos, end - pos, "pending:\n");
+
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
+		ln = skb_queue_len(&local->pending[i]);
+		pos += scnprintf(pos, end - pos, "[%i] %d\n",
+				 i, ln);
+	}
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+	kfree(buf);
+	return rv;
+}
+
 static ssize_t queues_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -263,6 +288,7 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 
 DEBUGFS_READONLY_FILE_OPS(hwflags);
 DEBUGFS_READONLY_FILE_OPS(queues);
+DEBUGFS_READONLY_FILE_OPS(misc);
 
 /* statistics stuff */
 
@@ -331,6 +357,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
+	DEBUGFS_ADD(misc);
 #ifdef CONFIG_PM
 	DEBUGFS_ADD_MODE(reset, 0200);
 #endif

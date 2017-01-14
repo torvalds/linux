@@ -185,6 +185,8 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 
 /* number of user priorities 802.11 uses */
 #define IEEE80211_NUM_UPS		8
+/* number of ACs */
+#define IEEE80211_NUM_ACS		4
 
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */

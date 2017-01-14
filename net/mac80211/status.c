@@ -541,6 +541,11 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	} else if (info->ack_frame_id) {
 		ieee80211_report_ack_skb(local, info, acked, dropped);
 	}
+
+	if (!dropped && skb->destructor) {
+		skb->wifi_acked_valid = 1;
+		skb->wifi_acked = acked;
+	}
 }
 
 /*
@@ -633,10 +638,9 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_supported_band *sband;
 	int retry_count;
-	int rates_idx;
 	bool acked, noack_success;
 
-	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
+	ieee80211_tx_get_rates(hw, info, &retry_count);
 
 	sband = hw->wiphy->bands[info->band];
 

@@ -1119,3 +1119,70 @@ int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
 	return ret;
 }
 #endif
+
+char *iwe_stream_add_event(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, int event_len)
+{
+	int lcp_len = iwe_stream_lcp_len(info);
+
+	event_len = iwe_stream_event_len_adjust(info, event_len);
+
+	/* Check if it's possible */
+	if (likely((stream + event_len) < ends)) {
+		iwe->len = event_len;
+		/* Beware of alignement issues on 64 bits */
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + lcp_len, &iwe->u,
+		       event_len - lcp_len);
+		stream += event_len;
+	}
+
+	return stream;
+}
+EXPORT_SYMBOL(iwe_stream_add_event);
+
+char *iwe_stream_add_point(struct iw_request_info *info, char *stream,
+			   char *ends, struct iw_event *iwe, char *extra)
+{
+	int event_len = iwe_stream_point_len(info) + iwe->u.data.length;
+	int point_len = iwe_stream_point_len(info);
+	int lcp_len   = iwe_stream_lcp_len(info);
+
+	/* Check if it's possible */
+	if (likely((stream + event_len) < ends)) {
+		iwe->len = event_len;
+		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
+		memcpy(stream + lcp_len,
+		       ((char *) &iwe->u) + IW_EV_POINT_OFF,
+		       IW_EV_POINT_PK_LEN - IW_EV_LCP_PK_LEN);
+		if (iwe->u.data.length && extra)
+			memcpy(stream + point_len, extra, iwe->u.data.length);
+		stream += event_len;
+	}
+
+	return stream;
+}
+EXPORT_SYMBOL(iwe_stream_add_point);
+
+char *iwe_stream_add_value(struct iw_request_info *info, char *event,
+			   char *value, char *ends, struct iw_event *iwe,
+			   int event_len)
+{
+	int lcp_len = iwe_stream_lcp_len(info);
+
+	/* Don't duplicate LCP */
+	event_len -= IW_EV_LCP_LEN;
+
+	/* Check if it's possible */
+	if (likely((value + event_len) < ends)) {
+		/* Add new value */
+		memcpy(value, &iwe->u, event_len);
+		value += event_len;
+		/* Patch LCP */
+		iwe->len = value - event;
+		memcpy(event, (char *) iwe, lcp_len);
+	}
+
+	return value;
+}
+EXPORT_SYMBOL(iwe_stream_add_value);
