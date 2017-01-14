@@ -370,7 +370,7 @@ static bool rs_is_reshapable(struct raid_set *rs)
 /* Return true, if raid set in @rs is recovering */
 static bool rs_is_recovering(struct raid_set *rs)
 {
-	return rs->md.recovery_cp < rs->dev[0].rdev.sectors;
+	return rs->md.recovery_cp < rs->md.dev_sectors;
 }
 
 /* Return true, if raid set in @rs is reshaping */
@@ -1425,6 +1425,24 @@ static unsigned int rs_data_stripes(struct raid_set *rs)
 	return rs->raid_disks - rs->raid_type->parity_devs;
 }
 
+/*
+ * Retrieve rdev->sectors from any valid raid device of @rs
+ * to allow userpace to pass in arbitray "- -" device tupples.
+ */
+static sector_t __rdev_sectors(struct raid_set *rs)
+{
+	int i;
+
+	for (i = 0; i < rs->md.raid_disks; i++) {
+		struct md_rdev *rdev = &rs->dev[i].rdev;
+
+		if (rdev->bdev && rdev->sectors)
+			return rdev->sectors;
+	}
+
+	BUG(); /* Constructor ensures we got some. */
+}
+
 /* Calculate the sectors per device and per array used for @rs */
 static int rs_set_dev_and_array_sectors(struct raid_set *rs, bool use_mddev)
 {
@@ -1510,9 +1528,9 @@ static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 	else if (dev_sectors == MaxSector)
 		/* Prevent recovery */
 		__rs_setup_recovery(rs, MaxSector);
-	else if (rs->dev[0].rdev.sectors < dev_sectors)
+	else if (__rdev_sectors(rs) < dev_sectors)
 		/* Grown raid set */
-		__rs_setup_recovery(rs, rs->dev[0].rdev.sectors);
+		__rs_setup_recovery(rs, __rdev_sectors(rs));
 	else
 		__rs_setup_recovery(rs, MaxSector);
 }
@@ -2828,7 +2846,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	calculated_dev_sectors = rs->dev[0].rdev.sectors;
+	calculated_dev_sectors = rs->md.dev_sectors;
 
 	/*
 	 * Backup any new raid set level, layout, ...
@@ -2841,7 +2859,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	resize = calculated_dev_sectors != rs->dev[0].rdev.sectors;
+	resize = calculated_dev_sectors != __rdev_sectors(rs);
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
