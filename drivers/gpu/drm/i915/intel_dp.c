@@ -3060,7 +3060,7 @@ static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
 }
 
-bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
+static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 {
 	uint8_t alpm_caps = 0;
 
