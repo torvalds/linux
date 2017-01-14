@@ -2253,7 +2253,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	struct mddev *mddev = &rs->md;
 	struct dm_raid_superblock *sb;
 
-	if (rs_is_raid0(rs) || !rdev->sb_page)
+	if (rs_is_raid0(rs) || !rdev->sb_page || rdev->raid_disk < 0)
 		return 0;
 
 	sb = page_address(rdev->sb_page);
@@ -2316,21 +2316,19 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int r;
-	struct raid_dev *dev;
-	struct md_rdev *rdev, *tmp, *freshest;
+	struct md_rdev *rdev, *freshest;
 	struct mddev *mddev = &rs->md;
 
 	freshest = NULL;
-	rdev_for_each_safe(rdev, tmp, mddev) {
+	rdev_for_each(rdev, mddev) {
 		/*
 		 * Skipping super_load due to CTR_FLAG_SYNC will cause
 		 * the array to undergo initialization again as
 		 * though it were new.	This is the intended effect
 		 * of the "sync" directive.
 		 *
-		 * When reshaping capability is added, we must ensure
-		 * that the "sync" directive is disallowed during the
-		 * reshape.
+		 * With reshaping capability added, we must ensure that
+		 * that the "sync" directive is disallowed during the reshape.
 		 */
 		if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
 			continue;
@@ -2347,6 +2345,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		case 0:
 			break;
 		default:
+			/* This is a failure to read the superblock from the metadata device. */
 			/*
 			 * We have to keep any raid0 data/metadata device pairs or
 			 * the MD raid0 personality will fail to start the array.
@@ -2354,33 +2353,17 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 			if (rs_is_raid0(rs))
 				continue;
 
-			dev = container_of(rdev, struct raid_dev, rdev);
-			if (dev->meta_dev)
-				dm_put_device(ti, dev->meta_dev);
-
-			dev->meta_dev = NULL;
-			rdev->meta_bdev = NULL;
-
-			if (rdev->sb_page)
-				put_page(rdev->sb_page);
-
-			rdev->sb_page = NULL;
-
-			rdev->sb_loaded = 0;
-
 			/*
-			 * We might be able to salvage the data device
-			 * even though the meta device has failed.  For
-			 * now, we behave as though '- -' had been
-			 * set for this device in the table.
+			 * We keep the dm_devs to be able to emit the device tuple
+			 * properly on the table line in raid_status() (rather than
+			 * mistakenly acting as if '- -' got passed into the constructor).
+			 *
+			 * The rdev has to stay on the same_set list to allow for
+			 * the attempt to restore faulty devices on second resume.
 			 */
-			if (dev->data_dev)
-				dm_put_device(ti, dev->data_dev);
-
-			dev->data_dev = NULL;
-			rdev->bdev = NULL;
-
-			list_del(&rdev->same_set);
+			set_bit(Faulty, &rdev->flags);
+			rdev->raid_disk = rdev->saved_raid_disk = -1;
+			break;
 		}
 	}
 
@@ -3078,10 +3061,13 @@ static const char *decipher_sync_action(struct mddev *mddev)
  *  'D' = Dead/Failed device
  *  'a' = Alive but not in-sync
  *  'A' = Alive and in-sync
+ *  '-' = Non-existing device (i.e. uspace passed '- -' into the ctr)
  */
 static const char *__raid_dev_status(struct md_rdev *rdev, bool array_in_sync)
 {
-	if (test_bit(Faulty, &rdev->flags))
+	if (!rdev->bdev)
+		return "-";
+	else if (test_bit(Faulty, &rdev->flags))
 		return "D";
 	else if (!array_in_sync || !test_bit(In_sync, &rdev->flags))
 		return "a";
@@ -3183,7 +3169,6 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 	sector_t progress, resync_max_sectors, resync_mismatches;
 	const char *sync_action;
 	struct raid_type *rt;
-	struct md_rdev *rdev;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -3204,9 +3189,9 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 				    atomic64_read(&mddev->resync_mismatches) : 0;
 		sync_action = decipher_sync_action(&rs->md);
 
-		/* HM FIXME: do we want another state char for raid0? It shows 'D' or 'A' now */
-		rdev_for_each(rdev, mddev)
-			DMEMIT(__raid_dev_status(rdev, array_in_sync));
+		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */
+		for (i = 0; i < rs->raid_disks; i++)
+			DMEMIT(__raid_dev_status(&rs->dev[i].rdev, array_in_sync));
 
 		/*
 		 * In-sync/Reshape ratio:
@@ -3427,7 +3412,7 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 
 	memset(cleared_failed_devices, 0, sizeof(cleared_failed_devices));
 
-	for (i = 0; i < rs->md.raid_disks; i++) {
+	for (i = 0; i < mddev->raid_disks; i++) {
 		r = &rs->dev[i].rdev;
 		if (test_bit(Faulty, &r->flags) && r->sb_page &&
 		    sync_page_io(r, 0, r->sb_size, r->sb_page,
@@ -3445,22 +3430,26 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			 * '>= 0' - meaning we must call this function
 			 * ourselves.
 			 */
-			if ((r->raid_disk >= 0) &&
-			    (mddev->pers->hot_remove_disk(mddev, r) != 0))
-				/* Failed to revive this device, try next */
-				continue;
-
-			r->raid_disk = i;
-			r->saved_raid_disk = i;
 			flags = r->flags;
+			clear_bit(In_sync, &r->flags); /* Mandatory for hot remove. */
+			if (r->raid_disk >= 0) {
+				if (mddev->pers->hot_remove_disk(mddev, r)) {
+					/* Failed to revive this device, try next */
+					r->flags = flags;
+					continue;
+				}
+			} else
+				r->raid_disk = r->saved_raid_disk = i;
+
 			clear_bit(Faulty, &r->flags);
 			clear_bit(WriteErrorSeen, &r->flags);
-			clear_bit(In_sync, &r->flags);
+
 			if (mddev->pers->hot_add_disk(mddev, r)) {
-				r->raid_disk = -1;
-				r->saved_raid_disk = -1;
+				/* Failed to revive this device, try next */
+				r->raid_disk = r->saved_raid_disk = -1;
 				r->flags = flags;
 			} else {
+				clear_bit(In_sync, &r->flags);
 				r->recovery_offset = 0;
 				set_bit(i, (void *) cleared_failed_devices);
 				cleared = true;
@@ -3651,7 +3640,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 9, 1},
+	.version = {1, 9, 2},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

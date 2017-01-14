@@ -314,3 +314,7 @@ Version History
 1.9.0   Add support for RAID level takeover/reshape/region size
 	and set size reduction.
 1.9.1   Fix activation of existing RAID 4/10 mapped devices
+1.9.2   Don't emit '- -' on the status table line in case the constructor
+	fails reading a superblock. Correctly emit 'maj:min1 maj:min2' and
+	'D' on the status line.  If '- -' is passed into the constructor, emit
+	'- -' on the table line and '-' as the status line health character.
