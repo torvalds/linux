@@ -227,7 +227,7 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 	u32 len;
 	int rc;
 
-	booldatum = kzalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
+	booldatum = kzalloc(sizeof(*booldatum), GFP_KERNEL);
 	if (!booldatum)
 		return -ENOMEM;
 
@@ -332,7 +332,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 		goto err;
 	}
 
-	list = kzalloc(sizeof(struct cond_av_list), GFP_KERNEL);
+	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
 		rc = -ENOMEM;
 		goto err;
@@ -421,7 +421,7 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 			goto err;
 
 		rc = -ENOMEM;
-		expr = kzalloc(sizeof(struct cond_expr), GFP_KERNEL);
+		expr = kzalloc(sizeof(*expr), GFP_KERNEL);
 		if (!expr)
 			goto err;
 
@@ -472,7 +472,7 @@ int cond_read_list(struct policydb *p, void *fp)
 
 	for (i = 0; i < len; i++) {
 		rc = -ENOMEM;
-		node = kzalloc(sizeof(struct cond_node), GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		if (!node)
 			goto err;
 
