@@ -38,32 +38,9 @@ enum {
 	MAX_CONTROLLER_NUM = 6
 };
 
-enum link_service_type {
-	LINK_SERVICE_TYPE_LEGACY = 0,
-	LINK_SERVICE_TYPE_DP_SST,
-	LINK_SERVICE_TYPE_DP_MST,
-	LINK_SERVICE_TYPE_MAX
-};
-
-enum dpcd_value_mask {
-	DPCD_VALUE_MASK_MAX_LANE_COUNT_LANE_COUNT = 0x1F,
-	DPCD_VALUE_MASK_MAX_LANE_COUNT_TPS3_SUPPORTED = 0x40,
-	DPCD_VALUE_MASK_MAX_LANE_COUNT_ENHANCED_FRAME_EN = 0x80,
-	DPCD_VALUE_MASK_MAX_DOWNSPREAD = 0x01,
-	DPCD_VALUE_MASK_LANE_ALIGN_STATUS_INTERLANE_ALIGN_DONE = 0x01
-};
-
 enum dp_power_state {
 	DP_POWER_STATE_D0 = 1,
 	DP_POWER_STATE_D3
-};
-
-enum dpcd_downstream_port_types {
-	DPCD_DOWNSTREAM_DP,
-	DPCD_DOWNSTREAM_VGA,
-	DPCD_DOWNSTREAM_DVI_HDMI,
-	/* has no EDID (TV, CV) */
-	DPCD_DOWNSTREAM_NON_DDC
 };
 
 enum edp_revision {
@@ -135,36 +112,6 @@ enum dp_panel_mode {
 	DP_PANEL_MODE_SPECIAL
 };
 
-/**
- * @brief LinkServiceInitOptions to set certain bits
- */
-struct link_service_init_options {
-	uint32_t APPLY_MISALIGNMENT_BUG_WORKAROUND:1;
-};
-
-/**
- * @brief data required to initialize LinkService
- */
-struct link_service_init_data {
-	/* number of displays indices which the MST Mgr would manange*/
-	uint32_t num_of_displays;
-	enum link_service_type link_type;
-	/*struct mst_mgr_callback_object*topology_change_callback;*/
-	/* native aux access */
-	struct ddc_service *dpcd_access_srv;
-	/* for calling HWSS to program HW */
-	struct hw_sequencer *hwss;
-	/* the source which to register IRQ on */
-	enum dc_irq_source irq_src_hpd_rx;
-	enum dc_irq_source irq_src_dp_sink;
-	/* other init options such as SW Workarounds */
-	struct link_service_init_options init_options;
-	uint32_t connector_enum_id;
-	struct graphics_object_id connector_id;
-	struct dc_context *ctx;
-	struct topology_mgr *tm;
-};
-
 /* DPCD_ADDR_TRAINING_LANEx_SET registers value */
 union dpcd_training_lane_set {
 	struct {
@@ -189,28 +136,6 @@ union dpcd_training_lane_set {
 	uint8_t raw;
 };
 
-/**
- * @brief represent the 16 byte
- *  global unique identifier
- */
-struct mst_guid {
-	uint8_t ids[16];
-};
-
-/**
- * @brief represents the relative address used
- * to identify a node in MST topology network
- */
-struct mst_rad {
-	/* number of links. rad[0] up to
-	 * rad [linkCount - 1] are valid. */
-	uint32_t rad_link_count;
-	/* relative address. rad[0] is the
-	 * first device connected to the source.	*/
-	uint8_t rad[15];
-	/* extra 10 bytes for underscores; for e.g.:2_1_8*/
-	int8_t rad_str[25];
-};
 
 /* DP MST stream allocation (payload bandwidth number) */
 struct dp_mst_stream_allocation {

@@ -1922,7 +1922,7 @@ static void get_active_converter_info(
 		break;
 	}
 
-	if (link->dpcd_caps.dpcd_rev.raw >= DCS_DPCD_REV_11) {
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_11) {
 		uint8_t det_caps[4];
 		union dwnstream_port_caps_byte0 *port_caps =
 			(union dwnstream_port_caps_byte0 *)det_caps;

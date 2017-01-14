@@ -190,14 +190,6 @@ struct bp_hw_crtc_timing_parameters {
 	} flags;
 };
 
-struct bp_hw_crtc_overscan_parameters {
-	enum controller_id controller_id;
-	uint32_t h_overscan_left;
-	uint32_t h_overscan_right;
-	uint32_t v_overscan_top;
-	uint32_t v_overscan_bottom;
-};
-
 struct bp_adjust_pixel_clock_parameters {
 	/* Input: Signal Type - to be converted to Encoder mode */
 	enum signal_type signal_type;

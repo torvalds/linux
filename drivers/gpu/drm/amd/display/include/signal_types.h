@@ -47,13 +47,10 @@ enum signal_type {
 bool dc_is_hdmi_signal(enum signal_type signal);
 bool dc_is_dp_sst_signal(enum signal_type signal);
 bool dc_is_dp_signal(enum signal_type signal);
-bool dc_is_dp_external_signal(enum signal_type signal);
-bool dc_is_analog_signal(enum signal_type signal);
 bool dc_is_embedded_signal(enum signal_type signal);
 bool dc_is_dvi_signal(enum signal_type signal);
 bool dc_is_dvi_single_link_signal(enum signal_type signal);
 bool dc_is_dual_link_signal(enum signal_type signal);
 bool dc_is_audio_capable_signal(enum signal_type signal);
-bool dc_is_digital_encoder_compatible_signal(enum signal_type signal);
 
 #endif

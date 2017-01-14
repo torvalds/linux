@@ -52,12 +52,6 @@ enum ddc_service_type {
 	DDC_SERVICE_TYPE_DISPLAY_PORT_MST,
 };
 
-enum dcs_dpcd_revision {
-	DCS_DPCD_REV_10 = 0x10,
-	DCS_DPCD_REV_11 = 0x11,
-	DCS_DPCD_REV_12 = 0x12
-};
-
 /**
  * display sink capability
  */
@@ -97,7 +91,6 @@ struct display_sink_capability {
 	uint32_t dp_link_rate;
 	uint32_t dp_link_spead;
 
-	enum dcs_dpcd_revision dpcd_revision;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
 	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
 	bool is_dp_hdmi_s3d_converter;
