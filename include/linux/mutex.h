@@ -179,7 +179,7 @@ extern void mutex_lock_io(struct mutex *lock);
 # define mutex_lock_interruptible_nested(lock, subclass) mutex_lock_interruptible(lock)
 # define mutex_lock_killable_nested(lock, subclass) mutex_lock_killable(lock)
 # define mutex_lock_nest_lock(lock, nest_lock) mutex_lock(lock)
-# define mutex_lock_nest_io(lock, nest_lock) mutex_io(lock)
+# define mutex_lock_io_nested(lock, subclass) mutex_lock(lock)
 #endif
 
 /*
