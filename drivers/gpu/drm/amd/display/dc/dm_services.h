@@ -165,6 +165,7 @@ static inline uint32_t set_reg_field_value_ex(
 	uint32_t mask,
 	uint8_t shift)
 {
+	ASSERT(mask != 0);
 	return (reg_value & ~mask) | (mask & (value << shift));
 }
 
