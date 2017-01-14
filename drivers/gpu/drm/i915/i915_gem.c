@@ -1759,7 +1759,6 @@ compute_partial_view(struct drm_i915_gem_object *obj,
 	if (i915_gem_object_is_tiled(obj))
 		chunk = roundup(chunk, tile_row_pages(obj));
 
-	memset(&view, 0, sizeof(view));
 	view.type = I915_GGTT_VIEW_PARTIAL;
 	view.params.partial.offset = rounddown(page_offset, chunk);
 	view.params.partial.size =
