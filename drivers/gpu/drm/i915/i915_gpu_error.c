@@ -121,6 +121,7 @@ static void __i915_error_advance(struct drm_i915_error_state_buf *e,
 	e->pos += len;
 }
 
+__printf(2, 0)
 static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 			       const char *f, va_list args)
 {
