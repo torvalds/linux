@@ -3400,8 +3400,9 @@ int ks_wlan_close(struct net_device *dev)
 /* Operational parameters that usually are not changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (3*HZ)
-static const unsigned char dummy_addr[] =
-    { 0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00 };
+static const unsigned char dummy_addr[] = {
+	0x00, 0x0b, 0xe3, 0x00, 0x00, 0x00
+};
 
 static const struct net_device_ops ks_wlan_netdev_ops = {
 	.ndo_start_xmit = ks_wlan_start_xmit,
