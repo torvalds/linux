@@ -1852,7 +1852,7 @@ static int range_read(struct policydb *p, void *fp)
 
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc)
-		goto out;
+		return rc;
 
 	nel = le32_to_cpu(buf[0]);
 	for (i = 0; i < nel; i++) {
