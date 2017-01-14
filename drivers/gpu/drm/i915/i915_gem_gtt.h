@@ -156,12 +156,22 @@ struct intel_rotation_info {
 		/* tiles */
 		unsigned int width, height, stride, offset;
 	} plane[2];
-};
+} __packed;
+
+static inline void assert_intel_rotation_info_is_packed(void)
+{
+	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
+}
 
 struct intel_partial_info {
 	u64 offset;
 	unsigned int size;
-};
+} __packed;
+
+static inline void assert_intel_partial_info_is_packed(void)
+{
+	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
+}
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
