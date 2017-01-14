@@ -1127,11 +1127,11 @@ do { \
  * if the UNLOCK and LOCK are executed by the same CPU or if the
  * UNLOCK and LOCK operate on the same lock variable.
  */
-#ifdef CONFIG_PPC
+#ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE
 #define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
-#else /* #ifdef CONFIG_PPC */
+#else /* #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
 #define smp_mb__after_unlock_lock()	do { } while (0)
-#endif /* #else #ifdef CONFIG_PPC */
+#endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
 
 
 #endif /* __LINUX_RCUPDATE_H */
