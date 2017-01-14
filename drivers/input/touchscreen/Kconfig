@@ -1165,6 +1165,17 @@ config TOUCHSCREEN_TPS6507X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tps6507x_ts.
 
+config TOUCHSCREEN_ZET6223
+	tristate "Zeitec ZET6223 touchscreen driver"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using Zeitec ZET6223
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zet6223.
+
 config TOUCHSCREEN_ZFORCE
 	tristate "Neonode zForce infrared touchscreens"
 	depends on I2C
