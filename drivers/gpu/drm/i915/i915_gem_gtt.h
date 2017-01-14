@@ -196,8 +196,6 @@ struct i915_ggtt_view {
 	};
 };
 
-extern const struct i915_ggtt_view i915_ggtt_view_normal;
-
 enum i915_cache_level;
 
 struct i915_vma;

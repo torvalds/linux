@@ -3436,7 +3436,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * try to preserve the existing ABI).
 	 */
 	vma = ERR_PTR(-ENOSPC);
-	if (view->type == I915_GGTT_VIEW_NORMAL)
+	if (!view || view->type == I915_GGTT_VIEW_NORMAL)
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
 	if (IS_ERR(vma)) {
