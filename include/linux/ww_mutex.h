@@ -215,8 +215,7 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
  *
  * A mutex acquired with this function must be released with ww_mutex_unlock.
  */
-extern int __must_check ww_mutex_lock(struct ww_mutex *lock,
-				      struct ww_acquire_ctx *ctx);
+extern int /* __must_check */ ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx);
 
 /**
  * ww_mutex_lock_interruptible - acquire the w/w mutex, interruptible
