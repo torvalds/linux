@@ -664,5 +664,4 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 				(node->key.specified & AVTAB_XPERMS))
 			services_compute_xperms_drivers(xperms, node);
 	}
-	return;
 }
