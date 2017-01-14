@@ -246,21 +246,12 @@ tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
 tcp_early_retrans - INTEGER
-	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
-	for triggering fast retransmit when the amount of outstanding data is
-	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occurring due to tail
-	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
+	Tail loss probe (TLP) converts RTOs occurring due to tail
+	losses into fast recovery (draft-ietf-tcpm-rack). Note that
+	TLP requires RACK to function properly (see tcp_recovery below)
 	Possible values:
-		0 disables ER
-		1 enables ER
-		2 enables ER but delays fast recovery and fast retransmit
-		  by a fourth of RTT. This mitigates connection falsely
-		  recovers when network has a small degree of reordering
-		  (less than 3 packets).
-		3 enables delayed ER and TLP.
-		4 enables TLP only.
+		0 disables TLP
+		3 or 4 enables TLP
 	Default: 3
 
 tcp_ecn - INTEGER
@@ -708,18 +699,6 @@ tcp_thin_linear_timeouts - BOOLEAN
 	timeouts may be performed before exponential backoff mode is
 	initiated. This improves retransmission latency for
 	non-aggressive thin streams, often found to be time-dependent.
-	For more information on thin streams, see
-	Documentation/networking/tcp-thin.txt
-	Default: 0
-
-tcp_thin_dupack - BOOLEAN
-	Enable dynamic triggering of retransmissions after one dupACK
-	for thin streams. If set, a check is performed upon reception
-	of a dupACK to determine if the stream is thin (less than 4
-	packets in flight). As long as the stream is found to be thin,
-	data is retransmitted on the first received dupACK. This
-	improves retransmission latency for non-aggressive thin
-	streams, often found to be time-dependent.
 	For more information on thin streams, see
 	Documentation/networking/tcp-thin.txt
 	Default: 0

@@ -76,10 +76,8 @@ static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
 
 	tp->packets_out += tcp_skb_pcount(skb);
-	if (!prior_packets || icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
-	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
+	if (!prior_packets || icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
 		tcp_rearm_rto(sk);
-	}
 
 	NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPORIGDATASENT,
 		      tcp_skb_pcount(skb));
@@ -2289,8 +2287,6 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 	u32 timeout, tlp_time_stamp, rto_time_stamp;
 	u32 rtt = usecs_to_jiffies(tp->srtt_us >> 3);
 
-	if (WARN_ON(icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS))
-		return false;
 	/* No consecutive loss probes. */
 	if (WARN_ON(icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)) {
 		tcp_rearm_rto(sk);
@@ -2309,8 +2305,9 @@ bool tcp_schedule_loss_probe(struct sock *sk)
 	/* Schedule a loss probe in 2*RTT for SACK capable connections
 	 * in Open state, that are either limited by cwnd or application.
 	 */
-	if (sysctl_tcp_early_retrans < 3 || !tp->packets_out ||
-	    !tcp_is_sack(tp) || inet_csk(sk)->icsk_ca_state != TCP_CA_Open)
+	if ((sysctl_tcp_early_retrans != 3 && sysctl_tcp_early_retrans != 4) ||
+	    !tp->packets_out || !tcp_is_sack(tp) ||
+	    icsk->icsk_ca_state != TCP_CA_Open)
 		return false;
 
 	if ((tp->snd_cwnd > tcp_packets_in_flight(tp)) &&
@@ -2831,36 +2828,6 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	return err;
 }
 
-/* Check if we forward retransmits are possible in the current
- * window/congestion state.
- */
-static bool tcp_can_forward_retransmit(struct sock *sk)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-	const struct tcp_sock *tp = tcp_sk(sk);
-
-	/* Forward retransmissions are possible only during Recovery. */
-	if (icsk->icsk_ca_state != TCP_CA_Recovery)
-		return false;
-
-	/* No forward retransmissions in Reno are possible. */
-	if (tcp_is_reno(tp))
-		return false;
-
-	/* Yeah, we have to make difficult choice between forward transmission
-	 * and retransmission... Both ways have their merits...
-	 *
-	 * For now we do not retransmit anything, while we have some new
-	 * segments to send. In the other cases, follow rule 3 for
-	 * NextSeg() specified in RFC3517.
-	 */
-
-	if (tcp_may_send_now(sk))
-		return false;
-
-	return true;
-}
-
 /* This gets called after a retransmit timeout, and the initially
  * retransmitted data is acknowledged.  It tries to continue
  * resending the rest of the retransmit queue, until either
@@ -2875,24 +2842,16 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	struct sk_buff *hole = NULL;
-	u32 max_segs, last_lost;
+	u32 max_segs;
 	int mib_idx;
-	int fwd_rexmitting = 0;
 
 	if (!tp->packets_out)
 		return;
 
-	if (!tp->lost_out)
-		tp->retransmit_high = tp->snd_una;
-
 	if (tp->retransmit_skb_hint) {
 		skb = tp->retransmit_skb_hint;
-		last_lost = TCP_SKB_CB(skb)->end_seq;
-		if (after(last_lost, tp->retransmit_high))
-			last_lost = tp->retransmit_high;
 	} else {
 		skb = tcp_write_queue_head(sk);
-		last_lost = tp->snd_una;
 	}
 
 	max_segs = tcp_tso_segs(sk, tcp_current_mss(sk));
@@ -2915,31 +2874,14 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		 */
 		segs = min_t(int, segs, max_segs);
 
-		if (fwd_rexmitting) {
-begin_fwd:
-			if (!before(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
-				break;
-			mib_idx = LINUX_MIB_TCPFORWARDRETRANS;
-
-		} else if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high)) {
-			tp->retransmit_high = last_lost;
-			if (!tcp_can_forward_retransmit(sk))
-				break;
-			/* Backtrack if necessary to non-L'ed skb */
-			if (hole) {
-				skb = hole;
-				hole = NULL;
-			}
-			fwd_rexmitting = 1;
-			goto begin_fwd;
-
+		if (tp->retrans_out >= tp->lost_out) {
+			break;
 		} else if (!(sacked & TCPCB_LOST)) {
 			if (!hole && !(sacked & (TCPCB_SACKED_RETRANS|TCPCB_SACKED_ACKED)))
 				hole = skb;
 			continue;
 
 		} else {
-			last_lost = TCP_SKB_CB(skb)->end_seq;
 			if (icsk->icsk_ca_state != TCP_CA_Loss)
 				mib_idx = LINUX_MIB_TCPFASTRETRANS;
 			else
@@ -2960,7 +2902,8 @@ begin_fwd:
 		if (tcp_in_cwnd_reduction(sk))
 			tp->prr_out += tcp_skb_pcount(skb);
 
-		if (skb == tcp_write_queue_head(sk))
+		if (skb == tcp_write_queue_head(sk) &&
+		    icsk->icsk_pending != ICSK_TIME_REO_TIMEOUT)
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 						  inet_csk(sk)->icsk_rto,
 						  TCP_RTO_MAX);
