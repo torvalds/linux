@@ -2098,9 +2098,10 @@ static int genfs_read(struct policydb *p, void *fp)
 	}
 	rc = 0;
 out:
-	if (newgenfs)
+	if (newgenfs) {
 		kfree(newgenfs->fstype);
-	kfree(newgenfs);
+		kfree(newgenfs);
+	}
 	ocontext_destroy(newc, OCON_FSUSE);
 
 	return rc;
