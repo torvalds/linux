@@ -17,7 +17,7 @@ struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *
 	u32 i;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (p == NULL)
+	if (!p)
 		return p;
 
 	p->size = size;
@@ -25,7 +25,7 @@ struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *
 	p->hash_value = hash_value;
 	p->keycmp = keycmp;
 	p->htable = kmalloc_array(size, sizeof(*p->htable), GFP_KERNEL);
-	if (p->htable == NULL) {
+	if (!p->htable) {
 		kfree(p);
 		return NULL;
 	}
@@ -58,7 +58,7 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 		return -EEXIST;
 
 	newnode = kzalloc(sizeof(*newnode), GFP_KERNEL);
-	if (newnode == NULL)
+	if (!newnode)
 		return -ENOMEM;
 	newnode->key = key;
 	newnode->datum = datum;
@@ -87,7 +87,7 @@ void *hashtab_search(struct hashtab *h, const void *key)
 	while (cur && h->keycmp(h, key, cur->key) > 0)
 		cur = cur->next;
 
-	if (cur == NULL || (h->keycmp(h, key, cur->key) != 0))
+	if (!cur || (h->keycmp(h, key, cur->key) != 0))
 		return NULL;
 
 	return cur->datum;
