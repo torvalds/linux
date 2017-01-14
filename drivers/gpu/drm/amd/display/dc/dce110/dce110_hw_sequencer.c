@@ -886,7 +886,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct encoder_unblank_param params = { { 0 } };
 
 	/* only 3 items below are used by unblank */
-	params.crtc_timing.pixel_clock =
+	params.pixel_clk_khz =
 		pipe_ctx->stream->public.timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_enc->funcs->dp_unblank(pipe_ctx->stream_enc, &params);

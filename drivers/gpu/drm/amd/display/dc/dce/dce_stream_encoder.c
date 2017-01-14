@@ -681,7 +681,7 @@ static void dce110_stream_encoder_dp_unblank(
 
 		uint64_t m_vid_l = n_vid;
 
-		m_vid_l *= param->crtc_timing.pixel_clock;
+		m_vid_l *= param->pixel_clk_khz;
 		m_vid_l = div_u64(m_vid_l,
 			param->link_settings.link_rate
 				* LINK_RATE_REF_FREQ_IN_KHZ);

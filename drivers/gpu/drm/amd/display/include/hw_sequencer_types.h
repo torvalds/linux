@@ -40,46 +40,6 @@ struct drr_params {
 	uint32_t vertical_total_max;
 };
 
-/* CRTC timing structure */
-struct hw_crtc_timing {
-	uint32_t h_total;
-	uint32_t h_addressable;
-	uint32_t h_overscan_left;
-	uint32_t h_overscan_right;
-	uint32_t h_sync_start;
-	uint32_t h_sync_width;
-
-	uint32_t v_total;
-	uint32_t v_addressable;
-	uint32_t v_overscan_top;
-	uint32_t v_overscan_bottom;
-	uint32_t v_sync_start;
-	uint32_t v_sync_width;
-
-	/* in KHz */
-	uint32_t pixel_clock;
-
-	struct {
-		uint32_t INTERLACED:1;
-		uint32_t DOUBLESCAN:1;
-		uint32_t PIXEL_REPETITION:4; /* 1...10 */
-		uint32_t HSYNC_POSITIVE_POLARITY:1;
-		uint32_t VSYNC_POSITIVE_POLARITY:1;
-		/* frame should be packed for 3D
-		 * (currently this refers to HDMI 1.4a FramePacking format */
-		uint32_t HORZ_COUNT_BY_TWO:1;
-		uint32_t PACK_3D_FRAME:1;
-		/* 0 - left eye polarity, 1 - right eye polarity */
-		uint32_t RIGHT_EYE_3D_POLARITY:1;
-		/* DVI-DL High-Color mode */
-		uint32_t HIGH_COLOR_DL_MODE:1;
-		uint32_t Y_ONLY:1;
-		/* HDMI 2.0 - Support scrambling for TMDS character
-		 * rates less than or equal to 340Mcsc */
-		uint32_t LTE_340MCSC_SCRAMBLE:1;
-	} flags;
-};
-
 /* TODO hw_info_frame and hw_info_packet structures are same as in encoder
  * merge it*/
 struct hw_info_packet {
