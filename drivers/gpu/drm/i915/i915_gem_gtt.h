@@ -197,7 +197,6 @@ struct i915_ggtt_view {
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
-extern const struct i915_ggtt_view i915_ggtt_view_rotated;
 
 enum i915_cache_level;
 

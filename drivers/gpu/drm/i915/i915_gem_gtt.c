@@ -106,9 +106,6 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma);
 const struct i915_ggtt_view i915_ggtt_view_normal = {
 	.type = I915_GGTT_VIEW_NORMAL,
 };
-const struct i915_ggtt_view i915_ggtt_view_rotated = {
-	.type = I915_GGTT_VIEW_ROTATED,
-};
 
 static void gen6_ggtt_invalidate(struct drm_i915_private *dev_priv)
 {

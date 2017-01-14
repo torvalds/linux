@@ -2137,11 +2137,10 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
 			unsigned int rotation)
 {
+	view->type = I915_GGTT_VIEW_NORMAL;
 	if (drm_rotation_90_or_270(rotation)) {
-		*view = i915_ggtt_view_rotated;
+		view->type = I915_GGTT_VIEW_ROTATED;
 		view->rotated = to_intel_framebuffer(fb)->rot_info;
-	} else {
-		*view = i915_ggtt_view_normal;
 	}
 }
 
