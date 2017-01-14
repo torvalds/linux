@@ -159,6 +159,7 @@ void *nd_region_provider_data(struct nd_region *nd_region);
 void *nd_blk_region_provider_data(struct nd_blk_region *ndbr);
 void nd_blk_region_set_provider_data(struct nd_blk_region *ndbr, void *data);
 struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr);
+unsigned long nd_blk_memremap_flags(struct nd_blk_region *ndbr);
 unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
 void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 u64 nd_fletcher64(void *addr, size_t len, bool le);

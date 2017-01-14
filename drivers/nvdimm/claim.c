@@ -12,7 +12,6 @@
  */
 #include <linux/device.h>
 #include <linux/sizes.h>
-#include <linux/pmem.h>
 #include "nd-core.h"
 #include "pmem.h"
 #include "pfn.h"
