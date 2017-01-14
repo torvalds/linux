@@ -145,7 +145,7 @@
  * The GuC firmware layout looks like this:
  *
  *     +-------------------------------+
- *     |        guc_css_header         |
+ *     |         uc_css_header         |
  *     |                               |
  *     | contains major/minor version  |
  *     +-------------------------------+
@@ -172,9 +172,16 @@
  * 3. Length info of each component can be found in header, in dwords.
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
+ *
+ * HuC firmware layout is same as GuC firmware.
+ *
+ * HuC firmware css header is different. However, the only difference is where
+ * the version information is saved. The uc_css_header is unified to support
+ * both. Driver should get HuC version from uc_css_header.huc_sw_version, while
+ * uc_css_header.guc_sw_version for GuC.
  */
 
-struct guc_css_header {
+struct uc_css_header {
 	uint32_t module_type;
 	/* header_size includes all non-uCode bits, including css_header, rsa
 	 * key, modulus key and exponent data. */
@@ -205,8 +212,16 @@ struct guc_css_header {
 
 	char username[8];
 	char buildnumber[12];
-	uint32_t device_id;
-	uint32_t guc_sw_version;
+	union {
+		struct {
+			uint32_t branch_client_version;
+			uint32_t sw_version;
+	} guc;
+		struct {
+			uint32_t sw_version;
+			uint32_t reserved;
+	} huc;
+	};
 	uint32_t prod_preprod_fw;
 	uint32_t reserved[12];
 	uint32_t header_info;
