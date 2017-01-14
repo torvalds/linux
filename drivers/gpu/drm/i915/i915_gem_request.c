@@ -307,26 +307,6 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	} while (tmp != req);
 }
 
-static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
-{
-	struct i915_gpu_error *error = &dev_priv->gpu_error;
-
-	if (i915_terminally_wedged(error))
-		return -EIO;
-
-	if (i915_reset_in_progress(error)) {
-		/* Non-interruptible callers can't handle -EAGAIN, hence return
-		 * -EIO unconditionally for these.
-		 */
-		if (!dev_priv->mm.interruptible)
-			return -EIO;
-
-		return -EAGAIN;
-	}
-
-	return 0;
-}
-
 static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
 	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
@@ -521,12 +501,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
-	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
-	 * and restart.
+	 * EIO if the GPU is already wedged.
 	 */
-	ret = i915_gem_check_wedge(dev_priv);
-	if (ret)
-		return ERR_PTR(ret);
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return ERR_PTR(-EIO);
 
 	/* Pinning the contexts may generate requests in order to acquire
 	 * GGTT space, so do this first before we reserve a seqno for
