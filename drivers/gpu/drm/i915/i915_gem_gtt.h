@@ -145,12 +145,6 @@ typedef uint64_t gen8_ppgtt_pml4e_t;
 
 struct sg_table;
 
-enum i915_ggtt_view_type {
-	I915_GGTT_VIEW_NORMAL = 0,
-	I915_GGTT_VIEW_ROTATED,
-	I915_GGTT_VIEW_PARTIAL,
-};
-
 struct intel_rotation_info {
 	struct intel_rotation_plane_info {
 		/* tiles */
@@ -173,10 +167,30 @@ static inline void assert_intel_partial_info_is_packed(void)
 	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
 }
 
+enum i915_ggtt_view_type {
+	I915_GGTT_VIEW_NORMAL = 0,
+	I915_GGTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
+	I915_GGTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
+};
+
+static inline void assert_i915_ggtt_view_type_is_unique(void)
+{
+	/* As we encode the size of each branch inside the union into its type,
+	 * we have to be careful that each branch has a unique size.
+	 */
+	switch ((enum i915_ggtt_view_type)0) {
+	case I915_GGTT_VIEW_NORMAL:
+	case I915_GGTT_VIEW_PARTIAL:
+	case I915_GGTT_VIEW_ROTATED:
+		/* gcc complains if these are identical cases */
+		break;
+	}
+}
+
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
-
 	union {
+		/* Members need to contain no holes/padding */
 		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
 	} params;

@@ -199,15 +199,23 @@ i915_vma_compare(struct i915_vma *vma,
 	if (cmp)
 		return cmp;
 
+	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL != 0);
+	cmp = vma->ggtt_view.type;
 	if (!view)
-		return vma->ggtt_view.type;
+		return cmp;
 
-	if (vma->ggtt_view.type != view->type)
-		return vma->ggtt_view.type - view->type;
+	cmp -= view->type;
+	if (cmp)
+		return cmp;
 
-	return memcmp(&vma->ggtt_view.params,
-		      &view->params,
-		      sizeof(view->params));
+	/* ggtt_view.type also encodes its size so that we both distinguish
+	 * different views using it as a "type" and also use a compact (no
+	 * accessing of uninitialised padding bytes) memcmp without storing
+	 * an extra parameter or adding more code.
+	 */
+	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
+	BUILD_BUG_ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
+	return memcmp(&vma->ggtt_view.params, &view->params, view->type);
 }
 
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
