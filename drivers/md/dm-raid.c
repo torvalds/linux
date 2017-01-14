@@ -2370,7 +2370,7 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 
 	/* Enable bitmap creation for RAID levels != 0 */
 	mddev->bitmap_info.offset = rt_is_raid0(rs->raid_type) ? 0 : to_sector(4096);
-	rdev->mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
+	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
 	if (!test_and_clear_bit(FirstUse, &rdev->flags)) {
 		/* Retrieve device size stored in superblock to be prepared for shrink */
