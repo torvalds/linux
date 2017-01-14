@@ -2080,6 +2080,47 @@ static int bnxt_nway_reset(struct net_device *dev)
 	return rc;
 }
 
+static int bnxt_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
+{
+	struct hwrm_port_led_cfg_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_pf_info *pf = &bp->pf;
+	struct bnxt_led_cfg *led_cfg;
+	u8 led_state;
+	__le16 duration;
+	int i, rc;
+
+	if (!bp->num_leds || BNXT_VF(bp))
+		return -EOPNOTSUPP;
+
+	if (state == ETHTOOL_ID_ACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED0_STATE_BLINKALT;
+		duration = cpu_to_le16(500);
+	} else if (state == ETHTOOL_ID_INACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED1_STATE_DEFAULT;
+		duration = cpu_to_le16(0);
+	} else {
+		return -EINVAL;
+	}
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_LED_CFG, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.num_leds = bp->num_leds;
+	led_cfg = (struct bnxt_led_cfg *)&req.led0_id;
+	for (i = 0; i < bp->num_leds; i++, led_cfg++) {
+		req.enables |= BNXT_LED_DFLT_ENABLES(i);
+		led_cfg->led_id = bp->leds[i].led_id;
+		led_cfg->led_state = led_state;
+		led_cfg->led_blink_on = duration;
+		led_cfg->led_blink_off = duration;
+		led_cfg->led_group_id = bp->leds[i].led_group_id;
+	}
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -2111,5 +2152,6 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_eee		= bnxt_set_eee,
 	.get_module_info	= bnxt_get_module_info,
 	.get_module_eeprom	= bnxt_get_module_eeprom,
-	.nway_reset		= bnxt_nway_reset
+	.nway_reset		= bnxt_nway_reset,
+	.set_phys_id		= bnxt_set_phys_id,
 };

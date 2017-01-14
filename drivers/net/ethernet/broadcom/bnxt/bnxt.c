@@ -2467,6 +2467,8 @@ static int bnxt_calc_nr_ring_pages(u32 ring_size, int desc_per_pg)
 static void bnxt_set_tpa_flags(struct bnxt *bp)
 {
 	bp->flags &= ~BNXT_FLAG_TPA;
+	if (bp->flags & BNXT_FLAG_NO_AGG_RINGS)
+		return;
 	if (bp->dev->features & NETIF_F_LRO)
 		bp->flags |= BNXT_FLAG_LRO;
 	if (bp->dev->features & NETIF_F_GRO)
@@ -4944,6 +4946,7 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 	return rc;
 }
 
+#ifdef CONFIG_RFS_ACCEL
 static unsigned int bnxt_get_max_func_rss_ctxs(struct bnxt *bp)
 {
 #if defined(CONFIG_BNXT_SRIOV)
@@ -4961,6 +4964,7 @@ static unsigned int bnxt_get_max_func_vnics(struct bnxt *bp)
 #endif
 	return bp->pf.max_vnics;
 }
+#endif
 
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
 {
@@ -5615,6 +5619,45 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
 	req.flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
+{
+	struct hwrm_port_led_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_port_led_qcaps_input req = {0};
+	struct bnxt_pf_info *pf = &bp->pf;
+	int rc;
+
+	if (BNXT_VF(bp) || bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_LED_QCAPS, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc) {
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		return rc;
+	}
+	if (resp->num_leds > 0 && resp->num_leds < BNXT_MAX_LED) {
+		int i;
+
+		bp->num_leds = resp->num_leds;
+		memcpy(bp->leds, &resp->led0_id, sizeof(bp->leds[0]) *
+						 bp->num_leds);
+		for (i = 0; i < bp->num_leds; i++) {
+			struct bnxt_led_info *led = &bp->leds[i];
+			__le16 caps = led->led_state_caps;
+
+			if (!led->led_group_id ||
+			    !BNXT_LED_ALT_BLINK_CAP(caps)) {
+				bp->num_leds = 0;
+				break;
+			}
+		}
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return 0;
 }
 
 static bool bnxt_eee_config_ok(struct bnxt *bp)
@@ -7240,6 +7283,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bnxt_hwrm_func_qcfg(bp);
+	bnxt_hwrm_port_led_qcaps(bp);
 
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);

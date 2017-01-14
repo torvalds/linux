@@ -868,6 +868,20 @@ struct bnxt_queue_info {
 	u8	queue_profile;
 };
 
+#define BNXT_MAX_LED			4
+
+struct bnxt_led_info {
+	u8	led_id;
+	u8	led_type;
+	u8	led_group_id;
+	u8	unused;
+	__le16	led_state_caps;
+#define BNXT_LED_ALT_BLINK_CAP(x)	((x) &	\
+	cpu_to_le16(PORT_LED_QCAPS_RESP_LED0_STATE_CAPS_BLINK_ALT_SUPPORTED))
+
+	__le16	led_color_caps;
+};
+
 #define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
@@ -1123,6 +1137,9 @@ struct bnxt {
 	struct ethtool_eee	eee;
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
+
+	u8			num_leds;
+	struct bnxt_led_info	leds[BNXT_MAX_LED];
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
