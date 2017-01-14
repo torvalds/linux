@@ -152,20 +152,22 @@ enum i915_ggtt_view_type {
 };
 
 struct intel_rotation_info {
-	struct {
+	struct intel_rotation_plane_info {
 		/* tiles */
 		unsigned int width, height, stride, offset;
 	} plane[2];
+};
+
+struct intel_partial_info {
+	u64 offset;
+	unsigned int size;
 };
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
 
 	union {
-		struct {
-			u64 offset;
-			unsigned int size;
-		} partial;
+		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
 	} params;
 };
