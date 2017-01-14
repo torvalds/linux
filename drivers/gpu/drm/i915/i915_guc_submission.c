@@ -998,7 +998,7 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
 	gen9_disable_guc_interrupts(dev_priv);
@@ -1025,7 +1025,7 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
 	if (i915.guc_log_level >= 0)
