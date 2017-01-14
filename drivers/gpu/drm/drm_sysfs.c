@@ -284,8 +284,13 @@ static ssize_t modes_show(struct device *device,
 	int written = 0;
 
 	list_for_each_entry(mode, &connector->modes, head) {
-		written += snprintf(buf + written, PAGE_SIZE - written, "%s\n",
-				    mode->name);
+		bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+		written += snprintf(buf + written, PAGE_SIZE - written,
+				    "%dx%d%s%d\n",
+				    mode->hdisplay, mode->vdisplay,
+				    interlaced ? "i" : "p",
+				    drm_mode_vrefresh(mode));
 	}
 
 	return written;
