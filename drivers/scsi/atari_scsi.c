@@ -782,7 +782,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 		atari_dma_phys_buffer = atari_stram_to_phys(atari_dma_buffer);
-		atari_dma_orig_addr = 0;
+		atari_dma_orig_addr = NULL;
 	}
 
 	instance = scsi_host_alloc(&atari_scsi_template,

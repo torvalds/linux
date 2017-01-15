@@ -591,8 +591,9 @@ static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
 	    list_empty(&hostdata->unissued) &&
 	    list_empty(&hostdata->autosense) &&
 	    !hostdata->connected &&
-	    !hostdata->selecting)
+	    !hostdata->selecting) {
 		NCR5380_release_dma_irq(instance);
+	}
 }
 
 /**
@@ -931,6 +932,7 @@ static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
                                         struct scsi_cmnd *cmd)
+	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char tmp[3], phase;
@@ -1623,6 +1625,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  */
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance)
+	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char msgout = NOP;
