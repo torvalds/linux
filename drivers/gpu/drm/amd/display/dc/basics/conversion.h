@@ -38,16 +38,6 @@ void convert_float_matrix(
 	struct fixed31_32 *flt,
 	uint32_t buffer_size);
 
-void calculate_adjustments(
-	const struct fixed31_32 *ideal_matrix,
-	const struct dc_csc_adjustments *adjustments,
-	struct fixed31_32 *matrix);
-
-void calculate_adjustments_y_only(
-	const struct fixed31_32 *ideal_matrix,
-	const struct dc_csc_adjustments *adjustments,
-	struct fixed31_32 *matrix);
-
 unsigned int log_2(unsigned int num);
 
 #endif
