@@ -253,9 +253,8 @@ static const unsigned int uart_tx_ao_a_pins[]	= { PIN(GPIOAO_0, 0) };
 static const unsigned int uart_rx_ao_a_pins[]	= { PIN(GPIOAO_1, 0) };
 static const unsigned int uart_cts_ao_a_pins[]	= { PIN(GPIOAO_2, 0) };
 static const unsigned int uart_rts_ao_a_pins[]	= { PIN(GPIOAO_3, 0) };
-static const unsigned int uart_tx_ao_b_pins[]	= { PIN(GPIOAO_0, 0) };
-static const unsigned int uart_rx_ao_b_pins[]	= { PIN(GPIOAO_1, 0),
-						    PIN(GPIOAO_5, 0) };
+static const unsigned int uart_tx_ao_b_pins[]	= { PIN(GPIOAO_4, 0) };
+static const unsigned int uart_rx_ao_b_pins[]	= { PIN(GPIOAO_5, 0) };
 static const unsigned int uart_cts_ao_b_pins[]	= { PIN(GPIOAO_2, 0) };
 static const unsigned int uart_rts_ao_b_pins[]	= { PIN(GPIOAO_3, 0) };
 
@@ -498,7 +497,7 @@ static struct meson_pmx_group meson_gxbb_aobus_groups[] = {
 	GPIO_GROUP(GPIOAO_13, 0),
 
 	/* bank AO */
-	GROUP(uart_tx_ao_b,	0,	26),
+	GROUP(uart_tx_ao_b,	0,	24),
 	GROUP(uart_rx_ao_b,	0,	25),
 	GROUP(uart_tx_ao_a,	0,	12),
 	GROUP(uart_rx_ao_a,	0,	11),
