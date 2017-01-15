@@ -138,6 +138,13 @@
 			};
 		};
 
+		uart_ao_b_pins: uart_ao_b {
+			mux {
+				groups = "uart_tx_ao_b", "uart_rx_ao_b";
+				function = "uart_ao_b";
+			};
+		};
+
 		remote_input_ao_pins: remote_input_ao {
 			mux {
 				groups = "remote_input_ao";
