@@ -81,11 +81,7 @@
 #define ICR_ASSERT_ATN		0x02	/* rw Set to assert ATN */
 #define ICR_ASSERT_DATA		0x01	/* rw SCSI_DATA_REG is asserted */
 
-#ifdef DIFFERENTIAL
-#define ICR_BASE		ICR_DIFF_ENABLE
-#else
 #define ICR_BASE		0
-#endif
 
 #define MODE_REG		2
 /*
@@ -102,11 +98,7 @@
 #define MR_DMA_MODE		0x02	/* rw DMA / pseudo DMA mode */
 #define MR_ARBITRATE		0x01	/* rw start arbitration */
 
-#ifdef PARITY
-#define MR_BASE			MR_ENABLE_PAR_CHECK
-#else
 #define MR_BASE			0
-#endif
 
 #define TARGET_COMMAND_REG	3
 #define TCR_LAST_BYTE_SENT	0x80	/* ro DMA done */
@@ -234,7 +226,7 @@ struct NCR5380_hostdata {
 	unsigned char id_higher_mask;		/* All bits above id_mask */
 	unsigned char last_message;		/* Last Message Out */
 	unsigned long region_size;		/* Size of address/port range */
-	char info[256];
+	char info[168];				/* Host banner message */
 };
 
 #ifdef __KERNEL__
