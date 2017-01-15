@@ -178,10 +178,9 @@ static int roles_init(struct policydb *p)
 	int rc;
 	struct role_datum *role;
 
-	rc = -ENOMEM;
 	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role)
-		goto out;
+		return -ENOMEM;
 
 	rc = -EINVAL;
 	role->value = ++p->p_roles.nprim;
