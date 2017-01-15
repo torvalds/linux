@@ -480,15 +480,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
 
-#define SetOrderBit(pbuf)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16(_ORDER_); \
-	} while (0)
-
-#define GetOrderBit(pbuf)			\
-	(((*(unsigned short *)(pbuf)) & le16_to_cpu(_ORDER_)) != 0)
-
-
 /**
  * struct rtw_ieee80211_bar - HT Block Ack Request
  *
@@ -758,14 +749,6 @@ enum ht_cap_ampdu_factor {
 #define	P2P_STATUS_FAIL_USER_REJECT			0x0B
 
 /*	Value of Invitation Flags Attribute */
-#define	P2P_INVITATION_FLAGS_PERSISTENT			BIT(0)
-
-#define	DMP_P2P_DEVCAP_SUPPORT	(P2P_DEVCAP_SERVICE_DISCOVERY | \
-				P2P_DEVCAP_CLIENT_DISCOVERABILITY | \
-				P2P_DEVCAP_CONCURRENT_OPERATION | \
-				P2P_DEVCAP_INVITATION_PROC)
-
-#define	DMP_P2P_GRPCAP_SUPPORT	(P2P_GRPCAP_INTRABSS)
 
 /*	Value of Device Capability Bitmap */
 #define	P2P_DEVCAP_SERVICE_DISCOVERY		BIT(0)
