@@ -37,7 +37,7 @@ Optional properties:
  - usb3-lpm-capable : supports USB3.0 LPM
  - pinctrl-names : a pinctrl state named "default" must be defined
  - pinctrl-0 : pin control group
-	See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 Example:
 usb30: usb@11270000 {
@@ -67,7 +67,7 @@ usb30: usb@11270000 {
 
 In the case, xhci is added as subnode to mtu3. An example and the DT binding
 details of mtu3 can be found in:
-Documentation/devicetree/bindings/usb/mtu3.txt
+Documentation/devicetree/bindings/usb/mt8173-mtu3.txt
 
 Required properties:
  - compatible : should contain "mediatek,mt8173-xhci"
