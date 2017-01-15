@@ -600,7 +600,7 @@ static int ehci_fsl_drv_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ehci_fsl_pm_ops = {
+static const struct dev_pm_ops ehci_fsl_pm_ops = {
 	.suspend = ehci_fsl_drv_suspend,
 	.resume = ehci_fsl_drv_resume,
 	.restore = ehci_fsl_drv_restore,
