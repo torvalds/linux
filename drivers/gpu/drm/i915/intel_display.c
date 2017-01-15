@@ -17221,7 +17221,8 @@ void intel_display_resume(struct drm_device *dev)
 
 	if (ret)
 		DRM_ERROR("Restoring old state failed with %i\n", ret);
-	drm_atomic_state_put(state);
+	if (state)
+		drm_atomic_state_put(state);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
