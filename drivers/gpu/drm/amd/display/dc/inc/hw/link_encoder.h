@@ -186,7 +186,6 @@ struct link_encoder {
 	struct dc_context *ctx;
 	struct graphics_object_id id;
 	struct graphics_object_id connector;
-	uint32_t input_signals;
 	uint32_t output_signals;
 	enum engine_id preferred_engine;
 	struct encoder_feature_support features;

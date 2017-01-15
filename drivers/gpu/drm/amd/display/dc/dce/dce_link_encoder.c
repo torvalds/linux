@@ -941,7 +941,6 @@ bool dce110_link_encoder_construct(
 
 	enc110->base.hpd_source = init_data->hpd_source;
 	enc110->base.connector = init_data->connector;
-	enc110->base.input_signals = SIGNAL_TYPE_ALL;
 
 	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 

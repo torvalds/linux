@@ -75,7 +75,6 @@ bool dc_is_audio_capable_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		dc_is_hdmi_signal(signal) ||
-		signal == SIGNAL_TYPE_WIRELESS);
+		dc_is_hdmi_signal(signal));
 }
 

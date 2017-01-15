@@ -44,7 +44,6 @@ static const struct dc_signal_type_info signal_type_info_tbl[] = {
 		{SIGNAL_TYPE_DISPLAY_PORT,     "DP"},
 		{SIGNAL_TYPE_DISPLAY_PORT_MST, "MST"},
 		{SIGNAL_TYPE_EDP,              "eDP"},
-		{SIGNAL_TYPE_WIRELESS,         "Wireless"},
 		{SIGNAL_TYPE_VIRTUAL,          "Virtual"}
 };
 
