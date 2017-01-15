@@ -2154,7 +2154,8 @@ as will <tt>rcu_assign_pointer()</tt>.
 <p>
 Although <tt>call_rcu()</tt> may be invoked at any
 time during boot, callbacks are not guaranteed to be invoked until after
-the scheduler is fully up and running.
+all of RCU's kthreads have been spawned, which occurs at
+<tt>early_initcall()</tt> time.
 This delay in callback invocation is due to the fact that RCU does not
 invoke callbacks until it is fully initialized, and this full initialization
 cannot occur until after the scheduler has initialized itself to the
@@ -2167,8 +2168,10 @@ on what operations those callbacks could invoke.
 Perhaps surprisingly, <tt>synchronize_rcu()</tt>,
 <a href="#Bottom-Half Flavor"><tt>synchronize_rcu_bh()</tt></a>
 (<a href="#Bottom-Half Flavor">discussed below</a>),
-and
-<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>
+<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>,
+<tt>synchronize_rcu_expedited()</tt>,
+<tt>synchronize_rcu_bh_expedited()</tt>, and
+<tt>synchronize_sched_expedited()</tt>
 will all operate normally
 during very early boot, the reason being that there is only one CPU
 and preemption is disabled.
@@ -2178,45 +2181,55 @@ state and thus a grace period, so the early-boot implementation can
 be a no-op.
 
 <p>
-Both <tt>synchronize_rcu_bh()</tt> and <tt>synchronize_sched()</tt>
-continue to operate normally through the remainder of boot, courtesy
-of the fact that preemption is disabled across their RCU read-side
-critical sections and also courtesy of the fact that there is still
-only one CPU.
-However, once the scheduler starts initializing, preemption is enabled.
-There is still only a single CPU, but the fact that preemption is enabled
-means that the no-op implementation of <tt>synchronize_rcu()</tt> no
-longer works in <tt>CONFIG_PREEMPT=y</tt> kernels.
-Therefore, as soon as the scheduler starts initializing, the early-boot
-fastpath is disabled.
-This means that <tt>synchronize_rcu()</tt> switches to its runtime
-mode of operation where it posts callbacks, which in turn means that
-any call to <tt>synchronize_rcu()</tt> will block until the corresponding
-callback is invoked.
-Unfortunately, the callback cannot be invoked until RCU's runtime
-grace-period machinery is up and running, which cannot happen until
-the scheduler has initialized itself sufficiently to allow RCU's
-kthreads to be spawned.
-Therefore, invoking <tt>synchronize_rcu()</tt> during scheduler
-initialization can result in deadlock.
+However, once the scheduler has spawned its first kthread, this early
+boot trick fails for <tt>synchronize_rcu()</tt> (as well as for
+<tt>synchronize_rcu_expedited()</tt>) in <tt>CONFIG_PREEMPT=y</tt>
+kernels.
+The reason is that an RCU read-side critical section might be preempted,
+which means that a subsequent <tt>synchronize_rcu()</tt> really does have
+to wait for something, as opposed to simply returning immediately.
+Unfortunately, <tt>synchronize_rcu()</tt> can't do this until all of
+its kthreads are spawned, which doesn't happen until some time during
+<tt>early_initcalls()</tt> time.
+But this is no excuse:  RCU is nevertheless required to correctly handle
+synchronous grace periods during this time period, which it currently does.
+Once all of its kthreads are up and running, RCU starts running
+normally.
 
 <table>
 <tr><th>&nbsp;</th></tr>
 <tr><th align="left">Quick Quiz:</th></tr>
 <tr><td>
-	So what happens with <tt>synchronize_rcu()</tt> during
-	scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
-	kernels?
+	How can RCU possibly handle grace periods before all of its
+	kthreads have been spawned???
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
-	In <tt>CONFIG_PREEMPT=n</tt> kernel, <tt>synchronize_rcu()</tt>
-	maps directly to <tt>synchronize_sched()</tt>.
-	Therefore, <tt>synchronize_rcu()</tt> works normally throughout
-	boot in <tt>CONFIG_PREEMPT=n</tt> kernels.
-	However, your code must also work in <tt>CONFIG_PREEMPT=y</tt> kernels,
-	so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
-	during scheduler initialization.
+	Very carefully!
+
+	<p>During the &ldquo;dead zone&rdquo; between the time that the
+	scheduler spawns the first task and the time that all of RCU's
+	kthreads have been spawned, all synchronous grace periods are
+	handled by the expedited grace-period mechanism.
+	At runtime, this expedited mechanism relies on workqueues, but
+	during the dead zone the requesting task itself drives the
+	desired expedited grace period.
+	Because dead-zone execution takes place within task context,
+	everything works.
+	Once the dead zone ends, expedited grace periods go back to
+	using workqueues, as is required to avoid problems that would
+	otherwise occur when a user task received a POSIX signal while
+	driving an expedited grace period.
+
+	<p>And yes, this does mean that it is unhelpful to send POSIX
+	signals to random tasks between the time that the scheduler
+	spawns its first kthread and the time that RCU's kthreads
+	have all been spawned.
+	If there ever turns out to be a good reason for sending POSIX
+	signals during that time, appropriate adjustments will be made.
+	(If it turns out that POSIX signals are sent during this time for
+	no good reason, other adjustments will be made, appropriate
+	or otherwise.)
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
