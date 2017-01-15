@@ -54,7 +54,7 @@ int sidtab_insert(struct sidtab *s, u32 sid, struct context *context)
 	}
 
 	newnode = kmalloc(sizeof(*newnode), GFP_ATOMIC);
-	if (newnode == NULL) {
+	if (!newnode) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -98,7 +98,7 @@ static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 	if (force && cur && sid == cur->sid && cur->context.len)
 		return &cur->context;
 
-	if (cur == NULL || sid != cur->sid || cur->context.len) {
+	if (!cur || sid != cur->sid || cur->context.len) {
 		/* Remap invalid SIDs to the unlabeled SID. */
 		sid = SECINITSID_UNLABELED;
 		hvalue = SIDTAB_HASH(sid);
