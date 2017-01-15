@@ -277,7 +277,7 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 		 * then we hope there will be less RPCs per bucket at some
 		 * point, and sequence will catch up again
 		 */
-		svcpt->scp_hist_seq += (1U << REQS_SEQ_SHIFT(svcpt));
+		svcpt->scp_hist_seq += (1ULL << REQS_SEQ_SHIFT(svcpt));
 		new_seq = svcpt->scp_hist_seq;
 	}
 
