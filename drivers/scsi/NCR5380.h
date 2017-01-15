@@ -166,11 +166,7 @@
 #define CSR_SCSI_BUF_RDY       0x02	/* ro  SCSI buffer read */
 #define CSR_GATED_53C80_IRQ    0x01	/* ro  Last block xferred */
 
-#if 0
-#define CSR_BASE CSR_SCSI_BUFF_INTR | CSR_53C80_INTR
-#else
 #define CSR_BASE CSR_53C80_INTR
-#endif
 
 /* Note : PHASE_* macros are based on the values of the STATUS register */
 #define PHASE_MASK 	(SR_MSG | SR_CD | SR_IO)
@@ -228,8 +224,6 @@ struct NCR5380_hostdata {
 	unsigned long region_size;		/* Size of address/port range */
 	char info[168];				/* Host banner message */
 };
-
-#ifdef __KERNEL__
 
 struct NCR5380_cmd {
 	struct list_head list;
@@ -323,5 +317,4 @@ static inline int NCR5380_dma_residual_none(struct NCR5380_hostdata *hostdata)
 	return 0;
 }
 
-#endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */

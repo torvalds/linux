@@ -56,9 +56,6 @@
 #define NCR5380_dma_send_setup          sun3scsi_dma_count
 #define NCR5380_dma_residual            sun3scsi_dma_residual
 
-#define NCR5380_acquire_dma_irq(instance)    (1)
-#define NCR5380_release_dma_irq(instance)
-
 #include "NCR5380.h"
 
 
