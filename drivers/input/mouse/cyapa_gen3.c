@@ -562,7 +562,7 @@ static int cyapa_gen3_bl_exit(struct cyapa *cyapa)
 	 * Wait for bootloader to exit, and operation mode to start.
 	 * Normally, this takes at least 50 ms.
 	 */
-	usleep_range(50000, 100000);
+	msleep(50);
 	/*
 	 * In addition, when a device boots for the first time after being
 	 * updated to new firmware, it must first calibrate its sensors, which
