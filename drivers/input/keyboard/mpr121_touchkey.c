@@ -59,7 +59,6 @@
 struct mpr121_touchkey {
 	struct i2c_client	*client;
 	struct input_dev	*input_dev;
-	unsigned int		key_val;
 	unsigned int		statusbits;
 	unsigned int		keycount;
 	u16			keycodes[MPR121_MAX_KEY_COUNT];
