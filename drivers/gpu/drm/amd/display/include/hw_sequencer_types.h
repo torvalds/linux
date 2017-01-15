@@ -40,27 +40,4 @@ struct drr_params {
 	uint32_t vertical_total_max;
 };
 
-/* TODO hw_info_frame and hw_info_packet structures are same as in encoder
- * merge it*/
-struct hw_info_packet {
-	bool valid;
-	uint8_t hb0;
-	uint8_t hb1;
-	uint8_t hb2;
-	uint8_t hb3;
-	uint8_t sb[32];
-};
-
-struct hw_info_frame {
-	/* Auxiliary Video Information */
-	struct hw_info_packet avi_info_packet;
-	struct hw_info_packet gamut_packet;
-	struct hw_info_packet vendor_info_packet;
-	/* Source Product Description */
-	struct hw_info_packet spd_packet;
-	/* Video Stream Configuration */
-	struct hw_info_packet vsc_packet;
-	struct hw_info_packet hdrsmd_packet;
-};
-
 #endif
