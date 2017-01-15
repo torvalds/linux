@@ -229,7 +229,7 @@ static void etnaviv_iommuv2_dump(struct iommu_domain *domain, void *buf)
 			memcpy(buf, etnaviv_domain->stlb_cpu[i], SZ_4K);
 }
 
-static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
+static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.ops = {
 		.domain_free = etnaviv_iommuv2_domain_free,
 		.map = etnaviv_iommuv2_map,
