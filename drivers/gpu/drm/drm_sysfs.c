@@ -229,16 +229,47 @@ static ssize_t modes_show(struct device *device,
 	return written;
 }
 
+static ssize_t mode_show(struct device *device,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_display_mode *mode;
+	struct drm_crtc_state *crtc_state;
+	bool interlaced;
+	int written = 0;
+
+	if (!connector->state || !connector->state->crtc)
+		return written;
+
+	crtc_state = connector->state->crtc->state;
+	if (!crtc_state)
+		return written;
+
+	mode = &crtc_state->mode;
+
+	interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+	written += snprintf(buf + written, PAGE_SIZE - written,
+			    "%dx%d%s%d\n",
+			    mode->hdisplay, mode->vdisplay,
+			    interlaced ? "i" : "p",
+			    drm_mode_vrefresh(mode));
+
+	return written;
+}
+
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
+static DEVICE_ATTR_RO(mode);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_dpms.attr,
 	&dev_attr_modes.attr,
+	&dev_attr_mode.attr,
 	NULL
 };
 
