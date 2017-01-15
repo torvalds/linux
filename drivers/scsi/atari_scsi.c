@@ -682,7 +682,8 @@ static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 	if (IS_A_TT()) {
 		tt_scsi_dma.dma_ctrl = 0;
 	} else {
-		st_dma.dma_mode_status = 0x90;
+		if (stdma_is_locked_by(scsi_falcon_intr))
+			st_dma.dma_mode_status = 0x90;
 		atari_dma_active = 0;
 		atari_dma_orig_addr = NULL;
 	}
