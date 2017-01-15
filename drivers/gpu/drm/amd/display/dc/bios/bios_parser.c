@@ -545,80 +545,6 @@ static enum bp_result bios_parser_get_hpd_info(struct dc_bios *dcb,
 	return BP_RESULT_NORECORD;
 }
 
-static uint32_t bios_parser_get_gpio_record(
-	struct dc_bios *dcb,
-	struct graphics_object_id id,
-	struct bp_gpio_cntl_info *gpio_record,
-	uint32_t record_size)
-{
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	ATOM_COMMON_RECORD_HEADER *header = NULL;
-	ATOM_OBJECT_GPIO_CNTL_RECORD *record = NULL;
-	ATOM_OBJECT *object = get_bios_object(bp, id);
-	uint32_t offset;
-	uint32_t pins_number;
-	uint32_t i;
-
-	if (!object)
-		return 0;
-
-	/* Initialise offset */
-	offset = le16_to_cpu(object->usRecordOffset)
-			+ bp->object_info_tbl_offset;
-
-	for (;;) {
-		/* Get record header */
-		header = GET_IMAGE(ATOM_COMMON_RECORD_HEADER, offset);
-		if (!header || header->ucRecordType == LAST_RECORD_TYPE ||
-			!header->ucRecordSize)
-			break;
-
-		/* If this is gpio control record - stop. We found the record */
-		if (header->ucRecordType == ATOM_OBJECT_GPIO_CNTL_RECORD_TYPE
-			&& header->ucRecordSize
-				>= sizeof(ATOM_OBJECT_GPIO_CNTL_RECORD)) {
-			record = (ATOM_OBJECT_GPIO_CNTL_RECORD *) header;
-			break;
-		}
-
-		/* Advance to next record */
-		offset += header->ucRecordSize;
-	}
-
-	/* If we did not find a record - return */
-	if (!record)
-		return 0;
-
-	/* Extract gpio IDs from bios record (make sure we do not exceed passed
-	 *  array size) */
-	pins_number = (record->ucNumberOfPins < record_size ?
-			record->ucNumberOfPins : record_size);
-	for (i = 0; i < pins_number; i++) {
-		uint8_t output_state = ((record->asGpio[i].ucGPIO_PinState
-			& GPIO_PIN_OUTPUT_STATE_MASK)
-			>> GPIO_PIN_OUTPUT_STATE_SHIFT);
-		gpio_record[i].id = record->asGpio[i].ucGPIOID;
-
-		switch (output_state) {
-		case GPIO_PIN_STATE_ACTIVE_LOW:
-			gpio_record[i].state =
-				GPIO_PIN_OUTPUT_STATE_ACTIVE_LOW;
-			break;
-
-		case GPIO_PIN_STATE_ACTIVE_HIGH:
-			gpio_record[i].state =
-				GPIO_PIN_OUTPUT_STATE_ACTIVE_HIGH;
-			break;
-
-		default:
-			BREAK_TO_DEBUGGER(); /* Invalid Pin Output State */
-			break;
-		}
-	}
-
-	return pins_number;
-}
-
 enum bp_result bios_parser_get_device_tag_record(
 	struct bios_parser *bp,
 	ATOM_OBJECT *object,
@@ -4063,8 +3989,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_connector_id = bios_parser_get_connector_id,
 
 	.get_dst_number = bios_parser_get_dst_number,
-
-	.get_gpio_record = bios_parser_get_gpio_record,
 
 	.get_src_obj = bios_parser_get_src_obj,
 

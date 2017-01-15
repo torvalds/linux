@@ -51,12 +51,6 @@ struct dc_vbios_funcs {
 		struct dc_bios *bios,
 		struct graphics_object_id id);
 
-	uint32_t (*get_gpio_record)(
-		struct dc_bios *dcb,
-		struct graphics_object_id id,
-		struct bp_gpio_cntl_info *gpio_record,
-		uint32_t record_size);
-
 	enum bp_result (*get_src_obj)(
 		struct dc_bios *bios,
 		struct graphics_object_id object_id, uint32_t index,

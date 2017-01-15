@@ -156,13 +156,6 @@ struct bp_transmitter_control {
 	bool single_pll_mode;
 };
 
-struct bp_blank_crtc_parameters {
-	enum controller_id controller_id;
-	uint32_t black_color_rcr;
-	uint32_t black_color_gy;
-	uint32_t black_color_bcb;
-};
-
 struct bp_hw_crtc_timing_parameters {
 	enum controller_id controller_id;
 	/* horizontal part */
@@ -252,14 +245,6 @@ struct bp_pixel_clock_parameters {
 	} flags;
 };
 
-struct bp_display_clock_parameters {
-	uint32_t target_display_clock; /* KHz */
-	/* Actual Display Clock set due to clock divider granularity KHz */
-	uint32_t actual_display_clock;
-	/* Actual Post Divider ID used to generate the actual clock */
-	uint32_t actual_post_divider_id;
-};
-
 enum bp_dce_clock_type {
 	DCECLOCK_TYPE_DISPLAY_CLOCK = 0,
 	DCECLOCK_TYPE_DPREFCLK      = 1
@@ -320,11 +305,6 @@ struct bp_encoder_cap_info {
 	uint32_t DP_HBR3_EN:1;
 	uint32_t HDMI_6GB_EN:1;
 	uint32_t RESERVED:30;
-};
-
-struct bp_gpio_cntl_info {
-	uint32_t id;
-	enum gpio_pin_output_state state;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */
