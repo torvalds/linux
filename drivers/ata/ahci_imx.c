@@ -774,7 +774,8 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (imxpriv->type == AHCI_IMX53) {
+	if (imxpriv->type == AHCI_IMX53 &&
+	    IS_ENABLED(CONFIG_HWMON)) {
 		/* Add the temperature monitor */
 		struct device *hwmon_dev;
 
