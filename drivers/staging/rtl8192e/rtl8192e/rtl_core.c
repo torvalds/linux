@@ -2797,9 +2797,9 @@ MODULE_FIRMWARE(RTL8192E_BOOT_IMG_FW);
 MODULE_FIRMWARE(RTL8192E_MAIN_IMG_FW);
 MODULE_FIRMWARE(RTL8192E_DATA_IMG_FW);
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR);
-module_param(hwwep, int, S_IRUGO|S_IWUSR);
-module_param(channels, int, S_IRUGO|S_IWUSR);
+module_param(ifname, charp, 0644);
+module_param(hwwep, int, 0644);
+module_param(channels, int, 0644);
 
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support(default use hw. set 0 to use software security)");
