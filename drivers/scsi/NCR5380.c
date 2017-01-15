@@ -1165,8 +1165,16 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	data = tmp;
 	phase = PHASE_MSGOUT;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
+	if (len) {
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		cmd->result = DID_ERROR << 16;
+		complete_cmd(instance, cmd);
+		dsprintk(NDEBUG_SELECTION, instance, "IDENTIFY message transfer failed\n");
+		cmd = NULL;
+		goto out;
+	}
+
 	dsprintk(NDEBUG_SELECTION, instance, "nexus established.\n");
-	/* XXX need to handle errors here */
 
 	hostdata->connected = cmd;
 	hostdata->busy[cmd->device->id] |= 1 << cmd->device->lun;
