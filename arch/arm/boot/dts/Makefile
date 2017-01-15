@@ -83,6 +83,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47081-asus-rt-n18u.dtb \
 	bcm47081-buffalo-wzr-600dhp2.dtb \
 	bcm47081-buffalo-wzr-900dhp.dtb \
+	bcm47081-luxul-xap-1410.dtb \
 	bcm4709-asus-rt-ac87u.dtb \
 	bcm4709-buffalo-wxr-1900dhp.dtb \
 	bcm4709-netgear-r7000.dtb \
