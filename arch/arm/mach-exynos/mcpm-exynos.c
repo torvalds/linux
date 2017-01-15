@@ -221,7 +221,7 @@ static void exynos_mcpm_setup_entry_point(void)
 	 */
 	__raw_writel(0xe59f0000, ns_sram_base_addr);     /* ldr r0, [pc, #0] */
 	__raw_writel(0xe12fff10, ns_sram_base_addr + 4); /* bx  r0 */
-	__raw_writel(virt_to_phys(mcpm_entry_point), ns_sram_base_addr + 8);
+	__raw_writel(__pa_symbol(mcpm_entry_point), ns_sram_base_addr + 8);
 }
 
 static struct syscore_ops exynos_mcpm_syscore_ops = {

@@ -54,7 +54,7 @@ static void wakeup_secondary(void)
 	 * backup ram register at offset 0x1FF0, which is what boot rom code
 	 * is waiting for. This will wake up the secondary core from WFE.
 	 */
-	writel(virt_to_phys(secondary_startup),
+	writel(__pa_symbol(secondary_startup),
 	       backupram + UX500_CPU1_JUMPADDR_OFFSET);
 	writel(0xA1FEED01,
 	       backupram + UX500_CPU1_WAKEMAGIC_OFFSET);

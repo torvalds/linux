@@ -117,7 +117,7 @@ static void __init spear13xx_smp_prepare_cpus(unsigned int max_cpus)
 	 * (presently it is in SRAM). The BootMonitor waits until it receives a
 	 * soft interrupt, and then the secondary CPU branches to this address.
 	 */
-	__raw_writel(virt_to_phys(spear13xx_secondary_startup), SYS_LOCATION);
+	__raw_writel(__pa_symbol(spear13xx_secondary_startup), SYS_LOCATION);
 }
 
 const struct smp_operations spear13xx_smp_ops __initconst = {

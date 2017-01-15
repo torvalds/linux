@@ -344,7 +344,7 @@ static void exynos_pm_prepare(void)
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
-	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
+	pmu_raw_writel(__pa_symbol(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos3250_pm_prepare(void)
@@ -361,7 +361,7 @@ static void exynos3250_pm_prepare(void)
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
-	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
+	pmu_raw_writel(__pa_symbol(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos5420_pm_prepare(void)
@@ -386,7 +386,7 @@ static void exynos5420_pm_prepare(void)
 
 	/* ensure at least INFORM0 has the resume address */
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM))
-		pmu_raw_writel(virt_to_phys(mcpm_entry_point), S5P_INFORM0);
+		pmu_raw_writel(__pa_symbol(mcpm_entry_point), S5P_INFORM0);
 
 	tmp = pmu_raw_readl(EXYNOS5_ARM_L2_OPTION);
 	tmp &= ~EXYNOS5_USE_RETENTION;

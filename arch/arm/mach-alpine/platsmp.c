@@ -27,7 +27,7 @@ static int alpine_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t addr;
 
-	addr = virt_to_phys(secondary_startup);
+	addr = __pa_symbol(secondary_startup);
 
 	if (addr > (phys_addr_t)(uint32_t)(-1)) {
 		pr_err("FAIL: resume address over 32bit (%pa)", &addr);
