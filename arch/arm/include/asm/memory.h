@@ -111,6 +111,13 @@
 
 #endif /* !CONFIG_MMU */
 
+#ifdef CONFIG_XIP_KERNEL
+#define KERNEL_START		_sdata
+#else
+#define KERNEL_START		_stext
+#endif
+#define KERNEL_END		_end
+
 /*
  * We fix the TCM memories max 32 KiB ITCM resp DTCM at these
  * locations
