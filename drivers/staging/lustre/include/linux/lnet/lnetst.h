@@ -341,7 +341,7 @@ struct lstio_group_list_args {
 	char __user *lstio_grp_namep;	/* OUT: name */
 };
 
-typedef struct {
+struct lstio_group_info_args {
 	int			 lstio_grp_key;		/* IN: session key */
 	int			 lstio_grp_nmlen;	/* IN: name len */
 	char __user		*lstio_grp_namep;	/* IN: name */
@@ -350,7 +350,7 @@ typedef struct {
 	int __user		*lstio_grp_idxp;	/* IN/OUT: node index */
 	int __user		*lstio_grp_ndentp;	/* IN/OUT: # of nodent */
 	struct lstcon_node_ent __user *lstio_grp_dentsp;/* OUT: nodent array */
-} lstio_group_info_args_t;
+};
 
 #define LST_DEFAULT_BATCH	"batch"			/* default batch name */
 

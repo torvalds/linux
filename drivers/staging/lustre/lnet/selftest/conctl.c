@@ -375,7 +375,7 @@ lst_group_list_ioctl(struct lstio_group_list_args *args)
 }
 
 static int
-lst_group_info_ioctl(lstio_group_info_args_t *args)
+lst_group_info_ioctl(struct lstio_group_info_args *args)
 {
 	char *name;
 	int ndent;
@@ -882,7 +882,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_group_list_ioctl((struct lstio_group_list_args *)buf);
 		break;
 	case LSTIO_GROUP_INFO:
-		rc = lst_group_info_ioctl((lstio_group_info_args_t *)buf);
+		rc = lst_group_info_ioctl((struct lstio_group_info_args *)buf);
 		break;
 	case LSTIO_BATCH_ADD:
 		rc = lst_batch_add_ioctl((lstio_batch_add_args_t *)buf);
