@@ -29,7 +29,14 @@
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 
+#define K_ABI_MASK 0x3ff
 #define FORCE_COMPLAIN_FLAG 0x800
+#define VERSION_LT(X, Y) (((X) & K_ABI_MASK) < ((Y) & K_ABI_MASK))
+#define VERSION_GT(X, Y) (((X) & K_ABI_MASK) > ((Y) & K_ABI_MASK))
+
+#define v5	5	/* base version */
+#define v6	6	/* per entry policydb mediation check */
+#define v7	7	/* full network masking */
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
@@ -646,19 +653,21 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	/* get the interface version */
 	if (!unpack_u32(e, &e->version, "version")) {
 		if (required) {
-			audit_iface(NULL, NULL, "invalid profile format", e,
-				    error);
-			return error;
-		}
-
-		/* check that the interface version is currently supported */
-		if (e->version != 5) {
-			audit_iface(NULL, NULL, "unsupported interface version",
+			audit_iface(NULL, NULL, "invalid profile format",
 				    e, error);
 			return error;
 		}
 	}
 
+	/* Check that the interface version is currently supported.
+	 * if not specified use previous version
+	 * Mask off everything that is not kernel abi version
+	 */
+	if (VERSION_LT(e->version, v5) && VERSION_GT(e->version, v7)) {
+		audit_iface(NULL, NULL, "unsupported interface version",
+			    e, error);
+		return error;
+	}
 
 	/* read the namespace if present */
 	if (unpack_str(e, &name, "namespace")) {
