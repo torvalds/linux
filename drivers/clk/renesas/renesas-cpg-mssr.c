@@ -346,17 +346,10 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
 	for (i = 0; i < info->num_crit_mod_clks; i++)
 		if (id == info->crit_mod_clks[i]) {
-#ifdef CLK_ENABLE_HAND_OFF
-			dev_dbg(dev, "MSTP %s setting CLK_ENABLE_HAND_OFF\n",
+			dev_dbg(dev, "MSTP %s setting CLK_IS_CRITICAL\n",
 				mod->name);
-			init.flags |= CLK_ENABLE_HAND_OFF;
+			init.flags |= CLK_IS_CRITICAL;
 			break;
-#else
-			dev_dbg(dev, "Ignoring MSTP %s to prevent disabling\n",
-				mod->name);
-			kfree(clock);
-			return;
-#endif
 		}
 
 	parent_name = __clk_get_name(parent);
