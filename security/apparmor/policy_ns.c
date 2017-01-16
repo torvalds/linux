@@ -204,6 +204,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 		return ERR_PTR(error);
 	}
 	ns->parent = aa_get_ns(parent);
+	ns->level = parent->level + 1;
 	list_add_rcu(&ns->base.list, &parent->sub_ns);
 	/* add list ref */
 	aa_get_ns(ns);
