@@ -275,6 +275,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 		return ERR_PTR(-ENOMEM);
 
 	state->crtcs[index].state = crtc_state;
+	state->crtcs[index].old_state = crtc->state;
+	state->crtcs[index].new_state = crtc_state;
 	state->crtcs[index].ptr = crtc;
 	crtc_state->state = state;
 
@@ -689,6 +691,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 
 	state->planes[index].state = plane_state;
 	state->planes[index].ptr = plane;
+	state->planes[index].old_state = plane->state;
+	state->planes[index].new_state = plane_state;
 	plane_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [PLANE:%d:%s] %p state to %p\n",
@@ -1028,6 +1032,8 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 
 	drm_connector_reference(connector);
 	state->connectors[index].state = connector_state;
+	state->connectors[index].old_state = connector->state;
+	state->connectors[index].new_state = connector_state;
 	state->connectors[index].ptr = connector;
 	connector_state->state = state;
 

@@ -1977,11 +1977,11 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 	int i;
 	long ret;
 	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
+	struct drm_connector_state *conn_state, *old_conn_state;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *crtc_state, *old_crtc_state;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *plane_state, *old_plane_state;
 	struct drm_crtc_commit *commit;
 
 	if (stall) {
@@ -2005,13 +2005,17 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		}
 	}
 
-	for_each_connector_in_state(state, connector, conn_state, i) {
+	for_each_oldnew_connector_in_state(state, connector, old_conn_state, conn_state, i) {
+		WARN_ON(connector->state != old_conn_state);
+
 		connector->state->state = state;
 		swap(state->connectors[i].state, connector->state);
 		connector->state->state = NULL;
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
+		WARN_ON(crtc->state != old_crtc_state);
+
 		crtc->state->state = state;
 		swap(state->crtcs[i].state, crtc->state);
 		crtc->state->state = NULL;
@@ -2026,7 +2030,9 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		}
 	}
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, plane_state, i) {
+		WARN_ON(plane->state != old_plane_state);
+
 		plane->state->state = state;
 		swap(state->planes[i].state, plane->state);
 		plane->state->state = NULL;
@@ -2477,7 +2483,7 @@ EXPORT_SYMBOL(drm_atomic_helper_disable_all);
  *
  * See also:
  * drm_atomic_helper_duplicate_state(), drm_atomic_helper_disable_all(),
- * drm_atomic_helper_resume()
+ * drm_atomic_helper_resume(), drm_atomic_helper_commit_duplicated_state()
  */
 struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev)
 {
@@ -2518,6 +2524,47 @@ unlock:
 EXPORT_SYMBOL(drm_atomic_helper_suspend);
 
 /**
+ * drm_atomic_helper_commit_duplicated_state - commit duplicated state
+ * @state: duplicated atomic state to commit
+ * @ctx: pointer to acquire_ctx to use for commit.
+ *
+ * The state returned by drm_atomic_helper_duplicate_state() and
+ * drm_atomic_helper_suspend() is partially invalid, and needs to
+ * be fixed up before commit.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ *
+ * See also:
+ * drm_atomic_helper_suspend()
+ */
+int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
+					      struct drm_modeset_acquire_ctx *ctx)
+{
+	int i;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+
+	state->acquire_ctx = ctx;
+
+	for_each_new_plane_in_state(state, plane, plane_state, i)
+		state->planes[i].old_state = plane->state;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
+		state->crtcs[i].old_state = crtc->state;
+
+	for_each_new_connector_in_state(state, connector, conn_state, i)
+		state->connectors[i].old_state = connector->state;
+
+	return drm_atomic_commit(state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_commit_duplicated_state);
+
+/**
  * drm_atomic_helper_resume - subsystem-level resume helper
  * @dev: DRM device
  * @state: atomic state to resume to
@@ -2540,9 +2587,9 @@ int drm_atomic_helper_resume(struct drm_device *dev,
 	int err;
 
 	drm_mode_config_reset(dev);
+
 	drm_modeset_lock_all(dev);
-	state->acquire_ctx = config->acquire_ctx;
-	err = drm_atomic_commit(state);
+	err = drm_atomic_helper_commit_duplicated_state(state, config->acquire_ctx);
 	drm_modeset_unlock_all(dev);
 
 	return err;
