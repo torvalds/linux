@@ -434,10 +434,10 @@ struct lstio_stat_args {
 								result buffer */
 };
 
-typedef enum {
+enum lst_test_type {
 	LST_TEST_BULK	= 1,
 	LST_TEST_PING	= 2
-} lst_test_type_t;
+};
 
 /* create a test in a batch */
 #define LST_MAX_CONCUR	1024	/* Max concurrency of test */
