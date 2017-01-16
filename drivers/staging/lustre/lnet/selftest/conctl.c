@@ -109,7 +109,7 @@ lst_session_info_ioctl(struct lstio_session_info_args *args)
 }
 
 static int
-lst_debug_ioctl(lstio_debug_args_t *args)
+lst_debug_ioctl(struct lstio_debug_args *args)
 {
 	char *name = NULL;
 	int client = 1;
@@ -864,7 +864,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_session_info_ioctl((struct lstio_session_info_args *)buf);
 		break;
 	case LSTIO_DEBUG:
-		rc = lst_debug_ioctl((lstio_debug_args_t *)buf);
+		rc = lst_debug_ioctl((struct lstio_debug_args *)buf);
 		break;
 	case LSTIO_GROUP_ADD:
 		rc = lst_group_add_ioctl((lstio_group_add_args_t *)buf);

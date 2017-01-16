@@ -272,7 +272,7 @@ struct lstio_session_end_args {
 #define LST_OPC_BATCHCLI	4
 #define LST_OPC_BATCHSRV	5
 
-typedef struct {
+struct lstio_debug_args {
 	int			 lstio_dbg_key;		/* IN: session key */
 	int			 lstio_dbg_type;	/* IN: debug
 								session|batch|
@@ -291,7 +291,7 @@ typedef struct {
 							       nodes */
 	struct list_head __user	*lstio_dbg_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_debug_args_t;
+};
 
 typedef struct {
 	int		 lstio_grp_key;		/* IN: session key */
