@@ -478,9 +478,9 @@ fail2:
 	return error;
 }
 
-void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
+void __aa_fs_ns_rmdir(struct aa_ns *ns)
 {
-	struct aa_namespace *sub;
+	struct aa_ns *sub;
 	struct aa_profile *child;
 	int i;
 
@@ -492,7 +492,7 @@ void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
 
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
-		__aa_fs_namespace_rmdir(sub);
+		__aa_fs_ns_rmdir(sub);
 		mutex_unlock(&sub->lock);
 	}
 
@@ -502,10 +502,9 @@ void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
 	}
 }
 
-int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
-			    const char *name)
+int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
 {
-	struct aa_namespace *sub;
+	struct aa_ns *sub;
 	struct aa_profile *child;
 	struct dentry *dent, *dir;
 	int error;
@@ -536,7 +535,7 @@ int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
 
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
-		error = __aa_fs_namespace_mkdir(sub, ns_subns_dir(ns), NULL);
+		error = __aa_fs_ns_mkdir(sub, ns_subns_dir(ns), NULL);
 		mutex_unlock(&sub->lock);
 		if (error)
 			goto fail2;
@@ -548,7 +547,7 @@ fail:
 	error = PTR_ERR(dent);
 
 fail2:
-	__aa_fs_namespace_rmdir(ns);
+	__aa_fs_ns_rmdir(ns);
 
 	return error;
 }
@@ -557,7 +556,7 @@ fail2:
 #define list_entry_is_head(pos, head, member) (&pos->member == (head))
 
 /**
- * __next_namespace - find the next namespace to list
+ * __next_ns - find the next namespace to list
  * @root: root namespace to stop search at (NOT NULL)
  * @ns: current ns position (NOT NULL)
  *
@@ -568,10 +567,9 @@ fail2:
  * Requires: ns->parent->lock to be held
  * NOTE: will not unlock root->lock
  */
-static struct aa_namespace *__next_namespace(struct aa_namespace *root,
-					     struct aa_namespace *ns)
+static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 {
-	struct aa_namespace *parent, *next;
+	struct aa_ns *parent, *next;
 
 	/* is next namespace a child */
 	if (!list_empty(&ns->sub_ns)) {
@@ -604,10 +602,10 @@ static struct aa_namespace *__next_namespace(struct aa_namespace *root,
  * Returns: unrefcounted profile or NULL if no profile
  * Requires: profile->ns.lock to be held
  */
-static struct aa_profile *__first_profile(struct aa_namespace *root,
-					  struct aa_namespace *ns)
+static struct aa_profile *__first_profile(struct aa_ns *root,
+					  struct aa_ns *ns)
 {
-	for (; ns; ns = __next_namespace(root, ns)) {
+	for (; ns; ns = __next_ns(root, ns)) {
 		if (!list_empty(&ns->base.profiles))
 			return list_first_entry(&ns->base.profiles,
 						struct aa_profile, base.list);
@@ -627,7 +625,7 @@ static struct aa_profile *__first_profile(struct aa_namespace *root,
 static struct aa_profile *__next_profile(struct aa_profile *p)
 {
 	struct aa_profile *parent;
-	struct aa_namespace *ns = p->ns;
+	struct aa_ns *ns = p->ns;
 
 	/* is next profile a child */
 	if (!list_empty(&p->base.profiles))
@@ -661,7 +659,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
  *
  * Returns: next profile or NULL if there isn't one
  */
-static struct aa_profile *next_profile(struct aa_namespace *root,
+static struct aa_profile *next_profile(struct aa_ns *root,
 				       struct aa_profile *profile)
 {
 	struct aa_profile *next = __next_profile(profile);
@@ -669,7 +667,7 @@ static struct aa_profile *next_profile(struct aa_namespace *root,
 		return next;
 
 	/* finished all profiles in namespace move to next namespace */
-	return __first_profile(root, __next_namespace(root, profile->ns));
+	return __first_profile(root, __next_ns(root, profile->ns));
 }
 
 /**
@@ -684,9 +682,9 @@ static struct aa_profile *next_profile(struct aa_namespace *root,
 static void *p_start(struct seq_file *f, loff_t *pos)
 {
 	struct aa_profile *profile = NULL;
-	struct aa_namespace *root = aa_current_profile()->ns;
+	struct aa_ns *root = aa_current_profile()->ns;
 	loff_t l = *pos;
-	f->private = aa_get_namespace(root);
+	f->private = aa_get_ns(root);
 
 
 	/* find the first profile */
@@ -713,7 +711,7 @@ static void *p_start(struct seq_file *f, loff_t *pos)
 static void *p_next(struct seq_file *f, void *p, loff_t *pos)
 {
 	struct aa_profile *profile = p;
-	struct aa_namespace *ns = f->private;
+	struct aa_ns *ns = f->private;
 	(*pos)++;
 
 	return next_profile(ns, profile);
@@ -729,14 +727,14 @@ static void *p_next(struct seq_file *f, void *p, loff_t *pos)
 static void p_stop(struct seq_file *f, void *p)
 {
 	struct aa_profile *profile = p;
-	struct aa_namespace *root = f->private, *ns;
+	struct aa_ns *root = f->private, *ns;
 
 	if (profile) {
 		for (ns = profile->ns; ns && ns != root; ns = ns->parent)
 			mutex_unlock(&ns->lock);
 	}
 	mutex_unlock(&root->lock);
-	aa_put_namespace(root);
+	aa_put_ns(root);
 }
 
 /**
@@ -749,7 +747,7 @@ static void p_stop(struct seq_file *f, void *p)
 static int seq_show_profile(struct seq_file *f, void *p)
 {
 	struct aa_profile *profile = (struct aa_profile *)p;
-	struct aa_namespace *root = f->private;
+	struct aa_ns *root = f->private;
 
 	if (profile->ns != root)
 		seq_printf(f, ":%s://", aa_ns_name(root, profile->ns));
@@ -951,8 +949,7 @@ static int __init aa_create_aafs(void)
 	if (error)
 		goto error;
 
-	error = __aa_fs_namespace_mkdir(root_ns, aa_fs_entry.dentry,
-					"policy");
+	error = __aa_fs_ns_mkdir(root_ns, aa_fs_entry.dentry, "policy");
 	if (error)
 		goto error;
 

@@ -94,7 +94,7 @@ out:
  * Returns: permission set
  */
 static struct file_perms change_profile_perms(struct aa_profile *profile,
-					      struct aa_namespace *ns,
+					      struct aa_ns *ns,
 					      const char *name, u32 request,
 					      unsigned int start)
 {
@@ -171,7 +171,7 @@ static struct aa_profile *__attach_match(const char *name,
  *
  * Returns: profile or NULL if no match found
  */
-static struct aa_profile *find_attach(struct aa_namespace *ns,
+static struct aa_profile *find_attach(struct aa_ns *ns,
 				      struct list_head *list, const char *name)
 {
 	struct aa_profile *profile;
@@ -240,7 +240,7 @@ static const char *next_name(int xtype, const char *name)
 static struct aa_profile *x_table_lookup(struct aa_profile *profile, u32 xindex)
 {
 	struct aa_profile *new_profile = NULL;
-	struct aa_namespace *ns = profile->ns;
+	struct aa_ns *ns = profile->ns;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
 	int index = xindex & AA_X_INDEX_MASK;
 	const char *name;
@@ -248,7 +248,7 @@ static struct aa_profile *x_table_lookup(struct aa_profile *profile, u32 xindex)
 	/* index is guaranteed to be in range, validated at load time */
 	for (name = profile->file.trans.table[index]; !new_profile && name;
 	     name = next_name(xtype, name)) {
-		struct aa_namespace *new_ns;
+		struct aa_ns *new_ns;
 		const char *xname = NULL;
 
 		new_ns = NULL;
@@ -268,7 +268,7 @@ static struct aa_profile *x_table_lookup(struct aa_profile *profile, u32 xindex)
 				;
 			}
 			/* released below */
-			new_ns = aa_find_namespace(ns, ns_name);
+			new_ns = aa_find_ns(ns, ns_name);
 			if (!new_ns)
 				continue;
 		} else if (*name == '@') {
@@ -281,7 +281,7 @@ static struct aa_profile *x_table_lookup(struct aa_profile *profile, u32 xindex)
 
 		/* released by caller */
 		new_profile = aa_lookup_profile(new_ns ? new_ns : ns, xname);
-		aa_put_namespace(new_ns);
+		aa_put_ns(new_ns);
 	}
 
 	/* released by caller */
@@ -302,7 +302,7 @@ static struct aa_profile *x_to_profile(struct aa_profile *profile,
 				       const char *name, u32 xindex)
 {
 	struct aa_profile *new_profile = NULL;
-	struct aa_namespace *ns = profile->ns;
+	struct aa_ns *ns = profile->ns;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
 
 	switch (xtype) {
@@ -339,7 +339,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 {
 	struct aa_task_cxt *cxt;
 	struct aa_profile *profile, *new_profile = NULL;
-	struct aa_namespace *ns;
+	struct aa_ns *ns;
 	char *buffer = NULL;
 	unsigned int state;
 	struct file_perms perms = {};
@@ -746,7 +746,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 {
 	const struct cred *cred;
 	struct aa_profile *profile, *target = NULL;
-	struct aa_namespace *ns = NULL;
+	struct aa_ns *ns = NULL;
 	struct file_perms perms = {};
 	const char *name = NULL, *info = NULL;
 	int op, error = 0;
@@ -780,7 +780,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 
 	if (ns_name) {
 		/* released below */
-		ns = aa_find_namespace(profile->ns, ns_name);
+		ns = aa_find_ns(profile->ns, ns_name);
 		if (!ns) {
 			/* we don't create new namespace in complain mode */
 			name = ns_name;
@@ -790,7 +790,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 		}
 	} else
 		/* released below */
-		ns = aa_get_namespace(profile->ns);
+		ns = aa_get_ns(profile->ns);
 
 	/* if the name was not specified, use the name of the current profile */
 	if (!hname) {
@@ -843,7 +843,7 @@ audit:
 		error = aa_audit_file(profile, &perms, GFP_KERNEL, op, request,
 				      name, hname, GLOBAL_ROOT_UID, info, error);
 
-	aa_put_namespace(ns);
+	aa_put_ns(ns);
 	aa_put_profile(target);
 	put_cred(cred);
 

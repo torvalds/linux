@@ -62,7 +62,7 @@ extern const struct file_operations aa_fs_seq_file_ops;
 extern void __init aa_destroy_aafs(void);
 
 struct aa_profile;
-struct aa_namespace;
+struct aa_ns;
 
 enum aafs_ns_type {
 	AAFS_NS_DIR,
@@ -97,8 +97,8 @@ void __aa_fs_profile_rmdir(struct aa_profile *profile);
 void __aa_fs_profile_migrate_dents(struct aa_profile *old,
 				   struct aa_profile *new);
 int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent);
-void __aa_fs_namespace_rmdir(struct aa_namespace *ns);
-int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
-			    const char *name);
+void __aa_fs_ns_rmdir(struct aa_ns *ns);
+int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent,
+		     const char *name);
 
 #endif /* __AA_APPARMORFS_H */

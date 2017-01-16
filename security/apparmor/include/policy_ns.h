@@ -35,7 +35,7 @@ struct aa_ns_acct {
 	int count;
 };
 
-/* struct aa_namespace - namespace for a set of profiles
+/* struct aa_ns - namespace for a set of profiles
  * @base: common policy
  * @parent: parent of namespace
  * @lock: lock for modifying the object
@@ -46,9 +46,9 @@ struct aa_ns_acct {
  * @uniq_id: a unique id count for the profiles in the namespace
  * @dents: dentries for the namespaces file entries in apparmorfs
  *
- * An aa_namespace defines the set profiles that are searched to determine
+ * An aa_ns defines the set profiles that are searched to determine
  * which profile to attach to a task.  Profiles can not be shared between
- * aa_namespaces and profile names within a namespace are guaranteed to be
+ * aa_nss and profile names within a namespace are guaranteed to be
  * unique.  When profiles in separate namespaces have the same name they
  * are NOT considered to be equivalent.
  *
@@ -57,9 +57,9 @@ struct aa_ns_acct {
  *
  * Namespace names must be unique and can not contain the characters :/\0
  */
-struct aa_namespace {
+struct aa_ns {
 	struct aa_policy base;
-	struct aa_namespace *parent;
+	struct aa_ns *parent;
 	struct mutex lock;
 	struct aa_ns_acct acct;
 	struct aa_profile *unconfined;
@@ -70,21 +70,20 @@ struct aa_namespace {
 	struct dentry *dents[AAFS_NS_SIZEOF];
 };
 
-extern struct aa_namespace *root_ns;
+extern struct aa_ns *root_ns;
 
 extern const char *aa_hidden_ns_name;
 
-bool aa_ns_visible(struct aa_namespace *curr, struct aa_namespace *view);
-const char *aa_ns_name(struct aa_namespace *parent, struct aa_namespace *child);
-void aa_free_namespace(struct aa_namespace *ns);
+bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view);
+const char *aa_ns_name(struct aa_ns *parent, struct aa_ns *child);
+void aa_free_ns(struct aa_ns *ns);
 int aa_alloc_root_ns(void);
 void aa_free_root_ns(void);
-void aa_free_namespace_kref(struct kref *kref);
+void aa_free_ns_kref(struct kref *kref);
 
-struct aa_namespace *aa_find_namespace(struct aa_namespace *root,
-				       const char *name);
-struct aa_namespace *aa_prepare_namespace(const char *name);
-void __aa_remove_namespace(struct aa_namespace *ns);
+struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name);
+struct aa_ns *aa_prepare_ns(const char *name);
+void __aa_remove_ns(struct aa_ns *ns);
 
 static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
 {
@@ -93,13 +92,13 @@ static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
 }
 
 /**
- * aa_get_namespace - increment references count on @ns
+ * aa_get_ns - increment references count on @ns
  * @ns: namespace to increment reference count of (MAYBE NULL)
  *
  * Returns: pointer to @ns, if @ns is NULL returns NULL
  * Requires: @ns must be held with valid refcount when called
  */
-static inline struct aa_namespace *aa_get_namespace(struct aa_namespace *ns)
+static inline struct aa_ns *aa_get_ns(struct aa_ns *ns)
 {
 	if (ns)
 		aa_get_profile(ns->unconfined);
@@ -108,19 +107,19 @@ static inline struct aa_namespace *aa_get_namespace(struct aa_namespace *ns)
 }
 
 /**
- * aa_put_namespace - decrement refcount on @ns
+ * aa_put_ns - decrement refcount on @ns
  * @ns: namespace to put reference of
  *
  * Decrement reference count of @ns and if no longer in use free it
  */
-static inline void aa_put_namespace(struct aa_namespace *ns)
+static inline void aa_put_ns(struct aa_ns *ns)
 {
 	if (ns)
 		aa_put_profile(ns->unconfined);
 }
 
 /**
- * __aa_find_namespace - find a namespace on a list by @name
+ * __aa_find_ns - find a namespace on a list by @name
  * @head: list to search for namespace on  (NOT NULL)
  * @name: name of namespace to look for  (NOT NULL)
  *
@@ -128,10 +127,10 @@ static inline void aa_put_namespace(struct aa_namespace *ns)
  *
  * Requires: rcu_read_lock be held
  */
-static inline struct aa_namespace *__aa_find_namespace(struct list_head *head,
-						const char *name)
+static inline struct aa_ns *__aa_find_ns(struct list_head *head,
+					 const char *name)
 {
-	return (struct aa_namespace *)__policy_find(head, name);
+	return (struct aa_ns *)__policy_find(head, name);
 }
 
 #endif /* AA_NAMESPACE_H */

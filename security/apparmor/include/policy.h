@@ -31,7 +31,7 @@
 #include "resource.h"
 
 
-struct aa_namespace;
+struct aa_ns;
 
 extern const char *const aa_profile_mode_names[];
 #define APPARMOR_MODE_NAMES_MAX_INDEX 4
@@ -141,7 +141,7 @@ struct aa_profile {
 	struct rcu_head rcu;
 	struct aa_profile __rcu *parent;
 
-	struct aa_namespace *ns;
+	struct aa_ns *ns;
 	struct aa_replacedby *replacedby;
 	const char *rename;
 
@@ -177,8 +177,8 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat);
 void aa_free_profile(struct aa_profile *profile);
 void aa_free_profile_kref(struct kref *kref);
 struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name);
-struct aa_profile *aa_lookup_profile(struct aa_namespace *ns, const char *name);
-struct aa_profile *aa_match_profile(struct aa_namespace *ns, const char *name);
+struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *name);
+struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 
 ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace);
 ssize_t aa_remove_profiles(char *name, size_t size);

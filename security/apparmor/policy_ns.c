@@ -26,7 +26,7 @@
 #include "include/policy.h"
 
 /* root profile namespace */
-struct aa_namespace *root_ns;
+struct aa_ns *root_ns;
 const char *aa_hidden_ns_name = "---";
 
 /**
@@ -36,7 +36,7 @@ const char *aa_hidden_ns_name = "---";
  *
  * Returns: true if @view is visible from @curr else false
  */
-bool aa_ns_visible(struct aa_namespace *curr, struct aa_namespace *view)
+bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view)
 {
 	if (curr == view)
 		return true;
@@ -55,7 +55,7 @@ bool aa_ns_visible(struct aa_namespace *curr, struct aa_namespace *view)
  *
  * Returns: name of @view visible from @curr
  */
-const char *aa_ns_name(struct aa_namespace *curr, struct aa_namespace *view)
+const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view)
 {
 	/* if view == curr then the namespace name isn't displayed */
 	if (curr == view)
@@ -75,16 +75,15 @@ const char *aa_ns_name(struct aa_namespace *curr, struct aa_namespace *view)
 }
 
 /**
- * alloc_namespace - allocate, initialize and return a new namespace
+ * alloc_ns - allocate, initialize and return a new namespace
  * @prefix: parent namespace name (MAYBE NULL)
  * @name: a preallocated name  (NOT NULL)
  *
  * Returns: refcounted namespace or NULL on failure.
  */
-static struct aa_namespace *alloc_namespace(const char *prefix,
-					    const char *name)
+static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 {
-	struct aa_namespace *ns;
+	struct aa_ns *ns;
 
 	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
 	AA_DEBUG("%s(%p)\n", __func__, ns);
@@ -96,7 +95,7 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 	INIT_LIST_HEAD(&ns->sub_ns);
 	mutex_init(&ns->lock);
 
-	/* released by free_namespace */
+	/* released by aa_free_ns() */
 	ns->unconfined = aa_alloc_profile("unconfined");
 	if (!ns->unconfined)
 		goto fail_unconfined;
@@ -120,19 +119,19 @@ fail_ns:
 }
 
 /**
- * aa_free_namespace - free a profile namespace
+ * aa_free_ns - free a profile namespace
  * @ns: the namespace to free  (MAYBE NULL)
  *
  * Requires: All references to the namespace must have been put, if the
  *           namespace was referenced by a profile confining a task,
  */
-void aa_free_namespace(struct aa_namespace *ns)
+void aa_free_ns(struct aa_ns *ns)
 {
 	if (!ns)
 		return;
 
 	aa_policy_destroy(&ns->base);
-	aa_put_namespace(ns->parent);
+	aa_put_ns(ns->parent);
 
 	ns->unconfined->ns = NULL;
 	aa_free_profile(ns->unconfined);
@@ -140,7 +139,7 @@ void aa_free_namespace(struct aa_namespace *ns)
 }
 
 /**
- * aa_find_namespace  -  look up a profile namespace on the namespace list
+ * aa_find_ns  -  look up a profile namespace on the namespace list
  * @root: namespace to search in  (NOT NULL)
  * @name: name of namespace to find  (NOT NULL)
  *
@@ -149,27 +148,26 @@ void aa_free_namespace(struct aa_namespace *ns)
  *
  * refcount released by caller
  */
-struct aa_namespace *aa_find_namespace(struct aa_namespace *root,
-				       const char *name)
+struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
 {
-	struct aa_namespace *ns = NULL;
+	struct aa_ns *ns = NULL;
 
 	rcu_read_lock();
-	ns = aa_get_namespace(__aa_find_namespace(&root->sub_ns, name));
+	ns = aa_get_ns(__aa_find_ns(&root->sub_ns, name));
 	rcu_read_unlock();
 
 	return ns;
 }
 
 /**
- * aa_prepare_namespace - find an existing or create a new namespace of @name
+ * aa_prepare_ns - find an existing or create a new namespace of @name
  * @name: the namespace to find or add  (MAYBE NULL)
  *
- * Returns: refcounted namespace or NULL if failed to create one
+ * Returns: refcounted ns or NULL if failed to create one
  */
-struct aa_namespace *aa_prepare_namespace(const char *name)
+struct aa_ns *aa_prepare_ns(const char *name)
 {
-	struct aa_namespace *ns, *root;
+	struct aa_ns *ns, *root;
 
 	root = aa_current_profile()->ns;
 
@@ -178,28 +176,28 @@ struct aa_namespace *aa_prepare_namespace(const char *name)
 	/* if name isn't specified the profile is loaded to the current ns */
 	if (!name) {
 		/* released by caller */
-		ns = aa_get_namespace(root);
+		ns = aa_get_ns(root);
 		goto out;
 	}
 
 	/* try and find the specified ns and if it doesn't exist create it */
 	/* released by caller */
-	ns = aa_get_namespace(__aa_find_namespace(&root->sub_ns, name));
+	ns = aa_get_ns(__aa_find_ns(&root->sub_ns, name));
 	if (!ns) {
-		ns = alloc_namespace(root->base.hname, name);
+		ns = alloc_ns(root->base.hname, name);
 		if (!ns)
 			goto out;
-		if (__aa_fs_namespace_mkdir(ns, ns_subns_dir(root), name)) {
+		if (__aa_fs_ns_mkdir(ns, ns_subns_dir(root), name)) {
 			AA_ERROR("Failed to create interface for ns %s\n",
 				 ns->base.name);
-			aa_free_namespace(ns);
+			aa_free_ns(ns);
 			ns = NULL;
 			goto out;
 		}
-		ns->parent = aa_get_namespace(root);
+		ns->parent = aa_get_ns(root);
 		list_add_rcu(&ns->base.list, &root->sub_ns);
 		/* add list ref */
-		aa_get_namespace(ns);
+		aa_get_ns(ns);
 	}
 out:
 	mutex_unlock(&root->lock);
@@ -211,10 +209,10 @@ out:
 static void __ns_list_release(struct list_head *head);
 
 /**
- * destroy_namespace - remove everything contained by @ns
- * @ns: namespace to have it contents removed  (NOT NULL)
+ * destroy_ns - remove everything contained by @ns
+ * @ns: ns to have it contents removed  (NOT NULL)
  */
-static void destroy_namespace(struct aa_namespace *ns)
+static void destroy_ns(struct aa_ns *ns)
 {
 	if (!ns)
 		return;
@@ -228,22 +226,22 @@ static void destroy_namespace(struct aa_namespace *ns)
 
 	if (ns->parent)
 		__aa_update_replacedby(ns->unconfined, ns->parent->unconfined);
-	__aa_fs_namespace_rmdir(ns);
+	__aa_fs_ns_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }
 
 /**
- * __aa_remove_namespace - remove a namespace and all its children
+ * __aa_remove_ns - remove a namespace and all its children
  * @ns: namespace to be removed  (NOT NULL)
  *
  * Requires: ns->parent->lock be held and ns removed from parent.
  */
-void __aa_remove_namespace(struct aa_namespace *ns)
+void __aa_remove_ns(struct aa_ns *ns)
 {
 	/* remove ns from namespace list */
 	list_del_rcu(&ns->base.list);
-	destroy_namespace(ns);
-	aa_put_namespace(ns);
+	destroy_ns(ns);
+	aa_put_ns(ns);
 }
 
 /**
@@ -254,15 +252,15 @@ void __aa_remove_namespace(struct aa_namespace *ns)
  */
 static void __ns_list_release(struct list_head *head)
 {
-	struct aa_namespace *ns, *tmp;
+	struct aa_ns *ns, *tmp;
 
 	list_for_each_entry_safe(ns, tmp, head, base.list)
-		__aa_remove_namespace(ns);
+		__aa_remove_ns(ns);
 
 }
 
 /**
- * aa_alloc_root_ns - allocate the root profile namespace
+ * aa_alloc_root_ns - allocate the root profile namespcae
  *
  * Returns: %0 on success else error
  *
@@ -270,7 +268,7 @@ static void __ns_list_release(struct list_head *head)
 int __init aa_alloc_root_ns(void)
 {
 	/* released by aa_free_root_ns - used as list ref*/
-	root_ns = alloc_namespace(NULL, "root");
+	root_ns = alloc_ns(NULL, "root");
 	if (!root_ns)
 		return -ENOMEM;
 
@@ -282,10 +280,10 @@ int __init aa_alloc_root_ns(void)
   */
 void __init aa_free_root_ns(void)
 {
-	 struct aa_namespace *ns = root_ns;
+	 struct aa_ns *ns = root_ns;
 
 	 root_ns = NULL;
 
-	 destroy_namespace(ns);
-	 aa_put_namespace(ns);
+	 destroy_ns(ns);
+	 aa_put_ns(ns);
 }

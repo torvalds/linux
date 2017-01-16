@@ -40,8 +40,8 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 	int len = 0, mode_len = 0, ns_len = 0, name_len;
 	const char *mode_str = aa_profile_mode_names[profile->mode];
 	const char *ns_name = NULL;
-	struct aa_namespace *ns = profile->ns;
-	struct aa_namespace *current_ns = __aa_current_profile()->ns;
+	struct aa_ns *ns = profile->ns;
+	struct aa_ns *current_ns = __aa_current_profile()->ns;
 	char *s;
 
 	if (!aa_ns_visible(current_ns, ns))

@@ -213,7 +213,7 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_policy_destroy(&profile->base);
 	aa_put_profile(rcu_access_pointer(profile->parent));
 
-	aa_put_namespace(profile->ns);
+	aa_put_ns(profile->ns);
 	kzfree(profile->rename);
 
 	aa_free_file_rules(&profile->file);
@@ -237,7 +237,7 @@ static void aa_free_profile_rcu(struct rcu_head *head)
 {
 	struct aa_profile *p = container_of(head, struct aa_profile, rcu);
 	if (p->flags & PFLAG_NS_COUNT)
-		aa_free_namespace(p->ns);
+		aa_free_ns(p->ns);
 	else
 		aa_free_profile(p);
 }
@@ -324,7 +324,7 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
 
 	/* released on free_profile */
 	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
-	profile->ns = aa_get_namespace(parent->ns);
+	profile->ns = aa_get_ns(parent->ns);
 
 	mutex_lock(&profile->ns->lock);
 	__list_add_profile(&parent->base.profiles, profile);
@@ -403,7 +403,7 @@ struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name)
  *
  * Returns: unrefcounted policy or NULL if not found
  */
-static struct aa_policy *__lookup_parent(struct aa_namespace *ns,
+static struct aa_policy *__lookup_parent(struct aa_ns *ns,
 					 const char *hname)
 {
 	struct aa_policy *policy;
@@ -466,7 +466,7 @@ static struct aa_profile *__lookup_profile(struct aa_policy *base,
  *
  * Returns: refcounted profile or NULL if not found
  */
-struct aa_profile *aa_lookup_profile(struct aa_namespace *ns, const char *hname)
+struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
 {
 	struct aa_profile *profile;
 
@@ -670,7 +670,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
  *
  * Returns: profile to replace (no ref) on success else ptr error
  */
-static int __lookup_replace(struct aa_namespace *ns, const char *hname,
+static int __lookup_replace(struct aa_ns *ns, const char *hname,
 			    bool noreplace, struct aa_profile **p,
 			    const char **info)
 {
@@ -701,7 +701,7 @@ static int __lookup_replace(struct aa_namespace *ns, const char *hname,
 ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 {
 	const char *ns_name, *info = NULL;
-	struct aa_namespace *ns = NULL;
+	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	int op = OP_PROF_REPL;
 	ssize_t error;
@@ -713,7 +713,7 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		goto out;
 
 	/* released below */
-	ns = aa_prepare_namespace(ns_name);
+	ns = aa_prepare_ns(ns_name);
 	if (!ns) {
 		error = audit_policy(op, GFP_KERNEL, ns_name,
 				     "failed to prepare namespace", -ENOMEM);
@@ -738,7 +738,7 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		}
 
 		/* released when @new is freed */
-		ent->new->ns = aa_get_namespace(ns);
+		ent->new->ns = aa_get_ns(ns);
 
 		if (ent->old || ent->rename)
 			continue;
@@ -835,7 +835,7 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 	mutex_unlock(&ns->lock);
 
 out:
-	aa_put_namespace(ns);
+	aa_put_ns(ns);
 
 	if (error)
 		return error;
@@ -881,7 +881,7 @@ free:
  */
 ssize_t aa_remove_profiles(char *fqname, size_t size)
 {
-	struct aa_namespace *root, *ns = NULL;
+	struct aa_ns *root, *ns = NULL;
 	struct aa_profile *profile = NULL;
 	const char *name = fqname, *info = NULL;
 	ssize_t error = 0;
@@ -898,7 +898,7 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 		char *ns_name;
 		name = aa_split_fqname(fqname, &ns_name);
 		/* released below */
-		ns = aa_find_namespace(root, ns_name);
+		ns = aa_find_ns(root, ns_name);
 		if (!ns) {
 			info = "namespace does not exist";
 			error = -ENOENT;
@@ -906,12 +906,12 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 		}
 	} else
 		/* released below */
-		ns = aa_get_namespace(root);
+		ns = aa_get_ns(root);
 
 	if (!name) {
 		/* remove namespace - can only happen if fqname[0] == ':' */
 		mutex_lock(&ns->parent->lock);
-		__aa_remove_namespace(ns);
+		__aa_remove_ns(ns);
 		mutex_unlock(&ns->parent->lock);
 	} else {
 		/* remove profile */
@@ -929,13 +929,13 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 
 	/* don't fail removal if audit fails */
 	(void) audit_policy(OP_PROF_RM, GFP_KERNEL, name, info, error);
-	aa_put_namespace(ns);
+	aa_put_ns(ns);
 	aa_put_profile(profile);
 	return size;
 
 fail_ns_lock:
 	mutex_unlock(&ns->lock);
-	aa_put_namespace(ns);
+	aa_put_ns(ns);
 
 fail:
 	(void) audit_policy(OP_PROF_RM, GFP_KERNEL, name, info, error);
