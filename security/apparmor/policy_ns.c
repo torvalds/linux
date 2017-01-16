@@ -33,18 +33,23 @@ const char *aa_hidden_ns_name = "---";
  * aa_ns_visible - test if @view is visible from @curr
  * @curr: namespace to treat as the parent (NOT NULL)
  * @view: namespace to test if visible from @curr (NOT NULL)
+ * @subns: whether view of a subns is allowed
  *
  * Returns: true if @view is visible from @curr else false
  */
-bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view)
+bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns)
 {
 	if (curr == view)
 		return true;
+
+	if (!subns)
+		return false;
 
 	for ( ; view; view = view->parent) {
 		if (view->parent == curr)
 			return true;
 	}
+
 	return false;
 }
 
@@ -52,16 +57,17 @@ bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view)
  * aa_na_name - Find the ns name to display for @view from @curr
  * @curr - current namespace (NOT NULL)
  * @view - namespace attempting to view (NOT NULL)
+ * @subns - are subns visible
  *
  * Returns: name of @view visible from @curr
  */
-const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view)
+const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns)
 {
 	/* if view == curr then the namespace name isn't displayed */
 	if (curr == view)
 		return "";
 
-	if (aa_ns_visible(curr, view)) {
+	if (aa_ns_visible(curr, view, subns)) {
 		/* at this point if a ns is visible it is in a view ns
 		 * thus the curr ns.hname is a prefix of its name.
 		 * Only output the virtualized portion of the name

@@ -74,8 +74,8 @@ extern struct aa_ns *root_ns;
 
 extern const char *aa_hidden_ns_name;
 
-bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view);
-const char *aa_ns_name(struct aa_ns *parent, struct aa_ns *child);
+bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns);
+const char *aa_ns_name(struct aa_ns *parent, struct aa_ns *child, bool subns);
 void aa_free_ns(struct aa_ns *ns);
 int aa_alloc_root_ns(void);
 void aa_free_root_ns(void);

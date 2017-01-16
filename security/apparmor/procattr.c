@@ -44,10 +44,10 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 	struct aa_ns *current_ns = __aa_current_profile()->ns;
 	char *s;
 
-	if (!aa_ns_visible(current_ns, ns))
+	if (!aa_ns_visible(current_ns, ns, true))
 		return -EACCES;
 
-	ns_name = aa_ns_name(current_ns, ns);
+	ns_name = aa_ns_name(current_ns, ns, true);
 	ns_len = strlen(ns_name);
 
 	/* if the visible ns_name is > 0 increase size for : :// seperator */

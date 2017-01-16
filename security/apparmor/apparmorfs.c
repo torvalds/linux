@@ -750,7 +750,7 @@ static int seq_show_profile(struct seq_file *f, void *p)
 	struct aa_ns *root = f->private;
 
 	if (profile->ns != root)
-		seq_printf(f, ":%s://", aa_ns_name(root, profile->ns));
+		seq_printf(f, ":%s://", aa_ns_name(root, profile->ns, true));
 	seq_printf(f, "%s (%s)\n", profile->base.hname,
 		   aa_profile_mode_names[profile->mode]);
 
