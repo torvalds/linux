@@ -32,6 +32,47 @@
 
 #include <nvif/class.h>
 
+struct gk104_fifo_engine_status {
+	bool busy;
+	bool faulted;
+	bool chsw;
+	bool save;
+	bool load;
+	struct {
+		bool tsg;
+		u32 id;
+	} prev, next, *chan;
+};
+
+static void
+gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
+			 struct gk104_fifo_engine_status *status)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
+
+	status->busy     = !!(stat & 0x80000000);
+	status->faulted  = !!(stat & 0x40000000);
+	status->next.tsg = !!(stat & 0x10000000);
+	status->next.id  =   (stat & 0x0fff0000) >> 16;
+	status->chsw     = !!(stat & 0x00008000);
+	status->save     = !!(stat & 0x00004000);
+	status->load     = !!(stat & 0x00002000);
+	status->prev.tsg = !!(stat & 0x00001000);
+	status->prev.id  =   (stat & 0x00000fff);
+	status->chan     = status->load ? &status->next : &status->prev;
+
+	nvkm_debug(subdev, "engine %02d: busy %d faulted %d chsw %d "
+			   "save %d load %d %sid %d%s-> %sid %d%s\n",
+		   engn, status->busy, status->faulted,
+		   status->chsw, status->save, status->load,
+		   status->prev.tsg ? "tsg" : "ch", status->prev.id,
+		   status->chan == &status->prev ? "*" : " ",
+		   status->next.tsg ? "tsg" : "ch", status->next.id,
+		   status->chan == &status->next ? "*" : " ");
+}
+
 static int
 gk104_fifo_class_get(struct nvkm_fifo *base, int index,
 		     const struct nvkm_fifo_chan_oclass **psclass)
@@ -214,7 +255,6 @@ gk104_fifo_sched_reason[] = {
 static void
 gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct gk104_fifo_chan *chan;
 	unsigned long flags;
 	u32 engn;
@@ -223,21 +263,14 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	for (engn = 0; engn < fifo->engine_nr; engn++) {
 		struct nvkm_engine *engine = fifo->engine[engn].engine;
 		int runl = fifo->engine[engn].runl;
-		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
-		u32 busy = (stat & 0x80000000);
-		u32 next = (stat & 0x0fff0000) >> 16;
-		u32 chsw = (stat & 0x00008000);
-		u32 save = (stat & 0x00004000);
-		u32 load = (stat & 0x00002000);
-		u32 prev = (stat & 0x00000fff);
-		u32 chid = load ? next : prev;
-		(void)save;
+		struct gk104_fifo_engine_status status;
 
-		if (!busy || !chsw)
+		gk104_fifo_engine_status(fifo, engn, &status);
+		if (!status.busy || !status.chsw)
 			continue;
 
 		list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
-			if (chan->base.chid == chid && engine) {
+			if (chan->base.chid == status.chan->id && engine) {
 				gk104_fifo_recover(fifo, engine, chan);
 				break;
 			}
