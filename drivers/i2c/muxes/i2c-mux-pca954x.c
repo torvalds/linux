@@ -148,6 +148,7 @@ static const struct of_device_id pca954x_of_match[] = {
 	{ .compatible = "nxp,pca9548", .data = &chips[pca_9548] },
 	{}
 };
+MODULE_DEVICE_TABLE(of, pca954x_of_match);
 #endif
 
 /* Write to mux register. Don't use i2c_transfer()/i2c_smbus_xfer()
