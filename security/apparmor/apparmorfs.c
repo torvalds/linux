@@ -356,6 +356,7 @@ static const struct file_operations aa_fs_seq_hash_fops = {
 	.release	= single_release,
 };
 
+
 static int aa_fs_seq_show_ns_level(struct seq_file *seq, void *v)
 {
 	struct aa_ns *ns = aa_current_profile()->ns;
@@ -373,6 +374,28 @@ static int aa_fs_seq_open_ns_level(struct inode *inode, struct file *file)
 static const struct file_operations aa_fs_ns_level = {
 	.owner		= THIS_MODULE,
 	.open		= aa_fs_seq_open_ns_level,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int aa_fs_seq_show_ns_name(struct seq_file *seq, void *v)
+{
+	struct aa_ns *ns = aa_current_profile()->ns;
+
+	seq_printf(seq, "%s\n", ns->base.name);
+
+	return 0;
+}
+
+static int aa_fs_seq_open_ns_name(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show_ns_name, inode->i_private);
+}
+
+static const struct file_operations aa_fs_ns_name = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open_ns_name,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -852,6 +875,7 @@ static struct aa_fs_entry aa_fs_entry_apparmor[] = {
 	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
 	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
 	AA_FS_FILE_FOPS(".ns_level", 0666, &aa_fs_ns_level),
+	AA_FS_FILE_FOPS(".ns_name", 0640, &aa_fs_ns_name),
 	AA_FS_FILE_FOPS("profiles", 0640, &aa_fs_profiles_fops),
 	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
