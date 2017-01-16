@@ -798,7 +798,7 @@
 };
 
 &pcie_phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie0 {
@@ -806,7 +806,7 @@
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pmu_io_domains {
