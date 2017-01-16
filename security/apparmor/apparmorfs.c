@@ -76,7 +76,6 @@ static int mangle_name(const char *name, char *target)
 
 /**
  * aa_simple_write_to_buffer - common routine for getting policy from user
- * @op: operation doing the user buffer copy
  * @userbuf: user buffer to copy data from  (NOT NULL)
  * @alloc_size: size of user buffer (REQUIRES: @alloc_size >= @copy_size)
  * @copy_size: size of data to copy from user buffer
@@ -85,8 +84,7 @@ static int mangle_name(const char *name, char *target)
  * Returns: kernel buffer containing copy of user buffer data or an
  *          ERR_PTR on failure.
  */
-static struct aa_loaddata *aa_simple_write_to_buffer(const char *op,
-						     const char __user *userbuf,
+static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 						     size_t alloc_size,
 						     size_t copy_size,
 						     loff_t *pos)
@@ -130,7 +128,7 @@ static ssize_t policy_update(int binop, const char __user *buf, size_t size,
 	if (error)
 		return error;
 
-	data = aa_simple_write_to_buffer(op, buf, size, size, pos);
+	data = aa_simple_write_to_buffer(buf, size, size, pos);
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		error = aa_replace_profiles(ns ? ns : profile->ns, profile,
@@ -196,8 +194,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	 * aa_remove_profile needs a null terminated string so 1 extra
 	 * byte is allocated and the copied data is null terminated.
 	 */
-	data = aa_simple_write_to_buffer(OP_PROF_RM, buf, size + 1, size,
-					 pos);
+	data = aa_simple_write_to_buffer(buf, size + 1, size, pos);
 
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
