@@ -23,6 +23,7 @@
 #include <linux/sysctl.h>
 #include <linux/audit.h>
 #include <linux/user_namespace.h>
+#include <linux/kmemleak.h>
 #include <net/sock.h>
 
 #include "include/apparmor.h"

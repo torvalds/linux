@@ -18,6 +18,7 @@
 #include <linux/capability.h>
 #include <linux/cred.h>
 #include <linux/kref.h>
+#include <linux/rhashtable.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
@@ -98,6 +99,19 @@ struct aa_proxy {
 	struct aa_profile __rcu *profile;
 };
 
+/* struct aa_data - generic data structure
+ * key: name for retrieving this data
+ * size: size of data in bytes
+ * data: binary data
+ * head: reserved for rhashtable
+ */
+struct aa_data {
+	char *key;
+	u32 size;
+	char *data;
+	struct rhash_head head;
+};
+
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
@@ -122,6 +136,7 @@ struct aa_proxy {
  *
  * @dents: dentries for the profiles file entries in apparmorfs
  * @dirname: name of the profile dir in apparmorfs
+ * @data: hashtable for free-form policy aa_data
  *
  * The AppArmor profile contains the basic confinement data.  Each profile
  * has a name, and exists in a namespace.  The @name and @exec_match are
@@ -165,6 +180,7 @@ struct aa_profile {
 	unsigned char *hash;
 	char *dirname;
 	struct dentry *dents[AAFS_PROF_SIZEOF];
+	struct rhashtable *data;
 };
 
 extern enum profile_mode aa_g_profile_mode;

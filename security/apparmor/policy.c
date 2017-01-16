@@ -195,6 +195,20 @@ void aa_free_proxy_kref(struct kref *kref)
 }
 
 /**
+ * aa_free_data - free a data blob
+ * @ptr: data to free
+ * @arg: unused
+ */
+static void aa_free_data(void *ptr, void *arg)
+{
+	struct aa_data *data = ptr;
+
+	kzfree(data->data);
+	kzfree(data->key);
+	kzfree(data);
+}
+
+/**
  * aa_free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
  *
@@ -206,6 +220,8 @@ void aa_free_proxy_kref(struct kref *kref)
  */
 void aa_free_profile(struct aa_profile *profile)
 {
+	struct rhashtable *rht;
+
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
 	if (!profile)
@@ -226,6 +242,13 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
 	aa_put_proxy(profile->proxy);
+
+	if (profile->data) {
+		rht = profile->data;
+		profile->data = NULL;
+		rhashtable_free_and_destroy(rht, aa_free_data, NULL);
+		kzfree(rht);
+	}
 
 	kzfree(profile->hash);
 	aa_put_loaddata(profile->rawdata);
