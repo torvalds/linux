@@ -340,7 +340,7 @@ struct sfw_session {
 
 struct sfw_batch {
 	struct list_head bat_list;	/* chain on sn_batches */
-	lst_bid_t	 bat_id;	/* batch id */
+	struct lst_bid	 bat_id;	/* batch id */
 	int		 bat_error;	/* error code of batch */
 	struct sfw_session	*bat_session;	/* batch's session */
 	atomic_t	 bat_nactive;	/* # of active tests */

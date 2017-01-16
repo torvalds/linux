@@ -75,9 +75,9 @@ struct lst_sid {
 
 extern struct lst_sid LST_INVALID_SID;
 
-typedef struct {
+struct lst_bid {
 	__u64	bat_id;		/* unique id in session */
-} lst_bid_t;			/*** batch id (group of tests) */
+};				/*** batch id (group of tests) */
 
 /* Status of test node */
 #define LST_NODE_ACTIVE		0x1	/* node in this session */

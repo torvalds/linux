@@ -139,7 +139,7 @@ struct srpc_debug_reply {
 struct srpc_batch_reqst {
 	__u64		   bar_rpyid;	   /* reply buffer matchbits */
 	struct lst_sid	   bar_sid;	   /* session id */
-	lst_bid_t	   bar_bid;	   /* batch id */
+	struct lst_bid	   bar_bid;	   /* batch id */
 	__u32		   bar_opc;	   /* create/start/stop batch */
 	__u32		   bar_testidx;    /* index of test */
 	__u32		   bar_arg;	   /* parameters */
@@ -188,7 +188,7 @@ struct srpc_test_reqst {
 	__u64			tsr_rpyid;	/* reply buffer matchbits */
 	__u64			tsr_bulkid;	/* bulk buffer matchbits */
 	struct lst_sid		tsr_sid;	/* session id */
-	lst_bid_t		tsr_bid;	/* batch id */
+	struct lst_bid		tsr_bid;	/* batch id */
 	__u32			tsr_service;	/* test type: bulk|ping|... */
 	__u32			tsr_loop;	/* test client loop count or
 						 * # server buffers needed

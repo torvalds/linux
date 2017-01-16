@@ -81,7 +81,7 @@ struct lstcon_group {
 #define LST_BATCH_RUNNING 0xB1	    /* running batch */
 
 struct lstcon_tsb_hdr {
-	lst_bid_t	 tsb_id;	 /* batch ID */
+	struct lst_bid	 tsb_id;	 /* batch ID */
 	int		 tsb_index;	 /* test index */
 };
 

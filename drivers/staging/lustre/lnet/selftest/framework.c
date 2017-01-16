@@ -316,7 +316,7 @@ sfw_client_rpc_fini(struct srpc_client_rpc *rpc)
 }
 
 static struct sfw_batch *
-sfw_find_batch(lst_bid_t bid)
+sfw_find_batch(struct lst_bid bid)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	struct sfw_batch *bat;
@@ -332,7 +332,7 @@ sfw_find_batch(lst_bid_t bid)
 }
 
 static struct sfw_batch *
-sfw_bid2batch(lst_bid_t bid)
+sfw_bid2batch(struct lst_bid bid)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	struct sfw_batch *bat;
