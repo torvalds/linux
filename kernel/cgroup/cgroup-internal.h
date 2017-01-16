@@ -62,6 +62,9 @@ struct cgroup_mgctx {
 
 	/* tasks and csets to migrate */
 	struct cgroup_taskset	tset;
+
+	/* subsystems affected by migration */
+	u16			ss_mask;
 };
 
 #define CGROUP_TASKSET_INIT(tset)						\
@@ -172,7 +175,7 @@ void cgroup_migrate_add_src(struct css_set *src_cset, struct cgroup *dst_cgrp,
 			    struct cgroup_mgctx *mgctx);
 int cgroup_migrate_prepare_dst(struct cgroup_mgctx *mgctx);
 int cgroup_migrate(struct task_struct *leader, bool threadgroup,
-		   struct cgroup_mgctx *mgctx, struct cgroup_root *root);
+		   struct cgroup_mgctx *mgctx);
 
 int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 		       bool threadgroup);

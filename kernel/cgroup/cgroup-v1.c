@@ -125,7 +125,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		css_task_iter_end(&it);
 
 		if (task) {
-			ret = cgroup_migrate(task, false, &mgctx, to->root);
+			ret = cgroup_migrate(task, false, &mgctx);
 			if (!ret)
 				trace_cgroup_transfer_tasks(to, task, false);
 			put_task_struct(task);
