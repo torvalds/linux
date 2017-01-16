@@ -147,4 +147,7 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 	return !maxlen || strlen(result) + 1 >= maxlen;
 }
 
+extern atomic_t dm_global_event_nr;
+extern wait_queue_head_t dm_global_eventq;
+
 #endif

@@ -23,6 +23,14 @@
 #define DM_MSG_PREFIX "ioctl"
 #define DM_DRIVER_EMAIL "dm-devel@redhat.com"
 
+struct dm_file {
+	/*
+	 * poll will wait until the global event number is greater than
+	 * this value.
+	 */
+	unsigned global_event_nr;
+};
+
 /*-----------------------------------------------------------------
  * The ioctl interface needs to be able to look up devices by
  * name or uuid.
@@ -1868,8 +1876,47 @@ static long dm_compat_ctl_ioctl(struct file *file, uint command, ulong u)
 #define dm_compat_ctl_ioctl NULL
 #endif
 
+static int dm_open(struct inode *inode, struct file *filp)
+{
+	int r;
+	struct dm_file *priv;
+
+	r = nonseekable_open(inode, filp);
+	if (unlikely(r))
+		return r;
+
+	priv = filp->private_data = kmalloc(sizeof(struct dm_file), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->global_event_nr = atomic_read(&dm_global_event_nr);
+
+	return 0;
+}
+
+static int dm_release(struct inode *inode, struct file *filp)
+{
+	kfree(filp->private_data);
+	return 0;
+}
+
+static unsigned dm_poll(struct file *filp, poll_table *wait)
+{
+	struct dm_file *priv = filp->private_data;
+	unsigned mask = 0;
+
+	poll_wait(filp, &dm_global_eventq, wait);
+
+	if ((int)(atomic_read(&dm_global_event_nr) - priv->global_event_nr) > 0)
+		mask |= POLLIN;
+
+	return mask;
+}
+
 static const struct file_operations _ctl_fops = {
-	.open = nonseekable_open,
+	.open    = dm_open,
+	.release = dm_release,
+	.poll    = dm_poll,
 	.unlocked_ioctl	 = dm_ctl_ioctl,
 	.compat_ioctl = dm_compat_ctl_ioctl,
 	.owner	 = THIS_MODULE,
