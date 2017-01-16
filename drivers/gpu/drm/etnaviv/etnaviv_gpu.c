@@ -629,7 +629,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_init(gpu);
 
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
-	etnaviv_gpu_start_fe(gpu, etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer),
+	etnaviv_gpu_start_fe(gpu, etnaviv_cmdbuf_get_va(gpu->buffer),
 			     prefetch);
 }
 
@@ -703,7 +703,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
-	    gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
+	    etnaviv_cmdbuf_get_va(gpu->buffer) > 0x80000000) {
 		ret = -EINVAL;
 		dev_err(gpu->dev,
 			"command buffer outside valid memory window\n");

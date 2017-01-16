@@ -52,3 +52,8 @@ void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 		    cmdbuf->paddr);
 	kfree(cmdbuf);
 }
+
+u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf)
+{
+	return etnaviv_iommu_get_cmdbuf_va(buf->gpu, buf);
+}
