@@ -44,6 +44,7 @@ struct aa_ns_acct {
  * @sub_ns: list of namespaces under the current namespace.
  * @uniq_null: uniq value used for null learning profiles
  * @uniq_id: a unique id count for the profiles in the namespace
+ * @level: level of ns within the tree hierarchy
  * @dents: dentries for the namespaces file entries in apparmorfs
  *
  * An aa_ns defines the set profiles that are searched to determine which
@@ -66,6 +67,7 @@ struct aa_ns {
 	struct list_head sub_ns;
 	atomic_t uniq_null;
 	long uniq_id;
+	int level;
 
 	struct dentry *dents[AAFS_NS_SIZEOF];
 };

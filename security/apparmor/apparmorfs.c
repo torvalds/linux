@@ -18,9 +18,12 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
+#include <uapi/linux/major.h>
+#include <linux/fs.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
@@ -347,6 +350,28 @@ static int aa_fs_seq_hash_open(struct inode *inode, struct file *file)
 static const struct file_operations aa_fs_seq_hash_fops = {
 	.owner		= THIS_MODULE,
 	.open		= aa_fs_seq_hash_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int aa_fs_seq_show_ns_level(struct seq_file *seq, void *v)
+{
+	struct aa_ns *ns = aa_current_profile()->ns;
+
+	seq_printf(seq, "%d\n", ns->level);
+
+	return 0;
+}
+
+static int aa_fs_seq_open_ns_level(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show_ns_level, inode->i_private);
+}
+
+static const struct file_operations aa_fs_ns_level = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open_ns_level,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -825,6 +850,7 @@ static struct aa_fs_entry aa_fs_entry_apparmor[] = {
 	AA_FS_FILE_FOPS(".load", 0640, &aa_fs_profile_load),
 	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
 	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
+	AA_FS_FILE_FOPS(".ns_level", 0666, &aa_fs_ns_level),
 	AA_FS_FILE_FOPS("profiles", 0640, &aa_fs_profiles_fops),
 	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
@@ -934,6 +960,52 @@ void __init aa_destroy_aafs(void)
 	aafs_remove_dir(&aa_fs_entry);
 }
 
+
+#define NULL_FILE_NAME ".null"
+struct path aa_null;
+
+static int aa_mk_null_file(struct dentry *parent)
+{
+	struct vfsmount *mount = NULL;
+	struct dentry *dentry;
+	struct inode *inode;
+	int count = 0;
+	int error = simple_pin_fs(parent->d_sb->s_type, &mount, &count);
+
+	if (error)
+		return error;
+
+	inode_lock(d_inode(parent));
+	dentry = lookup_one_len(NULL_FILE_NAME, parent, strlen(NULL_FILE_NAME));
+	if (IS_ERR(dentry)) {
+		error = PTR_ERR(dentry);
+		goto out;
+	}
+	inode = new_inode(parent->d_inode->i_sb);
+	if (!inode) {
+		error = -ENOMEM;
+		goto out1;
+	}
+
+	inode->i_ino = get_next_ino();
+	inode->i_mode = S_IFCHR | S_IRUGO | S_IWUGO;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO,
+			   MKDEV(MEM_MAJOR, 3));
+	d_instantiate(dentry, inode);
+	aa_null.dentry = dget(dentry);
+	aa_null.mnt = mntget(mount);
+
+	error = 0;
+
+out1:
+	dput(dentry);
+out:
+	inode_unlock(d_inode(parent));
+	simple_release_fs(&mount, &count);
+	return error;
+}
+
 /**
  * aa_create_aafs - create the apparmor security filesystem
  *
@@ -962,7 +1034,11 @@ static int __init aa_create_aafs(void)
 	if (error)
 		goto error;
 
-	/* TODO: add support for apparmorfs_null and apparmorfs_mnt */
+	error = aa_mk_null_file(aa_fs_entry.dentry);
+	if (error)
+		goto error;
+
+	/* TODO: add default profile to apparmorfs */
 
 	/* Report that AppArmor fs is enabled */
 	aa_info_message("AppArmor Filesystem Enabled");
