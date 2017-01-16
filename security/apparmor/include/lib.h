@@ -130,12 +130,12 @@ struct aa_policy {
 };
 
 /**
- * hname_tail - find the last component of an hname
+ * basename - find the last component of an hname
  * @name: hname to find the base profile name component of  (NOT NULL)
  *
  * Returns: the tail (base profile name) name component of an hname
  */
-static inline const char *hname_tail(const char *hname)
+static inline const char *basename(const char *hname)
 {
 	char *split;
 

@@ -617,7 +617,7 @@ bool aa_may_manage_policy(int op)
 static struct aa_profile *__list_lookup_parent(struct list_head *lh,
 					       struct aa_profile *profile)
 {
-	const char *base = hname_tail(profile->base.hname);
+	const char *base = basename(profile->base.hname);
 	long len = base - profile->base.hname;
 	struct aa_load_ent *ent;
 

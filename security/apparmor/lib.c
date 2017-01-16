@@ -184,7 +184,7 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 	if (!policy->hname)
 		return 0;
 	/* base.name is a substring of fqname */
-	policy->name = (char *)hname_tail(policy->hname);
+	policy->name = (char *)basename(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
 	INIT_LIST_HEAD(&policy->profiles);
 
