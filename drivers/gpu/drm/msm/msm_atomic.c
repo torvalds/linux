@@ -151,20 +151,29 @@ static void commit_worker(struct work_struct *work)
 	complete_commit(container_of(work, struct msm_commit, work), true);
 }
 
+/*
+ * this func is identical to the drm_atomic_helper_check, but we keep this
+ * because we might eventually need to have a more finegrained check
+ * sequence without using the atomic helpers.
+ *
+ * In the past, we first called drm_atomic_helper_check_planes, and then
+ * drm_atomic_helper_check_modeset. We needed this because the MDP5 plane's
+ * ->atomic_check could update ->mode_changed for pixel format changes.
+ * This, however isn't needed now because if there is a pixel format change,
+ * we just assign a new hwpipe for it with a new SMP allocation. We might
+ * eventually hit a condition where we would need to do a full modeset if
+ * we run out of planes. There, we'd probably need to set mode_changed.
+ */
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state)
 {
 	int ret;
 
-	/*
-	 * msm ->atomic_check can update ->mode_changed for pixel format
-	 * changes, hence must be run before we check the modeset changes.
-	 */
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
