@@ -30,7 +30,7 @@ void apparmor_bprm_committed_creds(struct linux_binprm *bprm);
 
 void aa_free_domain_entries(struct aa_domain *domain);
 int aa_change_hat(const char *hats[], int count, u64 token, bool permtest);
-int aa_change_profile(const char *ns_name, const char *name, bool onexec,
-		      bool permtest);
+int aa_change_profile(const char *fqname, bool onexec, bool permtest,
+		      bool stack);
 
 #endif /* __AA_DOMAIN_H */

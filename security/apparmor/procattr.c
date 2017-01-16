@@ -149,19 +149,3 @@ int aa_setprocattr_changehat(char *args, size_t size, int test)
 
 	return aa_change_hat(hats, count, token, test);
 }
-
-/**
- * aa_setprocattr_changeprofile - handle procattr interface to changeprofile
- * @fqname: args received from writting to /proc/<pid>/attr/current (NOT NULL)
- * @onexec: true if change_profile should be delayed until exec
- * @test: true if this is a test of change_profile permissions
- *
- * Returns: %0 or error code if change_profile fails
- */
-int aa_setprocattr_changeprofile(char *fqname, bool onexec, int test)
-{
-	char *name, *ns_name;
-
-	name = aa_split_fqname(fqname, &ns_name);
-	return aa_change_profile(ns_name, name, onexec, test);
-}

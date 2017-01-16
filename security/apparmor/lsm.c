@@ -543,17 +543,17 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 			error = aa_setprocattr_changehat(args, arg_size,
 							 AA_DO_TEST);
 		} else if (strcmp(command, "changeprofile") == 0) {
-			error = aa_setprocattr_changeprofile(args, !AA_ONEXEC,
-							     !AA_DO_TEST);
+			error = aa_change_profile(args, !AA_ONEXEC,
+						  !AA_DO_TEST, false);
 		} else if (strcmp(command, "permprofile") == 0) {
-			error = aa_setprocattr_changeprofile(args, !AA_ONEXEC,
-							     AA_DO_TEST);
+			error = aa_change_profile(args, !AA_ONEXEC, AA_DO_TEST,
+						  false);
 		} else
 			goto fail;
 	} else if (strcmp(name, "exec") == 0) {
 		if (strcmp(command, "exec") == 0)
-			error = aa_setprocattr_changeprofile(args, AA_ONEXEC,
-							     !AA_DO_TEST);
+			error = aa_change_profile(args, AA_ONEXEC, !AA_DO_TEST,
+						  false);
 		else
 			goto fail;
 	} else

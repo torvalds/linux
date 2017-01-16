@@ -729,8 +729,7 @@ out:
 
 /**
  * aa_change_profile - perform a one-way profile transition
- * @ns_name: name of the profile namespace to change to (MAYBE NULL)
- * @hname: name of profile to change to (MAYBE NULL)
+ * @fqname: name of profile may include namespace (NOT NULL)
  * @onexec: whether this transition is to take place immediately or at exec
  * @permtest: true if this is just a permission test
  *
@@ -742,19 +741,20 @@ out:
  *
  * Returns %0 on success, error otherwise.
  */
-int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
-		      bool permtest)
+int aa_change_profile(const char *fqname, bool onexec,
+		      bool permtest, bool stack)
 {
 	const struct cred *cred;
 	struct aa_profile *profile, *target = NULL;
-	struct aa_ns *ns = NULL;
 	struct file_perms perms = {};
-	const char *name = NULL, *info = NULL, *op;
+	const char *info = NULL, *op;
 	int error = 0;
 	u32 request;
 
-	if (!hname && !ns_name)
+	if (!fqname || !*fqname) {
+		AA_DEBUG("no profile name");
 		return -EINVAL;
+	}
 
 	if (onexec) {
 		request = AA_MAY_ONEXEC;
@@ -779,49 +779,27 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 		return -EPERM;
 	}
 
-	if (ns_name) {
-		/* released below */
-		ns = aa_find_ns(profile->ns, ns_name);
-		if (!ns) {
-			/* we don't create new namespace in complain mode */
-			name = ns_name;
-			info = "namespace not found";
-			error = -ENOENT;
-			goto audit;
-		}
-	} else
-		/* released below */
-		ns = aa_get_ns(profile->ns);
-
-	/* if the name was not specified, use the name of the current profile */
-	if (!hname) {
-		if (unconfined(profile))
-			hname = ns->unconfined->base.hname;
-		else
-			hname = profile->base.hname;
-	}
-
-	perms = change_profile_perms(profile, ns, hname, request,
-				     profile->file.start);
-	if (!(perms.allow & request)) {
-		error = -EACCES;
-		goto audit;
-	}
-
-	/* released below */
-	target = aa_lookup_profile(ns, hname);
+	target = aa_fqlookupn_profile(profile, fqname, strlen(fqname));
 	if (!target) {
 		info = "profile not found";
 		error = -ENOENT;
 		if (permtest || !COMPLAIN_MODE(profile))
 			goto audit;
 		/* released below */
-		target = aa_new_null_profile(profile, false, hname, GFP_KERNEL);
+		target = aa_new_null_profile(profile, false, fqname,
+					     GFP_KERNEL);
 		if (!target) {
 			info = "failed null profile create";
 			error = -ENOMEM;
 			goto audit;
 		}
+	}
+
+	perms = change_profile_perms(profile, target->ns, target->base.hname,
+				     request, profile->file.start);
+	if (!(perms.allow & request)) {
+		error = -EACCES;
+		goto audit;
 	}
 
 	/* check if tracing task is allowed to trace target domain */
@@ -841,10 +819,9 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 
 audit:
 	if (!permtest)
-		error = aa_audit_file(profile, &perms, op, request, name,
-				      hname, GLOBAL_ROOT_UID, info, error);
+		error = aa_audit_file(profile, &perms, op, request, NULL,
+				      fqname, GLOBAL_ROOT_UID, info, error);
 
-	aa_put_ns(ns);
 	aa_put_profile(target);
 	put_cred(cred);
 
