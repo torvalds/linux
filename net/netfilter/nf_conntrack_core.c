@@ -88,8 +88,6 @@ static __read_mostly bool nf_conntrack_locks_all;
 #define GC_MAX_BUCKETS_DIV	64u
 /* upper bound of scan intervals */
 #define GC_INTERVAL_MAX		(2 * HZ)
-/* maximum conntracks to evict per gc run */
-#define GC_MAX_EVICTS		256u
 
 static struct conntrack_gc_work conntrack_gc_work;
 
@@ -979,8 +977,7 @@ static void gc_worker(struct work_struct *work)
 		 */
 		rcu_read_unlock();
 		cond_resched_rcu_qs();
-	} while (++buckets < goal &&
-		 expired_count < GC_MAX_EVICTS);
+	} while (++buckets < goal);
 
 	if (gc_work->exiting)
 		return;
@@ -1005,7 +1002,7 @@ static void gc_worker(struct work_struct *work)
 	 * In case we have lots of evictions next scan is done immediately.
 	 */
 	ratio = scanned ? expired_count * 100 / scanned : 0;
-	if (ratio >= 90 || expired_count == GC_MAX_EVICTS) {
+	if (ratio >= 90) {
 		gc_work->next_gc_run = 0;
 		next_run = 0;
 	} else if (expired_count) {
