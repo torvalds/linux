@@ -162,7 +162,7 @@ struct srpc_stat_reply {
 	__u32		   str_status;
 	struct lst_sid	   str_sid;
 	sfw_counters_t	   str_fw;
-	srpc_counters_t    str_rpc;
+	struct srpc_counters	str_rpc;
 	lnet_counters_t    str_lnet;
 } WIRE_ATTR;
 

@@ -55,7 +55,7 @@ static struct smoketest_rpc {
 	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
 	enum srpc_state	 rpc_state;
-	srpc_counters_t	 rpc_counters;
+	struct srpc_counters	 rpc_counters;
 	__u64		 rpc_matchbits;	/* matchbits counter */
 } srpc_data;
 
@@ -69,14 +69,14 @@ srpc_serv_portal(int svc_id)
 /* forward ref's */
 int srpc_handle_rpc(struct swi_workitem *wi);
 
-void srpc_get_counters(srpc_counters_t *cnt)
+void srpc_get_counters(struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	*cnt = srpc_data.rpc_counters;
 	spin_unlock(&srpc_data.rpc_glock);
 }
 
-void srpc_set_counters(const srpc_counters_t *cnt)
+void srpc_set_counters(const struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	srpc_data.rpc_counters = *cnt;

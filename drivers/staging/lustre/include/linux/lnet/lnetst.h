@@ -501,7 +501,7 @@ struct lst_test_ping_param {
 	int	png_flags;	/* reserved flags */
 };
 
-typedef struct {
+struct srpc_counters {
 	__u32 errors;
 	__u32 rpcs_sent;
 	__u32 rpcs_rcvd;
@@ -509,7 +509,7 @@ typedef struct {
 	__u32 rpcs_expired;
 	__u64 bulk_get;
 	__u64 bulk_put;
-} WIRE_ATTR srpc_counters_t;
+} WIRE_ATTR;
 
 typedef struct {
 	/** milliseconds since current session started */

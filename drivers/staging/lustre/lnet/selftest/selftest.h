@@ -453,8 +453,8 @@ void srpc_abort_service(struct srpc_service *sv);
 int srpc_finish_service(struct srpc_service *sv);
 int srpc_service_add_buffers(struct srpc_service *sv, int nbuffer);
 void srpc_service_remove_buffers(struct srpc_service *sv, int nbuffer);
-void srpc_get_counters(srpc_counters_t *cnt);
-void srpc_set_counters(const srpc_counters_t *cnt);
+void srpc_get_counters(struct srpc_counters *cnt);
+void srpc_set_counters(const struct srpc_counters *cnt);
 
 extern struct cfs_wi_sched *lst_sched_serial;
 extern struct cfs_wi_sched **lst_sched_test;
