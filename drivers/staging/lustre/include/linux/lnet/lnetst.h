@@ -442,7 +442,7 @@ enum lst_test_type {
 /* create a test in a batch */
 #define LST_MAX_CONCUR	1024	/* Max concurrency of test */
 
-typedef struct {
+struct lstio_test_args {
 	int		  lstio_tes_key;	/* IN: session key */
 	int		  lstio_tes_bat_nmlen;	/* IN: batch name len */
 	char __user	 *lstio_tes_bat_name;	/* IN: batch name */
@@ -472,7 +472,7 @@ typedef struct {
 							value */
 	struct list_head __user *lstio_tes_resultp;/* OUT: list head of
 							result buffer */
-} lstio_test_args_t;
+};
 
 typedef enum {
 	LST_BRW_READ	= 1,

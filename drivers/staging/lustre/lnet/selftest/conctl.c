@@ -707,7 +707,7 @@ lst_stat_query_ioctl(struct lstio_stat_args *args)
 	return rc;
 }
 
-static int lst_test_add_ioctl(lstio_test_args_t *args)
+static int lst_test_add_ioctl(struct lstio_test_args *args)
 {
 	char *batch_name;
 	char *src_name = NULL;
@@ -903,7 +903,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_batch_info_ioctl((struct lstio_batch_info_args *)buf);
 		break;
 	case LSTIO_TEST_ADD:
-		rc = lst_test_add_ioctl((lstio_test_args_t *)buf);
+		rc = lst_test_add_ioctl((struct lstio_test_args *)buf);
 		break;
 	case LSTIO_STAT_QUERY:
 		rc = lst_stat_query_ioctl((struct lstio_stat_args *)buf);
