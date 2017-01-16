@@ -374,6 +374,7 @@ static void ida_dump(struct ida *ida)
  */
 static struct radix_tree_node *
 radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
+			struct radix_tree_root *root,
 			unsigned int shift, unsigned int offset,
 			unsigned int count, unsigned int exceptional)
 {
@@ -419,11 +420,12 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
 out:
 	BUG_ON(radix_tree_is_internal_node(ret));
 	if (ret) {
-		ret->parent = parent;
 		ret->shift = shift;
 		ret->offset = offset;
 		ret->count = count;
 		ret->exceptional = exceptional;
+		ret->parent = parent;
+		ret->root = root;
 	}
 	return ret;
 }
@@ -631,7 +633,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
 
 	do {
 		struct radix_tree_node *node = radix_tree_node_alloc(gfp, NULL,
-								shift, 0, 1, 0);
+							root, shift, 0, 1, 0);
 		if (!node)
 			return -ENOMEM;
 
@@ -828,7 +830,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		shift -= RADIX_TREE_MAP_SHIFT;
 		if (child == NULL) {
 			/* Have to add a child node.  */
-			child = radix_tree_node_alloc(gfp, node, shift,
+			child = radix_tree_node_alloc(gfp, node, root, shift,
 							offset, 0, 0);
 			if (!child)
 				return -ENOMEM;
@@ -1330,7 +1332,7 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
 
 	for (;;) {
 		if (node->shift > order) {
-			child = radix_tree_node_alloc(gfp, node,
+			child = radix_tree_node_alloc(gfp, node, root,
 					node->shift - RADIX_TREE_MAP_SHIFT,
 					offset, 0, 0);
 			if (!child)
@@ -2152,8 +2154,8 @@ void **idr_get_free(struct radix_tree_root *root,
 		shift -= RADIX_TREE_MAP_SHIFT;
 		if (child == NULL) {
 			/* Have to add a child node.  */
-			child = radix_tree_node_alloc(gfp, node, shift, offset,
-							0, 0);
+			child = radix_tree_node_alloc(gfp, node, root, shift,
+							offset, 0, 0);
 			if (!child)
 				return ERR_PTR(-ENOMEM);
 			all_tag_set(child, IDR_FREE);
