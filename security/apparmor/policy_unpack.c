@@ -29,6 +29,8 @@
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 
+#define FORCE_COMPLAIN_FLAG 0x800
+
 /*
  * The AppArmor interface treats data as a type byte followed by the
  * actual data.  The interface has the notion of a a named entry
@@ -514,7 +516,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 		profile->flags |= PFLAG_HAT;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
-	if (tmp == PACKED_MODE_COMPLAIN)
+	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
 		profile->mode = APPARMOR_COMPLAIN;
 	else if (tmp == PACKED_MODE_KILL)
 		profile->mode = APPARMOR_KILL;
