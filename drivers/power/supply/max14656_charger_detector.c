@@ -314,7 +314,6 @@ static const struct of_device_id max14656_match_table[] = {
 static struct i2c_driver max14656_i2c_driver = {
 	.driver = {
 		.name	= "max14656",
-		.owner	= THIS_MODULE,
 		.of_match_table = max14656_match_table,
 	},
 	.probe		= max14656_probe,
