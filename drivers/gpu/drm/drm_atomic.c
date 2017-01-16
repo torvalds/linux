@@ -1557,7 +1557,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		ret = drm_atomic_plane_check(plane, plane_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic core check failed\n",
@@ -1566,7 +1566,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		ret = drm_atomic_crtc_check(crtc, crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
@@ -1579,7 +1579,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		ret = config->funcs->atomic_check(state->dev, state);
 
 	if (!state->allow_modeset) {
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requires full modeset\n",
 						 crtc->base.id, crtc->name);
@@ -1663,13 +1663,13 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for_each_plane_in_state(state, plane, plane_state, i)
+	for_each_new_plane_in_state(state, plane, plane_state, i)
 		drm_atomic_plane_print_state(&p, plane_state);
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i)
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_atomic_crtc_print_state(&p, crtc_state);
 
-	for_each_connector_in_state(state, connector, connector_state, i)
+	for_each_new_connector_in_state(state, connector, connector_state, i)
 		drm_atomic_connector_print_state(&p, connector_state);
 }
 
@@ -1949,7 +1949,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
 		return 0;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		u64 __user *fence_ptr;
 
 		fence_ptr = get_out_fence_for_crtc(crtc_state->state, crtc);
@@ -2029,7 +2029,7 @@ static void complete_crtc_signaling(struct drm_device *dev,
 		return;
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		/*
 		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually
 		 * exclusive, if they weren't, this code should be
