@@ -365,7 +365,8 @@ static enum dma_status zx_dma_tx_status(struct dma_chan *chan,
 
 		bytes = 0;
 		clli = zx_dma_get_curr_lli(p);
-		index = (clli - ds->desc_hw_lli) / sizeof(struct zx_desc_hw);
+		index = (clli - ds->desc_hw_lli) /
+				sizeof(struct zx_desc_hw) + 1;
 		for (; index < ds->desc_num; index++) {
 			bytes += ds->desc_hw[index].src_x;
 			/* end of lli */
@@ -812,6 +813,7 @@ static int zx_dma_probe(struct platform_device *op)
 	INIT_LIST_HEAD(&d->slave.channels);
 	dma_cap_set(DMA_SLAVE, d->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, d->slave.cap_mask);
+	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	dma_cap_set(DMA_PRIVATE, d->slave.cap_mask);
 	d->slave.dev = &op->dev;
 	d->slave.device_free_chan_resources = zx_dma_free_chan_resources;
