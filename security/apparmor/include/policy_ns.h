@@ -46,11 +46,11 @@ struct aa_ns_acct {
  * @uniq_id: a unique id count for the profiles in the namespace
  * @dents: dentries for the namespaces file entries in apparmorfs
  *
- * An aa_ns defines the set profiles that are searched to determine
- * which profile to attach to a task.  Profiles can not be shared between
- * aa_nss and profile names within a namespace are guaranteed to be
- * unique.  When profiles in separate namespaces have the same name they
- * are NOT considered to be equivalent.
+ * An aa_ns defines the set profiles that are searched to determine which
+ * profile to attach to a task.  Profiles can not be shared between aa_ns
+ * and profile names within a namespace are guaranteed to be unique.  When
+ * profiles in separate namespaces have the same name they are NOT considered
+ * to be equivalent.
  *
  * Namespaces are hierarchical and only namespaces and profiles below the
  * current namespace are visible.

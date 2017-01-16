@@ -226,7 +226,7 @@ static void __ns_list_release(struct list_head *head);
 
 /**
  * destroy_ns - remove everything contained by @ns
- * @ns: ns to have it contents removed  (NOT NULL)
+ * @ns: namespace to have it contents removed  (NOT NULL)
  */
 static void destroy_ns(struct aa_ns *ns)
 {
@@ -276,7 +276,7 @@ static void __ns_list_release(struct list_head *head)
 }
 
 /**
- * aa_alloc_root_ns - allocate the root profile namespcae
+ * aa_alloc_root_ns - allocate the root profile namespace
  *
  * Returns: %0 on success else error
  *

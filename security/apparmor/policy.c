@@ -498,6 +498,35 @@ struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
 {
 	return aa_lookupn_profile(ns, hname, strlen(hname));
 }
+
+struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
+					const char *fqname, size_t n)
+{
+	struct aa_profile *profile;
+	struct aa_ns *ns;
+	const char *name, *ns_name;
+	size_t ns_len;
+
+	name = aa_splitn_fqname(fqname, n, &ns_name, &ns_len);
+	if (ns_name) {
+		ns = aa_findn_ns(base->ns, ns_name, ns_len);
+		if (!ns)
+			return NULL;
+	} else
+		ns = aa_get_ns(base->ns);
+
+	if (name)
+		profile = aa_lookupn_profile(ns, name, n - (name - fqname));
+	else if (ns)
+		/* default profile for ns, currently unconfined */
+		profile = aa_get_newest_profile(ns->unconfined);
+	else
+		profile = NULL;
+	aa_put_ns(ns);
+
+	return profile;
+}
+
 /**
  * replacement_allowed - test to see if replacement is allowed
  * @profile: profile to test if it can be replaced  (MAYBE NULL)

@@ -180,6 +180,8 @@ struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name);
 struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
 				      size_t n);
 struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *name);
+struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
+					const char *fqname, size_t n);
 struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 
 ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace);
