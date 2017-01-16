@@ -134,6 +134,14 @@ static void fl_clear_masked_range(struct fl_flow_key *key,
 	memset(fl_key_get_start(key, mask), 0, fl_mask_range(mask));
 }
 
+static struct cls_fl_filter *fl_lookup(struct cls_fl_head *head,
+				       struct fl_flow_key *mkey)
+{
+	return rhashtable_lookup_fast(&head->ht,
+				      fl_key_get_start(mkey, &head->mask),
+				      head->ht_params);
+}
+
 static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		       struct tcf_result *res)
 {
@@ -181,9 +189,7 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 	fl_set_masked_key(&skb_mkey, &skb_key, &head->mask);
 
-	f = rhashtable_lookup_fast(&head->ht,
-				   fl_key_get_start(&skb_mkey, &head->mask),
-				   head->ht_params);
+	f = fl_lookup(head, &skb_mkey);
 	if (f && !tc_skip_sw(f->flags)) {
 		*res = f->res;
 		return tcf_exts_exec(skb, &f->exts, res);
@@ -875,6 +881,11 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	if (!tc_skip_sw(fnew->flags)) {
+		if (!fold && fl_lookup(head, &fnew->mkey)) {
+			err = -EEXIST;
+			goto errout;
+		}
+
 		err = rhashtable_insert_fast(&head->ht, &fnew->ht_node,
 					     head->ht_params);
 		if (err)
