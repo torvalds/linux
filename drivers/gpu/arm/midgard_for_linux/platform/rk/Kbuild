@@ -11,10 +11,6 @@
 # Boston, MA  02110-1301, USA.
 #
 #
-
-# add default config for RK Linux device for absence of Kconfig.
-include drivers/gpu/arm/midgard_for_linux/default_config.mk
-
 ccflags-y += -I$(srctree)/drivers/staging/android
 
 ifeq ($(CONFIG_MALI_MIDGARD),y)

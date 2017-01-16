@@ -11,10 +11,6 @@
 # Boston, MA  02110-1301, USA.
 #
 #
-
-# add default config for RK Linux device for absence of Kconfig.
-include drivers/gpu/arm/midgard_for_linux/default_config.mk
-
 BACKEND += \
 	backend/gpu/mali_kbase_cache_policy_backend.c \
 	backend/gpu/mali_kbase_device_hw.c \
