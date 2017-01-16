@@ -422,7 +422,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *
  *	Returns the number of bytes not processed
  */
-int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
+int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 			  char *f, int count)
 {
 	if (ld->ops->receive_buf2)
