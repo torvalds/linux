@@ -612,6 +612,18 @@ config TI_AM335X_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called ti_am335x_adc.
 
+config TI_TLC4541
+	tristate "Texas Instruments TLC4541 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Texas Instruments TLC4541 / TLC3541
+	  ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-tlc4541.
+
 config TWL4030_MADC
 	tristate "TWL4030 MADC (Monitoring A/D Converter)"
 	depends on TWL4030_CORE

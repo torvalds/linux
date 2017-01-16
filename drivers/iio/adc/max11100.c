@@ -30,7 +30,6 @@
 #define MAX11100_LSB_DIV		(1 << 16)
 
 struct max11100_state {
-	const struct max11100_chip_desc *desc;
 	struct regulator *vref_reg;
 	struct spi_device *spi;
 
@@ -47,14 +46,6 @@ static struct iio_chan_spec max11100_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE),
 	},
-};
-
-static struct max11100_chip_desc {
-	unsigned int num_chan;
-	const struct iio_chan_spec *channels;
-} max11100_desc = {
-	.num_chan = ARRAY_SIZE(max11100_channels),
-	.channels = max11100_channels,
 };
 
 static int max11100_read_single(struct iio_dev *indio_dev, int *val)
@@ -127,15 +118,14 @@ static int max11100_probe(struct spi_device *spi)
 
 	state = iio_priv(indio_dev);
 	state->spi = spi;
-	state->desc = &max11100_desc;
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = "max11100";
 	indio_dev->info = &max11100_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = state->desc->channels;
-	indio_dev->num_channels = state->desc->num_chan;
+	indio_dev->channels = max11100_channels,
+	indio_dev->num_channels = ARRAY_SIZE(max11100_channels),
 
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(state->vref_reg))
@@ -162,9 +152,8 @@ static int max11100_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct max11100_state *state = iio_priv(indio_dev);
 
-	regulator_disable(state->vref_reg);
-
 	iio_device_unregister(indio_dev);
+	regulator_disable(state->vref_reg);
 
 	return 0;
 }
