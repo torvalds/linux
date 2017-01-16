@@ -1980,8 +1980,8 @@ static void cgroup_taskset_add(struct task_struct *task,
 	if (list_empty(&cset->mg_node))
 		list_add_tail(&cset->mg_node, &tset->src_csets);
 	if (list_empty(&cset->mg_dst_cset->mg_node))
-		list_move_tail(&cset->mg_dst_cset->mg_node,
-			       &tset->dst_csets);
+		list_add_tail(&cset->mg_dst_cset->mg_node,
+			      &tset->dst_csets);
 }
 
 /**
