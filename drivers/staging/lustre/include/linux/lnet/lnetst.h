@@ -137,7 +137,7 @@ struct lstcon_rpc_ent {
 	char			rpe_payload[0];	/* private reply payload */
 };
 
-typedef struct {
+struct lstcon_trans_stat {
 	int	trs_rpc_stat[4];	/* RPCs stat (0: total
 						      1: failed
 						      2: finished
@@ -146,94 +146,94 @@ typedef struct {
 	int	trs_fwk_stat[8];	/* framework stat */
 	int	trs_fwk_errno;		/* errno of the first remote error */
 	void	*trs_fwk_private;	/* private framework stat */
-} lstcon_trans_stat_t;
+};
 
 static inline int
-lstcon_rpc_stat_total(lstcon_trans_stat_t *stat, int inc)
+lstcon_rpc_stat_total(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_rpc_stat[0] : stat->trs_rpc_stat[0];
 }
 
 static inline int
-lstcon_rpc_stat_success(lstcon_trans_stat_t *stat, int inc)
+lstcon_rpc_stat_success(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_rpc_stat[1] : stat->trs_rpc_stat[1];
 }
 
 static inline int
-lstcon_rpc_stat_failure(lstcon_trans_stat_t *stat, int inc)
+lstcon_rpc_stat_failure(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_rpc_stat[2] : stat->trs_rpc_stat[2];
 }
 
 static inline int
-lstcon_sesop_stat_success(lstcon_trans_stat_t *stat, int inc)
+lstcon_sesop_stat_success(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[0] : stat->trs_fwk_stat[0];
 }
 
 static inline int
-lstcon_sesop_stat_failure(lstcon_trans_stat_t *stat, int inc)
+lstcon_sesop_stat_failure(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[1] : stat->trs_fwk_stat[1];
 }
 
 static inline int
-lstcon_sesqry_stat_active(lstcon_trans_stat_t *stat, int inc)
+lstcon_sesqry_stat_active(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[0] : stat->trs_fwk_stat[0];
 }
 
 static inline int
-lstcon_sesqry_stat_busy(lstcon_trans_stat_t *stat, int inc)
+lstcon_sesqry_stat_busy(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[1] : stat->trs_fwk_stat[1];
 }
 
 static inline int
-lstcon_sesqry_stat_unknown(lstcon_trans_stat_t *stat, int inc)
+lstcon_sesqry_stat_unknown(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[2] : stat->trs_fwk_stat[2];
 }
 
 static inline int
-lstcon_tsbop_stat_success(lstcon_trans_stat_t *stat, int inc)
+lstcon_tsbop_stat_success(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[0] : stat->trs_fwk_stat[0];
 }
 
 static inline int
-lstcon_tsbop_stat_failure(lstcon_trans_stat_t *stat, int inc)
+lstcon_tsbop_stat_failure(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[1] : stat->trs_fwk_stat[1];
 }
 
 static inline int
-lstcon_tsbqry_stat_idle(lstcon_trans_stat_t *stat, int inc)
+lstcon_tsbqry_stat_idle(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[0] : stat->trs_fwk_stat[0];
 }
 
 static inline int
-lstcon_tsbqry_stat_run(lstcon_trans_stat_t *stat, int inc)
+lstcon_tsbqry_stat_run(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[1] : stat->trs_fwk_stat[1];
 }
 
 static inline int
-lstcon_tsbqry_stat_failure(lstcon_trans_stat_t *stat, int inc)
+lstcon_tsbqry_stat_failure(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[2] : stat->trs_fwk_stat[2];
 }
 
 static inline int
-lstcon_statqry_stat_success(lstcon_trans_stat_t *stat, int inc)
+lstcon_statqry_stat_success(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[0] : stat->trs_fwk_stat[0];
 }
 
 static inline int
-lstcon_statqry_stat_failure(lstcon_trans_stat_t *stat, int inc)
+lstcon_statqry_stat_failure(struct lstcon_trans_stat *stat, int inc)
 {
 	return inc ? ++stat->trs_fwk_stat[1] : stat->trs_fwk_stat[1];
 }

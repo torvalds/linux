@@ -851,7 +851,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		goto out;
 	}
 
-	memset(&console_session.ses_trans_stat, 0, sizeof(lstcon_trans_stat_t));
+	memset(&console_session.ses_trans_stat, 0, sizeof(struct lstcon_trans_stat));
 
 	switch (opc) {
 	case LSTIO_SESSION_NEW:
@@ -913,7 +913,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 	}
 
 	if (copy_to_user(data->ioc_pbuf2, &console_session.ses_trans_stat,
-			 sizeof(lstcon_trans_stat_t)))
+			 sizeof(struct lstcon_trans_stat)))
 		rc = -EFAULT;
 out:
 	mutex_unlock(&console_session.ses_mutex);

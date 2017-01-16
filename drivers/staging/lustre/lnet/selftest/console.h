@@ -158,7 +158,7 @@ struct lstcon_session {
 	char		    ses_name[LST_NAME_SIZE];/* session name */
 	struct lstcon_rpc_trans	*ses_ping;		/* session pinger */
 	struct stt_timer	 ses_ping_timer;   /* timer for pinger */
-	lstcon_trans_stat_t ses_trans_stat;   /* transaction stats */
+	struct lstcon_trans_stat ses_trans_stat;   /* transaction stats */
 
 	struct list_head    ses_trans_list;   /* global list of transaction */
 	struct list_head    ses_grp_list;     /* global list of groups */
@@ -173,7 +173,7 @@ struct lstcon_session {
 
 extern struct lstcon_session	 console_session;
 
-static inline lstcon_trans_stat_t *
+static inline struct lstcon_trans_stat *
 lstcon_trans_stat(void)
 {
 	return &console_session.ses_trans_stat;

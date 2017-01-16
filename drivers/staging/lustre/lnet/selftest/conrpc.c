@@ -43,7 +43,7 @@
 #include "console.h"
 
 void lstcon_rpc_stat_reply(struct lstcon_rpc_trans *, struct srpc_msg *,
-			   struct lstcon_node *, lstcon_trans_stat_t *);
+			   struct lstcon_node *, struct lstcon_trans_stat *);
 
 static void
 lstcon_rpc_done(struct srpc_client_rpc *rpc)
@@ -420,7 +420,7 @@ lstcon_rpc_get_reply(struct lstcon_rpc *crpc, struct srpc_msg **msgpp)
 }
 
 void
-lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, lstcon_trans_stat_t *stat)
+lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans, struct lstcon_trans_stat *stat)
 {
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *rep;
@@ -964,7 +964,7 @@ lstcon_sesnew_stat_reply(struct lstcon_rpc_trans *trans,
 
 void
 lstcon_rpc_stat_reply(struct lstcon_rpc_trans *trans, struct srpc_msg *msg,
-		      struct lstcon_node *nd, lstcon_trans_stat_t *stat)
+		      struct lstcon_node *nd, struct lstcon_trans_stat *stat)
 {
 	struct srpc_rmsn_reply *rmsn_rep;
 	struct srpc_debug_reply *dbg_rep;
@@ -1320,7 +1320,7 @@ lstcon_rpc_pinger_stop(void)
 	lstcon_rpc_trans_stat(console_session.ses_ping, lstcon_trans_stat());
 	lstcon_rpc_trans_destroy(console_session.ses_ping);
 
-	memset(lstcon_trans_stat(), 0, sizeof(lstcon_trans_stat_t));
+	memset(lstcon_trans_stat(), 0, sizeof(struct lstcon_trans_stat));
 
 	console_session.ses_ping = NULL;
 }
