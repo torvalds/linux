@@ -368,7 +368,7 @@ lstcon_sesrpc_condition(int transop, struct lstcon_node *nd, void *arg)
 
 static int
 lstcon_sesrpc_readent(int transop, struct srpc_msg *msg,
-		      lstcon_rpc_ent_t __user *ent_up)
+		      struct lstcon_rpc_ent __user *ent_up)
 {
 	struct srpc_debug_reply *rep;
 
@@ -1385,7 +1385,7 @@ lstcon_test_find(struct lstcon_batch *batch, int idx,
 
 static int
 lstcon_tsbrpc_readent(int transop, struct srpc_msg *msg,
-		      lstcon_rpc_ent_t __user *ent_up)
+		      struct lstcon_rpc_ent __user *ent_up)
 {
 	struct srpc_batch_reply *rep = &msg->msg_body.bat_reply;
 
@@ -1464,7 +1464,7 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 
 static int
 lstcon_statrpc_readent(int transop, struct srpc_msg *msg,
-		       lstcon_rpc_ent_t __user *ent_up)
+		       struct lstcon_rpc_ent __user *ent_up)
 {
 	struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
 	sfw_counters_t __user *sfwk_stat;

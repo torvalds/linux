@@ -103,7 +103,7 @@ struct lstcon_rpc_trans {
 
 typedef int (*lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
 typedef int (*lstcon_rpc_readent_func_t)(int, struct srpc_msg *,
-					 lstcon_rpc_ent_t __user *);
+					 struct lstcon_rpc_ent __user *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 			unsigned int version, struct lstcon_rpc **crpc);

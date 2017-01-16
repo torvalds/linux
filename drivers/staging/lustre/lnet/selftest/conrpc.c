@@ -469,7 +469,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 {
 	struct list_head tmp;
 	struct list_head __user *next;
-	lstcon_rpc_ent_t *ent;
+	struct lstcon_rpc_ent *ent;
 	struct srpc_generic_reply *rep;
 	struct lstcon_rpc *crpc;
 	struct srpc_msg *msg;
@@ -492,7 +492,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 
 		next = tmp.next;
 
-		ent = list_entry(next, lstcon_rpc_ent_t, rpe_link);
+		ent = list_entry(next, struct lstcon_rpc_ent, rpe_link);
 
 		LASSERT(crpc->crp_stamp);
 

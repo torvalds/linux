@@ -124,7 +124,7 @@ struct lstcon_test_batch_ent {
 };				/*** test/batch verbose information entry,
 				 *** for list_batch command */
 
-typedef struct {
+struct lstcon_rpc_ent {
 	struct list_head	rpe_link;	/* link chain */
 	lnet_process_id_t	rpe_peer;	/* peer's id */
 	struct timeval		rpe_stamp;	/* time stamp of RPC */
@@ -135,7 +135,7 @@ typedef struct {
 	int			rpe_fwk_errno;	/* framework errno */
 	int			rpe_priv[4];	/* private data */
 	char			rpe_payload[0];	/* private reply payload */
-} lstcon_rpc_ent_t;
+};
 
 typedef struct {
 	int	trs_rpc_stat[4];	/* RPCs stat (0: total
