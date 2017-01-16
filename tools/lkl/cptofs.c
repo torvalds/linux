@@ -236,7 +236,7 @@ out:
 	return ret;
 }
 
-static int stat_src(const char *path, int *type, int *mode)
+static int stat_src(const char *path, int *type, int *mode, int *size)
 {
 	struct stat stat;
 	struct lkl_stat lkl_stat;
@@ -244,12 +244,20 @@ static int stat_src(const char *path, int *type, int *mode)
 
 	if (cptofs) {
 		ret = lstat(path, &stat);
-		*type = stat.st_mode & S_IFMT;
-		*mode = stat.st_mode & ~S_IFMT;
+		if (type)
+			*type = stat.st_mode & S_IFMT;
+		if (mode)
+			*mode = stat.st_mode & ~S_IFMT;
+		if (size)
+			*size = stat.st_size;
 	} else {
 		ret = lkl_sys_lstat(path, &lkl_stat);
-		*type = lkl_stat.st_mode & S_IFMT;
-		*mode = lkl_stat.st_mode & ~S_IFMT;
+		if (type)
+			*type = lkl_stat.st_mode & S_IFMT;
+		if (mode)
+			*mode = lkl_stat.st_mode & ~S_IFMT;
+		if (size)
+			*size = lkl_stat.st_size;
 	}
 
 	if (ret)
@@ -280,6 +288,79 @@ static int mkdir_dst(const char *path, int mode)
 	return ret;
 }
 
+static int readlink_src(const char *src, char *out, int outsize)
+{
+	int ret;
+
+	if (cptofs)
+		ret = readlink(src, out, outsize);
+	else
+		ret = lkl_sys_readlink(src, out, outsize);
+
+	if (ret < 0)
+		fprintf(stderr, "unable to readlink '%s': %s\n", src,
+			cptofs ? strerror(errno) : lkl_strerror(ret));
+
+	return ret;
+}
+
+static int symlink_dst(const char *path, const char *target)
+{
+	int ret;
+
+	if (cptofs)
+		ret = lkl_sys_symlink(target, path);
+	else
+		ret = symlink(target, path);
+
+	if (ret)
+		fprintf(stderr, "unable to symlink '%s' with target '%s': %s\n",
+			path, target, cptofs ? lkl_strerror(ret) :
+			strerror(errno));
+
+	return ret;
+}
+
+static int copy_symlink(const char *src, const char *dst)
+{
+	int ret;
+	int size;
+	char *target = NULL;
+
+	ret = stat_src(src, NULL, NULL, &size);
+	if (ret) {
+		ret = -1;
+		goto out;
+	}
+
+	target = malloc(size + 1);
+	if (!target) {
+		fprintf(stderr, "Unable to allocate memory (%d bytes)\n",
+			size + 1);
+		ret = -1;
+		goto out;
+	}
+
+	ret = readlink_src(src, target, size);
+	if (ret != size) {
+		fprintf(stderr, "readlink(%s) bad size: got %d, expected %d\n",
+			src, ret, size);
+		ret = -1;
+		goto out;
+	}
+	target[size] = 0; // readlink doesn't append the trailing null byte
+
+	ret = symlink_dst(dst, target);
+	if (ret)
+		ret = -1;
+
+out:
+	if (target)
+		free(target);
+
+	return ret;
+}
+
 static int do_entry(const char *_src, const char *_dst, const char *name)
 {
 	char src[PATH_MAX], dst[PATH_MAX];
@@ -289,7 +370,7 @@ static int do_entry(const char *_src, const char *_dst, const char *name)
 	snprintf(src, sizeof(src), "%s/%s", _src, name);
 	snprintf(dst, sizeof(dst), "%s/%s", _dst, name);
 
-	ret = stat_src(src, &type, &mode);
+	ret = stat_src(src, &type, &mode, NULL);
 
 	switch (type) {
 	case S_IFREG:
@@ -304,6 +385,8 @@ static int do_entry(const char *_src, const char *_dst, const char *name)
 		ret = searchdir(src, dst, NULL);
 		break;
 	case S_IFLNK:
+		ret = copy_symlink(src, dst);
+		break;
 	case S_IFSOCK:
 	case S_IFBLK:
 	case S_IFCHR:
