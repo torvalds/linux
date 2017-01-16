@@ -442,7 +442,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		}
 	} else if (COMPLAIN_MODE(profile)) {
 		/* no exec permission - are we in learning mode */
-		new_profile = aa_new_null_profile(profile, 0);
+		new_profile = aa_new_null_profile(profile, false, name,
+						  GFP_ATOMIC);
 		if (!new_profile) {
 			error = -ENOMEM;
 			info = "could not create null profile";
@@ -667,7 +668,8 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 			aa_put_profile(root);
 			target = name;
 			/* released below */
-			hat = aa_new_null_profile(profile, 1);
+			hat = aa_new_null_profile(profile, true, hats[0],
+						  GFP_KERNEL);
 			if (!hat) {
 				info = "failed null profile create";
 				error = -ENOMEM;
@@ -815,7 +817,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 		if (permtest || !COMPLAIN_MODE(profile))
 			goto audit;
 		/* released below */
-		target = aa_new_null_profile(profile, 0);
+		target = aa_new_null_profile(profile, false, hname, GFP_KERNEL);
 		if (!target) {
 			info = "failed null profile create";
 			error = -ENOMEM;
