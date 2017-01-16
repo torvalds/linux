@@ -41,6 +41,7 @@
  */
 enum ath10k_fw_crash_dump_type {
 	ATH10K_FW_CRASH_DUMP_REGISTERS = 0,
+	ATH10K_FW_CRASH_DUMP_CE_DATA = 1,
 
 	ATH10K_FW_CRASH_DUMP_MAX,
 };
@@ -729,6 +730,7 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
 							    bool mark_read)
 {
 	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
+	struct ath10k_ce_crash_hdr *ce_hdr;
 	struct ath10k_dump_file_data *dump_data;
 	struct ath10k_tlv_dump_data *dump_tlv;
 	int hdr_len = sizeof(*dump_data);
@@ -737,6 +739,8 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
 
 	len = hdr_len;
 	len += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+	len += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
+		CE_COUNT * sizeof(ce_hdr->entries[0]);
 
 	sofar += hdr_len;
 
@@ -794,6 +798,18 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
 	memcpy(dump_tlv->tlv_data, &crash_data->registers,
 	       sizeof(crash_data->registers));
 	sofar += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+
+	dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
+	dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_CE_DATA);
+	dump_tlv->tlv_len = cpu_to_le32(sizeof(*ce_hdr) +
+					CE_COUNT * sizeof(ce_hdr->entries[0]));
+	ce_hdr = (struct ath10k_ce_crash_hdr *)(dump_tlv->tlv_data);
+	ce_hdr->ce_count = cpu_to_le32(CE_COUNT);
+	memset(ce_hdr->reserved, 0, sizeof(ce_hdr->reserved));
+	memcpy(ce_hdr->entries, crash_data->ce_crash_data,
+	       CE_COUNT * sizeof(ce_hdr->entries[0]));
+	sofar += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
+		 CE_COUNT * sizeof(ce_hdr->entries[0]);
 
 	ar->debug.fw_crash_data->crashed_since_read = !mark_read;
 
