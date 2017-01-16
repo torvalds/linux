@@ -714,10 +714,11 @@ module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR | S_IWUSR);
 
 /* Determines how paranoid loading of policy is and how much verification
  * on the loaded policy is done.
+ * DEPRECATED: read only as strict checking of load is always done now
+ * that none root users (user namespaces) can load policy.
  */
 bool aa_g_paranoid_load = 1;
-module_param_named(paranoid_load, aa_g_paranoid_load, aabool,
-		   S_IRUSR | S_IWUSR);
+module_param_named(paranoid_load, aa_g_paranoid_load, aabool, S_IRUGO);
 
 /* Boot time disable flag */
 static bool apparmor_enabled = CONFIG_SECURITY_APPARMOR_BOOTPARAM_VALUE;
