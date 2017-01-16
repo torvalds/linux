@@ -143,6 +143,22 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 		.funcs = &vblank_irq_info_funcs\
 	}
 
+#define vblank_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
+		.enable_reg = mmLB ## reg_num ## _LB_INTERRUPT_MASK,\
+		.enable_mask =\
+			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+		.enable_value = {\
+			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+			~LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK},\
+		.ack_reg = mmLB ## reg_num ## _LB_VBLANK_STATUS,\
+		.ack_mask =\
+		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
+		.ack_value =\
+		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
+		.funcs = &vblank_irq_info_funcs\
+	}
+
 #define dummy_irq_entry() \
 	{\
 		.funcs = &dummy_irq_info_funcs\
@@ -246,6 +262,12 @@ irq_source_info_dce80[DAL_IRQ_SOURCES_NUMBER] = {
 	vupdate_int_entry(3),
 	vupdate_int_entry(4),
 	vupdate_int_entry(5),
+	vblank_int_entry(0),
+	vblank_int_entry(1),
+	vblank_int_entry(2),
+	vblank_int_entry(3),
+	vblank_int_entry(4),
+	vblank_int_entry(5),
 };
 
 static const struct irq_service_funcs irq_service_funcs_dce80 = {

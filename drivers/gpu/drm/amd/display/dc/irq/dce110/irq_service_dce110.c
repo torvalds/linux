@@ -33,6 +33,13 @@
 #include "dce/dce_11_0_sh_mask.h"
 #include "ivsrcid/ivsrcid_vislands30.h"
 
+#define VISLANDS30_IV_SRCID_D1_VBLANK                        1
+#define VISLANDS30_IV_SRCID_D2_VBLANK                        2
+#define VISLANDS30_IV_SRCID_D3_VBLANK                        3
+#define VISLANDS30_IV_SRCID_D4_VBLANK                        4
+#define VISLANDS30_IV_SRCID_D5_VBLANK                        5
+#define VISLANDS30_IV_SRCID_D6_VBLANK                        6
+
 static bool hpd_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
@@ -136,6 +143,22 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 		CRTC_V_UPDATE_INT_STATUS__CRTC_V_UPDATE_INT_CLEAR_MASK,\
 		.ack_value =\
 		CRTC_V_UPDATE_INT_STATUS__CRTC_V_UPDATE_INT_CLEAR_MASK,\
+		.funcs = &vblank_irq_info_funcs\
+	}
+
+#define vblank_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
+		.enable_reg = mmLB ## reg_num ## _LB_INTERRUPT_MASK,\
+		.enable_mask =\
+			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+		.enable_value = {\
+			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+			~LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK},\
+		.ack_reg = mmLB ## reg_num ## _LB_VBLANK_STATUS,\
+		.ack_mask =\
+		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
+		.ack_value =\
+		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
 		.funcs = &vblank_irq_info_funcs\
 	}
 
@@ -264,6 +287,13 @@ irq_source_info_dce110[DAL_IRQ_SOURCES_NUMBER] = {
 	vupdate_int_entry(3),
 	vupdate_int_entry(4),
 	vupdate_int_entry(5),
+	vblank_int_entry(0),
+	vblank_int_entry(1),
+	vblank_int_entry(2),
+	vblank_int_entry(3),
+	vblank_int_entry(4),
+	vblank_int_entry(5),
+
 };
 
 enum dc_irq_source to_dal_irq_source_dce110(
@@ -272,6 +302,18 @@ enum dc_irq_source to_dal_irq_source_dce110(
 		uint32_t ext_id)
 {
 	switch (src_id) {
+	case VISLANDS30_IV_SRCID_D1_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK1;
+	case VISLANDS30_IV_SRCID_D2_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK2;
+	case VISLANDS30_IV_SRCID_D3_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK3;
+	case VISLANDS30_IV_SRCID_D4_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK4;
+	case VISLANDS30_IV_SRCID_D5_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK5;
+	case VISLANDS30_IV_SRCID_D6_VBLANK:
+		return DC_IRQ_SOURCE_VBLANK6;
 	case VISLANDS30_IV_SRCID_D1_V_UPDATE_INT:
 		return DC_IRQ_SOURCE_VUPDATE1;
 	case VISLANDS30_IV_SRCID_D2_V_UPDATE_INT:
