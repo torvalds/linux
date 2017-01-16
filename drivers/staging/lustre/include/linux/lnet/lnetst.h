@@ -310,7 +310,7 @@ struct lstio_group_del_args {
 					 * in the group */
 #define LST_GROUP_RMND		3	/* delete nodes from the group */
 
-typedef struct {
+struct lstio_group_update_args {
 	int			 lstio_grp_key;		/* IN: session key */
 	int			 lstio_grp_opc;		/* IN: OPC */
 	int			 lstio_grp_args;	/* IN: arguments */
@@ -320,7 +320,7 @@ typedef struct {
 	lnet_process_id_t __user *lstio_grp_idsp;	/* IN: array of nodes */
 	struct list_head __user	*lstio_grp_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_group_update_args_t;
+};
 
 typedef struct {
 	int			 lstio_grp_key;		/* IN: session key */
