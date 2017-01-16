@@ -944,6 +944,7 @@ free:
 
 /**
  * aa_remove_profiles - remove profile(s) from the system
+ * @view: namespace the remove is being done from
  * @fqname: name of the profile or namespace to remove  (NOT NULL)
  * @size: size of the name
  *
@@ -954,9 +955,9 @@ free:
  *
  * Returns: size of data consume else error code if fails
  */
-ssize_t aa_remove_profiles(char *fqname, size_t size)
+ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 {
-	struct aa_ns *root, *ns = NULL;
+	struct aa_ns *root = NULL, *ns = NULL;
 	struct aa_profile *profile = NULL;
 	const char *name = fqname, *info = NULL;
 	ssize_t error = 0;
@@ -967,7 +968,7 @@ ssize_t aa_remove_profiles(char *fqname, size_t size)
 		goto fail;
 	}
 
-	root = aa_current_profile()->ns;
+	root = view;
 
 	if (fqname[0] == ':') {
 		char *ns_name;

@@ -180,7 +180,8 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		data[size] = 0;
-		error = aa_remove_profiles(data, size);
+		error = aa_remove_profiles(__aa_current_profile()->ns, data,
+					   size);
 		kvfree(data);
 	}
 
