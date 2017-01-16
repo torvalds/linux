@@ -116,6 +116,16 @@ i915_vma_create(struct drm_i915_gem_object *obj,
 		struct i915_address_space *vm,
 		const struct i915_ggtt_view *view);
 
+struct i915_vma *
+i915_vma_lookup(struct drm_i915_gem_object *obj,
+		struct i915_address_space *vm,
+		const struct i915_ggtt_view *view);
+
+struct i915_vma *
+i915_vma_instance(struct drm_i915_gem_object *obj,
+		  struct i915_address_space *vm,
+		  const struct i915_ggtt_view *view);
+
 void i915_vma_unpin_and_release(struct i915_vma **p_vma);
 
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)

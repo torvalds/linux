@@ -3679,7 +3679,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	vma = i915_gem_obj_lookup_or_create_vma(obj, vm, view);
+	vma = i915_vma_instance(obj, vm, view);
 	if (IS_ERR(vma))
 		return vma;
 

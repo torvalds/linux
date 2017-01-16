@@ -3374,16 +3374,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-struct i915_vma *
-i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-		     struct i915_address_space *vm,
-		     const struct i915_ggtt_view *view);
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm,
-				  const struct i915_ggtt_view *view);
-
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
@@ -3394,7 +3384,7 @@ static inline struct i915_vma *
 i915_gem_object_to_ggtt(struct drm_i915_gem_object *obj,
 			const struct i915_ggtt_view *view)
 {
-	return i915_gem_obj_to_vma(obj, &to_i915(obj->base.dev)->ggtt.base, view);
+	return i915_vma_lookup(obj, &to_i915(obj->base.dev)->ggtt.base, view);
 }
 
 /* i915_gem_fence_reg.c */

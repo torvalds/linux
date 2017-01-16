@@ -3362,51 +3362,6 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	i915_ggtt_invalidate(dev_priv);
 }
 
-struct i915_vma *
-i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    const struct i915_ggtt_view *view)
-{
-	struct rb_node *rb;
-
-	rb = obj->vma_tree.rb_node;
-	while (rb) {
-		struct i915_vma *vma = rb_entry(rb, struct i915_vma, obj_node);
-		long cmp;
-
-		cmp = i915_vma_compare(vma, vm, view);
-		if (cmp == 0)
-			return vma;
-
-		if (cmp < 0)
-			rb = rb->rb_right;
-		else
-			rb = rb->rb_left;
-	}
-
-	return NULL;
-}
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm,
-				  const struct i915_ggtt_view *view)
-{
-	struct i915_vma *vma;
-
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
-
-	vma = i915_gem_obj_to_vma(obj, vm, view);
-	if (!vma) {
-		vma = i915_vma_create(obj, vm, view);
-		GEM_BUG_ON(vma != i915_gem_obj_to_vma(obj, vm, view));
-	}
-
-	GEM_BUG_ON(i915_vma_is_closed(vma));
-	return vma;
-}
-
 static struct scatterlist *
 rotate_pages(const dma_addr_t *in, unsigned int offset,
 	     unsigned int width, unsigned int height,

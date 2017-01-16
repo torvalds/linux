@@ -184,7 +184,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (unlikely(IS_ERR(vma))) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
