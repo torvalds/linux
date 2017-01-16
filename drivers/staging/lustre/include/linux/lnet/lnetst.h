@@ -299,11 +299,11 @@ struct lstio_group_add_args {
 	char __user	*lstio_grp_namep;	/* IN: group name */
 };
 
-typedef struct {
+struct lstio_group_del_args {
 	int		 lstio_grp_key;		/* IN: session key */
 	int		 lstio_grp_nmlen;	/* IN: name length */
 	char __user	*lstio_grp_namep;	/* IN: group name */
-} lstio_group_del_args_t;
+};
 
 #define LST_GROUP_CLEAN		1	/* remove inactive nodes in the group */
 #define LST_GROUP_REFRESH	2	/* refresh inactive nodes
