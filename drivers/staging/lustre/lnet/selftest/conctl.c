@@ -313,7 +313,7 @@ lst_group_update_ioctl(struct lstio_group_update_args *args)
 }
 
 static int
-lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
+lst_nodes_add_ioctl(struct lstio_group_nodes_args *args)
 {
 	unsigned int feats;
 	int rc;
@@ -876,7 +876,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_group_update_ioctl((struct lstio_group_update_args *)buf);
 		break;
 	case LSTIO_NODES_ADD:
-		rc = lst_nodes_add_ioctl((lstio_group_nodes_args_t *)buf);
+		rc = lst_nodes_add_ioctl((struct lstio_group_nodes_args *)buf);
 		break;
 	case LSTIO_GROUP_LIST:
 		rc = lst_group_list_ioctl((lstio_group_list_args_t *)buf);

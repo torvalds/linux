@@ -322,7 +322,7 @@ struct lstio_group_update_args {
 								result buffer */
 };
 
-typedef struct {
+struct lstio_group_nodes_args {
 	int			 lstio_grp_key;		/* IN: session key */
 	int			 lstio_grp_nmlen;	/* IN: name length */
 	char __user		*lstio_grp_namep;	/* IN: group name */
@@ -332,7 +332,7 @@ typedef struct {
 	lnet_process_id_t __user *lstio_grp_idsp;	/* IN: nodes */
 	struct list_head __user	*lstio_grp_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_group_nodes_args_t;
+};
 
 typedef struct {
 	int	 lstio_grp_key;		/* IN: session key */
