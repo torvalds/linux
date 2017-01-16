@@ -251,7 +251,7 @@ struct lstio_session_new_args {
 };
 
 /* query current session */
-typedef struct {
+struct lstio_session_info_args {
 	struct lst_sid __user	*lstio_ses_idp;		/* OUT: session id */
 	int __user		*lstio_ses_keyp;	/* OUT: local key */
 	/** OUT: session features */
@@ -259,7 +259,7 @@ typedef struct {
 	struct lstcon_ndlist_ent __user *lstio_ses_ndinfo;/* OUT: */
 	int			 lstio_ses_nmlen;	/* IN: name length */
 	char __user		*lstio_ses_namep;	/* OUT: session name */
-} lstio_session_info_args_t;
+};
 
 /* delete a session */
 typedef struct {

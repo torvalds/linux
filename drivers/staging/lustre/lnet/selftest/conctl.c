@@ -87,7 +87,7 @@ lst_session_end_ioctl(lstio_session_end_args_t *args)
 }
 
 static int
-lst_session_info_ioctl(lstio_session_info_args_t *args)
+lst_session_info_ioctl(struct lstio_session_info_args *args)
 {
 	/* no checking of key */
 
@@ -861,7 +861,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_session_end_ioctl((lstio_session_end_args_t *)buf);
 		break;
 	case LSTIO_SESSION_INFO:
-		rc = lst_session_info_ioctl((lstio_session_info_args_t *)buf);
+		rc = lst_session_info_ioctl((struct lstio_session_info_args *)buf);
 		break;
 	case LSTIO_DEBUG:
 		rc = lst_debug_ioctl((lstio_debug_args_t *)buf);
