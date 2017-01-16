@@ -104,11 +104,11 @@ extern struct aa_dfa *nulldfa;
 
 #define byte_to_byte(X) (X)
 
-#define UNPACK_ARRAY(TABLE, BLOB, LEN, TYPE, NTOHX) \
+#define UNPACK_ARRAY(TABLE, BLOB, LEN, TTYPE, BTYPE, NTOHX)	\
 	do { \
 		typeof(LEN) __i; \
-		TYPE *__t = (TYPE *) TABLE; \
-		TYPE *__b = (TYPE *) BLOB; \
+		TTYPE *__t = (TTYPE *) TABLE; \
+		BTYPE *__b = (BTYPE *) BLOB; \
 		for (__i = 0; __i < LEN; __i++) { \
 			__t[__i] = NTOHX(__b[__i]); \
 		} \
