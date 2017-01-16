@@ -203,6 +203,7 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long order, base_pfn, end_pfn;
+	bool pci = dev && dev_is_pci(dev);
 
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;
@@ -225,19 +226,31 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		end_pfn = min_t(unsigned long, end_pfn,
 				domain->geometry.aperture_end >> order);
 	}
+	/*
+	 * PCI devices may have larger DMA masks, but still prefer allocating
+	 * within a 32-bit mask to avoid DAC addressing. Such limitations don't
+	 * apply to the typical platform device, so for those we may as well
+	 * leave the cache limit at the top of their range to save an rb_last()
+	 * traversal on every allocation.
+	 */
+	if (pci)
+		end_pfn &= DMA_BIT_MASK(32) >> order;
 
-	/* All we can safely do with an existing domain is enlarge it */
+	/* start_pfn is always nonzero for an already-initialised domain */
 	if (iovad->start_pfn) {
 		if (1UL << order != iovad->granule ||
-		    base_pfn != iovad->start_pfn ||
-		    end_pfn < iovad->dma_32bit_pfn) {
+		    base_pfn != iovad->start_pfn) {
 			pr_warn("Incompatible range for DMA domain\n");
 			return -EFAULT;
 		}
-		iovad->dma_32bit_pfn = end_pfn;
+		/*
+		 * If we have devices with different DMA masks, move the free
+		 * area cache limit down for the benefit of the smaller one.
+		 */
+		iovad->dma_32bit_pfn = min(end_pfn, iovad->dma_32bit_pfn);
 	} else {
 		init_iova_domain(iovad, 1UL << order, base_pfn, end_pfn);
-		if (dev && dev_is_pci(dev))
+		if (pci)
 			iova_reserve_pci_windows(to_pci_dev(dev), iovad);
 	}
 	return 0;
