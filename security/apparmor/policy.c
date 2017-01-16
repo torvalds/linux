@@ -106,7 +106,7 @@ void __aa_update_replacedby(struct aa_profile *orig, struct aa_profile *new)
 	tmp = rcu_dereference_protected(orig->replacedby->profile,
 					mutex_is_locked(&orig->ns->lock));
 	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
-	orig->flags |= PFLAG_INVALID;
+	orig->flags |= PFLAG_STALE;
 	aa_put_profile(tmp);
 }
 

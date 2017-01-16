@@ -46,7 +46,7 @@ extern const char *const aa_profile_mode_names[];
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->flags & PFLAG_HAT)
 
-#define PROFILE_INVALID(_profile) ((_profile)->flags & PFLAG_INVALID)
+#define profile_is_stale(_profile) ((_profile)->flags & PFLAG_STALE)
 
 #define on_list_rcu(X) (!list_empty(X) && (X)->prev != LIST_POISON2)
 
@@ -71,7 +71,7 @@ enum profile_flags {
 	PFLAG_USER_DEFINED = 0x20,	/* user based profile - lower privs */
 	PFLAG_NO_LIST_REF = 0x40,	/* list doesn't keep profile ref */
 	PFLAG_OLD_NULL_TRANS = 0x100,	/* use // as the null transition */
-	PFLAG_INVALID = 0x200,		/* profile replaced/removed */
+	PFLAG_STALE = 0x200,		/* profile replaced/removed */
 	PFLAG_NS_COUNT = 0x400,		/* carries NS ref count */
 
 	/* These flags must correspond with PATH_flags */
@@ -253,7 +253,7 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 	if (!p)
 		return NULL;
 
-	if (PROFILE_INVALID(p))
+	if (profile_is_stale(p))
 		return aa_get_profile_rcu(&p->replacedby->profile);
 
 	return aa_get_profile(p);
