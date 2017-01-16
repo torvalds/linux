@@ -243,10 +243,9 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		save_state = 1;
 		break;
 	case PWRDM_POWER_RET:
-		if (IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE)) {
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
 			save_state = 0;
-			break;
-		}
+		break;
 	default:
 		/*
 		 * CPUx CSWR is invalid hardware state. Also CPUx OSWR
