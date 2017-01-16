@@ -128,6 +128,21 @@ unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
 void aa_dfa_free_kref(struct kref *kref);
 
 /**
+ * aa_get_dfa - increment refcount on dfa @p
+ * @dfa: dfa  (MAYBE NULL)
+ *
+ * Returns: pointer to @dfa if @dfa is NULL will return NULL
+ * Requires: @dfa must be held with valid refcount when called
+ */
+static inline struct aa_dfa *aa_get_dfa(struct aa_dfa *dfa)
+{
+	if (dfa)
+		kref_get(&(dfa->count));
+
+	return dfa;
+}
+
+/**
  * aa_put_dfa - put a dfa refcount
  * @dfa: dfa to put refcount   (MAYBE NULL)
  *
