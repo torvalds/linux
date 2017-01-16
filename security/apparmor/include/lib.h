@@ -35,11 +35,23 @@
  * which is not related to profile accesses.
  */
 
+#define DEBUG_ON (aa_g_debug)
+#define dbg_printk(__fmt, __args...) pr_debug(__fmt, ##__args)
 #define AA_DEBUG(fmt, args...)						\
 	do {								\
-		if (aa_g_debug)						\
+		if (DEBUG_ON)						\
 			pr_debug_ratelimited("AppArmor: " fmt, ##args);	\
 	} while (0)
+
+#define AA_WARN(X) WARN((X), "APPARMOR WARN %s: %s\n", __func__, #X)
+
+#define AA_BUG(X, args...) AA_BUG_FMT((X), "" args)
+#ifdef CONFIG_SECURITY_APPARMOR_DEBUG_ASSERTS
+#define AA_BUG_FMT(X, fmt, args...)					\
+	WARN((X), "AppArmor WARN %s: (" #X "): " fmt, __func__, ##args)
+#else
+#define AA_BUG_FMT(X, fmt, args...)
+#endif
 
 #define AA_ERROR(fmt, args...)						\
 	pr_err_ratelimited("AppArmor: " fmt, ##args)
