@@ -662,7 +662,7 @@ lst_batch_info_ioctl(struct lstio_batch_info_args *args)
 }
 
 static int
-lst_stat_query_ioctl(lstio_stat_args_t *args)
+lst_stat_query_ioctl(struct lstio_stat_args *args)
 {
 	int rc;
 	char *name = NULL;
@@ -906,7 +906,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_test_add_ioctl((lstio_test_args_t *)buf);
 		break;
 	case LSTIO_STAT_QUERY:
-		rc = lst_stat_query_ioctl((lstio_stat_args_t *)buf);
+		rc = lst_stat_query_ioctl((struct lstio_stat_args *)buf);
 		break;
 	default:
 		rc = -EINVAL;

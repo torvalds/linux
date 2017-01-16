@@ -421,7 +421,7 @@ struct lstio_batch_info_args {
 };
 
 /* add stat in session */
-typedef struct {
+struct lstio_stat_args {
 	int			 lstio_sta_key;		/* IN: session key */
 	int			 lstio_sta_timeout;	/* IN: timeout for
 							       stat request */
@@ -432,7 +432,7 @@ typedef struct {
 	lnet_process_id_t __user *lstio_sta_idsp;	/* IN: pid */
 	struct list_head __user	*lstio_sta_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_stat_args_t;
+};
 
 typedef enum {
 	LST_TEST_BULK	= 1,
