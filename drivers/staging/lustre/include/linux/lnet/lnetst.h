@@ -494,12 +494,12 @@ struct lst_test_bulk_param {
 	int	blk_srv_off;	/* reserved: bulk offset on server */
 };
 
-typedef struct {
+struct lst_test_ping_param {
 	int	png_size;	/* size of ping message */
 	int	png_time;	/* time */
 	int	png_loop;	/* loop */
 	int	png_flags;	/* reserved flags */
-} lst_test_ping_param_t;
+};
 
 typedef struct {
 	__u32 errors;

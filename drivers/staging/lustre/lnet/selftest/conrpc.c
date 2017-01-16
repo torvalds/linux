@@ -768,7 +768,7 @@ lstcon_dstnodes_prep(struct lstcon_group *grp, int idx,
 }
 
 static int
-lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
+lstcon_pingrpc_prep(struct lst_test_ping_param *param, struct srpc_test_reqst *req)
 {
 	struct test_ping_req *prq = &req->tsr_u.ping;
 
@@ -891,7 +891,7 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 	switch (test->tes_type) {
 	case LST_TEST_PING:
 		trq->tsr_service = SRPC_SERVICE_PING;
-		rc = lstcon_pingrpc_prep((lst_test_ping_param_t *)
+		rc = lstcon_pingrpc_prep((struct lst_test_ping_param *)
 					 &test->tes_param[0], trq);
 		break;
 
