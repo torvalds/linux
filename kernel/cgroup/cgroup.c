@@ -1916,49 +1916,18 @@ int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 }
 EXPORT_SYMBOL_GPL(task_cgroup_path);
 
-/* used to track tasks and other necessary states during migration */
-struct cgroup_taskset {
-	/* the src and dst cset list running through cset->mg_node */
-	struct list_head	src_csets;
-	struct list_head	dst_csets;
-
-	/* the subsys currently being processed */
-	int			ssid;
-
-	/*
-	 * Fields for cgroup_taskset_*() iteration.
-	 *
-	 * Before migration is committed, the target migration tasks are on
-	 * ->mg_tasks of the csets on ->src_csets.  After, on ->mg_tasks of
-	 * the csets on ->dst_csets.  ->csets point to either ->src_csets
-	 * or ->dst_csets depending on whether migration is committed.
-	 *
-	 * ->cur_csets and ->cur_task point to the current task position
-	 * during iteration.
-	 */
-	struct list_head	*csets;
-	struct css_set		*cur_cset;
-	struct task_struct	*cur_task;
-};
-
-#define CGROUP_TASKSET_INIT(tset)	(struct cgroup_taskset){	\
-	.src_csets		= LIST_HEAD_INIT(tset.src_csets),	\
-	.dst_csets		= LIST_HEAD_INIT(tset.dst_csets),	\
-	.csets			= &tset.src_csets,			\
-}
-
 /**
- * cgroup_taskset_add - try to add a migration target task to a taskset
+ * cgroup_migrate_add_task - add a migration target task to a migration context
  * @task: target task
- * @tset: target taskset
+ * @mgctx: target migration context
  *
- * Add @task, which is a migration target, to @tset.  This function becomes
- * noop if @task doesn't need to be migrated.  @task's css_set should have
- * been added as a migration source and @task->cg_list will be moved from
- * the css_set's tasks list to mg_tasks one.
+ * Add @task, which is a migration target, to @mgctx->tset.  This function
+ * becomes noop if @task doesn't need to be migrated.  @task's css_set
+ * should have been added as a migration source and @task->cg_list will be
+ * moved from the css_set's tasks list to mg_tasks one.
  */
-static void cgroup_taskset_add(struct task_struct *task,
-			       struct cgroup_taskset *tset)
+static void cgroup_migrate_add_task(struct task_struct *task,
+				    struct cgroup_mgctx *mgctx)
 {
 	struct css_set *cset;
 
@@ -1978,10 +1947,11 @@ static void cgroup_taskset_add(struct task_struct *task,
 
 	list_move_tail(&task->cg_list, &cset->mg_tasks);
 	if (list_empty(&cset->mg_node))
-		list_add_tail(&cset->mg_node, &tset->src_csets);
+		list_add_tail(&cset->mg_node,
+			      &mgctx->tset.src_csets);
 	if (list_empty(&cset->mg_dst_cset->mg_node))
 		list_add_tail(&cset->mg_dst_cset->mg_node,
-			      &tset->dst_csets);
+			      &mgctx->tset.dst_csets);
 }
 
 /**
@@ -2048,17 +2018,18 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
 
 /**
  * cgroup_taskset_migrate - migrate a taskset
- * @tset: taget taskset
+ * @mgctx: migration context
  * @root: cgroup root the migration is taking place on
  *
- * Migrate tasks in @tset as setup by migration preparation functions.
+ * Migrate tasks in @mgctx as setup by migration preparation functions.
  * This function fails iff one of the ->can_attach callbacks fails and
- * guarantees that either all or none of the tasks in @tset are migrated.
- * @tset is consumed regardless of success.
+ * guarantees that either all or none of the tasks in @mgctx are migrated.
+ * @mgctx is consumed regardless of success.
  */
-static int cgroup_taskset_migrate(struct cgroup_taskset *tset,
+static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx,
 				  struct cgroup_root *root)
 {
+	struct cgroup_taskset *tset = &mgctx->tset;
 	struct cgroup_subsys *ss;
 	struct task_struct *task, *tmp_task;
 	struct css_set *cset, *tmp_cset;
@@ -2151,25 +2122,31 @@ bool cgroup_may_migrate_to(struct cgroup *dst_cgrp)
 
 /**
  * cgroup_migrate_finish - cleanup after attach
- * @preloaded_csets: list of preloaded css_sets
+ * @mgctx: migration context
  *
  * Undo cgroup_migrate_add_src() and cgroup_migrate_prepare_dst().  See
  * those functions for details.
  */
-void cgroup_migrate_finish(struct list_head *preloaded_csets)
+void cgroup_migrate_finish(struct cgroup_mgctx *mgctx)
 {
+	LIST_HEAD(preloaded);
 	struct css_set *cset, *tmp_cset;
 
 	lockdep_assert_held(&cgroup_mutex);
 
 	spin_lock_irq(&css_set_lock);
-	list_for_each_entry_safe(cset, tmp_cset, preloaded_csets, mg_preload_node) {
+
+	list_splice_tail_init(&mgctx->preloaded_src_csets, &preloaded);
+	list_splice_tail_init(&mgctx->preloaded_dst_csets, &preloaded);
+
+	list_for_each_entry_safe(cset, tmp_cset, &preloaded, mg_preload_node) {
 		cset->mg_src_cgrp = NULL;
 		cset->mg_dst_cgrp = NULL;
 		cset->mg_dst_cset = NULL;
 		list_del_init(&cset->mg_preload_node);
 		put_css_set_locked(cset);
 	}
+
 	spin_unlock_irq(&css_set_lock);
 }
 
@@ -2177,10 +2154,10 @@ void cgroup_migrate_finish(struct list_head *preloaded_csets)
  * cgroup_migrate_add_src - add a migration source css_set
  * @src_cset: the source css_set to add
  * @dst_cgrp: the destination cgroup
- * @preloaded_csets: list of preloaded css_sets
+ * @mgctx: migration context
  *
  * Tasks belonging to @src_cset are about to be migrated to @dst_cgrp.  Pin
- * @src_cset and add it to @preloaded_csets, which should later be cleaned
+ * @src_cset and add it to @mgctx->src_csets, which should later be cleaned
  * up by cgroup_migrate_finish().
  *
  * This function may be called without holding cgroup_threadgroup_rwsem
@@ -2191,7 +2168,7 @@ void cgroup_migrate_finish(struct list_head *preloaded_csets)
  */
 void cgroup_migrate_add_src(struct css_set *src_cset,
 			    struct cgroup *dst_cgrp,
-			    struct list_head *preloaded_csets)
+			    struct cgroup_mgctx *mgctx)
 {
 	struct cgroup *src_cgrp;
 
@@ -2219,32 +2196,32 @@ void cgroup_migrate_add_src(struct css_set *src_cset,
 	src_cset->mg_src_cgrp = src_cgrp;
 	src_cset->mg_dst_cgrp = dst_cgrp;
 	get_css_set(src_cset);
-	list_add(&src_cset->mg_preload_node, preloaded_csets);
+	list_add_tail(&src_cset->mg_preload_node, &mgctx->preloaded_src_csets);
 }
 
 /**
  * cgroup_migrate_prepare_dst - prepare destination css_sets for migration
- * @preloaded_csets: list of preloaded source css_sets
+ * @mgctx: migration context
  *
  * Tasks are about to be moved and all the source css_sets have been
- * preloaded to @preloaded_csets.  This function looks up and pins all
- * destination css_sets, links each to its source, and append them to
- * @preloaded_csets.
+ * preloaded to @mgctx->preloaded_src_csets.  This function looks up and
+ * pins all destination css_sets, links each to its source, and append them
+ * to @mgctx->preloaded_dst_csets.
  *
  * This function must be called after cgroup_migrate_add_src() has been
  * called on each migration source css_set.  After migration is performed
  * using cgroup_migrate(), cgroup_migrate_finish() must be called on
- * @preloaded_csets.
+ * @mgctx.
  */
-int cgroup_migrate_prepare_dst(struct list_head *preloaded_csets)
+int cgroup_migrate_prepare_dst(struct cgroup_mgctx *mgctx)
 {
-	LIST_HEAD(csets);
 	struct css_set *src_cset, *tmp_cset;
 
 	lockdep_assert_held(&cgroup_mutex);
 
 	/* look up the dst cset for each src cset and link it to src */
-	list_for_each_entry_safe(src_cset, tmp_cset, preloaded_csets, mg_preload_node) {
+	list_for_each_entry_safe(src_cset, tmp_cset, &mgctx->preloaded_src_csets,
+				 mg_preload_node) {
 		struct css_set *dst_cset;
 
 		dst_cset = find_css_set(src_cset, src_cset->mg_dst_cgrp);
@@ -2270,15 +2247,15 @@ int cgroup_migrate_prepare_dst(struct list_head *preloaded_csets)
 		src_cset->mg_dst_cset = dst_cset;
 
 		if (list_empty(&dst_cset->mg_preload_node))
-			list_add(&dst_cset->mg_preload_node, &csets);
+			list_add_tail(&dst_cset->mg_preload_node,
+				      &mgctx->preloaded_dst_csets);
 		else
 			put_css_set(dst_cset);
 	}
 
-	list_splice_tail(&csets, preloaded_csets);
 	return 0;
 err:
-	cgroup_migrate_finish(&csets);
+	cgroup_migrate_finish(mgctx);
 	return -ENOMEM;
 }
 
@@ -2287,6 +2264,7 @@ err:
  * @leader: the leader of the process or the task to migrate
  * @threadgroup: whether @leader points to the whole process or a single task
  * @root: cgroup root migration is taking place on
+ * @mgctx: migration context
  *
  * Migrate a process or task denoted by @leader.  If migrating a process,
  * the caller must be holding cgroup_threadgroup_rwsem.  The caller is also
@@ -2301,9 +2279,8 @@ err:
  * actually starting migrating.
  */
 int cgroup_migrate(struct task_struct *leader, bool threadgroup,
-		   struct cgroup_root *root)
+		   struct cgroup_mgctx *mgctx, struct cgroup_root *root)
 {
-	struct cgroup_taskset tset = CGROUP_TASKSET_INIT(tset);
 	struct task_struct *task;
 
 	/*
@@ -2315,14 +2292,14 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 	rcu_read_lock();
 	task = leader;
 	do {
-		cgroup_taskset_add(task, &tset);
+		cgroup_migrate_add_task(task, mgctx);
 		if (!threadgroup)
 			break;
 	} while_each_thread(leader, task);
 	rcu_read_unlock();
 	spin_unlock_irq(&css_set_lock);
 
-	return cgroup_taskset_migrate(&tset, root);
+	return cgroup_migrate_execute(mgctx, root);
 }
 
 /**
@@ -2336,7 +2313,7 @@ int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 		       bool threadgroup)
 {
-	LIST_HEAD(preloaded_csets);
+	DEFINE_CGROUP_MGCTX(mgctx);
 	struct task_struct *task;
 	int ret;
 
@@ -2348,8 +2325,7 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 	rcu_read_lock();
 	task = leader;
 	do {
-		cgroup_migrate_add_src(task_css_set(task), dst_cgrp,
-				       &preloaded_csets);
+		cgroup_migrate_add_src(task_css_set(task), dst_cgrp, &mgctx);
 		if (!threadgroup)
 			break;
 	} while_each_thread(leader, task);
@@ -2357,11 +2333,11 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 	spin_unlock_irq(&css_set_lock);
 
 	/* prepare dst csets and commit */
-	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&mgctx);
 	if (!ret)
-		ret = cgroup_migrate(leader, threadgroup, dst_cgrp->root);
+		ret = cgroup_migrate(leader, threadgroup, &mgctx, dst_cgrp->root);
 
-	cgroup_migrate_finish(&preloaded_csets);
+	cgroup_migrate_finish(&mgctx);
 
 	if (!ret)
 		trace_cgroup_attach_task(dst_cgrp, leader, threadgroup);
@@ -2528,8 +2504,7 @@ static int cgroup_subtree_control_show(struct seq_file *seq, void *v)
  */
 static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 {
-	LIST_HEAD(preloaded_csets);
-	struct cgroup_taskset tset = CGROUP_TASKSET_INIT(tset);
+	DEFINE_CGROUP_MGCTX(mgctx);
 	struct cgroup_subsys_state *d_css;
 	struct cgroup *dsct;
 	struct css_set *src_cset;
@@ -2545,33 +2520,28 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 		struct cgrp_cset_link *link;
 
 		list_for_each_entry(link, &dsct->cset_links, cset_link)
-			cgroup_migrate_add_src(link->cset, dsct,
-					       &preloaded_csets);
+			cgroup_migrate_add_src(link->cset, dsct, &mgctx);
 	}
 	spin_unlock_irq(&css_set_lock);
 
 	/* NULL dst indicates self on default hierarchy */
-	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&mgctx);
 	if (ret)
 		goto out_finish;
 
 	spin_lock_irq(&css_set_lock);
-	list_for_each_entry(src_cset, &preloaded_csets, mg_preload_node) {
+	list_for_each_entry(src_cset, &mgctx.preloaded_src_csets, mg_preload_node) {
 		struct task_struct *task, *ntask;
-
-		/* src_csets precede dst_csets, break on the first dst_cset */
-		if (!src_cset->mg_src_cgrp)
-			break;
 
 		/* all tasks in src_csets need to be migrated */
 		list_for_each_entry_safe(task, ntask, &src_cset->tasks, cg_list)
-			cgroup_taskset_add(task, &tset);
+			cgroup_migrate_add_task(task, &mgctx);
 	}
 	spin_unlock_irq(&css_set_lock);
 
-	ret = cgroup_taskset_migrate(&tset, cgrp->root);
+	ret = cgroup_migrate_execute(&mgctx, cgrp->root);
 out_finish:
-	cgroup_migrate_finish(&preloaded_csets);
+	cgroup_migrate_finish(&mgctx);
 	percpu_up_write(&cgroup_threadgroup_rwsem);
 	return ret;
 }

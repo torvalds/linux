@@ -26,6 +26,61 @@ struct cgrp_cset_link {
 	struct list_head	cgrp_link;
 };
 
+/* used to track tasks and csets during migration */
+struct cgroup_taskset {
+	/* the src and dst cset list running through cset->mg_node */
+	struct list_head	src_csets;
+	struct list_head	dst_csets;
+
+	/* the subsys currently being processed */
+	int			ssid;
+
+	/*
+	 * Fields for cgroup_taskset_*() iteration.
+	 *
+	 * Before migration is committed, the target migration tasks are on
+	 * ->mg_tasks of the csets on ->src_csets.  After, on ->mg_tasks of
+	 * the csets on ->dst_csets.  ->csets point to either ->src_csets
+	 * or ->dst_csets depending on whether migration is committed.
+	 *
+	 * ->cur_csets and ->cur_task point to the current task position
+	 * during iteration.
+	 */
+	struct list_head	*csets;
+	struct css_set		*cur_cset;
+	struct task_struct	*cur_task;
+};
+
+/* migration context also tracks preloading */
+struct cgroup_mgctx {
+	/*
+	 * Preloaded source and destination csets.  Used to guarantee
+	 * atomic success or failure on actual migration.
+	 */
+	struct list_head	preloaded_src_csets;
+	struct list_head	preloaded_dst_csets;
+
+	/* tasks and csets to migrate */
+	struct cgroup_taskset	tset;
+};
+
+#define CGROUP_TASKSET_INIT(tset)						\
+{										\
+	.src_csets		= LIST_HEAD_INIT(tset.src_csets),		\
+	.dst_csets		= LIST_HEAD_INIT(tset.dst_csets),		\
+	.csets			= &tset.src_csets,				\
+}
+
+#define CGROUP_MGCTX_INIT(name)							\
+{										\
+	LIST_HEAD_INIT(name.preloaded_src_csets),				\
+	LIST_HEAD_INIT(name.preloaded_dst_csets),				\
+	CGROUP_TASKSET_INIT(name.tset),						\
+}
+
+#define DEFINE_CGROUP_MGCTX(name)						\
+	struct cgroup_mgctx name = CGROUP_MGCTX_INIT(name)
+
 struct cgroup_sb_opts {
 	u16 subsys_mask;
 	unsigned int flags;
@@ -112,13 +167,12 @@ struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
 			       struct cgroup_namespace *ns);
 
 bool cgroup_may_migrate_to(struct cgroup *dst_cgrp);
-void cgroup_migrate_finish(struct list_head *preloaded_csets);
-void cgroup_migrate_add_src(struct css_set *src_cset,
-			    struct cgroup *dst_cgrp,
-			    struct list_head *preloaded_csets);
-int cgroup_migrate_prepare_dst(struct list_head *preloaded_csets);
+void cgroup_migrate_finish(struct cgroup_mgctx *mgctx);
+void cgroup_migrate_add_src(struct css_set *src_cset, struct cgroup *dst_cgrp,
+			    struct cgroup_mgctx *mgctx);
+int cgroup_migrate_prepare_dst(struct cgroup_mgctx *mgctx);
 int cgroup_migrate(struct task_struct *leader, bool threadgroup,
-		   struct cgroup_root *root);
+		   struct cgroup_mgctx *mgctx, struct cgroup_root *root);
 
 int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 		       bool threadgroup);

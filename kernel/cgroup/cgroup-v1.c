@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
-	LIST_HEAD(preloaded_csets);
+	DEFINE_CGROUP_MGCTX(mgctx);
 	struct cgrp_cset_link *link;
 	struct css_task_iter it;
 	struct task_struct *task;
@@ -106,10 +106,10 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 	/* all tasks in @from are being moved, all csets are source */
 	spin_lock_irq(&css_set_lock);
 	list_for_each_entry(link, &from->cset_links, cset_link)
-		cgroup_migrate_add_src(link->cset, to, &preloaded_csets);
+		cgroup_migrate_add_src(link->cset, to, &mgctx);
 	spin_unlock_irq(&css_set_lock);
 
-	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&mgctx);
 	if (ret)
 		goto out_err;
 
@@ -125,14 +125,14 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		css_task_iter_end(&it);
 
 		if (task) {
-			ret = cgroup_migrate(task, false, to->root);
+			ret = cgroup_migrate(task, false, &mgctx, to->root);
 			if (!ret)
 				trace_cgroup_transfer_tasks(to, task, false);
 			put_task_struct(task);
 		}
 	} while (task && !ret);
 out_err:
-	cgroup_migrate_finish(&preloaded_csets);
+	cgroup_migrate_finish(&mgctx);
 	percpu_up_write(&cgroup_threadgroup_rwsem);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
