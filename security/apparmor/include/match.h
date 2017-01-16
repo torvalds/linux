@@ -100,6 +100,8 @@ struct aa_dfa {
 	struct table_header *tables[YYTD_ID_TSIZE];
 };
 
+extern struct aa_dfa *nulldfa;
+
 #define byte_to_byte(X) (X)
 
 #define UNPACK_ARRAY(TABLE, BLOB, LEN, TYPE, NTOHX) \
@@ -116,6 +118,9 @@ static inline size_t table_size(size_t len, size_t el_size)
 {
 	return ALIGN(sizeof(struct table_header) + len * el_size, 8);
 }
+
+int aa_setup_dfa_engine(void);
+void aa_teardown_dfa_engine(void);
 
 struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags);
 unsigned int aa_dfa_match_len(struct aa_dfa *dfa, unsigned int start,

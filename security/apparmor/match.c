@@ -25,6 +25,33 @@
 
 #define base_idx(X) ((X) & 0xffffff)
 
+static char nulldfa_src[] = {
+	#include "nulldfa.in"
+};
+struct aa_dfa *nulldfa;
+
+int aa_setup_dfa_engine(void)
+{
+	int error;
+
+	nulldfa = aa_dfa_unpack(nulldfa_src, sizeof(nulldfa_src),
+				TO_ACCEPT1_FLAG(YYTD_DATA32) |
+				TO_ACCEPT2_FLAG(YYTD_DATA32));
+	if (!IS_ERR(nulldfa))
+		return 0;
+
+	error = PTR_ERR(nulldfa);
+	nulldfa = NULL;
+
+	return error;
+}
+
+void aa_teardown_dfa_engine(void)
+{
+	aa_put_dfa(nulldfa);
+	nulldfa = NULL;
+}
+
 /**
  * unpack_table - unpack a dfa table (one of accept, default, base, next check)
  * @blob: data to unpack (NOT NULL)

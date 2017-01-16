@@ -348,6 +348,8 @@ name:
 	/* released on free_profile */
 	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
 	profile->ns = aa_get_ns(parent->ns);
+	profile->file.dfa = aa_get_dfa(nulldfa);
+	profile->policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock(&profile->ns->lock);
 	__list_add_profile(&parent->base.profiles, profile);

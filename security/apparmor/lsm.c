@@ -878,6 +878,12 @@ static int __init apparmor_init(void)
 		return 0;
 	}
 
+	error = aa_setup_dfa_engine();
+	if (error) {
+		AA_ERROR("Unable to setup dfa engine\n");
+		goto alloc_out;
+	}
+
 	error = aa_alloc_root_ns();
 	if (error) {
 		AA_ERROR("Unable to allocate default profile namespace\n");
@@ -905,6 +911,7 @@ static int __init apparmor_init(void)
 
 alloc_out:
 	aa_destroy_aafs();
+	aa_teardown_dfa_engine();
 
 	apparmor_enabled = 0;
 	return error;

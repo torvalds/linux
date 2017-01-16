@@ -603,7 +603,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 		}
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
-	}
+	} else
+		profile->policy.dfa = aa_get_dfa(nulldfa);
 
 	/* get file rules */
 	profile->file.dfa = unpack_dfa(e);
@@ -619,7 +620,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 		   profile->policy.start[AA_CLASS_FILE]) {
 		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
 		profile->file.start = profile->policy.start[AA_CLASS_FILE];
-	}
+	} else
+		profile->file.dfa = aa_get_dfa(nulldfa);
 
 	if (!unpack_trans_table(e, profile))
 		goto fail;
