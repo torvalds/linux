@@ -1025,7 +1025,7 @@ config COMEDI_NI_660X
 	select COMEDI_NI_TIOCMD
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
-	  PXI-6602, PXI-6608 and PXI-6624.
+	  PXI-6602, PXI-6608, PCI-6624, and PXI-6624.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_660x.
