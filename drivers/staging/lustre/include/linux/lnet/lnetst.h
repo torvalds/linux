@@ -239,7 +239,7 @@ lstcon_statqry_stat_failure(struct lstcon_trans_stat *stat, int inc)
 }
 
 /* create a session */
-typedef struct {
+struct lstio_session_new_args {
 	int		 lstio_ses_key;		/* IN: local key */
 	int		 lstio_ses_timeout;	/* IN: session timeout */
 	int		 lstio_ses_force;	/* IN: force create ? */
@@ -248,7 +248,7 @@ typedef struct {
 	struct lst_sid __user *lstio_ses_idp;	/* OUT: session id */
 	int		 lstio_ses_nmlen;	/* IN: name length */
 	char __user	 *lstio_ses_namep;	/* IN: session name */
-} lstio_session_new_args_t;
+};
 
 /* query current session */
 typedef struct {

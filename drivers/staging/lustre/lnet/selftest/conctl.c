@@ -42,7 +42,7 @@
 #include "console.h"
 
 static int
-lst_session_new_ioctl(lstio_session_new_args_t *args)
+lst_session_new_ioctl(struct lstio_session_new_args *args)
 {
 	char *name;
 	int rc;
@@ -855,7 +855,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 
 	switch (opc) {
 	case LSTIO_SESSION_NEW:
-		rc = lst_session_new_ioctl((lstio_session_new_args_t *)buf);
+		rc = lst_session_new_ioctl((struct lstio_session_new_args *)buf);
 		break;
 	case LSTIO_SESSION_END:
 		rc = lst_session_end_ioctl((lstio_session_end_args_t *)buf);
