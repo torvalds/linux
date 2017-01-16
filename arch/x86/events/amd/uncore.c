@@ -248,30 +248,47 @@ static struct attribute_group amd_uncore_attr_group = {
 	.attrs = amd_uncore_attrs,
 };
 
-PMU_FORMAT_ATTR(event, "config:0-7,32-35");
-PMU_FORMAT_ATTR(umask, "config:8-15");
+/*
+ * Similar to PMU_FORMAT_ATTR but allowing for format_attr to be assigned based
+ * on family
+ */
+#define AMD_FORMAT_ATTR(_dev, _name, _format)				     \
+static ssize_t								     \
+_dev##_show##_name(struct device *dev,					     \
+		struct device_attribute *attr,				     \
+		char *page)						     \
+{									     \
+	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);			     \
+	return sprintf(page, _format "\n");				     \
+}									     \
+static struct device_attribute format_attr_##_dev##_name = __ATTR_RO(_dev);
 
-static struct attribute *amd_uncore_format_attr[] = {
-	&format_attr_event.attr,
-	&format_attr_umask.attr,
-	NULL,
+/* Used for each uncore counter type */
+#define AMD_ATTRIBUTE(_name)						     \
+static struct attribute *amd_uncore_format_attr_##_name[] = {		     \
+	&format_attr_event_##_name.attr,				     \
+	&format_attr_umask.attr,					     \
+	NULL,								     \
+};									     \
+static struct attribute_group amd_uncore_format_group_##_name = {	     \
+	.name = "format",						     \
+	.attrs = amd_uncore_format_attr_##_name,			     \
+};									     \
+static const struct attribute_group *amd_uncore_attr_groups_##_name[] = {    \
+	&amd_uncore_attr_group,						     \
+	&amd_uncore_format_group_##_name,				     \
+	NULL,								     \
 };
 
-static struct attribute_group amd_uncore_format_group = {
-	.name = "format",
-	.attrs = amd_uncore_format_attr,
-};
-
-static const struct attribute_group *amd_uncore_attr_groups[] = {
-	&amd_uncore_attr_group,
-	&amd_uncore_format_group,
-	NULL,
-};
+AMD_FORMAT_ATTR(event, , "config:0-7,32-35");
+AMD_FORMAT_ATTR(umask, , "config:8-15");
+AMD_FORMAT_ATTR(event, _df, "config:0-7,32-35,59-60");
+AMD_FORMAT_ATTR(event, _l3, "config:0-7");
+AMD_ATTRIBUTE(df);
+AMD_ATTRIBUTE(l3);
 
 static struct pmu amd_nb_pmu = {
 	.task_ctx_nr	= perf_invalid_context,
-	.attr_groups	= amd_uncore_attr_groups,
-	.name		= "amd_nb",
 	.event_init	= amd_uncore_event_init,
 	.add		= amd_uncore_add,
 	.del		= amd_uncore_del,
@@ -282,8 +299,6 @@ static struct pmu amd_nb_pmu = {
 
 static struct pmu amd_llc_pmu = {
 	.task_ctx_nr	= perf_invalid_context,
-	.attr_groups	= amd_uncore_attr_groups,
-	.name		= "amd_l2",
 	.event_init	= amd_uncore_event_init,
 	.add		= amd_uncore_add,
 	.del		= amd_uncore_del,
@@ -501,11 +516,25 @@ static int __init amd_uncore_init(void)
 			/* Family 17h: */
 			num_counters_nb = NUM_COUNTERS_NB;
 			num_counters_llc = NUM_COUNTERS_L3;
+			/*
+			 * For Family17h, the NorthBridge counters are
+			 * re-purposed as Data Fabric counters. Also, support is
+			 * added for L3 counters. The pmus are exported based on
+			 * family as either L2 or L3 and NB or DF.
+			 */
+			amd_nb_pmu.name = "amd_df";
+			amd_llc_pmu.name = "amd_l3";
+			format_attr_event_df.show = &event_show_df;
+			format_attr_event_l3.show = &event_show_l3;
 			break;
 		case 22:
 			/* Family 16h - may change: */
 			num_counters_nb = NUM_COUNTERS_NB;
 			num_counters_llc = NUM_COUNTERS_L2;
+			amd_nb_pmu.name = "amd_nb";
+			amd_llc_pmu.name = "amd_l2";
+			format_attr_event_df = format_attr_event;
+			format_attr_event_l3 = format_attr_event;
 			break;
 		default:
 			/*
@@ -514,8 +543,14 @@ static int __init amd_uncore_init(void)
 			 */
 			num_counters_nb = NUM_COUNTERS_NB;
 			num_counters_llc = NUM_COUNTERS_L2;
+			amd_nb_pmu.name = "amd_nb";
+			amd_llc_pmu.name = "amd_l2";
+			format_attr_event_df = format_attr_event;
+			format_attr_event_l3 = format_attr_event;
 			break;
 	}
+	amd_nb_pmu.attr_groups = amd_uncore_attr_groups_df;
+	amd_llc_pmu.attr_groups = amd_uncore_attr_groups_l3;
 
 	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
 		goto fail_nodev;
