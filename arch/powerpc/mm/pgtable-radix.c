@@ -481,6 +481,13 @@ void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	memblock_set_current_limit(first_memblock_base + first_memblock_size);
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+int __ref radix__create_section_mapping(unsigned long start, unsigned long end)
+{
+	return create_physical_mapping(start, end);
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int __meminit radix__vmemmap_create_mapping(unsigned long start,
 				      unsigned long page_size,
