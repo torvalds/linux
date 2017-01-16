@@ -98,11 +98,11 @@ struct lstcon_ndlist_ent {
 	int	nle_nunknown;	/* # of unknown nodes */
 };				/*** node_list entry, for list_batch command */
 
-typedef struct {
+struct lstcon_test_ent {
 	int	tse_type;       /* test type */
 	int	tse_loop;       /* loop count */
 	int	tse_concur;     /* concurrency of test */
-} lstcon_test_ent_t;		/*** test summary entry, for
+};				/*** test summary entry, for
 				 *** list_batch command */
 
 typedef struct {
@@ -118,7 +118,7 @@ typedef struct {
 	struct lstcon_ndlist_ent   tbe_srv_nle;	/* server (group) node_list
 						 * entry */
 	union {
-		lstcon_test_ent_t  tbe_test;	/* test entry */
+		struct lstcon_test_ent	tbe_test; /* test entry */
 		lstcon_batch_ent_t tbe_batch;	/* batch entry */
 	} u;
 } lstcon_test_batch_ent_t;	/*** test/batch verbose information entry,
