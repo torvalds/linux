@@ -1759,14 +1759,21 @@ static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
 
 /* Free tx queue skbuffs */
 static void mvneta_txq_bufs_free(struct mvneta_port *pp,
-				 struct mvneta_tx_queue *txq, int num)
+				 struct mvneta_tx_queue *txq, int num,
+				 struct netdev_queue *nq)
 {
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 	int i;
 
 	for (i = 0; i < num; i++) {
 		struct mvneta_tx_desc *tx_desc = txq->descs +
 			txq->txq_get_index;
 		struct sk_buff *skb = txq->tx_skb[txq->txq_get_index];
+
+		if (skb) {
+			bytes_compl += skb->len;
+			pkts_compl++;
+		}
 
 		mvneta_txq_inc_get(txq);
 
@@ -1778,6 +1785,8 @@ static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 			continue;
 		dev_kfree_skb_any(skb);
 	}
+
+	netdev_tx_completed_queue(nq, pkts_compl, bytes_compl);
 }
 
 /* Handle end of transmission */
@@ -1791,7 +1800,7 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	if (!tx_done)
 		return;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
 
 	txq->count -= tx_done;
 
@@ -2401,6 +2410,8 @@ out:
 		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
 
+		netdev_tx_sent_queue(nq, len);
+
 		txq->count += frags;
 		if (txq->count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
@@ -2429,9 +2440,10 @@ static void mvneta_txq_done_force(struct mvneta_port *pp,
 				  struct mvneta_tx_queue *txq)
 
 {
+	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
 	int tx_done = txq->count;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
 
 	/* reset txq */
 	txq->count = 0;
@@ -2957,6 +2969,8 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 static void mvneta_txq_deinit(struct mvneta_port *pp,
 			      struct mvneta_tx_queue *txq)
 {
+	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
+
 	kfree(txq->tx_skb);
 
 	if (txq->tso_hdrs)
@@ -2967,6 +2981,8 @@ static void mvneta_txq_deinit(struct mvneta_port *pp,
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
 				  txq->descs, txq->descs_phys);
+
+	netdev_tx_reset_queue(nq);
 
 	txq->descs             = NULL;
 	txq->last_desc         = 0;
