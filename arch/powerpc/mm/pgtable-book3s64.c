@@ -139,7 +139,7 @@ int create_section_mapping(unsigned long start, unsigned long end)
 int remove_section_mapping(unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return -ENODEV;
+		return radix__remove_section_mapping(start, end);
 
 	return hash__remove_section_mapping(start, end);
 }
