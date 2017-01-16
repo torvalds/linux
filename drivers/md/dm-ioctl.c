@@ -506,6 +506,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	size_t len, needed = 0;
 	struct gendisk *disk;
 	struct dm_name_list *nl, *old_nl = NULL;
+	uint32_t *event_nr;
 
 	down_write(&_hash_lock);
 
@@ -518,6 +519,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 			needed += sizeof(struct dm_name_list);
 			needed += strlen(hc->name) + 1;
 			needed += ALIGN_MASK;
+			needed += (sizeof(uint32_t) + ALIGN_MASK) & ~ALIGN_MASK;
 		}
 	}
 
@@ -547,7 +549,9 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 			strcpy(nl->name, hc->name);
 
 			old_nl = nl;
-			nl = align_ptr(((void *) ++nl) + strlen(hc->name) + 1);
+			event_nr = align_ptr(((void *) (nl + 1)) + strlen(hc->name) + 1);
+			*event_nr = dm_get_event_nr(hc->md);
+			nl = align_ptr(event_nr + 1);
 		}
 	}
 
