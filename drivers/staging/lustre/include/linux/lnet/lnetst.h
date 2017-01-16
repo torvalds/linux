@@ -105,11 +105,11 @@ struct lstcon_test_ent {
 };				/*** test summary entry, for
 				 *** list_batch command */
 
-typedef struct {
+struct lstcon_batch_ent {
 	int	bae_state;	/* batch status */
 	int	bae_timeout;	/* batch timeout */
 	int	bae_ntest;	/* # of tests in the batch */
-} lstcon_batch_ent_t;		/*** batch summary entry, for
+};				/*** batch summary entry, for
 				 *** list_batch command */
 
 typedef struct {
@@ -119,7 +119,7 @@ typedef struct {
 						 * entry */
 	union {
 		struct lstcon_test_ent	tbe_test; /* test entry */
-		lstcon_batch_ent_t tbe_batch;	/* batch entry */
+		struct lstcon_batch_ent tbe_batch;/* batch entry */
 	} u;
 } lstcon_test_batch_ent_t;	/*** test/batch verbose information entry,
 				 *** for list_batch command */
