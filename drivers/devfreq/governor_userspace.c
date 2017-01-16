@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/devfreq/governor_simpleondemand.c
+ *  linux/drivers/devfreq/governor_userspace.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -49,7 +49,6 @@ static ssize_t store_freq(struct device *dev, struct device_attribute *attr,
 	struct userspace_data *data;
 	unsigned long wanted;
 	int err = 0;
-
 
 	mutex_lock(&devfreq->lock);
 	data = devfreq->data;
