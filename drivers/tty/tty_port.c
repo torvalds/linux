@@ -67,8 +67,7 @@ struct device *tty_port_register_device(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
 		struct device *device)
 {
-	tty_port_link_device(port, driver, index);
-	return tty_register_device(driver, index, device);
+	return tty_port_register_device_attr(port, driver, index, device, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(tty_port_register_device);
 
