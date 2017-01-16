@@ -8015,14 +8015,14 @@ int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
 	 * worst case) _and_ PCODE was busy for some reason even after a
 	 * (queued) request and @timeout_base_ms delay. As a workaround retry
 	 * the poll with preemption disabled to maximize the number of
-	 * requests. Increase the timeout from @timeout_base_ms to 50ms to
+	 * requests. Increase the timeout from @timeout_base_ms to 10ms to
 	 * account for interrupts that could reduce the number of these
 	 * requests.
 	 */
 	DRM_DEBUG_KMS("PCODE timeout, retrying with preemption disabled\n");
 	WARN_ON_ONCE(timeout_base_ms > 3);
 	preempt_disable();
-	ret = wait_for_atomic(COND, 50);
+	ret = wait_for_atomic(COND, 10);
 	preempt_enable();
 
 out:
