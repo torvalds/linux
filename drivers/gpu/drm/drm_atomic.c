@@ -1414,7 +1414,12 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_connector_list_iter conn_iter;
+	struct drm_crtc_state *crtc_state;
 	int ret;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
 
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
 	if (ret)
@@ -1424,12 +1429,12 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 			 crtc->base.id, crtc->name, state);
 
 	/*
-	 * Changed connectors are already in @state, so only need to look at the
-	 * current configuration.
+	 * Changed connectors are already in @state, so only need to look
+	 * at the connector_mask in crtc_state.
 	 */
 	drm_connector_list_iter_get(state->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->state->crtc != crtc)
+		if (!(crtc_state->connector_mask & (1 << drm_connector_index(connector))))
 			continue;
 
 		conn_state = drm_atomic_get_connector_state(state, connector);
