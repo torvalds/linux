@@ -474,16 +474,16 @@ struct lstio_test_args {
 							result buffer */
 };
 
-typedef enum {
+enum lst_brw_type {
 	LST_BRW_READ	= 1,
 	LST_BRW_WRITE	= 2
-} lst_brw_type_t;
+};
 
-typedef enum {
+enum lst_brw_flags {
 	LST_BRW_CHECK_NONE	= 1,
 	LST_BRW_CHECK_SIMPLE	= 2,
 	LST_BRW_CHECK_FULL	= 3
-} lst_brw_flags_t;
+};
 
 typedef struct {
 	int	blk_opc;	/* bulk operation code */
