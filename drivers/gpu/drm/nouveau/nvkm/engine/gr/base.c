@@ -25,6 +25,15 @@
 
 #include <engine/fifo.h>
 
+static bool
+nvkm_gr_chsw_load(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+	if (gr->func->chsw_load)
+		return gr->func->chsw_load(gr);
+	return false;
+}
+
 static void
 nvkm_gr_tile(struct nvkm_engine *engine, int region, struct nvkm_fb_tile *tile)
 {
@@ -132,6 +141,7 @@ nvkm_gr = {
 	.fini = nvkm_gr_fini,
 	.intr = nvkm_gr_intr,
 	.tile = nvkm_gr_tile,
+	.chsw_load = nvkm_gr_chsw_load,
 	.fifo.cclass = nvkm_gr_cclass_new,
 	.fifo.sclass = nvkm_gr_oclass_get,
 };
