@@ -981,8 +981,7 @@ static int nvme_rdma_map_sg_fr(struct nvme_rdma_queue *queue,
 }
 
 static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
-		struct request *rq, unsigned int map_len,
-		struct nvme_command *c)
+		struct request *rq, struct nvme_command *c)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_rdma_device *dev = queue->device;
@@ -1014,9 +1013,9 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	}
 
 	if (count == 1) {
-		if (rq_data_dir(rq) == WRITE &&
-		    map_len <= nvme_rdma_inline_data_size(queue) &&
-		    nvme_rdma_queue_idx(queue))
+		if (rq_data_dir(rq) == WRITE && nvme_rdma_queue_idx(queue) &&
+		    blk_rq_payload_bytes(rq) <=
+				nvme_rdma_inline_data_size(queue))
 			return nvme_rdma_map_sg_inline(queue, req, c);
 
 		if (dev->pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)
@@ -1422,7 +1421,7 @@ static inline bool nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
 		struct request *rq)
 {
 	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags))) {
-		struct nvme_command *cmd = (struct nvme_command *)rq->cmd;
+		struct nvme_command *cmd = nvme_req(rq)->cmd;
 
 		if (rq->cmd_type != REQ_TYPE_DRV_PRIV ||
 		    cmd->common.opcode != nvme_fabrics_command ||
@@ -1444,7 +1443,6 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_command *c = sqe->data;
 	bool flush = false;
 	struct ib_device *dev;
-	unsigned int map_len;
 	int ret;
 
 	WARN_ON_ONCE(rq->tag < 0);
@@ -1462,8 +1460,7 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	map_len = nvme_map_len(rq);
-	ret = nvme_rdma_map_data(queue, rq, map_len, c);
+	ret = nvme_rdma_map_data(queue, rq, c);
 	if (ret < 0) {
 		dev_err(queue->ctrl->ctrl.device,
 			     "Failed to map data (%d)\n", ret);

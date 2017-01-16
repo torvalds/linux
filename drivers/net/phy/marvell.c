@@ -1192,7 +1192,8 @@ static int marvell_read_status(struct phy_device *phydev)
 	int err;
 
 	/* Check the fiber mode first */
-	if (phydev->supported & SUPPORTED_FIBRE) {
+	if (phydev->supported & SUPPORTED_FIBRE &&
+	    phydev->interface != PHY_INTERFACE_MODE_SGMII) {
 		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_FIBER);
 		if (err < 0)
 			goto error;
