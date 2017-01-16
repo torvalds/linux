@@ -361,6 +361,8 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_PAGE_WRITEABLE	(1 << 2)
 /* executable mapping, new for VI */
 #define AMDGPU_VM_PAGE_EXECUTABLE	(1 << 3)
+/* partially resident texture */
+#define AMDGPU_VM_PAGE_PRT		(1 << 4)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
