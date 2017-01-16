@@ -344,6 +344,9 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		if (rotation & DRM_REFLECT_Y)
 			caps |= MDP_PIPE_CAP_VFLIP;
 
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			caps |= MDP_PIPE_CAP_CURSOR;
+
 		/* (re)allocate hw pipe if we don't have one or caps-mismatch: */
 		if (!mdp5_state->hwpipe || (caps & ~mdp5_state->hwpipe->caps))
 			new_hwpipe = true;
@@ -870,12 +873,12 @@ uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 }
 
 /* initialize plane */
-struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary)
+struct drm_plane *mdp5_plane_init(struct drm_device *dev,
+				  enum drm_plane_type type)
 {
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
 	int ret;
-	enum drm_plane_type type;
 
 	mdp5_plane = kzalloc(sizeof(*mdp5_plane), GFP_KERNEL);
 	if (!mdp5_plane) {
@@ -888,7 +891,6 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary)
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
 
-	type = primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
 				 type, NULL);

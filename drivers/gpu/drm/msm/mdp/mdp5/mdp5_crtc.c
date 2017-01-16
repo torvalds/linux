@@ -400,6 +400,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
 	const struct drm_plane_state *pstate;
+	bool cursor_plane = false;
 	int cnt = 0, base = 0, i;
 
 	DBG("%s: check", crtc->name);
@@ -409,6 +410,9 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
 		cnt++;
+
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			cursor_plane = true;
 	}
 
 	/* assign a stage based on sorted zpos property */
@@ -419,6 +423,10 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	 */
 	if ((cnt > 0) && !is_fullscreen(state, &pstates[0].state->base))
 		base++;
+
+	/* trigger a warning if cursor isn't the highest zorder */
+	WARN_ON(cursor_plane &&
+		(pstates[cnt - 1].plane->type != DRM_PLANE_TYPE_CURSOR));
 
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
@@ -431,7 +439,10 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	for (i = 0; i < cnt; i++) {
-		pstates[i].state->stage = STAGE_BASE + i + base;
+		if (cursor_plane && (i == (cnt - 1)))
+			pstates[i].state->stage = hw_cfg->lm.nb_stages;
+		else
+			pstates[i].state->stage = STAGE_BASE + i + base;
 		DBG("%s: assign pipe %s on stage=%d", crtc->name,
 				pstates[i].plane->name,
 				pstates[i].state->stage);
@@ -642,6 +653,16 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.cursor_move = mdp5_crtc_cursor_move,
 };
 
+static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
+	.set_config = drm_atomic_helper_set_config,
+	.destroy = mdp5_crtc_destroy,
+	.page_flip = drm_atomic_helper_page_flip,
+	.set_property = drm_atomic_helper_crtc_set_property,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
 	.disable = mdp5_crtc_disable,
@@ -775,7 +796,8 @@ void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 
 /* initialize crtc */
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id)
+				struct drm_plane *plane,
+				struct drm_plane *cursor_plane, int id)
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
@@ -796,8 +818,12 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_crtc->vblank.irq = mdp5_crtc_vblank_irq;
 	mdp5_crtc->err.irq = mdp5_crtc_err_irq;
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
-				  NULL);
+	if (cursor_plane)
+		drm_crtc_init_with_planes(dev, crtc, plane, cursor_plane,
+					  &mdp5_crtc_no_lm_cursor_funcs, NULL);
+	else
+		drm_crtc_init_with_planes(dev, crtc, plane, NULL,
+					  &mdp5_crtc_funcs, NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);

@@ -326,6 +326,8 @@ static u32 mdp_ctl_blend_mask(enum mdp5_pipe pipe,
 	case SSPP_DMA1: return MDP5_CTL_LAYER_REG_DMA1(stage);
 	case SSPP_VIG3: return MDP5_CTL_LAYER_REG_VIG3(stage);
 	case SSPP_RGB3: return MDP5_CTL_LAYER_REG_RGB3(stage);
+	case SSPP_CURSOR0:
+	case SSPP_CURSOR1:
 	default:	return 0;
 	}
 }
@@ -333,7 +335,7 @@ static u32 mdp_ctl_blend_mask(enum mdp5_pipe pipe,
 static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 		enum mdp_mixer_stage_id stage)
 {
-	if (stage < STAGE6)
+	if (stage < STAGE6 && (pipe != SSPP_CURSOR0 && pipe != SSPP_CURSOR1))
 		return 0;
 
 	switch (pipe) {
@@ -347,6 +349,8 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 	case SSPP_DMA1: return MDP5_CTL_LAYER_EXT_REG_DMA1_BIT3;
 	case SSPP_VIG3: return MDP5_CTL_LAYER_EXT_REG_VIG3_BIT3;
 	case SSPP_RGB3: return MDP5_CTL_LAYER_EXT_REG_RGB3_BIT3;
+	case SSPP_CURSOR0: return MDP5_CTL_LAYER_EXT_REG_CURSOR0(stage);
+	case SSPP_CURSOR1: return MDP5_CTL_LAYER_EXT_REG_CURSOR1(stage);
 	default:	return 0;
 	}
 }
@@ -365,7 +369,7 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, enum mdp5_pipe *stage, u32 stage_cnt,
 		start_stage = STAGE_BASE;
 	}
 
-	for (i = start_stage; i < start_stage + stage_cnt; i++) {
+	for (i = start_stage; stage_cnt && i <= STAGE_MAX; i++) {
 		blend_cfg |= mdp_ctl_blend_mask(stage[i], i);
 		blend_ext_cfg |= mdp_ctl_blend_ext_mask(stage[i], i);
 	}
@@ -422,6 +426,8 @@ u32 mdp_ctl_flush_mask_pipe(enum mdp5_pipe pipe)
 	case SSPP_DMA1: return MDP5_CTL_FLUSH_DMA1;
 	case SSPP_VIG3: return MDP5_CTL_FLUSH_VIG3;
 	case SSPP_RGB3: return MDP5_CTL_FLUSH_RGB3;
+	case SSPP_CURSOR0: return MDP5_CTL_FLUSH_CURSOR_0;
+	case SSPP_CURSOR1: return MDP5_CTL_FLUSH_CURSOR_1;
 	default:        return 0;
 	}
 }

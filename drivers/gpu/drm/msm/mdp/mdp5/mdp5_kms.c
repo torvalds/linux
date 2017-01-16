@@ -441,8 +441,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		bool primary = i < num_crtcs;
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
+		enum drm_plane_type type;
 
-		plane = mdp5_plane_init(dev, primary);
+		if (primary)
+			type = DRM_PLANE_TYPE_PRIMARY;
+		else
+			type = DRM_PLANE_TYPE_OVERLAY;
+
+		plane = mdp5_plane_init(dev, type);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct plane %d (%d)\n", i, ret);
@@ -453,7 +459,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		if (!primary)
 			continue;
 
-		crtc  = mdp5_crtc_init(dev, plane, i);
+		crtc  = mdp5_crtc_init(dev, plane, NULL, i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc %d (%d)\n", i, ret);
