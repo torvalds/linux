@@ -270,27 +270,22 @@ static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 }
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
-static int mdp5_plane_atomic_check(struct drm_plane *plane,
-		struct drm_plane_state *state)
+static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
+					      struct drm_plane_state *state)
 {
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct drm_plane *plane = state->plane;
 	struct drm_plane_state *old_state = plane->state;
 	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
 	uint32_t max_width, max_height;
 	uint32_t caps = 0;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
 	struct drm_rect clip;
 	int min_scale, max_scale;
 	int ret;
 
 	DBG("%s: check (%d -> %d)", plane->name,
 			plane_enabled(old_state), plane_enabled(state));
-
-	crtc = state->crtc ? state->crtc : plane->state->crtc;
-	if (!crtc)
-		return 0;
 
 	max_width = config->hw->lm.max_width << 16;
 	max_height = config->hw->lm.max_height << 16;
@@ -302,10 +297,6 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 				DRM_RECT_FP_ARG(&src));
 		return -ERANGE;
 	}
-
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
-	if (WARN_ON(!crtc_state))
-		return -EINVAL;
 
 	clip.x1 = 0;
 	clip.y1 = 0;
@@ -380,6 +371,23 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	return 0;
+}
+
+static int mdp5_plane_atomic_check(struct drm_plane *plane,
+				   struct drm_plane_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+
+	crtc = state->crtc ? state->crtc : plane->state->crtc;
+	if (!crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	return mdp5_plane_atomic_check_with_state(crtc_state, state);
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
