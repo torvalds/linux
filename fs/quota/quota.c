@@ -104,13 +104,9 @@ static int quota_getfmt(struct super_block *sb, int type, void __user *addr)
 {
 	__u32 fmt;
 
-	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
-	if (!sb_has_quota_active(sb, type)) {
-		mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
+	if (!sb_has_quota_active(sb, type))
 		return -ESRCH;
-	}
 	fmt = sb_dqopt(sb)->info[type].dqi_format->qf_fmt_id;
-	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	if (copy_to_user(addr, &fmt, sizeof(fmt)))
 		return -EFAULT;
 	return 0;
@@ -789,8 +785,13 @@ static int quotactl_cmd_write(int cmd)
 	}
 	return 1;
 }
-
 #endif /* CONFIG_BLOCK */
+
+/* Return true if quotactl command is manipulating quota on/off state */
+static bool quotactl_cmd_onoff(int cmd)
+{
+	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF);
+}
 
 /*
  * look up a superblock on which quota ops will be performed
@@ -809,7 +810,9 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 	putname(tmp);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
-	if (quotactl_cmd_write(cmd))
+	if (quotactl_cmd_onoff(cmd))
+		sb = get_super_exclusive_thawed(bdev);
+	else if (quotactl_cmd_write(cmd))
 		sb = get_super_thawed(bdev);
 	else
 		sb = get_super(bdev);
@@ -872,7 +875,10 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 
 	ret = do_quotactl(sb, type, cmds, id, addr, pathp);
 
-	drop_super(sb);
+	if (!quotactl_cmd_onoff(cmds))
+		drop_super(sb);
+	else
+		drop_super_exclusive(sb);
 out:
 	if (pathp && !IS_ERR(pathp))
 		path_put(pathp);

@@ -783,7 +783,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* set conntrack timestamp, if enabled. */
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		if (skb->tstamp.tv64 == 0)
+		if (skb->tstamp == 0)
 			__net_timestamp(skb);
 
 		tstamp->start = ktime_to_ns(skb->tstamp);

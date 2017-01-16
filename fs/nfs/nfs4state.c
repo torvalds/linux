@@ -494,21 +494,18 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 }
 
 static void
-nfs4_drop_state_owner(struct nfs4_state_owner *sp)
+nfs4_reset_state_owner(struct nfs4_state_owner *sp)
 {
-	struct rb_node *rb_node = &sp->so_server_node;
-
-	if (!RB_EMPTY_NODE(rb_node)) {
-		struct nfs_server *server = sp->so_server;
-		struct nfs_client *clp = server->nfs_client;
-
-		spin_lock(&clp->cl_lock);
-		if (!RB_EMPTY_NODE(rb_node)) {
-			rb_erase(rb_node, &server->state_owners);
-			RB_CLEAR_NODE(rb_node);
-		}
-		spin_unlock(&clp->cl_lock);
-	}
+	/* This state_owner is no longer usable, but must
+	 * remain in place so that state recovery can find it
+	 * and the opens associated with it.
+	 * It may also be used for new 'open' request to
+	 * return a delegation to the server.
+	 * So update the 'create_time' so that it looks like
+	 * a new state_owner.  This will cause the server to
+	 * request an OPEN_CONFIRM to start a new sequence.
+	 */
+	sp->so_seqid.create_time = ktime_get();
 }
 
 static void nfs4_free_state_owner(struct nfs4_state_owner *sp)
@@ -797,21 +794,33 @@ void nfs4_close_sync(struct nfs4_state *state, fmode_t fmode)
 
 /*
  * Search the state->lock_states for an existing lock_owner
- * that is compatible with current->files
+ * that is compatible with either of the given owners.
+ * If the second is non-zero, then the first refers to a Posix-lock
+ * owner (current->files) and the second refers to a flock/OFD
+ * owner (struct file*).  In that case, prefer a match for the first
+ * owner.
+ * If both sorts of locks are held on the one file we cannot know
+ * which stateid was intended to be used, so a "correct" choice cannot
+ * be made.  Failing that, a "consistent" choice is preferable.  The
+ * consistent choice we make is to prefer the first owner, that of a
+ * Posix lock.
  */
 static struct nfs4_lock_state *
 __nfs4_find_lock_state(struct nfs4_state *state,
 		       fl_owner_t fl_owner, fl_owner_t fl_owner2)
 {
-	struct nfs4_lock_state *pos;
+	struct nfs4_lock_state *pos, *ret = NULL;
 	list_for_each_entry(pos, &state->lock_states, ls_locks) {
-		if (pos->ls_owner != fl_owner &&
-		    pos->ls_owner != fl_owner2)
-			continue;
-		atomic_inc(&pos->ls_count);
-		return pos;
+		if (pos->ls_owner == fl_owner) {
+			ret = pos;
+			break;
+		}
+		if (pos->ls_owner == fl_owner2)
+			ret = pos;
 	}
-	return NULL;
+	if (ret)
+		atomic_inc(&ret->ls_count);
+	return ret;
 }
 
 /*
@@ -1101,7 +1110,7 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 
 	sp = container_of(seqid->sequence, struct nfs4_state_owner, so_seqid);
 	if (status == -NFS4ERR_BAD_SEQID)
-		nfs4_drop_state_owner(sp);
+		nfs4_reset_state_owner(sp);
 	if (!nfs4_has_session(sp->so_server->nfs_client))
 		nfs_increment_seqid(status, seqid);
 }

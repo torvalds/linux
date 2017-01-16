@@ -67,8 +67,8 @@ EXPORT_SYMBOL(skb_flow_dissector_init);
  * The function will try to retrieve a be32 entity at
  * offset poff
  */
-__be16 skb_flow_get_be16(const struct sk_buff *skb, int poff, void *data,
-			 int hlen)
+static __be16 skb_flow_get_be16(const struct sk_buff *skb, int poff,
+				void *data, int hlen)
 {
 	__be16 *u, _u;
 
@@ -468,8 +468,9 @@ ip_proto_again:
 			if (hdr->flags & GRE_ACK)
 				offset += sizeof(((struct pptp_gre_header *)0)->ack);
 
-			ppp_hdr = skb_header_pointer(skb, nhoff + offset,
-						     sizeof(_ppp_hdr), _ppp_hdr);
+			ppp_hdr = __skb_header_pointer(skb, nhoff + offset,
+						     sizeof(_ppp_hdr),
+						     data, hlen, _ppp_hdr);
 			if (!ppp_hdr)
 				goto out_bad;
 

@@ -2569,7 +2569,7 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 	 * This will be replaced with the stats tracking code, using
 	 * 'avg_completion_time / 2' as the pre-sleep target.
 	 */
-	kt = ktime_set(0, nsecs);
+	kt = nsecs;
 
 	mode = HRTIMER_MODE_REL;
 	hrtimer_init_on_stack(&hs.timer, CLOCK_MONOTONIC, mode);

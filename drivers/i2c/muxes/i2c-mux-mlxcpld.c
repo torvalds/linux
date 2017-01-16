@@ -95,6 +95,7 @@ static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
 				 struct i2c_client *client, u8 val)
 {
 	struct mlxcpld_mux_plat_data *pdata = dev_get_platdata(&client->dev);
+	int ret = -ENODEV;
 
 	if (adap->algo->master_xfer) {
 		struct i2c_msg msg;
@@ -104,17 +105,21 @@ static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
 		msg.flags = 0;
 		msg.len = 2;
 		msg.buf = msgbuf;
-		return __i2c_transfer(adap, &msg, 1);
+		ret = __i2c_transfer(adap, &msg, 1);
+
+		if (ret >= 0 && ret != 1)
+			ret = -EREMOTEIO;
 	} else if (adap->algo->smbus_xfer) {
 		union i2c_smbus_data data;
 
 		data.byte = val;
-		return adap->algo->smbus_xfer(adap, client->addr,
-					      client->flags, I2C_SMBUS_WRITE,
-					      pdata->sel_reg_addr,
-					      I2C_SMBUS_BYTE_DATA, &data);
-	} else
-		return -ENODEV;
+		ret = adap->algo->smbus_xfer(adap, client->addr,
+					     client->flags, I2C_SMBUS_WRITE,
+					     pdata->sel_reg_addr,
+					     I2C_SMBUS_BYTE_DATA, &data);
+	}
+
+	return ret;
 }
 
 static int mlxcpld_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
@@ -127,10 +132,7 @@ static int mlxcpld_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 	/* Only select the channel if its different from the last channel */
 	if (data->last_chan != regval) {
 		err = mlxcpld_mux_reg_write(muxc->parent, client, regval);
-		if (err)
-			data->last_chan = 0;
-		else
-			data->last_chan = regval;
+		data->last_chan = err < 0 ? 0 : regval;
 	}
 
 	return err;

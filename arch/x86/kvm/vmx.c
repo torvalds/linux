@@ -132,12 +132,6 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 
 #define VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE 5
 
-#define VMX_VPID_EXTENT_SUPPORTED_MASK		\
-	(VMX_VPID_EXTENT_INDIVIDUAL_ADDR_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_NON_GLOBAL_BIT)
-
 /*
  * Hyper-V requires all of these, so mark them as supported even though
  * they are just treated the same as all-context.
@@ -1389,10 +1383,10 @@ static inline bool nested_cpu_has_posted_intr(struct vmcs12 *vmcs12)
 	return vmcs12->pin_based_vm_exec_control & PIN_BASED_POSTED_INTR;
 }
 
-static inline bool is_exception(u32 intr_info)
+static inline bool is_nmi(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
-		== (INTR_TYPE_HARD_EXCEPTION | INTR_INFO_VALID_MASK);
+		== (INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK);
 }
 
 static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
@@ -5728,7 +5722,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	if (is_machine_check(intr_info))
 		return handle_machine_check(vcpu);
 
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR)
+	if (is_nmi(intr_info))
 		return 1;  /* already handled by vmx_vcpu_run() */
 
 	if (is_no_device(intr_info)) {
@@ -7122,7 +7116,7 @@ static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason,
 
 		if (vmptr == vmx->nested.vmxon_ptr) {
 			nested_vmx_failValid(vcpu,
-					     VMXERR_VMCLEAR_VMXON_POINTER);
+					     VMXERR_VMPTRLD_VMXON_POINTER);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
 		break;
@@ -8170,7 +8164,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 
 	switch (exit_reason) {
 	case EXIT_REASON_EXCEPTION_NMI:
-		if (!is_exception(intr_info))
+		if (is_nmi(intr_info))
 			return false;
 		else if (is_page_fault(intr_info))
 			return enable_ept;
@@ -8765,8 +8759,7 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 		kvm_machine_check();
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if ((exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
-	    (exit_intr_info & INTR_INFO_VALID_MASK)) {
+	if (is_nmi(exit_intr_info)) {
 		kvm_before_handle_nmi(&vmx->vcpu);
 		asm("int $2");
 		kvm_after_handle_nmi(&vmx->vcpu);
@@ -10474,12 +10467,12 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	    !nested_guest_cr4_valid(vcpu, vmcs12->guest_cr4)) {
 		nested_vmx_entry_failure(vcpu, vmcs12,
 			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-		goto out;
+		return 1;
 	}
 	if (vmcs12->vmcs_link_pointer != -1ull) {
 		nested_vmx_entry_failure(vcpu, vmcs12,
 			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_VMCS_LINK_PTR);
-		goto out;
+		return 1;
 	}
 
 	/*
@@ -10499,7 +10492,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		     ia32e != !!(vmcs12->guest_ia32_efer & EFER_LME))) {
 			nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-			goto out;
+			return 1;
 		}
 	}
 
@@ -10517,7 +10510,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME)) {
 			nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
-			goto out;
+			return 1;
 		}
 	}
 

@@ -145,9 +145,8 @@ static struct ib_ucontext *i40iw_alloc_ucontext(struct ib_device *ibdev,
 	if (ib_copy_from_udata(&req, udata, sizeof(req)))
 		return ERR_PTR(-EINVAL);
 
-	if (req.userspace_ver != I40IW_ABI_USERSPACE_VER) {
-		i40iw_pr_err("Invalid userspace driver version detected. Detected version %d, should be %d\n",
-			     req.userspace_ver, I40IW_ABI_USERSPACE_VER);
+	if (req.userspace_ver < 4 || req.userspace_ver > I40IW_ABI_VER) {
+		i40iw_pr_err("Unsupported provider library version %u.\n", req.userspace_ver);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -155,13 +154,14 @@ static struct ib_ucontext *i40iw_alloc_ucontext(struct ib_device *ibdev,
 	uresp.max_qps = iwdev->max_qp;
 	uresp.max_pds = iwdev->max_pd;
 	uresp.wq_size = iwdev->max_qp_wr * 2;
-	uresp.kernel_ver = I40IW_ABI_KERNEL_VER;
+	uresp.kernel_ver = req.userspace_ver;
 
 	ucontext = kzalloc(sizeof(*ucontext), GFP_KERNEL);
 	if (!ucontext)
 		return ERR_PTR(-ENOMEM);
 
 	ucontext->iwdev = iwdev;
+	ucontext->abi_ver = req.userspace_ver;
 
 	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 		kfree(ucontext);
@@ -333,6 +333,7 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_alloc_pd_resp uresp;
 	struct i40iw_sc_pd *sc_pd;
+	struct i40iw_ucontext *ucontext;
 	u32 pd_id = 0;
 	int err;
 
@@ -353,15 +354,18 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	}
 
 	sc_pd = &iwpd->sc_pd;
-	dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id);
 
 	if (context) {
+		ucontext = to_ucontext(context);
+		dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id, ucontext->abi_ver);
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.pd_id = pd_id;
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 			err = -EFAULT;
 			goto error;
 		}
+	} else {
+		dev->iw_pd_ops->pd_init(dev, sc_pd, pd_id, -1);
 	}
 
 	i40iw_add_pdusecount(iwpd);
@@ -518,7 +522,7 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 	struct i40iw_dma_mem *mem = &iwqp->kqp.dma_mem;
 	u32 sqdepth, rqdepth;
 	u32 sq_size, rq_size;
-	u8 sqshift, rqshift;
+	u8 sqshift;
 	u32 size;
 	enum i40iw_status_code status;
 	struct i40iw_qp_uk_init_info *ukinfo = &info->qp_uk_init_info;
@@ -527,14 +531,11 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 	rq_size = i40iw_qp_roundup(ukinfo->rq_size + 1);
 
 	status = i40iw_get_wqe_shift(sq_size, ukinfo->max_sq_frag_cnt, ukinfo->max_inline_data, &sqshift);
-	if (!status)
-		status = i40iw_get_wqe_shift(rq_size, ukinfo->max_rq_frag_cnt, 0, &rqshift);
-
 	if (status)
 		return -ENOMEM;
 
 	sqdepth = sq_size << sqshift;
-	rqdepth = rq_size << rqshift;
+	rqdepth = rq_size << I40IW_MAX_RQ_WQE_SHIFT;
 
 	size = sqdepth * sizeof(struct i40iw_sq_uk_wr_trk_info) + (rqdepth << 3);
 	iwqp->kqp.wrid_mem = kzalloc(size, GFP_KERNEL);

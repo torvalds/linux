@@ -1405,7 +1405,7 @@ static bool dry_run;
  * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
-struct option __record_options[] = {
+static struct option __record_options[] = {
 	OPT_CALLBACK('e', "event", &record.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
@@ -1636,7 +1636,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --signal-trigger --no-no-buildid \
+		 *  perf record --switch-output --no-no-buildid \
 		 *              --no-no-buildid-cache
 		 *
 		 * Following code equals to:
@@ -1686,6 +1686,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		err = -saved_errno;
 		goto out;
 	}
+
+	/* Enable ignoring missing threads when -u option is defined. */
+	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX;
 
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)

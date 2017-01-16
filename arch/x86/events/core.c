@@ -505,6 +505,10 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+
+		/* There's no sense in having PEBS for non sampling events: */
+		if (!is_sampling_event(event))
+			return -EINVAL;
 	}
 	/*
 	 * check that PEBS LBR correction does not conflict with
@@ -1820,18 +1824,18 @@ static int __init init_hw_perf_events(void)
 	 * Install callbacks. Core will call them for each online
 	 * cpu.
 	 */
-	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "perf/x86:prepare",
 				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
 	if (err)
 		return err;
 
 	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
-				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				"perf/x86:starting", x86_pmu_starting_cpu,
 				x86_pmu_dying_cpu);
 	if (err)
 		goto out;
 
-	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "perf/x86:online",
 				x86_pmu_online_cpu, NULL);
 	if (err)
 		goto out1;

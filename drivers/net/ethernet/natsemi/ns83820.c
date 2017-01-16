@@ -119,7 +119,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRV_NAME "ns83820"
 

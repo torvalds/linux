@@ -916,7 +916,7 @@ static unsigned long lguest_tsc_khz(void)
  * If we can't use the TSC, the kernel falls back to our lower-priority
  * "lguest_clock", where we read the time value given to us by the Host.
  */
-static cycle_t lguest_clock_read(struct clocksource *cs)
+static u64 lguest_clock_read(struct clocksource *cs)
 {
 	unsigned long sec, nsec;
 

@@ -496,8 +496,7 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
  * Returns enum mmc_blk_status after checking errors.
  */
 static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
-				      struct mmc_request *mrq,
-				      struct mmc_async_req *next_req)
+						      struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
 	struct mmc_context_info *context_info = &host->context_info;
@@ -507,7 +506,7 @@ static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 		wait_event_interruptible(context_info->wait,
 				(context_info->is_done_rcv ||
 				 context_info->is_new_req));
-		context_info->is_waiting_last_req = false;
+
 		if (context_info->is_done_rcv) {
 			context_info->is_done_rcv = false;
 			cmd = mrq->cmd;
@@ -527,10 +526,9 @@ static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 				__mmc_start_request(host, mrq);
 				continue; /* wait for done/new event again */
 			}
-		} else if (context_info->is_new_req) {
-			if (!next_req)
-				return MMC_BLK_NEW_REQUEST;
 		}
+
+		return MMC_BLK_NEW_REQUEST;
 	}
 	mmc_retune_release(host);
 	return status;
@@ -660,7 +658,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		mmc_pre_req(host, areq->mrq);
 
 	if (host->areq) {
-		status = mmc_wait_for_data_req_done(host, host->areq->mrq, areq);
+		status = mmc_wait_for_data_req_done(host, host->areq->mrq);
 		if (status == MMC_BLK_NEW_REQUEST) {
 			if (ret_stat)
 				*ret_stat = status;

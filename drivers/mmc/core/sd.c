@@ -223,6 +223,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
+	u32 *raw_ssr;
 	int i;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
@@ -231,14 +232,21 @@ static int mmc_read_ssr(struct mmc_card *card)
 		return 0;
 	}
 
-	if (mmc_app_sd_status(card, card->raw_ssr)) {
+	raw_ssr = kmalloc(sizeof(card->raw_ssr), GFP_KERNEL);
+	if (!raw_ssr)
+		return -ENOMEM;
+
+	if (mmc_app_sd_status(card, raw_ssr)) {
 		pr_warn("%s: problem reading SD Status register\n",
 			mmc_hostname(card->host));
+		kfree(raw_ssr);
 		return 0;
 	}
 
 	for (i = 0; i < 16; i++)
-		card->raw_ssr[i] = be32_to_cpu(card->raw_ssr[i]);
+		card->raw_ssr[i] = be32_to_cpu(raw_ssr[i]);
+
+	kfree(raw_ssr);
 
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the

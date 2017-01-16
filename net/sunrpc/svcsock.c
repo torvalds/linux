@@ -42,7 +42,7 @@
 #include <net/udp.h>
 #include <net/tcp.h>
 #include <net/tcp_states.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <trace/events/skb.h>
 
@@ -574,7 +574,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	}
 	len = svc_addr_len(svc_addr(rqstp));
 	rqstp->rq_addrlen = len;
-	if (skb->tstamp.tv64 == 0) {
+	if (skb->tstamp == 0) {
 		skb->tstamp = ktime_get_real();
 		/* Don't enable netstamp, sunrpc doesn't
 		   need that much accuracy */

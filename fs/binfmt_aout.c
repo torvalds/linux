@@ -26,7 +26,7 @@
 #include <linux/coredump.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/a.out-core.h>
 

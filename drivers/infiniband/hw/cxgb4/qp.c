@@ -321,7 +321,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		FW_RI_RES_WR_DCAEN_V(0) |
 		FW_RI_RES_WR_DCACPU_V(0) |
 		FW_RI_RES_WR_FBMIN_V(2) |
-		FW_RI_RES_WR_FBMAX_V(2) |
+		(t4_sq_onchip(&wq->sq) ? FW_RI_RES_WR_FBMAX_V(2) :
+					 FW_RI_RES_WR_FBMAX_V(3)) |
 		FW_RI_RES_WR_CIDXFTHRESHO_V(0) |
 		FW_RI_RES_WR_CIDXFTHRESH_V(0) |
 		FW_RI_RES_WR_EQSIZE_V(eqsize));
@@ -345,7 +346,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		FW_RI_RES_WR_DCAEN_V(0) |
 		FW_RI_RES_WR_DCACPU_V(0) |
 		FW_RI_RES_WR_FBMIN_V(2) |
-		FW_RI_RES_WR_FBMAX_V(2) |
+		FW_RI_RES_WR_FBMAX_V(3) |
 		FW_RI_RES_WR_CIDXFTHRESHO_V(0) |
 		FW_RI_RES_WR_CIDXFTHRESH_V(0) |
 		FW_RI_RES_WR_EQSIZE_V(eqsize));

@@ -27,6 +27,7 @@
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/highmem.h>
 #include <net/genetlink.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
@@ -537,7 +538,7 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
-	int ret;
+	sense_reason_t ret;
 
 	tcmu_cmd = tcmu_alloc_cmd(se_cmd);
 	if (!tcmu_cmd)
@@ -684,8 +685,6 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
 	target_complete_cmd(cmd->se_cmd, SAM_STAT_CHECK_CONDITION);
 	cmd->se_cmd = NULL;
-
-	kmem_cache_free(tcmu_cmd_cache, cmd);
 
 	return 0;
 }

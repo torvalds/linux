@@ -100,6 +100,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 		neigh->parms->neigh_cleanup(neigh);
 
 	__neigh_notify(neigh, RTM_DELNEIGH, 0);
+	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
 }
 

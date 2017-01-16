@@ -23,7 +23,7 @@
  * we implement here as subroutines.
  */
 #include <linux/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 /*

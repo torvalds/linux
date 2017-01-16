@@ -390,7 +390,7 @@ static void softing_initialize_timestamp(struct softing *card)
 	ovf = 0x100000000ULL * 16;
 	do_div(ovf, card->pdat->freq ?: 16);
 
-	card->ts_overflow = ktime_add_us(ktime_set(0, 0), ovf);
+	card->ts_overflow = ktime_add_us(0, ovf);
 }
 
 ktime_t softing_raw2ktime(struct softing *card, u32 raw)
@@ -647,7 +647,7 @@ int softing_startstop(struct net_device *dev, int up)
 		open_candev(netdev);
 		if (dev != netdev) {
 			/* notify other busses on the restart */
-			softing_netdev_rx(netdev, &msg, ktime_set(0, 0));
+			softing_netdev_rx(netdev, &msg, 0);
 			++priv->can.can_stats.restarts;
 		}
 		netif_wake_queue(netdev);

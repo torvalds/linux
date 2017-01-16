@@ -73,7 +73,7 @@
 #include <linux/uio.h>
 #include <linux/skb_array.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Uncomment to enable debugging */
 /* #define TUN_DEBUG 1 */

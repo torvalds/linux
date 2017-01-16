@@ -49,7 +49,7 @@
 #include <asm/prom.h>
 #include <asm/auxio.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/pgtable.h>
 #include <asm/irq.h>

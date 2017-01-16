@@ -300,7 +300,8 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	mutex_lock(&dev_priv->sb_lock);
 	vlv_iosf_sb_write(dev_priv, port, cfg1, 0);
 	vlv_iosf_sb_write(dev_priv, port, cfg0,
-			  CHV_GPIO_GPIOCFG_GPO | CHV_GPIO_GPIOTXSTATE(value));
+			  CHV_GPIO_GPIOEN | CHV_GPIO_GPIOCFG_GPO |
+			  CHV_GPIO_GPIOTXSTATE(value));
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
@@ -376,11 +377,11 @@ static const fn_mipi_elem_exec exec_elem[] = {
  */
 
 static const char * const seq_name[] = {
-	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
+	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
 	[MIPI_SEQ_INIT_OTP] = "MIPI_SEQ_INIT_OTP",
 	[MIPI_SEQ_DISPLAY_ON] = "MIPI_SEQ_DISPLAY_ON",
 	[MIPI_SEQ_DISPLAY_OFF]  = "MIPI_SEQ_DISPLAY_OFF",
-	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
+	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
 	[MIPI_SEQ_BACKLIGHT_ON] = "MIPI_SEQ_BACKLIGHT_ON",
 	[MIPI_SEQ_BACKLIGHT_OFF] = "MIPI_SEQ_BACKLIGHT_OFF",
 	[MIPI_SEQ_TEAR_ON] = "MIPI_SEQ_TEAR_ON",

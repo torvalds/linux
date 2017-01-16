@@ -53,7 +53,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pr.h>
 #include <linux/t10-pi.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsi.h>
@@ -836,7 +836,6 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	struct bio *bio = rq->bio;
 	sector_t sector = blk_rq_pos(rq);
 	unsigned int nr_sectors = blk_rq_sectors(rq);
-	unsigned int nr_bytes = blk_rq_bytes(rq);
 	int ret;
 
 	if (sdkp->device->no_write_same)
@@ -869,21 +868,7 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 
 	cmd->transfersize = sdp->sector_size;
 	cmd->allowed = SD_MAX_RETRIES;
-
-	/*
-	 * For WRITE_SAME the data transferred in the DATA IN buffer is
-	 * different from the amount of data actually written to the target.
-	 *
-	 * We set up __data_len to the amount of data transferred from the
-	 * DATA IN buffer so that blk_rq_map_sg set up the proper S/G list
-	 * to transfer a single sector of data first, but then reset it to
-	 * the amount of data to be written right after so that the I/O path
-	 * knows how much to actually write.
-	 */
-	rq->__data_len = sdp->sector_size;
-	ret = scsi_init_io(cmd);
-	rq->__data_len = nr_bytes;
-	return ret;
+	return scsi_init_io(cmd);
 }
 
 static int sd_setup_flush_cmnd(struct scsi_cmnd *cmd)

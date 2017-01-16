@@ -1660,7 +1660,7 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 			head = page_buffers(page);
 			bh = head;
 			do {
-				if (!buffer_mapped(bh))
+				if (!buffer_mapped(bh) || (bh->b_blocknr < block))
 					goto next;
 				if (bh->b_blocknr >= block + len)
 					break;

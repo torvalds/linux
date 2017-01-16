@@ -1323,7 +1323,8 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 	}
 
 	/* don't fail init if RSS setup doesn't work */
-	efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table);
+	rc = efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table);
+	efx->rss_active = (rc == 0);
 
 	return 0;
 }

@@ -78,11 +78,6 @@ DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 static void
 init_percpu_prof(unsigned long cpunum)
 {
-	struct cpuinfo_parisc *p;
-
-	p = &per_cpu(cpu_data, cpunum);
-	p->prof_counter = 1;
-	p->prof_multiplier = 1;
 }
 
 
@@ -99,6 +94,7 @@ static int processor_probe(struct parisc_device *dev)
 	unsigned long txn_addr;
 	unsigned long cpuid;
 	struct cpuinfo_parisc *p;
+	struct pdc_pat_cpu_num cpu_info __maybe_unused;
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() >= nr_cpu_ids) {
@@ -123,10 +119,6 @@ static int processor_probe(struct parisc_device *dev)
 		ulong status;
 		unsigned long bytecnt;
 	        pdc_pat_cell_mod_maddr_block_t *pa_pdc_cell;
-#undef USE_PAT_CPUID
-#ifdef USE_PAT_CPUID
-		struct pdc_pat_cpu_num cpu_info;
-#endif
 
 		pa_pdc_cell = kmalloc(sizeof (*pa_pdc_cell), GFP_KERNEL);
 		if (!pa_pdc_cell)
@@ -145,22 +137,27 @@ static int processor_probe(struct parisc_device *dev)
 
 		kfree(pa_pdc_cell);
 
+		/* get the cpu number */
+		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
+		BUG_ON(PDC_OK != status);
+
+		pr_info("Logical CPU #%lu is physical cpu #%lu at location "
+			"0x%lx with hpa %pa\n",
+			cpuid, cpu_info.cpu_num, cpu_info.cpu_loc,
+			&dev->hpa.start);
+
+#undef USE_PAT_CPUID
 #ifdef USE_PAT_CPUID
 /* We need contiguous numbers for cpuid. Firmware's notion
  * of cpuid is for physical CPUs and we just don't care yet.
  * We'll care when we need to query PAT PDC about a CPU *after*
  * boot time (ie shutdown a CPU from an OS perspective).
  */
-		/* get the cpu number */
-		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
-
-		BUG_ON(PDC_OK != status);
-
 		if (cpu_info.cpu_num >= NR_CPUS) {
-			printk(KERN_WARNING "IGNORING CPU at 0x%x,"
+			printk(KERN_WARNING "IGNORING CPU at %pa,"
 				" cpu_slot_id > NR_CPUS"
 				" (%ld > %d)\n",
-				dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
+				&dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
 			/* Ignore CPU since it will only crash */
 			boot_cpu_data.cpu_count--;
 			return 1;

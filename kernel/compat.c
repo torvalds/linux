@@ -28,7 +28,7 @@
 #include <linux/ptrace.h>
 #include <linux/gfp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int compat_get_timex(struct timex *txc, struct compat_timex __user *utp)
 {

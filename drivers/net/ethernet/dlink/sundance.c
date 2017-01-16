@@ -91,7 +91,7 @@ static char *media[MAX_UNITS];
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <linux/delay.h>

@@ -8271,7 +8271,7 @@ void ath10k_wmi_free_host_mem(struct ath10k *ar)
 		dma_unmap_single(ar->dev,
 				 ar->wmi.mem_chunks[i].paddr,
 				 ar->wmi.mem_chunks[i].len,
-				 DMA_TO_DEVICE);
+				 DMA_BIDIRECTIONAL);
 		kfree(ar->wmi.mem_chunks[i].vaddr);
 	}
 

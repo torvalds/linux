@@ -985,7 +985,6 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!sb_has_quota_loaded(sb, type))
 			continue;
-		/* Cancel periodic syncing before we grab dqonoff_mutex */
 		oinfo = sb_dqinfo(sb, type)->dqi_priv;
 		cancel_delayed_work_sync(&oinfo->dqi_sync_work);
 		inode = igrab(sb->s_dquot.files[type]);

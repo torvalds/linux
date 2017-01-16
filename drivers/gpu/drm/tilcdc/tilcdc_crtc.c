@@ -539,7 +539,7 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	}
 
 	drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
-	tilcdc_crtc->last_vblank = ktime_set(0, 0);
+	tilcdc_crtc->last_vblank = 0;
 
 	tilcdc_crtc->enabled = false;
 	mutex_unlock(&tilcdc_crtc->enable_lock);
@@ -856,7 +856,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	uint32_t stat;
+	uint32_t stat, reg;
 
 	stat = tilcdc_read_irqstatus(dev);
 	tilcdc_clear_irqstatus(dev, stat);
@@ -921,17 +921,26 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
 				    __func__, stat);
 		tilcdc_crtc->frame_intact = false;
-		if (tilcdc_crtc->sync_lost_count++ >
-		    SYNC_LOST_COUNT_LIMIT) {
-			dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, recovering", __func__, stat);
-			queue_work(system_wq, &tilcdc_crtc->recover_work);
-			if (priv->rev == 1)
+		if (priv->rev == 1) {
+			reg = tilcdc_read(dev, LCDC_RASTER_CTRL_REG);
+			if (reg & LCDC_RASTER_ENABLE) {
 				tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
-					     LCDC_V1_SYNC_LOST_INT_ENA);
-			else
+					     LCDC_RASTER_ENABLE);
+				tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
+					   LCDC_RASTER_ENABLE);
+			}
+		} else {
+			if (tilcdc_crtc->sync_lost_count++ >
+			    SYNC_LOST_COUNT_LIMIT) {
+				dev_err(dev->dev,
+					"%s(0x%08x): Sync lost flood detected, recovering",
+					__func__, stat);
+				queue_work(system_wq,
+					   &tilcdc_crtc->recover_work);
 				tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
 					     LCDC_SYNC_LOST);
-			tilcdc_crtc->sync_lost_count = 0;
+				tilcdc_crtc->sync_lost_count = 0;
+			}
 		}
 	}
 

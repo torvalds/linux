@@ -17,7 +17,7 @@
 #include <linux/linkage.h>
 
 #include <asm/cache.h>
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 
 /*
  * Copy to user space from a kernel buffer (alignment handled by the hardware)

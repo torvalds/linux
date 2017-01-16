@@ -502,11 +502,13 @@ static int nfs4_stat_to_errno(int);
 				(compound_encode_hdr_maxsz + \
 				 encode_sequence_maxsz + \
 				 encode_putfh_maxsz + \
+				 encode_layoutreturn_maxsz + \
 				 encode_open_downgrade_maxsz)
 #define NFS4_dec_open_downgrade_sz \
 				(compound_decode_hdr_maxsz + \
 				 decode_sequence_maxsz + \
 				 decode_putfh_maxsz + \
+				 decode_layoutreturn_maxsz + \
 				 decode_open_downgrade_maxsz)
 #define NFS4_enc_close_sz	(compound_encode_hdr_maxsz + \
 				 encode_sequence_maxsz + \
@@ -2277,9 +2279,9 @@ static void nfs4_xdr_enc_close(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	if (args->lr_args)
 		encode_layoutreturn(xdr, args->lr_args, &hdr);
-	encode_close(xdr, args, &hdr);
 	if (args->bitmask != NULL)
 		encode_getfattr(xdr, args->bitmask, &hdr);
+	encode_close(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -2356,6 +2358,8 @@ static void nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
+	if (args->lr_args)
+		encode_layoutreturn(xdr, args->lr_args, &hdr);
 	encode_open_downgrade(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
@@ -2701,7 +2705,8 @@ static void nfs4_xdr_enc_delegreturn(struct rpc_rqst *req,
 	encode_putfh(xdr, args->fhandle, &hdr);
 	if (args->lr_args)
 		encode_layoutreturn(xdr, args->lr_args, &hdr);
-	encode_getfattr(xdr, args->bitmask, &hdr);
+	if (args->bitmask)
+		encode_getfattr(xdr, args->bitmask, &hdr);
 	encode_delegreturn(xdr, args->stateid, &hdr);
 	encode_nops(&hdr);
 }
@@ -6151,6 +6156,12 @@ static int nfs4_xdr_dec_open_downgrade(struct rpc_rqst *rqstp,
 	status = decode_putfh(xdr);
 	if (status)
 		goto out;
+	if (res->lr_res) {
+		status = decode_layoutreturn(xdr, res->lr_res);
+		res->lr_ret = status;
+		if (status)
+			goto out;
+	}
 	status = decode_open_downgrade(xdr, res);
 out:
 	return status;
@@ -6484,16 +6495,12 @@ static int nfs4_xdr_dec_close(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 		if (status)
 			goto out;
 	}
+	if (res->fattr != NULL) {
+		status = decode_getfattr(xdr, res->fattr, res->server);
+		if (status != 0)
+			goto out;
+	}
 	status = decode_close(xdr, res);
-	if (status != 0)
-		goto out;
-	/*
-	 * Note: Server may do delete on close for this file
-	 * 	in which case the getattr call will fail with
-	 * 	an ESTALE error. Shouldn't be a problem,
-	 * 	though, since fattr->valid will remain unset.
-	 */
-	decode_getfattr(xdr, res->fattr, res->server);
 out:
 	return status;
 }
@@ -6966,9 +6973,11 @@ static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp,
 		if (status)
 			goto out;
 	}
-	status = decode_getfattr(xdr, res->fattr, res->server);
-	if (status != 0)
-		goto out;
+	if (res->fattr) {
+		status = decode_getfattr(xdr, res->fattr, res->server);
+		if (status != 0)
+			goto out;
+	}
 	status = decode_delegreturn(xdr);
 out:
 	return status;

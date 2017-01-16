@@ -15,7 +15,7 @@
 #include <linux/threads.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/epapr_hcalls.h>
 
 #include <uapi/asm/ucontext.h>

@@ -4164,22 +4164,6 @@ static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
 	return 0;
 }
 
-static void handle_eth_header_mcast_prio(struct mlx4_net_trans_rule_hw_ctrl *ctrl,
-					 struct _rule_hw *eth_header)
-{
-	if (is_multicast_ether_addr(eth_header->eth.dst_mac) ||
-	    is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
-		struct mlx4_net_trans_rule_hw_eth *eth =
-			(struct mlx4_net_trans_rule_hw_eth *)eth_header;
-		struct _rule_hw *next_rule = (struct _rule_hw *)(eth + 1);
-		bool last_rule = next_rule->size == 0 && next_rule->id == 0 &&
-			next_rule->rsvd == 0;
-
-		if (last_rule)
-			ctrl->prio = cpu_to_be16(MLX4_DOMAIN_NIC);
-	}
-}
-
 /*
  * In case of missing eth header, append eth header with a MAC address
  * assigned to the VF.
@@ -4363,10 +4347,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	header_id = map_hw_to_sw_id(be16_to_cpu(rule_header->id));
 
 	if (header_id == MLX4_NET_TRANS_RULE_ID_ETH)
-		handle_eth_header_mcast_prio(ctrl, rule_header);
-
-	if (slave == dev->caps.function)
-		goto execute;
+		mlx4_handle_eth_header_mcast_prio(ctrl, rule_header);
 
 	switch (header_id) {
 	case MLX4_NET_TRANS_RULE_ID_ETH:
@@ -4394,7 +4375,6 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		goto err_put_qp;
 	}
 
-execute:
 	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			   vhcr->in_modifier, 0,
 			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
@@ -4473,6 +4453,7 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	struct res_qp *rqp;
 	struct res_fs_rule *rrule;
 	u64 mirr_reg_id;
+	int qpn;
 
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
@@ -4489,10 +4470,11 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	}
 	mirr_reg_id = rrule->mirr_rule_id;
 	kfree(rrule->mirr_mbox);
+	qpn = rrule->qpn;
 
 	/* Release the rule form busy state before removal */
 	put_res(dev, slave, vhcr->in_param, RES_FS_RULE);
-	err = get_res(dev, slave, rrule->qpn, RES_QP, &rqp);
+	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err)
 		return err;
 
@@ -4517,7 +4499,7 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	if (!err)
 		atomic_dec(&rqp->ref_count);
 out:
-	put_res(dev, slave, rrule->qpn, RES_QP);
+	put_res(dev, slave, qpn, RES_QP);
 	return err;
 }
 

@@ -1,7 +1,16 @@
+#include <target/target_core_base.h>
+
+#define XCOPY_HDR_LEN			16
 #define XCOPY_TARGET_DESC_LEN		32
 #define XCOPY_SEGMENT_DESC_LEN		28
 #define XCOPY_NAA_IEEE_REGEX_LEN	16
 #define XCOPY_MAX_SECTORS		1024
+
+/*
+ * SPC4r37 6.4.6.1
+ * Table 150 — CSCD descriptor ID values
+ */
+#define XCOPY_CSCD_DESC_ID_LIST_OFF_MAX	0x07FF
 
 enum xcopy_origin_list {
 	XCOL_SOURCE_RECV_OP = 0x01,

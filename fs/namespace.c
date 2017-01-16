@@ -96,10 +96,6 @@ static inline struct hlist_head *mp_hash(struct dentry *dentry)
 	return &mountpoint_hashtable[tmp & mp_hash_mask];
 }
 
-/*
- * allocation is serialized by namespace_sem, but we need the spinlock to
- * serialize with freeing.
- */
 static int mnt_alloc_id(struct mount *mnt)
 {
 	int res;
@@ -746,26 +742,50 @@ static struct mountpoint *lookup_mountpoint(struct dentry *dentry)
 	return NULL;
 }
 
-static struct mountpoint *new_mountpoint(struct dentry *dentry)
+static struct mountpoint *get_mountpoint(struct dentry *dentry)
 {
-	struct hlist_head *chain = mp_hash(dentry);
-	struct mountpoint *mp;
+	struct mountpoint *mp, *new = NULL;
 	int ret;
 
-	mp = kmalloc(sizeof(struct mountpoint), GFP_KERNEL);
-	if (!mp)
-		return ERR_PTR(-ENOMEM);
-
-	ret = d_set_mounted(dentry);
-	if (ret) {
-		kfree(mp);
-		return ERR_PTR(ret);
+	if (d_mountpoint(dentry)) {
+mountpoint:
+		read_seqlock_excl(&mount_lock);
+		mp = lookup_mountpoint(dentry);
+		read_sequnlock_excl(&mount_lock);
+		if (mp)
+			goto done;
 	}
 
-	mp->m_dentry = dentry;
-	mp->m_count = 1;
-	hlist_add_head(&mp->m_hash, chain);
-	INIT_HLIST_HEAD(&mp->m_list);
+	if (!new)
+		new = kmalloc(sizeof(struct mountpoint), GFP_KERNEL);
+	if (!new)
+		return ERR_PTR(-ENOMEM);
+
+
+	/* Exactly one processes may set d_mounted */
+	ret = d_set_mounted(dentry);
+
+	/* Someone else set d_mounted? */
+	if (ret == -EBUSY)
+		goto mountpoint;
+
+	/* The dentry is not available as a mountpoint? */
+	mp = ERR_PTR(ret);
+	if (ret)
+		goto done;
+
+	/* Add the new mountpoint to the hash table */
+	read_seqlock_excl(&mount_lock);
+	new->m_dentry = dentry;
+	new->m_count = 1;
+	hlist_add_head(&new->m_hash, mp_hash(dentry));
+	INIT_HLIST_HEAD(&new->m_list);
+	read_sequnlock_excl(&mount_lock);
+
+	mp = new;
+	new = NULL;
+done:
+	kfree(new);
 	return mp;
 }
 
@@ -1034,6 +1054,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		if (IS_MNT_SLAVE(old))
 			list_add(&mnt->mnt_slave, &old->mnt_slave);
 		mnt->mnt_master = old->mnt_master;
+	} else {
+		CLEAR_MNT_SHARED(mnt);
 	}
 	if (flag & CL_MAKE_SHARED)
 		set_mnt_shared(mnt);
@@ -1597,11 +1619,11 @@ void __detach_mounts(struct dentry *dentry)
 	struct mount *mnt;
 
 	namespace_lock();
+	lock_mount_hash();
 	mp = lookup_mountpoint(dentry);
 	if (IS_ERR_OR_NULL(mp))
 		goto out_unlock;
 
-	lock_mount_hash();
 	event++;
 	while (!hlist_empty(&mp->m_list)) {
 		mnt = hlist_entry(mp->m_list.first, struct mount, mnt_mp_list);
@@ -1611,9 +1633,9 @@ void __detach_mounts(struct dentry *dentry)
 		}
 		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
-	unlock_mount_hash();
 	put_mountpoint(mp);
 out_unlock:
+	unlock_mount_hash();
 	namespace_unlock();
 }
 
@@ -1828,9 +1850,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
 
-	down_read(&namespace_sem);
 	new_mnt = clone_mnt(old_mnt, path->dentry, CL_PRIVATE);
-	up_read(&namespace_sem);
 	if (IS_ERR(new_mnt))
 		return ERR_CAST(new_mnt);
 
@@ -2042,9 +2062,7 @@ retry:
 	namespace_lock();
 	mnt = lookup_mnt(path);
 	if (likely(!mnt)) {
-		struct mountpoint *mp = lookup_mountpoint(dentry);
-		if (!mp)
-			mp = new_mountpoint(dentry);
+		struct mountpoint *mp = get_mountpoint(dentry);
 		if (IS_ERR(mp)) {
 			namespace_unlock();
 			inode_unlock(dentry->d_inode);
@@ -2063,7 +2081,11 @@ retry:
 static void unlock_mount(struct mountpoint *where)
 {
 	struct dentry *dentry = where->m_dentry;
+
+	read_seqlock_excl(&mount_lock);
 	put_mountpoint(where);
+	read_sequnlock_excl(&mount_lock);
+
 	namespace_unlock();
 	inode_unlock(dentry->d_inode);
 }
@@ -3139,9 +3161,9 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	/* A moved mount should not expire automatically */
 	list_del_init(&new_mnt->mnt_expire);
+	put_mountpoint(root_mp);
 	unlock_mount_hash();
 	chroot_fs_refs(&root, &new);
-	put_mountpoint(root_mp);
 	error = 0;
 out4:
 	unlock_mount(old_mp);

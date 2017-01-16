@@ -46,7 +46,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <rdma/ib.h>
 #include <rdma/ib_cm.h>
