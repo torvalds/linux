@@ -46,65 +46,63 @@ enum audit_type {
 	AUDIT_APPARMOR_AUTO
 };
 
-extern const char *const op_table[];
-enum aa_ops {
-	OP_NULL,
+#define OP_NULL NULL
 
-	OP_SYSCTL,
-	OP_CAPABLE,
+#define OP_SYSCTL "sysctl"
+#define OP_CAPABLE "capable"
 
-	OP_UNLINK,
-	OP_MKDIR,
-	OP_RMDIR,
-	OP_MKNOD,
-	OP_TRUNC,
-	OP_LINK,
-	OP_SYMLINK,
-	OP_RENAME_SRC,
-	OP_RENAME_DEST,
-	OP_CHMOD,
-	OP_CHOWN,
-	OP_GETATTR,
-	OP_OPEN,
+#define OP_UNLINK "unlink"
+#define OP_MKDIR "mkdir"
+#define OP_RMDIR "rmdir"
+#define OP_MKNOD "mknod"
+#define OP_TRUNC "truncate"
+#define OP_LINK "link"
+#define OP_SYMLINK "symlink"
+#define OP_RENAME_SRC "rename_src"
+#define OP_RENAME_DEST "rename_dest"
+#define OP_CHMOD "chmod"
+#define OP_CHOWN "chown"
+#define OP_GETATTR "getattr"
+#define OP_OPEN "open"
 
-	OP_FPERM,
-	OP_FLOCK,
-	OP_FMMAP,
-	OP_FMPROT,
+#define OP_FPERM "file_perm"
+#define OP_FLOCK "file_lock"
+#define OP_FMMAP "file_mmap"
+#define OP_FMPROT "file_mprotect"
 
-	OP_CREATE,
-	OP_POST_CREATE,
-	OP_BIND,
-	OP_CONNECT,
-	OP_LISTEN,
-	OP_ACCEPT,
-	OP_SENDMSG,
-	OP_RECVMSG,
-	OP_GETSOCKNAME,
-	OP_GETPEERNAME,
-	OP_GETSOCKOPT,
-	OP_SETSOCKOPT,
-	OP_SOCK_SHUTDOWN,
+#define OP_CREATE "create"
+#define OP_POST_CREATE "post_create"
+#define OP_BIND "bind"
+#define OP_CONNECT "connect"
+#define OP_LISTEN "listen"
+#define OP_ACCEPT "accept"
+#define OP_SENDMSG "sendmsg"
+#define OP_RECVMSG "recvmsg"
+#define OP_GETSOCKNAME "getsockname"
+#define OP_GETPEERNAME "getpeername"
+#define OP_GETSOCKOPT "getsockopt"
+#define OP_SETSOCKOPT "setsockopt"
+#define OP_SHUTDOWN "socket_shutdown"
 
-	OP_PTRACE,
+#define OP_PTRACE "ptrace"
 
-	OP_EXEC,
-	OP_CHANGE_HAT,
-	OP_CHANGE_PROFILE,
-	OP_CHANGE_ONEXEC,
+#define OP_EXEC "exec"
 
-	OP_SETPROCATTR,
-	OP_SETRLIMIT,
+#define OP_CHANGE_HAT "change_hat"
+#define OP_CHANGE_PROFILE "change_profile"
+#define OP_CHANGE_ONEXEC "change_onexec"
 
-	OP_PROF_REPL,
-	OP_PROF_LOAD,
-	OP_PROF_RM,
-};
+#define OP_SETPROCATTR "setprocattr"
+#define OP_SETRLIMIT "setrlimit"
+
+#define OP_PROF_REPL "profile_replace"
+#define OP_PROF_LOAD "profile_load"
+#define OP_PROF_RM "profile_remove"
 
 
 struct apparmor_audit_data {
 	int error;
-	int op;
+	const char *op;
 	int type;
 	void *profile;
 	const char *name;

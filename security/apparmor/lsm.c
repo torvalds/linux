@@ -152,7 +152,7 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm(int op, const struct path *path, u32 mask,
+static int common_perm(const char *op, const struct path *path, u32 mask,
 		       struct path_cond *cond)
 {
 	struct aa_profile *profile;
@@ -175,7 +175,7 @@ static int common_perm(int op, const struct path *path, u32 mask,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_dir_dentry(int op, const struct path *dir,
+static int common_perm_dir_dentry(const char *op, const struct path *dir,
 				  struct dentry *dentry, u32 mask,
 				  struct path_cond *cond)
 {
@@ -192,7 +192,8 @@ static int common_perm_dir_dentry(int op, const struct path *dir,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static inline int common_perm_path(int op, const struct path *path, u32 mask)
+static inline int common_perm_path(const char *op, const struct path *path,
+				   u32 mask)
 {
 	struct path_cond cond = { d_backing_inode(path->dentry)->i_uid,
 				  d_backing_inode(path->dentry)->i_mode
@@ -212,7 +213,7 @@ static inline int common_perm_path(int op, const struct path *path, u32 mask)
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_rm(int op, const struct path *dir,
+static int common_perm_rm(const char *op, const struct path *dir,
 			  struct dentry *dentry, u32 mask)
 {
 	struct inode *inode = d_backing_inode(dentry);
@@ -237,7 +238,7 @@ static int common_perm_rm(int op, const struct path *dir,
  *
  * Returns: %0 else error code if error or permission denied
  */
-static int common_perm_create(int op, const struct path *dir,
+static int common_perm_create(const char *op, const struct path *dir,
 			      struct dentry *dentry, u32 mask, umode_t mode)
 {
 	struct path_cond cond = { current_fsuid(), mode };
@@ -395,7 +396,7 @@ static void apparmor_file_free_security(struct file *file)
 	aa_free_file_context(ctx);
 }
 
-static int common_file_perm(int op, struct file *file, u32 mask)
+static int common_file_perm(const char *op, struct file *file, u32 mask)
 {
 	struct aa_file_ctx *fctx = file->f_security;
 	struct aa_profile *profile, *fprofile = aa_cred_profile(file->f_cred);
@@ -438,7 +439,7 @@ static int apparmor_file_lock(struct file *file, unsigned int cmd)
 	return common_file_perm(OP_FLOCK, file, mask);
 }
 
-static int common_mmap(int op, struct file *file, unsigned long prot,
+static int common_mmap(const char *op, struct file *file, unsigned long prot,
 		       unsigned long flags)
 {
 	int mask = 0;

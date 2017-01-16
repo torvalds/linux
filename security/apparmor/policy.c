@@ -606,7 +606,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: the error to be returned after audit is done
  */
-static int audit_policy(struct aa_profile *profile, int op, gfp_t gfp,
+static int audit_policy(struct aa_profile *profile, const char *op, gfp_t gfp,
 			const char *nsname, const char *name,
 			const char *info, int error)
 {
@@ -670,7 +670,8 @@ bool policy_admin_capable(struct aa_ns *ns)
  *
  * Returns: 0 if the task is allowed to manipulate policy else error
  */
-int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, int op)
+int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns,
+			 const char *op)
 {
 	/* check if loading policy is locked out */
 	if (aa_g_lock_policy)
@@ -819,7 +820,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
-	int op = OP_PROF_REPL;
+	const char *op = OP_PROF_REPL;
 	ssize_t count, error;
 	LIST_HEAD(lh);
 

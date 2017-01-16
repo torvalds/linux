@@ -750,8 +750,8 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 	struct aa_profile *profile, *target = NULL;
 	struct aa_ns *ns = NULL;
 	struct file_perms perms = {};
-	const char *name = NULL, *info = NULL;
-	int op, error = 0;
+	const char *name = NULL, *info = NULL, *op;
+	int error = 0;
 	u32 request;
 
 	if (!hname && !ns_name)

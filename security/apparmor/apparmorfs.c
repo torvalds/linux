@@ -85,7 +85,7 @@ static int mangle_name(const char *name, char *target)
  * Returns: kernel buffer containing copy of user buffer data or an
  *          ERR_PTR on failure.
  */
-static struct aa_loaddata *aa_simple_write_to_buffer(int op,
+static struct aa_loaddata *aa_simple_write_to_buffer(const char *op,
 						     const char __user *userbuf,
 						     size_t alloc_size,
 						     size_t copy_size,
@@ -122,7 +122,7 @@ static ssize_t policy_update(int binop, const char __user *buf, size_t size,
 	ssize_t error;
 	struct aa_loaddata *data;
 	struct aa_profile *profile = aa_current_profile();
-	int op = binop == PROF_ADD ? OP_PROF_LOAD : OP_PROF_REPL;
+	const char *op = binop == PROF_ADD ? OP_PROF_LOAD : OP_PROF_REPL;
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */

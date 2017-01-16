@@ -20,59 +20,6 @@
 #include "include/policy.h"
 #include "include/policy_ns.h"
 
-const char *const op_table[] = {
-	"null",
-
-	"sysctl",
-	"capable",
-
-	"unlink",
-	"mkdir",
-	"rmdir",
-	"mknod",
-	"truncate",
-	"link",
-	"symlink",
-	"rename_src",
-	"rename_dest",
-	"chmod",
-	"chown",
-	"getattr",
-	"open",
-
-	"file_perm",
-	"file_lock",
-	"file_mmap",
-	"file_mprotect",
-
-	"create",
-	"post_create",
-	"bind",
-	"connect",
-	"listen",
-	"accept",
-	"sendmsg",
-	"recvmsg",
-	"getsockname",
-	"getpeername",
-	"getsockopt",
-	"setsockopt",
-	"socket_shutdown",
-
-	"ptrace",
-
-	"exec",
-	"change_hat",
-	"change_profile",
-	"change_onexec",
-
-	"setprocattr",
-	"setrlimit",
-
-	"profile_replace",
-	"profile_load",
-	"profile_remove"
-};
 
 const char *const audit_mode_names[] = {
 	"normal",
@@ -120,7 +67,7 @@ static void audit_pre(struct audit_buffer *ab, void *ca)
 
 	if (sa->aad->op) {
 		audit_log_format(ab, " operation=");
-		audit_log_string(ab, op_table[sa->aad->op]);
+		audit_log_string(ab, sa->aad->op);
 	}
 
 	if (sa->aad->info) {

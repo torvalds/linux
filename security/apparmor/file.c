@@ -104,7 +104,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  * Returns: %0 or error on failure
  */
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
-		  gfp_t gfp, int op, u32 request, const char *name,
+		  gfp_t gfp, const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
@@ -276,8 +276,9 @@ static inline bool is_deleted(struct dentry *dentry)
  *
  * Returns: %0 else error if access denied or other error
  */
-int aa_path_perm(int op, struct aa_profile *profile, const struct path *path,
-		 int flags, u32 request, struct path_cond *cond)
+int aa_path_perm(const char *op, struct aa_profile *profile,
+		 const struct path *path, int flags, u32 request,
+		 struct path_cond *cond)
 {
 	char *buffer = NULL;
 	struct file_perms perms = {};
@@ -446,7 +447,7 @@ audit:
  *
  * Returns: %0 if access allowed else error
  */
-int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
+int aa_file_perm(const char *op, struct aa_profile *profile, struct file *file,
 		 u32 request)
 {
 	struct path_cond cond = {
