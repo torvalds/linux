@@ -337,6 +337,12 @@
 		DRVDD-supply = <&ldo4_reg>;
 		DVDD-supply = <&ldo3_reg>;
 	};
+
+	/* Ambient Light Sensor */
+	als: isl29023@44 {
+		compatible = "isil,isl29023";
+		reg = <0x44>;
+	};
 };
 
 &rtc {
