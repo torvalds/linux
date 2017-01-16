@@ -197,15 +197,8 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
  */
 void aa_policy_destroy(struct aa_policy *policy)
 {
-	/* still contains profiles -- invalid */
-	if (on_list_rcu(&policy->profiles)) {
-		AA_ERROR("%s: internal error, policy '%s' contains profiles\n",
-			 __func__, policy->name);
-	}
-	if (on_list_rcu(&policy->list)) {
-		AA_ERROR("%s: internal error, policy '%s' still on list\n",
-			 __func__, policy->name);
-	}
+	AA_BUG(on_list_rcu(&policy->profiles));
+	AA_BUG(on_list_rcu(&policy->list));
 
 	/* don't free name as its a subset of hname */
 	kzfree(policy->hname);
