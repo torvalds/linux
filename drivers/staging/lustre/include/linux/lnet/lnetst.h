@@ -262,9 +262,9 @@ struct lstio_session_info_args {
 };
 
 /* delete a session */
-typedef struct {
+struct lstio_session_end_args {
 	int			lstio_ses_key;	/* IN: session key */
-} lstio_session_end_args_t;
+};
 
 #define LST_OPC_SESSION		1
 #define LST_OPC_GROUP		2
