@@ -48,6 +48,7 @@ static void
 gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 			 struct gk104_fifo_engine_status *status)
 {
+	struct nvkm_engine *engine = fifo->engine[engn].engine;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
@@ -61,7 +62,24 @@ gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 	status->load     = !!(stat & 0x00002000);
 	status->prev.tsg = !!(stat & 0x00001000);
 	status->prev.id  =   (stat & 0x00000fff);
-	status->chan     = status->load ? &status->next : &status->prev;
+	status->chan     = NULL;
+
+	if (status->busy && status->chsw) {
+		if (status->load && status->save) {
+			if (engine && nvkm_engine_chsw_load(engine))
+				status->chan = &status->next;
+			else
+				status->chan = &status->prev;
+		} else
+		if (status->load) {
+			status->chan = &status->next;
+		} else {
+			status->chan = &status->prev;
+		}
+	} else
+	if (status->load) {
+		status->chan = &status->prev;
+	}
 
 	nvkm_debug(subdev, "engine %02d: busy %d faulted %d chsw %d "
 			   "save %d load %d %sid %d%s-> %sid %d%s\n",
