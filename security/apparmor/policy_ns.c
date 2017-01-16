@@ -102,7 +102,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	mutex_init(&ns->lock);
 
 	/* released by aa_free_ns() */
-	ns->unconfined = aa_alloc_profile("unconfined");
+	ns->unconfined = aa_alloc_profile("unconfined", GFP_KERNEL);
 	if (!ns->unconfined)
 		goto fail_unconfined;
 

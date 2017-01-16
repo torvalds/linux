@@ -172,7 +172,7 @@ void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
 
 
 void aa_free_proxy_kref(struct kref *kref);
-struct aa_profile *aa_alloc_profile(const char *name);
+struct aa_profile *aa_alloc_profile(const char *name, gfp_t gfp);
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat);
 void aa_free_profile(struct aa_profile *profile);
 void aa_free_profile_kref(struct kref *kref);

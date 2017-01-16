@@ -486,7 +486,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 	if (!unpack_str(e, &name, NULL))
 		goto fail;
 
-	profile = aa_alloc_profile(name);
+	profile = aa_alloc_profile(name, GFP_KERNEL);
 	if (!profile)
 		return ERR_PTR(-ENOMEM);
 

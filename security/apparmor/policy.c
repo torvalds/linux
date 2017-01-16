@@ -255,24 +255,25 @@ void aa_free_profile_kref(struct kref *kref)
 /**
  * aa_alloc_profile - allocate, initialize and return a new profile
  * @hname: name of the profile  (NOT NULL)
+ * @gfp: allocation type
  *
  * Returns: refcount profile or NULL on failure
  */
-struct aa_profile *aa_alloc_profile(const char *hname)
+struct aa_profile *aa_alloc_profile(const char *hname, gfp_t gfp)
 {
 	struct aa_profile *profile;
 
 	/* freed by free_profile - usually through aa_put_profile */
-	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
+	profile = kzalloc(sizeof(*profile), gfp);
 	if (!profile)
 		return NULL;
 
-	profile->proxy = kzalloc(sizeof(struct aa_proxy), GFP_KERNEL);
+	profile->proxy = kzalloc(sizeof(struct aa_proxy), gfp);
 	if (!profile->proxy)
 		goto fail;
 	kref_init(&profile->proxy->count);
 
-	if (!aa_policy_init(&profile->base, NULL, hname, GFP_KERNEL))
+	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
 	kref_init(&profile->count);
 
@@ -312,7 +313,7 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat)
 		goto fail;
 	sprintf(name, "%s//null-%x", parent->base.hname, uniq);
 
-	profile = aa_alloc_profile(name);
+	profile = aa_alloc_profile(name, GFP_KERNEL);
 	kfree(name);
 	if (!profile)
 		goto fail;
