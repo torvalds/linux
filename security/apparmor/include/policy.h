@@ -177,6 +177,8 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat);
 void aa_free_profile(struct aa_profile *profile);
 void aa_free_profile_kref(struct kref *kref);
 struct aa_profile *aa_find_child(struct aa_profile *parent, const char *name);
+struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
+				      size_t n);
 struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *name);
 struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 

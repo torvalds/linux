@@ -427,9 +427,10 @@ static struct aa_policy *__lookup_parent(struct aa_ns *ns,
 }
 
 /**
- * __lookup_profile - lookup the profile matching @hname
+ * __lookupn_profile - lookup the profile matching @hname
  * @base: base list to start looking up profile name from  (NOT NULL)
  * @hname: hierarchical profile name  (NOT NULL)
+ * @n: length of @hname
  *
  * Requires: rcu_read_lock be held
  *
@@ -437,53 +438,66 @@ static struct aa_policy *__lookup_parent(struct aa_ns *ns,
  *
  * Do a relative name lookup, recursing through profile tree.
  */
-static struct aa_profile *__lookup_profile(struct aa_policy *base,
-					   const char *hname)
+static struct aa_profile *__lookupn_profile(struct aa_policy *base,
+					    const char *hname, size_t n)
 {
 	struct aa_profile *profile = NULL;
-	char *split;
+	const char *split;
 
-	for (split = strstr(hname, "//"); split;) {
+	for (split = strnstr(hname, "//", n); split;
+	     split = strnstr(hname, "//", n)) {
 		profile = __strn_find_child(&base->profiles, hname,
 					    split - hname);
 		if (!profile)
 			return NULL;
 
 		base = &profile->base;
+		n -= split + 2 - hname;
 		hname = split + 2;
-		split = strstr(hname, "//");
 	}
 
-	profile = __find_child(&base->profiles, hname);
+	if (n)
+		return __strn_find_child(&base->profiles, hname, n);
+	return NULL;
+}
 
-	return profile;
+static struct aa_profile *__lookup_profile(struct aa_policy *base,
+					   const char *hname)
+{
+	return __lookupn_profile(base, hname, strlen(hname));
 }
 
 /**
  * aa_lookup_profile - find a profile by its full or partial name
  * @ns: the namespace to start from (NOT NULL)
  * @hname: name to do lookup on.  Does not contain namespace prefix (NOT NULL)
+ * @n: size of @hname
  *
  * Returns: refcounted profile or NULL if not found
  */
-struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
+struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
+				      size_t n)
 {
 	struct aa_profile *profile;
 
 	rcu_read_lock();
 	do {
-		profile = __lookup_profile(&ns->base, hname);
+		profile = __lookupn_profile(&ns->base, hname, n);
 	} while (profile && !aa_get_profile_not0(profile));
 	rcu_read_unlock();
 
 	/* the unconfined profile is not in the regular profile list */
-	if (!profile && strcmp(hname, "unconfined") == 0)
+	if (!profile && strncmp(hname, "unconfined", n) == 0)
 		profile = aa_get_newest_profile(ns->unconfined);
 
 	/* refcount released by caller */
 	return profile;
 }
 
+struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
+{
+	return aa_lookupn_profile(ns, hname, strlen(hname));
+}
 /**
  * replacement_allowed - test to see if replacement is allowed
  * @profile: profile to test if it can be replaced  (MAYBE NULL)
