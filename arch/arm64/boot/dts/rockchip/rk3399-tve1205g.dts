@@ -805,7 +805,7 @@
 	ep-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 	num-lanes = <4>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_clkreqn>;
+	pinctrl-0 = <&pcie_clkreqn_cpm>;
 	status = "okay";
 };
 
