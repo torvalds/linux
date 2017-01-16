@@ -116,30 +116,24 @@ static void exynos_pcie_sideband_dbi_w_mode(struct exynos_pcie *ep, bool on)
 {
 	u32 val;
 
-	if (on) {
-		val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_AWMISC);
+	val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_AWMISC);
+	if (on)
 		val |= PCIE_ELBI_SLV_DBI_ENABLE;
-		exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_AWMISC);
-	} else {
-		val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_AWMISC);
+	else
 		val &= ~PCIE_ELBI_SLV_DBI_ENABLE;
-		exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_AWMISC);
-	}
+	exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_AWMISC);
 }
 
 static void exynos_pcie_sideband_dbi_r_mode(struct exynos_pcie *ep, bool on)
 {
 	u32 val;
 
-	if (on) {
-		val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_ARMISC);
+	val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_ARMISC);
+	if (on)
 		val |= PCIE_ELBI_SLV_DBI_ENABLE;
-		exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_ARMISC);
-	} else {
-		val = exynos_pcie_readl(ep->elbi_base, PCIE_ELBI_SLV_ARMISC);
+	else
 		val &= ~PCIE_ELBI_SLV_DBI_ENABLE;
-		exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_ARMISC);
-	}
+	exynos_pcie_writel(ep->elbi_base, val, PCIE_ELBI_SLV_ARMISC);
 }
 
 static void exynos_pcie_assert_core_reset(struct exynos_pcie *ep)
