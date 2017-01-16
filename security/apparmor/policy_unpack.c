@@ -611,11 +611,15 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 		error = PTR_ERR(profile->file.dfa);
 		profile->file.dfa = NULL;
 		goto fail;
+	} else if (profile->file.dfa) {
+		if (!unpack_u32(e, &profile->file.start, "dfa_start"))
+			/* default start state */
+			profile->file.start = DFA_START;
+	} else if (profile->policy.dfa &&
+		   profile->policy.start[AA_CLASS_FILE]) {
+		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
+		profile->file.start = profile->policy.start[AA_CLASS_FILE];
 	}
-
-	if (!unpack_u32(e, &profile->file.start, "dfa_start"))
-		/* default start state */
-		profile->file.start = DFA_START;
 
 	if (!unpack_trans_table(e, profile))
 		goto fail;
