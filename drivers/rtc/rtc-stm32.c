@@ -383,7 +383,7 @@ static int stm32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static int stm32_rtc_valid_alrm(struct stm32_rtc *rtc, struct rtc_time *tm)
 {
-	unsigned int cur_day, cur_mon, cur_year, cur_hour, cur_min, cur_sec;
+	int cur_day, cur_mon, cur_year, cur_hour, cur_min, cur_sec;
 	unsigned int dr = readl_relaxed(rtc->base + STM32_RTC_DR);
 	unsigned int tr = readl_relaxed(rtc->base + STM32_RTC_TR);
 
@@ -509,7 +509,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	pred_a_max = STM32_RTC_PRER_PRED_A >> STM32_RTC_PRER_PRED_A_SHIFT;
 	pred_s_max = STM32_RTC_PRER_PRED_S >> STM32_RTC_PRER_PRED_S_SHIFT;
 
-	for (pred_a = pred_a_max; pred_a >= 0; pred_a--) {
+	for (pred_a = pred_a_max; pred_a + 1 > 0; pred_a--) {
 		pred_s = (rate / (pred_a + 1)) - 1;
 
 		if (((pred_s + 1) * (pred_a + 1)) == rate)
@@ -525,7 +525,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 		pred_s = (rate / (pred_a + 1)) - 1;
 
 		dev_warn(&pdev->dev, "ck_rtc is %s\n",
-			 (rate - ((pred_a + 1) * (pred_s + 1)) < 0) ?
+			 (rate < ((pred_a + 1) * (pred_s + 1))) ?
 			 "fast" : "slow");
 	}
 
