@@ -100,6 +100,9 @@ int aa_replace_current_profile(struct aa_profile *profile)
 	if (cxt->profile == profile)
 		return 0;
 
+	if (current_cred() != current_real_cred())
+		return -EBUSY;
+
 	new  = prepare_creds();
 	if (!new)
 		return -ENOMEM;
