@@ -511,13 +511,13 @@ struct srpc_counters {
 	__u64 bulk_put;
 } WIRE_ATTR;
 
-typedef struct {
+struct sfw_counters {
 	/** milliseconds since current session started */
 	__u32 running_ms;
 	__u32 active_batches;
 	__u32 zombie_sessions;
 	__u32 brw_errors;
 	__u32 ping_errors;
-} WIRE_ATTR sfw_counters_t;
+} WIRE_ATTR;
 
 #endif

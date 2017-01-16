@@ -1467,14 +1467,14 @@ lstcon_statrpc_readent(int transop, struct srpc_msg *msg,
 		       struct lstcon_rpc_ent __user *ent_up)
 {
 	struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
-	sfw_counters_t __user *sfwk_stat;
+	struct sfw_counters __user *sfwk_stat;
 	struct srpc_counters __user *srpc_stat;
 	lnet_counters_t __user *lnet_stat;
 
 	if (rep->str_status)
 		return 0;
 
-	sfwk_stat = (sfw_counters_t __user *)&ent_up->rpe_payload[0];
+	sfwk_stat = (struct sfw_counters __user *)&ent_up->rpe_payload[0];
 	srpc_stat = (struct srpc_counters __user *)(sfwk_stat + 1);
 	lnet_stat = (lnet_counters_t __user *)(srpc_stat + 1);
 

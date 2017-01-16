@@ -361,7 +361,7 @@ static int
 sfw_get_stats(struct srpc_stat_reqst *request, struct srpc_stat_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
-	sfw_counters_t *cnt = &reply->str_fw;
+	struct sfw_counters *cnt = &reply->str_fw;
 	struct sfw_batch *bat;
 
 	reply->str_sid = !sn ? LST_INVALID_SID : sn->sn_id;

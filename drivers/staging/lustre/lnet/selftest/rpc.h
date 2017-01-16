@@ -161,7 +161,7 @@ struct srpc_stat_reqst {
 struct srpc_stat_reply {
 	__u32		   str_status;
 	struct lst_sid	   str_sid;
-	sfw_counters_t	   str_fw;
+	struct sfw_counters	str_fw;
 	struct srpc_counters	str_rpc;
 	lnet_counters_t    str_lnet;
 } WIRE_ATTR;
