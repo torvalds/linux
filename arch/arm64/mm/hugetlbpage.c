@@ -239,7 +239,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
 					  *cpte, &pgsize);
 		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize) {
-			changed = ptep_set_access_flags(vma, addr, cpte,
+			changed |= ptep_set_access_flags(vma, addr, cpte,
 							pfn_pte(pfn,
 								hugeprot),
 							dirty);
