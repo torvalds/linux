@@ -36,10 +36,10 @@ struct hdmi_codec_daifmt {
 		HDMI_AC97,
 		HDMI_SPDIF,
 	} fmt;
-	int bit_clk_inv:1;
-	int frame_clk_inv:1;
-	int bit_clk_master:1;
-	int frame_clk_master:1;
+	unsigned int bit_clk_inv:1;
+	unsigned int frame_clk_inv:1;
+	unsigned int bit_clk_master:1;
+	unsigned int frame_clk_master:1;
 };
 
 /*
