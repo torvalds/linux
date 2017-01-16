@@ -527,6 +527,15 @@ static void remove_pte_table(pte_t *pte_start, unsigned long addr,
 		if (!pte_present(*pte))
 			continue;
 
+		if (!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(next)) {
+			/*
+			 * The vmemmap_free() and remove_section_mapping()
+			 * codepaths call us with aligned addresses.
+			 */
+			WARN_ONCE(1, "%s: unaligned range\n", __func__);
+			continue;
+		}
+
 		pte_clear(&init_mm, addr, pte);
 	}
 }
@@ -546,6 +555,12 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			continue;
 
 		if (pmd_huge(*pmd)) {
+			if (!IS_ALIGNED(addr, PMD_SIZE) ||
+			    !IS_ALIGNED(next, PMD_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+
 			pte_clear(&init_mm, addr, (pte_t *)pmd);
 			continue;
 		}
@@ -571,6 +586,12 @@ static void remove_pud_table(pud_t *pud_start, unsigned long addr,
 			continue;
 
 		if (pud_huge(*pud)) {
+			if (!IS_ALIGNED(addr, PUD_SIZE) ||
+			    !IS_ALIGNED(next, PUD_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+
 			pte_clear(&init_mm, addr, (pte_t *)pud);
 			continue;
 		}
@@ -597,6 +618,12 @@ static void remove_pagetable(unsigned long start, unsigned long end)
 			continue;
 
 		if (pgd_huge(*pgd)) {
+			if (!IS_ALIGNED(addr, PGDIR_SIZE) ||
+			    !IS_ALIGNED(next, PGDIR_SIZE)) {
+				WARN_ONCE(1, "%s: unaligned range\n", __func__);
+				continue;
+			}
+
 			pte_clear(&init_mm, addr, (pte_t *)pgd);
 			continue;
 		}
@@ -636,7 +663,7 @@ int __meminit radix__vmemmap_create_mapping(unsigned long start,
 #ifdef CONFIG_MEMORY_HOTPLUG
 void radix__vmemmap_remove_mapping(unsigned long start, unsigned long page_size)
 {
-	/* FIXME!! intel does more. We should free page tables mapping vmemmap ? */
+	remove_pagetable(start, start + page_size);
 }
 #endif
 #endif
