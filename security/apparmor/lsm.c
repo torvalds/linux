@@ -195,7 +195,7 @@ static inline int common_perm_path(int op, const struct path *path, u32 mask)
 	struct path_cond cond = { d_backing_inode(path->dentry)->i_uid,
 				  d_backing_inode(path->dentry)->i_mode
 	};
-	if (!mediated_filesystem(path->dentry))
+	if (!path_mediated_fs(path->dentry))
 		return 0;
 
 	return common_perm(op, path, mask, &cond);
@@ -216,7 +216,7 @@ static int common_perm_rm(int op, const struct path *dir,
 	struct inode *inode = d_backing_inode(dentry);
 	struct path_cond cond = { };
 
-	if (!inode || !mediated_filesystem(dentry))
+	if (!inode || !path_mediated_fs(dentry))
 		return 0;
 
 	cond.uid = inode->i_uid;
@@ -240,7 +240,7 @@ static int common_perm_create(int op, const struct path *dir,
 {
 	struct path_cond cond = { current_fsuid(), mode };
 
-	if (!mediated_filesystem(dir->dentry))
+	if (!path_mediated_fs(dir->dentry))
 		return 0;
 
 	return common_perm_dir_dentry(op, dir, dentry, mask, &cond);
@@ -287,7 +287,7 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(old_dentry))
+	if (!path_mediated_fs(old_dentry))
 		return 0;
 
 	profile = aa_current_profile();
@@ -302,7 +302,7 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(old_dentry))
+	if (!path_mediated_fs(old_dentry))
 		return 0;
 
 	profile = aa_current_profile();
@@ -349,7 +349,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(file->f_path.dentry))
+	if (!path_mediated_fs(file->f_path.dentry))
 		return 0;
 
 	/* If in exec, permission is handled by bprm hooks.
@@ -402,7 +402,7 @@ static int common_file_perm(int op, struct file *file, u32 mask)
 	BUG_ON(!fprofile);
 
 	if (!file->f_path.mnt ||
-	    !mediated_filesystem(file->f_path.dentry))
+	    !path_mediated_fs(file->f_path.dentry))
 		return 0;
 
 	profile = __aa_current_profile();

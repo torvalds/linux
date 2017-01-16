@@ -111,7 +111,7 @@ static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
 	return aa_dfa_next(dfa, start, 0);
 }
 
-static inline bool mediated_filesystem(struct dentry *dentry)
+static inline bool path_mediated_fs(struct dentry *dentry)
 {
 	return !(dentry->d_sb->s_flags & MS_NOUSER);
 }
