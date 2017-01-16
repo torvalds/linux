@@ -15,6 +15,7 @@
  */
 
 #include <linux/devcoredump.h>
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"

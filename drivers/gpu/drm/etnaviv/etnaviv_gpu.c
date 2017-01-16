@@ -18,6 +18,8 @@
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
@@ -693,7 +695,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	/* Create buffer: */
-	gpu->buffer = etnaviv_gpu_cmdbuf_new(gpu, PAGE_SIZE, 0);
+	gpu->buffer = etnaviv_cmdbuf_new(gpu, PAGE_SIZE, 0);
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
@@ -728,7 +730,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	return 0;
 
 free_buffer:
-	etnaviv_gpu_cmdbuf_free(gpu->buffer);
+	etnaviv_cmdbuf_free(gpu->buffer);
 	gpu->buffer = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
@@ -1151,41 +1153,6 @@ static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
  * Cmdstream submission/retirement:
  */
 
-struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
-	size_t nr_bos)
-{
-	struct etnaviv_cmdbuf *cmdbuf;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
-				 sizeof(*cmdbuf));
-
-	cmdbuf = kzalloc(sz, GFP_KERNEL);
-	if (!cmdbuf)
-		return NULL;
-
-	if (gpu->mmu->version == ETNAVIV_IOMMU_V2)
-		size = ALIGN(size, SZ_4K);
-
-	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
-				     GFP_KERNEL);
-	if (!cmdbuf->vaddr) {
-		kfree(cmdbuf);
-		return NULL;
-	}
-
-	cmdbuf->gpu = gpu;
-	cmdbuf->size = size;
-
-	return cmdbuf;
-}
-
-void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
-{
-	etnaviv_iommu_put_cmdbuf_va(cmdbuf->gpu, cmdbuf);
-	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
-		    cmdbuf->paddr);
-	kfree(cmdbuf);
-}
-
 static void retire_worker(struct work_struct *work)
 {
 	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
@@ -1211,7 +1178,7 @@ static void retire_worker(struct work_struct *work)
 			etnaviv_gem_mapping_unreference(mapping);
 		}
 
-		etnaviv_gpu_cmdbuf_free(cmdbuf);
+		etnaviv_cmdbuf_free(cmdbuf);
 		/*
 		 * We need to balance the runtime PM count caused by
 		 * each submission.  Upon submission, we increment
@@ -1627,7 +1594,7 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 #endif
 
 	if (gpu->buffer) {
-		etnaviv_gpu_cmdbuf_free(gpu->buffer);
+		etnaviv_cmdbuf_free(gpu->buffer);
 		gpu->buffer = NULL;
 	}
 

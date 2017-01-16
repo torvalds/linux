@@ -15,6 +15,7 @@
  */
 
 #include "common.xml.h"
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"

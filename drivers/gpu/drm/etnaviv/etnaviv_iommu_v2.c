@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_iommu.h"
