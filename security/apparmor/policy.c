@@ -637,9 +637,15 @@ bool policy_view_capable(struct aa_ns *ns)
 	return response;
 }
 
-bool policy_admin_capable(void)
+bool policy_admin_capable(struct aa_ns *ns)
 {
-	return policy_view_capable(NULL) && !aa_g_lock_policy;
+	struct user_namespace *user_ns = current_user_ns();
+	bool capable = ns_capable(user_ns, CAP_MAC_ADMIN);
+
+	AA_DEBUG("cap_mac_admin? %d\n", capable);
+	AA_DEBUG("policy locked? %d\n", aa_g_lock_policy);
+
+	return policy_view_capable(ns) && capable && !aa_g_lock_policy;
 }
 
 /**
@@ -657,7 +663,7 @@ bool aa_may_manage_policy(int op)
 		return 0;
 	}
 
-	if (!policy_admin_capable()) {
+	if (!policy_admin_capable(NULL)) {
 		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
 			     "not policy admin", -EACCES);
 		return 0;

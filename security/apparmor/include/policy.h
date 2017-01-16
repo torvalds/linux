@@ -300,7 +300,7 @@ static inline int AUDIT_MODE(struct aa_profile *profile)
 }
 
 bool policy_view_capable(struct aa_ns *ns);
-bool policy_admin_capable(void);
+bool policy_admin_capable(struct aa_ns *ns);
 bool aa_may_manage_policy(int op);
 
 #endif /* __AA_POLICY_H */
