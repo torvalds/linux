@@ -507,9 +507,7 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	struct exynos_pcie *ep;
 	struct pcie_port *pp;
 	struct device_node *np = dev->of_node;
-	struct resource *elbi_base;
-	struct resource *phy_base;
-	struct resource *block_base;
+	struct resource *res;
 	int ret;
 
 	ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
@@ -540,22 +538,22 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_clk;
 
-	elbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ep->elbi_base = devm_ioremap_resource(dev, elbi_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ep->elbi_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ep->elbi_base)) {
 		ret = PTR_ERR(ep->elbi_base);
 		goto fail_bus_clk;
 	}
 
-	phy_base = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ep->phy_base = devm_ioremap_resource(dev, phy_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	ep->phy_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ep->phy_base)) {
 		ret = PTR_ERR(ep->phy_base);
 		goto fail_bus_clk;
 	}
 
-	block_base = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	ep->block_base = devm_ioremap_resource(dev, block_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	ep->block_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ep->block_base)) {
 		ret = PTR_ERR(ep->block_base);
 		goto fail_bus_clk;
