@@ -386,7 +386,7 @@ struct lstio_batch_stop_args {
 								result buffer */
 };
 
-typedef struct {
+struct lstio_batch_query_args {
 	int			 lstio_bat_key;		/* IN: session key */
 	int			 lstio_bat_testidx;	/* IN: test index */
 	int			 lstio_bat_client;	/* IN: we testing
@@ -397,7 +397,7 @@ typedef struct {
 	char __user		*lstio_bat_namep;	/* IN: batch name */
 	struct list_head __user	*lstio_bat_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_batch_query_args_t;
+};
 
 typedef struct {
 	int	 lstio_bat_key;		/* IN: session key */

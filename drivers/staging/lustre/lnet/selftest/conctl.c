@@ -540,7 +540,7 @@ lst_batch_stop_ioctl(struct lstio_batch_stop_args *args)
 }
 
 static int
-lst_batch_query_ioctl(lstio_batch_query_args_t *args)
+lst_batch_query_ioctl(struct lstio_batch_query_args *args)
 {
 	char *name;
 	int rc;
@@ -894,7 +894,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_batch_stop_ioctl((struct lstio_batch_stop_args *)buf);
 		break;
 	case LSTIO_BATCH_QUERY:
-		rc = lst_batch_query_ioctl((lstio_batch_query_args_t *)buf);
+		rc = lst_batch_query_ioctl((struct lstio_batch_query_args *)buf);
 		break;
 	case LSTIO_BATCH_LIST:
 		rc = lst_batch_list_ioctl((lstio_batch_list_args_t *)buf);
