@@ -694,8 +694,15 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
+	gpu->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(gpu);
+	if (IS_ERR(gpu->cmdbuf_suballoc)) {
+		dev_err(gpu->dev, "Failed to create cmdbuf suballocator\n");
+		ret = PTR_ERR(gpu->cmdbuf_suballoc);
+		goto fail;
+	}
+
 	/* Create buffer: */
-	gpu->buffer = etnaviv_cmdbuf_new(gpu, PAGE_SIZE, 0);
+	gpu->buffer = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc, PAGE_SIZE, 0);
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
@@ -1596,6 +1603,11 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	if (gpu->buffer) {
 		etnaviv_cmdbuf_free(gpu->buffer);
 		gpu->buffer = NULL;
+	}
+
+	if (gpu->cmdbuf_suballoc) {
+		etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
+		gpu->cmdbuf_suballoc = NULL;
 	}
 
 	if (gpu->mmu) {

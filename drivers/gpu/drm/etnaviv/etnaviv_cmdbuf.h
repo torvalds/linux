@@ -17,21 +17,21 @@
 #ifndef __ETNAVIV_CMDBUF_H__
 #define __ETNAVIV_CMDBUF_H__
 
-#include <drm/drm_mm.h>
 #include <linux/types.h>
 
+struct etnaviv_gpu;
+struct etnaviv_cmdbuf_suballoc;
+
 struct etnaviv_cmdbuf {
-	/* device this cmdbuf is allocated for */
-	struct etnaviv_gpu *gpu;
+	/* suballocator this cmdbuf is allocated from */
+	struct etnaviv_cmdbuf_suballoc *suballoc;
 	/* user context key, must be unique between all active users */
 	struct etnaviv_file_private *ctx;
 	/* cmdbuf properties */
+	int suballoc_offset;
 	void *vaddr;
-	dma_addr_t paddr;
 	u32 size;
 	u32 user_size;
-	/* vram node used if the cmdbuf is mapped through the MMUv2 */
-	struct drm_mm_node vram_node;
 	/* fence after which this buffer is to be disposed */
 	struct dma_fence *fence;
 	/* target exec state */
@@ -42,6 +42,15 @@ struct etnaviv_cmdbuf {
 	unsigned int nr_bos;
 	struct etnaviv_vram_mapping *bo_map[0];
 };
+
+struct etnaviv_cmdbuf_suballoc *
+etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu);
+void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc);
+
+struct etnaviv_cmdbuf *
+etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
+		   size_t nr_bos);
+void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf);
 
 u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf);
 dma_addr_t etnaviv_cmdbuf_get_pa(struct etnaviv_cmdbuf *buf);

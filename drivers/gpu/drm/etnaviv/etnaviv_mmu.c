@@ -321,55 +321,50 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 		etnaviv_iommuv2_restore(gpu);
 }
 
-u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
-				struct etnaviv_cmdbuf *buf)
+int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
+				  struct drm_mm_node *vram_node, size_t size,
+				  u32 *iova)
 {
 	struct etnaviv_iommu *mmu = gpu->mmu;
 
 	if (mmu->version == ETNAVIV_IOMMU_V1) {
-		return buf->paddr - gpu->memory_base;
+		*iova = paddr - gpu->memory_base;
+		return 0;
 	} else {
 		int ret;
 
-		if (buf->vram_node.allocated)
-			return (u32)buf->vram_node.start;
-
 		mutex_lock(&mmu->lock);
-		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node,
-					      buf->size + SZ_64K);
+		ret = etnaviv_iommu_find_iova(mmu, vram_node, size);
 		if (ret < 0) {
 			mutex_unlock(&mmu->lock);
-			return 0;
+			return ret;
 		}
-		ret = iommu_map(mmu->domain, buf->vram_node.start, buf->paddr,
-				buf->size, IOMMU_READ);
+		ret = iommu_map(mmu->domain, vram_node->start, paddr, size,
+				IOMMU_READ);
 		if (ret < 0) {
-			drm_mm_remove_node(&buf->vram_node);
+			drm_mm_remove_node(vram_node);
 			mutex_unlock(&mmu->lock);
-			return 0;
+			return ret;
 		}
-		/*
-		 * At least on GC3000 the FE MMU doesn't properly flush old TLB
-		 * entries. Make sure to space the command buffers out in a way
-		 * that the FE MMU prefetch won't load invalid entries.
-		 */
-		mmu->last_iova = buf->vram_node.start + buf->size + SZ_64K;
+		mmu->last_iova = vram_node->start + size;
 		gpu->mmu->need_flush = true;
 		mutex_unlock(&mmu->lock);
 
-		return (u32)buf->vram_node.start;
+		*iova = (u32)vram_node->start;
+		return 0;
 	}
 }
 
-void etnaviv_iommu_put_cmdbuf_va(struct etnaviv_gpu *gpu,
-				 struct etnaviv_cmdbuf *buf)
+void etnaviv_iommu_put_suballoc_va(struct etnaviv_gpu *gpu,
+				   struct drm_mm_node *vram_node, size_t size,
+				   u32 iova)
 {
 	struct etnaviv_iommu *mmu = gpu->mmu;
 
-	if (mmu->version == ETNAVIV_IOMMU_V2 && buf->vram_node.allocated) {
+	if (mmu->version == ETNAVIV_IOMMU_V2) {
 		mutex_lock(&mmu->lock);
-		iommu_unmap(mmu->domain, buf->vram_node.start, buf->size);
-		drm_mm_remove_node(&buf->vram_node);
+		iommu_unmap(mmu->domain,iova, size);
+		drm_mm_remove_node(vram_node);
 		mutex_unlock(&mmu->lock);
 	}
 }
