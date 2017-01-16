@@ -334,12 +334,12 @@ struct lstio_group_nodes_args {
 								result buffer */
 };
 
-typedef struct {
+struct lstio_group_list_args {
 	int	 lstio_grp_key;		/* IN: session key */
 	int	 lstio_grp_idx;		/* IN: group idx */
 	int	 lstio_grp_nmlen;	/* IN: name len */
 	char __user *lstio_grp_namep;	/* OUT: name */
-} lstio_group_list_args_t;
+};
 
 typedef struct {
 	int			 lstio_grp_key;		/* IN: session key */

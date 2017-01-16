@@ -358,7 +358,7 @@ lst_nodes_add_ioctl(struct lstio_group_nodes_args *args)
 }
 
 static int
-lst_group_list_ioctl(lstio_group_list_args_t *args)
+lst_group_list_ioctl(struct lstio_group_list_args *args)
 {
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -879,7 +879,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_nodes_add_ioctl((struct lstio_group_nodes_args *)buf);
 		break;
 	case LSTIO_GROUP_LIST:
-		rc = lst_group_list_ioctl((lstio_group_list_args_t *)buf);
+		rc = lst_group_list_ioctl((struct lstio_group_list_args *)buf);
 		break;
 	case LSTIO_GROUP_INFO:
 		rc = lst_group_info_ioctl((lstio_group_info_args_t *)buf);
