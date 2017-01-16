@@ -354,11 +354,11 @@ struct lstio_group_info_args {
 
 #define LST_DEFAULT_BATCH	"batch"			/* default batch name */
 
-typedef struct {
+struct lstio_batch_add_args {
 	int	 lstio_bat_key;		/* IN: session key */
 	int	 lstio_bat_nmlen;	/* IN: name length */
 	char __user *lstio_bat_namep;	/* IN: batch name */
-} lstio_batch_add_args_t;
+};
 
 typedef struct {
 	int	 lstio_bat_key;		/* IN: session key */
