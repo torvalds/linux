@@ -91,7 +91,7 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 {
 	struct aa_loaddata *data;
 
-	BUG_ON(copy_size > alloc_size);
+	AA_BUG(copy_size > alloc_size);
 
 	if (*pos != 0)
 		/* only writes from pos 0, that is complete writes */

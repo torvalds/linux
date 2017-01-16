@@ -406,7 +406,7 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 	struct aa_profile *profile, *fprofile = aa_cred_profile(file->f_cred);
 	int error = 0;
 
-	BUG_ON(!fprofile);
+	AA_BUG(!fprofile);
 
 	if (!file->f_path.mnt ||
 	    !path_mediated_fs(file->f_path.dentry))

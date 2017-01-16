@@ -95,7 +95,7 @@ int aa_replace_current_profile(struct aa_profile *profile)
 {
 	struct aa_task_ctx *ctx = current_ctx();
 	struct cred *new;
-	BUG_ON(!profile);
+	AA_BUG(!profile);
 
 	if (ctx->profile == profile)
 		return 0;
@@ -166,7 +166,7 @@ int aa_set_current_hat(struct aa_profile *profile, u64 token)
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
-	BUG_ON(!profile);
+	AA_BUG(!profile);
 
 	ctx = cred_ctx(new);
 	if (!ctx->previous) {
