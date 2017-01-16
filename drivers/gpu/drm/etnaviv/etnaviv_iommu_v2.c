@@ -255,7 +255,8 @@ void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_config_mmuv2(gpu,
 				(u32)etnaviv_domain->mtlb_dma,
 				(u32)etnaviv_domain->bad_page_dma);
-	etnaviv_gpu_start_fe(gpu, gpu->buffer->paddr, prefetch);
+	etnaviv_gpu_start_fe(gpu, (u32)etnaviv_cmdbuf_get_pa(gpu->buffer),
+			     prefetch);
 	etnaviv_gpu_wait_idle(gpu, 100);
 
 	gpu_write(gpu, VIVS_MMUv2_CONTROL, VIVS_MMUv2_CONTROL_ENABLE);

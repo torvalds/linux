@@ -44,5 +44,6 @@ struct etnaviv_cmdbuf {
 };
 
 u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf);
+dma_addr_t etnaviv_cmdbuf_get_pa(struct etnaviv_cmdbuf *buf);
 
 #endif /* __ETNAVIV_CMDBUF_H__ */
