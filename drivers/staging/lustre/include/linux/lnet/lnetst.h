@@ -406,7 +406,7 @@ struct lstio_batch_list_args {
 	char __user *lstio_bat_namep;	/* IN: batch name */
 };
 
-typedef struct {
+struct lstio_batch_info_args {
 	int			 lstio_bat_key;		/* IN: session key */
 	int			 lstio_bat_nmlen;	/* IN: name length */
 	char __user		*lstio_bat_namep;	/* IN: name */
@@ -418,7 +418,7 @@ typedef struct {
 	int __user		*lstio_bat_idxp;	/* IN/OUT: index of node */
 	int __user		*lstio_bat_ndentp;	/* IN/OUT: # of nodent */
 	struct lstcon_node_ent __user *lstio_bat_dentsp;/* array of nodent */
-} lstio_batch_info_args_t;
+};
 
 /* add stat in session */
 typedef struct {
