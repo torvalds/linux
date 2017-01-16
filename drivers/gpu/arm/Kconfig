@@ -11,9 +11,18 @@
 # Boston, MA  02110-1301, USA.
 #
 #
+#
+source "drivers/gpu/arm/mali400/mali/Kconfig"
 
+choice
+	prompt "Mali Midgard driver"
 
+config MALI_MIDGARD_FOR_ANDROID
+	bool "Mali Midgard for Android"
 
-menu "ARM GPU Configuration"
+config MALI_MIDGARD_FOR_LINUX
+	bool "Mali Midgard for Linux only"
+
+endchoice
+
 source "drivers/gpu/arm/midgard/Kconfig"
-endmenu

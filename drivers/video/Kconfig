@@ -26,16 +26,7 @@ source "drivers/gpu/drm/Kconfig"
 
 source "drivers/gpu/rogue_m/Kconfig"
 
-config MALI_MIDGARD_FOR_LINUX
-	bool "Mali Midgard for RK Linux device only"
-	default n
-
-# midgard src for devices other than RK Linux device.
-if !MALI_MIDGARD_FOR_LINUX
-	source "drivers/gpu/arm/midgard/Kconfig"
-endif
-
-source "drivers/gpu/arm/mali400/mali/Kconfig"
+source "drivers/gpu/arm/Kconfig"
 
 menu "Frame buffer Devices"
 source "drivers/video/fbdev/Kconfig"

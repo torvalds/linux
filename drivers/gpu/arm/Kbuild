@@ -16,8 +16,6 @@
 
 obj-$(CONFIG_MALI_MIDGARD_FOR_LINUX) += midgard_for_linux/
 
-ifneq ($(CONFIG_MALI_MIDGARD_FOR_LINUX),y)
-obj-y += midgard/
-endif
+obj-$(CONFIG_MALI_MIDGARD_FOR_ANDROID) += midgard/
 
 obj-$(CONFIG_MALI400)      += mali400/

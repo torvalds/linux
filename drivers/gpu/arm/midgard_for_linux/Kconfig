@@ -15,8 +15,7 @@
 
 
 menuconfig MALI_MIDGARD
-	tristate "Mali Midgard series support"
-	select GPU_TRACEPOINTS if ANDROID
+	tristate "Mali Midgard series support (Linux only)"
 	default n
 	help
 	  Enable this option to build support for a ARM Mali Midgard GPU.
