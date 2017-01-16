@@ -34,6 +34,7 @@
 #include "include/ipc.h"
 #include "include/path.h"
 #include "include/policy.h"
+#include "include/policy_ns.h"
 #include "include/procattr.h"
 
 /* Flag indicating whether initialization completed */

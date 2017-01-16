@@ -29,6 +29,7 @@
 #include "include/match.h"
 #include "include/path.h"
 #include "include/policy.h"
+#include "include/policy_ns.h"
 
 /**
  * aa_free_domain_entries - free entries in a domain table

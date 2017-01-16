@@ -15,6 +15,7 @@
 #include "include/apparmor.h"
 #include "include/context.h"
 #include "include/policy.h"
+#include "include/policy_ns.h"
 #include "include/domain.h"
 #include "include/procattr.h"
 

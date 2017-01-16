@@ -18,6 +18,7 @@
 #include "include/apparmor.h"
 #include "include/audit.h"
 #include "include/policy.h"
+#include "include/policy_ns.h"
 
 const char *const op_table[] = {
 	"null",

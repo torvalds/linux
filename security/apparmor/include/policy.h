@@ -30,6 +30,9 @@
 #include "lib.h"
 #include "resource.h"
 
+
+struct aa_namespace;
+
 extern const char *const aa_profile_mode_names[];
 #define APPARMOR_MODE_NAMES_MAX_INDEX 4
 
@@ -76,57 +79,6 @@ enum profile_flags {
 };
 
 struct aa_profile;
-
-/* struct aa_ns_acct - accounting of profiles in namespace
- * @max_size: maximum space allowed for all profiles in namespace
- * @max_count: maximum number of profiles that can be in this namespace
- * @size: current size of profiles
- * @count: current count of profiles (includes null profiles)
- */
-struct aa_ns_acct {
-	int max_size;
-	int max_count;
-	int size;
-	int count;
-};
-
-/* struct aa_namespace - namespace for a set of profiles
- * @base: common policy
- * @parent: parent of namespace
- * @lock: lock for modifying the object
- * @acct: accounting for the namespace
- * @unconfined: special unconfined profile for the namespace
- * @sub_ns: list of namespaces under the current namespace.
- * @uniq_null: uniq value used for null learning profiles
- * @uniq_id: a unique id count for the profiles in the namespace
- * @dents: dentries for the namespaces file entries in apparmorfs
- *
- * An aa_namespace defines the set profiles that are searched to determine
- * which profile to attach to a task.  Profiles can not be shared between
- * aa_namespaces and profile names within a namespace are guaranteed to be
- * unique.  When profiles in separate namespaces have the same name they
- * are NOT considered to be equivalent.
- *
- * Namespaces are hierarchical and only namespaces and profiles below the
- * current namespace are visible.
- *
- * Namespace names must be unique and can not contain the characters :/\0
- *
- * FIXME TODO: add vserver support of namespaces (can it all be done in
- *             userspace?)
- */
-struct aa_namespace {
-	struct aa_policy base;
-	struct aa_namespace *parent;
-	struct mutex lock;
-	struct aa_ns_acct acct;
-	struct aa_profile *unconfined;
-	struct list_head sub_ns;
-	atomic_t uniq_null;
-	long uniq_id;
-
-	struct dentry *dents[AAFS_NS_SIZEOF];
-};
 
 /* struct aa_policydb - match engine for a policy
  * dfa: dfa pattern match
@@ -212,19 +164,11 @@ struct aa_profile {
 	struct dentry *dents[AAFS_PROF_SIZEOF];
 };
 
-extern struct aa_namespace *root_ns;
 extern enum profile_mode aa_g_profile_mode;
 
+void __aa_update_replacedby(struct aa_profile *orig, struct aa_profile *new);
+
 void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
-
-bool aa_ns_visible(struct aa_namespace *curr, struct aa_namespace *view);
-const char *aa_ns_name(struct aa_namespace *parent, struct aa_namespace *child);
-int aa_alloc_root_ns(void);
-void aa_free_root_ns(void);
-void aa_free_namespace_kref(struct kref *kref);
-
-struct aa_namespace *aa_find_namespace(struct aa_namespace *root,
-				       const char *name);
 
 
 void aa_free_replacedby_kref(struct kref *kref);
@@ -238,18 +182,13 @@ struct aa_profile *aa_match_profile(struct aa_namespace *ns, const char *name);
 
 ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace);
 ssize_t aa_remove_profiles(char *name, size_t size);
+void __aa_profile_list_release(struct list_head *head);
 
 #define PROF_ADD 1
 #define PROF_REPLACE 0
 
 #define unconfined(X) ((X)->mode == APPARMOR_UNCONFINED)
 
-
-static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
-{
-	return rcu_dereference_protected(p->parent,
-					 mutex_is_locked(&p->ns->lock));
-}
 
 /**
  * aa_get_profile - increment refcount on profile @p
@@ -342,45 +281,6 @@ static inline void aa_put_replacedby(struct aa_replacedby *p)
 {
 	if (p)
 		kref_put(&p->count, aa_free_replacedby_kref);
-}
-
-/* requires profile list write lock held */
-static inline void __aa_update_replacedby(struct aa_profile *orig,
-					  struct aa_profile *new)
-{
-	struct aa_profile *tmp;
-	tmp = rcu_dereference_protected(orig->replacedby->profile,
-					mutex_is_locked(&orig->ns->lock));
-	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
-	orig->flags |= PFLAG_INVALID;
-	aa_put_profile(tmp);
-}
-
-/**
- * aa_get_namespace - increment references count on @ns
- * @ns: namespace to increment reference count of (MAYBE NULL)
- *
- * Returns: pointer to @ns, if @ns is NULL returns NULL
- * Requires: @ns must be held with valid refcount when called
- */
-static inline struct aa_namespace *aa_get_namespace(struct aa_namespace *ns)
-{
-	if (ns)
-		aa_get_profile(ns->unconfined);
-
-	return ns;
-}
-
-/**
- * aa_put_namespace - decrement refcount on @ns
- * @ns: namespace to put reference of
- *
- * Decrement reference count of @ns and if no longer in use free it
- */
-static inline void aa_put_namespace(struct aa_namespace *ns)
-{
-	if (ns)
-		aa_put_profile(ns->unconfined);
 }
 
 static inline int AUDIT_MODE(struct aa_profile *profile)
