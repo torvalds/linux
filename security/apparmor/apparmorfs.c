@@ -228,12 +228,12 @@ const struct file_operations aa_fs_seq_file_ops = {
 static int aa_fs_seq_profile_open(struct inode *inode, struct file *file,
 				  int (*show)(struct seq_file *, void *))
 {
-	struct aa_replacedby *r = aa_get_replacedby(inode->i_private);
-	int error = single_open(file, show, r);
+	struct aa_proxy *proxy = aa_get_proxy(inode->i_private);
+	int error = single_open(file, show, proxy);
 
 	if (error) {
 		file->private_data = NULL;
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 	}
 
 	return error;
@@ -243,14 +243,14 @@ static int aa_fs_seq_profile_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = (struct seq_file *) file->private_data;
 	if (seq)
-		aa_put_replacedby(seq->private);
+		aa_put_proxy(seq->private);
 	return single_release(inode, file);
 }
 
 static int aa_fs_seq_profname_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	seq_printf(seq, "%s\n", profile->base.name);
 	aa_put_profile(profile);
 
@@ -272,8 +272,8 @@ static const struct file_operations aa_fs_profname_fops = {
 
 static int aa_fs_seq_profmode_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	seq_printf(seq, "%s\n", aa_profile_mode_names[profile->mode]);
 	aa_put_profile(profile);
 
@@ -295,8 +295,8 @@ static const struct file_operations aa_fs_profmode_fops = {
 
 static int aa_fs_seq_profattach_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	if (profile->attach)
 		seq_printf(seq, "%s\n", profile->attach);
 	else if (profile->xmatch)
@@ -323,8 +323,8 @@ static const struct file_operations aa_fs_profattach_fops = {
 
 static int aa_fs_seq_hash_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	unsigned int i, size = aa_hash_size();
 
 	if (profile->hash) {
@@ -363,13 +363,13 @@ void __aa_fs_profile_rmdir(struct aa_profile *profile)
 		__aa_fs_profile_rmdir(child);
 
 	for (i = AAFS_PROF_SIZEOF - 1; i >= 0; --i) {
-		struct aa_replacedby *r;
+		struct aa_proxy *proxy;
 		if (!profile->dents[i])
 			continue;
 
-		r = d_inode(profile->dents[i])->i_private;
+		proxy = d_inode(profile->dents[i])->i_private;
 		securityfs_remove(profile->dents[i]);
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 		profile->dents[i] = NULL;
 	}
 }
@@ -391,12 +391,12 @@ static struct dentry *create_profile_file(struct dentry *dir, const char *name,
 					  struct aa_profile *profile,
 					  const struct file_operations *fops)
 {
-	struct aa_replacedby *r = aa_get_replacedby(profile->replacedby);
+	struct aa_proxy *proxy = aa_get_proxy(profile->proxy);
 	struct dentry *dent;
 
-	dent = securityfs_create_file(name, S_IFREG | 0444, dir, r, fops);
+	dent = securityfs_create_file(name, S_IFREG | 0444, dir, proxy, fops);
 	if (IS_ERR(dent))
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 
 	return dent;
 }

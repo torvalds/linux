@@ -225,7 +225,7 @@ static void destroy_ns(struct aa_ns *ns)
 	__ns_list_release(&ns->sub_ns);
 
 	if (ns->parent)
-		__aa_update_replacedby(ns->unconfined, ns->parent->unconfined);
+		__aa_update_proxy(ns->unconfined, ns->parent->unconfined);
 	__aa_fs_ns_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }

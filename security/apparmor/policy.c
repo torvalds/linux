@@ -99,13 +99,13 @@ const char *const aa_profile_mode_names[] = {
 
 
 /* requires profile list write lock held */
-void __aa_update_replacedby(struct aa_profile *orig, struct aa_profile *new)
+void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new)
 {
 	struct aa_profile *tmp;
 
-	tmp = rcu_dereference_protected(orig->replacedby->profile,
+	tmp = rcu_dereference_protected(orig->proxy->profile,
 					mutex_is_locked(&orig->ns->lock));
-	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
+	rcu_assign_pointer(orig->proxy->profile, aa_get_profile(new));
 	orig->flags |= PFLAG_STALE;
 	aa_put_profile(tmp);
 }
@@ -156,7 +156,7 @@ static void __remove_profile(struct aa_profile *profile)
 	/* release any children lists first */
 	__aa_profile_list_release(&profile->base.profiles);
 	/* released by free_profile */
-	__aa_update_replacedby(profile, profile->ns->unconfined);
+	__aa_update_proxy(profile, profile->ns->unconfined);
 	__aa_fs_profile_rmdir(profile);
 	__list_remove_profile(profile);
 }
@@ -175,21 +175,21 @@ void __aa_profile_list_release(struct list_head *head)
 }
 
 
-static void free_replacedby(struct aa_replacedby *r)
+static void free_proxy(struct aa_proxy *p)
 {
-	if (r) {
+	if (p) {
 		/* r->profile will not be updated any more as r is dead */
-		aa_put_profile(rcu_dereference_protected(r->profile, true));
-		kzfree(r);
+		aa_put_profile(rcu_dereference_protected(p->profile, true));
+		kzfree(p);
 	}
 }
 
 
-void aa_free_replacedby_kref(struct kref *kref)
+void aa_free_proxy_kref(struct kref *kref)
 {
-	struct aa_replacedby *r = container_of(kref, struct aa_replacedby,
-					       count);
-	free_replacedby(r);
+	struct aa_proxy *p = container_of(kref, struct aa_proxy, count);
+
+	free_proxy(p);
 }
 
 /**
@@ -223,7 +223,7 @@ void aa_free_profile(struct aa_profile *profile)
 	kzfree(profile->dirname);
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
-	aa_put_replacedby(profile->replacedby);
+	aa_put_proxy(profile->proxy);
 
 	kzfree(profile->hash);
 	kzfree(profile);
@@ -267,10 +267,10 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 	if (!profile)
 		return NULL;
 
-	profile->replacedby = kzalloc(sizeof(struct aa_replacedby), GFP_KERNEL);
-	if (!profile->replacedby)
+	profile->proxy = kzalloc(sizeof(struct aa_proxy), GFP_KERNEL);
+	if (!profile->proxy)
 		goto fail;
-	kref_init(&profile->replacedby->count);
+	kref_init(&profile->proxy->count);
 
 	if (!aa_policy_init(&profile->base, NULL, hname))
 		goto fail;
@@ -280,7 +280,7 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 	return profile;
 
 fail:
-	kzfree(profile->replacedby);
+	kzfree(profile->proxy);
 	kzfree(profile);
 
 	return NULL;
@@ -598,7 +598,7 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  * __replace_profile - replace @old with @new on a list
  * @old: profile to be replaced  (NOT NULL)
  * @new: profile to replace @old with  (NOT NULL)
- * @share_replacedby: transfer @old->replacedby to @new
+ * @share_proxy: transfer @old->proxy to @new
  *
  * Will duplicate and refcount elements that @new inherits from @old
  * and will inherit @old children.
@@ -608,7 +608,7 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  * Requires: namespace list lock be held, or list not be shared
  */
 static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
-			      bool share_replacedby)
+			      bool share_proxy)
 {
 	struct aa_profile *child, *tmp;
 
@@ -623,7 +623,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 			p = __find_child(&new->base.profiles, child->base.name);
 			if (p) {
 				/* @p replaces @child  */
-				__replace_profile(child, p, share_replacedby);
+				__replace_profile(child, p, share_proxy);
 				continue;
 			}
 
@@ -641,13 +641,13 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 		struct aa_profile *parent = aa_deref_parent(old);
 		rcu_assign_pointer(new->parent, aa_get_profile(parent));
 	}
-	__aa_update_replacedby(old, new);
-	if (share_replacedby) {
-		aa_put_replacedby(new->replacedby);
-		new->replacedby = aa_get_replacedby(old->replacedby);
-	} else if (!rcu_access_pointer(new->replacedby->profile))
-		/* aafs interface uses replacedby */
-		rcu_assign_pointer(new->replacedby->profile,
+	__aa_update_proxy(old, new);
+	if (share_proxy) {
+		aa_put_proxy(new->proxy);
+		new->proxy = aa_get_proxy(old->proxy);
+	} else if (!rcu_access_pointer(new->proxy->profile))
+		/* aafs interface uses proxy */
+		rcu_assign_pointer(new->proxy->profile,
 				   aa_get_profile(new));
 	__aa_fs_profile_migrate_dents(old, new);
 
@@ -797,15 +797,15 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		if (ent->old) {
 			__replace_profile(ent->old, ent->new, 1);
 			if (ent->rename) {
-				/* aafs interface uses replacedby */
-				struct aa_replacedby *r = ent->new->replacedby;
+				/* aafs interface uses proxy */
+				struct aa_proxy *r = ent->new->proxy;
 				rcu_assign_pointer(r->profile,
 						   aa_get_profile(ent->new));
 				__replace_profile(ent->rename, ent->new, 0);
 			}
 		} else if (ent->rename) {
-			/* aafs interface uses replacedby */
-			rcu_assign_pointer(ent->new->replacedby->profile,
+			/* aafs interface uses proxy */
+			rcu_assign_pointer(ent->new->proxy->profile,
 					   aa_get_profile(ent->new));
 			__replace_profile(ent->rename, ent->new, 0);
 		} else if (ent->new->parent) {
@@ -819,14 +819,14 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 				rcu_assign_pointer(ent->new->parent, newest);
 				aa_put_profile(parent);
 			}
-			/* aafs interface uses replacedby */
-			rcu_assign_pointer(ent->new->replacedby->profile,
+			/* aafs interface uses proxy */
+			rcu_assign_pointer(ent->new->proxy->profile,
 					   aa_get_profile(ent->new));
 			__list_add_profile(&newest->base.profiles, ent->new);
 			aa_put_profile(newest);
 		} else {
-			/* aafs interface uses replacedby */
-			rcu_assign_pointer(ent->new->replacedby->profile,
+			/* aafs interface uses proxy */
+			rcu_assign_pointer(ent->new->proxy->profile,
 					   aa_get_profile(ent->new));
 			__list_add_profile(&ns->base.profiles, ent->new);
 		}

@@ -112,7 +112,7 @@ int aa_replace_current_profile(struct aa_profile *profile)
 		aa_clear_task_cxt_trans(cxt);
 
 	/* be careful switching cxt->profile, when racing replacement it
-	 * is possible that cxt->profile->replacedby->profile is the reference
+	 * is possible that cxt->profile->proxy->profile is the reference
 	 * keeping @profile valid, so make sure to get its reference before
 	 * dropping the reference on cxt->profile */
 	aa_get_profile(profile);

@@ -91,7 +91,7 @@ struct aa_policydb {
 
 };
 
-struct aa_replacedby {
+struct aa_proxy {
 	struct kref count;
 	struct aa_profile __rcu *profile;
 };
@@ -103,7 +103,7 @@ struct aa_replacedby {
  * @rcu: rcu head used when removing from @list
  * @parent: parent of profile
  * @ns: namespace the profile is in
- * @replacedby: is set to the profile that replaced this profile
+ * @proxy: is set to the profile that replaced this profile
  * @rename: optional profile name that this profile renamed
  * @attach: human readable attachment string
  * @xmatch: optional extended matching for unconfined executables names
@@ -126,7 +126,7 @@ struct aa_replacedby {
  * used to determine profile attachment against unconfined tasks.  All other
  * attachments are determined by profile X transition rules.
  *
- * The @replacedby struct is write protected by the profile lock.
+ * The @proxy struct is write protected by the profile lock.
  *
  * Profiles have a hierarchy where hats and children profiles keep
  * a reference to their parent.
@@ -142,7 +142,7 @@ struct aa_profile {
 	struct aa_profile __rcu *parent;
 
 	struct aa_ns *ns;
-	struct aa_replacedby *replacedby;
+	struct aa_proxy *proxy;
 	const char *rename;
 
 	const char *attach;
@@ -166,12 +166,12 @@ struct aa_profile {
 
 extern enum profile_mode aa_g_profile_mode;
 
-void __aa_update_replacedby(struct aa_profile *orig, struct aa_profile *new);
+void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new);
 
 void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
 
 
-void aa_free_replacedby_kref(struct kref *kref);
+void aa_free_proxy_kref(struct kref *kref);
 struct aa_profile *aa_alloc_profile(const char *name);
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat);
 void aa_free_profile(struct aa_profile *profile);
@@ -254,7 +254,7 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 		return NULL;
 
 	if (profile_is_stale(p))
-		return aa_get_profile_rcu(&p->replacedby->profile);
+		return aa_get_profile_rcu(&p->proxy->profile);
 
 	return aa_get_profile(p);
 }
@@ -269,7 +269,7 @@ static inline void aa_put_profile(struct aa_profile *p)
 		kref_put(&p->count, aa_free_profile_kref);
 }
 
-static inline struct aa_replacedby *aa_get_replacedby(struct aa_replacedby *p)
+static inline struct aa_proxy *aa_get_proxy(struct aa_proxy *p)
 {
 	if (p)
 		kref_get(&(p->count));
@@ -277,10 +277,10 @@ static inline struct aa_replacedby *aa_get_replacedby(struct aa_replacedby *p)
 	return p;
 }
 
-static inline void aa_put_replacedby(struct aa_replacedby *p)
+static inline void aa_put_proxy(struct aa_proxy *p)
 {
 	if (p)
-		kref_put(&p->count, aa_free_replacedby_kref);
+		kref_put(&p->count, aa_free_proxy_kref);
 }
 
 static inline int AUDIT_MODE(struct aa_profile *profile)
