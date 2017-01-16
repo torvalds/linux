@@ -582,6 +582,7 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 
 /**
  * aa_audit_policy - Do auditing of policy changes
+ * @profile: profile to check if it can manage policy
  * @op: policy operation being performed
  * @gfp: memory allocation flags
  * @name: name of profile being manipulated (NOT NULL)
@@ -590,8 +591,8 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
  *
  * Returns: the error to be returned after audit is done
  */
-static int audit_policy(int op, gfp_t gfp, const char *name, const char *info,
-			int error)
+static int audit_policy(struct aa_profile *profile, int op, gfp_t gfp,
+			const char *name, const char *info, int error)
 {
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
@@ -602,7 +603,7 @@ static int audit_policy(int op, gfp_t gfp, const char *name, const char *info,
 	aad.info = info;
 	aad.error = error;
 
-	return aa_audit(AUDIT_APPARMOR_STATUS, __aa_current_profile(), gfp,
+	return aa_audit(AUDIT_APPARMOR_STATUS, profile, gfp,
 			&sa, NULL);
 }
 
@@ -632,12 +633,14 @@ bool aa_may_manage_policy(int op)
 {
 	/* check if loading policy is locked out */
 	if (aa_g_lock_policy) {
-		audit_policy(op, GFP_KERNEL, NULL, "policy_locked", -EACCES);
+		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
+			     "policy_locked", -EACCES);
 		return 0;
 	}
 
 	if (!policy_admin_capable()) {
-		audit_policy(op, GFP_KERNEL, NULL, "not policy admin", -EACCES);
+		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
+			     "not policy admin", -EACCES);
 		return 0;
 	}
 
@@ -762,6 +765,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
  * @view: namespace load is viewed from
+ * @profile: profile that is attempting to load/replace policy
  * @udata: serialized data stream  (NOT NULL)
  * @size: size of the serialized data stream
  * @noreplace: true if only doing addition, no replacement allowed
@@ -790,7 +794,8 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 	/* released below */
 	ns = aa_prepare_ns(view, ns_name);
 	if (!ns) {
-		error = audit_policy(op, GFP_KERNEL, ns_name,
+		error = audit_policy(__aa_current_profile(), op, GFP_KERNEL,
+				     ns_name,
 				     "failed to prepare namespace", -ENOMEM);
 		goto free;
 	}
@@ -867,7 +872,8 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
 
-		audit_policy(op, GFP_ATOMIC, ent->new->base.hname, NULL, error);
+		audit_policy(__aa_current_profile(), op, GFP_ATOMIC,
+			     ent->new->base.hname, NULL, error);
 
 		if (ent->old) {
 			__replace_profile(ent->old, ent->new, 1);
@@ -921,7 +927,8 @@ fail_lock:
 
 	/* audit cause of failure */
 	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-	audit_policy(op, GFP_KERNEL, ent->new->base.hname, info, error);
+	audit_policy(__aa_current_profile(), op, GFP_KERNEL,
+		     ent->new->base.hname, info, error);
 	/* audit status that rest of profiles in the atomic set failed too */
 	info = "valid profile in failed atomic policy load";
 	list_for_each_entry(tmp, &lh, list) {
@@ -931,7 +938,8 @@ fail_lock:
 			continue;
 		}
 		op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-		audit_policy(op, GFP_KERNEL, tmp->new->base.hname, info, error);
+		audit_policy(__aa_current_profile(), op, GFP_KERNEL,
+			     tmp->new->base.hname, info, error);
 	}
 free:
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
@@ -1004,7 +1012,8 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 	}
 
 	/* don't fail removal if audit fails */
-	(void) audit_policy(OP_PROF_RM, GFP_KERNEL, name, info, error);
+	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
+			    name, info, error);
 	aa_put_ns(ns);
 	aa_put_profile(profile);
 	return size;
@@ -1014,6 +1023,7 @@ fail_ns_lock:
 	aa_put_ns(ns);
 
 fail:
-	(void) audit_policy(OP_PROF_RM, GFP_KERNEL, name, info, error);
+	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
+			    name, info, error);
 	return error;
 }
