@@ -14,6 +14,7 @@
  */
 
 #include <linux/input.h>
+#include <linux/regulator/consumer.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -25,30 +26,59 @@
 struct pwm_beeper {
 	struct input_dev *input;
 	struct pwm_device *pwm;
+	struct regulator *amplifier;
 	struct work_struct work;
 	unsigned long period;
 	bool suspended;
+	bool amplifier_on;
 };
 
 #define HZ_TO_NANOSECONDS(x) (1000000000UL/(x))
 
-static void __pwm_beeper_set(struct pwm_beeper *beeper)
+static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
 {
-	unsigned long period = beeper->period;
+	int error;
 
-	if (period) {
-		pwm_config(beeper->pwm, period / 2, period);
-		pwm_enable(beeper->pwm);
-	} else
-		pwm_disable(beeper->pwm);
+	error = pwm_config(beeper->pwm, period / 2, period);
+	if (error)
+		return error;
+
+	error = pwm_enable(beeper->pwm);
+	if (error)
+		return error;
+
+	if (!beeper->amplifier_on) {
+		error = regulator_enable(beeper->amplifier);
+		if (error) {
+			pwm_disable(beeper->pwm);
+			return error;
+		}
+
+		beeper->amplifier_on = true;
+	}
+
+	return 0;
+}
+
+static void pwm_beeper_off(struct pwm_beeper *beeper)
+{
+	if (beeper->amplifier_on) {
+		regulator_disable(beeper->amplifier);
+		beeper->amplifier_on = false;
+	}
+
+	pwm_disable(beeper->pwm);
 }
 
 static void pwm_beeper_work(struct work_struct *work)
 {
-	struct pwm_beeper *beeper =
-		container_of(work, struct pwm_beeper, work);
+	struct pwm_beeper *beeper = container_of(work, struct pwm_beeper, work);
+	unsigned long period = READ_ONCE(beeper->period);
 
-	__pwm_beeper_set(beeper);
+	if (period)
+		pwm_beeper_on(beeper, period);
+	else
+		pwm_beeper_off(beeper);
 }
 
 static int pwm_beeper_event(struct input_dev *input,
@@ -83,9 +113,7 @@ static int pwm_beeper_event(struct input_dev *input,
 static void pwm_beeper_stop(struct pwm_beeper *beeper)
 {
 	cancel_work_sync(&beeper->work);
-
-	if (beeper->period)
-		pwm_disable(beeper->pwm);
+	pwm_beeper_off(beeper);
 }
 
 static void pwm_beeper_close(struct input_dev *input)
@@ -119,6 +147,15 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	 * the atomic PWM API.
 	 */
 	pwm_apply_args(beeper->pwm);
+
+	beeper->amplifier = devm_regulator_get(dev, "amp");
+	if (IS_ERR(beeper->amplifier)) {
+		error = PTR_ERR(beeper->amplifier);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get 'amp' regulator: %d\n",
+				error);
+		return error;
+	}
 
 	INIT_WORK(&beeper->work, pwm_beeper_work);
 
