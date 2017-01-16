@@ -819,7 +819,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, bool noreplace,
 	struct aa_ns *ns = NULL;
 	struct aa_load_ent *ent, *tmp;
 	int op = OP_PROF_REPL;
-	ssize_t error;
+	ssize_t count, error;
 	LIST_HEAD(lh);
 
 	/* released below */
@@ -827,14 +827,40 @@ ssize_t aa_replace_profiles(struct aa_ns *view, bool noreplace,
 	if (error)
 		goto out;
 
-	/* released below */
-	ns = aa_prepare_ns(view, ns_name);
-	if (!ns) {
-		error = audit_policy(__aa_current_profile(), op, GFP_KERNEL,
-				     NULL, ns_name,
-				     "failed to prepare namespace", -ENOMEM);
-		goto free;
+	/* ensure that profiles are all for the same ns
+	 * TODO: update locking to remove this constaint. All profiles in
+	 *       the load set must succeed as a set or the load will
+	 *       fail. Sort ent list and take ns locks in hierarchy order
+	 */
+	count = 0;
+	list_for_each_entry(ent, &lh, list) {
+		if (ns_name) {
+			if (ent->ns_name &&
+			    strcmp(ent->ns_name, ns_name) != 0) {
+				info = "policy load has mixed namespaces";
+				error = -EACCES;
+				goto fail;
+			}
+		} else if (ent->ns_name) {
+			if (count) {
+				info = "policy load has mixed namespaces";
+				error = -EACCES;
+				goto fail;
+			}
+			ns_name = ent->ns_name;
+		} else
+			count++;
 	}
+	if (ns_name) {
+		ns = aa_prepare_ns(view, ns_name);
+		if (IS_ERR(ns)) {
+			info = "failed to prepare namespace";
+			error = PTR_ERR(ns);
+			ns = NULL;
+			goto fail;
+		}
+	} else
+		ns = aa_get_ns(view);
 
 	mutex_lock(&ns->lock);
 	/* setup parent and ns info */
@@ -964,7 +990,8 @@ fail_lock:
 
 	/* audit cause of failure */
 	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-	audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
+fail:
+	audit_policy(__aa_current_profile(), op, GFP_KERNEL, ns_name,
 		     ent->new->base.hname, info, error);
 	/* audit status that rest of profiles in the atomic set failed too */
 	info = "valid profile in failed atomic policy load";
@@ -975,10 +1002,9 @@ fail_lock:
 			continue;
 		}
 		op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
+		audit_policy(__aa_current_profile(), op, GFP_KERNEL, ns_name,
 			     tmp->new->base.hname, info, error);
 	}
-free:
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
 		list_del_init(&ent->list);
 		aa_load_ent_free(ent);
@@ -1005,6 +1031,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 	struct aa_ns *root = NULL, *ns = NULL;
 	struct aa_profile *profile = NULL;
 	const char *name = fqname, *info = NULL;
+	char *ns_name = NULL;
 	ssize_t error = 0;
 
 	if (*fqname == 0) {
@@ -1016,7 +1043,6 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 	root = view;
 
 	if (fqname[0] == ':') {
-		char *ns_name;
 		name = aa_split_fqname(fqname, &ns_name);
 		/* released below */
 		ns = aa_find_ns(root, ns_name);
@@ -1050,7 +1076,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 
 	/* don't fail removal if audit fails */
 	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    NULL, name, info, error);
+			    ns_name, name, info, error);
 	aa_put_ns(ns);
 	aa_put_profile(profile);
 	return size;
@@ -1061,6 +1087,6 @@ fail_ns_lock:
 
 fail:
 	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    NULL, name, info, error);
+			    ns_name, name, info, error);
 	return error;
 }

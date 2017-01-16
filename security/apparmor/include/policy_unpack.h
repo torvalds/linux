@@ -23,6 +23,7 @@ struct aa_load_ent {
 	struct aa_profile *new;
 	struct aa_profile *old;
 	struct aa_profile *rename;
+	const char *ns_name;
 };
 
 void aa_load_ent_free(struct aa_load_ent *ent);

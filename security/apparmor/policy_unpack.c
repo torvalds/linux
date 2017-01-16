@@ -91,6 +91,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 /**
  * audit_iface - do audit message for policy unpacking/load/replace/remove
  * @new: profile if it has been allocated (MAYBE NULL)
+ * @ns_name: name of the ns the profile is to be loaded to (MAY BE NULL)
  * @name: name of the profile being manipulated (MAYBE NULL)
  * @info: any extra info about the failure (MAYBE NULL)
  * @e: buffer position info
@@ -98,14 +99,16 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: %0 or error
  */
-static int audit_iface(struct aa_profile *new, const char *name,
-		       const char *info, struct aa_ext *e, int error)
+static int audit_iface(struct aa_profile *new, const char *ns_name,
+		       const char *name, const char *info, struct aa_ext *e,
+		       int error)
 {
 	struct aa_profile *profile = __aa_current_profile();
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
 	sa.type = LSM_AUDIT_DATA_NONE;
 	sa.aad = &aad;
+	aad.iface.ns = ns_name;
 	if (e)
 		aad.iface.pos = e->pos - e->start;
 	aad.iface.target = new;
@@ -486,19 +489,32 @@ fail:
  *
  * NOTE: unpack profile sets audit struct if there is a failure
  */
-static struct aa_profile *unpack_profile(struct aa_ext *e)
+static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 {
 	struct aa_profile *profile = NULL;
-	const char *name = NULL;
+	const char *tmpname, *tmpns = NULL, *name = NULL;
+	size_t ns_len;
 	int i, error = -EPROTO;
 	kernel_cap_t tmpcap;
 	u32 tmp;
+
+	*ns_name = NULL;
 
 	/* check that we have the right struct being passed */
 	if (!unpack_nameX(e, AA_STRUCT, "profile"))
 		goto fail;
 	if (!unpack_str(e, &name, NULL))
 		goto fail;
+	if (*name == '\0')
+		goto fail;
+
+	tmpname = aa_splitn_fqname(name, strlen(name), &tmpns, &ns_len);
+	if (tmpns) {
+		*ns_name = kstrndup(tmpns, ns_len, GFP_KERNEL);
+		if (!*ns_name)
+			goto fail;
+		name = tmpname;
+	}
 
 	profile = aa_alloc_profile(name, GFP_KERNEL);
 	if (!profile)
@@ -646,7 +662,8 @@ fail:
 		name = NULL;
 	else if (!name)
 		name = "unknown";
-	audit_iface(profile, name, "failed to unpack profile", e, error);
+	audit_iface(profile, NULL, name, "failed to unpack profile", e,
+		    error);
 	aa_free_profile(profile);
 
 	return ERR_PTR(error);
@@ -669,7 +686,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	/* get the interface version */
 	if (!unpack_u32(e, &e->version, "version")) {
 		if (required) {
-			audit_iface(NULL, NULL, "invalid profile format",
+			audit_iface(NULL, NULL, NULL, "invalid profile format",
 				    e, error);
 			return error;
 		}
@@ -680,15 +697,21 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	 * Mask off everything that is not kernel abi version
 	 */
 	if (VERSION_LT(e->version, v5) && VERSION_GT(e->version, v7)) {
-		audit_iface(NULL, NULL, "unsupported interface version",
+		audit_iface(NULL, NULL, NULL, "unsupported interface version",
 			    e, error);
 		return error;
 	}
 
 	/* read the namespace if present */
 	if (unpack_str(e, &name, "namespace")) {
+		if (*name == '\0') {
+			audit_iface(NULL, NULL, NULL, "invalid namespace name",
+				    e, error);
+			return error;
+		}
 		if (*ns && strcmp(*ns, name))
-			audit_iface(NULL, NULL, "invalid ns change", e, error);
+			audit_iface(NULL, NULL, NULL, "invalid ns change", e,
+				    error);
 		else if (!*ns)
 			*ns = name;
 	}
@@ -730,7 +753,7 @@ static int verify_profile(struct aa_profile *profile)
 	if (profile->file.dfa &&
 	    !verify_dfa_xindex(profile->file.dfa,
 			       profile->file.trans.size)) {
-		audit_iface(profile, NULL, "Invalid named transition",
+		audit_iface(profile, NULL, NULL, "Invalid named transition",
 			    NULL, -EPROTO);
 		return -EPROTO;
 	}
@@ -744,6 +767,7 @@ void aa_load_ent_free(struct aa_load_ent *ent)
 		aa_put_profile(ent->rename);
 		aa_put_profile(ent->old);
 		aa_put_profile(ent->new);
+		kfree(ent->ns_name);
 		kzfree(ent);
 	}
 }
@@ -782,13 +806,14 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 
 	*ns = NULL;
 	while (e.pos < e.end) {
+		char *ns_name = NULL;
 		void *start;
 		error = verify_header(&e, e.pos == e.start, ns);
 		if (error)
 			goto fail;
 
 		start = e.pos;
-		profile = unpack_profile(&e);
+		profile = unpack_profile(&e, &ns_name);
 		if (IS_ERR(profile)) {
 			error = PTR_ERR(profile);
 			goto fail;
@@ -810,6 +835,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 		}
 
 		ent->new = profile;
+		ent->ns_name = ns_name;
 		list_add_tail(&ent->list, lh);
 	}
 	udata->abi = e.version & K_ABI_MASK;
