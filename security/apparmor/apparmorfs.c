@@ -117,7 +117,7 @@ static struct aa_loaddata *aa_simple_write_to_buffer(int op,
 }
 
 static ssize_t policy_update(int binop, const char __user *buf, size_t size,
-			     loff_t *pos)
+			     loff_t *pos, struct aa_ns *ns)
 {
 	ssize_t error;
 	struct aa_loaddata *data;
@@ -126,24 +126,29 @@ static ssize_t policy_update(int binop, const char __user *buf, size_t size,
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(profile, profile->ns, op);
+	error = aa_may_manage_policy(profile, ns, op);
 	if (error)
 		return error;
 
 	data = aa_simple_write_to_buffer(op, buf, size, size, pos);
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(profile->ns, profile, binop, data);
+		error = aa_replace_profiles(ns ? ns : profile->ns, profile,
+					    binop, data);
 		aa_put_loaddata(data);
 	}
 
 	return error;
 }
 
+/* .load file hook fn to load policy */
 static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 			    loff_t *pos)
 {
-	int error = policy_update(PROF_ADD, buf, size, pos);
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	int error = policy_update(PROF_ADD, buf, size, pos, ns);
+
+	aa_put_ns(ns);
 
 	return error;
 }
@@ -157,7 +162,10 @@ static const struct file_operations aa_fs_profile_load = {
 static ssize_t profile_replace(struct file *f, const char __user *buf,
 			       size_t size, loff_t *pos)
 {
-	int error = policy_update(PROF_REPLACE, buf, size, pos);
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	int error = policy_update(PROF_REPLACE, buf, size, pos, ns);
+
+	aa_put_ns(ns);
 
 	return error;
 }
@@ -167,18 +175,20 @@ static const struct file_operations aa_fs_profile_replace = {
 	.llseek = default_llseek,
 };
 
+/* .remove file hook fn to remove loaded policy */
 static ssize_t profile_remove(struct file *f, const char __user *buf,
 			      size_t size, loff_t *pos)
 {
 	struct aa_loaddata *data;
 	struct aa_profile *profile;
 	ssize_t error;
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
 
 	profile = aa_current_profile();
 	/* high level check about policy management - fine grained in
 	 * below after unpack
 	 */
-	error = aa_may_manage_policy(profile, profile->ns, OP_PROF_RM);
+	error = aa_may_manage_policy(profile, ns, OP_PROF_RM);
 	if (error)
 		goto out;
 
@@ -192,11 +202,12 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		data->data[size] = 0;
-		error = aa_remove_profiles(profile->ns, profile, data->data,
-					   size);
+		error = aa_remove_profiles(ns ? ns : profile->ns, profile,
+					   data->data, size);
 		aa_put_loaddata(data);
 	}
  out:
+	aa_put_ns(ns);
 	return error;
 }
 
@@ -676,10 +687,75 @@ void __aa_fs_ns_rmdir(struct aa_ns *ns)
 		mutex_unlock(&sub->lock);
 	}
 
+	if (ns_subns_dir(ns)) {
+		sub = d_inode(ns_subns_dir(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subload(ns)) {
+		sub = d_inode(ns_subload(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subreplace(ns)) {
+		sub = d_inode(ns_subreplace(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subremove(ns)) {
+		sub = d_inode(ns_subremove(ns))->i_private;
+		aa_put_ns(sub);
+	}
+
 	for (i = AAFS_NS_SIZEOF - 1; i >= 0; --i) {
 		securityfs_remove(ns->dents[i]);
 		ns->dents[i] = NULL;
 	}
+}
+
+/* assumes cleanup in caller */
+static int __aa_fs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
+{
+	struct dentry *dent;
+
+	AA_BUG(!ns);
+	AA_BUG(!dir);
+
+	dent = securityfs_create_dir("profiles", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	ns_subprofs_dir(ns) = dent;
+
+	dent = securityfs_create_dir("raw_data", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	ns_subdata_dir(ns) = dent;
+
+	dent = securityfs_create_file(".load", 0640, dir, ns,
+				      &aa_fs_profile_load);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subload(ns) = dent;
+
+	dent = securityfs_create_file(".replace", 0640, dir, ns,
+				      &aa_fs_profile_replace);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subreplace(ns) = dent;
+
+	dent = securityfs_create_file(".remove", 0640, dir, ns,
+				      &aa_fs_profile_remove);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subremove(ns) = dent;
+
+	dent = securityfs_create_dir("namespaces", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subns_dir(ns) = dent;
+
+	return 0;
 }
 
 int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
@@ -689,30 +765,31 @@ int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
 	struct dentry *dent, *dir;
 	int error;
 
+	AA_BUG(!ns);
+	AA_BUG(!parent);
+	AA_BUG(!mutex_is_locked(&ns->lock));
+
 	if (!name)
 		name = ns->base.name;
 
+	/* create ns dir if it doesn't already exist */
 	dent = securityfs_create_dir(name, parent);
 	if (IS_ERR(dent))
 		goto fail;
+
 	ns_dir(ns) = dir = dent;
+	error = __aa_fs_ns_mkdir_entries(ns, dir);
+	if (error)
+		goto fail2;
 
-	dent = securityfs_create_dir("profiles", dir);
-	if (IS_ERR(dent))
-		goto fail;
-	ns_subprofs_dir(ns) = dent;
-
-	dent = securityfs_create_dir("namespaces", dir);
-	if (IS_ERR(dent))
-		goto fail;
-	ns_subns_dir(ns) = dent;
-
+	/* profiles */
 	list_for_each_entry(child, &ns->base.profiles, base.list) {
 		error = __aa_fs_profile_mkdir(child, ns_subprofs_dir(ns));
 		if (error)
 			goto fail2;
 	}
 
+	/* subnamespaces */
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
 		error = __aa_fs_ns_mkdir(sub, ns_subns_dir(ns), NULL);
@@ -1003,12 +1080,9 @@ static struct aa_fs_entry aa_fs_entry_features[] = {
 };
 
 static struct aa_fs_entry aa_fs_entry_apparmor[] = {
-	AA_FS_FILE_FOPS(".load", 0640, &aa_fs_profile_load),
-	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
-	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
 	AA_FS_FILE_FOPS(".ns_level", 0666, &aa_fs_ns_level),
 	AA_FS_FILE_FOPS(".ns_name", 0640, &aa_fs_ns_name),
-	AA_FS_FILE_FOPS("profiles", 0640, &aa_fs_profiles_fops),
+	AA_FS_FILE_FOPS("profiles", 0440, &aa_fs_profiles_fops),
 	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
 };
@@ -1172,6 +1246,7 @@ out:
  */
 static int __init aa_create_aafs(void)
 {
+	struct dentry *dent;
 	int error;
 
 	if (!apparmor_initialized)
@@ -1187,7 +1262,34 @@ static int __init aa_create_aafs(void)
 	if (error)
 		goto error;
 
+	dent = securityfs_create_file(".load", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_load);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subload(root_ns) = dent;
+
+	dent = securityfs_create_file(".replace", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_replace);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subreplace(root_ns) = dent;
+
+	dent = securityfs_create_file(".remove", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_remove);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subremove(root_ns) = dent;
+
+	mutex_lock(&root_ns->lock);
 	error = __aa_fs_ns_mkdir(root_ns, aa_fs_entry.dentry, "policy");
+	mutex_unlock(&root_ns->lock);
+
 	if (error)
 		goto error;
 
