@@ -337,7 +337,7 @@ static struct aa_profile *x_to_profile(struct aa_profile *profile,
  */
 int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct aa_profile *profile, *new_profile = NULL;
 	struct aa_ns *ns;
 	char *buffer = NULL;
@@ -353,10 +353,10 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	if (bprm->cred_prepared)
 		return 0;
 
-	cxt = cred_cxt(bprm->cred);
-	BUG_ON(!cxt);
+	ctx = cred_ctx(bprm->cred);
+	AA_BUG(!ctx);
 
-	profile = aa_get_newest_profile(cxt->profile);
+	profile = aa_get_newest_profile(ctx->profile);
 	/*
 	 * get the namespace from the replacement profile as replacement
 	 * can change the namespace
@@ -380,9 +380,9 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	 */
 	if (unconfined(profile)) {
 		/* unconfined task */
-		if (cxt->onexec)
+		if (ctx->onexec)
 			/* change_profile on exec already been granted */
-			new_profile = aa_get_profile(cxt->onexec);
+			new_profile = aa_get_profile(ctx->onexec);
 		else
 			new_profile = find_attach(ns, &ns->base.profiles, name);
 		if (!new_profile)
@@ -397,10 +397,10 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 	/* find exec permissions for name */
 	state = aa_str_perms(profile->file.dfa, state, name, &cond, &perms);
-	if (cxt->onexec) {
+	if (ctx->onexec) {
 		struct file_perms cp;
 		info = "change_profile onexec";
-		new_profile = aa_get_newest_profile(cxt->onexec);
+		new_profile = aa_get_newest_profile(ctx->onexec);
 		if (!(perms.allow & AA_MAY_ONEXEC))
 			goto audit;
 
@@ -409,8 +409,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		 * exec\0change_profile
 		 */
 		state = aa_dfa_null_transition(profile->file.dfa, state);
-		cp = change_profile_perms(profile, cxt->onexec->ns,
-					  cxt->onexec->base.name,
+		cp = change_profile_perms(profile, ctx->onexec->ns,
+					  ctx->onexec->base.name,
 					  AA_MAY_ONEXEC, state);
 
 		if (!(cp.allow & AA_MAY_ONEXEC))
@@ -499,13 +499,13 @@ apply:
 	bprm->per_clear |= PER_CLEAR_ON_SETID;
 
 x_clear:
-	aa_put_profile(cxt->profile);
-	/* transfer new profile reference will be released when cxt is freed */
-	cxt->profile = new_profile;
+	aa_put_profile(ctx->profile);
+	/* transfer new profile reference will be released when ctx is freed */
+	ctx->profile = new_profile;
 	new_profile = NULL;
 
 	/* clear out all temporary/transitional state from the context */
-	aa_clear_task_cxt_trans(cxt);
+	aa_clear_task_ctx_trans(ctx);
 
 audit:
 	error = aa_audit_file(profile, &perms, GFP_KERNEL, OP_EXEC, MAY_EXEC,
@@ -545,17 +545,17 @@ int apparmor_bprm_secureexec(struct linux_binprm *bprm)
 void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 {
 	struct aa_profile *profile = __aa_current_profile();
-	struct aa_task_cxt *new_cxt = cred_cxt(bprm->cred);
+	struct aa_task_ctx *new_ctx = cred_ctx(bprm->cred);
 
 	/* bail out if unconfined or not changing profile */
-	if ((new_cxt->profile == profile) ||
-	    (unconfined(new_cxt->profile)))
+	if ((new_ctx->profile == profile) ||
+	    (unconfined(new_ctx->profile)))
 		return;
 
 	current->pdeath_signal = 0;
 
 	/* reset soft limits and set hard limits for the new profile */
-	__aa_transition_rlimits(profile, new_cxt->profile);
+	__aa_transition_rlimits(profile, new_ctx->profile);
 }
 
 /**
@@ -604,7 +604,7 @@ static char *new_compound_name(const char *n1, const char *n2)
 int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 {
 	const struct cred *cred;
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct aa_profile *profile, *previous_profile, *hat = NULL;
 	char *name = NULL;
 	int i;
@@ -622,9 +622,9 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 
 	/* released below */
 	cred = get_current_cred();
-	cxt = cred_cxt(cred);
+	ctx = cred_ctx(cred);
 	profile = aa_get_newest_profile(aa_cred_profile(cred));
-	previous_profile = aa_get_newest_profile(cxt->previous);
+	previous_profile = aa_get_newest_profile(ctx->previous);
 
 	if (unconfined(profile)) {
 		info = "unconfined";

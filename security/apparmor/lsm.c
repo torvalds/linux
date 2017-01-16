@@ -45,12 +45,12 @@ int apparmor_initialized __initdata;
  */
 
 /*
- * free the associated aa_task_cxt and put its profiles
+ * free the associated aa_task_ctx and put its profiles
  */
 static void apparmor_cred_free(struct cred *cred)
 {
-	aa_free_task_context(cred_cxt(cred));
-	cred_cxt(cred) = NULL;
+	aa_free_task_context(cred_ctx(cred));
+	cred_ctx(cred) = NULL;
 }
 
 /*
@@ -59,27 +59,29 @@ static void apparmor_cred_free(struct cred *cred)
 static int apparmor_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {
 	/* freed by apparmor_cred_free */
-	struct aa_task_cxt *cxt = aa_alloc_task_context(gfp);
-	if (!cxt)
+	struct aa_task_ctx *ctx = aa_alloc_task_context(gfp);
+
+	if (!ctx)
 		return -ENOMEM;
 
-	cred_cxt(cred) = cxt;
+	cred_ctx(cred) = ctx;
 	return 0;
 }
 
 /*
- * prepare new aa_task_cxt for modification by prepare_cred block
+ * prepare new aa_task_ctx for modification by prepare_cred block
  */
 static int apparmor_cred_prepare(struct cred *new, const struct cred *old,
 				 gfp_t gfp)
 {
 	/* freed by apparmor_cred_free */
-	struct aa_task_cxt *cxt = aa_alloc_task_context(gfp);
-	if (!cxt)
+	struct aa_task_ctx *ctx = aa_alloc_task_context(gfp);
+
+	if (!ctx)
 		return -ENOMEM;
 
-	aa_dup_task_context(cxt, cred_cxt(old));
-	cred_cxt(new) = cxt;
+	aa_dup_task_context(ctx, cred_ctx(old));
+	cred_ctx(new) = ctx;
 	return 0;
 }
 
@@ -88,10 +90,10 @@ static int apparmor_cred_prepare(struct cred *new, const struct cred *old,
  */
 static void apparmor_cred_transfer(struct cred *new, const struct cred *old)
 {
-	const struct aa_task_cxt *old_cxt = cred_cxt(old);
-	struct aa_task_cxt *new_cxt = cred_cxt(new);
+	const struct aa_task_ctx *old_ctx = cred_ctx(old);
+	struct aa_task_ctx *new_ctx = cred_ctx(new);
 
-	aa_dup_task_context(new_cxt, old_cxt);
+	aa_dup_task_context(new_ctx, old_ctx);
 }
 
 static int apparmor_ptrace_access_check(struct task_struct *child,
@@ -345,7 +347,7 @@ static int apparmor_inode_getattr(const struct path *path)
 
 static int apparmor_file_open(struct file *file, const struct cred *cred)
 {
-	struct aa_file_cxt *fcxt = file->f_security;
+	struct aa_file_ctx *fctx = file->f_security;
 	struct aa_profile *profile;
 	int error = 0;
 
@@ -358,7 +360,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 	 * actually execute the image.
 	 */
 	if (current->in_execve) {
-		fcxt->allow = MAY_EXEC | MAY_READ | AA_EXEC_MMAP;
+		fctx->allow = MAY_EXEC | MAY_READ | AA_EXEC_MMAP;
 		return 0;
 	}
 
@@ -370,7 +372,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 		error = aa_path_perm(OP_OPEN, profile, &file->f_path, 0,
 				     aa_map_file_to_perms(file), &cond);
 		/* todo cache full allowed permissions set and state */
-		fcxt->allow = aa_map_file_to_perms(file);
+		fctx->allow = aa_map_file_to_perms(file);
 	}
 
 	return error;
@@ -388,14 +390,14 @@ static int apparmor_file_alloc_security(struct file *file)
 
 static void apparmor_file_free_security(struct file *file)
 {
-	struct aa_file_cxt *cxt = file->f_security;
+	struct aa_file_ctx *ctx = file->f_security;
 
-	aa_free_file_context(cxt);
+	aa_free_file_context(ctx);
 }
 
 static int common_file_perm(int op, struct file *file, u32 mask)
 {
-	struct aa_file_cxt *fcxt = file->f_security;
+	struct aa_file_ctx *fctx = file->f_security;
 	struct aa_profile *profile, *fprofile = aa_cred_profile(file->f_cred);
 	int error = 0;
 
@@ -415,7 +417,7 @@ static int common_file_perm(int op, struct file *file, u32 mask)
 	 *       delegation from unconfined tasks
 	 */
 	if (!unconfined(profile) && !unconfined(fprofile) &&
-	    ((fprofile != profile) || (mask & ~fcxt->allow)))
+	    ((fprofile != profile) || (mask & ~fctx->allow)))
 		error = aa_file_perm(op, profile, file, mask);
 
 	return error;
@@ -477,15 +479,15 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 	int error = -ENOENT;
 	/* released below */
 	const struct cred *cred = get_task_cred(task);
-	struct aa_task_cxt *cxt = cred_cxt(cred);
+	struct aa_task_ctx *ctx = cred_ctx(cred);
 	struct aa_profile *profile = NULL;
 
 	if (strcmp(name, "current") == 0)
-		profile = aa_get_newest_profile(cxt->profile);
-	else if (strcmp(name, "prev") == 0  && cxt->previous)
-		profile = aa_get_newest_profile(cxt->previous);
-	else if (strcmp(name, "exec") == 0 && cxt->onexec)
-		profile = aa_get_newest_profile(cxt->onexec);
+		profile = aa_get_newest_profile(ctx->profile);
+	else if (strcmp(name, "prev") == 0  && ctx->previous)
+		profile = aa_get_newest_profile(ctx->previous);
+	else if (strcmp(name, "exec") == 0 && ctx->onexec)
+		profile = aa_get_newest_profile(ctx->onexec);
 	else
 		error = -EINVAL;
 
@@ -849,21 +851,21 @@ static int param_set_mode(const char *val, struct kernel_param *kp)
  */
 
 /**
- * set_init_cxt - set a task context and profile on the first task.
+ * set_init_ctx - set a task context and profile on the first task.
  *
  * TODO: allow setting an alternate profile than unconfined
  */
-static int __init set_init_cxt(void)
+static int __init set_init_ctx(void)
 {
 	struct cred *cred = (struct cred *)current->real_cred;
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 
-	cxt = aa_alloc_task_context(GFP_KERNEL);
-	if (!cxt)
+	ctx = aa_alloc_task_context(GFP_KERNEL);
+	if (!ctx)
 		return -ENOMEM;
 
-	cxt->profile = aa_get_profile(root_ns->unconfined);
-	cred_cxt(cred) = cxt;
+	ctx->profile = aa_get_profile(root_ns->unconfined);
+	cred_ctx(cred) = ctx;
 
 	return 0;
 }
@@ -890,7 +892,7 @@ static int __init apparmor_init(void)
 		goto alloc_out;
 	}
 
-	error = set_init_cxt();
+	error = set_init_ctx();
 	if (error) {
 		AA_ERROR("Failed to set context on init task\n");
 		aa_free_root_ns();
