@@ -96,7 +96,7 @@ struct radix_tree_node {
 	unsigned char	count;		/* Total entry count */
 	unsigned char	exceptional;	/* Exceptional entry count */
 	struct radix_tree_node *parent;		/* Used when ascending tree */
-	void *private_data;			/* For tree user */
+	struct radix_tree_root *root;		/* The tree we belong to */
 	union {
 		struct list_head private_list;	/* For tree user */
 		struct rcu_head	rcu_head;	/* Used when freeing node */
