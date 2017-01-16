@@ -38,7 +38,7 @@
  *
  * Returns: length of mangled name
  */
-static int mangle_name(char *name, char *target)
+static int mangle_name(const char *name, char *target)
 {
 	char *t = target;
 

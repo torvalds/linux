@@ -123,8 +123,8 @@ static inline bool path_mediated_fs(struct dentry *dentry)
  * @profiles: head of the profiles list contained in the object
  */
 struct aa_policy {
-	char *name;
-	char *hname;
+	const char *name;
+	const char *hname;
 	struct list_head list;
 	struct list_head profiles;
 };

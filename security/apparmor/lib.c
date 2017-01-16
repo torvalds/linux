@@ -178,7 +178,7 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 		policy->hname = kmalloc(strlen(prefix) + strlen(name) + 3,
 					GFP_KERNEL);
 		if (policy->hname)
-			sprintf(policy->hname, "%s//%s", prefix, name);
+			sprintf((char *)policy->hname, "%s//%s", prefix, name);
 	} else
 		policy->hname = kstrdup(name, GFP_KERNEL);
 	if (!policy->hname)
