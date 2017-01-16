@@ -139,12 +139,13 @@ int aa_setprocattr_changehat(char *args, size_t size, int test)
 		for (count = 0; (hat < end) && count < 16; ++count) {
 			char *next = hat + strlen(hat) + 1;
 			hats[count] = hat;
+			AA_DEBUG("%s: (pid %d) Magic 0x%llx count %d hat '%s'\n"
+				 , __func__, current->pid, token, count, hat);
 			hat = next;
 		}
-	}
-
-	AA_DEBUG("%s: Magic 0x%llx Hat '%s'\n",
-		 __func__, token, hat ? hat : NULL);
+	} else
+		AA_DEBUG("%s: (pid %d) Magic 0x%llx count %d Hat '%s'\n",
+			 __func__, current->pid, token, count, "<NULL>");
 
 	return aa_change_hat(hats, count, token, test);
 }
