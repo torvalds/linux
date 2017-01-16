@@ -2106,6 +2106,11 @@ static int __do_request(struct ceph_mds_client *mdsc,
 			dout("do_request mdsmap err %d\n", err);
 			goto finish;
 		}
+		if (mdsc->mdsmap->m_epoch == 0) {
+			dout("do_request no mdsmap, waiting for map\n");
+			list_add(&req->r_wait, &mdsc->waiting_for_map);
+			goto finish;
+		}
 		if (!(mdsc->fsc->mount_options->flags &
 		      CEPH_MOUNT_OPT_MOUNTWAIT) &&
 		    !ceph_mdsmap_is_cluster_available(mdsc->mdsmap)) {
