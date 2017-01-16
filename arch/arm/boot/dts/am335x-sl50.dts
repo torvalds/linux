@@ -150,13 +150,6 @@
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_rxd.i2c1_sda */
-			AM33XX_IOPAD(0x984, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_txdi2c1_scl */
-		>;
-	};
-
 	i2c2_pins: pinmux_i2c2_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x978, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_ctsn.i2c2_sda */
@@ -296,12 +289,6 @@
 		compatible = "at,24c256";
 		reg = <0x50>;
 	};
-};
-
-&i2c1 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
 };
 
 &i2c2 {
