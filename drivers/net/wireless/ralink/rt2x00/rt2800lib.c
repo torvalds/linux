@@ -3220,8 +3220,17 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	    rt2x00_rf(rt2x00dev, RF5390) ||
 	    rt2x00_rf(rt2x00dev, RF5392)) {
 		rt2800_rfcsr_read(rt2x00dev, 30, &rfcsr);
-		rt2x00_set_field8(&rfcsr, RFCSR30_TX_H20M, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR30_RX_H20M, 0);
+		if (rt2x00_rf(rt2x00dev, RF3322)) {
+			rt2x00_set_field8(&rfcsr, RF3322_RFCSR30_TX_H20M,
+					  conf_is_ht40(conf));
+			rt2x00_set_field8(&rfcsr, RF3322_RFCSR30_RX_H20M,
+					  conf_is_ht40(conf));
+		} else {
+			rt2x00_set_field8(&rfcsr, RFCSR30_TX_H20M,
+					  conf_is_ht40(conf));
+			rt2x00_set_field8(&rfcsr, RFCSR30_RX_H20M,
+					  conf_is_ht40(conf));
+		}
 		rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
 		rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
