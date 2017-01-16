@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 
 #include "policy.h"
+#include "policy_ns.h"
 
 #define cred_cxt(X) (X)->security
 #define current_cxt() cred_cxt(current_cred())
@@ -160,6 +161,11 @@ static inline struct aa_profile *aa_current_profile(void)
 	}
 
 	return cxt->profile;
+}
+
+static inline struct aa_ns *aa_get_current_ns(void)
+{
+	return aa_get_ns(__aa_current_profile()->ns);
 }
 
 /**

@@ -76,6 +76,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/user_namespace.h>
 
 #include "include/apparmor.h"
 #include "include/capability.h"
@@ -89,6 +90,7 @@
 #include "include/policy_unpack.h"
 #include "include/resource.h"
 
+int unprivileged_userns_apparmor_policy = 1;
 
 const char *const aa_profile_mode_names[] = {
 	"enforce",
@@ -607,20 +609,37 @@ static int audit_policy(struct aa_profile *profile, int op, gfp_t gfp,
 			&sa, NULL);
 }
 
-bool policy_view_capable(void)
+/**
+ * policy_view_capable - check if viewing policy in at @ns is allowed
+ * ns: namespace being viewed by current task (may be NULL)
+ * Returns: true if viewing policy is allowed
+ *
+ * If @ns is NULL then the namespace being viewed is assumed to be the
+ * tasks current namespace.
+ */
+bool policy_view_capable(struct aa_ns *ns)
 {
 	struct user_namespace *user_ns = current_user_ns();
+	struct aa_ns *view_ns = aa_get_current_ns();
+	bool root_in_user_ns = uid_eq(current_euid(), make_kuid(user_ns, 0)) ||
+			       in_egroup_p(make_kgid(user_ns, 0));
 	bool response = false;
+	if (!ns)
+		ns = view_ns;
 
-	if (ns_capable(user_ns, CAP_MAC_ADMIN))
+	if (root_in_user_ns && aa_ns_visible(view_ns, ns, true) &&
+	    (user_ns == &init_user_ns ||
+	     (unprivileged_userns_apparmor_policy != 0 &&
+	      user_ns->level == view_ns->level)))
 		response = true;
+	aa_put_ns(view_ns);
 
 	return response;
 }
 
 bool policy_admin_capable(void)
 {
-	return policy_view_capable() && !aa_g_lock_policy;
+	return policy_view_capable(NULL) && !aa_g_lock_policy;
 }
 
 /**

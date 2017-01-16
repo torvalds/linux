@@ -33,6 +33,8 @@
 
 struct aa_ns;
 
+extern int unprivileged_userns_apparmor_policy;
+
 extern const char *const aa_profile_mode_names[];
 #define APPARMOR_MODE_NAMES_MAX_INDEX 4
 
@@ -297,7 +299,7 @@ static inline int AUDIT_MODE(struct aa_profile *profile)
 	return profile->audit;
 }
 
-bool policy_view_capable(void);
+bool policy_view_capable(struct aa_ns *ns);
 bool policy_admin_capable(void);
 bool aa_may_manage_policy(int op);
 
