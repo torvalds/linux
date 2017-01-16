@@ -540,7 +540,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_connector *connector = NULL;
 	struct dsi_connector *dsi_connector;
-	int ret, i;
+	int ret;
 
 	dsi_connector = kzalloc(sizeof(*dsi_connector), GFP_KERNEL);
 	if (!dsi_connector)
@@ -566,9 +566,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++)
-		drm_mode_connector_attach_encoder(connector,
-						msm_dsi->encoders[i]);
+	drm_mode_connector_attach_encoder(connector, msm_dsi->encoder);
 
 	return connector;
 }
@@ -591,13 +589,7 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id)
 
 	dsi_bridge->id = id;
 
-	/*
-	 * HACK: we may not know the external DSI bridge device's mode
-	 * flags here. We'll get to know them only when the device
-	 * attaches to the dsi host. For now, assume the bridge supports
-	 * DSI video mode
-	 */
-	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+	encoder = msm_dsi->encoder;
 
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
@@ -628,13 +620,7 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	ext_bridge = msm_dsi->external_bridge =
 			msm_dsi_host_get_bridge(msm_dsi->host);
 
-	/*
-	 * HACK: we may not know the external DSI bridge device's mode
-	 * flags here. We'll get to know them only when the device
-	 * attaches to the dsi host. For now, assume the bridge supports
-	 * DSI video mode
-	 */
-	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+	encoder = msm_dsi->encoder;
 
 	/* link the internal dsi bridge to the external bridge */
 	drm_bridge_attach(encoder, ext_bridge, int_bridge);

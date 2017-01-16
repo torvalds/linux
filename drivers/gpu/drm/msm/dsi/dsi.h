@@ -73,8 +73,8 @@ struct msm_dsi {
 	struct device *phy_dev;
 	bool phy_enabled;
 
-	/* the encoders we are hooked to (outside of dsi block) */
-	struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM];
+	/* the encoder we are hooked to (outside of dsi block) */
+	struct drm_encoder *encoder;
 
 	int id;
 };

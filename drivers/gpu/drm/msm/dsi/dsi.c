@@ -18,9 +18,7 @@ struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 	if (!msm_dsi || !msm_dsi_device_connected(msm_dsi))
 		return NULL;
 
-	return (msm_dsi->device_flags & MIPI_DSI_MODE_VIDEO) ?
-		msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID] :
-		msm_dsi->encoders[MSM_DSI_CMD_ENCODER_ID];
+	return msm_dsi->encoder;
 }
 
 static int dsi_get_phy(struct msm_dsi *msm_dsi)
@@ -187,14 +185,13 @@ void __exit msm_dsi_unregister(void)
 }
 
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
-		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM])
+			 struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_bridge *ext_bridge;
-	int ret, i;
+	int ret;
 
-	if (WARN_ON(!encoders[MSM_DSI_VIDEO_ENCODER_ID] ||
-		!encoders[MSM_DSI_CMD_ENCODER_ID]))
+	if (WARN_ON(!encoder))
 		return -EINVAL;
 
 	msm_dsi->dev = dev;
@@ -205,8 +202,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		goto fail;
 	}
 
-	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++)
-		msm_dsi->encoders[i] = encoders[i];
+	msm_dsi->encoder = encoder;
 
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->bridge)) {
