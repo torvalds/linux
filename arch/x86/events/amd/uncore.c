@@ -22,12 +22,16 @@
 
 #define NUM_COUNTERS_NB		4
 #define NUM_COUNTERS_L2		4
-#define MAX_COUNTERS		NUM_COUNTERS_NB
+#define NUM_COUNTERS_L3		6
+#define MAX_COUNTERS		6
 
 #define RDPMC_BASE_NB		6
 #define RDPMC_BASE_LLC		10
 
 #define COUNTER_SHIFT		16
+
+static int num_counters_llc;
+static int num_counters_nb;
 
 static HLIST_HEAD(uncore_unused_list);
 
@@ -303,7 +307,7 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		if (!uncore_nb)
 			goto fail;
 		uncore_nb->cpu = cpu;
-		uncore_nb->num_counters = NUM_COUNTERS_NB;
+		uncore_nb->num_counters = num_counters_nb;
 		uncore_nb->rdpmc_base = RDPMC_BASE_NB;
 		uncore_nb->msr_base = MSR_F15H_NB_PERF_CTL;
 		uncore_nb->active_mask = &amd_nb_active_mask;
@@ -317,7 +321,7 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		if (!uncore_llc)
 			goto fail;
 		uncore_llc->cpu = cpu;
-		uncore_llc->num_counters = NUM_COUNTERS_L2;
+		uncore_llc->num_counters = num_counters_llc;
 		uncore_llc->rdpmc_base = RDPMC_BASE_LLC;
 		uncore_llc->msr_base = MSR_F16H_L2I_PERF_CTL;
 		uncore_llc->active_mask = &amd_llc_active_mask;
@@ -491,6 +495,27 @@ static int __init amd_uncore_init(void)
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		goto fail_nodev;
+
+	switch(boot_cpu_data.x86) {
+		case 23:
+			/* Family 17h: */
+			num_counters_nb = NUM_COUNTERS_NB;
+			num_counters_llc = NUM_COUNTERS_L3;
+			break;
+		case 22:
+			/* Family 16h - may change: */
+			num_counters_nb = NUM_COUNTERS_NB;
+			num_counters_llc = NUM_COUNTERS_L2;
+			break;
+		default:
+			/*
+			 * All prior families have the same number of
+			 * NorthBridge and Last Level Cache counters
+			 */
+			num_counters_nb = NUM_COUNTERS_NB;
+			num_counters_llc = NUM_COUNTERS_L2;
+			break;
+	}
 
 	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
 		goto fail_nodev;
