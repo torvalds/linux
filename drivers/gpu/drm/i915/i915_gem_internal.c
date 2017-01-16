@@ -156,6 +156,7 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 	struct drm_i915_gem_object *obj;
 
 	GEM_BUG_ON(!size);
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
 
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
