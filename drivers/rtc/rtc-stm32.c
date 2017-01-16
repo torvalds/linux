@@ -648,7 +648,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 err:
 	clk_disable_unprepare(rtc->ck_rtc);
 
-	regmap_update_bits(rtc->dbp, PWR_CR, PWR_CR_DBP, ~PWR_CR_DBP);
+	regmap_update_bits(rtc->dbp, PWR_CR, PWR_CR_DBP, 0);
 
 	device_init_wakeup(&pdev->dev, false);
 
@@ -670,7 +670,7 @@ static int stm32_rtc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rtc->ck_rtc);
 
 	/* Enable backup domain write protection */
-	regmap_update_bits(rtc->dbp, PWR_CR, PWR_CR_DBP, ~PWR_CR_DBP);
+	regmap_update_bits(rtc->dbp, PWR_CR, PWR_CR_DBP, 0);
 
 	device_init_wakeup(&pdev->dev, false);
 
