@@ -741,7 +741,7 @@ lstcon_group_list(int index, int len, char __user *name_up)
 
 static int
 lstcon_nodes_getent(struct list_head *head, int *index_p,
-		    int *count_p, lstcon_node_ent_t __user *dents_up)
+		    int *count_p, struct lstcon_node_ent __user *dents_up)
 {
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
@@ -782,7 +782,7 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 int
 lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 		  int *index_p, int *count_p,
-		  lstcon_node_ent_t __user *dents_up)
+		  struct lstcon_node_ent __user *dents_up)
 {
 	lstcon_ndlist_ent_t *gentp;
 	struct lstcon_group *grp;
@@ -928,7 +928,7 @@ lstcon_batch_list(int index, int len, char __user *name_up)
 int
 lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		  int server, int testidx, int *index_p, int *ndent_p,
-		  lstcon_node_ent_t __user *dents_up)
+		  struct lstcon_node_ent __user *dents_up)
 {
 	lstcon_test_batch_ent_t *entp;
 	struct list_head *clilst;

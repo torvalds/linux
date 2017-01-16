@@ -85,10 +85,10 @@ struct lst_bid {
 #define LST_NODE_DOWN		0x4	/* node is down */
 #define LST_NODE_UNKNOWN	0x8	/* node not in session */
 
-typedef struct {
+struct lstcon_node_ent {
 	lnet_process_id_t       nde_id;		/* id of node */
 	int			nde_state;	/* state of node */
-} lstcon_node_ent_t;		/*** node entry, for list_group command */
+};				/*** node entry, for list_group command */
 
 typedef struct {
 	int	nle_nnode;	/* # of nodes */
@@ -349,7 +349,7 @@ typedef struct {
 								group */
 	int __user		*lstio_grp_idxp;	/* IN/OUT: node index */
 	int __user		*lstio_grp_ndentp;	/* IN/OUT: # of nodent */
-	lstcon_node_ent_t __user *lstio_grp_dentsp;	/* OUT: nodent array */
+	struct lstcon_node_ent __user *lstio_grp_dentsp;	/* OUT: nodent array */
 } lstio_group_info_args_t;
 
 #define LST_DEFAULT_BATCH	"batch"			/* default batch name */
@@ -417,7 +417,7 @@ typedef struct {
 
 	int __user		*lstio_bat_idxp;	/* IN/OUT: index of node */
 	int __user		*lstio_bat_ndentp;	/* IN/OUT: # of nodent */
-	lstcon_node_ent_t __user *lstio_bat_dentsp;	/* array of nodent */
+	struct lstcon_node_ent __user *lstio_bat_dentsp;/* array of nodent */
 } lstio_batch_info_args_t;
 
 /* add stat in session */
