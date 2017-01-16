@@ -366,7 +366,7 @@ struct lstio_batch_del_args {
 	char __user *lstio_bat_namep;	/* IN: batch name */
 };
 
-typedef struct {
+struct lstio_batch_run_args {
 	int			 lstio_bat_key;		/* IN: session key */
 	int			 lstio_bat_timeout;	/* IN: timeout for
 							       the batch */
@@ -374,7 +374,7 @@ typedef struct {
 	char __user		*lstio_bat_namep;	/* IN: batch name */
 	struct list_head __user	*lstio_bat_resultp;	/* OUT: list head of
 								result buffer */
-} lstio_batch_run_args_t;
+};
 
 typedef struct {
 	int			 lstio_bat_key;		/* IN: session key */
