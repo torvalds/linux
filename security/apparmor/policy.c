@@ -650,26 +650,24 @@ bool policy_admin_capable(struct aa_ns *ns)
 
 /**
  * aa_may_manage_policy - can the current task manage policy
+ * @profile: profile to check if it can manage policy
  * @op: the policy manipulation operation being done
  *
- * Returns: true if the task is allowed to manipulate policy
+ * Returns: 0 if the task is allowed to manipulate policy else error
  */
-bool aa_may_manage_policy(int op)
+int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, int op)
 {
 	/* check if loading policy is locked out */
-	if (aa_g_lock_policy) {
-		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
+	if (aa_g_lock_policy)
+		return audit_policy(profile, op, GFP_KERNEL, NULL,
 			     "policy_locked", -EACCES);
-		return 0;
-	}
 
-	if (!policy_admin_capable(NULL)) {
-		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
-			     "not policy admin", -EACCES);
-		return 0;
-	}
+	if (!policy_admin_capable(ns))
+		return audit_policy(profile, op, GFP_KERNEL, NULL,
+				    "not policy admin", -EACCES);
 
-	return 1;
+	/* TODO: add fine grained mediation of policy loads */
+	return 0;
 }
 
 static struct aa_profile *__list_lookup_parent(struct list_head *lh,

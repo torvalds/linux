@@ -100,7 +100,7 @@ static char *aa_simple_write_to_buffer(int op, const char __user *userbuf,
 	 * Don't allow profile load/replace/remove from profiles that don't
 	 * have CAP_MAC_ADMIN
 	 */
-	if (!aa_may_manage_policy(op))
+	if (!aa_may_manage_policy(__aa_current_profile(), NULL, op))
 		return ERR_PTR(-EACCES);
 
 	/* freed by caller to simple_write_to_buffer */
