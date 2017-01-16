@@ -16,7 +16,7 @@
 static inline sector_t blk_zone_start(struct request_queue *q,
 				      sector_t sector)
 {
-	sector_t zone_mask = blk_queue_zone_size(q) - 1;
+	sector_t zone_mask = blk_queue_zone_sectors(q) - 1;
 
 	return sector & ~zone_mask;
 }
@@ -222,7 +222,7 @@ int blkdev_reset_zones(struct block_device *bdev,
 		return -EINVAL;
 
 	/* Check alignment (handle eventual smaller last zone) */
-	zone_sectors = blk_queue_zone_size(q);
+	zone_sectors = blk_queue_zone_sectors(q);
 	if (sector & (zone_sectors - 1))
 		return -EINVAL;
 

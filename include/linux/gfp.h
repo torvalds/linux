@@ -38,9 +38,8 @@ struct vm_area_struct;
 #define ___GFP_ACCOUNT		0x100000u
 #define ___GFP_NOTRACK		0x200000u
 #define ___GFP_DIRECT_RECLAIM	0x400000u
-#define ___GFP_OTHER_NODE	0x800000u
-#define ___GFP_WRITE		0x1000000u
-#define ___GFP_KSWAPD_RECLAIM	0x2000000u
+#define ___GFP_WRITE		0x800000u
+#define ___GFP_KSWAPD_RECLAIM	0x1000000u
 /* If the above are modified, __GFP_BITS_SHIFT may need updating */
 
 /*
@@ -172,11 +171,6 @@ struct vm_area_struct;
  * __GFP_NOTRACK_FALSE_POSITIVE is an alias of __GFP_NOTRACK. It's a means of
  *   distinguishing in the source between false positives and allocations that
  *   cannot be supported (e.g. page tables).
- *
- * __GFP_OTHER_NODE is for allocations that are on a remote node but that
- *   should not be accounted for as a remote allocation in vmstat. A
- *   typical user would be khugepaged collapsing a huge page on a remote
- *   node.
  */
 #define __GFP_COLD	((__force gfp_t)___GFP_COLD)
 #define __GFP_NOWARN	((__force gfp_t)___GFP_NOWARN)
@@ -184,10 +178,9 @@ struct vm_area_struct;
 #define __GFP_ZERO	((__force gfp_t)___GFP_ZERO)
 #define __GFP_NOTRACK	((__force gfp_t)___GFP_NOTRACK)
 #define __GFP_NOTRACK_FALSE_POSITIVE (__GFP_NOTRACK)
-#define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE)
 
 /* Room for N __GFP_FOO bits */
-#define __GFP_BITS_SHIFT 26
+#define __GFP_BITS_SHIFT 25
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 /*
@@ -506,11 +499,10 @@ extern void free_hot_cold_page(struct page *page, bool cold);
 extern void free_hot_cold_page_list(struct list_head *list, bool cold);
 
 struct page_frag_cache;
-extern void __page_frag_drain(struct page *page, unsigned int order,
-			      unsigned int count);
-extern void *__alloc_page_frag(struct page_frag_cache *nc,
-			       unsigned int fragsz, gfp_t gfp_mask);
-extern void __free_page_frag(void *addr);
+extern void __page_frag_cache_drain(struct page *page, unsigned int count);
+extern void *page_frag_alloc(struct page_frag_cache *nc,
+			     unsigned int fragsz, gfp_t gfp_mask);
+extern void page_frag_free(void *addr);
 
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr), 0)
