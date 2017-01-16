@@ -90,13 +90,13 @@ struct lstcon_node_ent {
 	int			nde_state;	/* state of node */
 };				/*** node entry, for list_group command */
 
-typedef struct {
+struct lstcon_ndlist_ent {
 	int	nle_nnode;	/* # of nodes */
 	int	nle_nactive;	/* # of active nodes */
 	int	nle_nbusy;	/* # of busy nodes */
 	int	nle_ndown;	/* # of down nodes */
 	int	nle_nunknown;	/* # of unknown nodes */
-} lstcon_ndlist_ent_t;		/*** node_list entry, for list_batch command */
+};				/*** node_list entry, for list_batch command */
 
 typedef struct {
 	int	tse_type;       /* test type */
@@ -113,9 +113,9 @@ typedef struct {
 				 *** list_batch command */
 
 typedef struct {
-	lstcon_ndlist_ent_t     tbe_cli_nle;	/* client (group) node_list
+	struct lstcon_ndlist_ent   tbe_cli_nle;	/* client (group) node_list
 						 * entry */
-	lstcon_ndlist_ent_t     tbe_srv_nle;	/* server (group) node_list
+	struct lstcon_ndlist_ent   tbe_srv_nle;	/* server (group) node_list
 						 * entry */
 	union {
 		lstcon_test_ent_t  tbe_test;	/* test entry */
@@ -256,7 +256,7 @@ typedef struct {
 	int __user		*lstio_ses_keyp;	/* OUT: local key */
 	/** OUT: session features */
 	unsigned int __user	*lstio_ses_featp;
-	lstcon_ndlist_ent_t __user *lstio_ses_ndinfo;	/* OUT: */
+	struct lstcon_ndlist_ent __user *lstio_ses_ndinfo;/* OUT: */
 	int			 lstio_ses_nmlen;	/* IN: name length */
 	char __user		*lstio_ses_namep;	/* OUT: session name */
 } lstio_session_info_args_t;
@@ -345,11 +345,11 @@ typedef struct {
 	int			 lstio_grp_key;		/* IN: session key */
 	int			 lstio_grp_nmlen;	/* IN: name len */
 	char __user		*lstio_grp_namep;	/* IN: name */
-	lstcon_ndlist_ent_t __user *lstio_grp_entp;	/* OUT: description of
-								group */
+	struct lstcon_ndlist_ent __user *lstio_grp_entp;/* OUT: description of
+							   group */
 	int __user		*lstio_grp_idxp;	/* IN/OUT: node index */
 	int __user		*lstio_grp_ndentp;	/* IN/OUT: # of nodent */
-	struct lstcon_node_ent __user *lstio_grp_dentsp;	/* OUT: nodent array */
+	struct lstcon_node_ent __user *lstio_grp_dentsp;/* OUT: nodent array */
 } lstio_group_info_args_t;
 
 #define LST_DEFAULT_BATCH	"batch"			/* default batch name */

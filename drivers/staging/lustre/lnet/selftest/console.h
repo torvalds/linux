@@ -194,7 +194,7 @@ int lstcon_session_match(struct lst_sid sid);
 int lstcon_session_new(char *name, int key, unsigned int version,
 		       int timeout, int flags, struct lst_sid __user *sid_up);
 int lstcon_session_info(struct lst_sid __user *sid_up, int __user *key,
-			unsigned __user *verp, lstcon_ndlist_ent_t __user *entp,
+			unsigned __user *verp, struct lstcon_ndlist_ent __user *entp,
 			char __user *name_up, int len);
 int lstcon_session_end(void);
 int lstcon_session_debug(int timeout, struct list_head __user *result_up);
@@ -213,7 +213,7 @@ int lstcon_nodes_add(char *name, int nnd, lnet_process_id_t __user *nds_up,
 		     unsigned int *featp, struct list_head __user *result_up);
 int lstcon_nodes_remove(char *name, int nnd, lnet_process_id_t __user *nds_up,
 			struct list_head __user *result_up);
-int lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gent_up,
+int lstcon_group_info(char *name, struct lstcon_ndlist_ent __user *gent_up,
 		      int *index_p, int *ndent_p,
 		      struct lstcon_node_ent __user *ndents_up);
 int lstcon_group_list(int idx, int len, char __user *name_up);

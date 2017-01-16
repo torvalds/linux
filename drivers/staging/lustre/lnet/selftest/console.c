@@ -780,11 +780,11 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 }
 
 int
-lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
+lstcon_group_info(char *name, struct lstcon_ndlist_ent __user *gents_p,
 		  int *index_p, int *count_p,
 		  struct lstcon_node_ent __user *dents_up)
 {
-	lstcon_ndlist_ent_t *gentp;
+	struct lstcon_ndlist_ent *gentp;
 	struct lstcon_group *grp;
 	struct lstcon_ndlink *ndl;
 	int rc;
@@ -805,7 +805,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 	}
 
 	/* non-verbose query */
-	LIBCFS_ALLOC(gentp, sizeof(lstcon_ndlist_ent_t));
+	LIBCFS_ALLOC(gentp, sizeof(struct lstcon_ndlist_ent));
 	if (!gentp) {
 		CERROR("Can't allocate ndlist_ent\n");
 		lstcon_group_decref(grp);
@@ -817,9 +817,9 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, gentp);
 
 	rc = copy_to_user(gents_p, gentp,
-			  sizeof(lstcon_ndlist_ent_t)) ? -EFAULT : 0;
+			  sizeof(struct lstcon_ndlist_ent)) ? -EFAULT : 0;
 
-	LIBCFS_FREE(gentp, sizeof(lstcon_ndlist_ent_t));
+	LIBCFS_FREE(gentp, sizeof(struct lstcon_ndlist_ent));
 
 	lstcon_group_decref(grp);
 
@@ -1778,10 +1778,10 @@ lstcon_session_new(char *name, int key, unsigned int feats,
 int
 lstcon_session_info(struct lst_sid __user *sid_up, int __user *key_up,
 		    unsigned __user *featp,
-		    lstcon_ndlist_ent_t __user *ndinfo_up,
+		    struct lstcon_ndlist_ent __user *ndinfo_up,
 		    char __user *name_up, int len)
 {
-	lstcon_ndlist_ent_t *entp;
+	struct lstcon_ndlist_ent *entp;
 	struct lstcon_ndlink *ndl;
 	int rc = 0;
 
