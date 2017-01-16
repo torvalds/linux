@@ -1225,7 +1225,7 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -2198,7 +2198,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
-	vma = i915_vma_create(ctx_obj, &ctx->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(ctx_obj, &ctx->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto error_deref_obj;

@@ -269,7 +269,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 			goto err_out;
 		}
 
-		vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
 		if (IS_ERR(vma)) {
 			i915_gem_object_put(obj);
 			ret = PTR_ERR(vma);

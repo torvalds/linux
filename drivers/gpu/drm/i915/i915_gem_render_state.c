@@ -200,7 +200,7 @@ int i915_gem_render_state_init(struct intel_engine_cs *engine)
 		goto err_free;
 	}
 
-	so->vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	so->vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(so->vma)) {
 		ret = PTR_ERR(so->vma);
 		goto err_obj;

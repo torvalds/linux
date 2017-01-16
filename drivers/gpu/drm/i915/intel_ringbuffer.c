@@ -1738,7 +1738,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 	if (ret)
 		goto err;
 
-	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err;
@@ -1872,7 +1872,7 @@ intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 	/* mark ring buffers as read-only from GPU side by default */
 	obj->gt_ro = 1;
 
-	vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -2462,7 +2462,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 		if (IS_ERR(obj))
 			goto err;
 
-		vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
 		if (IS_ERR(vma))
 			goto err_obj;
 
