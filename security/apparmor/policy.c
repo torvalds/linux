@@ -731,6 +731,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
+ * @view: namespace load is viewed from
  * @udata: serialized data stream  (NOT NULL)
  * @size: size of the serialized data stream
  * @noreplace: true if only doing addition, no replacement allowed
@@ -741,7 +742,8 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  *
  * Returns: size of data consumed else error code on failure.
  */
-ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
+ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
+			    bool noreplace)
 {
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
@@ -756,7 +758,7 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		goto out;
 
 	/* released below */
-	ns = aa_prepare_ns(ns_name);
+	ns = aa_prepare_ns(view, ns_name);
 	if (!ns) {
 		error = audit_policy(op, GFP_KERNEL, ns_name,
 				     "failed to prepare namespace", -ENOMEM);

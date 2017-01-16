@@ -83,7 +83,9 @@ void aa_free_ns_kref(struct kref *kref);
 
 struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name);
 struct aa_ns *aa_findn_ns(struct aa_ns *root, const char *name, size_t n);
-struct aa_ns *aa_prepare_ns(const char *name);
+struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
+				     struct dentry *dir);
+struct aa_ns *aa_prepare_ns(struct aa_ns *root, const char *name);
 void __aa_remove_ns(struct aa_ns *ns);
 
 static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)

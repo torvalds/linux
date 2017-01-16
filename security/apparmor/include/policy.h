@@ -184,7 +184,8 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_profile *base,
 					const char *fqname, size_t n);
 struct aa_profile *aa_match_profile(struct aa_ns *ns, const char *name);
 
-ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace);
+ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
+			    bool noreplace);
 ssize_t aa_remove_profiles(char *name, size_t size);
 void __aa_profile_list_release(struct list_head *head);
 

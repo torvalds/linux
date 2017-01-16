@@ -181,48 +181,82 @@ struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
 	return aa_findn_ns(root, name, strlen(name));
 }
 
+static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
+				    struct dentry *dir)
+{
+	struct aa_ns *ns;
+	int error;
+
+	AA_BUG(!parent);
+	AA_BUG(!name);
+	AA_BUG(!mutex_is_locked(&parent->lock));
+
+	ns = alloc_ns(parent->base.hname, name);
+	if (!ns)
+		return NULL;
+	mutex_lock(&ns->lock);
+	error = __aa_fs_ns_mkdir(ns, ns_subns_dir(parent), name);
+	if (error) {
+		AA_ERROR("Failed to create interface for ns %s\n",
+			 ns->base.name);
+		mutex_unlock(&ns->lock);
+		aa_free_ns(ns);
+		return ERR_PTR(error);
+	}
+	ns->parent = aa_get_ns(parent);
+	list_add_rcu(&ns->base.list, &parent->sub_ns);
+	/* add list ref */
+	aa_get_ns(ns);
+	mutex_unlock(&ns->lock);
+
+	return ns;
+}
+
+/**
+ * aa_create_ns - create an ns, fail if it already exists
+ * @parent: the parent of the namespace being created
+ * @name: the name of the namespace
+ * @dir: if not null the dir to put the ns entries in
+ *
+ * Returns: the a refcounted ns that has been add or an ERR_PTR
+ */
+struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
+				     struct dentry *dir)
+{
+	struct aa_ns *ns;
+
+	AA_BUG(!mutex_is_locked(&parent->lock));
+
+	/* try and find the specified ns */
+	/* released by caller */
+	ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
+	if (!ns)
+		ns = __aa_create_ns(parent, name, dir);
+	else
+		ns = ERR_PTR(-EEXIST);
+
+	/* return ref */
+	return ns;
+}
+
 /**
  * aa_prepare_ns - find an existing or create a new namespace of @name
- * @name: the namespace to find or add  (MAYBE NULL)
+ * @parent: ns to treat as parent
+ * @name: the namespace to find or add  (NOT NULL)
  *
- * Returns: refcounted ns or NULL if failed to create one
+ * Returns: refcounted namespace or PTR_ERR if failed to create one
  */
-struct aa_ns *aa_prepare_ns(const char *name)
+struct aa_ns *aa_prepare_ns(struct aa_ns *parent, const char *name)
 {
-	struct aa_ns *ns, *root;
+	struct aa_ns *ns;
 
-	root = aa_current_profile()->ns;
-
-	mutex_lock(&root->lock);
-
-	/* if name isn't specified the profile is loaded to the current ns */
-	if (!name) {
-		/* released by caller */
-		ns = aa_get_ns(root);
-		goto out;
-	}
-
+	mutex_lock(&parent->lock);
 	/* try and find the specified ns and if it doesn't exist create it */
 	/* released by caller */
-	ns = aa_get_ns(__aa_find_ns(&root->sub_ns, name));
-	if (!ns) {
-		ns = alloc_ns(root->base.hname, name);
-		if (!ns)
-			goto out;
-		if (__aa_fs_ns_mkdir(ns, ns_subns_dir(root), name)) {
-			AA_ERROR("Failed to create interface for ns %s\n",
-				 ns->base.name);
-			aa_free_ns(ns);
-			ns = NULL;
-			goto out;
-		}
-		ns->parent = aa_get_ns(root);
-		list_add_rcu(&ns->base.list, &root->sub_ns);
-		/* add list ref */
-		aa_get_ns(ns);
-	}
-out:
-	mutex_unlock(&root->lock);
+	ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
+	if (!ns)
+		ns = __aa_create_ns(parent, name, NULL);
+	mutex_unlock(&parent->lock);
 
 	/* return ref */
 	return ns;
