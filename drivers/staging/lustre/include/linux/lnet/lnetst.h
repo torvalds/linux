@@ -112,7 +112,7 @@ struct lstcon_batch_ent {
 };				/*** batch summary entry, for
 				 *** list_batch command */
 
-typedef struct {
+struct lstcon_test_batch_ent {
 	struct lstcon_ndlist_ent   tbe_cli_nle;	/* client (group) node_list
 						 * entry */
 	struct lstcon_ndlist_ent   tbe_srv_nle;	/* server (group) node_list
@@ -121,7 +121,7 @@ typedef struct {
 		struct lstcon_test_ent	tbe_test; /* test entry */
 		struct lstcon_batch_ent tbe_batch;/* batch entry */
 	} u;
-} lstcon_test_batch_ent_t;	/*** test/batch verbose information entry,
+};				/*** test/batch verbose information entry,
 				 *** for list_batch command */
 
 typedef struct {
@@ -413,7 +413,7 @@ typedef struct {
 	int			 lstio_bat_server;	/* IN: query server
 							       or not */
 	int			 lstio_bat_testidx;	/* IN: test index */
-	lstcon_test_batch_ent_t __user *lstio_bat_entp;	/* OUT: batch ent */
+	struct lstcon_test_batch_ent __user *lstio_bat_entp;/* OUT: batch ent */
 
 	int __user		*lstio_bat_idxp;	/* IN/OUT: index of node */
 	int __user		*lstio_bat_ndentp;	/* IN/OUT: # of nodent */

@@ -926,11 +926,11 @@ lstcon_batch_list(int index, int len, char __user *name_up)
 }
 
 int
-lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
+lstcon_batch_info(char *name, struct lstcon_test_batch_ent __user *ent_up,
 		  int server, int testidx, int *index_p, int *ndent_p,
 		  struct lstcon_node_ent __user *dents_up)
 {
-	lstcon_test_batch_ent_t *entp;
+	struct lstcon_test_batch_ent *entp;
 	struct list_head *clilst;
 	struct list_head *srvlst;
 	struct lstcon_test *test = NULL;
@@ -969,7 +969,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 	}
 
 	/* non-verbose query */
-	LIBCFS_ALLOC(entp, sizeof(lstcon_test_batch_ent_t));
+	LIBCFS_ALLOC(entp, sizeof(struct lstcon_test_batch_ent));
 	if (!entp)
 		return -ENOMEM;
 
@@ -989,9 +989,9 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, &entp->tbe_srv_nle);
 
 	rc = copy_to_user(ent_up, entp,
-			  sizeof(lstcon_test_batch_ent_t)) ? -EFAULT : 0;
+			  sizeof(struct lstcon_test_batch_ent)) ? -EFAULT : 0;
 
-	LIBCFS_FREE(entp, sizeof(lstcon_test_batch_ent_t));
+	LIBCFS_FREE(entp, sizeof(struct lstcon_test_batch_ent));
 
 	return rc;
 }
