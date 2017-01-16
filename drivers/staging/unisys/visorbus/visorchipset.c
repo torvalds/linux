@@ -1409,7 +1409,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		 *
 		 * devices are automatically enabled at
 		 * initialization.
-		*/
+		 */
 		parahotplug_request_kickoff(req);
 		controlvm_respond_physdev_changestate
 			(&inmsg->hdr,
