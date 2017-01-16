@@ -228,6 +228,7 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_put_proxy(profile->proxy);
 
 	kzfree(profile->hash);
+	aa_put_loaddata(profile->rawdata);
 	kzfree(profile);
 }
 
@@ -802,10 +803,8 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
  * @view: namespace load is viewed from
- * @profile: profile that is attempting to load/replace policy
- * @udata: serialized data stream  (NOT NULL)
- * @size: size of the serialized data stream
  * @noreplace: true if only doing addition, no replacement allowed
+ * @udata: serialized data stream  (NOT NULL)
  *
  * unpack and replace a profile on the profile list and uses of that profile
  * by any aa_task_cxt.  If the profile does not exist on the profile list
@@ -813,8 +812,8 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  *
  * Returns: size of data consumed else error code on failure.
  */
-ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
-			    bool noreplace)
+ssize_t aa_replace_profiles(struct aa_ns *view, bool noreplace,
+			    struct aa_loaddata *udata)
 {
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
@@ -824,7 +823,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 	LIST_HEAD(lh);
 
 	/* released below */
-	error = aa_unpack(udata, size, &lh, &ns_name);
+	error = aa_unpack(udata, &lh, &ns_name);
 	if (error)
 		goto out;
 
@@ -841,6 +840,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 	/* setup parent and ns info */
 	list_for_each_entry(ent, &lh, list) {
 		struct aa_policy *policy;
+		ent->new->rawdata = aa_get_loaddata(udata);
 		error = __lookup_replace(ns, ent->new->base.hname, noreplace,
 					 &ent->old, &info);
 		if (error)
@@ -957,7 +957,7 @@ out:
 
 	if (error)
 		return error;
-	return size;
+	return udata->size;
 
 fail_lock:
 	mutex_unlock(&ns->lock);

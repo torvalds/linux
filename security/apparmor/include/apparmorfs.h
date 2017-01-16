@@ -70,6 +70,7 @@ enum aafs_ns_type {
 	AAFS_NS_DIR,
 	AAFS_NS_PROFS,
 	AAFS_NS_NS,
+	AAFS_NS_RAW_DATA,
 	AAFS_NS_COUNT,
 	AAFS_NS_MAX_COUNT,
 	AAFS_NS_SIZE,
@@ -85,12 +86,16 @@ enum aafs_prof_type {
 	AAFS_PROF_MODE,
 	AAFS_PROF_ATTACH,
 	AAFS_PROF_HASH,
+	AAFS_PROF_RAW_DATA,
+	AAFS_PROF_RAW_HASH,
+	AAFS_PROF_RAW_ABI,
 	AAFS_PROF_SIZEOF,
 };
 
 #define ns_dir(X) ((X)->dents[AAFS_NS_DIR])
 #define ns_subns_dir(X) ((X)->dents[AAFS_NS_NS])
 #define ns_subprofs_dir(X) ((X)->dents[AAFS_NS_PROFS])
+#define ns_subdata_dir(X) ((X)->dents[AAFS_NS_RAW_DATA])
 
 #define prof_dir(X) ((X)->dents[AAFS_PROF_DIR])
 #define prof_child_dir(X) ((X)->dents[AAFS_PROF_PROFS])
