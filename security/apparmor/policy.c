@@ -803,6 +803,7 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
 /**
  * aa_replace_profiles - replace profile(s) on the profile list
  * @view: namespace load is viewed from
+ * @label: label that is attempting to load/replace policy
  * @noreplace: true if only doing addition, no replacement allowed
  * @udata: serialized data stream  (NOT NULL)
  *
@@ -812,8 +813,8 @@ static int __lookup_replace(struct aa_ns *ns, const char *hname,
  *
  * Returns: size of data consumed else error code on failure.
  */
-ssize_t aa_replace_profiles(struct aa_ns *view, bool noreplace,
-			    struct aa_loaddata *udata)
+ssize_t aa_replace_profiles(struct aa_ns *view, struct aa_profile *profile,
+			    bool noreplace, struct aa_loaddata *udata)
 {
 	const char *ns_name, *info = NULL;
 	struct aa_ns *ns = NULL;
@@ -935,7 +936,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, bool noreplace,
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
 
-		audit_policy(__aa_current_profile(), op, GFP_ATOMIC, NULL,
+		audit_policy(profile, op, GFP_ATOMIC, NULL,
 			     ent->new->base.hname, NULL, error);
 
 		if (ent->old) {
@@ -991,8 +992,8 @@ fail_lock:
 	/* audit cause of failure */
 	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
 fail:
-	audit_policy(__aa_current_profile(), op, GFP_KERNEL, ns_name,
-		     ent->new->base.hname, info, error);
+	audit_policy(profile, op, GFP_KERNEL, ns_name, ent->new->base.hname,
+		     info, error);
 	/* audit status that rest of profiles in the atomic set failed too */
 	info = "valid profile in failed atomic policy load";
 	list_for_each_entry(tmp, &lh, list) {
@@ -1002,7 +1003,7 @@ fail:
 			continue;
 		}
 		op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-		audit_policy(__aa_current_profile(), op, GFP_KERNEL, ns_name,
+		audit_policy(profile, op, GFP_KERNEL, ns_name,
 			     tmp->new->base.hname, info, error);
 	}
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
@@ -1016,6 +1017,7 @@ fail:
 /**
  * aa_remove_profiles - remove profile(s) from the system
  * @view: namespace the remove is being done from
+ * @subj: profile attempting to remove policy
  * @fqname: name of the profile or namespace to remove  (NOT NULL)
  * @size: size of the name
  *
@@ -1026,7 +1028,8 @@ fail:
  *
  * Returns: size of data consume else error code if fails
  */
-ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
+ssize_t aa_remove_profiles(struct aa_ns *view, struct aa_profile *subj,
+			   char *fqname, size_t size)
 {
 	struct aa_ns *root = NULL, *ns = NULL;
 	struct aa_profile *profile = NULL;
@@ -1075,8 +1078,8 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 	}
 
 	/* don't fail removal if audit fails */
-	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    ns_name, name, info, error);
+	(void) audit_policy(subj, OP_PROF_RM, GFP_KERNEL, ns_name, name, info,
+			    error);
 	aa_put_ns(ns);
 	aa_put_profile(profile);
 	return size;
@@ -1086,7 +1089,7 @@ fail_ns_lock:
 	aa_put_ns(ns);
 
 fail:
-	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    ns_name, name, info, error);
+	(void) audit_policy(subj, OP_PROF_RM, GFP_KERNEL, ns_name, name, info,
+			    error);
 	return error;
 }

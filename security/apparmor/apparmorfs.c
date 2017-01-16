@@ -133,7 +133,7 @@ static ssize_t policy_update(int binop, const char __user *buf, size_t size,
 	data = aa_simple_write_to_buffer(op, buf, size, size, pos);
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(profile->ns, binop, data);
+		error = aa_replace_profiles(profile->ns, profile, binop, data);
 		aa_put_loaddata(data);
 	}
 
@@ -192,7 +192,8 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		data->data[size] = 0;
-		error = aa_remove_profiles(profile->ns, data->data, size);
+		error = aa_remove_profiles(profile->ns, profile, data->data,
+					   size);
 		aa_put_loaddata(data);
 	}
  out:
