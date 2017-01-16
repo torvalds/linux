@@ -108,54 +108,66 @@ set_the_pte:
 	return 0;
 }
 
+static inline void __meminit print_mapping(unsigned long start,
+					   unsigned long end,
+					   unsigned long size)
+{
+	if (end <= start)
+		return;
+
+	pr_info("Mapped range 0x%lx - 0x%lx with 0x%lx\n", start, end, size);
+}
+
+static int __meminit create_physical_mapping(unsigned long start,
+					     unsigned long end)
+{
+	unsigned long addr, mapping_size = 0;
+
+	start = _ALIGN_UP(start, PAGE_SIZE);
+	for (addr = start; addr < end; addr += mapping_size) {
+		unsigned long gap, previous_size;
+		int rc;
+
+		gap = end - addr;
+		previous_size = mapping_size;
+
+		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
+		    mmu_psize_defs[MMU_PAGE_1G].shift)
+			mapping_size = PUD_SIZE;
+		else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
+			 mmu_psize_defs[MMU_PAGE_2M].shift)
+			mapping_size = PMD_SIZE;
+		else
+			mapping_size = PAGE_SIZE;
+
+		if (mapping_size != previous_size) {
+			print_mapping(start, addr, previous_size);
+			start = addr;
+		}
+
+		rc = radix__map_kernel_page((unsigned long)__va(addr), addr,
+					    PAGE_KERNEL_X, mapping_size);
+		if (rc)
+			return rc;
+	}
+
+	print_mapping(start, addr, mapping_size);
+	return 0;
+}
+
 static void __init radix_init_pgtable(void)
 {
-	int loop_count;
-	u64 base, end, start_addr;
 	unsigned long rts_field;
 	struct memblock_region *reg;
-	unsigned long linear_page_size;
 
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
 	/*
 	 * Create the linear mapping, using standard page size for now
 	 */
-	loop_count = 0;
-	for_each_memblock(memory, reg) {
-
-		start_addr = reg->base;
-
-redo:
-		if (loop_count < 1 && mmu_psize_defs[MMU_PAGE_1G].shift)
-			linear_page_size = PUD_SIZE;
-		else if (loop_count < 2 && mmu_psize_defs[MMU_PAGE_2M].shift)
-			linear_page_size = PMD_SIZE;
-		else
-			linear_page_size = PAGE_SIZE;
-
-		base = _ALIGN_UP(start_addr, linear_page_size);
-		end = _ALIGN_DOWN(reg->base + reg->size, linear_page_size);
-
-		pr_info("Mapping range 0x%lx - 0x%lx with 0x%lx\n",
-			(unsigned long)base, (unsigned long)end,
-			linear_page_size);
-
-		while (base < end) {
-			radix__map_kernel_page((unsigned long)__va(base),
-					      base, PAGE_KERNEL_X,
-					      linear_page_size);
-			base += linear_page_size;
-		}
-		/*
-		 * map the rest using lower page size
-		 */
-		if (end < reg->base + reg->size) {
-			start_addr = end;
-			loop_count++;
-			goto redo;
-		}
-	}
+	for_each_memblock(memory, reg)
+		WARN_ON(create_physical_mapping(reg->base,
+						reg->base + reg->size));
 	/*
 	 * Allocate Partition table and process table for the
 	 * host.
