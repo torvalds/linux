@@ -302,10 +302,18 @@
 		reg = <0x24>;
 	};
 
+	bq32000: rtc@68 {
+		compatible = "ti,bq32000";
+		trickle-resistor-ohms = <1120>;
+		reg = <0x68>;
+	};
+
 	eeprom: eeprom@50 {
 		compatible = "at,24c256";
 		reg = <0x50>;
 	};
+
+
 };
 
 &i2c2 {
@@ -325,6 +333,10 @@
 		DRVDD-supply = <&ldo4_reg>;
 		DVDD-supply = <&ldo3_reg>;
 	};
+};
+
+&rtc {
+	status = "disabled";
 };
 
 &usb {
