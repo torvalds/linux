@@ -82,6 +82,7 @@ void aa_free_root_ns(void);
 void aa_free_ns_kref(struct kref *kref);
 
 struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name);
+struct aa_ns *aa_findn_ns(struct aa_ns *root, const char *name, size_t n);
 struct aa_ns *aa_prepare_ns(const char *name);
 void __aa_remove_ns(struct aa_ns *ns);
 
@@ -119,18 +120,24 @@ static inline void aa_put_ns(struct aa_ns *ns)
 }
 
 /**
- * __aa_find_ns - find a namespace on a list by @name
+ * __aa_findn_ns - find a namespace on a list by @name
  * @head: list to search for namespace on  (NOT NULL)
  * @name: name of namespace to look for  (NOT NULL)
- *
+ * @n: length of @name
  * Returns: unrefcounted namespace
  *
  * Requires: rcu_read_lock be held
  */
+static inline struct aa_ns *__aa_findn_ns(struct list_head *head,
+					  const char *name, size_t n)
+{
+	return (struct aa_ns *)__policy_strn_find(head, name, n);
+}
+
 static inline struct aa_ns *__aa_find_ns(struct list_head *head,
 					 const char *name)
 {
-	return (struct aa_ns *)__policy_find(head, name);
+	return __aa_findn_ns(head, name, strlen(name));
 }
 
 #endif /* AA_NAMESPACE_H */
