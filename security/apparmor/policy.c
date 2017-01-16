@@ -99,121 +99,6 @@ const char *const aa_profile_mode_names[] = {
 	"unconfined",
 };
 
-/**
- * hname_tail - find the last component of an hname
- * @name: hname to find the base profile name component of  (NOT NULL)
- *
- * Returns: the tail (base profile name) name component of an hname
- */
-static const char *hname_tail(const char *hname)
-{
-	char *split;
-	hname = strim((char *)hname);
-	for (split = strstr(hname, "//"); split; split = strstr(hname, "//"))
-		hname = split + 2;
-
-	return hname;
-}
-
-/**
- * policy_init - initialize a policy structure
- * @policy: policy to initialize  (NOT NULL)
- * @prefix: prefix name if any is required.  (MAYBE NULL)
- * @name: name of the policy, init will make a copy of it  (NOT NULL)
- *
- * Note: this fn creates a copy of strings passed in
- *
- * Returns: true if policy init successful
- */
-static bool policy_init(struct aa_policy *policy, const char *prefix,
-			const char *name)
-{
-	/* freed by policy_free */
-	if (prefix) {
-		policy->hname = kmalloc(strlen(prefix) + strlen(name) + 3,
-					GFP_KERNEL);
-		if (policy->hname)
-			sprintf(policy->hname, "%s//%s", prefix, name);
-	} else
-		policy->hname = kstrdup(name, GFP_KERNEL);
-	if (!policy->hname)
-		return 0;
-	/* base.name is a substring of fqname */
-	policy->name = (char *)hname_tail(policy->hname);
-	INIT_LIST_HEAD(&policy->list);
-	INIT_LIST_HEAD(&policy->profiles);
-
-	return 1;
-}
-
-/**
- * policy_destroy - free the elements referenced by @policy
- * @policy: policy that is to have its elements freed  (NOT NULL)
- */
-static void policy_destroy(struct aa_policy *policy)
-{
-	/* still contains profiles -- invalid */
-	if (on_list_rcu(&policy->profiles)) {
-		AA_ERROR("%s: internal error, "
-			 "policy '%s' still contains profiles\n",
-			 __func__, policy->name);
-		BUG();
-	}
-	if (on_list_rcu(&policy->list)) {
-		AA_ERROR("%s: internal error, policy '%s' still on list\n",
-			 __func__, policy->name);
-		BUG();
-	}
-
-	/* don't free name as its a subset of hname */
-	kzfree(policy->hname);
-}
-
-/**
- * __policy_find - find a policy by @name on a policy list
- * @head: list to search  (NOT NULL)
- * @name: name to search for  (NOT NULL)
- *
- * Requires: rcu_read_lock be held
- *
- * Returns: unrefcounted policy that match @name or NULL if not found
- */
-static struct aa_policy *__policy_find(struct list_head *head, const char *name)
-{
-	struct aa_policy *policy;
-
-	list_for_each_entry_rcu(policy, head, list) {
-		if (!strcmp(policy->name, name))
-			return policy;
-	}
-	return NULL;
-}
-
-/**
- * __policy_strn_find - find a policy that's name matches @len chars of @str
- * @head: list to search  (NOT NULL)
- * @str: string to search for  (NOT NULL)
- * @len: length of match required
- *
- * Requires: rcu_read_lock be held
- *
- * Returns: unrefcounted policy that match @str or NULL if not found
- *
- * if @len == strlen(@strlen) then this is equiv to __policy_find
- * other wise it allows searching for policy by a partial match of name
- */
-static struct aa_policy *__policy_strn_find(struct list_head *head,
-					    const char *str, int len)
-{
-	struct aa_policy *policy;
-
-	list_for_each_entry_rcu(policy, head, list) {
-		if (aa_strneq(policy->name, str, len))
-			return policy;
-	}
-
-	return NULL;
-}
 
 /*
  * Routines for AppArmor namespaces
@@ -280,7 +165,7 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 	AA_DEBUG("%s(%p)\n", __func__, ns);
 	if (!ns)
 		return NULL;
-	if (!policy_init(&ns->base, prefix, name))
+	if (!aa_policy_init(&ns->base, prefix, name))
 		goto fail_ns;
 
 	INIT_LIST_HEAD(&ns->sub_ns);
@@ -321,7 +206,7 @@ static void free_namespace(struct aa_namespace *ns)
 	if (!ns)
 		return;
 
-	policy_destroy(&ns->base);
+	aa_policy_destroy(&ns->base);
 	aa_put_namespace(ns->parent);
 
 	ns->unconfined->ns = NULL;
@@ -595,7 +480,7 @@ void aa_free_profile(struct aa_profile *profile)
 		return;
 
 	/* free children profiles */
-	policy_destroy(&profile->base);
+	aa_policy_destroy(&profile->base);
 	aa_put_profile(rcu_access_pointer(profile->parent));
 
 	aa_put_namespace(profile->ns);
@@ -657,7 +542,7 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 		goto fail;
 	kref_init(&profile->replacedby->count);
 
-	if (!policy_init(&profile->base, NULL, hname))
+	if (!aa_policy_init(&profile->base, NULL, hname))
 		goto fail;
 	kref_init(&profile->count);
 

@@ -77,19 +77,6 @@ enum profile_flags {
 
 struct aa_profile;
 
-/* struct aa_policy - common part of both namespaces and profiles
- * @name: name of the object
- * @hname - The hierarchical name
- * @list: list policy object is on
- * @profiles: head of the profiles list contained in the object
- */
-struct aa_policy {
-	char *name;
-	char *hname;
-	struct list_head list;
-	struct list_head profiles;
-};
-
 /* struct aa_ns_acct - accounting of profiles in namespace
  * @max_size: maximum space allowed for all profiles in namespace
  * @max_count: maximum number of profiles that can be in this namespace
