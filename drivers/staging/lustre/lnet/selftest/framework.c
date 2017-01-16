@@ -39,7 +39,7 @@
 
 #include "selftest.h"
 
-lst_sid_t LST_INVALID_SID = {LNET_NID_ANY, -1};
+struct lst_sid LST_INVALID_SID = {LNET_NID_ANY, -1};
 
 static int session_timeout = 100;
 module_param(session_timeout, int, 0444);
@@ -254,7 +254,7 @@ sfw_session_expired(void *data)
 }
 
 static inline void
-sfw_init_session(struct sfw_session *sn, lst_sid_t sid,
+sfw_init_session(struct sfw_session *sn, struct lst_sid sid,
 		 unsigned int features, const char *name)
 {
 	struct stt_timer *timer = &sn->sn_timer;

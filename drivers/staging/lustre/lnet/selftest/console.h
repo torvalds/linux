@@ -140,7 +140,7 @@ struct lstcon_test {
 
 struct lstcon_session {
 	struct mutex	    ses_mutex;	      /* only 1 thread in session */
-	lst_sid_t	    ses_id;	      /* global session id */
+	struct lst_sid	    ses_id;	      /* global session id */
 	int		    ses_key;	      /* local session key */
 	int		    ses_state;	      /* state of session */
 	int		    ses_timeout;      /* timeout in seconds */
@@ -190,10 +190,10 @@ lstcon_id2hash(lnet_process_id_t id, struct list_head *hash)
 int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
 int lstcon_console_init(void);
 int lstcon_console_fini(void);
-int lstcon_session_match(lst_sid_t sid);
+int lstcon_session_match(struct lst_sid sid);
 int lstcon_session_new(char *name, int key, unsigned int version,
-		       int timeout, int flags, lst_sid_t __user *sid_up);
-int lstcon_session_info(lst_sid_t __user *sid_up, int __user *key,
+		       int timeout, int flags, struct lst_sid __user *sid_up);
+int lstcon_session_info(struct lst_sid __user *sid_up, int __user *key,
 			unsigned __user *verp, lstcon_ndlist_ent_t __user *entp,
 			char __user *name_up, int len);
 int lstcon_session_end(void);

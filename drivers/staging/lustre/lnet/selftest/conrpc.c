@@ -519,7 +519,7 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 		/* RPC is done */
 		rep = (struct srpc_generic_reply *)&msg->msg_body.reply;
 
-		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(lst_sid_t)) ||
+		if (copy_to_user(&ent->rpe_sid, &rep->sid, sizeof(rep->sid)) ||
 		    copy_to_user(&ent->rpe_fwk_errno, &rep->status,
 				 sizeof(rep->status)))
 			return -EFAULT;

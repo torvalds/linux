@@ -1688,14 +1688,14 @@ lstcon_nodes_debug(int timeout,
 }
 
 int
-lstcon_session_match(lst_sid_t sid)
+lstcon_session_match(struct lst_sid sid)
 {
 	return (console_session.ses_id.ses_nid == sid.ses_nid &&
 		console_session.ses_id.ses_stamp == sid.ses_stamp) ? 1 : 0;
 }
 
 static void
-lstcon_new_session_id(lst_sid_t *sid)
+lstcon_new_session_id(struct lst_sid *sid)
 {
 	lnet_process_id_t id;
 
@@ -1708,7 +1708,7 @@ lstcon_new_session_id(lst_sid_t *sid)
 
 int
 lstcon_session_new(char *name, int key, unsigned int feats,
-		   int timeout, int force, lst_sid_t __user *sid_up)
+		   int timeout, int force, struct lst_sid __user *sid_up)
 {
 	int rc = 0;
 	int i;
@@ -1767,7 +1767,7 @@ lstcon_session_new(char *name, int key, unsigned int feats,
 	}
 
 	if (!copy_to_user(sid_up, &console_session.ses_id,
-			  sizeof(lst_sid_t)))
+			  sizeof(struct lst_sid)))
 		return rc;
 
 	lstcon_session_end();
@@ -1776,7 +1776,7 @@ lstcon_session_new(char *name, int key, unsigned int feats,
 }
 
 int
-lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
+lstcon_session_info(struct lst_sid __user *sid_up, int __user *key_up,
 		    unsigned __user *featp,
 		    lstcon_ndlist_ent_t __user *ndinfo_up,
 		    char __user *name_up, int len)
@@ -1796,7 +1796,7 @@ lstcon_session_info(lst_sid_t __user *sid_up, int __user *key_up,
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, entp);
 
 	if (copy_to_user(sid_up, &console_session.ses_id,
-			 sizeof(lst_sid_t)) ||
+			 sizeof(*sid_up)) ||
 	    copy_to_user(key_up, &console_session.ses_key,
 			 sizeof(*key_up)) ||
 	    copy_to_user(featp, &console_session.ses_features,

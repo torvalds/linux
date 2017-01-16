@@ -322,7 +322,7 @@ struct srpc_service {
 
 struct sfw_session {
 	struct list_head sn_list;    /* chain on fw_zombie_sessions */
-	lst_sid_t	 sn_id;      /* unique identifier */
+	struct lst_sid	 sn_id;      /* unique identifier */
 	unsigned int	 sn_timeout; /* # seconds' inactivity to expire */
 	int		 sn_timer_active;
 	unsigned int	 sn_features;

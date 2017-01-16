@@ -68,12 +68,12 @@
 #define LSTIO_BATCH_QUERY	0xC27	/* query batch status */
 #define LSTIO_STAT_QUERY	0xC30	/* get stats */
 
-typedef struct {
+struct lst_sid {
 	lnet_nid_t	ses_nid;	/* nid of console node */
 	__u64		ses_stamp;	/* time stamp */
-} lst_sid_t;				/*** session id */
+};					/*** session id */
 
-extern lst_sid_t LST_INVALID_SID;
+extern struct lst_sid LST_INVALID_SID;
 
 typedef struct {
 	__u64	bat_id;		/* unique id in session */
@@ -131,7 +131,7 @@ typedef struct {
 	int			rpe_state;	/* peer's state */
 	int			rpe_rpc_errno;	/* RPC errno */
 
-	lst_sid_t		rpe_sid;	/* peer's session id */
+	struct lst_sid		rpe_sid;	/* peer's session id */
 	int			rpe_fwk_errno;	/* framework errno */
 	int			rpe_priv[4];	/* private data */
 	char			rpe_payload[0];	/* private reply payload */
@@ -245,14 +245,14 @@ typedef struct {
 	int		 lstio_ses_force;	/* IN: force create ? */
 	/** IN: session features */
 	unsigned int	 lstio_ses_feats;
-	lst_sid_t __user *lstio_ses_idp;	/* OUT: session id */
+	struct lst_sid __user *lstio_ses_idp;	/* OUT: session id */
 	int		 lstio_ses_nmlen;	/* IN: name length */
 	char __user	 *lstio_ses_namep;	/* IN: session name */
 } lstio_session_new_args_t;
 
 /* query current session */
 typedef struct {
-	lst_sid_t __user	*lstio_ses_idp;		/* OUT: session id */
+	struct lst_sid __user	*lstio_ses_idp;		/* OUT: session id */
 	int __user		*lstio_ses_keyp;	/* OUT: local key */
 	/** OUT: session features */
 	unsigned int __user	*lstio_ses_featp;
