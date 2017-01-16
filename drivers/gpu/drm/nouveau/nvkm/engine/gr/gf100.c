@@ -702,6 +702,22 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static bool
+gf100_gr_chsw_load(struct nvkm_gr *base)
+{
+	struct gf100_gr *gr = gf100_gr(base);
+	if (!gr->firmware) {
+		u32 trace = nvkm_rd32(gr->base.engine.subdev.device, 0x40981c);
+		if (trace & 0x00000040)
+			return true;
+	} else {
+		u32 mthd = nvkm_rd32(gr->base.engine.subdev.device, 0x409808);
+		if (mthd & 0x00080000)
+			return true;
+	}
+	return false;
+}
+
 int
 gf100_gr_rops(struct gf100_gr *gr)
 {
@@ -1770,6 +1786,7 @@ gf100_gr_ = {
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,
 	.object_get = gf100_gr_object_get,
+	.chsw_load = gf100_gr_chsw_load,
 };
 
 int
