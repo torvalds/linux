@@ -190,7 +190,7 @@ out:
 }
 
 static int
-lst_group_add_ioctl(lstio_group_add_args_t *args)
+lst_group_add_ioctl(struct lstio_group_add_args *args)
 {
 	char *name;
 	int rc;
@@ -867,7 +867,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 		rc = lst_debug_ioctl((struct lstio_debug_args *)buf);
 		break;
 	case LSTIO_GROUP_ADD:
-		rc = lst_group_add_ioctl((lstio_group_add_args_t *)buf);
+		rc = lst_group_add_ioctl((struct lstio_group_add_args *)buf);
 		break;
 	case LSTIO_GROUP_DEL:
 		rc = lst_group_del_ioctl((lstio_group_del_args_t *)buf);

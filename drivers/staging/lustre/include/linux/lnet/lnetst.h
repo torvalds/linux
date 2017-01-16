@@ -293,11 +293,11 @@ struct lstio_debug_args {
 								result buffer */
 };
 
-typedef struct {
+struct lstio_group_add_args {
 	int		 lstio_grp_key;		/* IN: session key */
 	int		 lstio_grp_nmlen;	/* IN: name length */
 	char __user	*lstio_grp_namep;	/* IN: group name */
-} lstio_group_add_args_t;
+};
 
 typedef struct {
 	int		 lstio_grp_key;		/* IN: session key */
