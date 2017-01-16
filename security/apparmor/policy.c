@@ -272,7 +272,7 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 		goto fail;
 	kref_init(&profile->proxy->count);
 
-	if (!aa_policy_init(&profile->base, NULL, hname))
+	if (!aa_policy_init(&profile->base, NULL, hname, GFP_KERNEL))
 		goto fail;
 	kref_init(&profile->count);
 

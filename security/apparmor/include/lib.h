@@ -194,7 +194,7 @@ static inline struct aa_policy *__policy_strn_find(struct list_head *head,
 }
 
 bool aa_policy_init(struct aa_policy *policy, const char *prefix,
-		    const char *name);
+		    const char *name, gfp_t gfp);
 void aa_policy_destroy(struct aa_policy *policy);
 
 #endif /* AA_LIB_H */

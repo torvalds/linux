@@ -171,20 +171,20 @@ void *__aa_kvmalloc(size_t size, gfp_t flags)
  * Returns: true if policy init successful
  */
 bool aa_policy_init(struct aa_policy *policy, const char *prefix,
-		    const char *name)
+		    const char *name, gfp_t gfp)
 {
 	/* freed by policy_free */
 	if (prefix) {
 		policy->hname = kmalloc(strlen(prefix) + strlen(name) + 3,
-					GFP_KERNEL);
+					gfp);
 		if (policy->hname)
 			sprintf((char *)policy->hname, "%s//%s", prefix, name);
 	} else
-		policy->hname = kstrdup(name, GFP_KERNEL);
+		policy->hname = kstrdup(name, gfp);
 	if (!policy->hname)
 		return 0;
 	/* base.name is a substring of fqname */
-	policy->name = (char *)basename(policy->hname);
+	policy->name = basename(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
 	INIT_LIST_HEAD(&policy->profiles);
 

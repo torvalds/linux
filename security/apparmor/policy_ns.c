@@ -95,7 +95,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	AA_DEBUG("%s(%p)\n", __func__, ns);
 	if (!ns)
 		return NULL;
-	if (!aa_policy_init(&ns->base, prefix, name))
+	if (!aa_policy_init(&ns->base, prefix, name, GFP_KERNEL))
 		goto fail_ns;
 
 	INIT_LIST_HEAD(&ns->sub_ns);
