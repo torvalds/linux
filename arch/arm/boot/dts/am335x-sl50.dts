@@ -313,6 +313,10 @@
 		reg = <0x50>;
 	};
 
+	gpio_exp: mcp23017@20 {
+		compatible = "microchip,mcp23017";
+		reg = <0x20>;
+	};
 
 };
 
