@@ -485,14 +485,14 @@ enum lst_brw_flags {
 	LST_BRW_CHECK_FULL	= 3
 };
 
-typedef struct {
+struct lst_test_bulk_param {
 	int	blk_opc;	/* bulk operation code */
 	int	blk_size;       /* size (bytes) */
 	int	blk_time;       /* time of running the test*/
 	int	blk_flags;      /* reserved flags */
 	int	blk_cli_off;	/* bulk offset on client */
 	int	blk_srv_off;	/* reserved: bulk offset on server */
-} lst_test_bulk_param_t;
+};
 
 typedef struct {
 	int	png_size;	/* size of ping message */

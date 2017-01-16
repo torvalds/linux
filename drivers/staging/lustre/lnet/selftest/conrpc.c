@@ -779,7 +779,7 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
 }
 
 static int
-lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param,
+lstcon_bulkrpc_v0_prep(struct lst_test_bulk_param *param,
 		       struct srpc_test_reqst *req)
 {
 	struct test_bulk_req *brq = &req->tsr_u.bulk_v0;
@@ -793,7 +793,7 @@ lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param,
 }
 
 static int
-lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, bool is_client,
+lstcon_bulkrpc_v1_prep(struct lst_test_bulk_param *param, bool is_client,
 		       struct srpc_test_reqst *req)
 {
 	struct test_bulk_req_v1 *brq = &req->tsr_u.bulk_v1;
@@ -898,10 +898,10 @@ lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 	case LST_TEST_BULK:
 		trq->tsr_service = SRPC_SERVICE_BRW;
 		if (!(feats & LST_FEAT_BULK_LEN)) {
-			rc = lstcon_bulkrpc_v0_prep((lst_test_bulk_param_t *)
+			rc = lstcon_bulkrpc_v0_prep((struct lst_test_bulk_param *)
 						    &test->tes_param[0], trq);
 		} else {
-			rc = lstcon_bulkrpc_v1_prep((lst_test_bulk_param_t *)
+			rc = lstcon_bulkrpc_v1_prep((struct lst_test_bulk_param *)
 						    &test->tes_param[0],
 						    trq->tsr_is_client, trq);
 		}
