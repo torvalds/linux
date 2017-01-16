@@ -144,27 +144,12 @@ vma_create(struct drm_i915_gem_object *obj,
 	return vma;
 }
 
-/**
- * i915_vma_lookup - finds a matching VMA
- * @obj: parent &struct drm_i915_gem_object to be mapped
- * @vm: address space in which the mapping is located
- * @view: additional mapping requirements
- *
- * i915_vma_lookup() looks up an existing VMA of the @obj in the @vm with
- * the same @view characteristics.
- *
- * Must be called with struct_mutex held.
- *
- * Returns the vma if found, or NULL.
- */
-struct i915_vma *
-i915_vma_lookup(struct drm_i915_gem_object *obj,
-		struct i915_address_space *vm,
-		const struct i915_ggtt_view *view)
+static struct i915_vma *
+vma_lookup(struct drm_i915_gem_object *obj,
+	   struct i915_address_space *vm,
+	   const struct i915_ggtt_view *view)
 {
 	struct rb_node *rb;
-
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	rb = obj->vma_tree.rb_node;
 	while (rb) {
@@ -210,13 +195,13 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 	GEM_BUG_ON(vm->closed);
 
-	vma = i915_vma_lookup(obj, vm, view);
+	vma = vma_lookup(obj, vm, view);
 	if (!vma)
 		vma = vma_create(obj, vm, view);
 
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_is_closed(vma));
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_compare(vma, vm, view));
-	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_lookup(obj, vm, view) != vma);
+	GEM_BUG_ON(!IS_ERR(vma) && vma_lookup(obj, vm, view) != vma);
 	return vma;
 }
 

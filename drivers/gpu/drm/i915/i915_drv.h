@@ -3380,13 +3380,6 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 	return container_of(vm, struct i915_hw_ppgtt, base);
 }
 
-static inline struct i915_vma *
-i915_gem_object_to_ggtt(struct drm_i915_gem_object *obj,
-			const struct i915_ggtt_view *view)
-{
-	return i915_vma_lookup(obj, &to_i915(obj->base.dev)->ggtt.base, view);
-}
-
 /* i915_gem_fence_reg.c */
 int __must_check i915_vma_get_fence(struct i915_vma *vma);
 int __must_check i915_vma_put_fence(struct i915_vma *vma);
