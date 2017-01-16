@@ -19,7 +19,7 @@
 
 #include "include/audit.h"
 #include "include/apparmor.h"
-
+#include "include/lib.h"
 
 /**
  * aa_split_fqname - split a fqname into a profile and namespace name

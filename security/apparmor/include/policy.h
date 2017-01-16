@@ -27,6 +27,7 @@
 #include "capability.h"
 #include "domain.h"
 #include "file.h"
+#include "lib.h"
 #include "resource.h"
 
 extern const char *const aa_profile_mode_names[];
