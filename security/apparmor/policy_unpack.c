@@ -825,7 +825,8 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 		if (error)
 			goto fail_profile;
 
-		error = aa_calc_profile_hash(profile, e.version, start,
+		if (aa_g_hash_policy)
+			error = aa_calc_profile_hash(profile, e.version, start,
 						     e.pos - start);
 		if (error)
 			goto fail_profile;
@@ -841,11 +842,13 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 		list_add_tail(&ent->list, lh);
 	}
 	udata->abi = e.version & K_ABI_MASK;
-	udata->hash = aa_calc_hash(udata->data, udata->size);
-	if (IS_ERR(udata->hash)) {
-		error = PTR_ERR(udata->hash);
-		udata->hash = NULL;
-		goto fail;
+	if (aa_g_hash_policy) {
+		udata->hash = aa_calc_hash(udata->data, udata->size);
+		if (IS_ERR(udata->hash)) {
+			error = PTR_ERR(udata->hash);
+			udata->hash = NULL;
+			goto fail;
+		}
 	}
 	return 0;
 

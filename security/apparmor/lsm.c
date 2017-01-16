@@ -166,6 +166,26 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
 }
 
 /**
+ * common_perm_cond - common permission wrapper around inode cond
+ * @op: operation being checked
+ * @path: location to check (NOT NULL)
+ * @mask: requested permissions mask
+ *
+ * Returns: %0 else error code if error or permission denied
+ */
+static int common_perm_cond(const char *op, const struct path *path, u32 mask)
+{
+	struct path_cond cond = { d_backing_inode(path->dentry)->i_uid,
+				  d_backing_inode(path->dentry)->i_mode
+	};
+
+	if (!path_mediated_fs(path->dentry))
+		return 0;
+
+	return common_perm(op, path, mask, &cond);
+}
+
+/**
  * common_perm_dir_dentry - common permission wrapper when path is dir, dentry
  * @op: operation being checked
  * @dir: directory of the dentry  (NOT NULL)
@@ -182,26 +202,6 @@ static int common_perm_dir_dentry(const char *op, const struct path *dir,
 	struct path path = { .mnt = dir->mnt, .dentry = dentry };
 
 	return common_perm(op, &path, mask, cond);
-}
-
-/**
- * common_perm_path - common permission wrapper when mnt, dentry
- * @op: operation being checked
- * @path: location to check (NOT NULL)
- * @mask: requested permissions mask
- *
- * Returns: %0 else error code if error or permission denied
- */
-static inline int common_perm_path(const char *op, const struct path *path,
-				   u32 mask)
-{
-	struct path_cond cond = { d_backing_inode(path->dentry)->i_uid,
-				  d_backing_inode(path->dentry)->i_mode
-	};
-	if (!path_mediated_fs(path->dentry))
-		return 0;
-
-	return common_perm(op, path, mask, &cond);
 }
 
 /**
@@ -274,7 +274,7 @@ static int apparmor_path_mknod(const struct path *dir, struct dentry *dentry,
 
 static int apparmor_path_truncate(const struct path *path)
 {
-	return common_perm_path(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE);
+	return common_perm_cond(OP_TRUNC, path, MAY_WRITE | AA_MAY_META_WRITE);
 }
 
 static int apparmor_path_symlink(const struct path *dir, struct dentry *dentry,
@@ -333,17 +333,17 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 
 static int apparmor_path_chmod(const struct path *path, umode_t mode)
 {
-	return common_perm_path(OP_CHMOD, path, AA_MAY_CHMOD);
+	return common_perm_cond(OP_CHMOD, path, AA_MAY_CHMOD);
 }
 
 static int apparmor_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	return common_perm_path(OP_CHOWN, path, AA_MAY_CHOWN);
+	return common_perm_cond(OP_CHOWN, path, AA_MAY_CHOWN);
 }
 
 static int apparmor_inode_getattr(const struct path *path)
 {
-	return common_perm_path(OP_GETATTR, path, AA_MAY_META_READ);
+	return common_perm_cond(OP_GETATTR, path, AA_MAY_META_READ);
 }
 
 static int apparmor_file_open(struct file *file, const struct cred *cred)
