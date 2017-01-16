@@ -276,7 +276,7 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 
 static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 		enum mdp5_intf_type intf_type, int intf_num,
-		enum mdp5_intf_mode intf_mode, struct mdp5_ctl *ctl)
+		struct mdp5_ctl *ctl)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -284,15 +284,10 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 	struct mdp5_interface intf = {
 			.num	= intf_num,
 			.type	= intf_type,
-			.mode	= intf_mode,
+			.mode	= MDP5_INTF_MODE_NONE,
 	};
 
-	if ((intf_type == INTF_DSI) &&
-		(intf_mode == MDP5_INTF_DSI_MODE_COMMAND))
-		encoder = mdp5_cmd_encoder_init(dev, &intf, ctl);
-	else
-		encoder = mdp5_encoder_init(dev, &intf, ctl);
-
+	encoder = mdp5_encoder_init(dev, &intf, ctl);
 	if (IS_ERR(encoder)) {
 		dev_err(dev->dev, "failed to construct encoder\n");
 		return encoder;
@@ -347,8 +342,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num,
-					MDP5_INTF_MODE_NONE, ctl);
+		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -366,8 +360,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num,
-					MDP5_INTF_MODE_NONE, ctl);
+		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -395,8 +388,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_DSI, intf_num,
-					    MDP5_INTF_DSI_MODE_VIDEO, ctl);
+		encoder = construct_encoder(mdp5_kms, INTF_DSI, intf_num, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;

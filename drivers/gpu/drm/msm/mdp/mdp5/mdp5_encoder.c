@@ -21,17 +21,6 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
-struct mdp5_encoder {
-	struct drm_encoder base;
-	struct mdp5_interface intf;
-	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
-	bool enabled;
-	uint32_t bsc;
-
-	struct mdp5_ctl *ctl;
-};
-#define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
-
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
@@ -283,17 +272,35 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-	mdp5_vid_encoder_mode_set(encoder, mode, adjusted_mode);
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_mode_set(encoder, mode, adjusted_mode);
+	else
+		mdp5_vid_encoder_mode_set(encoder, mode, adjusted_mode);
 }
 
 static void mdp5_encoder_disable(struct drm_encoder *encoder)
 {
-	mdp5_vid_encoder_disable(encoder);
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_disable(encoder);
+	else
+		mdp5_vid_encoder_disable(encoder);
 }
 
 static void mdp5_encoder_enable(struct drm_encoder *encoder)
 {
-	mdp5_vid_encoder_enable(encoder);
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_disable(encoder);
+	else
+		mdp5_vid_encoder_enable(encoder);
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {

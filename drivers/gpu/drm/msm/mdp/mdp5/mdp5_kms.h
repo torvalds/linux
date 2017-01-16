@@ -126,6 +126,17 @@ struct mdp5_interface {
 	enum mdp5_intf_mode mode;
 };
 
+struct mdp5_encoder {
+	struct drm_encoder base;
+	struct mdp5_interface intf;
+	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
+	bool enabled;
+	uint32_t bsc;
+
+	struct mdp5_ctl *ctl;
+};
+#define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
+
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
 	msm_writel(data, mdp5_kms->mmio + reg);
@@ -251,15 +262,24 @@ int mdp5_encoder_get_linecount(struct drm_encoder *encoder);
 u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder);
 
 #ifdef CONFIG_DRM_MSM_DSI
-struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
+void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode);
+void mdp5_cmd_encoder_disable(struct drm_encoder *encoder);
+void mdp5_cmd_encoder_enable(struct drm_encoder *encoder);
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder);
+				       struct drm_encoder *slave_encoder);
 #else
-static inline struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
+static inline void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+					     struct drm_display_mode *mode,
+					     struct drm_display_mode *adjusted_mode)
 {
-	return ERR_PTR(-EINVAL);
+}
+static inline void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
+{
+}
+static inline void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
+{
 }
 static inline int mdp5_cmd_encoder_set_split_display(
 	struct drm_encoder *encoder, struct drm_encoder *slave_encoder)
