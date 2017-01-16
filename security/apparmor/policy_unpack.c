@@ -151,8 +151,8 @@ static size_t unpack_u16_chunk(struct aa_ext *e, char **chunk)
 
 	if (!inbounds(e, sizeof(u16)))
 		return 0;
-	size = le16_to_cpu(get_unaligned((u16 *) e->pos));
-	e->pos += sizeof(u16);
+	size = le16_to_cpu(get_unaligned((__le16 *) e->pos));
+	e->pos += sizeof(__le16);
 	if (!inbounds(e, size))
 		return 0;
 	*chunk = e->pos;
@@ -223,7 +223,7 @@ static bool unpack_u32(struct aa_ext *e, u32 *data, const char *name)
 		if (!inbounds(e, sizeof(u32)))
 			return 0;
 		if (data)
-			*data = le32_to_cpu(get_unaligned((u32 *) e->pos));
+			*data = le32_to_cpu(get_unaligned((__le32 *) e->pos));
 		e->pos += sizeof(u32);
 		return 1;
 	}
@@ -236,7 +236,7 @@ static bool unpack_u64(struct aa_ext *e, u64 *data, const char *name)
 		if (!inbounds(e, sizeof(u64)))
 			return 0;
 		if (data)
-			*data = le64_to_cpu(get_unaligned((u64 *) e->pos));
+			*data = le64_to_cpu(get_unaligned((__le64 *) e->pos));
 		e->pos += sizeof(u64);
 		return 1;
 	}
@@ -249,7 +249,7 @@ static size_t unpack_array(struct aa_ext *e, const char *name)
 		int size;
 		if (!inbounds(e, sizeof(u16)))
 			return 0;
-		size = (int)le16_to_cpu(get_unaligned((u16 *) e->pos));
+		size = (int)le16_to_cpu(get_unaligned((__le16 *) e->pos));
 		e->pos += sizeof(u16);
 		return size;
 	}
@@ -262,7 +262,7 @@ static size_t unpack_blob(struct aa_ext *e, char **blob, const char *name)
 		u32 size;
 		if (!inbounds(e, sizeof(u32)))
 			return 0;
-		size = le32_to_cpu(get_unaligned((u32 *) e->pos));
+		size = le32_to_cpu(get_unaligned((__le32 *) e->pos));
 		e->pos += sizeof(u32);
 		if (inbounds(e, (size_t) size)) {
 			*blob = e->pos;
