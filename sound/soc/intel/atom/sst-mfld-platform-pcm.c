@@ -839,4 +839,5 @@ MODULE_DESCRIPTION("ASoC Intel(R) MID Platform driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:sst-atom-hifi2-platform");
 MODULE_ALIAS("platform:sst-mfld-platform");

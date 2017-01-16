@@ -2,7 +2,7 @@ config SND_MFLD_MACHINE
 	tristate "SOC Machine Audio driver for Intel Medfield MID platform"
 	depends on INTEL_SCU_IPC
 	select SND_SOC_SN95031
-	select SND_SST_MFLD_PLATFORM
+	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_PCI
 	help
           This adds support for ASoC machine driver for Intel(R) MID Medfield platform
@@ -10,7 +10,7 @@ config SND_MFLD_MACHINE
           Say Y if you have such a device.
           If unsure select "N".
 
-config SND_SST_MFLD_PLATFORM
+config SND_SST_ATOM_HIFI2_PLATFORM
 	tristate
 	select SND_SOC_COMPRESS
 
@@ -148,7 +148,7 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5640 codec"
 	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5640
-	select SND_SST_MFLD_PLATFORM
+	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	help
@@ -161,7 +161,7 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5651 codec"
 	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5651
-	select SND_SST_MFLD_PLATFORM
+	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	help
@@ -174,7 +174,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
         tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5672 codec"
         depends on X86_INTEL_LPSS && I2C && ACPI
         select SND_SOC_RT5670
-        select SND_SST_MFLD_PLATFORM
+        select SND_SST_ATOM_HIFI2_PLATFORM
         select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
         help
@@ -187,7 +187,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5645/5650 codec"
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_RT5645
-	select SND_SST_MFLD_PLATFORM
+	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	help
@@ -200,7 +200,7 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
-	select SND_SST_MFLD_PLATFORM
+	select SND_SST_ATOM_HIFI2_PLATFORM
 	select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	help
