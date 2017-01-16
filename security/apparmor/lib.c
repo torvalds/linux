@@ -12,6 +12,7 @@
  * License.
  */
 
+#include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -53,6 +54,58 @@ char *aa_split_fqname(char *fqname, char **ns_name)
 		} else
 			/* a ns name without a following profile is allowed */
 			name = NULL;
+	}
+	if (name && *name == 0)
+		name = NULL;
+
+	return name;
+}
+
+/**
+ * skipn_spaces - Removes leading whitespace from @str.
+ * @str: The string to be stripped.
+ *
+ * Returns a pointer to the first non-whitespace character in @str.
+ * if all whitespace will return NULL
+ */
+
+static const char *skipn_spaces(const char *str, size_t n)
+{
+	for (; n && isspace(*str); --n)
+		++str;
+	if (n)
+		return (char *)str;
+	return NULL;
+}
+
+const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
+			     size_t *ns_len)
+{
+	const char *end = fqname + n;
+	const char *name = skipn_spaces(fqname, n);
+
+	if (!name)
+		return NULL;
+	*ns_name = NULL;
+	*ns_len = 0;
+	if (name[0] == ':') {
+		char *split = strnchr(&name[1], end - &name[1], ':');
+		*ns_name = skipn_spaces(&name[1], end - &name[1]);
+		if (!*ns_name)
+			return NULL;
+		if (split) {
+			*ns_len = split - *ns_name;
+			if (*ns_len == 0)
+				*ns_name = NULL;
+			split++;
+			if (end - split > 1 && strncmp(split, "//", 2) == 0)
+				split += 2;
+			name = skipn_spaces(split, end - split);
+		} else {
+			/* a ns name without a following profile is allowed */
+			name = NULL;
+			*ns_len = end - *ns_name;
+		}
 	}
 	if (name && *name == 0)
 		name = NULL;
