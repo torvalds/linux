@@ -242,6 +242,7 @@ i915_vma_instance(struct drm_i915_gem_object *obj,
 		vma = i915_vma_create(obj, vm, view);
 
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_is_closed(vma));
+	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_compare(vma, vm, view));
 	GEM_BUG_ON(!IS_ERR(vma) && i915_vma_lookup(obj, vm, view) != vma);
 	return vma;
 }
