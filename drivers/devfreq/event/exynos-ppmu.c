@@ -643,6 +643,9 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 				"failed to add devfreq-event device\n");
 			return PTR_ERR(edev[i]);
 		}
+
+		pr_info("exynos-ppmu: new PPMU device registered %s (%s)\n",
+			dev_name(&pdev->dev), desc[i].name);
 	}
 
 	clk_prepare_enable(info->ppmu.clk);
