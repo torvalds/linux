@@ -582,11 +582,23 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
 	return 0;
 }
 
+/* audit callback for net specific fields */
+static void audit_cb(struct audit_buffer *ab, void *va)
+{
+	struct common_audit_data *sa = va;
+
+	if (sa->aad->iface.ns) {
+		audit_log_format(ab, " ns=");
+		audit_log_untrustedstring(ab, sa->aad->iface.ns);
+	}
+}
+
 /**
  * aa_audit_policy - Do auditing of policy changes
  * @profile: profile to check if it can manage policy
  * @op: policy operation being performed
  * @gfp: memory allocation flags
+ * @nsname: name of the ns being manipulated (MAY BE NULL)
  * @name: name of profile being manipulated (NOT NULL)
  * @info: any extra information to be audited (MAYBE NULL)
  * @error: error code
@@ -594,19 +606,21 @@ static int replacement_allowed(struct aa_profile *profile, int noreplace,
  * Returns: the error to be returned after audit is done
  */
 static int audit_policy(struct aa_profile *profile, int op, gfp_t gfp,
-			const char *name, const char *info, int error)
+			const char *nsname, const char *name,
+			const char *info, int error)
 {
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
 	sa.type = LSM_AUDIT_DATA_NONE;
 	sa.aad = &aad;
 	aad.op = op;
+	aad.iface.ns = nsname;
 	aad.name = name;
 	aad.info = info;
 	aad.error = error;
 
 	return aa_audit(AUDIT_APPARMOR_STATUS, profile, gfp,
-			&sa, NULL);
+			&sa, audit_cb);
 }
 
 /**
@@ -659,11 +673,11 @@ int aa_may_manage_policy(struct aa_profile *profile, struct aa_ns *ns, int op)
 {
 	/* check if loading policy is locked out */
 	if (aa_g_lock_policy)
-		return audit_policy(profile, op, GFP_KERNEL, NULL,
+		return audit_policy(profile, op, GFP_KERNEL, NULL, NULL,
 			     "policy_locked", -EACCES);
 
 	if (!policy_admin_capable(ns))
-		return audit_policy(profile, op, GFP_KERNEL, NULL,
+		return audit_policy(profile, op, GFP_KERNEL, NULL, NULL,
 				    "not policy admin", -EACCES);
 
 	/* TODO: add fine grained mediation of policy loads */
@@ -818,7 +832,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 	ns = aa_prepare_ns(view, ns_name);
 	if (!ns) {
 		error = audit_policy(__aa_current_profile(), op, GFP_KERNEL,
-				     ns_name,
+				     NULL, ns_name,
 				     "failed to prepare namespace", -ENOMEM);
 		goto free;
 	}
@@ -895,7 +909,7 @@ ssize_t aa_replace_profiles(struct aa_ns *view, void *udata, size_t size,
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
 
-		audit_policy(__aa_current_profile(), op, GFP_ATOMIC,
+		audit_policy(__aa_current_profile(), op, GFP_ATOMIC, NULL,
 			     ent->new->base.hname, NULL, error);
 
 		if (ent->old) {
@@ -950,7 +964,7 @@ fail_lock:
 
 	/* audit cause of failure */
 	op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-	audit_policy(__aa_current_profile(), op, GFP_KERNEL,
+	audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
 		     ent->new->base.hname, info, error);
 	/* audit status that rest of profiles in the atomic set failed too */
 	info = "valid profile in failed atomic policy load";
@@ -961,7 +975,7 @@ fail_lock:
 			continue;
 		}
 		op = (!ent->old) ? OP_PROF_LOAD : OP_PROF_REPL;
-		audit_policy(__aa_current_profile(), op, GFP_KERNEL,
+		audit_policy(__aa_current_profile(), op, GFP_KERNEL, NULL,
 			     tmp->new->base.hname, info, error);
 	}
 free:
@@ -1036,7 +1050,7 @@ ssize_t aa_remove_profiles(struct aa_ns *view, char *fqname, size_t size)
 
 	/* don't fail removal if audit fails */
 	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    name, info, error);
+			    NULL, name, info, error);
 	aa_put_ns(ns);
 	aa_put_profile(profile);
 	return size;
@@ -1047,6 +1061,6 @@ fail_ns_lock:
 
 fail:
 	(void) audit_policy(__aa_current_profile(), OP_PROF_RM, GFP_KERNEL,
-			    name, info, error);
+			    NULL, name, info, error);
 	return error;
 }

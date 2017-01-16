@@ -113,6 +113,7 @@ struct apparmor_audit_data {
 		void *target;
 		struct {
 			long pos;
+			const char *ns;
 			void *target;
 		} iface;
 		struct {
