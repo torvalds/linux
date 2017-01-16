@@ -66,13 +66,9 @@ static int audit_caps(struct aa_profile *profile, int cap, int error)
 {
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
-	struct common_audit_data sa;
-	struct apparmor_audit_data aad = {0,};
-	sa.type = LSM_AUDIT_DATA_CAP;
-	sa.aad = &aad;
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_CAP, OP_CAPABLE);
 	sa.u.cap = cap;
-	sa.aad->op = OP_CAPABLE;
-	sa.aad->error = error;
+	aad(&sa)->error = error;
 
 	if (likely(!error)) {
 		/* test if auditing is being forced */
@@ -104,7 +100,7 @@ static int audit_caps(struct aa_profile *profile, int cap, int error)
 	}
 	put_cpu_var(audit_cache);
 
-	return aa_audit(type, profile, GFP_ATOMIC, &sa, audit_cb);
+	return aa_audit(type, profile, &sa, audit_cb);
 }
 
 /**

@@ -108,33 +108,52 @@ struct apparmor_audit_data {
 	const char *name;
 	const char *info;
 	union {
-		void *target;
+		/* these entries require a custom callback fn */
 		struct {
+			struct aa_profile *peer;
+			struct {
+				const char *target;
+				u32 request;
+				u32 denied;
+				kuid_t ouid;
+			} fs;
+		};
+		struct {
+			const char *name;
 			long pos;
 			const char *ns;
-			void *target;
 		} iface;
 		struct {
 			int rlim;
 			unsigned long max;
 		} rlim;
-		struct {
-			const char *target;
-			u32 request;
-			u32 denied;
-			kuid_t ouid;
-		} fs;
 	};
 };
 
-/* define a short hand for apparmor_audit_data structure */
-#define aad apparmor_audit_data
+/* macros for dealing with  apparmor_audit_data structure */
+#define aad(SA) ((SA)->apparmor_audit_data)
+#define DEFINE_AUDIT_DATA(NAME, T, X)					\
+	/* TODO: cleanup audit init so we don't need _aad = {0,} */	\
+	struct apparmor_audit_data NAME ## _aad = { .op = (X), };	\
+	struct common_audit_data NAME =					\
+	{								\
+	.type = (T),							\
+	.u.tsk = NULL,							\
+	};								\
+	NAME.apparmor_audit_data = &(NAME ## _aad)
 
 void aa_audit_msg(int type, struct common_audit_data *sa,
 		  void (*cb) (struct audit_buffer *, void *));
-int aa_audit(int type, struct aa_profile *profile, gfp_t gfp,
-	     struct common_audit_data *sa,
+int aa_audit(int type, struct aa_profile *profile, struct common_audit_data *sa,
 	     void (*cb) (struct audit_buffer *, void *));
+
+#define aa_audit_error(ERROR, SA, CB)				\
+({								\
+	aad((SA))->error = (ERROR);				\
+	aa_audit_msg(AUDIT_APPARMOR_ERROR, (SA), (CB));		\
+	aad((SA))->error;					\
+})
+
 
 static inline int complain_error(int error)
 {

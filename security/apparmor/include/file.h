@@ -145,7 +145,7 @@ static inline u16 dfa_map_xindex(u16 mask)
 	dfa_map_xindex((ACCEPT_TABLE(dfa)[state] >> 14) & 0x3fff)
 
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
-		  gfp_t gfp, const char *op, u32 request, const char *name,
+		  const char *op, u32 request, const char *name,
 		  const char *target, kuid_t ouid, const char *info, int error);
 
 /**
