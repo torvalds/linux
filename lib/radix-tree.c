@@ -82,7 +82,7 @@ static struct kmem_cache *radix_tree_node_cachep;
  */
 struct radix_tree_preload {
 	unsigned nr;
-	/* nodes->private_data points to next preallocated node */
+	/* nodes->parent points to next preallocated node */
 	struct radix_tree_node *nodes;
 };
 static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
@@ -405,8 +405,7 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
 		rtp = this_cpu_ptr(&radix_tree_preloads);
 		if (rtp->nr) {
 			ret = rtp->nodes;
-			rtp->nodes = ret->private_data;
-			ret->private_data = NULL;
+			rtp->nodes = ret->parent;
 			rtp->nr--;
 		}
 		/*
@@ -483,7 +482,7 @@ static int __radix_tree_preload(gfp_t gfp_mask, unsigned nr)
 		preempt_disable();
 		rtp = this_cpu_ptr(&radix_tree_preloads);
 		if (rtp->nr < nr) {
-			node->private_data = rtp->nodes;
+			node->parent = rtp->nodes;
 			rtp->nodes = node;
 			rtp->nr++;
 		} else {
@@ -2260,7 +2259,7 @@ static int radix_tree_cpu_dead(unsigned int cpu)
 	rtp = &per_cpu(radix_tree_preloads, cpu);
 	while (rtp->nr) {
 		node = rtp->nodes;
-		rtp->nodes = node->private_data;
+		rtp->nodes = node->parent;
 		kmem_cache_free(radix_tree_node_cachep, node);
 		rtp->nr--;
 	}

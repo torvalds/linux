@@ -35,9 +35,9 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 	if (cachep->nr_objs) {
 		cachep->nr_objs--;
 		node = cachep->objs;
-		cachep->objs = node->private_data;
+		cachep->objs = node->parent;
 		pthread_mutex_unlock(&cachep->lock);
-		node->private_data = NULL;
+		node->parent = NULL;
 	} else {
 		pthread_mutex_unlock(&cachep->lock);
 		node = malloc(cachep->size);
@@ -64,7 +64,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	} else {
 		struct radix_tree_node *node = objp;
 		cachep->nr_objs++;
-		node->private_data = cachep->objs;
+		node->parent = cachep->objs;
 		cachep->objs = node;
 	}
 	pthread_mutex_unlock(&cachep->lock);
