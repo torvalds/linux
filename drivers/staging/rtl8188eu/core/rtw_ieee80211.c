@@ -1000,7 +1000,7 @@ int ieee80211_get_hdrlen(u16 fc)
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	u32 wpa_ielen;
+	int wpa_ielen;
 	unsigned char *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
