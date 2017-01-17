@@ -64,8 +64,10 @@
 	i2s0: i2s@03830000 {
 		compatible = "samsung,s5pv210-i2s";
 		reg = <0x03830000 0x100>;
-		clocks = <&clock_audss EXYNOS_I2S_BUS>;
-		clock-names = "iis";
+		clocks = <&clock_audss EXYNOS_I2S_BUS>,
+			 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
+			 <&clock_audss EXYNOS_SCLK_I2S>;
+		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 		#clock-cells = <1>;
 		clock-output-names = "i2s_cdclk0";
 		dmas = <&pdma0 12>, <&pdma0 11>, <&pdma0 10>;
