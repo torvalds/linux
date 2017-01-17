@@ -801,6 +801,27 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 	iwl_wake_queue(trans, txq);
 }
 
+static void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
+					  struct iwl_txq *txq)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct device *dev = trans->dev;
+
+	/* De-alloc circular buffer of TFDs */
+	if (txq->tfds) {
+		dma_free_coherent(dev,
+				  trans_pcie->tfd_size * TFD_QUEUE_SIZE_MAX,
+				  txq->tfds, txq->dma_addr);
+		dma_free_coherent(dev,
+				  sizeof(*txq->first_tb_bufs) * txq->n_window,
+				  txq->first_tb_bufs, txq->first_tb_dma);
+	}
+
+	kfree(txq->entries);
+	iwl_pcie_free_dma_ptr(trans, &txq->bc_tbl);
+	kfree(txq);
+}
+
 /*
  * iwl_pcie_txq_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
@@ -813,7 +834,6 @@ static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
-	struct device *dev = trans->dev;
 	int i;
 
 	if (WARN_ON(!txq))
@@ -827,23 +847,10 @@ static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 			kzfree(txq->entries[i].cmd);
 			kzfree(txq->entries[i].free_buf);
 		}
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->tfds) {
-		dma_free_coherent(dev,
-				  trans_pcie->tfd_size * TFD_QUEUE_SIZE_MAX,
-				  txq->tfds, txq->dma_addr);
-		dma_free_coherent(dev,
-				  sizeof(*txq->first_tb_bufs) * txq->n_window,
-				  txq->first_tb_bufs, txq->first_tb_dma);
-	}
-
-	kfree(txq->entries);
-
 	del_timer_sync(&txq->stuck_timer);
 
-	iwl_pcie_free_dma_ptr(trans, &txq->bc_tbl);
-	kfree(txq);
+	iwl_pcie_gen2_txq_free_memory(trans, txq);
+
 	trans_pcie->txq[txq_id] = NULL;
 
 	clear_bit(txq_id, trans_pcie->queue_used);
@@ -882,13 +889,14 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 	}
 
 	trans_pcie->txq[qid] = txq;
+	trans_pcie->txq[qid]->id = qid;
 
-	ret = iwl_pcie_txq_alloc(trans, txq, TFD_TX_CMD_SLOTS, qid);
+	ret = iwl_pcie_txq_alloc(trans, txq, TFD_TX_CMD_SLOTS, false);
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue init failed\n", qid);
 		goto error;
 	}
-	ret = iwl_pcie_txq_init(trans, txq, TFD_TX_CMD_SLOTS, qid);
+	ret = iwl_pcie_txq_init(trans, txq, TFD_TX_CMD_SLOTS, false);
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue alloc failed\n", qid);
 		goto error;
@@ -970,8 +978,7 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 			return -ENOMEM;
 		}
 		trans_pcie->txq[txq_id] = cmd_queue;
-		ret = iwl_pcie_txq_alloc(trans, cmd_queue, TFD_CMD_SLOTS,
-					 txq_id);
+		ret = iwl_pcie_txq_alloc(trans, cmd_queue, TFD_CMD_SLOTS, true);
 		if (ret) {
 			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -980,11 +987,12 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 		cmd_queue = trans_pcie->txq[txq_id];
 	}
 
-	ret = iwl_pcie_txq_init(trans, cmd_queue, TFD_CMD_SLOTS, txq_id);
+	ret = iwl_pcie_txq_init(trans, cmd_queue, TFD_CMD_SLOTS, true);
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue alloc failed\n", txq_id);
 		goto error;
 	}
+	trans_pcie->txq[txq_id]->id = txq_id;
 	set_bit(txq_id, trans_pcie->queue_used);
 
 	return 0;

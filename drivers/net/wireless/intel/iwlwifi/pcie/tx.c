@@ -102,10 +102,9 @@ int iwl_queue_space(const struct iwl_txq *q)
 /*
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl_queue_init(struct iwl_txq *q, int slots_num, u32 id)
+static int iwl_queue_init(struct iwl_txq *q, int slots_num)
 {
 	q->n_window = slots_num;
-	q->id = id;
 
 	/* slots_num must be power-of-two size, otherwise
 	 * get_cmd_index is broken. */
@@ -484,7 +483,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 }
 
 int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
-		       int slots_num, u32 txq_id)
+		       int slots_num, bool cmd_queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t tfd_sz = trans_pcie->tfd_size * TFD_QUEUE_SIZE_MAX;
@@ -507,7 +506,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (!txq->entries)
 		goto error;
 
-	if (txq_id == trans_pcie->cmd_queue)
+	if (cmd_queue)
 		for (i = 0; i < slots_num; i++) {
 			txq->entries[i].cmd =
 				kmalloc(sizeof(struct iwl_device_cmd),
@@ -533,13 +532,11 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (!txq->first_tb_bufs)
 		goto err_free_tfds;
 
-	txq->id = txq_id;
-
 	return 0;
 err_free_tfds:
 	dma_free_coherent(trans->dev, tfd_sz, txq->tfds, txq->dma_addr);
 error:
-	if (txq->entries && txq_id == trans_pcie->cmd_queue)
+	if (txq->entries && cmd_queue)
 		for (i = 0; i < slots_num; i++)
 			kfree(txq->entries[i].cmd);
 	kfree(txq->entries);
@@ -550,9 +547,8 @@ error:
 }
 
 int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
-		      int slots_num, u32 txq_id)
+		      int slots_num, bool cmd_queue)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
 	txq->need_update = false;
@@ -562,13 +558,13 @@ int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	ret = iwl_queue_init(txq, slots_num, txq_id);
+	ret = iwl_queue_init(txq, slots_num);
 	if (ret)
 		return ret;
 
 	spin_lock_init(&txq->lock);
 
-	if (txq_id == trans_pcie->cmd_queue) {
+	if (cmd_queue) {
 		static struct lock_class_key iwl_pcie_cmd_queue_lock_class;
 
 		lockdep_set_class(&txq->lock, &iwl_pcie_cmd_queue_lock_class);
@@ -951,15 +947,17 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
 	     txq_id++) {
-		slots_num = (txq_id == trans_pcie->cmd_queue) ?
-					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
+
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
-					 slots_num, txq_id);
+					 slots_num, cmd_queue);
 		if (ret) {
 			IWL_ERR(trans, "Tx %d queue alloc failed\n", txq_id);
 			goto error;
 		}
+		trans_pcie->txq[txq_id]->id = txq_id;
 	}
 
 	return 0;
@@ -998,10 +996,11 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
 	     txq_id++) {
-		slots_num = (txq_id == trans_pcie->cmd_queue) ?
-					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
+
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
-					slots_num, txq_id);
+					slots_num, cmd_queue);
 		if (ret) {
 			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
 			goto error;

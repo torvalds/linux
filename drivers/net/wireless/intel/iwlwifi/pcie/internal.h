@@ -772,9 +772,9 @@ int iwl_queue_space(const struct iwl_txq *q);
 int iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
-		      int slots_num, u32 txq_id);
+		      int slots_num, bool cmd_queue);
 int iwl_pcie_txq_alloc(struct iwl_trans *trans,
-		       struct iwl_txq *txq, int slots_num, u32 txq_id);
+		       struct iwl_txq *txq, int slots_num,  bool cmd_queue);
 int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
