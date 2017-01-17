@@ -122,7 +122,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 {
 	unsigned long size = end - start;
 
-	if (start <= end)
+	if (start >= end)
 		return -EINVAL;
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
