@@ -224,7 +224,7 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 		} else if (instance->closing) {
 			vchiq_log_info(vchiq_arm_log_level,
 				"service_callback closing");
-			return VCHIQ_ERROR;
+			return VCHIQ_SUCCESS;
 		}
 		DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 	}
