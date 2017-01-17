@@ -51,6 +51,10 @@ struct adv7511 {
 	struct gpio_desc *gpio_pd;
 };
 
+static const int edid_i2c_addr = 0x7e;
+static const int packet_i2c_addr = 0x70;
+static const int cec_i2c_addr = 0x78;
+
 static struct adv7511 *encoder_to_adv7511(struct drm_encoder *encoder)
 {
 	return to_encoder_slave(encoder)->slave_priv;
@@ -606,6 +610,9 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 				     ADV7511_INT1_DDC_ERROR);
 		}
 		adv7511->current_edid_segment = -1;
+		/* Reset the EDID_I2C_ADDR register as it might be cleared */
+		regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
+				edid_i2c_addr);
 	}
 
 	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
@@ -880,10 +887,6 @@ static int adv7511_parse_dt(struct device_node *np,
 
 	return 0;
 }
-
-static const int edid_i2c_addr = 0x7e;
-static const int packet_i2c_addr = 0x70;
-static const int cec_i2c_addr = 0x78;
 
 static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
