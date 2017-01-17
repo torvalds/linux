@@ -1429,6 +1429,8 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 						updates[i].plane_info->tiling_info;
 					surface->public.visible =
 						updates[i].plane_info->visible;
+					surface->public.dcc =
+						updates[i].plane_info->dcc;
 				}
 
 				if (updates[i].scaling_info) {
