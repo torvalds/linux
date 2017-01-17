@@ -46,6 +46,7 @@
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
 #include <net/l3mdev.h>
+#include <net/lwtunnel.h>
 #include <trace/events/fib.h>
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
@@ -676,6 +677,10 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			cfg->fc_mx_len = nla_len(attr);
 			break;
 		case RTA_MULTIPATH:
+			err = lwtunnel_valid_encap_type_attr(nla_data(attr),
+							     nla_len(attr));
+			if (err < 0)
+				goto errout;
 			cfg->fc_mp = nla_data(attr);
 			cfg->fc_mp_len = nla_len(attr);
 			break;
@@ -690,6 +695,9 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			break;
 		case RTA_ENCAP_TYPE:
 			cfg->fc_encap_type = nla_get_u16(attr);
+			err = lwtunnel_valid_encap_type(cfg->fc_encap_type);
+			if (err < 0)
+				goto errout;
 			break;
 		}
 	}
