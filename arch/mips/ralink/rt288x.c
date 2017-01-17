@@ -40,16 +40,6 @@ static struct rt2880_pmx_group rt2880_pinmux_data_act[] = {
 	{ 0 }
 };
 
-static void rt288x_wdt_reset(void)
-{
-	u32 t;
-
-	/* enable WDT reset output on pin SRAM_CS_N */
-	t = rt_sysc_r32(SYSC_REG_CLKCFG);
-	t |= CLKCFG_SRAM_CS_N_WDT;
-	rt_sysc_w32(t, SYSC_REG_CLKCFG);
-}
-
 void __init ralink_clk_init(void)
 {
 	unsigned long cpu_rate, wmac_rate = 40000000;

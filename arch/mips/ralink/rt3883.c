@@ -63,16 +63,6 @@ static struct rt2880_pmx_group rt3883_pinmux_data[] = {
 	{ 0 }
 };
 
-static void rt3883_wdt_reset(void)
-{
-	u32 t;
-
-	/* enable WDT reset output on GPIO 2 */
-	t = rt_sysc_r32(RT3883_SYSC_REG_SYSCFG1);
-	t |= RT3883_SYSCFG1_GPIO2_AS_WDT_OUT;
-	rt_sysc_w32(t, RT3883_SYSC_REG_SYSCFG1);
-}
-
 void __init ralink_clk_init(void)
 {
 	unsigned long cpu_rate, sys_rate;
