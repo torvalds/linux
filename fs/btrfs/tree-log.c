@@ -4241,13 +4241,13 @@ process:
 	return ret;
 }
 
-static int logged_inode_size(struct btrfs_root *log, struct inode *inode,
+static int logged_inode_size(struct btrfs_root *log, struct btrfs_inode *inode,
 			     struct btrfs_path *path, u64 *size_ret)
 {
 	struct btrfs_key key;
 	int ret;
 
-	key.objectid = btrfs_ino(BTRFS_I(inode));
+	key.objectid = btrfs_ino(inode);
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
@@ -4699,7 +4699,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			 * (zeroes), as if an expanding truncate happened,
 			 * instead of getting a file of 4Kb only.
 			 */
-			err = logged_inode_size(log, inode, path,
+			err = logged_inode_size(log, BTRFS_I(inode), path,
 						&logged_isize);
 			if (err)
 				goto out_unlock;
