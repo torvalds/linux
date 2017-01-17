@@ -83,6 +83,14 @@
 			};
 		};
 
+		base_fpga_region {
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+
+			compatible = "fpga-region";
+			fpga-mgr = <&fpga_mgr>;
+		};
+
 		clkmgr@ffd04000 {
 				compatible = "altr,clk-mgr";
 				reg = <0xffd04000 0x1000>;
@@ -512,6 +520,15 @@
 			};
 		};
 
+		fpga_mgr: fpga-mgr@ffd03000 {
+			compatible = "altr,socfpga-a10-fpga-mgr";
+			reg = <0xffd03000 0x100
+			       0xffcfe400 0x20>;
+			clocks = <&l4_mp_clk>;
+			resets = <&rst FPGAMGR_RESET>;
+			reset-names = "fpgamgr";
+		};
+
 		i2c0: i2c@ffc02200 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -578,7 +595,7 @@
 		};
 
 		sdr: sdr@ffc25000 {
-			compatible = "syscon";
+			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffcfb100 0x80>;
 		};
 
@@ -602,6 +619,19 @@
 			fifo-depth = <0x400>;
 			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
+			status = "disabled";
+		};
+
+		nand: nand@ffb90000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "denali,denali-nand-dt", "altr,socfpga-denali-nand";
+			reg = <0xffb90000 0x72000>,
+			      <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0 99 4>;
+			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
 			status = "disabled";
 		};
 
