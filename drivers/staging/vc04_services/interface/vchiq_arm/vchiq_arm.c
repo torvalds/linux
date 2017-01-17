@@ -279,6 +279,7 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 	USER_SERVICE_T *user_service;
 	VCHIQ_SERVICE_T *service;
 	VCHIQ_INSTANCE_T instance;
+	bool skip_completion = false;
 	DEBUG_INITIALISE(g_state.local)
 
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
@@ -345,9 +346,6 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 		user_service->msg_queue[user_service->msg_insert &
 			(MSG_QUEUE_SIZE - 1)] = header;
 		user_service->msg_insert++;
-		spin_unlock(&msg_queue_spinlock);
-
-		up(&user_service->insert_event);
 
 		/* If there is a thread waiting in DEQUEUE_MESSAGE, or if
 		** there is a MESSAGE_AVAILABLE in the completion queue then
@@ -356,14 +354,19 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 		if (((user_service->message_available_pos -
 			instance->completion_remove) >= 0) ||
 			user_service->dequeue_pending) {
-			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			user_service->dequeue_pending = 0;
-			return VCHIQ_SUCCESS;
+			skip_completion = true;
 		}
+
+		spin_unlock(&msg_queue_spinlock);
+		up(&user_service->insert_event);
 
 		header = NULL;
 	}
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
+
+	if (skip_completion)
+		return VCHIQ_SUCCESS;
 
 	return add_completion(instance, reason, header, user_service,
 		bulk_userdata);
