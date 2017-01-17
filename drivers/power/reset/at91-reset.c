@@ -248,20 +248,12 @@ static int __exit at91_reset_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id at91_reset_plat_match[] = {
-	{ "at91-sam9260-reset", (unsigned long)at91sam9260_restart },
-	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, at91_reset_plat_match);
-
 static struct platform_driver at91_reset_driver = {
 	.remove = __exit_p(at91_reset_remove),
 	.driver = {
 		.name = "at91-reset",
 		.of_match_table = at91_reset_of_match,
 	},
-	.id_table = at91_reset_plat_match,
 };
 module_platform_driver_probe(at91_reset_driver, at91_reset_probe);
 
