@@ -1868,7 +1868,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 
-	while (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
+	while (rx_desc->wb.upper.length) {
 		/* check Rx buffer */
 		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
 

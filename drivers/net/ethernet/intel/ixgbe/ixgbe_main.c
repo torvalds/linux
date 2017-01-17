@@ -1640,8 +1640,8 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 			i -= rx_ring->count;
 		}
 
-		/* clear the status bits for the next_to_use descriptor */
-		rx_desc->wb.upper.status_error = 0;
+		/* clear the length for the next_to_use descriptor */
+		rx_desc->wb.upper.length = 0;
 
 		cleaned_count--;
 	} while (cleaned_count);
@@ -2154,7 +2154,7 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 		rx_desc = IXGBE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		if (!rx_desc->wb.upper.status_error)
+		if (!rx_desc->wb.upper.length)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
@@ -3698,6 +3698,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 			     struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	union ixgbe_adv_rx_desc *rx_desc;
 	u64 rdba = ring->dma;
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
@@ -3731,6 +3732,10 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 		rxdctl &= ~0x3FFFFF;
 		rxdctl |=  0x080420;
 	}
+
+	/* initialize Rx descriptor 0 */
+	rx_desc = IXGBE_RX_DESC(ring, 0);
+	rx_desc->wb.upper.length = 0;
 
 	/* enable receive descriptor ring */
 	rxdctl |= IXGBE_RXDCTL_ENABLE;
@@ -4939,9 +4944,6 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
 	memset(rx_ring->rx_buffer_info, 0, size);
-
-	/* Zero out the descriptor ring */
-	memset(rx_ring->desc, 0, rx_ring->size);
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
