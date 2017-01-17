@@ -4277,13 +4277,13 @@ static int logged_inode_size(struct btrfs_root *log, struct btrfs_inode *inode,
  */
 static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				struct inode *inode,
+				struct btrfs_inode *inode,
 				struct btrfs_path *path,
 				struct btrfs_path *dst_path)
 {
 	int ret;
 	struct btrfs_key key;
-	const u64 ino = btrfs_ino(BTRFS_I(inode));
+	const u64 ino = btrfs_ino(inode);
 	int ins_nr = 0;
 	int start_slot = 0;
 
@@ -4304,7 +4304,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 			if (ins_nr > 0) {
 				u64 last_extent = 0;
 
-				ret = copy_items(trans, BTRFS_I(inode), dst_path, path,
+				ret = copy_items(trans, inode, dst_path, path,
 						 &last_extent, start_slot,
 						 ins_nr, 1, 0);
 				/* can't be 1, extent items aren't processed */
@@ -4334,7 +4334,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 	if (ins_nr > 0) {
 		u64 last_extent = 0;
 
-		ret = copy_items(trans, BTRFS_I(inode), dst_path, path,
+		ret = copy_items(trans, inode, dst_path, path,
 				 &last_extent, start_slot,
 				 ins_nr, 1, 0);
 		/* can't be 1, extent items aren't processed */
@@ -4919,7 +4919,7 @@ next_key:
 
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
-	err = btrfs_log_all_xattrs(trans, root, inode, path, dst_path);
+	err = btrfs_log_all_xattrs(trans, root, BTRFS_I(inode), path, dst_path);
 	if (err)
 		goto out_unlock;
 	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
