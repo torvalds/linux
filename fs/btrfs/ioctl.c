@@ -2497,7 +2497,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
 
-	btrfs_record_snapshot_destroy(trans, dir);
+	btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
 
 	ret = btrfs_unlink_subvol(trans, root, dir,
 				dest->root_key.objectid,
