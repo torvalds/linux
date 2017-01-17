@@ -186,7 +186,7 @@ static int davinci_gpio_of_xlate(struct gpio_chip *gc,
 
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
-	static int ctrl_num;
+	static int ctrl_num, bank_base;
 	int gpio, bank;
 	unsigned ngpio, nbank;
 	struct davinci_gpio_controller *chips;
@@ -240,6 +240,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.set = davinci_gpio_set;
 
 	chips->chip.ngpio = ngpio;
+	chips->chip.base = bank_base;
 
 #ifdef CONFIG_OF_GPIO
 	chips->chip.of_gpio_n_cells = 2;
@@ -248,6 +249,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.of_node = dev->of_node;
 #endif
 	spin_lock_init(&chips->lock);
+	bank_base += ngpio;
 
 	for (gpio = 0, bank = 0; gpio < ngpio; gpio += 32, bank++)
 		chips->regs[bank] = gpio_base + offset_array[bank];

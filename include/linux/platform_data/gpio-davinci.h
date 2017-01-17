@@ -42,6 +42,7 @@ struct davinci_gpio_controller {
 	void __iomem		*regs[MAX_REGS_BANKS];
 	int			gpio_unbanked;
 	unsigned int		base_irq;
+	unsigned int		base;
 };
 
 /*
