@@ -2150,7 +2150,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	phba->soft_wwn_enable = 0;
 
 	rc = lpfc_wwn_set(buf, cnt, wwpn);
-	if (!rc) {
+	if (rc) {
 		/* not able to set wwpn, unlock it */
 		phba->soft_wwn_enable = 1;
 		return rc;
@@ -2231,7 +2231,7 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	rc = lpfc_wwn_set(buf, cnt, wwnn);
-	if (!rc) {
+	if (rc) {
 		/* Allow wwnn to be set many times, as long as the enable
 		 * is set. However, once the wwpn is set, everything locks.
 		 */
