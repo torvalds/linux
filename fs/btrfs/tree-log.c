@@ -3596,19 +3596,19 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 
 static int log_inode_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *log, struct btrfs_path *path,
-			  struct inode *inode)
+			  struct btrfs_inode *inode)
 {
 	struct btrfs_inode_item *inode_item;
 	int ret;
 
 	ret = btrfs_insert_empty_item(trans, log, path,
-				      &BTRFS_I(inode)->location,
-				      sizeof(*inode_item));
+				      &inode->location, sizeof(*inode_item));
 	if (ret && ret != -EEXIST)
 		return ret;
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				    struct btrfs_inode_item);
-	fill_inode_item(trans, path->nodes[0], inode_item, inode, 0, 0);
+	fill_inode_item(trans, path->nodes[0], inode_item, &inode->vfs_inode,
+			0, 0);
 	btrfs_release_path(path);
 	return 0;
 }
@@ -4934,7 +4934,7 @@ log_extents:
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
 	if (need_log_inode_item) {
-		err = log_inode_item(trans, log, dst_path, inode);
+		err = log_inode_item(trans, log, dst_path, BTRFS_I(inode));
 		if (err)
 			goto out_unlock;
 	}
