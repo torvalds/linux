@@ -17,7 +17,7 @@
 
 #include <linux/string.h>
 
-#ifdef CONFIG_OR1200
+#ifdef CONFIG_OR1K_1200
 /*
  * Do memcpy with word copies and loop unrolling. This gives the
  * best performance on the OR1200 and MOR1KX archirectures
