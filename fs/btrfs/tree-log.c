@@ -5155,7 +5155,7 @@ struct btrfs_dir_list {
  */
 static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				struct inode *start_inode,
+				struct btrfs_inode *start_inode,
 				struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -5174,7 +5174,7 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 		return -ENOMEM;
 	}
-	dir_elem->ino = btrfs_ino(BTRFS_I(start_inode));
+	dir_elem->ino = btrfs_ino(start_inode);
 	list_add_tail(&dir_elem->list, &dir_list);
 
 	while (!list_empty(&dir_list)) {
@@ -5368,7 +5368,7 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 				ret = 1;
 			if (!ret && ctx && ctx->log_new_dentries)
 				ret = log_new_dir_dentries(trans, root,
-							   dir_inode, ctx);
+							   BTRFS_I(dir_inode), ctx);
 			iput(dir_inode);
 			if (ret)
 				goto out;
@@ -5531,7 +5531,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		old_parent = parent;
 	}
 	if (log_dentries)
-		ret = log_new_dir_dentries(trans, root, orig_inode, ctx);
+		ret = log_new_dir_dentries(trans, root, BTRFS_I(orig_inode), ctx);
 	else
 		ret = 0;
 end_trans:
