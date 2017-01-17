@@ -767,41 +767,44 @@ static void dce112_program_pixel_clk_resync(
 		enum dc_color_depth colordepth,
 		bool enable_ycbcr420)
 {
-	REG_UPDATE(PIXCLK_RESYNC_CNTL,
-			PHYPLLA_DCCG_DEEP_COLOR_CNTL, 0);
+	uint32_t deep_color_cntl = 0;
+	uint32_t double_rate_enable = 0;
+
 	/*
 	 24 bit mode: TMDS clock = 1.0 x pixel clock  (1:1)
 	 30 bit mode: TMDS clock = 1.25 x pixel clock (5:4)
 	 36 bit mode: TMDS clock = 1.5 x pixel clock  (3:2)
 	 48 bit mode: TMDS clock = 2 x pixel clock    (2:1)
 	 */
-	if (signal_type != SIGNAL_TYPE_HDMI_TYPE_A)
-		return;
+	if (signal_type == SIGNAL_TYPE_HDMI_TYPE_A) {
+		double_rate_enable = enable_ycbcr420 ? 1 : 0;
 
-	switch (colordepth) {
-	case COLOR_DEPTH_888:
-		REG_UPDATE_2(PIXCLK_RESYNC_CNTL,
-				PHYPLLA_DCCG_DEEP_COLOR_CNTL, 0,
-				PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, enable_ycbcr420);
-		break;
-	case COLOR_DEPTH_101010:
-		REG_UPDATE_2(PIXCLK_RESYNC_CNTL,
-				PHYPLLA_DCCG_DEEP_COLOR_CNTL, 1,
-				PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, enable_ycbcr420);
-		break;
-	case COLOR_DEPTH_121212:
-		REG_UPDATE_2(PIXCLK_RESYNC_CNTL,
-				PHYPLLA_DCCG_DEEP_COLOR_CNTL, 2,
-				PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, enable_ycbcr420);
-		break;
-	case COLOR_DEPTH_161616:
-		REG_UPDATE_2(PIXCLK_RESYNC_CNTL,
-				PHYPLLA_DCCG_DEEP_COLOR_CNTL, 3,
-				PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, enable_ycbcr420);
-		break;
-	default:
-		break;
+		switch (colordepth) {
+		case COLOR_DEPTH_888:
+			deep_color_cntl = 0;
+			break;
+		case COLOR_DEPTH_101010:
+			deep_color_cntl = 1;
+			break;
+		case COLOR_DEPTH_121212:
+			deep_color_cntl = 2;
+			break;
+		case COLOR_DEPTH_161616:
+			deep_color_cntl = 3;
+			break;
+		default:
+			break;
+		}
 	}
+
+	if (clk_src->cs_mask->PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE)
+		REG_UPDATE_2(PIXCLK_RESYNC_CNTL,
+				PHYPLLA_DCCG_DEEP_COLOR_CNTL, deep_color_cntl,
+				PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, double_rate_enable);
+	else
+		REG_UPDATE(PIXCLK_RESYNC_CNTL,
+				PHYPLLA_DCCG_DEEP_COLOR_CNTL, deep_color_cntl);
+
 }
 
 static bool dce110_program_pix_clk(
