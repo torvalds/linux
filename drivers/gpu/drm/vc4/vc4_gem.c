@@ -601,6 +601,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 					  sizeof(struct vc4_shader_state)) ||
 	    temp_size < exec_size) {
 		DRM_ERROR("overflow in exec arguments\n");
+		ret = -EINVAL;
 		goto fail;
 	}
 
