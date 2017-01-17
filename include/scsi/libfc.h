@@ -809,11 +809,11 @@ static inline void fc_set_wwnn(struct fc_lport *lport, u64 wwnn)
 /**
  * fc_set_wwpn() - Set the World Wide Port Name of a local port
  * @lport: The local port whose WWPN is to be set
- * @wwnn:  The new WWPN
+ * @wwpn:  The new WWPN
  */
-static inline void fc_set_wwpn(struct fc_lport *lport, u64 wwnn)
+static inline void fc_set_wwpn(struct fc_lport *lport, u64 wwpn)
 {
-	lport->wwpn = wwnn;
+	lport->wwpn = wwpn;
 }
 
 /**
