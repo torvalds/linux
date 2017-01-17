@@ -324,6 +324,12 @@ bool qcom_scm_is_available(void)
 }
 EXPORT_SYMBOL(qcom_scm_is_available);
 
+int qcom_scm_set_remote_state(u32 state, u32 id)
+{
+	return __qcom_scm_set_remote_state(__scm->dev, state, id);
+}
+EXPORT_SYMBOL(qcom_scm_set_remote_state);
+
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct qcom_scm *scm;
