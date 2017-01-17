@@ -1715,9 +1715,9 @@ static int at86rf230_probe(struct spi_device *spi)
 	/* Reset */
 	if (gpio_is_valid(rstn)) {
 		udelay(1);
-		gpio_set_value(rstn, 0);
+		gpio_set_value_cansleep(rstn, 0);
 		udelay(1);
-		gpio_set_value(rstn, 1);
+		gpio_set_value_cansleep(rstn, 1);
 		usleep_range(120, 240);
 	}
 

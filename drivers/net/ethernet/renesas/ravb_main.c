@@ -926,14 +926,10 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	/* Receive error message handling */
 	priv->rx_over_errors =  priv->stats[RAVB_BE].rx_over_errors;
 	priv->rx_over_errors += priv->stats[RAVB_NC].rx_over_errors;
-	if (priv->rx_over_errors != ndev->stats.rx_over_errors) {
+	if (priv->rx_over_errors != ndev->stats.rx_over_errors)
 		ndev->stats.rx_over_errors = priv->rx_over_errors;
-		netif_err(priv, rx_err, ndev, "Receive Descriptor Empty\n");
-	}
-	if (priv->rx_fifo_errors != ndev->stats.rx_fifo_errors) {
+	if (priv->rx_fifo_errors != ndev->stats.rx_fifo_errors)
 		ndev->stats.rx_fifo_errors = priv->rx_fifo_errors;
-		netif_err(priv, rx_err, ndev, "Receive FIFO Overflow\n");
-	}
 out:
 	return budget - quota;
 }
@@ -1508,6 +1504,19 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	buffer = PTR_ALIGN(priv->tx_align[q], DPTR_ALIGN) +
 		 entry / NUM_TX_DESC * DPTR_ALIGN;
 	len = PTR_ALIGN(skb->data, DPTR_ALIGN) - skb->data;
+	/* Zero length DMA descriptors are problematic as they seem to
+	 * terminate DMA transfers. Avoid them by simply using a length of
+	 * DPTR_ALIGN (4) when skb data is aligned to DPTR_ALIGN.
+	 *
+	 * As skb is guaranteed to have at least ETH_ZLEN (60) bytes of
+	 * data by the call to skb_put_padto() above this is safe with
+	 * respect to both the length of the first DMA descriptor (len)
+	 * overflowing the available data and the length of the second DMA
+	 * descriptor (skb->len - len) being negative.
+	 */
+	if (len == 0)
+		len = DPTR_ALIGN;
+
 	memcpy(buffer, skb->data, len);
 	dma_addr = dma_map_single(ndev->dev.parent, buffer, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ndev->dev.parent, dma_addr))
