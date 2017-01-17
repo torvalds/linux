@@ -78,18 +78,29 @@ struct isl29028_chip {
 static int isl29028_set_proxim_sampling(struct isl29028_chip *chip,
 					unsigned int sampling)
 {
+	struct device *dev = regmap_get_device(chip->regmap);
 	static unsigned int prox_period[] = {800, 400, 200, 100, 75, 50, 12, 0};
-	int sel;
 	unsigned int period = DIV_ROUND_UP(1000, sampling);
+	int sel, ret;
 
 	for (sel = 0; sel < ARRAY_SIZE(prox_period); ++sel) {
 		if (period >= prox_period[sel])
 			break;
 	}
 
-	return regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
-				  ISL29028_CONF_PROX_SLP_MASK,
-				  sel << ISL29028_CONF_PROX_SLP_SH);
+	ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
+				 ISL29028_CONF_PROX_SLP_MASK,
+				 sel << ISL29028_CONF_PROX_SLP_SH);
+
+	if (ret < 0) {
+		dev_err(dev, "%s(): Error %d setting the proximity sampling\n",
+			__func__, ret);
+		return ret;
+	}
+
+	chip->prox_sampling = sampling;
+
+	return ret;
 }
 
 static int isl29028_enable_proximity(struct isl29028_chip *chip, bool enable)
@@ -291,14 +302,6 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 		}
 
 		ret = isl29028_set_proxim_sampling(chip, val);
-		if (ret < 0) {
-			dev_err(dev,
-				"Setting proximity samp_freq fail, err %d\n",
-				ret);
-			break;
-		}
-
-		chip->prox_sampling = val;
 		break;
 	case IIO_LIGHT:
 		if (mask != IIO_CHAN_INFO_SCALE) {
@@ -437,10 +440,8 @@ static int isl29028_chip_init_and_power_on(struct isl29028_chip *chip)
 	}
 
 	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
-	if (ret < 0) {
-		dev_err(dev, "setting the proximity, err = %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = isl29028_set_als_scale(chip, chip->lux_scale);
 	if (ret < 0)
