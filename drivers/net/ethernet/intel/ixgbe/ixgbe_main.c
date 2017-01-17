@@ -1552,6 +1552,11 @@ static inline void ixgbe_rx_checksum(struct ixgbe_ring *ring,
 	}
 }
 
+static inline unsigned int ixgbe_rx_offset(struct ixgbe_ring *rx_ring)
+{
+	return ring_uses_build_skb(rx_ring) ? IXGBE_SKB_PAD : 0;
+}
+
 static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 				    struct ixgbe_rx_buffer *bi)
 {
@@ -1588,7 +1593,7 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 
 	bi->dma = dma;
 	bi->page = page;
-	bi->page_offset = 0;
+	bi->page_offset = ixgbe_rx_offset(rx_ring);
 	bi->pagecnt_bias = 1;
 
 	return true;
@@ -2001,7 +2006,9 @@ static void ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbe_rx_pg_size(rx_ring) / 2;
 #else
-	unsigned int truesize = SKB_DATA_ALIGN(size);
+	unsigned int truesize = ring_uses_build_skb(rx_ring) ?
+				SKB_DATA_ALIGN(IXGBE_SKB_PAD + size) :
+				SKB_DATA_ALIGN(size);
 #endif
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_buffer->page,
 			rx_buffer->page_offset, size, truesize);
@@ -2083,7 +2090,7 @@ static struct sk_buff *ixgbe_construct_skb(struct ixgbe_ring *rx_ring,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbe_rx_pg_size(rx_ring) / 2;
 #else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
 	struct sk_buff *skb;
 
@@ -3410,7 +3417,10 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	srrctl = IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT;
 
 	/* configure the packet buffer length */
-	srrctl |= ixgbe_rx_bufsz(rx_ring) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	if (test_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state))
+		srrctl |= IXGBE_RXBUFFER_3K >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	else
+		srrctl |= IXGBE_RXBUFFER_2K >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
 	/* configure descriptor type */
 	srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
@@ -3744,6 +3754,17 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 		 */
 		rxdctl &= ~0x3FFFFF;
 		rxdctl |=  0x080420;
+#if (PAGE_SIZE < 8192)
+	} else {
+		rxdctl &= ~(IXGBE_RXDCTL_RLPMLMASK |
+			    IXGBE_RXDCTL_RLPML_EN);
+
+		/* Limit the maximum frame size so we don't overrun the skb */
+		if (ring_uses_build_skb(ring) &&
+		    !test_bit(__IXGBE_RX_3K_BUFFER, &ring->state))
+			rxdctl |= IXGBE_MAX_FRAME_BUILD_SKB |
+				  IXGBE_RXDCTL_RLPML_EN;
+#endif
 	}
 
 	/* initialize Rx descriptor 0 */
@@ -3889,12 +3910,26 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 
 		clear_ring_rsc_enabled(rx_ring);
 		clear_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
+		clear_bit(__IXGBE_RX_BUILD_SKB_ENABLED, &rx_ring->state);
 
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
 			set_ring_rsc_enabled(rx_ring);
 
 		if (test_bit(__IXGBE_RX_FCOE, &rx_ring->state))
 			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
+
+		if (adapter->flags2 & IXGBE_FLAG2_RX_LEGACY)
+			continue;
+
+		set_bit(__IXGBE_RX_BUILD_SKB_ENABLED, &rx_ring->state);
+
+#if (PAGE_SIZE < 8192)
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
+
+		if (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN))
+			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
+#endif
 	}
 }
 
