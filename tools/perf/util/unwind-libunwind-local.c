@@ -35,6 +35,7 @@
 #include "util.h"
 #include "debug.h"
 #include "asm/bug.h"
+#include "dso.h"
 
 extern int
 UNW_OBJ(dwarf_search_unwind_table) (unw_addr_space_t as,
@@ -297,15 +298,58 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 	int fd;
 	u64 ofs = dso->data.debug_frame_offset;
 
+	/* debug_frame can reside in:
+	 *  - dso
+	 *  - debug pointed by symsrc_filename
+	 *  - gnu_debuglink, which doesn't necessary
+	 *    has to be pointed by symsrc_filename
+	 */
 	if (ofs == 0) {
 		fd = dso__data_get_fd(dso, machine);
-		if (fd < 0)
-			return -EINVAL;
+		if (fd >= 0) {
+			ofs = elf_section_offset(fd, ".debug_frame");
+			dso__data_put_fd(dso);
+		}
 
-		/* Check the .debug_frame section for unwinding info */
-		ofs = elf_section_offset(fd, ".debug_frame");
+		if (ofs <= 0) {
+			fd = open(dso->symsrc_filename, O_RDONLY);
+			if (fd >= 0) {
+				ofs = elf_section_offset(fd, ".debug_frame");
+				close(fd);
+			}
+		}
+
+		if (ofs <= 0) {
+			char *debuglink = malloc(PATH_MAX);
+			int ret = 0;
+
+			ret = dso__read_binary_type_filename(
+				dso, DSO_BINARY_TYPE__DEBUGLINK,
+				machine->root_dir, debuglink, PATH_MAX);
+			if (!ret) {
+				fd = open(debuglink, O_RDONLY);
+				if (fd >= 0) {
+					ofs = elf_section_offset(fd,
+							".debug_frame");
+					close(fd);
+				}
+			}
+			if (ofs > 0) {
+				if (dso->symsrc_filename != NULL) {
+					pr_warning(
+						"%s: overwrite symsrc(%s,%s)\n",
+							__func__,
+							dso->symsrc_filename,
+							debuglink);
+					free(dso->symsrc_filename);
+				}
+				dso->symsrc_filename = debuglink;
+			} else {
+				free(debuglink);
+			}
+		}
+
 		dso->data.debug_frame_offset = ofs;
-		dso__data_put_fd(dso);
 	}
 
 	*offset = ofs;
