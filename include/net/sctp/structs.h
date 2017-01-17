@@ -1865,6 +1865,9 @@ struct sctp_association {
 	     temp:1,		/* Is it a temporary association? */
 	     prsctp_enable:1;
 
+	__u32 strreset_outseq; /* Update after receiving response */
+	__u32 strreset_inseq; /* Update after receiving request */
+
 	struct sctp_priv_assoc_stats stats;
 
 	int sent_cnt_removable;
