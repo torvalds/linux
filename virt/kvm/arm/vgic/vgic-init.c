@@ -268,15 +268,11 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	mutex_lock(&kvm->lock);
-
 	dist->ready = false;
 	dist->initialized = false;
 
 	kfree(dist->spis);
 	dist->nr_spis = 0;
-
-	mutex_unlock(&kvm->lock);
 }
 
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
@@ -286,7 +282,8 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
 }
 
-void kvm_vgic_destroy(struct kvm *kvm)
+/* To be called with kvm->lock held */
+static void __kvm_vgic_destroy(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	int i;
@@ -295,6 +292,13 @@ void kvm_vgic_destroy(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vgic_vcpu_destroy(vcpu);
+}
+
+void kvm_vgic_destroy(struct kvm *kvm)
+{
+	mutex_lock(&kvm->lock);
+	__kvm_vgic_destroy(kvm);
+	mutex_unlock(&kvm->lock);
 }
 
 /**
@@ -348,6 +352,10 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 		ret = vgic_v2_map_resources(kvm);
 	else
 		ret = vgic_v3_map_resources(kvm);
+
+	if (ret)
+		__kvm_vgic_destroy(kvm);
+
 out:
 	mutex_unlock(&kvm->lock);
 	return ret;
