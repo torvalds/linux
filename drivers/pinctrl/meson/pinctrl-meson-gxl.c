@@ -197,6 +197,10 @@ static const unsigned int eth_txd3_pins[]	= { PIN(GPIOZ_13, EE_OFF) };
 
 static const unsigned int pwm_e_pins[]		= { PIN(GPIOX_16, EE_OFF) };
 
+static const unsigned int hdmi_hpd_pins[]	= { PIN(GPIOH_0, EE_OFF) };
+static const unsigned int hdmi_sda_pins[]	= { PIN(GPIOH_1, EE_OFF) };
+static const unsigned int hdmi_scl_pins[]	= { PIN(GPIOH_2, EE_OFF) };
+
 static const struct pinctrl_pin_desc meson_gxl_aobus_pins[] = {
 	MESON_PIN(GPIOAO_0, 0),
 	MESON_PIN(GPIOAO_1, 0),
@@ -363,6 +367,11 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(eth_txd2,		4,	11),
 	GROUP(eth_txd3,		4,	10),
 
+	/* Bank H */
+	GROUP(hdmi_hpd,		6,	31),
+	GROUP(hdmi_sda,		6,	30),
+	GROUP(hdmi_scl,		6,	29),
+
 	/* Bank DV */
 	GROUP(uart_tx_b,	2,	16),
 	GROUP(uart_rx_b,	2,	15),
@@ -506,6 +515,14 @@ static const char * const pwm_e_groups[] = {
 	"pwm_e",
 };
 
+static const char * const hdmi_hpd_groups[] = {
+	"hdmi_hpd",
+};
+
+static const char * const hdmi_i2c_groups[] = {
+	"hdmi_sda", "hdmi_scl",
+};
+
 static const char * const gpio_aobus_groups[] = {
 	"GPIOAO_0", "GPIOAO_1", "GPIOAO_2", "GPIOAO_3", "GPIOAO_4",
 	"GPIOAO_5", "GPIOAO_6", "GPIOAO_7", "GPIOAO_8", "GPIOAO_9",
@@ -537,6 +554,8 @@ static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(i2c_c),
 	FUNCTION(eth),
 	FUNCTION(pwm_e),
+	FUNCTION(hdmi_hpd),
+	FUNCTION(hdmi_i2c),
 };
 
 static struct meson_pmx_func meson_gxl_aobus_functions[] = {
