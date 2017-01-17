@@ -71,11 +71,6 @@ static int rt_timer_request(struct rt_timer *rt)
 	return err;
 }
 
-static void rt_timer_free(struct rt_timer *rt)
-{
-	free_irq(rt->irq, rt);
-}
-
 static int rt_timer_config(struct rt_timer *rt, unsigned long divisor)
 {
 	if (rt->timer_freq < divisor)
@@ -99,15 +94,6 @@ static int rt_timer_enable(struct rt_timer *rt)
 	rt_timer_w32(rt, TIMER_REG_TMR0CTL, t);
 
 	return 0;
-}
-
-static void rt_timer_disable(struct rt_timer *rt)
-{
-	u32 t;
-
-	t = rt_timer_r32(rt, TIMER_REG_TMR0CTL);
-	t &= ~TMR0CTL_ENABLE;
-	rt_timer_w32(rt, TIMER_REG_TMR0CTL, t);
 }
 
 static int rt_timer_probe(struct platform_device *pdev)
