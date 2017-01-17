@@ -5730,7 +5730,7 @@ error:
  * inodes, etc) are done.
  */
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
-			     struct inode *dir, struct inode *inode,
+			     struct btrfs_inode *dir, struct btrfs_inode *inode,
 			     int for_rename)
 {
 	/*
@@ -5743,23 +5743,23 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * into the file.  When the file is logged we check it and
 	 * don't log the parents if the file is fully on disk.
 	 */
-	mutex_lock(&BTRFS_I(inode)->log_mutex);
-	BTRFS_I(inode)->last_unlink_trans = trans->transid;
-	mutex_unlock(&BTRFS_I(inode)->log_mutex);
+	mutex_lock(&inode->log_mutex);
+	inode->last_unlink_trans = trans->transid;
+	mutex_unlock(&inode->log_mutex);
 
 	/*
 	 * if this directory was already logged any new
 	 * names for this file/dir will get recorded
 	 */
 	smp_mb();
-	if (BTRFS_I(dir)->logged_trans == trans->transid)
+	if (dir->logged_trans == trans->transid)
 		return;
 
 	/*
 	 * if the inode we're about to unlink was logged,
 	 * the log will be properly updated for any new names
 	 */
-	if (BTRFS_I(inode)->logged_trans == trans->transid)
+	if (inode->logged_trans == trans->transid)
 		return;
 
 	/*
@@ -5776,9 +5776,9 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	return;
 
 record:
-	mutex_lock(&BTRFS_I(dir)->log_mutex);
-	BTRFS_I(dir)->last_unlink_trans = trans->transid;
-	mutex_unlock(&BTRFS_I(dir)->log_mutex);
+	mutex_lock(&dir->log_mutex);
+	dir->last_unlink_trans = trans->transid;
+	mutex_unlock(&dir->log_mutex);
 }
 
 /*

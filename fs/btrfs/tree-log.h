@@ -80,7 +80,7 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 void btrfs_end_log_trans(struct btrfs_root *root);
 int btrfs_pin_log_trans(struct btrfs_root *root);
 void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
-			     struct inode *dir, struct inode *inode,
+			     struct btrfs_inode *dir, struct btrfs_inode *inode,
 			     int for_rename);
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct inode *dir);
