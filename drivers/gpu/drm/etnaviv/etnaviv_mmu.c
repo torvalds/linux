@@ -193,11 +193,8 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 
 		/*
 		 * We removed enough mappings so that the new allocation will
-		 * succeed.  Ensure that the MMU will be flushed before the
-		 * associated commit requesting this mapping, and retry the
-		 * allocation one more time.
+		 * succeed, retry the allocation one more time.
 		 */
-		mmu->need_flush = true;
 	}
 
 	return ret;
@@ -249,6 +246,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	}
 
 	list_add_tail(&mapping->mmu_node, &mmu->mappings);
+	mmu->need_flush = true;
 	mutex_unlock(&mmu->lock);
 
 	return ret;
@@ -266,6 +264,7 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu *mmu,
 		etnaviv_iommu_remove_mapping(mmu, mapping);
 
 	list_del(&mapping->mmu_node);
+	mmu->need_flush = true;
 	mutex_unlock(&mmu->lock);
 }
 
