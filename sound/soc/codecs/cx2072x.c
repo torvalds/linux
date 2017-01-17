@@ -1779,9 +1779,17 @@ static int cx2072x_probe(struct snd_soc_codec *codec)
 	if (PTR_ERR(cx2072x->mclk_clock) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
+	ret = clk_set_rate(cx2072x->mclk_clock, CX2072X_RATES_MCLK);
+	if (ret) {
+		dev_err(codec->dev, "clk_set_rate is fail!\n");
+		return ret;
+	}
+
 	ret = clk_prepare_enable(cx2072x->mclk_clock);
-	if (ret)
+	if (ret) {
 		dev_err(codec->dev, "clk_prepare_enable is fail!\n");
+		return ret;
+	}
 
 	dev_dbg(codec->dev, "codec version: 4.4.20\n");
 	regmap_read(cx2072x->regmap, CX2072X_VENDOR_ID, &ven_id);
