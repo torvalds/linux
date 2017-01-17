@@ -61,8 +61,7 @@ struct vchi_version {
 #define VCHI_VERSION(v_) { v_, v_ }
 #define VCHI_VERSION_EX(v_, m_) { v_, m_ }
 
-typedef enum
-{
+typedef enum {
    VCHI_VEC_POINTER,
    VCHI_VEC_HANDLE,
    VCHI_VEC_LIST
@@ -71,26 +70,22 @@ typedef enum
 typedef struct vchi_msg_vector_ex {
 
    VCHI_MSG_VECTOR_TYPE_T type;
-   union
-   {
+   union {
       // a memory handle
-      struct
-      {
+      struct {
          VCHI_MEM_HANDLE_T handle;
          uint32_t offset;
          int32_t vec_len;
       } handle;
 
       // an ordinary data pointer
-      struct
-      {
+      struct {
          const void *vec_base;
          int32_t vec_len;
       } ptr;
 
       // a nested vector list
-      struct
-      {
+      struct {
          struct vchi_msg_vector_ex *vec;
          uint32_t vec_len;
       } list;
@@ -114,8 +109,7 @@ struct opaque_vchi_service_t;
 
 // Descriptor for a held message. Allocated by client, initialised by vchi_msg_hold,
 // vchi_msg_iter_hold or vchi_msg_iter_hold_next. Fields are for internal VCHI use only.
-typedef struct
-{
+typedef struct {
    struct opaque_vchi_service_t *service;
    void *message;
 } VCHI_HELD_MSG_T;
