@@ -435,10 +435,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 EXPORT_SYMBOL_GPL(inet_ehash_nolisten);
 
 static int inet_reuseport_add_sock(struct sock *sk,
-				   struct inet_listen_hashbucket *ilb,
-				   int (*saddr_same)(const struct sock *sk1,
-						     const struct sock *sk2,
-						     bool match_wildcard))
+				   struct inet_listen_hashbucket *ilb)
 {
 	struct inet_bind_bucket *tb = inet_csk(sk)->icsk_bind_hash;
 	struct sock *sk2;
@@ -451,7 +448,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 		    sk2->sk_bound_dev_if == sk->sk_bound_dev_if &&
 		    inet_csk(sk2)->icsk_bind_hash == tb &&
 		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
-		    saddr_same(sk, sk2, false))
+		    inet_rcv_saddr_equal(sk, sk2, false))
 			return reuseport_add_sock(sk, sk2);
 	}
 
@@ -461,10 +458,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 	return 0;
 }
 
-int __inet_hash(struct sock *sk, struct sock *osk,
-		 int (*saddr_same)(const struct sock *sk1,
-				   const struct sock *sk2,
-				   bool match_wildcard))
+int __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
@@ -479,7 +473,7 @@ int __inet_hash(struct sock *sk, struct sock *osk,
 
 	spin_lock(&ilb->lock);
 	if (sk->sk_reuseport) {
-		err = inet_reuseport_add_sock(sk, ilb, saddr_same);
+		err = inet_reuseport_add_sock(sk, ilb);
 		if (err)
 			goto unlock;
 	}
@@ -503,7 +497,7 @@ int inet_hash(struct sock *sk)
 
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		err = __inet_hash(sk, NULL, ipv4_rcv_saddr_equal);
+		err = __inet_hash(sk, NULL);
 		local_bh_enable();
 	}
 
