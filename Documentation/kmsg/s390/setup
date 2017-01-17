@@ -1,0 +1,165 @@
+/*?
+ * Text: "The initial RAM disk does not fit into the memory\n"
+ * Severity: Error
+ * Description:
+ * The load address and the size of the initial RAM disk specify a memory
+ * area that is not available.
+ * User action:
+ * Lower the load address of the initial RAM disk, reduce the size of the
+ * initial RAM disk, or increase the size of the system memory to make the
+ * initial RAM disk fit into the memory.
+ */
+
+/*?
+ * Text: "The maximum memory size is %luMB\n"
+ * Severity: Notice
+ * Parameter:
+ *   @1: size in MB
+ * Description:
+ * The system memory size cannot exceed the amount of memory that is
+ * provided by the real or virtual hardware. It can be further reduced
+ * through an upper memory address limit that is specified with the
+ * mem= kernel parameter.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Linux is running as a z/VM guest operating system in 31-bit mode\n"
+ * Severity: Informational
+ * Description:
+ * The 31-bit Linux kernel detected that it is running as a guest operating
+ * system of the z/VM hypervisor.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Linux is running natively in 31-bit mode\n"
+ * Severity: Informational
+ * Description:
+ * The 31-bit Linux kernel detected that it is running on an IBM mainframe,
+ * either as the sole operating system in an LPAR or as the sole operating
+ * system on the entire mainframe. The Linux kernel is not running as a
+ * guest operating system of the z/VM hypervisor.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The hardware system has IEEE compatible floating point units\n"
+ * Severity: Informational
+ * Description:
+ * The Linux kernel detected that it is running on a hardware system with
+ * CPUs that have IEEE compatible floating point units.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The hardware system has no IEEE compatible floating point units\n"
+ * Severity: Informational
+ * Description:
+ * The Linux kernel detected that it is running on a hardware system with
+ * CPUs that do not have IEEE compatible floating point units.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Linux is running as a z/VM guest operating system in 64-bit mode\n"
+ * Severity: Informational
+ * Description:
+ * The 64-bit Linux kernel detected that it is running as a guest operating
+ * system of the z/VM hypervisor.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Linux is running under KVM in 64-bit mode\n"
+ * Severity: Informational
+ * Description:
+ * The 64-bit Linux kernel detected that it is running as a guest operating
+ * system of the KVM hypervisor.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Linux is running natively in 64-bit mode\n"
+ * Severity: Informational
+ * Description:
+ * The 64-bit Linux kernel detected that it is running on an IBM mainframe,
+ * either as the sole operating system in an LPAR or as the sole operating
+ * system on the entire mainframe. The Linux kernel is not running as a
+ * guest operating system of the z/VM hypervisor.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Defining the Linux kernel NSS failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * The Linux kernel could not define the named saved system (NSS) with
+ * the z/VM CP DEFSYS command. The return code represents the numeric
+ * portion of the CP DEFSYS error message.
+ * User action:
+ * For return code 1, the z/VM guest virtual machine is not authorized
+ * to define named saved systems.
+ * Ensure that the z/VM guest virtual machine is authorized to issue
+ * the CP DEFSYS command (typically privilege class E).
+ * For other return codes, see the help and message documentation for
+ * the CP DEFSYS command.
+ */
+
+/*?
+ * Text: "Saving the Linux kernel NSS failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * The Linux kernel could not save the named saved system (NSS) with
+ * the z/VM CP SAVESYS command. The return code represents the numeric
+ * portion of the CP SAVESYS error message.
+ * User action:
+ * For return code 1, the z/VM guest virtual machine is not authorized
+ * to save named saved systems.
+ * Ensure that the z/VM guest virtual machine is authorized to issue
+ * the CP SAVESYS command (typically privilege class E).
+ * For other return codes, see the help and message documentation for
+ * the CP SAVESYS command.
+ */
+
+/*?
+ * Text: "crashkernel reservation failed: %s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: reason string
+ * Description:
+ * The memory reservation for the kdump "crashkernel" parameter was not
+ * successful. The Linux kernel was either not able to find a free memory
+ * area or an invalid area has been defined. The reason string describes the
+ * cause of the failure in more detail.
+ * User action:
+ * Increase the memory footprint of your virtual machine or adjust the values
+ * for the "crashkernel" kernel parameter. Then boot your Linux system again.
+ */
+
+/*?
+ * Text: "Reserving %lluMB of memory at %lluMB for crashkernel (System RAM: %luMB)\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: amount of reserved memory
+ *   @2: storage location of reserved memory
+ *   @3: amount of system RAM
+ * Description:
+ * The memory reservation for the kdump "crashkernel" parameter was successful
+ * and a kdump kernel can now be loaded with the kexec tool.
+ * User action:
+ * None.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

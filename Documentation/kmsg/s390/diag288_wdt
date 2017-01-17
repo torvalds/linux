@@ -1,0 +1,66 @@
+/*?
+ * Text: "The watchdog cannot be activated\n"
+ * Severity: Error
+ * Description:
+ * Diagnose instruction 0x288 was called to activate the diag288 watchdog.
+ * The diagnose call returned an error that cannot be handled by the device driver.
+ * The watchdog stays inactive.
+ * User action:
+ * Contact your support organization.
+ */
+
+/*?
+ * Text: "The watchdog cannot be initialized\n"
+ * Severity: Error
+ * Description:
+ * Diagnose instruction 0x288 was called to initialize the diag288 watchdog.
+ * The diagnose call returned an error that cannot be handled by the device driver.
+ * The watchdog stays inactive.
+ * A possible reason for this error is that your real or virtual hardware does not support
+ * the diag288 watchdog.
+ * User action:
+ * Confirm that the diag288 watchdog is supported in your environment.
+ * Use a watchdog that is supported in your environment.
+ */
+
+/*?
+ * Text: "The watchdog cannot be deactivated\n"
+ * Severity: Error
+ * Description:
+ * Diagnose instruction 0x288 was called to deactivate the diag288 watchdog.
+ * The diagnose call returned an error that cannot be handled by the device driver.
+ * The watchdog stays active and a watchdog timeout will trigger the configured timeout action.
+ * The diag288 watchdog device driver might intentionally be configured to prevent deactivation.
+ * User action:
+ * You can configure the diag288 watchdog device driver such that it can be deactivated.
+ * If the diag288 device driver has been compiled as a separate module, diag288_wdt, reload the module
+ * without specifying the 'nowayout' module parameter.
+ * If the diag288 device driver has been compiled into your kernel,
+ * reboot Linux without specifying the 'diag288.nowayout' kernel parameter'.
+ */
+
+/*?
+ * Text: "The watchdog timer cannot be started or reset\n"
+ * Severity: Error
+ * Description:
+ * Diagnose instruction 0x288 was called to start the diag288 watchdog or to set timer back to zero.
+ * The diagnose call returned an error that cannot be handled by the device driver.
+ * The watchdog stays inactive or becomes inactive.
+ * User action:
+ * Contact your support organization.
+ */
+
+/*?
+ * Text: "Linux cannot be suspended while the watchdog is in use\n"
+ * Severity: Error
+ * Description:
+ * The watchdog must not time out while Linux is suspended.
+ * Therefore, the diag288 watchdog device driver prevents Linux from being suspended
+ * while the watchdog is in use.
+ * User action:
+ * i) Stop the watchdog application. ii) If the problem persists, close the watchdog
+ * device node by issuing 'echo V > /dev/watchdog'.
+ * iii) If the device driver still prevents Linux from being suspended,
+ * contact your support organization.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

@@ -1,0 +1,156 @@
+/*?
+ * Text: "%s: The peer interface of the IUCV device has closed the connection\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ * Description:
+ * The peer interface on the remote z/VM guest virtual machine has closed the
+ * connection. Do not expect further packets on this interface. Any packets
+ * you send to this interface will be dropped.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The IUCV device failed to connect to z/VM guest %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: z/VM user ID
+ * Description:
+ * The connection cannot be established because the z/VM guest virtual
+ * machine with the peer interface is not running.
+ * User action:
+ * Ensure that the z/VM guest virtual machine with the peer interface is
+ * running; then try again to establish the connection.
+ */
+
+/*?
+ * Text: "%s: The IUCV device failed to connect to the peer on z/VM guest %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: z/VM user ID
+ * Description:
+ * The connection cannot be established because the z/VM guest virtual machine
+ * with the peer interface is not configured for IUCV connections.
+ * User action:
+ * Configure the z/VM guest virtual machine with the peer interface for IUCV
+ * connections; then try again to establish the connection.
+ */
+
+/*?
+ * Text: "%s: Connecting the IUCV device would exceed the maximum number of IUCV connections\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ * Description:
+ * The connection cannot be established because the maximum number of IUCV
+ * connections has been reached on the local z/VM guest virtual machine.
+ * User action:
+ * Close some of the established IUCV connections on the local z/VM guest
+ * virtual machine; then try again to establish the connection.
+ */
+
+/*?
+ * Text: "%s: z/VM guest %s has too many IUCV connections to connect with the IUCV device\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: remote z/VM user ID
+ * Description:
+ * Connecting to the remote z/VM guest virtual machine failed because the
+ * maximum number of IUCV connections for the remote z/VM guest virtual
+ * machine has been reached.
+ * User action:
+ * Close some of the established IUCV connections on the remote z/VM guest
+ * virtual machine; then try again to establish the connection.
+ */
+
+/*?
+ * Text: "%s: The IUCV device cannot connect to a z/VM guest with no IUCV authorization\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ * Description:
+ * Because the remote z/VM guest virtual machine is not authorized for IUCV
+ * connections, the connection cannot be established.
+ * User action:
+ * Add the statements 'IUCV ALLOW' and 'IUCV ANY' to the z/VM directory
+ * entry of the remote z/VM guest virtual machine; then try again to
+ * establish the connection. See "z/VM CP Planning and Administration"
+ * for details about the IUCV statements.
+ */
+
+/*?
+ * Text: "%s: Connecting the IUCV device failed with error %d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: error code
+ * Description:
+ * The connection cannot be established because of an IUCV CONNECT error.
+ * User action:
+ * Report this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: The IUCV device has been connected successfully to %s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: remote z/VM user ID
+ * Description:
+ * The connection has been established and the interface is ready to
+ * transmit communication packages.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The IUCV interface to %s has been established successfully\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: remote z/VM user ID
+ * Description:
+ * The IUCV interface to the remote z/VM guest virtual machine has been
+ * established and can be activated with "ifconfig up" or an equivalent
+ * command.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The IUCV device is connected to %s and cannot be removed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: remote z/VM user ID
+ * Description:
+ * Removing a connection failed because the interface is active with a peer
+ * interface on a remote z/VM guest virtual machine.
+ * User action:
+ * Deactivate the interface with "ifconfig down" or an equivalent command;
+ * then try again to remove the interface.
+ */
+
+/*?
+ * Text: "%s: The peer z/VM guest %s has closed the connection\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the IUCV device
+ *   @2: remote z/VM user ID
+ * Description:
+ * The peer interface is no longer available.
+ * User action:
+ * Either deactivate and remove the interface, or wait for the peer
+ * z/VM guest to re-establish the interface.
+ */
+
+/*? Text: "driver unloaded\n" */
+/*? Text: "driver initialized\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

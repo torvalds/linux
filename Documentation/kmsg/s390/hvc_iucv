@@ -1,0 +1,123 @@
+/*?
+ * Text: "The z/VM IUCV HVC device driver cannot be used without z/VM\n"
+ * Severity: Notice
+ * Description:
+ * The z/VM IUCV hypervisor console (HVC) device driver requires the
+ * z/VM inter-user communication vehicle (IUCV).
+ * User action:
+ * Set "hvc_iucv=" to zero in the kernel parameter line and reboot Linux.
+ */
+
+/*?
+ * Text: "%lu is not a valid value for the hvc_iucv= kernel parameter\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: hvc_iucv_devices
+ * Description:
+ * The "hvc_iucv=" kernel parameter specifies the number of z/VM IUCV
+ * hypervisor console (HVC) terminal devices.
+ * The parameter value ranges from 0 to 8.
+ * If zero is specified, the z/VM IUCV HVC device driver is disabled
+ * and no IUCV-based terminal access is available.
+ * User action:
+ * Correct the "hvc_iucv=" setting in the kernel parameter line and
+ * reboot Linux.
+ */
+
+/*?
+ * Text: "Creating a new HVC terminal device failed with error code=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: errno
+ * Description:
+ * The device driver initialization failed to allocate a new
+ * HVC terminal device.
+ * A possible cause of this problem is memory constraints.
+ * User action:
+ * If the error code is -12 (ENOMEM), consider assigning more memory
+ * to your z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "Registering HVC terminal device as Linux console failed\n"
+ * Severity: Error
+ * Description:
+ * The device driver initialization failed to set up the first HVC terminal
+ * device for use as Linux console.
+ * User action:
+ * If the error code is -12 (ENOMEM), consider assigning more memory
+ * to your z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "Registering IUCV handlers failed with error code=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: errno
+ * Description:
+ * The device driver initialization failed to register with z/VM IUCV to
+ * handle IUCV connections, as well as sending and receiving of IUCV messages.
+ * User action:
+ * Check for related IUCV error messages and see the errno manual page
+ * to find out what caused the problem.
+ */
+
+/*?
+ * Text: "Allocating memory failed with reason code=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: reason
+ * Description:
+ * The z/VM IUCV hypervisor console (HVC) device driver initialization failed,
+ * because of a general memory allocation failure. The reason code indicates
+ * the memory operation that has failed:
+ * 	kmem_cache (reason code=1),
+ * 	mempool (reason code=2), or
+ * 	hvc_iucv_allow= (reason code=3)
+ * User action:
+ * Consider assigning more memory to your z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "hvc_iucv_allow= does not specify a valid z/VM user ID list\n"
+ * Severity: Error
+ * Description:
+ * The "hvc_iucv_allow=" kernel parameter specifies a comma-separated list
+ * of z/VM user IDs that are permitted to connect to the z/VM IUCV hypervisor
+ * device driver.
+ * The z/VM user IDs in the list must not exceed eight characters and must
+ * not contain spaces.
+ * User action:
+ * Correct the "hvc_iucv_allow=" setting in the kernel parameter line and reboot
+ * Linux.
+ */
+
+/*?
+ * Text: "hvc_iucv_allow= specifies too many z/VM user IDs\n"
+ * Severity: Error
+ * Description:
+ * The "hvc_iucv_allow=" kernel parameter specifies a comma-separated list
+ * of z/VM user IDs that are permitted to connect to the z/VM IUCV hypervisor
+ * device driver.
+ * The number of z/VM user IDs that are specified with the "hvc_iucv_allow="
+ * kernel parameter exceeds the maximum of 500.
+ * User action:
+ * Correct the "hvc_iucv_allow=" setting by reducing the z/VM user IDs in
+ * the list and reboot Linux.
+ */
+
+/*?
+ * Text: "A connection request from z/VM user ID %s was refused\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: ID
+ * Description:
+ * An IUCV connection request from another z/VM guest virtual machine has been
+ * refused. The request was from a z/VM guest virtual machine that is not
+ * listed by the "hvc_iucv_allow=" kernel parameter.
+ * User action:
+ * Check the "hvc_iucv_allow=" kernel parameter setting.
+ * Consider adding the z/VM user ID to the "hvc_iucv_allow=" list in the kernel
+ * parameter line and reboot Linux.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

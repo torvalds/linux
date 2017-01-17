@@ -1,0 +1,63 @@
+/*?
+ * Text: "%s: A tape unit was detached while in use\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A tape unit has been detached from the I/O configuration while a tape
+ * was being accessed. This typically results in I/O error messages and
+ * potentially in damaged data on the tape.
+ * User action:
+ * Check the output of the application that accesses the tape device.
+ * If this problem occurred during a write-type operation, consider repeating
+ * the operation after bringing the tape device back online.
+ */
+
+/*?
+ * Text: "%s: A tape cartridge has been mounted\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A tape cartridge has been inserted into the tape unit. The tape in the
+ * tape unit is ready to be accessed.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The tape cartridge has been successfully unloaded\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape cartridge has been unloaded from the tape unit. Insert a tape
+ * cartridge before accessing the tape device.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "A cartridge is loaded in tape device %s, refusing to suspend\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A request to suspend a tape device currently loaded with a cartridge is
+ * rejected.
+ * User action:
+ * Unload the tape device. Then try to suspend the system again.
+ */
+
+/*?
+ * Text: "Tape device %s is busy, refusing to suspend\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A request to suspend a tape device being currently in use is rejected.
+ * User action:
+ * Terminate applications performing tape operations
+ * and then try to suspend the system again.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

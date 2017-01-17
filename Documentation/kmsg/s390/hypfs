@@ -1,0 +1,56 @@
+/*?
+ * Text: "The hardware system does not support hypfs\n"
+ * Severity: Error
+ * Description:
+ * hypfs requires DIAGNOSE Code X'204' but this diagnose code is not available
+ * on your hardware. You need more recent hardware to use hypfs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The hardware system does not provide all functions required by hypfs\n"
+ * Severity: Error
+ * Description:
+ * hypfs requires DIAGNOSE Code X'224' but this diagnode code is not available
+ * on your hardware. You need more recent hardware to use hypfs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Updating the hypfs tree failed\n"
+ * Severity: Error
+ * Description:
+ * There was not enough memory available to update the hypfs tree.
+ * User action:
+ * Free some memory and try again to update the hypfs tree. Consider assigning
+ * more memory to your LPAR or z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "%s is not a valid mount option\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: mount option
+ * Description:
+ * hypfs has detected mount options that are not valid.
+ * User action:
+ * See "Device Drivers Features and Commands" for information about valid
+ * mount options for hypfs.
+ */
+
+/*?
+ * Text: "Initialization of hypfs failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: error code
+ * Description:
+ * Initialization of hypfs failed because of resource or hardware constraints.
+ * Possible reasons for this problem are insufficient free memory or missing
+ * hardware interfaces.
+ * User action:
+ * See errno.h for information about the error codes.
+ */
+
+/*? Text: "Hypervisor filesystem mounted\n" */

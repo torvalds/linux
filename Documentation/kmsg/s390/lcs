@@ -1,0 +1,169 @@
+/*?
+ * Text: "%s:  Allocating a socket buffer to interface %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: network interface
+ * Description:
+ * LAN channel station (LCS) devices require a socket buffer (SKB) structure
+ * for storing incoming data. The LCS device driver failed to allocate an SKB
+ * structure to the LCS device. A likely cause of this problem is memory
+ * constraints.
+ * User action:
+ * Free some memory and repeat the failed operation.
+ */
+
+/*?
+ * Text: "%s:  Shutting down the LCS device failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ * Description:
+ * A request to shut down a LAN channel station (LCS) device resulted in an
+ * error. The error is logged in the LCS trace at trace level 4.
+ * User action:
+ * Try again to shut down the device. If the error persists, see the LCS trace
+ * to find out what causes the error.
+ */
+
+/*?
+ * Text: "%s: Detecting a network adapter for LCS devices failed with rc=%d (0x%x)\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: lcs_detect return code in decimal notation
+ *   @3: lcs_detect return code in hexadecimal notation
+ * Description:
+ * The LCS device driver could not initialize a network adapter.
+ * User action:
+ * Ensure that the physical connection from the port to the network is
+ * in place. If the error persists, note the return code from the error
+ * message and contact IBM support.
+ */
+
+/*?
+ * Text: "%s: A recovery process has been started for the LCS device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ * Description:
+ * The LAN channel station (LCS) device is shut down and restarted. The recovery
+ * process might have been initiated by a user or started automatically as a
+ * response to a device problem.
+ * User action:
+ * Wait until a message indicates the completion of the recovery process.
+ */
+
+/*?
+ * Text: "%s: An I/O-error occurred on the LCS device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ * Description:
+ * The LAN channel station (LCS) device reported a problem that can be recovered
+ * by the LCS device driver. Repeated occurrences of this problem indicate a
+ * malfunctioning device.
+ * User action:
+ * If this problem occurs frequently, initiate a recovery process for the
+ * device, for example, by writing '1' to the 'recover' sysfs attribute of the
+ * device.
+ */
+
+/*?
+ * Text: "%s: A command timed out on the LCS device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ * Description:
+ * The LAN channel station (LCS) device reported a problem that can be recovered
+ * by the LCS device driver. Repeated occurrences of this problem indicate a
+ * malfunctioning device.
+ * User action:
+ * If this problem occurs frequently, initiate a recovery process for the
+ * device, for example, by writing '1' to the 'recover' sysfs attribute of the
+ * device.
+ */
+
+/*?
+ * Text: "%s: An error occurred on the LCS device, rc=%ld\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: return code
+ * Description:
+ * The LAN channel station (LCS) device reported a problem that can be recovered
+ * by the LCS device driver. Repeated occurrences of this problem indicate a
+ * malfunctioning device.
+ * User action:
+ * If this problem occurs frequently, initiate a recovery process for the
+ * device, for example, by writing '1' to the 'recover' sysfs attribute of the
+ * device.
+ */
+
+/*?
+ * Text: "%s: The LCS device stopped because of an error, dstat=0x%X, cstat=0x%X \n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: device status
+ *   @3: subchannel status
+ * Description:
+ * The LAN channel station (LCS) device reported an error. The LCS device driver
+ * might start a device recovery process.
+ * User action:
+ * If the device driver does not start a recovery process, initiate a recovery
+ * process, for example, by writing '1' to the 'recover' sysfs attribute of the
+ * device. If the problem persists, note the status information provided with
+ * the message and contact IBM support.
+ */
+
+/*?
+ * Text: "%s: Starting an LCS device resulted in an error, rc=%d!\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: ccw_device_start return code in decimal notation
+ * Description:
+ * The LAN channel station (LCS) device driver failed to initialize an LCS
+ * device. The device is not operational.
+ * User action:
+ * Initiate a recovery process, for example, by writing '1' to the 'recover'
+ * sysfs attribute of the device. If the problem persists, contact IBM support.
+ */
+
+/*?
+ * Text: "%s: Sending data from the LCS device to the LAN failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the LCS device
+ *   @2: ccw_device_resume return code in decimal notation
+ * Description:
+ * The LAN channel station (LCS) device driver could not send data to the LAN
+ * using the LCS device. This might be a temporary problem. Operations continue
+ * on the LCS device.
+ * User action:
+ * If this problem occurs frequently, initiate a recovery process, for example,
+ * by writing '1' to the 'recover' sysfs attribute of the device. If the
+ * problem persists, contact IBM support.
+ */
+
+/*? Text: "Query IPAssist failed. Assuming unsupported!\n" */
+/*? Text: "Stoplan for %s initiated by LGW\n" */
+/*? Text: "Not enough memory to add new multicast entry!\n" */
+/*? Text: "Not enough memory for debug facility.\n" */
+/*? Text: "Adding multicast address failed. Table possibly full!\n" */
+/*? Text: "Error in opening device!\n" */
+/*? Text: "LCS device %s %s IPv6 support\n" */
+/*? Text: "Device %s successfully recovered!\n" */
+/*? Text: "LCS device %s %s Multicast support\n" */
+/*? Text: " Initialization failed\n" */
+/*? Text: "Loading %s\n" */
+/*? Text: "Initialization failed\n" */
+/*? Text: "Terminating lcs module.\n" */
+/*? Text: "Device %s could not be recovered!\n" */
+/*? Text: "Initializing the lcs device driver failed\n" */
+/*? Text: "%s: The lcs device driver failed to recover the device\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

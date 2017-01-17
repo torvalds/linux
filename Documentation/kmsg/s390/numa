@@ -1,0 +1,11 @@
+/*?
+ * Text: "NUMA mode: %s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: mode
+ * Description:
+ * Linux started with the specified NUMA mode.
+ * User action:
+ * None.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

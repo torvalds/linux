@@ -1,0 +1,704 @@
+/* dasd_ioctl */
+
+/*?
+ * Text: "%s: The DASD has been put in the quiesce state\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * No I/O operation is possible on this device.
+ * User action:
+ * Resume the DASD to enable I/O operations.
+ */
+
+/*?
+ * Text: "%s: I/O operations have been resumed on the DASD\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD is no longer in state quiesce and I/O operations can be performed
+ * on the device.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The DASD cannot be formatted while it is enabled\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD you try to format is enabled. Enabled devices cannot be formatted.
+ * User action:
+ * Contact the owner of the formatting tool.
+ */
+
+/*?
+ * Text: "%s: The specified DASD is a partition and cannot be formatted\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD you try to format is a partition. Partitions cannot be formatted
+ * separately. You can only format a complete DASD including all its partitions.
+ * User action:
+ * Format the complete DASD.
+ * ATTENTION: Formatting irreversibly destroys all data on all partitions
+ * of the DASD.
+ */
+
+/*?
+ * Text: "%s: The specified DASD is a partition and cannot be checked\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD you try to check is a partition. Partitions cannot be checked
+ * separately. You can only check a complete DASD including all its partitions.
+ * User action:
+ * Check the complete DASD.
+ */
+
+/*?
+ * Text: "%s: Formatting unit %d failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: start track
+ *   @3: return code
+ * Description:
+ * The formatting process might have been interrupted by a signal, for example,
+ * CTRL+C. If the process was not interrupted intentionally, an I/O error
+ * might have occurred.
+ * User action:
+ * Retry to format the device. If the error persists, check the log file for
+ * related error messages. If you cannot resolve the error, note the return
+ * code and contact your support organization.
+ */
+
+
+/* dasd */
+
+/*?
+ * Text: "%s: Cancelling request %p failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to request
+ *   @3: return code of previous function
+ * Description:
+ * In response to a user action, the DASD device driver tried but failed to
+ * cancel a previously started I/O operation.
+ * User action:
+ * Try the action again.
+ */
+
+/*?
+ * Text: "%s: Flushing the DASD request queue failed for request %p\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to request
+ * Description:
+ * As part of the unloading process, the DASD device driver flushes the
+ * request queue. This failed because a previously started I/O operation
+ * could not be canceled.
+ * User action:
+ * Try again to unload the DASD device driver or to shut down Linux.
+ */
+
+/*?
+ * Text: "The DASD device driver could not be initialized\n"
+ * Severity: Informational
+ * Description:
+ * The initialization of the DASD device driver failed because of previous
+ * errors.
+ * User action:
+ * Check for related previous error messages.
+ */
+
+/*?
+ * Text: "%s: Accessing the DASD failed because it is in probeonly mode\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The dasd= module or kernel parameter specified the probeonly attribute for
+ * the DASD you are trying to access. The DASD device driver cannot access
+ * DASDs that are in probeonly mode.
+ * User action:
+ * Change the dasd= parameter as to omit probeonly for the DASD and reload
+ * the DASD device driver. If the DASD device driver has been compiled into
+ * the kernel, reboot Linux.
+ */
+
+/*?
+ * Text: "%s: cqr %p timed out (%lus), %i retries remaining\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: request
+ *   @3: timeout value
+ *   @4: number of retries left
+ * Description:
+ * A try of the error recovery procedure (ERP) for the channel queued request
+ * (cqr) timed out and failed to recover the error. ERP continues for the DASD.
+ * User action:
+ * Ignore this message if it occurs infrequently and if the recovery succeeds
+ * during one of the retries. If this error persists, check for related
+ * previous error messages and report the problem to your support organization.
+ *
+ * The timeout can be changed by writing a new value to the sysfs 'expires' attribute of the DASD. The value specifies the timeout in seconds.
+ */
+
+/*?
+ * Text: "%s: cqr %p timed out (%lus) but cannot be ended, retrying in 5 s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: request
+ *   @3: timeout value
+ * Description:
+ * A try of the error recovery procedure (ERP) for the channel queued request
+ * (cqr) timed out and failed to recover the error. The I/O request submitted
+ * during the try could not be canceled. The ERP waits for 5 seconds before
+ * trying again.
+ * User action:
+ * Ignore this message if it occurs infrequently and if the recovery succeeds
+ * during one of the retries. If this error persists, check for related
+ * previous error messages and report the problem to your support organization.
+ *
+ * The timeout can be changed by writing a new value to the sysfs 'expires' attribute of the DASD. The value specifies the timeout in seconds.
+ */
+
+/*?
+ * Text: "%s: The DASD cannot be set offline while it is in use\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD cannot be set offline because it is in use by an internal process.
+ * An action to free the DASD might not have completed yet.
+ * User action:
+ * Wait some time and set the DASD offline later.
+ */
+
+/*?
+ * Text: "%s: The DASD cannot be set offline with open count %i\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: count
+ * Description:
+ * The DASD is being used by one or more processes and cannot be set offline.
+ * User action:
+ * Ensure that the DASD is not in use anymore, for example, unmount all
+ * partitions. Then try again to set the DASD offline.
+ */
+
+/*?
+ * Text: "%s: Setting the DASD online failed with rc=%d\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ * Description:
+ * The DASD could not be set online because of previous errors.
+ * User action:
+ * Look for previous error messages. If you cannot resolve the error, note
+ * the return code and contact your support organization.
+ */
+
+/*?
+ * Text: "%s Setting the DASD online with discipline %s failed with rc=%i\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: discipline
+ *   @3: return code
+ * Description:
+ * The DASD could not be set online because of previous errors.
+ * User action:
+ * Look for previous error messages. If you cannot resolve the error, note the
+ * return code and contact your support organization.
+ */
+
+/*?
+ * Text: "%s Setting the DASD online failed because of missing DIAG discipline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD was to be set online with discipline DIAG but this discipline of
+ * the DASD device driver is not available.
+ * User action:
+ * Ensure that the dasd_diag_mod module is loaded. If your Linux system does
+ * not include this module, you cannot set DASDs online with the DIAG
+ * discipline.
+ */
+
+/*?
+ * Text: "%s Setting the DASD online failed because of a missing discipline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD was to be set online with a DASD device driver discipline that
+ * is not available.
+ * User action:
+ * Ensure that all DASD modules are loaded correctly.
+ */
+
+---------------------------
+
+/*?
+ * Text: "The statistics feature has been switched off\n"
+ * Severity: Informational
+ * Description:
+ * The statistics feature of the DASD device driver has been switched off.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The statistics feature has been switched on\n"
+ * Severity: Informational
+ * Description:
+ * The statistics feature of the DASD device driver has been switched on.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The statistics have been reset\n"
+ * Severity: Informational
+ * Description:
+ * The DASD statistics data have been reset.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s is not a supported value for /proc/dasd/statistics\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: value
+ * Description:
+ * An incorrect value has been written to /proc/dasd/statistics.
+ * The supported values are: 'set on', 'set off', and 'reset'.
+ * User action:
+ * Write a supported value to /proc/dasd/statistics.
+ */
+
+/*?
+ * Text: "%s is not a valid device range\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: range
+ * Description:
+ * A device range specified with the dasd= parameter is not valid.
+ * User action:
+ * Examine the dasd= parameter and correct the device range.
+ */
+
+/*?
+ * Text: "The probeonly mode has been activated\n"
+ * Severity: Informational
+ * Description:
+ * The probeonly mode of the DASD device driver has been activated. In this
+ * mode the device driver rejects any 'open' syscalls with EPERM.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The IPL device is not a CCW device\n"
+ * Severity: Error
+ * Description:
+ * The value for the dasd= parameter contains the 'ipldev' keyword. During
+ * the boot process this keyword is replaced with the device from which the
+ * IPL was performed. The 'ipldev' keyword is not valid if the IPL device is
+ * not a CCW device.
+ * User action:
+ * Do not specify the 'ipldev' keyword when performing an IPL from a device
+ * other than a CCW device.
+ */
+
+/*?
+ * Text: "A closing parenthesis ')' is missing in the dasd= parameter\n"
+ * Severity: Warning
+ * Description:
+ * The specification for the dasd= kernel or module parameter has an opening
+ * parenthesis '(' * without a matching closing parenthesis ')'.
+ * User action:
+ * Correct the parameter value.
+ */
+
+/*?
+ * Text: "The autodetection mode has been activated\n"
+ * Severity: Informational
+ * Description:
+ * The autodetection mode of the DASD device driver has been activated. In
+ * this mode the DASD device driver sets all detected DASDs online.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%*s is not a supported device option\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: length of option code
+ *   @2: option code
+ * Description:
+ * The dasd= parameter includes an unknown option for a DASD or a device range.
+ * Options are specified in parenthesis and immediately follow a device or
+ * device range.
+ * User action:
+ * Check the dasd= syntax and remove any unsupported options from the dasd=
+ * parameter specification.
+ */
+
+/*?
+ * Text: "PAV support has be deactivated\n"
+ * Severity: Informational
+ * Description:
+ * The 'nopav' keyword has been specified with the dasd= kernel or module
+ * parameter. The Parallel Access Volume (PAV) support of the DASD device
+ * driver has been deactivated.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "'nopav' is not supported on z/VM\n"
+ * Severity: Informational
+ * Description:
+ * For Linux instances that run as guest operating systems of the z/VM
+ * hypervisor Parallel Access Volume (PAV) support is controlled by z/VM not
+ * by Linux.
+ * User action:
+ * Remove 'nopav' from the dasd= module or kernel parameter specification.
+ */
+
+/*?
+ * Text: "High Performance FICON support has been deactivated\n"
+ * Severity: Informational
+ * Description:
+ * The 'nofcx' keyword has been specified with the dasd= kernel or module
+ * parameter. The High Performance FICON (transport mode) support of the DASD
+ * device driver has been deactivated.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The dasd= parameter value %s has an invalid ending\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: parameter value
+ * Description:
+ * The specified value for the dasd= kernel or module parameter is not correct.
+ * User action:
+ * Check the module or the kernel parameter.
+ */
+
+/*?
+ * Text: "Registering the device driver with major number %d failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DASD major
+ * Description:
+ * Major number 94 is reserved for the DASD device driver. The DASD device
+ * driver failed to register with this major number. Another device driver
+ * might have used major number 94.
+ * User action:
+ * Determine which device driver uses major number 94 instead of the DASD
+ * device driver and unload this device driver. Then try again to load the
+ * DASD device driver.
+ */
+
+/*?
+  * Text: "%s: default ERP has run out of retries and failed\n"
+  * Severity: Error
+  * Parameter:
+  *   @1: bus ID of the DASD
+  * Description:
+  * The error recovery procedure (ERP) tried to recover an error but the number
+  * of retries for the I/O was exceeded before the error could be resolved.
+  * User action:
+  * Check for related previous error messages.
+  */
+
+/*?
+ * Text: "%s: Unable to terminate request %p on suspend\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to request
+ * Description:
+ * As part of the suspend process, the DASD device driver terminates requests
+ * on the request queue. This failed because a previously started I/O operation
+ * could not be canceled. The suspend process will be stopped.
+ * User action:
+ * Try again to suspend the system.
+ */
+
+/*?
+ * Text: "%s: ERP failed for the DASD\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An error recovery procedure (ERP) was performed for the DASD but failed.
+ * User action:
+ * Check the message log for previous related error messages.
+ */
+
+/*?
+ * Text: "%s: An error occurred in the DASD device driver, reason=%s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: reason code
+ * Description:
+ * This problem indicates a program error in the DASD device driver.
+ * User action:
+ * Note the reason code and contact your support organization.
+*/
+
+/*?
+ * Text: "%s: No operational channel path is left for the device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * All channel paths to the device have become non-operational. The DASD
+ * device driver suspends I/O operations and queues I/O requests for this
+ * device until at least one channel path becomes operational again.
+ * User action:
+ * Ensure that each channel path to the device has been set up correctly
+ * and that the related physical cable connections are in place.
+ */
+
+/*?
+ * Text: "%s: No verified channel paths remain for the device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * All verified channel paths to the device have become non-operational.
+ * Any other paths to the device have previously been identified as not usable.
+ * The DASD device driver suspends I/O operations and queues I/O requests
+ * for this device until at least one channel path becomes operational
+ * again.
+ * User action:
+ * Ensure that each channel path to the device has been set up correctly
+ * and that the related physical cable connections are in place.
+ * Set all paths to the device offline and online again to repeat the path
+ * verification. Alternatively, set the device offline and online again to
+ * verify all available paths for this device.
+ * If this problem persists, gather Linux debug data and report the problem
+ * to your support organization.
+ */
+
+/*?
+ * Text: "%s: A channel path to the device has become operational\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * At least one channel path of this device has become operational again.
+ * The DASD device driver resumes I/O operations to the device and processes
+ * the I/O requests that were queued while there was no operational channel path.
+ * User action:
+ * None.
+ */
+
+------------------------------------------------------------------------------------
+/* dasd_diag */
+
+/*?
+ * Text: "%s: A 64-bit DIAG call failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * 64-bit DIAG calls require a 64-bit z/VM version.
+ * User action:
+ * Use z/VM 5.2 or later or set the sysfs 'use_diag' attribute of the DASD to 0
+ * to switch off DIAG.
+ */
+
+/*?
+ * Text: "%s: Accessing the DASD failed because of an incorrect format (rc=%d)\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ * Description:
+ * The format of the DASD is not correct.
+ * User action:
+ * Check the device format. For details about the return code see the
+ * section about the INITIALIZE function for DIAGNOSE Code X'250'
+ * in "z/VM CP Programming Services". If you cannot resolve the error, note
+ * the return code and contact your support organization.
+ */
+
+/*?
+ * Text: "%s: New DASD with %ld byte/block, total size %ld KB%s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: bytes per block
+ *   @3: size
+ *   @4: access mode
+ * Description:
+ * A DASD with the indicated block size and total size has been set online.
+ * If the DASD is configured as read-only to the real or virtual hardware,
+ * the message includes an indication of this hardware access mode. The
+ * hardware access mode is independent from the 'readonly' attribute of
+ * the device in sysfs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: DIAG ERP failed with rc=%d\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ * Description:
+ * An error in the DIAG processing could not be recovered by the error
+ * recovery procedure (ERP) of the DIAG discipline.
+ * User action:
+ * Note the return code, check for related I/O errors, and report this problem
+ * to your support organization.
+ */
+
+/*?
+ * Text: "%s: DIAG initialization failed with rc=%d\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ * Description:
+ * Initializing the DASD with the DIAG discipline failed. Possible reasons for
+ * this problem are that the device has a device type other than FBA or ECKD,
+ * or has a block size other than one of the supported sizes:
+ * 512 byte, 1024 byte, 2048 byte, or 4096 byte.
+ * User action:
+ * Ensure that the device can be written to and has a supported device type
+ * and block size. For details about the return code see the section about
+ * the INITIALIZE function for DIAGNOSE Code X'250' in "z/VM CP Programming
+ * Services". If you cannot resolve the error, note the error code and contact
+ * your support organization.
+ */
+
+/*?
+ * Text: "%s: Device type %d is not supported in DIAG mode\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: device type
+ * Description:
+ * Only DASD of type FBA and ECKD are supported in DIAG mode.
+ * User action:
+ * Set the sysfs 'use_diag' attribute of the DASD to 0 and try again to access
+ * the DASD.
+ */
+
+/*?
+ * Text: "Discipline %s cannot be used without z/VM\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: discipline name
+ * Description:
+ * The discipline that is specified with the dasd= kernel or module parameter
+ * is only available for Linux instances that run as guest operating
+ * systems of the z/VM hypervisor.
+ * User action:
+ * Remove the unsupported discipline from the parameter string.
+ */
+
+/*?
+ * Text: "%s: The access mode of a DIAG device changed to read-only\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A device changed its access mode from writeable to
+ * read-only while in use.
+ * User action:
+ * Set the device offline, ensure that the device is configured correctly in
+ * z/VM, then set the device online again.
+ */
+
+------------------------------------------------------------------------------------
+/* dasd_erp */
+
+/*?
+ * Text: "%s: A timeout error occurred for cqr %p\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to request
+ * Description:
+ * A channel queued request (cqr) failed because it timed out.
+ * One possible reason for this error is that a request did not
+ * complete within the timeout interval specified for the DASD.
+ * The timeout interval is set as the value of the 'timeout' sysfs
+ * attribute of a DASD. A value of 0 disables the timeout function.
+ * The timeout function can be used; for example, by mirroring setups;
+ * to quickly process a request queue for a DASD that has become unavailable.
+ * User action:
+ * Check the message log for previous related error messages.  Verify
+ * that the storage server and the connection from host to storage
+ * server are operational.  If the 'timeout' sysfs attribute of the
+ * DASD has been set to a value other than 0, verify that this
+ * setting is intentional and change it if required.
+ */
+
+/*?
+ * Text: "%s: A transport error occurred for cqr %p\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to request
+ * Description:
+ * A channel queued request (cqr) failed because the connection to the
+ * device was lost and the 'failfast' flag is set for the request.
+ * This flag can result from, for example:
+ *
+ * - A software layer above the DASD device driver;
+ *   for example, in a host based mirroring setup.
+ *
+ * - Value 1 for the 'failfast' sysfs attribute of the DASD.
+ *   This setting applies to all requests on the DASD.
+ *
+ * User action:
+ * Ensure that each channel path to the device has been set up
+ * correctly and that the related physical cable connections are in
+ * place. If the 'failfast' attribute of the DASD is set to 1,
+ * verify that this setting is intentional and change it to 0 if required.
+ */
+
+/*?
+ * Text: "%s Setting the DASD online failed because the required module %s could not be loaded (rc=%d)\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: kernel module name
+ *   @3: return code
+ * Description:
+ * The DASD was to be set online with discipline DIAG but this discipline of
+ * the DASD device driver is not available and an attempt to load the
+ * corresponding kernel module failed with the specified return code.
+ *
+ * User action:
+ * Ensure that the kernel module with the specified name is correctly installed
+ * or set the sysfs 'use_diag' attribute of the DASD to 0 to switch off DIAG.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

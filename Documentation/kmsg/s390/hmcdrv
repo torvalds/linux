@@ -1,0 +1,22 @@
+/*?
+ * Text: "Allocating the requested cache size of %zu bytes failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: size
+ * Description:
+ * You cannot use the 'hmcdrv' module.
+ * Either the cache size that was specified for the 'hmcdrv' module exceeded
+ * the maximum of 1048576 (1 megabyte), or not enough free memory was
+ * available.
+ * If the 'hmcdrv' module was compiled into the kernel, the cache size was
+ * specified with the 'hmcdrv.cachesize' kernel parameter.
+ * For a separate 'hmcdrv' module, the cache size was specified with the
+ * 'cachesize=' module parameter.
+ * User action:
+ * Specify a smaller cache size and try again to load the module.
+ * Do not exceed the maximum specification of 1048576 (1 megabyte).
+ * If necessary, free some memory and try again.
+ * If the module is compiled into the kernel, you must reboot Linux to change
+ * the cache size specification.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

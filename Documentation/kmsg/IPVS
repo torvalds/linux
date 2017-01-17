@@ -1,0 +1,81 @@
+/*? Text: "%s(): NULL arg\n" */
+/*? Text: "%s(): NULL scheduler_name\n" */
+/*? Text: "%s(): [%s] pe already existed in the system\n" */
+/*? Text: "%s(): [%s] pe already linked\n" */
+/*? Text: "%s(): [%s] pe is not in the list. failed\n" */
+/*? Text: "%s(): [%s] scheduler already existed in the system\n" */
+/*? Text: "%s(): [%s] scheduler already linked\n" */
+/*? Text: "%s(): [%s] scheduler is not in the list. failed\n" */
+/*? Text: "%s(): done error\n" */
+/*? Text: "%s(): init error\n" */
+/*? Text: "%s(): lower threshold is higher than upper threshold\n" */
+/*? Text: "%s(): no memory\n" */
+/*? Text: "%s(): request for already hashed, called from %pF\n" */
+/*? Text: "%s(): request for unhash flagged, called from %pF\n" */
+/*? Text: "%s(): server weight less than zero\n" */
+/*? Text: "%s: %s %pI4:%d - %s\n" */
+/*? Text: "%s: %s [%pI6]:%d - %s\n" */
+/*? Text: "%s: %s [%pI6c]:%d - %s\n" */
+/*? Text: "%s: FWM %u 0x%08X - %s\n" */
+/*? Text: "%s: enter\n" */
+/*? Text: "%s: loaded support on port[%d] = %d\n" */
+/*? Text: "BACKUP v0, Dropping buffer bogus conn options\n" */
+/*? Text: "BACKUP v0, bogus conn\n" */
+/*? Text: "BACKUP, Dropping buffer, Err: %d in decoding\n" */
+/*? Text: "BACKUP, Dropping buffer, Unknown version %d\n" */
+/*? Text: "BACKUP, Dropping buffer, msg > buffer\n" */
+/*? Text: "BACKUP, Dropping buffer, to small\n" */
+/*? Text: "BACKUP, Invalid PE parameters\n" */
+/*? Text: "BUG control DEL with n=0 : %s:%d to %s:%d\n" */
+/*? Text: "Connection hash table configured (size=%d, memory=%ldKbytes)\n" */
+/*? Text: "Error binding address of the mcast interface\n" */
+/*? Text: "Error binding to the multicast addr\n" */
+/*? Text: "Error connecting to the multicast addr\n" */
+/*? Text: "Error during creation of socket; terminating\n" */
+/*? Text: "Error joining to the multicast group\n" */
+/*? Text: "Error setting outbound mcast interface\n" */
+/*? Text: "Failed to stop Backup Daemon\n" */
+/*? Text: "Failed to stop Master Daemon\n" */
+/*? Text: "Registered protocols (%s)\n" */
+/*? Text: "SYNC, connection pe_data invalid\n" */
+/*? Text: "Schedule: port zero only supported in persistent services, check your ipvs configuration\n" */
+/*? Text: "Scheduler module ip_vs_%s not found\n" */
+/*? Text: "There is no net ptr to find in the skb in %s() line:%d\n" */
+/*? Text: "UDP no ns data\n" */
+/*? Text: "You probably need to specify IP address on multicast interface.\n" */
+/*? Text: "[%s] pe registered.\n" */
+/*? Text: "[%s] pe unregistered.\n" */
+/*? Text: "[%s] scheduler registered.\n" */
+/*? Text: "[%s] scheduler unregistered.\n" */
+/*? Text: "can't register hooks.\n" */
+/*? Text: "can't register netlink/ioctl.\n" */
+/*? Text: "can't setup connection table.\n" */
+/*? Text: "can't setup control.\n" */
+/*? Text: "cannot register Generic Netlink interface.\n" */
+/*? Text: "cannot register sockopt.\n" */
+/*? Text: "get_ctl: len %u < %u\n" */
+/*? Text: "ip_vs_send_async error %d\n" */
+/*? Text: "ip_vs_sync_buff_create failed.\n" */
+/*? Text: "ipvs loaded.\n" */
+/*? Text: "ipvs unloaded.\n" */
+/*? Text: "length: %u != %u\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "not enough space in Netlink message\n" */
+/*? Text: "persistence engine module ip_vs_pe_%s not found\n" */
+/*? Text: "receiving message error\n" */
+/*? Text: "request control ADD for already controlled: %s:%d to %s:%d\n" */
+/*? Text: "request control DEL for uncontrolled: %s:%d to %s:%d\n" */
+/*? Text: "set_ctl: invalid protocol: %d %pI4:%d %s\n" */
+/*? Text: "set_ctl: len %u != %u\n" */
+/*? Text: "shouldn't reach here, because the box is on the half connection in the tun/dr module.\n" */
+/*? Text: "stopping backup sync thread %d ...\n" */
+/*? Text: "stopping master sync thread %d ...\n" */
+/*? Text: "sync thread started: state = BACKUP, mcast_ifn = %s, syncid = %d\n" */
+/*? Text: "sync thread started: state = MASTER, mcast_ifn = %s, syncid = %d\n" */
+/*? Text: "unknown Generic Netlink command\n" */
+/*? Text: "sync thread started: state = MASTER, mcast_ifn = %s, syncid = %d, id = %d\n" */
+/*? Text: "sync thread started: state = BACKUP, mcast_ifn = %s, syncid = %d, id = %d\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "Unknown mcast interface: %s\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

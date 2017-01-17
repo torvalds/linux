@@ -492,6 +492,12 @@ Passed by reference.
 Thanks
 ======
 
+Kernel messages:
+
+       %pj	123456
+
+       For generating the jhash of a string truncated to six digits
+
 If you add other %p extensions, please extend <lib/test_printf.c> with
 one or more test cases, if at all feasible.
 

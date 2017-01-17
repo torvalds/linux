@@ -1,0 +1,27 @@
+/*?
+ * Text: "The 32-bit dump tool cannot be used for a 64-bit system\n"
+ * Severity: Alert
+ * Description:
+ * The dump process ends without creating a system dump.
+ * User action:
+ * Use a 64-bit dump tool to obtain a system dump for 64-bit Linux instance.
+ */
+/*?
+ * Text: "The 64-bit dump tool cannot be used for a 32-bit system\n"
+ * Severity: Alert
+ * Description:
+ * The dump process ends without creating a system dump.
+ * User action:
+ * Use a 32-bit dump tool to obtain a system dump for 32-bit Linux instance.
+ */
+/*?
+ * Text: "The dump process started for a 64-bit operating system\n"
+ * Severity: Alert
+ * Description:
+ * The SCSI dump process started to create a dump for a 64-bit operating
+ * system instance.
+ * User action:
+ * None.
+ */
+/*? Text: "0x%x is an unknown architecture.\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

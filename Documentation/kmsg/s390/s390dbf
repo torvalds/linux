@@ -1,0 +1,83 @@
+/*?
+ * Text: "Root becomes the owner of all s390dbf files in sysfs\n"
+ * Severity: Warning
+ * Description:
+ * The S/390 debug feature you are using only supports uid/gid = 0.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Registering debug feature %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: feature name
+ * Description:
+ * The initialization of an S/390 debug feature failed. A likely cause of this
+ * problem is memory constraints. The system keeps running, but the debug
+ * data for this feature will not be available in sysfs.
+ * User action:
+ * Consider assigning more memory to your LPAR or z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "Registering view %s/%s would exceed the maximum number of views %i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: feature name
+ *   @2: view name
+ *   @3: maximum
+ * Description:
+ * The maximum number of allowed debug feature views has been reached. The
+ * view has not been registered. The system keeps running but the new view
+ * will not be available in sysfs. This is a program error.
+ * User action:
+ * Report this problem to your support partner.
+ */
+
+/*?
+ * Text: "%s is not a valid level for a debug feature\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: level
+ * Description:
+ * Setting a new level for a debug feature by using the 'level' sysfs attribute
+ * failed. Valid levels are the minus sign (-) and the integers in the
+ * range 0 to 6. The minus sign switches off the feature. The numbers switch
+ * the feature on, where higher numbers produce more debug output.
+ * User action:
+ * Write a valid value to the 'level' sysfs attribute.
+ */
+
+/*?
+ * Text: "Flushing debug data failed because %c is not a valid area\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: debug area number
+ * Description:
+ * Flushing a debug area by using the 'flush' sysfs attribute failed. Valid
+ * values are the minus sign (-) for flushing all areas, or the number of the
+ * respective area for flushing a single area.
+ * User action:
+ * Write a valid area number or the minus sign (-) to the 'flush' sysfs
+ * attribute.
+ */
+
+/*?
+ * Text: "Allocating memory for %i pages failed\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: number of pages
+ * Description:
+ * Setting the debug feature size by using the 'page' sysfs attribute failed.
+ * Linux did not have enough memory for expanding the debug feature to the
+ * requested size.
+ * User action:
+ * Use a smaller number of pages for the debug feature or allocate more
+ * memory to your LPAR or z/VM guest virtual machine.
+ */
+
+/*? Text: "%s: set new size (%i pages)\n" */
+/*? Text: "%s: switched off\n" */
+/*? Text: "%s: level %i is out of range (%i - %i)\n" */
+/*? Text: "Registering view %s/%s failed due to out of memory\n" */

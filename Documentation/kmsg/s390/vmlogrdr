@@ -1,0 +1,19 @@
+/*? Text: "vmlogrdr: failed to start recording automatically\n" */
+/*? Text: "vmlogrdr: connection severed with reason %i\n" */
+/*? Text: "vmlogrdr: iucv connection to %s failed with rc %i \n" */
+/*? Text: "vmlogrdr: failed to stop recording automatically\n" */
+/*? Text: "not running under VM, driver not loaded.\n" */
+
+/*?
+ * Text: "vmlogrdr: device %s is busy. Refuse to suspend.\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * Suspending vmlogrdr devices that are in uses is not supported.
+ * A request to suspend such a device is refused.
+ * User action:
+ * Close all applications that use any of the vmlogrdr devices
+ * and then try to suspend the system again.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

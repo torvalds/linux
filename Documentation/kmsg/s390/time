@@ -1,0 +1,36 @@
+/*?
+ * Text: "The ETR interface has adjusted the clock by %li microseconds\n"
+ * Severity: Notice
+ * Parameter:
+ *   @1: number of microseconds
+ * Description:
+ * The external time reference (ETR) interface has synchronized the system
+ * clock  with the external reference and set it to a new value. The time
+ * difference between the old and new clock value has been passed to the
+ * network time protocol (NTP) as a single shot adjustment.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The real or virtual hardware system does not provide an ETR interface\n"
+ * Severity: Warning
+ * Description:
+ * The 'etr=' parameter has been passed on the kernel parameter line for
+ * a Linux instance that does not have access to the external time reference
+ * (ETR) facility.
+ * User action:
+ * To avoid this warning remove the 'etr=' kernel parameter.
+ */
+
+/*?
+ * Text: "The real or virtual hardware system does not provide an STP interface\n"
+ * Severity: Warning
+ * Description:
+ * The 'stp=' parameter has been passed on the kernel parameter line for
+ * a Linux instance that does not have access to the server time protocol
+ * (STP) facility.
+ * User action:
+ * To avoid this warning remove the 'stp=' kernel parameter.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

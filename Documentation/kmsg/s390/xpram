@@ -1,0 +1,74 @@
+/*?
+ * Text: "%d is not a valid number of XPRAM devices\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: number of partitions
+ * Description:
+ * The number of XPRAM partitions specified for the 'devs' module parameter
+ * or with the 'xpram.parts' kernel parameter must be an integer in the
+ * range 1 to 32. The XPRAM device driver created a maximum of 32 partitions
+ * that are probably not configured as intended.
+ * User action:
+ * If the XPRAM device driver has been compiled as a separate module,
+ * unload the module and load it again with a correct value for the 'devs'
+ * module parameter. If the XPRAM device driver has been compiled
+ * into the kernel, correct the 'xpram.parts' parameter in the kernel
+ * command line and restart Linux.
+ */
+
+/*?
+ * Text: "Not enough expanded memory available\n"
+ * Severity: Error
+ * Description:
+ * The amount of expanded memory required to set up your XPRAM partitions
+ * depends on the 'sizes' parameter specified for the xpram module or on
+ * the specifications for the 'xpram.parts' parameter if the XPRAM device
+ * driver has been compiled into the kernel. Your
+ * current specification exceed the amount of available expanded memory.
+ * Your XPRAM partitions are probably not configured as intended.
+ * User action:
+ * If the XPRAM device driver has been compiled as a separate module,
+ * unload the xpram module and load it again with an appropriate value
+ * for the 'sizes' module parameter. If the XPRAM device driver has been
+ * compiled into the kernel, adjust the 'xpram.parts' parameter in the
+ * kernel command line and restart Linux. If you need more than the
+ * available expanded memory, increase the expanded memory allocation for
+ * your virtual hardware or LPAR.
+ */
+
+/*?
+ * Text: "No expanded memory available\n"
+ * Severity: Error
+ * Description:
+ * The XPRAM device driver has been loaded in a Linux instance that runs
+ * in an LPAR or virtual hardware without expanded memory.
+ * No XPRAM partitions are created.
+ * User action:
+ * Allocate expanded memory for your LPAR or virtual hardware or do not
+ * load the xpram module. You can ignore this message, if you do not want
+ * to create XPRAM partitions.
+ */
+
+/*?
+ * Text: "Resuming the system failed: %s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: cause of the failure
+ * Description:
+ * A system cannot be resumed if the expanded memory setup changes
+ * after hibernation. Possible reasons for the failure are:
+ * - Expanded memory was removed after hibernation.
+ * - Size of the expanded memory changed after hibernation.
+ * The system is stopped with a kernel panic.
+ * User action:
+ * Reboot Linux.
+ */
+
+/*? Text: "  number of devices (partitions): %d \n" */
+/*? Text: "  size of partition %d: %u kB\n" */
+/*? Text: "  size of partition %d to be set automatically\n" */
+/*? Text: "  memory needed (for sized partitions): %lu kB\n" */
+/*? Text: "  partitions to be sized automatically: %d\n" */
+/*? Text: "  automatically determined partition size: %lu kB\n" */
+/*? Text: "  %u pages expanded memory found (%lu KB).\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

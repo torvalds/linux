@@ -1,0 +1,33 @@
+/*?
+ * Text: "Defining an interrupt buffer on CPU %i failed with 0x%02x (%s)\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: CPU number
+ *   @2: hexadecimal error value
+ *   @3: short error code explanation
+ * Description:
+ * Defining an interrupt buffer for external interrupts failed. Error
+ * value 0x03 indicates a problem with the z/VM directory entry of the
+ * z/VM guest virtual machine. This problem can also be caused by a
+ * program error.
+ * User action:
+ * If the error value is 0x03, examine the z/VM directory entry of your
+ * z/VM guest virtual machine. If the directory entry is correct or if the
+ * error value is not 0x03, report this problem to your support organization.
+ */
+
+/*?
+ * Text: "Suspending Linux did not completely close all IUCV connections\n"
+ * Severity: Warning
+ * Description:
+ * When resuming a suspended Linux instance, the IUCV base code found
+ * data structures from one or more IUCV connections that existed before the
+ * Linux instance was suspended. Modules that use IUCV connections must close
+ * these connections when a Linux instance is suspended. This problem
+ * indicates an error in a program that used an IUCV connection.
+ * User action:
+ * Report this problem to your support organization.
+ */
+
+/*? Text: "iucv_external_interrupt: out of memory\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

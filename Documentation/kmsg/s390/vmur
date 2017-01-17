@@ -1,0 +1,48 @@
+/*?
+ * Text: "The %s cannot be loaded without z/VM\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: z/VM virtual unit record device driver
+ * Description:
+ * The z/VM virtual unit record device driver provides Linux with access to
+ * z/VM virtual unit record devices like punch card readers, card punches, and
+ * line printers. On Linux instances that run in environments other than the
+ * z/VM hypervisor, the device driver does not provide any useful function and
+ * the corresponding vmur module cannot be loaded.
+ * User action:
+ * Load the vmur module only on Linux instances that run as guest operating
+ * systems of the z/VM hypervisor. If the z/VM virtual unit record device
+ * has been compiled into the kernel, ignore this message.
+ */
+
+/*?
+ * Text: "Kernel function alloc_chrdev_region failed with error code %d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: error code according to errno definitions
+ * Description:
+ * The z/VM virtual unit record device driver (vmur) needs to register a range
+ * of character device minor numbers from 0x0000 to 0xffff.
+ * This registration failed, probably because of memory constraints.
+ * User action:
+ * Free some memory and reload the vmur module. If the z/VM virtual unit
+ * record device driver has been compiled into the kernel reboot Linux.
+ * Consider assigning more memory to your LPAR or z/VM guest virtual machine.
+ */
+
+/*?
+ * Text: "Unit record device %s is busy, %s refusing to suspend.\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the unit record device
+ *   @1: z/VM virtual unit record device driver
+ * Description:
+ * Linux cannot be suspended while a unit record device is in use.
+ * User action:
+ * Stop all applications that work on z/VM spool file queues, for example, the
+ * vmur tool. Then try again to suspend Linux.
+ */
+
+/*? Text: "%s loaded.\n" */
+/*? Text: "%s unloaded.\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

@@ -1,0 +1,46 @@
+/*?
+ * Text: "%d configured CPUs, %d standby CPUs\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: number of configured CPUs
+ *   @2: number of standby CPUs
+ * Description:
+ * The kernel detected the given number of configured and standby CPUs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The CPU configuration topology of the machine is:"
+ * Severity: Informational
+ * Description:
+ * The first six values of the topology information represent fields Mag6 to
+ * Mag1 of system-information block (SYSIB) 15.1.2. These fields specify the
+ * maximum numbers of topology-list entries (TLE) at successive topology nesting
+ * levels. The last value represents the MNest value of SYSIB 15.1.2 which
+ * specifies the maximum possible nesting that can be configured through
+ * dynamic changes. For details see the SYSIB 15.1.2 information in the
+ * "Principles of Operation."
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "CPU %i exceeds the maximum %i and is excluded from the dump\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: CPU number
+ *   @2: maximum CPU number
+ * Description:
+ * The Linux kernel is used as a system dumper but it runs on more CPUs than
+ * it has been compiled for with the CONFIG_NR_CPUS kernel configuration
+ * option. The system dump will be created but information on one or more
+ * CPUs will be missing.
+ * User action:
+ * Update the system dump kernel to a newer version that supports more
+ * CPUs or reduce the number of installed CPUs and reproduce the problem
+ * that should be analyzed. If you send the system dump that prompted this
+ * message to a support organization, be sure to communicate that the dump
+ * does not include all CPU information.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

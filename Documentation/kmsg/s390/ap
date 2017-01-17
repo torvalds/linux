@@ -1,0 +1,49 @@
+/*?
+ * Text: "%d is not a valid cryptographic domain\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: AP  domain index
+ * Description:
+ * The cryptographic domain specified for the 'domain=' module or kernel
+ * parameter must be an integer in the range 0 to 15.
+ * User action:
+ * Reload the cryptographic device driver with a correct module parameter.
+ * If the device driver has been compiled into the kernel, correct the value
+ * in the kernel parameter line and reboot Linux.
+ */
+
+/*?
+ * Text: "The hardware system does not support AP instructions\n"
+ * Severity: Warning
+ * Description:
+ * The ap module addresses AP adapters through AP instructions. The hardware
+ * system on which the Linux instance runs does not support AP instructions.
+ * The ap module cannot detect any AP adapters.
+ * User action:
+ * Load the ap module only if your Linux instance runs on hardware that
+ * supports AP instructions. If the ap module has been compiled into the kernel,
+ * ignore this message.
+ */
+
+/*?
+ * Text: "Registering adapter interrupts for AP device %02x.%04x failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: AP device ID
+ *   @2: AP queue
+ * Description:
+ * The hardware system supports AP adapter interrupts but failed to enable
+ * an adapter for interrupts. Possible causes for this error are:
+ * i)   The AP adapter firmware does not support AP interrupts.
+ * ii)  An AP adapter firmware update to a firmware level that supports AP
+ *      adapter interrupts failed.
+ * iii) The AP adapter firmware has been successfully updated to a level that
+ *      supports AP interrupts but the new firmware has not been activated.
+ * User action:
+ * Ensure that the firmware on your AP adapters support AP interrupts and that
+ * any firmware updates have completed successfully. If necessary, deconfigure
+ * your cryptographic adapters and reconfigure them to ensure that any firmware
+ * updates become active, then reload the ap module. If the ap module has been
+ * compiled into the kernel, reboot Linux.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

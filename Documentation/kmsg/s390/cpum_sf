@@ -1,0 +1,104 @@
+/*?
+ * Text: "The sampling buffer limits have changed to: min=%lu max=%lu (diag=x%lu)\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: minimum size in sample-data-blocks
+ *   @2: maximum size in sample-data-blocks
+ *   @3: size factor for buffering diagnostic-sampling data entries
+ * Description:
+ * The minimum or maximum size limit for the sampling facility buffer was
+ * changed.  The change is effective immediately.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Switching off the sampling facility failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: error condition
+ * Description:
+ * The CPU-measurement sampling facility could not be switched off and continues
+ * to run.  For details, see LOAD SAMPLING CONTROLS in
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * If this problem persists, reboot your Linux instance.
+ */
+
+/*?
+ * Text: "Sample data was lost\n"
+ * Severity: Error
+ * Description:
+ * Sample data was lost because of machine-internal high-priority activities.
+ * The sampling facility is stopped.
+ * User action:
+ * End all performance measurement sessions.  Discard the measurement data,
+ * which are likely to be flawed.  Repeat your measurements.
+ * If the problem persists, contact your hardware administrator.
+ */
+
+/*?
+ * Text: "Sampling facility support for perf is not available: reason=%04x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: reason code
+ * Description:
+ * The device driver could not initialize the sampling facility support.
+ * Possible reason codes are:
+ * 0001: The device driver failed to query CPU-measurement sampling facility
+ *	 information.
+ *
+ * 0002: The device driver does not support the basic-sampling function that
+ *	 is available on the LPAR within which the Linux instance runs.
+ *
+ * 0003: The device driver could not register to receive CPU-measurement alerts.
+ *	 A possible cause of this problem is memory constraints.
+ *
+ * 0004: The device driver could not register the Performance Measurement Unit
+ *	 (PMU) for the CPU-measurement sampling facility.
+ *	 A possible cause of this problem is memory constraints.
+ * User action:
+ * Consider assigning more memory to your Linux instance.
+ */
+
+/*?
+ * Text: "Loading sampling controls failed: op=%i err=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: Type of operation
+ *   @2: Error condition
+ * Description:
+ * The sampling facility support could not load sampling controls to enable
+ * (operation type 1) or disable (operation type 2) the CPU-measurement sampling
+ * facility.  For details of the error condition, see LOAD SAMPLING CONTROLS in
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * If the problem persists, reboot your Linux instance.
+ */
+
+/*?
+ * Text: "A sampling buffer entry is incorrect (alert=0x%x)\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: Alert code
+ * Description:
+ * An incorrect sampling facility buffer entry was detected. The alert code
+ * indicates the root cause, for example, an incorrect entry address or an
+ * incorrect sample-data-block-table entry.
+ * User action:
+ * End active performance measurement sessions, for example, perf processes. If
+ * the problem persists, reboot your Linux instance.
+ */
+
+/*?
+ * Text: "Registering for s390dbf failed\n"
+ * Severity: Error
+ * Description:
+ * The device driver failed to register for the s390 debug feature.  You will
+ * not receive any debug information.  A possible cause of this problem is
+ * memory constraints.
+ * User action:
+ * Consider assigning more memory
+ * to your Linux instance.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

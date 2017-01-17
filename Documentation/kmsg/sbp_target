@@ -1,0 +1,49 @@
+/*? Text: "ABORT TASK SET not implemented\n" */
+/*? Text: "ABORT TASK not implemented\n" */
+/*? Text: "Cannot change the directory_id on an active target.\n" */
+/*? Text: "Cannot enable a target with no LUNs!\n" */
+/*? Text: "Could not update Config ROM\n" */
+/*? Text: "Ignoring ORB_POINTER write while active.\n" */
+/*? Text: "LOGICAL UNIT RESET not implemented\n" */
+/*? Text: "Node ACL not found for %s\n" */
+/*? Text: "Only one TPG per Unit is possible.\n" */
+/*? Text: "QUERY LOGINS not implemented\n" */
+/*? Text: "Reconnect timer expired for node: %016llx\n" */
+/*? Text: "SET PASSWORD not implemented\n" */
+/*? Text: "TARGET RESET not implemented\n" */
+/*? Text: "Unable to allocate struct sbp_nacl\n" */
+/*? Text: "Unable to allocate struct sbp_tpg\n" */
+/*? Text: "Unable to allocate struct sbp_tport\n" */
+/*? Text: "Waiting for reconnect from node: %016llx\n" */
+/*? Text: "cannot find login: %d\n" */
+/*? Text: "failed to allocate login descriptor\n" */
+/*? Text: "failed to allocate login response block\n" */
+/*? Text: "failed to allocate session descriptor\n" */
+/*? Text: "failed to init se_session\n" */
+/*? Text: "failed to map command block handler: %d\n" */
+/*? Text: "failed to read peer GUID: %d\n" */
+/*? Text: "ignoring management request while busy\n" */
+/*? Text: "ignoring request from foreign node (%x != %x)\n" */
+/*? Text: "ignoring request with wrong generation\n" */
+/*? Text: "initiator already logged-in\n" */
+/*? Text: "login to unknown LUN: %d\n" */
+/*? Text: "logout from different node ID\n" */
+/*? Text: "max number of logins reached\n" */
+/*? Text: "mgt_agent LOGIN to LUN %d from %016llx\n" */
+/*? Text: "mgt_agent LOGOUT from LUN %d session %d\n" */
+/*? Text: "mgt_agent RECONNECT from %016llx\n" */
+/*? Text: "mgt_agent RECONNECT login GUID doesn't match\n" */
+/*? Text: "mgt_agent RECONNECT unknown login ID\n" */
+/*? Text: "mgt_orb bad request\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "refusing exclusive login with other active logins\n" */
+/*? Text: "refusing login while another exclusive login present\n" */
+/*? Text: "sbp_run_transaction: page size ignored\n" */
+/*? Text: "sbp_send_sense: unknown sense format: 0x%x\n" */
+/*? Text: "target_fabric_configfs_init() failed\n" */
+/*? Text: "target_fabric_configfs_register() failed for SBP\n" */
+/*? Text: "unknown management function 0x%x\n" */
+/*? Text: "unlink LUN: failed to update unit directory\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

@@ -1,0 +1,34 @@
+/*? Text: "Error allocating compressor buffer space\n" */
+/*? Text: "Error allocating memory for compressed page: %u, size=%zu\n" */
+/*? Text: "Error creating memory pool\n" */
+/*? Text: "num_devices not specified. Using default: 1\n" */
+/*? Text: "Error allocating compressor working memory!\n" */
+/*? Text: "Error allocating zram address table\n" */
+/*? Text: "Unable to get major number\n" */
+/*? Text: "Compression failed! err=%d\n" */
+/*? Text: "Decompression failed! err=%d, page=%u\n" */
+/*? Text: "There is little point creating a zram of greater than twice the size of memory since we expect a 2:1 compression ratio. Note that zram uses about 0.1%% of the size of the disk when not in use so a huge zram is wasteful.\n\tMemory Size: %zu kB\n\tSize you selected: %llu kB\nContinuing anyway ...\n" */
+/*? Text: "disk size not provided. You can use disksize_kb module param to specify size.\nUsing default: (%u%% of RAM).\n" */
+/*? Text: "Error creating sysfs group" */
+/*? Text: "Error allocating memory for incompressible page: %u\n" */
+/*? Text: "Creating %u devices ...\n" */
+/*? Text: "Initialization failed: err=%d\n" */
+/*? Text: "Error allocating disk queue for device %d\n" */
+/*? Text: "Error allocating disk structure for device %d\n" */
+/*? Text: "Invalid value for num_devices: %u\n" */
+/*? Text: "Error allocating temp memory!\n" */
+/*? Text: "Unable to allocate temp memory\n" */
+/*? Text: "Created %u device(s) ...\n" */
+/*? Text: "There is little point creating a zram of greater than twice the size of memory since we expect a 2:1 compression ratio. Note that zram uses about 0.1%% of the size of the disk when not in use so a huge zram is wasteful.\n\tMemory Size: %lu kB\n\tSize you selected: %llu kB\nContinuing anyway ...\n" */
+/*? Text: "Cannot change disksize for initialized device\n" */
+/*? Text: "Can't change algorithm for initialized device\n" */
+/*? Text: "Cannot initialise %s compressing backend\n" */
+/*? Text: "Cannot change max compression streams\n" */
+/*? Text: "Destroyed %u device(s)\n" */
+/*? Text: "Created %u device(s)\n" */
+/*? Text: "Unable to register zram-control class\n" */
+/*? Text: "Removed device: %s\n" */
+/*? Text: "Added device: %s\n" */
+/*? Text: "Error creating sysfs group for device %d\n" */
+/*? Text: "Error allocating memory for compressed page: %u, size=%u\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

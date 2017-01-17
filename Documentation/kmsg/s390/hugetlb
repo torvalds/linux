@@ -1,0 +1,13 @@
+/*?
+ * Text: "hugepagesz= specifies an unsupported page size %s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: size
+ * Description:
+ * The hugepagesz= kernel parameter specifies a huge page size
+ * that is not supported.
+ * User action:
+ * Specify "1M" for 1 MB huge pages. These are supported as of z10.
+ * Specify "2G" for 2 GB huge pages. These are supported as of zEC12
+ * and zBC12 machines.
+ */

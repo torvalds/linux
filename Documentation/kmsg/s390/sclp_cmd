@@ -1,0 +1,44 @@
+/*? Text: "sync request failed (cmd=0x%08x, status=0x%02x)\n" */
+/*? Text: "readcpuinfo failed (response=0x%04x)\n" */
+/*? Text: "configure cpu failed (cmd=0x%08x, response=0x%04x)\n" */
+/*? Text: "configure channel-path failed (cmd=0x%08x, response=0x%04x)\n" */
+/*? Text: "read channel-path info failed (response=0x%04x)\n" */
+/*? Text: "assign storage failed (cmd=0x%08x, response=0x%04x, rn=0x%04x)\n" */
+/*? Text: "configure PCI I/O adapter failed: cmd=0x%08x  response=0x%04x\n" */
+/*? Text: "request failed (status=0x%02x)\n" */
+/*? Text: "request failed with response code 0x%x\n" */
+
+/*?
+ * Text: "Memory hotplug state changed, suspend refused.\n"
+ * Severity: Error
+ * Description:
+ * Suspend is refused after a memory hotplug operation was performed.
+ * User action:
+ * The system needs to be restarted and no memory hotplug operation must be
+ * performed in order to allow suspend.
+ */
+
+/*?
+ * Text: "Standby memory at 0x%llx (%lluM of %lluM usable)\n"
+ * Severity: Informational
+ * Parameter:
+ * @1: start address of standby memory
+ * @2: usable memory in MB
+ * @3: total detected memory in MB
+ * Description:
+ * Standby memory was detected. It can be used for memory hotplug only
+ * if it is aligned to the Linux hotplug memory block size.
+ * If the aligned amount of memory matches the total amount,
+ * all detected standby memory can be used. Otherwise, some of the detected
+ * memory is unaligned and cannot be used.
+ * User action:
+ * None, if the usable and the total amount of detected standby memory match.
+ * If the amounts of memory do not match,
+ * check the memory setup of your guest virtual machine and ensure that
+ * the standby memory start and end
+ * address is aligned to the Linux hotplug memory block size.
+ * On Linux, issue "cat /sys/devices/system/memory/block_size_bytes"
+ * to find the hotplug memory block size value in hexadecimal notation.
+ * On z/VM, query your memory setup with "vmcp q v store".
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

@@ -1,0 +1,478 @@
+#!/usr/bin/perl -w
+#
+# kmsg kernel messages check and print tool.
+#
+# To check the source code for missing messages the script is called
+# with check, the name compiler and the compile parameters
+#	kmsg-doc check $(CC) $(c_flags) $<
+# To create man pages for the messages the script is called with
+#	kmsg-doc print $(CC) $(c_flags) $<
+#
+# Copyright IBM Corp. 2008
+# Author(s):  Martin Schwidefsky <schwidefsky@de.ibm.com>
+#	      Michael Holzheu <holzheu@linux.vnet.ibm.com>
+#
+
+use Cwd;
+use bigint;
+
+my $errors = 0;
+my $warnings = 0;
+my $srctree = "";
+my $objtree = "";
+my $kmsg_count = 0;
+
+sub remove_quotes($)
+{
+    my ($string) = @_;
+    my $inside = 0;
+    my $slash = 0;
+    my $result = "";
+
+    foreach my $str (split(/([\\"])/, $string)) {
+        if ($inside && ($str ne "\"" || $slash)) {
+            $result .= $str;
+        }
+        # Check for backslash before quote
+        if ($str eq "\"") {
+            if (!$slash) {
+                $inside = !$inside;
+            }
+	     $slash = 0;
+        } elsif ($str eq "\\") {
+            $slash = !$slash;
+        } elsif ($str ne "") {
+            $slash = 0;
+        }
+    }
+    return $result;
+}
+
+sub string_to_bytes($)
+{
+    my ($string) = @_;
+    my %is_escape = ('"', 0x22, '\'', 0x27, 'n', 0x0a, 'r', 0x0d, 'b', 0x08,
+		     't', 0x09, 'f', 0x0c, 'a', 0x07, 'v', 0x0b, '?', 0x3f);
+    my (@ar, $slash, $len);
+
+    # scan string, interpret backslash escapes and write bytes to @ar
+    $len = 0;
+    foreach my $ch (split(//, $string)) {
+	if ($ch eq '\\') {
+	    $slash = !$slash;
+	    if (!$slash) {
+		$ar[$len] = ord('\\');
+		$len++;
+	    }
+	} elsif ($slash && defined $is_escape{$ch}) {
+	    # C99 backslash escapes: \\ \" \' \n \r \b \t \f \a \v \?
+	    $ar[$len] = $is_escape{$ch};
+	    $len++;
+	    $slash = 0;
+	} elsif ($slash) {
+	    # FIXME: C99 backslash escapes \nnn \xhh
+	    die("Unknown backslash escape in message $string.");
+	} else {
+	    # normal character
+	    $ar[$len] = ord($ch);
+	    $len++;
+	}
+    }
+    return @ar;
+}
+
+sub calc_jhash($)
+{
+    my ($string) = @_;
+    my @ar;
+    my ($a, $b, $c, $i, $length, $len);
+
+    @ar = string_to_bytes($string);
+    $length = @ar;
+    # add dummy elements to @ar to avoid if then else hell
+    push @ar, (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    $a = 0x9e3779b9;
+    $b = 0x9e3779b9;
+    $c = 0;
+    $i = 0;
+    for ($len = $length + 12; $len >= 12; $len -= 12) {
+	if ($len < 24) {
+	    # add length for last round
+	    $c += $length;
+	}
+	$a += $ar[$i] + ($ar[$i+1]<<8) + ($ar[$i+2]<<16) + ($ar[$i+3]<<24);
+	$b += $ar[$i+4] + ($ar[$i+5]<<8) + ($ar[$i+6]<<16) + ($ar[$i+7]<<24);
+	if ($len >= 24) {
+	    $c += $ar[$i+8] + ($ar[$i+9]<<8) + ($ar[$i+10]<<16) + ($ar[$i+11]<<24);
+	} else {
+	    $c += ($ar[$i+8]<<8) + ($ar[$i+9]<<16) + ($ar[$i+10]<<24);
+	}
+	$a &= 0xffffffff; $b &= 0xffffffff; $c &= 0xffffffff;
+	$a -= $b; $a -= $c; $a ^= ($c >> 13); $a &= 0xffffffff;
+	$b -= $c; $b -= $a; $b ^= ($a << 8); $b &= 0xffffffff;
+	$c -= $a; $c -= $b; $c ^= ($b >> 13); $c &= 0xffffffff;
+	$a -= $b; $a -= $c; $a ^= ($c >> 12); $a &= 0xffffffff;
+	$b -= $c; $b -= $a; $b ^= ($a << 16); $b &= 0xffffffff;
+	$c -= $a; $c -= $b; $c ^= ($b >> 5); $c &= 0xffffffff;
+	$a -= $b; $a -= $c; $a ^= ($c >> 3); $a &= 0xffffffff;
+	$b -= $c; $b -= $a; $b ^= ($a << 10); $b &= 0xffffffff;
+	$c -= $a; $c -= $b; $c ^= ($b >> 15); $c &= 0xffffffff;
+	$i += 12;
+    }
+    return $c;
+}
+
+sub add_kmsg_desc($$$$$$)
+{
+    my ($component, $text, $sev, $argv, $desc, $user) = @_;
+    my ($hash, $tag);
+
+    $text = remove_quotes($text);
+    $hash = substr(sprintf("%08x", calc_jhash($text)), 2, 6);
+    $tag = $component . "." . $hash;
+
+    if ($kmsg_desc{$tag}) {
+	if ($text ne $kmsg_desc{$tag}->{'TEXT'}) {
+	    warn "Duplicate message with tag $tag\n";
+	    warn "  --- $kmsg_desc{$tag}->{'TEXT'}\n";
+	    warn "  +++ $text\n";
+	} else {
+	    warn "Duplicate message description for \"$text\"\n";
+	}
+	$errors++;
+	return;
+    }
+    $kmsg_desc{$tag}->{'TEXT'} = $text;
+    $kmsg_desc{$tag}->{'SEV'} = $sev;
+    $kmsg_desc{$tag}->{'ARGV'} = $argv;
+    $kmsg_desc{$tag}->{'DESC'} = $desc;
+    $kmsg_desc{$tag}->{'USER'} = $user;
+}
+
+sub add_kmsg_print($$$$)
+{
+    my ($component, $sev, $text, $argv) = @_;
+    my ($hash, $tag, $count, $parm);
+
+    $text = remove_quotes($text);
+    $hash = substr(sprintf("%08x", calc_jhash($text)), 2, 6);
+    $tag = $component . "." . $hash;
+
+    # Pretty print severity
+    $sev =~ s/"0"/Emerg/;
+    $sev =~ s/"1"/Alert/;
+    $sev =~ s/"2"/Critical/;
+    $sev =~ s/"3"/Error/;
+    $sev =~ s/"4"/Warning/;
+    $sev =~ s/"5"/Notice/;
+    $sev =~ s/"6"/Informational/;
+    $sev =~ s/"7"/Debug/;
+    $kmsg_print{$kmsg_count}->{'TAG'} = $tag;
+    $kmsg_print{$kmsg_count}->{'TEXT'} = $text;
+    $kmsg_print{$kmsg_count}->{'SEV'} = $sev;
+    $kmsg_print{$kmsg_count}->{'ARGV'} = $argv;
+    $kmsg_count += 1;
+}
+
+sub process_source_file($$)
+{
+    my ($component, $file) = @_;
+    my $state;
+    my ($text, $sev, $argv, $desc, $user);
+
+    if (!open(FD, "$file")) {
+	return "";
+    }
+
+    $state = 0;
+    while (<FD>) {
+	chomp;
+	# kmsg message component: #define KMSG_COMPONENT "<component>"
+	if (/^#define\s+KMSG_COMPONENT\s+\"(.*)\"[^\"]*$/o) {
+	    $component = $1;
+	}
+	if ($state == 0) {
+	    # single line kmsg for undocumented messages, format:
+	    # /*? Text: "<message>" */
+	    if (/^\s*\/\*\?\s*Text:\s*(\".*\")\s*\*\/\s*$/o) {
+		add_kmsg_desc($component, $1, "", "", "", "");
+	    }
+	    # kmsg message start: '/*?'
+	    if (/^\s*\/\*\?\s*$/o) {
+		$state = 1;
+		($text, $sev, $argv, $desc, $user) = ( "", "", "", "", "" );
+	    }
+	} elsif ($state == 1) {
+	    # kmsg message end: ' */'
+	    if (/^\s*\*\/\s*/o) {
+		add_kmsg_desc($component, $text, $sev, $argv, $desc, $user);
+		$state = 0;
+	    }
+	    # kmsg message text: ' * Text: "<message>"'
+	    elsif (/^\s*\*\s*Text:\s*(\".*\")\s*$/o) {
+		$text = $1;
+	    }
+	    # kmsg message severity: ' * Severity: <sev>'
+	    elsif (/^\s*\*\s*Severity:\s*(\S*)\s*$/o) {
+		$sev = $1;
+	    }
+	    # kmsg message parameter: ' * Parameter: <argv>'
+	    elsif (/^\s*\*\s*Parameter:\s*(\S*)\s*$/o) {
+		if (!defined($1)) {
+		    $argv = "";
+		} else {
+		    $argv = $1;
+		}
+		$state = 2;
+	    }
+	    # kmsg message description start: ' * Description:'
+	    elsif (/^\s*\*\s*Description:\s*(\S*)\s*$/o) {
+		if (!defined($1)) {
+		    $desc = "";
+		} else {
+		    $desc = $1;
+		}
+		$state = 3;
+	    }
+	    # kmsg has unrecognizable lines
+	    else {
+		warn "Warning(${file}:$.): Cannot understand $_";
+		$warnings++;
+		$state = 0;
+	    }
+	} elsif ($state == 2) {
+	    # kmsg message end: ' */'
+	    if (/^\s*\*\//o) {
+		warn "Warning(${file}:$.): Missing description, skipping message";
+		$warnings++;
+		$state = 0;
+	    }
+	    # kmsg message description start: ' * Description:'
+	    elsif (/^\s*\*\s*Description:\s*$/o) {
+		$desc = $1;
+		$state = 3;
+	    }
+	    # kmsg message parameter line: ' * <argv>'
+	    elsif (/^\s*\*(.*)$/o) {
+		$argv .= "\n" . $1;
+	    } else {
+		warn "Warning(${file}:$.): Cannot understand $_";
+		$warnings++;
+		$state = 0;
+	    }
+	} elsif ($state == 3) {
+	    # kmsg message end: ' */'
+	    if (/^\s*\*\/\s*/o) {
+		add_kmsg_desc($component, $text, $sev, $argv, $desc, $user);
+		$state = 0;
+	    }
+	    # kmsg message description start: ' * User action:'
+	    elsif (/^\s*\*\s*User action:\s*$/o) {
+		$user = $1;
+		$state = 4;
+	    }
+	    # kmsg message description line: ' * <text>'
+	    elsif (/^\s*\*\s*(.*)$/o) {
+		$desc .= "\n" . $1;
+	    } else {
+		warn "Warning(${file}:$.): Cannot understand $_";
+		$warnings++;
+		$state = 0;
+	    }
+	} elsif ($state == 4) {
+	    # kmsg message end: ' */'
+	    if (/^\s*\*\/\s*/o) {
+		add_kmsg_desc($component, $text, $sev, $argv, $desc, $user);
+		$state = 0;
+	    }
+	    # kmsg message user action line: ' * <text>'
+	    elsif (/^\s*\*\s*(.*)$/o) {
+		$user .= "\n" . $1;
+	    } else {
+		warn "Warning(${file}:$.): Cannot understand $_";
+		$warnings++;
+		$state = 0;
+	    }
+	}
+    }
+    return $component;
+}
+
+sub process_cpp_file($$$$)
+{
+    my ($cc, $options, $file, $component) = @_;
+
+    open(FD, "$cc $gcc_options|") or die ("Preprocessing failed.");
+
+    while (<FD>) {
+	chomp;
+	if (/.*__KMSG_PRINT\(\s*(\S*)\s*(\S*)\s*_FMT_(.*)_ARGS_\s*(.*)?_END_\s*\)/o) {
+	    if ($component ne "") {
+		add_kmsg_print($component, $2, $3, $4);
+	    } else {
+		warn "Error(${file}:$.): kmsg without component\n";
+		$errors++;
+	    }
+	} elsif (/.*__KMSG_DEV\(\s*(\S*)\s*(\S*)\s*_FMT_(.*)_ARGS_\s*(.*)?_END_\s*\)/o) {
+	    if ($component ne "") {
+		add_kmsg_print($component, $2, "\"%s: \"" . $3, $4);
+	    } else {
+		warn "Error(${file}:$.): kmsg without component\n";
+		$errors++;
+	    }
+	}
+    }
+}
+
+sub check_messages($)
+{
+    my $component = "@_";
+    my $failed = 0;
+
+    for ($i = 0; $i < $kmsg_count; $i++) {
+	$tag = $kmsg_print{$i}->{'TAG'};
+	if (!defined($kmsg_desc{$tag})) {
+	    add_kmsg_desc($component,
+			  "\"" . $kmsg_print{$i}->{'TEXT'} . "\"",
+			  $kmsg_print{$i}->{'SEV'},
+			  $kmsg_print{$i}->{'ARGV'},
+			  "Please insert description here",
+			  "What is the user supposed to do");
+	    $kmsg_desc{$tag}->{'CHECK'} = 1;
+	    $failed = 1;
+	    warn "$component: Missing description for: ".
+		 $kmsg_print{$i}->{'TEXT'}."\n";
+	    $errors++;
+	    next;
+	}
+	if ($kmsg_desc{$tag}->{'SEV'} ne "" &&
+	    $kmsg_desc{$tag}->{'SEV'} ne $kmsg_print{$i}->{'SEV'}) {
+	    warn "Message severity mismatch for \"$kmsg_print{$i}->{'TEXT'}\"\n";
+	    warn "  --- $kmsg_desc{$tag}->{'SEV'}\n";
+	    warn "  +++ $kmsg_print{$i}->{'SEV'}\n";
+	}
+    }
+    return $failed;
+}
+
+sub print_templates()
+{
+    print "Templates for missing messages:\n";
+    foreach $tag ( sort { $kmsg_desc{$a} <=> $kmsg_desc{$b} } keys %kmsg_desc ) {
+	if (!defined($kmsg_desc{$tag}->{'CHECK'})) {
+	    next;
+	}
+	print "/*?\n";
+	print " * Text: \"$kmsg_desc{$tag}->{'TEXT'}\"\n";
+	print " * Severity: $kmsg_desc{$tag}->{'SEV'}\n";
+	$argv = $kmsg_desc{$tag}->{'ARGV'};
+	if ($argv ne "") {
+	    print " * Parameter:\n";
+	    @parms = split(/\s*,\s*/,$kmsg_desc{$tag}->{'ARGV'});
+	    $count = 0;
+	    foreach $parm (@parms) {
+		$count += 1;
+		if (!($parm eq "")) {
+		    print " *   \@$count: $parm\n";
+		}
+	    }
+	}
+	print " * Description:\n";
+	print " * $kmsg_desc{$tag}->{'DESC'}\n";
+	print " * User action:\n";
+	print " * $kmsg_desc{$tag}->{'USER'}\n";
+	print " */\n\n";
+    }
+}
+
+sub write_man_pages()
+{
+    my ($i, $file);
+
+    for ($i = 0; $i < $kmsg_count; $i++) {
+	$tag = $kmsg_print{$i}->{'TAG'};
+	if (!defined($kmsg_desc{$tag}) ||
+	    defined($kmsg_desc{$tag}->{'CHECK'}) ||
+	    $kmsg_desc{$tag}->{'DESC'} eq "") {
+	    next;
+	}
+	$file = $objtree . "man/" . $tag . ".9";
+	if (!open(WR, ">$file")) {
+	    warn "Error: Cannot open file $file\n";
+	    $errors++;
+	    return;
+	}
+	print WR ".TH \"$tag\" 9 \"Linux Messages\" LINUX\n";
+	print WR ".SH Message\n";
+	print WR $tag . ": " . $kmsg_desc{$tag}->{'TEXT'} . "\n";
+	print WR ".SH Severity\n";
+	print WR "$kmsg_desc{$tag}->{'SEV'}\n";
+	$argv = $kmsg_desc{$tag}->{'ARGV'};
+	if ($argv ne "") {
+	    print WR ".SH Parameters\n";
+	    @parms = split(/\s*\n\s*/,$kmsg_desc{$tag}->{'ARGV'});
+	    foreach $parm (@parms) {
+		$parm =~ s/^\s*(.*)\s*$/$1/;
+		if (!($parm eq "")) {
+		    print WR "$parm\n\n";
+		}
+	    }
+	}
+	print WR ".SH Description";
+	print WR "$kmsg_desc{$tag}->{'DESC'}\n";
+	$user = $kmsg_desc{$tag}->{'USER'};
+	if ($user ne "") {
+	    print WR ".SH User action";
+	    print WR "$user\n";
+	}
+    }
+}
+
+if (defined($ENV{'srctree'})) {
+    $srctree = "$ENV{'srctree'}" . "/";
+} else {
+    $srctree = getcwd;
+}
+
+if (defined($ENV{'objtree'})) {
+    $objtree = "$ENV{'objtree'}" . "/";
+} else {
+    $objtree = getcwd;
+}
+
+if (defined($ENV{'SRCARCH'})) {
+    $srcarch = "$ENV{'SRCARCH'}" . "/";
+} else {
+    print "kmsg-doc called without a valid \$SRCARCH\n";
+    exit 1;
+}
+
+$option = shift;
+
+$cc = shift;
+$gcc_options = "-E -D __KMSG_CHECKER ";
+foreach $tmp (@ARGV) {
+    $tmp =~ s/\(/\\\(/;
+    $tmp =~ s/\)/\\\)/;
+    $gcc_options .= " $tmp";
+    $filename = $tmp;
+}
+
+$component = process_source_file("", $filename);
+if ($component ne "") {
+    process_source_file($component, $srctree . "Documentation/kmsg/" .
+			$srcarch . $component);
+    process_source_file($component, $srctree . "Documentation/kmsg/" .
+			$component);
+}
+
+process_cpp_file($cc, $gcc_options, $filename, $component);
+if ($option eq "check") {
+    if (check_messages($component)) {
+	print_templates();
+    }
+} elsif ($option eq "print") {
+    write_man_pages();
+}
+
+exit($errors);

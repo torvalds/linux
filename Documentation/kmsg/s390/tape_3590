@@ -1,0 +1,183 @@
+/*?
+ * Text: "%s: The tape medium must be loaded into a different tape unit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape device has indicated an error condition that requires loading
+ * the tape cartridge into a different tape unit to recover.
+ * User action:
+ * Unload the cartridge and use a different tape unit to retry the operation.
+ */
+
+/*?
+ * Text: "%s: Tape media information: exception %s, service %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: exception
+ *   @3: service
+ * Description:
+ * This is an operating system independent tape medium information message
+ * that was issued by the tape unit. The information in the message is
+ * intended for the IBM customer engineer.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: Device subsystem information: exception %s, service %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: exception
+ *   @3: required service action
+ * Description:
+ * This is an operating system independent device subsystem information message
+ * that was issued by the tape unit. The information in the message is
+ * intended for the IBM customer engineer.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: I/O subsystem information: exception %s, service %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: exception
+ *   @3: required service action
+ * Description:
+ * This is an operating system independent I/O subsystem information message
+ * that was issued by the tape unit. The information in the message is
+ * intended for the IBM customer engineer.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: The tape unit has issued sense message %s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: sense message code
+ * Description:
+ * The tape unit has issued an operating system independent sense message.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: The tape unit has issued an unknown sense message code 0x%x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: code
+ * Description:
+ * The tape device driver has received an unknown sense message from the
+ * tape unit.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: MIM SEV=%i, MC=%02x, ES=%x/%x, RC=%02x-%04x-%02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: SEV
+ *   @3: message code
+ *   @4: exception
+ *   @5: required service action
+ *   @6: refcode
+ *   @7: mid
+ *   @8: fid
+ * Description:
+ * This is an operating system independent information message that was
+ * issued by the tape unit. The information in the message is intended for
+ * the IBM customer engineer.
+ * User action:
+ * See to the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: IOSIM SEV=%i, DEVTYPE=3590/%02x, MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: SEV
+ *   @3: model
+ *   @4: message code
+ *   @5: exception
+ *   @6: required service action
+ *   @7: refcode1
+ *   @8: refcode2
+ *   @9: refcode3
+ * Description:
+ * This is an operating system independent I/O subsystem information message
+ * that was issued by the tape unit. The information in the message is
+ * intended for the IBM customer engineer.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: DEVSIM SEV=%i, DEVTYPE=3590/%02x, MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: SEV
+ *   @3: model
+ *   @4: message code
+ *   @5: exception
+ *   @6: required service action
+ *   @7: refcode1
+ *   @8: refcode2
+ *   @9: refcode3
+ * Description:
+ * This is an operating system independent device subsystem information message
+ * issued by the tape unit. The information in the message is intended for
+ * the IBM customer engineer.
+ * User action:
+ * See the documentation for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: The tape unit has issued an unknown sense message code %x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: code
+ * Description:
+ * The tape device has issued a sense message, that is unknown to the device
+ * driver.
+ * User action:
+ * Use the message code printed as hexadecimal value and see the documentation
+ * for the tape unit for further information.
+ */
+
+/*?
+ * Text: "%s: The tape unit failed to obtain the encryption key from EKM\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit was unable to retrieve the encryption key required to decode
+ * the data on the tape from the enterprise key manager (EKM).
+ * User action:
+ * See the EKM and tape unit documentation for information about how to enable
+ * the tape unit to retrieve the encryption key.
+ */
+
+/*?
+ * Text: "%s: A different host has privileged access to the tape unit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * You cannot access the tape unit because a different operating system
+ * instance has privileged access to the unit.
+ * User action:
+ * Unload the current cartridge to solve this problem.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */
