@@ -3169,7 +3169,7 @@ static int rt6_fill_node(struct net *net,
 			 struct sk_buff *skb, struct rt6_info *rt,
 			 struct in6_addr *dst, struct in6_addr *src,
 			 int iif, int type, u32 portid, u32 seq,
-			 int prefix, int nowait, unsigned int flags)
+			 int prefix, unsigned int flags)
 {
 	u32 metrics[RTAX_MAX];
 	struct rtmsg *rtm;
@@ -3261,19 +3261,12 @@ static int rt6_fill_node(struct net *net,
 	if (iif) {
 #ifdef CONFIG_IPV6_MROUTE
 		if (ipv6_addr_is_multicast(&rt->rt6i_dst.addr)) {
-			int err = ip6mr_get_route(net, skb, rtm, nowait,
-						  portid);
+			int err = ip6mr_get_route(net, skb, rtm, portid);
 
-			if (err <= 0) {
-				if (!nowait) {
-					if (err == 0)
-						return 0;
-					goto nla_put_failure;
-				} else {
-					if (err == -EMSGSIZE)
-						goto nla_put_failure;
-				}
-			}
+			if (err == 0)
+				return 0;
+			if (err < 0)
+				goto nla_put_failure;
 		} else
 #endif
 			if (nla_put_u32(skb, RTA_IIF, iif))
@@ -3342,7 +3335,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 	return rt6_fill_node(arg->net,
 		     arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
 		     NETLINK_CB(arg->cb->skb).portid, arg->cb->nlh->nlmsg_seq,
-		     prefix, 0, NLM_F_MULTI);
+		     prefix, NLM_F_MULTI);
 }
 
 static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
@@ -3433,7 +3426,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 
 	err = rt6_fill_node(net, skb, rt, &fl6.daddr, &fl6.saddr, iif,
 			    RTM_NEWROUTE, NETLINK_CB(in_skb).portid,
-			    nlh->nlmsg_seq, 0, 0, 0);
+			    nlh->nlmsg_seq, 0, 0);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto errout;
@@ -3460,7 +3453,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info,
 		goto errout;
 
 	err = rt6_fill_node(net, skb, rt, NULL, NULL, 0,
-				event, info->portid, seq, 0, 0, nlm_flags);
+				event, info->portid, seq, 0, nlm_flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
