@@ -333,11 +333,13 @@ fail1:
 }
 
 static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
-				    const u32 *rx_indir_table)
+				    const u32 *rx_indir_table, const u8 *key)
 {
 	efx_oword_t temp;
 
 	/* Set hash key for IPv4 */
+	if (key)
+		memcpy(efx->rx_hash_key, key, sizeof(temp));
 	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
@@ -402,7 +404,7 @@ static int siena_init_nic(struct efx_nic *efx)
 			    EFX_RX_USR_BUF_SIZE >> 5);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
-	siena_rx_push_rss_config(efx, false, efx->rx_indir_table);
+	siena_rx_push_rss_config(efx, false, efx->rx_indir_table, NULL);
 	efx->rss_active = true;
 
 	/* Enable event logging */
@@ -1054,4 +1056,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_NONE |
 			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
 			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
+	.rx_hash_key_size = 16,
 };
