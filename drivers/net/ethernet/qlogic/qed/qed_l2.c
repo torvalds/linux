@@ -1846,7 +1846,7 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 	qed_fill_dev_info(cdev, &info->common);
 
 	if (IS_VF(cdev))
-		memset(info->common.hw_mac, 0, ETH_ALEN);
+		eth_zero_addr(info->common.hw_mac);
 
 	return 0;
 }
