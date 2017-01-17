@@ -52,7 +52,9 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	ret = iommu_map_sg(private->domain, rk_obj->dma_addr, rk_obj->sgt->sgl,
 			   rk_obj->sgt->nents, prot);
 	if (ret < rk_obj->base.size) {
-		DRM_ERROR("failed to map buffer: %zd\n", ret);
+		DRM_ERROR("failed to map buffer: size=%zd request_size=%zd\n",
+			  ret, rk_obj->base.size);
+		ret = -ENOMEM;
 		goto err_remove_node;
 	}
 
