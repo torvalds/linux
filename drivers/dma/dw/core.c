@@ -927,14 +927,10 @@ static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	return 0;
 }
 
-static int dwc_pause(struct dma_chan *chan)
+static void dwc_chan_pause(struct dw_dma_chan *dwc)
 {
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	unsigned long		flags;
 	unsigned int		count = 20;	/* timeout iterations */
 	u32			cfglo;
-
-	spin_lock_irqsave(&dwc->lock, flags);
 
 	cfglo = channel_readl(dwc, CFG_LO);
 	channel_writel(dwc, CFG_LO, cfglo | DWC_CFGL_CH_SUSP);
@@ -942,7 +938,15 @@ static int dwc_pause(struct dma_chan *chan)
 		udelay(2);
 
 	set_bit(DW_DMA_IS_PAUSED, &dwc->flags);
+}
 
+static int dwc_pause(struct dma_chan *chan)
+{
+	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
+	unsigned long		flags;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	dwc_chan_pause(dwc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
