@@ -47,6 +47,7 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
+	chip->id = pdev->devfn;
 	chip->regs = pcim_iomap_table(pdev)[0];
 	chip->irq = pdev->irq;
 	chip->pdata = pdata;
