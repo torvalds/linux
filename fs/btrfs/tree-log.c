@@ -4372,7 +4372,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
  */
 static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
-				   struct inode *inode,
+				   struct btrfs_inode *inode,
 				   struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4382,8 +4382,8 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 	u64 hole_size;
 	struct extent_buffer *leaf;
 	struct btrfs_root *log = root->log_root;
-	const u64 ino = btrfs_ino(BTRFS_I(inode));
-	const u64 i_size = i_size_read(inode);
+	const u64 ino = btrfs_ino(inode);
+	const u64 i_size = i_size_read(&inode->vfs_inode);
 
 	if (!btrfs_fs_incompat(fs_info, NO_HOLES))
 		return 0;
@@ -4925,7 +4925,7 @@ next_key:
 	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
 		btrfs_release_path(path);
 		btrfs_release_path(dst_path);
-		err = btrfs_log_trailing_hole(trans, root, inode, path);
+		err = btrfs_log_trailing_hole(trans, root, BTRFS_I(inode), path);
 		if (err)
 			goto out_unlock;
 	}
