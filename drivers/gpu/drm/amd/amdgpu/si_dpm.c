@@ -64,6 +64,7 @@ MODULE_FIRMWARE("radeon/oland_smc.bin");
 MODULE_FIRMWARE("radeon/oland_k_smc.bin");
 MODULE_FIRMWARE("radeon/hainan_smc.bin");
 MODULE_FIRMWARE("radeon/hainan_k_smc.bin");
+MODULE_FIRMWARE("radeon/banks_k_2_smc.bin");
 
 union power_info {
 	struct _ATOM_POWERPLAY_INFO info;
@@ -7721,10 +7722,11 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 			((adev->pdev->device == 0x6660) ||
 			(adev->pdev->device == 0x6663) ||
 			(adev->pdev->device == 0x6665) ||
-			(adev->pdev->device == 0x6667))) ||
-		    ((adev->pdev->revision == 0xc3) &&
-			(adev->pdev->device == 0x6665)))
+			 (adev->pdev->device == 0x6667))))
 			chip_name = "hainan_k";
+		else if ((adev->pdev->revision == 0xc3) &&
+			 (adev->pdev->device == 0x6665))
+			chip_name = "banks_k_2";
 		else
 			chip_name = "hainan";
 		break;
