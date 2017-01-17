@@ -307,12 +307,7 @@ err_file_priv_free:
 static void exynos_drm_preclose(struct drm_device *dev,
 					struct drm_file *file)
 {
-	struct drm_crtc *crtc;
-
 	exynos_drm_subdrv_close(dev, file);
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		exynos_drm_crtc_cancel_page_flip(crtc, file);
 }
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
