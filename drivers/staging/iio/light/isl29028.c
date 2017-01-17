@@ -107,6 +107,10 @@ static int isl29028_enable_proximity(struct isl29028_chip *chip)
 {
 	int ret;
 
+	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
+	if (ret < 0)
+		return ret;
+
 	ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 				 ISL29028_CONF_PROX_EN_MASK,
 				 ISL29028_CONF_PROX_EN);
@@ -448,10 +452,6 @@ static int isl29028_chip_init_and_power_on(struct isl29028_chip *chip)
 			__func__, ret);
 		return ret;
 	}
-
-	ret = isl29028_set_proxim_sampling(chip, chip->prox_sampling);
-	if (ret < 0)
-		return ret;
 
 	return isl29028_set_als_scale(chip, chip->lux_scale);
 }
