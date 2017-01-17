@@ -4495,7 +4495,7 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 					 const int slot,
 					 const struct btrfs_key *key,
-					 struct inode *inode,
+					 struct btrfs_inode *inode,
 					 u64 *other_ino)
 {
 	int ret;
@@ -4551,9 +4551,8 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 		}
 
 		read_extent_buffer(eb, name, name_ptr, this_name_len);
-		di = btrfs_lookup_dir_item(NULL, BTRFS_I(inode)->root,
-					   search_path, parent,
-					   name, this_name_len, 0);
+		di = btrfs_lookup_dir_item(NULL, inode->root, search_path,
+				parent, name, this_name_len, 0);
 		if (di && !IS_ERR(di)) {
 			struct btrfs_key di_key;
 
@@ -4769,7 +4768,7 @@ again:
 
 			ret = btrfs_check_ref_name_override(path->nodes[0],
 							    path->slots[0],
-							    &min_key, inode,
+							    &min_key, BTRFS_I(inode),
 							    &other_ino);
 			if (ret < 0) {
 				err = ret;
