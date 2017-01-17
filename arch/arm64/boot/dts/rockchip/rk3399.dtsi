@@ -11,6 +11,7 @@
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/suspend/rockchip-rk3399.h>
 #include <dt-bindings/thermal/thermal.h>
 
 #include "rk3399-dram-default-timing.dtsi"
@@ -2797,5 +2798,28 @@
 			};
 		};
 
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3399";
+		status = "disabled";
+		rockchip,sleep-debug-en = <0>;
+		rockchip,virtual-poweroff = <0>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_ARMPD
+			| RKPM_SLP_PERILPPD
+			| RKPM_SLP_DDR_RET
+			| RKPM_SLP_PLLPD
+			| RKPM_SLP_OSC_DIS
+			| RKPM_SLP_CENTER_PD
+			| RKPM_SLP_AP_PWROFF
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO_WKUP_EN
+			)
+		>;
 	};
 };
