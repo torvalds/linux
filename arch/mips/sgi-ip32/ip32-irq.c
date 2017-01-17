@@ -28,12 +28,12 @@
 #include <asm/ip32/ip32_ints.h>
 
 /* issue a PIO read to make sure no PIO writes are pending */
-static void inline flush_crime_bus(void)
+static inline void flush_crime_bus(void)
 {
 	crime->control;
 }
 
-static void inline flush_mace_bus(void)
+static inline void flush_mace_bus(void)
 {
 	mace->perif.ctrl.misc;
 }
