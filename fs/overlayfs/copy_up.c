@@ -20,6 +20,7 @@
 #include <linux/fdtable.h>
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
+#include "ovl_entry.h"
 
 #define OVL_COPY_UP_CHUNK_SIZE (1 << 20)
 
@@ -233,7 +234,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 			      struct dentry *dentry, struct path *lowerpath,
 			      struct kstat *stat, const char *link,
-			      struct kstat *pstat)
+			      struct kstat *pstat, bool tmpfile)
 {
 	struct inode *wdir = workdir->d_inode;
 	struct inode *udir = upperdir->d_inode;
@@ -263,12 +264,17 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	temp = ovl_lookup_temp(workdir, dentry);
+	if (tmpfile)
+		temp = ovl_do_tmpfile(upperdir, stat->mode);
+	else
+		temp = ovl_lookup_temp(workdir, dentry);
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
 		goto out1;
 
-	err = ovl_create_real(wdir, temp, &cattr, NULL, true);
+	err = 0;
+	if (!tmpfile)
+		err = ovl_create_real(wdir, temp, &cattr, NULL, true);
 
 	if (new_creds) {
 		revert_creds(old_creds);
@@ -300,11 +306,14 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (err)
 		goto out_cleanup;
 
-	err = ovl_do_rename(wdir, temp, udir, upper, 0);
+	if (tmpfile)
+		err = ovl_do_link(temp, udir, upper, true);
+	else
+		err = ovl_do_rename(wdir, temp, udir, upper, 0);
 	if (err)
 		goto out_cleanup;
 
-	newdentry = dget(temp);
+	newdentry = dget(tmpfile ? upper : temp);
 	ovl_dentry_update(dentry, newdentry);
 	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
 
@@ -318,7 +327,8 @@ out:
 	return err;
 
 out_cleanup:
-	ovl_cleanup(wdir, temp);
+	if (!tmpfile)
+		ovl_cleanup(wdir, temp);
 	goto out2;
 }
 
@@ -342,6 +352,9 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
 	const char *link = NULL;
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	/* Should we copyup with O_TMPFILE or with workdir? */
+	bool tmpfile = S_ISREG(stat->mode) && ofs->tmpfile;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
@@ -373,7 +386,7 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 
 	err = ovl_copy_up_locked(workdir, upperdir, dentry, lowerpath,
-				 stat, link, &pstat);
+				 stat, link, &pstat, tmpfile);
 out_unlock:
 	unlock_rename(workdir, upperdir);
 	do_delayed_call(&done);
