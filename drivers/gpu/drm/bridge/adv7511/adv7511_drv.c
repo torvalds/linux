@@ -573,8 +573,16 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	unsigned int count;
 
 	/* Reading the EDID only works if the device is powered */
-	if (!adv7511->powered)
+	if (!adv7511->powered) {
+		unsigned int edid_i2c_addr =
+					(adv7511->i2c_main->addr << 1) + 4;
+
 		__adv7511_power_on(adv7511);
+
+		/* Reset the EDID_I2C_ADDR register as it might be cleared */
+		regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
+			     edid_i2c_addr);
+	}
 
 	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
 
