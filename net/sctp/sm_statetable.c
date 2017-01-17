@@ -643,6 +643,25 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_FUNC(sctp_sf_error_shutdown), \
 } /* TYPE_SCTP_PRIMITIVE_ASCONF */
 
+#define TYPE_SCTP_PRIMITIVE_RECONF { \
+	/* SCTP_STATE_CLOSED */ \
+	TYPE_SCTP_FUNC(sctp_sf_error_closed), \
+	/* SCTP_STATE_COOKIE_WAIT */ \
+	TYPE_SCTP_FUNC(sctp_sf_error_closed), \
+	/* SCTP_STATE_COOKIE_ECHOED */ \
+	TYPE_SCTP_FUNC(sctp_sf_error_closed), \
+	/* SCTP_STATE_ESTABLISHED */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_prm_reconf), \
+	/* SCTP_STATE_SHUTDOWN_PENDING */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_prm_reconf), \
+	/* SCTP_STATE_SHUTDOWN_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_prm_reconf), \
+	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
+	TYPE_SCTP_FUNC(sctp_sf_do_prm_reconf), \
+	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
+	TYPE_SCTP_FUNC(sctp_sf_error_shutdown), \
+} /* TYPE_SCTP_PRIMITIVE_RECONF */
+
 /* The primary index for this table is the primitive type.
  * The secondary index for this table is the state.
  */
@@ -653,6 +672,7 @@ static const sctp_sm_table_entry_t primitive_event_table[SCTP_NUM_PRIMITIVE_TYPE
 	TYPE_SCTP_PRIMITIVE_SEND,
 	TYPE_SCTP_PRIMITIVE_REQUESTHEARTBEAT,
 	TYPE_SCTP_PRIMITIVE_ASCONF,
+	TYPE_SCTP_PRIMITIVE_RECONF,
 };
 
 #define TYPE_SCTP_OTHER_NO_PENDING_TSN  { \

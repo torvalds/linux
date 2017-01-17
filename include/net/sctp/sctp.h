@@ -141,6 +141,8 @@ int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_RECONF(struct net *net, struct sctp_association *asoc,
+			  void *arg);
 
 /*
  * sctp/input.c

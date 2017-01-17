@@ -5185,6 +5185,19 @@ sctp_disposition_t sctp_sf_do_prm_asconf(struct net *net,
 	return SCTP_DISPOSITION_CONSUME;
 }
 
+/* RE-CONFIG Section 5.1 RECONF Chunk Procedures */
+sctp_disposition_t sctp_sf_do_prm_reconf(struct net *net,
+					 const struct sctp_endpoint *ep,
+					 const struct sctp_association *asoc,
+					 const sctp_subtype_t type,
+					 void *arg, sctp_cmd_seq_t *commands)
+{
+	struct sctp_chunk *chunk = arg;
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(chunk));
+	return SCTP_DISPOSITION_CONSUME;
+}
+
 /*
  * Ignore the primitive event
  *

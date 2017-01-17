@@ -157,6 +157,7 @@ sctp_state_fn_t sctp_sf_error_shutdown;
 sctp_state_fn_t sctp_sf_ignore_primitive;
 sctp_state_fn_t sctp_sf_do_prm_requestheartbeat;
 sctp_state_fn_t sctp_sf_do_prm_asconf;
+sctp_state_fn_t sctp_sf_do_prm_reconf;
 
 /* Prototypes for other event state functions.  */
 sctp_state_fn_t sctp_sf_do_no_pending_tsn;
