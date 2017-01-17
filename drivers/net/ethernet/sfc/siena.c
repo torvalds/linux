@@ -332,6 +332,25 @@ fail1:
 	return rc;
 }
 
+static int siena_rx_pull_rss_config(struct efx_nic *efx)
+{
+	efx_oword_t temp;
+
+	/* Read from IPv6 RSS key as that's longer (the IPv4 key is just the
+	 * first 128 bits of the same key, assuming it's been set by
+	 * siena_rx_push_rss_config, below)
+	 */
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
+	memcpy(efx->rx_hash_key, &temp, sizeof(temp));
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
+	memcpy(efx->rx_hash_key + sizeof(temp), &temp, sizeof(temp));
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
+	memcpy(efx->rx_hash_key + 2 * sizeof(temp), &temp,
+	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
+	efx_farch_rx_pull_indir_table(efx);
+	return 0;
+}
+
 static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
 				    const u32 *rx_indir_table, const u8 *key)
 {
@@ -981,6 +1000,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_write = efx_farch_tx_write,
 	.tx_limit_len = efx_farch_tx_limit_len,
 	.rx_push_rss_config = siena_rx_push_rss_config,
+	.rx_pull_rss_config = siena_rx_pull_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
