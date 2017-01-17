@@ -607,14 +607,16 @@ process_free_queue(VCHIQ_STATE_T *state)
 	BITSET_T service_found[BITSET_SIZE(VCHIQ_MAX_SERVICES)];
 	int slot_queue_available;
 
-	/* Use a read memory barrier to ensure that any state that may have
-	** been modified by another thread is not masked by stale prefetched
-	** values. */
-	rmb();
-
 	/* Find slots which have been freed by the other side, and return them
 	** to the available queue. */
 	slot_queue_available = state->slot_queue_available;
+
+	/*
+	 * Use a memory barrier to ensure that any state that may have been
+	 * modified by another thread is not masked by stale prefetched
+	 * values.
+	 */
+	mb();
 
 	while (slot_queue_available != local->slot_queue_recycle) {
 		unsigned int pos;
@@ -622,6 +624,12 @@ process_free_queue(VCHIQ_STATE_T *state)
 			VCHIQ_SLOT_QUEUE_MASK];
 		char *data = (char *)SLOT_DATA_FROM_INDEX(state, slot_index);
 		int data_found = 0;
+
+		/*
+		 * Beware of the address dependency - data is calculated
+		 * using an index written by the other side.
+		 */
+		rmb();
 
 		vchiq_log_trace(vchiq_core_log_level, "%d: pfq %d=%pK %x %x",
 			state->id, slot_index, data,
@@ -720,6 +728,12 @@ process_free_queue(VCHIQ_STATE_T *state)
 			if (count == state->data_quota)
 				up(&state->data_quota_event);
 		}
+
+		/*
+		 * Don't allow the slot to be reused until we are no
+		 * longer interested in it.
+		 */
+		mb();
 
 		state->slot_queue_available = slot_queue_available;
 		up(&state->slot_available_event);
