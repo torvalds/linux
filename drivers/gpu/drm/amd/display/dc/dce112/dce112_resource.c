@@ -966,9 +966,9 @@ static bool dce112_validate_surface_sets(
 			return false;
 
 		if (set[i].surfaces[0]->clip_rect.width
-				!= set[i].stream->src.width
+				< set[i].stream->src.width
 				|| set[i].surfaces[0]->clip_rect.height
-				!= set[i].stream->src.height)
+				< set[i].stream->src.height)
 			return false;
 		if (set[i].surfaces[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
