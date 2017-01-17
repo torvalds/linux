@@ -297,11 +297,32 @@
 #define LOCK_TIMEOUT_NS		100000000
 #define BCM2835_MAX_FB_RATE	1750000000u
 
+/*
+ * Names of clocks used within the driver that need to be replaced
+ * with an external parent's name.  This array is in the order that
+ * the clocks node in the DT references external clocks.
+ */
+static const char *const cprman_parent_names[] = {
+	"xosc",
+	"dsi0_byte",
+	"dsi0_ddr2",
+	"dsi0_ddr",
+	"dsi1_byte",
+	"dsi1_ddr2",
+	"dsi1_ddr",
+};
+
 struct bcm2835_cprman {
 	struct device *dev;
 	void __iomem *regs;
 	spinlock_t regs_lock; /* spinlock for all clocks */
-	const char *osc_name;
+
+	/*
+	 * Real names of cprman clock parents looked up through
+	 * of_clk_get_parent_name(), which will be used in the
+	 * parent_names[] arrays for clock registration.
+	 */
+	const char *real_parent_names[ARRAY_SIZE(cprman_parent_names)];
 
 	/* Must be last */
 	struct clk_hw_onecell_data onecell;
@@ -907,6 +928,9 @@ static long bcm2835_clock_rate_from_divisor(struct bcm2835_clock *clock,
 	const struct bcm2835_clock_data *data = clock->data;
 	u64 temp;
 
+	if (data->int_bits == 0 && data->frac_bits == 0)
+		return parent_rate;
+
 	/*
 	 * The divisor is a 12.12 fixed point field, but only some of
 	 * the bits are populated in any given clock.
@@ -930,7 +954,12 @@ static unsigned long bcm2835_clock_get_rate(struct clk_hw *hw,
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
-	u32 div = cprman_read(cprman, data->div_reg);
+	u32 div;
+
+	if (data->int_bits == 0 && data->frac_bits == 0)
+		return parent_rate;
+
+	div = cprman_read(cprman, data->div_reg);
 
 	return bcm2835_clock_rate_from_divisor(clock, parent_rate, div);
 }
@@ -1209,7 +1238,7 @@ static struct clk_hw *bcm2835_register_pll(struct bcm2835_cprman *cprman,
 	memset(&init, 0, sizeof(init));
 
 	/* All of the PLLs derive from the external oscillator. */
-	init.parent_names = &cprman->osc_name;
+	init.parent_names = &cprman->real_parent_names[0];
 	init.num_parents = 1;
 	init.name = data->name;
 	init.ops = &bcm2835_pll_clk_ops;
@@ -1295,18 +1324,22 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	struct bcm2835_clock *clock;
 	struct clk_init_data init;
 	const char *parents[1 << CM_SRC_BITS];
-	size_t i;
+	size_t i, j;
 	int ret;
 
 	/*
-	 * Replace our "xosc" references with the oscillator's
-	 * actual name.
+	 * Replace our strings referencing parent clocks with the
+	 * actual clock-output-name of the parent.
 	 */
 	for (i = 0; i < data->num_mux_parents; i++) {
-		if (strcmp(data->parents[i], "xosc") == 0)
-			parents[i] = cprman->osc_name;
-		else
-			parents[i] = data->parents[i];
+		parents[i] = data->parents[i];
+
+		for (j = 0; j < ARRAY_SIZE(cprman_parent_names); j++) {
+			if (strcmp(parents[i], cprman_parent_names[j]) == 0) {
+				parents[i] = cprman->real_parent_names[j];
+				break;
+			}
+		}
 	}
 
 	memset(&init, 0, sizeof(init));
@@ -1430,6 +1463,47 @@ static const char *const bcm2835_clock_vpu_parents[] = {
 #define REGISTER_VPU_CLK(...)	REGISTER_CLK(				\
 	.num_mux_parents = ARRAY_SIZE(bcm2835_clock_vpu_parents),	\
 	.parents = bcm2835_clock_vpu_parents,				\
+	__VA_ARGS__)
+
+/*
+ * DSI parent clocks.  The DSI byte/DDR/DDR2 clocks come from the DSI
+ * analog PHY.  The _inv variants are generated internally to cprman,
+ * but we don't use them so they aren't hooked up.
+ */
+static const char *const bcm2835_clock_dsi0_parents[] = {
+	"gnd",
+	"xosc",
+	"testdebug0",
+	"testdebug1",
+	"dsi0_ddr",
+	"dsi0_ddr_inv",
+	"dsi0_ddr2",
+	"dsi0_ddr2_inv",
+	"dsi0_byte",
+	"dsi0_byte_inv",
+};
+
+static const char *const bcm2835_clock_dsi1_parents[] = {
+	"gnd",
+	"xosc",
+	"testdebug0",
+	"testdebug1",
+	"dsi1_ddr",
+	"dsi1_ddr_inv",
+	"dsi1_ddr2",
+	"dsi1_ddr2_inv",
+	"dsi1_byte",
+	"dsi1_byte_inv",
+};
+
+#define REGISTER_DSI0_CLK(...)	REGISTER_CLK(				\
+	.num_mux_parents = ARRAY_SIZE(bcm2835_clock_dsi0_parents),	\
+	.parents = bcm2835_clock_dsi0_parents,				\
+	__VA_ARGS__)
+
+#define REGISTER_DSI1_CLK(...)	REGISTER_CLK(				\
+	.num_mux_parents = ARRAY_SIZE(bcm2835_clock_dsi1_parents),	\
+	.parents = bcm2835_clock_dsi1_parents,				\
 	__VA_ARGS__)
 
 /*
@@ -1895,6 +1969,18 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.div_reg = CM_DSI1EDIV,
 		.int_bits = 4,
 		.frac_bits = 8),
+	[BCM2835_CLOCK_DSI0P]	= REGISTER_DSI0_CLK(
+		.name = "dsi0p",
+		.ctl_reg = CM_DSI0PCTL,
+		.div_reg = CM_DSI0PDIV,
+		.int_bits = 0,
+		.frac_bits = 0),
+	[BCM2835_CLOCK_DSI1P]	= REGISTER_DSI1_CLK(
+		.name = "dsi1p",
+		.ctl_reg = CM_DSI1PCTL,
+		.div_reg = CM_DSI1PDIV,
+		.int_bits = 0,
+		.frac_bits = 0),
 
 	/* the gates */
 
@@ -1953,8 +2039,19 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(cprman->regs))
 		return PTR_ERR(cprman->regs);
 
-	cprman->osc_name = of_clk_get_parent_name(dev->of_node, 0);
-	if (!cprman->osc_name)
+	memcpy(cprman->real_parent_names, cprman_parent_names,
+	       sizeof(cprman_parent_names));
+	of_clk_parent_fill(dev->of_node, cprman->real_parent_names,
+			   ARRAY_SIZE(cprman_parent_names));
+
+	/*
+	 * Make sure the external oscillator has been registered.
+	 *
+	 * The other (DSI) clocks are not present on older device
+	 * trees, which we still need to support for backwards
+	 * compatibility.
+	 */
+	if (!cprman->real_parent_names[0])
 		return -ENODEV;
 
 	platform_set_drvdata(pdev, cprman);
