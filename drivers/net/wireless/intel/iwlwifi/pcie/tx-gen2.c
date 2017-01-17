@@ -862,15 +862,15 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 				 unsigned int timeout)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tx_queue_cfg_rsp *rsp;
 	struct iwl_txq *txq;
 	struct iwl_host_cmd hcmd = {
 		.id = cmd_id,
 		.len = { sizeof(*cmd) },
 		.data = { cmd, },
-		.flags = 0,
+		.flags = CMD_WANT_SKB,
 	};
-	int ret, qid = cmd->scd_queue;
-	u16 ssn = le16_to_cpu(cmd->ssn);
+	int ret, qid;
 
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
@@ -883,48 +883,62 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 		return -ENOMEM;
 	}
 
-	if (test_and_set_bit(cmd->scd_queue, trans_pcie->queue_used)) {
-		WARN_ONCE(1, "queue %d already used", cmd->scd_queue);
-		return -EINVAL;
-	}
-
-	trans_pcie->txq[qid] = txq;
-	trans_pcie->txq[qid]->id = qid;
-
 	ret = iwl_pcie_txq_alloc(trans, txq, TFD_TX_CMD_SLOTS, false);
 	if (ret) {
-		IWL_ERR(trans, "Tx %d queue init failed\n", qid);
+		IWL_ERR(trans, "Tx queue alloc failed\n");
 		goto error;
 	}
 	ret = iwl_pcie_txq_init(trans, txq, TFD_TX_CMD_SLOTS, false);
 	if (ret) {
-		IWL_ERR(trans, "Tx %d queue alloc failed\n", qid);
+		IWL_ERR(trans, "Tx queue init failed\n");
 		goto error;
 	}
 
 	txq->wd_timeout = msecs_to_jiffies(timeout);
 
-	/*
-	 * Place first TFD at index corresponding to start sequence number.
-	 * Assumes that ssn_idx is valid (!= 0xFFF)
-	 */
-	txq->read_ptr = (ssn & 0xff);
-	txq->write_ptr = (ssn & 0xff);
-	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (ssn & 0xff) | (cmd->scd_queue << 16));
-
-	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d WrPtr: %d\n",
-			    cmd->scd_queue, ssn & 0xff);
-
 	cmd->tfdq_addr = cpu_to_le64(txq->dma_addr);
 	cmd->byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
 	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(TFD_QUEUE_SIZE_MAX));
 
-	return iwl_trans_send_cmd(trans, &hcmd);
+	ret = iwl_trans_send_cmd(trans, &hcmd);
+	if (ret)
+		goto error;
+
+	if (WARN_ON(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp))) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	qid = le16_to_cpu(rsp->queue_number);
+
+	if (qid > ARRAY_SIZE(trans_pcie->txq)) {
+		WARN_ONCE(1, "queue index %d unsupported", qid);
+		ret = -EIO;
+		goto error;
+	}
+
+	if (test_and_set_bit(qid, trans_pcie->queue_used)) {
+		WARN_ONCE(1, "queue %d already used", qid);
+		ret = -EIO;
+		goto error;
+	}
+
+	txq->id = qid;
+	trans_pcie->txq[qid] = txq;
+
+	/* Place first TFD at index corresponding to start sequence number */
+	txq->read_ptr = le16_to_cpu(rsp->write_pointer);
+	txq->write_ptr = le16_to_cpu(rsp->write_pointer);
+	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
+			   (txq->write_ptr) | (qid << 16));
+	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
+
+	return qid;
 
 error:
-	iwl_pcie_gen2_txq_free(trans, cmd->scd_queue);
-	return -ENOMEM;
+	iwl_pcie_gen2_txq_free_memory(trans, txq);
+	return ret;
 }
 
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)

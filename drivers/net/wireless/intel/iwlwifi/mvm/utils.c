@@ -695,14 +695,47 @@ static bool iwl_mvm_update_txq_mapping(struct iwl_mvm *mvm, int queue,
 	return enable_queue;
 }
 
+int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
+			    u8 sta_id, u8 tid, unsigned int timeout)
+{
+	struct iwl_tx_queue_cfg_cmd cmd = {
+		.flags = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE),
+		.sta_id = sta_id,
+		.tid = tid,
+	};
+	int queue;
+
+	if (cmd.tid == IWL_MAX_TID_COUNT)
+		cmd.tid = IWL_MGMT_TID;
+	queue = iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
+				    SCD_QUEUE_CFG, timeout);
+
+	if (queue < 0) {
+		IWL_DEBUG_TX_QUEUES(mvm,
+				    "Failed allocating TXQ for sta %d tid %d, ret: %d\n",
+				    sta_id, tid, queue);
+		return queue;
+	}
+
+	IWL_DEBUG_TX_QUEUES(mvm, "Enabling TXQ #%d for sta %d tid %d\n",
+			    queue, sta_id, tid);
+
+	iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue, sta_id, tid);
+
+	return queue;
+}
+
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout)
 {
+	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
+		return;
+
 	/* Send the enabling command if we need to */
 	if (iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
 				       cfg->sta_id, cfg->tid)) {
-		struct iwl_tx_queue_cfg_cmd cmd = {
+		struct iwl_scd_txq_cfg_cmd cmd = {
 			.scd_queue = queue,
 			.action = SCD_CFG_ENABLE_QUEUE,
 			.window = cfg->frame_limit,
@@ -712,14 +745,6 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			.aggregate = cfg->aggregate,
 			.tid = cfg->tid,
 		};
-
-		if (iwl_mvm_has_new_tx_api(mvm)) {
-			if (cmd.tid == IWL_MAX_TID_COUNT)
-				cmd.tid = IWL_MGMT_TID;
-			iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
-					    SCD_QUEUE_CFG, wdg_timeout);
-			return;
-		}
 
 		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
 					 wdg_timeout);
@@ -734,12 +759,11 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u8 tid, u8 flags)
 {
-	struct iwl_tx_queue_cfg_cmd cmd = {
+	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
 		.action = SCD_CFG_DISABLE_QUEUE,
 	};
 	bool remove_mac_queue = true;
-	int ret;
 
 	spin_lock_bh(&mvm->queue_info_lock);
 
@@ -812,22 +836,21 @@ int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		iwl_trans_txq_free(mvm->trans, queue);
-		if (cmd.tid == IWL_MAX_TID_COUNT)
-			cmd.tid = IWL_MGMT_TID;
-		ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
-					   sizeof(cmd), &cmd);
 	} else {
+		int ret;
+
 		iwl_trans_txq_disable(mvm->trans, queue, false);
 		ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
 					   sizeof(struct iwl_scd_txq_cfg_cmd),
 					   &cmd);
+
+		if (ret)
+			IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
+				queue, ret);
+		return ret;
 	}
 
-	if (ret)
-		IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
-			queue, ret);
-
-	return ret;
+	return 0;
 }
 
 /**

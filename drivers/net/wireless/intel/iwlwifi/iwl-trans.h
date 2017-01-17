@@ -531,37 +531,43 @@ struct iwl_trans_txq_scd_cfg {
 	int frame_limit;
 };
 
+/* Available options for &struct iwl_tx_queue_cfg_cmd */
+enum iwl_tx_queue_cfg_actions {
+	TX_QUEUE_CFG_ENABLE_QUEUE		= BIT(0),
+	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
+};
+
 /**
  * struct iwl_tx_queue_cfg_cmd - txq hw scheduler config command
- * @token: token of the command
  * @sta_id: station id
  * @tid: tid of the queue
- * @scd_queue: scheduler queue to config
- * @action: 1 queue enable, 0 queue disable
- * @aggregate: 1 aggregated queue, 0 otherwise
- * @tx_fifo: TX fifo
- * @window: BA window size
- * @ssn: SSN for the BA agreement
+ * @flags: Bit 0 - on enable, off - disable, Bit 1 - short TFD format
  * @cb_size: size of TFD cyclic buffer. Value is exponent - 3.
  *	Minimum value 0 (8 TFDs), maximum value 5 (256 TFDs)
  * @byte_cnt_addr: address of byte count table
  * @tfdq_addr: address of TFD circular buffer
  */
 struct iwl_tx_queue_cfg_cmd {
-	u8 token;
 	u8 sta_id;
 	u8 tid;
-	u8 scd_queue;
-	u8 action;
-	u8 aggregate;
-	u8 tx_fifo;
-	u8 window;
-	__le16 ssn;
-	__le16 reserved;
+	__le16 flags;
 	__le32 cb_size;
 	__le64 byte_cnt_addr;
 	__le64 tfdq_addr;
-} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_1 */
+} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_tx_queue_cfg_rsp - response to txq hw scheduler config
+ * @queue_number: queue number assigned to this RA -TID
+ * @flags: set on failure
+ * @write_pointer: initial value for write pointer
+ */
+struct iwl_tx_queue_cfg_rsp {
+	__le16 queue_number;
+	__le16 flags;
+	__le16 write_pointer;
+	__le16 reserved;
+} __packed; /* TX_QUEUE_CFG_RSP_API_S_VER_2 */
 
 /**
  * struct iwl_trans_ops - transport specific operations
