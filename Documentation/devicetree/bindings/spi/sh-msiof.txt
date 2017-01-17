@@ -1,17 +1,23 @@
 Renesas MSIOF spi controller
 
 Required properties:
-- compatible           : "renesas,msiof-<soctype>" for SoCs,
-			 "renesas,sh-msiof" for SuperH, or
-			 "renesas,sh-mobile-msiof" for SH Mobile series.
-			 Examples with soctypes are:
-			 "renesas,msiof-r8a7790" (R-Car H2)
+- compatible           : "renesas,msiof-r8a7790" (R-Car H2)
 			 "renesas,msiof-r8a7791" (R-Car M2-W)
 			 "renesas,msiof-r8a7792" (R-Car V2H)
 			 "renesas,msiof-r8a7793" (R-Car M2-N)
 			 "renesas,msiof-r8a7794" (R-Car E2)
 			 "renesas,msiof-r8a7796" (R-Car M3-W)
 			 "renesas,msiof-sh73a0" (SH-Mobile AG5)
+			 "renesas,sh-mobile-msiof" (generic SH-Mobile compatibile device)
+			 "renesas,rcar-gen2-msiof" (generic R-Car Gen2 compatible device)
+			 "renesas,rcar-gen3-msiof" (generic R-Car Gen3 compatible device)
+			 "renesas,sh-msiof"      (deprecated)
+
+			 When compatible with the generic version, nodes
+			 must list the SoC-specific version corresponding
+			 to the platform first followed by the generic
+			 version.
+
 - reg                  : A list of offsets and lengths of the register sets for
 			 the device.
 			 If only one register set is present, it is to be used
@@ -61,7 +67,8 @@ Documentation/devicetree/bindings/pinctrl/renesas,*.
 Example:
 
 	msiof0: spi@e6e20000 {
-		compatible = "renesas,msiof-r8a7791";
+		compatible = "renesas,msiof-r8a7791",
+			     "renesas,rcar-gen2-msiof";
 		reg = <0 0xe6e20000 0 0x0064>;
 		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7791_CLK_MSIOF0>;
