@@ -1,9 +1,12 @@
 /*
- * Device Tree Include file for Marvell Armada 390 SoC.
+ * Device Tree file for SolidRun Clearfog Pro revision A1 rev 2.0 (88F6828)
  *
- * Copyright (C) 2015 Marvell
+ *  Copyright (C) 2015 Russell King
  *
- * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * This board is in development; the contents of this file work with
+ * the A1 rev 2.0 of the board, which does not represent final
+ * production board.  Things will change, don't expect this file to
+ * remain compatible info the future.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -11,9 +14,8 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -43,18 +45,11 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include "armada-39x.dtsi"
+#include "armada-388-clearfog.dts"
 
 / {
-	compatible = "marvell,armada390";
-
-	soc {
-		internal-regs {
-			pinctrl@18000 {
-				compatible = "marvell,mv88f6920-pinctrl";
-				reg = <0x18000 0x20>;
-			};
-		};
-	};
+	model = "SolidRun Clearfog Pro A1";
+	compatible = "solidrun,clearfog-pro-a1",
+		"solidrun,clearfog-a1", "marvell,armada388",
+		"marvell,armada385", "marvell,armada380";
 };

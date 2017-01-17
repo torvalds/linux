@@ -58,7 +58,7 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x800000>;
+		reg = <0x00000000 0x1000000>;
 	};
 
 	aliases {
@@ -78,6 +78,12 @@
 	clock-frequency = <8000000>;
 };
 
+&rtc {
+	status = "okay";
+};
+
 &usart3 {
+	pinctrl-0 = <&usart3_pins_a>;
+	pinctrl-names = "default";
 	status = "okay";
 };
