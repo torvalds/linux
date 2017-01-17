@@ -57,7 +57,7 @@ struct exynos_wkup_irq {
 struct exynos_pm_data {
 	const struct exynos_wkup_irq *wkup_irq;
 	unsigned int wake_disable_mask;
-	unsigned int *release_ret_regs;
+	const unsigned int *release_ret_regs;
 
 	void (*pm_prepare)(void);
 	void (*pm_resume_prepare)(void);
@@ -66,7 +66,7 @@ struct exynos_pm_data {
 	int (*cpu_suspend)(unsigned long);
 };
 
-static const struct exynos_pm_data *pm_data;
+static const struct exynos_pm_data *pm_data __ro_after_init;
 
 static int exynos5420_cpu_state;
 static unsigned int exynos_pmu_spare3;
@@ -95,7 +95,7 @@ static const struct exynos_wkup_irq exynos5250_wkup_irq[] = {
 	{ /* sentinel */ },
 };
 
-static unsigned int exynos_release_ret_regs[] = {
+static const unsigned int exynos_release_ret_regs[] = {
 	S5P_PAD_RET_MAUDIO_OPTION,
 	S5P_PAD_RET_GPIO_OPTION,
 	S5P_PAD_RET_UART_OPTION,
@@ -106,7 +106,7 @@ static unsigned int exynos_release_ret_regs[] = {
 	REG_TABLE_END,
 };
 
-static unsigned int exynos3250_release_ret_regs[] = {
+static const unsigned int exynos3250_release_ret_regs[] = {
 	S5P_PAD_RET_MAUDIO_OPTION,
 	S5P_PAD_RET_GPIO_OPTION,
 	S5P_PAD_RET_UART_OPTION,
@@ -119,7 +119,7 @@ static unsigned int exynos3250_release_ret_regs[] = {
 	REG_TABLE_END,
 };
 
-static unsigned int exynos5420_release_ret_regs[] = {
+static const unsigned int exynos5420_release_ret_regs[] = {
 	EXYNOS_PAD_RET_DRAM_OPTION,
 	EXYNOS_PAD_RET_MAUDIO_OPTION,
 	EXYNOS_PAD_RET_JTAG_OPTION,
