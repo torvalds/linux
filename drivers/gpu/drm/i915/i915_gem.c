@@ -2610,6 +2610,18 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return NULL;
 }
 
+void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Ensure irq handler finishes, and not run again. */
+	for_each_engine(engine, dev_priv, id)
+		tasklet_kill(&engine->irq_tasklet);
+
+	i915_gem_revoke_fences(dev_priv);
+}
+
 static void reset_request(struct drm_i915_gem_request *request)
 {
 	void *vaddr = request->ring->vaddr;
@@ -2627,11 +2639,6 @@ static void reset_request(struct drm_i915_gem_request *request)
 	memset(vaddr + head, 0, request->postfix - head);
 
 	dma_fence_set_error(&request->fence, -EIO);
-}
-
-void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
-{
-	i915_gem_revoke_fences(dev_priv);
 }
 
 static void i915_gem_reset_engine(struct intel_engine_cs *engine)

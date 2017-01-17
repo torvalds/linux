@@ -1728,22 +1728,6 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 	return i915_drm_resume(dev);
 }
 
-static void disable_engines_irq(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	/* Ensure irq handler finishes, and not run again. */
-	disable_irq(dev_priv->drm.irq);
-	for_each_engine(engine, dev_priv, id)
-		tasklet_kill(&engine->irq_tasklet);
-}
-
-static void enable_engines_irq(struct drm_i915_private *dev_priv)
-{
-	enable_irq(dev_priv->drm.irq);
-}
-
 /**
  * i915_reset - reset chip after a hang
  * @dev_priv: device private to reset
@@ -1776,12 +1760,10 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
+	disable_irq(dev_priv->drm.irq);
 	i915_gem_reset_prepare(dev_priv);
 
-	disable_engines_irq(dev_priv);
 	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
-	enable_engines_irq(dev_priv);
-
 	if (ret) {
 		if (ret != -ENODEV)
 			DRM_ERROR("Failed to reset chip: %i\n", ret);
@@ -1816,6 +1798,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	i915_queue_hangcheck(dev_priv);
 
 wakeup:
+	enable_irq(dev_priv->drm.irq);
 	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
 	return;
 
