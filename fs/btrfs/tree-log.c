@@ -1362,14 +1362,14 @@ static int insert_orphan_item(struct btrfs_trans_handle *trans,
 }
 
 static int count_inode_extrefs(struct btrfs_root *root,
-			       struct inode *inode, struct btrfs_path *path)
+		struct btrfs_inode *inode, struct btrfs_path *path)
 {
 	int ret = 0;
 	int name_len;
 	unsigned int nlink = 0;
 	u32 item_size;
 	u32 cur_offset = 0;
-	u64 inode_objectid = btrfs_ino(BTRFS_I(inode));
+	u64 inode_objectid = btrfs_ino(inode);
 	u64 offset = 0;
 	unsigned long ptr;
 	struct btrfs_inode_extref *extref;
@@ -1491,7 +1491,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	nlink = ret;
 
-	ret = count_inode_extrefs(root, inode, path);
+	ret = count_inode_extrefs(root, BTRFS_I(inode), path);
 	if (ret < 0)
 		goto out;
 
