@@ -1,0 +1,20 @@
+ZTE zx2967 SoCs Reset Controller
+=======================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: should be one of the following.
+	* zte,zx296718-reset
+- reg: physical base address of the controller and length of memory mapped
+	region.
+- #reset-cells: must be 1.
+
+example:
+
+	reset: reset-controller@1461060 {
+		compatible = "zte,zx296718-reset";
+		reg = <0x01461060 0x8>;
+		#reset-cells = <1>;
+	};
