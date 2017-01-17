@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 
-struct rom_cmd {
+static struct rom_cmd {
 	uint16_t cmd;
 } rom_cmds[] = {
 	{ MBC_LOAD_RAM },
