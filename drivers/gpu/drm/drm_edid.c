@@ -38,6 +38,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_displayid.h>
 
+#include "drm_crtc_internal.h"
+
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
 	 ((edid)->version == (maj) && (edid)->revision > (min)))
@@ -2153,7 +2155,7 @@ drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 /* fix up 1366x768 mode from 1368x768;
  * GFT/CVT can't express 1366 width which isn't dividable by 8
  */
-static void fixup_mode_1366x768(struct drm_display_mode *mode)
+void drm_mode_fixup_1366x768(struct drm_display_mode *mode)
 {
 	if (mode->hdisplay == 1368 && mode->vdisplay == 768) {
 		mode->hdisplay = 1366;
@@ -2177,7 +2179,7 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 		if (!newmode)
 			return modes;
 
-		fixup_mode_1366x768(newmode);
+		drm_mode_fixup_1366x768(newmode);
 		if (!mode_in_range(newmode, edid, timing) ||
 		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
@@ -2206,7 +2208,7 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 		if (!newmode)
 			return modes;
 
-		fixup_mode_1366x768(newmode);
+		drm_mode_fixup_1366x768(newmode);
 		if (!mode_in_range(newmode, edid, timing) ||
 		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
