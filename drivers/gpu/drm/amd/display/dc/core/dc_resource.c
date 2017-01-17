@@ -341,7 +341,7 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 		dal_pixel_format = PIXEL_FORMAT_ARGB8888;
 		break;
-	case SURFACE_PIXEL_FORMAT_GRPH_BGRA8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		dal_pixel_format = PIXEL_FORMAT_ARGB8888;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:

@@ -302,7 +302,7 @@ static void program_grph_pixel_format(
 	uint32_t grph_depth, grph_format;
 	uint32_t sign = 0, floating = 0;
 
-	if (format == SURFACE_PIXEL_FORMAT_GRPH_BGRA8888 ||
+	if (format == SURFACE_PIXEL_FORMAT_GRPH_ABGR8888 ||
 			/*todo: doesn't look like we handle BGRA here,
 			 *  should problem swap endian*/
 		format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010 ||
@@ -331,7 +331,7 @@ static void program_grph_pixel_format(
 		grph_format = 1;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
-	case SURFACE_PIXEL_FORMAT_GRPH_BGRA8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		grph_depth = 2;
 		grph_format = 0;
 		break;
