@@ -146,10 +146,14 @@ static int isl29028_set_als_scale(struct isl29028_chip *chip, int lux_scale)
 static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 				    enum isl29028_als_ir_mode mode)
 {
-	int ret = 0;
+	int ret;
 
 	if (chip->als_ir_mode == mode)
 		return 0;
+
+	ret = isl29028_set_als_scale(chip, chip->lux_scale);
+	if (ret < 0)
+		return ret;
 
 	switch (mode) {
 	case ISL29028_MODE_ALS:
@@ -453,7 +457,7 @@ static int isl29028_chip_init_and_power_on(struct isl29028_chip *chip)
 		return ret;
 	}
 
-	return isl29028_set_als_scale(chip, chip->lux_scale);
+	return ret;
 }
 
 static bool isl29028_is_volatile_reg(struct device *dev, unsigned int reg)
