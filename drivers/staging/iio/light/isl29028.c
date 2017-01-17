@@ -201,6 +201,13 @@ static int isl29028_read_proxim(struct isl29028_chip *chip, int *prox)
 	unsigned int data;
 	int ret;
 
+	if (!chip->enable_prox) {
+		ret = isl29028_enable_proximity(chip, true);
+		if (ret < 0)
+			return ret;
+		chip->enable_prox = true;
+	}
+
 	ret = regmap_read(chip->regmap, ISL29028_REG_PROX_DATA, &data);
 	if (ret < 0) {
 		dev_err(dev, "Error in reading register %d, error %d\n",
@@ -209,19 +216,6 @@ static int isl29028_read_proxim(struct isl29028_chip *chip, int *prox)
 	}
 	*prox = data;
 	return 0;
-}
-
-static int isl29028_proxim_get(struct isl29028_chip *chip, int *prox_data)
-{
-	int ret;
-
-	if (!chip->enable_prox) {
-		ret = isl29028_enable_proximity(chip, true);
-		if (ret < 0)
-			return ret;
-		chip->enable_prox = true;
-	}
-	return isl29028_read_proxim(chip, prox_data);
 }
 
 static int isl29028_als_get(struct isl29028_chip *chip, int *als_data)
@@ -349,7 +343,7 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 			ret = isl29028_ir_get(chip, val);
 			break;
 		case IIO_PROXIMITY:
-			ret = isl29028_proxim_get(chip, val);
+			ret = isl29028_read_proxim(chip, val);
 			break;
 		default:
 			break;
