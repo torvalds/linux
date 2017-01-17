@@ -2697,6 +2697,27 @@ static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 	/* Read once and return the resolution */
 	const bool guilty = engine_stalled(request->engine);
 
+	/* The guilty request will get skipped on a hung engine.
+	 *
+	 * Users of client default contexts do not rely on logical
+	 * state preserved between batches so it is safe to execute
+	 * queued requests following the hang. Non default contexts
+	 * rely on preserved state, so skipping a batch loses the
+	 * evolution of the state and it needs to be considered corrupted.
+	 * Executing more queued batches on top of corrupted state is
+	 * risky. But we take the risk by trying to advance through
+	 * the queued requests in order to make the client behaviour
+	 * more predictable around resets, by not throwing away random
+	 * amount of batches it has prepared for execution. Sophisticated
+	 * clients can use gem_reset_stats_ioctl and dma fence status
+	 * (exported via sync_file info ioctl on explicit fences) to observe
+	 * when it loses the context state and should rebuild accordingly.
+	 *
+	 * The context ban, and ultimately the client ban, mechanism are safety
+	 * valves if client submission ends up resulting in nothing more than
+	 * subsequent hangs.
+	 */
+
 	if (guilty) {
 		i915_gem_context_mark_guilty(request->ctx);
 		skip_request(request);
