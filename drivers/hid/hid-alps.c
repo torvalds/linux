@@ -322,6 +322,7 @@ static int T4_raw_event(struct alps_dev *hdata, u8 *data, int size)
 			input_mt_report_slot_state(hdata->input, MT_TOOL_FINGER, 1);
 		} else {
 			input_mt_report_slot_state(hdata->input, MT_TOOL_FINGER, 0);
+			input_report_abs(hdata->input, ABS_MT_PRESSURE, 0);
 			continue;
 		}
 
