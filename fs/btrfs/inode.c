@@ -3981,7 +3981,8 @@ noinline int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
  */
 static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				struct inode *dir, struct inode *inode,
+				struct btrfs_inode *dir,
+				struct btrfs_inode *inode,
 				const char *name, int name_len)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -3991,8 +3992,8 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
 	u64 index;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
-	u64 dir_ino = btrfs_ino(BTRFS_I(dir));
+	u64 ino = btrfs_ino(inode);
+	u64 dir_ino = btrfs_ino(dir);
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4028,10 +4029,10 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	 * that we delay to delete it, and just do this deletion when
 	 * we update the inode item.
 	 */
-	if (BTRFS_I(inode)->dir_index) {
-		ret = btrfs_delayed_delete_inode_ref(BTRFS_I(inode));
+	if (inode->dir_index) {
+		ret = btrfs_delayed_delete_inode_ref(inode);
 		if (!ret) {
-			index = BTRFS_I(inode)->dir_index;
+			index = inode->dir_index;
 			goto skip_backref;
 		}
 	}
@@ -4046,21 +4047,21 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		goto err;
 	}
 skip_backref:
-	ret = btrfs_delete_delayed_dir_index(trans, fs_info, BTRFS_I(dir), index);
+	ret = btrfs_delete_delayed_dir_index(trans, fs_info, dir, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto err;
 	}
 
-	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len,
-					 BTRFS_I(inode), dir_ino);
+	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len, inode,
+			dir_ino);
 	if (ret != 0 && ret != -ENOENT) {
 		btrfs_abort_transaction(trans, ret);
 		goto err;
 	}
 
-	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len,
-					   BTRFS_I(dir), index);
+	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len, dir,
+			index);
 	if (ret == -ENOENT)
 		ret = 0;
 	else if (ret)
@@ -4070,26 +4071,27 @@ err:
 	if (ret)
 		goto out;
 
-	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
-	inode_inc_iversion(inode);
-	inode_inc_iversion(dir);
-	inode->i_ctime = dir->i_mtime =
-		dir->i_ctime = current_time(inode);
-	ret = btrfs_update_inode(trans, root, dir);
+	btrfs_i_size_write(&dir->vfs_inode,
+			dir->vfs_inode.i_size - name_len * 2);
+	inode_inc_iversion(&inode->vfs_inode);
+	inode_inc_iversion(&dir->vfs_inode);
+	inode->vfs_inode.i_ctime = dir->vfs_inode.i_mtime =
+		dir->vfs_inode.i_ctime = current_time(&inode->vfs_inode);
+	ret = btrfs_update_inode(trans, root, &dir->vfs_inode);
 out:
 	return ret;
 }
 
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
-		       struct inode *dir, struct inode *inode,
+		       struct btrfs_inode *dir, struct btrfs_inode *inode,
 		       const char *name, int name_len)
 {
 	int ret;
 	ret = __btrfs_unlink_inode(trans, root, dir, inode, name, name_len);
 	if (!ret) {
-		drop_nlink(inode);
-		ret = btrfs_update_inode(trans, root, inode);
+		drop_nlink(&inode->vfs_inode);
+		ret = btrfs_update_inode(trans, root, &inode->vfs_inode);
 	}
 	return ret;
 }
@@ -4127,10 +4129,12 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_record_unlink_dir(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)), 0);
+	btrfs_record_unlink_dir(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
+			0);
 
-	ret = btrfs_unlink_inode(trans, root, dir, d_inode(dentry),
-				 dentry->d_name.name, dentry->d_name.len);
+	ret = btrfs_unlink_inode(trans, root, BTRFS_I(dir),
+			BTRFS_I(d_inode(dentry)), dentry->d_name.name,
+			dentry->d_name.len);
 	if (ret)
 		goto out;
 
@@ -4259,8 +4263,9 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	last_unlink_trans = BTRFS_I(inode)->last_unlink_trans;
 
 	/* now the directory is empty */
-	err = btrfs_unlink_inode(trans, root, dir, d_inode(dentry),
-				 dentry->d_name.name, dentry->d_name.len);
+	err = btrfs_unlink_inode(trans, root, BTRFS_I(dir),
+			BTRFS_I(d_inode(dentry)), dentry->d_name.name,
+			dentry->d_name.len);
 	if (!err) {
 		btrfs_i_size_write(inode, 0);
 		/*
@@ -9599,8 +9604,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 					  old_dentry->d_name.name,
 					  old_dentry->d_name.len);
 	} else { /* src is an inode */
-		ret = __btrfs_unlink_inode(trans, root, old_dir,
-					   old_dentry->d_inode,
+		ret = __btrfs_unlink_inode(trans, root, BTRFS_I(old_dir),
+					   BTRFS_I(old_dentry->d_inode),
 					   old_dentry->d_name.name,
 					   old_dentry->d_name.len);
 		if (!ret)
@@ -9619,8 +9624,8 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 					  new_dentry->d_name.name,
 					  new_dentry->d_name.len);
 	} else { /* dest is an inode */
-		ret = __btrfs_unlink_inode(trans, dest, new_dir,
-					   new_dentry->d_inode,
+		ret = __btrfs_unlink_inode(trans, dest, BTRFS_I(new_dir),
+					   BTRFS_I(new_dentry->d_inode),
 					   new_dentry->d_name.name,
 					   new_dentry->d_name.len);
 		if (!ret)
@@ -9875,8 +9880,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 					old_dentry->d_name.name,
 					old_dentry->d_name.len);
 	} else {
-		ret = __btrfs_unlink_inode(trans, root, old_dir,
-					d_inode(old_dentry),
+		ret = __btrfs_unlink_inode(trans, root, BTRFS_I(old_dir),
+					BTRFS_I(d_inode(old_dentry)),
 					old_dentry->d_name.name,
 					old_dentry->d_name.len);
 		if (!ret)
@@ -9899,8 +9904,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						new_dentry->d_name.len);
 			BUG_ON(new_inode->i_nlink == 0);
 		} else {
-			ret = btrfs_unlink_inode(trans, dest, new_dir,
-						 d_inode(new_dentry),
+			ret = btrfs_unlink_inode(trans, dest, BTRFS_I(new_dir),
+						 BTRFS_I(d_inode(new_dentry)),
 						 new_dentry->d_name.name,
 						 new_dentry->d_name.len);
 		}
