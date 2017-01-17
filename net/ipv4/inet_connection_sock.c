@@ -165,7 +165,6 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
 	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
 	int ret = 1, attempts = 5, port = snum;
-	int smallest_size = -1, smallest_port;
 	struct inet_bind_hashbucket *head;
 	struct net *net = sock_net(sk);
 	int i, low, high, attempt_half;
@@ -175,7 +174,6 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	bool reuseport_ok = !!snum;
 
 	if (port) {
-have_port:
 		head = &hinfo->bhash[inet_bhashfn(net, port,
 						  hinfo->bhash_size)];
 		spin_lock_bh(&head->lock);
@@ -209,8 +207,6 @@ other_half_scan:
 	 * We do the opposite to not pollute connect() users.
 	 */
 	offset |= 1U;
-	smallest_size = -1;
-	smallest_port = low; /* avoid compiler warning */
 
 other_parity_scan:
 	port = low + offset;
@@ -224,15 +220,6 @@ other_parity_scan:
 		spin_lock_bh(&head->lock);
 		inet_bind_bucket_for_each(tb, &head->chain)
 			if (net_eq(ib_net(tb), net) && tb->port == port) {
-				if (((tb->fastreuse > 0 && reuse) ||
-				     (tb->fastreuseport > 0 &&
-				      sk->sk_reuseport &&
-				      !rcu_access_pointer(sk->sk_reuseport_cb) &&
-				      uid_eq(tb->fastuid, uid))) &&
-				    (tb->num_owners < smallest_size || smallest_size == -1)) {
-					smallest_size = tb->num_owners;
-					smallest_port = port;
-				}
 				if (!inet_csk_bind_conflict(sk, tb, false, reuseport_ok))
 					goto tb_found;
 				goto next_port;
@@ -243,10 +230,6 @@ next_port:
 		cond_resched();
 	}
 
-	if (smallest_size != -1) {
-		port = smallest_port;
-		goto have_port;
-	}
 	offset--;
 	if (!(offset & 1))
 		goto other_parity_scan;
@@ -268,19 +251,18 @@ tb_found:
 		if (sk->sk_reuse == SK_FORCE_REUSE)
 			goto success;
 
-		if (((tb->fastreuse > 0 && reuse) ||
+		if ((tb->fastreuse > 0 && reuse) ||
 		     (tb->fastreuseport > 0 &&
 		      !rcu_access_pointer(sk->sk_reuseport_cb) &&
-		      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
-		    smallest_size == -1)
+		      sk->sk_reuseport && uid_eq(tb->fastuid, uid)))
 			goto success;
 		if (inet_csk_bind_conflict(sk, tb, true, reuseport_ok)) {
 			if ((reuse ||
 			     (tb->fastreuseport > 0 &&
 			      sk->sk_reuseport &&
 			      !rcu_access_pointer(sk->sk_reuseport_cb) &&
-			      uid_eq(tb->fastuid, uid))) &&
-			    !snum && smallest_size != -1 && --attempts >= 0) {
+			      uid_eq(tb->fastuid, uid))) && !snum &&
+			    --attempts >= 0) {
 				spin_unlock_bh(&head->lock);
 				goto again;
 			}

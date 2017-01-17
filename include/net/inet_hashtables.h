@@ -80,7 +80,6 @@ struct inet_bind_bucket {
 	signed char		fastreuse;
 	signed char		fastreuseport;
 	kuid_t			fastuid;
-	int			num_owners;
 	struct hlist_node	node;
 	struct hlist_head	owners;
 };
