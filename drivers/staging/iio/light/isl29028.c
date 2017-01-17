@@ -391,7 +391,6 @@ static IIO_CONST_ATTR(in_proximity_sampling_frequency_available,
 				"1 3 5 10 13 20 83 100");
 static IIO_CONST_ATTR(in_illuminance_scale_available, "125 2000");
 
-#define ISL29028_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 #define ISL29028_CONST_ATTR(name) (&iio_const_attr_##name.dev_attr.attr)
 static struct attribute *isl29028_attributes[] = {
 	ISL29028_CONST_ATTR(in_proximity_sampling_frequency_available),
