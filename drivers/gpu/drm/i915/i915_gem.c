@@ -2611,6 +2611,20 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return NULL;
 }
 
+static bool engine_stalled(struct intel_engine_cs *engine)
+{
+	if (!engine->hangcheck.stalled)
+		return false;
+
+	/* Check for possible seqno movement after hang declaration */
+	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
+		DRM_DEBUG_DRIVER("%s pardoned\n", engine->name);
+		return false;
+	}
+
+	return true;
+}
+
 void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -2669,7 +2683,6 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 	struct i915_gem_context *hung_ctx;
-	bool ring_hung;
 
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
@@ -2680,15 +2693,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 
 	hung_ctx = request->ctx;
 
-	ring_hung = engine->hangcheck.stalled;
-	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
-		DRM_DEBUG_DRIVER("%s pardoned, was guilty? %s\n",
-				 engine->name,
-				 yesno(ring_hung));
-		ring_hung = false;
-	}
-
-	if (ring_hung) {
+	if (engine_stalled(engine)) {
 		i915_gem_context_mark_guilty(hung_ctx);
 		skip_request(request);
 	} else {
