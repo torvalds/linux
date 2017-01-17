@@ -1145,7 +1145,7 @@ static size_t module_flags_taint(struct module *mod, char *buf)
 
 	for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
 		if (taint_flags[i].module && test_bit(i, &mod->taints))
-			buf[l++] = taint_flags[i].true;
+			buf[l++] = taint_flags[i].c_true;
 	}
 
 	return l;
