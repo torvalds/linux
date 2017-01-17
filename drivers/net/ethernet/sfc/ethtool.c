@@ -1278,15 +1278,29 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 	return (efx->n_rx_channels == 1) ? 0 : ARRAY_SIZE(efx->rx_indir_table);
 }
 
+static u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	return efx->type->rx_hash_key_size;
+}
+
 static int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
 				u8 *hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	rc = efx->type->rx_pull_rss_config(efx);
+	if (rc)
+		return rc;
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 	if (indir)
 		memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
+	if (key)
+		memcpy(key, efx->rx_hash_key, efx->type->rx_hash_key_size);
 	return 0;
 }
 
@@ -1295,14 +1309,18 @@ static int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	/* Hash function is Toeplitz, cannot be changed */
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
-	if (!indir)
+	if (!indir && !key)
 		return 0;
 
-	return efx->type->rx_push_rss_config(efx, true, indir);
+	if (!key)
+		key = efx->rx_hash_key;
+	if (!indir)
+		indir = efx->rx_indir_table;
+
+	return efx->type->rx_push_rss_config(efx, true, indir, key);
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
@@ -1377,6 +1395,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rxnfc		= efx_ethtool_get_rxnfc,
 	.set_rxnfc		= efx_ethtool_set_rxnfc,
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
+	.get_rxfh_key_size	= efx_ethtool_get_rxfh_key_size,
 	.get_rxfh		= efx_ethtool_get_rxfh,
 	.set_rxfh		= efx_ethtool_set_rxfh,
 	.get_ts_info		= efx_ethtool_get_ts_info,

@@ -1325,7 +1325,7 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 	}
 
 	/* don't fail init if RSS setup doesn't work */
-	rc = efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table);
+	rc = efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table, NULL);
 	efx->rss_active = (rc == 0);
 
 	return 0;
@@ -2535,7 +2535,7 @@ static void efx_ef10_free_rss_context(struct efx_nic *efx, u32 context)
 }
 
 static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
-				       const u32 *rx_indir_table)
+				       const u32 *rx_indir_table, const u8 *key)
 {
 	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_SET_TABLE_IN_LEN);
 	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_SET_KEY_IN_LEN);
@@ -2546,6 +2546,11 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
 		     MC_CMD_RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE_LEN);
 
+	/* This iterates over the length of efx->rx_indir_table, but copies
+	 * bytes from rx_indir_table.  That's because the latter is a pointer
+	 * rather than an array, but should have the same length.
+	 * The efx->rx_hash_key loop below is similar.
+	 */
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); ++i)
 		MCDI_PTR(tablebuf,
 			 RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE)[i] =
@@ -2561,8 +2566,7 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_hash_key) !=
 		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
 	for (i = 0; i < ARRAY_SIZE(efx->rx_hash_key); ++i)
-		MCDI_PTR(keybuf, RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY)[i] =
-			efx->rx_hash_key[i];
+		MCDI_PTR(keybuf, RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY)[i] = key[i];
 
 	return efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_KEY, keybuf,
 			    sizeof(keybuf), NULL, 0, NULL);
@@ -2595,7 +2599,8 @@ static int efx_ef10_rx_push_shared_rss_config(struct efx_nic *efx,
 }
 
 static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
-						 const u32 *rx_indir_table)
+						 const u32 *rx_indir_table,
+						 const u8 *key)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
@@ -2614,7 +2619,7 @@ static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
 	}
 
 	rc = efx_ef10_populate_rss_table(efx, new_rx_rss_context,
-					 rx_indir_table);
+					 rx_indir_table, key);
 	if (rc != 0)
 		goto fail2;
 
@@ -2625,6 +2630,9 @@ static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
 	if (rx_indir_table != efx->rx_indir_table)
 		memcpy(efx->rx_indir_table, rx_indir_table,
 		       sizeof(efx->rx_indir_table));
+	if (key != efx->rx_hash_key)
+		memcpy(efx->rx_hash_key, key, efx->type->rx_hash_key_size);
+
 	return 0;
 
 fail2:
@@ -2635,15 +2643,69 @@ fail1:
 	return rc;
 }
 
+static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN);
+	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_LEN);
+	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_GET_KEY_OUT_LEN);
+	size_t outlen;
+	int rc, i;
+
+	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN !=
+		     MC_CMD_RSS_CONTEXT_GET_KEY_IN_LEN);
+
+	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID)
+		return -ENOENT;
+
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_TABLE_IN_RSS_CONTEXT_ID,
+		       nic_data->rx_rss_context);
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+		     MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE_LEN);
+	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_TABLE, inbuf, sizeof(inbuf),
+			  tablebuf, sizeof(tablebuf), &outlen);
+	if (rc != 0)
+		return rc;
+
+	if (WARN_ON(outlen != MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_LEN))
+		return -EIO;
+
+	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
+		efx->rx_indir_table[i] = MCDI_PTR(tablebuf,
+				RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE)[i];
+
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_KEY_IN_RSS_CONTEXT_ID,
+		       nic_data->rx_rss_context);
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_hash_key) !=
+		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
+	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_KEY, inbuf, sizeof(inbuf),
+			  keybuf, sizeof(keybuf), &outlen);
+	if (rc != 0)
+		return rc;
+
+	if (WARN_ON(outlen != MC_CMD_RSS_CONTEXT_GET_KEY_OUT_LEN))
+		return -EIO;
+
+	for (i = 0; i < ARRAY_SIZE(efx->rx_hash_key); ++i)
+		efx->rx_hash_key[i] = MCDI_PTR(
+				keybuf, RSS_CONTEXT_GET_KEY_OUT_TOEPLITZ_KEY)[i];
+
+	return 0;
+}
+
 static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
-					  const u32 *rx_indir_table)
+					  const u32 *rx_indir_table,
+					  const u8 *key)
 {
 	int rc;
 
 	if (efx->rss_spread == 1)
 		return 0;
 
-	rc = efx_ef10_rx_push_exclusive_rss_config(efx, rx_indir_table);
+	if (!key)
+		key = efx->rx_hash_key;
+
+	rc = efx_ef10_rx_push_exclusive_rss_config(efx, rx_indir_table, key);
 
 	if (rc == -ENOBUFS && !user) {
 		unsigned context_size;
@@ -2681,6 +2743,8 @@ static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 
 static int efx_ef10_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 					  const u32 *rx_indir_table
+					  __attribute__ ((unused)),
+					  const u8 *key
 					  __attribute__ ((unused)))
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -5629,6 +5693,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_vf_rx_push_rss_config,
+	.rx_pull_rss_config = efx_ef10_rx_pull_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,
@@ -5686,6 +5751,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.max_rx_ip_filters = HUNT_FILTER_TBL_ROWS,
 	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
 			    1 << HWTSTAMP_FILTER_ALL,
+	.rx_hash_key_size = 40,
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
@@ -5736,6 +5802,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_write = efx_ef10_tx_write,
 	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
+	.rx_pull_rss_config = efx_ef10_rx_pull_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,
@@ -5812,4 +5879,5 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.max_rx_ip_filters = HUNT_FILTER_TBL_ROWS,
 	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
 			    1 << HWTSTAMP_FILTER_ALL,
+	.rx_hash_key_size = 40,
 };
