@@ -488,10 +488,8 @@ static int isl29028_probe(struct i2c_client *client,
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
-	if (!indio_dev) {
-		dev_err(&client->dev, "iio allocation fails\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	chip = iio_priv(indio_dev);
 
