@@ -1045,7 +1045,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	__le16 le_tmp;
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
-	unsigned int		len;
+	int len;
 	unsigned char		*p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
