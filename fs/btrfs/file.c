@@ -2062,7 +2062,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * commit does not start nor waits for ordered extents to complete.
 	 */
 	smp_mb();
-	if (btrfs_inode_in_log(inode, fs_info->generation) ||
+	if (btrfs_inode_in_log(BTRFS_I(inode), fs_info->generation) ||
 	    (full_sync && BTRFS_I(inode)->last_trans <=
 	     fs_info->last_trans_committed) ||
 	    (!btrfs_have_ordered_extents_in_range(inode, start, len) &&

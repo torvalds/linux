@@ -255,16 +255,14 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 	return false;
 }
 
-static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
+static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 {
 	int ret = 0;
 
-	spin_lock(&BTRFS_I(inode)->lock);
-	if (BTRFS_I(inode)->logged_trans == generation &&
-	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->last_log_commit &&
-	    BTRFS_I(inode)->last_sub_trans <=
-	    BTRFS_I(inode)->root->last_log_commit) {
+	spin_lock(&inode->lock);
+	if (inode->logged_trans == generation &&
+	    inode->last_sub_trans <= inode->last_log_commit &&
+	    inode->last_sub_trans <= inode->root->last_log_commit) {
 		/*
 		 * After a ranged fsync we might have left some extent maps
 		 * (that fall outside the fsync's range). So return false
@@ -272,10 +270,10 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 		 * will be called and process those extent maps.
 		 */
 		smp_mb();
-		if (list_empty(&BTRFS_I(inode)->extent_tree.modified_extents))
+		if (list_empty(&inode->extent_tree.modified_extents))
 			ret = 1;
 	}
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_unlock(&inode->lock);
 	return ret;
 }
 

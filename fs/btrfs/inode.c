@@ -9677,11 +9677,11 @@ out_fail:
 	 * allow the tasks to sync it.
 	 */
 	if (ret && (root_log_pinned || dest_log_pinned)) {
-		if (btrfs_inode_in_log(old_dir, fs_info->generation) ||
-		    btrfs_inode_in_log(new_dir, fs_info->generation) ||
-		    btrfs_inode_in_log(old_inode, fs_info->generation) ||
+		if (btrfs_inode_in_log(BTRFS_I(old_dir), fs_info->generation) ||
+		    btrfs_inode_in_log(BTRFS_I(new_dir), fs_info->generation) ||
+		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
 		    (new_inode &&
-		     btrfs_inode_in_log(new_inode, fs_info->generation)))
+		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
 			btrfs_set_log_full_commit(fs_info, trans);
 
 		if (root_log_pinned) {
@@ -9953,11 +9953,11 @@ out_fail:
 	 * allow the tasks to sync it.
 	 */
 	if (ret && log_pinned) {
-		if (btrfs_inode_in_log(old_dir, fs_info->generation) ||
-		    btrfs_inode_in_log(new_dir, fs_info->generation) ||
-		    btrfs_inode_in_log(old_inode, fs_info->generation) ||
+		if (btrfs_inode_in_log(BTRFS_I(old_dir), fs_info->generation) ||
+		    btrfs_inode_in_log(BTRFS_I(new_dir), fs_info->generation) ||
+		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
 		    (new_inode &&
-		     btrfs_inode_in_log(new_inode, fs_info->generation)))
+		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
 			btrfs_set_log_full_commit(fs_info, trans);
 
 		btrfs_end_log_trans(root);

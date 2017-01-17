@@ -5237,7 +5237,7 @@ process_leaf:
 				goto next_dir_inode;
 			}
 
-			if (btrfs_inode_in_log(di_inode, trans->transid)) {
+			if (btrfs_inode_in_log(BTRFS_I(di_inode), trans->transid)) {
 				iput(di_inode);
 				break;
 			}
@@ -5436,7 +5436,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto end_no_trans;
 
-	if (btrfs_inode_in_log(inode, trans->transid)) {
+	if (btrfs_inode_in_log(BTRFS_I(inode), trans->transid)) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
 	}
