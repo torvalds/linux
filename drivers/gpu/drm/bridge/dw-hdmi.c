@@ -180,6 +180,12 @@ struct dw_hdmi_i2c {
 	unsigned int		scl_low_ns;
 };
 
+struct dw_hdmi_phy_data {
+	enum dw_hdmi_phy_type type;
+	const char *name;
+	bool has_svsret;
+};
+
 struct dw_hdmi {
 	struct drm_connector connector;
 	struct drm_encoder *encoder;
@@ -202,7 +208,9 @@ struct dw_hdmi {
 	u8 edid[HDMI_EDID_LEN];
 	bool cable_plugin;
 
+	const struct dw_hdmi_phy_data *phy;
 	bool phy_enabled;
+
 	struct drm_display_mode previous_mode;
 
 	struct i2c_adapter *ddc;
@@ -1293,7 +1301,8 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, int cscon)
 	dw_hdmi_phy_gen2_txpwron(hdmi, 1);
 	dw_hdmi_phy_gen2_pddq(hdmi, 0);
 
-	if (is_rockchip(hdmi->dev_type))
+	/* The DWC MHL and HDMI 2.0 PHYs need the SVSRET signal to be set. */
+	if (hdmi->phy->has_svsret)
 		dw_hdmi_phy_enable_svsret(hdmi, 1);
 
 	/* Wait for PHY PLL lock */
@@ -2224,6 +2233,54 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static const struct dw_hdmi_phy_data dw_hdmi_phys[] = {
+	{
+		.type = DW_HDMI_PHY_DWC_HDMI_TX_PHY,
+		.name = "DWC HDMI TX PHY",
+	}, {
+		.type = DW_HDMI_PHY_DWC_MHL_PHY_HEAC,
+		.name = "DWC MHL PHY + HEAC PHY",
+		.has_svsret = true,
+	}, {
+		.type = DW_HDMI_PHY_DWC_MHL_PHY,
+		.name = "DWC MHL PHY",
+		.has_svsret = true,
+	}, {
+		.type = DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY_HEAC,
+		.name = "DWC HDMI 3D TX PHY + HEAC PHY",
+	}, {
+		.type = DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY,
+		.name = "DWC HDMI 3D TX PHY",
+	}, {
+		.type = DW_HDMI_PHY_DWC_HDMI20_TX_PHY,
+		.name = "DWC HDMI 2.0 TX PHY",
+		.has_svsret = true,
+	}
+};
+
+static int dw_hdmi_detect_phy(struct dw_hdmi *hdmi)
+{
+	unsigned int i;
+	u8 phy_type;
+
+	phy_type = hdmi_readb(hdmi, HDMI_CONFIG2_ID);
+
+	for (i = 0; i < ARRAY_SIZE(dw_hdmi_phys); ++i) {
+		if (dw_hdmi_phys[i].type == phy_type) {
+			hdmi->phy = &dw_hdmi_phys[i];
+			return 0;
+		}
+	}
+
+	if (phy_type == DW_HDMI_PHY_VENDOR_PHY)
+		dev_err(hdmi->dev, "Unsupported vendor HDMI PHY\n");
+	else
+		dev_err(hdmi->dev, "Unsupported HDMI PHY type (%02x)\n",
+			phy_type);
+
+	return -ENODEV;
+}
+
 static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 {
 	struct drm_encoder *encoder = hdmi->encoder;
@@ -2539,9 +2596,14 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		goto err_iahb;
 	}
 
-	dev_info(dev, "Detected HDMI TX controller v%x.%03x %s HDCP\n",
+	ret = dw_hdmi_detect_phy(hdmi);
+	if (ret < 0)
+		goto err_iahb;
+
+	dev_info(dev, "Detected HDMI TX controller v%x.%03x %s HDCP (%s)\n",
 		 hdmi->version >> 12, hdmi->version & 0xfff,
-		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without");
+		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without",
+		 hdmi->phy->name);
 
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
