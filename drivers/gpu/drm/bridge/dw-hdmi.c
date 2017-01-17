@@ -291,7 +291,8 @@ static void repo_hpd_event(struct work_struct *p_work)
 {
 	struct dw_hdmi *hdmi = container_of(p_work, struct dw_hdmi, work.work);
 
-	drm_helper_hpd_irq_event(hdmi->bridge.dev);
+	if (hdmi->bridge.dev)
+		drm_helper_hpd_irq_event(hdmi->bridge.dev);
 #ifdef CONFIG_SWITCH
 	if (hdmi->hpd_state)
 		switch_set_state(&hdmi->switchdev, 1);
