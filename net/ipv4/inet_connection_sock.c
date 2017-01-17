@@ -164,7 +164,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
 	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
 	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
-	int ret = 1, attempts = 5, port = snum;
+	int ret = 1, port = snum;
 	struct inet_bind_hashbucket *head;
 	struct net *net = sock_net(sk);
 	int i, low, high, attempt_half;
@@ -183,7 +183,6 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 
 		goto tb_not_found;
 	}
-again:
 	attempt_half = (sk->sk_reuse == SK_CAN_REUSE) ? 1 : 0;
 other_half_scan:
 	inet_get_local_port_range(net, &low, &high);
@@ -221,7 +220,7 @@ other_parity_scan:
 		inet_bind_bucket_for_each(tb, &head->chain)
 			if (net_eq(ib_net(tb), net) && tb->port == port) {
 				if (!inet_csk_bind_conflict(sk, tb, false, reuseport_ok))
-					goto tb_found;
+					goto success;
 				goto next_port;
 			}
 		goto tb_not_found;
@@ -256,23 +255,11 @@ tb_found:
 		      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid)))
 			goto success;
-		if (inet_csk_bind_conflict(sk, tb, true, reuseport_ok)) {
-			if ((reuse ||
-			     (tb->fastreuseport > 0 &&
-			      sk->sk_reuseport &&
-			      !rcu_access_pointer(sk->sk_reuseport_cb) &&
-			      uid_eq(tb->fastuid, uid))) && !snum &&
-			    --attempts >= 0) {
-				spin_unlock_bh(&head->lock);
-				goto again;
-			}
+		if (inet_csk_bind_conflict(sk, tb, true, reuseport_ok))
 			goto fail_unlock;
-		}
-		if (!reuse)
-			tb->fastreuse = 0;
-		if (!sk->sk_reuseport || !uid_eq(tb->fastuid, uid))
-			tb->fastreuseport = 0;
-	} else {
+	}
+success:
+	if (!hlist_empty(&tb->owners)) {
 		tb->fastreuse = reuse;
 		if (sk->sk_reuseport) {
 			tb->fastreuseport = 1;
@@ -280,8 +267,12 @@ tb_found:
 		} else {
 			tb->fastreuseport = 0;
 		}
+	} else {
+		if (!reuse)
+			tb->fastreuse = 0;
+		if (!sk->sk_reuseport || !uid_eq(tb->fastuid, uid))
+			tb->fastreuseport = 0;
 	}
-success:
 	if (!inet_csk(sk)->icsk_bind_hash)
 		inet_bind_hash(sk, tb, port);
 	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
