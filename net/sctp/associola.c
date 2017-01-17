@@ -362,6 +362,9 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Free stream information. */
 	sctp_stream_free(asoc->stream);
 
+	if (asoc->strreset_chunk)
+		sctp_chunk_free(asoc->strreset_chunk);
+
 	/* Clean up the bound address list. */
 	sctp_bind_addr_free(&asoc->base.bind_addr);
 
@@ -519,6 +522,12 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		asoc->peer.retran_path = transport;
 	if (asoc->peer.last_data_from == peer)
 		asoc->peer.last_data_from = transport;
+
+	if (asoc->strreset_chunk &&
+	    asoc->strreset_chunk->transport == peer) {
+		asoc->strreset_chunk->transport = transport;
+		sctp_transport_reset_reconf_timer(transport);
+	}
 
 	/* If we remove the transport an INIT was last sent to, set it to
 	 * NULL. Combined with the update of the retran path above, this

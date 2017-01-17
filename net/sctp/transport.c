@@ -88,9 +88,11 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->transports);
 
 	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
+	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
+		    (unsigned long)peer);
 	setup_timer(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, (unsigned long)peer);
 
@@ -142,6 +144,9 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * the tranport is going away.
 	 */
 	if (del_timer(&transport->T3_rtx_timer))
+		sctp_transport_put(transport);
+
+	if (del_timer(&transport->reconf_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
@@ -209,6 +214,14 @@ void sctp_transport_reset_hb_timer(struct sctp_transport *transport)
 	    !mod_timer(&transport->hb_timer,
 		       expires + prandom_u32_max(transport->rto)))
 		sctp_transport_hold(transport);
+}
+
+void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
+{
+	if (!timer_pending(&transport->reconf_timer))
+		if (!mod_timer(&transport->reconf_timer,
+			       jiffies + transport->rto))
+			sctp_transport_hold(transport);
 }
 
 /* This transport has been assigned to an association.
