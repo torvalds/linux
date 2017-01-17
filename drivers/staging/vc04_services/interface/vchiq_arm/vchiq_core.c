@@ -920,7 +920,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				     VCHIQ_LOG_INFO))
 			vchiq_log_dump_mem("Sent", 0,
 					   header->data,
-					   min((size_t)64,
+					   min((size_t)16,
 					       (size_t)callback_result));
 
 		spin_lock(&quota_spinlock);
@@ -1073,7 +1073,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				     VCHIQ_LOG_INFO))
 			vchiq_log_dump_mem("Sent", 0,
 					   header->data,
-					   min((size_t)64,
+					   min((size_t)16,
 					       (size_t)callback_result));
 
 		VCHIQ_SERVICE_STATS_INC(service, ctrl_tx_count);
@@ -1734,7 +1734,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				remoteport, localport, size);
 			if (size > 0)
 				vchiq_log_dump_mem("Rcvd", 0, header->data,
-					min(64, size));
+					min(16, size));
 		}
 
 		if (((unsigned long)header & VCHIQ_SLOT_MASK) +
@@ -2191,7 +2191,7 @@ sync_func(void *v)
 				remoteport, localport, size);
 			if (size > 0)
 				vchiq_log_dump_mem("Rcvd", 0, header->data,
-					min(64, size));
+					min(16, size));
 		}
 
 		switch (type) {
