@@ -789,17 +789,13 @@ slave_sg_todev_fill_desc:
 
 			lli_write(desc, sar, mem);
 			lli_write(desc, dar, reg);
-			lli_write(desc, ctllo, ctllo | DWC_CTLL_SRC_WIDTH(mem_width));
 			if ((len >> mem_width) > dwc->block_size) {
 				dlen = dwc->block_size << mem_width;
-				mem += dlen;
-				len -= dlen;
 			} else {
 				dlen = len;
-				len = 0;
 			}
-
 			lli_write(desc, ctlhi, dlen >> mem_width);
+			lli_write(desc, ctllo, ctllo | DWC_CTLL_SRC_WIDTH(mem_width));
 			desc->len = dlen;
 
 			if (!first) {
@@ -809,6 +805,9 @@ slave_sg_todev_fill_desc:
 				list_add_tail(&desc->desc_node, &first->tx_list);
 			}
 			prev = desc;
+
+			mem += dlen;
+			len -= dlen;
 			total_len += dlen;
 
 			if (len)
@@ -833,8 +832,6 @@ slave_sg_todev_fill_desc:
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
-			mem_width = __ffs(data_width | mem | len);
-
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
 			if (!desc)
@@ -842,16 +839,14 @@ slave_sg_fromdev_fill_desc:
 
 			lli_write(desc, sar, reg);
 			lli_write(desc, dar, mem);
-			lli_write(desc, ctllo, ctllo | DWC_CTLL_DST_WIDTH(mem_width));
 			if ((len >> reg_width) > dwc->block_size) {
 				dlen = dwc->block_size << reg_width;
-				mem += dlen;
-				len -= dlen;
 			} else {
 				dlen = len;
-				len = 0;
 			}
 			lli_write(desc, ctlhi, dlen >> reg_width);
+			mem_width = __ffs(data_width | mem | dlen);
+			lli_write(desc, ctllo, ctllo | DWC_CTLL_DST_WIDTH(mem_width));
 			desc->len = dlen;
 
 			if (!first) {
@@ -861,6 +856,9 @@ slave_sg_fromdev_fill_desc:
 				list_add_tail(&desc->desc_node, &first->tx_list);
 			}
 			prev = desc;
+
+			mem += dlen;
+			len -= dlen;
 			total_len += dlen;
 
 			if (len)
