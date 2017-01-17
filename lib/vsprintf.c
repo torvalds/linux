@@ -1727,6 +1727,29 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
 	return number(buf, end, hashval, spec);
 }
 
+#ifdef CONFIG_KMSG_IDS
+
+unsigned long long __jhash_string(const char *str);
+
+static noinline_for_stack
+char *jhash_string(char *buf, char *end, const char *str, const char *fmt)
+{
+	struct printf_spec spec;
+	unsigned long long num;
+
+	num = __jhash_string(str);
+
+	spec.type = FORMAT_TYPE_PTR;
+	spec.field_width = 6;
+	spec.flags = SMALL | ZEROPAD;
+	spec.base = 16;
+	spec.precision = -1;
+
+	return number(buf, end, num, spec);
+}
+
+#endif
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -1821,6 +1844,7 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
  *       p page flags (see struct page) given as pointer to unsigned long
  *       g gfp flags (GFP_* and __GFP_*) given as pointer to gfp_t
  *       v vma flags (VM_*) given as pointer to unsigned long
+ * - 'j' Kernel message catalog jhash for System z
  * - 'O' For a kobject based struct. Must be one of the following:
  *       - 'OF[fnpPcCF]'  For a device tree object
  *                        Without any optional arguments prints the full_name
@@ -1960,6 +1984,10 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		}
 	case 'x':
 		return pointer_string(buf, end, ptr, spec);
+#ifdef CONFIG_KMSG_IDS
+	case 'j':
+		return jhash_string(buf, end, ptr, fmt);
+#endif
 	}
 
 	/* default is to _not_ leak addresses, hash before printing */

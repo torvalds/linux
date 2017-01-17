@@ -1,0 +1,929 @@
+/*?
+ * Text: "%s: The LAN is offline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A start LAN command was sent by the qeth device driver but the physical or
+ * virtual adapter has not started the LAN. The LAN might take a few seconds
+ * to become available.
+ * User action:
+ * Check the status of the qeth device, for example, with the lsqeth command.
+ * If the device does not become operational within a few seconds, initiate a
+ * recovery process, for example, by writing '1' to the 'recover' sysfs
+ * attribute of the device.
+ */
+
+/*?
+ * Text: "%s: A recovery process has been started for the device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A recovery process was started either by the qeth device driver or through
+ * a user command.
+ * User action:
+ * Wait until a message indicates the completion of the recovery process.
+ */
+
+/*?
+ * Text: "%s: The qeth device driver failed to recover an error on the device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth device driver performed an automatic recovery operation to recover
+ * an error on a qeth device. The recovery operation failed.
+ * User action:
+ * Try the following actions in the given order: i) Check the status of the
+ * qeth device, for example, with the lsqeth command. ii) Initiate a recovery
+ * process by writing '1' to the 'recover' sysfs attribute of the device.
+ * iii) Ungroup and regroup the subchannel triplet of the device. vi) Reboot
+ * Linux. v) If the problem persists, gather Linux debug data and report the
+ * problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Device recovery failed to restore all offload features\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth device driver performed a recovery operation on a qeth device. Part
+ * of the recovery is to restore the offload features that were enabled before
+ * the recovery. At least one of those offload features could not be restored.
+ * User action:
+ * Check which offload features are enabled on the device, for example with
+ * the "ethtool -k" command. Try to explicitly re-enable the missing offload
+ * features for the device, for example with the "ethtool -K" command.
+ */
+
+/*?
+ * Text: "%s: The link for interface %s on CHPID 0x%X failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ *   @3: CHPID
+ * Description:
+ * A network link failed. A possible reason for this error is that a physical
+ * network cable has been disconnected.
+ * User action:
+ * Ensure that the network cable on the adapter hardware is connected properly.
+ * If the connection is to a guest LAN, ensure that the device is still coupled
+ * to the guest LAN.
+ */
+
+/*?
+ * Text: "%s: The link for %s on CHPID 0x%X has been restored\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ *   @3: CHPID
+ * Description:
+ * A failed network link has been re-established. A device recovery is in
+ * progress.
+ * User action:
+ * Wait until a message indicates the completion of the recovery process.
+ */
+
+/*?
+ * Text: "%s: A hardware operation timed out on the device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A hardware operation timed out on the qeth device.
+ * User action:
+ * Check the status of the qeth device, for example, with the lsqeth command.
+ * If the device is not operational, initiate a recovery process, for example,
+ * by writing '1' to the 'recover' sysfs attribute of the device.
+ */
+
+/*?
+ * Text: "%s: The adapter hardware is of an unknown type\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth device driver does not recognize the adapter hardware. The cause
+ * of this problem could be a hardware error or a Linux level that does not
+ * support your adapter hardware.
+ * User action:
+ * i) Investigate if your adapter hardware is supported by your Linux level.
+ * Consider using hardware that is supported by your Linux level or upgrading
+ * to a Linux level that supports your hardware. ii) Install the latest
+ * firmware on your adapter hardware. iii) If the problem persists and is not
+ * caused by a version mismatch, contact IBM support.
+ */
+
+/*?
+ * Text: "%s: The adapter is used exclusively by another host\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth adapter is exclusively used by another host.
+ * User action:
+ * Use another qeth adapter or configure this one not exclusively to a
+ * particular host.
+ */
+
+/*?
+ * Text: "%s: QDIO reported an error, rc=%i\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: return code
+ * Description:
+ * The QDIO subsystem reported an error.
+ * User action:
+ * Check for related QDIO errors. Check the status of the qeth device, for
+ * example, with the lsqeth command. If the device is not operational, initiate
+ * a recovery process, for example, by writing '1' to the 'recover' sysfs
+ * attribute of the device.
+ */
+
+/*?
+ * Text: "%s: There is no kernel module to support discipline %d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: discipline
+ * Description:
+ * The qeth device driver or a user command requested a kernel module for a
+ * particular qeth discipline. Either the discipline is not supported by the
+ * qeth device driver or the requested module is not available to your Linux
+ * system.
+ * User action:
+ * Check if the requested discipline module has been compiled into the kernel
+ * or is present in /lib/modules/<version>/kernel/drivers/s390/net.
+ */
+
+/*?
+ * Text: "Initializing the qeth device driver failed\n"
+ * Severity: Error
+ * Parameter:
+ * Description:
+ * The base module of the qeth device driver could not be initialized.
+ * User action:
+ * See errno.h to determine the reason for the error.
+ * i) Reboot Linux. ii) If the problem persists, gather Linux debug data and
+ * report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Registering IP address %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: IP address
+ * Description:
+ * An IP address could not be registered with the network adapter.
+ * User action:
+ * Check if another operating system instance has already registered the
+ * IP address with the same network adapter or at the same logical IP subnet.
+ */
+
+/*?
+ * Text: "%s: Reading the adapter MAC address failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth device driver could not read the MAC address from the network
+ * adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting ARP processing support for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not start ARP support on the network adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting IP fragmentation support for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not start IP fragmentation support on the
+ * network adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting VLAN support for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not start VLAN support on the network adapter.
+ * User action:
+ * None if you do not require VLAN support. If you need VLAN support,
+ * ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting multicast support for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not start multicast support on the network
+ * adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Activating IPv6 support for %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not activate IPv6 support on the network
+ * adapter.
+ * User action:
+ * None if you do not require IPv6 communication. If you need IPv6 support,
+ * ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Enabling the passthrough mode for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not enable the passthrough mode on the
+ * network adapter. The passthrough mode is required for all network traffic
+ * other than IPv4. In particular, the passthrough mode is required for IPv6
+ * traffic.
+ * User action:
+ * None if all you want to support is IPv4 communication. If you want to support
+ * IPv6 or other network traffic apart from IPv4, ungroup and regroup the
+ * subchannel triplet of the device. If this does not resolve the problem,
+ * reboot Linux. If the problem persists, gather Linux debug data and report
+ * the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Enabling broadcast filtering for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not enable broadcast filtering on the network
+ * adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Setting up broadcast filtering for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not set up broadcast filtering on the network
+ * adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Setting up broadcast echo filtering for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not set up broadcast echo filtering on the
+ * network adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting HW checksumming for %s failed, using SW checksumming\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The network adapter supports hardware checksumming for IP packages
+ * but the qeth device driver could not start hardware checksumming on the
+ * adapter. The qeth device driver continues to use software checksumming for
+ * IP packages.
+ * User action:
+ * None if you do not require hardware checksumming for network
+ * traffic. If you want to enable hardware checksumming, ungroup and regroup
+ * the subchannel triplet of the device. If this does not resolve the problem,
+ * reboot Linux. If the problem persists, gather Linux debug data and report
+ * the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Enabling HW checksumming for %s failed, using SW checksumming\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The network adapter supports hardware checksumming for IP packages
+ * but the qeth device driver could not enable hardware checksumming on the
+ * adapter. The qeth device driver continues to use software checksumming for
+ * IP packages.
+ * User action:
+ * None if you do not require hardware checksumming for network
+ * traffic. If you want to enable hardware checksumming, ungroup and regroup
+ * the subchannel triplet of the device. If this does not resolve the problem,
+ * reboot Linux. If the problem persists, gather Linux debug data and report
+ * the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Starting outbound TCP segmentation offload for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The network adapter supports TCP segmentation offload, but the qeth device
+ * driver could not start this support on the adapter.
+ * User action:
+ * None if you do not require TCP segmentation offload. If you want to
+ * enable TCP segmentation offload, ungroup and regroup the subchannel triplet
+ * of the device. If this does not resolve the problem, reboot Linux. If the
+ * problem persists, gather Linux debug data and report the problem to your
+ * support organization.
+ */
+
+/*?
+ * Text: "%s: The network adapter failed to generate a unique ID\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * In IBM mainframe environments, network interfaces are not identified by
+ * a specific MAC address. Therefore, the network adapters provide the network
+ * interfaces with unique IDs to be used in their IPv6 link local addresses.
+ * Without such a unique ID, duplicate addresses might be assigned in other
+ * LPARs.
+ * User action:
+ * Install the latest firmware on the adapter hardware. Manually, configure
+ * an IPv6 link local address for this device.
+ */
+
+/*?
+ * Text: "There is no IPv6 support for the layer 3 discipline\n"
+ * Severity: Warning
+ * Description:
+ * If you want to use IPv6 with the layer 3 discipline, you need a Linux kernel
+ * with IPv6 support. Because your Linux kernel has not been compiled with
+ * IPv6 support, you cannot use IPv6 with the layer 3 discipline, even if your
+ * adapter supports IPv6.
+ * User action:
+ * Use a Linux kernel that has been complied to include IPv6 support if you
+ * want to use IPv6 with layer 3 qeth devices.
+ */
+
+/*?
+ * Text: "%s: The qeth device is not configured for the OSI layer required by z/VM\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A qeth device that connects to a virtual network on z/VM must be configured for the
+ * same Open Systems Interconnection (OSI) layer as the virtual network. An ETHERNET
+ * guest LAN or VSWITCH uses the data link layer (layer 2) while an IP guest LAN
+ * or VSWITCH uses the network layer (layer 3).
+ * User action:
+ * If you are connecting to an ETHERNET guest LAN or VSWITCH, set the layer2 sysfs
+ * attribute of the qeth device to 1. If you are connecting to an IP guest LAN or
+ * VSWITCH, set the layer2 sysfs attribute of the qeth device to 0.
+ */
+
+/*?
+ * Text: "%s: Starting source MAC-address support for %s failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The qeth device driver could not enable source MAC-address on the network
+ * adapter.
+ * User action:
+ * Ungroup and regroup the subchannel triplet of the device. If this does not
+ * resolve the problem, reboot Linux. If the problem persists, gather Linux
+ * debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: MAC address %pM already exists\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: MAC-address
+ * Description:
+ * Setting the MAC address for the qeth device fails, because this
+ * MAC address is already defined on the OSA CHPID.
+ * User action:
+ * Use a different MAC address for this qeth device.
+ */
+
+/*?
+ * Text: "%s: MAC address %pM is not authorized\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: MAC-address
+ * Description:
+ * This qeth device is a virtual network interface card (NIC), to which z/VM
+ * has already assigned a MAC address. z/VM MAC address verification does
+ * not allow you to change this predefined address.
+ * User action:
+ * None; use the MAC address that has been assigned by z/VM.
+ */
+
+/*?
+ * Text: "%s: The HiperSockets network traffic analyzer is activated\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The sysfs 'sniffer' attribute of the HiperSockets device has the value '1'.
+ * The corresponding HiperSockets interface has been switched into promiscuous mode.
+ * As a result, the HiperSockets network traffic analyzer is started on the device.
+ * User action:
+ * None.
+ */
+
+ /*?
+  * Text: "%s: The HiperSockets network traffic analyzer is deactivated\n"
+  * Severity: Informational
+  * Parameter:
+  *   @1: bus ID of the qeth device
+  * Description:
+  * The sysfs 'sniffer' attribute of the HiperSockets device has the value '1'.
+  * Promiscuous mode has been switched off for the corresponding HiperSockets interface
+  * As a result, the HiperSockets network traffic analyzer is stopped on the device.
+  * User action:
+  * None.
+  */
+
+/*?
+ * Text: "%s: The device is not authorized to run as a HiperSockets network traffic analyzer\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The sysfs 'sniffer' attribute of the HiperSockets device has the value '1'.
+ * The corresponding HiperSockets interface is switched into promiscuous mode
+ * but the network traffic analyzer (NTA) rules configured at the Support Element (SE)
+ * do not allow tracing. Possible reasons are:
+ * - Tracing is not authorized for all HiperSockets LANs in the mainframe system
+ * - Tracing is not authorized for this HiperSockets LAN
+ * - LPAR is not authorized to enable an NTA
+ * User action:
+ * Configure appropriate HiperSockets NTA rules at the SE.
+ */
+
+/*?
+ * Text: "%s: A HiperSockets network traffic analyzer is already active in the HiperSockets LAN\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The sysfs 'sniffer' attribute of the HiperSockets device has the value '1'.
+ * The HiperSockets interface is switched into promiscuous mode but another
+ * HiperSockets device on the same HiperSockets LAN is already running as
+ * a network traffic analyzer.
+ * A HiperSockets LAN can only have one active network traffic analyzer.
+ * User action:
+ * Do not configure multiple HiperSockets devices in the same HiperSockets LAN as
+ * tracing devices.
+ */
+
+/*?
+ * Text: "%s: Enabling HW TX checksumming for %s failed, using SW TX checksumming\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ * Description:
+ * The network adapter supports hardware checksumming for outgoing IP packages
+ * but the qeth device driver could not enable hardware TX checksumming on the
+ * adapter. The qeth device driver continues to use software checksumming for
+ * outgoing IP packages.
+ * User action:
+ * None if you do not require hardware checksumming for outgoing network
+ * traffic. If you want to enable hardware checksumming, ungroup and regroup
+ * the subchannel triplet of the device. If this does not resolve the problem,
+ * reboot Linux. If the problem persists, gather Linux debug data and report
+ * the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: A connection could not be established because of an OLM limit\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * z/OS has activated Optimized Latency Mode (OLM) for a connection through an OSA Express3 adapter.
+ * This reduces the maximum number of concurrent connections per physical port for shared adapters.
+ * The new connection would exceed the maximum. Linux cannot establish further connections using
+ * this adapter.
+ * User action:
+ * If possible, deactivate an existing connection that uses this adapter and try again to establish
+ * the new connection. If you cannot free an existing connection, use a different adapter for the
+ * new connection.
+ */
+
+/*?
+ * Text: "%s: Setting the device online failed because of insufficient authorization\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The qeth device is configured with OSX CHPIDs. An OSX CHPID cannot be activated unless the LPAR is explicitly authorized to access it.
+ * For z/VM guest operating systems, the z/VM user ID must be explicitly authorized in addition to the LPAR.
+ * You grant these authorizations through the Service Element.
+ * User action:
+ * At the Service Element, authorize the LPAR and, if applicable, the z/VM user ID for using the OSX CHPIDs with which the qeth device has been configured.
+ * Then try again to set the device online.
+ */
+
+/*?
+ * Text: "%s: portname is deprecated and is ignored\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * An OSA-Express port name was required to identify a shared OSA port.
+ * All operating system instances that shared the port had to use the same port name.
+ * This requirement no longer applies, and the specified portname attribute is ignored.
+ * User action:
+ * For future upgrades, remove OSA port name specifications from your
+ * network configuration.
+ */
+
+/*? Text: "core functions removed\n" */
+/*? Text: "%s: Device is a%s card%s%s%s\nwith link type %s.\n" */
+/*? Text: "%s: issue_next_read failed: no iob available!\n" */
+/*? Text: "%s: Priority Queueing not supported\n" */
+/*? Text: "%s: sense data available. cstat 0x%X dstat 0x%X\n" */
+/*? Text: "loading core functions\n" */
+/*? Text: "%s: MAC address %pM successfully registered on device %s\n" */
+/*? Text: "%s: Device successfully recovered!\n" */
+/*? Text: "register layer 2 discipline\n" */
+/*? Text: "unregister layer 2 discipline\n" */
+/*? Text: "%s: Hardware IP fragmentation not supported on %s\n" */
+/*? Text: "%s: IPv6 not supported on %s\n" */
+/*? Text: "%s: VLAN not supported on %s\n" */
+/*? Text: "%s: Inbound source MAC-address not supported on %s\n" */
+/*? Text: "%s: IPV6 enabled\n" */
+/*? Text: "%s: ARP processing not supported on %s!\n" */
+/*? Text: "%s: Hardware IP fragmentation enabled \n" */
+/*? Text: "%s: set adapter parameters not supported.\n" */
+/*? Text: "%s: VLAN enabled\n" */
+/*? Text: "register layer 3 discipline\n" */
+/*? Text: "%s: Outbound TSO enabled\n" */
+/*? Text: "%s: Broadcast not supported on %s\n" */
+/*? Text: "%s: Outbound TSO not supported on %s\n" */
+/*? Text: "%s: Inbound HW Checksumming not supported on %s,\ncontinuing using Inbound SW Checksumming\n" */
+/*? Text: "%s: Using no checksumming on %s.\n" */
+/*? Text: "%s: Broadcast enabled\n" */
+/*? Text: "%s: Multicast not supported on %s\n" */
+/*? Text: "%s: Using SW checksumming on %s.\n" */
+/*? Text: "%s: HW Checksumming (%sbound) enabled\n" */
+/*? Text: "unregister layer 3 discipline\n" */
+/*? Text: "%s: Multicast enabled\n" */
+/*? Text: "%s: QDIO data connection isolation is deactivated\n" */
+/*? Text: "%s: QDIO data connection isolation is activated\n" */
+/*? Text: "%s: Adapter does not support QDIO data connection isolation\n" */
+/*? Text: "%s: Adapter is dedicated. QDIO data connection isolation not supported\n" */
+/*? Text: "%s: TSO does not permit QDIO data connection isolation\n" */
+/*? Text: "%s: HW TX Checksumming enabled\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "qeth_l3: ignoring TR device\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+
+/*?
+ * Text: "%s: Turning off reflective relay mode at the adjacent switch failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The policy for the QDIO data connection isolation was
+ * changed successfully, and communications are now handled according to the
+ * new policy. The ISOLATION_FORWARD policy is no longer used, but the qeth
+ * device driver could not turn off the reflective relay mode on the adjacent
+ * switch port.
+ * User action:
+ * Check the adjacent switch for errors and correct the problem.
+ */
+
+/*?
+ * Text: "%s: The adjacent switch port does not support reflective relay mode\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The 'isolation' sysfs attribute of the qeth device could not be set to 'forward'.
+ * This setting selects the ISOLATION_FORWARD policy for the QDIO data connection
+ * isolation. The ISOLATION_FORWARD policy requires a network adapter in Virtual
+ * Ethernet Port Aggregator (VEPA) mode with an adjacent switch port in reflective
+ * relay mode.
+ * User action:
+ * Use a switch port that supports reflective relay mode if you want to use the
+ * ISOLATION_FORWARD policy for the qeth device.
+ */
+
+/*?
+ * Text: "%s: The reflective relay mode cannot be enabled at the adjacent switch port"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The 'isolation' sysfs attribute of the qeth device could not be set to 'forward'.
+ * This setting selects the ISOLATION_FORWARD policy for the QDIO data connection
+ * isolation. The ISOLATION_FORWARD policy requires a network adapter in Virtual
+ * Ethernet Port Aggregator (VEPA) mode with an adjacent switch port in reflective relay
+ * mode. The qeth device driver failed to enable the required reflective relay mode on
+ * the adjacent switch port although the switch port supports this mode.
+ * User action:
+ * Enable reflective relay mode on the switch for the adjacent port and try again.
+ */
+
+/*?
+ * Text: "%s: Interface %s is down because the adjacent port is no longer in reflective relay mode\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: interface name
+ * Description:
+ * The ISOLATION_FORWARD policy is active for the QDIO data connection isolation
+ * of the qeth device. This policy requires a network adapter in Virtual Ethernet
+ * Port Aggregator (VEPA) mode with an adjacent switch port in reflective relay mode.
+ * The reflective relay mode on the adjacent switch port was disabled. The qeth device
+ * was set offline and the interface was deactivated to prevent any unintended network traffic.
+ * User action:
+ * Enable the reflective relay mode again on the adjacent port or use the 'isolation'
+ * sysfs attribute of the qeth device to set a different policy for the QDIO data connection
+ * isolation. You can then resume operations by setting the qeth device back
+ * online and activating the interface.
+ */
+
+/*?
+ * Text: "%s: Failed to create completion queue\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The HiperSockets device could not be configured with a completion queue.
+ * A completion queue is required to operate AF_IUCV communication in an LPAR.
+ * User action:
+ * i) Investigate if you have the latest firmware level in place.
+ * ii) If the problem persists and is not caused by a version mismatch, contact IBM
+ * support.
+ */
+
+/*?
+ * Text: "%s: Completion Queueing supported\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The HiperSockets device supports completion queueing. This is required to
+ * set up AF_IUCV communication in an LPAR.
+ */
+
+/*?
+ * Text: "%s: Completion Queue support enabled"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The HiperSockets device is enabled for completion queueing. This is part of
+ * the process to set up AF_IUCV communication in an LPAR.
+ */
+
+/*?
+ * Text: "%s: Completion Queue support disabled"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The HiperSockets device is disabled for completion queueing. This device
+ * cannot or no longer be used to set up AF_IUCV communication in an LPAR.
+ */
+
+/*?
+ * Text: "%s: The device represents a Bridge Capable Port\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * You can configure this device as a Bridge Port.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The device is not configured as a Bridge Port\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The Bridge Port role cannot be withdrawn from a device
+ * that is not configured as a Bridge Port.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The LAN already has a primary Bridge Port\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A LAN can have multiple secondary Bridge Ports, but only
+ * one primary Bridge Port. Configuring the device as a
+ * primary Bridge Port failed because another port on the
+ * LAN has been configured as the primary Bridge Port.
+ * User action:
+ * Find out which operating system instance has configured the primary
+ * Bridge Port. Assure that the primary role for this port is withdrawn
+ * before trying again to configure your device as the primary Bridge
+ * Port. Alternatively, consider configuring your device as a secondary
+ * Bridge Port.
+ */
+
+/*?
+ * Text: "%s: The device is already a secondary Bridge Port\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A device cannot be configured as a primary or secondary
+ * Bridge Port if it is already configured as a secondary Bridge Port.
+ * User action:
+ * None, if you want the device to be a secondary Bridge Port.
+ * If you want to configure the device as the primary Bridge Port,
+ * withdraw the secondary role by writing 'none' to the 'bridgeport_role'
+ * sysfs attribute of the device. Then try again to configure the
+ * device as the primary Bridge Port.
+ */
+
+/*?
+ * Text: "%s: The LAN cannot have more secondary Bridge Ports\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A LAN can have up to five secondary Bridge Ports.
+ * You cannot configure a further device as a secondary
+ * Bridge Port unless the Bridge Ports role is withdrawn from one of
+ * the existing secondary Bridge Ports.
+ * User action:
+ * Assure that the Bridge Port role is withdrawn from one of the
+ * existing secondary Bridge Ports before trying again to configure your
+ * device as a secondary Bridge Port.
+ */
+
+/*?
+ * Text: "%s: The device is already a primary Bridge Port\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * A device cannot be configured as a primary or secondary
+ * Bridge Port if it is already configured as a primary Bridge Port.
+ * User action:
+ * None, if you want the device to be a primary Bridge Port.
+ * If you want to configure the device as a secondary Bridge Port,
+ * withdraw the primary role by writing 'none' to the 'bridgeport_role'
+ * sysfs attribute of the device. Then try again to configure the
+ * device as the secondary Bridge Port.
+ */
+
+/*?
+ * Text: "%s: The device is not authorized to be a Bridge Port\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * The device cannot be configured as a Bridge Port because
+ * the required authorizations in the hardware are not in place.
+ * User action:
+ * See your hardware documentation about how to authorize
+ * ports for becoming a Bridge Port.
+ */
+
+/*?
+ * Text: "%s: A Bridge Port is already configured by a different operating system\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * Linux instances cannot configure the target port as a Bridge Port.
+ * Another operating system already uses a Bridge Port on the HiperSockets
+ * or on the OSA adapter. For example, a z/VM instance might be using
+ * a port in a VSWITCH configuration. Multiple Bridge Ports on the same
+ * HiperSockets or OSA adapter must be configured by instances of the same
+ * operating system, for example, all Linux or all z/VM.
+ * User action:
+ * Reconsider your network topology. Configure Bridge Ports only for ports
+ * on adapters where any other Bridge Ports are configured by other Linux
+ * instances.
+ */
+
+/*?
+ * Text: "%s: Setting address notification failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * Enabling or disabling the address notification feature of a
+ * HiperSockets device failed. The device might not be configured as a
+ * Bridge Port.
+ * User action:
+ * None, unless you need address notifications for this device.
+ * If you need notifications, confirm that your device is attached to a
+ * HiperSockets LAN that supports Bridge Capable Ports and that your
+ * device is configured as a Bridge Port. If the 'bridgeport_role'
+ * sysfs attribute of the device contains, one of the values 'primary'
+ * or 'secondary' and you cannot set the address notification, contact
+ * your support organization.
+ */
+
+/*?
+ * Text: "%s: Address notification from the Bridge Port stopped %s (%s)\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ *   @2: network interface name
+ *   @3: error reported by the hardware
+ * Description:
+ * A Bridge Port no longer provides address notifications.
+ * Possible reasons include traffic overflow and that the device is no
+ * longer configured as a Bridge Port. A udev event with
+ * BRIDGEDHOST=abort was emitted to alert applications that rely on the
+ * address notifications.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The qeth driver ran out of channel command buffers\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the qeth device
+ * Description:
+ * Command buffers can temporarily run out during periods of
+ * intense network configuration activities.
+ * The device driver recovers from this condition as outstanding
+ * commands are completed.
+ * User action:
+ * Wait for a short time. If the problem persists,
+ * initiate a recovery process by writing '1' to the 'recover'
+ * sysfs attribute of the device.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

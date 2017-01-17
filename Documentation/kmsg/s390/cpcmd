@@ -1,0 +1,16 @@
+/*?
+ * Text: "The cpcmd kernel function failed to allocate a response buffer\n"
+ * Severity: Warning
+ * Description:
+ * IPL code, console detection, and device drivers like vmcp or vmlogrdr use
+ * the cpcmd kernel function to send commands to the z/VM control program (CP).
+ * If a program that uses the cpcmd function does not allocate a contiguous
+ * response buffer below 2 GB guest real storage, cpcmd creates a bounce buffer
+ * to be used as the response buffer. Because of low memory or memory
+ * fragmentation, cpcmd could not create the bounce buffer.
+ * User action:
+ * Look for related page allocation failure messages and at the stack trace to
+ * find out which program or operation failed. Free some memory and retry the
+ * failed operation. Consider allocating more memory to your z/VM guest virtual
+ * machine.
+ */

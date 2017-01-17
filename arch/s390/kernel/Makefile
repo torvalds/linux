@@ -86,3 +86,6 @@ obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 # vdso
 obj-y				+= vdso64/
 obj-$(CONFIG_COMPAT)		+= vdso32/
+
+# kernel message catalog
+obj-$(CONFIG_KMSG_IDS)		+= kmsg.o

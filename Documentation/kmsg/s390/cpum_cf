@@ -1,0 +1,68 @@
+/*?
+ * Text: "Enabling the performance measuring unit failed with rc=%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: error condition
+ * Description:
+ * The device driver failed to enable CPU counter sets with the
+ * load counter controls (lcctl) instruction.
+ * See the section about lcctl in "The Load-Program-Parameter and the CPU-Measurement
+ * Facilities", SA23-2260, for an explanation of the error conditions.
+ * User action:
+ * Stop the performance measurement programs and try again.
+ */
+
+/*?
+ * Text: "Disabling the performance measuring unit failed with rc=%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: error condition
+ * Description:
+ * The device driver failed to disable CPU counter sets with the
+ * load counter controls (lcctl) instruction.
+ * See the section about lcctl in "The Load-Program-Parameter and the CPU-Measurement
+ * Facilities", SA23-2260, for an explanation of the error conditions.
+ * User action:
+ * Stop the performance measurement programs and try again.
+ */
+
+/*?
+ * Text: "Registering the cpum_cf PMU failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *  @1: error code
+ * Description:
+ * The device driver could not register the Performance Measurement Unit (PMU)
+ * for the CPU-measurement counter facility.
+ * A possible cause of this problem is memory constraints.
+ * User action:
+ * If the error code is -12 (ENOMEM), consider assigning more memory
+ * to your Linux instance.
+ */
+
+/*?
+ * Text: "CPU[%i] Counter data was lost\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: cpu number
+ * Description:
+ * CPU counter data was lost because of machine internal
+ * high-priority activities.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Registering for CPU-measurement alerts failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *  @1: error code
+ * Description:
+ * The device driver could not register to receive CPU-measurement alerts.
+ * Alerts make you aware of measurement errors.
+ * A possible cause of this problem is memory constraints.
+ * User action:
+ * If the error code is -12 (ENOMEM), consider assigning more memory
+ * to your Linux instance.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

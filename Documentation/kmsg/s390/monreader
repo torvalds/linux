@@ -1,0 +1,128 @@
+/*?
+ * Text: "Reading monitor data failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * The z/VM *MONITOR record device driver failed to read monitor data
+ * because the IUCV REPLY function failed. The read function against
+ * the monitor record device returns EIO. All monitor data that has been read
+ * since the last read with 0 size is incorrect.
+ * User action:
+ * Disregard all monitor data that has been read since the last read with
+ * 0 size. If the device driver has been compiled as a separate module, unload
+ * and reload the monreader module. If the device driver has been compiled
+ * into the kernel, reboot Linux. For more information about possible causes
+ * of the error see the IUCV section in "z/VM CP Programming Services" and
+ * the *MONITOR section in "z/VM Performance".
+ */
+
+/*?
+ * Text: "z/VM *MONITOR system service disconnected with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: IPUSER SEVER return code
+ * Description:
+ * The z/VM *MONITOR record device driver receives monitor records through
+ * an IUCV connection to the z/VM *MONITOR system service. This connection
+ * has been severed and the read function of the z/VM *MONITOR device driver
+ * returns EIO. All data received since the last read with 0 size is incorrect.
+ * User action:
+ * Disregard all monitor data read since the last read with 0 size. Close and
+ * reopen the monitor record device. For information about the IPUSER SEVER
+ * return codes see "z/VM Performance".
+ */
+
+/*?
+ * Text: "The read queue for monitor data is full\n"
+ * Severity: Warning
+ * Description:
+ * The read function of the z/VM *MONITOR device driver returns EOVERFLOW
+ * because not enough monitor data has been read since the monitor device
+ * has been opened. Monitor data already read are valid and subsequent reads
+ * return valid data but some intermediate data might be missing.
+ * User action:
+ * Be aware that monitor data might be missing. Assure that you regularly
+ * read monitor data after opening the monitor record device.
+ */
+
+/*?
+ * Text: "Connecting to the z/VM *MONITOR system service failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: IUCV CONNECT return code
+ * Description:
+ * The z/VM *MONITOR record device driver receives monitor records through
+ * an IUCV connection to the z/VM *MONITOR system service. This connection
+ * could not be established when the monitor record device was opened. If
+ * the return code is 15, your z/VM guest virtual machine is not authorized
+ * to connect to the *MONITOR system service.
+ * User action:
+ * If the return code is 15, ensure that the IUCV *MONITOR statement is
+ * included in the z/VM directory entry for your z/VM guest virtual machine.
+ * For other IUCV CONNECT return codes see the IUCV section in "CP Programming
+ * Services" and the *MONITOR section in "z/VM  Performance".
+ */
+
+/*?
+ * Text: "Disconnecting the z/VM *MONITOR system service failed with rc=%i\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: IUCV SEVER return code
+ * Description:
+ * The z/VM *MONITOR record device driver receives monitor data through an
+ * IUCV connection to the z/VM *MONITOR system service. This connection
+ * could not be closed when the monitor record device was closed. You might
+ * not be able to resume monitoring.
+ * User action:
+ * No immediate action is necessary. If you cannot open the monitor record
+ * device in the future, reboot Linux. For information about the IUCV SEVER
+ * return codes see the IUCV section in "CP Programming Services" and the
+ * *MONITOR section in "z/VM  Performance".
+ */
+
+/*?
+ * Text: "The z/VM *MONITOR record device driver cannot be loaded without z/VM\n"
+ * Severity: Error
+ * Description:
+ * The z/VM *MONITOR record device driver uses z/VM system services to provide
+ * monitor data about z/VM guest operating systems to applications on Linux.
+ * On Linux instances that run in environments other than the z/VM hypervisor,
+ * the z/VM *MONITOR record device driver does not provide any useful
+ * function and the corresponding monreader module cannot be loaded.
+ * User action:
+ * Load the z/VM *MONITOR record device driver only on Linux instances that run
+ * as guest operating systems of the z/VM hypervisor. If the z/VM *MONITOR
+ * record device driver has been compiled into the kernel, ignore this message.
+ */
+
+/*?
+ * Text: "The z/VM *MONITOR record device driver failed to register with IUCV\n"
+ * Severity: Error
+ * Description:
+ * The z/VM *MONITOR record device driver receives monitor data through an IUCV
+ * connection and needs to register with the IUCV device driver. This
+ * registration failed and the z/VM *MONITOR record device driver was not
+ * loaded. A possible cause of this problem is insufficient memory.
+ * User action:
+ * Free some memory and try again to load the module. If the z/VM *MONITOR
+ * record device driver has been compiled into the kernel, you might have to
+ * configure more memory and reboot Linux. If you do not want to read monitor
+ * data, ignore this message.
+ */
+
+/*?
+ * Text: "The specified *MONITOR DCSS %s does not have the required type SC\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The DCSS that was specified with the monreader.mondcss kernel parameter or
+ * with the mondcss module parameter cannot be a *MONITOR DCSS because it is
+ * not of type SC.
+ * User action:
+ * Confirm that you are using the name of the DCSS that has been configured as
+ * the *MONITOR DCSS on the z/VM hypervisor. If the default name, MONDCSS, is
+ * used, omit the monreader.mondcss or mondcss parameter.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

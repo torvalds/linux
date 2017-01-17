@@ -1,0 +1,4 @@
+/*? Text: "sclp_send failed for get_nr_blocks\n" */
+/*? Text: "SCLP error: %x\n" */
+/*? Text: "sclp_send failed: %x\n" */
+/*? Text: "Error from SCLP while copying hsa. Event status = %x\n" */

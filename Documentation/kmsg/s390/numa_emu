@@ -1,0 +1,50 @@
+/*?
+ * Text: "Not enough memory for %d nodes, reducing node count\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: requested number of nodes
+ * Description:
+ * Using the requested memory stripe size for emulating the requested number of
+ * NUMA nodes requires more than the available memory. The number of nodes is
+ * specified with the emu_nodes= kernel parameter. The memory stripe size to
+ * be used for distributing the available memory among the nodes is specified
+ * with the emu_size= kernel parameter. Fewer nodes were created than the
+ * requested number; each node has one memory stripe of the requested size.
+ * User action:
+ * Specify fewer nodes, reduce the memory stripe size, or make more memory
+ * available to your Linux instance.
+ */
+
+/*?
+ * Text: "Creating %d nodes with memory stripe size %ld MB\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: number of nodes
+ *   @2: stripe size
+ * Description:
+ * NUMA emulation is activated with the reported number of NUMA nodes.
+ * The specified memory stripe size is used to distribute, in round-robin
+ * fashion, the available memory among the nodes.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Increasing memory stripe size from %ld MB to %ld MB\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: requested memory stripe size
+ *   @2: adjusted memory stripe size
+ * Description:
+ * NUMA  emulation  could  not  use  the  requested memory stripe size and
+ * therefore has increased it to the next possible value.
+ * The requested memory stripe size is a default value or it was specified
+ * with the emu_size= kernel parameter.
+ * The memory stripe size must be a multiple of the memory block size that
+ * can be read in hexadecimal notation from
+ * /sys/devices/system/memory/block_size_bytes.
+ * User action:
+ * To avoid this message in the future, specify a valid memory stripe size
+ * with the emu_size= kernel parameter.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

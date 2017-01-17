@@ -1,0 +1,293 @@
+/*?
+ * Text: "Querying a DCSS type failed with rc=%ld\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * The DCSS kernel interface used z/VM diagnose call X'64' to query the
+ * type of a DCSS. z/VM failed to determine the type and returned an error.
+ * User action:
+ * Look for related messages to find out which DCSS is affected.
+ * For details about the return codes see the section about DIAGNOSE Code
+ * X'64' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Loading DCSS %s failed with rc=%ld\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DCSS name
+ *   @2: return code
+ * Description:
+ * The DCSS kernel interface used diagnose call X'64' to load a DCSS. z/VM
+ * failed to load the DCSS and returned an error.
+ * User action:
+ * For details about the return codes see the section about DIAGNOSE Code
+ * X'64' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "DCSS %s of range %p to %p and type %s loaded as exclusive-writable\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: DCSS name
+ *   @2: starting page address
+ *   @3: ending page address
+ *   @4: DCSS type
+ * Description:
+ * The DCSS was loaded successfully in exclusive-writable access mode.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "DCSS %s of range %p to %p and type %s loaded in shared access mode\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: DCSS name
+ *   @2: starting page address
+ *   @3: ending page address
+ *   @4: DCSS type
+ * Description:
+ * The DCSS was loaded successfully in shared access mode.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "DCSS %s is already in the requested access mode\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * A request to reload a DCSS with a new access mode has been rejected
+ * because the new access mode is the same as the current access mode.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "DCSS %s is in use and cannot be reloaded\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * Reloading a DCSS in a different access mode has failed because the DCSS is
+ * being used by one or more device drivers. The DCSS remains loaded with the
+ * current access mode.
+ * User action:
+ * Ensure that the DCSS is not used by any device driver then try again to
+ * load the DCSS with the new access mode.
+ */
+
+/*?
+ * Text: "DCSS %s overlaps with used memory resources and cannot be reloaded\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The DCSS has been unloaded and cannot be reloaded because it overlaps with
+ * another loaded DCSS or with the memory of the z/VM guest virtual machine
+ * (guest storage).
+ * User action:
+ * Ensure that no DCSS is loaded that has overlapping memory resources
+ * with the DCSS you want to reload. If the DCSS overlaps with guest storage,
+ * use the DEF STORE CONFIG z/VM CP command to create a sufficient storage gap
+ * for the DCSS. For details, see the section about the DCSS device driver in
+ * "Device Drivers, Features, and Commands".
+ */
+
+/*?
+ * Text: "Reloading DCSS %s failed with rc=%ld\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DCSS name
+ *   @2: return code
+ * Description:
+ * The DCSS kernel interface used z/VM diagnose call X'64' to reload a DCSS
+ * in a different access mode. The DCSS was unloaded but z/VM failed to reload
+ * the DCSS.
+ * User action:
+ * For details about the return codes see the section about DIAGNOSE Code
+ * X'64' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Unloading unknown DCSS %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The specified DCSS cannot be unloaded. The DCSS is known to the DCSS device
+ * driver but not to the DCSS kernel interface. This problem indicates a
+ * program error in extmem.c.
+ * User action:
+ * Report this problem to your support organization.
+ */
+
+/*?
+ * Text: "Saving unknown DCSS %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The specified DCSS cannot be saved. The DCSS is known to the DCSS device
+ * driver but not to the DCSS kernel interface. This problem indicates a
+ * program error in extmem.c.
+ * User action:
+ * Report this problem to your support organization.
+ */
+
+/*?
+ * Text: "Saving a DCSS failed with DEFSEG response code %i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: response-code
+ * Description:
+ * The DEFSEG z/VM CP command failed to permanently save changes to a DCSS.
+ * User action:
+ * Ensure that the z/VM guest virtual machine is authorized to issue
+ * the CP DEFSEG command (typically privilege class E).
+ * Look for related messages to find the cause of this error. See also message
+ * HCP<response-code>E in the DEFSEG section of the "z/VM CP Command and
+ * Utility Reference".
+ */
+
+/*?
+ * Text: "Saving a DCSS failed with SAVESEG response code %i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: response-code
+ * Description:
+ * The SAVESEG z/VM CP command failed to permanently save changes to a DCSS.
+ * User action:
+ * Ensure that the z/VM guest virtual machine is authorized to issue
+ * the CP SAVESEG command (typically privilege class E).
+ * Look for related messages to find the cause of this error. See also message
+ * HCP<response-code>E in the SAVESEG section of the "z/VM CP Command and
+ * Utility Reference".
+ */
+
+/*?
+ * Text: "DCSS %s cannot be loaded or queried\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * You cannot load or query the specified DCSS because it either is not defined
+ * in the z/VM hypervisor, or it is a class S DCSS, or it is above 2047 MB
+ * and the Linux system is a 31-bit system.
+ * User action:
+ * Use the CP command "QUERY NSS" to find out if the DCSS is a valid
+ * DCSS that can be loaded.
+ */
+
+/*?
+ * Text: "DCSS %s cannot be loaded or queried without z/VM\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * A DCSS is a z/VM resource. Your Linux instance is not running as a z/VM
+ * guest operating system and, therefore, cannot load DCSSs.
+ * User action:
+ * Load DCSSs only on Linux instances that run as z/VM guest operating systems.
+ */
+
+/*?
+ * Text: "Loading or querying DCSS %s resulted in a hardware error\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * Either the z/VM DIAGNOSE X'64' query or load call issued for the DCSS
+ * returned with an error.
+ * User action:
+ * Look for previous extmem message to find the return code from the
+ * DIAGNOSE X'64' query or load call. For details about the return codes see
+ * the section about DIAGNOSE Code X'64' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "DCSS %s has multiple page ranges and cannot be loaded or queried\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * You can only load or query a DCSS with multiple page ranges if:
+ * - The DCSS has 6 or fewer page ranges
+ * - The page ranges form a contiguous address space
+ * - The page ranges are of type EW or EN
+ * User action:
+ * Check the definition of the DCSS to make sure that the conditions for
+ * DCSSs with multiple page ranges are met.
+ */
+
+/*?
+ * Text: "%s needs used memory resources and cannot be loaded or queried\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * You cannot load or query the DCSS because it overlaps with an already
+ * loaded DCSS or with the memory of the z/VM guest virtual machine
+ * (guest storage).
+ * User action:
+ * Ensure that no DCSS is loaded that has overlapping memory resources
+ * with the DCSS you want to load or query. If the DCSS overlaps with guest
+ * storage, use the DEF STORE CONFIG z/VM CP command to create a sufficient
+ * storage gap for the DCSS. For details, see the section about the DCSS
+ * device driver in "Device Drivers, Features, and Commands".
+ */
+
+/*?
+ * Text: "DCSS %s is already loaded in a different access mode\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The DCSS you are trying to load has already been loaded in a different
+ * access mode. You cannot simultaneously load the DCSS in different modes.
+ * User action:
+ * Reload the DCSS in a different mode or load it with the same mode in which
+ * it has already been loaded.
+ */
+
+/*?
+ * Text: "There is not enough memory to load or query DCSS %s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * The available memory is not enough to load or query the DCSS.
+ * User action:
+ * Free some memory and repeat the failed operation.
+ */
+
+/*?
+ * Text: "DCSS %s overlaps with used storage and cannot be loaded\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * You cannot load the DCSS because it overlaps with an already loaded DCSS
+ * or with the memory of the z/VM guest virtual machine (guest storage).
+ * User action:
+ * Ensure that no DCSS is loaded that has overlapping memory resources
+ * with the DCSS you want to load. If the DCSS overlaps with guest storage,
+ * use the DEF STORE CONFIG z/VM CP command to create a sufficient storage gap
+ * for the DCSS. For details, see the section about the DCSS device driver in
+ * "Device Drivers, Features, and Commands".
+ */
+
+/*?
+ * Text: "DCSS %s exceeds the kernel mapping range (%lu) and cannot be loaded\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: DCSS name
+ *   @2: kernel mapping range in bytes
+ * Description:
+ * You cannot load the DCSS because it exceeds the kernel mapping range limit.
+ * User action:
+ * Ensure that the DCSS range is defined below the kernel mapping range.
+ */

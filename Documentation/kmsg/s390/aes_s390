@@ -1,0 +1,45 @@
+/*?
+ * Text: "Allocating XTS fallback algorithm %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: algorithm name
+ * Description:
+ * The aes_s390 module failed to allocate a software fallback for the AES
+ * modes that are not supported by the hardware. A possible reason for this
+ * problem is that the aes_generic module that provides the fallback
+ * algorithms is not available.
+ * User action:
+ * Ensure that the aes_generic module is available and loaded and reload
+ * the aes_s390 module.
+ */
+
+/*?
+ * Text: "Allocating AES fallback algorithm %s failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: algorithm name
+ * Description:
+ * The advanced encryption standard (AES) algorithm includes three modes with
+ * 128-bit, 192-bit, and 256-bit keys. Your hardware system only provides
+ * hardware acceleration for the 128-bit mode. The aes_s390 module failed to
+ * allocate a software fallback for the AES modes that are not supported by the
+ * hardware. A possible reason for this problem is that the aes_generic module
+ * that provides the fallback algorithms is not available.
+ * User action:
+ * Use the 128-bit mode only or ensure that the aes_generic module is available
+ * and loaded and reload the aes_s390 module.
+ */
+
+/*?
+ * Text: "AES hardware acceleration is only available for 128-bit keys\n"
+ * Severity: Informational
+ * Description:
+ * The advanced encryption standard (AES) algorithm includes three modes with
+ * 128-bit, 192-bit, and 256-bit keys. Your hardware system only provides
+ * hardware acceleration for the 128-bit key mode. The aes_s390 module
+ * will use the less performant software fallback algorithm for the 192-bit
+ * and 256-bit key modes.
+ * User action:
+ * None.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

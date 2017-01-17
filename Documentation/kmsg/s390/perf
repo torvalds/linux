@@ -1,0 +1,90 @@
+/*?
+ * Text: "CPU[%i] CPUM_CF: ver=%u.%u A=%04x E=%04x C=%04x\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: cpu number
+ *   @2: first version number
+ *   @3: second version number
+ *   @4: counter set authorization
+ *   @5: counter set enable controls
+ *   @6: counter set activation controls
+ * Description:
+ * This message displays information about the CPU-measurement counter facility
+ * (CPUM_CF) on a particular CPU.  For details, see
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "CPU[%i] CPUM_SF: basic=%i diag=%i min=%lu max=%lu cpu_speed=%u\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: cpu number
+ *   @2: authorization status for the basic-sampling function
+ *   @3: authorization status for the diagnostic-sampling function
+ *   @4: minimum sampling interval
+ *   @5: maximum sampling interval
+ *   @6: cpu speed
+ * Description:
+ * This message displays generic information about the CPU-measurement sampling
+ * facility (CPUM_SF) on a particular CPU.  For details, see
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "CPU[%i] CPUM_SF: Basic-sampling: a=%i e=%i c=%i bsdes=%i tear=%016lx dear=%016lx\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: cpu number
+ *   @2: authorization control
+ *   @3: enable control
+ *   @4: activation control
+ *   @5: basic-sampling-data-entry size
+ *   @6: tear register contents
+ *   @7: dear register contents
+ * Description:
+ * This message displays information about the basic-sampling function of the
+ * CPU-measurement sampling facility (CPUM_SF) on a particular CPU.
+ * For details, see
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "CPU[%i] CPUM_SF: Diagnostic-sampling: a=%i e=%i c=%i dsdes=%i tear=%016lx dear=%016lx\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: cpu number
+ *   @2: authorization control
+ *   @3: enable control
+ *   @4: activation control
+ *   @5: diagnostic-sampling-data-entry size
+ *   @6: tear register contents
+ *   @7: dear register contents
+ * Description:
+ * This message displays information about the diagnostic-sampling function of the
+ * CPU-measurement sampling facility (CPUM_SF) on a particular CPU.
+ * For details, see
+ * "The Load-Program-Parameter and the CPU-Measurement Facilities", SA23-2260.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The sampling facility is already reserved by %p\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: address of perf sampling support owner
+ * Description:
+ * A process tried to reserve the sampling facility support, but it was already
+ * reserved by another process.
+ * User action:
+ * Check whether another process, for example, the perf program or OProfile is
+ * currently active.  Retry activating the sampling facility after the other
+ * process has ended.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

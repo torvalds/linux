@@ -1,0 +1,709 @@
+/*?
+ * Text: "%s is not a valid SCSI device\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device specification
+ * Description:
+ * The specification for an initial SCSI device provided with the 'zfcp.device'
+ * kernel parameter or with the 'device' module parameter is syntactically
+ * incorrect. The specified SCSI device could not be attached to the Linux
+ * system.
+ * User action:
+ * Correct the value for the 'zfcp.device' or 'device' parameter and reboot
+ * Linux. See "Device Drivers, Features, and Commands" for information about
+ * the syntax.
+ */
+
+/*?
+ * Text: "The zfcp device driver could not register with the common I/O layer\n"
+ * Severity: Error
+ * Description:
+ * The device driver initialization failed. A possible cause of this problem is
+ * memory constraints.
+ * User action:
+ * Free some memory and try again to load the zfcp device driver. If the zfcp
+ * device driver has been compiled into the kernel, reboot Linux. Consider
+ * assigning more memory to your LPAR or z/VM guest virtual machine. If the
+ * problem persists, contact your support organization.
+ */
+
+/*?
+ * Text: "%s: Setting up data structures for the FCP adapter failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The zfcp device driver could not allocate data structures for an FCP adapter.
+ * A possible reason for this problem is memory constraints.
+ * User action:
+ * Set the FCP adapter offline or detach it from the Linux system, free some
+ * memory and set the FCP adapter online again or attach it again. If this
+ * problem persists, gather Linux debug data, collect the FCP adapter
+ * hardware logs, and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: The FCP device is operational again\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * An FCP device has been unavailable because it had been detached from the
+ * Linux system or because the corresponding CHPID was offline. The FCP device
+ * is now available again and the zfcp device driver resumes all operations to
+ * the FCP device.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The CHPID for the FCP device is offline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The CHPID for an FCP device has been set offline, either logically in Linux
+ * or on the hardware.
+ * User action:
+ * Find out which CHPID corresponds to the FCP device, for example, with the
+ * lscss command. Check if the CHPID has been set logically offline in sysfs.
+ * Write 'on' to the CHPID's status attribute to set it online. If the CHPID is
+ * online in sysfs, find out if it has been varied offline through a hardware
+ * management interface, for example the service element (SE).
+ */
+
+/*?
+ * Text: "%s: The FCP device has been detached\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * An FCP device is no longer available to Linux.
+ * User action:
+ * Ensure that the FCP adapter is operational and attached to the LPAR or z/VM
+ * virtual machine.
+ */
+
+/*?
+ * Text: "%s: The FCP device did not respond within the specified time\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The common I/O layer waited for a response from the FCP adapter but
+ * no response was received within the specified time limit. This might
+ * indicate a hardware problem.
+ * User action:
+ * Consult your hardware administrator. If this problem persists,
+ * gather Linux debug data, collect the FCP adapter hardware logs, and
+ * report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Registering the FCP device with the SCSI stack failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter could not be registered with the Linux SCSI
+ * stack. A possible reason for this problem is memory constraints.
+ * User action:
+ * Set the FCP adapter offline or detach it from the Linux system, free some
+ * memory and set the FCP adapter online again or attach it again. If this
+ * problem persists, gather Linux debug data, collect the FCP adapter
+ * hardware logs, and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: ERP cannot recover an error on the FCP device\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * An error occurred on an FCP device. The error recovery procedure (ERP)
+ * could not resolve the error. The FCP device driver cannot use the FCP device.
+ * User action:
+ * Check for previous error messages for the same FCP device to find the
+ * cause of the problem.
+ */
+
+/*?
+ * Text: "%s: Creating an ERP thread for the FCP device failed.\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The zfcp device driver could not set up error recovery procedure (ERP)
+ * processing for the FCP device. The FCP device is not available for use
+ * in Linux.
+ * User action:
+ * Free some memory and try again to load the zfcp device driver. If the zfcp
+ * device driver has been compiled into the kernel, reboot Linux. Consider
+ * assigning more memory to your LPAR or z/VM guest virtual machine. If the
+ * problem persists, contact your support organization.
+ */
+
+/*?
+ * Text: "%s: ERP failed for LUN 0x%016Lx on port 0x%016Lx\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: LUN
+ *   @3: WWPN
+ * Description:
+ * An error occurred on the SCSI device at the specified LUN. The error recovery
+ * procedure (ERP) could not resolve the error. The SCSI device is not
+ * available.
+ * User action:
+ * Verify that the LUN is correct. Check the fibre channel fabric for errors
+ * related to the specified WWPN and LUN, the storage server, and Linux.
+ */
+
+/*?
+ * Text: "%s: ERP failed for remote port 0x%016Lx\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: WWPN
+ * Description:
+ * An error occurred on a remote port. The error recovery procedure (ERP)
+ * could not resolve the error. The port is not available.
+ * User action:
+ * Verify that the WWPN is correct and check the fibre channel fabric for
+ * errors related to the WWPN.
+ */
+
+/*?
+ * Text: "%s: Registering port 0x%016Lx failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: WWPN
+ * Description:
+ * The Linux kernel could not allocate enough memory to register the
+ * remote port with the indicated WWPN with the SCSI stack. The remote
+ * port is not available.
+ * User action:
+ * Free some memory and trigger the rescan for ports.
+ */
+
+/*?
+ * Text: "%s: A QDIO problem occurred\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * QDIO reported a problem to the zfcp device driver. The zfcp device driver
+ * tries to recover this problem.
+ * User action:
+ * Check for related error messages. If this problem occurs frequently, gather
+ * Linux debug data and contact your support organization.
+ */
+
+/*?
+ * Text: "%s: Setting up the QDIO connection to the FCP adapter failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The zfcp device driver failed to establish a QDIO connection with the FCP
+ * adapter.
+ * User action:
+ * Set the FCP adapter offline or detach it from the Linux system, free some
+ * memory and set the FCP adapter online again or attach it again. If this
+ * problem persists, gather Linux debug data, collect the FCP adapter
+ * hardware logs, and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter reported a problem that cannot be recovered\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter has a problem that cannot be recovered by the zfcp device
+ * driver. The zfcp device driver stopped using the FCP device.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: There is a wrap plug instead of a fibre channel cable\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter is not physically connected to the fibre channel fabric.
+ * User action:
+ * Remove the wrap plug from the FCP adapter and connect the adapter with the
+ * fibre channel fabric.
+ */
+
+/*?
+ * Text: "%s: FCP device not operational because of an unsupported FC class\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter hardware does not support the fibre channel service class
+ * requested by the zfcp device driver. This problem indicates a program error
+ * in the zfcp device driver.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: 0x%Lx is an ambiguous request identifier\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: request ID
+ * Description:
+ * The FCP adapter reported that it received the same request ID twice. This is
+ * an error. The zfcp device driver stopped using the FCP device.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: QTCB version 0x%x not supported by FCP adapter (0x%x to 0x%x)\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: requested version
+ *   @3: lowest supported version
+ *   @4: highest supported version
+ * Description:
+ * See message text.
+ * The queue transfer control block (QTCB) version requested by the zfcp device
+ * driver is not supported by the FCP adapter hardware.
+ * User action:
+ * If the requested version is higher than the highest version supported by the
+ * hardware, install more recent firmware on the FCP adapter. If the requested
+ * version is lower then the lowest version supported by the hardware, upgrade
+ * to a Linux level with a more recent zfcp device driver.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter could not log in to the fibre channel fabric\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The fibre channel switch rejected the login request from the FCP adapter.
+ * User action:
+ * Check the fibre channel fabric or switch logs for possible errors.
+ */
+
+/*?
+ * Text: "%s: The FCP device is suspended because of a firmware update\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP device is not available while a firmware update is in progress. This
+ * problem is temporary. The FCP device will resume operations when the
+ * firmware update is completed.
+ * User action:
+ * Wait 10 seconds and try the operation again.
+ */
+
+/*?
+ * Text: "%s: All NPIV ports on the FCP adapter have been assigned\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The number of N_Port ID Virtualization (NPIV) ports that can be assigned
+ * on an FCP adapter is limited. Once assigned, NPIV ports are not released
+ * automatically but have to be released explicitly through the support
+ * element (SE).
+ * User action:
+ * Identify NPIV ports that have been assigned but are no longer in use and
+ * release them from the SE.
+ */
+
+/*?
+ * Text: "%s: The link between the FCP adapter and the FC fabric is down\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter is not usable. Specific error information is not available.
+ * User action:
+ * Check the cabling and the fibre channel fabric configuration. If this
+ * problem persists, gather Linux debug data, collect the FCP adapter
+ * hardware logs, and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: The QTCB type is not supported by the FCP adapter\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The queue transfer control block (QTCB) type requested by the zfcp device
+ * driver is not supported by the FCP adapter hardware.
+ * User action:
+ * Install the latest firmware on your FCP adapter hardware. If this does not
+ * resolve the problem, upgrade to a Linux level with a more recent zfcp device
+ * driver. If the problem persists, contact your support organization.
+ */
+
+/*?
+ * Text: "%s: The error threshold for checksum statistics has been exceeded\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter has reported a large number of bit errors. This might
+ * indicate a problem with the physical components of the fibre channel fabric.
+ * Details about the errors have been written to the HBA trace for the FCP
+ * adapter.
+ * User action:
+ * Check for problems in the fibre channel fabric and ensure that all cables
+ * are properly plugged.
+ */
+
+/*?
+ * Text: "%s: The local link has been restored\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * A problem with the connection between the FCP adapter and the adjacent node
+ * on the fibre channel fabric has been resolved. The FCP adapter is now
+ * available again.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The mode table on the FCP adapter has been damaged\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * This is an FCP adapter hardware problem.
+ * User action:
+ * Report this problem with FCP hardware logs to IBM support.
+ */
+
+/*?
+ * Text: "%s: The adjacent fibre channel node does not support FCP\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The fibre channel switch or storage system that is connected to the FCP
+ * channel does not support the fibre channel protocol (FCP). The zfcp
+ * device driver stopped using the FCP device.
+ * User action:
+ * Check the adjacent fibre channel node.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter does not recognize the command 0x%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: command
+ * Description:
+ * A command code that was sent from the zfcp device driver to the FCP adapter
+ * is not valid. The zfcp device driver stopped using the FCP device.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: There is no light signal from the local fibre channel cable\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * There is no signal on the fibre channel cable that connects the FCP adapter
+ * to the fibre channel fabric.
+ * User action:
+ * Ensure that the cable is in place and connected properly to the FCP adapter
+ * and to the adjacent fibre channel switch or storage system.
+ */
+
+/*?
+ * Text: "%s: The WWPN assignment file on the FCP adapter has been damaged\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * This is an FCP adapter hardware problem.
+ * User action:
+ * Report this problem with FCP hardware logs to IBM support.
+ */
+
+/*?
+ * Text: "%s: The FCP device detected a WWPN that is duplicate or not valid\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * This condition indicates an error in the FCP adapter hardware or in the z/VM
+ * hypervisor.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to IBM support.
+ */
+
+/*?
+ * Text: "%s: The fibre channel fabric does not support NPIV\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP adapter requires N_Port ID Virtualization (NPIV) from the adjacent
+ * fibre channel node. Either the FCP adapter is connected to a fibre channel
+ * switch that does not support NPIV or the FCP adapter tries to use NPIV in a
+ * point-to-point setup. The connection is not operational.
+ * User action:
+ * Verify that NPIV is correctly used for this connection. Check the FCP adapter
+ * configuration and the fibre channel switch configuration. If necessary,
+ * update the fibre channel switch firmware.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter cannot support more NPIV ports\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * N_Port ID Virtualization (NPIV) ports consume physical resources on the FCP
+ * adapter. The FCP adapter resources are exhausted. The connection is not
+ * operational.
+ * User action:
+ * Analyze the number of available NPIV ports and which operating system
+ * instances use them. If necessary, reconfigure your setup to move some
+ * NPIV ports to an FCP adapter with free resources.
+ */
+
+/*?
+ * Text: "%s: The adjacent switch cannot support more NPIV ports\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * N_Port ID Virtualization (NPIV) ports consume physical resources. The
+ * resources of the fibre channel switch that is connected to the FCP adapter
+ * are exhausted. The connection is not operational.
+ * User action:
+ * Analyze the number of available NPIV ports on the adjacent fibre channel
+ * switch and how they are used. If necessary, reconfigure your fibre channel
+ * fabric to accommodate the required NPIV ports.
+ */
+
+/*?
+ * Text: "%s: 0x%x is not a valid transfer protocol status\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: status information
+ * Description:
+ * The transfer protocol status information reported by the FCP adapter is not
+ * a valid status for the zfcp device driver. The zfcp device driver stopped
+ * using the FCP device.
+ * User action:
+ * Gather Linux debug data, collect the FCP adapter hardware logs, and report
+ * this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Unknown or unsupported arbitrated loop fibre channel topology detected\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The FCP device is connected to a fibre channel arbitrated loop or the FCP adapter
+ * reported an unknown fibre channel topology. The zfcp device driver supports
+ * point-to-point connections and switched fibre channel fabrics but not arbitrated
+ * loop topologies. The FCP device cannot be used.
+ * User action:
+ * Check the fibre channel setup and ensure that only supported topologies are
+ * connected to the FCP adapter.
+ */
+
+/*?
+ * Text: "%s: FCP adapter maximum QTCB size (%d bytes) is too small\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: maximum supported size
+ *   @3: requested QTCB size
+ * Description:
+ * The queue transfer control block (QTCB) size requested by the zfcp
+ * device driver is not supported by the FCP adapter hardware.
+ * User action:
+ * Update the firmware on your FCP adapter hardware to the latest
+ * available level and update the Linux kernel to the latest supported
+ * level. If the problem persists, contact your support organization.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter only supports newer control block versions\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The protocol supported by the FCP adapter is not compatible with the zfcp
+ * device driver.
+ * User action:
+ * Upgrade your Linux kernel to a level that includes a zfcp device driver
+ * with support for the control block version required by your FCP adapter.
+ */
+
+/*?
+ * Text: "%s: The FCP adapter only supports older control block versions\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ * Description:
+ * The protocol supported by the FCP adapter is not compatible with the zfcp
+ * device driver.
+ * User action:
+ * Install the latest firmware on your FCP adapter.
+ */
+
+/*?
+ * Text: "%s: Not enough FCP adapter resources to open remote port 0x%016Lx\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: WWPN
+ * Description:
+ * Each port that is opened consumes physical resources of the FCP adapter to
+ * which it is attached. These resources are exhausted and the specified port
+ * cannot be opened.
+ * User action:
+ * Reduce the total number of remote ports that are attached to the
+ * FCP adapter.
+ */
+
+/*?
+ * Text: "%s: LUN 0x%Lx on port 0x%Lx is already in use by CSS%d, MIF Image ID %x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: LUN
+ *   @3: remote port WWPN
+ *   @4: channel subsystem ID
+ *   @5: MIF Image ID of the LPAR
+ * Description:
+ * The SCSI device at the indicated LUN is already in use by another system.
+ * Only one system at a time can use the SCSI device.
+ * User action:
+ * Ensure that the other system stops using the device before trying to use it.
+ */
+
+/*?
+ * Text: "%s: No handle is available for LUN 0x%016Lx on port 0x%016Lx\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: LUN
+ *   @3: WWPN
+ * Description:
+ * The FCP adapter can only open a limited number of SCSI devices. This limit
+ * has been reached and the SCSI device at the indicated LUN cannot be opened.
+ * User action:
+ * For FCP subchannels running in non-NPIV mode, check all SCSI
+ * devices opened through the FCP adapter and close some of them.  For
+ * FCP subchannels running in NPIV mode, verify the SAN zoning and
+ * host connections on the storage systems. Ensure that the zoning and
+ * host connections only allow access to the required LUNs. As a
+ * workaround, disable the automatic LUN scanning by setting the
+ * zfcp.allow_lun_scan kernel parameter or the allow_lun_scan module
+ * parameter to 0.
+ */
+
+/*?
+ * Text: "%s: Incorrect direction %d, LUN 0x%016Lx on port 0x%016Lx closed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: value in direction field
+ *   @3: LUN
+ *   @4: WWPN
+ * Description:
+ * The direction field in a SCSI request contains an incorrect value. The zfcp
+ * device driver closed down the SCSI device at the indicated LUN.
+ * User action:
+ * Gather Linux debug data and report this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Incorrect CDB length %d, LUN 0x%016Lx on port 0x%016Lx closed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: value in length field
+ *   @3: LUN
+ *   @4: WWPN
+ * Description:
+ * The control-data-block (CDB) length field in a SCSI request is not valid or
+ * too large for the FCP adapter. The zfcp device driver closed down the SCSI
+ * device at the indicated LUN.
+ * User action:
+ * Gather Linux debug data and report this problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Opening WKA port 0x%x failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: destination ID of the WKA port
+ * Description:
+ * The FCP adapter rejected a request to open the specified
+ * well-known address (WKA) port. No retry is possible.
+ * User action:
+ * Verify the setup and check if the maximum number of remote ports
+ * used through this adapter is below the maximum allowed. If the
+ * problem persists, gather Linux debug data, collect the FCP adapter
+ * hardware logs, and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: The name server reported %d words residual data\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: number of words in residual data
+ * Description:
+ * The fibre channel name server sent too much information about remote ports.
+ * The zfcp device driver did not receive sufficient information to attach all
+ * available remote ports in the SAN.
+ * User action:
+ * Verify that you are running the latest firmware level on the FCP
+ * adapter. Check your SAN setup and consider reducing the number of ports
+ * visible to the FCP adapter by using more restrictive zoning in the SAN.
+ */
+
+/*?
+ * Text: "%s: A port opened with WWPN 0x%016Lx returned data that identifies it as WWPN 0x%016Lx\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the zfcp device
+ *   @2: expected WWPN
+ *   @3: reported WWPN
+ * Description:
+ * A remote port was opened successfully, but it reported an
+ * unexpected WWPN in the returned port login (PLOGI) data. This
+ * condition might have been caused by a change applied to the SAN
+ * configuration while the port was being opened.
+ * User action:
+ * If this condition is only temporary and access to the remote port
+ * is possible, no action is required. If the condition persists,
+ * identify the storage system with the specified WWPN and contact the
+ * support organization of the storage system.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

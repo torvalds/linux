@@ -1,0 +1,247 @@
+/*?
+ * Text: "%s is not a valid device for the cio_ignore kernel parameter\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: device bus-ID
+ * Description:
+ * The device specification for the cio_ignore kernel parameter is
+ * syntactically incorrect or specifies an unknown device. This device is not
+ * excluded from being sensed and analyzed.
+ * User action:
+ * Correct your device specification in the kernel parameter line to have the
+ * device excluded when you next reboot Linux. You can write the correct
+ * device specification to /proc/cio_ignore to add the device to the list of
+ * devices to be excluded. This does not immediately make the device
+ * inaccessible but the device is ignored if it disappears and later reappears.
+ */
+
+/*?
+ * Text: "0.%x.%04x to 0.%x.%04x is not a valid range for cio_ignore\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: from subchannel set ID
+ *   @2: from device number
+ *   @3: to subchannel set ID
+ *   @4: to device number
+ * Description:
+ * The device range specified for the cio_ignore kernel parameter is
+ * syntactically incorrect. No devices specified with this range are
+ * excluded from being sensed and analyzed.
+ * User action:
+ * Correct your range specification in the kernel parameter line to have the
+ * range of devices  excluded when you next reboot Linux. You can write the
+ * correct range specification to /proc/cio_ignore to add the range of devices
+ * to the list of devices to be excluded. This does not immediately make the
+ * devices in the range inaccessible but any of these devices are ignored if
+ * they disappear and later reappear.
+ */
+
+/*?
+ * Text: "Processing %s for channel path %x.%02x\n"
+ * Severity: Notice
+ * Parameter:
+ *   @1: configuration change
+ *   @2: channel subsystem ID
+ *   @3: CHPID
+ * Description:
+ * A configuration change is in progress for the given channel path.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "No CCW console was found\n"
+ * Severity: Warning
+ * Description:
+ * Linux did not find the expected CCW console and tries to use an alternative
+ * console. A possible reason why the console was not found is that the console
+ * has been specified in the cio_ignore list.
+ * User action:
+ * None, if an appropriate alternative console has been found, and you want
+ * to use this alternative console. If you want to use the CCW console, ensure
+ * that is not specified in the cio_ignore list, explicitly specify the console
+ * with the 'condev=' kernel parameter, and reboot Linux.
+ */
+
+/*?
+ * Text: "Channel measurement facility initialized using format %s (mode %s)\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: format
+ *   @2: mode
+ * Description:
+ * The channel measurement facility has been initialized successfully.
+ * Format 'extended' should be used for z990 and later mainframe systems.
+ * Format 'basic' is intended for earlier mainframes. Mode 'autodetected' means
+ * that the format has been set automatically. Mode 'parameter' means that the
+ * format has been set according to the 'format=' kernel parameter.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The CSS device driver initialization failed with errno=%d\n"
+ * Severity: Alert
+ * Parameter:
+ *   @1: Return code
+ * Description:
+ * The channel subsystem bus could not be established.
+ * User action:
+ * See the errno man page to find out what caused the problem.
+ */
+ /*? Text: "%s: Got subchannel machine check but no sch_event handler provided.\n" */
+
+/*?
+ * Text: "%s: Setting the device online failed because it is boxed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: Device bus-ID
+ * Description:
+ * Initialization of a device did not complete because it did not respond in
+ * time or it was reserved by another operating system.
+ * User action:
+ * Make sure that the device is working correctly, then try again to set it
+ * online. For devices that support the reserve/release mechanism (for example
+ * DASDs), you can try to override the reservation of the other system by
+ * writing 'force' to the 'online' sysfs attribute of the affected device.
+ */
+
+/*?
+ * Text: "%s: Setting the device online failed because it is not operational\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: Device bus-ID
+ * Description:
+ * Initialization of a device did not complete because it is not present or
+ * not operational.
+ * User action:
+ * Make sure that the device is present and working correctly, then try again
+ * to set it online.
+ */
+
+/*?
+ * Text: "%s: The device stopped operating while being set offline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: Device bus-ID
+ * Description:
+ * While the device was set offline, it was not present or not operational.
+ * The device is now inactive, but setting it online again might fail.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The device entered boxed state while being set offline\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: Device bus-ID
+ * Description:
+ * While the device was set offline, it did not respond in time or it was
+ * reserved by another operating system. The device is now inactive, but
+ * setting it online again might fail.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Logging for subchannel 0.%x.%04x failed with errno=%d\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: subchannel set ID
+ *   @2: subchannel number
+ *   @3: errno
+ * Description:
+ * Capturing model-dependent logs and traces could not be triggered for the
+ * specified subchannel.
+ * User action:
+ * See the errno man page to find out what caused the problem.
+ */
+
+/*?
+ * Text: "Logging for subchannel 0.%x.%04x was triggered\n"
+ * Severity: Notice
+ * Parameter:
+ *   @1: subchannel set ID
+ *   @2: subchannel number
+ * Description:
+ * Model-dependent logs and traces may be captured for the specified
+ * subchannel.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: No interrupt was received within %lus (CS=%02x, DS=%02x, CHPID=%x.%02x)\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: device number
+ *   @2: timeout value
+ *   @3: channel status
+ *   @4: device status
+ *   @5: channel subsystem ID
+ *   @6: CHPID
+ * Description:
+ * Internal I/Os are used by the common I/O layer to ensure that devices are
+ * operational and accessible.
+ * The common I/O layer did not receive an interrupt for an internal I/O
+ * during the specified timeout period.
+ * As a result, the device might assume a state that makes the device
+ * unusable to Linux until the problem is resolved.
+ * User action:
+ * Make sure that the device is working correctly and try the action again.
+ */
+
+/*?
+ * Text: "Link stopped: RS=%02x RSID=%04x IC=%02x IUPARAMS=%s IUNODEID=%s AUPARAMS=%s AUNODEID=%s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: reporting source
+ *   @2: reporting source ID
+ *   @3: incident code
+ *   @4: incident unit parameters
+ *   @5: incident unit node ID
+ *   @6: attached unit parameters
+ *   @7: attached unit node ID
+ *
+ * Description:
+ * A hardware error has occurred. A unit at one end of an interface
+ * link has detected a failure in the link or in one of the units attached to
+ * the link. As a result, data transfer across the link has stopped. In the
+ * message text, the node IDs of involved units are represented in the
+ * following format: TTTTTT/MDL,MMM.PPSSSSSSSSSSSS,XXXX where TTTTTT refers to
+ * the machine type, MDL the model number, MMM the manufacturer, PP the
+ * manufacturing plant, SSSSSSSSSSSS the unit sequence number and XXXX the
+ * machine type-dependent physical interface number. If no data is available
+ * for the unit parameters or node ID field, "n/a" is used instead.
+ *
+ * User action:
+ * Report the problem to your support organization.
+ */
+
+/*?
+ * Text: "Link degraded: RS=%02x RSID=%04x IC=%02x IUPARAMS=%s IUNODEID=%s AUPARAMS=%s AUNODEID=%s\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: reporting source
+ *   @2: reporting source ID
+ *   @3: incident code
+ *   @4: incident unit parameters
+ *   @5: incident unit node ID
+ *   @6: attached unit parameters
+ *   @7: attached unit node ID
+ * Description:
+ * A hardware error has occurred. A unit at one end of an interface
+ * link has detected a failure in the link or in one of the units attached to
+ * the link. As a result, data transfer across the link is degraded. In the
+ * message text, the node IDs of involved units are represented in the
+ * following format: TTTTTT/MDL,MMM.PPSSSSSSSSSSSS,XXXX where TTTTTT refers to
+ * the machine type, MDL the model number, MMM the manufacturer, PP the
+ * manufacturing plant, SSSSSSSSSSSS the unit sequence number and XXXX the
+ * machine type-dependent physical interface number. If no data is available
+ * for the unit parameters or node ID field, "n/a" is used instead.
+ *
+ * User action:
+ * Report the problem to your support organization.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

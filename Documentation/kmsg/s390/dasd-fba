@@ -1,0 +1,36 @@
+
+/*?
+ * Text: "%s: New FBA DASD %04X/%02X (CU %04X/%02X) with %d MB and %d B/blk%s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: device type
+ *   @3: device model
+ *   @4: control unit type
+ *   @5: control unit model
+ *   @6: size
+ *   @7: bytes per block
+ *   @8: access mode
+ * Description:
+ * A DASD with the shown characteristics has been set online.
+ * If the DASD is configured as read-only to the real or virtual hardware,
+ * the message includes an indication of this hardware access mode. The
+ * hardware access mode is independent from the 'readonly' attribute of
+ * the device in sysfs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: Allocating memory for private DASD data failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD device driver maintains data structures for each DASD it manages.
+ * There is not enough memory to allocate these data structures for one or
+ * more DASD.
+ * User action:
+ * Free some memory and try the operation again.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

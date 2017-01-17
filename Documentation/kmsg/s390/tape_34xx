@@ -1,0 +1,418 @@
+/*?
+ * Text: "%s: An unexpected condition %d occurred in tape error recovery\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the tape device
+ *   @2: number
+ * Description:
+ * The control unit has reported an error condition that is not recognized by
+ * the error recovery process of the tape device driver.
+ * User action:
+ * Report this problem and the condition number from the message to your
+ * support organization.
+ */
+
+/*?
+ * Text: "%s: A data overrun occurred between the control unit and tape unit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A data overrun error has occurred on the connection between the control
+ * unit and the tape unit. If this problem occurred during a write-type
+ * operation, the integrity of the data on the tape might be compromised.
+ * User action:
+ * Use a faster connection. If this problem occurred during a write-type
+ * operation, consider repositioning the tape and repeating the operation.
+ */
+
+/*?
+ * Text: "%s: The block ID sequence on the tape is incorrect\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The control unit has detected an incorrect block ID sequence on the tape.
+ * This problem typically indicates that the data on the tape is damaged.
+ * User action:
+ * If this problem occurred during a write-type operation reposition the tape
+ * and repeat the operation.
+ */
+
+/*?
+ * Text: "%s: A read error occurred that cannot be recovered\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A read error has occurred that cannot be recovered. The current tape might
+ * be damaged.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: A write error on the tape cannot be recovered\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A write error has occurred that could not be recovered by the automatic
+ * error recovery process.
+ * User action:
+ * Use a different tape cartridge.
+ */
+
+/*?
+ * Text: "%s: Writing the ID-mark failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The ID-mark at the beginning of tape could not be written. The tape medium
+ * might be write-protected.
+ * User action:
+ * Try a different tape cartridge. Ensure that the write-protection on the
+ * cartridge is switched off.
+ */
+
+/*?
+ * Text: "%s: Reading the tape beyond the end of the recorded area failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A read-type operation failed because it extended beyond the end of the
+ * recorded area on the tape medium.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The tape contains an incorrect block ID sequence\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The control unit has detected an incorrect block ID sequence on the tape.
+ * This problem typically indicates that the data on the tape is damaged.
+ * User action:
+ * If this problem occurred during a write-type operation reposition the tape
+ * and repeat the operation.
+ */
+
+/*?
+ * Text: "%s: A path equipment check occurred for the tape device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A path equipment check has occurred. This check indicates problems with the
+ * connection between the mainframe system and the tape control unit.
+ * User action:
+ * Ensure that the cable connections between the mainframe system and the
+ * control unit are securely in place and not damaged.
+ */
+
+/*?
+ * Text: "%s: The tape unit cannot process the tape format\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * Either the tape unit is not able to read the format ID mark, or the
+ * specified format is not supported by the tape unit.
+ * User action:
+ * If you do not need the data recorded on the current tape, use a different
+ * tape or write a new format ID mark at the beginning of the tape. Be aware
+ * that writing a new ID mark leads to a loss of all data that has been
+ * recorded on the tape. If you need the data on the current tape, use a tape
+ * unit that supports the tape format.
+ */
+
+/*?
+ * Text: "%s: The tape medium is write-protected\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A write-type operation failed because the tape medium is write-protected.
+ * User action:
+ * Eject the tape cartridge, switch off the write protection on the cartridge,
+ * insert the cartridge, and try the operation again.
+ */
+
+/*?
+ * Text: "%s: The tape does not have the required tape tension\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape does not have the required tape tension.
+ * User action:
+ * Rewind and reposition the tape, then repeat the operation.
+ */
+
+/*?
+ * Text: "%s: The tape unit failed to load the cartridge\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * An error has occurred while loading the tape cartridge.
+ * User action:
+ * Unload the cartridge and load it again.
+ */
+
+/*?
+ * Text: "%s: Automatic unloading of the tape cartridge failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit failed to unload the cartridge.
+ * User action:
+ * Unload the cartridge manually by using the eject button on the tape unit.
+ */
+
+/*?
+ * Text: "%s: An equipment check has occurred on the tape unit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * Possible reasons for the check condition are a unit adapter error, a buffer
+ * error on the lower interface, an unusable internal path, or an error that
+ * has occurred while loading the cartridge.
+ * User action:
+ * Examine the tape unit and the cartridge loader. Consult the tape unit
+ * documentation for details.
+ */
+
+/*?
+ * Text: "%s: The tape information states an incorrect length\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape is shorter than stated at the beginning of the tape data. A
+ * possible reason for this problem is that the tape might have been physically
+ * truncated. Data written to the tape might be incomplete or damaged.
+ * User action:
+ * If this problem occurred during a write-type operation, consider repeating
+ * the operation with a different tape cartridge.
+ */
+
+/*?
+ * Text: "%s: The tape unit is not ready\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit is online but not ready.
+ * User action:
+ * Turn the ready switch on the tape unit to the ready position and try the
+ * operation again.
+ */
+
+/*?
+ * Text: "%s: The tape medium has been rewound or unloaded manually\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit rewind button, unload button, or both have been used to
+ * rewind or unload the tape cartridge. A tape cartridge other than the
+ * intended cartridge might have been inserted or the tape medium might not
+ * be at the expected position.
+ * User action:
+ * Verify that the correct tape cartridge has been inserted and that the tape
+ * medium is at the required position before continuing to work with the tape.
+ */
+
+/*?
+ * Text: "%s: The tape subsystem is running in degraded mode\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape subsystem is not operating at its maximum performance.
+ * User action:
+ * Contact your service representative for the tape unit and report this
+ * problem.
+ */
+
+/*?
+ * Text: "%s: The tape unit is already assigned\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit is already assigned to another channel path.
+ * User action:
+ * Free the tape unit from the operating system instance to which it is
+ * currently assigned then try again.
+ */
+
+/*?
+ * Text: "%s: The tape unit is not online\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit is not online to the tape device driver.
+ * User action:
+ * Ensure that the tape unit is operational and that the cable connections
+ * between the control unit and the tape unit are securely in place and not
+ * damaged.
+ */
+
+/*?
+ * Text: "%s: The control unit has fenced access to the tape volume\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The control unit fences further access to the current tape volume. The data
+ * integrity on the tape volume might have been compromised.
+ * User action:
+ * Rewind and unload the tape cartridge.
+ */
+
+/*?
+ * Text: "%s: A parity error occurred on the tape bus\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * A data parity check error occurred on the bus. Data that was read or written
+ * while the error occurred is not valid.
+ * User action:
+ * Reposition the tape and repeat the read-type or write-type operation.
+ */
+
+/*?
+ * Text: "%s: I/O error recovery failed on the tape control unit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * An I/O error occurred that cannot be recovered by the automatic error
+ * recovery process of the tape control unit. The application that operates
+ * the tape unit will receive a return value of -EIO which indicates an
+ * I/O error. The data on the tape might be damaged.
+ * User action:
+ * If this problem occurred during a write-type operation, consider
+ * repositioning the tape and repeating the operation.
+ */
+
+/*?
+ * Text: "%s: The tape unit requires a firmware update\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit requires firmware patches from the tape control unit but the
+ * required patches are not available on the control unit.
+ * User action:
+ * Make the require patches available on the control unit then reposition the
+ * tape and retry the operation. For details about obtaining and installing
+ * firmware updates see the control unit documentation.
+ */
+
+/*?
+ * Text: "%s: The maximum block size for buffered mode is exceeded\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The block to be written is larger than allowed for the buffered mode.
+ * User action:
+ * Use a smaller block size.
+ */
+
+/*?
+ * Text: "%s: A channel interface error cannot be recovered\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * An error has occurred on the channel interface. This error cannot
+ * be recovered by the control unit error recovery process.
+ * User action:
+ * See the documentation of the control unit.
+ */
+
+/*?
+ * Text: "%s: A channel protocol error occurred\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * An error was detected in the channel protocol.
+ * User action:
+ * Reposition the tape and try the operation again.
+ */
+
+/*?
+ * Text: "%s: The tape unit does not support the compaction algorithm\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit cannot read the current tape. The data on the tape has been
+ * compressed with an algorithm that is not supported by the tape unit.
+ * User action:
+ * Use a tape unit that supports the compaction algorithm used for the
+ * current tape.
+ */
+
+/*?
+ * Text: "%s: The tape unit does not support tape format 3480-2 XF\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit does not support tapes recorded in the 3480-2 XF format.
+ * User action:
+ * If you do not need the data recorded on the current tape, rewind the tape
+ * and overwrite it with a supported format. If you need the data on the
+ * current tape, use a tape unit that supports the tape format.
+ */
+
+/*?
+ * Text: "%s: The tape unit does not support format 3480 XF\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The tape unit does not support tapes recorded in the 3480 XF format.
+ * User action:
+ * If you do not need the data recorded on the current tape, rewind the tape
+ * and overwrite it with a supported format. If you need the data on the
+ * current tape, use a tape unit that supports the tape format.
+ */
+
+/*?
+ * Text: "%s: The tape unit does not support the current tape length\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The length of the tape in the cartridge is incompatible with the tape unit.
+ * User action:
+ * Either use a different tape unit or use a tape with a supported length.
+ */
+
+/*?
+ * Text: "%s: The tape unit does not support the tape length\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the tape device
+ * Description:
+ * The length of the tape in the cartridge is incompatible with the tape
+ * unit.
+ * User action:
+ * Either use a different tape unit or use a tape with a supported length.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

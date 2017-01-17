@@ -1,0 +1,15 @@
+/*?
+ * Text: "CPU capability may have changed\n"
+ * Severity: Informational
+ * Description:
+ * The capability of the CPUs in the configuration may have been upgraded
+ * or downgraded. This message may also appear if the capability of the
+ * CPUs in the configuration did not change.
+ * For details see the STORE SYSTEM INFORMATION description in the
+ * "Principles of Operation."
+ * User action:
+ * The user can examine /proc/sysinfo for CPU capability values.
+ */
+/*? Text: "Open for Business request failed with response code 0x%04x\n" */
+/*? Text: "SCLP receiver did not register to receive Configuration Management Data Events.\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

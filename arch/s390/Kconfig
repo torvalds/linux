@@ -922,3 +922,11 @@ config S390_GUEST
 	  the KVM hypervisor.
 
 endmenu
+
+config KMSG_IDS
+	def_bool y
+	prompt "Kernel message numbers"
+	help
+	  Select this option if you want to include a message number to the
+	  prefix for kernel messages issued by the s390 architecture and
+	  driver code. See "Documentation/s390/kmsg.txt" for more details.

@@ -1,0 +1,91 @@
+/*?
+ * Text: "Starting the data collection for %s failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: appldata module
+ *   @2: return code
+ * Description:
+ * The specified data collection module used the z/VM diagnose call
+ * DIAG 0xDC to start writing data. z/VM returned an error and the data
+ * collection could not start. If the return code is 5, your z/VM guest
+ * virtual machine is not authorized to write data records.
+ * User action:
+ * If the return code is 5, ensure that your z/VM guest virtual machine's
+ * entry in the z/VM directory includes the OPTION APPLMON statement.
+ * For other return codes see the section about DIAGNOSE Code X'DC'
+ * in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Stopping the data collection for %s failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: appldata module
+ *   @2: return code
+ * Description:
+ * The specified data collection module used the z/VM diagnose call DIAG 0xDC
+ * to stop writing data. z/VM returned an error and the data collection
+ * continues.
+ * User action:
+ * See the section about DIAGNOSE Code X'DC' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Starting a new OS data collection failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * After a CPU hotplug event, the record size for the running operating
+ * system data collection is no longer correct. The appldata_os module tried
+ * to start a new data collection with the correct record size but received
+ * an error from the z/VM diagnose call DIAG 0xDC. Any data collected with
+ * the current record size might be faulty.
+ * User action:
+ * Start a new data collection with the cappldata_os module. For information
+ * about starting data collections see "Device Drivers, Features, and
+ * Commands". For information about the return codes see the section about
+ * DIAGNOSE Code X'DC' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Stopping a faulty OS data collection failed with rc=%d\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * After a CPU hotplug event, the record size for the running operating
+ * system data collection is no longer correct. The appldata_os module tried
+ * to stop the faulty data collection but received an error from the z/VM
+ * diagnose call DIAG 0xDC. Any data collected with the current record size
+ * might be faulty.
+ * User action:
+ * Try to restart appldata_os monitoring. For information about stopping
+ * and starting data collections see "Device Drivers, Features, and
+ * Commands". For information about the return codes see the section about
+ * DIAGNOSE Code X'DC' in "z/VM CP Programming Services".
+ */
+
+/*?
+ * Text: "Maximum OS record size %i exceeds the maximum record size %i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: no of bytes
+ *   @2: no of bytes
+ * Description:
+ * The OS record size grows with the number of CPUs and is adjusted by the
+ * appldata_os module in response to CPU hotplug events. For more than 110
+ * CPUs the record size would exceed the maximum record size of 4024 bytes
+ * that is  supported by the z/VM hypervisor. To prevent the maximum supported
+ * record size from being exceeded while data collection is in progress,
+ * you cannot load the appldata_os module on Linux instances that are
+ * configured for a maximum of more than 110 CPUs.
+ * User action:
+ * If you do not want to collect operating system data, you can ignore this
+ * message. If you want to collect operating system data, reconfigure your
+ * Linux instance to support less than 110 CPUs.
+ */
+
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

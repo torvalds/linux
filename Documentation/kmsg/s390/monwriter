@@ -1,0 +1,17 @@
+/*?
+ * Text: "Writing monitor data failed with rc=%i\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: return code
+ * Description:
+ * The monitor stream application device driver used the z/VM diagnose call
+ * DIAG X'DC' to start writing monitor data. z/VM returned an error and the
+ * monitor data cannot be written. If the return code is 5, your z/VM guest
+ * virtual machine is not authorized to write monitor data.
+ * User action:
+ * If the return code is 5, ensure that your z/VM guest virtual machine's
+ * entry in the z/VM directory includes the OPTION APPLMON statement.
+ * For other return codes see the section about DIAGNOSE Code X'DC'
+ * in "z/VM CP Programming Services".
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

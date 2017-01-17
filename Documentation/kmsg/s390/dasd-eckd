@@ -1,0 +1,2154 @@
+/* dasd_eckd */
+
+/*?
+ * Text: "%s: ERP failed for the DASD\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An error recovery procedure (ERP) was performed for the DASD but failed.
+ * User action:
+ * Check the message log for previous related error messages.
+ */
+
+/*?
+ * Text: "%s: An error occurred in the DASD device driver, reason=%s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: reason code
+ * Description:
+ * This problem indicates a program error in the DASD device driver.
+ * User action:
+ * Note the reason code and contact your support organization.
+*/
+
+/*?
+ * Text: "%s: Allocating memory for private DASD data failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD device driver maintains data structures for each DASD it manages.
+ * There is not enough memory to allocate these data structures for one or
+ * more DASD.
+ * User action:
+ * Free some memory and try the operation again.
+ */
+
+/*?
+ * Text: "%s: DASD with %d KB/block, %d KB total size, %d KB/track, %s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: block size
+ *   @3: DASD size
+ *   @4: track size
+ *   @5: disc layout
+ * Description:
+ * A DASD with the shown characteristics has been set online.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: Start track number %u used in formatting is too big\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: track number
+ * Description:
+ * The DASD format I/O control was used incorrectly by a formatting tool.
+ * User action:
+ * Contact the owner of the formatting tool.
+ */
+
+/*?
+ * Text: "%s: Stop track number %u used in formatting is too big\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: track number
+ * Description:
+ * The DASD format I/O control was used incorrectly by a formatting tool.
+ * User action:
+ * Contact the owner of the formatting tool.
+ */
+
+/*?
+ * Text: "%s: The DASD is not formatted\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A DASD has been set online but it has not been formatted yet. You must
+ * format the DASD before you can use it.
+ * User action:
+ * Format the DASD, for example, with dasdfmt.
+ */
+
+/*?
+ * Text: "%s: 0x%x is not a known command\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: command
+ * Description:
+ * This problem is likely to be caused by a programming error.
+ * User action:
+ * Contact your support organization.
+ */
+
+/*?
+ * Text: "%s: Track 0 has no records following the VTOC\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * Linux has identified a volume table of contents (VTOC) on the DASD but
+ * cannot read any data records following the VTOC. A possible cause of this
+ * problem is that the DASD has been used with another System z operating
+ * system.
+ * User action:
+ * Format the DASD for usage with Linux, for example, with dasdfmt.
+ * ATTENTION: Formatting irreversibly destroys all data on the DASD.
+ */
+
+/*?
+ * Text: "%s: An I/O control call used incorrect flags 0x%x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: flags
+ * Description:
+ * The DASD format I/O control was used incorrectly.
+ * User action:
+ * Contact the owner of the formatting tool.
+ */
+
+/*?
+ * Text: "%s: New DASD %04X/%02X (CU %04X/%02X) with %d cylinders, %d heads, %d sectors%s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: device type
+ *   @3: device model
+ *   @4: control unit type
+ *   @5: control unit model
+ *   @6: number of cylinders
+ *   @7: tracks per cylinder
+ *   @8: sectors per track
+ *   @9: access mode
+ * Description:
+ * A DASD with the shown characteristics has been set online.
+ * If the DASD is configured as read-only to the real or virtual hardware,
+ * the message includes an indication of this hardware access mode. The
+ * hardware access mode is independent from the 'readonly' attribute of
+ * the device in sysfs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The disk layout of the DASD is not supported\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD device driver only supports the following disk layouts: CDL, LDL,
+ * FBA, CMS, and CMS RESERVED.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: Start track %u used in formatting exceeds end track\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: track number
+ * Description:
+ * The DASD format I/O control was used incorrectly by a formatting tool.
+ * User action:
+ * Contact the owner of the formatting tool.
+ */
+
+/*?
+ * Text: "%s: The DASD cache mode was set to %x (%i cylinder prestage)\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: operation mode
+ *   @3: number of cylinders
+ * Description:
+ * The DASD cache mode has been changed. See the storage system documentation
+ * for information about the different cache operation modes.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: The DASD cannot be formatted with block size %u\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: block size
+ * Description:
+ * The block size specified for a format instruction is not valid. The block
+ * size must be between 512 and 4096 byte and must be a power of 2.
+ * User action:
+ * Call the format command with a supported block size.
+ */
+
+/*?
+ * Text: "%s: The UID of the DASD has changed\n"
+ * Severity: Error
+ * Parameter:
+ * @1: bus ID of the DASD
+ * Description:
+ * The Unique Identifier (UID) of a DASD that is currently in use has changed.
+ * This indicates that the physical disk has been replaced.
+ * User action:
+ * None if the replacement was intentional.
+ * If the disk change is not expected, stop using the disk to prevent possible
+ * data loss.
+*/
+
+
+/* dasd_3990_erp */
+
+/*?
+ * Text: "%s: is offline or not installed - INTERVENTION REQUIRED!!\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD to be accessed is not in an accessible state. The I/O operation
+ * will wait until the device is operational again. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * Make the DASD accessible again. For details see the storage system
+ * documentation.
+ */
+
+/*?
+ * Text: "%s: The DASD cannot be reached on any path (lpum=%x/opm=%x)\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: last path used mask
+ *   @3: online path mask
+ * Description:
+ * After a path to the DASD failed, the error recovery procedure of the DASD
+ * device driver tried but failed to reconnect the DASD through an alternative
+ * path.
+ * User action:
+ * Ensure that the cabling between the storage server and the mainframe
+ * system is securely in place. Check the file systems on the DASD when it is
+ * accessible again.
+ */
+
+/*?
+ * Text: "%s: Unable to allocate DCTL-CQR\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an internal error.
+ * User action:
+ * Contact your support organization.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Invalid Parameter\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A data argument of a command is not valid. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - DPS Installation Check\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This operating system independent message is issued by the storage system
+ *  for one of the following reasons:
+ * - A 3380 Model D or E DASD does not have the Dynamic Path Selection (DPS)
+ * feature in the DASD A-unit.
+ * - The device type of an attached DASD is not supported by the firmware.
+ * - A type 3390 DASD is attached to a 3 MB channel.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 2 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Drive motor switch is off\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - CCW Count less than required\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The CCW count of a command is less than required. This is an operating
+ * system independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Channel requested ... %02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: reason code
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system. The possible reason codes indicate the following problems:
+ * 00 No Message.
+ * 01 The channel has requested unit check sense data.
+ * 02 The channel has requested retry and retry is exhausted.
+ * 03 A SA Check-2 error has occurred. This sense is presented with
+ *    Equipment Check.
+ * 04 The channel has requested retry and retry is not possible.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Status Not As Required: reason %02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: reason code
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system. There are several potential reasons for this message;
+ * byte 8 contains the reason code.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Device status 1 not valid\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Storage Path Restart\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An operation for an active channel program was queued in a Storage Control
+ * when a warm start was received by the path. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Reset Notification\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A system reset or its equivalent was received on an interface. The Unit
+ * Check that generates this sense is posted to the next channel initiated
+ * selection following the resetting event. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Invalid Command Sequence\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An incorrect sequence of commands has occurred. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Missing device address bit\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Subsystem Processing Error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A firmware logic error has been detected. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Seek incomplete\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Invalid Command\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A command was issued that is not in the 2107/1750 command set.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Command Invalid on Secondary Address\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A command or order not allowed on a PPRC secondary device has been received
+ * by the secondary device. This is an operating system independent message
+ * that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Invalid Defective/Alternate Track Pointer\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A defective track has been accessed. The subsystem generates an invalid
+ * Defective/Alternate Track Pointer as a part of RAID Recovery.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Channel Returned with Incorrect retry CCW\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A command portion of the CCW returned after a command retry sequence does
+ * not match the command for which retry was signaled. This is an operating
+ * system independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Diagnostic of Special Command Violates File Mask\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A command is not allowed under the Access Authorization specified by the
+ * File Mask. This is an operating system independent message that is issued
+ * by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Head address does not compare\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Device did not respond to selection\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Device check-2 error or Set Sector is not complete\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Device Error Source\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The device has completed soft error logging. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Data Pinned for Device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * Modified data in cache or in persistent storage exists for the DASD. The
+ * data cannot be destaged to the device. This track is the first track pinned
+ * for this device. This is an operating system independent message that is
+ * issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel C\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Device Status 1 not as expected\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 0 - Device Fenced - device = %02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: sense data byte 4
+ * Description:
+ * The device shown in sense byte 4 has been fenced. This is an operating
+ * system independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Interruption cannot be reset\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Index missing\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - DASD Fast Write inhibited\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * DASD Fast Write is not allowed because of a nonvolatile storage battery
+ * check condition. This is an operating system independent message that is
+ * issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Invalid tag-in for an extended command sequence\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Key area error; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Count area error; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Track physical address did not compare\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 2 - 3990 check-2 error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Offset active cannot be reset\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - RCC 1 and RCC 2 sequences not successful\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in count address area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Data area error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel A\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in count address area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the key area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Caching status reset to default\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The storage director has assigned two new subsystem status devices and
+ * resets the status to its default value. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the data area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Device not ready\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in key area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - DASD controller failed to set or reset the long busy latch\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 1 - Cylinder address did not compare\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 3 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in data area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 2 - Support facility errors\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Key area error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - End operation with transfer count not zero\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 2 - Microcode detected error %02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: error code
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the count area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 3 - Allegiance terminated\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * Allegiance terminated because of a Reset Allegiance or an Unconditional
+ * Reserve command on another channel. This is an operating system independent
+ * message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Home address area error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Count area error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Invalid tag-in during selection sequence\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in data area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in home address area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Home address area error; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - Data area error; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in home address area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the home address area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the home address area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the count area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 4 - No sync byte in key area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Invalid DCC selection response or timeout\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the data area\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Operation Terminated\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The storage system ends an operation related to an active channel program
+ * when termination and redrive are required and logging is not desired.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel B\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 5 - Data Check in the key area; offset active\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Volume is suspended duplex\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The duplex pair volume has entered the suspended duplex state because of a
+ * failure. This is an operating system independent message that is issued by
+ * the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel D\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - RCC 1 sequence not successful\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel E\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - 3990 microcode time out when stopping selection\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel F\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - RCC initiated by a connection check alert\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel G\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - extra RCC required\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 6 - Overrun on channel H\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - Unexpected end operation response code\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Permanent path error (DASD controller not available)\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Missing end operation; device transfer incomplete\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Cache or nonvolatile storage equipment failure\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An equipment failure has occurred in the cache storage or nonvolatile
+ * storage of the storage system. This is an operating system independent
+ * message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - DPS cannot be filled\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - Error correction code hardware fault\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Missing end operation; device transfer complete\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - DASD controller not available on disconnected command chain\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - No interruption from device during a command chain\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - No response to selection after a poll interruption\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 9 - Track physical address did not compare while oriented\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 9 - Head address did not compare\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Invalid tag-in for an immediate command sequence\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 9 - Cylinder address did not compare\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - DPS checks after a system reset or selective reset\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Caching reinitiated\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * Caching has been automatically reinitiated following an error.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - End operation with transfer count zero\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 7 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 9 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - Short busy time-out during device selection\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Caching terminated\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The storage system was unable to initiate caching or had to suspend caching
+ * for a 3990 control unit. If this problem is caused by a failure condition,
+ * an additional message will provide more information about the failure.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * Check for additional messages that point out possible failures. For more
+ * information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Subsystem status cannot be determined\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The status of a DASD Fast Write or PPRC volume cannot be determined.
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Nonvolatile storage terminated\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The storage director has stopped using nonvolatile storage or cannot
+ * initiate nonvolatile storage. If this problem is caused by a failure, an
+ * additional message will provide more information about the failure. This is
+ * an operating system independent message that is issued by the storage system.
+ * User action:
+ * Check for additional messages that point out possible failures. For more
+ * information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT 8 - Reserved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: Write inhibited path encountered\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an informational message.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: FORMAT 9 - Device check-2 error\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This is an operating system independent message that is issued by the
+ * storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Track format incorrect\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A track format error occurred while data was being written to the DASD or
+ * while a duplex pair was being established. This is an operating system
+ * independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: FORMAT F - Cache fast write access not authorized\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A request for Cache Fast Write Data access cannot be satisfied because
+ * of missing access authorization for the storage system. This is an operating
+ * system independent message that is issued by the storage system.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: Data recovered during retry with PCI fetch mode active\n"
+ * Severity: Emerg
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * A data error has been recovered on the storages system but the Linux file
+ * system cannot be informed about the data mismatch. To prevent Linux from
+ * running with incorrect data, the DASD device driver will trigger a kernel
+ * panic.
+ * User action:
+ * Reset your real or virtual hardware and reboot Linux.
+ */
+
+/*?
+ * Text: "%s: The specified record was not found\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The record to be accessed does not exist. The DASD might be unformatted
+ * or defect.
+ * User action:
+ * Try to format the DASD or replace it.
+ * ATTENTION: Formatting irreversibly destroys all data on the DASD.
+ */
+
+/*?
+ * Text: "%s: ERP %p (%02x) refers to %p\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: pointer to ERP
+ *   @3: ERP status
+ *   @4: cqr
+ * Description:
+ * This message provides debug information for the enhanced error recovery
+ * procedure (ERP).
+ * User action:
+ * If you do not need this information, you can suppress this message by
+ * switching off ERP logging, for example, by writing '1' to the 'erplog'
+ * sysfs attribute of the DASD.
+ */
+
+/*?
+ * Text: "%s: ERP chain at END of ERP-ACTION\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This message provides debug information for the enhanced error recovery
+ * procedure (ERP).
+ * User action:
+ * If you do not need this information, you can suppress this message by
+ * switching off ERP logging, for example, by writing '1' to the 'erplog'
+ * sysfs attribute of the DASD.
+ */
+
+/*?
+ * Text: "%s: The cylinder data for accessing the DASD is inconsistent\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An error occurred in the storage system hardware.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: Accessing the DASD failed because of a hardware error\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An error occurred in the storage system hardware.
+ * User action:
+ * For more information see the documentation of your storage system.
+ */
+
+/*?
+ * Text: "%s: ERP chain at BEGINNING of ERP-ACTION\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This message provides debug information for the enhanced error recovery
+ * procedure (ERP).
+ * User action:
+ * If you do not need this information, you can suppress this message by
+ * switching off ERP logging, for example, by writing '1' to the 'erplog'
+ * sysfs attribute of the DASD.
+ */
+
+/*?
+ * Text: "%s: ERP %p has run out of retries and failed\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: ERP pointer
+ * Description:
+ * The error recovery procedure (ERP) tried to recover an error but the number
+ * of retries for the I/O was exceeded before the error could be resolved.
+ * User action:
+ * Check for related previous error messages.
+ */
+
+/*?
+ * Text: "%s: SIM - SRC: %02x%02x%02x%02x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: sense byte
+ *   @3: sense byte
+ *   @4: sense byte
+ *   @5: sense byte
+ * Description:
+ * This error message is a System Information Message (SIM) generated by the
+ * storage system. The System Reference Code (SRC) defines the error in detail.
+ * User action:
+ * Look up the SRC in the storage server documentation.
+ */
+
+/*?
+ * Text: "%s: log SIM - SRC: %02x%02x%02x%02x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: sense byte
+ *   @3: sense byte
+ *   @4: sense byte
+ *   @5: sense byte
+ * Description:
+ * This System Information Message (SIM) is generated by the storage system.
+ * The System Reference Code (SRC) defines the error in detail.
+ * User action:
+ * Look up the SRC in the storage server documentation.
+ */
+
+/*?
+ * Text: "%s: Reading device feature codes failed with rc=%d\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ * Description:
+ * The device feature codes state which advanced features are supported by a
+ * device.
+ * Examples for advanced features are PAV or high performance FICON.
+ * Some early devices do not provide feature codes and no advanced features are
+ * available on these devices.
+ * User action:
+ * None, if the DASD does not provide feature codes. If the DASD provides
+ * feature codes, make sure that it is working correctly, then set it offline
+ * and back online.
+ */
+
+/*?
+ * Text: "%s: A channel path group could not be established\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * Initialization of a DASD did not complete because a channel path group
+ * could not be established.
+ * User action:
+ * Make sure that the DASD is working correctly, then try again to set it
+ * online. If initialization still fails, reboot.
+ */
+
+/*?
+ * Text: "%s: The DASD is not operating in multipath mode\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD channel path group could not be configured to use multipath mode.
+ * This might negatively affect I/O performance on this DASD.
+ * User action:
+ * Make sure that the DASD is working correctly, then try again to set it
+ * online. If initialization still fails, reboot.
+ */
+
+/*?
+ * Text: "%s: Detecting the DASD disk layout failed because of an I/O error\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The disk layout of the DASD could not be detected because of an unexpected
+ * I/O error. The DASD device driver treats the device like an unformatted DASD,
+ * and partitions on the device are not accessible.
+ * User action:
+ * If the DASD is formatted, make sure that the DASD is working correctly,
+ * then set it offline and back online. If the DASD is unformatted, format the
+ * DASD, for example, with dasdfmt.
+ * ATTENTION: Formatting irreversibly destroys all data on the DASD.
+ */
+
+/*?
+ * Text: "%s: An I/O request was rejected because writing is inhibited\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * An I/O request was returned with an error indication of 'command reject'
+ * and 'write inhibited'. The most likely reason for this error is a
+ * failed write request to a device that was attached as read-only in z/VM.
+ * User action:
+ * Set the device offline, ensure that the device is configured correctly in
+ * z/VM, then set the device online again.
+ */
+
+/*?
+ * Text: "%s: An Alias device was reassigned to a new base device with UID: %s\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: bus ID of the alias
+ *   @2: UID of new base device
+ * Description:
+ * The alias device with the indicated bus ID has been reassigned. The UID of the new base device is shown in the message.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: Detecting the maximum supported data size for zHPF requests failed\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * High Performance FICON (zHPF) requests are limited to a hardware-dependent
+ * maximum data size. The DASD device driver failed to detect this size and zHPF
+ * is not available for this device.
+ * User action:
+ * Set the device offline and online again. If this problem persists, gather
+ * Linux debug data and report the problem to your support organization.
+ */
+
+/*?
+ * Text: "%s: Reading device feature codes failed (rc=%d) for new path %x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ *   @3: path mask
+ * Description:
+ * A new path has been made available to the a device.
+ * A command to read the device feature codes on this device returned an error.
+ * The new path will not be used for I/O.
+ * User action:
+ * Set the new path offline and online again to repeat the path verification.
+ * Alternatively, set the device offline and online again to
+ * verify all available paths for this device.
+ * If this problem persists, gather Linux debug data and report the problem
+ * to your support organization.
+ */
+
+/*?
+ * Text: "%s: Detecting the maximum data size for zHPF requests failed (rc=%d) for a new path %x\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: return code
+ *   @3: path mask
+ * Description:
+ * High Performance FICON (zHPF) requests are limited to a hardware-dependent
+ * maximum data size. A command to detect this size for
+ * a new path returned an error. The new path will not be used for I/O.
+ * User action:
+ * Set the new path offline and online again to repeat the path verification.
+ * Alternatively, set the device offline and online again to
+ * verify all available paths for this device.
+ * If this problem persists, gather Linux debug data and report the problem
+ * to your support organization.
+ */
+
+/*?
+ * Text: "%s: The maximum data size for zHPF requests %u on a new path %x is below the active maximum %u\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: size in bytes
+ *   @3: path mask
+ *   @4: size in bytes
+ * Description:
+ * High Performance FICON (zHPF) requests are limited to a hardware-dependent
+ * maximum data size. The maximum of the new path is below
+ * the previously established common maximum for the
+ * existing paths for this device. This could cause requests on the new
+ * path to fail. The new path will not be used for I/O.
+ * User action:
+ * Set the device offline and online again to establish a new common maximum
+ * data size for the device.
+ */
+
+/*?
+ * Text: "%s: The device reservation was lost\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * This Linux instance has lost its reservation of the device to another
+ * operating system instance. Depending on the reservation policy for the
+ * device, I/O might be blocked until the other operating system instance
+ * surrenders the reservation or all I/O requests might fail until the
+ * device is reset.
+ * User action:
+ * None, if this situation is handled by system automation software.
+ * If this situation is not handled by automation, check the
+ * last_known_reservation_state attribute of the device in sysfs.
+ * If the value is 'lost', verify that the device is no longer reserved
+ * by another operating system instance, then set the device offline and
+ * online again. For any other value of the last_known_reservation_state
+ * no action is required. I/O will resume when the device reservation is
+ * surrendered by the other operating system instance.
+ */
+
+/*?
+ * Text: "%s: The storage server does not support raw-track access\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * The DASD cannot be accessed in raw-track access mode because the storage
+ * server does not have all required features for this access mode.
+ * In raw-track access mode, the DASD device driver accesses complete ECKD
+ * tracks.
+ * By default, the DASD device driver accesses only the data fields of ECKD
+ * devices and omits the count and key data fields.
+ * User action:
+ * Ensure that the raw_track_access sysfs attribute of the DASD has the value
+ * 0 to access the device in default ECKD mode.
+ */
+
+/*?
+ * Text: "%s: The newly added channel path %02X will not be used because it leads to a different device %s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: logical path mask
+ *   @3: UID
+ * Description:
+ * The newly added channel path has a different UID than the DASD device. This indicates
+ * an incorrect cabling. This path is not going to be used.
+ * User action:
+ * Check the cabling of the DASD device. Disconnect and reconnect the cable.
+ */
+
+/*?
+ * Text: "%s: Not all channel paths lead to the same device, path %02X leads to device %s instead of %s\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: logical path mask
+ *   @3: UID
+ *   @4: UID
+ * Description:
+ * Some channel paths have a different UID than others. This indicates
+ * an incorrect cabling. The DASD device is not enabled.
+ * User action:
+ * Check cabling of the DASD device and retry to enable the device.
+ */
+
+/*?
+ * Text: "Service on the storage server caused path %x.%02x to go offline"
+ * Severity: Warning
+ * Parameter:
+ *   @1: channel subsystem ID
+ *   @2: CHPID
+ * Description:
+ * A channel path to the DASD has been set offline because of
+ * a service action on the storage server. The path will be set back
+ * online automatically when the service action is completed.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Path %x.%02x is back online after service on the storage server"
+ * Severity: Informational
+ * Parameter:
+ *   @1: channel subsystem ID
+ *   @2: CHPID
+ * Description:
+ * A path had been set offline temporarily because of a service
+ * action on the storage server.
+ * The service action has completed, and the channel path is available
+ * again.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: High Performance FICON disabled\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ * Description:
+ * High Performance FICON (HPF) has been disabled. Either the device
+ * lost HPF functionality, or none of the remaining channel paths are
+ * HPF capable.
+ * User action:
+ * Report the problem to your support organization.
+ * Ensure that the cabling between the storage server and the mainframe
+ * system is securely in place.
+ * Reset the device and channel paths by writing "all" or a logical path mask
+ * to the path_reset sysfs attribute of the device.
+ */
+
+/*?
+ * Text: "%s: Channel path %02X lost HPF functionality and is disabled\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: logical path mask
+ * Description:
+ * A channel path has lost High Performance FICON (HPF) functionality
+ * and was removed from regular operations.
+ * User action:
+ * Report the problem to your support organization.
+ * Ensure that the cabling between the storage server and the mainframe
+ * system is securely in place.
+ * Reset the device and channel paths by writing "all" or a logical path mask
+ * to the path_reset sysfs attribute of the device.
+ */
+
+/*?
+ * Text: "%s: Path %x.%02x (pathmask %02x) is disabled - IFCC threshold exceeded\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: bus ID of the DASD
+ *   @2: cssid
+ *   @3: chpid
+ *   @4: logical path mask
+ * Description:
+ * Due to numerous interface or channel control checks (IFCCs), a channel path
+ * was removed from regular operations to retain good I/O performance.
+ * User action:
+ * Ensure that the cabling between the storage server and the mainframe
+ * system is securely in place.
+ * Reset the device and channel paths by writing "all" or a logical path mask
+ * to the path_reset sysfs attribute of the device.
+ * If the problem persists, report it to your support organization.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

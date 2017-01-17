@@ -1,0 +1,3 @@
+/*? Text: "request failed (status=0x%02x)\n" */
+/*? Text: "request failed with response code 0x%x\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

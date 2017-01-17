@@ -1,0 +1,206 @@
+/*?
+ * Text: "Adjacent DCSSs %s and %s are not contiguous\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: name 1
+ *   @2: name 2
+ * Description:
+ * You can only map a set of two or more DCSSs to a single DCSS device if the
+ * DCSSs in the set form a contiguous memory space. The DCSS device cannot be
+ * created because there is a memory gap between two adjacent DCSSs.
+ * User action:
+ * Ensure that you have specified all DCSSs that belong to the set. Check the
+ * definitions of the DCSSs on the z/VM hypervisor to verify that they form
+ * a contiguous memory space.
+ */
+
+/*?
+ * Text: "DCSS %s and DCSS %s have incompatible types\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: name 1
+ *   @2: name 2
+ * Description:
+ * You can only map a set of two or more DCSSs to a single DCSS device if
+ * either all DCSSs in the set have the same type or if the set contains DCSSs
+ * of the two types EW and EN but no other type. The DCSS device cannot be
+ * created because at least two of the specified DCSSs are not compatible.
+ * User action:
+ * Check the definitions of the DCSSs on the z/VM hypervisor to verify that
+ * their types are compatible.
+ */
+
+/*?
+ * Text: "DCSS %s is of type SC and cannot be loaded as exclusive-writable\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * You cannot load a DCSS device in exclusive-writable access mode if the DCSS
+ * devise maps to one or more DCSSs of type SC.
+ * User action:
+ * Load the DCSS in shared access mode.
+ */
+
+/*?
+ * Text: "DCSS device %s is removed after a failed access mode change\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * To change the access mode of a DCSS device, all DCSSs that map to the device
+ * were unloaded. Reloading the DCSSs for the new access mode failed and the
+ * device is removed.
+ * User action:
+ * Look for related messages to find out why the DCSSs could not be reloaded.
+ * If necessary, add the device again.
+ */
+
+/*?
+ * Text: "All DCSSs that map to device %s are saved\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * A save request has been submitted for the DCSS device. Changes to all DCSSs
+ * that map to the device are saved permanently.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Device %s is in use, its DCSSs will be saved when it becomes idle\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * A save request for the device has been deferred until the device becomes
+ * idle. Then changes to all DCSSs that the device maps to will be saved
+ * permanently.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "A pending save request for device %s has been canceled\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * A save request for the DCSSs that map to a DCSS device has been pending
+ * while the device was in use. This save request has been canceled. Changes to
+ * the DCSSs will not be saved permanently.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Loaded %s with total size %lu bytes and capacity %lu sectors\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: DCSS names
+ *   @2: total size in bytes
+ *   @3: total size in 512 byte sectors
+ * Description:
+ * The listed DCSSs have been verified as contiguous and successfully loaded.
+ * The displayed sizes are the sums of all DCSSs.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Device %s cannot be removed because it is not a known device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * The DCSS device you are trying to remove is not known to the DCSS device
+ * driver.
+ * User action:
+ * List the entries under /sys/devices/dcssblk/ to see the names of the
+ * existing DCSS devices.
+ */
+
+/*?
+ * Text: "Device %s cannot be removed while it is in use\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * You are trying to remove a device that is in use.
+ * User action:
+ * Make sure that all users of the device close the device before you try to
+ * remove it.
+ */
+
+/*?
+ * Text: "Device %s has become idle and is being saved now\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * A save request for the DCSSs that map to a DCSS device has been pending
+ * while the device was in use. The device has become idle and all changes
+ * to the DCSSs are now saved permanently.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "Writing to %s failed because it is a read-only device\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * The DCSS device is in shared access mode and cannot be written to. Depending
+ * on the type of the DCSSs that the device maps to, you might be able to
+ * change the access mode to exclusive-writable.
+ * User action:
+ * If the DCSSs of the device are of type SC, do not attempt to write to the
+ * device. If the DCSSs of the device are of type ER or SR, change the access
+ * mode to exclusive-writable before writing to the device.
+ */
+
+/*?
+ * Text: "The address range of DCSS %s changed while the system was suspended\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * After resuming the system, the start address or end address of a DCSS does
+ * not match the address when the system was suspended. DCSSs must not be
+ * changed after the system was suspended.
+ * This error cannot be recovered. The system is stopped with a kernel panic.
+ * User action:
+ * Reboot Linux.
+ */
+
+/*?
+ * Text: "Suspending the system failed because DCSS device %s is writable\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name
+ * Description:
+ * A system cannot be suspended if one or more DCSSs are accessed in exclusive-
+ * writable mode. DCSS segment types EW, SW, and EN are always writable and
+ * must be removed before a system is suspended.
+ * User action:
+ * Remove all DCSSs of segment types EW, SW, and EN by writing the DCSS name to
+ * the sysfs 'remove' attribute. Set the access mode for all DCSSs of segment
+ * types SR and ER to read-only by writing 1 to the sysfs 'shared' attribute of
+ * the DCSS. Then try again to suspend the system.
+ */
+
+/*?
+ * Text: "DCSS %s is of type SN or EN and cannot be saved\n"
+ * Severity: Warning
+ * Parameter:
+ *   @1: DCSS name
+ * Description:
+ * DCSSs of type SN or EN cannot be saved.
+ * User action:
+ * If the DCSS was set up with the intention to prevent the content from being saved,
+ * no action is necessary.
+ * To be able to save the content, you must define the DCSS with a type other than SN or EN.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

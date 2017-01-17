@@ -1,0 +1,23 @@
+/*?
+ * Text: "Application %s on z/VM guest %s exceeds message limit\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: application name
+ *   @2: z/VM user ID
+ * Description:
+ * Messages or packets destined for the application have accumulated and
+ * reached the maximum value. The default for the message limit is 65535.
+ * You can specify a different limit as the value for MSGLIMIT within
+ * the IUCV statement of the z/VM virtual machine on which the application
+ * runs.
+ * User action:
+ * Ensure that you do not send data faster than the application retrieves
+ * them. Ensure that the message limit on the z/VM guest virtual machine
+ * on which the application runs is high enough.
+ */
+
+/*? Text: "Attempt to release alive iucv socket %p\n" */
+/*? Text: "netif_stop_queue() cannot be called before register_netdev()\n" */
+/*? Text: "flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n" */
+/*? Text: "%s selects TX queue %d, but real number of TX queues is %d\n" */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

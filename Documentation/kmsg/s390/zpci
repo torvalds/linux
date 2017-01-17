@@ -1,0 +1,42 @@
+/*?
+ * Text: "%s: Event 0x%x reconfigured PCI function 0x%x\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: device name of the function
+ *   @2: PCI event code
+ *   @3: function ID
+ * Description:
+ * The availability of a PCI function has changed.
+ * Possible reasons for the change include PCI configuration actions on the
+ * Hardware Management Console or hypervisor.
+ * For shared PCI functions, the function might also have been reserved or
+ * released by another system.
+ * If the device name of a function is shown as 'n/a', the device registration
+ * with the PCI device driver has not completed.
+ * The function ID identifies the function to the I/O configuration (IOCDS).
+ * The PCI event code can be useful diagnostic information for your support
+ * organization.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "%s: Event 0x%x reports an error for PCI function 0x%x\n"
+ * Severity: Error
+ * Parameter:
+ *   @1: device name of the function
+ *   @2: PCI event code
+ *   @3: function ID
+ * Description:
+ * A PCI function entered an error state from which it cannot recover
+ * automatically.
+ * User action:
+ * Trigger a recovery action by writing '1' to the 'recover' sysfs attribute
+ * of the PCI function.
+ * In sysfs, PCI functions are represented as /sys/bus/pci/devices/<name>,
+ * where <name> is the device name of the function.
+ * If the device name of a function is shown as 'n/a', the device
+ * registration with the PCI device driver has not completed.
+ * If the problem persists, contact your support organization.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */

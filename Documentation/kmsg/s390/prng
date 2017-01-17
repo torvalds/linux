@@ -1,0 +1,103 @@
+/* prng */
+
+/*?
+ * Text: "prng runs in TDES mode with chunksize=%d and reseed_limit=%u\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: read chunk size in bytes
+ *   @2: reseed limit
+ * Description:
+ * The pseudo-random number device driver started in triple DES mode.
+ * For IBM mainframes earlier than IBM zEnterprise EC12 (zEC12),
+ * triple DES is the only available mode.
+ * As of zEC12, the preferred mode is SHA-512.
+ * User action:
+ * If triple DES is the expected mode, no action is required.
+ * Otherwise, verify that the prng started with the mode= module or
+ * prng.mode= kernel parameter set to a value other than 1.
+ * The value 1 forces triple DES mode. Also ensure that the mainframe
+ * runs with the latest firmware level.
+ */
+
+/*?
+ * Text: "The prng module stopped after running in triple DES mode\n"
+ * Severity: Informational
+ * Description:
+ * The pseudo-random number device driver was running in triple DES mode.
+ * The device driver module, prng, was unloaded, or it stopped
+ * because Linux shut down.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The prng module cannot start in SHA-512 mode\n"
+ * Severity: Error
+ * Description:
+ * The pseudo-random number device driver was loaded with the mode= module parameter
+ * or the prng.mode= kernel parameter set to 2. This setting forces SHA-512 mode,
+ * but the required support for MSA 5 is not available. This support requires an IBM
+ * zEnterprise EC12 (zEC12) or later mainframe.
+ * User action:
+ * If your mainframe is earlier than zEC12, set the mode= module or
+ * prng.mode= kernel parameter to 0 or 1 to run the
+ * pseudo-random number device driver in triple DES mode.
+ * Otherwise, ensure that MSA 5 support available.
+ */
+
+/*?
+ * Text: "prng runs in SHA-512 mode with chunksize=%d and reseed_limit=%u\n"
+ * Severity: Informational
+ * Parameter:
+ *   @1: read chunk size in bytes
+ *   @2: reseed limit
+ * Description:
+ * The pseudo-random number device driver started in SHA-512 mode.
+ * As of IBM zEnterprise EC12, this is the preferred mode.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The prng module stopped after running in SHA-512 mode\n"
+ * Severity: Informational
+ * Description:
+ * The pseudo-random number device driver was running in SHA-512 mode.
+ * The device driver module, prng, was unloaded, or stopped
+ * because Linux shut down.
+ * User action:
+ * None.
+ */
+
+/*?
+ * Text: "The prng self test state test for the SHA-512 mode failed\n"
+ * Severity: Error
+ * Description:
+ * The pseudo-random number device driver is not operational because the self test failed.
+ * After processing a published National Institute of Standards and Technology (NIST) test vector for the
+ * Deterministic Random Bit Generator (DRBG) algorithm, the device driver
+ * was not in the expected working state. This failure might indicate
+ * that the cryptographic software or hardware is not working correctly.
+ * The processed NIST test vector was: Hash Drbg, Sha-512, Count #0.
+ * User action:
+ * Unload and reload the prng module, or
+ * if prng was compiled into the kernel, restart Linux.
+ * If the error persists, contact your support organization.
+ */
+
+/*?
+ * Text: "The prng self test data test for the SHA-512 mode failed\n"
+ * Severity: Error
+ * Description:
+ * The pseudo-random number device driver is not operational because the self test failed.
+ * After processing a published National Institute of Standards and Technology (NIST) test vector for the
+ * Deterministic Random Bit Generator (DRBG) algorithm, the device driver
+ * did not produce the expected pseudo-random data. This failure might indicate
+ * that the cryptographic software or hardware is not working correctly.
+ * The processed NIST test vector was: Hash Drbg, Sha-512, Count #0.
+ * User action:
+ * Unload and reload the prng module, or
+ * if prng was compiled into the kernel, restart Linux.
+ * If the error persists, contact your support organization.
+ */
+/*? Text: "%s: %d output lines suppressed due to ratelimiting\n" */
