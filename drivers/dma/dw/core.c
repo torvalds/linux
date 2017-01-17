@@ -901,25 +901,18 @@ bool dw_dma_filter(struct dma_chan *chan, void *param)
 }
 EXPORT_SYMBOL_GPL(dw_dma_filter);
 
-/*
- * Fix sconfig's burst size according to dw_dmac. We need to convert them as:
- * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3.
- *
- * NOTE: burst size 2 is not supported by controller.
- *
- * This can be done by finding least significant bit set: n & (n - 1)
- */
-static inline void convert_burst(u32 *maxburst)
-{
-	if (*maxburst > 1)
-		*maxburst = fls(*maxburst) - 2;
-	else
-		*maxburst = 0;
-}
-
 static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 {
 	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
+	struct dma_slave_config *sc = &dwc->dma_sconfig;
+	/*
+	 * Fix sconfig's burst size according to dw_dmac. We need to convert
+	 * them as:
+	 * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3.
+	 *
+	 * NOTE: burst size 2 is not supported by DesignWare controller.
+	 */
+	u32 s = 2;
 
 	/* Check if chan will be configured for slave transfers */
 	if (!is_slave_direction(sconfig->direction))
@@ -928,8 +921,8 @@ static int dwc_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	memcpy(&dwc->dma_sconfig, sconfig, sizeof(*sconfig));
 	dwc->direction = sconfig->direction;
 
-	convert_burst(&dwc->dma_sconfig.src_maxburst);
-	convert_burst(&dwc->dma_sconfig.dst_maxburst);
+	sc->src_maxburst = sc->src_maxburst > 1 ? fls(sc->src_maxburst) - s : 0;
+	sc->dst_maxburst = sc->dst_maxburst > 1 ? fls(sc->dst_maxburst) - s : 0;
 
 	return 0;
 }
