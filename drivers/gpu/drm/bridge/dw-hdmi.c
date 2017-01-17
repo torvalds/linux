@@ -1843,14 +1843,16 @@ static int dw_hdmi_register(struct drm_encoder *encoder, struct dw_hdmi *hdmi)
 	return 0;
 }
 
-int dw_hdmi_bind(struct device *dev, struct drm_encoder *encoder,
-		 struct resource *iores, int irq,
+int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 		 const struct dw_hdmi_plat_data *plat_data)
 {
+	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct platform_device_info pdevinfo;
 	struct device_node *ddc_node;
 	struct dw_hdmi *hdmi;
+	struct resource *iores;
+	int irq;
 	int ret;
 	u32 val = 1;
 	u8 config0;
@@ -1903,6 +1905,7 @@ int dw_hdmi_bind(struct device *dev, struct drm_encoder *encoder,
 		dev_dbg(hdmi->dev, "no ddc property found\n");
 	}
 
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdmi->regs = devm_ioremap_resource(dev, iores);
 	if (IS_ERR(hdmi->regs)) {
 		ret = PTR_ERR(hdmi->regs);
@@ -1944,6 +1947,10 @@ int dw_hdmi_bind(struct device *dev, struct drm_encoder *encoder,
 		 hdmi_readb(hdmi, HDMI_PRODUCT_ID1));
 
 	initialize_hdmi_ih_mutes(hdmi);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		goto err_iahb;
 
 	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
 					dw_hdmi_irq, IRQF_SHARED,
@@ -2025,7 +2032,7 @@ int dw_hdmi_bind(struct device *dev, struct drm_encoder *encoder,
 	if (hdmi->i2c)
 		dw_hdmi_i2c_init(hdmi);
 
-	dev_set_drvdata(dev, hdmi);
+	platform_set_drvdata(pdev, hdmi);
 
 	return 0;
 

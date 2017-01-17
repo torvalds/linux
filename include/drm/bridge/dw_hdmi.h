@@ -57,8 +57,7 @@ struct dw_hdmi_plat_data {
 };
 
 void dw_hdmi_unbind(struct device *dev);
-int dw_hdmi_bind(struct device *dev, struct drm_encoder *encoder,
-		 struct resource *iores, int irq,
+int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 		 const struct dw_hdmi_plat_data *plat_data);
 
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate);
