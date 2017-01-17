@@ -92,6 +92,8 @@ struct dce_mem_input_registers {
 	.field_name = blk_name ## reg_name ## __ ## field_name ## post_fix
 
 #define MI_GFX8_TILE_MASK_SH_LIST(mask_sh, blk)\
+	SFB(blk, GRPH_CONTROL, GRPH_NUM_BANKS, mask_sh),\
+	SFB(blk, GRPH_CONTROL, GRPH_BANK_WIDTH, mask_sh),\
 	SFB(blk, GRPH_CONTROL, GRPH_BANK_HEIGHT, mask_sh),\
 	SFB(blk, GRPH_CONTROL, GRPH_MACRO_TILE_ASPECT, mask_sh),\
 	SFB(blk, GRPH_CONTROL, GRPH_TILE_SPLIT, mask_sh),\
