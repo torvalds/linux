@@ -23,6 +23,7 @@ struct nft_exthdr {
 	u8			offset;
 	u8			len;
 	enum nft_registers	dreg:8;
+	u8			flags;
 };
 
 static void nft_exthdr_eval(const struct nft_expr *expr,
@@ -35,8 +36,12 @@ static void nft_exthdr_eval(const struct nft_expr *expr,
 	int err;
 
 	err = ipv6_find_hdr(pkt->skb, &offset, priv->type, NULL, NULL);
-	if (err < 0)
+	if (priv->flags & NFT_EXTHDR_F_PRESENT) {
+		*dest = (err >= 0);
+		return;
+	} else if (err < 0) {
 		goto err;
+	}
 	offset += priv->offset;
 
 	dest[priv->len / NFT_REG32_SIZE] = 0;
@@ -52,6 +57,7 @@ static const struct nla_policy nft_exthdr_policy[NFTA_EXTHDR_MAX + 1] = {
 	[NFTA_EXTHDR_TYPE]		= { .type = NLA_U8 },
 	[NFTA_EXTHDR_OFFSET]		= { .type = NLA_U32 },
 	[NFTA_EXTHDR_LEN]		= { .type = NLA_U32 },
+	[NFTA_EXTHDR_FLAGS]		= { .type = NLA_U32 },
 };
 
 static int nft_exthdr_init(const struct nft_ctx *ctx,
@@ -59,7 +65,7 @@ static int nft_exthdr_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
-	u32 offset, len;
+	u32 offset, len, flags = 0;
 	int err;
 
 	if (tb[NFTA_EXTHDR_DREG] == NULL ||
@@ -76,10 +82,20 @@ static int nft_exthdr_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
+	if (tb[NFTA_EXTHDR_FLAGS]) {
+		err = nft_parse_u32_check(tb[NFTA_EXTHDR_FLAGS], U8_MAX, &flags);
+		if (err < 0)
+			return err;
+
+		if (flags & ~NFT_EXTHDR_F_PRESENT)
+			return -EINVAL;
+	}
+
 	priv->type   = nla_get_u8(tb[NFTA_EXTHDR_TYPE]);
 	priv->offset = offset;
 	priv->len    = len;
 	priv->dreg   = nft_parse_register(tb[NFTA_EXTHDR_DREG]);
+	priv->flags  = flags;
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, priv->len);
@@ -96,6 +112,8 @@ static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	if (nla_put_be32(skb, NFTA_EXTHDR_OFFSET, htonl(priv->offset)))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_EXTHDR_LEN, htonl(priv->len)))
+		goto nla_put_failure;
+	if (nla_put_be32(skb, NFTA_EXTHDR_FLAGS, htonl(priv->flags)))
 		goto nla_put_failure;
 	return 0;
 
