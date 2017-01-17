@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 
@@ -170,8 +171,9 @@ enum dw_dma_msize {
 #define DWC_CTLL_LLP_S_EN	(1 << 28)	/* src block chain */
 
 /* Bitfields in CTL_HI */
-#define DWC_CTLH_DONE		0x00001000
-#define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
+#define DWC_CTLH_BLOCK_TS_MASK	GENMASK(11, 0)
+#define DWC_CTLH_BLOCK_TS(x)	((x) & DWC_CTLH_BLOCK_TS_MASK)
+#define DWC_CTLH_DONE		(1 << 12)
 
 /* Bitfields in CFG_LO */
 #define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
