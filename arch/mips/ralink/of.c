@@ -40,9 +40,9 @@ __iomem void *plat_of_remap_node(const char *node)
 	if (of_address_to_resource(np, 0, &res))
 		panic("Failed to get resource for %s", node);
 
-	if ((request_mem_region(res.start,
+	if (!request_mem_region(res.start,
 				resource_size(&res),
-				res.name) < 0))
+				res.name))
 		panic("Failed to request resources for %s", node);
 
 	return ioremap_nocache(res.start, resource_size(&res));
