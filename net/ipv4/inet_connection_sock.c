@@ -156,33 +156,21 @@ static int inet_csk_bind_conflict(const struct sock *sk,
 	return sk2 != NULL;
 }
 
-/* Obtain a reference to a local port for the given sock,
- * if snum is zero it means select any available local port.
- * We try to allocate an odd port (and leave even ports for connect())
+/*
+ * Find an open port number for the socket.  Returns with the
+ * inet_bind_hashbucket lock held.
  */
-int inet_csk_get_port(struct sock *sk, unsigned short snum)
+static struct inet_bind_hashbucket *
+inet_csk_find_open_port(struct sock *sk, struct inet_bind_bucket **tb_ret, int *port_ret)
 {
-	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
 	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
-	int ret = 1, port = snum;
+	int port = 0;
 	struct inet_bind_hashbucket *head;
 	struct net *net = sock_net(sk);
 	int i, low, high, attempt_half;
 	struct inet_bind_bucket *tb;
-	kuid_t uid = sock_i_uid(sk);
 	u32 remaining, offset;
-	bool reuseport_ok = !!snum;
 
-	if (port) {
-		head = &hinfo->bhash[inet_bhashfn(net, port,
-						  hinfo->bhash_size)];
-		spin_lock_bh(&head->lock);
-		inet_bind_bucket_for_each(tb, &head->chain)
-			if (net_eq(ib_net(tb), net) && tb->port == port)
-				goto tb_found;
-
-		goto tb_not_found;
-	}
 	attempt_half = (sk->sk_reuse == SK_CAN_REUSE) ? 1 : 0;
 other_half_scan:
 	inet_get_local_port_range(net, &low, &high);
@@ -219,11 +207,12 @@ other_parity_scan:
 		spin_lock_bh(&head->lock);
 		inet_bind_bucket_for_each(tb, &head->chain)
 			if (net_eq(ib_net(tb), net) && tb->port == port) {
-				if (!inet_csk_bind_conflict(sk, tb, false, reuseport_ok))
+				if (!inet_csk_bind_conflict(sk, tb, false, false))
 					goto success;
 				goto next_port;
 			}
-		goto tb_not_found;
+		tb = NULL;
+		goto success;
 next_port:
 		spin_unlock_bh(&head->lock);
 		cond_resched();
@@ -238,8 +227,41 @@ next_port:
 		attempt_half = 2;
 		goto other_half_scan;
 	}
-	return ret;
+	return NULL;
+success:
+	*port_ret = port;
+	*tb_ret = tb;
+	return head;
+}
 
+/* Obtain a reference to a local port for the given sock,
+ * if snum is zero it means select any available local port.
+ * We try to allocate an odd port (and leave even ports for connect())
+ */
+int inet_csk_get_port(struct sock *sk, unsigned short snum)
+{
+	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
+	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
+	int ret = 1, port = snum;
+	struct inet_bind_hashbucket *head;
+	struct net *net = sock_net(sk);
+	struct inet_bind_bucket *tb = NULL;
+	kuid_t uid = sock_i_uid(sk);
+
+	if (!port) {
+		head = inet_csk_find_open_port(sk, &tb, &port);
+		if (!head)
+			return ret;
+		if (!tb)
+			goto tb_not_found;
+		goto success;
+	}
+	head = &hinfo->bhash[inet_bhashfn(net, port,
+					  hinfo->bhash_size)];
+	spin_lock_bh(&head->lock);
+	inet_bind_bucket_for_each(tb, &head->chain)
+		if (net_eq(ib_net(tb), net) && tb->port == port)
+			goto tb_found;
 tb_not_found:
 	tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
 				     net, head, port);
@@ -255,7 +277,7 @@ tb_found:
 		      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid)))
 			goto success;
-		if (inet_csk_bind_conflict(sk, tb, true, reuseport_ok))
+		if (inet_csk_bind_conflict(sk, tb, true, true))
 			goto fail_unlock;
 	}
 success:
