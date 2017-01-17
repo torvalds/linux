@@ -4060,7 +4060,7 @@ skip_backref:
 	}
 
 	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len,
-					   dir, index);
+					   BTRFS_I(dir), index);
 	if (ret == -ENOENT)
 		ret = 0;
 	else if (ret)

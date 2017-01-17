@@ -3084,7 +3084,7 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 const char *name, int name_len,
-				 struct inode *dir, u64 index)
+				 struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_root *log;
 	struct btrfs_dir_item *di;
@@ -3092,16 +3092,16 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 	int ret;
 	int err = 0;
 	int bytes_del = 0;
-	u64 dir_ino = btrfs_ino(BTRFS_I(dir));
+	u64 dir_ino = btrfs_ino(dir);
 
-	if (BTRFS_I(dir)->logged_trans < trans->transid)
+	if (dir->logged_trans < trans->transid)
 		return 0;
 
 	ret = join_running_log_trans(root);
 	if (ret)
 		return 0;
 
-	mutex_lock(&BTRFS_I(dir)->log_mutex);
+	mutex_lock(&dir->log_mutex);
 
 	log = root->log_root;
 	path = btrfs_alloc_path();
@@ -3176,7 +3176,7 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 fail:
 	btrfs_free_path(path);
 out_unlock:
-	mutex_unlock(&BTRFS_I(dir)->log_mutex);
+	mutex_unlock(&dir->log_mutex);
 	if (ret == -ENOSPC) {
 		btrfs_set_log_full_commit(root->fs_info, trans);
 		ret = 0;
