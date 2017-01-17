@@ -503,9 +503,11 @@ static void backend_disconnect(struct backend_info *be)
 		for (queue_index = 0; queue_index < be->vif->num_queues; ++queue_index)
 			xenvif_deinit_queue(&be->vif->queues[queue_index]);
 
+		spin_lock(&be->vif->lock);
 		vfree(be->vif->queues);
 		be->vif->num_queues = 0;
 		be->vif->queues = NULL;
+		spin_unlock(&be->vif->lock);
 
 		xenvif_disconnect_ctrl(be->vif);
 	}
