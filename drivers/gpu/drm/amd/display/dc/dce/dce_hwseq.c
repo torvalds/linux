@@ -160,7 +160,7 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 		struct clock_source *clk_src,
 		unsigned int tg_inst)
 {
-	if (clk_src->id == CLOCK_SOURCE_ID_DP_DTO) {
+	if (clk_src->id == CLOCK_SOURCE_ID_DP_DTO || clk_src->dp_clk_src) {
 		REG_UPDATE(PIXEL_RATE_CNTL[tg_inst],
 				DP_DTO0_ENABLE, 1);
 
