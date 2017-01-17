@@ -556,6 +556,13 @@
 #define HDMI_I2CM_SDA_HOLD                      0x7E13
 
 enum {
+/* PRODUCT_ID0 field values */
+	HDMI_PRODUCT_ID0_HDMI_TX = 0xa0,
+
+/* PRODUCT_ID1 field values */
+	HDMI_PRODUCT_ID1_HDCP = 0xc0,
+	HDMI_PRODUCT_ID1_HDMI_RX = 0x02,
+	HDMI_PRODUCT_ID1_HDMI_TX = 0x01,
 
 /* CONFIG0_ID field values */
 	HDMI_CONFIG0_I2S = 0x10,

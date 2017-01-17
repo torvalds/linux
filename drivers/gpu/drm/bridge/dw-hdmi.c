@@ -2402,6 +2402,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	struct dw_hdmi *hdmi;
 	int ret;
 	u32 val = 1;
+	u16 version;
+	u8 prod_id0;
+	u8 prod_id1;
 	u8 config0;
 	u8 config1;
 
@@ -2503,12 +2506,22 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	}
 
 	/* Product and revision IDs */
-	dev_info(dev,
-		 "Detected HDMI controller 0x%x:0x%x:0x%x:0x%x\n",
-		 hdmi_readb(hdmi, HDMI_DESIGN_ID),
-		 hdmi_readb(hdmi, HDMI_REVISION_ID),
-		 hdmi_readb(hdmi, HDMI_PRODUCT_ID0),
-		 hdmi_readb(hdmi, HDMI_PRODUCT_ID1));
+	version = (hdmi_readb(hdmi, HDMI_DESIGN_ID) << 8)
+		| (hdmi_readb(hdmi, HDMI_REVISION_ID) << 0);
+	prod_id0 = hdmi_readb(hdmi, HDMI_PRODUCT_ID0);
+	prod_id1 = hdmi_readb(hdmi, HDMI_PRODUCT_ID1);
+
+	if (prod_id0 != HDMI_PRODUCT_ID0_HDMI_TX ||
+	    (prod_id1 & ~HDMI_PRODUCT_ID1_HDCP) != HDMI_PRODUCT_ID1_HDMI_TX) {
+		dev_err(dev, "Unsupported HDMI controller (%04x:%02x:%02x)\n",
+			version, prod_id0, prod_id1);
+		ret = -ENODEV;
+		goto err_iahb;
+	}
+
+	dev_info(dev, "Detected HDMI TX controller v%x.%03x %s HDCP\n",
+		 version >> 12, version & 0xfff,
+		 prod_id1 & HDMI_PRODUCT_ID1_HDCP ? "with" : "without");
 
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
