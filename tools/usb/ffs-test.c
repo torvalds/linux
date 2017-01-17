@@ -22,7 +22,7 @@
 /* $(CROSS_COMPILE)cc -Wall -Wextra -g -o ffs-test ffs-test.c -lpthread */
 
 
-#define _BSD_SOURCE /* for endian.h */
+#define _DEFAULT_SOURCE /* for endian.h */
 
 #include <endian.h>
 #include <errno.h>
