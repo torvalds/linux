@@ -9,6 +9,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "juno-base.dtsi"
 
 / {
 	model = "ARM Juno development board (r0)";
@@ -176,8 +177,6 @@
 				     <&A53_2>,
 				     <&A53_3>;
 	};
-
-	#include "juno-base.dtsi"
 };
 
 &etm0 {

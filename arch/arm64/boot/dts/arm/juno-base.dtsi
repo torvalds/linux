@@ -1,3 +1,6 @@
+#include "juno-clocks.dtsi"
+
+/ {
 	/*
 	 *  Devices shared by all Juno boards
 	 */
@@ -507,8 +510,6 @@
 		};
 	};
 
-	/include/ "juno-clocks.dtsi"
-
 	smmu_dma: iommu@7fb00000 {
 		compatible = "arm,mmu-401", "arm,smmu-v1";
 		reg = <0x0 0x7fb00000 0x0 0x10000>;
@@ -719,3 +720,4 @@
 		interrupt-map-mask = <0 0>;
 		interrupt-map = <0 0 &gic 0 0 0 168 IRQ_TYPE_LEVEL_HIGH>;
 	};
+};
