@@ -6597,7 +6597,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 				goto fail;
 		}
 		d_instantiate(dentry, inode);
-		btrfs_log_new_name(trans, inode, NULL, parent);
+		btrfs_log_new_name(trans, BTRFS_I(inode), NULL, parent);
 	}
 
 	btrfs_balance_delayed_items(fs_info);
@@ -9654,13 +9654,13 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	if (root_log_pinned) {
 		parent = new_dentry->d_parent;
-		btrfs_log_new_name(trans, old_inode, old_dir, parent);
+		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir), parent);
 		btrfs_end_log_trans(root);
 		root_log_pinned = false;
 	}
 	if (dest_log_pinned) {
 		parent = old_dentry->d_parent;
-		btrfs_log_new_name(trans, new_inode, new_dir, parent);
+		btrfs_log_new_name(trans, BTRFS_I(new_inode), BTRFS_I(new_dir), parent);
 		btrfs_end_log_trans(dest);
 		dest_log_pinned = false;
 	}
@@ -9926,7 +9926,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (log_pinned) {
 		struct dentry *parent = new_dentry->d_parent;
 
-		btrfs_log_new_name(trans, old_inode, old_dir, parent);
+		btrfs_log_new_name(trans, BTRFS_I(old_inode), BTRFS_I(old_dir), parent);
 		btrfs_end_log_trans(root);
 		log_pinned = false;
 	}

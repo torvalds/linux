@@ -85,6 +85,6 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir);
 int btrfs_log_new_name(struct btrfs_trans_handle *trans,
-			struct inode *inode, struct inode *old_dir,
+			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
 			struct dentry *parent);
 #endif
