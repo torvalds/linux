@@ -825,6 +825,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		 * creation of workdir in previous step.
 		 */
 		if (ufs->workdir) {
+			struct dentry *temp;
+
 			err = ovl_check_d_type_supported(&workpath);
 			if (err < 0)
 				goto out_put_workdir;
@@ -836,6 +838,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			 */
 			if (!err)
 				pr_warn("overlayfs: upper fs needs to support d_type.\n");
+
+			/* Check if upper/work fs supports O_TMPFILE */
+			temp = ovl_do_tmpfile(ufs->workdir, S_IFREG | 0);
+			ufs->tmpfile = !IS_ERR(temp);
+			if (ufs->tmpfile)
+				dput(temp);
+			else
+				pr_warn("overlayfs: upper fs does not support tmpfile.\n");
 		}
 	}
 
