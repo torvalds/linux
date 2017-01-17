@@ -46,5 +46,19 @@
 	model = "Pine64+";
 	compatible = "pine64,pine64-plus", "allwinner,sun50i-a64";
 
-	/* TODO: Camera, Ethernet PHY, touchscreen, etc. */
+	/* TODO: Camera, touchscreen, etc. */
+};
+
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
+	phy-mode = "rgmii";
+	phy-handle = <&ext_rgmii_phy>;
+	status = "okay";
 };
