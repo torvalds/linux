@@ -657,6 +657,8 @@ static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
 static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev);
 static u32 gfx_v8_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
+static void gfx_v8_0_ring_emit_ce_meta_init(struct amdgpu_ring *ring, uint64_t addr);
+static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t addr);
 
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -7242,3 +7244,62 @@ const struct amdgpu_ip_block_version gfx_v8_1_ip_block =
 	.rev = 0,
 	.funcs = &gfx_v8_0_ip_funcs,
 };
+
+static void gfx_v8_0_ring_emit_ce_meta_init(struct amdgpu_ring *ring, uint64_t csa_addr)
+{
+	uint64_t ce_payload_addr;
+	int cnt_ce;
+	static union {
+		struct amdgpu_ce_ib_state regular;
+		struct amdgpu_ce_ib_state_chained_ib chained;
+	} ce_payload = {0};
+
+	if (ring->adev->virt.chained_ib_support) {
+		ce_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data_chained_ib, ce_payload);
+		cnt_ce = (sizeof(ce_payload.chained) >> 2) + 4 - 2;
+	} else {
+		ce_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data, ce_payload);
+		cnt_ce = (sizeof(ce_payload.regular) >> 2) + 4 - 2;
+	}
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt_ce));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
+				WRITE_DATA_DST_SEL(8) |
+				WR_CONFIRM) |
+				WRITE_DATA_CACHE_POLICY(0));
+	amdgpu_ring_write(ring, lower_32_bits(ce_payload_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ce_payload_addr));
+	amdgpu_ring_write_multiple(ring, (void *)&ce_payload, cnt_ce - 2);
+}
+
+static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t csa_addr)
+{
+	uint64_t de_payload_addr, gds_addr;
+	int cnt_de;
+	static union {
+		struct amdgpu_de_ib_state regular;
+		struct amdgpu_de_ib_state_chained_ib chained;
+	} de_payload = {0};
+
+	gds_addr = csa_addr + 4096;
+	if (ring->adev->virt.chained_ib_support) {
+		de_payload.chained.gds_backup_addrlo = lower_32_bits(gds_addr);
+		de_payload.chained.gds_backup_addrhi = upper_32_bits(gds_addr);
+		de_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data_chained_ib, de_payload);
+		cnt_de = (sizeof(de_payload.chained) >> 2) + 4 - 2;
+	} else {
+		de_payload.regular.gds_backup_addrlo = lower_32_bits(gds_addr);
+		de_payload.regular.gds_backup_addrhi = upper_32_bits(gds_addr);
+		de_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data, de_payload);
+		cnt_de = (sizeof(de_payload.regular) >> 2) + 4 - 2;
+	}
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt_de));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
+				WRITE_DATA_DST_SEL(8) |
+				WR_CONFIRM) |
+				WRITE_DATA_CACHE_POLICY(0));
+	amdgpu_ring_write(ring, lower_32_bits(de_payload_addr));
+	amdgpu_ring_write(ring, upper_32_bits(de_payload_addr));
+	amdgpu_ring_write_multiple(ring, (void *)&de_payload, cnt_de - 2);
+}
