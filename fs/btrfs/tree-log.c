@@ -3450,7 +3450,7 @@ done:
  * key logged by this transaction.
  */
 static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, struct inode *inode,
+			  struct btrfs_root *root, struct btrfs_inode *inode,
 			  struct btrfs_path *path,
 			  struct btrfs_path *dst_path,
 			  struct btrfs_log_ctx *ctx)
@@ -3464,9 +3464,8 @@ again:
 	min_key = 0;
 	max_key = 0;
 	while (1) {
-		ret = log_dir_items(trans, root, BTRFS_I(inode), path,
-				    dst_path, key_type, ctx, min_key,
-				    &max_key);
+		ret = log_dir_items(trans, root, inode, path, dst_path, key_type,
+				ctx, min_key, &max_key);
 		if (ret)
 			return ret;
 		if (max_key == (u64)-1)
@@ -4977,8 +4976,8 @@ log_extents:
 	}
 
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
-		ret = log_directory_changes(trans, root, inode, path, dst_path,
-					    ctx);
+		ret = log_directory_changes(trans, root, BTRFS_I(inode), path,
+				dst_path, ctx);
 		if (ret) {
 			err = ret;
 			goto out_unlock;
