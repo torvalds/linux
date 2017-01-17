@@ -107,12 +107,13 @@ struct ftrace_branch_data {
  */
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
-void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
+void ftrace_likely_update(struct ftrace_branch_data *f, int val,
+			  int expect, int is_constant);
 
 #define likely_notrace(x)	__builtin_expect(!!(x), 1)
 #define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
 
-#define __branch_check__(x, expect) ({					\
+#define __branch_check__(x, expect, is_constant) ({			\
 			int ______r;					\
 			static struct ftrace_branch_data		\
 				__attribute__((__aligned__(4)))		\
@@ -122,8 +123,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 				.file = __FILE__,			\
 				.line = __LINE__,			\
 			};						\
-			______r = likely_notrace(x);			\
-			ftrace_likely_update(&______f, ______r, expect); \
+			______r = __builtin_expect(!!(x), expect);	\
+			ftrace_likely_update(&______f, ______r,		\
+					     expect, is_constant);	\
 			______r;					\
 		})
 
@@ -133,10 +135,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  * written by Daniel Walker.
  */
 # ifndef likely
-#  define likely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 1))
+#  define likely(x)	(__branch_check__(x, 1, __builtin_constant_p(x)))
 # endif
 # ifndef unlikely
-#  define unlikely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 0))
+#  define unlikely(x)	(__branch_check__(x, 0, __builtin_constant_p(x)))
 # endif
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES

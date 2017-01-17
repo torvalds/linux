@@ -200,8 +200,12 @@ void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect)
+void ftrace_likely_update(struct ftrace_branch_data *f, int val,
+			  int expect, int is_constant)
 {
+	/* A constant is always correct */
+	if (is_constant)
+		val = expect;
 	/*
 	 * I would love to have a trace point here instead, but the
 	 * trace point code is so inundated with unlikely and likely
