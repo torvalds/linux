@@ -4837,7 +4837,7 @@ static struct elv_fs_entry cfq_attrs[] = {
 };
 
 static struct elevator_type iosched_cfq = {
-	.ops = {
+	.ops.sq = {
 		.elevator_merge_fn = 		cfq_merge,
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,
