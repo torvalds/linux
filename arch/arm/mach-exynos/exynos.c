@@ -45,8 +45,8 @@ static struct platform_device exynos_cpuidle = {
 	.id                = -1,
 };
 
-void __iomem *sysram_base_addr;
-void __iomem *sysram_ns_base_addr;
+void __iomem *sysram_base_addr __ro_after_init;
+void __iomem *sysram_ns_base_addr __ro_after_init;
 
 void __init exynos_sysram_init(void)
 {
