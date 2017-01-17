@@ -2704,21 +2704,8 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	engine->reset_hw(engine, request);
 
 	/* If this context is now banned, skip all of its pending requests. */
-	if (!i915_gem_context_is_banned(hung_ctx))
-		return;
-
-	/* Users of the default context do not rely on logical state
-	 * preserved between batches. They have to emit full state on
-	 * every batch and so it is safe to execute queued requests following
-	 * the hang.
-	 *
-	 * Other contexts preserve state, now corrupt. We want to skip all
-	 * queued requests that reference the corrupt context.
-	 */
-	if (i915_gem_context_is_default(hung_ctx))
-		return;
-
-	engine_skip_context(request);
+	if (i915_gem_context_is_banned(hung_ctx))
+		engine_skip_context(request);
 }
 
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
