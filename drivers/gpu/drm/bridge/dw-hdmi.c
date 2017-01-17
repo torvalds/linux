@@ -931,7 +931,7 @@ static void dw_hdmi_phy_sel_interface_control(struct dw_hdmi *hdmi, u8 enable)
 			 HDMI_PHY_CONF0_SELDIPIF_MASK);
 }
 
-static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
+static int hdmi_phy_configure(struct dw_hdmi *hdmi,
 			      unsigned char res, int cscon)
 {
 	unsigned res_idx;
@@ -940,9 +940,6 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	const struct dw_hdmi_mpll_config *mpll_config = pdata->mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *curr_ctrl = pdata->cur_ctr;
 	const struct dw_hdmi_phy_config *phy_config = pdata->phy_config;
-
-	if (prep)
-		return -EINVAL;
 
 	switch (res) {
 	case 0:	/* color resolution 0 is 8 bit colour depth */
@@ -1072,7 +1069,7 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi)
 		dw_hdmi_phy_enable_powerdown(hdmi, true);
 
 		/* Enable CSC */
-		ret = hdmi_phy_configure(hdmi, 0, 8, cscon);
+		ret = hdmi_phy_configure(hdmi, 8, cscon);
 		if (ret)
 			return ret;
 	}
