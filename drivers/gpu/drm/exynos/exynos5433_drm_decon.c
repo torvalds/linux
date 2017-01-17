@@ -142,8 +142,6 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 		m->crtc_vsync_end = m->crtc_vsync_start + 1;
 	}
 
-	decon_set_bits(ctx, DECON_VIDCON0, VIDCON0_ENVID, 0);
-
 	/* enable clock gate */
 	val = CMU_CLKGAGE_MODE_SFR_F | CMU_CLKGAGE_MODE_MEM_F;
 	writel(val, ctx->addr + DECON_CMU);
