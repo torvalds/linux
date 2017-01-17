@@ -18,6 +18,9 @@
 #ifndef __XFS_DIR2_H__
 #define __XFS_DIR2_H__
 
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+
 struct xfs_defer_ops;
 struct xfs_da_args;
 struct xfs_inode;
