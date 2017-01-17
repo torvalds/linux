@@ -94,14 +94,12 @@ void pre_surface_trace(
 				"surface->plane_size.grph.surface_size.y = %d;\n"
 				"surface->plane_size.grph.surface_size.width = %d;\n"
 				"surface->plane_size.grph.surface_size.height = %d;\n"
-				"surface->plane_size.grph.surface_pitch = %d;\n"
-				"surface->plane_size.grph.meta_pitch = %d;\n",
+				"surface->plane_size.grph.surface_pitch = %d;\n",
 				surface->plane_size.grph.surface_size.x,
 				surface->plane_size.grph.surface_size.y,
 				surface->plane_size.grph.surface_size.width,
 				surface->plane_size.grph.surface_size.height,
-				surface->plane_size.grph.surface_pitch,
-				surface->plane_size.grph.meta_pitch);
+				surface->plane_size.grph.surface_pitch);
 
 
 		SURFACE_TRACE(
@@ -176,7 +174,6 @@ void update_surface_trace(
 			SURFACE_TRACE(
 					"plane_info->color_space = %d;\n"
 					"plane_info->format = %d;\n"
-					"plane_info->plane_size.grph.meta_pitch = %d;\n"
 					"plane_info->plane_size.grph.surface_pitch = %d;\n"
 					"plane_info->plane_size.grph.surface_size.height = %d;\n"
 					"plane_info->plane_size.grph.surface_size.width = %d;\n"
@@ -185,7 +182,6 @@ void update_surface_trace(
 					"plane_info->rotation = %d;\n",
 					update->plane_info->color_space,
 					update->plane_info->format,
-					update->plane_info->plane_size.grph.meta_pitch,
 					update->plane_info->plane_size.grph.surface_pitch,
 					update->plane_info->plane_size.grph.surface_size.height,
 					update->plane_info->plane_size.grph.surface_size.width,
