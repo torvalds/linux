@@ -900,6 +900,12 @@ static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
 	return host->clk_enable(host);
 }
 
+static void tmio_mmc_clk_disable(struct tmio_mmc_host *host)
+{
+	if (host->clk_disable)
+		host->clk_disable(host);
+}
+
 static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -1284,6 +1290,8 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	tmio_mmc_clk_disable(host);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
@@ -1298,8 +1306,7 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 	if (host->clk_cache)
 		tmio_mmc_clk_stop(host);
 
-	if (host->clk_disable)
-		host->clk_disable(host);
+	tmio_mmc_clk_disable(host);
 
 	return 0;
 }
