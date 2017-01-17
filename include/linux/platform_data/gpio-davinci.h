@@ -26,7 +26,6 @@ struct davinci_gpio_platform_data {
 	u32	gpio_unbanked;
 };
 
-
 struct davinci_gpio_controller {
 	struct gpio_chip	chip;
 	struct irq_domain	*irq_domain;
