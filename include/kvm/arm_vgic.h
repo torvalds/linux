@@ -166,6 +166,8 @@ struct vgic_its {
 	struct list_head	collection_list;
 };
 
+struct vgic_state_iter;
+
 struct vgic_dist {
 	bool			in_kernel;
 	bool			ready;
@@ -213,6 +215,9 @@ struct vgic_dist {
 	spinlock_t		lpi_list_lock;
 	struct list_head	lpi_list_head;
 	int			lpi_list_count;
+
+	/* used by vgic-debug */
+	struct vgic_state_iter *iter;
 };
 
 struct vgic_v2_cpu_if {

@@ -102,4 +102,7 @@ int kvm_register_vgic_device(unsigned long type);
 int vgic_lazy_init(struct kvm *kvm);
 int vgic_init(struct kvm *kvm);
 
+int vgic_debug_init(struct kvm *kvm);
+int vgic_debug_destroy(struct kvm *kvm);
+
 #endif
