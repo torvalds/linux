@@ -992,7 +992,8 @@ static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct btrfs_path *path,
 				  struct btrfs_root *log_root,
-				  struct inode *dir, struct inode *inode,
+				  struct btrfs_inode *dir,
+				  struct btrfs_inode *inode,
 				  struct extent_buffer *eb,
 				  u64 inode_objectid, u64 parent_objectid,
 				  u64 ref_index, char *name, int namelen,
@@ -1048,11 +1049,10 @@ again:
 					    parent_objectid,
 					    victim_name,
 					    victim_name_len)) {
-				inc_nlink(inode);
+				inc_nlink(&inode->vfs_inode);
 				btrfs_release_path(path);
 
-				ret = btrfs_unlink_inode(trans, root,
-						BTRFS_I(dir), BTRFS_I(inode),
+				ret = btrfs_unlink_inode(trans, root, dir, inode,
 						victim_name, victim_name_len);
 				kfree(victim_name);
 				if (ret)
@@ -1116,14 +1116,14 @@ again:
 					    victim_name_len)) {
 				ret = -ENOENT;
 				victim_parent = read_one_inode(root,
-							       parent_objectid);
+						parent_objectid);
 				if (victim_parent) {
-					inc_nlink(inode);
+					inc_nlink(&inode->vfs_inode);
 					btrfs_release_path(path);
 
 					ret = btrfs_unlink_inode(trans, root,
 							BTRFS_I(victim_parent),
-							BTRFS_I(inode),
+							inode,
 							victim_name,
 							victim_name_len);
 					if (!ret)
@@ -1149,20 +1149,20 @@ next:
 	btrfs_release_path(path);
 
 	/* look for a conflicting sequence number */
-	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(BTRFS_I(dir)),
+	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(dir),
 					 ref_index, name, namelen, 0);
 	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, BTRFS_I(dir), di);
+		ret = drop_one_dir_item(trans, root, path, dir, di);
 		if (ret)
 			return ret;
 	}
 	btrfs_release_path(path);
 
 	/* look for a conflicing name */
-	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(BTRFS_I(dir)),
+	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(dir),
 				   name, namelen, 0);
 	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, BTRFS_I(dir), di);
+		ret = drop_one_dir_item(trans, root, path, dir, di);
 		if (ret)
 			return ret;
 	}
@@ -1308,7 +1308,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 
 			if (!search_done) {
 				ret = __add_inode_ref(trans, root, path, log,
-						      dir, inode, eb,
+						      BTRFS_I(dir),
+						      BTRFS_I(inode), eb,
 						      inode_objectid,
 						      parent_objectid,
 						      ref_index, name, namelen,
