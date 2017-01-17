@@ -501,4 +501,12 @@ config PHY_MESON8B_USB2
 	  and GXBB SoCs.
 	  If unsure, say N.
 
+config PHY_NSP_USB3
+	tristate "Broadcom NorthStar plus USB3 PHY driver"
+	depends on OF && (ARCH_BCM_NSP || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_NSP
+	help
+	  Enable this to support the Broadcom Northstar plus USB3 PHY.
+	  If unsure, say N.
 endmenu
