@@ -141,8 +141,6 @@ extern void device_unblock_probing(void);
 extern struct kset *devices_kset;
 extern void devices_kset_move_last(struct device *dev);
 
-extern struct device_attribute dev_attr_deferred_probe;
-
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
 extern void module_add_driver(struct module *mod, struct device_driver *drv);
 extern void module_remove_driver(struct device_driver *drv);

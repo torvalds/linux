@@ -53,19 +53,6 @@ static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
 
-static ssize_t deferred_probe_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	bool value;
-
-	mutex_lock(&deferred_probe_mutex);
-	value = !list_empty(&dev->p->deferred_probe);
-	mutex_unlock(&deferred_probe_mutex);
-
-	return sprintf(buf, "%d\n", value);
-}
-DEVICE_ATTR_RO(deferred_probe);
-
 /*
  * In some cases, like suspend to RAM or hibernation, It might be reasonable
  * to prohibit probing of devices as it could be unsafe.
