@@ -325,8 +325,6 @@ __ww_mutex_wakeup_for_backoff(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
 static __always_inline void
 ww_mutex_set_context_fastpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	unsigned long flags;
-
 	ww_mutex_lock_acquired(lock, ctx);
 
 	lock->ctx = ctx;
@@ -350,9 +348,9 @@ ww_mutex_set_context_fastpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	 * Uh oh, we raced in fastpath, wake up everyone in this case,
 	 * so they can see the new lock->ctx.
 	 */
-	spin_lock_mutex(&lock->base.wait_lock, flags);
+	spin_lock(&lock->base.wait_lock);
 	__ww_mutex_wakeup_for_backoff(&lock->base, ctx);
-	spin_unlock_mutex(&lock->base.wait_lock, flags);
+	spin_unlock(&lock->base.wait_lock);
 }
 
 /*
@@ -740,7 +738,6 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		    struct ww_acquire_ctx *ww_ctx, const bool use_ww_ctx)
 {
 	struct mutex_waiter waiter;
-	unsigned long flags;
 	bool first = false;
 	struct ww_mutex *ww;
 	int ret;
@@ -766,7 +763,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		return 0;
 	}
 
-	spin_lock_mutex(&lock->wait_lock, flags);
+	spin_lock(&lock->wait_lock);
 	/*
 	 * After waiting to acquire the wait_lock, try again.
 	 */
@@ -830,7 +827,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 				goto err;
 		}
 
-		spin_unlock_mutex(&lock->wait_lock, flags);
+		spin_unlock(&lock->wait_lock);
 		schedule_preempt_disabled();
 
 		/*
@@ -853,9 +850,9 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		    (first && mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx, &waiter)))
 			break;
 
-		spin_lock_mutex(&lock->wait_lock, flags);
+		spin_lock(&lock->wait_lock);
 	}
-	spin_lock_mutex(&lock->wait_lock, flags);
+	spin_lock(&lock->wait_lock);
 acquired:
 	__set_current_state(TASK_RUNNING);
 
@@ -872,7 +869,7 @@ skip_wait:
 	if (use_ww_ctx && ww_ctx)
 		ww_mutex_set_context_slowpath(ww, ww_ctx);
 
-	spin_unlock_mutex(&lock->wait_lock, flags);
+	spin_unlock(&lock->wait_lock);
 	preempt_enable();
 	return 0;
 
@@ -880,7 +877,7 @@ err:
 	__set_current_state(TASK_RUNNING);
 	mutex_remove_waiter(lock, &waiter, current);
 err_early_backoff:
-	spin_unlock_mutex(&lock->wait_lock, flags);
+	spin_unlock(&lock->wait_lock);
 	debug_mutex_free_waiter(&waiter);
 	mutex_release(&lock->dep_map, 1, ip);
 	preempt_enable();
@@ -999,8 +996,8 @@ EXPORT_SYMBOL_GPL(ww_mutex_lock_interruptible);
 static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip)
 {
 	struct task_struct *next = NULL;
-	unsigned long owner, flags;
 	DEFINE_WAKE_Q(wake_q);
+	unsigned long owner;
 
 	mutex_release(&lock->dep_map, 1, ip);
 
@@ -1035,7 +1032,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 		owner = old;
 	}
 
-	spin_lock_mutex(&lock->wait_lock, flags);
+	spin_lock(&lock->wait_lock);
 	debug_mutex_unlock(lock);
 	if (!list_empty(&lock->wait_list)) {
 		/* get the first entry from the wait-list: */
@@ -1052,7 +1049,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	if (owner & MUTEX_FLAG_HANDOFF)
 		__mutex_handoff(lock, next);
 
-	spin_unlock_mutex(&lock->wait_lock, flags);
+	spin_unlock(&lock->wait_lock);
 
 	wake_up_q(&wake_q);
 }
