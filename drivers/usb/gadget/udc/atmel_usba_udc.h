@@ -280,6 +280,7 @@ struct usba_ep {
 	void __iomem				*ep_regs;
 	void __iomem				*dma_regs;
 	void __iomem				*fifo;
+	char					name[8];
 	struct usb_ep				ep;
 	struct usba_udc				*udc;
 
