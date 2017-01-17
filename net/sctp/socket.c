@@ -3786,6 +3786,32 @@ out:
 	return retval;
 }
 
+static int sctp_setsockopt_reset_streams(struct sock *sk,
+					 char __user *optval,
+					 unsigned int optlen)
+{
+	struct sctp_reset_streams *params;
+	struct sctp_association *asoc;
+	int retval = -EINVAL;
+
+	if (optlen < sizeof(struct sctp_reset_streams))
+		return -EINVAL;
+
+	params = memdup_user(optval, optlen);
+	if (IS_ERR(params))
+		return PTR_ERR(params);
+
+	asoc = sctp_id2assoc(sk, params->srs_assoc_id);
+	if (!asoc)
+		goto out;
+
+	retval = sctp_send_reset_streams(asoc, params);
+
+out:
+	kfree(params);
+	return retval;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -3954,6 +3980,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_ENABLE_STREAM_RESET:
 		retval = sctp_setsockopt_enable_strreset(sk, optval, optlen);
+		break;
+	case SCTP_RESET_STREAMS:
+		retval = sctp_setsockopt_reset_streams(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
