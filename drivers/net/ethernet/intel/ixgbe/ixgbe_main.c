@@ -1930,53 +1930,15 @@ static inline bool ixgbe_page_is_reserved(struct page *page)
 	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
-/**
- * ixgbe_add_rx_frag - Add contents of Rx buffer to sk_buff
- * @rx_ring: rx descriptor ring to transact packets on
- * @rx_buffer: buffer containing page to add
- * @rx_desc: descriptor containing length of buffer written by hardware
- * @skb: sk_buff to place the data into
- *
- * This function will add the data contained in rx_buffer->page to the skb.
- * This is done either through a direct copy if the data in the buffer is
- * less than the skb header size, otherwise it will just attach the page as
- * a frag to the skb.
- *
- * The function will then update the page offset if necessary and return
- * true if the buffer can be reused by the adapter.
- **/
-static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
-			      struct ixgbe_rx_buffer *rx_buffer,
-			      union ixgbe_adv_rx_desc *rx_desc,
-			      struct sk_buff *skb)
+static bool ixgbe_can_reuse_rx_page(struct ixgbe_ring *rx_ring,
+				    struct ixgbe_rx_buffer *rx_buffer,
+				    struct page *page,
+				    const unsigned int truesize)
 {
-	struct page *page = rx_buffer->page;
-	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = ixgbe_rx_bufsz(rx_ring);
-#else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+#if (PAGE_SIZE >= 8192)
 	unsigned int last_offset = ixgbe_rx_pg_size(rx_ring) -
 				   ixgbe_rx_bufsz(rx_ring);
 #endif
-
-	if ((size <= IXGBE_RX_HDR_SIZE) && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buffer->page_offset;
-
-		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
-
-		/* page is not reserved, we can reuse buffer as-is */
-		if (likely(!ixgbe_page_is_reserved(page)))
-			return true;
-
-		/* this page cannot be reused so discard it */
-		__free_pages(page, ixgbe_rx_pg_order(rx_ring));
-		return false;
-	}
-
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, truesize);
-
 	/* avoid re-using remote pages */
 	if (unlikely(ixgbe_page_is_reserved(page)))
 		return false;
@@ -2002,6 +1964,57 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 	page_ref_inc(page);
 
 	return true;
+}
+
+/**
+ * ixgbe_add_rx_frag - Add contents of Rx buffer to sk_buff
+ * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_buffer: buffer containing page to add
+ * @rx_desc: descriptor containing length of buffer written by hardware
+ * @skb: sk_buff to place the data into
+ *
+ * This function will add the data contained in rx_buffer->page to the skb.
+ * This is done either through a direct copy if the data in the buffer is
+ * less than the skb header size, otherwise it will just attach the page as
+ * a frag to the skb.
+ *
+ * The function will then update the page offset if necessary and return
+ * true if the buffer can be reused by the adapter.
+ **/
+static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
+			      struct ixgbe_rx_buffer *rx_buffer,
+			      union ixgbe_adv_rx_desc *rx_desc,
+			      struct sk_buff *skb)
+{
+	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = ixgbe_rx_bufsz(rx_ring);
+#else
+	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+#endif
+
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
+
+	if (size <= IXGBE_RX_HDR_SIZE) {
+		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
+
+		/* page is not reserved, we can reuse buffer as-is */
+		if (likely(!ixgbe_page_is_reserved(page)))
+			return true;
+
+		/* this page cannot be reused so discard it */
+		__free_pages(page, ixgbe_rx_pg_order(rx_ring));
+		return false;
+	}
+
+add_tail_frag:
+	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+			rx_buffer->page_offset, size, truesize);
+
+	return ixgbe_can_reuse_rx_page(rx_ring, rx_buffer, page, truesize);
 }
 
 static struct sk_buff *ixgbe_fetch_rx_buffer(struct ixgbe_ring *rx_ring,
