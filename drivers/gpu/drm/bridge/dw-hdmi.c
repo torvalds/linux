@@ -2406,7 +2406,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	u8 prod_id0;
 	u8 prod_id1;
 	u8 config0;
-	u8 config1;
+	u8 config3;
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
@@ -2572,9 +2572,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	pdevinfo.id = PLATFORM_DEVID_AUTO;
 
 	config0 = hdmi_readb(hdmi, HDMI_CONFIG0_ID);
-	config1 = hdmi_readb(hdmi, HDMI_CONFIG1_ID);
+	config3 = hdmi_readb(hdmi, HDMI_CONFIG3_ID);
 
-	if (config1 & HDMI_CONFIG1_AHB) {
+	if (config3 & HDMI_CONFIG3_AHBAUDDMA) {
 		struct dw_hdmi_audio_data audio;
 
 		audio.phys = iores->start;
