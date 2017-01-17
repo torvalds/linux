@@ -182,6 +182,22 @@ static void esp_output_done_esn(struct crypto_async_request *base, int err)
 	esp_output_done(base, err);
 }
 
+static void esp_output_fill_trailer(u8 *tail, int tfclen, int plen, __u8 proto)
+{
+	/* Fill padding... */
+	if (tfclen) {
+		memset(tail, 0, tfclen);
+		tail += tfclen;
+	}
+	do {
+		int i;
+		for (i = 0; i < plen - 2; i++)
+			tail[i] = i + 1;
+	} while (0);
+	tail[plen - 2] = plen - 2;
+	tail[plen - 1] = proto;
+}
+
 static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct esp_output_extra *extra;
@@ -304,18 +320,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 			tail = vaddr + pfrag->offset;
 
-			/* Fill padding... */
-			if (tfclen) {
-				memset(tail, 0, tfclen);
-				tail += tfclen;
-			}
-			do {
-				int i;
-				for (i = 0; i < plen - 2; i++)
-					tail[i] = i + 1;
-			} while (0);
-			tail[plen - 2] = plen - 2;
-			tail[plen - 1] = proto;
+			esp_output_fill_trailer(tail, tfclen, plen, proto);
 
 			kunmap_atomic(vaddr);
 
@@ -395,20 +400,9 @@ cow:
 	esph = ip_esp_hdr(skb);
 
 skip_cow:
-	/* Fill padding... */
-	if (tfclen) {
-		memset(tail, 0, tfclen);
-		tail += tfclen;
-	}
-	do {
-		int i;
-		for (i = 0; i < plen - 2; i++)
-			tail[i] = i + 1;
-	} while (0);
-	tail[plen - 2] = plen - 2;
-	tail[plen - 1] = proto;
-	pskb_put(skb, trailer, clen - skb->len + alen);
+	esp_output_fill_trailer(tail, tfclen, plen, proto);
 
+	pskb_put(skb, trailer, clen - skb->len + alen);
 	skb_push(skb, -skb_network_offset(skb));
 	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 	esph->spi = x->id.spi;
