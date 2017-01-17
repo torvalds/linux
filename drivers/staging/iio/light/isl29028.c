@@ -528,10 +528,8 @@ static int isl29028_probe(struct i2c_client *client,
 	}
 
 	ret = isl29028_chip_init_and_power_on(chip);
-	if (ret < 0) {
-		dev_err(&client->dev, "chip initialization failed: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	indio_dev->info = &isl29028_info;
 	indio_dev->channels = isl29028_channels;
