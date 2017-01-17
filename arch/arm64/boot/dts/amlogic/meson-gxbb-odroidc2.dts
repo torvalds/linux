@@ -137,6 +137,10 @@
 	};
 };
 
+&scpi_clocks {
+	status = "disabled";
+};
+
 &uart_AO {
 	status = "okay";
 	pinctrl-0 = <&uart_ao_a_pins>;
