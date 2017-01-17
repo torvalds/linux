@@ -105,6 +105,8 @@ int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
 int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
+int lwtunnel_valid_encap_type(u16 encap_type);
+int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len);
 int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 			 struct nlattr *encap,
 			 unsigned int family, const void *cfg,
@@ -164,6 +166,15 @@ static inline int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 
 static inline int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 					 unsigned int num)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int lwtunnel_valid_encap_type(u16 encap_type)
+{
+	return -EOPNOTSUPP;
+}
+static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len)
 {
 	return -EOPNOTSUPP;
 }
