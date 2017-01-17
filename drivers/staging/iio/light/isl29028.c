@@ -67,13 +67,13 @@ enum isl29028_als_ir_mode {
 };
 
 struct isl29028_chip {
-	struct mutex		lock;
-	struct regmap		*regmap;
+	struct mutex			lock;
+	struct regmap			*regmap;
 
-	unsigned int		prox_sampling;
-	bool			enable_prox;
+	unsigned int			prox_sampling;
+	bool				enable_prox;
 
-	int			lux_scale;
+	int				lux_scale;
 	enum isl29028_als_ir_mode	als_ir_mode;
 };
 
