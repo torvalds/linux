@@ -27,6 +27,16 @@ enum dw_hdmi_devtype {
 	RK3288_HDMI,
 };
 
+enum dw_hdmi_phy_type {
+	DW_HDMI_PHY_DWC_HDMI_TX_PHY = 0x00,
+	DW_HDMI_PHY_DWC_MHL_PHY_HEAC = 0xb2,
+	DW_HDMI_PHY_DWC_MHL_PHY = 0xc2,
+	DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY_HEAC = 0xe2,
+	DW_HDMI_PHY_DWC_HDMI_3D_TX_PHY = 0xf2,
+	DW_HDMI_PHY_DWC_HDMI20_TX_PHY = 0xf3,
+	DW_HDMI_PHY_VENDOR_PHY = 0xfe,
+};
+
 struct dw_hdmi_mpll_config {
 	unsigned long mpixelclock;
 	struct {
