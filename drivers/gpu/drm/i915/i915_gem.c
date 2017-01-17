@@ -2625,16 +2625,28 @@ static bool engine_stalled(struct intel_engine_cs *engine)
 	return true;
 }
 
-void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
+int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	int err = 0;
 
 	/* Ensure irq handler finishes, and not run again. */
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, dev_priv, id) {
+		struct drm_i915_gem_request *request;
+
 		tasklet_kill(&engine->irq_tasklet);
 
+		if (engine_stalled(engine)) {
+			request = i915_gem_find_active_request(engine);
+			if (request && request->fence.error == -EIO)
+				err = -EIO; /* Previous reset failed! */
+		}
+	}
+
 	i915_gem_revoke_fences(dev_priv);
+
+	return err;
 }
 
 static void skip_request(struct drm_i915_gem_request *request)
