@@ -633,30 +633,6 @@ struct output_pixel_processor *dce100_opp_create(
 	return NULL;
 }
 
-void dce100_opp_destroy(struct output_pixel_processor **opp)
-{
-	struct dce110_opp *dce110_opp;
-
-	if (!opp || !*opp)
-		return;
-
-	dce110_opp = FROM_DCE11_OPP(*opp);
-
-	dm_free(dce110_opp->regamma.coeff128_dx);
-	dm_free(dce110_opp->regamma.coeff128_oem);
-	dm_free(dce110_opp->regamma.coeff128);
-	dm_free(dce110_opp->regamma.axis_x_1025);
-	dm_free(dce110_opp->regamma.axis_x_256);
-	dm_free(dce110_opp->regamma.coordinates_x);
-	dm_free(dce110_opp->regamma.rgb_regamma);
-	dm_free(dce110_opp->regamma.rgb_resulted);
-	dm_free(dce110_opp->regamma.rgb_oem);
-	dm_free(dce110_opp->regamma.rgb_user);
-	dm_free(dce110_opp);
-
-	*opp = NULL;
-}
-
 struct clock_source *dce100_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -692,7 +668,7 @@ static void destruct(struct dce110_resource_pool *pool)
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
-			dce100_opp_destroy(&pool->base.opps[i]);
+			dce110_opp_destroy(&pool->base.opps[i]);
 
 		if (pool->base.transforms[i] != NULL)
 			dce100_transform_destroy(&pool->base.transforms[i]);
