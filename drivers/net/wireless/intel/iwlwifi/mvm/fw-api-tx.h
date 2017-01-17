@@ -548,9 +548,11 @@ struct agg_tx_status {
  * @tlc_info: TLC rate info
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
+ * @tx_queue: TX queue for this response
  * @status: for non-agg:  frame status TX_STATUS_*
  *	for agg: status of 1st frame, AGG_TX_STATE_*; other frame status fields
  *	follow this one, up to frame_count.
+ *	For version 6 TX response isn't received for aggregation at all.
  *
  * After the array of statuses comes the SSN of the SCD. Look at
  * %iwl_mvm_get_scd_ssn for more details.
@@ -577,9 +579,17 @@ struct iwl_mvm_tx_resp {
 	u8 tlc_info;
 	u8 ra_tid;
 	__le16 frame_ctrl;
-
-	struct agg_tx_status status;
-} __packed; /* TX_RSP_API_S_VER_3 */
+	union {
+		struct {
+			struct agg_tx_status status;
+		} v3;/* TX_RSP_API_S_VER_3 */
+		struct {
+			__le16 tx_queue;
+			__le16 reserved2;
+			struct agg_tx_status status;
+		} v6;
+	};
+} __packed; /* TX_RSP_API_S_VER_6 */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA
@@ -619,11 +629,14 @@ struct iwl_mvm_ba_notif {
  * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
+ * @scd_queue: For debug only - the physical queue the TFD queue is bound to
  */
 struct iwl_mvm_compressed_ba_tfd {
-	u8 q_num;
-	u8 reserved;
+	__le16 q_num;
 	__le16 tfd_index;
+	u8 scd_queue;
+	u8 reserved;
+	__le16 reserved2;
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
@@ -798,25 +811,6 @@ struct iwl_tx_path_flush_cmd {
 	__le16 flush_ctl;
 	__le16 reserved;
 } __packed; /* TX_PATH_FLUSH_CMD_API_S_VER_1 */
-
-/**
- * iwl_mvm_get_scd_ssn - returns the SSN of the SCD
- * @tx_resp: the Tx response from the fw (agg or non-agg)
- *
- * When the fw sends an AMPDU, it fetches the MPDUs one after the other. Since
- * it can't know that everything will go well until the end of the AMPDU, it
- * can't know in advance the number of MPDUs that will be sent in the current
- * batch. This is why it writes the agg Tx response while it fetches the MPDUs.
- * Hence, it can't know in advance what the SSN of the SCD will be at the end
- * of the batch. This is why the SSN of the SCD is written at the end of the
- * whole struct at a variable offset. This function knows how to cope with the
- * variable offset and returns the SSN of the SCD.
- */
-static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm_tx_resp *tx_resp)
-{
-	return le32_to_cpup((__le32 *)&tx_resp->status +
-			    tx_resp->frame_count) & 0xfff;
-}
 
 /* Available options for the SCD_QUEUE_CFG HCMD */
 enum iwl_scd_cfg_actions {

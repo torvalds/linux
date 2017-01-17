@@ -1443,6 +1443,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
+	struct agg_tx_status *agg_status;
 	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1450,7 +1451,8 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
 
-	status = le16_to_cpu(beacon_notify_hdr->status.status) & TX_STATUS_MSK;
+	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
+	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
 		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
 		     status, beacon_notify_hdr->failure_frame,
