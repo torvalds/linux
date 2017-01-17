@@ -69,7 +69,7 @@ static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 					 u32 dest)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size);
+	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size, GFP_ATOMIC);
 	struct tipc_msg *msg;
 
 	if (buf != NULL) {

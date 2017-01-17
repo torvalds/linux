@@ -668,9 +668,12 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	int ttl;
 
 #if IS_ENABLED(CONFIG_INET)
+	int ret;
+
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
-	if (IS_ERR(rt))
-		return PTR_ERR(rt);
+	ret = PTR_ERR_OR_ZERO(rt);
+	if (ret)
+		return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -741,8 +744,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	struct flowi4 fl4 = {};
 	char *encap_header;
 	int encap_size;
-	__be32 saddr = 0;
-	int ttl = 0;
+	__be32 saddr;
+	int ttl;
 	int err;
 
 	encap_header = kzalloc(max_encap_size, GFP_KERNEL);

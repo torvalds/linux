@@ -114,7 +114,7 @@ enum SS4_PACKET_ID {
 				 (_b[1] & 0x7F)		\
 				)
 
-#define SS4_TS_Y_V2(_b)		(s8)(				\
+#define SS4_TS_Y_V2(_b)		-(s8)(				\
 				 ((_b[3] & 0x01) << 7) |	\
 				 (_b[2] & 0x7F)		\
 				)
