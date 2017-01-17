@@ -18,8 +18,8 @@
 
 static const char doc_cptofs[] = "Copy files to a filesystem image";
 static const char doc_cpfromfs[] = "Copy files from a filesystem image";
-static const char args_doc_cptofs[] = "-t fstype -i fsimage path fs_path";
-static const char args_doc_cpfromfs[] = "-t fstype -i fsimage fs_path path";
+static const char args_doc_cptofs[] = "-t fstype -i fsimage path... fs_path";
+static const char args_doc_cpfromfs[] = "-t fstype -i fsimage fs_path... path";
 
 static struct argp_option options[] = {
 	{"enable-printk", 'p', 0, 0, "show Linux printks"},
@@ -37,8 +37,8 @@ static struct cl_args {
 	int part;
 	const char *fsimg_type;
 	const char *fsimg_path;
-	const char *src_path;
-	const char *dst_path;
+	int npaths;
+	char **paths;
 	const char *selinux;
 } cla;
 
@@ -65,18 +65,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		cla->selinux = arg;
 		break;
 	case ARGP_KEY_ARG:
-		if (!cla->src_path) {
-			cla->src_path = arg;
-		} else if (!cla->dst_path) {
-			cla->dst_path = arg;
-		} else {
-			argp_usage(state);
-			return -1;
-		}
+		// Capture all remaining arguments in our paths array and stop
+		// parsing here. We treat the last one as the destination and
+		// everything before it as sources, just like cp does.
+		cla->paths = &state->argv[state->next - 1];
+		cla->npaths = state->argc - state->next + 1;
+		state->next = state->argc;
 		break;
-	case ARGP_KEY_END:
-		if (state->arg_num < 2 || !cla->fsimg_type || !cla->fsimg_path)
-			argp_usage(state);
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
@@ -485,12 +480,31 @@ out:
 	return ret;
 }
 
+int copy_one(const char *src, const char *mpoint, const char *dst)
+{
+	char *src_path_dir, *src_path_base;
+	char src_path[PATH_MAX], dst_path[PATH_MAX];
+
+	if (cptofs) {
+		snprintf(src_path, sizeof(src_path),  "%s", src);
+		snprintf(dst_path, sizeof(dst_path),  "%s/%s", mpoint, dst);
+	} else {
+		snprintf(src_path, sizeof(src_path),  "%s/%s", mpoint, src);
+		snprintf(dst_path, sizeof(dst_path),  "%s", dst);
+	}
+
+	src_path_dir = dirname(strdup(src_path));
+	src_path_base = basename(strdup(src_path));
+
+	return searchdir(src_path_dir, dst_path, src_path_base);
+}
+
 int main(int argc, char **argv)
 {
 	struct lkl_disk disk;
 	long ret;
-	char mpoint[32], src_path[PATH_MAX], dst_path[PATH_MAX];
-	char *src_path_dir, *src_path_base;
+	int i;
+	char mpoint[32];
 	unsigned int disk_id;
 
 	if (strstr(argv[0], "cptofs")) {
@@ -531,20 +545,11 @@ int main(int argc, char **argv)
 		goto out_close;
 	}
 
-	if (cptofs) {
-		snprintf(src_path, sizeof(src_path),  "%s", cla.src_path);
-		snprintf(dst_path, sizeof(dst_path),  "%s/%s", mpoint,
-			 cla.dst_path);
-	} else {
-		snprintf(src_path, sizeof(src_path),  "%s/%s", mpoint,
-			 cla.src_path);
-		snprintf(dst_path, sizeof(dst_path),  "%s", cla.dst_path);
+	for (i = 0; i < cla.npaths - 1; i++) {
+		ret = copy_one(cla.paths[i], mpoint, cla.paths[cla.npaths - 1]);
+		if (ret)
+			break;
 	}
-
-	src_path_dir = dirname(strdup(src_path));
-	src_path_base = basename(strdup(src_path));
-
-	ret = searchdir(src_path_dir, dst_path, src_path_base);
 
 	ret = lkl_umount_dev(disk_id, cla.part, 0, 1000);
 
