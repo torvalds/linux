@@ -116,9 +116,9 @@ void inet_get_local_port_range(struct net *net, int *low, int *high)
 }
 EXPORT_SYMBOL(inet_get_local_port_range);
 
-int inet_csk_bind_conflict(const struct sock *sk,
-			   const struct inet_bind_bucket *tb, bool relax,
-			   bool reuseport_ok)
+static int inet_csk_bind_conflict(const struct sock *sk,
+				  const struct inet_bind_bucket *tb,
+				  bool relax, bool reuseport_ok)
 {
 	struct sock *sk2;
 	bool reuse = sk->sk_reuse;
@@ -134,7 +134,6 @@ int inet_csk_bind_conflict(const struct sock *sk,
 
 	sk_for_each_bound(sk2, &tb->owners) {
 		if (sk != sk2 &&
-		    !inet_v6_ipv6only(sk2) &&
 		    (!sk->sk_bound_dev_if ||
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
@@ -144,23 +143,18 @@ int inet_csk_bind_conflict(const struct sock *sk,
 			     rcu_access_pointer(sk->sk_reuseport_cb) ||
 			     (sk2->sk_state != TCP_TIME_WAIT &&
 			     !uid_eq(uid, sock_i_uid(sk2))))) {
-
-				if (!sk2->sk_rcv_saddr || !sk->sk_rcv_saddr ||
-				    sk2->sk_rcv_saddr == sk->sk_rcv_saddr)
+				if (inet_rcv_saddr_equal(sk, sk2, true))
 					break;
 			}
 			if (!relax && reuse && sk2->sk_reuse &&
 			    sk2->sk_state != TCP_LISTEN) {
-
-				if (!sk2->sk_rcv_saddr || !sk->sk_rcv_saddr ||
-				    sk2->sk_rcv_saddr == sk->sk_rcv_saddr)
+				if (inet_rcv_saddr_equal(sk, sk2, true))
 					break;
 			}
 		}
 	}
 	return sk2 != NULL;
 }
-EXPORT_SYMBOL_GPL(inet_csk_bind_conflict);
 
 /* Obtain a reference to a local port for the given sock,
  * if snum is zero it means select any available local port.
@@ -239,8 +233,7 @@ other_parity_scan:
 					smallest_size = tb->num_owners;
 					smallest_port = port;
 				}
-				if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false,
-									      reuseport_ok))
+				if (!inet_csk_bind_conflict(sk, tb, false, reuseport_ok))
 					goto tb_found;
 				goto next_port;
 			}
@@ -281,8 +274,7 @@ tb_found:
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
 		    smallest_size == -1)
 			goto success;
-		if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, true,
-							     reuseport_ok)) {
+		if (inet_csk_bind_conflict(sk, tb, true, reuseport_ok)) {
 			if ((reuse ||
 			     (tb->fastreuseport > 0 &&
 			      sk->sk_reuseport &&
