@@ -318,7 +318,17 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 	iint->flags |= IMA_AUDITED;
 }
 
-const char *ima_d_path(const struct path *path, char **pathbuf)
+/*
+ * ima_d_path - return a pointer to the full pathname
+ *
+ * Attempt to return a pointer to the full pathname for use in the
+ * IMA measurement list, IMA audit records, and auditing logs.
+ *
+ * On failure, return a pointer to a copy of the filename, not dname.
+ * Returning a pointer to dname, could result in using the pointer
+ * after the memory has been freed.
+ */
+const char *ima_d_path(const struct path *path, char **pathbuf, char *namebuf)
 {
 	char *pathname = NULL;
 
@@ -331,5 +341,11 @@ const char *ima_d_path(const struct path *path, char **pathbuf)
 			pathname = NULL;
 		}
 	}
-	return pathname ?: (const char *)path->dentry->d_name.name;
+
+	if (!pathname) {
+		strlcpy(namebuf, path->dentry->d_name.name, NAME_MAX);
+		pathname = namebuf;
+	}
+
+	return pathname;
 }
