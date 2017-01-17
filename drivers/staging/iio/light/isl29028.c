@@ -327,7 +327,7 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		if ((val != 125) && (val != 2000)) {
+		if (val != 125 && val != 2000) {
 			dev_err(dev,
 				"%s(): light: Lux scale %d is not in the set {125, 2000}\n",
 				__func__, val);
