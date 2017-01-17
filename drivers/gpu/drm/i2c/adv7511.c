@@ -435,8 +435,21 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 static void adv7511_hpd_work(struct work_struct *work)
 {
 	struct adv7511 *adv7511 = container_of(work, struct adv7511, hpd_work);
+	enum drm_connector_status status;
+	unsigned int val;
+	int ret;
+	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
+	if (ret < 0)
+		status = connector_status_disconnected;
+	else if (val & ADV7511_STATUS_HPD)
+		status = connector_status_connected;
+	else
+		status = connector_status_disconnected;
 
-	drm_helper_hpd_irq_event(adv7511->connector.dev);
+	if (adv7511->connector.status != status) {
+		adv7511->connector.status = status;
+		drm_kms_helper_hotplug_event(adv7511->connector.dev);
+	}
 }
 
 static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
