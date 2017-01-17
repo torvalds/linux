@@ -2679,10 +2679,26 @@ static void engine_skip_context(struct drm_i915_gem_request *request)
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
+/* Returns true if the request was guilty of hang */
+static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
+{
+	/* Read once and return the resolution */
+	const bool guilty = engine_stalled(request->engine);
+
+	if (guilty) {
+		i915_gem_context_mark_guilty(request->ctx);
+		skip_request(request);
+	} else {
+		i915_gem_context_mark_innocent(request->ctx);
+		dma_fence_set_error(&request->fence, -EAGAIN);
+	}
+
+	return guilty;
+}
+
 static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
-	struct i915_gem_context *hung_ctx;
 
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
@@ -2691,16 +2707,8 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (!request)
 		return;
 
-	hung_ctx = request->ctx;
-
-	if (engine_stalled(engine)) {
-		i915_gem_context_mark_guilty(hung_ctx);
-		skip_request(request);
-	} else {
-		i915_gem_context_mark_innocent(hung_ctx);
-		dma_fence_set_error(&request->fence, -EAGAIN);
+	if (!i915_gem_reset_request(request))
 		return;
-	}
 
 	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
 			 engine->name, request->global_seqno);
@@ -2709,7 +2717,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	engine->reset_hw(engine, request);
 
 	/* If this context is now banned, skip all of its pending requests. */
-	if (i915_gem_context_is_banned(hung_ctx))
+	if (i915_gem_context_is_banned(request->ctx))
 		engine_skip_context(request);
 }
 
