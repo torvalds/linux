@@ -950,6 +950,7 @@ struct amdgpu_cs_parser {
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
 #define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
 #define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
+#define AMDGPU_VM_DOMAIN                    (1 << 3) /* bit set means in virtual memory context */
 
 struct amdgpu_job {
 	struct amd_sched_job    base;
