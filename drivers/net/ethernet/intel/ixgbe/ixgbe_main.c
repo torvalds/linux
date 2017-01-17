@@ -1841,7 +1841,7 @@ static void ixgbe_dma_sync_frag(struct ixgbe_ring *rx_ring,
 		dma_sync_single_range_for_cpu(rx_ring->dev,
 					      IXGBE_CB(skb)->dma,
 					      frag->page_offset,
-					      ixgbe_rx_bufsz(rx_ring),
+					      skb_frag_size(frag),
 					      DMA_FROM_DEVICE);
 	}
 	IXGBE_CB(skb)->dma = 0;
@@ -1983,12 +1983,11 @@ static bool ixgbe_can_reuse_rx_page(struct ixgbe_ring *rx_ring,
  **/
 static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 			      struct ixgbe_rx_buffer *rx_buffer,
-			      union ixgbe_adv_rx_desc *rx_desc,
+			      unsigned int size,
 			      struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
 	unsigned char *va = page_address(page) + rx_buffer->page_offset;
-	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ixgbe_rx_bufsz(rx_ring);
 #else
@@ -2020,6 +2019,7 @@ add_tail_frag:
 static struct sk_buff *ixgbe_fetch_rx_buffer(struct ixgbe_ring *rx_ring,
 					     union ixgbe_adv_rx_desc *rx_desc)
 {
+	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 	struct ixgbe_rx_buffer *rx_buffer;
 	struct sk_buff *skb;
 	struct page *page;
@@ -2074,14 +2074,14 @@ dma_sync:
 		dma_sync_single_range_for_cpu(rx_ring->dev,
 					      rx_buffer->dma,
 					      rx_buffer->page_offset,
-					      ixgbe_rx_bufsz(rx_ring),
+					      size,
 					      DMA_FROM_DEVICE);
 
 		rx_buffer->skb = NULL;
 	}
 
 	/* pull page into skb */
-	if (ixgbe_add_rx_frag(rx_ring, rx_buffer, rx_desc, skb)) {
+	if (ixgbe_add_rx_frag(rx_ring, rx_buffer, size, skb)) {
 		/* hand second half of page back to the ring */
 		ixgbe_reuse_rx_page(rx_ring, rx_buffer);
 	} else if (IXGBE_CB(skb)->dma == rx_buffer->dma) {
