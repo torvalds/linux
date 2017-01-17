@@ -109,3 +109,18 @@
 &usbphy {
 	status = "okay";
 };
+
+&mdio {
+	ext_rmii_phy1: ethernet-phy@1 {
+	      reg = <1>;
+	};
+};
+
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins>;
+	phy-mode = "rmii";
+	phy-handle = <&ext_rmii_phy1>;
+	status = "okay";
+
+};
