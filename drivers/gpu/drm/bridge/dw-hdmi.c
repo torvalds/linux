@@ -1836,24 +1836,9 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int dw_hdmi_register(struct drm_encoder *encoder, struct dw_hdmi *hdmi)
-{
-	struct drm_bridge *bridge = &hdmi->bridge;
-	int ret;
-
-	bridge->driver_private = hdmi;
-	bridge->funcs = &dw_hdmi_bridge_funcs;
-	ret = drm_bridge_attach(encoder, bridge, NULL);
-	if (ret) {
-		DRM_ERROR("Failed to initialize bridge with drm\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
-		 const struct dw_hdmi_plat_data *plat_data)
+static struct dw_hdmi *
+__dw_hdmi_probe(struct platform_device *pdev,
+		const struct dw_hdmi_plat_data *plat_data)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -1869,7 +1854,7 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
@@ -1896,7 +1881,7 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 		break;
 	default:
 		dev_err(dev, "reg-io-width must be 1 or 4\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
@@ -1905,7 +1890,7 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 		of_node_put(ddc_node);
 		if (!hdmi->ddc) {
 			dev_dbg(hdmi->dev, "failed to read ddc node\n");
-			return -EPROBE_DEFER;
+			return ERR_PTR(-EPROBE_DEFER);
 		}
 
 	} else {
@@ -1956,8 +1941,10 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 	initialize_hdmi_ih_mutes(hdmi);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0) {
+		ret = irq;
 		goto err_iahb;
+	}
 
 	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
 					dw_hdmi_irq, IRQF_SHARED,
@@ -1988,11 +1975,11 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
 		    HDMI_IH_PHY_STAT0);
 
-	ret = dw_hdmi_fb_registered(hdmi);
-	if (ret)
-		goto err_iahb;
+	hdmi->bridge.driver_private = hdmi;
+	hdmi->bridge.funcs = &dw_hdmi_bridge_funcs;
+	hdmi->bridge.of_node = pdev->dev.of_node;
 
-	ret = dw_hdmi_register(encoder, hdmi);
+	ret = dw_hdmi_fb_registered(hdmi);
 	if (ret)
 		goto err_iahb;
 
@@ -2041,7 +2028,7 @@ int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
 
 	platform_set_drvdata(pdev, hdmi);
 
-	return 0;
+	return hdmi;
 
 err_iahb:
 	if (hdmi->i2c) {
@@ -2055,14 +2042,11 @@ err_isfr:
 err_res:
 	i2c_put_adapter(hdmi->ddc);
 
-	return ret;
+	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(dw_hdmi_bind);
 
-void dw_hdmi_unbind(struct device *dev)
+static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 {
-	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
-
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
 		platform_device_unregister(hdmi->audio);
 
@@ -2076,6 +2060,70 @@ void dw_hdmi_unbind(struct device *dev)
 		i2c_del_adapter(&hdmi->i2c->adap);
 	else
 		i2c_put_adapter(hdmi->ddc);
+}
+
+/* -----------------------------------------------------------------------------
+ * Probe/remove API, used from platforms based on the DRM bridge API.
+ */
+int dw_hdmi_probe(struct platform_device *pdev,
+		  const struct dw_hdmi_plat_data *plat_data)
+{
+	struct dw_hdmi *hdmi;
+	int ret;
+
+	hdmi = __dw_hdmi_probe(pdev, plat_data);
+	if (IS_ERR(hdmi))
+		return PTR_ERR(hdmi);
+
+	ret = drm_bridge_add(&hdmi->bridge);
+	if (ret < 0) {
+		__dw_hdmi_remove(hdmi);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_probe);
+
+void dw_hdmi_remove(struct platform_device *pdev)
+{
+	struct dw_hdmi *hdmi = platform_get_drvdata(pdev);
+
+	drm_bridge_remove(&hdmi->bridge);
+
+	__dw_hdmi_remove(hdmi);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_remove);
+
+/* -----------------------------------------------------------------------------
+ * Bind/unbind API, used from platforms based on the component framework.
+ */
+int dw_hdmi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
+		 const struct dw_hdmi_plat_data *plat_data)
+{
+	struct dw_hdmi *hdmi;
+	int ret;
+
+	hdmi = __dw_hdmi_probe(pdev, plat_data);
+	if (IS_ERR(hdmi))
+		return PTR_ERR(hdmi);
+
+	ret = drm_bridge_attach(encoder, &hdmi->bridge, NULL);
+	if (ret) {
+		dw_hdmi_remove(pdev);
+		DRM_ERROR("Failed to initialize bridge with drm\n");
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_bind);
+
+void dw_hdmi_unbind(struct device *dev)
+{
+	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	__dw_hdmi_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
 
