@@ -264,7 +264,7 @@ int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 	if (unlikely(mlx5e_page_alloc_mapped(rq, di)))
 		return -ENOMEM;
 
-	wqe->data.addr = cpu_to_be64(di->addr + MLX5_RX_HEADROOM);
+	wqe->data.addr = cpu_to_be64(di->addr + rq->rx_headroom);
 	return 0;
 }
 
@@ -646,8 +646,7 @@ static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_sq *sq)
 
 static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 					struct mlx5e_dma_info *di,
-					unsigned int data_offset,
-					int len)
+					const struct xdp_buff *xdp)
 {
 	struct mlx5e_sq          *sq   = &rq->channel->xdp_sq;
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
@@ -659,9 +658,16 @@ static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
 	struct mlx5_wqe_data_seg *dseg;
 
+	ptrdiff_t data_offset = xdp->data - xdp->data_hard_start;
 	dma_addr_t dma_addr  = di->addr + data_offset + MLX5E_XDP_MIN_INLINE;
-	unsigned int dma_len = len - MLX5E_XDP_MIN_INLINE;
-	void *data           = page_address(di->page) + data_offset;
+	unsigned int dma_len = xdp->data_end - xdp->data;
+
+	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE ||
+		     MLX5E_SW2HW_MTU(rq->netdev->mtu) < dma_len)) {
+		rq->stats.xdp_drop++;
+		mlx5e_page_release(rq, di, true);
+		return;
+	}
 
 	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_XDP_TX_WQEBBS))) {
 		if (sq->db.xdp.doorbell) {
@@ -674,13 +680,14 @@ static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 		return;
 	}
 
+	dma_len -= MLX5E_XDP_MIN_INLINE;
 	dma_sync_single_for_device(sq->pdev, dma_addr, dma_len,
 				   PCI_DMA_TODEVICE);
 
 	memset(wqe, 0, sizeof(*wqe));
 
 	/* copy the inline part */
-	memcpy(eseg->inline_hdr_start, data, MLX5E_XDP_MIN_INLINE);
+	memcpy(eseg->inline_hdr_start, xdp->data, MLX5E_XDP_MIN_INLINE);
 	eseg->inline_hdr_sz = cpu_to_be16(MLX5E_XDP_MIN_INLINE);
 
 	dseg = (struct mlx5_wqe_data_seg *)cseg + (MLX5E_XDP_TX_DS_COUNT - 1);
@@ -703,25 +710,29 @@ static inline void mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 }
 
 /* returns true if packet was consumed by xdp */
-static inline bool mlx5e_xdp_handle(struct mlx5e_rq *rq,
-				    const struct bpf_prog *prog,
-				    struct mlx5e_dma_info *di,
-				    void *data, u16 len)
+static inline int mlx5e_xdp_handle(struct mlx5e_rq *rq,
+				   struct mlx5e_dma_info *di,
+				   void *va, u16 *rx_headroom, u32 *len)
 {
+	const struct bpf_prog *prog = READ_ONCE(rq->xdp_prog);
 	struct xdp_buff xdp;
 	u32 act;
 
 	if (!prog)
 		return false;
 
-	xdp.data = data;
-	xdp.data_end = xdp.data + len;
+	xdp.data = va + *rx_headroom;
+	xdp.data_end = xdp.data + *len;
+	xdp.data_hard_start = va;
+
 	act = bpf_prog_run_xdp(prog, &xdp);
 	switch (act) {
 	case XDP_PASS:
+		*rx_headroom = xdp.data - xdp.data_hard_start;
+		*len = xdp.data_end - xdp.data;
 		return false;
 	case XDP_TX:
-		mlx5e_xmit_xdp_frame(rq, di, MLX5_RX_HEADROOM, len);
+		mlx5e_xmit_xdp_frame(rq, di, &xdp);
 		return true;
 	default:
 		bpf_warn_invalid_xdp_action(act);
@@ -740,15 +751,16 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	struct mlx5e_dma_info *di;
 	struct sk_buff *skb;
 	void *va, *data;
+	u16 rx_headroom = rq->rx_headroom;
 	bool consumed;
 
 	di             = &rq->dma_info[wqe_counter];
 	va             = page_address(di->page);
-	data           = va + MLX5_RX_HEADROOM;
+	data           = va + rx_headroom;
 
 	dma_sync_single_range_for_cpu(rq->pdev,
 				      di->addr,
-				      MLX5_RX_HEADROOM,
+				      rx_headroom,
 				      rq->buff.wqe_sz,
 				      DMA_FROM_DEVICE);
 	prefetch(data);
@@ -760,8 +772,7 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	}
 
 	rcu_read_lock();
-	consumed = mlx5e_xdp_handle(rq, READ_ONCE(rq->xdp_prog), di, data,
-				    cqe_bcnt);
+	consumed = mlx5e_xdp_handle(rq, di, va, &rx_headroom, &cqe_bcnt);
 	rcu_read_unlock();
 	if (consumed)
 		return NULL; /* page/packet was consumed by XDP */
@@ -777,7 +788,7 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	page_ref_inc(di->page);
 	mlx5e_page_release(rq, di, true);
 
-	skb_reserve(skb, MLX5_RX_HEADROOM);
+	skb_reserve(skb, rx_headroom);
 	skb_put(skb, cqe_bcnt);
 
 	return skb;

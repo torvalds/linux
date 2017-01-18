@@ -51,6 +51,9 @@
 
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
+#define MLX5E_HW2SW_MTU(hwmtu) ((hwmtu) - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
+#define MLX5E_SW2HW_MTU(swmtu) ((swmtu) + (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
+
 #define MLX5E_MAX_NUM_TC	8
 
 #define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
@@ -369,6 +372,7 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
+	u16                    rx_headroom;
 
 	struct mlx5e_rx_am     am; /* Adaptive Moderation */
 	struct bpf_prog       *xdp_prog;

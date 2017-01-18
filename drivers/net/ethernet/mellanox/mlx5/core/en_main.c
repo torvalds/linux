@@ -343,9 +343,6 @@ static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 	synchronize_irq(mlx5_get_msix_vec(priv->mdev, MLX5_EQ_VEC_ASYNC));
 }
 
-#define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
-#define MLX5E_SW2HW_MTU(swmtu) (swmtu + (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
-
 static inline int mlx5e_get_wqe_mtt_sz(void)
 {
 	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
@@ -534,9 +531,13 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		goto err_rq_wq_destroy;
 	}
 
-	rq->buff.map_dir = DMA_FROM_DEVICE;
-	if (rq->xdp_prog)
+	if (rq->xdp_prog) {
 		rq->buff.map_dir = DMA_BIDIRECTIONAL;
+		rq->rx_headroom = XDP_PACKET_HEADROOM;
+	} else {
+		rq->buff.map_dir = DMA_FROM_DEVICE;
+		rq->rx_headroom = MLX5_RX_HEADROOM;
+	}
 
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -586,7 +587,7 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		byte_count = rq->buff.wqe_sz;
 
 		/* calc the required page order */
-		frag_sz = MLX5_RX_HEADROOM +
+		frag_sz = rq->rx_headroom +
 			  byte_count /* packet data */ +
 			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 		frag_sz = SKB_DATA_ALIGN(frag_sz);
@@ -3152,11 +3153,6 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	int err = 0;
 	bool reset, was_opened;
 	int i;
-
-	if (prog && prog->xdp_adjust_head) {
-		netdev_err(netdev, "Does not support bpf_xdp_adjust_head()\n");
-		return -EOPNOTSUPP;
-	}
 
 	mutex_lock(&priv->state_lock);
 
