@@ -966,7 +966,7 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-int brcmf_bus_start(struct device *dev)
+int brcmf_bus_started(struct device *dev)
 {
 	int ret = -1;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);

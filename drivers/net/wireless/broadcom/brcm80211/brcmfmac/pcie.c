@@ -1572,7 +1572,7 @@ static int brcmf_pcie_attach_bus(struct brcmf_pciedev_info *devinfo)
 	if (ret) {
 		brcmf_err("brcmf_attach failed\n");
 	} else {
-		ret = brcmf_bus_start(&devinfo->pdev->dev);
+		ret = brcmf_bus_started(&devinfo->pdev->dev);
 		if (ret)
 			brcmf_err("dongle is not responding\n");
 	}
