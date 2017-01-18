@@ -42,11 +42,23 @@ enum {
 	MLX5_IB_VENDOR_CLASS2 = 0xa
 };
 
+static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u8 port_num,
+			   struct ib_mad *in_mad)
+{
+	if (in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED &&
+	    in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+		return true;
+	return dev->mdev->port_caps[port_num - 1].has_smi;
+}
+
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad)
 {
 	u8 op_modifier = 0;
+
+	if (!can_do_mad_ifc(dev, port, (struct ib_mad *)in_mad))
+		return -EPERM;
 
 	/* Key check traps can't be generated unless we have in_wc to
 	 * tell us where to send the trap.

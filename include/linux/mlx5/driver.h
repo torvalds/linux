@@ -289,6 +289,7 @@ struct mlx5_port_caps {
 	int	gid_table_len;
 	int	pkey_table_len;
 	u8	ext_port_cap;
+	bool	has_smi;
 };
 
 struct mlx5_cmd_mailbox {

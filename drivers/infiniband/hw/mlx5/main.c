@@ -2533,6 +2533,35 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		ibdev->ib_active = false;
 }
 
+static int set_has_smi_cap(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_hca_vport_context vport_ctx;
+	int err;
+	int port;
+
+	for (port = 1; port <= MLX5_CAP_GEN(dev->mdev, num_ports); port++) {
+		dev->mdev->port_caps[port - 1].has_smi = false;
+		if (MLX5_CAP_GEN(dev->mdev, port_type) ==
+		    MLX5_CAP_PORT_TYPE_IB) {
+			if (MLX5_CAP_GEN(dev->mdev, ib_virt)) {
+				err = mlx5_query_hca_vport_context(dev->mdev, 0,
+								   port, 0,
+								   &vport_ctx);
+				if (err) {
+					mlx5_ib_err(dev, "query_hca_vport_context for port=%d failed %d\n",
+						    port, err);
+					return err;
+				}
+				dev->mdev->port_caps[port - 1].has_smi =
+					vport_ctx.has_smi;
+			} else {
+				dev->mdev->port_caps[port - 1].has_smi = true;
+			}
+		}
+	}
+	return 0;
+}
+
 static void get_ext_port_caps(struct mlx5_ib_dev *dev)
 {
 	int port;
@@ -2555,6 +2584,10 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 
 	dprops = kmalloc(sizeof(*dprops), GFP_KERNEL);
 	if (!dprops)
+		goto out;
+
+	err = set_has_smi_cap(dev);
+	if (err)
 		goto out;
 
 	err = mlx5_ib_query_device(&dev->ib_dev, dprops, &uhw);
