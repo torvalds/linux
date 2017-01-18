@@ -36,7 +36,7 @@ There are several variants of perf script:
 
   'perf script report <script> [args]' to run and display the results
   of <script>.  <script> is the name displayed in the output of 'perf
-  trace --list' i.e. the actual script name minus any language
+  script --list' i.e. the actual script name minus any language
   extension.  The perf.data output from a previous run of 'perf script
   record <script>' is used and should be present for this command to
   succeed.  [args] refers to the (mainly optional) args expected by
@@ -76,7 +76,7 @@ OPTIONS
 	Any command you can specify in a shell.
 
 -D::
---dump-raw-script=::
+--dump-raw-trace=::
         Display verbose dump of the trace data.
 
 -L::

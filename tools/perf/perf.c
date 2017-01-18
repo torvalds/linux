@@ -29,7 +29,6 @@ const char perf_usage_string[] =
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
 
-int use_browser = -1;
 static int use_pager = -1;
 const char *input_name;
 
@@ -329,8 +328,6 @@ static int handle_alias(int *argcp, const char ***argv)
 
 	return ret;
 }
-
-const char perf_version_string[] = PERF_VERSION;
 
 #define RUN_SETUP	(1<<0)
 #define USE_PAGER	(1<<1)
