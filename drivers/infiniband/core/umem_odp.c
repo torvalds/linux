@@ -573,7 +573,8 @@ out:
  * for failure.
  * An -EAGAIN error code is returned when a concurrent mmu notifier prevents
  * the function from completing its task.
- *
+ * An -ENOENT error code indicates that userspace process is being terminated
+ * and mm was already destroyed.
  * @umem: the umem to map and pin
  * @user_virt: the address from which we need to map.
  * @bcnt: the minimal number of bytes to pin and map. The mapping might be
@@ -621,7 +622,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
 
 	owning_mm = get_task_mm(owning_process);
 	if (owning_mm == NULL) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_put_task;
 	}
 
