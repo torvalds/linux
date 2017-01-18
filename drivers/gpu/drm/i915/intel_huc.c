@@ -40,6 +40,10 @@
  * Note that HuC firmware loading must be done before GuC loading.
  */
 
+#define BXT_HUC_FW_MAJOR 01
+#define BXT_HUC_FW_MINOR 07
+#define BXT_BLD_NUM 1398
+
 #define SKL_HUC_FW_MAJOR 01
 #define SKL_HUC_FW_MINOR 07
 #define SKL_BLD_NUM 1398
@@ -52,6 +56,9 @@
 	SKL_HUC_FW_MINOR, SKL_BLD_NUM)
 MODULE_FIRMWARE(I915_SKL_HUC_UCODE);
 
+#define I915_BXT_HUC_UCODE HUC_FW_PATH(bxt, BXT_HUC_FW_MAJOR, \
+	BXT_HUC_FW_MINOR, BXT_BLD_NUM)
+MODULE_FIRMWARE(I915_BXT_HUC_UCODE);
 /**
  * huc_ucode_xfer() - DMA's the firmware
  * @dev_priv: the drm_i915_private device
@@ -154,6 +161,10 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
 		fw_path = I915_SKL_HUC_UCODE;
 		huc_fw->major_ver_wanted = SKL_HUC_FW_MAJOR;
 		huc_fw->minor_ver_wanted = SKL_HUC_FW_MINOR;
+	} else if (IS_BROXTON(dev_priv)) {
+		fw_path = I915_BXT_HUC_UCODE;
+		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
 	}
 
 	huc_fw->path = fw_path;
