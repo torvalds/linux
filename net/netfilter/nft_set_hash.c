@@ -384,7 +384,7 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 		est->size = esize + 2 * sizeof(struct nft_hash_elem *);
 	}
 
-	est->class = NFT_SET_CLASS_O_1;
+	est->lookup = NFT_SET_CLASS_O_1;
 
 	return true;
 }

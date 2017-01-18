@@ -2401,9 +2401,9 @@ nft_select_set_ops(const struct nlattr * const nla[],
 		features &= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_TIMEOUT;
 	}
 
-	bops	   = NULL;
-	best.size  = ~0;
-	best.class = ~0;
+	bops	    = NULL;
+	best.size   = ~0;
+	best.lookup = ~0;
 
 	list_for_each_entry(ops, &nf_tables_set_ops, list) {
 		if ((ops->features & features) != features)
@@ -2413,15 +2413,15 @@ nft_select_set_ops(const struct nlattr * const nla[],
 
 		switch (policy) {
 		case NFT_SET_POL_PERFORMANCE:
-			if (est.class < best.class)
+			if (est.lookup < best.lookup)
 				break;
-			if (est.class == best.class && est.size < best.size)
+			if (est.lookup == best.lookup && est.size < best.size)
 				break;
 			continue;
 		case NFT_SET_POL_MEMORY:
 			if (est.size < best.size)
 				break;
-			if (est.size == best.size && est.class < best.class)
+			if (est.size == best.size && est.lookup < best.lookup)
 				break;
 			continue;
 		default:
