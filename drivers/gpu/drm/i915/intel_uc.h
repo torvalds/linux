@@ -176,6 +176,13 @@ struct intel_guc {
 	struct mutex send_mutex;
 };
 
+struct intel_huc {
+	/* Generic uC firmware management */
+	struct intel_uc_fw fw;
+
+	/* HuC-specific additions */
+};
+
 /* intel_uc.c */
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
@@ -188,6 +195,8 @@ extern void intel_guc_fini(struct drm_i915_private *dev_priv);
 extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
 extern int intel_guc_resume(struct drm_i915_private *dev_priv);
+void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
+	struct intel_uc_fw *uc_fw);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 /* i915_guc_submission.c */
@@ -212,5 +221,10 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
 	return offset;
 }
+
+/* intel_huc.c */
+void intel_huc_init(struct drm_i915_private *dev_priv);
+void intel_huc_fini(struct drm_i915_private  *dev_priv);
+int intel_huc_load(struct drm_i915_private *dev_priv);
 
 #endif

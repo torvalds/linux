@@ -2073,6 +2073,7 @@ struct drm_i915_private {
 
 	struct intel_gvt *gvt;
 
+	struct intel_huc huc;
 	struct intel_guc guc;
 
 	struct intel_csr csr;
@@ -2847,6 +2848,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_GUC(dev_priv)	((dev_priv)->info.has_guc)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
+#define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 
 #define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
 

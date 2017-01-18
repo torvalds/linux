@@ -328,7 +328,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
+u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv)
 {
 	u32 wopcm_size = GUC_WOPCM_TOP;
 
@@ -364,7 +364,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, guc_wopcm_size(dev_priv));
+	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
 	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE);
 
 	/* Enable MIA caching. GuC clock gating is disabled. */
@@ -506,6 +506,7 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 		if (err)
 			goto fail;
 
+		intel_huc_load(dev_priv);
 		err = guc_ucode_xfer(dev_priv);
 		if (!err)
 			break;
@@ -654,7 +655,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		size = uc_fw->header_size + uc_fw->ucode_size;
 
 		/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-		if (size > guc_wopcm_size(dev_priv)) {
+		if (size > intel_guc_wopcm_size(dev_priv)) {
 			DRM_ERROR("Firmware is too large to fit in WOPCM\n");
 			goto fail;
 		}
