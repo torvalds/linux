@@ -52,6 +52,7 @@
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
 		dma-coherent;
+		power-domains = <&scpi_devpd 0>;
 		status = "disabled";
 	};
 
