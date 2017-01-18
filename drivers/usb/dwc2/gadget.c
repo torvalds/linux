@@ -1113,7 +1113,8 @@ dma_error:
 }
 
 static int dwc2_hsotg_handle_unaligned_buf_start(struct dwc2_hsotg *hsotg,
-						 struct dwc2_hsotg_ep *hs_ep, struct dwc2_hsotg_req *hs_req)
+						 struct dwc2_hsotg_ep *hs_ep,
+						 struct dwc2_hsotg_req *hs_req)
 {
 	void *req_buf = hs_req->req.buf;
 
@@ -1143,8 +1144,10 @@ static int dwc2_hsotg_handle_unaligned_buf_start(struct dwc2_hsotg *hsotg,
 	return 0;
 }
 
-static void dwc2_hsotg_handle_unaligned_buf_complete(struct dwc2_hsotg *hsotg,
-						     struct dwc2_hsotg_ep *hs_ep, struct dwc2_hsotg_req *hs_req)
+static void
+dwc2_hsotg_handle_unaligned_buf_complete(struct dwc2_hsotg *hsotg,
+					 struct dwc2_hsotg_ep *hs_ep,
+					 struct dwc2_hsotg_req *hs_req)
 {
 	/* If dma is not being used or buffer was aligned */
 	if (!using_dma(hsotg) || !hs_req->saved_req_buf)
@@ -4449,8 +4452,9 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	/* Add ep0 */
 	hsotg->num_of_eps++;
 
-	hsotg->eps_in[0] = devm_kzalloc(hsotg->dev, sizeof(struct dwc2_hsotg_ep),
-								GFP_KERNEL);
+	hsotg->eps_in[0] = devm_kzalloc(hsotg->dev,
+					sizeof(struct dwc2_hsotg_ep),
+					GFP_KERNEL);
 	if (!hsotg->eps_in[0])
 		return -ENOMEM;
 	/* Same dwc2_hsotg_ep is used in both directions for ep0 */

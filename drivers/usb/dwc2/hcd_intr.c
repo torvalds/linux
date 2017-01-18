@@ -1078,7 +1078,8 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 			dev_vdbg(hsotg->dev, "  Isochronous transfer complete\n");
 		if (qtd->isoc_split_pos == DWC2_HCSPLT_XACTPOS_ALL)
 			halt_status = dwc2_update_isoc_urb_state(hsotg, chan,
-								 chnum, qtd, DWC2_HC_XFER_COMPLETE);
+							chnum, qtd,
+							DWC2_HC_XFER_COMPLETE);
 		dwc2_complete_periodic_xfer(hsotg, chan, chnum, qtd,
 					    halt_status);
 		break;
@@ -1369,7 +1370,7 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 						     DWC2_HC_XFER_URB_COMPLETE);
 			} else {
 				dwc2_release_channel(hsotg, chan, qtd,
-						     DWC2_HC_XFER_NO_HALT_STATUS);
+						DWC2_HC_XFER_NO_HALT_STATUS);
 			}
 			goto handle_nyet_done;
 		}
@@ -1490,7 +1491,7 @@ static void dwc2_hc_babble_intr(struct dwc2_hsotg *hsotg,
 		enum dwc2_halt_status halt_status;
 
 		halt_status = dwc2_update_isoc_urb_state(hsotg, chan, chnum,
-							 qtd, DWC2_HC_XFER_BABBLE_ERR);
+						qtd, DWC2_HC_XFER_BABBLE_ERR);
 		dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 	}
 
@@ -1649,7 +1650,7 @@ static void dwc2_hc_xacterr_intr(struct dwc2_hsotg *hsotg,
 			enum dwc2_halt_status halt_status;
 
 			halt_status = dwc2_update_isoc_urb_state(hsotg, chan,
-								 chnum, qtd, DWC2_HC_XFER_XACT_ERR);
+					 chnum, qtd, DWC2_HC_XFER_XACT_ERR);
 			dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 		}
 		break;
@@ -1684,7 +1685,7 @@ static void dwc2_hc_frmovrun_intr(struct dwc2_hsotg *hsotg,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		halt_status = dwc2_update_isoc_urb_state(hsotg, chan, chnum,
-							 qtd, DWC2_HC_XFER_FRAME_OVERRUN);
+					qtd, DWC2_HC_XFER_FRAME_OVERRUN);
 		dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 		break;
 	}
@@ -1910,7 +1911,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 					"%s: Halt channel %d (assume incomplete periodic transfer)\n",
 					__func__, chnum);
 				dwc2_halt_channel(hsotg, chan, qtd,
-						  DWC2_HC_XFER_PERIODIC_INCOMPLETE);
+					DWC2_HC_XFER_PERIODIC_INCOMPLETE);
 			} else {
 				dev_err(hsotg->dev,
 					"%s: Channel %d - ChHltd set, but reason is unknown\n",
