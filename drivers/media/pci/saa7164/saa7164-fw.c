@@ -305,7 +305,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					break;
 				}
 				if (err_flags & SAA_DEVICE_NO_IMAGE) {
-					printk(KERN_ERR "%s() no first image\n",
+					printk(KERN_ERR "%s() no second image\n",
 						__func__);
 					break;
 				}
