@@ -3356,6 +3356,9 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	wq_init_attr.wq_context = file;
 	wq_init_attr.wq_type = cmd.wq_type;
 	wq_init_attr.event_handler = ib_uverbs_wq_event_handler;
+	if (ucore->inlen >= (offsetof(typeof(cmd), create_flags) +
+			     sizeof(cmd.create_flags)))
+		wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
@@ -3511,7 +3514,7 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 	if (!cmd.attr_mask)
 		return -EINVAL;
 
-	if (cmd.attr_mask > (IB_WQ_STATE | IB_WQ_CUR_STATE))
+	if (cmd.attr_mask > (IB_WQ_STATE | IB_WQ_CUR_STATE | IB_WQ_FLAGS))
 		return -EINVAL;
 
 	wq = idr_read_wq(cmd.wq_handle, file->ucontext);
@@ -3520,6 +3523,10 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 
 	wq_attr.curr_wq_state = cmd.curr_wq_state;
 	wq_attr.wq_state = cmd.wq_state;
+	if (cmd.attr_mask & IB_WQ_FLAGS) {
+		wq_attr.flags = cmd.flags;
+		wq_attr.flags_mask = cmd.flags_mask;
+	}
 	ret = wq->device->modify_wq(wq, &wq_attr, cmd.attr_mask, uhw);
 	put_wq_read(wq);
 	return ret;

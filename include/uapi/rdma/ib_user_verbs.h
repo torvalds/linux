@@ -1061,6 +1061,8 @@ struct ib_uverbs_ex_create_wq  {
 	__u32 cq_handle;
 	__u32 max_wr;
 	__u32 max_sge;
+	__u32 create_flags; /* Use enum ib_wq_flags */
+	__u32 reserved;
 };
 
 struct ib_uverbs_ex_create_wq_resp {
@@ -1089,6 +1091,8 @@ struct ib_uverbs_ex_modify_wq  {
 	__u32 wq_handle;
 	__u32 wq_state;
 	__u32 curr_wq_state;
+	__u32 flags; /* Use enum ib_wq_flags */
+	__u32 flags_mask; /* Use enum ib_wq_flags */
 };
 
 /* Prevent memory allocation rather than max expected size */
