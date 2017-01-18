@@ -305,20 +305,6 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	schedule_work(&fifo->recover.work);
 }
 
-static void
-gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
-		   struct gk104_fifo_chan *chan)
-{
-	int engn;
-	for (engn = 0; engn < fifo->engine_nr; engn++) {
-		if (fifo->engine[engn].engine == engine) {
-			gk104_fifo_recover_engn(fifo, engn);
-			break;
-		}
-	}
-	gk104_fifo_recover_chan(&fifo->base, chan->base.chid);
-}
-
 static const struct nvkm_enum
 gk104_fifo_bind_reason[] = {
 	{ 0x01, "BIND_NOT_UNBOUND" },
@@ -352,27 +338,23 @@ gk104_fifo_sched_reason[] = {
 static void
 gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 {
-	struct gk104_fifo_chan *chan;
-	unsigned long flags;
+	unsigned long flags, engm = 0;
 	u32 engn;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	for (engn = 0; engn < fifo->engine_nr; engn++) {
-		struct nvkm_engine *engine = fifo->engine[engn].engine;
-		int runl = fifo->engine[engn].runl;
 		struct gk104_fifo_engine_status status;
 
 		gk104_fifo_engine_status(fifo, engn, &status);
 		if (!status.busy || !status.chsw)
 			continue;
 
-		list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
-			if (chan->base.chid == status.chan->id && engine) {
-				gk104_fifo_recover(fifo, engine, chan);
-				break;
-			}
-		}
+		engm |= BIT(engn);
 	}
+
+	for_each_set_bit(engn, &engm, fifo->engine_nr)
+		gk104_fifo_recover_engn(fifo, engn);
+
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
