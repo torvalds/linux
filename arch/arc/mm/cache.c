@@ -993,7 +993,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
  *    Coherency transactions
  */
-noinline void arc_ioc_setup(void)
+noinline void __init arc_ioc_setup(void)
 {
 	unsigned int ap_sz;
 
@@ -1023,21 +1023,9 @@ noinline void arc_ioc_setup(void)
 	__dc_enable();
 }
 
-void arc_cache_init(void)
+void __init arc_cache_init_master(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
-	char str[256];
-
-	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
-
-	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
-	 */
-	if (cpu)
-		return;
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
@@ -1105,4 +1093,21 @@ void arc_cache_init(void)
 		__dma_cache_inv = __dma_cache_inv_l1;
 		__dma_cache_wback = __dma_cache_wback_l1;
 	}
+}
+
+void __ref arc_cache_init(void)
+{
+	unsigned int __maybe_unused cpu = smp_processor_id();
+	char str[256];
+
+	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+
+	/*
+	 * Only master CPU needs to execute rest of function:
+	 *  - Assume SMP so all cores will have same cache config so
+	 *    any geomtry checks will be same for all
+	 *  - IOC setup / dma callbacks only need to be setup once
+	 */
+	if (!cpu)
+		arc_cache_init_master();
 }
