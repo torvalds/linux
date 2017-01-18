@@ -485,7 +485,7 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
 static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
-	bool *clear_sw_state = flag;
+	bool clear_sw_state = *(bool *)flag;
 	int i, rc = 1;
 
 	for (i = 0; rc && i < 3; i++)
