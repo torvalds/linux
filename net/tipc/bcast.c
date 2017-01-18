@@ -70,7 +70,7 @@ static struct tipc_bc_base *tipc_bc_base(struct net *net)
 
 int tipc_bcast_get_mtu(struct net *net)
 {
-	return tipc_link_mtu(tipc_bc_sndlink(net));
+	return tipc_link_mtu(tipc_bc_sndlink(net)) - INT_H_SIZE;
 }
 
 /* tipc_bcbase_select_primary(): find a bearer with links to all destinations,
@@ -175,42 +175,101 @@ static void tipc_bcbase_xmit(struct net *net, struct sk_buff_head *xmitq)
 	__skb_queue_purge(&_xmitq);
 }
 
-/* tipc_bcast_xmit - deliver buffer chain to all nodes in cluster
- *                    and to identified node local sockets
+/* tipc_bcast_xmit - broadcast the buffer chain to all external nodes
  * @net: the applicable net namespace
- * @list: chain of buffers containing message
+ * @pkts: chain of buffers containing message
+ * @cong_link_cnt: set to 1 if broadcast link is congested, otherwise 0
  * Consumes the buffer chain.
- * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
+ * Returns 0 if success, otherwise errno: -EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list)
+static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
+			   u16 *cong_link_cnt)
 {
 	struct tipc_link *l = tipc_bc_sndlink(net);
-	struct sk_buff_head xmitq, inputq, rcvq;
+	struct sk_buff_head xmitq;
 	int rc = 0;
 
-	__skb_queue_head_init(&rcvq);
 	__skb_queue_head_init(&xmitq);
-	skb_queue_head_init(&inputq);
-
-	/* Prepare message clone for local node */
-	if (unlikely(!tipc_msg_reassemble(list, &rcvq)))
-		return -EHOSTUNREACH;
-
 	tipc_bcast_lock(net);
 	if (tipc_link_bc_peers(l))
-		rc = tipc_link_xmit(l, list, &xmitq);
+		rc = tipc_link_xmit(l, pkts, &xmitq);
 	tipc_bcast_unlock(net);
+	tipc_bcbase_xmit(net, &xmitq);
+	__skb_queue_purge(pkts);
+	if (rc == -ELINKCONG) {
+		*cong_link_cnt = 1;
+		rc = 0;
+	}
+	return rc;
+}
 
-	/* Don't send to local node if adding to link failed */
-	if (unlikely(rc && (rc != -ELINKCONG))) {
-		__skb_queue_purge(&rcvq);
-		return rc;
+/* tipc_rcast_xmit - replicate and send a message to given destination nodes
+ * @net: the applicable net namespace
+ * @pkts: chain of buffers containing message
+ * @dests: list of destination nodes
+ * @cong_link_cnt: returns number of congested links
+ * @cong_links: returns identities of congested links
+ * Returns 0 if success, otherwise errno
+ */
+static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
+			   struct tipc_nlist *dests, u16 *cong_link_cnt)
+{
+	struct sk_buff_head _pkts;
+	struct u32_item *n, *tmp;
+	u32 dst, selector;
+
+	selector = msg_link_selector(buf_msg(skb_peek(pkts)));
+	__skb_queue_head_init(&_pkts);
+
+	list_for_each_entry_safe(n, tmp, &dests->list, list) {
+		dst = n->value;
+		if (!tipc_msg_pskb_copy(dst, pkts, &_pkts))
+			return -ENOMEM;
+
+		/* Any other return value than -ELINKCONG is ignored */
+		if (tipc_node_xmit(net, &_pkts, dst, selector) == -ELINKCONG)
+			(*cong_link_cnt)++;
+	}
+	return 0;
+}
+
+/* tipc_mcast_xmit - deliver message to indicated destination nodes
+ *                   and to identified node local sockets
+ * @net: the applicable net namespace
+ * @pkts: chain of buffers containing message
+ * @dests: destination nodes for message. Not consumed.
+ * @cong_link_cnt: returns number of encountered congested destination links
+ * @cong_links: returns identities of congested links
+ * Consumes buffer chain.
+ * Returns 0 if success, otherwise errno
+ */
+int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
+		    struct tipc_nlist *dests, u16 *cong_link_cnt)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+	struct sk_buff_head inputq, localq;
+	int rc = 0;
+
+	skb_queue_head_init(&inputq);
+	skb_queue_head_init(&localq);
+
+	/* Clone packets before they are consumed by next call */
+	if (dests->local && !tipc_msg_reassemble(pkts, &localq)) {
+		rc = -ENOMEM;
+		goto exit;
 	}
 
-	/* Broadcast to all nodes, inluding local node */
-	tipc_bcbase_xmit(net, &xmitq);
-	tipc_sk_mcast_rcv(net, &rcvq, &inputq);
-	__skb_queue_purge(list);
+	if (dests->remote) {
+		if (!bb->bcast_support)
+			rc = tipc_rcast_xmit(net, pkts, dests, cong_link_cnt);
+		else
+			rc = tipc_bcast_xmit(net, pkts, cong_link_cnt);
+	}
+
+	if (dests->local)
+		tipc_sk_mcast_rcv(net, &localq, &inputq);
+exit:
+	__skb_queue_purge(pkts);
 	return rc;
 }
 

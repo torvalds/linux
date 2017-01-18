@@ -740,32 +740,43 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct net *net = sock_net(sk);
 	int mtu = tipc_bcast_get_mtu(net);
+	u32 domain = addr_domain(net, TIPC_CLUSTER_SCOPE);
 	struct sk_buff_head pkts;
+	struct tipc_nlist dsts;
 	int rc;
 
+	/* Block or return if any destination link is congested */
 	rc = tipc_wait_for_cond(sock, &timeout, !tsk->cong_link_cnt);
 	if (unlikely(rc))
 		return rc;
 
+	/* Lookup destination nodes */
+	tipc_nlist_init(&dsts, tipc_own_addr(net));
+	tipc_nametbl_lookup_dst_nodes(net, seq->type, seq->lower,
+				      seq->upper, domain, &dsts);
+	if (!dsts.local && !dsts.remote)
+		return -EHOSTUNREACH;
+
+	/* Build message header */
 	msg_set_type(hdr, TIPC_MCAST_MSG);
+	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
 	msg_set_lookup_scope(hdr, TIPC_CLUSTER_SCOPE);
 	msg_set_destport(hdr, 0);
 	msg_set_destnode(hdr, 0);
 	msg_set_nametype(hdr, seq->type);
 	msg_set_namelower(hdr, seq->lower);
 	msg_set_nameupper(hdr, seq->upper);
-	msg_set_hdr_sz(hdr, MCAST_H_SIZE);
 
+	/* Build message as chain of buffers */
 	skb_queue_head_init(&pkts);
 	rc = tipc_msg_build(hdr, msg, 0, dlen, mtu, &pkts);
-	if (unlikely(rc != dlen))
-		return rc;
 
-	rc = tipc_bcast_xmit(net, &pkts);
-	if (unlikely(rc == -ELINKCONG)) {
-		tsk->cong_link_cnt = 1;
-		rc = 0;
-	}
+	/* Send message if build was successful */
+	if (unlikely(rc == dlen))
+		rc = tipc_mcast_xmit(net, &pkts, &dsts,
+				     &tsk->cong_link_cnt);
+
+	tipc_nlist_purge(&dsts);
 
 	return rc ? rc : dlen;
 }
