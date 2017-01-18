@@ -220,6 +220,10 @@ struct wr_list {
 	u16	next;
 };
 
+enum mlx5_ib_rq_flags {
+	MLX5_IB_RQ_CVLAN_STRIPPING	= 1 << 0,
+};
+
 struct mlx5_ib_wq {
 	u64		       *wrid;
 	u32		       *wr_data;
@@ -308,6 +312,7 @@ struct mlx5_ib_rq {
 	struct mlx5_db		*doorbell;
 	u32			tirn;
 	u8			state;
+	u32			flags;
 };
 
 struct mlx5_ib_sq {
@@ -392,6 +397,7 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
 	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
 	MLX5_IB_QP_RSS				= 1 << 8,
+	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
 };
 
 struct mlx5_umr_wr {
