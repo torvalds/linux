@@ -57,7 +57,6 @@ static struct dsa_switch_tree *dsa_add_dst(u32 tree)
 	if (!dst)
 		return NULL;
 	dst->tree = tree;
-	dst->cpu_switch = -1;
 	INIT_LIST_HEAD(&dst->list);
 	list_add_tail(&dsa_switch_trees, &dst->list);
 	kref_init(&dst->refcount);
@@ -448,8 +447,8 @@ static int dsa_cpu_parse(struct device_node *port, u32 index,
 	if (!dst->master_netdev)
 		dst->master_netdev = ethernet_dev;
 
-	if (dst->cpu_switch == -1) {
-		dst->cpu_switch = ds->index;
+	if (!dst->cpu_switch) {
+		dst->cpu_switch = ds;
 		dst->cpu_port = index;
 	}
 
