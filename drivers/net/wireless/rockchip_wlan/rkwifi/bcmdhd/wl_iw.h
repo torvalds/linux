@@ -130,6 +130,10 @@ extern void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data);
 extern int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats);
 int wl_iw_attach(struct net_device *dev, void * dhdp);
 int wl_iw_send_priv_event(struct net_device *dev, char *flag);
+#ifdef WL_ESCAN
+int wl_iw_handle_scanresults_ies(char **event_p, char *end,
+	struct iw_request_info *info, wl_bss_info_t *bi);
+#endif
 
 void wl_iw_detach(void);
 

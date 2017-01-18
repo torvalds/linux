@@ -12299,7 +12299,7 @@ static s32 wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 
 	}
 	if (!ndev || (!wl_get_drv_status(cfg, SCANNING, ndev) && !cfg->sched_scan_running)) {
-		WL_ERR(("escan is not ready ndev %p drv_status 0x%x e_type %d e_states %d\n",
+		WL_DBG(("escan is not ready ndev %p drv_status 0x%x e_type %d e_states %d\n",
 			ndev, wl_get_drv_status(cfg, SCANNING, ndev),
 			ntoh32(e->event_type), ntoh32(e->status)));
 		goto exit;

@@ -69,34 +69,7 @@
 #define dtohchanspec(i) i
 #endif
 
-/* message levels */
-#define ANDROID_ERROR_LEVEL	0x0001
-#define ANDROID_TRACE_LEVEL	0x0002
-#define ANDROID_INFO_LEVEL	0x0004
-
 uint android_msg_level = ANDROID_ERROR_LEVEL;
-
-#define ANDROID_ERROR(x) \
-	do { \
-		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
-			printk(KERN_ERR "ANDROID-ERROR) ");	\
-			printk x; \
-		} \
-	} while (0)
-#define ANDROID_TRACE(x) \
-	do { \
-		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
-			printk(KERN_ERR "ANDROID-TRACE) ");	\
-			printk x; \
-		} \
-	} while (0)
-#define ANDROID_INFO(x) \
-	do { \
-		if (android_msg_level & ANDROID_INFO_LEVEL) { \
-			printk(KERN_ERR "ANDROID-INFO) ");	\
-			printk x; \
-		} \
-	} while (0)
 
 /*
  * Android private command strings, PLEASE define new private commands here

@@ -81,6 +81,9 @@
 #include <dhd_bus.h>
 #include <dhd_proto.h>
 #include <dhd_config.h>
+#ifdef WL_ESCAN
+#include <wl_escan.h>
+#endif
 #include <dhd_dbg.h>
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
@@ -5714,17 +5717,35 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 			goto done;
 		}
 		ioc.cmd = compat_ioc.cmd;
-		ioc.buf = compat_ptr(compat_ioc.buf);
-		ioc.len = compat_ioc.len;
-		ioc.set = compat_ioc.set;
-		ioc.used = compat_ioc.used;
-		ioc.needed = compat_ioc.needed;
-		/* To differentiate between wl and dhd read 4 more byes */
-		if ((copy_from_user(&ioc.driver, (char *)ifr->ifr_data + sizeof(compat_wl_ioctl_t),
-			sizeof(uint)) != 0)) {
-			ret = BCME_BADADDR;
-			goto done;
-		}
+		if (ioc.cmd & WLC_SPEC_FLAG) {
+			memset(&ioc, 0, sizeof(ioc));
+			/* Copy the ioc control structure part of ioctl request */
+			if (copy_from_user(&ioc, ifr->ifr_data, sizeof(wl_ioctl_t))) {
+				ret = BCME_BADADDR;
+				goto done;
+			}
+			ioc.cmd &= ~WLC_SPEC_FLAG; /* Clear the FLAG */
+
+			/* To differentiate between wl and dhd read 4 more byes */
+			if ((copy_from_user(&ioc.driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
+				sizeof(uint)) != 0)) {
+				ret = BCME_BADADDR;
+				goto done;
+			}
+
+		} else { /* ioc.cmd & WLC_SPEC_FLAG */
+			ioc.buf = compat_ptr(compat_ioc.buf);
+			ioc.len = compat_ioc.len;
+			ioc.set = compat_ioc.set;
+			ioc.used = compat_ioc.used;
+			ioc.needed = compat_ioc.needed;
+			/* To differentiate between wl and dhd read 4 more byes */
+			if ((copy_from_user(&ioc.driver, (char *)ifr->ifr_data + sizeof(compat_wl_ioctl_t),
+				sizeof(uint)) != 0)) {
+				ret = BCME_BADADDR;
+				goto done;
+			}
+		} /* ioc.cmd & WLC_SPEC_FLAG */
 	} else
 #endif /* CONFIG_COMPAT */
 	{
@@ -5733,7 +5754,9 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 			ret = BCME_BADADDR;
 			goto done;
 		}
-
+#ifdef CONFIG_COMPAT
+		ioc.cmd &= ~WLC_SPEC_FLAG; /* make sure it was clear when it isn't a compat task*/
+#endif
 		/* To differentiate between wl and dhd read 4 more byes */
 		if ((copy_from_user(&ioc.driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
 			sizeof(uint)) != 0)) {
@@ -7221,6 +7244,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		}
 		dhd_state |= DHD_ATTACH_STATE_WL_ATTACH;
 	}
+#ifdef WL_ESCAN
+	wl_escan_attach(net, (void *)&dhd->pub);
+#endif
 #endif /* defined(WL_WIRELESS_EXT) */
 
 #ifdef SHOW_LOGTRACE
@@ -8792,6 +8818,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef WLTDLS
 	setbit(eventmask, WLC_E_TDLS_PEER_EVENT);
 #endif /* WLTDLS */
+#ifdef WL_ESCAN
+	setbit(eventmask, WLC_E_ESCAN_RESULT);
+#endif
 #ifdef WL_CFG80211
 	setbit(eventmask, WLC_E_ESCAN_RESULT);
 	setbit(eventmask, WLC_E_AP_STARTED);
@@ -9663,6 +9692,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 		/* Detatch and unlink in the iw */
 		wl_iw_detach();
 	}
+#ifdef WL_ESCAN
+	wl_escan_detach();
+#endif
 #endif /* defined(WL_WIRELESS_EXT) */
 
 	/* delete all interfaces, start with virtual  */
@@ -12432,7 +12464,7 @@ bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret)
 	net = dhd_idx2net(dhdp, ifidx);
 	if (!net) {
 		DHD_ERROR(("%s : Invalid index : %d\n", __FUNCTION__, ifidx));
-		return -EINVAL;
+		return FALSE;
 	}
 
 	return dhd_check_hang(net, dhdp, ret);

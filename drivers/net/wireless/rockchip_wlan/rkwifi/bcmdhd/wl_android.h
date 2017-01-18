@@ -49,6 +49,33 @@
  * or cfg, define them as static in wl_android.c
  */
 
+/* message levels */
+#define ANDROID_ERROR_LEVEL	0x0001
+#define ANDROID_TRACE_LEVEL	0x0002
+#define ANDROID_INFO_LEVEL	0x0004
+
+#define ANDROID_ERROR(x) \
+	do { \
+		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
+			printk(KERN_ERR "ANDROID-ERROR) ");	\
+			printk x; \
+		} \
+	} while (0)
+#define ANDROID_TRACE(x) \
+	do { \
+		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
+			printk(KERN_ERR "ANDROID-TRACE) ");	\
+			printk x; \
+		} \
+	} while (0)
+#define ANDROID_INFO(x) \
+	do { \
+		if (android_msg_level & ANDROID_INFO_LEVEL) { \
+			printk(KERN_ERR "ANDROID-INFO) ");	\
+			printk x; \
+		} \
+	} while (0)
+
 /**
  * wl_android_init will be called from module init function (dhd_module_init now), similarly
  * wl_android_exit will be called from module exit function (dhd_module_cleanup now)

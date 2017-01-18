@@ -72,8 +72,8 @@ DHDCFLAGS += -DSTATIC_WL_PRIV_STRUCT -DENHANCED_STATIC_BUF
 endif
 
 ifneq ($(CONFIG_WIRELESS_EXT),)
-DHDOFILES += wl_iw.o
-DHDCFLAGS += -DSOFTAP -DWL_WIRELESS_EXT -DUSE_IW
+DHDOFILES += wl_iw.o wl_escan.o
+DHDCFLAGS += -DSOFTAP -DWL_WIRELESS_EXT -DUSE_IW -DWL_ESCAN
 endif
 ifneq ($(CONFIG_CFG80211),)
 DHDOFILES += wl_cfg80211.o wl_cfgp2p.o wl_linux_mon.o wl_cfg_btcoex.o

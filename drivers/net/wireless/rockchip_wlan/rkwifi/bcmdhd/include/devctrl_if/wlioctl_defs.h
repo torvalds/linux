@@ -796,6 +796,7 @@
 #define WLC_DUMP_RATESET			322
 #define WLC_ECHO				323
 #define WLC_LAST				324
+#define WLC_SPEC_FLAG			0x80000000 /* For some special IOCTL */
 #ifndef EPICTRL_COOKIE
 #define EPICTRL_COOKIE		0xABADCEDE
 #endif

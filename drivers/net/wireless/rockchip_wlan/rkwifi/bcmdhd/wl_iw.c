@@ -46,6 +46,9 @@
 #include <wlioctl_utils.h>
 #endif
 #include <wl_android.h>
+#ifdef WL_ESCAN
+#include <wl_escan.h>
+#endif
 
 typedef const struct si_pub	si_t;
 
@@ -129,7 +132,7 @@ extern int dhd_wait_pend8021x(struct net_device *dev);
 #define IW_EVENT_IDX(cmd)	((cmd) - IWEVFIRST)
 #endif /* WIRELESS_EXT < 19 */
 
-
+#ifndef WL_ESCAN
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define DAEMONIZE(a)	do { \
 		allow_signal(SIGKILL);	\
@@ -183,6 +186,7 @@ iscan_info_t *g_iscan = NULL;
 static void wl_iw_timerfunc(ulong data);
 static void wl_iw_set_event_mask(struct net_device *dev);
 static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action);
+#endif /* WL_ESCAN */
 
 /* priv_link becomes netdev->priv and is the link between netdev and wlif struct */
 typedef struct priv_link {
@@ -239,7 +243,11 @@ dev_wlc_ioctl(
 	int ret;
 
 	memset(&ioc, 0, sizeof(ioc));
+#ifdef CONFIG_COMPAT
+	ioc.cmd = cmd | WLC_SPEC_FLAG;
+#else
 	ioc.cmd = cmd;
+#endif
 	ioc.buf = arg;
 	ioc.len = len;
 
@@ -280,6 +288,7 @@ dev_wlc_intvar_set(
 	return (dev_wlc_ioctl(dev, WLC_SET_VAR, buf, len));
 }
 
+#ifndef WL_ESCAN
 static int
 dev_iw_iovar_setbuf(
 	struct net_device *dev,
@@ -315,6 +324,7 @@ dev_iw_iovar_getbuf(
 
 	return (dev_wlc_ioctl(dev, WLC_GET_VAR, bufptr, buflen));
 }
+#endif
 
 #if WIRELESS_EXT > 17
 static int
@@ -902,6 +912,7 @@ wl_iw_get_range(
 	return 0;
 }
 
+#ifndef WL_ESCAN
 static int
 rssi_to_qual(int rssi)
 {
@@ -918,6 +929,7 @@ rssi_to_qual(int rssi)
 	else
 		return 5;
 }
+#endif /* WL_ESCAN */
 
 static int
 wl_iw_set_spy(
@@ -1074,6 +1086,7 @@ wl_iw_mlme(
 }
 #endif /* WIRELESS_EXT > 17 */
 
+#ifndef WL_ESCAN
 static int
 wl_iw_get_aplist(
 	struct net_device *dev,
@@ -1221,8 +1234,10 @@ wl_iw_iscan_get_aplist(
 
 	return 0;
 }
+#endif
 
 #if WIRELESS_EXT > 13
+#ifndef WL_ESCAN
 static int
 wl_iw_set_scan(
 	struct net_device *dev,
@@ -1304,6 +1319,7 @@ wl_iw_iscan_set_scan(
 
 	return 0;
 }
+#endif /* WL_ESCAN */
 
 #if WIRELESS_EXT > 17
 static bool
@@ -1352,7 +1368,10 @@ ie_is_wps_ie(uint8 **wpsie, uint8 **tlvs, int *tlvs_len)
 #endif /* WIRELESS_EXT > 17 */
 
 
-static int
+#ifndef WL_ESCAN
+static
+#endif
+int
 wl_iw_handle_scanresults_ies(char **event_p, char *end,
 	struct iw_request_info *info, wl_bss_info_t *bi)
 {
@@ -1420,6 +1439,7 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 	return 0;
 }
 
+#ifndef WL_ESCAN
 static int
 wl_iw_get_scan(
 	struct net_device *dev,
@@ -1681,10 +1701,11 @@ wl_iw_iscan_get_scan(
 
 	dwrq->length = event - extra;
 	dwrq->flags = 0;	/* todo */
+	WL_SCAN(("%s: apcnt=%d\n", __FUNCTION__, apcnt));
 
 	return 0;
 }
-
+#endif /* WL_ESCAN */
 #endif /* WIRELESS_EXT > 13 */
 
 
@@ -2953,10 +2974,19 @@ static const iw_handler wl_iw_handler[] =
 #else
 	(iw_handler) NULL,			/* -- hole -- */
 #endif
+#ifdef WL_ESCAN
+	(iw_handler) NULL,			/* SIOCGIWAPLIST */
+#else
 	(iw_handler) wl_iw_iscan_get_aplist,	/* SIOCGIWAPLIST */
+#endif
 #if WIRELESS_EXT > 13
+#ifdef WL_ESCAN
+	(iw_handler) wl_escan_set_scan,	/* SIOCSIWSCAN */
+	(iw_handler) wl_escan_get_scan,	/* SIOCGIWSCAN */
+#else
 	(iw_handler) wl_iw_iscan_set_scan,	/* SIOCSIWSCAN */
 	(iw_handler) wl_iw_iscan_get_scan,	/* SIOCGIWSCAN */
+#endif
 #else	/* WIRELESS_EXT > 13 */
 	(iw_handler) NULL,			/* SIOCSIWSCAN */
 	(iw_handler) NULL,			/* SIOCGIWSCAN */
@@ -3095,9 +3125,11 @@ wl_iw_ioctl(
 
 #if WIRELESS_EXT > 13
 	case SIOCGIWSCAN:
+#ifndef WL_ESCAN
 	if (g_iscan)
 		max_tokens = wrq->u.data.length;
 	else
+#endif
 		max_tokens = IW_SCAN_MAX_DATA;
 		break;
 #endif /* WIRELESS_EXT > 13 */
@@ -3377,6 +3409,13 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	}
 #endif /* WIRELESS_EXT > 17 */
 
+#ifdef WL_ESCAN
+	case WLC_E_ESCAN_RESULT:
+		WL_TRACE(("event WLC_E_ESCAN_RESULT\n"));
+		wl_escan_event(dev, e, data);
+		break;
+#else
+
 	case WLC_E_SCAN_COMPLETE:
 #if WIRELESS_EXT > 14
 		cmd = SIOCGIWSCAN;
@@ -3388,6 +3427,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 			(g_iscan->iscan_state != ISCAN_STATE_IDLE))
 			up(&g_iscan->sysioc_sem);
 		break;
+#endif
 
 	default:
 		/* Cannot translate event */
@@ -3395,11 +3435,13 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	}
 
 	if (cmd) {
+#ifndef WL_ESCAN
 		if (cmd == SIOCGIWSCAN) {
 			if ((!g_iscan) || (g_iscan->sysioc_pid < 0)) {
 				wireless_send_event(dev, cmd, &wrqu, NULL);
 			};
 		} else
+#endif
 			wireless_send_event(dev, cmd, &wrqu, extra);
 	}
 
@@ -3597,6 +3639,7 @@ done:
 	return res;
 }
 
+#ifndef WL_ESCAN
 static void
 wl_iw_timerfunc(ulong data)
 {
@@ -3810,10 +3853,12 @@ _iscan_sysioc_thread(void *data)
 	printf("%s: was terminated\n", __FUNCTION__);
 	complete_and_exit(&iscan->sysioc_exited, 0);
 }
+#endif /* WL_ESCAN */
 
 int
 wl_iw_attach(struct net_device *dev, void * dhdp)
 {
+#ifndef WL_ESCAN
 	iscan_info_t *iscan = NULL;
 
 	printf("%s: Enter\n", __FUNCTION__);
@@ -3851,11 +3896,13 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 #endif
 	if (iscan->sysioc_pid < 0)
 		return -ENOMEM;
+#endif /* WL_ESCAN */
 	return 0;
 }
 
 void wl_iw_detach(void)
 {
+#ifndef WL_ESCAN
 	iscan_buf_t  *buf;
 	iscan_info_t *iscan = g_iscan;
 	if (!iscan)
@@ -3872,6 +3919,7 @@ void wl_iw_detach(void)
 	}
 	kfree(iscan);
 	g_iscan = NULL;
+#endif
 }
 
 #endif /* USE_IW */
