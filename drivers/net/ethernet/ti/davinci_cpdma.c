@@ -835,8 +835,8 @@ EXPORT_SYMBOL_GPL(cpdma_chan_get_min_rate);
  */
 int cpdma_chan_set_rate(struct cpdma_chan *ch, u32 rate)
 {
-	struct cpdma_ctlr *ctlr = ch->ctlr;
 	unsigned long flags, ch_flags;
+	struct cpdma_ctlr *ctlr;
 	int ret, prio_mode;
 	u32 rmask;
 
@@ -846,6 +846,7 @@ int cpdma_chan_set_rate(struct cpdma_chan *ch, u32 rate)
 	if (ch->rate == rate)
 		return rate;
 
+	ctlr = ch->ctlr;
 	spin_lock_irqsave(&ctlr->lock, flags);
 	spin_lock_irqsave(&ch->lock, ch_flags);
 
