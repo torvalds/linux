@@ -2288,7 +2288,7 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 }
 
 int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
-		    int nowait, u32 portid)
+		    u32 portid)
 {
 	int err;
 	struct mr6_table *mrt;
@@ -2314,11 +2314,6 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		struct ipv6hdr *iph;
 		struct net_device *dev;
 		int vif;
-
-		if (nowait) {
-			read_unlock(&mrt_lock);
-			return -EAGAIN;
-		}
 
 		dev = skb->dev;
 		if (!dev || (vif = ip6mr_find_vif(mrt, dev)) < 0) {
@@ -2357,7 +2352,7 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		return err;
 	}
 
-	if (!nowait && (rtm->rtm_flags&RTM_F_NOTIFY))
+	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		cache->mfc_flags |= MFC_NOTIFY;
 
 	err = __ip6mr_fill_mroute(mrt, skb, cache, rtm);
