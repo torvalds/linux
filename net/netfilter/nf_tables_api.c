@@ -3898,7 +3898,7 @@ static int nft_flush_set(const struct nft_ctx *ctx,
 	if (!trans)
 		return -ENOMEM;
 
-	if (!set->ops->deactivate_one(ctx->net, set, elem->priv)) {
+	if (!set->ops->flush(ctx->net, set, elem->priv)) {
 		err = -ENOENT;
 		goto err1;
 	}
