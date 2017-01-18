@@ -4354,6 +4354,12 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 
 	resp.max_wq_type_rq = attr.max_wq_type_rq;
 	resp.response_length += sizeof(resp.max_wq_type_rq);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.raw_packet_caps))
+		goto end;
+
+	resp.raw_packet_caps = attr.raw_packet_caps;
+	resp.response_length += sizeof(resp.raw_packet_caps);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;
