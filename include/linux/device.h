@@ -1144,6 +1144,13 @@ extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 
+static inline int dev_num_vf(struct device *dev)
+{
+	if (dev->bus && dev->bus->num_vf)
+		return dev->bus->num_vf(dev);
+	return 0;
+}
+
 /*
  * Root device objects for grouping under /sys/devices
  */

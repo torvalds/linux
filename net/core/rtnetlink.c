@@ -837,8 +837,7 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 static inline int rtnl_vfinfo_size(const struct net_device *dev,
 				   u32 ext_filter_mask)
 {
-	if (dev->dev.parent && dev_is_pci(dev->dev.parent) &&
-	    (ext_filter_mask & RTEXT_FILTER_VF)) {
+	if (dev->dev.parent && (ext_filter_mask & RTEXT_FILTER_VF)) {
 		int num_vfs = dev_num_vf(dev->dev.parent);
 		size_t size = nla_total_size(0);
 		size += num_vfs *
