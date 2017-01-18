@@ -67,7 +67,7 @@ static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(dst == NULL))
 		goto out_drop;
-	ds = dst->ds[0];
+	ds = dst->cpu_switch;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (skb == NULL)

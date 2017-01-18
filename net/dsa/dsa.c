@@ -868,7 +868,7 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 			dsa_switch_destroy(ds);
 	}
 
-	dsa_cpu_port_ethtool_restore(dst->ds[0]);
+	dsa_cpu_port_ethtool_restore(dst->cpu_switch);
 
 	dev_put(dst->master_netdev);
 }

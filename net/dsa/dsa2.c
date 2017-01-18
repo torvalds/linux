@@ -377,8 +377,8 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	if (dst->ds[0]) {
-		err = dsa_cpu_port_ethtool_setup(dst->ds[0]);
+	if (dst->cpu_switch) {
+		err = dsa_cpu_port_ethtool_setup(dst->cpu_switch);
 		if (err)
 			return err;
 	}
@@ -418,8 +418,8 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 		dsa_ds_unapply(dst, ds);
 	}
 
-	if (dst->ds[0])
-		dsa_cpu_port_ethtool_restore(dst->ds[0]);
+	if (dst->cpu_switch)
+		dsa_cpu_port_ethtool_restore(dst->cpu_switch);
 
 	pr_info("DSA: tree %d unapplied\n", dst->tree);
 	dst->applied = false;
