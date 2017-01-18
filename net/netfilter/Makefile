@@ -93,6 +93,7 @@ obj-$(CONFIG_NFT_REJECT) 	+= nft_reject.o
 obj-$(CONFIG_NFT_REJECT_INET)	+= nft_reject_inet.o
 obj-$(CONFIG_NFT_SET_RBTREE)	+= nft_set_rbtree.o
 obj-$(CONFIG_NFT_SET_HASH)	+= nft_set_hash.o
+obj-$(CONFIG_NFT_SET_BITMAP)	+= nft_set_bitmap.o
 obj-$(CONFIG_NFT_COUNTER)	+= nft_counter.o
 obj-$(CONFIG_NFT_LOG)		+= nft_log.o
 obj-$(CONFIG_NFT_MASQ)		+= nft_masq.o

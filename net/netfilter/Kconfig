@@ -509,6 +509,12 @@ config NFT_SET_HASH
 	  This option adds the "hash" set type that is used to build one-way
 	  mappings between matchings and actions.
 
+config NFT_SET_BITMAP
+	tristate "Netfilter nf_tables bitmap set module"
+	help
+	  This option adds the "bitmap" set type that is used to build sets
+	  whose keys are smaller or equal to 16 bits.
+
 config NFT_COUNTER
 	tristate "Netfilter nf_tables counter module"
 	help
