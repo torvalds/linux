@@ -282,6 +282,8 @@ void perf_hpp_list__column_register(struct perf_hpp_list *list,
 				    struct perf_hpp_fmt *format);
 void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
 					struct perf_hpp_fmt *format);
+void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
+				       struct perf_hpp_fmt *format);
 
 static inline void perf_hpp__column_register(struct perf_hpp_fmt *format)
 {
@@ -291,6 +293,11 @@ static inline void perf_hpp__column_register(struct perf_hpp_fmt *format)
 static inline void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
 {
 	perf_hpp_list__register_sort_field(&perf_hpp_list, format);
+}
+
+static inline void perf_hpp__prepend_sort_field(struct perf_hpp_fmt *format)
+{
+	perf_hpp_list__prepend_sort_field(&perf_hpp_list, format);
 }
 
 #define perf_hpp_list__for_each_format(_list, format) \

@@ -521,6 +521,12 @@ void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
 	list_add_tail(&format->sort_list, &list->sorts);
 }
 
+void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
+				       struct perf_hpp_fmt *format)
+{
+	list_add(&format->sort_list, &list->sorts);
+}
+
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
 	list_del(&format->list);
