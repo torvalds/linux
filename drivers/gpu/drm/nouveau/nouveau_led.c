@@ -102,6 +102,7 @@ nouveau_led_init(struct drm_device *dev)
 	ret = led_classdev_register(dev->dev, &drm->led->led);
 	if (ret) {
 		kfree(drm->led);
+		drm->led = NULL;
 		return ret;
 	}
 
