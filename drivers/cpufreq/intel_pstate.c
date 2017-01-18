@@ -2153,6 +2153,20 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 {
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
+	struct perf_limits *perf_limits;
+
+	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE)
+		perf_limits = &performance_limits;
+	else
+		perf_limits = &powersave_limits;
+
+	update_turbo_state();
+	policy->cpuinfo.max_freq = perf_limits->turbo_disabled ||
+					perf_limits->no_turbo ?
+					cpu->pstate.max_freq :
+					cpu->pstate.turbo_freq;
+
 	cpufreq_verify_within_cpu_limits(policy);
 
 	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
