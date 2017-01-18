@@ -13,6 +13,18 @@ struct ms_hyperv_info {
 
 extern struct ms_hyperv_info ms_hyperv;
 
+/*
+ * Declare the MSR used to setup pages used to communicate with the hypervisor.
+ */
+union hv_x64_msr_hypercall_contents {
+	u64 as_uint64;
+	struct {
+		u64 enable:1;
+		u64 reserved:11;
+		u64 guest_physical_address:52;
+	};
+};
+
 void hyperv_callback_vector(void);
 #ifdef CONFIG_TRACING
 #define trace_hyperv_callback_vector hyperv_callback_vector
