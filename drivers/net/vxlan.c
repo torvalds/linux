@@ -1951,7 +1951,7 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 
 static int encap_bypass_if_local(struct sk_buff *skb, struct net_device *dev,
 				 struct vxlan_dev *vxlan, union vxlan_addr *daddr,
-				 __be32 dst_port, __be32 vni, struct dst_entry *dst,
+				 __be16 dst_port, __be32 vni, struct dst_entry *dst,
 				 u32 rt_flags)
 {
 #if IS_ENABLED(CONFIG_IPV6)
