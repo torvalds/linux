@@ -36,7 +36,6 @@
 /* The one and only */
 struct hv_context hv_context = {
 	.synic_initialized	= false,
-	.hypercall_page		= NULL,
 };
 
 #define HV_TIMER_FREQUENCY (10 * 1000 * 1000) /* 100ns period */
@@ -87,52 +86,6 @@ static int query_hypervisor_info(void)
 	}
 	return max_leaf;
 }
-
-/*
- * hv_do_hypercall- Invoke the specified hypercall
- */
-u64 hv_do_hypercall(u64 control, void *input, void *output)
-{
-	u64 input_address = (input) ? virt_to_phys(input) : 0;
-	u64 output_address = (output) ? virt_to_phys(output) : 0;
-	void *hypercall_page = hv_context.hypercall_page;
-#ifdef CONFIG_X86_64
-	u64 hv_status = 0;
-
-	if (!hypercall_page)
-		return (u64)ULLONG_MAX;
-
-	__asm__ __volatile__("mov %0, %%r8" : : "r" (output_address) : "r8");
-	__asm__ __volatile__("call *%3" : "=a" (hv_status) :
-			     "c" (control), "d" (input_address),
-			     "m" (hypercall_page));
-
-	return hv_status;
-
-#else
-
-	u32 control_hi = control >> 32;
-	u32 control_lo = control & 0xFFFFFFFF;
-	u32 hv_status_hi = 1;
-	u32 hv_status_lo = 1;
-	u32 input_address_hi = input_address >> 32;
-	u32 input_address_lo = input_address & 0xFFFFFFFF;
-	u32 output_address_hi = output_address >> 32;
-	u32 output_address_lo = output_address & 0xFFFFFFFF;
-
-	if (!hypercall_page)
-		return (u64)ULLONG_MAX;
-
-	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_hi),
-			      "=a"(hv_status_lo) : "d" (control_hi),
-			      "a" (control_lo), "b" (input_address_hi),
-			      "c" (input_address_lo), "D"(output_address_hi),
-			      "S"(output_address_lo), "m" (hypercall_page));
-
-	return hv_status_lo | ((u64)hv_status_hi << 32);
-#endif /* !x86_64 */
-}
-EXPORT_SYMBOL_GPL(hv_do_hypercall);
 
 #ifdef CONFIG_X86_64
 static u64 read_hv_clock_tsc(struct clocksource *arg)
@@ -217,8 +170,6 @@ int hv_init(void)
 
 	if (!hypercall_msr.enable)
 		return -ENOTSUPP;
-
-	hv_context.hypercall_page = hv_hypercall_pg;
 
 #ifdef CONFIG_X86_64
 	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
@@ -465,9 +416,6 @@ int hv_synic_init(unsigned int cpu)
 	union hv_synic_sint shared_sint;
 	union hv_synic_scontrol sctrl;
 	u64 vp_index;
-
-	if (!hv_context.hypercall_page)
-		return -EFAULT;
 
 	/* Check the version */
 	rdmsrl(HV_X64_MSR_SVERSION, version);

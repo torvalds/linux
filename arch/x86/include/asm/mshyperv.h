@@ -83,6 +83,5 @@ void hv_remove_crash_handler(void);
 
 #if IS_ENABLED(CONFIG_HYPERV)
 void hyperv_init(void);
-extern void *hv_hypercall_pg;
 #endif
 #endif
