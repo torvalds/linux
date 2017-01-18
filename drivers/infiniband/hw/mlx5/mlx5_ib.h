@@ -541,6 +541,10 @@ struct mlx5_cache_ent {
 	struct dentry	       *dir;
 	char                    name[4];
 	u32                     order;
+	u32			xlt;
+	u32			access_mode;
+	u32			page;
+
 	u32			size;
 	u32                     cur;
 	u32                     miss;
@@ -555,6 +559,7 @@ struct mlx5_cache_ent {
 	struct work_struct	work;
 	struct delayed_work	dwork;
 	int			pending;
+	struct completion	compl;
 };
 
 struct mlx5_mr_cache {
@@ -837,7 +842,9 @@ void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
 int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
-int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift);
+
+struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev, int entry);
+void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
 struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,

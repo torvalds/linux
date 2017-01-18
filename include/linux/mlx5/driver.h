@@ -1052,7 +1052,8 @@ enum {
 };
 
 enum {
-	MAX_MR_CACHE_ENTRIES    = 21,
+	MAX_UMR_CACHE_ENTRY = 20,
+	MAX_MR_CACHE_ENTRIES
 };
 
 enum {
