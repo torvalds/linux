@@ -10,6 +10,9 @@ void nvkm_fifo_cevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
 void nvkm_fifo_recover_chan(struct nvkm_fifo *, int chid);
 
+struct nvkm_fifo_chan *
+nvkm_fifo_chan_inst_locked(struct nvkm_fifo *, u64 inst);
+
 struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
 	void *(*dtor)(struct nvkm_fifo *);

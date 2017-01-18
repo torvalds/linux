@@ -66,18 +66,28 @@ nvkm_fifo_chan_put(struct nvkm_fifo *fifo, unsigned long flags,
 }
 
 struct nvkm_fifo_chan *
+nvkm_fifo_chan_inst_locked(struct nvkm_fifo *fifo, u64 inst)
+{
+	struct nvkm_fifo_chan *chan;
+	list_for_each_entry(chan, &fifo->chan, head) {
+		if (chan->inst->addr == inst) {
+			list_del(&chan->head);
+			list_add(&chan->head, &fifo->chan);
+			return chan;
+		}
+	}
+	return NULL;
+}
+
+struct nvkm_fifo_chan *
 nvkm_fifo_chan_inst(struct nvkm_fifo *fifo, u64 inst, unsigned long *rflags)
 {
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
 	spin_lock_irqsave(&fifo->lock, flags);
-	list_for_each_entry(chan, &fifo->chan, head) {
-		if (chan->inst->addr == inst) {
-			list_del(&chan->head);
-			list_add(&chan->head, &fifo->chan);
-			*rflags = flags;
-			return chan;
-		}
+	if ((chan = nvkm_fifo_chan_inst_locked(fifo, inst))) {
+		*rflags = flags;
+		return chan;
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
 	return NULL;

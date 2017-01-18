@@ -435,6 +435,7 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
 	char gpcid[8] = "", en[16] = "";
+	int engn;
 
 	er = nvkm_enum_find(fifo->func->fault.reason, reason);
 	eu = nvkm_enum_find(fifo->func->fault.engine, unit);
@@ -476,7 +477,8 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 		snprintf(en, sizeof(en), "%s", eu->name);
 	}
 
-	chan = nvkm_fifo_chan_inst(&fifo->base, (u64)inst << 12, &flags);
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	chan = nvkm_fifo_chan_inst_locked(&fifo->base, (u64)inst << 12);
 
 	nvkm_error(subdev,
 		   "%s fault at %010llx engine %02x [%s] client %02x [%s%s] "
@@ -487,9 +489,23 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 		   (u64)inst << 12,
 		   chan ? chan->object.client->name : "unknown");
 
-	if (engine && chan)
-		gk104_fifo_recover(fifo, engine, (void *)chan);
-	nvkm_fifo_chan_put(&fifo->base, flags, &chan);
+
+	/* Kill the channel that caused the fault. */
+	if (chan)
+		gk104_fifo_recover_chan(&fifo->base, chan->chid);
+
+	/* Channel recovery will probably have already done this for the
+	 * correct engine(s), but just in case we can't find the channel
+	 * information...
+	 */
+	for (engn = 0; engn < fifo->engine_nr && engine; engn++) {
+		if (fifo->engine[engn].engine == engine) {
+			gk104_fifo_recover_engn(fifo, engn);
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
 static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
