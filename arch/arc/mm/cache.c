@@ -995,6 +995,8 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  */
 noinline void arc_ioc_setup(void)
 {
+	unsigned int ap_sz;
+
 	/* Flush + invalidate + disable L1 dcache */
 	__dc_disable();
 
@@ -1005,8 +1007,14 @@ noinline void arc_ioc_setup(void)
 	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
 	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
 
-	/* IOC Aperture size: TBD: handle different mem sizes, PAE... */
-	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
+	/*
+	 * IOC Aperture size:
+	 *   decoded as 2 ^ (SIZE + 2) KB: so setting 0x11 implies 512M
+	 * TBD: fix for PGU + 1GB of low mem
+	 * TBD: fix for PAE
+	 */
+	ap_sz = order_base_2(arc_get_mem_sz()/1024) - 2;
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, ap_sz);
 
 	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
 	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);

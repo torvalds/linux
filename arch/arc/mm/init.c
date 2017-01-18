@@ -40,6 +40,11 @@ struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 #endif
 
+long __init arc_get_mem_sz(void)
+{
+	return low_mem_sz;
+}
+
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
 {
