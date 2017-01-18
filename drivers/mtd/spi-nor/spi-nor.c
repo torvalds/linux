@@ -431,11 +431,14 @@ static void spi_nor_unlock_and_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
  */
 static loff_t spi_nor_s3an_addr_convert(struct spi_nor *nor, unsigned int addr)
 {
-	unsigned int offset = addr;
+	unsigned int offset;
+	unsigned int page;
 
-	offset %= nor->page_size;
+	offset = addr % nor->page_size;
+	page = addr / nor->page_size;
+	page <<= (nor->page_size > 512) ? 10 : 9;
 
-	return ((addr - offset) << 1) | offset;
+	return page | offset;
 }
 
 /*
