@@ -588,7 +588,21 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = 0x1;
 		break;
 	case CHIP_RAVEN:
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_RLC_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_GFX_3D_CGCG |
+			AMD_CG_SUPPORT_GFX_3D_CGLS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_BIF_MGCG |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_DRM_MGCG |
+			AMD_CG_SUPPORT_DRM_LS |
+			AMD_CG_SUPPORT_ROM_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
 		break;
