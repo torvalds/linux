@@ -3583,6 +3583,8 @@ static int __init mlx5_ib_init(void)
 {
 	int err;
 
+	mlx5_ib_odp_init();
+
 	err = mlx5_register_interface(&mlx5_ib_interface);
 
 	return err;

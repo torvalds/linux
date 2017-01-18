@@ -469,7 +469,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev, int entry)
 			spin_unlock_irq(&ent->lock);
 
 			err = add_keys(dev, entry, 1);
-			if (err)
+			if (err && err != -EAGAIN)
 				return ERR_PTR(err);
 
 			wait_for_completion(&ent->compl);
@@ -669,8 +669,10 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
 		queue_work(cache->wq, &ent->work);
 
-		if (i > MAX_UMR_CACHE_ENTRY)
+		if (i > MAX_UMR_CACHE_ENTRY) {
+			mlx5_odp_init_mr_cache_entry(ent);
 			continue;
+		}
 
 		if (!use_umr(dev, ent->order))
 			continue;
@@ -935,6 +937,10 @@ static inline int populate_xlt(struct mlx5_ib_mr *mr, int idx, int npages,
 {
 	struct mlx5_ib_dev *dev = mr->dev;
 	struct ib_umem *umem = mr->umem;
+	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
+		mlx5_odp_populate_klm(xlt, idx, npages, mr, flags);
+		return npages;
+	}
 
 	npages = min_t(size_t, npages, ib_umem_num_pages(umem) - idx);
 
@@ -968,7 +974,9 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	struct mlx5_umr_wr wr;
 	struct ib_sge sg;
 	int err = 0;
-	int desc_size = sizeof(struct mlx5_mtt);
+	int desc_size = (flags & MLX5_IB_UPD_XLT_INDIRECT)
+			       ? sizeof(struct mlx5_klm)
+			       : sizeof(struct mlx5_mtt);
 	const int page_align = MLX5_UMR_MTT_ALIGNMENT / desc_size;
 	const int page_mask = page_align - 1;
 	size_t pages_mapped = 0;
@@ -1186,6 +1194,18 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mlx5_ib_dbg(dev, "start 0x%llx, virt_addr 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, virt_addr, length, access_flags);
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (!start && length == U64_MAX) {
+		if (!(access_flags & IB_ACCESS_ON_DEMAND) ||
+		    !(dev->odp_caps.general_caps & IB_ODP_SUPPORT_IMPLICIT))
+			return ERR_PTR(-EINVAL);
+
+		mr = mlx5_ib_alloc_implicit_mr(to_mpd(pd), access_flags);
+		return &mr->ibmr;
+	}
+#endif
+
 	err = mr_umem_get(pd, start, length, access_flags, &umem, &npages,
 			   &page_shift, &ncont, &order);
 
@@ -1471,8 +1491,11 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 		/* Wait for all running page-fault handlers to finish. */
 		synchronize_srcu(&dev->mr_srcu);
 		/* Destroy all page mappings */
-		mlx5_ib_invalidate_range(umem, ib_umem_start(umem),
-					 ib_umem_end(umem));
+		if (umem->odp_data->page_list)
+			mlx5_ib_invalidate_range(umem, ib_umem_start(umem),
+						 ib_umem_end(umem));
+		else
+			mlx5_ib_free_implicit_mr(mr);
 		/*
 		 * We kill the umem before the MR for ODP,
 		 * so that there will not be any invalidations in
