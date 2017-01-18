@@ -3603,7 +3603,7 @@ irq_retry:
 	 */
 
 	if (gintsts & IRQ_RETRY_MASK && --retry_count > 0)
-			goto irq_retry;
+		goto irq_retry;
 
 	spin_unlock(&hsotg->lock);
 
@@ -4045,7 +4045,7 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
-					epctl |= DXEPCTL_SETD0PID;
+				epctl |= DXEPCTL_SETD0PID;
 		}
 		dwc2_writel(epctl, hs->regs + epreg);
 	} else {
@@ -4059,7 +4059,7 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
 			if (xfertype == DXEPCTL_EPTYPE_BULK ||
 			    xfertype == DXEPCTL_EPTYPE_INTERRUPT)
-					epctl |= DXEPCTL_SETD0PID;
+				epctl |= DXEPCTL_SETD0PID;
 		}
 		dwc2_writel(epctl, hs->regs + epreg);
 	}
