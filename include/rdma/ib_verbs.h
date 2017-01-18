@@ -1494,6 +1494,10 @@ struct ib_wq {
 	atomic_t		usecnt;
 };
 
+enum ib_wq_flags {
+	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
+};
+
 struct ib_wq_init_attr {
 	void		       *wq_context;
 	enum ib_wq_type	wq_type;
@@ -1501,16 +1505,20 @@ struct ib_wq_init_attr {
 	u32		max_sge;
 	struct	ib_cq	       *cq;
 	void		    (*event_handler)(struct ib_event *, void *);
+	u32		create_flags; /* Use enum ib_wq_flags */
 };
 
 enum ib_wq_attr_mask {
-	IB_WQ_STATE	= 1 << 0,
-	IB_WQ_CUR_STATE	= 1 << 1,
+	IB_WQ_STATE		= 1 << 0,
+	IB_WQ_CUR_STATE		= 1 << 1,
+	IB_WQ_FLAGS		= 1 << 2,
 };
 
 struct ib_wq_attr {
 	enum	ib_wq_state	wq_state;
 	enum	ib_wq_state	curr_wq_state;
+	u32			flags; /* Use enum ib_wq_flags */
+	u32			flags_mask; /* Use enum ib_wq_flags */
 };
 
 struct ib_rwq_ind_table {
