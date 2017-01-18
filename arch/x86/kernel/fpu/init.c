@@ -77,7 +77,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 	}
 
 #ifndef CONFIG_MATH_EMULATION
-	if (!boot_cpu_has(X86_FEATURE_FPU)) {
+	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_FPU)) {
 		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
