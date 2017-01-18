@@ -326,7 +326,7 @@ u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
  * triples, returning a pointer to the substring whose first element
  * matches tag
  */
-const struct brcmf_tlv *
+static const struct brcmf_tlv *
 brcmf_parse_tlvs(const void *buf, int buflen, uint key)
 {
 	const struct brcmf_tlv *elt = buf;
