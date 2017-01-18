@@ -1135,9 +1135,6 @@ static int vi_common_hw_init(void *handle)
 	/* enable the doorbell aperture */
 	vi_enable_doorbell_aperture(adev, true);
 
-	if (amdgpu_sriov_vf(adev))
-		xgpu_vi_mailbox_put_irq(adev);
-
 	return 0;
 }
 
@@ -1147,6 +1144,9 @@ static int vi_common_hw_fini(void *handle)
 
 	/* enable the doorbell aperture */
 	vi_enable_doorbell_aperture(adev, false);
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_vi_mailbox_put_irq(adev);
 
 	return 0;
 }
