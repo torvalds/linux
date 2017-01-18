@@ -280,10 +280,13 @@ gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 static void
 gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 {
+	struct nvkm_engine *engine = fifo->engine[engn].engine;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	const u32 runl = fifo->engine[engn].runl;
 	const u32 engm = BIT(engn);
 	struct gk104_fifo_engine_status status;
+	int mmui = -1;
 
 	assert_spin_locked(&fifo->base.lock);
 	if (fifo->recover.engm & engm)
@@ -298,6 +301,44 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	if (status.chan) {
 		/* The channel is not longer viable, kill it. */
 		gk104_fifo_recover_chan(&fifo->base, status.chan->id);
+	}
+
+	/* Determine MMU fault ID for the engine, if we're not being
+	 * called from the fault handler already.
+	 */
+	if (!status.faulted && engine) {
+		mmui = nvkm_top_fault_id(device, engine->subdev.index);
+		if (mmui < 0) {
+			const struct nvkm_enum *en = fifo->func->fault.engine;
+			for (; en && en->name; en++) {
+				if (en->data2 == engine->subdev.index) {
+					mmui = en->value;
+					break;
+				}
+			}
+		}
+		WARN_ON(mmui < 0);
+	}
+
+	/* Trigger a MMU fault for the engine.
+	 *
+	 * No good idea why this is needed, but nvgpu does something similar,
+	 * and it makes recovery from CTXSW_TIMEOUT a lot more reliable.
+	 */
+	if (mmui >= 0) {
+		nvkm_wr32(device, 0x002a30 + (engn * 0x04), 0x00000100 | mmui);
+
+		/* Wait for fault to trigger. */
+		nvkm_msec(device, 2000,
+			gk104_fifo_engine_status(fifo, engn, &status);
+			if (status.faulted)
+				break;
+		);
+
+		/* Release MMU fault trigger, and ACK the fault. */
+		nvkm_wr32(device, 0x002a30 + (engn * 0x04), 0x00000000);
+		nvkm_wr32(device, 0x00259c, BIT(mmui));
+		nvkm_wr32(device, 0x002100, 0x10000000);
 	}
 
 	/* Schedule recovery. */
