@@ -515,6 +515,10 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 	if (link_is_bc_sndlink(l))
 		l->state = LINK_ESTABLISHED;
 
+	/* Disable replicast if even a single peer doesn't support it */
+	if (link_is_bc_rcvlink(l) && !(peer_caps & TIPC_BCAST_RCAST))
+		tipc_bcast_disable_rcast(net);
+
 	return true;
 }
 

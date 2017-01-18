@@ -79,6 +79,7 @@ enum {
  * @rcv_unacked: # messages read by user, but not yet acked back to peer
  * @peer: 'connected' peer for dgram/rdm
  * @node: hash table node
+ * @mc_method: cookie for use between socket and broadcast layer
  * @rcu: rcu struct for tipc_sock
  */
 struct tipc_sock {
@@ -103,6 +104,7 @@ struct tipc_sock {
 	u16 rcv_win;
 	struct sockaddr_tipc peer;
 	struct rhash_head node;
+	struct tipc_mc_method mc_method;
 	struct rcu_head rcu;
 };
 
@@ -740,6 +742,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct net *net = sock_net(sk);
 	int mtu = tipc_bcast_get_mtu(net);
+	struct tipc_mc_method *method = &tsk->mc_method;
 	u32 domain = addr_domain(net, TIPC_CLUSTER_SCOPE);
 	struct sk_buff_head pkts;
 	struct tipc_nlist dsts;
@@ -773,7 +776,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 
 	/* Send message if build was successful */
 	if (unlikely(rc == dlen))
-		rc = tipc_mcast_xmit(net, &pkts, &dsts,
+		rc = tipc_mcast_xmit(net, &pkts, method, &dsts,
 				     &tsk->cong_link_cnt);
 
 	tipc_nlist_purge(&dsts);
@@ -2344,18 +2347,29 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	u32 value;
+	u32 value = 0;
 	int res;
 
 	if ((lvl == IPPROTO_TCP) && (sock->type == SOCK_STREAM))
 		return 0;
 	if (lvl != SOL_TIPC)
 		return -ENOPROTOOPT;
-	if (ol < sizeof(value))
-		return -EINVAL;
-	res = get_user(value, (u32 __user *)ov);
-	if (res)
-		return res;
+
+	switch (opt) {
+	case TIPC_IMPORTANCE:
+	case TIPC_SRC_DROPPABLE:
+	case TIPC_DEST_DROPPABLE:
+	case TIPC_CONN_TIMEOUT:
+		if (ol < sizeof(value))
+			return -EINVAL;
+		res = get_user(value, (u32 __user *)ov);
+		if (res)
+			return res;
+		break;
+	default:
+		if (ov || ol)
+			return -EINVAL;
+	}
 
 	lock_sock(sk);
 
@@ -2375,6 +2389,14 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 	case TIPC_CONN_TIMEOUT:
 		tipc_sk(sk)->conn_timeout = value;
 		/* no need to set "res", since already 0 at this point */
+		break;
+	case TIPC_MCAST_BROADCAST:
+		tsk->mc_method.rcast = false;
+		tsk->mc_method.mandatory = true;
+		break;
+	case TIPC_MCAST_REPLICAST:
+		tsk->mc_method.rcast = true;
+		tsk->mc_method.mandatory = true;
 		break;
 	default:
 		res = -EINVAL;

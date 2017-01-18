@@ -54,6 +54,9 @@ const char tipc_bclink_name[] = "broadcast-link";
  * @dest: array keeping number of reachable destinations per bearer
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
  * @bcast_support: indicates if primary bearer, if any, supports broadcast
+ * @rcast_support: indicates if all peer nodes support replicast
+ * @rc_ratio: dest count as percentage of cluster size where send method changes
+ * @bc_threshold: calculated drom rc_ratio; if dests > threshold use broadcast
  */
 struct tipc_bc_base {
 	struct tipc_link *link;
@@ -61,6 +64,9 @@ struct tipc_bc_base {
 	int dests[MAX_BEARERS];
 	int primary_bearer;
 	bool bcast_support;
+	bool rcast_support;
+	int rc_ratio;
+	int bc_threshold;
 };
 
 static struct tipc_bc_base *tipc_bc_base(struct net *net)
@@ -71,6 +77,19 @@ static struct tipc_bc_base *tipc_bc_base(struct net *net)
 int tipc_bcast_get_mtu(struct net *net)
 {
 	return tipc_link_mtu(tipc_bc_sndlink(net)) - INT_H_SIZE;
+}
+
+void tipc_bcast_disable_rcast(struct net *net)
+{
+	tipc_bc_base(net)->rcast_support = false;
+}
+
+static void tipc_bcbase_calc_bc_threshold(struct net *net)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+	int cluster_size = tipc_link_bc_peers(tipc_bc_sndlink(net));
+
+	bb->bc_threshold = 1 + (cluster_size * bb->rc_ratio / 100);
 }
 
 /* tipc_bcbase_select_primary(): find a bearer with links to all destinations,
@@ -175,6 +194,31 @@ static void tipc_bcbase_xmit(struct net *net, struct sk_buff_head *xmitq)
 	__skb_queue_purge(&_xmitq);
 }
 
+static void tipc_bcast_select_xmit_method(struct net *net, int dests,
+					  struct tipc_mc_method *method)
+{
+	struct tipc_bc_base *bb = tipc_bc_base(net);
+	unsigned long exp = method->expires;
+
+	/* Broadcast supported by used bearer/bearers? */
+	if (!bb->bcast_support) {
+		method->rcast = true;
+		return;
+	}
+	/* Any destinations which don't support replicast ? */
+	if (!bb->rcast_support) {
+		method->rcast = false;
+		return;
+	}
+	/* Can current method be changed ? */
+	method->expires = jiffies + TIPC_METHOD_EXPIRE;
+	if (method->mandatory || time_before(jiffies, exp))
+		return;
+
+	/* Determine method to use now */
+	method->rcast = dests <= bb->bc_threshold;
+}
+
 /* tipc_bcast_xmit - broadcast the buffer chain to all external nodes
  * @net: the applicable net namespace
  * @pkts: chain of buffers containing message
@@ -237,16 +281,16 @@ static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
  *                   and to identified node local sockets
  * @net: the applicable net namespace
  * @pkts: chain of buffers containing message
- * @dests: destination nodes for message. Not consumed.
+ * @method: send method to be used
+ * @dests: destination nodes for message.
  * @cong_link_cnt: returns number of encountered congested destination links
- * @cong_links: returns identities of congested links
  * Consumes buffer chain.
  * Returns 0 if success, otherwise errno
  */
 int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
-		    struct tipc_nlist *dests, u16 *cong_link_cnt)
+		    struct tipc_mc_method *method, struct tipc_nlist *dests,
+		    u16 *cong_link_cnt)
 {
-	struct tipc_bc_base *bb = tipc_bc_base(net);
 	struct sk_buff_head inputq, localq;
 	int rc = 0;
 
@@ -258,9 +302,10 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 		rc = -ENOMEM;
 		goto exit;
 	}
-
+	/* Send according to determined transmit method */
 	if (dests->remote) {
-		if (!bb->bcast_support)
+		tipc_bcast_select_xmit_method(net, dests->remote, method);
+		if (method->rcast)
 			rc = tipc_rcast_xmit(net, pkts, dests, cong_link_cnt);
 		else
 			rc = tipc_bcast_xmit(net, pkts, cong_link_cnt);
@@ -269,6 +314,7 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	if (dests->local)
 		tipc_sk_mcast_rcv(net, &localq, &inputq);
 exit:
+	/* This queue should normally be empty by now */
 	__skb_queue_purge(pkts);
 	return rc;
 }
@@ -377,6 +423,7 @@ void tipc_bcast_add_peer(struct net *net, struct tipc_link *uc_l,
 	tipc_bcast_lock(net);
 	tipc_link_add_bc_peer(snd_l, uc_l, xmitq);
 	tipc_bcbase_select_primary(net);
+	tipc_bcbase_calc_bc_threshold(net);
 	tipc_bcast_unlock(net);
 }
 
@@ -395,6 +442,7 @@ void tipc_bcast_remove_peer(struct net *net, struct tipc_link *rcv_l)
 	tipc_bcast_lock(net);
 	tipc_link_remove_bc_peer(snd_l, rcv_l, &xmitq);
 	tipc_bcbase_select_primary(net);
+	tipc_bcbase_calc_bc_threshold(net);
 	tipc_bcast_unlock(net);
 
 	tipc_bcbase_xmit(net, &xmitq);
@@ -477,6 +525,8 @@ int tipc_bcast_init(struct net *net)
 		goto enomem;
 	bb->link = l;
 	tn->bcl = l;
+	bb->rc_ratio = 25;
+	bb->rcast_support = true;
 	return 0;
 enomem:
 	kfree(bb);
