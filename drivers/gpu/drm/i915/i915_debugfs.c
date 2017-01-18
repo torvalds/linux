@@ -2352,6 +2352,36 @@ static int i915_llc(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_huc_load_status_info(struct seq_file *m, void *data)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+
+	if (!HAS_HUC_UCODE(dev_priv))
+		return 0;
+
+	seq_puts(m, "HuC firmware status:\n");
+	seq_printf(m, "\tpath: %s\n", huc_fw->path);
+	seq_printf(m, "\tfetch: %s\n",
+		intel_uc_fw_status_repr(huc_fw->fetch_status));
+	seq_printf(m, "\tload: %s\n",
+		intel_uc_fw_status_repr(huc_fw->load_status));
+	seq_printf(m, "\tversion wanted: %d.%d\n",
+		huc_fw->major_ver_wanted, huc_fw->minor_ver_wanted);
+	seq_printf(m, "\tversion found: %d.%d\n",
+		huc_fw->major_ver_found, huc_fw->minor_ver_found);
+	seq_printf(m, "\theader: offset is %d; size = %d\n",
+		huc_fw->header_offset, huc_fw->header_size);
+	seq_printf(m, "\tuCode: offset is %d; size = %d\n",
+		huc_fw->ucode_offset, huc_fw->ucode_size);
+	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
+		huc_fw->rsa_offset, huc_fw->rsa_size);
+
+	seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
+
+	return 0;
+}
+
 static int i915_guc_load_status_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4609,6 +4639,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_guc_info", i915_guc_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
 	{"i915_guc_log_dump", i915_guc_log_dump, 0},
+	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
