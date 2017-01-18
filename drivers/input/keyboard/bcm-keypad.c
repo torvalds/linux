@@ -352,8 +352,6 @@ static int bcm_kp_probe(struct platform_device *pdev)
 
 	kp->input_dev = input_dev;
 
-	platform_set_drvdata(pdev, kp);
-
 	error = bcm_kp_matrix_key_parse_dt(kp);
 	if (error)
 		return error;
