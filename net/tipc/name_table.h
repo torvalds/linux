@@ -39,6 +39,7 @@
 
 struct tipc_subscription;
 struct tipc_plist;
+struct tipc_nlist;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
@@ -100,6 +101,9 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 			      u32 limit, struct list_head *dports);
+void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
+				   u32 upper, u32 domain,
+				   struct tipc_nlist *nodes);
 struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 					 u32 upper, u32 scope, u32 port_ref,
 					 u32 key);
@@ -115,6 +119,11 @@ void tipc_nametbl_subscribe(struct tipc_subscription *s);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);
 void tipc_nametbl_stop(struct net *net);
+
+struct u32_item {
+	struct list_head list;
+	u32 value;
+};
 
 bool u32_push(struct list_head *l, u32 value);
 u32 u32_pop(struct list_head *l);

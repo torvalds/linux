@@ -42,8 +42,21 @@
 struct tipc_node;
 struct tipc_msg;
 struct tipc_nl_msg;
-struct tipc_node_map;
+struct tipc_nlist;
+struct tipc_nitem;
 extern const char tipc_bclink_name[];
+
+struct tipc_nlist {
+	struct list_head list;
+	u32 self;
+	u16 remote;
+	bool local;
+};
+
+void tipc_nlist_init(struct tipc_nlist *nl, u32 self);
+void tipc_nlist_purge(struct tipc_nlist *nl);
+void tipc_nlist_add(struct tipc_nlist *nl, u32 node);
+void tipc_nlist_del(struct tipc_nlist *nl, u32 node);
 
 int tipc_bcast_init(struct net *net);
 void tipc_bcast_stop(struct net *net);

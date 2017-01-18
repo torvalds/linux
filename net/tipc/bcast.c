@@ -39,9 +39,8 @@
 #include "socket.h"
 #include "msg.h"
 #include "bcast.h"
-#include "name_distr.h"
 #include "link.h"
-#include "node.h"
+#include "name_table.h"
 
 #define	BCLINK_WIN_DEFAULT	50	/* bcast link window size (default) */
 #define	BCLINK_WIN_MIN	        32	/* bcast minimum link window size */
@@ -433,4 +432,34 @@ void tipc_bcast_stop(struct net *net)
 	synchronize_net();
 	kfree(tn->bcbase);
 	kfree(tn->bcl);
+}
+
+void tipc_nlist_init(struct tipc_nlist *nl, u32 self)
+{
+	memset(nl, 0, sizeof(*nl));
+	INIT_LIST_HEAD(&nl->list);
+	nl->self = self;
+}
+
+void tipc_nlist_add(struct tipc_nlist *nl, u32 node)
+{
+	if (node == nl->self)
+		nl->local = true;
+	else if (u32_push(&nl->list, node))
+		nl->remote++;
+}
+
+void tipc_nlist_del(struct tipc_nlist *nl, u32 node)
+{
+	if (node == nl->self)
+		nl->local = false;
+	else if (u32_del(&nl->list, node))
+		nl->remote--;
+}
+
+void tipc_nlist_purge(struct tipc_nlist *nl)
+{
+	u32_list_purge(&nl->list);
+	nl->remote = 0;
+	nl->local = 0;
 }
