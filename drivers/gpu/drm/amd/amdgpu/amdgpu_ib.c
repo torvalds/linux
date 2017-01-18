@@ -175,9 +175,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ring->funcs->emit_hdp_flush)
 		amdgpu_ring_emit_hdp_flush(ring);
 
-	/* always set cond_exec_polling to CONTINUE */
-	*ring->cond_exe_cpu_addr = 1;
-
 	skip_preamble = ring->current_ctx == fence_ctx;
 	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
