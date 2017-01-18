@@ -243,7 +243,8 @@ enum ib_atomic_cap {
 };
 
 enum ib_odp_general_cap_bits {
-	IB_ODP_SUPPORT = 1 << 0,
+	IB_ODP_SUPPORT		= 1 << 0,
+	IB_ODP_SUPPORT_IMPLICIT = 1 << 1,
 };
 
 enum ib_odp_transport_cap_bits {
