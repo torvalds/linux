@@ -706,7 +706,8 @@ static bool mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
 	do {
 		if (mlx4_en_prepare_rx_desc(priv, ring,
 					    ring->prod & ring->size_mask,
-					    GFP_ATOMIC | __GFP_COLD))
+					    GFP_ATOMIC | __GFP_COLD |
+					    __GFP_MEMALLOC))
 			break;
 		ring->prod++;
 	} while (--missing);
