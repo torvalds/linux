@@ -1199,7 +1199,7 @@ static int ui_init(void)
 		BUG_ON(1);
 	}
 
-	perf_hpp__register_sort_field(fmt);
+	perf_hpp__prepend_sort_field(fmt);
 	return 0;
 }
 
