@@ -450,6 +450,9 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 	u32 cnt = 0, p1, p2, val = 0, err_code;
 	enum i40iw_status_code ret_code;
 
+	*maj_err = 0;
+	*min_err = 0;
+
 	ret_code = i40iw_allocate_dma_mem(cqp->dev->hw,
 					  &cqp->sdbuf,
 					  128,
