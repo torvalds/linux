@@ -611,12 +611,11 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
 		pr_info("Device Name     state            "
-			"trans_start      last_rx\n");
-		pr_info("%-15s %016lX %016lX %016lX\n",
+			"trans_start\n");
+		pr_info("%-15s %016lX %016lX\n",
 			netdev->name,
 			netdev->state,
-			dev_trans_start(netdev),
-			netdev->last_rx);
+			dev_trans_start(netdev));
 	}
 
 	/* Print Registers */

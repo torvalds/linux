@@ -2666,7 +2666,7 @@ static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
 	sky2->rx_stats.bytes += bytes;
 	u64_stats_update_end(&sky2->rx_stats.syncp);
 
-	dev->last_rx = jiffies;
+	sky2->last_rx = jiffies;
 	sky2_rx_update(netdev_priv(dev), rxqaddr[port]);
 }
 
@@ -2953,7 +2953,7 @@ static int sky2_rx_hung(struct net_device *dev)
 	u8 fifo_lev = sky2_read8(hw, Q_ADDR(rxq, Q_RL));
 
 	/* If idle and MAC or PCI is stuck */
-	if (sky2->check.last == dev->last_rx &&
+	if (sky2->check.last == sky2->last_rx &&
 	    ((mac_rp == sky2->check.mac_rp &&
 	      mac_lev != 0 && mac_lev >= sky2->check.mac_lev) ||
 	     /* Check if the PCI RX hang */
@@ -2965,7 +2965,7 @@ static int sky2_rx_hung(struct net_device *dev)
 			      fifo_rp, sky2_read8(hw, Q_ADDR(rxq, Q_WP)));
 		return 1;
 	} else {
-		sky2->check.last = dev->last_rx;
+		sky2->check.last = sky2->last_rx;
 		sky2->check.mac_rp = mac_rp;
 		sky2->check.mac_lev = mac_lev;
 		sky2->check.fifo_rp = fifo_rp;

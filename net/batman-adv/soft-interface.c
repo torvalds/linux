@@ -481,8 +481,6 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	batadv_add_counter(bat_priv, BATADV_CNT_RX_BYTES,
 			   skb->len + ETH_HLEN);
 
-	soft_iface->last_rx = jiffies;
-
 	/* Let the bridge loop avoidance check the packet. If will
 	 * not handle it, we can safely push it up.
 	 */

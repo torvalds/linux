@@ -155,7 +155,6 @@ static void xlr_net_fmn_handler(int bkt, int src_stnid, int size, int code,
 		skb_reserve(skb, BYTE_OFFSET);
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, skb->dev);
-		skb->dev->last_rx = jiffies;
 		netif_rx(skb);
 		/* Fill rx ring */
 		skb_data = xlr_alloc_skb();

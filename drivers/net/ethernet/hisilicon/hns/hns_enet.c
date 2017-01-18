@@ -797,7 +797,6 @@ static void hns_nic_rx_up_pro(struct hns_nic_ring_data *ring_data,
 
 	skb->protocol = eth_type_trans(skb, ndev);
 	(void)napi_gro_receive(&ring_data->napi, skb);
-	ndev->last_rx = jiffies;
 }
 
 static int hns_desc_unused(struct hnae_ring *ring)

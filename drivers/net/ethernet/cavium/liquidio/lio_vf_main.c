@@ -1571,7 +1571,6 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		if (packet_was_received) {
 			droq->stats.rx_bytes_received += len;
 			droq->stats.rx_pkts_received++;
-			netdev->last_rx = jiffies;
 		} else {
 			droq->stats.rx_dropped++;
 			netif_info(lio, rx_err, lio->netdev,

@@ -461,7 +461,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			priv->nstats.rx_packets++;
 			priv->nstats.rx_bytes += rx_ind_size;
-			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
 			priv->nstats.rx_dropped++;
@@ -494,7 +493,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			priv->nstats.rx_packets++;
 			priv->nstats.rx_bytes += rx_ind_size;
-			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
 			priv->nstats.rx_dropped++;

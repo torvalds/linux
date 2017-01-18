@@ -1213,7 +1213,6 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 		emac_receive_skb(rx_q, skb, (u16)RRD_CVALN_TAG(&rrd),
 				 (bool)RRD_CVTAG(&rrd));
 
-		netdev->last_rx = jiffies;
 		(*num_pkts)++;
 	} while (*num_pkts < max_pkts);
 

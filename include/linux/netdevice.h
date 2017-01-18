@@ -1551,7 +1551,6 @@ enum netdev_priv_flags {
  *	@ax25_ptr:	AX.25 specific data
  *	@ieee80211_ptr:	IEEE 802.11 specific data, assign before registering
  *
- *	@last_rx:	Time of last Rx
  *	@dev_addr:	Hw address (before bcast,
  *			because most packets are unicast)
  *
@@ -1777,8 +1776,6 @@ struct net_device {
 /*
  * Cache lines mostly used on receive path (including eth_type_trans())
  */
-	unsigned long		last_rx;
-
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;
 
