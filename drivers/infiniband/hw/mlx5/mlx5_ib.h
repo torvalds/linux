@@ -579,8 +579,15 @@ struct mlx5_ib_resources {
 	struct mutex	mutex;
 };
 
+struct mlx5_ib_q_counters {
+	const char **names;
+	size_t *offsets;
+	u32 num_counters;
+	u16 set_id;
+};
+
 struct mlx5_ib_port {
-	u16 q_cnt_id;
+	struct mlx5_ib_q_counters q_cnts;
 };
 
 struct mlx5_roce {

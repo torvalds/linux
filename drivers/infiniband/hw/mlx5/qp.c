@@ -2784,7 +2784,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       qp->port) - 1;
 		mibport = &dev->port[port_num];
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32((u32)(mibport->q_cnt_id) << 24);
+			cpu_to_be32((u32)(mibport->q_cnts.set_id) << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -2812,7 +2812,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		raw_qp_param.operation = op;
 		if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-			raw_qp_param.rq_q_ctr_id = mibport->q_cnt_id;
+			raw_qp_param.rq_q_ctr_id = mibport->q_cnts.set_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
 
