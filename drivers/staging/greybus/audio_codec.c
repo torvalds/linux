@@ -496,6 +496,11 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 
 	gb_pm_runtime_put_noidle(bundle);
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		sig_bits = dai->driver->playback.sig_bits;
+	else
+		sig_bits = dai->driver->capture.sig_bits;
+
 	params->state = GBAUDIO_CODEC_HWPARAMS;
 	params->format = format;
 	params->rate = rate;
@@ -689,6 +694,7 @@ static struct snd_soc_dai_driver gbaudio_dai[] = {
 			.rate_min = 48000,
 			.channels_min = 1,
 			.channels_max = 2,
+			.sig_bits = 16,
 		},
 		.capture = {
 			.stream_name = "I2S 0 Capture",
@@ -698,6 +704,7 @@ static struct snd_soc_dai_driver gbaudio_dai[] = {
 			.rate_min = 48000,
 			.channels_min = 1,
 			.channels_max = 2,
+			.sig_bits = 16,
 		},
 		.ops = &gbcodec_dai_ops,
 	},
