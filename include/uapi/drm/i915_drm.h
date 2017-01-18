@@ -395,6 +395,7 @@ typedef struct drm_i915_irq_wait {
  * priorities and the driver will attempt to execute batches in priority order.
  */
 #define I915_PARAM_HAS_SCHEDULER	 41
+#define I915_PARAM_HUC_STATUS		 42
 
 typedef struct drm_i915_getparam {
 	__s32 param;

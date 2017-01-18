@@ -49,6 +49,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_drv.h"
+#include "intel_uc.h"
 
 static struct drm_driver driver;
 
@@ -314,6 +315,12 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
 		value = INTEL_INFO(dev_priv)->sseu.min_eu_in_pool;
+		break;
+	case I915_PARAM_HUC_STATUS:
+		/* The register is already force-woken. We dont need
+		 * any rpm here
+		 */
+		value = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
 		break;
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all
