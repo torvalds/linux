@@ -193,7 +193,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		/* drop preamble IBs if we don't have a context switch */
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
 			skip_preamble &&
-			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST))
+			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST) &&
+			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
 		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
