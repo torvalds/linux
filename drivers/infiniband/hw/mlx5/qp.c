@@ -3979,6 +3979,12 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 
 		case IB_QPT_SMI:
+			if (unlikely(!mdev->port_caps[qp->port - 1].has_smi)) {
+				mlx5_ib_warn(dev, "Send SMP MADs is not allowed\n");
+				err = -EPERM;
+				*bad_wr = wr;
+				goto out;
+			}
 		case MLX5_IB_QPT_HW_GSI:
 			set_datagram_seg(seg, wr);
 			seg += sizeof(struct mlx5_wqe_datagram_seg);
