@@ -48,6 +48,10 @@
 #define SKL_HUC_FW_MINOR 07
 #define SKL_BLD_NUM 1398
 
+#define KBL_HUC_FW_MAJOR 02
+#define KBL_HUC_FW_MINOR 00
+#define KBL_BLD_NUM 1810
+
 #define HUC_FW_PATH(platform, major, minor, bld_num) \
 	"i915/" __stringify(platform) "_huc_ver" __stringify(major) "_" \
 	__stringify(minor) "_" __stringify(bld_num) ".bin"
@@ -59,6 +63,11 @@ MODULE_FIRMWARE(I915_SKL_HUC_UCODE);
 #define I915_BXT_HUC_UCODE HUC_FW_PATH(bxt, BXT_HUC_FW_MAJOR, \
 	BXT_HUC_FW_MINOR, BXT_BLD_NUM)
 MODULE_FIRMWARE(I915_BXT_HUC_UCODE);
+
+#define I915_KBL_HUC_UCODE HUC_FW_PATH(kbl, KBL_HUC_FW_MAJOR, \
+	KBL_HUC_FW_MINOR, KBL_BLD_NUM)
+MODULE_FIRMWARE(I915_KBL_HUC_UCODE);
+
 /**
  * huc_ucode_xfer() - DMA's the firmware
  * @dev_priv: the drm_i915_private device
@@ -165,6 +174,10 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
 		fw_path = I915_BXT_HUC_UCODE;
 		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
 		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
+	} else if (IS_KABYLAKE(dev_priv)) {
+		fw_path = I915_KBL_HUC_UCODE;
+		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
 	}
 
 	huc_fw->path = fw_path;
