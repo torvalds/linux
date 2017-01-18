@@ -742,6 +742,9 @@ void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
 
+	if (!ifbdev)
+		return;
+
 	ifbdev->cookie = async_schedule(intel_fbdev_initial_config, ifbdev);
 }
 
