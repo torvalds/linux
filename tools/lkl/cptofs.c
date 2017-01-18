@@ -480,6 +480,27 @@ out:
 	return ret;
 }
 
+static int match_root(const char *src)
+{
+	const char *c = src;
+
+	while (*c) {
+		switch (*c) {
+		case '.':
+			if (c > src && c[-1] == '.')
+				return 0;
+			break;
+		case '/':
+			break;
+		default:
+			return 0;
+		}
+		c++;
+	}
+
+	return 1;
+}
+
 int copy_one(const char *src, const char *mpoint, const char *dst)
 {
 	char *src_path_dir, *src_path_base;
@@ -492,6 +513,9 @@ int copy_one(const char *src, const char *mpoint, const char *dst)
 		snprintf(src_path, sizeof(src_path),  "%s/%s", mpoint, src);
 		snprintf(dst_path, sizeof(dst_path),  "%s", dst);
 	}
+
+	if (match_root(src))
+		return searchdir(src_path, dst, NULL);
 
 	src_path_dir = dirname(strdup(src_path));
 	src_path_base = basename(strdup(src_path));
