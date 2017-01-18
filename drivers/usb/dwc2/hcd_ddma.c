@@ -89,8 +89,8 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 {
 	struct kmem_cache *desc_cache;
 
-	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
-	    && qh->dev_speed == USB_SPEED_HIGH)
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC &&
+	    qh->dev_speed == USB_SPEED_HIGH)
 		desc_cache = hsotg->desc_hsisoc_cache;
 	else
 		desc_cache = hsotg->desc_gen_cache;
@@ -123,8 +123,8 @@ static void dwc2_desc_list_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	struct kmem_cache *desc_cache;
 
-	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
-	    && qh->dev_speed == USB_SPEED_HIGH)
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC &&
+	    qh->dev_speed == USB_SPEED_HIGH)
 		desc_cache = hsotg->desc_hsisoc_cache;
 	else
 		desc_cache = hsotg->desc_gen_cache;

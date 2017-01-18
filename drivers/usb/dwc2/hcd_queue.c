@@ -76,9 +76,8 @@ static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 	int num_channels;
 
 	num_channels = hsotg->params.host_channels;
-	if (hsotg->periodic_channels + hsotg->non_periodic_channels <
-								num_channels
-	    && hsotg->periodic_channels < num_channels - 1) {
+	if ((hsotg->periodic_channels + hsotg->non_periodic_channels <
+	     num_channels) && (hsotg->periodic_channels < num_channels - 1)) {
 		status = 0;
 	} else {
 		dev_dbg(hsotg->dev,
