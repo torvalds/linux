@@ -2198,6 +2198,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 {
 	enum rdma_link_layer ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	int err;
+	enum ib_gid_type gid_type;
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
 		path->pkey_index = cpu_to_be16(alt ? attr->alt_pkey_index :
@@ -2216,10 +2217,16 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (ll == IB_LINK_LAYER_ETHERNET) {
 		if (!(ah->ah_flags & IB_AH_GRH))
 			return -EINVAL;
+		err = mlx5_get_roce_gid_type(dev, port, ah->grh.sgid_index,
+					     &gid_type);
+		if (err)
+			return err;
 		memcpy(path->rmac, ah->dmac, sizeof(ah->dmac));
 		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
 							  ah->grh.sgid_index);
 		path->dci_cfi_prio_sl = (ah->sl & 0x7) << 4;
+		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
+			path->ecn_dscp = (ah->grh.traffic_class >> 2) & 0x3f;
 	} else {
 		path->fl_free_ar = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
 		path->fl_free_ar |=
