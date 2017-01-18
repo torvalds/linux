@@ -39,6 +39,7 @@
  */
 
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/input/input.h>
 #include "rk3288.dtsi"
 
 / {
@@ -156,6 +157,44 @@
 		#clock-cells = <0>;
 	};
 
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		button-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <100000>;
+		};
+
+		button-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <300000>;
+		};
+
+		menu {
+			label = "Menu";
+			linux,code = <KEY_MENU>;
+			press-threshold-microvolt = <640000>;
+		};
+
+		esc {
+			label = "Esc";
+			linux,code = <KEY_ESC>;
+			press-threshold-microvolt = <1000000>;
+		};
+
+		home  {
+			label = "Home";
+			linux,code = <KEY_HOME>;
+			press-threshold-microvolt = <1300000>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -167,12 +206,21 @@
 
 		button@0 {
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
 			gpio-key,wakeup = <1>;
 			debounce-interval = <100>;
 		};
+	};
+
+	vccadc_ref: vccadc-ref {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v8_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	/* This turns on USB vbus for both host0 (ehci) and host1 (dwc2) */
@@ -297,6 +345,11 @@
 			/delete-node/ endpoint@1;
 		};
 	};
+};
+
+&saradc {
+	vref-supply = <&vccadc_ref>;
+	status = "okay";
 };
 
 &sdmmc {
