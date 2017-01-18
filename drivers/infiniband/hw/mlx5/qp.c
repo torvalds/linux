@@ -3637,8 +3637,9 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 		psv_seg->ref_tag = cpu_to_be32(domain->sig.dif.ref_tag);
 		break;
 	default:
-		pr_err("Bad signature type given.\n");
-		return 1;
+		pr_err("Bad signature type (%d) is given.\n",
+		       domain->sig_type);
+		return -EINVAL;
 	}
 
 	*seg += sizeof(*psv_seg);
