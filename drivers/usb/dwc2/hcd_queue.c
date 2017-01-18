@@ -556,7 +556,6 @@ static void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
 			   DWC2_HS_SCHEDULE_UFRAMES, "uFrame", "us",
 			   dwc2_qh_print, &print_data);
 	}
-	return;
 }
 #else
 static inline void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
