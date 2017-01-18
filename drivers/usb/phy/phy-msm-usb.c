@@ -842,23 +842,6 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 	motg->cur_power = mA;
 }
 
-static int msm_otg_set_power(struct usb_phy *phy, unsigned mA)
-{
-	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
-
-	/*
-	 * Gadget driver uses set_power method to notify about the
-	 * available current based on suspend/configured states.
-	 *
-	 * IDEV_CHG can be drawn irrespective of suspend/un-configured
-	 * states when CDP/ACA is connected.
-	 */
-	if (motg->chg_type == USB_SDP_CHARGER)
-		msm_otg_notify_charger(motg, mA);
-
-	return 0;
-}
-
 static void msm_otg_start_host(struct usb_phy *phy, int on)
 {
 	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
@@ -1947,7 +1930,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 	}
 
 	phy->init = msm_phy_init;
-	phy->set_power = msm_otg_set_power;
 	phy->notify_disconnect = msm_phy_notify_disconnect;
 	phy->type = USB_PHY_TYPE_USB2;
 
