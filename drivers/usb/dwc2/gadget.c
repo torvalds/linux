@@ -581,11 +581,11 @@ static unsigned int get_ep_limit(struct dwc2_hsotg_ep *hs_ep)
 }
 
 /**
-* dwc2_hsotg_read_frameno - read current frame number
-* @hsotg: The device instance
-*
-* Return the current frame number
-*/
+ * dwc2_hsotg_read_frameno - read current frame number
+ * @hsotg: The device instance
+ *
+ * Return the current frame number
+ */
 static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
 {
 	u32 dsts;
@@ -1467,8 +1467,11 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		reply = cpu_to_le16(0); /* bit 0 => self powered,
-					 * bit 1 => remote wakeup */
+		/*
+		 * bit 0 => self powered
+		 * bit 1 => remote wakeup
+		 */
+		reply = cpu_to_le16(0);
 		break;
 
 	case USB_RECIP_INTERFACE:
@@ -2750,19 +2753,19 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 }
 
 /**
-* dwc2_gadget_handle_nak - handle NAK interrupt
-* @hs_ep: The endpoint on which interrupt is asserted.
-*
-* This is starting point for ISOC-IN transfer, synchronization done with
-* first IN token received from host while corresponding EP is disabled.
-*
-* Device does not know when first one token will arrive from host. On first
-* token arrival HW generates 2 interrupts: 'in token received while FIFO empty'
-* and 'NAK'. NAK interrupt for ISOC-IN means that token has arrived and ZLP was
-* sent in response to that as there was no data in FIFO. SW is basing on this
-* interrupt to obtain frame in which token has come and then based on the
-* interval calculates next frame for transfer.
-*/
+ * dwc2_gadget_handle_nak - handle NAK interrupt
+ * @hs_ep: The endpoint on which interrupt is asserted.
+ *
+ * This is starting point for ISOC-IN transfer, synchronization done with
+ * first IN token received from host while corresponding EP is disabled.
+ *
+ * Device does not know when first one token will arrive from host. On first
+ * token arrival HW generates 2 interrupts: 'in token received while FIFO empty'
+ * and 'NAK'. NAK interrupt for ISOC-IN means that token has arrived and ZLP was
+ * sent in response to that as there was no data in FIFO. SW is basing on this
+ * interrupt to obtain frame in which token has come and then based on the
+ * interval calculates next frame for transfer.
+ */
 static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 {
 	struct dwc2_hsotg *hsotg = hs_ep->parent;

@@ -1389,22 +1389,27 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 				int end_frnum;
 
 				/*
-				* Figure out the end frame based on schedule.
-				*
-				* We don't want to go on trying again and again
-				* forever.  Let's stop when we've done all the
-				* transfers that were scheduled.
-				*
-				* We're going to be comparing start_active_frame
-				* and next_active_frame, both of which are 1
-				* before the time the packet goes on the wire,
-				* so that cancels out.  Basically if had 1
-				* transfer and we saw 1 NYET then we're done.
-				* We're getting a NYET here so if next >=
-				* (start + num_transfers) we're done. The
-				* complexity is that for all but ISOC_OUT we
-				* skip one slot.
-				*/
+				 * Figure out the end frame based on
+				 * schedule.
+				 *
+				 * We don't want to go on trying again
+				 * and again forever. Let's stop when
+				 * we've done all the transfers that
+				 * were scheduled.
+				 *
+				 * We're going to be comparing
+				 * start_active_frame and
+				 * next_active_frame, both of which
+				 * are 1 before the time the packet
+				 * goes on the wire, so that cancels
+				 * out. Basically if had 1 transfer
+				 * and we saw 1 NYET then we're done.
+				 * We're getting a NYET here so if
+				 * next >= (start + num_transfers)
+				 * we're done. The complexity is that
+				 * for all but ISOC_OUT we skip one
+				 * slot.
+				 */
 				end_frnum = dwc2_frame_num_inc(
 					qh->start_active_frame,
 					qh->num_hs_transfers);

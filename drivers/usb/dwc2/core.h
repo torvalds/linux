@@ -603,8 +603,8 @@ struct dwc2_hw_params {
 #define DWC2_CTRL_BUFF_SIZE 8
 
 /**
- * struct dwc2_gregs_backup - Holds global registers state before entering partial
- * power down
+ * struct dwc2_gregs_backup - Holds global registers state before
+ * entering partial power down
  * @gotgctl:		Backup of GOTGCTL register
  * @gintmsk:		Backup of GINTMSK register
  * @gahbcfg:		Backup of GAHBCFG register
@@ -634,8 +634,8 @@ struct dwc2_gregs_backup {
 };
 
 /**
- * struct  dwc2_dregs_backup - Holds device registers state before entering partial
- * power down
+ * struct dwc2_dregs_backup - Holds device registers state before
+ * entering partial power down
  * @dcfg:		Backup of DCFG register
  * @dctl:		Backup of DCTL register
  * @daintmsk:		Backup of DAINTMSK register
@@ -664,8 +664,8 @@ struct dwc2_dregs_backup {
 };
 
 /**
- * struct  dwc2_hregs_backup - Holds host registers state before entering partial
- * power down
+ * struct dwc2_hregs_backup - Holds host registers state before
+ * entering partial power down
  * @hcfg:		Backup of HCFG register
  * @haintmsk:		Backup of HAINTMSK register
  * @hcintmsk:		Backup of HCINTMSK register
@@ -782,9 +782,10 @@ struct dwc2_hregs_backup {
  * @gadget_enabled	Peripheral mode sub-driver initialization indicator.
  * @ll_hw_enabled	Status of low-level hardware resources.
  * @phy:                The otg phy transceiver structure for phy control.
- * @uphy:               The otg phy transceiver structure for old USB phy control.
- * @plat:               The platform specific configuration data. This can be removed once
- *                      all SoCs support usb transceiver.
+ * @uphy:               The otg phy transceiver structure for old USB phy
+ *                      control.
+ * @plat:               The platform specific configuration data. This can be
+ *                      removed once all SoCs support usb transceiver.
  * @supplies:           Definition of USB power supplies
  * @phyif:              PHY interface width
  * @lock:		Spinlock that protects all the driver data structures
