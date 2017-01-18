@@ -875,7 +875,10 @@ static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 
 		rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
 		hw_min = HWP_LOWEST_PERF(cap);
-		hw_max = HWP_HIGHEST_PERF(cap);
+		if (limits->no_turbo)
+			hw_max = HWP_GUARANTEED_PERF(cap);
+		else
+			hw_max = HWP_HIGHEST_PERF(cap);
 		range = hw_max - hw_min;
 
 		max_perf_pct = perf_limits->max_perf_pct;
@@ -889,11 +892,6 @@ static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 
 		adj_range = max_perf_pct * range / 100;
 		max = hw_min + adj_range;
-		if (limits->no_turbo) {
-			hw_max = HWP_GUARANTEED_PERF(cap);
-			if (hw_max < max)
-				max = hw_max;
-		}
 
 		value &= ~HWP_MAX_PERF(~0L);
 		value |= HWP_MAX_PERF(max);
