@@ -242,7 +242,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int err;
 
-	np = pdev->dev.of_node;
+	np = dev->of_node;
 	if (!np)
 		return -ENODEV;
 
@@ -272,7 +272,6 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	ckdev->ec = ec;
 	ckdev->dev = dev;
-	dev_set_drvdata(dev, ckdev);
 
 	idev->name = CROS_EC_DEV_NAME;
 	idev->phys = ec->phys_name;
