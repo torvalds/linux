@@ -239,6 +239,71 @@ static const struct mmu_notifier_ops ib_umem_notifiers = {
 	.invalidate_range_end       = ib_umem_notifier_invalidate_range_end,
 };
 
+struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
+				  unsigned long addr,
+				  size_t size)
+{
+	struct ib_umem *umem;
+	struct ib_umem_odp *odp_data;
+	int pages = size >> PAGE_SHIFT;
+	int ret;
+
+	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	if (!umem)
+		return ERR_PTR(-ENOMEM);
+
+	umem->context   = context;
+	umem->length    = size;
+	umem->address   = addr;
+	umem->page_size = PAGE_SIZE;
+	umem->writable  = 1;
+
+	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
+	if (!odp_data) {
+		ret = -ENOMEM;
+		goto out_umem;
+	}
+	odp_data->umem = umem;
+
+	mutex_init(&odp_data->umem_mutex);
+	init_completion(&odp_data->notifier_completion);
+
+	odp_data->page_list = vzalloc(pages * sizeof(*odp_data->page_list));
+	if (!odp_data->page_list) {
+		ret = -ENOMEM;
+		goto out_odp_data;
+	}
+
+	odp_data->dma_list = vzalloc(pages * sizeof(*odp_data->dma_list));
+	if (!odp_data->dma_list) {
+		ret = -ENOMEM;
+		goto out_page_list;
+	}
+
+	down_write(&context->umem_rwsem);
+	context->odp_mrs_count++;
+	rbt_ib_umem_insert(&odp_data->interval_tree, &context->umem_tree);
+	if (likely(!atomic_read(&context->notifier_count)))
+		odp_data->mn_counters_active = true;
+	else
+		list_add(&odp_data->no_private_counters,
+			 &context->no_private_counters);
+	up_write(&context->umem_rwsem);
+
+	umem->odp_data = odp_data;
+
+	return umem;
+
+out_page_list:
+	vfree(odp_data->page_list);
+out_odp_data:
+	kfree(odp_data);
+out_umem:
+	kfree(umem);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(ib_alloc_odp_umem);
+
 int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem)
 {
 	int ret_val;
@@ -270,18 +335,20 @@ int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem)
 
 	init_completion(&umem->odp_data->notifier_completion);
 
-	umem->odp_data->page_list = vzalloc(ib_umem_num_pages(umem) *
+	if (ib_umem_num_pages(umem)) {
+		umem->odp_data->page_list = vzalloc(ib_umem_num_pages(umem) *
 					    sizeof(*umem->odp_data->page_list));
-	if (!umem->odp_data->page_list) {
-		ret_val = -ENOMEM;
-		goto out_odp_data;
-	}
+		if (!umem->odp_data->page_list) {
+			ret_val = -ENOMEM;
+			goto out_odp_data;
+		}
 
-	umem->odp_data->dma_list = vzalloc(ib_umem_num_pages(umem) *
+		umem->odp_data->dma_list = vzalloc(ib_umem_num_pages(umem) *
 					  sizeof(*umem->odp_data->dma_list));
-	if (!umem->odp_data->dma_list) {
-		ret_val = -ENOMEM;
-		goto out_page_list;
+		if (!umem->odp_data->dma_list) {
+			ret_val = -ENOMEM;
+			goto out_page_list;
+		}
 	}
 
 	/*
@@ -466,6 +533,7 @@ static int ib_umem_odp_map_dma_single_page(
 		}
 		umem->odp_data->dma_list[page_index] = dma_addr | access_mask;
 		umem->odp_data->page_list[page_index] = page;
+		umem->npages++;
 		stored_page = 1;
 	} else if (umem->odp_data->page_list[page_index] == page) {
 		umem->odp_data->dma_list[page_index] |= access_mask;
@@ -665,6 +733,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 				put_page(page);
 			umem->odp_data->page_list[idx] = NULL;
 			umem->odp_data->dma_list[idx] = 0;
+			umem->npages--;
 		}
 	}
 	mutex_unlock(&umem->odp_data->umem_mutex);
