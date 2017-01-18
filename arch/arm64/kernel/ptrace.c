@@ -849,7 +849,7 @@ static int compat_tls_set(struct task_struct *target,
 			  const void __user *ubuf)
 {
 	int ret;
-	compat_ulong_t tls;
+	compat_ulong_t tls = target->thread.tp_value;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 	if (ret)
