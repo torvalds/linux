@@ -992,7 +992,7 @@ static int __init arch_timer_register(void)
 	case ARCH_TIMER_PHYS_NONSECURE_PPI:
 		err = request_percpu_irq(ppi, arch_timer_handler_phys,
 					 "arch_timer", arch_timer_evt);
-		if (!err && arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]) {
+		if (!err && arch_timer_has_nonsecure_ppi()) {
 			ppi = arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI];
 			err = request_percpu_irq(ppi, arch_timer_handler_phys,
 						 "arch_timer", arch_timer_evt);
@@ -1114,39 +1114,41 @@ static int __init arch_timer_common_init(void)
 	return arch_timer_arch_init();
 }
 
+/**
+ * arch_timer_select_ppi() - Select suitable PPI for the current system.
+ *
+ * If HYP mode is available, we know that the physical timer
+ * has been configured to be accessible from PL1. Use it, so
+ * that a guest can use the virtual timer instead.
+ *
+ * On ARMv8.1 with VH extensions, the kernel runs in HYP. VHE
+ * accesses to CNTP_*_EL1 registers are silently redirected to
+ * their CNTHP_*_EL2 counterparts, and use a different PPI
+ * number.
+ *
+ * If no interrupt provided for virtual timer, we'll have to
+ * stick to the physical timer. It'd better be accessible...
+ * For arm64 we never use the secure interrupt.
+ *
+ * Return: a suitable PPI type for the current system.
+ */
+static enum arch_timer_ppi_nr __init arch_timer_select_ppi(void)
+{
+	if (is_kernel_in_hyp_mode())
+		return ARCH_TIMER_HYP_PPI;
+
+	if (!is_hyp_mode_available() && arch_timer_ppi[ARCH_TIMER_VIRT_PPI])
+		return ARCH_TIMER_VIRT_PPI;
+
+	if (IS_ENABLED(CONFIG_ARM64))
+		return ARCH_TIMER_PHYS_NONSECURE_PPI;
+
+	return ARCH_TIMER_PHYS_SECURE_PPI;
+}
+
 static int __init arch_timer_init(void)
 {
 	int ret;
-	/*
-	 * If HYP mode is available, we know that the physical timer
-	 * has been configured to be accessible from PL1. Use it, so
-	 * that a guest can use the virtual timer instead.
-	 *
-	 * If no interrupt provided for virtual timer, we'll have to
-	 * stick to the physical timer. It'd better be accessible...
-	 *
-	 * On ARMv8.1 with VH extensions, the kernel runs in HYP. VHE
-	 * accesses to CNTP_*_EL1 registers are silently redirected to
-	 * their CNTHP_*_EL2 counterparts, and use a different PPI
-	 * number.
-	 */
-	if (is_hyp_mode_available() || !arch_timer_ppi[ARCH_TIMER_VIRT_PPI]) {
-		bool has_ppi;
-
-		if (is_kernel_in_hyp_mode()) {
-			arch_timer_uses_ppi = ARCH_TIMER_HYP_PPI;
-			has_ppi = !!arch_timer_ppi[ARCH_TIMER_HYP_PPI];
-		} else {
-			arch_timer_uses_ppi = ARCH_TIMER_PHYS_SECURE_PPI;
-			has_ppi = (!!arch_timer_ppi[ARCH_TIMER_PHYS_SECURE_PPI] ||
-				   !!arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
-		}
-
-		if (!has_ppi) {
-			pr_warn("No interrupt available, giving up\n");
-			return -EINVAL;
-		}
-	}
 
 	ret = arch_timer_register();
 	if (ret)
@@ -1188,6 +1190,13 @@ static int __init arch_timer_of_init(struct device_node *np)
 	if (IS_ENABLED(CONFIG_ARM) &&
 	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
 		arch_timer_uses_ppi = ARCH_TIMER_PHYS_SECURE_PPI;
+	else
+		arch_timer_uses_ppi = arch_timer_select_ppi();
+
+	if (!arch_timer_ppi[arch_timer_uses_ppi]) {
+		pr_err("No interrupt available, giving up\n");
+		return -EINVAL;
+	}
 
 	/* On some systems, the counter stops ticking when in suspend. */
 	arch_counter_suspend_stop = of_property_read_bool(np,
@@ -1332,6 +1341,12 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	/* Get the frequency from CNTFRQ */
 	arch_timer_detect_rate(NULL, NULL);
+
+	arch_timer_uses_ppi = arch_timer_select_ppi();
+	if (!arch_timer_ppi[arch_timer_uses_ppi]) {
+		pr_err("No interrupt available, giving up\n");
+		return -EINVAL;
+	}
 
 	/* Always-on capability */
 	arch_timer_c3stop = !(gtdt->non_secure_el1_flags & ACPI_GTDT_ALWAYS_ON);
