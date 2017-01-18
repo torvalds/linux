@@ -292,6 +292,7 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 		est->size = nsize;
 
 	est->lookup = NFT_SET_CLASS_O_LOG_N;
+	est->space  = NFT_SET_CLASS_O_N;
 
 	return true;
 }

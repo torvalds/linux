@@ -245,10 +245,12 @@ enum nft_set_class {
  *
  *	@size: required memory
  *	@lookup: lookup performance class
+ *	@space: memory class
  */
 struct nft_set_estimate {
 	unsigned int		size;
 	enum nft_set_class	lookup;
+	enum nft_set_class	space;
 };
 
 struct nft_set_ext;
