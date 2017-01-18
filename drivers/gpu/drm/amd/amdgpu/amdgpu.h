@@ -357,7 +357,7 @@ struct amdgpu_bo_va_mapping {
 	struct list_head		list;
 	struct interval_tree_node	it;
 	uint64_t			offset;
-	uint32_t			flags;
+	uint64_t			flags;
 };
 
 /* bo virtual addresses in a specific vm */
