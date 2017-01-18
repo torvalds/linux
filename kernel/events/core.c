@@ -9022,6 +9022,14 @@ static struct pmu *perf_init_event(struct perf_event *event)
 
 	idx = srcu_read_lock(&pmus_srcu);
 
+	/* Try parent's PMU first: */
+	if (event->parent && event->parent->pmu) {
+		pmu = event->parent->pmu;
+		ret = perf_try_init_event(pmu, event);
+		if (!ret)
+			goto unlock;
+	}
+
 	rcu_read_lock();
 	pmu = idr_find(&pmu_idr, event->attr.type);
 	rcu_read_unlock();
