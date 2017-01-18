@@ -506,9 +506,6 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		}
 	} while (busy);
 
-	if (host->ops->card_busy && send_status)
-		return mmc_switch_status(card);
-
 	return 0;
 }
 
@@ -577,24 +574,26 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (!use_busy_signal)
 		goto out;
 
-	/* Switch to new timing before poll and check switch status. */
-	if (timing)
-		mmc_set_timing(host, timing);
-
 	/*If SPI or used HW busy detection above, then we don't need to poll. */
 	if (((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp) ||
-		mmc_host_is_spi(host)) {
-		if (send_status)
-			err = mmc_switch_status(card);
+		mmc_host_is_spi(host))
 		goto out_tim;
-	}
 
 	/* Let's try to poll to find out when the command is completed. */
 	err = mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err);
+	if (err)
+		goto out;
 
 out_tim:
-	if (err && timing)
-		mmc_set_timing(host, old_timing);
+	/* Switch to new timing before check switch status. */
+	if (timing)
+		mmc_set_timing(host, timing);
+
+	if (send_status) {
+		err = mmc_switch_status(card);
+		if (err && timing)
+			mmc_set_timing(host, old_timing);
+	}
 out:
 	mmc_retune_release(host);
 

@@ -688,17 +688,17 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_prog *prog = filp->private_data;
-	char prog_digest[sizeof(prog->digest) * 2 + 1] = { };
+	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
 
-	bin2hex(prog_digest, prog->digest, sizeof(prog->digest));
+	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "prog_type:\t%u\n"
 		   "prog_jited:\t%u\n"
-		   "prog_digest:\t%s\n"
+		   "prog_tag:\t%s\n"
 		   "memlock:\t%llu\n",
 		   prog->type,
 		   prog->jited,
-		   prog_digest,
+		   prog_tag,
 		   prog->pages * 1ULL << PAGE_SHIFT);
 }
 #endif
