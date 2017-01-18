@@ -243,6 +243,7 @@ gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 	const u32  stat = nvkm_rd32(device, 0x800004 + (chid * 0x08));
 	const u32  runl = (stat & 0x000f0000) >> 16;
 	const bool used = (stat & 0x00000001);
+	unsigned long engn, engm = fifo->runlist[runl].engm;
 	struct gk104_fifo_chan *chan;
 
 	assert_spin_locked(&fifo->base.lock);
@@ -262,6 +263,18 @@ gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 	/* Disable channel. */
 	nvkm_wr32(device, 0x800004 + (chid * 0x08), stat | 0x00000800);
 	nvkm_warn(subdev, "channel %d: killed\n", chid);
+
+	/* Block channel assignments from changing during recovery. */
+	gk104_fifo_recover_runl(fifo, runl);
+
+	/* Schedule recovery for any engines the channel is on. */
+	for_each_set_bit(engn, &engm, fifo->engine_nr) {
+		struct gk104_fifo_engine_status status;
+		gk104_fifo_engine_status(fifo, engn, &status);
+		if (!status.chan || status.chan->id != chid)
+			continue;
+		gk104_fifo_recover_engn(fifo, engn);
+	}
 }
 
 static void
