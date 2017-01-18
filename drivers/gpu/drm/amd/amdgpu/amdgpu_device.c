@@ -1565,6 +1565,9 @@ int amdgpu_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
+
 	/* ungate SMC block first */
 	r = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
 					 AMD_CG_STATE_UNGATE);
@@ -1592,6 +1595,9 @@ int amdgpu_suspend(struct amdgpu_device *adev)
 				  adev->ip_blocks[i].version->funcs->name, r);
 		}
 	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, false);
 
 	return 0;
 }
