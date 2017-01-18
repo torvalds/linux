@@ -443,6 +443,9 @@ struct smb_version_operations {
 	int (*is_transform_hdr)(void *buf);
 	int (*receive_transform)(struct TCP_Server_Info *,
 				 struct mid_q_entry **);
+	enum securityEnum (*select_sectype)(struct TCP_Server_Info *,
+			    enum securityEnum);
+
 };
 
 struct smb_version_values {

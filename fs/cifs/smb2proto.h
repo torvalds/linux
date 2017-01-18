@@ -181,4 +181,6 @@ extern int SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 			    __u8 *lease_key, const __le32 lease_state);
 extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
+extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
+					enum securityEnum);
 #endif			/* _SMB2PROTO_H */

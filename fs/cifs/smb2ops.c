@@ -2381,6 +2381,7 @@ struct smb_version_operations smb20_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -2463,6 +2464,7 @@ struct smb_version_operations smb21_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.enum_snapshots = smb3_enum_snapshots,
 	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -2555,6 +2557,7 @@ struct smb_version_operations smb30_operations = {
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
 	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -2648,6 +2651,7 @@ struct smb_version_operations smb311_operations = {
 	.is_transform_hdr = smb3_is_transform_hdr,
 	.receive_transform = smb3_receive_transform,
 	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 #endif /* CIFS_SMB311 */
 

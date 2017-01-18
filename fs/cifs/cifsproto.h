@@ -533,4 +533,6 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature,
 			struct shash_desc *shash);
+enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
+					enum securityEnum);
 #endif			/* _CIFSPROTO_H */

@@ -657,6 +657,28 @@ vneg_out:
 	return -EIO;
 }
 
+enum securityEnum
+smb2_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
+{
+	switch (requested) {
+	case Kerberos:
+	case RawNTLMSSP:
+		return requested;
+	case NTLMv2:
+		return RawNTLMSSP;
+	case Unspecified:
+		if (server->sec_ntlmssp &&
+			(global_secflags & CIFSSEC_MAY_NTLMSSP))
+			return RawNTLMSSP;
+		if ((server->sec_kerberos || server->sec_mskerberos) &&
+			(global_secflags & CIFSSEC_MAY_KRB5))
+			return Kerberos;
+		/* Fallthrough */
+	default:
+		return Unspecified;
+	}
+}
+
 struct SMB2_sess_data {
 	unsigned int xid;
 	struct cifs_ses *ses;
@@ -1009,10 +1031,17 @@ out:
 static int
 SMB2_select_sec(struct cifs_ses *ses, struct SMB2_sess_data *sess_data)
 {
-	if (ses->sectype != Kerberos && ses->sectype != RawNTLMSSP)
-		ses->sectype = RawNTLMSSP;
+	int type;
 
-	switch (ses->sectype) {
+	type = smb2_select_sectype(ses->server, ses->sectype);
+	cifs_dbg(FYI, "sess setup type %d\n", type);
+	if (type == Unspecified) {
+		cifs_dbg(VFS,
+			"Unable to select appropriate authentication method!");
+		return -EINVAL;
+	}
+
+	switch (type) {
 	case Kerberos:
 		sess_data->func = SMB2_auth_kerberos;
 		break;
@@ -1020,7 +1049,7 @@ SMB2_select_sec(struct cifs_ses *ses, struct SMB2_sess_data *sess_data)
 		sess_data->func = SMB2_sess_auth_rawntlmssp_negotiate;
 		break;
 	default:
-		cifs_dbg(VFS, "secType %d not supported!\n", ses->sectype);
+		cifs_dbg(VFS, "secType %d not supported!\n", type);
 		return -EOPNOTSUPP;
 	}
 
