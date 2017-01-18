@@ -149,8 +149,6 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	}
 
 	if (private->domain) {
-		int prot = IOMMU_READ | IOMMU_WRITE;
-
 		memset(&logo->mm, 0, sizeof(logo->mm));
 		ret = drm_mm_insert_node_generic(&private->mm, &logo->mm,
 						 size, PAGE_SIZE,
@@ -164,7 +162,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 
 		logo->iommu_map_size = iommu_map_sg(private->domain,
 						    logo->dma_addr, sgt->sgl,
-						    sgt->nents, prot);
+						    sgt->nents, IOMMU_READ);
 		if (logo->iommu_map_size < size) {
 			DRM_ERROR("failed to map buffer");
 			ret = -ENOMEM;
