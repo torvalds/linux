@@ -203,7 +203,8 @@ static void *nft_hash_deactivate(const struct net *net,
 	return he;
 }
 
-static void nft_hash_remove(const struct nft_set *set,
+static void nft_hash_remove(const struct net *net,
+			    const struct nft_set *set,
 			    const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);

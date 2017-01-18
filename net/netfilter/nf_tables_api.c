@@ -3752,7 +3752,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	return 0;
 
 err6:
-	set->ops->remove(set, &elem);
+	set->ops->remove(ctx->net, set, &elem);
 err5:
 	kfree(trans);
 err4:
@@ -4804,7 +4804,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
 						 NFT_MSG_DELSETELEM, 0);
-			te->set->ops->remove(te->set, &te->elem);
+			te->set->ops->remove(net, te->set, &te->elem);
 			atomic_dec(&te->set->nelems);
 			te->set->ndeact--;
 			break;
@@ -4925,7 +4925,7 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_NEWSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->remove(te->set, &te->elem);
+			te->set->ops->remove(net, te->set, &te->elem);
 			atomic_dec(&te->set->nelems);
 			break;
 		case NFT_MSG_DELSETELEM:

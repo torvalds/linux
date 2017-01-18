@@ -151,7 +151,8 @@ static int nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 	return err;
 }
 
-static void nft_rbtree_remove(const struct nft_set *set,
+static void nft_rbtree_remove(const struct net *net,
+			      const struct nft_set *set,
 			      const struct nft_set_elem *elem)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
