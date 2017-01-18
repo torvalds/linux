@@ -788,6 +788,7 @@ struct perf_cpu_context {
 	struct pmu			*unique_pmu;
 #ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp;
+	struct list_head		cgrp_cpuctx_entry;
 #endif
 
 	struct list_head		sched_cb_entry;

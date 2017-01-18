@@ -678,6 +678,8 @@ perf_cgroup_set_timestamp(struct task_struct *task,
 	info->timestamp = ctx->timestamp;
 }
 
+static DEFINE_PER_CPU(struct list_head, cgrp_cpuctx_list);
+
 #define PERF_CGROUP_SWOUT	0x1 /* cgroup switch out every event */
 #define PERF_CGROUP_SWIN	0x2 /* cgroup switch in events based on task */
 
@@ -690,61 +692,46 @@ perf_cgroup_set_timestamp(struct task_struct *task,
 static void perf_cgroup_switch(struct task_struct *task, int mode)
 {
 	struct perf_cpu_context *cpuctx;
-	struct pmu *pmu;
+	struct list_head *list;
 	unsigned long flags;
 
 	/*
-	 * disable interrupts to avoid geting nr_cgroup
-	 * changes via __perf_event_disable(). Also
-	 * avoids preemption.
+	 * Disable interrupts and preemption to avoid this CPU's
+	 * cgrp_cpuctx_entry to change under us.
 	 */
 	local_irq_save(flags);
 
-	/*
-	 * we reschedule only in the presence of cgroup
-	 * constrained events.
-	 */
+	list = this_cpu_ptr(&cgrp_cpuctx_list);
+	list_for_each_entry(cpuctx, list, cgrp_cpuctx_entry) {
+		WARN_ON_ONCE(cpuctx->ctx.nr_cgroups == 0);
 
-	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
-		if (cpuctx->unique_pmu != pmu)
-			continue; /* ensure we process each cpuctx once */
+		perf_ctx_lock(cpuctx, cpuctx->task_ctx);
+		perf_pmu_disable(cpuctx->ctx.pmu);
 
-		/*
-		 * perf_cgroup_events says at least one
-		 * context on this CPU has cgroup events.
-		 *
-		 * ctx->nr_cgroups reports the number of cgroup
-		 * events for a context.
-		 */
-		if (cpuctx->ctx.nr_cgroups > 0) {
-			perf_ctx_lock(cpuctx, cpuctx->task_ctx);
-			perf_pmu_disable(cpuctx->ctx.pmu);
-
-			if (mode & PERF_CGROUP_SWOUT) {
-				cpu_ctx_sched_out(cpuctx, EVENT_ALL);
-				/*
-				 * must not be done before ctxswout due
-				 * to event_filter_match() in event_sched_out()
-				 */
-				cpuctx->cgrp = NULL;
-			}
-
-			if (mode & PERF_CGROUP_SWIN) {
-				WARN_ON_ONCE(cpuctx->cgrp);
-				/*
-				 * set cgrp before ctxsw in to allow
-				 * event_filter_match() to not have to pass
-				 * task around
-				 * we pass the cpuctx->ctx to perf_cgroup_from_task()
-				 * because cgorup events are only per-cpu
-				 */
-				cpuctx->cgrp = perf_cgroup_from_task(task, &cpuctx->ctx);
-				cpu_ctx_sched_in(cpuctx, EVENT_ALL, task);
-			}
-			perf_pmu_enable(cpuctx->ctx.pmu);
-			perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
+		if (mode & PERF_CGROUP_SWOUT) {
+			cpu_ctx_sched_out(cpuctx, EVENT_ALL);
+			/*
+			 * must not be done before ctxswout due
+			 * to event_filter_match() in event_sched_out()
+			 */
+			cpuctx->cgrp = NULL;
 		}
+
+		if (mode & PERF_CGROUP_SWIN) {
+			WARN_ON_ONCE(cpuctx->cgrp);
+			/*
+			 * set cgrp before ctxsw in to allow
+			 * event_filter_match() to not have to pass
+			 * task around
+			 * we pass the cpuctx->ctx to perf_cgroup_from_task()
+			 * because cgorup events are only per-cpu
+			 */
+			cpuctx->cgrp = perf_cgroup_from_task(task,
+							     &cpuctx->ctx);
+			cpu_ctx_sched_in(cpuctx, EVENT_ALL, task);
+		}
+		perf_pmu_enable(cpuctx->ctx.pmu);
+		perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
 	}
 
 	local_irq_restore(flags);
@@ -889,6 +876,7 @@ list_update_cgroup_event(struct perf_event *event,
 			 struct perf_event_context *ctx, bool add)
 {
 	struct perf_cpu_context *cpuctx;
+	struct list_head *cpuctx_entry;
 
 	if (!is_cgroup_event(event))
 		return;
@@ -902,15 +890,16 @@ list_update_cgroup_event(struct perf_event *event,
 	 * this will always be called from the right CPU.
 	 */
 	cpuctx = __get_cpu_context(ctx);
-
-	/*
-	 * cpuctx->cgrp is NULL until a cgroup event is sched in or
-	 * ctx->nr_cgroup == 0 .
-	 */
-	if (add && perf_cgroup_from_task(current, ctx) == event->cgrp)
-		cpuctx->cgrp = event->cgrp;
-	else if (!add)
+	cpuctx_entry = &cpuctx->cgrp_cpuctx_entry;
+	/* cpuctx->cgrp is NULL unless a cgroup event is active in this CPU .*/
+	if (add) {
+		list_add(cpuctx_entry, this_cpu_ptr(&cgrp_cpuctx_list));
+		if (perf_cgroup_from_task(current, ctx) == event->cgrp)
+			cpuctx->cgrp = event->cgrp;
+	} else {
+		list_del(cpuctx_entry);
 		cpuctx->cgrp = NULL;
+	}
 }
 
 #else /* !CONFIG_CGROUP_PERF */
@@ -10709,6 +10698,9 @@ static void __init perf_event_init_all_cpus(void)
 		INIT_LIST_HEAD(&per_cpu(pmu_sb_events.list, cpu));
 		raw_spin_lock_init(&per_cpu(pmu_sb_events.lock, cpu));
 
+#ifdef CONFIG_CGROUP_PERF
+		INIT_LIST_HEAD(&per_cpu(cgrp_cpuctx_list, cpu));
+#endif
 		INIT_LIST_HEAD(&per_cpu(sched_cb_list, cpu));
 	}
 }
