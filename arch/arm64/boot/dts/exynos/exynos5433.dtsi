@@ -706,7 +706,7 @@
 			interrupts = <GIC_PPI 9 0xf04>;
 		};
 
-		mipi_phy: video-phy@105c0710 {
+		mipi_phy: video-phy {
 			compatible = "samsung,exynos5433-mipi-video-phy";
 			#phy-cells = <1>;
 			samsung,pmu-syscon = <&pmu_system_controller>;
@@ -1357,7 +1357,7 @@
 			status = "disabled";
 		};
 
-		usbdrd30: usb@15400000  {
+		usbdrd30: usbdrd {
 			compatible = "samsung,exynos5250-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBDRD30>,
 				<&cmu_fsys CLK_SCLK_USBDRD30>;
@@ -1404,7 +1404,7 @@
 			status = "disabled";
 		};
 
-		usbhost30: usb@15a00000 {
+		usbhost30: usbhost {
 			compatible = "samsung,exynos5250-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBHOST30>,
 				<&cmu_fsys CLK_SCLK_USBHOST30>;
