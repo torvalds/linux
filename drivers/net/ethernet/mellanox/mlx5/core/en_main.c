@@ -639,11 +639,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		byte_count = rq->buff.wqe_sz;
 
 		/* calc the required page order */
-		frag_sz = rq->rx_headroom +
-			  byte_count /* packet data */ +
-			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-		frag_sz = SKB_DATA_ALIGN(frag_sz);
-
+		frag_sz = MLX5_SKB_FRAG_SZ(rq->rx_headroom + byte_count);
 		npages = DIV_ROUND_UP(frag_sz, PAGE_SIZE);
 		rq->buff.page_order = order_base_2(npages);
 
