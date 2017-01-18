@@ -137,7 +137,7 @@ static int state_show(struct seq_file *seq, void *v)
 	int idx;
 
 	seq_printf(seq, "DCFG=0x%08x, DCTL=0x%08x, DSTS=0x%08x\n",
-		 dwc2_readl(regs + DCFG),
+		   dwc2_readl(regs + DCFG),
 		 dwc2_readl(regs + DCTL),
 		 dwc2_readl(regs + DSTS));
 
@@ -338,23 +338,23 @@ static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 {
 	struct dentry *root;
 	struct dentry *file;
-	unsigned epidx;
+	unsigned int epidx;
 
 	root = hsotg->debug_root;
 
 	/* create general state file */
 
-	file = debugfs_create_file("state", S_IRUGO, root, hsotg, &state_fops);
+	file = debugfs_create_file("state", 0444, root, hsotg, &state_fops);
 	if (IS_ERR(file))
 		dev_err(hsotg->dev, "%s: failed to create state\n", __func__);
 
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, hsotg,
-							&testmode_fops);
+	file = debugfs_create_file("testmode", 0644, root, hsotg,
+				   &testmode_fops);
 	if (IS_ERR(file))
 		dev_err(hsotg->dev, "%s: failed to create testmode\n",
-				__func__);
+			__func__);
 
-	file = debugfs_create_file("fifo", S_IRUGO, root, hsotg, &fifo_fops);
+	file = debugfs_create_file("fifo", 0444, root, hsotg, &fifo_fops);
 	if (IS_ERR(file))
 		dev_err(hsotg->dev, "%s: failed to create fifo\n", __func__);
 
@@ -364,8 +364,8 @@ static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 		ep = hsotg->eps_out[epidx];
 		if (ep) {
-			file = debugfs_create_file(ep->name, S_IRUGO,
-							  root, ep, &ep_fops);
+			file = debugfs_create_file(ep->name, 0444,
+						   root, ep, &ep_fops);
 			if (IS_ERR(file))
 				dev_err(hsotg->dev, "failed to create %s debug file\n",
 					ep->name);
@@ -377,8 +377,8 @@ static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 		ep = hsotg->eps_in[epidx];
 		if (ep) {
-			file = debugfs_create_file(ep->name, S_IRUGO,
-							  root, ep, &ep_fops);
+			file = debugfs_create_file(ep->name, 0444,
+						   root, ep, &ep_fops);
 			if (IS_ERR(file))
 				dev_err(hsotg->dev, "failed to create %s debug file\n",
 					ep->name);
@@ -750,8 +750,8 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	hsotg->regset->nregs = ARRAY_SIZE(dwc2_regs);
 	hsotg->regset->base = hsotg->regs;
 
-	file = debugfs_create_regset32("regdump", S_IRUGO, hsotg->debug_root,
-								hsotg->regset);
+	file = debugfs_create_regset32("regdump", 0444, hsotg->debug_root,
+				       hsotg->regset);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;

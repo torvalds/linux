@@ -2577,7 +2577,7 @@ static void dwc2_free_dma_aligned_buffer(struct urb *urb)
 		return;
 
 	temp = container_of(urb->transfer_buffer,
-		struct dma_aligned_buffer, data);
+			    struct dma_aligned_buffer, data);
 
 	if (usb_urb_dir_in(urb))
 		memcpy(temp->old_xfer_buffer, temp->data,
@@ -2621,7 +2621,7 @@ static int dwc2_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 }
 
 static int dwc2_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
-				      gfp_t mem_flags)
+				gfp_t mem_flags)
 {
 	int ret;
 
@@ -2718,7 +2718,7 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	chan->multi_count = 1;
 
 	if (urb->actual_length > urb->length &&
-		!dwc2_hcd_is_pipe_in(&urb->pipe_info))
+	    !dwc2_hcd_is_pipe_in(&urb->pipe_info))
 		urb->actual_length = urb->length;
 
 	if (hsotg->params.host_dma > 0)
@@ -2989,7 +2989,7 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		 * the middle of multiple high-bandwidth packets getting queued.
 		 */
 		if (hsotg->params.host_dma <= 0 &&
-				qh->channel->multi_count > 1)
+		    qh->channel->multi_count > 1)
 			hsotg->queuing_high_bandwidth = 1;
 
 		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
@@ -4047,7 +4047,7 @@ static struct dwc2_hsotg *dwc2_hcd_to_hsotg(struct usb_hcd *hcd)
 {
 	struct wrapper_priv_data *p;
 
-	p = (struct wrapper_priv_data *) &hcd->hcd_priv;
+	p = (struct wrapper_priv_data *)&hcd->hcd_priv;
 	return p->hsotg;
 }
 
@@ -4082,7 +4082,7 @@ struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg, void *context,
 		*ttport = urb->dev->ttport;
 
 		dwc_tt = urb->dev->tt->hcpriv;
-		if (dwc_tt == NULL) {
+		if (!dwc_tt) {
 			size_t bitmap_size;
 
 			/*
@@ -4096,7 +4096,7 @@ struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg, void *context,
 
 			dwc_tt = kzalloc(sizeof(*dwc_tt) + bitmap_size,
 					 mem_flags);
-			if (dwc_tt == NULL)
+			if (!dwc_tt)
 				return NULL;
 
 			dwc_tt->usb_tt = urb->dev->tt;
@@ -4123,7 +4123,7 @@ struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg, void *context,
 void dwc2_host_put_tt_info(struct dwc2_hsotg *hsotg, struct dwc2_tt *dwc_tt)
 {
 	/* Model kfree and make put of NULL a no-op */
-	if (dwc_tt == NULL)
+	if (!dwc_tt)
 		return;
 
 	WARN_ON(dwc_tt->refcount < 1);
@@ -4206,7 +4206,6 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 			 usb_pipein(urb->pipe) ? "IN" : "OUT", status,
 			 urb->actual_length);
 
-
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 		urb->error_count = dwc2_hcd_urb_get_error_count(qtd->urb);
 		for (i = 0; i < urb->number_of_packets; ++i) {
@@ -4237,7 +4236,7 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 
 		if (ep)
 			dwc2_free_bus_bandwidth(dwc2_hsotg_to_hcd(hsotg),
-					dwc2_hcd_get_ep_bandwidth(hsotg, ep),
+						dwc2_hcd_get_ep_bandwidth(hsotg, ep),
 					urb);
 	}
 
@@ -4584,7 +4583,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		dwc2_dump_urb_info(hcd, urb, "urb_enqueue");
 	}
 
-	if (ep == NULL)
+	if (!ep)
 		return -EINVAL;
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS ||
@@ -4654,7 +4653,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						 urb->iso_frame_desc[i].length);
 
 	urb->hcpriv = dwc2_urb;
-	qh = (struct dwc2_qh *) ep->hcpriv;
+	qh = (struct dwc2_qh *)ep->hcpriv;
 	/* Create QH for the endpoint if it doesn't exist */
 	if (!qh) {
 		qh = dwc2_hcd_qh_create(hsotg, dwc2_urb, mem_flags);
@@ -4683,7 +4682,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	if (alloc_bandwidth) {
 		dwc2_allocate_bus_bandwidth(hcd,
-				dwc2_hcd_get_ep_bandwidth(hsotg, ep),
+					    dwc2_hcd_get_ep_bandwidth(hsotg, ep),
 				urb);
 	}
 
@@ -4709,7 +4708,7 @@ fail1:
 		dwc2_hcd_qh_unlink(hsotg, qh);
 		/* Free each QTD in the QH's QTD list */
 		list_for_each_entry_safe(qtd2, qtd2_tmp, &qh->qtd_list,
-							 qtd_list_entry)
+					 qtd_list_entry)
 			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd2, qh);
 		dwc2_hcd_qh_free(hsotg, qh);
 	}
@@ -4908,7 +4907,7 @@ static void dwc2_hcd_free(struct dwc2_hsotg *hsotg)
 	for (i = 0; i < MAX_EPS_CHANNELS; i++) {
 		struct dwc2_host_chan *chan = hsotg->hc_ptr_array[i];
 
-		if (chan != NULL) {
+		if (chan) {
 			dev_dbg(hsotg->dev, "HCD Free channel #%i, chan=%p\n",
 				i, chan);
 			hsotg->hc_ptr_array[i] = NULL;
@@ -4997,7 +4996,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	/* Check if the bus driver or platform code has setup a dma_mask */
 	if (hsotg->params.host_dma > 0 &&
-	    hsotg->dev->dma_mask == NULL) {
+	    !hsotg->dev->dma_mask) {
 		dev_warn(hsotg->dev,
 			 "dma_mask not set, disabling DMA\n");
 		hsotg->params.host_dma = false;
@@ -5021,7 +5020,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	hcd->has_tt = 1;
 
-	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
+	((struct wrapper_priv_data *)&hcd->hcd_priv)->hsotg = hsotg;
 	hsotg->priv = hcd;
 
 	/*
@@ -5069,7 +5068,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	for (i = 0; i < num_channels; i++) {
 		channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-		if (channel == NULL)
+		if (!channel)
 			goto error3;
 		channel->hc_num = i;
 		INIT_LIST_HEAD(&channel->split_order_list_entry);

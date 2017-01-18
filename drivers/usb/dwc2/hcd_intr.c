@@ -60,7 +60,7 @@ static void dwc2_track_missed_sofs(struct dwc2_hsotg *hsotg)
 
 	if (expected != curr_frame_number)
 		dwc2_sch_vdbg(hsotg, "MISSED SOF %04x != %04x\n",
-			expected, curr_frame_number);
+			      expected, curr_frame_number);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	if (hsotg->frame_num_idx < FRAME_NUM_ARRAY_SIZE) {
@@ -163,7 +163,7 @@ static void dwc2_sof_intr(struct dwc2_hsotg *hsotg)
 			 * (micro)frame
 			 */
 			list_move_tail(&qh->qh_list_entry,
-				  &hsotg->periodic_sched_ready);
+				       &hsotg->periodic_sched_ready);
 		}
 	}
 	tr_type = dwc2_hcd_select_transactions(hsotg);
@@ -442,7 +442,7 @@ static u32 dwc2_get_actual_xfer_length(struct dwc2_hsotg *hsotg,
 			count = (hctsiz & TSIZ_XFERSIZE_MASK) >>
 				TSIZ_XFERSIZE_SHIFT;
 			length = chan->xfer_len - count;
-			if (short_read != NULL)
+			if (short_read)
 				*short_read = (count != 0);
 		} else if (chan->qh->do_split) {
 			length = qtd->ssplit_out_xfer_count;
@@ -823,7 +823,7 @@ static void dwc2_halt_channel(struct dwc2_hsotg *hsotg,
 			 * processed.
 			 */
 			list_move_tail(&chan->qh->qh_list_entry,
-				  &hsotg->periodic_sched_assigned);
+				       &hsotg->periodic_sched_assigned);
 
 			/*
 			 * Make sure the Periodic Tx FIFO Empty interrupt is
@@ -1078,7 +1078,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 			dev_vdbg(hsotg->dev, "  Isochronous transfer complete\n");
 		if (qtd->isoc_split_pos == DWC2_HCSPLT_XACTPOS_ALL)
 			halt_status = dwc2_update_isoc_urb_state(hsotg, chan,
-					chnum, qtd, DWC2_HC_XFER_COMPLETE);
+								 chnum, qtd, DWC2_HC_XFER_COMPLETE);
 		dwc2_complete_periodic_xfer(hsotg, chan, chnum, qtd,
 					    halt_status);
 		break;
@@ -1369,7 +1369,7 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 						     DWC2_HC_XFER_URB_COMPLETE);
 			} else {
 				dwc2_release_channel(hsotg, chan, qtd,
-						DWC2_HC_XFER_NO_HALT_STATUS);
+						     DWC2_HC_XFER_NO_HALT_STATUS);
 			}
 			goto handle_nyet_done;
 		}
@@ -1485,7 +1485,7 @@ static void dwc2_hc_babble_intr(struct dwc2_hsotg *hsotg,
 		enum dwc2_halt_status halt_status;
 
 		halt_status = dwc2_update_isoc_urb_state(hsotg, chan, chnum,
-						qtd, DWC2_HC_XFER_BABBLE_ERR);
+							 qtd, DWC2_HC_XFER_BABBLE_ERR);
 		dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 	}
 
@@ -1620,7 +1620,6 @@ static void dwc2_hc_xacterr_intr(struct dwc2_hsotg *hsotg,
 	case USB_ENDPOINT_XFER_BULK:
 		qtd->error_count++;
 		if (!chan->qh->ping_state) {
-
 			dwc2_update_urb_state_abn(hsotg, chan, chnum, qtd->urb,
 						  qtd, DWC2_HC_XFER_XACT_ERR);
 			dwc2_hcd_save_data_toggle(hsotg, chan, chnum, qtd);
@@ -1645,7 +1644,7 @@ static void dwc2_hc_xacterr_intr(struct dwc2_hsotg *hsotg,
 			enum dwc2_halt_status halt_status;
 
 			halt_status = dwc2_update_isoc_urb_state(hsotg, chan,
-					chnum, qtd, DWC2_HC_XFER_XACT_ERR);
+								 chnum, qtd, DWC2_HC_XFER_XACT_ERR);
 			dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 		}
 		break;
@@ -1680,7 +1679,7 @@ static void dwc2_hc_frmovrun_intr(struct dwc2_hsotg *hsotg,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		halt_status = dwc2_update_isoc_urb_state(hsotg, chan, chnum,
-					qtd, DWC2_HC_XFER_FRAME_OVERRUN);
+							 qtd, DWC2_HC_XFER_FRAME_OVERRUN);
 		dwc2_halt_channel(hsotg, chan, qtd, halt_status);
 		break;
 	}
@@ -1906,7 +1905,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 					"%s: Halt channel %d (assume incomplete periodic transfer)\n",
 					__func__, chnum);
 				dwc2_halt_channel(hsotg, chan, qtd,
-					DWC2_HC_XFER_PERIODIC_INCOMPLETE);
+						  DWC2_HC_XFER_PERIODIC_INCOMPLETE);
 			} else {
 				dev_err(hsotg->dev,
 					"%s: Channel %d - ChHltd set, but reason is unknown\n",
@@ -1970,7 +1969,7 @@ static bool dwc2_check_qtd_still_ok(struct dwc2_qtd *qtd, struct dwc2_qh *qh)
 {
 	struct dwc2_qtd *cur_head;
 
-	if (qh == NULL)
+	if (!qh)
 		return false;
 
 	cur_head = list_first_entry(&qh->qtd_list, struct dwc2_qtd,

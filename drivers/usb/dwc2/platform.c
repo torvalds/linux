@@ -111,7 +111,7 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 
 	if (mode != hsotg->dr_mode) {
 		dev_warn(hsotg->dev,
-			"Configuration mismatch. dr_mode forced to %s\n",
+			 "Configuration mismatch. dr_mode forced to %s\n",
 			mode == USB_DR_MODE_HOST ? "host" : "device");
 
 		hsotg->dr_mode = mode;
