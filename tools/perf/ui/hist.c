@@ -566,6 +566,10 @@ void perf_hpp__setup_output_field(struct perf_hpp_list *list)
 	perf_hpp_list__for_each_sort_list(list, fmt) {
 		struct perf_hpp_fmt *pos;
 
+		/* skip sort-only fields ("sort_compute" in perf diff) */
+		if (!fmt->entry && !fmt->color)
+			continue;
+
 		perf_hpp_list__for_each_format(list, pos) {
 			if (fmt_equal(fmt, pos))
 				goto next;
