@@ -338,10 +338,17 @@ gk104_fifo_sched_reason[] = {
 static void
 gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 {
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	unsigned long flags, engm = 0;
 	u32 engn;
 
+	/* We need to ACK the SCHED_ERROR here, and prevent it reasserting,
+	 * as MMU_FAULT cannot be triggered while it's pending.
+	 */
 	spin_lock_irqsave(&fifo->base.lock, flags);
+	nvkm_mask(device, 0x002140, 0x00000100, 0x00000000);
+	nvkm_wr32(device, 0x002100, 0x00000100);
+
 	for (engn = 0; engn < fifo->engine_nr; engn++) {
 		struct gk104_fifo_engine_status status;
 
@@ -355,6 +362,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	for_each_set_bit(engn, &engm, fifo->engine_nr)
 		gk104_fifo_recover_engn(fifo, engn);
 
+	nvkm_mask(device, 0x002140, 0x00000100, 0x00000100);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
