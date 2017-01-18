@@ -819,6 +819,20 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_df_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
+	case CHIP_RAVEN:
+		nbio_v6_1_update_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		nbio_v6_1_update_medium_grain_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		soc15_update_hdp_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		soc15_update_drm_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		soc15_update_drm_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		soc15_update_rom_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
 	default:
 		break;
 	}
