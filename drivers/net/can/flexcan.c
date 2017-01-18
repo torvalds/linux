@@ -717,14 +717,11 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 	struct net_device_stats *stats = &dev->stats;
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->regs;
+	irqreturn_t handled = IRQ_NONE;
 	u32 reg_iflag1, reg_esr;
 
 	reg_iflag1 = flexcan_read(&regs->iflag1);
 	reg_esr = flexcan_read(&regs->esr);
-
-	/* ACK all bus error and state change IRQ sources */
-	if (reg_esr & FLEXCAN_ESR_ALL_INT)
-		flexcan_write(reg_esr & FLEXCAN_ESR_ALL_INT, &regs->esr);
 
 	/* schedule NAPI in case of:
 	 * - rx IRQ
@@ -734,6 +731,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 	if ((reg_iflag1 & FLEXCAN_IFLAG_RX_FIFO_AVAILABLE) ||
 	    (reg_esr & FLEXCAN_ESR_ERR_STATE) ||
 	    flexcan_has_and_handle_berr(priv, reg_esr)) {
+		handled = IRQ_HANDLED;
 		/* The error bits are cleared on read,
 		 * save them for later use.
 		 */
@@ -747,6 +745,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 
 	/* FIFO overflow */
 	if (reg_iflag1 & FLEXCAN_IFLAG_RX_FIFO_OVERFLOW) {
+		handled = IRQ_HANDLED;
 		flexcan_write(FLEXCAN_IFLAG_RX_FIFO_OVERFLOW, &regs->iflag1);
 		dev->stats.rx_over_errors++;
 		dev->stats.rx_errors++;
@@ -754,6 +753,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 
 	/* transmission complete interrupt */
 	if (reg_iflag1 & (1 << FLEXCAN_TX_BUF_ID)) {
+		handled = IRQ_HANDLED;
 		stats->tx_bytes += can_get_echo_skb(dev, 0);
 		stats->tx_packets++;
 		can_led_event(dev, CAN_LED_EVENT_TX);
@@ -765,7 +765,13 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		netif_wake_queue(dev);
 	}
 
-	return IRQ_HANDLED;
+	/* ACK all bus error and state change IRQ sources */
+	if (reg_esr & FLEXCAN_ESR_ALL_INT) {
+		handled = IRQ_HANDLED;
+		flexcan_write(reg_esr & FLEXCAN_ESR_ALL_INT, &regs->esr);
+	}
+
+	return handled;
 }
 
 static void flexcan_set_bittiming(struct net_device *dev)
