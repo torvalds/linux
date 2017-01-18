@@ -3143,6 +3143,25 @@ out_put:
 	return ret ? ret : in_len;
 }
 
+static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec)
+{
+	ib_spec->type = kern_spec->type;
+	switch (ib_spec->type) {
+	case IB_FLOW_SPEC_ACTION_TAG:
+		if (kern_spec->flow_tag.size !=
+		    sizeof(struct ib_uverbs_flow_spec_action_tag))
+			return -EINVAL;
+
+		ib_spec->flow_tag.size = sizeof(struct ib_flow_spec_action_tag);
+		ib_spec->flow_tag.tag_id = kern_spec->flow_tag.tag_id;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static size_t kern_spec_filter_sz(struct ib_uverbs_flow_spec_hdr *spec)
 {
 	/* Returns user space filter size, includes padding */
@@ -3167,8 +3186,8 @@ static ssize_t spec_filter_size(void *kern_spec_filter, u16 kern_filter_size,
 	return kern_filter_size;
 }
 
-static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
-				union ib_flow_spec *ib_spec)
+static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec)
 {
 	ssize_t actual_filter_sz;
 	ssize_t kern_filter_sz;
@@ -3261,6 +3280,18 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 		return -EINVAL;
 	}
 	return 0;
+}
+
+static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
+				union ib_flow_spec *ib_spec)
+{
+	if (kern_spec->reserved)
+		return -EINVAL;
+
+	if (kern_spec->type >= IB_FLOW_SPEC_ACTION_TAG)
+		return kern_spec_to_ib_spec_action(kern_spec, ib_spec);
+	else
+		return kern_spec_to_ib_spec_filter(kern_spec, ib_spec);
 }
 
 int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
