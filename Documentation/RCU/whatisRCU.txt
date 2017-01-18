@@ -925,7 +925,8 @@ d.	Do you need RCU grace periods to complete even in the face
 
 e.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
-	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
+	If so, consider SLAB_TYPESAFE_BY_RCU (which was originally
+	named SLAB_DESTROY_BY_RCU).  But please be careful!
 
 f.	Do you need read-side critical sections that are respected
 	even though they are in the middle of the idle loop, during

@@ -101,7 +101,7 @@ struct proto smc_proto = {
 	.unhash		= smc_unhash_sk,
 	.obj_size	= sizeof(struct smc_sock),
 	.h.smc_hash	= &smc_v4_hashinfo,
-	.slab_flags	= SLAB_DESTROY_BY_RCU,
+	.slab_flags	= SLAB_TYPESAFE_BY_RCU,
 };
 EXPORT_SYMBOL_GPL(smc_proto);
 
