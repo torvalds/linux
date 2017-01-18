@@ -243,6 +243,8 @@ struct bpf_map *bpf_map_inc(struct bpf_map *map, bool uref);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
 int bpf_map_precharge_memlock(u32 pages);
+void *bpf_map_area_alloc(size_t size);
+void bpf_map_area_free(void *base);
 
 extern int sysctl_unprivileged_bpf_disabled;
 
