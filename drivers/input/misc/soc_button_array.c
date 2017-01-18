@@ -167,12 +167,12 @@ static int soc_button_probe(struct platform_device *pdev)
 
 	button_info = (struct soc_button_info *)id->driver_data;
 
-	if (gpiod_count(&pdev->dev, KBUILD_MODNAME) <= 0) {
-		dev_dbg(&pdev->dev, "no GPIO attached, ignoring...\n");
+	if (gpiod_count(dev, KBUILD_MODNAME) <= 0) {
+		dev_dbg(dev, "no GPIO attached, ignoring...\n");
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
