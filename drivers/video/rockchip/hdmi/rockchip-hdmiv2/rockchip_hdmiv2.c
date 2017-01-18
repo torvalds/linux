@@ -424,6 +424,62 @@ static const struct of_device_id rk_hdmi_dt_ids[] = {
 	{}
 };
 
+static int hdmi_get_prop_dts(struct hdmi *hdmi, struct device_node *np)
+{
+	const struct property *prop;
+	int i = 0, nstates = 0;
+	const __be32 *val;
+	int value;
+	struct edid_prop_value *pval = NULL;
+
+	if (!hdmi || !np) {
+		pr_info("%s:line=%d hdmi or np is null\n", __func__, __LINE__);
+		return -1;
+	}
+
+	if (!of_property_read_u32(np, "hdmi_edid_auto_support", &value))
+		hdmi->edid_auto_support = value;
+
+	prop = of_find_property(np, "hdmi_edid_prop_value", NULL);
+	if (!prop || !prop->value) {
+		pr_info("%s:No edid-prop-value, %d\n", __func__, !prop);
+		return -1;
+	}
+
+	nstates = (prop->length / sizeof(struct edid_prop_value));
+	pval = kcalloc(nstates, sizeof(struct edid_prop_value), GFP_NOWAIT);
+
+	for (i = 0, val = prop->value; i < nstates; i++) {
+		pval[i].vid = be32_to_cpup(val++);
+		pval[i].pid = be32_to_cpup(val++);
+		pval[i].sn = be32_to_cpup(val++);
+		pval[i].xres = be32_to_cpup(val++);
+		pval[i].yres = be32_to_cpup(val++);
+		pval[i].vic = be32_to_cpup(val++);
+		pval[i].width = be32_to_cpup(val++);
+		pval[i].height = be32_to_cpup(val++);
+		pval[i].x_w = be32_to_cpup(val++);
+		pval[i].x_h = be32_to_cpup(val++);
+		pval[i].hwrotation = be32_to_cpup(val++);
+		pval[i].einit = be32_to_cpup(val++);
+		pval[i].vsync = be32_to_cpup(val++);
+		pval[i].panel = be32_to_cpup(val++);
+		pval[i].scan = be32_to_cpup(val++);
+
+		pr_info("%s: 0x%x 0x%x 0x%x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+			__func__, pval[i].vid, pval[i].pid, pval[i].sn,
+			pval[i].width, pval[i].height, pval[i].xres,
+			pval[i].yres, pval[i].vic, pval[i].x_w,
+			pval[i].x_h, pval[i].hwrotation, pval[i].einit,
+			pval[i].vsync, pval[i].panel, pval[i].scan);
+	}
+
+	hdmi->pvalue = pval;
+	hdmi->nstates = nstates;
+
+	return 0;
+}
+
 static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 {
 	int val = 0;
@@ -636,6 +692,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto failed1;
 	}
+
+	hdmi_get_prop_dts(hdmi_dev->hdmi, hdmi_dev->dev->of_node);
 	mutex_init(&hdmi_dev->ddc_lock);
 	hdmi_dev->hdmi->dev = &pdev->dev;
 	hdmi_dev->hdmi->soctype = hdmi_dev->soctype;

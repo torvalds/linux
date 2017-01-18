@@ -448,6 +448,22 @@ static ssize_t debug_store(struct device *dev,
 
 static DEVICE_ATTR_RW(debug);
 
+static ssize_t prop_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+	int ret = -EINVAL;
+
+	mutex_lock(&dsp->lock);
+	if (dsp->ops && dsp->ops->getvrinfo)
+		ret = dsp->ops->getvrinfo(dsp, buf);
+	mutex_unlock(&dsp->lock);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(prop);
+
 static struct attribute *display_device_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_type.attr,
@@ -462,6 +478,7 @@ static struct attribute *display_device_attrs[] = {
 	&dev_attr_audioinfo.attr,
 	&dev_attr_monspecs.attr,
 	&dev_attr_debug.attr,
+	&dev_attr_prop.attr,
 	NULL,
 };
 

@@ -3777,6 +3777,15 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}
 	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
 
+	if (dev_drv->cur_screen->width && dev_drv->cur_screen->height) {
+		/* for vr auto dp support */
+		info = rk_fb->fb[dev_drv->fb_index_base];
+		info->var.width = dev_drv->cur_screen->width;
+		info->var.height = dev_drv->cur_screen->height;
+		pr_info("%s:info->var.width=%d, info->var.height=%d\n",
+			__func__, info->var.width, info->var.height);
+	}
+
 	hdmi_switch_state = 1;
 	load_screen = true;
 	dev_drv->hdmi_switch = 0;

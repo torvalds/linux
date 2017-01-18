@@ -78,7 +78,30 @@ static int hdmi_edid_parse_dtd(unsigned char *block, struct fb_videomode *mode)
 	return E_HDMI_EDID_SUCCESS;
 }
 
-int hdmi_edid_parse_base(unsigned char *buf,
+static int edid_parse_prop_value(unsigned char *buf,
+				 struct hdmi_edid *pedid)
+{
+	unsigned char *block = &buf[0x36];
+
+	pedid->value.vid = ((buf[ID_MANUFACTURER_NAME_END] << 8) |
+				(buf[ID_MANUFACTURER_NAME]));
+	pedid->value.pid = ((buf[ID_MODEL + 1] << 8) |
+				(buf[ID_MODEL]));
+	pedid->value.sn = ((buf[ID_SERIAL_NUMBER + 3] << 24) |
+				(buf[ID_SERIAL_NUMBER + 2] << 16) |
+				(buf[ID_SERIAL_NUMBER + 1] << 8) |
+				buf[ID_SERIAL_NUMBER]);
+	pedid->value.xres = H_ACTIVE;
+	pedid->value.yres = V_ACTIVE;
+
+	pr_info("%s:read:vid=0x%x,pid=0x%x,sn=0x%x,xres=%d,yres=%d\n",
+		__func__, pedid->value.vid, pedid->value.pid,
+		pedid->value.sn, pedid->value.xres, pedid->value.yres);
+
+	return 0;
+}
+
+int hdmi_edid_parse_base(struct hdmi *hdmi, unsigned char *buf,
 			 int *extend_num, struct hdmi_edid *pedid)
 {
 	int rc = E_HDMI_EDID_SUCCESS;
@@ -118,6 +141,9 @@ int hdmi_edid_parse_base(unsigned char *buf,
 		return E_HDMI_EDID_NOMEMORY;
 
 	fb_edid_to_monspecs(buf, pedid->specs);
+
+	if (hdmi->edid_auto_support)
+		edid_parse_prop_value(buf, pedid);
 
 out:
 	/* For some sink, edid checksum is failed because several

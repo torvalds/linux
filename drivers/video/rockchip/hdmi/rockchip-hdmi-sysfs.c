@@ -541,6 +541,30 @@ static int hdmi_get_debug(struct rk_display_device *device, char *buf)
 	return len;
 }
 
+static int vr_get_info(struct rk_display_device *device, char *buf)
+{
+	struct hdmi *hdmi = device->priv_data;
+	int valid, width, height, x_w, x_h, hwr, einit, vsync, panel, scan;
+	int len = 0;
+
+	valid = hdmi->prop.valid;
+	width = hdmi->prop.value.width;
+	height = hdmi->prop.value.height;
+	x_w = hdmi->prop.value.x_w;
+	x_h = hdmi->prop.value.x_h;
+	hwr = hdmi->prop.value.hwrotation;
+	einit = hdmi->prop.value.einit;
+	vsync = hdmi->prop.value.vsync;
+	panel = hdmi->prop.value.panel;
+	scan = hdmi->prop.value.scan;
+
+	len = snprintf(buf, PAGE_SIZE,
+		"valid=%d,width=%d,height=%d,xres=%d,yres=%d,hwrotation=%d,orientation=%d,vsync=%d,panel=%d,scan=%d\n",
+		valid, width, height, x_w, x_h, hwr, einit, vsync, panel, scan);
+
+	return len;
+}
+
 static struct rk_display_ops hdmi_display_ops = {
 	.setenable = hdmi_set_enable,
 	.getenable = hdmi_get_enable,
@@ -557,6 +581,7 @@ static struct rk_display_ops hdmi_display_ops = {
 	.setscale = hdmi_set_scale,
 	.getscale = hdmi_get_scale,
 	.getdebug = hdmi_get_debug,
+	.getvrinfo = vr_get_info,
 };
 
 static int hdmi_display_probe(struct rk_display_device *device, void *devdata)
@@ -565,6 +590,11 @@ static int hdmi_display_probe(struct rk_display_device *device, void *devdata)
 
 	device->owner = THIS_MODULE;
 	strcpy(device->type, "HDMI");
+	if (strstr(hdmi->property->name, "dp"))
+		strcpy(device->type, "DP");
+	else
+		strcpy(device->type, "HDMI");
+
 	device->priority = DISPLAY_PRIORITY_HDMI;
 	device->name = hdmi->property->name;
 	device->property = hdmi->property->display;

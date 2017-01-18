@@ -132,7 +132,14 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		video->color_input = HDMI_COLOR_RGB_0_255;
 
 	if ((hdmi->vic & HDMI_VIDEO_DMT) || (hdmi->vic & HDMI_VIDEO_DISCRETE_VR)) {
-		video->vic = hdmi->vic;
+		if (hdmi->edid_auto_support) {
+			if (hdmi->prop.value.vic)
+				video->vic = hdmi->prop.value.vic;
+			else
+				video->vic = hdmi->vic;
+		} else {
+			video->vic = hdmi->vic;
+		}
 		video->color_output_depth = 8;
 	} else {
 		video->vic = hdmi->vic & HDMI_VIC_MASK;
@@ -181,7 +188,8 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 			continue;
 		}
 
-		rc = hdmi_edid_parse_base(pedid->raw[0], &extendblock, pedid);
+		rc = hdmi_edid_parse_base(hdmi,
+					  pedid->raw[0], &extendblock, pedid);
 		if (rc) {
 			dev_err(hdmi->dev,
 				"[HDMI] parse edid base block error\n");

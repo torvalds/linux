@@ -8,6 +8,7 @@
 #include <linux/switch.h>
 #endif
 #include <sound/pcm_params.h>
+#include <linux/reboot.h>
 
 #define HDMI_VIDEO_NORMAL				0
 #define HDMI_VIDEO_DMT					BIT(9)
@@ -284,6 +285,36 @@ struct hdmi_audio {
 };
 
 #define HDMI_MAX_EDID_BLOCK		8
+
+struct edid_prop_value {
+	int vid;
+	int pid;
+	int sn;
+	int xres;
+	int yres;
+	int vic;
+	int width;
+	int height;
+	int x_w;
+	int x_h;
+	int hwrotation;
+	int einit;
+	int vsync;
+	int panel;
+	int scan;
+};
+
+struct edid_prop_data {
+	struct edid_prop_value value;
+
+	int valid;
+	int last_vid;
+	int last_pid;
+	int last_sn;
+	int last_xres;
+	int last_yres;
+};
+
 /* HDMI EDID Information */
 struct hdmi_edid {
 	unsigned char sink_hdmi;	/* HDMI display device flag */
@@ -312,6 +343,8 @@ struct hdmi_edid {
 	unsigned char independent_view;
 	unsigned char dual_view;
 	unsigned char osd_disparity_3d;
+
+	struct edid_prop_value value;
 
 	unsigned int colorimetry;
 	struct fb_monspecs	*specs;	/*Device spec*/
@@ -414,6 +447,11 @@ struct hdmi {
 	int colormode;			/* Output color mode*/
 	int colorimetry;		/* Output colorimetry */
 	struct hdmi_edid edid;		/* EDID information*/
+	struct edid_prop_data prop;	/* Property for dp */
+	struct edid_prop_value *pvalue;
+	int nstates;
+	int edid_auto_support;		/* Auto dp enable flag */
+
 	int enable;			/* Enable flag*/
 	int sleep;			/* Sleep flag*/
 	int vic;			/* HDMI output video information code*/
@@ -515,7 +553,7 @@ struct rk_display_device *hdmi_register_display_sysfs(struct hdmi *hdmi,
 						      struct device *parent);
 void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 
-int hdmi_edid_parse_base(unsigned char *buf,
+int hdmi_edid_parse_base(struct hdmi *hdmi, unsigned char *buf,
 			 int *extend_num, struct hdmi_edid *pedid);
 int hdmi_edid_parse_extensions(unsigned char *buf,
 			       struct hdmi_edid *pedid);

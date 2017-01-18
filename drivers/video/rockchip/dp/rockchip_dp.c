@@ -1,5 +1,6 @@
 #include "rockchip_dp.h"
 #include <linux/delay.h>
+#include <linux/of_gpio.h>
 
 static int rockchip_dp_removed(struct hdmi *hdmi_drv)
 {
@@ -201,6 +202,62 @@ static int rockchip_dp_fb_event_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static int cdn_dp_get_prop_dts(struct hdmi *hdmi, struct device_node *np)
+{
+	const struct property *prop;
+	int i = 0, nstates = 0;
+	const __be32 *val;
+	int value;
+	struct edid_prop_value *pval = NULL;
+
+	if (!hdmi || !np)
+		return -EINVAL;
+
+	if (!of_property_read_u32(np, "dp_edid_auto_support", &value))
+		hdmi->edid_auto_support = value;
+
+	prop = of_find_property(np, "dp_edid_prop_value", NULL);
+	if (!prop || !prop->value) {
+		pr_info("%s:No edid-prop-value, %d\n", __func__, !prop);
+		return -EINVAL;
+	}
+
+	nstates = (prop->length / sizeof(struct edid_prop_value));
+	pval = kcalloc(nstates, sizeof(struct edid_prop_value), GFP_NOWAIT);
+	if (!pval)
+		return -ENOMEM;
+
+	for (i = 0, val = prop->value; i < nstates; i++) {
+		pval[i].vid = be32_to_cpup(val++);
+		pval[i].pid = be32_to_cpup(val++);
+		pval[i].sn = be32_to_cpup(val++);
+		pval[i].xres = be32_to_cpup(val++);
+		pval[i].yres = be32_to_cpup(val++);
+		pval[i].vic = be32_to_cpup(val++);
+		pval[i].width = be32_to_cpup(val++);
+		pval[i].height = be32_to_cpup(val++);
+		pval[i].x_w = be32_to_cpup(val++);
+		pval[i].x_h = be32_to_cpup(val++);
+		pval[i].hwrotation = be32_to_cpup(val++);
+		pval[i].einit = be32_to_cpup(val++);
+		pval[i].vsync = be32_to_cpup(val++);
+		pval[i].panel = be32_to_cpup(val++);
+		pval[i].scan = be32_to_cpup(val++);
+
+		pr_info("%s: 0x%x 0x%x 0x%x %d %d %d %d %d %d %d %d %d %d %d %d\n",
+			__func__, pval[i].vid, pval[i].pid, pval[i].sn,
+			pval[i].width, pval[i].height, pval[i].xres,
+			pval[i].yres, pval[i].vic, pval[i].x_w,
+			pval[i].x_h, pval[i].hwrotation, pval[i].einit,
+			pval[i].vsync, pval[i].panel, pval[i].scan);
+	}
+
+	hdmi->pvalue = pval;
+	hdmi->nstates = nstates;
+
+	return 0;
+}
+
 int cdn_dp_fb_register(struct platform_device *pdev, void *dp)
 {
 	struct hdmi_ops *rk_dp_ops;
@@ -260,6 +317,7 @@ int cdn_dp_fb_register(struct platform_device *pdev, void *dp)
 	dp_dev->hdmi->colormode = HDMI_COLOR_RGB_0_255;
 	dp_dev->dp = dp;
 
+	cdn_dp_get_prop_dts(dp_dev->hdmi, np);
 	dp_dev->fb_notif.notifier_call = rockchip_dp_fb_event_notify;
 	fb_register_client(&dp_dev->fb_notif);
 	dev_set_drvdata(dev, dp_dev);
