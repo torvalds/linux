@@ -141,6 +141,8 @@ int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_RECONF(struct net *net, struct sctp_association *asoc,
+			  void *arg);
 
 /*
  * sctp/input.c
@@ -190,6 +192,12 @@ void sctp_remaddr_proc_exit(struct net *net);
  * sctp/offload.c
  */
 int sctp_offload_init(void);
+
+/*
+ * sctp/stream.c
+ */
+int sctp_send_reset_streams(struct sctp_association *asoc,
+			    struct sctp_reset_streams *params);
 
 /*
  * Module global variables

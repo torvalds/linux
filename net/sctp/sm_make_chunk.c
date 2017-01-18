@@ -270,6 +270,11 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		num_ext += 2;
 	}
 
+	if (asoc->reconf_enable) {
+		extensions[num_ext] = SCTP_CID_RECONF;
+		num_ext += 1;
+	}
+
 	if (sp->adaptation_ind)
 		chunksize += sizeof(aiparam);
 
@@ -432,6 +437,11 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 		extensions[num_ext] = SCTP_CID_ASCONF;
 		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
 		num_ext += 2;
+	}
+
+	if (asoc->peer.reconf_capable) {
+		extensions[num_ext] = SCTP_CID_RECONF;
+		num_ext += 1;
 	}
 
 	if (sp->adaptation_ind)
@@ -1844,6 +1854,7 @@ no_hmac:
 	retval->next_tsn = retval->c.initial_tsn;
 	retval->ctsn_ack_point = retval->next_tsn - 1;
 	retval->addip_serial = retval->c.initial_tsn;
+	retval->strreset_outseq = retval->c.initial_tsn;
 	retval->adv_peer_ack_point = retval->ctsn_ack_point;
 	retval->peer.prsctp_capable = retval->c.prsctp_capable;
 	retval->peer.adaptation_ind = retval->c.adaptation_ind;
@@ -2011,6 +2022,11 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 
 	for (i = 0; i < num_ext; i++) {
 		switch (param.ext->chunks[i]) {
+		case SCTP_CID_RECONF:
+			if (asoc->reconf_enable &&
+			    !asoc->peer.reconf_capable)
+				asoc->peer.reconf_capable = 1;
+			break;
 		case SCTP_CID_FWD_TSN:
 			if (asoc->prsctp_enable && !asoc->peer.prsctp_capable)
 				asoc->peer.prsctp_capable = 1;
@@ -2386,6 +2402,8 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 		ntohs(peer_init->init_hdr.num_inbound_streams);
 	asoc->peer.i.initial_tsn =
 		ntohl(peer_init->init_hdr.initial_tsn);
+
+	asoc->strreset_inseq = asoc->peer.i.initial_tsn;
 
 	/* Apply the upper bounds for output streams based on peer's
 	 * number of inbound streams.
@@ -3521,6 +3539,124 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 		skip.ssn = skiplist[i].ssn;
 		sctp_addto_chunk(retval, sizeof(skip), &skip);
 	}
+
+	return retval;
+}
+
+/* RE-CONFIG 3.1 (RE-CONFIG chunk)
+ *   0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  | Type = 130    |  Chunk Flags  |      Chunk Length             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  \                                                               \
+ *  /                  Re-configuration Parameter                   /
+ *  \                                                               \
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  \                                                               \
+ *  /             Re-configuration Parameter (optional)             /
+ *  \                                                               \
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+static struct sctp_chunk *sctp_make_reconf(
+				const struct sctp_association *asoc,
+				int length)
+{
+	struct sctp_reconf_chunk *reconf;
+	struct sctp_chunk *retval;
+
+	retval = sctp_make_control(asoc, SCTP_CID_RECONF, 0, length,
+				   GFP_ATOMIC);
+	if (!retval)
+		return NULL;
+
+	reconf = (struct sctp_reconf_chunk *)retval->chunk_hdr;
+	retval->param_hdr.v = reconf->params;
+
+	return retval;
+}
+
+/* RE-CONFIG 4.1 (STREAM OUT RESET)
+ *   0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |     Parameter Type = 13       | Parameter Length = 16 + 2 * N |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |           Re-configuration Request Sequence Number            |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |           Re-configuration Response Sequence Number           |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                Sender's Last Assigned TSN                     |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |  Stream Number 1 (optional)   |    Stream Number 2 (optional) |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  /                            ......                             /
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |  Stream Number N-1 (optional) |    Stream Number N (optional) |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * RE-CONFIG 4.2 (STREAM IN RESET)
+ *   0                   1                   2                   3
+ *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |     Parameter Type = 14       |  Parameter Length = 8 + 2 * N |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |          Re-configuration Request Sequence Number             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |  Stream Number 1 (optional)   |    Stream Number 2 (optional) |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  /                            ......                             /
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |  Stream Number N-1 (optional) |    Stream Number N (optional) |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct sctp_chunk *sctp_make_strreset_req(
+				const struct sctp_association *asoc,
+				__u16 stream_num, __u16 *stream_list,
+				bool out, bool in)
+{
+	struct sctp_strreset_outreq outreq;
+	__u16 stream_len = stream_num * 2;
+	struct sctp_strreset_inreq inreq;
+	struct sctp_chunk *retval;
+	__u16 outlen, inlen, i;
+
+	outlen = (sizeof(outreq) + stream_len) * out;
+	inlen = (sizeof(inreq) + stream_len) * in;
+
+	retval = sctp_make_reconf(asoc, outlen + inlen);
+	if (!retval)
+		return NULL;
+
+	for (i = 0; i < stream_num; i++)
+		stream_list[i] = htons(stream_list[i]);
+
+	if (outlen) {
+		outreq.param_hdr.type = SCTP_PARAM_RESET_OUT_REQUEST;
+		outreq.param_hdr.length = htons(outlen);
+		outreq.request_seq = htonl(asoc->strreset_outseq);
+		outreq.response_seq = htonl(asoc->strreset_inseq - 1);
+		outreq.send_reset_at_tsn = htonl(asoc->next_tsn - 1);
+
+		sctp_addto_chunk(retval, sizeof(outreq), &outreq);
+
+		if (stream_len)
+			sctp_addto_chunk(retval, stream_len, stream_list);
+	}
+
+	if (inlen) {
+		inreq.param_hdr.type = SCTP_PARAM_RESET_IN_REQUEST;
+		inreq.param_hdr.length = htons(inlen);
+		inreq.request_seq = htonl(asoc->strreset_outseq + out);
+
+		sctp_addto_chunk(retval, sizeof(inreq), &inreq);
+
+		if (stream_len)
+			sctp_addto_chunk(retval, stream_len, stream_list);
+	}
+
+	for (i = 0; i < stream_num; i++)
+		stream_list[i] = ntohs(stream_list[i]);
 
 	return retval;
 }

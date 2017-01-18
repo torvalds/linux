@@ -108,6 +108,7 @@ typedef enum {
 	/* Use hex, as defined in ADDIP sec. 3.1 */
 	SCTP_CID_ASCONF			= 0xC1,
 	SCTP_CID_ASCONF_ACK		= 0x80,
+	SCTP_CID_RECONF			= 0x82,
 } sctp_cid_t; /* enum */
 
 
@@ -199,6 +200,13 @@ typedef enum {
 	SCTP_PARAM_SUCCESS_REPORT	= cpu_to_be16(0xc005),
 	SCTP_PARAM_ADAPTATION_LAYER_IND = cpu_to_be16(0xc006),
 
+	/* RE-CONFIG. Section 4 */
+	SCTP_PARAM_RESET_OUT_REQUEST		= cpu_to_be16(0x000d),
+	SCTP_PARAM_RESET_IN_REQUEST		= cpu_to_be16(0x000e),
+	SCTP_PARAM_RESET_TSN_REQUEST		= cpu_to_be16(0x000f),
+	SCTP_PARAM_RESET_RESPONSE		= cpu_to_be16(0x0010),
+	SCTP_PARAM_RESET_ADD_OUT_STREAMS	= cpu_to_be16(0x0011),
+	SCTP_PARAM_RESET_ADD_IN_STREAMS		= cpu_to_be16(0x0012),
 } sctp_param_t; /* enum */
 
 
@@ -709,5 +717,24 @@ struct sctp_infox {
 	struct sctp_info *sctpinfo;
 	struct sctp_association *asoc;
 };
+
+struct sctp_reconf_chunk {
+	sctp_chunkhdr_t chunk_hdr;
+	__u8 params[0];
+} __packed;
+
+struct sctp_strreset_outreq {
+	sctp_paramhdr_t param_hdr;
+	__u32 request_seq;
+	__u32 response_seq;
+	__u32 send_reset_at_tsn;
+	__u16 list_of_streams[0];
+} __packed;
+
+struct sctp_strreset_inreq {
+	sctp_paramhdr_t param_hdr;
+	__u32 request_seq;
+	__u16 list_of_streams[0];
+} __packed;
 
 #endif /* __LINUX_SCTP_H__ */

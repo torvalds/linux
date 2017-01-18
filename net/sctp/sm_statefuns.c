@@ -1021,6 +1021,34 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(struct net *net,
 	return SCTP_DISPOSITION_CONSUME;
 }
 
+/* resend asoc strreset_chunk.  */
+sctp_disposition_t sctp_sf_send_reconf(struct net *net,
+				       const struct sctp_endpoint *ep,
+				       const struct sctp_association *asoc,
+				       const sctp_subtype_t type, void *arg,
+				       sctp_cmd_seq_t *commands)
+{
+	struct sctp_transport *transport = arg;
+
+	if (asoc->overall_error_count >= asoc->max_retrans) {
+		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
+				SCTP_ERROR(ETIMEDOUT));
+		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
+		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
+				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
+		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
+		return SCTP_DISPOSITION_DELETE_TCB;
+	}
+
+	sctp_chunk_hold(asoc->strreset_chunk);
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+			SCTP_CHUNK(asoc->strreset_chunk));
+	sctp_add_cmd_sf(commands, SCTP_CMD_STRIKE, SCTP_TRANSPORT(transport));
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
 /*
  * Process an heartbeat request.
  *
@@ -5153,6 +5181,19 @@ sctp_disposition_t sctp_sf_do_prm_asconf(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_SETUP_T4, SCTP_CHUNK(chunk));
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T4_RTO));
+	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(chunk));
+	return SCTP_DISPOSITION_CONSUME;
+}
+
+/* RE-CONFIG Section 5.1 RECONF Chunk Procedures */
+sctp_disposition_t sctp_sf_do_prm_reconf(struct net *net,
+					 const struct sctp_endpoint *ep,
+					 const struct sctp_association *asoc,
+					 const sctp_subtype_t type,
+					 void *arg, sctp_cmd_seq_t *commands)
+{
+	struct sctp_chunk *chunk = arg;
+
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(chunk));
 	return SCTP_DISPOSITION_CONSUME;
 }

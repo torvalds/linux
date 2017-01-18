@@ -1258,6 +1258,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Enable PR-SCTP by default. */
 	net->sctp.prsctp_enable = 1;
 
+	/* Disable RECONF by default. */
+	net->sctp.reconf_enable = 0;
+
 	/* Disable AUTH by default. */
 	net->sctp.auth_enable = 0;
 

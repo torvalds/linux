@@ -877,6 +877,9 @@ struct sctp_transport {
 	/* Timer to handle ICMP proto unreachable envets */
 	struct timer_list proto_unreach_timer;
 
+	/* Timer to handler reconf chunk rtx */
+	struct timer_list reconf_timer;
+
 	/* Since we're using per-destination retransmission timers
 	 * (see above), we're also using per-destination "transmitted"
 	 * queues.  This probably ought to be a private struct
@@ -935,6 +938,7 @@ void sctp_transport_pmtu(struct sctp_transport *, struct sock *sk);
 void sctp_transport_free(struct sctp_transport *);
 void sctp_transport_reset_t3_rtx(struct sctp_transport *);
 void sctp_transport_reset_hb_timer(struct sctp_transport *);
+void sctp_transport_reset_reconf_timer(struct sctp_transport *transport);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1251,7 +1255,10 @@ struct sctp_endpoint {
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
 	__u8  auth_enable:1,
-	      prsctp_enable:1;
+	      prsctp_enable:1,
+	      reconf_enable:1;
+
+	__u8  strreset_enable;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1504,6 +1511,7 @@ struct sctp_association {
 			hostname_address:1, /* Peer understands DNS addresses? */
 			asconf_capable:1,   /* Does peer support ADDIP? */
 			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			reconf_capable:1,   /* Can peer do RE-CONFIG? */
 			auth_capable:1;     /* Is peer doing SCTP-AUTH? */
 
 		/* sack_needed : This flag indicates if the next received
@@ -1863,7 +1871,16 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
-	     prsctp_enable:1;
+	     prsctp_enable:1,
+	     reconf_enable:1;
+
+	__u8 strreset_enable;
+	__u8 strreset_outstanding; /* request param count on the fly */
+
+	__u32 strreset_outseq; /* Update after receiving response */
+	__u32 strreset_inseq; /* Update after receiving request */
+
+	struct sctp_chunk *strreset_chunk; /* save request chunk */
 
 	struct sctp_priv_assoc_stats stats;
 

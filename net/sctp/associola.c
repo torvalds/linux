@@ -207,6 +207,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * association to the same value as the initial TSN.
 	 */
 	asoc->addip_serial = asoc->c.initial_tsn;
+	asoc->strreset_outseq = asoc->c.initial_tsn;
 
 	INIT_LIST_HEAD(&asoc->addip_chunk_list);
 	INIT_LIST_HEAD(&asoc->asconf_ack_list);
@@ -269,6 +270,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	asoc->active_key_id = ep->active_key_id;
 	asoc->prsctp_enable = ep->prsctp_enable;
+	asoc->reconf_enable = ep->reconf_enable;
+	asoc->strreset_enable = ep->strreset_enable;
 
 	/* Save the hmacs and chunks list into this association */
 	if (ep->auth_hmacs_list)
@@ -360,6 +363,9 @@ void sctp_association_free(struct sctp_association *asoc)
 
 	/* Free stream information. */
 	sctp_stream_free(asoc->stream);
+
+	if (asoc->strreset_chunk)
+		sctp_chunk_free(asoc->strreset_chunk);
 
 	/* Clean up the bound address list. */
 	sctp_bind_addr_free(&asoc->base.bind_addr);
@@ -518,6 +524,12 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		asoc->peer.retran_path = transport;
 	if (asoc->peer.last_data_from == peer)
 		asoc->peer.last_data_from = transport;
+
+	if (asoc->strreset_chunk &&
+	    asoc->strreset_chunk->transport == peer) {
+		asoc->strreset_chunk->transport = transport;
+		sctp_transport_reset_reconf_timer(transport);
+	}
 
 	/* If we remove the transport an INIT was last sent to, set it to
 	 * NULL. Combined with the update of the retran path above, this

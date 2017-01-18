@@ -33,6 +33,7 @@
  */
 
 #include <net/sctp/sctp.h>
+#include <net/sctp/sm.h>
 
 struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp)
 {
@@ -82,4 +83,82 @@ void sctp_stream_clear(struct sctp_stream *stream)
 
 	for (i = 0; i < stream->incnt; i++)
 		stream->in[i].ssn = 0;
+}
+
+static int sctp_send_reconf(struct sctp_association *asoc,
+			    struct sctp_chunk *chunk)
+{
+	struct net *net = sock_net(asoc->base.sk);
+	int retval = 0;
+
+	retval = sctp_primitive_RECONF(net, asoc, chunk);
+	if (retval)
+		sctp_chunk_free(chunk);
+
+	return retval;
+}
+
+int sctp_send_reset_streams(struct sctp_association *asoc,
+			    struct sctp_reset_streams *params)
+{
+	struct sctp_stream *stream = asoc->stream;
+	__u16 i, str_nums, *str_list;
+	struct sctp_chunk *chunk;
+	int retval = -EINVAL;
+	bool out, in;
+
+	if (!asoc->peer.reconf_capable ||
+	    !(asoc->strreset_enable & SCTP_ENABLE_RESET_STREAM_REQ)) {
+		retval = -ENOPROTOOPT;
+		goto out;
+	}
+
+	if (asoc->strreset_outstanding) {
+		retval = -EINPROGRESS;
+		goto out;
+	}
+
+	out = params->srs_flags & SCTP_STREAM_RESET_OUTGOING;
+	in  = params->srs_flags & SCTP_STREAM_RESET_INCOMING;
+	if (!out && !in)
+		goto out;
+
+	str_nums = params->srs_number_streams;
+	str_list = params->srs_stream_list;
+	if (out && str_nums)
+		for (i = 0; i < str_nums; i++)
+			if (str_list[i] >= stream->outcnt)
+				goto out;
+
+	if (in && str_nums)
+		for (i = 0; i < str_nums; i++)
+			if (str_list[i] >= stream->incnt)
+				goto out;
+
+	chunk = sctp_make_strreset_req(asoc, str_nums, str_list, out, in);
+	if (!chunk)
+		goto out;
+
+	if (out) {
+		if (str_nums)
+			for (i = 0; i < str_nums; i++)
+				stream->out[str_list[i]].state =
+						       SCTP_STREAM_CLOSED;
+		else
+			for (i = 0; i < stream->outcnt; i++)
+				stream->out[i].state = SCTP_STREAM_CLOSED;
+	}
+
+	asoc->strreset_outstanding = out + in;
+	asoc->strreset_chunk = chunk;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	retval = sctp_send_reconf(asoc, chunk);
+	if (retval) {
+		sctp_chunk_put(asoc->strreset_chunk);
+		asoc->strreset_chunk = NULL;
+	}
+
+out:
+	return retval;
 }

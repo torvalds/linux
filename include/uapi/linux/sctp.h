@@ -115,6 +115,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_PR_SUPPORTED	113
 #define SCTP_DEFAULT_PRINFO	114
 #define SCTP_PR_ASSOC_STATUS	115
+#define SCTP_ENABLE_STREAM_RESET	118
+#define SCTP_RESET_STREAMS	119
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -137,6 +139,15 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_PR_TTL_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_TTL)
 #define SCTP_PR_RTX_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_RTX)
 #define SCTP_PR_PRIO_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_PRIO)
+
+/* For enable stream reset */
+#define SCTP_ENABLE_RESET_STREAM_REQ	0x01
+#define SCTP_ENABLE_RESET_ASSOC_REQ	0x02
+#define SCTP_ENABLE_CHANGE_ASSOC_REQ	0x04
+#define SCTP_ENABLE_STRRESET_MASK	0x07
+
+#define SCTP_STREAM_RESET_INCOMING	0x01
+#define SCTP_STREAM_RESET_OUTGOING	0x02
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
 /* On user space Linux, these live in <bits/socket.h> as an enum.  */
@@ -1006,6 +1017,13 @@ struct sctp_info {
 	__u8	sctpi_s_frag_interleave;
 	__u32	sctpi_s_type;
 	__u32	__reserved3;
+};
+
+struct sctp_reset_streams {
+	sctp_assoc_t srs_assoc_id;
+	uint16_t srs_flags;
+	uint16_t srs_number_streams;	/* 0 == ALL */
+	uint16_t srs_stream_list[];	/* list if srs_num_streams is not 0 */
 };
 
 #endif /* _UAPI_SCTP_H */
