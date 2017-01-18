@@ -1036,25 +1036,6 @@ static unsigned ab8500_eyediagram_workaroud(struct ab8500_usb *ab, unsigned mA)
 	return mA;
 }
 
-static int ab8500_usb_set_power(struct usb_phy *phy, unsigned mA)
-{
-	struct ab8500_usb *ab;
-
-	if (!phy)
-		return -ENODEV;
-
-	ab = phy_to_ab(phy);
-
-	mA = ab8500_eyediagram_workaroud(ab, mA);
-
-	ab->vbus_draw = mA;
-
-	atomic_notifier_call_chain(&ab->phy.notifier,
-			UX500_MUSB_VBUS, &ab->vbus_draw);
-
-	return 0;
-}
-
 static int ab8500_usb_set_suspend(struct usb_phy *x, int suspend)
 {
 	/* TODO */
@@ -1392,7 +1373,6 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	ab->phy.otg		= otg;
 	ab->phy.label		= "ab8500";
 	ab->phy.set_suspend	= ab8500_usb_set_suspend;
-	ab->phy.set_power	= ab8500_usb_set_power;
 	ab->phy.otg->state	= OTG_STATE_UNDEFINED;
 
 	otg->usb_phy		= &ab->phy;
