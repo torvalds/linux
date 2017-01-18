@@ -781,4 +781,7 @@ config VMAP_STACK
 	  the stack to map directly to the KASAN shadow map using a formula
 	  that is incorrect if the stack is in vmalloc space.
 
+config ARCH_WANT_RELAX_ORDER
+	bool
+
 source "kernel/gcov/Kconfig"
