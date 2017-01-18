@@ -27,6 +27,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
+#include <subdev/timer.h>
 #include <subdev/top.h>
 #include <engine/sw.h>
 
@@ -211,33 +212,98 @@ gk104_fifo_recover_work(struct work_struct *w)
 	nvkm_mask(device, 0x002630, runm, 0x00000000);
 }
 
+static void gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn);
+
 static void
-gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
-		   struct gk104_fifo_chan *chan)
+gk104_fifo_recover_runl(struct gk104_fifo *fifo, int runl)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 chid = chan->base.chid;
-	int engn;
+	const u32 runm = BIT(runl);
 
-	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
-		   nvkm_subdev_name[engine->subdev.index], chid);
 	assert_spin_locked(&fifo->base.lock);
+	if (fifo->recover.runm & runm)
+		return;
+	fifo->recover.runm |= runm;
 
-	nvkm_mask(device, 0x800004 + (chid * 0x08), 0x00000800, 0x00000800);
-	list_del_init(&chan->head);
-	chan->killed = true;
+	/* Block runlist to prevent channel assignment(s) from changing. */
+	nvkm_mask(device, 0x002630, runm, runm);
 
-	for (engn = 0; engn < fifo->engine_nr; engn++) {
-		if (fifo->engine[engn].engine == engine) {
-			fifo->recover.engm |= BIT(engn);
+	/* Schedule recovery. */
+	nvkm_warn(subdev, "runlist %d: scheduled for recovery\n", runl);
+	schedule_work(&fifo->recover.work);
+}
+
+static void
+gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32  stat = nvkm_rd32(device, 0x800004 + (chid * 0x08));
+	const u32  runl = (stat & 0x000f0000) >> 16;
+	const bool used = (stat & 0x00000001);
+	struct gk104_fifo_chan *chan;
+
+	assert_spin_locked(&fifo->base.lock);
+	if (!used)
+		return;
+
+	/* Lookup SW state for channel, and mark it as dead. */
+	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
+		if (chan->base.chid == chid) {
+			list_del_init(&chan->head);
+			chan->killed = true;
+			nvkm_fifo_kevent(&fifo->base, chid);
 			break;
 		}
 	}
 
-	fifo->recover.runm |= BIT(chan->runl);
+	/* Disable channel. */
+	nvkm_wr32(device, 0x800004 + (chid * 0x08), stat | 0x00000800);
+	nvkm_warn(subdev, "channel %d: killed\n", chid);
+}
+
+static void
+gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	const u32 runl = fifo->engine[engn].runl;
+	const u32 engm = BIT(engn);
+	struct gk104_fifo_engine_status status;
+
+	assert_spin_locked(&fifo->base.lock);
+	if (fifo->recover.engm & engm)
+		return;
+	fifo->recover.engm |= engm;
+
+	/* Block channel assignments from changing during recovery. */
+	gk104_fifo_recover_runl(fifo, runl);
+
+	/* Determine which channel (if any) is currently on the engine. */
+	gk104_fifo_engine_status(fifo, engn, &status);
+	if (status.chan) {
+		/* The channel is not longer viable, kill it. */
+		gk104_fifo_recover_chan(&fifo->base, status.chan->id);
+	}
+
+	/* Schedule recovery. */
+	nvkm_warn(subdev, "engine %d: scheduled for recovery\n", engn);
 	schedule_work(&fifo->recover.work);
-	nvkm_fifo_kevent(&fifo->base, chid);
+}
+
+static void
+gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
+		   struct gk104_fifo_chan *chan)
+{
+	int engn;
+	for (engn = 0; engn < fifo->engine_nr; engn++) {
+		if (fifo->engine[engn].engine == engine) {
+			gk104_fifo_recover_engn(fifo, engn);
+			break;
+		}
+	}
+	gk104_fifo_recover_chan(&fifo->base, chan->base.chid);
 }
 
 static const struct nvkm_enum
@@ -771,6 +837,7 @@ gk104_fifo_ = {
 	.intr = gk104_fifo_intr,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
+	.recover_chan = gk104_fifo_recover_chan,
 	.class_get = gk104_fifo_class_get,
 };
 
