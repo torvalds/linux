@@ -2711,13 +2711,16 @@ struct arg_dev_net {
 	struct net *net;
 };
 
+/* called with write lock held for table with rt */
 static int fib6_ifdown(struct rt6_info *rt, void *arg)
 {
 	const struct arg_dev_net *adn = arg;
 	const struct net_device *dev = adn->dev;
 
 	if ((rt->dst.dev == dev || !dev) &&
-	    rt != adn->net->ipv6.ip6_null_entry)
+	    rt != adn->net->ipv6.ip6_null_entry &&
+	    (rt->rt6i_nsiblings == 0 ||
+	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown))
 		return -1;
 
 	return 0;
@@ -3216,7 +3219,7 @@ static int rt6_fill_node(struct net *net,
 	else
 		rtm->rtm_type = RTN_UNICAST;
 	rtm->rtm_flags = 0;
-	if (!netif_carrier_ok(rt->dst.dev)) {
+	if (!netif_running(rt->dst.dev) || !netif_carrier_ok(rt->dst.dev)) {
 		rtm->rtm_flags |= RTNH_F_LINKDOWN;
 		if (rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
 			rtm->rtm_flags |= RTNH_F_DEAD;
