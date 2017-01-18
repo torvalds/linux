@@ -24,18 +24,6 @@ enum {
 	NUM_CODEC_DAIS,
 };
 
-enum gbcodec_reg_index {
-	GBCODEC_CTL_REG,
-	GBCODEC_MUTE_REG,
-	GBCODEC_PB_LVOL_REG,
-	GBCODEC_PB_RVOL_REG,
-	GBCODEC_CAP_LVOL_REG,
-	GBCODEC_CAP_RVOL_REG,
-	GBCODEC_APB1_MUX_REG,
-	GBCODEC_APB2_MUX_REG,
-	GBCODEC_REG_COUNT
-};
-
 /* device_type should be same as defined in audio.h (Android media layer) */
 enum {
 	GBAUDIO_DEVICE_NONE                     = 0x0,
@@ -51,41 +39,8 @@ enum {
 	GBAUDIO_DEVICE_IN_WIRED_HEADSET         = GBAUDIO_DEVICE_BIT_IN | 0x10,
 };
 
-/* bit 0-SPK, 1-HP, 2-DAC,
- * 4-MIC, 5-HSMIC, 6-MIC2
- */
-#define GBCODEC_CTL_REG_DEFAULT		0x00
-
-/* bit 0,1 - APB1-PB-L/R
- * bit 2,3 - APB2-PB-L/R
- * bit 4,5 - APB1-Cap-L/R
- * bit 6,7 - APB2-Cap-L/R
- */
-#define	GBCODEC_MUTE_REG_DEFAULT	0x00
-
-/* 0-127 steps */
-#define	GBCODEC_PB_VOL_REG_DEFAULT	0x00
-#define	GBCODEC_CAP_VOL_REG_DEFAULT	0x00
-
-/* bit 0,1,2 - PB stereo, left, right
- * bit 8,9,10 - Cap stereo, left, right
- */
-#define GBCODEC_APB1_MUX_REG_DEFAULT	0x00
-#define GBCODEC_APB2_MUX_REG_DEFAULT	0x00
-
 #define GBCODEC_JACK_MASK		0x0000FFFF
 #define GBCODEC_JACK_BUTTON_MASK	0xFFFF0000
-
-static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
-	GBCODEC_CTL_REG_DEFAULT,
-	GBCODEC_MUTE_REG_DEFAULT,
-	GBCODEC_PB_VOL_REG_DEFAULT,
-	GBCODEC_PB_VOL_REG_DEFAULT,
-	GBCODEC_CAP_VOL_REG_DEFAULT,
-	GBCODEC_CAP_VOL_REG_DEFAULT,
-	GBCODEC_APB1_MUX_REG_DEFAULT,
-	GBCODEC_APB2_MUX_REG_DEFAULT,
-};
 
 enum gbaudio_codec_state {
 	GBAUDIO_CODEC_SHUTDOWN = 0,
@@ -116,7 +71,6 @@ struct gbaudio_codec_info {
 	/* to maintain runtime stream params for each DAI */
 	struct list_head dai_list;
 	struct mutex lock;
-	u8 reg[GBCODEC_REG_COUNT];
 };
 
 struct gbaudio_widget {

@@ -1026,47 +1026,16 @@ static int gbcodec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static u8 gbcodec_reg[GBCODEC_REG_COUNT] = {
-	[GBCODEC_CTL_REG] = GBCODEC_CTL_REG_DEFAULT,
-	[GBCODEC_MUTE_REG] = GBCODEC_MUTE_REG_DEFAULT,
-	[GBCODEC_PB_LVOL_REG] = GBCODEC_PB_VOL_REG_DEFAULT,
-	[GBCODEC_PB_RVOL_REG] = GBCODEC_PB_VOL_REG_DEFAULT,
-	[GBCODEC_CAP_LVOL_REG] = GBCODEC_CAP_VOL_REG_DEFAULT,
-	[GBCODEC_CAP_RVOL_REG] = GBCODEC_CAP_VOL_REG_DEFAULT,
-	[GBCODEC_APB1_MUX_REG] = GBCODEC_APB1_MUX_REG_DEFAULT,
-	[GBCODEC_APB2_MUX_REG] = GBCODEC_APB2_MUX_REG_DEFAULT,
-};
-
 static int gbcodec_write(struct snd_soc_codec *codec, unsigned int reg,
 			 unsigned int value)
 {
-	int ret = 0;
-
-	if (reg == SND_SOC_NOPM)
-		return 0;
-
-	BUG_ON(reg >= GBCODEC_REG_COUNT);
-
-	gbcodec_reg[reg] = value;
-	dev_dbg(codec->dev, "reg[%d] = 0x%x\n", reg, value);
-
-	return ret;
+	return 0;
 }
 
 static unsigned int gbcodec_read(struct snd_soc_codec *codec,
 				 unsigned int reg)
 {
-	unsigned int val = 0;
-
-	if (reg == SND_SOC_NOPM)
-		return 0;
-
-	BUG_ON(reg >= GBCODEC_REG_COUNT);
-
-	val = gbcodec_reg[reg];
-	dev_dbg(codec->dev, "reg[%d] = 0x%x\n", reg, val);
-
-	return val;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
@@ -1075,10 +1044,6 @@ static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
 
 	.read = gbcodec_read,
 	.write = gbcodec_write,
-
-	.reg_cache_size = GBCODEC_REG_COUNT,
-	.reg_cache_default = gbcodec_reg_defaults,
-	.reg_word_size = 1,
 
 	.idle_bias_off = true,
 	.ignore_pmdown_time = 1,
