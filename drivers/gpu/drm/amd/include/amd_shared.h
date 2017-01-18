@@ -157,6 +157,7 @@ struct amd_pp_profile {
 #define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
 #define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
 #define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
+#define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
