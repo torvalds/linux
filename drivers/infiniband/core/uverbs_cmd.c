@@ -1891,7 +1891,8 @@ static int create_qp(struct ib_uverbs_file *file,
 				IB_QP_CREATE_CROSS_CHANNEL |
 				IB_QP_CREATE_MANAGED_SEND |
 				IB_QP_CREATE_MANAGED_RECV |
-				IB_QP_CREATE_SCATTER_FCS)) {
+				IB_QP_CREATE_SCATTER_FCS |
+				IB_QP_CREATE_CVLAN_STRIPPING)) {
 		ret = -EINVAL;
 		goto err_put;
 	}
