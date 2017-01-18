@@ -614,6 +614,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	/* Set Wait IE/IXMT Ignore in Config7, IAR, AR */
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
 
+	/* Status */
+	kvm_write_c0_guest_status(cop0, ST0_BEV | ST0_ERL);
+
 	/*
 	 * Setup IntCtl defaults, compatibility mode for timer interrupts (HW5)
 	 */
@@ -622,6 +625,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	/* Put in vcpu id as CPUNum into Ebase Reg to handle SMP Guests */
 	kvm_write_c0_guest_ebase(cop0, KVM_GUEST_KSEG0 |
 				       (vcpu_id & MIPS_EBASE_CPUNUM));
+
+	/* Put PC at guest reset vector */
+	vcpu->arch.pc = KVM_GUEST_CKSEG1ADDR(0x1fc00000);
 
 	return 0;
 }
