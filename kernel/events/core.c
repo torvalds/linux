@@ -2932,7 +2932,7 @@ static void perf_pmu_sched_task(struct task_struct *prev,
 		return;
 
 	list_for_each_entry(cpuctx, this_cpu_ptr(&sched_cb_list), sched_cb_entry) {
-		pmu = cpuctx->unique_pmu; /* software PMUs will not have sched_task */
+		pmu = cpuctx->ctx.pmu; /* software PMUs will not have sched_task */
 
 		if (WARN_ON_ONCE(!pmu->sched_task))
 			continue;
@@ -8636,37 +8636,10 @@ static struct perf_cpu_context __percpu *find_pmu_context(int ctxn)
 	return NULL;
 }
 
-static void update_pmu_context(struct pmu *pmu, struct pmu *old_pmu)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct perf_cpu_context *cpuctx;
-
-		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
-
-		if (cpuctx->unique_pmu == old_pmu)
-			cpuctx->unique_pmu = pmu;
-	}
-}
-
 static void free_pmu_context(struct pmu *pmu)
 {
-	struct pmu *i;
-
 	mutex_lock(&pmus_lock);
-	/*
-	 * Like a real lame refcount.
-	 */
-	list_for_each_entry(i, &pmus, entry) {
-		if (i->pmu_cpu_context == pmu->pmu_cpu_context) {
-			update_pmu_context(i, pmu);
-			goto out;
-		}
-	}
-
 	free_percpu(pmu->pmu_cpu_context);
-out:
 	mutex_unlock(&pmus_lock);
 }
 
@@ -8870,8 +8843,6 @@ skip_type:
 		cpuctx->ctx.pmu = pmu;
 
 		__perf_mux_hrtimer_init(cpuctx, cpu);
-
-		cpuctx->unique_pmu = pmu;
 	}
 
 got_cpu_context:
