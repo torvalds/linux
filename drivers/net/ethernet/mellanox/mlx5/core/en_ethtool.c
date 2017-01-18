@@ -554,16 +554,6 @@ static int mlx5e_set_channels(struct net_device *dev,
 			    __func__);
 		return -EINVAL;
 	}
-	if (ch->rx_count || ch->tx_count) {
-		netdev_info(dev, "%s: separate rx/tx count not supported\n",
-			    __func__);
-		return -EINVAL;
-	}
-	if (count > ncv) {
-		netdev_info(dev, "%s: count (%d) > max (%d)\n",
-			    __func__, count, ncv);
-		return -EINVAL;
-	}
 
 	if (priv->params.num_channels == count)
 		return 0;
