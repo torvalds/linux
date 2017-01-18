@@ -334,7 +334,7 @@ static int __init eisa_probe(struct parisc_device *dev)
 	result = request_irq(dev->irq, eisa_irq, IRQF_SHARED, "EISA", &eisa_dev);
 	if (result) {
 		printk(KERN_ERR "EISA: request_irq failed!\n");
-		return result;
+		goto error_release;
 	}
 
 	/* Reserve IRQ2 */
@@ -358,6 +358,11 @@ static int __init eisa_probe(struct parisc_device *dev)
 		}
 	}
 	eisa_eeprom_addr = ioremap_nocache(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
+	if (!eisa_eeprom_addr) {
+		result = -ENOMEM;
+		printk(KERN_ERR "EISA: ioremap_nocache failed!\n");
+		goto error_free_irq;
+	}
 	result = eisa_enumerator(eisa_dev.eeprom_addr, &eisa_dev.hba.io_space,
 			&eisa_dev.hba.lmmio_space);
 	init_eisa_pic();
@@ -372,11 +377,20 @@ static int __init eisa_probe(struct parisc_device *dev)
 		eisa_dev.root.dma_mask = 0xffffffff; /* wild guess */
 		if (eisa_root_register (&eisa_dev.root)) {
 			printk(KERN_ERR "EISA: Failed to register EISA root\n");
-			return -1;
+			result = -ENOMEM;
+			goto error_iounmap;
 		}
 	}
 
 	return 0;
+
+error_iounmap:
+	iounmap(eisa_eeprom_addr);
+error_free_irq:
+	free_irq(dev->irq, &eisa_dev);
+error_release:
+	release_resource(&eisa_dev.hba.io_space);
+	return result;
 }
 
 static const struct parisc_device_id eisa_tbl[] = {
