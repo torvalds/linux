@@ -299,8 +299,14 @@ static void sbq_wake_up(struct sbitmap_queue *sbq)
 	struct sbq_wait_state *ws;
 	int wait_cnt;
 
-	/* Ensure that the wait list checks occur after clear_bit(). */
-	smp_mb();
+	/*
+	 * Pairs with the memory barrier in set_current_state() to ensure the
+	 * proper ordering of clear_bit()/waitqueue_active() in the waker and
+	 * test_and_set_bit()/prepare_to_wait()/finish_wait() in the waiter. See
+	 * the comment on waitqueue_active(). This is __after_atomic because we
+	 * just did clear_bit() in the caller.
+	 */
+	smp_mb__after_atomic();
 
 	ws = sbq_wake_ptr(sbq);
 	if (!ws)
@@ -331,7 +337,8 @@ void sbitmap_queue_wake_all(struct sbitmap_queue *sbq)
 	int i, wake_index;
 
 	/*
-	 * Make sure all changes prior to this are visible from other CPUs.
+	 * Pairs with the memory barrier in set_current_state() like in
+	 * sbq_wake_up().
 	 */
 	smp_mb();
 	wake_index = atomic_read(&sbq->wake_index);
