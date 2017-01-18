@@ -284,3 +284,52 @@ void intel_huc_fini(struct drm_i915_private *dev_priv)
 	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
 }
 
+/**
+ * intel_guc_auth_huc() - authenticate ucode
+ * @dev_priv: the drm_i915_device
+ *
+ * Triggers a HuC fw authentication request to the GuC via intel_guc_action_
+ * authenticate_huc interface.
+ */
+void intel_guc_auth_huc(struct drm_i915_private *dev_priv)
+{
+	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_huc *huc = &dev_priv->huc;
+	struct i915_vma *vma;
+	int ret;
+	u32 data[2];
+
+	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
+				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	if (IS_ERR(vma)) {
+		DRM_ERROR("failed to pin huc fw object %d\n",
+				(int)PTR_ERR(vma));
+		return;
+	}
+
+	/* Specify auth action and where public signature is. */
+	data[0] = INTEL_GUC_ACTION_AUTHENTICATE_HUC;
+	data[1] = i915_ggtt_offset(vma) + huc->fw.rsa_offset;
+
+	ret = intel_guc_send(guc, data, ARRAY_SIZE(data));
+	if (ret) {
+		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
+		goto out;
+	}
+
+	/* Check authentication status, it should be done by now */
+	ret = intel_wait_for_register(dev_priv,
+				HUC_STATUS2,
+				HUC_FW_VERIFIED,
+				HUC_FW_VERIFIED,
+				50);
+
+	if (ret) {
+		DRM_ERROR("HuC: Authentication failed %d\n", ret);
+		goto out;
+	}
+
+out:
+	i915_vma_unpin(vma);
+}
+

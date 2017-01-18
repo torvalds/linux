@@ -226,5 +226,6 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 void intel_huc_init(struct drm_i915_private *dev_priv);
 void intel_huc_fini(struct drm_i915_private  *dev_priv);
 int intel_huc_load(struct drm_i915_private *dev_priv);
+void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

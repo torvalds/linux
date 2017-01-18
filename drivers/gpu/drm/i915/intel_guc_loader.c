@@ -524,6 +524,8 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 		intel_uc_fw_status_repr(guc_fw->fetch_status),
 		intel_uc_fw_status_repr(guc_fw->load_status));
 
+	intel_guc_auth_huc(dev_priv);
+
 	if (i915.enable_guc_submission) {
 		if (i915.guc_log_level >= 0)
 			gen9_enable_guc_interrupts(dev_priv);
