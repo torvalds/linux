@@ -520,11 +520,16 @@ static int flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void do_bus_err(struct net_device *dev,
-		       struct can_frame *cf, u32 reg_esr)
+static int flexcan_poll_bus_err(struct net_device *dev, u32 reg_esr)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
+	struct can_frame *cf;
 	bool rx_errors = false, tx_errors = false;
+
+	skb = alloc_can_err_skb(dev, &cf);
+	if (unlikely(!skb))
+		return 0;
 
 	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
@@ -566,18 +571,6 @@ static void do_bus_err(struct net_device *dev,
 		dev->stats.rx_errors++;
 	if (tx_errors)
 		dev->stats.tx_errors++;
-}
-
-static int flexcan_poll_bus_err(struct net_device *dev, u32 reg_esr)
-{
-	struct sk_buff *skb;
-	struct can_frame *cf;
-
-	skb = alloc_can_err_skb(dev, &cf);
-	if (unlikely(!skb))
-		return 0;
-
-	do_bus_err(dev, cf, reg_esr);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
