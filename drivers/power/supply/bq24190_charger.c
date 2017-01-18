@@ -1494,6 +1494,7 @@ static int bq24190_pm_resume(struct device *dev)
 
 	pm_runtime_get_sync(bdi->dev);
 	bq24190_register_reset(bdi);
+	bq24190_set_mode_host(bdi);
 	pm_runtime_put_sync(bdi->dev);
 
 	/* Things may have changed while suspended so alert upper layer */
