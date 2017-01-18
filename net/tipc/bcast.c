@@ -1,7 +1,7 @@
 /*
  * net/tipc/bcast.c: TIPC broadcast code
  *
- * Copyright (c) 2004-2006, 2014-2015, Ericsson AB
+ * Copyright (c) 2004-2006, 2014-2016, Ericsson AB
  * Copyright (c) 2004, Intel Corporation.
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
@@ -54,12 +54,14 @@ const char tipc_bclink_name[] = "broadcast-link";
  * @inputq: data input queue; will only carry SOCK_WAKEUP messages
  * @dest: array keeping number of reachable destinations per bearer
  * @primary_bearer: a bearer having links to all broadcast destinations, if any
+ * @bcast_support: indicates if primary bearer, if any, supports broadcast
  */
 struct tipc_bc_base {
 	struct tipc_link *link;
 	struct sk_buff_head inputq;
 	int dests[MAX_BEARERS];
 	int primary_bearer;
+	bool bcast_support;
 };
 
 static struct tipc_bc_base *tipc_bc_base(struct net *net)
@@ -79,9 +81,10 @@ static void tipc_bcbase_select_primary(struct net *net)
 {
 	struct tipc_bc_base *bb = tipc_bc_base(net);
 	int all_dests =  tipc_link_bc_peers(bb->link);
-	int i, mtu;
+	int i, mtu, prim;
 
 	bb->primary_bearer = INVALID_BEARER_ID;
+	bb->bcast_support = true;
 
 	if (!all_dests)
 		return;
@@ -93,7 +96,7 @@ static void tipc_bcbase_select_primary(struct net *net)
 		mtu = tipc_bearer_mtu(net, i);
 		if (mtu < tipc_link_mtu(bb->link))
 			tipc_link_set_mtu(bb->link, mtu);
-
+		bb->bcast_support &= tipc_bearer_bcast_support(net, i);
 		if (bb->dests[i] < all_dests)
 			continue;
 
@@ -103,6 +106,9 @@ static void tipc_bcbase_select_primary(struct net *net)
 		if ((i ^ tipc_own_addr(net)) & 1)
 			break;
 	}
+	prim = bb->primary_bearer;
+	if (prim != INVALID_BEARER_ID)
+		bb->bcast_support = tipc_bearer_bcast_support(net, prim);
 }
 
 void tipc_bcast_inc_bearer_dst_cnt(struct net *net, int bearer_id)
