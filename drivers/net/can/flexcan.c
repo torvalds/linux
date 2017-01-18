@@ -591,7 +591,7 @@ static int flexcan_poll_state(struct net_device *dev, u32 reg_esr)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
 	struct can_frame *cf;
-	enum can_state new_state = 0, rx_state = 0, tx_state = 0;
+	enum can_state new_state, rx_state, tx_state;
 	int flt;
 	struct can_berr_counter bec;
 
