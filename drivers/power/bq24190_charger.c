@@ -1175,29 +1175,6 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 		goto out;
 	}
 
-	if (ss_reg != bdi->ss_reg) {
-		/*
-		 * The device is in host mode so when PG_STAT goes from 1->0
-		 * (i.e., power removed) HIZ needs to be disabled.
-		 */
-		if ((bdi->ss_reg & BQ24190_REG_SS_PG_STAT_MASK) &&
-				!(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)) {
-			ret = bq24190_write_mask(bdi, BQ24190_REG_ISC,
-					BQ24190_REG_ISC_EN_HIZ_MASK,
-					BQ24190_REG_ISC_EN_HIZ_SHIFT,
-					0);
-			if (ret < 0)
-				dev_err(bdi->dev, "Can't access ISC reg: %d\n",
-					ret);
-		}
-
-		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss))
-			alert_battery = true;
-		if ((bdi->ss_reg & ~battery_mask_ss) != (ss_reg & ~battery_mask_ss))
-			alert_charger = true;
-		bdi->ss_reg = ss_reg;
-	}
-
 	i = 0;
 	do {
 		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
@@ -1222,6 +1199,29 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 			alert_charger = true;
 		bdi->f_reg = f_reg;
 		mutex_unlock(&bdi->f_reg_lock);
+	}
+
+	if (ss_reg != bdi->ss_reg) {
+		/*
+		 * The device is in host mode so when PG_STAT goes from 1->0
+		 * (i.e., power removed) HIZ needs to be disabled.
+		 */
+		if ((bdi->ss_reg & BQ24190_REG_SS_PG_STAT_MASK) &&
+				!(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)) {
+			ret = bq24190_write_mask(bdi, BQ24190_REG_ISC,
+					BQ24190_REG_ISC_EN_HIZ_MASK,
+					BQ24190_REG_ISC_EN_HIZ_SHIFT,
+					0);
+			if (ret < 0)
+				dev_err(bdi->dev, "Can't access ISC reg: %d\n",
+					ret);
+		}
+
+		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss))
+			alert_battery = true;
+		if ((bdi->ss_reg & ~battery_mask_ss) != (ss_reg & ~battery_mask_ss))
+			alert_charger = true;
+		bdi->ss_reg = ss_reg;
 	}
 
 	if (alert_charger)
