@@ -162,8 +162,10 @@ static int init_loader_memory(struct drm_device *drm_dev)
 
 		logo->dma_addr = logo->mm.start;
 
-		if (iommu_map_sg(private->domain, logo->dma_addr, sgt->sgl,
-				 sgt->nents, prot) < size) {
+		logo->iommu_map_size = iommu_map_sg(private->domain,
+						    logo->dma_addr, sgt->sgl,
+						    sgt->nents, prot);
+		if (logo->iommu_map_size < size) {
 			DRM_ERROR("failed to map buffer");
 			ret = -ENOMEM;
 			goto err_remove_node;

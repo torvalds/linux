@@ -67,7 +67,7 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 
 			if (private && private->domain) {
 				iommu_unmap(private->domain, logo->dma_addr,
-					    logo->size);
+					    logo->iommu_map_size);
 				drm_mm_remove_node(&logo->mm);
 			} else {
 				dma_unmap_sg(fb->dev->dev, logo->sgt->sgl,
