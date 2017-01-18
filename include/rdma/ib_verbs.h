@@ -1497,6 +1497,7 @@ struct ib_wq {
 
 enum ib_wq_flags {
 	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
+	IB_WQ_FLAGS_SCATTER_FCS		= 1 << 1,
 };
 
 struct ib_wq_init_attr {
