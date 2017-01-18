@@ -55,8 +55,6 @@
 #define CNTV_TVAL	0x38
 #define CNTV_CTL	0x3c
 
-#define ARCH_TIMER_TYPE_CP15		BIT(0)
-#define ARCH_TIMER_TYPE_MEM		BIT(1)
 static unsigned arch_timers_present __initdata;
 
 static void __iomem *arch_counter_base;
@@ -69,15 +67,6 @@ struct arch_timer {
 #define to_arch_timer(e) container_of(e, struct arch_timer, evt)
 
 static u32 arch_timer_rate;
-
-enum arch_timer_ppi_nr {
-	ARCH_TIMER_PHYS_SECURE_PPI,
-	ARCH_TIMER_PHYS_NONSECURE_PPI,
-	ARCH_TIMER_VIRT_PPI,
-	ARCH_TIMER_HYP_PPI,
-	ARCH_TIMER_MAX_TIMER_PPI
-};
-
 static int arch_timer_ppi[ARCH_TIMER_MAX_TIMER_PPI];
 
 static struct clock_event_device __percpu *arch_timer_evt;
