@@ -465,7 +465,7 @@
 		#address-cells = <0>;
 		interrupt-controller;
 		reg = <0 0xf1001000 0 0x1000>,
-			<0 0xf1002000 0 0x1000>,
+			<0 0xf1002000 0 0x2000>,
 			<0 0xf1004000 0 0x2000>,
 			<0 0xf1006000 0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;

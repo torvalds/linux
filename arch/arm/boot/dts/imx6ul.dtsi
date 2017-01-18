@@ -91,11 +91,11 @@
 	};
 
 	intc: interrupt-controller@00a01000 {
-		compatible = "arm,cortex-a7-gic";
+		compatible = "arm,gic-400", "arm,cortex-a7-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x00a01000 0x1000>,
-		      <0x00a02000 0x1000>,
+		      <0x00a02000 0x2000>,
 		      <0x00a04000 0x2000>,
 		      <0x00a06000 0x2000>;
 	};

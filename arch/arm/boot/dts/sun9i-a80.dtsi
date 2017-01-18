@@ -613,7 +613,7 @@
 		gic: interrupt-controller@01c41000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c41000 0x1000>,
-			      <0x01c42000 0x1000>,
+			      <0x01c42000 0x2000>,
 			      <0x01c44000 0x2000>,
 			      <0x01c46000 0x2000>;
 			interrupt-controller;
