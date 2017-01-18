@@ -46,6 +46,12 @@ enum arch_timer_ppi_nr {
 	ARCH_TIMER_MAX_TIMER_PPI
 };
 
+enum arch_timer_spi_nr {
+	ARCH_TIMER_PHYS_SPI,
+	ARCH_TIMER_VIRT_SPI,
+	ARCH_TIMER_MAX_TIMER_SPI
+};
+
 #define ARCH_TIMER_PHYS_ACCESS		0
 #define ARCH_TIMER_VIRT_ACCESS		1
 #define ARCH_TIMER_MEM_PHYS_ACCESS	2
