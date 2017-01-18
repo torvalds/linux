@@ -150,9 +150,9 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		*type = INSN_RETURN;
 		break;
 
-	case 0xc5: /* iret */
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
+	case 0xcf: /* iret */
 		*type = INSN_CONTEXT_SWITCH;
 		break;
 
