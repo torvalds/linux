@@ -2,7 +2,7 @@
 
 """Find Kconfig symbols that are referenced but not defined."""
 
-# (c) 2014-2016 Valentin Rothberg <valentinrothberg@gmail.com>
+# (c) 2014-2017 Valentin Rothberg <valentinrothberg@gmail.com>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
 #
 # Licensed under the terms of the GNU GPL License version 2
@@ -269,7 +269,7 @@ def find_sims(symbol, ignore, defined=[]):
     """Return a list of max. ten Kconfig symbols that are string-similar to
     @symbol."""
     if defined:
-        return sorted(difflib.get_close_matches(symbol, set(defined), 10))
+        return difflib.get_close_matches(symbol, set(defined), 10)
 
     pool = Pool(cpu_count(), init_worker)
     kfiles = []
@@ -284,7 +284,7 @@ def find_sims(symbol, ignore, defined=[]):
     for res in pool.map(parse_kconfig_files, arglist):
         defined.extend(res[0])
 
-    return sorted(difflib.get_close_matches(symbol, set(defined), 10))
+    return difflib.get_close_matches(symbol, set(defined), 10)
 
 
 def get_files():
