@@ -560,14 +560,14 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
-		goto out;
+		goto unlock;
 	}
 
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(&crtc->base);
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
-		goto out;
+		goto put_state;
 	}
 
 	pipe_config->pch_pfit.force_thru = enable;
@@ -576,10 +576,12 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 		pipe_config->base.connectors_changed = true;
 
 	ret = drm_atomic_commit(state);
-out:
+
+put_state:
+	drm_atomic_state_put(state);
+unlock:
 	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
 	drm_modeset_unlock_all(dev);
-	drm_atomic_state_put(state);
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
