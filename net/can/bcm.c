@@ -734,14 +734,23 @@ static struct bcm_op *bcm_find_op(struct list_head *ops,
 
 static void bcm_remove_op(struct bcm_op *op)
 {
-	hrtimer_cancel(&op->timer);
-	hrtimer_cancel(&op->thrtimer);
+	if (op->tsklet.func) {
+		while (test_bit(TASKLET_STATE_SCHED, &op->tsklet.state) ||
+		       test_bit(TASKLET_STATE_RUN, &op->tsklet.state) ||
+		       hrtimer_active(&op->timer)) {
+			hrtimer_cancel(&op->timer);
+			tasklet_kill(&op->tsklet);
+		}
+	}
 
-	if (op->tsklet.func)
-		tasklet_kill(&op->tsklet);
-
-	if (op->thrtsklet.func)
-		tasklet_kill(&op->thrtsklet);
+	if (op->thrtsklet.func) {
+		while (test_bit(TASKLET_STATE_SCHED, &op->thrtsklet.state) ||
+		       test_bit(TASKLET_STATE_RUN, &op->thrtsklet.state) ||
+		       hrtimer_active(&op->thrtimer)) {
+			hrtimer_cancel(&op->thrtimer);
+			tasklet_kill(&op->thrtsklet);
+		}
+	}
 
 	if ((op->frames) && (op->frames != &op->sframe))
 		kfree(op->frames);
