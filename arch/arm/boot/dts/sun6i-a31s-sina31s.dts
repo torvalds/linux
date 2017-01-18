@@ -153,6 +153,11 @@
 	regulator-name = "vcc-gmac-phy";
 };
 
+&usb_otg {
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
 &usbphy {
 	status = "okay";
 };
