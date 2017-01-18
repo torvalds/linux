@@ -50,6 +50,7 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	) < 0) {
 		nvkm_error(subdev, "channel %d [%s] kick timeout\n",
 			   chan->base.chid, client->name);
+		nvkm_fifo_recover_chan(&fifo->base, chan->base.chid);
 		ret = -ETIMEDOUT;
 	}
 	mutex_unlock(&subdev->mutex);
