@@ -227,6 +227,13 @@ static void __init ms_hyperv_init_platform(void)
 	 */
 	if (efi_enabled(EFI_BOOT))
 		x86_platform.get_nmi_reason = hv_get_nmi_reason;
+
+#if IS_ENABLED(CONFIG_HYPERV)
+	/*
+	 * Setup the hook to get control post apic initialization.
+	 */
+	x86_platform.apic_post_init = hyperv_init;
+#endif
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {

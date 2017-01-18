@@ -80,4 +80,9 @@ void hv_setup_kexec_handler(void (*handler)(void));
 void hv_remove_kexec_handler(void);
 void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs));
 void hv_remove_crash_handler(void);
+
+#if IS_ENABLED(CONFIG_HYPERV)
+void hyperv_init(void);
+extern void *hv_hypercall_pg;
+#endif
 #endif

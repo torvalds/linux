@@ -7,6 +7,9 @@ obj-$(CONFIG_KVM) += kvm/
 # Xen paravirtualization support
 obj-$(CONFIG_XEN) += xen/
 
+# Hyper-V paravirtualization support
+obj-$(CONFIG_HYPERVISOR_GUEST) += hyperv/
+
 # lguest paravirtualization support
 obj-$(CONFIG_LGUEST_GUEST) += lguest/
 

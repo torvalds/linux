@@ -193,7 +193,6 @@ int hv_init(void)
 {
 	int max_leaf;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
-	void *virtaddr = NULL;
 
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
 	memset(hv_context.synic_message_page, 0,
@@ -211,33 +210,15 @@ int hv_init(void)
 
 	max_leaf = query_hypervisor_info();
 
-	/*
-	 * Write our OS ID.
-	 */
-	hv_context.guestid = generate_guest_id(0, LINUX_VERSION_CODE, 0);
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
 
 	/* See if the hypercall page is already set */
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	virtaddr = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_EXEC);
-
-	if (!virtaddr)
-		goto cleanup;
-
-	hypercall_msr.enable = 1;
-
-	hypercall_msr.guest_physical_address = vmalloc_to_pfn(virtaddr);
-	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	/* Confirm that hypercall page did get setup. */
 	hypercall_msr.as_uint64 = 0;
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
 	if (!hypercall_msr.enable)
-		goto cleanup;
+		return -ENOTSUPP;
 
-	hv_context.hypercall_page = virtaddr;
+	hv_context.hypercall_page = hv_hypercall_pg;
 
 #ifdef CONFIG_X86_64
 	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
@@ -261,15 +242,6 @@ int hv_init(void)
 	return 0;
 
 cleanup:
-	if (virtaddr) {
-		if (hypercall_msr.enable) {
-			hypercall_msr.as_uint64 = 0;
-			wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-		}
-
-		vfree(virtaddr);
-	}
-
 	return -ENOTSUPP;
 }
 
@@ -280,20 +252,9 @@ cleanup:
  */
 void hv_cleanup(bool crash)
 {
-	union hv_x64_msr_hypercall_contents hypercall_msr;
-
-	/* Reset our OS id */
-	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-
-	if (hv_context.hypercall_page) {
-		hypercall_msr.as_uint64 = 0;
-		wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-		if (!crash)
-			vfree(hv_context.hypercall_page);
-		hv_context.hypercall_page = NULL;
-	}
 
 #ifdef CONFIG_X86_64
+	union hv_x64_msr_hypercall_contents hypercall_msr;
 	/*
 	 * Cleanup the TSC page based CS.
 	 */
