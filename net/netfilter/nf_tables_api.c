@@ -3936,15 +3936,13 @@ static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 		return -EBUSY;
 
 	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL) {
-		struct nft_set_dump_args args = {
-			.iter	= {
-				.genmask	= genmask,
-				.fn		= nft_flush_set,
-			},
+		struct nft_set_iter iter = {
+			.genmask	= genmask,
+			.fn		= nft_flush_set,
 		};
-		set->ops->walk(&ctx, set, &args.iter);
+		set->ops->walk(&ctx, set, &iter);
 
-		return args.iter.err;
+		return iter.err;
 	}
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
