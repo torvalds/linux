@@ -912,7 +912,6 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 static void blk_mq_process_rq_list(struct blk_mq_hw_ctx *hctx)
 {
 	LIST_HEAD(rq_list);
-	LIST_HEAD(driver_list);
 
 	if (unlikely(blk_mq_hctx_stopped(hctx)))
 		return;
