@@ -62,6 +62,8 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xA8);
 	if (par->info->var.yres == 64)
 		write_reg(par, 0x3F);
+	else if (par->info->var.yres == 48)
+		write_reg(par, 0x2F);
 	else
 		write_reg(par, 0x1F);
 
@@ -95,6 +97,9 @@ static int init_display(struct fbtft_par *par)
 	if (par->info->var.yres == 64)
 		/* A[4]=1b, Alternative COM pin configuration */
 		write_reg(par, 0x12);
+	else if (par->info->var.yres == 48)
+		/* A[4]=1b, Alternative COM pin configuration */
+		write_reg(par, 0x12);
 	else
 		/* A[4]=0b, Sequential COM pin configuration */
 		write_reg(par, 0x02);
@@ -124,6 +129,19 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
+static void set_addr_win_64x48(struct fbtft_par *par)
+{
+	/* Set Column Address */
+	write_reg(par, 0x21);
+	write_reg(par, 0x20);
+	write_reg(par, 0x5F);
+
+	/* Set Page Address */
+	write_reg(par, 0x22);
+	write_reg(par, 0x0);
+	write_reg(par, 0x5);
+}
+
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
 	/* Set Lower Column Start Address for Page Addressing Mode */
@@ -132,6 +150,9 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	write_reg(par, 0x10 | 0x0);
 	/* Set Display Start Line */
 	write_reg(par, 0x40 | 0x0);
+
+	if (par->info->var.xres == 64 && par->info->var.yres == 48)
+		set_addr_win_64x48(par);
 }
 
 static int blank(struct fbtft_par *par, bool on)
