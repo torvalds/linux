@@ -235,3 +235,18 @@ void hyperv_report_panic(struct pt_regs *regs)
 	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
+
+bool hv_is_hypercall_page_setup(void)
+{
+	union hv_x64_msr_hypercall_contents hypercall_msr;
+
+	/* Check if the hypercall page is setup */
+	hypercall_msr.as_uint64 = 0;
+	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
+
+	if (!hypercall_msr.enable)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(hv_is_hypercall_page_setup);

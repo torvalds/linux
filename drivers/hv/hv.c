@@ -49,7 +49,6 @@ struct hv_context hv_context = {
  */
 int hv_init(void)
 {
-	union hv_x64_msr_hypercall_contents hypercall_msr;
 
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
 	memset(hv_context.synic_message_page, 0,
@@ -65,11 +64,7 @@ int hv_init(void)
 	memset(hv_context.clk_evt, 0,
 	       sizeof(void *) * NR_CPUS);
 
-	/* See if the hypercall page is already set */
-	hypercall_msr.as_uint64 = 0;
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
-
-	if (!hypercall_msr.enable)
+	if (!hv_is_hypercall_page_setup())
 		return -ENOTSUPP;
 
 	return 0;
