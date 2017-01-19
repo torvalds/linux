@@ -27,6 +27,7 @@
 #include <linux/sysctl.h>
 #include <linux/reboot.h>
 #include <linux/hyperv.h>
+#include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"
 
@@ -199,7 +200,7 @@ static void hv_set_host_time(struct work_struct *work)
 		 */
 		u64 current_tick;
 
-		rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
+		hv_get_current_tick(current_tick);
 		newtime += (current_tick - wrk->ref_time);
 	}
 	host_tns = (newtime - WLTIMEDELTA) * 100;
