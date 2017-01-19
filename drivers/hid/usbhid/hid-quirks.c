@@ -288,7 +288,7 @@ static void usbhid_remove_all_dquirks(void)
 
 }
 
-/** 
+/**
  * usbhid_quirks_init: apply USB HID quirks specified at module load time
  */
 int usbhid_quirks_init(char **quirks_param)
@@ -352,7 +352,7 @@ static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
 
 	if (bl_entry != NULL)
 		dbg_hid("Found squirk 0x%x for USB HID vendor 0x%hx prod 0x%hx\n",
-				bl_entry->quirks, bl_entry->idVendor, 
+				bl_entry->quirks, bl_entry->idVendor,
 				bl_entry->idProduct);
 	return bl_entry;
 }
