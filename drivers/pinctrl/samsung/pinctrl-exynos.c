@@ -517,10 +517,8 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 
 		weint_data = devm_kzalloc(dev, bank->nr_pins
 					* sizeof(*weint_data), GFP_KERNEL);
-		if (!weint_data) {
-			dev_err(dev, "could not allocate memory for weint_data\n");
+		if (!weint_data)
 			return -ENOMEM;
-		}
 
 		for (idx = 0; idx < bank->nr_pins; ++idx) {
 			irq = irq_of_parse_and_map(bank->of_node, idx);
@@ -548,10 +546,8 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 
 	muxed_data = devm_kzalloc(dev, sizeof(*muxed_data)
 		+ muxed_banks*sizeof(struct samsung_pin_bank *), GFP_KERNEL);
-	if (!muxed_data) {
-		dev_err(dev, "could not allocate memory for muxed_data\n");
+	if (!muxed_data)
 		return -ENOMEM;
-	}
 
 	irq_set_chained_handler_and_data(irq, exynos_irq_demux_eint16_31,
 					 muxed_data);
