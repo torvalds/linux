@@ -31,6 +31,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/hyperv.h>
+#include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"
 
