@@ -32,7 +32,6 @@
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <video/mipi_display.h>
@@ -43,12 +42,6 @@
 static unsigned long debug;
 module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug, "override device debug level");
-
-#ifdef CONFIG_HAS_DMA
-static bool dma = true;
-module_param(dma, bool, 0);
-MODULE_PARM_DESC(dma, "Use DMA buffer");
-#endif
 
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 			void *buf, size_t len, const char *fmt, ...)
@@ -836,17 +829,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 #endif
 
 	if (txbuflen > 0) {
-#ifdef CONFIG_HAS_DMA
-		if (dma) {
-			dev->coherent_dma_mask = ~0;
-			txbuf = dmam_alloc_coherent(dev, txbuflen,
-						    &par->txbuf.dma, GFP_DMA);
-		} else
-#endif
-		{
-			txbuf = devm_kzalloc(par->info->device,
-					     txbuflen, GFP_KERNEL);
-		}
+		txbuf = devm_kzalloc(par->info->device, txbuflen, GFP_KERNEL);
 		if (!txbuf)
 			goto alloc_fail;
 		par->txbuf.buf = txbuf;
@@ -975,8 +958,7 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 	fbtft_sysfs_init(par);
 
 	if (par->txbuf.buf)
-		sprintf(text1, ", %zu KiB %sbuffer memory",
-			par->txbuf.len >> 10, par->txbuf.dma ? "DMA " : "");
+		sprintf(text1, ", %zu KiB buffer memory", par->txbuf.len >> 10);
 	if (spi)
 		sprintf(text2, ", spi%d.%d at %d MHz", spi->master->bus_num,
 			spi->chip_select, spi->max_speed_hz / 1000000);
