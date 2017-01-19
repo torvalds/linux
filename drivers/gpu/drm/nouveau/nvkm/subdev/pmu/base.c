@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/msgqueue.h>
 #include <subdev/timer.h>
 
 void
@@ -118,6 +119,7 @@ static void *
 nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	nvkm_msgqueue_del(&pmu->queue);
 	nvkm_falcon_del(&pmu->falcon);
 	return nvkm_pmu(subdev);
 }
