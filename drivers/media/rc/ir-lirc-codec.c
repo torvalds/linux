@@ -350,7 +350,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	struct lirc_driver *drv;
 	struct lirc_buffer *rbuf;
 	int rc = -ENOMEM;
-	unsigned long features;
+	unsigned long features = 0;
 
 	drv = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
 	if (!drv)
@@ -364,7 +364,8 @@ static int ir_lirc_register(struct rc_dev *dev)
 	if (rc)
 		goto rbuf_init_failed;
 
-	features = LIRC_CAN_REC_MODE2;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		features |= LIRC_CAN_REC_MODE2;
 	if (dev->tx_ir) {
 		features |= LIRC_CAN_SEND_PULSE;
 		if (dev->s_tx_mask)
