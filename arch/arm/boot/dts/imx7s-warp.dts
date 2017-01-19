@@ -437,7 +437,9 @@
 			MX7D_PAD_SD3_RESET_B__SD3_RESET_B	0x1b
 		>;
 	};
+};
 
+&iomuxc_lpsr {
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B	0x74
