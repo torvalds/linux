@@ -233,6 +233,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
 		return retval;
 	}
 }
+EXPORT_SYMBOL_GPL(w1_triplet);
 
 /**
  * w1_read_8() - Reads 8 bits.
