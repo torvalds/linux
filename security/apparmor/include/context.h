@@ -23,10 +23,10 @@
 #include "policy_ns.h"
 
 #define cred_ctx(X) ((X)->security)
-#define current_ctx() cred_ctx(current_cred())
+#define current_cred_ctx() cred_ctx(current_cred())
 
 /**
- * struct aa_task_ctx - primary label for confined tasks
+ * struct aa_cred_ctx - primary label for confined tasks
  * @label: the current label   (NOT NULL)
  * @exec: label to transition to on next exec  (MAYBE NULL)
  * @previous: label the task may return to     (MAYBE NULL)
@@ -37,17 +37,16 @@
  *
  * TODO: make so a task can be confined by a stack of contexts
  */
-struct aa_task_ctx {
+struct aa_cred_ctx {
 	struct aa_label *label;
 	struct aa_label *onexec;
 	struct aa_label *previous;
 	u64 token;
 };
 
-struct aa_task_ctx *aa_alloc_task_context(gfp_t flags);
-void aa_free_task_context(struct aa_task_ctx *ctx);
-void aa_dup_task_context(struct aa_task_ctx *new,
-			 const struct aa_task_ctx *old);
+struct aa_cred_ctx *aa_alloc_cred_ctx(gfp_t flags);
+void aa_free_cred_ctx(struct aa_cred_ctx *ctx);
+void aa_dup_cred_ctx(struct aa_cred_ctx *new, const struct aa_cred_ctx *old);
 int aa_replace_current_label(struct aa_label *label);
 int aa_set_current_onexec(struct aa_label *label, bool stack);
 int aa_set_current_hat(struct aa_label *label, u64 token);
@@ -65,7 +64,7 @@ struct aa_label *aa_get_task_label(struct task_struct *task);
  */
 static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
 {
-	struct aa_task_ctx *ctx = cred_ctx(cred);
+	struct aa_cred_ctx *ctx = cred_ctx(cred);
 
 	AA_BUG(!ctx || !ctx->label);
 	return ctx->label;
@@ -214,10 +213,10 @@ static inline struct aa_ns *aa_get_current_ns(void)
 }
 
 /**
- * aa_clear_task_ctx_trans - clear transition tracking info from the ctx
+ * aa_clear_cred_ctx_trans - clear transition tracking info from the ctx
  * @ctx: task context to clear (NOT NULL)
  */
-static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
+static inline void aa_clear_cred_ctx_trans(struct aa_cred_ctx *ctx)
 {
 	aa_put_label(ctx->previous);
 	aa_put_label(ctx->onexec);

@@ -845,7 +845,7 @@ static struct aa_profile *update_to_newest_parent(struct aa_profile *new)
  * @udata: serialized data stream  (NOT NULL)
  *
  * unpack and replace a profile on the profile list and uses of that profile
- * by any aa_task_ctx.  If the profile does not exist on the profile list
+ * by any aa_cred_ctx.  If the profile does not exist on the profile list
  * it is added.
  *
  * Returns: size of data consumed else error code on failure.
