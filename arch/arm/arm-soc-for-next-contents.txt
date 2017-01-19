@@ -15,6 +15,10 @@ fixes
 		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.10/devicetree-fixes
 	<no branch> (f0e8faa7a5e894b0fc99d24be1b18685a92ea466)
 		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-fix-for-armsoc
+	patch
+		ARM64: dts: meson-gxbb-odroidc2: Disable SCPI DVFS
+	<no branch> (1ea6af3216b092ec97129ac81bd95cf254c4b140)
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.10/fixes-rc4
 
 next/fixes-non-critical
 
@@ -27,6 +31,10 @@ next/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-dev-for-armsoc
 	samsung/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-4.11
+	at91/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-soc
+	aspeed/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-soc
 
 next/arm64
 	mvebu/defconfig64
@@ -49,6 +57,10 @@ next/dt
 		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-1
 	stm32/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-1
+	at91/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-dt
+	aspeed/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-devicetree
 
 next/dt64
 	renesas/dt64
@@ -57,6 +69,10 @@ next/dt64
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-4.11
 	mvebu/dt64
 		git://git.infradead.org/linux-mvebu tags/mvebu-dt64-4.11-1
+	juno/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-updates-4.11
+	brcm/dt64
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree-arm64
 
 next/defconfig
 	patch
@@ -70,6 +86,12 @@ next/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_defconfig_updates_for_v4.11
 	samsung/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-defconfig-4.11
+	at91/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-defconfig
+	aspeed/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-defconfig
 
 next/drivers
+	at91/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-drivers
 
