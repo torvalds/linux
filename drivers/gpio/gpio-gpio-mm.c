@@ -192,6 +192,44 @@ static void gpiomm_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 }
 
+static void gpiomm_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
+	unsigned int i;
+	const unsigned int gpio_reg_size = 8;
+	unsigned int port;
+	unsigned int out_port;
+	unsigned int bitmask;
+	unsigned long flags;
+
+	/* set bits are evaluated a gpio register size at a time */
+	for (i = 0; i < chip->ngpio; i += gpio_reg_size) {
+		/* no more set bits in this mask word; skip to the next word */
+		if (!mask[BIT_WORD(i)]) {
+			i = (BIT_WORD(i) + 1) * BITS_PER_LONG - gpio_reg_size;
+			continue;
+		}
+
+		port = i / gpio_reg_size;
+		out_port = (port > 2) ? port + 1 : port;
+		bitmask = mask[BIT_WORD(i)] & bits[BIT_WORD(i)];
+
+		spin_lock_irqsave(&gpiommgpio->lock, flags);
+
+		/* update output state data and set device gpio register */
+		gpiommgpio->out_state[port] &= ~mask[BIT_WORD(i)];
+		gpiommgpio->out_state[port] |= bitmask;
+		outb(gpiommgpio->out_state[port], gpiommgpio->base + out_port);
+
+		spin_unlock_irqrestore(&gpiommgpio->lock, flags);
+
+		/* prepare for next gpio register set */
+		mask[BIT_WORD(i)] >>= gpio_reg_size;
+		bits[BIT_WORD(i)] >>= gpio_reg_size;
+	}
+}
+
 static int gpiomm_probe(struct device *dev, unsigned int id)
 {
 	struct gpiomm_gpio *gpiommgpio;
@@ -218,6 +256,7 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	gpiommgpio->chip.direction_output = gpiomm_gpio_direction_output;
 	gpiommgpio->chip.get = gpiomm_gpio_get;
 	gpiommgpio->chip.set = gpiomm_gpio_set;
+	gpiommgpio->chip.set_multiple = gpiomm_gpio_set_multiple;
 	gpiommgpio->base = base[id];
 
 	spin_lock_init(&gpiommgpio->lock);
