@@ -97,6 +97,22 @@
 			clocks = <&xtal>;
 		};
 
+		mmc0: mmc@21000 {
+			compatible = "arasan,sdhci-8.9a";
+			reg = <0x21000 0x200>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkgen SDIO_CLK>, <&clkgen SYS_CLK>;
+			interrupts = <60 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		mmc1: mmc@21200 {
+			compatible = "arasan,sdhci-8.9a";
+			reg = <0x21200 0x200>;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&clkgen SDIO_CLK>, <&clkgen SYS_CLK>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		eth0: ethernet@26000 {
 			compatible = "sigma,smp8734-ethernet";
 			reg = <0x26000 0x800>;

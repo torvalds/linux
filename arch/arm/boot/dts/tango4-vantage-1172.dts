@@ -35,3 +35,7 @@
 		reg = <4>;
 	};
 };
+
+&mmc1 {
+	non-removable; /* eMMC */
+};
