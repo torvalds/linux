@@ -115,7 +115,7 @@ static void qxl_gc_work(struct work_struct *work)
 	qxl_garbage_collect(qdev);
 }
 
-static int qxl_device_init(struct qxl_device *qdev,
+int qxl_device_init(struct qxl_device *qdev,
 		    struct drm_device *ddev,
 		    struct pci_dev *pdev,
 		    unsigned long flags)
@@ -263,7 +263,7 @@ static int qxl_device_init(struct qxl_device *qdev,
 	return 0;
 }
 
-static void qxl_device_fini(struct qxl_device *qdev)
+void qxl_device_fini(struct qxl_device *qdev)
 {
 	if (qdev->current_release_bo[0])
 		qxl_bo_unref(&qdev->current_release_bo[0]);
@@ -300,39 +300,3 @@ void qxl_driver_unload(struct drm_device *dev)
 	kfree(qdev);
 	dev->dev_private = NULL;
 }
-
-int qxl_driver_load(struct drm_device *dev, unsigned long flags)
-{
-	struct qxl_device *qdev;
-	int r;
-
-	qdev = kzalloc(sizeof(struct qxl_device), GFP_KERNEL);
-	if (qdev == NULL)
-		return -ENOMEM;
-
-	dev->dev_private = qdev;
-
-	r = qxl_device_init(qdev, dev, dev->pdev, flags);
-	if (r)
-		goto out;
-
-	r = drm_vblank_init(dev, 1);
-	if (r)
-		goto unload;
-
-	r = qxl_modeset_init(qdev);
-	if (r)
-		goto unload;
-
-	drm_kms_helper_poll_init(qdev->ddev);
-
-	return 0;
-unload:
-	qxl_driver_unload(dev);
-
-out:
-	kfree(qdev);
-	return r;
-}
-
-

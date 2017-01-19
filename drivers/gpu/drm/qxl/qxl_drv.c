@@ -62,12 +62,67 @@ static struct pci_driver qxl_pci_driver;
 static int
 qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct drm_device *drm;
+	struct qxl_device *qdev;
+	int ret;
+
 	if (pdev->revision < 4) {
 		DRM_ERROR("qxl too old, doesn't support client_monitors_config,"
 			  " use xf86-video-qxl in user mode");
 		return -EINVAL; /* TODO: ENODEV ? */
 	}
-	return drm_get_pci_dev(pdev, ent, &qxl_driver);
+
+	drm = drm_dev_alloc(&qxl_driver, &pdev->dev);
+	if (IS_ERR(drm))
+		return -ENOMEM;
+
+	qdev = kzalloc(sizeof(struct qxl_device), GFP_KERNEL);
+	if (!qdev) {
+		ret = -ENOMEM;
+		goto free_drm_device;
+	}
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto free_drm_device;
+
+	drm->pdev = pdev;
+	pci_set_drvdata(pdev, drm);
+	drm->dev_private = qdev;
+
+	ret = qxl_device_init(qdev, drm, pdev, ent->driver_data);
+	if (ret)
+		goto disable_pci;
+
+	ret = drm_vblank_init(drm, 1);
+	if (ret)
+		goto unload;
+
+	ret = qxl_modeset_init(qdev);
+	if (ret)
+		goto vblank_cleanup;
+
+	drm_kms_helper_poll_init(qdev->ddev);
+
+	/* Complete initialization. */
+	ret = drm_dev_register(drm, ent->driver_data);
+	if (ret)
+		goto modeset_cleanup;
+
+	return 0;
+
+modeset_cleanup:
+	qxl_modeset_fini(qdev);
+vblank_cleanup:
+	drm_vblank_cleanup(drm);
+unload:
+	qxl_device_fini(qdev);
+disable_pci:
+	pci_disable_device(pdev);
+free_drm_device:
+	kfree(qdev);
+	kfree(drm);
+	return ret;
 }
 
 static void
@@ -230,7 +285,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
 	.get_vblank_counter = qxl_noop_get_vblank_counter,
 	.enable_vblank = qxl_noop_enable_vblank,
