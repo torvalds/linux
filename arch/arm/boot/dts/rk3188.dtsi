@@ -599,21 +599,25 @@
 };
 
 &uart0 {
+	compatible = "rockchip,rk3188-uart", "snps,dw-apb-uart";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer>;
 };
 
 &uart1 {
+	compatible = "rockchip,rk3188-uart", "snps,dw-apb-uart";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_xfer>;
 };
 
 &uart2 {
+	compatible = "rockchip,rk3188-uart", "snps,dw-apb-uart";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;
 };
 
 &uart3 {
+	compatible = "rockchip,rk3188-uart", "snps,dw-apb-uart";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_xfer>;
 };
