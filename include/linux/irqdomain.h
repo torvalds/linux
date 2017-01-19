@@ -183,6 +183,12 @@ enum {
 	/* Irq domain is an IPI domain with single virq */
 	IRQ_DOMAIN_FLAG_IPI_SINGLE	= (1 << 3),
 
+	/* Irq domain implements MSIs */
+	IRQ_DOMAIN_FLAG_MSI		= (1 << 4),
+
+	/* Irq domain implements MSI remapping */
+	IRQ_DOMAIN_FLAG_MSI_REMAP	= (1 << 5),
+
 	/*
 	 * Flags starting from IRQ_DOMAIN_FLAG_NONCORE are reserved
 	 * for implementation specific purposes and ignored by the
@@ -446,6 +452,19 @@ static inline bool irq_domain_is_ipi_single(struct irq_domain *domain)
 {
 	return domain->flags & IRQ_DOMAIN_FLAG_IPI_SINGLE;
 }
+
+static inline bool irq_domain_is_msi(struct irq_domain *domain)
+{
+	return domain->flags & IRQ_DOMAIN_FLAG_MSI;
+}
+
+static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
+{
+	return domain->flags & IRQ_DOMAIN_FLAG_MSI_REMAP;
+}
+
+extern bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain);
+
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 static inline void irq_domain_activate_irq(struct irq_data *data) { }
 static inline void irq_domain_deactivate_irq(struct irq_data *data) { }
@@ -474,6 +493,22 @@ static inline bool irq_domain_is_ipi_per_cpu(struct irq_domain *domain)
 }
 
 static inline bool irq_domain_is_ipi_single(struct irq_domain *domain)
+{
+	return false;
+}
+
+static inline bool irq_domain_is_msi(struct irq_domain *domain)
+{
+	return false;
+}
+
+static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
+{
+	return false;
+}
+
+static inline bool
+irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
 {
 	return false;
 }

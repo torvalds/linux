@@ -1392,6 +1392,20 @@ static void irq_domain_check_hierarchy(struct irq_domain *domain)
 	if (domain->ops->alloc)
 		domain->flags |= IRQ_DOMAIN_FLAG_HIERARCHY;
 }
+
+/**
+ * irq_domain_hierarchical_is_msi_remap - Check if the domain or any
+ * parent has MSI remapping support
+ * @domain: domain pointer
+ */
+bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
+{
+	for (; domain; domain = domain->parent) {
+		if (irq_domain_is_msi_remap(domain))
+			return true;
+	}
+	return false;
+}
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 /**
  * irq_domain_get_irq_data - Get irq_data associated with @virq and @domain
