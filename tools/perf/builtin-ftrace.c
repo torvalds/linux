@@ -202,6 +202,7 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int ret;
 	struct perf_ftrace ftrace = {
+		.tracer = "function_graph",
 		.target = { .uid = UINT_MAX, },
 	};
 	const char * const ftrace_usage[] = {
@@ -211,7 +212,7 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 	const struct option ftrace_options[] = {
 	OPT_STRING('t', "tracer", &ftrace.tracer, "tracer",
-		   "tracer to use: function_graph or function"),
+		   "tracer to use: function_graph(default) or function"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose"),
 	OPT_END()
