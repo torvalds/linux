@@ -27,7 +27,7 @@ static DEFINE_MUTEX(branch_tracing_mutex);
 static struct trace_array *branch_tracer;
 
 static void
-probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
@@ -68,16 +68,17 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry	= ring_buffer_event_data(event);
 
 	/* Strip off the path, only save the file */
-	p = f->file + strlen(f->file);
-	while (p >= f->file && *p != '/')
+	p = f->data.file + strlen(f->data.file);
+	while (p >= f->data.file && *p != '/')
 		p--;
 	p++;
 
-	strncpy(entry->func, f->func, TRACE_FUNC_SIZE);
+	strncpy(entry->func, f->data.func, TRACE_FUNC_SIZE);
 	strncpy(entry->file, p, TRACE_FILE_SIZE);
 	entry->func[TRACE_FUNC_SIZE] = 0;
 	entry->file[TRACE_FILE_SIZE] = 0;
-	entry->line = f->line;
+	entry->constant = f->constant;
+	entry->line = f->data.line;
 	entry->correct = val == expect;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
@@ -89,7 +90,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 }
 
 static inline
-void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 	if (!branch_tracing_enabled)
 		return;
@@ -195,7 +196,7 @@ core_initcall(init_branch_tracer);
 
 #else
 static inline
-void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
+void trace_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
 }
 #endif /* CONFIG_BRANCH_TRACER */
@@ -214,7 +215,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	 * conditions that the recursive nightmare that exists is too
 	 * much to try to get working. At least for now.
 	 */
-	trace_likely_condition(&f->data, val, expect);
+	trace_likely_condition(f, val, expect);
 
 	/* FIXME: Make this atomic! */
 	if (val == expect)
