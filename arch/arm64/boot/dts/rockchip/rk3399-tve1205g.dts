@@ -763,6 +763,8 @@
 		int-n-gpios = <&gpio1 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
+		support-uboot-charge = <1>;
+		port-num = <1>;
 		status = "okay";
 	};
 };
@@ -782,6 +784,8 @@
 		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
 		discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
+		support-uboot-charge = <1>;
+		port-num = <0>;
 		status = "okay";
 	};
 };
