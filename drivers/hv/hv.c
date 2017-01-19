@@ -284,14 +284,16 @@ int hv_synic_init(unsigned int cpu)
 	hv_set_siefp(siefp.as_uint64);
 
 	/* Setup the shared SINT. */
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	shared_sint.as_uint64 = 0;
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
 	shared_sint.auto_eoi = true;
 
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	/* Enable the global synic bit */
 	hv_get_synic_state(sctrl.as_uint64);
@@ -384,13 +386,15 @@ int hv_synic_cleanup(unsigned int cpu)
 		hv_ce_shutdown(hv_context.clk_evt[cpu]);
 	}
 
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	shared_sint.masked = 1;
 
 	/* Need to correctly cleanup in the case of SMP!!! */
 	/* Disable the interrupt */
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
+	hv_set_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
+			    shared_sint.as_uint64);
 
 	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 0;
