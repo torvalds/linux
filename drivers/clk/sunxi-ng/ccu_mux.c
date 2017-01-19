@@ -25,8 +25,14 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 	int i;
 
 	if (!((common->features & CCU_FEATURE_FIXED_PREDIV) ||
-	      (common->features & CCU_FEATURE_VARIABLE_PREDIV)))
+	      (common->features & CCU_FEATURE_VARIABLE_PREDIV) ||
+	      (common->features & CCU_FEATURE_ALL_PREDIV)))
 		return;
+
+	if (common->features & CCU_FEATURE_ALL_PREDIV) {
+		*parent_rate = *parent_rate / common->prediv;
+		return;
+	}
 
 	reg = readl(common->base + common->reg);
 	if (parent_index < 0) {

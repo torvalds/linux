@@ -21,6 +21,7 @@
 #define CCU_FEATURE_VARIABLE_PREDIV	BIT(1)
 #define CCU_FEATURE_FIXED_PREDIV	BIT(2)
 #define CCU_FEATURE_FIXED_POSTDIV	BIT(3)
+#define CCU_FEATURE_ALL_PREDIV		BIT(4)
 
 struct device_node;
 
@@ -56,6 +57,7 @@ struct device_node;
 struct ccu_common {
 	void __iomem	*base;
 	u16		reg;
+	u32		prediv;
 
 	unsigned long	features;
 	spinlock_t	*lock;
