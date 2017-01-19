@@ -10,6 +10,7 @@ Required properties:
   - compatible		: should be one of the following:
     - "allwinner,sun4i-a10-spdif": for the Allwinner A10 SoC
     - "allwinner,sun6i-a31-spdif": for the Allwinner A31 SoC
+    - "allwinner,sun8i-h3-spdif": for the Allwinner H3 SoC
 
   - reg			: Offset and length of the register set for the device.
 
