@@ -235,7 +235,7 @@
 
 			/* VDD_1P8 (1+R1/R2 = 2.505): GPS/VideoIn/ENET-PHY */
 			reg_1p8v: sw2 {
-                                regulator-name = "vdd1p8";
+				regulator-name = "vdd1p8";
 				regulator-min-microvolt = <1033310>;
 				regulator-max-microvolt = <2004000>;
 				lltc,fb-voltage-divider = <301000 200000>;
