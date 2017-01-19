@@ -199,6 +199,11 @@ static struct vou_inf vou_infs[] = {
 		.clocks_en_bits = BIT(24) | BIT(18) | BIT(6),
 		.clocks_sel_bits = BIT(13) | BIT(2),
 	},
+	[VOU_TV_ENC] = {
+		.data_sel = VOU_YUV444,
+		.clocks_en_bits = BIT(15),
+		.clocks_sel_bits = BIT(11) | BIT(0),
+	},
 };
 
 static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
