@@ -261,6 +261,28 @@ static const char *stx104_names[STX104_NGPIO] = {
 	"DIN0", "DIN1", "DIN2", "DIN3", "DOUT0", "DOUT1", "DOUT2", "DOUT3"
 };
 
+static void stx104_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct stx104_gpio *const stx104gpio = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	/* verify masked GPIO are output */
+	if (!(*mask & 0xF0))
+		return;
+
+	*mask >>= 4;
+	*bits >>= 4;
+
+	spin_lock_irqsave(&stx104gpio->lock, flags);
+
+	stx104gpio->out_state &= ~*mask;
+	stx104gpio->out_state |= *mask & *bits;
+	outb(stx104gpio->out_state, stx104gpio->base);
+
+	spin_unlock_irqrestore(&stx104gpio->lock, flags);
+}
+
 static int stx104_probe(struct device *dev, unsigned int id)
 {
 	struct iio_dev *indio_dev;
@@ -321,6 +343,7 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104gpio->chip.direction_output = stx104_gpio_direction_output;
 	stx104gpio->chip.get = stx104_gpio_get;
 	stx104gpio->chip.set = stx104_gpio_set;
+	stx104gpio->chip.set_multiple = stx104_gpio_set_multiple;
 	stx104gpio->base = base[id] + 3;
 	stx104gpio->out_state = 0x0;
 
