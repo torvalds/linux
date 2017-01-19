@@ -155,6 +155,46 @@ static void ws16c48_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&ws16c48gpio->lock, flags);
 }
 
+static void ws16c48_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct ws16c48_gpio *const ws16c48gpio = gpiochip_get_data(chip);
+	unsigned int i;
+	const unsigned int gpio_reg_size = 8;
+	unsigned int port;
+	unsigned int iomask;
+	unsigned int bitmask;
+	unsigned long flags;
+
+	/* set bits are evaluated a gpio register size at a time */
+	for (i = 0; i < chip->ngpio; i += gpio_reg_size) {
+		/* no more set bits in this mask word; skip to the next word */
+		if (!mask[BIT_WORD(i)]) {
+			i = (BIT_WORD(i) + 1) * BITS_PER_LONG - gpio_reg_size;
+			continue;
+		}
+
+		port = i / gpio_reg_size;
+
+		/* mask out GPIO configured for input */
+		iomask = mask[BIT_WORD(i)] & ~ws16c48gpio->io_state[port];
+		bitmask = iomask & bits[BIT_WORD(i)];
+
+		spin_lock_irqsave(&ws16c48gpio->lock, flags);
+
+		/* update output state data and set device gpio register */
+		ws16c48gpio->out_state[port] &= ~iomask;
+		ws16c48gpio->out_state[port] |= bitmask;
+		outb(ws16c48gpio->out_state[port], ws16c48gpio->base + port);
+
+		spin_unlock_irqrestore(&ws16c48gpio->lock, flags);
+
+		/* prepare for next gpio register set */
+		mask[BIT_WORD(i)] >>= gpio_reg_size;
+		bits[BIT_WORD(i)] >>= gpio_reg_size;
+	}
+}
+
 static void ws16c48_irq_ack(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
@@ -329,6 +369,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.direction_output = ws16c48_gpio_direction_output;
 	ws16c48gpio->chip.get = ws16c48_gpio_get;
 	ws16c48gpio->chip.set = ws16c48_gpio_set;
+	ws16c48gpio->chip.set_multiple = ws16c48_gpio_set_multiple;
 	ws16c48gpio->base = base[id];
 	ws16c48gpio->irq = irq[id];
 
