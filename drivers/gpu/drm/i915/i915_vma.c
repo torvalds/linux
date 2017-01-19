@@ -77,7 +77,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	struct rb_node *rb, **p;
 	int i;
 
-	vma = kmem_cache_zalloc(to_i915(obj->base.dev)->vmas, GFP_KERNEL);
+	vma = kmem_cache_zalloc(vm->i915->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -85,7 +85,6 @@ vma_create(struct drm_i915_gem_object *obj,
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
 	init_request_active(&vma->last_fence, NULL);
-	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;
 	vma->obj = obj;
 	vma->size = obj->base.size;
@@ -107,11 +106,20 @@ vma_create(struct drm_i915_gem_object *obj,
 		}
 	}
 
+	if (unlikely(vma->size > vm->total))
+		goto err_vma;
+
 	if (i915_is_ggtt(vm)) {
-		GEM_BUG_ON(overflows_type(vma->size, u32));
+		if (unlikely(overflows_type(vma->size, u32)))
+			goto err_vma;
+
 		vma->fence_size = i915_gem_fence_size(vm->i915, vma->size,
 						      i915_gem_object_get_tiling(obj),
 						      i915_gem_object_get_stride(obj));
+		if (unlikely(vma->fence_size < vma->size || /* overflow */
+			     vma->fence_size > vm->total))
+			goto err_vma;
+
 		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I915_GTT_MIN_ALIGNMENT));
 
 		vma->fence_alignment = i915_gem_fence_alignment(vm->i915, vma->size,
@@ -140,8 +148,13 @@ vma_create(struct drm_i915_gem_object *obj,
 	}
 	rb_link_node(&vma->obj_node, rb, p);
 	rb_insert_color(&vma->obj_node, &obj->vma_tree);
+	list_add(&vma->vm_link, &vm->unbound_list);
 
 	return vma;
+
+err_vma:
+	kmem_cache_free(vm->i915->vmas, vma);
+	return ERR_PTR(-E2BIG);
 }
 
 static struct i915_vma *
