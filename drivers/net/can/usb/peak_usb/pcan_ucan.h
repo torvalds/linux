@@ -213,10 +213,9 @@ struct __packed pucan_tx_msg {
 };
 
 /* build the cmd opcode_channel field with respect to the correct endianness */
-static inline __le16 pucan_cmd_opcode_channel(struct peak_usb_device *dev,
-					      int opcode)
+static inline __le16 pucan_cmd_opcode_channel(int index, int opcode)
 {
-	return cpu_to_le16(((dev->ctrl_idx) << 12) | ((opcode) & 0x3ff));
+	return cpu_to_le16(((index) << 12) | ((opcode) & 0x3ff));
 }
 
 /* return the channel number part from any received message channel_dlc field */
