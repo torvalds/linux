@@ -158,12 +158,28 @@ static ssize_t target_stat_tgt_resets_show(struct config_item *item,
 			atomic_long_read(&to_stat_tgt_dev(item)->num_resets));
 }
 
+static ssize_t target_stat_tgt_aborts_complete_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%lu\n",
+			atomic_long_read(&to_stat_tgt_dev(item)->aborts_complete));
+}
+
+static ssize_t target_stat_tgt_aborts_no_task_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%lu\n",
+			atomic_long_read(&to_stat_tgt_dev(item)->aborts_no_task));
+}
+
 CONFIGFS_ATTR_RO(target_stat_tgt_, inst);
 CONFIGFS_ATTR_RO(target_stat_tgt_, indx);
 CONFIGFS_ATTR_RO(target_stat_tgt_, num_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, status);
 CONFIGFS_ATTR_RO(target_stat_tgt_, non_access_lus);
 CONFIGFS_ATTR_RO(target_stat_tgt_, resets);
+CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_complete);
+CONFIGFS_ATTR_RO(target_stat_tgt_, aborts_no_task);
 
 static struct configfs_attribute *target_stat_scsi_tgt_dev_attrs[] = {
 	&target_stat_tgt_attr_inst,
@@ -172,6 +188,8 @@ static struct configfs_attribute *target_stat_scsi_tgt_dev_attrs[] = {
 	&target_stat_tgt_attr_status,
 	&target_stat_tgt_attr_non_access_lus,
 	&target_stat_tgt_attr_resets,
+	&target_stat_tgt_attr_aborts_complete,
+	&target_stat_tgt_attr_aborts_no_task,
 	NULL,
 };
 

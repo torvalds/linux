@@ -190,6 +190,7 @@ void core_tmr_abort_task(
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
 				" ref_tag: %llu\n", ref_tag);
 		tmr->response = TMR_FUNCTION_COMPLETE;
+		atomic_long_inc(&dev->aborts_complete);
 		return;
 	}
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
@@ -197,6 +198,7 @@ void core_tmr_abort_task(
 	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %lld\n",
 			tmr->ref_task_tag);
 	tmr->response = TMR_TASK_DOES_NOT_EXIST;
+	atomic_long_inc(&dev->aborts_no_task);
 }
 
 static void core_tmr_drain_tmr_list(

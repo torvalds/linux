@@ -766,6 +766,8 @@ struct se_device {
 	u32			dev_index;
 	u64			creation_time;
 	atomic_long_t		num_resets;
+	atomic_long_t		aborts_complete;
+	atomic_long_t		aborts_no_task;
 	atomic_long_t		num_cmds;
 	atomic_long_t		read_bytes;
 	atomic_long_t		write_bytes;
