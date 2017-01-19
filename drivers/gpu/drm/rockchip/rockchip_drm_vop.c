@@ -793,15 +793,33 @@ static void vop_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
 	VOP_CTRL_SET(vop, dsp_blank, 0);
 
+	/*
+	 * We need to make sure that all windows are disabled before resume
+	 * the crtc. Otherwise we might try to scan from a destroyed
+	 * buffer later.
+	 */
 	for (i = 0; i < vop->num_wins; i++) {
 		struct vop_win *win = &vop->win[i];
 
+		if (win->phy->scl && win->phy->scl->ext) {
+			VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
+		}
+		VOP_WIN_SET(vop, win, enable, 0);
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
+	VOP_CTRL_SET(vop, afbdc_en, 0);
+	vop_cfg_done(vop);
+
 	vop->is_enabled = true;
 
 	spin_lock(&vop->reg_lock);
 
+	/*
+	 * enable vop, all the register would take effect when vop exit standby
+	 */
 	VOP_CTRL_SET(vop, standby, 0);
 
 	spin_unlock(&vop->reg_lock);
@@ -821,28 +839,6 @@ err_disable_hclk:
 static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
-	int i;
-
-	/*
-	 * We need to make sure that all windows are disabled before we
-	 * disable that crtc. Otherwise we might try to scan from a destroyed
-	 * buffer later.
-	 */
-	for (i = 0; i < vop->num_wins; i++) {
-		struct vop_win *win = &vop->win[i];
-
-		spin_lock(&vop->reg_lock);
-		if (win->phy->scl && win->phy->scl->ext) {
-			VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
-		}
-		VOP_WIN_SET(vop, win, enable, 0);
-		spin_unlock(&vop->reg_lock);
-	}
-	VOP_CTRL_SET(vop, afbdc_en, 0);
-	vop_cfg_done(vop);
 
 	drm_crtc_vblank_off(crtc);
 
