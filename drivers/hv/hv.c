@@ -43,58 +43,12 @@ struct hv_context hv_context = {
 #define HV_MIN_DELTA_TICKS 1
 
 /*
- * query_hypervisor_info - Get version info of the windows hypervisor
- */
-unsigned int host_info_eax;
-unsigned int host_info_ebx;
-unsigned int host_info_ecx;
-unsigned int host_info_edx;
-
-static int query_hypervisor_info(void)
-{
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int max_leaf;
-	unsigned int op;
-
-	/*
-	* Its assumed that this is called after confirming that Viridian
-	* is present. Query id and revision.
-	*/
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	op = HVCPUID_VENDOR_MAXFUNCTION;
-	cpuid(op, &eax, &ebx, &ecx, &edx);
-
-	max_leaf = eax;
-
-	if (max_leaf >= HVCPUID_VERSION) {
-		eax = 0;
-		ebx = 0;
-		ecx = 0;
-		edx = 0;
-		op = HVCPUID_VERSION;
-		cpuid(op, &eax, &ebx, &ecx, &edx);
-		host_info_eax = eax;
-		host_info_ebx = ebx;
-		host_info_ecx = ecx;
-		host_info_edx = edx;
-	}
-	return max_leaf;
-}
-
-/*
  * hv_init - Main initialization routine.
  *
  * This routine must be called before any other routines in here are called
  */
 int hv_init(void)
 {
-	int max_leaf;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
@@ -110,9 +64,6 @@ int hv_init(void)
 	       sizeof(void *) * NR_CPUS);
 	memset(hv_context.clk_evt, 0,
 	       sizeof(void *) * NR_CPUS);
-
-	max_leaf = query_hypervisor_info();
-
 
 	/* See if the hypercall page is already set */
 	hypercall_msr.as_uint64 = 0;

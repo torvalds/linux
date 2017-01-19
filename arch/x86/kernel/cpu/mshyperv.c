@@ -160,6 +160,11 @@ static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
 
 static void __init ms_hyperv_init_platform(void)
 {
+	int hv_host_info_eax;
+	int hv_host_info_ebx;
+	int hv_host_info_ecx;
+	int hv_host_info_edx;
+
 	/*
 	 * Extract the features and hints
 	 */
@@ -169,6 +174,21 @@ static void __init ms_hyperv_init_platform(void)
 
 	pr_info("HyperV: features 0x%x, hints 0x%x\n",
 		ms_hyperv.features, ms_hyperv.hints);
+
+	/*
+	 * Extract host information.
+	 */
+	if (cpuid_eax(HVCPUID_VENDOR_MAXFUNCTION) >= HVCPUID_VERSION) {
+		hv_host_info_eax = cpuid_eax(HVCPUID_VERSION);
+		hv_host_info_ebx = cpuid_ebx(HVCPUID_VERSION);
+		hv_host_info_ecx = cpuid_ecx(HVCPUID_VERSION);
+		hv_host_info_edx = cpuid_edx(HVCPUID_VERSION);
+
+		pr_info("Hyper-V Host Build:%d-%d.%d-%d-%d.%d\n",
+			hv_host_info_eax, hv_host_info_ebx >> 16,
+			hv_host_info_ebx & 0xFFFF, hv_host_info_ecx,
+			hv_host_info_edx >> 24, hv_host_info_edx & 0xFFFFFF);
+	}
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (ms_hyperv.features & HV_X64_MSR_APIC_FREQUENCY_AVAILABLE) {

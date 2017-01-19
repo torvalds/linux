@@ -5,6 +5,25 @@
 #include <linux/interrupt.h>
 #include <asm/hyperv.h>
 
+/*
+ * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
+ * is set by CPUID(HVCPUID_VERSION_FEATURES).
+ */
+enum hv_cpuid_function {
+	HVCPUID_VERSION_FEATURES		= 0x00000001,
+	HVCPUID_VENDOR_MAXFUNCTION		= 0x40000000,
+	HVCPUID_INTERFACE			= 0x40000001,
+
+	/*
+	 * The remaining functions depend on the value of
+	 * HVCPUID_INTERFACE
+	 */
+	HVCPUID_VERSION				= 0x40000002,
+	HVCPUID_FEATURES			= 0x40000003,
+	HVCPUID_ENLIGHTENMENT_INFO		= 0x40000004,
+	HVCPUID_IMPLEMENTATION_LIMITS		= 0x40000005,
+};
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 misc_features;
