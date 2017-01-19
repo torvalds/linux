@@ -4,7 +4,6 @@
 static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 {
 	char *p_val;
-	int ret;
 
 	if (!str_p || !(*str_p))
 		return -EINVAL;
@@ -14,11 +13,7 @@ static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 	if (!p_val)
 		return -EINVAL;
 
-	ret = kstrtoul(p_val, base, val);
-	if (ret)
-		return -EINVAL;
-
-	return 0;
+	return kstrtoul(p_val, base, val);
 }
 
 int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
