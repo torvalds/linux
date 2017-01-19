@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(rtl_dbgp_flag_init);
 
 #ifdef CONFIG_RTLWIFI_DEBUG
 void _rtl_dbg_trace(struct rtl_priv *rtlpriv, int comp, int level,
-		    const char *modname, const char *fmt, ...)
+		    const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->dbg.global_debugcomponents) &&
 		     (level <= rtlpriv->dbg.global_debuglevel))) {
@@ -63,13 +63,45 @@ void _rtl_dbg_trace(struct rtl_priv *rtlpriv, int comp, int level,
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_DEBUG "%s:%ps:<%lx-%x> %pV",
-		       modname, __builtin_return_address(0),
-		       in_interrupt(), in_atomic(),
-		       &vaf);
+		pr_debug(":<%lx> %pV", in_interrupt(), &vaf);
 
 		va_end(args);
 	}
 }
 EXPORT_SYMBOL_GPL(_rtl_dbg_trace);
+
+void _rtl_dbg_print(struct rtl_priv *rtlpriv, u64 comp, int level,
+		    const char *fmt, ...)
+{
+	if (unlikely((comp & rtlpriv->dbg.global_debugcomponents) &&
+		     (level <= rtlpriv->dbg.global_debuglevel))) {
+		struct va_format vaf;
+		va_list args;
+
+		va_start(args, fmt);
+
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		pr_debug("%pV", &vaf);
+
+		va_end(args);
+	}
+}
+EXPORT_SYMBOL_GPL(_rtl_dbg_print);
+
+void _rtl_dbg_print_data(struct rtl_priv *rtlpriv, u64 comp, int level,
+			 const char *titlestring,
+			 const void *hexdata, int hexdatalen)
+{
+	if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) &&
+		     ((level) <= rtlpriv->dbg.global_debuglevel))) {
+		pr_debug("In process \"%s\" (pid %i): %s\n",
+			 current->comm, current->pid, titlestring);
+		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
+				     hexdata, hexdatalen);
+	}
+}
+EXPORT_SYMBOL_GPL(_rtl_dbg_print_data);
+
 #endif
