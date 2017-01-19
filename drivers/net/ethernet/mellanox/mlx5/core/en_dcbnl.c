@@ -511,6 +511,11 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 
+	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
+		netdev_err(netdev, "%s, ets is not supported\n", __func__);
+		return;
+	}
+
 	if (priority >= CEE_DCBX_MAX_PRIO) {
 		netdev_err(netdev,
 			   "%s, priority is out of range\n", __func__);
