@@ -1497,7 +1497,6 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(updates[i].surface);
-		bool apply_ctx = false;
 
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -1505,13 +1504,9 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 			if (pipe_ctx->surface != surface)
 				continue;
 
-			if (updates[i].flip_addr) {
+			if (updates[i].flip_addr && can_skip_context_building) {
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
-			}
-
-			if (updates[i].plane_info || updates[i].scaling_info
-					|| is_new_pipe_surface[j]) {
-				apply_ctx = true;
+			} else {
 
 				if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
 					core_dc->hwss.pipe_control_lock(
@@ -1546,7 +1541,7 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 			}
 
 		}
-		if (apply_ctx) {
+		if (!can_skip_context_building) {
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
 			context_timing_trace(dc, &context->res_ctx);
 		}
