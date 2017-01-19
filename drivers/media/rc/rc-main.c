@@ -1084,8 +1084,7 @@ static void ir_raw_load_modules(u64 *protocols)
 		if (!(*protocols & proto_names[i].type & ~available))
 			continue;
 
-		pr_err("Loaded IR protocol module %s, \
-		       but protocol %s still not available\n",
+		pr_err("Loaded IR protocol module %s, but protocol %s still not available\n",
 		       proto_names[i].module_name,
 		       proto_names[i].name);
 		*protocols &= ~proto_names[i].type;
