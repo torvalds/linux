@@ -2939,7 +2939,7 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 				size, GFAR_RXB_TRUESIZE);
 
 	/* try reuse page */
-	if (unlikely(page_count(page) != 1))
+	if (unlikely(page_count(page) != 1 || page_is_pfmemalloc(page)))
 		return false;
 
 	/* change offset to the other half */
