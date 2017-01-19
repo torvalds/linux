@@ -146,6 +146,9 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 #define hv_get_siefp(val) rdmsrl(HV_X64_MSR_SIEFP, val)
 #define hv_set_siefp(val) wrmsrl(HV_X64_MSR_SIEFP, val)
 
+#define hv_get_synic_state(val) rdmsrl(HV_X64_MSR_SCONTROL, val)
+#define hv_set_synic_state(val) wrmsrl(HV_X64_MSR_SCONTROL, val)
+
 void hyperv_callback_vector(void);
 #ifdef CONFIG_TRACING
 #define trace_hyperv_callback_vector hyperv_callback_vector
