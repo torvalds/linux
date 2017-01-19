@@ -136,6 +136,10 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	}
 }
 
+#define hv_get_current_tick(tick) rdmsrl(HV_X64_MSR_TIME_REF_COUNT, tick)
+#define hv_init_timer(timer, tick) wrmsrl(timer, tick)
+#define hv_init_timer_config(config, val) wrmsrl(config, val)
+
 void hyperv_callback_vector(void);
 #ifdef CONFIG_TRACING
 #define trace_hyperv_callback_vector hyperv_callback_vector
