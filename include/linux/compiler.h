@@ -101,13 +101,18 @@ struct ftrace_branch_data {
 	};
 };
 
+struct ftrace_likely_data {
+	struct ftrace_branch_data	data;
+	unsigned long			constant;
+};
+
 /*
  * Note: DISABLE_BRANCH_PROFILING can be used by special lowlevel code
  * to disable branch tracing on a per file basis.
  */
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
-void ftrace_likely_update(struct ftrace_branch_data *f, int val,
+void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 			  int expect, int is_constant);
 
 #define likely_notrace(x)	__builtin_expect(!!(x), 1)
@@ -115,13 +120,13 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val,
 
 #define __branch_check__(x, expect, is_constant) ({			\
 			int ______r;					\
-			static struct ftrace_branch_data		\
+			static struct ftrace_likely_data		\
 				__attribute__((__aligned__(4)))		\
 				__attribute__((section("_ftrace_annotated_branch"))) \
 				______f = {				\
-				.func = __func__,			\
-				.file = __FILE__,			\
-				.line = __LINE__,			\
+				.data.func = __func__,			\
+				.data.file = __FILE__,			\
+				.data.line = __LINE__,			\
 			};						\
 			______r = __builtin_expect(!!(x), expect);	\
 			ftrace_likely_update(&______f, ______r,		\
