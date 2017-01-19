@@ -41,8 +41,10 @@ struct kvm_s390_io_adapter {
 	__u8 isc;
 	__u8 maskable;
 	__u8 swap;
-	__u8 pad;
+	__u8 flags;
 };
+
+#define KVM_S390_ADAPTER_SUPPRESSIBLE 0x01
 
 #define KVM_S390_IO_ADAPTER_MASK 1
 #define KVM_S390_IO_ADAPTER_MAP 2

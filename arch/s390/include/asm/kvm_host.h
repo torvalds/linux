@@ -621,6 +621,7 @@ struct s390_io_adapter {
 	bool maskable;
 	bool masked;
 	bool swap;
+	bool suppressible;
 	struct rw_semaphore maps_lock;
 	struct list_head maps;
 	atomic_t nr_maps;
