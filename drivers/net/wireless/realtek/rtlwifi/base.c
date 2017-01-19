@@ -2094,7 +2094,7 @@ static ssize_t rtl_show_debug_level(struct device *d,
 	struct ieee80211_hw *hw = dev_get_drvdata(d);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	return sprintf(buf, "0x%08X\n", rtlpriv->dbg.global_debuglevel);
+	return sprintf(buf, "0x%08X\n", rtlpriv->cfg->mod_params->debug_level);
 }
 
 static ssize_t rtl_store_debug_level(struct device *d,
@@ -2111,10 +2111,10 @@ static ssize_t rtl_store_debug_level(struct device *d,
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
 			 "%s is not in hex or decimal form.\n", buf);
 	} else {
-		rtlpriv->dbg.global_debuglevel = val;
+		rtlpriv->cfg->mod_params->debug_level = val;
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
 			 "debuglevel:%x\n",
-			 rtlpriv->dbg.global_debuglevel);
+			 rtlpriv->cfg->mod_params->debug_level);
 	}
 
 	return strnlen(buf, count);
