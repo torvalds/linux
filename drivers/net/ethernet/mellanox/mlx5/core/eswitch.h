@@ -285,8 +285,8 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x4000
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x8000
 
 struct mlx5_encap_entry {
 	struct hlist_node encap_hlist;
