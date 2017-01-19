@@ -94,6 +94,7 @@ static irqreturn_t mid_pb_isr(int irq, void *dev_id)
 		input_sync(input);
 	}
 
+	ddata->ack(ddata);
 	return IRQ_HANDLED;
 }
 
