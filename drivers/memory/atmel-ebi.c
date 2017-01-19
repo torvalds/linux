@@ -93,7 +93,7 @@ static void at91sam9_ebi_get_config(struct at91_ebi_dev *ebid,
 				    struct at91_ebi_dev_config *conf)
 {
 	struct at91sam9_smc_generic_fields *fields = &ebid->ebi->sam9;
-	unsigned int clk_rate = clk_get_rate(ebid->ebi->clk);
+	unsigned int clk_period = NSEC_PER_SEC / clk_get_rate(ebid->ebi->clk);
 	struct at91sam9_ebi_dev_config *config = &conf->sam9;
 	struct at91sam9_smc_timings *timings = &config->timings;
 	unsigned int val;
@@ -102,43 +102,43 @@ static void at91sam9_ebi_get_config(struct at91_ebi_dev *ebid,
 	config->mode = val & ~AT91_SMC_TDF;
 
 	val = (val & AT91_SMC_TDF) >> 16;
-	timings->tdf_ns = clk_rate * val;
+	timings->tdf_ns = clk_period * val;
 
 	regmap_fields_read(fields->setup, conf->cs, &val);
 	timings->ncs_rd_setup_ns = (val >> 24) & 0x1f;
 	timings->ncs_rd_setup_ns += ((val >> 29) & 0x1) * 128;
-	timings->ncs_rd_setup_ns *= clk_rate;
+	timings->ncs_rd_setup_ns *= clk_period;
 	timings->nrd_setup_ns = (val >> 16) & 0x1f;
 	timings->nrd_setup_ns += ((val >> 21) & 0x1) * 128;
-	timings->nrd_setup_ns *= clk_rate;
+	timings->nrd_setup_ns *= clk_period;
 	timings->ncs_wr_setup_ns = (val >> 8) & 0x1f;
 	timings->ncs_wr_setup_ns += ((val >> 13) & 0x1) * 128;
-	timings->ncs_wr_setup_ns *= clk_rate;
+	timings->ncs_wr_setup_ns *= clk_period;
 	timings->nwe_setup_ns = val & 0x1f;
 	timings->nwe_setup_ns += ((val >> 5) & 0x1) * 128;
-	timings->nwe_setup_ns *= clk_rate;
+	timings->nwe_setup_ns *= clk_period;
 
 	regmap_fields_read(fields->pulse, conf->cs, &val);
 	timings->ncs_rd_pulse_ns = (val >> 24) & 0x3f;
 	timings->ncs_rd_pulse_ns += ((val >> 30) & 0x1) * 256;
-	timings->ncs_rd_pulse_ns *= clk_rate;
+	timings->ncs_rd_pulse_ns *= clk_period;
 	timings->nrd_pulse_ns = (val >> 16) & 0x3f;
 	timings->nrd_pulse_ns += ((val >> 22) & 0x1) * 256;
-	timings->nrd_pulse_ns *= clk_rate;
+	timings->nrd_pulse_ns *= clk_period;
 	timings->ncs_wr_pulse_ns = (val >> 8) & 0x3f;
 	timings->ncs_wr_pulse_ns += ((val >> 14) & 0x1) * 256;
-	timings->ncs_wr_pulse_ns *= clk_rate;
+	timings->ncs_wr_pulse_ns *= clk_period;
 	timings->nwe_pulse_ns = val & 0x3f;
 	timings->nwe_pulse_ns += ((val >> 6) & 0x1) * 256;
-	timings->nwe_pulse_ns *= clk_rate;
+	timings->nwe_pulse_ns *= clk_period;
 
 	regmap_fields_read(fields->cycle, conf->cs, &val);
 	timings->nrd_cycle_ns = (val >> 16) & 0x7f;
 	timings->nrd_cycle_ns += ((val >> 23) & 0x3) * 256;
-	timings->nrd_cycle_ns *= clk_rate;
+	timings->nrd_cycle_ns *= clk_period;
 	timings->nwe_cycle_ns = val & 0x7f;
 	timings->nwe_cycle_ns += ((val >> 7) & 0x3) * 256;
-	timings->nwe_cycle_ns *= clk_rate;
+	timings->nwe_cycle_ns *= clk_period;
 }
 
 static int at91_xlate_timing(struct device_node *np, const char *prop,
@@ -334,6 +334,7 @@ static int at91sam9_ebi_apply_config(struct at91_ebi_dev *ebid,
 				     struct at91_ebi_dev_config *conf)
 {
 	unsigned int clk_rate = clk_get_rate(ebid->ebi->clk);
+	unsigned int clk_period = NSEC_PER_SEC / clk_rate;
 	struct at91sam9_ebi_dev_config *config = &conf->sam9;
 	struct at91sam9_smc_timings *timings = &config->timings;
 	struct at91sam9_smc_generic_fields *fields = &ebid->ebi->sam9;
@@ -376,7 +377,7 @@ static int at91sam9_ebi_apply_config(struct at91_ebi_dev *ebid,
 	val |= AT91SAM9_SMC_NWECYCLE(coded_val);
 	regmap_fields_write(fields->cycle, conf->cs, val);
 
-	val = DIV_ROUND_UP(timings->tdf_ns, clk_rate);
+	val = DIV_ROUND_UP(timings->tdf_ns, clk_period);
 	if (val > AT91_SMC_TDF_MAX)
 		val = AT91_SMC_TDF_MAX;
 	regmap_fields_write(fields->mode, conf->cs,
