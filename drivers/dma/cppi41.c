@@ -257,6 +257,10 @@ static struct cppi41_channel *desc_to_chan(struct cppi41_dd *cdd, u32 desc)
 	BUG_ON(desc_num >= ALLOC_DECS_NUM);
 	c = cdd->chan_busy[desc_num];
 	cdd->chan_busy[desc_num] = NULL;
+
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
+
 	return c;
 }
 
@@ -446,6 +450,15 @@ static void push_desc_queue(struct cppi41_channel *c)
 	 * before starting the dma engine.
 	 */
 	__iowmb();
+
+	/*
+	 * DMA transfers can take at least 200ms to complete with USB mass
+	 * storage connected. To prevent autosuspend timeouts, we must use
+	 * pm_runtime_get/put() when chan_busy[] is modified. This will get
+	 * cleared in desc_to_chan() or cppi41_stop_chan() depending on the
+	 * outcome of the transfer.
+	 */
+	pm_runtime_get(cdd->ddev.dev);
 
 	desc_phys = lower_32_bits(c->desc_phys);
 	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
@@ -704,6 +717,9 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 
 	WARN_ON(!cdd->chan_busy[desc_num]);
 	cdd->chan_busy[desc_num] = NULL;
+
+	/* Usecount for chan_busy[], paired with push_desc_queue() */
+	pm_runtime_put(cdd->ddev.dev);
 
 	return 0;
 }
