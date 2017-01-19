@@ -1480,8 +1480,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		return ret;
 	}
 
-	if (!cpsw_common_res_usage_state(cpsw))
-		cpsw_intr_disable(cpsw);
 	netif_carrier_off(ndev);
 
 	/* Notify the stack of the actual queue counts. */
