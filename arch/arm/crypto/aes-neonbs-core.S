@@ -766,13 +766,13 @@ ENTRY(aesbs_cbc_decrypt)
 ENDPROC(aesbs_cbc_decrypt)
 
 	.macro		next_ctr, q
-	vmov		\q\()h[1], r10
+	vmov.32		\q\()h[1], r10
 	adds		r10, r10, #1
-	vmov		\q\()h[0], r9
+	vmov.32		\q\()h[0], r9
 	adcs		r9, r9, #0
-	vmov		\q\()l[1], r8
+	vmov.32		\q\()l[1], r8
 	adcs		r8, r8, #0
-	vmov		\q\()l[0], r7
+	vmov.32		\q\()l[0], r7
 	adc		r7, r7, #0
 	vrev32.8	\q, \q
 	.endm
