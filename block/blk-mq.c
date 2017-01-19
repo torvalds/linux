@@ -2561,6 +2561,9 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	if (!set)
 		return -EINVAL;
 
+	blk_mq_freeze_queue(q);
+	blk_mq_quiesce_queue(q);
+
 	ret = 0;
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->tags)
@@ -2569,17 +2572,23 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		 * If we're using an MQ scheduler, just update the scheduler
 		 * queue depth. This is similar to what the old code would do.
 		 */
-		if (!hctx->sched_tags)
-			ret = blk_mq_tag_update_depth(hctx->tags,
-							min(nr, set->queue_depth));
-		else
-			ret = blk_mq_tag_update_depth(hctx->sched_tags, nr);
+		if (!hctx->sched_tags) {
+			ret = blk_mq_tag_update_depth(hctx, &hctx->tags,
+							min(nr, set->queue_depth),
+							false);
+		} else {
+			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
+							nr, true);
+		}
 		if (ret)
 			break;
 	}
 
 	if (!ret)
 		q->nr_requests = nr;
+
+	blk_mq_unfreeze_queue(q);
+	blk_mq_start_stopped_hw_queues(q, true);
 
 	return ret;
 }
