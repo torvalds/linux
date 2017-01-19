@@ -832,23 +832,31 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *fold = (struct cls_fl_filter *) *arg;
 	struct cls_fl_filter *fnew;
-	struct nlattr *tb[TCA_FLOWER_MAX + 1];
+	struct nlattr **tb;
 	struct fl_flow_mask mask = {};
 	int err;
 
 	if (!tca[TCA_OPTIONS])
 		return -EINVAL;
 
+	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
+	if (!tb)
+		return -ENOBUFS;
+
 	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS], fl_policy);
 	if (err < 0)
-		return err;
+		goto errout_tb;
 
-	if (fold && handle && fold->handle != handle)
-		return -EINVAL;
+	if (fold && handle && fold->handle != handle) {
+		err = -EINVAL;
+		goto errout_tb;
+	}
 
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
-	if (!fnew)
-		return -ENOBUFS;
+	if (!fnew) {
+		err = -ENOBUFS;
+		goto errout_tb;
+	}
 
 	err = tcf_exts_init(&fnew->exts, TCA_FLOWER_ACT, 0);
 	if (err < 0)
@@ -919,11 +927,14 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		list_add_tail_rcu(&fnew->list, &head->filters);
 	}
 
+	kfree(tb);
 	return 0;
 
 errout:
 	tcf_exts_destroy(&fnew->exts);
 	kfree(fnew);
+errout_tb:
+	kfree(tb);
 	return err;
 }
 
