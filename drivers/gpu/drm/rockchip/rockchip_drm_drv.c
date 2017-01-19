@@ -485,8 +485,10 @@ static int update_state(struct drm_device *drm_dev,
 		    !connector_helper_funcs->best_encoder)
 			return -ENXIO;
 		encoder = connector_helper_funcs->best_encoder(connector);
+		if (!encoder)
+			return -ENXIO;
 		encoder_helper_funcs = encoder->helper_private;
-		if (!encoder || !encoder_helper_funcs->atomic_check)
+		if (!encoder_helper_funcs->atomic_check)
 			return -ENXIO;
 		ret = encoder_helper_funcs->atomic_check(encoder, crtc->state,
 							 conn_state);
@@ -681,7 +683,7 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 	int pipe = drm_crtc_index(crtc);
 	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
-	if (pipe > ROCKCHIP_MAX_CRTC)
+	if (pipe >= ROCKCHIP_MAX_CRTC)
 		return -EINVAL;
 
 	priv->crtc_funcs[pipe] = crtc_funcs;
@@ -694,7 +696,7 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 	int pipe = drm_crtc_index(crtc);
 	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
-	if (pipe > ROCKCHIP_MAX_CRTC)
+	if (pipe >= ROCKCHIP_MAX_CRTC)
 		return;
 
 	priv->crtc_funcs[pipe] = NULL;

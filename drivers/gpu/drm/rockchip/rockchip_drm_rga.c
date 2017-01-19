@@ -845,7 +845,7 @@ static int rga_probe(struct platform_device *pdev)
 	rga->rga_workq = create_singlethread_workqueue("rga");
 	if (!rga->rga_workq) {
 		dev_err(rga->dev, "failed to create workqueue\n");
-		ret = PTR_ERR(rga->rga_workq);
+		ret = -ENOMEM;
 		goto err_destroy_slab;
 	}
 

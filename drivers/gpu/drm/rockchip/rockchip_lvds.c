@@ -85,7 +85,7 @@ static inline int lvds_name_to_format(const char *s)
 
 	if (strncmp(s, "jeida", 6) == 0)
 		return LVDS_FORMAT_JEIDA;
-	else if (strncmp(s, "vesa", 6) == 0)
+	else if (strncmp(s, "vesa", 5) == 0)
 		return LVDS_FORMAT_VESA;
 
 	return -EINVAL;

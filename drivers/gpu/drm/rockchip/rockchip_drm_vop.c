@@ -594,14 +594,13 @@ static int vop_csc_setup(const struct vop_csc_table *csc_table,
 				*y2r_table = csc_table->y2r_bt2020;
 			if (input_csc == CSC_BT2020)
 				*r2r_table = csc_table->r2r_bt2020_to_bt709;
-			if (!is_input_yuv || y2r_table) {
+			if (!is_input_yuv || *y2r_table) {
 				if (output_csc == CSC_BT709)
 					*r2y_table = csc_table->r2y_bt709;
 				else
 					*r2y_table = csc_table->r2y_bt601;
 			}
 		}
-
 	} else {
 		if (!is_input_yuv)
 			return 0;
@@ -1034,8 +1033,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = state->crtc;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
-	struct vop *vop = to_vop(state->crtc);
+	struct rockchip_crtc_state *s;
+	struct vop *vop;
 	struct drm_framebuffer *fb = state->fb;
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
@@ -1073,6 +1072,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
 	xmirror = !!(state->rotation & BIT(DRM_REFLECT_X));
+
+	vop = to_vop(state->crtc);
+	s = to_rockchip_crtc_state(crtc->state);
 
 	spin_lock(&vop->reg_lock);
 
