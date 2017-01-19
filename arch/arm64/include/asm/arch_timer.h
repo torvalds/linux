@@ -37,9 +37,14 @@ extern struct static_key_false arch_timer_read_ool_enabled;
 #define needs_unstable_timer_counter_workaround()  false
 #endif
 
+enum arch_timer_erratum_match_type {
+	ate_match_dt,
+};
 
 struct arch_timer_erratum_workaround {
-	const char *id;		/* Indicate the Erratum ID */
+	enum arch_timer_erratum_match_type match_type;
+	const void *id;
+	const char *desc;
 	u32 (*read_cntp_tval_el0)(void);
 	u32 (*read_cntv_tval_el0)(void);
 	u64 (*read_cntvct_el0)(void);

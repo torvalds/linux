@@ -182,7 +182,9 @@ EXPORT_SYMBOL_GPL(arch_timer_read_ool_enabled);
 static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 #ifdef CONFIG_FSL_ERRATUM_A008585
 	{
+		.match_type = ate_match_dt,
 		.id = "fsl,erratum-a008585",
+		.desc = "Freescale erratum a005858",
 		.read_cntp_tval_el0 = fsl_a008585_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = fsl_a008585_read_cntv_tval_el0,
 		.read_cntvct_el0 = fsl_a008585_read_cntvct_el0,
@@ -190,13 +192,81 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 #endif
 #ifdef CONFIG_HISILICON_ERRATUM_161010101
 	{
+		.match_type = ate_match_dt,
 		.id = "hisilicon,erratum-161010101",
+		.desc = "HiSilicon erratum 161010101",
 		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
 		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
 	},
 #endif
 };
+
+typedef bool (*ate_match_fn_t)(const struct arch_timer_erratum_workaround *,
+			       const void *);
+
+static
+bool arch_timer_check_dt_erratum(const struct arch_timer_erratum_workaround *wa,
+				 const void *arg)
+{
+	const struct device_node *np = arg;
+
+	return of_property_read_bool(np, wa->id);
+}
+
+static const struct arch_timer_erratum_workaround *
+arch_timer_iterate_errata(enum arch_timer_erratum_match_type type,
+			  ate_match_fn_t match_fn,
+			  void *arg)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ool_workarounds); i++) {
+		if (ool_workarounds[i].match_type != type)
+			continue;
+
+		if (match_fn(&ool_workarounds[i], arg))
+			return &ool_workarounds[i];
+	}
+
+	return NULL;
+}
+
+static
+void arch_timer_enable_workaround(const struct arch_timer_erratum_workaround *wa)
+{
+	timer_unstable_counter_workaround = wa;
+	static_branch_enable(&arch_timer_read_ool_enabled);
+}
+
+static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type type,
+					    void *arg)
+{
+	const struct arch_timer_erratum_workaround *wa;
+	ate_match_fn_t match_fn = NULL;
+
+	if (static_branch_unlikely(&arch_timer_read_ool_enabled))
+		return;
+
+	switch (type) {
+	case ate_match_dt:
+		match_fn = arch_timer_check_dt_erratum;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	wa = arch_timer_iterate_errata(type, match_fn, arg);
+	if (!wa)
+		return;
+
+	arch_timer_enable_workaround(wa);
+	pr_info("Enabling global workaround for %s\n", wa->desc);
+}
+
+#else
+#define arch_timer_check_ool_workaround(t,a)		do { } while(0)
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
 static __always_inline
@@ -960,17 +1030,8 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	arch_timer_c3stop = !of_property_read_bool(np, "always-on");
 
-#ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
-	for (i = 0; i < ARRAY_SIZE(ool_workarounds); i++) {
-		if (of_property_read_bool(np, ool_workarounds[i].id)) {
-			timer_unstable_counter_workaround = &ool_workarounds[i];
-			static_branch_enable(&arch_timer_read_ool_enabled);
-			pr_info("arch_timer: Enabling workaround for %s\n",
-				timer_unstable_counter_workaround->id);
-			break;
-		}
-	}
-#endif
+	/* Check for globally applicable workarounds */
+	arch_timer_check_ool_workaround(ate_match_dt, np);
 
 	/*
 	 * If we cannot rely on firmware initializing the timer registers then
