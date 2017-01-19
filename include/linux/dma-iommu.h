@@ -27,6 +27,7 @@ int iommu_dma_init(void);
 
 /* Domain management interface for IOMMU drivers */
 int iommu_get_dma_cookie(struct iommu_domain *domain);
+int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
 void iommu_put_dma_cookie(struct iommu_domain *domain);
 
 /* Setup call for arch DMA mapping code */
@@ -82,6 +83,11 @@ static inline int iommu_dma_init(void)
 }
 
 static inline int iommu_get_dma_cookie(struct iommu_domain *domain)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 {
 	return -ENODEV;
 }
