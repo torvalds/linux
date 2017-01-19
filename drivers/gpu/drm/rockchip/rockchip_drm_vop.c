@@ -758,10 +758,10 @@ static void vop_line_flag_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
-static void vop_enable(struct drm_crtc *crtc)
+static void vop_power_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
-	int ret, i;
+	int ret;
 
 	ret = clk_prepare_enable(vop->hclk);
 	if (ret < 0) {
@@ -789,6 +789,23 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
+	vop->is_enabled = true;
+
+	return;
+
+err_disable_dclk:
+	clk_disable_unprepare(vop->dclk);
+err_disable_hclk:
+	clk_disable_unprepare(vop->hclk);
+}
+
+static void vop_initial(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+	int i;
+
+	vop_power_enable(crtc);
+
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
 	VOP_CTRL_SET(vop, dsp_blank, 0);
 
@@ -810,29 +827,6 @@ static void vop_enable(struct drm_crtc *crtc)
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
 	VOP_CTRL_SET(vop, afbdc_en, 0);
-	vop_cfg_done(vop);
-
-	vop->is_enabled = true;
-
-	spin_lock(&vop->reg_lock);
-
-	/*
-	 * enable vop, all the register would take effect when vop exit standby
-	 */
-	VOP_CTRL_SET(vop, standby, 0);
-
-	spin_unlock(&vop->reg_lock);
-
-	enable_irq(vop->irq);
-
-	drm_crtc_vblank_on(crtc);
-
-	return;
-
-err_disable_dclk:
-	clk_disable_unprepare(vop->dclk);
-err_disable_hclk:
-	clk_disable_unprepare(vop->hclk);
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -1311,7 +1305,9 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		return 0;
 
 	if (on) {
-		vop_enable(crtc);
+		vop_power_enable(crtc);
+		enable_irq(vop->irq);
+		drm_crtc_vblank_on(crtc);
 		vop->loader_protect = true;
 	} else {
 		vop_crtc_disable(crtc);
@@ -1426,7 +1422,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	uint32_t version = vop->data->version;
 	uint32_t val;
 
-	vop_enable(crtc);
+	vop_initial(crtc);
 	/*
 	 * If dclk rate is zero, mean that scanout is stop,
 	 * we don't need wait any more.
@@ -1555,7 +1551,14 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
+	vop_cfg_done(vop);
+	/*
+	 * enable vop, all the register would take effect when vop exit standby
+	 */
 	VOP_CTRL_SET(vop, standby, 0);
+
+	enable_irq(vop->irq);
+	drm_crtc_vblank_on(crtc);
 }
 
 static int vop_zpos_cmp(const void *a, const void *b)
