@@ -1234,6 +1234,61 @@ out:
 
 #ifdef CONFIG_SERIAL_OMAP_CONSOLE
 
+#ifdef CONFIG_SERIAL_EARLYCON
+static unsigned int __init omap_serial_early_in(struct uart_port *port,
+						int offset)
+{
+	offset <<= port->regshift;
+	return readw(port->membase + offset);
+}
+
+static void __init omap_serial_early_out(struct uart_port *port, int offset,
+					 int value)
+{
+	offset <<= port->regshift;
+	writew(value, port->membase + offset);
+}
+
+static void __init omap_serial_early_putc(struct uart_port *port, int c)
+{
+	unsigned int status;
+
+	for (;;) {
+		status = omap_serial_early_in(port, UART_LSR);
+		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
+			break;
+		cpu_relax();
+	}
+	omap_serial_early_out(port, UART_TX, c);
+}
+
+static void __init early_omap_serial_write(struct console *console,
+					   const char *s, unsigned int count)
+{
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
+
+	uart_console_write(port, s, count, omap_serial_early_putc);
+}
+
+static int __init early_omap_serial_setup(struct earlycon_device *device,
+					  const char *options)
+{
+	struct uart_port *port = &device->port;
+
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+
+	port->regshift = 2;
+	device->con->write = early_omap_serial_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(omapserial, "ti,omap2-uart", early_omap_serial_setup);
+OF_EARLYCON_DECLARE(omapserial, "ti,omap3-uart", early_omap_serial_setup);
+OF_EARLYCON_DECLARE(omapserial, "ti,omap4-uart", early_omap_serial_setup);
+#endif /* CONFIG_SERIAL_EARLYCON */
+
 static struct uart_omap_port *serial_omap_console_ports[OMAP_MAX_HSUART_PORTS];
 
 static struct uart_driver serial_omap_reg;
