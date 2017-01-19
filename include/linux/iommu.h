@@ -246,6 +246,8 @@ extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
 extern int iommu_request_dm_for_dev(struct device *dev);
 extern struct iommu_resv_region *
 iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot, int type);
+extern int iommu_get_group_resv_regions(struct iommu_group *group,
+					struct list_head *head);
 
 extern int iommu_attach_group(struct iommu_domain *domain,
 			      struct iommu_group *group);
@@ -461,6 +463,12 @@ static inline void iommu_get_resv_regions(struct device *dev,
 static inline void iommu_put_resv_regions(struct device *dev,
 					struct list_head *list)
 {
+}
+
+static inline int iommu_get_group_resv_regions(struct iommu_group *group,
+					       struct list_head *head)
+{
+	return -ENODEV;
 }
 
 static inline int iommu_request_dm_for_dev(struct device *dev)
