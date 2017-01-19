@@ -222,8 +222,7 @@ struct aspeed_smc_controller {
  * the memory buffer pointer and count via explicit code. The final updates
  * to len are optimistically suppressed.
  */
-static int aspeed_smc_read_from_ahb(void *buf, const void __iomem *src,
-				    size_t len)
+static int aspeed_smc_read_from_ahb(void *buf, void __iomem *src, size_t len)
 {
 	size_t offset = 0;
 
