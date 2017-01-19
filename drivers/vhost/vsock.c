@@ -368,6 +368,7 @@ static void vhost_vsock_handle_rx_kick(struct vhost_work *work)
 
 static int vhost_vsock_start(struct vhost_vsock *vsock)
 {
+	struct vhost_virtqueue *vq;
 	size_t i;
 	int ret;
 
@@ -378,19 +379,20 @@ static int vhost_vsock_start(struct vhost_vsock *vsock)
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(vsock->vqs); i++) {
-		struct vhost_virtqueue *vq = &vsock->vqs[i];
+		vq = &vsock->vqs[i];
 
 		mutex_lock(&vq->mutex);
 
 		if (!vhost_vq_access_ok(vq)) {
 			ret = -EFAULT;
-			mutex_unlock(&vq->mutex);
 			goto err_vq;
 		}
 
 		if (!vq->private_data) {
 			vq->private_data = vsock;
-			vhost_vq_init_access(vq);
+			ret = vhost_vq_init_access(vq);
+			if (ret)
+				goto err_vq;
 		}
 
 		mutex_unlock(&vq->mutex);
@@ -400,8 +402,11 @@ static int vhost_vsock_start(struct vhost_vsock *vsock)
 	return 0;
 
 err_vq:
+	vq->private_data = NULL;
+	mutex_unlock(&vq->mutex);
+
 	for (i = 0; i < ARRAY_SIZE(vsock->vqs); i++) {
-		struct vhost_virtqueue *vq = &vsock->vqs[i];
+		vq = &vsock->vqs[i];
 
 		mutex_lock(&vq->mutex);
 		vq->private_data = NULL;
