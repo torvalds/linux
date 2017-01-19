@@ -19,6 +19,7 @@ struct nvkm_falcon {
 	u32 addr;
 
 	struct mutex mutex;
+	struct mutex dmem_mutex;
 	const struct nvkm_subdev *user;
 
 	u8 version;

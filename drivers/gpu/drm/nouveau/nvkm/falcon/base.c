@@ -41,14 +41,22 @@ void
 nvkm_falcon_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 		      u32 size, u8 port)
 {
+	mutex_lock(&falcon->dmem_mutex);
+
 	falcon->func->load_dmem(falcon, data, start, size, port);
+
+	mutex_unlock(&falcon->dmem_mutex);
 }
 
 void
 nvkm_falcon_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size, u8 port,
 		      void *data)
 {
+	mutex_lock(&falcon->dmem_mutex);
+
 	falcon->func->read_dmem(falcon, start, size, port, data);
+
+	mutex_unlock(&falcon->dmem_mutex);
 }
 
 void
@@ -166,6 +174,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	falcon->name = name;
 	falcon->addr = addr;
 	mutex_init(&falcon->mutex);
+	mutex_init(&falcon->dmem_mutex);
 
 	reg = nvkm_falcon_rd32(falcon, 0x12c);
 	falcon->version = reg & 0xf;
