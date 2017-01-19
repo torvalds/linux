@@ -17,14 +17,14 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/intel_msic.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
