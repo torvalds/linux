@@ -27,6 +27,7 @@ struct pwm_beeper {
 	struct pwm_device *pwm;
 	struct work_struct work;
 	unsigned long period;
+	bool suspended;
 };
 
 #define HZ_TO_NANOSECONDS(x) (1000000000UL/(x))
@@ -73,7 +74,8 @@ static int pwm_beeper_event(struct input_dev *input,
 	else
 		beeper->period = HZ_TO_NANOSECONDS(value);
 
-	schedule_work(&beeper->work);
+	if (!beeper->suspended)
+		schedule_work(&beeper->work);
 
 	return 0;
 }
@@ -154,6 +156,15 @@ static int __maybe_unused pwm_beeper_suspend(struct device *dev)
 {
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
+	/*
+	 * Spinlock is taken here is not to protect write to
+	 * beeper->suspended, but to ensure that pwm_beeper_event
+	 * does not re-submit work once flag is set.
+	 */
+	spin_lock_irq(&beeper->input->event_lock);
+	beeper->suspended = true;
+	spin_unlock_irq(&beeper->input->event_lock);
+
 	pwm_beeper_stop(beeper);
 
 	return 0;
@@ -163,8 +174,12 @@ static int __maybe_unused pwm_beeper_resume(struct device *dev)
 {
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
-	if (beeper->period)
-		__pwm_beeper_set(beeper);
+	spin_lock_irq(&beeper->input->event_lock);
+	beeper->suspended = false;
+	spin_unlock_irq(&beeper->input->event_lock);
+
+	/* Let worker figure out if we should resume beeping */
+	schedule_work(&beeper->work);
 
 	return 0;
 }
