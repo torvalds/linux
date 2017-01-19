@@ -1240,9 +1240,6 @@ static int cpsw_common_res_usage_state(struct cpsw_common *cpsw)
 	u32 i;
 	u32 usage_count = 0;
 
-	if (!cpsw->data.dual_emac)
-		return 0;
-
 	for (i = 0; i < cpsw->data.slaves; i++)
 		if (cpsw->slaves[i].open_stat)
 			usage_count++;
