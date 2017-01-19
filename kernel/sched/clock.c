@@ -83,8 +83,15 @@ void sched_clock_init(void)
 }
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+/*
+ * We must start with !__sched_clock_stable because the unstable -> stable
+ * transition is accurate, while the stable -> unstable transition is not.
+ *
+ * Similarly we start with __sched_clock_stable_early, thereby assuming we
+ * will become stable, such that there's only a single 1 -> 0 transition.
+ */
 static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
-static int __sched_clock_stable_early;
+static int __sched_clock_stable_early = 1;
 
 /*
  * We want: ktime_get_ns() + gtod_offset == sched_clock() + raw_offset
@@ -130,24 +137,6 @@ static void __set_sched_clock_stable(void)
 
 	static_branch_enable(&__sched_clock_stable);
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
-}
-
-void set_sched_clock_stable(void)
-{
-	__sched_clock_stable_early = 1;
-
-	smp_mb(); /* matches sched_clock_init_late() */
-
-	/*
-	 * This really should only be called early (before
-	 * sched_clock_init_late()) when guestimating our sched_clock() is
-	 * solid.
-	 *
-	 * After that we test stability and we can negate our guess using
-	 * clear_sched_clock_stable, possibly from a watchdog.
-	 */
-	if (WARN_ON_ONCE(sched_clock_running == 2))
-		__set_sched_clock_stable();
 }
 
 static void __clear_sched_clock_stable(struct work_struct *work)
@@ -199,8 +188,6 @@ void sched_clock_init_late(void)
 
 	if (__sched_clock_stable_early)
 		__set_sched_clock_stable();
-	else
-		__clear_sched_clock_stable(NULL);
 }
 
 /*

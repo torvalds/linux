@@ -2547,7 +2547,6 @@ extern void sched_clock_init_late(void);
  * is reliable after all:
  */
 extern int sched_clock_stable(void);
-extern void set_sched_clock_stable(void);
 extern void clear_sched_clock_stable(void);
 
 extern void sched_clock_tick(void);
