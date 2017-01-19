@@ -66,7 +66,7 @@ static int mfld_pb_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -EINVAL;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
 		return -ENOMEM;
 
@@ -77,22 +77,19 @@ static int mfld_pb_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_KEY, KEY_POWER);
 
-	error = request_threaded_irq(irq, NULL, mfld_pb_isr, IRQF_ONESHOT,
-				     DRIVER_NAME, input);
+	error = devm_request_threaded_irq(&pdev->dev, irq, NULL, mfld_pb_isr,
+					  IRQF_ONESHOT, DRIVER_NAME, input);
 	if (error) {
 		dev_err(&pdev->dev, "Unable to request irq %d for mfld power"
 				"button\n", irq);
-		goto err_free_input;
+		return error;
 	}
-
-	device_init_wakeup(&pdev->dev, true);
-	dev_pm_set_wake_irq(&pdev->dev, irq);
 
 	error = input_register_device(input);
 	if (error) {
 		dev_err(&pdev->dev, "Unable to register input dev, error "
 				"%d\n", error);
-		goto err_free_irq;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, input);
@@ -111,27 +108,19 @@ static int mfld_pb_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev, "Unable to clear power button interrupt, "
 				"error: %d\n", error);
-		goto err_free_irq;
+		return error;
 	}
 
-	return 0;
+	device_init_wakeup(&pdev->dev, true);
+	dev_pm_set_wake_irq(&pdev->dev, irq);
 
-err_free_irq:
-	free_irq(irq, input);
-err_free_input:
-	input_free_device(input);
-	return error;
+	return 0;
 }
 
 static int mfld_pb_remove(struct platform_device *pdev)
 {
-	struct input_dev *input = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
-
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-	free_irq(irq, input);
-	input_unregister_device(input);
 
 	return 0;
 }
