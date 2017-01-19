@@ -248,6 +248,11 @@ struct vop_win_data {
 #define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
 #define VOP_FEATURE_AFBDC		BIT(1)
 
+struct vop_rect {
+	int width;
+	int height;
+};
+
 struct vop_data {
 	const struct vop_reg_data *init_table;
 	unsigned int table_size;
@@ -257,6 +262,9 @@ struct vop_data {
 	const struct vop_csc_table *csc_table;
 	unsigned int win_size;
 	uint32_t version;
+	struct vop_rect max_input_fb;
+	struct vop_rect max_output_fb;
+	struct vop_rect max_disably_output;
 	u64 feature;
 };
 

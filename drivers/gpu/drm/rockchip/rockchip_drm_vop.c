@@ -448,11 +448,6 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 	if (!win->phy->scl)
 		return;
 
-	if (dst_w > 3840) {
-		DRM_ERROR("Maximum destination width (3840) exceeded\n");
-		return;
-	}
-
 	if (!win->phy->scl->ext) {
 		VOP_SCL_SET(vop, win, scale_yrgb_x,
 			    scl_cal_scale2(src_w, dst_w));
@@ -902,6 +897,8 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	struct drm_crtc_state *crtc_state;
+	const struct vop_data *vop_data;
+	struct vop *vop;
 	bool visible;
 	int ret;
 	struct drm_rect *dest = &vop_plane_state->dest;
@@ -953,6 +950,29 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	vop_plane_state->format = vop_convert_format(fb->pixel_format);
 	if (vop_plane_state->format < 0)
 		return vop_plane_state->format;
+
+	vop = to_vop(crtc);
+	vop_data = vop->data;
+
+	if (drm_rect_width(src) >> 16 > vop_data->max_input_fb.width ||
+	    drm_rect_height(src) >> 16 > vop_data->max_input_fb.height) {
+		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
+			  drm_rect_width(src) >> 16,
+			  drm_rect_height(src) >> 16,
+			  vop_data->max_input_fb.width,
+			  vop_data->max_input_fb.height);
+		return -EINVAL;
+	}
+
+	if (drm_rect_width(dest) >> 16 > vop_data->max_input_fb.width ||
+	    drm_rect_height(dest) >> 16 > vop_data->max_input_fb.height) {
+		DRM_ERROR("Invalid destination: %dx%d. max output: %dx%d\n",
+			  drm_rect_width(dest),
+			  drm_rect_height(dest),
+			  vop_data->max_output_fb.width,
+			  vop_data->max_output_fb.height);
+		return -EINVAL;
+	}
 
 	/*
 	 * Src.x1 can be odd when do clip, but yuv plane start point
@@ -1396,6 +1416,11 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+
+	if (mode->hdisplay > vop_data->max_disably_output.width ||
+	    mode->vdisplay > vop_data->max_disably_output.height)
+		return false;
 
 	adjusted_mode->clock =
 		clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
