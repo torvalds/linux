@@ -65,6 +65,17 @@ static inline bool rcu_batch_empty(struct rcu_batch *b)
 }
 
 /*
+ * Are all batches empty for the specified srcu_struct?
+ */
+static inline bool rcu_all_batches_empty(struct srcu_struct *sp)
+{
+	return rcu_batch_empty(&sp->batch_done) &&
+	       rcu_batch_empty(&sp->batch_check1) &&
+	       rcu_batch_empty(&sp->batch_check0) &&
+	       rcu_batch_empty(&sp->batch_queue);
+}
+
+/*
  * Remove the callback at the head of the specified rcu_batch structure
  * and return a pointer to it, or return NULL if the structure is empty.
  */
@@ -619,15 +630,9 @@ static void srcu_reschedule(struct srcu_struct *sp)
 {
 	bool pending = true;
 
-	if (rcu_batch_empty(&sp->batch_done) &&
-	    rcu_batch_empty(&sp->batch_check1) &&
-	    rcu_batch_empty(&sp->batch_check0) &&
-	    rcu_batch_empty(&sp->batch_queue)) {
+	if (rcu_all_batches_empty(sp)) {
 		spin_lock_irq(&sp->queue_lock);
-		if (rcu_batch_empty(&sp->batch_done) &&
-		    rcu_batch_empty(&sp->batch_check1) &&
-		    rcu_batch_empty(&sp->batch_check0) &&
-		    rcu_batch_empty(&sp->batch_queue)) {
+		if (rcu_all_batches_empty(sp)) {
 			sp->running = false;
 			pending = false;
 		}
