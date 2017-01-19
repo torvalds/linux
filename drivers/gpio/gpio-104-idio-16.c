@@ -116,6 +116,25 @@ static void idio_16_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
 
+static void idio_16_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	spin_lock_irqsave(&idio16gpio->lock, flags);
+
+	idio16gpio->out_state &= ~*mask;
+	idio16gpio->out_state |= *mask & *bits;
+
+	if (*mask & 0xFF)
+		outb(idio16gpio->out_state, idio16gpio->base);
+	if ((*mask >> 8) & 0xFF)
+		outb(idio16gpio->out_state >> 8, idio16gpio->base + 4);
+
+	spin_unlock_irqrestore(&idio16gpio->lock, flags);
+}
+
 static void idio_16_irq_ack(struct irq_data *data)
 {
 }
@@ -219,6 +238,7 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	idio16gpio->chip.direction_output = idio_16_gpio_direction_output;
 	idio16gpio->chip.get = idio_16_gpio_get;
 	idio16gpio->chip.set = idio_16_gpio_set;
+	idio16gpio->chip.set_multiple = idio_16_gpio_set_multiple;
 	idio16gpio->base = base[id];
 	idio16gpio->irq = irq[id];
 	idio16gpio->out_state = 0xFFFF;
