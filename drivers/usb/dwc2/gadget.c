@@ -241,6 +241,9 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 		val = dwc2_readl(hsotg->regs + DPTXFSIZN(ep));
 	}
 
+	dwc2_writel(hsotg->hw_params.total_fifo_size |
+		    addr << GDFIFOCFG_EPINFOBASE_SHIFT,
+		    hsotg->regs + GDFIFOCFG);
 	/*
 	 * according to p428 of the design guide, we need to ensure that
 	 * all fifos are flushed before continuing
