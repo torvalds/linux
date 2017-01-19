@@ -68,6 +68,12 @@ struct iommu_group_attribute {
 			 const char *buf, size_t count);
 };
 
+static const char * const iommu_group_resv_type_string[] = {
+	[IOMMU_RESV_DIRECT]	= "direct",
+	[IOMMU_RESV_RESERVED]	= "reserved",
+	[IOMMU_RESV_MSI]	= "msi",
+};
+
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
 struct iommu_group_attribute iommu_group_attr_##_name =		\
 	__ATTR(_name, _mode, _show, _store)
@@ -231,7 +237,32 @@ int iommu_get_group_resv_regions(struct iommu_group *group,
 }
 EXPORT_SYMBOL_GPL(iommu_get_group_resv_regions);
 
+static ssize_t iommu_group_show_resv_regions(struct iommu_group *group,
+					     char *buf)
+{
+	struct iommu_resv_region *region, *next;
+	struct list_head group_resv_regions;
+	char *str = buf;
+
+	INIT_LIST_HEAD(&group_resv_regions);
+	iommu_get_group_resv_regions(group, &group_resv_regions);
+
+	list_for_each_entry_safe(region, next, &group_resv_regions, list) {
+		str += sprintf(str, "0x%016llx 0x%016llx %s\n",
+			       (long long int)region->start,
+			       (long long int)(region->start +
+						region->length - 1),
+			       iommu_group_resv_type_string[region->type]);
+		kfree(region);
+	}
+
+	return (str - buf);
+}
+
 static IOMMU_GROUP_ATTR(name, S_IRUGO, iommu_group_show_name, NULL);
+
+static IOMMU_GROUP_ATTR(reserved_regions, 0444,
+			iommu_group_show_resv_regions, NULL);
 
 static void iommu_group_release(struct kobject *kobj)
 {
@@ -309,6 +340,11 @@ struct iommu_group *iommu_group_alloc(void)
 	 * use the devices_kobj for reference counting.
 	 */
 	kobject_put(&group->kobj);
+
+	ret = iommu_group_create_file(group,
+				      &iommu_group_attr_reserved_regions);
+	if (ret)
+		return ERR_PTR(ret);
 
 	pr_debug("Allocated group %d\n", group->id);
 
