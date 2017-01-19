@@ -337,10 +337,10 @@ static void fbtft_reset(struct fbtft_par *par)
 	if (par->gpio.reset == -1)
 		return;
 	fbtft_par_dbg(DEBUG_RESET, par, "%s()\n", __func__);
-	gpio_set_value(par->gpio.reset, 0);
-	udelay(20);
-	gpio_set_value(par->gpio.reset, 1);
-	mdelay(120);
+	gpio_set_value_cansleep(par->gpio.reset, 0);
+	usleep_range(20, 40);
+	gpio_set_value_cansleep(par->gpio.reset, 1);
+	msleep(120);
 }
 
 static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
