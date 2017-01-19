@@ -268,12 +268,12 @@ int hv_synic_init(unsigned int cpu)
 	u64 vp_index;
 
 	/* Setup the Synic's message page */
-	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 1;
 	simp.base_simp_gpa = virt_to_phys(hv_context.synic_message_page[cpu])
 		>> PAGE_SHIFT;
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_set_simp(simp.as_uint64);
 
 	/* Setup the Synic's event page */
 	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
@@ -392,11 +392,11 @@ int hv_synic_cleanup(unsigned int cpu)
 	/* Disable the interrupt */
 	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, shared_sint.as_uint64);
 
-	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_get_simp(simp.as_uint64);
 	simp.simp_enabled = 0;
 	simp.base_simp_gpa = 0;
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	hv_set_simp(simp.as_uint64);
 
 	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 	siefp.siefp_enabled = 0;
