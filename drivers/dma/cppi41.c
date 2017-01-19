@@ -153,6 +153,8 @@ struct cppi41_dd {
 
 	/* context for suspend/resume */
 	unsigned int dma_tdfdq;
+
+	bool is_suspended;
 };
 
 #define FIST_COMPLETION_QUEUE	93
@@ -470,20 +472,26 @@ static void push_desc_queue(struct cppi41_channel *c)
 	cppi_writel(reg, cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
 }
 
-static void pending_desc(struct cppi41_channel *c)
+/*
+ * Caller must hold cdd->lock to prevent push_desc_queue()
+ * getting called out of order. We have both cppi41_dma_issue_pending()
+ * and cppi41_runtime_resume() call this function.
+ */
+static void cppi41_run_queue(struct cppi41_dd *cdd)
 {
-	struct cppi41_dd *cdd = c->cdd;
-	unsigned long flags;
+	struct cppi41_channel *c, *_c;
 
-	spin_lock_irqsave(&cdd->lock, flags);
-	list_add_tail(&c->node, &cdd->pending);
-	spin_unlock_irqrestore(&cdd->lock, flags);
+	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
+		push_desc_queue(c);
+		list_del(&c->node);
+	}
 }
 
 static void cppi41_dma_issue_pending(struct dma_chan *chan)
 {
 	struct cppi41_channel *c = to_cpp41_chan(chan);
 	struct cppi41_dd *cdd = c->cdd;
+	unsigned long flags;
 	int error;
 
 	error = pm_runtime_get(cdd->ddev.dev);
@@ -495,10 +503,11 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 		return;
 	}
 
-	if (likely(pm_runtime_active(cdd->ddev.dev)))
-		push_desc_queue(c);
-	else
-		pending_desc(c);
+	spin_lock_irqsave(&cdd->lock, flags);
+	list_add_tail(&c->node, &cdd->pending);
+	if (!cdd->is_suspended)
+		cppi41_run_queue(cdd);
+	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	pm_runtime_mark_last_busy(cdd->ddev.dev);
 	pm_runtime_put_autosuspend(cdd->ddev.dev);
@@ -1166,8 +1175,12 @@ static int __maybe_unused cppi41_resume(struct device *dev)
 static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&cdd->lock, flags);
+	cdd->is_suspended = true;
 	WARN_ON(!list_empty(&cdd->pending));
+	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;
 }
@@ -1175,14 +1188,11 @@ static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 static int __maybe_unused cppi41_runtime_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
-	struct cppi41_channel *c, *_c;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cdd->lock, flags);
-	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
-		push_desc_queue(c);
-		list_del(&c->node);
-	}
+	cdd->is_suspended = false;
+	cppi41_run_queue(cdd);
 	spin_unlock_irqrestore(&cdd->lock, flags);
 
 	return 0;
