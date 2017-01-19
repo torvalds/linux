@@ -755,7 +755,7 @@ void ipoib_pkey_dev_check_presence(struct net_device *dev)
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 }
 
-int ipoib_ib_dev_up(struct net_device *dev)
+void ipoib_ib_dev_up(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -763,12 +763,12 @@ int ipoib_ib_dev_up(struct net_device *dev)
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		ipoib_dbg(priv, "PKEY is not assigned.\n");
-		return 0;
+		return;
 	}
 
 	set_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 
-	return ipoib_mcast_start_thread(dev);
+	ipoib_mcast_start_thread(dev);
 }
 
 void ipoib_ib_dev_down(struct net_device *dev)

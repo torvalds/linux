@@ -676,7 +676,7 @@ out:
 	spin_unlock_irq(&priv->lock);
 }
 
-int ipoib_mcast_start_thread(struct net_device *dev)
+void ipoib_mcast_start_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -686,8 +686,6 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	spin_lock_irqsave(&priv->lock, flags);
 	__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
 }
 
 int ipoib_mcast_stop_thread(struct net_device *dev)
