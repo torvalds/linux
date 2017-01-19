@@ -19,10 +19,10 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/can/dev/peak_canfd.h>
 
 #include "pcan_usb_core.h"
 #include "pcan_usb_pro.h"
-#include "pcan_ucan.h"
 
 MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB FD adapter");
 MODULE_SUPPORTED_DEVICE("PEAK-System PCAN-USB Pro FD adapter");
