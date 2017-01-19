@@ -1444,50 +1444,9 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	uint32_t version = vop->data->version;
 	uint32_t val;
 
 	vop_initial(crtc);
-	/*
-	 * If dclk rate is zero, mean that scanout is stop,
-	 * we don't need wait any more.
-	 *
-	 * Since vop version(3,4), vop timing is frame effect, not need config
-	 * timing register on vblank.
-	 */
-	if (clk_get_rate(vop->dclk) &&
-	    !(VOP_MAJOR(version) == 3 && VOP_MINOR(version) >= 4)) {
-		/*
-		 * Rk3288 vop timing register is immediately, when configure
-		 * display timing on display time, may cause tearing.
-		 *
-		 * Vop standby will take effect at end of current frame,
-		 * if dsp hold valid irq happen, it means standby complete.
-		 *
-		 * mode set:
-		 *    standby and wait complete --> |----
-		 *                                  | display time
-		 *                                  |----
-		 *                                  |---> dsp hold irq
-		 *     configure display timing --> |
-		 *         standby exit             |
-		 *                                  | new frame start.
-		 */
-
-		reinit_completion(&vop->dsp_hold_completion);
-		vop_dsp_hold_valid_irq_enable(vop);
-
-		spin_lock(&vop->reg_lock);
-
-		VOP_CTRL_SET(vop, standby, 1);
-
-		spin_unlock(&vop->reg_lock);
-
-		WARN_ON(!wait_for_completion_timeout(&vop->dsp_hold_completion,
-						     msecs_to_jiffies(50)));
-
-		vop_dsp_hold_valid_irq_disable(vop);
-	}
 
 	val = BIT(DCLK_INVERT);
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
