@@ -318,7 +318,7 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 					      struct device *dev)
 {
 	struct iommu_domain *domain = group->default_domain;
-	struct iommu_dm_region *entry;
+	struct iommu_resv_region *entry;
 	struct list_head mappings;
 	unsigned long pg_size;
 	int ret = 0;
@@ -331,14 +331,14 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 	pg_size = 1UL << __ffs(domain->pgsize_bitmap);
 	INIT_LIST_HEAD(&mappings);
 
-	iommu_get_dm_regions(dev, &mappings);
+	iommu_get_resv_regions(dev, &mappings);
 
 	/* We need to consider overlapping regions for different devices */
 	list_for_each_entry(entry, &mappings, list) {
 		dma_addr_t start, end, addr;
 
-		if (domain->ops->apply_dm_region)
-			domain->ops->apply_dm_region(dev, domain, entry);
+		if (domain->ops->apply_resv_region)
+			domain->ops->apply_resv_region(dev, domain, entry);
 
 		start = ALIGN(entry->start, pg_size);
 		end   = ALIGN(entry->start + entry->length, pg_size);
@@ -358,7 +358,7 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 	}
 
 out:
-	iommu_put_dm_regions(dev, &mappings);
+	iommu_put_resv_regions(dev, &mappings);
 
 	return ret;
 }
@@ -1559,20 +1559,20 @@ int iommu_domain_set_attr(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_domain_set_attr);
 
-void iommu_get_dm_regions(struct device *dev, struct list_head *list)
+void iommu_get_resv_regions(struct device *dev, struct list_head *list)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;
 
-	if (ops && ops->get_dm_regions)
-		ops->get_dm_regions(dev, list);
+	if (ops && ops->get_resv_regions)
+		ops->get_resv_regions(dev, list);
 }
 
-void iommu_put_dm_regions(struct device *dev, struct list_head *list)
+void iommu_put_resv_regions(struct device *dev, struct list_head *list)
 {
 	const struct iommu_ops *ops = dev->bus->iommu_ops;
 
-	if (ops && ops->put_dm_regions)
-		ops->put_dm_regions(dev, list);
+	if (ops && ops->put_resv_regions)
+		ops->put_resv_regions(dev, list);
 }
 
 /* Request that a device is direct mapped by the IOMMU */
