@@ -3186,6 +3186,7 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 
 		region->start = entry->address_start;
 		region->length = entry->address_end - entry->address_start;
+		region->type = IOMMU_RESV_DIRECT;
 		if (entry->prot & IOMMU_PROT_IR)
 			region->prot |= IOMMU_READ;
 		if (entry->prot & IOMMU_PROT_IW)
