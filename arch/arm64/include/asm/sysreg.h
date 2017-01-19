@@ -149,8 +149,19 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
+#define SYS_ICC_PMR_EL1			sys_reg(3, 0, 4, 6, 0)
+
 #define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
 #define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
+
+#define SYS_ICC_DIR_EL1			sys_reg(3, 0, 12, 11, 1)
+#define SYS_ICC_SGI1R_EL1		sys_reg(3, 0, 12, 11, 5)
+#define SYS_ICC_IAR1_EL1		sys_reg(3, 0, 12, 12, 0)
+#define SYS_ICC_EOIR1_EL1		sys_reg(3, 0, 12, 12, 1)
+#define SYS_ICC_BPR1_EL1		sys_reg(3, 0, 12, 12, 3)
+#define SYS_ICC_CTLR_EL1		sys_reg(3, 0, 12, 12, 4)
+#define SYS_ICC_SRE_EL1			sys_reg(3, 0, 12, 12, 5)
+#define SYS_ICC_GRPEN1_EL1		sys_reg(3, 0, 12, 12, 7)
 
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
@@ -178,6 +189,47 @@
 #define SYS_PMEVTYPERn_EL0(n)		sys_reg(3, 3, 14, __TYPER_CRm(n), __PMEV_op2(n))
 
 #define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
+
+#define __SYS__AP0Rx_EL2(x)		sys_reg(3, 4, 12, 8, x)
+#define SYS_ICH_AP0R0_EL2		__SYS__AP0Rx_EL2(0)
+#define SYS_ICH_AP0R1_EL2		__SYS__AP0Rx_EL2(1)
+#define SYS_ICH_AP0R2_EL2		__SYS__AP0Rx_EL2(2)
+#define SYS_ICH_AP0R3_EL2		__SYS__AP0Rx_EL2(3)
+
+#define __SYS__AP1Rx_EL2(x)		sys_reg(3, 4, 12, 9, x)
+#define SYS_ICH_AP1R0_EL2		__SYS__AP1Rx_EL2(0)
+#define SYS_ICH_AP1R1_EL2		__SYS__AP1Rx_EL2(1)
+#define SYS_ICH_AP1R2_EL2		__SYS__AP1Rx_EL2(2)
+#define SYS_ICH_AP1R3_EL2		__SYS__AP1Rx_EL2(3)
+
+#define SYS_ICH_VSEIR_EL2		sys_reg(3, 4, 12, 9, 4)
+#define SYS_ICC_SRE_EL2			sys_reg(3, 4, 12, 9, 5)
+#define SYS_ICH_HCR_EL2			sys_reg(3, 4, 12, 11, 0)
+#define SYS_ICH_VTR_EL2			sys_reg(3, 4, 12, 11, 1)
+#define SYS_ICH_MISR_EL2		sys_reg(3, 4, 12, 11, 2)
+#define SYS_ICH_EISR_EL2		sys_reg(3, 4, 12, 11, 3)
+#define SYS_ICH_ELSR_EL2		sys_reg(3, 4, 12, 11, 5)
+#define SYS_ICH_VMCR_EL2		sys_reg(3, 4, 12, 11, 7)
+
+#define __SYS__LR0_EL2(x)		sys_reg(3, 4, 12, 12, x)
+#define SYS_ICH_LR0_EL2			__SYS__LR0_EL2(0)
+#define SYS_ICH_LR1_EL2			__SYS__LR0_EL2(1)
+#define SYS_ICH_LR2_EL2			__SYS__LR0_EL2(2)
+#define SYS_ICH_LR3_EL2			__SYS__LR0_EL2(3)
+#define SYS_ICH_LR4_EL2			__SYS__LR0_EL2(4)
+#define SYS_ICH_LR5_EL2			__SYS__LR0_EL2(5)
+#define SYS_ICH_LR6_EL2			__SYS__LR0_EL2(6)
+#define SYS_ICH_LR7_EL2			__SYS__LR0_EL2(7)
+
+#define __SYS__LR8_EL2(x)		sys_reg(3, 4, 12, 13, x)
+#define SYS_ICH_LR8_EL2			__SYS__LR8_EL2(0)
+#define SYS_ICH_LR9_EL2			__SYS__LR8_EL2(1)
+#define SYS_ICH_LR10_EL2		__SYS__LR8_EL2(2)
+#define SYS_ICH_LR11_EL2		__SYS__LR8_EL2(3)
+#define SYS_ICH_LR12_EL2		__SYS__LR8_EL2(4)
+#define SYS_ICH_LR13_EL2		__SYS__LR8_EL2(5)
+#define SYS_ICH_LR14_EL2		__SYS__LR8_EL2(6)
+#define SYS_ICH_LR15_EL2		__SYS__LR8_EL2(7)
 
 /* Common SCTLR_ELx flags. */
 #define SCTLR_ELx_EE    (1 << 25)
