@@ -998,10 +998,14 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 #ifdef CONFIG_ACPI
 #define ACPI_WRDS_METHOD		"WRDS"
 #define ACPI_EWRD_METHOD		"EWRD"
+#define ACPI_WGDS_METHOD		"WGDS"
 #define ACPI_WIFI_DOMAIN		(0x07)
 #define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
 #define ACPI_EWRD_WIFI_DATA_SIZE	((IWL_MVM_SAR_PROFILE_NUM - 1) * \
 					 IWL_MVM_SAR_TABLE_SIZE + 3)
+#define ACPI_WGDS_WIFI_DATA_SIZE	18
+#define ACPI_WGDS_NUM_BANDS		2
+#define ACPI_WGDS_TABLE_SIZE		3
 
 static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
 				   union acpi_object *table,
@@ -1203,6 +1207,61 @@ out_free:
 	return ret;
 }
 
+static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm,
+				      struct iwl_mvm_geo_table *geo_table)
+{
+	union acpi_object *wifi_pkg;
+	acpi_handle root_handle;
+	acpi_handle handle;
+	struct acpi_buffer wgds = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+	int i, ret;
+
+	root_handle = ACPI_HANDLE(mvm->dev);
+	if (!root_handle) {
+		IWL_DEBUG_RADIO(mvm,
+				"Could not retrieve root port ACPI handle\n");
+		return -ENOENT;
+	}
+
+	/* Get the method's handle */
+	status = acpi_get_handle(root_handle, (acpi_string)ACPI_WGDS_METHOD,
+				 &handle);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "WGDS method not found\n");
+		return -ENOENT;
+	}
+
+	/* Call WGDS with no arguments */
+	status = acpi_evaluate_object(handle, NULL, NULL, &wgds);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_RADIO(mvm, "WGDS invocation failed (0x%x)\n", status);
+		return -ENOENT;
+	}
+
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wgds.pointer,
+					     ACPI_WGDS_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	for (i = 0; i < ACPI_WGDS_WIFI_DATA_SIZE; i++) {
+		union acpi_object *entry;
+
+		entry = &wifi_pkg->package.elements[i + 1];
+		if ((entry->type != ACPI_TYPE_INTEGER) ||
+		    (entry->integer.value > U8_MAX))
+			return -EINVAL;
+
+		geo_table->values[i] = entry->integer.value;
+	}
+	ret = 0;
+out_free:
+	kfree(wgds.pointer);
+	return ret;
+}
+
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	struct iwl_dev_tx_power_cmd cmd = {
@@ -1256,6 +1315,50 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
+static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_geo_table geo_table;
+	struct iwl_geo_tx_power_profiles_cmd cmd = {
+		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
+	};
+	int ret, i, j, idx;
+	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
+
+	ret = iwl_mvm_sar_get_wgds_table(mvm, &geo_table);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		/* we don't fail if the table is not available */
+		return 0;
+	}
+
+	IWL_DEBUG_RADIO(mvm, "Sending GEO_TX_POWER_LIMIT\n");
+
+	BUILD_BUG_ON(IWL_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
+		     ACPI_WGDS_TABLE_SIZE !=  ACPI_WGDS_WIFI_DATA_SIZE);
+
+	for (i = 0; i < IWL_NUM_GEO_PROFILES; i++) {
+		struct iwl_per_chain_offset *chain =
+			(struct iwl_per_chain_offset *)&cmd.table[i];
+
+		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
+			u8 *value;
+
+			idx = i * ACPI_WGDS_NUM_BANDS * ACPI_WGDS_TABLE_SIZE +
+				j * ACPI_WGDS_TABLE_SIZE;
+			value = &geo_table.values[idx];
+			chain[j].max_tx_power = cpu_to_le16(value[0]);
+			chain[j].chain_a = value[1];
+			chain[j].chain_b = value[2];
+			IWL_DEBUG_RADIO(mvm,
+					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
+					i, j, value[1], value[2], value[0]);
+		}
+	}
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, sizeof(cmd), &cmd);
+}
+
 #else /* CONFIG_ACPI */
 static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 {
@@ -1265,6 +1368,11 @@ static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
+}
+
+static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
+{
+	return 0;
 }
 #endif /* CONFIG_ACPI */
 
@@ -1485,6 +1593,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	ret = iwl_mvm_sar_init(mvm);
+	if (ret)
+		goto error;
+
+	ret = iwl_mvm_sar_geo_init(mvm);
 	if (ret)
 		goto error;
 

@@ -720,10 +720,15 @@ enum iwl_mvm_queue_status {
 #ifdef CONFIG_ACPI
 #define IWL_MVM_SAR_TABLE_SIZE		10
 #define IWL_MVM_SAR_PROFILE_NUM		4
+#define IWL_MVM_GEO_TABLE_SIZE		18
 
 struct iwl_mvm_sar_profile {
 	bool enabled;
 	u8 table[IWL_MVM_SAR_TABLE_SIZE];
+};
+
+struct iwl_mvm_geo_table {
+	u8 values[IWL_MVM_GEO_TABLE_SIZE];
 };
 #endif
 
