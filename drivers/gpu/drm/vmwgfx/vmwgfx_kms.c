@@ -757,7 +757,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 				   struct vmw_surface **srf_out)
 {
 	uint32_t format;
-	struct drm_vmw_size content_base_size;
+	struct drm_vmw_size content_base_size = {0};
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
 	struct drm_format_name_buf format_name;
