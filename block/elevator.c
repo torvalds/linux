@@ -230,10 +230,6 @@ int elevator_init(struct request_queue *q, char *name)
 			printk(KERN_ERR
 				"Default I/O scheduler not found. " \
 				"Using noop/none.\n");
-			if (q->mq_ops) {
-				elevator_put(e);
-				return 0;
-			}
 			e = elevator_get("noop", false);
 		}
 	}
