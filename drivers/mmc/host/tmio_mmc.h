@@ -91,6 +91,8 @@
 #define TMIO_SDIO_STAT_EXWT	0x8000
 #define TMIO_SDIO_MASK_ALL	0xc007
 
+#define TMIO_SDIO_SETBITS_MASK	0x0006
+
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
 #define TMIO_MASK_ALL           0x837f031d

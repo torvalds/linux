@@ -134,12 +134,21 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
 	if (enable && !host->sdio_irq_enabled) {
+		u16 sdio_status;
+
 		/* Keep device active while SDIO irq is enabled */
 		pm_runtime_get_sync(mmc_dev(mmc));
-		host->sdio_irq_enabled = true;
 
+		host->sdio_irq_enabled = true;
 		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL &
 					~TMIO_SDIO_STAT_IOIRQ;
+
+		/* Clear obsolete interrupts before enabling */
+		sdio_status = sd_ctrl_read16(host, CTL_SDIO_STATUS) & ~TMIO_SDIO_MASK_ALL;
+		if (host->pdata->flags & TMIO_MMC_SDIO_STATUS_SETBITS)
+			sdio_status |= TMIO_SDIO_SETBITS_MASK;
+		sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status);
+
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 	} else if (!enable && host->sdio_irq_enabled) {
 		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
@@ -724,7 +733,7 @@ static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 
 	sdio_status = status & ~TMIO_SDIO_MASK_ALL;
 	if (pdata->flags & TMIO_MMC_SDIO_STATUS_SETBITS)
-		sdio_status |= 6;
+		sdio_status |= TMIO_SDIO_SETBITS_MASK;
 
 	sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status);
 
