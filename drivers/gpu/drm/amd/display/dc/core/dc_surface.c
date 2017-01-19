@@ -121,25 +121,19 @@ const struct dc_surface_status *dc_surface_get_status(
 		const struct dc_surface *dc_surface)
 {
 	struct dc_surface_status *surface_status;
-	struct core_surface *core_surface;
+	struct core_surface *core_surface = DC_SURFACE_TO_CORE(dc_surface);;
 	struct core_dc *core_dc;
 	int i;
 
-	if (dc_surface == NULL)
-		return NULL;
-
-	core_surface = DC_SURFACE_TO_CORE(dc_surface);
-
-	if (core_surface == NULL || core_surface->ctx == NULL)
-		return NULL;
+	if (!dc_surface ||
+		!core_surface->ctx ||
+		!core_surface->ctx->dc) {
+		ASSERT(0);
+		return NULL; /* remove this if above assert never hit */
+	}
 
 	surface_status = &core_surface->status;
-
-	if (core_surface->ctx == NULL || core_surface->ctx->dc == NULL)
-		return NULL;
-
 	core_dc = DC_TO_CORE(core_surface->ctx->dc);
-
 
 	if (core_dc->current_context == NULL)
 		return NULL;
@@ -149,8 +143,7 @@ const struct dc_surface_status *dc_surface_get_status(
 		struct pipe_ctx *pipe_ctx =
 				&core_dc->current_context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->surface !=
-				DC_SURFACE_TO_CORE(dc_surface))
+		if (pipe_ctx->surface != core_surface)
 			continue;
 
 		core_dc->hwss.update_pending_status(pipe_ctx);
