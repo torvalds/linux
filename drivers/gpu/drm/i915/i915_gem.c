@@ -3397,7 +3397,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
-	int ret;
+	int ret = 0;
 
 	switch (args->caching) {
 	case I915_CACHING_NONE:
@@ -3422,20 +3422,29 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	obj = i915_gem_object_lookup(file, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	if (obj->cache_level == level)
+		goto out;
+
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file));
+	if (ret)
+		goto out;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		return ret;
-
-	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+		goto out;
 
 	ret = i915_gem_object_set_cache_level(obj, level);
-	i915_gem_object_put(obj);
-unlock:
 	mutex_unlock(&dev->struct_mutex);
+
+out:
+	i915_gem_object_put(obj);
 	return ret;
 }
 
