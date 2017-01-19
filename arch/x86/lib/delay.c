@@ -156,13 +156,13 @@ EXPORT_SYMBOL(__delay);
 
 inline void __const_udelay(unsigned long xloops)
 {
+	unsigned long lpj = this_cpu_read(cpu_info.loops_per_jiffy) ? : loops_per_jiffy;
 	int d0;
 
 	xloops *= 4;
 	asm("mull %%edx"
 		:"=d" (xloops), "=&a" (d0)
-		:"1" (xloops), "0"
-		(this_cpu_read(cpu_info.loops_per_jiffy) * (HZ/4)));
+		:"1" (xloops), "0" (lpj * (HZ / 4)));
 
 	__delay(++xloops);
 }
