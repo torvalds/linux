@@ -1179,7 +1179,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 		 * TASK_INTERRUPTIBLE checks for signals and
 		 * timeout. Ignored otherwise.
 		 */
-		if (unlikely(state == TASK_INTERRUPTIBLE)) {
+		if (likely(state == TASK_INTERRUPTIBLE)) {
 			/* Signal pending? */
 			if (signal_pending(current))
 				ret = -EINTR;
