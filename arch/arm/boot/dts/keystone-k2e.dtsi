@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/reset/ti-syscon.h>
+
 / {
 	compatible = "ti,k2e", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Edison SoC";
@@ -91,6 +93,17 @@
 
 			sram-bm@1f0000 {
 				reg = <0x001f0000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@02350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2e-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+				>;
 			};
 		};
 
