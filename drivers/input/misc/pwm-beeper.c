@@ -37,13 +37,16 @@ struct pwm_beeper {
 
 static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
 {
+	struct pwm_state state;
 	int error;
 
-	error = pwm_config(beeper->pwm, period / 2, period);
-	if (error)
-		return error;
+	pwm_get_state(beeper->pwm, &state);
 
-	error = pwm_enable(beeper->pwm);
+	state.enabled = true;
+	state.period = period;
+	pwm_set_relative_duty_cycle(&state, 50, 100);
+
+	error = pwm_apply_state(beeper->pwm, &state);
 	if (error)
 		return error;
 
@@ -127,6 +130,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pwm_beeper *beeper;
+	struct pwm_state state;
 	int error;
 
 	beeper = devm_kzalloc(dev, sizeof(*beeper), GFP_KERNEL);
@@ -142,11 +146,15 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to
-	 * the atomic PWM API.
-	 */
-	pwm_apply_args(beeper->pwm);
+	/* Sync up PWM state and ensure it is off. */
+	pwm_init_state(beeper->pwm, &state);
+	state.enabled = false;
+	error = pwm_apply_state(beeper->pwm, &state);
+	if (error) {
+		dev_err(dev, "failed to apply initial PWM state: %d\n",
+			error);
+		return error;
+	}
 
 	beeper->amplifier = devm_regulator_get(dev, "amp");
 	if (IS_ERR(beeper->amplifier)) {
