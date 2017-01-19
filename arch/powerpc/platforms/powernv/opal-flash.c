@@ -418,12 +418,12 @@ static int alloc_image_buf(char *buffer, size_t count)
 	void *addr;
 	int size;
 
-	if (count < sizeof(struct image_header_t)) {
+	if (count < sizeof(image_header)) {
 		pr_warn("FLASH: Invalid candidate image\n");
 		return -EINVAL;
 	}
 
-	memcpy(&image_header, (void *)buffer, sizeof(struct image_header_t));
+	memcpy(&image_header, (void *)buffer, sizeof(image_header));
 	image_data.size = be32_to_cpu(image_header.size);
 	pr_debug("FLASH: Candidate image size = %u\n", image_data.size);
 
