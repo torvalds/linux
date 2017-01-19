@@ -193,6 +193,9 @@ static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
 		return false;
 	}
 
+	if (unlikely(page_is_pfmemalloc(dma_info->page)))
+		return false;
+
 	cache->page_cache[cache->tail] = *dma_info;
 	cache->tail = tail_next;
 	return true;
