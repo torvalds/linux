@@ -1107,12 +1107,12 @@ int mp_map_gsi_to_irq(u32 gsi, unsigned int flags, struct irq_alloc_info *info)
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
-		return -1;
+		return -ENODEV;
 
 	pin = mp_find_ioapic_pin(ioapic, gsi);
 	idx = find_irq_entry(ioapic, pin, mp_INT);
 	if ((flags & IOAPIC_MAP_CHECK) && idx < 0)
-		return -1;
+		return -ENODEV;
 
 	return mp_map_pin_to_irq(gsi, idx, ioapic, pin, flags, info);
 }
