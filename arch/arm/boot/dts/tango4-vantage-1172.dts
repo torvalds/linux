@@ -8,6 +8,7 @@
 
 	aliases {
 		serial = &uart;
+		eth0 = &eth0;
 	};
 
 	memory@80000000 {
