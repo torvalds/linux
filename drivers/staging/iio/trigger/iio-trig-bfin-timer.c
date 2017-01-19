@@ -133,7 +133,7 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 	return sprintf(buf, "%lu\n", val);
 }
 
-static DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR, iio_bfin_tmr_frequency_show,
+static DEVICE_ATTR(frequency, 0644, iio_bfin_tmr_frequency_show,
 		   iio_bfin_tmr_frequency_store);
 
 static struct attribute *iio_bfin_tmr_trigger_attrs[] = {

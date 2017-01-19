@@ -27,38 +27,38 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define ISL29028_CONV_TIME_MS		100
+#define ISL29028_CONV_TIME_MS			100
 
-#define ISL29028_REG_CONFIGURE		0x01
+#define ISL29028_REG_CONFIGURE			0x01
 
-#define ISL29028_CONF_ALS_IR_MODE_ALS	0
-#define ISL29028_CONF_ALS_IR_MODE_IR	BIT(0)
-#define ISL29028_CONF_ALS_IR_MODE_MASK	BIT(0)
+#define ISL29028_CONF_ALS_IR_MODE_ALS		0
+#define ISL29028_CONF_ALS_IR_MODE_IR		BIT(0)
+#define ISL29028_CONF_ALS_IR_MODE_MASK		BIT(0)
 
-#define ISL29028_CONF_ALS_RANGE_LOW_LUX	0
+#define ISL29028_CONF_ALS_RANGE_LOW_LUX		0
 #define ISL29028_CONF_ALS_RANGE_HIGH_LUX	BIT(1)
-#define ISL29028_CONF_ALS_RANGE_MASK	BIT(1)
+#define ISL29028_CONF_ALS_RANGE_MASK		BIT(1)
 
-#define ISL29028_CONF_ALS_DIS		0
-#define ISL29028_CONF_ALS_EN		BIT(2)
-#define ISL29028_CONF_ALS_EN_MASK	BIT(2)
+#define ISL29028_CONF_ALS_DIS			0
+#define ISL29028_CONF_ALS_EN			BIT(2)
+#define ISL29028_CONF_ALS_EN_MASK		BIT(2)
 
-#define ISL29028_CONF_PROX_SLP_SH	4
-#define ISL29028_CONF_PROX_SLP_MASK	(7 << ISL29028_CONF_PROX_SLP_SH)
+#define ISL29028_CONF_PROX_SLP_SH		4
+#define ISL29028_CONF_PROX_SLP_MASK		(7 << ISL29028_CONF_PROX_SLP_SH)
 
-#define ISL29028_CONF_PROX_EN		BIT(7)
-#define ISL29028_CONF_PROX_EN_MASK	BIT(7)
+#define ISL29028_CONF_PROX_EN			BIT(7)
+#define ISL29028_CONF_PROX_EN_MASK		BIT(7)
 
-#define ISL29028_REG_INTERRUPT		0x02
+#define ISL29028_REG_INTERRUPT			0x02
 
-#define ISL29028_REG_PROX_DATA		0x08
-#define ISL29028_REG_ALSIR_L		0x09
-#define ISL29028_REG_ALSIR_U		0x0A
+#define ISL29028_REG_PROX_DATA			0x08
+#define ISL29028_REG_ALSIR_L			0x09
+#define ISL29028_REG_ALSIR_U			0x0A
 
-#define ISL29028_REG_TEST1_MODE		0x0E
-#define ISL29028_REG_TEST2_MODE		0x0F
+#define ISL29028_REG_TEST1_MODE			0x0E
+#define ISL29028_REG_TEST2_MODE			0x0F
 
-#define ISL29028_NUM_REGS		(ISL29028_REG_TEST2_MODE + 1)
+#define ISL29028_NUM_REGS			(ISL29028_REG_TEST2_MODE + 1)
 
 enum isl29028_als_ir_mode {
 	ISL29028_MODE_NONE = 0,
@@ -124,6 +124,9 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 {
 	int ret = 0;
 
+	if (chip->als_ir_mode == mode)
+		return 0;
+
 	switch (mode) {
 	case ISL29028_MODE_ALS:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
@@ -160,6 +163,9 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 
 	/* Need to wait for conversion time if ALS/IR mode enabled */
 	mdelay(ISL29028_CONV_TIME_MS);
+
+	chip->als_ir_mode = mode;
+
 	return 0;
 }
 
@@ -223,14 +229,10 @@ static int isl29028_als_get(struct isl29028_chip *chip, int *als_data)
 	int ret;
 	int als_ir_data;
 
-	if (chip->als_ir_mode != ISL29028_MODE_ALS) {
-		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_ALS);
-		if (ret < 0) {
-			dev_err(dev,
-				"Error in enabling ALS mode err %d\n", ret);
-			return ret;
-		}
-		chip->als_ir_mode = ISL29028_MODE_ALS;
+	ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_ALS);
+	if (ret < 0) {
+		dev_err(dev, "Error in enabling ALS mode err %d\n", ret);
+		return ret;
 	}
 
 	ret = isl29028_read_als_ir(chip, &als_ir_data);
@@ -256,14 +258,10 @@ static int isl29028_ir_get(struct isl29028_chip *chip, int *ir_data)
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
 
-	if (chip->als_ir_mode != ISL29028_MODE_IR) {
-		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_IR);
-		if (ret < 0) {
-			dev_err(dev,
-				"Error in enabling IR mode err %d\n", ret);
-			return ret;
-		}
-		chip->als_ir_mode = ISL29028_MODE_IR;
+	ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_IR);
+	if (ret < 0) {
+		dev_err(dev, "Error in enabling IR mode err %d\n", ret);
+		return ret;
 	}
 	return isl29028_read_als_ir(chip, ir_data);
 }
@@ -420,28 +418,10 @@ static const struct iio_info isl29028_info = {
 	.write_raw = isl29028_write_raw,
 };
 
-static int isl29028_chip_init(struct isl29028_chip *chip)
+static int isl29028_chip_init_and_power_on(struct isl29028_chip *chip)
 {
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
-
-	chip->enable_prox  = false;
-	chip->prox_sampling = 20;
-	chip->lux_scale = 2000;
-	chip->als_ir_mode = ISL29028_MODE_NONE;
-
-	ret = regmap_write(chip->regmap, ISL29028_REG_TEST1_MODE, 0x0);
-	if (ret < 0) {
-		dev_err(dev, "%s(): write to reg %d failed, err = %d\n",
-			__func__, ISL29028_REG_TEST1_MODE, ret);
-		return ret;
-	}
-	ret = regmap_write(chip->regmap, ISL29028_REG_TEST2_MODE, 0x0);
-	if (ret < 0) {
-		dev_err(dev, "%s(): write to reg %d failed, err = %d\n",
-			__func__, ISL29028_REG_TEST2_MODE, ret);
-		return ret;
-	}
 
 	ret = regmap_write(chip->regmap, ISL29028_REG_CONFIGURE, 0x0);
 	if (ret < 0) {
@@ -510,7 +490,27 @@ static int isl29028_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = isl29028_chip_init(chip);
+	chip->enable_prox  = false;
+	chip->prox_sampling = 20;
+	chip->lux_scale = 2000;
+	chip->als_ir_mode = ISL29028_MODE_NONE;
+
+	ret = regmap_write(chip->regmap, ISL29028_REG_TEST1_MODE, 0x0);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"%s(): write to reg %d failed, err = %d\n", __func__,
+			ISL29028_REG_TEST1_MODE, ret);
+		return ret;
+	}
+	ret = regmap_write(chip->regmap, ISL29028_REG_TEST2_MODE, 0x0);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"%s(): write to reg %d failed, err = %d\n", __func__,
+			ISL29028_REG_TEST2_MODE, ret);
+		return ret;
+	}
+
+	ret = isl29028_chip_init_and_power_on(chip);
 	if (ret < 0) {
 		dev_err(&client->dev, "chip initialization failed: %d\n", ret);
 		return ret;

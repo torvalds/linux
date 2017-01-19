@@ -26,6 +26,7 @@
 #include "iio_core.h"
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/buffer_impl.h>
 
 static const char * const iio_endian_prefix[] = {
 	[IIO_BE] = "be",
@@ -209,6 +210,18 @@ void iio_buffer_init(struct iio_buffer *buffer)
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
+/**
+ * iio_buffer_set_attrs - Set buffer specific attributes
+ * @buffer: The buffer for which we are setting attributes
+ * @attrs: Pointer to a null terminated list of pointers to attributes
+ */
+void iio_buffer_set_attrs(struct iio_buffer *buffer,
+			 const struct attribute **attrs)
+{
+	buffer->attrs = attrs;
+}
+EXPORT_SYMBOL_GPL(iio_buffer_set_attrs);
+
 static ssize_t iio_show_scan_index(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
@@ -345,6 +358,19 @@ static int iio_scan_mask_clear(struct iio_buffer *buffer, int bit)
 	clear_bit(bit, buffer->scan_mask);
 	return 0;
 }
+
+static int iio_scan_mask_query(struct iio_dev *indio_dev,
+			       struct iio_buffer *buffer, int bit)
+{
+	if (bit > indio_dev->masklength)
+		return -EINVAL;
+
+	if (!buffer->scan_mask)
+		return 0;
+
+	/* Ensure return value is 0 or 1. */
+	return !!test_bit(bit, buffer->scan_mask);
+};
 
 static ssize_t iio_scan_el_store(struct device *dev,
 				 struct device_attribute *attr,
@@ -749,6 +775,135 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	config->scan_timestamp = scan_timestamp;
 
 	return 0;
+}
+
+/**
+ * struct iio_demux_table - table describing demux memcpy ops
+ * @from:	index to copy from
+ * @to:		index to copy to
+ * @length:	how many bytes to copy
+ * @l:		list head used for management
+ */
+struct iio_demux_table {
+	unsigned from;
+	unsigned to;
+	unsigned length;
+	struct list_head l;
+};
+
+static void iio_buffer_demux_free(struct iio_buffer *buffer)
+{
+	struct iio_demux_table *p, *q;
+	list_for_each_entry_safe(p, q, &buffer->demux_list, l) {
+		list_del(&p->l);
+		kfree(p);
+	}
+}
+
+static int iio_buffer_add_demux(struct iio_buffer *buffer,
+	struct iio_demux_table **p, unsigned int in_loc, unsigned int out_loc,
+	unsigned int length)
+{
+
+	if (*p && (*p)->from + (*p)->length == in_loc &&
+		(*p)->to + (*p)->length == out_loc) {
+		(*p)->length += length;
+	} else {
+		*p = kmalloc(sizeof(**p), GFP_KERNEL);
+		if (*p == NULL)
+			return -ENOMEM;
+		(*p)->from = in_loc;
+		(*p)->to = out_loc;
+		(*p)->length = length;
+		list_add_tail(&(*p)->l, &buffer->demux_list);
+	}
+
+	return 0;
+}
+
+static int iio_buffer_update_demux(struct iio_dev *indio_dev,
+				   struct iio_buffer *buffer)
+{
+	int ret, in_ind = -1, out_ind, length;
+	unsigned in_loc = 0, out_loc = 0;
+	struct iio_demux_table *p = NULL;
+
+	/* Clear out any old demux */
+	iio_buffer_demux_free(buffer);
+	kfree(buffer->demux_bounce);
+	buffer->demux_bounce = NULL;
+
+	/* First work out which scan mode we will actually have */
+	if (bitmap_equal(indio_dev->active_scan_mask,
+			 buffer->scan_mask,
+			 indio_dev->masklength))
+		return 0;
+
+	/* Now we have the two masks, work from least sig and build up sizes */
+	for_each_set_bit(out_ind,
+			 buffer->scan_mask,
+			 indio_dev->masklength) {
+		in_ind = find_next_bit(indio_dev->active_scan_mask,
+				       indio_dev->masklength,
+				       in_ind + 1);
+		while (in_ind != out_ind) {
+			in_ind = find_next_bit(indio_dev->active_scan_mask,
+					       indio_dev->masklength,
+					       in_ind + 1);
+			length = iio_storage_bytes_for_si(indio_dev, in_ind);
+			/* Make sure we are aligned */
+			in_loc = roundup(in_loc, length) + length;
+		}
+		length = iio_storage_bytes_for_si(indio_dev, in_ind);
+		out_loc = roundup(out_loc, length);
+		in_loc = roundup(in_loc, length);
+		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);
+		if (ret)
+			goto error_clear_mux_table;
+		out_loc += length;
+		in_loc += length;
+	}
+	/* Relies on scan_timestamp being last */
+	if (buffer->scan_timestamp) {
+		length = iio_storage_bytes_for_timestamp(indio_dev);
+		out_loc = roundup(out_loc, length);
+		in_loc = roundup(in_loc, length);
+		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);
+		if (ret)
+			goto error_clear_mux_table;
+		out_loc += length;
+		in_loc += length;
+	}
+	buffer->demux_bounce = kzalloc(out_loc, GFP_KERNEL);
+	if (buffer->demux_bounce == NULL) {
+		ret = -ENOMEM;
+		goto error_clear_mux_table;
+	}
+	return 0;
+
+error_clear_mux_table:
+	iio_buffer_demux_free(buffer);
+
+	return ret;
+}
+
+static int iio_update_demux(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer;
+	int ret;
+
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		ret = iio_buffer_update_demux(indio_dev, buffer);
+		if (ret < 0)
+			goto error_clear_mux_table;
+	}
+	return 0;
+
+error_clear_mux_table:
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list)
+		iio_buffer_demux_free(buffer);
+
+	return ret;
 }
 
 static int iio_enable_buffers(struct iio_dev *indio_dev,
@@ -1199,34 +1354,6 @@ bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 }
 EXPORT_SYMBOL_GPL(iio_validate_scan_mask_onehot);
 
-int iio_scan_mask_query(struct iio_dev *indio_dev,
-			struct iio_buffer *buffer, int bit)
-{
-	if (bit > indio_dev->masklength)
-		return -EINVAL;
-
-	if (!buffer->scan_mask)
-		return 0;
-
-	/* Ensure return value is 0 or 1. */
-	return !!test_bit(bit, buffer->scan_mask);
-};
-EXPORT_SYMBOL_GPL(iio_scan_mask_query);
-
-/**
- * struct iio_demux_table - table describing demux memcpy ops
- * @from:	index to copy from
- * @to:		index to copy to
- * @length:	how many bytes to copy
- * @l:		list head used for management
- */
-struct iio_demux_table {
-	unsigned from;
-	unsigned to;
-	unsigned length;
-	struct list_head l;
-};
-
 static const void *iio_demux(struct iio_buffer *buffer,
 				 const void *datain)
 {
@@ -1258,16 +1385,11 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 	return 0;
 }
 
-static void iio_buffer_demux_free(struct iio_buffer *buffer)
-{
-	struct iio_demux_table *p, *q;
-	list_for_each_entry_safe(p, q, &buffer->demux_list, l) {
-		list_del(&p->l);
-		kfree(p);
-	}
-}
-
-
+/**
+ * iio_push_to_buffers() - push to a registered buffer.
+ * @indio_dev:		iio_dev structure for device.
+ * @data:		Full scan.
+ */
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 {
 	int ret;
@@ -1282,113 +1404,6 @@ int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iio_push_to_buffers);
-
-static int iio_buffer_add_demux(struct iio_buffer *buffer,
-	struct iio_demux_table **p, unsigned int in_loc, unsigned int out_loc,
-	unsigned int length)
-{
-
-	if (*p && (*p)->from + (*p)->length == in_loc &&
-		(*p)->to + (*p)->length == out_loc) {
-		(*p)->length += length;
-	} else {
-		*p = kmalloc(sizeof(**p), GFP_KERNEL);
-		if (*p == NULL)
-			return -ENOMEM;
-		(*p)->from = in_loc;
-		(*p)->to = out_loc;
-		(*p)->length = length;
-		list_add_tail(&(*p)->l, &buffer->demux_list);
-	}
-
-	return 0;
-}
-
-static int iio_buffer_update_demux(struct iio_dev *indio_dev,
-				   struct iio_buffer *buffer)
-{
-	int ret, in_ind = -1, out_ind, length;
-	unsigned in_loc = 0, out_loc = 0;
-	struct iio_demux_table *p = NULL;
-
-	/* Clear out any old demux */
-	iio_buffer_demux_free(buffer);
-	kfree(buffer->demux_bounce);
-	buffer->demux_bounce = NULL;
-
-	/* First work out which scan mode we will actually have */
-	if (bitmap_equal(indio_dev->active_scan_mask,
-			 buffer->scan_mask,
-			 indio_dev->masklength))
-		return 0;
-
-	/* Now we have the two masks, work from least sig and build up sizes */
-	for_each_set_bit(out_ind,
-			 buffer->scan_mask,
-			 indio_dev->masklength) {
-		in_ind = find_next_bit(indio_dev->active_scan_mask,
-				       indio_dev->masklength,
-				       in_ind + 1);
-		while (in_ind != out_ind) {
-			in_ind = find_next_bit(indio_dev->active_scan_mask,
-					       indio_dev->masklength,
-					       in_ind + 1);
-			length = iio_storage_bytes_for_si(indio_dev, in_ind);
-			/* Make sure we are aligned */
-			in_loc = roundup(in_loc, length) + length;
-		}
-		length = iio_storage_bytes_for_si(indio_dev, in_ind);
-		out_loc = roundup(out_loc, length);
-		in_loc = roundup(in_loc, length);
-		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);
-		if (ret)
-			goto error_clear_mux_table;
-		out_loc += length;
-		in_loc += length;
-	}
-	/* Relies on scan_timestamp being last */
-	if (buffer->scan_timestamp) {
-		length = iio_storage_bytes_for_timestamp(indio_dev);
-		out_loc = roundup(out_loc, length);
-		in_loc = roundup(in_loc, length);
-		ret = iio_buffer_add_demux(buffer, &p, in_loc, out_loc, length);
-		if (ret)
-			goto error_clear_mux_table;
-		out_loc += length;
-		in_loc += length;
-	}
-	buffer->demux_bounce = kzalloc(out_loc, GFP_KERNEL);
-	if (buffer->demux_bounce == NULL) {
-		ret = -ENOMEM;
-		goto error_clear_mux_table;
-	}
-	return 0;
-
-error_clear_mux_table:
-	iio_buffer_demux_free(buffer);
-
-	return ret;
-}
-
-int iio_update_demux(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *buffer;
-	int ret;
-
-	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
-		ret = iio_buffer_update_demux(indio_dev, buffer);
-		if (ret < 0)
-			goto error_clear_mux_table;
-	}
-	return 0;
-
-error_clear_mux_table:
-	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list)
-		iio_buffer_demux_free(buffer);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(iio_update_demux);
 
 /**
  * iio_buffer_release() - Free a buffer's resources
@@ -1431,3 +1446,19 @@ void iio_buffer_put(struct iio_buffer *buffer)
 		kref_put(&buffer->ref, iio_buffer_release);
 }
 EXPORT_SYMBOL_GPL(iio_buffer_put);
+
+/**
+ * iio_device_attach_buffer - Attach a buffer to a IIO device
+ * @indio_dev: The device the buffer should be attached to
+ * @buffer: The buffer to attach to the device
+ *
+ * This function attaches a buffer to a IIO device. The buffer stays attached to
+ * the device until the device is freed. The function should only be called at
+ * most once per device.
+ */
+void iio_device_attach_buffer(struct iio_dev *indio_dev,
+			      struct iio_buffer *buffer)
+{
+	indio_dev->buffer = iio_buffer_get(buffer);
+}
+EXPORT_SYMBOL_GPL(iio_device_attach_buffer);

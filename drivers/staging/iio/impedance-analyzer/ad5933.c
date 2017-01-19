@@ -23,8 +23,8 @@
 #include <linux/iio/kfifo_buf.h>
 
 /* AD5933/AD5934 Registers */
-#define AD5933_REG_CONTROL_HB		0x80	/* R/W, 2 bytes */
-#define AD5933_REG_CONTROL_LB		0x81	/* R/W, 2 bytes */
+#define AD5933_REG_CONTROL_HB		0x80	/* R/W, 1 byte */
+#define AD5933_REG_CONTROL_LB		0x81	/* R/W, 1 byte */
 #define AD5933_REG_FREQ_START		0x82	/* R/W, 3 bytes */
 #define AD5933_REG_FREQ_INC		0x85	/* R/W, 3 bytes */
 #define AD5933_REG_INC_NUM		0x88	/* R/W, 2 bytes, 9 bit */

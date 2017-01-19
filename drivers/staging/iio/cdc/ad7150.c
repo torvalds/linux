@@ -274,7 +274,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 error_ret:
 	mutex_unlock(&chip->state_lock);
 
-	return 0;
+	return ret;
 }
 
 static int ad7150_read_event_value(struct iio_dev *indio_dev,
@@ -414,7 +414,7 @@ error_ret:
 
 #define AD7150_TIMEOUT(chan, type, dir, ev_type, ev_dir)		\
 	IIO_DEVICE_ATTR(in_capacitance##chan##_##type##_##dir##_timeout, \
-		S_IRUGO | S_IWUSR,					\
+		0644,							\
 		&ad7150_show_timeout,					\
 		&ad7150_store_timeout,					\
 		IIO_UNMOD_EVENT_CODE(IIO_CAPACITANCE,			\

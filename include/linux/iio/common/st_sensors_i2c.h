@@ -28,4 +28,13 @@ static inline void st_sensors_of_i2c_probe(struct i2c_client *client,
 }
 #endif
 
+#ifdef CONFIG_ACPI
+int st_sensors_match_acpi_device(struct device *dev);
+#else
+static inline int st_sensors_match_acpi_device(struct device *dev)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* ST_SENSORS_I2C_H */
