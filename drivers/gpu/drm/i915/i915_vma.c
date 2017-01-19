@@ -110,6 +110,8 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (unlikely(vma->size > vm->total))
 		goto err_vma;
 
+	GEM_BUG_ON(!IS_ALIGNED(vma->size, I915_GTT_PAGE_SIZE));
+
 	if (i915_is_ggtt(vm)) {
 		if (unlikely(overflows_type(vma->size, u32)))
 			goto err_vma;
