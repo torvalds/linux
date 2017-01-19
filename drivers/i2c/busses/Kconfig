@@ -886,6 +886,16 @@ config I2C_ST
 	  This driver can also be built as module. If so, the module
 	  will be called i2c-st.
 
+config I2C_STM32F4
+	tristate "STMicroelectronics STM32F4 I2C support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Enable this option to add support for STM32 I2C controller embedded
+	  in STM32F4 SoCs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-stm32f4.
+
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
 	depends on MACH_U300
