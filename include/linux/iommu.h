@@ -244,6 +244,8 @@ extern void iommu_set_fault_handler(struct iommu_domain *domain,
 extern void iommu_get_resv_regions(struct device *dev, struct list_head *list);
 extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
 extern int iommu_request_dm_for_dev(struct device *dev);
+extern struct iommu_resv_region *
+iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot, int type);
 
 extern int iommu_attach_group(struct iommu_domain *domain,
 			      struct iommu_group *group);
