@@ -284,19 +284,3 @@ void qxl_device_fini(struct qxl_device *qdev)
 	qdev->mode_info.num_modes = 0;
 	qxl_debugfs_remove_files(qdev);
 }
-
-void qxl_driver_unload(struct drm_device *dev)
-{
-	struct qxl_device *qdev = dev->dev_private;
-
-	if (qdev == NULL)
-		return;
-
-	drm_vblank_cleanup(dev);
-
-	qxl_modeset_fini(qdev);
-	qxl_device_fini(qdev);
-
-	kfree(qdev);
-	dev->dev_private = NULL;
-}

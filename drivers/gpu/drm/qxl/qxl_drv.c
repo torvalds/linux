@@ -129,8 +129,16 @@ static void
 qxl_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct qxl_device *qdev = dev->dev_private;
 
-	drm_put_dev(dev);
+	drm_dev_unregister(dev);
+
+	qxl_modeset_fini(qdev);
+	qxl_device_fini(qdev);
+
+	dev->dev_private = NULL;
+	kfree(qdev);
+	drm_dev_unref(dev);
 }
 
 static const struct file_operations qxl_fops = {
@@ -285,7 +293,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.unload = qxl_driver_unload,
 	.get_vblank_counter = qxl_noop_get_vblank_counter,
 	.enable_vblank = qxl_noop_enable_vblank,
 	.disable_vblank = qxl_noop_disable_vblank,

@@ -340,8 +340,6 @@ int qxl_device_init(struct qxl_device *qdev, struct drm_device *ddev,
 		    struct pci_dev *pdev,  unsigned long flags);
 void qxl_device_fini(struct qxl_device *qdev);
 
-void qxl_driver_unload(struct drm_device *dev);
-
 int qxl_modeset_init(struct qxl_device *qdev);
 void qxl_modeset_fini(struct qxl_device *qdev);
 
