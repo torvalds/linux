@@ -438,6 +438,10 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 {
 	struct ib_recv_wr *bad_wr;
 
+	ib_dma_sync_single_for_device(ndev->device,
+		cmd->sge[0].addr, cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+
 	if (ndev->srq)
 		return ib_post_srq_recv(ndev->srq, &cmd->wr, &bad_wr);
 	return ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, &bad_wr);
@@ -538,6 +542,11 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		first_wr = &rsp->send_wr;
 
 	nvmet_rdma_post_recv(rsp->queue->dev, rsp->cmd);
+
+	ib_dma_sync_single_for_device(rsp->queue->dev->device,
+		rsp->send_sge.addr, rsp->send_sge.length,
+		DMA_TO_DEVICE);
+
 	if (ib_post_send(cm_id->qp, first_wr, &bad_wr)) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
@@ -697,6 +706,14 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 	cmd->queue = queue;
 	cmd->n_rdma = 0;
 	cmd->req.port = queue->port;
+
+
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->cmd->sge[0].addr, cmd->cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->send_sge.addr, cmd->send_sge.length,
+		DMA_TO_DEVICE);
 
 	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_rdma_ops))
