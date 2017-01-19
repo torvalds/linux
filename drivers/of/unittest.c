@@ -1180,7 +1180,7 @@ static void of_unittest_destroy_tracked_overlays(void)
 	} while (defers > 0);
 }
 
-static int of_unittest_apply_overlay(int unittest_nr, int overlay_nr,
+static int of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 		int *overlay_id)
 {
 	struct device_node *np = NULL;
@@ -1839,7 +1839,7 @@ static void of_unittest_overlay_i2c_15(void)
 	int ret;
 
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(16, 15, 0, 1, I2C_OVERLAY);
+	ret = of_unittest_apply_overlay_check(15, 15, 0, 1, I2C_OVERLAY);
 	if (ret != 0)
 		return;
 
