@@ -11246,6 +11246,7 @@ found:
 	}
 
 	old->restore_state = restore_state;
+	drm_atomic_state_put(state);
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
