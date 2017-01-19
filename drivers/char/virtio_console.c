@@ -1870,7 +1870,7 @@ static void config_work_handler(struct work_struct *work)
 {
 	struct ports_device *portdev;
 
-	portdev = container_of(work, struct ports_device, control_work);
+	portdev = container_of(work, struct ports_device, config_work);
 	if (!use_multiport(portdev)) {
 		struct virtio_device *vdev;
 		struct port *port;
