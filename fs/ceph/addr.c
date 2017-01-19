@@ -391,6 +391,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 			nr_pages = i;
 			if (nr_pages > 0) {
 				len = nr_pages << PAGE_SHIFT;
+				osd_req_op_extent_update(req, 0, len);
 				break;
 			}
 			goto out_pages;
