@@ -723,7 +723,7 @@ static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 	ireg = status & TMIO_SDIO_MASK_ALL & ~host->sdio_irq_mask;
 
 	sdio_status = status & ~TMIO_SDIO_MASK_ALL;
-	if (pdata->flags & TMIO_MMC_SDIO_STATUS_QUIRK)
+	if (pdata->flags & TMIO_MMC_SDIO_STATUS_SETBITS)
 		sdio_status |= 6;
 
 	sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status);
