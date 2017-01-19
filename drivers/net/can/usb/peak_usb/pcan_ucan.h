@@ -219,25 +219,25 @@ static inline __le16 pucan_cmd_opcode_channel(int index, int opcode)
 }
 
 /* return the channel number part from any received message channel_dlc field */
-static inline int pucan_msg_get_channel(struct pucan_rx_msg *rm)
+static inline int pucan_msg_get_channel(const struct pucan_rx_msg *msg)
 {
-	return rm->channel_dlc & 0xf;
+	return msg->channel_dlc & 0xf;
 }
 
 /* return the dlc value from any received message channel_dlc field */
-static inline int pucan_msg_get_dlc(struct pucan_rx_msg *rm)
+static inline int pucan_msg_get_dlc(const struct pucan_rx_msg *msg)
 {
-	return rm->channel_dlc >> 4;
+	return msg->channel_dlc >> 4;
 }
 
-static inline int pucan_ermsg_get_channel(struct pucan_error_msg *em)
+static inline int pucan_ermsg_get_channel(const struct pucan_error_msg *msg)
 {
-	return em->channel_type_d & 0x0f;
+	return msg->channel_type_d & 0x0f;
 }
 
-static inline int pucan_stmsg_get_channel(struct pucan_status_msg *sm)
+static inline int pucan_stmsg_get_channel(const struct pucan_status_msg *msg)
 {
-	return sm->channel_p_w_b & 0x0f;
+	return msg->channel_p_w_b & 0x0f;
 }
 
 #endif
