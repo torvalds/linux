@@ -499,6 +499,8 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 		if (*cmd) {
 			char tmp_cmd[32];
 			strlcpy(tmp_cmd, cmd, sizeof(tmp_cmd));
+			blocking_notifier_call_chain(&reboot_notifier_list,
+						SYS_RESTART, (char *)cmd);
 			machine_restart(tmp_cmd);
 		} else {
 			machine_restart(NULL);
