@@ -254,13 +254,24 @@ static bool srcu_readers_active(struct srcu_struct *sp)
  * cleanup_srcu_struct - deconstruct a sleep-RCU structure
  * @sp: structure to clean up.
  *
- * Must invoke this after you are finished using a given srcu_struct that
- * was initialized via init_srcu_struct(), else you leak memory.
+ * Must invoke this only after you are finished using a given srcu_struct
+ * that was initialized via init_srcu_struct().  This code does some
+ * probabalistic checking, spotting late uses of srcu_read_lock(),
+ * synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu().
+ * If any such late uses are detected, the per-CPU memory associated with
+ * the srcu_struct is simply leaked and WARN_ON() is invoked.  If the
+ * caller frees the srcu_struct itself, a use-after-free crash will likely
+ * ensue, but at least there will be a warning printed.
  */
 void cleanup_srcu_struct(struct srcu_struct *sp)
 {
 	if (WARN_ON(srcu_readers_active(sp)))
 		return; /* Leakage unless caller handles error. */
+	if (WARN_ON(!rcu_all_batches_empty(sp)))
+		return; /* Leakage unless caller handles error. */
+	flush_delayed_work(&sp->work);
+	if (WARN_ON(sp->running))
+		return; /* Caller forgot to stop doing call_srcu()? */
 	free_percpu(sp->per_cpu_ref);
 	sp->per_cpu_ref = NULL;
 }
