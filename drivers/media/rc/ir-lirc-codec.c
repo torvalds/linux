@@ -279,7 +279,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	case LIRC_GET_MIN_TIMEOUT:
 		if (!dev->max_timeout)
 			return -ENOSYS;
-		val = dev->min_timeout / 1000;
+		val = DIV_ROUND_UP(dev->min_timeout, 1000);
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
