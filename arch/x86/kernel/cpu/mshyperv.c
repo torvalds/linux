@@ -133,26 +133,6 @@ static uint32_t  __init ms_hyperv_platform(void)
 	return 0;
 }
 
-static u64 read_hv_clock(struct clocksource *arg)
-{
-	u64 current_tick;
-	/*
-	 * Read the partition counter to get the current tick count. This count
-	 * is set to 0 when the partition is created and is incremented in
-	 * 100 nanosecond units.
-	 */
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
-	return current_tick;
-}
-
-static struct clocksource hyperv_cs = {
-	.name		= "hyperv_clocksource",
-	.rating		= 400, /* use this when running on Hyperv*/
-	.read		= read_hv_clock,
-	.mask		= CLOCKSOURCE_MASK(64),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 static unsigned char hv_get_nmi_reason(void)
 {
 	return 0;
@@ -207,9 +187,6 @@ static void __init ms_hyperv_init_platform(void)
 	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
 			     "hv_nmi_unknown");
 #endif
-
-	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
-		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
 
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;

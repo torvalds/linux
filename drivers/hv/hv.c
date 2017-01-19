@@ -87,56 +87,6 @@ static int query_hypervisor_info(void)
 	return max_leaf;
 }
 
-#ifdef CONFIG_X86_64
-static u64 read_hv_clock_tsc(struct clocksource *arg)
-{
-	u64 current_tick;
-	struct ms_hyperv_tsc_page *tsc_pg = hv_context.tsc_page;
-
-	if (tsc_pg->tsc_sequence != 0) {
-		/*
-		 * Use the tsc page to compute the value.
-		 */
-
-		while (1) {
-			u64 tmp;
-			u32 sequence = tsc_pg->tsc_sequence;
-			u64 cur_tsc;
-			u64 scale = tsc_pg->tsc_scale;
-			s64 offset = tsc_pg->tsc_offset;
-
-			rdtscll(cur_tsc);
-			/* current_tick = ((cur_tsc *scale) >> 64) + offset */
-			asm("mulq %3"
-				: "=d" (current_tick), "=a" (tmp)
-				: "a" (cur_tsc), "r" (scale));
-
-			current_tick += offset;
-			if (tsc_pg->tsc_sequence == sequence)
-				return current_tick;
-
-			if (tsc_pg->tsc_sequence != 0)
-				continue;
-			/*
-			 * Fallback using MSR method.
-			 */
-			break;
-		}
-	}
-	rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
-	return current_tick;
-}
-
-static struct clocksource hyperv_cs_tsc = {
-		.name           = "hyperv_clocksource_tsc_page",
-		.rating         = 425,
-		.read           = read_hv_clock_tsc,
-		.mask           = CLOCKSOURCE_MASK(64),
-		.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
-};
-#endif
-
-
 /*
  * hv_init - Main initialization routine.
  *
@@ -171,29 +121,7 @@ int hv_init(void)
 	if (!hypercall_msr.enable)
 		return -ENOTSUPP;
 
-#ifdef CONFIG_X86_64
-	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
-		union hv_x64_msr_hypercall_contents tsc_msr;
-		void *va_tsc;
-
-		va_tsc = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL);
-		if (!va_tsc)
-			goto cleanup;
-		hv_context.tsc_page = va_tsc;
-
-		rdmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
-
-		tsc_msr.enable = 1;
-		tsc_msr.guest_physical_address = vmalloc_to_pfn(va_tsc);
-
-		wrmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
-		clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
-	}
-#endif
 	return 0;
-
-cleanup:
-	return -ENOTSUPP;
 }
 
 /*
@@ -204,29 +132,6 @@ cleanup:
 void hv_cleanup(bool crash)
 {
 
-#ifdef CONFIG_X86_64
-	union hv_x64_msr_hypercall_contents hypercall_msr;
-	/*
-	 * Cleanup the TSC page based CS.
-	 */
-	if (ms_hyperv.features & HV_X64_MSR_REFERENCE_TSC_AVAILABLE) {
-		/*
-		 * Crash can happen in an interrupt context and unregistering
-		 * a clocksource is impossible and redundant in this case.
-		 */
-		if (!oops_in_progress) {
-			clocksource_change_rating(&hyperv_cs_tsc, 10);
-			clocksource_unregister(&hyperv_cs_tsc);
-		}
-
-		hypercall_msr.as_uint64 = 0;
-		wrmsrl(HV_X64_MSR_REFERENCE_TSC, hypercall_msr.as_uint64);
-		if (!crash) {
-			vfree(hv_context.tsc_page);
-			hv_context.tsc_page = NULL;
-		}
-	}
-#endif
 }
 
 /*

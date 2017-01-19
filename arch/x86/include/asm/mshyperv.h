@@ -26,6 +26,18 @@ union hv_x64_msr_hypercall_contents {
 };
 
 /*
+ * TSC page layout.
+ */
+
+struct ms_hyperv_tsc_page {
+	volatile u32 tsc_sequence;
+	u32 reserved1;
+	volatile u64 tsc_scale;
+	volatile s64 tsc_offset;
+	u64 reserved2[509];
+};
+
+/*
  * The guest OS needs to register the guest ID with the hypervisor.
  * The guest ID is a 64 bit entity and the structure of this ID is
  * specified in the Hyper-V specification:
