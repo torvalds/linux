@@ -73,6 +73,9 @@
   */
 #define HV_X64_MSR_STAT_PAGES_AVAILABLE		(1 << 8)
 
+/* Crash MSR available */
+#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
+
 /*
  * Feature identification: EBX indicates which flags were specified at
  * partition creation. The format is the same as the partition creation
@@ -143,6 +146,11 @@
  * timely delivery of external interrupts
  */
 #define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
+
+/*
+ * Crash notification flag.
+ */
+#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000

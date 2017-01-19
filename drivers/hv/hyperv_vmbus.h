@@ -40,16 +40,6 @@
  */
 #define HV_UTIL_NEGO_TIMEOUT 55
 
-#define  HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE   0x400
-
-#define HV_X64_MSR_CRASH_P0   0x40000100
-#define HV_X64_MSR_CRASH_P1   0x40000101
-#define HV_X64_MSR_CRASH_P2   0x40000102
-#define HV_X64_MSR_CRASH_P3   0x40000103
-#define HV_X64_MSR_CRASH_P4   0x40000104
-#define HV_X64_MSR_CRASH_CTL  0x40000105
-
-#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
 
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
