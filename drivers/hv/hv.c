@@ -261,15 +261,11 @@ void hv_synic_free(void)
  */
 int hv_synic_init(unsigned int cpu)
 {
-	u64 version;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_sint shared_sint;
 	union hv_synic_scontrol sctrl;
 	u64 vp_index;
-
-	/* Check the version */
-	rdmsrl(HV_X64_MSR_SVERSION, version);
 
 	/* Setup the Synic's message page */
 	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
