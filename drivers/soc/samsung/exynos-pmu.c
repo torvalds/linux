@@ -11,6 +11,7 @@
 
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
@@ -91,6 +92,16 @@ static const struct of_device_id exynos_pmu_of_device_ids[] = {
 	},
 	{ /*sentinel*/ },
 };
+
+struct regmap *exynos_get_pmu_regmap(void)
+{
+	struct device_node *np = of_find_matching_node(NULL,
+						      exynos_pmu_of_device_ids);
+	if (np)
+		return syscon_node_to_regmap(np);
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
 
 static int exynos_pmu_probe(struct platform_device *pdev)
 {
