@@ -355,6 +355,8 @@ enum event_type_t {
 	EVENT_FLEXIBLE = 0x1,
 	EVENT_PINNED = 0x2,
 	EVENT_TIME = 0x4,
+	/* see ctx_resched() for details */
+	EVENT_CPU = 0x8,
 	EVENT_ALL = EVENT_FLEXIBLE | EVENT_PINNED,
 };
 
@@ -1442,6 +1444,20 @@ static void update_group_times(struct perf_event *leader)
 		update_event_times(event);
 }
 
+static enum event_type_t get_event_type(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+	enum event_type_t event_type;
+
+	lockdep_assert_held(&ctx->lock);
+
+	event_type = event->attr.pinned ? EVENT_PINNED : EVENT_FLEXIBLE;
+	if (!ctx->task)
+		event_type |= EVENT_CPU;
+
+	return event_type;
+}
+
 static struct list_head *
 ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 {
@@ -2215,7 +2231,8 @@ ctx_sched_in(struct perf_event_context *ctx,
 	     struct task_struct *task);
 
 static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
-			       struct perf_event_context *ctx)
+			       struct perf_event_context *ctx,
+			       enum event_type_t event_type)
 {
 	if (!cpuctx->task_ctx)
 		return;
@@ -2223,7 +2240,7 @@ static void task_ctx_sched_out(struct perf_cpu_context *cpuctx,
 	if (WARN_ON_ONCE(ctx != cpuctx->task_ctx))
 		return;
 
-	ctx_sched_out(ctx, cpuctx, EVENT_ALL);
+	ctx_sched_out(ctx, cpuctx, event_type);
 }
 
 static void perf_event_sched_in(struct perf_cpu_context *cpuctx,
@@ -2238,13 +2255,51 @@ static void perf_event_sched_in(struct perf_cpu_context *cpuctx,
 		ctx_sched_in(ctx, cpuctx, EVENT_FLEXIBLE, task);
 }
 
+/*
+ * We want to maintain the following priority of scheduling:
+ *  - CPU pinned (EVENT_CPU | EVENT_PINNED)
+ *  - task pinned (EVENT_PINNED)
+ *  - CPU flexible (EVENT_CPU | EVENT_FLEXIBLE)
+ *  - task flexible (EVENT_FLEXIBLE).
+ *
+ * In order to avoid unscheduling and scheduling back in everything every
+ * time an event is added, only do it for the groups of equal priority and
+ * below.
+ *
+ * This can be called after a batch operation on task events, in which case
+ * event_type is a bit mask of the types of events involved. For CPU events,
+ * event_type is only either EVENT_PINNED or EVENT_FLEXIBLE.
+ */
 static void ctx_resched(struct perf_cpu_context *cpuctx,
-			struct perf_event_context *task_ctx)
+			struct perf_event_context *task_ctx,
+			enum event_type_t event_type)
 {
+	enum event_type_t ctx_event_type = event_type & EVENT_ALL;
+	bool cpu_event = !!(event_type & EVENT_CPU);
+
+	/*
+	 * If pinned groups are involved, flexible groups also need to be
+	 * scheduled out.
+	 */
+	if (event_type & EVENT_PINNED)
+		event_type |= EVENT_FLEXIBLE;
+
 	perf_pmu_disable(cpuctx->ctx.pmu);
 	if (task_ctx)
-		task_ctx_sched_out(cpuctx, task_ctx);
-	cpu_ctx_sched_out(cpuctx, EVENT_ALL);
+		task_ctx_sched_out(cpuctx, task_ctx, event_type);
+
+	/*
+	 * Decide which cpu ctx groups to schedule out based on the types
+	 * of events that caused rescheduling:
+	 *  - EVENT_CPU: schedule out corresponding groups;
+	 *  - EVENT_PINNED task events: schedule out EVENT_FLEXIBLE groups;
+	 *  - otherwise, do nothing more.
+	 */
+	if (cpu_event)
+		cpu_ctx_sched_out(cpuctx, ctx_event_type);
+	else if (ctx_event_type & EVENT_PINNED)
+		cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
+
 	perf_event_sched_in(cpuctx, task_ctx, current);
 	perf_pmu_enable(cpuctx->ctx.pmu);
 }
@@ -2291,7 +2346,7 @@ static int  __perf_install_in_context(void *info)
 	if (reprogram) {
 		ctx_sched_out(ctx, cpuctx, EVENT_TIME);
 		add_event_to_ctx(event, ctx);
-		ctx_resched(cpuctx, task_ctx);
+		ctx_resched(cpuctx, task_ctx, get_event_type(event));
 	} else {
 		add_event_to_ctx(event, ctx);
 	}
@@ -2458,7 +2513,7 @@ static void __perf_event_enable(struct perf_event *event,
 	if (ctx->task)
 		WARN_ON_ONCE(task_ctx != ctx);
 
-	ctx_resched(cpuctx, task_ctx);
+	ctx_resched(cpuctx, task_ctx, get_event_type(event));
 }
 
 /*
@@ -2885,7 +2940,7 @@ unlock:
 
 	if (do_switch) {
 		raw_spin_lock(&ctx->lock);
-		task_ctx_sched_out(cpuctx, ctx);
+		task_ctx_sched_out(cpuctx, ctx, EVENT_ALL);
 		raw_spin_unlock(&ctx->lock);
 	}
 }
@@ -3442,6 +3497,7 @@ static int event_enable_on_exec(struct perf_event *event,
 static void perf_event_enable_on_exec(int ctxn)
 {
 	struct perf_event_context *ctx, *clone_ctx = NULL;
+	enum event_type_t event_type = 0;
 	struct perf_cpu_context *cpuctx;
 	struct perf_event *event;
 	unsigned long flags;
@@ -3455,15 +3511,17 @@ static void perf_event_enable_on_exec(int ctxn)
 	cpuctx = __get_cpu_context(ctx);
 	perf_ctx_lock(cpuctx, ctx);
 	ctx_sched_out(ctx, cpuctx, EVENT_TIME);
-	list_for_each_entry(event, &ctx->event_list, event_entry)
+	list_for_each_entry(event, &ctx->event_list, event_entry) {
 		enabled |= event_enable_on_exec(event, ctx);
+		event_type |= get_event_type(event);
+	}
 
 	/*
 	 * Unclone and reschedule this context if we enabled any event.
 	 */
 	if (enabled) {
 		clone_ctx = unclone_ctx(ctx);
-		ctx_resched(cpuctx, ctx);
+		ctx_resched(cpuctx, ctx, event_type);
 	}
 	perf_ctx_unlock(cpuctx, ctx);
 
@@ -10224,7 +10282,7 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	 * in.
 	 */
 	raw_spin_lock_irq(&child_ctx->lock);
-	task_ctx_sched_out(__get_cpu_context(child_ctx), child_ctx);
+	task_ctx_sched_out(__get_cpu_context(child_ctx), child_ctx, EVENT_ALL);
 
 	/*
 	 * Now that the context is inactive, destroy the task <-> ctx relation
