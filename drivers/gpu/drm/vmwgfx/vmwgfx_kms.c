@@ -1671,7 +1671,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		 *	1. Bounding box (assuming 32bpp) must be < prim_bb_mem
 		 *      2. Total pixels (assuming 32bpp) must be < prim_bb_mem
 		 */
-		u64 bb_mem    = bounding_box.w * bounding_box.h * 4;
+		u64 bb_mem    = (u64) bounding_box.w * bounding_box.h * 4;
 		u64 pixel_mem = total_pixels * 4;
 
 		if (bb_mem > dev_priv->prim_bb_mem) {
