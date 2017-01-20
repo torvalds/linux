@@ -1460,12 +1460,26 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 	int max_pixclk = intel_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
+	int cdclk;
 
-	intel_state->cdclk = intel_state->dev_cdclk =
-		vlv_calc_cdclk(dev_priv, max_pixclk);
+	cdclk = vlv_calc_cdclk(dev_priv, max_pixclk);
 
-	if (!intel_state->active_crtcs)
-		intel_state->dev_cdclk = vlv_calc_cdclk(dev_priv, 0);
+	if (cdclk > dev_priv->max_cdclk_freq) {
+		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			      cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
+	}
+
+	intel_state->cdclk.logical.cdclk = cdclk;
+
+	if (!intel_state->active_crtcs) {
+		cdclk = vlv_calc_cdclk(dev_priv, 0);
+
+		intel_state->cdclk.actual.cdclk = cdclk;
+	} else {
+		intel_state->cdclk.actual =
+			intel_state->cdclk.logical;
+	}
 
 	return 0;
 }
@@ -1474,9 +1488,7 @@ static void vlv_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
-	unsigned int req_cdclk = old_intel_state->dev_cdclk;
+	unsigned int req_cdclk = dev_priv->cdclk.actual.cdclk;
 
 	/*
 	 * FIXME: We can end up here with all power domains off, yet
@@ -1518,9 +1530,16 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 		return -EINVAL;
 	}
 
-	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
-	if (!intel_state->active_crtcs)
-		intel_state->dev_cdclk = bdw_calc_cdclk(0);
+	intel_state->cdclk.logical.cdclk = cdclk;
+
+	if (!intel_state->active_crtcs) {
+		cdclk = bdw_calc_cdclk(0);
+
+		intel_state->cdclk.actual.cdclk = cdclk;
+	} else {
+		intel_state->cdclk.actual =
+			intel_state->cdclk.logical;
+	}
 
 	return 0;
 }
@@ -1528,9 +1547,7 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 static void bdw_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
-	unsigned int req_cdclk = old_intel_state->dev_cdclk;
+	unsigned int req_cdclk = to_i915(dev)->cdclk.actual.cdclk;
 
 	bdw_set_cdclk(dev, req_cdclk);
 }
@@ -1540,8 +1557,11 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	const int max_pixclk = intel_max_pixel_rate(state);
-	int vco = intel_state->cdclk_pll_vco;
-	int cdclk;
+	int cdclk, vco;
+
+	vco = intel_state->cdclk.logical.vco;
+	if (!vco)
+		vco = dev_priv->skl_preferred_vco_freq;
 
 	/*
 	 * FIXME should also account for plane ratio
@@ -1549,19 +1569,24 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	 */
 	cdclk = skl_calc_cdclk(max_pixclk, vco);
 
-	/*
-	 * FIXME move the cdclk caclulation to
-	 * compute_config() so we can fail gracegully.
-	 */
 	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_ERROR("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			  cdclk, dev_priv->max_cdclk_freq);
-		cdclk = dev_priv->max_cdclk_freq;
+		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			      cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
 	}
 
-	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
-	if (!intel_state->active_crtcs)
-		intel_state->dev_cdclk = skl_calc_cdclk(0, vco);
+	intel_state->cdclk.logical.vco = vco;
+	intel_state->cdclk.logical.cdclk = cdclk;
+
+	if (!intel_state->active_crtcs) {
+		cdclk = skl_calc_cdclk(0, vco);
+
+		intel_state->cdclk.actual.vco = vco;
+		intel_state->cdclk.actual.cdclk = cdclk;
+	} else {
+		intel_state->cdclk.actual =
+			intel_state->cdclk.logical;
+	}
 
 	return 0;
 }
@@ -1569,10 +1594,8 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 static void skl_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
-	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(old_state);
-	unsigned int req_cdclk = intel_state->dev_cdclk;
-	unsigned int req_vco = intel_state->cdclk_pll_vco;
+	unsigned int req_cdclk = dev_priv->cdclk.actual.cdclk;
+	unsigned int req_vco = dev_priv->cdclk.actual.vco;
 
 	skl_set_cdclk(dev_priv, req_cdclk, req_vco);
 }
@@ -1583,22 +1606,39 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 	int max_pixclk = intel_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
-	int cdclk;
+	int cdclk, vco;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (IS_GEMINILAKE(dev_priv)) {
 		cdclk = glk_calc_cdclk(max_pixclk);
-	else
+		vco = glk_de_pll_vco(dev_priv, cdclk);
+	} else {
 		cdclk = bxt_calc_cdclk(max_pixclk);
+		vco = bxt_de_pll_vco(dev_priv, cdclk);
+	}
 
-	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
+	if (cdclk > dev_priv->max_cdclk_freq) {
+		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			      cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
+	}
+
+	intel_state->cdclk.logical.vco = vco;
+	intel_state->cdclk.logical.cdclk = cdclk;
 
 	if (!intel_state->active_crtcs) {
-		if (IS_GEMINILAKE(dev_priv))
+		if (IS_GEMINILAKE(dev_priv)) {
 			cdclk = glk_calc_cdclk(0);
-		else
+			vco = glk_de_pll_vco(dev_priv, cdclk);
+		} else {
 			cdclk = bxt_calc_cdclk(0);
+			vco = bxt_de_pll_vco(dev_priv, cdclk);
+		}
 
-		intel_state->dev_cdclk = cdclk;
+		intel_state->cdclk.actual.vco = vco;
+		intel_state->cdclk.actual.cdclk = cdclk;
+	} else {
+		intel_state->cdclk.actual =
+			intel_state->cdclk.logical;
 	}
 
 	return 0;
@@ -1607,15 +1647,8 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 static void bxt_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
-	struct intel_atomic_state *old_intel_state =
-		to_intel_atomic_state(old_state);
-	unsigned int req_cdclk = old_intel_state->dev_cdclk;
-	unsigned int req_vco;
-
-	if (IS_GEMINILAKE(dev_priv))
-		req_vco = glk_de_pll_vco(dev_priv, req_cdclk);
-	else
-		req_vco = bxt_de_pll_vco(dev_priv, req_cdclk);
+	unsigned int req_cdclk = dev_priv->cdclk.actual.cdclk;
+	unsigned int req_vco = dev_priv->cdclk.actual.vco;
 
 	bxt_set_cdclk(dev_priv, req_cdclk, req_vco);
 }

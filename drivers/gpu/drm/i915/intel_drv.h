@@ -333,13 +333,20 @@ struct dpll {
 struct intel_atomic_state {
 	struct drm_atomic_state base;
 
-	unsigned int cdclk;
+	struct {
+		/*
+		 * Logical state of cdclk (used for all scaling, watermark,
+		 * etc. calculations and checks). This is computed as if all
+		 * enabled crtcs were active.
+		 */
+		struct intel_cdclk_state logical;
 
-	/*
-	 * Calculated device cdclk, can be different from cdclk
-	 * only when all crtc's are DPMS off.
-	 */
-	unsigned int dev_cdclk;
+		/*
+		 * Actual state of cdclk, can be different from the logical
+		 * state only when all crtc's are DPMS off.
+		 */
+		struct intel_cdclk_state actual;
+	} cdclk;
 
 	bool dpll_set, modeset;
 
@@ -355,9 +362,6 @@ struct intel_atomic_state {
 
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
-
-	/* SKL/KBL Only */
-	unsigned int cdclk_pll_vco;
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 

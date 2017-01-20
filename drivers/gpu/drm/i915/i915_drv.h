@@ -2172,18 +2172,26 @@ struct drm_i915_private {
 	unsigned int skl_preferred_vco_freq;
 	unsigned int max_cdclk_freq;
 
-	/*
-	 * For reading holding any crtc lock is sufficient,
-	 * for writing must hold all of them.
-	 */
-	unsigned int atomic_cdclk_freq;
-
 	unsigned int max_dotclk_freq;
 	unsigned int rawclk_freq;
 	unsigned int hpll_freq;
 	unsigned int czclk_freq;
 
 	struct {
+		/*
+		 * The current logical cdclk state.
+		 * See intel_atomic_state.cdclk.logical
+		 *
+		 * For reading holding any crtc lock is sufficient,
+		 * for writing must hold all of them.
+		 */
+		struct intel_cdclk_state logical;
+		/*
+		 * The current actual cdclk state.
+		 * See intel_atomic_state.cdclk.actual
+		 */
+		struct intel_cdclk_state actual;
+		/* The current hardware cdclk state */
 		struct intel_cdclk_state hw;
 	} cdclk;
 

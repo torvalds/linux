@@ -12393,6 +12393,8 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 
 	intel_state->modeset = true;
 	intel_state->active_crtcs = dev_priv->active_crtcs;
+	intel_state->cdclk.logical = dev_priv->cdclk.logical;
+	intel_state->cdclk.actual = dev_priv->cdclk.actual;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (crtc_state->active)
@@ -12412,38 +12414,35 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
-		if (!intel_state->cdclk_pll_vco)
-			intel_state->cdclk_pll_vco = dev_priv->cdclk.hw.vco;
-		if (!intel_state->cdclk_pll_vco)
-			intel_state->cdclk_pll_vco = dev_priv->skl_preferred_vco_freq;
-
 		ret = dev_priv->display.modeset_calc_cdclk(state);
 		if (ret < 0)
 			return ret;
 
 		/*
-		 * Writes to dev_priv->atomic_cdclk_freq must protected by
+		 * Writes to dev_priv->cdclk.logical must protected by
 		 * holding all the crtc locks, even if we don't end up
 		 * touching the hardware
 		 */
-		if (intel_state->cdclk != dev_priv->atomic_cdclk_freq) {
+		if (!intel_cdclk_state_compare(&dev_priv->cdclk.logical,
+					       &intel_state->cdclk.logical)) {
 			ret = intel_lock_all_pipes(state);
 			if (ret < 0)
 				return ret;
 		}
 
 		/* All pipes must be switched off while we change the cdclk. */
-		if (intel_state->dev_cdclk != dev_priv->cdclk.hw.cdclk ||
-		    intel_state->cdclk_pll_vco != dev_priv->cdclk.hw.vco) {
+		if (!intel_cdclk_state_compare(&dev_priv->cdclk.actual,
+					       &intel_state->cdclk.actual)) {
 			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
 		}
 
-		DRM_DEBUG_KMS("New cdclk calculated to be atomic %u, actual %u\n",
-			      intel_state->cdclk, intel_state->dev_cdclk);
+		DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
+			      intel_state->cdclk.logical.cdclk,
+			      intel_state->cdclk.actual.cdclk);
 	} else {
-		to_intel_atomic_state(state)->cdclk = dev_priv->atomic_cdclk_freq;
+		to_intel_atomic_state(state)->cdclk.logical = dev_priv->cdclk.logical;
 	}
 
 	intel_modeset_clear_plls(state);
@@ -12546,7 +12545,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 	} else {
-		intel_state->cdclk = dev_priv->atomic_cdclk_freq;
+		intel_state->cdclk.logical = dev_priv->cdclk.logical;
 	}
 
 	ret = drm_atomic_helper_check_planes(dev, state);
@@ -12869,8 +12868,8 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 		if (dev_priv->display.modeset_commit_cdclk &&
-		    (intel_state->dev_cdclk != dev_priv->cdclk.hw.cdclk ||
-		     intel_state->cdclk_pll_vco != dev_priv->cdclk.hw.vco))
+		    !intel_cdclk_state_compare(&dev_priv->cdclk.hw,
+					       &dev_priv->cdclk.actual))
 			dev_priv->display.modeset_commit_cdclk(state);
 
 		/*
@@ -13059,7 +13058,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
 		       sizeof(intel_state->min_pixclk));
 		dev_priv->active_crtcs = intel_state->active_crtcs;
-		dev_priv->atomic_cdclk_freq = intel_state->cdclk;
+		dev_priv->cdclk.logical = intel_state->cdclk.logical;
+		dev_priv->cdclk.actual = intel_state->cdclk.actual;
 	}
 
 	drm_atomic_state_get(state);
@@ -13297,7 +13297,7 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 		return DRM_PLANE_HELPER_NO_SCALING;
 
 	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
-	cdclk = to_intel_atomic_state(crtc_state->base.state)->cdclk;
+	cdclk = to_intel_atomic_state(crtc_state->base.state)->cdclk.logical.cdclk;
 
 	if (WARN_ON_ONCE(!crtc_clock || cdclk < crtc_clock))
 		return DRM_PLANE_HELPER_NO_SCALING;
@@ -14854,8 +14854,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	intel_update_cdclk(dev_priv);
-
-	dev_priv->atomic_cdclk_freq = dev_priv->cdclk.hw.cdclk;
+	dev_priv->cdclk.logical = dev_priv->cdclk.actual = dev_priv->cdclk.hw;
 
 	intel_init_clock_gating(dev_priv);
 }
@@ -15031,7 +15030,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_update_czclk(dev_priv);
 	intel_update_cdclk(dev_priv);
-	dev_priv->atomic_cdclk_freq = dev_priv->cdclk.hw.cdclk;
+	dev_priv->cdclk.logical = dev_priv->cdclk.actual = dev_priv->cdclk.hw;
 
 	intel_shared_dpll_init(dev);
 

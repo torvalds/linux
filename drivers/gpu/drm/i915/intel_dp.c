@@ -1785,7 +1785,7 @@ found:
 			break;
 		}
 
-		to_intel_atomic_state(pipe_config->base.state)->cdclk_pll_vco = vco;
+		to_intel_atomic_state(pipe_config->base.state)->cdclk.logical.vco = vco;
 	}
 
 	if (!HAS_DDI(dev_priv))

@@ -2108,7 +2108,7 @@ hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 		return 0;
 	if (WARN_ON(adjusted_mode->crtc_clock == 0))
 		return 0;
-	if (WARN_ON(intel_state->cdclk == 0))
+	if (WARN_ON(intel_state->cdclk.logical.cdclk == 0))
 		return 0;
 
 	/* The WM are computed with base on how long it takes to fill a single
@@ -2117,7 +2117,7 @@ hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 	linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
 				     adjusted_mode->crtc_clock);
 	ips_linetime = DIV_ROUND_CLOSEST(adjusted_mode->crtc_htotal * 1000 * 8,
-					 intel_state->cdclk);
+					 intel_state->cdclk.logical.cdclk);
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
 	       PIPE_WM_LINETIME_TIME(linetime);
