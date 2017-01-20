@@ -61,6 +61,11 @@ struct bcm_sf2_priv {
 	void __iomem			*fcb;
 	void __iomem			*acb;
 
+	/* Register offsets indirection tables */
+	u32 				type;
+	const u16			*reg_offsets;
+	unsigned int			core_reg_align;
+
 	/* spinlock protecting access to the indirect registers */
 	spinlock_t			indir_lock;
 
@@ -102,6 +107,11 @@ static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
 	struct b53_device *dev = ds->priv;
 
 	return dev->priv;
+}
+
+static inline u32 bcm_sf2_mangle_addr(struct bcm_sf2_priv *priv, u32 off)
+{
+	return off << priv->core_reg_align;
 }
 
 #define SF2_IO_MACRO(name) \
@@ -153,8 +163,28 @@ static inline void intrl2_##which##_mask_set(struct bcm_sf2_priv *priv, \
 	priv->irq##which##_mask |= (mask);				\
 }									\
 
-SF2_IO_MACRO(core);
-SF2_IO_MACRO(reg);
+static inline u32 core_readl(struct bcm_sf2_priv *priv, u32 off)
+{
+	u32 tmp = bcm_sf2_mangle_addr(priv, off);
+	return __raw_readl(priv->core + tmp);
+}
+
+static inline void core_writel(struct bcm_sf2_priv *priv, u32 val, u32 off)
+{
+	u32 tmp = bcm_sf2_mangle_addr(priv, off);
+	__raw_writel(val, priv->core + tmp);
+}
+
+static inline u32 reg_readl(struct bcm_sf2_priv *priv, u16 off)
+{
+	return __raw_readl(priv->reg + priv->reg_offsets[off]);
+}
+
+static inline void reg_writel(struct bcm_sf2_priv *priv, u32 val, u16 off)
+{
+	__raw_writel(val, priv->reg + priv->reg_offsets[off]);
+}
+
 SF2_IO64_MACRO(core);
 SF2_IO_MACRO(intrl2_0);
 SF2_IO_MACRO(intrl2_1);

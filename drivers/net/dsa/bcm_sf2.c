@@ -1009,10 +1009,49 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_fdb_del		= b53_fdb_del,
 };
 
+struct bcm_sf2_of_data {
+	u32 type;
+	const u16 *reg_offsets;
+	unsigned int core_reg_align;
+};
+
+/* Register offsets for the SWITCH_REG_* block */
+static const u16 bcm_sf2_7445_reg_offsets[] = {
+	[REG_SWITCH_CNTRL]	= 0x00,
+	[REG_SWITCH_STATUS]	= 0x04,
+	[REG_DIR_DATA_WRITE]	= 0x08,
+	[REG_DIR_DATA_READ]	= 0x0C,
+	[REG_SWITCH_REVISION]	= 0x18,
+	[REG_PHY_REVISION]	= 0x1C,
+	[REG_SPHY_CNTRL]	= 0x2C,
+	[REG_RGMII_0_CNTRL]	= 0x34,
+	[REG_RGMII_1_CNTRL]	= 0x40,
+	[REG_RGMII_2_CNTRL]	= 0x4c,
+	[REG_LED_0_CNTRL]	= 0x90,
+	[REG_LED_1_CNTRL]	= 0x94,
+	[REG_LED_2_CNTRL]	= 0x98,
+};
+
+static const struct bcm_sf2_of_data bcm_sf2_7445_data = {
+	.type		= BCM7445_DEVICE_ID,
+	.core_reg_align	= 0,
+	.reg_offsets	= bcm_sf2_7445_reg_offsets,
+};
+
+static const struct of_device_id bcm_sf2_of_match[] = {
+	{ .compatible = "brcm,bcm7445-switch-v4.0",
+	  .data = &bcm_sf2_7445_data
+	},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
+
 static int bcm_sf2_sw_probe(struct platform_device *pdev)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
 	struct device_node *dn = pdev->dev.of_node;
+	const struct of_device_id *of_id = NULL;
+	const struct bcm_sf2_of_data *data;
 	struct b53_platform_data *pdata;
 	struct dsa_switch_ops *ops;
 	struct bcm_sf2_priv *priv;
@@ -1040,11 +1079,22 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
+	of_id = of_match_node(bcm_sf2_of_match, dn);
+	if (!of_id || !of_id->data)
+		return -EINVAL;
+
+	data = of_id->data;
+
+	/* Set SWITCH_REG register offsets and SWITCH_CORE align factor */
+	priv->type = data->type;
+	priv->reg_offsets = data->reg_offsets;
+	priv->core_reg_align = data->core_reg_align;
+
 	/* Auto-detection using standard registers will not work, so
 	 * provide an indication of what kind of device we are for
 	 * b53_common to work with
 	 */
-	pdata->chip_id = BCM7445_DEVICE_ID;
+	pdata->chip_id = priv->type;
 	dev->pdata = pdata;
 
 	priv->dev = dev;
@@ -1190,11 +1240,6 @@ static int bcm_sf2_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(bcm_sf2_pm_ops,
 			 bcm_sf2_suspend, bcm_sf2_resume);
 
-static const struct of_device_id bcm_sf2_of_match[] = {
-	{ .compatible = "brcm,bcm7445-switch-v4.0" },
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,

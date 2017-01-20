@@ -12,22 +12,36 @@
 #define __BCM_SF2_REGS_H
 
 /* Register set relative to 'REG' */
-#define REG_SWITCH_CNTRL		0x00
+
+enum bcm_sf2_reg_offs {
+	REG_SWITCH_CNTRL = 0,
+	REG_SWITCH_STATUS,
+	REG_DIR_DATA_WRITE,
+	REG_DIR_DATA_READ,
+	REG_SWITCH_REVISION,
+	REG_PHY_REVISION,
+	REG_SPHY_CNTRL,
+	REG_RGMII_0_CNTRL,
+	REG_RGMII_1_CNTRL,
+	REG_RGMII_2_CNTRL,
+	REG_LED_0_CNTRL,
+	REG_LED_1_CNTRL,
+	REG_LED_2_CNTRL,
+	REG_SWITCH_REG_MAX,
+};
+
+/* Relative to REG_SWITCH_CNTRL */
 #define  MDIO_MASTER_SEL		(1 << 0)
 
-#define REG_SWITCH_STATUS		0x04
-#define REG_DIR_DATA_WRITE		0x08
-#define REG_DIR_DATA_READ		0x0C
-
-#define REG_SWITCH_REVISION		0x18
+/* Relative to REG_SWITCH_REVISION */
 #define  SF2_REV_MASK			0xffff
 #define  SWITCH_TOP_REV_SHIFT		16
 #define  SWITCH_TOP_REV_MASK		0xffff
 
-#define REG_PHY_REVISION		0x1C
+/* Relative to REG_PHY_REVISION */
 #define  PHY_REVISION_MASK		0xffff
 
-#define REG_SPHY_CNTRL			0x2C
+/* Relative to REG_SPHY_CNTRL */
 #define  IDDQ_BIAS			(1 << 0)
 #define  EXT_PWR_DOWN			(1 << 1)
 #define  FORCE_DLL_EN			(1 << 2)
@@ -37,13 +51,8 @@
 #define  PHY_PHYAD_SHIFT		8
 #define  PHY_PHYAD_MASK			0x1F
 
-#define REG_RGMII_0_BASE		0x34
-#define REG_RGMII_CNTRL			0x00
-#define REG_RGMII_IB_STATUS		0x04
-#define REG_RGMII_RX_CLOCK_DELAY_CNTRL	0x08
-#define REG_RGMII_CNTRL_SIZE		0x0C
-#define REG_RGMII_CNTRL_P(x)		(REG_RGMII_0_BASE + \
-					((x) * REG_RGMII_CNTRL_SIZE))
+#define REG_RGMII_CNTRL_P(x)		(REG_RGMII_0_CNTRL + (x))
+
 /* Relative to REG_RGMII_CNTRL */
 #define  RGMII_MODE_EN			(1 << 0)
 #define  ID_MODE_DIS			(1 << 1)
@@ -61,8 +70,8 @@
 #define  LPI_COUNT_SHIFT		9
 #define  LPI_COUNT_MASK			0x3F
 
-#define REG_LED_CNTRL_BASE		0x90
-#define REG_LED_CNTRL(x)		(REG_LED_CNTRL_BASE + (x) * 4)
+#define REG_LED_CNTRL(x)		(REG_LED_0_CNTRL + (x))
+
 #define  SPDLNK_SRC_SEL			(1 << 24)
 
 /* Register set relative to 'INTRL2_0' and 'INTRL2_1' */
