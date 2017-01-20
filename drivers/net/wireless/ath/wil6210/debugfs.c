@@ -1702,6 +1702,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
 	WIL_FIELD(discovery_mode, S_IRUGO | S_IWUSR,	doff_u8),
 	WIL_FIELD(chip_revision, S_IRUGO,		doff_u8),
+	WIL_FIELD(abft_len, S_IRUGO | S_IWUSR,		doff_u8),
 	{},
 };
 

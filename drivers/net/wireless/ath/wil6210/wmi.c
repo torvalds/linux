@@ -1079,6 +1079,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
 		.disable_ap_sme = disable_ap_sme,
+		.abft_len = wil->abft_len,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
