@@ -535,10 +535,10 @@ static int qla24xx_post_nack_work(struct scsi_qla_host *vha, fc_port_t *fcport,
 }
 
 static
-void qla2x00_async_nack_sp_done(void *v, void *s, int res)
+void qla2x00_async_nack_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
 	struct srb *sp = (struct srb *)s;
+	struct scsi_qla_host *vha = sp->vha;
 	unsigned long flags;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
@@ -595,7 +595,7 @@ void qla2x00_async_nack_sp_done(void *v, void *s, int res)
 	}
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
@@ -645,7 +645,7 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;

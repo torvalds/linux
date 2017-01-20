@@ -1241,7 +1241,7 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		req->outstanding_cmds[index] = NULL;
 
 		/* Save ISP completion status */
-		sp->done(vha, sp, DID_OK << 16);
+		sp->done(sp, DID_OK << 16);
 	} else {
 		ql_log(ql_log_warn, vha, 0x3016, "Invalid SCSI SRB.\n");
 
@@ -1373,7 +1373,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le16_to_cpu(mbx->mb7));
 
 logio_done:
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 static void
@@ -1398,7 +1398,7 @@ qla24xx_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	res = (si->u.mbx.in_mb[0] & MBS_MASK);
 
-	sp->done(vha, sp, res);
+	sp->done(sp, res);
 }
 
 static void
@@ -1416,7 +1416,7 @@ qla24xxx_nack_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	if (pkt->u.isp2x.status != cpu_to_le16(NOTIFY_ACK_SUCCESS))
 		res = QLA_FUNCTION_FAILED;
 
-	sp->done(vha, sp, res);
+	sp->done(sp, res);
 }
 
 static void
@@ -1488,7 +1488,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	     break;
 	}
 
-	sp->done(vha, sp, res);
+	sp->done(sp, res);
 }
 
 static void
@@ -1524,7 +1524,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		type = "Driver ELS logo";
 		ql_dbg(ql_dbg_user, vha, 0x5047,
 		    "Completing %s: (%p) type=%d.\n", type, sp, sp->type);
-		sp->done(vha, sp, 0);
+		sp->done(sp, 0);
 		return;
 	case SRB_CT_PTHRU_CMD:
 		/* borrowing sts_entry_24xx.comp_status.
@@ -1533,7 +1533,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		res = qla2x00_chk_ms_status(vha, (ms_iocb_entry_t *)pkt,
 			(struct ct_sns_rsp *)sp->u.iocb_cmd.u.ctarg.rsp,
 			sp->name);
-		sp->done(vha, sp, res);
+		sp->done(sp, res);
 		return;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x503e,
@@ -1589,7 +1589,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		bsg_job->reply_len = 0;
 	}
 
-	sp->done(vha, sp, res);
+	sp->done(sp, res);
 }
 
 static void
@@ -1701,7 +1701,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    le32_to_cpu(logio->io_parameter[1]));
 
 logio_done:
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 static void
@@ -1751,7 +1751,7 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5055,
 		    (uint8_t *)sts, sizeof(*sts));
 
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 /**
@@ -1839,7 +1839,7 @@ static inline void
 qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 		     uint32_t sense_len, struct rsp_que *rsp, int res)
 {
-	struct scsi_qla_host *vha = sp->fcport->vha;
+	struct scsi_qla_host *vha = sp->vha;
 	struct scsi_cmnd *cp = GET_CMD_SP(sp);
 	uint32_t track_sense_len;
 
@@ -1867,7 +1867,7 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x301c,
 		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
-		    sp->fcport->vha->host_no, cp->device->id, cp->device->lun,
+		    sp->vha->host_no, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x302b,
 		    cp->sense_buffer, sense_len);
@@ -1889,7 +1889,7 @@ struct scsi_dif_tuple {
 static inline int
 qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 {
-	struct scsi_qla_host *vha = sp->fcport->vha;
+	struct scsi_qla_host *vha = sp->vha;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	uint8_t		*ap = &sts24->data[12];
 	uint8_t		*ep = &sts24->data[20];
@@ -2154,7 +2154,7 @@ done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	/* Always return DID_OK, bsg will send the vendor specific response
 	 * in this case only */
-	sp->done(vha, sp, (DID_OK << 6));
+	sp->done(sp, DID_OK << 6);
 
 }
 
@@ -2527,7 +2527,7 @@ out:
 		    resid_len, fw_resid_len, sp, cp);
 
 	if (rsp->status_srb == NULL)
-		sp->done(vha, sp, res);
+		sp->done(sp, res);
 }
 
 /**
@@ -2584,7 +2584,7 @@ qla2x00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 	/* Place command on done queue. */
 	if (sense_len == 0) {
 		rsp->status_srb = NULL;
-		sp->done(vha, sp, cp->result);
+		sp->done(sp, cp->result);
 	}
 }
 
@@ -2620,7 +2620,7 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (sp) {
-		sp->done(vha, sp, res);
+		sp->done(sp, res);
 		return;
 	}
 fatal:
@@ -2678,7 +2678,7 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	abt = &sp->u.iocb_cmd;
 	abt->u.abt.comp_status = le32_to_cpu(pkt->nport_handle);
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 /**

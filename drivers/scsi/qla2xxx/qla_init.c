@@ -47,29 +47,27 @@ qla2x00_sp_timeout(unsigned long __data)
 {
 	srb_t *sp = (srb_t *)__data;
 	struct srb_iocb *iocb;
-	scsi_qla_host_t *vha = (scsi_qla_host_t *)sp->vha;
-	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *vha = sp->vha;
 	struct req_que *req;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	req = ha->req_q_map[0];
+	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	req = vha->hw->req_q_map[0];
 	req->outstanding_cmds[sp->handle] = NULL;
 	iocb = &sp->u.iocb_cmd;
 	iocb->timeout(sp);
-	sp->free(vha, sp);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	sp->free(sp);
+	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 }
 
 void
-qla2x00_sp_free(void *data, void *ptr)
+qla2x00_sp_free(void *ptr)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
 	struct srb_iocb *iocb = &sp->u.iocb_cmd;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
 
 	del_timer(&iocb->timer);
-	qla2x00_rel_sp(vha, sp);
+	qla2x00_rel_sp(sp);
 }
 
 /* Asynchronous Login/Logout Routines -------------------------------------- */
@@ -97,7 +95,7 @@ qla2x00_get_async_timeout(struct scsi_qla_host *vha)
 void
 qla2x00_async_iocb_timeout(void *data)
 {
-	srb_t *sp = (srb_t *)data;
+	srb_t *sp = data;
 	fc_port_t *fcport = sp->fcport;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 	struct event_arg ea;
@@ -130,22 +128,21 @@ qla2x00_async_iocb_timeout(void *data)
 	case SRB_NACK_PLOGI:
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
-		sp->done(sp->vha, sp, QLA_FUNCTION_TIMEOUT);
+		sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		break;
 	}
 }
 
 static void
-qla2x00_async_login_sp_done(void *data, void *ptr, int res)
+qla2x00_async_login_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
+	struct scsi_qla_host *vha = sp->vha;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
 	struct event_arg ea;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
-		"%s %8phC res %d \n",
-		   __func__, sp->fcport->port_name, res);
+	    "%s %8phC res %d \n", __func__, sp->fcport->port_name, res);
 
 	sp->fcport->flags &= ~FCF_ASYNC_SENT;
 	if (!test_bit(UNLOADING, &vha->dpc_flags)) {
@@ -160,7 +157,7 @@ qla2x00_async_login_sp_done(void *data, void *ptr, int res)
 		qla2x00_fcport_event_handler(vha, &ea);
 	}
 
-	sp->free(sp->fcport->vha, sp);
+	sp->free(sp);
 }
 
 int
@@ -212,24 +209,23 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(fcport->vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
 
 static void
-qla2x00_async_logout_sp_done(void *data, void *ptr, int res)
+qla2x00_async_logout_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
 
 	sp->fcport->flags &= ~FCF_ASYNC_SENT;
-	if (!test_bit(UNLOADING, &vha->dpc_flags))
-		qla2x00_post_async_logout_done_work(sp->fcport->vha, sp->fcport,
+	if (!test_bit(UNLOADING, &sp->vha->dpc_flags))
+		qla2x00_post_async_logout_done_work(sp->vha, sp->fcport,
 		    lio->u.logio.data);
-	sp->free(sp->fcport->vha, sp);
+	sp->free(sp);
 }
 
 int
@@ -264,23 +260,23 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(fcport->vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
 
 static void
-qla2x00_async_adisc_sp_done(void *data, void *ptr, int res)
+qla2x00_async_adisc_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
+	struct scsi_qla_host *vha = sp->vha;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
 
 	if (!test_bit(UNLOADING, &vha->dpc_flags))
-		qla2x00_post_async_adisc_done_work(sp->fcport->vha, sp->fcport,
+		qla2x00_post_async_adisc_done_work(sp->vha, sp->fcport,
 		    lio->u.logio.data);
-	sp->free(sp->fcport->vha, sp);
+	sp->free(sp);
 }
 
 int
@@ -317,7 +313,7 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 	return rval;
 
 done_free_sp:
-	sp->free(fcport->vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
@@ -479,10 +475,10 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 } /* gnl_event */
 
 static void
-qla24xx_async_gnl_sp_done(void *v, void *s, int res)
+qla24xx_async_gnl_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
-	struct srb *sp = (struct srb *)s;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
 	unsigned long flags;
 	struct fc_port *fcport = NULL, *tf;
 	u16 i, n = 0, loop_id;
@@ -541,7 +537,7 @@ qla24xx_async_gnl_sp_done(void *v, void *s, int res)
 
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
@@ -609,7 +605,7 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(fcport->vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
@@ -628,10 +624,10 @@ int qla24xx_post_gnl_work(struct scsi_qla_host *vha, fc_port_t *fcport)
 }
 
 static
-void qla24xx_async_gpdb_sp_done(void *v, void *s, int res)
+void qla24xx_async_gpdb_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
-	struct srb *sp = (struct srb *)s;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 	uint64_t zero = 0;
 	struct port_database_24xx *pd;
@@ -708,7 +704,7 @@ gpd_error_out:
 	dma_pool_free(ha->s_dma_pool, sp->u.iocb_cmd.u.mbx.in,
 		sp->u.iocb_cmd.u.mbx.in_dma);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 static int qla24xx_post_gpdb_work(struct scsi_qla_host *vha, fc_port_t *fcport,
@@ -790,7 +786,7 @@ done_free_sp:
 	if (pd)
 		dma_pool_free(ha->s_dma_pool, pd, pd_dma);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	qla24xx_post_gpdb_work(vha, fcport, opt);
@@ -1168,7 +1164,7 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 static void
 qla2x00_tmf_iocb_timeout(void *data)
 {
-	srb_t *sp = (srb_t *)data;
+	srb_t *sp = data;
 	struct srb_iocb *tmf = &sp->u.iocb_cmd;
 
 	tmf->u.tmf.comp_status = CS_TIMEOUT;
@@ -1176,10 +1172,11 @@ qla2x00_tmf_iocb_timeout(void *data)
 }
 
 static void
-qla2x00_tmf_sp_done(void *data, void *ptr, int res)
+qla2x00_tmf_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
 	struct srb_iocb *tmf = &sp->u.iocb_cmd;
+
 	complete(&tmf->u.tmf.comp);
 }
 
@@ -1237,7 +1234,7 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	}
 
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	return rval;
 }
@@ -1245,7 +1242,7 @@ done:
 static void
 qla24xx_abort_iocb_timeout(void *data)
 {
-	srb_t *sp = (srb_t *)data;
+	srb_t *sp = data;
 	struct srb_iocb *abt = &sp->u.iocb_cmd;
 
 	abt->u.abt.comp_status = CS_TIMEOUT;
@@ -1253,9 +1250,9 @@ qla24xx_abort_iocb_timeout(void *data)
 }
 
 static void
-qla24xx_abort_sp_done(void *data, void *ptr, int res)
+qla24xx_abort_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
 	struct srb_iocb *abt = &sp->u.iocb_cmd;
 
 	complete(&abt->u.abt.comp);
@@ -1264,7 +1261,7 @@ qla24xx_abort_sp_done(void *data, void *ptr, int res)
 static int
 qla24xx_async_abort_cmd(srb_t *cmd_sp)
 {
-	scsi_qla_host_t *vha = cmd_sp->fcport->vha;
+	scsi_qla_host_t *vha = cmd_sp->vha;
 	fc_port_t *fcport = cmd_sp->fcport;
 	struct srb_iocb *abt_iocb;
 	srb_t *sp;
@@ -1297,7 +1294,7 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp)
 	    QLA_SUCCESS : QLA_FUNCTION_FAILED;
 
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	return rval;
 }
@@ -7564,6 +7561,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 		memset(qpair, 0, sizeof(struct qla_qpair));
 
 		qpair->hw = vha->hw;
+		qpair->vha = vha;
 
 		/* Assign available que pair id */
 		mutex_lock(&ha->mq_lock);

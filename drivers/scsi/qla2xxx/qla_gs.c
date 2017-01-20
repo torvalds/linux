@@ -2822,10 +2822,10 @@ void qla24xx_handle_gidpn_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	}
 } /* gidpn_event */
 
-static void qla2x00_async_gidpn_sp_done(void *v, void *s, int res)
+static void qla2x00_async_gidpn_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
-	struct srb *sp = (struct srb *)s;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
 	fc_port_t *fcport = sp->fcport;
 	u8 *id = fcport->ct_desc.ct_sns->p.rsp.rsp.gid_pn.port_id;
 	struct event_arg ea;
@@ -2847,7 +2847,7 @@ static void qla2x00_async_gidpn_sp_done(void *v, void *s, int res)
 
 	qla2x00_fcport_event_handler(vha, &ea);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 int qla24xx_async_gidpn(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -2905,7 +2905,7 @@ int qla24xx_async_gidpn(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
@@ -2941,11 +2941,11 @@ int qla24xx_post_gpsc_work(struct scsi_qla_host *vha, fc_port_t *fcport)
 	return qla2x00_post_work(vha, e);
 }
 
-static void qla24xx_async_gpsc_sp_done(void *v, void *s, int res)
+static void qla24xx_async_gpsc_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
-	struct srb *sp = (struct srb *)s;
 	fc_port_t *fcport = sp->fcport;
 	struct ct_sns_rsp       *ct_rsp;
 	struct event_arg ea;
@@ -3011,7 +3011,7 @@ done:
 	ea.fcport = fcport;
 	qla2x00_fcport_event_handler(vha, &ea);
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
@@ -3066,7 +3066,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	return rval;
 
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
@@ -3104,7 +3104,7 @@ void qla24xx_async_gpnid_done(scsi_qla_host_t *vha, srb_t *sp)
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
 
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
@@ -3138,10 +3138,10 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	}
 }
 
-static void qla2x00_async_gpnid_sp_done(void *v, void *s, int res)
+static void qla2x00_async_gpnid_sp_done(void *s, int res)
 {
-	struct scsi_qla_host *vha = (struct scsi_qla_host *)v;
-	struct srb *sp = (struct srb *)s;
+	struct srb *sp = s;
+	struct scsi_qla_host *vha = sp->vha;
 	struct ct_sns_req *ct_req =
 	    (struct ct_sns_req *)sp->u.iocb_cmd.u.ctarg.req;
 	struct ct_sns_rsp *ct_rsp =
@@ -3183,7 +3183,7 @@ static void qla2x00_async_gpnid_sp_done(void *v, void *s, int res)
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 		}
 
-		sp->free(vha, sp);
+		sp->free(sp);
 		return;
 	}
 
@@ -3272,7 +3272,7 @@ done_free_sp:
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
 	}
 
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	return rval;
 }
