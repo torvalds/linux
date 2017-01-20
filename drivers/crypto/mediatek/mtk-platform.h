@@ -131,6 +131,7 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
  * @dst:	the structure that holds destination sg list info
  * @aligned_sg:	the scatter list is use to alignment
  * @real_dst:	pointer to the destination sg list
+ * @resume:	pointer to resume function
  * @total:	request buffer length
  * @buf:	pointer to page buffer
  * @id:		record identification
@@ -149,6 +150,8 @@ struct mtk_aes_rec {
 
 	struct scatterlist aligned_sg;
 	struct scatterlist *real_dst;
+
+	mtk_aes_fn resume;
 
 	size_t total;
 	void *buf;

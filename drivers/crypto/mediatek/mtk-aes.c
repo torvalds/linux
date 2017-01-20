@@ -406,6 +406,15 @@ static int mtk_aes_handle_queue(struct mtk_cryp *cryp, u8 id,
 	return ctx->start(cryp, aes);
 }
 
+static int mtk_aes_complete(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
+{
+	aes->flags &= ~AES_FLAGS_BUSY;
+	aes->areq->complete(aes->areq, 0);
+
+	/* Handle new request */
+	return mtk_aes_handle_queue(cryp, aes->id, NULL);
+}
+
 static int mtk_aes_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
 	struct ablkcipher_request *req = ablkcipher_request_cast(aes->areq);
@@ -415,6 +424,8 @@ static int mtk_aes_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	rctx = ablkcipher_request_ctx(req);
 	rctx->mode &= AES_FLAGS_MODE_MSK;
 	aes->flags = (aes->flags & ~AES_FLAGS_MODE_MSK) | rctx->mode;
+
+	aes->resume = mtk_aes_complete;
 
 	err = mtk_aes_map(cryp, aes, req->src, req->dst, req->nbytes);
 	if (err)
@@ -456,16 +467,6 @@ static void mtk_aes_unmap(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 		sg_copy_from_buffer(aes->real_dst,
 				    sg_nents(aes->real_dst),
 				    aes->buf, aes->total);
-}
-
-static inline void mtk_aes_complete(struct mtk_cryp *cryp,
-				    struct mtk_aes_rec *aes)
-{
-	aes->flags &= ~AES_FLAGS_BUSY;
-	aes->areq->complete(aes->areq, 0);
-
-	/* Handle new request */
-	mtk_aes_handle_queue(cryp, aes->id, NULL);
 }
 
 /* Check and set the AES key to transform state buffer */
@@ -591,7 +592,7 @@ static void mtk_aes_enc_task(unsigned long data)
 	struct mtk_aes_rec *aes = cryp->aes[0];
 
 	mtk_aes_unmap(cryp, aes);
-	mtk_aes_complete(cryp, aes);
+	aes->resume(cryp, aes);
 }
 
 static void mtk_aes_dec_task(unsigned long data)
@@ -600,7 +601,7 @@ static void mtk_aes_dec_task(unsigned long data)
 	struct mtk_aes_rec *aes = cryp->aes[1];
 
 	mtk_aes_unmap(cryp, aes);
-	mtk_aes_complete(cryp, aes);
+	aes->resume(cryp, aes);
 }
 
 static irqreturn_t mtk_aes_enc_irq(int irq, void *dev_id)
