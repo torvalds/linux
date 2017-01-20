@@ -808,7 +808,7 @@
 				reg = <0x020e0000 0x4000>;
 			};
 
-			ldb: ldb@020e0008 {
+			ldb: ldb {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
