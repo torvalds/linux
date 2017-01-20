@@ -337,17 +337,15 @@ void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 
 	/* First AP hasn't cached it yet, go through the blob. */
 	if (!cont.data) {
-		struct cpio_data cp = { NULL, 0, "" };
+		struct cpio_data cp;
 
 		if (cont.size == -1)
 			return;
 
 reget:
 		if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax))) {
-#ifdef CONFIG_BLK_DEV_INITRD
-			cp = find_cpio_data(ucode_path, (void *)initrd_start,
-					    initrd_end - initrd_start, NULL);
-#endif
+			cp = find_microcode_in_initrd(ucode_path, false);
+
 			if (!(cp.data && cp.size)) {
 				/*
 				 * Mark it so that other APs do not scan again
@@ -401,13 +399,9 @@ int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
 
 	if (!cont.data) {
 		if (IS_ENABLED(CONFIG_X86_32) && (cont.size != -1)) {
-			struct cpio_data cp = { NULL, 0, "" };
+			struct cpio_data cp;
 
-#ifdef CONFIG_BLK_DEV_INITRD
-			cp = find_cpio_data(ucode_path, (void *)initrd_start,
-					    initrd_end - initrd_start, NULL);
-#endif
-
+			cp = find_microcode_in_initrd(ucode_path, false);
 			if (!(cp.data && cp.size)) {
 				cont.size = -1;
 				return -EINVAL;
