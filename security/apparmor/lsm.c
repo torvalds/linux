@@ -102,6 +102,27 @@ static void apparmor_cred_transfer(struct cred *new, const struct cred *old)
 	aa_dup_cred_ctx(new_ctx, old_ctx);
 }
 
+static void apparmor_task_free(struct task_struct *task)
+{
+
+	aa_free_task_ctx(task_ctx(task));
+	task_ctx(task) = NULL;
+}
+
+static int apparmor_task_alloc(struct task_struct *task,
+			       unsigned long clone_flags)
+{
+	struct aa_task_ctx *new = aa_alloc_task_ctx(GFP_KERNEL);
+
+	if (!new)
+		return -ENOMEM;
+
+	aa_dup_task_ctx(new, current_task_ctx());
+	task_ctx(task) = new;
+
+	return 0;
+}
+
 static int apparmor_ptrace_access_check(struct task_struct *child,
 					unsigned int mode)
 {
@@ -577,15 +598,16 @@ static int apparmor_getprocattr(struct task_struct *task, char *name,
 	int error = -ENOENT;
 	/* released below */
 	const struct cred *cred = get_task_cred(task);
+	struct aa_task_ctx *tctx = current_task_ctx();
 	struct aa_cred_ctx *ctx = cred_ctx(cred);
 	struct aa_label *label = NULL;
 
 	if (strcmp(name, "current") == 0)
 		label = aa_get_newest_label(ctx->label);
-	else if (strcmp(name, "prev") == 0  && ctx->previous)
-		label = aa_get_newest_label(ctx->previous);
-	else if (strcmp(name, "exec") == 0 && ctx->onexec)
-		label = aa_get_newest_label(ctx->onexec);
+	else if (strcmp(name, "prev") == 0  && tctx->previous)
+		label = aa_get_newest_label(tctx->previous);
+	else if (strcmp(name, "exec") == 0 && tctx->onexec)
+		label = aa_get_newest_label(tctx->onexec);
 	else
 		error = -EINVAL;
 
@@ -699,7 +721,9 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
  */
 static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
 {
-	/* TODO: cleanup signals - ipc mediation */
+	/* clear out temporary/transitional state from the context */
+	aa_clear_task_ctx_trans(current_task_ctx());
+
 	return;
 }
 
@@ -779,6 +803,8 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bprm_committing_creds, apparmor_bprm_committing_creds),
 	LSM_HOOK_INIT(bprm_committed_creds, apparmor_bprm_committed_creds),
 
+	LSM_HOOK_INIT(task_free, apparmor_task_free),
+	LSM_HOOK_INIT(task_alloc, apparmor_task_alloc),
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
 	LSM_HOOK_INIT(task_kill, apparmor_task_kill),
 };
@@ -1025,15 +1051,25 @@ static int __init set_init_ctx(void)
 {
 	struct cred *cred = (struct cred *)current->real_cred;
 	struct aa_cred_ctx *ctx;
+	struct aa_task_ctx *tctx;
 
 	ctx = aa_alloc_cred_ctx(GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		goto fail_cred;
+	tctx = aa_alloc_task_ctx(GFP_KERNEL);
+	if (!tctx)
+		goto fail_task;
 
 	ctx->label = aa_get_label(ns_unconfined(root_ns));
 	cred_ctx(cred) = ctx;
+	task_ctx(current) = tctx;
 
 	return 0;
+
+fail_task:
+	aa_free_cred_ctx(ctx);
+fail_cred:
+	return -ENOMEM;
 }
 
 static void destroy_buffers(void)

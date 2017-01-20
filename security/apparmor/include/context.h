@@ -25,20 +25,24 @@
 #define cred_ctx(X) ((X)->security)
 #define current_cred_ctx() cred_ctx(current_cred())
 
+#define task_ctx(X) ((X)->security)
+#define current_task_ctx() (task_ctx(current))
+
 /**
  * struct aa_cred_ctx - primary label for confined tasks
  * @label: the current label   (NOT NULL)
- * @exec: label to transition to on next exec  (MAYBE NULL)
- * @previous: label the task may return to     (MAYBE NULL)
- * @token: magic value the task must know for returning to @previous
- *
- * Contains the task's current label (which could change due to
- * change_hat).  Plus the hat_magic needed during change_hat.
- *
- * TODO: make so a task can be confined by a stack of contexts
  */
 struct aa_cred_ctx {
 	struct aa_label *label;
+};
+
+/**
+ * struct aa_task_ctx - information for current task label change
+ * @onexec: profile to transition to on next exec  (MAY BE NULL)
+ * @previous: profile the task may return to     (MAY BE NULL)
+ * @token: magic value the task must know for returning to @previous_profile
+ */
+struct aa_task_ctx {
 	struct aa_label *onexec;
 	struct aa_label *previous;
 	u64 token;
@@ -47,6 +51,11 @@ struct aa_cred_ctx {
 struct aa_cred_ctx *aa_alloc_cred_ctx(gfp_t flags);
 void aa_free_cred_ctx(struct aa_cred_ctx *ctx);
 void aa_dup_cred_ctx(struct aa_cred_ctx *new, const struct aa_cred_ctx *old);
+
+struct aa_task_ctx *aa_alloc_task_ctx(gfp_t flags);
+void aa_free_task_ctx(struct aa_task_ctx *ctx);
+void aa_dup_task_ctx(struct aa_task_ctx *new, const struct aa_task_ctx *old);
+
 int aa_replace_current_label(struct aa_label *label);
 int aa_set_current_onexec(struct aa_label *label, bool stack);
 int aa_set_current_hat(struct aa_label *label, u64 token);
@@ -213,11 +222,13 @@ static inline struct aa_ns *aa_get_current_ns(void)
 }
 
 /**
- * aa_clear_cred_ctx_trans - clear transition tracking info from the ctx
+ * aa_clear_task_ctx_trans - clear transition tracking info from the ctx
  * @ctx: task context to clear (NOT NULL)
  */
-static inline void aa_clear_cred_ctx_trans(struct aa_cred_ctx *ctx)
+static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
 {
+	AA_BUG(!ctx);
+
 	aa_put_label(ctx->previous);
 	aa_put_label(ctx->onexec);
 	ctx->previous = NULL;
