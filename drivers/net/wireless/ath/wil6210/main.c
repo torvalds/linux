@@ -918,7 +918,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	flush_workqueue(wil->wmi_wq);
 
 	wil_bl_crash_info(wil, false);
+	wil_disable_irq(wil);
 	rc = wil_target_reset(wil);
+	wil6210_clear_irq(wil);
+	wil_enable_irq(wil);
 	wil_rx_fini(wil);
 	if (rc) {
 		wil_bl_crash_info(wil, true);
