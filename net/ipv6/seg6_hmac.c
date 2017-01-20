@@ -389,7 +389,8 @@ static int seg6_hmac_init_algo(void)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
-			shash = kzalloc(shsize, GFP_KERNEL);
+			shash = kzalloc_node(shsize, GFP_KERNEL,
+					     cpu_to_node(cpu));
 			if (!shash)
 				return -ENOMEM;
 			*per_cpu_ptr(algo->shashs, cpu) = shash;
