@@ -91,11 +91,6 @@ static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 	return dev->dma_ops;
 }
 
-static inline void set_dma_ops(struct device *dev, const struct dma_map_ops *ops)
-{
-	dev->dma_ops = ops;
-}
-
 /*
  * get_dma_offset()
  *
