@@ -49,7 +49,6 @@ struct cont_desc {
 	struct microcode_amd *mc;
 	u32		     cpuid_1_eax;
 	u32		     psize;
-	u16		     eq_id;
 	u8		     *data;
 	size_t		     size;
 };
@@ -92,10 +91,8 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 	/* Am I looking at an equivalence table header? */
 	if (hdr[0] != UCODE_MAGIC ||
 	    hdr[1] != UCODE_EQUIV_CPU_TABLE_TYPE ||
-	    hdr[2] == 0) {
-		desc->eq_id = 0;
+	    hdr[2] == 0)
 		return CONTAINER_HDR_SZ;
-	}
 
 	buf = ucode;
 
@@ -147,9 +144,8 @@ static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 	 * buffer.
 	 */
 	if (desc->mc) {
-		desc->eq_id = eq_id;
-		desc->data  = ucode;
-		desc->size  = orig_size - size;
+		desc->data = ucode;
+		desc->size = orig_size - size;
 
 		return 0;
 	}
@@ -220,8 +216,6 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_p
 	desc.cpuid_1_eax = cpuid_1_eax;
 
 	scan_containers(ucode, size, &desc);
-	if (!desc.eq_id)
-		return ret;
 
 	mc = desc.mc;
 	if (!mc)
@@ -341,7 +335,7 @@ int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
 	desc.cpuid_1_eax = cpuid_1_eax;
 
 	scan_containers(cp.data, cp.size, &desc);
-	if (!desc.eq_id)
+	if (!desc.mc)
 		return -EINVAL;
 
 	ret = load_microcode_amd(smp_processor_id(), x86_family(cpuid_1_eax),
