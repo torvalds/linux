@@ -13,8 +13,10 @@
 #define __MTK_PLATFORM_H_
 
 #include <crypto/algapi.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/skcipher.h>
 #include <linux/crypto.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
