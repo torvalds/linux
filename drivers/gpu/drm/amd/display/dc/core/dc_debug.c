@@ -279,20 +279,26 @@ void context_timing_trace(
 	int i;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct dal_logger *logger =  core_dc->ctx->logger;
+	int h_pos[MAX_PIPES], v_pos[MAX_PIPES];
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-		int h_pos = 0;
-		int v_pos = 0;
 
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &h_pos, &v_pos);
-		TIMING_TRACE("Pipe_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
-				pipe_ctx->pipe_idx,
+		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &h_pos[i], &v_pos[i]);
+	}
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+
+		if (pipe_ctx->stream == NULL)
+			continue;
+
+		TIMING_TRACE("OTG_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
+				pipe_ctx->tg->inst,
 				pipe_ctx->stream->public.timing.h_total,
 				pipe_ctx->stream->public.timing.v_total,
-				h_pos, v_pos);
+				h_pos[i], v_pos[i]);
 	}
 }

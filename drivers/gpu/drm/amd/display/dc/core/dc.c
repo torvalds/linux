@@ -1563,9 +1563,11 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 
 			if (update_type == UPDATE_TYPE_FULL) {
 				/* only apply for top pipe */
-				if (!pipe_ctx->top_pipe)
+				if (!pipe_ctx->top_pipe) {
 					core_dc->hwss.apply_ctx_for_surface(core_dc,
 							 surface, context);
+					context_timing_trace(dc, &context->res_ctx);
+				}
 			} else if (updates[i].flip_addr)
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
 
