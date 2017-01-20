@@ -571,6 +571,15 @@ static void hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 	ui_browser__reset_index(&browser->b);
 }
 
+static void hist_browser__set_folding_selected(struct hist_browser *browser, bool unfold)
+{
+	if (!browser->he_selection)
+		return;
+
+	hist_entry__set_folding(browser->he_selection, browser, unfold);
+	browser->b.nr_entries = hist_browser__nr_entries(browser);
+}
+
 static void ui_browser__warn_lost_events(struct ui_browser *browser)
 {
 	ui_browser__warning(browser, 4,
@@ -644,9 +653,17 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 			/* Collapse the whole world. */
 			hist_browser__set_folding(browser, false);
 			break;
+		case 'c':
+			/* Collapse the selected entry. */
+			hist_browser__set_folding_selected(browser, false);
+			break;
 		case 'E':
 			/* Expand the whole world. */
 			hist_browser__set_folding(browser, true);
+			break;
+		case 'e':
+			/* Expand the selected entry. */
+			hist_browser__set_folding_selected(browser, true);
 			break;
 		case 'H':
 			browser->show_headers = !browser->show_headers;
