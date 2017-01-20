@@ -827,7 +827,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 			return -EINVAL;
 
 		ret = virtio_net_hdr_from_skb(skb, &vnet_hdr,
-					      macvtap_is_little_endian(q));
+					      macvtap_is_little_endian(q), true);
 		if (ret)
 			BUG();
 

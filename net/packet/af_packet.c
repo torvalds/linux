@@ -1972,7 +1972,7 @@ static int __packet_rcv_vnet(const struct sk_buff *skb,
 {
 	*vnet_hdr = (const struct virtio_net_hdr) { 0 };
 
-	if (virtio_net_hdr_from_skb(skb, vnet_hdr, vio_le()))
+	if (virtio_net_hdr_from_skb(skb, vnet_hdr, vio_le(), true))
 		BUG();
 
 	return 0;
