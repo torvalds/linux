@@ -46,7 +46,7 @@
 #define LS1021A_AXICC_ADDR	0xC0
 
 #define SATA_ECC_DISABLE	0x00020000
-#define LS1046A_SATA_ECC_DIS	0x80000000
+#define ECC_DIS_ARMV8_CH2	0x80000000
 
 enum ahci_qoriq_type {
 	AHCI_LS1021A,
@@ -158,6 +158,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 	switch (qpriv->type) {
 	case AHCI_LS1021A:
+		if (!qpriv->ecc_addr)
+			return -EINVAL;
 		writel(SATA_ECC_DISABLE, qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(LS1021A_PORT_PHY2, reg_base + PORT_PHY2);
@@ -171,6 +173,9 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		break;
 
 	case AHCI_LS1043A:
+		if (!qpriv->ecc_addr)
+			return -EINVAL;
+		writel(ECC_DIS_ARMV8_CH2, qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
@@ -185,7 +190,9 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		break;
 
 	case AHCI_LS1046A:
-		writel(LS1046A_SATA_ECC_DIS, qpriv->ecc_addr);
+		if (!qpriv->ecc_addr)
+			return -EINVAL;
+		writel(ECC_DIS_ARMV8_CH2, qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
