@@ -54,7 +54,6 @@
 
 &uart0 {
 	clock-frequency = <62499840>;
-	status = "okay";
 };
 
 &uart1 {
