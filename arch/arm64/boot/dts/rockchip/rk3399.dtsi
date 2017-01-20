@@ -1826,7 +1826,7 @@
 		rockchip,grf = <&grf>;
 		power-domains = <&power RK3399_PD_HDCP>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_SFR>, <&cru SCLK_HDMI_SFR>, <&cru PCLK_EDP_CTRL>;
+		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_SFR>, <&cru PLL_VPLL>, <&cru PCLK_VIO_GRF>;
 		clock-names = "iahb", "isfr", "vpll", "grf";
 		status = "disabled";
 
