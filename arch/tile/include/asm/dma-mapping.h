@@ -29,12 +29,9 @@ extern const struct dma_map_ops *gx_pci_dma_map_ops;
 extern const struct dma_map_ops *gx_legacy_pci_dma_map_ops;
 extern const struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 
-static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	if (dev && dev->dma_ops)
-		return dev->dma_ops;
-	else
-		return tile_dma_map_ops;
+	return tile_dma_map_ops;
 }
 
 static inline dma_addr_t get_dma_offset(struct device *dev)

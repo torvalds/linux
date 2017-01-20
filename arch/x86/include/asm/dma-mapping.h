@@ -27,16 +27,9 @@ extern int panic_on_overflow;
 
 extern const struct dma_map_ops *dma_ops;
 
-static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-#ifndef CONFIG_X86_DEV_DMA_OPS
 	return dma_ops;
-#else
-	if (unlikely(!dev) || !dev->dma_ops)
-		return dma_ops;
-	else
-		return dev->dma_ops;
-#endif
 }
 
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp);

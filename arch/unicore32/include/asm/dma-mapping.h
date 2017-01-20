@@ -23,7 +23,7 @@
 
 extern const struct dma_map_ops swiotlb_dma_map_ops;
 
-static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	return &swiotlb_dma_map_ops;
 }

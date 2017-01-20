@@ -23,12 +23,12 @@ static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
 	return &arm_dma_ops;
 }
 
-static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	if (xen_initial_domain())
 		return xen_dma_ops;
 	else
-		return __generic_dma_ops(dev);
+		return __generic_dma_ops(NULL);
 }
 
 #define HAVE_ARCH_DMA_SUPPORTED 1

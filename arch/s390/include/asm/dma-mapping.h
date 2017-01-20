@@ -12,10 +12,8 @@
 
 extern const struct dma_map_ops s390_pci_dma_ops;
 
-static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	if (dev && dev->dma_ops)
-		return dev->dma_ops;
 	return &dma_noop_ops;
 }
 

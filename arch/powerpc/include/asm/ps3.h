@@ -435,7 +435,7 @@ static inline void *ps3_system_bus_get_drvdata(
 	return dev_get_drvdata(&dev->core);
 }
 
-/* These two need global scope for get_dma_ops(). */
+/* These two need global scope for get_arch_dma_ops(). */
 
 extern struct bus_type ps3_system_bus_type;
 
