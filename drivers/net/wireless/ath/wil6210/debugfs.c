@@ -1379,6 +1379,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
+		u8 aid = 0;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1389,9 +1390,10 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			break;
 		case wil_sta_connected:
 			status = "connected";
+			aid = p->aid;
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+		seq_printf(s, "[%d] %pM %s AID %d\n", i, p->addr, status, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);

@@ -495,8 +495,8 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	}
 
 	ch = evt->channel + 1;
-	wil_info(wil, "Connect %pM channel [%d] cid %d\n",
-		 evt->bssid, ch, evt->cid);
+	wil_info(wil, "Connect %pM channel [%d] cid %d aid %d\n",
+		 evt->bssid, ch, evt->cid, evt->aid);
 	wil_hex_dump_wmi("connect AI : ", DUMP_PREFIX_OFFSET, 16, 1,
 			 evt->assoc_info, len - sizeof(*evt), true);
 
@@ -604,6 +604,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	}
 
 	wil->sta[evt->cid].status = wil_sta_connected;
+	wil->sta[evt->cid].aid = evt->aid;
 	set_bit(wil_status_fwconnected, wil->status);
 	wil_update_net_queues_bh(wil, NULL, false);
 
