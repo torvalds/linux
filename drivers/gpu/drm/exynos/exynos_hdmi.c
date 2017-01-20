@@ -797,7 +797,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 				sizeof(buf));
 	if (ret > 0) {
 		hdmi_reg_writeb(hdata, HDMI_VSI_CON, HDMI_VSI_CON_EVERY_VSYNC);
-		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, ret);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, 3);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_DATA(0), buf + 3, ret - 3);
 	}
 
 	ret = hdmi_audio_infoframe_init(&frm.audio);
