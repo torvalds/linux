@@ -601,6 +601,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 		goto out;
 	}
 	wil->privacy = sme->privacy;
+	wil->pbss = sme->pbss;
 
 	if (wil->privacy) {
 		/* For secure assoc, remove old keys */
