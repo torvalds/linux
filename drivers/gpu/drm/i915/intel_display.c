@@ -2585,8 +2585,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			 * We only keep the x/y offsets, so push all of the
 			 * gtt offset into the x/y offsets.
 			 */
-			_intel_adjust_tile_offset(&x, &y, tile_size,
-						  tile_width, tile_height, pitch_tiles,
+			_intel_adjust_tile_offset(&x, &y,
+						  tile_width, tile_height,
+						  tile_size, pitch_tiles,
 						  gtt_offset_rotated * tile_size, 0);
 
 			gtt_offset_rotated += rot_info->plane[i].width * rot_info->plane[i].height;
