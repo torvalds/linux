@@ -24,6 +24,10 @@
 		display0 = &lcd0;
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	vmmcsd_fixed: fixedregulator-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";

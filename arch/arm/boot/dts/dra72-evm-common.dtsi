@@ -18,6 +18,10 @@
 		display0 = &hdmi0;
 	};
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	evm_12v0: fixedregulator-evm12v0 {
 		/* main supply */
 		compatible = "regulator-fixed";
