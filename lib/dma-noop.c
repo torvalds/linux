@@ -1,7 +1,7 @@
 /*
  *	lib/dma-noop.c
  *
- * Simple DMA noop-ops that map 1:1 with memory
+ * DMA operations that map to physical addresses without flushing memory.
  */
 #include <linux/export.h>
 #include <linux/mm.h>
