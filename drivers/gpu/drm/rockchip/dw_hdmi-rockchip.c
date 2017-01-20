@@ -361,20 +361,16 @@ dw_hdmi_rockchip_encoder_mode_fixup(struct drm_encoder *encoder,
 	return false;
 }
 
-static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
-					      struct drm_display_mode *mode,
-					      struct drm_display_mode *adj_mode)
-{
-	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
-
-	clk_set_rate(hdmi->vpll_clk, adj_mode->clock * 1000);
-}
-
 static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
 	u32 val;
 	int ret;
+
+	if (WARN_ON(!crtc || !crtc->state))
+		return;
+	clk_set_rate(hdmi->vpll_clk, crtc->state->adjusted_mode.clock * 1000);
 
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
@@ -415,7 +411,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
 	.mode_fixup = dw_hdmi_rockchip_encoder_mode_fixup,
-	.mode_set   = dw_hdmi_rockchip_encoder_mode_set,
 	.enable     = dw_hdmi_rockchip_encoder_enable,
 	.disable    = dw_hdmi_rockchip_encoder_disable,
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
