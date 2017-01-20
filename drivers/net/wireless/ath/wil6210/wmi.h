@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,7 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_PS_CONFIG		= 1,
 	WMI_FW_CAPABILITY_RF_SECTORS		= 2,
 	WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT	= 3,
+	WMI_FW_CAPABILITY_DISABLE_AP_SME	= 4,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -187,6 +188,8 @@ enum wmi_command_id {
 	WMI_AOA_MEAS_CMDID				= 0x923,
 	WMI_SET_MGMT_RETRY_LIMIT_CMDID			= 0x930,
 	WMI_GET_MGMT_RETRY_LIMIT_CMDID			= 0x931,
+	WMI_NEW_STA_CMDID				= 0x935,
+	WMI_DEL_STA_CMDID				= 0x936,
 	WMI_TOF_SESSION_START_CMDID			= 0x991,
 	WMI_TOF_GET_CAPABILITIES_CMDID			= 0x992,
 	WMI_TOF_SET_LCR_CMDID				= 0x993,
@@ -543,7 +546,8 @@ struct wmi_pcp_start_cmd {
 	u8 pcp_max_assoc_sta;
 	u8 hidden_ssid;
 	u8 is_go;
-	u8 reserved0[7];
+	u8 reserved0[6];
+	u8 disable_ap_sme;
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;
@@ -900,6 +904,18 @@ struct wmi_set_mgmt_retry_limit_cmd {
 	u8 mgmt_retry_limit;
 	/* alignment to 32b */
 	u8 reserved[3];
+} __packed;
+
+/* WMI_NEW_STA_CMDID */
+struct wmi_new_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	u8 aid;
+} __packed;
+
+/* WMI_DEL_STA_CMDID */
+struct wmi_del_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 disconnect_reason;
 } __packed;
 
 enum wmi_tof_burst_duration {
@@ -1292,7 +1308,7 @@ struct wmi_connect_event {
 	u8 assoc_info[0];
 } __packed;
 
-/* WMI_DISCONNECT_EVENTID */
+/* disconnect_reason */
 enum wmi_disconnect_reason {
 	WMI_DIS_REASON_NO_NETWORK_AVAIL		= 0x01,
 	/* bmiss */
@@ -1310,6 +1326,7 @@ enum wmi_disconnect_reason {
 	WMI_DIS_REASON_IBSS_MERGE		= 0x0E,
 };
 
+/* WMI_DISCONNECT_EVENTID */
 struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 protocol_reason_status;

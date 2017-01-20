@@ -33,6 +33,7 @@ extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
 extern bool debug_fw;
+extern bool disable_ap_sme;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw" /* code */
@@ -98,6 +99,9 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL6210_RX_HIGH_TRSH_INIT		(0)
 #define WIL6210_RX_HIGH_TRSH_DEFAULT \
 				(1 << (WIL_RX_RING_SIZE_ORDER_DEFAULT - 3))
+#define WIL_MAX_DMG_AID 254 /* for DMG only 1-254 allowed (see
+			     * 802.11REVmc/D5.0, section 9.4.1.8)
+			     */
 /* Hardware definitions begin */
 
 /*
@@ -816,8 +820,8 @@ int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
-int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
-		       bool full_disconnect);
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac,
+		       u16 reason, bool full_disconnect, bool del_sta);
 int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout);
 int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason);
 int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason);
@@ -827,6 +831,7 @@ int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
 			   enum wmi_ps_profile_type ps_profile);
 int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short);
 int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short);
+int wmi_new_sta(struct wil6210_priv *wil, const u8 *mac, u8 aid);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);

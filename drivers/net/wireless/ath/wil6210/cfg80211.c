@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +19,10 @@
 #include "wmi.h"
 
 #define WIL_MAX_ROC_DURATION_MS 5000
+
+bool disable_ap_sme;
+module_param(disable_ap_sme, bool, S_IRUGO);
+MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
 
 #define CHAN60G(_channel, _flags) {				\
 	.band			= NL80211_BAND_60GHZ,		\
@@ -62,9 +66,16 @@ wil_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		BIT(IEEE80211_STYPE_PROBE_RESP >> 4),
+		BIT(IEEE80211_STYPE_PROBE_RESP >> 4) |
+		BIT(IEEE80211_STYPE_ASSOC_RESP >> 4) |
+		BIT(IEEE80211_STYPE_DISASSOC >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+		BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		BIT(IEEE80211_STYPE_ASSOC_REQ >> 4) |
+		BIT(IEEE80211_STYPE_DISASSOC >> 4) |
+		BIT(IEEE80211_STYPE_AUTH >> 4) |
+		BIT(IEEE80211_STYPE_DEAUTH >> 4) |
+		BIT(IEEE80211_STYPE_REASSOC_REQ >> 4)
 	},
 	[NL80211_IFTYPE_P2P_CLIENT] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
@@ -1322,6 +1333,28 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_cfg80211_add_station(struct wiphy *wiphy,
+				    struct net_device *dev,
+				    const u8 *mac,
+				    struct station_parameters *params)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "add station %pM aid %d\n", mac, params->aid);
+
+	if (!disable_ap_sme) {
+		wil_err(wil, "not supported with AP SME enabled\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (params->aid > WIL_MAX_DMG_AID) {
+		wil_err(wil, "invalid aid\n");
+		return -EINVAL;
+	}
+
+	return wmi_new_sta(wil, mac, params->aid);
+}
+
 static int wil_cfg80211_del_station(struct wiphy *wiphy,
 				    struct net_device *dev,
 				    struct station_del_parameters *params)
@@ -1334,6 +1367,52 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, params->mac, params->reason_code, false);
 	mutex_unlock(&wil->mutex);
+
+	return 0;
+}
+
+static int wil_cfg80211_change_station(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       const u8 *mac,
+				       struct station_parameters *params)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int authorize;
+	int cid, i;
+	struct vring_tx_data *txdata = NULL;
+
+	wil_dbg_misc(wil, "change station %pM mask 0x%x set 0x%x\n", mac,
+		     params->sta_flags_mask, params->sta_flags_set);
+
+	if (!disable_ap_sme) {
+		wil_dbg_misc(wil, "not supported with AP SME enabled\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (!(params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED)))
+		return 0;
+
+	cid = wil_find_cid(wil, mac);
+	if (cid < 0) {
+		wil_err(wil, "station not found\n");
+		return -ENOLINK;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wil->vring2cid_tid); i++)
+		if (wil->vring2cid_tid[i][0] == cid) {
+			txdata = &wil->vring_tx_data[i];
+			break;
+		}
+
+	if (!txdata) {
+		wil_err(wil, "vring data not found\n");
+		return -ENOLINK;
+	}
+
+	authorize = params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED);
+	txdata->dot1x_open = authorize ? 1 : 0;
+	wil_dbg_misc(wil, "cid %d vring %d authorize %d\n", cid, i,
+		     txdata->dot1x_open);
 
 	return 0;
 }
@@ -1521,7 +1600,9 @@ static const struct cfg80211_ops wil_cfg80211_ops = {
 	.change_beacon = wil_cfg80211_change_beacon,
 	.start_ap = wil_cfg80211_start_ap,
 	.stop_ap = wil_cfg80211_stop_ap,
+	.add_station = wil_cfg80211_add_station,
 	.del_station = wil_cfg80211_del_station,
+	.change_station = wil_cfg80211_change_station,
 	.probe_client = wil_cfg80211_probe_client,
 	.change_bss = wil_cfg80211_change_bss,
 	/* P2P device */
@@ -1542,10 +1623,11 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 				 BIT(NL80211_IFTYPE_P2P_GO) |
 				 BIT(NL80211_IFTYPE_P2P_DEVICE) |
 				 BIT(NL80211_IFTYPE_MONITOR);
-	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
-			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_PS_ON_BY_DEFAULT;
+	if (!disable_ap_sme)
+		wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME;
 	dev_dbg(wiphy_dev(wiphy), "%s : flags = 0x%08x\n",
 		__func__, wiphy->flags);
 	wiphy->probe_resp_offload =

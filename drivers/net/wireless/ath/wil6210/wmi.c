@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -556,7 +556,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 		wil_err(wil, "%s: config tx vring failed for CID %d, rc (%d)\n",
 			__func__, evt->cid, rc);
 		wmi_disconnect_sta(wil, wil->sta[evt->cid].addr,
-				   WLAN_REASON_UNSPECIFIED, false);
+				   WLAN_REASON_UNSPECIFIED, false, false);
 	} else {
 		wil_info(wil, "%s: successful connection to CID %d\n",
 			 __func__, evt->cid);
@@ -583,8 +583,12 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 		}
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
-		if (rc)
+		if (rc) {
+			if (disable_ap_sme)
+				/* notify new_sta has failed */
+				cfg80211_del_sta(ndev, evt->bssid, GFP_KERNEL);
 			goto out;
+		}
 
 		memset(&sinfo, 0, sizeof(sinfo));
 
@@ -687,6 +691,7 @@ static void wmi_evt_vring_en(struct wil6210_priv *wil, int id, void *d, int len)
 {
 	struct wmi_vring_en_event *evt = d;
 	u8 vri = evt->vring_index;
+	struct wireless_dev *wdev = wil_to_wdev(wil);
 
 	wil_dbg_wmi(wil, "Enable vring %d\n", vri);
 
@@ -694,7 +699,12 @@ static void wmi_evt_vring_en(struct wil6210_priv *wil, int id, void *d, int len)
 		wil_err(wil, "Enable for invalid vring %d\n", vri);
 		return;
 	}
-	wil->vring_tx_data[vri].dot1x_open = true;
+
+	if (wdev->iftype != NL80211_IFTYPE_AP || !disable_ap_sme)
+		/* in AP mode with disable_ap_sme, this is done by
+		 * wil_cfg80211_change_station()
+		 */
+		wil->vring_tx_data[vri].dot1x_open = true;
 	if (vri == wil->bcast_vring) /* no BA for bcast */
 		return;
 	if (agg_wsize >= 0)
@@ -1069,6 +1079,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		.pcp_max_assoc_sta = max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
+		.disable_ap_sme = disable_ap_sme,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
@@ -1084,6 +1095,13 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 			 "Requested connection limit %u, valid values are 1 - %d. Setting to %d\n",
 			 max_assoc_sta, WIL6210_MAX_CID, WIL6210_MAX_CID);
 		cmd.pcp_max_assoc_sta = WIL6210_MAX_CID;
+	}
+
+	if (disable_ap_sme &&
+	    !test_bit(WMI_FW_CAPABILITY_DISABLE_AP_SME,
+		      wil->fw_capabilities)) {
+		wil_err(wil, "disable_ap_sme not supported by FW\n");
+		return -EOPNOTSUPP;
 	}
 
 	/*
@@ -1456,12 +1474,15 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 	return 0;
 }
 
-int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
-		       bool full_disconnect)
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac,
+		       u16 reason, bool full_disconnect, bool del_sta)
 {
 	int rc;
 	u16 reason_code;
-	struct wmi_disconnect_sta_cmd cmd = {
+	struct wmi_disconnect_sta_cmd disc_sta_cmd = {
+		.disconnect_reason = cpu_to_le16(reason),
+	};
+	struct wmi_del_sta_cmd del_sta_cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
 	struct {
@@ -1469,12 +1490,19 @@ int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
 		struct wmi_disconnect_event evt;
 	} __packed reply;
 
-	ether_addr_copy(cmd.dst_mac, mac);
-
 	wil_dbg_wmi(wil, "%s(%pM, reason %d)\n", __func__, mac, reason);
 
-	rc = wmi_call(wil, WMI_DISCONNECT_STA_CMDID, &cmd, sizeof(cmd),
-		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply), 1000);
+	if (del_sta) {
+		ether_addr_copy(del_sta_cmd.dst_mac, mac);
+		rc = wmi_call(wil, WMI_DEL_STA_CMDID, &del_sta_cmd,
+			      sizeof(del_sta_cmd), WMI_DISCONNECT_EVENTID,
+			      &reply, sizeof(reply), 1000);
+	} else {
+		ether_addr_copy(disc_sta_cmd.dst_mac, mac);
+		rc = wmi_call(wil, WMI_DISCONNECT_STA_CMDID, &disc_sta_cmd,
+			      sizeof(disc_sta_cmd), WMI_DISCONNECT_EVENTID,
+			      &reply, sizeof(reply), 1000);
+	}
 	/* failure to disconnect in reasonable time treated as FW error */
 	if (rc) {
 		wil_fw_error_recovery(wil);
@@ -1682,6 +1710,24 @@ int wmi_abort_scan(struct wil6210_priv *wil)
 	rc = wmi_send(wil, WMI_ABORT_SCAN_CMDID, NULL, 0);
 	if (rc)
 		wil_err(wil, "Failed to abort scan (%d)\n", rc);
+
+	return rc;
+}
+
+int wmi_new_sta(struct wil6210_priv *wil, const u8 *mac, u8 aid)
+{
+	int rc;
+	struct wmi_new_sta_cmd cmd = {
+		.aid = aid,
+	};
+
+	wil_dbg_wmi(wil, "new sta %pM, aid %d\n", mac, aid);
+
+	ether_addr_copy(cmd.dst_mac, mac);
+
+	rc = wmi_send(wil, WMI_NEW_STA_CMDID, &cmd, sizeof(cmd));
+	if (rc)
+		wil_err(wil, "Failed to send new sta (%d)\n", rc);
 
 	return rc;
 }

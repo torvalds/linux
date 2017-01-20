@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -176,8 +176,12 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		     sta->status);
 	/* inform upper/lower layers */
 	if (sta->status != wil_sta_unused) {
-		if (!from_event)
-			wmi_disconnect_sta(wil, sta->addr, reason_code, true);
+		if (!from_event) {
+			bool del_sta = (wdev->iftype == NL80211_IFTYPE_AP) ?
+						disable_ap_sme : false;
+			wmi_disconnect_sta(wil, sta->addr, reason_code,
+					   true, del_sta);
+		}
 
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_AP:
