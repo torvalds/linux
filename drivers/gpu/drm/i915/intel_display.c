@@ -122,7 +122,7 @@ static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
-static int ilk_max_pixel_rate(struct drm_atomic_state *state);
+static int intel_max_pixel_rate(struct drm_atomic_state *state);
 static int glk_calc_cdclk(int max_pixclk);
 static int bxt_calc_cdclk(int max_pixclk);
 
@@ -6566,40 +6566,11 @@ static int bxt_calc_cdclk(int max_pixclk)
 		return 144000;
 }
 
-/* Compute the max pixel clock for new configuration. */
-static int intel_mode_max_pixclk(struct drm_device *dev,
-				 struct drm_atomic_state *state)
-{
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	unsigned max_pixclk = 0, i;
-	enum pipe pipe;
-
-	memcpy(intel_state->min_pixclk, dev_priv->min_pixclk,
-	       sizeof(intel_state->min_pixclk));
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		int pixclk = 0;
-
-		if (crtc_state->enable)
-			pixclk = crtc_state->adjusted_mode.crtc_clock;
-
-		intel_state->min_pixclk[i] = pixclk;
-	}
-
-	for_each_pipe(dev_priv, pipe)
-		max_pixclk = max(intel_state->min_pixclk[pipe], max_pixclk);
-
-	return max_pixclk;
-}
-
 static int valleyview_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int max_pixclk = intel_mode_max_pixclk(dev, state);
+	int max_pixclk = intel_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
 
@@ -6615,7 +6586,7 @@ static int valleyview_modeset_calc_cdclk(struct drm_atomic_state *state)
 static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	int max_pixclk = ilk_max_pixel_rate(state);
+	int max_pixclk = intel_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
 	int cdclk;
@@ -10315,7 +10286,7 @@ static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
 }
 
 /* compute the max rate for new configuration */
-static int ilk_max_pixel_rate(struct drm_atomic_state *state)
+static int intel_max_pixel_rate(struct drm_atomic_state *state)
 {
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
@@ -10447,7 +10418,7 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	int max_pixclk = ilk_max_pixel_rate(state);
+	int max_pixclk = intel_max_pixel_rate(state);
 	int cdclk;
 
 	/*
@@ -10483,7 +10454,7 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	const int max_pixclk = ilk_max_pixel_rate(state);
+	const int max_pixclk = intel_max_pixel_rate(state);
 	int vco = intel_state->cdclk_pll_vco;
 	int cdclk;
 
