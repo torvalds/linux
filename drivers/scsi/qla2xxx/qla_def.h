@@ -1976,6 +1976,84 @@ struct mbx_entry {
 	uint8_t port_name[WWN_SIZE];
 };
 
+#ifndef IMMED_NOTIFY_TYPE
+#define IMMED_NOTIFY_TYPE 0x0D		/* Immediate notify entry. */
+/*
+ * ISP queue -	immediate notify entry structure definition.
+ *		This is sent by the ISP to the Target driver.
+ *		This IOCB would have report of events sent by the
+ *		initiator, that needs to be handled by the target
+ *		driver immediately.
+ */
+struct imm_ntfy_from_isp {
+	uint8_t	 entry_type;		    /* Entry type. */
+	uint8_t	 entry_count;		    /* Entry count. */
+	uint8_t	 sys_define;		    /* System defined. */
+	uint8_t	 entry_status;		    /* Entry Status. */
+	union {
+		struct {
+			uint32_t sys_define_2; /* System defined. */
+			target_id_t target;
+			uint16_t lun;
+			uint8_t  target_id;
+			uint8_t  reserved_1;
+			uint16_t status_modifier;
+			uint16_t status;
+			uint16_t task_flags;
+			uint16_t seq_id;
+			uint16_t srr_rx_id;
+			uint32_t srr_rel_offs;
+			uint16_t srr_ui;
+#define SRR_IU_DATA_IN	0x1
+#define SRR_IU_DATA_OUT	0x5
+#define SRR_IU_STATUS	0x7
+			uint16_t srr_ox_id;
+			uint8_t reserved_2[28];
+		} isp2x;
+		struct {
+			uint32_t reserved;
+			uint16_t nport_handle;
+			uint16_t reserved_2;
+			uint16_t flags;
+#define NOTIFY24XX_FLAGS_GLOBAL_TPRLO   BIT_1
+#define NOTIFY24XX_FLAGS_PUREX_IOCB     BIT_0
+			uint16_t srr_rx_id;
+			uint16_t status;
+			uint8_t  status_subcode;
+			uint8_t  fw_handle;
+			uint32_t exchange_address;
+			uint32_t srr_rel_offs;
+			uint16_t srr_ui;
+			uint16_t srr_ox_id;
+			union {
+				struct {
+					uint8_t node_name[8];
+				} plogi; /* PLOGI/ADISC/PDISC */
+				struct {
+					/* PRLI word 3 bit 0-15 */
+					uint16_t wd3_lo;
+					uint8_t resv0[6];
+				} prli;
+				struct {
+					uint8_t port_id[3];
+					uint8_t resv1;
+					uint16_t nport_handle;
+					uint16_t resv2;
+				} req_els;
+			} u;
+			uint8_t port_name[8];
+			uint8_t resv3[3];
+			uint8_t  vp_index;
+			uint32_t reserved_5;
+			uint8_t  port_id[3];
+			uint8_t  reserved_6;
+		} isp24;
+	} u;
+	uint16_t reserved_7;
+	uint16_t ox_id;
+} __packed;
+#endif
+
 /*
  * ISP request and response queue entry sizes
  */
@@ -2026,7 +2104,7 @@ typedef struct {
 /*
  * Fibre channel port type.
  */
- typedef enum {
+typedef enum {
 	FCT_UNKNOWN,
 	FCT_RSCN,
 	FCT_SWITCH,
@@ -2034,6 +2112,19 @@ typedef struct {
 	FCT_INITIATOR,
 	FCT_TARGET
 } fc_port_type_t;
+
+enum qlt_plogi_link_t {
+	QLT_PLOGI_LINK_SAME_WWN,
+	QLT_PLOGI_LINK_CONFLICT,
+	QLT_PLOGI_LINK_MAX
+};
+
+struct qlt_plogi_ack_t {
+	struct list_head	list;
+	struct imm_ntfy_from_isp iocb;
+	port_id_t	id;
+	int		ref_count;
+};
 
 /*
  * Fibre channel port structure.
@@ -2047,6 +2138,25 @@ typedef struct fc_port {
 	port_id_t d_id;
 	uint16_t loop_id;
 	uint16_t old_loop_id;
+
+	unsigned int conf_compl_supported:1;
+	unsigned int deleted:2;
+	unsigned int local:1;
+	unsigned int logout_on_delete:1;
+	unsigned int keep_nport_handle:1;
+	unsigned int send_els_logo:1;
+
+	unsigned char logout_completed;
+	int generation;
+
+	struct se_session *se_sess;
+	struct kref sess_kref;
+	struct qla_tgt *tgt;
+	unsigned long expires;
+	struct list_head del_list_entry;
+	struct work_struct free_work;
+
+	struct qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 
 	uint16_t tgt_id;
 	uint16_t old_tgt_id;

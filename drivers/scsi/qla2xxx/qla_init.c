@@ -3352,12 +3352,6 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    "Unable to allocate fc remote port.\n");
 		return;
 	}
-	/*
-	 * Create target mode FC NEXUS in qla_target.c if target mode is
-	 * enabled..
-	 */
-
-	qlt_fc_port_added(vha, fcport);
 
 	spin_lock_irqsave(fcport->vha->host->host_lock, flags);
 	*((fc_port_t **)rport->dd_data) = fcport;
@@ -3407,12 +3401,6 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 reg_port:
 	if (qla_ini_mode_enabled(vha))
 		qla2x00_reg_remote_port(vha, fcport);
-	else {
-		/*
-		 * Create target mode FC NEXUS in qla_target.c
-		 */
-		qlt_fc_port_added(vha, fcport);
-	}
 }
 
 /*

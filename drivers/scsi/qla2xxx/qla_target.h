@@ -118,84 +118,6 @@
 			 ? le16_to_cpu((iocb)->u.isp2x.target.extended)	\
 			 : (uint16_t)(iocb)->u.isp2x.target.id.standard)
 
-#ifndef IMMED_NOTIFY_TYPE
-#define IMMED_NOTIFY_TYPE 0x0D		/* Immediate notify entry. */
-/*
- * ISP queue -	immediate notify entry structure definition.
- *		This is sent by the ISP to the Target driver.
- *		This IOCB would have report of events sent by the
- *		initiator, that needs to be handled by the target
- *		driver immediately.
- */
-struct imm_ntfy_from_isp {
-	uint8_t	 entry_type;		    /* Entry type. */
-	uint8_t	 entry_count;		    /* Entry count. */
-	uint8_t	 sys_define;		    /* System defined. */
-	uint8_t	 entry_status;		    /* Entry Status. */
-	union {
-		struct {
-			uint32_t sys_define_2; /* System defined. */
-			target_id_t target;
-			uint16_t lun;
-			uint8_t  target_id;
-			uint8_t  reserved_1;
-			uint16_t status_modifier;
-			uint16_t status;
-			uint16_t task_flags;
-			uint16_t seq_id;
-			uint16_t srr_rx_id;
-			uint32_t srr_rel_offs;
-			uint16_t srr_ui;
-#define SRR_IU_DATA_IN	0x1
-#define SRR_IU_DATA_OUT	0x5
-#define SRR_IU_STATUS	0x7
-			uint16_t srr_ox_id;
-			uint8_t reserved_2[28];
-		} isp2x;
-		struct {
-			uint32_t reserved;
-			uint16_t nport_handle;
-			uint16_t reserved_2;
-			uint16_t flags;
-#define NOTIFY24XX_FLAGS_GLOBAL_TPRLO   BIT_1
-#define NOTIFY24XX_FLAGS_PUREX_IOCB     BIT_0
-			uint16_t srr_rx_id;
-			uint16_t status;
-			uint8_t  status_subcode;
-			uint8_t  fw_handle;
-			uint32_t exchange_address;
-			uint32_t srr_rel_offs;
-			uint16_t srr_ui;
-			uint16_t srr_ox_id;
-			union {
-				struct {
-					uint8_t node_name[8];
-				} plogi; /* PLOGI/ADISC/PDISC */
-				struct {
-					/* PRLI word 3 bit 0-15 */
-					uint16_t wd3_lo;
-					uint8_t resv0[6];
-				} prli;
-				struct {
-					uint8_t port_id[3];
-					uint8_t resv1;
-					uint16_t nport_handle;
-					uint16_t resv2;
-				} req_els;
-			} u;
-			uint8_t port_name[8];
-			uint8_t resv3[3];
-			uint8_t  vp_index;
-			uint32_t reserved_5;
-			uint8_t  port_id[3];
-			uint8_t  reserved_6;
-		} isp24;
-	} u;
-	uint16_t reserved_7;
-	uint16_t ox_id;
-} __packed;
-#endif
-
 #ifndef NOTIFY_ACK_TYPE
 #define NOTIFY_ACK_TYPE 0x0E	  /* Notify acknowledge entry. */
 /*
@@ -731,7 +653,7 @@ struct abts_resp_from_24xx_fw {
 \********************************************************************/
 
 struct qla_tgt_mgmt_cmd;
-struct qla_tgt_sess;
+struct fc_port;
 
 /*
  * This structure provides a template of function calls that the
@@ -748,17 +670,18 @@ struct qla_tgt_func_tmpl {
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
-	void (*free_session)(struct qla_tgt_sess *);
+	void (*free_session)(struct fc_port *);
 
 	int (*check_initiator_node_acl)(struct scsi_qla_host *, unsigned char *,
-					struct qla_tgt_sess *);
-	void (*update_sess)(struct qla_tgt_sess *, port_id_t, uint16_t, bool);
-	struct qla_tgt_sess *(*find_sess_by_loop_id)(struct scsi_qla_host *,
+					struct fc_port *);
+	void (*update_sess)(struct fc_port *, port_id_t, uint16_t, bool);
+	struct fc_port *(*find_sess_by_loop_id)(struct scsi_qla_host *,
 						const uint16_t);
-	struct qla_tgt_sess *(*find_sess_by_s_id)(struct scsi_qla_host *,
+	struct fc_port *(*find_sess_by_s_id)(struct scsi_qla_host *,
 						const uint8_t *);
-	void (*clear_nacl_from_fcport_map)(struct qla_tgt_sess *);
-	void (*shutdown_sess)(struct qla_tgt_sess *);
+	void (*clear_nacl_from_fcport_map)(struct fc_port *);
+	void (*put_sess)(struct fc_port *);
+	void (*shutdown_sess)(struct fc_port *);
 };
 
 int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
@@ -874,9 +797,6 @@ struct qla_tgt {
 	/* Count of sessions refering qla_tgt. Protected by hardware_lock. */
 	int sess_count;
 
-	/* Protected by hardware_lock. Addition also protected by tgt_mutex. */
-	struct list_head sess_list;
-
 	/* Protected by hardware_lock */
 	struct list_head del_sess_list;
 	struct delayed_work sess_del_work;
@@ -910,52 +830,6 @@ enum qla_sess_deletion {
 	QLA_SESS_DELETION_IN_PROGRESS	= 2,
 };
 
-typedef enum {
-	QLT_PLOGI_LINK_SAME_WWN,
-	QLT_PLOGI_LINK_CONFLICT,
-	QLT_PLOGI_LINK_MAX
-} qlt_plogi_link_t;
-
-typedef struct {
-	struct list_head		list;
-	struct imm_ntfy_from_isp	iocb;
-	port_id_t			id;
-	int				ref_count;
-} qlt_plogi_ack_t;
-
-/*
- * Equivilant to IT Nexus (Initiator-Target)
- */
-struct qla_tgt_sess {
-	uint16_t loop_id;
-	port_id_t d_id;
-
-	unsigned int conf_compl_supported:1;
-	unsigned int deleted:2;
-	unsigned int local:1;
-	unsigned int logout_on_delete:1;
-	unsigned int keep_nport_handle:1;
-	unsigned int send_els_logo:1;
-
-	unsigned char logout_completed;
-
-	int generation;
-
-	struct se_session *se_sess;
-	struct kref sess_kref;
-	struct scsi_qla_host *vha;
-	struct qla_tgt *tgt;
-
-	struct list_head sess_list_entry;
-	unsigned long expires;
-	struct list_head del_list_entry;
-
-	uint8_t port_name[WWN_SIZE];
-	struct work_struct free_work;
-
-	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
-};
-
 enum trace_flags {
 	TRC_NEW_CMD = BIT_0,
 	TRC_DO_WORK = BIT_1,
@@ -981,7 +855,7 @@ enum trace_flags {
 
 struct qla_tgt_cmd {
 	struct se_cmd se_cmd;
-	struct qla_tgt_sess *sess;
+	struct fc_port *sess;
 	int state;
 	struct work_struct free_work;
 	struct work_struct work;
@@ -1046,7 +920,7 @@ struct qla_tgt_sess_work_param {
 struct qla_tgt_mgmt_cmd {
 	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
-	struct qla_tgt_sess *sess;
+	struct fc_port *sess;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
@@ -1097,7 +971,7 @@ extern int qlt_remove_target(struct qla_hw_data *, struct scsi_qla_host *);
 extern int qlt_lport_register(void *, u64, u64, u64,
 			int (*callback)(struct scsi_qla_host *, void *, u64, u64));
 extern void qlt_lport_deregister(struct scsi_qla_host *);
-void qlt_put_sess(struct qla_tgt_sess *sess);
+extern void qlt_unreg_sess(struct fc_port *);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);
 extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *, int);
 extern int __init qlt_init(void);

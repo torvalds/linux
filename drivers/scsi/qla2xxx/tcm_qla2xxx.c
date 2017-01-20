@@ -339,9 +339,26 @@ static void tcm_qla2xxx_release_cmd(struct se_cmd *se_cmd)
 	qlt_free_cmd(cmd);
 }
 
+static void tcm_qla2xxx_release_session(struct kref *kref)
+{
+	struct fc_port  *sess = container_of(kref,
+	    struct fc_port, sess_kref);
+
+	qlt_unreg_sess(sess);
+}
+
+static void tcm_qla2xxx_put_sess(struct fc_port *sess)
+{
+	if (!sess)
+		return;
+
+	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
+	kref_put(&sess->sess_kref, tcm_qla2xxx_release_session);
+}
+
 static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 {
-	struct qla_tgt_sess *sess = se_sess->fabric_sess_ptr;
+	struct fc_port *sess = se_sess->fabric_sess_ptr;
 	struct scsi_qla_host *vha;
 	unsigned long flags;
 
@@ -350,7 +367,7 @@ static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	target_sess_cmd_list_set_waiting(se_sess);
-	qlt_put_sess(sess);
+	tcm_qla2xxx_put_sess(sess);
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 }
 
@@ -441,7 +458,7 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct se_session *se_sess;
-	struct qla_tgt_sess *sess;
+	struct fc_port *sess;
 #ifdef CONFIG_TCM_QLA2XXX_DEBUG
 	struct se_portal_group *se_tpg;
 	struct tcm_qla2xxx_tpg *tpg;
@@ -456,7 +473,7 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 
 	sess = cmd->sess;
 	if (!sess) {
-		pr_err("Unable to locate struct qla_tgt_sess from qla_tgt_cmd\n");
+		pr_err("Unable to locate struct fc_port from qla_tgt_cmd\n");
 		return -EINVAL;
 	}
 
@@ -565,7 +582,7 @@ static void tcm_qla2xxx_handle_dif_err(struct qla_tgt_cmd *cmd)
 static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
 	uint16_t tmr_func, uint32_t tag)
 {
-	struct qla_tgt_sess *sess = mcmd->sess;
+	struct fc_port *sess = mcmd->sess;
 	struct se_cmd *se_cmd = &mcmd->se_cmd;
 	int transl_tmr_func = 0;
 
@@ -746,11 +763,11 @@ static void tcm_qla2xxx_aborted_task(struct se_cmd *se_cmd)
 }
 
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
-			struct tcm_qla2xxx_nacl *, struct qla_tgt_sess *);
+			struct tcm_qla2xxx_nacl *, struct fc_port *);
 /*
  * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
-static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
+static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct fc_port *sess)
 {
 	struct se_node_acl *se_nacl = sess->se_sess->se_node_acl;
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
@@ -789,7 +806,7 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 	tcm_qla2xxx_clear_sess_lookup(lport, nacl, sess);
 }
 
-static void tcm_qla2xxx_shutdown_sess(struct qla_tgt_sess *sess)
+static void tcm_qla2xxx_shutdown_sess(struct fc_port *sess)
 {
 	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
 	target_sess_cmd_list_set_waiting(sess->se_sess);
@@ -1174,7 +1191,7 @@ static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 /*
  * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
-static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_s_id(
+static struct fc_port *tcm_qla2xxx_find_sess_by_s_id(
 	scsi_qla_host_t *vha,
 	const uint8_t *s_id)
 {
@@ -1202,12 +1219,12 @@ static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_s_id(
 	    se_nacl, se_nacl->initiatorname);
 
 	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
-	if (!nacl->qla_tgt_sess) {
-		pr_err("Unable to locate struct qla_tgt_sess\n");
+	if (!nacl->fc_port) {
+		pr_err("Unable to locate struct fc_port\n");
 		return NULL;
 	}
 
-	return nacl->qla_tgt_sess;
+	return nacl->fc_port;
 }
 
 /*
@@ -1218,7 +1235,7 @@ static void tcm_qla2xxx_set_sess_by_s_id(
 	struct se_node_acl *new_se_nacl,
 	struct tcm_qla2xxx_nacl *nacl,
 	struct se_session *se_sess,
-	struct qla_tgt_sess *qla_tgt_sess,
+	struct fc_port *fc_port,
 	uint8_t *s_id)
 {
 	u32 key;
@@ -1242,22 +1259,22 @@ static void tcm_qla2xxx_set_sess_by_s_id(
 			pr_debug("Wiping nonexisting fc_port entry\n");
 		}
 
-		qla_tgt_sess->se_sess = se_sess;
-		nacl->qla_tgt_sess = qla_tgt_sess;
+		fc_port->se_sess = se_sess;
+		nacl->fc_port = fc_port;
 		return;
 	}
 
-	if (nacl->qla_tgt_sess) {
+	if (nacl->fc_port) {
 		if (new_se_nacl == NULL) {
-			pr_debug("Clearing existing nacl->qla_tgt_sess and fc_port entry\n");
+			pr_debug("Clearing existing nacl->fc_port and fc_port entry\n");
 			btree_remove32(&lport->lport_fcport_map, key);
-			nacl->qla_tgt_sess = NULL;
+			nacl->fc_port = NULL;
 			return;
 		}
-		pr_debug("Replacing existing nacl->qla_tgt_sess and fc_port entry\n");
+		pr_debug("Replacing existing nacl->fc_port and fc_port entry\n");
 		btree_update32(&lport->lport_fcport_map, key, new_se_nacl);
-		qla_tgt_sess->se_sess = se_sess;
-		nacl->qla_tgt_sess = qla_tgt_sess;
+		fc_port->se_sess = se_sess;
+		nacl->fc_port = fc_port;
 		return;
 	}
 
@@ -1267,19 +1284,19 @@ static void tcm_qla2xxx_set_sess_by_s_id(
 		return;
 	}
 
-	pr_debug("Replacing existing fc_port entry w/o active nacl->qla_tgt_sess\n");
+	pr_debug("Replacing existing fc_port entry w/o active nacl->fc_port\n");
 	btree_update32(&lport->lport_fcport_map, key, new_se_nacl);
-	qla_tgt_sess->se_sess = se_sess;
-	nacl->qla_tgt_sess = qla_tgt_sess;
+	fc_port->se_sess = se_sess;
+	nacl->fc_port = fc_port;
 
-	pr_debug("Setup nacl->qla_tgt_sess %p by s_id for se_nacl: %p, initiatorname: %s\n",
-	    nacl->qla_tgt_sess, new_se_nacl, new_se_nacl->initiatorname);
+	pr_debug("Setup nacl->fc_port %p by s_id for se_nacl: %p, initiatorname: %s\n",
+	    nacl->fc_port, new_se_nacl, new_se_nacl->initiatorname);
 }
 
 /*
  * Expected to be called with struct qla_hw_data->tgt.sess_lock held
  */
-static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_loop_id(
+static struct fc_port *tcm_qla2xxx_find_sess_by_loop_id(
 	scsi_qla_host_t *vha,
 	const uint16_t loop_id)
 {
@@ -1307,12 +1324,12 @@ static struct qla_tgt_sess *tcm_qla2xxx_find_sess_by_loop_id(
 
 	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
 
-	if (!nacl->qla_tgt_sess) {
-		pr_err("Unable to locate struct qla_tgt_sess\n");
+	if (!nacl->fc_port) {
+		pr_err("Unable to locate struct fc_port\n");
 		return NULL;
 	}
 
-	return nacl->qla_tgt_sess;
+	return nacl->fc_port;
 }
 
 /*
@@ -1323,7 +1340,7 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 	struct se_node_acl *new_se_nacl,
 	struct tcm_qla2xxx_nacl *nacl,
 	struct se_session *se_sess,
-	struct qla_tgt_sess *qla_tgt_sess,
+	struct fc_port *fc_port,
 	uint16_t loop_id)
 {
 	struct se_node_acl *saved_nacl;
@@ -1338,27 +1355,27 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 	if (!saved_nacl) {
 		pr_debug("Setting up new fc_loopid->se_nacl to new_se_nacl\n");
 		fc_loopid->se_nacl = new_se_nacl;
-		if (qla_tgt_sess->se_sess != se_sess)
-			qla_tgt_sess->se_sess = se_sess;
-		if (nacl->qla_tgt_sess != qla_tgt_sess)
-			nacl->qla_tgt_sess = qla_tgt_sess;
+		if (fc_port->se_sess != se_sess)
+			fc_port->se_sess = se_sess;
+		if (nacl->fc_port != fc_port)
+			nacl->fc_port = fc_port;
 		return;
 	}
 
-	if (nacl->qla_tgt_sess) {
+	if (nacl->fc_port) {
 		if (new_se_nacl == NULL) {
-			pr_debug("Clearing nacl->qla_tgt_sess and fc_loopid->se_nacl\n");
+			pr_debug("Clearing nacl->fc_port and fc_loopid->se_nacl\n");
 			fc_loopid->se_nacl = NULL;
-			nacl->qla_tgt_sess = NULL;
+			nacl->fc_port = NULL;
 			return;
 		}
 
-		pr_debug("Replacing existing nacl->qla_tgt_sess and fc_loopid->se_nacl\n");
+		pr_debug("Replacing existing nacl->fc_port and fc_loopid->se_nacl\n");
 		fc_loopid->se_nacl = new_se_nacl;
-		if (qla_tgt_sess->se_sess != se_sess)
-			qla_tgt_sess->se_sess = se_sess;
-		if (nacl->qla_tgt_sess != qla_tgt_sess)
-			nacl->qla_tgt_sess = qla_tgt_sess;
+		if (fc_port->se_sess != se_sess)
+			fc_port->se_sess = se_sess;
+		if (nacl->fc_port != fc_port)
+			nacl->fc_port = fc_port;
 		return;
 	}
 
@@ -1368,22 +1385,22 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 		return;
 	}
 
-	pr_debug("Replacing existing fc_loopid->se_nacl w/o active nacl->qla_tgt_sess\n");
+	pr_debug("Replacing existing fc_loopid->se_nacl w/o active nacl->fc_port\n");
 	fc_loopid->se_nacl = new_se_nacl;
-	if (qla_tgt_sess->se_sess != se_sess)
-		qla_tgt_sess->se_sess = se_sess;
-	if (nacl->qla_tgt_sess != qla_tgt_sess)
-		nacl->qla_tgt_sess = qla_tgt_sess;
+	if (fc_port->se_sess != se_sess)
+		fc_port->se_sess = se_sess;
+	if (nacl->fc_port != fc_port)
+		nacl->fc_port = fc_port;
 
-	pr_debug("Setup nacl->qla_tgt_sess %p by loop_id for se_nacl: %p, initiatorname: %s\n",
-	    nacl->qla_tgt_sess, new_se_nacl, new_se_nacl->initiatorname);
+	pr_debug("Setup nacl->fc_port %p by loop_id for se_nacl: %p, initiatorname: %s\n",
+	    nacl->fc_port, new_se_nacl, new_se_nacl->initiatorname);
 }
 
 /*
  * Should always be called with qla_hw_data->tgt.sess_lock held.
  */
 static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
-		struct tcm_qla2xxx_nacl *nacl, struct qla_tgt_sess *sess)
+		struct tcm_qla2xxx_nacl *nacl, struct fc_port *sess)
 {
 	struct se_session *se_sess = sess->se_sess;
 	unsigned char be_sid[3];
@@ -1398,7 +1415,7 @@ static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
 				sess, sess->loop_id);
 }
 
-static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
+static void tcm_qla2xxx_free_session(struct fc_port *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
 	struct qla_hw_data *ha = tgt->ha;
@@ -1410,7 +1427,7 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 
 	se_sess = sess->se_sess;
 	if (!se_sess) {
-		pr_err("struct qla_tgt_sess->se_sess is NULL\n");
+		pr_err("struct fc_port->se_sess is NULL\n");
 		dump_stack();
 		return;
 	}
@@ -1437,7 +1454,7 @@ static int tcm_qla2xxx_session_cb(struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl = se_sess->se_node_acl;
 	struct tcm_qla2xxx_nacl *nacl = container_of(se_nacl,
 				struct tcm_qla2xxx_nacl, se_node_acl);
-	struct qla_tgt_sess *qlat_sess = p;
+	struct fc_port *qlat_sess = p;
 	uint16_t loop_id = qlat_sess->loop_id;
 	unsigned long flags;
 	unsigned char be_sid[3];
@@ -1467,7 +1484,7 @@ static int tcm_qla2xxx_session_cb(struct se_portal_group *se_tpg,
 static int tcm_qla2xxx_check_initiator_node_acl(
 	scsi_qla_host_t *vha,
 	unsigned char *fc_wwpn,
-	struct qla_tgt_sess *qlat_sess)
+	struct fc_port *qlat_sess)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct tcm_qla2xxx_lport *lport;
@@ -1511,7 +1528,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	return 0;
 }
 
-static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
+static void tcm_qla2xxx_update_sess(struct fc_port *sess, port_id_t s_id,
 				    uint16_t loop_id, bool conf_compl_supported)
 {
 	struct qla_tgt *tgt = sess->tgt;
@@ -1603,6 +1620,7 @@ static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
 	.find_sess_by_s_id	= tcm_qla2xxx_find_sess_by_s_id,
 	.find_sess_by_loop_id	= tcm_qla2xxx_find_sess_by_loop_id,
 	.clear_nacl_from_fcport_map = tcm_qla2xxx_clear_nacl_from_fcport_map,
+	.put_sess		= tcm_qla2xxx_put_sess,
 	.shutdown_sess		= tcm_qla2xxx_shutdown_sess,
 };
 
