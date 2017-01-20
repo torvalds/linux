@@ -67,8 +67,8 @@ EXPORT_SYMBOL(skb_flow_dissector_init);
  * The function will try to retrieve a be32 entity at
  * offset poff
  */
-__be16 skb_flow_get_be16(const struct sk_buff *skb, int poff, void *data,
-			 int hlen)
+static __be16 skb_flow_get_be16(const struct sk_buff *skb, int poff,
+				void *data, int hlen)
 {
 	__be16 *u, _u;
 

@@ -1042,6 +1042,7 @@ static int __init nbd_init(void)
 		return -ENOMEM;
 
 	for (i = 0; i < nbds_max; i++) {
+		struct request_queue *q;
 		struct gendisk *disk = alloc_disk(1 << part_shift);
 		if (!disk)
 			goto out;
@@ -1067,12 +1068,13 @@ static int __init nbd_init(void)
 		 * every gendisk to have its very own request_queue struct.
 		 * These structs are big so we dynamically allocate them.
 		 */
-		disk->queue = blk_mq_init_queue(&nbd_dev[i].tag_set);
-		if (!disk->queue) {
+		q = blk_mq_init_queue(&nbd_dev[i].tag_set);
+		if (IS_ERR(q)) {
 			blk_mq_free_tag_set(&nbd_dev[i].tag_set);
 			put_disk(disk);
 			goto out;
 		}
+		disk->queue = q;
 
 		/*
 		 * Tell the block layer that we are not a rotational device

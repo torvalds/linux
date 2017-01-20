@@ -938,6 +938,23 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		d->ccr |= CCR_DST_AMODE_POSTINC;
 		if (port_window) {
 			d->ccr |= CCR_SRC_AMODE_DBLIDX;
+
+			if (port_window_bytes >= 64)
+				d->csdp |= CSDP_SRC_BURST_64;
+			else if (port_window_bytes >= 32)
+				d->csdp |= CSDP_SRC_BURST_32;
+			else if (port_window_bytes >= 16)
+				d->csdp |= CSDP_SRC_BURST_16;
+
+		} else {
+			d->ccr |= CCR_SRC_AMODE_CONSTANT;
+		}
+	} else {
+		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+
+		d->ccr |= CCR_SRC_AMODE_POSTINC;
+		if (port_window) {
+			d->ccr |= CCR_DST_AMODE_DBLIDX;
 			d->ei = 1;
 			/*
 			 * One frame covers the port_window and by  configure
@@ -948,27 +965,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 			d->fi = -(port_window_bytes - 1);
 
 			if (port_window_bytes >= 64)
-				d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+				d->csdp |= CSDP_DST_BURST_64;
 			else if (port_window_bytes >= 32)
-				d->csdp = CSDP_SRC_BURST_32 | CSDP_SRC_PACKED;
+				d->csdp |= CSDP_DST_BURST_32;
 			else if (port_window_bytes >= 16)
-				d->csdp = CSDP_SRC_BURST_16 | CSDP_SRC_PACKED;
-		} else {
-			d->ccr |= CCR_SRC_AMODE_CONSTANT;
-		}
-	} else {
-		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
-
-		d->ccr |= CCR_SRC_AMODE_POSTINC;
-		if (port_window) {
-			d->ccr |= CCR_DST_AMODE_DBLIDX;
-
-			if (port_window_bytes >= 64)
-				d->csdp = CSDP_DST_BURST_64 | CSDP_DST_PACKED;
-			else if (port_window_bytes >= 32)
-				d->csdp = CSDP_DST_BURST_32 | CSDP_DST_PACKED;
-			else if (port_window_bytes >= 16)
-				d->csdp = CSDP_DST_BURST_16 | CSDP_DST_PACKED;
+				d->csdp |= CSDP_DST_BURST_16;
 		} else {
 			d->ccr |= CCR_DST_AMODE_CONSTANT;
 		}
@@ -1017,7 +1018,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		osg->addr = sg_dma_address(sgent);
 		osg->en = en;
 		osg->fn = sg_dma_len(sgent) / frame_bytes;
-		if (port_window && dir == DMA_MEM_TO_DEV) {
+		if (port_window && dir == DMA_DEV_TO_MEM) {
 			osg->ei = 1;
 			/*
 			 * One frame covers the port_window and by  configure
@@ -1452,6 +1453,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	struct omap_dmadev *od;
 	struct resource *res;
 	int rc, i, irq;
+	u32 lch_count;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
@@ -1494,20 +1496,31 @@ static int omap_dma_probe(struct platform_device *pdev)
 	spin_lock_init(&od->lock);
 	spin_lock_init(&od->irq_lock);
 
-	if (!pdev->dev.of_node) {
-		od->dma_requests = od->plat->dma_attr->lch_count;
-		if (unlikely(!od->dma_requests))
-			od->dma_requests = OMAP_SDMA_REQUESTS;
-	} else if (of_property_read_u32(pdev->dev.of_node, "dma-requests",
-					&od->dma_requests)) {
+	/* Number of DMA requests */
+	od->dma_requests = OMAP_SDMA_REQUESTS;
+	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+						      "dma-requests",
+						      &od->dma_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-requests property, using %u.\n",
 			 OMAP_SDMA_REQUESTS);
-		od->dma_requests = OMAP_SDMA_REQUESTS;
 	}
 
-	od->lch_map = devm_kcalloc(&pdev->dev, od->dma_requests,
-				   sizeof(*od->lch_map), GFP_KERNEL);
+	/* Number of available logical channels */
+	if (!pdev->dev.of_node) {
+		lch_count = od->plat->dma_attr->lch_count;
+		if (unlikely(!lch_count))
+			lch_count = OMAP_SDMA_CHANNELS;
+	} else if (of_property_read_u32(pdev->dev.of_node, "dma-channels",
+					&lch_count)) {
+		dev_info(&pdev->dev,
+			 "Missing dma-channels property, using %u.\n",
+			 OMAP_SDMA_CHANNELS);
+		lch_count = OMAP_SDMA_CHANNELS;
+	}
+
+	od->lch_map = devm_kcalloc(&pdev->dev, lch_count, sizeof(*od->lch_map),
+				   GFP_KERNEL);
 	if (!od->lch_map)
 		return -ENOMEM;
 

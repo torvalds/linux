@@ -106,6 +106,8 @@ static struct pci_device_id ioat_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX8) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BDX9) },
 
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_SKX) },
+
 	/* I/OAT v3.3 platforms */
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BWD0) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_BWD1) },
@@ -243,10 +245,15 @@ static bool is_bdx_ioat(struct pci_dev *pdev)
 	}
 }
 
+static inline bool is_skx_ioat(struct pci_dev *pdev)
+{
+	return (pdev->device == PCI_DEVICE_ID_INTEL_IOAT_SKX) ? true : false;
+}
+
 static bool is_xeon_cb32(struct pci_dev *pdev)
 {
 	return is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev) ||
-		is_hsw_ioat(pdev) || is_bdx_ioat(pdev);
+		is_hsw_ioat(pdev) || is_bdx_ioat(pdev) || is_skx_ioat(pdev);
 }
 
 bool is_bwd_ioat(struct pci_dev *pdev)
@@ -693,7 +700,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	/* doing 2 32bit writes to mmio since 1 64b write doesn't work */
 	ioat_chan->completion =
 		dma_pool_zalloc(ioat_chan->ioat_dma->completion_pool,
-				GFP_KERNEL, &ioat_chan->completion_dma);
+				GFP_NOWAIT, &ioat_chan->completion_dma);
 	if (!ioat_chan->completion)
 		return -ENOMEM;
 
@@ -703,7 +710,7 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	       ioat_chan->reg_base + IOAT_CHANCMP_OFFSET_HIGH);
 
 	order = IOAT_MAX_ORDER;
-	ring = ioat_alloc_ring(c, order, GFP_KERNEL);
+	ring = ioat_alloc_ring(c, order, GFP_NOWAIT);
 	if (!ring)
 		return -ENOMEM;
 
@@ -1357,6 +1364,8 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);
 	if (device->version >= IOAT_VER_3_0) {
+		if (is_skx_ioat(pdev))
+			device->version = IOAT_VER_3_2;
 		err = ioat3_dma_probe(device, ioat_dca_enabled);
 
 		if (device->version >= IOAT_VER_3_3)
