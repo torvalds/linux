@@ -34,6 +34,7 @@
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
+	struct clk *pclk;
 	const struct rockchip_pwm_data *data;
 	void __iomem *base;
 };
@@ -123,7 +124,7 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	do_div(div, pc->data->prescaler * NSEC_PER_SEC);
 	duty = div;
 
-	ret = clk_enable(pc->clk);
+	ret = clk_enable(pc->pclk);
 	if (ret)
 		return ret;
 
@@ -131,7 +132,7 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	writel(duty, pc->base + pc->data->regs.duty);
 	writel(0, pc->base + pc->data->regs.cntr);
 
-	clk_disable(pc->clk);
+	clk_disable(pc->pclk);
 
 #ifdef CONFIG_FB_ROCKCHIP
 	if (!pc->data->regs.ctrl) {
@@ -165,6 +166,9 @@ static int rockchip_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	ret = clk_enable(pc->clk);
 	if (ret)
 		return ret;
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
 
 	pc->data->set_enable(chip, pwm, true);
 
@@ -177,6 +181,7 @@ static void rockchip_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	pc->data->set_enable(chip, pwm, false);
 
+	clk_disable(pc->pclk);
 	clk_disable(pc->clk);
 }
 
@@ -245,7 +250,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	struct rockchip_pwm_chip *pc;
 	struct resource *r;
-	int ret;
+	int ret, count;
 
 	id = of_match_device(rockchip_pwm_dt_ids, &pdev->dev);
 	if (!id)
@@ -261,13 +266,38 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pc->clk))
-		return PTR_ERR(pc->clk);
+	pc->clk = devm_clk_get(&pdev->dev, "pwm");
+	count = of_property_count_strings(pdev->dev.of_node, "clock-names");
+	if (count == 2)
+		pc->pclk = devm_clk_get(&pdev->dev, "pclk");
+	else
+		pc->pclk = pc->clk;
+
+	if (IS_ERR(pc->clk)) {
+		ret = PTR_ERR(pc->clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Can't get pwm clk: %d\n", ret);
+		return ret;
+	}
+
+	if (IS_ERR(pc->pclk)) {
+		ret = PTR_ERR(pc->pclk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Can't get pclk: %d\n", ret);
+		return ret;
+	}
 
 	ret = clk_prepare(pc->clk);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "Can't prepare pwm clk: %d\n", ret);
 		return ret;
+	}
+
+	ret = clk_prepare(pc->pclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't prepare pclk: %d\n", ret);
+		goto err_clk;
+	}
 
 	platform_set_drvdata(pdev, pc);
 
@@ -286,7 +316,15 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		clk_unprepare(pc->clk);
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+		goto err_pclk;
 	}
+
+	return 0;
+
+err_pclk:
+	clk_unprepare(pc->pclk);
+err_clk:
+	clk_unprepare(pc->clk);
 
 	return ret;
 }
@@ -295,6 +333,7 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 {
 	struct rockchip_pwm_chip *pc = platform_get_drvdata(pdev);
 
+	clk_unprepare(pc->pclk);
 	clk_unprepare(pc->clk);
 
 	return pwmchip_remove(&pc->chip);
