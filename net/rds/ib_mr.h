@@ -45,7 +45,6 @@
 
 struct rds_ib_fmr {
 	struct ib_fmr		*fmr;
-	u64			*dma;
 };
 
 enum rds_ib_fr_state {
