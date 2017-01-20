@@ -1179,10 +1179,6 @@ static const struct of_device_id rk3x_i2c_match[] = {
 		.data = (void *)&rk3288_soc_data
 	},
 	{
-		.compatible = "rockchip,rk3328-i2c",
-		.data = (void *)&rk3328_soc_data
-	},
-	{
 		.compatible = "rockchip,rk3399-i2c",
 		.data = (void *)&rk3399_soc_data
 	},
