@@ -1007,7 +1007,7 @@ bool dc_commit_streams(
 	struct dc_bios *dcb = core_dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
-	struct dc_validation_set set[MAX_STREAMS] = { 0 };
+	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
 	int i, j, k;
 
 	if (false == streams_changed(core_dc, streams, stream_count))
@@ -1321,80 +1321,167 @@ bool dc_commit_surfaces_to_stream(
 	return dc_post_update_surfaces_to_stream(dc);
 }
 
-void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *updates,
-		int surface_count, const struct dc_stream *dc_stream)
+static bool is_surface_in_context(
+		const struct validate_context *context,
+		const struct dc_surface *surface)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct validate_context *context = core_dc->temp_flip_context;
-	int i, j;
-	bool is_new_pipe_surface[MAX_PIPES];
-	const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
-	bool need_apply_clk_constraints = false;
-	bool can_skip_context_building = true;
+	int j;
 
-	update_surface_trace(dc, updates, surface_count);
+	for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+		const struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-	*context = *core_dc->current_context;
-
-	for (i = 0; i < context->res_ctx.pool->pipe_count; i++) {
-		struct pipe_ctx *cur_pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (cur_pipe->top_pipe)
-			cur_pipe->top_pipe =
-				&context->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
-
-		if (cur_pipe->bottom_pipe)
-			cur_pipe->bottom_pipe =
-				&context->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
+		if (surface == &pipe_ctx->surface->public) {
+			return true;
+		}
 	}
 
-	for (j = 0; j < MAX_PIPES; j++)
-		is_new_pipe_surface[j] = true;
+	return false;
+}
+
+enum surface_update_type {
+	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
+	UPDATE_TYPE_MED,  /* a lot of programming needed.  may need to alloc */
+	UPDATE_TYPE_FULL, /* may need to shuffle resources */
+};
+
+static enum surface_update_type det_surface_update(
+		const struct core_dc *dc,
+		const struct dc_surface_update *u)
+{
+	const struct validate_context *context = dc->current_context;
+
+	if (u->scaling_info || u->plane_info)
+		/* todo: not all scale and plane_info update need full update
+		 * ie. check if following is the same
+		 * scale ratio, view port, surface bpp etc
+		 */
+		return UPDATE_TYPE_FULL; /* may need bandwidth update */
+
+	if (!is_surface_in_context(context, u->surface))
+		return UPDATE_TYPE_FULL;
+
+	if (u->in_transfer_func ||
+		u->out_transfer_func ||
+		u->hdr_static_metadata)
+		return UPDATE_TYPE_MED;
+
+	return UPDATE_TYPE_FAST;
+}
+
+static enum surface_update_type check_update_surfaces_for_stream(
+		struct core_dc *dc,
+		struct dc_surface_update *updates,
+		int surface_count,
+		const struct dc_stream_status *stream_status)
+{
+	int i;
+	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
+
+	if (stream_status->surface_count != surface_count)
+		return UPDATE_TYPE_FULL;
 
 	for (i = 0 ; i < surface_count; i++) {
-		struct core_surface *surface = DC_SURFACE_TO_CORE(updates[i].surface);
-		bool existing_surface = false;
+		enum surface_update_type type =
+				det_surface_update(dc, &updates[i]);
 
-		new_surfaces[i] = updates[i].surface;
+		if (type == UPDATE_TYPE_FULL)
+			return type;
 
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-
-			if (surface == pipe_ctx->surface) {
-				existing_surface = true;
-				is_new_pipe_surface[j] = false;
-			}
-		}
-
-		if (updates[i].plane_info ||
-			updates[i].scaling_info ||
-			!existing_surface)
-			can_skip_context_building = false;
+		if (overall_type < type)
+			overall_type = type;
 	}
 
-	if (!can_skip_context_building && dc_stream) {
-		const struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
+	return overall_type;
+}
 
-		if (core_dc->current_context->stream_count == 0)
-			return;
+enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
-		/* Cannot commit surface to a stream that is not commited */
-		for (i = 0; i < core_dc->current_context->stream_count; i++)
-			if (stream == core_dc->current_context->streams[i])
-				break;
-		if (i == core_dc->current_context->stream_count)
-			return;
+void dc_update_surfaces_for_stream(struct dc *dc,
+		struct dc_surface_update *updates, int surface_count,
+		const struct dc_stream *dc_stream)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct validate_context *context;
+	int i, j;
 
+	enum surface_update_type update_type;
+	const struct dc_stream_status *stream_status;
+
+	stream_status = dc_stream_get_status(dc_stream);
+	ASSERT(stream_status);
+	if (!stream_status)
+		return; /* Cannot commit surface to stream that is not committed */
+
+	update_type = check_update_surfaces_for_stream(
+			core_dc, updates, surface_count, stream_status);
+
+	if (update_type >= update_surface_trace_level)
+		update_surface_trace(dc, updates, surface_count);
+
+	if (update_type >= UPDATE_TYPE_FULL) {
+		const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
+
+		for (i = 0; i < surface_count; i++)
+			new_surfaces[i] = updates[i].surface;
+
+		/* initialize scratch memory for building context */
+		context = core_dc->temp_flip_context;
+		resource_validate_ctx_copy_construct(
+				core_dc->current_context, context);
+
+		/* add surface to context */
 		if (!resource_attach_surfaces_to_context(
 				new_surfaces, surface_count, dc_stream, context)) {
 			BREAK_TO_DEBUGGER();
 			return;
 		}
+	} else {
+		context = core_dc->current_context;
 	}
-
 	for (i = 0; i < surface_count; i++) {
+		/* save update param into surface */
 		struct core_surface *surface = DC_SURFACE_TO_CORE(updates[i].surface);
+		struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
+		if (updates[i].flip_addr) {
+			surface->public.address = updates[i].flip_addr->address;
+			surface->public.flip_immediate =
+					updates[i].flip_addr->flip_immediate;
+		}
+
+		if (updates[i].scaling_info) {
+			surface->public.scaling_quality =
+					updates[i].scaling_info->scaling_quality;
+			surface->public.dst_rect =
+					updates[i].scaling_info->dst_rect;
+			surface->public.src_rect =
+					updates[i].scaling_info->src_rect;
+			surface->public.clip_rect =
+					updates[i].scaling_info->clip_rect;
+		}
+
+		if (updates[i].plane_info) {
+			surface->public.color_space =
+					updates[i].plane_info->color_space;
+			surface->public.format =
+					updates[i].plane_info->format;
+			surface->public.plane_size =
+					updates[i].plane_info->plane_size;
+			surface->public.rotation =
+					updates[i].plane_info->rotation;
+			surface->public.horizontal_mirror =
+					updates[i].plane_info->horizontal_mirror;
+			surface->public.stereo_format =
+					updates[i].plane_info->stereo_format;
+			surface->public.tiling_info =
+					updates[i].plane_info->tiling_info;
+			surface->public.visible =
+					updates[i].plane_info->visible;
+			surface->public.dcc =
+					updates[i].plane_info->dcc;
+		}
+
+		/* not sure if we still need this */
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 			struct core_stream *stream = pipe_ctx->stream;
@@ -1402,133 +1489,101 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 			if (pipe_ctx->surface != surface)
 				continue;
 
-			if (updates[i].flip_addr) {
-				surface->public.address = updates[i].flip_addr->address;
-				surface->public.flip_immediate =
-						updates[i].flip_addr->flip_immediate;
+			resource_build_scaling_params(updates[i].surface, pipe_ctx);
+			if (dc->debug.surface_visual_confirm) {
+				pipe_ctx->scl_data.recout.height -= 2;
+				pipe_ctx->scl_data.recout.width -= 2;
 			}
-
-			if (updates[i].plane_info || updates[i].scaling_info
-					|| is_new_pipe_surface[j]) {
-				need_apply_clk_constraints = true;
-
-				if (updates[i].plane_info) {
-					surface->public.color_space =
-						updates[i].plane_info->color_space;
-					surface->public.format =
-						updates[i].plane_info->format;
-					surface->public.plane_size =
-						updates[i].plane_info->plane_size;
-					surface->public.rotation =
-						updates[i].plane_info->rotation;
-					surface->public.horizontal_mirror =
-						updates[i].plane_info->horizontal_mirror;
-					surface->public.stereo_format =
-						updates[i].plane_info->stereo_format;
-					surface->public.tiling_info =
-						updates[i].plane_info->tiling_info;
-					surface->public.visible =
-						updates[i].plane_info->visible;
-					surface->public.dcc =
-						updates[i].plane_info->dcc;
-				}
-
-				if (updates[i].scaling_info) {
-					surface->public.scaling_quality =
-						updates[i].scaling_info->scaling_quality;
-					surface->public.dst_rect =
-						updates[i].scaling_info->dst_rect;
-					surface->public.src_rect =
-						updates[i].scaling_info->src_rect;
-					surface->public.clip_rect =
-						updates[i].scaling_info->clip_rect;
-				}
-
-				resource_build_scaling_params(updates[i].surface, pipe_ctx);
-				if (dc->debug.surface_visual_confirm) {
-					pipe_ctx->scl_data.recout.height -= 2;
-					pipe_ctx->scl_data.recout.width -= 2;
-				}
-			}
-
-			if (dc->debug.disable_color_module)
-				continue;  /* skip below color updates */
-
-			if (updates[i].gamma &&
-				updates[i].gamma != surface->public.gamma_correction) {
-				if (surface->public.gamma_correction != NULL)
-					dc_gamma_release(&surface->public.
-							gamma_correction);
-
-				dc_gamma_retain(updates[i].gamma);
-				surface->public.gamma_correction =
-							updates[i].gamma;
-			}
-
-			if (updates[i].in_transfer_func &&
-				updates[i].in_transfer_func != surface->public.in_transfer_func) {
-				if (surface->public.in_transfer_func != NULL)
-					dc_transfer_func_release(
-							surface->public.
-							in_transfer_func);
-
-				dc_transfer_func_retain(
-						updates[i].in_transfer_func);
-				surface->public.in_transfer_func =
-						updates[i].in_transfer_func;
-			}
-
-			if (updates[i].out_transfer_func &&
-				updates[i].out_transfer_func != stream->public.out_transfer_func) {
-				if (stream->public.out_transfer_func != NULL)
-					dc_transfer_func_release(
-							stream->public.
-							out_transfer_func);
-				dc_transfer_func_retain(
-						updates[i].out_transfer_func);
-				stream->public.out_transfer_func =
-						updates[i].out_transfer_func;
-			}
-			if (updates[i].hdr_static_metadata)
-				surface->public.hdr_static_ctx =
-					*(updates[i].hdr_static_metadata);
 		}
+
+		if (dc->debug.disable_color_module)
+			continue;  /* skip below color updates */
+
+		if (updates[i].gamma &&
+			updates[i].gamma != surface->public.gamma_correction) {
+			if (surface->public.gamma_correction != NULL)
+				dc_gamma_release(&surface->public.
+						gamma_correction);
+
+			dc_gamma_retain(updates[i].gamma);
+			surface->public.gamma_correction =
+						updates[i].gamma;
+		}
+
+		if (updates[i].in_transfer_func &&
+			updates[i].in_transfer_func != surface->public.in_transfer_func) {
+			if (surface->public.in_transfer_func != NULL)
+				dc_transfer_func_release(
+						surface->public.
+						in_transfer_func);
+
+			dc_transfer_func_retain(
+					updates[i].in_transfer_func);
+			surface->public.in_transfer_func =
+					updates[i].in_transfer_func;
+		}
+
+		if (updates[i].out_transfer_func &&
+			updates[i].out_transfer_func != dc_stream->out_transfer_func) {
+			if (dc_stream->out_transfer_func != NULL)
+				dc_transfer_func_release(dc_stream->out_transfer_func);
+			dc_transfer_func_retain(updates[i].out_transfer_func);
+			stream->public.out_transfer_func = updates[i].out_transfer_func;
+		}
+		if (updates[i].hdr_static_metadata)
+			surface->public.hdr_static_ctx =
+				*(updates[i].hdr_static_metadata);
 	}
+
+
+	if (!surface_count)  /* reset */
+		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);
 
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(updates[i].surface);
 
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+			struct pipe_ctx *cur_pipe_ctx;
+			bool is_new_pipe_surface = true;
 
 			if (pipe_ctx->surface != surface)
 				continue;
 
-			if (updates[i].flip_addr && can_skip_context_building) {
-				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
-			} else {
-
-				if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-					core_dc->hwss.pipe_control_lock(
-							core_dc->hwseq,
-							pipe_ctx->pipe_idx,
-							PIPE_LOCK_CONTROL_GRAPHICS |
-							PIPE_LOCK_CONTROL_SCL |
-							PIPE_LOCK_CONTROL_BLENDER |
-							PIPE_LOCK_CONTROL_MODE,
-							true);
-				}
+			if (update_type != UPDATE_TYPE_FAST &&
+				!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
+				core_dc->hwss.pipe_control_lock(
+						core_dc->hwseq,
+						pipe_ctx->pipe_idx,
+						PIPE_LOCK_CONTROL_GRAPHICS |
+						PIPE_LOCK_CONTROL_SCL |
+						PIPE_LOCK_CONTROL_BLENDER |
+						PIPE_LOCK_CONTROL_MODE,
+						true);
 			}
+
+			if (update_type == UPDATE_TYPE_FULL) {
+				core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
+			} else if (updates[i].flip_addr) {
+				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
+			}
+
+			if (update_type == UPDATE_TYPE_FAST)
+				continue;
+
+			cur_pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
+			if (cur_pipe_ctx->surface == pipe_ctx->surface)
+				is_new_pipe_surface = false;
 
 			if (dc->debug.disable_color_module)
 				continue;  /* skip below color updates */
 
-			if (is_new_pipe_surface[j] ||
+			if (is_new_pipe_surface ||
 					updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->surface);
 
-			if (is_new_pipe_surface[j] ||
+			if (is_new_pipe_surface ||
 					updates[i].out_transfer_func)
 				core_dc->hwss.set_output_transfer_func(
 						pipe_ctx,
@@ -1539,13 +1594,11 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 				resource_build_info_frame(pipe_ctx);
 				core_dc->hwss.update_info_frame(pipe_ctx);
 			}
-
-		}
-		if (!can_skip_context_building) {
-			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
-			context_timing_trace(dc, &context->res_ctx);
 		}
 	}
+
+	if (update_type == UPDATE_TYPE_FAST)
+		return;
 
 	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -1566,8 +1619,12 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 		}
 	}
 
-	core_dc->temp_flip_context = core_dc->current_context;
-	core_dc->current_context = context;
+	if (core_dc->current_context != context) {
+		resource_validate_ctx_destruct(core_dc->current_context);
+		core_dc->temp_flip_context = core_dc->current_context;
+
+		core_dc->current_context = context;
+	}
 }
 
 uint8_t dc_get_current_stream_count(const struct dc *dc)
