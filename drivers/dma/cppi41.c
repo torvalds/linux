@@ -323,12 +323,12 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 
 		while (val) {
 			u32 desc, len;
-			int error;
 
-			error = pm_runtime_get(cdd->ddev.dev);
-			if (error < 0)
-				dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
-					__func__, error);
+			/*
+			 * This should never trigger, see the comments in
+			 * push_desc_queue()
+			 */
+			WARN_ON(cdd->is_suspended);
 
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
@@ -349,9 +349,6 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
 			dmaengine_desc_get_callback_invoke(&c->txd, NULL);
-
-			pm_runtime_mark_last_busy(cdd->ddev.dev);
-			pm_runtime_put_autosuspend(cdd->ddev.dev);
 		}
 	}
 	return IRQ_HANDLED;
