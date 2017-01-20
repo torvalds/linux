@@ -41,6 +41,13 @@ Optional properties:
   Admission Control Block supports reporting the number of packets in-flight in a
   switch queue
 
+Port subnodes:
+
+Optional properties:
+
+- brcm,use-bcm-hdr: boolean property, if present, indicates that the switch
+  port has Broadcom tags enabled (per-packet metadata)
+
 Example:
 
 switch_top@f0b00000 {
@@ -114,6 +121,7 @@ switch_top@f0b00000 {
 			port@0 {
 				label = "gphy";
 				reg = <0>;
+				brcm,use-bcm-hdr;
 			};
 			...
 		};

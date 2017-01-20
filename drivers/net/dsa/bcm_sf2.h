@@ -100,6 +100,9 @@ struct bcm_sf2_priv {
 	struct device_node		*master_mii_dn;
 	struct mii_bus			*slave_mii_bus;
 	struct mii_bus			*master_mii_bus;
+
+	/* Bitmask of ports needing BRCM tags */
+	unsigned int			brcm_tag_mask;
 };
 
 static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
