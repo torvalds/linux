@@ -6001,7 +6001,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	if (to_reserve)
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(BTRFS_I(inode)), to_reserve, 1);
+				      btrfs_ino(BTRFS_I(inode)), to_reserve, 1);
 	if (release_extra)
 		btrfs_block_rsv_release(fs_info, block_rsv,
 				btrfs_calc_trans_metadata_size(fs_info, 1));
@@ -6064,7 +6064,7 @@ out_fail:
 	if (to_free) {
 		btrfs_block_rsv_release(fs_info, block_rsv, to_free);
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(BTRFS_I(inode)), to_free, 0);
+				      btrfs_ino(BTRFS_I(inode)), to_free, 0);
 	}
 	if (delalloc_lock)
 		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);

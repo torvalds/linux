@@ -98,7 +98,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
 		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
-				caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
+			caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
 	}
 }
 #else
@@ -4413,8 +4413,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * lookup the last file extent.  We're not using i_size here
 	 * because there might be preallocation past i_size
 	 */
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(BTRFS_I(inode)), -1,
-				       0);
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+			btrfs_ino(BTRFS_I(inode)), -1, 0);
 	if (ret < 0) {
 		btrfs_free_path(path);
 		return ret;
@@ -4538,8 +4538,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			 * lookup stuff.
 			 */
 			ret = btrfs_check_shared(trans, root->fs_info,
-						 root->objectid,
-						 btrfs_ino(BTRFS_I(inode)), bytenr);
+					root->objectid,
+					btrfs_ino(BTRFS_I(inode)), bytenr);
 			if (trans)
 				btrfs_end_transaction(trans);
 			if (ret < 0)

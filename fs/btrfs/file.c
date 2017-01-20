@@ -2285,9 +2285,8 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	}
 	btrfs_release_path(path);
 
-	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)), offset,
-				       0, 0, end - offset, 0, end - offset,
-				       0, 0, 0);
+	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)),
+			offset, 0, 0, end - offset, 0, end - offset, 0, 0, 0);
 	if (ret)
 		return ret;
 

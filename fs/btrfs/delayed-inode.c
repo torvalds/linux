@@ -72,7 +72,8 @@ static inline int btrfs_is_continuous_delayed_item(
 	return 0;
 }
 
-static struct btrfs_delayed_node *btrfs_get_delayed_node(struct btrfs_inode *btrfs_inode)
+static struct btrfs_delayed_node *btrfs_get_delayed_node(
+		struct btrfs_inode *btrfs_inode)
 {
 	struct btrfs_root *root = btrfs_inode->root;
 	u64 ino = btrfs_ino(btrfs_inode);
@@ -106,7 +107,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(struct btrfs_inode *btr
 
 /* Will return either the node or PTR_ERR(-ENOMEM) */
 static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
-							struct btrfs_inode *btrfs_inode)
+		struct btrfs_inode *btrfs_inode)
 {
 	struct btrfs_delayed_node *node;
 	struct btrfs_root *root = btrfs_inode->root;

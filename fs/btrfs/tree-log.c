@@ -631,8 +631,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	 * file.  This must be done before the btrfs_drop_extents run
 	 * so we don't try to drop this extent.
 	 */
-	ret = btrfs_lookup_file_extent(trans, root, path, btrfs_ino(BTRFS_I(inode)),
-				       start, 0);
+	ret = btrfs_lookup_file_extent(trans, root, path,
+			btrfs_ino(BTRFS_I(inode)), start, 0);
 
 	if (ret == 0 &&
 	    (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -1296,8 +1296,9 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			goto out;
 
 		/* if we already have a perfect match, we're done */
-		if (!inode_in_dir(root, path, btrfs_ino(BTRFS_I(dir)), btrfs_ino(BTRFS_I(inode)),
-				  ref_index, name, namelen)) {
+		if (!inode_in_dir(root, path, btrfs_ino(BTRFS_I(dir)),
+					btrfs_ino(BTRFS_I(inode)), ref_index,
+					name, namelen)) {
 			/*
 			 * look for a conflicting back reference in the
 			 * metadata. if we find one we have to unlink that name
@@ -3676,7 +3677,8 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						    dst_path->slots[0],
 						    struct btrfs_inode_item);
 			fill_inode_item(trans, dst_path->nodes[0], inode_item,
-					&inode->vfs_inode, inode_only == LOG_INODE_EXISTS,
+					&inode->vfs_inode,
+					inode_only == LOG_INODE_EXISTS,
 					logged_isize);
 		} else {
 			copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
@@ -3826,7 +3828,8 @@ fill_holes:
 	if (need_find_last_extent) {
 		/* btrfs_prev_leaf could return 1 without releasing the path */
 		btrfs_release_path(src_path);
-		ret = btrfs_search_slot(NULL, inode->root, &first_key, src_path, 0, 0);
+		ret = btrfs_search_slot(NULL, inode->root, &first_key,
+				src_path, 0, 0);
 		if (ret < 0)
 			return ret;
 		ASSERT(ret == 0);
@@ -3881,7 +3884,7 @@ fill_holes:
 		offset = *last_extent;
 		len = key.offset - *last_extent;
 		ret = btrfs_insert_file_extent(trans, log, btrfs_ino(inode),
-					       offset, 0, 0, len, 0, len, 0, 0, 0);
+				offset, 0, 0, len, 0, len, 0, 0, 0);
 		if (ret)
 			break;
 		*last_extent = extent_end;
@@ -4071,8 +4074,8 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	int extent_inserted = 0;
 	bool ordered_io_err = false;
 
-	ret = wait_ordered_extents(trans, &inode->vfs_inode, root, em, logged_list,
-				   &ordered_io_err);
+	ret = wait_ordered_extents(trans, &inode->vfs_inode, root, em,
+			logged_list, &ordered_io_err);
 	if (ret)
 		return ret;
 
@@ -5368,7 +5371,7 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 				ret = 1;
 			if (!ret && ctx && ctx->log_new_dentries)
 				ret = log_new_dir_dentries(trans, root,
-							   BTRFS_I(dir_inode), ctx);
+						   BTRFS_I(dir_inode), ctx);
 			iput(dir_inode);
 			if (ret)
 				goto out;
@@ -5810,7 +5813,7 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct dentry *parent)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
-	struct btrfs_root * root = inode->root;
+	struct btrfs_root *root = inode->root;
 
 	/*
 	 * this will force the logging code to walk the dentry chain
