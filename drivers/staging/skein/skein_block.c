@@ -1,18 +1,20 @@
-/***********************************************************************
-**
-** Implementation of the Skein block functions.
-**
-** Source code author: Doug Whiting, 2008.
-**
-** This algorithm and source code is released to the public domain.
-**
-** Compile-time switches:
-**
-**  SKEIN_USE_ASM  -- set bits (256/512/1024) to select which
-**                    versions use ASM code for block processing
-**                    [default: use C for all block sizes]
-**
-************************************************************************/
+/*
+ ***********************************************************************
+ *
+ * Implementation of the Skein block functions.
+ *
+ * Source code author: Doug Whiting, 2008.
+ *
+ * This algorithm and source code is released to the public domain.
+ *
+ * Compile-time switches:
+ *
+ *  SKEIN_USE_ASM  -- set bits (256/512/1024) to select which
+ *                    versions use ASM code for block processing
+ *                    [default: use C for all block sizes]
+ *
+ ***********************************************************************
+ */
 
 #include <linux/string.h>
 #include <linux/bitops.h>

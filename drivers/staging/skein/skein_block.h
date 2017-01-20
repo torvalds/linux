@@ -1,12 +1,14 @@
-/***********************************************************************
-**
-** Implementation of the Skein hash function.
-**
-** Source code author: Doug Whiting, 2008.
-**
-** This algorithm and source code is released to the public domain.
-**
-************************************************************************/
+/*
+ ***********************************************************************
+ *
+ * Implementation of the Skein hash function.
+ *
+ * Source code author: Doug Whiting, 2008.
+ *
+ * This algorithm and source code is released to the public domain.
+ *
+ ***********************************************************************
+ */
 #ifndef _SKEIN_BLOCK_H_
 #define _SKEIN_BLOCK_H_
 
