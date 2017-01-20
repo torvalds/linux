@@ -1935,6 +1935,11 @@ static void rt2800_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->lna_gain = lna_gain;
 }
 
+static inline bool rt2800_clk_is_20mhz(struct rt2x00_dev *rt2x00dev)
+{
+	return clk_get_rate(rt2x00dev->clk) == 20000000;
+}
+
 #define FREQ_OFFSET_BOUND	0x5f
 
 static void rt2800_freq_cal_mode1(struct rt2x00_dev *rt2x00dev)
@@ -7426,6 +7431,27 @@ static const struct rf_channel rf_vals_3x[] = {
 	{173, 0x61, 0, 9},
 };
 
+/*
+ * RF value list for rt3xxx with Xtal20MHz
+ * Supports: 2.4 GHz (all) (RF3322)
+ */
+static const struct rf_channel rf_vals_3x_xtal20[] = {
+	{1,    0xE2,	 2,  0x14},
+	{2,    0xE3,	 2,  0x14},
+	{3,    0xE4,	 2,  0x14},
+	{4,    0xE5,	 2,  0x14},
+	{5,    0xE6,	 2,  0x14},
+	{6,    0xE7,	 2,  0x14},
+	{7,    0xE8,	 2,  0x14},
+	{8,    0xE9,	 2,  0x14},
+	{9,    0xEA,	 2,  0x14},
+	{10,   0xEB,	 2,  0x14},
+	{11,   0xEC,	 2,  0x14},
+	{12,   0xED,	 2,  0x14},
+	{13,   0xEE,	 2,  0x14},
+	{14,   0xF0,	 2,  0x18},
+};
+
 static const struct rf_channel rf_vals_5592_xtal20[] = {
 	/* Channel, N, K, mod, R */
 	{1, 482, 4, 10, 3},
@@ -7654,7 +7680,10 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF5390:
 	case RF5392:
 		spec->num_channels = 14;
-		spec->channels = rf_vals_3x;
+		if (rt2800_clk_is_20mhz(rt2x00dev))
+			spec->channels = rf_vals_3x_xtal20;
+		else
+			spec->channels = rf_vals_3x;
 		break;
 
 	case RF3052:
