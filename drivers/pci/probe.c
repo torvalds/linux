@@ -1661,12 +1661,30 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	 */
 }
 
+static void pci_configure_extended_tags(struct pci_dev *dev)
+{
+	u32 dev_cap;
+	int ret;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	ret = pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &dev_cap);
+	if (ret)
+		return;
+
+	if (dev_cap & PCI_EXP_DEVCAP_EXT_TAG)
+		pcie_capability_set_word(dev, PCI_EXP_DEVCTL,
+					 PCI_EXP_DEVCTL_EXT_TAG);
+}
+
 static void pci_configure_device(struct pci_dev *dev)
 {
 	struct hotplug_params hpp;
 	int ret;
 
 	pci_configure_mps(dev);
+	pci_configure_extended_tags(dev);
 
 	memset(&hpp, 0, sizeof(hpp));
 	ret = pci_get_hp_params(dev, &hpp);
