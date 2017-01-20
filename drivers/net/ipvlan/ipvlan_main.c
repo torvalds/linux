@@ -102,8 +102,8 @@ static int ipvlan_port_create(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	if (netif_is_macvlan_port(dev)) {
-		netdev_err(dev, "Master is a macvlan port.\n");
+	if (netdev_is_rx_handler_busy(dev)) {
+		netdev_err(dev, "Device is already in use.\n");
 		return -EBUSY;
 	}
 
