@@ -397,6 +397,15 @@ config PWM_STI
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sti.
 
+config PWM_STM32
+	tristate "STMicroelectronics STM32 PWM"
+	depends on MFD_STM32_TIMERS || COMPILE_TEST
+	help
+	  Generic PWM framework driver for STM32 SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-stm32.
+
 config PWM_STMPE
 	bool "STMPE expander PWM export"
 	depends on MFD_STMPE
