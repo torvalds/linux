@@ -2914,8 +2914,10 @@ done:
 int qla24xx_post_gidpn_work(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	struct qla_work_evt *e;
+	int ls;
 
-	if ((atomic_read(&vha->loop_state) != LOOP_READY) ||
+	ls = atomic_read(&vha->loop_state);
+	if (((ls != LOOP_READY) && (ls != LOOP_UP)) ||
 		test_bit(UNLOADING, &vha->dpc_flags))
 		return 0;
 

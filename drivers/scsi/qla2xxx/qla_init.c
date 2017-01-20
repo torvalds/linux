@@ -1071,10 +1071,10 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 	qla24xx_fcport_handle_login(vha, fcport);
 }
 
-void qla2x00_fcport_event_handler(scsi_qla_host_t *vha,
-	struct event_arg *ea)
+void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 {
-	fc_port_t *fcport;
+	fc_port_t *fcport, *f, *tf;
+	uint32_t id = 0, mask, rid;
 	int rc;
 
 	switch (ea->event) {
@@ -1087,20 +1087,55 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha,
 	case FCME_RSCN:
 		if (test_bit(UNLOADING, &vha->dpc_flags))
 			return;
-
-		fcport = qla2x00_find_fcport_by_nportid(vha, &ea->id, 1);
-		if (!fcport) {
-			/* cable moved */
-			rc = qla24xx_post_gpnid_work(vha, &ea->id);
-			if (rc) {
-				ql_log(ql_log_warn, vha, 0xffff,
-					"RSCN GPNID work failed %02x%02x%02x\n",
-					ea->id.b.domain, ea->id.b.area,
-					ea->id.b.al_pa);
+		switch (ea->id.b.rsvd_1) {
+		case RSCN_PORT_ADDR:
+			fcport = qla2x00_find_fcport_by_nportid(vha, &ea->id, 1);
+			if (!fcport) {
+				/* cable moved */
+				rc = qla24xx_post_gpnid_work(vha, &ea->id);
+				if (rc) {
+					ql_log(ql_log_warn, vha, 0xffff,
+						"RSCN GPNID work failed %02x%02x%02x\n",
+						ea->id.b.domain, ea->id.b.area,
+						ea->id.b.al_pa);
+				}
+			} else {
+				ea->fcport = fcport;
+				qla24xx_handle_rscn_event(fcport, ea);
 			}
-		} else {
-			ea->fcport = fcport;
-			qla24xx_handle_rscn_event(fcport, ea);
+			break;
+		case RSCN_AREA_ADDR:
+		case RSCN_DOM_ADDR:
+			if (ea->id.b.rsvd_1 == RSCN_AREA_ADDR) {
+				mask = 0xffff00;
+				ql_log(ql_dbg_async, vha, 0xffff,
+					   "RSCN: Area 0x%06x was affected\n",
+					   ea->id.b24);
+			} else {
+				mask = 0xff0000;
+				ql_log(ql_dbg_async, vha, 0xffff,
+					   "RSCN: Domain 0x%06x was affected\n",
+					   ea->id.b24);
+			}
+
+			rid = ea->id.b24 & mask;
+			list_for_each_entry_safe(f, tf, &vha->vp_fcports,
+			    list) {
+				id = f->d_id.b24 & mask;
+				if (rid == id) {
+					ea->fcport = f;
+					qla24xx_handle_rscn_event(f, ea);
+				}
+			}
+			break;
+		case RSCN_FAB_ADDR:
+		default:
+			ql_log(ql_log_warn, vha, 0xffff,
+				"RSCN: Fabric was affected. Addr format %d\n",
+				ea->id.b.rsvd_1);
+			qla2x00_mark_all_devices_lost(vha, 1);
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		}
 		break;
 	case FCME_GIDPN_DONE:
@@ -2947,6 +2982,21 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			__func__, ha->fw_options[2]);
 	}
 
+	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
+	if (ql2xmvasynctoatio) {
+		if (qla_tgt_mode_enabled(vha) ||
+		    qla_dual_mode_enabled(vha))
+			ha->fw_options[2] |= BIT_11;
+		else
+			ha->fw_options[2] &= ~BIT_11;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0xffff,
+		"%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
+		__func__, ha->fw_options[1], ha->fw_options[2],
+		ha->fw_options[3], vha->host->active_mode);
+	qla2x00_set_fw_options(vha, ha->fw_options);
+
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
 		return;
@@ -3953,10 +4003,11 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 
 	} else if (ha->current_topology == ISP_CFG_N) {
 		clear_bit(RSCN_UPDATE, &flags);
-
+	} else if (ha->current_topology == ISP_CFG_NL) {
+		clear_bit(RSCN_UPDATE, &flags);
+		set_bit(LOCAL_LOOP_UPDATE, &flags);
 	} else if (!vha->flags.online ||
 	    (test_bit(ABORT_ISP_ACTIVE, &flags))) {
-
 		set_bit(RSCN_UPDATE, &flags);
 		set_bit(LOCAL_LOOP_UPDATE, &flags);
 	}
@@ -4058,6 +4109,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	uint16_t	loop_id;
 	uint8_t		domain, area, al_pa;
 	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
 
 	found_devs = 0;
 	new_fcport = NULL;
@@ -4098,7 +4150,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    "Marking port lost loop_id=0x%04x.\n",
 			    fcport->loop_id);
 
-			qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
+			qla2x00_mark_device_lost(vha, fcport, 0, 0);
 		}
 	}
 
@@ -4129,13 +4181,14 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		if (loop_id > LAST_LOCAL_LOOP_ID)
 			continue;
 
-		memset(new_fcport, 0, sizeof(fc_port_t));
+		memset(new_fcport->port_name, 0, WWN_SIZE);
 
 		/* Fill in member data. */
 		new_fcport->d_id.b.domain = domain;
 		new_fcport->d_id.b.area = area;
 		new_fcport->d_id.b.al_pa = al_pa;
 		new_fcport->loop_id = loop_id;
+
 		rval2 = qla2x00_get_port_database(vha, new_fcport, 0);
 		if (rval2 != QLA_SUCCESS) {
 			ql_dbg(ql_dbg_disc, vha, 0x201a,
@@ -4148,6 +4201,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			continue;
 		}
 
+		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 		/* Check for matching device in port list. */
 		found = 0;
 		fcport = NULL;
@@ -4163,6 +4217,12 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			memcpy(fcport->node_name, new_fcport->node_name,
 			    WWN_SIZE);
 
+			if (!fcport->login_succ) {
+				vha->fcport_count++;
+				fcport->login_succ = 1;
+				fcport->disc_state = DSC_LOGIN_COMPLETE;
+			}
+
 			found++;
 			break;
 		}
@@ -4173,15 +4233,27 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 
 			/* Allocate a new replacement fcport. */
 			fcport = new_fcport;
+			if (!fcport->login_succ) {
+				vha->fcport_count++;
+				fcport->login_succ = 1;
+				fcport->disc_state = DSC_LOGIN_COMPLETE;
+			}
+
+			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+
 			new_fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
+
 			if (new_fcport == NULL) {
 				ql_log(ql_log_warn, vha, 0x201c,
 				    "Failed to allocate memory for fcport.\n");
 				rval = QLA_MEMORY_ALLOC_FAILED;
 				goto cleanup_allocation;
 			}
+			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 			new_fcport->flags &= ~FCF_FABRIC_DEVICE;
 		}
+
+		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 		/* Base iIDMA settings on HBA port speed. */
 		fcport->fp_speed = ha->link_data_rate;
@@ -4370,6 +4442,16 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 		return (QLA_SUCCESS);
 	}
 	vha->device_flags |= SWITCH_FOUND;
+
+
+	if (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha)) {
+		rval = qla2x00_send_change_request(vha, 0x3, 0);
+		if (rval != QLA_SUCCESS)
+			ql_log(ql_log_warn, vha, 0x121,
+				"Failed to enable receiving of RSCN requests: 0x%x.\n",
+				rval);
+	}
+
 
 	do {
 		qla2x00_mgmt_svr_login(vha);
@@ -6116,6 +6198,7 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 
 	for (chksum = 0; cnt--; wptr++)
 		chksum += le32_to_cpu(*wptr);
+
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x018c,
 		    "Checksum validation failed for primary image (0x%x)\n",
@@ -7128,6 +7211,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		vha->flags.process_response_queue = 1;
 	}
 
+	 /* enable RIDA Format2 */
+	if (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha))
+		icb->firmware_options_3 |= BIT_0;
+
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0076,
 		    "NVRAM configuration failed.\n");
@@ -7252,13 +7339,26 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 			__func__, ha->fw_options[2]);
 	}
 
-	if (!ql2xetsenable)
-		goto out;
+	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
+	if (ql2xmvasynctoatio) {
+		if (qla_tgt_mode_enabled(vha) ||
+		    qla_dual_mode_enabled(vha))
+			ha->fw_options[2] |= BIT_11;
+		else
+			ha->fw_options[2] &= ~BIT_11;
+	}
 
-	/* Enable ETS Burst. */
-	memset(ha->fw_options, 0, sizeof(ha->fw_options));
-	ha->fw_options[2] |= BIT_9;
-out:
+	if (ql2xetsenable) {
+		/* Enable ETS Burst. */
+		memset(ha->fw_options, 0, sizeof(ha->fw_options));
+		ha->fw_options[2] |= BIT_9;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0xffff,
+		"%s, add FW options 1-3 = 0x%04x 0x%04x 0x%04x mode %x\n",
+		__func__, ha->fw_options[1], ha->fw_options[2],
+		ha->fw_options[3], vha->host->active_mode);
+
 	qla2x00_set_fw_options(vha, ha->fw_options);
 }
 

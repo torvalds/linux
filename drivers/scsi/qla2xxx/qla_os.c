@@ -237,6 +237,13 @@ MODULE_PARM_DESC(ql2xfwholdabts,
 		"0 (Default) Do not set fw option. "
 		"1 - Set fw option to hold ABTS.");
 
+int ql2xmvasynctoatio = 1;
+module_param(ql2xmvasynctoatio, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xmvasynctoatio,
+		"Move PUREX, ABTS RX and RIDA IOCBs to ATIOQ"
+		"0 (Default). Do not move IOCBs"
+		"1 - Move IOCBs.");
+
 /*
  * SCSI host template entry points
  */
@@ -2932,18 +2939,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto probe_init_failed;
 
-	base_vha->gnl.size = (ha->max_loop_id + 1) *
-		sizeof(struct get_name_list_extended);
-	base_vha->gnl.l = dma_alloc_coherent(&ha->pdev->dev,
-		base_vha->gnl.size, &base_vha->gnl.ldma, GFP_KERNEL);
-	INIT_LIST_HEAD(&base_vha->gnl.fcports);
-
-	if (base_vha->gnl.l == NULL) {
-		ql_log(ql_log_fatal, base_vha, 0xffff,
-			"Alloc failed for name list.\n");
-		goto probe_init_failed;
-	}
-
 	/* Alloc arrays of request and response ring ptrs */
 	if (!qla2x00_alloc_queues(ha, req, rsp)) {
 		ql_log(ql_log_fatal, base_vha, 0x003d,
@@ -4250,10 +4245,10 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	struct scsi_qla_host *vha = NULL;
 
 	host = scsi_host_alloc(sht, sizeof(scsi_qla_host_t));
-	if (host == NULL) {
+	if (!host) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0107,
 		    "Failed to allocate host from the scsi layer, aborting.\n");
-		goto fail;
+		return NULL;
 	}
 
 	/* Clear our data area */
@@ -4272,10 +4267,22 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->logo_list);
 	INIT_LIST_HEAD(&vha->plogi_ack_list);
 	INIT_LIST_HEAD(&vha->qp_list);
+	INIT_LIST_HEAD(&vha->gnl.fcports);
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
 	init_waitqueue_head(&vha->fcport_waitQ);
+
+	vha->gnl.size =
+	    sizeof(struct get_name_list_extended[ha->max_loop_id+1]);
+	vha->gnl.l = dma_alloc_coherent(&ha->pdev->dev,
+	    vha->gnl.size, &vha->gnl.ldma, GFP_KERNEL);
+	if (!vha->gnl.l) {
+		ql_log(ql_log_fatal, vha, 0xffff,
+		    "Alloc failed for name list.\n");
+		scsi_remove_host(vha->host);
+		return NULL;
+	}
 
 	sprintf(vha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, vha->host_no);
 	ql_dbg(ql_dbg_init, vha, 0x0041,
@@ -4283,9 +4290,6 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	    vha->host, vha->hw, vha,
 	    dev_name(&(ha->pdev->dev)));
 
-	return vha;
-
-fail:
 	return vha;
 }
 
@@ -5510,16 +5514,6 @@ qla2x00_do_dpc(void *data)
 		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED,
 		    &base_vha->dpc_flags)) {
 			qla2x00_update_fcports(base_vha);
-		}
-
-		if (test_bit(SCR_PENDING, &base_vha->dpc_flags)) {
-			int ret;
-			ret = qla2x00_send_change_request(base_vha, 0x3, 0);
-			if (ret != QLA_SUCCESS)
-				ql_log(ql_log_warn, base_vha, 0x121,
-				    "Failed to enable receiving of RSCN "
-				    "requests: 0x%x.\n", ret);
-			clear_bit(SCR_PENDING, &base_vha->dpc_flags);
 		}
 
 		if (IS_QLAFX00(ha))
