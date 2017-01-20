@@ -314,7 +314,7 @@
 	};
 
 	i2c0: i2c@ff150000 {
-		compatible = "rockchip,rk3328-i2c";
+		compatible = "rockchip,rk3328-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff150000 0x0 0x1000>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -327,7 +327,7 @@
 	};
 
 	i2c1: i2c@ff160000 {
-		compatible = "rockchip,rk3328-i2c";
+		compatible = "rockchip,rk3328-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff160000 0x0 0x1000>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -340,7 +340,7 @@
 	};
 
 	i2c2: i2c@ff170000 {
-		compatible = "rockchip,rk3328-i2c";
+		compatible = "rockchip,rk3328-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff170000 0x0 0x1000>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -353,7 +353,7 @@
 	};
 
 	i2c3: i2c@ff180000 {
-		compatible = "rockchip,rk3328-i2c";
+		compatible = "rockchip,rk3328-i2c", "rockchip,rk3399-i2c";
 		reg = <0x0 0xff180000 0x0 0x1000>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
