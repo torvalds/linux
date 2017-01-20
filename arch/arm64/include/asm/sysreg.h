@@ -149,10 +149,35 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
+#define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
+#define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
+
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
+#define SYS_PMCR_EL0			sys_reg(3, 3, 9, 12, 0)
+#define SYS_PMCNTENSET_EL0		sys_reg(3, 3, 9, 12, 1)
+#define SYS_PMCNTENCLR_EL0		sys_reg(3, 3, 9, 12, 2)
+#define SYS_PMOVSCLR_EL0		sys_reg(3, 3, 9, 12, 3)
+#define SYS_PMSWINC_EL0			sys_reg(3, 3, 9, 12, 4)
+#define SYS_PMSELR_EL0			sys_reg(3, 3, 9, 12, 5)
+#define SYS_PMCEID0_EL0			sys_reg(3, 3, 9, 12, 6)
+#define SYS_PMCEID1_EL0			sys_reg(3, 3, 9, 12, 7)
+#define SYS_PMCCNTR_EL0			sys_reg(3, 3, 9, 13, 0)
+#define SYS_PMXEVTYPER_EL0		sys_reg(3, 3, 9, 13, 1)
+#define SYS_PMXEVCNTR_EL0		sys_reg(3, 3, 9, 13, 2)
+#define SYS_PMUSERENR_EL0		sys_reg(3, 3, 9, 14, 0)
+#define SYS_PMOVSSET_EL0		sys_reg(3, 3, 9, 14, 3)
+
 #define SYS_CNTFRQ_EL0			sys_reg(3, 3, 14, 0, 0)
+
+#define __PMEV_op2(n)			((n) & 0x7)
+#define __CNTR_CRm(n)			(0x8 | (((n) >> 3) & 0x3))
+#define SYS_PMEVCNTRn_EL0(n)		sys_reg(3, 3, 14, __CNTR_CRm(n), __PMEV_op2(n))
+#define __TYPER_CRm(n)			(0xc | (((n) >> 3) & 0x3))
+#define SYS_PMEVTYPERn_EL0(n)		sys_reg(3, 3, 14, __TYPER_CRm(n), __PMEV_op2(n))
+
+#define SYS_PMCCFILTR_EL0		sys_reg (3, 3, 14, 15, 7)
 
 /* Common SCTLR_ELx flags. */
 #define SCTLR_ELx_EE    (1 << 25)
