@@ -307,14 +307,6 @@ struct dsa_switch_ops {
 	int	(*get_eee)(struct dsa_switch *ds, int port,
 			   struct ethtool_eee *e);
 
-#ifdef CONFIG_NET_DSA_HWMON
-	/* Hardware monitoring */
-	int	(*get_temp)(struct dsa_switch *ds, int *temp);
-	int	(*get_temp_limit)(struct dsa_switch *ds, int *temp);
-	int	(*set_temp_limit)(struct dsa_switch *ds, int temp);
-	int	(*get_temp_alarm)(struct dsa_switch *ds, bool *alarm);
-#endif
-
 	/* EEPROM access */
 	int	(*get_eeprom_len)(struct dsa_switch *ds);
 	int	(*get_eeprom)(struct dsa_switch *ds,
