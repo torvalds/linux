@@ -316,8 +316,6 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (ret)
 		return ret;
 
-	dsa_hwmon_register(ds);
-
 	return 0;
 }
 
@@ -375,8 +373,6 @@ void dsa_cpu_dsa_destroy(struct device_node *port_dn)
 static void dsa_switch_destroy(struct dsa_switch *ds)
 {
 	int port;
-
-	dsa_hwmon_unregister(ds);
 
 	/* Destroy network devices for physical switch ports. */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
