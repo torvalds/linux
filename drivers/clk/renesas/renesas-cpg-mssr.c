@@ -43,7 +43,7 @@
  * Module Standby and Software Reset register offets.
  *
  * If the registers exist, these are valid for SH-Mobile, R-Mobile,
- * R-Car Gen 2, and R-Car Gen 3.
+ * R-Car Gen2, R-Car Gen3, and RZ/G1.
  * These are NOT valid for R-Car Gen1 and RZ/A1!
  */
 
