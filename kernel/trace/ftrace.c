@@ -1110,13 +1110,6 @@ struct ftrace_func_entry {
 	unsigned long ip;
 };
 
-struct ftrace_hash {
-	unsigned long		size_bits;
-	struct hlist_head	*buckets;
-	unsigned long		count;
-	struct rcu_head		rcu;
-};
-
 /*
  * We make these constant because no one should touch them,
  * but they are used as the default "empty hash", to avoid allocating
@@ -1192,12 +1185,7 @@ struct ftrace_page {
 static struct ftrace_page	*ftrace_pages_start;
 static struct ftrace_page	*ftrace_pages;
 
-static bool __always_inline ftrace_hash_empty(struct ftrace_hash *hash)
-{
-	return !hash || !hash->count;
-}
-
-static struct ftrace_func_entry *
+struct ftrace_func_entry *
 ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 {
 	unsigned long key;
