@@ -767,7 +767,7 @@ static int dma_map_mr_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			  __be64 **mr_pas, dma_addr_t *dma)
 {
 	__be64 *pas;
-	struct device *ddev = dev->ib_dev.dma_device;
+	struct device *ddev = dev->ib_dev.dev.parent;
 
 	/*
 	 * UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
@@ -896,7 +896,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 				  int page_shift, int order, int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct device *ddev = dev->ib_dev.dma_device;
+	struct device *ddev = dev->ib_dev.dev.parent;
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
 	struct mlx5_umr_wr umrwr = {};
@@ -974,7 +974,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		       int zap)
 {
 	struct mlx5_ib_dev *dev = mr->dev;
-	struct device *ddev = dev->ib_dev.dma_device;
+	struct device *ddev = dev->ib_dev.dev.parent;
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
 	struct ib_umem *umem = mr->umem;
@@ -1288,7 +1288,7 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 		     int access_flags, int flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct device *ddev = dev->ib_dev.dma_device;
+	struct device *ddev = dev->ib_dev.dev.parent;
 	struct mlx5_ib_umr_context umr_context;
 	struct ib_send_wr *bad;
 	struct mlx5_umr_wr umrwr = {};
@@ -1461,9 +1461,9 @@ mlx5_alloc_priv_descs(struct ib_device *device,
 
 	mr->descs = PTR_ALIGN(mr->descs_alloc, MLX5_UMR_ALIGN);
 
-	mr->desc_map = dma_map_single(device->dma_device, mr->descs,
+	mr->desc_map = dma_map_single(device->dev.parent, mr->descs,
 				      size, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dma_device, mr->desc_map)) {
+	if (dma_mapping_error(device->dev.parent, mr->desc_map)) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1482,7 +1482,7 @@ mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 		struct ib_device *device = mr->ibmr.device;
 		int size = mr->max_descs * mr->desc_size;
 
-		dma_unmap_single(device->dma_device, mr->desc_map,
+		dma_unmap_single(device->dev.parent, mr->desc_map,
 				 size, DMA_TO_DEVICE);
 		kfree(mr->descs_alloc);
 		mr->descs = NULL;
