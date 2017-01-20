@@ -75,6 +75,18 @@
 	status = "okay";
 };
 
+&io_domains {
+	status = "okay";
+
+	vccio1-supply = <&vcc_io>;
+	vccio2-supply = <&vcc_18emmc>;
+	vccio3-supply = <&vcc_io>;
+	vccio4-supply = <&vdd_18>;
+	vccio5-supply = <&vcc_io>;
+	vccio6-supply = <&vcc_io>;
+	pmuio-supply = <&vcc_io>;
+};
+
 &u2phy {
 	status = "okay";
 
