@@ -332,14 +332,12 @@ a process with a non-root euid to migrate a target process into a
 cgroup by writing its PID to the "cgroup.procs" file, the following
 conditions must be met.
 
-- The writer's euid must match either uid or suid of the target process.
-
 - The writer must have write access to the "cgroup.procs" file.
 
 - The writer must have write access to the "cgroup.procs" file of the
   common ancestor of the source and destination cgroups.
 
-The above three constraints ensure that while a delegatee may migrate
+The above two constraints ensure that while a delegatee may migrate
 processes around freely in the delegated sub-hierarchy it can't pull
 in from or push out to outside the sub-hierarchy.
 
@@ -354,10 +352,10 @@ all processes under C0 and C1 belong to U0.
 
 Let's also say U0 wants to write the PID of a process which is
 currently in C10 into "C00/cgroup.procs".  U0 has write access to the
-file and uid match on the process; however, the common ancestor of the
-source cgroup C10 and the destination cgroup C00 is above the points
-of delegation and U0 would not have write access to its "cgroup.procs"
-files and thus the write will be denied with -EACCES.
+file; however, the common ancestor of the source cgroup C10 and the
+destination cgroup C00 is above the points of delegation and U0 would
+not have write access to its "cgroup.procs" files and thus the write
+will be denied with -EACCES.
 
 
 2-6. Guidelines
