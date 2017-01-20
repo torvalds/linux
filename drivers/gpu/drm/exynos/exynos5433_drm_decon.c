@@ -591,6 +591,13 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 
 	if (val) {
 		writel(val, ctx->addr + DECON_VIDINTCON1);
+		if (ctx->out_type & IFTYPE_HDMI) {
+			val = readl(ctx->addr + DECON_VIDOUTCON0);
+			val &= VIDOUT_INTERLACE_EN_F | VIDOUT_INTERLACE_FIELD_F;
+			if (val ==
+			    (VIDOUT_INTERLACE_EN_F | VIDOUT_INTERLACE_FIELD_F))
+				return IRQ_HANDLED;
+		}
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 	}
 
