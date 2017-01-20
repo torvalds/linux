@@ -42,11 +42,15 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 
 /*
  * This points to the current valid container of microcode patches which we will
- * save from the initrd/builtin before jettisoning its contents.
+ * save from the initrd/builtin before jettisoning its contents. @mc is the
+ * microcode patch we found to match.
  */
-struct container {
-	u8 *data;
-	size_t size;
+static struct cont_desc {
+	struct microcode_amd *mc;
+	u32		     psize;
+	u16		     eq_id;
+	u8		     *data;
+	size_t		     size;
 } cont;
 
 static u32 ucode_new_rev;
@@ -113,9 +117,9 @@ static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
  * table or 0 if none found.
  */
 static u16
-find_proper_container(u8 *ucode, size_t size, struct container *ret_cont)
+find_proper_container(u8 *ucode, size_t size, struct cont_desc *desc)
 {
-	struct container ret = { NULL, 0 };
+	struct cont_desc ret = { 0 };
 	u32 eax, ebx, ecx, edx;
 	struct equiv_cpu_entry *eq;
 	int offset, left;
@@ -158,7 +162,7 @@ find_proper_container(u8 *ucode, size_t size, struct container *ret_cont)
 			 */
 			left = ret.size - offset;
 
-			*ret_cont = ret;
+			*desc = ret;
 			return eq_id;
 		}
 
@@ -213,11 +217,11 @@ static int __apply_microcode_amd(struct microcode_amd *mc)
  * Returns true if container found (sets @ret_cont), false otherwise.
  */
 static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
-				      struct container *ret_cont)
+				      struct cont_desc *desc)
 {
 	u8 (*patch)[PATCH_MAX_SIZE];
 	u32 rev, *header, *new_rev;
-	struct container ret;
+	struct cont_desc ret;
 	int offset, left;
 	u16 eq_id = 0;
 	u8  *data;
@@ -270,8 +274,8 @@ static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
 		left   -= offset;
 	}
 
-	if (ret_cont)
-		*ret_cont = ret;
+	if (desc)
+		*desc = ret;
 
 	return true;
 }
