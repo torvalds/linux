@@ -19,6 +19,8 @@ fixes
 		ARM64: dts: meson-gxbb-odroidc2: Disable SCPI DVFS
 	<no branch> (1ea6af3216b092ec97129ac81bd95cf254c4b140)
 		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.10/fixes-rc4
+	patch
+		ARM: dts: da850-evm: fix read access to SPI flash
 
 next/fixes-non-critical
 
@@ -61,6 +63,12 @@ next/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-dt
 	aspeed/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-devicetree
+	patch
+		ARM: dts: tango4: Add alias for eth0
+		ARM: dts: tango4: Import MMC nodes
+		ARM: dts: tango4: Import USB nodes
+	brcm/dt
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree
 
 next/dt64
 	renesas/dt64
