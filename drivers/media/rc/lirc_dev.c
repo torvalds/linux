@@ -472,7 +472,7 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		if (retval) {
 			module_put(cdev->owner);
 			ir->open--;
-		} else {
+		} else if (ir->buf) {
 			lirc_buffer_clear(ir->buf);
 		}
 		if (ir->task)
