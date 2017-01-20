@@ -965,35 +965,28 @@ struct qla_tgt_sess {
 	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 };
 
-typedef enum {
-	/*
-	 * BIT_0 - Atio Arrival / schedule to work
-	 * BIT_1 - qlt_do_work
-	 * BIT_2 - qlt_do work failed
-	 * BIT_3 - xfer rdy/tcm_qla2xxx_write_pending
-	 * BIT_4 - read respond/tcm_qla2xx_queue_data_in
-	 * BIT_5 - status respond / tcm_qla2xx_queue_status
-	 * BIT_6 - tcm request to abort/Term exchange.
-	 *	pre_xmit_response->qlt_send_term_exchange
-	 * BIT_7 - SRR received (qlt_handle_srr->qlt_xmit_response)
-	 * BIT_8 - SRR received (qlt_handle_srr->qlt_rdy_to_xfer)
-	 * BIT_9 - SRR received (qla_handle_srr->qlt_send_term_exchange)
-	 * BIT_10 - Data in - hanlde_data->tcm_qla2xxx_handle_data
-
-	 * BIT_12 - good completion - qlt_ctio_do_completion -->free_cmd
-	 * BIT_13 - Bad completion -
-	 *	qlt_ctio_do_completion --> qlt_term_ctio_exchange
-	 * BIT_14 - Back end data received/sent.
-	 * BIT_15 - SRR prepare ctio
-	 * BIT_16 - complete free
-	 * BIT_17 - flush - qlt_abort_cmd_on_host_reset
-	 * BIT_18 - completion w/abort status
-	 * BIT_19 - completion w/unknown status
-	 * BIT_20 - tcm_qla2xxx_free_cmd
-	 */
-	CMD_FLAG_DATA_WORK = BIT_11,
-	CMD_FLAG_DATA_WORK_FREE = BIT_21,
-} cmd_flags_t;
+enum trace_flags {
+	TRC_NEW_CMD = BIT_0,
+	TRC_DO_WORK = BIT_1,
+	TRC_DO_WORK_ERR = BIT_2,
+	TRC_XFR_RDY = BIT_3,
+	TRC_XMIT_DATA = BIT_4,
+	TRC_XMIT_STATUS = BIT_5,
+	TRC_SRR_RSP =  BIT_6,
+	TRC_SRR_XRDY = BIT_7,
+	TRC_SRR_TERM = BIT_8,
+	TRC_SRR_CTIO = BIT_9,
+	TRC_FLUSH = BIT_10,
+	TRC_CTIO_ERR = BIT_11,
+	TRC_CTIO_DONE = BIT_12,
+	TRC_CTIO_ABORTED =  BIT_13,
+	TRC_CTIO_STRANGE= BIT_14,
+	TRC_CMD_DONE = BIT_15,
+	TRC_CMD_CHK_STOP = BIT_16,
+	TRC_CMD_FREE = BIT_17,
+	TRC_DATA_IN = BIT_18,
+	TRC_ABORT = BIT_19,
+};
 
 struct qla_tgt_cmd {
 	struct se_cmd se_cmd;
@@ -1016,6 +1009,8 @@ struct qla_tgt_cmd {
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
 	unsigned int aborted:1;
+	unsigned int data_work:1;
+	unsigned int data_work_free:1;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -1040,7 +1035,7 @@ struct qla_tgt_cmd {
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
 
-	cmd_flags_t cmd_flags;
+	enum trace_flags trc_flags;
 };
 
 struct qla_tgt_sess_work_param {

@@ -3297,7 +3297,7 @@ int qlt_abort_cmd(struct qla_tgt_cmd *cmd)
 		return EIO;
 	}
 	cmd->aborted = 1;
-	cmd->cmd_flags |= BIT_6;
+	cmd->trc_flags |= TRC_ABORT;
 	spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
 	qlt_send_term_exchange(vha, cmd, &cmd->atio, 0, 1);
@@ -3345,7 +3345,7 @@ static int qlt_prepare_srr_ctio(struct scsi_qla_host *vha,
 	struct qla_tgt_srr_imm *imm;
 
 	tgt->ctio_srr_id++;
-	cmd->cmd_flags |= BIT_15;
+	cmd->trc_flags |= TRC_SRR_CTIO;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf019,
 	    "qla_target(%d): CTIO with SRR status received\n", vha->vp_idx);
@@ -3528,7 +3528,7 @@ qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 		dump_stack();
 	}
 
-	cmd->cmd_flags |= BIT_17;
+	cmd->trc_flags |= TRC_FLUSH;
 	ha->tgt.tgt_ops->free_cmd(cmd);
 }
 
@@ -3694,7 +3694,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		 */
 		if ((cmd->state != QLA_TGT_STATE_NEED_DATA) &&
 		    (!cmd->aborted)) {
-			cmd->cmd_flags |= BIT_13;
+			cmd->trc_flags |= TRC_CTIO_ERR;
 			if (qlt_term_ctio_exchange(vha, ctio, cmd, status))
 				return;
 		}
@@ -3702,7 +3702,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 skip_term:
 
 	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
-		cmd->cmd_flags |= BIT_12;
+		cmd->trc_flags |= TRC_CTIO_DONE;
 	} else if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
 		cmd->state = QLA_TGT_STATE_DATA_IN;
 
@@ -3712,11 +3712,11 @@ skip_term:
 		ha->tgt.tgt_ops->handle_data(cmd);
 		return;
 	} else if (cmd->aborted) {
-		cmd->cmd_flags |= BIT_18;
+		cmd->trc_flags |= TRC_CTIO_ABORTED;
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01e,
 		  "Aborted command %p (tag %lld) finished\n", cmd, se_cmd->tag);
 	} else {
-		cmd->cmd_flags |= BIT_19;
+		cmd->trc_flags |= TRC_CTIO_STRANGE;
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05c,
 		    "qla_target(%d): A command in state (%d) should "
 		    "not return a CTIO complete\n", vha->vp_idx, cmd->state);
@@ -3781,7 +3781,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	int ret, fcp_task_attr, data_dir, bidi = 0;
 
 	cmd->cmd_in_wq = 0;
-	cmd->cmd_flags |= BIT_1;
+	cmd->trc_flags |= TRC_DO_WORK;
 	if (tgt->tgt_stop)
 		goto out_term;
 
@@ -3833,7 +3833,7 @@ out_term:
 	 * cmd has not sent to target yet, so pass NULL as the second
 	 * argument to qlt_send_term_exchange() and free the memory here.
 	 */
-	cmd->cmd_flags |= BIT_2;
+	cmd->trc_flags |= TRC_DO_WORK_ERR;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1, 0);
 
@@ -3884,7 +3884,7 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd->loop_id = sess->loop_id;
 	cmd->conf_compl_supported = sess->conf_compl_supported;
 
-	cmd->cmd_flags = 0;
+	cmd->trc_flags = 0;
 	cmd->jiffies_at_alloc = get_jiffies_64();
 
 	cmd->reset_count = vha->hw->chip_reset;
@@ -4020,7 +4020,7 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	}
 
 	cmd->cmd_in_wq = 1;
-	cmd->cmd_flags |= BIT_0;
+	cmd->trc_flags |= TRC_NEW_CMD;
 	cmd->se_cmd.cpuid = ha->msix_count ?
 		ha->tgt.rspq_vector_cpuid : WORK_CPU_UNBOUND;
 
@@ -4712,7 +4712,7 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 			    0, 0, 0, NOTIFY_ACK_SRR_FLAGS_ACCEPT, 0, 0);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			if (xmit_type & QLA_TGT_XMIT_DATA) {
-				cmd->cmd_flags |= BIT_8;
+				cmd->trc_flags |= TRC_SRR_XRDY;
 				qlt_rdy_to_xfer(cmd);
 			}
 		} else {
@@ -4731,7 +4731,7 @@ static void qlt_handle_srr(struct scsi_qla_host *vha,
 
 	/* Transmit response in case of status and data-in cases */
 	if (resp) {
-		cmd->cmd_flags |= BIT_7;
+		cmd->trc_flags |= TRC_SRR_RSP;
 		qlt_xmit_response(cmd, xmit_type, se_cmd->scsi_status);
 	}
 
@@ -4747,7 +4747,7 @@ out_reject:
 		cmd->state = QLA_TGT_STATE_DATA_IN;
 		dump_stack();
 	} else {
-		cmd->cmd_flags |= BIT_9;
+		cmd->trc_flags |= TRC_SRR_TERM;
 		qlt_send_term_exchange(vha, cmd, &cmd->atio, 1, 0);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
