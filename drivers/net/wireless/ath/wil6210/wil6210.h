@@ -36,8 +36,9 @@ extern bool debug_fw;
 extern bool disable_ap_sme;
 
 #define WIL_NAME "wil6210"
-#define WIL_FW_NAME "wil6210.fw" /* code */
-#define WIL_FW2_NAME "wil6210.brd" /* board & radio parameters */
+#define WIL_FW_NAME_DEFAULT "wil6210.fw" /* code Sparrow B0 */
+#define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw" /* code Sparrow D0 */
+#define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -253,7 +254,12 @@ struct RGF_ICR {
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
-	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
+	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
+
+#define RGF_USER_REVISION_ID		(0x88afe4)
+#define RGF_USER_REVISION_ID_MASK	(3)
+	#define REVISION_ID_SPARROW_B0	(0x0)
+	#define REVISION_ID_SPARROW_D0	(0x3)
 
 /* crash codes for FW/Ucode stored here */
 #define RGF_FW_ASSERT_CODE		(0x91f020)
@@ -261,7 +267,8 @@ struct RGF_ICR {
 
 enum {
 	HW_VER_UNKNOWN,
-	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
+	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
+	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
 };
 
 /* popular locations */
@@ -587,7 +594,9 @@ struct wil6210_priv {
 	DECLARE_BITMAP(status, wil_status_last);
 	u8 fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
+	u8 chip_revision;
 	const char *hw_name;
+	const char *wil_fw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
@@ -923,6 +932,7 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type);
 int wil_ioctl(struct wil6210_priv *wil, void __user *data, int cmd);
 int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 			 bool load);
+bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);

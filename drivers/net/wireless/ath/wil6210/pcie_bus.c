@@ -36,18 +36,38 @@ static int wil6210_pm_notify(struct notifier_block *notify_block,
 static
 void wil_set_capabilities(struct wil6210_priv *wil)
 {
-	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
+	u32 jtag_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
+	u8 chip_revision = (wil_r(wil, RGF_USER_REVISION_ID) &
+			    RGF_USER_REVISION_ID_MASK);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
+	wil->wil_fw_name = WIL_FW_NAME_DEFAULT;
+	wil->chip_revision = chip_revision;
 
-	switch (rev_id) {
-	case JTAG_DEV_ID_SPARROW_B0:
-		wil->hw_name = "Sparrow B0";
-		wil->hw_version = HW_VER_SPARROW_B0;
+	switch (jtag_id) {
+	case JTAG_DEV_ID_SPARROW:
+		switch (chip_revision) {
+		case REVISION_ID_SPARROW_D0:
+			wil->hw_name = "Sparrow D0";
+			wil->hw_version = HW_VER_SPARROW_D0;
+			if (wil_fw_verify_file_exists(wil,
+						      WIL_FW_NAME_SPARROW_PLUS))
+				wil->wil_fw_name = WIL_FW_NAME_SPARROW_PLUS;
+			break;
+		case REVISION_ID_SPARROW_B0:
+			wil->hw_name = "Sparrow B0";
+			wil->hw_version = HW_VER_SPARROW_B0;
+			break;
+		default:
+			wil->hw_name = "Unknown";
+			wil->hw_version = HW_VER_UNKNOWN;
+			break;
+		}
 		break;
 	default:
-		wil_err(wil, "Unknown board hardware 0x%08x\n", rev_id);
+		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
+			jtag_id, chip_revision);
 		wil->hw_name = "Unknown";
 		wil->hw_version = HW_VER_UNKNOWN;
 	}
@@ -55,7 +75,7 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
 
 	/* extract FW capabilities from file without loading the FW */
-	wil_request_firmware(wil, WIL_FW_NAME, false);
+	wil_request_firmware(wil, wil->wil_fw_name, false);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)

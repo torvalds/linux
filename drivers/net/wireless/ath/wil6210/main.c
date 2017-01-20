@@ -934,16 +934,16 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
-		wil_info(wil, "Use firmware <%s> + board <%s>\n", WIL_FW_NAME,
-			 WIL_FW2_NAME);
+		wil_info(wil, "Use firmware <%s> + board <%s>\n",
+			 wil->wil_fw_name, WIL_BOARD_FILE_NAME);
 
 		wil_halt_cpu(wil);
 		memset(wil->fw_version, 0, sizeof(wil->fw_version));
 		/* Loading f/w from the file */
-		rc = wil_request_firmware(wil, WIL_FW_NAME, true);
+		rc = wil_request_firmware(wil, wil->wil_fw_name, true);
 		if (rc)
 			return rc;
-		rc = wil_request_firmware(wil, WIL_FW2_NAME, true);
+		rc = wil_request_firmware(wil, WIL_BOARD_FILE_NAME, true);
 		if (rc)
 			return rc;
 
