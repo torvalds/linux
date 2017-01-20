@@ -890,16 +890,7 @@ struct qla_tgt {
 	int notify_ack_expected;
 	int abts_resp_expected;
 	int modify_lun_expected;
-
-	int ctio_srr_id;
-	int imm_srr_id;
-	spinlock_t srr_lock;
-	struct list_head srr_ctio_list;
-	struct list_head srr_imm_list;
-	struct work_struct srr_work;
-
 	atomic_t tgt_global_resets_count;
-
 	struct list_head tgt_list_entry;
 };
 
@@ -1085,18 +1076,6 @@ struct qla_tgt_prm {
 	struct scatterlist *prot_sg;
 	uint16_t prot_seg_cnt;
 	uint16_t tot_dsds;
-};
-
-struct qla_tgt_srr_imm {
-	struct list_head srr_list_entry;
-	int srr_id;
-	struct imm_ntfy_from_isp imm_ntfy;
-};
-
-struct qla_tgt_srr_ctio {
-	struct list_head srr_list_entry;
-	int srr_id;
-	struct qla_tgt_cmd *cmd;
 };
 
 /* Check for Switch reserved address */
