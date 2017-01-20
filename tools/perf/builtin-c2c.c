@@ -58,7 +58,7 @@ struct c2c_hist_entry {
 	struct hist_entry	he;
 };
 
-static char const *coalesce_default = "pid,tid,iaddr";
+static char const *coalesce_default = "pid,iaddr";
 
 struct perf_c2c {
 	struct perf_tool	tool;
