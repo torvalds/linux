@@ -729,12 +729,12 @@ static void start_transaction(struct acpi_ec *ec)
 
 static int ec_guard(struct acpi_ec *ec)
 {
-	unsigned long guard = usecs_to_jiffies(ec_polling_guard);
+	unsigned long guard = usecs_to_jiffies(ec->polling_guard);
 	unsigned long timeout = ec->timestamp + guard;
 
 	/* Ensure guarding period before polling EC status */
 	do {
-		if (ec_busy_polling) {
+		if (ec->busy_polling) {
 			/* Perform busy polling */
 			if (ec_transaction_completed(ec))
 				return 0;
@@ -995,6 +995,28 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
 		ec_log_drv("EC stopped");
 	}
+	spin_unlock_irqrestore(&ec->lock, flags);
+}
+
+static void acpi_ec_enter_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	ec->busy_polling = true;
+	ec->polling_guard = 0;
+	ec_log_drv("interrupt blocked");
+	spin_unlock_irqrestore(&ec->lock, flags);
+}
+
+static void acpi_ec_leave_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	ec->busy_polling = ec_busy_polling;
+	ec->polling_guard = ec_polling_guard;
+	ec_log_drv("interrupt unblocked");
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
 
@@ -1278,7 +1300,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
 
-	if (ec_busy_polling || bits > 8)
+	if (ec->busy_polling || bits > 8)
 		acpi_ec_burst_enable(ec);
 
 	for (i = 0; i < bytes; ++i, ++address, ++value)
@@ -1286,7 +1308,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 			acpi_ec_read(ec, address, value) :
 			acpi_ec_write(ec, address, *value);
 
-	if (ec_busy_polling || bits > 8)
+	if (ec->busy_polling || bits > 8)
 		acpi_ec_burst_disable(ec);
 
 	switch (result) {
@@ -1329,6 +1351,8 @@ static struct acpi_ec *acpi_ec_alloc(void)
 	spin_lock_init(&ec->lock);
 	INIT_WORK(&ec->work, acpi_ec_event_handler);
 	ec->timestamp = jiffies;
+	ec->busy_polling = true;
+	ec->polling_guard = 0;
 	return ec;
 }
 
@@ -1390,6 +1414,7 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 	acpi_ec_start(ec, false);
 
 	if (!test_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags)) {
+		acpi_ec_enter_noirq(ec);
 		status = acpi_install_address_space_handler(ec->handle,
 							    ACPI_ADR_SPACE_EC,
 							    &acpi_ec_space_handler,
@@ -1429,6 +1454,7 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 		/* This is not fatal as we can poll EC events */
 		if (ACPI_SUCCESS(status)) {
 			set_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags);
+			acpi_ec_leave_noirq(ec);
 			if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
 			    ec->reference_count >= 1)
 				acpi_ec_enable_gpe(ec, true);
@@ -1839,34 +1865,6 @@ error:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static void acpi_ec_enter_noirq(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec == first_ec) {
-		spin_lock_irqsave(&ec->lock, flags);
-		ec->saved_busy_polling = ec_busy_polling;
-		ec->saved_polling_guard = ec_polling_guard;
-		ec_busy_polling = true;
-		ec_polling_guard = 0;
-		ec_log_drv("interrupt blocked");
-		spin_unlock_irqrestore(&ec->lock, flags);
-	}
-}
-
-static void acpi_ec_leave_noirq(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec == first_ec) {
-		spin_lock_irqsave(&ec->lock, flags);
-		ec_busy_polling = ec->saved_busy_polling;
-		ec_polling_guard = ec->saved_polling_guard;
-		ec_log_drv("interrupt unblocked");
-		spin_unlock_irqrestore(&ec->lock, flags);
-	}
-}
-
 static int acpi_ec_suspend_noirq(struct device *dev)
 {
 	struct acpi_ec *ec =
