@@ -2537,7 +2537,7 @@ check_scsi_status:
 		    par_sense_len, rsp_info_len);
 
 	if (rsp->status_srb == NULL)
-		sp->done(ha, sp, res);
+		sp->done(vha, sp, res);
 }
 
 /**
@@ -2614,7 +2614,7 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 	/* Place command on done queue. */
 	if (sense_len == 0) {
 		rsp->status_srb = NULL;
-		sp->done(ha, sp, cp->result);
+		sp->done(vha, sp, cp->result);
 	}
 }
 
@@ -2695,7 +2695,7 @@ qlafx00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp,
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (sp) {
-		sp->done(ha, sp, res);
+		sp->done(vha, sp, res);
 		return;
 	}
 
