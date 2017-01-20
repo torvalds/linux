@@ -539,8 +539,8 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
 		if (wil->sta[evt->cid].status != wil_sta_unused) {
-			wil_err(wil, "%s: AP: Invalid status %d for CID %d\n",
-				__func__, wil->sta[evt->cid].status, evt->cid);
+			wil_err(wil, "AP: Invalid status %d for CID %d\n",
+				wil->sta[evt->cid].status, evt->cid);
 			mutex_unlock(&wil->mutex);
 			return;
 		}
@@ -553,22 +553,19 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	rc = wil_tx_init(wil, evt->cid);
 	if (rc) {
-		wil_err(wil, "%s: config tx vring failed for CID %d, rc (%d)\n",
-			__func__, evt->cid, rc);
+		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
+			evt->cid, rc);
 		wmi_disconnect_sta(wil, wil->sta[evt->cid].addr,
 				   WLAN_REASON_UNSPECIFIED, false, false);
 	} else {
-		wil_info(wil, "%s: successful connection to CID %d\n",
-			 __func__, evt->cid);
+		wil_info(wil, "successful connection to CID %d\n", evt->cid);
 	}
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
 		if (rc) {
 			netif_carrier_off(ndev);
-			wil_err(wil,
-				"%s: cfg80211_connect_result with failure\n",
-				__func__);
+			wil_err(wil, "cfg80211_connect_result with failure\n");
 			cfg80211_connect_result(ndev, evt->bssid, NULL, 0,
 						NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
@@ -601,8 +598,8 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);
 	} else {
-		wil_err(wil, "%s: unhandled iftype %d for CID %d\n",
-			__func__, wdev->iftype, evt->cid);
+		wil_err(wil, "unhandled iftype %d for CID %d\n", wdev->iftype,
+			evt->cid);
 		goto out;
 	}
 
@@ -929,8 +926,8 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		      offsetof(struct wil6210_mbox_ctl, rx.tail), r->tail);
 
 		if (immed_reply) {
-			wil_dbg_wmi(wil, "%s: Complete WMI 0x%04x\n",
-				    __func__, wil->reply_id);
+			wil_dbg_wmi(wil, "recv_cmd: Complete WMI 0x%04x\n",
+				    wil->reply_id);
 			kfree(evt);
 			num_immed_reply++;
 			complete(&wil->wmi_call);
@@ -944,7 +941,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		}
 	}
 	/* normally, 1 event per IRQ should be processed */
-	wil_dbg_wmi(wil, "%s -> %d events queued, %d completed\n", __func__,
+	wil_dbg_wmi(wil, "recv_cmd: -> %d events queued, %d completed\n",
 		    n - num_immed_reply, num_immed_reply);
 }
 
@@ -1370,7 +1367,7 @@ int wmi_rxon(struct wil6210_priv *wil, bool on)
 		struct wmi_listen_started_event evt;
 	} __packed reply;
 
-	wil_info(wil, "%s(%s)\n", __func__, on ? "on" : "off");
+	wil_info(wil, "(%s)\n", on ? "on" : "off");
 
 	if (on) {
 		rc = wmi_call(wil, WMI_START_LISTEN_CMDID, NULL, 0,
@@ -1490,7 +1487,7 @@ int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac,
 		struct wmi_disconnect_event evt;
 	} __packed reply;
 
-	wil_dbg_wmi(wil, "%s(%pM, reason %d)\n", __func__, mac, reason);
+	wil_dbg_wmi(wil, "disconnect_sta: (%pM, reason %d)\n", mac, reason);
 
 	if (del_sta) {
 		ether_addr_copy(del_sta_cmd.dst_mac, mac);
@@ -1535,8 +1532,8 @@ int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout)
 		.amsdu = 0,
 	};
 
-	wil_dbg_wmi(wil, "%s(ring %d size %d timeout %d)\n", __func__,
-		    ringid, size, timeout);
+	wil_dbg_wmi(wil, "addba: (ring %d size %d timeout %d)\n", ringid, size,
+		    timeout);
 
 	return wmi_send(wil, WMI_VRING_BA_EN_CMDID, &cmd, sizeof(cmd));
 }
@@ -1548,8 +1545,7 @@ int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason)
 		.reason = cpu_to_le16(reason),
 	};
 
-	wil_dbg_wmi(wil, "%s(ring %d reason %d)\n", __func__,
-		    ringid, reason);
+	wil_dbg_wmi(wil, "delba_tx: (ring %d reason %d)\n", ringid, reason);
 
 	return wmi_send(wil, WMI_VRING_BA_DIS_CMDID, &cmd, sizeof(cmd));
 }
@@ -1561,8 +1557,8 @@ int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason)
 		.reason = cpu_to_le16(reason),
 	};
 
-	wil_dbg_wmi(wil, "%s(CID %d TID %d reason %d)\n", __func__,
-		    cidxtid & 0xf, (cidxtid >> 4) & 0xf, reason);
+	wil_dbg_wmi(wil, "delba_rx: (CID %d TID %d reason %d)\n", cidxtid & 0xf,
+		    (cidxtid >> 4) & 0xf, reason);
 
 	return wmi_send(wil, WMI_RCP_DELBA_CMDID, &cmd, sizeof(cmd));
 }
@@ -1736,7 +1732,7 @@ void wmi_event_flush(struct wil6210_priv *wil)
 {
 	struct pending_wmi_event *evt, *t;
 
-	wil_dbg_wmi(wil, "%s()\n", __func__);
+	wil_dbg_wmi(wil, "event_flush\n");
 
 	list_for_each_entry_safe(evt, t, &wil->pending_wmi_ev, list) {
 		list_del(&evt->list);
@@ -1777,8 +1773,8 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 			WARN_ON(wil->reply_buf);
 			wmi_evt_call_handler(wil, id, evt_data,
 					     len - sizeof(*wmi));
-			wil_dbg_wmi(wil, "%s: Complete WMI 0x%04x\n",
-				    __func__, id);
+			wil_dbg_wmi(wil, "event_handle: Complete WMI 0x%04x\n",
+				    id);
 			complete(&wil->wmi_call);
 			return;
 		}
@@ -1825,11 +1821,11 @@ void wmi_event_worker(struct work_struct *work)
 	struct pending_wmi_event *evt;
 	struct list_head *lh;
 
-	wil_dbg_wmi(wil, "Start %s\n", __func__);
+	wil_dbg_wmi(wil, "event_worker: Start\n");
 	while ((lh = next_wmi_ev(wil)) != NULL) {
 		evt = list_entry(lh, struct pending_wmi_event, list);
 		wmi_event_handle(wil, &evt->event.hdr);
 		kfree(evt);
 	}
-	wil_dbg_wmi(wil, "Finished %s\n", __func__);
+	wil_dbg_wmi(wil, "event_worker: Finished\n");
 }

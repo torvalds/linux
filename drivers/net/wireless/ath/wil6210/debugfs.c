@@ -813,7 +813,7 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, NULL);
 
 	kfree(frame);
-	wil_info(wil, "%s() -> %d\n", __func__, rc);
+	wil_info(wil, "-> %d\n", rc);
 
 	return len;
 }
@@ -855,7 +855,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
 	kfree(wmi);
 
-	wil_info(wil, "%s(0x%04x[%d]) -> %d\n", __func__, cmdid, cmdlen, rc1);
+	wil_info(wil, "0x%04x[%d] -> %d\n", cmdid, cmdlen, rc1);
 
 	return rc;
 }
