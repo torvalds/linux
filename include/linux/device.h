@@ -88,6 +88,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  *
  * @suspend:	Called when a device on this bus wants to go to sleep mode.
  * @resume:	Called to bring a device on this bus out of sleep mode.
+ * @num_vf:	Called to find out how many virtual functions a device on this
+ *		bus supports.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
  * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
@@ -126,6 +128,8 @@ struct bus_type {
 
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
+
+	int (*num_vf)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
 
@@ -1139,6 +1143,13 @@ extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+
+static inline int dev_num_vf(struct device *dev)
+{
+	if (dev->bus && dev->bus->num_vf)
+		return dev->bus->num_vf(dev);
+	return 0;
+}
 
 /*
  * Root device objects for grouping under /sys/devices
