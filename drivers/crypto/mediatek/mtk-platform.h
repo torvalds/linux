@@ -113,22 +113,20 @@ struct mtk_aes_dma {
 	u32 sg_len;
 };
 
+struct mtk_aes_ctx;
+
 /**
  * struct mtk_aes_rec - AES operation record
  * @queue:	crypto request queue
  * @req:	pointer to ablkcipher request
  * @task:	the tasklet is use in AES interrupt
+ * @ctx:	pointer to current context
  * @src:	the structure that holds source sg list info
  * @dst:	the structure that holds destination sg list info
  * @aligned_sg:	the scatter list is use to alignment
  * @real_dst:	pointer to the destination sg list
  * @total:	request buffer length
  * @buf:	pointer to page buffer
- * @info:	pointer to AES transform state and command token
- * @ct_hdr:	AES command token control field
- * @ct_size:	size of AES command token
- * @ct_dma:	DMA address of AES command token
- * @tfm_dma:	DMA address of AES transform state
  * @id:		record identification
  * @flags:	it's describing AES operation state
  * @lock:	the ablkcipher queue lock
@@ -139,6 +137,7 @@ struct mtk_aes_rec {
 	struct crypto_queue queue;
 	struct ablkcipher_request *req;
 	struct tasklet_struct task;
+	struct mtk_aes_ctx *ctx;
 	struct mtk_aes_dma src;
 	struct mtk_aes_dma dst;
 
@@ -147,12 +146,6 @@ struct mtk_aes_rec {
 
 	size_t total;
 	void *buf;
-
-	void *info;
-	__le32 ct_hdr;
-	u32 ct_size;
-	dma_addr_t ct_dma;
-	dma_addr_t tfm_dma;
 
 	u8 id;
 	unsigned long flags;
@@ -165,11 +158,6 @@ struct mtk_aes_rec {
  * @queue:	crypto request queue
  * @req:	pointer to ahash request
  * @task:	the tasklet is use in SHA interrupt
- * @info:	pointer to SHA transform state and command token
- * @ct_hdr:	SHA command token control field
- * @ct_size:	size of SHA command token
- * @ct_dma:	DMA address of SHA command token
- * @tfm_dma:	DMA address of SHA transform state
  * @id:		record identification
  * @flags:	it's describing SHA operation state
  * @lock:	the ablkcipher queue lock
@@ -180,12 +168,6 @@ struct mtk_sha_rec {
 	struct crypto_queue queue;
 	struct ahash_request *req;
 	struct tasklet_struct task;
-
-	void *info;
-	__le32 ct_hdr;
-	u32 ct_size;
-	dma_addr_t ct_dma;
-	dma_addr_t tfm_dma;
 
 	u8 id;
 	unsigned long flags;

@@ -20,23 +20,25 @@
 #define AES_BUF_SIZE		((PAGE_SIZE << AES_BUF_ORDER) \
 				& ~(AES_BLOCK_SIZE - 1))
 
-/* AES command token */
+/* AES command token size */
 #define AES_CT_SIZE_ECB		2
 #define AES_CT_SIZE_CBC		3
 #define AES_CT_CTRL_HDR		cpu_to_le32(0x00220000)
-#define AES_COMMAND0		cpu_to_le32(0x05000000)
-#define AES_COMMAND1		cpu_to_le32(0x2d060000)
-#define AES_COMMAND2		cpu_to_le32(0xe4a63806)
+/* AES-CBC/ECB command token */
+#define AES_CMD0		cpu_to_le32(0x05000000)
+#define AES_CMD1		cpu_to_le32(0x2d060000)
+#define AES_CMD2		cpu_to_le32(0xe4a63806)
 
-/* AES transform information */
-#define AES_TFM_ECB		cpu_to_le32(0x0 << 0)
-#define AES_TFM_CBC		cpu_to_le32(0x1 << 0)
-#define AES_TFM_DECRYPT		cpu_to_le32(0x5 << 0)
-#define AES_TFM_ENCRYPT		cpu_to_le32(0x4 << 0)
+/* AES transform information word 0 fields */
+#define AES_TFM_BASIC_OUT	cpu_to_le32(0x4 << 0)
+#define AES_TFM_BASIC_IN	cpu_to_le32(0x5 << 0)
 #define AES_TFM_SIZE(x)		cpu_to_le32((x) << 8)
 #define AES_TFM_128BITS		cpu_to_le32(0xb << 16)
 #define AES_TFM_192BITS		cpu_to_le32(0xd << 16)
 #define AES_TFM_256BITS		cpu_to_le32(0xf << 16)
+/* AES transform information word 1 fields */
+#define AES_TFM_ECB		cpu_to_le32(0x0 << 0)
+#define AES_TFM_CBC		cpu_to_le32(0x1 << 0)
 #define AES_TFM_FULL_IV		cpu_to_le32(0xf << 5)
 
 /* AES flags */
@@ -47,37 +49,24 @@
 #define AES_FLAGS_BUSY		BIT(3)
 
 /**
- * mtk_aes_ct is a set of hardware instructions(command token)
- * that are used to control engine's processing flow of AES.
- */
-struct mtk_aes_ct {
-	__le32 ct_ctrl0;
-	__le32 ct_ctrl1;
-	__le32 ct_ctrl2;
-};
-
-/**
- * mtk_aes_tfm is used to define AES transform state
- * and contains all keys and initial vectors.
- */
-struct mtk_aes_tfm {
-	__le32 tfm_ctrl0;
-	__le32 tfm_ctrl1;
-	__le32 state[SIZE_IN_WORDS(AES_KEYSIZE_256 + AES_BLOCK_SIZE)];
-};
-
-/**
- * mtk_aes_info consists of command token and transform state of AES,
- * which should be encapsulated in command and result descriptors.
+ * Command token(CT) is a set of hardware instructions that
+ * are used to control engine's processing flow of AES.
  *
- * The engine requires this information to do:
+ * Transform information(TFM) is used to define AES state and
+ * contains all keys and initial vectors.
+ *
+ * The engine requires CT and TFM to do:
  * - Commands decoding and control of the engine's data path.
  * - Coordinating hardware data fetch and store operations.
  * - Result token construction and output.
  */
-struct mtk_aes_info {
-	struct mtk_aes_ct ct;
-	struct mtk_aes_tfm tfm;
+struct mtk_aes_ct {
+	__le32 cmd[AES_CT_SIZE_CBC];
+};
+
+struct mtk_aes_tfm {
+	__le32 ctrl[2];
+	__le32 state[SIZE_IN_WORDS(AES_KEYSIZE_256 + AES_BLOCK_SIZE)];
 };
 
 struct mtk_aes_reqctx {
@@ -86,8 +75,15 @@ struct mtk_aes_reqctx {
 
 struct mtk_aes_ctx {
 	struct mtk_cryp *cryp;
-	struct mtk_aes_info info;
 	u32 keylen;
+
+	struct mtk_aes_ct ct;
+	dma_addr_t ct_dma;
+	struct mtk_aes_tfm tfm;
+	dma_addr_t tfm_dma;
+
+	__le32 ct_hdr;
+	u32 ct_size;
 };
 
 struct mtk_aes_drv {
@@ -174,57 +170,57 @@ static int mtk_aes_info_map(struct mtk_cryp *cryp,
 			    struct mtk_aes_rec *aes,
 			    size_t len)
 {
-	struct mtk_aes_ctx *ctx = crypto_ablkcipher_ctx(
-			crypto_ablkcipher_reqtfm(aes->req));
-	struct mtk_aes_info *info = aes->info;
-	struct mtk_aes_ct *ct = &info->ct;
-	struct mtk_aes_tfm *tfm = &info->tfm;
+	struct mtk_aes_ctx *ctx = aes->ctx;
 
-	aes->ct_hdr = AES_CT_CTRL_HDR | cpu_to_le32(len);
+	ctx->ct_hdr = AES_CT_CTRL_HDR | cpu_to_le32(len);
+	ctx->ct.cmd[0] = AES_CMD0 | cpu_to_le32(len);
+	ctx->ct.cmd[1] = AES_CMD1;
 
 	if (aes->flags & AES_FLAGS_ENCRYPT)
-		tfm->tfm_ctrl0 = AES_TFM_ENCRYPT;
+		ctx->tfm.ctrl[0] = AES_TFM_BASIC_OUT;
 	else
-		tfm->tfm_ctrl0 = AES_TFM_DECRYPT;
+		ctx->tfm.ctrl[0] = AES_TFM_BASIC_IN;
 
 	if (ctx->keylen == SIZE_IN_WORDS(AES_KEYSIZE_128))
-		tfm->tfm_ctrl0 |= AES_TFM_128BITS;
+		ctx->tfm.ctrl[0] |= AES_TFM_128BITS;
 	else if (ctx->keylen == SIZE_IN_WORDS(AES_KEYSIZE_256))
-		tfm->tfm_ctrl0 |= AES_TFM_256BITS;
+		ctx->tfm.ctrl[0] |= AES_TFM_256BITS;
 	else if (ctx->keylen == SIZE_IN_WORDS(AES_KEYSIZE_192))
-		tfm->tfm_ctrl0 |= AES_TFM_192BITS;
-
-	ct->ct_ctrl0 = AES_COMMAND0 | cpu_to_le32(len);
-	ct->ct_ctrl1 = AES_COMMAND1;
+		ctx->tfm.ctrl[0] |= AES_TFM_192BITS;
 
 	if (aes->flags & AES_FLAGS_CBC) {
 		const u32 *iv = (const u32 *)aes->req->info;
-		u32 *iv_state = tfm->state + ctx->keylen;
+		u32 *iv_state = ctx->tfm.state + ctx->keylen;
 		int i;
 
-		aes->ct_size = AES_CT_SIZE_CBC;
-		ct->ct_ctrl2 = AES_COMMAND2;
-
-		tfm->tfm_ctrl0 |= AES_TFM_SIZE(ctx->keylen +
+		ctx->tfm.ctrl[0] |= AES_TFM_SIZE(ctx->keylen +
 				  SIZE_IN_WORDS(AES_BLOCK_SIZE));
-		tfm->tfm_ctrl1 = AES_TFM_CBC | AES_TFM_FULL_IV;
+		ctx->tfm.ctrl[1] = AES_TFM_CBC | AES_TFM_FULL_IV;
 
 		for (i = 0; i < SIZE_IN_WORDS(AES_BLOCK_SIZE); i++)
 			iv_state[i] = cpu_to_le32(iv[i]);
 
+		ctx->ct.cmd[2] = AES_CMD2;
+		ctx->ct_size  = AES_CT_SIZE_CBC;
 	} else if (aes->flags & AES_FLAGS_ECB) {
-		aes->ct_size = AES_CT_SIZE_ECB;
-		tfm->tfm_ctrl0 |= AES_TFM_SIZE(ctx->keylen);
-		tfm->tfm_ctrl1 = AES_TFM_ECB;
+		ctx->tfm.ctrl[0] |= AES_TFM_SIZE(ctx->keylen);
+		ctx->tfm.ctrl[1] = AES_TFM_ECB;
+
+		ctx->ct_size = AES_CT_SIZE_ECB;
 	}
 
-	aes->ct_dma = dma_map_single(cryp->dev, info, sizeof(*info),
-					DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(cryp->dev, aes->ct_dma))) {
-		dev_err(cryp->dev, "dma %zu bytes error\n", sizeof(*info));
+	ctx->ct_dma = dma_map_single(cryp->dev, &ctx->ct, sizeof(ctx->ct),
+				     DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(cryp->dev, ctx->ct_dma)))
+		return -EINVAL;
+
+	ctx->tfm_dma = dma_map_single(cryp->dev, &ctx->tfm, sizeof(ctx->tfm),
+				      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(cryp->dev, ctx->tfm_dma))) {
+		dma_unmap_single(cryp->dev, ctx->tfm_dma, sizeof(ctx->tfm),
+				 DMA_TO_DEVICE);
 		return -EINVAL;
 	}
-	aes->tfm_dma = aes->ct_dma + sizeof(*ct);
 
 	return 0;
 }
@@ -253,10 +249,10 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 		if (nents == 0) {
 			res->hdr |= MTK_DESC_FIRST;
 			cmd->hdr |= MTK_DESC_FIRST |
-				    MTK_DESC_CT_LEN(aes->ct_size);
-			cmd->ct = cpu_to_le32(aes->ct_dma);
-			cmd->ct_hdr = aes->ct_hdr;
-			cmd->tfm = cpu_to_le32(aes->tfm_dma);
+				    MTK_DESC_CT_LEN(aes->ctx->ct_size);
+			cmd->ct = cpu_to_le32(aes->ctx->ct_dma);
+			cmd->ct_hdr = aes->ctx->ct_hdr;
+			cmd->tfm = cpu_to_le32(aes->ctx->tfm_dma);
 		}
 
 		if (++ring->pos == MTK_DESC_NUM)
@@ -396,7 +392,7 @@ static int mtk_aes_handle_queue(struct mtk_cryp *cryp, u8 id,
 	rctx->mode &= AES_FLAGS_MODE_MSK;
 	/* Assign new request to device */
 	aes->req = req;
-	aes->info = &ctx->info;
+	aes->ctx = ctx;
 	aes->flags = (aes->flags & ~AES_FLAGS_MODE_MSK) | rctx->mode;
 
 	err = mtk_aes_map(cryp, aes);
@@ -408,8 +404,12 @@ static int mtk_aes_handle_queue(struct mtk_cryp *cryp, u8 id,
 
 static void mtk_aes_unmap(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
-	dma_unmap_single(cryp->dev, aes->ct_dma,
-			 sizeof(struct mtk_aes_info), DMA_TO_DEVICE);
+	struct mtk_aes_ctx *ctx = aes->ctx;
+
+	dma_unmap_single(cryp->dev, ctx->ct_dma, sizeof(ctx->ct),
+			 DMA_TO_DEVICE);
+	dma_unmap_single(cryp->dev, ctx->tfm_dma, sizeof(ctx->tfm),
+			 DMA_TO_DEVICE);
 
 	if (aes->src.sg == aes->dst.sg) {
 		dma_unmap_sg(cryp->dev, aes->src.sg,
@@ -454,7 +454,7 @@ static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
 {
 	struct mtk_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	const u32 *key_tmp = (const u32 *)key;
-	u32 *key_state = ctx->info.tfm.state;
+	u32 *key_state = ctx->tfm.state;
 	int i;
 
 	if (keylen != AES_KEYSIZE_128 &&
