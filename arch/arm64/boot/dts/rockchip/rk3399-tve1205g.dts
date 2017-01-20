@@ -288,9 +288,11 @@
 		compatible = "rockchip,uboot-charge";
 		rockchip,uboot-charge-on = <1>;
 		rockchip,android-charge-on = <0>;
-		rockchip,uboot-exit-charge-level = <3>;
+		rockchip,uboot-exit-charge-level = <2>;
 		rockchip,uboot-low-power-level = <1>;
 		rockchip,uboot-charge-brightness = <0>;
+		max-input-voltage = <20000>;
+		max-input-current = <6000>;
 	};
 
 	vibrator {
