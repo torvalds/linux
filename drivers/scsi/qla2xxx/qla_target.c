@@ -530,7 +530,7 @@ static void qlt_free_session_done(struct work_struct *work)
 		"%s: se_sess %p / sess %p from port %8phC loop_id %#04x"
 		" s_id %02x:%02x:%02x logout %d keep %d els_logo %d\n",
 		__func__, sess->se_sess, sess, sess->port_name, sess->loop_id,
-		sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa,
+		sess->d_id.b.domain, sess->d_id.b.area, sess->d_id.b.al_pa,
 		sess->logout_on_delete, sess->keep_nport_handle,
 		sess->send_els_logo);
 
@@ -538,7 +538,7 @@ static void qlt_free_session_done(struct work_struct *work)
 
 	if (sess->send_els_logo) {
 		qlt_port_logo_t logo;
-		logo.id = sess->s_id;
+		logo.id = sess->d_id;
 		logo.cmd_count = 0;
 		qlt_send_first_logo(vha, &logo);
 	}
@@ -548,7 +548,7 @@ static void qlt_free_session_done(struct work_struct *work)
 
 		memset(&fcport, 0, sizeof(fcport));
 		fcport.loop_id = sess->loop_id;
-		fcport.d_id = sess->s_id;
+		fcport.d_id = sess->d_id;
 		memcpy(fcport.port_name, sess->port_name, WWN_SIZE);
 		fcport.vha = vha;
 		fcport.tgt_session = sess;
@@ -757,7 +757,7 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 	    "qla_target(%d): session for port %8phC (loop ID %d s_id %02x:%02x:%02x)"
 	    " scheduled for deletion in %u secs (expires: %lu) immed: %d, logout: %d, gen: %#x\n",
 	    sess->vha->vp_idx, sess->port_name, sess->loop_id,
-	    sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa,
+	    sess->d_id.b.domain, sess->d_id.b.area, sess->d_id.b.al_pa,
 	    dev_loss_tmo, sess->expires, immediate, sess->logout_on_delete,
 	    sess->generation);
 
@@ -892,8 +892,8 @@ static struct qla_tgt_sess *qlt_create_sess(
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf005,
 			    "Double sess %p found (s_id %x:%x:%x, "
 			    "loop_id %d), updating to d_id %x:%x:%x, "
-			    "loop_id %d", sess, sess->s_id.b.domain,
-			    sess->s_id.b.al_pa, sess->s_id.b.area,
+			    "loop_id %d", sess, sess->d_id.b.domain,
+			    sess->d_id.b.al_pa, sess->d_id.b.area,
 			    sess->loop_id, fcport->d_id.b.domain,
 			    fcport->d_id.b.al_pa, fcport->d_id.b.area,
 			    fcport->loop_id);
@@ -943,7 +943,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 	}
 	sess->tgt = vha->vha_tgt.qla_tgt;
 	sess->vha = vha;
-	sess->s_id = fcport->d_id;
+	sess->d_id = fcport->d_id;
 	sess->loop_id = fcport->loop_id;
 	sess->local = local;
 	kref_init(&sess->sess_kref);
@@ -974,8 +974,8 @@ static struct qla_tgt_sess *qlt_create_sess(
 	    "qla_target(%d): %ssession for wwn %8phC (loop_id %d, "
 	    "s_id %x:%x:%x, confirmed completion %ssupported) added\n",
 	    vha->vp_idx, local ?  "local " : "", fcport->port_name,
-	    fcport->loop_id, sess->s_id.b.domain, sess->s_id.b.area,
-	    sess->s_id.b.al_pa, sess->conf_compl_supported ?  "" : "not ");
+	    fcport->loop_id, sess->d_id.b.domain, sess->d_id.b.area,
+	    sess->d_id.b.al_pa, sess->conf_compl_supported ?  "" : "not ");
 
 	/*
 	 * Determine if this fc_port->port_name is allowed to access
@@ -4055,7 +4055,7 @@ qlt_find_sess_invalidate_other(struct qla_tgt *tgt, uint64_t wwn,
 		}
 
 		/* find other sess with nport_id collision */
-		if (port_id.b24 == other_sess->s_id.b24) {
+		if (port_id.b24 == other_sess->d_id.b24) {
 			if (loop_id != other_sess->loop_id) {
 				ql_dbg(ql_dbg_tgt_tmr, tgt->vha, 0x1000c,
 				    "Invalidating sess %p loop_id %d wwn %llx.\n",
@@ -4216,7 +4216,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		  *    PLOGI and situation will correct itself.
 		  */
 		sess->keep_nport_handle = ((sess->loop_id == loop_id) &&
-					   (sess->s_id.b24 == port_id.b24));
+					   (sess->d_id.b24 == port_id.b24));
 		qlt_schedule_sess_for_deletion(sess, true);
 		break;
 
@@ -4264,7 +4264,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 
 			sess->local = 0;
 			sess->loop_id = loop_id;
-			sess->s_id = port_id;
+			sess->d_id = port_id;
 
 			if (wd3_lo & BIT_7)
 				sess->conf_compl_supported = 1;

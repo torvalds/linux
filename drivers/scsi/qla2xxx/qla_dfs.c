@@ -26,12 +26,11 @@ qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 		seq_printf(s, "Port ID   Port Name                Handle\n");
 
 		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-		list_for_each_entry(sess, &tgt->sess_list, sess_list_entry) {
+		list_for_each_entry(sess, &tgt->sess_list, sess_list_entry)
 			seq_printf(s, "%02x:%02x:%02x  %8phC  %d\n",
-					   sess->s_id.b.domain,sess->s_id.b.area,
-					   sess->s_id.b.al_pa,	sess->port_name,
-					   sess->loop_id);
-		}
+			    sess->d_id.b.domain, sess->d_id.b.area,
+			    sess->d_id.b.al_pa, sess->port_name,
+			    sess->loop_id);
 		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	}
 

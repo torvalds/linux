@@ -928,7 +928,7 @@ typedef struct {
  */
 struct qla_tgt_sess {
 	uint16_t loop_id;
-	port_id_t s_id;
+	port_id_t d_id;
 
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:2;

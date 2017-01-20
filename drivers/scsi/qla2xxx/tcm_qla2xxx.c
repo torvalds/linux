@@ -1388,9 +1388,9 @@ static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
 	struct se_session *se_sess = sess->se_sess;
 	unsigned char be_sid[3];
 
-	be_sid[0] = sess->s_id.b.domain;
-	be_sid[1] = sess->s_id.b.area;
-	be_sid[2] = sess->s_id.b.al_pa;
+	be_sid[0] = sess->d_id.b.domain;
+	be_sid[1] = sess->d_id.b.area;
+	be_sid[2] = sess->d_id.b.al_pa;
 
 	tcm_qla2xxx_set_sess_by_s_id(lport, NULL, nacl, se_sess,
 				sess, be_sid);
@@ -1442,9 +1442,9 @@ static int tcm_qla2xxx_session_cb(struct se_portal_group *se_tpg,
 	unsigned long flags;
 	unsigned char be_sid[3];
 
-	be_sid[0] = qlat_sess->s_id.b.domain;
-	be_sid[1] = qlat_sess->s_id.b.area;
-	be_sid[2] = qlat_sess->s_id.b.al_pa;
+	be_sid[0] = qlat_sess->d_id.b.domain;
+	be_sid[1] = qlat_sess->d_id.b.area;
+	be_sid[2] = qlat_sess->d_id.b.al_pa;
 
 	/*
 	 * And now setup se_nacl and session pointers into HW lport internal
@@ -1524,11 +1524,11 @@ static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
 	u32 key;
 
 
-	if (sess->loop_id != loop_id || sess->s_id.b24 != s_id.b24)
+	if (sess->loop_id != loop_id || sess->d_id.b24 != s_id.b24)
 		pr_info("Updating session %p from port %8phC loop_id %d -> %d s_id %x:%x:%x -> %x:%x:%x\n",
 		    sess, sess->port_name,
-		    sess->loop_id, loop_id, sess->s_id.b.domain,
-		    sess->s_id.b.area, sess->s_id.b.al_pa, s_id.b.domain,
+		    sess->loop_id, loop_id, sess->d_id.b.domain,
+		    sess->d_id.b.area, sess->d_id.b.al_pa, s_id.b.domain,
 		    s_id.b.area, s_id.b.al_pa);
 
 	if (sess->loop_id != loop_id) {
@@ -1548,18 +1548,20 @@ static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
 		sess->loop_id = loop_id;
 	}
 
-	if (sess->s_id.b24 != s_id.b24) {
-		key = (((u32) sess->s_id.b.domain << 16) |
-		       ((u32) sess->s_id.b.area   <<  8) |
-		       ((u32) sess->s_id.b.al_pa));
+	if (sess->d_id.b24 != s_id.b24) {
+		key = (((u32) sess->d_id.b.domain << 16) |
+		       ((u32) sess->d_id.b.area   <<  8) |
+		       ((u32) sess->d_id.b.al_pa));
 
 		if (btree_lookup32(&lport->lport_fcport_map, key))
-			WARN(btree_remove32(&lport->lport_fcport_map, key) != se_nacl,
-			     "Found wrong se_nacl when updating s_id %x:%x:%x\n",
-			     sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa);
+			WARN(btree_remove32(&lport->lport_fcport_map, key) !=
+			    se_nacl, "Found wrong se_nacl when updating s_id %x:%x:%x\n",
+			    sess->d_id.b.domain, sess->d_id.b.area,
+			    sess->d_id.b.al_pa);
 		else
 			WARN(1, "No lport_fcport_map entry for s_id %x:%x:%x\n",
-			     sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa);
+			     sess->d_id.b.domain, sess->d_id.b.area,
+			     sess->d_id.b.al_pa);
 
 		key = (((u32) s_id.b.domain << 16) |
 		       ((u32) s_id.b.area   <<  8) |
@@ -1570,10 +1572,11 @@ static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
 			     s_id.b.domain, s_id.b.area, s_id.b.al_pa);
 			btree_update32(&lport->lport_fcport_map, key, se_nacl);
 		} else {
-			btree_insert32(&lport->lport_fcport_map, key, se_nacl, GFP_ATOMIC);
+			btree_insert32(&lport->lport_fcport_map, key, se_nacl,
+			    GFP_ATOMIC);
 		}
 
-		sess->s_id = s_id;
+		sess->d_id = s_id;
 		nacl->nport_id = key;
 	}
 
