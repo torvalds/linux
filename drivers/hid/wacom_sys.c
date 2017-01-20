@@ -2497,6 +2497,8 @@ static void wacom_remove(struct hid_device *hdev)
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 
+	wacom_release_resources(wacom);
+
 	hid_set_drvdata(hdev, NULL);
 }
 
