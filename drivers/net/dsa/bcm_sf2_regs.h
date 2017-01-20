@@ -134,6 +134,9 @@ enum bcm_sf2_reg_offs {
 #define  GMII_SPEED_UP_2G		(1 << 6)
 #define  MII_SW_OR			(1 << 7)
 
+/* Alternate layout for e.g: 7278 */
+#define CORE_STS_OVERRIDE_IMP2		0x39040
+
 #define CORE_NEW_CTRL			0x00084
 #define  IP_MC				(1 << 0)
 #define  OUTRANGEERR_DISCARD		(1 << 1)
@@ -151,6 +154,7 @@ enum bcm_sf2_reg_offs {
 #define  SW_LEARN_CNTL(x)		(1 << (x))
 
 #define CORE_STS_OVERRIDE_GMIIP_PORT(x)	(0x160 + (x) * 4)
+#define CORE_STS_OVERRIDE_GMIIP2_PORT(x) (0x39000 + (x) * 8)
 #define  LINK_STS			(1 << 0)
 #define  DUPLX_MODE			(1 << 1)
 #define  SPEED_SHIFT			2

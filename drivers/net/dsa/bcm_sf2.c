@@ -64,7 +64,12 @@ static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 reg, val;
+	u32 reg, val, offset;
+
+	if (priv->type == BCM7445_DEVICE_ID)
+		offset = CORE_STS_OVERRIDE_IMP;
+	else
+		offset = CORE_STS_OVERRIDE_IMP2;
 
 	/* Enable the port memories */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -121,9 +126,9 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	core_writel(priv, reg, CORE_BRCM_HDR_TX_DIS);
 
 	/* Force link status for IMP port */
-	reg = core_readl(priv, CORE_STS_OVERRIDE_IMP);
+	reg = core_readl(priv, offset);
 	reg |= (MII_SW_OR | LINK_STS);
-	core_writel(priv, reg, CORE_STS_OVERRIDE_IMP);
+	core_writel(priv, reg, offset);
 }
 
 static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
@@ -591,7 +596,12 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	u32 id_mode_dis = 0, port_mode;
 	const char *str = NULL;
-	u32 reg;
+	u32 reg, offset;
+
+	if (priv->type == BCM7445_DEVICE_ID)
+		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+	else
+		offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
 
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
@@ -662,7 +672,7 @@ force_link:
 	if (phydev->duplex == DUPLEX_FULL)
 		reg |= DUPLX_MODE;
 
-	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+	core_writel(priv, reg, offset);
 
 	if (!phydev->is_pseudo_fixed_link)
 		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
@@ -672,8 +682,13 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 					 struct fixed_phy_status *status)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 duplex, pause;
+	u32 duplex, pause, offset;
 	u32 reg;
+
+	if (priv->type == BCM7445_DEVICE_ID)
+		offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
+	else
+		offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
 
 	duplex = core_readl(priv, CORE_DUPSTS);
 	pause = core_readl(priv, CORE_PAUSESTS);
@@ -703,13 +718,13 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		status->duplex = !!(duplex & (1 << port));
 	}
 
-	reg = core_readl(priv, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+	reg = core_readl(priv, offset);
 	reg |= SW_OVERRIDE;
 	if (status->link)
 		reg |= LINK_STS;
 	else
 		reg &= ~LINK_STS;
-	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+	core_writel(priv, reg, offset);
 
 	if ((pause & (1 << port)) &&
 	    (pause & (1 << (port + PAUSESTS_TX_PAUSE_SHIFT)))) {
@@ -1038,9 +1053,34 @@ static const struct bcm_sf2_of_data bcm_sf2_7445_data = {
 	.reg_offsets	= bcm_sf2_7445_reg_offsets,
 };
 
+static const u16 bcm_sf2_7278_reg_offsets[] = {
+	[REG_SWITCH_CNTRL]	= 0x00,
+	[REG_SWITCH_STATUS]	= 0x04,
+	[REG_DIR_DATA_WRITE]	= 0x08,
+	[REG_DIR_DATA_READ]	= 0x0c,
+	[REG_SWITCH_REVISION]	= 0x10,
+	[REG_PHY_REVISION]	= 0x14,
+	[REG_SPHY_CNTRL]	= 0x24,
+	[REG_RGMII_0_CNTRL]	= 0xe0,
+	[REG_RGMII_1_CNTRL]	= 0xec,
+	[REG_RGMII_2_CNTRL]	= 0xf8,
+	[REG_LED_0_CNTRL]	= 0x40,
+	[REG_LED_1_CNTRL]	= 0x4c,
+	[REG_LED_2_CNTRL]	= 0x58,
+};
+
+static const struct bcm_sf2_of_data bcm_sf2_7278_data = {
+	.type		= BCM7278_DEVICE_ID,
+	.core_reg_align	= 1,
+	.reg_offsets	= bcm_sf2_7278_reg_offsets,
+};
+
 static const struct of_device_id bcm_sf2_of_match[] = {
 	{ .compatible = "brcm,bcm7445-switch-v4.0",
 	  .data = &bcm_sf2_7445_data
+	},
+	{ .compatible = "brcm,bcm7278-switch-v4.0",
+	  .data = &bcm_sf2_7278_data
 	},
 	{ /* sentinel */ },
 };
