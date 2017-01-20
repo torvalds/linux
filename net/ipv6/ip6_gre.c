@@ -484,11 +484,6 @@ drop:
 	return 0;
 }
 
-struct ipv6_tel_txoption {
-	struct ipv6_txoptions ops;
-	__u8 dst_opt[8];
-};
-
 static int gre_handle_offloads(struct sk_buff *skb, bool csum)
 {
 	return iptunnel_handle_offloads(skb,
