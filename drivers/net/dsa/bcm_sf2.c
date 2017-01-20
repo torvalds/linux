@@ -61,34 +61,9 @@ static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 	}
 }
 
-static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
+static void bcm_sf2_brcm_hdr_setup(struct bcm_sf2_priv *priv, int port)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 reg, val, offset;
-
-	if (priv->type == BCM7445_DEVICE_ID)
-		offset = CORE_STS_OVERRIDE_IMP;
-	else
-		offset = CORE_STS_OVERRIDE_IMP2;
-
-	/* Enable the port memories */
-	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
-	reg &= ~P_TXQ_PSM_VDD(port);
-	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
-
-	/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
-	reg = core_readl(priv, CORE_IMP_CTL);
-	reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
-	reg &= ~(RX_DIS | TX_DIS);
-	core_writel(priv, reg, CORE_IMP_CTL);
-
-	/* Enable forwarding */
-	core_writel(priv, SW_FWDG_EN, CORE_SWMODE);
-
-	/* Enable IMP port in dumb mode */
-	reg = core_readl(priv, CORE_SWITCH_CTRL);
-	reg |= MII_DUMB_FWDG_EN;
-	core_writel(priv, reg, CORE_SWITCH_CTRL);
+	u32 reg, val;
 
 	/* Resolve which bit controls the Broadcom tag */
 	switch (port) {
@@ -124,6 +99,38 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	reg = core_readl(priv, CORE_BRCM_HDR_TX_DIS);
 	reg &= ~(1 << port);
 	core_writel(priv, reg, CORE_BRCM_HDR_TX_DIS);
+}
+
+static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
+{
+	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	u32 reg, offset;
+
+	if (priv->type == BCM7445_DEVICE_ID)
+		offset = CORE_STS_OVERRIDE_IMP;
+	else
+		offset = CORE_STS_OVERRIDE_IMP2;
+
+	/* Enable the port memories */
+	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
+	reg &= ~P_TXQ_PSM_VDD(port);
+	core_writel(priv, reg, CORE_MEM_PSM_VDD_CTRL);
+
+	/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
+	reg = core_readl(priv, CORE_IMP_CTL);
+	reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
+	reg &= ~(RX_DIS | TX_DIS);
+	core_writel(priv, reg, CORE_IMP_CTL);
+
+	/* Enable forwarding */
+	core_writel(priv, SW_FWDG_EN, CORE_SWMODE);
+
+	/* Enable IMP port in dumb mode */
+	reg = core_readl(priv, CORE_SWITCH_CTRL);
+	reg |= MII_DUMB_FWDG_EN;
+	core_writel(priv, reg, CORE_SWITCH_CTRL);
+
+	bcm_sf2_brcm_hdr_setup(priv, port);
 
 	/* Force link status for IMP port */
 	reg = core_readl(priv, offset);
