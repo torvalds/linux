@@ -645,6 +645,39 @@ exit:
 	return res;
 }
 
+/* tipc_nametbl_lookup_dst_nodes - find broadcast destination nodes
+ * - Creates list of nodes that overlap the given multicast address
+ * - Determines if any node local ports overlap
+ */
+void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
+				   u32 upper, u32 domain,
+				   struct tipc_nlist *nodes)
+{
+	struct sub_seq *sseq, *stop;
+	struct publication *publ;
+	struct name_info *info;
+	struct name_seq *seq;
+
+	rcu_read_lock();
+	seq = nametbl_find_seq(net, type);
+	if (!seq)
+		goto exit;
+
+	spin_lock_bh(&seq->lock);
+	sseq = seq->sseqs + nameseq_locate_subseq(seq, lower);
+	stop = seq->sseqs + seq->first_free;
+	for (; sseq->lower <= upper && sseq != stop; sseq++) {
+		info = sseq->info;
+		list_for_each_entry(publ, &info->zone_list, zone_list) {
+			if (tipc_in_scope(domain, publ->node))
+				tipc_nlist_add(nodes, publ->node);
+		}
+	}
+	spin_unlock_bh(&seq->lock);
+exit:
+	rcu_read_unlock();
+}
+
 /*
  * tipc_nametbl_publish - add name publication to network name tables
  */
@@ -1021,11 +1054,6 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	return skb->len;
 }
-
-struct u32_item {
-	struct list_head list;
-	u32 value;
-};
 
 bool u32_find(struct list_head *l, u32 value)
 {

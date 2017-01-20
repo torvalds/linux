@@ -515,6 +515,10 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 	if (link_is_bc_sndlink(l))
 		l->state = LINK_ESTABLISHED;
 
+	/* Disable replicast if even a single peer doesn't support it */
+	if (link_is_bc_rcvlink(l) && !(peer_caps & TIPC_BCAST_RCAST))
+		tipc_bcast_disable_rcast(net);
+
 	return true;
 }
 
@@ -1032,11 +1036,17 @@ int tipc_link_retrans(struct tipc_link *l, u16 from, u16 to,
 static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 			    struct sk_buff_head *inputq)
 {
-	switch (msg_user(buf_msg(skb))) {
+	struct tipc_msg *hdr = buf_msg(skb);
+
+	switch (msg_user(hdr)) {
 	case TIPC_LOW_IMPORTANCE:
 	case TIPC_MEDIUM_IMPORTANCE:
 	case TIPC_HIGH_IMPORTANCE:
 	case TIPC_CRITICAL_IMPORTANCE:
+		if (unlikely(msg_type(hdr) == TIPC_MCAST_MSG)) {
+			skb_queue_tail(l->bc_rcvlink->inputq, skb);
+			return true;
+		}
 	case CONN_MANAGER:
 		skb_queue_tail(inputq, skb);
 		return true;
