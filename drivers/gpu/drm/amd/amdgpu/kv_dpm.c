@@ -1688,38 +1688,25 @@ static void kv_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 	struct kv_power_info *pi = kv_get_pi(adev);
 	int ret;
 
-	if (pi->uvd_power_gated == gate)
-		return;
-
 	pi->uvd_power_gated = gate;
 
 	if (gate) {
-		if (pi->caps_uvd_pg) {
-			/* disable clockgating so we can properly shut down the block */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_UNGATE);
-			/* shutdown the UVD block */
-			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_PG_STATE_GATE);
-			/* XXX: check for errors */
-		}
+		/* stop the UVD block */
+		ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_GATE);
 		kv_update_uvd_dpm(adev, gate);
 		if (pi->caps_uvd_pg)
 			/* power off the UVD block */
 			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerOFF);
 	} else {
-		if (pi->caps_uvd_pg) {
+		if (pi->caps_uvd_pg)
 			/* power on the UVD block */
 			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
 			/* re-init the UVD block */
-			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_PG_STATE_UNGATE);
-			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_GATE);
-			/* XXX: check for errors */
-		}
 		kv_update_uvd_dpm(adev, gate);
+
+		ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_UNGATE);
 	}
 }
 
@@ -3010,7 +2997,7 @@ static int kv_dpm_late_init(void *handle)
 	kv_dpm_powergate_acp(adev, true);
 	kv_dpm_powergate_samu(adev, true);
 	kv_dpm_powergate_vce(adev, true);
-	kv_dpm_powergate_uvd(adev, true);
+
 	return 0;
 }
 
