@@ -166,6 +166,7 @@ struct wacom {
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
 	struct work_struct remote_work;
+	struct delayed_work init_work;
 	struct wacom_remote *remote;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
