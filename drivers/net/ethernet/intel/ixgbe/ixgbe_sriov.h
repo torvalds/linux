@@ -59,7 +59,7 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
 int ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
-void ixgbe_enable_sriov(struct ixgbe_adapter *adapter);
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs);
 #endif
 int ixgbe_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 
