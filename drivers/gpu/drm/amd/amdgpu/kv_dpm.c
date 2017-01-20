@@ -3079,6 +3079,9 @@ static int kv_dpm_hw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (!amdgpu_dpm)
+		return 0;
+
 	mutex_lock(&adev->pm.mutex);
 	kv_dpm_setup_asic(adev);
 	ret = kv_dpm_enable(adev);
