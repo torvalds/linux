@@ -3140,7 +3140,7 @@ EXPORT_SYMBOL(SendDisassociation);
 int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_point *p)
 {
 	struct ieee_param *param;
-	int ret=0;
+	int ret = 0;
 
 	mutex_lock(&ieee->wx_mutex);
 	//IEEE_DEBUG_INFO("wpa_supplicant: len=%d\n", p->length);
