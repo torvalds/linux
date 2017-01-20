@@ -1512,24 +1512,10 @@ static void vlv_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
 
-	/*
-	 * FIXME: We can end up here with all power domains off, yet
-	 * with a CDCLK frequency other than the minimum. To account
-	 * for this take the PIPE-A power domain, which covers the HW
-	 * blocks needed for the following programming. This can be
-	 * removed once it's guaranteed that we get here either with
-	 * the minimum CDCLK set, or the required power domains
-	 * enabled.
-	 */
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
-
 	if (IS_CHERRYVIEW(dev_priv))
 		chv_set_cdclk(dev_priv, &dev_priv->cdclk.actual);
 	else
 		vlv_set_cdclk(dev_priv, &dev_priv->cdclk.actual);
-
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
 
 static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
