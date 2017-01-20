@@ -2476,6 +2476,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"mean_rmt,"
 		"mean_lcl,"
 		"mean_load,"
+		"tot_recs,"
 		"cpucnt,",
 		add_sym ? "symbol," : "",
 		add_dso ? "dso," : "",
