@@ -1554,7 +1554,6 @@ MODULE_DEVICE_TABLE(i2c, idt_ids);
 static struct i2c_driver idt_driver = {
 	.driver = {
 		.name = IDT_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = idt_probe,
 	.remove = idt_remove,
