@@ -261,7 +261,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 #endif
 }
 
-void __init load_ucode_amd_bsp(unsigned int cpuid_1_eax)
+void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 {
 	struct ucode_cpu_info *uci;
 	struct cpio_data cp;
@@ -281,89 +281,71 @@ void __init load_ucode_amd_bsp(unsigned int cpuid_1_eax)
 	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)))
 		cp = find_microcode_in_initrd(path, use_pa);
 
-	if (!(cp.data && cp.size))
-		return;
-
 	/* Needed in load_microcode_amd() */
 	uci->cpu_sig.sig = cpuid_1_eax;
 
-	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, true, NULL);
+	*ret = cp;
 }
 
-#ifdef CONFIG_X86_32
-/*
- * On 32-bit, since AP's early load occurs before paging is turned on, we
- * cannot traverse cpu_equiv_table and microcode_cache in kernel heap memory.
- * So during cold boot, AP will apply_ucode_in_initrd() just like the BSP.
- * In save_microcode_in_initrd_amd() BSP's patch is copied to amd_ucode_patch,
- * which is used upon resume from suspend.
- */
-void load_ucode_amd_ap(unsigned int cpuid_1_eax)
+void __init load_ucode_amd_bsp(unsigned int cpuid_1_eax)
 {
-	struct microcode_amd *mc;
-	struct cpio_data cp;
+	struct cpio_data cp = { };
 
-	mc = (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
-	if (mc->hdr.patch_id && mc->hdr.processor_rev_id) {
-		__apply_microcode_amd(mc);
-		return;
-	}
-
-	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)))
-		cp = find_microcode_in_initrd((const char *)__pa_nodebug(ucode_path), true);
+	__load_ucode_amd(cpuid_1_eax, &cp);
 
 	if (!(cp.data && cp.size))
 		return;
 
-	/*
-	 * This would set amd_ucode_patch above so that the following APs can
-	 * use it directly instead of going down this path again.
-	 */
 	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, true, NULL);
 }
-#else
+
 void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 {
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
+	struct cont_desc *desc;
 	u16 eq_id;
 
-	/* First AP hasn't cached it yet, go through the blob. */
-	if (!cont.data) {
-		struct cpio_data cp;
+	if (IS_ENABLED(CONFIG_X86_32)) {
+		mc   = (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
+		desc = (struct cont_desc *)__pa_nodebug(&cont);
+	} else {
+		mc   = (struct microcode_amd *)amd_ucode_patch;
+		desc = &cont;
+	}
 
-		if (cont.size == -1)
+	/* First AP hasn't cached it yet, go through the blob. */
+	if (!desc->data) {
+		struct cpio_data cp = { };
+
+		if (desc->size == -1)
 			return;
 
 reget:
-		if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax))) {
-			cp = find_microcode_in_initrd(ucode_path, false);
-
-			if (!(cp.data && cp.size)) {
-				/*
-				 * Mark it so that other APs do not scan again
-				 * for no real reason and slow down boot
-				 * needlessly.
-				 */
-				cont.size = -1;
-				return;
-			}
+		__load_ucode_amd(cpuid_1_eax, &cp);
+		if (!(cp.data && cp.size)) {
+			/*
+			 * Mark it so that other APs do not scan again for no
+			 * real reason and slow down boot needlessly.
+			 */
+			desc->size = -1;
+			return;
 		}
 
-		if (!apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, false, &cont)) {
-			cont.data = NULL;
-			cont.size = -1;
+		if (!apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, false, desc)) {
+			desc->data = NULL;
+			desc->size = -1;
 			return;
 		}
 	}
 
-	eq  = (struct equiv_cpu_entry *)(cont.data + CONTAINER_HDR_SZ);
+	eq  = (struct equiv_cpu_entry *)(desc->data + CONTAINER_HDR_SZ);
 
 	eq_id = find_equiv_id(eq, cpuid_1_eax);
 	if (!eq_id)
 		return;
 
-	if (eq_id == cont.eq_id) {
+	if (eq_id == desc->eq_id) {
 		u32 rev, dummy;
 
 		native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
@@ -384,7 +366,6 @@ reget:
 		goto reget;
 	}
 }
-#endif /* CONFIG_X86_32 */
 
 static enum ucode_state
 load_microcode_amd(int cpu, u8 family, const u8 *data, size_t size);
