@@ -580,6 +580,25 @@
 		status = "disabled";
 	};
 
+	gmac2io: eth@ff540000 {
+		compatible = "rockchip,rk3328-gmac";
+		reg = <0x0 0xff540000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC2IO>, <&cru SCLK_MAC2IO_RX>,
+			 <&cru SCLK_MAC2IO_TX>, <&cru SCLK_MAC2IO_REF>,
+			 <&cru SCLK_MAC2IO_REFOUT>, <&cru ACLK_MAC2IO>,
+			 <&cru PCLK_MAC2IO>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			      "mac_clk_tx", "clk_mac_ref",
+			      "clk_mac_refout", "aclk_mac",
+			      "pclk_mac";
+		resets = <&cru SRST_GMAC2IO_A>;
+		reset-names = "stmmaceth";
+		status = "disabled";
+	};
+
 	usb20_otg: usb@ff580000 {
 		compatible = "rockchip,rk3328-usb", "rockchip,rk3066-usb",
 			     "snps,dwc2";
