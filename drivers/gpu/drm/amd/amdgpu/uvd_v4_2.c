@@ -159,9 +159,6 @@ static int uvd_v4_2_hw_init(void *handle)
 
 	uvd_v4_2_enable_mgcg(adev, true);
 	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
-	r = uvd_v4_2_start(adev);
-	if (r)
-		goto done;
 
 	ring->ready = true;
 	r = amdgpu_ring_test_ring(ring);
@@ -216,7 +213,9 @@ static int uvd_v4_2_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 
-	uvd_v4_2_stop(adev);
+	if (RREG32(mmUVD_STATUS) != 0)
+		uvd_v4_2_stop(adev);
+
 	ring->ready = false;
 
 	return 0;
@@ -266,37 +265,26 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 	uint32_t rb_bufsz;
 	int i, j, r;
+	u32 tmp;
 	/* disable byte swapping */
 	u32 lmi_swap_cntl = 0;
 	u32 mp_swap_cntl = 0;
 
-	WREG32(mmUVD_CGC_GATE, 0);
+	/* set uvd busy */
+	WREG32_P(mmUVD_STATUS, 1<<2, ~(1<<2));
+
 	uvd_v4_2_set_dcm(adev, true);
-
-	uvd_v4_2_mc_resume(adev);
-
-	/* disable interupt */
-	WREG32_P(mmUVD_MASTINT_EN, 0, ~(1 << 1));
-
-	/* Stall UMC and register bus before resetting VCPU */
-	WREG32_P(mmUVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
-	mdelay(1);
-
-	/* put LMI, VCPU, RBC etc... into reset */
-	WREG32(mmUVD_SOFT_RESET, UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK | UVD_SOFT_RESET__LBSI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__RBC_SOFT_RESET_MASK | UVD_SOFT_RESET__CSM_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__CXW_SOFT_RESET_MASK | UVD_SOFT_RESET__TAP_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK);
-	mdelay(5);
+	WREG32(mmUVD_CGC_GATE, 0);
 
 	/* take UVD block out of reset */
 	WREG32_P(mmSRBM_SOFT_RESET, 0, ~SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK);
 	mdelay(5);
 
-	/* initialize UVD memory controller */
-	WREG32(mmUVD_LMI_CTRL, 0x40 | (1 << 8) | (1 << 13) |
-			     (1 << 21) | (1 << 9) | (1 << 20));
+	/* enable VCPU clock */
+	WREG32(mmUVD_VCPU_CNTL,  1 << 9);
+
+	/* disable interupt */
+	WREG32_P(mmUVD_MASTINT_EN, 0, ~(1 << 1));
 
 #ifdef __BIG_ENDIAN
 	/* swap (8 in 32) RB and IB */
@@ -305,6 +293,11 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 #endif
 	WREG32(mmUVD_LMI_SWAP_CNTL, lmi_swap_cntl);
 	WREG32(mmUVD_MP_SWAP_CNTL, mp_swap_cntl);
+	/* initialize UVD memory controller */
+	WREG32(mmUVD_LMI_CTRL, 0x203108);
+
+	tmp = RREG32(mmUVD_MPC_CNTL);
+	WREG32(mmUVD_MPC_CNTL, tmp | 0x10);
 
 	WREG32(mmUVD_MPC_SET_MUXA0, 0x40c2040);
 	WREG32(mmUVD_MPC_SET_MUXA1, 0x0);
@@ -313,18 +306,20 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_MPC_SET_ALU, 0);
 	WREG32(mmUVD_MPC_SET_MUX, 0x88);
 
-	/* take all subblocks out of reset, except VCPU */
-	WREG32(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
-	mdelay(5);
+	uvd_v4_2_mc_resume(adev);
 
-	/* enable VCPU clock */
-	WREG32(mmUVD_VCPU_CNTL,  1 << 9);
+	tmp = RREG32_UVD_CTX(ixUVD_LMI_CACHE_CTRL);
+	WREG32_UVD_CTX(ixUVD_LMI_CACHE_CTRL, tmp & (~0x10));
 
 	/* enable UMC */
 	WREG32_P(mmUVD_LMI_CTRL2, 0, ~(1 << 8));
 
-	/* boot up the VCPU */
-	WREG32(mmUVD_SOFT_RESET, 0);
+	WREG32_P(mmUVD_SOFT_RESET, 0, ~UVD_SOFT_RESET__LMI_SOFT_RESET_MASK);
+
+	WREG32_P(mmUVD_SOFT_RESET, 0, ~UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK);
+
+	WREG32_P(mmUVD_SOFT_RESET, 0, ~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+
 	mdelay(10);
 
 	for (i = 0; i < 10; ++i) {
@@ -355,6 +350,8 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 
 	/* enable interupt */
 	WREG32_P(mmUVD_MASTINT_EN, 3<<1, ~(3 << 1));
+
+	WREG32_P(mmUVD_STATUS, 0, ~(1<<2));
 
 	/* force RBC into idle state */
 	WREG32(mmUVD_RBC_RB_CNTL, 0x11010101);
@@ -392,22 +389,54 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
  */
 static void uvd_v4_2_stop(struct amdgpu_device *adev)
 {
-	/* force RBC into idle state */
+	uint32_t i, j;
+	uint32_t status;
+
 	WREG32(mmUVD_RBC_RB_CNTL, 0x11010101);
+
+	for (i = 0; i < 10; ++i) {
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(mmUVD_STATUS);
+			if (status & 2)
+				break;
+			mdelay(1);
+		}
+		break;
+	}
+
+	for (i = 0; i < 10; ++i) {
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(mmUVD_LMI_STATUS);
+			if (status & 0xf)
+				break;
+			mdelay(1);
+		}
+		break;
+	}
 
 	/* Stall UMC and register bus before resetting VCPU */
 	WREG32_P(mmUVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
-	mdelay(1);
 
-	/* put VCPU into reset */
-	WREG32(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
-	mdelay(5);
+	for (i = 0; i < 10; ++i) {
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(mmUVD_LMI_STATUS);
+			if (status & 0x240)
+				break;
+			mdelay(1);
+		}
+		break;
+	}
 
-	/* disable VCPU clock */
-	WREG32(mmUVD_VCPU_CNTL, 0x0);
+	WREG32_P(0x3D49, 0, ~(1 << 2));
 
-	/* Unstall UMC and register bus */
-	WREG32_P(mmUVD_LMI_CTRL2, 0, ~(1 << 8));
+	WREG32_P(mmUVD_VCPU_CNTL, 0, ~(1 << 9));
+
+	/* put LMI, VCPU, RBC etc... into reset */
+	WREG32(mmUVD_SOFT_RESET, UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK);
+
+	WREG32(mmUVD_STATUS, 0);
 
 	uvd_v4_2_set_dcm(adev, false);
 }
