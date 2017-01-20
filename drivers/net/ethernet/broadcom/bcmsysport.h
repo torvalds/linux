@@ -659,7 +659,7 @@ struct bcm_sysport_priv {
 	int			wol_irq;
 
 	/* Transmit rings */
-	struct bcm_sysport_tx_ring tx_rings[TDMA_NUM_RINGS];
+	struct bcm_sysport_tx_ring *tx_rings;
 
 	/* Receive queue */
 	void __iomem		*rx_bds;

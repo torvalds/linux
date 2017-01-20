@@ -1752,12 +1752,23 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (of_property_read_u32(dn, "systemport,num-rxq", &rxq))
 		rxq = 1;
 
+	/* Sanity check the number of transmit queues */
+	if (!txq || txq > TDMA_NUM_RINGS)
+		return -EINVAL;
+
 	dev = alloc_etherdev_mqs(sizeof(*priv), txq, rxq);
 	if (!dev)
 		return -ENOMEM;
 
 	/* Initialize private members */
 	priv = netdev_priv(dev);
+
+	/* Allocate number of TX rings */
+	priv->tx_rings = devm_kcalloc(&pdev->dev, txq,
+				      sizeof(struct bcm_sysport_tx_ring),
+				      GFP_KERNEL);
+	if (!priv->tx_rings)
+		return -ENOMEM;
 
 	priv->irq0 = platform_get_irq(pdev, 0);
 	priv->irq1 = platform_get_irq(pdev, 1);
