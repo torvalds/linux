@@ -64,43 +64,6 @@ static u16 this_equiv_id;
 static const char
 ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
 
-static size_t compute_container_size(u8 *data, u32 total_size)
-{
-	size_t size = 0;
-	u32 *header = (u32 *)data;
-
-	if (header[0] != UCODE_MAGIC ||
-	    header[1] != UCODE_EQUIV_CPU_TABLE_TYPE || /* type */
-	    header[2] == 0)                            /* size */
-		return size;
-
-	size = header[2] + CONTAINER_HDR_SZ;
-	total_size -= size;
-	data += size;
-
-	while (total_size) {
-		u16 patch_size;
-
-		header = (u32 *)data;
-
-		if (header[0] != UCODE_UCODE_TYPE)
-			break;
-
-		/*
-		 * Sanity-check patch size.
-		 */
-		patch_size = header[1];
-		if (patch_size > PATCH_MAX_SIZE)
-			break;
-
-		size	   += patch_size + SECTION_HDR_SIZE;
-		data	   += patch_size + SECTION_HDR_SIZE;
-		total_size -= patch_size + SECTION_HDR_SIZE;
-	}
-
-	return size;
-}
-
 static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
 {
 	for (; equiv_table && equiv_table->installed_cpu; equiv_table++) {
@@ -115,80 +78,106 @@ static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
  * This scans the ucode blob for the proper container as we can have multiple
  * containers glued together. Returns the equivalence ID from the equivalence
  * table or 0 if none found.
+ * Returns the amount of bytes consumed while scanning. @desc contains all the
+ * data we're going to use in later stages of the application.
  */
-static u16
-find_proper_container(u8 *ucode, size_t size, struct cont_desc *desc)
+static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
 {
-	struct cont_desc ret = { 0 };
-	u32 eax, ebx, ecx, edx;
 	struct equiv_cpu_entry *eq;
-	int offset, left;
-	u16 eq_id = 0;
-	u32 *header;
-	u8 *data;
+	ssize_t orig_size = size;
+	u32 *hdr = (u32 *)ucode;
+	u32 eax, ebx, ecx, edx;
+	u16 eq_id;
+	u8 *buf;
 
-	data   = ucode;
-	left   = size;
-	header = (u32 *)data;
+	/* Am I looking at an equivalence table header? */
+	if (hdr[0] != UCODE_MAGIC ||
+	    hdr[1] != UCODE_EQUIV_CPU_TABLE_TYPE ||
+	    hdr[2] == 0) {
+		desc->eq_id = 0;
+		return CONTAINER_HDR_SZ;
+	}
 
+	buf = ucode;
 
-	/* find equiv cpu table */
-	if (header[0] != UCODE_MAGIC ||
-	    header[1] != UCODE_EQUIV_CPU_TABLE_TYPE || /* type */
-	    header[2] == 0)                            /* size */
-		return eq_id;
+	eq = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
 
-	eax = 0x00000001;
+	eax = 1;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
-	while (left > 0) {
-		eq = (struct equiv_cpu_entry *)(data + CONTAINER_HDR_SZ);
+	/* Find the equivalence ID of our CPU in this table: */
+	eq_id = find_equiv_id(eq, eax);
 
-		ret.data = data;
+	buf  += hdr[2] + CONTAINER_HDR_SZ;
+	size -= hdr[2] + CONTAINER_HDR_SZ;
 
-		/* Advance past the container header */
-		offset = header[2] + CONTAINER_HDR_SZ;
-		data  += offset;
-		left  -= offset;
+	/*
+	 * Scan through the rest of the container to find where it ends. We do
+	 * some basic sanity-checking too.
+	 */
+	while (size > 0) {
+		struct microcode_amd *mc;
+		u32 patch_size;
 
-		eq_id = find_equiv_id(eq, eax);
-		if (eq_id) {
-			ret.size = compute_container_size(ret.data, left + offset);
+		hdr = (u32 *)buf;
 
-			/*
-			 * truncate how much we need to iterate over in the
-			 * ucode update loop below
-			 */
-			left = ret.size - offset;
+		if (hdr[0] != UCODE_UCODE_TYPE)
+			break;
 
-			*desc = ret;
-			return eq_id;
+		/* Sanity-check patch size. */
+		patch_size = hdr[1];
+		if (patch_size > PATCH_MAX_SIZE)
+			break;
+
+		/* Skip patch section header: */
+		buf  += SECTION_HDR_SIZE;
+		size -= SECTION_HDR_SIZE;
+
+		mc = (struct microcode_amd *)buf;
+		if (eq_id == mc->hdr.processor_rev_id) {
+			desc->psize = patch_size;
+			desc->mc = mc;
 		}
 
-		/*
-		 * support multiple container files appended together. if this
-		 * one does not have a matching equivalent cpu entry, we fast
-		 * forward to the next container file.
-		 */
-		while (left > 0) {
-			header = (u32 *)data;
-
-			if (header[0] == UCODE_MAGIC &&
-			    header[1] == UCODE_EQUIV_CPU_TABLE_TYPE)
-				break;
-
-			offset = header[1] + SECTION_HDR_SIZE;
-			data  += offset;
-			left  -= offset;
-		}
-
-		/* mark where the next microcode container file starts */
-		offset    = data - (u8 *)ucode;
-		ucode     = data;
+		buf  += patch_size;
+		size -= patch_size;
 	}
 
-	return eq_id;
+	/*
+	 * If we have found a patch (desc->mc), it means we're looking at the
+	 * container which has a patch for this CPU so return 0 to mean, @ucode
+	 * already points to the proper container. Otherwise, we return the size
+	 * we scanned so that we can advance to the next container in the
+	 * buffer.
+	 */
+	if (desc->mc) {
+		desc->eq_id = eq_id;
+		desc->data  = ucode;
+		desc->size  = orig_size - size;
+
+		return 0;
+	}
+
+	return orig_size - size;
+}
+
+/*
+ * Scan the ucode blob for the proper container as we can have multiple
+ * containers glued together.
+ */
+static void scan_containers(u8 *ucode, size_t size, struct cont_desc *desc)
+{
+	ssize_t rem = size;
+
+	while (rem >= 0) {
+		ssize_t s = parse_container(ucode, rem, desc);
+		if (!s)
+			return;
+
+		ucode += s;
+		rem   -= s;
+	}
 }
 
 static int __apply_microcode_amd(struct microcode_amd *mc)
@@ -214,17 +203,16 @@ static int __apply_microcode_amd(struct microcode_amd *mc)
  * load_microcode_amd() to save equivalent cpu table and microcode patches in
  * kernel heap memory.
  *
- * Returns true if container found (sets @ret_cont), false otherwise.
+ * Returns true if container found (sets @desc), false otherwise.
  */
 static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
-				      struct cont_desc *desc)
+				      struct cont_desc *ret_desc)
 {
+	struct cont_desc desc = { 0 };
 	u8 (*patch)[PATCH_MAX_SIZE];
-	u32 rev, *header, *new_rev;
-	struct cont_desc ret;
-	int offset, left;
-	u16 eq_id = 0;
-	u8  *data;
+	struct microcode_amd *mc;
+	u32 rev, *new_rev;
+	bool ret = false;
 
 #ifdef CONFIG_X86_32
 	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
@@ -237,47 +225,31 @@ static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
 	if (check_current_patch_level(&rev, true))
 		return false;
 
-	eq_id = find_proper_container(ucode, size, &ret);
-	if (!eq_id)
-		return false;
+	scan_containers(ucode, size, &desc);
+	if (!desc.eq_id)
+		return ret;
 
-	this_equiv_id = eq_id;
-	header = (u32 *)ret.data;
+	this_equiv_id = desc.eq_id;
 
-	/* We're pointing to an equiv table, skip over it. */
-	data = ret.data +  header[2] + CONTAINER_HDR_SZ;
-	left = ret.size - (header[2] + CONTAINER_HDR_SZ);
+	mc = desc.mc;
+	if (!mc)
+		return ret;
 
-	while (left > 0) {
-		struct microcode_amd *mc;
+	if (rev >= mc->hdr.patch_id)
+		return ret;
 
-		header = (u32 *)data;
-		if (header[0] != UCODE_UCODE_TYPE || /* type */
-		    header[1] == 0)                  /* size */
-			break;
+	if (!__apply_microcode_amd(mc)) {
+		*new_rev = mc->hdr.patch_id;
+		ret      = true;
 
-		mc = (struct microcode_amd *)(data + SECTION_HDR_SIZE);
-
-		if (eq_id == mc->hdr.processor_rev_id && rev < mc->hdr.patch_id) {
-
-			if (!__apply_microcode_amd(mc)) {
-				rev = mc->hdr.patch_id;
-				*new_rev = rev;
-
-				if (save_patch)
-					memcpy(patch, mc, min_t(u32, header[1], PATCH_MAX_SIZE));
-			}
-		}
-
-		offset  = header[1] + SECTION_HDR_SIZE;
-		data   += offset;
-		left   -= offset;
+		if (save_patch)
+			memcpy(patch, mc, min_t(u32, desc.psize, PATCH_MAX_SIZE));
 	}
 
-	if (desc)
-		*desc = ret;
+	if (ret_desc)
+		*ret_desc = desc;
 
-	return true;
+	return ret;
 }
 
 static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
@@ -396,6 +368,7 @@ reget:
 		}
 
 		if (!apply_microcode_early_amd(cp.data, cp.size, false, &cont)) {
+			cont.data = NULL;
 			cont.size = -1;
 			return;
 		}
@@ -434,7 +407,6 @@ int __init save_microcode_in_initrd_amd(unsigned int fam)
 {
 	enum ucode_state ret;
 	int retval = 0;
-	u16 eq_id;
 
 	if (!cont.data) {
 		if (IS_ENABLED(CONFIG_X86_32) && (cont.size != -1)) {
@@ -450,8 +422,8 @@ int __init save_microcode_in_initrd_amd(unsigned int fam)
 				return -EINVAL;
 			}
 
-			eq_id = find_proper_container(cp.data, cp.size, &cont);
-			if (!eq_id) {
+			scan_containers(cp.data, cp.size, &cont);
+			if (!cont.eq_id) {
 				cont.size = -1;
 				return -EINVAL;
 			}
