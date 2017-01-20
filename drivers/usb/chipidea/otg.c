@@ -44,7 +44,7 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 		else
 			val &= ~OTGSC_BSVIS;
 
-		if (cable->state)
+		if (cable->connected)
 			val |= OTGSC_BSV;
 		else
 			val &= ~OTGSC_BSV;
@@ -62,10 +62,10 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 		else
 			val &= ~OTGSC_IDIS;
 
-		if (cable->state)
-			val |= OTGSC_ID;
+		if (cable->connected)
+			val &= ~OTGSC_ID; /* host */
 		else
-			val &= ~OTGSC_ID;
+			val |= OTGSC_ID; /* device */
 
 		if (cable->enabled)
 			val |= OTGSC_IDIE;

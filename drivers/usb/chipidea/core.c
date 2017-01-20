@@ -577,35 +577,14 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ret;
 }
 
-static int ci_vbus_notifier(struct notifier_block *nb, unsigned long event,
-			    void *ptr)
+static int ci_cable_notifier(struct notifier_block *nb, unsigned long event,
+			     void *ptr)
 {
-	struct ci_hdrc_cable *vbus = container_of(nb, struct ci_hdrc_cable, nb);
-	struct ci_hdrc *ci = vbus->ci;
+	struct ci_hdrc_cable *cbl = container_of(nb, struct ci_hdrc_cable, nb);
+	struct ci_hdrc *ci = cbl->ci;
 
-	if (event)
-		vbus->state = true;
-	else
-		vbus->state = false;
-
-	vbus->changed = true;
-
-	ci_irq(ci->irq, ci);
-	return NOTIFY_DONE;
-}
-
-static int ci_id_notifier(struct notifier_block *nb, unsigned long event,
-			  void *ptr)
-{
-	struct ci_hdrc_cable *id = container_of(nb, struct ci_hdrc_cable, nb);
-	struct ci_hdrc *ci = id->ci;
-
-	if (event)
-		id->state = false;
-	else
-		id->state = true;
-
-	id->changed = true;
+	cbl->connected = event;
+	cbl->changed = true;
 
 	ci_irq(ci->irq, ci);
 	return NOTIFY_DONE;
@@ -714,27 +693,27 @@ static int ci_get_platdata(struct device *dev,
 	}
 
 	cable = &platdata->vbus_extcon;
-	cable->nb.notifier_call = ci_vbus_notifier;
+	cable->nb.notifier_call = ci_cable_notifier;
 	cable->edev = ext_vbus;
 
 	if (!IS_ERR(ext_vbus)) {
 		ret = extcon_get_state(cable->edev, EXTCON_USB);
 		if (ret)
-			cable->state = true;
+			cable->connected = true;
 		else
-			cable->state = false;
+			cable->connected = false;
 	}
 
 	cable = &platdata->id_extcon;
-	cable->nb.notifier_call = ci_id_notifier;
+	cable->nb.notifier_call = ci_cable_notifier;
 	cable->edev = ext_id;
 
 	if (!IS_ERR(ext_id)) {
 		ret = extcon_get_state(cable->edev, EXTCON_USB_HOST);
 		if (ret)
-			cable->state = false;
+			cable->connected = true;
 		else
-			cable->state = true;
+			cable->connected = false;
 	}
 	return 0;
 }

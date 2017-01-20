@@ -12,7 +12,7 @@ struct ci_hdrc;
 
 /**
  * struct ci_hdrc_cable - structure for external connector cable state tracking
- * @state: current state of the line
+ * @connected: true if cable is connected, false otherwise
  * @changed: set to true when extcon event happen
  * @enabled: set to true if we've enabled the vbus or id interrupt
  * @edev: device which generate events
@@ -21,7 +21,7 @@ struct ci_hdrc;
  * @conn: used for notification registration
  */
 struct ci_hdrc_cable {
-	bool				state;
+	bool				connected;
 	bool				changed;
 	bool				enabled;
 	struct extcon_dev		*edev;
