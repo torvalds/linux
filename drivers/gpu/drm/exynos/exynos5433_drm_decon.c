@@ -146,6 +146,7 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *m = &crtc->base.mode;
+	bool interlaced = false;
 	u32 val;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
@@ -156,12 +157,16 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 		m->crtc_hsync_end = m->crtc_htotal - 92;
 		m->crtc_vsync_start = m->crtc_vdisplay + 1;
 		m->crtc_vsync_end = m->crtc_vsync_start + 1;
+		if (m->flags & DRM_MODE_FLAG_INTERLACE)
+			interlaced = true;
 	}
 
 	decon_setup_trigger(ctx);
 
 	/* lcd on and use command if */
 	val = VIDOUT_LCD_ON;
+	if (interlaced)
+		val |= VIDOUT_INTERLACE_EN_F;
 	if (ctx->out_type & IFTYPE_I80) {
 		val |= VIDOUT_COMMAND_IF;
 	} else {
@@ -170,15 +175,21 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 
 	writel(val, ctx->addr + DECON_VIDOUTCON0);
 
-	val = VIDTCON2_LINEVAL(m->vdisplay - 1) |
-		VIDTCON2_HOZVAL(m->hdisplay - 1);
+	if (interlaced)
+		val = VIDTCON2_LINEVAL(m->vdisplay / 2 - 1) |
+			VIDTCON2_HOZVAL(m->hdisplay - 1);
+	else
+		val = VIDTCON2_LINEVAL(m->vdisplay - 1) |
+			VIDTCON2_HOZVAL(m->hdisplay - 1);
 	writel(val, ctx->addr + DECON_VIDTCON2);
 
 	if (!(ctx->out_type & IFTYPE_I80)) {
-		val = VIDTCON00_VBPD_F(
-				m->crtc_vtotal - m->crtc_vsync_end - 1) |
-			VIDTCON00_VFPD_F(
-				m->crtc_vsync_start - m->crtc_vdisplay - 1);
+		int vbp = m->crtc_vtotal - m->crtc_vsync_end;
+		int vfp = m->crtc_vsync_start - m->crtc_vdisplay;
+
+		if (interlaced)
+			vbp = vbp / 2 - 1;
+		val = VIDTCON00_VBPD_F(vbp - 1) | VIDTCON00_VFPD_F(vfp - 1);
 		writel(val, ctx->addr + DECON_VIDTCON00);
 
 		val = VIDTCON01_VSPW_F(
@@ -293,12 +304,22 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	val = COORDINATE_X(state->crtc.x) | COORDINATE_Y(state->crtc.y);
-	writel(val, ctx->addr + DECON_VIDOSDxA(win));
+	if (crtc->base.mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		val = COORDINATE_X(state->crtc.x) |
+			COORDINATE_Y(state->crtc.y / 2);
+		writel(val, ctx->addr + DECON_VIDOSDxA(win));
 
-	val = COORDINATE_X(state->crtc.x + state->crtc.w - 1) |
-		COORDINATE_Y(state->crtc.y + state->crtc.h - 1);
-	writel(val, ctx->addr + DECON_VIDOSDxB(win));
+		val = COORDINATE_X(state->crtc.x + state->crtc.w - 1) |
+			COORDINATE_Y((state->crtc.y + state->crtc.h) / 2 - 1);
+		writel(val, ctx->addr + DECON_VIDOSDxB(win));
+	} else {
+		val = COORDINATE_X(state->crtc.x) | COORDINATE_Y(state->crtc.y);
+		writel(val, ctx->addr + DECON_VIDOSDxA(win));
+
+		val = COORDINATE_X(state->crtc.x + state->crtc.w - 1) |
+				COORDINATE_Y(state->crtc.y + state->crtc.h - 1);
+		writel(val, ctx->addr + DECON_VIDOSDxB(win));
+	}
 
 	val = VIDOSD_Wx_ALPHA_R_F(0x0) | VIDOSD_Wx_ALPHA_G_F(0x0) |
 		VIDOSD_Wx_ALPHA_B_F(0x0);
@@ -369,8 +390,6 @@ static void decon_swreset(struct decon_context *ctx)
 			break;
 		udelay(10);
 	}
-
-	WARN(tries == 0, "failed to disable DECON\n");
 
 	writel(VIDCON0_SWRESET, ctx->addr + DECON_VIDCON0);
 	for (tries = 2000; tries; --tries) {
