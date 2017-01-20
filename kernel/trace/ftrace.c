@@ -1383,9 +1383,8 @@ ftrace_hash_rec_enable_modify(struct ftrace_ops *ops, int filter_hash);
 static int ftrace_hash_ipmodify_update(struct ftrace_ops *ops,
 				       struct ftrace_hash *new_hash);
 
-static int
-ftrace_hash_move(struct ftrace_ops *ops, int enable,
-		 struct ftrace_hash **dst, struct ftrace_hash *src)
+static struct ftrace_hash *
+__ftrace_hash_move(struct ftrace_hash *src)
 {
 	struct ftrace_func_entry *entry;
 	struct hlist_node *tn;
@@ -1393,21 +1392,13 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	struct ftrace_hash *new_hash;
 	int size = src->count;
 	int bits = 0;
-	int ret;
 	int i;
 
-	/* Reject setting notrace hash on IPMODIFY ftrace_ops */
-	if (ops->flags & FTRACE_OPS_FL_IPMODIFY && !enable)
-		return -EINVAL;
-
 	/*
-	 * If the new source is empty, just free dst and assign it
-	 * the empty_hash.
+	 * If the new source is empty, just return the empty_hash.
 	 */
-	if (!src->count) {
-		new_hash = EMPTY_HASH;
-		goto update;
-	}
+	if (!src->count)
+		return EMPTY_HASH;
 
 	/*
 	 * Make the hash size about 1/2 the # found
@@ -1421,7 +1412,7 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
-		return -ENOMEM;
+		return NULL;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1432,7 +1423,24 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 		}
 	}
 
-update:
+	return new_hash;
+}
+
+static int
+ftrace_hash_move(struct ftrace_ops *ops, int enable,
+		 struct ftrace_hash **dst, struct ftrace_hash *src)
+{
+	struct ftrace_hash *new_hash;
+	int ret;
+
+	/* Reject setting notrace hash on IPMODIFY ftrace_ops */
+	if (ops->flags & FTRACE_OPS_FL_IPMODIFY && !enable)
+		return -EINVAL;
+
+	new_hash = __ftrace_hash_move(src);
+	if (!new_hash)
+		return -ENOMEM;
+
 	/* Make sure this can be applied if it is IPMODIFY ftrace_ops */
 	if (enable) {
 		/* IPMODIFY should be updated only when filter_hash updating */
