@@ -207,7 +207,7 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
 	struct cont_desc desc = { 0 };
 	u8 (*patch)[PATCH_MAX_SIZE];
 	struct microcode_amd *mc;
-	u32 rev, *new_rev;
+	u32 rev, dummy, *new_rev;
 	bool ret = false;
 
 #ifdef CONFIG_X86_32
@@ -217,9 +217,6 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
 	new_rev = &ucode_new_rev;
 	patch	= &amd_ucode_patch;
 #endif
-
-	if (check_current_patch_level(&rev, true))
-		return false;
 
 	desc.cpuid_1_eax = cpuid_1_eax;
 
@@ -231,6 +228,7 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
 	if (!mc)
 		return ret;
 
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 	if (rev >= mc->hdr.patch_id)
 		return ret;
 
@@ -328,12 +326,7 @@ void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 {
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
-	u32 rev;
 	u16 eq_id;
-
-	/* 64-bit runs with paging enabled, thus early==false. */
-	if (check_current_patch_level(&rev, false))
-		return;
 
 	/* First AP hasn't cached it yet, go through the blob. */
 	if (!cont.data) {
@@ -371,6 +364,10 @@ reget:
 		return;
 
 	if (eq_id == cont.eq_id) {
+		u32 rev, dummy;
+
+		native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+
 		mc = (struct microcode_amd *)amd_ucode_patch;
 
 		if (mc && rev < mc->hdr.patch_id) {
@@ -436,18 +433,13 @@ int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
 void reload_ucode_amd(void)
 {
 	struct microcode_amd *mc;
-	u32 rev;
-
-	/*
-	 * early==false because this is a syscore ->resume path and by
-	 * that time paging is long enabled.
-	 */
-	if (check_current_patch_level(&rev, false))
-		return;
+	u32 rev, dummy;
 
 	mc = (struct microcode_amd *)amd_ucode_patch;
 	if (!mc)
 		return;
+
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	if (rev < mc->hdr.patch_id) {
 		if (!__apply_microcode_amd(mc)) {
@@ -586,60 +578,13 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 	return patch_size;
 }
 
-/*
- * Those patch levels cannot be updated to newer ones and thus should be final.
- */
-static u32 final_levels[] = {
-	0x01000098,
-	0x0100009f,
-	0x010000af,
-	0, /* T-101 terminator */
-};
-
-/*
- * Check the current patch level on this CPU.
- *
- * @rev: Use it to return the patch level. It is set to 0 in the case of
- * error.
- *
- * Returns:
- *  - true: if update should stop
- *  - false: otherwise
- */
-bool check_current_patch_level(u32 *rev, bool early)
-{
-	u32 lvl, dummy, i;
-	bool ret = false;
-	u32 *levels;
-
-	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
-
-	if (IS_ENABLED(CONFIG_X86_32) && early)
-		levels = (u32 *)__pa_nodebug(&final_levels);
-	else
-		levels = final_levels;
-
-	for (i = 0; levels[i]; i++) {
-		if (lvl == levels[i]) {
-			lvl = 0;
-			ret = true;
-			break;
-		}
-	}
-
-	if (rev)
-		*rev = lvl;
-
-	return ret;
-}
-
 static int apply_microcode_amd(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct microcode_amd *mc_amd;
 	struct ucode_cpu_info *uci;
 	struct ucode_patch *p;
-	u32 rev;
+	u32 rev, dummy;
 
 	BUG_ON(raw_smp_processor_id() != cpu);
 
@@ -652,8 +597,7 @@ static int apply_microcode_amd(int cpu)
 	mc_amd  = p->data;
 	uci->mc = p->data;
 
-	if (check_current_patch_level(&rev, false))
-		return -1;
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	/* need to apply patch? */
 	if (rev >= mc_amd->hdr.patch_id) {
