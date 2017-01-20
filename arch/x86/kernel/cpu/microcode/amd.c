@@ -56,7 +56,6 @@ static struct cont_desc {
 
 static u32 ucode_new_rev;
 static u8 amd_ucode_patch[PATCH_MAX_SIZE];
-static u16 this_equiv_id;
 
 /*
  * Microcode patch container file is prepended to the initrd in cpio
@@ -228,8 +227,6 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
 	if (!desc.eq_id)
 		return ret;
 
-	this_equiv_id = desc.eq_id;
-
 	mc = desc.mc;
 	if (!mc)
 		return ret;
@@ -375,7 +372,7 @@ reget:
 	if (!eq_id)
 		return;
 
-	if (eq_id == this_equiv_id) {
+	if (eq_id == cont.eq_id) {
 		mc = (struct microcode_amd *)amd_ucode_patch;
 
 		if (mc && rev < mc->hdr.patch_id) {
