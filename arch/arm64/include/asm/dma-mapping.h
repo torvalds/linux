@@ -29,8 +29,8 @@ extern const struct dma_map_ops dummy_dma_ops;
 
 static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
 {
-	if (dev && dev->archdata.dma_ops)
-		return dev->archdata.dma_ops;
+	if (dev && dev->dma_ops)
+		return dev->dma_ops;
 
 	/*
 	 * We expect no ISA devices, and all other DMA masters are expected to

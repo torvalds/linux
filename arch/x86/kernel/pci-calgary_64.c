@@ -1177,7 +1177,7 @@ static int __init calgary_init(void)
 		tbl = find_iommu_table(&dev->dev);
 
 		if (translation_enabled(tbl))
-			dev->dev.archdata.dma_ops = &calgary_dma_ops;
+			dev->dev.dma_ops = &calgary_dma_ops;
 	}
 
 	return ret;
@@ -1201,7 +1201,7 @@ error:
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
 		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
-		dev->dev.archdata.dma_ops = NULL;
+		dev->dev.dma_ops = NULL;
 	} while (1);
 
 	return ret;

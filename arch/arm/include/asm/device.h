@@ -7,7 +7,6 @@
 #define ASMARM_DEVICE_H
 
 struct dev_archdata {
-	const struct dma_map_ops	*dma_ops;
 #ifdef CONFIG_DMABOUNCE
 	struct dmabounce_device_info *dmabounce;
 #endif

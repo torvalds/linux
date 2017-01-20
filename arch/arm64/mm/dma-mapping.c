@@ -837,7 +837,7 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 		return false;
 	}
 
-	dev->archdata.dma_ops = &iommu_dma_ops;
+	dev->dma_ops = &iommu_dma_ops;
 	return true;
 }
 
@@ -941,7 +941,7 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 void arch_teardown_dma_ops(struct device *dev)
 {
-	dev->archdata.dma_ops = NULL;
+	dev->dma_ops = NULL;
 }
 
 #else
@@ -955,8 +955,8 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
 {
-	if (!dev->archdata.dma_ops)
-		dev->archdata.dma_ops = &swiotlb_dma_ops;
+	if (!dev->dma_ops)
+		dev->dma_ops = &swiotlb_dma_ops;
 
 	dev->archdata.dma_coherent = coherent;
 	__iommu_setup_dma_ops(dev, dma_base, size, iommu);

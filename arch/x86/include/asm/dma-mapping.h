@@ -32,10 +32,10 @@ static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 #ifndef CONFIG_X86_DEV_DMA_OPS
 	return dma_ops;
 #else
-	if (unlikely(!dev) || !dev->archdata.dma_ops)
+	if (unlikely(!dev) || !dev->dma_ops)
 		return dma_ops;
 	else
-		return dev->archdata.dma_ops;
+		return dev->dma_ops;
 #endif
 }
 
