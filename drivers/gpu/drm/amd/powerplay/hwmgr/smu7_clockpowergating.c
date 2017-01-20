@@ -147,22 +147,22 @@ int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	data->uvd_power_gated = bgate;
 
 	if (bgate) {
-		cgs_set_clockgating_state(hwmgr->device,
-				AMD_IP_BLOCK_TYPE_UVD,
-				AMD_CG_STATE_GATE);
 		cgs_set_powergating_state(hwmgr->device,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_PG_STATE_GATE);
+		cgs_set_clockgating_state(hwmgr->device,
+				AMD_IP_BLOCK_TYPE_UVD,
+				AMD_CG_STATE_GATE);
 		smu7_update_uvd_dpm(hwmgr, true);
 		smu7_powerdown_uvd(hwmgr);
 	} else {
 		smu7_powerup_uvd(hwmgr);
-		cgs_set_powergating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_UVD,
-						AMD_CG_STATE_UNGATE);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
 				AMD_CG_STATE_UNGATE);
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_CG_STATE_UNGATE);
 		smu7_update_uvd_dpm(hwmgr, false);
 	}
 
