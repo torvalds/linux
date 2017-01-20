@@ -299,6 +299,9 @@ void intel_guc_auth_huc(struct drm_i915_private *dev_priv)
 	int ret;
 	u32 data[2];
 
+	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return;
+
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
 				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (IS_ERR(vma)) {
