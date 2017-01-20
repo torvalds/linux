@@ -45,14 +45,14 @@ static struct equiv_cpu_entry *equiv_cpu_table;
  * save from the initrd/builtin before jettisoning its contents. @mc is the
  * microcode patch we found to match.
  */
-static struct cont_desc {
+struct cont_desc {
 	struct microcode_amd *mc;
 	u32		     cpuid_1_eax;
 	u32		     psize;
 	u16		     eq_id;
 	u8		     *data;
 	size_t		     size;
-} cont;
+};
 
 static u32 ucode_new_rev;
 static u8 amd_ucode_patch[PATCH_MAX_SIZE];
@@ -201,8 +201,7 @@ static int __apply_microcode_amd(struct microcode_amd *mc)
  * Returns true if container found (sets @desc), false otherwise.
  */
 static bool
-apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
-			  bool save_patch, struct cont_desc *ret_desc)
+apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_patch)
 {
 	struct cont_desc desc = { 0 };
 	u8 (*patch)[PATCH_MAX_SIZE];
@@ -239,9 +238,6 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size,
 		if (save_patch)
 			memcpy(patch, mc, min_t(u32, desc.psize, PATCH_MAX_SIZE));
 	}
-
-	if (ret_desc)
-		*ret_desc = desc;
 
 	return ret;
 }
@@ -292,79 +288,41 @@ void __init load_ucode_amd_bsp(unsigned int cpuid_1_eax)
 	struct cpio_data cp = { };
 
 	__load_ucode_amd(cpuid_1_eax, &cp);
-
 	if (!(cp.data && cp.size))
 		return;
 
-	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, true, NULL);
+	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, true);
 }
 
 void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 {
-	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
-	struct cont_desc *desc;
-	u16 eq_id;
+	struct cpio_data cp;
+	u32 *new_rev, rev, dummy;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		mc   = (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
-		desc = (struct cont_desc *)__pa_nodebug(&cont);
+		mc	= (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
+		new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
 	} else {
-		mc   = (struct microcode_amd *)amd_ucode_patch;
-		desc = &cont;
+		mc	= (struct microcode_amd *)amd_ucode_patch;
+		new_rev = &ucode_new_rev;
 	}
 
-	/* First AP hasn't cached it yet, go through the blob. */
-	if (!desc->data) {
-		struct cpio_data cp = { };
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
-		if (desc->size == -1)
-			return;
-
-reget:
-		__load_ucode_amd(cpuid_1_eax, &cp);
-		if (!(cp.data && cp.size)) {
-			/*
-			 * Mark it so that other APs do not scan again for no
-			 * real reason and slow down boot needlessly.
-			 */
-			desc->size = -1;
-			return;
-		}
-
-		if (!apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, false, desc)) {
-			desc->data = NULL;
-			desc->size = -1;
+	/* Check whether we have saved a new patch already: */
+	if (*new_rev && rev < mc->hdr.patch_id) {
+		if (!__apply_microcode_amd(mc)) {
+			*new_rev = mc->hdr.patch_id;
 			return;
 		}
 	}
 
-	eq  = (struct equiv_cpu_entry *)(desc->data + CONTAINER_HDR_SZ);
-
-	eq_id = find_equiv_id(eq, cpuid_1_eax);
-	if (!eq_id)
+	__load_ucode_amd(cpuid_1_eax, &cp);
+	if (!(cp.data && cp.size))
 		return;
 
-	if (eq_id == desc->eq_id) {
-		u32 rev, dummy;
-
-		native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
-
-		mc = (struct microcode_amd *)amd_ucode_patch;
-
-		if (mc && rev < mc->hdr.patch_id) {
-			if (!__apply_microcode_amd(mc))
-				ucode_new_rev = mc->hdr.patch_id;
-		}
-
-	} else {
-
-		/*
-		 * AP has a different equivalence ID than BSP, looks like
-		 * mixed-steppings silicon so go through the ucode blob anew.
-		 */
-		goto reget;
-	}
+	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, false);
 }
 
 static enum ucode_state
