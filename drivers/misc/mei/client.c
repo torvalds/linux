@@ -756,7 +756,7 @@ static void mei_cl_wake_all(struct mei_cl *cl)
  *
  * @cl: host client
  */
-void mei_cl_set_disconnected(struct mei_cl *cl)
+static void mei_cl_set_disconnected(struct mei_cl *cl)
 {
 	struct mei_device *dev = cl->dev;
 

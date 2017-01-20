@@ -208,7 +208,6 @@ static inline u8 mei_cl_host_addr(const struct mei_cl *cl)
 }
 
 int mei_cl_disconnect(struct mei_cl *cl);
-void mei_cl_set_disconnected(struct mei_cl *cl);
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			  struct mei_cl_cb *cmpl_list);
 int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
