@@ -549,10 +549,10 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 			29, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_BUS0_400, "aclk_bus0_400", "div_aclk_bus0_400",
 			ENABLE_ACLK_TOP, 26,
-			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+			CLK_IS_CRITICAL | CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_ACLK_BUS1_400, "aclk_bus1_400", "div_aclk_bus1_400",
 			ENABLE_ACLK_TOP, 25,
-			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+			CLK_IS_CRITICAL | CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_ACLK_IMEM_200, "aclk_imem_200", "div_aclk_imem_266",
 			ENABLE_ACLK_TOP, 24,
 			CLK_IS_CRITICAL | CLK_SET_RATE_PARENT, 0),
@@ -616,7 +616,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
 
 	/* ENABLE_SCLK_TOP_MSCL */
 	GATE(CLK_SCLK_JPEG_MSCL, "sclk_jpeg_mscl", "div_sclk_jpeg",
-			ENABLE_SCLK_TOP_MSCL, 0, 0, 0),
+			ENABLE_SCLK_TOP_MSCL, 0, CLK_SET_RATE_PARENT, 0),
 
 	/* ENABLE_SCLK_TOP_CAM1 */
 	GATE(CLK_SCLK_ISP_SENSOR2, "sclk_isp_sensor2", "div_sclk_isp_sensor2_b",
@@ -1382,7 +1382,7 @@ static const struct samsung_gate_clock mif_gate_clks[] __initconst = {
 	/* ENABLE_ACLK_MIF3 */
 	GATE(CLK_ACLK_BUS2_400, "aclk_bus2_400", "div_aclk_bus2_400",
 			ENABLE_ACLK_MIF3, 4,
-			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+			CLK_IS_CRITICAL | CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_ACLK_DISP_333, "aclk_disp_333", "div_aclk_disp_333",
 			ENABLE_ACLK_MIF3, 1,
 			CLK_IS_CRITICAL | CLK_SET_RATE_PARENT, 0),
