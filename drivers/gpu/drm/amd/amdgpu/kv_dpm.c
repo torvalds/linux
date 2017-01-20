@@ -1230,6 +1230,7 @@ static void kv_update_current_ps(struct amdgpu_device *adev,
 	pi->current_rps = *rps;
 	pi->current_ps = *new_ps;
 	pi->current_rps.ps_priv = &pi->current_ps;
+	adev->pm.dpm.current_ps = &pi->current_rps;
 }
 
 static void kv_update_requested_ps(struct amdgpu_device *adev,
@@ -1241,6 +1242,7 @@ static void kv_update_requested_ps(struct amdgpu_device *adev,
 	pi->requested_rps = *rps;
 	pi->requested_ps = *new_ps;
 	pi->requested_rps.ps_priv = &pi->requested_ps;
+	adev->pm.dpm.requested_ps = &pi->requested_rps;
 }
 
 static void kv_dpm_enable_bapm(struct amdgpu_device *adev, bool enable)
@@ -3009,7 +3011,6 @@ static int kv_dpm_late_init(void *handle)
 	kv_dpm_powergate_samu(adev, true);
 	kv_dpm_powergate_vce(adev, true);
 	kv_dpm_powergate_uvd(adev, true);
-
 	return 0;
 }
 
@@ -3245,15 +3246,52 @@ static int kv_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
+static inline bool kv_are_power_levels_equal(const struct kv_pl *kv_cpl1,
+						const struct kv_pl *kv_cpl2)
+{
+	return ((kv_cpl1->sclk == kv_cpl2->sclk) &&
+		  (kv_cpl1->vddc_index == kv_cpl2->vddc_index) &&
+		  (kv_cpl1->ds_divider_index == kv_cpl2->ds_divider_index) &&
+		  (kv_cpl1->force_nbp_state == kv_cpl2->force_nbp_state));
+}
+
 static int kv_check_state_equal(struct amdgpu_device *adev,
 				struct amdgpu_ps *cps,
 				struct amdgpu_ps *rps,
 				bool *equal)
 {
-	if (equal == NULL)
+	struct kv_ps *kv_cps;
+	struct kv_ps *kv_rps;
+	int i;
+
+	if (adev == NULL || cps == NULL || rps == NULL || equal == NULL)
 		return -EINVAL;
 
-	*equal = false;
+	kv_cps = kv_get_ps(cps);
+	kv_rps = kv_get_ps(rps);
+
+	if (kv_cps == NULL) {
+		*equal = false;
+		return 0;
+	}
+
+	if (kv_cps->num_levels != kv_rps->num_levels) {
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < kv_cps->num_levels; i++) {
+		if (!kv_are_power_levels_equal(&(kv_cps->levels[i]),
+					&(kv_rps->levels[i]))) {
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((cps->vclk == rps->vclk) && (cps->dclk == rps->dclk));
+	*equal &= ((cps->evclk == rps->evclk) && (cps->ecclk == rps->ecclk));
+
 	return 0;
 }
 
