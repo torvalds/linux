@@ -22,8 +22,6 @@
 #include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
-#include "emac-phy.h"
-#include "emac-sgmii.h"
 
 /* EMAC base register offsets */
 #define EMAC_MDIO_CTRL                                        0x001414

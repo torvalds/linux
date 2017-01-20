@@ -50,7 +50,7 @@
 static int emac_sgmii_link_init(struct emac_adapter *adpt)
 {
 	struct phy_device *phydev = adpt->phydev;
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	u32 val;
 
 	val = readl(phy->base + EMAC_SGMII_PHY_AUTONEG_CFG2);
@@ -89,7 +89,7 @@ static int emac_sgmii_link_init(struct emac_adapter *adpt)
 
 static int emac_sgmii_irq_clear(struct emac_adapter *adpt, u32 irq_bits)
 {
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	u32 status;
 
 	writel_relaxed(irq_bits, phy->base + EMAC_SGMII_PHY_INTERRUPT_CLEAR);
@@ -123,7 +123,7 @@ static int emac_sgmii_irq_clear(struct emac_adapter *adpt, u32 irq_bits)
 
 static void emac_sgmii_reset_prepare(struct emac_adapter *adpt)
 {
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	u32 val;
 
 	/* Reset PHY */
@@ -217,7 +217,7 @@ static const struct of_device_id emac_sgmii_dt_match[] = {
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
 	struct platform_device *sgmii_pdev = NULL;
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	struct resource *res;
 	int ret;
 

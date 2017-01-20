@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include "emac-mac.h"
 #include "emac-phy.h"
+#include "emac-sgmii.h"
 
 /* EMAC base register offsets */
 #define EMAC_DMA_MAS_CTRL                                     0x001400
@@ -291,7 +292,7 @@ struct emac_adapter {
 	void __iomem			*base;
 	void __iomem			*csr;
 
-	struct emac_phy			phy;
+	struct emac_sgmii		phy;
 	struct emac_stats		stats;
 
 	struct emac_irq			irq;

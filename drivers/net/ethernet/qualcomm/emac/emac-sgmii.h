@@ -16,6 +16,19 @@
 struct emac_adapter;
 struct platform_device;
 
+typedef int (*emac_sgmii_initialize)(struct emac_adapter *adpt);
+
+/** emac_sgmii - internal emac phy
+ * @base base address
+ * @digital per-lane digital block
+ * @initialize initialization function
+ */
+struct emac_sgmii {
+	void __iomem		*base;
+	void __iomem		*digital;
+	emac_sgmii_initialize	initialize;
+};
+
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt);
 void emac_sgmii_reset(struct emac_adapter *adpt);
 
