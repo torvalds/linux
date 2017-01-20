@@ -1592,8 +1592,9 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 	mcmd->reset_count = vha->hw->chip_reset;
+	mcmd->tmr_func = QLA_TGT_ABTS;
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, TMR_ABORT_TASK,
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, mcmd->tmr_func,
 	    abts->exchange_addr_to_abort);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,
@@ -4051,7 +4052,6 @@ static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct atio_from_isp *a = (struct atio_from_isp *)iocb;
 	int res;
-	uint8_t tmr_func;
 
 	mcmd = mempool_alloc(qla_tgt_mgmt_cmd_mempool, GFP_ATOMIC);
 	if (!mcmd) {
@@ -4073,74 +4073,12 @@ static int qlt_issue_task_mgmt(struct qla_tgt_sess *sess, uint32_t lun,
 	mcmd->reset_count = vha->hw->chip_reset;
 
 	switch (fn) {
-	case QLA_TGT_CLEAR_ACA:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10000,
-		    "qla_target(%d): CLEAR_ACA received\n", sess->vha->vp_idx);
-		tmr_func = TMR_CLEAR_ACA;
-		break;
-
-	case QLA_TGT_TARGET_RESET:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10001,
-		    "qla_target(%d): TARGET_RESET received\n",
-		    sess->vha->vp_idx);
-		tmr_func = TMR_TARGET_WARM_RESET;
-		break;
-
 	case QLA_TGT_LUN_RESET:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10002,
-		    "qla_target(%d): LUN_RESET received\n", sess->vha->vp_idx);
-		tmr_func = TMR_LUN_RESET;
-		abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
-		break;
-
-	case QLA_TGT_CLEAR_TS:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10003,
-		    "qla_target(%d): CLEAR_TS received\n", sess->vha->vp_idx);
-		tmr_func = TMR_CLEAR_TASK_SET;
-		break;
-
-	case QLA_TGT_ABORT_TS:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10004,
-		    "qla_target(%d): ABORT_TS received\n", sess->vha->vp_idx);
-		tmr_func = TMR_ABORT_TASK_SET;
-		break;
-#if 0
-	case QLA_TGT_ABORT_ALL:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10005,
-		    "qla_target(%d): Doing ABORT_ALL_TASKS\n",
-		    sess->vha->vp_idx);
-		tmr_func = 0;
-		break;
-
-	case QLA_TGT_ABORT_ALL_SESS:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10006,
-		    "qla_target(%d): Doing ABORT_ALL_TASKS_SESS\n",
-		    sess->vha->vp_idx);
-		tmr_func = 0;
-		break;
-
-	case QLA_TGT_NEXUS_LOSS_SESS:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10007,
-		    "qla_target(%d): Doing NEXUS_LOSS_SESS\n",
-		    sess->vha->vp_idx);
-		tmr_func = 0;
-		break;
-
-	case QLA_TGT_NEXUS_LOSS:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x10008,
-		    "qla_target(%d): Doing NEXUS_LOSS\n", sess->vha->vp_idx);
-		tmr_func = 0;
-		break;
-#endif
-	default:
-		ql_dbg(ql_dbg_tgt_tmr, vha, 0x1000a,
-		    "qla_target(%d): Unknown task mgmt fn 0x%x\n",
-		    sess->vha->vp_idx, fn);
-		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
-		return -ENOSYS;
+	    abort_cmds_for_lun(vha, lun, a->u.isp24.fcp_hdr.s_id);
+	    break;
 	}
 
-	res = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, tmr_func, 0);
+	res = ha->tgt.tgt_ops->handle_tmr(mcmd, lun, mcmd->tmr_func, 0);
 	if (res != 0) {
 		ql_dbg(ql_dbg_tgt_tmr, vha, 0x1000b,
 		    "qla_target(%d): tgt.tgt_ops->handle_tmr() failed: %d\n",
@@ -4215,8 +4153,9 @@ static int __qlt_abort_task(struct scsi_qla_host *vha,
 	lun = a->u.isp24.fcp_cmnd.lun;
 	unpacked_lun = scsilun_to_int((struct scsi_lun *)&lun);
 	mcmd->reset_count = vha->hw->chip_reset;
+	mcmd->tmr_func = QLA_TGT_2G_ABORT_TASK;
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, unpacked_lun, TMR_ABORT_TASK,
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, unpacked_lun, mcmd->tmr_func,
 	    le16_to_cpu(iocb->u.isp2x.seq_id));
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf060,

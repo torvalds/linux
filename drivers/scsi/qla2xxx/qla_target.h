@@ -744,7 +744,7 @@ struct qla_tgt_func_tmpl {
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
 	void (*handle_dif_err)(struct qla_tgt_cmd *);
-	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint8_t,
+	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, uint32_t, uint16_t,
 			uint32_t);
 	void (*free_cmd)(struct qla_tgt_cmd *);
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
@@ -795,6 +795,8 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_ABORT_ALL               0xFFFE
 #define QLA_TGT_NEXUS_LOSS_SESS         0xFFFD
 #define QLA_TGT_NEXUS_LOSS              0xFFFC
+#define QLA_TGT_ABTS					0xFFFB
+#define QLA_TGT_2G_ABORT_TASK			0xFFFA
 
 /* Notify Acknowledge flags */
 #define NOTIFY_ACK_RES_COUNT        BIT_8
@@ -1056,7 +1058,7 @@ struct qla_tgt_sess_work_param {
 };
 
 struct qla_tgt_mgmt_cmd {
-	uint8_t tmr_func;
+	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
 	struct qla_tgt_sess *sess;
 	struct se_cmd se_cmd;
