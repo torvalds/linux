@@ -39,6 +39,7 @@
 #include <linux/hrtimer.h>
 #include <linux/average.h>
 #include <linux/usb.h>
+#include <linux/clk.h>
 
 #include <net/mac80211.h>
 
@@ -1011,6 +1012,9 @@ struct rt2x00_dev {
 	unsigned int extra_tx_headroom;
 
 	struct usb_anchor *anchor;
+
+	/* Clock for System On Chip devices. */
+	struct clk *clk;
 };
 
 struct rt2x00_bar_list_entry {
