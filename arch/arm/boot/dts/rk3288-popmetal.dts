@@ -170,6 +170,7 @@
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
+	supports-sd;
 };
 
 &gmac {
@@ -186,6 +187,11 @@
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "ok";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
 };
 
 &hdmi {
@@ -539,4 +545,17 @@
 
 &usbphy {
 	status = "okay";
+};
+
+&usb_host0_ehci {
+	no-relinquish-port;
+	status = "okay";
+};
+
+&usb_host1 {
+	status = "okay";
+};
+
+&usb_otg {
+	status= "okay";
 };
