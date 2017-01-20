@@ -45,10 +45,12 @@
 #define QLA2XXX_INI_MODE_STR_EXCLUSIVE	"exclusive"
 #define QLA2XXX_INI_MODE_STR_DISABLED	"disabled"
 #define QLA2XXX_INI_MODE_STR_ENABLED	"enabled"
+#define QLA2XXX_INI_MODE_STR_DUAL		"dual"
 
 #define QLA2XXX_INI_MODE_EXCLUSIVE	0
 #define QLA2XXX_INI_MODE_DISABLED	1
 #define QLA2XXX_INI_MODE_ENABLED	2
+#define QLA2XXX_INI_MODE_DUAL	3
 
 #define QLA2XXX_COMMAND_COUNT_INIT	250
 #define QLA2XXX_IMMED_NOTIFY_COUNT_INIT 250
@@ -975,6 +977,7 @@ extern void qlt_update_vp_map(struct scsi_qla_host *, int);
  * is not set. Right now, ha value is ignored.
  */
 #define QLA_TGT_MODE_ENABLED() (ql2x_ini_mode != QLA2XXX_INI_MODE_ENABLED)
+
 extern int ql2x_ini_mode;
 
 static inline bool qla_tgt_mode_enabled(struct scsi_qla_host *ha)

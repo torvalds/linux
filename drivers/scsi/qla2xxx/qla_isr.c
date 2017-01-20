@@ -1025,7 +1025,8 @@ global_port_update:
 
 		qla2x00_mark_all_devices_lost(vha, 1);
 
-		if (vha->vp_idx == 0 && !qla_ini_mode_enabled(vha))
+		if (vha->vp_idx == 0 &&
+		    (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha)))
 			set_bit(SCR_PENDING, &vha->dpc_flags);
 
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
@@ -1637,6 +1638,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 		    le32_to_cpu(logio->io_parameter[0]));
 
+		vha->hw->exch_starvation = 0;
 		data[0] = MBS_COMMAND_COMPLETE;
 		if (sp->type != SRB_LOGIN_CMD)
 			goto logio_done;
@@ -1672,6 +1674,21 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
 		break;
+	case LSC_SCODE_NOXCB:
+		vha->hw->exch_starvation++;
+		if (vha->hw->exch_starvation > 5) {
+			ql_log(ql_log_warn, vha, 0xffff,
+			    "Exchange starvation. Resetting RISC\n");
+
+			vha->hw->exch_starvation = 0;
+
+			if (IS_P3P_TYPE(vha->hw))
+				set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+			else
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		}
+		/* drop through */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;

@@ -1744,7 +1744,7 @@ static int tcm_qla2xxx_lport_register_npiv_cb(struct scsi_qla_host *base_vha,
 			(struct tcm_qla2xxx_lport *)base_vha->vha_tgt.target_lport_ptr;
 	struct fc_vport_identifiers vport_id;
 
-	if (!qla_tgt_mode_enabled(base_vha)) {
+	if (qla_ini_mode_enabled(base_vha)) {
 		pr_err("qla2xxx base_vha not enabled for target mode\n");
 		return -EPERM;
 	}

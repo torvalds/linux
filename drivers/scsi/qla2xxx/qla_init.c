@@ -1568,8 +1568,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		}
 	}
 
-	if (qla_ini_mode_enabled(vha) ||
-		qla_dual_mode_enabled(vha))
+	if (qla_ini_mode_enabled(vha) || qla_dual_mode_enabled(vha))
 		rval = qla2x00_init_rings(vha);
 
 	ha->flags.chip_reset_done = 1;
@@ -3994,7 +3993,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			 * Process any ATIO queue entries that came in
 			 * while we weren't online.
 			 */
-			if (qla_tgt_mode_enabled(vha)) {
+			if (qla_tgt_mode_enabled(vha) ||
+			    qla_dual_mode_enabled(vha)) {
 				if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
 					spin_lock_irqsave(&ha->tgt.atio_lock,
 					    flags);
