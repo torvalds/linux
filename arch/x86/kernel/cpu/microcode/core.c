@@ -122,15 +122,14 @@ bool get_builtin_firmware(struct cpio_data *cd, const char *name)
 
 void __init load_ucode_bsp(void)
 {
-	unsigned int vendor, cpuid_1_eax;
+	unsigned int cpuid_1_eax;
 
 	if (check_loader_disabled_bsp())
 		return;
 
-	vendor	    = x86_cpuid_vendor();
 	cpuid_1_eax = native_cpuid_eax(1);
 
-	switch (vendor) {
+	switch (x86_cpuid_vendor()) {
 	case X86_VENDOR_INTEL:
 		if (x86_family(cpuid_1_eax) >= 6)
 			load_ucode_intel_bsp();
@@ -155,15 +154,14 @@ static bool check_loader_disabled_ap(void)
 
 void load_ucode_ap(void)
 {
-	unsigned int vendor, cpuid_1_eax;
+	unsigned int cpuid_1_eax;
 
 	if (check_loader_disabled_ap())
 		return;
 
-	vendor	    = x86_cpuid_vendor();
 	cpuid_1_eax = native_cpuid_eax(1);
 
-	switch (vendor) {
+	switch (x86_cpuid_vendor()) {
 	case X86_VENDOR_INTEL:
 		if (x86_family(cpuid_1_eax) >= 6)
 			load_ucode_intel_ap();
