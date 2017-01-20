@@ -759,7 +759,7 @@ static void coda9_set_frame_cache(struct coda_ctx *ctx, u32 fourcc)
 		cache_config = 1 << CODA9_CACHE_PAGEMERGE_OFFSET;
 	}
 	coda_write(ctx->dev, cache_size, CODA9_CMD_SET_FRAME_CACHE_SIZE);
-	if (fourcc == V4L2_PIX_FMT_NV12) {
+	if (fourcc == V4L2_PIX_FMT_NV12 || fourcc == V4L2_PIX_FMT_YUYV) {
 		cache_config |= 32 << CODA9_CACHE_LUMA_BUFFER_SIZE_OFFSET |
 				16 << CODA9_CACHE_CR_BUFFER_SIZE_OFFSET |
 				0 << CODA9_CACHE_CB_BUFFER_SIZE_OFFSET;
@@ -1537,7 +1537,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 
 	ctx->frame_mem_ctrl &= ~(CODA_FRAME_CHROMA_INTERLEAVE | (0x3 << 9) |
 				 CODA9_FRAME_TILED2LINEAR);
-	if (dst_fourcc == V4L2_PIX_FMT_NV12)
+	if (dst_fourcc == V4L2_PIX_FMT_NV12 || dst_fourcc == V4L2_PIX_FMT_YUYV)
 		ctx->frame_mem_ctrl |= CODA_FRAME_CHROMA_INTERLEAVE;
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP)
 		ctx->frame_mem_ctrl |= (0x3 << 9) |
@@ -2079,6 +2079,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		trace_coda_dec_rot_done(ctx, dst_buf, meta);
 
 		switch (q_data_dst->fourcc) {
+		case V4L2_PIX_FMT_YUYV:
+			payload = width * height * 2;
+			break;
 		case V4L2_PIX_FMT_YUV420:
 		case V4L2_PIX_FMT_YVU420:
 		case V4L2_PIX_FMT_NV12:
