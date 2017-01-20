@@ -659,7 +659,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			ib_conn->device->ib_device->attrs.max_fast_reg_page_list_len);
 
 		if (iscsi_host_add(shost,
-				   ib_conn->device->ib_device->dma_device)) {
+				   ib_conn->device->ib_device->dev.parent)) {
 			mutex_unlock(&iser_conn->state_mutex);
 			goto free_host;
 		}
