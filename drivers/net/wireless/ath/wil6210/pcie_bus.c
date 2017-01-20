@@ -23,7 +23,7 @@
 #include <linux/rtnetlink.h>
 
 static bool use_msi = true;
-module_param(use_msi, bool, S_IRUGO);
+module_param(use_msi, bool, 0444);
 MODULE_PARM_DESC(use_msi, " Use MSI interrupt, default - true");
 
 #ifdef CONFIG_PM

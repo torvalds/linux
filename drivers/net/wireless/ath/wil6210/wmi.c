@@ -24,16 +24,16 @@
 #include "trace.h"
 
 static uint max_assoc_sta = WIL6210_MAX_CID;
-module_param(max_assoc_sta, uint, S_IRUGO | S_IWUSR);
+module_param(max_assoc_sta, uint, 0644);
 MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
 int agg_wsize; /* = 0; */
-module_param(agg_wsize, int, S_IRUGO | S_IWUSR);
+module_param(agg_wsize, int, 0644);
 MODULE_PARM_DESC(agg_wsize, " Window size for Tx Block Ack after connect;"
 		 " 0 - use default; < 0 - don't auto-establish");
 
 u8 led_id = WIL_LED_INVALID_ID;
-module_param(led_id, byte, S_IRUGO);
+module_param(led_id, byte, 0444);
 MODULE_PARM_DESC(led_id,
 		 " 60G device led enablement. Set the led ID (0-2) to enable");
 

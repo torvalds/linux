@@ -21,7 +21,7 @@
 #define WIL_MAX_ROC_DURATION_MS 5000
 
 bool disable_ap_sme;
-module_param(disable_ap_sme, bool, S_IRUGO);
+module_param(disable_ap_sme, bool, 0444);
 MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
 
 #define CHAN60G(_channel, _flags) {				\

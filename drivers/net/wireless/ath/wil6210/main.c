@@ -27,23 +27,23 @@
 #define WAIT_FOR_SCAN_ABORT_MS 1000
 
 bool debug_fw; /* = false; */
-module_param(debug_fw, bool, S_IRUGO);
+module_param(debug_fw, bool, 0444);
 MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
 
 static bool oob_mode;
-module_param(oob_mode, bool, S_IRUGO);
+module_param(oob_mode, bool, 0444);
 MODULE_PARM_DESC(oob_mode,
 		 " enable out of the box (OOB) mode in FW, for diagnostics and certification");
 
 bool no_fw_recovery;
-module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
+module_param(no_fw_recovery, bool, 0644);
 MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
 
 /* if not set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
  */
 unsigned short rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_INIT;
-module_param(rx_ring_overflow_thrsh, ushort, S_IRUGO);
+module_param(rx_ring_overflow_thrsh, ushort, 0444);
 MODULE_PARM_DESC(rx_ring_overflow_thrsh,
 		 " RX ring overflow threshold in descriptors.");
 
@@ -73,7 +73,7 @@ static const struct kernel_param_ops mtu_max_ops = {
 	.get = param_get_uint,
 };
 
-module_param_cb(mtu_max, &mtu_max_ops, &mtu_max, S_IRUGO);
+module_param_cb(mtu_max, &mtu_max_ops, &mtu_max, 0444);
 MODULE_PARM_DESC(mtu_max, " Max MTU value.");
 
 static uint rx_ring_order = WIL_RX_RING_SIZE_ORDER_DEFAULT;
@@ -102,11 +102,11 @@ static const struct kernel_param_ops ring_order_ops = {
 	.get = param_get_uint,
 };
 
-module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
+module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, 0444);
 MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
-module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
+module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, 0444);
 MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
-module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, S_IRUGO);
+module_param_cb(bcast_ring_order, &ring_order_ops, &bcast_ring_order, 0444);
 MODULE_PARM_DESC(bcast_ring_order, " Bcast ring order; size = 1 << order");
 
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */

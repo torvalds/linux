@@ -29,12 +29,12 @@
 #include "trace.h"
 
 static bool rtap_include_phy_info;
-module_param(rtap_include_phy_info, bool, S_IRUGO);
+module_param(rtap_include_phy_info, bool, 0444);
 MODULE_PARM_DESC(rtap_include_phy_info,
 		 " Include PHY info in the radiotap header, default - no");
 
 bool rx_align_2;
-module_param(rx_align_2, bool, S_IRUGO);
+module_param(rx_align_2, bool, 0444);
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
 
 static inline uint wil_rx_snaplen(void)
