@@ -225,29 +225,25 @@ static int mtk_aes_info_map(struct mtk_cryp *cryp,
 	return 0;
 }
 
+/*
+ * Write descriptors for processing. This will configure the engine, load
+ * the transform information and then start the packet processing.
+ */
 static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 {
 	struct mtk_ring *ring = cryp->ring[aes->id];
 	struct mtk_desc *cmd = NULL, *res = NULL;
-	struct scatterlist *ssg, *dsg;
-	u32 len = aes->src.sg_len;
+	struct scatterlist *ssg = aes->src.sg, *dsg = aes->dst.sg;
+	u32 slen = aes->src.sg_len, dlen = aes->dst.sg_len;
 	int nents;
 
-	/* Fill in the command/result descriptors */
-	for (nents = 0; nents < len; ++nents) {
-		ssg = &aes->src.sg[nents];
-		dsg = &aes->dst.sg[nents];
-
-		cmd = ring->cmd_base + ring->pos;
+	/* Write command descriptors */
+	for (nents = 0; nents < slen; ++nents, ssg = sg_next(ssg)) {
+		cmd = ring->cmd_base + ring->cmd_pos;
 		cmd->hdr = MTK_DESC_BUF_LEN(ssg->length);
 		cmd->buf = cpu_to_le32(sg_dma_address(ssg));
 
-		res = ring->res_base + ring->pos;
-		res->hdr = MTK_DESC_BUF_LEN(dsg->length);
-		res->buf = cpu_to_le32(sg_dma_address(dsg));
-
 		if (nents == 0) {
-			res->hdr |= MTK_DESC_FIRST;
 			cmd->hdr |= MTK_DESC_FIRST |
 				    MTK_DESC_CT_LEN(aes->ctx->ct_size);
 			cmd->ct = cpu_to_le32(aes->ctx->ct_dma);
@@ -255,11 +251,23 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 			cmd->tfm = cpu_to_le32(aes->ctx->tfm_dma);
 		}
 
-		if (++ring->pos == MTK_DESC_NUM)
-			ring->pos = 0;
+		if (++ring->cmd_pos == MTK_DESC_NUM)
+			ring->cmd_pos = 0;
 	}
-
 	cmd->hdr |= MTK_DESC_LAST;
+
+	/* Prepare result descriptors */
+	for (nents = 0; nents < dlen; ++nents, dsg = sg_next(dsg)) {
+		res = ring->res_base + ring->res_pos;
+		res->hdr = MTK_DESC_BUF_LEN(dsg->length);
+		res->buf = cpu_to_le32(sg_dma_address(dsg));
+
+		if (nents == 0)
+			res->hdr |= MTK_DESC_FIRST;
+
+		if (++ring->res_pos == MTK_DESC_NUM)
+			ring->res_pos = 0;
+	}
 	res->hdr |= MTK_DESC_LAST;
 
 	/*
@@ -268,8 +276,8 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	 */
 	wmb();
 	/* Start DMA transfer */
-	mtk_aes_write(cryp, RDR_PREP_COUNT(aes->id), MTK_DESC_CNT(len));
-	mtk_aes_write(cryp, CDR_PREP_COUNT(aes->id), MTK_DESC_CNT(len));
+	mtk_aes_write(cryp, RDR_PREP_COUNT(aes->id), MTK_DESC_CNT(dlen));
+	mtk_aes_write(cryp, CDR_PREP_COUNT(aes->id), MTK_DESC_CNT(slen));
 
 	return -EINPROGRESS;
 }

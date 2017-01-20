@@ -426,8 +426,8 @@ static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
 {
 	struct mtk_sha_reqctx *ctx = ahash_request_ctx(sha->req);
 	struct mtk_ring *ring = cryp->ring[sha->id];
-	struct mtk_desc *cmd = ring->cmd_base + ring->pos;
-	struct mtk_desc *res = ring->res_base + ring->pos;
+	struct mtk_desc *cmd = ring->cmd_base + ring->cmd_pos;
+	struct mtk_desc *res = ring->res_base + ring->res_pos;
 	int err;
 
 	err = mtk_sha_info_map(cryp, sha, len);
@@ -451,9 +451,10 @@ static int mtk_sha_xmit(struct mtk_cryp *cryp, struct mtk_sha_rec *sha,
 	cmd->ct_hdr = ctx->ct_hdr;
 	cmd->tfm = cpu_to_le32(ctx->tfm_dma);
 
-	if (++ring->pos == MTK_DESC_NUM)
-		ring->pos = 0;
+	if (++ring->cmd_pos == MTK_DESC_NUM)
+		ring->cmd_pos = 0;
 
+	ring->res_pos = ring->cmd_pos;
 	/*
 	 * Make sure that all changes to the DMA ring are done before we
 	 * start engine.
@@ -472,8 +473,8 @@ static int mtk_sha_xmit2(struct mtk_cryp *cryp,
 			 size_t len1, size_t len2)
 {
 	struct mtk_ring *ring = cryp->ring[sha->id];
-	struct mtk_desc *cmd = ring->cmd_base + ring->pos;
-	struct mtk_desc *res = ring->res_base + ring->pos;
+	struct mtk_desc *cmd = ring->cmd_base + ring->cmd_pos;
+	struct mtk_desc *res = ring->res_base + ring->res_pos;
 	int err;
 
 	err = mtk_sha_info_map(cryp, sha, len1 + len2);
@@ -492,11 +493,13 @@ static int mtk_sha_xmit2(struct mtk_cryp *cryp,
 	cmd->ct_hdr = ctx->ct_hdr;
 	cmd->tfm = cpu_to_le32(ctx->tfm_dma);
 
-	if (++ring->pos == MTK_DESC_NUM)
-		ring->pos = 0;
+	if (++ring->cmd_pos == MTK_DESC_NUM)
+		ring->cmd_pos = 0;
 
-	cmd = ring->cmd_base + ring->pos;
-	res = ring->res_base + ring->pos;
+	ring->res_pos = ring->cmd_pos;
+
+	cmd = ring->cmd_base + ring->cmd_pos;
+	res = ring->res_base + ring->res_pos;
 
 	res->hdr = MTK_DESC_BUF_LEN(len2) | MTK_DESC_LAST;
 	res->buf = cpu_to_le32(cryp->tmp_dma);
@@ -504,8 +507,10 @@ static int mtk_sha_xmit2(struct mtk_cryp *cryp,
 	cmd->hdr = MTK_DESC_BUF_LEN(len2) | MTK_DESC_LAST;
 	cmd->buf = cpu_to_le32(ctx->dma_addr);
 
-	if (++ring->pos == MTK_DESC_NUM)
-		ring->pos = 0;
+	if (++ring->cmd_pos == MTK_DESC_NUM)
+		ring->cmd_pos = 0;
+
+	ring->res_pos = ring->cmd_pos;
 
 	/*
 	 * Make sure that all changes to the DMA ring are done before we
