@@ -74,9 +74,9 @@ static inline void ixgbe_alloc_vf_macvlans(struct ixgbe_adapter *adapter)
 static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
 
 	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
-	e_info(probe, "SR-IOV enabled with %d VFs\n", adapter->num_vfs);
 
 	/* Enable VMDq flag so device will be set in VM mode */
 	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED;
@@ -84,60 +84,57 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		adapter->ring_feature[RING_F_VMDQ].limit = 1;
 	adapter->ring_feature[RING_F_VMDQ].offset = adapter->num_vfs;
 
+	/* If call to enable VFs succeeded then allocate memory
+	 * for per VF control structures.
+	 */
+	adapter->vfinfo = kcalloc(adapter->num_vfs,
+				  sizeof(struct vf_data_storage), GFP_KERNEL);
+	if (!adapter->vfinfo)
+		return -ENOMEM;
+
+	ixgbe_alloc_vf_macvlans(adapter);
+
 	/* Initialize default switching mode VEB */
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 	adapter->bridge_mode = BRIDGE_MODE_VEB;
 
-	ixgbe_alloc_vf_macvlans(adapter);
-
-	/* If call to enable VFs succeeded then allocate memory
-	 * for per VF control structures.
-	 */
-	adapter->vfinfo =
-		kcalloc(adapter->num_vfs,
-			sizeof(struct vf_data_storage), GFP_KERNEL);
-	if (adapter->vfinfo) {
-		int i;
-
-		/* limit trafffic classes based on VFs enabled */
-		if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
-		    (adapter->num_vfs < 16)) {
-			adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
-			adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
-		} else if (adapter->num_vfs < 32) {
-			adapter->dcb_cfg.num_tcs.pg_tcs = 4;
-			adapter->dcb_cfg.num_tcs.pfc_tcs = 4;
-		} else {
-			adapter->dcb_cfg.num_tcs.pg_tcs = 1;
-			adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
-		}
-
-		/* Disable RSC when in SR-IOV mode */
-		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
-				     IXGBE_FLAG2_RSC_ENABLED);
-
-		for (i = 0; i < adapter->num_vfs; i++) {
-			/* enable spoof checking for all VFs */
-			adapter->vfinfo[i].spoofchk_enabled = true;
-
-			/* We support VF RSS querying only for 82599 and x540
-			 * devices at the moment. These devices share RSS
-			 * indirection table and RSS hash key with PF therefore
-			 * we want to disable the querying by default.
-			 */
-			adapter->vfinfo[i].rss_query_enabled = 0;
-
-			/* Untrust all VFs */
-			adapter->vfinfo[i].trusted = false;
-
-			/* set the default xcast mode */
-			adapter->vfinfo[i].xcast_mode = IXGBEVF_XCAST_MODE_NONE;
-		}
-
-		return 0;
+	/* limit trafffic classes based on VFs enabled */
+	if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
+	    (adapter->num_vfs < 16)) {
+		adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
+	} else if (adapter->num_vfs < 32) {
+		adapter->dcb_cfg.num_tcs.pg_tcs = 4;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = 4;
+	} else {
+		adapter->dcb_cfg.num_tcs.pg_tcs = 1;
+		adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
 	}
 
-	return -ENOMEM;
+	/* Disable RSC when in SR-IOV mode */
+	adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
+			     IXGBE_FLAG2_RSC_ENABLED);
+
+	for (i = 0; i < adapter->num_vfs; i++) {
+		/* enable spoof checking for all VFs */
+		adapter->vfinfo[i].spoofchk_enabled = true;
+
+		/* We support VF RSS querying only for 82599 and x540
+		 * devices at the moment. These devices share RSS
+		 * indirection table and RSS hash key with PF therefore
+		 * we want to disable the querying by default.
+		 */
+		adapter->vfinfo[i].rss_query_enabled = 0;
+
+		/* Untrust all VFs */
+		adapter->vfinfo[i].trusted = false;
+
+		/* set the default xcast mode */
+		adapter->vfinfo[i].xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	}
+
+	e_info(probe, "SR-IOV enabled with %d VFs\n", adapter->num_vfs);
+	return 0;
 }
 
 /**
