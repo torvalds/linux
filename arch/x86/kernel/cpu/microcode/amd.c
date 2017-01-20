@@ -372,43 +372,26 @@ load_microcode_amd(int cpu, u8 family, const u8 *data, size_t size);
 
 int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
 {
+	struct cont_desc desc = { 0 };
 	enum ucode_state ret;
-	int retval = 0;
+	struct cpio_data cp;
 
-	if (!cont.data) {
-		if (IS_ENABLED(CONFIG_X86_32) && (cont.size != -1)) {
-			struct cpio_data cp;
+	cp = find_microcode_in_initrd(ucode_path, false);
+	if (!(cp.data && cp.size))
+		return -EINVAL;
 
-			cp = find_microcode_in_initrd(ucode_path, false);
-			if (!(cp.data && cp.size)) {
-				cont.size = -1;
-				return -EINVAL;
-			}
+	desc.cpuid_1_eax = cpuid_1_eax;
 
-			cont.cpuid_1_eax = cpuid_1_eax;
+	scan_containers(cp.data, cp.size, &desc);
+	if (!desc.eq_id)
+		return -EINVAL;
 
-			scan_containers(cp.data, cp.size, &cont);
-			if (!cont.eq_id) {
-				cont.size = -1;
-				return -EINVAL;
-			}
-
-		} else
-			return -EINVAL;
-	}
-
-	ret = load_microcode_amd(smp_processor_id(), x86_family(cpuid_1_eax), cont.data, cont.size);
+	ret = load_microcode_amd(smp_processor_id(), x86_family(cpuid_1_eax),
+				 desc.data, desc.size);
 	if (ret != UCODE_OK)
-		retval = -EINVAL;
+		return -EINVAL;
 
-	/*
-	 * This will be freed any msec now, stash patches for the current
-	 * family and switch to patch cache for cpu hotplug, etc later.
-	 */
-	cont.data = NULL;
-	cont.size = 0;
-
-	return retval;
+	return 0;
 }
 
 void reload_ucode_amd(void)
