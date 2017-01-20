@@ -184,7 +184,7 @@ static void dwmac4_set_eee_pls(struct mac_device_info *hw, int link)
 static void dwmac4_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
+	int value = ((tw & 0xffff)) | ((ls & 0x3ff) << 16);
 
 	/* Program the timers in the LPI timer control register:
 	 * LS: minimum time (ms) for which the link
