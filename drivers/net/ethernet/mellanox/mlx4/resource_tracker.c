@@ -236,8 +236,8 @@ static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct res_common *res = container_of(node, struct res_common,
-						      node);
+		struct res_common *res = rb_entry(node, struct res_common,
+						  node);
 
 		if (res_id < res->res_id)
 			node = node->rb_left;
@@ -255,8 +255,8 @@ static int res_tracker_insert(struct rb_root *root, struct res_common *res)
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct res_common *this = container_of(*new, struct res_common,
-						       node);
+		struct res_common *this = rb_entry(*new, struct res_common,
+						   node);
 
 		parent = *new;
 		if (res->res_id < this->res_id)
