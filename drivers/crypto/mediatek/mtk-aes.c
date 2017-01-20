@@ -314,8 +314,8 @@ static int mtk_aes_map(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 		aes->dst.sg_len = dma_map_sg(cryp->dev, aes->dst.sg,
 					     aes->dst.nents, DMA_FROM_DEVICE);
 		if (unlikely(!aes->dst.sg_len)) {
-			dma_unmap_sg(cryp->dev, aes->src.sg,
-				     aes->src.nents, DMA_TO_DEVICE);
+			dma_unmap_sg(cryp->dev, aes->src.sg, aes->src.nents,
+				     DMA_TO_DEVICE);
 			goto sg_map_err;
 		}
 	}
@@ -484,7 +484,7 @@ static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
 			  const u8 *key, u32 keylen)
 {
 	struct mtk_aes_base_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-	const u32 *key_tmp = (const u32 *)key;
+	const u32 *aes_key = (const u32 *)key;
 	u32 *key_state = ctx->tfm.state;
 	int i;
 
@@ -498,7 +498,7 @@ static int mtk_aes_setkey(struct crypto_ablkcipher *tfm,
 	ctx->keylen = SIZE_IN_WORDS(keylen);
 
 	for (i = 0; i < ctx->keylen; i++)
-		key_state[i] = cpu_to_le32(key_tmp[i]);
+		key_state[i] = cpu_to_le32(aes_key[i]);
 
 	return 0;
 }
@@ -512,26 +512,26 @@ static int mtk_aes_crypt(struct ablkcipher_request *req, u64 mode)
 	rctx = ablkcipher_request_ctx(req);
 	rctx->mode = mode;
 
-	return mtk_aes_handle_queue(ctx->cryp,
-			!(mode & AES_FLAGS_ENCRYPT), &req->base);
+	return mtk_aes_handle_queue(ctx->cryp, !(mode & AES_FLAGS_ENCRYPT),
+				    &req->base);
 }
 
-static int mtk_ecb_encrypt(struct ablkcipher_request *req)
+static int mtk_aes_ecb_encrypt(struct ablkcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_ECB);
 }
 
-static int mtk_ecb_decrypt(struct ablkcipher_request *req)
+static int mtk_aes_ecb_decrypt(struct ablkcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ECB);
 }
 
-static int mtk_cbc_encrypt(struct ablkcipher_request *req)
+static int mtk_aes_cbc_encrypt(struct ablkcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_ENCRYPT | AES_FLAGS_CBC);
 }
 
-static int mtk_cbc_decrypt(struct ablkcipher_request *req)
+static int mtk_aes_cbc_decrypt(struct ablkcipher_request *req)
 {
 	return mtk_aes_crypt(req, AES_FLAGS_CBC);
 }
@@ -554,44 +554,44 @@ static int mtk_aes_cra_init(struct crypto_tfm *tfm)
 
 static struct crypto_alg aes_algs[] = {
 {
-	.cra_name		=	"cbc(aes)",
-	.cra_driver_name	=	"cbc-aes-mtk",
-	.cra_priority		=	400,
-	.cra_flags		=	CRYPTO_ALG_TYPE_ABLKCIPHER |
-						CRYPTO_ALG_ASYNC,
-	.cra_init		=	mtk_aes_cra_init,
-	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct mtk_aes_ctx),
-	.cra_alignmask		=	15,
-	.cra_type		=	&crypto_ablkcipher_type,
-	.cra_module		=	THIS_MODULE,
-	.cra_u.ablkcipher	=	{
-		.min_keysize	=	AES_MIN_KEY_SIZE,
-		.max_keysize	=	AES_MAX_KEY_SIZE,
-		.setkey		=	mtk_aes_setkey,
-		.encrypt	=	mtk_cbc_encrypt,
-		.decrypt	=	mtk_cbc_decrypt,
-		.ivsize		=	AES_BLOCK_SIZE,
+	.cra_name		= "cbc(aes)",
+	.cra_driver_name	= "cbc-aes-mtk",
+	.cra_priority		= 400,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+				  CRYPTO_ALG_ASYNC,
+	.cra_init		= mtk_aes_cra_init,
+	.cra_blocksize		= AES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct mtk_aes_ctx),
+	.cra_alignmask		= 0xf,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_u.ablkcipher = {
+		.min_keysize	= AES_MIN_KEY_SIZE,
+		.max_keysize	= AES_MAX_KEY_SIZE,
+		.setkey		= mtk_aes_setkey,
+		.encrypt	= mtk_aes_cbc_encrypt,
+		.decrypt	= mtk_aes_cbc_decrypt,
+		.ivsize		= AES_BLOCK_SIZE,
 	}
 },
 {
-	.cra_name		=	"ecb(aes)",
-	.cra_driver_name	=	"ecb-aes-mtk",
-	.cra_priority		=	400,
-	.cra_flags		=	CRYPTO_ALG_TYPE_ABLKCIPHER |
-						CRYPTO_ALG_ASYNC,
-	.cra_init		=	mtk_aes_cra_init,
-	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct mtk_aes_ctx),
-	.cra_alignmask		=	15,
-	.cra_type		=	&crypto_ablkcipher_type,
-	.cra_module		=	THIS_MODULE,
-	.cra_u.ablkcipher	=	{
-		.min_keysize	=	AES_MIN_KEY_SIZE,
-		.max_keysize	=	AES_MAX_KEY_SIZE,
-		.setkey		=	mtk_aes_setkey,
-		.encrypt	=	mtk_ecb_encrypt,
-		.decrypt	=	mtk_ecb_decrypt,
+	.cra_name		= "ecb(aes)",
+	.cra_driver_name	= "ecb-aes-mtk",
+	.cra_priority		= 400,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+				  CRYPTO_ALG_ASYNC,
+	.cra_init		= mtk_aes_cra_init,
+	.cra_blocksize		= AES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct mtk_aes_ctx),
+	.cra_alignmask		= 0xf,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_u.ablkcipher = {
+		.min_keysize	= AES_MIN_KEY_SIZE,
+		.max_keysize	= AES_MAX_KEY_SIZE,
+		.setkey		= mtk_aes_setkey,
+		.encrypt	= mtk_aes_ecb_encrypt,
+		.decrypt	= mtk_aes_ecb_decrypt,
 	}
 },
 };

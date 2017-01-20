@@ -124,7 +124,7 @@ typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
 /**
  * struct mtk_aes_rec - AES operation record
  * @queue:	crypto request queue
- * @req:	pointer to async request
+ * @areq:	pointer to async request
  * @task:	the tasklet is use in AES interrupt
  * @ctx:	pointer to current context
  * @src:	the structure that holds source sg list info
