@@ -344,7 +344,6 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
 	ctx->cru_node = np;
-	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
@@ -416,6 +415,13 @@ void __init rockchip_clk_register_branches(
 				flags, ctx->reg_base + list->muxdiv_offset,
 				list->mux_shift, list->mux_width,
 				list->mux_flags, &ctx->lock);
+			break;
+		case branch_muxgrf:
+			clk = rockchip_clk_register_muxgrf(list->name,
+				list->parent_names, list->num_parents,
+				flags, ctx->grf, list->muxdiv_offset,
+				list->mux_shift, list->mux_width,
+				list->mux_flags);
 			break;
 		case branch_divider:
 			if (list->div_table)

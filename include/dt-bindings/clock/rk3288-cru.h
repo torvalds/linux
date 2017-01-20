@@ -168,6 +168,7 @@
 #define PCLK_WDT		368
 #define PCLK_EFUSE256		369
 #define PCLK_EFUSE1024		370
+#define PCLK_ISP_IN		371
 
 /* hclk gates */
 #define HCLK_GPS		448

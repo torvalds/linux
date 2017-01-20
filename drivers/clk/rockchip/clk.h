@@ -91,6 +91,24 @@ struct clk;
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
 
+#define RK3328_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3328_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3328_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define RK3328_GRFCLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3328_GLB_SRST_FST		0x9c
+#define RK3328_GLB_SRST_SND		0x98
+#define RK3328_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define RK3328_MODE_CON			0x80
+#define RK3328_MISC_CON			0x84
+#define RK3328_SDMMC_CON0		0x380
+#define RK3328_SDMMC_CON1		0x384
+#define RK3328_SDIO_CON0		0x388
+#define RK3328_SDIO_CON1		0x38c
+#define RK3328_EMMC_CON0		0x390
+#define RK3328_EMMC_CON1		0x394
+#define RK3328_SDMMC_EXT_CON0		0x398
+#define RK3328_SDMMC_EXT_CON1		0x39C
+
 #define RK3368_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3368_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
 #define RK3368_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
@@ -130,6 +148,7 @@ struct clk;
 enum rockchip_pll_type {
 	pll_rk3036,
 	pll_rk3066,
+	pll_rk3328,
 	pll_rk3399,
 };
 
@@ -317,11 +336,17 @@ struct clk *rockchip_clk_register_inverter(const char *name,
 				void __iomem *reg, int shift, int flags,
 				spinlock_t *lock);
 
+struct clk *rockchip_clk_register_muxgrf(const char *name,
+				const char *const *parent_names, u8 num_parents,
+				int flags, struct regmap *grf, int reg,
+				int shift, int width, int mux_flags);
+
 #define PNAME(x) static const char *const x[] __initconst
 
 enum rockchip_clk_branch_type {
 	branch_composite,
 	branch_mux,
+	branch_muxgrf,
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
@@ -540,6 +565,21 @@ struct rockchip_clk_branch {
 	{							\
 		.id		= _id,				\
 		.branch_type	= branch_mux,			\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= o,				\
+		.mux_shift	= s,				\
+		.mux_width	= w,				\
+		.mux_flags	= mf,				\
+		.gate_offset	= -1,				\
+	}
+
+#define MUXGRF(_id, cname, pnames, f, o, s, w, mf)		\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_muxgrf,		\
 		.name		= cname,			\
 		.parent_names	= pnames,			\
 		.num_parents	= ARRAY_SIZE(pnames),		\
