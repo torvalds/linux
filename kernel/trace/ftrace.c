@@ -4378,7 +4378,7 @@ __setup("ftrace_filter=", set_ftrace_filter);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static char ftrace_graph_buf[FTRACE_FILTER_SIZE] __initdata;
 static char ftrace_graph_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
-static int ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer);
+static int ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer);
 
 static unsigned long save_global_trampoline;
 static unsigned long save_global_flags;
@@ -4401,18 +4401,17 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 {
 	int ret;
 	char *func;
-	unsigned long *table = ftrace_graph_funcs;
-	int *count = &ftrace_graph_count;
+	struct ftrace_hash *hash;
 
-	if (!enable) {
-		table = ftrace_graph_notrace_funcs;
-		count = &ftrace_graph_notrace_count;
-	}
+	if (enable)
+		hash = ftrace_graph_hash;
+	else
+		hash = ftrace_graph_notrace_hash;
 
 	while (buf) {
 		func = strsep(&buf, ",");
 		/* we allow only one expression at a time */
-		ret = ftrace_set_func(table, count, FTRACE_GRAPH_MAX_FUNCS, func);
+		ret = ftrace_graph_set_hash(hash, func);
 		if (ret)
 			printk(KERN_DEBUG "ftrace: function %s not "
 					  "traceable\n", func);
@@ -4536,15 +4535,20 @@ static const struct file_operations ftrace_notrace_fops = {
 
 static DEFINE_MUTEX(graph_lock);
 
-int ftrace_graph_count;
-int ftrace_graph_notrace_count;
-unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
-unsigned long ftrace_graph_notrace_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
+struct ftrace_hash *ftrace_graph_hash = EMPTY_HASH;
+struct ftrace_hash *ftrace_graph_notrace_hash = EMPTY_HASH;
+
+enum graph_filter_type {
+	GRAPH_FILTER_NOTRACE	= 0,
+	GRAPH_FILTER_FUNCTION,
+};
 
 struct ftrace_graph_data {
-	unsigned long *table;
-	size_t size;
-	int *count;
+	struct ftrace_hash *hash;
+	struct ftrace_func_entry *entry;
+	int idx;   /* for hash table iteration */
+	enum graph_filter_type type;
+	struct ftrace_hash *new_hash;
 	const struct seq_operations *seq_ops;
 };
 
@@ -4552,10 +4556,31 @@ static void *
 __g_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_graph_data *fgd = m->private;
+	struct ftrace_func_entry *entry = fgd->entry;
+	struct hlist_head *head;
+	int i, idx = fgd->idx;
 
-	if (*pos >= *fgd->count)
+	if (*pos >= fgd->hash->count)
 		return NULL;
-	return &fgd->table[*pos];
+
+	if (entry) {
+		hlist_for_each_entry_continue(entry, hlist) {
+			fgd->entry = entry;
+			return entry;
+		}
+
+		idx++;
+	}
+
+	for (i = idx; i < 1 << fgd->hash->size_bits; i++) {
+		head = &fgd->hash->buckets[i];
+		hlist_for_each_entry(entry, head, hlist) {
+			fgd->entry = entry;
+			fgd->idx = i;
+			return entry;
+		}
+	}
+	return NULL;
 }
 
 static void *
@@ -4572,9 +4597,11 @@ static void *g_start(struct seq_file *m, loff_t *pos)
 	mutex_lock(&graph_lock);
 
 	/* Nothing, tell g_show to print all functions are enabled */
-	if (!*fgd->count && !*pos)
+	if (ftrace_hash_empty(fgd->hash) && !*pos)
 		return (void *)1;
 
+	fgd->idx = 0;
+	fgd->entry = NULL;
 	return __g_next(m, pos);
 }
 
@@ -4585,22 +4612,22 @@ static void g_stop(struct seq_file *m, void *p)
 
 static int g_show(struct seq_file *m, void *v)
 {
-	unsigned long *ptr = v;
+	struct ftrace_func_entry *entry = v;
 
-	if (!ptr)
+	if (!entry)
 		return 0;
 
-	if (ptr == (unsigned long *)1) {
+	if (entry == (void *)1) {
 		struct ftrace_graph_data *fgd = m->private;
 
-		if (fgd->table == ftrace_graph_funcs)
+		if (fgd->type == GRAPH_FILTER_FUNCTION)
 			seq_puts(m, "#### all functions enabled ####\n");
 		else
 			seq_puts(m, "#### no functions disabled ####\n");
 		return 0;
 	}
 
-	seq_printf(m, "%ps\n", (void *)*ptr);
+	seq_printf(m, "%ps\n", (void *)entry->ip);
 
 	return 0;
 }
@@ -4617,24 +4644,37 @@ __ftrace_graph_open(struct inode *inode, struct file *file,
 		    struct ftrace_graph_data *fgd)
 {
 	int ret = 0;
+	struct ftrace_hash *new_hash = NULL;
 
-	mutex_lock(&graph_lock);
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (file->f_flags & O_TRUNC)) {
-		*fgd->count = 0;
-		memset(fgd->table, 0, fgd->size * sizeof(*fgd->table));
+	if (file->f_mode & FMODE_WRITE) {
+		const int size_bits = FTRACE_HASH_DEFAULT_BITS;
+
+		if (file->f_flags & O_TRUNC)
+			new_hash = alloc_ftrace_hash(size_bits);
+		else
+			new_hash = alloc_and_copy_ftrace_hash(size_bits,
+							      fgd->hash);
+		if (!new_hash) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
-	mutex_unlock(&graph_lock);
 
 	if (file->f_mode & FMODE_READ) {
-		ret = seq_open(file, fgd->seq_ops);
+		ret = seq_open(file, &ftrace_graph_seq_ops);
 		if (!ret) {
 			struct seq_file *m = file->private_data;
 			m->private = fgd;
+		} else {
+			/* Failed */
+			free_ftrace_hash(new_hash);
+			new_hash = NULL;
 		}
 	} else
 		file->private_data = fgd;
 
+out:
+	fgd->new_hash = new_hash;
 	return ret;
 }
 
@@ -4642,6 +4682,7 @@ static int
 ftrace_graph_open(struct inode *inode, struct file *file)
 {
 	struct ftrace_graph_data *fgd;
+	int ret;
 
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
@@ -4650,18 +4691,25 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	if (fgd == NULL)
 		return -ENOMEM;
 
-	fgd->table = ftrace_graph_funcs;
-	fgd->size = FTRACE_GRAPH_MAX_FUNCS;
-	fgd->count = &ftrace_graph_count;
+	mutex_lock(&graph_lock);
+
+	fgd->hash = ftrace_graph_hash;
+	fgd->type = GRAPH_FILTER_FUNCTION;
 	fgd->seq_ops = &ftrace_graph_seq_ops;
 
-	return __ftrace_graph_open(inode, file, fgd);
+	ret = __ftrace_graph_open(inode, file, fgd);
+	if (ret < 0)
+		kfree(fgd);
+
+	mutex_unlock(&graph_lock);
+	return ret;
 }
 
 static int
 ftrace_graph_notrace_open(struct inode *inode, struct file *file)
 {
 	struct ftrace_graph_data *fgd;
+	int ret;
 
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
@@ -4670,45 +4718,53 @@ ftrace_graph_notrace_open(struct inode *inode, struct file *file)
 	if (fgd == NULL)
 		return -ENOMEM;
 
-	fgd->table = ftrace_graph_notrace_funcs;
-	fgd->size = FTRACE_GRAPH_MAX_FUNCS;
-	fgd->count = &ftrace_graph_notrace_count;
+	mutex_lock(&graph_lock);
+
+	fgd->hash = ftrace_graph_notrace_hash;
+	fgd->type = GRAPH_FILTER_NOTRACE;
 	fgd->seq_ops = &ftrace_graph_seq_ops;
 
-	return __ftrace_graph_open(inode, file, fgd);
+	ret = __ftrace_graph_open(inode, file, fgd);
+	if (ret < 0)
+		kfree(fgd);
+
+	mutex_unlock(&graph_lock);
+	return ret;
 }
 
 static int
 ftrace_graph_release(struct inode *inode, struct file *file)
 {
+	struct ftrace_graph_data *fgd;
+
 	if (file->f_mode & FMODE_READ) {
 		struct seq_file *m = file->private_data;
 
-		kfree(m->private);
+		fgd = m->private;
 		seq_release(inode, file);
 	} else {
-		kfree(file->private_data);
+		fgd = file->private_data;
 	}
+
+	kfree(fgd->new_hash);
+	kfree(fgd);
 
 	return 0;
 }
 
 static int
-ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
+ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer)
 {
 	struct ftrace_glob func_g;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
+	struct ftrace_func_entry *entry;
 	int fail = 1;
 	int not;
-	bool exists;
-	int i;
 
 	/* decode regex */
 	func_g.type = filter_parse_regex(buffer, strlen(buffer),
 					 &func_g.search, &not);
-	if (!not && *idx >= size)
-		return -EBUSY;
 
 	func_g.len = strlen(func_g.search);
 
@@ -4725,26 +4781,18 @@ ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
 			continue;
 
 		if (ftrace_match_record(rec, &func_g, NULL, 0)) {
-			/* if it is in the array */
-			exists = false;
-			for (i = 0; i < *idx; i++) {
-				if (array[i] == rec->ip) {
-					exists = true;
-					break;
-				}
-			}
+			entry = ftrace_lookup_ip(hash, rec->ip);
 
 			if (!not) {
 				fail = 0;
-				if (!exists) {
-					array[(*idx)++] = rec->ip;
-					if (*idx >= size)
-						goto out;
-				}
+
+				if (entry)
+					continue;
+				if (add_hash_entry(hash, rec->ip) < 0)
+					goto out;
 			} else {
-				if (exists) {
-					array[i] = array[--(*idx)];
-					array[*idx] = 0;
+				if (entry) {
+					free_hash_entry(hash, entry);
 					fail = 0;
 				}
 			}
@@ -4766,6 +4814,7 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 	struct trace_parser parser;
 	ssize_t read, ret = 0;
 	struct ftrace_graph_data *fgd = file->private_data;
+	struct ftrace_hash *old_hash, *new_hash;
 
 	if (!cnt)
 		return 0;
@@ -4781,10 +4830,25 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		mutex_lock(&graph_lock);
 
 		/* we allow only one expression at a time */
-		ret = ftrace_set_func(fgd->table, fgd->count, fgd->size,
-				      parser.buffer);
+		ret = ftrace_graph_set_hash(fgd->new_hash,
+					    parser.buffer);
+
+		old_hash = fgd->hash;
+		new_hash = __ftrace_hash_move(fgd->new_hash);
+		if (!new_hash)
+			ret = -ENOMEM;
+
+		if (fgd->type == GRAPH_FILTER_FUNCTION)
+			rcu_assign_pointer(ftrace_graph_hash, new_hash);
+		else
+			rcu_assign_pointer(ftrace_graph_notrace_hash, new_hash);
 
 		mutex_unlock(&graph_lock);
+
+		/* Wait till all users are no longer using the old hash */
+		synchronize_sched();
+
+		free_ftrace_hash(old_hash);
 	}
 
 	if (!ret)
