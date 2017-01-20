@@ -1704,9 +1704,9 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 
 		if (ib_spec->eth.mask.vlan_tag) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-				 vlan_tag, 1);
+				 cvlan_tag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 vlan_tag, 1);
+				 cvlan_tag, 1);
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 first_vid, ntohs(ib_spec->eth.mask.vlan_tag));

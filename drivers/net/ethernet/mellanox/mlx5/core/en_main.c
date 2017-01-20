@@ -268,6 +268,12 @@ static void mlx5e_update_pport_counters(struct mlx5e_priv *priv)
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
+	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group)) {
+		out = pstats->phy_statistical_counters;
+		MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP);
+		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+	}
+
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		out = pstats->per_prio_counters[prio];
@@ -291,11 +297,34 @@ static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 				      &qcnt->rx_out_of_buffer);
 }
 
+static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
+{
+	struct mlx5e_pcie_stats *pcie_stats = &priv->stats.pcie;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
+	void *out;
+	u32 *in;
+
+	if (!MLX5_CAP_MCAM_FEATURE(mdev, pcie_performance_group))
+		return;
+
+	in = mlx5_vzalloc(sz);
+	if (!in)
+		return;
+
+	out = pcie_stats->pcie_perf_counters;
+	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
+	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
+
+	kvfree(in);
+}
+
 void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_vport_counters(priv);
+	mlx5e_update_pcie_counters(priv);
 	mlx5e_update_pport_counters(priv);
+	mlx5e_update_vport_counters(priv);
+	mlx5e_update_q_counter(priv);
 	mlx5e_update_sw_counters(priv);
 }
 
@@ -317,6 +346,8 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 			      enum mlx5_dev_event event, unsigned long param)
 {
 	struct mlx5e_priv *priv = vpriv;
+	struct ptp_clock_event ptp_event;
+	struct mlx5_eqe *eqe = NULL;
 
 	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state))
 		return;
@@ -326,7 +357,15 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 	case MLX5_DEV_EVENT_PORT_DOWN:
 		queue_work(priv->wq, &priv->update_carrier_work);
 		break;
-
+	case MLX5_DEV_EVENT_PPS:
+		eqe = (struct mlx5_eqe *)param;
+		ptp_event.type = PTP_CLOCK_EXTTS;
+		ptp_event.index = eqe->data.pps.pin;
+		ptp_event.timestamp =
+			timecounter_cyc2time(&priv->tstamp.clock,
+					     be64_to_cpu(eqe->data.pps.time_stamp));
+		mlx5e_pps_event_handler(vpriv, &ptp_event);
+		break;
 	default:
 		break;
 	}

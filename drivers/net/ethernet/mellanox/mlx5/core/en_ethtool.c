@@ -170,7 +170,8 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return NUM_SW_COUNTERS +
 		       MLX5E_NUM_Q_CNTRS(priv) +
-		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
+		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS(priv) +
+		       NUM_PCIE_COUNTERS(priv) +
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
 		       MLX5E_NUM_PFC_COUNTERS(priv) +
@@ -217,6 +218,14 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       pport_2819_stats_desc[i].format);
+
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pport_phy_statistical_stats_desc[i].format);
+
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS(priv); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pcie_perf_stats_desc[i].format);
 
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
@@ -329,6 +338,14 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
 		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2819_counters,
 						  pport_2819_stats_desc, i);
+
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv); i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
+						  pport_phy_statistical_stats_desc, i);
+
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS(priv); i++)
+		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
+						  pcie_perf_stats_desc, i);
 
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)

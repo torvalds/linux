@@ -262,6 +262,7 @@ struct mlx5e_tstamp {
 	struct mlx5_core_dev      *mdev;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
+	u8                        *pps_pin_caps;
 };
 
 enum {
@@ -571,8 +572,9 @@ struct mlx5e_vlan_table {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct mlx5_flow_handle	*active_vlans_rule[VLAN_N_VID];
 	struct mlx5_flow_handle	*untagged_rule;
-	struct mlx5_flow_handle	*any_vlan_rule;
-	bool		filter_disabled;
+	struct mlx5_flow_handle	*any_cvlan_rule;
+	struct mlx5_flow_handle	*any_svlan_rule;
+	bool			filter_disabled;
 };
 
 struct mlx5e_l2_table {
@@ -780,6 +782,8 @@ void mlx5e_fill_hwstamp(struct mlx5e_tstamp *clock, u64 timestamp,
 			struct skb_shared_hwtstamps *hwts);
 void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 void mlx5e_timestamp_cleanup(struct mlx5e_priv *priv);
+void mlx5e_pps_event_handler(struct mlx5e_priv *priv,
+			     struct ptp_clock_event *event);
 int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr);
 int mlx5e_hwstamp_get(struct net_device *dev, struct ifreq *ifr);
 void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val);
