@@ -125,7 +125,7 @@ static inline u64 name##_readq(struct bcm_sf2_priv *priv, u32 off)	\
 {									\
 	u32 indir, dir;							\
 	spin_lock(&priv->indir_lock);					\
-	dir = __raw_readl(priv->name + off);				\
+	dir = name##_readl(priv, off);					\
 	indir = reg_readl(priv, REG_DIR_DATA_READ);			\
 	spin_unlock(&priv->indir_lock);					\
 	return (u64)indir << 32 | dir;					\
@@ -135,7 +135,7 @@ static inline void name##_writeq(struct bcm_sf2_priv *priv, u64 val,	\
 {									\
 	spin_lock(&priv->indir_lock);					\
 	reg_writel(priv, upper_32_bits(val), REG_DIR_DATA_WRITE);	\
-	__raw_writel(lower_32_bits(val), priv->name + off);		\
+	name##_writel(priv, lower_32_bits(val), off);			\
 	spin_unlock(&priv->indir_lock);					\
 }
 
