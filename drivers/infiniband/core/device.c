@@ -334,6 +334,14 @@ int ib_register_device(struct ib_device *device,
 	struct ib_client *client;
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 
+	WARN_ON_ONCE(!device->dev.parent && !device->dma_device);
+	WARN_ON_ONCE(device->dev.parent && device->dma_device
+		     && device->dev.parent != device->dma_device);
+	if (!device->dev.parent)
+		device->dev.parent = device->dma_device;
+	if (!device->dma_device)
+		device->dma_device = device->dev.parent;
+
 	mutex_lock(&device_mutex);
 
 	if (strchr(device->name, '%')) {

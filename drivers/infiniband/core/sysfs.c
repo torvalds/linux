@@ -1258,7 +1258,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 	int ret;
 	int i;
 
-	device->dev.parent = device->dma_device;
+	WARN_ON_ONCE(!device->dev.parent);
 	ret = dev_set_name(class_dev, "%s", device->name);
 	if (ret)
 		return ret;
