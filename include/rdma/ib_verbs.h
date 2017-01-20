@@ -3172,19 +3172,18 @@ static inline void ib_dma_sync_single_for_device(struct ib_device *dev,
  */
 static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
 					   size_t size,
-					   u64 *dma_handle,
+					   dma_addr_t *dma_handle,
 					   gfp_t flag)
 {
-	if (dev->dma_ops)
-		return dev->dma_ops->alloc_coherent(dev, size, dma_handle, flag);
-	else {
-		dma_addr_t handle;
+	if (dev->dma_ops) {
+		u64 handle;
 		void *ret;
 
-		ret = dma_alloc_coherent(dev->dma_device, size, &handle, flag);
+		ret = dev->dma_ops->alloc_coherent(dev, size, &handle, flag);
 		*dma_handle = handle;
 		return ret;
 	}
+	return dma_alloc_coherent(dev->dma_device, size, dma_handle, flag);
 }
 
 /**
@@ -3196,7 +3195,7 @@ static inline void *ib_dma_alloc_coherent(struct ib_device *dev,
  */
 static inline void ib_dma_free_coherent(struct ib_device *dev,
 					size_t size, void *cpu_addr,
-					u64 dma_handle)
+					dma_addr_t dma_handle)
 {
 	if (dev->dma_ops)
 		dev->dma_ops->free_coherent(dev, size, cpu_addr, dma_handle);
