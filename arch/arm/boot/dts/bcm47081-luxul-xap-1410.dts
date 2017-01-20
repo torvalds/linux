@@ -1,19 +1,19 @@
 /*
- * Copyright 2016 Luxul Inc.
+ * Copyright 2017 Luxul Inc.
  *
  * Licensed under the ISC license.
  */
 
 /dts-v1/;
 
-#include "bcm4708.dtsi"
+#include "bcm47081.dtsi"
 
 / {
-	compatible = "luxul,xap-1510v1", "brcm,bcm4708";
-	model = "Luxul XAP-1510 V1";
+	compatible = "luxul,xap-1410v1", "brcm,bcm47081", "brcm,bcm4708";
+	model = "Luxul XAP-1410 V1";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon";
+		bootargs = "console=ttyS0,115200";
 	};
 
 	memory {

@@ -209,6 +209,15 @@
 			#dma-cells = <1>;
 		};
 
+		sdio: sdhci@21000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x21000 0x100>;
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+			sdhci,auto-cmd12;
+			clocks = <&lcpll0 BCM_NSP_LCPLL0_SDIO_CLK>;
+			status = "disabled";
+		};
+
 		amac0: ethernet@22000 {
 			compatible = "brcm,nsp-amac";
 			reg = <0x022000 0x1000>,
@@ -227,6 +236,15 @@
 			status = "disabled";
 		};
 
+		amac2: ethernet@24000 {
+			compatible = "brcm,nsp-amac";
+			reg = <0x024000 0x1000>,
+			      <0x112000 0x1000>;
+			reg-names = "amac_base", "idm_base";
+			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
@@ -239,29 +257,6 @@
 			#size-cells = <0>;
 
 			brcm,nand-has-wp;
-		};
-
-		gpiob: gpio@30000 {
-			compatible = "brcm,iproc-nsp-gpio", "brcm,iproc-gpio";
-			reg = <0x30000 0x50>;
-			#gpio-cells = <2>;
-			gpio-controller;
-			ngpios = <4>;
-			interrupt-controller;
-			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
-		pwm: pwm@31000 {
-			compatible = "brcm,iproc-pwm";
-			reg = <0x31000 0x28>;
-			clocks = <&osc>;
-			#pwm-cells = <3>;
-			status = "disabled";
-		};
-
-		rng: rng@33000 {
-			compatible = "brcm,bcm-nsp-rng";
-			reg = <0x33000 0x14>;
 		};
 
 		qspi: qspi@27200 {
@@ -291,6 +286,29 @@
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		gpiob: gpio@30000 {
+			compatible = "brcm,iproc-nsp-gpio", "brcm,iproc-gpio";
+			reg = <0x30000 0x50>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			ngpios = <4>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pwm: pwm@31000 {
+			compatible = "brcm,iproc-pwm";
+			reg = <0x31000 0x28>;
+			clocks = <&osc>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		rng: rng@33000 {
+			compatible = "brcm,bcm-nsp-rng";
+			reg = <0x33000 0x14>;
 		};
 
 		ccbtimer0: timer@34000 {
