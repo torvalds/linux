@@ -72,6 +72,37 @@ struct port_database_24xx {
 	uint8_t reserved_3[24];
 };
 
+/*
+ * MB 75h returns a list of DB entries similar to port_database_24xx(64B).
+ * However, in this case it returns 1st 40 bytes.
+ */
+struct get_name_list_extended {
+	__le16 flags;
+	u8 current_login_state;
+	u8 last_login_state;
+	u8 hard_address[3];
+	u8 reserved_1;
+	u8 port_id[3];
+	u8 sequence_id;
+	__le16 port_timer;
+	__le16 nport_handle;			/* N_PORT handle. */
+	__le16 receive_data_size;
+	__le16 reserved_2;
+
+	/* PRLI SVC Param are Big endian */
+	u8 prli_svc_param_word_0[2]; /* Bits 15-0 of word 0 */
+	u8 prli_svc_param_word_3[2]; /* Bits 15-0 of word 3 */
+	u8 port_name[WWN_SIZE];
+	u8 node_name[WWN_SIZE];
+};
+
+/* MB 75h: This is the short version of the database */
+struct get_name_list {
+	u8 port_node_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
+	__le16 nport_handle;
+	u8 reserved;
+};
+
 struct vp_database_24xx {
 	uint16_t vp_status;
 	uint8_t  options;

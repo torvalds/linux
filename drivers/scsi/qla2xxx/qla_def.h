@@ -55,6 +55,8 @@
 
 #include "qla_settings.h"
 
+#define MODE_DUAL (MODE_TARGET | MODE_INITIATOR)
+
 /*
  * Data bit definitions
  */
@@ -251,6 +253,14 @@
 
 #define MAX_CMDSZ	16		/* SCSI maximum CDB size. */
 #include "qla_fw.h"
+
+struct name_list_extended {
+	struct get_name_list_extended *l;
+	dma_addr_t		ldma;
+	struct list_head 	fcports;	/* protect by sess_list */
+	u32			size;
+	u8			sent;
+};
 /*
  * Timeout timer counts in seconds
  */
@@ -309,6 +319,17 @@ struct els_logo_payload {
 	uint8_t wwpn[WWN_SIZE];
 };
 
+struct ct_arg {
+	void		*iocb;
+	u16		nport_handle;
+	dma_addr_t	req_dma;
+	dma_addr_t	rsp_dma;
+	u32		req_size;
+	u32		rsp_size;
+	void		*req;
+	void		*rsp;
+};
+
 /*
  * SRB extensions.
  */
@@ -320,6 +341,7 @@ struct srb_iocb {
 #define SRB_LOGIN_COND_PLOGI	BIT_1
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 			uint16_t data[2];
+			u32 iop[2];
 		} logio;
 		struct {
 #define ELS_DCMD_TIMEOUT 20
@@ -372,6 +394,16 @@ struct srb_iocb {
 			__le16 comp_status;
 			struct completion comp;
 		} abt;
+		struct ct_arg ctarg;
+		struct {
+			__le16 in_mb[28]; 	/* fr fw */
+			__le16 out_mb[28];	/* to fw */
+			void *out, *in;
+			dma_addr_t out_dma, in_dma;
+		} mbx;
+		struct {
+			struct imm_ntfy_from_isp *ntfy;
+		} nack;
 	} u;
 
 	struct timer_list timer;
@@ -392,16 +424,24 @@ struct srb_iocb {
 #define SRB_FXIOCB_BCMD	11
 #define SRB_ABT_CMD	12
 #define SRB_ELS_DCMD	13
+#define SRB_MB_IOCB	14
+#define SRB_CT_PTHRU_CMD 15
+#define SRB_NACK_PLOGI	16
+#define SRB_NACK_PRLI	17
+#define SRB_NACK_LOGO	18
 
 typedef struct srb {
 	atomic_t ref_count;
 	struct fc_port *fcport;
+	void *vha;
 	uint32_t handle;
 	uint16_t flags;
 	uint16_t type;
 	char *name;
 	int iocbs;
 	struct qla_qpair *qpair;
+	u32 gen1;	/* scratch */
+	u32 gen2;	/* scratch */
 	union {
 		struct srb_iocb iocb_cmd;
 		struct bsg_job *bsg_job;
@@ -2101,6 +2141,18 @@ typedef struct {
 #define FC4_TYPE_OTHER		0x0
 #define FC4_TYPE_UNKNOWN	0xff
 
+/* mailbox command 4G & above */
+struct mbx_24xx_entry {
+	uint8_t		entry_type;
+	uint8_t		entry_count;
+	uint8_t		sys_define1;
+	uint8_t		entry_status;
+	uint32_t	handle;
+	uint16_t	mb[28];
+};
+
+#define IOCB_SIZE 64
+
 /*
  * Fibre channel port type.
  */
@@ -2113,6 +2165,12 @@ typedef enum {
 	FCT_TARGET
 } fc_port_type_t;
 
+enum qla_sess_deletion {
+	QLA_SESS_DELETION_NONE		= 0,
+	QLA_SESS_DELETION_IN_PROGRESS,
+	QLA_SESS_DELETED,
+};
+
 enum qlt_plogi_link_t {
 	QLT_PLOGI_LINK_SAME_WWN,
 	QLT_PLOGI_LINK_CONFLICT,
@@ -2124,6 +2182,48 @@ struct qlt_plogi_ack_t {
 	struct imm_ntfy_from_isp iocb;
 	port_id_t	id;
 	int		ref_count;
+	void		*fcport;
+};
+
+struct ct_sns_desc {
+	struct ct_sns_pkt	*ct_sns;
+	dma_addr_t		ct_sns_dma;
+};
+
+enum discovery_state {
+	DSC_DELETED,
+	DSC_GID_PN,
+	DSC_GNL,
+	DSC_LOGIN_PEND,
+	DSC_LOGIN_FAILED,
+	DSC_GPDB,
+	DSC_GPSC,
+	DSC_UPD_FCPORT,
+	DSC_LOGIN_COMPLETE,
+	DSC_DELETE_PEND,
+};
+
+enum login_state {	/* FW control Target side */
+	DSC_LS_LLIOCB_SENT = 2,
+	DSC_LS_PLOGI_PEND,
+	DSC_LS_PLOGI_COMP,
+	DSC_LS_PRLI_PEND,
+	DSC_LS_PRLI_COMP,
+	DSC_LS_PORT_UNAVAIL,
+	DSC_LS_PRLO_PEND = 9,
+	DSC_LS_LOGO_PEND,
+};
+
+enum fcport_mgt_event {
+	FCME_RELOGIN = 1,
+	FCME_RSCN,
+	FCME_GIDPN_DONE,
+	FCME_PLOGI_DONE,	/* Initiator side sent LLIOCB */
+	FCME_GNL_DONE,
+	FCME_GPSC_DONE,
+	FCME_GPDB_DONE,
+	FCME_GPNID_DONE,
+	FCME_DELETE_DONE,
 };
 
 /*
@@ -2143,9 +2243,13 @@ typedef struct fc_port {
 	unsigned int deleted:2;
 	unsigned int local:1;
 	unsigned int logout_on_delete:1;
+	unsigned int logo_ack_needed:1;
 	unsigned int keep_nport_handle:1;
 	unsigned int send_els_logo:1;
+	unsigned int login_pause:1;
+	unsigned int login_succ:1;
 
+	struct fc_port *conflict;
 	unsigned char logout_completed;
 	int generation;
 
@@ -2186,7 +2290,29 @@ typedef struct fc_port {
 
 	unsigned long retry_delay_timestamp;
 	struct qla_tgt_sess *tgt_session;
+	struct ct_sns_desc ct_desc;
+	enum discovery_state disc_state;
+	enum login_state fw_login_state;
+	u32 login_gen, last_login_gen;
+	u32 rscn_gen, last_rscn_gen;
+	u32 chip_reset;
+	struct list_head gnl_entry;
+	struct work_struct del_work;
+	u8 iocb[IOCB_SIZE];
 } fc_port_t;
+
+#define QLA_FCPORT_SCAN		1
+#define QLA_FCPORT_FOUND	2
+
+struct event_arg {
+	enum fcport_mgt_event	event;
+	fc_port_t		*fcport;
+	srb_t			*sp;
+	port_id_t		id;
+	u16			data[2], rc;
+	u8			port_name[WWN_SIZE];
+	u32			iop[2];
+};
 
 #include "qla_mr.h"
 
@@ -2264,6 +2390,10 @@ static const char * const port_state_str[] = {
 #define	GFT_ID_CMD	0x117
 #define	GFT_ID_REQ_SIZE	(16 + 4)
 #define	GFT_ID_RSP_SIZE	(16 + 32)
+
+#define GID_PN_CMD 0x121
+#define GID_PN_REQ_SIZE (16 + 8)
+#define GID_PN_RSP_SIZE (16 + 4)
 
 #define	RFT_ID_CMD	0x217
 #define	RFT_ID_REQ_SIZE	(16 + 4 + 32)
@@ -2590,6 +2720,10 @@ struct ct_sns_req {
 			uint8_t reserved;
 			uint8_t port_name[3];
 		} gff_id;
+
+		struct {
+			uint8_t port_name[8];
+		} gid_pn;
 	} req;
 };
 
@@ -2669,6 +2803,10 @@ struct ct_sns_rsp {
 		struct {
 			uint8_t fc4_features[128];
 		} gff_id;
+		struct {
+			uint8_t reserved;
+			uint8_t port_id[3];
+		} gid_pn;
 	} rsp;
 };
 
@@ -2810,11 +2948,11 @@ struct isp_operations {
 
 	uint16_t (*calc_req_entries) (uint16_t);
 	void (*build_iocbs) (srb_t *, cmd_entry_t *, uint16_t);
-	void * (*prep_ms_iocb) (struct scsi_qla_host *, uint32_t, uint32_t);
-	void * (*prep_ms_fdmi_iocb) (struct scsi_qla_host *, uint32_t,
+	void *(*prep_ms_iocb) (struct scsi_qla_host *, struct ct_arg *);
+	void *(*prep_ms_fdmi_iocb) (struct scsi_qla_host *, uint32_t,
 	    uint32_t);
 
-	uint8_t * (*read_nvram) (struct scsi_qla_host *, uint8_t *,
+	uint8_t *(*read_nvram) (struct scsi_qla_host *, uint8_t *,
 		uint32_t, uint32_t);
 	int (*write_nvram) (struct scsi_qla_host *, uint8_t *, uint32_t,
 		uint32_t);
@@ -2876,13 +3014,21 @@ enum qla_work_type {
 	QLA_EVT_AEN,
 	QLA_EVT_IDC_ACK,
 	QLA_EVT_ASYNC_LOGIN,
-	QLA_EVT_ASYNC_LOGIN_DONE,
 	QLA_EVT_ASYNC_LOGOUT,
 	QLA_EVT_ASYNC_LOGOUT_DONE,
 	QLA_EVT_ASYNC_ADISC,
 	QLA_EVT_ASYNC_ADISC_DONE,
 	QLA_EVT_UEVENT,
 	QLA_EVT_AENFX,
+	QLA_EVT_GIDPN,
+	QLA_EVT_GPNID,
+	QLA_EVT_GPNID_DONE,
+	QLA_EVT_NEW_SESS,
+	QLA_EVT_GPDB,
+	QLA_EVT_GPSC,
+	QLA_EVT_UPD_FCPORT,
+	QLA_EVT_GNL,
+	QLA_EVT_NACK,
 };
 
 
@@ -2918,6 +3064,23 @@ struct qla_work_evt {
 		struct {
 			srb_t *sp;
 		} iosb;
+		struct {
+			port_id_t id;
+		} gpnid;
+		struct {
+			port_id_t id;
+			u8 port_name[8];
+			void *pla;
+		} new_sess;
+		struct { /*Get PDB, Get Speed, update fcport, gnl, gidpn */
+			fc_port_t *fcport;
+			u8 opt;
+		} fcport;
+		struct {
+			fc_port_t *fcport;
+			u8 iocb[IOCB_SIZE];
+			int type;
+		} nack;
 	 } u;
 };
 
@@ -3899,6 +4062,10 @@ typedef struct scsi_qla_host {
 	struct qla8044_reset_template reset_tmplt;
 	struct qla_tgt_counters tgt_counters;
 	uint16_t	bbcr;
+	struct name_list_extended gnl;
+	/* Count of active session/fcport */
+	int fcport_count;
+	wait_queue_head_t fcport_waitQ;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {

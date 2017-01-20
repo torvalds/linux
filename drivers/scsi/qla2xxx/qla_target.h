@@ -799,7 +799,6 @@ struct qla_tgt {
 
 	/* Protected by hardware_lock */
 	struct list_head del_sess_list;
-	struct delayed_work sess_del_work;
 
 	spinlock_t sess_work_lock;
 	struct list_head sess_works_list;
@@ -821,13 +820,6 @@ struct qla_tgt_sess_op {
 	struct work_struct work;
 	struct list_head cmd_list;
 	bool aborted;
-};
-
-enum qla_sess_deletion {
-	QLA_SESS_DELETION_NONE		= 0,
-	QLA_SESS_DELETION_PENDING	= 1, /* hopefully we can get rid of
-					      * this one */
-	QLA_SESS_DELETION_IN_PROGRESS	= 2,
 };
 
 enum trace_flags {
@@ -987,12 +979,17 @@ extern int ql2x_ini_mode;
 
 static inline bool qla_tgt_mode_enabled(struct scsi_qla_host *ha)
 {
-	return ha->host->active_mode & MODE_TARGET;
+	return ha->host->active_mode == MODE_TARGET;
 }
 
 static inline bool qla_ini_mode_enabled(struct scsi_qla_host *ha)
 {
-	return ha->host->active_mode & MODE_INITIATOR;
+	return ha->host->active_mode == MODE_INITIATOR;
+}
+
+static inline bool qla_dual_mode_enabled(struct scsi_qla_host *ha)
+{
+	return (ha->host->active_mode == MODE_DUAL);
 }
 
 static inline void qla_reverse_ini_mode(struct scsi_qla_host *ha)

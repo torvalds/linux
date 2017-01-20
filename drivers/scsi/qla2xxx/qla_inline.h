@@ -166,8 +166,8 @@ qla2x00_set_fcport_state(fc_port_t *fcport, int state)
 	/* Don't print state transitions during initial allocation of fcport */
 	if (old_state && old_state != state) {
 		ql_dbg(ql_dbg_disc, fcport->vha, 0x207d,
-		    "FCPort state transitioned from %s to %s - "
-		    "portid=%02x%02x%02x.\n",
+		    "FCPort %8phC state transitioned from %s to %s - "
+			"portid=%02x%02x%02x.\n", fcport->port_name,
 		    port_state_str[old_state], port_state_str[state],
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
@@ -263,6 +263,7 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
+	sp->vha = vha;
 done:
 	if (!sp)
 		QLA_VHA_MARK_NOT_BUSY(vha);
@@ -285,7 +286,7 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
-	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
+	if ((IS_QLAFX00(((scsi_qla_host_t *)sp->vha)->hw)) &&
 	    (sp->type == SRB_FXIOCB_DCMD))
 		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 	if (sp->type == SRB_ELS_DCMD)
