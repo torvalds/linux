@@ -485,9 +485,8 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	WARN_ON(I915_READ(GCI_CONTROL) & PFI_CREDIT_RESEND);
 }
 
-static void vlv_set_cdclk(struct drm_device *dev, int cdclk)
+static void vlv_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
 
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
@@ -548,9 +547,8 @@ static void vlv_set_cdclk(struct drm_device *dev, int cdclk)
 	intel_update_cdclk(dev_priv);
 }
 
-static void chv_set_cdclk(struct drm_device *dev, int cdclk)
+static void chv_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
 
 	switch (cdclk) {
@@ -618,9 +616,8 @@ static void bdw_get_cdclk(struct drm_i915_private *dev_priv,
 		cdclk_state->cdclk = 675000;
 }
 
-static void bdw_set_cdclk(struct drm_device *dev, int cdclk)
+static void bdw_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t val, data;
 	int ret;
 
@@ -1455,8 +1452,7 @@ static int intel_max_pixel_rate(struct drm_atomic_state *state)
 
 static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	int max_pixclk = intel_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
@@ -1486,8 +1482,7 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static void vlv_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = old_state->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
 	unsigned int req_cdclk = dev_priv->cdclk.actual.cdclk;
 
 	/*
@@ -1502,9 +1497,9 @@ static void vlv_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	if (IS_CHERRYVIEW(dev_priv))
-		chv_set_cdclk(dev, req_cdclk);
+		chv_set_cdclk(dev_priv, req_cdclk);
 	else
-		vlv_set_cdclk(dev, req_cdclk);
+		vlv_set_cdclk(dev_priv, req_cdclk);
 
 	vlv_program_pfi_credits(dev_priv);
 
@@ -1546,10 +1541,10 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static void bdw_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = old_state->dev;
-	unsigned int req_cdclk = to_i915(dev)->cdclk.actual.cdclk;
+	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
+	unsigned int req_cdclk = dev_priv->cdclk.actual.cdclk;
 
-	bdw_set_cdclk(dev, req_cdclk);
+	bdw_set_cdclk(dev_priv, req_cdclk);
 }
 
 static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
