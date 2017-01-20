@@ -757,9 +757,6 @@ static int wacom_led_control(struct wacom *wacom)
 	unsigned char report_id = WAC_CMD_LED_CONTROL;
 	int buf_size = 9;
 
-	if (!hid_get_drvdata(wacom->hdev))
-		return -ENODEV;
-
 	if (!wacom->led.groups)
 		return -ENOTSUPP;
 
@@ -2497,6 +2494,8 @@ static void wacom_remove(struct hid_device *hdev)
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 
+	/* make sure we don't trigger the LEDs */
+	wacom_led_groups_release(wacom);
 	wacom_release_resources(wacom);
 
 	hid_set_drvdata(hdev, NULL);
