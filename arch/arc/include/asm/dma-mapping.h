@@ -18,9 +18,9 @@
 #include <plat/dma.h>
 #endif
 
-extern struct dma_map_ops arc_dma_ops;
+extern const struct dma_map_ops arc_dma_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	return &arc_dma_ops;
 }

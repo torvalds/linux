@@ -115,7 +115,7 @@ static u64 dma_npu_get_required_mask(struct device *dev)
 	return 0;
 }
 
-static struct dma_map_ops dma_npu_ops = {
+static const struct dma_map_ops dma_npu_ops = {
 	.map_page		= dma_npu_map_page,
 	.map_sg			= dma_npu_map_sg,
 	.alloc			= dma_npu_alloc,

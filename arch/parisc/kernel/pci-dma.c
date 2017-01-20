@@ -572,7 +572,7 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 		flush_kernel_vmap_range(sg_virt(sg), sg->length);
 }
 
-struct dma_map_ops pcxl_dma_ops = {
+const struct dma_map_ops pcxl_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pa11_dma_alloc,
 	.free =			pa11_dma_free,
@@ -608,7 +608,7 @@ static void pcx_dma_free(struct device *dev, size_t size, void *vaddr,
 	return;
 }
 
-struct dma_map_ops pcx_dma_ops = {
+const struct dma_map_ops pcx_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pcx_dma_alloc,
 	.free =			pcx_dma_free,

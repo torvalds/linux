@@ -218,7 +218,7 @@ static int arc_dma_supported(struct device *dev, u64 dma_mask)
 	return dma_mask == DMA_BIT_MASK(32);
 }
 
-struct dma_map_ops arc_dma_ops = {
+const struct dma_map_ops arc_dma_ops = {
 	.alloc			= arc_dma_alloc,
 	.free			= arc_dma_free,
 	.mmap			= arc_dma_mmap,

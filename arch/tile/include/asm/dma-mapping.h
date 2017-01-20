@@ -24,12 +24,12 @@
 #define ARCH_HAS_DMA_GET_REQUIRED_MASK
 #endif
 
-extern struct dma_map_ops *tile_dma_map_ops;
-extern struct dma_map_ops *gx_pci_dma_map_ops;
-extern struct dma_map_ops *gx_legacy_pci_dma_map_ops;
-extern struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
+extern const struct dma_map_ops *tile_dma_map_ops;
+extern const struct dma_map_ops *gx_pci_dma_map_ops;
+extern const struct dma_map_ops *gx_legacy_pci_dma_map_ops;
+extern const struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	if (dev && dev->archdata.dma_ops)
 		return dev->archdata.dma_ops;
@@ -59,7 +59,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
+static inline void set_dma_ops(struct device *dev, const struct dma_map_ops *ops)
 {
 	dev->archdata.dma_ops = ops;
 }

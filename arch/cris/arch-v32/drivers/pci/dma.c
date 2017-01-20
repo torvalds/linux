@@ -69,7 +69,7 @@ static inline int v32_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-struct dma_map_ops v32_dma_ops = {
+const struct dma_map_ops v32_dma_ops = {
 	.alloc			= v32_dma_alloc,
 	.free			= v32_dma_free,
 	.map_page		= v32_dma_map_page,

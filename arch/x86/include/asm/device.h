@@ -3,7 +3,7 @@
 
 struct dev_archdata {
 #ifdef CONFIG_X86_DEV_DMA_OPS
-	struct dma_map_ops *dma_ops;
+	const struct dma_map_ops *dma_ops;
 #endif
 #if defined(CONFIG_INTEL_IOMMU) || defined(CONFIG_AMD_IOMMU)
 	void *iommu; /* hook for IOMMU specific extension */
@@ -13,7 +13,7 @@ struct dev_archdata {
 #if defined(CONFIG_X86_DEV_DMA_OPS) && defined(CONFIG_PCI_DOMAINS)
 struct dma_domain {
 	struct list_head node;
-	struct dma_map_ops *dma_ops;
+	const struct dma_map_ops *dma_ops;
 	int domain_nr;
 };
 void add_dma_domain(struct dma_domain *domain);

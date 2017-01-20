@@ -179,7 +179,7 @@ static void *sta2x11_swiotlb_alloc_coherent(struct device *dev,
 }
 
 /* We have our own dma_ops: the same as swiotlb but from alloc (above) */
-static struct dma_map_ops sta2x11_dma_ops = {
+static const struct dma_map_ops sta2x11_dma_ops = {
 	.alloc = sta2x11_swiotlb_alloc_coherent,
 	.free = x86_swiotlb_free_coherent,
 	.map_page = swiotlb_map_page,

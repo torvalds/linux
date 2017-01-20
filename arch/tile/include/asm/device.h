@@ -18,7 +18,7 @@
 
 struct dev_archdata {
 	/* DMA operations on that device */
-        struct dma_map_ops	*dma_ops;
+        const struct dma_map_ops	*dma_ops;
 
 	/* Offset of the DMA address from the PA. */
 	dma_addr_t		dma_offset;

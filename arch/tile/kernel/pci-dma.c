@@ -329,7 +329,7 @@ tile_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-static struct dma_map_ops tile_default_dma_map_ops = {
+static const struct dma_map_ops tile_default_dma_map_ops = {
 	.alloc = tile_dma_alloc_coherent,
 	.free = tile_dma_free_coherent,
 	.map_page = tile_dma_map_page,
@@ -344,7 +344,7 @@ static struct dma_map_ops tile_default_dma_map_ops = {
 	.dma_supported = tile_dma_supported
 };
 
-struct dma_map_ops *tile_dma_map_ops = &tile_default_dma_map_ops;
+const struct dma_map_ops *tile_dma_map_ops = &tile_default_dma_map_ops;
 EXPORT_SYMBOL(tile_dma_map_ops);
 
 /* Generic PCI DMA mapping functions */
@@ -516,7 +516,7 @@ tile_pci_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-static struct dma_map_ops tile_pci_default_dma_map_ops = {
+static const struct dma_map_ops tile_pci_default_dma_map_ops = {
 	.alloc = tile_pci_dma_alloc_coherent,
 	.free = tile_pci_dma_free_coherent,
 	.map_page = tile_pci_dma_map_page,
@@ -531,7 +531,7 @@ static struct dma_map_ops tile_pci_default_dma_map_ops = {
 	.dma_supported = tile_pci_dma_supported
 };
 
-struct dma_map_ops *gx_pci_dma_map_ops = &tile_pci_default_dma_map_ops;
+const struct dma_map_ops *gx_pci_dma_map_ops = &tile_pci_default_dma_map_ops;
 EXPORT_SYMBOL(gx_pci_dma_map_ops);
 
 /* PCI DMA mapping functions for legacy PCI devices */
@@ -552,7 +552,7 @@ static void tile_swiotlb_free_coherent(struct device *dev, size_t size,
 	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
 }
 
-static struct dma_map_ops pci_swiotlb_dma_ops = {
+static const struct dma_map_ops pci_swiotlb_dma_ops = {
 	.alloc = tile_swiotlb_alloc_coherent,
 	.free = tile_swiotlb_free_coherent,
 	.map_page = swiotlb_map_page,
@@ -567,7 +567,7 @@ static struct dma_map_ops pci_swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-static struct dma_map_ops pci_hybrid_dma_ops = {
+static const struct dma_map_ops pci_hybrid_dma_ops = {
 	.alloc = tile_swiotlb_alloc_coherent,
 	.free = tile_swiotlb_free_coherent,
 	.map_page = tile_pci_dma_map_page,
@@ -582,18 +582,18 @@ static struct dma_map_ops pci_hybrid_dma_ops = {
 	.dma_supported = tile_pci_dma_supported
 };
 
-struct dma_map_ops *gx_legacy_pci_dma_map_ops = &pci_swiotlb_dma_ops;
-struct dma_map_ops *gx_hybrid_pci_dma_map_ops = &pci_hybrid_dma_ops;
+const struct dma_map_ops *gx_legacy_pci_dma_map_ops = &pci_swiotlb_dma_ops;
+const struct dma_map_ops *gx_hybrid_pci_dma_map_ops = &pci_hybrid_dma_ops;
 #else
-struct dma_map_ops *gx_legacy_pci_dma_map_ops;
-struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
+const struct dma_map_ops *gx_legacy_pci_dma_map_ops;
+const struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 #endif
 EXPORT_SYMBOL(gx_legacy_pci_dma_map_ops);
 EXPORT_SYMBOL(gx_hybrid_pci_dma_map_ops);
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+	const struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
 	/*
 	 * For PCI devices with 64-bit DMA addressing capability, promote
@@ -623,7 +623,7 @@ EXPORT_SYMBOL(dma_set_mask);
 #ifdef CONFIG_ARCH_HAS_DMA_SET_COHERENT_MASK
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+	const struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
 	/*
 	 * For PCI devices with 64-bit DMA addressing capability, promote

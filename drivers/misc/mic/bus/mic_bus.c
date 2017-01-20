@@ -143,7 +143,7 @@ static void mbus_release_dev(struct device *d)
 }
 
 struct mbus_device *
-mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
+mbus_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_ops,
 		     struct mbus_hw_ops *hw_ops, int index,
 		     void __iomem *mmio_va)
 {

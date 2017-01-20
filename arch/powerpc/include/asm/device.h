@@ -21,7 +21,7 @@ struct iommu_table;
  */
 struct dev_archdata {
 	/* DMA operations on that device */
-	struct dma_map_ops	*dma_ops;
+	const struct dma_map_ops	*dma_ops;
 
 	/*
 	 * These two used to be a union. However, with the hybrid ops we need
