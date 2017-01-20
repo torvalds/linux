@@ -46,19 +46,12 @@ static inline int dst_entries_get_fast(struct dst_ops *dst)
 
 static inline int dst_entries_get_slow(struct dst_ops *dst)
 {
-	int res;
-
-	local_bh_disable();
-	res = percpu_counter_sum_positive(&dst->pcpuc_entries);
-	local_bh_enable();
-	return res;
+	return percpu_counter_sum_positive(&dst->pcpuc_entries);
 }
 
 static inline void dst_entries_add(struct dst_ops *dst, int val)
 {
-	local_bh_disable();
 	percpu_counter_add(&dst->pcpuc_entries, val);
-	local_bh_enable();
 }
 
 static inline int dst_entries_init(struct dst_ops *dst)

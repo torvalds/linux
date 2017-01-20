@@ -1887,9 +1887,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	tcp_free_fastopen_req(tp);
 	tcp_saved_syn_free(tp);
 
-	local_bh_disable();
 	sk_sockets_allocated_dec(sk);
-	local_bh_enable();
 }
 EXPORT_SYMBOL(tcp_v4_destroy_sock);
 
