@@ -1552,15 +1552,15 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	hisi_sas_init_add(hisi_hba);
 
-	rc = hisi_hba->hw->hw_init(hisi_hba);
-	if (rc)
-		goto err_out_ha;
-
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
 
 	rc = sas_register_ha(sha);
+	if (rc)
+		goto err_out_register_ha;
+
+	rc = hisi_hba->hw->hw_init(hisi_hba);
 	if (rc)
 		goto err_out_register_ha;
 
