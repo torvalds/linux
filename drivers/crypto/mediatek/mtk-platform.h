@@ -115,12 +115,16 @@ struct mtk_aes_dma {
 	u32 sg_len;
 };
 
-struct mtk_aes_ctx;
+struct mtk_aes_base_ctx;
+struct mtk_aes_rec;
+struct mtk_cryp;
+
+typedef int (*mtk_aes_fn)(struct mtk_cryp *cryp, struct mtk_aes_rec *aes);
 
 /**
  * struct mtk_aes_rec - AES operation record
  * @queue:	crypto request queue
- * @req:	pointer to ablkcipher request
+ * @req:	pointer to async request
  * @task:	the tasklet is use in AES interrupt
  * @ctx:	pointer to current context
  * @src:	the structure that holds source sg list info
@@ -131,15 +135,15 @@ struct mtk_aes_ctx;
  * @buf:	pointer to page buffer
  * @id:		record identification
  * @flags:	it's describing AES operation state
- * @lock:	the ablkcipher queue lock
+ * @lock:	the async queue lock
  *
  * Structure used to record AES execution state.
  */
 struct mtk_aes_rec {
 	struct crypto_queue queue;
-	struct ablkcipher_request *req;
+	struct crypto_async_request *areq;
 	struct tasklet_struct task;
-	struct mtk_aes_ctx *ctx;
+	struct mtk_aes_base_ctx *ctx;
 	struct mtk_aes_dma src;
 	struct mtk_aes_dma dst;
 
