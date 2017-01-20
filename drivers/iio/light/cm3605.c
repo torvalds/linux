@@ -278,7 +278,7 @@ static int cm3605_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int cm3605_pm_suspend(struct device *dev)
+static int __maybe_unused cm3605_pm_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cm3605 *cm3605 = iio_priv(indio_dev);
@@ -289,7 +289,7 @@ static int cm3605_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int cm3605_pm_resume(struct device *dev)
+static int __maybe_unused cm3605_pm_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cm3605 *cm3605 = iio_priv(indio_dev);
