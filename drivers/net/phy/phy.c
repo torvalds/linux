@@ -611,14 +611,18 @@ void phy_start_machine(struct phy_device *phydev)
  * phy_trigger_machine - trigger the state machine to run
  *
  * @phydev: the phy_device struct
+ * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: There has been a change in state which requires that the
  *   state machine runs.
  */
 
-static void phy_trigger_machine(struct phy_device *phydev)
+static void phy_trigger_machine(struct phy_device *phydev, bool sync)
 {
-	cancel_delayed_work_sync(&phydev->state_queue);
+	if (sync)
+		cancel_delayed_work_sync(&phydev->state_queue);
+	else
+		cancel_delayed_work(&phydev->state_queue);
 	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, 0);
 }
 
@@ -655,7 +659,7 @@ static void phy_error(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	mutex_unlock(&phydev->lock);
 
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, false);
 }
 
 /**
@@ -817,7 +821,7 @@ void phy_change(struct work_struct *work)
 	}
 
 	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, true);
 	return;
 
 ignore:
@@ -907,7 +911,7 @@ void phy_start(struct phy_device *phydev)
 	if (do_resume)
 		phy_resume(phydev);
 
-	phy_trigger_machine(phydev);
+	phy_trigger_machine(phydev, true);
 }
 EXPORT_SYMBOL(phy_start);
 
