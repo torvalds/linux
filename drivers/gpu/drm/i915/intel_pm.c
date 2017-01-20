@@ -1714,39 +1714,6 @@ static void i845_update_wm(struct intel_crtc *unused_crtc)
 	I915_WRITE(FW_BLC, fwater_lo);
 }
 
-uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config)
-{
-	uint32_t pixel_rate;
-
-	pixel_rate = pipe_config->base.adjusted_mode.crtc_clock;
-
-	/* We only use IF-ID interlacing. If we ever use PF-ID we'll need to
-	 * adjust the pixel_rate here. */
-
-	if (pipe_config->pch_pfit.enabled) {
-		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
-		uint32_t pfit_size = pipe_config->pch_pfit.size;
-
-		pipe_w = pipe_config->pipe_src_w;
-		pipe_h = pipe_config->pipe_src_h;
-
-		pfit_w = (pfit_size >> 16) & 0xFFFF;
-		pfit_h = pfit_size & 0xFFFF;
-		if (pipe_w < pfit_w)
-			pipe_w = pfit_w;
-		if (pipe_h < pfit_h)
-			pipe_h = pfit_h;
-
-		if (WARN_ON(!pfit_w || !pfit_h))
-			return pixel_rate;
-
-		pixel_rate = div_u64((uint64_t) pixel_rate * pipe_w * pipe_h,
-				     pfit_w * pfit_h);
-	}
-
-	return pixel_rate;
-}
-
 /* latency must be in 0.1us units. */
 static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latency)
 {

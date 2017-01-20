@@ -1822,7 +1822,6 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry **entries,
 				 const struct skl_ddb_entry *ddb,
 				 int ignore);
-uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
 static inline int intel_enable_rc6(void)
