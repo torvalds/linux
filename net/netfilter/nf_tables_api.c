@@ -928,7 +928,8 @@ static struct nft_chain *nf_tables_chain_lookup(const struct nft_table *table,
 }
 
 static const struct nla_policy nft_chain_policy[NFTA_CHAIN_MAX + 1] = {
-	[NFTA_CHAIN_TABLE]	= { .type = NLA_STRING },
+	[NFTA_CHAIN_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_CHAIN_HANDLE]	= { .type = NLA_U64 },
 	[NFTA_CHAIN_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
@@ -1854,7 +1855,8 @@ static struct nft_rule *nf_tables_rule_lookup(const struct nft_chain *chain,
 }
 
 static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
-	[NFTA_RULE_TABLE]	= { .type = NLA_STRING },
+	[NFTA_RULE_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_RULE_CHAIN]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
 	[NFTA_RULE_HANDLE]	= { .type = NLA_U64 },
@@ -2443,7 +2445,8 @@ nft_select_set_ops(const struct nlattr * const nla[],
 }
 
 static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
-	[NFTA_SET_TABLE]		= { .type = NLA_STRING },
+	[NFTA_SET_TABLE]		= { .type = NLA_STRING,
+					    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_SET_NAME]			= { .type = NLA_STRING,
 					    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_SET_FLAGS]		= { .type = NLA_U32 },
@@ -3192,8 +3195,10 @@ static const struct nla_policy nft_set_elem_policy[NFTA_SET_ELEM_MAX + 1] = {
 };
 
 static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX + 1] = {
-	[NFTA_SET_ELEM_LIST_TABLE]	= { .type = NLA_STRING },
-	[NFTA_SET_ELEM_LIST_SET]	= { .type = NLA_STRING },
+	[NFTA_SET_ELEM_LIST_TABLE]	= { .type = NLA_STRING,
+					    .len = NFT_TABLE_MAXNAMELEN - 1 },
+	[NFTA_SET_ELEM_LIST_SET]	= { .type = NLA_STRING,
+					    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_SET_ELEM_LIST_ELEMENTS]	= { .type = NLA_NESTED },
 	[NFTA_SET_ELEM_LIST_SET_ID]	= { .type = NLA_U32 },
 };
@@ -4032,8 +4037,10 @@ struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
 EXPORT_SYMBOL_GPL(nf_tables_obj_lookup);
 
 static const struct nla_policy nft_obj_policy[NFTA_OBJ_MAX + 1] = {
-	[NFTA_OBJ_TABLE]	= { .type = NLA_STRING },
-	[NFTA_OBJ_NAME]		= { .type = NLA_STRING },
+	[NFTA_OBJ_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
+	[NFTA_OBJ_NAME]		= { .type = NLA_STRING,
+				    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_OBJ_TYPE]		= { .type = NLA_U32 },
 	[NFTA_OBJ_DATA]		= { .type = NLA_NESTED },
 };

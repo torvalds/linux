@@ -193,10 +193,12 @@ nft_objref_select_ops(const struct nft_ctx *ctx,
 }
 
 static const struct nla_policy nft_objref_policy[NFTA_OBJREF_MAX + 1] = {
-	[NFTA_OBJREF_IMM_NAME]	= { .type = NLA_STRING },
+	[NFTA_OBJREF_IMM_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_IMM_TYPE]	= { .type = NLA_U32 },
 	[NFTA_OBJREF_SET_SREG]	= { .type = NLA_U32 },
-	[NFTA_OBJREF_SET_NAME]	= { .type = NLA_STRING },
+	[NFTA_OBJREF_SET_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_OBJREF_SET_ID]	= { .type = NLA_U32 },
 };
 
