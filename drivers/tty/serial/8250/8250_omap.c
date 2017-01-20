@@ -1221,11 +1221,6 @@ static int omap8250_probe(struct platform_device *pdev)
 			priv->omap8250_dma.rx_size = RX_TRIGGER;
 			priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
 			priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
-			/*
-			 * pause is currently not supported atleast on omap-sdma
-			 * and edma on most earlier kernels.
-			 */
-			priv->rx_dma_broken = true;
 		}
 	}
 #endif
