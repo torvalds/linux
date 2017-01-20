@@ -312,7 +312,7 @@ void intel_guc_auth_huc(struct drm_i915_private *dev_priv)
 
 	/* Specify auth action and where public signature is. */
 	data[0] = INTEL_GUC_ACTION_AUTHENTICATE_HUC;
-	data[1] = i915_ggtt_offset(vma) + huc->fw.rsa_offset;
+	data[1] = guc_ggtt_offset(vma) + huc->fw.rsa_offset;
 
 	ret = intel_guc_send(guc, data, ARRAY_SIZE(data));
 	if (ret) {
