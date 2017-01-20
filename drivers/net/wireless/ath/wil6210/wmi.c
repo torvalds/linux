@@ -957,6 +957,7 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	wil->reply_id = reply_id;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
+	reinit_completion(&wil->wmi_call);
 	spin_unlock(&wil->wmi_ev_lock);
 
 	rc = __wmi_send(wil, cmdid, buf, len);
