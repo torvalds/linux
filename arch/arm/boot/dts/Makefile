@@ -174,6 +174,7 @@ dtb-$(CONFIG_ARCH_EXYNOS5) += \
 	exynos5440-ssdk5440.dtb \
 	exynos5800-peach-pi.dtb
 dtb-$(CONFIG_ARCH_GEMINI) += \
+	gemini-nas4220b.dtb \
 	gemini-sq201.dtb
 dtb-$(CONFIG_ARCH_HI3xxx) += \
 	hi3620-hi4511.dtb
