@@ -246,14 +246,11 @@ static int xgene_pcie_ecam_init(struct pci_config_window *cfg, u32 ipversion)
 	ret = xgene_get_csr_resource(adev, &csr);
 	if (ret) {
 		dev_err(dev, "can't get CSR resource\n");
-		kfree(port);
 		return ret;
 	}
 	port->csr_base = devm_ioremap_resource(dev, &csr);
-	if (IS_ERR(port->csr_base)) {
-		kfree(port);
-		return -ENOMEM;
-	}
+	if (IS_ERR(port->csr_base))
+		return PTR_ERR(port->csr_base);
 
 	port->cfg_base = cfg->win;
 	port->version = ipversion;
