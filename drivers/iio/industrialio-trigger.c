@@ -492,7 +492,7 @@ static void iio_trig_release(struct device *device)
 	kfree(trig);
 }
 
-static struct device_type iio_trig_type = {
+static const struct device_type iio_trig_type = {
 	.release = iio_trig_release,
 	.groups = iio_trig_dev_groups,
 };
