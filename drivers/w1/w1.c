@@ -763,6 +763,7 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 		dev_err(&dev->dev, "%s: Attaching %s failed.\n", __func__,
 			 sl->name);
 		w1_family_put(sl->family);
+		atomic_dec(&sl->master->refcnt);
 		kfree(sl);
 		return err;
 	}
