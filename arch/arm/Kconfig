@@ -362,6 +362,8 @@ config ARM_SINGLE_ARMV7M
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR
 	select CPU_FA526
 	select FARADAY_FTINTC010
 	select FTTMR010_TIMER
