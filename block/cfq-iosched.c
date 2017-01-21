@@ -2749,9 +2749,11 @@ static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
 	if (!cfqg)
 		return NULL;
 
-	for_each_cfqg_st(cfqg, i, j, st)
-		if ((cfqq = cfq_rb_first(st)) != NULL)
+	for_each_cfqg_st(cfqg, i, j, st) {
+		cfqq = cfq_rb_first(st);
+		if (cfqq)
 			return cfqq;
+	}
 	return NULL;
 }
 
