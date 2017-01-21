@@ -359,25 +359,6 @@ config ARM_SINGLE_ARMV7M
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_GEMINI
-	bool "Cortina Systems Gemini"
-	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
-	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR
-	select CPU_FA526
-	select FARADAY_FTINTC010
-	select FTTMR010_TIMER
-	select GPIO_GEMINI
-	select GPIOLIB
-	select MULTI_IRQ_HANDLER
-	select POWER_RESET
-	select POWER_RESET_SYSCON
-	select SERIAL_OF_PLATFORM
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for the Cortina Systems Gemini family SoCs
-
 config ARCH_EBSA110
 	bool "EBSA-110"
 	select ARCH_USES_GETTIMEOFFSET
@@ -757,6 +738,8 @@ source "arch/arm/mach-dove/Kconfig"
 source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
+
+source "arch/arm/mach-gemini/Kconfig"
 
 source "arch/arm/mach-highbank/Kconfig"
 

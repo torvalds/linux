@@ -1,0 +1,13 @@
+menuconfig ARCH_GEMINI
+	bool "Cortina Systems Gemini"
+	depends on ARCH_MULTI_V4
+	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select FARADAY_FTINTC010
+	select FTTMR010_TIMER
+	select GPIO_GEMINI
+	select GPIOLIB
+	select POWER_RESET
+	select POWER_RESET_SYSCON
+	select SERIAL_OF_PLATFORM
+	help
+	  Support for the Cortina Systems Gemini family SoCs
