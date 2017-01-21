@@ -626,41 +626,26 @@ static void kf(void *handle)
 
 /*** module initialization and cleanup ***/
 
-static int __init lirc_parallel_init(void)
+static void lirc_parallel_attach(struct parport *port)
 {
-	int result;
+	struct pardev_cb lirc_parallel_cb;
 
-	result = platform_driver_register(&lirc_parallel_driver);
-	if (result) {
-		pr_notice("platform_driver_register returned %d\n", result);
-		return result;
-	}
+	if (port->base != io)
+		return;
 
-	lirc_parallel_dev = platform_device_alloc(LIRC_DRIVER_NAME, 0);
-	if (!lirc_parallel_dev) {
-		result = -ENOMEM;
-		goto exit_driver_unregister;
-	}
+	pport = port;
+	memset(&lirc_parallel_cb, 0, sizeof(lirc_parallel_cb));
+	lirc_parallel_cb.preempt = pf;
+	lirc_parallel_cb.wakeup = kf;
+	lirc_parallel_cb.irq_func = lirc_lirc_irq_handler;
 
-	result = platform_device_add(lirc_parallel_dev);
-	if (result)
-		goto exit_device_put;
-
-	pport = parport_find_base(io);
-	if (!pport) {
-		pr_notice("no port at %x found\n", io);
-		result = -ENXIO;
-		goto exit_device_del;
-	}
-	ppdevice = parport_register_device(pport, LIRC_DRIVER_NAME,
-					   pf, kf, lirc_lirc_irq_handler, 0,
-					   NULL);
-	parport_put_port(pport);
+	ppdevice = parport_register_dev_model(port, LIRC_DRIVER_NAME,
+					      &lirc_parallel_cb, 0);
 	if (!ppdevice) {
 		pr_notice("parport_register_device() failed\n");
-		result = -ENXIO;
-		goto exit_device_del;
+		return;
 	}
+
 	if (parport_claim(ppdevice) != 0)
 		goto skip_init;
 	is_claimed = 1;
@@ -688,18 +673,64 @@ static int __init lirc_parallel_init(void)
 
 	is_claimed = 0;
 	parport_release(ppdevice);
+
  skip_init:
+	return;
+}
+
+static void lirc_parallel_detach(struct parport *port)
+{
+	if (port->base != io)
+		return;
+
+	parport_unregister_device(ppdevice);
+}
+
+static struct parport_driver lirc_parport_driver = {
+	.name = LIRC_DRIVER_NAME,
+	.match_port = lirc_parallel_attach,
+	.detach = lirc_parallel_detach,
+	.devmodel = true,
+};
+
+static int __init lirc_parallel_init(void)
+{
+	int result;
+
+	result = platform_driver_register(&lirc_parallel_driver);
+	if (result) {
+		pr_notice("platform_driver_register returned %d\n", result);
+		return result;
+	}
+
+	lirc_parallel_dev = platform_device_alloc(LIRC_DRIVER_NAME, 0);
+	if (!lirc_parallel_dev) {
+		result = -ENOMEM;
+		goto exit_driver_unregister;
+	}
+
+	result = platform_device_add(lirc_parallel_dev);
+	if (result)
+		goto exit_device_put;
+
+	result = parport_register_driver(&lirc_parport_driver);
+	if (result) {
+		pr_notice("parport_register_driver returned %d\n", result);
+		goto exit_device_del;
+	}
+
 	driver.dev = &lirc_parallel_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
 		pr_notice("register_chrdev() failed\n");
-		parport_unregister_device(ppdevice);
 		result = -EIO;
-		goto exit_device_del;
+		goto exit_unregister;
 	}
 	pr_info("installed using port 0x%04x irq %d\n", io, irq);
 	return 0;
 
+exit_unregister:
+	parport_unregister_driver(&lirc_parport_driver);
 exit_device_del:
 	platform_device_del(lirc_parallel_dev);
 exit_device_put:
@@ -711,9 +742,9 @@ exit_driver_unregister:
 
 static void __exit lirc_parallel_exit(void)
 {
-	parport_unregister_device(ppdevice);
 	lirc_unregister_driver(driver.minor);
 
+	parport_unregister_driver(&lirc_parport_driver);
 	platform_device_unregister(lirc_parallel_dev);
 	platform_driver_unregister(&lirc_parallel_driver);
 }
