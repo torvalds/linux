@@ -4365,7 +4365,8 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 
 			inet_get_local_port_range(sock_net(sk), &low, &high);
 
-			if (snum < max(PROT_SOCK, low) || snum > high) {
+			if (snum < max(inet_prot_sock(sock_net(sk)), low) ||
+			    snum > high) {
 				err = sel_netport_sid(sk->sk_protocol,
 						      snum, &sid);
 				if (err)

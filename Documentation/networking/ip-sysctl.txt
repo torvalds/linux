@@ -822,6 +822,15 @@ ip_local_reserved_ports - list of comma separated ranges
 
 	Default: Empty
 
+ip_unprivileged_port_start - INTEGER
+	This is a per-namespace sysctl.  It defines the first
+	unprivileged port in the network namespace.  Privileged ports
+	require root or CAP_NET_BIND_SERVICE in order to bind to them.
+	To disable all privileged ports, set this to 0.  It may not
+	overlap with the ip_local_reserved_ports range.
+
+	Default: 1024
+
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
 	which can be quite useful - but may break some applications.

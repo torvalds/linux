@@ -360,7 +360,7 @@ static int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 		}
 	}
 
-	if (snum && snum < PROT_SOCK &&
+	if (snum && snum < inet_prot_sock(net) &&
 	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
@@ -1152,8 +1152,10 @@ static int __sctp_connect(struct sock *sk,
 				 * accept new associations, but it SHOULD NOT
 				 * be permitted to open new associations.
 				 */
-				if (ep->base.bind_addr.port < PROT_SOCK &&
-				    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE)) {
+				if (ep->base.bind_addr.port <
+				    inet_prot_sock(net) &&
+				    !ns_capable(net->user_ns,
+				    CAP_NET_BIND_SERVICE)) {
 					err = -EACCES;
 					goto out_free;
 				}
@@ -1818,7 +1820,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 			 * but it SHOULD NOT be permitted to open new
 			 * associations.
 			 */
-			if (ep->base.bind_addr.port < PROT_SOCK &&
+			if (ep->base.bind_addr.port < inet_prot_sock(net) &&
 			    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE)) {
 				err = -EACCES;
 				goto out_unlock;
