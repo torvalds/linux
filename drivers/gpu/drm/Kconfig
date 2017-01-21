@@ -263,6 +263,8 @@ source "drivers/gpu/drm/mxsfb/Kconfig"
 
 source "drivers/gpu/drm/meson/Kconfig"
 
+source "drivers/gpu/drm/tinydrm/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY

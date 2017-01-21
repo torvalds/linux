@@ -1,0 +1,8 @@
+menuconfig DRM_TINYDRM
+	tristate "Support for simple displays"
+	depends on DRM
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	help
+	  Choose this option if you have a tinydrm supported display.
+	  If M is selected the module will be called tinydrm.
