@@ -209,10 +209,9 @@ static ssize_t rpmsg_eptdev_read(struct file *filp, char __user *buf,
 	}
 
 	skb = skb_dequeue(&eptdev->queue);
+	spin_unlock_irqrestore(&eptdev->queue_lock, flags);
 	if (!skb)
 		return -EFAULT;
-
-	spin_unlock_irqrestore(&eptdev->queue_lock, flags);
 
 	use = min_t(size_t, len, skb->len);
 	if (copy_to_user(buf, skb->data, use))
