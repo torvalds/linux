@@ -755,8 +755,6 @@ source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
-source "arch/arm/mach-gemini/Kconfig"
-
 source "arch/arm/mach-highbank/Kconfig"
 
 source "arch/arm/mach-hisi/Kconfig"
