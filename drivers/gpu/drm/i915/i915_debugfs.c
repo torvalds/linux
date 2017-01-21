@@ -3775,7 +3775,10 @@ static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
-			seq_printf(m, "%lx", intel_dp->compliance.test_data.edid);
+			if (intel_dp->compliance.test_type ==
+			    DP_TEST_LINK_EDID_READ)
+				seq_printf(m, "%lx",
+					   intel_dp->compliance.test_data.edid);
 		} else
 			seq_puts(m, "0");
 	}
