@@ -176,7 +176,8 @@ dtb-$(CONFIG_ARCH_EXYNOS5) += \
 dtb-$(CONFIG_ARCH_GEMINI) += \
 	gemini-nas4220b.dtb \
 	gemini-rut1xx.dtb \
-	gemini-sq201.dtb
+	gemini-sq201.dtb \
+	gemini-wbd111.dtb
 dtb-$(CONFIG_ARCH_HI3xxx) += \
 	hi3620-hi4511.dtb
 dtb-$(CONFIG_ARCH_HIGHBANK) += \
