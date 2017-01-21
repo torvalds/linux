@@ -63,6 +63,12 @@ struct bpf_insn {
 	__s32	imm;		/* signed immediate constant */
 };
 
+/* Key of an a BPF_MAP_TYPE_LPM_TRIE entry */
+struct bpf_lpm_trie_key {
+	__u32	prefixlen;	/* up to 32 for AF_INET, 128 for AF_INET6 */
+	__u8	data[0];	/* Arbitrary size */
+};
+
 /* BPF syscall commands, see bpf(2) man-page for details. */
 enum bpf_cmd {
 	BPF_MAP_CREATE,
@@ -89,6 +95,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_CGROUP_ARRAY,
 	BPF_MAP_TYPE_LRU_HASH,
 	BPF_MAP_TYPE_LRU_PERCPU_HASH,
+	BPF_MAP_TYPE_LPM_TRIE,
 };
 
 enum bpf_prog_type {
