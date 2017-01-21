@@ -3626,6 +3626,7 @@ void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx, max_level, max_extended_level;
 	unsigned int fms, family, model, stepping;
+	unsigned int has_turbo;
 
 	eax = ebx = ecx = edx = 0;
 
@@ -3696,6 +3697,7 @@ void process_cpuid()
 	do_dts = eax & (1 << 0);
 	if (do_dts)
 		BIC_PRESENT(BIC_CoreTmp);
+	has_turbo = eax & (1 << 1);
 	do_ptm = eax & (1 << 6);
 	if (do_ptm)
 		BIC_PRESENT(BIC_PkgTmp);
@@ -3707,9 +3709,10 @@ void process_cpuid()
 	has_epb = ecx & (1 << 3);
 
 	if (debug)
-		fprintf(outf, "CPUID(6): %sAPERF, %sDTS, %sPTM, %sHWP, "
+		fprintf(outf, "CPUID(6): %sAPERF, %sTURBO, %sDTS, %sPTM, %sHWP, "
 			"%sHWPnotify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
 			has_aperf ? "" : "No-",
+			has_turbo ? "" : "No-",
 			do_dts ? "" : "No-",
 			do_ptm ? "" : "No-",
 			has_hwp ? "" : "No-",
