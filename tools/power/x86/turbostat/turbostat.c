@@ -102,6 +102,7 @@ unsigned int has_hwp_notify;		/* IA32_HWP_INTERRUPT */
 unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;		/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
+unsigned int has_misc_feature_control;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -2466,6 +2467,7 @@ void check_permissions()
  *
  * Side effect:
  * sets global pkg_cstate_limit to decode MSR_PKG_CST_CONFIG_CONTROL
+ * sets has_misc_feature_control
  */
 int probe_nhm_msrs(unsigned int family, unsigned int model)
 {
@@ -2496,6 +2498,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_IVYBRIDGE:	/* IVB */
 	case INTEL_FAM6_IVYBRIDGE_X:	/* IVB Xeon */
 		pkg_cstate_limits = snb_pkg_cstate_limits;
+		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_HASWELL_CORE:	/* HSW */
 	case INTEL_FAM6_HASWELL_X:	/* HSX */
@@ -2510,9 +2513,11 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
+		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 		pkg_cstate_limits = skx_pkg_cstate_limits;
+		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ATOM_SILVERMONT1:	/* BYT */
 		no_MSR_MISC_PWR_MGMT = 1;
@@ -3579,6 +3584,21 @@ void decode_misc_enable_msr(void)
 			msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ? "No-" : "");
 }
 
+void decode_misc_feature_control(void)
+{
+	unsigned long long msr;
+
+	if (!has_misc_feature_control)
+		return;
+
+	if (!get_msr(base_cpu, MSR_MISC_FEATURE_CONTROL, &msr))
+		fprintf(outf, "cpu%d: MSR_MISC_FEATURE_CONTROL: 0x%08llx (%sL2-Prefetch %sL2-Prefetch-pair %sL1-Prefetch %sL1-IP-Prefetch)\n",
+			base_cpu, msr,
+			msr & (0 << 0) ? "No-" : "",
+			msr & (1 << 0) ? "No-" : "",
+			msr & (2 << 0) ? "No-" : "",
+			msr & (3 << 0) ? "No-" : "");
+}
 /*
  * Decode MSR_MISC_PWR_MGMT
  *
@@ -3725,6 +3745,7 @@ void process_cpuid()
 	if (debug)
 		decode_misc_enable_msr();
 
+
 	if (max_level >= 0x7 && debug) {
 		int has_sgx;
 
@@ -3851,6 +3872,9 @@ void process_cpuid()
 
 	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
 		BIC_PRESENT(BIC_GFXMHz);
+
+	if (debug)
+		decode_misc_feature_control();
 
 	return;
 }
