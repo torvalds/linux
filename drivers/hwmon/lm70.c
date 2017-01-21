@@ -72,7 +72,8 @@ static ssize_t temp1_input_show(struct device *dev,
 	 */
 	status = spi_write_then_read(spi, NULL, 0, &rxbuf[0], 2);
 	if (status < 0) {
-		pr_warn("spi_write_then_read failed with status %d\n", status);
+		dev_warn(dev, "spi_write_then_read failed with status %d\n",
+			 status);
 		goto out;
 	}
 	raw = (rxbuf[0] << 8) + rxbuf[1];
