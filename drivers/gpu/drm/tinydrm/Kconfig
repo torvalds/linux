@@ -3,6 +3,8 @@ menuconfig DRM_TINYDRM
 	depends on DRM
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you have a tinydrm supported display.
 	  If M is selected the module will be called tinydrm.
