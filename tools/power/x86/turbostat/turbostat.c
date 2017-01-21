@@ -479,9 +479,6 @@ void print_header(void)
 	if (DO_BIC(BIC_TSC_MHz))
 		outp += sprintf(outp, "\tTSC_MHz");
 
-	if (!debug)
-		goto done;
-
 	if (DO_BIC(BIC_IRQ))
 		outp += sprintf(outp, "\tIRQ");
 	if (DO_BIC(BIC_SMI))
@@ -593,7 +590,6 @@ void print_header(void)
 		}
 	}
 
-done:
 	outp += sprintf(outp, "\n");
 }
 
@@ -740,9 +736,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	if (DO_BIC(BIC_TSC_MHz))
 		outp += sprintf(outp, "\t%.0f", 1.0 * t->tsc/units/interval_float);
-
-	if (!debug)
-		goto done;
 
 	/* IRQ */
 	if (DO_BIC(BIC_IRQ))
