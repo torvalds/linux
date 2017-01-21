@@ -8,3 +8,6 @@ menuconfig DRM_TINYDRM
 	help
 	  Choose this option if you have a tinydrm supported display.
 	  If M is selected the module will be called tinydrm.
+
+config TINYDRM_MIPI_DBI
+	tristate

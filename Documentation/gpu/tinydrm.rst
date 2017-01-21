@@ -28,3 +28,15 @@ Additional helpers
 
 .. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-helpers.c
    :export:
+
+MIPI DBI Compatible Controllers
+===============================
+
+.. kernel-doc:: drivers/gpu/drm/tinydrm/mipi-dbi.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/tinydrm/mipi-dbi.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/tinydrm/mipi-dbi.c
+   :export:
