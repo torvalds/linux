@@ -174,6 +174,31 @@ out:
 	return p;
 }
 
+static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
+			       const unsigned char *addr, bool local_orig)
+{
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+	const unsigned char *src = eth_hdr(skb)->h_source;
+
+	if (!should_deliver(p, skb))
+		return;
+
+	/* Even with hairpin, no soliloquies - prevent breaking IPv6 DAD */
+	if (skb->dev == p->dev && ether_addr_equal(src, addr))
+		return;
+
+	skb = skb_copy(skb, GFP_ATOMIC);
+	if (!skb) {
+		dev->stats.tx_dropped++;
+		return;
+	}
+
+	if (!is_broadcast_ether_addr(addr))
+		memcpy(eth_hdr(skb)->h_dest, addr, ETH_ALEN);
+
+	__br_forward(p, skb, local_orig);
+}
+
 /* called under rcu_read_lock */
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig)
@@ -241,10 +266,20 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		rport = rp ? hlist_entry(rp, struct net_bridge_port, rlist) :
 			     NULL;
 
-		port = (unsigned long)lport > (unsigned long)rport ?
-		       lport : rport;
+		if ((unsigned long)lport > (unsigned long)rport) {
+			port = lport;
+
+			if (port->flags & BR_MULTICAST_TO_UNICAST) {
+				maybe_deliver_addr(lport, skb, p->eth_addr,
+						   local_orig);
+				goto delivered;
+			}
+		} else {
+			port = rport;
+		}
 
 		prev = maybe_deliver(prev, port, skb, local_orig);
+delivered:
 		if (IS_ERR(prev))
 			goto out;
 		if (prev == port)
