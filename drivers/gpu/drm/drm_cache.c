@@ -29,7 +29,9 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+#include <linux/highmem.h>
+
+#include <drm/drm_cache.h>
 
 #if defined(CONFIG_X86)
 #include <asm/smp.h>
