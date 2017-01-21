@@ -46,6 +46,7 @@
 #define LM70_CHIP_TMP121	1	/* TI TMP121/TMP123 */
 #define LM70_CHIP_LM71		2	/* NS LM71 */
 #define LM70_CHIP_LM74		3	/* NS LM74 */
+#define LM70_CHIP_TMP122	4	/* TI TMP122/TMP124 */
 
 struct lm70 {
 	struct spi_device *spi;
@@ -92,7 +93,7 @@ static ssize_t temp1_input_show(struct device *dev,
 	 * Celsius.
 	 * So it's equivalent to multiplying by 0.25 * 1000 = 250.
 	 *
-	 * LM74 and TMP121/TMP123:
+	 * LM74 and TMP121/TMP122/TMP123/TMP124:
 	 * 13 bits of 2's complement data, discard LSB 3 bits,
 	 * resolution 0.0625 degrees celsius.
 	 *
@@ -106,6 +107,7 @@ static ssize_t temp1_input_show(struct device *dev,
 		break;
 
 	case LM70_CHIP_TMP121:
+	case LM70_CHIP_TMP122:
 	case LM70_CHIP_LM74:
 		val = ((int)raw / 8) * 625 / 10;
 		break;
@@ -141,6 +143,10 @@ static const struct of_device_id lm70_of_ids[] = {
 	{
 		.compatible = "ti,tmp121",
 		.data = (void *) LM70_CHIP_TMP121,
+	},
+	{
+		.compatible = "ti,tmp122",
+		.data = (void *) LM70_CHIP_TMP122,
 	},
 	{
 		.compatible = "ti,lm71",
@@ -191,6 +197,7 @@ static int lm70_probe(struct spi_device *spi)
 static const struct spi_device_id lm70_ids[] = {
 	{ "lm70",   LM70_CHIP_LM70 },
 	{ "tmp121", LM70_CHIP_TMP121 },
+	{ "tmp122", LM70_CHIP_TMP122 },
 	{ "lm71",   LM70_CHIP_LM71 },
 	{ "lm74",   LM70_CHIP_LM74 },
 	{ },
