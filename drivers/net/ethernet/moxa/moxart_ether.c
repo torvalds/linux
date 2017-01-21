@@ -436,7 +436,7 @@ static void moxart_mac_set_rx_mode(struct net_device *ndev)
 	spin_unlock_irq(&priv->txlock);
 }
 
-static struct net_device_ops moxart_netdev_ops = {
+static const struct net_device_ops moxart_netdev_ops = {
 	.ndo_open		= moxart_mac_open,
 	.ndo_stop		= moxart_mac_stop,
 	.ndo_start_xmit		= moxart_mac_start_xmit,
