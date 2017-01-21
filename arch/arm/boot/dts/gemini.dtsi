@@ -1,0 +1,102 @@
+/*
+ * Device Tree file for Cortina systems Gemini SoC
+ */
+
+/include/ "skeleton.dtsi"
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+		interrupt-parent = <&intcon>;
+
+		flash@30000000 {
+			compatible = "cortina,gemini-flash", "cfi-flash";
+			syscon = <&syscon>;
+			bank-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+		};
+
+		syscon: syscon@40000000 {
+			compatible = "cortina,gemini-syscon", "syscon", "simple-mfd";
+			reg = <0x40000000 0x1000>;
+
+			syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&syscon>;
+				/* GLOBAL_RESET register */
+				offset = <0x0c>;
+				/* RESET_GLOBAL | RESET_CPU1 */
+				mask = <0xC0000000>;
+			};
+		};
+
+		uart0: serial@42000000 {
+			compatible = "ns16550a";
+			reg = <0x42000000 0x100>;
+			clock-frequency = <48000000>;
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+		};
+
+		timer@43000000 {
+			compatible = "cortina,gemini-timer";
+			reg = <0x43000000 0x1000>;
+			interrupt-parent = <&intcon>;
+			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			syscon = <&syscon>;
+		};
+
+		rtc@45000000 {
+			compatible = "cortina,gemini-rtc";
+			reg = <0x45000000 0x100>;
+			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		intcon: interrupt-controller@48000000 {
+			compatible = "faraday,ftintc010";
+			reg = <0x48000000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio0: gpio@4d000000 {
+			compatible = "cortina,gemini-gpio";
+			reg = <0x4d000000 0x100>;
+			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@4e000000 {
+			compatible = "cortina,gemini-gpio";
+			reg = <0x4e000000 0x100>;
+			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@4f000000 {
+			compatible = "cortina,gemini-gpio";
+			reg = <0x4f000000 0x100>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+};
