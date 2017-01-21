@@ -49,6 +49,7 @@ FILE *outf;
 int *fd_percpu;
 struct timespec interval_ts = {5, 0};
 unsigned int debug;
+unsigned int quiet;
 unsigned int rapl_joules;
 unsigned int summary_only;
 unsigned int dump_only;
@@ -3114,7 +3115,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	tdp = get_tdp(model);
 
 	rapl_joule_counter_range = 0xFFFFFFFF * rapl_energy_units / tdp;
-	if (debug)
+	if (!quiet)
 		fprintf(outf, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 
 	return;
@@ -3239,11 +3240,9 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	if (get_msr(cpu, MSR_RAPL_POWER_UNIT, &msr))
 		return -1;
 
-	if (debug) {
-		fprintf(outf, "cpu%d: MSR_RAPL_POWER_UNIT: 0x%08llx "
-			"(%f Watts, %f Joules, %f sec.)\n", cpu, msr,
-			rapl_power_units, rapl_energy_units, rapl_time_units);
-	}
+	fprintf(outf, "cpu%d: MSR_RAPL_POWER_UNIT: 0x%08llx (%f Watts, %f Joules, %f sec.)\n", cpu, msr,
+		rapl_power_units, rapl_energy_units, rapl_time_units);
+
 	if (do_rapl & RAPL_PKG_POWER_INFO) {
 
 		if (get_msr(cpu, MSR_PKG_POWER_INFO, &msr))
@@ -3264,7 +3263,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -9;
 
 		fprintf(outf, "cpu%d: MSR_PKG_POWER_LIMIT: 0x%08llx (%slocked)\n",
-			cpu, msr, (msr >> 63) & 1 ? "": "UN");
+			cpu, msr, (msr >> 63) & 1 ? "" : "UN");
 
 		print_power_limit_msr(cpu, msr, "PKG Limit #1");
 		fprintf(outf, "cpu%d: PKG Limit #2: %sabled (%f Watts, %f* sec, clamp %sabled)\n",
@@ -3290,40 +3289,34 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		if (get_msr(cpu, MSR_DRAM_POWER_LIMIT, &msr))
 			return -9;
 		fprintf(outf, "cpu%d: MSR_DRAM_POWER_LIMIT: 0x%08llx (%slocked)\n",
-				cpu, msr, (msr >> 31) & 1 ? "": "UN");
+				cpu, msr, (msr >> 31) & 1 ? "" : "UN");
 
 		print_power_limit_msr(cpu, msr, "DRAM Limit");
 	}
 	if (do_rapl & RAPL_CORE_POLICY) {
-		if (debug) {
-			if (get_msr(cpu, MSR_PP0_POLICY, &msr))
-				return -7;
+		if (get_msr(cpu, MSR_PP0_POLICY, &msr))
+			return -7;
 
-			fprintf(outf, "cpu%d: MSR_PP0_POLICY: %lld\n", cpu, msr & 0xF);
-		}
+		fprintf(outf, "cpu%d: MSR_PP0_POLICY: %lld\n", cpu, msr & 0xF);
 	}
 	if (do_rapl & RAPL_CORES_POWER_LIMIT) {
-		if (debug) {
-			if (get_msr(cpu, MSR_PP0_POWER_LIMIT, &msr))
-				return -9;
-			fprintf(outf, "cpu%d: MSR_PP0_POWER_LIMIT: 0x%08llx (%slocked)\n",
-					cpu, msr, (msr >> 31) & 1 ? "": "UN");
-			print_power_limit_msr(cpu, msr, "Cores Limit");
-		}
+		if (get_msr(cpu, MSR_PP0_POWER_LIMIT, &msr))
+			return -9;
+		fprintf(outf, "cpu%d: MSR_PP0_POWER_LIMIT: 0x%08llx (%slocked)\n",
+				cpu, msr, (msr >> 31) & 1 ? "" : "UN");
+		print_power_limit_msr(cpu, msr, "Cores Limit");
 	}
 	if (do_rapl & RAPL_GFX) {
-		if (debug) {
-			if (get_msr(cpu, MSR_PP1_POLICY, &msr))
-				return -8;
+		if (get_msr(cpu, MSR_PP1_POLICY, &msr))
+			return -8;
 
-			fprintf(outf, "cpu%d: MSR_PP1_POLICY: %lld\n", cpu, msr & 0xF);
+		fprintf(outf, "cpu%d: MSR_PP1_POLICY: %lld\n", cpu, msr & 0xF);
 
-			if (get_msr(cpu, MSR_PP1_POWER_LIMIT, &msr))
-				return -9;
-			fprintf(outf, "cpu%d: MSR_PP1_POWER_LIMIT: 0x%08llx (%slocked)\n",
-					cpu, msr, (msr >> 31) & 1 ? "": "UN");
-			print_power_limit_msr(cpu, msr, "GFX Limit");
-		}
+		if (get_msr(cpu, MSR_PP1_POWER_LIMIT, &msr))
+			return -9;
+		fprintf(outf, "cpu%d: MSR_PP1_POWER_LIMIT: 0x%08llx (%slocked)\n",
+				cpu, msr, (msr >> 31) & 1 ? "" : "UN");
+		print_power_limit_msr(cpu, msr, "GFX Limit");
 	}
 	return 0;
 }
@@ -3469,7 +3462,7 @@ double slm_bclk(void)
 	}
 	freq = slm_freq_table[i];
 
-	if (debug)
+	if (!quiet)
 		fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
 
 	return freq;
@@ -3533,7 +3526,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 
 	target_c_local = (msr >> 16) & 0xFF;
 
-	if (debug)
+	if (!quiet)
 		fprintf(outf, "cpu%d: MSR_IA32_TEMPERATURE_TARGET: 0x%08llx (%d C)\n",
 			cpu, msr, target_c_local);
 
@@ -3648,7 +3641,7 @@ void process_cpuid()
 	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
 		genuine_intel = 1;
 
-	if (debug)
+	if (!quiet)
 		fprintf(outf, "CPUID(0): %.4s%.4s%.4s ",
 			(char *)&ebx, (char *)&edx, (char *)&ecx);
 
@@ -3659,7 +3652,7 @@ void process_cpuid()
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 
-	if (debug) {
+	if (!quiet) {
 		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
 		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s\n",
@@ -3721,7 +3714,7 @@ void process_cpuid()
 	has_hwp_pkg = eax & (1 << 11);
 	has_epb = ecx & (1 << 3);
 
-	if (debug)
+	if (!quiet)
 		fprintf(outf, "CPUID(6): %sAPERF, %sTURBO, %sDTS, %sPTM, %sHWP, "
 			"%sHWPnotify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
 			has_aperf ? "" : "No-",
@@ -3735,11 +3728,11 @@ void process_cpuid()
 			has_hwp_pkg ? "" : "No-",
 			has_epb ? "" : "No-");
 
-	if (debug)
+	if (!quiet)
 		decode_misc_enable_msr();
 
 
-	if (max_level >= 0x7 && debug) {
+	if (max_level >= 0x7 && !quiet) {
 		int has_sgx;
 
 		ecx = 0;
@@ -3765,7 +3758,7 @@ void process_cpuid()
 
 		if (ebx_tsc != 0) {
 
-			if (debug && (ebx != 0))
+			if (!quiet && (ebx != 0))
 				fprintf(outf, "CPUID(0x15): eax_crystal: %d ebx_tsc: %d ecx_crystal_hz: %d\n",
 					eax_crystal, ebx_tsc, crystal_hz);
 
@@ -3790,7 +3783,7 @@ void process_cpuid()
 
 			if (crystal_hz) {
 				tsc_hz =  (unsigned long long) crystal_hz * ebx_tsc / eax_crystal;
-				if (debug)
+				if (!quiet)
 					fprintf(outf, "TSC: %lld MHz (%d Hz * %d / %d / 1000000)\n",
 						tsc_hz / 1000000, crystal_hz, ebx_tsc,  eax_crystal);
 			}
@@ -3805,7 +3798,7 @@ void process_cpuid()
 		base_mhz = max_mhz = bus_mhz = edx = 0;
 
 		__cpuid(0x16, base_mhz, max_mhz, bus_mhz, edx);
-		if (debug)
+		if (!quiet)
 			fprintf(outf, "CPUID(0x16): base_mhz: %d max_mhz: %d bus_mhz: %d\n",
 				base_mhz, max_mhz, bus_mhz);
 	}
@@ -3845,16 +3838,16 @@ void process_cpuid()
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
 
-	if (debug)
+	if (!quiet)
 		decode_misc_pwr_mgmt_msr();
 
-	if (debug && has_slv_msrs(family, model))
+	if (!quiet && has_slv_msrs(family, model))
 		decode_c6_demotion_policy_msr();
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
 
-	if (debug)
+	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
 
 	if (has_skl_msrs(family, model))
@@ -3866,7 +3859,7 @@ void process_cpuid()
 	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
 		BIC_PRESENT(BIC_GFXMHz);
 
-	if (debug)
+	if (!quiet)
 		decode_misc_feature_control();
 
 	return;
@@ -3883,7 +3876,7 @@ void help()
 	"to print statistics, until interrupted.\n"
 	"--add		add a counter\n"
 	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
-	"--debug	run in \"debug\" mode\n"
+	"--quiet	skip decoding system configuration header\n"
 	"--interval sec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
 	"--out file	create or truncate \"file\" for all output\n"
@@ -4136,24 +4129,24 @@ void turbostat_init()
 	process_cpuid();
 
 
-	if (debug)
+	if (!quiet)
 		for_all_cpus(print_hwp, ODD_COUNTERS);
 
-	if (debug)
+	if (!quiet)
 		for_all_cpus(print_epb, ODD_COUNTERS);
 
-	if (debug)
+	if (!quiet)
 		for_all_cpus(print_perf_limit, ODD_COUNTERS);
 
-	if (debug)
+	if (!quiet)
 		for_all_cpus(print_rapl, ODD_COUNTERS);
 
 	for_all_cpus(set_temperature_target, ODD_COUNTERS);
 
-	if (debug)
+	if (!quiet)
 		for_all_cpus(print_thermal, ODD_COUNTERS);
 
-	if (debug && do_irtl_snb)
+	if (!quiet && do_irtl_snb)
 		print_irtl();
 }
 
@@ -4429,7 +4422,7 @@ void cmdline(int argc, char **argv)
 	static struct option long_options[] = {
 		{"add",		required_argument,	0, 'a'},
 		{"Dump",	no_argument,		0, 'D'},
-		{"debug",	no_argument,		0, 'd'},
+		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
 		{"interval",	required_argument,	0, 'i'},
 		{"help",	no_argument,		0, 'h'},
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
@@ -4437,6 +4430,7 @@ void cmdline(int argc, char **argv)
 		{"out",		required_argument,	0, 'o'},
 		{"Package",	no_argument,		0, 'p'},
 		{"processor",	no_argument,		0, 'p'},
+		{"quiet",	no_argument,		0, 'q'},
 		{"show",	required_argument,	0, 's'},
 		{"Summary",	no_argument,		0, 'S'},
 		{"TCC",		required_argument,	0, 'T'},
@@ -4446,7 +4440,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:PpST:v",
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:PpqST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -4491,6 +4485,9 @@ void cmdline(int argc, char **argv)
 		case 'p':
 			show_core_only++;
 			break;
+		case 'q':
+			quiet = 1;
+			break;
 		case 's':
 			parse_show_hide(optarg, SHOW_LIST);
 			break;
@@ -4514,7 +4511,7 @@ int main(int argc, char **argv)
 
 	cmdline(argc, argv);
 
-	if (debug)
+	if (!quiet)
 		print_version();
 
 	turbostat_init();

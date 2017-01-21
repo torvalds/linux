@@ -53,8 +53,7 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP
-\fB--debug\fP displays additional system configuration information.  Invoking this parameter
-more than once may also enable internal turbostat debug information.
+\fB--quiet\fP Do not decode and print the system configuration header information.
 .PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
@@ -124,7 +123,6 @@ Or a command may be specified as in "FORK EXAMPLE" below.
 
 .fi
 .SH DEBUG EXAMPLE
-The "--debug" option prints additional system information before measurements:
 
 The first row of statistics is a summary for the entire system.
 For residency % columns, the summary is a weighted average.
@@ -188,9 +186,6 @@ should be sustainable on all CPUs indefinitely, given nominal power and cooling.
 The remaining rows show what maximum turbo frequency is possible
 depending on the number of idle cores.  Note that not all information is
 available on all processors.
-.PP
-The --debug option adds additional columns to the measurement ouput, including CPU idle power-state residency processor temperature sensor readinds.
-See the field definitions above.
 .SH FORK EXAMPLE
 If turbostat is invoked with a command, it will fork that command
 and output the statistics gathered after the command exits.
