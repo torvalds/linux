@@ -117,6 +117,13 @@
 				function = "remote_input_ao";
 			};
 		};
+
+		pwm_ao_b_pins: pwm_ao_b {
+			mux {
+				groups = "pwm_ao_b";
+				function = "pwm_ao_b";
+			};
+		};
 	};
 };
 
