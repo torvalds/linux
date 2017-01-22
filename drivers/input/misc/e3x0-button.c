@@ -124,11 +124,6 @@ static int e3x0_button_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int e3x0_button_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id e3x0_button_match[] = {
 	{ .compatible = "ettus,e3x0-button", },
@@ -144,7 +139,6 @@ static struct platform_driver e3x0_button_driver = {
 		.pm	= &e3x0_button_pm_ops,
 	},
 	.probe		= e3x0_button_probe,
-	.remove		= e3x0_button_remove,
 };
 
 module_platform_driver(e3x0_button_driver);

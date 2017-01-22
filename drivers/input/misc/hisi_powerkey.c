@@ -120,17 +120,11 @@ static int hi65xx_powerkey_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hi65xx_powerkey_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver hi65xx_powerkey_driver = {
 	.driver = {
 		.name = "hi65xx-powerkey",
 	},
 	.probe = hi65xx_powerkey_probe,
-	.remove  = hi65xx_powerkey_remove,
 };
 module_platform_driver(hi65xx_powerkey_driver);
 
