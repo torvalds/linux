@@ -608,7 +608,7 @@ static struct nvmem_device *nvmem_find(const char *name)
 /**
  * of_nvmem_device_get() - Get nvmem device from a given id
  *
- * @dev node: Device tree node that uses the nvmem device
+ * @np: Device tree node that uses the nvmem device.
  * @id: nvmem name from nvmem-names property.
  *
  * Return: ERR_PTR() on error or a valid pointer to a struct nvmem_device
@@ -634,8 +634,8 @@ EXPORT_SYMBOL_GPL(of_nvmem_device_get);
 /**
  * nvmem_device_get() - Get nvmem device from a given id
  *
- * @dev : Device that uses the nvmem device
- * @id: nvmem name from nvmem-names property.
+ * @dev: Device that uses the nvmem device.
+ * @dev_name: name of the requested nvmem device.
  *
  * Return: ERR_PTR() on error or a valid pointer to a struct nvmem_device
  * on success.
@@ -674,6 +674,7 @@ static void devm_nvmem_device_release(struct device *dev, void *res)
 /**
  * devm_nvmem_device_put() - put alredy got nvmem device
  *
+ * @dev: Device that uses the nvmem device.
  * @nvmem: pointer to nvmem device allocated by devm_nvmem_cell_get(),
  * that needs to be released.
  */
@@ -702,8 +703,8 @@ EXPORT_SYMBOL_GPL(nvmem_device_put);
 /**
  * devm_nvmem_device_get() - Get nvmem cell of device form a given id
  *
- * @dev node: Device tree node that uses the nvmem cell
- * @id: nvmem name in nvmems property.
+ * @dev: Device that requests the nvmem device.
+ * @id: name id for the requested nvmem device.
  *
  * Return: ERR_PTR() on error or a valid pointer to a struct nvmem_cell
  * on success.  The nvmem_cell will be freed by the automatically once the
@@ -745,8 +746,8 @@ static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
 /**
  * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
  *
- * @dev node: Device tree node that uses the nvmem cell
- * @id: nvmem cell name from nvmem-cell-names property.
+ * @np: Device tree node that uses the nvmem cell.
+ * @name: nvmem cell name from nvmem-cell-names property.
  *
  * Return: Will be an ERR_PTR() on error or a valid pointer
  * to a struct nvmem_cell.  The nvmem_cell will be freed by the
@@ -830,8 +831,8 @@ EXPORT_SYMBOL_GPL(of_nvmem_cell_get);
 /**
  * nvmem_cell_get() - Get nvmem cell of device form a given cell name
  *
- * @dev node: Device tree node that uses the nvmem cell
- * @id: nvmem cell name to get.
+ * @dev: Device that requests the nvmem cell.
+ * @cell_id: nvmem cell name to get.
  *
  * Return: Will be an ERR_PTR() on error or a valid pointer
  * to a struct nvmem_cell.  The nvmem_cell will be freed by the
@@ -859,8 +860,8 @@ static void devm_nvmem_cell_release(struct device *dev, void *res)
 /**
  * devm_nvmem_cell_get() - Get nvmem cell of device form a given id
  *
- * @dev node: Device tree node that uses the nvmem cell
- * @id: nvmem id in nvmem-names property.
+ * @dev: Device that requests the nvmem cell.
+ * @id: nvmem cell name id to get.
  *
  * Return: Will be an ERR_PTR() on error or a valid pointer
  * to a struct nvmem_cell.  The nvmem_cell will be freed by the
@@ -900,7 +901,8 @@ static int devm_nvmem_cell_match(struct device *dev, void *res, void *data)
  * devm_nvmem_cell_put() - Release previously allocated nvmem cell
  * from devm_nvmem_cell_get.
  *
- * @cell: Previously allocated nvmem cell by devm_nvmem_cell_get()
+ * @dev: Device that requests the nvmem cell.
+ * @cell: Previously allocated nvmem cell by devm_nvmem_cell_get().
  */
 void devm_nvmem_cell_put(struct device *dev, struct nvmem_cell *cell)
 {
@@ -916,7 +918,7 @@ EXPORT_SYMBOL(devm_nvmem_cell_put);
 /**
  * nvmem_cell_put() - Release previously allocated nvmem cell.
  *
- * @cell: Previously allocated nvmem cell by nvmem_cell_get()
+ * @cell: Previously allocated nvmem cell by nvmem_cell_get().
  */
 void nvmem_cell_put(struct nvmem_cell *cell)
 {
@@ -1128,7 +1130,7 @@ EXPORT_SYMBOL_GPL(nvmem_device_cell_read);
  * nvmem_device_cell_write() - Write cell to a given nvmem device
  *
  * @nvmem: nvmem device to be written to.
- * @info: nvmem cell info to be written
+ * @info: nvmem cell info to be written.
  * @buf: buffer to be written to cell.
  *
  * Return: length of bytes written or negative error code on failure.
