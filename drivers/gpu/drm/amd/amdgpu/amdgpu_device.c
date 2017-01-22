@@ -1257,7 +1257,8 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 		pciaddstr_tmp = pciaddstr;
 		while ((pciaddname_tmp = strsep(&pciaddstr_tmp, ";"))) {
 			pciaddname = strsep(&pciaddname_tmp, ",");
-			if (!strcmp(pci_address_name, pciaddname)) {
+			if (!strcmp("all", pciaddname)
+			    || !strcmp(pci_address_name, pciaddname)) {
 				long num_crtc;
 				int res = -1;
 
