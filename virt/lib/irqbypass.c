@@ -188,7 +188,7 @@ int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp->token == consumer->token) {
+		if (tmp->token == consumer->token || tmp == consumer) {
 			mutex_unlock(&lock);
 			module_put(THIS_MODULE);
 			return -EBUSY;
@@ -235,7 +235,7 @@ void irq_bypass_unregister_consumer(struct irq_bypass_consumer *consumer)
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp->token != consumer->token)
+		if (tmp != consumer)
 			continue;
 
 		list_for_each_entry(producer, &producers, node) {

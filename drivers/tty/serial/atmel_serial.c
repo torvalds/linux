@@ -470,6 +470,14 @@ static void atmel_stop_tx(struct uart_port *port)
 		/* disable PDC transmit */
 		atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_TXTDIS);
 	}
+
+	/*
+	 * Disable the transmitter.
+	 * This is mandatory when DMA is used, otherwise the DMA buffer
+	 * is fully transmitted.
+	 */
+	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_TXDIS);
+
 	/* Disable interrupts */
 	atmel_uart_writel(port, ATMEL_US_IDR, atmel_port->tx_done_mask);
 
@@ -502,6 +510,9 @@ static void atmel_start_tx(struct uart_port *port)
 
 	/* Enable interrupts */
 	atmel_uart_writel(port, ATMEL_US_IER, atmel_port->tx_done_mask);
+
+	/* re-enable the transmitter */
+	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_TXEN);
 }
 
 /*

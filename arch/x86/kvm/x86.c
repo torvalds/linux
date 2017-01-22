@@ -5842,6 +5842,7 @@ out:
 
 void kvm_arch_exit(void)
 {
+	kvm_lapic_exit();
 	perf_unregister_guest_info_callbacks(&kvm_guest_cbs);
 
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
