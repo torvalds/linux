@@ -624,7 +624,7 @@ void
 lnet_swap_pinginfo(struct lnet_ping_info *info)
 {
 	int i;
-	lnet_ni_status_t *stat;
+	struct lnet_ni_status *stat;
 
 	__swab32s(&info->pi_magic);
 	__swab32s(&info->pi_features);
@@ -683,7 +683,7 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 		}
 
 		for (i = 0; i < info->pi_nnis && i < LNET_MAX_RTR_NIS; i++) {
-			lnet_ni_status_t *stat = &info->pi_ni[i];
+			struct lnet_ni_status *stat = &info->pi_ni[i];
 			lnet_nid_t nid = stat->ns_nid;
 
 			if (nid == LNET_NID_ANY) {

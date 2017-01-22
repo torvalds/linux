@@ -981,7 +981,7 @@ lnet_ping_md_unlink(struct lnet_ping_info *pinfo, lnet_handle_md_t *md_handle)
 static void
 lnet_ping_info_install_locked(struct lnet_ping_info *ping_info)
 {
-	lnet_ni_status_t *ns;
+	struct lnet_ni_status *ns;
 	lnet_ni_t *ni;
 	int i = 0;
 

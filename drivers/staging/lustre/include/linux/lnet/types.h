@@ -236,18 +236,18 @@ typedef struct {
 
 #define LNET_PROTO_ACCEPTOR_VERSION	1
 
-typedef struct {
+struct lnet_ni_status {
 	lnet_nid_t	ns_nid;
 	__u32		ns_status;
 	__u32		ns_unused;
-} WIRE_ATTR lnet_ni_status_t;
+} WIRE_ATTR;
 
 struct lnet_ping_info {
 	__u32			pi_magic;
 	__u32			pi_features;
 	lnet_pid_t		pi_pid;
 	__u32			pi_nnis;
-	lnet_ni_status_t	pi_ni[0];
+	struct lnet_ni_status	pi_ni[0];
 } WIRE_ATTR;
 
 typedef struct lnet_counters {

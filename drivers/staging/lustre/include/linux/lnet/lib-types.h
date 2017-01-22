@@ -270,7 +270,7 @@ typedef struct lnet_ni {
 	struct lnet_tx_queue	**ni_tx_queues;	/* percpt TX queues */
 	int			**ni_refs;	/* percpt reference count */
 	time64_t		  ni_last_alive;/* when I was last alive */
-	lnet_ni_status_t	 *ni_status;	/* my health status */
+	struct lnet_ni_status	 *ni_status;	/* my health status */
 	/* per NI LND tunables */
 	struct lnet_ioctl_config_lnd_tunables *ni_lnd_tunables;
 	/* equivalent interfaces to use */
