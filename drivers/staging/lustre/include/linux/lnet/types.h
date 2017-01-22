@@ -127,10 +127,10 @@ typedef struct {
  * reboots).  The object cookie only matches one object on that interface
  * during that object's lifetime (i.e. no cookie re-use).
  */
-typedef struct {
+struct lnet_handle_wire {
 	__u64	wh_interface_cookie;
 	__u64	wh_object_cookie;
-} WIRE_ATTR lnet_handle_wire_t;
+} WIRE_ATTR;
 
 typedef enum {
 	LNET_MSG_ACK = 0,
@@ -147,13 +147,13 @@ typedef enum {
  * end.
  */
 typedef struct lnet_ack {
-	lnet_handle_wire_t	dst_wmd;
+	struct lnet_handle_wire	dst_wmd;
 	__u64			match_bits;
 	__u32			mlength;
 } WIRE_ATTR lnet_ack_t;
 
 typedef struct lnet_put {
-	lnet_handle_wire_t	ack_wmd;
+	struct lnet_handle_wire	ack_wmd;
 	__u64			match_bits;
 	__u64			hdr_data;
 	__u32			ptl_index;
@@ -161,7 +161,7 @@ typedef struct lnet_put {
 } WIRE_ATTR lnet_put_t;
 
 typedef struct lnet_get {
-	lnet_handle_wire_t	return_wmd;
+	struct lnet_handle_wire	return_wmd;
 	__u64			match_bits;
 	__u32			ptl_index;
 	__u32			src_offset;
@@ -169,7 +169,7 @@ typedef struct lnet_get {
 } WIRE_ATTR lnet_get_t;
 
 typedef struct lnet_reply {
-	lnet_handle_wire_t	dst_wmd;
+	struct lnet_handle_wire	dst_wmd;
 } WIRE_ATTR lnet_reply_t;
 
 typedef struct lnet_hello {

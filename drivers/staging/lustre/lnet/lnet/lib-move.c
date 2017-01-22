@@ -1326,7 +1326,7 @@ lnet_parse_get(lnet_ni_t *ni, lnet_msg_t *msg, int rdma_get)
 {
 	struct lnet_match_info info;
 	lnet_hdr_t *hdr = &msg->msg_hdr;
-	lnet_handle_wire_t reply_wmd;
+	struct lnet_handle_wire reply_wmd;
 	int rc;
 
 	/* Convert get fields to host byte order */

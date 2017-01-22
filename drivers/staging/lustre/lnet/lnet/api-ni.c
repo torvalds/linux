@@ -190,11 +190,11 @@ static void lnet_assert_wire_constants(void)
 	CLASSERT(LNET_MSG_HELLO == 4);
 
 	/* Checks for struct ptl_handle_wire_t */
-	CLASSERT((int)sizeof(lnet_handle_wire_t) == 16);
-	CLASSERT((int)offsetof(lnet_handle_wire_t, wh_interface_cookie) == 0);
-	CLASSERT((int)sizeof(((lnet_handle_wire_t *)0)->wh_interface_cookie) == 8);
-	CLASSERT((int)offsetof(lnet_handle_wire_t, wh_object_cookie) == 8);
-	CLASSERT((int)sizeof(((lnet_handle_wire_t *)0)->wh_object_cookie) == 8);
+	CLASSERT((int)sizeof(struct lnet_handle_wire) == 16);
+	CLASSERT((int)offsetof(struct lnet_handle_wire, wh_interface_cookie) == 0);
+	CLASSERT((int)sizeof(((struct lnet_handle_wire *)0)->wh_interface_cookie) == 8);
+	CLASSERT((int)offsetof(struct lnet_handle_wire, wh_object_cookie) == 8);
+	CLASSERT((int)sizeof(((struct lnet_handle_wire *)0)->wh_object_cookie) == 8);
 
 	/* Checks for struct lnet_magicversion_t */
 	CLASSERT((int)sizeof(lnet_magicversion_t) == 8);

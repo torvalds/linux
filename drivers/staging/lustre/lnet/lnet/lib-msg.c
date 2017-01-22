@@ -361,7 +361,7 @@ lnet_msg_detach_md(lnet_msg_t *msg, int status)
 static int
 lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 {
-	lnet_handle_wire_t ack_wmd;
+	struct lnet_handle_wire ack_wmd;
 	int rc;
 	int status = msg->msg_ev.status;
 
