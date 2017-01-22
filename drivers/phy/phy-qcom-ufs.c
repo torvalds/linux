@@ -242,9 +242,6 @@ static int ufs_qcom_phy_init_vreg(struct device *dev,
 			}
 			err = 0;
 		}
-		snprintf(prop_name, MAX_PROP_NAME, "%s-always-on", name);
-		vreg->is_always_on = of_property_read_bool(dev->of_node,
-							   prop_name);
 	}
 
 	if (!strcmp(name, "vdda-pll")) {
@@ -402,7 +399,7 @@ static int ufs_qcom_phy_disable_vreg(struct device *dev,
 {
 	int ret = 0;
 
-	if (!vreg || !vreg->enabled || vreg->is_always_on)
+	if (!vreg || !vreg->enabled)
 		goto out;
 
 	ret = regulator_disable(vreg->reg);
