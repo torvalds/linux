@@ -117,6 +117,10 @@
 	};
 };
 
+&saradc {
+	compatible = "amlogic,meson-gxm-saradc", "amlogic,meson-saradc";
+};
+
 &scpi_dvfs {
 	clock-indices = <0 1>;
 	clock-output-names = "vbig", "vlittle";
