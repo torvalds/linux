@@ -777,14 +777,14 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	LASSERT(bk);
 	LASSERT(bk->bk_niov * SFW_ID_PER_PAGE >= (unsigned int)ndest);
 	LASSERT((unsigned int)bk->bk_len >=
-		sizeof(lnet_process_id_packed_t) * ndest);
+		sizeof(struct lnet_process_id_packed) * ndest);
 
 	sfw_unpack_addtest_req(msg);
 	memcpy(&tsi->tsi_u, &req->tsr_u, sizeof(tsi->tsi_u));
 
 	for (i = 0; i < ndest; i++) {
-		lnet_process_id_packed_t *dests;
-		lnet_process_id_packed_t id;
+		struct lnet_process_id_packed *dests;
+		struct lnet_process_id_packed id;
 		int j;
 
 		dests = page_address(bk->bk_iovs[i / SFW_ID_PER_PAGE].bv_page);
@@ -1164,7 +1164,7 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 			len = npg * PAGE_SIZE;
 
 		} else {
-			len = sizeof(lnet_process_id_packed_t) *
+			len = sizeof(struct lnet_process_id_packed) *
 			      request->tsr_ndest;
 		}
 

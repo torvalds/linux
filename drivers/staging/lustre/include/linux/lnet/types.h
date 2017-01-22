@@ -115,11 +115,11 @@ static inline __u32 LNET_MKNET(__u32 type, __u32 num)
 #define WIRE_ATTR	__packed
 
 /* Packed version of lnet_process_id_t to transfer via network */
-typedef struct {
+struct lnet_process_id_packed {
 	/* node id / process id */
 	lnet_nid_t	nid;
 	lnet_pid_t	pid;
-} WIRE_ATTR lnet_process_id_packed_t;
+} WIRE_ATTR;
 
 /*
  * The wire handle's interface cookie only matches one network interface in
