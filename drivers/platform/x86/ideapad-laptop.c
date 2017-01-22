@@ -813,6 +813,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 			case 8:
 			case 7:
 			case 6:
+			case 1:
 				ideapad_input_report(priv, vpc_bit);
 				break;
 			case 5:
