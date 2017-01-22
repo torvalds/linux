@@ -120,7 +120,6 @@ static int e3x0_button_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, input);
 	device_init_wakeup(&pdev->dev, 1);
 	return 0;
 }
