@@ -204,11 +204,11 @@ typedef struct {
  * exchange HELLO messages when a connection is first established.  Individual
  * LNDs can put whatever else they fancy in lnet_hdr_t::msg.
  */
-typedef struct {
+struct lnet_magicversion {
 	__u32	magic;		/* LNET_PROTO_TCP_MAGIC */
 	__u16	version_major;	/* increment on incompatible change */
 	__u16	version_minor;	/* increment on compatible change */
-} WIRE_ATTR lnet_magicversion_t;
+} WIRE_ATTR;
 
 /* PROTO MAGIC for LNDs */
 #define LNET_PROTO_IB_MAGIC		0x0be91b91

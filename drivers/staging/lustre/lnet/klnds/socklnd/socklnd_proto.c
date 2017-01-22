@@ -460,11 +460,11 @@ ksocknal_send_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello)
 {
 	struct socket *sock = conn->ksnc_sock;
 	lnet_hdr_t *hdr;
-	lnet_magicversion_t *hmv;
+	struct lnet_magicversion *hmv;
 	int rc;
 	int i;
 
-	CLASSERT(sizeof(lnet_magicversion_t) == offsetof(lnet_hdr_t, src_nid));
+	CLASSERT(sizeof(struct lnet_magicversion) == offsetof(lnet_hdr_t, src_nid));
 
 	LIBCFS_ALLOC(hdr, sizeof(*hdr));
 	if (!hdr) {
@@ -472,7 +472,7 @@ ksocknal_send_hello_v1(struct ksock_conn *conn, ksock_hello_msg_t *hello)
 		return -ENOMEM;
 	}
 
-	hmv = (lnet_magicversion_t *)&hdr->dest_nid;
+	hmv = (struct lnet_magicversion *)&hdr->dest_nid;
 
 	/*
 	 * Re-organize V2.x message header to V1.x (lnet_hdr_t)

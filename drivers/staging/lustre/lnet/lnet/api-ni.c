@@ -196,14 +196,14 @@ static void lnet_assert_wire_constants(void)
 	CLASSERT((int)offsetof(struct lnet_handle_wire, wh_object_cookie) == 8);
 	CLASSERT((int)sizeof(((struct lnet_handle_wire *)0)->wh_object_cookie) == 8);
 
-	/* Checks for struct lnet_magicversion_t */
-	CLASSERT((int)sizeof(lnet_magicversion_t) == 8);
-	CLASSERT((int)offsetof(lnet_magicversion_t, magic) == 0);
-	CLASSERT((int)sizeof(((lnet_magicversion_t *)0)->magic) == 4);
-	CLASSERT((int)offsetof(lnet_magicversion_t, version_major) == 4);
-	CLASSERT((int)sizeof(((lnet_magicversion_t *)0)->version_major) == 2);
-	CLASSERT((int)offsetof(lnet_magicversion_t, version_minor) == 6);
-	CLASSERT((int)sizeof(((lnet_magicversion_t *)0)->version_minor) == 2);
+	/* Checks for struct struct lnet_magicversion */
+	CLASSERT((int)sizeof(struct lnet_magicversion) == 8);
+	CLASSERT((int)offsetof(struct lnet_magicversion, magic) == 0);
+	CLASSERT((int)sizeof(((struct lnet_magicversion *)0)->magic) == 4);
+	CLASSERT((int)offsetof(struct lnet_magicversion, version_major) == 4);
+	CLASSERT((int)sizeof(((struct lnet_magicversion *)0)->version_major) == 2);
+	CLASSERT((int)offsetof(struct lnet_magicversion, version_minor) == 6);
+	CLASSERT((int)sizeof(((struct lnet_magicversion *)0)->version_minor) == 2);
 
 	/* Checks for struct lnet_hdr_t */
 	CLASSERT((int)sizeof(lnet_hdr_t) == 72);
