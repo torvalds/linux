@@ -409,6 +409,10 @@
 	};
 };
 
+&edp_in_vopl {
+	status = "disabled";
+};
+
 &emmc_phy {
 	status = "okay";
 };
@@ -419,6 +423,15 @@
 };
 
 &hdmi {
+	status = "disabled";
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>;
+};
+
+&dp_in_vopb {
 	status = "disabled";
 };
 

@@ -1004,6 +1004,19 @@
 	};
 };
 
+&edp_in_vopl {
+	status = "disabled";
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>;
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
 &pmu_io_domains {
 	status = "okay";
 	pmu1830-supply = <&vcc_1v8>;
