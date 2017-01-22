@@ -375,7 +375,6 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-	device_init_wakeup(&pdev->dev, false);
 	free_irq(keypad_data->irq, keypad_data);
 err_free_keymap:
 	kfree(keypad_data->keymap);
@@ -400,8 +399,6 @@ static int omap4_keypad_remove(struct platform_device *pdev)
 	free_irq(keypad_data->irq, keypad_data);
 
 	pm_runtime_disable(&pdev->dev);
-
-	device_init_wakeup(&pdev->dev, false);
 
 	input_unregister_device(keypad_data->input);
 

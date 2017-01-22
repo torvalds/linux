@@ -845,8 +845,6 @@ static int gpio_keys_remove(struct platform_device *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
 
-	device_init_wakeup(&pdev->dev, 0);
-
 	return 0;
 }
 
