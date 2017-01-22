@@ -226,6 +226,8 @@ static const unsigned int uart_rts_ao_b_pins[]	= { PIN(GPIOAO_3, 0) };
 
 static const unsigned int remote_input_ao_pins[] = {PIN(GPIOAO_7, 0) };
 
+static const unsigned int pwm_ao_b_pins[]	= { PIN(GPIOAO_9, 0) };
+
 static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GPIO_GROUP(GPIOZ_0, EE_OFF),
 	GPIO_GROUP(GPIOZ_1, EE_OFF),
@@ -427,6 +429,7 @@ static struct meson_pmx_group meson_gxl_aobus_groups[] = {
 	GROUP(uart_cts_ao_b,	0,	8),
 	GROUP(uart_rts_ao_b,	0,	7),
 	GROUP(remote_input_ao,	0,	0),
+	GROUP(pwm_ao_b,		0,	3),
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -540,6 +543,10 @@ static const char * const remote_input_ao_groups[] = {
 	"remote_input_ao",
 };
 
+static const char * const pwm_ao_b_groups[] = {
+	"pwm_ao_b",
+};
+
 static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
@@ -563,6 +570,7 @@ static struct meson_pmx_func meson_gxl_aobus_functions[] = {
 	FUNCTION(uart_ao),
 	FUNCTION(uart_ao_b),
 	FUNCTION(remote_input_ao),
+	FUNCTION(pwm_ao_b),
 };
 
 static struct meson_bank meson_gxl_periphs_banks[] = {
