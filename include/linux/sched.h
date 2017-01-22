@@ -1021,6 +1021,12 @@ struct wake_q_head {
 #define DEFINE_WAKE_Q(name)				\
 	struct wake_q_head name = { WAKE_Q_TAIL, &name.first }
 
+static inline void wake_q_init(struct wake_q_head *head)
+{
+	head->first = WAKE_Q_TAIL;
+	head->lastp = &head->first;
+}
+
 extern void wake_q_add(struct wake_q_head *head,
 		       struct task_struct *task);
 extern void wake_up_q(struct wake_q_head *head);
