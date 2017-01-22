@@ -399,6 +399,18 @@ config MEN_Z188_ADC
 	  This driver can also be built as a module. If so, the module will be
 	  called men_z188_adc.
 
+config MESON_SARADC
+	tristate "Amlogic Meson SAR ADC driver"
+	default ARCH_MESON
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
+	select REGMAP_MMIO
+	help
+	  Say yes here to build support for the SAR ADC found in Amlogic Meson
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_saradc.
+
 config MXS_LRADC
         tristate "Freescale i.MX23/i.MX28 LRADC"
         depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
