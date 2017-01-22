@@ -822,13 +822,13 @@ lnet_count_acceptor_nis(void)
 	return count;
 }
 
-static lnet_ping_info_t *
+static struct lnet_ping_info *
 lnet_ping_info_create(int num_ni)
 {
-	lnet_ping_info_t *ping_info;
+	struct lnet_ping_info *ping_info;
 	unsigned int infosz;
 
-	infosz = offsetof(lnet_ping_info_t, pi_ni[num_ni]);
+	infosz = offsetof(struct lnet_ping_info, pi_ni[num_ni]);
 	LIBCFS_ALLOC(ping_info, infosz);
 	if (!ping_info) {
 		CERROR("Can't allocate ping info[%d]\n", num_ni);
@@ -860,10 +860,10 @@ lnet_get_ni_count(void)
 }
 
 static inline void
-lnet_ping_info_free(lnet_ping_info_t *pinfo)
+lnet_ping_info_free(struct lnet_ping_info *pinfo)
 {
 	LIBCFS_FREE(pinfo,
-		    offsetof(lnet_ping_info_t,
+		    offsetof(struct lnet_ping_info,
 			     pi_ni[pinfo->pi_nnis]));
 }
 
@@ -889,14 +889,14 @@ lnet_ping_info_destroy(void)
 static void
 lnet_ping_event_handler(lnet_event_t *event)
 {
-	lnet_ping_info_t *pinfo = event->md.user_ptr;
+	struct lnet_ping_info *pinfo = event->md.user_ptr;
 
 	if (event->unlinked)
 		pinfo->pi_features = LNET_PING_FEAT_INVAL;
 }
 
 static int
-lnet_ping_info_setup(lnet_ping_info_t **ppinfo, lnet_handle_md_t *md_handle,
+lnet_ping_info_setup(struct lnet_ping_info **ppinfo, lnet_handle_md_t *md_handle,
 		     int ni_count, bool set_eq)
 {
 	lnet_process_id_t id = {LNET_NID_ANY, LNET_PID_ANY};
@@ -930,7 +930,7 @@ lnet_ping_info_setup(lnet_ping_info_t **ppinfo, lnet_handle_md_t *md_handle,
 
 	/* initialize md content */
 	md.start = *ppinfo;
-	md.length = offsetof(lnet_ping_info_t,
+	md.length = offsetof(struct lnet_ping_info,
 			     pi_ni[(*ppinfo)->pi_nnis]);
 	md.threshold = LNET_MD_THRESH_INF;
 	md.max_size = 0;
@@ -961,7 +961,7 @@ failed_0:
 }
 
 static void
-lnet_ping_md_unlink(lnet_ping_info_t *pinfo, lnet_handle_md_t *md_handle)
+lnet_ping_md_unlink(struct lnet_ping_info *pinfo, lnet_handle_md_t *md_handle)
 {
 	sigset_t blocked = cfs_block_allsigs();
 
@@ -979,7 +979,7 @@ lnet_ping_md_unlink(lnet_ping_info_t *pinfo, lnet_handle_md_t *md_handle)
 }
 
 static void
-lnet_ping_info_install_locked(lnet_ping_info_t *ping_info)
+lnet_ping_info_install_locked(struct lnet_ping_info *ping_info)
 {
 	lnet_ni_status_t *ns;
 	lnet_ni_t *ni;
@@ -1003,9 +1003,9 @@ lnet_ping_info_install_locked(lnet_ping_info_t *ping_info)
 }
 
 static void
-lnet_ping_target_update(lnet_ping_info_t *pinfo, lnet_handle_md_t md_handle)
+lnet_ping_target_update(struct lnet_ping_info *pinfo, lnet_handle_md_t md_handle)
 {
-	lnet_ping_info_t *old_pinfo = NULL;
+	struct lnet_ping_info *old_pinfo = NULL;
 	lnet_handle_md_t old_md;
 
 	/* switch the NIs to point to the new ping info created */
@@ -1496,7 +1496,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	int im_a_router = 0;
 	int rc;
 	int ni_count;
-	lnet_ping_info_t *pinfo;
+	struct lnet_ping_info *pinfo;
 	lnet_handle_md_t md_handle;
 	struct list_head net_head;
 
@@ -1754,7 +1754,7 @@ int
 lnet_dyn_add_ni(lnet_pid_t requested_pid, struct lnet_ioctl_config_data *conf)
 {
 	char *nets = conf->cfg_config_u.cfg_net.net_intf;
-	lnet_ping_info_t *pinfo;
+	struct lnet_ping_info *pinfo;
 	lnet_handle_md_t md_handle;
 	struct lnet_ni *ni;
 	struct list_head net_head;
@@ -1834,7 +1834,7 @@ int
 lnet_dyn_del_ni(__u32 net)
 {
 	lnet_ni_t *ni;
-	lnet_ping_info_t *pinfo;
+	struct lnet_ping_info *pinfo;
 	lnet_handle_md_t md_handle;
 	int rc;
 
@@ -2147,7 +2147,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 	int replied = 0;
 	const int a_long_time = 60000; /* mS */
 	int infosz;
-	lnet_ping_info_t *info;
+	struct lnet_ping_info *info;
 	lnet_process_id_t tmpid;
 	int i;
 	int nob;
@@ -2155,7 +2155,7 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 	int rc2;
 	sigset_t blocked;
 
-	infosz = offsetof(lnet_ping_info_t, pi_ni[n_ids]);
+	infosz = offsetof(struct lnet_ping_info, pi_ni[n_ids]);
 
 	if (n_ids <= 0 ||
 	    id.nid == LNET_NID_ANY ||
@@ -2283,18 +2283,18 @@ static int lnet_ping(lnet_process_id_t id, int timeout_ms,
 		goto out_1;
 	}
 
-	if (nob < offsetof(lnet_ping_info_t, pi_ni[0])) {
+	if (nob < offsetof(struct lnet_ping_info, pi_ni[0])) {
 		CERROR("%s: Short reply %d(%d min)\n", libcfs_id2str(id),
-		       nob, (int)offsetof(lnet_ping_info_t, pi_ni[0]));
+		       nob, (int)offsetof(struct lnet_ping_info, pi_ni[0]));
 		goto out_1;
 	}
 
 	if (info->pi_nnis < n_ids)
 		n_ids = info->pi_nnis;
 
-	if (nob < offsetof(lnet_ping_info_t, pi_ni[n_ids])) {
+	if (nob < offsetof(struct lnet_ping_info, pi_ni[n_ids])) {
 		CERROR("%s: Short reply %d(%d expected)\n", libcfs_id2str(id),
-		       nob, (int)offsetof(lnet_ping_info_t, pi_ni[n_ids]));
+		       nob, (int)offsetof(struct lnet_ping_info, pi_ni[n_ids]));
 		goto out_1;
 	}
 

@@ -242,13 +242,13 @@ typedef struct {
 	__u32		ns_unused;
 } WIRE_ATTR lnet_ni_status_t;
 
-typedef struct {
+struct lnet_ping_info {
 	__u32			pi_magic;
 	__u32			pi_features;
 	lnet_pid_t		pi_pid;
 	__u32			pi_nnis;
 	lnet_ni_status_t	pi_ni[0];
-} WIRE_ATTR lnet_ping_info_t;
+} WIRE_ATTR;
 
 typedef struct lnet_counters {
 	__u32	msgs_alloc;

@@ -295,13 +295,13 @@ typedef struct lnet_ni {
 
 /* router checker data, per router */
 #define LNET_MAX_RTR_NIS   16
-#define LNET_PINGINFO_SIZE offsetof(lnet_ping_info_t, pi_ni[LNET_MAX_RTR_NIS])
+#define LNET_PINGINFO_SIZE offsetof(struct lnet_ping_info, pi_ni[LNET_MAX_RTR_NIS])
 typedef struct {
 	/* chain on the_lnet.ln_zombie_rcd or ln_deathrow_rcd */
 	struct list_head	 rcd_list;
 	lnet_handle_md_t	 rcd_mdh;	/* ping buffer MD */
 	struct lnet_peer	*rcd_gateway;	/* reference to gateway */
-	lnet_ping_info_t	*rcd_pinginfo;	/* ping buffer */
+	struct lnet_ping_info	*rcd_pinginfo;	/* ping buffer */
 } lnet_rc_data_t;
 
 typedef struct lnet_peer {
@@ -599,7 +599,7 @@ typedef struct {
 
 	lnet_handle_md_t		  ln_ping_target_md;
 	lnet_handle_eq_t		  ln_ping_target_eq;
-	lnet_ping_info_t		 *ln_ping_info;
+	struct lnet_ping_info		 *ln_ping_info;
 
 	/* router checker startup/shutdown state */
 	int				  ln_rc_state;

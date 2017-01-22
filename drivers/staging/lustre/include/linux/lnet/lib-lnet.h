@@ -664,7 +664,7 @@ int lnet_peer_buffer_credits(lnet_ni_t *ni);
 int lnet_router_checker_start(void);
 void lnet_router_checker_stop(void);
 void lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net);
-void lnet_swap_pinginfo(lnet_ping_info_t *info);
+void lnet_swap_pinginfo(struct lnet_ping_info *info);
 
 int lnet_parse_ip2nets(char **networksp, char *ip2nets);
 int lnet_parse_routes(char *route_str, int *im_a_router);
