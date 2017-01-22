@@ -237,7 +237,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 	int i;
 
 	if (!client->irq) {
-		dev_err(&client->dev, "irq number should not be zero\n");
+		dev_err(dev, "irq number should not be zero\n");
 		return -EINVAL;
 	}
 
@@ -247,11 +247,11 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 
 	vdd_uv = regulator_get_voltage(vdd_supply);
 
-	mpr121 = devm_kzalloc(&client->dev, sizeof(*mpr121), GFP_KERNEL);
+	mpr121 = devm_kzalloc(dev, sizeof(*mpr121), GFP_KERNEL);
 	if (!mpr121)
 		return -ENOMEM;
 
-	input_dev = devm_input_allocate_device(&client->dev);
+	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
 		return -ENOMEM;
 
@@ -275,7 +275,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 
 	input_dev->name = "Freescale MPR121 Touchkey";
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
+	input_dev->dev.parent = dev;
 	if (device_property_read_bool(dev, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -289,16 +289,16 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 
 	error = mpr121_phys_init(mpr121, client, vdd_uv);
 	if (error) {
-		dev_err(&client->dev, "Failed to init register\n");
+		dev_err(dev, "Failed to init register\n");
 		return error;
 	}
 
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, mpr_touchkey_interrupt,
+	error = devm_request_threaded_irq(dev, client->irq, NULL,
+					  mpr_touchkey_interrupt,
 					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					  client->dev.driver->name, mpr121);
+					  dev->driver->name, mpr121);
 	if (error) {
-		dev_err(&client->dev, "Failed to register interrupt\n");
+		dev_err(dev, "Failed to register interrupt\n");
 		return error;
 	}
 
