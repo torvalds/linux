@@ -147,8 +147,7 @@ static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
 	return NULL;
 }
 
-static struct iio_trigger *iio_trigger_find_by_name(const char *name,
-						    size_t len)
+static struct iio_trigger *iio_trigger_acquire_by_name(const char *name)
 {
 	struct iio_trigger *trig = NULL, *iter;
 
@@ -156,6 +155,7 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 	list_for_each_entry(iter, &iio_trigger_list, list)
 		if (sysfs_streq(iter->name, name)) {
 			trig = iter;
+			iio_trigger_get(trig);
 			break;
 		}
 	mutex_unlock(&iio_trigger_list_lock);
@@ -416,20 +416,22 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	}
 	mutex_unlock(&indio_dev->mlock);
 
-	trig = iio_trigger_find_by_name(buf, len);
-	if (oldtrig == trig)
-		return len;
+	trig = iio_trigger_acquire_by_name(buf);
+	if (oldtrig == trig) {
+		ret = len;
+		goto out_trigger_put;
+	}
 
 	if (trig && indio_dev->info->validate_trigger) {
 		ret = indio_dev->info->validate_trigger(indio_dev, trig);
 		if (ret)
-			return ret;
+			goto out_trigger_put;
 	}
 
 	if (trig && trig->ops->validate_device) {
 		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
-			return ret;
+			goto out_trigger_put;
 	}
 
 	indio_dev->trig = trig;
@@ -441,13 +443,16 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 		iio_trigger_put(oldtrig);
 	}
 	if (indio_dev->trig) {
-		iio_trigger_get(indio_dev->trig);
 		if (indio_dev->modes & INDIO_EVENT_TRIGGERED)
 			iio_trigger_attach_poll_func(indio_dev->trig,
 						     indio_dev->pollfunc_event);
 	}
 
 	return len;
+
+out_trigger_put:
+	iio_trigger_put(trig);
+	return ret;
 }
 
 static DEVICE_ATTR(current_trigger, S_IRUGO | S_IWUSR,
