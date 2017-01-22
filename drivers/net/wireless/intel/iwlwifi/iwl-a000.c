@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,8 +72,9 @@
 #define IWL_A000_SMEM_OFFSET		0x400000
 #define IWL_A000_SMEM_LEN		0x68000
 
-#define IWL_A000_JF_FW_PRE "iwlwifi-Qu-a0-jf-b0-"
-#define IWL_A000_HR_FW_PRE "iwlwifi-Qu-a0-hr-a0-"
+#define IWL_A000_JF_FW_PRE	"iwlwifi-Qu-a0-jf-b0-"
+#define IWL_A000_HR_FW_PRE	"iwlwifi-Qu-a0-hr-a0-"
+#define IWL_A000_HR_CDB_FW_PRE	"iwlwifi-QuIcp-a0-hrcdb-a0-"
 
 #define IWL_A000_HR_MODULE_FIRMWARE(api) \
 	IWL_A000_HR_FW_PRE "-" __stringify(api) ".ucode"
@@ -132,6 +133,17 @@ const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.nvm_ver = IWL_A000_NVM_VERSION,
 		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
+const struct iwl_cfg iwla000_2ac_cfg_hr_cdb = {
+		.name = "Intel(R) Dual Band Wireless AC a000",
+		.fw_name_pre = IWL_A000_HR_CDB_FW_PRE,
+		IWL_DEVICE_A000,
+		.ht_params = &iwl_a000_ht_params,
+		.nvm_ver = IWL_A000_NVM_VERSION,
+		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+		.cdb = true,
 };
 
 const struct iwl_cfg iwla000_2ac_cfg_jf = {

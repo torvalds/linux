@@ -314,6 +314,7 @@ struct iwl_pwr_tx_backoff {
  * @rf_id: need to read rf_id to determine the firmware image
  * @integrated: discrete or integrated
  * @gen2: a000 and on transport operation
+ * @cdb: CDB support
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -360,7 +361,8 @@ struct iwl_cfg {
 	    rf_id:1,
 	    integrated:1,
 	    use_tfh:1,
-	    gen2:1;
+	    gen2:1,
+	    cdb:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -450,6 +452,7 @@ extern const struct iwl_cfg iwl9270_2ac_cfg;
 extern const struct iwl_cfg iwl9460_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwla000_2ac_cfg_hr;
+extern const struct iwl_cfg iwla000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwla000_2ac_cfg_jf;
 #endif /* CONFIG_IWLMVM */
 
