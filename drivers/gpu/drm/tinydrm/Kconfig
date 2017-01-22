@@ -11,3 +11,11 @@ menuconfig DRM_TINYDRM
 
 config TINYDRM_MIPI_DBI
 	tristate
+
+config TINYDRM_MI0283QT
+	tristate "DRM support for MI0283QT"
+	depends on DRM_TINYDRM && SPI
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver for the Multi-Inno MI0283QT display panel
+	  If M is selected the module will be called mi0283qt.

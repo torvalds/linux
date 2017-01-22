@@ -4245,6 +4245,12 @@ S:	Supported
 F:	drivers/gpu/drm/mediatek/
 F:	Documentation/devicetree/bindings/display/mediatek/
 
+DRM DRIVER FOR MI0283QT
+M:	Noralf Trønnes <noralf@tronnes.org>
+S:	Maintained
+F:	drivers/gpu/drm/tinydrm/mi0283qt.c
+F:	Documentation/devicetree/bindings/display/multi-inno,mi0283qt.txt
+
 DRM DRIVER FOR MSM ADRENO GPU
 M:	Rob Clark <robdclark@gmail.com>
 L:	linux-arm-msm@vger.kernel.org
