@@ -335,6 +335,11 @@ static inline void sdcardfs_put_reset_##pname(const struct dentry *dent) \
 SDCARDFS_DENT_FUNC(lower_path)
 SDCARDFS_DENT_FUNC(orig_path)
 
+static inline bool sbinfo_has_sdcard_magic(struct sdcardfs_sb_info *sbinfo)
+{
+  return sbinfo && sbinfo->sb && sbinfo->sb->s_magic == SDCARDFS_SUPER_MAGIC;
+}
+
 /* grab a refererence if we aren't linking to ourself */
 static inline void set_top(struct sdcardfs_inode_info *info, struct inode *top)
 {
@@ -442,18 +447,28 @@ extern struct list_head sdcardfs_super_list;
 
 /* for packagelist.c */
 extern appid_t get_appid(const char *app_name);
+extern appid_t is_excluded(const char *app_name, userid_t userid);
 extern int check_caller_access_to_name(struct inode *parent_node, const char* name);
 extern int open_flags_to_access_mode(int open_flags);
 extern int packagelist_init(void);
 extern void packagelist_exit(void);
 
 /* for derived_perm.c */
+#define BY_NAME		(1 << 0)
+#define BY_USERID	(1 << 1)
+struct limit_search {
+	unsigned int flags;
+	const char *name;
+	size_t length;
+	userid_t userid;
+};
+
 extern void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 			uid_t uid, bool under_android, struct inode *top);
 extern void get_derived_permission(struct dentry *parent, struct dentry *dentry);
 extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, struct dentry *newdentry);
 extern void fixup_top_recursive(struct dentry *parent);
-extern void fixup_perms_recursive(struct dentry *dentry, const char *name, size_t len);
+extern void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit);
 
 extern void update_derived_permission_lock(struct dentry *dentry);
 extern int need_graft_path(struct dentry *dentry);
