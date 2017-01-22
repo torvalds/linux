@@ -146,36 +146,36 @@ typedef enum {
  * wire structs MUST be fixed size and the smaller types are placed at the
  * end.
  */
-typedef struct lnet_ack {
+struct lnet_ack {
 	struct lnet_handle_wire	dst_wmd;
 	__u64			match_bits;
 	__u32			mlength;
-} WIRE_ATTR lnet_ack_t;
+} WIRE_ATTR;
 
-typedef struct lnet_put {
+struct lnet_put {
 	struct lnet_handle_wire	ack_wmd;
 	__u64			match_bits;
 	__u64			hdr_data;
 	__u32			ptl_index;
 	__u32			offset;
-} WIRE_ATTR lnet_put_t;
+} WIRE_ATTR;
 
-typedef struct lnet_get {
+struct lnet_get {
 	struct lnet_handle_wire	return_wmd;
 	__u64			match_bits;
 	__u32			ptl_index;
 	__u32			src_offset;
 	__u32			sink_length;
-} WIRE_ATTR lnet_get_t;
+} WIRE_ATTR;
 
-typedef struct lnet_reply {
+struct lnet_reply {
 	struct lnet_handle_wire	dst_wmd;
-} WIRE_ATTR lnet_reply_t;
+} WIRE_ATTR;
 
-typedef struct lnet_hello {
+struct lnet_hello {
 	__u64			incarnation;
 	__u32			type;
-} WIRE_ATTR lnet_hello_t;
+} WIRE_ATTR;
 
 struct lnet_hdr {
 	lnet_nid_t	dest_nid;
@@ -186,11 +186,11 @@ struct lnet_hdr {
 	__u32		payload_length;	/* payload data to follow */
 	/*<------__u64 aligned------->*/
 	union {
-		lnet_ack_t	ack;
-		lnet_put_t	put;
-		lnet_get_t	get;
-		lnet_reply_t	reply;
-		lnet_hello_t	hello;
+		struct lnet_ack		ack;
+		struct lnet_put		put;
+		struct lnet_get		get;
+		struct lnet_reply	reply;
+		struct lnet_hello	hello;
 	} msg;
 } WIRE_ATTR;
 
