@@ -101,9 +101,9 @@ static int rockchip_pll_clk_set_postdiv(unsigned long fout_hz,
 					return 0;
 				}
 			}
-			pr_err("CANNOT FIND postdiv1/2 to make fout in range from 800M to 2000M,fout = %lu\n",
-			       fout_hz);
 		}
+		pr_err("CANNOT FIND postdiv1/2 to make fout in range from 800M to 2000M,fout = %lu\n",
+		       fout_hz);
 	} else {
 		*postdiv1 = 1;
 		*postdiv2 = 1;
