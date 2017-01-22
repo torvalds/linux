@@ -73,56 +73,6 @@ struct rockchip_hdmi {
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
 
-#define CLK_SLOP(clk)		((clk) / 1000)
-#define CLK_PLUS_SLOP(clk)	((clk) + CLK_SLOP(clk))
-
-static const int dw_hdmi_rates[] = {
-	25176471,	/* for 25.175 MHz, 0.006% off */
-	25200000,
-	27000000,
-	28320000,
-	30240000,
-	31500000,
-	32000000,
-	33750000,
-	36000000,
-	40000000,
-	49500000,
-	50000000,
-	54000000,
-	57290323,	/* for 57.284 MHz, .011 % off */
-	65000000,
-	68250000,
-	71000000,
-	72000000,
-	73250000,
-	74250000,
-	74437500,	/* for 74.44 MHz, .003% off */
-	75000000,
-	78750000,
-	78800000,
-	79500000,
-	83500000,
-	85500000,
-	88750000,
-	97750000,
-	101000000,
-	106500000,
-	108000000,
-	115500000,
-	118666667,	/* for 118.68 MHz, .011% off */
-	119000000,
-	121714286,	/* for 121.75 MHz, .029% off */
-	135000000,
-	136800000,	/* for 136.75 MHz, .037% off */
-	146250000,
-	148500000,
-	154000000,
-	162000000,
-	297000000,
-	594000000,
-};
-
 /*
  * There are some rates that would be ranged for better clock jitter at
  * Chrome OS tree, like 25.175Mhz would range to 25.170732Mhz. But due
@@ -290,14 +240,11 @@ static enum drm_mode_status
 dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
 {
-	int pclk = mode->clock * 1000;
-	int num_rates = ARRAY_SIZE(dw_hdmi_rates);
 	struct drm_encoder *encoder = connector->encoder;
 	enum drm_mode_status status = MODE_OK;
 	struct drm_device *dev = connector->dev;
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	int i;
 
 	/*
 	 * Pixel clocks we support are always < 2GHz and so fit in an
@@ -306,14 +253,6 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	 */
 	if (mode->clock > INT_MAX / 1000)
 		return MODE_BAD;
-
-	for (i = 0; i < num_rates; i++) {
-		int slop = CLK_SLOP(pclk);
-
-		if ((pclk >= dw_hdmi_rates[i] - slop) &&
-		    (pclk <= dw_hdmi_rates[i] + slop))
-			return MODE_BAD;
-	}
 
 	if (!encoder) {
 		const struct drm_connector_helper_funcs *funcs;
@@ -358,46 +297,6 @@ static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 
 static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
-}
-
-static bool
-dw_hdmi_rockchip_encoder_mode_fixup(struct drm_encoder *encoder,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adj_mode)
-{
-	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
-	int pclk = adj_mode->clock * 1000;
-	int best_diff = INT_MAX;
-	int best_clock = 0;
-	int slop;
-	int i;
-
-	/* Pick the best clock */
-	for (i = 0; i < ARRAY_SIZE(dw_hdmi_rates); i++) {
-		int diff = dw_hdmi_rates[i] - pclk;
-
-		if (diff < 0)
-			diff = -diff;
-		if (diff < best_diff) {
-			best_diff = diff;
-			best_clock = dw_hdmi_rates[i];
-
-			/* Bail early if we're exact */
-			if (best_diff == 0)
-				return true;
-		}
-	}
-
-	/* Double check that it's OK */
-	slop = CLK_SLOP(pclk);
-	if ((pclk >= best_clock - slop) && (pclk <= best_clock + slop)) {
-		adj_mode->clock = DIV_ROUND_UP(best_clock, 1000);
-		return true;
-	}
-
-	/* Shoudn't be here; we should have said rate wasn't valid */
-	dev_warn(hdmi->dev, "tried to set invalid rate %d\n", adj_mode->clock);
-	return false;
 }
 
 static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
@@ -449,7 +348,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_funcs = {
-	.mode_fixup = dw_hdmi_rockchip_encoder_mode_fixup,
 	.enable     = dw_hdmi_rockchip_encoder_enable,
 	.disable    = dw_hdmi_rockchip_encoder_disable,
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
