@@ -217,12 +217,7 @@ static int __ufs_qcom_phy_init_vreg(struct device *dev,
 
 	char prop_name[MAX_PROP_NAME];
 
-	vreg->name = devm_kstrdup(dev, name, GFP_KERNEL);
-	if (!vreg->name) {
-		err = -ENOMEM;
-		goto out;
-	}
-
+	vreg->name = name;
 	vreg->reg = devm_regulator_get(dev, name);
 	if (IS_ERR(vreg->reg)) {
 		err = PTR_ERR(vreg->reg);
@@ -265,8 +260,6 @@ static int __ufs_qcom_phy_init_vreg(struct device *dev,
 	}
 
 out:
-	if (err)
-		kfree(vreg->name);
 	return err;
 }
 
