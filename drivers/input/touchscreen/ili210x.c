@@ -280,7 +280,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		goto err_remove_sysfs;
 	}
 
-	device_init_wakeup(&client->dev, 1);
+	device_init_wakeup(dev, 1);
 
 	dev_dbg(dev,
 		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",
