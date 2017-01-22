@@ -747,7 +747,9 @@ static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
  * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
  *
  * @np: Device tree node that uses the nvmem cell.
- * @name: nvmem cell name from nvmem-cell-names property.
+ * @name: nvmem cell name from nvmem-cell-names property, or NULL
+ *	  for the cell at index 0 (the lone cell with no accompanying
+ *	  nvmem-cell-names property).
  *
  * Return: Will be an ERR_PTR() on error or a valid pointer
  * to a struct nvmem_cell.  The nvmem_cell will be freed by the
@@ -760,9 +762,12 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 	struct nvmem_cell *cell;
 	struct nvmem_device *nvmem;
 	const __be32 *addr;
-	int rval, len, index;
+	int rval, len;
+	int index = 0;
 
-	index = of_property_match_string(np, "nvmem-cell-names", name);
+	/* if cell name exists, find index to the name */
+	if (name)
+		index = of_property_match_string(np, "nvmem-cell-names", name);
 
 	cell_np = of_parse_phandle(np, "nvmem-cells", index);
 	if (!cell_np)
