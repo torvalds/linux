@@ -105,7 +105,7 @@ typedef struct lnet_msg {
 	lnet_kiov_t		*msg_kiov;
 
 	lnet_event_t		 msg_ev;
-	lnet_hdr_t		 msg_hdr;
+	struct lnet_hdr		 msg_hdr;
 } lnet_msg_t;
 
 typedef struct lnet_libhandle {

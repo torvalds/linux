@@ -205,64 +205,64 @@ static void lnet_assert_wire_constants(void)
 	CLASSERT((int)offsetof(struct lnet_magicversion, version_minor) == 6);
 	CLASSERT((int)sizeof(((struct lnet_magicversion *)0)->version_minor) == 2);
 
-	/* Checks for struct lnet_hdr_t */
-	CLASSERT((int)sizeof(lnet_hdr_t) == 72);
-	CLASSERT((int)offsetof(lnet_hdr_t, dest_nid) == 0);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->dest_nid) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, src_nid) == 8);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->src_nid) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, dest_pid) == 16);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->dest_pid) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, src_pid) == 20);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->src_pid) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, type) == 24);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->type) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, payload_length) == 28);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->payload_length) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg) == 40);
+	/* Checks for struct struct lnet_hdr */
+	CLASSERT((int)sizeof(struct lnet_hdr) == 72);
+	CLASSERT((int)offsetof(struct lnet_hdr, dest_nid) == 0);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->dest_nid) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, src_nid) == 8);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->src_nid) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, dest_pid) == 16);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->dest_pid) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, src_pid) == 20);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->src_pid) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, type) == 24);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->type) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, payload_length) == 28);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->payload_length) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg) == 40);
 
 	/* Ack */
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.ack.dst_wmd) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.ack.dst_wmd) == 16);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.ack.match_bits) == 48);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.ack.match_bits) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.ack.mlength) == 56);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.ack.mlength) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.ack.dst_wmd) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.ack.dst_wmd) == 16);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.ack.match_bits) == 48);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.ack.match_bits) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.ack.mlength) == 56);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.ack.mlength) == 4);
 
 	/* Put */
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.put.ack_wmd) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.put.ack_wmd) == 16);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.put.match_bits) == 48);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.put.match_bits) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.put.hdr_data) == 56);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.put.hdr_data) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.put.ptl_index) == 64);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.put.ptl_index) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.put.offset) == 68);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.put.offset) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.put.ack_wmd) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.put.ack_wmd) == 16);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.put.match_bits) == 48);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.put.match_bits) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.put.hdr_data) == 56);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.put.hdr_data) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.put.ptl_index) == 64);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.put.ptl_index) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.put.offset) == 68);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.put.offset) == 4);
 
 	/* Get */
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.get.return_wmd) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.get.return_wmd) == 16);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.get.match_bits) == 48);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.get.match_bits) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.get.ptl_index) == 56);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.get.ptl_index) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.get.src_offset) == 60);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.get.src_offset) == 4);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.get.sink_length) == 64);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.get.sink_length) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.get.return_wmd) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.get.return_wmd) == 16);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.get.match_bits) == 48);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.get.match_bits) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.get.ptl_index) == 56);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.get.ptl_index) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.get.src_offset) == 60);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.get.src_offset) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.get.sink_length) == 64);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.get.sink_length) == 4);
 
 	/* Reply */
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.reply.dst_wmd) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.reply.dst_wmd) == 16);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.reply.dst_wmd) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.reply.dst_wmd) == 16);
 
 	/* Hello */
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.hello.incarnation) == 32);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.hello.incarnation) == 8);
-	CLASSERT((int)offsetof(lnet_hdr_t, msg.hello.type) == 40);
-	CLASSERT((int)sizeof(((lnet_hdr_t *)0)->msg.hello.type) == 4);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.hello.incarnation) == 32);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.hello.incarnation) == 8);
+	CLASSERT((int)offsetof(struct lnet_hdr, msg.hello.type) == 40);
+	CLASSERT((int)sizeof(((struct lnet_hdr *)0)->msg.hello.type) == 4);
 }
 
 static lnd_t *

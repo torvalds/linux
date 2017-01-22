@@ -177,7 +177,7 @@ typedef struct lnet_hello {
 	__u32			type;
 } WIRE_ATTR lnet_hello_t;
 
-typedef struct {
+struct lnet_hdr {
 	lnet_nid_t	dest_nid;
 	lnet_nid_t	src_nid;
 	lnet_pid_t	dest_pid;
@@ -192,7 +192,7 @@ typedef struct {
 		lnet_reply_t	reply;
 		lnet_hello_t	hello;
 	} msg;
-} WIRE_ATTR lnet_hdr_t;
+} WIRE_ATTR;
 
 /*
  * A HELLO message contains a magic number and protocol version
@@ -202,7 +202,7 @@ typedef struct {
  * This is for use by byte-stream LNDs (e.g. TCP/IP) to check the peer is
  * running the same protocol and to find out its NID. These LNDs should
  * exchange HELLO messages when a connection is first established.  Individual
- * LNDs can put whatever else they fancy in lnet_hdr_t::msg.
+ * LNDs can put whatever else they fancy in struct lnet_hdr::msg.
  */
 struct lnet_magicversion {
 	__u32	magic;		/* LNET_PROTO_TCP_MAGIC */

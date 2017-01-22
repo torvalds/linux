@@ -56,7 +56,7 @@ lnet_build_unlink_event(lnet_libmd_t *md, lnet_event_t *ev)
 void
 lnet_build_msg_event(lnet_msg_t *msg, lnet_event_kind_t ev_type)
 {
-	lnet_hdr_t *hdr = &msg->msg_hdr;
+	struct lnet_hdr *hdr = &msg->msg_hdr;
 	lnet_event_t *ev  = &msg->msg_ev;
 
 	LASSERT(!msg->msg_routing);

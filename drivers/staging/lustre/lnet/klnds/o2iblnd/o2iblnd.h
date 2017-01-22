@@ -364,7 +364,7 @@ struct kib_connparams {
 } WIRE_ATTR;
 
 struct kib_immediate_msg {
-	lnet_hdr_t   ibim_hdr;        /* portals header */
+	struct lnet_hdr	ibim_hdr;        /* portals header */
 	char         ibim_payload[0]; /* piggy-backed payload */
 } WIRE_ATTR;
 
@@ -380,7 +380,7 @@ struct kib_rdma_desc {
 } WIRE_ATTR;
 
 struct kib_putreq_msg {
-	lnet_hdr_t      ibprm_hdr;    /* portals header */
+	struct lnet_hdr	ibprm_hdr;    /* portals header */
 	__u64           ibprm_cookie; /* opaque completion cookie */
 } WIRE_ATTR;
 
@@ -391,7 +391,7 @@ struct kib_putack_msg {
 } WIRE_ATTR;
 
 struct kib_get_msg {
-	lnet_hdr_t      ibgm_hdr;     /* portals header */
+	struct lnet_hdr ibgm_hdr;     /* portals header */
 	__u64           ibgm_cookie;  /* opaque completion cookie */
 	struct kib_rdma_desc ibgm_rd;      /* rdma descriptor */
 } WIRE_ATTR;

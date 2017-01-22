@@ -552,7 +552,7 @@ int lnet_portals_create(void);
 void lnet_portals_destroy(void);
 
 /* message functions */
-int lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr,
+int lnet_parse(lnet_ni_t *ni, struct lnet_hdr *hdr,
 	       lnet_nid_t fromnid, void *private, int rdma_req);
 int lnet_parse_local(lnet_ni_t *ni, lnet_msg_t *msg);
 int lnet_parse_forward_locked(lnet_ni_t *ni, lnet_msg_t *msg);
@@ -579,7 +579,7 @@ void lnet_msg_containers_destroy(void);
 int lnet_msg_containers_create(void);
 
 char *lnet_msgtyp2str(int type);
-void lnet_print_hdr(lnet_hdr_t *hdr);
+void lnet_print_hdr(struct lnet_hdr *hdr);
 int lnet_fail_nid(lnet_nid_t nid, unsigned int threshold);
 
 /** \addtogroup lnet_fault_simulation @{ */
@@ -588,7 +588,7 @@ int lnet_fault_ctl(int cmd, struct libcfs_ioctl_data *data);
 int lnet_fault_init(void);
 void lnet_fault_fini(void);
 
-bool lnet_drop_rule_match(lnet_hdr_t *hdr);
+bool lnet_drop_rule_match(struct lnet_hdr *hdr);
 
 int lnet_delay_rule_add(struct lnet_fault_attr *attr);
 int lnet_delay_rule_del(lnet_nid_t src, lnet_nid_t dst, bool shutdown);
@@ -596,7 +596,7 @@ int lnet_delay_rule_list(int pos, struct lnet_fault_attr *attr,
 			 struct lnet_fault_stat *stat);
 void lnet_delay_rule_reset(void);
 void lnet_delay_rule_check(void);
-bool lnet_delay_rule_match_locked(lnet_hdr_t *hdr, struct lnet_msg *msg);
+bool lnet_delay_rule_match_locked(struct lnet_hdr *hdr, struct lnet_msg *msg);
 
 /** @} lnet_fault_simulation */
 

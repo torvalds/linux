@@ -1073,14 +1073,14 @@ ksocknal_new_packet(struct ksock_conn *conn, int nob_to_skip)
 			break;
 
 		case KSOCK_PROTO_V1:
-			/* Receiving bare lnet_hdr_t */
+			/* Receiving bare struct lnet_hdr */
 			conn->ksnc_rx_state = SOCKNAL_RX_LNET_HEADER;
-			conn->ksnc_rx_nob_wanted = sizeof(lnet_hdr_t);
-			conn->ksnc_rx_nob_left = sizeof(lnet_hdr_t);
+			conn->ksnc_rx_nob_wanted = sizeof(struct lnet_hdr);
+			conn->ksnc_rx_nob_left = sizeof(struct lnet_hdr);
 
 			conn->ksnc_rx_iov = (struct kvec *)&conn->ksnc_rx_iov_space;
 			conn->ksnc_rx_iov[0].iov_base = &conn->ksnc_msg.ksm_u.lnetmsg;
-			conn->ksnc_rx_iov[0].iov_len = sizeof(lnet_hdr_t);
+			conn->ksnc_rx_iov[0].iov_len = sizeof(struct lnet_hdr);
 			break;
 
 		default:
@@ -1126,7 +1126,7 @@ ksocknal_new_packet(struct ksock_conn *conn, int nob_to_skip)
 static int
 ksocknal_process_receive(struct ksock_conn *conn)
 {
-	lnet_hdr_t *lhdr;
+	struct lnet_hdr *lhdr;
 	lnet_process_id_t *id;
 	int rc;
 

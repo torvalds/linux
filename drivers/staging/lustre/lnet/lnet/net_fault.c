@@ -349,7 +349,7 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
  * Check if message from \a src to \a dst can match any existed drop rule
  */
 bool
-lnet_drop_rule_match(lnet_hdr_t *hdr)
+lnet_drop_rule_match(struct lnet_hdr *hdr)
 {
 	struct lnet_drop_rule *rule;
 	lnet_nid_t src = le64_to_cpu(hdr->src_nid);
@@ -530,7 +530,7 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
  * will be delayed if there is a match.
  */
 bool
-lnet_delay_rule_match_locked(lnet_hdr_t *hdr, struct lnet_msg *msg)
+lnet_delay_rule_match_locked(struct lnet_hdr *hdr, struct lnet_msg *msg)
 {
 	struct lnet_delay_rule *rule;
 	lnet_nid_t src = le64_to_cpu(hdr->src_nid);

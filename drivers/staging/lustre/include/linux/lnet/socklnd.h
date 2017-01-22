@@ -60,7 +60,7 @@ typedef struct {
 } WIRE_ATTR ksock_hello_msg_t;
 
 typedef struct {
-	lnet_hdr_t	ksnm_hdr;	/* lnet hdr */
+	struct lnet_hdr	ksnm_hdr;	/* lnet hdr */
 
 	/*
 	 * ksnm_payload is removed because of winnt compiler's limitation:
