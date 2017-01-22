@@ -158,11 +158,11 @@ as its prone to starvation without deadline scheduling.
 Consider two sibling groups A and B; both have 50% bandwidth, but A's
 period is twice the length of B's.
 
-* group A: period=100000us, runtime=10000us
-	- this runs for 0.01s once every 0.1s
+* group A: period=100000us, runtime=50000us
+	- this runs for 0.05s once every 0.1s
 
-* group B: period= 50000us, runtime=10000us
-	- this runs for 0.01s twice every 0.1s (or once every 0.05 sec).
+* group B: period= 50000us, runtime=25000us
+	- this runs for 0.025s twice every 0.1s (or once every 0.05 sec).
 
 This means that currently a while (1) loop in A will run for the full period of
 B and can starve B's tasks (assuming they are of lower priority) for a whole
