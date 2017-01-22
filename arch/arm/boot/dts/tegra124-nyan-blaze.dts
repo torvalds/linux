@@ -6,7 +6,13 @@
 
 / {
 	model = "HP Chromebook 14";
-	compatible = "google,nyan-blaze", "google,nyan", "nvidia,tegra124";
+	compatible = "google,nyan-blaze-rev10", "google,nyan-blaze-rev9",
+		     "google,nyan-blaze-rev8", "google,nyan-blaze-rev7",
+		     "google,nyan-blaze-rev6", "google,nyan-blaze-rev5",
+		     "google,nyan-blaze-rev4", "google,nyan-blaze-rev3",
+		     "google,nyan-blaze-rev2", "google,nyan-blaze-rev1",
+		     "google,nyan-blaze-rev0", "google,nyan-blaze",
+		     "google,nyan", "nvidia,tegra124";
 
 	panel: panel {
 		compatible = "samsung,ltn140at29-301";
