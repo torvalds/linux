@@ -22,7 +22,7 @@
  */
 
 #ifndef _SMU7_CLOCK_POWER_GATING_H_
-#define _SMU7_CLOCK__POWER_GATING_H_
+#define _SMU7_CLOCK_POWER_GATING_H_
 
 #include "smu7_hwmgr.h"
 #include "pp_asicblocks.h"
