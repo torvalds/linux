@@ -225,7 +225,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			continue;
 
 		if (!strcmp(name, "cpu")) {
-			if (!dst->cpu_switch) {
+			if (dst->cpu_switch) {
 				netdev_err(dst->master_netdev,
 					   "multiple cpu ports?!\n");
 				return -EINVAL;
