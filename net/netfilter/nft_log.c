@@ -38,7 +38,8 @@ static void nft_log_eval(const struct nft_expr *expr,
 
 static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_GROUP]	= { .type = NLA_U16 },
-	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING },
+	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING,
+				    .len = NF_LOG_PREFIXLEN - 1 },
 	[NFTA_LOG_SNAPLEN]	= { .type = NLA_U32 },
 	[NFTA_LOG_QTHRESHOLD]	= { .type = NLA_U16 },
 	[NFTA_LOG_LEVEL]	= { .type = NLA_U32 },
