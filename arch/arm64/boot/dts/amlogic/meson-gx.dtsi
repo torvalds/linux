@@ -332,6 +332,13 @@
 				status = "disabled";
 			};
 
+			pwm_AO_ab: pwm@550 {
+				compatible = "amlogic,meson-gx-pwm", "amlogic,meson-gxbb-pwm";
+				reg = <0x0 0x00550 0x0 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
 			ir: ir@580 {
 				compatible = "amlogic,meson-gxbb-ir";
 				reg = <0x0 0x00580 0x0 0x40>;
