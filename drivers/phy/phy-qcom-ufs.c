@@ -210,8 +210,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_init_clks);
 
-static int __ufs_qcom_phy_init_vreg(struct device *dev,
-		struct ufs_qcom_phy_vreg *vreg, const char *name, bool optional)
+static int ufs_qcom_phy_init_vreg(struct device *dev,
+				  struct ufs_qcom_phy_vreg *vreg,
+				  const char *name)
 {
 	int err = 0;
 
@@ -221,9 +222,7 @@ static int __ufs_qcom_phy_init_vreg(struct device *dev,
 	vreg->reg = devm_regulator_get(dev, name);
 	if (IS_ERR(vreg->reg)) {
 		err = PTR_ERR(vreg->reg);
-		vreg->reg = NULL;
-		if (!optional)
-			dev_err(dev, "failed to get %s, %d\n", name, err);
+		dev_err(dev, "failed to get %s, %d\n", name, err);
 		goto out;
 	}
 
@@ -263,12 +262,6 @@ out:
 	return err;
 }
 
-static int ufs_qcom_phy_init_vreg(struct device *dev,
-			struct ufs_qcom_phy_vreg *vreg, const char *name)
-{
-	return __ufs_qcom_phy_init_vreg(dev, vreg, name, false);
-}
-
 int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common)
 {
 	int err;
@@ -284,9 +277,9 @@ int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common)
 	if (err)
 		goto out;
 
-	/* vddp-ref-clk-* properties are optional */
-	__ufs_qcom_phy_init_vreg(phy_common->dev, &phy_common->vddp_ref_clk,
-				 "vddp-ref-clk", true);
+	err = ufs_qcom_phy_init_vreg(phy_common->dev, &phy_common->vddp_ref_clk,
+				     "vddp-ref-clk");
+
 out:
 	return err;
 }
