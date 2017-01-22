@@ -292,6 +292,11 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 {
 	int pclk = mode->clock * 1000;
 	int num_rates = ARRAY_SIZE(dw_hdmi_rates);
+	struct drm_encoder *encoder = connector->encoder;
+	enum drm_mode_status status = MODE_OK;
+	struct drm_device *dev = connector->dev;
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
 	int i;
 
 	/*
@@ -307,10 +312,44 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 
 		if ((pclk >= dw_hdmi_rates[i] - slop) &&
 		    (pclk <= dw_hdmi_rates[i] + slop))
-			return MODE_OK;
+			return MODE_BAD;
 	}
 
-	return MODE_BAD;
+	if (!encoder) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		funcs = connector->helper_private;
+		if (funcs->atomic_best_encoder)
+			encoder = funcs->atomic_best_encoder(connector,
+							     connector->state);
+		else
+			encoder = funcs->best_encoder(connector);
+	}
+
+	if (!encoder || !encoder->possible_crtcs)
+		return MODE_BAD;
+	/*
+	 * ensure all drm display mode can work, if someone want support more
+	 * resolutions, please limit the possible_crtc, only connect to
+	 * needed crtc.
+	 */
+	drm_for_each_crtc(crtc, connector->dev) {
+		int pipe = drm_crtc_index(crtc);
+		const struct rockchip_crtc_funcs *funcs =
+						priv->crtc_funcs[pipe];
+
+		if (!(encoder->possible_crtcs & drm_crtc_mask(crtc)))
+			continue;
+		if (!funcs || !funcs->mode_valid)
+			continue;
+
+		status = funcs->mode_valid(crtc, mode,
+					   DRM_MODE_CONNECTOR_HDMIA);
+		if (status != MODE_OK)
+			return status;
+	}
+
+	return status;
 }
 
 static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
