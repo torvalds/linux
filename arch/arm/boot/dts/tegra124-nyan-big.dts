@@ -6,7 +6,11 @@
 
 / {
 	model = "Acer Chromebook 13 CB5-311";
-	compatible = "google,nyan-big", "nvidia,tegra124";
+	compatible = "google,nyan-big-rev7", "google,nyan-big-rev6",
+		     "google,nyan-big-rev5", "google,nyan-big-rev4",
+		     "google,nyan-big-rev3", "google,nyan-big-rev2",
+		     "google,nyan-big-rev1", "google,nyan-big-rev0",
+		     "google,nyan-big", "google,nyan", "nvidia,tegra124";
 
 	panel: panel {
 		compatible = "auo,b133xtn01";
