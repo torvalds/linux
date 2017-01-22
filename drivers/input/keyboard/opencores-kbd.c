@@ -112,8 +112,6 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, opencores_kbd);
-
 	return 0;
 }
 

@@ -365,7 +365,6 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 	bdev->poll_dev = poll_dev;
 	bdev->dev = dev;
 	bdev->pdata = pdata;
-	platform_set_drvdata(pdev, bdev);
 
 	error = input_register_polled_device(poll_dev);
 	if (error) {
