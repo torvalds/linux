@@ -1402,6 +1402,31 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	return 0;
 }
 
+static enum drm_mode_status
+vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
+		    int output_type)
+{
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	int clock;
+
+	if (mode->hdisplay > vop_data->max_disably_output.width)
+		return MODE_BAD_HVALUE;
+	if (mode->vdisplay > vop_data->max_disably_output.height)
+		return MODE_BAD_VVALUE;
+
+	clock = clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
+	/*
+	 * Hdmi or DisplayPort request a Accurate clock.
+	 */
+	if (output_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    output_type == DRM_MODE_CONNECTOR_DisplayPort)
+		if (clock != mode->clock)
+			return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop_crtc_loader_protect,
 	.enable_vblank = vop_crtc_enable_vblank,
@@ -1409,6 +1434,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.wait_for_update = vop_crtc_wait_for_update,
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
 	.debugfs_dump = vop_crtc_debugfs_dump,
+	.mode_valid = vop_crtc_mode_valid,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
