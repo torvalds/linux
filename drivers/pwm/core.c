@@ -765,6 +765,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	unsigned int best = 0;
 	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
+	int err;
 
 	/* look up via DT first */
 	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
@@ -825,6 +826,19 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		return ERR_PTR(-ENODEV);
 
 	chip = pwmchip_find_by_name(chosen->provider);
+
+	/*
+	 * If the lookup entry specifies a module, load the module and retry
+	 * the PWM chip lookup. This can be used to work around driver load
+	 * ordering issues if driver's can't be made to properly support the
+	 * deferred probe mechanism.
+	 */
+	if (!chip && chosen->module) {
+		err = request_module(chosen->module);
+		if (err == 0)
+			chip = pwmchip_find_by_name(chosen->provider);
+	}
+
 	if (!chip)
 		return ERR_PTR(-EPROBE_DEFER);
 
