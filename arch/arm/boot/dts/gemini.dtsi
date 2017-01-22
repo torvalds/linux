@@ -38,6 +38,12 @@
 			};
 		};
 
+		watchdog@41000000 {
+			compatible = "cortina,gemini-watchdog";
+			reg = <0x41000000 0x1000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		uart0: serial@42000000 {
 			compatible = "ns16550a";
 			reg = <0x42000000 0x100>;
