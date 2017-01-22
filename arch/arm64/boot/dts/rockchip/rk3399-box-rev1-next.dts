@@ -120,33 +120,15 @@
 	};
 };
 
-&hdmi {
-	ports {
-		hdmi_in: port {
-			/delete-node/ endpoint@1;
-		};
-	};
-};
-
 &cdn_dp {
 	status = "okay";
 	extcon = <&fusb0>;
-
-	ports {
-		dp_in: port {
-			/delete-node/ endpoint@0;
-		};
-	};
 };
 
-&vopb {
-	vopb_out: port {
-		/delete-node/ endpoint@3;
-	};
+&hdmi_in_vopl {
+	status = "disabled";
 };
 
-&vopl {
-	vopl_out: port {
-		/delete-node/ endpoint@2;
-	};
+&dp_in_vopb {
+	status = "disabled";
 };
