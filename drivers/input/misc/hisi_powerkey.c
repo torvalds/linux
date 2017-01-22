@@ -122,8 +122,6 @@ static int hi65xx_powerkey_probe(struct platform_device *pdev)
 
 static int hi65xx_powerkey_remove(struct platform_device *pdev)
 {
-	device_init_wakeup(&pdev->dev, 0);
-
 	return 0;
 }
 

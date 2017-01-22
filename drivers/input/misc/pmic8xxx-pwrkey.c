@@ -440,8 +440,6 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 
 static int pmic8xxx_pwrkey_remove(struct platform_device *pdev)
 {
-	device_init_wakeup(&pdev->dev, 0);
-
 	return 0;
 }
 

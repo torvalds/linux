@@ -126,7 +126,6 @@ static int e3x0_button_probe(struct platform_device *pdev)
 
 static int e3x0_button_remove(struct platform_device *pdev)
 {
-	device_init_wakeup(&pdev->dev, 0);
 	return 0;
 }
 
