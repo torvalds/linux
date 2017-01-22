@@ -143,7 +143,7 @@ int
 lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	     __u32 local_ip, __u32 peer_ip, int peer_port)
 {
-	lnet_acceptor_connreq_t cr;
+	struct lnet_acceptor_connreq cr;
 	struct socket *sock;
 	int rc;
 	int port;
@@ -206,7 +206,7 @@ EXPORT_SYMBOL(lnet_connect);
 static int
 lnet_accept(struct socket *sock, __u32 magic)
 {
-	lnet_acceptor_connreq_t cr;
+	struct lnet_acceptor_connreq cr;
 	__u32 peer_ip;
 	int peer_port;
 	int rc;
@@ -284,7 +284,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 
 	rc = lnet_sock_read(sock, &cr.acr_nid,
 			    sizeof(cr) -
-			    offsetof(lnet_acceptor_connreq_t, acr_nid),
+			    offsetof(struct lnet_acceptor_connreq, acr_nid),
 			    accept_timeout);
 	if (rc) {
 		CERROR("Error %d reading connection request from %pI4h\n",

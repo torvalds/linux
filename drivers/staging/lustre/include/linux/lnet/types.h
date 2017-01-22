@@ -228,11 +228,11 @@ typedef struct {
 #define LNET_PROTO_TCP_VERSION_MINOR	0
 
 /* Acceptor connection request */
-typedef struct {
+struct lnet_acceptor_connreq {
 	__u32	acr_magic;		/* PTL_ACCEPTOR_PROTO_MAGIC */
 	__u32	acr_version;		/* protocol version */
 	__u64	acr_nid;		/* target NID */
-} WIRE_ATTR lnet_acceptor_connreq_t;
+} WIRE_ATTR;
 
 #define LNET_PROTO_ACCEPTOR_VERSION	1
 
