@@ -759,9 +759,9 @@ void pwm_remove_table(struct pwm_lookup *table, size_t num)
  */
 struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 {
-	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
 	const char *dev_id = dev ? dev_name(dev) : NULL;
-	struct pwm_chip *chip = NULL;
+	struct pwm_device *pwm;
+	struct pwm_chip *chip;
 	unsigned int best = 0;
 	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
@@ -819,24 +819,22 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (!chosen) {
-		pwm = ERR_PTR(-ENODEV);
-		goto out;
-	}
+	mutex_unlock(&pwm_lookup_lock);
+
+	if (!chosen)
+		return ERR_PTR(-ENODEV);
 
 	chip = pwmchip_find_by_name(chosen->provider);
 	if (!chip)
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 
 	pwm = pwm_request_from_chip(chip, chosen->index, con_id ?: dev_id);
 	if (IS_ERR(pwm))
-		goto out;
+		return pwm;
 
 	pwm->args.period = chosen->period;
 	pwm->args.polarity = chosen->polarity;
 
-out:
-	mutex_unlock(&pwm_lookup_lock);
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(pwm_get);
