@@ -159,9 +159,16 @@ static int gemini_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id gemini_rtc_dt_match[] = {
+	{ .compatible = "cortina,gemini-rtc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gemini_rtc_dt_match);
+
 static struct platform_driver gemini_rtc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
+		.of_match_table = gemini_rtc_dt_match,
 	},
 	.probe		= gemini_rtc_probe,
 	.remove		= gemini_rtc_remove,
