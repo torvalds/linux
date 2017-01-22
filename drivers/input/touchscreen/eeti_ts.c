@@ -231,7 +231,6 @@ static int eeti_ts_probe(struct i2c_client *client,
 	 */
 	eeti_ts_stop(priv);
 
-	device_init_wakeup(&client->dev, 0);
 	return 0;
 
 err3:
