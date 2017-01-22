@@ -84,6 +84,16 @@
 		function = "nand";
 	};
 
+	pinctrl_sd: sd_grp {
+		groups = "sd";
+		function = "sd";
+	};
+
+	pinctrl_sd1: sd1_grp {
+		groups = "sd1";
+		function = "sd1";
+	};
+
 	pinctrl_system_bus: system_bus_grp {
 		groups = "system_bus", "system_bus_cs1";
 		function = "system_bus";
