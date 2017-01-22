@@ -289,6 +289,11 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 	struct cdn_dp_device *dp = connector_to_dp(connector);
 	struct drm_display_info *display_info = &dp->connector.display_info;
 	u32 requested, actual, rate, sink_max, source_max = 0;
+	struct drm_encoder *encoder = connector->encoder;
+	enum drm_mode_status status = MODE_OK;
+	struct drm_device *dev = connector->dev;
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
 	u8 lanes, bpc;
 
 	/* If DP is disconnected, every mode is invalid */
@@ -327,6 +332,42 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 				  "requested=%d, actual=%d, clock=%d\n",
 				  requested, actual, mode->clock);
 		return MODE_CLOCK_HIGH;
+	}
+
+	if (!encoder) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		funcs = connector->helper_private;
+		if (funcs->atomic_best_encoder)
+			encoder = funcs->atomic_best_encoder(connector,
+							     connector->state);
+		else if (funcs->best_encoder)
+			encoder = funcs->best_encoder(connector);
+		else
+			encoder = drm_atomic_helper_best_encoder(connector);
+	}
+
+	if (!encoder || !encoder->possible_crtcs)
+		return MODE_BAD;
+	/*
+	 * ensure all drm display mode can work, if someone want support more
+	 * resolutions, please limit the possible_crtc, only connect to
+	 * needed crtc.
+	 */
+	drm_for_each_crtc(crtc, connector->dev) {
+		int pipe = drm_crtc_index(crtc);
+		const struct rockchip_crtc_funcs *funcs =
+						priv->crtc_funcs[pipe];
+
+		if (!(encoder->possible_crtcs & drm_crtc_mask(crtc)))
+			continue;
+		if (!funcs || !funcs->mode_valid)
+			continue;
+
+		status = funcs->mode_valid(crtc, mode,
+					   DRM_MODE_CONNECTOR_HDMIA);
+		if (status != MODE_OK)
+			return status;
 	}
 
 	return MODE_OK;
