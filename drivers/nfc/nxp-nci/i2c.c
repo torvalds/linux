@@ -85,7 +85,7 @@ static int nxp_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 	r = i2c_master_send(client, skb->data, skb->len);
 	if (r < 0) {
 		/* Retry, chip was in standby */
-		usleep_range(110000, 120000);
+		msleep(110);
 		r = i2c_master_send(client, skb->data, skb->len);
 	}
 
