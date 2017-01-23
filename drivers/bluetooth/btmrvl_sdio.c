@@ -97,6 +97,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 		cfg->irq_bt = irq_of_parse_and_map(card->plt_of_node, 0);
 		if (!cfg->irq_bt) {
 			dev_err(dev, "fail to parse irq_bt from device tree");
+			cfg->irq_bt = -1;
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_bt,
 					       btmrvl_wake_irq_bt,
