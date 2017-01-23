@@ -1428,37 +1428,28 @@ static void bpf_program__set_type(struct bpf_program *prog,
 	prog->type = type;
 }
 
-int bpf_program__set_tracepoint(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-	return 0;
-}
-
-int bpf_program__set_kprobe(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
-	return 0;
-}
-
 static bool bpf_program__is_type(struct bpf_program *prog,
 				 enum bpf_prog_type type)
 {
 	return prog ? (prog->type == type) : false;
 }
 
-bool bpf_program__is_tracepoint(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-}
+#define BPF_PROG_TYPE_FNS(NAME, TYPE)			\
+int bpf_program__set_##NAME(struct bpf_program *prog)	\
+{							\
+	if (!prog)					\
+		return -EINVAL;				\
+	bpf_program__set_type(prog, TYPE);		\
+	return 0;					\
+}							\
+							\
+bool bpf_program__is_##NAME(struct bpf_program *prog)	\
+{							\
+	return bpf_program__is_type(prog, TYPE);	\
+}							\
 
-bool bpf_program__is_kprobe(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_KPROBE);
-}
+BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
+BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 
 int bpf_map__fd(struct bpf_map *map)
 {
