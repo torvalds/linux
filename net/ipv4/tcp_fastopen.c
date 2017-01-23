@@ -325,3 +325,24 @@ fastopen:
 	*foc = valid_foc;
 	return NULL;
 }
+
+bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
+			       struct tcp_fastopen_cookie *cookie)
+{
+	unsigned long last_syn_loss = 0;
+	int syn_loss = 0;
+
+	tcp_fastopen_cache_get(sk, mss, cookie, &syn_loss, &last_syn_loss);
+
+	/* Recurring FO SYN losses: no cookie or data in SYN */
+	if (syn_loss > 1 &&
+	    time_before(jiffies, last_syn_loss + (60*HZ << syn_loss))) {
+		cookie->len = -1;
+		return false;
+	}
+	if (sysctl_tcp_fastopen & TFO_CLIENT_NO_COOKIE) {
+		cookie->len = -1;
+		return true;
+	}
+	return cookie->len > 0;
+}

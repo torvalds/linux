@@ -3267,23 +3267,11 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_fastopen_request *fo = tp->fastopen_req;
-	int syn_loss = 0, space, err = 0;
-	unsigned long last_syn_loss = 0;
+	int space, err = 0;
 	struct sk_buff *syn_data;
 
 	tp->rx_opt.mss_clamp = tp->advmss;  /* If MSS is not cached */
-	tcp_fastopen_cache_get(sk, &tp->rx_opt.mss_clamp, &fo->cookie,
-			       &syn_loss, &last_syn_loss);
-	/* Recurring FO SYN losses: revert to regular handshake temporarily */
-	if (syn_loss > 1 &&
-	    time_before(jiffies, last_syn_loss + (60*HZ << syn_loss))) {
-		fo->cookie.len = -1;
-		goto fallback;
-	}
-
-	if (sysctl_tcp_fastopen & TFO_CLIENT_NO_COOKIE)
-		fo->cookie.len = -1;
-	else if (fo->cookie.len <= 0)
+	if (!tcp_fastopen_cookie_check(sk, &tp->rx_opt.mss_clamp, &fo->cookie))
 		goto fallback;
 
 	/* MSS for SYN-data is based on cached MSS and bounded by PMTU and

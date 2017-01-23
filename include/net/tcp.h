@@ -1493,6 +1493,8 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct tcp_fastopen_cookie *foc,
 			      struct dst_entry *dst);
 void tcp_fastopen_init_key_once(bool publish);
+bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
+			     struct tcp_fastopen_cookie *cookie);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
 /* Fastopen key context */
