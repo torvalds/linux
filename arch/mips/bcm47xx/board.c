@@ -149,6 +149,15 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_boot_hw[] __initconst = {
 /* board_id */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_board_id[] __initconst = {
+	{{BCM47XX_BOARD_LUXUL_ABR_4400_V1, "Luxul ABR-4400 V1"}, "luxul_abr4400_v1"},
+	{{BCM47XX_BOARD_LUXUL_XAP_310_V1, "Luxul XAP-310 V1"}, "luxul_xap310_v1"},
+	{{BCM47XX_BOARD_LUXUL_XAP_1210_V1, "Luxul XAP-1210 V1"}, "luxul_xap1210_v1"},
+	{{BCM47XX_BOARD_LUXUL_XAP_1230_V1, "Luxul XAP-1230 V1"}, "luxul_xap1230_v1"},
+	{{BCM47XX_BOARD_LUXUL_XAP_1240_V1, "Luxul XAP-1240 V1"}, "luxul_xap1240_v1"},
+	{{BCM47XX_BOARD_LUXUL_XAP_1500_V1, "Luxul XAP-1500 V1"}, "luxul_xap1500_v1"},
+	{{BCM47XX_BOARD_LUXUL_XBR_4400_V1, "Luxul XBR-4400 V1"}, "luxul_xbr4400_v1"},
+	{{BCM47XX_BOARD_LUXUL_XVW_P30_V1, "Luxul XVW-P30 V1"}, "luxul_xvwp30_v1"},
+	{{BCM47XX_BOARD_LUXUL_XWR_600_V1, "Luxul XWR-600 V1"}, "luxul_xwr600_v1"},
 	{{BCM47XX_BOARD_LUXUL_XWR_1750_V1, "Luxul XWR-1750 V1"}, "luxul_xwr1750_v1"},
 	{{BCM47XX_BOARD_NETGEAR_WGR614V8, "Netgear WGR614 V8"}, "U12H072T00_NETGEAR"},
 	{{BCM47XX_BOARD_NETGEAR_WGR614V9, "Netgear WGR614 V9"}, "U12H094T00_NETGEAR"},
