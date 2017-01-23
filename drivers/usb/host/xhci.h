@@ -1201,6 +1201,27 @@ struct xhci_event_cmd {
 
 /* Address device - disable SetAddress */
 #define TRB_BSR		(1<<9)
+
+/* Configure Endpoint - Deconfigure */
+#define TRB_DC		(1<<9)
+
+/* Stop Ring - Transfer State Preserve */
+#define TRB_TSP		(1<<9)
+
+/* Force Event */
+#define TRB_TO_VF_INTR_TARGET(p)	(((p) & (0x3ff << 22)) >> 22)
+#define TRB_TO_VF_ID(p)			(((p) & (0xff << 16)) >> 16)
+
+/* Set Latency Tolerance Value */
+#define TRB_TO_BELT(p)			(((p) & (0xfff << 16)) >> 16)
+
+/* Get Port Bandwidth */
+#define TRB_TO_DEV_SPEED(p)		(((p) & (0xf << 16)) >> 16)
+
+/* Force Header */
+#define TRB_TO_PACKET_TYPE(p)		((p) & 0x1f)
+#define TRB_TO_ROOTHUB_PORT(p)		(((p) & (0xff << 24)) >> 24)
+
 enum xhci_setup_dev {
 	SETUP_CONTEXT_ONLY,
 	SETUP_CONTEXT_ADDRESS,
@@ -1224,16 +1245,21 @@ enum xhci_setup_dev {
 #define STREAM_ID_FOR_TRB(p)		((((p)) & 0xffff) << 16)
 #define SCT_FOR_TRB(p)			(((p) << 1) & 0x7)
 
+/* Link TRB specific fields */
+#define TRB_TC			(1<<1)
 
 /* Port Status Change Event TRB fields */
 /* Port ID - bits 31:24 */
 #define GET_PORT_ID(p)		(((p) & (0xff << 24)) >> 24)
+
+#define EVENT_DATA		(1 << 2)
 
 /* Normal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
 #define	TRB_LEN(p)		((p) & 0x1ffff)
 /* TD Size, packets remaining in this TD, bits 21:17 (5 bits, so max 31) */
 #define TRB_TD_SIZE(p)          (min((p), (u32)31) << 17)
+#define GET_TD_SIZE(p)		(((p) & 0x3e0000) >> 17)
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
@@ -1358,6 +1384,80 @@ union xhci_trb {
 /* Get NEC firmware revision. */
 #define	TRB_NEC_GET_FW		49
 
+static inline const char *xhci_trb_type_string(u8 type)
+{
+	switch (type) {
+	case TRB_NORMAL:
+		return "Normal";
+	case TRB_SETUP:
+		return "Setup Stage";
+	case TRB_DATA:
+		return "Data Stage";
+	case TRB_STATUS:
+		return "Status Stage";
+	case TRB_ISOC:
+		return "Isoch";
+	case TRB_LINK:
+		return "Link";
+	case TRB_EVENT_DATA:
+		return "Event Data";
+	case TRB_TR_NOOP:
+		return "No-Op";
+	case TRB_ENABLE_SLOT:
+		return "Enable Slot Command";
+	case TRB_DISABLE_SLOT:
+		return "Disable Slot Command";
+	case TRB_ADDR_DEV:
+		return "Address Device Command";
+	case TRB_CONFIG_EP:
+		return "Configure Endpoint Command";
+	case TRB_EVAL_CONTEXT:
+		return "Evaluate Context Command";
+	case TRB_RESET_EP:
+		return "Reset Endpoint Command";
+	case TRB_STOP_RING:
+		return "Stop Ring Command";
+	case TRB_SET_DEQ:
+		return "Set TR Dequeue Pointer Command";
+	case TRB_RESET_DEV:
+		return "Reset Device Command";
+	case TRB_FORCE_EVENT:
+		return "Force Event Command";
+	case TRB_NEG_BANDWIDTH:
+		return "Negotiate Bandwidth Command";
+	case TRB_SET_LT:
+		return "Set Latency Tolerance Value Command";
+	case TRB_GET_BW:
+		return "Get Port Bandwidth Command";
+	case TRB_FORCE_HEADER:
+		return "Force Header Command";
+	case TRB_CMD_NOOP:
+		return "No-Op Command";
+	case TRB_TRANSFER:
+		return "Transfer Event";
+	case TRB_COMPLETION:
+		return "Command Completion Event";
+	case TRB_PORT_STATUS:
+		return "Port Status Change Event";
+	case TRB_BANDWIDTH_EVENT:
+		return "Bandwidth Request Event";
+	case TRB_DOORBELL:
+		return "Doorbell Event";
+	case TRB_HC_EVENT:
+		return "Host Controller Event";
+	case TRB_DEV_NOTE:
+		return "Device Notification Event";
+	case TRB_MFINDEX_WRAP:
+		return "MFINDEX Wrap Event";
+	case TRB_NEC_CMD_COMP:
+		return "NEC Command Completion Event";
+	case TRB_NEC_GET_FW:
+		return "NET Get Firmware Revision Command";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 #define TRB_TYPE_LINK(x)	(((x) & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK))
 /* Above, but for __le32 types -- can avoid work by swapping constants: */
 #define TRB_TYPE_LINK_LE32(x)	(((x) & cpu_to_le32(TRB_TYPE_BITMASK)) == \
@@ -1424,6 +1524,28 @@ enum xhci_ring_type {
 	TYPE_COMMAND,
 	TYPE_EVENT,
 };
+
+static inline const char *xhci_ring_type_string(enum xhci_ring_type type)
+{
+	switch (type) {
+	case TYPE_CTRL:
+		return "CTRL";
+	case TYPE_ISOC:
+		return "ISOC";
+	case TYPE_BULK:
+		return "BULK";
+	case TYPE_INTR:
+		return "INTR";
+	case TYPE_STREAM:
+		return "STREAM";
+	case TYPE_COMMAND:
+		return "CMD";
+	case TYPE_EVENT:
+		return "EVENT";
+	}
+
+	return "UNKNOWN";
+}
 
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
@@ -2016,5 +2138,212 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
 					xhci_get_endpoint_index(&urb->ep->desc),
 					urb->stream_id);
 }
+
+static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
+		u32 field3)
+{
+	static char str[256];
+	int type = TRB_FIELD_TO_TYPE(field3);
+
+	switch (type) {
+	case TRB_LINK:
+		sprintf(str,
+			"TRB %08x%08x status '%s' len %d slot %d ep %d type '%s' flags %c:%c",
+			field1, field0,
+			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
+			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
+			/* Macro decrements 1, maybe it shouldn't?!? */
+			TRB_TO_EP_INDEX(field3) + 1,
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field3 & EVENT_DATA ? 'E' : 'e',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_TRANSFER:
+	case TRB_COMPLETION:
+	case TRB_PORT_STATUS:
+	case TRB_BANDWIDTH_EVENT:
+	case TRB_DOORBELL:
+	case TRB_HC_EVENT:
+	case TRB_DEV_NOTE:
+	case TRB_MFINDEX_WRAP:
+		sprintf(str,
+			"TRB %08x%08x status '%s' len %d slot %d ep %d type '%s' flags %c:%c",
+			field1, field0,
+			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
+			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
+			/* Macro decrements 1, maybe it shouldn't?!? */
+			TRB_TO_EP_INDEX(field3) + 1,
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field3 & EVENT_DATA ? 'E' : 'e',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+
+		break;
+	case TRB_SETUP:
+		sprintf(str,
+			"bRequestType %02x bRequest %02x wValue %02x%02x wIndex %02x%02x wLength %d length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c:%c",
+			field0 & 0xff,
+			(field0 & 0xff00) >> 8,
+			(field0 & 0xff000000) >> 24,
+			(field0 & 0xff0000) >> 16,
+			(field1 & 0xff00) >> 8,
+			field1 & 0xff,
+			(field1 & 0xff000000) >> 16 |
+			(field1 & 0xff0000) >> 16,
+			TRB_LEN(field2), GET_TD_SIZE(field2),
+			GET_INTR_TARGET(field2),
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field3 & TRB_BEI ? 'B' : 'b',
+			field3 & TRB_IDT ? 'I' : 'i',
+			field3 & TRB_IOC ? 'I' : 'i',
+			field3 & TRB_CHAIN ? 'C' : 'c',
+			field3 & TRB_NO_SNOOP ? 'S' : 's',
+			field3 & TRB_ISP ? 'I' : 'i',
+			field3 & TRB_ENT ? 'E' : 'e',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_NORMAL:
+	case TRB_DATA:
+	case TRB_STATUS:
+	case TRB_ISOC:
+	case TRB_EVENT_DATA:
+	case TRB_TR_NOOP:
+		sprintf(str,
+			"Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c:%c",
+			field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
+			GET_INTR_TARGET(field2),
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field3 & TRB_BEI ? 'B' : 'b',
+			field3 & TRB_IDT ? 'I' : 'i',
+			field3 & TRB_IOC ? 'I' : 'i',
+			field3 & TRB_CHAIN ? 'C' : 'c',
+			field3 & TRB_NO_SNOOP ? 'S' : 's',
+			field3 & TRB_ISP ? 'I' : 'i',
+			field3 & TRB_ENT ? 'E' : 'e',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+
+	case TRB_CMD_NOOP:
+	case TRB_ENABLE_SLOT:
+		sprintf(str,
+			"%s: flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_DISABLE_SLOT:
+	case TRB_NEG_BANDWIDTH:
+		sprintf(str,
+			"%s: slot %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			TRB_TO_SLOT_ID(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_ADDR_DEV:
+		sprintf(str,
+			"%s: ctx %08x%08x slot %d flags %c:%c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_SLOT_ID(field3),
+			field3 & TRB_BSR ? 'B' : 'b',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_CONFIG_EP:
+		sprintf(str,
+			"%s: ctx %08x%08x slot %d flags %c:%c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_SLOT_ID(field3),
+			field3 & TRB_DC ? 'D' : 'd',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_EVAL_CONTEXT:
+		sprintf(str,
+			"%s: ctx %08x%08x slot %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_SLOT_ID(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_RESET_EP:
+		sprintf(str,
+			"%s: ctx %08x%08x slot %d ep %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_SLOT_ID(field3),
+			/* Macro decrements 1, maybe it shouldn't?!? */
+			TRB_TO_EP_INDEX(field3) + 1,
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_STOP_RING:
+		sprintf(str,
+			"%s: slot %d sp %d ep %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			TRB_TO_SLOT_ID(field3),
+			TRB_TO_SUSPEND_PORT(field3),
+			/* Macro decrements 1, maybe it shouldn't?!? */
+			TRB_TO_EP_INDEX(field3) + 1,
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_SET_DEQ:
+		sprintf(str,
+			"%s: deq %08x%08x stream %d slot %d ep %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_STREAM_ID(field2),
+			TRB_TO_SLOT_ID(field3),
+			/* Macro decrements 1, maybe it shouldn't?!? */
+			TRB_TO_EP_INDEX(field3) + 1,
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_RESET_DEV:
+		sprintf(str,
+			"%s: slot %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			TRB_TO_SLOT_ID(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_FORCE_EVENT:
+		sprintf(str,
+			"%s: event %08x%08x vf intr %d vf id %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_VF_INTR_TARGET(field2),
+			TRB_TO_VF_ID(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_SET_LT:
+		sprintf(str,
+			"%s: belt %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			TRB_TO_BELT(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_GET_BW:
+		sprintf(str,
+			"%s: ctx %08x%08x slot %d speed %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field1, field0,
+			TRB_TO_SLOT_ID(field3),
+			TRB_TO_DEV_SPEED(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_FORCE_HEADER:
+		sprintf(str,
+			"%s: info %08x%08x%08x pkt type %d roothub port %d flags %c",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field2, field1, field0 & 0xffffffe0,
+			TRB_TO_PACKET_TYPE(field0),
+			TRB_TO_ROOTHUB_PORT(field3),
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	default:
+		sprintf(str,
+			"type '%s' -> raw %08x %08x %08x %08x",
+			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+			field0, field1, field2, field3);
+	}
+
+	return str;
+}
+
 
 #endif /* __LINUX_XHCI_HCD_H */
