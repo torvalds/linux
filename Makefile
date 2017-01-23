@@ -1,8 +1,8 @@
-VERSION = 4
-PATCHLEVEL = 10
-SUBLEVEL = 0
-EXTRAVERSION = -rc5
-NAME = Anniversary Edition
+VERSION = 6
+PATCHLEVEL = 6
+SUBLEVEL = 6
+EXTRAVERSION = -rc1
+NAME = Deez Nutz
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
