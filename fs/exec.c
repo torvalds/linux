@@ -1426,12 +1426,8 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	struct task_struct *p = current, *t;
 	unsigned n_fs;
 
-	if (p->ptrace) {
-		if (ptracer_capable(p, current_user_ns()))
-			bprm->unsafe |= LSM_UNSAFE_PTRACE_CAP;
-		else
-			bprm->unsafe |= LSM_UNSAFE_PTRACE;
-	}
+	if (p->ptrace)
+		bprm->unsafe |= LSM_UNSAFE_PTRACE;
 
 	/*
 	 * This isn't strictly necessary, but it makes it harder for LSMs to
