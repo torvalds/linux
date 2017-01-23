@@ -1425,7 +1425,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	}
 
 	/* restart timer if this wasn't the last command */
-	if (cmd->cmd_list.next != &xhci->cmd_list) {
+	if (!list_is_singular(&xhci->cmd_list)) {
 		xhci->current_cmd = list_entry(cmd->cmd_list.next,
 					       struct xhci_command, cmd_list);
 		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
@@ -3802,13 +3802,14 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 	}
 
 	cmd->command_trb = xhci->cmd_ring->enqueue;
-	list_add_tail(&cmd->cmd_list, &xhci->cmd_list);
 
 	/* if there are no other commands queued we start the timeout timer */
-	if (xhci->cmd_list.next == &cmd->cmd_list) {
+	if (list_empty(&xhci->cmd_list)) {
 		xhci->current_cmd = cmd;
 		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 	}
+
+	list_add_tail(&cmd->cmd_list, &xhci->cmd_list);
 
 	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);
