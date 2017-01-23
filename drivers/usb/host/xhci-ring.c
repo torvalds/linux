@@ -3237,7 +3237,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct usb_ctrlrequest *setup;
 	struct xhci_generic_trb *start_trb;
 	int start_cycle;
-	u32 field, length_field, remainder;
+	u32 field;
 	struct urb_priv *urb_priv;
 	struct xhci_td *td;
 
@@ -3310,16 +3310,16 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	else
 		field = TRB_TYPE(TRB_DATA);
 
-	remainder = xhci_td_remainder(xhci, 0,
-				   urb->transfer_buffer_length,
-				   urb->transfer_buffer_length,
-				   urb, 1);
-
-	length_field = TRB_LEN(urb->transfer_buffer_length) |
-		TRB_TD_SIZE(remainder) |
-		TRB_INTR_TARGET(0);
-
 	if (urb->transfer_buffer_length > 0) {
+		u32 length_field, remainder;
+
+		remainder = xhci_td_remainder(xhci, 0,
+				urb->transfer_buffer_length,
+				urb->transfer_buffer_length,
+				urb, 1);
+		length_field = TRB_LEN(urb->transfer_buffer_length) |
+				TRB_TD_SIZE(remainder) |
+				TRB_INTR_TARGET(0);
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
 		queue_trb(xhci, ep_ring, true,
