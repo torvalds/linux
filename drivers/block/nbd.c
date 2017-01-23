@@ -271,7 +271,7 @@ static inline int sock_send_bvec(struct nbd_device *nbd, int index,
 static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 {
 	struct request *req = blk_mq_rq_from_pdu(cmd);
-	int result, flags;
+	int result;
 	struct nbd_request request;
 	unsigned long size = blk_rq_bytes(req);
 	struct bio *bio;
@@ -310,7 +310,6 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	if (type != NBD_CMD_WRITE)
 		return 0;
 
-	flags = 0;
 	bio = req->bio;
 	while (bio) {
 		struct bio *next = bio->bi_next;
@@ -319,9 +318,8 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 
 		bio_for_each_segment(bvec, bio, iter) {
 			bool is_last = !next && bio_iter_last(bvec, iter);
+			int flags = is_last ? 0 : MSG_MORE;
 
-			if (is_last)
-				flags = MSG_MORE;
 			dev_dbg(nbd_to_dev(nbd), "request %p: sending %d bytes data\n",
 				cmd, bvec.bv_len);
 			result = sock_send_bvec(nbd, index, &bvec, flags);

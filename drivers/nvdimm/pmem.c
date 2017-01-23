@@ -90,7 +90,9 @@ static int read_pmem(struct page *page, unsigned int off,
 
 	rc = memcpy_from_pmem(mem + off, pmem_addr, len);
 	kunmap_atomic(mem);
-	return rc;
+	if (rc)
+		return -EIO;
+	return 0;
 }
 
 static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,

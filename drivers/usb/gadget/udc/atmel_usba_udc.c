@@ -1978,7 +1978,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 			dev_err(&pdev->dev, "of_probe: name error(%d)\n", ret);
 			goto err;
 		}
-		ep->ep.name = kasprintf(GFP_KERNEL, "ep%d", ep->index);
+		sprintf(ep->name, "ep%d", ep->index);
+		ep->ep.name = ep->name;
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
