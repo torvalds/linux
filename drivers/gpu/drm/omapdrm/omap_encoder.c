@@ -117,7 +117,7 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(vm, &t, sizeof(struct videomode)))
+		if (memcmp(vm, &t, sizeof(*vm)))
 			ret = -EINVAL;
 		else
 			ret = 0;
