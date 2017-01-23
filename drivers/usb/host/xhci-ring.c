@@ -2605,27 +2605,28 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 irqreturn_t xhci_irq(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	u32 status;
-	u64 temp_64;
 	union xhci_trb *event_ring_deq;
+	irqreturn_t ret = IRQ_NONE;
 	dma_addr_t deq;
+	u64 temp_64;
+	u32 status;
 
 	spin_lock(&xhci->lock);
 	/* Check if the xHC generated the interrupt, or the irq is shared */
 	status = readl(&xhci->op_regs->status);
-	if (status == 0xffffffff)
-		goto hw_died;
-
-	if (!(status & STS_EINT)) {
-		spin_unlock(&xhci->lock);
-		return IRQ_NONE;
+	if (status == 0xffffffff) {
+		ret = IRQ_HANDLED;
+		goto out;
 	}
+
+	if (!(status & STS_EINT))
+		goto out;
+
 	if (status & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
-hw_died:
-		spin_unlock(&xhci->lock);
-		return IRQ_HANDLED;
+		ret = IRQ_HANDLED;
+		goto out;
 	}
 
 	/*
@@ -2656,9 +2657,8 @@ hw_died:
 		temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 		xhci_write_64(xhci, temp_64 | ERST_EHB,
 				&xhci->ir_set->erst_dequeue);
-		spin_unlock(&xhci->lock);
-
-		return IRQ_HANDLED;
+		ret = IRQ_HANDLED;
+		goto out;
 	}
 
 	event_ring_deq = xhci->event_ring->dequeue;
@@ -2683,10 +2683,12 @@ hw_died:
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
 	temp_64 |= ERST_EHB;
 	xhci_write_64(xhci, temp_64, &xhci->ir_set->erst_dequeue);
+	ret = IRQ_HANDLED;
 
+out:
 	spin_unlock(&xhci->lock);
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 irqreturn_t xhci_msi_irq(int irq, void *hcd)
