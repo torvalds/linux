@@ -174,13 +174,9 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 	struct device *dev;
 	int cpu, ret = 0;
 
-	mutex_lock(&opp_table_lock);
-
 	opp_table = _find_opp_table(cpu_dev);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
-		goto unlock;
-	}
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	for_each_cpu(cpu, cpumask) {
 		if (cpu == cpu_dev->id)
@@ -203,8 +199,8 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 		/* Mark opp-table as multiple CPUs are sharing it now */
 		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
 	}
-unlock:
-	mutex_unlock(&opp_table_lock);
+
+	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
@@ -232,17 +228,13 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 	struct opp_table *opp_table;
 	int ret = 0;
 
-	mutex_lock(&opp_table_lock);
-
 	opp_table = _find_opp_table(cpu_dev);
-	if (IS_ERR(opp_table)) {
-		ret = PTR_ERR(opp_table);
-		goto unlock;
-	}
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	if (opp_table->shared_opp == OPP_TABLE_ACCESS_UNKNOWN) {
 		ret = -EINVAL;
-		goto unlock;
+		goto put_opp_table;
 	}
 
 	cpumask_clear(cpumask);
@@ -254,8 +246,8 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 		cpumask_set_cpu(cpu_dev->id, cpumask);
 	}
 
-unlock:
-	mutex_unlock(&opp_table_lock);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
