@@ -350,16 +350,31 @@ static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
 	spin_unlock(&pcpu->lock);
 }
 
+#define NFCT_ALIGN(len)	(((len) + NFCT_INFOMASK) & ~NFCT_INFOMASK)
+
 /* Released via destroy_conntrack() */
 struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 				 const struct nf_conntrack_zone *zone,
 				 gfp_t flags)
 {
-	struct nf_conn *tmpl;
+	struct nf_conn *tmpl, *p;
 
-	tmpl = kzalloc(sizeof(*tmpl), flags);
-	if (tmpl == NULL)
-		return NULL;
+	if (ARCH_KMALLOC_MINALIGN <= NFCT_INFOMASK) {
+		tmpl = kzalloc(sizeof(*tmpl) + NFCT_INFOMASK, flags);
+		if (!tmpl)
+			return NULL;
+
+		p = tmpl;
+		tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
+		if (tmpl != p) {
+			tmpl = (struct nf_conn *)NFCT_ALIGN((unsigned long)p);
+			tmpl->proto.tmpl_padto = (char *)tmpl - (char *)p;
+		}
+	} else {
+		tmpl = kzalloc(sizeof(*tmpl), flags);
+		if (!tmpl)
+			return NULL;
+	}
 
 	tmpl->status = IPS_TEMPLATE;
 	write_pnet(&tmpl->ct_net, net);
@@ -374,7 +389,11 @@ void nf_ct_tmpl_free(struct nf_conn *tmpl)
 {
 	nf_ct_ext_destroy(tmpl);
 	nf_ct_ext_free(tmpl);
-	kfree(tmpl);
+
+	if (ARCH_KMALLOC_MINALIGN <= NFCT_INFOMASK)
+		kfree((char *)tmpl - tmpl->proto.tmpl_padto);
+	else
+		kfree(tmpl);
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
