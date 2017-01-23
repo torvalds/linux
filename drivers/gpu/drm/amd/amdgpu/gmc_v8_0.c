@@ -1434,6 +1434,9 @@ static int gmc_v8_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
 		fiji_update_mc_medium_grain_clock_gating(adev,
@@ -1457,6 +1460,9 @@ static void gmc_v8_0_get_clockgating_state(void *handle, u32 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
 
 	/* AMD_CG_SUPPORT_MC_MGCG */
 	data = RREG32(mmMC_HUB_MISC_HUB_CG);

@@ -1391,6 +1391,9 @@ static int vi_common_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
 		vi_update_bif_medium_grain_light_sleep(adev,
@@ -1434,6 +1437,9 @@ static void vi_common_get_clockgating_state(void *handle, u32 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
 
 	/* AMD_CG_SUPPORT_BIF_LS */
 	data = RREG32_PCIE(ixPCIE_CNTL2);
