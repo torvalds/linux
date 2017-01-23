@@ -54,6 +54,8 @@
 #include "core.h"
 #include "hcd.h"
 
+static void dwc2_port_resume(struct dwc2_hsotg *hsotg);
+
 /*
  * =========================================================================
  *  Host Core Layer Functions
@@ -3206,6 +3208,11 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 	if (gotgctl & GOTGCTL_CONID_B) {
 		/* Wait for switch to device mode */
 		dev_dbg(hsotg->dev, "connId B\n");
+		if (hsotg->bus_suspended) {
+			dev_info(hsotg->dev,
+				 "Do port resume before switching to device mode\n");
+			dwc2_port_resume(hsotg);
+		}
 		while (!dwc2_is_device_mode(hsotg)) {
 			dev_info(hsotg->dev,
 				 "Waiting for Peripheral Mode, Mode=%s\n",
