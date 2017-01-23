@@ -1482,17 +1482,19 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 		}
 
 		/* not sure if we still need this */
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-			struct core_stream *stream = pipe_ctx->stream;
+		if (update_type == UPDATE_TYPE_FULL) {
+			for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+				struct core_stream *stream = pipe_ctx->stream;
 
-			if (pipe_ctx->surface != surface)
-				continue;
+				if (pipe_ctx->surface != surface)
+					continue;
 
-			resource_build_scaling_params(updates[i].surface, pipe_ctx);
-			if (dc->debug.surface_visual_confirm) {
-				pipe_ctx->scl_data.recout.height -= 2;
-				pipe_ctx->scl_data.recout.width -= 2;
+				resource_build_scaling_params(updates[i].surface, pipe_ctx);
+				if (dc->debug.surface_visual_confirm) {
+					pipe_ctx->scl_data.recout.height -= 2;
+					pipe_ctx->scl_data.recout.width -= 2;
+				}
 			}
 		}
 
@@ -1563,10 +1565,12 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			}
 
 			if (update_type == UPDATE_TYPE_FULL) {
-				core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
-			} else if (updates[i].flip_addr) {
+				/* only apply for top pipe */
+				if (!pipe_ctx->top_pipe)
+					core_dc->hwss.apply_ctx_for_surface(core_dc,
+							 surface, context);
+			} else if (updates[i].flip_addr)
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
-			}
 
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
