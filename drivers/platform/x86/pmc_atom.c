@@ -15,14 +15,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/device.h>
 #include <linux/debugfs.h>
-#include <linux/seq_file.h>
+#include <linux/device.h>
+#include <linux/init.h>
 #include <linux/io.h>
-
-#include <asm/pmc_atom.h>
+#include <linux/platform_data/x86/pmc_atom.h>
+#include <linux/pci.h>
+#include <linux/seq_file.h>
 
 struct pmc_bit_map {
 	const char *name;
