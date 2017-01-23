@@ -79,7 +79,7 @@ EXPORT_SYMBOL(__rcu_is_watching);
  */
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
-	RCU_TRACE(reset_cpu_stall_ticks(rcp));
+	RCU_TRACE(reset_cpu_stall_ticks(rcp);)
 	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
@@ -125,7 +125,7 @@ void rcu_bh_qs(void)
  */
 void rcu_check_callbacks(int user)
 {
-	RCU_TRACE(check_cpu_stalls());
+	RCU_TRACE(check_cpu_stalls();)
 	if (user)
 		rcu_sched_qs();
 	else if (!in_softirq())
@@ -143,7 +143,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	const char *rn = NULL;
 	struct rcu_head *next, *list;
 	unsigned long flags;
-	RCU_TRACE(int cb_count = 0);
+	RCU_TRACE(int cb_count = 0;)
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
@@ -152,7 +152,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		local_irq_restore(flags);
 		return;
 	}
-	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1));
+	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1);)
 	list = rcp->rcucblist;
 	rcp->rcucblist = *rcp->donetail;
 	*rcp->donetail = NULL;
@@ -162,7 +162,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	local_irq_restore(flags);
 
 	/* Invoke the callbacks on the local list. */
-	RCU_TRACE(rn = rcp->name);
+	RCU_TRACE(rn = rcp->name;)
 	while (list) {
 		next = list->next;
 		prefetch(next);
@@ -171,9 +171,9 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		__rcu_reclaim(rn, list);
 		local_bh_enable();
 		list = next;
-		RCU_TRACE(cb_count++);
+		RCU_TRACE(cb_count++;)
 	}
-	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
+	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count);)
 	RCU_TRACE(trace_rcu_batch_end(rcp->name,
 				      cb_count, 0, need_resched(),
 				      is_idle_task(current),
@@ -221,7 +221,7 @@ static void __call_rcu(struct rcu_head *head,
 	local_irq_save(flags);
 	*rcp->curtail = head;
 	rcp->curtail = &head->next;
-	RCU_TRACE(rcp->qlen++);
+	RCU_TRACE(rcp->qlen++;)
 	local_irq_restore(flags);
 
 	if (unlikely(is_idle_task(current))) {
@@ -254,8 +254,8 @@ EXPORT_SYMBOL_GPL(call_rcu_bh);
 void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
-	RCU_TRACE(reset_cpu_stall_ticks(&rcu_sched_ctrlblk));
-	RCU_TRACE(reset_cpu_stall_ticks(&rcu_bh_ctrlblk));
+	RCU_TRACE(reset_cpu_stall_ticks(&rcu_sched_ctrlblk);)
+	RCU_TRACE(reset_cpu_stall_ticks(&rcu_bh_ctrlblk);)
 
 	rcu_early_boot_tests();
 }

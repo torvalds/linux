@@ -162,8 +162,8 @@ static void reset_cpu_stall_ticks(struct rcu_ctrlblk *rcp)
 
 static void check_cpu_stalls(void)
 {
-	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk));
-	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk));
+	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk);)
+	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk);)
 }
 
 #endif /* #ifdef CONFIG_RCU_TRACE */
