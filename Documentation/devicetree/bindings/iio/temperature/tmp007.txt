@@ -18,10 +18,18 @@ Required properties:
 		   1	 SDA	   0x46
 		   1     SCL       0x47
 
+Optional properties:
+
+  - interrupt-parent: should be the phandle for the interrupt controller
+
+  - interrupts: interrupt mapping for GPIO IRQ (level active low)
+
 Example:
 
 tmp007@40 {
         compatible = "ti,tmp007";
         reg = <0x40>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <5 0x08>;
 };
 
