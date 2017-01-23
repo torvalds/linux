@@ -2428,11 +2428,21 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 		return rc;
 
 	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		u8 tmp8, mask;
+		u8 tmp8, mask = 0;
 
-		/* TODO: What if one channel is in native mode ... */
+		/*
+		 * ATA spec says we should use legacy mode when one
+		 * port is in legacy mode, but disabled ports on some
+		 * PCI hosts appear as fixed legacy ports, e.g SB600/700
+		 * on which the secondary port is not wired, so
+		 * ignore ports that are marked as 'dummy' during
+		 * this check
+		 */
 		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
-		mask = (1 << 2) | (1 << 0);
+		if (!ata_port_is_dummy(host->ports[0]))
+			mask |= (1 << 0);
+		if (!ata_port_is_dummy(host->ports[1]))
+			mask |= (1 << 2);
 		if ((tmp8 & mask) != mask)
 			legacy_mode = 1;
 	}
