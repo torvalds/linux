@@ -548,7 +548,8 @@ skip:
 
 	if ((is_setid ||
 	     !cap_issubset(new->cap_permitted, old->cap_permitted)) &&
-	    bprm->unsafe & ~LSM_UNSAFE_PTRACE_CAP) {
+	    ((bprm->unsafe & ~(LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) ||
+	     !ptracer_capable(current, new->user_ns))) {
 		/* downgrade; they get no more than they had, and maybe less */
 		if (!ns_capable(new->user_ns, CAP_SETUID) ||
 		    (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS)) {
