@@ -1118,7 +1118,7 @@ static void fsl_ep_fifo_flush(struct usb_ep *_ep)
 	} while (fsl_readl(&dr_regs->endptstatus) & bits);
 }
 
-static struct usb_ep_ops fsl_ep_ops = {
+static const struct usb_ep_ops fsl_ep_ops = {
 	.enable = fsl_ep_enable,
 	.disable = fsl_ep_disable,
 
