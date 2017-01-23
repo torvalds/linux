@@ -452,10 +452,6 @@ enum dwc2_ep0_state {
  * default described above.
  */
 struct dwc2_core_params {
-	/*
-	 * Don't add any non-int members here, this will break
-	 * dwc2_set_all_params!
-	 */
 	int otg_cap;
 #define DWC2_CAP_PARAM_HNP_SRP_CAPABLE		0
 #define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1

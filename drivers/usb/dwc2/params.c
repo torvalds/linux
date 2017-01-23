@@ -187,42 +187,6 @@ static const struct dwc2_core_params params_amlogic = {
 	.hibernation			= -1,
 };
 
-static const struct dwc2_core_params params_default = {
-	.otg_cap			= -1,
-
-	/*
-	 * Disable descriptor dma mode by default as the HW can support
-	 * it, but does not support it for SPLIT transactions.
-	 * Disable it for FS devices as well.
-	 */
-	.dma_desc_enable		= 0,
-	.dma_desc_fs_enable		= 0,
-
-	.speed				= -1,
-	.enable_dynamic_fifo		= -1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= -1,
-	.host_nperio_tx_fifo_size	= -1,
-	.host_perio_tx_fifo_size	= -1,
-	.max_transfer_size		= -1,
-	.max_packet_count		= -1,
-	.host_channels			= -1,
-	.phy_type			= -1,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= -1,
-	.ahbcfg				= -1,
-	.uframe_sched			= -1,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
-
 const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "hisilicon,hi6220-usb", .data = &params_hi6220 },
@@ -238,913 +202,131 @@ const struct of_device_id dwc2_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
-static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
-				     char *property, u8 size, u64 *value)
+static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg)
 {
-	u32 val32;
+	u8 val;
 
-	switch (size) {
-	case 0:
-		*value = device_property_read_bool(hsotg->dev, property);
+	switch (hsotg->hw_params.op_mode) {
+	case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
+		val = DWC2_CAP_PARAM_HNP_SRP_CAPABLE;
 		break;
-	case 1:
-	case 2:
-	case 4:
-		if (device_property_read_u32(hsotg->dev, property, &val32))
-			return;
-
-		*value = val32;
-		break;
-	case 8:
-		if (device_property_read_u64(hsotg->dev, property, value))
-			return;
-
+	case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
+	case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
+	case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
+		val = DWC2_CAP_PARAM_SRP_ONLY_CAPABLE;
 		break;
 	default:
-		/*
-		 * The size is checked by the only function that calls
-		 * this so this should never happen.
-		 */
-		WARN_ON(1);
-		return;
-	}
-}
-
-static void dwc2_set_core_param(void *param, u8 size, u64 value)
-{
-	switch (size) {
-	case 0:
-		*((bool *)param) = !!value;
+		val = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
 		break;
-	case 1:
-		*((u8 *)param) = (u8)value;
-		break;
-	case 2:
-		*((u16 *)param) = (u16)value;
-		break;
-	case 4:
-		*((u32 *)param) = (u32)value;
-		break;
-	case 8:
-		*((u64 *)param) = (u64)value;
-		break;
-	default:
-		/*
-		 * The size is checked by the only function that calls
-		 * this so this should never happen.
-		 */
-		WARN_ON(1);
-		return;
-	}
-}
-
-/**
- * dwc2_set_param() - Set a core parameter
- *
- * @hsotg: Programming view of the DWC_otg controller
- * @param: Pointer to the parameter to set
- * @lookup: True if the property should be looked up
- * @property: The device property to read
- * @legacy: The param value to set if @property is not available. This
- *          will typically be the legacy value set in the static
- *          params structure.
- * @def: The default value
- * @min: The minimum value
- * @max: The maximum value
- * @size: The size of the core parameter in bytes, or 0 for bool.
- *
- * This function looks up @property and sets the @param to that value.
- * If the property doesn't exist it uses the passed-in @value. It will
- * verify that the value falls between @min and @max. If it doesn't,
- * it will output an error and set the parameter to either @def or,
- * failing that, to @min.
- *
- * The @size is used to write to @param and to query the device
- * properties so that this same function can be used with different
- * types of parameters.
- */
-static void dwc2_set_param(struct dwc2_hsotg *hsotg, void *param,
-			   bool lookup, char *property, u64 legacy,
-			   u64 def, u64 min, u64 max, u8 size)
-{
-	u64 sizemax;
-	u64 value;
-
-	if (WARN_ON(!hsotg || !param || !property))
-		return;
-
-	if (WARN((size > 8) || ((size & (size - 1)) != 0),
-		 "Invalid size %d for %s\n", size, property))
-		return;
-
-	dev_vdbg(hsotg->dev, "%s: Setting %s: legacy=%llu, def=%llu, min=%llu, max=%llu, size=%d\n",
-		 __func__, property, legacy, def, min, max, size);
-
-	sizemax = (1ULL << (size * 8)) - 1;
-	value = legacy;
-
-	/* Override legacy settings. */
-	if (lookup)
-		dwc2_get_device_property(hsotg, property, size, &value);
-
-	/*
-	 * While the value is not valid, try setting it to the default
-	 * value, and failing that, set it to the minimum.
-	 */
-	while ((value < min) || (value > max)) {
-		/* Print an error unless the value is set to auto. */
-		if (value != sizemax)
-			dev_err(hsotg->dev, "Invalid value %llu for param %s\n",
-				value, property);
-
-		/*
-		 * If we are already the default, just set it to the
-		 * minimum.
-		 */
-		if (value == def) {
-			dev_vdbg(hsotg->dev, "%s: setting value to min=%llu\n",
-				 __func__, min);
-			value = min;
-			break;
-		}
-
-		/* Try the default value */
-		dev_vdbg(hsotg->dev, "%s: setting value to default=%llu\n",
-			 __func__, def);
-		value = def;
-	}
-
-	dev_dbg(hsotg->dev, "Setting %s to %llu\n", property, value);
-	dwc2_set_core_param(param, size, value);
-}
-
-/**
- * dwc2_set_param_u32() - Set a u32 parameter
- *
- * See dwc2_set_param().
- */
-static void dwc2_set_param_u32(struct dwc2_hsotg *hsotg, u32 *param,
-			       bool lookup, char *property, u16 legacy,
-			       u16 def, u16 min, u16 max)
-{
-	dwc2_set_param(hsotg, param, lookup, property,
-		       legacy, def, min, max, 4);
-}
-
-/**
- * dwc2_set_param_bool() - Set a bool parameter
- *
- * See dwc2_set_param().
- *
- * Note: there is no 'legacy' argument here because there is no legacy
- * source of bool params.
- */
-static void dwc2_set_param_bool(struct dwc2_hsotg *hsotg, bool *param,
-				bool lookup, char *property,
-				bool def, bool min, bool max)
-{
-	dwc2_set_param(hsotg, param, lookup, property,
-		       def, def, min, max, 0);
-}
-
-#define DWC2_OUT_OF_BOUNDS(a, b, c)	((a) < (b) || (a) > (c))
-
-/* Parameter access functions */
-static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	switch (val) {
-	case DWC2_CAP_PARAM_HNP_SRP_CAPABLE:
-		if (hsotg->hw_params.op_mode != GHWCFG2_OP_MODE_HNP_SRP_CAPABLE)
-			valid = 0;
-		break;
-	case DWC2_CAP_PARAM_SRP_ONLY_CAPABLE:
-		switch (hsotg->hw_params.op_mode) {
-		case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
-		case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
-			break;
-		default:
-			valid = 0;
-			break;
-		}
-		break;
-	case DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE:
-		/* always valid */
-		break;
-	default:
-		valid = 0;
-		break;
-	}
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for otg_cap parameter. Check HW configuration.\n",
-				val);
-		switch (hsotg->hw_params.op_mode) {
-		case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
-			val = DWC2_CAP_PARAM_HNP_SRP_CAPABLE;
-			break;
-		case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
-		case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
-			val = DWC2_CAP_PARAM_SRP_ONLY_CAPABLE;
-			break;
-		default:
-			val = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
-			break;
-		}
-		dev_dbg(hsotg->dev, "Setting otg_cap to %d\n", val);
 	}
 
 	hsotg->params.otg_cap = val;
 }
 
-static void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
+static void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg)
 {
-	int valid = 1;
+	int val;
+	u32 hs_phy_type = hsotg->hw_params.hs_phy_type;
 
-	if (val > 0 && (hsotg->params.host_dma <= 0 ||
-			!hsotg->hw_params.dma_desc_enable))
-		valid = 0;
-	if (val < 0)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for dma_desc_enable parameter. Check HW configuration.\n",
-				val);
-		val = (hsotg->params.host_dma > 0 &&
-			hsotg->hw_params.dma_desc_enable);
-		dev_dbg(hsotg->dev, "Setting dma_desc_enable to %d\n", val);
+	val = DWC2_PHY_TYPE_PARAM_FS;
+	if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED) {
+		if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
+		    hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI)
+			val = DWC2_PHY_TYPE_PARAM_UTMI;
+		else
+			val = DWC2_PHY_TYPE_PARAM_ULPI;
 	}
 
-	hsotg->params.dma_desc_enable = val;
-}
-
-static void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val > 0 && (hsotg->params.host_dma <= 0 ||
-			!hsotg->hw_params.dma_desc_enable))
-		valid = 0;
-	if (val < 0)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for dma_desc_fs_enable parameter. Check HW configuration.\n",
-				val);
-		val = (hsotg->params.host_dma > 0 &&
-			hsotg->hw_params.dma_desc_enable);
-	}
-
-	hsotg->params.dma_desc_fs_enable = val;
-	dev_dbg(hsotg->dev, "Setting dma_desc_fs_enable to %d\n", val);
-}
-
-static void
-dwc2_set_param_host_support_fs_ls_low_power(struct dwc2_hsotg *hsotg,
-					    int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"Wrong value for host_support_fs_low_power\n");
-			dev_err(hsotg->dev,
-				"host_support_fs_low_power must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev,
-			"Setting host_support_fs_low_power to %d\n", val);
-	}
-
-	hsotg->params.host_support_fs_ls_low_power = val;
-}
-
-static void dwc2_set_param_enable_dynamic_fifo(struct dwc2_hsotg *hsotg,
-					       int val)
-{
-	int valid = 1;
-
-	if (val > 0 && !hsotg->hw_params.enable_dynamic_fifo)
-		valid = 0;
-	if (val < 0)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for enable_dynamic_fifo parameter. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.enable_dynamic_fifo;
-		dev_dbg(hsotg->dev, "Setting enable_dynamic_fifo to %d\n", val);
-	}
-
-	hsotg->params.enable_dynamic_fifo = val;
-}
-
-static void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val < 16 || val > hsotg->hw_params.rx_fifo_size)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_rx_fifo_size. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.rx_fifo_size;
-		dev_dbg(hsotg->dev, "Setting host_rx_fifo_size to %d\n", val);
-	}
-
-	hsotg->params.host_rx_fifo_size = val;
-}
-
-static void dwc2_set_param_host_nperio_tx_fifo_size(struct dwc2_hsotg *hsotg,
-						    int val)
-{
-	int valid = 1;
-
-	if (val < 16 || val > hsotg->hw_params.host_nperio_tx_fifo_size)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_nperio_tx_fifo_size. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.host_nperio_tx_fifo_size;
-		dev_dbg(hsotg->dev, "Setting host_nperio_tx_fifo_size to %d\n",
-			val);
-	}
-
-	hsotg->params.host_nperio_tx_fifo_size = val;
-}
-
-static void dwc2_set_param_host_perio_tx_fifo_size(struct dwc2_hsotg *hsotg,
-						   int val)
-{
-	int valid = 1;
-
-	if (val < 16 || val > hsotg->hw_params.host_perio_tx_fifo_size)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_perio_tx_fifo_size. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.host_perio_tx_fifo_size;
-		dev_dbg(hsotg->dev, "Setting host_perio_tx_fifo_size to %d\n",
-			val);
-	}
-
-	hsotg->params.host_perio_tx_fifo_size = val;
-}
-
-static void dwc2_set_param_max_transfer_size(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val < 2047 || val > hsotg->hw_params.max_transfer_size)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for max_transfer_size. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.max_transfer_size;
-		dev_dbg(hsotg->dev, "Setting max_transfer_size to %d\n", val);
-	}
-
-	hsotg->params.max_transfer_size = val;
-}
-
-static void dwc2_set_param_max_packet_count(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val < 15 || val > hsotg->hw_params.max_packet_count)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for max_packet_count. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.max_packet_count;
-		dev_dbg(hsotg->dev, "Setting max_packet_count to %d\n", val);
-	}
-
-	hsotg->params.max_packet_count = val;
-}
-
-static void dwc2_set_param_host_channels(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val < 1 || val > hsotg->hw_params.host_channels)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_channels. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.host_channels;
-		dev_dbg(hsotg->dev, "Setting host_channels to %d\n", val);
-	}
-
-	hsotg->params.host_channels = val;
-}
-
-static void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 0;
-	u32 hs_phy_type, fs_phy_type;
-
-	if (DWC2_OUT_OF_BOUNDS(val, DWC2_PHY_TYPE_PARAM_FS,
-			       DWC2_PHY_TYPE_PARAM_ULPI)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for phy_type\n");
-			dev_err(hsotg->dev, "phy_type must be 0, 1 or 2\n");
-		}
-
-		valid = 0;
-	}
-
-	hs_phy_type = hsotg->hw_params.hs_phy_type;
-	fs_phy_type = hsotg->hw_params.fs_phy_type;
-	if (val == DWC2_PHY_TYPE_PARAM_UTMI &&
-	    (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
-	     hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI))
-		valid = 1;
-	else if (val == DWC2_PHY_TYPE_PARAM_ULPI &&
-		 (hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI ||
-		  hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI))
-		valid = 1;
-	else if (val == DWC2_PHY_TYPE_PARAM_FS &&
-		 fs_phy_type == GHWCFG2_FS_PHY_TYPE_DEDICATED)
-		valid = 1;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for phy_type. Check HW configuration.\n",
-				val);
-		val = DWC2_PHY_TYPE_PARAM_FS;
-		if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED) {
-			if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
-			    hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI)
-				val = DWC2_PHY_TYPE_PARAM_UTMI;
-			else
-				val = DWC2_PHY_TYPE_PARAM_ULPI;
-		}
-		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
-	}
+	if (dwc2_is_fs_iot(hsotg))
+		hsotg->params.phy_type = DWC2_PHY_TYPE_PARAM_FS;
 
 	hsotg->params.phy_type = val;
 }
 
-static int dwc2_get_param_phy_type(struct dwc2_hsotg *hsotg)
+static void dwc2_set_param_speed(struct dwc2_hsotg *hsotg)
 {
-	return hsotg->params.phy_type;
-}
+	int val;
 
-static void dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
+	val = hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS ?
+		DWC2_SPEED_PARAM_FULL : DWC2_SPEED_PARAM_HIGH;
 
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 2)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for speed parameter\n");
-			dev_err(hsotg->dev, "max_speed parameter must be 0, 1, or 2\n");
-		}
-		valid = 0;
-	}
+	if (dwc2_is_fs_iot(hsotg))
+		val = DWC2_SPEED_PARAM_FULL;
 
-	if (dwc2_is_hs_iot(hsotg) &&
-	    val == DWC2_SPEED_PARAM_LOW)
-		valid = 0;
-
-	if (val == DWC2_SPEED_PARAM_HIGH &&
-	    dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for speed parameter. Check HW configuration.\n",
-				val);
-		val = dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS ?
-				DWC2_SPEED_PARAM_FULL : DWC2_SPEED_PARAM_HIGH;
-		dev_dbg(hsotg->dev, "Setting speed to %d\n", val);
-	}
+	if (dwc2_is_hs_iot(hsotg))
+		val = DWC2_SPEED_PARAM_HIGH;
 
 	hsotg->params.speed = val;
 }
 
-static void dwc2_set_param_host_ls_low_power_phy_clk(struct dwc2_hsotg *hsotg,
-						     int val)
+static void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 {
-	int valid = 1;
+	int val;
 
-	if (DWC2_OUT_OF_BOUNDS(val, DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ,
-			       DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"Wrong value for host_ls_low_power_phy_clk parameter\n");
-			dev_err(hsotg->dev,
-				"host_ls_low_power_phy_clk must be 0 or 1\n");
-		}
-		valid = 0;
-	}
-
-	if (val == DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ &&
-	    dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_ls_low_power_phy_clk. Check HW configuration.\n",
-				val);
-		val = dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS
-			? DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ
-			: DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ;
-		dev_dbg(hsotg->dev, "Setting host_ls_low_power_phy_clk to %d\n",
-			val);
-	}
-
-	hsotg->params.host_ls_low_power_phy_clk = val;
-}
-
-static void dwc2_set_param_phy_ulpi_ddr(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for phy_ulpi_ddr\n");
-			dev_err(hsotg->dev, "phy_upli_ddr must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting phy_upli_ddr to %d\n", val);
-	}
-
-	hsotg->params.phy_ulpi_ddr = val;
-}
-
-static void dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"Wrong value for phy_ulpi_ext_vbus\n");
-			dev_err(hsotg->dev,
-				"phy_ulpi_ext_vbus must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting phy_ulpi_ext_vbus to %d\n", val);
-	}
-
-	hsotg->params.phy_ulpi_ext_vbus = val;
-}
-
-static void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 0;
-
-	switch (hsotg->hw_params.utmi_phy_data_width) {
-	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8:
-		valid = (val == 8);
-		break;
-	case GHWCFG4_UTMI_PHY_DATA_WIDTH_16:
-		valid = (val == 16);
-		break;
-	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8_OR_16:
-		valid = (val == 8 || val == 16);
-		break;
-	}
-
-	if (!valid) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"%d invalid for phy_utmi_width. Check HW configuration.\n",
-				val);
-		}
-		val = (hsotg->hw_params.utmi_phy_data_width ==
-		       GHWCFG4_UTMI_PHY_DATA_WIDTH_8) ? 8 : 16;
-		dev_dbg(hsotg->dev, "Setting phy_utmi_width to %d\n", val);
-	}
+	val = (hsotg->hw_params.utmi_phy_data_width ==
+	       GHWCFG4_UTMI_PHY_DATA_WIDTH_8) ? 8 : 16;
 
 	hsotg->params.phy_utmi_width = val;
 }
 
-static void dwc2_set_param_ulpi_fs_ls(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for ulpi_fs_ls\n");
-			dev_err(hsotg->dev, "ulpi_fs_ls must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting ulpi_fs_ls to %d\n", val);
-	}
-
-	hsotg->params.ulpi_fs_ls = val;
-}
-
-static void dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for ts_dline\n");
-			dev_err(hsotg->dev, "ts_dline must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting ts_dline to %d\n", val);
-	}
-
-	hsotg->params.ts_dline = val;
-}
-
-static void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for i2c_enable\n");
-			dev_err(hsotg->dev, "i2c_enable must be 0 or 1\n");
-		}
-
-		valid = 0;
-	}
-
-	if (val == 1 && !(hsotg->hw_params.i2c_enable))
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for i2c_enable. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.i2c_enable;
-		dev_dbg(hsotg->dev, "Setting i2c_enable to %d\n", val);
-	}
-
-	hsotg->params.i2c_enable = val;
-}
-
-static void dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg,
-					       int val)
-{
-	int valid = 1;
-
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"Wrong value for en_multiple_tx_fifo,\n");
-			dev_err(hsotg->dev,
-				"en_multiple_tx_fifo must be 0 or 1\n");
-		}
-		valid = 0;
-	}
-
-	if (val == 1 && !hsotg->hw_params.en_multiple_tx_fifo)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for parameter en_multiple_tx_fifo. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.en_multiple_tx_fifo;
-		dev_dbg(hsotg->dev, "Setting en_multiple_tx_fifo to %d\n", val);
-	}
-
-	hsotg->params.en_multiple_tx_fifo = val;
-}
-
-static void dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter reload_ctl\n", val);
-			dev_err(hsotg->dev, "reload_ctl must be 0 or 1\n");
-		}
-		valid = 0;
-	}
-
-	if (val == 1 && hsotg->hw_params.snpsid < DWC2_CORE_REV_2_92a)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for parameter reload_ctl. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_92a;
-		dev_dbg(hsotg->dev, "Setting reload_ctl to %d\n", val);
-	}
-
-	hsotg->params.reload_ctl = val;
-}
-
-static void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
-{
-	if (val != -1)
-		hsotg->params.ahbcfg = val;
-	else
-		hsotg->params.ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
-						GAHBCFG_HBSTLEN_SHIFT;
-}
-
-static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter uframe_sched\n",
-				val);
-			dev_err(hsotg->dev, "uframe_sched must be 0 or 1\n");
-		}
-		val = 1;
-		dev_dbg(hsotg->dev, "Setting uframe_sched to %d\n", val);
-	}
-
-	hsotg->params.uframe_sched = val;
-}
-
-static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
-					       int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter external_id_pin_ctl\n",
-				val);
-			dev_err(hsotg->dev, "external_id_pin_ctl must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting external_id_pin_ctl to %d\n", val);
-	}
-
-	hsotg->params.external_id_pin_ctl = val;
-}
-
-static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
-				       int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter hibernation\n",
-				val);
-			dev_err(hsotg->dev, "hibernation must be 0 or 1\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting hibernation to %d\n", val);
-	}
-
-	hsotg->params.hibernation = val;
-}
-
 static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 {
-	int i;
-	int num;
-	char *property = "g-tx-fifo-size";
 	struct dwc2_core_params *p = &hsotg->params;
+	u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
 
 	memset(p->g_tx_fifo_size, 0, sizeof(p->g_tx_fifo_size));
-
-	/* Read tx fifo sizes */
-	num = device_property_read_u32_array(hsotg->dev, property, NULL, 0);
-
-	if (num > 0) {
-		device_property_read_u32_array(hsotg->dev, property,
-					       &p->g_tx_fifo_size[1],
-					       num);
-	} else {
-		u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
-
-		memcpy(&p->g_tx_fifo_size[1],
-		       p_tx_fifo,
-		       sizeof(p_tx_fifo));
-
-		num = ARRAY_SIZE(p_tx_fifo);
-	}
-
-	for (i = 0; i < num; i++) {
-		if ((i + 1) >= ARRAY_SIZE(p->g_tx_fifo_size))
-			break;
-
-		dev_dbg(hsotg->dev, "Setting %s[%d] to %d\n",
-			property, i + 1, p->g_tx_fifo_size[i + 1]);
-	}
-}
-
-static void dwc2_set_gadget_dma(struct dwc2_hsotg *hsotg)
-{
-	struct dwc2_hw_params *hw = &hsotg->hw_params;
-	struct dwc2_core_params *p = &hsotg->params;
-	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
-
-	/* Buffer DMA */
-	dwc2_set_param_bool(hsotg, &p->g_dma,
-			    false, "gadget-dma",
-			    dma_capable, false,
-			    dma_capable);
-
-	/* DMA Descriptor */
-	dwc2_set_param_bool(hsotg, &p->g_dma_desc, false,
-			    "gadget-dma-desc",
-			    !!hw->dma_desc_enable, false,
-			    !!hw->dma_desc_enable);
+	memcpy(&p->g_tx_fifo_size[1],
+	       p_tx_fifo,
+	       sizeof(p_tx_fifo));
 }
 
 /**
- * dwc2_set_parameters() - Set all core parameters.
- *
- * @hsotg: Programming view of the DWC_otg controller
- * @params: The parameters to set
+ * dwc2_set_default_params() - Set all core parameters to their
+ * auto-detected default values.
  */
-static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
-				const struct dwc2_core_params *params)
+static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	struct dwc2_core_params *p = &hsotg->params;
 	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
 
-	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
+	dwc2_set_param_otg_cap(hsotg);
+	dwc2_set_param_phy_type(hsotg);
+	dwc2_set_param_speed(hsotg);
+	dwc2_set_param_phy_utmi_width(hsotg);
+	p->phy_ulpi_ddr = false;
+	p->phy_ulpi_ext_vbus = false;
+
+	p->enable_dynamic_fifo = hw->enable_dynamic_fifo;
+	p->en_multiple_tx_fifo = hw->en_multiple_tx_fifo;
+	p->i2c_enable = hw->i2c_enable;
+	p->ulpi_fs_ls = false;
+	p->ts_dline = false;
+	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
+	p->uframe_sched = true;
+	p->external_id_pin_ctl = false;
+	p->hibernation = false;
+	p->max_packet_count = hw->max_packet_count;
+	p->max_transfer_size = hw->max_transfer_size;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT;
+
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
-		dev_dbg(hsotg->dev, "Setting HOST parameters\n");
-
-		dwc2_set_param_bool(hsotg, &p->host_dma,
-				    false, "host-dma",
-				    dma_capable, false,
-				    dma_capable);
-		dwc2_set_param_host_rx_fifo_size(hsotg,
-				params->host_rx_fifo_size);
-		dwc2_set_param_host_nperio_tx_fifo_size(hsotg,
-				params->host_nperio_tx_fifo_size);
-		dwc2_set_param_host_perio_tx_fifo_size(hsotg,
-				params->host_perio_tx_fifo_size);
+		p->host_dma = dma_capable;
+		p->dma_desc_enable = false;
+		p->dma_desc_fs_enable = false;
+		p->host_support_fs_ls_low_power = false;
+		p->host_ls_low_power_phy_clk = false;
+		p->host_channels = hw->host_channels;
+		p->host_rx_fifo_size = hw->rx_fifo_size;
+		p->host_nperio_tx_fifo_size = hw->host_nperio_tx_fifo_size;
+		p->host_perio_tx_fifo_size = hw->host_perio_tx_fifo_size;
 	}
-	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
-	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
 
-	dwc2_set_param_host_support_fs_ls_low_power(hsotg,
-			params->host_support_fs_ls_low_power);
-	dwc2_set_param_enable_dynamic_fifo(hsotg,
-			params->enable_dynamic_fifo);
-	dwc2_set_param_max_transfer_size(hsotg,
-			params->max_transfer_size);
-	dwc2_set_param_max_packet_count(hsotg,
-			params->max_packet_count);
-	dwc2_set_param_host_channels(hsotg, params->host_channels);
-	dwc2_set_param_phy_type(hsotg, params->phy_type);
-	dwc2_set_param_speed(hsotg, params->speed);
-	dwc2_set_param_host_ls_low_power_phy_clk(hsotg,
-			params->host_ls_low_power_phy_clk);
-	dwc2_set_param_phy_ulpi_ddr(hsotg, params->phy_ulpi_ddr);
-	dwc2_set_param_phy_ulpi_ext_vbus(hsotg,
-			params->phy_ulpi_ext_vbus);
-	dwc2_set_param_phy_utmi_width(hsotg, params->phy_utmi_width);
-	dwc2_set_param_ulpi_fs_ls(hsotg, params->ulpi_fs_ls);
-	dwc2_set_param_ts_dline(hsotg, params->ts_dline);
-	dwc2_set_param_i2c_enable(hsotg, params->i2c_enable);
-	dwc2_set_param_en_multiple_tx_fifo(hsotg,
-			params->en_multiple_tx_fifo);
-	dwc2_set_param_reload_ctl(hsotg, params->reload_ctl);
-	dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
-	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
-	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
-	dwc2_set_param_hibernation(hsotg, params->hibernation);
-
-	/*
-	 * Set devicetree-only parameters. These parameters do not
-	 * take any values from @params.
-	 */
 	if ((hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
-		dev_dbg(hsotg->dev, "Setting peripheral device properties\n");
-
-		dwc2_set_gadget_dma(hsotg);
+		p->g_dma = dma_capable;
+		p->g_dma_desc = hw->dma_desc_enable;
 
 		/*
 		 * The values for g_rx_fifo_size (2048) and
@@ -1155,16 +337,8 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 		 * auto-detect if the hardware does not support the
 		 * default.
 		 */
-		dwc2_set_param_u32(hsotg, &p->g_rx_fifo_size,
-				   true, "g-rx-fifo-size", 2048,
-				   hw->rx_fifo_size,
-				   16, hw->rx_fifo_size);
-
-		dwc2_set_param_u32(hsotg, &p->g_np_tx_fifo_size,
-				   true, "g-np-tx-fifo-size", 1024,
-				   hw->dev_nperio_tx_fifo_size,
-				   16, hw->dev_nperio_tx_fifo_size);
-
+		p->g_rx_fifo_size = 2048;
+		p->g_np_tx_fifo_size = 1024;
 		dwc2_set_param_tx_fifo_sizes(hsotg);
 	}
 }
@@ -1380,21 +554,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
-	const struct of_device_id *match;
-	struct dwc2_core_params params;
-
-	match = of_match_device(dwc2_of_match_table, hsotg->dev);
-	if (match && match->data)
-		params = *((struct dwc2_core_params *)match->data);
-	else
-		params = params_default;
-
-	if (dwc2_is_fs_iot(hsotg)) {
-		params.speed = DWC2_SPEED_PARAM_FULL;
-		params.phy_type = DWC2_PHY_TYPE_PARAM_FS;
-	}
-
-	dwc2_set_parameters(hsotg, &params);
+	dwc2_set_default_params(hsotg);
 
 	return 0;
 }
