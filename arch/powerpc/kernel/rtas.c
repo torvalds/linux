@@ -1145,30 +1145,29 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 void __init rtas_initialize(void)
 {
 	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
+	const __be32 *basep, *entryp, *sizep;
 
 	/* Get RTAS dev node and fill up our "rtas" structure with infos
 	 * about it.
 	 */
 	rtas.dev = of_find_node_by_name(NULL, "rtas");
-	if (rtas.dev) {
-		const __be32 *basep, *entryp, *sizep;
-
-		basep = of_get_property(rtas.dev, "linux,rtas-base", NULL);
-		sizep = of_get_property(rtas.dev, "rtas-size", NULL);
-		if (basep != NULL && sizep != NULL) {
-			rtas.base = __be32_to_cpu(*basep);
-			rtas.size = __be32_to_cpu(*sizep);
-			entryp = of_get_property(rtas.dev,
-					"linux,rtas-entry", NULL);
-			if (entryp == NULL) /* Ugh */
-				rtas.entry = rtas.base;
-			else
-				rtas.entry = __be32_to_cpu(*entryp);
-		} else
-			rtas.dev = NULL;
-	}
 	if (!rtas.dev)
 		return;
+
+	basep = of_get_property(rtas.dev, "linux,rtas-base", NULL);
+	sizep = of_get_property(rtas.dev, "rtas-size", NULL);
+	if (basep == NULL || sizep == NULL) {
+		rtas.dev = NULL;
+		return;
+	}
+
+	rtas.base = __be32_to_cpu(*basep);
+	rtas.size = __be32_to_cpu(*sizep);
+	entryp = of_get_property(rtas.dev, "linux,rtas-entry", NULL);
+	if (entryp == NULL) /* Ugh */
+		rtas.entry = rtas.base;
+	else
+		rtas.entry = __be32_to_cpu(*entryp);
 
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any
