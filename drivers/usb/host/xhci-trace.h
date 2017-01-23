@@ -103,7 +103,7 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 32) *
 			((ctx->type == XHCI_CTX_TYPE_INPUT) + ep_num + 1));
 	),
-	TP_printk("\nctx_64=%d, ctx_type=%u, ctx_dma=@%llx, ctx_va=@%p",
+	TP_printk("ctx_64=%d, ctx_type=%u, ctx_dma=@%llx, ctx_va=@%p",
 			__entry->ctx_64, __entry->ctx_type,
 			(unsigned long long) __entry->ctx_dma, __entry->ctx_va
 	)
