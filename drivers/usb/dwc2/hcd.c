@@ -4868,6 +4868,61 @@ static void _dwc2_hcd_clear_tt_buffer_complete(struct usb_hcd *hcd,
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
+/*
+ * HPRT0_SPD_HIGH_SPEED: high speed
+ * HPRT0_SPD_FULL_SPEED: full speed
+ */
+static void dwc2_change_bus_speed(struct usb_hcd *hcd, int speed)
+{
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+
+	if (hsotg->params.speed == speed)
+		return;
+
+	hsotg->params.speed = speed;
+	queue_work(hsotg->wq_otg, &hsotg->wf_otg);
+}
+
+static void dwc2_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+
+	if (!hsotg->params.change_speed_quirk)
+		return;
+
+	/*
+	 * On removal, set speed to default high-speed.
+	 */
+	if (udev->parent && udev->parent->speed > USB_SPEED_UNKNOWN &&
+	    udev->parent->speed < USB_SPEED_HIGH) {
+		dev_info(hsotg->dev, "Set speed to default high-speed\n");
+		dwc2_change_bus_speed(hcd, HPRT0_SPD_HIGH_SPEED);
+	}
+}
+
+static int dwc2_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+
+	if (!hsotg->params.change_speed_quirk)
+		return 0;
+
+	if (udev->speed == USB_SPEED_HIGH) {
+		dev_info(hsotg->dev, "Set speed to high-speed\n");
+		dwc2_change_bus_speed(hcd, HPRT0_SPD_HIGH_SPEED);
+	} else if ((udev->speed == USB_SPEED_FULL ||
+				udev->speed == USB_SPEED_LOW)) {
+		/*
+		 * Change speed setting to full-speed if there's
+		 * a full-speed or low-speed device plugged in.
+		 */
+		dev_info(hsotg->dev, "Set speed to full-speed\n");
+		dwc2_change_bus_speed(hcd, HPRT0_SPD_FULL_SPEED);
+	}
+
+	return 0;
+}
+
 static struct hc_driver dwc2_hc_driver = {
 	.description = "dwc2_hsotg",
 	.product_desc = "DWC OTG Controller",
@@ -5021,6 +5076,11 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 			dev_warn(hsotg->dev, "can't set DMA mask\n");
 		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
 			dev_warn(hsotg->dev, "can't set coherent DMA mask\n");
+	}
+
+	if (hsotg->params.change_speed_quirk) {
+		dwc2_hc_driver.free_dev = dwc2_free_dev;
+		dwc2_hc_driver.reset_device = dwc2_reset_device;
 	}
 
 	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));

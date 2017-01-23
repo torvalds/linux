@@ -68,6 +68,7 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->uframe_sched = false;
+	p->change_speed_quirk = true;
 }
 
 static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)

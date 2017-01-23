@@ -444,6 +444,11 @@ enum dwc2_ep0_state {
  *			in DWORDS with possible values from from
  *			16-32768 (default: 256, 256, 256, 256, 768,
  *			768, 768, 768, 0, 0, 0, 0, 0, 0, 0).
+ * @change_speed_quirk: Change speed configuration to DWC2_SPEED_PARAM_FULL
+ *                      while full&low speed device connect. And change speed
+ *                      back to DWC2_SPEED_PARAM_HIGH while device is gone.
+ *			0 - No (default)
+ *			1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -501,6 +506,8 @@ struct dwc2_core_params {
 	u32 g_rx_fifo_size;
 	u32 g_np_tx_fifo_size;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
+
+	bool change_speed_quirk;
 };
 
 /**
