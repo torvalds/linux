@@ -16,6 +16,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 
 #include "malidp_hw.h"
 #include "malidp_drv.h"
@@ -90,6 +91,17 @@ static void malidp_destroy_plane_state(struct drm_plane *plane,
 	kfree(m_state);
 }
 
+static void malidp_plane_atomic_print_state(struct drm_printer *p,
+					    const struct drm_plane_state *state)
+{
+	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	struct malidp_plane *mp = to_malidp_plane(state->plane);
+
+	drm_printf(p, "\trotmem_size=%u\n", ms->rotmem_size);
+	drm_printf(p, "\tformat_id=%u\n", ms->format);
+	drm_printf(p, "\tn_planes=%u\n", ms->n_planes);
+}
+
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -98,6 +110,7 @@ static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
+	.atomic_print_state = malidp_plane_atomic_print_state,
 };
 
 static int malidp_de_plane_check(struct drm_plane *plane,
