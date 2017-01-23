@@ -174,11 +174,21 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n);
 /*
  * Adjust type of bpf program. Default is kprobe.
  */
+int bpf_program__set_socket_filter(struct bpf_program *prog);
 int bpf_program__set_tracepoint(struct bpf_program *prog);
 int bpf_program__set_kprobe(struct bpf_program *prog);
+int bpf_program__set_sched_cls(struct bpf_program *prog);
+int bpf_program__set_sched_act(struct bpf_program *prog);
+int bpf_program__set_xdp(struct bpf_program *prog);
+int bpf_program__set_perf_event(struct bpf_program *prog);
 
+bool bpf_program__is_socket_filter(struct bpf_program *prog);
 bool bpf_program__is_tracepoint(struct bpf_program *prog);
 bool bpf_program__is_kprobe(struct bpf_program *prog);
+bool bpf_program__is_sched_cls(struct bpf_program *prog);
+bool bpf_program__is_sched_act(struct bpf_program *prog);
+bool bpf_program__is_xdp(struct bpf_program *prog);
+bool bpf_program__is_perf_event(struct bpf_program *prog);
 
 /*
  * We don't need __attribute__((packed)) now since it is

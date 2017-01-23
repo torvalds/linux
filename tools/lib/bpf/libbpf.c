@@ -1448,8 +1448,13 @@ bool bpf_program__is_##NAME(struct bpf_program *prog)	\
 	return bpf_program__is_type(prog, TYPE);	\
 }							\
 
+BPF_PROG_TYPE_FNS(socket_filter, BPF_PROG_TYPE_SOCKET_FILTER);
 BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
+BPF_PROG_TYPE_FNS(sched_cls, BPF_PROG_TYPE_SCHED_CLS);
+BPF_PROG_TYPE_FNS(sched_act, BPF_PROG_TYPE_SCHED_ACT);
 BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
+BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
+BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
 int bpf_map__fd(struct bpf_map *map)
 {
