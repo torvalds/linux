@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/list.h>
@@ -1541,4 +1542,11 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 			return &obj->maps[i];
 	}
 	return ERR_PTR(-ENOENT);
+}
+
+long libbpf_get_error(const void *ptr)
+{
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+	return 0;
 }
