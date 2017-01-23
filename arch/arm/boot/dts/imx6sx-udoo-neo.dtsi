@@ -75,6 +75,28 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 	};
+
+	reg_usb_otg1_vbus: regulator-usb-otg1-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_otg1_reg>;
+		regulator-name = "usb_otg1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_otg2_reg>;
+		regulator-name = "usb_otg2_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &cpu0 {
@@ -242,6 +264,28 @@
 			<MX6SX_PAD_CSI_DATA07__UART6_CTS_B	0x1b0b1>;
 	};
 
+	pinctrl_otg1_reg: otg1grp {
+		fsl,pins =
+			<MX6SX_PAD_GPIO1_IO09__GPIO1_IO_9        0x10b0>;
+	};
+
+
+	pinctrl_otg2_reg: otg2grp {
+		fsl,pins =
+			<MX6SX_PAD_NAND_RE_B__GPIO4_IO_12        0x10b0>;
+	};
+
+	pinctrl_usb_otg1: usbotg1grp {
+		fsl,pins =
+			<MX6SX_PAD_GPIO1_IO10__ANATOP_OTG1_ID    0x17059>,
+			<MX6SX_PAD_GPIO1_IO08__USB_OTG1_OC       0x10b0>;
+	};
+
+	pinctrl_usb_otg2: usbot2ggrp {
+		fsl,pins =
+			<MX6SX_PAD_QSPI1A_DATA0__USB_OTG2_OC     0x10b0>;
+	};
+
 	pinctrl_usdhc2: usdhc2grp {
 		fsl,pins =
 			<MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17059>,
@@ -279,6 +323,21 @@
 	pinctrl-0 = <&pinctrl_uart6>;
 	uart-has-rtscts;
 	status = "disabled";
+};
+
+&usbotg1 { /* J2 micro USB port */
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_otg1>;
+	status = "okay";
+};
+
+&usbotg2 { /* J3 host USB port */
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_otg2>;
+	dr_mode = "host";
+	status = "okay";
 };
 
 &usdhc2 {
