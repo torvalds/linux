@@ -83,6 +83,58 @@ load_fw_cancel()
 	wait
 }
 
+load_fw_custom()
+{
+	local name="$1"
+	local file="$2"
+
+	echo -n "$name" >"$DIR"/trigger_custom_fallback 2>/dev/null &
+
+	# Give kernel a chance to react.
+	local timeout=10
+	while [ ! -e "$DIR"/"$name"/loading ]; do
+		sleep 0.1
+		timeout=$(( $timeout - 1 ))
+		if [ "$timeout" -eq 0 ]; then
+			echo "$0: firmware interface never appeared" >&2
+			exit 1
+		fi
+	done
+
+	echo 1 >"$DIR"/"$name"/loading
+	cat "$file" >"$DIR"/"$name"/data
+	echo 0 >"$DIR"/"$name"/loading
+
+	# Wait for request to finish.
+	wait
+}
+
+
+load_fw_custom_cancel()
+{
+	local name="$1"
+	local file="$2"
+
+	echo -n "$name" >"$DIR"/trigger_custom_fallback 2>/dev/null &
+
+	# Give kernel a chance to react.
+	local timeout=10
+	while [ ! -e "$DIR"/"$name"/loading ]; do
+		sleep 0.1
+		timeout=$(( $timeout - 1 ))
+		if [ "$timeout" -eq 0 ]; then
+			echo "$0: firmware interface never appeared" >&2
+			exit 1
+		fi
+	done
+
+	echo -1 >"$DIR"/"$name"/loading
+
+	# Wait for request to finish.
+	wait
+}
+
+
 trap "test_finish" EXIT
 
 # This is an unlikely real-world firmware content. :)
@@ -151,6 +203,22 @@ if diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	exit 1
 else
 	echo "$0: cancelling fallback mechanism works"
+fi
+
+load_fw_custom "$NAME" "$FW"
+if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	echo "$0: firmware was not loaded" >&2
+	exit 1
+else
+	echo "$0: custom fallback loading mechanism works"
+fi
+
+load_fw_custom_cancel "nope-$NAME" "$FW"
+if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	echo "$0: firmware was expected to be cancelled" >&2
+	exit 1
+else
+	echo "$0: cancelling custom fallback mechanism works"
 fi
 
 exit 0

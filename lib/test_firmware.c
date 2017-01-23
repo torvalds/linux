@@ -126,11 +126,56 @@ out:
 }
 static DEVICE_ATTR_WO(trigger_async_request);
 
+static ssize_t trigger_custom_fallback_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	int rc;
+	char *name;
+
+	name = kstrndup(buf, count, GFP_KERNEL);
+	if (!name)
+		return -ENOSPC;
+
+	pr_info("loading '%s' using custom fallback mechanism\n", name);
+
+	mutex_lock(&test_fw_mutex);
+	release_firmware(test_firmware);
+	test_firmware = NULL;
+	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG, name,
+				     dev, GFP_KERNEL, NULL,
+				     trigger_async_request_cb);
+	if (rc) {
+		pr_info("async load of '%s' failed: %d\n", name, rc);
+		kfree(name);
+		goto out;
+	}
+	/* Free 'name' ASAP, to test for race conditions */
+	kfree(name);
+
+	wait_for_completion(&async_fw_done);
+
+	if (test_firmware) {
+		pr_info("loaded: %zu\n", test_firmware->size);
+		rc = count;
+	} else {
+		pr_err("failed to async load firmware\n");
+		rc = -ENODEV;
+	}
+
+out:
+	mutex_unlock(&test_fw_mutex);
+
+	return rc;
+}
+static DEVICE_ATTR_WO(trigger_custom_fallback);
+
 #define TEST_FW_DEV_ATTR(name)          &dev_attr_##name.attr
 
 static struct attribute *test_dev_attrs[] = {
 	TEST_FW_DEV_ATTR(trigger_request),
 	TEST_FW_DEV_ATTR(trigger_async_request),
+	TEST_FW_DEV_ATTR(trigger_custom_fallback),
 	NULL,
 };
 
