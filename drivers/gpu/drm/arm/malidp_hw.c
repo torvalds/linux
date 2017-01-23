@@ -74,16 +74,16 @@ static const struct malidp_format_id malidp550_de_formats[] = {
 };
 
 static const struct malidp_layer malidp500_layers[] = {
-	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE },
-	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE },
-	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE },
+	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
+	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE, MALIDP_DE_LG_STRIDE },
+	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE, MALIDP_DE_LG_STRIDE },
 };
 
 static const struct malidp_layer malidp550_layers[] = {
-	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE },
-	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE },
-	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE },
-	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE },
+	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
+	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE, MALIDP_DE_LG_STRIDE },
+	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
+	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE, 0 },
 };
 
 #define MALIDP_DE_DEFAULT_PREFETCH_START	5
@@ -447,6 +447,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp500_set_config_valid,
 		.modeset = malidp500_modeset,
 		.rotmem_required = malidp500_rotmem_required,
+		.features = MALIDP_DEVICE_LV_HAS_3_STRIDES,
 	},
 	[MALIDP_550] = {
 		.map = {
@@ -480,6 +481,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
+		.features = 0,
 	},
 	[MALIDP_650] = {
 		.map = {
@@ -514,6 +516,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
+		.features = 0,
 	},
 };
 

@@ -81,6 +81,10 @@
 #define MALIDP_DE_SYNC_WIDTH		0x8
 #define MALIDP_DE_HV_ACTIVE		0xc
 
+/* Stride register offsets relative to Lx_BASE */
+#define MALIDP_DE_LG_STRIDE		0x18
+#define MALIDP_DE_LV_STRIDE0		0x18
+
 /* macros to set values into registers */
 #define MALIDP_DE_H_FRONTPORCH(x)	(((x) & 0xfff) << 0)
 #define MALIDP_DE_H_BACKPORCH(x)	(((x) & 0x3ff) << 16)

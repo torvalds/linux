@@ -37,7 +37,6 @@
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
-#define MALIDP_LAYER_STRIDE		0x018
 
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
@@ -138,6 +137,16 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	    (state->crtc_h < mp->hwdev->min_line_size))
 		return -EINVAL;
 
+	/*
+	 * DP550/650 video layers can accept 3 plane formats only if
+	 * fb->pitches[1] == fb->pitches[2] since they don't have a
+	 * third plane stride register.
+	 */
+	if (ms->n_planes == 3 &&
+	    !(mp->hwdev->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
+	    (state->fb->pitches[1] != state->fb->pitches[2]))
+		return -EINVAL;
+
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
 	if (state->rotation != DRM_ROTATE_0 &&
 	    (fb->format->format == DRM_FORMAT_RGB888 ||
@@ -170,6 +179,25 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	return 0;
 }
 
+static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
+					int num_planes, unsigned int pitches[3])
+{
+	int i;
+	int num_strides = num_planes;
+
+	if (!mp->layer->stride_offset)
+		return;
+
+	if (num_planes == 3)
+		num_strides = (mp->hwdev->features &
+			       MALIDP_DEVICE_LV_HAS_3_STRIDES) ? 3 : 2;
+
+	for (i = 0; i < num_strides; ++i)
+		malidp_hw_write(mp->hwdev, pitches[i],
+				mp->layer->base +
+				mp->layer->stride_offset + i * 4);
+}
+
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
@@ -200,9 +228,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		obj->paddr += plane->state->fb->offsets[i];
 		malidp_hw_write(mp->hwdev, lower_32_bits(obj->paddr), ptr);
 		malidp_hw_write(mp->hwdev, upper_32_bits(obj->paddr), ptr + 4);
-		malidp_hw_write(mp->hwdev, plane->state->fb->pitches[i],
-				mp->layer->base + MALIDP_LAYER_STRIDE);
 	}
+	malidp_de_set_plane_pitches(mp, ms->n_planes,
+				    plane->state->fb->pitches);
 
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
 			mp->layer->base + MALIDP_LAYER_SIZE);

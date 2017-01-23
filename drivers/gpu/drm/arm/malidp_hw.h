@@ -58,6 +58,7 @@ struct malidp_layer {
 	u16 id;			/* layer ID */
 	u16 base;		/* address offset for the register bank */
 	u16 ptr;		/* address offset for the pointer register */
+	u16 stride_offset;	/* Offset to the first stride register. */
 };
 
 /* regmap features */
@@ -92,6 +93,10 @@ struct malidp_hw_regmap {
 	/* pitch alignment requirement in bytes */
 	const u8 bus_align_bytes;
 };
+
+/* device features */
+/* Unlike DP550/650, DP500 has 3 stride registers in its video layer. */
+#define MALIDP_DEVICE_LV_HAS_3_STRIDES	BIT(0)
 
 struct malidp_hw_device {
 	const struct malidp_hw_regmap map;
