@@ -5522,6 +5522,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	ioc->non_operational_loop = 0;
+	ioc->got_task_abort_from_ioctl = 0;
 	return 0;
 
  out_free_resources:
