@@ -144,10 +144,16 @@ void perf_data__close(struct perf_data *data)
 	close(data->file.fd);
 }
 
+ssize_t perf_data_file__write(struct perf_data_file *file,
+			      void *buf, size_t size)
+{
+	return writen(file->fd, buf, size);
+}
+
 ssize_t perf_data__write(struct perf_data *data,
 			      void *buf, size_t size)
 {
-	return writen(data->file.fd, buf, size);
+	return perf_data_file__write(&data->file, buf, size);
 }
 
 int perf_data__switch(struct perf_data *data,
