@@ -40,16 +40,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include "imx6ul.dtsi"
 
 / {
-	model = "Engicam Is.IoT MX6UL Starter kit";
-	compatible = "engicam,imx6ul-isiot", "fsl,imx6ul";
-
 	memory {
 		reg = <0x80000000 0x20000000>;
 	};
