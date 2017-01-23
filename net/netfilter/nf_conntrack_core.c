@@ -691,10 +691,7 @@ static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 
 		nf_ct_acct_merge(ct, ctinfo, loser_ct);
 		nf_conntrack_put(&loser_ct->ct_general);
-		/* Assign conntrack already in hashes to this skbuff. Don't
-		 * modify skb->nfctinfo to ensure consistent stateful filtering.
-		 */
-		skb->nfct = &ct->ct_general;
+		nf_ct_set(skb, ct, oldinfo);
 		return NF_ACCEPT;
 	}
 	NF_CT_STAT_INC(net, drop);
@@ -1282,8 +1279,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		}
 		*set_reply = 0;
 	}
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = *ctinfo;
+	nf_ct_set(skb, ct, *ctinfo);
 	return ct;
 }
 
@@ -1526,8 +1522,7 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 		ctinfo = IP_CT_RELATED;
 
 	/* Attach to new skbuff, and increment count */
-	nskb->nfct = &ct->ct_general;
-	nskb->nfctinfo = ctinfo;
+	nf_ct_set(nskb, ct, ctinfo);
 	nf_conntrack_get(skb_nfct(nskb));
 }
 

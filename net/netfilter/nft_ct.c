@@ -554,8 +554,7 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 
 	ct = nf_ct_untracked_get();
 	atomic_inc(&ct->ct_general.use);
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
+	nf_ct_set(skb, ct, IP_CT_NEW);
 }
 
 static struct nft_expr_type nft_notrack_type;

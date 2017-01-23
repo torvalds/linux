@@ -69,8 +69,7 @@ void nf_dup_ipv4(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* Avoid counting cloned packets towards the original connection. */
 	nf_reset(skb);
-	skb->nfct     = &nf_ct_untracked_get()->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
+	nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);
 	nf_conntrack_get(skb_nfct(skb));
 #endif
 	/*

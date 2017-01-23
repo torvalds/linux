@@ -58,8 +58,7 @@ void nf_dup_ipv6(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	nf_reset(skb);
-	skb->nfct     = &nf_ct_untracked_get()->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
+	nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);
 	nf_conntrack_get(skb->nfct);
 #endif
 	if (hooknum == NF_INET_PRE_ROUTING ||
