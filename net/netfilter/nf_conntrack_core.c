@@ -1357,7 +1357,7 @@ repeat:
 		goto out;
 	}
 
-	NF_CT_ASSERT(skb->nfct);
+	NF_CT_ASSERT(skb_nfct(skb));
 
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
@@ -1528,7 +1528,7 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 	/* Attach to new skbuff, and increment count */
 	nskb->nfct = &ct->ct_general;
 	nskb->nfctinfo = ctinfo;
-	nf_conntrack_get(nskb->nfct);
+	nf_conntrack_get(skb_nfct(nskb));
 }
 
 /* Bring out ya dead! */

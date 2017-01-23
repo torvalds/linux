@@ -721,8 +721,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			if (skb->nfct)
-				nf_conntrack_put(skb->nfct);
+			if (skb_nfct(skb))
+				nf_conntrack_put(skb_nfct(skb));
 			nf_conntrack_get(&tmpl->ct_general);
 			skb->nfct = &tmpl->ct_general;
 			skb->nfctinfo = IP_CT_NEW;
@@ -819,7 +819,7 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		if (err)
 			return err;
 
-		ct = (struct nf_conn *)skb->nfct;
+		ct = (struct nf_conn *)skb_nfct(skb);
 		if (ct)
 			nf_ct_deliver_cached_events(ct);
 	}

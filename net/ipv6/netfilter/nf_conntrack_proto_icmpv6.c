@@ -153,7 +153,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
-	NF_CT_ASSERT(skb->nfct == NULL);
+	NF_CT_ASSERT(!skb_nfct(skb));
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
@@ -224,7 +224,7 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	    noct_valid_new[type]) {
 		skb->nfct = &nf_ct_untracked_get()->ct_general;
 		skb->nfctinfo = IP_CT_NEW;
-		nf_conntrack_get(skb->nfct);
+		nf_conntrack_get(skb_nfct(skb));
 		return NF_ACCEPT;
 	}
 

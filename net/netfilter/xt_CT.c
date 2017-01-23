@@ -415,7 +415,7 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	skb->nfct = &nf_ct_untracked_get()->ct_general;
 	skb->nfctinfo = IP_CT_NEW;
-	nf_conntrack_get(skb->nfct);
+	nf_conntrack_get(skb_nfct(skb));
 
 	return XT_CONTINUE;
 }
