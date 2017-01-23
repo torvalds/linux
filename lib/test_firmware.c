@@ -126,10 +126,21 @@ out:
 }
 static DEVICE_ATTR_WO(trigger_async_request);
 
+#define TEST_FW_DEV_ATTR(name)          &dev_attr_##name.attr
+
+static struct attribute *test_dev_attrs[] = {
+	TEST_FW_DEV_ATTR(trigger_request),
+	TEST_FW_DEV_ATTR(trigger_async_request),
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(test_dev);
+
 static struct miscdevice test_fw_misc_device = {
 	.minor          = MISC_DYNAMIC_MINOR,
 	.name           = "test_firmware",
 	.fops           = &test_fw_fops,
+	.groups 	= test_dev_groups,
 };
 
 static int __init test_firmware_init(void)
@@ -141,30 +152,10 @@ static int __init test_firmware_init(void)
 		pr_err("could not register misc device: %d\n", rc);
 		return rc;
 	}
-	rc = device_create_file(test_fw_misc_device.this_device,
-				&dev_attr_trigger_request);
-	if (rc) {
-		pr_err("could not create sysfs interface: %d\n", rc);
-		goto dereg;
-	}
-
-	rc = device_create_file(test_fw_misc_device.this_device,
-				&dev_attr_trigger_async_request);
-	if (rc) {
-		pr_err("could not create async sysfs interface: %d\n", rc);
-		goto remove_file;
-	}
 
 	pr_warn("interface ready\n");
 
 	return 0;
-
-remove_file:
-	device_remove_file(test_fw_misc_device.this_device,
-			   &dev_attr_trigger_async_request);
-dereg:
-	misc_deregister(&test_fw_misc_device);
-	return rc;
 }
 
 module_init(test_firmware_init);
@@ -172,10 +163,6 @@ module_init(test_firmware_init);
 static void __exit test_firmware_exit(void)
 {
 	release_firmware(test_firmware);
-	device_remove_file(test_fw_misc_device.this_device,
-			   &dev_attr_trigger_async_request);
-	device_remove_file(test_fw_misc_device.this_device,
-			   &dev_attr_trigger_request);
 	misc_deregister(&test_fw_misc_device);
 	pr_warn("removed interface\n");
 }
