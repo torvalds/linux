@@ -541,7 +541,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 	addr = hsotg->regs + HAINTMSK;
 	dev_dbg(hsotg->dev, "HAINTMSK	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, dwc2_readl(addr));
-	if (hsotg->params.dma_desc_enable > 0) {
+	if (hsotg->params.dma_desc_enable) {
 		addr = hsotg->regs + HFLBADDR;
 		dev_dbg(hsotg->dev, "HFLBADDR @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
@@ -571,7 +571,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 		addr = hsotg->regs + HCDMA(i);
 		dev_dbg(hsotg->dev, "HCDMA	 @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
-		if (hsotg->params.dma_desc_enable > 0) {
+		if (hsotg->params.dma_desc_enable) {
 			addr = hsotg->regs + HCDMAB(i);
 			dev_dbg(hsotg->dev, "HCDMAB	 @0x%08lX : 0x%08X\n",
 				(unsigned long)addr, dwc2_readl(addr));

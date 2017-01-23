@@ -470,9 +470,6 @@ struct dwc2_core_params {
 	u8 phy_utmi_width;
 	bool phy_ulpi_ddr;
 	bool phy_ulpi_ext_vbus;
-#define DWC2_PHY_ULPI_INTERNAL_VBUS    0
-#define DWC2_PHY_ULPI_EXTERNAL_VBUS    1
-
 	bool enable_dynamic_fifo;
 	bool en_multiple_tx_fifo;
 	bool i2c_enable;
@@ -492,8 +489,6 @@ struct dwc2_core_params {
 	bool dma_desc_fs_enable;
 	bool host_support_fs_ls_low_power;
 	bool host_ls_low_power_phy_clk;
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
 
 	u8 host_channels;
 	u16 host_rx_fifo_size;

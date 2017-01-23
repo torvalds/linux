@@ -53,7 +53,7 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = 1;
 	p->phy_utmi_width = 8;
 	p->i2c_enable = false;
-	p->host_ls_low_power_phy_clk = 0;
+	p->host_ls_low_power_phy_clk = false;
 	p->reload_ctl = false;
 	p->ahbcfg = 0x10;
 	p->uframe_sched = false;
@@ -74,7 +74,7 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
 	p->phy_utmi_width = 8;
 	p->i2c_enable = false;
-	p->host_ls_low_power_phy_clk = 0;
+	p->host_ls_low_power_phy_clk = false;
 	p->reload_ctl = false;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;

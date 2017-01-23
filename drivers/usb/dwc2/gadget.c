@@ -3227,7 +3227,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	if (!using_desc_dma(hsotg))
 		intmsk |= GINTSTS_INCOMPL_SOIN | GINTSTS_INCOMPL_SOOUT;
 
-	if (hsotg->params.external_id_pin_ctl <= 0)
+	if (!hsotg->params.external_id_pin_ctl)
 		intmsk |= GINTSTS_CONIDSTSCHNG;
 
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);

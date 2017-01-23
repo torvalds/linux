@@ -160,7 +160,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 		gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
 		if (gotgctl & GOTGCTL_SESREQSCS) {
 			if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
-			    hsotg->params.i2c_enable > 0) {
+			    hsotg->params.i2c_enable) {
 				hsotg->srp_success = 1;
 			} else {
 				/* Clear Session Request */
