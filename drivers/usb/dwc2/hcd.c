@@ -2260,10 +2260,7 @@ static int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 	/* Program the GOTGCTL register */
 	otgctl = dwc2_readl(hsotg->regs + GOTGCTL);
 	otgctl &= ~GOTGCTL_OTGVER;
-	if (hsotg->params.otg_ver > 0)
-		otgctl |= GOTGCTL_OTGVER;
 	dwc2_writel(otgctl, hsotg->regs + GOTGCTL);
-	dev_dbg(hsotg->dev, "OTG VER PARAM: %d\n", hsotg->params.otg_ver);
 
 	/* Clear the SRP success bit for FS-I2c */
 	hsotg->srp_success = 0;

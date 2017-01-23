@@ -40,7 +40,6 @@
 
 static const struct dwc2_core_params params_hi6220 = {
 	.otg_cap			= 2,	/* No HNP/SRP capable */
-	.otg_ver			= 0,	/* 1.3 */
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= 0,	/* High Speed */
@@ -71,7 +70,6 @@ static const struct dwc2_core_params params_hi6220 = {
 
 static const struct dwc2_core_params params_bcm2835 = {
 	.otg_cap			= 0,	/* HNP/SRP capable */
-	.otg_ver			= 0,	/* 1.3 */
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= 0,	/* High Speed */
@@ -101,7 +99,6 @@ static const struct dwc2_core_params params_bcm2835 = {
 
 static const struct dwc2_core_params params_rk3066 = {
 	.otg_cap			= 2,	/* non-HNP/non-SRP */
-	.otg_ver			= -1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= -1,
@@ -132,7 +129,6 @@ static const struct dwc2_core_params params_rk3066 = {
 
 static const struct dwc2_core_params params_ltq = {
 	.otg_cap			= 2,	/* non-HNP/non-SRP */
-	.otg_ver			= -1,
 	.dma_desc_enable		= -1,
 	.dma_desc_fs_enable		= -1,
 	.speed				= -1,
@@ -163,7 +159,6 @@ static const struct dwc2_core_params params_ltq = {
 
 static const struct dwc2_core_params params_amlogic = {
 	.otg_cap			= DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE,
-	.otg_ver			= -1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= DWC2_SPEED_PARAM_HIGH,
@@ -194,7 +189,6 @@ static const struct dwc2_core_params params_amlogic = {
 
 static const struct dwc2_core_params params_default = {
 	.otg_cap			= -1,
-	.otg_ver			= -1,
 
 	/*
 	 * Disable descriptor dma mode by default as the HW can support
@@ -978,22 +972,6 @@ static void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 						GAHBCFG_HBSTLEN_SHIFT;
 }
 
-static void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
-{
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter otg_ver\n", val);
-			dev_err(hsotg->dev,
-				"otg_ver must be 0 (for OTG 1.3 support) or 1 (for OTG 2.0 support)\n");
-		}
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting otg_ver to %d\n", val);
-	}
-
-	hsotg->params.otg_ver = val;
-}
-
 static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 {
 	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
@@ -1154,7 +1132,6 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 			params->en_multiple_tx_fifo);
 	dwc2_set_param_reload_ctl(hsotg, params->reload_ctl);
 	dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
-	dwc2_set_param_otg_ver(hsotg, params->otg_ver);
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
 	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
 	dwc2_set_param_hibernation(hsotg, params->hibernation);

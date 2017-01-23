@@ -751,11 +751,6 @@ bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host)
 	return dwc2_force_mode(hsotg, host);
 }
 
-u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
-{
-	return hsotg->params.otg_ver == 1 ? 0x0200 : 0x0103;
-}
-
 bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg)
 {
 	if (dwc2_readl(hsotg->regs + GSNPSID) == 0xffffffff)

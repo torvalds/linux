@@ -298,9 +298,6 @@ enum dwc2_ep0_state {
  *                       1 - SRP Only capable
  *                       2 - No HNP/SRP capable (always available)
  *                      Defaults to best available option (0, 1, then 2)
- * @otg_ver:            OTG version supported
- *                       0 - 1.3 (default)
- *                       1 - 2.0
  * @host_dma:           Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
  *                      value for this parameter if none is specified.
@@ -464,7 +461,6 @@ struct dwc2_core_params {
 #define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
 #define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
 
-	int otg_ver;
 	int dma_desc_enable;
 	int dma_desc_fs_enable;
 	int speed;
@@ -1174,11 +1170,6 @@ static inline int dwc2_is_device_mode(struct dwc2_hsotg *hsotg)
 void dwc2_dump_dev_registers(struct dwc2_hsotg *hsotg);
 void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg);
 void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg);
-
-/*
- * Return OTG version - either 1.3 or 2.0
- */
-u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg);
 
 /* Gadget defines */
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
