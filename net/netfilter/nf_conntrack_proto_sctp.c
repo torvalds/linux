@@ -508,7 +508,7 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 }
 
 static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
-		      unsigned int dataoff, enum ip_conntrack_info *ctinfo,
+		      unsigned int dataoff,
 		      u8 pf, unsigned int hooknum)
 {
 	const struct sctphdr *sh;

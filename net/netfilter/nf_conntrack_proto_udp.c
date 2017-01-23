@@ -112,7 +112,6 @@ static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 static int udplite_error(struct net *net, struct nf_conn *tmpl,
 			 struct sk_buff *skb,
 			 unsigned int dataoff,
-			 enum ip_conntrack_info *ctinfo,
 			 u8 pf, unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;
@@ -162,7 +161,7 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 #endif
 
 static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff, enum ip_conntrack_info *ctinfo,
+		     unsigned int dataoff,
 		     u_int8_t pf,
 		     unsigned int hooknum)
 {
