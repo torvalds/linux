@@ -982,7 +982,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
 	irq_flags = irq_get_trigger_type(client->irq);
