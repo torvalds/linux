@@ -37,9 +37,11 @@
 
 /* Control register */
 #define SUN6I_LOSC_CTRL				0x0000
+#define SUN6I_LOSC_CTRL_KEY			(0x16aa << 16)
 #define SUN6I_LOSC_CTRL_ALM_DHMS_ACC		BIT(9)
 #define SUN6I_LOSC_CTRL_RTC_HMS_ACC		BIT(8)
 #define SUN6I_LOSC_CTRL_RTC_YMD_ACC		BIT(7)
+#define SUN6I_LOSC_CTRL_EXT_OSC			BIT(0)
 #define SUN6I_LOSC_CTRL_ACC_MASK		GENMASK(9, 7)
 
 /* RTC */
@@ -416,6 +418,10 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 
 	/* disable alarm wakeup */
 	writel(0, chip->base + SUN6I_ALARM_CONFIG);
+
+	/* switch to the external, more precise, oscillator */
+	writel(SUN6I_LOSC_CTRL_KEY | SUN6I_LOSC_CTRL_EXT_OSC,
+	       chip->base + SUN6I_LOSC_CTRL);
 
 	chip->rtc = rtc_device_register("rtc-sun6i", &pdev->dev,
 					&sun6i_rtc_ops, THIS_MODULE);
