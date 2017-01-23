@@ -2844,8 +2844,6 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 	td->start_seg = ep_ring->enq_seg;
 	td->first_trb = ep_ring->enqueue;
 
-	urb_priv->td[td_index] = td;
-
 	return 0;
 }
 
