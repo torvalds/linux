@@ -93,6 +93,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_MR_CLKSEL		0x00000001  /* Pre-scalar selection */
 #define CDNS_UART_MR_CHMODE_L_LOOP	0x00000200  /* Local loop back mode */
 #define CDNS_UART_MR_CHMODE_NORM	0x00000000  /* Normal mode */
+#define CDNS_UART_MR_CHMODE_MASK	0x00000300  /* Mask for mode bits */
 
 #define CDNS_UART_MR_STOPMODE_2_BIT	0x00000080  /* 2 stop bits */
 #define CDNS_UART_MR_STOPMODE_1_BIT	0x00000000  /* 1 stop bit */
@@ -998,17 +999,25 @@ static unsigned int cdns_uart_get_mctrl(struct uart_port *port)
 static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	u32 val;
+	u32 mode_reg;
 
 	val = readl(port->membase + CDNS_UART_MODEMCR);
+	mode_reg = readl(port->membase + CDNS_UART_MR);
 
 	val &= ~(CDNS_UART_MODEMCR_RTS | CDNS_UART_MODEMCR_DTR);
+	mode_reg &= ~CDNS_UART_MR_CHMODE_MASK;
 
 	if (mctrl & TIOCM_RTS)
 		val |= CDNS_UART_MODEMCR_RTS;
 	if (mctrl & TIOCM_DTR)
 		val |= CDNS_UART_MODEMCR_DTR;
+	if (mctrl & TIOCM_LOOP)
+		mode_reg |= CDNS_UART_MR_CHMODE_L_LOOP;
+	else
+		mode_reg |= CDNS_UART_MR_CHMODE_NORM;
 
 	writel(val, port->membase + CDNS_UART_MODEMCR);
+	writel(mode_reg, port->membase + CDNS_UART_MR);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
