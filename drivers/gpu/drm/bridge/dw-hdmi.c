@@ -2060,7 +2060,9 @@ __dw_hdmi_probe(struct platform_device *pdev,
 
 	hdmi->bridge.driver_private = hdmi;
 	hdmi->bridge.funcs = &dw_hdmi_bridge_funcs;
+#ifdef CONFIG_OF
 	hdmi->bridge.of_node = pdev->dev.of_node;
+#endif
 
 	ret = dw_hdmi_fb_registered(hdmi);
 	if (ret)
