@@ -839,6 +839,29 @@ static const struct file_operations hw_params_fops = {
 	.release	= single_release,
 };
 
+static int dr_mode_show(struct seq_file *seq, void *v)
+{
+	struct dwc2_hsotg *hsotg = seq->private;
+	const char *dr_mode = "";
+
+	device_property_read_string(hsotg->dev, "dr_mode", &dr_mode);
+	seq_printf(seq, "%s\n", dr_mode);
+	return 0;
+}
+
+static int dr_mode_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dr_mode_show, inode->i_private);
+}
+
+static const struct file_operations dr_mode_fops = {
+	.owner		= THIS_MODULE,
+	.open		= dr_mode_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 {
 	int			ret;
@@ -862,6 +885,12 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	if (IS_ERR(file))
 		dev_err(hsotg->dev, "%s: failed to create hw_params\n",
 			__func__);
+
+	file = debugfs_create_file("dr_mode", 0444,
+				   hsotg->debug_root,
+				   hsotg, &dr_mode_fops);
+	if (IS_ERR(file))
+		dev_err(hsotg->dev, "%s: failed to create dr_mode\n", __func__);
 
 	/* Add gadget debugfs nodes */
 	dwc2_hsotg_create_debug(hsotg);
