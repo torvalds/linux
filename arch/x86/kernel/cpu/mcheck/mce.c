@@ -216,9 +216,7 @@ void mce_register_decode_chain(struct notifier_block *nb)
 {
 	atomic_inc(&num_notifiers);
 
-	/* Ensure SRAO notifier has the highest priority in the decode chain. */
-	if (nb != &mce_srao_nb && nb->priority == INT_MAX)
-		nb->priority -= 1;
+	WARN_ON(nb->priority > MCE_PRIO_LOWEST && nb->priority < MCE_PRIO_EDAC);
 
 	atomic_notifier_chain_register(&x86_mce_decoder_chain, nb);
 }
@@ -582,7 +580,7 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 }
 static struct notifier_block mce_srao_nb = {
 	.notifier_call	= srao_decode_notifier,
-	.priority = INT_MAX,
+	.priority	= MCE_PRIO_SRAO,
 };
 
 static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
@@ -608,7 +606,7 @@ static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
 static struct notifier_block mce_default_nb = {
 	.notifier_call	= mce_default_notifier,
 	/* lowest prio, we want it to run last. */
-	.priority	= 0,
+	.priority	= MCE_PRIO_LOWEST,
 };
 
 /*

@@ -189,6 +189,15 @@ extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
 extern struct mca_msr_regs msr_ops;
+
+enum mce_notifier_prios {
+	MCE_PRIO_SRAO		= INT_MAX,
+	MCE_PRIO_EXTLOG		= INT_MAX - 1,
+	MCE_PRIO_NFIT		= INT_MAX - 2,
+	MCE_PRIO_EDAC		= INT_MAX - 3,
+	MCE_PRIO_LOWEST		= 0,
+};
+
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
