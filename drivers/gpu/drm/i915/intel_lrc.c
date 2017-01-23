@@ -595,6 +595,11 @@ static void intel_lrc_irq_handler(unsigned long data)
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
+			/* Check the context/desc id for this event matches */
+			GEM_BUG_ON(readl(buf + 2 * idx + 1) !=
+				   upper_32_bits(intel_lr_context_descriptor(port[0].request->ctx,
+									     engine)));
+
 			GEM_BUG_ON(port[0].count == 0);
 			if (--port[0].count == 0) {
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
