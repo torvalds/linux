@@ -1682,8 +1682,12 @@ static int btmrvl_sdio_resume(struct device *dev)
 	/* Disable platform specific wakeup interrupt */
 	if (card->plt_wake_cfg && card->plt_wake_cfg->irq_bt >= 0) {
 		disable_irq_wake(card->plt_wake_cfg->irq_bt);
-		if (!card->plt_wake_cfg->wake_by_bt)
-			disable_irq(card->plt_wake_cfg->irq_bt);
+		disable_irq(card->plt_wake_cfg->irq_bt);
+		if (card->plt_wake_cfg->wake_by_bt)
+			/* Undo our disable, since interrupt handler already
+			 * did this.
+			 */
+			enable_irq(card->plt_wake_cfg->irq_bt);
 	}
 
 	return 0;
