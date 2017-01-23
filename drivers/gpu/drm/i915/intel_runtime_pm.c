@@ -732,7 +732,7 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 	 * other request bits to be set, so WARN for those.
 	 */
 	if (power_well_id == SKL_DISP_PW_1 ||
-	    ((IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
+	    (IS_GEN9_BC(dev_priv) &&
 	     power_well_id == SKL_DISP_PW_MISC_IO))
 		DRM_DEBUG_DRIVER("Clearing auxiliary requests for %s forced on "
 				 "by DMC\n", power_well->name);
@@ -2323,7 +2323,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
 	} else if (IS_GEN9_LP(dev_priv)) {
@@ -2398,7 +2398,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, hsw_power_wells);
 	} else if (IS_BROADWELL(dev_priv)) {
 		set_power_wells(power_domains, bdw_power_wells);
-	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	} else if (IS_GEN9_BC(dev_priv)) {
 		set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
 		set_power_wells(power_domains, bxt_power_wells);
@@ -2730,7 +2730,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	power_domains->initializing = true;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
 	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_display_core_init(dev_priv, resume);
@@ -2769,7 +2769,7 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 	if (!i915.disable_power_well)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_GEN9_BC(dev_priv))
 		skl_display_core_uninit(dev_priv);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_display_core_uninit(dev_priv);
