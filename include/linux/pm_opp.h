@@ -78,6 +78,9 @@ struct dev_pm_set_opp_data {
 
 #if defined(CONFIG_PM_OPP)
 
+struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
+void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
+
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);
 
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp);
@@ -126,6 +129,13 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 void dev_pm_opp_remove_table(struct device *dev);
 void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask);
 #else
+static inline struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
+static inline void dev_pm_opp_put_opp_table(struct opp_table *opp_table) {}
+
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
 	return 0;

@@ -855,6 +855,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev)
 	srcu_init_notifier_head(&opp_table->srcu_head);
 	INIT_LIST_HEAD(&opp_table->opp_list);
 	mutex_init(&opp_table->lock);
+	kref_init(&opp_table->kref);
 
 	/* Secure the device table modification */
 	list_add_rcu(&opp_table->node, &opp_tables);
@@ -894,8 +895,36 @@ static void _kfree_device_rcu(struct rcu_head *head)
 	kfree_rcu(opp_table, rcu_head);
 }
 
-static void _free_opp_table(struct opp_table *opp_table)
+void _get_opp_table_kref(struct opp_table *opp_table)
 {
+	kref_get(&opp_table->kref);
+}
+
+struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
+{
+	struct opp_table *opp_table;
+
+	/* Hold our table modification lock here */
+	mutex_lock(&opp_table_lock);
+
+	opp_table = _find_opp_table(dev);
+	if (!IS_ERR(opp_table)) {
+		_get_opp_table_kref(opp_table);
+		goto unlock;
+	}
+
+	opp_table = _allocate_opp_table(dev);
+
+unlock:
+	mutex_unlock(&opp_table_lock);
+
+	return opp_table;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table);
+
+static void _opp_table_kref_release_unlocked(struct kref *kref)
+{
+	struct opp_table *opp_table = container_of(kref, struct opp_table, kref);
 	struct opp_device *opp_dev;
 
 	/* Release clk */
@@ -915,6 +944,24 @@ static void _free_opp_table(struct opp_table *opp_table)
 	call_srcu(&opp_table->srcu_head.srcu, &opp_table->rcu_head,
 		  _kfree_device_rcu);
 }
+
+static void dev_pm_opp_put_opp_table_unlocked(struct opp_table *opp_table)
+{
+	kref_put(&opp_table->kref, _opp_table_kref_release_unlocked);
+}
+
+static void _opp_table_kref_release(struct kref *kref)
+{
+	_opp_table_kref_release_unlocked(kref);
+	mutex_unlock(&opp_table_lock);
+}
+
+void dev_pm_opp_put_opp_table(struct opp_table *opp_table)
+{
+	kref_put_mutex(&opp_table->kref, _opp_table_kref_release,
+		       &opp_table_lock);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_put_opp_table);
 
 /**
  * _remove_opp_table() - Removes a OPP table
@@ -939,7 +986,7 @@ static void _remove_opp_table(struct opp_table *opp_table)
 	if (opp_table->set_opp)
 		return;
 
-	_free_opp_table(opp_table);
+	dev_pm_opp_put_opp_table_unlocked(opp_table);
 }
 
 void _opp_free(struct dev_pm_opp *opp)
