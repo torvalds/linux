@@ -610,27 +610,27 @@ static int ad7150_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
-					   NULL,
-					   &ad7150_event_handler,
-					   IRQF_TRIGGER_RISING |
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   "ad7150_irq1",
-					   indio_dev);
+						NULL,
+						&ad7150_event_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"ad7150_irq1",
+						indio_dev);
 		if (ret)
 			return ret;
 	}
 
 	if (client->dev.platform_data) {
 		ret = devm_request_threaded_irq(&client->dev, *(unsigned int *)
-					   client->dev.platform_data,
-					   NULL,
-					   &ad7150_event_handler,
-					   IRQF_TRIGGER_RISING |
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   "ad7150_irq2",
-					   indio_dev);
+						client->dev.platform_data,
+						NULL,
+						&ad7150_event_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"ad7150_irq2",
+						indio_dev);
 		if (ret)
 			return ret;
 	}
