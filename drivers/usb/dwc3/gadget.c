@@ -1967,6 +1967,44 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 			dep->endpoint.ops = &dwc3_gadget_ep0_ops;
 			if (!epnum)
 				dwc->gadget.ep0 = &dep->endpoint;
+		} else if (direction) {
+			int mdwidth;
+			int size;
+			int ret;
+			int num;
+
+			mdwidth = DWC3_MDWIDTH(dwc->hwparams.hwparams0);
+			/* MDWIDTH is represented in bits, we need it in bytes */
+			mdwidth /= 8;
+
+			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(i));
+			size = DWC3_GTXFIFOSIZ_TXFDEF(size);
+
+			/* FIFO Depth is in MDWDITH bytes. Multiply */
+			size *= mdwidth;
+
+			num = size / 1024;
+			if (num == 0)
+				num = 1;
+
+			/*
+			 * FIFO sizes account an extra MDWIDTH * (num + 1) bytes for
+			 * internal overhead. We don't really know how these are used,
+			 * but documentation say it exists.
+			 */
+			size -= mdwidth * (num + 1);
+			size /= num;
+
+			usb_ep_set_maxpacket_limit(&dep->endpoint, size);
+
+			dep->endpoint.max_streams = 15;
+			dep->endpoint.ops = &dwc3_gadget_ep_ops;
+			list_add_tail(&dep->endpoint.ep_list,
+					&dwc->gadget.ep_list);
+
+			ret = dwc3_alloc_trb_pool(dep);
+			if (ret)
+				return ret;
 		} else {
 			int		ret;
 
