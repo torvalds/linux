@@ -314,7 +314,6 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 					 struct xhci_command *cur_cmd)
 {
 	struct xhci_command *i_cmd;
-	u32 cycle_state;
 
 	/* Turn all aborted commands in list to no-ops, then restart */
 	list_for_each_entry(i_cmd, &xhci->cmd_list, cmd_list) {
@@ -326,15 +325,8 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 
 		xhci_dbg(xhci, "Turn aborted command %p to no-op\n",
 			 i_cmd->command_trb);
-		/* get cycle state from the original cmd trb */
-		cycle_state = le32_to_cpu(
-			i_cmd->command_trb->generic.field[3]) &	TRB_CYCLE;
-		/* modify the command trb to no-op command */
-		i_cmd->command_trb->generic.field[0] = 0;
-		i_cmd->command_trb->generic.field[1] = 0;
-		i_cmd->command_trb->generic.field[2] = 0;
-		i_cmd->command_trb->generic.field[3] = cpu_to_le32(
-			TRB_TYPE(TRB_CMD_NOOP) | cycle_state);
+
+		trb_to_noop(i_cmd->command_trb, TRB_CMD_NOOP);
 
 		/*
 		 * caller waiting for completion is called when command
