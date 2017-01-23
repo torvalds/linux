@@ -57,6 +57,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/netevent.h>
+#include <net/tc_act/tc_sample.h>
 
 #include "spectrum.h"
 #include "pci.h"
@@ -467,6 +468,16 @@ static void mlxsw_sp_span_mirror_remove(struct mlxsw_sp_port *from,
 	netdev_dbg(from->dev, "removing inspected port from SPAN entry %d\n",
 		   span_entry->id);
 	mlxsw_sp_span_inspected_port_unbind(from, span_entry, type);
+}
+
+static int mlxsw_sp_port_sample_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    bool enable, u32 rate)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char mpsc_pl[MLXSW_REG_MPSC_LEN];
+
+	mlxsw_reg_mpsc_pack(mpsc_pl, mlxsw_sp_port->local_port, enable, rate);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpsc), mpsc_pl);
 }
 
 static int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1218,6 +1229,51 @@ mlxsw_sp_port_del_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_span_mirror_remove(mlxsw_sp_port, to_port, span_type);
 }
 
+static int
+mlxsw_sp_port_add_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct tc_cls_matchall_offload *cls,
+				      const struct tc_action *a,
+				      bool ingress)
+{
+	int err;
+
+	if (!mlxsw_sp_port->sample)
+		return -EOPNOTSUPP;
+	if (rtnl_dereference(mlxsw_sp_port->sample->psample_group)) {
+		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
+		return -EEXIST;
+	}
+	if (tcf_sample_rate(a) > MLXSW_REG_MPSC_RATE_MAX) {
+		netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	rcu_assign_pointer(mlxsw_sp_port->sample->psample_group,
+			   tcf_sample_psample_group(a));
+	mlxsw_sp_port->sample->truncate = tcf_sample_truncate(a);
+	mlxsw_sp_port->sample->trunc_size = tcf_sample_trunc_size(a);
+	mlxsw_sp_port->sample->rate = tcf_sample_rate(a);
+
+	err = mlxsw_sp_port_sample_set(mlxsw_sp_port, true, tcf_sample_rate(a));
+	if (err)
+		goto err_port_sample_set;
+	return 0;
+
+err_port_sample_set:
+	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
+	return err;
+}
+
+static void
+mlxsw_sp_port_del_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	if (!mlxsw_sp_port->sample)
+		return;
+
+	mlxsw_sp_port_sample_set(mlxsw_sp_port, false, 1);
+	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
+}
+
 static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  __be16 protocol,
 					  struct tc_cls_matchall_offload *cls,
@@ -1248,6 +1304,10 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 		mirror = &mall_tc_entry->mirror;
 		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port,
 							    mirror, a, ingress);
+	} else if (is_tcf_sample(a) && protocol == htons(ETH_P_ALL)) {
+		mall_tc_entry->type = MLXSW_SP_PORT_MALL_SAMPLE;
+		err = mlxsw_sp_port_add_cls_matchall_sample(mlxsw_sp_port, cls,
+							    a, ingress);
 	} else {
 		err = -EOPNOTSUPP;
 	}
@@ -1280,6 +1340,9 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 	case MLXSW_SP_PORT_MALL_MIRROR:
 		mlxsw_sp_port_del_cls_matchall_mirror(mlxsw_sp_port,
 						      &mall_tc_entry->mirror);
+		break;
+	case MLXSW_SP_PORT_MALL_SAMPLE:
+		mlxsw_sp_port_del_cls_matchall_sample(mlxsw_sp_port);
 		break;
 	default:
 		WARN_ON(1);
@@ -2259,6 +2322,13 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_alloc_stats;
 	}
 
+	mlxsw_sp_port->sample = kzalloc(sizeof(*mlxsw_sp_port->sample),
+					GFP_KERNEL);
+	if (!mlxsw_sp_port->sample) {
+		err = -ENOMEM;
+		goto err_alloc_sample;
+	}
+
 	mlxsw_sp_port->hw_stats.cache =
 		kzalloc(sizeof(*mlxsw_sp_port->hw_stats.cache), GFP_KERNEL);
 
@@ -2387,6 +2457,8 @@ err_dev_addr_init:
 err_port_swid_set:
 	kfree(mlxsw_sp_port->hw_stats.cache);
 err_alloc_hw_stats:
+	kfree(mlxsw_sp_port->sample);
+err_alloc_sample:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	kfree(mlxsw_sp_port->untagged_vlans);
@@ -2433,6 +2505,7 @@ static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
 	kfree(mlxsw_sp_port->hw_stats.cache);
+	kfree(mlxsw_sp_port->sample);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 	kfree(mlxsw_sp_port->untagged_vlans);
 	kfree(mlxsw_sp_port->active_vlans);
@@ -2734,6 +2807,41 @@ static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
 	return mlxsw_sp_rx_listener_no_mark_func(skb, local_port, priv);
 }
 
+static void mlxsw_sp_rx_listener_sample_func(struct sk_buff *skb, u8 local_port,
+					     void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	struct psample_group *psample_group;
+	u32 size;
+
+	if (unlikely(!mlxsw_sp_port)) {
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received for non-existent port\n",
+				     local_port);
+		goto out;
+	}
+	if (unlikely(!mlxsw_sp_port->sample)) {
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received on unsupported port\n",
+				     local_port);
+		goto out;
+	}
+
+	size = mlxsw_sp_port->sample->truncate ?
+		  mlxsw_sp_port->sample->trunc_size : skb->len;
+
+	rcu_read_lock();
+	psample_group = rcu_dereference(mlxsw_sp_port->sample->psample_group);
+	if (!psample_group)
+		goto out_unlock;
+	psample_sample_packet(psample_group, skb, size,
+			      mlxsw_sp_port->dev->ifindex, 0,
+			      mlxsw_sp_port->sample->rate);
+out_unlock:
+	rcu_read_unlock();
+out:
+	consume_skb(skb);
+}
+
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
 		  _is_ctrl, SP_##_trap_group, DISCARD)
@@ -2769,6 +2877,9 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, REMOTE_ROUTE, false),
 	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, ARP_MISS, false),
 	MLXSW_SP_RXL_NO_MARK(BGP_IPV4, TRAP_TO_CPU, BGP_IPV4, false),
+	/* PKT Sample trap */
+	MLXSW_RXL(mlxsw_sp_rx_listener_sample_func, PKT_SAMPLE, MIRROR_TO_CPU,
+		  false, SP_IP2ME, DISCARD)
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
