@@ -1337,7 +1337,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	int ret = 0;
 	unsigned int slot_id, ep_index;
 	struct urb_priv	*urb_priv;
-	int size, i;
+	int num_tds, i;
 
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep,
 					true, true, __func__) <= 0)
@@ -1354,32 +1354,32 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	}
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
-		size = urb->number_of_packets;
+		num_tds = urb->number_of_packets;
 	else if (usb_endpoint_is_bulk_out(&urb->ep->desc) &&
 	    urb->transfer_buffer_length > 0 &&
 	    urb->transfer_flags & URB_ZERO_PACKET &&
 	    !(urb->transfer_buffer_length % usb_endpoint_maxp(&urb->ep->desc)))
-		size = 2;
+		num_tds = 2;
 	else
-		size = 1;
+		num_tds = 1;
 
 	urb_priv = kzalloc(sizeof(struct urb_priv) +
-				  size * sizeof(struct xhci_td *), mem_flags);
+			   num_tds * sizeof(struct xhci_td *), mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 
-	buffer = kzalloc(size * sizeof(struct xhci_td), mem_flags);
+	buffer = kzalloc(num_tds * sizeof(struct xhci_td), mem_flags);
 	if (!buffer) {
 		kfree(urb_priv);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < num_tds; i++) {
 		urb_priv->td[i] = buffer;
 		buffer++;
 	}
 
-	urb_priv->length = size;
+	urb_priv->length = num_tds;
 	urb_priv->td_cnt = 0;
 	urb->hcpriv = urb_priv;
 
