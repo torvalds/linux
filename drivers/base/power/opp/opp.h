@@ -196,7 +196,6 @@ struct opp_table {
 /* Routines internal to opp core */
 void _get_opp_table_kref(struct opp_table *opp_table);
 struct opp_table *_find_opp_table(struct device *dev);
-struct opp_table *_add_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
 void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev, bool remove_all);
 void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all);

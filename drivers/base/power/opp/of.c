@@ -24,7 +24,9 @@
 
 static struct opp_table *_managed_opp(const struct device_node *np)
 {
-	struct opp_table *opp_table;
+	struct opp_table *opp_table, *managed_table = NULL;
+
+	mutex_lock(&opp_table_lock);
 
 	list_for_each_entry_rcu(opp_table, &opp_tables, node) {
 		if (opp_table->np == np) {
@@ -35,14 +37,18 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 			 * But the OPPs will be considered as shared only if the
 			 * OPP table contains a "opp-shared" property.
 			 */
-			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED)
-				return opp_table;
+			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
+				_get_opp_table_kref(opp_table);
+				managed_table = opp_table;
+			}
 
-			return NULL;
+			break;
 		}
 	}
 
-	return NULL;
+	mutex_unlock(&opp_table_lock);
+
+	return managed_table;
 }
 
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev)
@@ -368,21 +374,17 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	struct opp_table *opp_table;
 	int ret = 0, count = 0;
 
-	mutex_lock(&opp_table_lock);
-
 	opp_table = _managed_opp(opp_np);
 	if (opp_table) {
 		/* OPPs are already managed */
 		if (!_add_opp_dev(dev, opp_table))
 			ret = -ENOMEM;
-		goto unlock;
+		goto put_opp_table;
 	}
 
-	opp_table = _add_opp_table(dev);
-	if (!opp_table) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return -ENOMEM;
 
 	/* We have opp-table node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_np, np) {
@@ -392,14 +394,15 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			goto free_table;
+			_dev_pm_opp_remove_table(opp_table, dev, false);
+			goto put_opp_table;
 		}
 	}
 
 	/* There should be one of more OPP defined */
 	if (WARN_ON(!count)) {
 		ret = -ENOENT;
-		goto free_table;
+		goto put_opp_table;
 	}
 
 	opp_table->np = opp_np;
@@ -408,12 +411,8 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	else
 		opp_table->shared_opp = OPP_TABLE_ACCESS_EXCLUSIVE;
 
-	goto unlock;
-
-free_table:
-	_dev_pm_opp_remove_table(opp_table, dev, false);
-unlock:
-	mutex_unlock(&opp_table_lock);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
@@ -442,13 +441,9 @@ static int _of_add_opp_table_v1(struct device *dev)
 		return -EINVAL;
 	}
 
-	mutex_lock(&opp_table_lock);
-
-	opp_table = _add_opp_table(dev);
-	if (!opp_table) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return -ENOMEM;
 
 	val = prop->value;
 	while (nr) {
@@ -465,8 +460,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 		nr -= 2;
 	}
 
-unlock:
-	mutex_unlock(&opp_table_lock);
+	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
 }
 

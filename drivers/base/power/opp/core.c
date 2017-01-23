@@ -863,27 +863,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev)
 }
 
 /**
- * _add_opp_table() - Find OPP table or allocate a new one
- * @dev:	device for which we do this operation
- *
- * It tries to find an existing table first, if it couldn't find one, it
- * allocates a new OPP table and returns that.
- *
- * Return: valid opp_table pointer if success, else NULL.
- */
-struct opp_table *_add_opp_table(struct device *dev)
-{
-	struct opp_table *opp_table;
-
-	/* Check for existing table for 'dev' first */
-	opp_table = _find_opp_table(dev);
-	if (!IS_ERR(opp_table))
-		return opp_table;
-
-	return _allocate_opp_table(dev);
-}
-
-/**
  * _kfree_device_rcu() - Free opp_table RCU handler
  * @head:	RCU head
  */
@@ -922,7 +901,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table);
 
-static void _opp_table_kref_release_unlocked(struct kref *kref)
+static void _opp_table_kref_release(struct kref *kref)
 {
 	struct opp_table *opp_table = container_of(kref, struct opp_table, kref);
 	struct opp_device *opp_dev;
@@ -943,16 +922,7 @@ static void _opp_table_kref_release_unlocked(struct kref *kref)
 	list_del_rcu(&opp_table->node);
 	call_srcu(&opp_table->srcu_head.srcu, &opp_table->rcu_head,
 		  _kfree_device_rcu);
-}
 
-static void dev_pm_opp_put_opp_table_unlocked(struct opp_table *opp_table)
-{
-	kref_put(&opp_table->kref, _opp_table_kref_release_unlocked);
-}
-
-static void _opp_table_kref_release(struct kref *kref)
-{
-	_opp_table_kref_release_unlocked(kref);
 	mutex_unlock(&opp_table_lock);
 }
 
@@ -962,17 +932,6 @@ void dev_pm_opp_put_opp_table(struct opp_table *opp_table)
 		       &opp_table_lock);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_opp_table);
-
-/**
- * _remove_opp_table() - Removes a OPP table
- * @opp_table: OPP table to be removed.
- *
- * Removes/frees OPP table if it doesn't contain any OPPs.
- */
-static void _remove_opp_table(struct opp_table *opp_table)
-{
-	dev_pm_opp_put_opp_table_unlocked(opp_table);
-}
 
 void _opp_free(struct dev_pm_opp *opp)
 {
@@ -1217,8 +1176,6 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	struct dev_pm_opp *new_opp;
 	unsigned long tol;
 	int ret;
-
-	opp_rcu_lockdep_assert();
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
@@ -1640,21 +1597,13 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	struct opp_table *opp_table;
 	int ret;
 
-	/* Hold our table modification lock here */
-	mutex_lock(&opp_table_lock);
-
-	opp_table = _add_opp_table(dev);
-	if (!opp_table) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table)
+		return -ENOMEM;
 
 	ret = _opp_add_v1(opp_table, dev, freq, u_volt, true);
-	if (ret)
-		_remove_opp_table(opp_table);
 
-unlock:
-	mutex_unlock(&opp_table_lock);
+	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
@@ -1864,8 +1813,6 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 			      bool remove_all)
 {
 	struct dev_pm_opp *opp, *tmp;
-
-	opp_rcu_lockdep_assert();
 
 	/* Find if opp_table manages a single device */
 	if (list_is_singular(&opp_table->dev_list)) {
