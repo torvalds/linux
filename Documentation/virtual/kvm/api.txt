@@ -1991,6 +1991,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TM_VSCR           | 32
   PPC   | KVM_REG_PPC_TM_DSCR           | 64
   PPC   | KVM_REG_PPC_TM_TAR            | 64
+  PPC   | KVM_REG_PPC_TM_XER            | 64
         |                               |
   MIPS  | KVM_REG_MIPS_R0               | 64
           ...

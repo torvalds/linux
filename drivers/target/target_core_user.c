@@ -645,8 +645,6 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	target_complete_cmd(cmd->se_cmd, SAM_STAT_CHECK_CONDITION);
 	cmd->se_cmd = NULL;
 
-	kmem_cache_free(tcmu_cmd_cache, cmd);
-
 	return 0;
 }
 

@@ -545,6 +545,7 @@ struct kvm_vcpu_arch {
 	u64 tfiar;
 
 	u32 cr_tm;
+	u64 xer_tm;
 	u64 lr_tm;
 	u64 ctr_tm;
 	u64 amr_tm;

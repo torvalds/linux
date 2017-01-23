@@ -772,6 +772,17 @@ struct mvpp2_rx_desc {
 	u32 reserved8;
 };
 
+struct mvpp2_txq_pcpu_buf {
+	/* Transmitted SKB */
+	struct sk_buff *skb;
+
+	/* Physical address of transmitted buffer */
+	dma_addr_t phys;
+
+	/* Size transmitted */
+	size_t size;
+};
+
 /* Per-CPU Tx queue control */
 struct mvpp2_txq_pcpu {
 	int cpu;
@@ -787,11 +798,8 @@ struct mvpp2_txq_pcpu {
 	/* Number of Tx DMA descriptors reserved for each CPU */
 	int reserved_num;
 
-	/* Array of transmitted skb */
-	struct sk_buff **tx_skb;
-
-	/* Array of transmitted buffers' physical addresses */
-	dma_addr_t *tx_buffs;
+	/* Infos about transmitted buffers */
+	struct mvpp2_txq_pcpu_buf *buffs;
 
 	/* Index of last TX DMA descriptor that was inserted */
 	int txq_put_index;
@@ -981,10 +989,11 @@ static void mvpp2_txq_inc_put(struct mvpp2_txq_pcpu *txq_pcpu,
 			      struct sk_buff *skb,
 			      struct mvpp2_tx_desc *tx_desc)
 {
-	txq_pcpu->tx_skb[txq_pcpu->txq_put_index] = skb;
-	if (skb)
-		txq_pcpu->tx_buffs[txq_pcpu->txq_put_index] =
-							 tx_desc->buf_phys_addr;
+	struct mvpp2_txq_pcpu_buf *tx_buf =
+		txq_pcpu->buffs + txq_pcpu->txq_put_index;
+	tx_buf->skb = skb;
+	tx_buf->size = tx_desc->data_size;
+	tx_buf->phys = tx_desc->buf_phys_addr;
 	txq_pcpu->txq_put_index++;
 	if (txq_pcpu->txq_put_index == txq_pcpu->size)
 		txq_pcpu->txq_put_index = 0;
@@ -4403,17 +4412,16 @@ static void mvpp2_txq_bufs_free(struct mvpp2_port *port,
 	int i;
 
 	for (i = 0; i < num; i++) {
-		dma_addr_t buf_phys_addr =
-				    txq_pcpu->tx_buffs[txq_pcpu->txq_get_index];
-		struct sk_buff *skb = txq_pcpu->tx_skb[txq_pcpu->txq_get_index];
+		struct mvpp2_txq_pcpu_buf *tx_buf =
+			txq_pcpu->buffs + txq_pcpu->txq_get_index;
 
 		mvpp2_txq_inc_get(txq_pcpu);
 
-		dma_unmap_single(port->dev->dev.parent, buf_phys_addr,
-				 skb_headlen(skb), DMA_TO_DEVICE);
-		if (!skb)
+		dma_unmap_single(port->dev->dev.parent, tx_buf->phys,
+				 tx_buf->size, DMA_TO_DEVICE);
+		if (!tx_buf->skb)
 			continue;
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(tx_buf->skb);
 	}
 }
 
@@ -4664,15 +4672,10 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		txq_pcpu->size = txq->size;
-		txq_pcpu->tx_skb = kmalloc(txq_pcpu->size *
-					   sizeof(*txq_pcpu->tx_skb),
-					   GFP_KERNEL);
-		if (!txq_pcpu->tx_skb)
-			goto error;
-
-		txq_pcpu->tx_buffs = kmalloc(txq_pcpu->size *
-					     sizeof(dma_addr_t), GFP_KERNEL);
-		if (!txq_pcpu->tx_buffs)
+		txq_pcpu->buffs = kmalloc(txq_pcpu->size *
+					  sizeof(struct mvpp2_txq_pcpu_buf),
+					  GFP_KERNEL);
+		if (!txq_pcpu->buffs)
 			goto error;
 
 		txq_pcpu->count = 0;
@@ -4686,8 +4689,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 error:
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
-		kfree(txq_pcpu->tx_skb);
-		kfree(txq_pcpu->tx_buffs);
+		kfree(txq_pcpu->buffs);
 	}
 
 	dma_free_coherent(port->dev->dev.parent,
@@ -4706,8 +4708,7 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
-		kfree(txq_pcpu->tx_skb);
-		kfree(txq_pcpu->tx_buffs);
+		kfree(txq_pcpu->buffs);
 	}
 
 	if (txq->descs)

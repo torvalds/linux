@@ -960,11 +960,16 @@ void arc_cache_init(void)
 		/* check for D-Cache aliasing on ARCompact: ARCv2 has PIPT */
 		if (is_isa_arcompact()) {
 			int handled = IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
+			int num_colors = dc->sz_k/dc->assoc/TO_KB(PAGE_SIZE);
 
-			if (dc->alias && !handled)
-				panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-			else if (!dc->alias && handled)
+			if (dc->alias) {
+				if (!handled)
+					panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+				if (CACHE_COLORS_NUM != num_colors)
+					panic("CACHE_COLORS_NUM not optimized for config\n");
+			} else if (!dc->alias && handled) {
 				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+			}
 		}
 	}
 

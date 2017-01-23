@@ -1856,6 +1856,8 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
 		pRAID_Context->regLockFlags |=
 			(MR_RL_FLAGS_SEQ_NUM_ENABLE|MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		pRAID_Context->Type = MPI2_TYPE_CUDA;
+		pRAID_Context->nseg = 0x1;
 	} else if (fusion->fast_path_io) {
 		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 		pRAID_Context->configSeqNum = 0;
@@ -1891,12 +1893,10 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		pRAID_Context->timeoutValue =
 			cpu_to_le16((os_timeout_value > timeout_limit) ?
 			timeout_limit : os_timeout_value);
-		if (fusion->adapter_type == INVADER_SERIES) {
-			pRAID_Context->Type = MPI2_TYPE_CUDA;
-			pRAID_Context->nseg = 0x1;
+		if (fusion->adapter_type == INVADER_SERIES)
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-		}
+
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
@@ -2648,6 +2648,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		dev_err(&instance->pdev->dev, "pending commands remain after waiting, "
 		       "will reset adapter scsi%d.\n",
 		       instance->host->host_no);
+		*convert = 1;
 		retval = 1;
 	}
 out:

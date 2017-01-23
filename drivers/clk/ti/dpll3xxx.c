@@ -815,3 +815,70 @@ int omap3_dpll4_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 	return omap3_noncore_dpll_set_rate_and_parent(hw, rate, parent_rate,
 						      index);
 }
+
+/* Apply DM3730 errata sprz319 advisory 2.1. */
+static bool omap3_dpll5_apply_errata(struct clk_hw *hw,
+				     unsigned long parent_rate)
+{
+	struct omap3_dpll5_settings {
+		unsigned int rate, m, n;
+	};
+
+	static const struct omap3_dpll5_settings precomputed[] = {
+		/*
+		 * From DM3730 errata advisory 2.1, table 35 and 36.
+		 * The N value is increased by 1 compared to the tables as the
+		 * errata lists register values while last_rounded_field is the
+		 * real divider value.
+		 */
+		{ 12000000,  80,  0 + 1 },
+		{ 13000000, 443,  5 + 1 },
+		{ 19200000,  50,  0 + 1 },
+		{ 26000000, 443, 11 + 1 },
+		{ 38400000,  25,  0 + 1 }
+	};
+
+	const struct omap3_dpll5_settings *d;
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	struct dpll_data *dd;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(precomputed); ++i) {
+		if (parent_rate == precomputed[i].rate)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(precomputed))
+		return false;
+
+	d = &precomputed[i];
+
+	/* Update the M, N and rounded rate values and program the DPLL. */
+	dd = clk->dpll_data;
+	dd->last_rounded_m = d->m;
+	dd->last_rounded_n = d->n;
+	dd->last_rounded_rate = div_u64((u64)parent_rate * d->m, d->n);
+	omap3_noncore_dpll_program(clk, 0);
+
+	return true;
+}
+
+/**
+ * omap3_dpll5_set_rate - set rate for omap3 dpll5
+ * @hw: clock to change
+ * @rate: target rate for clock
+ * @parent_rate: rate of the parent clock
+ *
+ * Set rate for the DPLL5 clock. Apply the sprz319 advisory 2.1 on OMAP36xx if
+ * the DPLL is used for USB host (detected through the requested rate).
+ */
+int omap3_dpll5_set_rate(struct clk_hw *hw, unsigned long rate,
+			 unsigned long parent_rate)
+{
+	if (rate == OMAP3_DPLL5_FREQ_FOR_USBHOST * 8) {
+		if (omap3_dpll5_apply_errata(hw, parent_rate))
+			return 0;
+	}
+
+	return omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
+}

@@ -1082,7 +1082,9 @@ static void bcm2835_pll_divider_off(struct clk_hw *hw)
 	cprman_write(cprman, data->cm_reg,
 		     (cprman_read(cprman, data->cm_reg) &
 		      ~data->load_mask) | data->hold_mask);
-	cprman_write(cprman, data->a2w_reg, A2W_PLL_CHANNEL_DISABLE);
+	cprman_write(cprman, data->a2w_reg,
+		     cprman_read(cprman, data->a2w_reg) |
+		     A2W_PLL_CHANNEL_DISABLE);
 	spin_unlock(&cprman->regs_lock);
 }
 

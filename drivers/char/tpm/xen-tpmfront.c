@@ -305,7 +305,6 @@ static int tpmfront_probe(struct xenbus_device *dev,
 	rv = setup_ring(dev, priv);
 	if (rv) {
 		chip = dev_get_drvdata(&dev->dev);
-		tpm_chip_unregister(chip);
 		ring_free(priv);
 		return rv;
 	}
