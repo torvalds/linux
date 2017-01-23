@@ -129,6 +129,21 @@ static void inc_td_cnt(struct urb *urb)
 	urb_priv->td_cnt++;
 }
 
+static void trb_to_noop(union xhci_trb *trb, u32 noop_type)
+{
+	if (trb_is_link(trb)) {
+		/* unchain chained link TRBs */
+		trb->link.control &= cpu_to_le32(~TRB_CHAIN);
+	} else {
+		trb->generic.field[0] = 0;
+		trb->generic.field[1] = 0;
+		trb->generic.field[2] = 0;
+		/* Preserve only the cycle bit of this TRB */
+		trb->generic.field[3] &= cpu_to_le32(TRB_CYCLE);
+		trb->generic.field[3] |= cpu_to_le32(TRB_TYPE(noop_type));
+	}
+}
+
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -592,18 +607,8 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	union xhci_trb *trb		= td->first_trb;
 
 	while (1) {
-		if (trb_is_link(trb)) {
-			/* unchain chained link TRBs */
-			trb->link.control &= cpu_to_le32(~TRB_CHAIN);
-		} else {
-			trb->generic.field[0] = 0;
-			trb->generic.field[1] = 0;
-			trb->generic.field[2] = 0;
-			/* Preserve only the cycle bit of this TRB */
-			trb->generic.field[3] &= cpu_to_le32(TRB_CYCLE);
-			trb->generic.field[3] |= cpu_to_le32(
-				TRB_TYPE(TRB_TR_NOOP));
-		}
+		trb_to_noop(trb, TRB_TR_NOOP);
+
 		/* flip cycle if asked to */
 		if (flip_cycle && trb != td->first_trb && trb != td->last_trb)
 			trb->generic.field[3] ^= cpu_to_le32(TRB_CYCLE);
