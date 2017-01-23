@@ -451,6 +451,11 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 		return PTR_ERR(ctx);
 	}
 
+	/* For easy recognisablity, we want the kernel context to be 0 and then
+	 * all user contexts will have non-zero hw_id.
+	 */
+	GEM_BUG_ON(ctx->hw_id);
+
 	i915_gem_context_clear_bannable(ctx);
 	ctx->priority = I915_PRIORITY_MIN; /* lowest priority; idle task */
 	dev_priv->kernel_context = ctx;
