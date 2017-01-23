@@ -272,10 +272,6 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	engine->disable_lite_restore_wa =
-		IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1) &&
-		(engine->id == VCS || engine->id == VCS2);
-
 	engine->ctx_desc_template = GEN8_CTX_VALID;
 	if (IS_GEN8(dev_priv))
 		engine->ctx_desc_template |= GEN8_CTX_L3LLC_COHERENT;
@@ -284,11 +280,6 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
 	/* TODO: WaDisableLiteRestore when we start using semaphore
 	 * signalling between Command Streamers */
 	/* ring->ctx_desc_template |= GEN8_CTX_FORCE_RESTORE; */
-
-	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
-	/* WaEnableForceRestoreInCtxtDescForVCS:bxt */
-	if (engine->disable_lite_restore_wa)
-		engine->ctx_desc_template |= GEN8_CTX_FORCE_RESTORE;
 }
 
 /**
@@ -558,7 +549,7 @@ static bool execlists_elsp_ready(struct intel_engine_cs *engine)
 	int port;
 
 	port = 1; /* wait for a free slot */
-	if (engine->disable_lite_restore_wa || engine->preempt_wa)
+	if (engine->preempt_wa)
 		port = 0; /* wait for GPU to be idle before continuing */
 
 	return !engine->execlist_port[port].request;
