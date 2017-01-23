@@ -58,6 +58,31 @@ load_fw()
 	wait
 }
 
+load_fw_cancel()
+{
+	local name="$1"
+	local file="$2"
+
+	# This will block until our load (below) has finished.
+	echo -n "$name" >"$DIR"/trigger_request 2>/dev/null &
+
+	# Give kernel a chance to react.
+	local timeout=10
+	while [ ! -e "$DIR"/"$name"/loading ]; do
+		sleep 0.1
+		timeout=$(( $timeout - 1 ))
+		if [ "$timeout" -eq 0 ]; then
+			echo "$0: firmware interface never appeared" >&2
+			exit 1
+		fi
+	done
+
+	echo -1 >"$DIR"/"$name"/loading
+
+	# Wait for request to finish.
+	wait
+}
+
 trap "test_finish" EXIT
 
 # This is an unlikely real-world firmware content. :)
@@ -118,7 +143,14 @@ if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	exit 1
 else
 	echo "$0: fallback mechanism works"
+fi
 
+load_fw_cancel "nope-$NAME" "$FW"
+if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	echo "$0: firmware was expected to be cancelled" >&2
+	exit 1
+else
+	echo "$0: cancelling fallback mechanism works"
 fi
 
 exit 0
