@@ -304,10 +304,10 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	/* Turn all aborted commands in list to no-ops, then restart */
 	list_for_each_entry(i_cmd, &xhci->cmd_list, cmd_list) {
 
-		if (i_cmd->status != COMP_CMD_ABORT)
+		if (i_cmd->status != COMP_COMMAND_ABORTED)
 			continue;
 
-		i_cmd->status = COMP_CMD_STOP;
+		i_cmd->status = COMP_STOPPED;
 
 		xhci_dbg(xhci, "Turn aborted command %p to no-op\n",
 			 i_cmd->command_trb);
@@ -1038,10 +1038,10 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		unsigned int slot_state;
 
 		switch (cmd_comp_code) {
-		case COMP_TRB_ERR:
+		case COMP_TRB_ERROR:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd invalid because of stream ID configuration\n");
 			break;
-		case COMP_CTX_STATE:
+		case COMP_CONTEXT_STATE_ERROR:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed due to incorrect slot or ep state.\n");
 			ep_state = GET_EP_CTX_STATE(ep_ctx);
 			slot_state = le32_to_cpu(slot_ctx->dev_state);
@@ -1050,7 +1050,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 					"Slot state = %u, EP state = %u",
 					slot_state, ep_state);
 			break;
-		case COMP_EBADSLT:
+		case COMP_SLOT_NOT_ENABLED_ERROR:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed because slot %u was not enabled.\n",
 					slot_id);
 			break;
@@ -1247,7 +1247,7 @@ void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 {
 	struct xhci_command *cur_cmd, *tmp_cmd;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
-		xhci_complete_del_and_free_cmd(cur_cmd, COMP_CMD_ABORT);
+		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED);
 }
 
 void xhci_handle_command_timeout(struct work_struct *work)
@@ -1270,7 +1270,7 @@ void xhci_handle_command_timeout(struct work_struct *work)
 		return;
 	}
 	/* mark this command to be cancelled */
-	xhci->current_cmd->status = COMP_CMD_ABORT;
+	xhci->current_cmd->status = COMP_COMMAND_ABORTED;
 
 	/* Make sure command ring is running before aborting it */
 	hw_ring_state = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
@@ -1344,7 +1344,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
 
 	/* If CMD ring stopped we own the trbs between enqueue and dequeue */
-	if (cmd_comp_code == COMP_CMD_STOP) {
+	if (cmd_comp_code == COMP_STOPPED) {
 		complete_all(&xhci->cmd_ring_stop_completion);
 		return;
 	}
@@ -1361,9 +1361,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	 * The command ring is stopped now, but the xHC will issue a Command
 	 * Ring Stopped event which will cause us to restart it.
 	 */
-	if (cmd_comp_code == COMP_CMD_ABORT) {
+	if (cmd_comp_code == COMP_COMMAND_ABORTED) {
 		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
-		if (cmd->status == COMP_CMD_ABORT) {
+		if (cmd->status == COMP_COMMAND_ABORTED) {
 			if (xhci->current_cmd == cmd)
 				xhci->current_cmd = NULL;
 			goto event_handled;
@@ -1399,8 +1399,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		break;
 	case TRB_CMD_NOOP:
 		/* Is this an aborted command turned to NO-OP? */
-		if (cmd->status == COMP_CMD_STOP)
-			cmd_comp_code = COMP_CMD_STOP;
+		if (cmd->status == COMP_STOPPED)
+			cmd_comp_code = COMP_STOPPED;
 		break;
 	case TRB_RESET_EP:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
@@ -1793,9 +1793,9 @@ static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
 		unsigned int trb_comp_code)
 {
 	/* TRB completion codes that may require a manual halt cleanup */
-	if (trb_comp_code == COMP_TX_ERR ||
-			trb_comp_code == COMP_BABBLE ||
-			trb_comp_code == COMP_SPLIT_ERR)
+	if (trb_comp_code == COMP_USB_TRANSACTION_ERROR ||
+			trb_comp_code == COMP_BABBLE_DETECTED_ERROR ||
+			trb_comp_code == COMP_SPLIT_TRANSACTION_ERROR)
 		/* The 0.95 spec says a babbling control endpoint
 		 * is not halted. The 0.96 spec says it is.  Some HW
 		 * claims to be 0.95 compliant, but it halts the control
@@ -1849,9 +1849,9 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	if (skip)
 		goto td_cleanup;
 
-	if (trb_comp_code == COMP_STOP_INVAL ||
-			trb_comp_code == COMP_STOP ||
-			trb_comp_code == COMP_STOP_SHORT) {
+	if (trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
+			trb_comp_code == COMP_STOPPED ||
+			trb_comp_code == COMP_STOPPED_SHORT_PACKET) {
 		/* The Endpoint Stop Command completion will take care of any
 		 * stopped TDs.  A stopped TD may be restarted, so don't update
 		 * the ring dequeue pointer or take this TD off any lists yet.
@@ -1859,7 +1859,7 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		ep->stopped_td = td;
 		return 0;
 	}
-	if (trb_comp_code == COMP_STALL ||
+	if (trb_comp_code == COMP_STALL_ERROR ||
 		xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
 						trb_comp_code)) {
 		/* Issue a reset endpoint command to clear the host side
@@ -1970,16 +1970,16 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 		*status = 0;
 		break;
-	case COMP_SHORT_TX:
+	case COMP_SHORT_PACKET:
 		*status = 0;
 		break;
-	case COMP_STOP_SHORT:
+	case COMP_STOPPED_SHORT_PACKET:
 		if (trb_type == TRB_DATA || trb_type == TRB_NORMAL)
 			td->urb->actual_length = remaining;
 		else
 			xhci_warn(xhci, "WARN: Stopped Short Packet on ctrl setup or status TRB\n");
 		goto finish_td;
-	case COMP_STOP:
+	case COMP_STOPPED:
 		switch (trb_type) {
 		case TRB_SETUP:
 			td->urb->actual_length = 0;
@@ -1993,7 +1993,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 				  trb_type);
 			goto finish_td;
 		}
-	case COMP_STOP_INVAL:
+	case COMP_STOPPED_LENGTH_INVALID:
 		goto finish_td;
 	default:
 		if (!xhci_requires_manual_halt_cleanup(xhci,
@@ -2002,7 +2002,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		xhci_dbg(xhci, "TRB error %u, halted endpoint index = %u\n",
 			 trb_comp_code, ep_index);
 		/* else fall through */
-	case COMP_STALL:
+	case COMP_STALL_ERROR:
 		/* Did we transfer part of the data (middle) phase? */
 		if (trb_type == TRB_DATA || trb_type == TRB_NORMAL)
 			td->urb->actual_length = requested - remaining;
@@ -2073,35 +2073,35 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 		frame->status = 0;
 		break;
-	case COMP_SHORT_TX:
+	case COMP_SHORT_PACKET:
 		frame->status = short_framestatus;
 		sum_trbs_for_length = true;
 		break;
-	case COMP_BW_OVER:
+	case COMP_BANDWIDTH_OVERRUN_ERROR:
 		frame->status = -ECOMM;
 		break;
-	case COMP_BUFF_OVER:
-	case COMP_BABBLE:
+	case COMP_ISOCH_BUFFER_OVERRUN:
+	case COMP_BABBLE_DETECTED_ERROR:
 		frame->status = -EOVERFLOW;
 		break;
-	case COMP_DEV_ERR:
-	case COMP_STALL:
+	case COMP_INCOMPATIBLE_DEVICE_ERROR:
+	case COMP_STALL_ERROR:
 		frame->status = -EPROTO;
 		break;
-	case COMP_TX_ERR:
+	case COMP_USB_TRANSACTION_ERROR:
 		frame->status = -EPROTO;
 		if (ep_trb != td->last_trb)
 			return 0;
 		break;
-	case COMP_STOP:
+	case COMP_STOPPED:
 		sum_trbs_for_length = true;
 		break;
-	case COMP_STOP_SHORT:
+	case COMP_STOPPED_SHORT_PACKET:
 		/* field normally containing residue now contains tranferred */
 		frame->status = short_framestatus;
 		requested = remaining;
 		break;
-	case COMP_STOP_INVAL:
+	case COMP_STOPPED_LENGTH_INVALID:
 		requested = 0;
 		remaining = 0;
 		break;
@@ -2178,16 +2178,16 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 		*status = 0;
 		break;
-	case COMP_SHORT_TX:
+	case COMP_SHORT_PACKET:
 		xhci_dbg(xhci, "ep %#x - asked for %d bytes, %d bytes untransferred\n",
 			 td->urb->ep->desc.bEndpointAddress,
 			 requested, remaining);
 		*status = 0;
 		break;
-	case COMP_STOP_SHORT:
+	case COMP_STOPPED_SHORT_PACKET:
 		td->urb->actual_length = remaining;
 		goto finish_td;
-	case COMP_STOP_INVAL:
+	case COMP_STOPPED_LENGTH_INVALID:
 		/* stopped on ep trb with invalid length, exclude it */
 		ep_trb_len	= 0;
 		remaining	= 0;
@@ -2293,50 +2293,50 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		if (EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) == 0)
 			break;
 		if (xhci->quirks & XHCI_TRUST_TX_LENGTH)
-			trb_comp_code = COMP_SHORT_TX;
+			trb_comp_code = COMP_SHORT_PACKET;
 		else
 			xhci_warn_ratelimited(xhci,
 					"WARN Successful completion on short TX: needs XHCI_TRUST_TX_LENGTH quirk?\n");
-	case COMP_SHORT_TX:
+	case COMP_SHORT_PACKET:
 		break;
-	case COMP_STOP:
+	case COMP_STOPPED:
 		xhci_dbg(xhci, "Stopped on Transfer TRB\n");
 		break;
-	case COMP_STOP_INVAL:
+	case COMP_STOPPED_LENGTH_INVALID:
 		xhci_dbg(xhci, "Stopped on No-op or Link TRB\n");
 		break;
-	case COMP_STOP_SHORT:
+	case COMP_STOPPED_SHORT_PACKET:
 		xhci_dbg(xhci, "Stopped with short packet transfer detected\n");
 		break;
-	case COMP_STALL:
+	case COMP_STALL_ERROR:
 		xhci_dbg(xhci, "Stalled endpoint\n");
 		ep->ep_state |= EP_HALTED;
 		status = -EPIPE;
 		break;
-	case COMP_TRB_ERR:
+	case COMP_TRB_ERROR:
 		xhci_warn(xhci, "WARN: TRB error on endpoint\n");
 		status = -EILSEQ;
 		break;
-	case COMP_SPLIT_ERR:
-	case COMP_TX_ERR:
+	case COMP_SPLIT_TRANSACTION_ERROR:
+	case COMP_USB_TRANSACTION_ERROR:
 		xhci_dbg(xhci, "Transfer error on endpoint\n");
 		status = -EPROTO;
 		break;
-	case COMP_BABBLE:
+	case COMP_BABBLE_DETECTED_ERROR:
 		xhci_dbg(xhci, "Babble error on endpoint\n");
 		status = -EOVERFLOW;
 		break;
-	case COMP_DB_ERR:
+	case COMP_DATA_BUFFER_ERROR:
 		xhci_warn(xhci, "WARN: HC couldn't access mem fast enough\n");
 		status = -ENOSR;
 		break;
-	case COMP_BW_OVER:
+	case COMP_BANDWIDTH_OVERRUN_ERROR:
 		xhci_warn(xhci, "WARN: bandwidth overrun event on endpoint\n");
 		break;
-	case COMP_BUFF_OVER:
+	case COMP_ISOCH_BUFFER_OVERRUN:
 		xhci_warn(xhci, "WARN: buffer overrun event on endpoint\n");
 		break;
-	case COMP_UNDERRUN:
+	case COMP_RING_UNDERRUN:
 		/*
 		 * When the Isoch ring is empty, the xHC will generate
 		 * a Ring Overrun Event for IN Isoch endpoint or Ring
@@ -2349,7 +2349,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
 		goto cleanup;
-	case COMP_OVERRUN:
+	case COMP_RING_OVERRUN:
 		xhci_dbg(xhci, "overrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
 			xhci_dbg(xhci, "Overrun Event for slot %d ep %d "
@@ -2357,11 +2357,11 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
 		goto cleanup;
-	case COMP_DEV_ERR:
+	case COMP_INCOMPATIBLE_DEVICE_ERROR:
 		xhci_warn(xhci, "WARN: detect an incompatible device");
 		status = -EPROTO;
 		break;
-	case COMP_MISSED_INT:
+	case COMP_MISSED_SERVICE_ERROR:
 		/*
 		 * When encounter missed service error, one or more isoc tds
 		 * may be missed by xHC.
@@ -2371,7 +2371,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		ep->skip = true;
 		xhci_dbg(xhci, "Miss service interval error, set skip flag\n");
 		goto cleanup;
-	case COMP_PING_ERR:
+	case COMP_NO_PING_RESPONSE_ERROR:
 		ep->skip = true;
 		xhci_dbg(xhci, "No Ping response error, Skip one Isoc TD\n");
 		goto cleanup;
@@ -2395,8 +2395,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			 * event if the device was suspended.  Don't print
 			 * warnings.
 			 */
-			if (!(trb_comp_code == COMP_STOP ||
-						trb_comp_code == COMP_STOP_INVAL)) {
+			if (!(trb_comp_code == COMP_STOPPED ||
+				trb_comp_code == COMP_STOPPED_LENGTH_INVALID)) {
 				xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
 						TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 						ep_index);
@@ -2437,8 +2437,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * last TRB of the previous TD. The command completion handle
 		 * will take care the rest.
 		 */
-		if (!ep_seg && (trb_comp_code == COMP_STOP ||
-				   trb_comp_code == COMP_STOP_INVAL)) {
+		if (!ep_seg && (trb_comp_code == COMP_STOPPED ||
+			   trb_comp_code == COMP_STOPPED_LENGTH_INVALID)) {
 			goto cleanup;
 		}
 
@@ -2469,7 +2469,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			skip_isoc_td(xhci, td, event, ep, &status);
 			goto cleanup;
 		}
-		if (trb_comp_code == COMP_SHORT_TX)
+		if (trb_comp_code == COMP_SHORT_PACKET)
 			ep_ring->last_td_was_short = true;
 		else
 			ep_ring->last_td_was_short = false;
@@ -2502,8 +2502,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					     &status);
 cleanup:
 		handling_skipped_tds = ep->skip &&
-			trb_comp_code != COMP_MISSED_INT &&
-			trb_comp_code != COMP_PING_ERR;
+			trb_comp_code != COMP_MISSED_SERVICE_ERROR &&
+			trb_comp_code != COMP_NO_PING_RESPONSE_ERROR;
 
 		/*
 		 * Do not update event ring dequeue pointer if we're in a loop
