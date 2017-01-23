@@ -28,7 +28,7 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 
 	mutex_lock(&opp_table_lock);
 
-	list_for_each_entry_rcu(opp_table, &opp_tables, node) {
+	list_for_each_entry(opp_table, &opp_tables, node) {
 		if (opp_table->np == np) {
 			/*
 			 * Multiple devices can point to the same OPP table and
@@ -235,12 +235,6 @@ free_microvolt:
  * @dev:	device pointer used to lookup OPP table.
  *
  * Free OPPs created using static entries present in DT.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function indirectly uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 void dev_pm_opp_of_remove_table(struct device *dev)
 {
@@ -268,12 +262,6 @@ static struct device_node *_of_get_opp_desc_node(struct device *dev)
  * This function adds an opp definition to the opp table and returns status. The
  * opp can be controlled using dev_pm_opp_enable/disable functions and may be
  * removed by dev_pm_opp_remove.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  *
  * Return:
  * 0		On success OR
@@ -358,7 +346,7 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
 	 */
-	srcu_notifier_call_chain(&opp_table->srcu_head, OPP_EVENT_ADD, new_opp);
+	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
 	return 0;
 
 free_opp:
@@ -470,12 +458,6 @@ static int _of_add_opp_table_v1(struct device *dev)
  *
  * Register the initial OPP table with the OPP library for given device.
  *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function indirectly uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- *
  * Return:
  * 0		On success OR
  *		Duplicate OPPs (both freq and volt are same) and opp->available
@@ -520,12 +502,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  *
  * This removes the OPP tables for CPUs present in the @cpumask.
  * This should be used only to remove static entries created from DT.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
 {
@@ -538,12 +514,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
  * @cpumask:	cpumask for which OPP table needs to be added.
  *
  * This adds the OPP tables for CPUs present in the @cpumask.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 {
@@ -591,12 +561,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
  * This updates the @cpumask with CPUs that are sharing OPPs with @cpu_dev.
  *
  * Returns -ENOENT if operating-points-v2 isn't present for @cpu_dev.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev,
 				   struct cpumask *cpumask)

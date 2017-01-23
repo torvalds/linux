@@ -137,12 +137,6 @@ void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of)
  * This removes the OPP tables for CPUs present in the @cpumask.
  * This should be used to remove all the OPPs entries associated with
  * the cpus in @cpumask.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask)
 {
@@ -159,12 +153,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_cpumask_remove_table);
  * @cpumask.
  *
  * Returns -ENODEV if OPP table isn't already present.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 				const struct cpumask *cpumask)
@@ -215,12 +203,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  *
  * Returns -ENODEV if OPP table isn't already present and -EINVAL if the OPP
  * table's status is access-unknown.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
  */
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
