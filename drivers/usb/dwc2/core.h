@@ -457,53 +457,48 @@ struct dwc2_core_params {
 #define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
 #define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
 
-	bool dma_desc_enable;
-	bool dma_desc_fs_enable;
-	u8 speed;
-#define DWC2_SPEED_PARAM_HIGH	0
-#define DWC2_SPEED_PARAM_FULL	1
-#define DWC2_SPEED_PARAM_LOW	2
-
-	bool enable_dynamic_fifo;
-	bool en_multiple_tx_fifo;
-	u16 host_rx_fifo_size;
-	u16 host_nperio_tx_fifo_size;
-	u16 host_perio_tx_fifo_size;
-	u32 max_transfer_size;
-	u16 max_packet_count;
-	u8 host_channels;
 	u8 phy_type;
 #define DWC2_PHY_TYPE_PARAM_FS		0
 #define DWC2_PHY_TYPE_PARAM_UTMI	1
 #define DWC2_PHY_TYPE_PARAM_ULPI	2
 
+	u8 speed;
+#define DWC2_SPEED_PARAM_HIGH	0
+#define DWC2_SPEED_PARAM_FULL	1
+#define DWC2_SPEED_PARAM_LOW	2
+
 	u8 phy_utmi_width;
 	bool phy_ulpi_ddr;
 	bool phy_ulpi_ext_vbus;
-#define DWC2_PHY_ULPI_INTERNAL_VBUS	0
-#define DWC2_PHY_ULPI_EXTERNAL_VBUS	1
+#define DWC2_PHY_ULPI_INTERNAL_VBUS    0
+#define DWC2_PHY_ULPI_EXTERNAL_VBUS    1
 
+	bool enable_dynamic_fifo;
+	bool en_multiple_tx_fifo;
 	bool i2c_enable;
 	bool ulpi_fs_ls;
+	bool ts_dline;
+	bool reload_ctl;
+	bool uframe_sched;
+	bool external_id_pin_ctl;
+	bool hibernation;
+	u16 max_packet_count;
+	u32 max_transfer_size;
+	u32 ahbcfg;
+
+	/* Host parameters */
+	bool host_dma;
+	bool dma_desc_enable;
+	bool dma_desc_fs_enable;
 	bool host_support_fs_ls_low_power;
 	bool host_ls_low_power_phy_clk;
 #define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
 #define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
 
-	bool ts_dline;
-	bool reload_ctl;
-	u32 ahbcfg;
-	bool uframe_sched;
-	bool external_id_pin_ctl;
-	bool hibernation;
-
-	/*
-	 * The following parameters are *only* set via device
-	 * properties and cannot be set directly in this structure.
-	 */
-
-	/* Host parameters */
-	bool host_dma;
+	u8 host_channels;
+	u16 host_rx_fifo_size;
+	u16 host_nperio_tx_fifo_size;
+	u16 host_perio_tx_fifo_size;
 
 	/* Gadget parameters */
 	bool g_dma;
