@@ -428,6 +428,8 @@ static const struct regmap_config bq25700_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
+static void bq25700_disable_charge(struct bq25700_device *charger);
+
 static struct bq25700_device *bq25700_charger;
 
 static int bq25700_field_read(struct bq25700_device *charger,
@@ -1026,6 +1028,7 @@ static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 {
 	struct bq25700_device *charger = private;
 	int irq_flag;
+	struct bq25700_state state;
 
 	if (bq25700_field_read(charger, AC_STAT)) {
 		irq_flag = IRQF_TRIGGER_LOW;
@@ -1033,6 +1036,12 @@ static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 		irq_flag = IRQF_TRIGGER_HIGH;
 		bq25700_field_write(charger, INPUT_CURRENT,
 				    charger->init_data.input_current_sdp);
+		bq25700_disable_charge(charger);
+		bq25700_get_chip_state(charger, &state);
+		charger->state = state;
+		power_supply_changed(charger->supply_charger);
+		charger->typec0_status = USB_STATUS_NONE;
+		charger->typec1_status = USB_STATUS_NONE;
 	}
 	irq_set_irq_type(irq, irq_flag | IRQF_ONESHOT);
 	rk_send_wakeup_key();
