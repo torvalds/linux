@@ -888,6 +888,13 @@ acr_r352_new_(const struct acr_r352_func *func,
 	      unsigned long managed_falcons)
 {
 	struct acr_r352 *acr;
+	int i;
+
+	/* Check that all requested falcons are supported */
+	for_each_set_bit(i, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
+		if (!func->ls_func[i])
+			return ERR_PTR(-ENOTSUPP);
+	}
 
 	acr = kzalloc(sizeof(*acr), GFP_KERNEL);
 	if (!acr)
