@@ -1638,21 +1638,6 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	return 0;
 }
 
-static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
-{
-	/*
-	 * On BXT A steppings there is a HW coherency issue whereby the
-	 * MI_STORE_DATA_IMM storing the completed request's seqno
-	 * occasionally doesn't invalidate the CPU cache. Work around this by
-	 * clflushing the corresponding cacheline whenever the caller wants
-	 * the coherency to be guaranteed. Note that this cacheline is known
-	 * to be clean at this point, since we only write it in
-	 * bxt_a_set_seqno(), where we also do a clflush after the write. So
-	 * this clflush in practice becomes an invalidate operation.
-	 */
-	intel_flush_status_page(engine, I915_GEM_HWS_INDEX);
-}
-
 /*
  * Reserve space for 2 NOOPs at the end of each request to be
  * used as a workaround for not being allowed to do lite
@@ -1800,8 +1785,6 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->irq_enable = gen8_logical_ring_enable_irq;
 	engine->irq_disable = gen8_logical_ring_disable_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;
-	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
-		engine->irq_seqno_barrier = bxt_a_seqno_barrier;
 }
 
 static inline void
