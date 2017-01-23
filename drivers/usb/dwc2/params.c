@@ -42,19 +42,9 @@ static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
 
-	p->otg_cap = DWC2_CAP_PARAM_HNP_SRP_CAPABLE;
-	p->speed = DWC2_SPEED_PARAM_HIGH;
 	p->host_rx_fifo_size = 774;
-	p->host_nperio_tx_fifo_size = 256;
-	p->host_perio_tx_fifo_size = 512;
 	p->max_transfer_size = 65535;
 	p->max_packet_count = 511;
-	p->host_channels = 8;
-	p->phy_type = 1;
-	p->phy_utmi_width = 8;
-	p->i2c_enable = false;
-	p->host_ls_low_power_phy_clk = false;
-	p->reload_ctl = false;
 	p->ahbcfg = 0x10;
 	p->uframe_sched = false;
 }
@@ -74,7 +64,6 @@ static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
 	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
 	p->phy_utmi_width = 8;
 	p->i2c_enable = false;
-	p->host_ls_low_power_phy_clk = false;
 	p->reload_ctl = false;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
