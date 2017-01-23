@@ -1070,7 +1070,6 @@ int copyin_to_xsaves(const void *kbuf, const void __user *ubuf,
 	 * Add back in the features that came in from userspace:
 	 */
 	xsave->header.xfeatures |= xfeatures;
-	xsave->header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT | xsave->header.xfeatures;
 
 	return 0;
 }
