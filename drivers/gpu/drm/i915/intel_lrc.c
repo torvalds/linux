@@ -1170,15 +1170,6 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
-	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:bxt */
-	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1)) {
-		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
-		wa_ctx_emit_reg(batch, index, GEN9_SLICE_COMMON_ECO_CHICKEN0);
-		wa_ctx_emit(batch, index,
-			    _MASKED_BIT_ENABLE(DISABLE_PIXEL_MASK_CAMMING));
-		wa_ctx_emit(batch, index, MI_NOOP);
-	}
-
 	/* WaClearTdlStateAckDirtyBits:bxt */
 	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_B0)) {
 		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(4));
