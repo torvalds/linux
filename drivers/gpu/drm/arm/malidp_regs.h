@@ -92,6 +92,8 @@
 #define MALIDP_DE_H_ACTIVE(x)		(((x) & 0x1fff) << 0)
 #define MALIDP_DE_V_ACTIVE(x)		(((x) & 0x1fff) << 16)
 
+#define MALIDP_PRODUCT_ID(__core_id) ((u32)(__core_id) >> 16)
+
 /* register offsets and bits specific to DP500 */
 #define MALIDP500_DC_BASE		0x00000
 #define MALIDP500_DC_CONTROL		0x0000c

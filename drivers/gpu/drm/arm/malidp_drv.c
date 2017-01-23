@@ -255,6 +255,46 @@ static const struct of_device_id  malidp_drm_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, malidp_drm_of_match);
 
+static bool malidp_is_compatible_hw_id(struct malidp_hw_device *hwdev,
+				       const struct of_device_id *dev_id)
+{
+	u32 core_id;
+	const char *compatstr_dp500 = "arm,mali-dp500";
+	bool is_dp500;
+	bool dt_is_dp500;
+
+	/*
+	 * The DP500 CORE_ID register is in a different location, so check it
+	 * first. If the product id field matches, then this is DP500, otherwise
+	 * check the DP550/650 CORE_ID register.
+	 */
+	core_id = malidp_hw_read(hwdev, MALIDP500_DC_BASE + MALIDP_DE_CORE_ID);
+	/* Offset 0x18 will never read 0x500 on products other than DP500. */
+	is_dp500 = (MALIDP_PRODUCT_ID(core_id) == 0x500);
+	dt_is_dp500 = strnstr(dev_id->compatible, compatstr_dp500,
+			      sizeof(dev_id->compatible)) != NULL;
+	if (is_dp500 != dt_is_dp500) {
+		DRM_ERROR("Device-tree expects %s, but hardware %s DP500.\n",
+			  dev_id->compatible, is_dp500 ? "is" : "is not");
+		return false;
+	} else if (!dt_is_dp500) {
+		u16 product_id;
+		char buf[32];
+
+		core_id = malidp_hw_read(hwdev,
+					 MALIDP550_DC_BASE + MALIDP_DE_CORE_ID);
+		product_id = MALIDP_PRODUCT_ID(core_id);
+		snprintf(buf, sizeof(buf), "arm,mali-dp%X", product_id);
+		if (!strnstr(dev_id->compatible, buf,
+			     sizeof(dev_id->compatible))) {
+			DRM_ERROR("Device-tree expects %s, but hardware is DP%03X.\n",
+				  dev_id->compatible, product_id);
+			return false;
+		}
+	}
+	return true;
+}
+
 #define MAX_OUTPUT_CHANNELS	3
 
 static int malidp_bind(struct device *dev)
@@ -265,6 +305,7 @@ static int malidp_bind(struct device *dev)
 	struct malidp_drm *malidp;
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
+	struct of_device_id const *dev_id;
 	/* number of lines for the R, G and B output */
 	u8 output_width[MAX_OUTPUT_CHANNELS];
 	int ret = 0, i;
@@ -326,6 +367,17 @@ static int malidp_bind(struct device *dev)
 	 */
 	clk_prepare_enable(hwdev->aclk);
 	clk_prepare_enable(hwdev->mclk);
+
+	dev_id = of_match_device(malidp_drm_of_match, dev);
+	if (!dev_id) {
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
+
+	if (!malidp_is_compatible_hw_id(hwdev, dev_id)) {
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
 
 	ret = hwdev->query_hw(hwdev);
 	if (ret) {
