@@ -74,10 +74,6 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-	if (ret)
-		goto clk_err;
-
 	ci_pdata->name = dev_name(dev);
 
 	priv->ci_pdev = ci_hdrc_add_device(dev, pdev->resource,
