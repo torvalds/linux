@@ -32,7 +32,7 @@
 #define NETNEXT_VERSION		"08"
 
 /* Information for net */
-#define NET_VERSION		"6"
+#define NET_VERSION		"7"
 
 #define DRIVER_VERSION		"v1." NETNEXT_VERSION "." NET_VERSION
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
@@ -3571,6 +3571,8 @@ static bool delay_autosuspend(struct r8152 *tp)
 	 * linking change event. And it wouldn't wake when linking on.
 	 */
 	if (!sw_linking && tp->rtl_ops.in_nway(tp))
+		return true;
+	else if (!skb_queue_empty(&tp->tx_queue))
 		return true;
 	else
 		return false;
