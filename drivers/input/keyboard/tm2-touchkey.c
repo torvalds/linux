@@ -193,8 +193,6 @@ static int tm2_touchkey_probe(struct i2c_client *client,
 	input_set_capability(touchkey->input_dev, EV_KEY, KEY_PHONE);
 	input_set_capability(touchkey->input_dev, EV_KEY, KEY_BACK);
 
-	input_set_drvdata(touchkey->input_dev, touchkey);
-
 	error = input_register_device(touchkey->input_dev);
 	if (error) {
 		dev_err(&client->dev,

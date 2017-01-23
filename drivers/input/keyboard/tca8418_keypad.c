@@ -358,8 +358,6 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 		__set_bit(EV_REP, input->evbit);
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 
-	input_set_drvdata(input, keypad_data);
-
 	irq = client->irq;
 	if (irq_is_gpio)
 		irq = gpio_to_irq(irq);
