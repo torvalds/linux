@@ -1556,7 +1556,17 @@ static int mb_find_extent(struct ext4_buddy *e4b, int block,
 		ex->fe_len += 1 << order;
 	}
 
-	BUG_ON(ex->fe_start + ex->fe_len > (1 << (e4b->bd_blkbits + 3)));
+	if (ex->fe_start + ex->fe_len > (1 << (e4b->bd_blkbits + 3))) {
+		/* Should never happen! (but apparently sometimes does?!?) */
+		WARN_ON(1);
+		ext4_error(e4b->bd_sb, "corruption or bug in mb_find_extent "
+			   "block=%d, order=%d needed=%d ex=%u/%d/%d@%u",
+			   block, order, needed, ex->fe_group, ex->fe_start,
+			   ex->fe_len, ex->fe_logical);
+		ex->fe_len = 0;
+		ex->fe_start = 0;
+		ex->fe_group = 0;
+	}
 	return ex->fe_len;
 }
 
