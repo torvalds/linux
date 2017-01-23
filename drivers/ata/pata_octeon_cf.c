@@ -138,9 +138,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 	int trh;
 	int pause;
 	/* These names are timing parameters from the ATA spec */
-	int t1;
 	int t2;
-	int t2i;
 
 	/*
 	 * A divisor value of four will overflow the timing fields at
@@ -154,15 +152,9 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 
 	BUG_ON(ata_timing_compute(dev, dev->pio_mode, &timing, T, T));
 
-	t1 = timing.setup;
-	if (t1)
-		t1--;
 	t2 = timing.active;
 	if (t2)
 		t2--;
-	t2i = timing.act8b;
-	if (t2i)
-		t2i--;
 
 	trh = ns_to_tim_reg(div, 20);
 	if (trh)
