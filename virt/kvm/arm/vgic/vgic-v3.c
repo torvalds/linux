@@ -94,7 +94,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		/* Edge is the only case where we preserve the pending bit */
 		if (irq->config == VGIC_CONFIG_EDGE &&
 		    (val & ICH_LR_PENDING_BIT)) {
-			irq->pending = true;
+			irq->pending_latch = true;
 
 			if (vgic_irq_is_sgi(intid) &&
 			    model == KVM_DEV_TYPE_ARM_VGIC_V2) {
@@ -111,9 +111,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		 */
 		if (irq->config == VGIC_CONFIG_LEVEL) {
 			if (!(val & ICH_LR_PENDING_BIT))
-				irq->soft_pending = false;
-
-			irq->pending = irq->line_level || irq->soft_pending;
+				irq->pending_latch = false;
 		}
 
 		spin_unlock(&irq->irq_lock);
@@ -127,11 +125,11 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u64 val = irq->intid;
 
-	if (irq->pending) {
+	if (irq_is_pending(irq)) {
 		val |= ICH_LR_PENDING_BIT;
 
 		if (irq->config == VGIC_CONFIG_EDGE)
-			irq->pending = false;
+			irq->pending_latch = false;
 
 		if (vgic_irq_is_sgi(irq->intid) &&
 		    model == KVM_DEV_TYPE_ARM_VGIC_V2) {
@@ -141,7 +139,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
 			irq->source &= ~(1 << (src - 1));
 			if (irq->source)
-				irq->pending = true;
+				irq->pending_latch = true;
 		}
 	}
 

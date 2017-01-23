@@ -98,7 +98,7 @@ static void vgic_mmio_write_sgir(struct kvm_vcpu *source_vcpu,
 		irq = vgic_get_irq(source_vcpu->kvm, vcpu, intid);
 
 		spin_lock(&irq->irq_lock);
-		irq->pending = true;
+		irq->pending_latch = true;
 		irq->source |= 1U << source_vcpu->vcpu_id;
 
 		vgic_queue_irq_unlock(source_vcpu->kvm, irq);
@@ -182,7 +182,7 @@ static void vgic_mmio_write_sgipendc(struct kvm_vcpu *vcpu,
 
 		irq->source &= ~((val >> (i * 8)) & 0xff);
 		if (!irq->source)
-			irq->pending = false;
+			irq->pending_latch = false;
 
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -204,7 +204,7 @@ static void vgic_mmio_write_sgipends(struct kvm_vcpu *vcpu,
 		irq->source |= (val >> (i * 8)) & 0xff;
 
 		if (irq->source) {
-			irq->pending = true;
+			irq->pending_latch = true;
 			vgic_queue_irq_unlock(vcpu->kvm, irq);
 		} else {
 			spin_unlock(&irq->irq_lock);

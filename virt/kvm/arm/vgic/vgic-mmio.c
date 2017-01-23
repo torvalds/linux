@@ -111,7 +111,7 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 	for (i = 0; i < len * 8; i++) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
-		if (irq->pending)
+		if (irq_is_pending(irq))
 			value |= (1U << i);
 
 		vgic_put_irq(vcpu->kvm, irq);
@@ -131,9 +131,7 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
 		spin_lock(&irq->irq_lock);
-		irq->pending = true;
-		if (irq->config == VGIC_CONFIG_LEVEL)
-			irq->soft_pending = true;
+		irq->pending_latch = true;
 
 		vgic_queue_irq_unlock(vcpu->kvm, irq);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -152,12 +150,7 @@ void vgic_mmio_write_cpending(struct kvm_vcpu *vcpu,
 
 		spin_lock(&irq->irq_lock);
 
-		if (irq->config == VGIC_CONFIG_LEVEL) {
-			irq->soft_pending = false;
-			irq->pending = irq->line_level;
-		} else {
-			irq->pending = false;
-		}
+		irq->pending_latch = false;
 
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -359,12 +352,10 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 		spin_lock(&irq->irq_lock);
 
-		if (test_bit(i * 2 + 1, &val)) {
+		if (test_bit(i * 2 + 1, &val))
 			irq->config = VGIC_CONFIG_EDGE;
-		} else {
+		else
 			irq->config = VGIC_CONFIG_LEVEL;
-			irq->pending = irq->line_level | irq->soft_pending;
-		}
 
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);

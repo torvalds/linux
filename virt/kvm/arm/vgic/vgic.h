@@ -30,6 +30,14 @@
 
 #define vgic_irq_is_sgi(intid) ((intid) < VGIC_NR_SGIS)
 
+static inline bool irq_is_pending(struct vgic_irq *irq)
+{
+	if (irq->config == VGIC_CONFIG_EDGE)
+		return irq->pending_latch;
+	else
+		return irq->pending_latch || irq->line_level;
+}
+
 struct vgic_vmcr {
 	u32	ctlr;
 	u32	abpr;

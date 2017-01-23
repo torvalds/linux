@@ -160,7 +160,7 @@ static struct kvm_vcpu *vgic_target_oracle(struct vgic_irq *irq)
 	 * If the distributor is disabled, pending interrupts shouldn't be
 	 * forwarded.
 	 */
-	if (irq->enabled && irq->pending) {
+	if (irq->enabled && irq_is_pending(irq)) {
 		if (unlikely(irq->target_vcpu &&
 			     !irq->target_vcpu->kvm->arch.vgic.enabled))
 			return NULL;
@@ -204,8 +204,8 @@ static int vgic_irq_cmp(void *priv, struct list_head *a, struct list_head *b)
 		goto out;
 	}
 
-	penda = irqa->enabled && irqa->pending;
-	pendb = irqb->enabled && irqb->pending;
+	penda = irqa->enabled && irq_is_pending(irqa);
+	pendb = irqb->enabled && irq_is_pending(irqb);
 
 	if (!penda || !pendb) {
 		ret = (int)pendb - (int)penda;
@@ -371,12 +371,10 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 		return 0;
 	}
 
-	if (irq->config == VGIC_CONFIG_LEVEL) {
+	if (irq->config == VGIC_CONFIG_LEVEL)
 		irq->line_level = level;
-		irq->pending = level || irq->soft_pending;
-	} else {
-		irq->pending = true;
-	}
+	else
+		irq->pending_latch = true;
 
 	vgic_queue_irq_unlock(kvm, irq);
 	vgic_put_irq(kvm, irq);
@@ -689,7 +687,7 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
 		spin_lock(&irq->irq_lock);
-		pending = irq->pending && irq->enabled;
+		pending = irq_is_pending(irq) && irq->enabled;
 		spin_unlock(&irq->irq_lock);
 
 		if (pending)

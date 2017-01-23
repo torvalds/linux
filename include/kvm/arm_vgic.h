@@ -101,9 +101,10 @@ struct vgic_irq {
 					 */
 
 	u32 intid;			/* Guest visible INTID */
-	bool pending;
 	bool line_level;		/* Level only */
-	bool soft_pending;		/* Level only */
+	bool pending_latch;		/* The pending latch state used to calculate
+					 * the pending state for both level
+					 * and edge triggered IRQs. */
 	bool active;			/* not used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
