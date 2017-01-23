@@ -212,7 +212,7 @@ static void nft_hash_remove(const struct nft_set *set,
 	rhashtable_remove_fast(&priv->ht, &he->node, nft_hash_params);
 }
 
-static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
+static void nft_hash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 			  struct nft_set_iter *iter)
 {
 	struct nft_hash *priv = nft_set_priv(set);
