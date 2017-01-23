@@ -128,7 +128,6 @@ void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
-	m->tsc = rdtsc();
 	/* We hope get_seconds stays lockless */
 	m->time = get_seconds();
 	m->cpuvendor = boot_cpu_data.x86_vendor;
@@ -710,14 +709,8 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	mce_gather_info(&m, NULL);
 
-	/*
-	 * m.tsc was set in mce_setup(). Clear it if not requested.
-	 *
-	 * FIXME: Propagate @flags to mce_gather_info/mce_setup() to avoid
-	 *	  that dance.
-	 */
-	if (!(flags & MCP_TIMESTAMP))
-		m.tsc = 0;
+	if (flags & MCP_TIMESTAMP)
+		m.tsc = rdtsc();
 
 	for (i = 0; i < mca_cfg.banks; i++) {
 		if (!mce_banks[i].ctl || !test_bit(i, *b))
@@ -1156,6 +1149,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		goto out;
 
 	mce_gather_info(&m, regs);
+	m.tsc = rdtsc();
 
 	final = this_cpu_ptr(&mces_seen);
 	*final = m;

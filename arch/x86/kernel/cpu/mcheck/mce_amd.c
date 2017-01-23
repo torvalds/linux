@@ -778,7 +778,8 @@ __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 	mce_setup(&m);
 
 	m.status = status;
-	m.bank = bank;
+	m.bank   = bank;
+	m.tsc	 = rdtsc();
 
 	if (threshold_err)
 		m.misc = misc;
