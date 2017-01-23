@@ -109,7 +109,7 @@ EXPORT_SYMBOL(__blkdev_issue_discard);
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
  * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @flags:	BLKDEV_IFL_* flags to control behaviour
+ * @flags:	BLKDEV_DISCARD_* flags to control behaviour
  *
  * Description:
  *    Issue a discard request for the sectors in question.
