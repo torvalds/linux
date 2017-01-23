@@ -779,7 +779,7 @@ static int
 bpf_program__collect_reloc(struct bpf_program *prog,
 			   size_t nr_maps, GElf_Shdr *shdr,
 			   Elf_Data *data, Elf_Data *symbols,
-			   int maps_shndx)
+			   int maps_shndx, struct bpf_map *maps)
 {
 	int i, nrels;
 
@@ -829,7 +829,15 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
-		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
+		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
+			if (maps[map_idx].offset == sym.st_value) {
+				pr_debug("relocation: find map %zd (%s) for insn %u\n",
+					 map_idx, maps[map_idx].name, insn_idx);
+				break;
+			}
+		}
+
 		if (map_idx >= nr_maps) {
 			pr_warning("bpf relocation: map_idx %d large than %d\n",
 				   (int)map_idx, (int)nr_maps - 1);
@@ -953,7 +961,8 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 		err = bpf_program__collect_reloc(prog, nr_maps,
 						 shdr, data,
 						 obj->efile.symbols,
-						 obj->efile.maps_shndx);
+						 obj->efile.maps_shndx,
+						 obj->maps);
 		if (err)
 			return err;
 	}
