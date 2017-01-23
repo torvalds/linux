@@ -1062,76 +1062,42 @@ struct xhci_transfer_event {
 /* Completion Code - only applicable for some types of TRBs */
 #define	COMP_CODE_MASK		(0xff << 24)
 #define GET_COMP_CODE(p)	(((p) & COMP_CODE_MASK) >> 24)
-#define COMP_SUCCESS	1
-/* Data Buffer Error */
-#define COMP_DB_ERR	2
-/* Babble Detected Error */
-#define COMP_BABBLE	3
-/* USB Transaction Error */
-#define COMP_TX_ERR	4
-/* TRB Error - some TRB field is invalid */
-#define COMP_TRB_ERR	5
-/* Stall Error - USB device is stalled */
-#define COMP_STALL	6
-/* Resource Error - HC doesn't have memory for that device configuration */
-#define COMP_ENOMEM	7
-/* Bandwidth Error - not enough room in schedule for this dev config */
-#define COMP_BW_ERR	8
-/* No Slots Available Error - HC ran out of device slots */
-#define COMP_ENOSLOTS	9
-/* Invalid Stream Type Error */
-#define COMP_STREAM_ERR	10
-/* Slot Not Enabled Error - doorbell rung for disabled device slot */
-#define COMP_EBADSLT	11
-/* Endpoint Not Enabled Error */
-#define COMP_EBADEP	12
-/* Short Packet */
-#define COMP_SHORT_TX	13
-/* Ring Underrun - doorbell rung for an empty isoc OUT ep ring */
-#define COMP_UNDERRUN	14
-/* Ring Overrun - isoc IN ep ring is empty when ep is scheduled to RX */
-#define COMP_OVERRUN	15
-/* Virtual Function Event Ring Full Error */
-#define COMP_VF_FULL	16
-/* Parameter Error - Context parameter is invalid */
-#define COMP_EINVAL	17
-/* Bandwidth Overrun Error - isoc ep exceeded its allocated bandwidth */
-#define COMP_BW_OVER	18
-/* Context State Error - illegal context state transition requested */
-#define COMP_CTX_STATE	19
-/* No Ping Response Error - HC didn't get PING_RESPONSE in time to TX */
-#define COMP_PING_ERR	20
-/* Event Ring is full */
-#define COMP_ER_FULL	21
-/* Incompatible Device Error */
-#define COMP_DEV_ERR	22
-/* Missed Service Error - HC couldn't service an isoc ep within interval */
-#define COMP_MISSED_INT	23
-/* Successfully stopped command ring */
-#define COMP_CMD_STOP	24
-/* Successfully aborted current command and stopped command ring */
-#define COMP_CMD_ABORT	25
-/* Stopped - transfer was terminated by a stop endpoint command */
-#define COMP_STOP	26
-/* Same as COMP_EP_STOPPED, but the transferred length in the event is invalid */
-#define COMP_STOP_INVAL	27
-/* Same as COMP_EP_STOPPED, but a short packet detected */
-#define COMP_STOP_SHORT	28
-/* Max Exit Latency Too Large Error */
-#define COMP_MEL_ERR	29
-/* TRB type 30 reserved */
-/* Isoc Buffer Overrun - an isoc IN ep sent more data than could fit in TD */
-#define COMP_BUFF_OVER	31
-/* Event Lost Error - xHC has an "internal event overrun condition" */
-#define COMP_ISSUES	32
-/* Undefined Error - reported when other error codes don't apply */
-#define COMP_UNKNOWN	33
-/* Invalid Stream ID Error */
-#define COMP_STRID_ERR	34
-/* Secondary Bandwidth Error - may be returned by a Configure Endpoint cmd */
-#define COMP_2ND_BW_ERR	35
-/* Split Transaction Error */
-#define	COMP_SPLIT_ERR	36
+#define COMP_INVALID				0
+#define COMP_SUCCESS				1
+#define COMP_DATA_BUFFER_ERROR			2
+#define COMP_BABBLE_DETECTED_ERROR		3
+#define COMP_USB_TRANSACTION_ERROR		4
+#define COMP_TRB_ERROR				5
+#define COMP_STALL_ERROR			6
+#define COMP_RESOURCE_ERROR			7
+#define COMP_BANDWIDTH_ERROR			8
+#define COMP_NO_SLOTS_AVAILABLE_ERROR		9
+#define COMP_INVALID_STREAM_TYPE_ERROR		10
+#define COMP_SLOT_NOT_ENABLED_ERROR		11
+#define COMP_ENDPOINT_NOT_ENABLED_ERROR		12
+#define COMP_SHORT_PACKET			13
+#define COMP_RING_UNDERRUN			14
+#define COMP_RING_OVERRUN			15
+#define COMP_VF_EVENT_RING_FULL_ERROR		16
+#define COMP_PARAMETER_ERROR			17
+#define COMP_BANDWIDTH_OVERRUN_ERROR		18
+#define COMP_CONTEXT_STATE_ERROR		19
+#define COMP_NO_PING_RESPONSE_ERROR		20
+#define COMP_EVENT_RING_FULL_ERROR		21
+#define COMP_INCOMPATIBLE_DEVICE_ERROR		22
+#define COMP_MISSED_SERVICE_ERROR		23
+#define COMP_COMMAND_RING_STOPPED		24
+#define COMP_COMMAND_ABORTED			25
+#define COMP_STOPPED				26
+#define COMP_STOPPED_LENGTH_INVALID		27
+#define COMP_STOPPED_SHORT_PACKET		28
+#define COMP_MAX_EXIT_LATENCY_TOO_LARGE_ERROR	29
+#define COMP_ISOCH_BUFFER_OVERRUN		31
+#define COMP_EVENT_LOST_ERROR			32
+#define COMP_UNDEFINED_ERROR			33
+#define COMP_INVALID_STREAM_ID_ERROR		34
+#define COMP_SECONDARY_BANDWIDTH_ERROR		35
+#define COMP_SPLIT_TRANSACTION_ERROR		36
 
 struct xhci_link_trb {
 	/* 64-bit segment pointer*/
