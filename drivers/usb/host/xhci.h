@@ -1610,7 +1610,7 @@ struct xhci_scratchpad {
 struct urb_priv {
 	int	num_tds;
 	int	num_tds_done;
-	struct	xhci_td	*td[0];
+	struct	xhci_td	td[0];
 };
 
 /*

@@ -1332,12 +1332,11 @@ command_cleanup:
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct xhci_td *buffer;
 	unsigned long flags;
 	int ret = 0;
 	unsigned int slot_id, ep_index;
 	struct urb_priv	*urb_priv;
-	int num_tds, i;
+	int num_tds;
 
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep,
 					true, true, __func__) <= 0)
@@ -1364,20 +1363,9 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		num_tds = 1;
 
 	urb_priv = kzalloc(sizeof(struct urb_priv) +
-			   num_tds * sizeof(struct xhci_td *), mem_flags);
+			   num_tds * sizeof(struct xhci_td), mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
-
-	buffer = kzalloc(num_tds * sizeof(struct xhci_td), mem_flags);
-	if (!buffer) {
-		kfree(urb_priv);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < num_tds; i++) {
-		urb_priv->td[i] = buffer;
-		buffer++;
-	}
 
 	urb_priv->num_tds = num_tds;
 	urb_priv->num_tds_done = 0;
@@ -1526,7 +1514,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		for (i = urb_priv->num_tds_done;
 		     i < urb_priv->num_tds && xhci->devs[urb->dev->slot_id];
 		     i++) {
-			td = urb_priv->td[i];
+			td = &urb_priv->td[i];
 			if (!list_empty(&td->td_list))
 				list_del_init(&td->td_list);
 			if (!list_empty(&td->cancelled_td_list))
@@ -1557,11 +1545,11 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 				urb, urb->dev->devpath,
 				urb->ep->desc.bEndpointAddress,
 				(unsigned long long) xhci_trb_virt_to_dma(
-					urb_priv->td[i]->start_seg,
-					urb_priv->td[i]->first_trb));
+					urb_priv->td[i].start_seg,
+					urb_priv->td[i].first_trb));
 
 	for (; i < urb_priv->num_tds; i++) {
-		td = urb_priv->td[i];
+		td = &urb_priv->td[i];
 		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	}
 

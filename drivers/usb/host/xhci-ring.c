@@ -2838,7 +2838,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 		return ret;
 
 	urb_priv = urb->hcpriv;
-	td = urb_priv->td[td_index];
+	td = &urb_priv->td[td_index];
 
 	INIT_LIST_HEAD(&td->td_list);
 	INIT_LIST_HEAD(&td->cancelled_td_list);
@@ -3134,7 +3134,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->num_tds > 1)
 		need_zero_pkt = true;
 
-	td = urb_priv->td[0];
+	td = &urb_priv->td[0];
 
 	/*
 	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
@@ -3227,7 +3227,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		ret = prepare_transfer(xhci, xhci->devs[slot_id],
 				       ep_index, urb->stream_id,
 				       1, urb, 1, mem_flags);
-		urb_priv->td[1]->last_trb = ring->enqueue;
+		urb_priv->td[1].last_trb = ring->enqueue;
 		field = TRB_TYPE(TRB_NORMAL) | ring->cycle_state | TRB_IOC;
 		queue_trb(xhci, ring, 0, 0, 0, TRB_INTR_TARGET(0), field);
 	}
@@ -3279,7 +3279,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		return ret;
 
 	urb_priv = urb->hcpriv;
-	td = urb_priv->td[0];
+	td = &urb_priv->td[0];
 
 	/*
 	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
@@ -3567,7 +3567,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				return ret;
 			goto cleanup;
 		}
-		td = urb_priv->td[i];
+		td = &urb_priv->td[i];
 
 		/* use SIA as default, if frame id is used overwrite it */
 		sia_frame_id = TRB_SIA;
@@ -3674,20 +3674,20 @@ cleanup:
 	/* Clean up a partially enqueued isoc transfer. */
 
 	for (i--; i >= 0; i--)
-		list_del_init(&urb_priv->td[i]->td_list);
+		list_del_init(&urb_priv->td[i].td_list);
 
 	/* Use the first TD as a temporary variable to turn the TDs we've queued
 	 * into No-ops with a software-owned cycle bit. That way the hardware
 	 * won't accidentally start executing bogus TDs when we partially
 	 * overwrite them.  td->first_trb and td->start_seg are already set.
 	 */
-	urb_priv->td[0]->last_trb = ep_ring->enqueue;
+	urb_priv->td[0].last_trb = ep_ring->enqueue;
 	/* Every TRB except the first & last will have its cycle bit flipped. */
-	td_to_noop(xhci, ep_ring, urb_priv->td[0], true);
+	td_to_noop(xhci, ep_ring, &urb_priv->td[0], true);
 
 	/* Reset the ring enqueue back to the first TRB and its cycle bit. */
-	ep_ring->enqueue = urb_priv->td[0]->first_trb;
-	ep_ring->enq_seg = urb_priv->td[0]->start_seg;
+	ep_ring->enqueue = urb_priv->td[0].first_trb;
+	ep_ring->enq_seg = urb_priv->td[0].start_seg;
 	ep_ring->cycle_state = start_cycle;
 	ep_ring->num_trbs_free = ep_ring->num_trbs_free_temp;
 	usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);

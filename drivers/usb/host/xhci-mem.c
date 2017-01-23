@@ -1817,10 +1817,7 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 
 void xhci_urb_free_priv(struct urb_priv *urb_priv)
 {
-	if (urb_priv) {
-		kfree(urb_priv->td[0]);
-		kfree(urb_priv);
-	}
+	kfree(urb_priv);
 }
 
 void xhci_free_command(struct xhci_hcd *xhci,
