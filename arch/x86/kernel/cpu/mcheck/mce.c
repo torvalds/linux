@@ -1316,16 +1316,6 @@ int memory_failure(unsigned long pfn, int vector, int flags)
 #endif
 
 /*
- * Action optional processing happens here (picking up
- * from the list of faulting pages that do_machine_check()
- * placed into the genpool).
- */
-static void mce_process_work(struct work_struct *dummy)
-{
-	mce_gen_pool_process();
-}
-
-/*
  * Periodic polling timer for "silent" machine check errors.  If the
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
  * errors, poll 2x slower (up to check_interval seconds).
@@ -2165,7 +2155,7 @@ int __init mcheck_init(void)
 	mce_register_decode_chain(&mce_default_nb);
 	mcheck_vendor_init_severity();
 
-	INIT_WORK(&mce_work, mce_process_work);
+	INIT_WORK(&mce_work, mce_gen_pool_process);
 	init_irq_work(&mce_irq_work, mce_irq_work_cb);
 
 	return 0;
