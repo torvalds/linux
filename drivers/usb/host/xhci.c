@@ -1426,6 +1426,8 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	urb_priv->td_cnt = 0;
 	urb->hcpriv = urb_priv;
 
+	trace_xhci_urb_enqueue(urb);
+
 	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		/* Check to see if the max packet size for the default control
 		 * endpoint changed during FS device enumeration
@@ -1552,6 +1554,9 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	xhci = hcd_to_xhci(hcd);
 	spin_lock_irqsave(&xhci->lock, flags);
+
+	trace_xhci_urb_dequeue(urb);
+
 	/* Make sure the URB hasn't completed or been unlinked already */
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (ret || !urb->hcpriv)
