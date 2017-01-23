@@ -596,6 +596,32 @@ nouveau_hwmon_get_power1_input(struct device *d, struct device_attribute *a,
 static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO,
 			  nouveau_hwmon_get_power1_input, NULL, 0);
 
+static ssize_t
+nouveau_hwmon_get_power1_max(struct device *d, struct device_attribute *a,
+			     char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
+	return sprintf(buf, "%i\n", iccsense->power_w_max);
+}
+
+static SENSOR_DEVICE_ATTR(power1_max, S_IRUGO,
+			  nouveau_hwmon_get_power1_max, NULL, 0);
+
+static ssize_t
+nouveau_hwmon_get_power1_crit(struct device *d, struct device_attribute *a,
+			      char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
+	return sprintf(buf, "%i\n", iccsense->power_w_crit);
+}
+
+static SENSOR_DEVICE_ATTR(power1_crit, S_IRUGO,
+			  nouveau_hwmon_get_power1_crit, NULL, 0);
+
 static struct attribute *hwmon_default_attributes[] = {
 	&sensor_dev_attr_name.dev_attr.attr,
 	&sensor_dev_attr_update_rate.dev_attr.attr,
@@ -639,6 +665,12 @@ static struct attribute *hwmon_power_attributes[] = {
 	NULL
 };
 
+static struct attribute *hwmon_power_caps_attributes[] = {
+	&sensor_dev_attr_power1_max.dev_attr.attr,
+	&sensor_dev_attr_power1_crit.dev_attr.attr,
+	NULL
+};
+
 static const struct attribute_group hwmon_default_attrgroup = {
 	.attrs = hwmon_default_attributes,
 };
@@ -656,6 +688,9 @@ static const struct attribute_group hwmon_in0_attrgroup = {
 };
 static const struct attribute_group hwmon_power_attrgroup = {
 	.attrs = hwmon_power_attributes,
+};
+static const struct attribute_group hwmon_power_caps_attrgroup = {
+	.attrs = hwmon_power_caps_attributes,
 };
 #endif
 
@@ -728,8 +763,16 @@ nouveau_hwmon_init(struct drm_device *dev)
 	if (iccsense && iccsense->data_valid && !list_empty(&iccsense->rails)) {
 		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_power_attrgroup);
+
 		if (ret)
 			goto error;
+
+		if (iccsense->power_w_max && iccsense->power_w_crit) {
+			ret = sysfs_create_group(&hwmon_dev->kobj,
+						 &hwmon_power_caps_attrgroup);
+			if (ret)
+				goto error;
+		}
 	}
 
 	hwmon->hwmon = hwmon_dev;
@@ -759,6 +802,7 @@ nouveau_hwmon_fini(struct drm_device *dev)
 		sysfs_remove_group(&hwmon->hwmon->kobj, &hwmon_fan_rpm_attrgroup);
 		sysfs_remove_group(&hwmon->hwmon->kobj, &hwmon_in0_attrgroup);
 		sysfs_remove_group(&hwmon->hwmon->kobj, &hwmon_power_attrgroup);
+		sysfs_remove_group(&hwmon->hwmon->kobj, &hwmon_power_caps_attrgroup);
 
 		hwmon_device_unregister(hwmon->hwmon);
 	}
