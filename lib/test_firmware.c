@@ -42,12 +42,6 @@ static const struct file_operations test_fw_fops = {
 	.read           = test_fw_misc_read,
 };
 
-static struct miscdevice test_fw_misc_device = {
-	.minor          = MISC_DYNAMIC_MINOR,
-	.name           = "test_firmware",
-	.fops           = &test_fw_fops,
-};
-
 static ssize_t trigger_request_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
@@ -131,6 +125,12 @@ out:
 	return rc;
 }
 static DEVICE_ATTR_WO(trigger_async_request);
+
+static struct miscdevice test_fw_misc_device = {
+	.minor          = MISC_DYNAMIC_MINOR,
+	.name           = "test_firmware",
+	.fops           = &test_fw_fops,
+};
 
 static int __init test_firmware_init(void)
 {
