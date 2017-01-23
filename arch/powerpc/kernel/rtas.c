@@ -1158,6 +1158,7 @@ void __init rtas_initialize(void)
 	no_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
 	no_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
 	if (no_base || no_size) {
+		of_node_put(rtas.dev);
 		rtas.dev = NULL;
 		return;
 	}
