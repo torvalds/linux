@@ -38,166 +38,111 @@
 
 #include "core.h"
 
-static const struct dwc2_core_params params_hi6220 = {
-	.otg_cap			= 2,	/* No HNP/SRP capable */
-	.dma_desc_enable		= 0,
-	.dma_desc_fs_enable		= 0,
-	.speed				= 0,	/* High Speed */
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= 1,
-	.host_rx_fifo_size		= 512,
-	.host_nperio_tx_fifo_size	= 512,
-	.host_perio_tx_fifo_size	= 512,
-	.max_transfer_size		= 65535,
-	.max_packet_count		= 511,
-	.host_channels			= 16,
-	.phy_type			= 1,	/* UTMI */
-	.phy_utmi_width			= 8,
-	.phy_ulpi_ddr			= 0,	/* Single */
-	.phy_ulpi_ext_vbus		= 0,
-	.i2c_enable			= 0,
-	.ulpi_fs_ls			= 0,
-	.host_support_fs_ls_low_power	= 0,
-	.host_ls_low_power_phy_clk	= 0,	/* 48 MHz */
-	.ts_dline			= 0,
-	.reload_ctl			= 0,
-	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
-					  GAHBCFG_HBSTLEN_SHIFT,
-	.uframe_sched			= 0,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
 
-static const struct dwc2_core_params params_bcm2835 = {
-	.otg_cap			= 0,	/* HNP/SRP capable */
-	.dma_desc_enable		= 0,
-	.dma_desc_fs_enable		= 0,
-	.speed				= 0,	/* High Speed */
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= 1,
-	.host_rx_fifo_size		= 774,	/* 774 DWORDs */
-	.host_nperio_tx_fifo_size	= 256,	/* 256 DWORDs */
-	.host_perio_tx_fifo_size	= 512,	/* 512 DWORDs */
-	.max_transfer_size		= 65535,
-	.max_packet_count		= 511,
-	.host_channels			= 8,
-	.phy_type			= 1,	/* UTMI */
-	.phy_utmi_width			= 8,	/* 8 bits */
-	.phy_ulpi_ddr			= 0,	/* Single */
-	.phy_ulpi_ext_vbus		= 0,
-	.i2c_enable			= 0,
-	.ulpi_fs_ls			= 0,
-	.host_support_fs_ls_low_power	= 0,
-	.host_ls_low_power_phy_clk	= 0,	/* 48 MHz */
-	.ts_dline			= 0,
-	.reload_ctl			= 0,
-	.ahbcfg				= 0x10,
-	.uframe_sched			= 0,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+	p->otg_cap = DWC2_CAP_PARAM_HNP_SRP_CAPABLE;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->host_rx_fifo_size = 774;
+	p->host_nperio_tx_fifo_size = 256;
+	p->host_perio_tx_fifo_size = 512;
+	p->max_transfer_size = 65535;
+	p->max_packet_count = 511;
+	p->host_channels = 8;
+	p->phy_type = 1;
+	p->phy_utmi_width = 8;
+	p->i2c_enable = false;
+	p->host_ls_low_power_phy_clk = 0;
+	p->reload_ctl = false;
+	p->ahbcfg = 0x10;
+	p->uframe_sched = false;
+}
 
-static const struct dwc2_core_params params_rk3066 = {
-	.otg_cap			= 2,	/* non-HNP/non-SRP */
-	.dma_desc_enable		= 0,
-	.dma_desc_fs_enable		= 0,
-	.speed				= -1,
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 525,	/* 525 DWORDs */
-	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
-	.host_perio_tx_fifo_size	= 256,	/* 256 DWORDs */
-	.max_transfer_size		= -1,
-	.max_packet_count		= -1,
-	.host_channels			= -1,
-	.phy_type			= -1,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= -1,
-	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
-					  GAHBCFG_HBSTLEN_SHIFT,
-	.uframe_sched			= -1,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+static void dwc2_set_his_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
 
-static const struct dwc2_core_params params_ltq = {
-	.otg_cap			= 2,	/* non-HNP/non-SRP */
-	.dma_desc_enable		= -1,
-	.dma_desc_fs_enable		= -1,
-	.speed				= -1,
-	.enable_dynamic_fifo		= -1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 288,	/* 288 DWORDs */
-	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
-	.host_perio_tx_fifo_size	= 96,	/* 96 DWORDs */
-	.max_transfer_size		= 65535,
-	.max_packet_count		= 511,
-	.host_channels			= -1,
-	.phy_type			= -1,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= -1,
-	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
-					  GAHBCFG_HBSTLEN_SHIFT,
-	.uframe_sched			= -1,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->host_rx_fifo_size = 512;
+	p->host_nperio_tx_fifo_size = 512;
+	p->host_perio_tx_fifo_size = 512;
+	p->max_transfer_size = 65535;
+	p->max_packet_count = 511;
+	p->host_channels = 16;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 8;
+	p->i2c_enable = false;
+	p->host_ls_low_power_phy_clk = 0;
+	p->reload_ctl = false;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
+		GAHBCFG_HBSTLEN_SHIFT;
+	p->uframe_sched = false;
+}
 
-static const struct dwc2_core_params params_amlogic = {
-	.otg_cap			= DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE,
-	.dma_desc_enable		= 0,
-	.dma_desc_fs_enable		= 0,
-	.speed				= DWC2_SPEED_PARAM_HIGH,
-	.enable_dynamic_fifo		= 1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 512,
-	.host_nperio_tx_fifo_size	= 500,
-	.host_perio_tx_fifo_size	= 500,
-	.max_transfer_size		= -1,
-	.max_packet_count		= -1,
-	.host_channels			= 16,
-	.phy_type			= DWC2_PHY_TYPE_PARAM_UTMI,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= 1,
-	.ahbcfg				= GAHBCFG_HBSTLEN_INCR8 <<
-					  GAHBCFG_HBSTLEN_SHIFT,
-	.uframe_sched			= 0,
-	.external_id_pin_ctl		= -1,
-	.hibernation			= -1,
-};
+static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->host_rx_fifo_size = 525;
+	p->host_nperio_tx_fifo_size = 128;
+	p->host_perio_tx_fifo_size = 256;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
+		GAHBCFG_HBSTLEN_SHIFT;
+}
+
+static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_cap = 2;
+	p->host_rx_fifo_size = 288;
+	p->host_nperio_tx_fifo_size = 128;
+	p->host_perio_tx_fifo_size = 96;
+	p->max_transfer_size = 65535;
+	p->max_packet_count = 511;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
+		GAHBCFG_HBSTLEN_SHIFT;
+}
+
+static void dwc2_set_amlogic_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_cap = DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->host_rx_fifo_size = 512;
+	p->host_nperio_tx_fifo_size = 500;
+	p->host_perio_tx_fifo_size = 500;
+	p->host_channels = 16;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR8 <<
+		GAHBCFG_HBSTLEN_SHIFT;
+	p->uframe_sched = false;
+}
+
+static void dwc2_set_amcc_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
+}
 
 const struct of_device_id dwc2_of_match_table[] = {
-	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
-	{ .compatible = "hisilicon,hi6220-usb", .data = &params_hi6220 },
-	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
-	{ .compatible = "lantiq,arx100-usb", .data = &params_ltq },
-	{ .compatible = "lantiq,xrx200-usb", .data = &params_ltq },
-	{ .compatible = "snps,dwc2", .data = NULL },
-	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
-	{ .compatible = "amlogic,meson8b-usb", .data = &params_amlogic },
-	{ .compatible = "amlogic,meson-gxbb-usb", .data = &params_amlogic },
-	{ .compatible = "amcc,dwc-otg", .data = NULL },
+	{ .compatible = "brcm,bcm2835-usb", .data = dwc2_set_bcm_params },
+	{ .compatible = "hisilicon,hi6220-usb", .data = dwc2_set_his_params  },
+	{ .compatible = "rockchip,rk3066-usb", .data = dwc2_set_rk_params },
+	{ .compatible = "lantiq,arx100-usb", .data = dwc2_set_ltq_params },
+	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },
+	{ .compatible = "snps,dwc2" },
+	{ .compatible = "samsung,s3c6400-hsotg" },
+	{ .compatible = "amlogic,meson8b-usb",
+	  .data = dwc2_set_amlogic_params },
+	{ .compatible = "amlogic,meson-gxbb-usb",
+	  .data = dwc2_set_amlogic_params },
+	{ .compatible = "amcc,dwc-otg", .data = dwc2_set_amcc_params },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
@@ -771,8 +716,17 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
+	const struct of_device_id *match;
+	void (*set_params)(void *data);
+
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
+
+	match = of_match_device(dwc2_of_match_table, hsotg->dev);
+	if (match && match->data) {
+		set_params = match->data;
+		set_params(hsotg);
+	}
 
 	dwc2_check_params(hsotg);
 
