@@ -3004,10 +3004,8 @@ static int try_to_find_absolute_address(struct perf_probe_event *pev,
 	return 1;
 
 errout:
-	if (*tevs) {
-		clear_probe_trace_events(*tevs, 1);
-		*tevs = NULL;
-	}
+	clear_probe_trace_events(*tevs, 1);
+	*tevs = NULL;
 	return err;
 }
 
