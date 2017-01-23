@@ -921,6 +921,9 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		return;
 
 	dev = xhci->devs[slot_id];
+
+	trace_xhci_free_virt_device(dev);
+
 	xhci->dcbaa->dev_context_ptrs[slot_id] = 0;
 	if (!dev)
 		return;
@@ -1070,6 +1073,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		 le64_to_cpu(xhci->dcbaa->dev_context_ptrs[slot_id]));
 
 	xhci->devs[slot_id] = dev;
+
+	trace_xhci_alloc_virt_device(dev);
 
 	return 1;
 fail:
@@ -1248,6 +1253,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 
 	ep0_ctx->deq = cpu_to_le64(dev->eps[0].ring->first_seg->dma |
 				   dev->eps[0].ring->cycle_state);
+
+	trace_xhci_setup_addressable_virt_device(dev);
 
 	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
 
