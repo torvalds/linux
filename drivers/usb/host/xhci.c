@@ -1334,7 +1334,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
 	int ret = 0;
-	unsigned int slot_id, ep_index;
+	unsigned int slot_id, ep_index, ep_state;
 	struct urb_priv	*urb_priv;
 	int num_tds;
 
@@ -1348,8 +1348,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		if (!in_interrupt())
 			xhci_dbg(xhci, "urb submitted during PCI suspend\n");
-		ret = -ESHUTDOWN;
-		goto exit;
+		return -ESHUTDOWN;
 	}
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
@@ -1386,69 +1385,51 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 				return ret;
 			}
 		}
+	}
 
-		/* We have a spinlock and interrupts disabled, so we must pass
-		 * atomic context to this function, which may allocate memory.
-		 */
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
+		xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for non-responsive xHCI host.\n",
+			 urb->ep->desc.bEndpointAddress, urb);
+		ret = -ESHUTDOWN;
+		goto free_priv;
+	}
+
+	switch (usb_endpoint_type(&urb->ep->desc)) {
+
+	case USB_ENDPOINT_XFER_CONTROL:
 		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
-				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else if (usb_endpoint_xfer_bulk(&urb->ep->desc)) {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
-		if (xhci->devs[slot_id]->eps[ep_index].ep_state &
-				EP_GETTING_STREAMS) {
-			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
-					"is transitioning to using streams.\n");
+					 slot_id, ep_index);
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
+		if (ep_state & (EP_GETTING_STREAMS | EP_GETTING_NO_STREAMS)) {
+			xhci_warn(xhci, "WARN: Can't enqueue URB, ep in streams transition state %x\n",
+				  ep_state);
 			ret = -EINVAL;
-		} else if (xhci->devs[slot_id]->eps[ep_index].ep_state &
-				EP_GETTING_NO_STREAMS) {
-			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
-					"is transitioning to "
-					"not having streams.\n");
-			ret = -EINVAL;
-		} else {
-			ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
-					slot_id, ep_index);
+			break;
 		}
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else if (usb_endpoint_xfer_int(&urb->ep->desc)) {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
+					 slot_id, ep_index);
+		break;
+
+
+	case USB_ENDPOINT_XFER_INT:
 		ret = xhci_queue_intr_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
-	} else {
-		spin_lock_irqsave(&xhci->lock, flags);
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			goto dying;
+		break;
+
+	case USB_ENDPOINT_XFER_ISOC:
 		ret = xhci_queue_isoc_tx_prepare(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-		if (ret)
-			goto free_priv;
-		spin_unlock_irqrestore(&xhci->lock, flags);
 	}
-exit:
-	return ret;
-dying:
-	xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for "
-			"non-responsive xHCI host.\n",
-			urb->ep->desc.bEndpointAddress, urb);
-	ret = -ESHUTDOWN;
+
+	if (ret) {
 free_priv:
-	xhci_urb_free_priv(urb_priv);
-	urb->hcpriv = NULL;
+		xhci_urb_free_priv(urb_priv);
+		urb->hcpriv = NULL;
+	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	return ret;
 }
