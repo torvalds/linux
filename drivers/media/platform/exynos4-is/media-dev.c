@@ -402,8 +402,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		return ret;
 	}
 
-	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS)
+	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS) {
+		of_node_put(ep);
 		return -EINVAL;
+	}
 
 	pd->mux_id = (endpoint.base.port - 1) & 0x1;
 
