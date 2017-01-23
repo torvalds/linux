@@ -629,6 +629,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	mutex_lock(&gb->mutex);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
+					0,
 					GFP_KERNEL);
 	if (ret)
 		goto error;
