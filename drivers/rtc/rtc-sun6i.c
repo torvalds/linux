@@ -439,9 +439,4 @@ static struct platform_driver sun6i_rtc_driver = {
 		.of_match_table = sun6i_rtc_dt_ids,
 	},
 };
-
-module_platform_driver(sun6i_rtc_driver);
-
-MODULE_DESCRIPTION("sun6i RTC driver");
-MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun6i_rtc_driver);
