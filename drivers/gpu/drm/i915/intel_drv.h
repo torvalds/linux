@@ -371,6 +371,8 @@ struct intel_atomic_state {
 	struct skl_wm_values wm_results;
 
 	struct i915_sw_fence commit_ready;
+
+	struct llist_node freed;
 };
 
 struct intel_plane_state {
