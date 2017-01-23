@@ -295,6 +295,20 @@ static bool malidp_is_compatible_hw_id(struct malidp_hw_device *hwdev,
 	return true;
 }
 
+static bool malidp_has_sufficient_address_space(const struct resource *res,
+						const struct of_device_id *dev_id)
+{
+	resource_size_t res_size = resource_size(res);
+	const char *compatstr_dp500 = "arm,mali-dp500";
+
+	if (!strnstr(dev_id->compatible, compatstr_dp500,
+		     sizeof(dev_id->compatible)))
+		return res_size >= MALIDP550_ADDR_SPACE_SIZE;
+	else if (res_size < MALIDP500_ADDR_SPACE_SIZE)
+		return false;
+	return true;
+}
+
 #define MAX_OUTPUT_CHANNELS	3
 
 static int malidp_bind(struct device *dev)
@@ -370,6 +384,12 @@ static int malidp_bind(struct device *dev)
 
 	dev_id = of_match_device(malidp_drm_of_match, dev);
 	if (!dev_id) {
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
+
+	if (!malidp_has_sufficient_address_space(res, dev_id)) {
+		DRM_ERROR("Insufficient address space in device-tree.\n");
 		ret = -EINVAL;
 		goto query_hw_fail;
 	}

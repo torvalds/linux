@@ -95,6 +95,7 @@
 #define MALIDP_PRODUCT_ID(__core_id) ((u32)(__core_id) >> 16)
 
 /* register offsets and bits specific to DP500 */
+#define MALIDP500_ADDR_SPACE_SIZE	0x01000
 #define MALIDP500_DC_BASE		0x00000
 #define MALIDP500_DC_CONTROL		0x0000c
 #define   MALIDP500_DC_CONFIG_REQ	(1 << 17)
@@ -127,6 +128,7 @@
 #define MALIDP500_CONFIG_ID		0x00fd4
 
 /* register offsets and bits specific to DP550/DP650 */
+#define MALIDP550_ADDR_SPACE_SIZE	0x10000
 #define MALIDP550_DE_CONTROL		0x00010
 #define MALIDP550_DE_LINE_COUNTER	0x00014
 #define MALIDP550_DE_AXI_CONTROL	0x00018
