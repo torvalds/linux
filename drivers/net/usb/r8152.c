@@ -3442,6 +3442,8 @@ static bool delay_autosuspend(struct r8152 *tp)
 	 */
 	if (!sw_linking && tp->rtl_ops.in_nway(tp))
 		return true;
+	else if (!skb_queue_empty(&tp->tx_queue))
+		return true;
 	else
 		return false;
 }
