@@ -29,12 +29,12 @@ static int get_temp(char *path)
 static int session_write_header(char *path)
 {
 	struct perf_session *session;
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.path = path,
 		.mode = PERF_DATA_MODE_WRITE,
 	};
 
-	session = perf_session__new(&file, false, NULL);
+	session = perf_session__new(&data, false, NULL);
 	TEST_ASSERT_VAL("can't get session", session);
 
 	session->evlist = perf_evlist__new_default();
@@ -46,7 +46,7 @@ static int session_write_header(char *path)
 	session->header.data_size += DATA_SIZE;
 
 	TEST_ASSERT_VAL("failed to write header",
-			!perf_session__write_header(session, session->evlist, file.fd, true));
+			!perf_session__write_header(session, session->evlist, data.fd, true));
 
 	perf_session__delete(session);
 
@@ -56,13 +56,13 @@ static int session_write_header(char *path)
 static int check_cpu_topology(char *path, struct cpu_map *map)
 {
 	struct perf_session *session;
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.path = path,
 		.mode = PERF_DATA_MODE_READ,
 	};
 	int i;
 
-	session = perf_session__new(&file, false, NULL);
+	session = perf_session__new(&data, false, NULL);
 	TEST_ASSERT_VAL("can't get session", session);
 
 	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {

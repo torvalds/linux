@@ -500,7 +500,7 @@ static int intel_bts_process_queue(struct intel_bts_queue *btsq, u64 *timestamp)
 	}
 
 	if (!buffer->data) {
-		int fd = perf_data_file__fd(btsq->bts->session->file);
+		int fd = perf_data__fd(btsq->bts->session->data);
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data) {
@@ -664,10 +664,10 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 	if (!bts->data_queued) {
 		struct auxtrace_buffer *buffer;
 		off_t data_offset;
-		int fd = perf_data_file__fd(session->file);
+		int fd = perf_data__fd(session->data);
 		int err;
 
-		if (perf_data_file__is_pipe(session->file)) {
+		if (perf_data__is_pipe(session->data)) {
 			data_offset = 0;
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);

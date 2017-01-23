@@ -35,7 +35,7 @@ struct perf_inject {
 	bool			strip;
 	bool			jit_mode;
 	const char		*input_name;
-	struct perf_data_file	output;
+	struct perf_data	output;
 	u64			bytes_written;
 	u64			aux_id;
 	struct list_head	samples;
@@ -52,7 +52,7 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 {
 	ssize_t size;
 
-	size = perf_data_file__write(&inject->output, buf, sz);
+	size = perf_data__write(&inject->output, buf, sz);
 	if (size < 0)
 		return -errno;
 
@@ -154,11 +154,11 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 			return ret;
 	}
 
-	if (perf_data_file__is_pipe(session->file) || !session->one_mmap) {
+	if (perf_data__is_pipe(session->data) || !session->one_mmap) {
 		ret = output_bytes(inject, event, event->header.size);
 		if (ret < 0)
 			return ret;
-		ret = copy_bytes(inject, perf_data_file__fd(session->file),
+		ret = copy_bytes(inject, perf_data__fd(session->data),
 				 event->auxtrace.size);
 	} else {
 		ret = output_bytes(inject, event,
@@ -637,8 +637,8 @@ static int __cmd_inject(struct perf_inject *inject)
 {
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
-	struct perf_data_file *file_out = &inject->output;
-	int fd = perf_data_file__fd(file_out);
+	struct perf_data *data_out = &inject->output;
+	int fd = perf_data__fd(data_out);
 	u64 output_data_offset;
 
 	signal(SIGINT, sig_handler);
@@ -693,14 +693,14 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!file_out->is_pipe)
+	if (!data_out->is_pipe)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
-	if (!file_out->is_pipe) {
+	if (!data_out->is_pipe) {
 		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
@@ -779,7 +779,7 @@ int cmd_inject(int argc, const char **argv)
 			.mode = PERF_DATA_MODE_WRITE,
 		},
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 	};
 	int ret;
@@ -801,7 +801,7 @@ int cmd_inject(int argc, const char **argv)
 			 "be more verbose (show build ids, etc)"),
 		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
 			   "kallsyms pathname"),
-		OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+		OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 		OPT_CALLBACK_OPTARG(0, "itrace", &inject.itrace_synth_opts,
 				    NULL, "opts", "Instruction Tracing options",
 				    itrace_parse_synth_opts),
@@ -829,15 +829,15 @@ int cmd_inject(int argc, const char **argv)
 		return -1;
 	}
 
-	if (perf_data_file__open(&inject.output)) {
+	if (perf_data__open(&inject.output)) {
 		perror("failed to create output file");
 		return -1;
 	}
 
 	inject.tool.ordered_events = inject.sched_stat;
 
-	file.path = inject.input_name;
-	inject.session = perf_session__new(&file, true, &inject.tool);
+	data.path = inject.input_name;
+	inject.session = perf_session__new(&data, true, &inject.tool);
 	if (inject.session == NULL)
 		return -1;
 

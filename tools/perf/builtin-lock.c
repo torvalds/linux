@@ -864,13 +864,13 @@ static int __cmd_report(bool display_info)
 		.namespaces	 = perf_event__process_namespaces,
 		.ordered_events	 = true,
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
 		.force = force,
 	};
 
-	session = perf_session__new(&file, false, &eops);
+	session = perf_session__new(&data, false, &eops);
 	if (!session) {
 		pr_err("Initializing perf session failed\n");
 		return -1;

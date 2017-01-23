@@ -2523,7 +2523,7 @@ static int perf_c2c__report(int argc, const char **argv)
 {
 	struct perf_session *session;
 	struct ui_progress prog;
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 	};
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
@@ -2572,8 +2572,8 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
-	file.path  = input_name;
-	file.force = symbol_conf.force;
+	data.path  = input_name;
+	data.force = symbol_conf.force;
 
 	err = setup_display(display);
 	if (err)
@@ -2591,7 +2591,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out;
 	}
 
-	session = perf_session__new(&file, 0, &c2c.tool);
+	session = perf_session__new(&data, 0, &c2c.tool);
 	if (session == NULL) {
 		pr_debug("No memory for session\n");
 		goto out;
@@ -2611,7 +2611,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out_session;
 
 	/* No pipe support at the moment. */
-	if (perf_data_file__is_pipe(session->file)) {
+	if (perf_data__is_pipe(session->data)) {
 		pr_debug("No pipe support at the moment.\n");
 		goto out_session;
 	}

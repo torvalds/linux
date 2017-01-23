@@ -1067,7 +1067,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 		.namespaces		= perf_event__process_namespaces,
 		.ordered_events		= true,
 	};
-	struct perf_data_file file = {
+	struct perf_data file = {
 		.path = kvm->file_name,
 		.mode = PERF_DATA_MODE_READ,
 		.force = kvm->force,
@@ -1358,7 +1358,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		"perf kvm stat live [<options>]",
 		NULL
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_WRITE,
 	};
 
@@ -1432,7 +1432,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * perf session
 	 */
-	kvm->session = perf_session__new(&file, false, &kvm->tool);
+	kvm->session = perf_session__new(&data, false, &kvm->tool);
 	if (kvm->session == NULL) {
 		err = -1;
 		goto out;

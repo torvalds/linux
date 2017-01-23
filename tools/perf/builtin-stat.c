@@ -175,7 +175,7 @@ static int			print_free_counters_hint;
 
 struct perf_stat {
 	bool			 record;
-	struct perf_data_file	 file;
+	struct perf_data	 data;
 	struct perf_session	*session;
 	u64			 bytes_written;
 	struct perf_tool	 tool;
@@ -253,7 +253,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	 * by attr->sample_type != 0, and we can't run it on
 	 * stat sessions.
 	 */
-	if (!(STAT_RECORD && perf_stat.file.is_pipe))
+	if (!(STAT_RECORD && perf_stat.data.is_pipe))
 		attr->sample_type = PERF_SAMPLE_IDENTIFIER;
 
 	/*
@@ -295,7 +295,7 @@ static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
-	if (perf_data_file__write(&perf_stat.file, event, event->header.size) < 0) {
+	if (perf_data__write(&perf_stat.data, event, event->header.size) < 0) {
 		pr_err("failed to write perf data, error: %m\n");
 		return -1;
 	}
@@ -628,7 +628,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	size_t l;
 	int status = 0;
 	const bool forks = (argc > 0);
-	bool is_pipe = STAT_RECORD ? perf_stat.file.is_pipe : false;
+	bool is_pipe = STAT_RECORD ? perf_stat.data.is_pipe : false;
 	struct perf_evsel_config_term *err_term;
 
 	if (interval) {
@@ -719,10 +719,10 @@ try_again:
 	}
 
 	if (STAT_RECORD) {
-		int err, fd = perf_data_file__fd(&perf_stat.file);
+		int err, fd = perf_data__fd(&perf_stat.data);
 
 		if (is_pipe) {
-			err = perf_header__write_pipe(perf_data_file__fd(&perf_stat.file));
+			err = perf_header__write_pipe(perf_data__fd(&perf_stat.data));
 		} else {
 			err = perf_session__write_header(perf_stat.session, evsel_list,
 							 fd, false);
@@ -1696,7 +1696,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	char buf[64], *prefix = NULL;
 
 	/* Do not print anything if we record to the pipe. */
-	if (STAT_RECORD && perf_stat.file.is_pipe)
+	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
 
 	if (interval)
@@ -2406,20 +2406,20 @@ static void init_features(struct perf_session *session)
 static int __cmd_record(int argc, const char **argv)
 {
 	struct perf_session *session;
-	struct perf_data_file *file = &perf_stat.file;
+	struct perf_data *data = &perf_stat.data;
 
 	argc = parse_options(argc, argv, stat_options, stat_record_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (output_name)
-		file->path = output_name;
+		data->path = output_name;
 
 	if (run_count != 1 || forever) {
 		pr_err("Cannot use -r option with perf stat record.\n");
 		return -1;
 	}
 
-	session = perf_session__new(file, false, NULL);
+	session = perf_session__new(data, false, NULL);
 	if (session == NULL) {
 		pr_err("Perf session creation failed.\n");
 		return -1;
@@ -2477,7 +2477,7 @@ int process_stat_config_event(struct perf_tool *tool,
 	if (st->aggr_mode != AGGR_UNSET)
 		stat_config.aggr_mode = st->aggr_mode;
 
-	if (perf_stat.file.is_pipe)
+	if (perf_stat.data.is_pipe)
 		perf_stat_init_aggr_mode();
 	else
 		perf_stat_init_aggr_mode_file(st);
@@ -2585,10 +2585,10 @@ static int __cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
-	perf_stat.file.path = input_name;
-	perf_stat.file.mode = PERF_DATA_MODE_READ;
+	perf_stat.data.path = input_name;
+	perf_stat.data.mode = PERF_DATA_MODE_READ;
 
-	session = perf_session__new(&perf_stat.file, false, &perf_stat.tool);
+	session = perf_session__new(&perf_stat.data, false, &perf_stat.tool);
 	if (session == NULL)
 		return -1;
 
@@ -2859,7 +2859,7 @@ int cmd_stat(int argc, const char **argv)
 		 * records, but the need to suppress the kptr_restrict messages in older
 		 * tools remain  -acme
 		 */
-		int fd = perf_data_file__fd(&perf_stat.file);
+		int fd = perf_data__fd(&perf_stat.data);
 		int err = perf_event__synthesize_kernel_mmap((void *)&perf_stat,
 							     process_synthesized_event,
 							     &perf_stat.session->machines.host);
@@ -2873,7 +2873,7 @@ int cmd_stat(int argc, const char **argv)
 				pr_err("failed to write stat round event\n");
 		}
 
-		if (!perf_stat.file.is_pipe) {
+		if (!perf_stat.data.is_pipe) {
 			perf_stat.session->header.data_size += perf_stat.bytes_written;
 			perf_session__write_header(perf_stat.session, evsel_list, fd, true);
 		}
