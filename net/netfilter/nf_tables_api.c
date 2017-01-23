@@ -3906,6 +3906,7 @@ static int nft_flush_set(const struct nft_ctx *ctx,
 		err = -ENOENT;
 		goto err1;
 	}
+	set->ndeact++;
 
 	nft_trans_elem_set(trans) = set;
 	nft_trans_elem(trans) = *elem;
