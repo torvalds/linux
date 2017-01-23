@@ -119,14 +119,14 @@ static bool last_td_in_urb(struct xhci_td *td)
 {
 	struct urb_priv *urb_priv = td->urb->hcpriv;
 
-	return urb_priv->td_cnt == urb_priv->length;
+	return urb_priv->num_tds_done == urb_priv->num_tds;
 }
 
 static void inc_td_cnt(struct urb *urb)
 {
 	struct urb_priv *urb_priv = urb->hcpriv;
 
-	urb_priv->td_cnt++;
+	urb_priv->num_tds_done++;
 }
 
 static void trb_to_noop(union xhci_trb *trb, u32 noop_type)
@@ -2055,7 +2055,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	urb_priv = td->urb->hcpriv;
-	idx = urb_priv->td_cnt;
+	idx = urb_priv->num_tds_done;
 	frame = &td->urb->iso_frame_desc[idx];
 	requested = frame->length;
 	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
@@ -2134,7 +2134,7 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	urb_priv = td->urb->hcpriv;
-	idx = urb_priv->td_cnt;
+	idx = urb_priv->num_tds_done;
 	frame = &td->urb->iso_frame_desc[idx];
 
 	/* The transfer is partly done. */
@@ -3131,7 +3131,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	urb_priv = urb->hcpriv;
 
 	/* Deal with URB_ZERO_PACKET - need one more td/trb */
-	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->length > 1)
+	if (urb->transfer_flags & URB_ZERO_PACKET && urb_priv->num_tds > 1)
 		need_zero_pkt = true;
 
 	td = urb_priv->td[0];

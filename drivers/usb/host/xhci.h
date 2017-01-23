@@ -1608,8 +1608,8 @@ struct xhci_scratchpad {
 };
 
 struct urb_priv {
-	int	length;
-	int	td_cnt;
+	int	num_tds;
+	int	num_tds_done;
 	struct	xhci_td	*td[0];
 };
 

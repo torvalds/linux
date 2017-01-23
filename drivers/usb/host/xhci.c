@@ -1379,8 +1379,8 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		buffer++;
 	}
 
-	urb_priv->length = num_tds;
-	urb_priv->td_cnt = 0;
+	urb_priv->num_tds = num_tds;
+	urb_priv->num_tds_done = 0;
 	urb->hcpriv = urb_priv;
 
 	trace_xhci_urb_enqueue(urb);
@@ -1523,8 +1523,8 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"HW died, freeing TD.");
 		urb_priv = urb->hcpriv;
-		for (i = urb_priv->td_cnt;
-		     i < urb_priv->length && xhci->devs[urb->dev->slot_id];
+		for (i = urb_priv->num_tds_done;
+		     i < urb_priv->num_tds && xhci->devs[urb->dev->slot_id];
 		     i++) {
 			td = urb_priv->td[i];
 			if (!list_empty(&td->td_list))
@@ -1549,8 +1549,8 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 
 	urb_priv = urb->hcpriv;
-	i = urb_priv->td_cnt;
-	if (i < urb_priv->length)
+	i = urb_priv->num_tds_done;
+	if (i < urb_priv->num_tds)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"Cancel URB %p, dev %s, ep 0x%x, "
 				"starting at offset 0x%llx",
@@ -1560,7 +1560,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 					urb_priv->td[i]->start_seg,
 					urb_priv->td[i]->first_trb));
 
-	for (; i < urb_priv->length; i++) {
+	for (; i < urb_priv->num_tds; i++) {
 		td = urb_priv->td[i];
 		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	}
