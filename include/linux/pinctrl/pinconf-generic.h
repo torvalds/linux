@@ -12,12 +12,6 @@
 #ifndef __LINUX_PINCTRL_PINCONF_GENERIC_H
 #define __LINUX_PINCTRL_PINCONF_GENERIC_H
 
-/*
- * You shouldn't even be able to compile with these enums etc unless you're
- * using generic pin config. That is why this is defined out.
- */
-#ifdef CONFIG_GENERIC_PINCONF
-
 /**
  * enum pin_config_param - possible pin configuration parameters
  * @PIN_CONFIG_BIAS_BUS_HOLD: the pin will be set to weakly latch so that it
@@ -118,18 +112,6 @@ enum pin_config_param {
 	PIN_CONFIG_MAX = 0xFF,
 };
 
-#ifdef CONFIG_DEBUG_FS
-#define PCONFDUMP(a, b, c, d) { .param = a, .display = b, .format = c, \
-				.has_arg = d }
-
-struct pin_config_item {
-	const enum pin_config_param param;
-	const char * const display;
-	const char * const format;
-	bool has_arg;
-};
-#endif /* CONFIG_DEBUG_FS */
-
 /*
  * Helpful configuration macro to be used in tables etc.
  */
@@ -157,6 +139,21 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 {
 	return PIN_CONF_PACKED(param, argument);
 }
+
+#ifdef CONFIG_GENERIC_PINCONF
+
+#ifdef CONFIG_DEBUG_FS
+#define PCONFDUMP(a, b, c, d) {					\
+	.param = a, .display = b, .format = c, .has_arg = d	\
+	}
+
+struct pin_config_item {
+	const enum pin_config_param param;
+	const char * const display;
+	const char * const format;
+	bool has_arg;
+};
+#endif /* CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_OF
 
