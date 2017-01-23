@@ -452,50 +452,50 @@ enum dwc2_ep0_state {
  * default described above.
  */
 struct dwc2_core_params {
-	int otg_cap;
+	u8 otg_cap;
 #define DWC2_CAP_PARAM_HNP_SRP_CAPABLE		0
 #define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
 #define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
 
-	int dma_desc_enable;
-	int dma_desc_fs_enable;
-	int speed;
+	bool dma_desc_enable;
+	bool dma_desc_fs_enable;
+	u8 speed;
 #define DWC2_SPEED_PARAM_HIGH	0
 #define DWC2_SPEED_PARAM_FULL	1
 #define DWC2_SPEED_PARAM_LOW	2
 
-	int enable_dynamic_fifo;
-	int en_multiple_tx_fifo;
-	int host_rx_fifo_size;
-	int host_nperio_tx_fifo_size;
-	int host_perio_tx_fifo_size;
-	int max_transfer_size;
-	int max_packet_count;
-	int host_channels;
-	int phy_type;
+	bool enable_dynamic_fifo;
+	bool en_multiple_tx_fifo;
+	u16 host_rx_fifo_size;
+	u16 host_nperio_tx_fifo_size;
+	u16 host_perio_tx_fifo_size;
+	u32 max_transfer_size;
+	u16 max_packet_count;
+	u8 host_channels;
+	u8 phy_type;
 #define DWC2_PHY_TYPE_PARAM_FS		0
 #define DWC2_PHY_TYPE_PARAM_UTMI	1
 #define DWC2_PHY_TYPE_PARAM_ULPI	2
 
-	int phy_utmi_width;
-	int phy_ulpi_ddr;
-	int phy_ulpi_ext_vbus;
+	u8 phy_utmi_width;
+	bool phy_ulpi_ddr;
+	bool phy_ulpi_ext_vbus;
 #define DWC2_PHY_ULPI_INTERNAL_VBUS	0
 #define DWC2_PHY_ULPI_EXTERNAL_VBUS	1
 
-	int i2c_enable;
-	int ulpi_fs_ls;
-	int host_support_fs_ls_low_power;
-	int host_ls_low_power_phy_clk;
+	bool i2c_enable;
+	bool ulpi_fs_ls;
+	bool host_support_fs_ls_low_power;
+	bool host_ls_low_power_phy_clk;
 #define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
 #define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
 
-	int ts_dline;
-	int reload_ctl;
-	int ahbcfg;
-	int uframe_sched;
-	int external_id_pin_ctl;
-	int hibernation;
+	bool ts_dline;
+	bool reload_ctl;
+	u32 ahbcfg;
+	bool uframe_sched;
+	bool external_id_pin_ctl;
+	bool hibernation;
 
 	/*
 	 * The following parameters are *only* set via device
