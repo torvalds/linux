@@ -762,8 +762,10 @@ static int __init ser_gigaset_init(void)
 	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				    GIGASET_MODULENAME, GIGASET_DEVNAME,
 				    &ops, THIS_MODULE);
-	if (!driver)
+	if (!driver) {
+		rc = -ENOMEM;
 		goto error;
+	}
 
 	rc = tty_register_ldisc(N_GIGASET_M101, &gigaset_ldisc);
 	if (rc != 0) {

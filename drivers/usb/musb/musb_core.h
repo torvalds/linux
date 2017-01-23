@@ -214,6 +214,7 @@ struct musb_platform_ops {
 				dma_addr_t *dma_addr, u32 *len);
 	void	(*pre_root_reset_end)(struct musb *musb);
 	void	(*post_root_reset_end)(struct musb *musb);
+	void	(*clear_ep_rxintr)(struct musb *musb, int epnum);
 };
 
 /*
@@ -610,6 +611,12 @@ static inline void musb_platform_post_root_reset_end(struct musb *musb)
 {
 	if (musb->ops->post_root_reset_end)
 		musb->ops->post_root_reset_end(musb);
+}
+
+static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
+{
+	if (musb->ops->clear_ep_rxintr)
+		musb->ops->clear_ep_rxintr(musb, epnum);
 }
 
 #endif	/* __MUSB_CORE_H__ */

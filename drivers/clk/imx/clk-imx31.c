@@ -157,10 +157,8 @@ static void __init _mx31_clocks_init(unsigned long fref)
 	}
 }
 
-int __init mx31_clocks_init(void)
+int __init mx31_clocks_init(unsigned long fref)
 {
-	u32 fref = 26000000; /* default */
-
 	_mx31_clocks_init(fref);
 
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
