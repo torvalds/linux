@@ -455,7 +455,7 @@ static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
 	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
 
 	if (dwc2_iddig_filter_enabled(hsotg))
-		usleep_range(100000, 110000);
+		msleep(100);
 }
 
 /*
