@@ -50,7 +50,7 @@
 				BIT_ORED_DEDICATED_IRQ_GPSC | \
 				BIT_SHARED_IRQ_GPSS)
 
-/* The timers acumulate time spent in sleep state */
+/* The timers accumulate time spent in sleep state */
 #define	PMC_S0IR_TMR		0x80
 #define	PMC_S0I1_TMR		0x84
 #define	PMC_S0I2_TMR		0x88
