@@ -763,7 +763,7 @@ struct ftrace_hash {
 struct ftrace_func_entry *
 ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip);
 
-static bool __always_inline ftrace_hash_empty(struct ftrace_hash *hash)
+static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 {
 	return !hash || !hash->count;
 }
