@@ -37,10 +37,8 @@ void xhci_dbg_regs(struct xhci_hcd *xhci)
 			&xhci->cap_regs->hc_capbase, temp);
 	xhci_dbg(xhci, "//   CAPLENGTH: 0x%x\n",
 			(unsigned int) HC_LENGTH(temp));
-#if 0
 	xhci_dbg(xhci, "//   HCIVERSION: 0x%x\n",
 			(unsigned int) HC_VERSION(temp));
-#endif
 
 	xhci_dbg(xhci, "// xHCI operational registers at %p:\n", xhci->op_regs);
 
