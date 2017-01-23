@@ -513,8 +513,6 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
-	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
 
 	if (forced)
 		dwc2_clear_force_mode(hsotg);
@@ -542,7 +540,6 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 	forced = dwc2_force_mode_if_needed(hsotg, false);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 
 	if (forced)
 		dwc2_clear_force_mode(hsotg);
@@ -587,12 +584,6 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hwcfg3 = dwc2_readl(hsotg->regs + GHWCFG3);
 	hwcfg4 = dwc2_readl(hsotg->regs + GHWCFG4);
 	grxfsiz = dwc2_readl(hsotg->regs + GRXFSIZ);
-
-	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hwcfg1);
-	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hwcfg2);
-	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hwcfg3);
-	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hwcfg4);
-	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
 	/*
 	 * Host specific hardware parameters. Reading these parameters
@@ -652,53 +643,6 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
 				GRXFSIZ_DEPTH_SHIFT;
-
-	dev_dbg(hsotg->dev, "Detected values from hardware:\n");
-	dev_dbg(hsotg->dev, "  op_mode=%d\n",
-		hw->op_mode);
-	dev_dbg(hsotg->dev, "  arch=%d\n",
-		hw->arch);
-	dev_dbg(hsotg->dev, "  dma_desc_enable=%d\n",
-		hw->dma_desc_enable);
-	dev_dbg(hsotg->dev, "  power_optimized=%d\n",
-		hw->power_optimized);
-	dev_dbg(hsotg->dev, "  i2c_enable=%d\n",
-		hw->i2c_enable);
-	dev_dbg(hsotg->dev, "  hs_phy_type=%d\n",
-		hw->hs_phy_type);
-	dev_dbg(hsotg->dev, "  fs_phy_type=%d\n",
-		hw->fs_phy_type);
-	dev_dbg(hsotg->dev, "  utmi_phy_data_width=%d\n",
-		hw->utmi_phy_data_width);
-	dev_dbg(hsotg->dev, "  num_dev_ep=%d\n",
-		hw->num_dev_ep);
-	dev_dbg(hsotg->dev, "  num_dev_perio_in_ep=%d\n",
-		hw->num_dev_perio_in_ep);
-	dev_dbg(hsotg->dev, "  host_channels=%d\n",
-		hw->host_channels);
-	dev_dbg(hsotg->dev, "  max_transfer_size=%d\n",
-		hw->max_transfer_size);
-	dev_dbg(hsotg->dev, "  max_packet_count=%d\n",
-		hw->max_packet_count);
-	dev_dbg(hsotg->dev, "  nperio_tx_q_depth=0x%0x\n",
-		hw->nperio_tx_q_depth);
-	dev_dbg(hsotg->dev, "  host_perio_tx_q_depth=0x%0x\n",
-		hw->host_perio_tx_q_depth);
-	dev_dbg(hsotg->dev, "  dev_token_q_depth=0x%0x\n",
-		hw->dev_token_q_depth);
-	dev_dbg(hsotg->dev, "  enable_dynamic_fifo=%d\n",
-		hw->enable_dynamic_fifo);
-	dev_dbg(hsotg->dev, "  en_multiple_tx_fifo=%d\n",
-		hw->en_multiple_tx_fifo);
-	dev_dbg(hsotg->dev, "  total_fifo_size=%d\n",
-		hw->total_fifo_size);
-	dev_dbg(hsotg->dev, "  rx_fifo_size=%d\n",
-		hw->rx_fifo_size);
-	dev_dbg(hsotg->dev, "  host_nperio_tx_fifo_size=%d\n",
-		hw->host_nperio_tx_fifo_size);
-	dev_dbg(hsotg->dev, "  host_perio_tx_fifo_size=%d\n",
-		hw->host_perio_tx_fifo_size);
-	dev_dbg(hsotg->dev, "\n");
 
 	return 0;
 }
