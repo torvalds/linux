@@ -1822,22 +1822,18 @@ int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code)
 	return 0;
 }
 
-/*
- * Finish the td processing, remove the td from td list;
- * Return 1 if the urb can be given back.
- */
 static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	union xhci_trb *ep_trb, struct xhci_transfer_event *event,
 	struct xhci_virt_ep *ep, int *status, bool skip)
 {
 	struct xhci_virt_device *xdev;
-	struct xhci_ring *ep_ring;
-	unsigned int slot_id;
-	int ep_index;
-	struct urb *urb = NULL;
 	struct xhci_ep_ctx *ep_ctx;
+	struct xhci_ring *ep_ring;
 	struct urb_priv	*urb_priv;
+	struct urb *urb = NULL;
+	unsigned int slot_id;
 	u32 trb_comp_code;
+	int ep_index;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	xdev = xhci->devs[slot_id];
