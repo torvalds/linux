@@ -414,8 +414,6 @@ static int cypress_set_input_params(struct input_dev *input,
 	__set_bit(BTN_RIGHT, input->keybit);
 	__set_bit(BTN_MIDDLE, input->keybit);
 
-	input_set_drvdata(input, cytp);
-
 	return 0;
 }
 
