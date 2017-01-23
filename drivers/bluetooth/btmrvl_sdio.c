@@ -101,8 +101,7 @@ static int btmrvl_sdio_probe_of(struct device *dev,
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_bt,
 					       btmrvl_wake_irq_bt,
-					       IRQF_TRIGGER_LOW,
-					       "bt_wake", cfg);
+					       0, "bt_wake", cfg);
 			if (ret) {
 				dev_err(dev,
 					"Failed to request irq_bt %d (%d)\n",
