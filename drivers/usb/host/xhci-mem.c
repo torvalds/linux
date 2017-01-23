@@ -1414,14 +1414,16 @@ static u32 xhci_get_endpoint_type(struct usb_host_endpoint *ep)
 
 	in = usb_endpoint_dir_in(&ep->desc);
 
-	if (usb_endpoint_xfer_control(&ep->desc))
+	switch (usb_endpoint_type(&ep->desc)) {
+	case USB_ENDPOINT_XFER_CONTROL:
 		return CTRL_EP;
-	if (usb_endpoint_xfer_bulk(&ep->desc))
+	case USB_ENDPOINT_XFER_BULK:
 		return in ? BULK_IN_EP : BULK_OUT_EP;
-	if (usb_endpoint_xfer_isoc(&ep->desc))
+	case USB_ENDPOINT_XFER_ISOC:
 		return in ? ISOC_IN_EP : ISOC_OUT_EP;
-	if (usb_endpoint_xfer_int(&ep->desc))
+	case USB_ENDPOINT_XFER_INT:
 		return in ? INT_IN_EP : INT_OUT_EP;
+	}
 	return 0;
 }
 
