@@ -274,13 +274,6 @@ enum dwc2_lx_state {
 	DWC2_L3,	/* Off state */
 };
 
-/*
- * Gadget periodic tx fifo sizes as used by legacy driver
- * EP0 is not included
- */
-#define DWC2_G_P_LEGACY_TX_FIFO_SIZE {256, 256, 256, 256, 768, 768, 768, \
-					   768, 0, 0, 0, 0, 0, 0, 0}
-
 /* Gadget ep0 states */
 enum dwc2_ep0_state {
 	DWC2_EP0_SETUP,
@@ -1180,6 +1173,9 @@ int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #define dwc2_is_device_connected(hsotg) (hsotg->connected)
 int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg);
 int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg);
+int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg);
 #else
 static inline int dwc2_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1200,6 +1196,12 @@ static inline int dwc2_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 static inline int dwc2_backup_device_registers(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline int dwc2_restore_device_registers(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
+{ return 0; }
+static inline int dwc2_hsotg_tx_fifo_average_depth(struct dwc2_hsotg *hsotg)
 { return 0; }
 #endif
 

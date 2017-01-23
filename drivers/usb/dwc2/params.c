@@ -207,12 +207,16 @@ static void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
-	u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
+	int depth_average;
+	int fifo_count;
+	int i;
+
+	fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
 
 	memset(p->g_tx_fifo_size, 0, sizeof(p->g_tx_fifo_size));
-	memcpy(&p->g_tx_fifo_size[1],
-	       p_tx_fifo,
-	       sizeof(p_tx_fifo));
+	depth_average = dwc2_hsotg_tx_fifo_average_depth(hsotg);
+	for (i = 1; i <= fifo_count; i++)
+		p->g_tx_fifo_size[i] = depth_average;
 }
 
 /**
