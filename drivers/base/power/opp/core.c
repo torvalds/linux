@@ -1510,20 +1510,15 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 				 bool availability_req)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
+	struct dev_pm_opp *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
-
-	/* keep the node allocated */
-	new_opp = kmalloc(sizeof(*new_opp), GFP_KERNEL);
-	if (!new_opp)
-		return -ENOMEM;
 
 	/* Find the opp_table */
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		r = PTR_ERR(opp_table);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
-		goto free_opp;
+		return r;
 	}
 
 	mutex_lock(&opp_table->lock);
@@ -1544,32 +1539,20 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 	/* Is update really needed? */
 	if (opp->available == availability_req)
 		goto unlock;
-	/* copy the old data over */
-	*new_opp = *opp;
 
-	/* plug in new node */
-	new_opp->available = availability_req;
-
-	list_replace(&opp->node, &new_opp->node);
-	kfree(opp);
+	opp->available = availability_req;
 
 	/* Notify the change of the OPP availability */
 	if (availability_req)
 		blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ENABLE,
-					     new_opp);
+					     opp);
 	else
 		blocking_notifier_call_chain(&opp_table->head,
-					     OPP_EVENT_DISABLE, new_opp);
-
-	mutex_unlock(&opp_table->lock);
-	dev_pm_opp_put_opp_table(opp_table);
-	return 0;
+					     OPP_EVENT_DISABLE, opp);
 
 unlock:
 	mutex_unlock(&opp_table->lock);
 	dev_pm_opp_put_opp_table(opp_table);
-free_opp:
-	kfree(new_opp);
 	return r;
 }
 
