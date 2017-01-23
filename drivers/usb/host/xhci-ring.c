@@ -655,7 +655,7 @@ static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
 	struct xhci_segment *seg = td->bounce_seg;
 	struct urb *urb = td->urb;
 
-	if (!seg || !urb)
+	if (!ring || !seg || !urb)
 		return;
 
 	if (usb_urb_dir_out(urb)) {
