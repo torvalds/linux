@@ -393,7 +393,7 @@ static int bcm_sf2_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		return bcm_sf2_sw_indir_rw(priv, 1, addr, regnum, 0);
 	else
-		return mdiobus_read(priv->master_mii_bus, addr, regnum);
+		return mdiobus_read_nested(priv->master_mii_bus, addr, regnum);
 }
 
 static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
@@ -407,7 +407,7 @@ static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
 	else
-		mdiobus_write(priv->master_mii_bus, addr, regnum, val);
+		mdiobus_write_nested(priv->master_mii_bus, addr, regnum, val);
 
 	return 0;
 }
@@ -982,6 +982,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
 	struct device_node *dn = pdev->dev.of_node;
 	struct b53_platform_data *pdata;
+	struct dsa_switch_ops *ops;
 	struct bcm_sf2_priv *priv;
 	struct b53_device *dev;
 	struct dsa_switch *ds;
@@ -993,6 +994,10 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
+		return -ENOMEM;
+
+	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
+	if (!ops)
 		return -ENOMEM;
 
 	dev = b53_switch_alloc(&pdev->dev, &bcm_sf2_io_ops, priv);
@@ -1014,6 +1019,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	ds = dev->ds;
 
 	/* Override the parts that are non-standard wrt. normal b53 devices */
+	memcpy(ops, ds->ops, sizeof(*ops));
+	ds->ops = ops;
 	ds->ops->get_tag_protocol = bcm_sf2_sw_get_tag_protocol;
 	ds->ops->setup = bcm_sf2_sw_setup;
 	ds->ops->get_phy_flags = bcm_sf2_sw_get_phy_flags;

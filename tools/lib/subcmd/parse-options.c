@@ -213,6 +213,9 @@ static int get_value(struct parse_opt_ctx_t *p,
 		else
 			err = get_arg(p, opt, flags, (const char **)opt->value);
 
+		if (opt->set)
+			*(bool *)opt->set = true;
+
 		/* PARSE_OPT_NOEMPTY: Allow NULL but disallow empty string. */
 		if (opt->flags & PARSE_OPT_NOEMPTY) {
 			const char *val = *(const char **)opt->value;

@@ -105,4 +105,11 @@ config SAMPLE_BLACKFIN_GPTIMERS
 	help
 	  Build samples of blackfin gptimers sample module.
 
+config SAMPLE_VFIO_MDEV_MTTY
+	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
+	help
+	  Build a virtual tty sample driver for use as a VFIO
+	  mediated device
+
 endif # SAMPLES
