@@ -36,8 +36,6 @@
 #include <linux/highmem.h>
 #include <crypto/hash_info.h>
 
-#include "tpm_eventlog.h"
-
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
@@ -149,6 +147,11 @@ enum tpm_chip_flags {
 	TPM_CHIP_FLAG_IRQ		= BIT(2),
 	TPM_CHIP_FLAG_VIRTUAL		= BIT(3),
 	TPM_CHIP_FLAG_HAVE_TIMEOUTS	= BIT(4),
+};
+
+struct tpm_bios_log {
+	void *bios_event_log;
+	void *bios_event_log_end;
 };
 
 struct tpm_chip_seqops {
