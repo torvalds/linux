@@ -427,6 +427,40 @@ static void dwc2_check_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 		dwc2_set_param_phy_utmi_width(hsotg);
 }
 
+static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
+{
+	int fifo_count;
+	int fifo;
+	int min;
+	u32 total = 0;
+	u32 dptxfszn;
+
+	fifo_count = dwc2_hsotg_tx_fifo_count(hsotg);
+	min = hsotg->hw_params.en_multiple_tx_fifo ? 16 : 4;
+
+	for (fifo = 1; fifo <= fifo_count; fifo++)
+		total += hsotg->params.g_tx_fifo_size[fifo];
+
+	if (total > dwc2_hsotg_tx_fifo_total_depth(hsotg) || !total) {
+		dev_warn(hsotg->dev, "%s: Invalid parameter g-tx-fifo-size, setting to default average\n",
+			 __func__);
+		dwc2_set_param_tx_fifo_sizes(hsotg);
+	}
+
+	for (fifo = 1; fifo <= fifo_count; fifo++) {
+		dptxfszn = (dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
+			FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
+
+		if (hsotg->params.g_tx_fifo_size[fifo] < min ||
+		    hsotg->params.g_tx_fifo_size[fifo] >  dptxfszn) {
+			dev_warn(hsotg->dev, "%s: Invalid parameter g_tx_fifo_size[%d]=%d\n",
+				 __func__, fifo,
+				 hsotg->params.g_tx_fifo_size[fifo]);
+			hsotg->params.g_tx_fifo_size[fifo] = dptxfszn;
+		}
+	}
+}
+
 #define CHECK_RANGE(_param, _min, _max, _def) do {			\
 		if ((hsotg->params._param) < (_min) ||			\
 		    (hsotg->params._param) > (_max)) {			\
@@ -496,6 +530,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 		CHECK_RANGE(g_np_tx_fifo_size,
 			    16, hw->dev_nperio_tx_fifo_size,
 			    hw->dev_nperio_tx_fifo_size);
+		dwc2_check_param_tx_fifo_sizes(hsotg);
 	}
 }
 
