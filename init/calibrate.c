@@ -15,8 +15,6 @@ unsigned long lpj_fine;
 unsigned long preset_lpj;
 static int __init lpj_setup(char *str)
 {
-	preset_lpj = simple_strtoul(str,NULL,0);
-	return 1;
 }
 
 __setup("lpj=", lpj_setup);
@@ -37,12 +35,6 @@ static unsigned long calibrate_delay_direct(void)
 	unsigned long pre_end, end, post_end;
 	unsigned long start_jiffies;
 	unsigned long timer_rate_min, timer_rate_max;
-	unsigned long good_timer_sum = 0;
-	unsigned long good_timer_count = 0;
-	unsigned long measured_times[MAX_DIRECT_CALIBRATION_RETRIES];
-	int max = -1; /* index of measured_times with max/min values or not set */
-	int min = -1;
-	int i;
 
 	if (read_current_timer(&pre_start) < 0 )
 		return 0;
@@ -79,16 +71,13 @@ static unsigned long calibrate_delay_direct(void)
 		pre_end = 0;
 		end = post_start;
 		while (time_before_eq(jiffies, start_jiffies + 1 +
-					       DELAY_CALIBRATION_TICKS)) {
-			pre_end = end;
-			read_current_timer(&end);
+		pre_end = end;
+		read_current_timer(&end);
 		}
 		read_current_timer(&post_end);
-
-		timer_rate_max = (post_end - pre_start) /
-					DELAY_CALIBRATION_TICKS;
+			DELAY_CALIBRATION_TICKS;
 		timer_rate_min = (pre_end - post_start) /
-					DELAY_CALIBRATION_TICKS;
+			DELAY_CALIBRATION_TICKS;
 
 		/*
 		 * If the upper limit and lower limit of the timer_rate is
@@ -96,8 +85,6 @@ static unsigned long calibrate_delay_direct(void)
 		 */
 		if (start >= post_end)
 			printk(KERN_NOTICE "calibrate_delay_direct() ignoring "
-					"timer_rate as we had a TSC wrap around"
-					" start=%lu >=post_end=%lu\n",
 				start, post_end);
 		if (start < post_end && pre_start != 0 && pre_end != 0 &&
 		    (timer_rate_max - timer_rate_min) < (timer_rate_max >> 3)) {
@@ -109,7 +96,6 @@ static unsigned long calibrate_delay_direct(void)
 			if (min < 0 || timer_rate_max < measured_times[min])
 				min = i;
 		} else
-			measured_times[i] = 0;
 
 	}
 
@@ -120,14 +106,6 @@ static unsigned long calibrate_delay_direct(void)
 	while (good_timer_count > 1) {
 		unsigned long estimate;
 		unsigned long maxdiff;
-
-		/* compute the estimate */
-		estimate = (good_timer_sum/good_timer_count);
-		maxdiff = estimate >> 3;
-
-		/* if range is within 12% let's take it */
-		if ((measured_times[max] - measured_times[min]) < maxdiff)
-			return estimate;
 
 		/* ok - drop the worse value and try again... */
 		good_timer_sum = 0;
@@ -160,9 +138,6 @@ static unsigned long calibrate_delay_direct(void)
 
 	}
 
-	printk(KERN_NOTICE "calibrate_delay_direct() failed to get a good "
-	       "estimate for loops_per_jiffy.\nProbably due to long platform "
-		"interrupts. Consider using \"lpj=\" boot option.\n");
 	return 0;
 }
 #else
