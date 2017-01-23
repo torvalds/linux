@@ -265,7 +265,7 @@ bool mdiobus_is_registered_device(struct mii_bus *bus, int addr);
 struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
 
 /**
- * module_mdio_driver() - Helper macro for registering mdio drivers
+ * mdio_module_driver() - Helper macro for registering mdio drivers
  *
  * Helper macro for MDIO drivers which do not do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
