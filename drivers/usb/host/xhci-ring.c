@@ -808,11 +808,11 @@ remove_finished_td:
 static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	struct xhci_td *cur_td;
+	struct xhci_td *tmp;
 
-	while (!list_empty(&ring->td_list)) {
-		cur_td = list_first_entry(&ring->td_list,
-				struct xhci_td, td_list);
+	list_for_each_entry_safe(cur_td, tmp, &ring->td_list, td_list) {
 		list_del_init(&cur_td->td_list);
+
 		if (!list_empty(&cur_td->cancelled_td_list))
 			list_del_init(&cur_td->cancelled_td_list);
 
@@ -828,6 +828,7 @@ static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
 		int slot_id, int ep_index)
 {
 	struct xhci_td *cur_td;
+	struct xhci_td *tmp;
 	struct xhci_virt_ep *ep;
 	struct xhci_ring *ring;
 
@@ -853,12 +854,12 @@ static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
 				slot_id, ep_index);
 		xhci_kill_ring_urbs(xhci, ring);
 	}
-	while (!list_empty(&ep->cancelled_td_list)) {
-		cur_td = list_first_entry(&ep->cancelled_td_list,
-				struct xhci_td, cancelled_td_list);
-		list_del_init(&cur_td->cancelled_td_list);
 
+	list_for_each_entry_safe(cur_td, tmp, &ep->cancelled_td_list,
+			cancelled_td_list) {
+		list_del_init(&cur_td->cancelled_td_list);
 		inc_td_cnt(cur_td->urb);
+
 		if (last_td_in_urb(cur_td))
 			xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
 	}
