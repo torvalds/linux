@@ -1498,9 +1498,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			}
 		}
 
-		if (dc->debug.disable_color_module)
-			continue;  /* skip below color updates */
-
 		if (updates[i].gamma &&
 			updates[i].gamma != surface->public.gamma_correction) {
 			if (surface->public.gamma_correction != NULL)
@@ -1578,9 +1575,6 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 			cur_pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
 			if (cur_pipe_ctx->surface == pipe_ctx->surface)
 				is_new_pipe_surface = false;
-
-			if (dc->debug.disable_color_module)
-				continue;  /* skip below color updates */
 
 			if (is_new_pipe_surface ||
 					updates[i].in_transfer_func)

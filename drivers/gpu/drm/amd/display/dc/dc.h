@@ -147,7 +147,6 @@ struct dc_debug {
 	bool disable_dfs_bypass;
 	bool disable_clock_gate;
 	bool disable_dmcu;
-	bool disable_color_module;
 };
 
 struct dc {
