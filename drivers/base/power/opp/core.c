@@ -170,22 +170,6 @@ unsigned long dev_pm_opp_get_max_clock_latency(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_clock_latency);
 
-static int _get_regulator_count(struct device *dev)
-{
-	struct opp_table *opp_table;
-	int count;
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return 0;
-
-	count = opp_table->regulator_count;
-
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return count;
-}
-
 /**
  * dev_pm_opp_get_max_volt_latency() - Get max voltage latency in nanoseconds
  * @dev: device for which we do this operation
@@ -204,23 +188,23 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 		unsigned long max;
 	} *uV;
 
-	count = _get_regulator_count(dev);
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return 0;
+
+	count = opp_table->regulator_count;
 
 	/* Regulator may not be required for the device */
 	if (!count)
-		return 0;
+		goto put_opp_table;
 
 	regulators = kmalloc_array(count, sizeof(*regulators), GFP_KERNEL);
 	if (!regulators)
-		return 0;
+		goto put_opp_table;
 
 	uV = kmalloc_array(count, sizeof(*uV), GFP_KERNEL);
 	if (!uV)
 		goto free_regulators;
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		goto free_uV;
 
 	memcpy(regulators, opp_table->regulators, count * sizeof(*regulators));
 
@@ -242,7 +226,6 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	}
 
 	mutex_unlock(&opp_table->lock);
-	dev_pm_opp_put_opp_table(opp_table);
 
 	/*
 	 * The caller needs to ensure that opp_table (and hence the regulator)
@@ -254,10 +237,11 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 			latency_ns += ret * 1000;
 	}
 
-free_uV:
 	kfree(uV);
 free_regulators:
 	kfree(regulators);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
 
 	return latency_ns;
 }
