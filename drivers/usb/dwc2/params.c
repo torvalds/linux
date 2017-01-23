@@ -343,6 +343,40 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	}
 }
 
+/**
+ * dwc2_get_device_properties() - Read in device properties.
+ *
+ * Read in the device properties and adjust core parameters if needed.
+ */
+static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+	int num;
+
+	if ((hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
+		device_property_read_u32(hsotg->dev, "g-rx-fifo-size",
+					 &p->g_rx_fifo_size);
+
+		device_property_read_u32(hsotg->dev, "g-np-tx-fifo-size",
+					 &p->g_np_tx_fifo_size);
+
+		num = device_property_read_u32_array(hsotg->dev,
+						     "g-tx-fifo-size",
+						     NULL, 0);
+
+		if (num > 0) {
+			num = min(num, 15);
+			memset(p->g_tx_fifo_size, 0,
+			       sizeof(p->g_tx_fifo_size));
+			device_property_read_u32_array(hsotg->dev,
+						       "g-tx-fifo-size",
+						       &p->g_tx_fifo_size[1],
+						       num);
+		}
+	}
+}
+
 /*
  * Gets host hardware parameters. Forces host mode if not currently in
  * host mode. Should be called immediately after a core soft reset in
@@ -555,6 +589,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
 	dwc2_set_default_params(hsotg);
+	dwc2_get_device_properties(hsotg);
 
 	return 0;
 }
