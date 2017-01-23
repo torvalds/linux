@@ -377,6 +377,189 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 	}
 }
 
+static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)
+{
+	int valid = 1;
+
+	switch (hsotg->params.otg_cap) {
+	case DWC2_CAP_PARAM_HNP_SRP_CAPABLE:
+		if (hsotg->hw_params.op_mode != GHWCFG2_OP_MODE_HNP_SRP_CAPABLE)
+			valid = 0;
+		break;
+	case DWC2_CAP_PARAM_SRP_ONLY_CAPABLE:
+		switch (hsotg->hw_params.op_mode) {
+		case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
+		case GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE:
+		case GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE:
+		case GHWCFG2_OP_MODE_SRP_CAPABLE_HOST:
+			break;
+		default:
+			valid = 0;
+			break;
+		}
+		break;
+	case DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE:
+		/* always valid */
+		break;
+	default:
+		valid = 0;
+		break;
+	}
+
+	if (!valid)
+		dwc2_set_param_otg_cap(hsotg);
+}
+
+static void dwc2_check_param_phy_type(struct dwc2_hsotg *hsotg)
+{
+	int valid = 0;
+	u32 hs_phy_type;
+	u32 fs_phy_type;
+
+	hs_phy_type = hsotg->hw_params.hs_phy_type;
+	fs_phy_type = hsotg->hw_params.fs_phy_type;
+
+	switch (hsotg->params.phy_type) {
+	case DWC2_PHY_TYPE_PARAM_FS:
+		if (fs_phy_type == GHWCFG2_FS_PHY_TYPE_DEDICATED)
+			valid = 1;
+		break;
+	case DWC2_PHY_TYPE_PARAM_UTMI:
+		if ((hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI) ||
+		    (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI))
+			valid = 1;
+		break;
+	case DWC2_PHY_TYPE_PARAM_ULPI:
+		if ((hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI) ||
+		    (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI))
+			valid = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (!valid)
+		dwc2_set_param_phy_type(hsotg);
+}
+
+static void dwc2_check_param_speed(struct dwc2_hsotg *hsotg)
+{
+	int valid = 1;
+	int phy_type = hsotg->params.phy_type;
+	int speed = hsotg->params.speed;
+
+	switch (speed) {
+	case DWC2_SPEED_PARAM_HIGH:
+		if ((hsotg->params.speed == DWC2_SPEED_PARAM_HIGH) &&
+		    (phy_type == DWC2_PHY_TYPE_PARAM_FS))
+			valid = 0;
+		break;
+	case DWC2_SPEED_PARAM_FULL:
+	case DWC2_SPEED_PARAM_LOW:
+		break;
+	default:
+		valid = 0;
+		break;
+	}
+
+	if (!valid)
+		dwc2_set_param_speed(hsotg);
+}
+
+static void dwc2_check_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
+{
+	int valid = 0;
+	int param = hsotg->params.phy_utmi_width;
+	int width = hsotg->hw_params.utmi_phy_data_width;
+
+	switch (width) {
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8:
+		valid = (param == 8);
+		break;
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_16:
+		valid = (param == 16);
+		break;
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8_OR_16:
+		valid = (param == 8 || param == 16);
+		break;
+	}
+
+	if (!valid)
+		dwc2_set_param_phy_utmi_width(hsotg);
+}
+
+#define CHECK_RANGE(_param, _min, _max, _def) do {			\
+		if ((hsotg->params._param) < (_min) ||			\
+		    (hsotg->params._param) > (_max)) {			\
+			dev_warn(hsotg->dev, "%s: Invalid parameter %s=%d\n", \
+				 __func__, #_param, hsotg->params._param); \
+			hsotg->params._param = (_def);			\
+		}							\
+	} while (0)
+
+#define CHECK_BOOL(_param, _check) do {					\
+		if (hsotg->params._param && !(_check)) {		\
+			dev_warn(hsotg->dev, "%s: Invalid parameter %s=%d\n", \
+				 __func__, #_param, hsotg->params._param); \
+			hsotg->params._param = false;			\
+		}							\
+	} while (0)
+
+static void dwc2_check_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	struct dwc2_core_params *p = &hsotg->params;
+	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
+
+	dwc2_check_param_otg_cap(hsotg);
+	dwc2_check_param_phy_type(hsotg);
+	dwc2_check_param_speed(hsotg);
+	dwc2_check_param_phy_utmi_width(hsotg);
+	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
+	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
+	CHECK_BOOL(i2c_enable, hw->i2c_enable);
+	CHECK_BOOL(reload_ctl, (hsotg->hw_params.snpsid > DWC2_CORE_REV_2_92a));
+	CHECK_RANGE(max_packet_count,
+		    15, hw->max_packet_count,
+		    hw->max_packet_count);
+	CHECK_RANGE(max_transfer_size,
+		    2047, hw->max_transfer_size,
+		    hw->max_transfer_size);
+
+	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
+		CHECK_BOOL(host_dma, dma_capable);
+		CHECK_BOOL(dma_desc_enable, p->host_dma);
+		CHECK_BOOL(dma_desc_fs_enable, p->dma_desc_enable);
+		CHECK_BOOL(host_ls_low_power_phy_clk,
+			   p->phy_type == DWC2_PHY_TYPE_PARAM_FS);
+		CHECK_RANGE(host_channels,
+			    1, hw->host_channels,
+			    hw->host_channels);
+		CHECK_RANGE(host_rx_fifo_size,
+			    16, hw->rx_fifo_size,
+			    hw->rx_fifo_size);
+		CHECK_RANGE(host_nperio_tx_fifo_size,
+			    16, hw->host_nperio_tx_fifo_size,
+			    hw->host_nperio_tx_fifo_size);
+		CHECK_RANGE(host_perio_tx_fifo_size,
+			    16, hw->host_perio_tx_fifo_size,
+			    hw->host_perio_tx_fifo_size);
+	}
+
+	if ((hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
+		CHECK_BOOL(g_dma, dma_capable);
+		CHECK_BOOL(g_dma_desc, (p->g_dma && hw->dma_desc_enable));
+		CHECK_RANGE(g_rx_fifo_size,
+			    16, hw->rx_fifo_size,
+			    hw->rx_fifo_size);
+		CHECK_RANGE(g_np_tx_fifo_size,
+			    16, hw->dev_nperio_tx_fifo_size,
+			    hw->dev_nperio_tx_fifo_size);
+	}
+}
+
 /*
  * Gets host hardware parameters. Forces host mode if not currently in
  * host mode. Should be called immediately after a core soft reset in
@@ -590,6 +773,8 @@ int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
+
+	dwc2_check_params(hsotg);
 
 	return 0;
 }
