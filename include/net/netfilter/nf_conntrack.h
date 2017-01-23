@@ -76,7 +76,7 @@ struct nf_conn {
 	/* Usage count in here is 1 for hash table, 1 per skb,
 	 * plus 1 for any connection(s) we are `master' for
 	 *
-	 * Hint, SKB address this struct and refcnt via skb->nfct and
+	 * Hint, SKB address this struct and refcnt via skb->_nfct and
 	 * helpers nf_conntrack_get() and nf_conntrack_put().
 	 * Helper nf_ct_put() equals nf_conntrack_put() by dec refcnt,
 	 * beware nf_ct_get() is different and don't inc refcnt.
@@ -164,13 +164,15 @@ int nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			     const struct nf_conn *ignored_conntrack);
 
 #define NFCT_INFOMASK	7UL
+#define NFCT_PTRMASK	~(NFCT_INFOMASK)
 
 /* Return conntrack_info and tuple hash for given skb. */
 static inline struct nf_conn *
 nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 {
-	*ctinfo = skb->nfctinfo;
-	return (struct nf_conn *)skb->nfct;
+	*ctinfo = skb->_nfct & NFCT_INFOMASK;
+
+	return (struct nf_conn *)(skb->_nfct & NFCT_PTRMASK);
 }
 
 /* decrement reference count on a conntrack */
@@ -347,8 +349,7 @@ void nf_ct_tmpl_free(struct nf_conn *tmpl);
 static inline void
 nf_ct_set(struct sk_buff *skb, struct nf_conn *ct, enum ip_conntrack_info info)
 {
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = info;
+	skb->_nfct = (unsigned long)ct | info;
 }
 
 #define NF_CT_STAT_INC(net, count)	  __this_cpu_inc((net)->ct.stat->count)

@@ -23,7 +23,7 @@
 static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 {
 	/* Previously seen (loopback)? Ignore. */
-	if (skb->nfct != NULL)
+	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
 	/* special case the untracked ct : we want the percpu object */
@@ -409,7 +409,7 @@ static unsigned int
 notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	/* Previously seen (loopback)? Ignore. */
-	if (skb->nfct != NULL)
+	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
 	nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);

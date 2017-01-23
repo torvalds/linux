@@ -1239,7 +1239,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	return &ct->tuplehash[IP_CT_DIR_ORIGINAL];
 }
 
-/* On success, returns conntrack ptr, sets skb->nfct and ctinfo */
+/* On success, returns conntrack ptr, sets skb->_nfct | ctinfo */
 static inline struct nf_conn *
 resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		  struct sk_buff *skb,
@@ -1323,7 +1323,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			NF_CT_STAT_INC_ATOMIC(net, ignore);
 			return NF_ACCEPT;
 		}
-		skb->nfct = NULL;
+		skb->_nfct = 0;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
@@ -1352,7 +1352,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 		}
 		/* ICMP[v6] protocol trackers may assign one conntrack. */
-		if (skb->nfct)
+		if (skb->_nfct)
 			goto out;
 	}
 repeat:
@@ -1383,7 +1383,7 @@ repeat:
 		 * the netfilter core what to do */
 		pr_debug("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put(&ct->ct_general);
-		skb->nfct = NULL;
+		skb->_nfct = 0;
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		if (ret == -NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(net, drop);
@@ -1878,7 +1878,8 @@ int nf_conntrack_init_start(void)
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
 	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
-						sizeof(struct nf_conn), 0,
+						sizeof(struct nf_conn),
+						NFCT_INFOMASK + 1,
 						SLAB_DESTROY_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
 	if (!nf_conntrack_cachep)
 		goto err_cachep;
