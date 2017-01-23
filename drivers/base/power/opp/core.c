@@ -971,9 +971,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_opp_table);
  */
 static void _remove_opp_table(struct opp_table *opp_table)
 {
-	if (!list_empty(&opp_table->opp_list))
-		return;
-
 	dev_pm_opp_put_opp_table_unlocked(opp_table);
 }
 
@@ -1018,8 +1015,7 @@ static void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	call_srcu(&opp_table->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
 
 	mutex_unlock(&opp_table->lock);
-
-	_remove_opp_table(opp_table);
+	dev_pm_opp_put_opp_table(opp_table);
 }
 
 /**
@@ -1169,6 +1165,9 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	mutex_unlock(&opp_table->lock);
 
 	new_opp->opp_table = opp_table;
+
+	/* Get a reference to the OPP table */
+	_get_opp_table_kref(opp_table);
 
 	ret = opp_debug_create_one(new_opp, opp_table);
 	if (ret)
