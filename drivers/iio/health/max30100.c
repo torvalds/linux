@@ -378,7 +378,7 @@ static int max30100_get_temp(struct max30100_data *data, int *val)
 	if (ret)
 		return ret;
 
-	usleep_range(35000, 50000);
+	msleep(35);
 
 	return max30100_read_temp(data, val);
 }

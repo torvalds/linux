@@ -1255,7 +1255,8 @@ Description:
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible. Higher proximity measurements
-		indicate closer objects, and vice versa.
+		indicate closer objects, and vice versa. Units after
+		application of scale and offset are meters.
 
 What:		/sys/.../iio:deviceX/in_illuminance_input
 What:		/sys/.../iio:deviceX/in_illuminance_raw
