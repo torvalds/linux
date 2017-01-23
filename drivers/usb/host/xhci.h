@@ -1548,7 +1548,6 @@ struct xhci_hcd {
 	u8		max_ports;
 	u8		isoc_threshold;
 	int		event_ring_max;
-	int		addr_64;
 	/* 4KB min, 128MB max */
 	int		page_size;
 	/* Valid values are 12 to 20, inclusive */
