@@ -197,13 +197,13 @@ struct blkfront_info
 	/* Number of pages per ring buffer. */
 	unsigned int nr_ring_pages;
 	struct request_queue *rq;
-	unsigned int feature_flush;
-	unsigned int feature_fua;
+	unsigned int feature_flush:1;
+	unsigned int feature_fua:1;
 	unsigned int feature_discard:1;
 	unsigned int feature_secdiscard:1;
+	unsigned int feature_persistent:1;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
-	unsigned int feature_persistent:1;
 	/* Number of 4KB segments handled */
 	unsigned int max_indirect_segments;
 	int is_ready;
@@ -2323,8 +2323,8 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 		blkfront_setup_discard(info);
 
 	info->feature_persistent =
-		xenbus_read_unsigned(info->xbdev->otherend,
-				     "feature-persistent", 0);
+		!!xenbus_read_unsigned(info->xbdev->otherend,
+				       "feature-persistent", 0);
 
 	indirect_segments = xenbus_read_unsigned(info->xbdev->otherend,
 					"feature-max-indirect-segments", 0);
