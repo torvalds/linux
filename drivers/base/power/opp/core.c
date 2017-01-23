@@ -949,20 +949,10 @@ static void _kfree_opp_rcu(struct rcu_head *head)
 	kfree_rcu(opp, rcu_head);
 }
 
-/**
- * _opp_remove()  - Remove an OPP from a table definition
- * @opp_table:	points back to the opp_table struct this opp belongs to
- * @opp:	pointer to the OPP to remove
- *
- * This function removes an opp definition from the opp table.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * It is assumed that the caller holds required mutex for an RCU updater
- * strategy.
- */
-static void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp)
+static void _opp_kref_release(struct kref *kref)
 {
-	mutex_lock(&opp_table->lock);
+	struct dev_pm_opp *opp = container_of(kref, struct dev_pm_opp, kref);
+	struct opp_table *opp_table = opp->opp_table;
 
 	/*
 	 * Notify the changes in the availability of the operable
@@ -976,6 +966,12 @@ static void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	mutex_unlock(&opp_table->lock);
 	dev_pm_opp_put_opp_table(opp_table);
 }
+
+void dev_pm_opp_put(struct dev_pm_opp *opp)
+{
+	kref_put_mutex(&opp->kref, _opp_kref_release, &opp->opp_table->lock);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_put);
 
 /**
  * dev_pm_opp_remove()  - Remove an OPP from OPP table
@@ -1020,7 +1016,7 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 		goto unlock;
 	}
 
-	_opp_remove(opp_table, opp);
+	dev_pm_opp_put(opp);
 unlock:
 	mutex_unlock(&opp_table_lock);
 }
@@ -1124,6 +1120,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	mutex_unlock(&opp_table->lock);
 
 	new_opp->opp_table = opp_table;
+	kref_init(&new_opp->kref);
 
 	/* Get a reference to the OPP table */
 	_get_opp_table_kref(opp_table);
@@ -1819,7 +1816,7 @@ void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
 		/* Free static OPPs */
 		list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
 			if (remove_all || !opp->dynamic)
-				_opp_remove(opp_table, opp);
+				dev_pm_opp_put(opp);
 		}
 	} else {
 		_remove_opp_dev(_find_opp_dev(dev, opp_table), opp_table);

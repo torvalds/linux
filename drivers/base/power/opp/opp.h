@@ -16,6 +16,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/pm_opp.h>
@@ -56,6 +57,7 @@ extern struct list_head opp_tables;
  *		are protected by the opp_table_lock for integrity.
  *		IMPORTANT: the opp nodes should be maintained in increasing
  *		order.
+ * @kref:	for reference count of the OPP.
  * @available:	true/false - marks if this OPP as available or not
  * @dynamic:	not-created from static DT entries.
  * @turbo:	true if turbo (boost) OPP
@@ -73,6 +75,7 @@ extern struct list_head opp_tables;
  */
 struct dev_pm_opp {
 	struct list_head node;
+	struct kref kref;
 
 	bool available;
 	bool dynamic;
