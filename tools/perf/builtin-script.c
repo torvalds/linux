@@ -222,7 +222,7 @@ static struct perf_evsel_script *perf_evsel_script__new(struct perf_evsel *evsel
 	struct perf_evsel_script *es = malloc(sizeof(*es));
 
 	if (es != NULL) {
-		if (asprintf(&es->filename, "%s.%s.dump", data->path, perf_evsel__name(evsel)) < 0)
+		if (asprintf(&es->filename, "%s.%s.dump", data->file.path, perf_evsel__name(evsel)) < 0)
 			goto out_free;
 		es->fp = fopen(es->filename, "w");
 		if (es->fp == NULL)
@@ -2591,8 +2591,10 @@ int find_scripts(char **scripts_array, char **scripts_path_array)
 	DIR *scripts_dir, *lang_dir;
 	struct perf_session *session;
 	struct perf_data data = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
 	};
 	char *temp;
 	int i = 0;
@@ -2982,8 +2984,8 @@ int cmd_script(int argc, const char **argv)
 	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
-	data.path = input_name;
-	data.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
 		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);
@@ -3206,7 +3208,7 @@ int cmd_script(int argc, const char **argv)
 			goto out_delete;
 		}
 
-		input = open(data.path, O_RDONLY);	/* input_name */
+		input = open(data.file.path, O_RDONLY);	/* input_name */
 		if (input < 0) {
 			err = -errno;
 			perror("failed to open file");

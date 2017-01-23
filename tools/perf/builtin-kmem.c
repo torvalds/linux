@@ -1949,7 +1949,7 @@ int cmd_kmem(int argc, const char **argv)
 		return __cmd_record(argc, argv);
 	}
 
-	data.path = input_name;
+	data.file.path = input_name;
 
 	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
 	if (session == NULL)

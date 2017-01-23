@@ -1602,9 +1602,11 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		{ "syscalls:sys_exit_select",		process_exit_poll },
 	};
 	struct perf_data data = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = tchart->force,
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = tchart->force,
 	};
 
 	struct perf_session *session = perf_session__new(&data, false,

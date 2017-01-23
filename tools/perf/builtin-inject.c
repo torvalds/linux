@@ -145,7 +145,7 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 	if (!inject->output.is_pipe) {
 		off_t offset;
 
-		offset = lseek(inject->output.fd, 0, SEEK_CUR);
+		offset = lseek(inject->output.file.fd, 0, SEEK_CUR);
 		if (offset == -1)
 			return -errno;
 		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
@@ -775,8 +775,10 @@ int cmd_inject(int argc, const char **argv)
 		.input_name  = "-",
 		.samples = LIST_HEAD_INIT(inject.samples),
 		.output = {
-			.path = "-",
-			.mode = PERF_DATA_MODE_WRITE,
+			.file      = {
+				.path = "-",
+			},
+			.mode      = PERF_DATA_MODE_WRITE,
 		},
 	};
 	struct perf_data data = {
@@ -789,7 +791,7 @@ int cmd_inject(int argc, const char **argv)
 			    "Inject build-ids into the output stream"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
 			   "input file name"),
-		OPT_STRING('o', "output", &inject.output.path, "file",
+		OPT_STRING('o', "output", &inject.output.file.path, "file",
 			   "output file name"),
 		OPT_BOOLEAN('s', "sched-stat", &inject.sched_stat,
 			    "Merge sched-stat and sched-switch for getting events "
@@ -836,7 +838,7 @@ int cmd_inject(int argc, const char **argv)
 
 	inject.tool.ordered_events = inject.sched_stat;
 
-	data.path = inject.input_name;
+	data.file.path = inject.input_name;
 	inject.session = perf_session__new(&data, true, &inject.tool);
 	if (inject.session == NULL)
 		return -1;

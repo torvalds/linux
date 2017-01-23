@@ -1578,9 +1578,9 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 {
 	struct perf_session *session;
 	struct perf_data data = {
-		.path = input,
-		.mode = PERF_DATA_MODE_READ,
-		.force = opts->force,
+		.file.path = input,
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = opts->force,
 	};
 	struct convert c = {
 		.tool = {
@@ -1650,7 +1650,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
-		data.path, path);
+		data.file.path, path);
 
 	fprintf(stderr,
 		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",

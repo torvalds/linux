@@ -2412,7 +2412,7 @@ static int __cmd_record(int argc, const char **argv)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (output_name)
-		data->path = output_name;
+		data->file.path = output_name;
 
 	if (run_count != 1 || forever) {
 		pr_err("Cannot use -r option with perf stat record.\n");
@@ -2585,8 +2585,8 @@ static int __cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
-	perf_stat.data.path = input_name;
-	perf_stat.data.mode = PERF_DATA_MODE_READ;
+	perf_stat.data.file.path = input_name;
+	perf_stat.data.mode      = PERF_DATA_MODE_READ;
 
 	session = perf_session__new(&perf_stat.data, false, &perf_stat.tool);
 	if (session == NULL)

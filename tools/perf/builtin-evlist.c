@@ -22,9 +22,11 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 	struct perf_session *session;
 	struct perf_evsel *pos;
 	struct perf_data data = {
-		.path = file_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = details->force,
+		.file      = {
+			.path = file_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = details->force,
 	};
 	bool has_tracepoint = false;
 

@@ -2572,8 +2572,8 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
-	data.path  = input_name;
-	data.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 	err = setup_display(display);
 	if (err)

@@ -28,16 +28,16 @@ static bool check_pipe(struct perf_data *data)
 	int fd = perf_data__is_read(data) ?
 		 STDIN_FILENO : STDOUT_FILENO;
 
-	if (!data->path) {
+	if (!data->file.path) {
 		if (!fstat(fd, &st) && S_ISFIFO(st.st_mode))
 			is_pipe = true;
 	} else {
-		if (!strcmp(data->path, "-"))
+		if (!strcmp(data->file.path, "-"))
 			is_pipe = true;
 	}
 
 	if (is_pipe)
-		data->fd = fd;
+		data->file.fd = fd;
 
 	return data->is_pipe = is_pipe;
 }
@@ -46,13 +46,13 @@ static int check_backup(struct perf_data *data)
 {
 	struct stat st;
 
-	if (!stat(data->path, &st) && st.st_size) {
+	if (!stat(data->file.path, &st) && st.st_size) {
 		/* TODO check errors properly */
 		char oldname[PATH_MAX];
 		snprintf(oldname, sizeof(oldname), "%s.old",
-			 data->path);
+			 data->file.path);
 		unlink(oldname);
-		rename(data->path, oldname);
+		rename(data->file.path, oldname);
 	}
 
 	return 0;
@@ -64,13 +64,13 @@ static int open_file_read(struct perf_data *data)
 	int fd;
 	char sbuf[STRERR_BUFSIZE];
 
-	fd = open(data->path, O_RDONLY);
+	fd = open(data->file.path, O_RDONLY);
 	if (fd < 0) {
 		int err = errno;
 
-		pr_err("failed to open %s: %s", data->path,
+		pr_err("failed to open %s: %s", data->file.path,
 			str_error_r(err, sbuf, sizeof(sbuf)));
-		if (err == ENOENT && !strcmp(data->path, "perf.data"))
+		if (err == ENOENT && !strcmp(data->file.path, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
 		return -err;
@@ -81,13 +81,13 @@ static int open_file_read(struct perf_data *data)
 
 	if (!data->force && st.st_uid && (st.st_uid != geteuid())) {
 		pr_err("File %s not owned by current user or root (use -f to override)\n",
-		       data->path);
+		       data->file.path);
 		goto out_close;
 	}
 
 	if (!st.st_size) {
 		pr_info("zero-sized data (%s), nothing to do!\n",
-			data->path);
+			data->file.path);
 		goto out_close;
 	}
 
@@ -107,11 +107,11 @@ static int open_file_write(struct perf_data *data)
 	if (check_backup(data))
 		return -1;
 
-	fd = open(data->path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,
+	fd = open(data->file.path, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC,
 		  S_IRUSR|S_IWUSR);
 
 	if (fd < 0)
-		pr_err("failed to open %s : %s\n", data->path,
+		pr_err("failed to open %s : %s\n", data->file.path,
 			str_error_r(errno, sbuf, sizeof(sbuf)));
 
 	return fd;
@@ -124,7 +124,7 @@ static int open_file(struct perf_data *data)
 	fd = perf_data__is_read(data) ?
 	     open_file_read(data) : open_file_write(data);
 
-	data->fd = fd;
+	data->file.fd = fd;
 	return fd < 0 ? -1 : 0;
 }
 
@@ -133,21 +133,21 @@ int perf_data__open(struct perf_data *data)
 	if (check_pipe(data))
 		return 0;
 
-	if (!data->path)
-		data->path = "perf.data";
+	if (!data->file.path)
+		data->file.path = "perf.data";
 
 	return open_file(data);
 }
 
 void perf_data__close(struct perf_data *data)
 {
-	close(data->fd);
+	close(data->file.fd);
 }
 
 ssize_t perf_data__write(struct perf_data *data,
 			      void *buf, size_t size)
 {
-	return writen(data->fd, buf, size);
+	return writen(data->file.fd, buf, size);
 }
 
 int perf_data__switch(struct perf_data *data,
@@ -162,30 +162,30 @@ int perf_data__switch(struct perf_data *data,
 	if (perf_data__is_read(data))
 		return -EINVAL;
 
-	if (asprintf(&new_filepath, "%s.%s", data->path, postfix) < 0)
+	if (asprintf(&new_filepath, "%s.%s", data->file.path, postfix) < 0)
 		return -ENOMEM;
 
 	/*
 	 * Only fire a warning, don't return error, continue fill
 	 * original file.
 	 */
-	if (rename(data->path, new_filepath))
-		pr_warning("Failed to rename %s to %s\n", data->path, new_filepath);
+	if (rename(data->file.path, new_filepath))
+		pr_warning("Failed to rename %s to %s\n", data->file.path, new_filepath);
 
 	if (!at_exit) {
-		close(data->fd);
+		close(data->file.fd);
 		ret = perf_data__open(data);
 		if (ret < 0)
 			goto out;
 
-		if (lseek(data->fd, pos, SEEK_SET) == (off_t)-1) {
+		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
 			ret = -errno;
 			pr_debug("Failed to lseek to %zu: %s",
 				 pos, strerror(errno));
 			goto out;
 		}
 	}
-	ret = data->fd;
+	ret = data->file.fd;
 out:
 	free(new_filepath);
 	return ret;

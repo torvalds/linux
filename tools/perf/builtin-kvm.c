@@ -1068,9 +1068,11 @@ static int read_events(struct perf_kvm_stat *kvm)
 		.ordered_events		= true,
 	};
 	struct perf_data file = {
-		.path = kvm->file_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = kvm->force,
+		.file      = {
+			.path = kvm->file_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = kvm->force,
 	};
 
 	kvm->tool = eops;

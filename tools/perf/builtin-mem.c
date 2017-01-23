@@ -237,9 +237,11 @@ static int process_sample_event(struct perf_tool *tool,
 static int report_raw_events(struct perf_mem *mem)
 {
 	struct perf_data data = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = mem->force,
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = mem->force,
 	};
 	int ret;
 	struct perf_session *session = perf_session__new(&data, false,

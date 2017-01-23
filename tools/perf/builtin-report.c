@@ -637,7 +637,7 @@ static int __cmd_report(struct report *rep)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
-		ui__error("The %s file has no samples!\n", data->path);
+		ui__error("The %s file has no samples!\n", data->file.path);
 		return 0;
 	}
 
@@ -940,8 +940,8 @@ int cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
-	data.path  = input_name;
-	data.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 repeat:
 	session = perf_session__new(&data, false, &report.tool);
