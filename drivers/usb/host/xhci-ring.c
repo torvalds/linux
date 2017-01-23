@@ -689,7 +689,6 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	unsigned int ep_index;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
-	struct list_head *entry;
 	struct xhci_td *cur_td = NULL;
 	struct xhci_td *last_unlinked_td;
 
@@ -706,6 +705,8 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	memset(&deq_state, 0, sizeof(deq_state));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	ep = &xhci->devs[slot_id]->eps[ep_index];
+	last_unlinked_td = list_last_entry(&ep->cancelled_td_list,
+			struct xhci_td, cancelled_td_list);
 
 	if (list_empty(&ep->cancelled_td_list)) {
 		xhci_stop_watchdog_timer_in_irq(xhci, ep);
@@ -719,8 +720,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	 * it.  We're also in the event handler, so we can't get re-interrupted
 	 * if another Stop Endpoint command completes
 	 */
-	list_for_each(entry, &ep->cancelled_td_list) {
-		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
+	list_for_each_entry(cur_td, &ep->cancelled_td_list, cancelled_td_list) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 				"Removing canceled TD starting at 0x%llx (dma).",
 				(unsigned long long)xhci_trb_virt_to_dma(
@@ -762,7 +762,7 @@ remove_finished_td:
 		 */
 		list_del_init(&cur_td->td_list);
 	}
-	last_unlinked_td = cur_td;
+
 	xhci_stop_watchdog_timer_in_irq(xhci, ep);
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
@@ -784,7 +784,7 @@ remove_finished_td:
 	 * So stop when we've completed the URB for the last TD we unlinked.
 	 */
 	do {
-		cur_td = list_entry(ep->cancelled_td_list.next,
+		cur_td = list_first_entry(&ep->cancelled_td_list,
 				struct xhci_td, cancelled_td_list);
 		list_del_init(&cur_td->cancelled_td_list);
 
@@ -1335,7 +1335,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		return;
 	}
 
-	cmd = list_entry(xhci->cmd_list.next, struct xhci_command, cmd_list);
+	cmd = list_first_entry(&xhci->cmd_list, struct xhci_command, cmd_list);
 
 	cancel_delayed_work(&xhci->cmd_timer);
 
@@ -1426,8 +1426,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 
 	/* restart timer if this wasn't the last command */
 	if (!list_is_singular(&xhci->cmd_list)) {
-		xhci->current_cmd = list_entry(cmd->cmd_list.next,
-					       struct xhci_command, cmd_list);
+		xhci->current_cmd = list_first_entry(&cmd->cmd_list,
+						struct xhci_command, cmd_list);
 		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 	} else if (xhci->current_cmd == cmd) {
 		xhci->current_cmd = NULL;
@@ -2421,7 +2421,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			goto cleanup;
 		}
 
-		td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+		td = list_first_entry(&ep_ring->td_list, struct xhci_td,
+				      td_list);
 		if (ep->skip)
 			td_num--;
 
