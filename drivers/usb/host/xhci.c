@@ -207,7 +207,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->status,
 			STS_CNR, 0, 10 * 1000 * 1000);
 
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < 2; i++) {
 		xhci->bus_state[i].port_c_suspend = 0;
 		xhci->bus_state[i].suspended_ports = 0;
 		xhci->bus_state[i].resuming_ports = 0;
@@ -1808,7 +1808,7 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 	slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
 	/* Endpoint 0 is always valid */
 	slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(1));
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, i);
 		ep_ctx->ep_info = 0;
 		ep_ctx->ep_info2 = 0;
@@ -2780,7 +2780,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
 	/* Free any rings that were dropped, but not changed. */
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
 		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1)))) {
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
@@ -2792,7 +2792,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	 * Install any rings for completely new endpoints or changed endpoints,
 	 * and free or cache any old rings from changed endpoints.
 	 */
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		if (!virt_dev->eps[i].new_ring)
 			continue;
 		/* Only cache or free the old ring if it exists.
@@ -2826,7 +2826,7 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 	/* Free any rings allocated for added endpoints */
-	for (i = 0; i < 31; ++i) {
+	for (i = 0; i < 31; i++) {
 		if (virt_dev->eps[i].new_ring) {
 			xhci_ring_free(xhci, virt_dev->eps[i].new_ring);
 			virt_dev->eps[i].new_ring = NULL;
@@ -3532,7 +3532,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
 	last_freed_endpoint = 1;
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		struct xhci_virt_ep *ep = &virt_dev->eps[i];
 
 		if (ep->ep_state & EP_HAS_STREAMS) {
@@ -3608,7 +3608,7 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/* Stop any wayward timer functions (which may grab the lock) */
-	for (i = 0; i < 31; ++i) {
+	for (i = 0; i < 31; i++) {
 		virt_dev->eps[i].ep_state &= ~EP_STOP_CMD_PENDING;
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}

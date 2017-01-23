@@ -943,7 +943,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 	if (dev->tt_info)
 		old_active_eps = dev->tt_info->active_eps;
 
-	for (i = 0; i < 31; ++i) {
+	for (i = 0; i < 31; i++) {
 		if (dev->eps[i].ring)
 			xhci_ring_free(xhci, dev->eps[i].ring);
 		if (dev->eps[i].stream_info)
@@ -1587,7 +1587,7 @@ void xhci_update_bw_info(struct xhci_hcd *xhci,
 	unsigned int ep_type;
 	int i;
 
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		bw_info = &virt_dev->eps[i].bw_info;
 
 		/* We can't tell what endpoint type is being dropped, but
@@ -2569,9 +2569,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * something other than the default (~1ms minimum between interrupts).
 	 * See section 5.5.1.2.
 	 */
-	for (i = 0; i < MAX_HC_SLOTS; ++i)
+	for (i = 0; i < MAX_HC_SLOTS; i++)
 		xhci->devs[i] = NULL;
-	for (i = 0; i < USB_MAXCHILDREN; ++i) {
+	for (i = 0; i < USB_MAXCHILDREN; i++) {
 		xhci->bus_state[0].resume_done[i] = 0;
 		xhci->bus_state[1].resume_done[i] = 0;
 		/* Only the USB 2.0 completions will ever be used. */
