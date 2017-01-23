@@ -854,6 +854,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev)
 
 	srcu_init_notifier_head(&opp_table->srcu_head);
 	INIT_LIST_HEAD(&opp_table->opp_list);
+	mutex_init(&opp_table->lock);
 
 	/* Secure the device table modification */
 	list_add_rcu(&opp_table->node, &opp_tables);
@@ -909,6 +910,7 @@ static void _free_opp_table(struct opp_table *opp_table)
 	/* dev_list must be empty now */
 	WARN_ON(!list_empty(&opp_table->dev_list));
 
+	mutex_destroy(&opp_table->lock);
 	list_del_rcu(&opp_table->node);
 	call_srcu(&opp_table->srcu_head.srcu, &opp_table->rcu_head,
 		  _kfree_device_rcu);
@@ -969,6 +971,8 @@ static void _kfree_opp_rcu(struct rcu_head *head)
  */
 static void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp)
 {
+	mutex_lock(&opp_table->lock);
+
 	/*
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
@@ -977,6 +981,8 @@ static void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	opp_debug_remove_one(opp);
 	list_del_rcu(&opp->node);
 	call_srcu(&opp_table->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
+
+	mutex_unlock(&opp_table->lock);
 
 	_remove_opp_table(opp_table);
 }
@@ -1007,12 +1013,16 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 	if (IS_ERR(opp_table))
 		goto unlock;
 
+	mutex_lock(&opp_table->lock);
+
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
 		if (opp->rate == freq) {
 			found = true;
 			break;
 		}
 	}
+
+	mutex_unlock(&opp_table->lock);
 
 	if (!found) {
 		dev_warn(dev, "%s: Couldn't find OPP with freq: %lu\n",
@@ -1083,7 +1093,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	     struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp;
-	struct list_head *head = &opp_table->opp_list;
+	struct list_head *head;
 	int ret;
 
 	/*
@@ -1094,6 +1104,9 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	 * loop, don't replace it with head otherwise it will become an infinite
 	 * loop.
 	 */
+	mutex_lock(&opp_table->lock);
+	head = &opp_table->opp_list;
+
 	list_for_each_entry_rcu(opp, &opp_table->opp_list, node) {
 		if (new_opp->rate > opp->rate) {
 			head = &opp->node;
@@ -1110,12 +1123,17 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 			 new_opp->supplies[0].u_volt, new_opp->available);
 
 		/* Should we compare voltages for all regulators here ? */
-		return opp->available &&
-		       new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
+		ret = opp->available &&
+		      new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
+
+		mutex_unlock(&opp_table->lock);
+		return ret;
 	}
 
-	new_opp->opp_table = opp_table;
 	list_add_rcu(&new_opp->node, head);
+	mutex_unlock(&opp_table->lock);
+
+	new_opp->opp_table = opp_table;
 
 	ret = opp_debug_create_one(new_opp, opp_table);
 	if (ret)
@@ -1779,6 +1797,8 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 		goto unlock;
 	}
 
+	mutex_lock(&opp_table->lock);
+
 	/* Do we have the frequency? */
 	list_for_each_entry(tmp_opp, &opp_table->opp_list, node) {
 		if (tmp_opp->rate == freq) {
@@ -1786,6 +1806,9 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 			break;
 		}
 	}
+
+	mutex_unlock(&opp_table->lock);
+
 	if (IS_ERR(opp)) {
 		r = PTR_ERR(opp);
 		goto unlock;
