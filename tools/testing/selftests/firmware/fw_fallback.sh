@@ -1,5 +1,5 @@
 #!/bin/sh
-# This validates that the kernel will fall back to using the user helper
+# This validates that the kernel will fall back to using the fallback mechanism
 # to load firmware it can't find on disk itself. We must request a firmware
 # that the kernel won't find, and any installed helper (e.g. udev) also
 # won't find so that we can do the load ourself manually.
@@ -117,7 +117,8 @@ if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
 	echo "$0: firmware was not loaded" >&2
 	exit 1
 else
-	echo "$0: user helper firmware loading works"
+	echo "$0: fallback mechanism works"
+
 fi
 
 exit 0
