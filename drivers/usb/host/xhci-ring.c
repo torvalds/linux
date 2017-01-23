@@ -1319,6 +1319,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
 	cmd_trb = xhci->cmd_ring->dequeue;
+
+	trace_xhci_handle_command(xhci->cmd_ring, &cmd_trb->generic);
+
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 			cmd_trb);
 	/*
@@ -1334,8 +1337,6 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	cmd = list_first_entry(&xhci->cmd_list, struct xhci_command, cmd_list);
 
 	cancel_delayed_work(&xhci->cmd_timer);
-
-	trace_xhci_cmd_completion(cmd_trb, (struct xhci_generic_trb *) event);
 
 	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
 
@@ -2479,6 +2480,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 		ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma) /
 						sizeof(*ep_trb)];
+
+		trace_xhci_handle_transfer(ep_ring,
+				(struct xhci_generic_trb *) ep_trb);
+
 		/*
 		 * No-op TRB should not trigger interrupts.
 		 * If ep_trb is a no-op TRB, it means the
@@ -2544,6 +2549,8 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	if ((le32_to_cpu(event->event_cmd.flags) & TRB_CYCLE) !=
 	    xhci->event_ring->cycle_state)
 		return 0;
+
+	trace_xhci_handle_event(xhci->event_ring, &event->generic);
 
 	/*
 	 * Barrier between reading the TRB_CYCLE (valid) flag above and any
@@ -2714,6 +2721,9 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[1] = cpu_to_le32(field2);
 	trb->field[2] = cpu_to_le32(field3);
 	trb->field[3] = cpu_to_le32(field4);
+
+	trace_xhci_queue_trb(ring, trb);
+
 	inc_enq(xhci, ring, more_trbs_coming);
 }
 

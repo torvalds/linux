@@ -115,34 +115,47 @@ DEFINE_EVENT(xhci_log_ctx, xhci_address_ctx,
 	TP_ARGS(xhci, ctx, ep_num)
 );
 
-DECLARE_EVENT_CLASS(xhci_log_event,
-	TP_PROTO(void *trb_va, struct xhci_generic_trb *ev),
-	TP_ARGS(trb_va, ev),
+DECLARE_EVENT_CLASS(xhci_log_trb,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb),
 	TP_STRUCT__entry(
-		__field(void *, va)
-		__field(u64, dma)
-		__field(u32, status)
-		__field(u32, flags)
-		__dynamic_array(u8, trb, sizeof(struct xhci_generic_trb))
+		__field(u32, type)
+		__field(u32, field0)
+		__field(u32, field1)
+		__field(u32, field2)
+		__field(u32, field3)
 	),
 	TP_fast_assign(
-		__entry->va = trb_va;
-		__entry->dma = ((u64)le32_to_cpu(ev->field[1])) << 32 |
-					le32_to_cpu(ev->field[0]);
-		__entry->status = le32_to_cpu(ev->field[2]);
-		__entry->flags = le32_to_cpu(ev->field[3]);
-		memcpy(__get_dynamic_array(trb), trb_va,
-			sizeof(struct xhci_generic_trb));
+		__entry->type = ring->type;
+		__entry->field0 = le32_to_cpu(trb->field[0]);
+		__entry->field1 = le32_to_cpu(trb->field[1]);
+		__entry->field2 = le32_to_cpu(trb->field[2]);
+		__entry->field3 = le32_to_cpu(trb->field[3]);
 	),
-	TP_printk("\ntrb_dma=@%llx, trb_va=@%p, status=%08x, flags=%08x",
-			(unsigned long long) __entry->dma, __entry->va,
-			__entry->status, __entry->flags
+	TP_printk("%s: %s", xhci_ring_type_string(__entry->type),
+			xhci_decode_trb(__entry->field0, __entry->field1,
+					__entry->field2, __entry->field3)
 	)
 );
 
-DEFINE_EVENT(xhci_log_event, xhci_cmd_completion,
-	TP_PROTO(void *trb_va, struct xhci_generic_trb *ev),
-	TP_ARGS(trb_va, ev)
+DEFINE_EVENT(xhci_log_trb, xhci_handle_event,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_handle_command,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_handle_transfer,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_queue_trb,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
 );
 
 #endif /* __XHCI_TRACE_H */
