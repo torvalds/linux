@@ -3864,6 +3864,8 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 		goto out;
 	}
 
+	/* cfq_init_cfqq() assumes cfqq->ioprio_class is initialized. */
+	cfqq->ioprio_class = IOPRIO_CLASS_NONE;
 	cfq_init_cfqq(cfqd, cfqq, current->pid, is_sync);
 	cfq_init_prio_data(cfqq, cic);
 	cfq_link_cfqq_cfqg(cfqq, cfqg);
