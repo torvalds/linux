@@ -793,8 +793,7 @@ remove_finished_td:
 		 * just overwrite it (because the URB has been unlinked).
 		 */
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
-		if (ep_ring && cur_td->bounce_seg)
-			xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
+		xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
 		inc_td_cnt(cur_td->urb);
 		if (last_td_in_urb(cur_td))
 			xhci_giveback_urb_in_irq(xhci, cur_td, 0);
@@ -820,8 +819,7 @@ static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		if (!list_empty(&cur_td->cancelled_td_list))
 			list_del_init(&cur_td->cancelled_td_list);
 
-		if (cur_td->bounce_seg)
-			xhci_unmap_td_bounce_buffer(xhci, ring, cur_td);
+		xhci_unmap_td_bounce_buffer(xhci, ring, cur_td);
 
 		inc_td_cnt(cur_td->urb);
 		if (last_td_in_urb(cur_td))
@@ -1833,8 +1831,7 @@ static int xhci_td_cleanup(struct xhci_hcd *xhci, struct xhci_td *td,
 	urb_priv = urb->hcpriv;
 
 	/* if a bounce buffer was used to align this td then unmap it */
-	if (td->bounce_seg)
-		xhci_unmap_td_bounce_buffer(xhci, ep_ring, td);
+	xhci_unmap_td_bounce_buffer(xhci, ep_ring, td);
 
 	/* Do one last check of the actual transfer length.
 	 * If the host controller said we transferred more data than the buffer
