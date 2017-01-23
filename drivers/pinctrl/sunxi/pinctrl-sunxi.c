@@ -540,7 +540,7 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 		enum pin_config_param param;
 		unsigned long flags;
 		u32 offset, shift, mask, reg;
-		u16 arg, val;
+		u32 arg, val;
 		int ret;
 
 		param = pinconf_to_config_param(configs[i]);
