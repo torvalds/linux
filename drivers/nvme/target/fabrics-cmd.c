@@ -220,7 +220,7 @@ int nvmet_parse_connect_cmd(struct nvmet_req *req)
 
 	req->ns = NULL;
 
-	if (req->cmd->common.opcode != nvme_fabrics_command) {
+	if (cmd->common.opcode != nvme_fabrics_command) {
 		pr_err("invalid command 0x%x on unconnected queue.\n",
 			cmd->fabrics.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
