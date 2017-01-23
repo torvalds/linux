@@ -141,8 +141,6 @@ int rockchip_drm_fbdev_init(struct drm_device *dev)
 	if (!helper)
 		return -ENOMEM;
 
-	private->fbdev_helper = helper;
-
 	drm_fb_helper_prepare(dev, helper, &rockchip_drm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper, num_crtc, ROCKCHIP_MAX_CONNECTOR);
@@ -164,6 +162,8 @@ int rockchip_drm_fbdev_init(struct drm_device *dev)
 			ret);
 		goto err_drm_fb_helper_fini;
 	}
+
+	private->fbdev_helper = helper;
 
 	return 0;
 
