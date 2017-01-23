@@ -40,6 +40,8 @@ do {									\
 			 "opp_table_lock protection");			\
 } while (0)
 
+static void dev_pm_opp_get(struct dev_pm_opp *opp);
+
 static struct opp_device *_find_opp_dev(const struct device *dev,
 					struct opp_table *opp_table)
 {
@@ -94,21 +96,13 @@ struct opp_table *_find_opp_table(struct device *dev)
  * return 0
  *
  * This is useful only for devices with single power supply.
- *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. This means that opp which could have been fetched by
- * opp_find_freq_{exact,ceil,floor} functions is valid as long as we are
- * under RCU lock. The pointer returned by the opp_find_freq family must be
- * used in the same section as the usage of this function with the pointer
- * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
- * pointer.
  */
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
 	struct dev_pm_opp *tmp_opp;
 	unsigned long v = 0;
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	tmp_opp = rcu_dereference(opp);
 	if (IS_ERR_OR_NULL(tmp_opp))
@@ -116,6 +110,7 @@ unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	else
 		v = tmp_opp->supplies[0].u_volt;
 
+	rcu_read_unlock();
 	return v;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_voltage);
@@ -126,21 +121,13 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_voltage);
  *
  * Return: frequency in hertz corresponding to the opp, else
  * return 0
- *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. This means that opp which could have been fetched by
- * opp_find_freq_{exact,ceil,floor} functions is valid as long as we are
- * under RCU lock. The pointer returned by the opp_find_freq family must be
- * used in the same section as the usage of this function with the pointer
- * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
- * pointer.
  */
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 {
 	struct dev_pm_opp *tmp_opp;
 	unsigned long f = 0;
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	tmp_opp = rcu_dereference(opp);
 	if (IS_ERR_OR_NULL(tmp_opp) || !tmp_opp->available)
@@ -148,6 +135,7 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 	else
 		f = tmp_opp->rate;
 
+	rcu_read_unlock();
 	return f;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
@@ -161,20 +149,13 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
  * quickly. Running on them for longer times may overheat the chip.
  *
  * Return: true if opp is turbo opp, else false.
- *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. This means that opp which could have been fetched by
- * opp_find_freq_{exact,ceil,floor} functions is valid as long as we are
- * under RCU lock. The pointer returned by the opp_find_freq family must be
- * used in the same section as the usage of this function with the pointer
- * prior to unlocking with rcu_read_unlock() to maintain the integrity of the
- * pointer.
  */
 bool dev_pm_opp_is_turbo(struct dev_pm_opp *opp)
 {
 	struct dev_pm_opp *tmp_opp;
+	bool turbo;
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	tmp_opp = rcu_dereference(opp);
 	if (IS_ERR_OR_NULL(tmp_opp) || !tmp_opp->available) {
@@ -182,7 +163,10 @@ bool dev_pm_opp_is_turbo(struct dev_pm_opp *opp)
 		return false;
 	}
 
-	return tmp_opp->turbo;
+	turbo = tmp_opp->turbo;
+
+	rcu_read_unlock();
+	return turbo;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_is_turbo);
 
@@ -410,11 +394,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
  * This provides a mechanism to enable an opp which is not available currently
  * or the opposite as well.
  *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. The reason for the same is that the opp pointer which is
- * returned will remain valid for use with opp_get_{voltage, freq} only while
- * under the locked area. The pointer returned must be used prior to unlocking
- * with rcu_read_unlock() to maintain the integrity of the pointer.
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
  */
 struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 					      unsigned long freq,
@@ -423,13 +404,14 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 	struct opp_table *opp_table;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		int r = PTR_ERR(opp_table);
 
 		dev_err(dev, "%s: OPP table not found (%d)\n", __func__, r);
+		rcu_read_unlock();
 		return ERR_PTR(r);
 	}
 
@@ -437,9 +419,14 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 		if (temp_opp->available == available &&
 				temp_opp->rate == freq) {
 			opp = temp_opp;
+
+			/* Increment the reference count of OPP */
+			dev_pm_opp_get(opp);
 			break;
 		}
 	}
+
+	rcu_read_unlock();
 
 	return opp;
 }
@@ -454,6 +441,9 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 		if (temp_opp->available && temp_opp->rate >= *freq) {
 			opp = temp_opp;
 			*freq = opp->rate;
+
+			/* Increment the reference count of OPP */
+			dev_pm_opp_get(opp);
 			break;
 		}
 	}
@@ -476,29 +466,33 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
  * ERANGE:	no match found for search
  * ENODEV:	if device not found in list of registered devices
  *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. The reason for the same is that the opp pointer which is
- * returned will remain valid for use with opp_get_{voltage, freq} only while
- * under the locked area. The pointer returned must be used prior to unlocking
- * with rcu_read_unlock() to maintain the integrity of the pointer.
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
  */
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					     unsigned long *freq)
 {
 	struct opp_table *opp_table;
-
-	opp_rcu_lockdep_assert();
+	struct dev_pm_opp *opp;
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
 		return ERR_PTR(-EINVAL);
 	}
 
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return ERR_CAST(opp_table);
+	rcu_read_lock();
 
-	return _find_freq_ceil(opp_table, freq);
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		rcu_read_unlock();
+		return ERR_CAST(opp_table);
+	}
+
+	opp = _find_freq_ceil(opp_table, freq);
+
+	rcu_read_unlock();
+
+	return opp;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 
@@ -517,11 +511,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
  * ERANGE:	no match found for search
  * ENODEV:	if device not found in list of registered devices
  *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. The reason for the same is that the opp pointer which is
- * returned will remain valid for use with opp_get_{voltage, freq} only while
- * under the locked area. The pointer returned must be used prior to unlocking
- * with rcu_read_unlock() to maintain the integrity of the pointer.
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
  */
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq)
@@ -529,16 +520,18 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 	struct opp_table *opp_table;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
-	opp_rcu_lockdep_assert();
-
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
 		return ERR_PTR(-EINVAL);
 	}
 
+	rcu_read_lock();
+
 	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
+	if (IS_ERR(opp_table)) {
+		rcu_read_unlock();
 		return ERR_CAST(opp_table);
+	}
 
 	list_for_each_entry_rcu(temp_opp, &opp_table->opp_list, node) {
 		if (temp_opp->available) {
@@ -549,6 +542,12 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 				opp = temp_opp;
 		}
 	}
+
+	/* Increment the reference count of OPP */
+	if (!IS_ERR(opp))
+		dev_pm_opp_get(opp);
+	rcu_read_unlock();
+
 	if (!IS_ERR(opp))
 		*freq = opp->rate;
 
@@ -736,6 +735,8 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		ret = PTR_ERR(opp);
 		dev_err(dev, "%s: failed to find OPP for freq %lu (%d)\n",
 			__func__, freq, ret);
+		if (!IS_ERR(old_opp))
+			dev_pm_opp_put(old_opp);
 		rcu_read_unlock();
 		return ret;
 	}
@@ -747,6 +748,9 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 
 	/* Only frequency scaling */
 	if (!regulators) {
+		dev_pm_opp_put(opp);
+		if (!IS_ERR(old_opp))
+			dev_pm_opp_put(old_opp);
 		rcu_read_unlock();
 		return _generic_set_opp_clk_only(dev, clk, old_freq, freq);
 	}
@@ -772,6 +776,9 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	data->new_opp.rate = freq;
 	memcpy(data->new_opp.supplies, opp->supplies, size);
 
+	dev_pm_opp_put(opp);
+	if (!IS_ERR(old_opp))
+		dev_pm_opp_put(old_opp);
 	rcu_read_unlock();
 
 	return set_opp(data);
@@ -965,6 +972,11 @@ static void _opp_kref_release(struct kref *kref)
 
 	mutex_unlock(&opp_table->lock);
 	dev_pm_opp_put_opp_table(opp_table);
+}
+
+static void dev_pm_opp_get(struct dev_pm_opp *opp)
+{
+	kref_get(&opp->kref);
 }
 
 void dev_pm_opp_put(struct dev_pm_opp *opp)

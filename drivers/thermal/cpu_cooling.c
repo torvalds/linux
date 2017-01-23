@@ -297,8 +297,6 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 	if (!power_table)
 		return -ENOMEM;
 
-	rcu_read_lock();
-
 	for (freq = 0, i = 0;
 	     opp = dev_pm_opp_find_freq_ceil(dev, &freq), !IS_ERR(opp);
 	     freq++, i++) {
@@ -306,13 +304,13 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 		u64 power;
 
 		if (i >= num_opps) {
-			rcu_read_unlock();
 			ret = -EAGAIN;
 			goto free_power_table;
 		}
 
 		freq_mhz = freq / 1000000;
 		voltage_mv = dev_pm_opp_get_voltage(opp) / 1000;
+		dev_pm_opp_put(opp);
 
 		/*
 		 * Do the multiplication with MHz and millivolt so as
@@ -327,8 +325,6 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 		/* power is stored in mW */
 		power_table[i].power = power;
 	}
-
-	rcu_read_unlock();
 
 	if (i != num_opps) {
 		ret = PTR_ERR(opp);
@@ -433,13 +429,10 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_device,
 		return 0;
 	}
 
-	rcu_read_lock();
-
 	opp = dev_pm_opp_find_freq_exact(cpufreq_device->cpu_dev, freq_hz,
 					 true);
 	voltage = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
 		dev_warn_ratelimited(cpufreq_device->cpu_dev,

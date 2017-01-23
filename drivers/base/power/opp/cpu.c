@@ -42,11 +42,6 @@
  *
  * WARNING: It is  important for the callers to ensure refreshing their copy of
  * the table if any of the mentioned functions have been invoked in the interim.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Since we just use the regular accessor functions to access the internal data
- * structures, we use RCU read lock inside this function. As a result, users of
- * this function DONOT need to use explicit locks for invoking.
  */
 int dev_pm_opp_init_cpufreq_table(struct device *dev,
 				  struct cpufreq_frequency_table **table)
@@ -56,19 +51,13 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 	int i, max_opps, ret = 0;
 	unsigned long rate;
 
-	rcu_read_lock();
-
 	max_opps = dev_pm_opp_get_opp_count(dev);
-	if (max_opps <= 0) {
-		ret = max_opps ? max_opps : -ENODATA;
-		goto out;
-	}
+	if (max_opps <= 0)
+		return max_opps ? max_opps : -ENODATA;
 
 	freq_table = kcalloc((max_opps + 1), sizeof(*freq_table), GFP_ATOMIC);
-	if (!freq_table) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!freq_table)
+		return -ENOMEM;
 
 	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
 		/* find next rate */
@@ -83,6 +72,8 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		/* Is Boost/turbo opp ? */
 		if (dev_pm_opp_is_turbo(opp))
 			freq_table[i].flags = CPUFREQ_BOOST_FREQ;
+
+		dev_pm_opp_put(opp);
 	}
 
 	freq_table[i].driver_data = i;
@@ -91,7 +82,6 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 	*table = &freq_table[0];
 
 out:
-	rcu_read_unlock();
 	if (ret)
 		kfree(freq_table);
 
