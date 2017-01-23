@@ -127,6 +127,7 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	if (!b->irq_enabled ||
 	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
 		mod_timer(&b->fake_irq, jiffies + 1);
+		i915_queue_hangcheck(i915);
 	} else {
 		/* Ensure we never sleep indefinitely */
 		GEM_BUG_ON(!time_after(b->timeout, jiffies));
