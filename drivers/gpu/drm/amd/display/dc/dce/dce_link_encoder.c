@@ -142,7 +142,6 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 			dce110_link_encoder_set_dmcu_backlight_level,
 	.init_dmcu_backlight_settings =
 			dce110_link_encoder_init_dmcu_backlight_settings,
-	.set_dmcu_abm_level = dce110_link_encoder_set_dmcu_abm_level,
 	.set_dmcu_psr_enable = dce110_link_encoder_set_dmcu_psr_enable,
 	.setup_dmcu_psr = dce110_link_encoder_setup_dmcu_psr,
 	.backlight_control = dce110_link_encoder_edp_backlight_control,
@@ -1769,8 +1768,7 @@ void dce110_link_encoder_init_dmcu_backlight_settings(
 	 * Bios bug w/a - period resets to zero,
 	 * restoring to cache values which is always correct
 	 */
-	REG_GET(BL_PWM_CNTL,
-				BL_ACTIVE_INT_FRAC_CNT, &value);
+	REG_GET(BL_PWM_CNTL, BL_ACTIVE_INT_FRAC_CNT, &value);
 	if (value == 0 || bl_pwm_cntl == 1) {
 		if (stored_backlight_registers.vBL_PWM_CNTL != 0) {
 			pwmCntl = stored_backlight_registers.vBL_PWM_CNTL;
@@ -1810,36 +1808,6 @@ void dce110_link_encoder_init_dmcu_backlight_settings(
 
 	/* Enable the backlight output */
 	REG_UPDATE(BL_PWM_CNTL, BL_PWM_EN, 1);
-
-}
-
-void dce110_link_encoder_set_dmcu_abm_level(
-	struct link_encoder *enc, uint32_t level)
-{
-	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
-
-	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
-	unsigned int dmcu_wait_reg_ready_interval = 100;
-	unsigned int regValue;
-
-	/* waitDMCUReadyForCmd */
-	do {
-		dm_delay_in_microseconds(ctx, dmcu_wait_reg_ready_interval);
-		regValue = REG_READ(MASTER_COMM_CNTL_REG);
-		dmcu_max_retry_on_wait_reg_ready--;
-	} while
-	/* expected value is 0, loop while not 0*/
-	((MASTER_COMM_CNTL_REG__MASTER_COMM_INTERRUPT_MASK & regValue) &&
-		dmcu_max_retry_on_wait_reg_ready > 0);
-
-	/* setDMCUParam_ABMLevel */
-	REG_UPDATE_2(MASTER_COMM_CMD_REG,
-			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_LEVEL_SET,
-			MASTER_COMM_CMD_REG_BYTE2, level);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 }
 
 static void get_dmcu_psr_state(struct link_encoder *enc, uint32_t *psr_state)
@@ -1856,10 +1824,8 @@ static void get_dmcu_psr_state(struct link_encoder *enc, uint32_t *psr_state)
 
 	do {
 		dm_delay_in_microseconds(ctx, 2);
-		REG_GET(DCI_MEM_PWR_STATUS,
-					DMCU_IRAM_MEM_PWR_STATE, &value);
-	} while
-		(value != 0 && count++ < 10);
+		REG_GET(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, &value);
+	} while (value != 0 && count++ < 10);
 
 	/* Write address to IRAM_RD_ADDR in DMCU_IRAM_RD_CTRL */
 	REG_WRITE(DMCU_IRAM_RD_CTRL, psrStateOffset);

@@ -1432,18 +1432,6 @@ bool dc_link_init_dmcu_backlight_settings(const struct dc_link *dc_link)
 	return true;
 }
 
-bool dc_link_set_abm_level(const struct dc_link *dc_link, uint32_t level)
-{
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-	struct dc_context *ctx = link->ctx;
-
-	dm_logger_write(ctx->logger, LOG_BACKLIGHT,
-			"New abm level: %d (0x%X)\n", level, level);
-
-	link->link_enc->funcs->set_dmcu_abm_level(link->link_enc, level);
-	return true;
-}
-
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);

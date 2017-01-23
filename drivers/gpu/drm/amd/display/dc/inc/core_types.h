@@ -259,6 +259,9 @@ struct resource_pool {
 	struct display_clock *display_clock;
 	struct irq_service *irqs;
 
+	struct abm *abm;
+	struct dmcu *dmcu;
+
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
 };

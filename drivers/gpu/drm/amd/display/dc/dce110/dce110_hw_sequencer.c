@@ -42,6 +42,7 @@
 #include "stream_encoder.h"
 #include "link_encoder.h"
 #include "clock_source.h"
+#include "abm.h"
 #include "audio.h"
 #include "dce/dce_hwseq.h"
 
@@ -2166,6 +2167,7 @@ static void init_hw(struct core_dc *dc)
 	int i;
 	struct dc_bios *bp;
 	struct transform *xfm;
+	struct abm *abm;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2210,6 +2212,10 @@ static void init_hw(struct core_dc *dc)
 		struct audio *audio = dc->res_pool->audios[i];
 		audio->funcs->hw_init(audio);
 	}
+
+	abm = dc->res_pool->abm;
+	if (abm != NULL)
+		abm->funcs->abm_init(abm);
 }
 
 /* TODO: move this to apply_ctx_tohw some how?*/

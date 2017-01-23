@@ -46,6 +46,8 @@
 
 #include "dce/dce_hwseq.h"
 #include "dce112/dce112_hw_sequencer.h"
+#include "dce/dce_abm.h"
+#include "dce/dce_dmcu.h"
 
 #include "reg_helper.h"
 
@@ -216,6 +218,30 @@ static const struct dce_disp_clk_shift disp_clk_shift = {
 
 static const struct dce_disp_clk_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+};
+
+static const struct dce_dmcu_registers dmcu_regs = {
+		DMCU_DCE110_COMMON_REG_LIST()
+};
+
+static const struct dce_dmcu_shift dmcu_shift = {
+		DMCU_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_dmcu_mask dmcu_mask = {
+		DMCU_MASK_SH_LIST_DCE110(_MASK)
+};
+
+static const struct dce_abm_registers abm_regs = {
+		ABM_DCE110_COMMON_REG_LIST()
+};
+
+static const struct dce_abm_shift abm_shift = {
+		ABM_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_abm_mask abm_mask = {
+		ABM_MASK_SH_LIST_DCE110(_MASK)
 };
 
 #define transform_regs(id)\
@@ -718,6 +744,12 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce_aud_destroy(&pool->base.audios[i]);
 		}
 	}
+
+	if (pool->base.abm != NULL)
+		dce_abm_destroy(&pool->base.abm);
+
+	if (pool->base.dmcu != NULL)
+		dce_dmcu_destroy(&pool->base.dmcu);
 
 	if (pool->base.display_clock != NULL)
 		dce_disp_clk_destroy(&pool->base.display_clock);
@@ -1283,6 +1315,25 @@ static bool construct(
 		goto res_create_fail;
 	}
 
+	pool->base.dmcu = dce_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
 
 	/* get static clock information for PPLIB or firmware, save
 	 * max_clock_state

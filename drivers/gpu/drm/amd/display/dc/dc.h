@@ -103,7 +103,6 @@ struct dc_stream_funcs {
 	bool (*set_backlight)(struct dc *dc, unsigned int backlight_level,
 		unsigned int frame_ramp, const struct dc_stream *stream);
 	bool (*init_dmcu_backlight_settings)(struct dc *dc);
-	bool (*set_abm_level)(struct dc *dc, unsigned int abm_level);
 	bool (*set_psr_enable)(struct dc *dc, bool enable);
 	bool (*setup_psr)(struct dc *dc, const struct dc_stream *stream);
 };
@@ -575,8 +574,6 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 
 bool dc_link_init_dmcu_backlight_settings(const struct dc_link *dc_link);
 
-bool dc_link_set_abm_level(const struct dc_link *dc_link, uint32_t level);
-
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,
@@ -729,5 +726,6 @@ bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
 		struct i2c_command *cmd);
+
 
 #endif /* DC_INTERFACE_H_ */
