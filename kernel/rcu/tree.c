@@ -2793,14 +2793,14 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
  */
 static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 {
-	RCU_TRACE(unsigned long mask);
-	RCU_TRACE(struct rcu_data *rdp = this_cpu_ptr(rsp->rda));
-	RCU_TRACE(struct rcu_node *rnp = rdp->mynode);
+	RCU_TRACE(unsigned long mask;)
+	RCU_TRACE(struct rcu_data *rdp = this_cpu_ptr(rsp->rda);)
+	RCU_TRACE(struct rcu_node *rnp = rdp->mynode;)
 
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
 		return;
 
-	RCU_TRACE(mask = rdp->grpmask);
+	RCU_TRACE(mask = rdp->grpmask;)
 	trace_rcu_grace_period(rsp->name,
 			       rnp->gpnum + 1 - !!(rnp->qsmask & mask),
 			       TPS("cpuofl"));
