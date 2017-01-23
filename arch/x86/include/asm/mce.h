@@ -97,10 +97,6 @@
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
-/* Software defined banks */
-#define MCE_EXTENDED_BANK	128
-#define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
-
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
@@ -305,8 +301,6 @@ extern void (*deferred_error_int_vector)(void);
  */
 
 void intel_init_thermal(struct cpuinfo_x86 *c);
-
-void mce_log_therm_throt_event(__u64 status);
 
 /* Interrupt Handler for core thermal thresholds */
 extern int (*platform_thermal_notify)(__u64 msr_val);

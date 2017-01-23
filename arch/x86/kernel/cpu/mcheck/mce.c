@@ -1331,31 +1331,6 @@ static void mce_process_work(struct work_struct *dummy)
 	mce_gen_pool_process();
 }
 
-#ifdef CONFIG_X86_MCE_INTEL
-/***
- * mce_log_therm_throt_event - Logs the thermal throttling event to mcelog
- * @cpu: The CPU on which the event occurred.
- * @status: Event status information
- *
- * This function should be called by the thermal interrupt after the
- * event has been processed and the decision was made to log the event
- * further.
- *
- * The status parameter will be saved to the 'status' field of 'struct mce'
- * and historically has been the register value of the
- * MSR_IA32_THERMAL_STATUS (Intel) msr.
- */
-void mce_log_therm_throt_event(__u64 status)
-{
-	struct mce m;
-
-	mce_setup(&m);
-	m.bank = MCE_THERMAL_BANK;
-	m.status = status;
-	mce_log(&m);
-}
-#endif /* CONFIG_X86_MCE_INTEL */
-
 /*
  * Periodic polling timer for "silent" machine check errors.  If the
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
