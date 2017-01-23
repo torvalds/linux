@@ -195,6 +195,7 @@ struct rockchip_usb2phy_cfg {
  * @vbus_attached: otg device vbus status.
  * @vbus_always_on: otg vbus is always powered on.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
+ * @vbus_drv_gpio: gpio description for vbus control.
  * @ls_irq: IRQ number assigned for linestate detection.
  * @id_irq: IRQ number assigned for id fall or rise detection.
  * @mutex: for register updating in sm_work.
@@ -223,6 +224,7 @@ struct rockchip_usb2phy_port {
 	struct		delayed_work chg_work;
 	struct		delayed_work otg_sm_work;
 	struct		delayed_work sm_work;
+	struct		gpio_desc *vbus_drv_gpio;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
 	struct notifier_block	event_nb;
 	struct wake_lock	wakelock;
@@ -1051,6 +1053,7 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 {
 	struct rockchip_usb2phy_port *rport = data;
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	bool cable_vbus_state;
 
 	if (!property_enabled(rphy, &rport->port_cfg->idfall_det_st) &&
 	    !property_enabled(rphy, &rport->port_cfg->idrise_det_st))
@@ -1062,17 +1065,20 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (property_enabled(rphy, &rport->port_cfg->idfall_det_st)) {
 		property_enable(rphy, &rport->port_cfg->idfall_det_clr,
 				true);
-		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
-		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+		cable_vbus_state = true;
 	} else if (property_enabled(rphy, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy, &rport->port_cfg->idrise_det_clr,
 				true);
-		extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
-		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
+		cable_vbus_state = false;
 	}
+
+	extcon_set_state(rphy->edev, EXTCON_USB_HOST, cable_vbus_state);
+	extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, cable_vbus_state);
 
 	extcon_sync(rphy->edev, EXTCON_USB_HOST);
 	extcon_sync(rphy->edev, EXTCON_USB_VBUS_EN);
+	gpiod_set_value_cansleep(rport->vbus_drv_gpio,
+				 cable_vbus_state ? 1 : 0);
 
 	mutex_unlock(&rport->mutex);
 
@@ -1159,11 +1165,29 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		return ret;
 	}
 
-	rport->vbus_always_on =
-		of_property_read_bool(child_np, "rockchip,vbus-always-on");
+	rport->vbus_drv_gpio = devm_gpiod_get_optional(rphy->dev, "otg-vbus",
+						       GPIOD_OUT_LOW);
+	if (!rport->vbus_drv_gpio) {
+		dev_warn(rphy->dev, "vbus_drv is not assigned\n");
+	} else if (IS_ERR(rport->vbus_drv_gpio)) {
+		dev_err(rphy->dev, "failed to get vbus_drv\n");
+		return PTR_ERR(rport->vbus_drv_gpio);
+	}
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
-	if (rport->mode == USB_DR_MODE_HOST || rport->vbus_always_on)
+	if (rport->mode == USB_DR_MODE_HOST) {
+		if (rphy->edev_self) {
+			extcon_set_state(rphy->edev, EXTCON_USB, false);
+			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+			gpiod_set_value_cansleep(rport->vbus_drv_gpio, 1);
+		}
+		return 0;
+	}
+
+	rport->vbus_always_on =
+		of_property_read_bool(child_np, "rockchip,vbus-always-on");
+	if (rport->vbus_always_on)
 		return 0;
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
@@ -1209,9 +1233,11 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
 			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+			gpiod_set_value_cansleep(rport->vbus_drv_gpio, 1);
 		} else {
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
+			gpiod_set_value_cansleep(rport->vbus_drv_gpio, 0);
 		}
 	}
 
