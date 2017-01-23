@@ -3637,10 +3637,18 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err5;
 	}
 
+	if (set->size &&
+	    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact)) {
+		err = -ENFILE;
+		goto err6;
+	}
+
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
 
+err6:
+	set->ops->remove(set, &elem);
 err5:
 	kfree(trans);
 err4:
@@ -3687,15 +3695,9 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 		return -EBUSY;
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
-		if (set->size &&
-		    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact))
-			return -ENFILE;
-
 		err = nft_add_set_elem(&ctx, set, attr, nlh->nlmsg_flags);
-		if (err < 0) {
-			atomic_dec(&set->nelems);
+		if (err < 0)
 			break;
-		}
 	}
 	return err;
 }
