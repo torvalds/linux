@@ -621,7 +621,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	core_dc->hwss.init_hw(core_dc);
 
 	full_pipe_count = core_dc->res_pool->pipe_count;
-	if (core_dc->res_pool->underlay_pipe_index >= 0)
+	if (core_dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
 		full_pipe_count--;
 	core_dc->public.caps.max_streams = min(
 			full_pipe_count,

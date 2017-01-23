@@ -931,7 +931,7 @@ static bool construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = -1;
+	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	dc->public.caps.max_downscale_ratio = 200;
 	dc->public.caps.i2c_speed_in_khz = 40;

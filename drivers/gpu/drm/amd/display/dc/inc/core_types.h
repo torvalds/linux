@@ -230,6 +230,8 @@ struct audio_support{
 	bool hdmi_audio_native;
 };
 
+#define NO_UNDERLAY_PIPE -1
+
 struct resource_pool {
 	struct mem_input *mis[MAX_PIPES];
 	struct input_pixel_processor *ipps[MAX_PIPES];
