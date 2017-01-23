@@ -1084,4 +1084,15 @@ config INTEL_TURBO_MAX_3
 	  This driver is only required when the system is not using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
 
+config SILEAD_DMI
+	bool "Tablets with Silead touchscreens"
+	depends on ACPI && DMI && I2C && INPUT
+	---help---
+	  Certain ACPI based tablets with Silead touchscreens do not have
+	  enough data in ACPI tables for the touchscreen driver to handle
+	  the touchscreen properly, as OEMs expected the data to be baked
+	  into the tablet model specific version of the driver shipped
+	  with the OS-image for the device. This option supplies the missing
+	  information. Enable this for x86 tablets with Silead touchscreens.
+
 endif # X86_PLATFORM_DEVICES
