@@ -362,19 +362,11 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
 			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
-		/* we are about to kill xhci, give it one more chance */
-		xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
-			      &xhci->op_regs->cmd_ring);
-		udelay(1000);
-		ret = xhci_handshake(&xhci->op_regs->cmd_ring,
-				     CMD_RING_RUNNING, 0, 3 * 1000 * 1000);
-		if (ret < 0) {
-			xhci_err(xhci, "Stopped the command ring failed, "
-				 "maybe the host is dead\n");
-			xhci->xhc_state |= XHCI_STATE_DYING;
-			xhci_halt(xhci);
-			return -ESHUTDOWN;
-		}
+		xhci_err(xhci,
+			 "Stop command ring failed, maybe the host is dead\n");
+		xhci->xhc_state |= XHCI_STATE_DYING;
+		xhci_halt(xhci);
+		return -ESHUTDOWN;
 	}
 	/*
 	 * Writing the CMD_RING_ABORT bit should cause a cmd completion event,
