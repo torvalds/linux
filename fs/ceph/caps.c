@@ -3410,6 +3410,7 @@ retry:
 			tcap->implemented |= issued;
 			if (cap == ci->i_auth_cap)
 				ci->i_auth_cap = tcap;
+
 			if (!list_empty(&ci->i_cap_flush_list) &&
 			    ci->i_auth_cap == tcap) {
 				spin_lock(&mdsc->cap_dirty_lock);
@@ -3423,8 +3424,17 @@ retry:
 	} else if (tsession) {
 		/* add placeholder for the export tagert */
 		int flag = (cap == ci->i_auth_cap) ? CEPH_CAP_FLAG_AUTH : 0;
+		tcap = new_cap;
 		ceph_add_cap(inode, tsession, t_cap_id, -1, issued, 0,
 			     t_seq - 1, t_mseq, (u64)-1, flag, &new_cap);
+
+		if (!list_empty(&ci->i_cap_flush_list) &&
+		    ci->i_auth_cap == tcap) {
+			spin_lock(&mdsc->cap_dirty_lock);
+			list_move_tail(&ci->i_flushing_item,
+				       &tcap->session->s_cap_flushing);
+			spin_unlock(&mdsc->cap_dirty_lock);
+		}
 
 		__ceph_remove_cap(cap, false);
 		goto out_unlock;
