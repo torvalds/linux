@@ -422,6 +422,7 @@ static const struct lwtunnel_encap_ops seg6_iptun_ops = {
 	.fill_encap = seg6_fill_encap_info,
 	.get_encap_size = seg6_encap_nlsize,
 	.cmp_encap = seg6_encap_cmp,
+	.owner = THIS_MODULE,
 };
 
 int __init seg6_iptunnel_init(void)
