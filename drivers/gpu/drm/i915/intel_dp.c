@@ -28,8 +28,10 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/types.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <asm/byteorder.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -1593,6 +1595,13 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 	if (bpc > 0)
 		bpp = min(bpp, 3*bpc);
 
+	/* For DP Compliance we override the computed bpp for the pipe */
+	if (intel_dp->compliance.test_data.bpc != 0) {
+		pipe_config->pipe_bpp =	3*intel_dp->compliance.test_data.bpc;
+		pipe_config->dither_force_disable = pipe_config->pipe_bpp == 6*3;
+		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n",
+			      pipe_config->pipe_bpp);
+	}
 	return bpp;
 }
 
@@ -3973,8 +3982,63 @@ static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 
 static uint8_t intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 {
-	uint8_t test_result = DP_TEST_NAK;
-	return test_result;
+	uint8_t test_pattern;
+	uint16_t test_misc;
+	__be16 h_width, v_height;
+	int status = 0;
+
+	/* Read the TEST_PATTERN (DP CTS 3.1.5) */
+	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_PATTERN,
+				  &test_pattern, 1);
+	if (status <= 0) {
+		DRM_DEBUG_KMS("Test pattern read failed\n");
+		return DP_TEST_NAK;
+	}
+	if (test_pattern != DP_COLOR_RAMP)
+		return DP_TEST_NAK;
+
+	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_H_WIDTH_HI,
+				  &h_width, 2);
+	if (status <= 0) {
+		DRM_DEBUG_KMS("H Width read failed\n");
+		return DP_TEST_NAK;
+	}
+
+	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_V_HEIGHT_HI,
+				  &v_height, 2);
+	if (status <= 0) {
+		DRM_DEBUG_KMS("V Height read failed\n");
+		return DP_TEST_NAK;
+	}
+
+	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_MISC0,
+				  &test_misc, 1);
+	if (status <= 0) {
+		DRM_DEBUG_KMS("TEST MISC read failed\n");
+		return DP_TEST_NAK;
+	}
+	if ((test_misc & DP_TEST_COLOR_FORMAT_MASK) != DP_COLOR_FORMAT_RGB)
+		return DP_TEST_NAK;
+	if (test_misc & DP_TEST_DYNAMIC_RANGE_CEA)
+		return DP_TEST_NAK;
+	switch (test_misc & DP_TEST_BIT_DEPTH_MASK) {
+	case DP_TEST_BIT_DEPTH_6:
+		intel_dp->compliance.test_data.bpc = 6;
+		break;
+	case DP_TEST_BIT_DEPTH_8:
+		intel_dp->compliance.test_data.bpc = 8;
+		break;
+	default:
+		return DP_TEST_NAK;
+	}
+
+	intel_dp->compliance.test_data.video_pattern = test_pattern;
+	intel_dp->compliance.test_data.hdisplay = be16_to_cpu(h_width);
+	intel_dp->compliance.test_data.vdisplay = be16_to_cpu(v_height);
+	/* Set test active flag here so userspace doesn't interrupt things */
+	intel_dp->compliance.test_active = 1;
+
+	return DP_TEST_ACK;
 }
 
 static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)

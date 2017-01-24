@@ -47,6 +47,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
+	if (intel_dp->compliance.test_data.bpc) {
+		bpp = intel_dp->compliance.test_data.bpc * 3;
+		DRM_DEBUG_KMS("Setting pipe bpp to %d\n",
+			      bpp);
+	}
 	/*
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
@@ -55,7 +60,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->lane_count = lane_count;
 
-	pipe_config->pipe_bpp = 24;
+	pipe_config->pipe_bpp = bpp;
 	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
 
 	state = pipe_config->base.state;

@@ -13060,8 +13060,11 @@ encoder_retry:
 	}
 
 	/* Dithering seems to not pass-through bits correctly when it should, so
-	 * only enable it on 6bpc panels. */
-	pipe_config->dither = pipe_config->pipe_bpp == 6*3;
+	 * only enable it on 6bpc panels and when its not a compliance
+	 * test requesting 6bpc video pattern.
+	 */
+	pipe_config->dither = (pipe_config->pipe_bpp == 6*3) &&
+		!pipe_config->dither_force_disable;
 	DRM_DEBUG_KMS("hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
