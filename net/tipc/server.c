@@ -86,7 +86,6 @@ struct outqueue_entry {
 static void tipc_recv_work(struct work_struct *work);
 static void tipc_send_work(struct work_struct *work);
 static void tipc_clean_outqueues(struct tipc_conn *con);
-static void tipc_sock_release(struct tipc_conn *con);
 
 static void tipc_conn_kref_release(struct kref *kref)
 {
@@ -104,7 +103,6 @@ static void tipc_conn_kref_release(struct kref *kref)
 		}
 		saddr->scope = -TIPC_NODE_SCOPE;
 		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
-		tipc_sock_release(con);
 		sock_release(sock);
 		con->sock = NULL;
 
@@ -194,19 +192,15 @@ static void tipc_unregister_callbacks(struct tipc_conn *con)
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-static void tipc_sock_release(struct tipc_conn *con)
+static void tipc_close_conn(struct tipc_conn *con)
 {
 	struct tipc_server *s = con->server;
 
-	if (con->conid)
-		s->tipc_conn_release(con->conid, con->usr_data);
-
-	tipc_unregister_callbacks(con);
-}
-
-static void tipc_close_conn(struct tipc_conn *con)
-{
 	if (test_and_clear_bit(CF_CONNECTED, &con->flags)) {
+		tipc_unregister_callbacks(con);
+
+		if (con->conid)
+			s->tipc_conn_release(con->conid, con->usr_data);
 
 		/* We shouldn't flush pending works as we may be in the
 		 * thread. In fact the races with pending rx/tx work structs
