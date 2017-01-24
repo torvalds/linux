@@ -84,9 +84,9 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 	{"codec0_in", NULL, "ssp1 Rx"},
 	{"ssp1 Rx", NULL, "Capture"},
 
-	{"HDMI1", NULL, "hif5 Output"},
-	{"HDMI2", NULL, "hif6 Output"},
-	{"HDMI3", NULL, "hif7 Output"},
+	{"HDMI1", NULL, "hif5-0 Output"},
+	{"HDMI2", NULL, "hif6-0 Output"},
+	{"HDMI2", NULL, "hif7-0 Output"},
 
 	{"hifi3", NULL, "iDisp3 Tx"},
 	{"iDisp3 Tx", NULL, "iDisp3_out"},
