@@ -375,6 +375,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
 	u64 desc[2];
 
+	GEM_BUG_ON(port[0].count > 1);
 	if (!port[0].count)
 		execlists_context_status_change(port[0].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
