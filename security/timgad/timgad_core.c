@@ -97,3 +97,16 @@ struct timgad_task *lookup_timgad_task(struct task_struct *tsk)
 {
 	return NULL;
 }
+
+static void reclaim_timgad_task(struct work_struct *work)
+{
+	struct timgad_task *ttask = container_of(work, struct timgad_task,
+						 clean_work);
+
+	WARN_ON(atomic_read(&ttask->usage) != 0);
+
+	rhashtable_remove_fast(&timgad_tasks_table, &ttask->node,
+			       timgad_tasks_params);
+
+	kfree(ttask);
+}
