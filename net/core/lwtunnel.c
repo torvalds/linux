@@ -115,8 +115,11 @@ int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 	ret = -EOPNOTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
-	if (likely(ops && ops->build_state))
+	if (likely(ops && ops->build_state && try_module_get(ops->owner))) {
 		ret = ops->build_state(dev, encap, family, cfg, lws);
+		if (ret)
+			module_put(ops->owner);
+	}
 	rcu_read_unlock();
 
 	return ret;
@@ -194,6 +197,7 @@ void lwtstate_free(struct lwtunnel_state *lws)
 	} else {
 		kfree(lws);
 	}
+	module_put(ops->owner);
 }
 EXPORT_SYMBOL(lwtstate_free);
 
