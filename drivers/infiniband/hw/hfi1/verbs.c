@@ -1384,6 +1384,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	struct hfi1_pportdata *ppd = &dd->pport[port_num - 1];
 	u16 lid = ppd->lid;
 
+	/* props being zeroed by the caller, avoid zeroing it here */
 	props->lid = lid ? lid : 0;
 	props->lmc = ppd->lmc;
 	/* OPA logical states match IB logical states */

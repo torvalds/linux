@@ -97,8 +97,7 @@ static int i40iw_query_port(struct ib_device *ibdev,
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct net_device *netdev = iwdev->netdev;
 
-	memset(props, 0, sizeof(*props));
-
+	/* props being zeroed by the caller, avoid zeroing it here */
 	props->max_mtu = IB_MTU_4096;
 	if (netdev->mtu >= 4096)
 		props->active_mtu = IB_MTU_4096;
@@ -2506,14 +2505,15 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = i40iw_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
 }

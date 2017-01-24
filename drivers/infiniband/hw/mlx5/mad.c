@@ -527,7 +527,7 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(props, 0, sizeof(*props));
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;

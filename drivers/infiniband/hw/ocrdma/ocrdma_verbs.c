@@ -210,6 +210,7 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	struct ocrdma_dev *dev;
 	struct net_device *netdev;
 
+	/* props being zeroed by the caller, avoid zeroing it here */
 	dev = get_ocrdma_dev(ibdev);
 	if (port > 1) {
 		pr_err("%s(%d) invalid_port=0x%x\n", __func__,

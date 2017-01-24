@@ -1303,6 +1303,7 @@ static int qib_query_port(struct rvt_dev_info *rdi, u8 port_num,
 	enum ib_mtu mtu;
 	u16 lid = ppd->lid;
 
+	/* props being zeroed by the caller, avoid zeroing it here */
 	props->lid = lid ? lid : be16_to_cpu(IB_LID_PERMISSIVE);
 	props->lmc = ppd->lmc;
 	props->state = dd->f_iblink_state(ppd->lastibcstat);
