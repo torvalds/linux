@@ -1037,11 +1037,8 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
 		return -ENOBUFS;
 
-	if (type == mvm->scan_type) {
-		IWL_DEBUG_SCAN(mvm,
-			       "Ignoring UMAC scan config of the same type\n");
+	if (type == mvm->scan_type)
 		return 0;
-	}
 
 	if (iwl_mvm_has_new_tx_api(mvm))
 		cmd_size = sizeof(struct iwl_scan_config);
