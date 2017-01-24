@@ -515,4 +515,12 @@ struct tc_cls_bpf_offload {
 	u32 gen_flags;
 };
 
+
+/* This structure holds cookie structure that is passed from user
+ * to the kernel for actions and classifiers
+ */
+struct tc_cookie {
+	u8  *data;
+	u32 len;
+};
 #endif
