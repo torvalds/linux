@@ -3963,7 +3963,7 @@ __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 */
 	if (engine->irq_seqno_barrier &&
 	    rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh) == current &&
-	    cmpxchg_relaxed(&engine->breadcrumbs.irq_posted, 1, 0)) {
+	    test_and_clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted)) {
 		struct task_struct *tsk;
 
 		/* The ordering of irq_posted versus applying the barrier
