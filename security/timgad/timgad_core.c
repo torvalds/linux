@@ -48,7 +48,16 @@ static inline int cmp_timgad_task(struct rhashtable_compare_arg *arg,
 	return atomic_read(&ttask->usage) == 0 || ttask->key != key;
 }
 
-static const struct rhashtable_params timgad_tasks_params = { };
+static const struct rhashtable_params timgad_tasks_params = {
+	.nelem_hint = 1024,
+	.head_offset = offsetof(struct yama_task, node),
+	.key_offset = offsetof(struct yama_task, key),
+	.key_len = sizeof(unsigned long),
+	.max_size = 16384,
+	.min_size = 256,
+	.obj_cmpfn = cmp_yama_task,
+	.automatic_shrinking = true,
+};
 
 int timgad_tasks_init(void)
 {
@@ -70,9 +79,7 @@ int timgad_task_set_flag(struct timgad_task *timgad_tsk, unsigned long op,
 
 int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
 {
-	int ret = -EINVAL;
-
-	return ret;
+	return timgad_tsk->mod_harden;
 }
 
 static struct timgad_task *__lookup_timgad_task(struct task_struct *tsk)
@@ -152,6 +159,32 @@ struct timgad_task *init_timgad_task(struct task_struct *tsk,
 
 	atomic_set(&ttask->usage, 0);
 	INIT_WORK(&ttask->clean_work, reclaim_timgad_task);
+
+	return ttask;
+}
+
+/* On success, callers have to do put_timgad_task() */
+struct timgad_task *give_me_timgad_task(struct task_struct *tsk)
+{
+	int ret;
+	struct timgad_task *ttask;
+
+	ttask = get_timgad_task(tsk);
+	if (ttask)
+		return ttask;
+
+	ttask = init_timgad_task(tsk, NULL);
+	if (IS_ERR(ttask))
+		return ttask;
+
+	/* Mark it as active */
+	ret = insert_timgad_task(ttask);
+	if (ret) {
+		kfree(ttask);
+		return ERR_PTR(ret);
+	}
+
+	atomic_inc(&ttask->usage);
 
 	return ttask;
 }

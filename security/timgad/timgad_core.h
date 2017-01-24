@@ -41,6 +41,7 @@ int insert_timgad_task(struct timgad_task *timgad_tsk);
 
 struct timgad_task *init_timgad_task(struct task_struct *tsk,
 				     unsigned long flag);
+struct timgad_task *give_me_timgad_task(struct task_struct *tsk);
 
 int timgad_tasks_init(void);
 void timgad_tasks_clean(void);

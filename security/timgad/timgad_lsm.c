@@ -36,11 +36,9 @@ static int timgad_set_op_value(struct task_struct *tsk,
 	if (ret < 0)
 		return ret;
 
-	/*
 	ttask = give_me_timgad_task(tsk);
 	if (IS_ERR(ttask))
 		return PTR_ERR(ttask);
-	*/
 
 	ret = timgad_task_set_flag(ttask, op, flag, value);
 
