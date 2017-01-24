@@ -30,7 +30,7 @@
 			"02 03 2 5 7 5 4 2 4 2"
 
 static unsigned int reg11 = 0x6040;
-module_param(reg11, uint, 0);
+module_param(reg11, uint, 0000);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 
 static int init_display(struct fbtft_par *par)

@@ -37,7 +37,7 @@
 			"3 3 17 8 4 7 05 7 6 0 3 1 6 0 0 "
 
 static bool emulate;
-module_param(emulate, bool, 0);
+module_param(emulate, bool, 0000);
 MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
 
 static int init_display(struct fbtft_par *par)

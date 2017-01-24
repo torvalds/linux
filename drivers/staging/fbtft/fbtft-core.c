@@ -40,7 +40,7 @@
 #include "internal.h"
 
 static unsigned long debug;
-module_param(debug, ulong, 0);
+module_param(debug, ulong, 0000);
 MODULE_PARM_DESC(debug, "override device debug level");
 
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
