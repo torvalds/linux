@@ -364,7 +364,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 rndis_msg_size;
 	struct rndis_per_packet_info *ppi;
 	u32 hash;
-	u32 skb_length;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
 	struct hv_page_buffer *pb = page_buf;
 
@@ -374,7 +373,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 * more pages we try linearizing it.
 	 */
 
-	skb_length = skb->len;
 	num_data_pgs = netvsc_get_slots(skb) + 2;
 
 	if (unlikely(num_data_pgs > MAX_PAGE_BUFFER_COUNT)) {
@@ -407,6 +405,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->q_idx = skb_get_queue_mapping(skb);
 
 	packet->total_data_buflen = skb->len;
+	packet->total_bytes = skb->len;
+	packet->total_packets = 1;
 
 	rndis_msg = (struct rndis_message *)skb->head;
 
@@ -517,15 +517,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	skb_tx_timestamp(skb);
 	ret = netvsc_send(net_device_ctx->device_ctx, packet,
 			  rndis_msg, &pb, skb);
-	if (likely(ret == 0)) {
-		struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
-
-		u64_stats_update_begin(&tx_stats->syncp);
-		tx_stats->packets++;
-		tx_stats->bytes += skb_length;
-		u64_stats_update_end(&tx_stats->syncp);
+	if (likely(ret == 0))
 		return NETDEV_TX_OK;
-	}
 
 	if (ret == -EAGAIN) {
 		++net_device_ctx->eth_stats.tx_busy;

@@ -137,8 +137,10 @@ struct hv_netvsc_packet {
 	u8 page_buf_cnt;
 
 	u16 q_idx;
-	u32 send_buf_index;
+	u16 total_packets;
 
+	u32 total_bytes;
+	u32 send_buf_index;
 	u32 total_data_buflen;
 };
 

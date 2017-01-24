@@ -611,14 +611,22 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 
 	/* Notify the layer above us */
 	if (likely(skb)) {
-		struct hv_netvsc_packet *nvsc_packet
+		const struct hv_netvsc_packet *packet
 			= (struct hv_netvsc_packet *)skb->cb;
-		u32 send_index = nvsc_packet->send_buf_index;
+		u32 send_index = packet->send_buf_index;
+		struct netvsc_stats *tx_stats;
 
 		if (send_index != NETVSC_INVALID_INDEX)
 			netvsc_free_send_slot(net_device, send_index);
-		q_idx = nvsc_packet->q_idx;
+		q_idx = packet->q_idx;
 		channel = incoming_channel;
+
+		tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
+
+		u64_stats_update_begin(&tx_stats->syncp);
+		tx_stats->packets += packet->total_packets;
+		tx_stats->bytes += packet->total_bytes;
+		u64_stats_update_end(&tx_stats->syncp);
 
 		dev_consume_skb_any(skb);
 	}
@@ -922,6 +930,11 @@ int netvsc_send(struct hv_device *device,
 		} else {
 			packet->page_buf_cnt = 0;
 			packet->total_data_buflen += msd_len;
+		}
+
+		if (msdp->pkt) {
+			packet->total_packets += msdp->pkt->total_packets;
+			packet->total_bytes += msdp->pkt->total_bytes;
 		}
 
 		if (msdp->skb)
