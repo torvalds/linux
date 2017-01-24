@@ -564,7 +564,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 	intel_uncore_forcewake_get(dev_priv, engine->fw_domains);
 
-	if (!execlists_elsp_idle(engine)) {
+	while (test_and_clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
 		u32 __iomem *csb_mmio =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
 		u32 __iomem *buf =
@@ -1297,6 +1297,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
 
 	/* After a GPU reset, we may have requests to replay */
+	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	if (!execlists_elsp_idle(engine)) {
 		engine->execlist_port[0].count = 0;
 		engine->execlist_port[1].count = 0;

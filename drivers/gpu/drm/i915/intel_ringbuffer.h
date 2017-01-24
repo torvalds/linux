@@ -213,6 +213,7 @@ struct intel_engine_cs {
 
 	unsigned long irq_posted;
 #define ENGINE_IRQ_BREADCRUMB 0
+#define ENGINE_IRQ_EXECLIST 1
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
