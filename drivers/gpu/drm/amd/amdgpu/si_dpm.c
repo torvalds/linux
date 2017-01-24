@@ -3009,29 +3009,6 @@ static int si_init_smc_spll_table(struct amdgpu_device *adev)
 	return ret;
 }
 
-struct si_dpm_quirk {
-	u32 chip_vendor;
-	u32 chip_device;
-	u32 subsys_vendor;
-	u32 subsys_device;
-	u32 max_sclk;
-	u32 max_mclk;
-};
-
-/* cards with dpm stability problems */
-static struct si_dpm_quirk si_dpm_quirk_list[] = {
-	/* PITCAIRN - https://bugs.freedesktop.org/show_bug.cgi?id=76490 */
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1462, 0x3036, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0xe271, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x174b, 0xe271, 85000, 90000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1462, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1043, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x148c, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1682, 0x9275, 0, 120000 },
-	{ 0, 0, 0, 0 },
-};
-
 static u16 si_get_lower_of_leakage_and_vce_voltage(struct amdgpu_device *adev,
 						   u16 vce_voltage)
 {
@@ -3477,18 +3454,8 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	u32 max_sclk = 0, max_mclk = 0;
 	int i;
-	struct si_dpm_quirk *p = si_dpm_quirk_list;
 
-	/* limit all SI kickers */
-	if (adev->asic_type == CHIP_PITCAIRN) {
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->device == 0x6810) ||
-		    (adev->pdev->device == 0x6811) ||
-		    (adev->pdev->device == 0x6816) ||
-		    (adev->pdev->device == 0x6817) ||
-		    (adev->pdev->device == 0x6806))
-			max_mclk = 120000;
-	} else if (adev->asic_type == CHIP_HAINAN) {
+	if (adev->asic_type == CHIP_HAINAN) {
 		if ((adev->pdev->revision == 0x81) ||
 		    (adev->pdev->revision == 0x83) ||
 		    (adev->pdev->revision == 0xC3) ||
@@ -3497,18 +3464,6 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
 		}
-	}
-	/* Apply dpm quirks */
-	while (p && p->chip_device != 0) {
-		if (adev->pdev->vendor == p->chip_vendor &&
-		    adev->pdev->device == p->chip_device &&
-		    adev->pdev->subsystem_vendor == p->subsys_vendor &&
-		    adev->pdev->subsystem_device == p->subsys_device) {
-			max_sclk = p->max_sclk;
-			max_mclk = p->max_mclk;
-			break;
-		}
-		++p;
 	}
 
 	if (rps->vce_active) {
