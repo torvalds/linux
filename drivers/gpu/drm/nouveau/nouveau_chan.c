@@ -58,7 +58,7 @@ nouveau_channel_killed(struct nvif_notify *ntfy)
 int
 nouveau_channel_idle(struct nouveau_channel *chan)
 {
-	if (likely(chan && chan->fence)) {
+	if (likely(chan && chan->fence && !atomic_read(&chan->killed))) {
 		struct nouveau_cli *cli = (void *)chan->user.client;
 		struct nouveau_fence *fence = NULL;
 		int ret;
