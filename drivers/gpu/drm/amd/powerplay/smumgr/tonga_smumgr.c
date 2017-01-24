@@ -209,4 +209,5 @@ const struct pp_smumgr_func tonga_smu_funcs = {
 	.get_mac_definition = tonga_get_mac_definition,
 	.initialize_mc_reg_table = tonga_initialize_mc_reg_table,
 	.is_dpm_running = tonga_is_dpm_running,
+	.populate_requested_graphic_levels = tonga_populate_requested_graphic_levels,
 };
