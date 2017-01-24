@@ -2469,13 +2469,13 @@ static void wm_adsp2_boot_work(struct work_struct *work)
 	if (ret != 0)
 		goto err_ena;
 
-	dsp->booted = true;
-
 	/* Turn DSP back off until we are ready to run */
 	ret = regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
 				 ADSP2_SYS_ENA, 0);
 	if (ret != 0)
 		goto err_ena;
+
+	dsp->booted = true;
 
 	mutex_unlock(&dsp->pwr_lock);
 
@@ -2616,13 +2616,13 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		dsp->running = true;
-
 		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
 			ret = wm_adsp_buffer_init(dsp);
 			if (ret < 0)
 				goto err;
 		}
+
+		dsp->running = true;
 
 		mutex_unlock(&dsp->pwr_lock);
 
