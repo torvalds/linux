@@ -780,7 +780,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 	/* Set indirection table entries */
 	itab = (u32 *)(rssp + 1);
 	for (i = 0; i < ITAB_NUM; i++)
-		itab[i] = i % num_queue;
+		itab[i] = rdev->ind_table[i];
 
 	/* Set hask key values */
 	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
@@ -1035,7 +1035,6 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 int rndis_filter_device_add(struct hv_device *dev,
 			    void *additional_info)
 {
-	int ret;
 	struct net_device *net = hv_get_drvdata(dev);
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct netvsc_device *net_device;
@@ -1053,6 +1052,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	const struct cpumask *node_cpu_mask;
 	u32 num_possible_rss_qs;
 	unsigned long flags;
+	int i, ret;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -1206,6 +1206,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 		net_device->num_chn = min(num_possible_rss_qs, num_rss_qs);
 
 	num_rss_qs = net_device->num_chn - 1;
+
+	for (i = 0; i < ITAB_NUM; i++)
+		rndis_device->ind_table[i] = ethtool_rxfh_indir_default(i,
+							net_device->num_chn);
+
 	net_device->num_sc_offered = num_rss_qs;
 
 	if (net_device->num_chn == 1)

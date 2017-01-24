@@ -1035,7 +1035,7 @@ static u32 netvsc_get_rxfh_key_size(struct net_device *dev)
 
 static u32 netvsc_rss_indir_size(struct net_device *dev)
 {
-	return 0;
+	return ITAB_NUM;
 }
 
 static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
@@ -1044,9 +1044,15 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	struct net_device_context *ndc = netdev_priv(dev);
 	struct netvsc_device *ndev = ndc->nvdev;
 	struct rndis_device *rndis_dev = ndev->extension;
+	int i;
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;	/* Toeplitz */
+
+	if (indir) {
+		for (i = 0; i < ITAB_NUM; i++)
+			indir[i] = rndis_dev->ind_table[i];
+	}
 
 	if (key)
 		memcpy(key, rndis_dev->rss_key, NETVSC_HASH_KEYLEN);
@@ -1060,12 +1066,26 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct net_device_context *ndc = netdev_priv(dev);
 	struct netvsc_device *ndev = ndc->nvdev;
 	struct rndis_device *rndis_dev = ndev->extension;
+	int i;
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (!key || memcmp(key, rndis_dev->rss_key, NETVSC_HASH_KEYLEN) == 0)
-		return 0; /* no change */
+	if (indir) {
+		for (i = 0; i < ITAB_NUM; i++)
+			if (indir[i] >= dev->num_rx_queues)
+				return -EINVAL;
+
+		for (i = 0; i < ITAB_NUM; i++)
+			rndis_dev->ind_table[i] = indir[i];
+	}
+
+	if (!key) {
+		if (!indir)
+			return 0;
+
+		key = rndis_dev->rss_key;
+	}
 
 	return rndis_filter_set_rss_param(rndis_dev, key, ndev->num_chn);
 }
