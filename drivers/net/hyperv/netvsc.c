@@ -621,7 +621,7 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 		q_idx = packet->q_idx;
 		channel = incoming_channel;
 
-		tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
+		tx_stats = &net_device->chan_table[q_idx].tx_stats;
 
 		u64_stats_update_begin(&tx_stats->syncp);
 		tx_stats->packets += packet->total_packets;
