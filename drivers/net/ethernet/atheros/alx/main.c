@@ -685,8 +685,6 @@ static int alx_alloc_rings(struct alx_priv *alx)
 		return -ENOMEM;
 	}
 
-	alx_reinit_rings(alx);
-
 	return 0;
 }
 
@@ -1241,6 +1239,12 @@ static int __alx_open(struct alx_priv *alx, bool resume)
 	err = alx_request_irq(alx);
 	if (err)
 		goto out_free_rings;
+
+	/* must be called after alx_request_irq because the chip stops working
+	 * if we copy the dma addresses in alx_init_ring_ptrs twice when
+	 * requesting msi-x interrupts failed
+	 */
+	alx_reinit_rings(alx);
 
 	netif_set_real_num_tx_queues(alx->dev, alx->num_txq);
 	netif_set_real_num_rx_queues(alx->dev, alx->num_rxq);
