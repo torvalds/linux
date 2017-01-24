@@ -628,6 +628,7 @@ struct nvsp_message {
 
 #define VRSS_SEND_TAB_SIZE 16
 #define VRSS_CHANNEL_MAX 64
+#define VRSS_CHANNEL_DEFAULT 8
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
