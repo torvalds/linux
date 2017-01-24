@@ -984,6 +984,7 @@ static int alx_realloc_resources(struct alx_priv *alx)
 	alx_free_rings(alx);
 	alx_free_napis(alx);
 	alx_disable_advanced_intr(alx);
+	alx_init_intr(alx, false);
 
 	err = alx_alloc_napis(alx);
 	if (err)
