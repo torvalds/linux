@@ -680,27 +680,15 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 
 static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 {
-	unsigned long index;
-	u32 max_words = net_device->map_words;
-	unsigned long *map_addr = (unsigned long *)net_device->send_section_map;
-	u32 section_cnt = net_device->send_section_cnt;
-	int ret_val = NETVSC_INVALID_INDEX;
-	int i;
-	int prev_val;
+	unsigned long *map_addr = net_device->send_section_map;
+	unsigned int i;
 
-	for (i = 0; i < max_words; i++) {
-		if (!~(map_addr[i]))
-			continue;
-		index = ffz(map_addr[i]);
-		prev_val = sync_test_and_set_bit(index, &map_addr[i]);
-		if (prev_val)
-			continue;
-		if ((index + (i * BITS_PER_LONG)) >= section_cnt)
-			break;
-		ret_val = (index + (i * BITS_PER_LONG));
-		break;
+	for_each_clear_bit(i, map_addr, net_device->map_words) {
+		if (sync_test_and_set_bit(i, map_addr) == 0)
+			return i;
 	}
-	return ret_val;
+
+	return NETVSC_INVALID_INDEX;
 }
 
 static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
