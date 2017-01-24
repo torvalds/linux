@@ -414,7 +414,7 @@ struct drm_dp_mst_topology_mgr {
 	/**
 	 * @dev: device pointer for adding i2c devices etc.
 	 */
-	struct device *dev;
+	struct drm_device *dev;
 	/**
 	 * @cbs: callbacks for connector addition and destruction.
 	 */
@@ -556,7 +556,10 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct destroy_connector_work;
 };
 
-int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
+int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
+				 int max_dpcd_transaction_bytes,
+				 int max_payloads, int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 
