@@ -31,7 +31,7 @@
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PREFIX "ACPI: "
 
@@ -375,11 +375,11 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
  *	3. TSD domain
  */
 void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
-					unsigned long action)
+					bool is_dead)
 {
 	int result = 0;
 
-	if (action == CPU_DEAD) {
+	if (is_dead) {
 		/* When one CPU is offline, the T-state throttling
 		 * will be invalidated.
 		 */

@@ -37,7 +37,7 @@ static unsigned int mpls_encap_size(struct mpls_iptunnel_encap *en)
 	return en->labels * sizeof(struct mpls_shim_hdr);
 }
 
-static int mpls_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int mpls_xmit(struct sk_buff *skb)
 {
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct mpls_shim_hdr *hdr;
@@ -90,7 +90,11 @@ static int mpls_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto drop;
 
+	skb_set_inner_protocol(skb, skb->protocol);
+	skb_reset_inner_network_header(skb);
+
 	skb_push(skb, new_header_size);
+
 	skb_reset_network_header(skb);
 
 	skb->dev = out_dev;
@@ -115,7 +119,7 @@ static int mpls_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
 				    __func__, err);
 
-	return 0;
+	return LWTUNNEL_XMIT_DONE;
 
 drop:
 	kfree_skb(skb);
@@ -129,7 +133,6 @@ static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct nlattr *tb[MPLS_IPTUNNEL_MAX + 1];
 	struct lwtunnel_state *newts;
-	int tun_encap_info_len;
 	int ret;
 
 	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
@@ -140,20 +143,19 @@ static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
 	if (!tb[MPLS_IPTUNNEL_DST])
 		return -EINVAL;
 
-	tun_encap_info_len = sizeof(*tun_encap_info);
 
-	newts = lwtunnel_state_alloc(tun_encap_info_len);
+	newts = lwtunnel_state_alloc(sizeof(*tun_encap_info));
 	if (!newts)
 		return -ENOMEM;
 
-	newts->len = tun_encap_info_len;
 	tun_encap_info = mpls_lwtunnel_encap(newts);
 	ret = nla_get_labels(tb[MPLS_IPTUNNEL_DST], MAX_NEW_LABELS,
 			     &tun_encap_info->labels, tun_encap_info->label);
 	if (ret)
 		goto errout;
 	newts->type = LWTUNNEL_ENCAP_MPLS;
-	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT;
+	newts->flags |= LWTUNNEL_STATE_XMIT_REDIRECT;
+	newts->headroom = mpls_encap_size(tun_encap_info);
 
 	*ts = newts;
 
@@ -209,7 +211,7 @@ static int mpls_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops mpls_iptun_ops = {
 	.build_state = mpls_build_state,
-	.output = mpls_output,
+	.xmit = mpls_xmit,
 	.fill_encap = mpls_fill_encap_info,
 	.get_encap_size = mpls_encap_nlsize,
 	.cmp_encap = mpls_encap_cmp,

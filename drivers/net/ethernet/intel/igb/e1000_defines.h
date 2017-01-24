@@ -357,7 +357,8 @@
 #define ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.3ac packet */
 
 /* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
-#define MAX_JUMBO_FRAME_SIZE	0x2600
+#define MAX_JUMBO_FRAME_SIZE		0x2600
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* PBA constants */
 #define E1000_PBA_34K 0x0022
@@ -1023,5 +1024,9 @@
 #define E1000_RTTBCNRC_RF_INT_SHIFT	14
 #define E1000_RTTBCNRC_RF_INT_MASK	\
 	(E1000_RTTBCNRC_RF_DEC_MASK << E1000_RTTBCNRC_RF_INT_SHIFT)
+
+#define E1000_VLAPQF_QUEUE_SEL(_n, q_idx) (q_idx << ((_n) * 4))
+#define E1000_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define E1000_VLAPQF_QUEUE_MASK	0x03
 
 #endif

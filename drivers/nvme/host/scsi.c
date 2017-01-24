@@ -72,15 +72,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define ALL_LUNS_RETURNED				0x02
 #define ALL_WELL_KNOWN_LUNS_RETURNED			0x01
 #define RESTRICTED_LUNS_RETURNED			0x00
-#define NVME_POWER_STATE_START_VALID			0x00
-#define NVME_POWER_STATE_ACTIVE				0x01
-#define NVME_POWER_STATE_IDLE				0x02
-#define NVME_POWER_STATE_STANDBY			0x03
-#define NVME_POWER_STATE_LU_CONTROL			0x07
-#define POWER_STATE_0					0
-#define POWER_STATE_1					1
-#define POWER_STATE_2					2
-#define POWER_STATE_3					3
 #define DOWNLOAD_SAVE_ACTIVATE				0x05
 #define DOWNLOAD_SAVE_DEFER_ACTIVATE			0x0E
 #define ACTIVATE_DEFERRED_MICROCODE			0x0F
@@ -615,7 +606,7 @@ static int nvme_fill_device_id_eui64(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	eui = id_ns->eui64;
 	len = sizeof(id_ns->eui64);
 
-	if (ns->ctrl->vs >= NVME_VS(1, 2)) {
+	if (ns->ctrl->vs >= NVME_VS(1, 2, 0)) {
 		if (bitmap_empty(eui, len * 8)) {
 			eui = id_ns->nguid;
 			len = sizeof(id_ns->nguid);
@@ -688,7 +679,7 @@ static int nvme_trans_device_id_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 {
 	int res;
 
-	if (ns->ctrl->vs >= NVME_VS(1, 1)) {
+	if (ns->ctrl->vs >= NVME_VS(1, 1, 0)) {
 		res = nvme_fill_device_id_eui64(ns, hdr, resp, alloc_len);
 		if (res != -EOPNOTSUPP)
 			return res;
@@ -915,7 +906,7 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	kfree(smart_log);
 
 	/* Get Features for Temp Threshold */
-	res = nvme_get_features(ns->ctrl, NVME_FEAT_TEMP_THRESH, 0, 0,
+	res = nvme_get_features(ns->ctrl, NVME_FEAT_TEMP_THRESH, 0, NULL, 0,
 								&feature_resp);
 	if (res != NVME_SC_SUCCESS)
 		temp_c_thresh = LOG_TEMP_UNKNOWN;
@@ -1048,7 +1039,7 @@ static int nvme_trans_fill_caching_page(struct nvme_ns *ns,
 	if (len < MODE_PAGE_CACHING_LEN)
 		return -EINVAL;
 
-	nvme_sc = nvme_get_features(ns->ctrl, NVME_FEAT_VOLATILE_WC, 0, 0,
+	nvme_sc = nvme_get_features(ns->ctrl, NVME_FEAT_VOLATILE_WC, 0, NULL, 0,
 								&feature_resp);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
@@ -1229,64 +1220,6 @@ static void nvme_trans_fill_read_cap(u8 *response, struct nvme_id_ns *id_ns,
 
 /* Start Stop Unit Helper Functions */
 
-static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
-						u8 pc, u8 pcmod, u8 start)
-{
-	int res;
-	int nvme_sc;
-	struct nvme_id_ctrl *id_ctrl;
-	int lowest_pow_st;	/* max npss = lowest power consumption */
-	unsigned ps_desired = 0;
-
-	nvme_sc = nvme_identify_ctrl(ns->ctrl, &id_ctrl);
-	res = nvme_trans_status_code(hdr, nvme_sc);
-	if (res)
-		return res;
-
-	lowest_pow_st = max(POWER_STATE_0, (int)(id_ctrl->npss - 1));
-	kfree(id_ctrl);
-
-	switch (pc) {
-	case NVME_POWER_STATE_START_VALID:
-		/* Action unspecified if POWER CONDITION MODIFIER != 0 */
-		if (pcmod == 0 && start == 0x1)
-			ps_desired = POWER_STATE_0;
-		if (pcmod == 0 && start == 0x0)
-			ps_desired = lowest_pow_st;
-		break;
-	case NVME_POWER_STATE_ACTIVE:
-		/* Action unspecified if POWER CONDITION MODIFIER != 0 */
-		if (pcmod == 0)
-			ps_desired = POWER_STATE_0;
-		break;
-	case NVME_POWER_STATE_IDLE:
-		/* Action unspecified if POWER CONDITION MODIFIER != [0,1,2] */
-		if (pcmod == 0x0)
-			ps_desired = POWER_STATE_1;
-		else if (pcmod == 0x1)
-			ps_desired = POWER_STATE_2;
-		else if (pcmod == 0x2)
-			ps_desired = POWER_STATE_3;
-		break;
-	case NVME_POWER_STATE_STANDBY:
-		/* Action unspecified if POWER CONDITION MODIFIER != [0,1] */
-		if (pcmod == 0x0)
-			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 2));
-		else if (pcmod == 0x1)
-			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 1));
-		break;
-	case NVME_POWER_STATE_LU_CONTROL:
-	default:
-		res = nvme_trans_completion(hdr, SAM_STAT_CHECK_CONDITION,
-				ILLEGAL_REQUEST, SCSI_ASC_INVALID_CDB,
-				SCSI_ASCQ_CAUSE_NOT_REPORTABLE);
-		break;
-	}
-	nvme_sc = nvme_set_features(ns->ctrl, NVME_FEAT_POWER_MGMT, ps_desired, 0,
-				    NULL);
-	return nvme_trans_status_code(hdr, nvme_sc);
-}
-
 static int nvme_trans_send_activate_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 					u8 buffer_id)
 {
@@ -1347,10 +1280,6 @@ static inline void nvme_trans_modesel_get_bd_len(u8 *parm_list, u8 cdb10,
 static void nvme_trans_modesel_save_bd(struct nvme_ns *ns, u8 *parm_list,
 					u16 idx, u16 bd_len, u8 llbaa)
 {
-	u16 bd_num;
-
-	bd_num = bd_len / ((llbaa == 0) ?
-			SHORT_DESC_BLOCK : LONG_DESC_BLOCK);
 	/* Store block descriptor info if a FORMAT UNIT comes later */
 	/* TODO Saving 1st BD info; what to do if multiple BD received? */
 	if (llbaa == 0) {
@@ -1395,7 +1324,7 @@ static int nvme_trans_modesel_get_mp(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	case MODE_PAGE_CACHING:
 		dword11 = ((mode_page[2] & CACHING_MODE_PAGE_WCE_MASK) ? 1 : 0);
 		nvme_sc = nvme_set_features(ns->ctrl, NVME_FEAT_VOLATILE_WC,
-					    dword11, 0, NULL);
+					    dword11, NULL, 0, NULL);
 		res = nvme_trans_status_code(hdr, nvme_sc);
 		break;
 	case MODE_PAGE_CONTROL:
@@ -1595,7 +1524,7 @@ static int nvme_trans_fmt_send_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	int nvme_sc;
 	struct nvme_id_ns *id_ns;
 	u8 i;
-	u8 flbas, nlbaf;
+	u8 nlbaf;
 	u8 selected_lbaf = 0xFF;
 	u32 cdw10 = 0;
 	struct nvme_command c;
@@ -1606,7 +1535,6 @@ static int nvme_trans_fmt_send_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	if (res)
 		return res;
 
-	flbas = (id_ns->flbas) & 0x0F;
 	nlbaf = id_ns->nlbaf;
 
 	for (i = 0; i < nlbaf; i++) {
@@ -2232,33 +2160,6 @@ static int nvme_trans_synchronize_cache(struct nvme_ns *ns,
 	return nvme_trans_status_code(hdr, nvme_sc);
 }
 
-static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
-							u8 *cmd)
-{
-	u8 immed, pcmod, pc, no_flush, start;
-
-	immed = cmd[1] & 0x01;
-	pcmod = cmd[3] & 0x0f;
-	pc = (cmd[4] & 0xf0) >> 4;
-	no_flush = cmd[4] & 0x04;
-	start = cmd[4] & 0x01;
-
-	if (immed != 0) {
-		return nvme_trans_completion(hdr, SAM_STAT_CHECK_CONDITION,
-					ILLEGAL_REQUEST, SCSI_ASC_INVALID_CDB,
-					SCSI_ASCQ_CAUSE_NOT_REPORTABLE);
-	} else {
-		if (no_flush == 0) {
-			/* Issue NVME FLUSH command prior to START STOP UNIT */
-			int res = nvme_trans_synchronize_cache(ns, hdr);
-			if (res)
-				return res;
-		}
-		/* Setup the expected power state transition */
-		return nvme_trans_power_state(ns, hdr, pc, pcmod, start);
-	}
-}
-
 static int nvme_trans_format_unit(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 							u8 *cmd)
 {
@@ -2513,9 +2414,6 @@ static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 	case SECURITY_PROTOCOL_IN:
 	case SECURITY_PROTOCOL_OUT:
 		retcode = nvme_trans_security_protocol(ns, hdr, cmd);
-		break;
-	case START_STOP:
-		retcode = nvme_trans_start_stop(ns, hdr, cmd);
 		break;
 	case SYNCHRONIZE_CACHE:
 		retcode = nvme_trans_synchronize_cache(ns, hdr);

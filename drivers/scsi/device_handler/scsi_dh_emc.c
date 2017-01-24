@@ -452,7 +452,7 @@ static int clariion_prep_fn(struct scsi_device *sdev, struct request *req)
 
 	if (h->lun_state != CLARIION_LUN_OWNED) {
 		ret = BLKPREP_KILL;
-		req->cmd_flags |= REQ_QUIET;
+		req->rq_flags |= RQF_QUIET;
 	}
 	return ret;
 

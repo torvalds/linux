@@ -27,12 +27,12 @@ static int __save_address(void *data, unsigned long address, int nosched)
 	return 1;
 }
 
-static int save_address(void *data, unsigned long address)
+static int save_address(void *data, unsigned long address, int reliable)
 {
 	return __save_address(data, address, 0);
 }
 
-static int save_address_nosched(void *data, unsigned long address)
+static int save_address_nosched(void *data, unsigned long address, int reliable)
 {
 	return __save_address(data, address, 1);
 }

@@ -20,6 +20,7 @@
 #ifndef _MWIFIEX_USB_H
 #define _MWIFIEX_USB_H
 
+#include <linux/completion.h>
 #include <linux/usb.h>
 
 #define USB8XXX_VID		0x1286
@@ -46,11 +47,12 @@
 #define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
 #define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
-#define USB8997_DEFAULT_FW_NAME	"mrvl/usb8997_uapsta.bin"
+#define USB8997_DEFAULT_FW_NAME	"mrvl/usbusb8997_combo_v4.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620
 #define FW_DNLD_RX_BUF_SIZE	2048
 #define FW_HAS_LAST_BLOCK	0x00000004
+#define FW_CMD_7		0x00000007
 
 #define FW_DATA_XMIT_SIZE \
 	(sizeof(struct fw_header) + dlen + sizeof(u32))
@@ -74,6 +76,7 @@ struct usb_card_rec {
 	struct mwifiex_adapter *adapter;
 	struct usb_device *udev;
 	struct usb_interface *intf;
+	struct completion fw_done;
 	u8 rx_cmd_ep;
 	struct urb_context rx_cmd;
 	atomic_t rx_cmd_urb_pending;

@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -89,12 +85,13 @@ static void rtl92se_fw_cb(const struct firmware *firmware, void *context)
 	struct ieee80211_hw *hw = context;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rt_firmware *pfirmware = NULL;
+	char *fw_name = "rtlwifi/rtl8192sefw.bin";
 
 	RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
 			 "Firmware callback routine entered!\n");
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
-		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
+		pr_err("Firmware %s not available\n", fw_name);
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
@@ -117,6 +114,7 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	int err = 0;
 	u16 earlyrxthreshold = 7;
+	char *fw_name = "rtlwifi/rtl8192sefw.bin";
 
 	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
@@ -214,9 +212,9 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->max_fw_size = RTL8190_MAX_FIRMWARE_CODE_SIZE*2 +
 			       sizeof(struct fw_hdr);
 	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
-		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
+		"Loading firmware %s\n", fw_name);
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl92se_fw_cb);
 	if (err) {
@@ -306,11 +304,10 @@ static struct rtl_mod_params rtl92se_mod_params = {
 
 /* Because memory R/W bursting will cause system hang/crash
  * for 92se, so we don't read back after every write action */
-static struct rtl_hal_cfg rtl92se_hal_cfg = {
+static const struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.bar_id = 1,
 	.write_readback = false,
 	.name = "rtl92s_pci",
-	.fw_name = "rtlwifi/rtl8192sefw.bin",
 	.ops = &rtl8192se_hal_ops,
 	.mod_params = &rtl92se_mod_params,
 

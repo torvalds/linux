@@ -13,6 +13,8 @@ ldflags-y += --wrap=__release_region
 ldflags-y += --wrap=devm_memremap_pages
 ldflags-y += --wrap=insert_resource
 ldflags-y += --wrap=remove_resource
+ldflags-y += --wrap=acpi_evaluate_object
+ldflags-y += --wrap=acpi_evaluate_dsm
 
 DRIVERS := ../../../drivers
 NVDIMM_SRC := $(DRIVERS)/nvdimm

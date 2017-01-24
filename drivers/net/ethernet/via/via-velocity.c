@@ -1724,24 +1724,21 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		struct velocity_td_info *tdinfo, struct tx_desc *td)
 {
 	struct sk_buff *skb = tdinfo->skb;
+	int i;
 
 	/*
 	 *	Don't unmap the pre-allocated tx_bufs
 	 */
-	if (tdinfo->skb_dma) {
-		int i;
+	for (i = 0; i < tdinfo->nskb_dma; i++) {
+		size_t pktlen = max_t(size_t, skb->len, ETH_ZLEN);
 
-		for (i = 0; i < tdinfo->nskb_dma; i++) {
-			size_t pktlen = max_t(size_t, skb->len, ETH_ZLEN);
+		/* For scatter-gather */
+		if (skb_shinfo(skb)->nr_frags > 0)
+			pktlen = max_t(size_t, pktlen,
+				       td->td_buf[i].size & ~TD_QUEUE);
 
-			/* For scatter-gather */
-			if (skb_shinfo(skb)->nr_frags > 0)
-				pktlen = max_t(size_t, pktlen,
-						td->td_buf[i].size & ~TD_QUEUE);
-
-			dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
-					le16_to_cpu(pktlen), DMA_TO_DEVICE);
-		}
+		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
+				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
 	dev_kfree_skb_irq(skb);
 	tdinfo->skb = NULL;
@@ -2286,13 +2283,6 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int ret = 0;
-
-	if ((new_mtu < VELOCITY_MIN_MTU) || new_mtu > (VELOCITY_MAX_MTU)) {
-		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_NOTICE "%s: Invalid MTU.\n",
-				vptr->netdev->name);
-		ret = -EINVAL;
-		goto out_0;
-	}
 
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
@@ -2866,6 +2856,10 @@ static int velocity_probe(struct device *dev, int irq,
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_IP_CSUM;
+
+	/* MTU range: 64 - 9000 */
+	netdev->min_mtu = VELOCITY_MIN_MTU;
+	netdev->max_mtu = VELOCITY_MAX_MTU;
 
 	ret = register_netdev(netdev);
 	if (ret < 0)

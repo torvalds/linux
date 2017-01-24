@@ -1114,24 +1114,6 @@ static int gelic_net_poll(struct napi_struct *napi, int budget)
 	}
 	return packets_done;
 }
-/**
- * gelic_net_change_mtu - changes the MTU of an interface
- * @netdev: interface device structure
- * @new_mtu: new MTU value
- *
- * returns 0 on success, <0 on failure
- */
-int gelic_net_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	/* no need to re-alloc skbs or so -- the max mtu is about 2.3k
-	 * and mtu is outbound only anyway */
-	if ((new_mtu < GELIC_NET_MIN_MTU) ||
-	    (new_mtu > GELIC_NET_MAX_MTU)) {
-		return -EINVAL;
-	}
-	netdev->mtu = new_mtu;
-	return 0;
-}
 
 /**
  * gelic_card_interrupt - event handler for gelic_net
@@ -1446,7 +1428,6 @@ static const struct net_device_ops gelic_netdevice_ops = {
 	.ndo_stop = gelic_net_stop,
 	.ndo_start_xmit = gelic_net_xmit,
 	.ndo_set_rx_mode = gelic_net_set_multi,
-	.ndo_change_mtu = gelic_net_change_mtu,
 	.ndo_tx_timeout = gelic_net_tx_timeout,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
@@ -1512,6 +1493,10 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 		 */
 		netdev->features |= NETIF_F_VLAN_CHALLENGED;
 	}
+
+	/* MTU range: 64 - 1518 */
+	netdev->min_mtu = GELIC_NET_MIN_MTU;
+	netdev->max_mtu = GELIC_NET_MAX_MTU;
 
 	status = register_netdev(netdev);
 	if (status) {
@@ -1769,7 +1754,7 @@ static int ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 	gelic_ether_setup_netdev_ops(netdev, &card->napi);
 	result = gelic_net_setup_netdev(netdev, card);
 	if (result) {
-		dev_dbg(&dev->core, "%s: setup_netdev failed %d",
+		dev_dbg(&dev->core, "%s: setup_netdev failed %d\n",
 			__func__, result);
 		goto fail_setup_netdev;
 	}
@@ -1791,7 +1776,7 @@ fail_alloc_rx:
 	gelic_card_free_chain(card, card->tx_chain.head);
 fail_alloc_tx:
 	free_irq(card->irq, card);
-	netdev->irq = NO_IRQ;
+	netdev->irq = 0;
 fail_request_irq:
 	ps3_sb_event_receive_port_destroy(dev, card->irq);
 fail_alloc_irq:
@@ -1843,7 +1828,7 @@ static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 	netdev0 = card->netdev[GELIC_PORT_ETHERNET_0];
 	/* disconnect event port */
 	free_irq(card->irq, card);
-	netdev0->irq = NO_IRQ;
+	netdev0->irq = 0;
 	ps3_sb_event_receive_port_destroy(card->dev, card->irq);
 
 	wait_event(card->waitq,

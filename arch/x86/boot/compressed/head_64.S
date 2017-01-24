@@ -119,8 +119,7 @@ ENTRY(startup_32)
  */
 
 	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	leal	gdt(%ebp), %eax
-	movl	%eax, gdt+2(%ebp)
+	addl	%ebp, gdt+2(%ebp)
 	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */
@@ -265,7 +264,7 @@ ENTRY(efi_pe_entry)
 	/*
 	 * Relocate efi_config->call().
 	 */
-	addq	%rbp, efi64_config+88(%rip)
+	addq	%rbp, efi64_config+32(%rip)
 
 	movq	%rax, %rdi
 	call	make_boot_params
@@ -285,7 +284,7 @@ handover_entry:
 	 * Relocate efi_config->call().
 	 */
 	movq	efi_config(%rip), %rax
-	addq	%rbp, 88(%rax)
+	addq	%rbp, 32(%rax)
 2:
 	movq	efi_config(%rip), %rdi
 	call	efi_main
@@ -457,14 +456,14 @@ efi_config:
 #ifdef CONFIG_EFI_MIXED
 	.global efi32_config
 efi32_config:
-	.fill	11,8,0
+	.fill	4,8,0
 	.quad	efi64_thunk
 	.byte	0
 #endif
 
 	.global efi64_config
 efi64_config:
-	.fill	11,8,0
+	.fill	4,8,0
 	.quad	efi_call
 	.byte	1
 #endif /* CONFIG_EFI_STUB */

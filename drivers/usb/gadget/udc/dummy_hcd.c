@@ -330,7 +330,7 @@ static void nuke(struct dummy *dum, struct dummy_ep *ep)
 /* caller must hold lock */
 static void stop_activity(struct dummy *dum)
 {
-	struct dummy_ep	*ep;
+	int i;
 
 	/* prevent any more requests */
 	dum->address = 0;
@@ -338,8 +338,8 @@ static void stop_activity(struct dummy *dum)
 	/* The timer is left running so that outstanding URBs can fail */
 
 	/* nuke any pending requests first, so driver i/o is quiesced */
-	list_for_each_entry(ep, &dum->gadget.ep_list, ep.ep_list)
-		nuke(dum, ep);
+	for (i = 0; i < DUMMY_ENDPOINTS; ++i)
+		nuke(dum, &dum->ep[i]);
 
 	/* driver now does any non-usb quiescing necessary */
 }
@@ -503,7 +503,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	 * maximum packet size.
 	 * For SS devices the wMaxPacketSize is limited by 1024.
 	 */
-	max = usb_endpoint_maxp(desc) & 0x7ff;
+	max = usb_endpoint_maxp(desc);
 
 	/* drivers must not request bad settings, since lower levels
 	 * (hardware or its drivers) may not check.  some endpoints
@@ -1483,8 +1483,7 @@ static int periodic_bytes(struct dummy *dum, struct dummy_ep *ep)
 		int	tmp;
 
 		/* high bandwidth mode */
-		tmp = usb_endpoint_maxp(ep->desc);
-		tmp = (tmp >> 11) & 0x03;
+		tmp = usb_endpoint_maxp_mult(ep->desc);
 		tmp *= 8 /* applies to entire frame */;
 		limit += limit * tmp;
 	}

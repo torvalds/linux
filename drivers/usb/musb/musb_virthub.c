@@ -132,7 +132,6 @@ void musb_port_suspend(struct musb *musb, bool do_suspend)
 
 		musb_dbg(musb, "Root port resuming, power %02x", power);
 
-		/* later, GetPortStatus will stop RESUME signaling */
 		musb->port1_status |= MUSB_PORT_STAT_RESUME;
 		schedule_delayed_work(&musb->finish_resume_work,
 				      msecs_to_jiffies(USB_RESUME_TIMEOUT));
@@ -245,6 +244,7 @@ void musb_root_disconnect(struct musb *musb)
 			usb_otg_state_string(musb->xceiv->otg->state));
 	}
 }
+EXPORT_SYMBOL_GPL(musb_root_disconnect);
 
 
 /*---------------------------------------------------------------------*/

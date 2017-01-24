@@ -588,9 +588,9 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE, wps_phase==true\n");
 					cnt += buf[cnt + 1] + 2;
 					break;
-				} else {
-					cnt += buf[cnt + 1] + 2;
 				}
+
+				cnt += buf[cnt + 1] + 2;
 			}
 		}
 	}
@@ -1976,9 +1976,9 @@ static int r871x_get_ap_info(struct net_device *dev,
 	if (pdata->length >= 32) {
 		if (copy_from_user(data, pdata->pointer, 32))
 			return -EINVAL;
-                data[32] = 0;
+		data[32] = 0;
 	} else {
-		 return -EINVAL;
+		return -EINVAL;
 	}
 	spin_lock_irqsave(&(pmlmepriv->scanned_queue.lock), irqL);
 	phead = &queue->queue;

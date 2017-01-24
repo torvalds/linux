@@ -39,19 +39,28 @@ struct dk_cxlflash_hdr {
  * at this time, this provides future flexibility.
  */
 #define DK_CXLFLASH_ALL_PORTS_ACTIVE	0x0000000000000001ULL
+#define DK_CXLFLASH_APP_CLOSE_ADAP_FD	0x0000000000000002ULL
 
 /*
- * Notes:
- * -----
+ * General Notes:
+ * -------------
  * The 'context_id' field of all ioctl structures contains the context
  * identifier for a context in the lower 32-bits (upper 32-bits are not
  * to be used when identifying a context to the AFU). That said, the value
  * in its entirety (all 64-bits) is to be treated as an opaque cookie and
  * should be presented as such when issuing ioctls.
+ */
+
+/*
+ * DK_CXLFLASH_ATTACH Notes:
+ * ------------------------
+ * Read/write access permissions are specified via the O_RDONLY, O_WRONLY,
+ * and O_RDWR flags defined in the fcntl.h header file.
  *
- * For DK_CXLFLASH_ATTACH ioctl, user specifies read/write access
- * permissions via the O_RDONLY, O_WRONLY, and O_RDWR flags defined in
- * the fcntl.h header file.
+ * A valid adapter file descriptor (fd >= 0) is only returned on the initial
+ * attach (successful) of a context. When a context is shared(reused), the user
+ * is expected to already 'know' the adapter file descriptor associated with the
+ * context.
  */
 #define DK_CXLFLASH_ATTACH_REUSE_CONTEXT	0x8000000000000000ULL
 

@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
+#include <linux/phy/tegra/xusb.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -101,7 +102,8 @@ tegra_xusb_pad_find_phy_node(struct tegra_xusb_pad *pad, unsigned int index)
 	return of_find_node_by_name(np, pad->soc->lanes[index].name);
 }
 
-int tegra_xusb_lane_lookup_function(struct tegra_xusb_lane *lane,
+static int
+tegra_xusb_lane_lookup_function(struct tegra_xusb_lane *lane,
 				    const char *function)
 {
 	unsigned int i;
@@ -559,10 +561,7 @@ static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 	usb2->internal = of_property_read_bool(np, "nvidia,internal");
 
 	usb2->supply = devm_regulator_get(&port->dev, "vbus");
-	if (IS_ERR(usb2->supply))
-		return PTR_ERR(usb2->supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(usb2->supply);
 }
 
 static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
@@ -729,10 +728,7 @@ static int tegra_xusb_usb3_port_parse_dt(struct tegra_xusb_usb3_port *usb3)
 	usb3->internal = of_property_read_bool(np, "nvidia,internal");
 
 	usb3->supply = devm_regulator_get(&port->dev, "vbus");
-	if (IS_ERR(usb3->supply))
-		return PTR_ERR(usb3->supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(usb3->supply);
 }
 
 static int tegra_xusb_add_usb3_port(struct tegra_xusb_padctl *padctl,

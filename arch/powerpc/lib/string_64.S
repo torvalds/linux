@@ -19,7 +19,9 @@
  */
 
 #include <asm/ppc_asm.h>
+#include <asm/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 
 	.section	".toc","aw"
 PPC64_CACHES:
@@ -40,26 +42,17 @@ PPC64_CACHES:
 
 	.macro err1
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Ldo_err1
-	.previous
+	EX_TABLE(100b,.Ldo_err1)
 	.endm
 
 	.macro err2
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldo_err2
-	.previous
+	EX_TABLE(200b,.Ldo_err2)
 	.endm
 
 	.macro err3
 300:
-	.section __ex_table,"a"
-	.align 3
-	.llong 300b,.Ldo_err3
-	.previous
+	EX_TABLE(300b,.Ldo_err3)
 	.endm
 
 .Ldo_err1:
@@ -200,3 +193,4 @@ err1;	dcbz	r0,r3
 	cmpdi	r4,32
 	blt	.Lshort_clear
 	b	.Lmedium_clear
+EXPORT_SYMBOL(__clear_user)

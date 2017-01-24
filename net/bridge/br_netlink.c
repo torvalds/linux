@@ -169,10 +169,15 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u32(skb, IFLA_BRPORT_COST, p->path_cost) ||
 	    nla_put_u8(skb, IFLA_BRPORT_MODE, mode) ||
 	    nla_put_u8(skb, IFLA_BRPORT_GUARD, !!(p->flags & BR_BPDU_GUARD)) ||
-	    nla_put_u8(skb, IFLA_BRPORT_PROTECT, !!(p->flags & BR_ROOT_BLOCK)) ||
-	    nla_put_u8(skb, IFLA_BRPORT_FAST_LEAVE, !!(p->flags & BR_MULTICAST_FAST_LEAVE)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_PROTECT,
+		       !!(p->flags & BR_ROOT_BLOCK)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_FAST_LEAVE,
+		       !!(p->flags & BR_MULTICAST_FAST_LEAVE)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_LEARNING, !!(p->flags & BR_LEARNING)) ||
-	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD, !!(p->flags & BR_FLOOD)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD,
+		       !!(p->flags & BR_FLOOD)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_MCAST_FLOOD,
+		       !!(p->flags & BR_MCAST_FLOOD)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP, !!(p->flags & BR_PROXYARP)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP_WIFI,
 		       !!(p->flags & BR_PROXYARP_WIFI)) ||
@@ -630,6 +635,7 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 	br_set_port_flag(p, tb, IFLA_BRPORT_PROTECT, BR_ROOT_BLOCK);
 	br_set_port_flag(p, tb, IFLA_BRPORT_LEARNING, BR_LEARNING);
 	br_set_port_flag(p, tb, IFLA_BRPORT_UNICAST_FLOOD, BR_FLOOD);
+	br_set_port_flag(p, tb, IFLA_BRPORT_MCAST_FLOOD, BR_MCAST_FLOOD);
 	br_set_port_flag(p, tb, IFLA_BRPORT_PROXYARP, BR_PROXYARP);
 	br_set_port_flag(p, tb, IFLA_BRPORT_PROXYARP_WIFI, BR_PROXYARP_WIFI);
 
@@ -852,6 +858,8 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_VLAN_DEFAULT_PVID] = { .type = NLA_U16 },
 	[IFLA_BR_VLAN_STATS_ENABLED] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_STATS_ENABLED] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_IGMP_VERSION] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_MLD_VERSION] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -1063,6 +1071,26 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		mcast_stats = nla_get_u8(data[IFLA_BR_MCAST_STATS_ENABLED]);
 		br->multicast_stats_enabled = !!mcast_stats;
 	}
+
+	if (data[IFLA_BR_MCAST_IGMP_VERSION]) {
+		__u8 igmp_version;
+
+		igmp_version = nla_get_u8(data[IFLA_BR_MCAST_IGMP_VERSION]);
+		err = br_multicast_set_igmp_version(br, igmp_version);
+		if (err)
+			return err;
+	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (data[IFLA_BR_MCAST_MLD_VERSION]) {
+		__u8 mld_version;
+
+		mld_version = nla_get_u8(data[IFLA_BR_MCAST_MLD_VERSION]);
+		err = br_multicast_set_mld_version(br, mld_version);
+		if (err)
+			return err;
+	}
+#endif
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (data[IFLA_BR_NF_CALL_IPTABLES]) {
@@ -1129,6 +1157,8 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_QUERY_INTVL */
 	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_QUERY_RESPONSE_INTVL */
 	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_STARTUP_QUERY_INTVL */
+	       nla_total_size(sizeof(u8)) +	/* IFLA_BR_MCAST_IGMP_VERSION */
+	       nla_total_size(sizeof(u8)) +	/* IFLA_BR_MCAST_MLD_VERSION */
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IPTABLES */
@@ -1204,9 +1234,15 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
 			br->multicast_last_member_count) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
-			br->multicast_startup_query_count))
+			br->multicast_startup_query_count) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_IGMP_VERSION,
+		       br->multicast_igmp_version))
 		return -EMSGSIZE;
-
+#if IS_ENABLED(CONFIG_IPV6)
+	if (nla_put_u8(skb, IFLA_BR_MCAST_MLD_VERSION,
+		       br->multicast_mld_version))
+		return -EMSGSIZE;
+#endif
 	clockval = jiffies_to_clock_t(br->multicast_last_member_interval);
 	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_LAST_MEMBER_INTVL, clockval,
 			      IFLA_BR_PAD))
@@ -1245,14 +1281,30 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	return 0;
 }
 
-static size_t bridge_get_linkxstats_size(const struct net_device *dev)
+static size_t br_get_linkxstats_size(const struct net_device *dev, int attr)
 {
-	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *p = NULL;
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_vlan *v;
+	struct net_bridge *br;
 	int numvls = 0;
 
-	vg = br_vlan_group(br);
+	switch (attr) {
+	case IFLA_STATS_LINK_XSTATS:
+		br = netdev_priv(dev);
+		vg = br_vlan_group(br);
+		break;
+	case IFLA_STATS_LINK_XSTATS_SLAVE:
+		p = br_port_get_rtnl(dev);
+		if (!p)
+			return 0;
+		br = p->br;
+		vg = nbp_vlan_group(p);
+		break;
+	default:
+		return 0;
+	}
+
 	if (vg) {
 		/* we need to count all, even placeholder entries */
 		list_for_each_entry(v, &vg->vlan_list, vlist)
@@ -1264,45 +1316,42 @@ static size_t bridge_get_linkxstats_size(const struct net_device *dev)
 	       nla_total_size(0);
 }
 
-static size_t brport_get_linkxstats_size(const struct net_device *dev)
+static int br_fill_linkxstats(struct sk_buff *skb,
+			      const struct net_device *dev,
+			      int *prividx, int attr)
 {
-	return nla_total_size(sizeof(struct br_mcast_stats)) +
-	       nla_total_size(0);
-}
-
-static size_t br_get_linkxstats_size(const struct net_device *dev, int attr)
-{
-	size_t retsize = 0;
+	struct nlattr *nla __maybe_unused;
+	struct net_bridge_port *p = NULL;
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_bridge *br;
+	struct nlattr *nest;
+	int vl_idx = 0;
 
 	switch (attr) {
 	case IFLA_STATS_LINK_XSTATS:
-		retsize = bridge_get_linkxstats_size(dev);
+		br = netdev_priv(dev);
+		vg = br_vlan_group(br);
 		break;
 	case IFLA_STATS_LINK_XSTATS_SLAVE:
-		retsize = brport_get_linkxstats_size(dev);
+		p = br_port_get_rtnl(dev);
+		if (!p)
+			return 0;
+		br = p->br;
+		vg = nbp_vlan_group(p);
 		break;
+	default:
+		return -EINVAL;
 	}
-
-	return retsize;
-}
-
-static int bridge_fill_linkxstats(struct sk_buff *skb,
-				  const struct net_device *dev,
-				  int *prividx)
-{
-	struct net_bridge *br = netdev_priv(dev);
-	struct nlattr *nla __maybe_unused;
-	struct net_bridge_vlan_group *vg;
-	struct net_bridge_vlan *v;
-	struct nlattr *nest;
-	int vl_idx = 0;
 
 	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
 	if (!nest)
 		return -EMSGSIZE;
 
-	vg = br_vlan_group(br);
 	if (vg) {
+		u16 pvid;
+
+		pvid = br_get_pvid(vg);
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			struct bridge_vlan_xstats vxi;
 			struct br_vlan_stats stats;
@@ -1311,6 +1360,9 @@ static int bridge_fill_linkxstats(struct sk_buff *skb,
 				continue;
 			memset(&vxi, 0, sizeof(vxi));
 			vxi.vid = v->vid;
+			vxi.flags = v->flags;
+			if (v->vid == pvid)
+				vxi.flags |= BRIDGE_VLAN_INFO_PVID;
 			br_vlan_get_stats(v, &stats);
 			vxi.rx_bytes = stats.rx_bytes;
 			vxi.rx_packets = stats.rx_packets;
@@ -1329,7 +1381,7 @@ static int bridge_fill_linkxstats(struct sk_buff *skb,
 					BRIDGE_XSTATS_PAD);
 		if (!nla)
 			goto nla_put_failure;
-		br_multicast_get_stats(br, NULL, nla_data(nla));
+		br_multicast_get_stats(br, p, nla_data(nla));
 	}
 #endif
 	nla_nest_end(skb, nest);
@@ -1342,52 +1394,6 @@ nla_put_failure:
 	*prividx = vl_idx;
 
 	return -EMSGSIZE;
-}
-
-static int brport_fill_linkxstats(struct sk_buff *skb,
-				  const struct net_device *dev,
-				  int *prividx)
-{
-	struct net_bridge_port *p = br_port_get_rtnl(dev);
-	struct nlattr *nla __maybe_unused;
-	struct nlattr *nest;
-
-	if (!p)
-		return 0;
-
-	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
-	if (!nest)
-		return -EMSGSIZE;
-#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	nla = nla_reserve_64bit(skb, BRIDGE_XSTATS_MCAST,
-				sizeof(struct br_mcast_stats),
-				BRIDGE_XSTATS_PAD);
-	if (!nla) {
-		nla_nest_end(skb, nest);
-		return -EMSGSIZE;
-	}
-	br_multicast_get_stats(p->br, p, nla_data(nla));
-#endif
-	nla_nest_end(skb, nest);
-
-	return 0;
-}
-
-static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
-			      int *prividx, int attr)
-{
-	int ret = -EINVAL;
-
-	switch (attr) {
-	case IFLA_STATS_LINK_XSTATS:
-		ret = bridge_fill_linkxstats(skb, dev, prividx);
-		break;
-	case IFLA_STATS_LINK_XSTATS_SLAVE:
-		ret = brport_fill_linkxstats(skb, dev, prividx);
-		break;
-	}
-
-	return ret;
 }
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {

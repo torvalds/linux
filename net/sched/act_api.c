@@ -41,8 +41,7 @@ static void tcf_hash_destroy(struct tcf_hashinfo *hinfo, struct tc_action *p)
 	spin_lock_bh(&hinfo->lock);
 	hlist_del(&p->tcfa_head);
 	spin_unlock_bh(&hinfo->lock);
-	gen_kill_estimator(&p->tcfa_bstats,
-			   &p->tcfa_rate_est);
+	gen_kill_estimator(&p->tcfa_rate_est);
 	/*
 	 * gen_estimator est_timer() might access p->tcfa_lock
 	 * or bstats, wait a RCU grace period before freeing p
@@ -237,8 +236,7 @@ EXPORT_SYMBOL(tcf_hash_check);
 void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est)
 {
 	if (est)
-		gen_kill_estimator(&a->tcfa_bstats,
-				   &a->tcfa_rate_est);
+		gen_kill_estimator(&a->tcfa_rate_est);
 	call_rcu(&a->tcfa_rcu, free_tcf);
 }
 EXPORT_SYMBOL(tcf_hash_cleanup);
@@ -341,21 +339,24 @@ int tcf_register_action(struct tc_action_ops *act,
 	if (!act->act || !act->dump || !act->init || !act->walk || !act->lookup)
 		return -EINVAL;
 
+	/* We have to register pernet ops before making the action ops visible,
+	 * otherwise tcf_action_init_1() could get a partially initialized
+	 * netns.
+	 */
+	ret = register_pernet_subsys(ops);
+	if (ret)
+		return ret;
+
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
 		if (act->type == a->type || (strcmp(act->kind, a->kind) == 0)) {
 			write_unlock(&act_mod_lock);
+			unregister_pernet_subsys(ops);
 			return -EEXIST;
 		}
 	}
 	list_add_tail(&act->head, &act_base);
 	write_unlock(&act_mod_lock);
-
-	ret = register_pernet_subsys(ops);
-	if (ret) {
-		tcf_unregister_action(act, ops);
-		return ret;
-	}
 
 	return 0;
 }
@@ -367,8 +368,6 @@ int tcf_unregister_action(struct tc_action_ops *act,
 	struct tc_action_ops *a;
 	int err = -ENOENT;
 
-	unregister_pernet_subsys(ops);
-
 	write_lock(&act_mod_lock);
 	list_for_each_entry(a, &act_base, head) {
 		if (a == act) {
@@ -378,6 +377,8 @@ int tcf_unregister_action(struct tc_action_ops *act,
 		}
 	}
 	write_unlock(&act_mod_lock);
+	if (!err)
+		unregister_pernet_subsys(ops);
 	return err;
 }
 EXPORT_SYMBOL(tcf_unregister_action);
@@ -592,9 +593,19 @@ err_out:
 	return ERR_PTR(err);
 }
 
-int tcf_action_init(struct net *net, struct nlattr *nla,
-				  struct nlattr *est, char *name, int ovr,
-				  int bind, struct list_head *actions)
+static void cleanup_a(struct list_head *actions, int ovr)
+{
+	struct tc_action *a;
+
+	if (!ovr)
+		return;
+
+	list_for_each_entry(a, actions, list)
+		a->tcfa_refcnt--;
+}
+
+int tcf_action_init(struct net *net, struct nlattr *nla, struct nlattr *est,
+		    char *name, int ovr, int bind, struct list_head *actions)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -612,8 +623,15 @@ int tcf_action_init(struct net *net, struct nlattr *nla,
 			goto err;
 		}
 		act->order = i;
+		if (ovr)
+			act->tcfa_refcnt++;
 		list_add_tail(&act->list, actions);
 	}
+
+	/* Remove the temp refcnt which was necessary to protect against
+	 * destroying an existing action which was being replaced
+	 */
+	cleanup_a(actions, ovr);
 	return 0;
 
 err:
@@ -650,8 +668,7 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 		goto errout;
 
 	if (gnet_stats_copy_basic(NULL, &d, p->cpu_bstats, &p->tcfa_bstats) < 0 ||
-	    gnet_stats_copy_rate_est(&d, &p->tcfa_bstats,
-				     &p->tcfa_rate_est) < 0 ||
+	    gnet_stats_copy_rate_est(&d, &p->tcfa_rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, p->cpu_qstats,
 				  &p->tcfa_qstats,
 				  p->tcfa_qstats.qlen) < 0)
@@ -895,7 +912,8 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		return ret;
 	}
 err:
-	tcf_action_destroy(&actions, 0);
+	if (event != RTM_GETACTION)
+		tcf_action_destroy(&actions, 0);
 	return ret;
 }
 
@@ -923,9 +941,8 @@ tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 	return err;
 }
 
-static int
-tcf_action_add(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
-	       u32 portid, int ovr)
+static int tcf_action_add(struct net *net, struct nlattr *nla,
+			  struct nlmsghdr *n, u32 portid, int ovr)
 {
 	int ret = 0;
 	LIST_HEAD(actions);
@@ -988,8 +1005,7 @@ replay:
 	return ret;
 }
 
-static struct nlattr *
-find_dump_kind(const struct nlmsghdr *n)
+static struct nlattr *find_dump_kind(const struct nlmsghdr *n)
 {
 	struct nlattr *tb1, *tb2[TCA_ACT_MAX + 1];
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
@@ -1008,16 +1024,14 @@ find_dump_kind(const struct nlmsghdr *n)
 
 	if (tb[1] == NULL)
 		return NULL;
-	if (nla_parse(tb2, TCA_ACT_MAX, nla_data(tb[1]),
-		      nla_len(tb[1]), NULL) < 0)
+	if (nla_parse_nested(tb2, TCA_ACT_MAX, tb[1], NULL) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND];
 
 	return kind;
 }
 
-static int
-tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
+static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlmsghdr *nlh;

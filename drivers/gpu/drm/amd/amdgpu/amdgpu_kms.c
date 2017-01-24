@@ -99,6 +99,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((amdgpu_runtime_pm != 0) &&
 	    amdgpu_has_atpx() &&
+	    (amdgpu_is_atpx_hybrid() ||
+	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    ((flags & AMD_IS_APU) == 0))
 		flags |= AMD_IS_PX;
 
@@ -292,24 +294,24 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			ring_mask = adev->uvd.ring.ready ? 1 : 0;
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 16;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
-			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
+			for (i = 0; i < adev->vce.num_rings; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 1;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		for (i = 0; i < adev->num_ip_blocks; i++) {
-			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_status[i].valid) {
-				ip.hw_ip_version_major = adev->ip_blocks[i].major;
-				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
+			if (adev->ip_blocks[i].version->type == type &&
+			    adev->ip_blocks[i].status.valid) {
+				ip.hw_ip_version_major = adev->ip_blocks[i].version->major;
+				ip.hw_ip_version_minor = adev->ip_blocks[i].version->minor;
 				ip.capabilities_flags = 0;
 				ip.available_rings = ring_mask;
 				ip.ib_start_alignment = ib_start_alignment;
@@ -345,8 +347,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 
 		for (i = 0; i < adev->num_ip_blocks; i++)
-			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_status[i].valid &&
+			if (adev->ip_blocks[i].version->type == type &&
+			    adev->ip_blocks[i].status.valid &&
 			    count < AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 				count++;
 
@@ -372,6 +374,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_NUM_BYTES_MOVED:
 		ui64 = atomic64_read(&adev->num_bytes_moved);
+		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_NUM_EVICTIONS:
+		ui64 = atomic64_read(&adev->num_evictions);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
 		ui64 = atomic64_read(&adev->vram_usage);
@@ -407,6 +412,36 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		vram_gtt.gtt_size -= adev->gart_pin_size;
 		return copy_to_user(out, &vram_gtt,
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
+	}
+	case AMDGPU_INFO_MEMORY: {
+		struct drm_amdgpu_memory_info mem;
+
+		memset(&mem, 0, sizeof(mem));
+		mem.vram.total_heap_size = adev->mc.real_vram_size;
+		mem.vram.usable_heap_size =
+			adev->mc.real_vram_size - adev->vram_pin_size;
+		mem.vram.heap_usage = atomic64_read(&adev->vram_usage);
+		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
+
+		mem.cpu_accessible_vram.total_heap_size =
+			adev->mc.visible_vram_size;
+		mem.cpu_accessible_vram.usable_heap_size =
+			adev->mc.visible_vram_size -
+			(adev->vram_pin_size - adev->invisible_pin_size);
+		mem.cpu_accessible_vram.heap_usage =
+			atomic64_read(&adev->vram_vis_usage);
+		mem.cpu_accessible_vram.max_allocation =
+			mem.cpu_accessible_vram.usable_heap_size * 3 / 4;
+
+		mem.gtt.total_heap_size = adev->mc.gtt_size;
+		mem.gtt.usable_heap_size =
+			adev->mc.gtt_size - adev->gart_pin_size;
+		mem.gtt.heap_usage = atomic64_read(&adev->gtt_usage);
+		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;
+
+		return copy_to_user(out, &mem,
+				    min((size_t)size, sizeof(mem)))
+				    ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_READ_MMR_REG: {
 		unsigned n, alloc_size;
@@ -456,10 +491,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		/* return all clocks in KHz */
 		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
 		if (adev->pm.dpm_enabled) {
-			dev_info.max_engine_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
-			dev_info.max_memory_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk * 10;
+			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
+			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->pm.default_sclk * 10;
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
@@ -472,6 +505,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
+		if (amdgpu_sriov_vf(adev))
+			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
@@ -490,6 +525,50 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
+	}
+	case AMDGPU_INFO_VCE_CLOCK_TABLE: {
+		unsigned i;
+		struct drm_amdgpu_info_vce_clock_table vce_clk_table = {};
+		struct amd_vce_state *vce_state;
+
+		for (i = 0; i < AMDGPU_VCE_CLOCK_TABLE_ENTRIES; i++) {
+			vce_state = amdgpu_dpm_get_vce_clock_state(adev, i);
+			if (vce_state) {
+				vce_clk_table.entries[i].sclk = vce_state->sclk;
+				vce_clk_table.entries[i].mclk = vce_state->mclk;
+				vce_clk_table.entries[i].eclk = vce_state->evclk;
+				vce_clk_table.num_valid_entries++;
+			}
+		}
+
+		return copy_to_user(out, &vce_clk_table,
+				    min((size_t)size, sizeof(vce_clk_table))) ? -EFAULT : 0;
+	}
+	case AMDGPU_INFO_VBIOS: {
+		uint32_t bios_size = adev->bios_size;
+
+		switch (info->vbios_info.type) {
+		case AMDGPU_INFO_VBIOS_SIZE:
+			return copy_to_user(out, &bios_size,
+					min((size_t)size, sizeof(bios_size)))
+					? -EFAULT : 0;
+		case AMDGPU_INFO_VBIOS_IMAGE: {
+			uint8_t *bios;
+			uint32_t bios_offset = info->vbios_info.offset;
+
+			if (bios_offset >= bios_size)
+				return -EINVAL;
+
+			bios = adev->bios + bios_offset;
+			return copy_to_user(out, bios,
+					    min((size_t)size, (size_t)(bios_size - bios_offset)))
+					? -EFAULT : 0;
+		}
+		default:
+			DRM_DEBUG_KMS("Invalid request %d\n",
+					info->vbios_info.type);
+			return -EINVAL;
+		}
 	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
@@ -539,12 +618,16 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		return r;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
-	if (unlikely(!fpriv))
-		return -ENOMEM;
+	if (unlikely(!fpriv)) {
+		r = -ENOMEM;
+		goto out_suspend;
+	}
 
 	r = amdgpu_vm_init(adev, &fpriv->vm);
-	if (r)
-		goto error_free;
+	if (r) {
+		kfree(fpriv);
+		goto out_suspend;
+	}
 
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init(&fpriv->bo_list_handles);
@@ -553,12 +636,9 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	file_priv->driver_priv = fpriv;
 
+out_suspend:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-	return 0;
-
-error_free:
-	kfree(fpriv);
 
 	return r;
 }
@@ -597,6 +677,9 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 }
 
 /**
@@ -611,6 +694,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
+	pm_runtime_get_sync(dev->dev);
 }
 
 /*
@@ -767,6 +851,7 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_CS, amdgpu_cs_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_INFO, amdgpu_info_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_CS, amdgpu_cs_wait_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_FENCES, amdgpu_cs_wait_fences_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_METADATA, amdgpu_gem_metadata_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_VA, amdgpu_gem_va_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),

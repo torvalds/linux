@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 #include <linux/timer.h>
-#include <linux/module.h>
 #include <linux/udp.h>
 #include <linux/seq_file.h>
 #include <linux/skbuff.h>
@@ -24,26 +23,14 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_log.h>
 
-enum udplite_conntrack {
-	UDPLITE_CT_UNREPLIED,
-	UDPLITE_CT_REPLIED,
-	UDPLITE_CT_MAX
-};
-
 static unsigned int udplite_timeouts[UDPLITE_CT_MAX] = {
 	[UDPLITE_CT_UNREPLIED]	= 30*HZ,
 	[UDPLITE_CT_REPLIED]	= 180*HZ,
 };
 
-static int udplite_net_id __read_mostly;
-struct udplite_net {
-	struct nf_proto_net pn;
-	unsigned int timeouts[UDPLITE_CT_MAX];
-};
-
-static inline struct udplite_net *udplite_pernet(struct net *net)
+static inline struct nf_udplite_net *udplite_pernet(struct net *net)
 {
-	return net_generic(net, udplite_net_id);
+	return &net->ct.nf_ct_proto.udplite;
 }
 
 static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
@@ -54,7 +41,8 @@ static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
 	const struct udphdr *hp;
 	struct udphdr _hdr;
 
-	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
+	/* Actually only need first 4 bytes to get ports. */
+	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
 	if (hp == NULL)
 		return false;
 
@@ -177,7 +165,7 @@ static int udplite_timeout_nlattr_to_obj(struct nlattr *tb[],
 					 struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
-	struct udplite_net *un = udplite_pernet(net);
+	struct nf_udplite_net *un = udplite_pernet(net);
 
 	/* set default timeouts for UDPlite. */
 	timeouts[UDPLITE_CT_UNREPLIED] = un->timeouts[UDPLITE_CT_UNREPLIED];
@@ -236,7 +224,7 @@ static struct ctl_table udplite_sysctl_table[] = {
 #endif /* CONFIG_SYSCTL */
 
 static int udplite_kmemdup_sysctl_table(struct nf_proto_net *pn,
-					struct udplite_net *un)
+					struct nf_udplite_net *un)
 {
 #ifdef CONFIG_SYSCTL
 	if (pn->ctl_table)
@@ -256,7 +244,7 @@ static int udplite_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int udplite_init_net(struct net *net, u_int16_t proto)
 {
-	struct udplite_net *un = udplite_pernet(net);
+	struct nf_udplite_net *un = udplite_pernet(net);
 	struct nf_proto_net *pn = &un->pn;
 
 	if (!pn->users) {
@@ -269,7 +257,7 @@ static int udplite_init_net(struct net *net, u_int16_t proto)
 	return udplite_kmemdup_sysctl_table(pn, un);
 }
 
-static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_UDPLITE,
@@ -298,11 +286,11 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 		.nla_policy	= udplite_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-	.net_id			= &udplite_net_id,
 	.init_net		= udplite_init_net,
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite4);
 
-static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_UDPLITE,
@@ -331,78 +319,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 		.nla_policy	= udplite_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-	.net_id			= &udplite_net_id,
 	.init_net		= udplite_init_net,
 };
-
-static int udplite_net_init(struct net *net)
-{
-	int ret = 0;
-
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_udplite4);
-	if (ret < 0) {
-		pr_err("nf_conntrack_udplite4: pernet registration failed.\n");
-		goto out;
-	}
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_udplite6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_udplite6: pernet registration failed.\n");
-		goto cleanup_udplite4;
-	}
-	return 0;
-
-cleanup_udplite4:
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_udplite4);
-out:
-	return ret;
-}
-
-static void udplite_net_exit(struct net *net)
-{
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_udplite6);
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_udplite4);
-}
-
-static struct pernet_operations udplite_net_ops = {
-	.init = udplite_net_init,
-	.exit = udplite_net_exit,
-	.id   = &udplite_net_id,
-	.size = sizeof(struct udplite_net),
-};
-
-static int __init nf_conntrack_proto_udplite_init(void)
-{
-	int ret;
-
-	ret = register_pernet_subsys(&udplite_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_udplite4);
-	if (ret < 0)
-		goto out_udplite4;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_udplite6);
-	if (ret < 0)
-		goto out_udplite6;
-
-	return 0;
-out_udplite6:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udplite4);
-out_udplite4:
-	unregister_pernet_subsys(&udplite_net_ops);
-out_pernet:
-	return ret;
-}
-
-static void __exit nf_conntrack_proto_udplite_exit(void)
-{
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udplite6);
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udplite4);
-	unregister_pernet_subsys(&udplite_net_ops);
-}
-
-module_init(nf_conntrack_proto_udplite_init);
-module_exit(nf_conntrack_proto_udplite_exit);
-
-MODULE_LICENSE("GPL");
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite6);

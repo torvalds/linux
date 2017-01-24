@@ -400,9 +400,11 @@ struct rcu_data {
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+	atomic_long_t exp_workdone0;	/* # done by workqueue. */
 	atomic_long_t exp_workdone1;	/* # done by others #1. */
 	atomic_long_t exp_workdone2;	/* # done by others #2. */
 	atomic_long_t exp_workdone3;	/* # done by others #3. */
+	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU

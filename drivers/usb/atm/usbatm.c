@@ -64,7 +64,7 @@
 
 #include "usbatm.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -819,7 +819,6 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 	new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL);
 	if (!new) {
-		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1032,10 +1031,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 	/* instance init */
 	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
-	if (!instance) {
-		dev_err(dev, "%s: no memory for instance data!\n", __func__);
+	if (!instance)
 		return -ENOMEM;
-	}
 
 	/* public fields */
 
@@ -1141,7 +1138,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
-			dev_err(dev, "%s: no memory for urb %d!\n", __func__, i);
 			error = -ENOMEM;
 			goto fail_unbind;
 		}
@@ -1151,7 +1147,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		/* zero the tx padding to avoid leaking information */
 		buffer = kzalloc(channel->buf_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_err(dev, "%s: no memory for buffer %d!\n", __func__, i);
 			error = -ENOMEM;
 			goto fail_unbind;
 		}
@@ -1182,7 +1177,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	instance->cell_buf = kmalloc(instance->rx_channel.stride, GFP_KERNEL);
 
 	if (!instance->cell_buf) {
-		dev_err(dev, "%s: no memory for cell buffer!\n", __func__);
 		error = -ENOMEM;
 		goto fail_unbind;
 	}

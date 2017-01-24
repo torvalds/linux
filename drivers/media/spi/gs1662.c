@@ -453,17 +453,15 @@ static int gs_probe(struct spi_device *spi)
 static int gs_remove(struct spi_device *spi)
 {
 	struct v4l2_subdev *sd = spi_get_drvdata(spi);
-	struct gs *gs = to_gs(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(gs);
+
 	return 0;
 }
 
 static struct spi_driver gs_driver = {
 	.driver = {
 		.name		= "gs1662",
-		.owner		= THIS_MODULE,
 	},
 
 	.probe		= gs_probe,

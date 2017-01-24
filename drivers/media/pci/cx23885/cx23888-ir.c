@@ -16,14 +16,14 @@
  *  GNU General Public License for more details.
  */
 
+#include "cx23885.h"
+#include "cx23888-ir.h"
+
 #include <linux/kfifo.h>
 #include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/rc-core.h>
-
-#include "cx23885.h"
-#include "cx23888-ir.h"
 
 static unsigned int ir_888_debug;
 module_param(ir_888_debug, int, 0644);
@@ -1015,8 +1015,8 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 			j = 0;
 			break;
 		}
-		v4l2_info(sd, "\tNext carrier edge window:          16 clocks "
-			  "-%1d/+%1d, %u to %u Hz\n", i, j,
+		v4l2_info(sd, "\tNext carrier edge window:	    16 clocks -%1d/+%1d, %u to %u Hz\n",
+			  i, j,
 			  clock_divider_to_freq(rxclk, 16 + j),
 			  clock_divider_to_freq(rxclk, 16 - i));
 	}
@@ -1026,8 +1026,7 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "\tLow pass filter:                   %s\n",
 		  filtr ? "enabled" : "disabled");
 	if (filtr)
-		v4l2_info(sd, "\tMin acceptable pulse width (LPF):  %u us, "
-			  "%u ns\n",
+		v4l2_info(sd, "\tMin acceptable pulse width (LPF):  %u us, %u ns\n",
 			  lpf_count_to_us(filtr),
 			  lpf_count_to_ns(filtr));
 	v4l2_info(sd, "\tPulse width timer timed-out:       %s\n",

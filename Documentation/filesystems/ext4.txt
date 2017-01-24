@@ -351,14 +351,13 @@ nouid32			Disables 32-bit UIDs and GIDs.  This is for
 			interoperability  with  older kernels which only
 			store and expect 16-bit values.
 
-block_validity		This options allows to enables/disables the in-kernel
+block_validity(*)	These options enable or disable the in-kernel
 noblock_validity	facility for tracking filesystem metadata blocks
-			within internal data structures. This allows multi-
-			block allocator and other routines to quickly locate
-			extents which might overlap with filesystem metadata
-			blocks. This option is intended for debugging
-			purposes and since it negatively affects the
-			performance, it is off by default.
+			within internal data structures.  This allows multi-
+			block allocator and other routines to notice
+			bugs or corrupted allocation bitmaps which cause
+			blocks to be allocated which overlap with
+			filesystem metadata blocks.
 
 dioread_lock		Controls whether or not ext4 should use the DIO read
 dioread_nolock		locking. If the dioread_nolock option is specified

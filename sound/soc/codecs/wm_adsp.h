@@ -44,7 +44,7 @@ struct wm_adsp {
 	int type;
 	struct device *dev;
 	struct regmap *regmap;
-	struct snd_soc_card *card;
+	struct snd_soc_codec *codec;
 
 	int base;
 	int sysclk_reg;
@@ -61,6 +61,8 @@ struct wm_adsp {
 
 	int fw;
 	int fw_ver;
+
+	bool booted;
 	bool running;
 
 	struct list_head ctl_list;
@@ -85,9 +87,10 @@ struct wm_adsp {
 		wm_adsp1_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
 
 #define WM_ADSP2(wname, num, event_fn) \
-{	.id = snd_soc_dapm_dai_link, .name = wname " Preloader", \
+{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
 	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
+	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
@@ -107,18 +110,17 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
-extern int wm_adsp_compr_open(struct wm_adsp *dsp,
-			      struct snd_compr_stream *stream);
-extern int wm_adsp_compr_free(struct snd_compr_stream *stream);
-extern int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
-				    struct snd_compr_params *params);
-extern int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
-				  struct snd_compr_caps *caps);
-extern int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
-extern int wm_adsp_compr_handle_irq(struct wm_adsp *dsp);
-extern int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
-				 struct snd_compr_tstamp *tstamp);
-extern int wm_adsp_compr_copy(struct snd_compr_stream *stream,
-			      char __user *buf, size_t count);
+int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream);
+int wm_adsp_compr_free(struct snd_compr_stream *stream);
+int wm_adsp_compr_set_params(struct snd_compr_stream *stream,
+			     struct snd_compr_params *params);
+int wm_adsp_compr_get_caps(struct snd_compr_stream *stream,
+			   struct snd_compr_caps *caps);
+int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd);
+int wm_adsp_compr_handle_irq(struct wm_adsp *dsp);
+int wm_adsp_compr_pointer(struct snd_compr_stream *stream,
+			  struct snd_compr_tstamp *tstamp);
+int wm_adsp_compr_copy(struct snd_compr_stream *stream,
+		       char __user *buf, size_t count);
 
 #endif

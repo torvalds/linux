@@ -46,11 +46,9 @@ struct kmem_cache *lov_lock_kmem;
 struct kmem_cache *lov_object_kmem;
 struct kmem_cache *lov_thread_kmem;
 struct kmem_cache *lov_session_kmem;
-struct kmem_cache *lov_req_kmem;
 
 struct kmem_cache *lovsub_lock_kmem;
 struct kmem_cache *lovsub_object_kmem;
-struct kmem_cache *lovsub_req_kmem;
 
 struct kmem_cache *lov_lock_link_kmem;
 
@@ -79,11 +77,6 @@ struct lu_kmem_descr lov_caches[] = {
 		.ckd_size  = sizeof(struct lov_session)
 	},
 	{
-		.ckd_cache = &lov_req_kmem,
-		.ckd_name  = "lov_req_kmem",
-		.ckd_size  = sizeof(struct lov_req)
-	},
-	{
 		.ckd_cache = &lovsub_lock_kmem,
 		.ckd_name  = "lovsub_lock_kmem",
 		.ckd_size  = sizeof(struct lovsub_lock)
@@ -94,11 +87,6 @@ struct lu_kmem_descr lov_caches[] = {
 		.ckd_size  = sizeof(struct lovsub_object)
 	},
 	{
-		.ckd_cache = &lovsub_req_kmem,
-		.ckd_name  = "lovsub_req_kmem",
-		.ckd_size  = sizeof(struct lovsub_req)
-	},
-	{
 		.ckd_cache = &lov_lock_link_kmem,
 		.ckd_name  = "lov_lock_link_kmem",
 		.ckd_size  = sizeof(struct lov_lock_link)
@@ -106,25 +94,6 @@ struct lu_kmem_descr lov_caches[] = {
 	{
 		.ckd_cache = NULL
 	}
-};
-
-/*****************************************************************************
- *
- * Lov transfer operations.
- *
- */
-
-static void lov_req_completion(const struct lu_env *env,
-			       const struct cl_req_slice *slice, int ioret)
-{
-	struct lov_req *lr;
-
-	lr = cl2lov_req(slice);
-	kmem_cache_free(lov_req_kmem, lr);
-}
-
-static const struct cl_req_operations lov_req_ops = {
-	.cro_completion = lov_req_completion
 };
 
 /*****************************************************************************
@@ -247,26 +216,6 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 
 	return rc;
 }
-
-static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
-			struct cl_req *req)
-{
-	struct lov_req *lr;
-	int result;
-
-	lr = kmem_cache_zalloc(lov_req_kmem, GFP_NOFS);
-	if (lr) {
-		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
-		result = 0;
-	} else {
-		result = -ENOMEM;
-	}
-	return result;
-}
-
-static const struct cl_device_operations lov_cl_ops = {
-	.cdo_req_init = lov_req_init
-};
 
 static void lov_emerg_free(struct lov_device_emerg **emrg, int nr)
 {
@@ -478,7 +427,6 @@ static struct lu_device *lov_device_alloc(const struct lu_env *env,
 	cl_device_init(&ld->ld_cl, t);
 	d = lov2lu_dev(ld);
 	d->ld_ops	= &lov_lu_ops;
-	ld->ld_cl.cd_ops = &lov_cl_ops;
 
 	mutex_init(&ld->ld_mutex);
 	lockdep_set_class(&ld->ld_mutex, &cl_lov_device_mutex_class);
@@ -516,6 +464,5 @@ struct lu_device_type lov_device_type = {
 	.ldt_ops      = &lov_device_type_ops,
 	.ldt_ctx_tags = LCT_CL_THREAD
 };
-EXPORT_SYMBOL(lov_device_type);
 
 /** @} lov */

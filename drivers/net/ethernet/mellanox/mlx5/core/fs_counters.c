@@ -75,7 +75,7 @@ static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
 	struct rb_node *parent = NULL;
 
 	while (*new) {
-		struct mlx5_fc *this = container_of(*new, struct mlx5_fc, node);
+		struct mlx5_fc *this = rb_entry(*new, struct mlx5_fc, node);
 		int result = counter->id - this->id;
 
 		parent = *new;
@@ -218,6 +218,7 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 		goto err_out;
 
 	if (aging) {
+		counter->cache.lastuse = jiffies;
 		counter->aging = true;
 
 		spin_lock(&fc_stats->addlist_lock);

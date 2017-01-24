@@ -1,6 +1,8 @@
 #ifndef INT_BLK_MQ_H
 #define INT_BLK_MQ_H
 
+#include "blk-stat.h"
+
 struct blk_mq_tag_set;
 
 struct blk_mq_ctx {
@@ -12,14 +14,13 @@ struct blk_mq_ctx {
 	unsigned int		cpu;
 	unsigned int		index_hw;
 
-	unsigned int		last_tag ____cacheline_aligned_in_smp;
-
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
 	unsigned long		rq_merged;
 
 	/* incremented at completion time */
 	unsigned long		____cacheline_aligned_in_smp rq_completed[2];
+	struct blk_rq_stat	stat[2];
 
 	struct request_queue	*queue;
 	struct kobject		kobj;
@@ -30,27 +31,24 @@ void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
+bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *, struct list_head *);
 
 /*
  * CPU hotplug helpers
  */
-struct blk_mq_cpu_notifier;
-void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
-			      int (*fn)(void *, unsigned long, unsigned int),
-			      void *data);
-void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_cpu_init(void);
 void blk_mq_enable_hotplug(void);
 void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings
  */
-extern unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set);
-extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues,
-				   const struct cpumask *online_mask);
 extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
+
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+		int cpu)
+{
+	return q->queue_hw_ctx[q->mq_map[cpu]];
+}
 
 /*
  * sysfs helpers
@@ -62,15 +60,6 @@ extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
 void blk_mq_release(struct request_queue *q);
-
-/*
- * Basic implementation of sparser bitmap, allowing the user to spread
- * the bits over more cachelines.
- */
-struct blk_align_bitmap {
-	unsigned long word;
-	unsigned long depth;
-} ____cacheline_aligned_in_smp;
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 					   unsigned int cpu)
@@ -112,6 +101,11 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->flags = flags;
 	data->ctx = ctx;
 	data->hctx = hctx;
+}
+
+static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
+{
+	return test_bit(BLK_MQ_S_STOPPED, &hctx->state);
 }
 
 static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)

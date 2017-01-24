@@ -87,9 +87,9 @@ Revision History:
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define AMD8111E_VLAN_TAG_USED 1
 #else
 #define AMD8111E_VLAN_TAG_USED 0
@@ -1421,21 +1421,23 @@ static void amd8111e_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	amd8111e_read_regs(lp, buf);
 }
 
-static int amd8111e_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int amd8111e_get_link_ksettings(struct net_device *dev,
+				       struct ethtool_link_ksettings *cmd)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	spin_lock_irq(&lp->lock);
-	mii_ethtool_gset(&lp->mii_if, ecmd);
+	mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
 	spin_unlock_irq(&lp->lock);
 	return 0;
 }
 
-static int amd8111e_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int amd8111e_set_link_ksettings(struct net_device *dev,
+				       const struct ethtool_link_ksettings *cmd)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int res;
 	spin_lock_irq(&lp->lock);
-	res = mii_ethtool_sset(&lp->mii_if, ecmd);
+	res = mii_ethtool_set_link_ksettings(&lp->mii_if, cmd);
 	spin_unlock_irq(&lp->lock);
 	return res;
 }
@@ -1482,12 +1484,12 @@ static const struct ethtool_ops ops = {
 	.get_drvinfo = amd8111e_get_drvinfo,
 	.get_regs_len = amd8111e_get_regs_len,
 	.get_regs = amd8111e_get_regs,
-	.get_settings = amd8111e_get_settings,
-	.set_settings = amd8111e_set_settings,
 	.nway_reset = amd8111e_nway_reset,
 	.get_link = amd8111e_get_link,
 	.get_wol = amd8111e_get_wol,
 	.set_wol = amd8111e_set_wol,
+	.get_link_ksettings = amd8111e_get_link_ksettings,
+	.set_link_ksettings = amd8111e_set_link_ksettings,
 };
 
 /* This function handles all the  ethtool ioctls. It gives driver info,
@@ -1555,9 +1557,6 @@ static int amd8111e_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	int err;
-
-	if ((new_mtu < AMD8111E_MIN_MTU) || (new_mtu > AMD8111E_MAX_MTU))
-		return -EINVAL;
 
 	if (!netif_running(dev)) {
 		/* new_mtu will be used
@@ -1874,6 +1873,8 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	dev->ethtool_ops = &ops;
 	dev->irq =pdev->irq;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
+	dev->min_mtu = AMD8111E_MIN_MTU;
+	dev->max_mtu = AMD8111E_MAX_MTU;
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
 
 #if AMD8111E_VLAN_TAG_USED

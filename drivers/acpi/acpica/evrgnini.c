@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evrgnini")
@@ -478,7 +479,6 @@ acpi_ev_default_region_setup(acpi_handle handle,
  * FUNCTION:    acpi_ev_initialize_region
  *
  * PARAMETERS:  region_obj      - Region we are initializing
- *              acpi_ns_locked  - Is namespace locked?
  *
  * RETURN:      Status
  *
@@ -496,19 +496,28 @@ acpi_ev_default_region_setup(acpi_handle handle,
  * MUTEX:       Interpreter should be unlocked, because we may run the _REG
  *              method for this region.
  *
+ * NOTE:        Possible incompliance:
+ *              There is a behavior conflict in automatic _REG execution:
+ *              1. When the interpreter is evaluating a method, we can only
+ *                 automatically run _REG for the following case:
+ *                   operation_region (OPR1, 0x80, 0x1000010, 0x4)
+ *              2. When the interpreter is loading a table, we can also
+ *                 automatically run _REG for the following case:
+ *                   operation_region (OPR1, 0x80, 0x1000010, 0x4)
+ *              Though this may not be compliant to the de-facto standard, the
+ *              logic is kept in order not to trigger regressions. And keeping
+ *              this logic should be taken care by the caller of this function.
+ *
  ******************************************************************************/
 
-acpi_status
-acpi_ev_initialize_region(union acpi_operand_object *region_obj,
-			  u8 acpi_ns_locked)
+acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 {
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *obj_desc;
 	acpi_adr_space_type space_id;
 	struct acpi_namespace_node *node;
-	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_U32(ev_initialize_region, acpi_ns_locked);
+	ACPI_FUNCTION_TRACE(ev_initialize_region);
 
 	if (!region_obj) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -553,7 +562,8 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				 *
 				 * See acpi_ns_exec_module_code
 				 */
-				if (obj_desc->method.
+				if (!acpi_gbl_parse_table_as_term_list &&
+				    obj_desc->method.
 				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
 					handler_obj =
 					    obj_desc->method.dispatch.handler;
@@ -578,37 +588,17 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 						  handler_obj, region_obj,
 						  obj_desc));
 
-				status =
-				    acpi_ev_attach_region(handler_obj,
-							  region_obj,
-							  acpi_ns_locked);
+				(void)acpi_ev_attach_region(handler_obj,
+							    region_obj, FALSE);
 
 				/*
 				 * Tell all users that this region is usable by
 				 * running the _REG method
 				 */
-				if (acpi_ns_locked) {
-					status =
-					    acpi_ut_release_mutex
-					    (ACPI_MTX_NAMESPACE);
-					if (ACPI_FAILURE(status)) {
-						return_ACPI_STATUS(status);
-					}
-				}
-
-				status =
-				    acpi_ev_execute_reg_method(region_obj,
-							       ACPI_REG_CONNECT);
-
-				if (acpi_ns_locked) {
-					status =
-					    acpi_ut_acquire_mutex
-					    (ACPI_MTX_NAMESPACE);
-					if (ACPI_FAILURE(status)) {
-						return_ACPI_STATUS(status);
-					}
-				}
-
+				acpi_ex_exit_interpreter();
+				(void)acpi_ev_execute_reg_method(region_obj,
+								 ACPI_REG_CONNECT);
+				acpi_ex_enter_interpreter();
 				return_ACPI_STATUS(AE_OK);
 			}
 		}
@@ -618,12 +608,15 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 		node = node->parent;
 	}
 
-	/* If we get here, there is no handler for this region */
-
+	/*
+	 * If we get here, there is no handler for this region. This is not
+	 * fatal because many regions get created before a handler is installed
+	 * for said region.
+	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "No handler for RegionType %s(%X) (RegionObj %p)\n",
 			  acpi_ut_get_region_name(space_id), space_id,
 			  region_obj));
 
-	return_ACPI_STATUS(AE_NOT_EXIST);
+	return_ACPI_STATUS(AE_OK);
 }

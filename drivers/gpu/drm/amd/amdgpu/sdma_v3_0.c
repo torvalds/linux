@@ -60,6 +60,8 @@ MODULE_FIRMWARE("amdgpu/polaris10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma1.bin");
 
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -206,6 +208,7 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris11_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -278,6 +281,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
 		break;
+	case CHIP_POLARIS12:
+		chip_name = "polaris12";
+		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
 		break;
@@ -335,12 +341,8 @@ out:
  */
 static uint32_t sdma_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
-	u32 rptr;
-
 	/* XXX check if swapping is necessary on BE */
-	rptr = ring->adev->wb.wb[ring->rptr_offs] >> 2;
-
-	return rptr;
+	return ring->adev->wb.wb[ring->rptr_offs] >> 2;
 }
 
 /**
@@ -396,10 +398,10 @@ static void sdma_v3_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 
 	for (i = 0; i < count; i++)
 		if (sdma && sdma->burst_nop && (i == 0))
-			amdgpu_ring_write(ring, ring->nop |
+			amdgpu_ring_write(ring, ring->funcs->nop |
 				SDMA_PKT_NOP_HEADER_COUNT(count - 1));
 		else
-			amdgpu_ring_write(ring, ring->nop);
+			amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
 /**
@@ -498,31 +500,6 @@ static void sdma_v3_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_TRAP));
 	amdgpu_ring_write(ring, SDMA_PKT_TRAP_INT_CONTEXT_INT_CONTEXT(0));
 }
-
-unsigned init_cond_exec(struct amdgpu_ring *ring)
-{
-	unsigned ret;
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_COND_EXE));
-	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, 1);
-	ret = ring->wptr;/* this is the offset we need patch later */
-	amdgpu_ring_write(ring, 0x55aa55aa);/* insert dummy here and patch it later */
-	return ret;
-}
-
-void patch_cond_exec(struct amdgpu_ring *ring, unsigned offset)
-{
-	unsigned cur;
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
-
-	cur = ring->wptr - 1;
-	if (likely(cur > offset))
-		ring->ring[offset] = cur - offset;
-	else
-		ring->ring[offset] = (ring->ring_size>>2) - offset + cur;
-}
-
 
 /**
  * sdma_v3_0_gfx_stop - stop the gfx async dma engines
@@ -900,7 +877,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	unsigned index;
 	u32 tmp = 0;
 	u64 gpu_addr;
@@ -937,7 +914,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	if (r)
 		goto err1;
 
-	r = fence_wait_timeout(f, false, timeout);
+	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out\n");
 		r = -ETIMEDOUT;
@@ -956,7 +933,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 err1:
 	amdgpu_ib_free(adev, &ib, NULL);
-	fence_put(f);
+	dma_fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;
@@ -976,24 +953,16 @@ static void sdma_v3_0_vm_copy_pte(struct amdgpu_ib *ib,
 				  uint64_t pe, uint64_t src,
 				  unsigned count)
 {
-	while (count) {
-		unsigned bytes = count * 8;
-		if (bytes > 0x1FFFF8)
-			bytes = 0x1FFFF8;
+	unsigned bytes = count * 8;
 
-		ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
-			SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);
-		ib->ptr[ib->length_dw++] = bytes;
-		ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
-		ib->ptr[ib->length_dw++] = lower_32_bits(src);
-		ib->ptr[ib->length_dw++] = upper_32_bits(src);
-		ib->ptr[ib->length_dw++] = lower_32_bits(pe);
-		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-
-		pe += bytes;
-		src += bytes;
-		count -= bytes / 8;
-	}
+	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
+		SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);
+	ib->ptr[ib->length_dw++] = bytes;
+	ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
+	ib->ptr[ib->length_dw++] = lower_32_bits(src);
+	ib->ptr[ib->length_dw++] = upper_32_bits(src);
+	ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 }
 
 /**
@@ -1001,39 +970,27 @@ static void sdma_v3_0_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA (CIK).
  */
-static void sdma_v3_0_vm_write_pte(struct amdgpu_ib *ib,
-				   const dma_addr_t *pages_addr, uint64_t pe,
-				   uint64_t addr, unsigned count,
-				   uint32_t incr, uint32_t flags)
+static void sdma_v3_0_vm_write_pte(struct amdgpu_ib *ib, uint64_t pe,
+				   uint64_t value, unsigned count,
+				   uint32_t incr)
 {
-	uint64_t value;
-	unsigned ndw;
+	unsigned ndw = count * 2;
 
-	while (count) {
-		ndw = count * 2;
-		if (ndw > 0xFFFFE)
-			ndw = 0xFFFFE;
-
-		/* for non-physically contiguous pages (system) */
-		ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_WRITE) |
-			SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);
-		ib->ptr[ib->length_dw++] = pe;
-		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-		ib->ptr[ib->length_dw++] = ndw;
-		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-			value = amdgpu_vm_map_gart(pages_addr, addr);
-			addr += incr;
-			value |= flags;
-			ib->ptr[ib->length_dw++] = value;
-			ib->ptr[ib->length_dw++] = upper_32_bits(value);
-		}
+	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_WRITE) |
+		SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_WRITE_LINEAR);
+	ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+	ib->ptr[ib->length_dw++] = ndw;
+	for (; ndw > 0; ndw -= 2) {
+		ib->ptr[ib->length_dw++] = lower_32_bits(value);
+		ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		value += incr;
 	}
 }
 
@@ -1049,40 +1006,21 @@ static void sdma_v3_0_vm_write_pte(struct amdgpu_ib *ib,
  *
  * Update the page tables using sDMA (CIK).
  */
-static void sdma_v3_0_vm_set_pte_pde(struct amdgpu_ib *ib,
-				     uint64_t pe,
+static void sdma_v3_0_vm_set_pte_pde(struct amdgpu_ib *ib, uint64_t pe,
 				     uint64_t addr, unsigned count,
 				     uint32_t incr, uint32_t flags)
 {
-	uint64_t value;
-	unsigned ndw;
-
-	while (count) {
-		ndw = count;
-		if (ndw > 0x7FFFF)
-			ndw = 0x7FFFF;
-
-		if (flags & AMDGPU_PTE_VALID)
-			value = addr;
-		else
-			value = 0;
-
-		/* for physically contiguous pages (vram) */
-		ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_GEN_PTEPDE);
-		ib->ptr[ib->length_dw++] = pe; /* dst addr */
-		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-		ib->ptr[ib->length_dw++] = flags; /* mask */
-		ib->ptr[ib->length_dw++] = 0;
-		ib->ptr[ib->length_dw++] = value; /* value */
-		ib->ptr[ib->length_dw++] = upper_32_bits(value);
-		ib->ptr[ib->length_dw++] = incr; /* increment size */
-		ib->ptr[ib->length_dw++] = 0;
-		ib->ptr[ib->length_dw++] = ndw; /* number of entries */
-
-		pe += ndw * 8;
-		addr += ndw * incr;
-		count -= ndw;
-	}
+	/* for physically contiguous pages (vram) */
+	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_GEN_PTEPDE);
+	ib->ptr[ib->length_dw++] = lower_32_bits(pe); /* dst addr */
+	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+	ib->ptr[ib->length_dw++] = flags; /* mask */
+	ib->ptr[ib->length_dw++] = 0;
+	ib->ptr[ib->length_dw++] = lower_32_bits(addr); /* value */
+	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
+	ib->ptr[ib->length_dw++] = incr; /* increment size */
+	ib->ptr[ib->length_dw++] = 0;
+	ib->ptr[ib->length_dw++] = count; /* number of entries */
 }
 
 /**
@@ -1229,11 +1167,10 @@ static int sdma_v3_0_sw_init(void *handle)
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_TRAP0 : AMDGPU_SDMA_IRQ_TRAP1,
-				     AMDGPU_RING_TYPE_SDMA);
+				     AMDGPU_SDMA_IRQ_TRAP0 :
+				     AMDGPU_SDMA_IRQ_TRAP1);
 		if (r)
 			return r;
 	}
@@ -1320,26 +1257,75 @@ static int sdma_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v3_0_soft_reset(void *handle)
+static bool sdma_v3_0_check_soft_reset(void *handle)
 {
-	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS2);
 
-	if (tmp & SRBM_STATUS2__SDMA_BUSY_MASK) {
-		/* sdma0 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 0);
-		WREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET, tmp);
+	if ((tmp & SRBM_STATUS2__SDMA_BUSY_MASK) ||
+	    (tmp & SRBM_STATUS2__SDMA1_BUSY_MASK)) {
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_SDMA_MASK;
-	}
-	if (tmp & SRBM_STATUS2__SDMA1_BUSY_MASK) {
-		/* sdma1 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 0);
-		WREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET, tmp);
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_SDMA1_MASK;
 	}
+
+	if (srbm_soft_reset) {
+		adev->sdma.srbm_soft_reset = srbm_soft_reset;
+		return true;
+	} else {
+		adev->sdma.srbm_soft_reset = 0;
+		return false;
+	}
+}
+
+static int sdma_v3_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+
+	if (!adev->sdma.srbm_soft_reset)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
+
+	if (REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA) ||
+	    REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA1)) {
+		sdma_v3_0_ctx_switch_enable(adev, false);
+		sdma_v3_0_enable(adev, false);
+	}
+
+	return 0;
+}
+
+static int sdma_v3_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+
+	if (!adev->sdma.srbm_soft_reset)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
+
+	if (REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA) ||
+	    REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA1)) {
+		sdma_v3_0_gfx_resume(adev);
+		sdma_v3_0_rlc_resume(adev);
+	}
+
+	return 0;
+}
+
+static int sdma_v3_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+	u32 tmp;
+
+	if (!adev->sdma.srbm_soft_reset)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
 
 	if (srbm_soft_reset) {
 		tmp = RREG32(mmSRBM_SOFT_RESET);
@@ -1547,7 +1533,7 @@ static int sdma_v3_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
+static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.name = "sdma_v3_0",
 	.early_init = sdma_v3_0_early_init,
 	.late_init = NULL,
@@ -1559,16 +1545,28 @@ const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.resume = sdma_v3_0_resume,
 	.is_idle = sdma_v3_0_is_idle,
 	.wait_for_idle = sdma_v3_0_wait_for_idle,
+	.check_soft_reset = sdma_v3_0_check_soft_reset,
+	.pre_soft_reset = sdma_v3_0_pre_soft_reset,
+	.post_soft_reset = sdma_v3_0_post_soft_reset,
 	.soft_reset = sdma_v3_0_soft_reset,
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,
 };
 
 static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_SDMA,
+	.align_mask = 0xf,
+	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.get_rptr = sdma_v3_0_ring_get_rptr,
 	.get_wptr = sdma_v3_0_ring_get_wptr,
 	.set_wptr = sdma_v3_0_ring_set_wptr,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		6 + /* sdma_v3_0_ring_emit_hdp_flush */
+		3 + /* sdma_v3_0_ring_emit_hdp_invalidate */
+		6 + /* sdma_v3_0_ring_emit_pipeline_sync */
+		12 + /* sdma_v3_0_ring_emit_vm_flush */
+		10 + 10 + 10, /* sdma_v3_0_ring_emit_fence x3 for user fence, vm fence */
+	.emit_ib_size = 7 + 6, /* sdma_v3_0_ring_emit_ib */
 	.emit_ib = sdma_v3_0_ring_emit_ib,
 	.emit_fence = sdma_v3_0_ring_emit_fence,
 	.emit_pipeline_sync = sdma_v3_0_ring_emit_pipeline_sync,
@@ -1691,3 +1689,21 @@ static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
 	}
 }
+
+const struct amdgpu_ip_block_version sdma_v3_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &sdma_v3_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version sdma_v3_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 3,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &sdma_v3_0_ip_funcs,
+};

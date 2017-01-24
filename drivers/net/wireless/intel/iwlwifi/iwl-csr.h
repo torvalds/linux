@@ -589,6 +589,8 @@ enum dtd_diode_reg {
  * Causes for the FH register interrupts
  */
 enum msix_fh_int_causes {
+	MSIX_FH_INT_CAUSES_Q0			= BIT(0),
+	MSIX_FH_INT_CAUSES_Q1			= BIT(1),
 	MSIX_FH_INT_CAUSES_D2S_CH0_NUM		= BIT(16),
 	MSIX_FH_INT_CAUSES_D2S_CH1_NUM		= BIT(17),
 	MSIX_FH_INT_CAUSES_S2D			= BIT(19),

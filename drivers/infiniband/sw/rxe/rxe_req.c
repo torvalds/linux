@@ -38,7 +38,7 @@
 #include "rxe_queue.h"
 
 static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       unsigned opcode);
+		       u32 opcode);
 
 static inline void retry_first_write_send(struct rxe_qp *qp,
 					  struct rxe_send_wqe *wqe,
@@ -121,7 +121,7 @@ void rnr_nak_timer(unsigned long data)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)data;
 
-	pr_debug("rnr nak timer fired\n");
+	pr_debug("qp#%d rnr nak timer fired\n", qp_num(qp));
 	rxe_run_task(&qp->req.task, 1);
 }
 
@@ -187,7 +187,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 	return wqe;
 }
 
-static int next_opcode_rc(struct rxe_qp *qp, unsigned opcode, int fits)
+static int next_opcode_rc(struct rxe_qp *qp, u32 opcode, int fits)
 {
 	switch (opcode) {
 	case IB_WR_RDMA_WRITE:
@@ -259,7 +259,7 @@ static int next_opcode_rc(struct rxe_qp *qp, unsigned opcode, int fits)
 	return -EINVAL;
 }
 
-static int next_opcode_uc(struct rxe_qp *qp, unsigned opcode, int fits)
+static int next_opcode_uc(struct rxe_qp *qp, u32 opcode, int fits)
 {
 	switch (opcode) {
 	case IB_WR_RDMA_WRITE:
@@ -311,7 +311,7 @@ static int next_opcode_uc(struct rxe_qp *qp, unsigned opcode, int fits)
 }
 
 static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       unsigned opcode)
+		       u32 opcode)
 {
 	int fits = (wqe->dma.resid <= qp->mtu);
 
@@ -548,23 +548,23 @@ static void update_wqe_psn(struct rxe_qp *qp,
 static void save_state(struct rxe_send_wqe *wqe,
 		       struct rxe_qp *qp,
 		       struct rxe_send_wqe *rollback_wqe,
-		       struct rxe_qp *rollback_qp)
+		       u32 *rollback_psn)
 {
 	rollback_wqe->state     = wqe->state;
 	rollback_wqe->first_psn = wqe->first_psn;
 	rollback_wqe->last_psn  = wqe->last_psn;
-	rollback_qp->req.psn    = qp->req.psn;
+	*rollback_psn		= qp->req.psn;
 }
 
 static void rollback_state(struct rxe_send_wqe *wqe,
 			   struct rxe_qp *qp,
 			   struct rxe_send_wqe *rollback_wqe,
-			   struct rxe_qp *rollback_qp)
+			   u32 rollback_psn)
 {
 	wqe->state     = rollback_wqe->state;
 	wqe->first_psn = rollback_wqe->first_psn;
 	wqe->last_psn  = rollback_wqe->last_psn;
-	qp->req.psn    = rollback_qp->req.psn;
+	qp->req.psn    = rollback_psn;
 }
 
 static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
@@ -588,13 +588,15 @@ int rxe_requester(void *arg)
 	struct rxe_pkt_info pkt;
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
-	unsigned mask;
+	enum rxe_hdr_mask mask;
 	int payload;
 	int mtu;
 	int opcode;
 	int ret;
-	struct rxe_qp rollback_qp;
 	struct rxe_send_wqe rollback_wqe;
+	u32 rollback_psn;
+
+	rxe_add_ref(qp);
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
@@ -626,7 +628,8 @@ next_wqe:
 			rmr = rxe_pool_get_index(&rxe->mr_pool,
 						 wqe->wr.ex.invalidate_rkey >> 8);
 			if (!rmr) {
-				pr_err("No mr for key %#x\n", wqe->wr.ex.invalidate_rkey);
+				pr_err("No mr for key %#x\n",
+				       wqe->wr.ex.invalidate_rkey);
 				wqe->state = wqe_state_error;
 				wqe->status = IB_WC_MW_BIND_ERR;
 				goto exit;
@@ -695,19 +698,21 @@ next_wqe:
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			goto complete;
+			__rxe_do_task(&qp->comp.task);
+			rxe_drop_ref(qp);
+			return 0;
 		}
 		payload = mtu;
 	}
 
 	skb = init_req_packet(qp, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
-		pr_err("Failed allocating skb\n");
+		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
 		goto err;
 	}
 
 	if (fill_packet(qp, wqe, &pkt, skb, payload)) {
-		pr_debug("Error during fill packet\n");
+		pr_debug("qp#%d Error during fill packet\n", qp_num(qp));
 		goto err;
 	}
 
@@ -717,7 +722,7 @@ next_wqe:
 	 * rxe_xmit_packet().
 	 * Otherwise, completer might initiate an unjustified retry flow.
 	 */
-	save_state(wqe, qp, &rollback_wqe, &rollback_qp);
+	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
 	update_wqe_state(qp, wqe, &pkt);
 	update_wqe_psn(qp, wqe, &pkt, payload);
 	ret = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp, &pkt, skb);
@@ -725,7 +730,7 @@ next_wqe:
 		qp->need_req_skb = 1;
 		kfree_skb(skb);
 
-		rollback_state(wqe, qp, &rollback_wqe, &rollback_qp);
+		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
 
 		if (ret == -EAGAIN) {
 			rxe_run_task(&qp->req.task, 1);
@@ -744,14 +749,17 @@ err:
 	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
 
-complete:
-	if (qp_type(qp) != IB_QPT_RC) {
-		while (rxe_completer(qp) == 0)
-			;
-	}
-
-	return 0;
-
+	/*
+	 * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
+	 * ---------8<---------8<-------------
+	 * ...Note that if a completion error occurs, a Work Completion
+	 * will always be generated, even if the signaling
+	 * indicator requests an Unsignaled Completion.
+	 * ---------8<---------8<-------------
+	 */
+	wqe->wr.send_flags |= IB_SEND_SIGNALED;
+	__rxe_do_task(&qp->comp.task);
 exit:
+	rxe_drop_ref(qp);
 	return -EAGAIN;
 }

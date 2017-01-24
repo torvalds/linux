@@ -686,6 +686,12 @@
 			arm,data-latency = <2 1 1>;
 			prefetch-data = <1>;
 			prefetch-instr = <1>;
+			arm,shared-override;
+			arm,double-linefill = <1>;
+			arm,double-linefill-incr = <0>;
+			arm,double-linefill-wrap = <1>;
+			arm,prefetch-drop = <0>;
+			arm,prefetch-offset = <7>;
 		};
 
 		mmc: dwmmc0@ff704000 {
@@ -700,9 +706,36 @@
 			status = "disabled";
 		};
 
+		nand0: nand@ff900000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			compatible = "denali,denali-nand-dt";
+			reg = <0xff900000 0x100000>,
+			      <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0x0 0x90 0x4>;
+			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
+			status = "disabled";
+		};
+
 		ocram: sram@ffff0000 {
 			compatible = "mmio-sram";
 			reg = <0xffff0000 0x10000>;
+		};
+
+		qspi: spi@ff705000 {
+			compatible = "cdns,qspi-nor";
+                        #address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xff705000 0x1000>,
+			      <0xffa00000 0x1000>;
+			interrupts = <0 151 4>;
+			cdns,fifo-depth = <128>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x00000000>;
+			clocks = <&qspi_clk>;
+			status = "disabled";
 		};
 
 		rst: rstmgr@ffd05000 {

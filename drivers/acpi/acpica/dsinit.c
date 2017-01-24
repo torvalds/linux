@@ -46,6 +46,7 @@
 #include "acdispat.h"
 #include "acnamesp.h"
 #include "actables.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsinit")
@@ -214,23 +215,17 @@ acpi_ds_initialize_objects(u32 table_index,
 
 	/* Walk entire namespace from the supplied root */
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
 	/*
 	 * We don't use acpi_walk_namespace since we do not want to acquire
 	 * the namespace reader lock.
 	 */
 	status =
 	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
-				   ACPI_NS_WALK_UNLOCK, acpi_ds_init_one_object,
-				   NULL, &info, NULL);
+				   ACPI_NS_WALK_NO_UNLOCK,
+				   acpi_ds_init_one_object, NULL, &info, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_FAILURE(status)) {

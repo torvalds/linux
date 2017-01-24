@@ -32,8 +32,9 @@ static void nft_log_eval(const struct nft_expr *expr,
 {
 	const struct nft_log *priv = nft_expr_priv(expr);
 
-	nf_log_packet(pkt->net, pkt->pf, pkt->hook, pkt->skb, pkt->in,
-		      pkt->out, &priv->loginfo, "%s", priv->prefix);
+	nf_log_packet(nft_net(pkt), nft_pf(pkt), nft_hook(pkt), pkt->skb,
+		      nft_in(pkt), nft_out(pkt), &priv->loginfo, "%s",
+		      priv->prefix);
 }
 
 static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
@@ -58,8 +59,11 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_LOG_LEVEL] != NULL &&
 	    tb[NFTA_LOG_GROUP] != NULL)
 		return -EINVAL;
-	if (tb[NFTA_LOG_GROUP] != NULL)
+	if (tb[NFTA_LOG_GROUP] != NULL) {
 		li->type = NF_LOG_TYPE_ULOG;
+		if (tb[NFTA_LOG_FLAGS] != NULL)
+			return -EINVAL;
+	}
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -87,6 +91,10 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		if (tb[NFTA_LOG_FLAGS] != NULL) {
 			li->u.log.logflags =
 				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
+			if (li->u.log.logflags & ~NF_LOG_MASK) {
+				err = -EINVAL;
+				goto err1;
+			}
 		}
 		break;
 	case NF_LOG_TYPE_ULOG:

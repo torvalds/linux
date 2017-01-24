@@ -13,8 +13,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "cirrus_drv.h"
 
 static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
@@ -140,12 +138,12 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 {
 	struct drm_device *dev = afbdev->helper.dev;
 	struct cirrus_device *cdev = dev->dev_private;
-	u32 bpp, depth;
+	u32 bpp;
 	u32 size;
 	struct drm_gem_object *gobj;
-
 	int ret = 0;
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))

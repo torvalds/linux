@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_of.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
@@ -143,8 +144,8 @@ static int rockchip_drm_bind(struct device *dev)
 	int ret;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
-	if (!drm_dev)
-		return -ENOMEM;
+	if (IS_ERR(drm_dev))
+		return PTR_ERR(drm_dev);
 
 	dev_set_drvdata(dev, drm_dev);
 
@@ -155,6 +156,9 @@ static int rockchip_drm_bind(struct device *dev)
 	}
 
 	drm_dev->dev_private = private;
+
+	INIT_LIST_HEAD(&private->psr_list);
+	spin_lock_init(&private->psr_list_lock);
 
 	drm_mode_config_init(drm_dev);
 
@@ -271,9 +275,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release = drm_release,
 };
 
@@ -306,7 +308,7 @@ static struct drm_driver rockchip_drm_driver = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-void rockchip_drm_fb_suspend(struct drm_device *drm)
+static void rockchip_drm_fb_suspend(struct drm_device *drm)
 {
 	struct rockchip_drm_private *priv = drm->dev_private;
 
@@ -315,7 +317,7 @@ void rockchip_drm_fb_suspend(struct drm_device *drm)
 	console_unlock();
 }
 
-void rockchip_drm_fb_resume(struct drm_device *drm)
+static void rockchip_drm_fb_resume(struct drm_device *drm)
 {
 	struct rockchip_drm_private *priv = drm->dev_private;
 
@@ -385,7 +387,7 @@ static void rockchip_add_endpoints(struct device *dev,
 			continue;
 		}
 
-		component_match_add(dev, match, compare_of, remote);
+		drm_of_component_match_add(dev, match, compare_of, remote);
 		of_node_put(remote);
 	}
 }
@@ -434,7 +436,8 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 		}
 
 		of_node_put(iommu);
-		component_match_add(dev, &match, compare_of, port->parent);
+		drm_of_component_match_add(dev, &match, compare_of,
+					   port->parent);
 		of_node_put(port);
 	}
 

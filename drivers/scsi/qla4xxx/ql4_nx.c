@@ -1843,7 +1843,7 @@ static uint32_t ql4_84xx_poll_wait_for_ready(struct scsi_qla_host *ha,
 	return rval;
 }
 
-uint32_t ql4_84xx_ipmdio_rd_reg(struct scsi_qla_host *ha, uint32_t addr1,
+static uint32_t ql4_84xx_ipmdio_rd_reg(struct scsi_qla_host *ha, uint32_t addr1,
 				uint32_t addr3, uint32_t mask, uint32_t addr,
 				uint32_t *data_ptr)
 {
@@ -3945,7 +3945,7 @@ void qla4_82xx_process_mbox_intr(struct scsi_qla_host *ha, int out_count)
 		ha->isp_ops->interrupt_service_routine(ha, intr_status);
 
 		if (test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
-		    test_bit(AF_INTx_ENABLED, &ha->flags))
+		    (!ha->pdev->msi_enabled && !ha->pdev->msix_enabled))
 			qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg,
 					0xfbff);
 	}
@@ -4094,12 +4094,8 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	ha->phy_port_num = sys_info->port_num;
 	ha->iscsi_pci_func_cnt = sys_info->iscsi_pci_func_cnt;
 
-	DEBUG2(printk("scsi%ld: %s: "
-	    "mac %02x:%02x:%02x:%02x:%02x:%02x "
-	    "serial %s\n", ha->host_no, __func__,
-	    ha->my_mac[0], ha->my_mac[1], ha->my_mac[2],
-	    ha->my_mac[3], ha->my_mac[4], ha->my_mac[5],
-	    ha->serial_number));
+	DEBUG2(printk("scsi%ld: %s: mac %pM serial %s\n",
+	    ha->host_no, __func__, ha->my_mac, ha->serial_number));
 
 	status = QLA_SUCCESS;
 
@@ -4178,78 +4174,37 @@ qla4_82xx_disable_intrs(struct scsi_qla_host *ha)
 	spin_unlock_irq(&ha->hardware_lock);
 }
 
-struct ql4_init_msix_entry {
-	uint16_t entry;
-	uint16_t index;
-	const char *name;
-	irq_handler_t handler;
-};
-
-static struct ql4_init_msix_entry qla4_8xxx_msix_entries[QLA_MSIX_ENTRIES] = {
-	{ QLA_MSIX_DEFAULT, QLA_MIDX_DEFAULT,
-	    "qla4xxx (default)",
-	    (irq_handler_t)qla4_8xxx_default_intr_handler },
-	{ QLA_MSIX_RSP_Q, QLA_MIDX_RSP_Q,
-	    "qla4xxx (rsp_q)", (irq_handler_t)qla4_8xxx_msix_rsp_q },
-};
-
-void
-qla4_8xxx_disable_msix(struct scsi_qla_host *ha)
-{
-	int i;
-	struct ql4_msix_entry *qentry;
-
-	for (i = 0; i < QLA_MSIX_ENTRIES; i++) {
-		qentry = &ha->msix_entries[qla4_8xxx_msix_entries[i].index];
-		if (qentry->have_irq) {
-			free_irq(qentry->msix_vector, ha);
-			DEBUG2(ql4_printk(KERN_INFO, ha, "%s: %s\n",
-				__func__, qla4_8xxx_msix_entries[i].name));
-		}
-	}
-	pci_disable_msix(ha->pdev);
-	clear_bit(AF_MSIX_ENABLED, &ha->flags);
-}
-
 int
 qla4_8xxx_enable_msix(struct scsi_qla_host *ha)
 {
-	int i, ret;
-	struct msix_entry entries[QLA_MSIX_ENTRIES];
-	struct ql4_msix_entry *qentry;
+	int ret;
 
-	for (i = 0; i < QLA_MSIX_ENTRIES; i++)
-		entries[i].entry = qla4_8xxx_msix_entries[i].entry;
-
-	ret = pci_enable_msix_exact(ha->pdev, entries, ARRAY_SIZE(entries));
-	if (ret) {
+	ret = pci_alloc_irq_vectors(ha->pdev, QLA_MSIX_ENTRIES,
+			QLA_MSIX_ENTRIES, PCI_IRQ_MSIX);
+	if (ret < 0) {
 		ql4_printk(KERN_WARNING, ha,
 		    "MSI-X: Failed to enable support -- %d/%d\n",
 		    QLA_MSIX_ENTRIES, ret);
-		goto msix_out;
+		return ret;
 	}
-	set_bit(AF_MSIX_ENABLED, &ha->flags);
 
-	for (i = 0; i < QLA_MSIX_ENTRIES; i++) {
-		qentry = &ha->msix_entries[qla4_8xxx_msix_entries[i].index];
-		qentry->msix_vector = entries[i].vector;
-		qentry->msix_entry = entries[i].entry;
-		qentry->have_irq = 0;
-		ret = request_irq(qentry->msix_vector,
-		    qla4_8xxx_msix_entries[i].handler, 0,
-		    qla4_8xxx_msix_entries[i].name, ha);
-		if (ret) {
-			ql4_printk(KERN_WARNING, ha,
-			    "MSI-X: Unable to register handler -- %x/%d.\n",
-			    qla4_8xxx_msix_entries[i].index, ret);
-			qla4_8xxx_disable_msix(ha);
-			goto msix_out;
-		}
-		qentry->have_irq = 1;
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: %s\n",
-			__func__, qla4_8xxx_msix_entries[i].name));
-	}
-msix_out:
+	ret = request_irq(pci_irq_vector(ha->pdev, 0),
+			qla4_8xxx_default_intr_handler, 0, "qla4xxx (default)",
+			ha);
+	if (ret)
+		goto out_free_vectors;
+
+	ret = request_irq(pci_irq_vector(ha->pdev, 1),
+			qla4_8xxx_msix_rsp_q, 0, "qla4xxx (rsp_q)", ha);
+	if (ret)
+		goto out_free_default_irq;
+
+	return 0;
+
+out_free_default_irq:
+	free_irq(pci_irq_vector(ha->pdev, 0), ha);
+out_free_vectors:
+	pci_free_irq_vectors(ha->pdev);
 	return ret;
 }
 

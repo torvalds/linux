@@ -26,56 +26,6 @@
 #include "dgnc_cls.h"
 #include "dgnc_tty.h"
 
-static inline void cls_parse_isr(struct dgnc_board *brd, uint port);
-static inline void cls_clear_break(struct channel_t *ch, int force);
-static inline void cls_set_cts_flow_control(struct channel_t *ch);
-static inline void cls_set_rts_flow_control(struct channel_t *ch);
-static inline void cls_set_ixon_flow_control(struct channel_t *ch);
-static inline void cls_set_ixoff_flow_control(struct channel_t *ch);
-static inline void cls_set_no_output_flow_control(struct channel_t *ch);
-static inline void cls_set_no_input_flow_control(struct channel_t *ch);
-static void cls_parse_modem(struct channel_t *ch, unsigned char signals);
-static void cls_tasklet(unsigned long data);
-static void cls_vpd(struct dgnc_board *brd);
-static void cls_uart_init(struct channel_t *ch);
-static void cls_uart_off(struct channel_t *ch);
-static int cls_drain(struct tty_struct *tty, uint seconds);
-static void cls_param(struct tty_struct *tty);
-static void cls_assert_modem_signals(struct channel_t *ch);
-static void cls_flush_uart_write(struct channel_t *ch);
-static void cls_flush_uart_read(struct channel_t *ch);
-static void cls_disable_receiver(struct channel_t *ch);
-static void cls_enable_receiver(struct channel_t *ch);
-static void cls_send_break(struct channel_t *ch, int msecs);
-static void cls_send_start_character(struct channel_t *ch);
-static void cls_send_stop_character(struct channel_t *ch);
-static void cls_copy_data_from_uart_to_queue(struct channel_t *ch);
-static void cls_copy_data_from_queue_to_uart(struct channel_t *ch);
-static uint cls_get_uart_bytes_left(struct channel_t *ch);
-static void cls_send_immediate_char(struct channel_t *ch, unsigned char);
-static irqreturn_t cls_intr(int irq, void *voidbrd);
-
-struct board_ops dgnc_cls_ops = {
-	.tasklet =			cls_tasklet,
-	.intr =				cls_intr,
-	.uart_init =			cls_uart_init,
-	.uart_off =			cls_uart_off,
-	.drain =			cls_drain,
-	.param =			cls_param,
-	.vpd =				cls_vpd,
-	.assert_modem_signals =		cls_assert_modem_signals,
-	.flush_uart_write =		cls_flush_uart_write,
-	.flush_uart_read =		cls_flush_uart_read,
-	.disable_receiver =		cls_disable_receiver,
-	.enable_receiver =		cls_enable_receiver,
-	.send_break =			cls_send_break,
-	.send_start_character =		cls_send_start_character,
-	.send_stop_character =		cls_send_stop_character,
-	.copy_data_from_queue_to_uart = cls_copy_data_from_queue_to_uart,
-	.get_uart_bytes_left =		cls_get_uart_bytes_left,
-	.send_immediate_char =		cls_send_immediate_char
-};
-
 static inline void cls_set_cts_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
@@ -357,6 +307,252 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
+static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
+{
+	int qleft = 0;
+	unsigned char linestatus = 0;
+	unsigned char error_mask = 0;
+	ushort head;
+	ushort tail;
+	unsigned long flags;
+
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	spin_lock_irqsave(&ch->ch_lock, flags);
+
+	/* cache head and tail of queue */
+	head = ch->ch_r_head;
+	tail = ch->ch_r_tail;
+
+	/* Store how much space we have left in the queue */
+	qleft = tail - head - 1;
+	if (qleft < 0)
+		qleft += RQUEUEMASK + 1;
+
+	/*
+	 * Create a mask to determine whether we should
+	 * insert the character (if any) into our queue.
+	 */
+	if (ch->ch_c_iflag & IGNBRK)
+		error_mask |= UART_LSR_BI;
+
+	while (1) {
+		linestatus = readb(&ch->ch_cls_uart->lsr);
+
+		if (!(linestatus & (UART_LSR_DR)))
+			break;
+
+		/*
+		 * Discard character if we are ignoring the error mask.
+		 */
+		if (linestatus & error_mask)  {
+			linestatus = 0;
+			readb(&ch->ch_cls_uart->txrx);
+			continue;
+		}
+
+		/*
+		 * If our queue is full, we have no choice but to drop some
+		 * data. The assumption is that HWFLOW or SWFLOW should have
+		 * stopped things way way before we got to this point.
+		 *
+		 * I decided that I wanted to ditch the oldest data first,
+		 * I hope thats okay with everyone? Yes? Good.
+		 */
+		while (qleft < 1) {
+			tail = (tail + 1) & RQUEUEMASK;
+			ch->ch_r_tail = tail;
+			ch->ch_err_overrun++;
+			qleft++;
+		}
+
+		ch->ch_equeue[head] = linestatus & (UART_LSR_BI | UART_LSR_PE
+								 | UART_LSR_FE);
+		ch->ch_rqueue[head] = readb(&ch->ch_cls_uart->txrx);
+
+		qleft--;
+
+		if (ch->ch_equeue[head] & UART_LSR_PE)
+			ch->ch_err_parity++;
+		if (ch->ch_equeue[head] & UART_LSR_BI)
+			ch->ch_err_break++;
+		if (ch->ch_equeue[head] & UART_LSR_FE)
+			ch->ch_err_frame++;
+
+		/* Add to, and flip head if needed */
+		head = (head + 1) & RQUEUEMASK;
+		ch->ch_rxcount++;
+	}
+
+	/* Write new final heads to channel structure. */
+
+	ch->ch_r_head = head & RQUEUEMASK;
+	ch->ch_e_head = head & EQUEUEMASK;
+
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+}
+
+/* Make the UART raise any of the output signals we want up */
+static void cls_assert_modem_signals(struct channel_t *ch)
+{
+	unsigned char out;
+
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	out = ch->ch_mostat;
+
+	if (ch->ch_flags & CH_LOOPBACK)
+		out |= UART_MCR_LOOP;
+
+	writeb(out, &ch->ch_cls_uart->mcr);
+
+	/* Give time for the UART to actually drop the signals */
+	udelay(10);
+}
+
+static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
+{
+	ushort head;
+	ushort tail;
+	int n;
+	int qlen;
+	uint len_written = 0;
+	unsigned long flags;
+
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	spin_lock_irqsave(&ch->ch_lock, flags);
+
+	/* No data to write to the UART */
+	if (ch->ch_w_tail == ch->ch_w_head)
+		goto exit_unlock;
+
+	/* If port is "stopped", don't send any data to the UART */
+	if ((ch->ch_flags & CH_FORCED_STOP) ||
+	    (ch->ch_flags & CH_BREAK_SENDING))
+		goto exit_unlock;
+
+	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
+		goto exit_unlock;
+
+	n = 32;
+
+	/* cache head and tail of queue */
+	head = ch->ch_w_head & WQUEUEMASK;
+	tail = ch->ch_w_tail & WQUEUEMASK;
+	qlen = (head - tail) & WQUEUEMASK;
+
+	/* Find minimum of the FIFO space, versus queue length */
+	n = min(n, qlen);
+
+	while (n > 0) {
+		/*
+		 * If RTS Toggle mode is on, turn on RTS now if not already set,
+		 * and make sure we get an event when the data transfer has
+		 * completed.
+		 */
+		if (ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE) {
+			if (!(ch->ch_mostat & UART_MCR_RTS)) {
+				ch->ch_mostat |= (UART_MCR_RTS);
+				cls_assert_modem_signals(ch);
+			}
+			ch->ch_tun.un_flags |= (UN_EMPTY);
+		}
+
+		/*
+		 * If DTR Toggle mode is on, turn on DTR now if not already set,
+		 * and make sure we get an event when the data transfer has
+		 * completed.
+		 */
+		if (ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) {
+			if (!(ch->ch_mostat & UART_MCR_DTR)) {
+				ch->ch_mostat |= (UART_MCR_DTR);
+				cls_assert_modem_signals(ch);
+			}
+			ch->ch_tun.un_flags |= (UN_EMPTY);
+		}
+		writeb(ch->ch_wqueue[ch->ch_w_tail], &ch->ch_cls_uart->txrx);
+		ch->ch_w_tail++;
+		ch->ch_w_tail &= WQUEUEMASK;
+		ch->ch_txcount++;
+		len_written++;
+		n--;
+	}
+
+	if (len_written > 0)
+		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
+
+exit_unlock:
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+}
+
+static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
+{
+	unsigned char msignals = signals;
+	unsigned long flags;
+
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	/*
+	 * Do altpin switching. Altpin switches DCD and DSR.
+	 * This prolly breaks DSRPACE, so we should be more clever here.
+	 */
+	spin_lock_irqsave(&ch->ch_lock, flags);
+	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
+		unsigned char mswap = signals;
+
+		if (mswap & UART_MSR_DDCD) {
+			msignals &= ~UART_MSR_DDCD;
+			msignals |= UART_MSR_DDSR;
+		}
+		if (mswap & UART_MSR_DDSR) {
+			msignals &= ~UART_MSR_DDSR;
+			msignals |= UART_MSR_DDCD;
+		}
+		if (mswap & UART_MSR_DCD) {
+			msignals &= ~UART_MSR_DCD;
+			msignals |= UART_MSR_DSR;
+		}
+		if (mswap & UART_MSR_DSR) {
+			msignals &= ~UART_MSR_DSR;
+			msignals |= UART_MSR_DCD;
+		}
+	}
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+
+	/*
+	 * Scrub off lower bits. They signify delta's, which I don't
+	 * care about
+	 */
+	signals &= 0xf0;
+
+	spin_lock_irqsave(&ch->ch_lock, flags);
+	if (msignals & UART_MSR_DCD)
+		ch->ch_mistat |= UART_MSR_DCD;
+	else
+		ch->ch_mistat &= ~UART_MSR_DCD;
+
+	if (msignals & UART_MSR_DSR)
+		ch->ch_mistat |= UART_MSR_DSR;
+	else
+		ch->ch_mistat &= ~UART_MSR_DSR;
+
+	if (msignals & UART_MSR_RI)
+		ch->ch_mistat |= UART_MSR_RI;
+	else
+		ch->ch_mistat &= ~UART_MSR_RI;
+
+	if (msignals & UART_MSR_CTS)
+		ch->ch_mistat |= UART_MSR_CTS;
+	else
+		ch->ch_mistat &= ~UART_MSR_CTS;
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+}
+
 /* Parse the ISR register for the specific port */
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 {
@@ -387,8 +583,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		/* Receive Interrupt pending */
 		if (isr & (UART_IIR_RDI | UART_IIR_RDI_TIMEOUT)) {
 			/* Read data from uart -> queue */
-			brd->intr_rx++;
-			ch->ch_intr_rx++;
 			cls_copy_data_from_uart_to_queue(ch);
 			dgnc_check_queue_flow_control(ch);
 		}
@@ -398,25 +592,46 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 			/* Transfer data (if any) from Write Queue -> UART. */
 			spin_lock_irqsave(&ch->ch_lock, flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-			brd->intr_tx++;
-			ch->ch_intr_tx++;
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			cls_copy_data_from_queue_to_uart(ch);
-		}
-
-		/* CTS/RTS change of state */
-		if (isr & UART_IIR_CTSRTS) {
-			brd->intr_modem++;
-			ch->ch_intr_modem++;
-			/*
-			 * Don't need to do anything, the cls_parse_modem
-			 * below will grab the updated modem signals.
-			 */
 		}
 
 		/* Parse any modem signal changes */
 		cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 	}
+}
+
+/* Channel lock MUST be held before calling this function! */
+static void cls_flush_uart_write(struct channel_t *ch)
+{
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
+	       &ch->ch_cls_uart->isr_fcr);
+	usleep_range(10, 20);
+
+	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
+}
+
+/* Channel lock MUST be held before calling this function! */
+static void cls_flush_uart_read(struct channel_t *ch)
+{
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
+
+	/*
+	 * For complete POSIX compatibility, we should be purging the
+	 * read FIFO in the UART here.
+	 *
+	 * However, clearing the read FIFO (UART_FCR_CLEAR_RCVR) also
+	 * incorrectly flushes write data as well as just basically trashing the
+	 * FIFO.
+	 *
+	 * Presumably, this is a bug in this UART.
+	 */
+
+	udelay(10);
 }
 
 /*
@@ -450,9 +665,8 @@ static void cls_param(struct tty_struct *tty)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	/*
-	 * If baud rate is zero, flush queues, and set mval to drop DTR.
-	 */
+	/* If baud rate is zero, flush queues, and set mval to drop DTR. */
+
 	if ((ch->ch_c_cflag & (CBAUD)) == 0) {
 		ch->ch_r_head = 0;
 		ch->ch_r_tail = 0;
@@ -671,9 +885,8 @@ static void cls_param(struct tty_struct *tty)
 	cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 }
 
-/*
- * Our board poller function.
- */
+/* Our board poller function. */
+
 static void cls_tasklet(unsigned long data)
 {
 	struct dgnc_board *bd = (struct dgnc_board *)data;
@@ -698,9 +911,8 @@ static void cls_tasklet(unsigned long data)
 	 */
 	spin_lock_irqsave(&bd->bd_intr_lock, flags);
 
-	/*
-	 * If board is ready, parse deeper to see if there is anything to do.
-	 */
+	/* If board is ready, parse deeper to see if there is anything to do. */
+
 	if ((state == BOARD_READY) && (ports > 0)) {
 		/* Loop on each port */
 		for (i = 0; i < ports; i++) {
@@ -722,9 +934,8 @@ static void cls_tasklet(unsigned long data)
 			cls_copy_data_from_queue_to_uart(ch);
 			dgnc_wakeup_writes(ch);
 
-			/*
-			 * Check carrier function.
-			 */
+			/* Check carrier function. */
+
 			dgnc_carrier(ch);
 
 			/*
@@ -760,8 +971,6 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 
-	brd->intr_count++;
-
 	/*
 	 * Check the board's global interrupt offset to see if we
 	 * we actually do have an interrupt pending for us.
@@ -778,9 +987,8 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	for (i = 0; i < brd->nasync; i++)
 		cls_parse_isr(brd, i);
 
-	/*
-	 * Schedule tasklet to more in-depth servicing at a better time.
-	 */
+	/* Schedule tasklet to more in-depth servicing at a better time. */
+
 	tasklet_schedule(&brd->helper_tasklet);
 
 	spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
@@ -802,93 +1010,6 @@ static void cls_enable_receiver(struct channel_t *ch)
 
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
-}
-
-static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
-{
-	int qleft = 0;
-	unsigned char linestatus = 0;
-	unsigned char error_mask = 0;
-	ushort head;
-	ushort tail;
-	unsigned long flags;
-
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	spin_lock_irqsave(&ch->ch_lock, flags);
-
-	/* cache head and tail of queue */
-	head = ch->ch_r_head;
-	tail = ch->ch_r_tail;
-
-	/* Store how much space we have left in the queue */
-	qleft = tail - head - 1;
-	if (qleft < 0)
-		qleft += RQUEUEMASK + 1;
-
-	/*
-	 * Create a mask to determine whether we should
-	 * insert the character (if any) into our queue.
-	 */
-	if (ch->ch_c_iflag & IGNBRK)
-		error_mask |= UART_LSR_BI;
-
-	while (1) {
-		linestatus = readb(&ch->ch_cls_uart->lsr);
-
-		if (!(linestatus & (UART_LSR_DR)))
-			break;
-
-		/*
-		 * Discard character if we are ignoring the error mask.
-		*/
-		if (linestatus & error_mask)  {
-			linestatus = 0;
-			readb(&ch->ch_cls_uart->txrx);
-			continue;
-		}
-
-		/*
-		 * If our queue is full, we have no choice but to drop some
-		 * data. The assumption is that HWFLOW or SWFLOW should have
-		 * stopped things way way before we got to this point.
-		 *
-		 * I decided that I wanted to ditch the oldest data first,
-		 * I hope thats okay with everyone? Yes? Good.
-		 */
-		while (qleft < 1) {
-			tail = (tail + 1) & RQUEUEMASK;
-			ch->ch_r_tail = tail;
-			ch->ch_err_overrun++;
-			qleft++;
-		}
-
-		ch->ch_equeue[head] = linestatus & (UART_LSR_BI | UART_LSR_PE
-								 | UART_LSR_FE);
-		ch->ch_rqueue[head] = readb(&ch->ch_cls_uart->txrx);
-
-		qleft--;
-
-		if (ch->ch_equeue[head] & UART_LSR_PE)
-			ch->ch_err_parity++;
-		if (ch->ch_equeue[head] & UART_LSR_BI)
-			ch->ch_err_break++;
-		if (ch->ch_equeue[head] & UART_LSR_FE)
-			ch->ch_err_frame++;
-
-		/* Add to, and flip head if needed */
-		head = (head + 1) & RQUEUEMASK;
-		ch->ch_rxcount++;
-	}
-
-	/*
-	 * Write new final heads to channel structure.
-	 */
-	ch->ch_r_head = head & RQUEUEMASK;
-	ch->ch_e_head = head & EQUEUEMASK;
-
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 /*
@@ -916,207 +1037,12 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	un->un_flags |= UN_EMPTY;
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
-	/*
-	 * NOTE: Do something with time passed in.
-	 */
+	/* NOTE: Do something with time passed in. */
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 
 	return wait_event_interruptible(un->un_flags_wait,
 					 ((un->un_flags & UN_EMPTY) == 0));
-}
-
-/* Channel lock MUST be held before calling this function! */
-static void cls_flush_uart_write(struct channel_t *ch)
-{
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
-	       &ch->ch_cls_uart->isr_fcr);
-	usleep_range(10, 20);
-
-	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-}
-
-/* Channel lock MUST be held before calling this function! */
-static void cls_flush_uart_read(struct channel_t *ch)
-{
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	/*
-	 * For complete POSIX compatibility, we should be purging the
-	 * read FIFO in the UART here.
-	 *
-	 * However, clearing the read FIFO (UART_FCR_CLEAR_RCVR) also
-	 * incorrectly flushes write data as well as just basically trashing the
-	 * FIFO.
-	 *
-	 * Presumably, this is a bug in this UART.
-	 */
-
-	udelay(10);
-}
-
-static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
-{
-	ushort head;
-	ushort tail;
-	int n;
-	int qlen;
-	uint len_written = 0;
-	unsigned long flags;
-
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	spin_lock_irqsave(&ch->ch_lock, flags);
-
-	/* No data to write to the UART */
-	if (ch->ch_w_tail == ch->ch_w_head)
-		goto exit_unlock;
-
-	/* If port is "stopped", don't send any data to the UART */
-	if ((ch->ch_flags & CH_FORCED_STOP) ||
-	    (ch->ch_flags & CH_BREAK_SENDING))
-		goto exit_unlock;
-
-	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
-		goto exit_unlock;
-
-	n = 32;
-
-	/* cache head and tail of queue */
-	head = ch->ch_w_head & WQUEUEMASK;
-	tail = ch->ch_w_tail & WQUEUEMASK;
-	qlen = (head - tail) & WQUEUEMASK;
-
-	/* Find minimum of the FIFO space, versus queue length */
-	n = min(n, qlen);
-
-	while (n > 0) {
-		/*
-		 * If RTS Toggle mode is on, turn on RTS now if not already set,
-		 * and make sure we get an event when the data transfer has
-		 * completed.
-		 */
-		if (ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE) {
-			if (!(ch->ch_mostat & UART_MCR_RTS)) {
-				ch->ch_mostat |= (UART_MCR_RTS);
-				cls_assert_modem_signals(ch);
-			}
-			ch->ch_tun.un_flags |= (UN_EMPTY);
-		}
-
-		/*
-		 * If DTR Toggle mode is on, turn on DTR now if not already set,
-		 * and make sure we get an event when the data transfer has
-		 * completed.
-		 */
-		if (ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) {
-			if (!(ch->ch_mostat & UART_MCR_DTR)) {
-				ch->ch_mostat |= (UART_MCR_DTR);
-				cls_assert_modem_signals(ch);
-			}
-			ch->ch_tun.un_flags |= (UN_EMPTY);
-		}
-		writeb(ch->ch_wqueue[ch->ch_w_tail], &ch->ch_cls_uart->txrx);
-		ch->ch_w_tail++;
-		ch->ch_w_tail &= WQUEUEMASK;
-		ch->ch_txcount++;
-		len_written++;
-		n--;
-	}
-
-	if (len_written > 0)
-		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-
-exit_unlock:
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
-}
-
-static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
-{
-	unsigned char msignals = signals;
-	unsigned long flags;
-
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	/*
-	 * Do altpin switching. Altpin switches DCD and DSR.
-	 * This prolly breaks DSRPACE, so we should be more clever here.
-	 */
-	spin_lock_irqsave(&ch->ch_lock, flags);
-	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
-		unsigned char mswap = signals;
-
-		if (mswap & UART_MSR_DDCD) {
-			msignals &= ~UART_MSR_DDCD;
-			msignals |= UART_MSR_DDSR;
-		}
-		if (mswap & UART_MSR_DDSR) {
-			msignals &= ~UART_MSR_DDSR;
-			msignals |= UART_MSR_DDCD;
-		}
-		if (mswap & UART_MSR_DCD) {
-			msignals &= ~UART_MSR_DCD;
-			msignals |= UART_MSR_DSR;
-		}
-		if (mswap & UART_MSR_DSR) {
-			msignals &= ~UART_MSR_DSR;
-			msignals |= UART_MSR_DCD;
-		}
-	}
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-	/*
-	 * Scrub off lower bits. They signify delta's, which I don't
-	 * care about
-	 */
-	signals &= 0xf0;
-
-	spin_lock_irqsave(&ch->ch_lock, flags);
-	if (msignals & UART_MSR_DCD)
-		ch->ch_mistat |= UART_MSR_DCD;
-	else
-		ch->ch_mistat &= ~UART_MSR_DCD;
-
-	if (msignals & UART_MSR_DSR)
-		ch->ch_mistat |= UART_MSR_DSR;
-	else
-		ch->ch_mistat &= ~UART_MSR_DSR;
-
-	if (msignals & UART_MSR_RI)
-		ch->ch_mistat |= UART_MSR_RI;
-	else
-		ch->ch_mistat &= ~UART_MSR_RI;
-
-	if (msignals & UART_MSR_CTS)
-		ch->ch_mistat |= UART_MSR_CTS;
-	else
-		ch->ch_mistat &= ~UART_MSR_CTS;
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
-}
-
-/* Make the UART raise any of the output signals we want up */
-static void cls_assert_modem_signals(struct channel_t *ch)
-{
-	unsigned char out;
-
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
-
-	out = ch->ch_mostat;
-
-	if (ch->ch_flags & CH_LOOPBACK)
-		out |= UART_MCR_LOOP;
-
-	writeb(out, &ch->ch_cls_uart->mcr);
-
-	/* Give time for the UART to actually drop the signals */
-	udelay(10);
 }
 
 static void cls_send_start_character(struct channel_t *ch)
@@ -1178,9 +1104,8 @@ static void cls_uart_init(struct channel_t *ch)
 	readb(&ch->ch_cls_uart->msr);
 }
 
-/*
- * Turns off UART.
- */
+/* Turns off UART.  */
+
 static void cls_uart_off(struct channel_t *ch)
 {
 	writeb(0, &ch->ch_cls_uart->ier);
@@ -1226,9 +1151,8 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	/*
-	 * If we receive a time of 0, this means turn off the break.
-	 */
+	/* If we receive a time of 0, this means turn off the break. */
+
 	if (msecs == 0) {
 		/* Turn break off, and unset some variables */
 		if (ch->ch_flags & CH_BREAK_SENDING) {
@@ -1298,3 +1222,24 @@ static void cls_vpd(struct dgnc_board *brd)
 
 	iounmap(re_map_vpdbase);
 }
+
+struct board_ops dgnc_cls_ops = {
+	.tasklet =			cls_tasklet,
+	.intr =				cls_intr,
+	.uart_init =			cls_uart_init,
+	.uart_off =			cls_uart_off,
+	.drain =			cls_drain,
+	.param =			cls_param,
+	.vpd =				cls_vpd,
+	.assert_modem_signals =		cls_assert_modem_signals,
+	.flush_uart_write =		cls_flush_uart_write,
+	.flush_uart_read =		cls_flush_uart_read,
+	.disable_receiver =		cls_disable_receiver,
+	.enable_receiver =		cls_enable_receiver,
+	.send_break =			cls_send_break,
+	.send_start_character =		cls_send_start_character,
+	.send_stop_character =		cls_send_stop_character,
+	.copy_data_from_queue_to_uart = cls_copy_data_from_queue_to_uart,
+	.get_uart_bytes_left =		cls_get_uart_bytes_left,
+	.send_immediate_char =		cls_send_immediate_char
+};

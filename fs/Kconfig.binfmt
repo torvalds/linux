@@ -89,7 +89,7 @@ config BINFMT_SCRIPT
 
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU || M68K
+	depends on !MMU || ARM || M68K
 	depends on !FRV || BROKEN
 	help
 	  Support uClinux FLAT format binaries.
@@ -170,8 +170,8 @@ config BINFMT_MISC
 
 	  You can do other nice things, too. Read the file
 	  <file:Documentation/binfmt_misc.txt> to learn how to use this
-	  feature, <file:Documentation/java.txt> for information about how
-	  to include Java support. and <file:Documentation/mono.txt> for
+	  feature, <file:Documentation/admin-guide/java.rst> for information about how
+	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.
 
           To use binfmt_misc, you will need to mount it:

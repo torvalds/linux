@@ -50,7 +50,7 @@
 /**
  * Configuration BAR size.
  *
- * The configuration BAR is 8K in size, but on the NFP6000, due to
+ * The configuration BAR is 8K in size, but due to
  * THB-350, 32k needs to be reserved.
  */
 #define NFP_NET_CFG_BAR_SZ              (32 * 1024)
@@ -64,6 +64,13 @@
  * Maximum header size supported for LSO frames
  */
 #define NFP_NET_LSO_MAX_HDR_SZ		255
+
+/**
+ * Prepend field types
+ */
+#define NFP_NET_META_FIELD_SIZE		4
+#define NFP_NET_META_HASH		1 /* next field carries hash type */
+#define NFP_NET_META_MARK		2
 
 /**
  * Hash type pre-pended when a RSS hash was computed
@@ -123,6 +130,7 @@
 #define   NFP_NET_CFG_CTRL_L2SWITCH_LOCAL (0x1 << 23) /* Switch to local */
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
+#define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
 #define NFP_NET_CFG_UPDATE              0x0004
 #define   NFP_NET_CFG_UPDATE_GEN          (0x1 <<  0) /* General update */
 #define   NFP_NET_CFG_UPDATE_RING         (0x1 <<  1) /* Ring config change */
@@ -134,6 +142,7 @@
 #define   NFP_NET_CFG_UPDATE_RESET        (0x1 <<  7) /* Update due to FLR */
 #define   NFP_NET_CFG_UPDATE_IRQMOD       (0x1 <<  8) /* IRQ mod change */
 #define   NFP_NET_CFG_UPDATE_VXLAN	  (0x1 <<  9) /* VXLAN port change */
+#define   NFP_NET_CFG_UPDATE_BPF	  (0x1 << 10) /* BPF program load */
 #define   NFP_NET_CFG_UPDATE_ERR          (0x1 << 31) /* A error occurred */
 #define NFP_NET_CFG_TXRS_ENABLE         0x0008
 #define NFP_NET_CFG_RXRS_ENABLE         0x0010
@@ -177,18 +186,13 @@
 #define NFP_NET_CFG_START_RXQ           0x004c
 
 /**
- * NFP-3200 workaround (0x0050 - 0x0058)
- * @NFP_NET_CFG_SPARE_ADDR:  DMA address for ME code to use (e.g. YDS-155 fix)
- */
-#define NFP_NET_CFG_SPARE_ADDR          0x0050
-/**
- * NFP6000/NFP4000 - Prepend configuration
+ * Prepend configuration
  */
 #define NFP_NET_CFG_RX_OFFSET		0x0050
 #define NFP_NET_CFG_RX_OFFSET_DYNAMIC		0	/* Prepend mode */
 
 /**
- * NFP6000/NFP4000 - VXLAN/UDP encap configuration
+ * VXLAN/UDP encap configuration
  * @NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
  * @NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
  */
@@ -196,10 +200,37 @@
 #define NFP_NET_CFG_VXLAN_SZ		  0x0008
 
 /**
- * 64B reserved for future use (0x0080 - 0x00c0)
+ * BPF section
+ * @NFP_NET_CFG_BPF_ABI:	BPF ABI version
+ * @NFP_NET_CFG_BPF_CAP:	BPF capabilities
+ * @NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
+ * @NFP_NET_CFG_BPF_START:	Offset at which BPF will be loaded
+ * @NFP_NET_CFG_BPF_DONE:	Offset to jump to on exit
+ * @NFP_NET_CFG_BPF_STACK_SZ:	Total size of stack area in 64B chunks
+ * @NFP_NET_CFG_BPF_INL_MTU:	Packet data split offset in 64B chunks
+ * @NFP_NET_CFG_BPF_SIZE:	Size of the JITed BPF code in instructions
+ * @NFP_NET_CFG_BPF_ADDR:	DMA address of the buffer with JITed BPF code
  */
-#define NFP_NET_CFG_RESERVED            0x0080
-#define NFP_NET_CFG_RESERVED_SZ         0x0040
+#define NFP_NET_CFG_BPF_ABI		0x0080
+#define   NFP_NET_BPF_ABI		1
+#define NFP_NET_CFG_BPF_CAP		0x0081
+#define   NFP_NET_BPF_CAP_RELO		(1 << 0) /* seamless reload */
+#define NFP_NET_CFG_BPF_MAX_LEN		0x0082
+#define NFP_NET_CFG_BPF_START		0x0084
+#define NFP_NET_CFG_BPF_DONE		0x0086
+#define NFP_NET_CFG_BPF_STACK_SZ	0x0088
+#define NFP_NET_CFG_BPF_INL_MTU		0x0089
+#define NFP_NET_CFG_BPF_SIZE		0x008e
+#define NFP_NET_CFG_BPF_ADDR		0x0090
+#define   NFP_NET_CFG_BPF_CFG_8CTX	(1 << 0) /* 8ctx mode */
+#define   NFP_NET_CFG_BPF_CFG_MASK	7ULL
+#define   NFP_NET_CFG_BPF_ADDR_MASK	(~NFP_NET_CFG_BPF_CFG_MASK)
+
+/**
+ * 40B reserved for future use (0x0098 - 0x00c0)
+ */
+#define NFP_NET_CFG_RESERVED            0x0098
+#define NFP_NET_CFG_RESERVED_SZ         0x0028
 
 /**
  * RSS configuration (0x0100 - 0x01ac):
@@ -302,6 +333,15 @@
 #define NFP_NET_CFG_STATS_TX_FRAMES     (NFP_NET_CFG_STATS_BASE + 0x78)
 #define NFP_NET_CFG_STATS_TX_MC_FRAMES  (NFP_NET_CFG_STATS_BASE + 0x80)
 #define NFP_NET_CFG_STATS_TX_BC_FRAMES  (NFP_NET_CFG_STATS_BASE + 0x88)
+
+#define NFP_NET_CFG_STATS_APP0_FRAMES	(NFP_NET_CFG_STATS_BASE + 0x90)
+#define NFP_NET_CFG_STATS_APP0_BYTES	(NFP_NET_CFG_STATS_BASE + 0x98)
+#define NFP_NET_CFG_STATS_APP1_FRAMES	(NFP_NET_CFG_STATS_BASE + 0xa0)
+#define NFP_NET_CFG_STATS_APP1_BYTES	(NFP_NET_CFG_STATS_BASE + 0xa8)
+#define NFP_NET_CFG_STATS_APP2_FRAMES	(NFP_NET_CFG_STATS_BASE + 0xb0)
+#define NFP_NET_CFG_STATS_APP2_BYTES	(NFP_NET_CFG_STATS_BASE + 0xb8)
+#define NFP_NET_CFG_STATS_APP3_FRAMES	(NFP_NET_CFG_STATS_BASE + 0xc0)
+#define NFP_NET_CFG_STATS_APP3_BYTES	(NFP_NET_CFG_STATS_BASE + 0xc8)
 
 /**
  * Per ring stats (0x1000 - 0x1800)

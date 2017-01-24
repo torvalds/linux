@@ -1,10 +1,8 @@
 #include "ddk750_reg.h"
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_display.h"
 #include "ddk750_power.h"
 #include "ddk750_dvi.h"
-
-#define primaryWaitVerticalSync(delay) waitNextVerticalSync(0, delay)
 
 static void setDisplayControl(int ctrl, int disp_state)
 {
@@ -61,52 +59,28 @@ static void setDisplayControl(int ctrl, int disp_state)
 	}
 }
 
-static void waitNextVerticalSync(int ctrl, int delay)
+static void primary_wait_vertical_sync(int delay)
 {
 	unsigned int status;
 
-	if (!ctrl) {
-		/* primary controller */
+	/*
+	 * Do not wait when the Primary PLL is off or display control is
+	 * already off. This will prevent the software to wait forever.
+	 */
+	if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
+	    !(PEEK32(PANEL_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING))
+		return;
 
-		/* Do not wait when the Primary PLL is off or display control is already off.
-		   This will prevent the software to wait forever. */
-		if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
-		    !(PEEK32(PANEL_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING)) {
-			return;
-		}
+	while (delay-- > 0) {
+		/* Wait for end of vsync. */
+		do {
+			status = PEEK32(SYSTEM_CTRL);
+		} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
 
-		while (delay-- > 0) {
-			/* Wait for end of vsync. */
-			do {
-				status = PEEK32(SYSTEM_CTRL);
-			} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
-
-			/* Wait for start of vsync. */
-			do {
-				status = PEEK32(SYSTEM_CTRL);
-			} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
-		}
-
-	} else {
-
-		/* Do not wait when the Primary PLL is off or display control is already off.
-			   This will prevent the software to wait forever. */
-		if (!(PEEK32(CRT_PLL_CTRL) & PLL_CTRL_POWER) ||
-		    !(PEEK32(CRT_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING)) {
-			return;
-		}
-
-		while (delay-- > 0) {
-			/* Wait for end of vsync. */
-			do {
-				status = PEEK32(SYSTEM_CTRL);
-			} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
-
-			/* Wait for start of vsync. */
-			do {
-				status = PEEK32(SYSTEM_CTRL);
-			} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
-		}
+		/* Wait for start of vsync. */
+		do {
+			status = PEEK32(SYSTEM_CTRL);
+		} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
 	}
 }
 
@@ -118,23 +92,22 @@ static void swPanelPowerSequence(int disp, int delay)
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
-	primaryWaitVerticalSync(delay);
+	primary_wait_vertical_sync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_DATA : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
-	primaryWaitVerticalSync(delay);
+	primary_wait_vertical_sync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_VBIASEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
-	primaryWaitVerticalSync(delay);
+	primary_wait_vertical_sync(delay);
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
-	primaryWaitVerticalSync(delay);
-
+	primary_wait_vertical_sync(delay);
 }
 
 void ddk750_setLogicalDispOut(disp_output_t output)
@@ -159,7 +132,6 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 		/*se blank off */
 		reg &= ~CRT_DISPLAY_CTRL_BLANK;
 		POKE32(CRT_DISPLAY_CTRL, reg);
-
 	}
 
 	if (output & PRI_TP_USAGE) {
@@ -181,5 +153,5 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 		setDAC((output & DAC_MASK) >> DAC_OFFSET);
 
 	if (output & DPMS_USAGE)
-		ddk750_setDPMS((output & DPMS_MASK) >> DPMS_OFFSET);
+		ddk750_set_dpms((output & DPMS_MASK) >> DPMS_OFFSET);
 }

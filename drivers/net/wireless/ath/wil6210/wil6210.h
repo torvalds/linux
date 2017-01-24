@@ -17,6 +17,7 @@
 #ifndef __WIL6210_H__
 #define __WIL6210_H__
 
+#include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
@@ -275,10 +276,11 @@ struct fw_map {
 	u32 to;   /* linker address - to, exclusive */
 	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
 	const char *name; /* for debugfs */
+	bool fw; /* true if FW mapping, false if UCODE mapping */
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[8];
+extern const struct fw_map fw_mapping[10];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -460,8 +462,11 @@ struct wil_p2p_info {
 	u8 discovery_started;
 	u8 p2p_dev_started;
 	u64 cookie;
+	struct wireless_dev *pending_listen_wdev;
+	unsigned int listen_duration;
 	struct timer_list discovery_timer; /* listen/search duration */
 	struct work_struct discovery_expired_work; /* listen/search expire */
+	struct work_struct delayed_listen_work; /* listen after scan done */
 };
 
 enum wil_sta_status {
@@ -576,10 +581,11 @@ struct wil6210_priv {
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
-	u32 fw_version;
+	u8 fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
 	const char *hw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
+	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
@@ -622,6 +628,8 @@ struct wil6210_priv {
 	 * - consumed in thread by wmi_event_worker
 	 */
 	spinlock_t wmi_ev_lock;
+	spinlock_t net_queue_lock; /* guarding stop/wake netif queue */
+	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
 	/* keep alive */
@@ -657,7 +665,7 @@ struct wil6210_priv {
 
 	/* P2P_DEVICE vif */
 	struct wireless_dev *p2p_wdev;
-	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
+	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev and @scan_request */
 	struct wireless_dev *radio_wdev;
 
 	/* High Access Latency Policy voting */
@@ -815,6 +823,10 @@ int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason);
 int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason);
 int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 		      u16 status, bool amsdu, u16 agg_wsize, u16 timeout);
+int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
+			   enum wmi_ps_profile_type ps_profile);
+int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short);
+int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
@@ -828,18 +840,22 @@ void wil_unmask_irq(struct wil6210_priv *wil);
 void wil_configure_interrupt_moderation(struct wil6210_priv *wil);
 void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
+void wil6210_mask_halp(struct wil6210_priv *wil);
 
 /* P2P */
 bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
 void wil_p2p_discovery_timer_fn(ulong x);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
-int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
-		   struct ieee80211_channel *chan, u64 *cookie);
+int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,
+		   unsigned int duration, struct ieee80211_channel *chan,
+		   u64 *cookie);
 u8 wil_p2p_stop_discovery(struct wil6210_priv *wil);
 int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie);
 void wil_p2p_listen_expired(struct work_struct *work);
 void wil_p2p_search_expired(struct work_struct *work);
+void wil_p2p_stop_radio_operations(struct wil6210_priv *wil);
+void wil_p2p_delayed_listen_work(struct work_struct *work);
 
 /* WMI for P2P */
 int wmi_p2p_cfg(struct wil6210_priv *wil, int channel, int bi);
@@ -865,6 +881,9 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		  u8 chan, u8 hidden_ssid, u8 is_go);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 int wmi_led_cfg(struct wil6210_priv *wil, bool enable);
+int wmi_abort_scan(struct wil6210_priv *wil);
+void wil_abort_scan(struct wil6210_priv *wil, bool sync);
+
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
 void wil_probe_client_flush(struct wil6210_priv *wil);
@@ -882,6 +901,10 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size);
 int wil_bcast_init(struct wil6210_priv *wil);
 void wil_bcast_fini(struct wil6210_priv *wil);
 
+void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
+			   bool should_stop);
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
+			      bool check_stop);
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_priv *wil, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
@@ -893,7 +916,8 @@ void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
 int wil_ioctl(struct wil6210_priv *wil, void __user *data, int cmd);
-int wil_request_firmware(struct wil6210_priv *wil, const char *name);
+int wil_request_firmware(struct wil6210_priv *wil, const char *name,
+			 bool load);
 
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);

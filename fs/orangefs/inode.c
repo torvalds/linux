@@ -8,6 +8,7 @@
  *  Linux VFS inode operations.
  */
 
+#include <linux/bvec.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
@@ -129,8 +130,8 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 				  struct iov_iter *iter)
 {
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_direct_IO: %s\n",
-		     iocb->ki_filp->f_path.dentry->d_name.name);
+		     "orangefs_direct_IO: %pD\n",
+		     iocb->ki_filp);
 
 	return -EINVAL;
 }
@@ -216,10 +217,10 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct inode *inode = dentry->d_inode;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_setattr: called on %s\n",
-		     dentry->d_name.name);
+		     "orangefs_setattr: called on %pd\n",
+		     dentry);
 
-	ret = inode_change_ok(inode, iattr);
+	ret = setattr_prepare(dentry, iattr);
 	if (ret)
 		goto out;
 
@@ -259,8 +260,8 @@ int orangefs_getattr(struct vfsmount *mnt,
 	struct orangefs_inode_s *orangefs_inode = NULL;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_getattr: called on %s\n",
-		     dentry->d_name.name);
+		     "orangefs_getattr: called on %pd\n",
+		     dentry);
 
 	ret = orangefs_inode_getattr(inode, 0, 0);
 	if (ret == 0) {
@@ -296,10 +297,7 @@ const struct inode_operations orangefs_file_inode_operations = {
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = orangefs_listxattr,
-	.removexattr = generic_removexattr,
 	.permission = orangefs_permission,
 };
 
@@ -438,7 +436,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	inode->i_size = PAGE_SIZE;
 	inode->i_rdev = dev;
 

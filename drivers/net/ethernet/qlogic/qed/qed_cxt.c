@@ -47,8 +47,9 @@
 #define TM_ALIGN        BIT(TM_SHIFT)
 #define TM_ELEM_SIZE    4
 
-/* ILT constants */
-#define ILT_DEFAULT_HW_P_SIZE		3
+/* For RoCE we configure to 64K to cover for RoCE max tasks 256K purpose. */
+#define ILT_DEFAULT_HW_P_SIZE	(IS_ENABLED(CONFIG_QED_RDMA) ? 4 : 3)
+
 #define ILT_PAGE_IN_BYTES(hw_p_size)	(1U << ((hw_p_size) + 12))
 #define ILT_CFG_REG(cli, reg)	PSWRQ2_REG_ ## cli ## _ ## reg ## _RT_OFFSET
 
@@ -343,14 +344,14 @@ static struct qed_tid_seg *qed_cxt_tid_seg_info(struct qed_hwfn *p_hwfn,
 	return NULL;
 }
 
-void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
+static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
 	p_mgr->srq_count = num_srqs;
 }
 
-u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
+static u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
@@ -377,9 +378,8 @@ static void qed_cxt_set_proto_cid_count(struct qed_hwfn *p_hwfn,
 	}
 }
 
-u32 qed_cxt_get_proto_cid_count(struct qed_hwfn		*p_hwfn,
-				enum protocol_type	type,
-				u32			*vf_cid)
+u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type, u32 *vf_cid)
 {
 	if (vf_cid)
 		*vf_cid = p_hwfn->p_cxt_mngr->conn_cfg[type].cids_per_vf;
@@ -405,10 +405,10 @@ u32 qed_cxt_get_proto_tid_count(struct qed_hwfn *p_hwfn,
 	return cnt;
 }
 
-static void
-qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
-			    enum protocol_type proto,
-			    u8 seg, u8 seg_type, u32 count, bool has_fl)
+static void qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
+					enum protocol_type proto,
+					u8 seg,
+					u8 seg_type, u32 count, bool has_fl)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	struct qed_tid_seg *p_seg = &p_mngr->conn_cfg[proto].tid_seg[seg];
@@ -420,8 +420,7 @@ qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
 
 static void qed_ilt_cli_blk_fill(struct qed_ilt_client_cfg *p_cli,
 				 struct qed_ilt_cli_blk *p_blk,
-				 u32 start_line, u32 total_size,
-				 u32 elem_size)
+				 u32 start_line, u32 total_size, u32 elem_size)
 {
 	u32 ilt_size = ILT_PAGE_IN_BYTES(p_cli->p_size.val);
 
@@ -448,8 +447,7 @@ static void qed_ilt_cli_adv_line(struct qed_hwfn *p_hwfn,
 		p_cli->first.val = *p_line;
 
 	p_cli->active = true;
-	*p_line += DIV_ROUND_UP(p_blk->total_size,
-				p_blk->real_size_in_page);
+	*p_line += DIV_ROUND_UP(p_blk->total_size, p_blk->real_size_in_page);
 	p_cli->last.val = *p_line - 1;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_ILT,
@@ -795,10 +793,9 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 	p_mngr->t2_num_pages = DIV_ROUND_UP(total_size, psz);
 
 	/* allocate t2 */
-	p_mngr->t2 = kzalloc(p_mngr->t2_num_pages * sizeof(struct qed_dma_mem),
+	p_mngr->t2 = kcalloc(p_mngr->t2_num_pages, sizeof(struct qed_dma_mem),
 			     GFP_KERNEL);
 	if (!p_mngr->t2) {
-		DP_NOTICE(p_hwfn, "Failed to allocate t2 table\n");
 		rc = -ENOMEM;
 		goto t2_fail;
 	}
@@ -926,12 +923,9 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		void *p_virt;
 		u32 size;
 
-		size = min_t(u32, sz_left,
-			     p_blk->real_size_in_page);
+		size = min_t(u32, sz_left, p_blk->real_size_in_page);
 		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					    size,
-					    &p_phys,
-					    GFP_KERNEL);
+					    size, &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
 		memset(p_virt, 0, size);
@@ -963,7 +957,6 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 	p_mngr->ilt_shadow = kcalloc(size, sizeof(struct qed_dma_mem),
 				     GFP_KERNEL);
 	if (!p_mngr->ilt_shadow) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ilt shadow table\n");
 		rc = -ENOMEM;
 		goto ilt_shadow_fail;
 	}
@@ -976,7 +969,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 		for (j = 0; j < ILT_CLI_PF_BLOCKS; j++) {
 			p_blk = &clients[i].pf_blks[j];
 			rc = qed_ilt_blk_alloc(p_hwfn, p_blk, i, 0);
-			if (rc != 0)
+			if (rc)
 				goto ilt_shadow_fail;
 		}
 		for (k = 0; k < p_mngr->vf_count; k++) {
@@ -985,7 +978,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 
 				p_blk = &clients[i].vf_blks[j];
 				rc = qed_ilt_blk_alloc(p_hwfn, p_blk, i, lines);
-				if (rc != 0)
+				if (rc)
 					goto ilt_shadow_fail;
 			}
 		}
@@ -1056,10 +1049,8 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	u32 i;
 
 	p_mngr = kzalloc(sizeof(*p_mngr), GFP_KERNEL);
-	if (!p_mngr) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_cxt_mngr'\n");
+	if (!p_mngr)
 		return -ENOMEM;
-	}
 
 	/* Initialize ILT client registers */
 	clients = p_mngr->clients;
@@ -1111,24 +1102,18 @@ int qed_cxt_tables_alloc(struct qed_hwfn *p_hwfn)
 
 	/* Allocate the ILT shadow table */
 	rc = qed_ilt_shadow_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ilt memory\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	/* Allocate the T2  table */
 	rc = qed_cxt_src_t2_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate T2 memory\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	/* Allocate and initialize the acquired cids bitmaps */
 	rc = qed_cid_map_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate cid maps\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	return 0;
 
@@ -1672,7 +1657,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 		     p_hwfn->rel_pf_id * NUM_TASK_PF_SEGMENTS + i);
 
 		STORE_RT_REG_AGG(p_hwfn, rt_reg, cfg_word);
-		active_seg_mask |= (tm_iids.pf_tids[i] ? (1 << i) : 0);
+		active_seg_mask |= (tm_iids.pf_tids[i] ? BIT(i) : 0);
 
 		tm_offset += tm_iids.pf_tids[i];
 	}
@@ -1702,8 +1687,7 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn)
 }
 
 int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
-			enum protocol_type type,
-			u32 *p_cid)
+			enum protocol_type type, u32 *p_cid)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	u32 rel_cid;
@@ -1717,8 +1701,7 @@ int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 				      p_mngr->acquired[type].max_count);
 
 	if (rel_cid >= p_mngr->acquired[type].max_count) {
-		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n",
-			  type);
+		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1730,8 +1713,7 @@ int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 }
 
 static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
-				      u32 cid,
-				      enum protocol_type *p_type)
+				      u32 cid, enum protocol_type *p_type)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	struct qed_cid_acquired_map *p_map;
@@ -1763,8 +1745,7 @@ static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
-void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
-			 u32 cid)
+void qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	enum protocol_type type;
@@ -1781,8 +1762,7 @@ void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
 	__clear_bit(rel_cid, p_mngr->acquired[type].cid_map);
 }
 
-int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn,
-			 struct qed_cxt_info *p_info)
+int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn, struct qed_cxt_info *p_info)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	u32 conn_cxt_size, hw_p_size, cxts_per_p, line;
@@ -1819,8 +1799,8 @@ int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
-			    struct qed_rdma_pf_params *p_params)
+static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
+				   struct qed_rdma_pf_params *p_params)
 {
 	u32 num_cons, num_tasks, num_qps, num_mrs, num_srqs;
 	enum protocol_type proto;
@@ -1860,6 +1840,8 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn)
 	/* Set the number of required CORE connections */
 	u32 core_cids = 1; /* SPQ */
 
+	if (p_hwfn->using_ll2)
+		core_cids += 4;
 	qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_CORE, core_cids, 0);
 
 	switch (p_hwfn->hw_info.personality) {

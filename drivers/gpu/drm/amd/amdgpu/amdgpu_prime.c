@@ -74,20 +74,36 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
+	bo->prime_shared_count = 1;
 	return &bo->gem_base;
 }
 
 int amdgpu_gem_prime_pin(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	int ret = 0;
+	long ret = 0;
 
 	ret = amdgpu_bo_reserve(bo, false);
 	if (unlikely(ret != 0))
 		return ret;
 
+	/*
+	 * Wait for all shared fences to complete before we switch to future
+	 * use of exclusive fence on this prime shared bo.
+	 */
+	ret = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
+						  MAX_SCHEDULE_TIMEOUT);
+	if (unlikely(ret < 0)) {
+		DRM_DEBUG_PRIME("Fence wait failed: %li\n", ret);
+		amdgpu_bo_unreserve(bo);
+		return ret;
+	}
+
 	/* pin buffer into GTT */
 	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	if (likely(ret == 0))
+		bo->prime_shared_count++;
+
 	amdgpu_bo_unreserve(bo);
 	return ret;
 }
@@ -102,6 +118,8 @@ void amdgpu_gem_prime_unpin(struct drm_gem_object *obj)
 		return;
 
 	amdgpu_bo_unpin(bo);
+	if (bo->prime_shared_count)
+		bo->prime_shared_count--;
 	amdgpu_bo_unreserve(bo);
 }
 

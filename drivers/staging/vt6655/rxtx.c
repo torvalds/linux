@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: rxtx.c
  *
  * Purpose: handle WMAC/802.3/802.11 rx & tx functions
@@ -64,8 +60,10 @@
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Static Definitions -------------------------*/
-#define CRITICAL_PACKET_LEN      256    /* if packet size < 256 -> in-direct send
-                                            packet size >= 256 -> direct send */
+/* if packet size < 256 -> in-direct send
+ * vpacket size >= 256 -> direct send
+ */
+#define CRITICAL_PACKET_LEN      256
 
 static const unsigned short wTimeStampOff[2][MAX_RATE] = {
 	{384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, /* Long Preamble */
@@ -158,11 +156,11 @@ static __le16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
 							[rate % MAX_RATE]);
 }
 
-/*byPktType : PK_TYPE_11A     0
-  PK_TYPE_11B     1
-  PK_TYPE_11GB    2
-  PK_TYPE_11GA    3
-*/
+/* byPktType : PK_TYPE_11A     0
+ * PK_TYPE_11B     1
+ * PK_TYPE_11GB    2
+ * PK_TYPE_11GA    3
+ */
 static
 unsigned int
 s_uGetTxRsvTime(
@@ -502,7 +500,7 @@ s_uFillDataHead(
 )
 {
 
-	if (pTxDataHead == NULL)
+	if (!pTxDataHead)
 		return 0;
 
 
@@ -646,17 +644,20 @@ s_vFillRTSHead(
 {
 	unsigned int uRTSFrameLen = 20;
 
-	if (pvRTS == NULL)
+	if (!pvRTS)
 		return;
 
 	if (bDisCRC) {
-		/* When CRCDIS bit is on, H/W forgot to generate FCS for RTS frame,
-		 in this case we need to decrease its length by 4. */
+		/* When CRCDIS bit is on, H/W forgot to generate FCS for
+		 * RTS frame, in this case we need to decrease its length by 4.
+		 */
 		uRTSFrameLen -= 4;
 	}
 
-	/* Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
-	       Otherwise, we need to modify codes for them. */
+	/* Note: So far RTSHead doesn't appear in ATIM & Beacom DMA,
+	 * so we don't need to take them into account.
+	 * Otherwise, we need to modify codes for them.
+	 */
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (byFBOption == AUTO_FB_NONE) {
 			struct vnt_rts_g *buf = pvRTS;
@@ -838,12 +839,13 @@ s_vFillCTSHead(
 {
 	unsigned int uCTSFrameLen = 14;
 
-	if (pvCTS == NULL)
+	if (!pvCTS)
 		return;
 
 	if (bDisCRC) {
-		/* When CRCDIS bit is on, H/W forgot to generate FCS for CTS frame,
-		 in this case we need to decrease its length by 4. */
+		/* When CRCDIS bit is on, H/W forgot to generate FCS for
+		 * CTS frame, in this case we need to decrease its length by 4.
+		 */
 		uCTSFrameLen -= 4;
 	}
 
@@ -915,7 +917,7 @@ s_vFillCTSHead(
 	}
 }
 
-/*+
+/*
  *
  * Description:
  *      Generate FIFO control for MAC & Baseband controller
@@ -937,7 +939,8 @@ s_vFillCTSHead(
  * Return Value: none
  *
  -
- * unsigned int cbFrameSize, Hdr+Payload+FCS */
+ * unsigned int cbFrameSize, Hdr+Payload+FCS
+ */
 static
 void
 s_vGenerateTxParameter(
@@ -972,8 +975,8 @@ s_vGenerateTxParameter(
 		return;
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-		if (pvRTS != NULL) { /* RTS_need
-			 Fill RsvTime */
+		if (pvRTS != NULL) { /* RTS_need */
+			/* Fill RsvTime */
 			struct vnt_rrv_time_rts *buf = pvRrvTime;
 
 			buf->rts_rrv_time_aa = s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate);
@@ -1002,7 +1005,7 @@ s_vGenerateTxParameter(
 
 			/* Fill RTS */
 			s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
-		} else if (pvRTS == NULL) {/* RTS_needless, non PCF mode */
+		} else if (!pvRTS) {/* RTS_needless, non PCF mode */
 			struct vnt_rrv_time_ab *buf = pvRrvTime;
 
 			buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11A, cbFrameSize, wCurrentRate, bNeedACK);
@@ -1079,8 +1082,8 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	}
 
 	/*
-	* Use for AUTO FALL BACK
-	*/
+	 * Use for AUTO FALL BACK
+	 */
 	if (fifo_ctl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
 	else if (fifo_ctl & FIFOCTL_AUTO_FB_1)

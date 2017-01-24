@@ -3,17 +3,8 @@ Binding for Thermal Sensor driver for STMicroelectronics STi series of SoCs.
 Required parameters:
 -------------------
 
-compatible : 	st,<SoC>-<module>-thermal; should be one of:
-		  "st,stih415-sas-thermal",
-		  "st,stih415-mpe-thermal",
-		  "st,stih416-sas-thermal"
-		  "st,stih416-mpe-thermal"
-		  "st,stid127-thermal" or
-		  "st,stih407-thermal"
-		according to the SoC type (stih415, stih416, stid127, stih407)
-		and module type (sas or mpe). On stid127 & stih407 there is only
-		one die/module, so there is no module type in the compatible
-		string.
+compatible : 	Should be "st,stih407-thermal"
+
 clock-names : 	Should be "thermal".
 		  See: Documentation/devicetree/bindings/resource-names.txt
 clocks : 	Phandle of the clock used by the thermal sensor.
@@ -25,18 +16,17 @@ Optional parameters:
 reg : 		For non-sysconf based sensors, this should be the physical base
 		address and length of the sensor's registers.
 interrupts :	Standard way to define interrupt number.
-		Interrupt is mandatory to be defined when compatible is
-		"stih416-mpe-thermal".
 		  NB: For thermal sensor's for which no interrupt has been
 		  defined, a polling delay of 1000ms will be used to read the
 		  temperature from device.
 
 Example:
 
-	temp1@fdfe8000 {
-		compatible	= "st,stih416-mpe-thermal";
-		reg		= <0xfdfe8000 0x10>;
-		clock-names	= "thermal";
-		clocks		= <&clk_m_mpethsens>;
-		interrupts	= <GIC_SPI 23 IRQ_TYPE_NONE>;
+	temp0@91a0000 {
+		compatible = "st,stih407-thermal";
+		reg = <0x91a0000 0x28>;
+		clock-names = "thermal";
+		clocks = <&CLK_SYSIN>;
+		interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
+		st,passive_cooling_temp = <110>;
 	};

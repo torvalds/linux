@@ -224,14 +224,14 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	}
 
 	/* sanity check ep-e/ep-f since their fifos are small */
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 	if (ep->num > 4 && max > 64 && (dev->quirks & PLX_LEGACY)) {
 		ret = -ERANGE;
 		goto print_err;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7ff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* ep_reset() has already been called */
@@ -589,7 +589,7 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	ep = container_of(_ep, struct net2280_ep, ep);
 	if (!_ep || !_req) {
-		dev_err(&ep->dev->pdev->dev, "%s: Inavlid ep=%p or req=%p\n",
+		dev_err(&ep->dev->pdev->dev, "%s: Invalid ep=%p or req=%p\n",
 							__func__, _ep, _req);
 		return;
 	}
@@ -1137,8 +1137,10 @@ dma_done(struct net2280_ep *ep,	struct net2280_request *req, u32 dmacount,
 	done(ep, req, status);
 }
 
-static void scan_dma_completions(struct net2280_ep *ep)
+static int scan_dma_completions(struct net2280_ep *ep)
 {
+	int num_completed = 0;
+
 	/* only look at descriptors that were "naturally" retired,
 	 * so fifo and list head state won't matter
 	 */
@@ -1166,6 +1168,7 @@ static void scan_dma_completions(struct net2280_ep *ep)
 				break;
 			/* single transfer mode */
 			dma_done(ep, req, tmp, 0);
+			num_completed++;
 			break;
 		} else if (!ep->is_in &&
 			   (req->req.length % ep->ep.maxpacket) &&
@@ -1194,7 +1197,10 @@ static void scan_dma_completions(struct net2280_ep *ep)
 			}
 		}
 		dma_done(ep, req, tmp, 0);
+		num_completed++;
 	}
+
+	return num_completed;
 }
 
 static void restart_dma(struct net2280_ep *ep)
@@ -1567,6 +1573,44 @@ static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
 			return ep;
 	}
 
+	/* USB3380: Only first four endpoints have DMA channels. Allocate
+	 * slower interrupt endpoints from PIO hw endpoints, to allow bulk/isoc
+	 * endpoints use DMA hw endpoints.
+	 */
+	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+	    usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	}
+
 	/* USB3380: use same address for usb and hardware endpoints */
 	snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
 			usb_endpoint_dir_in(desc) ? "in" : "out");
@@ -1795,7 +1839,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 				ep->ep.name, t & USB_ENDPOINT_NUMBER_MASK,
 				(t & USB_DIR_IN) ? "in" : "out",
 				type_string(d->bmAttributes),
-				usb_endpoint_maxp(d) & 0x1fff,
+				usb_endpoint_maxp(d),
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
 		} else /* ep0 should only have one transfer queued */
@@ -2547,8 +2591,11 @@ static void handle_ep_small(struct net2280_ep *ep)
 	/* manual DMA queue advance after short OUT */
 	if (likely(ep->dma)) {
 		if (t & BIT(SHORT_PACKET_TRANSFERRED_INTERRUPT)) {
-			u32	count;
+			struct net2280_request *stuck_req = NULL;
 			int	stopped = ep->stopped;
+			int	num_completed;
+			int	stuck = 0;
+			u32	count;
 
 			/* TRANSFERRED works around OUT_DONE erratum 0112.
 			 * we expect (N <= maxpacket) bytes; host wrote M.
@@ -2560,7 +2607,7 @@ static void handle_ep_small(struct net2280_ep *ep)
 				/* any preceding dma transfers must finish.
 				 * dma handles (M >= N), may empty the queue
 				 */
-				scan_dma_completions(ep);
+				num_completed = scan_dma_completions(ep);
 				if (unlikely(list_empty(&ep->queue) ||
 						ep->out_overflow)) {
 					req = NULL;
@@ -2580,6 +2627,31 @@ static void handle_ep_small(struct net2280_ep *ep)
 						req = NULL;
 					break;
 				}
+
+				/* Escape loop if no dma transfers completed
+				 * after few retries.
+				 */
+				if (num_completed == 0) {
+					if (stuck_req == req &&
+					    readl(&ep->dma->dmadesc) !=
+						  req->td_dma && stuck++ > 5) {
+						count = readl(
+							&ep->dma->dmacount);
+						count &= DMA_BYTE_COUNT_MASK;
+						req = NULL;
+						ep_dbg(ep->dev, "%s escape stuck %d, count %u\n",
+							ep->ep.name, stuck,
+							count);
+						break;
+					} else if (stuck_req != req) {
+						stuck_req = req;
+						stuck = 0;
+					}
+				} else {
+					stuck_req = NULL;
+					stuck = 0;
+				}
+
 				udelay(1);
 			}
 

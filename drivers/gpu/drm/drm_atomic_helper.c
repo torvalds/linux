@@ -30,7 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include "drm_crtc_internal.h"
 
@@ -458,10 +458,11 @@ mode_fixup(struct drm_atomic_state *state)
  * removed from the crtc.
  * crtc_state->active_changed is set when crtc_state->active changes,
  * which is used for dpms.
+ * See also: drm_atomic_crtc_needs_modeset()
  *
  * IMPORTANT:
  *
- * Drivers which update ->mode_changed (e.g. in their ->atomic_check hooks if a
+ * Drivers which set ->mode_changed (e.g. in their ->atomic_check hooks if a
  * plane update can't be done without a full modeset) _must_ call this function
  * afterwards after that change. It is permitted to call this function multiple
  * times for the same update, e.g. when the ->atomic_check functions depend upon
@@ -510,9 +511,9 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 	for_each_connector_in_state(state, connector, connector_state, i) {
 		/*
-		 * This only sets crtc->mode_changed for routing changes,
-		 * drivers must set crtc->mode_changed themselves when connector
-		 * properties need to be updated.
+		 * This only sets crtc->connectors_changed for routing changes,
+		 * drivers must set crtc->connectors_changed themselves when
+		 * connector properties need to be updated.
 		 */
 		ret = update_connector_routing(state, connector,
 					       connector_state);
@@ -593,10 +594,6 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
-
-	ret = drm_atomic_helper_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
@@ -749,6 +746,8 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		/* Right function depends upon target state. */
 		if (crtc->state->enable && funcs->prepare)
 			funcs->prepare(crtc);
+		else if (funcs->atomic_disable)
+			funcs->atomic_disable(crtc, old_crtc_state);
 		else if (funcs->disable)
 			funcs->disable(crtc);
 		else
@@ -886,8 +885,12 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call mode_set hooks twice.
 		 */
-		if (funcs && funcs->mode_set)
+		if (funcs && funcs->atomic_mode_set) {
+			funcs->atomic_mode_set(encoder, new_crtc_state,
+					       connector->state);
+		} else if (funcs && funcs->mode_set) {
 			funcs->mode_set(encoder, mode, adjusted_mode);
+		}
 
 		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
 	}
@@ -1003,29 +1006,54 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  * drm_atomic_helper_wait_for_fences - wait for fences stashed in plane state
  * @dev: DRM device
  * @state: atomic state object with old state structures
+ * @pre_swap: If true, do an interruptible wait, and @state is the new state.
+ * 	Otherwise @state is the old state.
  *
  * For implicit sync, driver should fish the exclusive fence out from the
  * incoming fb's and stash it in the drm_plane_state.  This is called after
  * drm_atomic_helper_swap_state() so it uses the current plane state (and
  * just uses the atomic state to find the changed planes)
+ *
+ * Note that @pre_swap is needed since the point where we block for fences moves
+ * around depending upon whether an atomic commit is blocking or
+ * non-blocking. For async commit all waiting needs to happen after
+ * drm_atomic_helper_swap_state() is called, but for synchronous commits we want
+ * to wait **before** we do anything that can't be easily rolled back. That is
+ * before we call drm_atomic_helper_swap_state().
+ *
+ * Returns zero if success or < 0 if dma_fence_wait() fails.
  */
-void drm_atomic_helper_wait_for_fences(struct drm_device *dev,
-			    struct drm_atomic_state *state)
+int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
+				      struct drm_atomic_state *state,
+				      bool pre_swap)
 {
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	int i;
+	int i, ret;
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
-		if (!plane->state->fence)
+		if (!pre_swap)
+			plane_state = plane->state;
+
+		if (!plane_state->fence)
 			continue;
 
-		WARN_ON(!plane->state->fb);
+		WARN_ON(!plane_state->fb);
 
-		fence_wait(plane->state->fence, false);
-		fence_put(plane->state->fence);
-		plane->state->fence = NULL;
+		/*
+		 * If waiting for fences pre-swap (ie: nonblock), userspace can
+		 * still interrupt the operation. Instead of blocking until the
+		 * timer expires, make the wait interruptible.
+		 */
+		ret = dma_fence_wait(plane_state->fence, pre_swap);
+		if (ret)
+			return ret;
+
+		dma_fence_put(plane_state->fence);
+		plane_state->fence = NULL;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
 
@@ -1127,7 +1155,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
 
 /**
  * drm_atomic_helper_commit_tail - commit atomic update to hardware
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This is the default implemenation for the ->atomic_commit_tail() hook of the
  * &drm_mode_config_helper_funcs vtable.
@@ -1138,52 +1166,53 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
  *
  * For drivers supporting runtime PM the recommended sequence is instead ::
  *
- *     drm_atomic_helper_commit_modeset_disables(dev, state);
+ *     drm_atomic_helper_commit_modeset_disables(dev, old_state);
  *
- *     drm_atomic_helper_commit_modeset_enables(dev, state);
+ *     drm_atomic_helper_commit_modeset_enables(dev, old_state);
  *
- *     drm_atomic_helper_commit_planes(dev, state, true);
+ *     drm_atomic_helper_commit_planes(dev, old_state,
+ *                                     DRM_PLANE_COMMIT_ACTIVE_ONLY);
  *
  * for committing the atomic update to hardware.  See the kerneldoc entries for
  * these three functions for more details.
  */
-void drm_atomic_helper_commit_tail(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = old_state->dev;
 
-	drm_atomic_helper_commit_modeset_disables(dev, state);
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 
-	drm_atomic_helper_commit_modeset_enables(dev, state);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
-	drm_atomic_helper_commit_hw_done(state);
+	drm_atomic_helper_commit_hw_done(old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
-	drm_atomic_helper_cleanup_planes(dev, state);
+	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_tail);
 
-static void commit_tail(struct drm_atomic_state *state)
+static void commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = old_state->dev;
 	struct drm_mode_config_helper_funcs *funcs;
 
 	funcs = dev->mode_config.helper_private;
 
-	drm_atomic_helper_wait_for_fences(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, old_state, false);
 
-	drm_atomic_helper_wait_for_dependencies(state);
+	drm_atomic_helper_wait_for_dependencies(old_state);
 
 	if (funcs && funcs->atomic_commit_tail)
-		funcs->atomic_commit_tail(state);
+		funcs->atomic_commit_tail(old_state);
 	else
-		drm_atomic_helper_commit_tail(state);
+		drm_atomic_helper_commit_tail(old_state);
 
-	drm_atomic_helper_commit_cleanup_done(state);
+	drm_atomic_helper_commit_cleanup_done(old_state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(old_state);
 }
 
 static void commit_work(struct work_struct *work)
@@ -1204,9 +1233,6 @@ static void commit_work(struct work_struct *work)
  * object. This can still fail when e.g. the framebuffer reservation fails. This
  * function implements nonblocking commits, using
  * drm_atomic_helper_setup_commit() and related functions.
- *
- * Note that right now this function does not support nonblocking commits, hence
- * driver writers must implement their own version for now.
  *
  * Committing the actual hardware state is done through the
  * ->atomic_commit_tail() callback of the &drm_mode_config_helper_funcs vtable,
@@ -1230,6 +1256,14 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
 		return ret;
+
+	if (!nonblock) {
+		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
+		if (ret) {
+			drm_atomic_helper_cleanup_planes(dev, state);
+			return ret;
+		}
+	}
 
 	/*
 	 * This is the point of no return - everything below never fails except
@@ -1259,6 +1293,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * make sure work items don't artifically stall on each another.
 	 */
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
@@ -1470,10 +1505,10 @@ static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
 
 /**
  * drm_atomic_helper_wait_for_dependencies - wait for required preceeding commits
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This function waits for all preceeding commits that touch the same CRTC as
- * @state to both be committed to the hardware (as signalled by
+ * @old_state to both be committed to the hardware (as signalled by
  * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
  * by calling drm_crtc_vblank_send_event on the event member of
  * &drm_crtc_state).
@@ -1481,7 +1516,7 @@ static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state)
+void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -1489,7 +1524,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state)
 	int i;
 	long ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
 		spin_lock(&crtc->commit_lock);
 		commit = preceeding_commit(crtc);
 		if (commit)
@@ -1520,7 +1555,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
 
 /**
  * drm_atomic_helper_commit_hw_done - setup possible nonblocking commit
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This function is used to signal completion of the hardware commit step. After
  * this step the driver is not allowed to read or change any permanent software
@@ -1533,15 +1568,15 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc_commit *commit;
 	int i;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		commit = state->crtcs[i].commit;
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
+		commit = old_state->crtcs[i].commit;
 		if (!commit)
 			continue;
 
@@ -1556,16 +1591,16 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
 
 /**
  * drm_atomic_helper_commit_cleanup_done - signal completion of commit
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
- * This signals completion of the atomic update @state, including any cleanup
- * work. If used, it must be called right before calling
- * drm_atomic_state_free().
+ * This signals completion of the atomic update @old_state, including any
+ * cleanup work. If used, it must be called right before calling
+ * drm_atomic_state_put().
  *
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -1573,8 +1608,8 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 	int i;
 	long ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		commit = state->crtcs[i].commit;
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
+		commit = old_state->crtcs[i].commit;
 		if (WARN_ON(!commit))
 			continue;
 
@@ -1631,6 +1666,9 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 		funcs = plane->helper_private;
 
+		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
+			continue;
+
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, plane_state);
 			if (ret)
@@ -1647,18 +1685,20 @@ fail:
 		if (j >= i)
 			continue;
 
+		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
+			continue;
+
 		funcs = plane->helper_private;
 
 		if (funcs->cleanup_fb)
 			funcs->cleanup_fb(plane, plane_state);
-
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
 
-bool plane_crtc_active(struct drm_plane_state *state)
+static bool plane_crtc_active(const struct drm_plane_state *state)
 {
 	return state->crtc && state->crtc->state->active;
 }
@@ -1667,7 +1707,7 @@ bool plane_crtc_active(struct drm_plane_state *state)
  * drm_atomic_helper_commit_planes - commit plane state
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
- * @active_only: Only commit on active CRTC if set
+ * @flags: flags for committing plane state
  *
  * This function commits the new plane state using the plane and atomic helper
  * functions for planes and crtcs. It assumes that the atomic state has already
@@ -1687,25 +1727,34 @@ bool plane_crtc_active(struct drm_plane_state *state)
  * most drivers don't need to be immediately notified of plane updates for a
  * disabled CRTC.
  *
- * Unless otherwise needed, drivers are advised to set the @active_only
- * parameters to true in order not to receive plane update notifications related
- * to a disabled CRTC. This avoids the need to manually ignore plane updates in
+ * Unless otherwise needed, drivers are advised to set the ACTIVE_ONLY flag in
+ * @flags in order not to receive plane update notifications related to a
+ * disabled CRTC. This avoids the need to manually ignore plane updates in
  * driver code when the driver and/or hardware can't or just don't need to deal
  * with updates on disabled CRTCs, for example when supporting runtime PM.
  *
- * The drm_atomic_helper_commit() default implementation only sets @active_only
- * to false to most closely match the behaviour of the legacy helpers. This should
- * not be copied blindly by drivers.
+ * Drivers may set the NO_DISABLE_AFTER_MODESET flag in @flags if the relevant
+ * display controllers require to disable a CRTC's planes when the CRTC is
+ * disabled. This function would skip the ->atomic_disable call for a plane if
+ * the CRTC of the old plane state needs a modesetting operation. Of course,
+ * the drivers need to disable the planes in their CRTC disable callbacks
+ * since no one else would do that.
+ *
+ * The drm_atomic_helper_commit() default implementation doesn't set the
+ * ACTIVE_ONLY flag to most closely match the behaviour of the legacy helpers.
+ * This should not be copied blindly by drivers.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *old_state,
-				     bool active_only)
+				     uint32_t flags)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
 	int i;
+	bool active_only = flags & DRM_PLANE_COMMIT_ACTIVE_ONLY;
+	bool no_disable = flags & DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET;
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
@@ -1749,10 +1798,19 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		/*
 		 * Special-case disabling the plane if drivers support it.
 		 */
-		if (disabling && funcs->atomic_disable)
+		if (disabling && funcs->atomic_disable) {
+			struct drm_crtc_state *crtc_state;
+
+			crtc_state = old_plane_state->crtc->state;
+
+			if (drm_atomic_crtc_needs_modeset(crtc_state) &&
+			    no_disable)
+				continue;
+
 			funcs->atomic_disable(plane, old_plane_state);
-		else if (plane->state->crtc || disabling)
+		} else if (plane->state->crtc || disabling) {
 			funcs->atomic_update(plane, old_plane_state);
+		}
 	}
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
@@ -1831,12 +1889,12 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
 
 /**
  * drm_atomic_helper_disable_planes_on_crtc - helper to disable CRTC's planes
- * @crtc: CRTC
+ * @old_crtc_state: atomic state object with the old CRTC state
  * @atomic: if set, synchronize with CRTC's atomic_begin/flush hooks
  *
  * Disables all planes associated with the given CRTC. This can be
- * used for instance in the CRTC helper disable callback to disable
- * all planes before shutting down the display pipeline.
+ * used for instance in the CRTC helper atomic_disable callback to disable
+ * all planes.
  *
  * If the atomic-parameter is set the function calls the CRTC's
  * atomic_begin hook before and atomic_flush hook after disabling the
@@ -1845,9 +1903,11 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
  * It is a bug to call this function without having implemented the
  * ->atomic_disable() plane hook.
  */
-void drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc *crtc,
-					      bool atomic)
+void
+drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc_state *old_crtc_state,
+					 bool atomic)
 {
+	struct drm_crtc *crtc = old_crtc_state->crtc;
 	const struct drm_crtc_helper_funcs *crtc_funcs =
 		crtc->helper_private;
 	struct drm_plane *plane;
@@ -1855,11 +1915,11 @@ void drm_atomic_helper_disable_planes_on_crtc(struct drm_crtc *crtc,
 	if (atomic && crtc_funcs && crtc_funcs->atomic_begin)
 		crtc_funcs->atomic_begin(crtc, NULL);
 
-	drm_for_each_plane(plane, crtc->dev) {
+	drm_atomic_crtc_state_for_each_plane(plane, old_crtc_state) {
 		const struct drm_plane_helper_funcs *plane_funcs =
 			plane->helper_private;
 
-		if (plane->state->crtc != crtc || !plane_funcs)
+		if (!plane_funcs)
 			continue;
 
 		WARN_ON(!plane_funcs->atomic_disable);
@@ -1893,6 +1953,9 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
+
+		if (!drm_atomic_helper_framebuffer_changed(dev, old_state, plane_state->crtc))
+			continue;
 
 		funcs = plane->helper_private;
 
@@ -2055,18 +2118,13 @@ retry:
 		state->legacy_cursor_update = true;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2128,18 +2186,13 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2268,18 +2321,13 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2354,7 +2402,7 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	primary_state->crtc_h = vdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
-	if (primary_state->rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
+	if (drm_rotation_90_or_270(primary_state->rotation)) {
 		primary_state->src_w = vdisplay << 16;
 		primary_state->src_h = hdisplay << 16;
 	} else {
@@ -2421,11 +2469,8 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 	}
 
 	err = drm_atomic_commit(state);
-
 free:
-	if (err < 0)
-		drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return err;
 }
 EXPORT_SYMBOL(drm_atomic_helper_disable_all);
@@ -2476,7 +2521,7 @@ retry:
 
 	err = drm_atomic_helper_disable_all(dev, &ctx);
 	if (err < 0) {
-		drm_atomic_state_free(state);
+		drm_atomic_state_put(state);
 		state = ERR_PTR(err);
 		goto unlock;
 	}
@@ -2565,18 +2610,13 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2625,18 +2665,13 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2685,18 +2720,13 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2769,18 +2799,13 @@ retry:
 	}
 
 	ret = drm_atomic_nonblocking_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -2856,19 +2881,14 @@ retry:
 	crtc_state->active = active;
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
-
-	connector->dpms = old_mode;
-	drm_atomic_state_free(state);
-
+	if (ret != 0)
+		connector->dpms = old_mode;
+	drm_atomic_state_put(state);
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);
@@ -3039,7 +3059,7 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 
 	if (plane->state) {
 		plane->state->plane = plane;
-		plane->state->rotation = BIT(DRM_ROTATE_0);
+		plane->state->rotation = DRM_ROTATE_0;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
@@ -3059,6 +3079,8 @@ void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
 
 	if (state->fb)
 		drm_framebuffer_reference(state->fb);
+
+	state->fence = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_duplicate_state);
 
@@ -3097,6 +3119,9 @@ void __drm_atomic_helper_plane_destroy_state(struct drm_plane_state *state)
 {
 	if (state->fb)
 		drm_framebuffer_unreference(state->fb);
+
+	if (state->fence)
+		dma_fence_put(state->fence);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 
@@ -3275,7 +3300,7 @@ drm_atomic_helper_duplicate_state(struct drm_device *dev,
 
 free:
 	if (err < 0) {
-		drm_atomic_state_free(state);
+		drm_atomic_state_put(state);
 		state = ERR_PTR(err);
 	}
 
@@ -3390,22 +3415,14 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-	if (ret)
-		goto fail;
-
-	/* Driver takes ownership of state on successful commit. */
-
-	drm_property_unreference_blob(blob);
-
-	return 0;
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 	drm_property_unreference_blob(blob);
-
 	return ret;
+
 backoff:
 	drm_atomic_state_clear(state);
 	drm_atomic_legacy_backoff(state);

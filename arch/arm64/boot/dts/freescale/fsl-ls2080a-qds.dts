@@ -46,7 +46,7 @@
 
 /dts-v1/;
 
-/include/ "fsl-ls2080a.dtsi"
+#include "fsl-ls2080a.dtsi"
 
 / {
 	model = "Freescale Layerscape 2080a QDS Board";
@@ -57,6 +57,9 @@
 		serial1 = &serial1;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &esdhc {

@@ -71,16 +71,16 @@ u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src)
 	return flags & valid_flags;
 }
 
-cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
+u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {
 	unsigned version;
-	cycle_t ret;
+	u64 ret;
 	u64 last;
 	u8 flags;
 
 	do {
 		version = pvclock_read_begin(src);
-		ret = __pvclock_read_cycles(src);
+		ret = __pvclock_read_cycles(src, rdtsc_ordered());
 		flags = src->flags;
 	} while (pvclock_read_retry(src, version));
 

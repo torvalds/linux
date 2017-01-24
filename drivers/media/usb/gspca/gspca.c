@@ -201,8 +201,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 
 	buffer_len = le16_to_cpu(ep->wMaxPacketSize);
 	interval = ep->bInterval;
-	PDEBUG(D_CONF, "found int in endpoint: 0x%x, "
-		"buffer_len=%u, interval=%u",
+	PDEBUG(D_CONF, "found int in endpoint: 0x%x, buffer_len=%u, interval=%u",
 		ep->bEndpointAddress, buffer_len, interval);
 
 	dev = gspca_dev->dev;

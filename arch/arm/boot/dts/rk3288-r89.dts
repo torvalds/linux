@@ -48,7 +48,7 @@
 / {
 	compatible = "netxeon,r89", "rockchip,rk3288";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000>;
 	};

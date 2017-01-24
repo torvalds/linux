@@ -1045,7 +1045,7 @@ int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx)
 
 	atomic_set(&ctx->tid, 0);
 	sprintf(name, "mlx4_ib_mcg%d", ctx->port);
-	ctx->mcg_wq = create_singlethread_workqueue(name);
+	ctx->mcg_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!ctx->mcg_wq)
 		return -ENOMEM;
 
@@ -1142,7 +1142,6 @@ void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 	work = kmalloc(sizeof *work, GFP_KERNEL);
 	if (!work) {
 		ctx->flushing = 0;
-		mcg_warn("failed allocating work for cleanup\n");
 		return;
 	}
 
@@ -1202,10 +1201,8 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 		return 0;
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
-	if (!req) {
-		mcg_warn_group(group, "failed allocation - may leave stall groups\n");
+	if (!req)
 		return -ENOMEM;
-	}
 
 	if (!list_empty(&group->func[slave].pending)) {
 		pend_req = list_entry(group->func[slave].pending.prev, struct mcast_req, group_list);
@@ -1246,7 +1243,7 @@ void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave)
 
 int mlx4_ib_mcg_init(void)
 {
-	clean_wq = create_singlethread_workqueue("mlx4_ib_mcg");
+	clean_wq = alloc_ordered_workqueue("mlx4_ib_mcg", WQ_MEM_RECLAIM);
 	if (!clean_wq)
 		return -ENOMEM;
 

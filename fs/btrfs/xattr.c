@@ -94,11 +94,12 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_dir_item *di = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	size_t name_len = strlen(name);
 	int ret = 0;
 
-	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root))
+	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root->fs_info))
 		return -ENOSPC;
 
 	path = btrfs_alloc_path();
@@ -149,14 +150,14 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		 */
 		ret = 0;
 		btrfs_assert_tree_locked(path->nodes[0]);
-		di = btrfs_match_dir_item_name(root, path, name, name_len);
+		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
 		if (!di && !(flags & XATTR_REPLACE)) {
 			ret = -ENOSPC;
 			goto out;
 		}
 	} else if (ret == -EEXIST) {
 		ret = 0;
-		di = btrfs_match_dir_item_name(root, path, name, name_len);
+		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
 		ASSERT(di); /* logic error */
 	} else if (ret) {
 		goto out;
@@ -185,7 +186,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		char *ptr;
 
 		if (size > old_data_len) {
-			if (btrfs_leaf_free_space(root, leaf) <
+			if (btrfs_leaf_free_space(fs_info, leaf) <
 			    (size - old_data_len)) {
 				ret = -ENOSPC;
 				goto out;
@@ -195,16 +196,17 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		if (old_data_len + name_len + sizeof(*di) == item_size) {
 			/* No other xattrs packed in the same leaf item. */
 			if (size > old_data_len)
-				btrfs_extend_item(root, path,
+				btrfs_extend_item(fs_info, path,
 						  size - old_data_len);
 			else if (size < old_data_len)
-				btrfs_truncate_item(root, path, data_size, 1);
+				btrfs_truncate_item(fs_info, path,
+						    data_size, 1);
 		} else {
 			/* There are other xattrs packed in the same item. */
 			ret = btrfs_delete_one_dir_name(trans, root, path, di);
 			if (ret)
 				goto out;
-			btrfs_extend_item(root, path, data_size);
+			btrfs_extend_item(fs_info, path, data_size);
 		}
 
 		item = btrfs_item_nr(slot);
@@ -252,12 +254,12 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 		goto out;
 
 	inode_inc_iversion(inode);
-	inode->i_ctime = current_fs_time(inode->i_sb);
+	inode->i_ctime = current_time(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
 out:
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 	return ret;
 }
 
@@ -265,6 +267,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct btrfs_key key;
 	struct inode *inode = d_inode(dentry);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
 	int ret = 0;
@@ -333,7 +336,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			unsigned long name_ptr = (unsigned long)(di + 1);
 
-			if (verify_dir_item(root, leaf, di)) {
+			if (verify_dir_item(fs_info, leaf, di)) {
 				ret = -EIO;
 				goto err;
 			}

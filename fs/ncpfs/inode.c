@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #include <linux/time.h>
@@ -243,7 +243,6 @@ static void ncp_set_attr(struct inode *inode, struct ncp_entry_info *nwinfo)
 
 #if defined(CONFIG_NCPFS_EXTRAS) || defined(CONFIG_NCPFS_NFS_NS)
 static const struct inode_operations ncp_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.setattr	= ncp_notify_change,
 };
@@ -884,7 +883,7 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 	/* ageing the dentry to force validation */
 	ncp_age_dentry(server, dentry);
 
-	result = inode_change_ok(inode, attr);
+	result = setattr_prepare(dentry, attr);
 	if (result < 0)
 		goto out;
 

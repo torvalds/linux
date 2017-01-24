@@ -89,6 +89,36 @@ HFI1
    nctxts - number of allowed contexts (PSM2)
    chip_reset - diagnostic (root only)
    boardversion - board version
+
+   sdma<N>/ - one directory per sdma engine (0 - 15)
+	sdma<N>/cpu_list - read-write, list of cpus for user-process to sdma
+			   engine assignment.
+	sdma<N>/vl - read-only, vl the sdma engine maps to.
+
+	The new interface will give the user control on the affinity settings
+	for the hfi1 device.
+	As an example, to set an sdma engine irq affinity and thread affinity
+	of a user processes to use the sdma engine, which is "near" in terms
+	of NUMA configuration, or physical cpu location, the user will do:
+
+	echo "3" > /proc/irq/<N>/smp_affinity_list
+	echo "4-7" > /sys/devices/.../sdma3/cpu_list
+	cat /sys/devices/.../sdma3/vl
+	0
+	echo "8" > /proc/irq/<M>/smp_affinity_list
+	echo "9-12" > /sys/devices/.../sdma4/cpu_list
+	cat /sys/devices/.../sdma4/vl
+	1
+
+	to make sure that when a process runs on cpus 4,5,6, or 7,
+	and uses vl=0, then sdma engine 3 is selected by the driver,
+	and also the interrupt of the sdma engine 3 is steered to cpu 3.
+	Similarly, when a process runs on cpus 9,10,11, or 12 and sets vl=1,
+	then engine 4 will be selected and the irq of the sdma engine 4 is
+	steered to cpu 8.
+	This assumes that in the above N is the irq number of "sdma3",
+	and M is irq number of "sdma4" in the /proc/interrupts file.
+
    ports/1/
           CCMgtA/
                cc_settings_bin - CCA tables used by PSM2

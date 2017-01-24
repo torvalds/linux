@@ -67,12 +67,23 @@ ENTRY(handle_interrupt)
 
 	INTERRUPT_PROLOGUE  irq
 
-	clri		; To make status32.IE agree with CPU internal state
+	# irq control APIs local_irq_save/restore/disable/enable fiddle with
+	# global interrupt enable bits in STATUS32 (.IE for 1 prio, .E[] for 2 prio)
+	# However a taken interrupt doesn't clear these bits. Thus irqs_disabled()
+	# query in hard ISR path would return false (since .IE is set) which would
+	# trips genirq interrupt handling asserts.
+	#
+	# So do a "soft" disable of interrutps here.
+	#
+	# Note this disable is only for consistent book-keeping as further interrupts
+	# will be disabled anyways even w/o this. Hardware tracks active interrupts
+	# seperately in AUX_IRQ_ACTIVE.active and will not take new interrupts
+	# unless this one returns (or higher prio becomes pending in 2-prio scheme)
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	TRACE_ASM_IRQ_DISABLE
-#endif
+	IRQ_DISABLE
 
+	; icause is banked: one per priority level
+	; so a higher prio interrupt taken here won't clobber prev prio icause
 	lr  r0, [ICAUSE]
 	mov   blink, ret_from_exception
 
@@ -171,6 +182,7 @@ END(EV_TLBProtV)
 ; All 2 entry points to here already disable interrupts
 
 .Lrestore_regs:
+restore_regs:
 
 	# Interrpts are actually disabled from this point on, but will get
 	# reenabled after we return from interrupt/exception.

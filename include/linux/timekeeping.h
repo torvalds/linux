@@ -1,7 +1,7 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
-#include <asm-generic/errno-base.h>
+#include <linux/errno.h>
 
 /* Included from linux/ktime.h */
 
@@ -249,6 +249,7 @@ static inline u64 ktime_get_raw_ns(void)
 
 extern u64 ktime_get_mono_fast_ns(void);
 extern u64 ktime_get_raw_fast_ns(void);
+extern u64 ktime_get_boot_fast_ns(void);
 
 /*
  * Timespec interfaces utilizing the ktime based ones
@@ -292,7 +293,7 @@ extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
  * @cs_was_changed_seq:	The sequence number of clocksource change events
  */
 struct system_time_snapshot {
-	cycle_t		cycles;
+	u64		cycles;
 	ktime_t		real;
 	ktime_t		raw;
 	unsigned int	clock_was_set_seq;
@@ -320,7 +321,7 @@ struct system_device_crosststamp {
  *	timekeeping code to verify comparibility of two cycle values
  */
 struct system_counterval_t {
-	cycle_t			cycles;
+	u64			cycles;
 	struct clocksource	*cs;
 };
 

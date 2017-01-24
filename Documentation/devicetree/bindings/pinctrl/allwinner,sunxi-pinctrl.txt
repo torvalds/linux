@@ -23,9 +23,24 @@ Required properties:
   "allwinner,sun8i-h3-pinctrl"
   "allwinner,sun8i-h3-r-pinctrl"
   "allwinner,sun50i-a64-pinctrl"
+  "nextthing,gr8-pinctrl"
 
 - reg: Should contain the register physical address and length for the
   pin controller.
+
+- clocks: phandle to the clocks feeding the pin controller:
+  - "apb": the gated APB parent clock
+  - "hosc": the high frequency oscillator in the system
+  - "losc": the low frequency oscillator in the system
+
+Note: For backward compatibility reasons, the hosc and losc clocks are only
+required if you need to use the optional input-debounce property. Any new
+device tree should set them.
+
+Optional properties:
+  - input-debounce: Array of debouncing periods in microseconds. One period per
+    irq bank found in the controller. 0 if no setup required.
+
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
@@ -35,6 +50,22 @@ pinctrl groups available on the machine. Each subnode will list the
 pins it needs, and how they should be configured, with regard to muxer
 configuration, drive strength and pullups. If one of these options is
 not set, its actual value will be unspecified.
+
+This driver supports the generic pin multiplexing and configuration
+bindings. For details on each properties, you can refer to
+./pinctrl-bindings.txt.
+
+Required sub-node properties:
+  - pins
+  - function
+
+Optional sub-node properties:
+  - bias-disable
+  - bias-pull-up
+  - bias-pull-down
+  - drive-strength
+
+*** Deprecated pin configuration and multiplexing binding
 
 Required subnode-properties:
 

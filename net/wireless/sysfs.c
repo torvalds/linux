@@ -57,7 +57,7 @@ static ssize_t addresses_show(struct device *dev,
 		return sprintf(buf, "%pM\n", wiphy->perm_addr);
 
 	for (i = 0; i < wiphy->n_addresses; i++)
-		buf += sprintf(buf, "%pM\n", &wiphy->addresses[i].addr);
+		buf += sprintf(buf, "%pM\n", wiphy->addresses[i].addr);
 
 	return buf - start;
 }
@@ -104,13 +104,16 @@ static int wiphy_suspend(struct device *dev)
 
 	rtnl_lock();
 	if (rdev->wiphy.registered) {
-		if (!rdev->wiphy.wowlan_config)
+		if (!rdev->wiphy.wowlan_config) {
 			cfg80211_leave_all(rdev);
+			cfg80211_process_rdev_events(rdev);
+		}
 		if (rdev->ops->suspend)
 			ret = rdev_suspend(rdev, rdev->wiphy.wowlan_config);
 		if (ret == 1) {
 			/* Driver refuse to configure wowlan */
 			cfg80211_leave_all(rdev);
+			cfg80211_process_rdev_events(rdev);
 			ret = rdev_suspend(rdev, NULL);
 		}
 	}

@@ -10,6 +10,41 @@
 	compatible = "arm,integrator-ap";
 	dma-ranges = <0x80000000 0x0 0x80000000>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm926ej-s"; */
+			reg = <0>;
+			/*
+			 * The documentation in ARM DUI 0138E page 3-12 states
+			 * that the maximum frequency for this clock is 200 MHz
+			 * but painful trial-and-error has proved to me that it
+			 * is actually just hanging the system above 71 MHz.
+			 * Sad but true.
+			 */
+					 /* kHz     uV   */
+			operating-points = <71000  0
+					    66000  0
+					    60000  0
+					    48000  0
+					    36000  0
+					    24000  0
+					    12000  0>;
+			clocks = <&cmosc>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
 	aliases {
 		arm,timer-primary = &timer2;
 		arm,timer-secondary = &timer1;
@@ -19,7 +54,7 @@
 		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
 	};
 
-	/* 24 MHz chrystal on the core module */
+	/* 24 MHz chrystal on the Integrator/AP development board */
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -39,6 +74,34 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <14745600>;
+		clocks = <&xtal24mhz>;
+	};
+
+	core-module@10000000 {
+		/* 24 MHz chrystal on the core module */
+		cm24mhz: cm24mhz@24M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		/* Oscillator on the core module, clocks the CPU core */
+		cmosc: cmosc@24M {
+			compatible = "arm,syscon-icst525-integratorap-cm";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Auxilary oscillator on the core module, 32.369MHz at boot */
+		auxosc: auxosc@24M {
+			compatible = "arm,syscon-icst525";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x1c>;
+			clocks = <&cm24mhz>;
+		};
 	};
 
 	syscon {
@@ -47,6 +110,27 @@
 		interrupt-parent = <&pic>;
 		/* These are the logical module IRQs */
 		interrupts = <9>, <10>, <11>, <12>;
+
+		/*
+		 * SYSCLK clocks PCIv3 bridge, system controller and the
+		 * logic modules.
+		 */
+		sysclk: apsys@24M {
+			compatible = "arm,syscon-icst525-integratorap-sys";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
+
+		/* One-bit control for the PCI bus clock (33 or 25 MHz) */
+		pciclk: pciclk@24M {
+			compatible = "arm,syscon-icst525-integratorap-pci";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
 	};
 
 	timer0: timer@13000000 {

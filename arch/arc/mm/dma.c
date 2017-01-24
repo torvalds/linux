@@ -45,7 +45,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	 *   -For coherent data, Read/Write to buffers terminate early in cache
 	 *   (vs. always going to memory - thus are faster)
 	 */
-	if ((is_isa_arcv2() && ioc_exists) ||
+	if ((is_isa_arcv2() && ioc_enable) ||
 	    (attrs & DMA_ATTR_NON_CONSISTENT))
 		need_coh = 0;
 
@@ -97,12 +97,37 @@ static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 	int is_non_coh = 1;
 
 	is_non_coh = (attrs & DMA_ATTR_NON_CONSISTENT) ||
-			(is_isa_arcv2() && ioc_exists);
+			(is_isa_arcv2() && ioc_enable);
 
 	if (PageHighMem(page) || !is_non_coh)
 		iounmap((void __force __iomem *)vaddr);
 
 	__free_pages(page, get_order(size));
+}
+
+static int arc_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+			void *cpu_addr, dma_addr_t dma_addr, size_t size,
+			unsigned long attrs)
+{
+	unsigned long user_count = vma_pages(vma);
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned long pfn = __phys_to_pfn(plat_dma_to_phys(dev, dma_addr));
+	unsigned long off = vma->vm_pgoff;
+	int ret = -ENXIO;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+		return ret;
+
+	if (off < count && user_count <= (count - off)) {
+		ret = remap_pfn_range(vma, vma->vm_start,
+				      pfn + off,
+				      user_count << PAGE_SHIFT,
+				      vma->vm_page_prot);
+	}
+
+	return ret;
 }
 
 /*
@@ -133,7 +158,10 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 		unsigned long attrs)
 {
 	phys_addr_t paddr = page_to_phys(page) + offset;
-	_dma_cache_sync(paddr, size, dir);
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		_dma_cache_sync(paddr, size, dir);
+
 	return plat_phys_to_dma(dev, paddr);
 }
 
@@ -193,6 +221,7 @@ static int arc_dma_supported(struct device *dev, u64 dma_mask)
 struct dma_map_ops arc_dma_ops = {
 	.alloc			= arc_dma_alloc,
 	.free			= arc_dma_free,
+	.mmap			= arc_dma_mmap,
 	.map_page		= arc_dma_map_page,
 	.map_sg			= arc_dma_map_sg,
 	.sync_single_for_device	= arc_dma_sync_single_for_device,

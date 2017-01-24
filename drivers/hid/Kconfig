@@ -138,7 +138,7 @@ config HID_ASUS
 	tristate "Asus"
 	depends on I2C_HID
 	---help---
-	Support for Asus notebook built-in keyboard via i2c.
+	Support for Asus notebook built-in keyboard and touchpad via i2c.
 
 	Supported devices:
 	- EeeBook X205TA
@@ -214,7 +214,7 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && I2C && GPIOLIB && GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
 	This is a HID device driver which registers as an i2c adapter
@@ -457,8 +457,6 @@ config LOGITECH_FF
 	  - Logitech WingMan Cordless RumblePad
 	  - Logitech WingMan Cordless RumblePad 2
 	  - Logitech WingMan Force 3D
-	  - Logitech Formula Force EX
-	  - Logitech WingMan Formula Force GP
 
 	  and if you want to enable force feedback for them.
 	  Note: if you say N here, this device will still be supported, but without
@@ -488,15 +486,22 @@ config LOGIWHEELS_FF
 	select INPUT_FF_MEMLESS
 	default LOGITECH_FF
 	help
-	  Say Y here if you want to enable force feedback and range setting
+	  Say Y here if you want to enable force feedback and range setting(*)
 	  support for following Logitech wheels:
+	  - Logitech G25 (*)
+	  - Logitech G27 (*)
+	  - Logitech G29 (*)
 	  - Logitech Driving Force
-	  - Logitech Driving Force Pro
-	  - Logitech Driving Force GT
-	  - Logitech G25
-	  - Logitech G27
-	  - Logitech MOMO/MOMO 2
-	  - Logitech Formula Force EX
+	  - Logitech Driving Force Pro (*)
+	  - Logitech Driving Force GT (*)
+	  - Logitech Driving Force EX/RX
+	  - Logitech Driving Force Wireless
+	  - Logitech Speed Force Wireless
+	  - Logitech MOMO Force
+	  - Logitech MOMO Racing Force
+	  - Logitech Formula Force GP
+	  - Logitech Formula Force EX/RX
+	  - Logitech Wingman Formula Force GP
 
 config HID_MAGICMOUSE
 	tristate "Apple Magic Mouse/Trackpad multi-touch support"
@@ -506,6 +511,14 @@ config HID_MAGICMOUSE
 
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
+
+config HID_MAYFLASH
+	tristate "Mayflash game controller adapter force feedback"
+	depends on HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have HJZ Mayflash PS3 game controller adapters
+	and want to enable force feedback support.
 
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
@@ -856,12 +869,20 @@ config THRUSTMASTER_FF
 	  a THRUSTMASTER Dual Trigger 3-in-1 or a THRUSTMASTER Ferrari GT
 	  Rumble Force or Force Feedback Wheel.
 
+config HID_UDRAW_PS3
+	tristate "THQ PS3 uDraw tablet"
+	depends on HID
+	---help---
+	  Say Y here if you want to use the THQ uDraw gaming tablet for
+	  the PS3.
+
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
 	depends on HID
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS
+	select LEDS_TRIGGERS
 	help
 	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
 	  or Graphire tablet.
@@ -966,5 +987,7 @@ endif # HID
 source "drivers/hid/usbhid/Kconfig"
 
 source "drivers/hid/i2c-hid/Kconfig"
+
+source "drivers/hid/intel-ish-hid/Kconfig"
 
 endmenu

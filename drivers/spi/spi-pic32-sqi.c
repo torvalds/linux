@@ -253,15 +253,13 @@ static struct ring_desc *ring_desc_get(struct pic32_sqi *sqi)
 		return NULL;
 
 	rdesc = list_first_entry(&sqi->bd_list_free, struct ring_desc, list);
-	list_del(&rdesc->list);
-	list_add_tail(&rdesc->list, &sqi->bd_list_used);
+	list_move_tail(&rdesc->list, &sqi->bd_list_used);
 	return rdesc;
 }
 
 static void ring_desc_put(struct pic32_sqi *sqi, struct ring_desc *rdesc)
 {
-	list_del(&rdesc->list);
-	list_add(&rdesc->list, &sqi->bd_list_free);
+	list_move(&rdesc->list, &sqi->bd_list_free);
 }
 
 static int pic32_sqi_one_transfer(struct pic32_sqi *sqi,

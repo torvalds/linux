@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/coresight.h>
+#include <linux/pm_runtime.h>
 
 /*
  * Coresight management registers (0xf00-0xfcc)
@@ -37,15 +38,31 @@
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
 
-#define coresight_simple_func(type, name, offset)			\
+typedef u32 (*coresight_read_fn)(const struct device *, u32 offset);
+#define coresight_simple_func(type, func, name, offset)			\
 static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	type *drvdata = dev_get_drvdata(_dev->parent);			\
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
-			 readl_relaxed(drvdata->base + offset));	\
+	coresight_read_fn fn = func;					\
+	u32 val;							\
+	pm_runtime_get_sync(_dev->parent);				\
+	if (fn)								\
+		val = fn(_dev->parent, offset);				\
+	else								\
+		val = readl_relaxed(drvdata->base + offset);		\
+	pm_runtime_put_sync(_dev->parent);				\
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);		\
 }									\
 static DEVICE_ATTR_RO(name)
+
+enum etm_addr_type {
+	ETM_ADDR_TYPE_NONE,
+	ETM_ADDR_TYPE_SINGLE,
+	ETM_ADDR_TYPE_RANGE,
+	ETM_ADDR_TYPE_START,
+	ETM_ADDR_TYPE_STOP,
+};
 
 enum cs_mode {
 	CS_MODE_DISABLED,
@@ -94,7 +111,9 @@ static inline void CS_UNLOCK(void __iomem *addr)
 void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, u32 mode);
 struct coresight_device *coresight_get_sink(struct list_head *path);
-struct list_head *coresight_build_path(struct coresight_device *csdev);
+struct coresight_device *coresight_get_enabled_sink(bool reset);
+struct list_head *coresight_build_path(struct coresight_device *csdev,
+				       struct coresight_device *sink);
 void coresight_release_path(struct list_head *path);
 
 #ifdef CONFIG_CORESIGHT_SOURCE_ETM3X

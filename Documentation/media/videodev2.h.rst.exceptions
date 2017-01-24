@@ -87,6 +87,10 @@ replace symbol V4L2_YCBCR_ENC_XV601 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV709 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_SMPTE240M :c:type:`v4l2_ycbcr_encoding`
 
+# Documented enum v4l2_hsv_encoding
+replace symbol V4L2_HSV_ENC_180 :c:type:`v4l2_hsv_encoding`
+replace symbol V4L2_HSV_ENC_256 :c:type:`v4l2_hsv_encoding`
+
 # Documented enum v4l2_quantization
 replace symbol V4L2_QUANTIZATION_DEFAULT :c:type:`v4l2_quantization`
 replace symbol V4L2_QUANTIZATION_FULL_RANGE :c:type:`v4l2_quantization`
@@ -276,6 +280,9 @@ replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
 replace define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE dv-bt-standards
+replace define V4L2_DV_FL_HAS_PICTURE_ASPECT dv-bt-standards
+replace define V4L2_DV_FL_HAS_CEA861_VIC dv-bt-standards
+replace define V4L2_DV_FL_HAS_HDMI_VIC dv-bt-standards
 
 replace define V4L2_DV_BT_656_1120 dv-timing-types
 

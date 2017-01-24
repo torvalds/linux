@@ -51,6 +51,7 @@
 
 
 /* Function prototypes */
+static int kobil_attach(struct usb_serial *serial);
 static int kobil_port_probe(struct usb_serial_port *probe);
 static int kobil_port_remove(struct usb_serial_port *probe);
 static int  kobil_open(struct tty_struct *tty, struct usb_serial_port *port);
@@ -86,6 +87,7 @@ static struct usb_serial_driver kobil_device = {
 	.description =		"KOBIL USB smart card terminal",
 	.id_table =		id_table,
 	.num_ports =		1,
+	.attach =		kobil_attach,
 	.port_probe =		kobil_port_probe,
 	.port_remove =		kobil_port_remove,
 	.ioctl =		kobil_ioctl,
@@ -112,6 +114,16 @@ struct kobil_private {
 	__u16 device_type;
 };
 
+
+static int kobil_attach(struct usb_serial *serial)
+{
+	if (serial->num_interrupt_out < serial->num_ports) {
+		dev_err(&serial->interface->dev, "missing interrupt-out endpoint\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static int kobil_port_probe(struct usb_serial_port *port)
 {

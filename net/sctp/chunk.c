@@ -52,7 +52,6 @@ static void sctp_datamsg_init(struct sctp_datamsg *msg)
 	atomic_set(&msg->refcnt, 1);
 	msg->send_failed = 0;
 	msg->send_error = 0;
-	msg->can_abandon = 0;
 	msg->can_delay = 1;
 	msg->expires_at = 0;
 	INIT_LIST_HEAD(&msg->chunks);
@@ -68,6 +67,19 @@ static struct sctp_datamsg *sctp_datamsg_new(gfp_t gfp)
 		SCTP_DBG_OBJCNT_INC(datamsg);
 	}
 	return msg;
+}
+
+void sctp_datamsg_free(struct sctp_datamsg *msg)
+{
+	struct sctp_chunk *chunk;
+
+	/* This doesn't have to be a _safe vairant because
+	 * sctp_chunk_free() only drops the refs.
+	 */
+	list_for_each_entry(chunk, &msg->chunks, frag_list)
+		sctp_chunk_free(chunk);
+
+	sctp_datamsg_put(msg);
 }
 
 /* Final destructruction of datamsg memory. */
@@ -169,27 +181,19 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Note: Calculate this outside of the loop, so that all fragments
 	 * have the same expiration.
 	 */
-	if (sinfo->sinfo_timetolive) {
-		/* sinfo_timetolive is in milliseconds */
+	if (asoc->peer.prsctp_capable && sinfo->sinfo_timetolive &&
+	    (SCTP_PR_TTL_ENABLED(sinfo->sinfo_flags) ||
+	     !SCTP_PR_POLICY(sinfo->sinfo_flags)))
 		msg->expires_at = jiffies +
 				    msecs_to_jiffies(sinfo->sinfo_timetolive);
-		msg->can_abandon = 1;
-
-		pr_debug("%s: msg:%p expires_at:%ld jiffies:%ld\n", __func__,
-			 msg, msg->expires_at, jiffies);
-	}
-
-	if (asoc->peer.prsctp_capable &&
-	    SCTP_PR_TTL_ENABLED(sinfo->sinfo_flags))
-		msg->expires_at =
-			jiffies + msecs_to_jiffies(sinfo->sinfo_timetolive);
 
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	max_data = (asoc->pathmtu -
-		sctp_sk(asoc->base.sk)->pf->af->net_header_len -
-		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk)) & ~3;
+	max_data = asoc->pathmtu -
+		   sctp_sk(asoc->base.sk)->pf->af->net_header_len -
+		   sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk);
+	max_data = SCTP_TRUNC4(max_data);
 
 	max = asoc->frag_point;
 	/* If the the peer requested that we authenticate DATA chunks
@@ -200,8 +204,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
-			max_data -= WORD_ROUND(sizeof(sctp_auth_chunk_t) +
-					    hmac_desc->hmac_len);
+			max_data -= SCTP_PAD4(sizeof(sctp_auth_chunk_t) +
+					      hmac_desc->hmac_len);
 	}
 
 	/* Now, check if we need to reduce our max */
@@ -221,7 +225,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	    asoc->outqueue.out_qlen == 0 &&
 	    list_empty(&asoc->outqueue.retransmit) &&
 	    msg_len > max)
-		max_data -= WORD_ROUND(sizeof(sctp_sack_chunk_t));
+		max_data -= SCTP_PAD4(sizeof(sctp_sack_chunk_t));
 
 	/* Encourage Cookie-ECHO bundling. */
 	if (asoc->state < SCTP_STATE_COOKIE_ECHOED)
@@ -340,18 +344,8 @@ errout:
 /* Check whether this message has expired. */
 int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 {
-	if (!chunk->asoc->peer.prsctp_capable ||
-	    !SCTP_PR_POLICY(chunk->sinfo.sinfo_flags)) {
-		struct sctp_datamsg *msg = chunk->msg;
-
-		if (!msg->can_abandon)
-			return 0;
-
-		if (time_after(jiffies, msg->expires_at))
-			return 1;
-
+	if (!chunk->asoc->peer.prsctp_capable)
 		return 0;
-	}
 
 	if (SCTP_PR_TTL_ENABLED(chunk->sinfo.sinfo_flags) &&
 	    time_after(jiffies, chunk->msg->expires_at)) {
@@ -363,6 +357,10 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
 		   chunk->sent_count > chunk->sinfo.sinfo_timetolive) {
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
+		return 1;
+	} else if (!SCTP_PR_POLICY(chunk->sinfo.sinfo_flags) &&
+		   chunk->msg->expires_at &&
+		   time_after(jiffies, chunk->msg->expires_at)) {
 		return 1;
 	}
 	/* PRIO policy is processed by sendmsg, not here */

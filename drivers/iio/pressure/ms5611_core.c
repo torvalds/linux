@@ -392,17 +392,14 @@ static int ms5611_init(struct iio_dev *indio_dev)
 
 	/* Enable attached regulator if any. */
 	st->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
-	if (!IS_ERR(st->vdd)) {
-		ret = regulator_enable(st->vdd);
-		if (ret) {
-			dev_err(indio_dev->dev.parent,
-				"failed to enable Vdd supply: %d\n", ret);
-			return ret;
-		}
-	} else {
-		ret = PTR_ERR(st->vdd);
-		if (ret != -ENODEV)
-			return ret;
+	if (IS_ERR(st->vdd))
+		return PTR_ERR(st->vdd);
+
+	ret = regulator_enable(st->vdd);
+	if (ret) {
+		dev_err(indio_dev->dev.parent,
+			"failed to enable Vdd supply: %d\n", ret);
+		return ret;
 	}
 
 	ret = ms5611_reset(indio_dev);
@@ -416,8 +413,7 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return 0;
 
 err_regulator_disable:
-	if (!IS_ERR_OR_NULL(st->vdd))
-		regulator_disable(st->vdd);
+	regulator_disable(st->vdd);
 	return ret;
 }
 
@@ -425,8 +421,7 @@ static void ms5611_fini(const struct iio_dev *indio_dev)
 {
 	const struct ms5611_state *st = iio_priv(indio_dev);
 
-	if (!IS_ERR_OR_NULL(st->vdd))
-		regulator_disable(st->vdd);
+	regulator_disable(st->vdd);
 }
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,

@@ -339,7 +339,7 @@ static int __init twd_local_timer_common_register(struct device_node *np)
 	}
 
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_TWD_STARTING,
-				  "AP_ARM_TWD_STARTING",
+				  "arm/timer/twd:starting",
 				  twd_timer_starting_cpu, twd_timer_dying_cpu);
 
 	twd_get_clock(np);

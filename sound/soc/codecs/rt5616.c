@@ -294,8 +294,7 @@ static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -17625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 
 /* {0, +20, +24, +30, +35, +40, +44, +50, +52} dB */
-static unsigned int bst_tlv[] = {
-	TLV_DB_RANGE_HEAD(7),
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(bst_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(2000, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2400, 0, 0),
@@ -303,7 +302,7 @@ static unsigned int bst_tlv[] = {
 	6, 6, TLV_DB_SCALE_ITEM(4400, 0, 0),
 	7, 7, TLV_DB_SCALE_ITEM(5000, 0, 0),
 	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0),
-};
+);
 
 static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 	/* Headphone Output Volume */
@@ -961,8 +960,7 @@ static int rt5616_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val_len = 0, val_clk, mask_clk;
 	int pre_div, bclk_ms, frame_size;
@@ -1267,14 +1265,14 @@ static int rt5616_resume(struct snd_soc_codec *codec)
 #define RT5616_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-struct snd_soc_dai_ops rt5616_aif_dai_ops = {
+static struct snd_soc_dai_ops rt5616_aif_dai_ops = {
 	.hw_params = rt5616_hw_params,
 	.set_fmt = rt5616_set_dai_fmt,
 	.set_sysclk = rt5616_set_dai_sysclk,
 	.set_pll = rt5616_set_dai_pll,
 };
 
-struct snd_soc_dai_driver rt5616_dai[] = {
+static struct snd_soc_dai_driver rt5616_dai[] = {
 	{
 		.name = "rt5616-aif1",
 		.id = RT5616_AIF1,
@@ -1302,12 +1300,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5616 = {
 	.resume = rt5616_resume,
 	.set_bias_level = rt5616_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5616_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5616_snd_controls),
-	.dapm_widgets = rt5616_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5616_dapm_widgets),
-	.dapm_routes = rt5616_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5616_dapm_routes),
+	.component_driver = {
+		.controls		= rt5616_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5616_snd_controls),
+		.dapm_widgets		= rt5616_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5616_dapm_widgets),
+		.dapm_routes		= rt5616_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5616_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5616_regmap = {

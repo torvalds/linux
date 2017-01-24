@@ -62,8 +62,7 @@ static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 	if (!data) length = 0;
 	if (length > (sizeof(hdw->cmd_buffer) - 3)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Killing an I2C write to %u that is too large"
-			   " (desired=%u limit=%u)",
+			   "Killing an I2C write to %u that is too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   length,(unsigned int)(sizeof(hdw->cmd_buffer) - 3));
 		return -ENOTSUPP;
@@ -90,8 +89,7 @@ static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 		if (hdw->cmd_buffer[0] != 8) {
 			ret = -EIO;
 			if (hdw->cmd_buffer[0] != 7) {
-				trace_i2c("unexpected status"
-					  " from i2_write[%d]: %d",
+				trace_i2c("unexpected status from i2_write[%d]: %d",
 					  i2c_addr,hdw->cmd_buffer[0]);
 			}
 		}
@@ -116,16 +114,14 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 	if (!data) dlen = 0;
 	if (dlen > (sizeof(hdw->cmd_buffer) - 4)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Killing an I2C read to %u that has wlen too large"
-			   " (desired=%u limit=%u)",
+			   "Killing an I2C read to %u that has wlen too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   dlen,(unsigned int)(sizeof(hdw->cmd_buffer) - 4));
 		return -ENOTSUPP;
 	}
 	if (res && (rlen > (sizeof(hdw->cmd_buffer) - 1))) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Killing an I2C read to %u that has rlen too large"
-			   " (desired=%u limit=%u)",
+			   "Killing an I2C read to %u that has rlen too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   rlen,(unsigned int)(sizeof(hdw->cmd_buffer) - 1));
 		return -ENOTSUPP;
@@ -154,8 +150,7 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 		if (hdw->cmd_buffer[0] != 8) {
 			ret = -EIO;
 			if (hdw->cmd_buffer[0] != 7) {
-				trace_i2c("unexpected status"
-					  " from i2_read[%d]: %d",
+				trace_i2c("unexpected status from i2_read[%d]: %d",
 					  i2c_addr,hdw->cmd_buffer[0]);
 			}
 		}
@@ -352,13 +347,11 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 
 	if ((ret != 0) || (*rdata == 0x04) || (*rdata == 0x0a)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: Detected a wedged cx25840 chip;"
-			   " the device will not work.");
+			   "WARNING: Detected a wedged cx25840 chip; the device will not work.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "WARNING: Try power cycling the pvrusb2 device.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: Disabling further access to the device"
-			   " to prevent other foul-ups.");
+			   "WARNING: Disabling further access to the device to prevent other foul-ups.");
 		// This blocks all further communication with the part.
 		hdw->i2c_func[0x44] = NULL;
 		pvr2_hdw_render_useless(hdw);
@@ -444,8 +437,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 		}
 	} else if (num == 2) {
 		if (msgs[0].addr != msgs[1].addr) {
-			trace_i2c("i2c refusing 2 phase transfer with"
-				  " conflicting target addresses");
+			trace_i2c("i2c refusing 2 phase transfer with conflicting target addresses");
 			ret = -ENOTSUPP;
 			goto done;
 		}
@@ -477,8 +469,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			ret = 2;
 			goto done;
 		} else {
-			trace_i2c("i2c refusing complex transfer"
-				  " read0=%d read1=%d",
+			trace_i2c("i2c refusing complex transfer read0=%d read1=%d",
 				  (msgs[0].flags & I2C_M_RD),
 				  (msgs[1].flags & I2C_M_RD));
 		}
@@ -492,8 +483,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 		for (idx = 0; idx < num; idx++) {
 			cnt = msgs[idx].len;
 			printk(KERN_INFO
-			       "pvrusb2 i2c xfer %u/%u:"
-			       " addr=0x%x len=%d %s",
+			       "pvrusb2 i2c xfer %u/%u: addr=0x%x len=%d %s",
 			       idx+1,num,
 			       msgs[idx].addr,
 			       cnt,
@@ -501,18 +491,18 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 				"read" : "write"));
 			if ((ret > 0) || !(msgs[idx].flags & I2C_M_RD)) {
 				if (cnt > 8) cnt = 8;
-				printk(" [");
+				printk(KERN_CONT " [");
 				for (offs = 0; offs < (cnt>8?8:cnt); offs++) {
-					if (offs) printk(" ");
-					printk("%02x",msgs[idx].buf[offs]);
+					if (offs) printk(KERN_CONT " ");
+					printk(KERN_CONT "%02x",msgs[idx].buf[offs]);
 				}
-				if (offs < cnt) printk(" ...");
-				printk("]");
+				if (offs < cnt) printk(KERN_CONT " ...");
+				printk(KERN_CONT "]");
 			}
 			if (idx+1 == num) {
-				printk(" result=%d",ret);
+				printk(KERN_CONT " result=%d",ret);
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 		}
 		if (!num) {
 			printk(KERN_INFO
@@ -668,8 +658,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		   the emulated IR receiver. */
 		if (do_i2c_probe(hdw, 0x71)) {
 			pvr2_trace(PVR2_TRACE_INFO,
-				   "Device has newer IR hardware;"
-				   " disabling unneeded virtual IR device");
+				   "Device has newer IR hardware; disabling unneeded virtual IR device");
 			hdw->i2c_func[0x18] = NULL;
 			/* Remember that this is a different device... */
 			hdw->ir_scheme_active = PVR2_IR_SCHEME_24XXX_MCE;

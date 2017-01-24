@@ -1,4 +1,4 @@
-/*
+ /*
  *  sst-atom-controls.c - Intel MID Platform driver DPCM ALSA controls for Mrfld
  *
  *  Copyright (C) 2013-14 Intel Corp
@@ -534,6 +534,7 @@ static const DECLARE_TLV_DB_SCALE(sst_gain_tlv_common, SST_GAIN_MIN_VALUE * 10, 
 
 /* Look up table to convert MIXER SW bit regs to SWM inputs */
 static const uint swm_mixer_input_ids[SST_SWM_INPUT_COUNT] = {
+	[SST_IP_MODEM]		= SST_SWM_IN_MODEM,
 	[SST_IP_CODEC0]		= SST_SWM_IN_CODEC0,
 	[SST_IP_CODEC1]		= SST_SWM_IN_CODEC1,
 	[SST_IP_LOOP0]		= SST_SWM_IN_SPROT_LOOP,
@@ -674,6 +675,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 /* SBA mixers - 16 inputs */
 #define SST_SBA_DECLARE_MIX_CONTROLS(kctl_name)							\
 	static const struct snd_kcontrol_new kctl_name[] = {					\
+		SOC_DAPM_SINGLE("modem_in Switch", SND_SOC_NOPM, SST_IP_MODEM, 1, 0),		\
 		SOC_DAPM_SINGLE("codec_in0 Switch", SND_SOC_NOPM, SST_IP_CODEC0, 1, 0),		\
 		SOC_DAPM_SINGLE("codec_in1 Switch", SND_SOC_NOPM, SST_IP_CODEC1, 1, 0),		\
 		SOC_DAPM_SINGLE("sprot_loop_in Switch", SND_SOC_NOPM, SST_IP_LOOP0, 1, 0),	\
@@ -684,6 +686,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 	}
 
 #define SST_SBA_MIXER_GRAPH_MAP(mix_name)			\
+	{ mix_name, "modem_in Switch",	"modem_in" },		\
 	{ mix_name, "codec_in0 Switch",	"codec_in0" },		\
 	{ mix_name, "codec_in1 Switch",	"codec_in1" },		\
 	{ mix_name, "sprot_loop_in Switch",	"sprot_loop_in" },	\
@@ -713,6 +716,7 @@ SST_SBA_DECLARE_MIX_CONTROLS(sst_mix_media_l2_controls);
 SST_SBA_DECLARE_MIX_CONTROLS(sst_mix_voip_controls);
 SST_SBA_DECLARE_MIX_CONTROLS(sst_mix_codec0_controls);
 SST_SBA_DECLARE_MIX_CONTROLS(sst_mix_codec1_controls);
+SST_SBA_DECLARE_MIX_CONTROLS(sst_mix_modem_controls);
 
 /*
  * sst_handle_vb_timer - Start/Stop the DSP scheduler
@@ -931,17 +935,26 @@ void sst_fill_ssp_defaults(struct snd_soc_dai *dai)
 int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable)
 {
 	struct sst_data *drv = snd_soc_dai_get_drvdata(dai);
-	const struct sst_ssp_config *config;
+	int ssp_id;
 
-	dev_info(dai->dev, "Enter: enable=%d port_name=%s\n", enable, id);
+	dev_dbg(dai->dev, "Enter: enable=%d port_name=%s\n", enable, id);
+
+	if (strcmp(id, "ssp0-port") == 0)
+		ssp_id = SSP_MODEM;
+	else if (strcmp(id, "ssp2-port") == 0)
+		ssp_id = SSP_CODEC;
+	else {
+		dev_dbg(dai->dev, "port %s is not supported\n", id);
+		return -1;
+	}
 
 	SST_FILL_DEFAULT_DESTINATION(drv->ssp_cmd.header.dst);
 	drv->ssp_cmd.header.command_id = SBA_HW_SET_SSP;
 	drv->ssp_cmd.header.length = sizeof(struct sst_cmd_sba_hw_set_ssp)
 				- sizeof(struct sst_dsp_header);
 
-	config = &sst_ssp_configs;
-	dev_dbg(dai->dev, "ssp_id: %u\n", config->ssp_id);
+	drv->ssp_cmd.selection = ssp_id;
+	dev_dbg(dai->dev, "ssp_id: %u\n", ssp_id);
 
 	if (enable)
 		drv->ssp_cmd.switch_state = SST_SWITCH_ON;
@@ -1047,8 +1060,10 @@ static int sst_set_media_loop(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
+	SST_AIF_IN("modem_in", sst_set_be_modules),
 	SST_AIF_IN("codec_in0", sst_set_be_modules),
 	SST_AIF_IN("codec_in1", sst_set_be_modules),
+	SST_AIF_OUT("modem_out", sst_set_be_modules),
 	SST_AIF_OUT("codec_out0", sst_set_be_modules),
 	SST_AIF_OUT("codec_out1", sst_set_be_modules),
 
@@ -1103,6 +1118,9 @@ static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
 		      sst_mix_codec0_controls, sst_swm_mixer_event),
 	SST_SWM_MIXER("codec_out1 mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_CODEC1,
 		      sst_mix_codec1_controls, sst_swm_mixer_event),
+	SST_SWM_MIXER("modem_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_MODEM,
+		      sst_mix_modem_controls, sst_swm_mixer_event),
+
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -1148,6 +1166,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	SST_SBA_MIXER_GRAPH_MAP("codec_out0 mix 0"),
 	{"codec_out1", NULL, "codec_out1 mix 0"},
 	SST_SBA_MIXER_GRAPH_MAP("codec_out1 mix 0"),
+	{"modem_out", NULL, "modem_out mix 0"},
+	SST_SBA_MIXER_GRAPH_MAP("modem_out mix 0"),
+
 
 };
 static const char * const slot_names[] = {
@@ -1217,6 +1238,9 @@ static const struct snd_kcontrol_new sst_gain_controls[] = {
 	SST_GAIN("media_loop2_out", SST_PATH_INDEX_MEDIA_LOOP2_OUT, SST_TASK_SBA, 0, &sst_gains[13]),
 	SST_GAIN("sprot_loop_out", SST_PATH_INDEX_SPROT_LOOP_OUT, SST_TASK_SBA, 0, &sst_gains[14]),
 	SST_VOLUME("media0_in", SST_PATH_INDEX_MEDIA0_IN, SST_TASK_MMX, 0, &sst_gains[15]),
+	SST_GAIN("modem_in", SST_PATH_INDEX_MODEM_IN, SST_TASK_SBA, 0, &sst_gains[16]),
+	SST_GAIN("modem_out", SST_PATH_INDEX_MODEM_OUT, SST_TASK_SBA, 0, &sst_gains[17]),
+
 };
 
 #define SST_GAIN_NUM_CONTROLS 3

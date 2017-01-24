@@ -155,7 +155,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 #include <linux/blkpg.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
 static DEFINE_MUTEX(pd_mutex);

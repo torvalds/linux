@@ -360,9 +360,7 @@ static void sirfsoc_dma_process_completed(struct sirfsoc_dma *sdma)
 			list_for_each_entry(sdesc, &list, node) {
 				desc = &sdesc->desc;
 
-				if (desc->callback)
-					desc->callback(desc->callback_param);
-
+				dmaengine_desc_get_callback_invoke(desc, NULL);
 				last_cookie = desc->cookie;
 				dma_run_dependencies(desc);
 			}
@@ -388,8 +386,7 @@ static void sirfsoc_dma_process_completed(struct sirfsoc_dma *sdma)
 
 			desc = &sdesc->desc;
 			while (happened_cyclic != schan->completed_cyclic) {
-				if (desc->callback)
-					desc->callback(desc->callback_param);
+				dmaengine_desc_get_callback_invoke(desc, NULL);
 				schan->completed_cyclic++;
 			}
 		}
@@ -869,7 +866,7 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	}
 
 	sdma->irq = irq_of_parse_and_map(dn, 0);
-	if (sdma->irq == NO_IRQ) {
+	if (!sdma->irq) {
 		dev_err(dev, "Error mapping IRQ!\n");
 		return -EINVAL;
 	}
@@ -1014,7 +1011,6 @@ static int __maybe_unused sirfsoc_dma_pm_suspend(struct device *dev)
 {
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
 	struct sirfsoc_dma_regs *save = &sdma->regs_save;
-	struct sirfsoc_dma_desc *sdesc;
 	struct sirfsoc_dma_chan *schan;
 	int ch;
 	int ret;
@@ -1047,9 +1043,6 @@ static int __maybe_unused sirfsoc_dma_pm_suspend(struct device *dev)
 		schan = &sdma->channels[ch];
 		if (list_empty(&schan->active))
 			continue;
-		sdesc = list_first_entry(&schan->active,
-			struct sirfsoc_dma_desc,
-			node);
 		save->ctrl[ch] = readl_relaxed(sdma->base +
 			ch * 0x10 + SIRFSOC_DMA_CH_CTRL);
 	}

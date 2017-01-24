@@ -46,6 +46,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
+#include <linux/ahci-remap.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include "ahci.h"
 
 #define DRV_NAME	"ahci"
@@ -1400,142 +1402,86 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
 }
 #endif
 
-/*
- * ahci_init_msix() - optionally enable per-port MSI-X otherwise defer
- * to single msi.
- */
-static int ahci_init_msix(struct pci_dev *pdev, unsigned int n_ports,
-			  struct ahci_host_priv *hpriv, unsigned long flags)
+static void ahci_remap_check(struct pci_dev *pdev, int bar,
+		struct ahci_host_priv *hpriv)
 {
-	int nvec, i, rc;
-
-	/* Do not init MSI-X if MSI is disabled for the device */
-	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
-		return -ENODEV;
-
-	nvec = pci_msix_vec_count(pdev);
-	if (nvec < 0)
-		return nvec;
+	int i, count = 0;
+	u32 cap;
 
 	/*
-	 * Proper MSI-X implementations will have a vector per-port.
-	 * Barring that, we prefer single-MSI over single-MSIX.  If this
-	 * check fails (not enough MSI-X vectors for all ports) we will
-	 * be called again with the flag clear iff ahci_init_msi()
-	 * fails.
+	 * Check if this device might have remapped nvme devices.
 	 */
-	if (flags & AHCI_HFLAG_MULTI_MSIX) {
-		if (nvec < n_ports)
-			return -ENODEV;
-		nvec = n_ports;
-	} else if (nvec) {
-		nvec = 1;
-	} else {
-		/*
-		 * Emit dev_err() since this was the non-legacy irq
-		 * method of last resort.
-		 */
-		rc = -ENODEV;
-		goto fail;
+	if (pdev->vendor != PCI_VENDOR_ID_INTEL ||
+	    pci_resource_len(pdev, bar) < SZ_512K ||
+	    bar != AHCI_PCI_BAR_STANDARD ||
+	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
+		return;
+
+	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
+	for (i = 0; i < AHCI_MAX_REMAP; i++) {
+		if ((cap & (1 << i)) == 0)
+			continue;
+		if (readl(hpriv->mmio + ahci_remap_dcc(i))
+				!= PCI_CLASS_STORAGE_EXPRESS)
+			continue;
+
+		/* We've found a remapped device */
+		count++;
 	}
 
-	for (i = 0; i < nvec; i++)
-		hpriv->msix[i].entry = i;
-	rc = pci_enable_msix_exact(pdev, hpriv->msix, nvec);
-	if (rc < 0)
-		goto fail;
+	if (!count)
+		return;
 
-	if (nvec > 1)
-		hpriv->flags |= AHCI_HFLAG_MULTI_MSIX;
-	hpriv->irq = hpriv->msix[0].vector; /* for single msi-x */
+	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
+	dev_warn(&pdev->dev, "Switch your BIOS from RAID to AHCI mode to use them.\n");
+}
 
-	return nvec;
-fail:
-	dev_err(&pdev->dev,
-		"failed to enable MSI-X with error %d, # of vectors: %d\n",
-		rc, nvec);
-
-	return rc;
+static int ahci_get_irq_vector(struct ata_host *host, int port)
+{
+	return pci_irq_vector(to_pci_dev(host->dev), port);
 }
 
 static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 			struct ahci_host_priv *hpriv)
 {
-	int rc, nvec;
+	int nvec;
 
 	if (hpriv->flags & AHCI_HFLAG_NO_MSI)
 		return -ENODEV;
-
-	nvec = pci_msi_vec_count(pdev);
-	if (nvec < 0)
-		return nvec;
 
 	/*
 	 * If number of MSIs is less than number of ports then Sharing Last
 	 * Message mode could be enforced. In this case assume that advantage
 	 * of multipe MSIs is negated and use single MSI mode instead.
 	 */
-	if (nvec < n_ports)
-		goto single_msi;
+	if (n_ports > 1) {
+		nvec = pci_alloc_irq_vectors(pdev, n_ports, INT_MAX,
+				PCI_IRQ_MSIX | PCI_IRQ_MSI);
+		if (nvec > 0) {
+			if (!(readl(hpriv->mmio + HOST_CTL) & HOST_MRSM)) {
+				hpriv->get_irq_vector = ahci_get_irq_vector;
+				hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
+				return nvec;
+			}
 
-	rc = pci_enable_msi_exact(pdev, nvec);
-	if (rc == -ENOSPC)
-		goto single_msi;
-	if (rc < 0)
-		return rc;
-
-	/* fallback to single MSI mode if the controller enforced MRSM mode */
-	if (readl(hpriv->mmio + HOST_CTL) & HOST_MRSM) {
-		pci_disable_msi(pdev);
-		printk(KERN_INFO "ahci: MRSM is on, fallback to single MSI\n");
-		goto single_msi;
+			/*
+			 * Fallback to single MSI mode if the controller
+			 * enforced MRSM mode.
+			 */
+			printk(KERN_INFO
+				"ahci: MRSM is on, fallback to single MSI\n");
+			pci_free_irq_vectors(pdev);
+		}
 	}
 
-	if (nvec > 1)
-		hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
-
-	goto out;
-
-single_msi:
-	nvec = 1;
-
-	rc = pci_enable_msi(pdev);
-	if (rc < 0)
-		return rc;
-out:
-	hpriv->irq = pdev->irq;
-
-	return nvec;
-}
-
-static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
-				struct ahci_host_priv *hpriv)
-{
-	int nvec;
-
 	/*
-	 * Try to enable per-port MSI-X.  If the host is not capable
-	 * fall back to single MSI before finally attempting single
-	 * MSI-X.
+	 * If the host is not capable of supporting per-port vectors, fall
+	 * back to single MSI before finally attempting single MSI-X.
 	 */
-	nvec = ahci_init_msix(pdev, n_ports, hpriv, AHCI_HFLAG_MULTI_MSIX);
-	if (nvec >= 0)
+	nvec = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (nvec == 1)
 		return nvec;
-
-	nvec = ahci_init_msi(pdev, n_ports, hpriv);
-	if (nvec >= 0)
-		return nvec;
-
-	/* try single-msix */
-	nvec = ahci_init_msix(pdev, n_ports, hpriv, 0);
-	if (nvec >= 0)
-		return nvec;
-
-	/* legacy intx interrupts */
-	pci_intx(pdev, 1);
-	hpriv->irq = pdev->irq;
-
-	return 0;
+	return pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSIX);
 }
 
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1631,6 +1577,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
 
+	/* detect remapped nvme devices */
+	ahci_remap_check(pdev, ahci_pci_bar, hpriv);
+
 	/* must set flag prior to save config in order to take effect */
 	if (ahci_broken_devslp(pdev))
 		hpriv->flags |= AHCI_HFLAG_NO_DEVSLP;
@@ -1698,11 +1647,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!host)
 		return -ENOMEM;
 	host->private_data = hpriv;
-	hpriv->msix = devm_kzalloc(&pdev->dev,
-			sizeof(struct msix_entry) * n_ports, GFP_KERNEL);
-	if (!hpriv->msix)
-		return -ENOMEM;
-	ahci_init_interrupts(pdev, n_ports, hpriv);
+
+	if (ahci_init_msi(pdev, n_ports, hpriv) < 0) {
+		/* legacy intx interrupts */
+		pci_intx(pdev, 1);
+	}
+	hpriv->irq = pci_irq_vector(pdev, 0);
 
 	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;

@@ -9,10 +9,14 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_scatter.o drm_pci.o \
 		drm_platform.o drm_sysfs.o drm_hashtab.o drm_mm.o \
 		drm_crtc.o drm_fourcc.o drm_modes.o drm_edid.o \
-		drm_info.o drm_debugfs.o drm_encoder_slave.o \
+		drm_info.o drm_encoder_slave.o \
 		drm_trace_points.o drm_global.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
-		drm_modeset_lock.o drm_atomic.o drm_bridge.o
+		drm_modeset_lock.o drm_atomic.o drm_bridge.o \
+		drm_framebuffer.o drm_connector.o drm_blend.o \
+		drm_encoder.o drm_mode_object.o drm_property.o \
+		drm_plane.o drm_color_mgmt.o drm_print.o \
+		drm_dumb_buffers.o drm_mode_config.o
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_GEM_CMA_HELPER) += drm_gem_cma_helper.o
@@ -20,11 +24,12 @@ drm-$(CONFIG_PCI) += ati_pcigart.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o
 drm-$(CONFIG_OF) += drm_of.o
 drm-$(CONFIG_AGP) += drm_agpsupport.o
+drm-$(CONFIG_DEBUG_FS) += drm_debugfs.o drm_debugfs_crc.o
 
 drm_kms_helper-y := drm_crtc_helper.o drm_dp_helper.o drm_probe_helper.o \
 		drm_plane_helper.o drm_dp_mst_topology.o drm_atomic_helper.o \
 		drm_kms_helper_common.o drm_dp_dual_mode_helper.o \
-		drm_simple_kms_helper.o drm_blend.o
+		drm_simple_kms_helper.o drm_modeset_helper.o
 
 drm_kms_helper-$(CONFIG_DRM_LOAD_EDID_FIRMWARE) += drm_edid_load.o
 drm_kms_helper-$(CONFIG_DRM_FBDEV_EMULATION) += drm_fb_helper.o
@@ -46,7 +51,7 @@ obj-$(CONFIG_DRM_RADEON)+= radeon/
 obj-$(CONFIG_DRM_AMDGPU)+= amd/amdgpu/
 obj-$(CONFIG_DRM_MGA)	+= mga/
 obj-$(CONFIG_DRM_I810)	+= i810/
-obj-$(CONFIG_DRM_I915)  += i915/
+obj-$(CONFIG_DRM_I915)	+= i915/
 obj-$(CONFIG_DRM_MGAG200) += mgag200/
 obj-$(CONFIG_DRM_VC4)  += vc4/
 obj-$(CONFIG_DRM_CIRRUS_QEMU) += cirrus/
@@ -76,6 +81,7 @@ obj-$(CONFIG_DRM_TEGRA) += tegra/
 obj-$(CONFIG_DRM_STI) += sti/
 obj-$(CONFIG_DRM_IMX) += imx/
 obj-$(CONFIG_DRM_MEDIATEK) += mediatek/
+obj-$(CONFIG_DRM_MESON)	+= meson/
 obj-y			+= i2c/
 obj-y			+= panel/
 obj-y			+= bridge/
@@ -83,3 +89,5 @@ obj-$(CONFIG_DRM_FSL_DCU) += fsl-dcu/
 obj-$(CONFIG_DRM_ETNAVIV) += etnaviv/
 obj-$(CONFIG_DRM_ARCPGU)+= arc/
 obj-y			+= hisilicon/
+obj-$(CONFIG_DRM_ZTE)	+= zte/
+obj-$(CONFIG_DRM_MXSFB)	+= mxsfb/

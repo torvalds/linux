@@ -261,8 +261,8 @@ static int dm355_enable_clock(enum vpss_clock_sel clock_sel, int en)
 		shift = 6;
 		break;
 	default:
-		printk(KERN_ERR "dm355_enable_clock:"
-				" Invalid selector: %d\n", clock_sel);
+		printk(KERN_ERR "dm355_enable_clock: Invalid selector: %d\n",
+		       clock_sel);
 		return -EINVAL;
 	}
 
@@ -421,8 +421,7 @@ static int vpss_probe(struct platform_device *pdev)
 	else if (!strcmp(platform_name, "dm644x_vpss"))
 		oper_cfg.platform = DM644X;
 	else {
-		dev_err(&pdev->dev, "vpss driver not supported on"
-			" this platform\n");
+		dev_err(&pdev->dev, "vpss driver not supported on this platform\n");
 		return -ENODEV;
 	}
 

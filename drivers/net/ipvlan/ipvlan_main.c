@@ -9,24 +9,87 @@
 
 #include "ipvlan.h"
 
+static u32 ipvl_nf_hook_refcnt = 0;
+
+static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
+	{
+		.hook     = ipvlan_nf_input,
+		.pf       = NFPROTO_IPV4,
+		.hooknum  = NF_INET_LOCAL_IN,
+		.priority = INT_MAX,
+	},
+	{
+		.hook     = ipvlan_nf_input,
+		.pf       = NFPROTO_IPV6,
+		.hooknum  = NF_INET_LOCAL_IN,
+		.priority = INT_MAX,
+	},
+};
+
+static const struct l3mdev_ops ipvl_l3mdev_ops = {
+	.l3mdev_l3_rcv = ipvlan_l3_rcv,
+};
+
 static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
-	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
+	ipvlan->dev->mtu = dev->mtu;
 }
 
-static void ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
+static int ipvlan_register_nf_hook(void)
+{
+	int err = 0;
+
+	if (!ipvl_nf_hook_refcnt) {
+		err = _nf_register_hooks(ipvl_nfops, ARRAY_SIZE(ipvl_nfops));
+		if (!err)
+			ipvl_nf_hook_refcnt = 1;
+	} else {
+		ipvl_nf_hook_refcnt++;
+	}
+
+	return err;
+}
+
+static void ipvlan_unregister_nf_hook(void)
+{
+	WARN_ON(!ipvl_nf_hook_refcnt);
+
+	ipvl_nf_hook_refcnt--;
+	if (!ipvl_nf_hook_refcnt)
+		_nf_unregister_hooks(ipvl_nfops, ARRAY_SIZE(ipvl_nfops));
+}
+
+static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 {
 	struct ipvl_dev *ipvlan;
+	struct net_device *mdev = port->dev;
+	int err = 0;
 
+	ASSERT_RTNL();
 	if (port->mode != nval) {
+		if (nval == IPVLAN_MODE_L3S) {
+			/* New mode is L3S */
+			err = ipvlan_register_nf_hook();
+			if (!err) {
+				mdev->l3mdev_ops = &ipvl_l3mdev_ops;
+				mdev->priv_flags |= IFF_L3MDEV_MASTER;
+			} else
+				return err;
+		} else if (port->mode == IPVLAN_MODE_L3S) {
+			/* Old mode was L3S */
+			mdev->priv_flags &= ~IFF_L3MDEV_MASTER;
+			ipvlan_unregister_nf_hook();
+			mdev->l3mdev_ops = NULL;
+		}
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-			if (nval == IPVLAN_MODE_L3)
+			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S)
 				ipvlan->dev->flags |= IFF_NOARP;
 			else
 				ipvlan->dev->flags &= ~IFF_NOARP;
 		}
 		port->mode = nval;
 	}
+	return err;
 }
 
 static int ipvlan_port_create(struct net_device *dev)
@@ -65,19 +128,29 @@ static int ipvlan_port_create(struct net_device *dev)
 	return 0;
 
 err:
-	kfree_rcu(port, rcu);
+	kfree(port);
 	return err;
 }
 
 static void ipvlan_port_destroy(struct net_device *dev)
 {
 	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
+	struct sk_buff *skb;
 
 	dev->priv_flags &= ~IFF_IPVLAN_MASTER;
+	if (port->mode == IPVLAN_MODE_L3S) {
+		dev->priv_flags &= ~IFF_L3MDEV_MASTER;
+		ipvlan_unregister_nf_hook();
+		dev->l3mdev_ops = NULL;
+	}
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
-	__skb_queue_purge(&port->backlog);
-	kfree_rcu(port, rcu);
+	while ((skb = __skb_dequeue(&port->backlog)) != NULL) {
+		if (skb->dev)
+			dev_put(skb->dev);
+		kfree_skb(skb);
+	}
+	kfree(port);
 }
 
 #define IPVLAN_FEATURES \
@@ -132,7 +205,8 @@ static int ipvlan_open(struct net_device *dev)
 	struct net_device *phy_dev = ipvlan->phy_dev;
 	struct ipvl_addr *addr;
 
-	if (ipvlan->port->mode == IPVLAN_MODE_L3)
+	if (ipvlan->port->mode == IPVLAN_MODE_L3 ||
+	    ipvlan->port->mode == IPVLAN_MODE_L3S)
 		dev->flags |= IFF_NOARP;
 	else
 		dev->flags &= ~IFF_NOARP;
@@ -372,13 +446,14 @@ static int ipvlan_nl_changelink(struct net_device *dev,
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port = ipvlan_port_get_rtnl(ipvlan->phy_dev);
+	int err = 0;
 
 	if (data && data[IFLA_IPVLAN_MODE]) {
 		u16 nmode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
-		ipvlan_set_port_mode(port, nmode);
+		err = ipvlan_set_port_mode(port, nmode);
 	}
-	return 0;
+	return err;
 }
 
 static size_t ipvlan_nl_getsize(const struct net_device *dev)
@@ -427,6 +502,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	struct net_device *phy_dev;
 	int err;
 	u16 mode = IPVLAN_MODE_L3;
+	bool create = false;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -443,6 +519,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		err = ipvlan_port_create(phy_dev);
 		if (err < 0)
 			return err;
+		create = true;
 	}
 
 	if (data && data[IFLA_IPVLAN_MODE])
@@ -466,19 +543,29 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		return err;
+		goto destroy_ipvlan_port;
 
 	err = netdev_upper_dev_link(phy_dev, dev);
 	if (err) {
-		unregister_netdevice(dev);
-		return err;
+		goto unregister_netdev;
+	}
+	err = ipvlan_set_port_mode(port, mode);
+	if (err) {
+		goto unlink_netdev;
 	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
-	ipvlan_set_port_mode(port, mode);
-
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
+
+unlink_netdev:
+	netdev_upper_dev_unlink(phy_dev, dev);
+unregister_netdev:
+	unregister_netdevice(dev);
+destroy_ipvlan_port:
+	if (create)
+		ipvlan_port_destroy(phy_dev);
+	return err;
 }
 
 static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)

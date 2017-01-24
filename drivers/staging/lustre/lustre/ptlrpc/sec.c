@@ -311,6 +311,19 @@ static int import_sec_check_expire(struct obd_import *imp)
 	return sptlrpc_import_sec_adapt(imp, NULL, NULL);
 }
 
+/**
+ * Get and validate the client side ptlrpc security facilities from
+ * \a imp. There is a race condition on client reconnect when the import is
+ * being destroyed while there are outstanding client bound requests. In
+ * this case do not output any error messages if import secuity is not
+ * found.
+ *
+ * \param[in] imp obd import associated with client
+ * \param[out] sec client side ptlrpc security
+ *
+ * \retval 0 if security retrieved successfully
+ * \retval -ve errno if there was a problem
+ */
 static int import_sec_validate_get(struct obd_import *imp,
 				   struct ptlrpc_sec **sec)
 {
@@ -323,9 +336,11 @@ static int import_sec_validate_get(struct obd_import *imp,
 	}
 
 	*sec = sptlrpc_import_sec_ref(imp);
+	/* Only output an error when the import is still active */
 	if (!*sec) {
-		CERROR("import %p (%s) with no sec\n",
-		       imp, ptlrpc_import_state_name(imp->imp_state));
+		if (list_empty(&imp->imp_zombie_chain))
+			CERROR("import %p (%s) with no sec\n",
+			       imp, ptlrpc_import_state_name(imp->imp_state));
 		return -EACCES;
 	}
 
@@ -364,7 +379,7 @@ int sptlrpc_req_get_ctx(struct ptlrpc_request *req)
 
 	if (!req->rq_cli_ctx) {
 		CERROR("req %p: fail to get context\n", req);
-		return -ENOMEM;
+		return -ECONNREFUSED;
 	}
 
 	return 0;
@@ -499,7 +514,14 @@ static int sptlrpc_req_replace_dead_ctx(struct ptlrpc_request *req)
 		       newctx, newctx->cc_flags);
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		schedule_timeout(msecs_to_jiffies(MSEC_PER_SEC));
+	} else if (unlikely(!test_bit(PTLRPC_CTX_UPTODATE_BIT, &newctx->cc_flags))) {
+		/*
+		 * new ctx not up to date yet
+		 */
+		CDEBUG(D_SEC,
+		       "ctx (%p, fl %lx) doesn't switch, not up to date yet\n",
+		       newctx, newctx->cc_flags);
 	} else {
 		/*
 		 * it's possible newctx == oldctx if we're switching
@@ -718,8 +740,9 @@ again:
 	req->rq_restart = 0;
 	spin_unlock(&req->rq_lock);
 
-	lwi = LWI_TIMEOUT_INTR(timeout * HZ, ctx_refresh_timeout,
-			       ctx_refresh_interrupt, req);
+	lwi = LWI_TIMEOUT_INTR(msecs_to_jiffies(timeout * MSEC_PER_SEC),
+			       ctx_refresh_timeout, ctx_refresh_interrupt,
+			       req);
 	rc = l_wait_event(req->rq_reply_waitq, ctx_check_refresh(ctx), &lwi);
 
 	/*
@@ -2204,7 +2227,7 @@ int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset)
 	task_lock(current);
 	if (pud->pud_ngroups > current_ngroups)
 		pud->pud_ngroups = current_ngroups;
-	memcpy(pud->pud_groups, current_cred()->group_info->blocks[0],
+	memcpy(pud->pud_groups, current_cred()->group_info->gid,
 	       pud->pud_ngroups * sizeof(__u32));
 	task_unlock(current);
 

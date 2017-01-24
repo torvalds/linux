@@ -22,7 +22,6 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct dtt200u_state {
 	unsigned char data[80];
-	struct mutex data_mutex;
 };
 
 static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
@@ -30,23 +29,24 @@ static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
 	struct dtt200u_state *st = d->priv;
 	int ret = 0;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 
 	st->data[0] = SET_INIT;
 
 	if (onoff)
 		ret = dvb_usb_generic_write(d, st->data, 2);
 
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
 static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	struct dtt200u_state *st = adap->dev->priv;
+	struct dvb_usb_device *d = adap->dev;
+	struct dtt200u_state *st = d->priv;
 	int ret;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = SET_STREAMING;
 	st->data[1] = onoff;
 
@@ -61,26 +61,27 @@ static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	ret = dvb_usb_generic_write(adap->dev, st->data, 1);
 
 ret:
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	return ret;
 }
 
 static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
-	struct dtt200u_state *st = adap->dev->priv;
+	struct dvb_usb_device *d = adap->dev;
+	struct dtt200u_state *st = d->priv;
 	int ret;
 
 	pid = onoff ? pid : 0;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = SET_PID_FILTER;
 	st->data[1] = index;
 	st->data[2] = pid & 0xff;
 	st->data[3] = (pid >> 8) & 0x1f;
 
 	ret = dvb_usb_generic_write(adap->dev, st->data, 4);
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	return ret;
 }
@@ -91,7 +92,7 @@ static int dtt200u_rc_query(struct dvb_usb_device *d)
 	u32 scancode;
 	int ret;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = GET_RC_CODE;
 
 	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 5, 0);
@@ -126,7 +127,7 @@ static int dtt200u_rc_query(struct dvb_usb_device *d)
 		deb_info("st->data: %*ph\n", 5, st->data);
 
 ret:
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
@@ -145,24 +146,17 @@ static struct dvb_usb_device_properties wt220u_miglia_properties;
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
-	struct dtt200u_state *st;
-
 	if (0 == dvb_usb_device_init(intf, &dtt200u_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_fc_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_zl0353_properties,
-				     THIS_MODULE, &d, adapter_nr) ||
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_miglia_properties,
-				     THIS_MODULE, &d, adapter_nr)) {
-		st = d->priv;
-		mutex_init(&st->data_mutex);
-
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
-	}
 
 	return -ENODEV;
 }

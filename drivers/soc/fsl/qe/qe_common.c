@@ -70,6 +70,11 @@ int cpm_muram_init(void)
 	}
 
 	muram_pool = gen_pool_create(0, -1);
+	if (!muram_pool) {
+		pr_err("Cannot allocate memory pool for CPM/QE muram");
+		ret = -ENOMEM;
+		goto out_muram;
+	}
 	muram_pbase = of_translate_address(np, zero);
 	if (muram_pbase == (phys_addr_t)OF_BAD_ADDR) {
 		pr_err("Cannot translate zero through CPM muram node");
@@ -115,6 +120,9 @@ static unsigned long cpm_muram_alloc_common(unsigned long size,
 {
 	struct muram_block *entry;
 	unsigned long start;
+
+	if (!muram_pool && cpm_muram_init())
+		goto out2;
 
 	start = gen_pool_alloc_algo(muram_pool, size, algo, data);
 	if (!start)

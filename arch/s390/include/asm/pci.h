@@ -11,6 +11,7 @@
 #include <asm-generic/pci.h>
 #include <asm/pci_clp.h>
 #include <asm/pci_debug.h>
+#include <asm/sclp.h>
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
@@ -117,6 +118,7 @@ struct zpci_dev {
 
 	spinlock_t	iommu_bitmap_lock;
 	unsigned long	*iommu_bitmap;
+	unsigned long	*lazy_bitmap;
 	unsigned long	iommu_size;
 	unsigned long	iommu_pages;
 	unsigned int	next_bit;
@@ -131,6 +133,7 @@ struct zpci_dev {
 	/* Function measurement block */
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
+	u16		fmb_length;
 	/* software counters */
 	atomic64_t allocated_pages;
 	atomic64_t mapped_pages;
@@ -215,6 +218,9 @@ void zpci_debug_exit(void);
 void zpci_debug_init_device(struct zpci_dev *, const char *);
 void zpci_debug_exit_device(struct zpci_dev *);
 void zpci_debug_info(struct zpci_dev *, struct seq_file *);
+
+/* Error reporting */
+int zpci_report_error(struct pci_dev *, struct zpci_report_error_header *);
 
 #ifdef CONFIG_NUMA
 

@@ -15,7 +15,7 @@
 #include <linux/hugetlb.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 
 /*

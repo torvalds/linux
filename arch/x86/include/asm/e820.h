@@ -1,17 +1,21 @@
 #ifndef _ASM_X86_E820_H
 #define _ASM_X86_E820_H
 
-#ifdef CONFIG_EFI
+/*
+ * E820_X_MAX is the maximum size of the extended E820 table.  The extended
+ * table may contain up to 3 extra E820 entries per possible NUMA node, so we
+ * make room for 3 * MAX_NUMNODES possible entries, beyond the standard 128.
+ * Also note that E820_X_MAX *must* be defined before we include uapi/asm/e820.h.
+ */
 #include <linux/numa.h>
 #define E820_X_MAX (E820MAX + 3 * MAX_NUMNODES)
-#else	/* ! CONFIG_EFI */
-#define E820_X_MAX E820MAX
-#endif
+
 #include <uapi/asm/e820.h>
+
 #ifndef __ASSEMBLY__
 /* see comment in arch/x86/kernel/e820.c */
-extern struct e820map e820;
-extern struct e820map e820_saved;
+extern struct e820map *e820;
+extern struct e820map *e820_saved;
 
 extern unsigned long pci_mem_start;
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
@@ -52,6 +56,8 @@ extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
 extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
+
+extern void e820_reallocate_tables(void);
 
 /*
  * Returns true iff the specified range [s,e) is completely contained inside

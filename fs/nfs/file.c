@@ -29,7 +29,7 @@
 #include <linux/gfp.h>
 #include <linux/swap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "delegation.h"
 #include "internal.h"
@@ -101,18 +101,11 @@ EXPORT_SYMBOL_GPL(nfs_file_release);
 static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	if (nfs_have_delegated_attributes(inode))
-		goto out_noreval;
 
 	if (filp->f_flags & O_DIRECT)
 		goto force_reval;
-	if (nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+	if (nfs_check_cache_invalid(inode, NFS_INO_REVAL_PAGECACHE))
 		goto force_reval;
-	if (nfs_attribute_timeout(inode))
-		goto force_reval;
-out_noreval:
 	return 0;
 force_reval:
 	return __nfs_revalidate_inode(server, inode);
@@ -181,29 +174,6 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 	return result;
 }
 EXPORT_SYMBOL_GPL(nfs_file_read);
-
-ssize_t
-nfs_file_splice_read(struct file *filp, loff_t *ppos,
-		     struct pipe_inode_info *pipe, size_t count,
-		     unsigned int flags)
-{
-	struct inode *inode = file_inode(filp);
-	ssize_t res;
-
-	dprintk("NFS: splice_read(%pD2, %lu@%Lu)\n",
-		filp, (unsigned long) count, (unsigned long long) *ppos);
-
-	nfs_start_io_read(inode);
-	res = nfs_revalidate_mapping(inode, filp->f_mapping);
-	if (!res) {
-		res = generic_file_splice_read(filp, ppos, pipe, count, flags);
-		if (res > 0)
-			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, res);
-	}
-	nfs_end_io_read(inode);
-	return res;
-}
-EXPORT_SYMBOL_GPL(nfs_file_splice_read);
 
 int
 nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
@@ -397,7 +367,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	 */
 	if (!PageUptodate(page)) {
 		unsigned pglen = nfs_page_length(page);
-		unsigned end = offset + len;
+		unsigned end = offset + copied;
 
 		if (pglen == 0) {
 			zero_user_segments(page, 0, offset,
@@ -543,7 +513,9 @@ const struct address_space_operations nfs_file_aops = {
 	.invalidatepage = nfs_invalidate_page,
 	.releasepage = nfs_release_page,
 	.direct_IO = nfs_direct_IO,
+#ifdef CONFIG_MIGRATION
 	.migratepage = nfs_migrate_page,
+#endif
 	.launder_page = nfs_launder_page,
 	.is_dirty_writeback = nfs_check_dirty_writeback,
 	.error_remove_page = generic_error_remove_page,
@@ -708,11 +680,6 @@ out_noconflict:
 	goto out;
 }
 
-static int do_vfs_lock(struct file *file, struct file_lock *fl)
-{
-	return locks_lock_file_wait(file, fl);
-}
-
 static int
 do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 {
@@ -745,7 +712,7 @@ do_unlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	if (!is_local)
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
-		status = do_vfs_lock(filp, fl);
+		status = locks_lock_file_wait(filp, fl);
 	return status;
 }
 
@@ -770,7 +737,7 @@ do_setlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	if (!is_local)
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
-		status = do_vfs_lock(filp, fl);
+		status = locks_lock_file_wait(filp, fl);
 	if (status < 0)
 		goto out;
 
@@ -871,7 +838,7 @@ const struct file_operations nfs_file_operations = {
 	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
-	.splice_read	= nfs_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,

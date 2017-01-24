@@ -36,7 +36,7 @@
 
 #include <asm/processor.h>
 #include <asm/bios_ebda.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -89,10 +89,10 @@ static int __init nonx32_setup(char *str)
 __setup("noexec32=", nonx32_setup);
 
 /*
- * When memory was added/removed make sure all the processes MM have
+ * When memory was added make sure all the processes MM have
  * suitable PGD entries in the local PGD level page.
  */
-void sync_global_pgds(unsigned long start, unsigned long end, int removed)
+void sync_global_pgds(unsigned long start, unsigned long end)
 {
 	unsigned long address;
 
@@ -100,12 +100,7 @@ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
 		const pgd_t *pgd_ref = pgd_offset_k(address);
 		struct page *page;
 
-		/*
-		 * When it is called after memory hot remove, pgd_none()
-		 * returns true. In this case (removed == 1), we must clear
-		 * the PGD entries in the local PGD level page.
-		 */
-		if (pgd_none(*pgd_ref) && !removed)
+		if (pgd_none(*pgd_ref))
 			continue;
 
 		spin_lock(&pgd_lock);
@@ -122,13 +117,8 @@ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
 				BUG_ON(pgd_page_vaddr(*pgd)
 				       != pgd_page_vaddr(*pgd_ref));
 
-			if (removed) {
-				if (pgd_none(*pgd_ref) && !pgd_none(*pgd))
-					pgd_clear(pgd);
-			} else {
-				if (pgd_none(*pgd))
-					set_pgd(pgd, *pgd_ref);
-			}
+			if (pgd_none(*pgd))
+				set_pgd(pgd, *pgd_ref);
 
 			spin_unlock(pgt_lock);
 		}
@@ -596,7 +586,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
 	}
 
 	if (pgd_changed)
-		sync_global_pgds(vaddr_start, vaddr_end - 1, 0);
+		sync_global_pgds(vaddr_start, vaddr_end - 1);
 
 	__flush_tlb_all();
 
@@ -1239,7 +1229,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	} else
 		err = vmemmap_populate_basepages(start, end, node);
 	if (!err)
-		sync_global_pgds(start, end - 1, 0);
+		sync_global_pgds(start, end - 1);
 	return err;
 }
 

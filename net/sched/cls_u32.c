@@ -104,7 +104,8 @@ static inline unsigned int u32_hash_fold(__be32 key,
 	return h;
 }
 
-static int u32_classify(struct sk_buff *skb, const struct tcf_proto *tp, struct tcf_result *res)
+static int u32_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+			struct tcf_result *res)
 {
 	struct {
 		struct tc_u_knode *knode;
@@ -256,8 +257,7 @@ deadloop:
 	return -1;
 }
 
-static struct tc_u_hnode *
-u32_lookup_ht(struct tc_u_common *tp_c, u32 handle)
+static struct tc_u_hnode *u32_lookup_ht(struct tc_u_common *tp_c, u32 handle)
 {
 	struct tc_u_hnode *ht;
 
@@ -270,8 +270,7 @@ u32_lookup_ht(struct tc_u_common *tp_c, u32 handle)
 	return ht;
 }
 
-static struct tc_u_knode *
-u32_lookup_key(struct tc_u_hnode *ht, u32 handle)
+static struct tc_u_knode *u32_lookup_key(struct tc_u_hnode *ht, u32 handle)
 {
 	unsigned int sel;
 	struct tc_u_knode *n = NULL;
@@ -360,8 +359,7 @@ static int u32_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static int u32_destroy_key(struct tcf_proto *tp,
-			   struct tc_u_knode *n,
+static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
 			   bool free_pf)
 {
 	tcf_exts_destroy(&n->exts);
@@ -448,9 +446,8 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 	}
 }
 
-static int u32_replace_hw_hnode(struct tcf_proto *tp,
-				 struct tc_u_hnode *h,
-				 u32 flags)
+static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
+				u32 flags)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload u32_offload = {0};
@@ -496,9 +493,8 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	}
 }
 
-static int u32_replace_hw_knode(struct tcf_proto *tp,
-				 struct tc_u_knode *n,
-				 u32 flags)
+static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
+				u32 flags)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload u32_offload = {0};
@@ -709,13 +705,15 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 struct tc_u_knode *n, struct nlattr **tb,
 			 struct nlattr *est, bool ovr)
 {
-	int err;
 	struct tcf_exts e;
+	int err;
 
-	tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	err = tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
 	if (err < 0)
 		return err;
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	if (err < 0)
+		goto errout;
 
 	err = -EINVAL;
 	if (tb[TCA_U32_LINK]) {
@@ -761,8 +759,7 @@ errout:
 	return err;
 }
 
-static void u32_replace_knode(struct tcf_proto *tp,
-			      struct tc_u_common *tp_c,
+static void u32_replace_knode(struct tcf_proto *tp, struct tc_u_common *tp_c,
 			      struct tc_u_knode *n)
 {
 	struct tc_u_knode __rcu **ins;
@@ -833,15 +830,17 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	new->tp = tp;
 	memcpy(&new->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
 
-	tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE);
+	if (tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE)) {
+		kfree(new);
+		return NULL;
+	}
 
 	return new;
 }
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca,
-		      unsigned long *arg, bool ovr)
+		      struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -985,8 +984,11 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 	n->flags = flags;
-	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 	n->tp = tp;
+
+	err = tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
+	if (err < 0)
+		goto errout;
 
 #ifdef CONFIG_CLS_U32_MARK
 	n->pcpu_success = alloc_percpu(u32);
@@ -1028,9 +1030,10 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 errhw:
 #ifdef CONFIG_CLS_U32_MARK
 	free_percpu(n->pcpu_success);
-errout:
 #endif
 
+errout:
+	tcf_exts_destroy(&n->exts);
 #ifdef CONFIG_CLS_U32_PERF
 	free_percpu(n->pf);
 #endif
@@ -1079,7 +1082,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 }
 
 static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
-		     struct sk_buff *skb, struct tcmsg *t)
+		    struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tc_u_knode *n = (struct tc_u_knode *)fh;
 	struct tc_u_hnode *ht_up, *ht_down;

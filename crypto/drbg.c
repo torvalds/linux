@@ -262,6 +262,7 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inbuflen,
 			      u8 *outbuf, u32 outlen);
 #define DRBG_CTR_NULL_LEN 128
+#define DRBG_OUTSCRATCHLEN DRBG_CTR_NULL_LEN
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 static int drbg_ctr_bcc(struct drbg_state *drbg,
@@ -1178,12 +1179,16 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		goto err;
 
 	drbg->Vbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
-	if (!drbg->Vbuf)
+	if (!drbg->Vbuf) {
+		ret = -ENOMEM;
 		goto fini;
+	}
 	drbg->V = PTR_ALIGN(drbg->Vbuf, ret + 1);
 	drbg->Cbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
-	if (!drbg->Cbuf)
+	if (!drbg->Cbuf) {
+		ret = -ENOMEM;
 		goto fini;
+	}
 	drbg->C = PTR_ALIGN(drbg->Cbuf, ret + 1);
 	/* scratchpad is only generated for CTR and Hash */
 	if (drbg->core->flags & DRBG_HMAC)
@@ -1199,8 +1204,10 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 
 	if (0 < sb_size) {
 		drbg->scratchpadbuf = kzalloc(sb_size + ret, GFP_KERNEL);
-		if (!drbg->scratchpadbuf)
+		if (!drbg->scratchpadbuf) {
+			ret = -ENOMEM;
 			goto fini;
+		}
 		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
 	}
 
@@ -1638,6 +1645,9 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 	kfree(drbg->ctr_null_value_buf);
 	drbg->ctr_null_value = NULL;
 
+	kfree(drbg->outscratchpadbuf);
+	drbg->outscratchpadbuf = NULL;
+
 	return 0;
 }
 
@@ -1702,6 +1712,15 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
 					       alignmask + 1);
 
+	drbg->outscratchpadbuf = kmalloc(DRBG_OUTSCRATCHLEN + alignmask,
+					 GFP_KERNEL);
+	if (!drbg->outscratchpadbuf) {
+		drbg_fini_sym_kernel(drbg);
+		return -ENOMEM;
+	}
+	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
+					      alignmask + 1);
+
 	return alignmask;
 }
 
@@ -1731,15 +1750,16 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *outbuf, u32 outlen)
 {
 	struct scatterlist sg_in;
+	int ret;
 
 	sg_init_one(&sg_in, inbuf, inlen);
 
 	while (outlen) {
-		u32 cryptlen = min_t(u32, inlen, outlen);
+		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
 		struct scatterlist sg_out;
-		int ret;
 
-		sg_init_one(&sg_out, outbuf, cryptlen);
+		/* Output buffer may not be valid for SGL, use scratchpad */
+		sg_init_one(&sg_out, drbg->outscratchpad, cryptlen);
 		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_skcipher_encrypt(drbg->ctr_req);
@@ -1755,14 +1775,20 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 				break;
 			}
 		default:
-			return ret;
+			goto out;
 		}
 		init_completion(&drbg->ctr_completion);
 
-		outlen -= cryptlen;
-	}
+		memcpy(outbuf, drbg->outscratchpad, cryptlen);
 
-	return 0;
+		outlen -= cryptlen;
+		outbuf += cryptlen;
+	}
+	ret = 0;
+
+out:
+	memzero_explicit(drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
+	return ret;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 
@@ -1917,6 +1943,8 @@ static inline int __init drbg_healthcheck_sanity(void)
 		return -ENOMEM;
 
 	mutex_init(&drbg->drbg_mutex);
+	drbg->core = &drbg_cores[coreref];
+	drbg->reseed_threshold = drbg_max_requests(drbg);
 
 	/*
 	 * if the following tests fail, it is likely that there is a buffer
@@ -1926,12 +1954,6 @@ static inline int __init drbg_healthcheck_sanity(void)
 	 * grave bug.
 	 */
 
-	/* get a valid instance of DRBG for following tests */
-	ret = drbg_instantiate(drbg, NULL, coreref, pr);
-	if (ret) {
-		rc = ret;
-		goto outbuf;
-	}
 	max_addtllen = drbg_max_addtl(drbg);
 	max_request_bytes = drbg_max_request_bytes(drbg);
 	drbg_string_fill(&addtl, buf, max_addtllen + 1);
@@ -1941,10 +1963,9 @@ static inline int __init drbg_healthcheck_sanity(void)
 	/* overflow max_bits */
 	len = drbg_generate(drbg, buf, (max_request_bytes + 1), NULL);
 	BUG_ON(0 < len);
-	drbg_uninstantiate(drbg);
 
 	/* overflow max addtllen with personalization string */
-	ret = drbg_instantiate(drbg, &addtl, coreref, pr);
+	ret = drbg_seed(drbg, &addtl, false);
 	BUG_ON(0 == ret);
 	/* all tests passed */
 	rc = 0;
@@ -1952,9 +1973,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	pr_devel("DRBG: Sanity tests for failure code paths successfully "
 		 "completed\n");
 
-	drbg_uninstantiate(drbg);
-outbuf:
-	kzfree(drbg);
+	kfree(drbg);
 	return rc;
 }
 
@@ -2006,7 +2025,7 @@ static int __init drbg_init(void)
 {
 	unsigned int i = 0; /* pointer to drbg_algs */
 	unsigned int j = 0; /* pointer to drbg_cores */
-	int ret = -EFAULT;
+	int ret;
 
 	ret = drbg_healthcheck_sanity();
 	if (ret)
@@ -2016,7 +2035,7 @@ static int __init drbg_init(void)
 		pr_info("DRBG: Cannot register all DRBG types"
 			"(slots needed: %zu, slots available: %zu)\n",
 			ARRAY_SIZE(drbg_cores) * 2, ARRAY_SIZE(drbg_algs));
-		return ret;
+		return -EFAULT;
 	}
 
 	/*

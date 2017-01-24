@@ -83,13 +83,13 @@ nv10_bo_get_tile_region(struct drm_device *dev, int i)
 
 static void
 nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
-			struct fence *fence)
+			struct dma_fence *fence)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		tile->fence = (struct nouveau_fence *)fence_get(fence);
+		tile->fence = (struct nouveau_fence *)dma_fence_get(fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -1152,7 +1152,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, new_mem);
+	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, new_mem);
 out:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
@@ -1180,7 +1180,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
@@ -1209,6 +1209,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 			       nvbo->page_shift != vma->vm->mmu->lpg_shift)) {
 			nvkm_vm_map(vma, new_mem->mm_node);
 		} else {
+			WARN_ON(ttm_bo_wait(bo, false, false));
 			nvkm_vm_unmap(vma);
 		}
 	}
@@ -1243,7 +1244,7 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
-	struct fence *fence = reservation_object_get_excl(bo->resv);
+	struct dma_fence *fence = reservation_object_get_excl(bo->resv);
 
 	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;
@@ -1298,7 +1299,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Fallback to software copy. */
 	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, evict, intr, no_wait_gpu, new_mem);
+		ret = ttm_bo_move_memcpy(bo, intr, no_wait_gpu, new_mem);
 
 out:
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
@@ -1316,7 +1317,8 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	return drm_vma_node_verify_access(&nvbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&nvbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int
@@ -1560,6 +1562,7 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = nouveau_bo_evict_flags,
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,

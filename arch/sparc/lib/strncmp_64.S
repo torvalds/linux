@@ -6,6 +6,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asi.h>
+#include <asm/export.h>
 
 	.text
 ENTRY(strncmp)
@@ -28,3 +29,4 @@ ENTRY(strncmp)
 	retl
 	 clr	%o0
 ENDPROC(strncmp)
+EXPORT_SYMBOL(strncmp)

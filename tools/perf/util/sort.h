@@ -28,7 +28,7 @@ extern const char *sort_order;
 extern const char *field_order;
 extern const char default_parent_pattern[];
 extern const char *parent_pattern;
-extern const char default_sort_order[];
+extern const char *default_sort_order;
 extern regex_t ignore_callees_regex;
 extern int have_ignore_callees;
 extern enum sort_mode sort__mode;
@@ -40,6 +40,7 @@ extern struct sort_entry sort_dso_from;
 extern struct sort_entry sort_dso_to;
 extern struct sort_entry sort_sym_from;
 extern struct sort_entry sort_sym_to;
+extern struct sort_entry sort_srcline;
 extern enum sort_type sort__first_dimension;
 extern const char default_mem_sort_order[];
 
@@ -268,4 +269,16 @@ int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, i
 bool is_strict_order(const char *order);
 
 int hpp_dimension__add_output(unsigned col);
+void reset_dimensions(void);
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level);
+int output_field_add(struct perf_hpp_list *list, char *tok);
+int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t
+sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right);
+char *hist_entry__get_srcline(struct hist_entry *he);
 #endif	/* __PERF_SORT_H */

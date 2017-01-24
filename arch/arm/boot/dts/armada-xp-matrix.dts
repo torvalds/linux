@@ -55,7 +55,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		/*
 		 * This board has 4 GB of RAM, but the last 256 MB of
@@ -99,18 +99,18 @@
 				};
 			};
 
-			pcie-controller {
-				status = "okay";
-
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
-			};
-
 			usb@50000 {
 				status = "okay";
 			};
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
 	};
 };

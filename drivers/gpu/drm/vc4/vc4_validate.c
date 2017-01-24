@@ -267,6 +267,9 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 	if (!ib)
 		return -EINVAL;
 
+	exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+				  to_vc4_bo(&ib->base)->write_seqno);
+
 	if (offset > ib->base.size ||
 	    (ib->base.size - offset) / index_size < length) {
 		DRM_ERROR("IB access overflow (%d + %d*%d > %zd)\n",
@@ -555,8 +558,7 @@ static bool
 reloc_tex(struct vc4_exec_info *exec,
 	  void *uniform_data_u,
 	  struct vc4_texture_sample_info *sample,
-	  uint32_t texture_handle_index)
-
+	  uint32_t texture_handle_index, bool is_cs)
 {
 	struct drm_gem_cma_object *tex;
 	uint32_t p0 = *(uint32_t *)(uniform_data_u + sample->p_offset[0]);
@@ -642,6 +644,13 @@ reloc_tex(struct vc4_exec_info *exec,
 		cpp = 1;
 		break;
 	case VC4_TEXTURE_TYPE_ETC1:
+		/* ETC1 is arranged as 64-bit blocks, where each block is 4x4
+		 * pixels.
+		 */
+		cpp = 8;
+		width = (width + 3) >> 2;
+		height = (height + 3) >> 2;
+		break;
 	case VC4_TEXTURE_TYPE_BW1:
 	case VC4_TEXTURE_TYPE_A4:
 	case VC4_TEXTURE_TYPE_A1:
@@ -714,6 +723,11 @@ reloc_tex(struct vc4_exec_info *exec,
 
 	*validated_p0 = tex->paddr + p0;
 
+	if (is_cs) {
+		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+					  to_vc4_bo(&tex->base)->write_seqno);
+	}
+
 	return true;
  fail:
 	DRM_INFO("Texture p0 at %d: 0x%08x\n", sample->p_offset[0], p0);
@@ -775,11 +789,6 @@ validate_gl_shader_rec(struct drm_device *dev,
 	exec->shader_rec_v += roundup(packet_size, 16);
 	exec->shader_rec_size -= packet_size;
 
-	if (!(*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD)) {
-		DRM_ERROR("Multi-threaded fragment shaders not supported.\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < shader_reloc_count; i++) {
 		if (src_handles[i] > exec->bo_count) {
 			DRM_ERROR("Shader handle %d too big\n", src_handles[i]);
@@ -794,6 +803,18 @@ validate_gl_shader_rec(struct drm_device *dev,
 		bo[i] = vc4_use_bo(exec, src_handles[i]);
 		if (!bo[i])
 			return -EINVAL;
+	}
+
+	if (((*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD) == 0) !=
+	    to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("Thread mode of CL and FS do not match\n");
+		return -EINVAL;
+	}
+
+	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
+	    to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("cs and vs cannot be threaded\n");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < shader_reloc_count; i++) {
@@ -835,7 +856,8 @@ validate_gl_shader_rec(struct drm_device *dev,
 			if (!reloc_tex(exec,
 				       uniform_data_u,
 				       &validated_shader->texture_samples[tex],
-				       texture_handles_u[tex])) {
+				       texture_handles_u[tex],
+				       i == 2)) {
 				return -EINVAL;
 			}
 		}
@@ -866,6 +888,9 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t attr_size = *(uint8_t *)(pkt_u + o + 4) + 1;
 		uint32_t stride = *(uint8_t *)(pkt_u + o + 5);
 		uint32_t max_index;
+
+		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+					  to_vc4_bo(&vbo->base)->write_seqno);
 
 		if (state->addr & 0x8)
 			stride |= (*(uint32_t *)(pkt_u + 100 + i * 4)) & ~0xff;

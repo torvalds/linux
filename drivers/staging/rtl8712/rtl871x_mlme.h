@@ -47,16 +47,20 @@
 #define   WIFI_ADHOC_MASTER_STATE 0x00000040
 #define   WIFI_UNDER_LINKING	0x00000080
 #define WIFI_SITE_MONITOR	0x00000800	/* to indicate the station
-						 * is under site surveying*/
+						 * is under site surveying
+						 */
 #define	WIFI_MP_STATE		0x00010000
 #define	WIFI_MP_CTX_BACKGROUND	0x00020000	/* in cont. tx background*/
 #define	WIFI_MP_CTX_ST		0x00040000	/* in cont. tx with
-						 *  single-tone*/
+						 * single-tone
+						 */
 #define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000 /* pending in cont, tx
-					* background due to out of skb*/
+						    * background due to out of skb
+						    */
 #define	WIFI_MP_CTX_CCK_HW	0x00100000	/* in continuous tx*/
 #define	WIFI_MP_CTX_CCK_CS	0x00200000	/* in cont, tx with carrier
-						 * suppression*/
+						 * suppression
+						 */
 #define   WIFI_MP_LPBK_STATE	0x00400000
 
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
@@ -155,24 +159,6 @@ static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (check_fwstate(pmlmepriv, state))
 		pmlmepriv->fw_state ^= state;
-	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
-}
-
-static inline void up_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	unsigned long irqL;
-
-	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	pmlmepriv->num_of_scanned++;
-	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
-}
-
-static inline void down_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	unsigned long irqL;
-
-	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	pmlmepriv->num_of_scanned--;
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 }
 

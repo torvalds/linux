@@ -119,7 +119,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
 	struct reservation_object *resv = nvbo->bo.resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 
 	fobj = reservation_object_get_list(resv);
 
@@ -369,7 +369,7 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	int trycnt = 0;
-	int ret, i;
+	int ret = -EINVAL, i;
 	struct nouveau_bo *res_bo = NULL;
 	LIST_HEAD(gart_list);
 	LIST_HEAD(vram_list);
@@ -861,6 +861,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	struct nouveau_bo *nvbo;
 	bool no_wait = !!(req->flags & NOUVEAU_GEM_CPU_PREP_NOWAIT);
 	bool write = !!(req->flags & NOUVEAU_GEM_CPU_PREP_WRITE);
+	long lret;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
@@ -868,19 +869,15 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	if (no_wait)
-		ret = reservation_object_test_signaled_rcu(nvbo->bo.resv, write) ? 0 : -EBUSY;
-	else {
-		long lret;
+	lret = reservation_object_wait_timeout_rcu(nvbo->bo.resv, write, true,
+						   no_wait ? 0 : 30 * HZ);
+	if (!lret)
+		ret = -EBUSY;
+	else if (lret > 0)
+		ret = 0;
+	else
+		ret = lret;
 
-		lret = reservation_object_wait_timeout_rcu(nvbo->bo.resv, write, true, 30 * HZ);
-		if (!lret)
-			ret = -EBUSY;
-		else if (lret > 0)
-			ret = 0;
-		else
-			ret = lret;
-	}
 	nouveau_bo_sync_for_cpu(nvbo);
 	drm_gem_object_unreference_unlocked(gem);
 

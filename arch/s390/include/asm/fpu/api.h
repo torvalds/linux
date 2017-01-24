@@ -64,18 +64,18 @@ static inline int test_fp_ctl(u32 fpc)
 	return rc;
 }
 
-#define KERNEL_VXR_V0V7		1
-#define KERNEL_VXR_V8V15	2
-#define KERNEL_VXR_V16V23	4
-#define KERNEL_VXR_V24V31	8
-#define KERNEL_FPR		16
-#define KERNEL_FPC		256
+#define KERNEL_FPC		1
+#define KERNEL_VXR_V0V7		2
+#define KERNEL_VXR_V8V15	4
+#define KERNEL_VXR_V16V23	8
+#define KERNEL_VXR_V24V31	16
 
 #define KERNEL_VXR_LOW		(KERNEL_VXR_V0V7|KERNEL_VXR_V8V15)
 #define KERNEL_VXR_MID		(KERNEL_VXR_V8V15|KERNEL_VXR_V16V23)
 #define KERNEL_VXR_HIGH		(KERNEL_VXR_V16V23|KERNEL_VXR_V24V31)
 
-#define KERNEL_FPU_MASK		(KERNEL_VXR_LOW|KERNEL_VXR_HIGH|KERNEL_FPR)
+#define KERNEL_VXR		(KERNEL_VXR_LOW|KERNEL_VXR_HIGH)
+#define KERNEL_FPR		(KERNEL_FPC|KERNEL_VXR_V0V7)
 
 struct kernel_fpu;
 
@@ -87,18 +87,28 @@ struct kernel_fpu;
  * Prefer using the kernel_fpu_begin()/kernel_fpu_end() pair of functions.
  */
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags);
-void __kernel_fpu_end(struct kernel_fpu *state);
+void __kernel_fpu_end(struct kernel_fpu *state, u32 flags);
 
 
 static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {
 	preempt_disable();
-	__kernel_fpu_begin(state, flags);
+	state->mask = S390_lowcore.fpu_flags;
+	if (!test_cpu_flag(CIF_FPU))
+		/* Save user space FPU state and register contents */
+		save_fpu_regs();
+	else if (state->mask & flags)
+		/* Save FPU/vector register in-use by the kernel */
+		__kernel_fpu_begin(state, flags);
+	S390_lowcore.fpu_flags |= flags;
 }
 
-static inline void kernel_fpu_end(struct kernel_fpu *state)
+static inline void kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 {
-	__kernel_fpu_end(state);
+	S390_lowcore.fpu_flags = state->mask;
+	if (state->mask & flags)
+		/* Restore FPU/vector register in-use by the kernel */
+		__kernel_fpu_end(state, flags);
 	preempt_enable();
 }
 

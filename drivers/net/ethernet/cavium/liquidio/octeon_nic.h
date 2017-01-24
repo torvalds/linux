@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*!  \file octeon_nic.h
@@ -67,7 +64,7 @@ struct octnic_ctrl_pkt {
 	octnic_ctrl_pkt_cb_fn_t cb_fn;
 };
 
-#define MAX_UDD_SIZE(nctrl) (sizeof(nctrl->udd))
+#define MAX_UDD_SIZE(nctrl) (sizeof((nctrl)->udd))
 
 /** Structure of data information passed by the NIC module to the OSI
  * layer when forwarding data to Octeon device software.
@@ -138,7 +135,7 @@ octnet_prepare_pci_cmd_o2(struct octeon_device *oct,
 	/* assume that rflag is cleared so therefore front data will only have
 	 * irh and ossp[0], ossp[1] for a total of 32 bytes
 	 */
-	ih2->fsz = 24;
+	ih2->fsz = LIO_PCICMD_O2;
 
 	ih2->tagtype = ORDERED_TAG;
 	ih2->grp = DEFAULT_POW_GRP;
@@ -196,7 +193,7 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 	 */
 	ih3->pkind       = oct->instr_queue[setup->s.iq_no]->txpciq.s.pkind;
 	/*PKI IH*/
-	ih3->fsz = 24 + 8;
+	ih3->fsz = LIO_PCICMD_O3;
 
 	if (!setup->s.gather) {
 		ih3->dlengsz = setup->s.u.datasize;
@@ -278,7 +275,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */
 int octnet_send_nic_data_pkt(struct octeon_device *oct,
-			     struct octnic_data_pkt *ndata, u32 xmit_more);
+			     struct octnic_data_pkt *ndata);
 
 /** Send a NIC control packet to the device
  * @param oct - octeon device pointer

@@ -78,6 +78,14 @@ enum {
 	NFIT_ARS_TIMEOUT = 90,
 };
 
+enum nfit_root_notifiers {
+	NFIT_NOTIFY_UPDATE = 0x80,
+};
+
+enum nfit_dimm_notifiers {
+	NFIT_NOTIFY_DIMM_HEALTH = 0x81,
+};
+
 struct nfit_spa {
 	struct list_head list;
 	struct nd_region *nd_region;
@@ -124,6 +132,7 @@ struct nfit_mem {
 	struct acpi_nfit_system_address *spa_bdw;
 	struct acpi_nfit_interleave *idt_dcr;
 	struct acpi_nfit_interleave *idt_bdw;
+	struct kernfs_node *flags_attr;
 	struct nfit_flush *nfit_flush;
 	struct list_head list;
 	struct acpi_device *adev;
@@ -152,11 +161,17 @@ struct acpi_nfit_desc {
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
 	unsigned int scrub_count;
+	unsigned int scrub_mode;
 	unsigned int cancel:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
+};
+
+enum scrub_mode {
+	HW_ERROR_SCRUB_OFF,
+	HW_ERROR_SCRUB_ON,
 };
 
 enum nd_blk_mmio_selector {
@@ -223,5 +238,9 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
+void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);
+void __acpi_nvdimm_notify(struct device *dev, u32 event);
+int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
+		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 #endif /* __NFIT_H__ */

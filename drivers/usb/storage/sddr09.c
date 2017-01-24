@@ -766,10 +766,8 @@ sddr09_read_data(struct us_data *us,
 
 	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
-	if (buffer == NULL) {
-		printk(KERN_WARNING "sddr09_read_data: Out of memory\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	// This could be made much more efficient by checking for
 	// contiguous LBA's. Another exercise left to the student.
@@ -1004,10 +1002,8 @@ sddr09_write_data(struct us_data *us,
 	pagelen = (1 << info->pageshift) + (1 << CONTROL_SHIFT);
 	blocklen = (pagelen << info->blockshift);
 	blockbuffer = kmalloc(blocklen, GFP_NOIO);
-	if (!blockbuffer) {
-		printk(KERN_WARNING "sddr09_write_data: Out of memory\n");
+	if (!blockbuffer)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Since we don't write the user data directly to the device,
@@ -1017,8 +1013,7 @@ sddr09_write_data(struct us_data *us,
 
 	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
-	if (buffer == NULL) {
-		printk(KERN_WARNING "sddr09_write_data: Out of memory\n");
+	if (!buffer) {
 		kfree(blockbuffer);
 		return -ENOMEM;
 	}
@@ -1241,8 +1236,7 @@ sddr09_read_map(struct us_data *us) {
 	alloc_blocks = min(numblocks, SDDR09_READ_MAP_BUFSZ >> CONTROL_SHIFT);
 	alloc_len = (alloc_blocks << CONTROL_SHIFT);
 	buffer = kmalloc(alloc_len, GFP_NOIO);
-	if (buffer == NULL) {
-		printk(KERN_WARNING "sddr09_read_map: out of memory\n");
+	if (!buffer) {
 		result = -1;
 		goto done;
 	}

@@ -41,21 +41,6 @@ static int wil_stop(struct net_device *ndev)
 	return wil_down(wil);
 }
 
-static int wil_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	struct wil6210_priv *wil = ndev_to_wil(ndev);
-
-	if (new_mtu < 68 || new_mtu > mtu_max) {
-		wil_err(wil, "invalid MTU %d\n", new_mtu);
-		return -EINVAL;
-	}
-
-	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
-	ndev->mtu = new_mtu;
-
-	return 0;
-}
-
 static int wil_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
@@ -69,7 +54,6 @@ static const struct net_device_ops wil_netdev_ops = {
 	.ndo_start_xmit		= wil_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= wil_change_mtu,
 	.ndo_do_ioctl		= wil_do_ioctl,
 };
 
@@ -126,6 +110,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 static void wil_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->max_mtu = mtu_max;
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
@@ -179,13 +164,6 @@ void *wil_if_alloc(struct device *dev)
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 
-	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
-		       WIL6210_NAPI_BUDGET);
-	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
-		       WIL6210_NAPI_BUDGET);
-
-	netif_tx_stop_all_queues(ndev);
-
 	return wil;
 
  out_priv:
@@ -216,25 +194,48 @@ void wil_if_free(struct wil6210_priv *wil)
 
 int wil_if_add(struct wil6210_priv *wil)
 {
+	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct wiphy *wiphy = wdev->wiphy;
 	struct net_device *ndev = wil_to_ndev(wil);
 	int rc;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "entered");
+
+	strlcpy(wiphy->fw_version, wil->fw_version, sizeof(wiphy->fw_version));
+
+	rc = wiphy_register(wiphy);
+	if (rc < 0) {
+		wil_err(wil, "failed to register wiphy, err %d\n", rc);
+		return rc;
+	}
+
+	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
+		       WIL6210_NAPI_BUDGET);
+	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
+			  WIL6210_NAPI_BUDGET);
+
+	wil_update_net_queues_bh(wil, NULL, true);
 
 	rc = register_netdev(ndev);
 	if (rc < 0) {
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
-		return rc;
+		goto out_wiphy;
 	}
 
 	return 0;
+
+out_wiphy:
+	wiphy_unregister(wdev->wiphy);
+	return rc;
 }
 
 void wil_if_remove(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
+	struct wireless_dev *wdev = wil_to_wdev(wil);
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	unregister_netdev(ndev);
+	wiphy_unregister(wdev->wiphy);
 }

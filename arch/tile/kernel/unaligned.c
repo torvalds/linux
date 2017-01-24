@@ -22,12 +22,12 @@
 #include <linux/mman.h>
 #include <linux/types.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/compat.h>
 #include <linux/prctl.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #include <arch/abi.h>
 #include <arch/spr_def.h>

@@ -51,14 +51,6 @@
 		regulator-boot-on;
         };
 
-	veth: fixedregulator@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "veth";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-	};
-
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -134,16 +126,15 @@
 		bank-width = <4>;
 	};
 
-	/* SMSC 9118 ethernet with PHY and EEPROM */
+	/* SMSC LAN91C111 ethernet with PHY and EEPROM */
 	ethernet: ethernet@4e000000 {
-		compatible = "smsc,lan9118", "smsc,lan9115";
+		compatible = "smsc,lan91c111";
 		reg = <0x4e000000 0x10000>;
-		phy-mode = "mii";
-		reg-io-width = <4>;
-		smsc,irq-active-high;
-		smsc,irq-push-pull;
-		vdd33a-supply = <&veth>;
-		vddvario-supply = <&veth>;
+		/*
+		 * This means the adapter can be accessed with 8, 16 or
+		 * 32 bit reads/writes.
+		 */
+		reg-io-width = <7>;
 	};
 
 	usb: usb@4f000000 {

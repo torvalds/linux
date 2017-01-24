@@ -30,28 +30,29 @@
 #define PORT_PHY3	0xB0
 #define PORT_PHY4	0xB4
 #define PORT_PHY5	0xB8
+#define PORT_AXICC	0xBC
 #define PORT_TRANS	0xC8
 
 /* port register default value */
 #define AHCI_PORT_PHY_1_CFG	0xa003fffe
 #define AHCI_PORT_TRANS_CFG	0x08000029
+#define AHCI_PORT_AXICC_CFG	0x3fffffff
 
 /* for ls1021a */
 #define LS1021A_PORT_PHY2	0x28183414
 #define LS1021A_PORT_PHY3	0x0e080e06
 #define LS1021A_PORT_PHY4	0x064a080b
 #define LS1021A_PORT_PHY5	0x2aa86470
+#define LS1021A_AXICC_ADDR	0xC0
 
 #define SATA_ECC_DISABLE	0x00020000
-
-/* for ls1043a */
-#define LS1043A_PORT_PHY2	0x28184d1f
-#define LS1043A_PORT_PHY3	0x0e081509
+#define LS1046A_SATA_ECC_DIS	0x80000000
 
 enum ahci_qoriq_type {
 	AHCI_LS1021A,
 	AHCI_LS1043A,
 	AHCI_LS2080A,
+	AHCI_LS1046A,
 };
 
 struct ahci_qoriq_priv {
@@ -64,6 +65,7 @@ static const struct of_device_id ahci_qoriq_of_match[] = {
 	{ .compatible = "fsl,ls1021a-ahci", .data = (void *)AHCI_LS1021A},
 	{ .compatible = "fsl,ls1043a-ahci", .data = (void *)AHCI_LS1043A},
 	{ .compatible = "fsl,ls2080a-ahci", .data = (void *)AHCI_LS2080A},
+	{ .compatible = "fsl,ls1046a-ahci", .data = (void *)AHCI_LS1046A},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ahci_qoriq_of_match);
@@ -137,7 +139,7 @@ static struct ata_port_operations ahci_qoriq_ops = {
 	.hardreset	= ahci_qoriq_hardreset,
 };
 
-static struct ata_port_info ahci_qoriq_port_info = {
+static const struct ata_port_info ahci_qoriq_port_info = {
 	.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NCQ,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
@@ -162,18 +164,26 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		writel(LS1021A_PORT_PHY4, reg_base + PORT_PHY4);
 		writel(LS1021A_PORT_PHY5, reg_base + PORT_PHY5);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
+		writel(AHCI_PORT_AXICC_CFG, reg_base + LS1021A_AXICC_ADDR);
 		break;
 
 	case AHCI_LS1043A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
-		writel(LS1043A_PORT_PHY2, reg_base + PORT_PHY2);
-		writel(LS1043A_PORT_PHY3, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
+		writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
 		break;
 
 	case AHCI_LS2080A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
+		writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
+		break;
+
+	case AHCI_LS1046A:
+		writel(LS1046A_SATA_ECC_DIS, qpriv->ecc_addr);
+		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
+		writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
 		break;
 	}
 
@@ -204,9 +214,9 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 
 	qoriq_priv->type = (enum ahci_qoriq_type)of_id->data;
 
-	if (qoriq_priv->type == AHCI_LS1021A) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-				"sata-ecc");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+			"sata-ecc");
+	if (res) {
 		qoriq_priv->ecc_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(qoriq_priv->ecc_addr))
 			return PTR_ERR(qoriq_priv->ecc_addr);
@@ -220,12 +230,6 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 	rc = ahci_qoriq_phy_init(hpriv);
 	if (rc)
 		goto disable_resources;
-
-	/* Workaround for ls2080a */
-	if (qoriq_priv->type == AHCI_LS2080A) {
-		hpriv->flags |= AHCI_HFLAG_NO_NCQ;
-		ahci_qoriq_port_info.flags &= ~ATA_FLAG_NCQ;
-	}
 
 	rc = ahci_platform_init_host(pdev, hpriv, &ahci_qoriq_port_info,
 				     &ahci_qoriq_sht);

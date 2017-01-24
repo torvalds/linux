@@ -1,5 +1,6 @@
 config SUNXI_CCU
 	bool "Clock support for Allwinner SoCs"
+	depends on ARCH_SUNXI || COMPILE_TEST
 	default ARCH_SUNXI
 
 if SUNXI_CCU
@@ -19,6 +20,10 @@ config SUNXI_CCU_GATE
 config SUNXI_CCU_MUX
 	bool
 
+config SUNXI_CCU_MULT
+	bool
+	select SUNXI_CCU_MUX
+
 config SUNXI_CCU_PHASE
 	bool
 
@@ -30,17 +35,14 @@ config SUNXI_CCU_NK
 
 config SUNXI_CCU_NKM
 	bool
-	select RATIONAL
 	select SUNXI_CCU_GATE
 
 config SUNXI_CCU_NKMP
 	bool
-	select RATIONAL
 	select SUNXI_CCU_GATE
 
 config SUNXI_CCU_NM
 	bool
-	select RATIONAL
 	select SUNXI_CCU_FRAC
 	select SUNXI_CCU_GATE
 
@@ -50,6 +52,51 @@ config SUNXI_CCU_MP
 	select SUNXI_CCU_MUX
 
 # SoC Drivers
+
+config SUN50I_A64_CCU
+	bool "Support for the Allwinner A64 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default ARM64 && ARCH_SUNXI
+
+config SUN6I_A31_CCU
+	bool "Support for the Allwinner A31/A31s CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default MACH_SUN6I
+
+config SUN8I_A23_CCU
+	bool "Support for the Allwinner A23 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_MULT
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default MACH_SUN8I
+
+config SUN8I_A33_CCU
+	bool "Support for the Allwinner A33 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_MULT
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default MACH_SUN8I
 
 config SUN8I_H3_CCU
 	bool "Support for the Allwinner H3 CCU"

@@ -285,7 +285,7 @@ scdrv_write(struct file *file, const char __user *buf,
 		DECLARE_WAITQUEUE(wait, current);
 
 		if (file->f_flags & O_NONBLOCK) {
-			spin_unlock(&sd->sd_wlock);
+			spin_unlock_irqrestore(&sd->sd_wlock, flags);
 			up(&sd->sd_wbs);
 			return -EAGAIN;
 		}
@@ -385,13 +385,18 @@ scdrv_init(void)
 
 	event_nasid = ia64_sn_get_console_nasid();
 
+	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
+	if (IS_ERR(snsc_class)) {
+		printk("%s: failed to allocate class\n", __func__);
+		return PTR_ERR(snsc_class);
+	}
+
 	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {
 		printk("%s: failed to register SN system controller device\n",
 		       __func__);
 		return -ENODEV;
 	}
-	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
 
 	for (cnode = 0; cnode < num_cnodes; cnode++) {
 			geoid = cnodeid_get_geoid(cnode);

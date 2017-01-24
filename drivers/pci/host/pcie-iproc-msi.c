@@ -563,6 +563,7 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node)
 	}
 
 	switch (pcie->type) {
+	case IPROC_PCIE_PAXB_BCMA:
 	case IPROC_PCIE_PAXB:
 		msi->reg_offsets = iproc_msi_reg_paxb;
 		msi->nr_eq_region = 1;

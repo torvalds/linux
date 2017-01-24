@@ -1,5 +1,5 @@
 /*
-* tegra_rt5640.c - Tegra machine ASoC driver for boards using WM8903 codec.
+* tegra_rt5640.c - Tegra machine ASoC driver for boards using RT5640 codec.
  *
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -76,7 +76,7 @@ static int tegra_rt5640_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_rt5640_ops = {
+static const struct snd_soc_ops tegra_rt5640_ops = {
 	.hw_params = tegra_rt5640_asoc_hw_params,
 };
 

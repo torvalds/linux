@@ -396,7 +396,7 @@ void __init config_amiga(void)
 	mach_max_dma_address = 0xffffffff;
 
 	mach_reset           = amiga_reset;
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep            = amiga_mksound;
 #endif
 
@@ -786,8 +786,7 @@ static void amiga_get_hardware_list(struct seq_file *m)
 	if (AMIGAHW_PRESENT(name))			\
 		seq_printf (m, "\t%s\n", str)
 
-	seq_printf (m, "Detected hardware:\n");
-
+	seq_puts(m, "Detected hardware:\n");
 	AMIGAHW_ANNOUNCE(AMI_VIDEO, "Amiga Video");
 	AMIGAHW_ANNOUNCE(AMI_BLITTER, "Blitter");
 	AMIGAHW_ANNOUNCE(AMBER_FF, "Amber Flicker Fixer");

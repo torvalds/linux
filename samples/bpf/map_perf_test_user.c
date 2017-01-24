@@ -35,6 +35,8 @@ static __u64 time_get_ns(void)
 #define PERCPU_HASH_PREALLOC	(1 << 1)
 #define HASH_KMALLOC		(1 << 2)
 #define PERCPU_HASH_KMALLOC	(1 << 3)
+#define LRU_HASH_PREALLOC	(1 << 4)
+#define PERCPU_LRU_HASH_PREALLOC	(1 << 5)
 
 static int test_flags = ~0;
 
@@ -47,6 +49,30 @@ static void test_hash_prealloc(int cpu)
 	for (i = 0; i < MAX_CNT; i++)
 		syscall(__NR_getuid);
 	printf("%d:hash_map_perf pre-alloc %lld events per sec\n",
+	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+}
+
+static void test_lru_hash_prealloc(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getpid);
+	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
+	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+}
+
+static void test_percpu_lru_hash_prealloc(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getppid);
+	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
@@ -105,6 +131,12 @@ static void loop(int cpu)
 
 	if (test_flags & PERCPU_HASH_KMALLOC)
 		test_percpu_hash_kmalloc(cpu);
+
+	if (test_flags & LRU_HASH_PREALLOC)
+		test_lru_hash_prealloc(cpu);
+
+	if (test_flags & PERCPU_LRU_HASH_PREALLOC)
+		test_percpu_lru_hash_prealloc(cpu);
 }
 
 static void run_perf_test(int tasks)

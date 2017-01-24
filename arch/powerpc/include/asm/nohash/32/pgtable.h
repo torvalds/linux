@@ -16,6 +16,23 @@ extern int icache_44x_need_flush;
 
 #endif /* __ASSEMBLY__ */
 
+#define PTE_INDEX_SIZE	PTE_SHIFT
+#define PMD_INDEX_SIZE	0
+#define PUD_INDEX_SIZE	0
+#define PGD_INDEX_SIZE	(32 - PGDIR_SHIFT)
+
+#define PMD_CACHE_INDEX	PMD_INDEX_SIZE
+
+#ifndef __ASSEMBLY__
+#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
+#define PMD_TABLE_SIZE	0
+#define PUD_TABLE_SIZE	0
+#define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
+#endif	/* __ASSEMBLY__ */
+
+#define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
+#define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
+
 /*
  * The normal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
@@ -27,22 +44,12 @@ extern int icache_44x_need_flush;
  * -Matt
  */
 /* PGDIR_SHIFT determines what a top-level page table entry can map */
-#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_SHIFT)
+#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_INDEX_SIZE)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-/*
- * entries per page directory level: our page-table tree is two-level, so
- * we don't really have any PMD directory.
- */
-#ifndef __ASSEMBLY__
-#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_SHIFT)
-#define PGD_TABLE_SIZE	(sizeof(pgd_t) << (32 - PGDIR_SHIFT))
-#endif	/* __ASSEMBLY__ */
-
-#define PTRS_PER_PTE	(1 << PTE_SHIFT)
-#define PTRS_PER_PMD	1
-#define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
+/* Bits to mask out from a PGD to get to the PUD page */
+#define PGD_MASKED_BITS		0
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0UL
@@ -267,7 +274,9 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 }
 
 
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void __ptep_set_access_flags(struct mm_struct *mm,
+					   pte_t *ptep, pte_t entry,
+					   unsigned long address)
 {
 	unsigned long set = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
@@ -326,15 +335,6 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define __swp_entry(type, offset)	((swp_entry_t) { (type) | ((offset) << 5) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
-
-#ifndef CONFIG_PPC_4K_PAGES
-void pgtable_cache_init(void);
-#else
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
-#endif
 
 extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
 		      pmd_t **pmdp);

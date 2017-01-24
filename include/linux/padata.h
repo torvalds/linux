@@ -151,7 +151,7 @@ struct parallel_data {
  * @flags: padata flags.
  */
 struct padata_instance {
-	struct notifier_block		 cpu_notifier;
+	struct hlist_node		 node;
 	struct workqueue_struct		*wq;
 	struct parallel_data		*pd;
 	struct padata_cpumask		cpumask;

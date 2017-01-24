@@ -153,76 +153,68 @@ static dma_addr_t dma_map_xdr(struct svcxprt_rdma *xprt,
 	return dma_addr;
 }
 
-/* Returns the address of the first read chunk or <nul> if no read chunk
- * is present
+/* Parse the RPC Call's transport header.
  */
-struct rpcrdma_read_chunk *
-svc_rdma_get_read_chunk(struct rpcrdma_msg *rmsgp)
+static void svc_rdma_get_write_arrays(struct rpcrdma_msg *rmsgp,
+				      struct rpcrdma_write_array **write,
+				      struct rpcrdma_write_array **reply)
 {
-	struct rpcrdma_read_chunk *ch =
-		(struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+	__be32 *p;
 
-	if (ch->rc_discrim == xdr_zero)
-		return NULL;
-	return ch;
-}
+	p = (__be32 *)&rmsgp->rm_body.rm_chunks[0];
 
-/* Returns the address of the first read write array element or <nul>
- * if no write array list is present
- */
-static struct rpcrdma_write_array *
-svc_rdma_get_write_array(struct rpcrdma_msg *rmsgp)
-{
-	if (rmsgp->rm_body.rm_chunks[0] != xdr_zero ||
-	    rmsgp->rm_body.rm_chunks[1] == xdr_zero)
-		return NULL;
-	return (struct rpcrdma_write_array *)&rmsgp->rm_body.rm_chunks[1];
-}
+	/* Read list */
+	while (*p++ != xdr_zero)
+		p += 5;
 
-/* Returns the address of the first reply array element or <nul> if no
- * reply array is present
- */
-static struct rpcrdma_write_array *
-svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp,
-			 struct rpcrdma_write_array *wr_ary)
-{
-	struct rpcrdma_read_chunk *rch;
-	struct rpcrdma_write_array *rp_ary;
-
-	/* XXX: Need to fix when reply chunk may occur with read list
-	 *	and/or write list.
-	 */
-	if (rmsgp->rm_body.rm_chunks[0] != xdr_zero ||
-	    rmsgp->rm_body.rm_chunks[1] != xdr_zero)
-		return NULL;
-
-	rch = svc_rdma_get_read_chunk(rmsgp);
-	if (rch) {
-		while (rch->rc_discrim != xdr_zero)
-			rch++;
-
-		/* The reply chunk follows an empty write array located
-		 * at 'rc_position' here. The reply array is at rc_target.
-		 */
-		rp_ary = (struct rpcrdma_write_array *)&rch->rc_target;
-		goto found_it;
+	/* Write list */
+	if (*p != xdr_zero) {
+		*write = (struct rpcrdma_write_array *)p;
+		while (*p++ != xdr_zero)
+			p += 1 + be32_to_cpu(*p) * 4;
+	} else {
+		*write = NULL;
+		p++;
 	}
 
-	if (wr_ary) {
-		int chunk = be32_to_cpu(wr_ary->wc_nchunks);
+	/* Reply chunk */
+	if (*p != xdr_zero)
+		*reply = (struct rpcrdma_write_array *)p;
+	else
+		*reply = NULL;
+}
 
-		rp_ary = (struct rpcrdma_write_array *)
-			 &wr_ary->wc_array[chunk].wc_target.rs_length;
-		goto found_it;
+/* RPC-over-RDMA Version One private extension: Remote Invalidation.
+ * Responder's choice: requester signals it can handle Send With
+ * Invalidate, and responder chooses one rkey to invalidate.
+ *
+ * Find a candidate rkey to invalidate when sending a reply.  Picks the
+ * first rkey it finds in the chunks lists.
+ *
+ * Returns zero if RPC's chunk lists are empty.
+ */
+static u32 svc_rdma_get_inv_rkey(struct rpcrdma_msg *rdma_argp,
+				 struct rpcrdma_write_array *wr_ary,
+				 struct rpcrdma_write_array *rp_ary)
+{
+	struct rpcrdma_read_chunk *rd_ary;
+	struct rpcrdma_segment *arg_ch;
+
+	rd_ary = (struct rpcrdma_read_chunk *)&rdma_argp->rm_body.rm_chunks[0];
+	if (rd_ary->rc_discrim != xdr_zero)
+		return be32_to_cpu(rd_ary->rc_target.rs_handle);
+
+	if (wr_ary && be32_to_cpu(wr_ary->wc_nchunks)) {
+		arg_ch = &wr_ary->wc_array[0].wc_target;
+		return be32_to_cpu(arg_ch->rs_handle);
 	}
 
-	/* No read list, no write list */
-	rp_ary = (struct rpcrdma_write_array *)&rmsgp->rm_body.rm_chunks[2];
+	if (rp_ary && be32_to_cpu(rp_ary->wc_nchunks)) {
+		arg_ch = &rp_ary->wc_array[0].wc_target;
+		return be32_to_cpu(arg_ch->rs_handle);
+	}
 
- found_it:
-	if (rp_ary->wc_discrim == xdr_zero)
-		return NULL;
-	return rp_ary;
+	return 0;
 }
 
 /* Assumptions:
@@ -280,7 +272,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 sge[sge_no].addr))
 			goto err;
-		atomic_inc(&xprt->sc_dma_used);
+		svc_rdma_count_mappings(xprt, ctxt);
 		sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->count++;
 		sge_off = 0;
@@ -464,7 +456,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		      struct page *page,
 		      struct rpcrdma_msg *rdma_resp,
 		      struct svc_rdma_req_map *vec,
-		      int byte_count)
+		      int byte_count,
+		      u32 inv_rkey)
 {
 	struct svc_rdma_op_ctxt *ctxt;
 	struct ib_send_wr send_wr;
@@ -489,7 +482,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 			    ctxt->sge[0].length, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_cm_id->device, ctxt->sge[0].addr))
 		goto err;
-	atomic_inc(&rdma->sc_dma_used);
+	svc_rdma_count_mappings(rdma, ctxt);
 
 	ctxt->direction = DMA_TO_DEVICE;
 
@@ -505,7 +498,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		if (ib_dma_mapping_error(rdma->sc_cm_id->device,
 					 ctxt->sge[sge_no].addr))
 			goto err;
-		atomic_inc(&rdma->sc_dma_used);
+		svc_rdma_count_mappings(rdma, ctxt);
 		ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 		ctxt->sge[sge_no].length = sge_bytes;
 	}
@@ -523,22 +516,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		ctxt->pages[page_no+1] = rqstp->rq_respages[page_no];
 		ctxt->count++;
 		rqstp->rq_respages[page_no] = NULL;
-		/*
-		 * If there are more pages than SGE, terminate SGE
-		 * list so that svc_rdma_unmap_dma doesn't attempt to
-		 * unmap garbage.
-		 */
-		if (page_no+1 >= sge_no)
-			ctxt->sge[page_no+1].length = 0;
 	}
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
-	/* The loop above bumps sc_dma_used for each sge. The
-	 * xdr_buf.tail gets a separate sge, but resides in the
-	 * same page as xdr_buf.head. Don't count it twice.
-	 */
-	if (sge_no > ctxt->count)
-		atomic_dec(&rdma->sc_dma_used);
 
 	if (sge_no > rdma->sc_max_sge) {
 		pr_err("svcrdma: Too many sges (%d)\n", sge_no);
@@ -549,7 +528,11 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	send_wr.wr_cqe = &ctxt->cqe;
 	send_wr.sg_list = ctxt->sge;
 	send_wr.num_sge = sge_no;
-	send_wr.opcode = IB_WR_SEND;
+	if (inv_rkey) {
+		send_wr.opcode = IB_WR_SEND_WITH_INV;
+		send_wr.ex.invalidate_rkey = inv_rkey;
+	} else
+		send_wr.opcode = IB_WR_SEND;
 	send_wr.send_flags =  IB_SEND_SIGNALED;
 
 	ret = svc_rdma_send(rdma, &send_wr);
@@ -581,6 +564,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	int inline_bytes;
 	struct page *res_page;
 	struct svc_rdma_req_map *vec;
+	u32 inv_rkey;
 
 	dprintk("svcrdma: sending response for rqstp=%p\n", rqstp);
 
@@ -588,8 +572,11 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	 * places this at the start of page 0.
 	 */
 	rdma_argp = page_address(rqstp->rq_pages[0]);
-	wr_ary = svc_rdma_get_write_array(rdma_argp);
-	rp_ary = svc_rdma_get_reply_array(rdma_argp, wr_ary);
+	svc_rdma_get_write_arrays(rdma_argp, &wr_ary, &rp_ary);
+
+	inv_rkey = 0;
+	if (rdma->sc_snd_w_inv)
+		inv_rkey = svc_rdma_get_inv_rkey(rdma_argp, wr_ary, rp_ary);
 
 	/* Build an req vec for the XDR */
 	vec = svc_rdma_get_req_map(rdma);
@@ -598,7 +585,12 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		goto err0;
 	inline_bytes = rqstp->rq_res.len;
 
-	/* Create the RDMA response header */
+	/* Create the RDMA response header. xprt->xpt_mutex,
+	 * acquired in svc_send(), serializes RPC replies. The
+	 * code path below that inserts the credit grant value
+	 * into each transport header runs only inside this
+	 * critical section.
+	 */
 	ret = -ENOMEM;
 	res_page = alloc_page(GFP_KERNEL);
 	if (!res_page)
@@ -633,9 +625,9 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		goto err1;
 
 	ret = send_reply(rdma, rqstp, res_page, rdma_resp, vec,
-			 inline_bytes);
+			 inline_bytes, inv_rkey);
 	if (ret < 0)
-		goto err1;
+		goto err0;
 
 	svc_rdma_put_req_map(rdma, vec);
 	dprintk("svcrdma: send_reply returns %d\n", ret);
@@ -692,7 +684,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 		svc_rdma_put_context(ctxt, 1);
 		return;
 	}
-	atomic_inc(&xprt->sc_dma_used);
+	svc_rdma_count_mappings(xprt, ctxt);
 
 	/* Prepare SEND WR */
 	memset(&err_wr, 0, sizeof(err_wr));

@@ -559,6 +559,21 @@ int xenbus_scanf(struct xenbus_transaction t,
 }
 EXPORT_SYMBOL_GPL(xenbus_scanf);
 
+/* Read an (optional) unsigned value. */
+unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+				  unsigned int default_val)
+{
+	unsigned int val;
+	int ret;
+
+	ret = xenbus_scanf(XBT_NIL, dir, node, "%u", &val);
+	if (ret <= 0)
+		val = default_val;
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(xenbus_read_unsigned);
+
 /* Single printf and write: returns -errno or 0. */
 int xenbus_printf(struct xenbus_transaction t,
 		  const char *dir, const char *node, const char *fmt, ...)
@@ -672,7 +687,7 @@ static bool xen_strict_xenbus_quirk(void)
 }
 static void xs_reset_watches(void)
 {
-	int err, supported = 0;
+	int err;
 
 	if (!xen_hvm_domain() || xen_initial_domain())
 		return;
@@ -680,9 +695,8 @@ static void xs_reset_watches(void)
 	if (xen_strict_xenbus_quirk())
 		return;
 
-	err = xenbus_scanf(XBT_NIL, "control",
-			"platform-feature-xs_reset_watches", "%d", &supported);
-	if (err != 1 || !supported)
+	if (!xenbus_read_unsigned("control",
+				  "platform-feature-xs_reset_watches", 0))
 		return;
 
 	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));

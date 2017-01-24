@@ -2,8 +2,12 @@ Allwinner Clock Control Unit Binding
 ------------------------------------
 
 Required properties :
-- compatible: must contain one of the following compatible:
+- compatible: must contain one of the following compatibles:
+		- "allwinner,sun6i-a31-ccu"
+		- "allwinner,sun8i-a23-ccu"
+		- "allwinner,sun8i-a33-ccu"
 		- "allwinner,sun8i-h3-ccu"
+		- "allwinner,sun50i-a64-ccu"
 
 - reg: Must contain the registers base address and length
 - clocks: phandle to the oscillators feeding the CCU. Two are needed:

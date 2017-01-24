@@ -12,7 +12,8 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 
-#define DW_DMA_MAX_NR_CHANNELS	8
+#include "internal.h"
+
 #define DW_DMA_MAX_NR_REQUESTS	16
 
 /* flow controller */
@@ -245,10 +246,7 @@ struct dw_dma_chan {
 	bool			nollp;
 
 	/* custom slave configuration */
-	u8			src_id;
-	u8			dst_id;
-	u8			m_master;
-	u8			p_master;
+	struct dw_dma_slave	dws;
 
 	/* configuration passed via .device_config */
 	struct dma_slave_config dma_sconfig;

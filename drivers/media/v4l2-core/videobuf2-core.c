@@ -358,8 +358,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 		if (memory == VB2_MEMORY_MMAP) {
 			ret = __vb2_buf_mem_alloc(vb);
 			if (ret) {
-				dprintk(1, "failed allocating memory for "
-						"buffer %d\n", buffer);
+				dprintk(1, "failed allocating memory for buffer %d\n",
+					buffer);
 				q->bufs[vb->index] = NULL;
 				kfree(vb);
 				break;
@@ -372,8 +372,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			 */
 			ret = call_vb_qop(vb, buf_init, vb);
 			if (ret) {
-				dprintk(1, "buffer %d %p initialization"
-					" failed\n", buffer, vb);
+				dprintk(1, "buffer %d %p initialization failed\n",
+					buffer, vb);
 				__vb2_buf_mem_free(vb);
 				q->bufs[vb->index] = NULL;
 				kfree(vb);
@@ -997,13 +997,12 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 			&& vb->planes[plane].length == planes[plane].length)
 			continue;
 
-		dprintk(3, "userspace address for plane %d changed, "
-				"reacquiring memory\n", plane);
+		dprintk(3, "userspace address for plane %d changed, reacquiring memory\n",
+			plane);
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < vb->planes[plane].min_length) {
-			dprintk(1, "provided buffer size %u is less than "
-						"setup size %u for plane %d\n",
+			dprintk(1, "provided buffer size %u is less than setup size %u for plane %d\n",
 						planes[plane].length,
 						vb->planes[plane].min_length,
 						plane);
@@ -1032,8 +1031,8 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 				planes[plane].m.userptr,
 				planes[plane].length, dma_dir);
 		if (IS_ERR(mem_priv)) {
-			dprintk(1, "failed acquiring userspace "
-						"memory for plane %d\n", plane);
+			dprintk(1, "failed acquiring userspace memory for plane %d\n",
+				plane);
 			ret = PTR_ERR(mem_priv);
 			goto err;
 		}
@@ -1123,8 +1122,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 			planes[plane].length = dbuf->size;
 
 		if (planes[plane].length < vb->planes[plane].min_length) {
-			dprintk(1, "invalid dmabuf length %u for plane %d, "
-				"minimum length %u\n",
+			dprintk(1, "invalid dmabuf length %u for plane %d, minimum length %u\n",
 				planes[plane].length, plane,
 				vb->planes[plane].min_length);
 			dma_buf_put(dbuf);
@@ -1472,8 +1470,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		}
 
 		if (nonblocking) {
-			dprintk(1, "nonblocking and no buffers to dequeue, "
-								"will not wait\n");
+			dprintk(1, "nonblocking and no buffers to dequeue, will not wait\n");
 			return -EAGAIN;
 		}
 

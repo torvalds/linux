@@ -173,9 +173,10 @@ long sii164InitChip(
 
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-		/* De-skew enabled with default 111b value.
-		   This will fix some artifacts problem in some mode on board 2.2.
-		   Somehow this fix does not affect board 2.1.
+		/*
+		 * De-skew enabled with default 111b value.
+		 * This fixes some artifacts problem in some mode on board 2.2.
+		 * Somehow this fix does not affect board 2.1.
 		 */
 		if (deskewEnable == 0)
 			config = SII164_DESKEW_DISABLE;
@@ -344,7 +345,8 @@ void sii164EnableHotPlugDetection(
 	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
 
 	/* Depending on each DVI controller, need to enable the hot plug based on each
-	   individual chip design. */
+	 * individual chip design.
+	 */
 	if (enableHotPlug != 0)
 		sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_USE_MDI);
 	else

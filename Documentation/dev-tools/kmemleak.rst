@@ -162,6 +162,15 @@ See the include/linux/kmemleak.h header for the functions prototype.
 - ``kmemleak_alloc_recursive`` - as kmemleak_alloc but checks the recursiveness
 - ``kmemleak_free_recursive``	 - as kmemleak_free but checks the recursiveness
 
+The following functions take a physical address as the object pointer
+and only perform the corresponding action if the address has a lowmem
+mapping:
+
+- ``kmemleak_alloc_phys``
+- ``kmemleak_free_part_phys``
+- ``kmemleak_not_leak_phys``
+- ``kmemleak_ignore_phys``
+
 Dealing with false positives/negatives
 --------------------------------------
 

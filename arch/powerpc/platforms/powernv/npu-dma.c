@@ -115,7 +115,7 @@ static u64 dma_npu_get_required_mask(struct device *dev)
 	return 0;
 }
 
-struct dma_map_ops dma_npu_ops = {
+static struct dma_map_ops dma_npu_ops = {
 	.map_page		= dma_npu_map_page,
 	.map_sg			= dma_npu_map_sg,
 	.alloc			= dma_npu_alloc,
@@ -263,7 +263,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	/* Enable the bypass window */
 
 	top = roundup_pow_of_two(top);
-	dev_info(&npe->pdev->dev, "Enabling bypass for PE %d\n",
+	dev_info(&npe->pdev->dev, "Enabling bypass for PE %x\n",
 			npe->pe_number);
 	rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
 			npe->pe_number, npe->pe_number,

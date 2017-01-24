@@ -170,6 +170,7 @@ Default is to monitor all CPUS.
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires -g/--call-graph option
 	enabled.  See the `overhead calculation' section for more details.
+	Enabled by default, disable with --no-children.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything

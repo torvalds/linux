@@ -111,7 +111,7 @@ static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			if (!err)
 				goto found_alt;
 		}
-		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
+		pr_err("Selected firmware is not available\n");
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
@@ -765,7 +765,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 					mac->bw_40 = false;
 					mac->bw_80 = false;
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
+						 "switch case %#x not processed\n",
+						 channel_type);
 					break;
 			}
 		}
@@ -1135,7 +1136,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					mac->mode = WIRELESS_MODE_AC_24G;
 			}
 
-			if (vif->type == NL80211_IFTYPE_STATION && sta)
+			if (vif->type == NL80211_IFTYPE_STATION)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 			rcu_read_unlock();
 
@@ -1149,10 +1150,8 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			mstatus = RT_MEDIA_DISCONNECT;
 
-			if (mac->link_state == MAC80211_LINKED) {
-				rtlpriv->enter_ps = false;
-				schedule_work(&rtlpriv->works.lps_change_work);
-			}
+			if (mac->link_state == MAC80211_LINKED)
+				rtl_lps_leave(hw);
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
@@ -1430,8 +1429,7 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	}
 
 	if (mac->link_state == MAC80211_LINKED) {
-		rtlpriv->enter_ps = false;
-		schedule_work(&rtlpriv->works.lps_change_work);
+		rtl_lps_leave(hw);
 		mac->link_state = MAC80211_LINKED_SCANNING;
 	} else {
 		rtl_ips_nic_on(hw);
@@ -1831,7 +1829,8 @@ bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 	pskb = __skb_dequeue(&ring->queue);
-	kfree_skb(pskb);
+	if (pskb)
+		dev_kfree_skb_irq(pskb);
 
 	/*this is wrong, fill_tx_cmddesc needs update*/
 	pdesc = &ring->desc[0];

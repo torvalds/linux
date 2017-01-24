@@ -29,6 +29,6 @@
 #include "device.h"
 
 int vnt_rx_data(struct vnt_private *, struct vnt_rcb *,
-	unsigned long bytes_received);
+		unsigned long bytes_received);
 
 #endif /* __RXTX_H__ */

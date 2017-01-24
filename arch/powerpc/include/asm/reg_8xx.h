@@ -4,7 +4,7 @@
 #ifndef _ASM_POWERPC_REG_8xx_H
 #define _ASM_POWERPC_REG_8xx_H
 
-#include <asm/mmu-8xx.h>
+#include <asm/mmu.h>
 
 /* Cache control on the MPC8xx is provided through some additional
  * special purpose registers.
@@ -24,6 +24,10 @@
 #define SPRN_MD_CAM	824
 #define SPRN_MD_RAM0	825
 #define SPRN_MD_RAM1	826
+
+/* Special MSR manipulation registers */
+#define SPRN_EIE	80	/* External interrupt enable (EE=1, RI=1) */
+#define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
 
 /* Commands.  Only the first few are available to the instruction cache.
 */

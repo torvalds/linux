@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/err.h>
+#include <linux/kernel_stat.h>
 
 #include <asm/kvm_book3s.h>
 #include <asm/kvm_ppc.h>
@@ -18,7 +19,11 @@
 #include <asm/debug.h>
 #include <asm/synch.h>
 #include <asm/cputhreads.h>
+#include <asm/pgtable.h>
 #include <asm/ppc-opcode.h>
+#include <asm/pnv-pci.h>
+#include <asm/opal.h>
+#include <asm/smp.h>
 
 #include "book3s_xics.h"
 
@@ -26,9 +31,12 @@
 
 int h_ipi_redirect = 1;
 EXPORT_SYMBOL(h_ipi_redirect);
+int kvm_irq_bypass = 1;
+EXPORT_SYMBOL(kvm_irq_bypass);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
+static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu);
 
 /* -- ICS routines -- */
 static void ics_rm_check_resend(struct kvmppc_xics *xics,
@@ -62,7 +70,11 @@ static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu)
 	hcpu = hcore << threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[hcore].rm_data = vcpu;
 	smp_muxed_ipi_set_message(hcpu, PPC_MSG_RM_HOST_ACTION);
-	icp_native_cause_ipi_rm(hcpu);
+	if (paca[hcpu].kvm_hstate.xics_phys)
+		icp_native_cause_ipi_rm(hcpu);
+	else
+		opal_rm_int_set_mfrr(get_hard_smp_processor_id(hcpu),
+				     IPI_PRIORITY);
 }
 #else
 static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
@@ -708,8 +720,128 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 		icp->rm_action |= XICS_RM_NOTIFY_EOI;
 		icp->rm_eoied_irq = irq;
 	}
+
+	if (state->host_irq) {
+		++vcpu->stat.pthru_all;
+		if (state->intr_cpu != -1) {
+			int pcpu = raw_smp_processor_id();
+
+			pcpu = cpu_first_thread_sibling(pcpu);
+			++vcpu->stat.pthru_host;
+			if (state->intr_cpu != pcpu) {
+				++vcpu->stat.pthru_bad_aff;
+				xics_opal_rm_set_server(state->host_irq, pcpu);
+			}
+			state->intr_cpu = -1;
+		}
+	}
  bail:
 	return check_too_hard(xics, icp);
+}
+
+unsigned long eoi_rc;
+
+static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
+{
+	unsigned long xics_phys;
+	int64_t rc;
+
+	rc = pnv_opal_pci_msi_eoi(c, hwirq);
+
+	if (rc)
+		eoi_rc = rc;
+
+	iosync();
+
+	/* EOI it */
+	xics_phys = local_paca->kvm_hstate.xics_phys;
+	if (xics_phys) {
+		_stwcix(xics_phys + XICS_XIRR, xirr);
+	} else {
+		rc = opal_rm_int_eoi(be32_to_cpu(xirr));
+		*again = rc > 0;
+	}
+}
+
+static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu)
+{
+	unsigned int mangle_cpu = get_hard_smp_processor_id(server_cpu) << 2;
+
+	return opal_rm_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
+}
+
+/*
+ * Increment a per-CPU 32-bit unsigned integer variable.
+ * Safe to call in real-mode. Handles vmalloc'ed addresses
+ *
+ * ToDo: Make this work for any integral type
+ */
+
+static inline void this_cpu_inc_rm(unsigned int __percpu *addr)
+{
+	unsigned long l;
+	unsigned int *raddr;
+	int cpu = smp_processor_id();
+
+	raddr = per_cpu_ptr(addr, cpu);
+	l = (unsigned long)raddr;
+
+	if (REGION_ID(l) == VMALLOC_REGION_ID) {
+		l = vmalloc_to_phys(raddr);
+		raddr = (unsigned int *)l;
+	}
+	++*raddr;
+}
+
+/*
+ * We don't try to update the flags in the irq_desc 'istate' field in
+ * here as would happen in the normal IRQ handling path for several reasons:
+ *  - state flags represent internal IRQ state and are not expected to be
+ *    updated outside the IRQ subsystem
+ *  - more importantly, these are useful for edge triggered interrupts,
+ *    IRQ probing, etc., but we are only handling MSI/MSIx interrupts here
+ *    and these states shouldn't apply to us.
+ *
+ * However, we do update irq_stats - we somewhat duplicate the code in
+ * kstat_incr_irqs_this_cpu() for this since this function is defined
+ * in irq/internal.h which we don't want to include here.
+ * The only difference is that desc->kstat_irqs is an allocated per CPU
+ * variable and could have been vmalloc'ed, so we can't directly
+ * call __this_cpu_inc() on it. The kstat structure is a static
+ * per CPU variable and it should be accessible by real-mode KVM.
+ *
+ */
+static void kvmppc_rm_handle_irq_desc(struct irq_desc *desc)
+{
+	this_cpu_inc_rm(desc->kstat_irqs);
+	__this_cpu_inc(kstat.irqs_sum);
+}
+
+long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
+				 __be32 xirr,
+				 struct kvmppc_irq_map *irq_map,
+				 struct kvmppc_passthru_irqmap *pimap,
+				 bool *again)
+{
+	struct kvmppc_xics *xics;
+	struct kvmppc_icp *icp;
+	u32 irq;
+
+	irq = irq_map->v_hwirq;
+	xics = vcpu->kvm->arch.xics;
+	icp = vcpu->arch.icp;
+
+	kvmppc_rm_handle_irq_desc(irq_map->desc);
+	icp_rm_deliver_irq(xics, icp, irq);
+
+	/* EOI the interrupt */
+	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr,
+		again);
+
+	if (check_too_hard(xics, icp) == H_TOO_HARD)
+		return 2;
+	else
+		return -2;
 }
 
 /*  --- Non-real mode XICS-related built-in routines ---  */

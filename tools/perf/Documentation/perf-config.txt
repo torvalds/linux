@@ -8,6 +8,8 @@ perf-config - Get and set variables in a configuration file.
 SYNOPSIS
 --------
 [verse]
+'perf config' [<file-option>] [section.name[=value] ...]
+or
 'perf config' [<file-option>] -l | --list
 
 DESCRIPTION
@@ -109,6 +111,47 @@ Given a $HOME/.perfconfig like this:
 		print-type = graph
 		order = caller
 		sort-key = function
+
+	[report]
+		# Defaults
+		sort-order = comm,dso,symbol
+		percent-limit = 0
+		queue-size = 0
+		children = true
+		group = true
+
+You can hide source code of annotate feature setting the config to false with
+
+	% perf config annotate.hide_src_code=true
+
+If you want to add or modify several config items, you can do like
+
+	% perf config ui.show-headers=false kmem.default=slab
+
+To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
+
+	% perf config --user report sort-order=srcline
+
+To change colors of selected line to other foreground and background colors
+in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system colors.selected=yellow,green
+
+To query the record mode of call graph, do
+
+	% perf config call-graph.record-mode
+
+If you want to know multiple config key/value pairs, you can do like
+
+	% perf config report.queue-size call-graph.order report.children
+
+To query the config value of sort order of call graph in user config file (i.e. `~/.perfconfig`), do
+
+	% perf config --user call-graph.sort-order
+
+To query the config value of buildid directory in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system buildid.dir
 
 Variables
 ~~~~~~~~~
@@ -382,6 +425,10 @@ call-graph.*::
 		histogram entry. Default is 0 which means no limitation.
 
 report.*::
+	report.sort_order::
+		Allows changing the default sort order from "comm,dso,symbol" to
+		some other default, for instance "sym,dso" may be more fitting for
+		kernel developers.
 	report.percent-limit::
 		This one is mostly the same as call-graph.threshold but works for
 		histogram entries. Entries having an overhead lower than this

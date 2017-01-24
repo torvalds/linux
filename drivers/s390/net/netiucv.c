@@ -62,7 +62,7 @@
 #include <net/dst.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ebcdic.h>
 
 #include <net/iucv/iucv.h>
@@ -302,8 +302,7 @@ static char *netiucv_printuser(struct iucv_connection *conn)
 	if (memcmp(conn->userdata, iucvMagic_ebcdic, 16)) {
 		tmp_uid[8] = '\0';
 		tmp_udat[16] = '\0';
-		memcpy(tmp_uid, conn->userid, 8);
-		memcpy(tmp_uid, netiucv_printname(tmp_uid, 8), 8);
+		memcpy(tmp_uid, netiucv_printname(conn->userid, 8), 8);
 		memcpy(tmp_udat, conn->userdata, 16);
 		EBCASC(tmp_udat, 16);
 		memcpy(tmp_udat, netiucv_printname(tmp_udat, 16), 16);
@@ -1429,27 +1428,6 @@ static struct net_device_stats *netiucv_stats (struct net_device * dev)
 	return &priv->stats;
 }
 
-/**
- * netiucv_change_mtu
- * @dev: Pointer to interface struct.
- * @new_mtu: The new MTU to use for this interface.
- *
- * Sets MTU of an interface.
- *
- * Returns 0 on success, -EINVAL if MTU is out of valid range.
- *         (valid range is 576 .. NETIUCV_MTU_MAX).
- */
-static int netiucv_change_mtu(struct net_device * dev, int new_mtu)
-{
-	IUCV_DBF_TEXT(trace, 3, __func__);
-	if (new_mtu < 576 || new_mtu > NETIUCV_MTU_MAX) {
-		IUCV_DBF_TEXT(setup, 2, "given MTU out of valid range\n");
-		return -EINVAL;
-	}
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 /*
  * attributes in sysfs
  */
@@ -1564,21 +1542,21 @@ static ssize_t buffer_write (struct device *dev, struct device_attribute *attr,
 {
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->conn->netdev;
-	char         *e;
-	int          bs1;
+	unsigned int bs1;
+	int rc;
 
 	IUCV_DBF_TEXT(trace, 3, __func__);
 	if (count >= 39)
 		return -EINVAL;
 
-	bs1 = simple_strtoul(buf, &e, 0);
+	rc = kstrtouint(buf, 0, &bs1);
 
-	if (e && (!isspace(*e))) {
-		IUCV_DBF_TEXT_(setup, 2, "buffer_write: invalid char %02x\n",
-			*e);
+	if (rc == -EINVAL) {
+		IUCV_DBF_TEXT_(setup, 2, "buffer_write: invalid char %s\n",
+			buf);
 		return -EINVAL;
 	}
-	if (bs1 > NETIUCV_BUFSIZE_MAX) {
+	if ((rc == -ERANGE) || (bs1 > NETIUCV_BUFSIZE_MAX)) {
 		IUCV_DBF_TEXT_(setup, 2,
 			"buffer_write: buffer size %d too large\n",
 			bs1);
@@ -1987,12 +1965,13 @@ static const struct net_device_ops netiucv_netdev_ops = {
 	.ndo_stop		= netiucv_close,
 	.ndo_get_stats		= netiucv_stats,
 	.ndo_start_xmit		= netiucv_tx,
-	.ndo_change_mtu	   	= netiucv_change_mtu,
 };
 
 static void netiucv_setup_netdevice(struct net_device *dev)
 {
 	dev->mtu	         = NETIUCV_MTU_DEFAULT;
+	dev->min_mtu		 = 576;
+	dev->max_mtu		 = NETIUCV_MTU_MAX;
 	dev->destructor          = netiucv_free_netdevice;
 	dev->hard_header_len     = NETIUCV_HDRLEN;
 	dev->addr_len            = 0;

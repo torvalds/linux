@@ -37,9 +37,7 @@ static void nvmet_inline_bio_init(struct nvmet_req *req)
 {
 	struct bio *bio = &req->inline_bio;
 
-	bio_init(bio);
-	bio->bi_max_vecs = NVMET_MAX_INLINE_BIOVEC;
-	bio->bi_io_vec = req->inline_bvec;
+	bio_init(bio, req->inline_bvec, NVMET_MAX_INLINE_BIOVEC);
 }
 
 static void nvmet_execute_rw(struct nvmet_req *req)
@@ -58,6 +56,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 
 	if (req->cmd->rw.opcode == nvme_cmd_write) {
 		op = REQ_OP_WRITE;
+		op_flags = REQ_SYNC | REQ_IDLE;
 		if (req->cmd->rw.control & cpu_to_le16(NVME_RW_FUA))
 			op_flags |= REQ_FUA;
 	} else {
@@ -95,7 +94,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 
 	cookie = submit_bio(bio);
 
-	blk_poll(bdev_get_queue(req->ns->bdev), cookie);
+	blk_mq_poll(bdev_get_queue(req->ns->bdev), cookie);
 }
 
 static void nvmet_execute_flush(struct nvmet_req *req)
@@ -108,7 +107,7 @@ static void nvmet_execute_flush(struct nvmet_req *req)
 	bio->bi_bdev = req->ns->bdev;
 	bio->bi_private = req;
 	bio->bi_end_io = nvmet_bio_done;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	submit_bio(bio);
 }
@@ -171,6 +170,32 @@ static void nvmet_execute_dsm(struct nvmet_req *req)
 	}
 }
 
+static void nvmet_execute_write_zeroes(struct nvmet_req *req)
+{
+	struct nvme_write_zeroes_cmd *write_zeroes = &req->cmd->write_zeroes;
+	struct bio *bio = NULL;
+	u16 status = NVME_SC_SUCCESS;
+	sector_t sector;
+	sector_t nr_sector;
+
+	sector = le64_to_cpu(write_zeroes->slba) <<
+		(req->ns->blksize_shift - 9);
+	nr_sector = (((sector_t)le32_to_cpu(write_zeroes->length)) <<
+		(req->ns->blksize_shift - 9)) + 1;
+
+	if (__blkdev_issue_zeroout(req->ns->bdev, sector, nr_sector,
+				GFP_KERNEL, &bio, true))
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+
+	if (bio) {
+		bio->bi_private = req;
+		bio->bi_end_io = nvmet_bio_done;
+		submit_bio(bio);
+	} else {
+		nvmet_req_complete(req, status);
+	}
+}
+
 int nvmet_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
@@ -205,8 +230,11 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		return 0;
 	case nvme_cmd_dsm:
 		req->execute = nvmet_execute_dsm;
-		req->data_len = le32_to_cpu(cmd->dsm.nr) *
+		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
 			sizeof(struct nvme_dsm_range);
+		return 0;
+	case nvme_cmd_write_zeroes:
+		req->execute = nvmet_execute_write_zeroes;
 		return 0;
 	default:
 		pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);

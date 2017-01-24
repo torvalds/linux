@@ -100,10 +100,12 @@ static int rxe_query_port(struct ib_device *dev,
 		rxe->ndev->ethtool_ops->get_settings(rxe->ndev, &cmd);
 		speed = cmd.speed;
 	} else {
-		pr_warn("%s speed is unknown, defaulting to 1000\n", rxe->ndev->name);
+		pr_warn("%s speed is unknown, defaulting to 1000\n",
+			rxe->ndev->name);
 		speed = 1000;
 	}
-	rxe_eth_speed_to_ib_speed(speed, &attr->active_speed, &attr->active_width);
+	rxe_eth_speed_to_ib_speed(speed, &attr->active_speed,
+				  &attr->active_width);
 	mutex_unlock(&rxe->usdev_lock);
 
 	return 0;
@@ -314,7 +316,9 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+				   struct ib_udata *udata)
+
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -562,7 +566,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 	if (udata) {
 		if (udata->inlen) {
 			err = -EINVAL;
-			goto err1;
+			goto err2;
 		}
 		qp->is_user = 1;
 	}
@@ -571,12 +575,13 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	err = rxe_qp_from_init(rxe, qp, pd, init, udata, ibpd);
 	if (err)
-		goto err2;
+		goto err3;
 
 	return &qp->ibqp;
 
-err2:
+err3:
 	rxe_drop_index(qp);
+err2:
 	rxe_drop_ref(qp);
 err1:
 	return ERR_PTR(err);
@@ -761,7 +766,7 @@ static int init_send_wqe(struct rxe_qp *qp, struct ib_send_wr *ibwr,
 }
 
 static int post_one_send(struct rxe_qp *qp, struct ib_send_wr *ibwr,
-			 unsigned mask, u32 length)
+			 unsigned int mask, u32 length)
 {
 	int err;
 	struct rxe_sq *sq = &qp->sq;
@@ -801,25 +806,14 @@ err1:
 	return err;
 }
 
-static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			 struct ib_send_wr **bad_wr)
+static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
+				struct ib_send_wr **bad_wr)
 {
 	int err = 0;
-	struct rxe_qp *qp = to_rqp(ibqp);
 	unsigned int mask;
 	unsigned int length = 0;
 	int i;
 	int must_sched;
-
-	if (unlikely(!qp->valid)) {
-		*bad_wr = wr;
-		return -EINVAL;
-	}
-
-	if (unlikely(qp->req.state < QP_STATE_READY)) {
-		*bad_wr = wr;
-		return -EINVAL;
-	}
 
 	while (wr) {
 		mask = wr_opcode_mask(wr->opcode, qp);
@@ -859,6 +853,29 @@ static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	rxe_run_task(&qp->req.task, must_sched);
 
 	return err;
+}
+
+static int rxe_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+			 struct ib_send_wr **bad_wr)
+{
+	struct rxe_qp *qp = to_rqp(ibqp);
+
+	if (unlikely(!qp->valid)) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	if (unlikely(qp->req.state < QP_STATE_READY)) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	if (qp->is_user) {
+		/* Utilize process context to do protocol processing */
+		rxe_run_task(&qp->req.task, 0);
+		return 0;
+	} else
+		return rxe_post_send_kernel(qp, wr, bad_wr);
 }
 
 static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
@@ -993,11 +1010,19 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
+	unsigned long irq_flags;
+	int ret = 0;
 
+	spin_lock_irqsave(&cq->cq_lock, irq_flags);
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
-	return 0;
+	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !queue_empty(cq->queue))
+		ret = 1;
+
+	spin_unlock_irqrestore(&cq->cq_lock, irq_flags);
+
+	return ret;
 }
 
 static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
@@ -1133,8 +1158,8 @@ static int rxe_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-			 unsigned int *sg_offset)
+static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			 int sg_nents, unsigned int *sg_offset)
 {
 	struct rxe_mem *mr = to_rmr(ibmr);
 	int n;

@@ -140,7 +140,7 @@ static inline void __iomem *brcm_sata_pcb_base(struct brcm_sata_port *port)
 	default:
 		dev_err(priv->dev, "invalid phy version\n");
 		break;
-	};
+	}
 
 	return priv->phy_base + (port->portnum * size);
 }
@@ -157,7 +157,7 @@ static inline void __iomem *brcm_sata_ctrl_base(struct brcm_sata_port *port)
 	default:
 		dev_err(priv->dev, "invalid phy version\n");
 		break;
-	};
+	}
 
 	return priv->ctrl_base + (port->portnum * size);
 }
@@ -365,7 +365,7 @@ static int brcm_sata_phy_init(struct phy *phy)
 		break;
 	default:
 		rc = -ENODEV;
-	};
+	}
 
 	return rc;
 }

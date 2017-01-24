@@ -46,6 +46,7 @@ unsigned long fman_muram_offset_to_vbase(struct muram_info *muram,
 
 unsigned long fman_muram_alloc(struct muram_info *muram, size_t size);
 
-void fman_muram_free_mem(struct muram_info *muram, unsigned long offset, size_t size);
+void fman_muram_free_mem(struct muram_info *muram, unsigned long offset,
+			 size_t size);
 
 #endif /* __FM_MURAM_EXT */

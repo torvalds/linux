@@ -145,43 +145,6 @@ static const struct debugfs_reg32 dsps_musb_regs[] = {
 	{ "mode",		0xe8 },
 };
 
-static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
-{
-	struct device *dev = musb->controller;
-	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
-
-	if (timeout == 0)
-		timeout = jiffies + msecs_to_jiffies(3);
-
-	/* Never idle if active, or when VBUS timeout is not set as host */
-	if (musb->is_active || (musb->a_wait_bcon == 0 &&
-			musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
-		dev_dbg(musb->controller, "%s active, deleting timer\n",
-				usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&glue->timer);
-		glue->last_timer = jiffies;
-		return;
-	}
-	if (musb->port_mode != MUSB_PORT_MODE_DUAL_ROLE)
-		return;
-
-	if (!musb->g.dev.driver)
-		return;
-
-	if (time_after(glue->last_timer, timeout) &&
-				timer_pending(&glue->timer)) {
-		dev_dbg(musb->controller,
-			"Longer idle timer already pending, ignoring...\n");
-		return;
-	}
-	glue->last_timer = timeout;
-
-	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		usb_otg_state_string(musb->xceiv->otg->state),
-			jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&glue->timer, timeout);
-}
-
 /**
  * dsps_musb_enable - enable interrupts
  */
@@ -206,7 +169,6 @@ static void dsps_musb_enable(struct musb *musb)
 			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		mod_timer(&glue->timer, jiffies +
 				msecs_to_jiffies(wrp->poll_timeout));
-	dsps_musb_try_idle(musb, 0);
 }
 
 /**
@@ -223,18 +185,18 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_clear, wrp->usb_bitmap);
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
+	del_timer_sync(&glue->timer);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 }
 
-static void otg_timer(unsigned long _musb)
+/* Caller must take musb->lock */
+static int dsps_check_status(struct musb *musb, void *unused)
 {
-	struct musb *musb = (void *)_musb;
 	void __iomem *mregs = musb->mregs;
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	u8 devctl;
-	unsigned long flags;
 	int skip_session = 0;
 
 	/*
@@ -245,8 +207,11 @@ static void otg_timer(unsigned long _musb)
 	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
 				usb_otg_state_string(musb->xceiv->otg->state));
 
-	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_A_WAIT_VRISE:
+		mod_timer(&glue->timer, jiffies +
+				msecs_to_jiffies(wrp->poll_timeout));
+		break;
 	case OTG_STATE_A_WAIT_BCON:
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
@@ -274,7 +239,43 @@ static void otg_timer(unsigned long _musb)
 	default:
 		break;
 	}
+
+	return 0;
+}
+
+static void otg_timer(unsigned long _musb)
+{
+	struct musb *musb = (void *)_musb;
+	struct device *dev = musb->controller;
+	unsigned long flags;
+	int err;
+
+	err = pm_runtime_get(dev);
+	if ((err != -EINPROGRESS) && err < 0) {
+		dev_err(dev, "Poll could not pm_runtime_get: %i\n", err);
+		pm_runtime_put_noidle(dev);
+
+		return;
+	}
+
+	spin_lock_irqsave(&musb->lock, flags);
+	err = musb_queue_resume_work(musb, dsps_check_status, NULL);
+	if (err < 0)
+		dev_err(dev, "%s resume work: %i\n", __func__, err);
 	spin_unlock_irqrestore(&musb->lock, flags);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+}
+
+void dsps_musb_clear_ep_rxintr(struct musb *musb, int epnum)
+{
+	u32 epintr;
+	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
+	const struct dsps_musb_wrapper *wrp = glue->wrp;
+
+	/* musb->lock might already been held */
+	epintr = (1 << epnum) << wrp->rxep_shift;
+	musb_writel(musb->ctrl_base, wrp->epintr_status, epintr);
 }
 
 static irqreturn_t dsps_interrupt(int irq, void *hci)
@@ -338,7 +339,8 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			del_timer(&glue->timer);
+			mod_timer(&glue->timer, jiffies +
+				  msecs_to_jiffies(wrp->poll_timeout));
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -358,11 +360,17 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 
-	/* Poll for ID change in OTG port mode */
-	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+	/* Poll for ID change and connect */
+	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_B_IDLE:
+	case OTG_STATE_A_WAIT_BCON:
 		mod_timer(&glue->timer, jiffies +
 				msecs_to_jiffies(wrp->poll_timeout));
+		break;
+	default:
+		break;
+	}
+
 out:
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -460,6 +468,9 @@ static int dsps_musb_init(struct musb *musb)
 		val |= MUSB_BABBLE_SW_SESSION_CTRL;
 		musb_writeb(musb->mregs, MUSB_BABBLE_CTL, val);
 	}
+
+	mod_timer(&glue->timer, jiffies +
+		  msecs_to_jiffies(glue->wrp->poll_timeout));
 
 	return dsps_musb_dbg_init(musb, glue);
 }
@@ -620,9 +631,9 @@ static struct musb_platform_ops dsps_ops = {
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,
 
-	.try_idle	= dsps_musb_try_idle,
 	.set_mode	= dsps_musb_set_mode,
 	.recover	= dsps_musb_recover,
+	.clear_ep_rxintr = dsps_musb_clear_ep_rxintr,
 };
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
@@ -784,22 +795,13 @@ static int dsps_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 	pm_runtime_enable(&pdev->dev);
-
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
-		goto err2;
-	}
-
 	ret = dsps_create_musb_pdev(glue, pdev);
 	if (ret)
-		goto err3;
+		goto err;
 
 	return 0;
 
-err3:
-	pm_runtime_put(&pdev->dev);
-err2:
+err:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
@@ -810,8 +812,6 @@ static int dsps_remove(struct platform_device *pdev)
 
 	platform_device_unregister(glue->musb);
 
-	/* disable usbss clocks */
-	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

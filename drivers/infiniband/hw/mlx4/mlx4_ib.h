@@ -570,6 +570,7 @@ struct mlx4_ib_dev {
 	struct ib_mad_agent    *send_agent[MLX4_MAX_PORTS][2];
 	struct ib_ah	       *sm_ah[MLX4_MAX_PORTS];
 	spinlock_t		sm_lock;
+	atomic64_t		sl2vl[MLX4_MAX_PORTS];
 	struct mlx4_ib_sriov	sriov;
 
 	struct mutex		cap_mask_mutex;
@@ -600,6 +601,7 @@ struct ib_event_work {
 	struct work_struct	work;
 	struct mlx4_ib_dev	*ib_dev;
 	struct mlx4_eqe		ib_eqe;
+	int			port;
 };
 
 struct mlx4_ib_qp_tunnel_init_attr {
@@ -740,7 +742,8 @@ int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
+struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+				struct ib_udata *udata);
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
 int mlx4_ib_destroy_ah(struct ib_ah *ah);
 
@@ -882,5 +885,10 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			  struct ib_udata *udata);
 int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 				    u8 port_num, int index);
+
+void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
+				     int port);
+
+void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port);
 
 #endif /* MLX4_IB_H */

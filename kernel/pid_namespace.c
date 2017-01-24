@@ -79,23 +79,36 @@ static void proc_cleanup_work(struct work_struct *work)
 /* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
 #define MAX_PID_NS_LEVEL 32
 
+static struct ucounts *inc_pid_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_PID_NAMESPACES);
+}
+
+static void dec_pid_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_PID_NAMESPACES);
+}
+
 static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns,
 	struct pid_namespace *parent_pid_ns)
 {
 	struct pid_namespace *ns;
 	unsigned int level = parent_pid_ns->level + 1;
+	struct ucounts *ucounts;
 	int i;
 	int err;
 
-	if (level > MAX_PID_NS_LEVEL) {
-		err = -EINVAL;
+	err = -ENOSPC;
+	if (level > MAX_PID_NS_LEVEL)
 		goto out;
-	}
+	ucounts = inc_pid_namespaces(user_ns);
+	if (!ucounts)
+		goto out;
 
 	err = -ENOMEM;
 	ns = kmem_cache_zalloc(pid_ns_cachep, GFP_KERNEL);
 	if (ns == NULL)
-		goto out;
+		goto out_dec;
 
 	ns->pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ns->pidmap[0].page)
@@ -114,6 +127,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
+	ns->ucounts = ucounts;
 	ns->nr_hashed = PIDNS_HASH_ADDING;
 	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
@@ -129,14 +143,20 @@ out_free_map:
 	kfree(ns->pidmap[0].page);
 out_free:
 	kmem_cache_free(pid_ns_cachep, ns);
+out_dec:
+	dec_pid_namespaces(ucounts);
 out:
 	return ERR_PTR(err);
 }
 
 static void delayed_free_pidns(struct rcu_head *p)
 {
-	kmem_cache_free(pid_ns_cachep,
-			container_of(p, struct pid_namespace, rcu));
+	struct pid_namespace *ns = container_of(p, struct pid_namespace, rcu);
+
+	dec_pid_namespaces(ns->ucounts);
+	put_user_ns(ns->user_ns);
+
+	kmem_cache_free(pid_ns_cachep, ns);
 }
 
 static void destroy_pid_namespace(struct pid_namespace *ns)
@@ -146,7 +166,6 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	ns_free_inum(&ns->ns);
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
-	put_user_ns(ns->user_ns);
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 
@@ -388,12 +407,37 @@ static int pidns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 	return 0;
 }
 
+static struct ns_common *pidns_get_parent(struct ns_common *ns)
+{
+	struct pid_namespace *active = task_active_pid_ns(current);
+	struct pid_namespace *pid_ns, *p;
+
+	/* See if the parent is in the current namespace */
+	pid_ns = p = to_pid_ns(ns)->parent;
+	for (;;) {
+		if (!p)
+			return ERR_PTR(-EPERM);
+		if (p == active)
+			break;
+		p = p->parent;
+	}
+
+	return &get_pid_ns(pid_ns)->ns;
+}
+
+static struct user_namespace *pidns_owner(struct ns_common *ns)
+{
+	return to_pid_ns(ns)->user_ns;
+}
+
 const struct proc_ns_operations pidns_operations = {
 	.name		= "pid",
 	.type		= CLONE_NEWPID,
 	.get		= pidns_get,
 	.put		= pidns_put,
 	.install	= pidns_install,
+	.owner		= pidns_owner,
+	.get_parent	= pidns_get_parent,
 };
 
 static __init int pid_namespaces_init(void)

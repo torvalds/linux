@@ -166,6 +166,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 			if (!req)
 				break;
 
+			ctx = crypto_tfm_ctx(req->tfm);
 			mv_cesa_complete_req(ctx, req, 0);
 		}
 	}
@@ -372,10 +373,6 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 
 	dma->padding_pool = dmam_pool_create("cesa_padding", dev, 72, 1, 0);
 	if (!dma->padding_pool)
-		return -ENOMEM;
-
-	dma->iv_pool = dmam_pool_create("cesa_iv", dev, 16, 1, 0);
-	if (!dma->iv_pool)
 		return -ENOMEM;
 
 	cesa->dma = dma;

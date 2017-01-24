@@ -629,7 +629,7 @@ static int iTCO_wdt_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops iTCO_wdt_pm = {
+static const struct dev_pm_ops iTCO_wdt_pm = {
 	.suspend_noirq = iTCO_wdt_suspend_noirq,
 	.resume_noirq = iTCO_wdt_resume_noirq,
 };

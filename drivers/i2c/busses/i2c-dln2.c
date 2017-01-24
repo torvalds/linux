@@ -182,7 +182,7 @@ static const struct i2c_algorithm dln2_i2c_usb_algorithm = {
 	.functionality = dln2_i2c_func,
 };
 
-static struct i2c_adapter_quirks dln2_i2c_quirks = {
+static const struct i2c_adapter_quirks dln2_i2c_quirks = {
 	.max_read_len = DLN2_I2C_MAX_XFER_SIZE,
 	.max_write_len = DLN2_I2C_MAX_XFER_SIZE,
 };
@@ -228,10 +228,8 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 
 	/* and finally attach to i2c layer */
 	ret = i2c_add_adapter(&dln2->adapter);
-	if (ret < 0) {
-		dev_err(dev, "failed to add I2C adapter: %d\n", ret);
+	if (ret < 0)
 		goto out_disable;
-	}
 
 	return 0;
 

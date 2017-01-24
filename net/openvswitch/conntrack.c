@@ -370,8 +370,11 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 		skb_orphan(skb);
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 		err = nf_ct_frag6_gather(net, skb, user);
-		if (err)
+		if (err) {
+			if (err != -EINPROGRESS)
+				kfree_skb(skb);
 			return err;
+		}
 
 		key->ip.proto = ipv6_hdr(skb)->nexthdr;
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
@@ -511,7 +514,7 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 	int hooknum, nh_off, err = NF_ACCEPT;
 
 	nh_off = skb_network_offset(skb);
-	skb_pull(skb, nh_off);
+	skb_pull_rcsum(skb, nh_off);
 
 	/* See HOOK2MANIP(). */
 	if (maniptype == NF_NAT_MANIP_SRC)
@@ -576,6 +579,7 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 	err = nf_nat_packet(ct, ctinfo, hooknum, skb);
 push:
 	skb_push(skb, nh_off);
+	skb_postpush_rcsum(skb, skb->data, nh_off);
 
 	return err;
 }
@@ -725,12 +729,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			skb->nfctinfo = IP_CT_NEW;
 		}
 
-		/* Repeat if requested, see nf_iterate(). */
-		do {
-			err = nf_conntrack_in(net, info->family,
-					      NF_INET_PRE_ROUTING, skb);
-		} while (err == NF_REPEAT);
-
+		err = nf_conntrack_in(net, info->family,
+				      NF_INET_PRE_ROUTING, skb);
 		if (err != NF_ACCEPT)
 			return -ENOENT;
 
@@ -887,7 +887,7 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 
 	/* The conntrack module expects to be working at L3. */
 	nh_ofs = skb_network_offset(skb);
-	skb_pull(skb, nh_ofs);
+	skb_pull_rcsum(skb, nh_ofs);
 
 	if (key->ip.frag != OVS_FRAG_TYPE_NONE) {
 		err = handle_fragments(net, key, info->zone.id, skb);
@@ -901,6 +901,7 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		err = ovs_ct_lookup(net, key, info, skb);
 
 	skb_push(skb, nh_ofs);
+	skb_postpush_rcsum(skb, skb->data, nh_ofs);
 	if (err)
 		kfree_skb(skb);
 	return err;
@@ -1367,7 +1368,7 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 	if (ct_info->helper)
 		module_put(ct_info->helper->me);
 	if (ct_info->ct)
-		nf_ct_put(ct_info->ct);
+		nf_ct_tmpl_free(ct_info->ct);
 }
 
 void ovs_ct_init(struct net *net)

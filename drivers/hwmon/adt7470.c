@@ -32,6 +32,7 @@
 #include <linux/log2.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/util_macros.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
@@ -83,6 +84,7 @@ static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
 #define ADT7470_REG_PWM_MIN_MAX_ADDR		0x6D
 #define ADT7470_REG_PWM_TEMP_MIN_BASE_ADDR	0x6E
 #define ADT7470_REG_PWM_TEMP_MIN_MAX_ADDR	0x71
+#define ADT7470_REG_CFG_2			0x74
 #define ADT7470_REG_ACOUSTICS12			0x75
 #define ADT7470_REG_ACOUSTICS34			0x76
 #define ADT7470_REG_DEVICE			0x3D
@@ -142,6 +144,11 @@ static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
 #define FAN_PERIOD_INVALID	65535
 #define FAN_DATA_VALID(x)	((x) && (x) != FAN_PERIOD_INVALID)
 
+/* Config registers 1 and 2 include fields for selecting the PWM frequency */
+#define ADT7470_CFG_LF		0x40
+#define ADT7470_FREQ_MASK	0x70
+#define ADT7470_FREQ_SHIFT	4
+
 struct adt7470_data {
 	struct i2c_client	*client;
 	struct mutex		lock;
@@ -170,7 +177,6 @@ struct adt7470_data {
 	u8			pwm_auto_temp[ADT7470_PWM_COUNT];
 
 	struct task_struct	*auto_update;
-	struct completion	auto_update_stop;
 	unsigned int		auto_update_interval;
 };
 
@@ -266,12 +272,14 @@ static int adt7470_update_thread(void *p)
 		mutex_lock(&data->lock);
 		adt7470_read_temperatures(client, data);
 		mutex_unlock(&data->lock);
+
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			break;
-		msleep_interruptible(data->auto_update_interval);
+
+		schedule_timeout(msecs_to_jiffies(data->auto_update_interval));
 	}
 
-	complete_all(&data->auto_update_stop);
 	return 0;
 }
 
@@ -475,8 +483,8 @@ static ssize_t set_temp_min(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -128000, 127000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = clamp_val(temp, -128, 127);
 
 	mutex_lock(&data->lock);
 	data->temp_min[attr->index] = temp;
@@ -509,8 +517,8 @@ static ssize_t set_temp_max(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -128000, 127000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = clamp_val(temp, -128, 127);
 
 	mutex_lock(&data->lock);
 	data->temp_max[attr->index] = temp;
@@ -536,6 +544,28 @@ static ssize_t show_alarm_mask(struct device *dev,
 	struct adt7470_data *data = adt7470_update_device(dev);
 
 	return sprintf(buf, "%x\n", data->alarms_mask);
+}
+
+static ssize_t set_alarm_mask(struct device *dev,
+			      struct device_attribute *devattr,
+			      const char *buf,
+			      size_t count)
+{
+	struct adt7470_data *data = dev_get_drvdata(dev);
+	long mask;
+
+	if (kstrtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	if (mask & ~0xffff)
+		return -EINVAL;
+
+	mutex_lock(&data->lock);
+	data->alarms_mask = mask;
+	adt7470_write_word_data(data->client, ADT7470_REG_ALARM1_MASK, mask);
+	mutex_unlock(&data->lock);
+
+	return count;
 }
 
 static ssize_t show_fan_max(struct device *dev,
@@ -688,6 +718,70 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+/* These are the valid PWM frequencies to the nearest Hz */
+static const int adt7470_freq_map[] = {
+	11, 15, 22, 29, 35, 44, 59, 88, 1400, 22500
+};
+
+static ssize_t show_pwm_freq(struct device *dev,
+			     struct device_attribute *devattr, char *buf)
+{
+	struct adt7470_data *data = adt7470_update_device(dev);
+	unsigned char cfg_reg_1;
+	unsigned char cfg_reg_2;
+	int index;
+
+	mutex_lock(&data->lock);
+	cfg_reg_1 = i2c_smbus_read_byte_data(data->client, ADT7470_REG_CFG);
+	cfg_reg_2 = i2c_smbus_read_byte_data(data->client, ADT7470_REG_CFG_2);
+	mutex_unlock(&data->lock);
+
+	index = (cfg_reg_2 & ADT7470_FREQ_MASK) >> ADT7470_FREQ_SHIFT;
+	if (!(cfg_reg_1 & ADT7470_CFG_LF))
+		index += 8;
+	if (index >= ARRAY_SIZE(adt7470_freq_map))
+		index = ARRAY_SIZE(adt7470_freq_map) - 1;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", adt7470_freq_map[index]);
+}
+
+static ssize_t set_pwm_freq(struct device *dev,
+			    struct device_attribute *devattr,
+			    const char *buf, size_t count)
+{
+	struct adt7470_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	long freq;
+	int index;
+	int low_freq = ADT7470_CFG_LF;
+	unsigned char val;
+
+	if (kstrtol(buf, 10, &freq))
+		return -EINVAL;
+
+	/* Round the user value given to the closest available frequency */
+	index = find_closest(freq, adt7470_freq_map,
+			     ARRAY_SIZE(adt7470_freq_map));
+
+	if (index >= 8) {
+		index -= 8;
+		low_freq = 0;
+	}
+
+	mutex_lock(&data->lock);
+	/* Configuration Register 1 */
+	val = i2c_smbus_read_byte_data(client, ADT7470_REG_CFG);
+	i2c_smbus_write_byte_data(client, ADT7470_REG_CFG,
+				  (val & ~ADT7470_CFG_LF) | low_freq);
+	/* Configuration Register 2 */
+	val = i2c_smbus_read_byte_data(client, ADT7470_REG_CFG_2);
+	i2c_smbus_write_byte_data(client, ADT7470_REG_CFG_2,
+		(val & ~ADT7470_FREQ_MASK) | (index << ADT7470_FREQ_SHIFT));
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
 static ssize_t show_pwm_max(struct device *dev,
 			    struct device_attribute *devattr,
 			    char *buf)
@@ -786,8 +880,8 @@ static ssize_t set_pwm_tmin(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -128000, 127000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = clamp_val(temp, -128, 127);
 
 	mutex_lock(&data->lock);
 	data->pwm_tmin[attr->index] = temp;
@@ -918,7 +1012,8 @@ static ssize_t show_alarm(struct device *dev,
 		return sprintf(buf, "0\n");
 }
 
-static DEVICE_ATTR(alarm_mask, S_IRUGO, show_alarm_mask, NULL);
+static DEVICE_ATTR(alarm_mask, S_IWUSR | S_IRUGO, show_alarm_mask,
+		   set_alarm_mask);
 static DEVICE_ATTR(num_temp_sensors, S_IWUSR | S_IRUGO, show_num_temp_sensors,
 		   set_num_temp_sensors);
 static DEVICE_ATTR(auto_update_interval, S_IWUSR | S_IRUGO,
@@ -1038,6 +1133,8 @@ static SENSOR_DEVICE_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 2);
 static SENSOR_DEVICE_ATTR(pwm4, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 3);
 
+static DEVICE_ATTR(pwm1_freq, S_IWUSR | S_IRUGO, show_pwm_freq, set_pwm_freq);
+
 static SENSOR_DEVICE_ATTR(pwm1_auto_point1_pwm, S_IWUSR | S_IRUGO,
 		    show_pwm_min, set_pwm_min, 0);
 static SENSOR_DEVICE_ATTR(pwm2_auto_point1_pwm, S_IWUSR | S_IRUGO,
@@ -1154,6 +1251,7 @@ static struct attribute *adt7470_attrs[] = {
 	&sensor_dev_attr_fan4_alarm.dev_attr.attr,
 	&sensor_dev_attr_force_pwm_max.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&dev_attr_pwm1_freq.attr,
 	&sensor_dev_attr_pwm2.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
 	&sensor_dev_attr_pwm4.dev_attr.attr,
@@ -1256,7 +1354,6 @@ static int adt7470_probe(struct i2c_client *client,
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	init_completion(&data->auto_update_stop);
 	data->auto_update = kthread_run(adt7470_update_thread, client, "%s",
 					dev_name(hwmon_dev));
 	if (IS_ERR(data->auto_update)) {
@@ -1271,7 +1368,6 @@ static int adt7470_remove(struct i2c_client *client)
 	struct adt7470_data *data = i2c_get_clientdata(client);
 
 	kthread_stop(data->auto_update);
-	wait_for_completion(&data->auto_update_stop);
 	return 0;
 }
 

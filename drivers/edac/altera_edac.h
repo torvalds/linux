@@ -250,6 +250,8 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INTTEST_OFST       0x24
 #define ALTR_A10_ECC_TSERRA             BIT(0)
 #define ALTR_A10_ECC_TDERRA             BIT(8)
+#define ALTR_A10_ECC_TSERRB             BIT(16)
+#define ALTR_A10_ECC_TDERRB             BIT(24)
 
 /* ECC Manager Defines */
 #define A10_SYSMGR_ECC_INTMASK_SET_OFST   0x94
@@ -288,6 +290,9 @@ struct altr_sdram_mc_data {
 /* Arria 10 Ethernet ECC Management Group Defines */
 #define ALTR_A10_COMMON_ECC_EN_CTL      BIT(0)
 
+/* Arria 10 SDMMC ECC Management Group Defines */
+#define ALTR_A10_SDMMC_IRQ_MASK         (BIT(16) | BIT(15))
+
 /* A10 ECC Controller memory initialization timeout */
 #define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
 
@@ -298,7 +303,6 @@ struct edac_device_prv_data {
 	int ce_clear_mask;
 	int ue_clear_mask;
 	int irq_status_mask;
-	char dbgfs_name[20];
 	void * (*alloc_mem)(size_t size, void **other);
 	void (*free_mem)(void *p, size_t size, void *other);
 	int ecc_enable_mask;

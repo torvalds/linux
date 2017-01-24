@@ -33,12 +33,12 @@ static inline u8 vp_ioread8(u8 __iomem *addr)
 {
 	return ioread8(addr);
 }
-static inline u16 vp_ioread16 (u16 __iomem *addr)
+static inline u16 vp_ioread16 (__le16 __iomem *addr)
 {
 	return ioread16(addr);
 }
 
-static inline u32 vp_ioread32(u32 __iomem *addr)
+static inline u32 vp_ioread32(__le32 __iomem *addr)
 {
 	return ioread32(addr);
 }
@@ -48,12 +48,12 @@ static inline void vp_iowrite8(u8 value, u8 __iomem *addr)
 	iowrite8(value, addr);
 }
 
-static inline void vp_iowrite16(u16 value, u16 __iomem *addr)
+static inline void vp_iowrite16(u16 value, __le16 __iomem *addr)
 {
 	iowrite16(value, addr);
 }
 
-static inline void vp_iowrite32(u32 value, u32 __iomem *addr)
+static inline void vp_iowrite32(u32 value, __le32 __iomem *addr)
 {
 	iowrite32(value, addr);
 }

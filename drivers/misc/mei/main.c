@@ -71,6 +71,7 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto err_unlock;
 	}
 
+	cl->fp = file;
 	file->private_data = cl;
 
 	mutex_unlock(&dev->device_lock);
@@ -138,9 +139,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	struct mei_cl_cb *cb = NULL;
+	bool nonblock = !!(file->f_flags & O_NONBLOCK);
 	int rets;
-	int err;
-
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -164,11 +164,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_read(dev, file, ubuf, length, offset);
-		goto out;
-	}
-
 	cb = mei_cl_read_cb(cl, file);
 	if (cb)
 		goto copy_buffer;
@@ -176,24 +171,29 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	if (*offset > 0)
 		*offset = 0;
 
-	err = mei_cl_read_start(cl, length, file);
-	if (err && err != -EBUSY) {
-		cl_dbg(dev, cl, "mei start read failure status = %d\n", err);
-		rets = err;
+	rets = mei_cl_read_start(cl, length, file);
+	if (rets && rets != -EBUSY) {
+		cl_dbg(dev, cl, "mei start read failure status = %d\n", rets);
 		goto out;
 	}
 
-	if (list_empty(&cl->rd_completed) && !waitqueue_active(&cl->rx_wait)) {
-		if (file->f_flags & O_NONBLOCK) {
-			rets = -EAGAIN;
-			goto out;
-		}
+	if (nonblock) {
+		rets = -EAGAIN;
+		goto out;
+	}
 
+	if (rets == -EBUSY &&
+	    !mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, file)) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	do {
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-				(!list_empty(&cl->rd_completed)) ||
-				(!mei_cl_is_connected(cl)))) {
+					     (!list_empty(&cl->rd_completed)) ||
+					     (!mei_cl_is_connected(cl)))) {
 
 			if (signal_pending(current))
 				return -EINTR;
@@ -202,16 +202,12 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 		mutex_lock(&dev->device_lock);
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
-	}
 
-	cb = mei_cl_read_cb(cl, file);
-	if (!cb) {
-		rets = 0;
-		goto out;
-	}
+		cb = mei_cl_read_cb(cl, file);
+	} while (!cb);
 
 copy_buffer:
 	/* now copy the data to user space */
@@ -326,7 +322,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	rets = mei_cl_write(cl, cb, false);
+	rets = mei_cl_write(cl, cb);
 out:
 	mutex_unlock(&dev->device_lock);
 	return rets;
@@ -609,15 +605,15 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		mask = mei_amthif_poll(dev, file, wait);
-		goto out;
-	}
-
 	if (notify_en) {
 		poll_wait(file, &cl->ev_wait, wait);
 		if (cl->notify_ev)
 			mask |= POLLPRI;
+	}
+
+	if (cl == &dev->iamthif_cl) {
+		mask |= mei_amthif_poll(file, wait);
+		goto out;
 	}
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
@@ -626,7 +622,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		if (!list_empty(&cl->rd_completed))
 			mask |= POLLIN | POLLRDNORM;
 		else
-			mei_cl_read_start(cl, 0, file);
+			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
 	}
 
 out:
@@ -657,7 +653,7 @@ static int mei_fasync(int fd, struct file *file, int band)
 }
 
 /**
- * fw_status_show - mei device attribute show method
+ * fw_status_show - mei device fw_status attribute show method
  *
  * @device: device pointer
  * @attr: attribute pointer
@@ -688,8 +684,49 @@ static ssize_t fw_status_show(struct device *device,
 }
 static DEVICE_ATTR_RO(fw_status);
 
+/**
+ * hbm_ver_show - display HBM protocol version negotiated with FW
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t hbm_ver_show(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	struct hbm_version ver;
+
+	mutex_lock(&dev->device_lock);
+	ver = dev->version;
+	mutex_unlock(&dev->device_lock);
+
+	return sprintf(buf, "%u.%u\n", ver.major_version, ver.minor_version);
+}
+static DEVICE_ATTR_RO(hbm_ver);
+
+/**
+ * hbm_ver_drv_show - display HBM protocol version advertised by driver
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t hbm_ver_drv_show(struct device *device,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u.%u\n", HBM_MAJOR_VERSION, HBM_MINOR_VERSION);
+}
+static DEVICE_ATTR_RO(hbm_ver_drv);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
+	&dev_attr_hbm_ver.attr,
+	&dev_attr_hbm_ver_drv.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);

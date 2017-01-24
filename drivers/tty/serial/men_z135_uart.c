@@ -775,7 +775,7 @@ static int men_z135_verify_port(struct uart_port *port,
 	return -EINVAL;
 }
 
-static struct uart_ops men_z135_ops = {
+static const struct uart_ops men_z135_ops = {
 	.tx_empty = men_z135_tx_empty,
 	.set_mctrl = men_z135_set_mctrl,
 	.get_mctrl = men_z135_get_mctrl,

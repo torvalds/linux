@@ -46,6 +46,17 @@ static void *qed_vf_pf_prep(struct qed_hwfn *p_hwfn, u16 type, u16 length)
 	return p_tlv;
 }
 
+static void qed_vf_pf_req_end(struct qed_hwfn *p_hwfn, int req_status)
+{
+	union pfvf_tlvs *resp = p_hwfn->vf_iov_info->pf2vf_reply;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "VF request status = 0x%x, PF reply status = 0x%x\n",
+		   req_status, resp->default_resp.hdr.status);
+
+	mutex_unlock(&(p_hwfn->vf_iov_info->mutex));
+}
+
 static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 {
 	union vfpf_tlvs *p_req = p_hwfn->vf_iov_info->vf2pf_request;
@@ -103,15 +114,11 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 			   "VF <-- PF Timeout [Type %d]\n",
 			   p_req->first_tlv.tl.type);
 		rc = -EBUSY;
-		goto exit;
 	} else {
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 			   "PF response: %d [Type %d]\n",
 			   *done, p_req->first_tlv.tl.type);
 	}
-
-exit:
-	mutex_unlock(&(p_hwfn->vf_iov_info->mutex));
 
 	return rc;
 }
@@ -191,6 +198,9 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV, "attempting to acquire resources\n");
 
+		/* Clear response buffer, as this might be a re-send */
+		memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
+
 		/* send acquire request */
 		rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 		if (rc)
@@ -205,9 +215,12 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			/* PF agrees to allocate our resources */
 			if (!(resp->pfdev_info.capabilities &
 			      PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE)) {
-				DP_INFO(p_hwfn,
-					"PF is using old incompatible driver; Either downgrade driver or request provider to update hypervisor version\n");
-				return -EINVAL;
+				/* It's possible legacy PF mistakenly accepted;
+				 * but we don't care - simply mark it as
+				 * legacy and continue.
+				 */
+				req->vfdev_info.capabilities |=
+				    VFPF_ACQUIRE_CAP_PRE_FP_HSI;
 			}
 			DP_VERBOSE(p_hwfn, QED_MSG_IOV, "resources acquired\n");
 			resources_acquired = true;
@@ -215,26 +228,54 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			   attempts < VF_ACQUIRE_THRESH) {
 			qed_vf_pf_acquire_reduce_resc(p_hwfn, p_resc,
 						      &resp->resc);
+		} else if (resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) {
+			if (pfdev_info->major_fp_hsi &&
+			    (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
+				DP_NOTICE(p_hwfn,
+					  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
+					  pfdev_info->major_fp_hsi,
+					  pfdev_info->minor_fp_hsi,
+					  ETH_HSI_VER_MAJOR,
+					  ETH_HSI_VER_MINOR,
+					  pfdev_info->major_fp_hsi);
+				rc = -EINVAL;
+				goto exit;
+			}
 
-			/* Clear response buffer */
-			memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
-		} else if ((resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) &&
-			   pfdev_info->major_fp_hsi &&
-			   (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
-			DP_NOTICE(p_hwfn,
-				  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
-				  pfdev_info->major_fp_hsi,
-				  pfdev_info->minor_fp_hsi,
-				  ETH_HSI_VER_MAJOR,
-				  ETH_HSI_VER_MINOR, pfdev_info->major_fp_hsi);
-			return -EINVAL;
+			if (!pfdev_info->major_fp_hsi) {
+				if (req->vfdev_info.capabilities &
+				    VFPF_ACQUIRE_CAP_PRE_FP_HSI) {
+					DP_NOTICE(p_hwfn,
+						  "PF uses very old drivers. Please change to a VF driver using no later than 8.8.x.x.\n");
+					rc = -EINVAL;
+					goto exit;
+				} else {
+					DP_INFO(p_hwfn,
+						"PF is old - try re-acquire to see if it supports FW-version override\n");
+					req->vfdev_info.capabilities |=
+					    VFPF_ACQUIRE_CAP_PRE_FP_HSI;
+					continue;
+				}
+			}
+
+			/* If PF/VF are using same Major, PF must have had
+			 * it's reasons. Simply fail.
+			 */
+			DP_NOTICE(p_hwfn, "PF rejected acquisition by VF\n");
+			rc = -EINVAL;
+			goto exit;
 		} else {
 			DP_ERR(p_hwfn,
 			       "PF returned error %d to VF acquisition request\n",
 			       resp->hdr.status);
-			return -EAGAIN;
+			rc = -EAGAIN;
+			goto exit;
 		}
 	}
+
+	/* Mark the PF as legacy, if needed */
+	if (req->vfdev_info.capabilities & VFPF_ACQUIRE_CAP_PRE_FP_HSI)
+		p_iov->b_pre_fp_hsi = true;
 
 	/* Update bulletin board size with response from PF */
 	p_iov->bulletin.size = resp->bulletin_size;
@@ -253,14 +294,18 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 		}
 	}
 
-	if (ETH_HSI_VER_MINOR &&
+	if (!p_iov->b_pre_fp_hsi &&
+	    ETH_HSI_VER_MINOR &&
 	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
 		DP_INFO(p_hwfn,
 			"PF is using older fastpath HSI; %02x.%02x is configured\n",
 			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
 	}
 
-	return 0;
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
+
+	return rc;
 }
 
 int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
@@ -286,31 +331,23 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 
 	/* Allocate vf sriov info */
 	p_iov = kzalloc(sizeof(*p_iov), GFP_KERNEL);
-	if (!p_iov) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sriov'\n");
+	if (!p_iov)
 		return -ENOMEM;
-	}
 
 	/* Allocate vf2pf msg */
 	p_iov->vf2pf_request = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 						  sizeof(union vfpf_tlvs),
 						  &p_iov->vf2pf_request_phys,
 						  GFP_KERNEL);
-	if (!p_iov->vf2pf_request) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate `vf2pf_request' DMA memory\n");
+	if (!p_iov->vf2pf_request)
 		goto free_p_iov;
-	}
 
 	p_iov->pf2vf_reply = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 						sizeof(union pfvf_tlvs),
 						&p_iov->pf2vf_reply_phys,
 						GFP_KERNEL);
-	if (!p_iov->pf2vf_reply) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate `pf2vf_reply' DMA memory\n");
+	if (!p_iov->pf2vf_reply)
 		goto free_vf2pf_request;
-	}
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
@@ -347,19 +384,22 @@ free_p_iov:
 
 	return -ENOMEM;
 }
+#define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
+#define MSTORM_QZONE_START(dev)   (TSTORM_QZONE_START +	\
+				   (TSTORM_QZONE_SIZE * NUM_OF_L2_QUEUES(dev)))
 
-int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
-			u8 rx_qid,
-			u16 sb,
-			u8 sb_index,
-			u16 bd_max_bytes,
-			dma_addr_t bd_chain_phys_addr,
-			dma_addr_t cqe_pbl_addr,
-			u16 cqe_pbl_size, void __iomem **pp_prod)
+int
+qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
+		    struct qed_queue_cid *p_cid,
+		    u16 bd_max_bytes,
+		    dma_addr_t bd_chain_phys_addr,
+		    dma_addr_t cqe_pbl_addr,
+		    u16 cqe_pbl_size, void __iomem **pp_prod)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct pfvf_start_queue_resp_tlv *resp;
 	struct vfpf_start_rxq_tlv *req;
+	u8 rx_qid = p_cid->rel.queue_id;
 	int rc;
 
 	/* clear mailbox and prep first tlv */
@@ -369,11 +409,27 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 	req->cqe_pbl_addr = cqe_pbl_addr;
 	req->cqe_pbl_size = cqe_pbl_size;
 	req->rxq_addr = bd_chain_phys_addr;
-	req->hw_sb = sb;
-	req->sb_index = sb_index;
+	req->hw_sb = p_cid->rel.sb;
+	req->sb_index = p_cid->rel.sb_idx;
 	req->bd_max_bytes = bd_max_bytes;
 	req->stat_id = -1;
 
+	/* If PF is legacy, we'll need to calculate producers ourselves
+	 * as well as clean them.
+	 */
+	if (p_iov->b_pre_fp_hsi) {
+		u8 hw_qid = p_iov->acquire_resp.resc.hw_qid[rx_qid];
+		u32 init_prod_val = 0;
+
+		*pp_prod = (u8 __iomem *)
+		    p_hwfn->regview +
+		    MSTORM_QZONE_START(p_hwfn->cdev) +
+		    hw_qid * MSTORM_QZONE_SIZE;
+
+		/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
+		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
+				  (u32 *)(&init_prod_val));
+	}
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
 		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
@@ -381,13 +437,15 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 	resp = &p_iov->pf2vf_reply->queue_start;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
 
 	/* Learn the address of the producer from the response */
-	if (pp_prod) {
+	if (!p_iov->b_pre_fp_hsi) {
 		u32 init_prod_val = 0;
 
 		*pp_prod = (u8 __iomem *)p_hwfn->regview + resp->offset;
@@ -399,11 +457,14 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 				  (u32 *)&init_prod_val);
 	}
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
 
-int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn, u16 rx_qid, bool cqe_completion)
+int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
+		       struct qed_queue_cid *p_cid, bool cqe_completion)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct vfpf_stop_rxqs_tlv *req;
@@ -413,7 +474,7 @@ int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn, u16 rx_qid, bool cqe_completion)
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_STOP_RXQS, sizeof(*req));
 
-	req->rx_qid = rx_qid;
+	req->rx_qid = p_cid->rel.queue_id;
 	req->num_rxqs = 1;
 	req->cqe_completion = cqe_completion;
 
@@ -424,36 +485,41 @@ int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn, u16 rx_qid, bool cqe_completion)
 	resp = &p_iov->pf2vf_reply->default_resp;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
 
-int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
-			u16 tx_queue_id,
-			u16 sb,
-			u8 sb_index,
-			dma_addr_t pbl_addr,
-			u16 pbl_size, void __iomem **pp_doorbell)
+int
+qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
+		    struct qed_queue_cid *p_cid,
+		    dma_addr_t pbl_addr,
+		    u16 pbl_size, void __iomem **pp_doorbell)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct pfvf_start_queue_resp_tlv *resp;
 	struct vfpf_start_txq_tlv *req;
+	u16 qid = p_cid->rel.queue_id;
 	int rc;
 
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_START_TXQ, sizeof(*req));
 
-	req->tx_qid = tx_queue_id;
+	req->tx_qid = qid;
 
 	/* Tx */
 	req->pbl_addr = pbl_addr;
 	req->pbl_size = pbl_size;
-	req->hw_sb = sb;
-	req->sb_index = sb_index;
+	req->hw_sb = p_cid->rel.sb;
+	req->sb_index = p_cid->rel.sb_idx;
 
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
@@ -469,19 +535,29 @@ int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 		goto exit;
 	}
 
-	if (pp_doorbell) {
+	/* Modern PFs provide the actual offsets, while legacy
+	 * provided only the queue id.
+	 */
+	if (!p_iov->b_pre_fp_hsi) {
 		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells + resp->offset;
+	} else {
+		u8 cid = p_iov->acquire_resp.resc.cid[qid];
 
-		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "Txq[0x%02x]: doorbell at %p [offset 0x%08x]\n",
-			   tx_queue_id, *pp_doorbell, resp->offset);
+		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
+					     qed_db_addr_vf(cid,
+							    DQ_DEMS_LEGACY);
 	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "Txq[0x%02x]: doorbell at %p [offset 0x%08x]\n",
+		   qid, *pp_doorbell, resp->offset);
 exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
 
-int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
+int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, struct qed_queue_cid *p_cid)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct vfpf_stop_txqs_tlv *req;
@@ -491,7 +567,7 @@ int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_STOP_TXQS, sizeof(*req));
 
-	req->tx_qid = tx_qid;
+	req->tx_qid = p_cid->rel.queue_id;
 	req->num_txqs = 1;
 
 	/* add list termination tlv */
@@ -501,10 +577,15 @@ int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
 	resp = &p_iov->pf2vf_reply->default_resp;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
@@ -543,10 +624,15 @@ int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 	resp = &p_iov->pf2vf_reply->default_resp;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
@@ -567,10 +653,15 @@ int qed_vf_pf_vport_stop(struct qed_hwfn *p_hwfn)
 
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
@@ -770,12 +861,17 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, resp_size);
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
 
 	qed_vf_handle_vp_update_tlvs_resp(p_hwfn, p_params);
+
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	return rc;
 }
@@ -797,14 +893,19 @@ int qed_vf_pf_reset(struct qed_hwfn *p_hwfn)
 	resp = &p_iov->pf2vf_reply->default_resp;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EAGAIN;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EAGAIN;
+		goto exit;
+	}
 
 	p_hwfn->b_int_enabled = 0;
 
-	return 0;
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
+
+	return rc;
 }
 
 int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
@@ -827,6 +928,8 @@ int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
 
 	if (!rc && resp->hdr.status != PFVF_STATUS_SUCCESS)
 		rc = -EAGAIN;
+
+	qed_vf_pf_req_end(p_hwfn, rc);
 
 	p_hwfn->b_int_enabled = 0;
 
@@ -896,12 +999,17 @@ int qed_vf_pf_filter_ucast(struct qed_hwfn *p_hwfn,
 	resp = &p_iov->pf2vf_reply->default_resp;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EAGAIN;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EAGAIN;
+		goto exit;
+	}
 
-	return 0;
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
+
+	return rc;
 }
 
 int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
@@ -920,12 +1028,17 @@ int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
 
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
 
-	return 0;
+exit:
+	qed_vf_pf_req_end(p_hwfn, rc);
+
+	return rc;
 }
 
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
@@ -1056,6 +1169,13 @@ void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn, u8 *num_vlan_filters)
 	*num_vlan_filters = p_vf->acquire_resp.resc.num_vlan_filters;
 }
 
+void qed_vf_get_num_mac_filters(struct qed_hwfn *p_hwfn, u8 *num_mac_filters)
+{
+	struct qed_vf_iov *p_vf = p_hwfn->vf_iov_info;
+
+	*num_mac_filters = p_vf->acquire_resp.resc.num_mac_filters;
+}
+
 bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 {
 	struct qed_bulletin_content *bulletin;
@@ -1071,8 +1191,8 @@ bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 	return false;
 }
 
-bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
-				    u8 *dst_mac, u8 *p_is_forced)
+static bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
+					   u8 *dst_mac, u8 *p_is_forced)
 {
 	struct qed_bulletin_content *bulletin;
 
@@ -1115,8 +1235,8 @@ static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
 
 	is_mac_exist = qed_vf_bulletin_get_forced_mac(hwfn, mac,
 						      &is_mac_forced);
-	if (is_mac_exist && is_mac_forced && cookie)
-		ops->force_mac(cookie, mac);
+	if (is_mac_exist && cookie)
+		ops->force_mac(cookie, mac, !!is_mac_forced);
 
 	/* Always update link configuration according to bulletin */
 	qed_link_update(hwfn);

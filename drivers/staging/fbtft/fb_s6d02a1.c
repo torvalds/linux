@@ -24,7 +24,7 @@
 
 #define DRVNAME "fb_s6d02a1"
 
-static int default_init_sequence[] = {
+static s16 default_init_sequence[] = {
 
 	-1, 0xf0, 0x5a, 0x5a,
 
@@ -113,12 +113,14 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 #define MV BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	/* Memory data access control (0x36h)
-	     RGB/BGR:
-		1. Mode selection pin SRGB
-			RGB H/W pin for color filter setting: 0=RGB, 1=BGR
-		2. MADCTL RGB bit
-			RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR */
+	/*
+	 * Memory data access control (0x36h)
+	 * RGB/BGR:
+	 *	1. Mode selection pin SRGB
+	 *		RGB H/W pin for color filter setting: 0=RGB, 1=BGR
+	 *	2. MADCTL RGB bit
+	 *		RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,

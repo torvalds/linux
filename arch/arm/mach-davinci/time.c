@@ -268,7 +268,7 @@ static void __init timer_init(void)
 /*
  * clocksource
  */
-static cycle_t read_cycles(struct clocksource *cs)
+static u64 read_cycles(struct clocksource *cs)
 {
 	struct timer_s *t = &timers[TID_CLOCKSOURCE];
 

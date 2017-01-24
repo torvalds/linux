@@ -47,6 +47,7 @@
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -55,7 +56,7 @@
 
 struct hfi1_affinity_node_list node_affinity = {
 	.list = LIST_HEAD_INIT(node_affinity.list),
-	.lock = __SPIN_LOCK_UNLOCKED(&node_affinity.lock),
+	.lock = __MUTEX_INITIALIZER(node_affinity.lock)
 };
 
 /* Name of IRQ types, indexed by enum irq_type */
@@ -124,6 +125,7 @@ int node_affinity_init(void)
 				cpumask_weight(topology_sibling_cpumask(
 					cpumask_first(&node_affinity.proc.mask)
 					));
+	node_affinity.num_possible_nodes = num_possible_nodes();
 	node_affinity.num_online_nodes = num_online_nodes();
 	node_affinity.num_online_cpus = num_online_cpus();
 
@@ -134,7 +136,7 @@ int node_affinity_init(void)
 	 */
 	init_real_cpu_mask();
 
-	hfi1_per_node_cntr = kcalloc(num_possible_nodes(),
+	hfi1_per_node_cntr = kcalloc(node_affinity.num_possible_nodes,
 				     sizeof(*hfi1_per_node_cntr), GFP_KERNEL);
 	if (!hfi1_per_node_cntr)
 		return -ENOMEM;
@@ -159,14 +161,14 @@ void node_affinity_destroy(void)
 	struct list_head *pos, *q;
 	struct hfi1_affinity_node *entry;
 
-	spin_lock(&node_affinity.lock);
+	mutex_lock(&node_affinity.lock);
 	list_for_each_safe(pos, q, &node_affinity.list) {
 		entry = list_entry(pos, struct hfi1_affinity_node,
 				   list);
 		list_del(pos);
 		kfree(entry);
 	}
-	spin_unlock(&node_affinity.lock);
+	mutex_unlock(&node_affinity.lock);
 	kfree(hfi1_per_node_cntr);
 }
 
@@ -233,9 +235,8 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	if (cpumask_first(local_mask) >= nr_cpu_ids)
 		local_mask = topology_core_cpumask(0);
 
-	spin_lock(&node_affinity.lock);
+	mutex_lock(&node_affinity.lock);
 	entry = node_affinity_lookup(dd->node);
-	spin_unlock(&node_affinity.lock);
 
 	/*
 	 * If this is the first time this NUMA node's affinity is used,
@@ -246,6 +247,7 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 		if (!entry) {
 			dd_dev_err(dd,
 				   "Unable to allocate global affinity node\n");
+			mutex_unlock(&node_affinity.lock);
 			return -ENOMEM;
 		}
 		init_cpu_mask_set(&entry->def_intr);
@@ -302,15 +304,113 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 					     &entry->general_intr_mask);
 		}
 
-		spin_lock(&node_affinity.lock);
 		node_affinity_add_tail(entry);
-		spin_unlock(&node_affinity.lock);
 	}
-
+	mutex_unlock(&node_affinity.lock);
 	return 0;
 }
 
-int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
+/*
+ * Function updates the irq affinity hint for msix after it has been changed
+ * by the user using the /proc/irq interface. This function only accepts
+ * one cpu in the mask.
+ */
+static void hfi1_update_sdma_affinity(struct hfi1_msix_entry *msix, int cpu)
+{
+	struct sdma_engine *sde = msix->arg;
+	struct hfi1_devdata *dd = sde->dd;
+	struct hfi1_affinity_node *entry;
+	struct cpu_mask_set *set;
+	int i, old_cpu;
+
+	if (cpu > num_online_cpus() || cpu == sde->cpu)
+		return;
+
+	mutex_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	if (!entry)
+		goto unlock;
+
+	old_cpu = sde->cpu;
+	sde->cpu = cpu;
+	cpumask_clear(&msix->mask);
+	cpumask_set_cpu(cpu, &msix->mask);
+	dd_dev_dbg(dd, "IRQ vector: %u, type %s engine %u -> cpu: %d\n",
+		   msix->msix.vector, irq_type_names[msix->type],
+		   sde->this_idx, cpu);
+	irq_set_affinity_hint(msix->msix.vector, &msix->mask);
+
+	/*
+	 * Set the new cpu in the hfi1_affinity_node and clean
+	 * the old cpu if it is not used by any other IRQ
+	 */
+	set = &entry->def_intr;
+	cpumask_set_cpu(cpu, &set->mask);
+	cpumask_set_cpu(cpu, &set->used);
+	for (i = 0; i < dd->num_msix_entries; i++) {
+		struct hfi1_msix_entry *other_msix;
+
+		other_msix = &dd->msix_entries[i];
+		if (other_msix->type != IRQ_SDMA || other_msix == msix)
+			continue;
+
+		if (cpumask_test_cpu(old_cpu, &other_msix->mask))
+			goto unlock;
+	}
+	cpumask_clear_cpu(old_cpu, &set->mask);
+	cpumask_clear_cpu(old_cpu, &set->used);
+unlock:
+	mutex_unlock(&node_affinity.lock);
+}
+
+static void hfi1_irq_notifier_notify(struct irq_affinity_notify *notify,
+				     const cpumask_t *mask)
+{
+	int cpu = cpumask_first(mask);
+	struct hfi1_msix_entry *msix = container_of(notify,
+						    struct hfi1_msix_entry,
+						    notify);
+
+	/* Only one CPU configuration supported currently */
+	hfi1_update_sdma_affinity(msix, cpu);
+}
+
+static void hfi1_irq_notifier_release(struct kref *ref)
+{
+	/*
+	 * This is required by affinity notifier. We don't have anything to
+	 * free here.
+	 */
+}
+
+static void hfi1_setup_sdma_notifier(struct hfi1_msix_entry *msix)
+{
+	struct irq_affinity_notify *notify = &msix->notify;
+
+	notify->irq = msix->msix.vector;
+	notify->notify = hfi1_irq_notifier_notify;
+	notify->release = hfi1_irq_notifier_release;
+
+	if (irq_set_affinity_notifier(notify->irq, notify))
+		pr_err("Failed to register sdma irq affinity notifier for irq %d\n",
+		       notify->irq);
+}
+
+static void hfi1_cleanup_sdma_notifier(struct hfi1_msix_entry *msix)
+{
+	struct irq_affinity_notify *notify = &msix->notify;
+
+	if (irq_set_affinity_notifier(notify->irq, NULL))
+		pr_err("Failed to cleanup sdma irq affinity notifier for irq %d\n",
+		       notify->irq);
+}
+
+/*
+ * Function sets the irq affinity for msix.
+ * It *must* be called with node_affinity.lock held.
+ */
+static int get_irq_affinity(struct hfi1_devdata *dd,
+			    struct hfi1_msix_entry *msix)
 {
 	int ret;
 	cpumask_var_t diff;
@@ -328,9 +428,7 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
 	if (!ret)
 		return -ENOMEM;
 
-	spin_lock(&node_affinity.lock);
 	entry = node_affinity_lookup(dd->node);
-	spin_unlock(&node_affinity.lock);
 
 	switch (msix->type) {
 	case IRQ_SDMA:
@@ -360,7 +458,6 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
 	 * finds its CPU here.
 	 */
 	if (cpu == -1 && set) {
-		spin_lock(&node_affinity.lock);
 		if (cpumask_equal(&set->mask, &set->used)) {
 			/*
 			 * We've used up all the CPUs, bump up the generation
@@ -372,17 +469,6 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
 		cpumask_andnot(diff, &set->mask, &set->used);
 		cpu = cpumask_first(diff);
 		cpumask_set_cpu(cpu, &set->used);
-		spin_unlock(&node_affinity.lock);
-	}
-
-	switch (msix->type) {
-	case IRQ_SDMA:
-		sde->cpu = cpu;
-		break;
-	case IRQ_GENERAL:
-	case IRQ_RCVCTXT:
-	case IRQ_OTHER:
-		break;
 	}
 
 	cpumask_set_cpu(cpu, &msix->mask);
@@ -391,8 +477,23 @@ int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
 		    extra, cpu);
 	irq_set_affinity_hint(msix->msix.vector, &msix->mask);
 
+	if (msix->type == IRQ_SDMA) {
+		sde->cpu = cpu;
+		hfi1_setup_sdma_notifier(msix);
+	}
+
 	free_cpumask_var(diff);
 	return 0;
+}
+
+int hfi1_get_irq_affinity(struct hfi1_devdata *dd, struct hfi1_msix_entry *msix)
+{
+	int ret;
+
+	mutex_lock(&node_affinity.lock);
+	ret = get_irq_affinity(dd, msix);
+	mutex_unlock(&node_affinity.lock);
+	return ret;
 }
 
 void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
@@ -402,13 +503,13 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 	struct hfi1_ctxtdata *rcd;
 	struct hfi1_affinity_node *entry;
 
-	spin_lock(&node_affinity.lock);
+	mutex_lock(&node_affinity.lock);
 	entry = node_affinity_lookup(dd->node);
-	spin_unlock(&node_affinity.lock);
 
 	switch (msix->type) {
 	case IRQ_SDMA:
 		set = &entry->def_intr;
+		hfi1_cleanup_sdma_notifier(msix);
 		break;
 	case IRQ_GENERAL:
 		/* Don't do accounting for general contexts */
@@ -420,21 +521,21 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 			set = &entry->rcv_intr;
 		break;
 	default:
+		mutex_unlock(&node_affinity.lock);
 		return;
 	}
 
 	if (set) {
-		spin_lock(&node_affinity.lock);
 		cpumask_andnot(&set->used, &set->used, &msix->mask);
 		if (cpumask_empty(&set->used) && set->gen) {
 			set->gen--;
 			cpumask_copy(&set->used, &set->mask);
 		}
-		spin_unlock(&node_affinity.lock);
 	}
 
 	irq_set_affinity_hint(msix->msix.vector, NULL);
 	cpumask_clear(&msix->mask);
+	mutex_unlock(&node_affinity.lock);
 }
 
 /* This should be called with node_affinity.lock held */
@@ -535,7 +636,7 @@ int hfi1_get_proc_affinity(int node)
 	if (!ret)
 		goto free_available_mask;
 
-	spin_lock(&affinity->lock);
+	mutex_lock(&affinity->lock);
 	/*
 	 * If we've used all available HW threads, clear the mask and start
 	 * overloading.
@@ -643,7 +744,8 @@ int hfi1_get_proc_affinity(int node)
 		cpu = -1;
 	else
 		cpumask_set_cpu(cpu, &set->used);
-	spin_unlock(&affinity->lock);
+
+	mutex_unlock(&affinity->lock);
 	hfi1_cdbg(PROC, "Process assigned to CPU %d", cpu);
 
 	free_cpumask_var(intrs_mask);
@@ -664,85 +766,13 @@ void hfi1_put_proc_affinity(int cpu)
 
 	if (cpu < 0)
 		return;
-	spin_lock(&affinity->lock);
+
+	mutex_lock(&affinity->lock);
 	cpumask_clear_cpu(cpu, &set->used);
 	hfi1_cdbg(PROC, "Returning CPU %d for future process assignment", cpu);
 	if (cpumask_empty(&set->used) && set->gen) {
 		set->gen--;
 		cpumask_copy(&set->used, &set->mask);
 	}
-	spin_unlock(&affinity->lock);
-}
-
-/* Prevents concurrent reads and writes of the sdma_affinity attrib */
-static DEFINE_MUTEX(sdma_affinity_mutex);
-
-int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
-			   size_t count)
-{
-	struct hfi1_affinity_node *entry;
-	cpumask_var_t mask;
-	int ret, i;
-
-	spin_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
-	spin_unlock(&node_affinity.lock);
-
-	if (!entry)
-		return -EINVAL;
-
-	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
-	if (!ret)
-		return -ENOMEM;
-
-	ret = cpulist_parse(buf, mask);
-	if (ret)
-		goto out;
-
-	if (!cpumask_subset(mask, cpu_online_mask) || cpumask_empty(mask)) {
-		dd_dev_warn(dd, "Invalid CPU mask\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	mutex_lock(&sdma_affinity_mutex);
-	/* reset the SDMA interrupt affinity details */
-	init_cpu_mask_set(&entry->def_intr);
-	cpumask_copy(&entry->def_intr.mask, mask);
-	/*
-	 * Reassign the affinity for each SDMA interrupt.
-	 */
-	for (i = 0; i < dd->num_msix_entries; i++) {
-		struct hfi1_msix_entry *msix;
-
-		msix = &dd->msix_entries[i];
-		if (msix->type != IRQ_SDMA)
-			continue;
-
-		ret = hfi1_get_irq_affinity(dd, msix);
-
-		if (ret)
-			break;
-	}
-	mutex_unlock(&sdma_affinity_mutex);
-out:
-	free_cpumask_var(mask);
-	return ret ? ret : strnlen(buf, PAGE_SIZE);
-}
-
-int hfi1_get_sdma_affinity(struct hfi1_devdata *dd, char *buf)
-{
-	struct hfi1_affinity_node *entry;
-
-	spin_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
-	spin_unlock(&node_affinity.lock);
-
-	if (!entry)
-		return -EINVAL;
-
-	mutex_lock(&sdma_affinity_mutex);
-	cpumap_print_to_pagebuf(true, buf, &entry->def_intr.mask);
-	mutex_unlock(&sdma_affinity_mutex);
-	return strnlen(buf, PAGE_SIZE);
+	mutex_unlock(&affinity->lock);
 }

@@ -29,10 +29,12 @@
 #define _LIBCFS_CRYPTO_H
 
 struct cfs_crypto_hash_type {
-	char		*cht_name;      /**< hash algorithm name, equal to
-					 * format name for crypto api */
-	unsigned int    cht_key;	/**< init key by default (valid for
-					 * 4 bytes context like crc32, adler */
+	char		*cht_name;      /*< hash algorithm name, equal to
+					 * format name for crypto api
+					 */
+	unsigned int    cht_key;	/*< init key by default (valid for
+					 * 4 bytes context like crc32, adler
+					 */
 	unsigned int    cht_size;       /**< hash digest size */
 };
 
@@ -135,7 +137,7 @@ static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 	enum cfs_crypto_hash_alg hash_alg;
 
 	for (hash_alg = 0; hash_alg < CFS_HASH_ALG_MAX; hash_alg++)
-		if (strcmp(hash_types[hash_alg].cht_name, algname) == 0)
+		if (!strcmp(hash_types[hash_alg].cht_name, algname))
 			return hash_alg;
 
 	return CFS_HASH_ALG_UNKNOWN;

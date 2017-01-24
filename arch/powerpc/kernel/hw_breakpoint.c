@@ -33,7 +33,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address
@@ -206,7 +206,7 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 /*
  * Handle debug exception notifications.
  */
-int __kprobes hw_breakpoint_handler(struct die_args *args)
+int hw_breakpoint_handler(struct die_args *args)
 {
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
@@ -275,7 +275,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	if (!stepped) {
 		WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
 			"0x%lx will be disabled.", info->address);
-		perf_event_disable(bp);
+		perf_event_disable_inatomic(bp);
 		goto out;
 	}
 	/*
@@ -290,11 +290,12 @@ out:
 	rcu_read_unlock();
 	return rc;
 }
+NOKPROBE_SYMBOL(hw_breakpoint_handler);
 
 /*
  * Handle single-step exceptions following a DABR hit.
  */
-static int __kprobes single_step_dabr_instruction(struct die_args *args)
+static int single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
 	struct perf_event *bp = NULL;
@@ -329,11 +330,12 @@ static int __kprobes single_step_dabr_instruction(struct die_args *args)
 
 	return NOTIFY_STOP;
 }
+NOKPROBE_SYMBOL(single_step_dabr_instruction);
 
 /*
  * Handle debug exception notifications.
  */
-int __kprobes hw_breakpoint_exceptions_notify(
+int hw_breakpoint_exceptions_notify(
 		struct notifier_block *unused, unsigned long val, void *data)
 {
 	int ret = NOTIFY_DONE;
@@ -349,6 +351,7 @@ int __kprobes hw_breakpoint_exceptions_notify(
 
 	return ret;
 }
+NOKPROBE_SYMBOL(hw_breakpoint_exceptions_notify);
 
 /*
  * Release the user breakpoints used by ptrace

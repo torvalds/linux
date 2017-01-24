@@ -48,8 +48,8 @@ static int drm_get_platform_dev(struct platform_device *platdev,
 	DRM_DEBUG("\n");
 
 	dev = drm_dev_alloc(driver, &platdev->dev);
-	if (!dev)
-		return -ENOMEM;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	dev->platformdev = platdev;
 

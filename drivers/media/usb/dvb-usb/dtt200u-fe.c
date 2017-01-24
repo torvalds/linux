@@ -202,7 +202,7 @@ static void dtt200u_fe_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops dtt200u_fe_ops;
+static const struct dvb_frontend_ops dtt200u_fe_ops;
 
 struct dvb_frontend* dtt200u_fe_attach(struct dvb_usb_device *d)
 {
@@ -226,7 +226,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops dtt200u_fe_ops = {
+static const struct dvb_frontend_ops dtt200u_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "WideView USB DVB-T",

@@ -37,6 +37,12 @@
 
 struct sk_buff;
 
+enum sw_flow_mac_proto {
+	MAC_PROTO_NONE = 0,
+	MAC_PROTO_ETHERNET,
+};
+#define SW_FLOW_KEY_INVALID	0x80
+
 /* Store options at the end of the array if they are less than the
  * maximum size. This allows us to get the benefits of variable length
  * matching for small options.
@@ -48,6 +54,11 @@ struct sk_buff;
 
 struct ovs_tunnel_info {
 	struct metadata_dst	*tun_dst;
+};
+
+struct vlan_head {
+	__be16 tpid; /* Vlan type. Generally 802.1q or 802.1ad.*/
+	__be16 tci;  /* 0 if no VLAN, VLAN_TAG_PRESENT set otherwise. */
 };
 
 #define OVS_SW_FLOW_KEY_METADATA_SIZE			\
@@ -63,13 +74,15 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u8 mac_proto;			/* MAC layer protocol (e.g. Ethernet). */
 	u8 tun_proto;			/* Protocol of encapsulating tunnel. */
 	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
 	u32 recirc_id;			/* Recirculation ID.  */
 	struct {
 		u8     src[ETH_ALEN];	/* Ethernet source address. */
 		u8     dst[ETH_ALEN];	/* Ethernet destination address. */
-		__be16 tci;		/* 0 if no VLAN, VLAN_TAG_PRESENT set otherwise. */
+		struct vlan_head vlan;
+		struct vlan_head cvlan;
 		__be16 type;		/* Ethernet frame type. */
 	} eth;
 	union {
@@ -172,14 +185,14 @@ struct sw_flow {
 		struct hlist_node node[2];
 		u32 hash;
 	} flow_table, ufid_table;
-	int stats_last_writer;		/* NUMA-node id of the last writer on
+	int stats_last_writer;		/* CPU id of the last writer on
 					 * 'stats[0]'.
 					 */
 	struct sw_flow_key key;
 	struct sw_flow_id id;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-	struct flow_stats __rcu *stats[]; /* One for each NUMA node.  First one
+	struct flow_stats __rcu *stats[]; /* One for each CPU.  First one
 					   * is allocated at flow creation time,
 					   * the rest are allocated on demand
 					   * while holding the 'stats[0].lock'.
@@ -199,6 +212,21 @@ struct arp_eth_header {
 	unsigned char       ar_tha[ETH_ALEN];	/* target hardware address  */
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
+
+static inline u8 ovs_key_mac_proto(const struct sw_flow_key *key)
+{
+	return key->mac_proto & ~SW_FLOW_KEY_INVALID;
+}
+
+static inline u16 __ovs_mac_header_len(u8 mac_proto)
+{
+	return mac_proto == MAC_PROTO_ETHERNET ? ETH_HLEN : 0;
+}
+
+static inline u16 ovs_mac_header_len(const struct sw_flow_key *key)
+{
+	return __ovs_mac_header_len(ovs_key_mac_proto(key));
+}
 
 static inline bool ovs_identifier_is_ufid(const struct sw_flow_id *sfid)
 {

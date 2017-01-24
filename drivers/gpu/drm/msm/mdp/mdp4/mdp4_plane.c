@@ -40,7 +40,7 @@ enum mdp4_frame_format mdp4_get_frame_format(struct drm_framebuffer *fb)
 {
 	bool is_tile = false;
 
-	if (fb->modifier[1] == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
+	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
 		is_tile = true;
 
 	if (fb->pixel_format == DRM_FORMAT_NV12 && is_tile)
@@ -81,7 +81,7 @@ static void mdp4_plane_install_properties(struct drm_plane *plane,
 	// XXX
 }
 
-int mdp4_plane_set_property(struct drm_plane *plane,
+static int mdp4_plane_set_property(struct drm_plane *plane,
 		struct drm_property *property, uint64_t val)
 {
 	// XXX
@@ -99,7 +99,7 @@ static const struct drm_plane_funcs mdp4_plane_funcs = {
 };
 
 static int mdp4_plane_prepare_fb(struct drm_plane *plane,
-		const struct drm_plane_state *new_state)
+				 struct drm_plane_state *new_state)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
@@ -113,7 +113,7 @@ static int mdp4_plane_prepare_fb(struct drm_plane *plane,
 }
 
 static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
-		const struct drm_plane_state *old_state)
+				  struct drm_plane_state *old_state)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);

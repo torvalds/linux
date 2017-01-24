@@ -43,6 +43,8 @@
 #include "xfs_icache.h"
 #include "xfs_sysfs.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_refcount_btree.h"
+#include "xfs_reflink.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -155,6 +157,7 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		xfs_buf_hash_destroy(pag);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -210,8 +213,8 @@ xfs_initialize_perag(
 		spin_lock_init(&pag->pag_ici_lock);
 		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-		spin_lock_init(&pag->pag_buf_lock);
-		pag->pag_buf_tree = RB_ROOT;
+		if (xfs_buf_hash_init(pag))
+			goto out_unwind;
 
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_unwind;
@@ -237,9 +240,11 @@ xfs_initialize_perag(
 	return 0;
 
 out_unwind:
+	xfs_buf_hash_destroy(pag);
 	kmem_free(pag);
 	for (; index > first_initialised; index--) {
 		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		xfs_buf_hash_destroy(pag);
 		kmem_free(pag);
 	}
 	return error;
@@ -684,6 +689,7 @@ xfs_mountfs(
 	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
 	xfs_ialloc_compute_maxlevels(mp);
 	xfs_rmapbt_compute_maxlevels(mp);
+	xfs_refcountbt_compute_maxlevels(mp);
 
 	xfs_set_maxicount(mp);
 
@@ -923,6 +929,15 @@ xfs_mountfs(
 	}
 
 	/*
+	 * During the second phase of log recovery, we need iget and
+	 * iput to behave like they do for an active filesystem.
+	 * xfs_fs_drop_inode needs to be able to prevent the deletion
+	 * of inodes before we're done replaying log items on those
+	 * inodes.
+	 */
+	mp->m_super->s_flags |= MS_ACTIVE;
+
+	/*
 	 * Finish recovering the file system.  This part needed to be delayed
 	 * until after the root and real-time bitmap inodes were consistently
 	 * read in.
@@ -931,6 +946,20 @@ xfs_mountfs(
 	if (error) {
 		xfs_warn(mp, "log mount finish failed");
 		goto out_rtunmount;
+	}
+
+	/*
+	 * Now the log is fully replayed, we can transition to full read-only
+	 * mode for read-only mounts. This will sync all the metadata and clean
+	 * the log so that the recovery we just performed does not have to be
+	 * replayed again on the next mount.
+	 *
+	 * We use the same quiesce mechanism as the rw->ro remount, as they are
+	 * semantically identical operations.
+	 */
+	if ((mp->m_flags & (XFS_MOUNT_RDONLY|XFS_MOUNT_NORECOVERY)) ==
+							XFS_MOUNT_RDONLY) {
+		xfs_quiesce_attr(mp);
 	}
 
 	/*
@@ -960,11 +989,30 @@ xfs_mountfs(
 		if (error)
 			xfs_warn(mp,
 	"Unable to allocate reserve blocks. Continuing without reserve pool.");
+
+		/* Recover any CoW blocks that never got remapped. */
+		error = xfs_reflink_recover_cow(mp);
+		if (error) {
+			xfs_err(mp,
+	"Error %d recovering leftover CoW allocations.", error);
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			goto out_quota;
+		}
+
+		/* Reserve AG blocks for future btree expansion. */
+		error = xfs_fs_reserve_ag_blocks(mp);
+		if (error && error != -ENOSPC)
+			goto out_agresv;
 	}
 
 	return 0;
 
+ out_agresv:
+	xfs_fs_unreserve_ag_blocks(mp);
+ out_quota:
+	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
+	mp->m_super->s_flags &= ~MS_ACTIVE;
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
@@ -1005,7 +1053,9 @@ xfs_unmountfs(
 	int			error;
 
 	cancel_delayed_work_sync(&mp->m_eofblocks_work);
+	cancel_delayed_work_sync(&mp->m_cowblocks_work);
 
+	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
 	IRELE(mp->m_rootip);

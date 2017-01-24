@@ -63,7 +63,8 @@ struct inet_connection_sock_af_ops {
 #endif
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int	    (*bind_conflict)(const struct sock *sk,
-				     const struct inet_bind_bucket *tb, bool relax);
+				     const struct inet_bind_bucket *tb,
+				     bool relax, bool soreuseport_ok);
 	void	    (*mtu_reduced)(struct sock *sk);
 };
 
@@ -134,8 +135,8 @@ struct inet_connection_sock {
 	} icsk_mtup;
 	u32			  icsk_user_timeout;
 
-	u64			  icsk_ca_priv[64 / sizeof(u64)];
-#define ICSK_CA_PRIV_SIZE      (8 * sizeof(u64))
+	u64			  icsk_ca_priv[88 / sizeof(u64)];
+#define ICSK_CA_PRIV_SIZE      (11 * sizeof(u64))
 };
 
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
@@ -261,7 +262,8 @@ inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
 int inet_csk_bind_conflict(const struct sock *sk,
-			   const struct inet_bind_bucket *tb, bool relax);
+			   const struct inet_bind_bucket *tb, bool relax,
+			   bool soreuseport_ok);
 int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 struct dst_entry *inet_csk_route_req(const struct sock *sk, struct flowi4 *fl4,
@@ -287,11 +289,6 @@ static inline void inet_csk_reqsk_queue_added(struct sock *sk)
 static inline int inet_csk_reqsk_queue_len(const struct sock *sk)
 {
 	return reqsk_queue_len(&inet_csk(sk)->icsk_accept_queue);
-}
-
-static inline int inet_csk_reqsk_queue_young(const struct sock *sk)
-{
-	return reqsk_queue_len_young(&inet_csk(sk)->icsk_accept_queue);
 }
 
 static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)

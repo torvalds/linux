@@ -315,7 +315,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 static int
 lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 {
-	unsigned feats;
+	unsigned int feats;
 	int rc;
 	char *name;
 
@@ -740,6 +740,10 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 	    (args->lstio_tes_param_len <= 0 ||
 	     args->lstio_tes_param_len >
 	     PAGE_SIZE - sizeof(struct lstcon_test)))
+		return -EINVAL;
+
+	/* Enforce zero parameter length if there's no parameter */
+	if (!args->lstio_tes_param && args->lstio_tes_param_len)
 		return -EINVAL;
 
 	LIBCFS_ALLOC(batch_name, args->lstio_tes_bat_nmlen + 1);

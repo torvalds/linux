@@ -85,8 +85,8 @@ static int zl10036_read_status_reg(struct zl10036_state *state)
 	deb_i2c("R(status): %02x  [FL=%d]\n", status,
 		(status & STATUS_FL) ? 1 : 0);
 	if (status & STATUS_POR)
-		deb_info("%s: Power-On-Reset bit enabled - "
-			"need to initialize the tuner\n", __func__);
+		deb_info("%s: Power-On-Reset bit enabled - need to initialize the tuner\n",
+			 __func__);
 
 	return status;
 }
@@ -134,14 +134,12 @@ static int zl10036_write(struct zl10036_state *state, u8 buf[], u8 count)
 	return 0;
 }
 
-static int zl10036_release(struct dvb_frontend *fe)
+static void zl10036_release(struct dvb_frontend *fe)
 {
 	struct zl10036_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 static int zl10036_sleep(struct dvb_frontend *fe)

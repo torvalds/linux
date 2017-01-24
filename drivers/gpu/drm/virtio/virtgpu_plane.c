@@ -76,7 +76,8 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		output = drm_crtc_to_virtio_gpu_output(plane->state->crtc);
 	if (old_state->crtc)
 		output = drm_crtc_to_virtio_gpu_output(old_state->crtc);
-	WARN_ON(!output);
+	if (WARN_ON(!output))
+		return;
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
@@ -87,8 +88,8 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 				(vgdev, handle, 0,
 				 cpu_to_le32(plane->state->src_w >> 16),
 				 cpu_to_le32(plane->state->src_h >> 16),
-				 plane->state->src_x >> 16,
-				 plane->state->src_y >> 16, NULL);
+				 cpu_to_le32(plane->state->src_x >> 16),
+				 cpu_to_le32(plane->state->src_y >> 16), NULL);
 		}
 	} else {
 		handle = 0;
@@ -129,7 +130,8 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 		output = drm_crtc_to_virtio_gpu_output(plane->state->crtc);
 	if (old_state->crtc)
 		output = drm_crtc_to_virtio_gpu_output(old_state->crtc);
-	WARN_ON(!output);
+	if (WARN_ON(!output))
+		return;
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
@@ -150,7 +152,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 		if (!ret) {
 			reservation_object_add_excl_fence(bo->tbo.resv,
 							  &fence->f);
-			fence_put(&fence->f);
+			dma_fence_put(&fence->f);
 			fence = NULL;
 			virtio_gpu_object_unreserve(bo);
 			virtio_gpu_object_wait(bo, false);

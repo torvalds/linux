@@ -40,8 +40,8 @@ Synopsis of uprobe_tracer
    +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
    NAME=FETCHARG     : Set NAME as the argument name of FETCHARG.
    FETCHARG:TYPE     : Set TYPE as the type of FETCHARG. Currently, basic types
-		       (u8/u16/u32/u64/s8/s16/s32/s64), "string" and bitfield
-		       are supported.
+		       (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal types
+		       (x8/x16/x32/x64), "string" and bitfield are supported.
 
   (*) only for return probe.
   (**) this is useful for fetching a field of data structures.
@@ -50,7 +50,10 @@ Types
 -----
 Several types are supported for fetch-args. Uprobe tracer will access memory
 by given type. Prefix 's' and 'u' means those types are signed and unsigned
-respectively. Traced arguments are shown in decimal (signed) or hex (unsigned).
+respectively. 'x' prefix implies it is unsigned. Traced arguments are shown
+in decimal ('s' and 'u') or hexadecimal ('x'). Without type casting, 'x32'
+or 'x64' is used depends on the architecture (e.g. x86-32 uses x32, and
+x86-64 uses x64).
 String type is a special type, which fetches a "null-terminated" string from
 user space.
 Bitfield is another special type, which takes 3 parameters, bit-width, bit-
@@ -73,15 +76,15 @@ Usage examples
  * Add a probe as a new uprobe event, write a new definition to uprobe_events
 as below: (sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash)
 
-    echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'p /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
  * Add a probe as a new uretprobe event:
 
-    echo 'r: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'r /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
  * Unset registered event:
 
-    echo '-:bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
+    echo '-:p_bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
 
  * Print out the events that are registered:
 

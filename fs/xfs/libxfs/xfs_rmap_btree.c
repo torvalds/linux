@@ -35,6 +35,7 @@
 #include "xfs_cksum.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
+#include "xfs_ag_resv.h"
 
 /*
  * Reverse map btree.
@@ -483,6 +484,7 @@ xfs_rmapbt_init_cursor(
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_rmapbt_ops;
 	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;
@@ -512,6 +514,83 @@ void
 xfs_rmapbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
-	mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
-			mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
+	/*
+	 * On a non-reflink filesystem, the maximum number of rmap
+	 * records is the number of blocks in the AG, hence the max
+	 * rmapbt height is log_$maxrecs($agblocks).  However, with
+	 * reflink each AG block can have up to 2^32 (per the refcount
+	 * record format) owners, which means that theoretically we
+	 * could face up to 2^64 rmap records.
+	 *
+	 * That effectively means that the max rmapbt height must be
+	 * XFS_BTREE_MAXLEVELS.  "Fortunately" we'll run out of AG
+	 * blocks to feed the rmapbt long before the rmapbt reaches
+	 * maximum height.  The reflink code uses ag_resv_critical to
+	 * disallow reflinking when less than 10% of the per-AG metadata
+	 * block reservation since the fallback is a regular file copy.
+	 */
+	if (xfs_sb_version_hasreflink(&mp->m_sb))
+		mp->m_rmap_maxlevels = XFS_BTREE_MAXLEVELS;
+	else
+		mp->m_rmap_maxlevels = xfs_btree_compute_maxlevels(mp,
+				mp->m_rmap_mnr, mp->m_sb.sb_agblocks);
+}
+
+/* Calculate the refcount btree size for some records. */
+xfs_extlen_t
+xfs_rmapbt_calc_size(
+	struct xfs_mount	*mp,
+	unsigned long long	len)
+{
+	return xfs_btree_calc_size(mp, mp->m_rmap_mnr, len);
+}
+
+/*
+ * Calculate the maximum refcount btree size.
+ */
+xfs_extlen_t
+xfs_rmapbt_max_size(
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agblocks)
+{
+	/* Bail out if we're uninitialized, which can happen in mkfs. */
+	if (mp->m_rmap_mxr[0] == 0)
+		return 0;
+
+	return xfs_rmapbt_calc_size(mp, agblocks);
+}
+
+/*
+ * Figure out how many blocks to reserve and how many are used by this btree.
+ */
+int
+xfs_rmapbt_calc_reserves(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_extlen_t		*ask,
+	xfs_extlen_t		*used)
+{
+	struct xfs_buf		*agbp;
+	struct xfs_agf		*agf;
+	xfs_agblock_t		agblocks;
+	xfs_extlen_t		tree_len;
+	int			error;
+
+	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
+		return 0;
+
+	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	if (error)
+		return error;
+
+	agf = XFS_BUF_TO_AGF(agbp);
+	agblocks = be32_to_cpu(agf->agf_length);
+	tree_len = be32_to_cpu(agf->agf_rmap_blocks);
+	xfs_buf_relse(agbp);
+
+	/* Reserve 1% of the AG or enough for 1 block per record. */
+	*ask += max(agblocks / 100, xfs_rmapbt_max_size(mp, agblocks));
+	*used += tree_len;
+
+	return error;
 }

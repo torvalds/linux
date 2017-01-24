@@ -62,15 +62,19 @@ struct ovs_frag_data {
 	struct vport *vport;
 	struct ovs_skb_cb cb;
 	__be16 inner_protocol;
-	__u16 vlan_tci;
+	u16 network_offset;	/* valid only for MPLS */
+	u16 vlan_tci;
 	__be16 vlan_proto;
 	unsigned int l2_len;
+	u8 mac_proto;
 	u8 l2_data[MAX_L2_LEN];
 };
 
 static DEFINE_PER_CPU(struct ovs_frag_data, ovs_frag_data_storage);
 
 #define DEFERRED_ACTION_FIFO_SIZE 10
+#define OVS_RECURSION_LIMIT 5
+#define OVS_DEFERRED_ACTION_THRESHOLD (OVS_RECURSION_LIMIT - 2)
 struct action_fifo {
 	int head;
 	int tail;
@@ -78,7 +82,12 @@ struct action_fifo {
 	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
 };
 
+struct recirc_keys {
+	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
+};
+
 static struct action_fifo __percpu *action_fifos;
+static struct recirc_keys __percpu *recirc_keys;
 static DEFINE_PER_CPU(int, exec_actions_level);
 
 static void action_fifo_init(struct action_fifo *fifo)
@@ -129,12 +138,12 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 
 static void invalidate_flow_key(struct sw_flow_key *key)
 {
-	key->eth.type = htons(0);
+	key->mac_proto |= SW_FLOW_KEY_INVALID;
 }
 
 static bool is_flow_key_valid(const struct sw_flow_key *key)
 {
-	return !!key->eth.type;
+	return !(key->mac_proto & SW_FLOW_KEY_INVALID);
 }
 
 static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
@@ -153,7 +162,7 @@ static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
 static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_mpls *mpls)
 {
-	__be32 *new_mpls_lse;
+	struct mpls_shim_hdr *new_mpls_lse;
 
 	/* Networking stack do not allow simultaneous Tunnel and MPLS GSO. */
 	if (skb->encapsulation)
@@ -162,19 +171,24 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	if (skb_cow_head(skb, MPLS_HLEN) < 0)
 		return -ENOMEM;
 
+	if (!skb->inner_protocol) {
+		skb_set_inner_network_header(skb, skb->mac_len);
+		skb_set_inner_protocol(skb, skb->protocol);
+	}
+
 	skb_push(skb, MPLS_HLEN);
 	memmove(skb_mac_header(skb) - MPLS_HLEN, skb_mac_header(skb),
 		skb->mac_len);
 	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, skb->mac_len);
 
-	new_mpls_lse = (__be32 *)skb_mpls_header(skb);
-	*new_mpls_lse = mpls->mpls_lse;
+	new_mpls_lse = mpls_hdr(skb);
+	new_mpls_lse->label_stack_entry = mpls->mpls_lse;
 
 	skb_postpush_rcsum(skb, new_mpls_lse, MPLS_HLEN);
 
-	update_ethertype(skb, eth_hdr(skb), mpls->mpls_ethertype);
-	if (!skb->inner_protocol)
-		skb_set_inner_protocol(skb, skb->protocol);
+	if (ovs_key_mac_proto(key) == MAC_PROTO_ETHERNET)
+		update_ethertype(skb, eth_hdr(skb), mpls->mpls_ethertype);
 	skb->protocol = mpls->mpls_ethertype;
 
 	invalidate_flow_key(key);
@@ -184,26 +198,30 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 		    const __be16 ethertype)
 {
-	struct ethhdr *hdr;
 	int err;
 
 	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
 	if (unlikely(err))
 		return err;
 
-	skb_postpull_rcsum(skb, skb_mpls_header(skb), MPLS_HLEN);
+	skb_postpull_rcsum(skb, mpls_hdr(skb), MPLS_HLEN);
 
 	memmove(skb_mac_header(skb) + MPLS_HLEN, skb_mac_header(skb),
 		skb->mac_len);
 
 	__skb_pull(skb, MPLS_HLEN);
 	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, skb->mac_len);
 
-	/* skb_mpls_header() is used to locate the ethertype
-	 * field correctly in the presence of VLAN tags.
-	 */
-	hdr = (struct ethhdr *)(skb_mpls_header(skb) - ETH_HLEN);
-	update_ethertype(skb, hdr, ethertype);
+	if (ovs_key_mac_proto(key) == MAC_PROTO_ETHERNET) {
+		struct ethhdr *hdr;
+
+		/* mpls_hdr() is used to locate the ethertype field correctly in the
+		 * presence of VLAN tags.
+		 */
+		hdr = (struct ethhdr *)((void *)mpls_hdr(skb) - ETH_HLEN);
+		update_ethertype(skb, hdr, ethertype);
+	}
 	if (eth_p_mpls(skb->protocol))
 		skb->protocol = ethertype;
 
@@ -214,7 +232,7 @@ static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 		    const __be32 *mpls_lse, const __be32 *mask)
 {
-	__be32 *stack;
+	struct mpls_shim_hdr *stack;
 	__be32 lse;
 	int err;
 
@@ -222,16 +240,16 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	if (unlikely(err))
 		return err;
 
-	stack = (__be32 *)skb_mpls_header(skb);
-	lse = OVS_MASKED(*stack, *mpls_lse, *mask);
+	stack = mpls_hdr(skb);
+	lse = OVS_MASKED(stack->label_stack_entry, *mpls_lse, *mask);
 	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		__be32 diff[] = { ~(*stack), lse };
+		__be32 diff[] = { ~(stack->label_stack_entry), lse };
 
 		skb->csum = ~csum_partial((char *)diff, sizeof(diff),
 					  ~skb->csum);
 	}
 
-	*stack = lse;
+	stack->label_stack_entry = lse;
 	flow_key->mpls.top_lse = lse;
 	return 0;
 }
@@ -241,20 +259,24 @@ static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 	int err;
 
 	err = skb_vlan_pop(skb);
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tag_present(skb)) {
 		invalidate_flow_key(key);
-	else
-		key->eth.tci = 0;
+	} else {
+		key->eth.vlan.tci = 0;
+		key->eth.vlan.tpid = 0;
+	}
 	return err;
 }
 
 static int push_vlan(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_vlan *vlan)
 {
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tag_present(skb)) {
 		invalidate_flow_key(key);
-	else
-		key->eth.tci = vlan->vlan_tci;
+	} else {
+		key->eth.vlan.tci = vlan->vlan_tci;
+		key->eth.vlan.tpid = vlan->vlan_tpid;
+	}
 	return skb_vlan_push(skb, vlan->vlan_tpid,
 			     ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
 }
@@ -292,6 +314,47 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 
 	ether_addr_copy(flow_key->eth.src, eth_hdr(skb)->h_source);
 	ether_addr_copy(flow_key->eth.dst, eth_hdr(skb)->h_dest);
+	return 0;
+}
+
+/* pop_eth does not support VLAN packets as this action is never called
+ * for them.
+ */
+static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	skb_pull_rcsum(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	/* safe right before invalidate_flow_key */
+	key->mac_proto = MAC_PROTO_NONE;
+	invalidate_flow_key(key);
+	return 0;
+}
+
+static int push_eth(struct sk_buff *skb, struct sw_flow_key *key,
+		    const struct ovs_action_push_eth *ethh)
+{
+	struct ethhdr *hdr;
+
+	/* Add the new Ethernet header */
+	if (skb_cow_head(skb, ETH_HLEN) < 0)
+		return -ENOMEM;
+
+	skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	hdr = eth_hdr(skb);
+	ether_addr_copy(hdr->h_source, ethh->addresses.eth_src);
+	ether_addr_copy(hdr->h_dest, ethh->addresses.eth_dst);
+	hdr->h_proto = skb->protocol;
+
+	skb_postpush_rcsum(skb, hdr, ETH_HLEN);
+
+	/* safe right before invalidate_flow_key */
+	key->mac_proto = MAC_PROTO_ETHERNET;
+	invalidate_flow_key(key);
 	return 0;
 }
 
@@ -650,7 +713,13 @@ static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *sk
 	skb_postpush_rcsum(skb, skb->data, data->l2_len);
 	skb_reset_mac_header(skb);
 
-	ovs_vport_send(vport, skb);
+	if (eth_p_mpls(skb->protocol)) {
+		skb->inner_network_header = skb->network_header;
+		skb_set_network_header(skb, data->network_offset);
+		skb_reset_mac_len(skb);
+	}
+
+	ovs_vport_send(vport, skb, data->mac_proto);
 	return 0;
 }
 
@@ -668,7 +737,8 @@ static struct dst_ops ovs_dst_ops = {
 /* prepare_frag() is called once per (larger-than-MTU) frame; its inverse is
  * ovs_vport_output(), which is called once per fragmented packet.
  */
-static void prepare_frag(struct vport *vport, struct sk_buff *skb)
+static void prepare_frag(struct vport *vport, struct sk_buff *skb,
+			 u16 orig_network_offset, u8 mac_proto)
 {
 	unsigned int hlen = skb_network_offset(skb);
 	struct ovs_frag_data *data;
@@ -678,8 +748,10 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 	data->vport = vport;
 	data->cb = *OVS_CB(skb);
 	data->inner_protocol = skb->inner_protocol;
+	data->network_offset = orig_network_offset;
 	data->vlan_tci = skb->vlan_tci;
 	data->vlan_proto = skb->vlan_proto;
+	data->mac_proto = mac_proto;
 	data->l2_len = hlen;
 	memcpy(&data->l2_data, skb->data, hlen);
 
@@ -688,18 +760,27 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 }
 
 static void ovs_fragment(struct net *net, struct vport *vport,
-			 struct sk_buff *skb, u16 mru, __be16 ethertype)
+			 struct sk_buff *skb, u16 mru,
+			 struct sw_flow_key *key)
 {
+	u16 orig_network_offset = 0;
+
+	if (eth_p_mpls(skb->protocol)) {
+		orig_network_offset = skb_network_offset(skb);
+		skb->network_header = skb->inner_network_header;
+	}
+
 	if (skb_network_offset(skb) > MAX_L2_LEN) {
 		OVS_NLERR(1, "L2 header too long to fragment");
 		goto err;
 	}
 
-	if (ethertype == htons(ETH_P_IP)) {
+	if (key->eth.type == htons(ETH_P_IP)) {
 		struct dst_entry ovs_dst;
 		unsigned long orig_dst;
 
-		prepare_frag(vport, skb);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		dst_init(&ovs_dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
 		ovs_dst.dev = vport->dev;
@@ -710,7 +791,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
-	} else if (ethertype == htons(ETH_P_IPV6)) {
+	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		unsigned long orig_dst;
 		struct rt6_info ovs_rt;
@@ -719,7 +800,8 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 			goto err;
 		}
 
-		prepare_frag(vport, skb);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		memset(&ovs_rt, 0, sizeof(ovs_rt));
 		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
@@ -733,7 +815,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
-			  ovs_vport_name(vport), ntohs(ethertype), mru,
+			  ovs_vport_name(vport), ntohs(key->eth.type), mru,
 			  vport->dev->mtu);
 		goto err;
 	}
@@ -753,26 +835,19 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 		u32 cutlen = OVS_CB(skb)->cutlen;
 
 		if (unlikely(cutlen > 0)) {
-			if (skb->len - cutlen > ETH_HLEN)
+			if (skb->len - cutlen > ovs_mac_header_len(key))
 				pskb_trim(skb, skb->len - cutlen);
 			else
-				pskb_trim(skb, ETH_HLEN);
+				pskb_trim(skb, ovs_mac_header_len(key));
 		}
 
-		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
-			ovs_vport_send(vport, skb);
+		if (likely(!mru ||
+		           (skb->len <= mru + vport->dev->hard_header_len))) {
+			ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
 		} else if (mru <= vport->dev->mtu) {
 			struct net *net = read_pnet(&dp->net);
-			__be16 ethertype = key->eth.type;
 
-			if (!is_flow_key_valid(key)) {
-				if (eth_p_mpls(skb->protocol))
-					ethertype = skb->inner_protocol;
-				else
-					ethertype = vlan_get_protocol(skb);
-			}
-
-			ovs_fragment(net, vport, skb, mru, ethertype);
+			ovs_fragment(net, vport, skb, mru, key);
 		} else {
 			kfree_skb(skb);
 		}
@@ -1011,6 +1086,7 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 			  const struct nlattr *a, int rem)
 {
 	struct deferred_action *da;
+	int level;
 
 	if (!is_flow_key_valid(key)) {
 		int err;
@@ -1032,6 +1108,18 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 		 */
 		if (!skb)
 			return 0;
+	}
+
+	level = this_cpu_read(exec_actions_level);
+	if (level <= OVS_DEFERRED_ACTION_THRESHOLD) {
+		struct recirc_keys *rks = this_cpu_ptr(recirc_keys);
+		struct sw_flow_key *recirc_key = &rks->key[level - 1];
+
+		*recirc_key = *key;
+		recirc_key->recirc_id = nla_get_u32(a);
+		ovs_dp_process_packet(skb, recirc_key);
+
+		return 0;
 	}
 
 	da = add_deferred_actions(skb, key, NULL);
@@ -1153,6 +1241,14 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			if (err)
 				return err == -EINPROGRESS ? 0 : err;
 			break;
+
+		case OVS_ACTION_ATTR_PUSH_ETH:
+			err = push_eth(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_POP_ETH:
+			err = pop_eth(skb, key);
+			break;
 		}
 
 		if (unlikely(err)) {
@@ -1200,11 +1296,10 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *acts,
 			struct sw_flow_key *key)
 {
-	static const int ovs_recursion_limit = 5;
 	int err, level;
 
 	level = __this_cpu_inc_return(exec_actions_level);
-	if (unlikely(level > ovs_recursion_limit)) {
+	if (unlikely(level > OVS_RECURSION_LIMIT)) {
 		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
 				     ovs_dp_name(dp));
 		kfree_skb(skb);
@@ -1229,10 +1324,17 @@ int action_fifos_init(void)
 	if (!action_fifos)
 		return -ENOMEM;
 
+	recirc_keys = alloc_percpu(struct recirc_keys);
+	if (!recirc_keys) {
+		free_percpu(action_fifos);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 void action_fifos_exit(void)
 {
 	free_percpu(action_fifos);
+	free_percpu(recirc_keys);
 }

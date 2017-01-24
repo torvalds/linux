@@ -18,9 +18,6 @@
 #include "hns_dsaf_rcb.h"
 
 #define AE_NAME_PORT_ID_IDX 6
-#define ETH_STATIC_REG	 1
-#define ETH_DUMP_REG	 5
-#define ETH_GSTRING_LEN	32
 
 static struct hns_mac_cb *hns_get_mac_cb(struct hnae_handle *handle)
 {
@@ -202,11 +199,34 @@ static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
 	return 0;
 }
 
+static int hns_ae_add_uc_address(struct hnae_handle *handle,
+				 const unsigned char *addr)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return -ENOSPC;
+
+	return hns_mac_add_uc_addr(mac_cb, handle->vf_id, addr);
+}
+
+static int hns_ae_rm_uc_address(struct hnae_handle *handle,
+				const unsigned char *addr)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return -ENOSPC;
+
+	return hns_mac_rm_uc_addr(mac_cb, handle->vf_id, addr);
+}
+
 static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 {
 	int ret;
 	char *mac_addr = (char *)addr;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	u8 port_num;
 
 	assert(mac_cb);
 
@@ -221,14 +241,27 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 		return ret;
 	}
 
-	ret = hns_mac_set_multi(mac_cb, DSAF_BASE_INNER_PORT_NUM,
-				mac_addr, true);
+	ret = hns_mac_get_inner_port_num(mac_cb, handle->vf_id, &port_num);
+	if (ret)
+		return ret;
+
+	ret = hns_mac_set_multi(mac_cb, port_num, mac_addr, true);
 	if (ret)
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
 			mac_addr, DSAF_BASE_INNER_PORT_NUM, ret);
 
 	return ret;
+}
+
+static int hns_ae_clr_multicast(struct hnae_handle *handle)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return 0;
+
+	return hns_mac_clr_multicast(mac_cb, handle->vf_id);
 }
 
 static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
@@ -678,9 +711,6 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 		ret = -EINVAL;
 	}
 
-	if (!ret)
-		hns_dsaf_set_inner_lb(mac_cb->dsaf_dev, mac_cb->mac_id, en);
-
 	return ret;
 }
 
@@ -822,7 +852,10 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_coalesce_range = hns_ae_get_coalesce_range,
 	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
+	.add_uc_addr = hns_ae_add_uc_address,
+	.rm_uc_addr = hns_ae_rm_uc_address,
 	.set_mc_addr = hns_ae_set_multicast_one,
+	.clr_mc_addr = hns_ae_clr_multicast,
 	.set_mtu = hns_ae_set_mtu,
 	.update_stats = hns_ae_update_stats,
 	.set_tso_stats = hns_ae_set_tso_stats,

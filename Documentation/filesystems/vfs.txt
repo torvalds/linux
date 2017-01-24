@@ -323,6 +323,35 @@ Whoever sets up the inode is responsible for filling in the "i_op" field. This
 is a pointer to a "struct inode_operations" which describes the methods that
 can be performed on individual inodes.
 
+struct xattr_handlers
+---------------------
+
+On filesystems that support extended attributes (xattrs), the s_xattr
+superblock field points to a NULL-terminated array of xattr handlers.  Extended
+attributes are name:value pairs.
+
+  name: Indicates that the handler matches attributes with the specified name
+	(such as "system.posix_acl_access"); the prefix field must be NULL.
+
+  prefix: Indicates that the handler matches all attributes with the specified
+	name prefix (such as "user."); the name field must be NULL.
+
+  list: Determine if attributes matching this xattr handler should be listed
+	for a particular dentry.  Used by some listxattr implementations like
+	generic_listxattr.
+
+  get: Called by the VFS to get the value of a particular extended attribute.
+	This method is called by the getxattr(2) system call.
+
+  set: Called by the VFS to set the value of a particular extended attribute.
+	When the new value is NULL, called to remove a particular extended
+	attribute.  This method is called by the the setxattr(2) and
+	removexattr(2) system calls.
+
+When none of the xattr handlers of a filesystem match the specified attribute
+name or when a filesystem doesn't support extended attributes, the various
+*xattr(2) system calls return -EOPNOTSUPP.
+
 
 The Inode Object
 ================
@@ -346,8 +375,6 @@ struct inode_operations {
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *);
-	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
 	const char *(*get_link) (struct dentry *, struct inode *,
@@ -356,10 +383,7 @@ struct inode_operations {
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
@@ -416,11 +440,8 @@ otherwise noted.
   rename: called by the rename(2) system call to rename the object to
 	have the parent and name given by the second inode and dentry.
 
-  rename2: this has an additional flags argument compared to rename.
-	If no flags are supported by the filesystem then this method
-	need not be implemented.  If some flags are supported then the
-	filesystem must return -EINVAL for any unsupported or unknown
-	flags.  Currently the following flags are implemented:
+	The filesystem must return -EINVAL for any unsupported or
+	unknown	flags.  Currently the following flags are implemented:
 	(1) RENAME_NOREPLACE: this flag indicates that if the target
 	of the rename exists the rename should fail with -EEXIST
 	instead of replacing the target.  The VFS already checks for
@@ -429,9 +450,6 @@ otherwise noted.
 	(2) RENAME_EXCHANGE: exchange source and target.  Both must
 	exist; this is checked by the VFS.  Unlike plain rename,
 	source and target may be of different type.
-
-  readlink: called by the readlink(2) system call. Only required if
-	you want to support reading symbolic links
 
   get_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
@@ -446,6 +464,12 @@ otherwise noted.
 	May be called in RCU mode; that is indicated by NULL dentry
 	argument.  If request can't be handled without leaving RCU mode,
 	have it return ERR_PTR(-ECHILD).
+
+  readlink: this is now just an override for use by readlink(2) for the
+	cases when ->get_link uses nd_jump_link() or object is not in
+	fact a symlink.  Normally filesystems should only implement
+	->get_link for symlinks and readlink(2) will automatically use
+	that.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -463,19 +487,8 @@ otherwise noted.
   getattr: called by the VFS to get attributes of a file. This method
   	is called by stat(2) and related system calls.
 
-  setxattr: called by the VFS to set an extended attribute for a file.
-  	Extended attribute is a name:value pair associated with an
-  	inode. This method is called by setxattr(2) system call.
-
-  getxattr: called by the VFS to retrieve the value of an extended
-  	attribute name. This method is called by getxattr(2) function
-  	call.
-
   listxattr: called by the VFS to list all extended attributes for a
-  	given file. This method is called by listxattr(2) system call.
-
-  removexattr: called by the VFS to remove an extended attribute from
-  	a file. This method is called by removexattr(2) system call.
+	given file. This method is called by the listxattr(2) system call.
 
   update_time: called by the VFS to update a specific time or the i_version of
   	an inode.  If this is not defined the VFS will update the inode itself
@@ -722,7 +735,7 @@ struct address_space_operations {
 
 	The second case is when a request has been made to invalidate
         some or all pages in an address_space.  This can happen
-        through the fadvice(POSIX_FADV_DONTNEED) system call or by the
+        through the fadvise(POSIX_FADV_DONTNEED) system call or by the
         filesystem explicitly requesting it as nfs and 9fs do (when
         they believe the cache may be out of date with storage) by
         calling invalidate_inode_pages2().
@@ -818,7 +831,6 @@ struct file_operations {
 	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
 	int (*fsync) (struct file *, loff_t, loff_t, int datasync);
-	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
 	ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
@@ -939,7 +951,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
-	int (*d_manage)(struct dentry *, bool);
+	int (*d_manage)(const struct path *, bool);
 	struct dentry *(*d_real)(struct dentry *, const struct inode *,
 				 unsigned int);
 };

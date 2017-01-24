@@ -126,6 +126,16 @@ static const struct reg_default aic3x_reg[] = {
 	{ 108, 0x00 }, { 109, 0x00 },
 };
 
+static bool aic3x_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case AIC3X_RESET:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct regmap_config aic3x_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -133,6 +143,9 @@ static const struct regmap_config aic3x_regmap = {
 	.max_register = DAC_ICC_ADJ,
 	.reg_defaults = aic3x_reg,
 	.num_reg_defaults = ARRAY_SIZE(aic3x_reg),
+
+	.volatile_reg = aic3x_volatile_reg,
+
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -157,7 +170,7 @@ static int snd_soc_dapm_put_volsw_aic3x(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned short val;
-	struct snd_soc_dapm_update update;
+	struct snd_soc_dapm_update update = { 0 };
 	int connect, change;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -1670,12 +1683,14 @@ static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
 	.idle_bias_off = true,
 	.probe = aic3x_probe,
 	.remove = aic3x_remove,
-	.controls = aic3x_snd_controls,
-	.num_controls = ARRAY_SIZE(aic3x_snd_controls),
-	.dapm_widgets = aic3x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(aic3x_dapm_widgets),
-	.dapm_routes = intercon,
-	.num_dapm_routes = ARRAY_SIZE(intercon),
+	.component_driver = {
+		.controls		= aic3x_snd_controls,
+		.num_controls		= ARRAY_SIZE(aic3x_snd_controls),
+		.dapm_widgets		= aic3x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(aic3x_dapm_widgets),
+		.dapm_routes		= intercon,
+		.num_dapm_routes	= ARRAY_SIZE(intercon),
+	},
 };
 
 /*

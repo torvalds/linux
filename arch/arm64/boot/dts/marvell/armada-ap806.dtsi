@@ -71,7 +71,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space {
+		config-space@f0000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -128,6 +128,12 @@
 					     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 			};
 
+			pmu {
+				compatible = "arm,cortex-a72-pmu";
+				interrupt-parent = <&pic>;
+				interrupts = <17>;
+			};
+
 			odmi: odmi@300000 {
 				compatible = "marvell,odmi-controller";
 				interrupt-controller;
@@ -138,6 +144,14 @@
 				      <0x308000 0x4000>,
 				      <0x30C000 0x4000>;
 				marvell,spi-base = <128>, <136>, <144>, <152>;
+			};
+
+			pic: interrupt-controller@3f0100 {
+				compatible = "marvell,armada-8k-pic";
+				reg = <0x3f0100 0x10>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			xor@400000 {

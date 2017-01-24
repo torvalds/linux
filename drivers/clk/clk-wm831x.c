@@ -24,9 +24,6 @@ struct wm831x_clk {
 	struct clk_hw xtal_hw;
 	struct clk_hw fll_hw;
 	struct clk_hw clkout_hw;
-	struct clk *xtal;
-	struct clk *fll;
-	struct clk *clkout;
 	bool xtal_ena;
 };
 
@@ -246,7 +243,7 @@ static int wm831x_clkout_is_prepared(struct clk_hw *hw)
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Unable to read CLOCK_CONTROL_1: %d\n",
 			ret);
-		return true;
+		return false;
 	}
 
 	return (ret & WM831X_CLKOUT_ENA) != 0;
@@ -370,19 +367,19 @@ static int wm831x_clk_probe(struct platform_device *pdev)
 	clkdata->xtal_ena = ret & WM831X_XTAL_ENA;
 
 	clkdata->xtal_hw.init = &wm831x_xtal_init;
-	clkdata->xtal = devm_clk_register(&pdev->dev, &clkdata->xtal_hw);
-	if (IS_ERR(clkdata->xtal))
-		return PTR_ERR(clkdata->xtal);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->xtal_hw);
+	if (ret)
+		return ret;
 
 	clkdata->fll_hw.init = &wm831x_fll_init;
-	clkdata->fll = devm_clk_register(&pdev->dev, &clkdata->fll_hw);
-	if (IS_ERR(clkdata->fll))
-		return PTR_ERR(clkdata->fll);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->fll_hw);
+	if (ret)
+		return ret;
 
 	clkdata->clkout_hw.init = &wm831x_clkout_init;
-	clkdata->clkout = devm_clk_register(&pdev->dev, &clkdata->clkout_hw);
-	if (IS_ERR(clkdata->clkout))
-		return PTR_ERR(clkdata->clkout);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->clkout_hw);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, clkdata);
 

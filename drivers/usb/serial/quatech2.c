@@ -408,16 +408,12 @@ static void qt2_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct qt2_port_private *port_priv;
-	unsigned long flags;
 	int i;
 
 	serial = port->serial;
 	port_priv = usb_get_serial_port_data(port);
 
-	spin_lock_irqsave(&port_priv->urb_lock, flags);
 	usb_kill_urb(port_priv->write_urb);
-	port_priv->urb_in_use = false;
-	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
 
 	/* flush the port transmit buffer */
 	i = usb_control_msg(serial->dev,
@@ -462,9 +458,6 @@ static int get_serial_info(struct usb_serial_port *port,
 			   struct serial_struct __user *retinfo)
 {
 	struct serial_struct tmp;
-
-	if (!retinfo)
-		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.line		= port->minor;

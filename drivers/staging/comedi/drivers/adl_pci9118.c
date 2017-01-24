@@ -1693,8 +1693,7 @@ static void pci9118_detach(struct comedi_device *dev)
 		pci9118_reset(dev);
 	comedi_pci_detach(dev);
 	pci9118_free_dma(dev);
-	if (pcidev)
-		pci_dev_put(pcidev);
+	pci_dev_put(pcidev);
 }
 
 static struct comedi_driver adl_pci9118_driver = {

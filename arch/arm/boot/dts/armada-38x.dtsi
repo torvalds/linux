@@ -170,30 +170,6 @@
 				      <0xc100 0x100>;
 			};
 
-			spi0: spi@10600 {
-				compatible = "marvell,armada-380-spi",
-						"marvell,orion-spi";
-				reg = <0x10600 0x50>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <0>;
-				interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
-			spi1: spi@10680 {
-				compatible = "marvell,armada-380-spi",
-						"marvell,orion-spi";
-				reg = <0x10680 0x50>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <1>;
-				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				reg = <0x11000 0x20>;
@@ -285,6 +261,15 @@
 					marvell,pins = "mpp56", "mpp57", "mpp58",
 						       "mpp59";
 					marvell,function = "spi1";
+				};
+
+				nand_pins: nand-pins {
+					marvell,pins = "mpp22", "mpp34", "mpp23",
+						       "mpp33", "mpp38", "mpp28",
+						       "mpp40", "mpp42", "mpp35",
+						       "mpp36", "mpp25", "mpp30",
+						       "mpp32";
+					marvell,function = "dev";
 				};
 
 				uart0_pins: uart-pins-0 {
@@ -649,10 +634,34 @@
 			no-memory-wc;
 			status = "disabled";
 		};
+
+		spi0: spi@10600 {
+			compatible = "marvell,armada-380-spi",
+					"marvell,orion-spi";
+			reg = <MBUS_ID(0xf0, 0x01) 0x10600 0x50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@10680 {
+			compatible = "marvell,armada-380-spi",
+					"marvell,orion-spi";
+			reg = <MBUS_ID(0xf0, 0x01) 0x10680 0x50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
-		/* 2 GHz fixed main PLL */
+		/* 1 GHz fixed main PLL */
 		mainpll: mainpll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;

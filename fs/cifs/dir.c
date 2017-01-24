@@ -40,14 +40,14 @@ renew_parental_timestamps(struct dentry *direntry)
 	/* BB check if there is a way to get the kernel to do this or if we
 	   really need this */
 	do {
-		direntry->d_time = jiffies;
+		cifs_set_time(direntry, jiffies);
 		direntry = direntry->d_parent;
 	} while (!IS_ROOT(direntry));
 }
 
 char *
 cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
+			struct cifs_tcon *tcon, int add_treename)
 {
 	int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	int dfsplen;
@@ -59,7 +59,7 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 		return full_path;
 	}
 
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
+	if (add_treename)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
@@ -802,7 +802,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	} else if (rc == -ENOENT) {
 		rc = 0;
-		direntry->d_time = jiffies;
+		cifs_set_time(direntry, jiffies);
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
@@ -862,7 +862,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 	if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
 		return 0;
 
-	if (time_after(jiffies, direntry->d_time + HZ) || !lookupCacheEnabled)
+	if (time_after(jiffies, cifs_get_time(direntry) + HZ) || !lookupCacheEnabled)
 		return 0;
 
 	return 1;

@@ -98,7 +98,7 @@ struct orangefs_truncate_request_s {
 	__s64 size;
 };
 
-struct orangefs_mmap_ra_cache_flush_request_s {
+struct orangefs_ra_cache_flush_request_s {
 	struct orangefs_object_kref refn;
 };
 
@@ -179,12 +179,18 @@ enum orangefs_param_request_op {
 	ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT = 23,
 	ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE = 24,
 	ORANGEFS_PARAM_REQUEST_OP_TWO_MASK_VALUES = 25,
+	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_SIZE = 26,
+	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT = 27,
+	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE = 28,
 };
 
 struct orangefs_param_request_s {
 	enum orangefs_param_request_type type;
 	enum orangefs_param_request_op op;
-	__s64 value;
+	union {
+		__s64 value64;
+		__s32 value32[2];
+	} u;
 	char s_value[ORANGEFS_MAX_DEBUG_STRING_LEN];
 };
 
@@ -202,6 +208,11 @@ struct orangefs_perf_count_request_s {
 struct orangefs_fs_key_request_s {
 	__s32 fsid;
 	__s32 __pad1;
+};
+
+/* 2.9.6 */
+struct orangefs_features_request_s {
+	__u64 features;
 };
 
 struct orangefs_upcall_s {
@@ -228,7 +239,7 @@ struct orangefs_upcall_s {
 		struct orangefs_rename_request_s rename;
 		struct orangefs_statfs_request_s statfs;
 		struct orangefs_truncate_request_s truncate;
-		struct orangefs_mmap_ra_cache_flush_request_s ra_cache_flush;
+		struct orangefs_ra_cache_flush_request_s ra_cache_flush;
 		struct orangefs_fs_mount_request_s fs_mount;
 		struct orangefs_fs_umount_request_s fs_umount;
 		struct orangefs_getxattr_request_s getxattr;
@@ -240,6 +251,7 @@ struct orangefs_upcall_s {
 		struct orangefs_param_request_s param;
 		struct orangefs_perf_count_request_s perf_count;
 		struct orangefs_fs_key_request_s fs_key;
+		struct orangefs_features_request_s features;
 	} req;
 };
 

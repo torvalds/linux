@@ -2523,14 +2523,9 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 	if (count == 0 || count > SMK_LONGLABEL)
 		return -EINVAL;
 
-	data = kzalloc(count, GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(data, buf, count) != 0) {
-		rc = -EFAULT;
-		goto out_data;
-	}
+	data = memdup_user(buf, count);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	cp = smk_parse_smack(data, count);
 	if (IS_ERR(cp)) {
@@ -3001,9 +2996,6 @@ static int __init init_smk_fs(void)
 	if (err == 0 && rc < 0)
 		err = rc;
 	rc = smk_preset_netlabel(&smack_known_huh);
-	if (err == 0 && rc < 0)
-		err = rc;
-	rc = smk_preset_netlabel(&smack_known_invalid);
 	if (err == 0 && rc < 0)
 		err = rc;
 	rc = smk_preset_netlabel(&smack_known_star);

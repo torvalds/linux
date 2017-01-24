@@ -16,110 +16,109 @@
 
 #include <asm/stacktrace.h>
 
-static void *is_irq_stack(void *p, void *irq)
+const char *stack_type_name(enum stack_type type)
 {
-	if (p < irq || p >= (irq + THREAD_SIZE))
-		return NULL;
-	return irq + THREAD_SIZE;
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type == STACK_TYPE_SOFTIRQ)
+		return "SOFTIRQ";
+
+	return NULL;
 }
 
-
-static void *is_hardirq_stack(unsigned long *stack, int cpu)
+static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 {
-	void *irq = per_cpu(hardirq_stack, cpu);
+	unsigned long *begin = (unsigned long *)this_cpu_read(hardirq_stack);
+	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
-	return is_irq_stack(stack, irq);
+	/*
+	 * This is a software stack, so 'end' can be a valid stack pointer.
+	 * It just means the stack is empty.
+	 */
+	if (stack < begin || stack > end)
+		return false;
+
+	info->type	= STACK_TYPE_IRQ;
+	info->begin	= begin;
+	info->end	= end;
+
+	/*
+	 * See irq_32.c -- the next stack pointer is stored at the beginning of
+	 * the stack.
+	 */
+	info->next_sp	= (unsigned long *)*begin;
+
+	return true;
 }
 
-static void *is_softirq_stack(unsigned long *stack, int cpu)
+static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 {
-	void *irq = per_cpu(softirq_stack, cpu);
+	unsigned long *begin = (unsigned long *)this_cpu_read(softirq_stack);
+	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
-	return is_irq_stack(stack, irq);
+	/*
+	 * This is a software stack, so 'end' can be a valid stack pointer.
+	 * It just means the stack is empty.
+	 */
+	if (stack < begin || stack > end)
+		return false;
+
+	info->type	= STACK_TYPE_SOFTIRQ;
+	info->begin	= begin;
+	info->end	= end;
+
+	/*
+	 * The next stack pointer is stored at the beginning of the stack.
+	 * See irq_32.c.
+	 */
+	info->next_sp	= (unsigned long *)*begin;
+
+	return true;
 }
 
-void dump_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp,
-		const struct stacktrace_ops *ops, void *data)
+int get_stack_info(unsigned long *stack, struct task_struct *task,
+		   struct stack_info *info, unsigned long *visit_mask)
 {
-	const unsigned cpu = get_cpu();
-	int graph = 0;
-	u32 *prev_esp;
+	if (!stack)
+		goto unknown;
 
-	if (!task)
-		task = current;
+	task = task ? : current;
 
-	if (!stack) {
-		unsigned long dummy;
+	if (in_task_stack(stack, task, info))
+		goto recursion_check;
 
-		stack = &dummy;
-		if (task != current)
-			stack = (unsigned long *)task->thread.sp;
+	if (task != current)
+		goto unknown;
+
+	if (in_hardirq_stack(stack, info))
+		goto recursion_check;
+
+	if (in_softirq_stack(stack, info))
+		goto recursion_check;
+
+	goto unknown;
+
+recursion_check:
+	/*
+	 * Make sure we don't iterate through any given stack more than once.
+	 * If it comes up a second time then there's something wrong going on:
+	 * just break out and report an unknown stack type.
+	 */
+	if (visit_mask) {
+		if (*visit_mask & (1UL << info->type)) {
+			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
+			goto unknown;
+		}
+		*visit_mask |= 1UL << info->type;
 	}
 
-	if (!bp)
-		bp = stack_frame(task, regs);
+	return 0;
 
-	for (;;) {
-		void *end_stack;
-
-		end_stack = is_hardirq_stack(stack, cpu);
-		if (!end_stack)
-			end_stack = is_softirq_stack(stack, cpu);
-
-		bp = ops->walk_stack(task, stack, bp, ops, data,
-				     end_stack, &graph);
-
-		/* Stop if not on irq stack */
-		if (!end_stack)
-			break;
-
-		/* The previous esp is saved on the bottom of the stack */
-		prev_esp = (u32 *)(end_stack - THREAD_SIZE);
-		stack = (unsigned long *)*prev_esp;
-		if (!stack)
-			break;
-
-		if (ops->stack(data, "IRQ") < 0)
-			break;
-		touch_nmi_watchdog();
-	}
-	put_cpu();
+unknown:
+	info->type = STACK_TYPE_UNKNOWN;
+	return -EINVAL;
 }
-EXPORT_SYMBOL(dump_trace);
-
-void
-show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long *sp, unsigned long bp, char *log_lvl)
-{
-	unsigned long *stack;
-	int i;
-
-	if (sp == NULL) {
-		if (regs)
-			sp = (unsigned long *)regs->sp;
-		else if (task)
-			sp = (unsigned long *)task->thread.sp;
-		else
-			sp = (unsigned long *)&sp;
-	}
-
-	stack = sp;
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(stack))
-			break;
-		if ((i % STACKSLOTS_PER_LINE) == 0) {
-			if (i != 0)
-				pr_cont("\n");
-			printk("%s %08lx", log_lvl, *stack++);
-		} else
-			pr_cont(" %08lx", *stack++);
-		touch_nmi_watchdog();
-	}
-	pr_cont("\n");
-	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
-}
-
 
 void show_regs(struct pt_regs *regs)
 {
@@ -138,8 +137,7 @@ void show_regs(struct pt_regs *regs)
 		unsigned char c;
 		u8 *ip;
 
-		pr_emerg("Stack:\n");
-		show_stack_log_lvl(NULL, regs, &regs->sp, 0, KERN_EMERG);
+		show_trace_log_lvl(current, regs, NULL, KERN_EMERG);
 
 		pr_emerg("Code:");
 

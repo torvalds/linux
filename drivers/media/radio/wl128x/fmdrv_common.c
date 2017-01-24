@@ -212,14 +212,14 @@ inline void dump_tx_skb_data(struct sk_buff *skb)
 
 	len_org = skb->len - FM_CMD_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", cmd_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", cmd_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_CMD_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
  /* To dump incoming FM Channel-8 packets */
@@ -230,21 +230,21 @@ inline void dump_rx_skb_data(struct sk_buff *skb)
 	struct fm_event_msg_hdr *evt_hdr;
 
 	evt_hdr = (struct fm_event_msg_hdr *)skb->data;
-	printk(KERN_INFO ">> hdr:%02x len:%02x sts:%02x numhci:%02x "
-	    "opcode:%02x type:%s dlen:%02x", evt_hdr->hdr, evt_hdr->len,
-	    evt_hdr->status, evt_hdr->num_fm_hci_cmds, evt_hdr->op,
-	    (evt_hdr->rd_wr) ? "RD" : "WR", evt_hdr->dlen);
+	printk(KERN_INFO ">> hdr:%02x len:%02x sts:%02x numhci:%02x opcode:%02x type:%s dlen:%02x",
+	       evt_hdr->hdr, evt_hdr->len,
+	       evt_hdr->status, evt_hdr->num_fm_hci_cmds, evt_hdr->op,
+	       (evt_hdr->rd_wr) ? "RD" : "WR", evt_hdr->dlen);
 
 	len_org = skb->len - FM_EVT_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", evt_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", evt_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_EVT_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
@@ -271,9 +271,9 @@ static void recv_tasklet(unsigned long arg)
 	/* Process all packets in the RX queue */
 	while ((skb = skb_dequeue(&fmdev->rx_q))) {
 		if (skb->len < sizeof(struct fm_event_msg_hdr)) {
-			fmerr("skb(%p) has only %d bytes, "
-				"at least need %zu bytes to decode\n", skb,
-				skb->len, sizeof(struct fm_event_msg_hdr));
+			fmerr("skb(%p) has only %d bytes, at least need %zu bytes to decode\n",
+			      skb,
+			      skb->len, sizeof(struct fm_event_msg_hdr));
 			kfree_skb(skb);
 			continue;
 		}
@@ -472,8 +472,7 @@ int fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 
 	if (!wait_for_completion_timeout(&fmdev->maintask_comp,
 					 FM_DRV_TX_TIMEOUT)) {
-		fmerr("Timeout(%d sec),didn't get reg"
-			   "completion signal from RX tasklet\n",
+		fmerr("Timeout(%d sec),didn't get regcompletion signal from RX tasklet\n",
 			   jiffies_to_msecs(FM_DRV_TX_TIMEOUT) / 1000);
 		return -ETIMEDOUT;
 	}
@@ -523,8 +522,7 @@ static inline int check_cmdresp_status(struct fmdev *fmdev,
 
 	fm_evt_hdr = (void *)(*skb)->data;
 	if (fm_evt_hdr->status != 0) {
-		fmerr("irq: opcode %x response status is not zero "
-				"Initiating irq recovery process\n",
+		fmerr("irq: opcode %x response status is not zero Initiating irq recovery process\n",
 				fm_evt_hdr->op);
 
 		mod_timer(&fmdev->irq_info.timer, jiffies + FM_DRV_TX_TIMEOUT);
@@ -564,8 +562,7 @@ static void int_timeout_handler(unsigned long data)
 		 * reset stage index & retry count values */
 		fmirq->stage = 0;
 		fmirq->retry = 0;
-		fmerr("Recovery action failed during"
-				"irq processing, max retry reached\n");
+		fmerr("Recovery action failed duringirq processing, max retry reached\n");
 		return;
 	}
 	fm_irq_call_stage(fmdev, FM_SEND_INTMSK_CMD_IDX);
@@ -1516,14 +1513,13 @@ int fmc_prepare(struct fmdev *fmdev)
 
 		if (!wait_for_completion_timeout(&wait_for_fmdrv_reg_comp,
 						 FM_ST_REG_TIMEOUT)) {
-			fmerr("Timeout(%d sec), didn't get reg "
-					"completion signal from ST\n",
+			fmerr("Timeout(%d sec), didn't get reg completion signal from ST\n",
 					jiffies_to_msecs(FM_ST_REG_TIMEOUT) / 1000);
 			return -ETIMEDOUT;
 		}
 		if (fmdev->streg_cbdata != 0) {
-			fmerr("ST reg comp CB called with error "
-					"status %d\n", fmdev->streg_cbdata);
+			fmerr("ST reg comp CB called with error status %d\n",
+			      fmdev->streg_cbdata);
 			return -EAGAIN;
 		}
 

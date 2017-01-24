@@ -28,7 +28,7 @@ struct efx_loopback_self_tests {
 
 /* Efx self test results
  * For fields which are not counters, 1 indicates success and -1
- * indicates failure.
+ * indicates failure; 0 indicates test could not be run.
  */
 struct efx_self_tests {
 	/* online tests */

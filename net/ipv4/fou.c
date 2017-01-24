@@ -249,7 +249,7 @@ static struct sk_buff **fou_gro_receive(struct sock *sk,
 	if (!ops || !ops->callbacks.gro_receive)
 		goto out_unlock;
 
-	pp = ops->callbacks.gro_receive(head, skb);
+	pp = call_gro_receive(ops->callbacks.gro_receive, head, skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -441,7 +441,7 @@ next_proto:
 	if (WARN_ON_ONCE(!ops || !ops->callbacks.gro_receive))
 		goto out_unlock;
 
-	pp = ops->callbacks.gro_receive(head, skb);
+	pp = call_gro_receive(ops->callbacks.gro_receive, head, skb);
 	flush = 0;
 
 out_unlock:
@@ -622,16 +622,9 @@ static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 	return err;
 }
 
-static struct genl_family fou_nl_family = {
-	.id		= GENL_ID_GENERATE,
-	.hdrsize	= 0,
-	.name		= FOU_GENL_NAME,
-	.version	= FOU_GENL_VERSION,
-	.maxattr	= FOU_ATTR_MAX,
-	.netnsok	= true,
-};
+static struct genl_family fou_nl_family;
 
-static struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
+static const struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_PORT] = { .type = NLA_U16, },
 	[FOU_ATTR_AF] = { .type = NLA_U8, },
 	[FOU_ATTR_IPPROTO] = { .type = NLA_U8, },
@@ -829,6 +822,17 @@ static const struct genl_ops fou_nl_ops[] = {
 		.dumpit = fou_nl_dump,
 		.policy = fou_nl_policy,
 	},
+};
+
+static struct genl_family fou_nl_family __ro_after_init = {
+	.hdrsize	= 0,
+	.name		= FOU_GENL_NAME,
+	.version	= FOU_GENL_VERSION,
+	.maxattr	= FOU_ATTR_MAX,
+	.netnsok	= true,
+	.module		= THIS_MODULE,
+	.ops		= fou_nl_ops,
+	.n_ops		= ARRAY_SIZE(fou_nl_ops),
 };
 
 size_t fou_encap_hlen(struct ip_tunnel_encap *e)
@@ -1086,8 +1090,7 @@ static int __init fou_init(void)
 	if (ret)
 		goto exit;
 
-	ret = genl_register_family_with_ops(&fou_nl_family,
-					    fou_nl_ops);
+	ret = genl_register_family(&fou_nl_family);
 	if (ret < 0)
 		goto unregister;
 

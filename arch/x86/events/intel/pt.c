@@ -36,13 +36,6 @@ static DEFINE_PER_CPU(struct pt, pt_ctx);
 
 static struct pt_pmu pt_pmu;
 
-enum cpuid_regs {
-	CR_EAX = 0,
-	CR_ECX,
-	CR_EDX,
-	CR_EBX
-};
-
 /*
  * Capabilities of Intel PT hardware, such as number of address bits or
  * supported output schemes, are cached and exported to userspace as "caps"
@@ -64,19 +57,21 @@ static struct pt_cap_desc {
 	u8		reg;
 	u32		mask;
 } pt_caps[] = {
-	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
-	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
-	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
-	PT_CAP(ip_filtering,		0, CR_EBX, BIT(2)),
-	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
-	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
-	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
-	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
-	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
-	PT_CAP(num_address_ranges,	1, CR_EAX, 0x3),
-	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
-	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
-	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
+	PT_CAP(max_subleaf,		0, CPUID_EAX, 0xffffffff),
+	PT_CAP(cr3_filtering,		0, CPUID_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CPUID_EBX, BIT(1)),
+	PT_CAP(ip_filtering,		0, CPUID_EBX, BIT(2)),
+	PT_CAP(mtc,			0, CPUID_EBX, BIT(3)),
+	PT_CAP(ptwrite,			0, CPUID_EBX, BIT(4)),
+	PT_CAP(power_event_trace,	0, CPUID_EBX, BIT(5)),
+	PT_CAP(topa_output,		0, CPUID_ECX, BIT(0)),
+	PT_CAP(topa_multiple_entries,	0, CPUID_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CPUID_ECX, BIT(2)),
+	PT_CAP(payloads_lip,		0, CPUID_ECX, BIT(31)),
+	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x3),
+	PT_CAP(mtc_periods,		1, CPUID_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CPUID_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CPUID_EBX, 0xffff0000),
 };
 
 static u32 pt_cap_get(enum pt_capabilities cap)
@@ -211,10 +206,10 @@ static int __init pt_pmu_hw_init(void)
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
+			    &pt_pmu.caps[CPUID_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;
@@ -259,10 +254,16 @@ fail:
 #define RTIT_CTL_MTC	(RTIT_CTL_MTC_EN	| \
 			 RTIT_CTL_MTC_RANGE)
 
+#define RTIT_CTL_PTW	(RTIT_CTL_PTW_EN	| \
+			 RTIT_CTL_FUP_ON_PTW)
+
 #define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
 			RTIT_CTL_DISRETC	| \
 			RTIT_CTL_CYC_PSB	| \
-			RTIT_CTL_MTC)
+			RTIT_CTL_MTC		| \
+			RTIT_CTL_PWR_EVT_EN	| \
+			RTIT_CTL_FUP_ON_PTW	| \
+			RTIT_CTL_PTW_EN)
 
 static bool pt_event_valid(struct perf_event *event)
 {
@@ -308,6 +309,20 @@ static bool pt_event_valid(struct perf_event *event)
 			RTIT_CTL_MTC_RANGE_OFFSET;
 
 		if (!(allowed & BIT(requested)))
+			return false;
+	}
+
+	if (config & RTIT_CTL_PWR_EVT_EN &&
+	    !pt_cap_get(PT_CAP_power_event_trace))
+		return false;
+
+	if (config & RTIT_CTL_PTW) {
+		if (!pt_cap_get(PT_CAP_ptwrite))
+			return false;
+
+		/* FUPonPTW without PTW doesn't make sense */
+		if ((config & RTIT_CTL_FUP_ON_PTW) &&
+		    !(config & RTIT_CTL_PTW_EN))
 			return false;
 	}
 

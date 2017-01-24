@@ -46,6 +46,9 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 				struct perf_probe_point *ppt);
 
+int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
+			       bool adjust_offset);
+
 /* Find a line range */
 int debuginfo__find_line_range(struct debuginfo *dbg, struct line_range *lr);
 
@@ -80,6 +83,7 @@ struct probe_finder {
 	Dwarf_CFI		*cfi_dbg;
 #endif
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
+	unsigned int		machine;	/* Target machine arch */
 	struct perf_probe_arg	*pvar;		/* Current target variable */
 	struct probe_trace_arg	*tvar;		/* Current result variable */
 };

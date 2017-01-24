@@ -34,9 +34,7 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
 int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
-			      struct bio_vec *bvec, int vcnt,
-			      unsigned long *pg_index,
-			      unsigned long *pg_offset);
+			      struct bio *bio);
 
 int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
@@ -45,9 +43,6 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long nr_pages);
 int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
-void btrfs_clear_biovec_end(struct bio_vec *bvec, int vcnt,
-				   unsigned long pg_index,
-				   unsigned long pg_offset);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -72,11 +67,10 @@ struct btrfs_compress_op {
 			      unsigned long *total_out,
 			      unsigned long max_out);
 
-	int (*decompress_biovec)(struct list_head *workspace,
+	int (*decompress_bio)(struct list_head *workspace,
 				 struct page **pages_in,
 				 u64 disk_start,
-				 struct bio_vec *bvec,
-				 int vcnt,
+				 struct bio *orig_bio,
 				 size_t srclen);
 
 	int (*decompress)(struct list_head *workspace,

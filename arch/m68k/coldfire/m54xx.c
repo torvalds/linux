@@ -25,7 +25,6 @@
 #include <asm/m54xxgpt.h>
 #ifdef CONFIG_MMU
 #include <asm/mmu_context.h>
-#include <linux/pfn.h>
 #endif
 
 /***************************************************************************/
@@ -38,6 +37,7 @@ DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
 DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
 DEFINE_CLK(mcfuart3, "mcfuart.3", MCF_BUSCLK);
+DEFINE_CLK(mcfi2c0, "imx1-i2c.0", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
 	&clk_pll,
@@ -48,6 +48,7 @@ struct clk *mcf_clks[] = {
 	&clk_mcfuart1,
 	&clk_mcfuart2,
 	&clk_mcfuart3,
+	&clk_mcfi2c0,
 	NULL
 };
 
@@ -66,6 +67,20 @@ static void __init m54xx_uarts_init(void)
 
 /***************************************************************************/
 
+static void __init m54xx_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	u32 r;
+
+	/* set the fec/i2c/irq pin assignment register for i2c */
+	r = readl(MCF_PAR_FECI2CIRQ);
+	r |= MCF_PAR_FECI2CIRQ_SDA | MCF_PAR_FECI2CIRQ_SCL;
+	writel(r, MCF_PAR_FECI2CIRQ);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
+}
+
+/***************************************************************************/
+
 static void mcf54xx_reset(void)
 {
 	/* disable interrupts and enable the watchdog */
@@ -78,52 +93,16 @@ static void mcf54xx_reset(void)
 
 /***************************************************************************/
 
-#ifdef CONFIG_MMU
-
-unsigned long num_pages;
-
-static void __init mcf54xx_bootmem_alloc(void)
-{
-	unsigned long start_pfn;
-	unsigned long memstart;
-
-	/* _rambase and _ramend will be naturally page aligned */
-	m68k_memory[0].addr = _rambase;
-	m68k_memory[0].size = _ramend - _rambase;
-
-	/* compute total pages in system */
-	num_pages = PFN_DOWN(_ramend - _rambase);
-
-	/* page numbers */
-	memstart = PAGE_ALIGN(_ramstart);
-	min_low_pfn = PFN_DOWN(_rambase);
-	start_pfn = PFN_DOWN(memstart);
-	max_pfn = max_low_pfn = PFN_DOWN(_ramend);
-	high_memory = (void *)_ramend;
-
-	m68k_virt_to_node_shift = fls(_ramend - _rambase - 1) - 6;
-	module_fixup(NULL, __start_fixup, __stop_fixup);
-
-	/* setup bootmem data */
-	m68k_setup_node(0);
-	memstart += init_bootmem_node(NODE_DATA(0), start_pfn,
-		min_low_pfn, max_low_pfn);
-	free_bootmem_node(NODE_DATA(0), memstart, _ramend - memstart);
-}
-
-#endif /* CONFIG_MMU */
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
 #ifdef CONFIG_MMU
-	mcf54xx_bootmem_alloc();
+	cf_bootmem_alloc();
 	mmu_context_init();
 #endif
 	mach_reset = mcf54xx_reset;
 	mach_sched_init = hw_timer_init;
 	m54xx_uarts_init();
+	m54xx_i2c_init();
 }
 
 /***************************************************************************/

@@ -1,6 +1,6 @@
 #define USE_HW_I2C
 #ifdef USE_HW_I2C
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_hwi2c.h"
 #include "ddk750_power.h"
@@ -20,10 +20,11 @@ unsigned char bus_speed_mode
 	value |= (GPIO_MUX_30 | GPIO_MUX_31);
 	POKE32(GPIO_MUX, value);
 
-	/* Enable Hardware I2C power.
-	 TODO: Check if we need to enable GPIO power?
+	/*
+	 * Enable Hardware I2C power.
+	 * TODO: Check if we need to enable GPIO power?
 	 */
-	enableI2C(1);
+	sm750_enable_i2c(1);
 
 	/* Enable the I2C Controller and set the bus speed mode */
 	value = PEEK32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
@@ -44,7 +45,7 @@ void sm750_hw_i2c_close(void)
 	POKE32(I2C_CTRL, value);
 
 	/* Disable I2C Power */
-	enableI2C(0);
+	sm750_enable_i2c(0);
 
 	/* Set GPIO 30 & 31 back as GPIO pins */
 	value = PEEK32(GPIO_MUX);
@@ -92,7 +93,8 @@ static unsigned int hw_i2c_write_data(
 	/* Set the Device Address */
 	POKE32(I2C_SLAVE_ADDRESS, addr & ~0x01);
 
-	/* Write data.
+	/*
+	 * Write data.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
@@ -158,7 +160,8 @@ static unsigned int hw_i2c_read_data(
 	/* Set the Device Address */
 	POKE32(I2C_SLAVE_ADDRESS, addr | 0x01);
 
-	/* Read data and save them to the buffer.
+	/*
+	 * Read data and save them to the buffer.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */

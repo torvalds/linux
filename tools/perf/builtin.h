@@ -18,6 +18,7 @@ int cmd_bench(int argc, const char **argv, const char *prefix);
 int cmd_buildid_cache(int argc, const char **argv, const char *prefix);
 int cmd_buildid_list(int argc, const char **argv, const char *prefix);
 int cmd_config(int argc, const char **argv, const char *prefix);
+int cmd_c2c(int argc, const char **argv, const char *prefix);
 int cmd_diff(int argc, const char **argv, const char *prefix);
 int cmd_evlist(int argc, const char **argv, const char *prefix);
 int cmd_help(int argc, const char **argv, const char *prefix);

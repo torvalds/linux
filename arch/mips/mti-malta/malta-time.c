@@ -75,7 +75,7 @@ static void __init estimate_frequencies(void)
 	unsigned int count, start;
 	unsigned char secs1, secs2, ctrl;
 	int secs;
-	cycle_t giccount = 0, gicstart = 0;
+	u64 giccount = 0, gicstart = 0;
 
 #if defined(CONFIG_KVM_GUEST) && CONFIG_KVM_GUEST_TIMER_FREQ
 	mips_hpt_frequency = CONFIG_KVM_GUEST_TIMER_FREQ * 1000000;

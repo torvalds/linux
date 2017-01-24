@@ -156,5 +156,7 @@ enum r10bio_state {
  * flag is set
  */
 	R10BIO_Previous,
+/* failfast devices did receive failfast requests. */
+	R10BIO_FailFast,
 };
 #endif

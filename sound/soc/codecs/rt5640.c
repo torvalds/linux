@@ -423,6 +423,8 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	SOC_DOUBLE_TLV("ADC Capture Volume", RT5640_ADC_DIG_VOL,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
+	SOC_DOUBLE("Mono ADC Capture Switch", RT5640_DUMMY1,
+		RT5640_M_MONO_ADC_L_SFT, RT5640_M_MONO_ADC_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5640_ADC_DATA,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
@@ -1870,6 +1872,9 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	case RT5640_SCLK_S_PLL1:
 		reg_val |= RT5640_SCLK_SRC_PLL1;
 		break;
+	case RT5640_SCLK_S_RCCLK:
+		reg_val |= RT5640_SCLK_SRC_RCCLK;
+		break;
 	default:
 		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
@@ -2261,12 +2266,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5640 = {
 	.resume = rt5640_resume,
 	.set_bias_level = rt5640_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5640_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5640_snd_controls),
-	.dapm_widgets = rt5640_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5640_dapm_widgets),
-	.dapm_routes = rt5640_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5640_dapm_routes),
+	.component_driver = {
+		.controls		= rt5640_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5640_snd_controls),
+		.dapm_widgets		= rt5640_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5640_dapm_widgets),
+		.dapm_routes		= rt5640_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5640_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5640_regmap = {
@@ -2401,6 +2408,9 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 				    ARRAY_SIZE(init_list));
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
+
+	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
+				RT5640_MCLK_DET, RT5640_MCLK_DET);
 
 	if (rt5640->pdata.in1_diff)
 		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,

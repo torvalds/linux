@@ -238,7 +238,7 @@ get_static_power(struct devfreq_cooling_device *dfc, unsigned long freq)
 		return 0;
 	}
 
-	return dfc->power_ops->get_static_power(voltage);
+	return dfc->power_ops->get_static_power(df, voltage);
 }
 
 /**
@@ -262,7 +262,8 @@ get_dynamic_power(struct devfreq_cooling_device *dfc, unsigned long freq,
 	struct devfreq_cooling_power *dfc_power = dfc->power_ops;
 
 	if (dfc_power->get_dynamic_power)
-		return dfc_power->get_dynamic_power(freq, voltage);
+		return dfc_power->get_dynamic_power(dfc->devfreq, freq,
+						    voltage);
 
 	freq_mhz = freq / 1000000;
 	power = (u64)dfc_power->dyn_power_coeff * freq_mhz * voltage * voltage;
@@ -312,7 +313,7 @@ static int devfreq_cooling_state2power(struct thermal_cooling_device *cdev,
 	unsigned long freq;
 	u32 static_power;
 
-	if (state < 0 || state >= dfc->freq_table_size)
+	if (state >= dfc->freq_table_size)
 		return -EINVAL;
 
 	freq = dfc->freq_table[state];

@@ -142,10 +142,23 @@ static bool is_hdmi_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN])
 		      sizeof(dp_dual_mode_hdmi_id)) == 0;
 }
 
+static bool is_type1_adaptor(uint8_t adaptor_id)
+{
+	return adaptor_id == 0 || adaptor_id == 0xff;
+}
+
 static bool is_type2_adaptor(uint8_t adaptor_id)
 {
 	return adaptor_id == (DP_DUAL_MODE_TYPE_TYPE2 |
 			      DP_DUAL_MODE_REV_TYPE2);
+}
+
+static bool is_lspcon_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN],
+			      const uint8_t adaptor_id)
+{
+	return is_hdmi_adaptor(hdmi_id) &&
+		(adaptor_id == (DP_DUAL_MODE_TYPE_TYPE2 |
+		 DP_DUAL_MODE_TYPE_HAS_DPCD));
 }
 
 /**
@@ -185,6 +198,8 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_HDMI_ID,
 				    hdmi_id, sizeof(hdmi_id));
+	DRM_DEBUG_KMS("DP dual mode HDMI ID: %*pE (err %zd)\n",
+		      ret ? 0 : (int)sizeof(hdmi_id), hdmi_id, ret);
 	if (ret)
 		return DRM_DP_DUAL_MODE_UNKNOWN;
 
@@ -202,13 +217,26 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_ADAPTOR_ID,
 				    &adaptor_id, sizeof(adaptor_id));
+	DRM_DEBUG_KMS("DP dual mode adaptor ID: %02x (err %zd)\n",
+		      adaptor_id, ret);
 	if (ret == 0) {
+		if (is_lspcon_adaptor(hdmi_id, adaptor_id))
+			return DRM_DP_DUAL_MODE_LSPCON;
 		if (is_type2_adaptor(adaptor_id)) {
 			if (is_hdmi_adaptor(hdmi_id))
 				return DRM_DP_DUAL_MODE_TYPE2_HDMI;
 			else
 				return DRM_DP_DUAL_MODE_TYPE2_DVI;
 		}
+		/*
+		 * If neither a proper type 1 ID nor a broken type 1 adaptor
+		 * as described above, assume type 1, but let the user know
+		 * that we may have misdetected the type.
+		 */
+		if (!is_type1_adaptor(adaptor_id) && adaptor_id != hdmi_id[0])
+			DRM_ERROR("Unexpected DP dual mode adaptor ID %02x\n",
+				  adaptor_id);
+
 	}
 
 	if (is_hdmi_adaptor(hdmi_id))
@@ -364,3 +392,96 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type)
 	}
 }
 EXPORT_SYMBOL(drm_dp_get_dual_mode_type_name);
+
+/**
+ * drm_lspcon_get_mode: Get LSPCON's current mode of operation by
+ * reading offset (0x80, 0x41)
+ * @adapter: I2C-over-aux adapter
+ * @mode: current lspcon mode of operation output variable
+ *
+ * Returns:
+ * 0 on success, sets the current_mode value to appropriate mode
+ * -error on failure
+ */
+int drm_lspcon_get_mode(struct i2c_adapter *adapter,
+			enum drm_lspcon_mode *mode)
+{
+	u8 data;
+	int ret = 0;
+
+	if (!mode) {
+		DRM_ERROR("NULL input\n");
+		return -EINVAL;
+	}
+
+	/* Read Status: i2c over aux */
+	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_LSPCON_CURRENT_MODE,
+				    &data, sizeof(data));
+	if (ret < 0) {
+		DRM_ERROR("LSPCON read(0x80, 0x41) failed\n");
+		return -EFAULT;
+	}
+
+	if (data & DP_DUAL_MODE_LSPCON_MODE_PCON)
+		*mode = DRM_LSPCON_MODE_PCON;
+	else
+		*mode = DRM_LSPCON_MODE_LS;
+	return 0;
+}
+EXPORT_SYMBOL(drm_lspcon_get_mode);
+
+/**
+ * drm_lspcon_set_mode: Change LSPCON's mode of operation by
+ * writing offset (0x80, 0x40)
+ * @adapter: I2C-over-aux adapter
+ * @mode: required mode of operation
+ *
+ * Returns:
+ * 0 on success, -error on failure/timeout
+ */
+int drm_lspcon_set_mode(struct i2c_adapter *adapter,
+			enum drm_lspcon_mode mode)
+{
+	u8 data = 0;
+	int ret;
+	int time_out = 200;
+	enum drm_lspcon_mode current_mode;
+
+	if (mode == DRM_LSPCON_MODE_PCON)
+		data = DP_DUAL_MODE_LSPCON_MODE_PCON;
+
+	/* Change mode */
+	ret = drm_dp_dual_mode_write(adapter, DP_DUAL_MODE_LSPCON_MODE_CHANGE,
+				     &data, sizeof(data));
+	if (ret < 0) {
+		DRM_ERROR("LSPCON mode change failed\n");
+		return ret;
+	}
+
+	/*
+	 * Confirm mode change by reading the status bit.
+	 * Sometimes, it takes a while to change the mode,
+	 * so wait and retry until time out or done.
+	 */
+	do {
+		ret = drm_lspcon_get_mode(adapter, &current_mode);
+		if (ret) {
+			DRM_ERROR("can't confirm LSPCON mode change\n");
+			return ret;
+		} else {
+			if (current_mode != mode) {
+				msleep(10);
+				time_out -= 10;
+			} else {
+				DRM_DEBUG_KMS("LSPCON mode changed to %s\n",
+						mode == DRM_LSPCON_MODE_LS ?
+						"LS" : "PCON");
+				return 0;
+			}
+		}
+	} while (time_out);
+
+	DRM_ERROR("LSPCON mode change timed out\n");
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL(drm_lspcon_set_mode);

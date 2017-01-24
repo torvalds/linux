@@ -38,6 +38,7 @@
 #include <linux/crc-itu-t.h>
 #include <linux/mpage.h>
 #include <linux/uio.h>
+#include <linux/bio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -886,7 +887,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	*new = 1;
 	iinfo->i_next_alloc_block = block;
 	iinfo->i_next_alloc_goal = newblocknum;
-	inode->i_ctime = current_fs_time(inode->i_sb);
+	inode->i_ctime = current_time(inode);
 
 	if (IS_SYNC(inode))
 		udf_sync_inode(inode);
@@ -1268,7 +1269,7 @@ set_size:
 		up_write(&iinfo->i_data_sem);
 	}
 update_time:
-	inode->i_mtime = inode->i_ctime = current_fs_time(inode->i_sb);
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 	if (IS_SYNC(inode))
 		udf_sync_inode(inode);
 	else

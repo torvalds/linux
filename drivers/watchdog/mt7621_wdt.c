@@ -139,7 +139,6 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	if (!IS_ERR(mt7621_wdt_reset))
 		reset_control_deassert(mt7621_wdt_reset);
 
-	mt7621_wdt_dev.dev = &pdev->dev;
 	mt7621_wdt_dev.bootstatus = mt7621_wdt_bootcause();
 
 	watchdog_init_timeout(&mt7621_wdt_dev, mt7621_wdt_dev.max_timeout,

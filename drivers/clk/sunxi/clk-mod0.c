@@ -24,7 +24,7 @@
 #include "clk-factors.h"
 
 /**
- * sun4i_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
+ * sun4i_a10_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
  * MOD0 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
  */
@@ -91,7 +91,8 @@ static void __init sun4i_a10_mod0_setup(struct device_node *node)
 	sunxi_factors_register(node, &sun4i_a10_mod0_data,
 			       &sun4i_a10_mod0_lock, reg);
 }
-CLK_OF_DECLARE(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk", sun4i_a10_mod0_setup);
+CLK_OF_DECLARE_DRIVER(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk",
+		      sun4i_a10_mod0_setup);
 
 static int sun4i_a10_mod0_clk_probe(struct platform_device *pdev)
 {

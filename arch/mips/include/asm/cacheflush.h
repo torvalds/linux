@@ -28,6 +28,7 @@
  *  - flush_cache_sigtramp() flush signal trampoline
  *  - flush_icache_all() flush the entire instruction cache
  *  - flush_data_cache_page() flushes a page from the data cache
+ *  - __flush_icache_user_range(start, end) flushes range of user instructions
  */
 
  /*
@@ -80,6 +81,10 @@ static inline void flush_icache_page(struct vm_area_struct *vma,
 
 extern void (*flush_icache_range)(unsigned long start, unsigned long end);
 extern void (*local_flush_icache_range)(unsigned long start, unsigned long end);
+extern void (*__flush_icache_user_range)(unsigned long start,
+					 unsigned long end);
+extern void (*__local_flush_icache_user_range)(unsigned long start,
+					       unsigned long end);
 
 extern void (*__flush_cache_vmap)(void);
 

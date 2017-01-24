@@ -57,7 +57,7 @@
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
 #define AUTH_REQ_MASK(dev)	(hci_dev_test_flag(dev, HCI_SC_ENABLED) ? \
-				 0x1f : 0x07)
+				 0x3f : 0x07)
 #define KEY_DIST_MASK		0x07
 
 /* Maximum message length that can be passed to aes_cmac */
@@ -76,6 +76,7 @@ enum {
 	SMP_FLAG_DHKEY_PENDING,
 	SMP_FLAG_REMOTE_OOB,
 	SMP_FLAG_LOCAL_OOB,
+	SMP_FLAG_CT2,
 };
 
 struct smp_dev {
@@ -349,6 +350,22 @@ static int smp_h6(struct crypto_shash *tfm_cmac, const u8 w[16],
 	SMP_DBG("w %16phN key_id %4phN", w, key_id);
 
 	err = aes_cmac(tfm_cmac, w, key_id, 4, res);
+	if (err)
+		return err;
+
+	SMP_DBG("res %16phN", res);
+
+	return err;
+}
+
+static int smp_h7(struct crypto_shash *tfm_cmac, const u8 w[16],
+		  const u8 salt[16], u8 res[16])
+{
+	int err;
+
+	SMP_DBG("w %16phN salt %16phN", w, salt);
+
+	err = aes_cmac(tfm_cmac, salt, w, 16, res);
 	if (err)
 		return err;
 
@@ -1130,20 +1147,31 @@ static void sc_add_ltk(struct smp_chan *smp)
 
 static void sc_generate_link_key(struct smp_chan *smp)
 {
-	/* These constants are as specified in the core specification.
-	 * In ASCII they spell out to 'tmp1' and 'lebr'.
-	 */
-	const u8 tmp1[4] = { 0x31, 0x70, 0x6d, 0x74 };
+	/* From core spec. Spells out in ASCII as 'lebr'. */
 	const u8 lebr[4] = { 0x72, 0x62, 0x65, 0x6c };
 
 	smp->link_key = kzalloc(16, GFP_KERNEL);
 	if (!smp->link_key)
 		return;
 
-	if (smp_h6(smp->tfm_cmac, smp->tk, tmp1, smp->link_key)) {
-		kzfree(smp->link_key);
-		smp->link_key = NULL;
-		return;
+	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
+		/* SALT = 0x00000000000000000000000000000000746D7031 */
+		const u8 salt[16] = { 0x31, 0x70, 0x6d, 0x74 };
+
+		if (smp_h7(smp->tfm_cmac, smp->tk, salt, smp->link_key)) {
+			kzfree(smp->link_key);
+			smp->link_key = NULL;
+			return;
+		}
+	} else {
+		/* From core spec. Spells out in ASCII as 'tmp1'. */
+		const u8 tmp1[4] = { 0x31, 0x70, 0x6d, 0x74 };
+
+		if (smp_h6(smp->tfm_cmac, smp->tk, tmp1, smp->link_key)) {
+			kzfree(smp->link_key);
+			smp->link_key = NULL;
+			return;
+		}
 	}
 
 	if (smp_h6(smp->tfm_cmac, smp->link_key, lebr, smp->link_key)) {
@@ -1169,10 +1197,7 @@ static void smp_allow_key_dist(struct smp_chan *smp)
 
 static void sc_generate_ltk(struct smp_chan *smp)
 {
-	/* These constants are as specified in the core specification.
-	 * In ASCII they spell out to 'tmp2' and 'brle'.
-	 */
-	const u8 tmp2[4] = { 0x32, 0x70, 0x6d, 0x74 };
+	/* From core spec. Spells out in ASCII as 'brle'. */
 	const u8 brle[4] = { 0x65, 0x6c, 0x72, 0x62 };
 	struct hci_conn *hcon = smp->conn->hcon;
 	struct hci_dev *hdev = hcon->hdev;
@@ -1187,8 +1212,19 @@ static void sc_generate_ltk(struct smp_chan *smp)
 	if (key->type == HCI_LK_DEBUG_COMBINATION)
 		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
 
-	if (smp_h6(smp->tfm_cmac, key->val, tmp2, smp->tk))
-		return;
+	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
+		/* SALT = 0x00000000000000000000000000000000746D7032 */
+		const u8 salt[16] = { 0x32, 0x70, 0x6d, 0x74 };
+
+		if (smp_h7(smp->tfm_cmac, key->val, salt, smp->tk))
+			return;
+	} else {
+		/* From core spec. Spells out in ASCII as 'tmp2'. */
+		const u8 tmp2[4] = { 0x32, 0x70, 0x6d, 0x74 };
+
+		if (smp_h6(smp->tfm_cmac, key->val, tmp2, smp->tk))
+			return;
+	}
 
 	if (smp_h6(smp->tfm_cmac, smp->tk, brle, smp->tk))
 		return;
@@ -1669,6 +1705,7 @@ static void build_bredr_pairing_cmd(struct smp_chan *smp,
 	if (!rsp) {
 		memset(req, 0, sizeof(*req));
 
+		req->auth_req        = SMP_AUTH_CT2;
 		req->init_key_dist   = local_dist;
 		req->resp_key_dist   = remote_dist;
 		req->max_key_size    = conn->hcon->enc_key_size;
@@ -1680,6 +1717,7 @@ static void build_bredr_pairing_cmd(struct smp_chan *smp,
 
 	memset(rsp, 0, sizeof(*rsp));
 
+	rsp->auth_req        = SMP_AUTH_CT2;
 	rsp->max_key_size    = conn->hcon->enc_key_size;
 	rsp->init_key_dist   = req->init_key_dist & remote_dist;
 	rsp->resp_key_dist   = req->resp_key_dist & local_dist;
@@ -1744,6 +1782,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 		build_bredr_pairing_cmd(smp, req, &rsp);
 
+		if (req->auth_req & SMP_AUTH_CT2)
+			set_bit(SMP_FLAG_CT2, &smp->flags);
+
 		key_size = min(req->max_key_size, rsp.max_key_size);
 		if (check_enc_key_size(conn, key_size))
 			return SMP_ENC_KEY_SIZE;
@@ -1761,8 +1802,12 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	build_pairing_cmd(conn, req, &rsp, auth);
 
-	if (rsp.auth_req & SMP_AUTH_SC)
+	if (rsp.auth_req & SMP_AUTH_SC) {
 		set_bit(SMP_FLAG_SC, &smp->flags);
+
+		if (rsp.auth_req & SMP_AUTH_CT2)
+			set_bit(SMP_FLAG_CT2, &smp->flags);
+	}
 
 	if (conn->hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
 		sec_level = BT_SECURITY_MEDIUM;
@@ -1916,6 +1961,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	 * some bits that we had enabled in our request.
 	 */
 	smp->remote_key_dist &= rsp->resp_key_dist;
+
+	if ((req->auth_req & SMP_AUTH_CT2) && (auth & SMP_AUTH_CT2))
+		set_bit(SMP_FLAG_CT2, &smp->flags);
 
 	/* For BR/EDR this means we're done and can start phase 3 */
 	if (conn->hcon->type == ACL_LINK) {
@@ -2312,8 +2360,11 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 
 	authreq = seclevel_to_authreq(sec_level);
 
-	if (hci_dev_test_flag(hcon->hdev, HCI_SC_ENABLED))
+	if (hci_dev_test_flag(hcon->hdev, HCI_SC_ENABLED)) {
 		authreq |= SMP_AUTH_SC;
+		if (hci_dev_test_flag(hcon->hdev, HCI_SSP_ENABLED))
+			authreq |= SMP_AUTH_CT2;
+	}
 
 	/* Require MITM if IO Capability allows or the security level
 	 * requires it.
@@ -3387,7 +3438,10 @@ int smp_register(struct hci_dev *hdev)
 	if (!lmp_sc_capable(hdev)) {
 		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
 				    hdev, &force_bredr_smp_fops);
-		return 0;
+
+		/* Flag can be already set here (due to power toggle) */
+		if (!hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
+			return 0;
 	}
 
 	if (WARN_ON(hdev->smp_bredr_data)) {

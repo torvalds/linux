@@ -49,9 +49,6 @@ struct omap2430_glue {
 	enum musb_vbus_id_status status;
 	struct work_struct	omap_musb_mailbox_work;
 	struct device		*control_otghs;
-	bool			cable_connected;
-	bool			enabled;
-	bool			powered;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
@@ -141,45 +138,6 @@ static inline void omap2430_low_level_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
 }
 
-/*
- * We can get multiple cable events so we need to keep track
- * of the power state. Only keep power enabled if USB cable is
- * connected and a gadget is started.
- */
-static void omap2430_set_power(struct musb *musb, bool enabled, bool cable)
-{
-	struct device *dev = musb->controller;
-	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
-	bool power_up;
-	int res;
-
-	if (glue->enabled != enabled)
-		glue->enabled = enabled;
-
-	if (glue->cable_connected != cable)
-		glue->cable_connected = cable;
-
-	power_up = glue->enabled && glue->cable_connected;
-	if (power_up == glue->powered) {
-		dev_warn(musb->controller, "power state already %i\n",
-			 power_up);
-		return;
-	}
-
-	glue->powered = power_up;
-
-	if (power_up) {
-		res = pm_runtime_get_sync(musb->controller);
-		if (res < 0) {
-			dev_err(musb->controller, "could not enable: %i", res);
-			glue->powered = false;
-		}
-	} else {
-		pm_runtime_mark_last_busy(musb->controller);
-		pm_runtime_put_autosuspend(musb->controller);
-	}
-}
-
 static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
@@ -203,21 +161,15 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
 	struct musb *musb = glue_to_musb(glue);
-	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
+	struct musb_hdrc_platform_data *pdata =
+		dev_get_platdata(musb->controller);
 	struct omap_musb_board_data *data = pdata->board_data;
 	struct usb_otg *otg = musb->xceiv->otg;
-	bool cable_connected;
 
-	cable_connected = ((glue->status == MUSB_ID_GROUND) ||
-			   (glue->status == MUSB_VBUS_VALID));
-
-	if (cable_connected)
-		omap2430_set_power(musb, glue->enabled, cable_connected);
-
+	pm_runtime_get_sync(musb->controller);
 	switch (glue->status) {
 	case MUSB_ID_GROUND:
-		dev_dbg(dev, "ID GND\n");
+		dev_dbg(musb->controller, "ID GND\n");
 
 		otg->default_a = true;
 		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
@@ -230,7 +182,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		break;
 
 	case MUSB_VBUS_VALID:
-		dev_dbg(dev, "VBUS Connect\n");
+		dev_dbg(musb->controller, "VBUS Connect\n");
 
 		otg->default_a = false;
 		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
@@ -240,7 +192,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 
 	case MUSB_ID_FLOAT:
 	case MUSB_VBUS_OFF:
-		dev_dbg(dev, "VBUS Disconnect\n");
+		dev_dbg(musb->controller, "VBUS Disconnect\n");
 
 		musb->xceiv->last_event = USB_EVENT_NONE;
 		if (musb->gadget_driver)
@@ -253,12 +205,10 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 			USB_MODE_DISCONNECT);
 		break;
 	default:
-		dev_dbg(dev, "ID float\n");
+		dev_dbg(musb->controller, "ID float\n");
 	}
-
-	if (!cable_connected)
-		omap2430_set_power(musb, glue->enabled, cable_connected);
-
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 	atomic_notifier_call_chain(&musb->xceiv->notifier,
 			musb->xceiv->last_event, NULL);
 }
@@ -327,16 +277,17 @@ static int omap2430_musb_init(struct musb *musb)
 		if (status == -ENXIO)
 			return status;
 
-		pr_err("HS USB OTG: no transceiver configured\n");
+		dev_dbg(dev, "HS USB OTG: no transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
 
 	if (IS_ERR(musb->phy)) {
-		pr_err("HS USB OTG: no PHY configured\n");
+		dev_err(dev, "HS USB OTG: no PHY configured\n");
 		return PTR_ERR(musb->phy);
 	}
 	musb->isr = omap2430_musb_interrupt;
 	phy_init(musb->phy);
+	phy_power_on(musb->phy);
 
 	l = musb_readl(musb->mregs, OTG_INTERFSEL);
 
@@ -350,7 +301,7 @@ static int omap2430_musb_init(struct musb *musb)
 
 	musb_writel(musb->mregs, OTG_INTERFSEL, l);
 
-	pr_debug("HS USB OTG: revision 0x%x, sysconfig 0x%02x, "
+	dev_dbg(dev, "HS USB OTG: revision 0x%x, sysconfig 0x%02x, "
 			"sysstatus 0x%x, intrfsel 0x%x, simenable  0x%x\n",
 			musb_readl(musb->mregs, OTG_REVISION),
 			musb_readl(musb->mregs, OTG_SYSCONFIG),
@@ -373,10 +324,6 @@ static void omap2430_musb_enable(struct musb *musb)
 	struct musb_hdrc_platform_data *pdata = dev_get_platdata(dev);
 	struct omap_musb_board_data *data = pdata->board_data;
 
-	if (!WARN_ON(!musb->phy))
-		phy_power_on(musb->phy);
-
-	omap2430_set_power(musb, true, glue->cable_connected);
 
 	switch (glue->status) {
 
@@ -413,14 +360,9 @@ static void omap2430_musb_disable(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 
-	if (!WARN_ON(!musb->phy))
-		phy_power_off(musb->phy);
-
 	if (glue->status != MUSB_UNKNOWN)
 		omap_control_usb_set_mode(glue->control_otghs,
 			USB_MODE_DISCONNECT);
-
-	omap2430_set_power(musb, false, glue->cable_connected);
 }
 
 static int omap2430_musb_exit(struct musb *musb)
@@ -429,6 +371,7 @@ static int omap2430_musb_exit(struct musb *musb)
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 
 	omap2430_low_level_exit(musb);
+	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
 	musb->phy = NULL;
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
@@ -570,16 +513,17 @@ static int omap2430_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(glue->dev);
-	pm_runtime_use_autosuspend(glue->dev);
-	pm_runtime_set_autosuspend_delay(glue->dev, 500);
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err3;
 	}
 
 	return 0;
+
+err3:
+	pm_runtime_disable(glue->dev);
 
 err2:
 	platform_device_put(musb);
@@ -591,13 +535,8 @@ err0:
 static int omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue *glue = platform_get_drvdata(pdev);
-	struct musb *musb = glue_to_musb(glue);
 
-	pm_runtime_get_sync(glue->dev);
 	platform_device_unregister(glue->musb);
-	omap2430_set_power(musb, false, false);
-	pm_runtime_put_sync(glue->dev);
-	pm_runtime_dont_use_autosuspend(glue->dev);
 	pm_runtime_disable(glue->dev);
 
 	return 0;

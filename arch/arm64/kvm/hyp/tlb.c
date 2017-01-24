@@ -17,7 +17,7 @@
 
 #include <asm/kvm_hyp.h>
 
-static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
+void __hyp_text __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
 	dsb(ishst);
 
@@ -48,10 +48,7 @@ static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 	write_sysreg(0, vttbr_el2);
 }
 
-__alias(__tlb_flush_vmid_ipa) void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
-							    phys_addr_t ipa);
-
-static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
+void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 {
 	dsb(ishst);
 
@@ -67,14 +64,25 @@ static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, vttbr_el2);
 }
 
-__alias(__tlb_flush_vmid) void __kvm_tlb_flush_vmid(struct kvm *kvm);
+void __hyp_text __kvm_tlb_flush_local_vmid(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = kern_hyp_va(kern_hyp_va(vcpu)->kvm);
 
-static void __hyp_text __tlb_flush_vm_context(void)
+	/* Switch to requested VMID */
+	write_sysreg(kvm->arch.vttbr, vttbr_el2);
+	isb();
+
+	asm volatile("tlbi vmalle1" : : );
+	dsb(nsh);
+	isb();
+
+	write_sysreg(0, vttbr_el2);
+}
+
+void __hyp_text __kvm_flush_vm_context(void)
 {
 	dsb(ishst);
 	asm volatile("tlbi alle1is	\n"
 		     "ic ialluis	  ": : );
 	dsb(ish);
 }
-
-__alias(__tlb_flush_vm_context) void __kvm_flush_vm_context(void);

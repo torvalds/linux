@@ -32,27 +32,24 @@
 #define DEFAULT_GAMMA	"0F 00 7 2 0 0 6 5 4 1\n" \
 			"04 16 2 7 6 3 2 1 7 7"
 
-static unsigned bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
-module_param(bt, uint, 0);
+static unsigned int bt = 6; /* VGL=Vci*4 , VGH=Vci*4 */
+module_param(bt, uint, 0000);
 MODULE_PARM_DESC(bt, "Sets the factor used in the step-up circuits");
 
-static unsigned vc = 0x03; /* Vci1=Vci*0.80 */
-module_param(vc, uint, 0);
-MODULE_PARM_DESC(vc,
-"Sets the ratio factor of Vci to generate the reference voltages Vci1");
+static unsigned int vc = 0x03; /* Vci1=Vci*0.80 */
+module_param(vc, uint, 0000);
+MODULE_PARM_DESC(vc, "Sets the ratio factor of Vci to generate the reference voltages Vci1");
 
-static unsigned vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
-module_param(vrh, uint, 0);
-MODULE_PARM_DESC(vrh,
-"Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
+static unsigned int vrh = 0x0d; /* VREG1OUT=Vci*1.85 */
+module_param(vrh, uint, 0000);
+MODULE_PARM_DESC(vrh, "Set the amplifying rate (1.6 ~ 1.9) of Vci applied to output the VREG1OUT");
 
-static unsigned vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
-module_param(vdv, uint, 0);
-MODULE_PARM_DESC(vdv,
-"Select the factor of VREG1OUT to set the amplitude of Vcom");
+static unsigned int vdv = 0x12; /* VCOMH amplitude=VREG1OUT*0.98 */
+module_param(vdv, uint, 0000);
+MODULE_PARM_DESC(vdv, "Select the factor of VREG1OUT to set the amplitude of Vcom");
 
-static unsigned vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
-module_param(vcm, uint, 0);
+static unsigned int vcm = 0x0a; /* VCOMH=VREG1OUT*0.735 */
+module_param(vcm, uint, 0000);
 MODULE_PARM_DESC(vcm, "Set the internal VcomH voltage");
 
 /*

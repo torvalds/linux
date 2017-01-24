@@ -31,7 +31,7 @@
 #include <linux/atmlec.h>
 
 /* Proxy LEC knows about bridging */
-#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE)
 #include "../bridge/br_private.h"
 
 static unsigned char bridge_ula_lec[] = { 0x01, 0x80, 0xc2, 0x00, 0x00 };
@@ -111,9 +111,9 @@ static inline void lec_arp_put(struct lec_arp_table *entry)
 }
 
 static struct lane2_ops lane2_ops = {
-	lane2_resolve,		/* resolve,             spec 3.1.3 */
-	lane2_associate_req,	/* associate_req,       spec 3.1.4 */
-	NULL			/* associate indicator, spec 3.1.5 */
+	.resolve = lane2_resolve,		/* spec 3.1.3 */
+	.associate_req = lane2_associate_req,	/* spec 3.1.4 */
+	.associate_indicator = NULL             /* spec 3.1.5 */
 };
 
 static unsigned char bus_mac[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -121,7 +121,7 @@ static unsigned char bus_mac[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 /* Device structures */
 static struct net_device *dev_lec[MAX_LEC_ITF];
 
-#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE)
 static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 {
 	char *buff;
@@ -155,7 +155,7 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 		sk->sk_data_ready(sk);
 	}
 }
-#endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
+#endif /* IS_ENABLED(CONFIG_BRIDGE) */
 
 /*
  * Open/initialize the netdevice. This is called (in the current kernel)
@@ -222,7 +222,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 	pr_debug("skbuff head:%lx data:%lx tail:%lx end:%lx\n",
 		 (long)skb->head, (long)skb->data, (long)skb_tail_pointer(skb),
 		 (long)skb_end_pointer(skb));
-#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE)
 	if (memcmp(skb->data, bridge_ula_lec, sizeof(bridge_ula_lec)) == 0)
 		lec_handle_bridge(skb, dev);
 #endif
@@ -426,7 +426,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		    (unsigned short)(0xffff & mesg->content.normal.flag);
 		break;
 	case l_should_bridge:
-#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE)
 	{
 		pr_debug("%s: bridge zeppelin asks about %pM\n",
 			 dev->name, mesg->content.proxy.mac_addr);
@@ -452,7 +452,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			sk->sk_data_ready(sk);
 		}
 	}
-#endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
+#endif /* IS_ENABLED(CONFIG_BRIDGE) */
 		break;
 	default:
 		pr_info("%s: Unknown message type %d\n", dev->name, mesg->type);
@@ -544,15 +544,6 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	return 0;
 }
 
-/* shamelessly stolen from drivers/net/net_init.c */
-static int lec_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > 18190))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static void lec_set_multicast_list(struct net_device *dev)
 {
 	/*
@@ -565,7 +556,6 @@ static const struct net_device_ops lec_netdev_ops = {
 	.ndo_open		= lec_open,
 	.ndo_stop		= lec_close,
 	.ndo_start_xmit		= lec_start_xmit,
-	.ndo_change_mtu		= lec_change_mtu,
 	.ndo_tx_timeout		= lec_tx_timeout,
 	.ndo_set_rx_mode	= lec_set_multicast_list,
 };
@@ -742,6 +732,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		if (!dev_lec[i])
 			return -ENOMEM;
 		dev_lec[i]->netdev_ops = &lec_netdev_ops;
+		dev_lec[i]->max_mtu = 18190;
 		snprintf(dev_lec[i]->name, IFNAMSIZ, "lec%d", i);
 		if (register_netdev(dev_lec[i])) {
 			free_netdev(dev_lec[i]);
@@ -1068,7 +1059,9 @@ static void __exit lane_module_cleanup(void)
 {
 	int i;
 
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("lec", atm_proc_root);
+#endif
 
 	deregister_atm_ioctl(&lane_ioctl_ops);
 

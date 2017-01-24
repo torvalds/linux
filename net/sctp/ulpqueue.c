@@ -140,11 +140,8 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 		 * we can go ahead and clear out the lobby in one shot
 		 */
 		if (!skb_queue_empty(&sp->pd_lobby)) {
-			struct list_head *list;
 			skb_queue_splice_tail_init(&sp->pd_lobby,
 						   &sk->sk_receive_queue);
-			list = (struct list_head *)&sctp_sk(sk)->pd_lobby;
-			INIT_LIST_HEAD(list);
 			return 1;
 		}
 	} else {

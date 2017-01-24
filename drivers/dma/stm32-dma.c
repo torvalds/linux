@@ -527,13 +527,12 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 {
 	struct stm32_dma_chan *chan = devid;
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
-	u32 status, scr, sfcr;
+	u32 status, scr;
 
 	spin_lock(&chan->vchan.lock);
 
 	status = stm32_dma_irq_status(chan);
 	scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
-	sfcr = stm32_dma_read(dmadev, STM32_DMA_SFCR(chan->id));
 
 	if ((status & STM32_DMA_TCI) && (scr & STM32_DMA_SCR_TCIE)) {
 		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
@@ -574,15 +573,12 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 	int src_bus_width, dst_bus_width;
 	int src_burst_size, dst_burst_size;
 	u32 src_maxburst, dst_maxburst;
-	dma_addr_t src_addr, dst_addr;
 	u32 dma_scr = 0;
 
 	src_addr_width = chan->dma_sconfig.src_addr_width;
 	dst_addr_width = chan->dma_sconfig.dst_addr_width;
 	src_maxburst = chan->dma_sconfig.src_maxburst;
 	dst_maxburst = chan->dma_sconfig.dst_maxburst;
-	src_addr = chan->dma_sconfig.src_addr;
-	dst_addr = chan->dma_sconfig.dst_addr;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
@@ -884,7 +880,7 @@ static enum dma_status stm32_dma_tx_status(struct dma_chan *c,
 	struct virt_dma_desc *vdesc;
 	enum dma_status status;
 	unsigned long flags;
-	u32 residue;
+	u32 residue = 0;
 
 	status = dma_cookie_status(c, cookie, state);
 	if ((status == DMA_COMPLETE) || (!state))
@@ -892,16 +888,12 @@ static enum dma_status stm32_dma_tx_status(struct dma_chan *c,
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 	vdesc = vchan_find_desc(&chan->vchan, cookie);
-	if (cookie == chan->desc->vdesc.tx.cookie) {
+	if (chan->desc && cookie == chan->desc->vdesc.tx.cookie)
 		residue = stm32_dma_desc_residue(chan, chan->desc,
 						 chan->next_sg);
-	} else if (vdesc) {
+	else if (vdesc)
 		residue = stm32_dma_desc_residue(chan,
 						 to_stm32_dma_desc(vdesc), 0);
-	} else {
-		residue = 0;
-	}
-
 	dma_set_residue(state, residue);
 
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
@@ -954,7 +946,7 @@ static void stm32_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct stm32_dma_desc, vdesc));
 }
 
-void stm32_dma_set_config(struct stm32_dma_chan *chan,
+static void stm32_dma_set_config(struct stm32_dma_chan *chan,
 			  struct stm32_dma_cfg *cfg)
 {
 	stm32_dma_clear_reg(&chan->chan_reg);
@@ -976,20 +968,17 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 	struct stm32_dma_chan *chan;
 	struct dma_chan *c;
 
-	if (dma_spec->args_count < 3)
+	if (dma_spec->args_count < 4)
 		return NULL;
 
 	cfg.channel_id = dma_spec->args[0];
 	cfg.request_line = dma_spec->args[1];
 	cfg.stream_config = dma_spec->args[2];
-	cfg.threshold = 0;
+	cfg.threshold = dma_spec->args[3];
 
 	if ((cfg.channel_id >= STM32_DMA_MAX_CHANNELS) || (cfg.request_line >=
 				STM32_DMA_MAX_REQUEST_ID))
 		return NULL;
-
-	if (dma_spec->args_count > 3)
-		cfg.threshold = dma_spec->args[3];
 
 	chan = &dmadev->chan[cfg.channel_id];
 

@@ -1,7 +1,7 @@
 config USB_DWC3
 	tristate "DesignWare USB3 DRD Core Support"
 	depends on (USB || USB_GADGET) && HAS_DMA
-	select USB_XHCI_PLATFORM if USB_SUPPORT && USB_XHCI_HCD
+	select USB_XHCI_PLATFORM if USB_XHCI_HCD
 	help
 	  Say Y or M here if your system has a Dual Role SuperSpeed
 	  USB controller based on the DesignWare USB3 IP Core.
@@ -62,7 +62,7 @@ config USB_DWC3_OMAP
 
 config USB_DWC3_EXYNOS
 	tristate "Samsung Exynos Platform"
-	depends on ARCH_EXYNOS && OF || COMPILE_TEST
+	depends on (ARCH_EXYNOS || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
 	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
@@ -70,7 +70,7 @@ config USB_DWC3_EXYNOS
 
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
-	depends on PCI
+	depends on PCI && ACPI
 	default USB_DWC3
 	help
 	  If you're using the DesignWare Core IP with a PCIe, please say
@@ -98,7 +98,7 @@ config USB_DWC3_OF_SIMPLE
 
 config USB_DWC3_ST
 	tristate "STMicroelectronics Platforms"
-	depends on ARCH_STI && OF
+	depends on (ARCH_STI || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
 	  STMicroelectronics SoCs with one DesignWare Core USB3 IP

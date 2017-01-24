@@ -23,7 +23,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/isdnif.h>
 
@@ -298,11 +298,8 @@ void pcbit_fsm_event(struct pcbit_dev *dev, struct pcbit_chan *chan,
 			break;
 
 	if (tentry->init != 0xff) {
-		init_timer(&chan->fsm_timer);
-		chan->fsm_timer.function = &pcbit_fsm_timer;
-		chan->fsm_timer.data = (ulong) chan;
-		chan->fsm_timer.expires = jiffies + tentry->timeout * HZ;
-		add_timer(&chan->fsm_timer);
+		setup_timer(&chan->fsm_timer, &pcbit_fsm_timer, (ulong)chan);
+		mod_timer(&chan->fsm_timer, jiffies + tentry->timeout * HZ);
 	}
 
 	spin_unlock_irqrestore(&dev->lock, flags);

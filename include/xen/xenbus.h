@@ -151,6 +151,10 @@ __scanf(4, 5)
 int xenbus_scanf(struct xenbus_transaction t,
 		 const char *dir, const char *node, const char *fmt, ...);
 
+/* Read an (optional) unsigned value. */
+unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+				  unsigned int default_val);
+
 /* Single printf and write: returns -errno or 0. */
 __printf(4, 5)
 int xenbus_printf(struct xenbus_transaction t,

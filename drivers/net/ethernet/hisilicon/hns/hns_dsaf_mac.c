@@ -126,7 +126,7 @@ void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
 			(enum mac_speed)speed, duplex);
 		if (ret) {
 			dev_err(mac_cb->dev,
-				"adjust_link failed,%s mac%d ret = %#x!\n",
+				"adjust_link failed, %s mac%d ret = %#x!\n",
 				mac_cb->dsaf_dev->ae_dev.name,
 				mac_cb->mac_id, ret);
 			return;
@@ -141,15 +141,16 @@ void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex)
  *@port_num:port number
  *
  */
-static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
-				      u8 vmid, u8 *port_num)
+int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb, u8 vmid, u8 *port_num)
 {
+	int q_num_per_vf, vf_num_per_port;
+	int vm_queue_id;
 	u8 tmp_port;
 
 	if (mac_cb->dsaf_dev->dsaf_mode <= DSAF_MODE_ENABLE) {
 		if (mac_cb->mac_id != DSAF_MAX_PORT_NUM) {
 			dev_err(mac_cb->dev,
-				"input invalid,%s mac%d vmid%d !\n",
+				"input invalid, %s mac%d vmid%d !\n",
 				mac_cb->dsaf_dev->ae_dev.name,
 				mac_cb->mac_id, vmid);
 			return -EINVAL;
@@ -157,22 +158,28 @@ static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
 	} else if (mac_cb->dsaf_dev->dsaf_mode < DSAF_MODE_MAX) {
 		if (mac_cb->mac_id >= DSAF_MAX_PORT_NUM) {
 			dev_err(mac_cb->dev,
-				"input invalid,%s mac%d vmid%d!\n",
+				"input invalid, %s mac%d vmid%d!\n",
 				mac_cb->dsaf_dev->ae_dev.name,
 				mac_cb->mac_id, vmid);
 			return -EINVAL;
 		}
 	} else {
-		dev_err(mac_cb->dev, "dsaf mode invalid,%s mac%d!\n",
+		dev_err(mac_cb->dev, "dsaf mode invalid, %s mac%d!\n",
 			mac_cb->dsaf_dev->ae_dev.name, mac_cb->mac_id);
 		return -EINVAL;
 	}
 
 	if (vmid >= mac_cb->dsaf_dev->rcb_common[0]->max_vfn) {
-		dev_err(mac_cb->dev, "input invalid,%s mac%d vmid%d !\n",
+		dev_err(mac_cb->dev, "input invalid, %s mac%d vmid%d !\n",
 			mac_cb->dsaf_dev->ae_dev.name, mac_cb->mac_id, vmid);
 		return -EINVAL;
 	}
+
+	q_num_per_vf = mac_cb->dsaf_dev->rcb_common[0]->max_q_per_vf;
+	vf_num_per_port = mac_cb->dsaf_dev->rcb_common[0]->max_vfn;
+
+	vm_queue_id = vmid * q_num_per_vf +
+			vf_num_per_port * q_num_per_vf * mac_cb->mac_id;
 
 	switch (mac_cb->dsaf_dev->dsaf_mode) {
 	case DSAF_MODE_ENABLE_FIX:
@@ -193,10 +200,10 @@ static int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
 	case DSAF_MODE_DISABLE_6PORT_2VM:
 	case DSAF_MODE_DISABLE_6PORT_4VM:
 	case DSAF_MODE_DISABLE_6PORT_16VM:
-		tmp_port = vmid;
+		tmp_port = vm_queue_id;
 		break;
 	default:
-		dev_err(mac_cb->dev, "dsaf mode invalid,%s mac%d!\n",
+		dev_err(mac_cb->dev, "dsaf mode invalid, %s mac%d!\n",
 			mac_cb->dsaf_dev->ae_dev.name, mac_cb->mac_id);
 		return -EINVAL;
 	}
@@ -256,6 +263,46 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 	return 0;
 }
 
+int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+			const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_set_mac_uc_entry(dsaf_dev, &mac_entry);
+}
+
+int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+		       const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_rm_mac_addr(dsaf_dev, &mac_entry);
+}
+
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable)
 {
@@ -275,7 +322,7 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 			ret = hns_dsaf_add_mac_mc_port(dsaf_dev, &mac_entry);
 		if (ret) {
 			dev_err(dsaf_dev->dev,
-				"set mac mc port failed,%s mac%d ret = %#x!\n",
+				"set mac mc port failed, %s mac%d ret = %#x!\n",
 				mac_cb->dsaf_dev->ae_dev.name,
 				mac_cb->mac_id, ret);
 			return ret;
@@ -305,7 +352,7 @@ int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac)
 		old_mac = &mac_cb->addr_entry_idx[vfn];
 	} else {
 		dev_err(mac_cb->dev,
-			"vf queue is too large,%s mac%d queue = %#x!\n",
+			"vf queue is too large, %s mac%d queue = %#x!\n",
 			mac_cb->dsaf_dev->ae_dev.name, mac_cb->mac_id, vfn);
 		return -EINVAL;
 	}
@@ -323,13 +370,24 @@ int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac)
 	return 0;
 }
 
+int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	u8 port_num;
+	int ret = hns_mac_get_inner_port_num(mac_cb, vfn, &port_num);
+
+	if (ret)
+		return ret;
+
+	return hns_dsaf_clr_mac_mc_port(dsaf_dev, mac_cb->mac_id, port_num);
+}
+
 static void hns_mac_param_get(struct mac_params *param,
 			      struct hns_mac_cb *mac_cb)
 {
 	param->vaddr = (void *)mac_cb->vaddr;
 	param->mac_mode = hns_get_enet_interface(mac_cb);
-	memcpy(param->addr, mac_cb->addr_entry_idx[0].addr,
-	       MAC_NUM_OCTETS_PER_ADDR);
+	ether_addr_copy(param->addr, mac_cb->addr_entry_idx[0].addr);
 	param->mac_id = mac_cb->mac_id;
 	param->dev = mac_cb->dev;
 }
@@ -346,8 +404,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
 	/* directy return ok in debug network mode */
@@ -382,8 +439,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	u8 port_num;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mac_entry_idx *uc_mac_entry;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
@@ -446,8 +502,7 @@ int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu)
 	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
 		max_frm = MAC_MAX_MTU_DBG;
 
-	if ((new_mtu < MAC_MIN_MTU) || (new_frm > max_frm) ||
-	    (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size))
+	if (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size)
 		return -EINVAL;
 
 	if (!drv->config_max_frame_length)
@@ -547,7 +602,7 @@ int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable)
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 
 	if (mac_cb->phy_if == PHY_INTERFACE_MODE_XGMII && enable) {
-		dev_err(mac_cb->dev, "enable autoneg is not allowed!");
+		dev_err(mac_cb->dev, "enabling autoneg is not allowed!\n");
 		return -ENOTSUPP;
 	}
 
@@ -571,7 +626,7 @@ int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en)
 
 	if (mac_cb->mac_type == HNAE_PORT_DEBUG) {
 		if (is_ver1 && (tx_en || rx_en)) {
-			dev_err(mac_cb->dev, "macv1 cann't enable tx/rx_pause!");
+			dev_err(mac_cb->dev, "macv1 can't enable tx/rx_pause!\n");
 			return -EINVAL;
 		}
 	}
@@ -644,21 +699,6 @@ hns_mac_phy_parse_addr(struct device *dev, struct fwnode_handle *fwnode)
 	return addr;
 }
 
-static int hns_mac_phydev_match(struct device *dev, void *fwnode)
-{
-	return dev->fwnode == fwnode;
-}
-
-static struct
-platform_device *hns_mac_find_platform_device(struct fwnode_handle *fwnode)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&platform_bus_type, NULL,
-			      fwnode, hns_mac_phydev_match);
-	return dev ? to_platform_device(dev) : NULL;
-}
-
 static int
 hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 			u32 addr)
@@ -684,8 +724,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 	if (!phy || IS_ERR(phy))
 		return -EIO;
 
-	if (mdio->irq)
-		phy->irq = mdio->irq[addr];
+	phy->irq = mdio->irq[addr];
 
 	/* All data is now stored in the phy struct;
 	 * register it
@@ -725,7 +764,7 @@ static void hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 		return;
 
 	/* dev address in adev */
-	pdev = hns_mac_find_platform_device(acpi_fwnode_handle(args.adev));
+	pdev = hns_dsaf_find_platform_device(acpi_fwnode_handle(args.adev));
 	mii_bus = platform_get_drvdata(pdev);
 	rc = hns_mac_register_phydev(mii_bus, mac_cb, addr);
 	if (!rc)
@@ -878,6 +917,13 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		}
 	}
 
+	if (fwnode_property_read_u8_array(mac_cb->fw_port, "mc-mac-mask",
+					  mac_cb->mc_mask, ETH_ALEN)) {
+		dev_warn(mac_cb->dev,
+			 "no mc-mac-mask property, set to default value.\n");
+		eth_broadcast_addr(mac_cb->mc_mask);
+	}
+
 	return 0;
 }
 
@@ -942,7 +988,7 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	ret = hns_mac_get_mode(mac_cb->phy_if);
 	if (ret < 0) {
 		dev_err(dsaf_dev->dev,
-			"hns_mac_get_mode failed,mac%d ret = %#x!\n",
+			"hns_mac_get_mode failed, mac%d ret = %#x!\n",
 			mac_cb->mac_id, ret);
 		return ret;
 	}
@@ -1090,6 +1136,8 @@ int hns_mac_get_sset_count(struct hns_mac_cb *mac_cb, int stringset)
 void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en)
 {
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
+
+	hns_dsaf_set_promisc_tcam(mac_cb->dsaf_dev, mac_cb->mac_id, !!en);
 
 	if (mac_ctrl_drv->set_promiscuous)
 		mac_ctrl_drv->set_promiscuous(mac_ctrl_drv, en);

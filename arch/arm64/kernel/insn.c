@@ -30,7 +30,6 @@
 #include <asm/cacheflush.h>
 #include <asm/debug-monitors.h>
 #include <asm/fixmap.h>
-#include <asm/opcodes.h>
 #include <asm/insn.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
@@ -96,7 +95,7 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 
 	if (module && IS_ENABLED(CONFIG_DEBUG_SET_MODULE_RONX))
 		page = vmalloc_to_page(addr);
-	else if (!module && IS_ENABLED(CONFIG_DEBUG_RODATA))
+	else if (!module)
 		page = pfn_to_page(PHYS_PFN(__pa(addr)));
 	else
 		return addr;
@@ -1200,6 +1199,19 @@ u32 aarch64_set_branch_offset(u32 insn, s32 offset)
 
 	/* Unhandled instruction */
 	BUG();
+}
+
+s32 aarch64_insn_adrp_get_offset(u32 insn)
+{
+	BUG_ON(!aarch64_insn_is_adrp(insn));
+	return aarch64_insn_decode_immediate(AARCH64_INSN_IMM_ADR, insn) << 12;
+}
+
+u32 aarch64_insn_adrp_set_offset(u32 insn, s32 offset)
+{
+	BUG_ON(!aarch64_insn_is_adrp(insn));
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_ADR, insn,
+						offset >> 12);
 }
 
 /*

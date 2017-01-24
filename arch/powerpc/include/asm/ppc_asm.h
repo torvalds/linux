@@ -10,9 +10,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/firmware.h>
 
-#ifndef __ASSEMBLY__
-#error __FILE__ should only be used in assembler files
-#else
+#ifdef __ASSEMBLY__
 
 #define SZL			(BITS_PER_LONG/8)
 
@@ -201,14 +199,12 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #ifdef PPC64_ELF_ABI_v2
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
 name:
 
 #define _GLOBAL_TOC(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
@@ -216,13 +212,6 @@ name: \
 0:	addis r2,r12,(.TOC.-0b)@ha; \
 	addi r2,r2,(.TOC.-0b)@l; \
 	.localentry name,.-name
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.type name,@function; \
-	.globl name; \
-name:
 
 #define DOTSYM(a)	a
 
@@ -232,34 +221,19 @@ name:
 #define GLUE(a,b) XGLUE(a,b)
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.globl name; \
 	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
+	.pushsection ".opd","aw"; \
 name: \
 	.quad GLUE(.,name); \
 	.quad .TOC.@tocbase; \
 	.quad 0; \
-	.previous; \
+	.popsection; \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
 
 #define DOTSYM(a)	GLUE(.,a)
 
@@ -272,18 +246,30 @@ GLUE(.,name):
 n:
 
 #define _GLOBAL(n)	\
-	.text;		\
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
 
-#define _KPROBE(n)	\
-	.section ".kprobes.text","a";	\
-	.globl	n;	\
-n:
+#endif
 
+/*
+ * __kprobes (the C annotation) puts the symbol into the .kprobes.text
+ * section, which gets emitted at the end of regular text.
+ *
+ * _ASM_NOKPROBE_SYMBOL and NOKPROBE_SYMBOL just adds the symbol to
+ * a blacklist. The former is for core kprobe functions/data, the
+ * latter is for those that incdentially must be excluded from probing
+ * and allows them to be linked at more optimal location within text.
+ */
+#ifdef CONFIG_KPROBES
+#define _ASM_NOKPROBE_SYMBOL(entry)			\
+	.pushsection "_kprobe_blacklist","aw";		\
+	PPC_LONG (entry) ;				\
+	.popsection
+#else
+#define _ASM_NOKPROBE_SYMBOL(entry)
 #endif
 
 #define FUNC_START(name)	_GLOBAL(name)
@@ -527,7 +513,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #endif
 #define MTMSRD(r)	mtmsr	r
 #define MTMSR_EERI(reg)	mtmsr	reg
-#define CLR_TOP32(r)
 #endif
 
 #endif /* __KERNEL__ */
@@ -796,5 +781,17 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
 	.long 0x2400004c  /* rfid				*/
 #endif /* !CONFIG_PPC_BOOK3E */
+
 #endif /*  __ASSEMBLY__ */
+
+/*
+ * Helper macro for exception table entries
+ */
+#define EX_TABLE(_fault, _target)		\
+	stringify_in_c(.section __ex_table,"a";)\
+	stringify_in_c(.balign 4;)		\
+	stringify_in_c(.long (_fault) - . ;)	\
+	stringify_in_c(.long (_target) - . ;)	\
+	stringify_in_c(.previous)
+
 #endif /* _ASM_POWERPC_PPC_ASM_H */

@@ -64,7 +64,9 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 	return &ah->ibah;
 }
 
-struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
+struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+				struct ib_udata *udata)
+
 {
 	struct mlx5_ib_ah *ah;
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
@@ -74,6 +76,27 @@ struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 
 	if (ll == IB_LINK_LAYER_ETHERNET && !(ah_attr->ah_flags & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
+
+	if (ll == IB_LINK_LAYER_ETHERNET && udata) {
+		int err;
+		struct mlx5_ib_create_ah_resp resp = {};
+		u32 min_resp_len = offsetof(typeof(resp), dmac) +
+				   sizeof(resp.dmac);
+
+		if (udata->outlen < min_resp_len)
+			return ERR_PTR(-EINVAL);
+
+		resp.response_length = min_resp_len;
+
+		err = ib_resolve_eth_dmac(pd->device, ah_attr);
+		if (err)
+			return ERR_PTR(err);
+
+		memcpy(resp.dmac, ah_attr->dmac, ETH_ALEN);
+		err = ib_copy_to_udata(udata, &resp, resp.response_length);
+		if (err)
+			return ERR_PTR(err);
+	}
 
 	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
 	if (!ah)

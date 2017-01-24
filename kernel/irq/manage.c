@@ -669,8 +669,6 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 		return 0;
 	}
 
-	flags &= IRQ_TYPE_SENSE_MASK;
-
 	if (chip->flags & IRQCHIP_SET_TYPE_MASKED) {
 		if (!irqd_irq_masked(&desc->irq_data))
 			mask_irq(desc);
@@ -678,7 +676,8 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 			unmask = 1;
 	}
 
-	/* caller masked out all except trigger mode flags */
+	/* Mask all flags except trigger mode */
+	flags &= IRQ_TYPE_SENSE_MASK;
 	ret = chip->irq_set_type(&desc->irq_data, flags);
 
 	switch (ret) {
@@ -722,6 +721,7 @@ int irq_set_parent(int irq, int parent_irq)
 	irq_put_desc_unlock(desc, flags);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(irq_set_parent);
 #endif
 
 /*
@@ -1341,12 +1341,12 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 	} else if (new->flags & IRQF_TRIGGER_MASK) {
 		unsigned int nmsk = new->flags & IRQF_TRIGGER_MASK;
-		unsigned int omsk = irq_settings_get_trigger_mask(desc);
+		unsigned int omsk = irqd_get_trigger_type(&desc->irq_data);
 
 		if (nmsk != omsk)
 			/* hope the handler works with current  trigger mode */
 			pr_warn("irq %d uses trigger mode %u; requested %u\n",
-				irq, nmsk, omsk);
+				irq, omsk, nmsk);
 	}
 
 	*old_ptr = new;

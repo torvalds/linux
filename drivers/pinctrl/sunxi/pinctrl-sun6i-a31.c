@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -896,10 +896,18 @@ static const struct sunxi_desc_pin sun6i_a31_pins[] = {
 		  SUNXI_FUNCTION(0x1, "gpio_out")),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(H, 27),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
-		  SUNXI_FUNCTION(0x1, "gpio_out")),
+		  SUNXI_FUNCTION(0x1, "gpio_out"),
+		/*
+		 * The SPDIF block is not referenced at all in the A31 user
+		 * manual. However it is described in the code leaked and the
+		 * configuration files supplied by vendors.
+		 */
+		  SUNXI_FUNCTION(0x3, "spdif")),        /* SPDIF IN */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(H, 28),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
-		  SUNXI_FUNCTION(0x1, "gpio_out")),
+		  SUNXI_FUNCTION(0x1, "gpio_out"),
+		/* Undocumented mux function - see above */
+		  SUNXI_FUNCTION(0x3, "spdif")),        /* SPDIF OUT */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(H, 29),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
@@ -926,7 +934,6 @@ static const struct of_device_id sun6i_a31_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun6i-a31-pinctrl", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sun6i_a31_pinctrl_match);
 
 static struct platform_driver sun6i_a31_pinctrl_driver = {
 	.probe	= sun6i_a31_pinctrl_probe,
@@ -935,8 +942,4 @@ static struct platform_driver sun6i_a31_pinctrl_driver = {
 		.of_match_table	= sun6i_a31_pinctrl_match,
 	},
 };
-module_platform_driver(sun6i_a31_pinctrl_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner A31 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun6i_a31_pinctrl_driver);

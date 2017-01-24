@@ -36,5 +36,7 @@ obj-$(CONFIG_MACH_OMAPL138_HAWKBOARD)	+= board-omapl138-hawk.o
 
 # Power Management
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
-obj-$(CONFIG_SUSPEND)			+= pm.o sleep.o
 obj-$(CONFIG_HAVE_CLK)			+= pm_domain.o
+ifeq ($(CONFIG_SUSPEND),y)
+obj-$(CONFIG_ARCH_DAVINCI_DA850)	+= pm.o sleep.o
+endif

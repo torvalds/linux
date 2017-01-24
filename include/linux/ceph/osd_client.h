@@ -121,6 +121,9 @@ struct ceph_osd_req_op {
 			struct ceph_osd_data response_data;
 		} notify;
 		struct {
+			struct ceph_osd_data response_data;
+		} list_watchers;
+		struct {
 			u64 expected_object_size;
 			u64 expected_write_size;
 		} alloc_hint;
@@ -173,7 +176,7 @@ struct ceph_osd_request {
 	struct kref       r_kref;
 	bool              r_mempool;
 	struct completion r_completion;
-	struct completion r_safe_completion;  /* fsync waiter */
+	struct completion r_done_completion;  /* fsync waiter */
 	ceph_osdc_callback_t r_callback;
 	ceph_osdc_unsafe_callback_t r_unsafe_callback;
 	struct list_head  r_unsafe_item;
@@ -248,6 +251,14 @@ struct ceph_osd_linger_request {
 	struct page ***preply_pages;
 	size_t *preply_len;
 };
+
+struct ceph_watch_item {
+	struct ceph_entity_name name;
+	u64 cookie;
+	struct ceph_entity_addr addr;
+};
+
+#define CEPH_LINGER_ID_START	0xffff000000000000ULL
 
 struct ceph_osd_client {
 	struct ceph_client     *client;
@@ -346,7 +357,6 @@ extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 					struct page **pages, u64 length,
 					u32 alignment, bool pages_from_pool,
 					bool own_pages);
-
 extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					const char *class, const char *method);
@@ -388,6 +398,14 @@ extern void ceph_osdc_sync(struct ceph_osd_client *osdc);
 
 extern void ceph_osdc_flush_notifies(struct ceph_osd_client *osdc);
 void ceph_osdc_maybe_request_map(struct ceph_osd_client *osdc);
+
+int ceph_osdc_call(struct ceph_osd_client *osdc,
+		   struct ceph_object_id *oid,
+		   struct ceph_object_locator *oloc,
+		   const char *class, const char *method,
+		   unsigned int flags,
+		   struct page *req_page, size_t req_len,
+		   struct page *resp_page, size_t *resp_len);
 
 extern int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			       struct ceph_vino vino,
@@ -434,5 +452,10 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     size_t *preply_len);
 int ceph_osdc_watch_check(struct ceph_osd_client *osdc,
 			  struct ceph_osd_linger_request *lreq);
+int ceph_osdc_list_watchers(struct ceph_osd_client *osdc,
+			    struct ceph_object_id *oid,
+			    struct ceph_object_locator *oloc,
+			    struct ceph_watch_item **watchers,
+			    u32 *num_watchers);
 #endif
 

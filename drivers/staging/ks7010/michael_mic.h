@@ -11,16 +11,15 @@
 
 /* MichelMIC routine define */
 struct michel_mic_t {
-	uint32_t K0;	// Key 
-	uint32_t K1;	// Key 
-	uint32_t L;	// Current state 
-	uint32_t R;	// Current state 
-	uint8_t M[4];	// Message accumulator (single word) 
-	int nBytesInM;	// # bytes in M 
-	uint8_t Result[8];
+	u32 K0;	// Key
+	u32 K1;	// Key
+	u32 L;	// Current state
+	u32 R;	// Current state
+	u8 M[4];	// Message accumulator (single word)
+	int nBytesInM;	// # bytes in M
+	u8 Result[8];
 };
 
-extern
-void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t * Key,
-			uint8_t * Data, int Len, uint8_t priority,
-			uint8_t * Result);
+void MichaelMICFunction(struct michel_mic_t *Mic, u8 *Key,
+			u8 *Data, int Len, u8 priority,
+			u8 *Result);

@@ -67,7 +67,7 @@ static uint64_t get_callback_via(struct pci_dev *pdev)
 	pin = pdev->pin;
 
 	/* We don't know the GSI. Specify the PCI INTx line instead. */
-	return ((uint64_t)0x01 << 56) | /* PCI INTx identifier */
+	return ((uint64_t)0x01 << HVM_CALLBACK_VIA_TYPE_SHIFT) | /* PCI INTx identifier */
 		((uint64_t)pci_domain_nr(pdev->bus) << 32) |
 		((uint64_t)pdev->bus->number << 16) |
 		((uint64_t)(pdev->devfn & 0xff) << 8) |
@@ -90,7 +90,7 @@ static int xen_allocate_irq(struct pci_dev *pdev)
 static int platform_pci_resume(struct pci_dev *pdev)
 {
 	int err;
-	if (xen_have_vector_callback)
+	if (!xen_pv_domain())
 		return 0;
 	err = xen_set_callback_via(callback_via);
 	if (err) {
@@ -138,7 +138,14 @@ static int platform_pci_probe(struct pci_dev *pdev,
 	platform_mmio = mmio_addr;
 	platform_mmiolen = mmio_len;
 
-	if (!xen_have_vector_callback) {
+	/* 
+	 * Xen HVM guests always use the vector callback mechanism.
+	 * L1 Dom0 in a nested Xen environment is a PV guest inside in an
+	 * HVM environment. It needs the platform-pci driver to get
+	 * notifications from L0 Xen, but it cannot use the vector callback
+	 * as it is not exported by L1 Xen.
+	 */
+	if (xen_pv_domain()) {
 		ret = xen_allocate_irq(pdev);
 		if (ret) {
 			dev_warn(&pdev->dev, "request_irq failed err=%d\n", ret);
@@ -189,8 +196,4 @@ static struct pci_driver platform_driver = {
 #endif
 };
 
-static int __init platform_pci_init(void)
-{
-	return pci_register_driver(&platform_driver);
-}
-device_initcall(platform_pci_init);
+builtin_pci_driver(platform_driver);

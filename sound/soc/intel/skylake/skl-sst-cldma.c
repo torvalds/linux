@@ -17,7 +17,6 @@
 
 #include <linux/device.h>
 #include <linux/mm.h>
-#include <linux/kthread.h>
 #include <linux/delay.h>
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
@@ -341,14 +340,14 @@ int skl_cldma_prepare(struct sst_dsp *ctx)
 	ret = ctx->dsp_ops.alloc_dma_buf(ctx->dev,
 			&ctx->cl_dev.dmab_data, ctx->cl_dev.bufsize);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Alloc buffer for base fw failed: %x", ret);
+		dev_err(ctx->dev, "Alloc buffer for base fw failed: %x\n", ret);
 		return ret;
 	}
 	/* Setup Code loader BDL */
 	ret = ctx->dsp_ops.alloc_dma_buf(ctx->dev,
 			&ctx->cl_dev.dmab_bdl, PAGE_SIZE);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Alloc buffer for blde failed: %x", ret);
+		dev_err(ctx->dev, "Alloc buffer for blde failed: %x\n", ret);
 		ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_data);
 		return ret;
 	}
