@@ -79,6 +79,9 @@ int timgad_task_set_flag(struct timgad_task *timgad_tsk, unsigned long op,
 
 int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
 {
+	if (op != PR_TIMGAD_GET_MOD_HARDEN)
+		return -EINVAL;
+
 	return timgad_tsk->mod_harden;
 }
 
