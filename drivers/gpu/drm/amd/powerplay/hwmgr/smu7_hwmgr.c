@@ -4502,6 +4502,76 @@ static int smu7_release_firmware(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void smu7_find_min_clock_masks(struct pp_hwmgr *hwmgr,
+		uint32_t *sclk_mask, uint32_t *mclk_mask,
+		uint32_t min_sclk, uint32_t min_mclk)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_dpm_table *dpm_table = &(data->dpm_table);
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
+			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
+			*sclk_mask |= 1 << i;
+	}
+
+	for (i = 0; i < dpm_table->mclk_table.count; i++) {
+		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
+			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
+			*mclk_mask |= 1 << i;
+	}
+}
+
+static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int tmp_result, result = 0;
+	uint32_t sclk_mask = 0, mclk_mask = 0;
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
+		return -EINVAL;
+
+	tmp_result = smu7_freeze_sclk_mclk_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to freeze SCLK MCLK DPM!",
+			result = tmp_result);
+
+	tmp_result = smum_populate_requested_graphic_levels(hwmgr, request);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to populate requested graphic levels!",
+			result = tmp_result);
+
+	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE(!tmp_result,
+			"Failed to unfreeze SCLK MCLK DPM!",
+			result = tmp_result);
+
+	smu7_find_min_clock_masks(hwmgr, &sclk_mask, &mclk_mask,
+			request->min_sclk, request->min_mclk);
+
+	if (sclk_mask) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SCLKDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.
+				sclk_dpm_enable_mask &
+				sclk_mask);
+	}
+
+	if (mclk_mask) {
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_MCLKDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.
+				mclk_dpm_enable_mask &
+				mclk_mask);
+	}
+
+	return result;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4551,6 +4621,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
 	.request_firmware = smu7_request_firmware,
 	.release_firmware = smu7_release_firmware,
+	.set_power_profile_state = smu7_set_power_profile_state,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

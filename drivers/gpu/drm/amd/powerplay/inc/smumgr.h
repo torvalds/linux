@@ -127,6 +127,8 @@ struct pp_smumgr_func {
 	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
 	uint32_t (*get_mac_definition)(uint32_t value);
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
+	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
+			struct amd_pp_profile *request);
 };
 
 struct pp_smumgr {
@@ -192,6 +194,9 @@ extern uint32_t smum_get_offsetof(struct pp_smumgr *smumgr,
 extern uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value);
 
 extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
+
+extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 

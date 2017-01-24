@@ -374,3 +374,13 @@ bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
 
 	return true;
 }
+
+int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	if (hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels)
+		return hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels(
+				hwmgr, request);
+
+	return 0;
+}
