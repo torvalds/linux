@@ -1379,6 +1379,9 @@ static void avic_vm_destroy(struct kvm *kvm)
 	unsigned long flags;
 	struct kvm_arch *vm_data = &kvm->arch;
 
+	if (!avic)
+		return;
+
 	avic_free_vm_id(vm_data->avic_vm_id);
 
 	if (vm_data->avic_logical_id_table_page)
