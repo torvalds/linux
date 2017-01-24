@@ -222,6 +222,18 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 	return 0;
 }
 
+static int mv88e6165_phy_read(struct mv88e6xxx_chip *chip, int addr,
+			      int reg, u16 *val)
+{
+	return mv88e6xxx_read(chip, addr, reg, val);
+}
+
+static int mv88e6165_phy_write(struct mv88e6xxx_chip *chip, int addr,
+			       int reg, u16 val)
+{
+	return mv88e6xxx_write(chip, addr, reg, val);
+}
+
 static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
 			      int reg, u16 *val)
 {
@@ -3085,8 +3097,8 @@ static const struct mv88e6xxx_ops mv88e6097_ops = {
 static const struct mv88e6xxx_ops mv88e6123_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -3132,8 +3144,8 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 static const struct mv88e6xxx_ops mv88e6161_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -3157,8 +3169,8 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 static const struct mv88e6xxx_ops mv88e6165_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
