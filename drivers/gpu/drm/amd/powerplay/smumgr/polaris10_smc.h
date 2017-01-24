@@ -37,6 +37,8 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member);
 uint32_t polaris10_get_mac_definition(uint32_t value);
 int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr);
 bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr);
+int polaris10_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request);
 
 #endif
 
