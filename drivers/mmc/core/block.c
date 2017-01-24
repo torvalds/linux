@@ -1609,6 +1609,22 @@ static void mmc_blk_rw_cmd_abort(struct mmc_card *card, struct request *req)
 				      blk_rq_cur_bytes(req));
 }
 
+static void mmc_blk_rw_start_new(struct mmc_queue *mq, struct mmc_card *card,
+				 struct request *req)
+{
+	if (!req)
+		return;
+
+	if (mmc_card_removed(card)) {
+		req->rq_flags |= RQF_QUIET;
+		blk_end_request_all(req, -EIO);
+	} else {
+		mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
+		mmc_start_req(card->host,
+			      &mq->mqrq_cur->mmc_active, NULL);
+	}
+}
+
 static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 {
 	struct mmc_blk_data *md = mq->blkdata;
@@ -1751,16 +1767,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	mmc_blk_rw_cmd_abort(card, req);
 
  start_new_req:
-	if (rqc) {
-		if (mmc_card_removed(card)) {
-			rqc->rq_flags |= RQF_QUIET;
-			blk_end_request_all(rqc, -EIO);
-		} else {
-			mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
-			mmc_start_req(card->host,
-				      &mq->mqrq_cur->mmc_active, NULL);
-		}
-	}
+	mmc_blk_rw_start_new(mq, card, rqc);
 
 	return 0;
 }
