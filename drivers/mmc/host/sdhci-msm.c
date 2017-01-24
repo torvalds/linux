@@ -664,19 +664,7 @@ static int sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
 	config &= ~CORE_START_CDC_TRAFFIC;
 	writel_relaxed(config, host->ioaddr + CORE_DDR_200_CFG);
 
-	/*
-	 * Perform CDC Register Initialization Sequence
-	 *
-	 * CORE_CSR_CDC_CTLR_CFG0	0x11800EC
-	 * CORE_CSR_CDC_CTLR_CFG1	0x3011111
-	 * CORE_CSR_CDC_CAL_TIMER_CFG0	0x1201000
-	 * CORE_CSR_CDC_CAL_TIMER_CFG1	0x4
-	 * CORE_CSR_CDC_REFCOUNT_CFG	0xCB732020
-	 * CORE_CSR_CDC_COARSE_CAL_CFG	0xB19
-	 * CORE_CSR_CDC_DELAY_CFG	0x3AC
-	 * CORE_CDC_OFFSET_CFG		0x0
-	 * CORE_CDC_SLAVE_DDA_CFG	0x16334
-	 */
+	/* Perform CDC Register Initialization Sequence */
 
 	writel_relaxed(0x11800EC, host->ioaddr + CORE_CSR_CDC_CTLR_CFG0);
 	writel_relaxed(0x3011111, host->ioaddr + CORE_CSR_CDC_CTLR_CFG1);
