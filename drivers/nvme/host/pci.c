@@ -898,12 +898,11 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 		return BLK_EH_HANDLED;
 	}
 
-	iod->aborted = 1;
-
 	if (atomic_dec_return(&dev->ctrl.abort_limit) < 0) {
 		atomic_inc(&dev->ctrl.abort_limit);
 		return BLK_EH_RESET_TIMER;
 	}
+	iod->aborted = 1;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.abort.opcode = nvme_admin_abort_cmd;
