@@ -408,7 +408,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	if (pix_mp->field == V4L2_FIELD_ANY)
 		pix_mp->field = V4L2_FIELD_NONE;
 	else if (pix_mp->field != V4L2_FIELD_NONE) {
-		pr_err("Not supported field order(%d)\n", pix_mp->field);
+		pr_debug("Not supported field order(%d)\n", pix_mp->field);
 		return -EINVAL;
 	}
 
