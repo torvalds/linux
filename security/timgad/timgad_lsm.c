@@ -3,6 +3,9 @@
  *
  * Author: Djalal Harouni
  *
+ * Copyright (C) 2017 Endocode AG.
+ * Copyright (C) 2017 Djalal Harouni
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2, as
  * published by the Free Software Foundation.
@@ -35,7 +38,7 @@ static int timgad_get_op_value(struct task_struct *tsk, unsigned long op)
 	return ret;
 }
 
-int timgad_copy_task_filter(struct task_struct *tsk)
+int timgad_task_copy(struct task_struct *tsk)
 {
 	int ret = -EINVAL;
 
@@ -99,7 +102,7 @@ static int timgad_dointvec_minmax(struct ctl_table *table, int write,
 }
 
 static int zero;
-static int max_harden_scope = TIMGAD_MOD_HARDEN_ON;
+static int max_module_restrict_scope = TIMGAD_MOD_HARDEN_ON;
 
 struct ctl_path timgad_sysctl_path[] = {
 	{ .procname = "kernel", },
@@ -107,15 +110,15 @@ struct ctl_path timgad_sysctl_path[] = {
 	{ }
 };
 
-static struct ctl_table yama_sysctl_table[] = {
+static struct ctl_table timgad_sysctl_table[] = {
 	{
 		.procname       = "module_restrict",
-		.data           = &ptrace_scope,
+		.data           = &module_restrict,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = timgad_dointvec_minmax,
 		.extra1         = &zero,
-		.extra2         = &max_scope,
+		.extra2         = &max_module_restrict_scope,
 	},
 	{ }
 };
