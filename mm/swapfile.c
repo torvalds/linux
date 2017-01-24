@@ -105,7 +105,7 @@ __try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
 	struct page *page;
 	int ret = 0;
 
-	page = find_get_page(swap_address_space(entry), entry.val);
+	page = find_get_page(swap_address_space(entry), swp_offset(entry));
 	if (!page)
 		return 0;
 	/*
@@ -257,6 +257,53 @@ static inline void cluster_set_null(struct swap_cluster_info *info)
 	info->data = 0;
 }
 
+static inline bool cluster_list_empty(struct swap_cluster_list *list)
+{
+	return cluster_is_null(&list->head);
+}
+
+static inline unsigned int cluster_list_first(struct swap_cluster_list *list)
+{
+	return cluster_next(&list->head);
+}
+
+static void cluster_list_init(struct swap_cluster_list *list)
+{
+	cluster_set_null(&list->head);
+	cluster_set_null(&list->tail);
+}
+
+static void cluster_list_add_tail(struct swap_cluster_list *list,
+				  struct swap_cluster_info *ci,
+				  unsigned int idx)
+{
+	if (cluster_list_empty(list)) {
+		cluster_set_next_flag(&list->head, idx, 0);
+		cluster_set_next_flag(&list->tail, idx, 0);
+	} else {
+		unsigned int tail = cluster_next(&list->tail);
+
+		cluster_set_next(&ci[tail], idx);
+		cluster_set_next_flag(&list->tail, idx, 0);
+	}
+}
+
+static unsigned int cluster_list_del_first(struct swap_cluster_list *list,
+					   struct swap_cluster_info *ci)
+{
+	unsigned int idx;
+
+	idx = cluster_next(&list->head);
+	if (cluster_next(&list->tail) == idx) {
+		cluster_set_null(&list->head);
+		cluster_set_null(&list->tail);
+	} else
+		cluster_set_next_flag(&list->head,
+				      cluster_next(&ci[idx]), 0);
+
+	return idx;
+}
+
 /* Add a cluster to discard list and schedule it to do discard */
 static void swap_cluster_schedule_discard(struct swap_info_struct *si,
 		unsigned int idx)
@@ -270,17 +317,7 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
 	memset(si->swap_map + idx * SWAPFILE_CLUSTER,
 			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
 
-	if (cluster_is_null(&si->discard_cluster_head)) {
-		cluster_set_next_flag(&si->discard_cluster_head,
-						idx, 0);
-		cluster_set_next_flag(&si->discard_cluster_tail,
-						idx, 0);
-	} else {
-		unsigned int tail = cluster_next(&si->discard_cluster_tail);
-		cluster_set_next(&si->cluster_info[tail], idx);
-		cluster_set_next_flag(&si->discard_cluster_tail,
-						idx, 0);
-	}
+	cluster_list_add_tail(&si->discard_clusters, si->cluster_info, idx);
 
 	schedule_work(&si->discard_work);
 }
@@ -296,15 +333,8 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
 
 	info = si->cluster_info;
 
-	while (!cluster_is_null(&si->discard_cluster_head)) {
-		idx = cluster_next(&si->discard_cluster_head);
-
-		cluster_set_next_flag(&si->discard_cluster_head,
-						cluster_next(&info[idx]), 0);
-		if (cluster_next(&si->discard_cluster_tail) == idx) {
-			cluster_set_null(&si->discard_cluster_head);
-			cluster_set_null(&si->discard_cluster_tail);
-		}
+	while (!cluster_list_empty(&si->discard_clusters)) {
+		idx = cluster_list_del_first(&si->discard_clusters, info);
 		spin_unlock(&si->lock);
 
 		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
@@ -312,19 +342,7 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
 
 		spin_lock(&si->lock);
 		cluster_set_flag(&info[idx], CLUSTER_FLAG_FREE);
-		if (cluster_is_null(&si->free_cluster_head)) {
-			cluster_set_next_flag(&si->free_cluster_head,
-						idx, 0);
-			cluster_set_next_flag(&si->free_cluster_tail,
-						idx, 0);
-		} else {
-			unsigned int tail;
-
-			tail = cluster_next(&si->free_cluster_tail);
-			cluster_set_next(&info[tail], idx);
-			cluster_set_next_flag(&si->free_cluster_tail,
-						idx, 0);
-		}
+		cluster_list_add_tail(&si->free_clusters, info, idx);
 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
 				0, SWAPFILE_CLUSTER);
 	}
@@ -353,13 +371,8 @@ static void inc_cluster_info_page(struct swap_info_struct *p,
 	if (!cluster_info)
 		return;
 	if (cluster_is_free(&cluster_info[idx])) {
-		VM_BUG_ON(cluster_next(&p->free_cluster_head) != idx);
-		cluster_set_next_flag(&p->free_cluster_head,
-			cluster_next(&cluster_info[idx]), 0);
-		if (cluster_next(&p->free_cluster_tail) == idx) {
-			cluster_set_null(&p->free_cluster_tail);
-			cluster_set_null(&p->free_cluster_head);
-		}
+		VM_BUG_ON(cluster_list_first(&p->free_clusters) != idx);
+		cluster_list_del_first(&p->free_clusters, cluster_info);
 		cluster_set_count_flag(&cluster_info[idx], 0, 0);
 	}
 
@@ -398,14 +411,7 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 		}
 
 		cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
-		if (cluster_is_null(&p->free_cluster_head)) {
-			cluster_set_next_flag(&p->free_cluster_head, idx, 0);
-			cluster_set_next_flag(&p->free_cluster_tail, idx, 0);
-		} else {
-			unsigned int tail = cluster_next(&p->free_cluster_tail);
-			cluster_set_next(&cluster_info[tail], idx);
-			cluster_set_next_flag(&p->free_cluster_tail, idx, 0);
-		}
+		cluster_list_add_tail(&p->free_clusters, cluster_info, idx);
 	}
 }
 
@@ -421,8 +427,8 @@ scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
 	bool conflict;
 
 	offset /= SWAPFILE_CLUSTER;
-	conflict = !cluster_is_null(&si->free_cluster_head) &&
-		offset != cluster_next(&si->free_cluster_head) &&
+	conflict = !cluster_list_empty(&si->free_clusters) &&
+		offset != cluster_list_first(&si->free_clusters) &&
 		cluster_is_free(&si->cluster_info[offset]);
 
 	if (!conflict)
@@ -447,11 +453,11 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
 new_cluster:
 	cluster = this_cpu_ptr(si->percpu_cluster);
 	if (cluster_is_null(&cluster->index)) {
-		if (!cluster_is_null(&si->free_cluster_head)) {
-			cluster->index = si->free_cluster_head;
+		if (!cluster_list_empty(&si->free_clusters)) {
+			cluster->index = si->free_clusters.head;
 			cluster->next = cluster_next(&cluster->index) *
 					SWAPFILE_CLUSTER;
-		} else if (!cluster_is_null(&si->discard_cluster_head)) {
+		} else if (!cluster_list_empty(&si->discard_clusters)) {
 			/*
 			 * we don't have free cluster but have some clusters in
 			 * discarding, do discard now and reclaim them
@@ -937,11 +943,25 @@ bool reuse_swap_page(struct page *page, int *total_mapcount)
 	count = page_trans_huge_mapcount(page, total_mapcount);
 	if (count <= 1 && PageSwapCache(page)) {
 		count += page_swapcount(page);
-		if (count == 1 && !PageWriteback(page)) {
+		if (count != 1)
+			goto out;
+		if (!PageWriteback(page)) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
+		} else {
+			swp_entry_t entry;
+			struct swap_info_struct *p;
+
+			entry.val = page_private(page);
+			p = swap_info_get(entry);
+			if (p->flags & SWP_STABLE_WRITES) {
+				spin_unlock(&p->lock);
+				return false;
+			}
+			spin_unlock(&p->lock);
 		}
 	}
+out:
 	return count <= 1;
 }
 
@@ -999,7 +1019,7 @@ int free_swap_and_cache(swp_entry_t entry)
 	if (p) {
 		if (swap_entry_free(p, entry, 1) == SWAP_HAS_CACHE) {
 			page = find_get_page(swap_address_space(entry),
-						entry.val);
+					     swp_offset(entry));
 			if (page && !trylock_page(page)) {
 				put_page(page);
 				page = NULL;
@@ -1228,6 +1248,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 
 	pmd = pmd_offset(pud, addr);
 	do {
+		cond_resched();
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
 			continue;
@@ -1307,6 +1328,7 @@ static int unuse_mm(struct mm_struct *mm,
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma && (ret = unuse_vma(vma, entry, page)))
 			break;
+		cond_resched();
 	}
 	up_read(&mm->mmap_sem);
 	return (ret < 0)? ret: 0;
@@ -1344,15 +1366,12 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 			prev = 0;
 			i = 1;
 		}
-		if (frontswap) {
-			if (frontswap_test(si, i))
-				break;
-			else
-				continue;
-		}
 		count = READ_ONCE(si->swap_map[i]);
 		if (count && swap_count(count) != SWAP_MAP_BAD)
-			break;
+			if (!frontswap || frontswap_test(si, i))
+				break;
+		if ((i % LATENCY_LIMIT) == 0)
+			cond_resched();
 	}
 	return i;
 }
@@ -2218,6 +2237,8 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 		swab32s(&swap_header->info.version);
 		swab32s(&swap_header->info.last_page);
 		swab32s(&swap_header->info.nr_badpages);
+		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
+			return 0;
 		for (i = 0; i < swap_header->info.nr_badpages; i++)
 			swab32s(&swap_header->info.badpages[i]);
 	}
@@ -2292,10 +2313,8 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 
 	nr_good_pages = maxpages - 1;	/* omit header page */
 
-	cluster_set_null(&p->free_cluster_head);
-	cluster_set_null(&p->free_cluster_tail);
-	cluster_set_null(&p->discard_cluster_head);
-	cluster_set_null(&p->discard_cluster_tail);
+	cluster_list_init(&p->free_clusters);
+	cluster_list_init(&p->discard_clusters);
 
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 		unsigned int page_nr = swap_header->info.badpages[i];
@@ -2341,19 +2360,8 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 	for (i = 0; i < nr_clusters; i++) {
 		if (!cluster_count(&cluster_info[idx])) {
 			cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
-			if (cluster_is_null(&p->free_cluster_head)) {
-				cluster_set_next_flag(&p->free_cluster_head,
-								idx, 0);
-				cluster_set_next_flag(&p->free_cluster_tail,
-								idx, 0);
-			} else {
-				unsigned int tail;
-
-				tail = cluster_next(&p->free_cluster_tail);
-				cluster_set_next(&cluster_info[tail], idx);
-				cluster_set_next_flag(&p->free_cluster_tail,
-								idx, 0);
-			}
+			cluster_list_add_tail(&p->free_clusters, cluster_info,
+					      idx);
 		}
 		idx++;
 		if (idx == nr_clusters)
@@ -2454,6 +2462,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		error = -ENOMEM;
 		goto bad_swap;
 	}
+
+	if (bdi_cap_stable_pages_required(inode_to_bdi(inode)))
+		p->flags |= SWP_STABLE_WRITES;
+
 	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
 		int cpu;
 

@@ -154,7 +154,7 @@ int pem_task_powerdown_vce_tasks(struct pp_eventmgr *eventmgr, struct pem_event_
 
 int pem_task_disable_clock_power_gatings_tasks(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data)
 {
-	/* TODO */
+	phm_disable_clock_power_gatings(eventmgr->hwmgr);
 	return 0;
 }
 

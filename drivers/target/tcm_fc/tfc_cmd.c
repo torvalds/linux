@@ -92,7 +92,7 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 	fp = cmd->req_frame;
 	lport = fr_dev(fp);
 	if (fr_seq(fp))
-		lport->tt.seq_release(fr_seq(fp));
+		fc_seq_release(fr_seq(fp));
 	fc_frame_free(fp);
 	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
 	ft_sess_put(sess);	/* undo get from lookup at recv */
@@ -161,11 +161,11 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	/*
 	 * Send response.
 	 */
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_CMD_STATUS, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ, 0);
 
-	rc = lport->tt.seq_send(lport, cmd->seq, fp);
+	rc = fc_seq_send(lport, cmd->seq, fp);
 	if (rc) {
 		pr_info_ratelimited("%s: Failed to send response frame %p, "
 				    "xid <0x%x>\n", __func__, fp, ep->xid);
@@ -177,7 +177,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
 		return -ENOMEM;
 	}
-	lport->tt.exch_done(cmd->seq);
+	fc_exch_done(cmd->seq);
 	/*
 	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
 	 * ahead of ft_check_stop_free() -> transport_generic_free_cmd()
@@ -221,7 +221,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	memset(txrdy, 0, sizeof(*txrdy));
 	txrdy->ft_burst_len = htonl(se_cmd->data_length);
 
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_DATA_DESC, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
@@ -242,7 +242,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				cmd->was_ddp_setup = 1;
 		}
 	}
-	lport->tt.seq_send(lport, cmd->seq, fp);
+	fc_seq_send(lport, cmd->seq, fp);
 	return 0;
 }
 
@@ -323,8 +323,8 @@ static void ft_send_resp_status(struct fc_lport *lport,
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_DD_CMD_STATUS, 0);
 	sp = fr_seq(fp);
 	if (sp) {
-		lport->tt.seq_send(lport, sp, fp);
-		lport->tt.exch_done(sp);
+		fc_seq_send(lport, sp, fp);
+		fc_exch_done(sp);
 	} else {
 		lport->tt.frame_send(lport, fp);
 	}
@@ -461,7 +461,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 
 	cmd->se_cmd.map_tag = tag;
 	cmd->sess = sess;
-	cmd->seq = lport->tt.seq_assign(lport, fp);
+	cmd->seq = fc_seq_assign(lport, fp);
 	if (!cmd->seq) {
 		percpu_ida_free(&se_sess->sess_tag_pool, tag);
 		goto busy;
@@ -563,7 +563,7 @@ static void ft_send_work(struct work_struct *work)
 		task_attr = TCM_SIMPLE_TAG;
 	}
 
-	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
+	fc_seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 	cmd->se_cmd.tag = fc_seq_exch(cmd->seq)->rxid;
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
@@ -572,10 +572,10 @@ static void ft_send_work(struct work_struct *work)
 	if (target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, fcp->fc_cdb,
 			      &cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
 			      ntohl(fcp->fc_dl), task_attr, data_dir,
-			      TARGET_SCF_ACK_KREF))
+			      TARGET_SCF_ACK_KREF | TARGET_SCF_USE_CPUID))
 		goto err;
 
-	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
+	pr_debug("r_ctl %x target_submit_cmd %p\n", fh->fh_r_ctl, cmd);
 	return;
 
 err:

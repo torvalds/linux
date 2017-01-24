@@ -160,7 +160,8 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 	file_size += sizeof(*iter.hdr) * n_obj;
 
 	/* Allocate the file in vmalloc memory, it's likely to be big */
-	iter.start = vmalloc(file_size);
+	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_HIGHMEM |
+			       __GFP_NOWARN | __GFP_NORETRY, PAGE_KERNEL);
 	if (!iter.start) {
 		dev_warn(gpu->dev, "failed to allocate devcoredump file\n");
 		return;
@@ -175,11 +176,13 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 	etnaviv_core_dump_registers(&iter, gpu);
 	etnaviv_core_dump_mmu(&iter, gpu, mmu_size);
 	etnaviv_core_dump_mem(&iter, ETDUMP_BUF_RING, gpu->buffer->vaddr,
-			      gpu->buffer->size, gpu->buffer->paddr);
+			      gpu->buffer->size,
+			      etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer));
 
 	list_for_each_entry(cmd, &gpu->active_cmd_list, node)
 		etnaviv_core_dump_mem(&iter, ETDUMP_BUF_CMD, cmd->vaddr,
-				      cmd->size, cmd->paddr);
+				      cmd->size,
+				      etnaviv_iommu_get_cmdbuf_va(gpu, cmd));
 
 	/* Reserve space for the bomap */
 	if (n_bomap_pages) {

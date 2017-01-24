@@ -801,7 +801,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(50);
 			}
-		} while ((i < DA7219_SRM_CHECK_RETRIES) & (!srm_lock));
+		} while ((i < DA7219_SRM_CHECK_RETRIES) && (!srm_lock));
 
 		if (!srm_lock)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -821,6 +821,85 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 	default:
 		return -EINVAL;
 	}
+}
+
+static int da7219_settling_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		msleep(DA7219_SETTLING_DELAY);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int da7219_mixout_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	u8 hp_ctrl, min_gain_mask;
+
+	switch (w->reg) {
+	case DA7219_MIXOUT_L_CTRL:
+		hp_ctrl = DA7219_HP_L_CTRL;
+		min_gain_mask = DA7219_HP_L_AMP_MIN_GAIN_EN_MASK;
+		break;
+	case DA7219_MIXOUT_R_CTRL:
+		hp_ctrl = DA7219_HP_R_CTRL;
+		min_gain_mask = DA7219_HP_R_AMP_MIN_GAIN_EN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Enable minimum gain on HP to avoid pops */
+		snd_soc_update_bits(codec, hp_ctrl, min_gain_mask,
+				    min_gain_mask);
+
+		msleep(DA7219_MIN_GAIN_DELAY);
+
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		/* Remove minimum gain on HP */
+		snd_soc_update_bits(codec, hp_ctrl, min_gain_mask, 0);
+
+		break;
+	}
+
+	return 0;
+}
+
+static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_PRE_PMD:
+		/* Ensure nominal gain ramping for DAPM sequence */
+		da7219->gain_ramp_ctrl =
+			snd_soc_read(codec, DA7219_GAIN_RAMP_CTRL);
+		snd_soc_write(codec, DA7219_GAIN_RAMP_CTRL,
+			      DA7219_GAIN_RAMP_RATE_NOMINAL);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		/* Restore previous gain ramp settings */
+		snd_soc_write(codec, DA7219_GAIN_RAMP_CTRL,
+			      da7219->gain_ramp_ctrl);
+		break;
+	}
+
+	return 0;
 }
 
 
@@ -880,7 +959,8 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* DAI */
-	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, DA7219_DAI_TDM_CTRL,
+			     DA7219_DAI_OE_SHIFT, DA7219_NO_INVERT),
 	SND_SOC_DAPM_AIF_IN("DAIIN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Output Muxes */
@@ -906,30 +986,46 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 			   ARRAY_SIZE(da7219_st_out_filtr_mix_controls)),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("DACL", NULL, DA7219_DAC_L_CTRL, DA7219_DAC_L_EN_SHIFT,
-			 DA7219_NO_INVERT),
-	SND_SOC_DAPM_DAC("DACR", NULL, DA7219_DAC_R_CTRL, DA7219_DAC_R_EN_SHIFT,
-			 DA7219_NO_INVERT),
+	SND_SOC_DAPM_DAC_E("DACL", NULL, DA7219_DAC_L_CTRL,
+			   DA7219_DAC_L_EN_SHIFT, DA7219_NO_INVERT,
+			   da7219_settling_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC_E("DACR", NULL, DA7219_DAC_R_CTRL,
+			   DA7219_DAC_R_EN_SHIFT, DA7219_NO_INVERT,
+			   da7219_settling_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output PGAs */
-	SND_SOC_DAPM_PGA("Mixout Left PGA", DA7219_MIXOUT_L_CTRL,
-			 DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
-	SND_SOC_DAPM_PGA("Mixout Right PGA", DA7219_MIXOUT_R_CTRL,
-			 DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
-	SND_SOC_DAPM_PGA("Headphone Left PGA", DA7219_HP_L_CTRL,
-			 DA7219_HP_L_AMP_EN_SHIFT, DA7219_NO_INVERT, NULL, 0),
-	SND_SOC_DAPM_PGA("Headphone Right PGA", DA7219_HP_R_CTRL,
-			 DA7219_HP_R_AMP_EN_SHIFT, DA7219_NO_INVERT, NULL, 0),
+	SND_SOC_DAPM_PGA_E("Mixout Left PGA", DA7219_MIXOUT_L_CTRL,
+			   DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_mixout_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_E("Mixout Right PGA", DA7219_MIXOUT_R_CTRL,
+			   DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_mixout_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY_S("Headphone Left PGA", 1, DA7219_HP_L_CTRL,
+			      DA7219_HP_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("Headphone Right PGA", 1, DA7219_HP_R_CTRL,
+			      DA7219_HP_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output Supplies */
-	SND_SOC_DAPM_SUPPLY("Charge Pump", DA7219_CP_CTRL, DA7219_CP_EN_SHIFT,
-			    DA7219_NO_INVERT, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("Charge Pump", 0, DA7219_CP_CTRL,
+			      DA7219_CP_EN_SHIFT, DA7219_NO_INVERT,
+			      da7219_settling_event,
+			      SND_SOC_DAPM_POST_PMU),
 
 	/* Outputs */
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
+
+	/* Pre/Post Power */
+	SND_SOC_DAPM_PRE("Pre Power Gain Ramp", da7219_gain_ramp_event),
+	SND_SOC_DAPM_POST("Post Power Gain Ramp", da7219_gain_ramp_event),
 };
 
 
@@ -1002,8 +1098,8 @@ static const struct snd_soc_dapm_route da7219_audio_map[] = {
 	{"Mixout Left PGA", NULL, "DACL"},
 	{"Mixout Right PGA", NULL, "DACR"},
 
-	{"Headphone Left PGA", NULL, "Mixout Left PGA"},
-	{"Headphone Right PGA", NULL, "Mixout Right PGA"},
+	{"HPL", NULL, "Mixout Left PGA"},
+	{"HPR", NULL, "Mixout Right PGA"},
 
 	{"HPL", NULL, "Headphone Left PGA"},
 	{"HPR", NULL, "Headphone Right PGA"},
@@ -1482,6 +1578,8 @@ static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_codec *codec)
 	if (!pdata)
 		return NULL;
 
+	pdata->wakeup_source = device_property_read_bool(dev, "wakeup-source");
+
 	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
@@ -1508,11 +1606,10 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			/* MCLK */
+	case SND_SOC_BIAS_PREPARE:
+		/* Enable MCLK for transition to ON state */
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			if (da7219->mclk) {
 				ret = clk_prepare_enable(da7219->mclk);
 				if (ret) {
@@ -1521,22 +1618,28 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
+		}
 
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			/* Master bias */
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
+			/* Remove MCLK */
+			if (da7219->mclk)
+				clk_disable_unprepare(da7219->mclk);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable master bias if jack detection not active */
-		if (!da7219->aad->jack)
+		/* Only disable master bias if we're not a wake-up source */
+		if (!da7219->wakeup_source)
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
 
-		/* MCLK */
-		if (da7219->mclk)
-			clk_disable_unprepare(da7219->mclk);
 		break;
 	}
 
@@ -1598,6 +1701,8 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 
 	if (pdata) {
 		u8 micbias_lvl = 0;
+
+		da7219->wakeup_source = pdata->wakeup_source;
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1702,6 +1807,14 @@ static int da7219_probe(struct snd_soc_codec *codec)
 			    DA7219_HP_R_AMP_RAMP_EN_MASK,
 			    DA7219_HP_R_AMP_RAMP_EN_MASK);
 
+	/* Default minimum gain on HP to avoid pops during DAPM sequencing */
+	snd_soc_update_bits(codec, DA7219_HP_L_CTRL,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_L_AMP_MIN_GAIN_EN_MASK);
+	snd_soc_update_bits(codec, DA7219_HP_R_CTRL,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK,
+			    DA7219_HP_R_AMP_MIN_GAIN_EN_MASK);
+
 	/* Default infinite tone gen, start/stop by Kcontrol */
 	snd_soc_write(codec, DA7219_TONE_GEN_CYCLES, DA7219_BEEP_CYCLES_MASK);
 
@@ -1733,11 +1846,11 @@ static int da7219_suspend(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	/* Suspend AAD if we're not a wake-up source */
+	if (!da7219->wakeup_source)
+		da7219_aad_suspend(codec);
 
-	/* Put device into standby mode if jack detection disabled */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE, 0);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1746,12 +1859,11 @@ static int da7219_resume(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	/* Put device into active mode if previously pushed to standby */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE,
-			      DA7219_SYSTEM_ACTIVE_MASK);
-
 	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	/* Resume AAD if previously suspended */
+	if (!da7219->wakeup_source)
+		da7219_aad_resume(codec);
 
 	return 0;
 }
@@ -1767,13 +1879,14 @@ static struct snd_soc_codec_driver soc_codec_dev_da7219 = {
 	.resume			= da7219_resume,
 	.set_bias_level		= da7219_set_bias_level,
 
-	.controls		= da7219_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
-
-	.dapm_widgets		= da7219_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
-	.dapm_routes		= da7219_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	.component_driver = {
+		.controls		= da7219_snd_controls,
+		.num_controls		= ARRAY_SIZE(da7219_snd_controls),
+		.dapm_widgets		= da7219_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
+		.dapm_routes		= da7219_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	},
 };
 
 
@@ -1921,7 +2034,8 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct da7219_priv *da7219;
-	int ret;
+	unsigned int system_active, system_status;
+	int i, ret;
 
 	da7219 = devm_kzalloc(&i2c->dev, sizeof(struct da7219_priv),
 			      GFP_KERNEL);
@@ -1936,6 +2050,37 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	regcache_cache_bypass(da7219->regmap, true);
+
+	/* Disable audio paths if still active from previous start */
+	regmap_read(da7219->regmap, DA7219_SYSTEM_ACTIVE, &system_active);
+	if (system_active) {
+		regmap_write(da7219->regmap, DA7219_GAIN_RAMP_CTRL,
+			     DA7219_GAIN_RAMP_RATE_NOMINAL);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_INPUT, 0x00);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_OUTPUT, 0x01);
+
+		for (i = 0; i < DA7219_SYS_STAT_CHECK_RETRIES; ++i) {
+			regmap_read(da7219->regmap, DA7219_SYSTEM_STATUS,
+				    &system_status);
+			if (!system_status)
+				break;
+
+			msleep(DA7219_SYS_STAT_CHECK_DELAY);
+		}
+	}
+
+	/* Soft reset codec */
+	regmap_write_bits(da7219->regmap, DA7219_ACCDET_CONFIG_1,
+			  DA7219_ACCDET_EN_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_CIF_CTRL,
+			  DA7219_CIF_REG_SOFT_RESET_MASK,
+			  DA7219_CIF_REG_SOFT_RESET_MASK);
+	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
+			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+
+	regcache_cache_bypass(da7219->regmap, false);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da7219,
 				     &da7219_dai, 1);

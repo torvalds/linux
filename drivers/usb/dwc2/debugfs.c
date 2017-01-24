@@ -213,7 +213,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	val = dwc2_readl(regs + GNPTXFSIZ);
 	seq_printf(seq, "NPTXFIFO: Size %d, Start 0x%08x\n",
 		   val >> FIFOSIZE_DEPTH_SHIFT,
-		   val & FIFOSIZE_DEPTH_MASK);
+		   val & FIFOSIZE_STARTADDR_MASK);
 
 	seq_puts(seq, "\nPeriodic TXFIFOs:\n");
 

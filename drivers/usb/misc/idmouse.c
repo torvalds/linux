@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 
 /* image constants */
@@ -366,7 +366,6 @@ static int idmouse_probe(struct usb_interface *interface,
 			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
 
 		if (!dev->bulk_in_buffer) {
-			dev_err(&interface->dev, "Unable to allocate input buffer.\n");
 			idmouse_delete(dev);
 			return -ENOMEM;
 		}

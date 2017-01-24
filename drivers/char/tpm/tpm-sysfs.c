@@ -22,7 +22,7 @@
 
 #define READ_PUBEK_RESULT_SIZE 314
 #define TPM_ORD_READPUBEK cpu_to_be32(124)
-static struct tpm_input_header tpm_readpubek_header = {
+static const struct tpm_input_header tpm_readpubek_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
 	.length = cpu_to_be32(30),
 	.ordinal = TPM_ORD_READPUBEK
@@ -39,7 +39,7 @@ static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
 	tpm_cmd.header.in = tpm_readpubek_header;
-	err = tpm_transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE,
+	err = tpm_transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE, 0,
 			       "attempting to read the PUBEK");
 	if (err)
 		goto out;
@@ -193,7 +193,7 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 		       be32_to_cpu(cap.manufacturer_id));
 
 	/* Try to get a TPM version 1.2 TPM_CAP_VERSION_INFO */
-	rc = tpm_getcap(chip, CAP_VERSION_1_2, &cap,
+	rc = tpm_getcap(chip, TPM_CAP_VERSION_1_2, &cap,
 			"attempting to determine the 1.2 version");
 	if (!rc) {
 		str += sprintf(str,
@@ -204,7 +204,7 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 			       cap.tpm_version_1_2.revMinor);
 	} else {
 		/* Otherwise just use TPM_STRUCT_VER */
-		rc = tpm_getcap(chip, CAP_VERSION_1_1, &cap,
+		rc = tpm_getcap(chip, TPM_CAP_VERSION_1_1, &cap,
 				"attempting to determine the 1.1 version");
 		if (rc)
 			return 0;
@@ -284,6 +284,9 @@ static const struct attribute_group tpm_dev_group = {
 
 void tpm_sysfs_add_device(struct tpm_chip *chip)
 {
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return;
+
 	/* The sysfs routines rely on an implicit tpm_try_get_ops, device_del
 	 * is called before ops is null'd and the sysfs core synchronizes this
 	 * removal so that no callbacks are running or can run again

@@ -243,12 +243,15 @@ qla2x00_sysfs_read_optrom(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	ssize_t rval = 0;
 
-	if (ha->optrom_state != QLA_SREADING)
-		return 0;
-
 	mutex_lock(&ha->optrom_mutex);
+
+	if (ha->optrom_state != QLA_SREADING)
+		goto out;
+
 	rval = memory_read_from_buffer(buf, count, &off, ha->optrom_buffer,
 	    ha->optrom_region_size);
+
+out:
 	mutex_unlock(&ha->optrom_mutex);
 
 	return rval;
@@ -263,14 +266,19 @@ qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (ha->optrom_state != QLA_SWRITING)
+	mutex_lock(&ha->optrom_mutex);
+
+	if (ha->optrom_state != QLA_SWRITING) {
+		mutex_unlock(&ha->optrom_mutex);
 		return -EINVAL;
-	if (off > ha->optrom_region_size)
+	}
+	if (off > ha->optrom_region_size) {
+		mutex_unlock(&ha->optrom_mutex);
 		return -ERANGE;
+	}
 	if (off + count > ha->optrom_region_size)
 		count = ha->optrom_region_size - off;
 
-	mutex_lock(&ha->optrom_mutex);
 	memcpy(&ha->optrom_buffer[off], buf, count);
 	mutex_unlock(&ha->optrom_mutex);
 
@@ -753,7 +761,6 @@ qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	int type;
-	int rval = 0;
 	port_id_t did;
 
 	type = simple_strtol(buf, NULL, 10);
@@ -767,7 +774,7 @@ qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
 
 	ql_log(ql_log_info, vha, 0x70e4, "%s: %d\n", __func__, type);
 
-	rval = qla24xx_els_dcmd_iocb(vha, ELS_DCMD_LOGO, did);
+	qla24xx_els_dcmd_iocb(vha, ELS_DCMD_LOGO, did);
 	return count;
 }
 
@@ -1988,9 +1995,9 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	scsi_qla_host_t *base_vha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha = NULL;
 	struct qla_hw_data *ha = base_vha->hw;
-	uint16_t options = 0;
 	int	cnt;
 	struct req_que *req = ha->req_q_map[0];
+	struct qla_qpair *qpair;
 
 	ret = qla24xx_vport_create_req_sanity_check(fc_vport);
 	if (ret) {
@@ -2075,15 +2082,9 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	qlt_vport_create(vha, ha);
 	qla24xx_vport_disable(fc_vport, disable);
 
-	if (ha->flags.cpu_affinity_enabled) {
-		req = ha->req_q_map[1];
-		ql_dbg(ql_dbg_multiq, vha, 0xc000,
-		    "Request queue %p attached with "
-		    "VP[%d], cpu affinity =%d\n",
-		    req, vha->vp_idx, ha->flags.cpu_affinity_enabled);
+	if (!ql2xmqsupport || !ha->npiv_info)
 		goto vport_queue;
-	} else if (ql2xmaxqueues == 1 || !ha->npiv_info)
-		goto vport_queue;
+
 	/* Create a request queue in QoS mode for the vport */
 	for (cnt = 0; cnt < ha->nvram_npiv_size; cnt++) {
 		if (memcmp(ha->npiv_info[cnt].port_name, vha->port_name, 8) == 0
@@ -2095,20 +2096,20 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	if (qos) {
-		ret = qla25xx_create_req_que(ha, options, vha->vp_idx, 0, 0,
-			qos);
-		if (!ret)
+		qpair = qla2xxx_create_qpair(vha, qos, vha->vp_idx);
+		if (!qpair)
 			ql_log(ql_log_warn, vha, 0x7084,
-			    "Can't create request queue for VP[%d]\n",
+			    "Can't create qpair for VP[%d]\n",
 			    vha->vp_idx);
 		else {
 			ql_dbg(ql_dbg_multiq, vha, 0xc001,
-			    "Request Que:%d Q0s: %d) created for VP[%d]\n",
-			    ret, qos, vha->vp_idx);
+			    "Queue pair: %d Qos: %d) created for VP[%d]\n",
+			    qpair->id, qos, vha->vp_idx);
 			ql_dbg(ql_dbg_user, vha, 0x7085,
-			    "Request Que:%d Q0s: %d) created for VP[%d]\n",
-			    ret, qos, vha->vp_idx);
-			req = ha->req_q_map[ret];
+			    "Queue Pair: %d Qos: %d) created for VP[%d]\n",
+			    qpair->id, qos, vha->vp_idx);
+			req = qpair->req;
+			vha->qpair = qpair;
 		}
 	}
 
@@ -2162,10 +2163,10 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	mutex_unlock(&ha->vport_lock);
 
-	if (vha->req->id && !ha->flags.cpu_affinity_enabled) {
-		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
+	if (vha->qpair->vp_idx == vha->vp_idx) {
+		if (qla2xxx_delete_qpair(vha, vha->qpair) != QLA_SUCCESS)
 			ql_log(ql_log_warn, vha, 0x7087,
-			    "Queue delete failed.\n");
+			    "Queue Pair delete failed.\n");
 	}
 
 	ql_log(ql_log_info, vha, 0x7088, "VP[%d] deleted.\n", id);

@@ -22,7 +22,7 @@
 #include <linux/compat.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #undef TTY_DEBUG_WAIT_UNTIL_SENT
 

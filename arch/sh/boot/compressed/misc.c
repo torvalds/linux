@@ -11,7 +11,7 @@
  * Modified to use standard LinuxSH BIOS by Greg Banks 7Jul2000
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
 

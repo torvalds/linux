@@ -177,43 +177,43 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
-static void logolamp_set(struct led_classdev *cdev,
+static int logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
 static struct led_classdev logolamp_led = {
  .name = "fujitsu::logolamp",
  .brightness_get = logolamp_get,
- .brightness_set = logolamp_set
+ .brightness_set_blocking = logolamp_set
 };
 
 static enum led_brightness kblamps_get(struct led_classdev *cdev);
-static void kblamps_set(struct led_classdev *cdev,
+static int kblamps_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
 static struct led_classdev kblamps_led = {
  .name = "fujitsu::kblamps",
  .brightness_get = kblamps_get,
- .brightness_set = kblamps_set
+ .brightness_set_blocking = kblamps_set
 };
 
 static enum led_brightness radio_led_get(struct led_classdev *cdev);
-static void radio_led_set(struct led_classdev *cdev,
+static int radio_led_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
 static struct led_classdev radio_led = {
  .name = "fujitsu::radio_led",
  .brightness_get = radio_led_get,
- .brightness_set = radio_led_set
+ .brightness_set_blocking = radio_led_set
 };
 
 static enum led_brightness eco_led_get(struct led_classdev *cdev);
-static void eco_led_set(struct led_classdev *cdev,
+static int eco_led_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
 static struct led_classdev eco_led = {
  .name = "fujitsu::eco_led",
  .brightness_get = eco_led_get,
- .brightness_set = eco_led_set
+ .brightness_set_blocking = eco_led_set
 };
 #endif
 
@@ -267,48 +267,48 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* LED class callbacks */
 
-static void logolamp_set(struct led_classdev *cdev,
+static int logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness)
 {
 	if (brightness >= LED_FULL) {
 		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_ON);
-		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_ON);
+		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_ON);
 	} else if (brightness >= LED_HALF) {
 		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_ON);
-		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_OFF);
+		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_OFF);
 	} else {
-		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_OFF);
+		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_OFF);
 	}
 }
 
-static void kblamps_set(struct led_classdev *cdev,
+static int kblamps_set(struct led_classdev *cdev,
 			       enum led_brightness brightness)
 {
 	if (brightness >= LED_FULL)
-		call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_ON);
+		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_ON);
 	else
-		call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_OFF);
+		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_OFF);
 }
 
-static void radio_led_set(struct led_classdev *cdev,
+static int radio_led_set(struct led_classdev *cdev,
 				enum led_brightness brightness)
 {
 	if (brightness >= LED_FULL)
-		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, RADIO_LED_ON);
+		return call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, RADIO_LED_ON);
 	else
-		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, 0x0);
+		return call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, 0x0);
 }
 
-static void eco_led_set(struct led_classdev *cdev,
+static int eco_led_set(struct led_classdev *cdev,
 				enum led_brightness brightness)
 {
 	int curr;
 
 	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
 	if (brightness >= LED_FULL)
-		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
+		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
 	else
-		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
+		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
 }
 
 static enum led_brightness logolamp_get(struct led_classdev *cdev)

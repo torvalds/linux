@@ -146,7 +146,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	switch(type) {
 	case CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__VISIBLE_FB:
-		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 		if (max_offset > adev->mc.real_vram_size)
 			return -EINVAL;
@@ -157,7 +158,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		break;
 	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
-		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 			place.fpfn =
@@ -240,7 +242,7 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 	r = amdgpu_bo_reserve(obj, false);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin_restricted(obj, AMDGPU_GEM_DOMAIN_GTT,
+	r = amdgpu_bo_pin_restricted(obj, obj->prefered_domains,
 				     min_offset, max_offset, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
@@ -616,7 +618,7 @@ static int amdgpu_cgs_irq_put(struct cgs_device *cgs_device, unsigned src_id, un
 	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
 }
 
-int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state)
 {
@@ -624,11 +626,11 @@ int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 	int i, r = -1;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
 
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_clockgating_state(
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state(
 								(void *)adev,
 									state);
 			break;
@@ -637,7 +639,7 @@ int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 	return r;
 }
 
-int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state)
 {
@@ -645,11 +647,11 @@ int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
 	int i, r = -1;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
 
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_powergating_state(
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_powergating_state(
 								(void *)adev,
 									state);
 			break;
@@ -685,14 +687,20 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 		result = AMDGPU_UCODE_ID_CP_MEC1;
 		break;
 	case CGS_UCODE_ID_CP_MEC_JT2:
-		if (adev->asic_type == CHIP_TONGA || adev->asic_type == CHIP_POLARIS11
-		  || adev->asic_type == CHIP_POLARIS10)
-			result = AMDGPU_UCODE_ID_CP_MEC2;
-		else
+		/* for VI. JT2 should be the same as JT1, because:
+			1, MEC2 and MEC1 use exactly same FW.
+			2, JT2 is not pached but JT1 is.
+		*/
+		if (adev->asic_type >= CHIP_TOPAZ)
 			result = AMDGPU_UCODE_ID_CP_MEC1;
+		else
+			result = AMDGPU_UCODE_ID_CP_MEC2;
 		break;
 	case CGS_UCODE_ID_RLC_G:
 		result = AMDGPU_UCODE_ID_RLC_G;
+		break;
+	case CGS_UCODE_ID_STORAGE:
+		result = AMDGPU_UCODE_ID_STORAGE;
 		break;
 	default:
 		DRM_ERROR("Firmware type not supported\n");
@@ -709,6 +717,49 @@ static int amdgpu_cgs_rel_firmware(struct cgs_device *cgs_device, enum cgs_ucode
 	}
 	/* cannot release other firmware because they are not created by cgs */
 	return -EINVAL;
+}
+
+static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
+					enum cgs_ucode_id type)
+{
+	CGS_FUNC_ADEV;
+	uint16_t fw_version = 0;
+
+	switch (type) {
+		case CGS_UCODE_ID_SDMA0:
+			fw_version = adev->sdma.instance[0].fw_version;
+			break;
+		case CGS_UCODE_ID_SDMA1:
+			fw_version = adev->sdma.instance[1].fw_version;
+			break;
+		case CGS_UCODE_ID_CP_CE:
+			fw_version = adev->gfx.ce_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_PFP:
+			fw_version = adev->gfx.pfp_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_ME:
+			fw_version = adev->gfx.me_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC_JT1:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC_JT2:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_RLC_G:
+			fw_version = adev->gfx.rlc_fw_version;
+			break;
+		case CGS_UCODE_ID_STORAGE:
+			break;
+		default:
+			DRM_ERROR("firmware type %d do not have version\n", type);
+			break;
+	}
+	return fw_version;
 }
 
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
@@ -735,12 +786,19 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if ((type == CGS_UCODE_ID_CP_MEC_JT1) ||
 		    (type == CGS_UCODE_ID_CP_MEC_JT2)) {
-			gpu_addr += le32_to_cpu(header->jt_offset) << 2;
+			gpu_addr += ALIGN(le32_to_cpu(header->header.ucode_size_bytes), PAGE_SIZE);
 			data_size = le32_to_cpu(header->jt_size) << 2;
 		}
-		info->mc_addr = gpu_addr;
+
+		info->kptr = ucode->kaddr;
 		info->image_size = data_size;
+		info->mc_addr = gpu_addr;
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
+
+		if (CGS_UCODE_ID_CP_MEC == type)
+			info->image_size = (header->jt_offset) << 2;
+
+		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
 	} else {
 		char fw_name[30] = {0};
@@ -753,10 +811,19 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
 			case CHIP_TOPAZ:
-				strcpy(fw_name, "amdgpu/topaz_smc.bin");
+				if (((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x81)) ||
+				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x83)) ||
+				    ((adev->pdev->device == 0x6907) && (adev->pdev->revision == 0x87)))
+					strcpy(fw_name, "amdgpu/topaz_k_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/topaz_smc.bin");
 				break;
 			case CHIP_TONGA:
-				strcpy(fw_name, "amdgpu/tonga_smc.bin");
+				if (((adev->pdev->device == 0x6939) && (adev->pdev->revision == 0xf1)) ||
+				    ((adev->pdev->device == 0x6938) && (adev->pdev->revision == 0xf1)))
+					strcpy(fw_name, "amdgpu/tonga_k_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/tonga_smc.bin");
 				break;
 			case CHIP_FIJI:
 				strcpy(fw_name, "amdgpu/fiji_smc.bin");
@@ -772,6 +839,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					strcpy(fw_name, "amdgpu/polaris10_smc.bin");
 				else if (type == CGS_UCODE_ID_SMU_SK)
 					strcpy(fw_name, "amdgpu/polaris10_smc_sk.bin");
+				break;
+			case CHIP_POLARIS12:
+				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
 				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
@@ -807,6 +877,12 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->kptr = (void *)src;
 	}
 	return 0;
+}
+
+static int amdgpu_cgs_is_virtualization_enabled(void *cgs_device)
+{
+	CGS_FUNC_ADEV;
+	return amdgpu_sriov_vf(adev);
 }
 
 static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
@@ -847,6 +923,12 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		break;
 	case CGS_SYSTEM_INFO_GFX_SE_INFO:
 		sys_info->value = adev->gfx.config.max_shader_engines;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID:
+		sys_info->value = adev->pdev->subsystem_device;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID:
+		sys_info->value = adev->pdev->subsystem_vendor;
 		break;
 	default:
 		return -ENODEV;
@@ -1156,6 +1238,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_notify_dpm_enabled,
 	amdgpu_cgs_call_acpi_method,
 	amdgpu_cgs_query_system_info,
+	amdgpu_cgs_is_virtualization_enabled
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {

@@ -15,6 +15,7 @@
 
 #include "ufshcd-dwc.h"
 #include "ufshci-dwc.h"
+#include "tc-dwc-g210.h"
 
 /**
  * tc_dwc_g210_setup_40bit_rmmi()

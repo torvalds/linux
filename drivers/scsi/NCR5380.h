@@ -199,16 +199,6 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-/*
- * These are "special" values for the irq and dma_channel fields of the 
- * Scsi_Host structure
- */
-
-#define DMA_NONE	255
-#define IRQ_AUTO	254
-#define DMA_AUTO	254
-#define PORT_AUTO	0xffff	/* autoprobe io port for 53c400a */
-
 #ifndef NO_IRQ
 #define NO_IRQ		0
 #endif
@@ -219,27 +209,32 @@
 #define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
 
 struct NCR5380_hostdata {
-	NCR5380_implementation_fields;		/* implementation specific */
-	struct Scsi_Host *host;			/* Host backpointer */
-	unsigned char id_mask, id_higher_mask;	/* 1 << id, all bits greater */
-	unsigned char busy[8];			/* index = target, bit = lun */
-	int dma_len;				/* requested length of DMA */
-	unsigned char last_message;		/* last message OUT */
-	struct scsi_cmnd *connected;		/* currently connected cmnd */
-	struct scsi_cmnd *selecting;		/* cmnd to be connected */
-	struct list_head unissued;		/* waiting to be issued */
-	struct list_head autosense;		/* priority issue queue */
-	struct list_head disconnected;		/* waiting for reconnect */
-	spinlock_t lock;			/* protects this struct */
-	int flags;
-	struct scsi_eh_save ses;
-	struct scsi_cmnd *sensing;
+	NCR5380_implementation_fields;		/* Board-specific data */
+	u8 __iomem *io;				/* Remapped 5380 address */
+	u8 __iomem *pdma_io;			/* Remapped PDMA address */
+	unsigned long poll_loops;		/* Register polling limit */
+	spinlock_t lock;			/* Protects this struct */
+	struct scsi_cmnd *connected;		/* Currently connected cmnd */
+	struct list_head disconnected;		/* Waiting for reconnect */
+	struct Scsi_Host *host;			/* SCSI host backpointer */
+	struct workqueue_struct *work_q;	/* SCSI host work queue */
+	struct work_struct main_task;		/* Work item for main loop */
+	int flags;				/* Board-specific quirks */
+	int dma_len;				/* Requested length of DMA */
+	int read_overruns;	/* Transfer size reduction for DMA erratum */
+	unsigned long io_port;			/* Device IO port */
+	unsigned long base;			/* Device base address */
+	struct list_head unissued;		/* Waiting to be issued */
+	struct scsi_cmnd *selecting;		/* Cmnd to be connected */
+	struct list_head autosense;		/* Priority cmnd queue */
+	struct scsi_cmnd *sensing;		/* Cmnd needing autosense */
+	struct scsi_eh_save ses;		/* Cmnd state saved for EH */
+	unsigned char busy[8];			/* Index = target, bit = lun */
+	unsigned char id_mask;			/* 1 << Host ID */
+	unsigned char id_higher_mask;		/* All bits above id_mask */
+	unsigned char last_message;		/* Last Message Out */
+	unsigned long region_size;		/* Size of address/port range */
 	char info[256];
-	int read_overruns;                /* number of bytes to cut from a
-	                                   * transfer to handle chip overruns */
-	struct work_struct main_task;
-	struct workqueue_struct *work_q;
-	unsigned long accesses_per_ms;	/* chip register accesses per ms */
 };
 
 #ifdef __KERNEL__
@@ -249,6 +244,11 @@ struct NCR5380_cmd {
 };
 
 #define NCR5380_CMD_SIZE		(sizeof(struct NCR5380_cmd))
+
+#define NCR5380_PIO_CHUNK_SIZE		256
+
+/* Time limit (ms) to poll registers when IRQs are disabled, e.g. during PDMA */
+#define NCR5380_REG_POLL_TIME		15
 
 static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
 {
@@ -280,7 +280,6 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define NCR5380_dprint_phase(flg, arg) do {} while (0)
 #endif
 
-static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
 static int NCR5380_init(struct Scsi_Host *instance, int flags);
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *);
 static void NCR5380_exit(struct Scsi_Host *instance);
@@ -292,8 +291,45 @@ static void NCR5380_reselect(struct Scsi_Host *instance);
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
-static int NCR5380_poll_politely(struct Scsi_Host *, int, int, int, int);
-static int NCR5380_poll_politely2(struct Scsi_Host *, int, int, int, int, int, int, int);
+static int NCR5380_poll_politely2(struct NCR5380_hostdata *,
+                                  unsigned int, u8, u8,
+                                  unsigned int, u8, u8, unsigned long);
+
+static inline int NCR5380_poll_politely(struct NCR5380_hostdata *hostdata,
+                                        unsigned int reg, u8 bit, u8 val,
+                                        unsigned long wait)
+{
+	if ((NCR5380_read(reg) & bit) == val)
+		return 0;
+
+	return NCR5380_poll_politely2(hostdata, reg, bit, val,
+						reg, bit, val, wait);
+}
+
+static int NCR5380_dma_xfer_len(struct NCR5380_hostdata *,
+                                struct scsi_cmnd *);
+static int NCR5380_dma_send_setup(struct NCR5380_hostdata *,
+                                  unsigned char *, int);
+static int NCR5380_dma_recv_setup(struct NCR5380_hostdata *,
+                                  unsigned char *, int);
+static int NCR5380_dma_residual(struct NCR5380_hostdata *);
+
+static inline int NCR5380_dma_xfer_none(struct NCR5380_hostdata *hostdata,
+                                        struct scsi_cmnd *cmd)
+{
+	return 0;
+}
+
+static inline int NCR5380_dma_setup_none(struct NCR5380_hostdata *hostdata,
+                                         unsigned char *data, int count)
+{
+	return 0;
+}
+
+static inline int NCR5380_dma_residual_none(struct NCR5380_hostdata *hostdata)
+{
+	return 0;
+}
 
 #endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */

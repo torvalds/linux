@@ -3,6 +3,12 @@
 
 #ifdef HAVE_DWARF_SUPPORT
 const char *get_arch_regstr(unsigned int n);
+/*
+ * get_dwarf_regstr - Returns ftrace register string from DWARF regnum
+ * n: DWARF register number
+ * machine: ELF machine signature (EM_*)
+ */
+const char *get_dwarf_regstr(unsigned int n, unsigned int machine);
 #endif
 
 #ifdef HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET

@@ -128,7 +128,7 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 	smp = send_buf->mad;
 	smp->base_version = OPA_MGMT_BASE_VERSION;
 	smp->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	smp->class_version = OPA_SMI_CLASS_VERSION;
+	smp->class_version = OPA_SM_CLASS_VERSION;
 	smp->method = IB_MGMT_METHOD_TRAP;
 	ibp->rvp.tid++;
 	smp->tid = cpu_to_be64(ibp->rvp.tid);
@@ -336,20 +336,20 @@ static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
 	ni = (struct opa_node_info *)data;
 
 	/* GUID 0 is illegal */
-	if (am || pidx >= dd->num_pports || dd->pport[pidx].guid == 0) {
+	if (am || pidx >= dd->num_pports || ibdev->node_guid == 0 ||
+	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	ni->port_guid = cpu_to_be64(dd->pport[pidx].guid);
+	ni->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	ni->base_version = OPA_MGMT_BASE_VERSION;
-	ni->class_version = OPA_SMI_CLASS_VERSION;
+	ni->class_version = OPA_SM_CLASS_VERSION;
 	ni->node_type = 1;     /* channel adapter */
 	ni->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	ni->system_image_guid = ib_hfi1_sys_image_guid;
-	/* Use first-port GUID as node */
-	ni->node_guid = cpu_to_be64(dd->pport->guid);
+	ni->node_guid = ibdev->node_guid;
 	ni->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	ni->device_id = cpu_to_be16(dd->pcidev->device);
 	ni->revision = cpu_to_be32(dd->minrev);
@@ -373,19 +373,20 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	/* GUID 0 is illegal */
 	if (smp->attr_mod || pidx >= dd->num_pports ||
-	    dd->pport[pidx].guid == 0)
+	    ibdev->node_guid == 0 ||
+	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
-	else
-		nip->port_guid = cpu_to_be64(dd->pport[pidx].guid);
+		return reply((struct ib_mad_hdr *)smp);
+	}
 
+	nip->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	nip->base_version = OPA_MGMT_BASE_VERSION;
-	nip->class_version = OPA_SMI_CLASS_VERSION;
+	nip->class_version = OPA_SM_CLASS_VERSION;
 	nip->node_type = 1;     /* channel adapter */
 	nip->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	nip->sys_guid = ib_hfi1_sys_image_guid;
-	 /* Use first-port GUID as node */
-	nip->node_guid = cpu_to_be64(dd->pport->guid);
+	nip->node_guid = ibdev->node_guid;
 	nip->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->pcidev->device);
 	nip->revision = cpu_to_be32(dd->minrev);
@@ -1013,7 +1014,6 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			 * offline.
 			 */
 			set_link_state(ppd, HLS_DN_OFFLINE);
-			tune_serdes(ppd);
 			start_link(ppd);
 		} else {
 			set_link_state(ppd, link_state);
@@ -1405,12 +1405,6 @@ static int set_pkeys(struct hfi1_devdata *dd, u8 port, u16 *pkeys)
 		u16 okey = ppd->pkeys[i];
 
 		if (key == okey)
-			continue;
-		/*
-		 * Don't update pkeys[2], if an HFI port without MgmtAllowed
-		 * by neighbor is a switch.
-		 */
-		if (i == 2 && !ppd->mgmt_allowed && ppd->neighbor_type == 1)
 			continue;
 		/*
 		 * The SM gives us the complete PKey table. We have
@@ -2309,7 +2303,7 @@ static int pma_get_opa_classportinfo(struct opa_pma_mad *pmp,
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 
 	p->base_version = OPA_MGMT_BASE_VERSION;
-	p->class_version = OPA_SMI_CLASS_VERSION;
+	p->class_version = OPA_SM_CLASS_VERSION;
 	/*
 	 * Expected response time is 4.096 usec. * 2^18 == 1.073741824 sec.
 	 */
@@ -4029,7 +4023,7 @@ static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
 
 	am = be32_to_cpu(smp->attr_mod);
 	attr_id = smp->attr_id;
-	if (smp->class_version != OPA_SMI_CLASS_VERSION) {
+	if (smp->class_version != OPA_SM_CLASS_VERSION) {
 		smp->status |= IB_SMP_UNSUP_VERSION;
 		ret = reply((struct ib_mad_hdr *)smp);
 		return ret;
@@ -4239,7 +4233,7 @@ static int process_perf_opa(struct ib_device *ibdev, u8 port,
 
 	*out_mad = *in_mad;
 
-	if (pmp->mad_hdr.class_version != OPA_SMI_CLASS_VERSION) {
+	if (pmp->mad_hdr.class_version != OPA_SM_CLASS_VERSION) {
 		pmp->mad_hdr.status |= IB_SMP_UNSUP_VERSION;
 		return reply((struct ib_mad_hdr *)pmp);
 	}

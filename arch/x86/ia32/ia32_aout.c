@@ -27,7 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/perf_event.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/user32.h>

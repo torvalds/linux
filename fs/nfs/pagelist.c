@@ -342,7 +342,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	 * update_nfs_request below if the region is not locked. */
 	req->wb_page    = page;
 	if (page) {
-		req->wb_index = page_file_index(page);
+		req->wb_index = page_index(page);
 		get_page(page);
 	}
 	req->wb_offset  = offset;
@@ -867,8 +867,7 @@ static void nfs_pageio_cleanup_mirroring(struct nfs_pageio_descriptor *pgio)
 static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
 		const struct nfs_lock_context *l2)
 {
-	return l1->lockowner.l_owner == l2->lockowner.l_owner
-		&& l1->lockowner.l_pid == l2->lockowner.l_pid;
+	return l1->lockowner == l2->lockowner;
 }
 
 /**

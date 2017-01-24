@@ -67,7 +67,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
 	};
@@ -108,39 +108,6 @@
 			};
 		};
 
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * All 6 slots are physically present as
-			 * standard PCIe slots on the board.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-			pcie@3,0 {
-				/* Port 0, Lane 2 */
-				status = "okay";
-			};
-			pcie@4,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-			pcie@9,0 {
-				/* Port 2, Lane 0 */
-				status = "okay";
-			};
-			pcie@10,0 {
-				/* Port 3, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -158,24 +125,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
-
-				phy2: ethernet-phy@2 {
-					reg = <25>;
-				};
-
-				phy3: ethernet-phy@3 {
-					reg = <27>;
-				};
 			};
 
 			ethernet@70000 {
@@ -231,18 +180,6 @@
 				status = "okay";
 			};
 
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "m25p64", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <20000000>;
-				};
-			};
-
 			nand@d0000 {
 				status = "okay";
 				num-cs = <1>;
@@ -275,5 +212,68 @@
 		bm-bppi {
 			status = "okay";
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * All 6 slots are physically present as
+	 * standard PCIe slots on the board.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+	pcie@3,0 {
+		/* Port 0, Lane 2 */
+		status = "okay";
+	};
+	pcie@4,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
+	};
+	pcie@9,0 {
+		/* Port 2, Lane 0 */
+		status = "okay";
+	};
+	pcie@10,0 {
+		/* Port 3, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	phy2: ethernet-phy@2 {
+		reg = <25>;
+	};
+
+	phy3: ethernet-phy@3 {
+		reg = <27>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p64", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <20000000>;
 	};
 };

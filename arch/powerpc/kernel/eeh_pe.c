@@ -104,7 +104,7 @@ int eeh_phb_pe_create(struct pci_controller *phb)
 	/* Put it into the list */
 	list_add_tail(&pe->child, &eeh_phb_pe);
 
-	pr_debug("EEH: Add PE for PHB#%d\n", phb->global_number);
+	pr_debug("EEH: Add PE for PHB#%x\n", phb->global_number);
 
 	return 0;
 }
@@ -333,7 +333,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
-		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%d\n",
+		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%x\n",
 		       __func__, edev->config_addr, edev->phb->global_number);
 		return -EINVAL;
 	}
@@ -581,6 +581,7 @@ void eeh_pe_state_mark(struct eeh_pe *pe, int state)
 {
 	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
 }
+EXPORT_SYMBOL_GPL(eeh_pe_state_mark);
 
 static void *__eeh_pe_dev_mode_mark(void *data, void *flag)
 {

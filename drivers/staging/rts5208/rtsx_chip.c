@@ -114,7 +114,8 @@ static int rtsx_pre_handle_sdio_old(struct rtsx_chip *chip)
 		if (chip->asic_code) {
 			retval = rtsx_write_register(chip, CARD_PULL_CTL5,
 						     0xFF,
-						     MS_INS_PU | SD_WP_PU | SD_CD_PU | SD_CMD_PU);
+						     MS_INS_PU | SD_WP_PU |
+						     SD_CD_PU | SD_CMD_PU);
 			if (retval) {
 				rtsx_trace(chip);
 				return retval;
@@ -240,10 +241,10 @@ static int rtsx_pre_handle_sdio_new(struct rtsx_chip *chip)
 					return STATUS_FAIL;
 				}
 			} else {
-				retval = rtsx_write_register(chip,
-							     FPGA_PULL_CTL,
-							     FPGA_SD_PULL_CTL_BIT | 0x20,
-							     0);
+				retval = rtsx_write_register
+						(chip, FPGA_PULL_CTL,
+						 FPGA_SD_PULL_CTL_BIT | 0x20,
+						 0);
 				if (retval) {
 					rtsx_trace(chip);
 					return retval;
@@ -713,7 +714,8 @@ nextcard:
 
 	if (chip->ft2_fast_mode) {
 		retval = rtsx_write_register(chip, CARD_PWR_CTL, 0xFF,
-					     MS_PARTIAL_POWER_ON | SD_PARTIAL_POWER_ON);
+					     MS_PARTIAL_POWER_ON |
+					     SD_PARTIAL_POWER_ON);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -743,7 +745,7 @@ static inline int check_sd_speed_prior(u32 sd_speed_prior)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		u8 tmp = (u8)(sd_speed_prior >> (i*8));
+		u8 tmp = (u8)(sd_speed_prior >> (i * 8));
 
 		if ((tmp < 0x01) || (tmp > 0x04)) {
 			fake_para = true;
@@ -760,7 +762,7 @@ static inline int check_sd_current_prior(u32 sd_current_prior)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		u8 tmp = (u8)(sd_current_prior >> (i*8));
+		u8 tmp = (u8)(sd_current_prior >> (i * 8));
 
 		if (tmp > 0x03) {
 			fake_para = true;
@@ -1567,7 +1569,8 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 		}
 
 		retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
-					     0x80 | mode | ((func_no & 0x03) << 4));
+					     0x80 | mode |
+					     ((func_no & 0x03) << 4));
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -2288,7 +2291,7 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
-	for (i = 0; i < buf_len/256; i++) {
+	for (i = 0; i < buf_len / 256; i++) {
 		rtsx_init_cmd(chip);
 
 		for (j = 0; j < 256; j++)
@@ -2304,10 +2307,10 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		ptr += 256;
 	}
 
-	if (buf_len%256) {
+	if (buf_len % 256) {
 		rtsx_init_cmd(chip);
 
-		for (j = 0; j < buf_len%256; j++)
+		for (j = 0; j < buf_len % 256; j++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr++, 0, 0);
 
 		retval = rtsx_send_cmd(chip, 0, 250);
@@ -2317,7 +2320,7 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 	}
 
-	memcpy(ptr, rtsx_get_cmd_data(chip), buf_len%256);
+	memcpy(ptr, rtsx_get_cmd_data(chip), buf_len % 256);
 
 	return STATUS_SUCCESS;
 }
@@ -2336,7 +2339,7 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
-	for (i = 0; i < buf_len/256; i++) {
+	for (i = 0; i < buf_len / 256; i++) {
 		rtsx_init_cmd(chip);
 
 		for (j = 0; j < 256; j++) {
@@ -2352,10 +2355,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 	}
 
-	if (buf_len%256) {
+	if (buf_len % 256) {
 		rtsx_init_cmd(chip);
 
-		for (j = 0; j < buf_len%256; j++) {
+		for (j = 0; j < buf_len % 256; j++) {
 			rtsx_add_cmd(chip, WRITE_REG_CMD, reg_addr++, 0xFF,
 				     *ptr);
 			ptr++;

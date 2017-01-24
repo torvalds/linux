@@ -34,7 +34,7 @@ config NO_IOPORT_MAP
 	def_bool y
 
 config NO_DMA
-	def_bool y
+	def_bool n
 
 config HZ
 	int

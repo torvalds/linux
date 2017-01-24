@@ -1904,38 +1904,40 @@ static enum led_brightness kbd_led_level_get(struct led_classdev *led_cdev)
 	return 0;
 }
 
-static void kbd_led_level_set(struct led_classdev *led_cdev,
-			      enum led_brightness value)
+static int kbd_led_level_set(struct led_classdev *led_cdev,
+			     enum led_brightness value)
 {
 	struct kbd_state state;
 	struct kbd_state new_state;
 	u16 num;
+	int ret;
 
 	if (kbd_get_max_level()) {
-		if (kbd_get_state(&state))
-			return;
+		ret = kbd_get_state(&state);
+		if (ret)
+			return ret;
 		new_state = state;
-		if (kbd_set_level(&new_state, value))
-			return;
-		kbd_set_state_safe(&new_state, &state);
-		return;
+		ret = kbd_set_level(&new_state, value);
+		if (ret)
+			return ret;
+		return kbd_set_state_safe(&new_state, &state);
 	}
 
 	if (kbd_get_valid_token_counts()) {
 		for (num = kbd_token_bits; num != 0 && value > 0; --value)
 			num &= num - 1; /* clear the first bit set */
 		if (num == 0)
-			return;
-		kbd_set_token_bit(ffs(num) - 1);
-		return;
+			return 0;
+		return kbd_set_token_bit(ffs(num) - 1);
 	}
 
 	pr_warn("Keyboard brightness level control not supported\n");
+	return -ENXIO;
 }
 
 static struct led_classdev kbd_led = {
 	.name           = "dell::kbd_backlight",
-	.brightness_set = kbd_led_level_set,
+	.brightness_set_blocking = kbd_led_level_set,
 	.brightness_get = kbd_led_level_get,
 	.groups         = kbd_led_groups,
 };

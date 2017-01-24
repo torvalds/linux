@@ -50,15 +50,15 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
 #define VGIC_ADDR_IRQ_MASK(bits) (((bits) * 1024 / 8) - 1)
 
 /*
- * (addr & mask) gives us the byte offset for the INT ID, so we want to
- * divide this with 'bytes per irq' to get the INT ID, which is given
- * by '(bits) / 8'.  But we do this with fixed-point-arithmetic and
- * take advantage of the fact that division by a fraction equals
- * multiplication with the inverted fraction, and scale up both the
- * numerator and denominator with 8 to support at most 64 bits per IRQ:
+ * (addr & mask) gives us the _byte_ offset for the INT ID.
+ * We multiply this by 8 the get the _bit_ offset, then divide this by
+ * the number of bits to learn the actual INT ID.
+ * But instead of a division (which requires a "long long div" implementation),
+ * we shift by the binary logarithm of <bits>.
+ * This assumes that <bits> is a power of two.
  */
 #define VGIC_ADDR_TO_INTID(addr, bits)  (((addr) & VGIC_ADDR_IRQ_MASK(bits)) * \
-					64 / (bits) / 8)
+					8 >> ilog2(bits))
 
 /*
  * Some VGIC registers store per-IRQ information, with a different number
@@ -96,7 +96,7 @@ unsigned long vgic_data_mmio_bus_to_host(const void *val, unsigned int len);
 void vgic_data_host_to_mmio_bus(void *buf, unsigned int len,
 				unsigned long data);
 
-unsigned long extract_bytes(unsigned long data, unsigned int offset,
+unsigned long extract_bytes(u64 data, unsigned int offset,
 			    unsigned int num);
 
 u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
@@ -162,12 +162,10 @@ unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 
 unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev);
 
-#ifdef CONFIG_KVM_ARM_VGIC_V3
 u64 vgic_sanitise_outer_cacheability(u64 reg);
 u64 vgic_sanitise_inner_cacheability(u64 reg);
 u64 vgic_sanitise_shareability(u64 reg);
 u64 vgic_sanitise_field(u64 reg, u64 field_mask, int field_shift,
 			u64 (*sanitise_fn)(u64));
-#endif
 
 #endif

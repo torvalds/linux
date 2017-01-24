@@ -45,11 +45,12 @@ void inet_get_local_port_range(struct net *net, int *low, int *high)
 EXPORT_SYMBOL(inet_get_local_port_range);
 
 int inet_csk_bind_conflict(const struct sock *sk,
-			   const struct inet_bind_bucket *tb, bool relax)
+			   const struct inet_bind_bucket *tb, bool relax,
+			   bool reuseport_ok)
 {
 	struct sock *sk2;
-	int reuse = sk->sk_reuse;
-	int reuseport = sk->sk_reuseport;
+	bool reuse = sk->sk_reuse;
+	bool reuseport = !!sk->sk_reuseport && reuseport_ok;
 	kuid_t uid = sock_i_uid((struct sock *)sk);
 
 	/*
@@ -105,6 +106,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	struct inet_bind_bucket *tb;
 	kuid_t uid = sock_i_uid(sk);
 	u32 remaining, offset;
+	bool reuseport_ok = !!snum;
 
 	if (port) {
 have_port:
@@ -165,7 +167,8 @@ other_parity_scan:
 					smallest_size = tb->num_owners;
 					smallest_port = port;
 				}
-				if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false))
+				if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false,
+									      reuseport_ok))
 					goto tb_found;
 				goto next_port;
 			}
@@ -206,13 +209,14 @@ tb_found:
 		      sk->sk_reuseport && uid_eq(tb->fastuid, uid))) &&
 		    smallest_size == -1)
 			goto success;
-		if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, true)) {
+		if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, true,
+							     reuseport_ok)) {
 			if ((reuse ||
 			     (tb->fastreuseport > 0 &&
 			      sk->sk_reuseport &&
 			      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 			      uid_eq(tb->fastuid, uid))) &&
-			    smallest_size != -1 && --attempts >= 0) {
+			    !snum && smallest_size != -1 && --attempts >= 0) {
 				spin_unlock_bh(&head->lock);
 				goto again;
 			}
@@ -415,7 +419,7 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num));
+			   htons(ireq->ir_num), sk->sk_uid);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -452,7 +456,7 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
-			   htons(ireq->ir_num));
+			   htons(ireq->ir_num), sk->sk_uid);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))

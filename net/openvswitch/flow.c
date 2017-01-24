@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/in.h>
 #include <linux/rcupdate.h>
+#include <linux/cpumask.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -72,32 +73,33 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 {
 	struct flow_stats *stats;
 	int node = numa_node_id();
+	int cpu = smp_processor_id();
 	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 
-	stats = rcu_dereference(flow->stats[node]);
+	stats = rcu_dereference(flow->stats[cpu]);
 
-	/* Check if already have node-specific stats. */
+	/* Check if already have CPU-specific stats. */
 	if (likely(stats)) {
 		spin_lock(&stats->lock);
 		/* Mark if we write on the pre-allocated stats. */
-		if (node == 0 && unlikely(flow->stats_last_writer != node))
-			flow->stats_last_writer = node;
+		if (cpu == 0 && unlikely(flow->stats_last_writer != cpu))
+			flow->stats_last_writer = cpu;
 	} else {
 		stats = rcu_dereference(flow->stats[0]); /* Pre-allocated. */
 		spin_lock(&stats->lock);
 
-		/* If the current NUMA-node is the only writer on the
+		/* If the current CPU is the only writer on the
 		 * pre-allocated stats keep using them.
 		 */
-		if (unlikely(flow->stats_last_writer != node)) {
+		if (unlikely(flow->stats_last_writer != cpu)) {
 			/* A previous locker may have already allocated the
-			 * stats, so we need to check again.  If node-specific
+			 * stats, so we need to check again.  If CPU-specific
 			 * stats were already allocated, we update the pre-
 			 * allocated stats as we have already locked them.
 			 */
-			if (likely(flow->stats_last_writer != NUMA_NO_NODE)
-			    && likely(!rcu_access_pointer(flow->stats[node]))) {
-				/* Try to allocate node-specific stats. */
+			if (likely(flow->stats_last_writer != -1) &&
+			    likely(!rcu_access_pointer(flow->stats[cpu]))) {
+				/* Try to allocate CPU-specific stats. */
 				struct flow_stats *new_stats;
 
 				new_stats =
@@ -114,12 +116,12 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 					new_stats->tcp_flags = tcp_flags;
 					spin_lock_init(&new_stats->lock);
 
-					rcu_assign_pointer(flow->stats[node],
+					rcu_assign_pointer(flow->stats[cpu],
 							   new_stats);
 					goto unlock;
 				}
 			}
-			flow->stats_last_writer = node;
+			flow->stats_last_writer = cpu;
 		}
 	}
 
@@ -136,14 +138,15 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 			struct ovs_flow_stats *ovs_stats,
 			unsigned long *used, __be16 *tcp_flags)
 {
-	int node;
+	int cpu;
 
 	*used = 0;
 	*tcp_flags = 0;
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
-	for_each_node(node) {
-		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[node]);
+	/* We open code this to make sure cpu 0 is always considered */
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[cpu]);
 
 		if (stats) {
 			/* Local CPU may write on non-local stats, so we must
@@ -163,10 +166,11 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 /* Called with ovs_mutex. */
 void ovs_flow_stats_clear(struct sw_flow *flow)
 {
-	int node;
+	int cpu;
 
-	for_each_node(node) {
-		struct flow_stats *stats = ovsl_dereference(flow->stats[node]);
+	/* We open code this to make sure cpu 0 is always considered */
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+		struct flow_stats *stats = ovsl_dereference(flow->stats[cpu]);
 
 		if (stats) {
 			spin_lock_bh(&stats->lock);
@@ -302,24 +306,74 @@ static bool icmp6hdr_ok(struct sk_buff *skb)
 				  sizeof(struct icmp6hdr));
 }
 
-static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
+/**
+ * Parse vlan tag from vlan header.
+ * Returns ERROR on memory error.
+ * Returns 0 if it encounters a non-vlan or incomplete packet.
+ * Returns 1 after successfully parsing vlan tag.
+ */
+static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh,
+			  bool untag_vlan)
 {
-	struct qtag_prefix {
-		__be16 eth_type; /* ETH_P_8021Q */
-		__be16 tci;
-	};
-	struct qtag_prefix *qp;
+	struct vlan_head *vh = (struct vlan_head *)skb->data;
 
-	if (unlikely(skb->len < sizeof(struct qtag_prefix) + sizeof(__be16)))
+	if (likely(!eth_type_vlan(vh->tpid)))
 		return 0;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(struct qtag_prefix) +
-					 sizeof(__be16))))
+	if (unlikely(skb->len < sizeof(struct vlan_head) + sizeof(__be16)))
+		return 0;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(struct vlan_head) +
+				 sizeof(__be16))))
 		return -ENOMEM;
 
-	qp = (struct qtag_prefix *) skb->data;
-	key->eth.tci = qp->tci | htons(VLAN_TAG_PRESENT);
-	__skb_pull(skb, sizeof(struct qtag_prefix));
+	vh = (struct vlan_head *)skb->data;
+	key_vh->tci = vh->tci | htons(VLAN_TAG_PRESENT);
+	key_vh->tpid = vh->tpid;
+
+	if (unlikely(untag_vlan)) {
+		int offset = skb->data - skb_mac_header(skb);
+		u16 tci;
+		int err;
+
+		__skb_push(skb, offset);
+		err = __skb_vlan_pop(skb, &tci);
+		__skb_pull(skb, offset);
+		if (err)
+			return err;
+		__vlan_hwaccel_put_tag(skb, key_vh->tpid, tci);
+	} else {
+		__skb_pull(skb, sizeof(struct vlan_head));
+	}
+	return 1;
+}
+
+static void clear_vlan(struct sw_flow_key *key)
+{
+	key->eth.vlan.tci = 0;
+	key->eth.vlan.tpid = 0;
+	key->eth.cvlan.tci = 0;
+	key->eth.cvlan.tpid = 0;
+}
+
+static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	int res;
+
+	if (skb_vlan_tag_present(skb)) {
+		key->eth.vlan.tci = htons(skb->vlan_tci);
+		key->eth.vlan.tpid = skb->vlan_proto;
+	} else {
+		/* Parse outer vlan tag in the non-accelerated case. */
+		res = parse_vlan_tag(skb, &key->eth.vlan, true);
+		if (res <= 0)
+			return res;
+	}
+
+	/* Parse inner vlan tag. */
+	res = parse_vlan_tag(skb, &key->eth.cvlan, false);
+	if (res <= 0)
+		return res;
 
 	return 0;
 }
@@ -446,17 +500,20 @@ invalid:
  *
  * Returns 0 if successful, otherwise a negative errno value.
  *
- * Initializes @skb header pointers as follows:
+ * Initializes @skb header fields as follows:
  *
- *    - skb->mac_header: the Ethernet header.
+ *    - skb->mac_header: the L2 header.
  *
- *    - skb->network_header: just past the Ethernet header, or just past the
- *      VLAN header, to the first byte of the Ethernet payload.
+ *    - skb->network_header: just past the L2 header, or just past the
+ *      VLAN header, to the first byte of the L2 payload.
  *
  *    - skb->transport_header: If key->eth.type is ETH_P_IP or ETH_P_IPV6
  *      on output, then just past the IP header, if one is present and
  *      of a correct length, otherwise the same as skb->network_header.
  *      For other key->eth.type values it is left untouched.
+ *
+ *    - skb->protocol: the type of the data starting at skb->network_header.
+ *      Equals to key->eth.type.
  */
 static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 {
@@ -468,32 +525,35 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 	skb_reset_mac_header(skb);
 
-	/* Link layer.  We are guaranteed to have at least the 14 byte Ethernet
-	 * header in the linear data area.
-	 */
-	eth = eth_hdr(skb);
-	ether_addr_copy(key->eth.src, eth->h_source);
-	ether_addr_copy(key->eth.dst, eth->h_dest);
+	/* Link layer. */
+	clear_vlan(key);
+	if (key->mac_proto == MAC_PROTO_NONE) {
+		if (unlikely(eth_type_vlan(skb->protocol)))
+			return -EINVAL;
 
-	__skb_pull(skb, 2 * ETH_ALEN);
-	/* We are going to push all headers that we pull, so no need to
-	 * update skb->csum here.
-	 */
+		skb_reset_network_header(skb);
+	} else {
+		eth = eth_hdr(skb);
+		ether_addr_copy(key->eth.src, eth->h_source);
+		ether_addr_copy(key->eth.dst, eth->h_dest);
 
-	key->eth.tci = 0;
-	if (skb_vlan_tag_present(skb))
-		key->eth.tci = htons(skb->vlan_tci);
-	else if (eth->h_proto == htons(ETH_P_8021Q))
+		__skb_pull(skb, 2 * ETH_ALEN);
+		/* We are going to push all headers that we pull, so no need to
+		* update skb->csum here.
+		*/
+
 		if (unlikely(parse_vlan(skb, key)))
 			return -ENOMEM;
 
-	key->eth.type = parse_ethertype(skb);
-	if (unlikely(key->eth.type == htons(0)))
-		return -ENOMEM;
+		skb->protocol = parse_ethertype(skb);
+		if (unlikely(skb->protocol == htons(0)))
+			return -ENOMEM;
 
-	skb_reset_network_header(skb);
+		skb_reset_network_header(skb);
+		__skb_push(skb, skb->data - skb_mac_header(skb));
+	}
 	skb_reset_mac_len(skb);
-	__skb_push(skb, skb->data - skb_mac_header(skb));
+	key->eth.type = skb->protocol;
 
 	/* Network layer. */
 	if (key->eth.type == htons(ETH_P_IP)) {
@@ -600,12 +660,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 	} else if (eth_p_mpls(key->eth.type)) {
 		size_t stack_len = MPLS_HLEN;
 
-		/* In the presence of an MPLS label stack the end of the L2
-		 * header and the beginning of the L3 header differ.
-		 *
-		 * Advance network_header to the beginning of the L3
-		 * header. mac_len corresponds to the end of the L2 header.
-		 */
+		skb_set_inner_network_header(skb, skb->mac_len);
 		while (1) {
 			__be32 lse;
 
@@ -613,12 +668,12 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			if (unlikely(error))
 				return 0;
 
-			memcpy(&lse, skb_network_header(skb), MPLS_HLEN);
+			memcpy(&lse, skb_inner_network_header(skb), MPLS_HLEN);
 
 			if (stack_len == MPLS_HLEN)
 				memcpy(&key->mpls.top_lse, &lse, MPLS_HLEN);
 
-			skb_set_network_header(skb, skb->mac_len + stack_len);
+			skb_set_inner_network_header(skb, skb->mac_len + stack_len);
 			if (lse & htonl(MPLS_LS_S_MASK))
 				break;
 
@@ -693,9 +748,25 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
+static int key_extract_mac_proto(struct sk_buff *skb)
+{
+	switch (skb->dev->type) {
+	case ARPHRD_ETHER:
+		return MAC_PROTO_ETHERNET;
+	case ARPHRD_NONE:
+		if (skb->protocol == htons(ETH_P_TEB))
+			return MAC_PROTO_ETHERNET;
+		return MAC_PROTO_NONE;
+	}
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
 int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
+	int res;
+
 	/* Extract metadata from packet. */
 	if (tun_info) {
 		key->tun_proto = ip_tunnel_info_af(tun_info);
@@ -723,6 +794,10 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->phy.skb_mark = skb->mark;
 	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
+	res = key_extract_mac_proto(skb);
+	if (res < 0)
+		return res;
+	key->mac_proto = res;
 	key->recirc_id = 0;
 
 	return key_extract(skb, key);
@@ -734,12 +809,20 @@ int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 {
 	int err;
 
-	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
-
 	/* Extract metadata from netlink attributes. */
 	err = ovs_nla_get_flow_metadata(net, attr, key, log);
 	if (err)
 		return err;
 
+	/* key_extract assumes that skb->protocol is set-up for
+	 * layer 3 packets which is the case for other callers,
+	 * in particular packets received from the network stack.
+	 * Here the correct value can be set from the metadata
+	 * extracted above.
+	 * For L2 packet key eth type would be zero. skb protocol
+	 * would be set to correct value later during key-extact.
+	 */
+
+	skb->protocol = key->eth.type;
 	return key_extract(skb, key);
 }

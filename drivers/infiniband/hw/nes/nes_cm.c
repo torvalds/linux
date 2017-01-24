@@ -2282,10 +2282,8 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 	if (!listener) {
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
 		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
-		if (!listener) {
-			nes_debug(NES_DBG_CM, "Not creating listener memory allocation failed\n");
+		if (!listener)
 			return NULL;
-		}
 
 		listener->loc_addr = cm_info->loc_addr;
 		listener->loc_port = cm_info->loc_port;
@@ -2692,12 +2690,12 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 	nes_debug(NES_DBG_CM, "Init CM Core completed -- cm_core=%p\n", cm_core);
 
 	nes_debug(NES_DBG_CM, "Enable QUEUE EVENTS\n");
-	cm_core->event_wq = create_singlethread_workqueue("nesewq");
+	cm_core->event_wq = alloc_ordered_workqueue("nesewq", 0);
 	if (!cm_core->event_wq)
 		goto out_free_cmcore;
 	cm_core->post_event = nes_cm_post_event;
 	nes_debug(NES_DBG_CM, "Enable QUEUE DISCONNECTS\n");
-	cm_core->disconn_wq = create_singlethread_workqueue("nesdwq");
+	cm_core->disconn_wq = alloc_ordered_workqueue("nesdwq", 0);
 	if (!cm_core->disconn_wq)
 		goto out_free_wq;
 

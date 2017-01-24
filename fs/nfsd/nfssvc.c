@@ -366,14 +366,21 @@ static struct notifier_block nfsd_inet6addr_notifier = {
 };
 #endif
 
+/* Only used under nfsd_mutex, so this atomic may be overkill: */
+static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
+
 static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the notifier still has clients */
+	if (atomic_dec_return(&nfsd_notifier_refcount) == 0) {
+		unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
+	}
+
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
@@ -488,10 +495,13 @@ int nfsd_create_serv(struct net *net)
 	}
 
 	set_max_drc();
-	register_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the notifier is already set */
+	if (atomic_inc_return(&nfsd_notifier_refcount) == 1) {
+		register_inetaddr_notifier(&nfsd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
+	}
 	do_gettimeofday(&nn->nfssvc_boot);		/* record boot time */
 	return 0;
 }
@@ -651,8 +661,8 @@ nfsd(void *vrqstp)
 	mutex_lock(&nfsd_mutex);
 
 	/* At this point, the thread shares current->fs
-	 * with the init process. We need to create files with a
-	 * umask of 0 instead of init's umask. */
+	 * with the init process. We need to create files with the
+	 * umask as defined by the client instead of init's umask. */
 	if (unshare_fs_struct() < 0) {
 		printk("Unable to start nfsd thread: out of memory\n");
 		goto out;

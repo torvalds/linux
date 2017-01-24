@@ -156,10 +156,267 @@ static struct clk ** const uart_clks[] __initconst = {
 	NULL
 };
 
+static int ldb_di_sel_by_clock_id(int clock_id)
+{
+	switch (clock_id) {
+	case IMX6QDL_CLK_PLL5_VIDEO_DIV:
+		if (clk_on_imx6q() &&
+		    imx_get_soc_revision() == IMX_CHIP_REVISION_1_0)
+			return -ENOENT;
+		return 0;
+	case IMX6QDL_CLK_PLL2_PFD0_352M:
+		return 1;
+	case IMX6QDL_CLK_PLL2_PFD2_396M:
+		return 2;
+	case IMX6QDL_CLK_MMDC_CH1_AXI:
+		return 3;
+	case IMX6QDL_CLK_PLL3_USB_OTG:
+		return 4;
+	default:
+		return -ENOENT;
+	}
+}
+
+static void of_assigned_ldb_sels(struct device_node *node,
+				 unsigned int *ldb_di0_sel,
+				 unsigned int *ldb_di1_sel)
+{
+	struct of_phandle_args clkspec;
+	int index, rc, num_parents;
+	int parent, child, sel;
+
+	num_parents = of_count_phandle_with_args(node, "assigned-clock-parents",
+						 "#clock-cells");
+	for (index = 0; index < num_parents; index++) {
+		rc = of_parse_phandle_with_args(node, "assigned-clock-parents",
+					"#clock-cells", index, &clkspec);
+		if (rc < 0) {
+			/* skip empty (null) phandles */
+			if (rc == -ENOENT)
+				continue;
+			else
+				return;
+		}
+		if (clkspec.np != node || clkspec.args[0] >= IMX6QDL_CLK_END) {
+			pr_err("ccm: parent clock %d not in ccm\n", index);
+			return;
+		}
+		parent = clkspec.args[0];
+
+		rc = of_parse_phandle_with_args(node, "assigned-clocks",
+				"#clock-cells", index, &clkspec);
+		if (rc < 0)
+			return;
+		if (clkspec.np != node || clkspec.args[0] >= IMX6QDL_CLK_END) {
+			pr_err("ccm: child clock %d not in ccm\n", index);
+			return;
+		}
+		child = clkspec.args[0];
+
+		if (child != IMX6QDL_CLK_LDB_DI0_SEL &&
+		    child != IMX6QDL_CLK_LDB_DI1_SEL)
+			continue;
+
+		sel = ldb_di_sel_by_clock_id(parent);
+		if (sel < 0) {
+			pr_err("ccm: invalid ldb_di%d parent clock: %d\n",
+			       child == IMX6QDL_CLK_LDB_DI1_SEL, parent);
+			continue;
+		}
+
+		if (child == IMX6QDL_CLK_LDB_DI0_SEL)
+			*ldb_di0_sel = sel;
+		if (child == IMX6QDL_CLK_LDB_DI1_SEL)
+			*ldb_di1_sel = sel;
+	}
+}
+
+#define CCM_CCDR		0x04
+#define CCM_CCSR		0x0c
+#define CCM_CS2CDR		0x2c
+
+#define CCDR_MMDC_CH1_MASK		BIT(16)
+#define CCSR_PLL3_SW_CLK_SEL		BIT(0)
+
+#define CS2CDR_LDB_DI0_CLK_SEL_SHIFT	9
+#define CS2CDR_LDB_DI1_CLK_SEL_SHIFT	12
+
+static void __init imx6q_mmdc_ch1_mask_handshake(void __iomem *ccm_base)
+{
+	unsigned int reg;
+
+	reg = readl_relaxed(ccm_base + CCM_CCDR);
+	reg |= CCDR_MMDC_CH1_MASK;
+	writel_relaxed(reg, ccm_base + CCM_CCDR);
+}
+
+/*
+ * The only way to disable the MMDC_CH1 clock is to move it to pll3_sw_clk
+ * via periph2_clk2_sel and then to disable pll3_sw_clk by selecting the
+ * bypass clock source, since there is no CG bit for mmdc_ch1.
+ */
+static void mmdc_ch1_disable(void __iomem *ccm_base)
+{
+	unsigned int reg;
+
+	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2_CLK2_SEL],
+		       clk[IMX6QDL_CLK_PLL3_USB_OTG]);
+
+	/*
+	 * Handshake with mmdc_ch1 module must be masked when changing
+	 * periph2_clk_sel.
+	 */
+	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2], clk[IMX6QDL_CLK_PERIPH2_CLK2]);
+
+	/* Disable pll3_sw_clk by selecting the bypass clock source */
+	reg = readl_relaxed(ccm_base + CCM_CCSR);
+	reg |= CCSR_PLL3_SW_CLK_SEL;
+	writel_relaxed(reg, ccm_base + CCM_CCSR);
+}
+
+static void mmdc_ch1_reenable(void __iomem *ccm_base)
+{
+	unsigned int reg;
+
+	/* Enable pll3_sw_clk by disabling the bypass */
+	reg = readl_relaxed(ccm_base + CCM_CCSR);
+	reg &= ~CCSR_PLL3_SW_CLK_SEL;
+	writel_relaxed(reg, ccm_base + CCM_CCSR);
+
+	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2], clk[IMX6QDL_CLK_PERIPH2_PRE]);
+}
+
+/*
+ * We have to follow a strict procedure when changing the LDB clock source,
+ * otherwise we risk introducing a glitch that can lock up the LDB divider.
+ * Things to keep in mind:
+ *
+ * 1. The current and new parent clock inputs to the mux must be disabled.
+ * 2. The default clock input for ldb_di0/1_clk_sel is mmdc_ch1_axi, which
+ *    has no CG bit.
+ * 3. pll2_pfd2_396m can not be gated if it is used as memory clock.
+ * 4. In the RTL implementation of the LDB_DI_CLK_SEL muxes the top four
+ *    options are in one mux and the PLL3 option along with three unused
+ *    inputs is in a second mux. There is a third mux with two inputs used
+ *    to decide between the first and second 4-port mux:
+ *
+ *    pll5_video_div 0 --|\
+ *    pll2_pfd0_352m 1 --| |_
+ *    pll2_pfd2_396m 2 --| | `-|\
+ *    mmdc_ch1_axi   3 --|/    | |
+ *                             | |--
+ *    pll3_usb_otg   4 --|\    | |
+ *                   5 --| |_,-|/
+ *                   6 --| |
+ *                   7 --|/
+ *
+ * The ldb_di0/1_clk_sel[1:0] bits control both 4-port muxes at the same time.
+ * The ldb_di0/1_clk_sel[2] bit controls the 2-port mux. The code below
+ * switches the parent to the bottom mux first and then manipulates the top
+ * mux to ensure that no glitch will enter the divider.
+ */
+static void init_ldb_clks(struct device_node *np, void __iomem *ccm_base)
+{
+	unsigned int reg;
+	unsigned int sel[2][4];
+	int i;
+
+	reg = readl_relaxed(ccm_base + CCM_CS2CDR);
+	sel[0][0] = (reg >> CS2CDR_LDB_DI0_CLK_SEL_SHIFT) & 7;
+	sel[1][0] = (reg >> CS2CDR_LDB_DI1_CLK_SEL_SHIFT) & 7;
+
+	sel[0][3] = sel[0][2] = sel[0][1] = sel[0][0];
+	sel[1][3] = sel[1][2] = sel[1][1] = sel[1][0];
+
+	of_assigned_ldb_sels(np, &sel[0][3], &sel[1][3]);
+
+	for (i = 0; i < 2; i++) {
+		/* Warn if a glitch might have been introduced already */
+		if (sel[i][0] != 3) {
+			pr_warn("ccm: ldb_di%d_sel already changed from reset value: %d\n",
+				i, sel[i][0]);
+		}
+
+		if (sel[i][0] == sel[i][3])
+			continue;
+
+		/* Only switch to or from pll2_pfd2_396m if it is disabled */
+		if ((sel[i][0] == 2 || sel[i][3] == 2) &&
+		    (clk_get_parent(clk[IMX6QDL_CLK_PERIPH_PRE]) ==
+		     clk[IMX6QDL_CLK_PLL2_PFD2_396M])) {
+			pr_err("ccm: ldb_di%d_sel: couldn't disable pll2_pfd2_396m\n",
+			       i);
+			sel[i][3] = sel[i][2] = sel[i][1] = sel[i][0];
+			continue;
+		}
+
+		/* First switch to the bottom mux */
+		sel[i][1] = sel[i][0] | 4;
+
+		/* Then configure the top mux before switching back to it */
+		sel[i][2] = sel[i][3] | 4;
+
+		pr_debug("ccm: switching ldb_di%d_sel: %d->%d->%d->%d\n", i,
+			 sel[i][0], sel[i][1], sel[i][2], sel[i][3]);
+	}
+
+	if (sel[0][0] == sel[0][3] && sel[1][0] == sel[1][3])
+		return;
+
+	mmdc_ch1_disable(ccm_base);
+
+	for (i = 1; i < 4; i++) {
+		reg = readl_relaxed(ccm_base + CCM_CS2CDR);
+		reg &= ~((7 << CS2CDR_LDB_DI0_CLK_SEL_SHIFT) |
+			 (7 << CS2CDR_LDB_DI1_CLK_SEL_SHIFT));
+		reg |= ((sel[0][i] << CS2CDR_LDB_DI0_CLK_SEL_SHIFT) |
+			(sel[1][i] << CS2CDR_LDB_DI1_CLK_SEL_SHIFT));
+		writel_relaxed(reg, ccm_base + CCM_CS2CDR);
+	}
+
+	mmdc_ch1_reenable(ccm_base);
+}
+
+#define CCM_ANALOG_PLL_VIDEO	0xa0
+#define CCM_ANALOG_PFD_480	0xf0
+#define CCM_ANALOG_PFD_528	0x100
+
+#define PLL_ENABLE		BIT(13)
+
+#define PFD0_CLKGATE		BIT(7)
+#define PFD1_CLKGATE		BIT(15)
+#define PFD2_CLKGATE		BIT(23)
+#define PFD3_CLKGATE		BIT(31)
+
+static void disable_anatop_clocks(void __iomem *anatop_base)
+{
+	unsigned int reg;
+
+	/* Make sure PLL2 PFDs 0-2 are gated */
+	reg = readl_relaxed(anatop_base + CCM_ANALOG_PFD_528);
+	/* Cannot gate PFD2 if pll2_pfd2_396m is the parent of MMDC clock */
+	if (clk_get_parent(clk[IMX6QDL_CLK_PERIPH_PRE]) ==
+	    clk[IMX6QDL_CLK_PLL2_PFD2_396M])
+		reg |= PFD0_CLKGATE | PFD1_CLKGATE;
+	else
+		reg |= PFD0_CLKGATE | PFD1_CLKGATE | PFD2_CLKGATE;
+	writel_relaxed(reg, anatop_base + CCM_ANALOG_PFD_528);
+
+	/* Make sure PLL3 PFDs 0-3 are gated */
+	reg = readl_relaxed(anatop_base + CCM_ANALOG_PFD_480);
+	reg |= PFD0_CLKGATE | PFD1_CLKGATE | PFD2_CLKGATE | PFD3_CLKGATE;
+	writel_relaxed(reg, anatop_base + CCM_ANALOG_PFD_480);
+
+	/* Make sure PLL5 is disabled */
+	reg = readl_relaxed(anatop_base + CCM_ANALOG_PLL_VIDEO);
+	reg &= ~PLL_ENABLE;
+	writel_relaxed(reg, anatop_base + CCM_ANALOG_PLL_VIDEO);
+}
+
 static void __init imx6q_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
-	void __iomem *base;
+	void __iomem *anatop_base, *base;
 	int i;
 	int ret;
 
@@ -172,7 +429,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[IMX6QDL_CLK_ANACLK2] = imx_obtain_fixed_clock("anaclk2", 0);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
-	base = of_iomap(np, 0);
+	anatop_base = base = of_iomap(np, 0);
 	WARN_ON(!base);
 
 	/* Audio/video PLL post dividers do not work on i.MX6q revision 1.0 */
@@ -318,15 +575,32 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		clk[IMX6QDL_CLK_IPG_PER_SEL] = imx_clk_mux("ipg_per_sel", base + 0x1c, 6, 1, ipg_per_sels, ARRAY_SIZE(ipg_per_sels));
 		clk[IMX6QDL_CLK_UART_SEL] = imx_clk_mux("uart_sel", base + 0x24, 6, 1, uart_sels, ARRAY_SIZE(uart_sels));
 		clk[IMX6QDL_CLK_GPU2D_CORE_SEL] = imx_clk_mux("gpu2d_core_sel", base + 0x18, 16, 2, gpu2d_core_sels_2, ARRAY_SIZE(gpu2d_core_sels_2));
+	} else if (clk_on_imx6dl()) {
+		clk[IMX6QDL_CLK_MLB_SEL] = imx_clk_mux("mlb_sel",   base + 0x18, 16, 2, gpu2d_core_sels,   ARRAY_SIZE(gpu2d_core_sels));
 	} else {
 		clk[IMX6QDL_CLK_GPU2D_CORE_SEL] = imx_clk_mux("gpu2d_core_sel",   base + 0x18, 16, 2, gpu2d_core_sels,   ARRAY_SIZE(gpu2d_core_sels));
 	}
 	clk[IMX6QDL_CLK_GPU3D_CORE_SEL]   = imx_clk_mux("gpu3d_core_sel",   base + 0x18, 4,  2, gpu3d_core_sels,   ARRAY_SIZE(gpu3d_core_sels));
-	clk[IMX6QDL_CLK_GPU3D_SHADER_SEL] = imx_clk_mux("gpu3d_shader_sel", base + 0x18, 8,  2, gpu3d_shader_sels, ARRAY_SIZE(gpu3d_shader_sels));
+	if (clk_on_imx6dl())
+		clk[IMX6QDL_CLK_GPU2D_CORE_SEL] = imx_clk_mux("gpu2d_core_sel", base + 0x18, 8,  2, gpu3d_shader_sels, ARRAY_SIZE(gpu3d_shader_sels));
+	else
+		clk[IMX6QDL_CLK_GPU3D_SHADER_SEL] = imx_clk_mux("gpu3d_shader_sel", base + 0x18, 8,  2, gpu3d_shader_sels, ARRAY_SIZE(gpu3d_shader_sels));
 	clk[IMX6QDL_CLK_IPU1_SEL]         = imx_clk_mux("ipu1_sel",         base + 0x3c, 9,  2, ipu_sels,          ARRAY_SIZE(ipu_sels));
 	clk[IMX6QDL_CLK_IPU2_SEL]         = imx_clk_mux("ipu2_sel",         base + 0x3c, 14, 2, ipu_sels,          ARRAY_SIZE(ipu_sels));
-	clk[IMX6QDL_CLK_LDB_DI0_SEL]      = imx_clk_mux_flags("ldb_di0_sel", base + 0x2c, 9,  3, ldb_di_sels,      ARRAY_SIZE(ldb_di_sels), CLK_SET_RATE_PARENT);
-	clk[IMX6QDL_CLK_LDB_DI1_SEL]      = imx_clk_mux_flags("ldb_di1_sel", base + 0x2c, 12, 3, ldb_di_sels,      ARRAY_SIZE(ldb_di_sels), CLK_SET_RATE_PARENT);
+
+	disable_anatop_clocks(anatop_base);
+
+	imx6q_mmdc_ch1_mask_handshake(base);
+
+	/*
+	 * The LDB_DI0/1_SEL muxes are registered read-only due to a hardware
+	 * bug. Set the muxes to the requested values before registering the
+	 * ldb_di_sel clocks.
+	 */
+	init_ldb_clks(np, base);
+
+	clk[IMX6QDL_CLK_LDB_DI0_SEL]      = imx_clk_mux_ldb("ldb_di0_sel", base + 0x2c, 9,  3, ldb_di_sels,      ARRAY_SIZE(ldb_di_sels));
+	clk[IMX6QDL_CLK_LDB_DI1_SEL]      = imx_clk_mux_ldb("ldb_di1_sel", base + 0x2c, 12, 3, ldb_di_sels,      ARRAY_SIZE(ldb_di_sels));
 	clk[IMX6QDL_CLK_IPU1_DI0_PRE_SEL] = imx_clk_mux_flags("ipu1_di0_pre_sel", base + 0x34, 6,  3, ipu_di_pre_sels,   ARRAY_SIZE(ipu_di_pre_sels), CLK_SET_RATE_PARENT);
 	clk[IMX6QDL_CLK_IPU1_DI1_PRE_SEL] = imx_clk_mux_flags("ipu1_di1_pre_sel", base + 0x34, 15, 3, ipu_di_pre_sels,   ARRAY_SIZE(ipu_di_pre_sels), CLK_SET_RATE_PARENT);
 	clk[IMX6QDL_CLK_IPU2_DI0_PRE_SEL] = imx_clk_mux_flags("ipu2_di0_pre_sel", base + 0x38, 6,  3, ipu_di_pre_sels,   ARRAY_SIZE(ipu_di_pre_sels), CLK_SET_RATE_PARENT);
@@ -400,9 +674,15 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		clk[IMX6QDL_CLK_LDB_DI0_DIV_3_5] = imx_clk_fixed_factor("ldb_di0_div_3_5", "ldb_di0_sel", 2, 7);
 		clk[IMX6QDL_CLK_LDB_DI1_DIV_3_5] = imx_clk_fixed_factor("ldb_di1_div_3_5", "ldb_di1_sel", 2, 7);
 	}
-	clk[IMX6QDL_CLK_GPU2D_CORE_PODF]  = imx_clk_divider("gpu2d_core_podf",  "gpu2d_core_sel",    base + 0x18, 23, 3);
+	if (clk_on_imx6dl())
+		clk[IMX6QDL_CLK_MLB_PODF]  = imx_clk_divider("mlb_podf",  "mlb_sel",    base + 0x18, 23, 3);
+	else
+		clk[IMX6QDL_CLK_GPU2D_CORE_PODF]  = imx_clk_divider("gpu2d_core_podf",  "gpu2d_core_sel",    base + 0x18, 23, 3);
 	clk[IMX6QDL_CLK_GPU3D_CORE_PODF]  = imx_clk_divider("gpu3d_core_podf",  "gpu3d_core_sel",    base + 0x18, 26, 3);
-	clk[IMX6QDL_CLK_GPU3D_SHADER]     = imx_clk_divider("gpu3d_shader",     "gpu3d_shader_sel",  base + 0x18, 29, 3);
+	if (clk_on_imx6dl())
+		clk[IMX6QDL_CLK_GPU2D_CORE_PODF]  = imx_clk_divider("gpu2d_core_podf",     "gpu2d_core_sel",  base + 0x18, 29, 3);
+	else
+		clk[IMX6QDL_CLK_GPU3D_SHADER]     = imx_clk_divider("gpu3d_shader",     "gpu3d_shader_sel",  base + 0x18, 29, 3);
 	clk[IMX6QDL_CLK_IPU1_PODF]        = imx_clk_divider("ipu1_podf",        "ipu1_sel",          base + 0x3c, 11, 3);
 	clk[IMX6QDL_CLK_IPU2_PODF]        = imx_clk_divider("ipu2_podf",        "ipu2_sel",          base + 0x3c, 16, 3);
 	clk[IMX6QDL_CLK_LDB_DI0_PODF]     = imx_clk_divider_flags("ldb_di0_podf", "ldb_di0_div_3_5", base + 0x20, 10, 1, 0);
@@ -473,14 +753,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[IMX6QDL_CLK_ESAI_MEM]     = imx_clk_gate2_shared("esai_mem", "ahb",             base + 0x6c, 16, &share_count_esai);
 	clk[IMX6QDL_CLK_GPT_IPG]      = imx_clk_gate2("gpt_ipg",       "ipg",               base + 0x6c, 20);
 	clk[IMX6QDL_CLK_GPT_IPG_PER]  = imx_clk_gate2("gpt_ipg_per",   "ipg_per",           base + 0x6c, 22);
-	if (clk_on_imx6dl())
-		/*
-		 * The multiplexer and divider of imx6q clock gpu3d_shader get
-		 * redefined/reused as gpu2d_core_sel and gpu2d_core_podf on imx6dl.
-		 */
-		clk[IMX6QDL_CLK_GPU2D_CORE] = imx_clk_gate2("gpu2d_core", "gpu3d_shader", base + 0x6c, 24);
-	else
-		clk[IMX6QDL_CLK_GPU2D_CORE] = imx_clk_gate2("gpu2d_core", "gpu2d_core_podf", base + 0x6c, 24);
+	clk[IMX6QDL_CLK_GPU2D_CORE] = imx_clk_gate2("gpu2d_core", "gpu2d_core_podf", base + 0x6c, 24);
 	clk[IMX6QDL_CLK_GPU3D_CORE]   = imx_clk_gate2("gpu3d_core",    "gpu3d_core_podf",   base + 0x6c, 26);
 	clk[IMX6QDL_CLK_HDMI_IAHB]    = imx_clk_gate2("hdmi_iahb",     "ahb",               base + 0x70, 0);
 	clk[IMX6QDL_CLK_HDMI_ISFR]    = imx_clk_gate2("hdmi_isfr",     "video_27m",         base + 0x70, 4);
@@ -511,7 +784,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		 * The multiplexer and divider of the imx6q clock gpu2d get
 		 * redefined/reused as mlb_sys_sel and mlb_sys_clk_podf on imx6dl.
 		 */
-		clk[IMX6QDL_CLK_MLB] = imx_clk_gate2("mlb",            "gpu2d_core_podf",   base + 0x74, 18);
+		clk[IMX6QDL_CLK_MLB] = imx_clk_gate2("mlb",            "mlb_podf",   base + 0x74, 18);
 	else
 		clk[IMX6QDL_CLK_MLB] = imx_clk_gate2("mlb",            "axi",               base + 0x74, 18);
 	clk[IMX6QDL_CLK_MMDC_CH0_AXI] = imx_clk_gate2("mmdc_ch0_axi",  "mmdc_ch0_axi_podf", base + 0x74, 20);
@@ -578,12 +851,6 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 
 	clk_register_clkdev(clk[IMX6QDL_CLK_ENET_REF], "enet_ref", NULL);
 
-	if ((imx_get_soc_revision() != IMX_CHIP_REVISION_1_0) ||
-	    clk_on_imx6dl()) {
-		clk_set_parent(clk[IMX6QDL_CLK_LDB_DI0_SEL], clk[IMX6QDL_CLK_PLL5_VIDEO_DIV]);
-		clk_set_parent(clk[IMX6QDL_CLK_LDB_DI1_SEL], clk[IMX6QDL_CLK_PLL5_VIDEO_DIV]);
-	}
-
 	clk_set_rate(clk[IMX6QDL_CLK_PLL3_PFD1_540M], 540000000);
 	if (clk_on_imx6dl())
 		clk_set_parent(clk[IMX6QDL_CLK_IPU1_SEL], clk[IMX6QDL_CLK_PLL3_PFD1_540M]);
@@ -628,6 +895,24 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	/* All existing boards with PCIe use LVDS1 */
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[IMX6QDL_CLK_LVDS1_SEL], clk[IMX6QDL_CLK_SATA_REF_100M]);
+
+	/*
+	 * Initialize the GPU clock muxes, so that the maximum specified clock
+	 * rates for the respective SoC are not exceeded.
+	 */
+	if (clk_on_imx6dl()) {
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU2D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+	} else if (clk_on_imx6q()) {
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_CORE_SEL],
+			       clk[IMX6QDL_CLK_MMDC_CH0_AXI]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_SHADER_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU2D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL3_USB_OTG]);
+	}
 
 	imx_register_uart_clocks(uart_clks);
 }

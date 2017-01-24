@@ -64,6 +64,7 @@
  * Broxton (SOC)		0x5ad4	32	hard	yes	yes	yes
  * Lewisburg (PCH)		0xa1a3	32	hard	yes	yes	yes
  * Lewisburg Supersku (PCH)	0xa223	32	hard	yes	yes	yes
+ * Kaby Lake PCH-H (PCH)	0xa2a3	32	hard	yes	yes	yes
  *
  * Features supported by this driver:
  * Software PEC				no
@@ -117,7 +118,6 @@
 #define SMBSLVSTS(p)	(16 + (p)->smba)	/* ICH3 and later */
 #define SMBSLVCMD(p)	(17 + (p)->smba)	/* ICH3 and later */
 #define SMBNTFDADD(p)	(20 + (p)->smba)	/* ICH3 and later */
-#define SMBNTFDDAT(p)	(22 + (p)->smba)	/* ICH3 and later */
 
 /* PCI Address Constants */
 #define SMBBAR		4
@@ -136,26 +136,27 @@
 #define SBREG_SMBCTRL		0xc6000c
 
 /* Host status bits for SMBPCISTS */
-#define SMBPCISTS_INTS		0x08
+#define SMBPCISTS_INTS		BIT(3)
 
 /* Control bits for SMBPCICTL */
-#define SMBPCICTL_INTDIS	0x0400
+#define SMBPCICTL_INTDIS	BIT(10)
 
 /* Host configuration bits for SMBHSTCFG */
-#define SMBHSTCFG_HST_EN	1
-#define SMBHSTCFG_SMB_SMI_EN	2
-#define SMBHSTCFG_I2C_EN	4
+#define SMBHSTCFG_HST_EN	BIT(0)
+#define SMBHSTCFG_SMB_SMI_EN	BIT(1)
+#define SMBHSTCFG_I2C_EN	BIT(2)
+#define SMBHSTCFG_SPD_WD	BIT(4)
 
 /* TCO configuration bits for TCOCTL */
-#define TCOCTL_EN		0x0100
+#define TCOCTL_EN		BIT(8)
 
 /* Auxiliary status register bits, ICH4+ only */
-#define SMBAUXSTS_CRCE		1
-#define SMBAUXSTS_STCO		2
+#define SMBAUXSTS_CRCE		BIT(0)
+#define SMBAUXSTS_STCO		BIT(1)
 
 /* Auxiliary control register bits, ICH4+ only */
-#define SMBAUXCTL_CRC		1
-#define SMBAUXCTL_E32B		2
+#define SMBAUXCTL_CRC		BIT(0)
+#define SMBAUXCTL_E32B		BIT(1)
 
 /* Other settings */
 #define MAX_RETRIES		400
@@ -170,27 +171,27 @@
 #define I801_I2C_BLOCK_DATA	0x18	/* ICH5 and later */
 
 /* I801 Host Control register bits */
-#define SMBHSTCNT_INTREN	0x01
-#define SMBHSTCNT_KILL		0x02
-#define SMBHSTCNT_LAST_BYTE	0x20
-#define SMBHSTCNT_START		0x40
-#define SMBHSTCNT_PEC_EN	0x80	/* ICH3 and later */
+#define SMBHSTCNT_INTREN	BIT(0)
+#define SMBHSTCNT_KILL		BIT(1)
+#define SMBHSTCNT_LAST_BYTE	BIT(5)
+#define SMBHSTCNT_START		BIT(6)
+#define SMBHSTCNT_PEC_EN	BIT(7)	/* ICH3 and later */
 
 /* I801 Hosts Status register bits */
-#define SMBHSTSTS_BYTE_DONE	0x80
-#define SMBHSTSTS_INUSE_STS	0x40
-#define SMBHSTSTS_SMBALERT_STS	0x20
-#define SMBHSTSTS_FAILED	0x10
-#define SMBHSTSTS_BUS_ERR	0x08
-#define SMBHSTSTS_DEV_ERR	0x04
-#define SMBHSTSTS_INTR		0x02
-#define SMBHSTSTS_HOST_BUSY	0x01
+#define SMBHSTSTS_BYTE_DONE	BIT(7)
+#define SMBHSTSTS_INUSE_STS	BIT(6)
+#define SMBHSTSTS_SMBALERT_STS	BIT(5)
+#define SMBHSTSTS_FAILED	BIT(4)
+#define SMBHSTSTS_BUS_ERR	BIT(3)
+#define SMBHSTSTS_DEV_ERR	BIT(2)
+#define SMBHSTSTS_INTR		BIT(1)
+#define SMBHSTSTS_HOST_BUSY	BIT(0)
 
-/* Host Notify Status registers bits */
-#define SMBSLVSTS_HST_NTFY_STS	1
+/* Host Notify Status register bits */
+#define SMBSLVSTS_HST_NTFY_STS	BIT(0)
 
-/* Host Notify Command registers bits */
-#define SMBSLVCMD_HST_NTFY_INTREN	0x01
+/* Host Notify Command register bits */
+#define SMBSLVCMD_HST_NTFY_INTREN	BIT(0)
 
 #define STATUS_ERROR_FLAGS	(SMBHSTSTS_FAILED | SMBHSTSTS_BUS_ERR | \
 				 SMBHSTSTS_DEV_ERR)
@@ -226,6 +227,7 @@
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS	0xa123
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS		0xa1a3
 #define PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS	0xa223
+#define PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS	0xa2a3
 
 struct i801_mux_config {
 	char *gpio_chip;
@@ -240,6 +242,7 @@ struct i801_priv {
 	struct i2c_adapter adapter;
 	unsigned long smba;
 	unsigned char original_hstcfg;
+	unsigned char original_slvcmd;
 	struct pci_dev *pci_dev;
 	unsigned int features;
 
@@ -266,20 +269,17 @@ struct i801_priv {
 	 */
 	bool acpi_reserved;
 	struct mutex acpi_lock;
-	struct smbus_host_notify *host_notify;
 };
 
-#define SMBHSTNTFY_SIZE		8
-
-#define FEATURE_SMBUS_PEC	(1 << 0)
-#define FEATURE_BLOCK_BUFFER	(1 << 1)
-#define FEATURE_BLOCK_PROC	(1 << 2)
-#define FEATURE_I2C_BLOCK_READ	(1 << 3)
-#define FEATURE_IRQ		(1 << 4)
-#define FEATURE_HOST_NOTIFY	(1 << 5)
+#define FEATURE_SMBUS_PEC	BIT(0)
+#define FEATURE_BLOCK_BUFFER	BIT(1)
+#define FEATURE_BLOCK_PROC	BIT(2)
+#define FEATURE_I2C_BLOCK_READ	BIT(3)
+#define FEATURE_IRQ		BIT(4)
+#define FEATURE_HOST_NOTIFY	BIT(5)
 /* Not really a feature, but it's convenient to handle it as such */
-#define FEATURE_IDF		(1 << 15)
-#define FEATURE_TCO		(1 << 16)
+#define FEATURE_IDF		BIT(15)
+#define FEATURE_TCO		BIT(16)
 
 static const char *i801_feature_names[] = {
 	"SMBus PEC",
@@ -579,12 +579,15 @@ static void i801_isr_byte_done(struct i801_priv *priv)
 static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
 {
 	unsigned short addr;
-	unsigned int data;
 
 	addr = inb_p(SMBNTFDADD(priv)) >> 1;
-	data = inw_p(SMBNTFDDAT(priv));
 
-	i2c_handle_smbus_host_notify(priv->host_notify, addr, data);
+	/*
+	 * With the tested platforms, reading SMBNTFDDAT (22 + (p)->smba)
+	 * always returns 0. Our current implementation doesn't provide
+	 * data, so we just ignore it.
+	 */
+	i2c_handle_smbus_host_notify(&priv->adapter, addr);
 
 	/* clear Host Notify bit and return */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
@@ -863,9 +866,16 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		block = 1;
 		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-		/* NB: page 240 of ICH5 datasheet shows that the R/#W
-		 * bit should be cleared here, even when reading */
-		outb_p((addr & 0x7f) << 1, SMBHSTADD(priv));
+		/*
+		 * NB: page 240 of ICH5 datasheet shows that the R/#W
+		 * bit should be cleared here, even when reading.
+		 * However if SPD Write Disable is set (Lynx Point and later),
+		 * the read will fail if we don't set the R/#W bit.
+		 */
+		outb_p(((addr & 0x7f) << 1) |
+		       ((priv->original_hstcfg & SMBHSTCFG_SPD_WD) ?
+			(read_write & 0x01) : 0),
+		       SMBHSTADD(priv));
 		if (read_write == I2C_SMBUS_READ) {
 			/* NB: page 240 of ICH5 datasheet also shows
 			 * that DATA1 is the cmd field when reading */
@@ -940,23 +950,29 @@ static u32 i801_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_HOST_NOTIFY : 0);
 }
 
-static int i801_enable_host_notify(struct i2c_adapter *adapter)
+static void i801_enable_host_notify(struct i2c_adapter *adapter)
 {
 	struct i801_priv *priv = i2c_get_adapdata(adapter);
 
 	if (!(priv->features & FEATURE_HOST_NOTIFY))
-		return -ENOTSUPP;
+		return;
 
-	if (!priv->host_notify)
-		priv->host_notify = i2c_setup_smbus_host_notify(adapter);
-	if (!priv->host_notify)
-		return -ENOMEM;
+	priv->original_slvcmd = inb_p(SMBSLVCMD(priv));
 
-	outb_p(SMBSLVCMD_HST_NTFY_INTREN, SMBSLVCMD(priv));
+	if (!(SMBSLVCMD_HST_NTFY_INTREN & priv->original_slvcmd))
+		outb_p(SMBSLVCMD_HST_NTFY_INTREN | priv->original_slvcmd,
+		       SMBSLVCMD(priv));
+
 	/* clear Host Notify bit to allow a new notification */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
+}
 
-	return 0;
+static void i801_disable_host_notify(struct i801_priv *priv)
+{
+	if (!(priv->features & FEATURE_HOST_NOTIFY))
+		return;
+
+	outb_p(priv->original_slvcmd, SMBSLVCMD(priv));
 }
 
 static const struct i2c_algorithm smbus_algorithm = {
@@ -1006,6 +1022,7 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BROXTON_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS) },
 	{ 0, }
 };
 
@@ -1482,11 +1499,14 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS:
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS:
 	case PCI_DEVICE_ID_INTEL_DNV_SMBUS:
+	case PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS:
 		priv->features |= FEATURE_I2C_BLOCK_READ;
 		priv->features |= FEATURE_IRQ;
 		priv->features |= FEATURE_SMBUS_PEC;
 		priv->features |= FEATURE_BLOCK_BUFFER;
-		priv->features |= FEATURE_TCO;
+		/* If we have ACPI based watchdog use that instead */
+		if (!acpi_has_watchdog())
+			priv->features |= FEATURE_TCO;
 		priv->features |= FEATURE_HOST_NOTIFY;
 		break;
 
@@ -1567,6 +1587,8 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		/* Disable SMBus interrupt feature if SMBus using SMI# */
 		priv->features &= ~FEATURE_IRQ;
 	}
+	if (temp & SMBHSTCFG_SPD_WD)
+		dev_info(&dev->dev, "SPD Write Disable is set\n");
 
 	/* Clear special mode bits */
 	if (priv->features & (FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER))
@@ -1613,19 +1635,11 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		"SMBus I801 adapter at %04lx", priv->smba);
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
-		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
 		i801_acpi_remove(priv);
 		return err;
 	}
 
-	/*
-	 * Enable Host Notify for chips that supports it.
-	 * It is done after i2c_add_adapter() so that we are sure the work queue
-	 * is not used if i2c_add_adapter() fails.
-	 */
-	err = i801_enable_host_notify(&priv->adapter);
-	if (err && err != -ENOTSUPP)
-		dev_warn(&dev->dev, "Unable to enable SMBus Host Notify\n");
+	i801_enable_host_notify(&priv->adapter);
 
 	i801_probe_optional_slaves(priv);
 	/* We ignore errors - multiplexing is optional */
@@ -1648,6 +1662,7 @@ static void i801_remove(struct pci_dev *dev)
 	pm_runtime_forbid(&dev->dev);
 	pm_runtime_get_noresume(&dev->dev);
 
+	i801_disable_host_notify(priv);
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	i801_acpi_remove(priv);
@@ -1675,11 +1690,8 @@ static int i801_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct i801_priv *priv = pci_get_drvdata(pci_dev);
-	int err;
 
-	err = i801_enable_host_notify(&priv->adapter);
-	if (err && err != -ENOTSUPP)
-		dev_warn(dev, "Unable to enable SMBus Host Notify\n");
+	i801_enable_host_notify(&priv->adapter);
 
 	return 0;
 }

@@ -21,6 +21,8 @@ enum functionfs_flags {
 	FUNCTIONFS_HAS_MS_OS_DESC = 8,
 	FUNCTIONFS_VIRTUAL_ADDR = 16,
 	FUNCTIONFS_EVENTFD = 32,
+	FUNCTIONFS_ALL_CTRL_RECIP = 64,
+	FUNCTIONFS_CONFIG0_SETUP = 128,
 };
 
 /* Descriptor of an non-audio endpoint */
@@ -91,6 +93,7 @@ struct usb_ext_prop_desc {
  * |   0 | magic     | LE32         | FUNCTIONFS_DESCRIPTORS_MAGIC_V2      |
  * |   4 | length    | LE32         | length of the whole data chunk       |
  * |   8 | flags     | LE32         | combination of functionfs_flags      |
+ * |     | eventfd   | LE32         | eventfd file descriptor              |
  * |     | fs_count  | LE32         | number of full-speed descriptors     |
  * |     | hs_count  | LE32         | number of high-speed descriptors     |
  * |     | ss_count  | LE32         | number of super-speed descriptors    |

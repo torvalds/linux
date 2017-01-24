@@ -75,12 +75,13 @@ typedef void (*virtio_gpu_resp_cb)(struct virtio_gpu_device *vgdev,
 struct virtio_gpu_fence_driver {
 	atomic64_t       last_seq;
 	uint64_t         sync_seq;
+	uint64_t         context;
 	struct list_head fences;
 	spinlock_t       lock;
 };
 
 struct virtio_gpu_fence {
-	struct fence f;
+	struct dma_fence f;
 	struct virtio_gpu_fence_driver *drv;
 	struct list_head node;
 	uint64_t seq;

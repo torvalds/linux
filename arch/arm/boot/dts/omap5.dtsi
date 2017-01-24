@@ -11,14 +11,13 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	compatible = "ti,omap5";
 	interrupt-parent = <&wakeupgen>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -92,10 +91,10 @@
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48211000 0x1000>,
-		      <0x48212000 0x1000>,
-		      <0x48214000 0x2000>,
-		      <0x48216000 0x2000>;
+		reg = <0 0x48211000 0 0x1000>,
+		      <0 0x48212000 0 0x1000>,
+		      <0 0x48214000 0 0x2000>,
+		      <0 0x48216000 0 0x2000>;
 		interrupt-parent = <&gic>;
 	};
 
@@ -103,7 +102,7 @@
 		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48281000 0x1000>;
+		reg = <0 0x48281000 0 0x1000>;
 		interrupt-parent = <&gic>;
 	};
 
@@ -131,11 +130,11 @@
 		compatible = "ti,omap5-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0 0 0 0xc0000000>;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
-		reg = <0x44000000 0x2000>,
-		      <0x44800000 0x3000>,
-		      <0x45000000 0x4000>;
+		reg = <0 0x44000000 0 0x2000>,
+		      <0 0x44800000 0 0x3000>,
+		      <0 0x45000000 0 0x4000>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -173,6 +172,7 @@
 					reg = <0x40 0x01b6>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -272,6 +272,7 @@
 				reg = <0xc840 0x003c>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				#pinctrl-cells = <1>;
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				pinctrl-single,register-width = <16>;
@@ -865,7 +866,7 @@
 			#size-cells = <1>;
 			utmi-mode = <2>;
 			ranges;
-			dwc3@4a030000 {
+			dwc3: dwc3@4a030000 {
 				compatible = "snps,dwc3";
 				reg = <0x4a030000 0x10000>;
 				interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
@@ -987,6 +988,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		dss: dss@58000000 {

@@ -3,6 +3,9 @@
  * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  */
 
+/* No __ro_after_init data in the .rodata section - which will always be ro */
+#define RO_AFTER_INIT_DATA
+
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
@@ -98,6 +101,7 @@ SECTIONS
 			IRQENTRY_TEXT
 			TEXT_TEXT
 			SCHED_TEXT
+			CPUIDLE_TEXT
 			LOCK_TEXT
 			KPROBES_TEXT
 			*(.gnu.warning)
@@ -221,6 +225,8 @@ SECTIONS
 		ARM_EXIT_KEEP(EXIT_DATA)
 		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
+
+		*(.data..ro_after_init)
 
 		NOSAVE_DATA
 		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)

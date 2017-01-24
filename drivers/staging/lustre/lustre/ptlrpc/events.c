@@ -182,9 +182,9 @@ void client_bulk_callback(lnet_event_t *ev)
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
 	struct ptlrpc_request *req;
 
-	LASSERT((desc->bd_type == BULK_PUT_SINK &&
+	LASSERT((ptlrpc_is_bulk_put_sink(desc->bd_type) &&
 		 ev->type == LNET_EVENT_PUT) ||
-		(desc->bd_type == BULK_GET_SOURCE &&
+		(ptlrpc_is_bulk_get_source(desc->bd_type) &&
 		 ev->type == LNET_EVENT_GET) ||
 		ev->type == LNET_EVENT_UNLINK);
 	LASSERT(ev->unlinked);
@@ -543,7 +543,7 @@ static int ptlrpc_ni_init(void)
 	rc = LNetNIInit(pid);
 	if (rc < 0) {
 		CDEBUG(D_NET, "Can't init network interface: %d\n", rc);
-		return -ENOENT;
+		return rc;
 	}
 
 	/* CAVEAT EMPTOR: how we process portals events is _radically_
@@ -561,7 +561,7 @@ static int ptlrpc_ni_init(void)
 	CERROR("Failed to allocate event queue: %d\n", rc);
 	LNetNIFini();
 
-	return -ENOMEM;
+	return rc;
 }
 
 int ptlrpc_init_portals(void)
@@ -570,7 +570,7 @@ int ptlrpc_init_portals(void)
 
 	if (rc != 0) {
 		CERROR("network initialisation failed\n");
-		return -EIO;
+		return rc;
 	}
 	rc = ptlrpcd_addref();
 	if (rc == 0)

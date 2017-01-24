@@ -107,7 +107,7 @@ static struct watchdog_info bcm7038_wdt_info = {
 				WDIOF_MAGICCLOSE
 };
 
-static struct watchdog_ops bcm7038_wdt_ops = {
+static const struct watchdog_ops bcm7038_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm7038_wdt_start,
 	.stop		= bcm7038_wdt_stop,
@@ -216,6 +216,7 @@ static const struct of_device_id bcm7038_wdt_match[] = {
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, bcm7038_wdt_match);
 
 static struct platform_driver bcm7038_wdt_driver = {
 	.probe		= bcm7038_wdt_probe,

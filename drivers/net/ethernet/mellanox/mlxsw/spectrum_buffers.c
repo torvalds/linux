@@ -595,9 +595,9 @@ int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
 	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
 	struct mlxsw_sp_sb_pr *pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool, dir);
 
-	pool_info->pool_type = dir;
+	pool_info->pool_type = (enum devlink_sb_pool_type) dir;
 	pool_info->size = MLXSW_SP_CELLS_TO_BYTES(pr->size);
-	pool_info->threshold_type = pr->mode;
+	pool_info->threshold_type = (enum devlink_sb_threshold_type) pr->mode;
 	return 0;
 }
 
@@ -608,9 +608,13 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u8 pool = pool_get(pool_index);
 	enum mlxsw_reg_sbxx_dir dir = dir_get(pool_index);
-	enum mlxsw_reg_sbpr_mode mode = threshold_type;
 	u32 pool_size = MLXSW_SP_BYTES_TO_CELLS(size);
+	enum mlxsw_reg_sbpr_mode mode;
 
+	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE))
+		return -EINVAL;
+
+	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool, dir, mode, pool_size);
 }
 
@@ -696,13 +700,13 @@ int mlxsw_sp_sb_tc_pool_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
 	u8 pg_buff = tc_index;
-	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	struct mlxsw_sp_sb_cm *cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port,
 						       pg_buff, dir);
 
 	*p_threshold = mlxsw_sp_sb_threshold_out(mlxsw_sp, cm->pool, dir,
 						 cm->max_buff);
-	*p_pool_index = pool_index_get(cm->pool, pool_type);
+	*p_pool_index = pool_index_get(cm->pool, dir);
 	return 0;
 }
 
@@ -716,7 +720,7 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
 	u8 pg_buff = tc_index;
-	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	u8 pool = pool_get(pool_index);
 	u32 max_buff;
 	int err;
@@ -943,7 +947,7 @@ int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 local_port = mlxsw_sp_port->local_port;
 	u8 pg_buff = tc_index;
-	enum mlxsw_reg_sbxx_dir dir = pool_type;
+	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	struct mlxsw_sp_sb_cm *cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port,
 						       pg_buff, dir);
 

@@ -259,11 +259,11 @@ extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, unsigned int cpu_vec,
 	unsigned int irqbase);
 extern void gic_clocksource_init(unsigned int);
-extern cycle_t gic_read_count(void);
+extern u64 gic_read_count(void);
 extern unsigned int gic_get_count_width(void);
-extern cycle_t gic_read_compare(void);
-extern void gic_write_compare(cycle_t cnt);
-extern void gic_write_cpu_compare(cycle_t cnt, int cpu);
+extern u64 gic_read_compare(void);
+extern void gic_write_compare(u64 cnt);
+extern void gic_write_cpu_compare(u64 cnt, int cpu);
 extern void gic_start_count(void);
 extern void gic_stop_count(void);
 extern int gic_get_c0_compare_int(void);

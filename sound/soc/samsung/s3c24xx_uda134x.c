@@ -19,8 +19,14 @@
 #include <sound/s3c24xx_uda134x.h>
 
 #include "regs-iis.h"
-
 #include "s3c24xx-i2s.h"
+
+struct s3c24xx_uda134x {
+	struct clk *xtal;
+	struct clk *pclk;
+	struct mutex clk_lock;
+	int clk_users;
+};
 
 /* #define ENFORCE_RATES 1 */
 /*
@@ -36,15 +42,6 @@
   possible an error will be returned.
 */
 
-static struct clk *xtal;
-static struct clk *pclk;
-/* this is need because we don't have a place where to keep the
- * pointers to the clocks in each substream. We get the clocks only
- * when we are actually using them so we don't block stuff like
- * frequency change or oscillator power-off */
-static int clk_users;
-static DEFINE_MUTEX(clk_lock);
-
 static unsigned int rates[33 * 2];
 #ifdef ENFORCE_RATES
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
@@ -54,31 +51,27 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 };
 #endif
 
-static struct platform_device *s3c24xx_uda134x_snd_device;
-
 static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct s3c24xx_uda134x *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-#ifdef ENFORCE_RATES
-	struct snd_pcm_runtime *runtime = substream->runtime;
-#endif
 	int ret = 0;
 
-	mutex_lock(&clk_lock);
-	pr_debug("%s %d\n", __func__, clk_users);
-	if (clk_users == 0) {
-		xtal = clk_get(&s3c24xx_uda134x_snd_device->dev, "xtal");
-		if (IS_ERR(xtal)) {
-			printk(KERN_ERR "%s cannot get xtal\n", __func__);
-			ret = PTR_ERR(xtal);
+	mutex_lock(&priv->clk_lock);
+
+	if (priv->clk_users == 0) {
+		priv->xtal = clk_get(rtd->dev, "xtal");
+		if (IS_ERR(priv->xtal)) {
+			dev_err(rtd->dev, "%s cannot get xtal\n", __func__);
+			ret = PTR_ERR(priv->xtal);
 		} else {
-			pclk = clk_get(cpu_dai->dev, "iis");
-			if (IS_ERR(pclk)) {
-				printk(KERN_ERR "%s cannot get pclk\n",
-				       __func__);
-				clk_put(xtal);
-				ret = PTR_ERR(pclk);
+			priv->pclk = clk_get(cpu_dai->dev, "iis");
+			if (IS_ERR(priv->pclk)) {
+				dev_err(rtd->dev, "%s cannot get pclk\n",
+					__func__);
+				clk_put(priv->xtal);
+				ret = PTR_ERR(priv->pclk);
 			}
 		}
 		if (!ret) {
@@ -87,23 +80,24 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 			for (i = 0; i < 2; i++) {
 				int fs = i ? 256 : 384;
 
-				rates[i*33] = clk_get_rate(xtal) / fs;
+				rates[i*33] = clk_get_rate(priv->xtal) / fs;
 				for (j = 1; j < 33; j++)
-					rates[i*33 + j] = clk_get_rate(pclk) /
+					rates[i*33 + j] = clk_get_rate(priv->pclk) /
 						(j * fs);
 			}
 		}
 	}
-	clk_users += 1;
-	mutex_unlock(&clk_lock);
+	priv->clk_users += 1;
+	mutex_unlock(&priv->clk_lock);
+
 	if (!ret) {
 #ifdef ENFORCE_RATES
-		ret = snd_pcm_hw_constraint_list(runtime, 0,
+		ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
 						 SNDRV_PCM_HW_PARAM_RATE,
 						 &hw_constraints_rates);
 		if (ret < 0)
-			printk(KERN_ERR "%s cannot set constraints\n",
-			       __func__);
+			dev_err(rtd->dev, "%s cannot set constraints\n",
+				__func__);
 #endif
 	}
 	return ret;
@@ -111,16 +105,18 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 
 static void s3c24xx_uda134x_shutdown(struct snd_pcm_substream *substream)
 {
-	mutex_lock(&clk_lock);
-	pr_debug("%s %d\n", __func__, clk_users);
-	clk_users -= 1;
-	if (clk_users == 0) {
-		clk_put(xtal);
-		xtal = NULL;
-		clk_put(pclk);
-		pclk = NULL;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct s3c24xx_uda134x *priv = snd_soc_card_get_drvdata(rtd->card);
+
+	mutex_lock(&priv->clk_lock);
+	priv->clk_users -= 1;
+	if (priv->clk_users == 0) {
+		clk_put(priv->xtal);
+		priv->xtal = NULL;
+		clk_put(priv->pclk);
+		priv->pclk = NULL;
 	}
-	mutex_unlock(&clk_lock);
+	mutex_unlock(&priv->clk_lock);
 }
 
 static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
@@ -159,18 +155,19 @@ static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
 		clk_source = S3C24XX_CLKSRC_PCLK;
 		div = bi % 33;
 	}
-	pr_debug("%s desired rate %lu, %d\n", __func__, rate, bi);
+
+	dev_dbg(rtd->dev, "%s desired rate %lu, %d\n", __func__, rate, bi);
 
 	clk = (fs_mode == S3C2410_IISMOD_384FS ? 384 : 256) * rate;
-	pr_debug("%s will use: %s %s %d sysclk %d err %ld\n", __func__,
-		 fs_mode == S3C2410_IISMOD_384FS ? "384FS" : "256FS",
-		 clk_source == S3C24XX_CLKSRC_MPLL ? "MPLLin" : "PCLK",
-		 div, clk, err);
+
+	dev_dbg(rtd->dev, "%s will use: %s %s %d sysclk %d err %ld\n", __func__,
+		fs_mode == S3C2410_IISMOD_384FS ? "384FS" : "256FS",
+		clk_source == S3C24XX_CLKSRC_MPLL ? "MPLLin" : "PCLK",
+		div, clk, err);
 
 	if ((err * 100 / rate) > 5) {
-		printk(KERN_ERR "S3C24XX_UDA134X: effective frequency "
-		       "too different from desired (%ld%%)\n",
-		       err * 100 / rate);
+		dev_err(rtd->dev, "effective frequency too different "
+				  "from desired (%ld%%)\n", err * 100 / rate);
 		return -EINVAL;
 	}
 
@@ -227,115 +224,35 @@ static struct snd_soc_card snd_soc_s3c24xx_uda134x = {
 	.num_links = 1,
 };
 
-static struct s3c24xx_uda134x_platform_data *s3c24xx_uda134x_l3_pins;
-
-static void setdat(int v)
-{
-	gpio_set_value(s3c24xx_uda134x_l3_pins->l3_data, v > 0);
-}
-
-static void setclk(int v)
-{
-	gpio_set_value(s3c24xx_uda134x_l3_pins->l3_clk, v > 0);
-}
-
-static void setmode(int v)
-{
-	gpio_set_value(s3c24xx_uda134x_l3_pins->l3_mode, v > 0);
-}
-
-/* FIXME - This must be codec platform data but in which board file ?? */
-static struct uda134x_platform_data s3c24xx_uda134x = {
-	.l3 = {
-		.setdat = setdat,
-		.setclk = setclk,
-		.setmode = setmode,
-		.data_hold = 1,
-		.data_setup = 1,
-		.clock_high = 1,
-		.mode_hold = 1,
-		.mode = 1,
-		.mode_setup = 1,
-	},
-};
-
-static int s3c24xx_uda134x_setup_pin(int pin, char *fun)
-{
-	if (gpio_request(pin, "s3c24xx_uda134x") < 0) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: "
-		       "l3 %s pin already in use", fun);
-		return -EBUSY;
-	}
-	gpio_direction_output(pin, 0);
-	return 0;
-}
-
 static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &snd_soc_s3c24xx_uda134x;
+	struct s3c24xx_uda134x *priv;
 	int ret;
 
-	printk(KERN_INFO "S3C24XX_UDA134X SoC Audio driver\n");
-
-	s3c24xx_uda134x_l3_pins = pdev->dev.platform_data;
-	if (s3c24xx_uda134x_l3_pins == NULL) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: "
-		       "unable to find platform data\n");
-		return -ENODEV;
-	}
-	s3c24xx_uda134x.power = s3c24xx_uda134x_l3_pins->power;
-	s3c24xx_uda134x.model = s3c24xx_uda134x_l3_pins->model;
-
-	if (s3c24xx_uda134x_setup_pin(s3c24xx_uda134x_l3_pins->l3_data,
-				      "data") < 0)
-		return -EBUSY;
-	if (s3c24xx_uda134x_setup_pin(s3c24xx_uda134x_l3_pins->l3_clk,
-				      "clk") < 0) {
-		gpio_free(s3c24xx_uda134x_l3_pins->l3_data);
-		return -EBUSY;
-	}
-	if (s3c24xx_uda134x_setup_pin(s3c24xx_uda134x_l3_pins->l3_mode,
-				      "mode") < 0) {
-		gpio_free(s3c24xx_uda134x_l3_pins->l3_data);
-		gpio_free(s3c24xx_uda134x_l3_pins->l3_clk);
-		return -EBUSY;
-	}
-
-	s3c24xx_uda134x_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!s3c24xx_uda134x_snd_device) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: "
-		       "Unable to register\n");
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
-	}
 
-	platform_set_drvdata(s3c24xx_uda134x_snd_device,
-			     &snd_soc_s3c24xx_uda134x);
-	platform_device_add_data(s3c24xx_uda134x_snd_device, &s3c24xx_uda134x, sizeof(s3c24xx_uda134x));
-	ret = platform_device_add(s3c24xx_uda134x_snd_device);
-	if (ret) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: Unable to add\n");
-		platform_device_put(s3c24xx_uda134x_snd_device);
-	}
+	mutex_init(&priv->clk_lock);
+
+	card->dev = &pdev->dev;
+	platform_set_drvdata(pdev, card);
+	snd_soc_card_set_drvdata(card, priv);
+
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (ret)
+		dev_err(&pdev->dev, "failed to register card: %d\n", ret);
 
 	return ret;
 }
 
-static int s3c24xx_uda134x_remove(struct platform_device *pdev)
-{
-	platform_device_unregister(s3c24xx_uda134x_snd_device);
-	gpio_free(s3c24xx_uda134x_l3_pins->l3_data);
-	gpio_free(s3c24xx_uda134x_l3_pins->l3_clk);
-	gpio_free(s3c24xx_uda134x_l3_pins->l3_mode);
-	return 0;
-}
-
 static struct platform_driver s3c24xx_uda134x_driver = {
 	.probe  = s3c24xx_uda134x_probe,
-	.remove = s3c24xx_uda134x_remove,
 	.driver = {
 		.name = "s3c24xx_uda134x",
 	},
 };
-
 module_platform_driver(s3c24xx_uda134x_driver);
 
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");

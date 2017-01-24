@@ -295,6 +295,8 @@ static inline void perf_read_regs(struct pt_regs *regs)
 	 */
 	if (TRAP(regs) != 0xf00)
 		use_siar = 0;
+	else if ((ppmu->flags & PPMU_NO_SIAR))
+		use_siar = 0;
 	else if (marked)
 		use_siar = 1;
 	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING))
@@ -2158,7 +2160,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		irq_exit();
 }
 
-int power_pmu_prepare_cpu(unsigned int cpu)
+static int power_pmu_prepare_cpu(unsigned int cpu)
 {
 	struct cpu_hw_events *cpuhw = &per_cpu(cpu_hw_events, cpu);
 
@@ -2189,7 +2191,7 @@ int register_power_pmu(struct power_pmu *pmu)
 #endif /* CONFIG_PPC64 */
 
 	perf_pmu_register(&power_pmu, "cpu", PERF_TYPE_RAW);
-	cpuhp_setup_state(CPUHP_PERF_POWER, "PERF_POWER",
+	cpuhp_setup_state(CPUHP_PERF_POWER, "perf/powerpc:prepare",
 			  power_pmu_prepare_cpu, NULL);
 	return 0;
 }

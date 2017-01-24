@@ -180,7 +180,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 {
 	struct mod_pci_args args = { 0, 0, 0, 0 };
 
-	if (zdev->fmb)
+	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
 		return -EINVAL;
 
 	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
@@ -722,6 +722,11 @@ struct dev_pm_ops pcibios_pm_ops = {
 
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid) {
+		zdev->domain = (u16) zdev->uid;
+		return 0;
+	}
+
 	spin_lock(&zpci_domain_lock);
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
@@ -735,6 +740,9 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid)
+		return;
+
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
 	spin_unlock(&zpci_domain_lock);
@@ -853,6 +861,15 @@ void zpci_stop_device(struct zpci_dev *zdev)
 	 */
 }
 EXPORT_SYMBOL_GPL(zpci_stop_device);
+
+int zpci_report_error(struct pci_dev *pdev,
+		      struct zpci_report_error_header *report)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+
+	return sclp_pci_report(report, zdev->fh, zdev->fid);
+}
+EXPORT_SYMBOL(zpci_report_error);
 
 static inline int barsize(u8 size)
 {

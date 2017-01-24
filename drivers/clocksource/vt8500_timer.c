@@ -53,7 +53,7 @@
 
 static void __iomem *regbase;
 
-static cycle_t vt8500_timer_read(struct clocksource *cs)
+static u64 vt8500_timer_read(struct clocksource *cs)
 {
 	int loops = msecs_to_loops(10);
 	writel(3, regbase + TIMER_CTRL_VAL);
@@ -75,7 +75,7 @@ static int vt8500_timer_set_next_event(unsigned long cycles,
 				    struct clock_event_device *evt)
 {
 	int loops = msecs_to_loops(10);
-	cycle_t alarm = clocksource.read(&clocksource) + cycles;
+	u64 alarm = clocksource.read(&clocksource) + cycles;
 	while ((readl(regbase + TIMER_AS_VAL) & TIMER_MATCH_W_ACTIVE)
 						&& --loops)
 		cpu_relax();

@@ -18,6 +18,7 @@
 
 #include <asm/cputype.h>
 #include <asm/cpufeature.h>
+#include <asm/sysreg.h>
 #include <asm/virt.h>
 
 #ifdef __KERNEL__
@@ -76,7 +77,11 @@ static inline void decode_ctrl_reg(u32 reg,
 /* Lengths */
 #define ARM_BREAKPOINT_LEN_1	0x1
 #define ARM_BREAKPOINT_LEN_2	0x3
+#define ARM_BREAKPOINT_LEN_3	0x7
 #define ARM_BREAKPOINT_LEN_4	0xf
+#define ARM_BREAKPOINT_LEN_5	0x1f
+#define ARM_BREAKPOINT_LEN_6	0x3f
+#define ARM_BREAKPOINT_LEN_7	0x7f
 #define ARM_BREAKPOINT_LEN_8	0xff
 
 /* Kernel stepping */
@@ -98,18 +103,18 @@ static inline void decode_ctrl_reg(u32 reg,
 #define AARCH64_DBG_REG_WCR	(AARCH64_DBG_REG_WVR + ARM_MAX_WRP)
 
 /* Debug register names. */
-#define AARCH64_DBG_REG_NAME_BVR	"bvr"
-#define AARCH64_DBG_REG_NAME_BCR	"bcr"
-#define AARCH64_DBG_REG_NAME_WVR	"wvr"
-#define AARCH64_DBG_REG_NAME_WCR	"wcr"
+#define AARCH64_DBG_REG_NAME_BVR	bvr
+#define AARCH64_DBG_REG_NAME_BCR	bcr
+#define AARCH64_DBG_REG_NAME_WVR	wvr
+#define AARCH64_DBG_REG_NAME_WCR	wcr
 
 /* Accessor macros for the debug registers. */
 #define AARCH64_DBG_READ(N, REG, VAL) do {\
-	asm volatile("mrs %0, dbg" REG #N "_el1" : "=r" (VAL));\
+	VAL = read_sysreg(dbg##REG##N##_el1);\
 } while (0)
 
 #define AARCH64_DBG_WRITE(N, REG, VAL) do {\
-	asm volatile("msr dbg" REG #N "_el1, %0" :: "r" (VAL));\
+	write_sysreg(VAL, dbg##REG##N##_el1);\
 } while (0)
 
 struct task_struct;
@@ -118,7 +123,7 @@ struct perf_event;
 struct pmu;
 
 extern int arch_bp_generic_fields(struct arch_hw_breakpoint_ctrl ctrl,
-				  int *gen_len, int *gen_type);
+				  int *gen_len, int *gen_type, int *offset);
 extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
 extern int arch_validate_hwbkpt_settings(struct perf_event *bp);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
@@ -140,8 +145,6 @@ static inline void ptrace_hw_copy_thread(struct task_struct *task)
 {
 }
 #endif
-
-extern struct pmu perf_ops_bp;
 
 /* Determine number of BRP registers available. */
 static inline int get_num_brps(void)

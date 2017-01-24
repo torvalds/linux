@@ -19,6 +19,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <linux/ioctl.h>
 #include <sys/stat.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
@@ -284,7 +285,7 @@ static void parse_opts(int argc, char *argv[])
 
 static void transfer_escaped_string(int fd, char *str)
 {
-	size_t size = strlen(str + 1);
+	size_t size = strlen(str);
 	uint8_t *tx;
 	uint8_t *rx;
 
@@ -314,7 +315,7 @@ static void transfer_file(int fd, char *filename)
 		pabort("can't stat input file");
 
 	tx_fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (tx_fd < 0)
 		pabort("can't open input file");
 
 	tx = malloc(sb.st_size);

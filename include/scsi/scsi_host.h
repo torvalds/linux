@@ -278,6 +278,14 @@ struct scsi_host_template {
 	int (* change_queue_depth)(struct scsi_device *, int);
 
 	/*
+	 * This functions lets the driver expose the queue mapping
+	 * to the block layer.
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (* map_queues)(struct Scsi_Host *shost);
+
+	/*
 	 * This function determines the BIOS parameters for a given
 	 * harddisk.  These tend to be numbers that are made up by
 	 * the host adapter.  Parameters:

@@ -266,7 +266,7 @@ static int hp_sw_prep_fn(struct scsi_device *sdev, struct request *req)
 
 	if (h->path_state != HP_SW_PATH_ACTIVE) {
 		ret = BLKPREP_KILL;
-		req->cmd_flags |= REQ_QUIET;
+		req->rq_flags |= RQF_QUIET;
 	}
 	return ret;
 

@@ -10,9 +10,12 @@ struct mnt_namespace {
 	struct mount *	root;
 	struct list_head	list;
 	struct user_namespace	*user_ns;
+	struct ucounts		*ucounts;
 	u64			seq;	/* Sequence number to prevent loops */
 	wait_queue_head_t poll;
 	u64 event;
+	unsigned int		mounts; /* # of mounts in the namespace */
+	unsigned int		pending_mounts;
 };
 
 struct mnt_pcp {
@@ -90,6 +93,12 @@ extern struct mount *__lookup_mnt_last(struct vfsmount *, struct dentry *);
 
 extern int __legitimize_mnt(struct vfsmount *, unsigned);
 extern bool legitimize_mnt(struct vfsmount *, unsigned);
+
+static inline bool __path_is_mountpoint(const struct path *path)
+{
+	struct mount *m = __lookup_mnt(path->mnt, path->dentry);
+	return m && likely(!(m->mnt.mnt_flags & MNT_SYNC_UMOUNT));
+}
 
 extern void __detach_mounts(struct dentry *dentry);
 

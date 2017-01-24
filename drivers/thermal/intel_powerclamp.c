@@ -43,7 +43,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/cpu.h>
 #include <linux/thermal.h>
 #include <linux/slab.h>
@@ -56,7 +55,6 @@
 #include <asm/msr.h>
 #include <asm/mwait.h>
 #include <asm/cpu_device_id.h>
-#include <asm/idle.h>
 #include <asm/hardirq.h>
 
 #define MAX_TARGET_RATIO (50U)
@@ -86,11 +84,26 @@ static unsigned int control_cpu; /* The cpu assigned to collect stat and update
 				  */
 static bool clamping;
 
+static const struct sched_param sparam = {
+	.sched_priority = MAX_USER_RT_PRIO / 2,
+};
+struct powerclamp_worker_data {
+	struct kthread_worker *worker;
+	struct kthread_work balancing_work;
+	struct kthread_delayed_work idle_injection_work;
+	unsigned int cpu;
+	unsigned int count;
+	unsigned int guard;
+	unsigned int window_size_now;
+	unsigned int target_ratio;
+	unsigned int duration_jiffies;
+	bool clamping;
+};
 
-static struct task_struct * __percpu *powerclamp_thread;
+static struct powerclamp_worker_data * __percpu worker_data;
 static struct thermal_cooling_device *cooling_dev;
 static unsigned long *cpu_clamping_mask;  /* bit map for tracking per cpu
-					   * clamping thread
+					   * clamping kthread worker
 					   */
 
 static unsigned int duration;
@@ -262,11 +275,6 @@ static u64 pkg_state_counter(void)
 	return count;
 }
 
-static void noop_timer(unsigned long foo)
-{
-	/* empty... just the fact that we get the interrupt wakes us up */
-}
-
 static unsigned int get_compensation(int ratio)
 {
 	unsigned int comp = 0;
@@ -368,103 +376,79 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
 	return set_target_ratio + guard <= current_ratio;
 }
 
-static int clamp_thread(void *arg)
+static void clamp_balancing_func(struct kthread_work *work)
 {
-	int cpunr = (unsigned long)arg;
-	DEFINE_TIMER(wakeup_timer, noop_timer, 0, 0);
-	static const struct sched_param param = {
-		.sched_priority = MAX_USER_RT_PRIO/2,
-	};
-	unsigned int count = 0;
-	unsigned int target_ratio;
+	struct powerclamp_worker_data *w_data;
+	int sleeptime;
+	unsigned long target_jiffies;
+	unsigned int compensated_ratio;
+	int interval; /* jiffies to sleep for each attempt */
 
-	set_bit(cpunr, cpu_clamping_mask);
-	set_freezable();
-	init_timer_on_stack(&wakeup_timer);
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	w_data = container_of(work, struct powerclamp_worker_data,
+			      balancing_work);
 
-	while (true == clamping && !kthread_should_stop() &&
-		cpu_online(cpunr)) {
-		int sleeptime;
-		unsigned long target_jiffies;
-		unsigned int guard;
-		unsigned int compensated_ratio;
-		int interval; /* jiffies to sleep for each attempt */
-		unsigned int duration_jiffies = msecs_to_jiffies(duration);
-		unsigned int window_size_now;
+	/*
+	 * make sure user selected ratio does not take effect until
+	 * the next round. adjust target_ratio if user has changed
+	 * target such that we can converge quickly.
+	 */
+	w_data->target_ratio = READ_ONCE(set_target_ratio);
+	w_data->guard = 1 + w_data->target_ratio / 20;
+	w_data->window_size_now = window_size;
+	w_data->duration_jiffies = msecs_to_jiffies(duration);
+	w_data->count++;
 
-		try_to_freeze();
-		/*
-		 * make sure user selected ratio does not take effect until
-		 * the next round. adjust target_ratio if user has changed
-		 * target such that we can converge quickly.
-		 */
-		target_ratio = set_target_ratio;
-		guard = 1 + target_ratio/20;
-		window_size_now = window_size;
-		count++;
+	/*
+	 * systems may have different ability to enter package level
+	 * c-states, thus we need to compensate the injected idle ratio
+	 * to achieve the actual target reported by the HW.
+	 */
+	compensated_ratio = w_data->target_ratio +
+		get_compensation(w_data->target_ratio);
+	if (compensated_ratio <= 0)
+		compensated_ratio = 1;
+	interval = w_data->duration_jiffies * 100 / compensated_ratio;
 
-		/*
-		 * systems may have different ability to enter package level
-		 * c-states, thus we need to compensate the injected idle ratio
-		 * to achieve the actual target reported by the HW.
-		 */
-		compensated_ratio = target_ratio +
-			get_compensation(target_ratio);
-		if (compensated_ratio <= 0)
-			compensated_ratio = 1;
-		interval = duration_jiffies * 100 / compensated_ratio;
+	/* align idle time */
+	target_jiffies = roundup(jiffies, interval);
+	sleeptime = target_jiffies - jiffies;
+	if (sleeptime <= 0)
+		sleeptime = 1;
 
-		/* align idle time */
-		target_jiffies = roundup(jiffies, interval);
-		sleeptime = target_jiffies - jiffies;
-		if (sleeptime <= 0)
-			sleeptime = 1;
-		schedule_timeout_interruptible(sleeptime);
-		/*
-		 * only elected controlling cpu can collect stats and update
-		 * control parameters.
-		 */
-		if (cpunr == control_cpu && !(count%window_size_now)) {
-			should_skip =
-				powerclamp_adjust_controls(target_ratio,
-							guard, window_size_now);
-			smp_mb();
-		}
+	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
+		kthread_queue_delayed_work(w_data->worker,
+					   &w_data->idle_injection_work,
+					   sleeptime);
+}
 
-		if (should_skip)
-			continue;
+static void clamp_idle_injection_func(struct kthread_work *work)
+{
+	struct powerclamp_worker_data *w_data;
 
-		target_jiffies = jiffies + duration_jiffies;
-		mod_timer(&wakeup_timer, target_jiffies);
-		if (unlikely(local_softirq_pending()))
-			continue;
-		/*
-		 * stop tick sched during idle time, interrupts are still
-		 * allowed. thus jiffies are updated properly.
-		 */
-		preempt_disable();
-		/* mwait until target jiffies is reached */
-		while (time_before(jiffies, target_jiffies)) {
-			unsigned long ecx = 1;
-			unsigned long eax = target_mwait;
+	w_data = container_of(work, struct powerclamp_worker_data,
+			      idle_injection_work.work);
 
-			/*
-			 * REVISIT: may call enter_idle() to notify drivers who
-			 * can save power during cpu idle. same for exit_idle()
-			 */
-			local_touch_nmi();
-			stop_critical_timings();
-			mwait_idle_with_hints(eax, ecx);
-			start_critical_timings();
-			atomic_inc(&idle_wakeup_counter);
-		}
-		preempt_enable();
+	/*
+	 * only elected controlling cpu can collect stats and update
+	 * control parameters.
+	 */
+	if (w_data->cpu == control_cpu &&
+	    !(w_data->count % w_data->window_size_now)) {
+		should_skip =
+			powerclamp_adjust_controls(w_data->target_ratio,
+						   w_data->guard,
+						   w_data->window_size_now);
+		smp_mb();
 	}
-	del_timer_sync(&wakeup_timer);
-	clear_bit(cpunr, cpu_clamping_mask);
 
-	return 0;
+	if (should_skip)
+		goto balance;
+
+	play_idle(jiffies_to_msecs(w_data->duration_jiffies));
+
+balance:
+	if (clamping && w_data->clamping && cpu_online(w_data->cpu))
+		kthread_queue_work(w_data->worker, &w_data->balancing_work);
 }
 
 /*
@@ -508,10 +492,60 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 		schedule_delayed_work(&poll_pkg_cstate_work, HZ);
 }
 
+static void start_power_clamp_worker(unsigned long cpu)
+{
+	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
+	struct kthread_worker *worker;
+
+	worker = kthread_create_worker_on_cpu(cpu, 0, "kidle_inject/%ld", cpu);
+	if (IS_ERR(worker))
+		return;
+
+	w_data->worker = worker;
+	w_data->count = 0;
+	w_data->cpu = cpu;
+	w_data->clamping = true;
+	set_bit(cpu, cpu_clamping_mask);
+	sched_setscheduler(worker->task, SCHED_FIFO, &sparam);
+	kthread_init_work(&w_data->balancing_work, clamp_balancing_func);
+	kthread_init_delayed_work(&w_data->idle_injection_work,
+				  clamp_idle_injection_func);
+	kthread_queue_work(w_data->worker, &w_data->balancing_work);
+}
+
+static void stop_power_clamp_worker(unsigned long cpu)
+{
+	struct powerclamp_worker_data *w_data = per_cpu_ptr(worker_data, cpu);
+
+	if (!w_data->worker)
+		return;
+
+	w_data->clamping = false;
+	/*
+	 * Make sure that all works that get queued after this point see
+	 * the clamping disabled. The counter part is not needed because
+	 * there is an implicit memory barrier when the queued work
+	 * is proceed.
+	 */
+	smp_wmb();
+	kthread_cancel_work_sync(&w_data->balancing_work);
+	kthread_cancel_delayed_work_sync(&w_data->idle_injection_work);
+	/*
+	 * The balancing work still might be queued here because
+	 * the handling of the "clapming" variable, cancel, and queue
+	 * operations are not synchronized via a lock. But it is not
+	 * a big deal. The balancing work is fast and destroy kthread
+	 * will wait for it.
+	 */
+	clear_bit(w_data->cpu, cpu_clamping_mask);
+	kthread_destroy_worker(w_data->worker);
+
+	w_data->worker = NULL;
+}
+
 static int start_power_clamp(void)
 {
 	unsigned long cpu;
-	struct task_struct *thread;
 
 	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO - 1);
 	/* prevent cpu hotplug */
@@ -525,22 +559,9 @@ static int start_power_clamp(void)
 	clamping = true;
 	schedule_delayed_work(&poll_pkg_cstate_work, 0);
 
-	/* start one thread per online cpu */
+	/* start one kthread worker per online cpu */
 	for_each_online_cpu(cpu) {
-		struct task_struct **p =
-			per_cpu_ptr(powerclamp_thread, cpu);
-
-		thread = kthread_create_on_node(clamp_thread,
-						(void *) cpu,
-						cpu_to_node(cpu),
-						"kidle_inject/%ld", cpu);
-		/* bind to cpu here */
-		if (likely(!IS_ERR(thread))) {
-			kthread_bind(thread, cpu);
-			wake_up_process(thread);
-			*p = thread;
-		}
-
+		start_power_clamp_worker(cpu);
 	}
 	put_online_cpus();
 
@@ -550,71 +571,49 @@ static int start_power_clamp(void)
 static void end_power_clamp(void)
 {
 	int i;
-	struct task_struct *thread;
 
-	clamping = false;
 	/*
-	 * make clamping visible to other cpus and give per cpu clamping threads
-	 * sometime to exit, or gets killed later.
+	 * Block requeuing in all the kthread workers. They will flush and
+	 * stop faster.
 	 */
-	smp_mb();
-	msleep(20);
+	clamping = false;
 	if (bitmap_weight(cpu_clamping_mask, num_possible_cpus())) {
 		for_each_set_bit(i, cpu_clamping_mask, num_possible_cpus()) {
-			pr_debug("clamping thread for cpu %d alive, kill\n", i);
-			thread = *per_cpu_ptr(powerclamp_thread, i);
-			kthread_stop(thread);
+			pr_debug("clamping worker for cpu %d alive, destroy\n",
+				 i);
+			stop_power_clamp_worker(i);
 		}
 	}
 }
 
-static int powerclamp_cpu_callback(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
+static int powerclamp_cpu_online(unsigned int cpu)
 {
-	unsigned long cpu = (unsigned long)hcpu;
-	struct task_struct *thread;
-	struct task_struct **percpu_thread =
-		per_cpu_ptr(powerclamp_thread, cpu);
-
-	if (false == clamping)
-		goto exit_ok;
-
-	switch (action) {
-	case CPU_ONLINE:
-		thread = kthread_create_on_node(clamp_thread,
-						(void *) cpu,
-						cpu_to_node(cpu),
-						"kidle_inject/%lu", cpu);
-		if (likely(!IS_ERR(thread))) {
-			kthread_bind(thread, cpu);
-			wake_up_process(thread);
-			*percpu_thread = thread;
-		}
-		/* prefer BSP as controlling CPU */
-		if (cpu == 0) {
-			control_cpu = 0;
-			smp_mb();
-		}
-		break;
-	case CPU_DEAD:
-		if (test_bit(cpu, cpu_clamping_mask)) {
-			pr_err("cpu %lu dead but powerclamping thread is not\n",
-				cpu);
-			kthread_stop(*percpu_thread);
-		}
-		if (cpu == control_cpu) {
-			control_cpu = smp_processor_id();
-			smp_mb();
-		}
+	if (clamping == false)
+		return 0;
+	start_power_clamp_worker(cpu);
+	/* prefer BSP as controlling CPU */
+	if (cpu == 0) {
+		control_cpu = 0;
+		smp_mb();
 	}
-
-exit_ok:
-	return NOTIFY_OK;
+	return 0;
 }
 
-static struct notifier_block powerclamp_cpu_notifier = {
-	.notifier_call = powerclamp_cpu_callback,
-};
+static int powerclamp_cpu_predown(unsigned int cpu)
+{
+	if (clamping == false)
+		return 0;
+
+	stop_power_clamp_worker(cpu);
+	if (cpu != control_cpu)
+		return 0;
+
+	control_cpu = cpumask_first(cpu_online_mask);
+	if (control_cpu == cpu)
+		control_cpu = cpumask_next(cpu, cpu_online_mask);
+	smp_mb();
+	return 0;
+}
 
 static int powerclamp_get_max_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
@@ -669,20 +668,17 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 	.set_cur_state = powerclamp_set_cur_state,
 };
 
-static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
+static const struct x86_cpu_id __initconst intel_powerclamp_ids[] = {
 	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ARAT },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_NONSTOP_TSC },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_CONSTANT_TSC},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
 
 static int __init powerclamp_probe(void)
 {
+
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
-		pr_err("Intel powerclamp does not run on family %d model %d\n",
-				boot_cpu_data.x86, boot_cpu_data.x86_model);
+		pr_err("CPU does not support MWAIT");
 		return -ENODEV;
 	}
 
@@ -745,6 +741,8 @@ file_error:
 	debugfs_remove_recursive(debug_dir);
 }
 
+static enum cpuhp_state hp_state;
+
 static int __init powerclamp_init(void)
 {
 	int retval;
@@ -762,10 +760,17 @@ static int __init powerclamp_init(void)
 
 	/* set default limit, maybe adjusted during runtime based on feedback */
 	window_size = 2;
-	register_hotcpu_notifier(&powerclamp_cpu_notifier);
+	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					   "thermal/intel_powerclamp:online",
+					   powerclamp_cpu_online,
+					   powerclamp_cpu_predown);
+	if (retval < 0)
+		goto exit_free;
 
-	powerclamp_thread = alloc_percpu(struct task_struct *);
-	if (!powerclamp_thread) {
+	hp_state = retval;
+
+	worker_data = alloc_percpu(struct powerclamp_worker_data);
+	if (!worker_data) {
 		retval = -ENOMEM;
 		goto exit_unregister;
 	}
@@ -785,9 +790,9 @@ static int __init powerclamp_init(void)
 	return 0;
 
 exit_free_thread:
-	free_percpu(powerclamp_thread);
+	free_percpu(worker_data);
 exit_unregister:
-	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
+	cpuhp_remove_state_nocalls(hp_state);
 exit_free:
 	kfree(cpu_clamping_mask);
 	return retval;
@@ -796,9 +801,9 @@ module_init(powerclamp_init);
 
 static void __exit powerclamp_exit(void)
 {
-	unregister_hotcpu_notifier(&powerclamp_cpu_notifier);
 	end_power_clamp();
-	free_percpu(powerclamp_thread);
+	cpuhp_remove_state_nocalls(hp_state);
+	free_percpu(worker_data);
 	thermal_cooling_device_unregister(cooling_dev);
 	kfree(cpu_clamping_mask);
 

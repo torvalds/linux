@@ -41,13 +41,13 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"4.0"
+#define EFX_DRIVER_VERSION	"4.1"
 
 #ifdef DEBUG
-#define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
+#define EFX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
 #else
-#define EFX_BUG_ON_PARANOID(x) do {} while (0)
+#define EFX_WARN_ON_ONCE_PARANOID(x) do {} while (0)
 #define EFX_WARN_ON_PARANOID(x) do {} while (0)
 #endif
 
@@ -75,6 +75,9 @@
 
 /* Maximum possible MTU the driver supports */
 #define EFX_MAX_MTU (9 * 1024)
+
+/* Minimum MTU, from RFC791 (IP) */
+#define EFX_MIN_MTU 68
 
 /* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
  * and should be a multiple of the cache line size.
@@ -136,8 +139,6 @@ struct efx_special_buffer {
  * struct efx_tx_buffer - buffer state for a TX descriptor
  * @skb: When @flags & %EFX_TX_BUF_SKB, the associated socket buffer to be
  *	freed when descriptor completes
- * @heap_buf: When @flags & %EFX_TX_BUF_HEAP, the associated heap buffer to be
- *	freed when descriptor completes.
  * @option: When @flags & %EFX_TX_BUF_OPTION, a NIC-specific option descriptor.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
@@ -148,10 +149,7 @@ struct efx_special_buffer {
  * Only valid if @unmap_len != 0.
  */
 struct efx_tx_buffer {
-	union {
-		const struct sk_buff *skb;
-		void *heap_buf;
-	};
+	const struct sk_buff *skb;
 	union {
 		efx_qword_t option;
 		dma_addr_t dma_addr;
@@ -163,7 +161,6 @@ struct efx_tx_buffer {
 };
 #define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
-#define EFX_TX_BUF_HEAP		4	/* buffer was allocated with kmalloc() */
 #define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 #define EFX_TX_BUF_OPTION	0x10	/* empty buffer for option descriptor */
 
@@ -186,13 +183,16 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
- * @tsoh_page: Array of pages of TSO header buffers
+ * @cb_page: Array of pages of copy buffers.  Carved up according to
+ *	%EFX_TX_CB_ORDER into %EFX_TX_CB_SIZE-sized chunks.
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @piobuf: PIO buffer region for this TX queue (shared with its partner).
  *	Size of the region is efx_piobuf_size.
  * @piobuf_offset: Buffer offset to be specified in PIO descriptors
  * @initialised: Has hardware queue been initialised?
+ * @handle_tso: TSO xmit preparation handler.  Sets up the TSO metadata and
+ *	may also map tx data, depending on the nature of the TSO implementation.
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -218,9 +218,11 @@ struct efx_tx_buffer {
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
+ * @tso_fallbacks: Number of times TSO fallback used
  * @pushes: Number of times the TX push feature has been used
  * @pio_packets: Number of times the TX PIO feature has been used
  * @xmit_more_available: Are any packets waiting to be pushed to the NIC
+ * @cb_packets: Number of times the TX copybreak feature has been used
  * @empty_read_count: If the completion path has seen the queue as empty
  *	and the transmission path has not yet checked this, the value of
  *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
@@ -233,12 +235,15 @@ struct efx_tx_queue {
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
-	struct efx_buffer *tsoh_page;
+	struct efx_buffer *cb_page;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	void __iomem *piobuf;
 	unsigned int piobuf_offset;
 	bool initialised;
+
+	/* Function pointers used in the fast path. */
+	int (*handle_tso)(struct efx_tx_queue*, struct sk_buff*, bool *);
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -254,9 +259,11 @@ struct efx_tx_queue {
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
+	unsigned int tso_fallbacks;
 	unsigned int pushes;
 	unsigned int pio_packets;
 	bool xmit_more_available;
+	unsigned int cb_packets;
 	/* Statistics to supplement MAC stats */
 	unsigned long tx_packets;
 
@@ -265,6 +272,9 @@ struct efx_tx_queue {
 #define EFX_EMPTY_COUNT_VALID 0x80000000
 	atomic_t flush_outstanding;
 };
+
+#define EFX_TX_CB_ORDER	7
+#define EFX_TX_CB_SIZE	(1 << EFX_TX_CB_ORDER) - NET_IP_ALIGN
 
 /**
  * struct efx_rx_buffer - An Efx RX data buffer
@@ -392,7 +402,7 @@ enum efx_sync_events_state {
  * @eventq_init: Event queue initialised flag
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
- * @irq_moderation: IRQ moderation value (in hardware ticks)
+ * @irq_moderation_us: IRQ moderation value (in microseconds)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
  * @state: state for NAPI vs busy polling
@@ -433,7 +443,7 @@ struct efx_channel {
 	bool eventq_init;
 	bool enabled;
 	int irq;
-	unsigned int irq_moderation;
+	unsigned int irq_moderation_us;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -710,8 +720,8 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @poll: Update @link_state and report whether it changed.
  *	Serialised by the mac_lock.
- * @get_settings: Get ethtool settings. Serialised by the mac_lock.
- * @set_settings: Set ethtool settings. Serialised by the mac_lock.
+ * @get_link_ksettings: Get ethtool settings. Serialised by the mac_lock.
+ * @set_link_ksettings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
  * @test_alive: Test that PHY is 'alive' (online)
@@ -726,10 +736,10 @@ struct efx_phy_operations {
 	void (*remove) (struct efx_nic *efx);
 	int (*reconfigure) (struct efx_nic *efx);
 	bool (*poll) (struct efx_nic *efx);
-	void (*get_settings) (struct efx_nic *efx,
-			      struct ethtool_cmd *ecmd);
-	int (*set_settings) (struct efx_nic *efx,
-			     struct ethtool_cmd *ecmd);
+	void (*get_link_ksettings)(struct efx_nic *efx,
+				   struct ethtool_link_ksettings *cmd);
+	int (*set_link_ksettings)(struct efx_nic *efx,
+				  const struct ethtool_link_ksettings *cmd);
 	void (*set_npage_adv) (struct efx_nic *efx, u32);
 	int (*test_alive) (struct efx_nic *efx);
 	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
@@ -810,8 +820,10 @@ struct vfdi_status;
  * @membase: Memory BAR value
  * @interrupt_mode: Interrupt mode
  * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
+ * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
- * @irq_rx_moderation: IRQ moderation time for RX event queues
+ * @irq_rx_mod_step_us: Step size for IRQ moderation for RX event queues
+ * @irq_rx_moderation_us: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
  * @state: Device state number (%STATE_*). Serialised by the rtnl_lock.
  * @reset_pending: Bitmask for pending resets
@@ -848,6 +860,8 @@ struct vfdi_status;
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
+ * @rss_active: RSS enabled on hardware
+ * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
@@ -940,8 +954,10 @@ struct efx_nic {
 
 	enum efx_int_mode interrupt_mode;
 	unsigned int timer_quantum_ns;
+	unsigned int timer_max_ns;
 	bool irq_rx_adaptive;
-	unsigned int irq_rx_moderation;
+	unsigned int irq_mod_step_us;
+	unsigned int irq_rx_moderation_us;
 	u32 msg_enable;
 
 	enum nic_state state;
@@ -983,6 +999,8 @@ struct efx_nic {
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
+	bool rss_active;
+	bool rx_hash_udp_4tuple;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;
@@ -1203,6 +1221,8 @@ struct efx_mtd_partition {
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
  * @set_mac_address: Set the MAC address of the device
+ * @tso_versions: Returns mask of firmware-assisted TSO versions supported.
+ *	If %NULL, then device does not support any TSO version.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1271,7 +1291,7 @@ struct efx_nic_type {
 	int (*mcdi_poll_reboot)(struct efx_nic *efx);
 	void (*mcdi_reboot_detected)(struct efx_nic *efx);
 	void (*irq_enable_master)(struct efx_nic *efx);
-	void (*irq_test_generate)(struct efx_nic *efx);
+	int (*irq_test_generate)(struct efx_nic *efx);
 	void (*irq_disable_non_ev)(struct efx_nic *efx);
 	irqreturn_t (*irq_handle_msi)(int irq, void *dev_id);
 	irqreturn_t (*irq_handle_legacy)(int irq, void *dev_id);
@@ -1279,6 +1299,8 @@ struct efx_nic_type {
 	void (*tx_init)(struct efx_tx_queue *tx_queue);
 	void (*tx_remove)(struct efx_tx_queue *tx_queue);
 	void (*tx_write)(struct efx_tx_queue *tx_queue);
+	unsigned int (*tx_limit_len)(struct efx_tx_queue *tx_queue,
+				     dma_addr_t dma_addr, unsigned int len);
 	int (*rx_push_rss_config)(struct efx_nic *efx, bool user,
 				  const u32 *rx_indir_table);
 	int (*rx_probe)(struct efx_rx_queue *rx_queue);
@@ -1357,6 +1379,7 @@ struct efx_nic_type {
 	void (*vswitching_remove)(struct efx_nic *efx);
 	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
 	int (*set_mac_address)(struct efx_nic *efx);
+	u32 (*tso_versions)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1388,7 +1411,7 @@ struct efx_nic_type {
 static inline struct efx_channel *
 efx_get_channel(struct efx_nic *efx, unsigned index)
 {
-	EFX_BUG_ON_PARANOID(index >= efx->n_channels);
+	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_channels);
 	return efx->channel[index];
 }
 
@@ -1409,8 +1432,8 @@ efx_get_channel(struct efx_nic *efx, unsigned index)
 static inline struct efx_tx_queue *
 efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 {
-	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
-			    type >= EFX_TXQ_TYPES);
+	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_tx_channels ||
+				  type >= EFX_TXQ_TYPES);
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
 
@@ -1423,8 +1446,8 @@ static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 {
-	EFX_BUG_ON_PARANOID(!efx_channel_has_tx_queues(channel) ||
-			    type >= EFX_TXQ_TYPES);
+	EFX_WARN_ON_ONCE_PARANOID(!efx_channel_has_tx_queues(channel) ||
+				  type >= EFX_TXQ_TYPES);
 	return &channel->tx_queue[type];
 }
 
@@ -1461,7 +1484,7 @@ static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 static inline struct efx_rx_queue *
 efx_channel_get_rx_queue(struct efx_channel *channel)
 {
-	EFX_BUG_ON_PARANOID(!efx_channel_has_rx_queue(channel));
+	EFX_WARN_ON_ONCE_PARANOID(!efx_channel_has_rx_queue(channel));
 	return &channel->rx_queue;
 }
 
@@ -1534,6 +1557,34 @@ static inline netdev_features_t efx_supported_features(const struct efx_nic *efx
 	const struct net_device *net_dev = efx->net_dev;
 
 	return net_dev->features | net_dev->hw_features;
+}
+
+/* Get the current TX queue insert index. */
+static inline unsigned int
+efx_tx_queue_get_insert_index(const struct efx_tx_queue *tx_queue)
+{
+	return tx_queue->insert_count & tx_queue->ptr_mask;
+}
+
+/* Get a TX buffer. */
+static inline struct efx_tx_buffer *
+__efx_tx_queue_get_insert_buffer(const struct efx_tx_queue *tx_queue)
+{
+	return &tx_queue->buffer[efx_tx_queue_get_insert_index(tx_queue)];
+}
+
+/* Get a TX buffer, checking it's not currently in use. */
+static inline struct efx_tx_buffer *
+efx_tx_queue_get_insert_buffer(const struct efx_tx_queue *tx_queue)
+{
+	struct efx_tx_buffer *buffer =
+		__efx_tx_queue_get_insert_buffer(tx_queue);
+
+	EFX_WARN_ON_ONCE_PARANOID(buffer->len);
+	EFX_WARN_ON_ONCE_PARANOID(buffer->flags);
+	EFX_WARN_ON_ONCE_PARANOID(buffer->unmap_len);
+
+	return buffer;
 }
 
 #endif /* EFX_NET_DRIVER_H */

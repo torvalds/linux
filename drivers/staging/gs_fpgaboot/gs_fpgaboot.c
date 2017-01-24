@@ -8,10 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -42,7 +38,7 @@ static u8 bits_magic[] = {
 static struct platform_device	*firmware_pdev;
 
 static char	*file = "xlinx_fpga_firmware.bit";
-module_param(file, charp, S_IRUGO);
+module_param(file, charp, 0444);
 MODULE_PARM_DESC(file, "Xilinx FPGA firmware file.");
 
 static void read_bitstream(char *bitdata, char *buf, int *offset, int rdsize)

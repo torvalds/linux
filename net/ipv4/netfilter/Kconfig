@@ -25,16 +25,11 @@ config NF_CONNTRACK_IPV4
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NF_CONNTRACK_PROC_COMPAT
-	bool "proc/sysctl compatibility with old connection tracking"
-	depends on NF_CONNTRACK_PROCFS && NF_CONNTRACK_IPV4
-	default y
+config NF_SOCKET_IPV4
+	tristate "IPv4 socket lookup support"
 	help
-	  This option enables /proc and sysctl compatibility with the old
-	  layer 3 dependent connection tracking. This is needed to keep
-	  old programs that have not been adapted to the new names working.
-
-	  If unsure, say Y.
+	  This option enables the IPv4 socket lookup infrastructure. This is
+	  is required by the iptables socket match.
 
 if NF_TABLES
 
@@ -64,6 +59,14 @@ config NFT_DUP_IPV4
 	select NF_DUP_IPV4
 	help
 	  This module enables IPv4 packet duplication support for nf_tables.
+
+config NFT_FIB_IPV4
+	select NFT_FIB
+	tristate "nf_tables fib / ip route lookup support"
+	help
+	  This module enables IPv4 FIB lookups, e.g. for reverse path filtering.
+	  It also allows query of the FIB for the route type, e.g. local, unicast,
+	  multicast or blackhole.
 
 endif # NF_TABLES_IPV4
 

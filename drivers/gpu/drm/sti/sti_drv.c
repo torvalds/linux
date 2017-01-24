@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_of.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -140,7 +141,7 @@ err:
 	return ret;
 }
 
-void sti_drm_dbg_cleanup(struct drm_minor *minor)
+static void sti_drm_dbg_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(sti_drm_dbg_list,
 				 ARRAY_SIZE(sti_drm_dbg_list), minor);
@@ -178,13 +179,13 @@ static void sti_atomic_complete(struct sti_private *private,
 	 */
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, false);
+	drm_atomic_helper_commit_planes(drm, state, 0);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 
 	drm_atomic_helper_cleanup_planes(drm, state);
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 }
 
 static void sti_atomic_work(struct work_struct *work)
@@ -193,6 +194,26 @@ static void sti_atomic_work(struct work_struct *work)
 			struct sti_private, commit.work);
 
 	sti_atomic_complete(private, private->commit.state);
+}
+
+static int sti_atomic_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int sti_atomic_commit(struct drm_device *drm,
@@ -217,6 +238,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		sti_atomic_schedule(private, state);
 	else
@@ -248,7 +270,7 @@ static void sti_output_poll_changed(struct drm_device *ddev)
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = sti_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = sti_atomic_check,
 	.atomic_commit = sti_atomic_commit,
 };
 
@@ -275,14 +297,12 @@ static const struct file_operations sti_driver_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release = drm_release,
 };
 
 static struct drm_driver sti_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
+	.driver_features = DRIVER_MODESET |
 	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
@@ -365,8 +385,8 @@ static int sti_bind(struct device *dev)
 	int ret;
 
 	ddev = drm_dev_alloc(&sti_driver, dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ddev->platformdev = to_platform_device(dev);
 
@@ -423,8 +443,8 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		component_match_add(dev, &match, compare_of, child_np);
-		of_node_put(child_np);
+		drm_of_component_match_add(dev, &match, compare_of,
+					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
 

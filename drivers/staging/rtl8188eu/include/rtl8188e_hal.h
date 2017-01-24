@@ -200,11 +200,6 @@ struct hal_data_8188e {
 
 	u16	BasicRateSet;
 
-	/* rf_ctrl */
-	u8	rf_chip;
-	u8	rf_type;
-	u8	NumTotalRFPath;
-
 	u8	BoardType;
 
 	/*  EEPROM setting. */
@@ -266,14 +261,6 @@ struct hal_data_8188e {
 	u32	CCKTxPowerLevelOriginalOffset;
 
 	u8	CrystalCap;
-	u32	AntennaTxPath;			/*  Antenna path Tx */
-	u32	AntennaRxPath;			/*  Antenna path Rx */
-	u8	BluetoothCoexist;
-	u8	ExternalPA;
-
-	u8	bLedOpenDrain; /* Open-drain support for controlling the LED.*/
-
-	u8	b1x1RecvCombine;	/*  for 1T1R receive combining */
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
 
@@ -317,14 +304,6 @@ struct hal_data_8188e {
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
-	/*  Add for USB aggreation mode dynamic shceme. */
-	bool		UsbRxHighSpeedMode;
-
-	/*  2010/11/22 MH Add for slim combo debug mode selective. */
-	/*  This is used for fix the drawback of CU TSMC-A/UMC-A cut.
-	 * HW auto suspend ability. Close BT clock. */
-	bool		SlimComboDbg;
-
 	u16	EfuseUsedBytes;
 
 	/*  Auto FSM to Turn On, include clock, isolation, power control
@@ -350,10 +329,6 @@ struct hal_data_8188e {
 	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
 	u8	UsbRxAggPageTimeout;
 };
-
-#define GET_HAL_DATA(__pAdapter)				\
-	((struct hal_data_8188e *)((__pAdapter)->HalData))
-#define GET_RF_TYPE(priv)		(GET_HAL_DATA(priv)->rf_type)
 
 /*  rtl8188e_hal_init.c */
 void _8051Reset88E(struct adapter *padapter);
@@ -384,8 +359,6 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
 void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
-
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 /*  register */
 

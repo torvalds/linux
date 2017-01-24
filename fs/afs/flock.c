@@ -36,8 +36,8 @@ static int afs_init_lock_manager(void)
 	if (!afs_lock_manager) {
 		mutex_lock(&afs_lock_manager_mutex);
 		if (!afs_lock_manager) {
-			afs_lock_manager =
-				create_singlethread_workqueue("kafs_lockd");
+			afs_lock_manager = alloc_workqueue("kafs_lockd",
+							   WQ_MEM_RECLAIM, 0);
 			if (!afs_lock_manager)
 				ret = -ENOMEM;
 		}

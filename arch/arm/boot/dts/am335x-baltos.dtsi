@@ -24,12 +24,12 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -37,7 +37,7 @@
 		regulator-boot-on;
 	};
 
-	wl12xx_vmmc: fixedregulator@2 {
+	wl12xx_vmmc: fixedregulator2 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&wl12xx_gpio>;
 		compatible = "regulator-fixed";
@@ -364,11 +364,14 @@
 };
 
 &davinci_mdio {
+	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 
-	status = "okay";
+	phy1: ethernet-phy@1 {
+		reg = <7>;
+	};
 };
 
 &mmc1 {
@@ -404,5 +407,9 @@
 };
 
 &gpio0 {
+	ti,no-reset-on-init;
+};
+
+&gpio3 {
 	ti,no-reset-on-init;
 };

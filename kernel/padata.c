@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/rcupdate.h>
+#include <linux/module.h>
 
 #define MAX_OBJ_NUM 1000
 
@@ -63,15 +64,11 @@ static int padata_cpu_hash(struct parallel_data *pd)
 static void padata_parallel_worker(struct work_struct *parallel_work)
 {
 	struct padata_parallel_queue *pqueue;
-	struct parallel_data *pd;
-	struct padata_instance *pinst;
 	LIST_HEAD(local_list);
 
 	local_bh_disable();
 	pqueue = container_of(parallel_work,
 			      struct padata_parallel_queue, work);
-	pd = pqueue->pd;
-	pinst = pd->pinst;
 
 	spin_lock(&pqueue->parallel.lock);
 	list_replace_init(&pqueue->parallel.list, &local_list);
@@ -769,52 +766,43 @@ static inline int pinst_has_cpu(struct padata_instance *pinst, int cpu)
 		cpumask_test_cpu(cpu, pinst->cpumask.cbcpu);
 }
 
-
-static int padata_cpu_callback(struct notifier_block *nfb,
-			       unsigned long action, void *hcpu)
+static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
 {
-	int err;
 	struct padata_instance *pinst;
-	int cpu = (unsigned long)hcpu;
+	int ret;
 
-	pinst = container_of(nfb, struct padata_instance, cpu_notifier);
+	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	if (!pinst_has_cpu(pinst, cpu))
+		return 0;
 
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-		if (!pinst_has_cpu(pinst, cpu))
-			break;
-		mutex_lock(&pinst->lock);
-		err = __padata_add_cpu(pinst, cpu);
-		mutex_unlock(&pinst->lock);
-		if (err)
-			return notifier_from_errno(err);
-		break;
-
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		if (!pinst_has_cpu(pinst, cpu))
-			break;
-		mutex_lock(&pinst->lock);
-		err = __padata_remove_cpu(pinst, cpu);
-		mutex_unlock(&pinst->lock);
-		if (err)
-			return notifier_from_errno(err);
-		break;
-	}
-
-	return NOTIFY_OK;
+	mutex_lock(&pinst->lock);
+	ret = __padata_add_cpu(pinst, cpu);
+	mutex_unlock(&pinst->lock);
+	return ret;
 }
+
+static int padata_cpu_prep_down(unsigned int cpu, struct hlist_node *node)
+{
+	struct padata_instance *pinst;
+	int ret;
+
+	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	if (!pinst_has_cpu(pinst, cpu))
+		return 0;
+
+	mutex_lock(&pinst->lock);
+	ret = __padata_remove_cpu(pinst, cpu);
+	mutex_unlock(&pinst->lock);
+	return ret;
+}
+
+static enum cpuhp_state hp_online;
 #endif
 
 static void __padata_free(struct padata_instance *pinst)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	unregister_hotcpu_notifier(&pinst->cpu_notifier);
+	cpuhp_state_remove_instance_nocalls(hp_online, &pinst->node);
 #endif
 
 	padata_stop(pinst);
@@ -1012,11 +1000,8 @@ struct padata_instance *padata_alloc(struct workqueue_struct *wq,
 	mutex_init(&pinst->lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
-	pinst->cpu_notifier.priority = 0;
-	register_hotcpu_notifier(&pinst->cpu_notifier);
+	cpuhp_state_add_instance_nocalls(hp_online, &pinst->node);
 #endif
-
 	return pinst;
 
 err_free_masks:
@@ -1039,3 +1024,26 @@ void padata_free(struct padata_instance *pinst)
 	kobject_put(&pinst->kobj);
 }
 EXPORT_SYMBOL(padata_free);
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static __init int padata_driver_init(void)
+{
+	int ret;
+
+	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "padata:online",
+				      padata_cpu_online,
+				      padata_cpu_prep_down);
+	if (ret < 0)
+		return ret;
+	hp_online = ret;
+	return 0;
+}
+module_init(padata_driver_init);
+
+static __exit void padata_driver_exit(void)
+{
+	cpuhp_remove_multi_state(hp_online);
+}
+module_exit(padata_driver_exit);
+#endif

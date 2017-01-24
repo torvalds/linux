@@ -123,8 +123,6 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 #define INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags & OCFS2_INODE_JOURNAL)
 #define SET_INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags |= OCFS2_INODE_JOURNAL)
 
-extern struct kmem_cache *ocfs2_inode_cache;
-
 extern const struct address_space_operations ocfs2_aops;
 extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
 
@@ -181,6 +179,12 @@ int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
 {
 	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
+}
+
+/* Does this inode have the reflink flag set? */
+static inline bool ocfs2_is_refcount_inode(struct inode *inode)
+{
+	return (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL);
 }
 
 #endif /* OCFS2_INODE_H */

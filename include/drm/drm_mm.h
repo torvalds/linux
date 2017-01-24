@@ -37,11 +37,15 @@
  * Generic range manager structs
  */
 #include <linux/bug.h>
+#include <linux/rbtree.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
+#endif
+#ifdef CONFIG_DRM_DEBUG_MM
+#include <linux/stackdepot.h>
 #endif
 
 enum drm_mm_search_flags {
@@ -61,6 +65,7 @@ enum drm_mm_allocator_flags {
 struct drm_mm_node {
 	struct list_head node_list;
 	struct list_head hole_stack;
+	struct rb_node rb;
 	unsigned hole_follows : 1;
 	unsigned scanned_block : 1;
 	unsigned scanned_prev_free : 1;
@@ -70,7 +75,11 @@ struct drm_mm_node {
 	unsigned long color;
 	u64 start;
 	u64 size;
+	u64 __subtree_last;
 	struct drm_mm *mm;
+#ifdef CONFIG_DRM_DEBUG_MM
+	depot_stack_handle_t stack;
+#endif
 };
 
 struct drm_mm {
@@ -79,6 +88,9 @@ struct drm_mm {
 	/* head_node.node_list is the list of all memory nodes, ordered
 	 * according to the (increasing) start address of the memory node. */
 	struct drm_mm_node head_node;
+	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
+	struct rb_root interval_tree;
+
 	unsigned int scan_check_range : 1;
 	unsigned scan_alignment;
 	unsigned long scan_color;
@@ -294,6 +306,28 @@ void drm_mm_init(struct drm_mm *mm,
 		 u64 size);
 void drm_mm_takedown(struct drm_mm *mm);
 bool drm_mm_clean(struct drm_mm *mm);
+
+struct drm_mm_node *
+__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last);
+
+/**
+ * drm_mm_for_each_node_in_range - iterator to walk over a range of
+ * allocated nodes
+ * @node__: drm_mm_node structure to assign to in each iteration step
+ * @mm__: drm_mm allocator to walk
+ * @start__: starting offset, the first node will overlap this
+ * @end__: ending offset, the last node will start before this (but may overlap)
+ *
+ * This iterator walks over all nodes in the range allocator that lie
+ * between @start and @end. It is implemented similarly to list_for_each(),
+ * but using the internal interval tree to accelerate the search for the
+ * starting node, and so not safe against removal of elements. It assumes
+ * that @end is within (or is the upper limit of) the drm_mm allocator.
+ */
+#define drm_mm_for_each_node_in_range(node__, mm__, start__, end__)	\
+	for (node__ = __drm_mm_interval_first((mm__), (start__), (end__)-1); \
+	     node__ && node__->start < (end__);				\
+	     node__ = list_next_entry(node__, node_list))
 
 void drm_mm_init_scan(struct drm_mm *mm,
 		      u64 size,

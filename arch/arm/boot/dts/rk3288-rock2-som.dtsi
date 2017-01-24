@@ -42,7 +42,7 @@
 #include "rk3288.dtsi"
 
 / {
-	memory {
+	memory@0 {
 		reg = <0x0 0x80000000>;
 		device_type = "memory";
 	};

@@ -24,7 +24,7 @@ struct dax_pmem {
 	struct completion cmp;
 };
 
-struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
+static struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
 {
 	return container_of(ref, struct dax_pmem, ref);
 }
@@ -44,7 +44,6 @@ static void dax_pmem_percpu_exit(void *data)
 
 	dev_dbg(dax_pmem->dev, "%s\n", __func__);
 	percpu_ref_exit(ref);
-	wait_for_completion(&dax_pmem->cmp);
 }
 
 static void dax_pmem_percpu_kill(void *data)
@@ -54,6 +53,7 @@ static void dax_pmem_percpu_kill(void *data)
 
 	dev_dbg(dax_pmem->dev, "%s\n", __func__);
 	percpu_ref_kill(ref);
+	wait_for_completion(&dax_pmem->cmp);
 }
 
 static int dax_pmem_probe(struct device *dev)
@@ -61,6 +61,7 @@ static int dax_pmem_probe(struct device *dev)
 	int rc;
 	void *addr;
 	struct resource res;
+	struct dax_dev *dax_dev;
 	struct nd_pfn_sb *pfn_sb;
 	struct dax_pmem *dax_pmem;
 	struct nd_region *nd_region;
@@ -77,7 +78,9 @@ static int dax_pmem_probe(struct device *dev)
 	nsio = to_nd_namespace_io(&ndns->dev);
 
 	/* parse the 'pfn' info block via ->rw_bytes */
-	devm_nsio_enable(dev, nsio);
+	rc = devm_nsio_enable(dev, nsio);
+	if (rc)
+		return rc;
 	altmap = nvdimm_setup_pfn(nd_pfn, &res, &__altmap);
 	if (IS_ERR(altmap))
 		return PTR_ERR(altmap);
@@ -86,7 +89,8 @@ static int dax_pmem_probe(struct device *dev)
 	pfn_sb = nd_pfn->pfn_sb;
 
 	if (!devm_request_mem_region(dev, nsio->res.start,
-				resource_size(&nsio->res), dev_name(dev))) {
+				resource_size(&nsio->res),
+				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
 		return -EBUSY;
 	}
@@ -126,12 +130,12 @@ static int dax_pmem_probe(struct device *dev)
 		return -ENOMEM;
 
 	/* TODO: support for subdividing a dax region... */
-	rc = devm_create_dax_dev(dax_region, &res, 1);
+	dax_dev = devm_create_dax_dev(dax_region, &res, 1);
 
 	/* child dax_dev instances now own the lifetime of the dax_region */
 	dax_region_put(dax_region);
 
-	return rc;
+	return PTR_ERR_OR_ZERO(dax_dev);
 }
 
 static struct nd_device_driver dax_pmem_driver = {

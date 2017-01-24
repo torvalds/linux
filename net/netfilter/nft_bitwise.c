@@ -52,6 +52,7 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 {
 	struct nft_bitwise *priv = nft_expr_priv(expr);
 	struct nft_data_desc d1, d2;
+	u32 len;
 	int err;
 
 	if (tb[NFTA_BITWISE_SREG] == NULL ||
@@ -61,7 +62,12 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	    tb[NFTA_BITWISE_XOR] == NULL)
 		return -EINVAL;
 
-	priv->len  = ntohl(nla_get_be32(tb[NFTA_BITWISE_LEN]));
+	err = nft_parse_u32_check(tb[NFTA_BITWISE_LEN], U8_MAX, &len);
+	if (err < 0)
+		return err;
+
+	priv->len = len;
+
 	priv->sreg = nft_parse_register(tb[NFTA_BITWISE_SREG]);
 	err = nft_validate_register_load(priv->sreg, priv->len);
 	if (err < 0)
@@ -115,7 +121,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_bitwise_type;
 static const struct nft_expr_ops nft_bitwise_ops = {
 	.type		= &nft_bitwise_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_bitwise)),
@@ -124,20 +129,10 @@ static const struct nft_expr_ops nft_bitwise_ops = {
 	.dump		= nft_bitwise_dump,
 };
 
-static struct nft_expr_type nft_bitwise_type __read_mostly = {
+struct nft_expr_type nft_bitwise_type __read_mostly = {
 	.name		= "bitwise",
 	.ops		= &nft_bitwise_ops,
 	.policy		= nft_bitwise_policy,
 	.maxattr	= NFTA_BITWISE_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_bitwise_module_init(void)
-{
-	return nft_register_expr(&nft_bitwise_type);
-}
-
-void nft_bitwise_module_exit(void)
-{
-	nft_unregister_expr(&nft_bitwise_type);
-}

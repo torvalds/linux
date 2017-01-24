@@ -1286,6 +1286,25 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		       sizeof(*ni->ni_lnd_tunables));
 	}
 
+	/*
+	 * If given some LND tunable parameters, parse those now to
+	 * override the values in the NI structure.
+	 */
+	if (conf) {
+		if (conf->cfg_config_u.cfg_net.net_peer_rtr_credits >= 0)
+			ni->ni_peerrtrcredits =
+				conf->cfg_config_u.cfg_net.net_peer_rtr_credits;
+		if (conf->cfg_config_u.cfg_net.net_peer_timeout >= 0)
+			ni->ni_peertimeout =
+				conf->cfg_config_u.cfg_net.net_peer_timeout;
+		if (conf->cfg_config_u.cfg_net.net_peer_tx_credits != -1)
+			ni->ni_peertxcredits =
+				conf->cfg_config_u.cfg_net.net_peer_tx_credits;
+		if (conf->cfg_config_u.cfg_net.net_max_tx_credits >= 0)
+			ni->ni_maxtxcredits =
+				conf->cfg_config_u.cfg_net.net_max_tx_credits;
+	}
+
 	rc = lnd->lnd_startup(ni);
 
 	mutex_unlock(&the_lnet.ln_lnd_mutex);
@@ -1297,33 +1316,6 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		lnd->lnd_refcount--;
 		lnet_net_unlock(LNET_LOCK_EX);
 		goto failed0;
-	}
-
-	/*
-	 * If given some LND tunable parameters, parse those now to
-	 * override the values in the NI structure.
-	 */
-	if (conf && conf->cfg_config_u.cfg_net.net_peer_rtr_credits >= 0) {
-		ni->ni_peerrtrcredits =
-			conf->cfg_config_u.cfg_net.net_peer_rtr_credits;
-	}
-	if (conf && conf->cfg_config_u.cfg_net.net_peer_timeout >= 0) {
-		ni->ni_peertimeout =
-			conf->cfg_config_u.cfg_net.net_peer_timeout;
-	}
-	/*
-	 * TODO
-	 * Note: For now, don't allow the user to change
-	 * peertxcredits as this number is used in the
-	 * IB LND to control queue depth.
-	 *
-	 * if (conf && conf->cfg_config_u.cfg_net.net_peer_tx_credits != -1)
-	 *	ni->ni_peertxcredits =
-	 *		conf->cfg_config_u.cfg_net.net_peer_tx_credits;
-	 */
-	if (conf && conf->cfg_config_u.cfg_net.net_max_tx_credits >= 0) {
-		ni->ni_maxtxcredits =
-			conf->cfg_config_u.cfg_net.net_max_tx_credits;
 	}
 
 	LASSERT(ni->ni_peertimeout <= 0 || lnd->lnd_query);
@@ -1559,16 +1551,16 @@ LNetNIInit(lnet_pid_t requested_pid)
 
 		rc = lnet_check_routes();
 		if (rc)
-			goto err_destory_routes;
+			goto err_destroy_routes;
 
 		rc = lnet_rtrpools_alloc(im_a_router);
 		if (rc)
-			goto err_destory_routes;
+			goto err_destroy_routes;
 	}
 
 	rc = lnet_acceptor_start();
 	if (rc)
-		goto err_destory_routes;
+		goto err_destroy_routes;
 
 	the_lnet.ln_refcount = 1;
 	/* Now I may use my own API functions... */
@@ -1595,7 +1587,7 @@ err_stop_ping:
 err_acceptor_stop:
 	the_lnet.ln_refcount = 0;
 	lnet_acceptor_stop();
-err_destory_routes:
+err_destroy_routes:
 	if (!the_lnet.ln_nis_from_mod_params)
 		lnet_destroy_routes();
 err_shutdown_lndnis:

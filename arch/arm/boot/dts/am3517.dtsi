@@ -15,7 +15,7 @@
 		serial3 = &uart4;
 	};
 
-	ocp {
+	ocp@68000000 {
 		am35x_otg_hs: am35x_otg_hs@5c040000 {
 			compatible = "ti,omap3-musb";
 			ti,hwmods = "am35x_otg_hs";
@@ -66,6 +66,7 @@
 			reg = <0x480025d8 0x24>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;

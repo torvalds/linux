@@ -14,7 +14,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include "exynos5.dtsi"
 
 / {
@@ -63,34 +62,34 @@
 						<1 &combiner 23 4>,
 						<2 &combiner 25 2>,
 						<3 &combiner 25 3>,
-						<4 &gic 0 120 0>,
-						<5 &gic 0 121 0>,
-						<6 &gic 0 122 0>,
-						<7 &gic 0 123 0>,
-						<8 &gic 0 128 0>,
-						<9 &gic 0 129 0>,
-						<10 &gic 0 130 0>,
-						<11 &gic 0 131 0>;
+						<4 &gic 0 120 IRQ_TYPE_LEVEL_HIGH>,
+						<5 &gic 0 121 IRQ_TYPE_LEVEL_HIGH>,
+						<6 &gic 0 122 IRQ_TYPE_LEVEL_HIGH>,
+						<7 &gic 0 123 IRQ_TYPE_LEVEL_HIGH>,
+						<8 &gic 0 128 IRQ_TYPE_LEVEL_HIGH>,
+						<9 &gic 0 129 IRQ_TYPE_LEVEL_HIGH>,
+						<10 &gic 0 130 IRQ_TYPE_LEVEL_HIGH>,
+						<11 &gic 0 131 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		watchdog: watchdog@101d0000 {
 			compatible = "samsung,exynos5420-wdt";
 			reg = <0x101d0000 0x100>;
-			interrupts = <0 42 0>;
+			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		sss: sss@10830000 {
 			compatible = "samsung,exynos4210-secss";
 			reg = <0x10830000 0x300>;
-			interrupts = <0 112 0>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		/* i2c_0-3 are defined in exynos5.dtsi */
 		hsi2c_4: i2c@12ca0000 {
 			compatible = "samsung,exynos5250-hsi2c";
 			reg = <0x12ca0000 0x1000>;
-			interrupts = <0 60 0>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -99,7 +98,7 @@
 		hsi2c_5: i2c@12cb0000 {
 			compatible = "samsung,exynos5250-hsi2c";
 			reg = <0x12cb0000 0x1000>;
-			interrupts = <0 61 0>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -108,7 +107,7 @@
 		hsi2c_6: i2c@12cc0000 {
 			compatible = "samsung,exynos5250-hsi2c";
 			reg = <0x12cc0000 0x1000>;
-			interrupts = <0 62 0>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -117,7 +116,7 @@
 		hsi2c_7: i2c@12cd0000 {
 			compatible = "samsung,exynos5250-hsi2c";
 			reg = <0x12cd0000 0x1000>;
-			interrupts = <0 63 0>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -132,7 +131,7 @@
 			usbdrd_dwc3_0: dwc3@12000000 {
 				compatible = "snps,dwc3";
 				reg = <0x12000000 0x10000>;
-				interrupts = <0 72 0>;
+				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
@@ -167,7 +166,7 @@
 		usbhost2: usb@12110000 {
 			compatible = "samsung,exynos4210-ehci";
 			reg = <0x12110000 0x100>;
-			interrupts = <0 71 0>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -180,7 +179,7 @@
 		usbhost1: usb@12120000 {
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0x12120000 0x100>;
-			interrupts = <0 71 0>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;

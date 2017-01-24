@@ -95,7 +95,7 @@ struct lowcore {
 
 	/* Current process. */
 	__u64	current_task;			/* 0x0310 */
-	__u64	thread_info;			/* 0x0318 */
+	__u8	pad_0x318[0x320-0x318];		/* 0x0318 */
 	__u64	kernel_stack;			/* 0x0320 */
 
 	/* Interrupt, panic and restart stack. */
@@ -126,10 +126,12 @@ struct lowcore {
 	__u64	percpu_offset;			/* 0x0378 */
 	__u64	vdso_per_cpu_data;		/* 0x0380 */
 	__u64	machine_flags;			/* 0x0388 */
-	__u8	pad_0x0390[0x0398-0x0390];	/* 0x0390 */
+	__u32	preempt_count;			/* 0x0390 */
+	__u8	pad_0x0394[0x0398-0x0394];	/* 0x0394 */
 	__u64	gmap;				/* 0x0398 */
 	__u32	spinlock_lockval;		/* 0x03a0 */
-	__u8	pad_0x03a0[0x0400-0x03a4];	/* 0x03a4 */
+	__u32	fpu_flags;			/* 0x03a4 */
+	__u8	pad_0x03a8[0x0400-0x03a8];	/* 0x03a8 */
 
 	/* Per cpu primary space access list */
 	__u32	paste[16];			/* 0x0400 */

@@ -3484,12 +3484,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
 	.resume = rt5645_resume,
 	.set_bias_level = rt5645_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5645_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5645_snd_controls),
-	.dapm_widgets = rt5645_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5645_dapm_widgets),
-	.dapm_routes = rt5645_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5645_dapm_routes),
+	.component_driver = {
+		.controls		= rt5645_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5645_snd_controls),
+		.dapm_widgets		= rt5645_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5645_dapm_widgets),
+		.dapm_routes		= rt5645_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5645_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5645_regmap = {
@@ -3830,6 +3832,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			break;
 		}
 	}
+
+	regmap_update_bits(rt5645->regmap, RT5645_ADDA_CLK1,
+		RT5645_I2S_PD1_MASK, RT5645_I2S_PD1_2);
 
 	if (rt5645->pdata.jd_invert) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,

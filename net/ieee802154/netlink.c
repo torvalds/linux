@@ -28,14 +28,6 @@
 static unsigned int ieee802154_seq_num;
 static DEFINE_SPINLOCK(ieee802154_seq_lock);
 
-struct genl_family nl802154_family = {
-	.id		= GENL_ID_GENERATE,
-	.hdrsize	= 0,
-	.name		= IEEE802154_NL_NAME,
-	.version	= 1,
-	.maxattr	= IEEE802154_ATTR_MAX,
-};
-
 /* Requests to userspace */
 struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 {
@@ -139,11 +131,21 @@ static const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
 
+struct genl_family nl802154_family __ro_after_init = {
+	.hdrsize	= 0,
+	.name		= IEEE802154_NL_NAME,
+	.version	= 1,
+	.maxattr	= IEEE802154_ATTR_MAX,
+	.module		= THIS_MODULE,
+	.ops		= ieee8021154_ops,
+	.n_ops		= ARRAY_SIZE(ieee8021154_ops),
+	.mcgrps		= ieee802154_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(ieee802154_mcgrps),
+};
+
 int __init ieee802154_nl_init(void)
 {
-	return genl_register_family_with_ops_groups(&nl802154_family,
-						    ieee8021154_ops,
-						    ieee802154_mcgrps);
+	return genl_register_family(&nl802154_family);
 }
 
 void ieee802154_nl_exit(void)

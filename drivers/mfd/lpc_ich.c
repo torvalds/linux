@@ -493,6 +493,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_LPT] = {
 		.name = "Lynx Point",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_LPT_LP] = {
 		.name = "Lynx Point_LP",
@@ -530,6 +531,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_9S] = {
 		.name = "9 Series",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
 	},
 };
 
@@ -983,6 +985,10 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	u32 base_addr;
 	int ret;
 	struct resource *res;
+
+	/* If we have ACPI based watchdog use that instead */
+	if (acpi_has_watchdog())
+		return -ENODEV;
 
 	/* Setup power management base register */
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);

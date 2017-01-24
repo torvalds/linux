@@ -248,7 +248,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			struct vmw_dma_buffer *dmabuf,
 			struct vmw_surface *surface,
 			bool only_2d,
-			const struct drm_mode_fb_cmd *mode_cmd);
+			const struct drm_mode_fb_cmd2 *mode_cmd);
 int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 			    unsigned unit,
 			    u32 max_width,

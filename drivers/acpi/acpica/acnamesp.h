@@ -130,6 +130,9 @@ acpi_status
 acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node);
 
 acpi_status
+acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node);
+
+acpi_status
 acpi_ns_one_complete_parse(u32 pass_number,
 			   u32 table_index,
 			   struct acpi_namespace_node *start_node);
@@ -289,11 +292,19 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 char *acpi_ns_name_of_current_scope(struct acpi_walk_state *walk_state);
 
 acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer);
+
+acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,
 			   struct acpi_buffer *buffer, u8 no_trailing);
 
 u8
 acpi_ns_pattern_match(struct acpi_namespace_node *obj_node, char *search_for);
+
+acpi_status
+acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
+			  const char *external_pathname,
+			  u32 flags, struct acpi_namespace_node **out_node);
 
 acpi_status
 acpi_ns_get_node(struct acpi_namespace_node *prefix_node,

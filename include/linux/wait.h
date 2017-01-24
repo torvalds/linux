@@ -248,6 +248,8 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 	(!__builtin_constant_p(state) ||				\
 		state == TASK_INTERRUPTIBLE || state == TASK_KILLABLE)	\
 
+extern void init_wait_entry(wait_queue_t *__wait, int flags);
+
 /*
  * The below macro ___wait_event() has an explicit shadow of the __ret
  * variable when used from the wait_event_*() macros.
@@ -266,12 +268,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 	wait_queue_t __wait;						\
 	long __ret = ret;	/* explicit shadow */			\
 									\
-	INIT_LIST_HEAD(&__wait.task_list);				\
-	if (exclusive)							\
-		__wait.flags = WQ_FLAG_EXCLUSIVE;			\
-	else								\
-		__wait.flags = 0;					\
-									\
+	init_wait_entry(&__wait, exclusive ? WQ_FLAG_EXCLUSIVE : 0);	\
 	for (;;) {							\
 		long __int = prepare_to_wait_event(&wq, &__wait, state);\
 									\
@@ -280,12 +277,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 									\
 		if (___wait_is_interruptible(state) && __int) {		\
 			__ret = __int;					\
-			if (exclusive) {				\
-				abort_exclusive_wait(&wq, &__wait,	\
-						     state, NULL);	\
-				goto __out;				\
-			}						\
-			break;						\
+			goto __out;					\
 		}							\
 									\
 		cmd;							\
@@ -518,7 +510,7 @@ do {									\
 	hrtimer_init_on_stack(&__t.timer, CLOCK_MONOTONIC,		\
 			      HRTIMER_MODE_REL);			\
 	hrtimer_init_sleeper(&__t, current);				\
-	if ((timeout).tv64 != KTIME_MAX)				\
+	if ((timeout) != KTIME_MAX)				\
 		hrtimer_start_range_ns(&__t.timer, timeout,		\
 				       current->timer_slack_ns,		\
 				       HRTIMER_MODE_REL);		\
@@ -989,7 +981,6 @@ void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
 long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
-void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, unsigned int mode, void *key);
 long wait_woken(wait_queue_t *wait, unsigned mode, long timeout);
 int woken_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);

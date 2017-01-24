@@ -12,11 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *
  * File: key.c
  *
  * Purpose: Implement functions for 802.11i Key management
@@ -30,16 +25,6 @@
 #include "tmacro.h"
 #include "key.h"
 #include "mac.h"
-
-int vnt_key_init_table(struct vnt_private *priv)
-{
-	u32 i;
-
-	for (i = 0; i < MAX_KEY_TABLE; i++)
-		MACvDisableKeyEntry(priv, i);
-
-	return 0;
-}
 
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
 	struct ieee80211_key_conf *key, u32 key_type, u32 mode,

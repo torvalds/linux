@@ -2398,16 +2398,6 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	u16 ctl, mode;
 	u32 imask;
 
-	/* MTU size outside the spec */
-	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
-		return -EINVAL;
-
-	/* MTU > 1500 on yukon FE and FE+ not allowed */
-	if (new_mtu > ETH_DATA_LEN &&
-	    (hw->chip_id == CHIP_ID_YUKON_FE ||
-	     hw->chip_id == CHIP_ID_YUKON_FE_P))
-		return -EINVAL;
-
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		netdev_update_features(dev);
@@ -3070,7 +3060,7 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 			goto done;
 	}
 
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 	sky2_read32(hw, B0_Y2_SP_LISR);
 done:
 
@@ -4808,6 +4798,14 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 
 	dev->features |= dev->hw_features;
 
+	/* MTU range: 60 - 1500 or 9000 */
+	dev->min_mtu = ETH_ZLEN;
+	if (hw->chip_id == CHIP_ID_YUKON_FE ||
+	    hw->chip_id == CHIP_ID_YUKON_FE_P)
+		dev->max_mtu = ETH_DATA_LEN;
+	else
+		dev->max_mtu = ETH_JUMBO_MTU;
+
 	/* try to get mac address in the following order:
 	 * 1) from device tree data
 	 * 2) from internal registers set by bootloader
@@ -5220,6 +5218,19 @@ static SIMPLE_DEV_PM_OPS(sky2_pm_ops, sky2_suspend, sky2_resume);
 
 static void sky2_shutdown(struct pci_dev *pdev)
 {
+	struct sky2_hw *hw = pci_get_drvdata(pdev);
+	int port;
+
+	for (port = 0; port < hw->ports; port++) {
+		struct net_device *ndev = hw->dev[port];
+
+		rtnl_lock();
+		if (netif_running(ndev)) {
+			dev_close(ndev);
+			netif_device_detach(ndev);
+		}
+		rtnl_unlock();
+	}
 	sky2_suspend(&pdev->dev);
 	pci_wake_from_d3(pdev, device_may_wakeup(&pdev->dev));
 	pci_set_power_state(pdev, PCI_D3hot);

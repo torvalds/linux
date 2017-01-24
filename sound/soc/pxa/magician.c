@@ -376,7 +376,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"VINM", NULL, "Call Mic"},
 };
 
-static const char *input_select[] = {"Call Mic", "Headset Mic"};
+static const char * const input_select[] = {"Call Mic", "Headset Mic"};
 static const struct soc_enum magician_in_sel_enum =
 	SOC_ENUM_SINGLE_EXT(2, input_select);
 

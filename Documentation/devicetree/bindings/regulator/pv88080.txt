@@ -1,22 +1,28 @@
 * Powerventure Semiconductor PV88080 Voltage Regulator
 
 Required properties:
-- compatible: "pvs,pv88080".
-- reg: I2C slave address, usually 0x49.
+- compatible: Must be one of the following, depending on the
+  silicon version:
+	- "pvs,pv88080" (DEPRECATED)
+
+	- "pvs,pv88080-aa" for PV88080 AA or AB silicon
+	- "pvs,pv88080-ba" for PV88080 BA or BB silicon
+  NOTE: The use of the compatibles with no silicon version is deprecated.
+- reg: I2C slave address, usually 0x49
 - interrupts: the interrupt outputs of the controller
 - regulators: A node that houses a sub-node for each regulator within the
   device. Each sub-node is identified using the node's name, with valid
   values listed below. The content of each sub-node is defined by the
   standard binding for regulators; see regulator.txt.
-  BUCK1, BUCK2, and BUCK3.
+  BUCK1, BUCK2, BUCK3 and HVBUCK.
 
 Optional properties:
 - Any optional property defined in regulator.txt
 
-Example
+Example:
 
 	pmic: pv88080@49 {
-		compatible = "pvs,pv88080";
+		compatible = "pvs,pv88080-ba";
 		reg = <0x49>;
 		interrupt-parent = <&gpio>;
 		interrupts = <24 24>;
@@ -45,5 +51,12 @@ Example
 				regulator-min-microamp 	= <1496000>;
 				regulator-max-microamp 	= <4189000>;
 			};
+
+			HVBUCK {
+				regulator-name = "hvbuck";
+				regulator-min-microvolt = <   5000>;
+				regulator-max-microvolt = <1275000>;
+ 			};
 		};
 	};
+

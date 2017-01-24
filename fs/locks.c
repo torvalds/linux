@@ -127,17 +127,21 @@
 #include <linux/pid_namespace.h>
 #include <linux/hashtable.h>
 #include <linux/percpu.h>
-#include <linux/lglock.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
 #define IS_LEASE(fl)	(fl->fl_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
 #define IS_OFDLCK(fl)	(fl->fl_flags & FL_OFDLCK)
+
+static inline bool is_remote_lock(struct file *filp)
+{
+	return likely(!(filp->f_path.dentry->d_sb->s_flags & MS_NOREMOTELOCK));
+}
 
 static bool lease_breaking(struct file_lock *fl)
 {
@@ -158,12 +162,18 @@ int lease_break_time = 45;
 
 /*
  * The global file_lock_list is only used for displaying /proc/locks, so we
- * keep a list on each CPU, with each list protected by its own spinlock via
- * the file_lock_lglock. Note that alterations to the list also require that
- * the relevant flc_lock is held.
+ * keep a list on each CPU, with each list protected by its own spinlock.
+ * Global serialization is done using file_rwsem.
+ *
+ * Note that alterations to the list also require that the relevant flc_lock is
+ * held.
  */
-DEFINE_STATIC_LGLOCK(file_lock_lglock);
-static DEFINE_PER_CPU(struct hlist_head, file_lock_list);
+struct file_lock_list_struct {
+	spinlock_t		lock;
+	struct hlist_head	hlist;
+};
+static DEFINE_PER_CPU(struct file_lock_list_struct, file_lock_list);
+DEFINE_STATIC_PERCPU_RWSEM(file_rwsem);
 
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
@@ -587,15 +597,23 @@ static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 /* Must be called with the flc_lock held! */
 static void locks_insert_global_locks(struct file_lock *fl)
 {
-	lg_local_lock(&file_lock_lglock);
+	struct file_lock_list_struct *fll = this_cpu_ptr(&file_lock_list);
+
+	percpu_rwsem_assert_held(&file_rwsem);
+
+	spin_lock(&fll->lock);
 	fl->fl_link_cpu = smp_processor_id();
-	hlist_add_head(&fl->fl_link, this_cpu_ptr(&file_lock_list));
-	lg_local_unlock(&file_lock_lglock);
+	hlist_add_head(&fl->fl_link, &fll->hlist);
+	spin_unlock(&fll->lock);
 }
 
 /* Must be called with the flc_lock held! */
 static void locks_delete_global_locks(struct file_lock *fl)
 {
+	struct file_lock_list_struct *fll;
+
+	percpu_rwsem_assert_held(&file_rwsem);
+
 	/*
 	 * Avoid taking lock if already unhashed. This is safe since this check
 	 * is done while holding the flc_lock, and new insertions into the list
@@ -603,9 +621,11 @@ static void locks_delete_global_locks(struct file_lock *fl)
 	 */
 	if (hlist_unhashed(&fl->fl_link))
 		return;
-	lg_local_lock_cpu(&file_lock_lglock, fl->fl_link_cpu);
+
+	fll = per_cpu_ptr(&file_lock_list, fl->fl_link_cpu);
+	spin_lock(&fll->lock);
 	hlist_del_init(&fl->fl_link);
-	lg_local_unlock_cpu(&file_lock_lglock, fl->fl_link_cpu);
+	spin_unlock(&fll->lock);
 }
 
 static unsigned long
@@ -791,7 +811,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
 	struct file_lock_context *ctx;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 
 	ctx = smp_load_acquire(&inode->i_flctx);
 	if (!ctx || list_empty_careful(&ctx->flc_posix)) {
@@ -915,6 +935,7 @@ static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 			return -ENOMEM;
 	}
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	if (request->fl_flags & FL_ACCESS)
 		goto find_conflict;
@@ -955,6 +976,7 @@ find_conflict:
 
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
 	if (new_fl)
 		locks_free_lock(new_fl);
 	locks_dispose_list(&dispose);
@@ -991,6 +1013,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 		new_fl2 = locks_alloc_lock();
 	}
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	/*
 	 * New lock request. Walk all POSIX locks and look for conflicts. If
@@ -1162,6 +1185,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 	}
  out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
 	/*
 	 * Free any unused locks.
 	 */
@@ -1192,7 +1216,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 int posix_lock_file(struct file *filp, struct file_lock *fl,
 			struct file_lock *conflock)
 {
-	return posix_lock_inode(file_inode(filp), fl, conflock);
+	return posix_lock_inode(locks_inode(filp), fl, conflock);
 }
 EXPORT_SYMBOL(posix_lock_file);
 
@@ -1232,7 +1256,7 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 int locks_mandatory_locked(struct file *file)
 {
 	int ret;
-	struct inode *inode = file_inode(file);
+	struct inode *inode = locks_inode(file);
 	struct file_lock_context *ctx;
 	struct file_lock *fl;
 
@@ -1436,6 +1460,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 		return error;
 	}
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 
 	time_out_leases(inode, &dispose);
@@ -1487,9 +1512,13 @@ restart:
 	locks_insert_block(fl, new_fl);
 	trace_break_lease_block(inode, new_fl);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
+
 	locks_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->fl_wait,
 						!new_fl->fl_next, break_time);
+
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	trace_break_lease_unblock(inode, new_fl);
 	locks_delete_block(new_fl);
@@ -1506,6 +1535,7 @@ restart:
 	}
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
 	locks_dispose_list(&dispose);
 	locks_free_lock(new_fl);
 	return error;
@@ -1539,7 +1569,7 @@ void lease_get_mtime(struct inode *inode, struct timespec *time)
 	}
 
 	if (has_lease)
-		*time = current_fs_time(inode->i_sb);
+		*time = current_time(inode);
 	else
 		*time = inode->i_mtime;
 }
@@ -1572,15 +1602,16 @@ EXPORT_SYMBOL(lease_get_mtime);
 int fcntl_getlease(struct file *filp)
 {
 	struct file_lock *fl;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	int type = F_UNLCK;
 	LIST_HEAD(dispose);
 
 	ctx = smp_load_acquire(&inode->i_flctx);
 	if (ctx && !list_empty_careful(&ctx->flc_lease)) {
+		percpu_down_read_preempt_disable(&file_rwsem);
 		spin_lock(&ctx->flc_lock);
-		time_out_leases(file_inode(filp), &dispose);
+		time_out_leases(inode, &dispose);
 		list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
 			if (fl->fl_file != filp)
 				continue;
@@ -1588,6 +1619,8 @@ int fcntl_getlease(struct file *filp)
 			break;
 		}
 		spin_unlock(&ctx->flc_lock);
+		percpu_up_read_preempt_enable(&file_rwsem);
+
 		locks_dispose_list(&dispose);
 	}
 	return type;
@@ -1613,7 +1646,8 @@ check_conflicting_open(const struct dentry *dentry, const long arg, int flags)
 	if (flags & FL_LAYOUT)
 		return 0;
 
-	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
+	if ((arg == F_RDLCK) &&
+	    (atomic_read(&d_real_inode(dentry)->i_writecount) > 0))
 		return -EAGAIN;
 
 	if ((arg == F_WRLCK) && ((d_count(dentry) > 1) ||
@@ -1628,7 +1662,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 {
 	struct file_lock *fl, *my_fl = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = dentry->d_inode;
 	struct file_lock_context *ctx;
 	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
@@ -1660,6 +1694,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 		return -EINVAL;
 	}
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	time_out_leases(inode, &dispose);
 	error = check_conflicting_open(dentry, arg, lease->fl_flags);
@@ -1730,6 +1765,7 @@ out_setup:
 		lease->fl_lmops->lm_setup(lease, priv);
 out:
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
 	locks_dispose_list(&dispose);
 	if (is_deleg)
 		inode_unlock(inode);
@@ -1742,7 +1778,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 {
 	int error = -EAGAIN;
 	struct file_lock *fl, *victim = NULL;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	LIST_HEAD(dispose);
 
@@ -1752,6 +1788,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 		return error;
 	}
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
 		if (fl->fl_file == filp &&
@@ -1764,6 +1801,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 	if (victim)
 		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
 	locks_dispose_list(&dispose);
 	return error;
 }
@@ -1782,7 +1820,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 			void **priv)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	int error;
 
 	if ((!uid_eq(current_fsuid(), inode->i_uid)) && !capable(CAP_LEASE))
@@ -1830,7 +1868,7 @@ EXPORT_SYMBOL(generic_setlease);
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
-	if (filp->f_op->setlease)
+	if (filp->f_op->setlease && is_remote_lock(filp))
 		return filp->f_op->setlease(filp, arg, lease, priv);
 	else
 		return generic_setlease(filp, arg, lease, priv);
@@ -1979,7 +2017,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (error)
 		goto out_free;
 
-	if (f.file->f_op->flock)
+	if (f.file->f_op->flock && is_remote_lock(f.file))
 		error = f.file->f_op->flock(f.file,
 					  (can_sleep) ? F_SETLKW : F_SETLK,
 					  lock);
@@ -2005,7 +2043,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
  */
 int vfs_test_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, F_GETLK, fl);
 	posix_test_lock(filp, fl);
 	return 0;
@@ -2129,7 +2167,7 @@ out:
  */
 int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl, struct file_lock *conf)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, cmd, fl);
 	else
 		return posix_lock_file(filp, fl, conf);
@@ -2191,7 +2229,7 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 	if (file_lock == NULL)
 		return -ENOLCK;
 
-	inode = file_inode(filp);
+	inode = locks_inode(filp);
 
 	/*
 	 * This might block, so we do it before checking the inode.
@@ -2343,7 +2381,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 	if (copy_from_user(&flock, l, sizeof(flock)))
 		goto out;
 
-	inode = file_inode(filp);
+	inode = locks_inode(filp);
 
 	/* Don't allow mandatory locks on files that may be memory mapped
 	 * and shared.
@@ -2426,6 +2464,7 @@ out:
 void locks_remove_posix(struct file *filp, fl_owner_t owner)
 {
 	int error;
+	struct inode *inode = locks_inode(filp);
 	struct file_lock lock;
 	struct file_lock_context *ctx;
 
@@ -2434,7 +2473,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	ctx =  smp_load_acquire(&file_inode(filp)->i_flctx);
+	ctx =  smp_load_acquire(&inode->i_flctx);
 	if (!ctx || list_empty(&ctx->flc_posix))
 		return;
 
@@ -2452,7 +2491,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
-	trace_locks_remove_posix(file_inode(filp), &lock, error);
+	trace_locks_remove_posix(inode, &lock, error);
 }
 
 EXPORT_SYMBOL(locks_remove_posix);
@@ -2469,12 +2508,12 @@ locks_remove_flock(struct file *filp, struct file_lock_context *flctx)
 		.fl_type = F_UNLCK,
 		.fl_end = OFFSET_MAX,
 	};
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 
 	if (list_empty(&flctx->flc_flock))
 		return;
 
-	if (filp->f_op->flock)
+	if (filp->f_op->flock && is_remote_lock(filp))
 		filp->f_op->flock(filp, F_SETLKW, &fl);
 	else
 		flock_lock_inode(inode, &fl);
@@ -2493,11 +2532,14 @@ locks_remove_lease(struct file *filp, struct file_lock_context *ctx)
 	if (list_empty(&ctx->flc_lease))
 		return;
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list)
 		if (filp == fl->fl_file)
 			lease_modify(fl, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
+
 	locks_dispose_list(&dispose);
 }
 
@@ -2508,7 +2550,7 @@ void locks_remove_file(struct file *filp)
 {
 	struct file_lock_context *ctx;
 
-	ctx = smp_load_acquire(&file_inode(filp)->i_flctx);
+	ctx = smp_load_acquire(&locks_inode(filp)->i_flctx);
 	if (!ctx)
 		return;
 
@@ -2552,7 +2594,7 @@ EXPORT_SYMBOL(posix_unblock_lock);
  */
 int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, F_CANCELLK, fl);
 	return 0;
 }
@@ -2574,13 +2616,24 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
 
-	if (fl->fl_nspid)
-		fl_pid = pid_vnr(fl->fl_nspid);
-	else
+	if (fl->fl_nspid) {
+		struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
+
+		/* Don't let fl_pid change based on who is reading the file */
+		fl_pid = pid_nr_ns(fl->fl_nspid, proc_pidns);
+
+		/*
+		 * If there isn't a fl_pid don't display who is waiting on
+		 * the lock if we are called from locks_show, or if we are
+		 * called from __show_fd_info - skip lock entirely
+		 */
+		if (fl_pid == 0)
+			return;
+	} else
 		fl_pid = fl->fl_pid;
 
 	if (fl->fl_file != NULL)
-		inode = file_inode(fl->fl_file);
+		inode = locks_inode(fl->fl_file);
 
 	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
@@ -2648,8 +2701,12 @@ static int locks_show(struct seq_file *f, void *v)
 {
 	struct locks_iterator *iter = f->private;
 	struct file_lock *fl, *bfl;
+	struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
 
 	fl = hlist_entry(v, struct file_lock, fl_link);
+
+	if (fl->fl_nspid && !pid_nr_ns(fl->fl_nspid, proc_pidns))
+		return 0;
 
 	lock_get_status(f, fl, iter->li_pos, "");
 
@@ -2682,7 +2739,7 @@ static void __show_fd_locks(struct seq_file *f,
 void show_fd_locks(struct seq_file *f,
 		  struct file *filp, struct files_struct *files)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	int id = 0;
 
@@ -2703,9 +2760,9 @@ static void *locks_start(struct seq_file *f, loff_t *pos)
 	struct locks_iterator *iter = f->private;
 
 	iter->li_pos = *pos + 1;
-	lg_global_lock(&file_lock_lglock);
+	percpu_down_write(&file_rwsem);
 	spin_lock(&blocked_lock_lock);
-	return seq_hlist_start_percpu(&file_lock_list, &iter->li_cpu, *pos);
+	return seq_hlist_start_percpu(&file_lock_list.hlist, &iter->li_cpu, *pos);
 }
 
 static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
@@ -2713,14 +2770,14 @@ static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 	struct locks_iterator *iter = f->private;
 
 	++iter->li_pos;
-	return seq_hlist_next_percpu(v, &file_lock_list, &iter->li_cpu, pos);
+	return seq_hlist_next_percpu(v, &file_lock_list.hlist, &iter->li_cpu, pos);
 }
 
 static void locks_stop(struct seq_file *f, void *v)
 	__releases(&blocked_lock_lock)
 {
 	spin_unlock(&blocked_lock_lock);
-	lg_global_unlock(&file_lock_lglock);
+	percpu_up_write(&file_rwsem);
 }
 
 static const struct seq_operations locks_seq_operations = {
@@ -2761,10 +2818,13 @@ static int __init filelock_init(void)
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
 
-	lg_lock_init(&file_lock_lglock, "file_lock_lglock");
 
-	for_each_possible_cpu(i)
-		INIT_HLIST_HEAD(per_cpu_ptr(&file_lock_list, i));
+	for_each_possible_cpu(i) {
+		struct file_lock_list_struct *fll = per_cpu_ptr(&file_lock_list, i);
+
+		spin_lock_init(&fll->lock);
+		INIT_HLIST_HEAD(&fll->hlist);
+	}
 
 	return 0;
 }

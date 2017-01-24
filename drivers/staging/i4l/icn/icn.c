@@ -62,7 +62,8 @@ icn_free_queue(icn_card *card, int channel)
 	skb_queue_purge(queue);
 	card->xlen[channel] = 0;
 	card->sndcount[channel] = 0;
-	if ((skb = card->xskb[channel])) {
+	skb = card->xskb[channel];
+	if (skb) {
 		card->xskb[channel] = NULL;
 		dev_kfree_skb(skb);
 	}
@@ -81,12 +82,11 @@ icn_shiftout(unsigned short port,
 	     int firstbit,
 	     int bitcount)
 {
-
 	register u_char s;
 	register u_char c;
 
 	for (s = firstbit, c = bitcount; c > 0; s--, c--)
-		OUTB_P((u_char) ((val >> s) & 1) ? 0xff : 0, port);
+		OUTB_P((u_char)((val >> s) & 1) ? 0xff : 0, port);
 }
 
 /*
@@ -272,8 +272,10 @@ icn_pollbchan_receive(int channel, icn_card *card)
 			rbnext;
 			icn_maprelease_channel(card, mch & 2);
 			if (!eflag) {
-				if ((cnt = card->rcvidx[channel])) {
-					if (!(skb = dev_alloc_skb(cnt))) {
+				cnt = card->rcvidx[channel];
+				if (cnt) {
+					skb = dev_alloc_skb(cnt);
+					if (!skb) {
 						printk(KERN_WARNING "icn: receive out of memory\n");
 						break;
 					}
@@ -382,7 +384,7 @@ icn_pollbchan_send(int channel, icn_card *card)
 static void
 icn_pollbchan(unsigned long data)
 {
-	icn_card *card = (icn_card *) data;
+	icn_card *card = (icn_card *)data;
 	unsigned long flags;
 
 	if (card->flags & ICN_FLAGS_B1ACTIVE) {
@@ -409,8 +411,7 @@ typedef struct icn_stat {
 	int action;
 } icn_stat;
 /* *INDENT-OFF* */
-static icn_stat icn_stat_table[] =
-{
+static icn_stat icn_stat_table[] = {
 	{"BCON_",          ISDN_STAT_BCONN, 1},	/* B-Channel connected        */
 	{"BDIS_",          ISDN_STAT_BHUP,  2},	/* B-Channel disconnected     */
 	/*
@@ -472,7 +473,6 @@ icn_parse_status(u_char *status, int channel, icn_card *card)
 
 		if (card->flags &
 		    ((channel) ? ICN_FLAGS_B2ACTIVE : ICN_FLAGS_B1ACTIVE)) {
-
 			isdn_ctrl ncmd;
 
 			card->flags &= ~((channel) ?
@@ -544,7 +544,7 @@ icn_parse_status(u_char *status, int channel, icn_card *card)
 		break;
 	case 6:
 		snprintf(cmd.parm.num, sizeof(cmd.parm.num), "%d",
-			 (int) simple_strtoul(status + 7, NULL, 16));
+			 (int)simple_strtoul(status + 7, NULL, 16));
 		break;
 	case 7:
 		status += 3;
@@ -604,7 +604,7 @@ icn_putmsg(icn_card *card, unsigned char c)
 static void
 icn_polldchan(unsigned long data)
 {
-	icn_card *card = (icn_card *) data;
+	icn_card *card = (icn_card *)data;
 	int mch = card->secondhalf ? 2 : 0;
 	int avail = 0;
 	int left;
@@ -656,9 +656,8 @@ icn_polldchan(unsigned long data)
 						*q = '\0';
 						strcat(vstr, "000");
 						vstr[3] = '\0';
-						card->fw_rev = (int) simple_strtoul(vstr, NULL, 10);
+						card->fw_rev = (int)simple_strtoul(vstr, NULL, 10);
 						continue;
-
 					}
 				}
 			} else {
@@ -683,7 +682,7 @@ icn_polldchan(unsigned long data)
 			card->flags |= ICN_FLAGS_RBTIMER;
 			del_timer(&card->rb_timer);
 			card->rb_timer.function = icn_pollbchan;
-			card->rb_timer.data = (unsigned long) card;
+			card->rb_timer.data = (unsigned long)card;
 			card->rb_timer.expires = jiffies + ICN_TIMER_BCREAD;
 			add_timer(&card->rb_timer);
 		}
@@ -805,17 +804,12 @@ icn_loadboot(u_char __user *buffer, icn_card *card)
 	unsigned long flags;
 
 #ifdef BOOT_DEBUG
-	printk(KERN_DEBUG "icn_loadboot called, buffaddr=%08lx\n", (ulong) buffer);
+	printk(KERN_DEBUG "icn_loadboot called, buffaddr=%08lx\n", (ulong)buffer);
 #endif
-	if (!(codebuf = kmalloc(ICN_CODE_STAGE1, GFP_KERNEL))) {
-		printk(KERN_WARNING "icn: Could not allocate code buffer\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(codebuf, buffer, ICN_CODE_STAGE1)) {
-		ret = -EFAULT;
-		goto out_kfree;
-	}
+	codebuf = memdup_user(buffer, ICN_CODE_STAGE1);
+	if (IS_ERR(codebuf))
+		return PTR_ERR(codebuf);
+
 	if (!card->rvalid) {
 		if (!request_region(card->port, ICN_PORTLEN, card->regname)) {
 			printk(KERN_WARNING
@@ -878,9 +872,9 @@ icn_loadboot(u_char __user *buffer, icn_card *card)
 	}
 	SLEEP(1);
 	OUTB_P(0xff, ICN_RUN);  /* Start Boot-Code */
-	if ((ret = icn_check_loader(card->doubleS0 ? 2 : 1))) {
+	ret = icn_check_loader(card->doubleS0 ? 2 : 1);
+	if (ret)
 		goto out_kfree;
-	}
 	if (!card->doubleS0) {
 		ret = 0;
 		goto out_kfree;
@@ -898,7 +892,6 @@ icn_loadboot(u_char __user *buffer, icn_card *card)
 
 out_kfree:
 	kfree(codebuf);
-out:
 	return ret;
 }
 
@@ -980,18 +973,17 @@ icn_loadproto(u_char __user *buffer, icn_card *card)
 				       card->secondhalf);
 #endif
 				spin_lock_irqsave(&card->lock, flags);
-				init_timer(&card->st_timer);
-				card->st_timer.expires = jiffies + ICN_TIMER_DCREAD;
-				card->st_timer.function = icn_polldchan;
-				card->st_timer.data = (unsigned long) card;
-				add_timer(&card->st_timer);
+				setup_timer(&card->st_timer, icn_polldchan,
+					    (unsigned long)card);
+				mod_timer(&card->st_timer,
+					  jiffies + ICN_TIMER_DCREAD);
 				card->flags |= ICN_FLAGS_RUNNING;
 				if (card->doubleS0) {
-					init_timer(&card->other->st_timer);
-					card->other->st_timer.expires = jiffies + ICN_TIMER_DCREAD;
-					card->other->st_timer.function = icn_polldchan;
-					card->other->st_timer.data = (unsigned long) card->other;
-					add_timer(&card->other->st_timer);
+					setup_timer(&card->other->st_timer,
+						    icn_polldchan,
+						    (unsigned long)card->other);
+					mod_timer(&card->other->st_timer,
+						  jiffies + ICN_TIMER_DCREAD);
 					card->other->flags |= ICN_FLAGS_RUNNING;
 				}
 				spin_unlock_irqrestore(&card->lock, flags);
@@ -1022,7 +1014,8 @@ icn_readstatus(u_char __user *buf, int len, icn_card *card)
 
 /* Put command-strings into the command-queue of the Interface */
 static int
-icn_writecmd(const u_char *buf, int len, int user, icn_card *card)
+icn_writecmd(const u_char __user *ubuf, const u_char *kbuf, int len,
+	     int user, icn_card *card)
 {
 	int mch = card->secondhalf ? 2 : 0;
 	int pp;
@@ -1045,10 +1038,10 @@ icn_writecmd(const u_char *buf, int len, int user, icn_card *card)
 		if (count > len)
 			count = len;
 		if (user) {
-			if (copy_from_user(msg, buf, count))
+			if (copy_from_user(msg, ubuf, count))
 				return -EFAULT;
 		} else
-			memcpy(msg, buf, count);
+			memcpy(msg, kbuf, count);
 
 		spin_lock_irqsave(&dev.devlock, flags);
 		lastmap_card = dev.mcard;
@@ -1190,28 +1183,28 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			}
 			break;
 		case ICN_IOCTL_GETMMIO:
-			return (long) dev.memaddr;
+			return (long)dev.memaddr;
 		case ICN_IOCTL_SETPORT:
 			if (a == 0x300 || a == 0x310 || a == 0x320 || a == 0x330
 			    || a == 0x340 || a == 0x350 || a == 0x360 ||
 			    a == 0x308 || a == 0x318 || a == 0x328 || a == 0x338
 			    || a == 0x348 || a == 0x358 || a == 0x368) {
-				if (card->port != (unsigned short) a) {
-					if (!request_region((unsigned short) a, ICN_PORTLEN, "icn-isdn")) {
+				if (card->port != (unsigned short)a) {
+					if (!request_region((unsigned short)a, ICN_PORTLEN, "icn-isdn")) {
 						printk(KERN_WARNING
 						       "icn: (%s) ports 0x%03x-0x%03x in use.\n",
-						       CID, (int) a, (int) a + ICN_PORTLEN);
+						       CID, (int)a, (int)a + ICN_PORTLEN);
 						return -EINVAL;
 					}
-					release_region((unsigned short) a, ICN_PORTLEN);
+					release_region((unsigned short)a, ICN_PORTLEN);
 					icn_stopcard(card);
 					spin_lock_irqsave(&card->lock, flags);
 					if (card->rvalid)
 						release_region(card->port, ICN_PORTLEN);
-					card->port = (unsigned short) a;
+					card->port = (unsigned short)a;
 					card->rvalid = 0;
 					if (card->doubleS0) {
-						card->other->port = (unsigned short) a;
+						card->other->port = (unsigned short)a;
 						card->other->rvalid = 0;
 					}
 					spin_unlock_irqrestore(&card->lock, flags);
@@ -1223,9 +1216,9 @@ icn_command(isdn_ctrl *c, icn_card *card)
 				return -EINVAL;
 			break;
 		case ICN_IOCTL_GETPORT:
-			return (int) card->port;
+			return (int)card->port;
 		case ICN_IOCTL_GETDOUBLE:
-			return (int) card->doubleS0;
+			return (int)card->doubleS0;
 		case ICN_IOCTL_DEBUGVAR:
 			if (copy_to_user(arg,
 					 &card,
@@ -1246,10 +1239,11 @@ icn_command(isdn_ctrl *c, icn_card *card)
 				dev.firstload = 0;
 			}
 			icn_stopcard(card);
-			return (icn_loadboot(arg, card));
+			return icn_loadboot(arg, card);
 		case ICN_IOCTL_LOADPROTO:
 			icn_stopcard(card);
-			if ((i = (icn_loadproto(arg, card))))
+			i = (icn_loadproto(arg, card));
+			if (i)
 				return i;
 			if (card->doubleS0)
 				i = icn_loadproto(arg + ICN_CODE_STAGE2, card->other);
@@ -1262,19 +1256,20 @@ icn_command(isdn_ctrl *c, icn_card *card)
 					   arg,
 					   sizeof(cdef)))
 				return -EFAULT;
-			return (icn_addcard(cdef.port, cdef.id1, cdef.id2));
+			return icn_addcard(cdef.port, cdef.id1, cdef.id2);
 			break;
 		case ICN_IOCTL_LEASEDCFG:
 			if (a) {
 				if (!card->leased) {
 					card->leased = 1;
-					while (card->ptype == ISDN_PTYPE_UNKNOWN) {
+					while (card->ptype == ISDN_PTYPE_UNKNOWN)
 						msleep_interruptible(ICN_BOOT_TIMEOUT1);
-					}
 					msleep_interruptible(ICN_BOOT_TIMEOUT1);
 					sprintf(cbuf, "00;FV2ON\n01;EAZ%c\n02;EAZ%c\n",
 						(a & 1) ? '1' : 'C', (a & 2) ? '2' : 'C');
-					i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+					i = icn_writecmd(NULL, cbuf,
+							 strlen(cbuf),
+							 0, card);
 					printk(KERN_INFO
 					       "icn: (%s) Leased-line mode enabled\n",
 					       CID);
@@ -1287,7 +1282,9 @@ icn_command(isdn_ctrl *c, icn_card *card)
 				if (card->leased) {
 					card->leased = 0;
 					sprintf(cbuf, "00;FV2OFF\n");
-					i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+					i = icn_writecmd(NULL, cbuf,
+							 strlen(cbuf),
+							 0, card);
 					printk(KERN_INFO
 					       "icn: (%s) Leased-line mode disabled\n",
 					       CID);
@@ -1321,10 +1318,10 @@ icn_command(isdn_ctrl *c, icn_card *card)
 				/* Normal Dial */
 				strcpy(dcode, "CAL");
 			snprintf(cbuf, sizeof(cbuf),
-				 "%02d;D%s_R%s,%02d,%02d,%s\n", (int) (a + 1),
+				 "%02d;D%s_R%s,%02d,%02d,%s\n", (int)(a + 1),
 				 dcode, p, c->parm.setup.si1,
 				 c->parm.setup.si2, c->parm.setup.eazmsn);
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_ACCEPTD:
@@ -1335,16 +1332,18 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			if (card->fw_rev >= 300) {
 				switch (card->l2_proto[a - 1]) {
 				case ISDN_PROTO_L2_X75I:
-					sprintf(cbuf, "%02d;BX75\n", (int) a);
+					sprintf(cbuf, "%02d;BX75\n", (int)a);
 					break;
 				case ISDN_PROTO_L2_HDLC:
-					sprintf(cbuf, "%02d;BTRA\n", (int) a);
+					sprintf(cbuf, "%02d;BTRA\n", (int)a);
 					break;
 				}
-				i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+				i = icn_writecmd(NULL, cbuf,
+						 strlen(cbuf), 0,
+						 card);
 			}
-			sprintf(cbuf, "%02d;DCON_R\n", (int) a);
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+			sprintf(cbuf, "%02d;DCON_R\n", (int)a);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_ACCEPTB:
@@ -1355,14 +1354,14 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			if (card->fw_rev >= 300)
 				switch (card->l2_proto[a - 1]) {
 				case ISDN_PROTO_L2_X75I:
-					sprintf(cbuf, "%02d;BCON_R,BX75\n", (int) a);
+					sprintf(cbuf, "%02d;BCON_R,BX75\n", (int)a);
 					break;
 				case ISDN_PROTO_L2_HDLC:
-					sprintf(cbuf, "%02d;BCON_R,BTRA\n", (int) a);
+					sprintf(cbuf, "%02d;BCON_R,BTRA\n", (int)a);
 					break;
 				} else
-				sprintf(cbuf, "%02d;BCON_R\n", (int) a);
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+				sprintf(cbuf, "%02d;BCON_R\n", (int)a);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_HANGUP:
@@ -1370,8 +1369,8 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			return -ENODEV;
 		if (c->arg < ICN_BCH) {
 			a = c->arg + 1;
-			sprintf(cbuf, "%02d;BDIS_R\n%02d;DDIS_R\n", (int) a, (int) a);
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+			sprintf(cbuf, "%02d;BDIS_R\n%02d;DDIS_R\n", (int)a, (int)a);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_SETEAZ:
@@ -1382,12 +1381,12 @@ icn_command(isdn_ctrl *c, icn_card *card)
 		if (c->arg < ICN_BCH) {
 			a = c->arg + 1;
 			if (card->ptype == ISDN_PTYPE_EURO) {
-				sprintf(cbuf, "%02d;MS%s%s\n", (int) a,
+				sprintf(cbuf, "%02d;MS%s%s\n", (int)a,
 					c->parm.num[0] ? "N" : "ALL", c->parm.num);
 			} else
-				sprintf(cbuf, "%02d;EAZ%s\n", (int) a,
+				sprintf(cbuf, "%02d;EAZ%s\n", (int)a,
 					c->parm.num[0] ? (char *)(c->parm.num) : "0123456789");
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_CLREAZ:
@@ -1398,10 +1397,10 @@ icn_command(isdn_ctrl *c, icn_card *card)
 		if (c->arg < ICN_BCH) {
 			a = c->arg + 1;
 			if (card->ptype == ISDN_PTYPE_EURO)
-				sprintf(cbuf, "%02d;MSNC\n", (int) a);
+				sprintf(cbuf, "%02d;MSNC\n", (int)a);
 			else
-				sprintf(cbuf, "%02d;EAZC\n", (int) a);
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+				sprintf(cbuf, "%02d;EAZC\n", (int)a);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 		}
 		break;
 	case ISDN_CMD_SETL2:
@@ -1411,15 +1410,15 @@ icn_command(isdn_ctrl *c, icn_card *card)
 			a = c->arg;
 			switch (a >> 8) {
 			case ISDN_PROTO_L2_X75I:
-				sprintf(cbuf, "%02d;BX75\n", (int) (a & 255) + 1);
+				sprintf(cbuf, "%02d;BX75\n", (int)(a & 255) + 1);
 				break;
 			case ISDN_PROTO_L2_HDLC:
-				sprintf(cbuf, "%02d;BTRA\n", (int) (a & 255) + 1);
+				sprintf(cbuf, "%02d;BTRA\n", (int)(a & 255) + 1);
 				break;
 			default:
 				return -EINVAL;
 			}
-			i = icn_writecmd(cbuf, strlen(cbuf), 0, card);
+			i = icn_writecmd(NULL, cbuf, strlen(cbuf), 0, card);
 			card->l2_proto[a & 255] = (a >> 8);
 		}
 		break;
@@ -1446,7 +1445,7 @@ icn_findcard(int driverid)
 			return p;
 		p = p->next;
 	}
-	return (icn_card *) 0;
+	return (icn_card *)0;
 }
 
 /*
@@ -1458,7 +1457,7 @@ if_command(isdn_ctrl *c)
 	icn_card *card = icn_findcard(c->driver);
 
 	if (card)
-		return (icn_command(c, card));
+		return icn_command(c, card);
 	printk(KERN_ERR
 	       "icn: if_command %d called with invalid driverId %d!\n",
 	       c->command, c->driver);
@@ -1473,7 +1472,7 @@ if_writecmd(const u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_writecmd(buf, len, 1, card));
+		return icn_writecmd(buf, NULL, len, 1, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_writecmd called with invalid driverId!\n");
@@ -1488,7 +1487,7 @@ if_readstatus(u_char __user *buf, int len, int id, int channel)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_readstatus(buf, len, card));
+		return icn_readstatus(buf, len, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_readstatus called with invalid driverId!\n");
@@ -1503,7 +1502,7 @@ if_sendbuf(int id, int channel, int ack, struct sk_buff *skb)
 	if (card) {
 		if (!(card->flags & ICN_FLAGS_RUNNING))
 			return -ENODEV;
-		return (icn_sendbuf(channel, ack, skb, card));
+		return icn_sendbuf(channel, ack, skb, card);
 	}
 	printk(KERN_ERR
 	       "icn: if_sendbuf called with invalid driverId!\n");
@@ -1520,10 +1519,11 @@ icn_initcard(int port, char *id)
 	icn_card *card;
 	int i;
 
-	if (!(card = kzalloc(sizeof(icn_card), GFP_KERNEL))) {
+	card = kzalloc(sizeof(icn_card), GFP_KERNEL);
+	if (!card) {
 		printk(KERN_WARNING
 		       "icn: (%s) Could not allocate card-struct.\n", id);
-		return (icn_card *) 0;
+		return (icn_card *)0;
 	}
 	spin_lock_init(&card->lock);
 	card->port = port;
@@ -1555,7 +1555,7 @@ icn_initcard(int port, char *id)
 		printk(KERN_WARNING
 		       "icn: Unable to register %s\n", id);
 		kfree(card);
-		return (icn_card *) 0;
+		return (icn_card *)0;
 	}
 	card->myid = card->interface.channels;
 	sprintf(card->regname, "icn-isdn (%s)", card->interface.id);
@@ -1568,16 +1568,17 @@ icn_addcard(int port, char *id1, char *id2)
 	icn_card *card;
 	icn_card *card2;
 
-	if (!(card = icn_initcard(port, id1))) {
+	card = icn_initcard(port, id1);
+	if (!card)
 		return -EIO;
-	}
 	if (!strlen(id2)) {
 		printk(KERN_INFO
 		       "icn: (%s) ICN-2B, port 0x%x added\n",
 		       card->interface.id, port);
 		return 0;
 	}
-	if (!(card2 = icn_initcard(port, id2))) {
+	card2 = icn_initcard(port, id2);
+	if (!card2) {
 		printk(KERN_INFO
 		       "icn: (%s) half ICN-4B, port 0x%x added\n", id2, port);
 		return 0;
@@ -1611,13 +1612,14 @@ icn_setup(char *line)
 	if (str && *str) {
 		strlcpy(sid, str, sizeof(sid));
 		icn_id = sid;
-		if ((p = strchr(sid, ','))) {
+		p = strchr(sid, ',');
+		if (p) {
 			*p++ = 0;
 			strcpy(sid2, p);
 			icn_id2 = sid2;
 		}
 	}
-	return (1);
+	return 1;
 }
 __setup("icn=", icn_setup);
 #endif /* MODULE */
@@ -1634,7 +1636,8 @@ static int __init icn_init(void)
 	dev.firstload = 1;
 	spin_lock_init(&dev.devlock);
 
-	if ((p = strchr(revision, ':'))) {
+	p = strchr(revision, ':');
+	if (p) {
 		strncpy(rev, p + 1, 20);
 		rev[20] = '\0';
 		p = strchr(rev, '$');
@@ -1644,7 +1647,7 @@ static int __init icn_init(void)
 		strcpy(rev, " ??? ");
 	printk(KERN_NOTICE "ICN-ISDN-driver Rev%smem=0x%08lx\n", rev,
 	       dev.memaddr);
-	return (icn_addcard(portbase, icn_id, icn_id2));
+	return icn_addcard(portbase, icn_id, icn_id2);
 }
 
 static void __exit icn_exit(void)

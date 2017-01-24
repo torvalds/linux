@@ -53,7 +53,7 @@ static ssize_t wusb_disconnect_store(struct device *dev,
 	wusbhc_put(wusbhc);
 	return size;
 }
-static DEVICE_ATTR(wusb_disconnect, 0200, NULL, wusb_disconnect_store);
+static DEVICE_ATTR_WO(wusb_disconnect);
 
 static ssize_t wusb_cdid_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -69,7 +69,7 @@ static ssize_t wusb_cdid_show(struct device *dev,
 	wusb_dev_put(wusb_dev);
 	return result + 1;
 }
-static DEVICE_ATTR(wusb_cdid, 0444, wusb_cdid_show, NULL);
+static DEVICE_ATTR_RO(wusb_cdid);
 
 static ssize_t wusb_ck_store(struct device *dev,
 			     struct device_attribute *attr,
@@ -105,7 +105,7 @@ static ssize_t wusb_ck_store(struct device *dev,
 	wusbhc_put(wusbhc);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_ck, 0200, NULL, wusb_ck_store);
+static DEVICE_ATTR_WO(wusb_ck);
 
 static struct attribute *wusb_dev_attrs[] = {
 		&dev_attr_wusb_disconnect.attr,

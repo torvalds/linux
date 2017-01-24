@@ -138,6 +138,9 @@ struct ceph_dir_layout {
 #define CEPH_MSG_POOLOP_REPLY           48
 #define CEPH_MSG_POOLOP                 49
 
+/* mon commands */
+#define CEPH_MSG_MON_COMMAND            50
+#define CEPH_MSG_MON_COMMAND_ACK        51
 
 /* osd */
 #define CEPH_MSG_OSD_MAP                41
@@ -174,6 +177,14 @@ struct ceph_mon_statfs_reply {
 	struct ceph_fsid fsid;
 	__le64 version;
 	struct ceph_statfs st;
+} __attribute__ ((packed));
+
+struct ceph_mon_command {
+	struct ceph_mon_request_header monhdr;
+	struct ceph_fsid fsid;
+	__le32 num_strs;         /* always 1 */
+	__le32 str_len;
+	char str[];
 } __attribute__ ((packed));
 
 struct ceph_osd_getmap {
@@ -270,6 +281,7 @@ enum {
 	CEPH_SESSION_FLUSHMSG,
 	CEPH_SESSION_FLUSHMSG_ACK,
 	CEPH_SESSION_FORCE_RO,
+	CEPH_SESSION_REJECT,
 };
 
 extern const char *ceph_session_op_name(int op);
@@ -640,6 +652,9 @@ enum {
 };
 
 extern const char *ceph_cap_op_name(int op);
+
+/* flags field in client cap messages (version >= 10) */
+#define CEPH_CLIENT_CAPS_SYNC	(0x1)
 
 /*
  * caps message, used for capability callbacks, acks, requests, etc.

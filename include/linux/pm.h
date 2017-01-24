@@ -258,7 +258,7 @@ typedef struct pm_message {
  * example, if it detects that a child was unplugged while the system was
  * asleep).
  *
- * Refer to Documentation/power/devices.txt for more information about the role
+ * Refer to Documentation/power/admin-guide/devices.rst for more information about the role
  * of the above callbacks in the system suspend process.
  *
  * There also are callbacks related to runtime power management of devices.
@@ -559,6 +559,7 @@ struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned int		can_wakeup:1;
 	unsigned int		async_suspend:1;
+	bool			in_dpm_list:1;	/* Owned by the PM core */
 	bool			is_prepared:1;	/* Owned by the PM core */
 	bool			is_suspended:1;	/* Ditto */
 	bool			is_noirq_suspended:1;
@@ -596,6 +597,7 @@ struct dev_pm_info {
 	unsigned int		use_autosuspend:1;
 	unsigned int		timer_autosuspends:1;
 	unsigned int		memalloc_noio:1;
+	unsigned int		links_count;
 	enum rpm_request	request;
 	enum rpm_status		runtime_status;
 	int			runtime_error;

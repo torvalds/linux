@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "hfsplus_fs.h"
 
 /*
@@ -122,7 +122,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	else
 		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 
 out_unlock_inode:

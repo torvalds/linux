@@ -31,6 +31,25 @@
  *
  * lustre/fld/fld_internal.h
  *
+ * Subsystem Description:
+ * FLD is FID Location Database, which stores where (IE, on which MDT)
+ * FIDs are located.
+ * The database is basically a record file, each record consists of a FID
+ * sequence range, MDT/OST index, and flags. The FLD for the whole FS
+ * is only stored on the sequence controller(MDT0) right now, but each target
+ * also has its local FLD, which only stores the local sequence.
+ *
+ * The FLD subsystem usually has two tasks:
+ * 1. maintain the database, i.e. when the sequence controller allocates
+ * new sequence ranges to some nodes, it will call the FLD API to insert the
+ * location information <sequence_range, node_index> in FLDB.
+ *
+ * 2. Handle requests from other nodes, i.e. if client needs to know where
+ * the FID is located, if it can not find the information in the local cache,
+ * it will send a FLD lookup RPC to the FLD service, and the FLD service will
+ * look up the FLDB entry and return the location information to client.
+ *
+ *
  * Author: Yury Umanets <umka@clusterfs.com>
  * Author: Tom WangDi <wangdi@clusterfs.com>
  */
@@ -42,11 +61,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
-
-enum {
-	LUSTRE_FLD_INIT = 1 << 0,
-	LUSTRE_FLD_RUN  = 1 << 1
-};
 
 struct fld_stats {
 	__u64   fst_count;

@@ -75,7 +75,7 @@
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define HFI1_USER_SWMINOR 2
+#define HFI1_USER_SWMINOR 3
 
 /*
  * We will encode the major/minor inside a single 32bit version number.

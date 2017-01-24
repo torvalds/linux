@@ -134,9 +134,9 @@ act2000_isa_config_irq(act2000_card *card, short irq)
 {
 	int old_irq;
 
-	if (card->flags & ACT2000_FLAGS_IVALID) {
+	if (card->flags & ACT2000_FLAGS_IVALID)
 		free_irq(card->irq, card);
-	}
+
 	card->flags &= ~ACT2000_FLAGS_IVALID;
 	outb(ISA_COR_IRQOFF, ISA_PORT_COR);
 	if (!irq)
@@ -166,7 +166,7 @@ act2000_isa_config_port(act2000_card *card, unsigned short portbase)
 		release_region(card->port, ISA_REGION);
 		card->flags &= ~ACT2000_FLAGS_PVALID;
 	}
-	if (request_region(portbase, ACT2000_PORTLEN, card->regname) == NULL)
+	if (!request_region(portbase, ACT2000_PORTLEN, card->regname))
 		return -EBUSY;
 	else {
 		card->port = portbase;
@@ -176,7 +176,7 @@ act2000_isa_config_port(act2000_card *card, unsigned short portbase)
 }
 
 /*
- * Release ressources, used by an adaptor.
+ * Release resources, used by an adaptor.
  */
 void
 act2000_isa_release(act2000_card *card)
@@ -244,7 +244,7 @@ act2000_isa_receive(act2000_card *card)
 				if (valid) {
 					card->idat.isa.rcvlen = ((actcapi_msghdr *)&card->idat.isa.rcvhdr)->len;
 					card->idat.isa.rcvskb = dev_alloc_skb(card->idat.isa.rcvlen);
-					if (card->idat.isa.rcvskb == NULL) {
+					if (!card->idat.isa.rcvskb) {
 						card->idat.isa.rcvignore = 1;
 						printk(KERN_WARNING
 						       "act2000_isa_receive: no memory\n");
@@ -259,6 +259,7 @@ act2000_isa_receive(act2000_card *card)
 					       "act2000_isa_receive: Invalid CAPI msg\n");
 					{
 						int i; __u8 *p; __u8 *t; __u8 tmp[30];
+
 						for (i = 0, p = (__u8 *)&card->idat.isa.rcvhdr, t = tmp; i < 8; i++)
 							t += sprintf(t, "%02x ", *(p++));
 						printk(KERN_WARNING "act2000_isa_receive: %s\n", tmp);
@@ -399,7 +400,6 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	unsigned int length;
 	int l;
 	int c;
-	long timeout;
 	u_char *b;
 	u_char __user *p;
 	u_char *buf;
@@ -417,7 +417,6 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	buf = kmalloc(1024, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	timeout = 0;
 	while (length) {
 		l = (length > 1024) ? 1024 : length;
 		c = 0;

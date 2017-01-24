@@ -46,10 +46,11 @@
 #include "key.h"
 #include "usbpipe.h"
 
-/* const u16 cwRXBCNTSFOff[MAX_RATE] =
-   {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3}; */
+/* const u16 cw_rxbcntsf_off[MAX_RATE] =
+ *   {17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
+ */
 
-static const u16 cwRXBCNTSFOff[MAX_RATE] = {
+static const u16 cw_rxbcntsf_off[MAX_RATE] = {
 	192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3
 };
 
@@ -65,7 +66,6 @@ static const u16 cwRXBCNTSFOff[MAX_RATE] = {
  */
 void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 {
-
 	if (connection_channel > CB_MAX_CHANNEL || !connection_channel)
 		return;
 
@@ -76,10 +76,10 @@ void vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL, 0xb0);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SELECT_CHANNEL,
-					connection_channel, 0, 0, NULL);
+			connection_channel, 0, 0, NULL);
 
 	vnt_control_out_u8(priv, MESSAGE_REQUEST_MACREG, MAC_REG_CHANNEL,
-		(u8)(connection_channel | 0x80));
+			   (u8)(connection_channel | 0x80));
 }
 
 /*
@@ -126,11 +126,11 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 	u16 ui = rate_idx;
 
 	dev_dbg(&priv->usb->dev, "%s basic rate: %d\n",
-					__func__,  priv->basic_rates);
+		__func__,  priv->basic_rates);
 
 	if (!vnt_ofdm_min_rate(priv)) {
 		dev_dbg(&priv->usb->dev, "%s (NO OFDM) %d\n",
-						__func__, rate_idx);
+			__func__, rate_idx);
 		if (rate_idx > RATE_24M)
 			rate_idx = RATE_24M;
 		return rate_idx;
@@ -139,7 +139,7 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
 	while (ui > RATE_11M) {
 		if (priv->basic_rates & (1 << ui)) {
 			dev_dbg(&priv->usb->dev, "%s rate: %d\n",
-							__func__, ui);
+				__func__, ui);
 			return ui;
 		}
 		ui--;
@@ -165,9 +165,8 @@ static u16 vnt_get_ofdm_rate(struct vnt_private *priv, u16 rate_idx)
  *
  */
 static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
-					u8 *tx_rate, u8 *rsv_time)
+				    u8 *tx_rate, u8 *rsv_time)
 {
-
 	switch (rate) {
 	case RATE_6M:
 		if (bb_type == BB_TYPE_11A) {
@@ -267,20 +266,20 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	int i;
 
 	/*RSPINF_b_1*/
-	vnt_get_phy_field(priv, 14,
-		vnt_get_cck_rate(priv, RATE_1M), PK_TYPE_11B, &phy[0]);
+	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_1M),
+			  PK_TYPE_11B, &phy[0]);
 
 	/*RSPINF_b_2*/
-	vnt_get_phy_field(priv, 14,
-		vnt_get_cck_rate(priv, RATE_2M), PK_TYPE_11B, &phy[1]);
+	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_2M),
+			  PK_TYPE_11B, &phy[1]);
 
 	/*RSPINF_b_5*/
-	vnt_get_phy_field(priv, 14,
-		vnt_get_cck_rate(priv, RATE_5M), PK_TYPE_11B, &phy[2]);
+	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_5M),
+			  PK_TYPE_11B, &phy[2]);
 
 	/*RSPINF_b_11*/
-	vnt_get_phy_field(priv, 14,
-		vnt_get_cck_rate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
+	vnt_get_phy_field(priv, 14, vnt_get_cck_rate(priv, RATE_11M),
+			  PK_TYPE_11B, &phy[3]);
 
 	/*RSPINF_a_6*/
 	vnt_calculate_ofdm_rate(RATE_6M, bb_type, &tx_rate[0], &rsv_time[0]);
@@ -299,19 +298,19 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 
 	/*RSPINF_a_36*/
 	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_36M),
-					bb_type, &tx_rate[5], &rsv_time[5]);
+				bb_type, &tx_rate[5], &rsv_time[5]);
 
 	/*RSPINF_a_48*/
 	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_48M),
-					bb_type, &tx_rate[6], &rsv_time[6]);
+				bb_type, &tx_rate[6], &rsv_time[6]);
 
 	/*RSPINF_a_54*/
 	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_54M),
-					bb_type, &tx_rate[7], &rsv_time[7]);
+				bb_type, &tx_rate[7], &rsv_time[7]);
 
 	/*RSPINF_a_72*/
 	vnt_calculate_ofdm_rate(vnt_get_ofdm_rate(priv, RATE_54M),
-					bb_type, &tx_rate[8], &rsv_time[8]);
+				bb_type, &tx_rate[8], &rsv_time[8]);
 
 	put_unaligned(phy[0].len, (u16 *)&data[0]);
 	data[2] = phy[0].signal;
@@ -334,8 +333,8 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 		data[16 + i * 2 + 1] = rsv_time[i];
 	}
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-		MAC_REG_RSPINF_B_1, MESSAGE_REQUEST_MACREG, 34, &data[0]);
+	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_RSPINF_B_1,
+			MESSAGE_REQUEST_MACREG, 34, &data[0]);
 }
 
 /*
@@ -429,12 +428,12 @@ void vnt_update_ifs(struct vnt_private *priv)
 	data[3] = (u8)priv->slot;
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_SIFS,
-		MESSAGE_REQUEST_MACREG, 4, &data[0]);
+			MESSAGE_REQUEST_MACREG, 4, &data[0]);
 
 	max_min |= 0xa0;
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, MAC_REG_CWMAXMIN0,
-		MESSAGE_REQUEST_MACREG, 1, &max_min);
+			MESSAGE_REQUEST_MACREG, 1, &max_min);
 }
 
 void vnt_update_top_rates(struct vnt_private *priv)
@@ -478,7 +477,6 @@ int vnt_ofdm_min_rate(struct vnt_private *priv)
 
 u8 vnt_get_pkt_type(struct vnt_private *priv)
 {
-
 	if (priv->bb_type == BB_TYPE_11A || priv->bb_type == BB_TYPE_11B)
 		return (u8)priv->bb_type;
 	else if (vnt_ofdm_min_rate(priv))
@@ -503,16 +501,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  */
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
-	u64 tsf_offset = 0;
-	u16 rx_bcn_offset;
-
-	rx_bcn_offset = cwRXBCNTSFOff[rx_rate % MAX_RATE];
-
-	tsf2 += (u64)rx_bcn_offset;
-
-	tsf_offset = tsf1 - tsf2;
-
-	return tsf_offset;
+	return tsf1 - tsf2 - (u64)cw_rxbcntsf_off[rx_rate % MAX_RATE];
 }
 
 /*
@@ -531,7 +520,7 @@ u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
  *
  */
 void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
-		u64 time_stamp, u64 local_tsf)
+		    u64 time_stamp, u64 local_tsf)
 {
 	u64 tsf_offset = 0;
 	u8 data[8];
@@ -548,8 +537,9 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
 	data[7] = (u8)(tsf_offset >> 56);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-		MESSAGE_REQUEST_TSF, 0, 8, data);
+			MESSAGE_REQUEST_TSF, 0, 8, data);
 }
+
 /*
  * Description: Read NIC TSF counter
  *              Get local TSF counter
@@ -565,7 +555,6 @@ void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
  */
 bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
 {
-
 	*current_tsf = priv->current_tsf;
 
 	return true;
@@ -584,7 +573,6 @@ bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf)
  */
 bool vnt_clear_current_tsf(struct vnt_private *priv)
 {
-
 	vnt_mac_reg_bits_on(priv, MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 
 	priv->current_tsf = 0;
@@ -613,8 +601,8 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
-	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	*/
+	 *	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	 */
 	if (beacon_int) {
 		do_div(tsf, beacon_int);
 		tsf += 1;
@@ -657,7 +645,7 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
 	data[7] = (u8)(next_tbtt >> 56);
 
 	vnt_control_out(priv, MESSAGE_TYPE_SET_TSFTBTT,
-		MESSAGE_REQUEST_TBTT, 0, 8, data);
+			MESSAGE_REQUEST_TBTT, 0, 8, data);
 }
 
 /*
@@ -676,7 +664,7 @@ void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval)
  *
  */
 void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
-			u16 beacon_interval)
+			  u16 beacon_interval)
 {
 	u8 data[8];
 
@@ -721,7 +709,7 @@ int vnt_radio_power_off(struct vnt_private *priv)
 	case RF_VT3226D0:
 	case RF_VT3342A0:
 		vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
-				(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+				     (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}
 
@@ -762,7 +750,7 @@ int vnt_radio_power_on(struct vnt_private *priv)
 	case RF_VT3226D0:
 	case RF_VT3342A0:
 		vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL,
-			(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+				    (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}
 
@@ -795,7 +783,7 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 			priv->bb_vga[0] = 0x20;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						0xe7, priv->bb_vga[0]);
+					   0xe7, priv->bb_vga[0]);
 		}
 
 		priv->bb_vga[2] = 0x10;
@@ -805,7 +793,7 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 			priv->bb_vga[0] = 0x1c;
 
 			vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-						0xe7, priv->bb_vga[0]);
+					   0xe7, priv->bb_vga[0]);
 		}
 
 		priv->bb_vga[2] = 0x0;

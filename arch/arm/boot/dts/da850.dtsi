@@ -36,25 +36,46 @@
 			reg = <0x14120 0x50>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <2>;
 			pinctrl-single,bit-per-mux;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0xf>;
 			status = "disabled";
 
-			nand_cs3_pins: pinmux_nand_pins {
+			serial0_rtscts_pins: pinmux_serial0_rtscts_pins {
 				pinctrl-single,bits = <
-					/* EMA_OE, EMA_WE */
-					0x1c 0x00110000  0x00ff0000
-					/* EMA_CS[4],EMA_CS[3]*/
-					0x1c 0x00000110  0x00000ff0
-					/*
-					 * EMA_D[0], EMA_D[1], EMA_D[2],
-					 * EMA_D[3], EMA_D[4], EMA_D[5],
-					 * EMA_D[6], EMA_D[7]
-					 */
-					0x24 0x11111111  0xffffffff
-					/* EMA_A[1], EMA_A[2] */
-					0x30 0x01100000  0x0ff00000
+					/* UART0_RTS UART0_CTS */
+					0x0c 0x22000000 0xff000000
+				>;
+			};
+			serial0_rxtx_pins: pinmux_serial0_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART0_TXD UART0_RXD */
+					0x0c 0x00220000 0x00ff0000
+				>;
+			};
+			serial1_rtscts_pins: pinmux_serial1_rtscts_pins {
+				pinctrl-single,bits = <
+					/* UART1_CTS UART1_RTS */
+					0x00 0x00440000 0x00ff0000
+				>;
+			};
+			serial1_rxtx_pins: pinmux_serial1_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART1_TXD UART1_RXD */
+					0x10 0x22000000 0xff000000
+				>;
+			};
+			serial2_rtscts_pins: pinmux_serial2_rtscts_pins {
+				pinctrl-single,bits = <
+					/* UART2_CTS UART2_RTS */
+					0x00 0x44000000 0xff000000
+				>;
+			};
+			serial2_rxtx_pins: pinmux_serial2_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART2_TXD UART2_RXD */
+					0x10 0x00220000 0x00ff0000
 				>;
 			};
 			i2c0_pins: pinmux_i2c0_pins {
@@ -166,7 +187,43 @@
 					0xc 0x88888888 0xffffffff
 				>;
 			};
+			lcd_pins: pinmux_lcd_pins {
+				pinctrl-single,bits = <
+					/*
+					 * LCD_D[2], LCD_D[3], LCD_D[4], LCD_D[5],
+					 * LCD_D[6], LCD_D[7]
+					 */
+					0x40 0x22222200 0xffffff00
+					/*
+					 * LCD_D[10], LCD_D[11], LCD_D[12], LCD_D[13],
+					 * LCD_D[14], LCD_D[15], LCD_D[0], LCD_D[1]
+					 */
+					0x44 0x22222222 0xffffffff
+					/* LCD_D[8], LCD_D[9] */
+					0x48 0x00000022 0x000000ff
 
+					/* LCD_PCLK */
+					0x48 0x02000000 0x0f000000
+					/* LCD_AC_ENB_CS, LCD_VSYNC, LCD_HSYNC */
+					0x4c 0x02000022 0x0f0000ff
+				>;
+			};
+
+		};
+		prictrl: priority-controller@14110 {
+			compatible = "ti,da850-mstpri";
+			reg = <0x14110 0x0c>;
+			status = "disabled";
+		};
+		cfgchip: chip-controller@1417c {
+			compatible = "ti,da830-cfgchip", "syscon", "simple-mfd";
+			reg = <0x1417c 0x14>;
+
+			usb_phy: usb-phy {
+				compatible = "ti,da830-usb-phy";
+				#phy-cells = <1>;
+				status = "disabled";
+			};
 		};
 		edma0: edma@0 {
 			compatible = "ti,edma3-tpcc";
@@ -260,6 +317,8 @@
 		mmc0: mmc@40000 {
 			compatible = "ti,da830-mmc";
 			reg = <0x40000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
 			interrupts = <16>;
 			dmas = <&edma0 16 0>, <&edma0 17 0>;
 			dma-names = "rx", "tx";
@@ -268,37 +327,44 @@
 		mmc1: mmc@21b000 {
 			compatible = "ti,da830-mmc";
 			reg = <0x21b000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
 			interrupts = <72>;
 			dmas = <&edma1 28 0>, <&edma1 29 0>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		ehrpwm0: pwm@300000 {
-			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
+				     "ti,am33xx-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x300000 0x2000>;
 			status = "disabled";
 		};
 		ehrpwm1: pwm@302000 {
-			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
+				     "ti,am33xx-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x302000 0x2000>;
 			status = "disabled";
 		};
 		ecap0: ecap@306000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x306000 0x80>;
 			status = "disabled";
 		};
 		ecap1: ecap@307000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x307000 0x80>;
 			status = "disabled";
 		};
 		ecap2: ecap@308000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x308000 0x80>;
 			status = "disabled";
@@ -311,6 +377,8 @@
 			num-cs = <6>;
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <20>;
+			dmas = <&edma0 14 0>, <&edma0 15 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		spi1: spi@30e000 {
@@ -323,6 +391,16 @@
 			interrupts = <56>;
 			dmas = <&edma0 18 0>, <&edma0 19 0>;
 			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+		usb0: usb@200000 {
+			compatible = "ti,da830-musb";
+			reg = <0x200000 0x10000>;
+			interrupts = <58>;
+			interrupt-names = "mc";
+			dr_mode = "otg";
+			phys = <&usb_phy 0>;
+			phy-names = "usb-phy";
 			status = "disabled";
 		};
 		mdio: mdio@224000 {
@@ -361,6 +439,11 @@
 			ti,davinci-gpio-unbanked = <0>;
 			status = "disabled";
 		};
+		pinconf: pin-controller@22c00c {
+			compatible = "ti,da850-pupd";
+			reg = <0x22c00c 0x8>;
+			status = "disabled";
+		};
 
 		mcasp0: mcasp@100000 {
 			compatible = "ti,da830-mcasp-audio";
@@ -374,18 +457,27 @@
 				<&edma0 0 1>;
 			dma-names = "tx", "rx";
 		};
+
+		display: display@213000 {
+			compatible = "ti,da850-tilcdc";
+			reg = <0x213000 0x1000>;
+			interrupts = <52>;
+			status = "disabled";
+		};
 	};
-	nand_cs3@62000000 {
-		compatible = "ti,davinci-nand";
-		reg = <0x62000000 0x807ff
-		       0x68000000 0x8000>;
-		ti,davinci-chipselect = <1>;
-		ti,davinci-mask-ale = <0>;
-		ti,davinci-mask-cle = <0>;
-		ti,davinci-mask-chipsel = <0>;
-		ti,davinci-ecc-mode = "hw";
-		ti,davinci-ecc-bits = <4>;
-		ti,davinci-nand-use-bbt;
+	aemif: aemif@68000000 {
+		compatible = "ti,da850-aemif";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		reg = <0x68000000 0x00008000>;
+		ranges = <0 0 0x60000000 0x08000000
+			  1 0 0x68000000 0x00008000>;
+		status = "disabled";
+	};
+	memctrl: memory-controller@b0000000 {
+		compatible = "ti,da850-ddr-controller";
+		reg = <0xb0000000 0xe8>;
 		status = "disabled";
 	};
 };

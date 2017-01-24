@@ -79,7 +79,7 @@ static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			   ARIZONA_GPN_LVL, value);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "arizona",
 	.owner			= THIS_MODULE,
 	.direction_input	= arizona_gpio_direction_in,
@@ -137,15 +137,10 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
-	platform_set_drvdata(pdev, arizona_gpio);
-
-	return ret;
-
-err:
-	return ret;
+	return 0;
 }
 
 static struct platform_driver arizona_gpio_driver = {

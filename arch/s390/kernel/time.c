@@ -38,7 +38,7 @@
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/facility.h>
 #include <asm/delay.h>
 #include <asm/div64.h>
@@ -50,10 +50,6 @@
 #include <asm/cio.h>
 #include "entry.h"
 
-/* change this if you have some constant time drift */
-#define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
-#define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
-
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
 EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
@@ -63,19 +59,27 @@ ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
 EXPORT_SYMBOL(s390_epoch_delta_notifier);
 
 unsigned char ptff_function_mask[16];
-unsigned long lpar_offset;
-unsigned long initial_leap_seconds;
+
+static unsigned long long lpar_offset;
+static unsigned long long initial_leap_seconds;
+static unsigned long long tod_steering_end;
+static long long tod_steering_delta;
 
 /*
  * Get time offsets with PTFF
  */
-void __init ptff_init(void)
+void __init time_early_init(void)
 {
 	struct ptff_qto qto;
 	struct ptff_qui qui;
 
+	/* Initialize TOD steering parameters */
+	tod_steering_end = sched_clock_base_cc;
+	vdso_data->ts_end = tod_steering_end;
+
 	if (!test_facility(28))
 		return;
+
 	ptff(&ptff_function_mask, sizeof(ptff_function_mask), PTFF_QAF);
 
 	/* get LPAR offset */
@@ -84,7 +88,7 @@ void __init ptff_init(void)
 
 	/* get initial leap seconds */
 	if (ptff_query(PTFF_QUI) && ptff(&qui, sizeof(qui), PTFF_QUI) == 0)
-		initial_leap_seconds = (unsigned long)
+		initial_leap_seconds = (unsigned long long)
 			((long) qui.old_leap * 4096000000L);
 }
 
@@ -125,18 +129,6 @@ void clock_comparator_work(void)
 	S390_lowcore.clock_comparator = -1ULL;
 	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
-}
-
-/*
- * Fixup the clock comparator.
- */
-static void fixup_clock_comparator(unsigned long long delta)
-{
-	/* If nobody is waiting there's nothing to fix. */
-	if (S390_lowcore.clock_comparator == -1ULL)
-		return;
-	S390_lowcore.clock_comparator += delta;
-	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
 static int s390_next_event(unsigned long delta,
@@ -217,9 +209,23 @@ void read_boot_clock64(struct timespec64 *ts)
 	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
 }
 
-static cycle_t read_tod_clock(struct clocksource *cs)
+static u64 read_tod_clock(struct clocksource *cs)
 {
-	return get_tod_clock();
+	unsigned long long now, adj;
+
+	preempt_disable(); /* protect from changes to steering parameters */
+	now = get_tod_clock();
+	adj = tod_steering_end - now;
+	if (unlikely((s64) adj >= 0))
+		/*
+		 * manually steer by 1 cycle every 2^16 cycles. This
+		 * corresponds to shifting the tod delta by 15. 1s is
+		 * therefore steered in ~9h. The adjust will decrease
+		 * over time, until it finally reaches 0.
+		 */
+		now += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
+	preempt_enable();
+	return now;
 }
 
 static struct clocksource clocksource_tod = {
@@ -282,13 +288,8 @@ extern struct timezone sys_tz;
 
 void update_vsyscall_tz(void)
 {
-	/* Make userspace gettimeofday spin until we're done. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
-	smp_wmb();
-	++vdso_data->tb_update_count;
 }
 
 /*
@@ -318,51 +319,12 @@ void __init time_init(void)
 	vtime_init();
 }
 
-/*
- * The time is "clock". old is what we think the time is.
- * Adjust the value by a multiple of jiffies and add the delta to ntp.
- * "delay" is an approximation how long the synchronization took. If
- * the time correction is positive, then "delay" is subtracted from
- * the time difference and only the remaining part is passed to ntp.
- */
-static unsigned long long adjust_time(unsigned long long old,
-				      unsigned long long clock,
-				      unsigned long long delay)
-{
-	unsigned long long delta, ticks;
-	struct timex adjust;
-
-	if (clock > old) {
-		/* It is later than we thought. */
-		delta = ticks = clock - old;
-		delta = ticks = (delta < delay) ? 0 : delta - delay;
-		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		adjust.offset = ticks * (1000000 / HZ);
-	} else {
-		/* It is earlier than we thought. */
-		delta = ticks = old - clock;
-		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		delta = -delta;
-		adjust.offset = -ticks * (1000000 / HZ);
-	}
-	sched_clock_base_cc += delta;
-	if (adjust.offset != 0) {
-		pr_notice("The ETR interface has adjusted the clock "
-			  "by %li microseconds\n", adjust.offset);
-		adjust.modes = ADJ_OFFSET_SINGLESHOT;
-		do_adjtimex(&adjust);
-	}
-	return delta;
-}
-
 static DEFINE_PER_CPU(atomic_t, clock_sync_word);
 static DEFINE_MUTEX(clock_sync_mutex);
 static unsigned long clock_sync_flags;
 
-#define CLOCK_SYNC_HAS_ETR	0
-#define CLOCK_SYNC_HAS_STP	1
-#define CLOCK_SYNC_ETR		2
-#define CLOCK_SYNC_STP		3
+#define CLOCK_SYNC_HAS_STP	0
+#define CLOCK_SYNC_STP		1
 
 /*
  * The get_clock function for the physical clock. It will get the current
@@ -384,34 +346,32 @@ int get_phys_clock(unsigned long long *clock)
 	if (sw0 == sw1 && (sw0 & 0x80000000U))
 		/* Success: time is in sync. */
 		return 0;
-	if (!test_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags) &&
-	    !test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
+	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return -EOPNOTSUPP;
-	if (!test_bit(CLOCK_SYNC_ETR, &clock_sync_flags) &&
-	    !test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
+	if (!test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
 		return -EACCES;
 	return -EAGAIN;
 }
 EXPORT_SYMBOL(get_phys_clock);
 
 /*
- * Make get_sync_clock return -EAGAIN.
+ * Make get_phys_clock() return -EAGAIN.
  */
 static void disable_sync_clock(void *dummy)
 {
 	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	/*
-	 * Clear the in-sync bit 2^31. All get_sync_clock calls will
+	 * Clear the in-sync bit 2^31. All get_phys_clock calls will
 	 * fail until the sync bit is turned back on. In addition
 	 * increase the "sequence" counter to avoid the race of an
-	 * etr event and the complete recovery against get_sync_clock.
+	 * stp event and the complete recovery against get_phys_clock.
 	 */
 	atomic_andnot(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
 /*
- * Make get_sync_clock return 0 again.
+ * Make get_phys_clock() return 0 again.
  * Needs to be called from a context disabled for preemption.
  */
 static void enable_sync_clock(void)
@@ -434,7 +394,56 @@ static inline int check_sync_clock(void)
 	return rc;
 }
 
-/* Single threaded workqueue used for etr and stp sync events */
+/*
+ * Apply clock delta to the global data structures.
+ * This is called once on the CPU that performed the clock sync.
+ */
+static void clock_sync_global(unsigned long long delta)
+{
+	unsigned long now, adj;
+	struct ptff_qto qto;
+
+	/* Fixup the monotonic sched clock. */
+	sched_clock_base_cc += delta;
+	/* Adjust TOD steering parameters. */
+	vdso_data->tb_update_count++;
+	now = get_tod_clock();
+	adj = tod_steering_end - now;
+	if (unlikely((s64) adj >= 0))
+		/* Calculate how much of the old adjustment is left. */
+		tod_steering_delta = (tod_steering_delta < 0) ?
+			-(adj >> 15) : (adj >> 15);
+	tod_steering_delta += delta;
+	if ((abs(tod_steering_delta) >> 48) != 0)
+		panic("TOD clock sync offset %lli is too large to drift\n",
+		      tod_steering_delta);
+	tod_steering_end = now + (abs(tod_steering_delta) << 15);
+	vdso_data->ts_dir = (tod_steering_delta < 0) ? 0 : 1;
+	vdso_data->ts_end = tod_steering_end;
+	vdso_data->tb_update_count++;
+	/* Update LPAR offset. */
+	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
+		lpar_offset = qto.tod_epoch_difference;
+	/* Call the TOD clock change notifier. */
+	atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0, &delta);
+}
+
+/*
+ * Apply clock delta to the per-CPU data structures of this CPU.
+ * This is called for each online CPU after the call to clock_sync_global.
+ */
+static void clock_sync_local(unsigned long long delta)
+{
+	/* Add the delta to the clock comparator. */
+	if (S390_lowcore.clock_comparator != -1ULL) {
+		S390_lowcore.clock_comparator += delta;
+		set_clock_comparator(S390_lowcore.clock_comparator);
+	}
+	/* Adjust the last_update_clock time-stamp. */
+	S390_lowcore.last_update_clock += delta;
+}
+
+/* Single threaded workqueue used for stp sync events */
 static struct workqueue_struct *time_sync_wq;
 
 static void __init time_init_wq(void)
@@ -447,38 +456,8 @@ static void __init time_init_wq(void)
 struct clock_sync_data {
 	atomic_t cpus;
 	int in_sync;
-	unsigned long long fixup_cc;
-	int etr_port;
-	struct etr_aib *etr_aib;
+	unsigned long long clock_delta;
 };
-
-static void clock_sync_cpu(struct clock_sync_data *sync)
-{
-	atomic_dec(&sync->cpus);
-	enable_sync_clock();
-	/*
-	 * This looks like a busy wait loop but it isn't. etr_sync_cpus
-	 * is called on all other cpus while the TOD clocks is stopped.
-	 * __udelay will stop the cpu on an enabled wait psw until the
-	 * TOD is running again.
-	 */
-	while (sync->in_sync == 0) {
-		__udelay(1);
-		/*
-		 * A different cpu changes *in_sync. Therefore use
-		 * barrier() to force memory access.
-		 */
-		barrier();
-	}
-	if (sync->in_sync != 1)
-		/* Didn't work. Clear per-cpu in sync bit again. */
-		disable_sync_clock(NULL);
-	/*
-	 * This round of TOD syncing is done. Set the clock comparator
-	 * to the next tick and let the processor continue.
-	 */
-	fixup_clock_comparator(sync->fixup_cc);
-}
 
 /*
  * Server Time Protocol (STP) code.
@@ -581,54 +560,46 @@ void stp_queue_work(void)
 
 static int stp_sync_clock(void *data)
 {
+	struct clock_sync_data *sync = data;
+	unsigned long long clock_delta;
 	static int first;
-	unsigned long long old_clock, delta, new_clock, clock_delta;
-	struct clock_sync_data *stp_sync;
-	struct ptff_qto qto;
 	int rc;
 
-	stp_sync = data;
-
-	if (xchg(&first, 1) == 1) {
-		/* Slave */
-		clock_sync_cpu(stp_sync);
-		return 0;
-	}
-
-	/* Wait until all other cpus entered the sync function. */
-	while (atomic_read(&stp_sync->cpus) != 0)
-		cpu_relax();
-
 	enable_sync_clock();
-
-	rc = 0;
-	if (stp_info.todoff[0] || stp_info.todoff[1] ||
-	    stp_info.todoff[2] || stp_info.todoff[3] ||
-	    stp_info.tmd != 2) {
-		old_clock = get_tod_clock();
-		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0, &clock_delta);
-		if (rc == 0) {
-			new_clock = old_clock + clock_delta;
-			delta = adjust_time(old_clock, new_clock, 0);
-			if (ptff_query(PTFF_QTO) &&
-			    ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
-				/* Update LPAR offset */
-				lpar_offset = qto.tod_epoch_difference;
-			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
-						   0, &clock_delta);
-			fixup_clock_comparator(delta);
-			rc = chsc_sstpi(stp_page, &stp_info,
-					sizeof(struct stp_sstpi));
-			if (rc == 0 && stp_info.tmd != 2)
-				rc = -EAGAIN;
+	if (xchg(&first, 1) == 0) {
+		/* Wait until all other cpus entered the sync function. */
+		while (atomic_read(&sync->cpus) != 0)
+			cpu_relax();
+		rc = 0;
+		if (stp_info.todoff[0] || stp_info.todoff[1] ||
+		    stp_info.todoff[2] || stp_info.todoff[3] ||
+		    stp_info.tmd != 2) {
+			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
+					&clock_delta);
+			if (rc == 0) {
+				sync->clock_delta = clock_delta;
+				clock_sync_global(clock_delta);
+				rc = chsc_sstpi(stp_page, &stp_info,
+						sizeof(struct stp_sstpi));
+				if (rc == 0 && stp_info.tmd != 2)
+					rc = -EAGAIN;
+			}
 		}
+		sync->in_sync = rc ? -EAGAIN : 1;
+		xchg(&first, 0);
+	} else {
+		/* Slave */
+		atomic_dec(&sync->cpus);
+		/* Wait for in_sync to be set. */
+		while (READ_ONCE(sync->in_sync) == 0)
+			__udelay(1);
 	}
-	if (rc) {
+	if (sync->in_sync != 1)
+		/* Didn't work. Clear per-cpu in sync bit again. */
 		disable_sync_clock(NULL);
-		stp_sync->in_sync = -EAGAIN;
-	} else
-		stp_sync->in_sync = 1;
-	xchg(&first, 0);
+	/* Apply clock delta to per-CPU fields of this CPU. */
+	clock_sync_local(sync->clock_delta);
+
 	return 0;
 }
 

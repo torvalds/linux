@@ -35,6 +35,7 @@
 #define LPFC_BSG_VENDOR_MENLO_DATA		9
 #define LPFC_BSG_VENDOR_DIAG_MODE_END		10
 #define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
+#define LPFC_BSG_VENDOR_FORCED_LINK_SPEED	14
 
 struct set_ct_event {
 	uint32_t command;
@@ -282,6 +283,15 @@ struct lpfc_sli_config_mbox {
 		struct lpfc_sli_config_emb0_subsys sli_config_emb0_subsys;
 		struct lpfc_sli_config_emb1_subsys sli_config_emb1_subsys;
 	} un;
+};
+
+#define LPFC_FORCED_LINK_SPEED_NOT_SUPPORTED	0
+#define LPFC_FORCED_LINK_SPEED_SUPPORTED	1
+struct get_forced_link_speed_support {
+	uint32_t command;
+};
+struct forced_link_speed_support_reply {
+	uint8_t supported;
 };
 
 /* driver only */

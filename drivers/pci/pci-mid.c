@@ -29,6 +29,11 @@ static int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
 	return intel_mid_pci_set_power_state(pdev, state);
 }
 
+static pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
+{
+	return intel_mid_pci_get_power_state(pdev);
+}
+
 static pci_power_t mid_pci_choose_state(struct pci_dev *pdev)
 {
 	return PCI_D3hot;
@@ -49,9 +54,10 @@ static bool mid_pci_need_resume(struct pci_dev *dev)
 	return false;
 }
 
-static struct pci_platform_pm_ops mid_pci_platform_pm = {
+static const struct pci_platform_pm_ops mid_pci_platform_pm = {
 	.is_manageable	= mid_pci_power_manageable,
 	.set_state	= mid_pci_set_power_state,
+	.get_state	= mid_pci_get_power_state,
 	.choose_state	= mid_pci_choose_state,
 	.sleep_wake	= mid_pci_sleep_wake,
 	.run_wake	= mid_pci_run_wake,
@@ -60,8 +66,13 @@ static struct pci_platform_pm_ops mid_pci_platform_pm = {
 
 #define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
 
+/*
+ * This table should be in sync with the one in
+ * arch/x86/platform/intel-mid/pwr.c.
+ */
 static const struct x86_cpu_id lpss_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD1),
+	ICPU(INTEL_FAM6_ATOM_PENWELL),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD),
 	{}
 };
 

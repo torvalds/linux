@@ -43,6 +43,14 @@
 #define CRTC4_REGISTER_OFFSET                 (0x477c - 0x1b7c)
 #define CRTC5_REGISTER_OFFSET                 (0x4a7c - 0x1b7c)
 
+/* hpd instance offsets */
+#define HPD0_REGISTER_OFFSET                 (0x1807 - 0x1807)
+#define HPD1_REGISTER_OFFSET                 (0x180a - 0x1807)
+#define HPD2_REGISTER_OFFSET                 (0x180d - 0x1807)
+#define HPD3_REGISTER_OFFSET                 (0x1810 - 0x1807)
+#define HPD4_REGISTER_OFFSET                 (0x1813 - 0x1807)
+#define HPD5_REGISTER_OFFSET                 (0x1816 - 0x1807)
+
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
 #define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
@@ -561,5 +569,41 @@ enum {
 	MTYPE_CACHED = 0,
 	MTYPE_NONCACHED = 3
 };
+
+/* mmPA_SC_RASTER_CONFIG mask */
+#define RB_MAP_PKR0(x)				((x) << 0)
+#define RB_MAP_PKR0_MASK			(0x3 << 0)
+#define RB_MAP_PKR1(x)				((x) << 2)
+#define RB_MAP_PKR1_MASK			(0x3 << 2)
+#define RB_XSEL2(x)				((x) << 4)
+#define RB_XSEL2_MASK				(0x3 << 4)
+#define RB_XSEL					(1 << 6)
+#define RB_YSEL					(1 << 7)
+#define PKR_MAP(x)				((x) << 8)
+#define PKR_MAP_MASK				(0x3 << 8)
+#define PKR_XSEL(x)				((x) << 10)
+#define PKR_XSEL_MASK				(0x3 << 10)
+#define PKR_YSEL(x)				((x) << 12)
+#define PKR_YSEL_MASK				(0x3 << 12)
+#define SC_MAP(x)				((x) << 16)
+#define SC_MAP_MASK				(0x3 << 16)
+#define SC_XSEL(x)				((x) << 18)
+#define SC_XSEL_MASK				(0x3 << 18)
+#define SC_YSEL(x)				((x) << 20)
+#define SC_YSEL_MASK				(0x3 << 20)
+#define SE_MAP(x)				((x) << 24)
+#define SE_MAP_MASK				(0x3 << 24)
+#define SE_XSEL(x)				((x) << 26)
+#define SE_XSEL_MASK				(0x3 << 26)
+#define SE_YSEL(x)				((x) << 28)
+#define SE_YSEL_MASK				(0x3 << 28)
+
+/* mmPA_SC_RASTER_CONFIG_1 mask */
+#define SE_PAIR_MAP(x)				((x) << 0)
+#define SE_PAIR_MAP_MASK			(0x3 << 0)
+#define SE_PAIR_XSEL(x)				((x) << 2)
+#define SE_PAIR_XSEL_MASK			(0x3 << 2)
+#define SE_PAIR_YSEL(x)				((x) << 4)
+#define SE_PAIR_YSEL_MASK			(0x3 << 4)
 
 #endif

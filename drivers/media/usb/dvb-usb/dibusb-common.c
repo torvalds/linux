@@ -9,7 +9,6 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 
-#include <linux/kconfig.h>
 #include "dibusb.h"
 
 /* Max transfer size done by I2C transfer functions */
@@ -383,9 +382,9 @@ int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if (buf[0] != 0)
 		deb_info("key: %*ph\n", 5, buf);
 
+ret:
 	kfree(buf);
 
-ret:
 	return ret;
 }
 EXPORT_SYMBOL(dibusb_rc_query);

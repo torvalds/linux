@@ -60,15 +60,18 @@ static noinline void execute_location(void *dst, bool write)
 
 static void execute_user_location(void *dst)
 {
+	int copied;
+
 	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void) = dst;
 
 	pr_info("attempting ok execution at %p\n", do_nothing);
 	do_nothing();
 
-	if (copy_to_user((void __user *)dst, do_nothing, EXEC_SIZE))
+	copied = access_process_vm(current, (unsigned long)dst, do_nothing,
+				   EXEC_SIZE, FOLL_WRITE);
+	if (copied < EXEC_SIZE)
 		return;
-	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
 	pr_info("attempting bad execution at %p\n", func);
 	func();
 }

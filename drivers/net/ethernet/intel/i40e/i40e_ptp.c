@@ -159,16 +159,15 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 	struct timespec64 now, then;
-	unsigned long flags;
 
 	then = ns_to_timespec64(delta);
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 
 	i40e_ptp_read(pf, &now);
 	now = timespec64_add(now, then);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -184,11 +183,10 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_read(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -205,11 +203,10 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 			    const struct timespec64 *ts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pf->tmreg_lock, flags);
+	mutex_lock(&pf->tmreg_lock);
 	i40e_ptp_write(pf, ts);
-	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
+	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
 }
@@ -230,6 +227,47 @@ static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
 }
 
 /**
+ * i40e_ptp_update_latch_events - Read I40E_PRTTSYN_STAT_1 and latch events
+ * @pf: the PF data structure
+ *
+ * This function reads I40E_PRTTSYN_STAT_1 and updates the corresponding timers
+ * for noticed latch events. This allows the driver to keep track of the first
+ * time a latch event was noticed which will be used to help clear out Rx
+ * timestamps for packets that got dropped or lost.
+ *
+ * This function will return the current value of I40E_PRTTSYN_STAT_1 and is
+ * expected to be called only while under the ptp_rx_lock.
+ **/
+static u32 i40e_ptp_get_rx_events(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 prttsyn_stat, new_latch_events;
+	int  i;
+
+	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	new_latch_events = prttsyn_stat & ~pf->latch_event_flags;
+
+	/* Update the jiffies time for any newly latched timestamp. This
+	 * ensures that we store the time that we first discovered a timestamp
+	 * was latched by the hardware. The service task will later determine
+	 * if we should free the latch and drop that timestamp should too much
+	 * time pass. This flow ensures that we only update jiffies for new
+	 * events latched since the last time we checked, and not all events
+	 * currently latched, so that the service task accounting remains
+	 * accurate.
+	 */
+	for (i = 0; i < 4; i++) {
+		if (new_latch_events & BIT(i))
+			pf->latch_events[i] = jiffies;
+	}
+
+	/* Finally, we store the current status of the Rx timestamp latches */
+	pf->latch_event_flags = prttsyn_stat;
+
+	return prttsyn_stat;
+}
+
+/**
  * i40e_ptp_rx_hang - Detect error case when Rx timestamp registers are hung
  * @vsi: The VSI with the rings relevant to 1588
  *
@@ -242,10 +280,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	struct i40e_ring *rx_ring;
-	unsigned long rx_event;
-	u32 prttsyn_stat;
-	int n;
+	int i;
 
 	/* Since we cannot turn off the Rx timestamp logic if the device is
 	 * configured for Tx timestamping, we check if Rx timestamping is
@@ -255,42 +290,30 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
-	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	spin_lock_bh(&pf->ptp_rx_lock);
 
-	/* Unless all four receive timestamp registers are latched, we are not
-	 * concerned about a possible PTP Rx hang, so just update the timeout
-	 * counter and exit.
+	/* Update current latch times for Rx events */
+	i40e_ptp_get_rx_events(pf);
+
+	/* Check all the currently latched Rx events and see whether they have
+	 * been latched for over a second. It is assumed that any timestamp
+	 * should have been cleared within this time, or else it was captured
+	 * for a dropped frame that the driver never received. Thus, we will
+	 * clear any timestamp that has been latched for over 1 second.
 	 */
-	if (!(prttsyn_stat & ((I40E_PRTTSYN_STAT_1_RXT0_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT0_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT1_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT1_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT2_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT2_SHIFT) |
-			      (I40E_PRTTSYN_STAT_1_RXT3_MASK <<
-			       I40E_PRTTSYN_STAT_1_RXT3_SHIFT)))) {
-		pf->last_rx_ptp_check = jiffies;
-		return;
+	for (i = 0; i < 4; i++) {
+		if ((pf->latch_event_flags & BIT(i)) &&
+		    time_is_before_jiffies(pf->latch_events[i] + HZ)) {
+			rd32(hw, I40E_PRTTSYN_RXTIME_H(i));
+			pf->latch_event_flags &= ~BIT(i);
+			pf->rx_hwtstamp_cleared++;
+			dev_warn(&pf->pdev->dev,
+				 "Clearing a missed Rx timestamp event for RXTIME[%d]\n",
+				 i);
+		}
 	}
 
-	/* Determine the most recent watchdog or rx_timestamp event. */
-	rx_event = pf->last_rx_ptp_check;
-	for (n = 0; n < vsi->num_queue_pairs; n++) {
-		rx_ring = vsi->rx_rings[n];
-		if (time_after(rx_ring->last_rx_timestamp, rx_event))
-			rx_event = rx_ring->last_rx_timestamp;
-	}
-
-	/* Only need to read the high RXSTMP register to clear the lock */
-	if (time_is_before_jiffies(rx_event + 5 * HZ)) {
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(0));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(1));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(2));
-		rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
-		pf->last_rx_ptp_check = jiffies;
-		pf->rx_hwtstamp_cleared++;
-		WARN_ONCE(1, "Detected Rx timestamp register hang\n");
-	}
+	spin_unlock_bh(&pf->ptp_rx_lock);
 }
 
 /**
@@ -353,13 +376,24 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index)
 
 	hw = &pf->hw;
 
-	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
+	spin_lock_bh(&pf->ptp_rx_lock);
 
-	if (!(prttsyn_stat & BIT(index)))
+	/* Get current Rx events and update latch times */
+	prttsyn_stat = i40e_ptp_get_rx_events(pf);
+
+	/* TODO: Should we warn about missing Rx timestamp event? */
+	if (!(prttsyn_stat & BIT(index))) {
+		spin_unlock_bh(&pf->ptp_rx_lock);
 		return;
+	}
+
+	/* Clear the latched event since we're about to read its register */
+	pf->latch_event_flags &= ~BIT(index);
 
 	lo = rd32(hw, I40E_PRTTSYN_RXTIME_L(index));
 	hi = rd32(hw, I40E_PRTTSYN_RXTIME_H(index));
+
+	spin_unlock_bh(&pf->ptp_rx_lock);
 
 	ns = (((u64)hi) << 32) | lo;
 
@@ -487,6 +521,8 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		if (!(pf->flags & I40E_FLAG_PTP_L4_CAPABLE))
+			return -ERANGE;
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V1MESSTYPE0_MASK |
 			   I40E_PRTTSYN_CTL1_TSYNTYPE_V1 |
@@ -494,19 +530,26 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
-	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		if (!(pf->flags & I40E_FLAG_PTP_L4_CAPABLE))
+			return -ERANGE;
+		/* fall through */
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V2MESSTYPE0_MASK |
-			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2 |
-			   I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2;
+		if (pf->flags & I40E_FLAG_PTP_L4_CAPABLE) {
+			tsyntype |= I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
+			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		} else {
+			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		}
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	default:
@@ -514,12 +557,15 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	}
 
 	/* Clear out all 1588-related registers to clear and unlatch them. */
+	spin_lock_bh(&pf->ptp_rx_lock);
 	rd32(hw, I40E_PRTTSYN_STAT_0);
 	rd32(hw, I40E_PRTTSYN_TXTIME_H);
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(0));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(1));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(2));
 	rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
+	pf->latch_event_flags = 0;
+	spin_unlock_bh(&pf->ptp_rx_lock);
 
 	/* Enable/disable the Tx timestamp interrupt based on user input. */
 	regval = rd32(hw, I40E_PRTTSYN_CTL0);
@@ -658,10 +704,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		return;
 	}
 
-	/* we have to initialize the lock first, since we can't control
-	 * when the user will enter the PHC device entry points
-	 */
-	spin_lock_init(&pf->tmreg_lock);
+	mutex_init(&pf->tmreg_lock);
+	spin_lock_init(&pf->ptp_rx_lock);
 
 	/* ensure we have a clock device */
 	err = i40e_ptp_create_clock(pf);
@@ -669,7 +713,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		pf->ptp_clock = NULL;
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
-	} else {
+	} else if (pf->ptp_clock) {
 		struct timespec64 ts;
 		u32 regval;
 

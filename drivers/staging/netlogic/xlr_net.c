@@ -172,29 +172,31 @@ static struct phy_device *xlr_get_phydev(struct xlr_net_priv *priv)
 /*
  * Ethtool operation
  */
-static int xlr_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int xlr_get_link_ksettings(struct net_device *ndev,
+				  struct ethtool_link_ksettings *ecmd)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
 	if (!phydev)
 		return -ENODEV;
-	return phy_ethtool_gset(phydev, ecmd);
+	return phy_ethtool_ksettings_get(phydev, ecmd);
 }
 
-static int xlr_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int xlr_set_link_ksettings(struct net_device *ndev,
+				  const struct ethtool_link_ksettings *ecmd)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = xlr_get_phydev(priv);
 
 	if (!phydev)
 		return -ENODEV;
-	return phy_ethtool_sset(phydev, ecmd);
+	return phy_ethtool_ksettings_set(phydev, ecmd);
 }
 
-static struct ethtool_ops xlr_ethtool_ops = {
-	.get_settings = xlr_get_settings,
-	.set_settings = xlr_set_settings,
+static const struct ethtool_ops xlr_ethtool_ops = {
+	.get_link_ksettings = xlr_get_link_ksettings,
+	.set_link_ksettings = xlr_set_link_ksettings,
 };
 
 /*
@@ -267,16 +269,6 @@ static void xlr_make_tx_desc(struct nlm_fmn_msg *msg, unsigned long addr,
 		((u64)physkb  & 0xffffffff));	/* 32bit address */
 	msg->msg2 = 0;
 	msg->msg3 = 0;
-}
-
-static void __maybe_unused xlr_wakeup_queue(unsigned long dev)
-{
-	struct net_device *ndev = (struct net_device *)dev;
-	struct xlr_net_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev = xlr_get_phydev(priv);
-
-	if (phydev->link)
-		netif_tx_wake_queue(netdev_get_tx_queue(ndev, priv->wakeup_q));
 }
 
 static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
@@ -413,7 +405,7 @@ static struct rtnl_link_stats64 *xlr_get_stats64(struct net_device *ndev,
 	return stats;
 }
 
-static struct net_device_ops xlr_netdev_ops = {
+static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_open = xlr_net_open,
 	.ndo_stop = xlr_net_stop,
 	.ndo_start_xmit = xlr_net_start_xmit,
@@ -1015,10 +1007,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 	 */
 	adapter = (struct xlr_adapter *)
 		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!adapter)
+		return -ENOMEM;
 
 	/*
 	 * XLR and XLS have 1 and 2 NAE controller respectively

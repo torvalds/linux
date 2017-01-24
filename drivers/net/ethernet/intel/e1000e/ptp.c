@@ -127,8 +127,8 @@ static int e1000e_phc_get_syncdevicetime(ktime_t *device,
 	unsigned long flags;
 	int i;
 	u32 tsync_ctrl;
-	cycle_t dev_cycles;
-	cycle_t sys_cycles;
+	u64 dev_cycles;
+	u64 sys_cycles;
 
 	tsync_ctrl = er32(TSYNCTXCTL);
 	tsync_ctrl |= E1000_TSYNCTXCTL_START_SYNC |
@@ -334,7 +334,7 @@ void e1000e_ptp_init(struct e1000_adapter *adapter)
 	if (IS_ERR(adapter->ptp_clock)) {
 		adapter->ptp_clock = NULL;
 		e_err("ptp_clock_register failed\n");
-	} else {
+	} else if (adapter->ptp_clock) {
 		e_info("registered PHC clock\n");
 	}
 }

@@ -177,16 +177,14 @@ TRACE_EVENT(hrtimer_start,
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
 		__entry->function	= hrtimer->function;
-		__entry->expires	= hrtimer_get_expires(hrtimer).tv64;
-		__entry->softexpires	= hrtimer_get_softexpires(hrtimer).tv64;
+		__entry->expires	= hrtimer_get_expires(hrtimer);
+		__entry->softexpires	= hrtimer_get_softexpires(hrtimer);
 	),
 
 	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu",
 		  __entry->hrtimer, __entry->function,
-		  (unsigned long long)ktime_to_ns((ktime_t) {
-				  .tv64 = __entry->expires }),
-		  (unsigned long long)ktime_to_ns((ktime_t) {
-				  .tv64 = __entry->softexpires }))
+		  (unsigned long long) __entry->expires,
+		  (unsigned long long) __entry->softexpires)
 );
 
 /**
@@ -211,13 +209,13 @@ TRACE_EVENT(hrtimer_expire_entry,
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->now		= now->tv64;
+		__entry->now		= *now;
 		__entry->function	= hrtimer->function;
 	),
 
 	TP_printk("hrtimer=%p function=%pf now=%llu", __entry->hrtimer, __entry->function,
-		  (unsigned long long)ktime_to_ns((ktime_t) { .tv64 = __entry->now }))
- );
+		  (unsigned long long) __entry->now)
+);
 
 DECLARE_EVENT_CLASS(hrtimer_class,
 

@@ -330,6 +330,15 @@ static int tw5864_enable_input(struct tw5864_input *input)
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_WIDTH(nr), input->width / 4);
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_HEIGHT(nr), input->height / 4);
 
+	/*
+	 * Crop width from 720 to 704.
+	 * Above register settings need value 720 involved.
+	 */
+	input->width = 704;
+	tw_indir_writeb(TW5864_INDIR_CROP_ETC,
+			tw_indir_readb(TW5864_INDIR_CROP_ETC) |
+			TW5864_INDIR_CROP_ETC_CROP_EN);
+
 	tw_writel(TW5864_DSP_PIC_MAX_MB,
 		  ((input->width / 16) << 8) | (input->height / 16));
 
@@ -532,7 +541,7 @@ static int tw5864_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct tw5864_input *input = video_drvdata(file);
 
-	f->fmt.pix.width = 720;
+	f->fmt.pix.width = 704;
 	switch (input->std) {
 	default:
 		WARN_ON_ONCE(1);
@@ -738,7 +747,7 @@ static int tw5864_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-	fsize->discrete.width = 720;
+	fsize->discrete.width = 704;
 	fsize->discrete.height = input->std == STD_NTSC ? 480 : 576;
 
 	return 0;

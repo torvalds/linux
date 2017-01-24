@@ -1703,7 +1703,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	if (irq_rc && irq_rc->start) {
 		byt_gpio_irq_init_hw(vg);
 		ret = gpiochip_irqchip_add(gc, &byt_irqchip, 0,
-					   handle_simple_irq, IRQ_TYPE_NONE);
+					   handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&vg->pdev->dev, "failed to add irqchip\n");
 			goto fail;
@@ -1808,6 +1808,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(vg->pctl_dev);
 	}
 
+	raw_spin_lock_init(&vg->lock);
+
 	ret = byt_gpio_probe(vg);
 	if (ret) {
 		pinctrl_unregister(vg->pctl_dev);
@@ -1815,7 +1817,6 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, vg);
-	raw_spin_lock_init(&vg->lock);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;

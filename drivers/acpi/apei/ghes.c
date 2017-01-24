@@ -457,7 +457,7 @@ static void ghes_do_proc(struct ghes *ghes,
 
 				devfn = PCI_DEVFN(pcie_err->device_id.device,
 						  pcie_err->device_id.function);
-				aer_severity = cper_severity_to_aer(sev);
+				aer_severity = cper_severity_to_aer(gdata->error_severity);
 
 				/*
 				 * If firmware reset the component to contain
@@ -662,7 +662,7 @@ static int ghes_proc(struct ghes *ghes)
 	ghes_do_proc(ghes, ghes->estatus);
 out:
 	ghes_clear_estatus(ghes);
-	return 0;
+	return rc;
 }
 
 static void ghes_add_timer(struct ghes *ghes)
@@ -852,6 +852,8 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 		if (ghes_read_estatus(ghes, 1)) {
 			ghes_clear_estatus(ghes);
 			continue;
+		} else {
+			ret = NMI_HANDLED;
 		}
 
 		sev = ghes_severity(ghes->estatus->error_severity);
@@ -863,12 +865,11 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 
 		__process_error(ghes);
 		ghes_clear_estatus(ghes);
-
-		ret = NMI_HANDLED;
 	}
 
 #ifdef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-	irq_work_queue(&ghes_proc_irq_work);
+	if (ret == NMI_HANDLED)
+		irq_work_queue(&ghes_proc_irq_work);
 #endif
 	atomic_dec(&ghes_in_nmi);
 	return ret;

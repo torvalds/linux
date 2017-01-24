@@ -39,6 +39,10 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 		return "MPLS";
 	case LWTUNNEL_ENCAP_ILA:
 		return "ILA";
+	case LWTUNNEL_ENCAP_SEG6:
+		return "SEG6";
+	case LWTUNNEL_ENCAP_BPF:
+		return "BPF";
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:
@@ -129,6 +133,19 @@ int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 	return ret;
 }
 EXPORT_SYMBOL(lwtunnel_build_state);
+
+void lwtstate_free(struct lwtunnel_state *lws)
+{
+	const struct lwtunnel_encap_ops *ops = lwtun_encaps[lws->type];
+
+	if (ops->destroy_state) {
+		ops->destroy_state(lws);
+		kfree_rcu(lws, rcu);
+	} else {
+		kfree(lws);
+	}
+}
+EXPORT_SYMBOL(lwtstate_free);
 
 int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 {
@@ -250,6 +267,41 @@ drop:
 	return ret;
 }
 EXPORT_SYMBOL(lwtunnel_output);
+
+int lwtunnel_xmit(struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	const struct lwtunnel_encap_ops *ops;
+	struct lwtunnel_state *lwtstate;
+	int ret = -EINVAL;
+
+	if (!dst)
+		goto drop;
+
+	lwtstate = dst->lwtstate;
+
+	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
+		return 0;
+
+	ret = -EOPNOTSUPP;
+	rcu_read_lock();
+	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
+	if (likely(ops && ops->xmit))
+		ret = ops->xmit(skb);
+	rcu_read_unlock();
+
+	if (ret == -EOPNOTSUPP)
+		goto drop;
+
+	return ret;
+
+drop:
+	kfree_skb(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(lwtunnel_xmit);
 
 int lwtunnel_input(struct sk_buff *skb)
 {

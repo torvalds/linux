@@ -49,22 +49,11 @@
 
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
-#include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
-
-asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
-asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
-
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return ((unsigned long *)tsk->thread.sp)[3];
-}
+#include <asm/intel_rdt.h>
 
 void __show_regs(struct pt_regs *regs, int all)
 {
@@ -83,10 +72,9 @@ void __show_regs(struct pt_regs *regs, int all)
 		savesegment(gs, gs);
 	}
 
-	printk(KERN_DEFAULT "EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
-			(u16)regs->cs, regs->ip, regs->flags,
-			smp_processor_id());
-	print_symbol("EIP is at %s\n", regs->ip);
+	printk(KERN_DEFAULT "EIP: %pS\n", (void *)regs->ip);
+	printk(KERN_DEFAULT "EFLAGS: %08lx CPU: %d\n", regs->flags,
+		smp_processor_id());
 
 	printk(KERN_DEFAULT "EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->ax, regs->bx, regs->cx, regs->dx);
@@ -101,7 +89,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	cr0 = read_cr0();
 	cr2 = read_cr2();
 	cr3 = read_cr3();
-	cr4 = __read_cr4_safe();
+	cr4 = __read_cr4();
 	printk(KERN_DEFAULT "CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n",
 			cr0, cr2, cr3, cr4);
 
@@ -133,35 +121,31 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	unsigned long arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
+	struct fork_frame *fork_frame = container_of(childregs, struct fork_frame, regs);
+	struct inactive_task_frame *frame = &fork_frame->frame;
 	struct task_struct *tsk;
 	int err;
 
-	p->thread.sp = (unsigned long) childregs;
+	frame->bp = 0;
+	frame->ret_addr = (unsigned long) ret_from_fork;
+	p->thread.sp = (unsigned long) fork_frame;
 	p->thread.sp0 = (unsigned long) (childregs+1);
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		p->thread.ip = (unsigned long) ret_from_kernel_thread;
-		task_user_gs(p) = __KERNEL_STACK_CANARY;
-		childregs->ds = __USER_DS;
-		childregs->es = __USER_DS;
-		childregs->fs = __KERNEL_PERCPU;
-		childregs->bx = sp;	/* function */
-		childregs->bp = arg;
-		childregs->orig_ax = -1;
-		childregs->cs = __KERNEL_CS | get_kernel_rpl();
-		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_FIXED;
+		frame->bx = sp;		/* function */
+		frame->di = arg;
 		p->thread.io_bitmap_ptr = NULL;
 		return 0;
 	}
+	frame->bx = 0;
 	*childregs = *current_pt_regs();
 	childregs->ax = 0;
 	if (sp)
 		childregs->sp = sp;
 
-	p->thread.ip = (unsigned long) ret_from_fork;
 	task_user_gs(p) = get_user_gs(current_pt_regs());
 
 	p->thread.io_bitmap_ptr = NULL;
@@ -247,11 +231,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
-	fpu_switch_t fpu_switch;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
+	switch_fpu_prepare(prev_fpu, cpu);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -310,9 +293,12 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (prev->gs | next->gs)
 		lazy_load_gs(next->gs);
 
-	switch_fpu_finish(next_fpu, fpu_switch);
+	switch_fpu_finish(next_fpu, cpu);
 
 	this_cpu_write(current_task, next_p);
+
+	/* Load the Intel cache allocation PQR MSR. */
+	intel_rdt_sched_in();
 
 	return prev_p;
 }

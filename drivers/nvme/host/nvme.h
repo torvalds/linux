@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
+#include <linux/lightnvm.h>
 
 enum {
 	/*
@@ -78,6 +79,20 @@ enum nvme_quirks {
 	NVME_QUIRK_DELAY_BEFORE_CHK_RDY		= (1 << 3),
 };
 
+/*
+ * Common request structure for NVMe passthrough.  All drivers must have
+ * this structure as the first member of their request-private data.
+ */
+struct nvme_request {
+	struct nvme_command	*cmd;
+	union nvme_result	result;
+};
+
+static inline struct nvme_request *nvme_req(struct request *req)
+{
+	return blk_mq_rq_to_pdu(req);
+}
+
 /* The below value is the specific amount of delay needed before checking
  * readiness in case of the PCI_DEVICE(0x1c58, 0x0003), which needs the
  * NVME_QUIRK_DELAY_BEFORE_CHK_RDY quirk enabled. The value (in ms) was
@@ -120,7 +135,6 @@ struct nvme_ctrl {
 
 	u32 page_size;
 	u32 max_hw_sectors;
-	u32 stripe_size;
 	u16 oncs;
 	u16 vid;
 	atomic_t abort_limit;
@@ -154,6 +168,7 @@ struct nvme_ns {
 	struct nvme_ctrl *ctrl;
 	struct request_queue *queue;
 	struct gendisk *disk;
+	struct nvm_dev *ndev;
 	struct kref kref;
 	int instance;
 
@@ -165,7 +180,6 @@ struct nvme_ns {
 	u16 ms;
 	bool ext;
 	u8 pi_type;
-	int type;
 	unsigned long flags;
 
 #define NVME_NS_REMOVING 0
@@ -184,7 +198,6 @@ struct nvme_ctrl_ops {
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 	int (*reset_ctrl)(struct nvme_ctrl *ctrl);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
-	void (*post_scan)(struct nvme_ctrl *ctrl);
 	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
 	int (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	const char *(*get_subsysnqn)(struct nvme_ctrl *ctrl);
@@ -212,18 +225,12 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
-static inline unsigned nvme_map_len(struct request *rq)
-{
-	if (req_op(rq) == REQ_OP_DISCARD)
-		return sizeof(struct nvme_dsm_range);
-	else
-		return blk_rq_bytes(rq);
-}
-
 static inline void nvme_cleanup_cmd(struct request *req)
 {
-	if (req_op(req) == REQ_OP_DISCARD)
-		kfree(req->completion_data);
+	if (req->rq_flags & RQF_SPECIAL_PAYLOAD) {
+		kfree(page_address(req->special_vec.bv_page) +
+		      req->special_vec.bv_offset);
+	}
 }
 
 static inline int nvme_error_status(u16 status)
@@ -261,8 +268,8 @@ void nvme_queue_scan(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
 #define NVME_NR_AERS	1
-void nvme_complete_async_event(struct nvme_ctrl *ctrl,
-		struct nvme_completion *cqe);
+void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
+		union nvme_result *res);
 void nvme_queue_async_events(struct nvme_ctrl *ctrl);
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl);
@@ -278,7 +285,7 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
-		struct nvme_completion *cqe, void *buffer, unsigned bufflen,
+		union nvme_result *result, void *buffer, unsigned bufflen,
 		unsigned timeout, int qid, int at_head, int flags);
 int nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void __user *ubuffer, unsigned bufflen, u32 *result,
@@ -292,9 +299,9 @@ int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 		struct nvme_id_ns **id);
 int nvme_get_log_page(struct nvme_ctrl *dev, struct nvme_smart_log **log);
 int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
-			dma_addr_t dma_addr, u32 *result);
+		      void *buffer, size_t buflen, u32 *result);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
-			dma_addr_t dma_addr, u32 *result);
+		      void *buffer, size_t buflen, u32 *result);
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
@@ -307,21 +314,33 @@ int nvme_sg_get_version_num(int __user *ip);
 
 #ifdef CONFIG_NVM
 int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id);
-int nvme_nvm_register(struct request_queue *q, char *disk_name);
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name);
+int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
+void nvme_nvm_unregister(struct nvme_ns *ns);
+int nvme_nvm_register_sysfs(struct nvme_ns *ns);
+void nvme_nvm_unregister_sysfs(struct nvme_ns *ns);
 #else
-static inline int nvme_nvm_register(struct request_queue *q, char *disk_name)
+static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
+				    int node)
 {
 	return 0;
 }
 
-static inline void nvme_nvm_unregister(struct request_queue *q, char *disk_name) {};
-
+static inline void nvme_nvm_unregister(struct nvme_ns *ns) {};
+static inline int nvme_nvm_register_sysfs(struct nvme_ns *ns)
+{
+	return 0;
+}
+static inline void nvme_nvm_unregister_sysfs(struct nvme_ns *ns) {};
 static inline int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	return 0;
 }
 #endif /* CONFIG_NVM */
+
+static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
+{
+	return dev_to_disk(dev)->private_data;
+}
 
 int __init nvme_core_init(void);
 void nvme_core_exit(void);

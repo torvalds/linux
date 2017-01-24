@@ -413,6 +413,8 @@ struct sdma_engine {
 	spinlock_t flushlist_lock;
 	/* private: */
 	struct list_head flushlist;
+	struct cpumask cpu_mask;
+	struct kobject kobj;
 };
 
 int sdma_init(struct hfi1_devdata *dd, u8 port);
@@ -665,7 +667,13 @@ int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
 			   int type, void *kvaddr, struct page *page,
 			   unsigned long offset, u16 len);
 int _pad_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
-void sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+void __sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+
+static inline void sdma_txclean(struct hfi1_devdata *dd, struct sdma_txreq *tx)
+{
+	if (tx->num_desc)
+		__sdma_txclean(dd, tx);
+}
 
 /* helpers used by public routines */
 static inline void _sdma_close_tx(struct hfi1_devdata *dd,
@@ -751,7 +759,7 @@ static inline int sdma_txadd_page(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 
@@ -832,7 +840,7 @@ static inline int sdma_txadd_kvaddr(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 
@@ -847,7 +855,8 @@ int sdma_send_txreq(struct sdma_engine *sde,
 		    struct sdma_txreq *tx);
 int sdma_send_txlist(struct sdma_engine *sde,
 		     struct iowait *wait,
-		     struct list_head *tx_list);
+		     struct list_head *tx_list,
+		     u32 *count);
 
 int sdma_ahg_alloc(struct sdma_engine *sde);
 void sdma_ahg_free(struct sdma_engine *sde, int ahg_index);
@@ -1058,7 +1067,15 @@ struct sdma_engine *sdma_select_engine_vl(
 	u32 selector,
 	u8 vl);
 
+struct sdma_engine *sdma_select_user_engine(struct hfi1_devdata *dd,
+					    u32 selector, u8 vl);
+ssize_t sdma_get_cpu_to_sde_map(struct sdma_engine *sde, char *buf);
+ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
+				size_t count);
+int sdma_engine_get_vl(struct sdma_engine *sde);
 void sdma_seqfile_dump_sde(struct seq_file *s, struct sdma_engine *);
+void sdma_seqfile_dump_cpu_list(struct seq_file *s, struct hfi1_devdata *dd,
+				unsigned long cpuid);
 
 #ifdef CONFIG_SDMA_VERBOSITY
 void sdma_dumpstate(struct sdma_engine *);

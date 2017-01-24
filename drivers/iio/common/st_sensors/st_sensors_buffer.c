@@ -30,7 +30,9 @@ static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 
 	for_each_set_bit(i, indio_dev->active_scan_mask, num_data_channels) {
 		const struct iio_chan_spec *channel = &indio_dev->channels[i];
-		unsigned int bytes_to_read = channel->scan_type.realbits >> 3;
+		unsigned int bytes_to_read =
+			DIV_ROUND_UP(channel->scan_type.realbits +
+				     channel->scan_type.shift, 8);
 		unsigned int storage_bytes =
 			channel->scan_type.storagebits >> 3;
 
@@ -63,7 +65,7 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	 * the hardware trigger) and the hw_timestamp may get updated.
 	 * By storing it in a local variable first, we are safe.
 	 */
-	if (sdata->hw_irq_trigger)
+	if (iio_trigger_using_own(indio_dev))
 		timestamp = sdata->hw_timestamp;
 	else
 		timestamp = iio_get_time_ns(indio_dev);

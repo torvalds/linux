@@ -383,7 +383,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
 		 */
-		if (likely(qp->attr.max_rd_atomic > 0))
+		if (likely(qp->attr.max_dest_rd_atomic > 0))
 			return RESPST_CHK_LENGTH;
 		else
 			return RESPST_ERR_TOO_MANY_RDMA_ATM_REQ;
@@ -441,6 +441,13 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		qp->resp.resid = sizeof(u64);
 		access = IB_ACCESS_REMOTE_ATOMIC;
 	} else {
+		return RESPST_EXECUTE;
+	}
+
+	/* A zero-byte op is not required to set an addr or rkey. */
+	if ((pkt->mask & (RXE_READ_MASK | RXE_WRITE_OR_SEND)) &&
+	    (pkt->mask & RXE_RETH_MASK) &&
+	    reth_len(pkt) == 0) {
 		return RESPST_EXECUTE;
 	}
 
@@ -680,9 +687,14 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 		res->read.va_org	= qp->resp.va;
 
 		res->first_psn		= req_pkt->psn;
-		res->last_psn		= req_pkt->psn +
-					  (reth_len(req_pkt) + mtu - 1) /
-					  mtu - 1;
+
+		if (reth_len(req_pkt)) {
+			res->last_psn	= (req_pkt->psn +
+					   (reth_len(req_pkt) + mtu - 1) /
+					   mtu - 1) & BTH_PSN_MASK;
+		} else {
+			res->last_psn	= res->first_psn;
+		}
 		res->cur_psn		= req_pkt->psn;
 
 		res->read.resid		= qp->resp.resid;
@@ -742,11 +754,24 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	} else {
 		qp->resp.res = NULL;
 		qp->resp.opcode = -1;
-		qp->resp.psn = res->cur_psn;
+		if (psn_compare(res->cur_psn, qp->resp.psn) >= 0)
+			qp->resp.psn = res->cur_psn;
 		state = RESPST_CLEANUP;
 	}
 
 	return state;
+}
+
+static void build_rdma_network_hdr(union rdma_network_hdr *hdr,
+				   struct rxe_pkt_info *pkt)
+{
+	struct sk_buff *skb = PKT_TO_SKB(pkt);
+
+	memset(hdr, 0, sizeof(*hdr));
+	if (skb->protocol == htons(ETH_P_IP))
+		memcpy(&hdr->roce4grh, ip_hdr(skb), sizeof(hdr->roce4grh));
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		memcpy(&hdr->ibgrh, ipv6_hdr(skb), sizeof(hdr->ibgrh));
 }
 
 /* Executes a new request. A retried request never reach that function (send
@@ -761,13 +786,8 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
 			union rdma_network_hdr hdr;
-			struct sk_buff *skb = PKT_TO_SKB(pkt);
 
-			memset(&hdr, 0, sizeof(hdr));
-			if (skb->protocol == htons(ETH_P_IP))
-				memcpy(&hdr.roce4grh, ip_hdr(skb), sizeof(hdr.roce4grh));
-			else if (skb->protocol == htons(ETH_P_IPV6))
-				memcpy(&hdr.ibgrh, ipv6_hdr(skb), sizeof(hdr.ibgrh));
+			build_rdma_network_hdr(&hdr, pkt);
 
 			err = send_data_in(qp, &hdr, sizeof(hdr));
 			if (err)
@@ -881,7 +901,8 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 				rmr = rxe_pool_get_index(&rxe->mr_pool,
 							 wc->ex.invalidate_rkey >> 8);
 				if (unlikely(!rmr)) {
-					pr_err("Bad rkey %#x invalidation\n", wc->ex.invalidate_rkey);
+					pr_err("Bad rkey %#x invalidation\n",
+					       wc->ex.invalidate_rkey);
 					return RESPST_ERROR;
 				}
 				rmr->state = RXE_MEM_STATE_FREE;
@@ -1049,12 +1070,13 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 					  struct rxe_pkt_info *pkt)
 {
 	enum resp_states rc;
+	u32 prev_psn = (qp->resp.psn - 1) & BTH_PSN_MASK;
 
 	if (pkt->mask & RXE_SEND_MASK ||
 	    pkt->mask & RXE_WRITE_MASK) {
 		/* SEND. Ack again and cleanup. C9-105. */
 		if (bth_ack(pkt))
-			send_ack(qp, pkt, AETH_ACK_UNLIMITED, qp->resp.psn - 1);
+			send_ack(qp, pkt, AETH_ACK_UNLIMITED, prev_psn);
 		rc = RESPST_CLEANUP;
 		goto out;
 	} else if (pkt->mask & RXE_READ_MASK) {
@@ -1124,6 +1146,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 					     pkt, skb_copy);
 			if (rc) {
 				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
+				rxe_drop_ref(qp);
 				kfree_skb(skb_copy);
 				rc = RESPST_CLEANUP;
 				goto out;
@@ -1190,6 +1213,8 @@ int rxe_responder(void *arg)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret = 0;
 
+	rxe_add_ref(qp);
+
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
 	if (!qp->valid) {
@@ -1208,7 +1233,8 @@ int rxe_responder(void *arg)
 	}
 
 	while (1) {
-		pr_debug("state = %s\n", resp_state_name[state]);
+		pr_debug("qp#%d state = %s\n", qp_num(qp),
+			 resp_state_name[state]);
 		switch (state) {
 		case RESPST_GET_REQ:
 			state = get_req(qp, &pkt);
@@ -1377,5 +1403,6 @@ int rxe_responder(void *arg)
 exit:
 	ret = -EAGAIN;
 done:
+	rxe_drop_ref(qp);
 	return ret;
 }

@@ -29,6 +29,21 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+extern int amdgpu_dpm;
+
+enum amd_pp_sensors {
+	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
+	AMDGPU_PP_SENSOR_VDDNB,
+	AMDGPU_PP_SENSOR_VDDGFX,
+	AMDGPU_PP_SENSOR_UVD_VCLK,
+	AMDGPU_PP_SENSOR_UVD_DCLK,
+	AMDGPU_PP_SENSOR_VCE_ECCLK,
+	AMDGPU_PP_SENSOR_GPU_LOAD,
+	AMDGPU_PP_SENSOR_GFX_MCLK,
+	AMDGPU_PP_SENSOR_GPU_TEMP,
+	AMDGPU_PP_SENSOR_VCE_POWER,
+	AMDGPU_PP_SENSOR_UVD_POWER,
+};
 
 enum amd_pp_event {
 	AMD_PP_EVENT_INITIALIZE = 0,
@@ -131,9 +146,8 @@ struct amd_pp_init {
 	struct cgs_device *device;
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t rev_id;
-	bool powercontainment_enabled;
 };
+
 enum amd_pp_display_config_type{
 	AMD_PP_DisplayConfigType_None = 0,
 	AMD_PP_DisplayConfigType_DP54 ,
@@ -261,6 +275,7 @@ enum amd_pp_clock_type {
 struct amd_pp_clocks {
 	uint32_t count;
 	uint32_t clock[MAX_NUM_CLOCKS];
+	uint32_t latency[MAX_NUM_CLOCKS];
 };
 
 
@@ -332,12 +347,11 @@ struct amd_powerplay_funcs {
 	int (*powergate_uvd)(void *handle, bool gate);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_event event_id,
 				   void *input, void *output);
-	void (*print_current_performance_level)(void *handle,
-						      struct seq_file *m);
 	int (*set_fan_control_mode)(void *handle, uint32_t mode);
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -347,6 +361,8 @@ struct amd_powerplay_funcs {
 	int (*set_sclk_od)(void *handle, uint32_t value);
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
+	int (*read_sensor)(void *handle, int idx, int32_t *value);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
 };
 
 struct amd_powerplay {
@@ -377,5 +393,7 @@ int amd_powerplay_get_clock_by_type(void *handle,
 
 int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		struct amd_pp_simple_clock_info *output);
+
+int amd_set_clockgating_by_smu(void *handle, uint32_t msg_id);
 
 #endif /* _AMD_POWERPLAY_H_ */

@@ -13,7 +13,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -127,7 +127,7 @@ struct sixpack {
 
 #define AX25_6PACK_HEADER_LEN 0
 
-static void sixpack_decode(struct sixpack *, unsigned char[], int);
+static void sixpack_decode(struct sixpack *, const unsigned char[], int);
 static int encode_sixpack(unsigned char *, unsigned char *, int, unsigned char);
 
 /*
@@ -428,7 +428,7 @@ out:
 
 /*
  * Handle the 'receiver data ready' interrupt.
- * This function is called by the 'tty_io' module in the kernel when
+ * This function is called by the tty module in the kernel when
  * a block of 6pack data has been received, which can now be decapsulated
  * and sent on to some IP layer for further processing.
  */
@@ -436,7 +436,6 @@ static void sixpack_receive_buf(struct tty_struct *tty,
 	const unsigned char *cp, char *fp, int count)
 {
 	struct sixpack *sp;
-	unsigned char buf[512];
 	int count1;
 
 	if (!count)
@@ -446,10 +445,7 @@ static void sixpack_receive_buf(struct tty_struct *tty,
 	if (!sp)
 		return;
 
-	memcpy(buf, cp, count < sizeof(buf) ? count : sizeof(buf));
-
 	/* Read the characters out of the buffer */
-
 	count1 = count;
 	while (count) {
 		count--;
@@ -459,7 +455,7 @@ static void sixpack_receive_buf(struct tty_struct *tty,
 			continue;
 		}
 	}
-	sixpack_decode(sp, buf, count1);
+	sixpack_decode(sp, cp, count1);
 
 	sp_put(sp);
 	tty_unthrottle(tty);
@@ -992,7 +988,7 @@ static void decode_std_command(struct sixpack *sp, unsigned char cmd)
 /* decode a 6pack packet */
 
 static void
-sixpack_decode(struct sixpack *sp, unsigned char *pre_rbuff, int count)
+sixpack_decode(struct sixpack *sp, const unsigned char *pre_rbuff, int count)
 {
 	unsigned char inbyte;
 	int count1;

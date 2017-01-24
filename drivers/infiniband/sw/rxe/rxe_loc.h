@@ -198,7 +198,7 @@ void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res);
 static inline void rxe_advance_resp_resource(struct rxe_qp *qp)
 {
 	qp->resp.res_head++;
-	if (unlikely(qp->resp.res_head == qp->attr.max_rd_atomic))
+	if (unlikely(qp->resp.res_head == qp->attr.max_dest_rd_atomic))
 		qp->resp.res_head = 0;
 }
 
@@ -265,8 +265,6 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 		rxe->xmit_errors++;
 		return err;
 	}
-
-	atomic_inc(&qp->skb_out);
 
 	if ((qp_type(qp) != IB_QPT_RC) &&
 	    (pkt->mask & RXE_END_MASK)) {

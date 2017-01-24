@@ -510,18 +510,6 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 	}
 }
 
-void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old)
-{
-	assert_spin_locked(&old->lock);
-	new->inode = old->inode;
-	new->mnt = old->mnt;
-	if (old->group)
-		fsnotify_get_group(old->group);
-	new->group = old->group;
-	new->mask = old->mask;
-	new->free_mark = old->free_mark;
-}
-
 /*
  * Nothing fancy, just initialize lists and locks and counters.
  */

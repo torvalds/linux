@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -48,6 +49,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
@@ -59,7 +61,7 @@
 #include <asm/siginfo.h>
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/watch.h>
 #include <asm/mmu_context.h>
 #include <asm/types.h>
@@ -154,7 +156,7 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 		print_ip_sym(pc);
 		pc = unwind_stack(task, &sp, pc, &ra);
 	} while (pc);
-	printk("\n");
+	pr_cont("\n");
 }
 
 /*
@@ -172,22 +174,24 @@ static void show_stacktrace(struct task_struct *task,
 	printk("Stack :");
 	i = 0;
 	while ((unsigned long) sp & (PAGE_SIZE - 1)) {
-		if (i && ((i % (64 / field)) == 0))
-			printk("\n	 ");
+		if (i && ((i % (64 / field)) == 0)) {
+			pr_cont("\n");
+			printk("       ");
+		}
 		if (i > 39) {
-			printk(" ...");
+			pr_cont(" ...");
 			break;
 		}
 
 		if (__get_user(stackdata, sp++)) {
-			printk(" (Bad stack address)");
+			pr_cont(" (Bad stack address)");
 			break;
 		}
 
-		printk(" %0*lx", field, stackdata);
+		pr_cont(" %0*lx", field, stackdata);
 		i++;
 	}
-	printk("\n");
+	pr_cont("\n");
 	show_backtrace(task, regs);
 }
 
@@ -227,18 +231,19 @@ static void show_code(unsigned int __user *pc)
 	long i;
 	unsigned short __user *pc16 = NULL;
 
-	printk("\nCode:");
+	printk("Code:");
 
 	if ((unsigned long)pc & 1)
 		pc16 = (unsigned short __user *)((unsigned long)pc & ~1);
 	for(i = -3 ; i < 6 ; i++) {
 		unsigned int insn;
 		if (pc16 ? __get_user(insn, pc16 + i) : __get_user(insn, pc + i)) {
-			printk(" (Bad address in epc)\n");
+			pr_cont(" (Bad address in epc)\n");
 			break;
 		}
-		printk("%c%0*x%c", (i?' ':'<'), pc16 ? 4 : 8, insn, (i?' ':'>'));
+		pr_cont("%c%0*x%c", (i?' ':'<'), pc16 ? 4 : 8, insn, (i?' ':'>'));
 	}
+	pr_cont("\n");
 }
 
 static void __show_regs(const struct pt_regs *regs)
@@ -257,15 +262,15 @@ static void __show_regs(const struct pt_regs *regs)
 		if ((i % 4) == 0)
 			printk("$%2d   :", i);
 		if (i == 0)
-			printk(" %0*lx", field, 0UL);
+			pr_cont(" %0*lx", field, 0UL);
 		else if (i == 26 || i == 27)
-			printk(" %*s", field, "");
+			pr_cont(" %*s", field, "");
 		else
-			printk(" %0*lx", field, regs->regs[i]);
+			pr_cont(" %0*lx", field, regs->regs[i]);
 
 		i++;
 		if ((i % 4) == 0)
-			printk("\n");
+			pr_cont("\n");
 	}
 
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
@@ -286,46 +291,46 @@ static void __show_regs(const struct pt_regs *regs)
 
 	if (cpu_has_3kex) {
 		if (regs->cp0_status & ST0_KUO)
-			printk("KUo ");
+			pr_cont("KUo ");
 		if (regs->cp0_status & ST0_IEO)
-			printk("IEo ");
+			pr_cont("IEo ");
 		if (regs->cp0_status & ST0_KUP)
-			printk("KUp ");
+			pr_cont("KUp ");
 		if (regs->cp0_status & ST0_IEP)
-			printk("IEp ");
+			pr_cont("IEp ");
 		if (regs->cp0_status & ST0_KUC)
-			printk("KUc ");
+			pr_cont("KUc ");
 		if (regs->cp0_status & ST0_IEC)
-			printk("IEc ");
+			pr_cont("IEc ");
 	} else if (cpu_has_4kex) {
 		if (regs->cp0_status & ST0_KX)
-			printk("KX ");
+			pr_cont("KX ");
 		if (regs->cp0_status & ST0_SX)
-			printk("SX ");
+			pr_cont("SX ");
 		if (regs->cp0_status & ST0_UX)
-			printk("UX ");
+			pr_cont("UX ");
 		switch (regs->cp0_status & ST0_KSU) {
 		case KSU_USER:
-			printk("USER ");
+			pr_cont("USER ");
 			break;
 		case KSU_SUPERVISOR:
-			printk("SUPERVISOR ");
+			pr_cont("SUPERVISOR ");
 			break;
 		case KSU_KERNEL:
-			printk("KERNEL ");
+			pr_cont("KERNEL ");
 			break;
 		default:
-			printk("BAD_MODE ");
+			pr_cont("BAD_MODE ");
 			break;
 		}
 		if (regs->cp0_status & ST0_ERL)
-			printk("ERL ");
+			pr_cont("ERL ");
 		if (regs->cp0_status & ST0_EXL)
-			printk("EXL ");
+			pr_cont("EXL ");
 		if (regs->cp0_status & ST0_IE)
-			printk("IE ");
+			pr_cont("IE ");
 	}
-	printk("\n");
+	pr_cont("\n");
 
 	exccode = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
 	printk("Cause : %08x (ExcCode %02x)\n", cause, exccode);
@@ -444,6 +449,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
+	else
+		mips_cm_error_report();
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -701,6 +708,32 @@ asmlinkage void do_ov(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
+/*
+ * Send SIGFPE according to FCSR Cause bits, which must have already
+ * been masked against Enable bits.  This is impotant as Inexact can
+ * happen together with Overflow or Underflow, and `ptrace' can set
+ * any bits.
+ */
+void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
+		     struct task_struct *tsk)
+{
+	struct siginfo si = { .si_addr = fault_addr, .si_signo = SIGFPE };
+
+	if (fcr31 & FPU_CSR_INV_X)
+		si.si_code = FPE_FLTINV;
+	else if (fcr31 & FPU_CSR_DIV_X)
+		si.si_code = FPE_FLTDIV;
+	else if (fcr31 & FPU_CSR_OVF_X)
+		si.si_code = FPE_FLTOVF;
+	else if (fcr31 & FPU_CSR_UDF_X)
+		si.si_code = FPE_FLTUND;
+	else if (fcr31 & FPU_CSR_INE_X)
+		si.si_code = FPE_FLTRES;
+	else
+		si.si_code = __SI_FAULT;
+	force_sig_info(SIGFPE, &si, tsk);
+}
+
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
 	struct siginfo si = { 0 };
@@ -711,27 +744,7 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		return 0;
 
 	case SIGFPE:
-		si.si_addr = fault_addr;
-		si.si_signo = sig;
-		/*
-		 * Inexact can happen together with Overflow or Underflow.
-		 * Respect the mask to deliver the correct exception.
-		 */
-		fcr31 &= (fcr31 & FPU_CSR_ALL_E) <<
-			 (ffs(FPU_CSR_ALL_X) - ffs(FPU_CSR_ALL_E));
-		if (fcr31 & FPU_CSR_INV_X)
-			si.si_code = FPE_FLTINV;
-		else if (fcr31 & FPU_CSR_DIV_X)
-			si.si_code = FPE_FLTDIV;
-		else if (fcr31 & FPU_CSR_OVF_X)
-			si.si_code = FPE_FLTOVF;
-		else if (fcr31 & FPU_CSR_UDF_X)
-			si.si_code = FPE_FLTUND;
-		else if (fcr31 & FPU_CSR_INE_X)
-			si.si_code = FPE_FLTRES;
-		else
-			si.si_code = __SI_FAULT;
-		force_sig_info(sig, &si, current);
+		force_fcr31_sig(fcr31, fault_addr, current);
 		return 1;
 
 	case SIGBUS:
@@ -795,13 +808,13 @@ static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
 	/* Run the emulator */
 	sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 				       &fault_addr);
-	fcr31 = current->thread.fpu.fcr31;
 
 	/*
-	 * We can't allow the emulated instruction to leave any of
-	 * the cause bits set in $fcr31.
+	 * We can't allow the emulated instruction to leave any
+	 * enabled Cause bits set in $fcr31.
 	 */
-	current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+	fcr31 = mask_fcr31_x(current->thread.fpu.fcr31);
+	current->thread.fpu.fcr31 &= ~fcr31;
 
 	/* Restore the hardware register state */
 	own_fpu(1);
@@ -827,7 +840,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		goto out;
 
 	/* Clear FCSR.Cause before enabling interrupts */
-	write_32bit_cp1_register(CP1_STATUS, fcr31 & ~FPU_CSR_ALL_X);
+	write_32bit_cp1_register(CP1_STATUS, fcr31 & ~mask_fcr31_x(fcr31));
 	local_irq_enable();
 
 	die_if_kernel("FP exception in kernel code", regs);
@@ -849,13 +862,13 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		/* Run the emulator */
 		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 					       &fault_addr);
-		fcr31 = current->thread.fpu.fcr31;
 
 		/*
-		 * We can't allow the emulated instruction to leave any of
-		 * the cause bits set in $fcr31.
+		 * We can't allow the emulated instruction to leave any
+		 * enabled Cause bits set in $fcr31.
 		 */
-		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+		fcr31 = mask_fcr31_x(current->thread.fpu.fcr31);
+		current->thread.fpu.fcr31 &= ~fcr31;
 
 		/* Restore the hardware register state */
 		own_fpu(1);	/* Using the FPU again.	 */
@@ -1420,13 +1433,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
-		fcr31 = current->thread.fpu.fcr31;
 
 		/*
 		 * We can't allow the emulated instruction to leave
-		 * any of the cause bits set in $fcr31.
+		 * any enabled Cause bits set in $fcr31.
 		 */
-		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+		fcr31 = mask_fcr31_x(current->thread.fpu.fcr31);
+		current->thread.fpu.fcr31 &= ~fcr31;
 
 		/* Send a signal if required.  */
 		if (!process_fpemu_return(sig, fault_addr, fcr31) && !err)
@@ -2091,6 +2104,14 @@ static void configure_exception_vector(void)
 {
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
+		/* If available, use WG to set top bits of EBASE */
+		if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+			write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+			write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+		}
 		write_c0_ebase(ebase);
 		write_c0_status(sr);
 		/* Setting vector spacing enables EI/VI mode  */
@@ -2127,8 +2148,17 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		 * We shouldn't trust a secondary core has a sane EBASE register
 		 * so use the one calculated by the boot CPU.
 		 */
-		if (!is_boot_cpu)
+		if (!is_boot_cpu) {
+			/* If available, use WG to set top bits of EBASE */
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+			}
 			write_c0_ebase(ebase);
+		}
 
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
@@ -2209,13 +2239,39 @@ void __init trap_init(void)
 
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long size = 0x200 + VECTORSPACING*64;
+		phys_addr_t ebase_pa;
+
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
+
+		/*
+		 * Try to ensure ebase resides in KSeg0 if possible.
+		 *
+		 * It shouldn't generally be in XKPhys on MIPS64 to avoid
+		 * hitting a poorly defined exception base for Cache Errors.
+		 * The allocation is likely to be in the low 512MB of physical,
+		 * in which case we should be able to convert to KSeg0.
+		 *
+		 * EVA is special though as it allows segments to be rearranged
+		 * and to become uncached during cache error handling.
+		 */
+		ebase_pa = __pa(ebase);
+		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+			ebase = CKSEG0ADDR(ebase_pa);
 	} else {
 		ebase = CAC_BASE;
 
-		if (cpu_has_mips_r2_r6)
-			ebase += (read_c0_ebase() & 0x3ffff000);
+		if (cpu_has_mips_r2_r6) {
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				ebase = (read_c0_ebase_64() & ~0xfff);
+#else
+				ebase = (read_c0_ebase() & ~0xfff);
+#endif
+			} else {
+				ebase += (read_c0_ebase() & 0x3ffff000);
+			}
+		}
 	}
 
 	if (cpu_has_mmips) {

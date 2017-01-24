@@ -308,9 +308,11 @@ static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_classd = {
 	.probe		= atmel_classd_codec_probe,
-	.controls	= atmel_classd_snd_controls,
-	.num_controls	= ARRAY_SIZE(atmel_classd_snd_controls),
 	.get_regmap	= atmel_classd_codec_get_remap,
+	.component_driver = {
+		.controls		= atmel_classd_snd_controls,
+		.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),
+	},
 };
 
 /* codec dai component */

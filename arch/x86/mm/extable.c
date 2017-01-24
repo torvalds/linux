@@ -1,5 +1,5 @@
-#include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/extable.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 
@@ -135,7 +135,12 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (early_recursion_flag > 2)
 		goto halt_loop;
 
-	if (regs->cs != __KERNEL_CS)
+	/*
+	 * Old CPUs leave the high bits of CS on the stack
+	 * undefined.  I'm not sure which CPUs do this, but at least
+	 * the 486 DX works this way.
+	 */
+	if ((regs->cs & 0xFFFF) != __KERNEL_CS)
 		goto fail;
 
 	/*

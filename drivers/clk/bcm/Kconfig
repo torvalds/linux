@@ -1,7 +1,6 @@
 config CLK_BCM_63XX
 	bool "Broadcom BCM63xx clock support"
 	depends on ARCH_BCM_63XX || COMPILE_TEST
-	depends on COMMON_CLK
 	select COMMON_CLK_IPROC
 	default ARCH_BCM_63XX
 	help
@@ -11,8 +10,7 @@ config CLK_BCM_63XX
 config CLK_BCM_KONA
 	bool "Broadcom Kona CCU clock support"
 	depends on ARCH_BCM_MOBILE || COMPILE_TEST
-	depends on COMMON_CLK
-	default y
+	default ARCH_BCM_MOBILE
 	help
 	  Enable common clock framework support for Broadcom SoCs
 	  using "Kona" style clock control units, including those
@@ -20,7 +18,31 @@ config CLK_BCM_KONA
 
 config COMMON_CLK_IPROC
 	bool
-	depends on COMMON_CLK
 	help
 	  Enable common clock framework support for Broadcom SoCs
 	  based on the iProc architecture
+
+config CLK_BCM_CYGNUS
+	bool "Broadcom Cygnus clock support"
+	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable common clock framework support for the Broadcom Cygnus SoC
+
+config CLK_BCM_NSP
+	bool "Broadcom Northstar/Northstar Plus clock support"
+	depends on ARCH_BCM_5301X || ARCH_BCM_NSP || COMPILE_TEST
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_5301X || ARCH_BCM_NSP
+	help
+	  Enable common clock framework support for the Broadcom Northstar and
+	  Northstar Plus SoCs
+
+config CLK_BCM_NS2
+	bool "Broadcom Northstar 2 clock support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	select COMMON_CLK_IPROC
+	default ARCH_BCM_IPROC
+	help
+	  Enable common clock framework support for the Broadcom Northstar 2 SoC

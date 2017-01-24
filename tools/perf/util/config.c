@@ -594,12 +594,32 @@ static int collect_config(const char *var, const char *value,
 			goto out_free;
 	}
 
+	/* perf_config_set can contain both user and system config items.
+	 * So we should know where each value is from.
+	 * The classification would be needed when a particular config file
+	 * is overwrited by setting feature i.e. set_config().
+	 */
+	if (strcmp(config_file_name, perf_etc_perfconfig()) == 0) {
+		section->from_system_config = true;
+		item->from_system_config = true;
+	} else {
+		section->from_system_config = false;
+		item->from_system_config = false;
+	}
+
 	ret = set_value(item, value);
 	return ret;
 
 out_free:
 	free(key);
 	return -1;
+}
+
+int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
+			     const char *var, const char *value)
+{
+	config_file_name = file_name;
+	return collect_config(var, value, set);
 }
 
 static int perf_config_set__init(struct perf_config_set *set)

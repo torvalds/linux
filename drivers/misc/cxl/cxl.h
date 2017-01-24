@@ -162,7 +162,10 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SPAP_V    0x0000000000000001ULL
 
 /****** CXL_PSL_Control ****************************************************/
-#define CXL_PSL_Control_tb 0x0000000000000001ULL
+#define CXL_PSL_Control_tb              (0x1ull << (63-63))
+#define CXL_PSL_Control_Fr              (0x1ull << (63-31))
+#define CXL_PSL_Control_Fs_MASK         (0x3ull << (63-29))
+#define CXL_PSL_Control_Fs_Complete     (0x3ull << (63-29))
 
 /****** CXL_PSL_DLCNTL *****************************************************/
 #define CXL_PSL_DLCNTL_D (0x1ull << (63-28))
@@ -615,6 +618,14 @@ struct cxl {
 	bool perst_select_user;
 	bool perst_same_image;
 	bool psl_timebase_synced;
+
+	/*
+	 * number of contexts mapped on to this card. Possible values are:
+	 * >0: Number of contexts mapped and new one can be mapped.
+	 *  0: No active contexts and new ones can be mapped.
+	 * -1: No contexts mapped and new ones cannot be mapped.
+	 */
+	atomic_t contexts_num;
 };
 
 int cxl_pci_alloc_one_irq(struct cxl *adapter);
@@ -806,8 +817,9 @@ void cxl_dump_debug_buffer(void *addr, size_t size);
 void init_cxl_native(void);
 
 struct cxl_context *cxl_context_alloc(void);
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
-		     struct address_space *mapping);
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master);
+void cxl_context_set_mapping(struct cxl_context *ctx,
+			struct address_space *mapping);
 void cxl_context_free(struct cxl_context *ctx);
 int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma);
 unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
@@ -854,6 +866,7 @@ int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
 int cxl_check_error(struct cxl_afu *afu);
 int cxl_afu_slbia(struct cxl_afu *afu);
 int cxl_tlb_slb_invalidate(struct cxl *adapter);
+int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
@@ -865,6 +878,7 @@ void cxl_native_err_irq_dump_regs(struct cxl *adapter);
 void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
+void cxl_release_mapping(struct cxl_context *ctx);
 
 extern struct pci_driver cxl_pci_driver;
 extern struct platform_driver cxl_of_driver;
@@ -940,4 +954,20 @@ bool cxl_pci_is_vphb_device(struct pci_dev *dev);
 
 /* decode AFU error bits in the PSL register PSL_SERR_An */
 void cxl_afu_decode_psl_serr(struct cxl_afu *afu, u64 serr);
+
+/*
+ * Increments the number of attached contexts on an adapter.
+ * In case an adapter_context_lock is taken the return -EBUSY.
+ */
+int cxl_adapter_context_get(struct cxl *adapter);
+
+/* Decrements the number of attached contexts on an adapter */
+void cxl_adapter_context_put(struct cxl *adapter);
+
+/* If no active contexts then prevents contexts from being attached */
+int cxl_adapter_context_lock(struct cxl *adapter);
+
+/* Unlock the contexts-lock if taken. Warn and force unlock otherwise */
+void cxl_adapter_context_unlock(struct cxl *adapter);
+
 #endif

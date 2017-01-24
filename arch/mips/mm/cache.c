@@ -10,7 +10,7 @@
 #include <linux/fcntl.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/mm.h>
@@ -33,6 +33,10 @@ void (*flush_icache_range)(unsigned long start, unsigned long end);
 EXPORT_SYMBOL_GPL(flush_icache_range);
 void (*local_flush_icache_range)(unsigned long start, unsigned long end);
 EXPORT_SYMBOL_GPL(local_flush_icache_range);
+void (*__flush_icache_user_range)(unsigned long start, unsigned long end);
+EXPORT_SYMBOL_GPL(__flush_icache_user_range);
+void (*__local_flush_icache_user_range)(unsigned long start, unsigned long end);
+EXPORT_SYMBOL_GPL(__local_flush_icache_user_range);
 
 void (*__flush_cache_vmap)(void);
 void (*__flush_cache_vunmap)(void);
@@ -74,7 +78,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 	if (!access_ok(VERIFY_WRITE, (void __user *) addr, bytes))
 		return -EFAULT;
 
-	flush_icache_range(addr, addr + bytes);
+	__flush_icache_user_range(addr, addr + bytes);
 
 	return 0;
 }

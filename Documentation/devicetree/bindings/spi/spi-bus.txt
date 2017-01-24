@@ -31,7 +31,7 @@ with max(cs-gpios > hw cs).
 So if for example the controller has 2 CS lines, and the cs-gpios
 property looks like this:
 
-cs-gpios = <&gpio1 0 0> <0> <&gpio1 1 0> <&gpio1 2 0>;
+cs-gpios = <&gpio1 0 0>, <0>, <&gpio1 1 0>, <&gpio1 2 0>;
 
 Then it should be configured so that num_chipselect = 4 with the
 following mapping:

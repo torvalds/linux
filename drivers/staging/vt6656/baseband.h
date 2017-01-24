@@ -84,17 +84,17 @@ struct vnt_phy_field {
 } __packed;
 
 unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
-	unsigned int frame_length, u16 tx_rate);
+				unsigned int frame_length, u16 tx_rate);
 
-void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
-	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
+void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
+		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);
 
-void vnt_set_short_slot_time(struct vnt_private *);
-void vnt_set_vga_gain_offset(struct vnt_private *, u8);
-void vnt_set_antenna_mode(struct vnt_private *, u8);
-int vnt_vt3184_init(struct vnt_private *);
-void vnt_set_deep_sleep(struct vnt_private *);
-void vnt_exit_deep_sleep(struct vnt_private *);
-void vnt_update_pre_ed_threshold(struct vnt_private *, int scanning);
+void vnt_set_short_slot_time(struct vnt_private *priv);
+void vnt_set_vga_gain_offset(struct vnt_private *priv, u8 data);
+void vnt_set_antenna_mode(struct vnt_private *priv, u8 antenna_mode);
+int vnt_vt3184_init(struct vnt_private *priv);
+void vnt_set_deep_sleep(struct vnt_private *priv);
+void vnt_exit_deep_sleep(struct vnt_private *priv);
+void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning);
 
 #endif /* __BASEBAND_H__ */

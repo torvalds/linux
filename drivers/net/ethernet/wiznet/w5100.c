@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/kconfig.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
@@ -1046,7 +1045,6 @@ static const struct net_device_ops w5100_netdev_ops = {
 	.ndo_set_rx_mode	= w5100_set_rx_mode,
 	.ndo_set_mac_address	= w5100_set_macaddr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int w5100_mmio_probe(struct platform_device *pdev)

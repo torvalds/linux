@@ -20,7 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/sysctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>

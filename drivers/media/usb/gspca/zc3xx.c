@@ -25,8 +25,7 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Serge A. Suchkov <Serge.A.S@tochka.ru>");
 MODULE_DESCRIPTION("GSPCA ZC03xx/VC3xx USB Camera Driver");
 MODULE_LICENSE("GPL");
 

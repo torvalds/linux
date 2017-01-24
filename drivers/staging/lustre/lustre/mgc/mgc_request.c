@@ -38,11 +38,13 @@
 #define D_MGC D_CONFIG /*|D_WARNING*/
 
 #include <linux/module.h>
-#include "../include/obd_class.h"
-#include "../include/lustre_dlm.h"
+
 #include "../include/lprocfs_status.h"
-#include "../include/lustre_log.h"
+#include "../include/lustre_dlm.h"
 #include "../include/lustre_disk.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_swab.h"
+#include "../include/obd_class.h"
 
 #include "mgc_internal.h"
 
@@ -373,7 +375,7 @@ out_err:
 	return rc;
 }
 
-DEFINE_MUTEX(llog_process_lock);
+static DEFINE_MUTEX(llog_process_lock);
 
 /** Stop watching for updates on this log.
  */
@@ -549,8 +551,9 @@ static int mgc_requeue_thread(void *data)
 		 * caused the lock revocation to finish its setup, plus some
 		 * random so everyone doesn't try to reconnect at once.
 		 */
-		to = MGC_TIMEOUT_MIN_SECONDS * HZ;
-		to += rand * HZ / 100; /* rand is centi-seconds */
+		to = msecs_to_jiffies(MGC_TIMEOUT_MIN_SECONDS * MSEC_PER_SEC);
+		/* rand is centi-seconds */
+		to += msecs_to_jiffies(rand * MSEC_PER_SEC / 100);
 		lwi = LWI_TIMEOUT(to, NULL, NULL);
 		l_wait_event(rq_waitq, rq_state & (RQ_STOP | RQ_PRECLEANUP),
 			     &lwi);
@@ -683,35 +686,33 @@ static int mgc_llog_fini(const struct lu_env *env, struct obd_device *obd)
 }
 
 static atomic_t mgc_count = ATOMIC_INIT(0);
-static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
+static int mgc_precleanup(struct obd_device *obd)
 {
 	int rc = 0;
 	int temp;
 
-	switch (stage) {
-	case OBD_CLEANUP_EARLY:
-		break;
-	case OBD_CLEANUP_EXPORTS:
-		if (atomic_dec_and_test(&mgc_count)) {
-			LASSERT(rq_state & RQ_RUNNING);
-			/* stop requeue thread */
-			temp = RQ_STOP;
-		} else {
-			/* wakeup requeue thread to clean our cld */
-			temp = RQ_NOW | RQ_PRECLEANUP;
-		}
-		spin_lock(&config_list_lock);
-		rq_state |= temp;
-		spin_unlock(&config_list_lock);
-		wake_up(&rq_waitq);
-		if (temp & RQ_STOP)
-			wait_for_completion(&rq_exit);
-		obd_cleanup_client_import(obd);
-		rc = mgc_llog_fini(NULL, obd);
-		if (rc != 0)
-			CERROR("failed to cleanup llogging subsystems\n");
-		break;
+	if (atomic_dec_and_test(&mgc_count)) {
+		LASSERT(rq_state & RQ_RUNNING);
+		/* stop requeue thread */
+		temp = RQ_STOP;
+	} else {
+		/* wakeup requeue thread to clean our cld */
+		temp = RQ_NOW | RQ_PRECLEANUP;
 	}
+
+	spin_lock(&config_list_lock);
+	rq_state |= temp;
+	spin_unlock(&config_list_lock);
+	wake_up(&rq_waitq);
+
+	if (temp & RQ_STOP)
+		wait_for_completion(&rq_exit);
+	obd_cleanup_client_import(obd);
+
+	rc = mgc_llog_fini(NULL, obd);
+	if (rc)
+		CERROR("failed to cleanup llogging subsystems\n");
+
 	return rc;
 }
 
@@ -886,8 +887,8 @@ static int mgc_set_mgs_param(struct obd_export *exp,
 }
 
 /* Take a config lock so we can get cancel notifications */
-static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
-		       __u32 type, ldlm_policy_data_t *policy, __u32 mode,
+static int mgc_enqueue(struct obd_export *exp, __u32 type,
+		       union ldlm_policy_data *policy, __u32 mode,
 		       __u64 *flags, void *bl_cb, void *cp_cb, void *gl_cb,
 		       void *data, __u32 lvb_len, void *lvb_swabber,
 		       struct lustre_handle *lockh)
@@ -1058,8 +1059,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 }
 
 static int mgc_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *unused)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	int rc = -EINVAL;
 
@@ -1158,7 +1158,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 
 	while (datalen > 0) {
 		int   entry_len = sizeof(*entry);
-		int   is_ost;
+		int is_ost, i;
 		struct obd_device *obd;
 		char *obdname;
 		char *cname;
@@ -1264,11 +1264,17 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 			continue;
 		}
 
-		/* TODO: iterate all nids to find one */
+		/* iterate all nids to find one */
 		/* find uuid by nid */
-		rc = client_import_find_conn(obd->u.cli.cl_import,
-					     entry->u.nids[0],
-					     (struct obd_uuid *)uuid);
+		rc = -ENOENT;
+		for (i = 0; i < entry->mne_nid_count; i++) {
+			rc = client_import_find_conn(obd->u.cli.cl_import,
+						     entry->u.nids[0],
+						     (struct obd_uuid *)uuid);
+			if (!rc)
+				break;
+		}
+
 		up_read(&obd->u.cli.cl_sem);
 		if (rc < 0) {
 			CERROR("mgc: cannot find uuid by nid %s\n",
@@ -1380,15 +1386,17 @@ again:
 	body->mcb_units  = nrpages;
 
 	/* allocate bulk transfer descriptor */
-	desc = ptlrpc_prep_bulk_imp(req, nrpages, 1, BULK_PUT_SINK,
-				    MGS_BULK_PORTAL);
+	desc = ptlrpc_prep_bulk_imp(req, nrpages, 1,
+				    PTLRPC_BULK_PUT_SINK | PTLRPC_BULK_BUF_KIOV,
+				    MGS_BULK_PORTAL,
+				    &ptlrpc_bulk_kiov_pin_ops);
 	if (!desc) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
 	for (i = 0; i < nrpages; i++)
-		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_SIZE);
+		desc->bd_frag_ops->add_kiov_frag(desc, pages[i], 0, PAGE_SIZE);
 
 	ptlrpc_request_set_replen(req);
 	rc = ptlrpc_queue_wait(req);
@@ -1428,14 +1436,12 @@ again:
 	}
 
 	mne_swab = !!ptlrpc_rep_need_swab(req);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(3, 2, 50, 0)
+#if OBD_OCD_VERSION(3, 0, 53, 0) > LUSTRE_VERSION_CODE
 	/* This import flag means the server did an extra swab of IR MNE
 	 * records (fixed in LU-1252), reverse it here if needed. LU-1644
 	 */
 	if (unlikely(req->rq_import->imp_need_mne_swab))
 		mne_swab = !mne_swab;
-#else
-#warning "LU-1644: Remove old OBD_CONNECT_MNE_SWAB fixup and imp_need_mne_swab"
 #endif
 
 	for (i = 0; i < nrpages && ealen > 0; i++) {
@@ -1548,14 +1554,52 @@ out_free:
 	return rc;
 }
 
-/** Get a config log from the MGS and process it.
- * This func is called for both clients and servers.
- * Copy the log locally before parsing it if appropriate (non-MGS server)
+static bool mgc_import_in_recovery(struct obd_import *imp)
+{
+	bool in_recovery = true;
+
+	spin_lock(&imp->imp_lock);
+	if (imp->imp_state == LUSTRE_IMP_FULL ||
+	    imp->imp_state == LUSTRE_IMP_CLOSED)
+		in_recovery = false;
+	spin_unlock(&imp->imp_lock);
+
+	return in_recovery;
+}
+
+/**
+ * Get a configuration log from the MGS and process it.
+ *
+ * This function is called for both clients and servers to process the
+ * configuration log from the MGS.  The MGC enqueues a DLM lock on the
+ * log from the MGS, and if the lock gets revoked the MGC will be notified
+ * by the lock cancellation callback that the config log has changed,
+ * and will enqueue another MGS lock on it, and then continue processing
+ * the new additions to the end of the log.
+ *
+ * Since the MGC import is not replayable, if the import is being evicted
+ * (rcl == -ESHUTDOWN, \see ptlrpc_import_delay_req()), retry to process
+ * the log until recovery is finished or the import is closed.
+ *
+ * Make a local copy of the log before parsing it if appropriate (non-MGS
+ * server) so that the server can start even when the MGS is down.
+ *
+ * There shouldn't be multiple processes running process_log at once --
+ * sounds like badness.  It actually might be fine, as long as they're not
+ * trying to update from the same log simultaneously, in which case we
+ * should use a per-log semaphore instead of cld_lock.
+ *
+ * \param[in] mgc	MGC device by which to fetch the configuration log
+ * \param[in] cld	log processing state (stored in lock callback data)
+ *
+ * \retval		0 on success
+ * \retval		negative errno on failure
  */
 int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 {
 	struct lustre_handle lockh = { 0 };
 	__u64 flags = LDLM_FL_NO_LRU;
+	bool retry = false;
 	int rc = 0, rcl;
 
 	LASSERT(cld);
@@ -1565,6 +1609,7 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	 * we're not trying to update from the same log
 	 * simultaneously (in which case we should use a per-log sem.)
 	 */
+restart:
 	mutex_lock(&cld->cld_lock);
 	if (cld->cld_stopping) {
 		mutex_unlock(&cld->cld_lock);
@@ -1577,7 +1622,7 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	       cld->cld_cfg.cfg_instance, cld->cld_cfg.cfg_last_idx + 1);
 
 	/* Get the cfg lock on the llog */
-	rcl = mgc_enqueue(mgc->u.cli.cl_mgc_mgsexp, NULL, LDLM_PLAIN, NULL,
+	rcl = mgc_enqueue(mgc->u.cli.cl_mgc_mgsexp, LDLM_PLAIN, NULL,
 			  LCK_CR, &flags, NULL, NULL, NULL,
 			  cld, 0, NULL, &lockh);
 	if (rcl == 0) {
@@ -1588,18 +1633,57 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	} else {
 		CDEBUG(D_MGC, "Can't get cfg lock: %d\n", rcl);
 
-		/* mark cld_lostlock so that it will requeue
-		 * after MGC becomes available.
-		 */
-		cld->cld_lostlock = 1;
+		if (rcl == -ESHUTDOWN &&
+		    atomic_read(&mgc->u.cli.cl_mgc_refcount) > 0 && !retry) {
+			int secs = cfs_time_seconds(obd_timeout);
+			struct obd_import *imp;
+			struct l_wait_info lwi;
+
+			mutex_unlock(&cld->cld_lock);
+			imp = class_exp2cliimp(mgc->u.cli.cl_mgc_mgsexp);
+
+			/*
+			 * Let's force the pinger, and wait the import to be
+			 * connected, note: since mgc import is non-replayable,
+			 * and even the import state is disconnected, it does
+			 * not mean the "recovery" is stopped, so we will keep
+			 * waitting until timeout or the import state is
+			 * FULL or closed
+			 */
+			ptlrpc_pinger_force(imp);
+
+			lwi = LWI_TIMEOUT(secs, NULL, NULL);
+			l_wait_event(imp->imp_recovery_waitq,
+				     !mgc_import_in_recovery(imp), &lwi);
+
+			if (imp->imp_state == LUSTRE_IMP_FULL) {
+				retry = true;
+				goto restart;
+			} else {
+				mutex_lock(&cld->cld_lock);
+				cld->cld_lostlock = 1;
+			}
+		} else {
+			/* mark cld_lostlock so that it will requeue
+			 * after MGC becomes available.
+			 */
+			cld->cld_lostlock = 1;
+		}
 		/* Get extra reference, it will be put in requeue thread */
 		config_log_get(cld);
 	}
 
 	if (cld_is_recover(cld)) {
 		rc = 0; /* this is not a fatal error for recover log */
-		if (rcl == 0)
+		if (!rcl) {
 			rc = mgc_process_recover_log(mgc, cld);
+			if (rc) {
+				CERROR("%s: recover log %s failed: rc = %d not fatal.\n",
+				       mgc->obd_name, cld->cld_logname, rc);
+				rc = 0;
+				cld->cld_lostlock = 1;
+			}
+		}
 	} else {
 		rc = mgc_process_cfg_log(mgc, cld, rcl != 0);
 	}
@@ -1740,8 +1824,6 @@ static struct obd_ops mgc_obd_ops = {
 	.del_conn       = client_import_del_conn,
 	.connect        = client_connect_import,
 	.disconnect     = client_disconnect_export,
-	/* .enqueue     = mgc_enqueue, */
-	/* .iocontrol   = mgc_iocontrol, */
 	.set_info_async = mgc_set_info_async,
 	.get_info       = mgc_get_info,
 	.import_event   = mgc_import_event,

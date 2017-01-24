@@ -67,7 +67,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x40000000>; /* 1 GB */
 	};
@@ -84,18 +84,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
 			};
 
 			ethernet@70000 {
@@ -155,20 +143,6 @@
 				status = "okay";
 			};
 
-			spi0: spi@10600 {
-				pinctrl-0 = <&spi0_pins2>;
-				pinctrl-names = "default";
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "mx25l25635e", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <50000000>;
-				};
-			};
-
 			nand@d0000 {
 				status = "okay";
 				num-cs = <1>;
@@ -194,24 +168,6 @@
 						reg = <0x1000000 0x3f000000>;
 					};
 				};
-			};
-		};
-
-		pcie-controller {
-			status = "okay";
-			/*
-			 * The two PCIe units are accessible through
-			 * both standard PCIe slots and mini-PCIe
-			 * slots on the board.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
 			};
 		};
 	};
@@ -274,3 +230,49 @@
 		compatible = "linux,spdif-dir";
 	};
 };
+
+&pciec {
+	status = "okay";
+	/*
+	 * The two PCIe units are accessible through
+	 * both standard PCIe slots and mini-PCIe
+	 * slots on the board.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+
+&spi0 {
+	pinctrl-0 = <&spi0_pins2>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "mx25l25635e", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <50000000>;
+	};
+};
+

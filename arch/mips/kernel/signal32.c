@@ -16,7 +16,7 @@
 
 #include <asm/compat.h>
 #include <asm/compat-signal.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include "signal-common.h"

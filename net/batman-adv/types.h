@@ -28,6 +28,7 @@
 #include <linux/if_ether.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
 #include <linux/sched.h> /* for linux/wait.h */
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -118,12 +119,28 @@ struct batadv_hard_iface_bat_v {
 };
 
 /**
+ * enum batadv_hard_iface_wifi_flags - Flags describing the wifi configuration
+ *  of a batadv_hard_iface
+ * @BATADV_HARDIF_WIFI_WEXT_DIRECT: it is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_DIRECT: it is a cfg80211 wifi device
+ * @BATADV_HARDIF_WIFI_WEXT_INDIRECT: link device is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_INDIRECT: link device is a cfg80211 wifi device
+ */
+enum batadv_hard_iface_wifi_flags {
+	BATADV_HARDIF_WIFI_WEXT_DIRECT = BIT(0),
+	BATADV_HARDIF_WIFI_CFG80211_DIRECT = BIT(1),
+	BATADV_HARDIF_WIFI_WEXT_INDIRECT = BIT(2),
+	BATADV_HARDIF_WIFI_CFG80211_INDIRECT = BIT(3),
+};
+
+/**
  * struct batadv_hard_iface - network device known to batman-adv
  * @list: list node for batadv_hardif_list
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
- * @net_dev: pointer to the net_device
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
+ * @wifi_flags: flags whether this is (directly or indirectly) a wifi interface
+ * @net_dev: pointer to the net_device
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
  * @batman_adv_ptype: packet type describing packets that should be processed by
@@ -132,7 +149,6 @@ struct batadv_hard_iface_bat_v {
  * @rcu: struct used for freeing in an RCU-safe manner
  * @bat_iv: per hard-interface B.A.T.M.A.N. IV data
  * @bat_v: per hard-interface B.A.T.M.A.N. V data
- * @cleanup_work: work queue callback item for hard-interface deinit
  * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
  * @neigh_list: list of unique single hop neighbors via this interface
  * @neigh_list_lock: lock protecting neigh_list
@@ -141,8 +157,9 @@ struct batadv_hard_iface {
 	struct list_head list;
 	s16 if_num;
 	char if_status;
-	struct net_device *net_dev;
 	u8 num_bcasts;
+	u32 wifi_flags;
+	struct net_device *net_dev;
 	struct kobject *hardif_obj;
 	struct kref refcount;
 	struct packet_type batman_adv_ptype;
@@ -152,7 +169,6 @@ struct batadv_hard_iface {
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	struct batadv_hard_iface_bat_v bat_v;
 #endif
-	struct work_struct cleanup_work;
 	struct dentry *debug_dir;
 	struct hlist_head neigh_list;
 	/* neigh_list_lock protects: neigh_list */
@@ -185,7 +201,7 @@ struct batadv_orig_ifinfo {
 
 /**
  * struct batadv_frag_table_entry - head in the fragment buffer table
- * @head: head of list with fragments
+ * @fragment_list: head of list with fragments
  * @lock: lock to protect the list of fragments
  * @timestamp: time (jiffie) of last received fragment
  * @seqno: sequence number of the fragments in the list
@@ -193,8 +209,8 @@ struct batadv_orig_ifinfo {
  * @total_size: expected size of the assembled packet
  */
 struct batadv_frag_table_entry {
-	struct hlist_head head;
-	spinlock_t lock; /* protects head */
+	struct hlist_head fragment_list;
+	spinlock_t lock; /* protects fragment_list */
 	unsigned long timestamp;
 	u16 seqno;
 	u16 size;
@@ -409,6 +425,7 @@ struct batadv_hardif_neigh_node_bat_v {
  * struct batadv_hardif_neigh_node - unique neighbor per hard-interface
  * @list: list node for batadv_hard_iface::neigh_list
  * @addr: the MAC address of the neighboring interface
+ * @orig: the address of the originator this neighbor node belongs to
  * @if_incoming: pointer to incoming hard-interface
  * @last_seen: when last packet via this neighbor was received
  * @bat_v: B.A.T.M.A.N. V private data
@@ -418,6 +435,7 @@ struct batadv_hardif_neigh_node_bat_v {
 struct batadv_hardif_neigh_node {
 	struct hlist_node list;
 	u8 addr[ETH_ALEN];
+	u8 orig[ETH_ALEN];
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
@@ -707,8 +725,8 @@ struct batadv_priv_debug_log {
 
 /**
  * struct batadv_priv_gw - per mesh interface gateway data
- * @list: list of available gateway nodes
- * @list_lock: lock protecting gw_list & curr_gw
+ * @gateway_list: list of available gateway nodes
+ * @list_lock: lock protecting gateway_list & curr_gw
  * @curr_gw: pointer to currently selected gateway node
  * @mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @sel_class: gateway selection class (applies if gw_mode client)
@@ -717,8 +735,8 @@ struct batadv_priv_debug_log {
  * @reselect: bool indicating a gateway re-selection is in progress
  */
 struct batadv_priv_gw {
-	struct hlist_head list;
-	spinlock_t list_lock; /* protects gw_list & curr_gw */
+	struct hlist_head gateway_list;
+	spinlock_t list_lock; /* protects gateway_list & curr_gw */
 	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
 	atomic_t mode;
 	atomic_t sel_class;
@@ -786,9 +804,10 @@ struct batadv_mcast_querier_state {
  * @num_want_all_ipv6: counter for items in want_all_ipv6_list
  * @want_lists_lock: lock for protecting modifications to mcast want lists
  *  (traversals are rcu-locked)
+ * @work: work queue callback item for multicast TT and TVLV updates
  */
 struct batadv_priv_mcast {
-	struct hlist_head mla_list;
+	struct hlist_head mla_list; /* see __batadv_mcast_mla_update() */
 	struct hlist_head want_all_unsnoopables_list;
 	struct hlist_head want_all_ipv4_list;
 	struct hlist_head want_all_ipv6_list;
@@ -803,6 +822,7 @@ struct batadv_priv_mcast {
 	atomic_t num_want_all_ipv6;
 	/* protects want_all_{unsnoopables,ipv4,ipv6}_list */
 	spinlock_t want_lists_lock;
+	struct delayed_work work;
 };
 #endif
 
@@ -1015,7 +1035,6 @@ struct batadv_priv_bat_v {
  * @forw_bcast_list_lock: lock protecting forw_bcast_list
  * @tp_list_lock: spinlock protecting @tp_list
  * @orig_work: work queue callback item for orig node purging
- * @cleanup_work: work queue callback item for soft-interface deinit
  * @primary_if: one of the hard-interfaces assigned to this mesh interface
  *  becomes the primary interface
  * @algo_ops: routing algorithm used by this mesh interface
@@ -1074,7 +1093,6 @@ struct batadv_priv {
 	spinlock_t tp_list_lock; /* protects tp_list */
 	atomic_t tp_num;
 	struct delayed_work orig_work;
-	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct batadv_algo_ops *algo_ops;
 	struct hlist_head softif_vlan_list;
@@ -1366,7 +1384,8 @@ struct batadv_skb_cb {
 
 /**
  * struct batadv_forw_packet - structure for bcast packets to be sent/forwarded
- * @list: list node for batadv_socket_client::queue_list
+ * @list: list node for batadv_priv::forw_{bat,bcast}_list
+ * @cleanup_list: list node for purging functions
  * @send_time: execution time for delayed_work (packet sending)
  * @own: bool for locally generated packets (local OGMs are re-scheduled after
  *  sending)
@@ -1379,9 +1398,11 @@ struct batadv_skb_cb {
  *  locally generated packet
  * @if_outgoing: packet where the packet should be sent to, or NULL if
  *  unspecified
+ * @queue_left: The queue (counter) this packet was applied to
  */
 struct batadv_forw_packet {
 	struct hlist_node list;
+	struct hlist_node cleanup_list;
 	unsigned long send_time;
 	u8 own;
 	struct sk_buff *skb;
@@ -1391,11 +1412,13 @@ struct batadv_forw_packet {
 	struct delayed_work delayed_work;
 	struct batadv_hard_iface *if_incoming;
 	struct batadv_hard_iface *if_outgoing;
+	atomic_t *queue_left;
 };
 
 /**
  * struct batadv_algo_iface_ops - mesh algorithm callbacks (interface specific)
  * @activate: start routing mechanisms when hard-interface is brought up
+ *  (optional)
  * @enable: init routing info when hard-interface is enabled
  * @disable: de-init routing info when hard-interface is disabled
  * @update_mac: (re-)init mac addresses of the protocol information
@@ -1413,11 +1436,13 @@ struct batadv_algo_iface_ops {
 /**
  * struct batadv_algo_neigh_ops - mesh algorithm callbacks (neighbour specific)
  * @hardif_init: called on creation of single hop entry
+ *  (optional)
  * @cmp: compare the metrics of two neighbors for their respective outgoing
  *  interfaces
  * @is_similar_or_better: check if neigh1 is equally similar or better than
  *  neigh2 for their respective outgoing interface from the metric prospective
  * @print: print the single hop neighbor list (optional)
+ * @dump: dump neighbors to a netlink socket (optional)
  */
 struct batadv_algo_neigh_ops {
 	void (*hardif_init)(struct batadv_hardif_neigh_node *neigh);
@@ -1429,26 +1454,64 @@ struct batadv_algo_neigh_ops {
 				     struct batadv_hard_iface *if_outgoing1,
 				     struct batadv_neigh_node *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
+#endif
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv,
+		     struct batadv_hard_iface *hard_iface);
 };
 
 /**
  * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
  * @free: free the resources allocated by the routing algorithm for an orig_node
- *  object
+ *  object (optional)
  * @add_if: ask the routing algorithm to apply the needed changes to the
- *  orig_node due to a new hard-interface being added into the mesh
+ *  orig_node due to a new hard-interface being added into the mesh (optional)
  * @del_if: ask the routing algorithm to apply the needed changes to the
- *  orig_node due to an hard-interface being removed from the mesh
+ *  orig_node due to an hard-interface being removed from the mesh (optional)
  * @print: print the originator table (optional)
+ * @dump: dump originators to a netlink socket (optional)
  */
 struct batadv_algo_orig_ops {
 	void (*free)(struct batadv_orig_node *orig_node);
 	int (*add_if)(struct batadv_orig_node *orig_node, int max_if_num);
 	int (*del_if)(struct batadv_orig_node *orig_node, int max_if_num,
 		      int del_if_num);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
 		      struct batadv_hard_iface *hard_iface);
+#endif
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv,
+		     struct batadv_hard_iface *hard_iface);
+};
+
+/**
+ * struct batadv_algo_gw_ops - mesh algorithm callbacks (GW specific)
+ * @store_sel_class: parse and stores a new GW selection class (optional)
+ * @show_sel_class: prints the current GW selection class (optional)
+ * @get_best_gw_node: select the best GW from the list of available nodes
+ *  (optional)
+ * @is_eligible: check if a newly discovered GW is a potential candidate for
+ *  the election as best GW (optional)
+ * @print: print the gateway table (optional)
+ * @dump: dump gateways to a netlink socket (optional)
+ */
+struct batadv_algo_gw_ops {
+	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
+				   size_t count);
+	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);
+	struct batadv_gw_node *(*get_best_gw_node)
+		(struct batadv_priv *bat_priv);
+	bool (*is_eligible)(struct batadv_priv *bat_priv,
+			    struct batadv_orig_node *curr_gw_orig,
+			    struct batadv_orig_node *orig_node);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
+#endif
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv);
 };
 
 /**
@@ -1458,6 +1521,7 @@ struct batadv_algo_orig_ops {
  * @iface: callbacks related to interface handling
  * @neigh: callbacks related to neighbors handling
  * @orig: callbacks related to originators handling
+ * @gw: callbacks related to GW mode
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
@@ -1465,6 +1529,7 @@ struct batadv_algo_ops {
 	struct batadv_algo_iface_ops iface;
 	struct batadv_algo_neigh_ops neigh;
 	struct batadv_algo_orig_ops orig;
+	struct batadv_algo_gw_ops gw;
 };
 
 /**
@@ -1562,6 +1627,19 @@ struct batadv_tvlv_handler {
 enum batadv_tvlv_handler_flags {
 	BATADV_TVLV_HANDLER_OGM_CIFNOTFND = BIT(1),
 	BATADV_TVLV_HANDLER_OGM_CALLED = BIT(2),
+};
+
+/**
+ * struct batadv_store_mesh_work - Work queue item to detach add/del interface
+ *  from sysfs locks
+ * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
+ * @soft_iface_name: name of soft-interface to modify
+ * @work: work queue item
+ */
+struct batadv_store_mesh_work {
+	struct net_device *net_dev;
+	char soft_iface_name[IFNAMSIZ];
+	struct work_struct work;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

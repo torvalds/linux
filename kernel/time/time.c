@@ -38,7 +38,7 @@
 #include <linux/math64.h>
 #include <linux/ptrace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <generated/timeconst.h>
@@ -780,7 +780,7 @@ struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 {
 	struct timespec64 res;
 
-	set_normalized_timespec64(&res, lhs.tv_sec + rhs.tv_sec,
+	set_normalized_timespec64(&res, (timeu64_t) lhs.tv_sec + rhs.tv_sec,
 			lhs.tv_nsec + rhs.tv_nsec);
 
 	if (unlikely(res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)) {

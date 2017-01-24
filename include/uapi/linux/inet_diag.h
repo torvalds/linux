@@ -43,6 +43,23 @@ struct inet_diag_req_v2 {
 	struct inet_diag_sockid id;
 };
 
+/*
+ * SOCK_RAW sockets require the underlied protocol to be
+ * additionally specified so we can use @pad member for
+ * this, but we can't rename it because userspace programs
+ * still may depend on this name. Instead lets use another
+ * structure definition as an alias for struct
+ * @inet_diag_req_v2.
+ */
+struct inet_diag_req_raw {
+	__u8	sdiag_family;
+	__u8	sdiag_protocol;
+	__u8	idiag_ext;
+	__u8	sdiag_raw_protocol;
+	__u32	idiag_states;
+	struct inet_diag_sockid id;
+};
+
 enum {
 	INET_DIAG_REQ_NONE,
 	INET_DIAG_REQ_BYTECODE,
@@ -73,6 +90,7 @@ enum {
 	INET_DIAG_BC_S_COND,
 	INET_DIAG_BC_D_COND,
 	INET_DIAG_BC_DEV_COND,   /* u32 ifindex */
+	INET_DIAG_BC_MARK_COND,
 };
 
 struct inet_diag_hostcond {
@@ -80,6 +98,11 @@ struct inet_diag_hostcond {
 	__u8	prefix_len;
 	int	port;
 	__be32	addr[0];
+};
+
+struct inet_diag_markcond {
+	__u32 mark;
+	__u32 mask;
 };
 
 /* Base info structure. It contains socket identity (addrs/ports/cookie)
@@ -117,6 +140,8 @@ enum {
 	INET_DIAG_LOCALS,
 	INET_DIAG_PEERS,
 	INET_DIAG_PAD,
+	INET_DIAG_MARK,
+	INET_DIAG_BBRINFO,
 	__INET_DIAG_MAX,
 };
 
@@ -150,8 +175,20 @@ struct tcp_dctcp_info {
 	__u32	dctcp_ab_tot;
 };
 
+/* INET_DIAG_BBRINFO */
+
+struct tcp_bbr_info {
+	/* u64 bw: max-filtered BW (app throughput) estimate in Byte per sec: */
+	__u32	bbr_bw_lo;		/* lower 32 bits of bw */
+	__u32	bbr_bw_hi;		/* upper 32 bits of bw */
+	__u32	bbr_min_rtt;		/* min-filtered RTT in uSec */
+	__u32	bbr_pacing_gain;	/* pacing gain shifted left 8 bits */
+	__u32	bbr_cwnd_gain;		/* cwnd gain shifted left 8 bits */
+};
+
 union tcp_cc_info {
 	struct tcpvegas_info	vegas;
 	struct tcp_dctcp_info	dctcp;
+	struct tcp_bbr_info	bbr;
 };
 #endif /* _UAPI_INET_DIAG_H_ */

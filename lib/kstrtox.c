@@ -17,7 +17,7 @@
 #include <linux/math64.h>
 #include <linux/export.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "kstrtox.h"
 
 const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
@@ -48,11 +48,9 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 {
 	unsigned long long res;
 	unsigned int rv;
-	int overflow;
 
 	res = 0;
 	rv = 0;
-	overflow = 0;
 	while (*s) {
 		unsigned int val;
 
@@ -71,15 +69,13 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 		 */
 		if (unlikely(res & (~0ull << 60))) {
 			if (res > div_u64(ULLONG_MAX - val, base))
-				overflow = 1;
+				rv |= KSTRTOX_OVERFLOW;
 		}
 		res = res * base + val;
 		rv++;
 		s++;
 	}
 	*p = res;
-	if (overflow)
-		rv |= KSTRTOX_OVERFLOW;
 	return rv;
 }
 

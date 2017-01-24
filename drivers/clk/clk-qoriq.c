@@ -266,6 +266,39 @@ static const struct clockgen_muxinfo ls1043a_hwa2 = {
 	},
 };
 
+static const struct clockgen_muxinfo ls1046a_hwa1 = {
+	{
+		{},
+		{},
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV3 },
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV4 },
+		{ CLKSEL_VALID, PLATFORM_PLL, PLL_DIV1 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV3 },
+	},
+};
+
+static const struct clockgen_muxinfo ls1046a_hwa2 = {
+	{
+		{},
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV1 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV2 },
+		{ CLKSEL_VALID, CGA_PLL2, PLL_DIV3 },
+		{},
+		{},
+		{ CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+	},
+};
+
+static const struct clockgen_muxinfo ls1012a_cmux = {
+	{
+		[0] = { CLKSEL_VALID, CGA_PLL1, PLL_DIV1 },
+		{},
+		[2] = { CLKSEL_VALID, CGA_PLL1, PLL_DIV2 },
+	}
+};
+
 static const struct clockgen_muxinfo t1023_hwa1 = {
 	{
 		{},
@@ -489,6 +522,31 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.flags = CG_PLL_8BIT,
 	},
 	{
+		.compat = "fsl,ls1046a-clockgen",
+		.init_periph = t2080_init_periph,
+		.cmux_groups = {
+			&t1040_cmux
+		},
+		.hwaccel = {
+			&ls1046a_hwa1, &ls1046a_hwa2
+		},
+		.cmux_to_group = {
+			0, -1
+		},
+		.pll_mask = 0x07,
+		.flags = CG_PLL_8BIT,
+	},
+	{
+		.compat = "fsl,ls1012a-clockgen",
+		.cmux_groups = {
+			&ls1012a_cmux
+		},
+		.cmux_to_group = {
+			0, -1
+		},
+		.pll_mask = 0x03,
+	},
+	{
 		.compat = "fsl,ls2080a-clockgen",
 		.cmux_groups = {
 			&clockgen2_cmux_cga12, &clockgen2_cmux_cgb
@@ -700,6 +758,7 @@ static struct clk * __init create_mux_common(struct clockgen *cg,
 					     struct mux_hwclock *hwc,
 					     const struct clk_ops *ops,
 					     unsigned long min_rate,
+					     unsigned long max_rate,
 					     unsigned long pct80_rate,
 					     const char *fmt, int idx)
 {
@@ -727,6 +786,8 @@ static struct clk * __init create_mux_common(struct clockgen *cg,
 		    rate > pct80_rate)
 			continue;
 		if (rate < min_rate)
+			continue;
+		if (rate > max_rate)
 			continue;
 
 		parent_names[j] = div->name;
@@ -759,14 +820,18 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 	struct mux_hwclock *hwc;
 	const struct clockgen_pll_div *div;
 	unsigned long plat_rate, min_rate;
-	u64 pct80_rate;
+	u64 max_rate, pct80_rate;
 	u32 clksel;
 
 	hwc = kzalloc(sizeof(*hwc), GFP_KERNEL);
 	if (!hwc)
 		return NULL;
 
-	hwc->reg = cg->regs + 0x20 * idx;
+	if (cg->info.flags & CG_VER3)
+		hwc->reg = cg->regs + 0x70000 + 0x20 * idx;
+	else
+		hwc->reg = cg->regs + 0x20 * idx;
+
 	hwc->info = cg->info.cmux_groups[cg->info.cmux_to_group[idx]];
 
 	/*
@@ -783,8 +848,8 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 		return NULL;
 	}
 
-	pct80_rate = clk_get_rate(div->clk);
-	pct80_rate *= 8;
+	max_rate = clk_get_rate(div->clk);
+	pct80_rate = max_rate * 8;
 	do_div(pct80_rate, 10);
 
 	plat_rate = clk_get_rate(cg->pll[PLATFORM_PLL].div[PLL_DIV1].clk);
@@ -794,7 +859,7 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 	else
 		min_rate = plat_rate / 2;
 
-	return create_mux_common(cg, hwc, &cmux_ops, min_rate,
+	return create_mux_common(cg, hwc, &cmux_ops, min_rate, max_rate,
 				 pct80_rate, "cg-cmux%d", idx);
 }
 
@@ -809,7 +874,7 @@ static struct clk * __init create_one_hwaccel(struct clockgen *cg, int idx)
 	hwc->reg = cg->regs + 0x20 * idx + 0x10;
 	hwc->info = cg->info.hwaccel[idx];
 
-	return create_mux_common(cg, hwc, &hwaccel_ops, 0, 0,
+	return create_mux_common(cg, hwc, &hwaccel_ops, 0, ULONG_MAX, 0,
 				 "cg-hwaccel%d", idx);
 }
 
@@ -1266,8 +1331,10 @@ err:
 
 CLK_OF_DECLARE(qoriq_clockgen_1, "fsl,qoriq-clockgen-1.0", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_2, "fsl,qoriq-clockgen-2.0", clockgen_init);
+CLK_OF_DECLARE(qoriq_clockgen_ls1012a, "fsl,ls1012a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls1021a, "fsl,ls1021a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls1043a, "fsl,ls1043a-clockgen", clockgen_init);
+CLK_OF_DECLARE(qoriq_clockgen_ls1046a, "fsl,ls1046a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls2080a, "fsl,ls2080a-clockgen", clockgen_init);
 
 /* Legacy nodes */

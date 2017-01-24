@@ -24,6 +24,15 @@
 #include "intel_drv.h"
 
 static void
+intel_dp_dump_link_status(const uint8_t link_status[DP_LINK_STATUS_SIZE])
+{
+
+	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
+		      link_status[0], link_status[1], link_status[2],
+		      link_status[3], link_status[4], link_status[5]);
+}
+
+static void
 intel_get_adjust_train(struct intel_dp *intel_dp,
 		       const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
@@ -103,13 +112,24 @@ intel_dp_update_link_train(struct intel_dp *intel_dp)
 	return ret == intel_dp->lane_count;
 }
 
+static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
+{
+	int lane;
+
+	for (lane = 0; lane < intel_dp->lane_count; lane++)
+		if ((intel_dp->train_set[lane] &
+		     DP_TRAIN_MAX_SWING_REACHED) == 0)
+			return false;
+
+	return true;
+}
+
 /* Enable corresponding port and start training pattern 1 */
-static void
+static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
-	int i;
 	uint8_t voltage;
-	int voltage_tries, loop_tries;
+	int voltage_tries, max_vswing_tries;
 	uint8_t link_config[2];
 	uint8_t link_bw, rate_select;
 
@@ -125,6 +145,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
+
 	if (intel_dp->num_sink_rates)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				  &rate_select, 1);
@@ -140,60 +161,54 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 				       DP_TRAINING_PATTERN_1 |
 				       DP_LINK_SCRAMBLING_DISABLE)) {
 		DRM_ERROR("failed to enable link training\n");
-		return;
+		return false;
 	}
 
-	voltage = 0xff;
-	voltage_tries = 0;
-	loop_tries = 0;
+	voltage_tries = 1;
+	max_vswing_tries = 0;
 	for (;;) {
 		uint8_t link_status[DP_LINK_STATUS_SIZE];
 
 		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
+
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
 			DRM_ERROR("failed to get link status\n");
-			break;
+			return false;
 		}
 
 		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			DRM_DEBUG_KMS("clock recovery OK\n");
-			break;
+			return true;
 		}
 
-		/* Check to see if we've tried the max voltage */
-		for (i = 0; i < intel_dp->lane_count; i++)
-			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
-				break;
-		if (i == intel_dp->lane_count) {
-			++loop_tries;
-			if (loop_tries == 5) {
-				DRM_ERROR("too many full retries, give up\n");
-				break;
-			}
-			intel_dp_reset_link_train(intel_dp,
-						  DP_TRAINING_PATTERN_1 |
-						  DP_LINK_SCRAMBLING_DISABLE);
-			voltage_tries = 0;
-			continue;
+		if (voltage_tries == 5) {
+			DRM_DEBUG_KMS("Same voltage tried 5 times\n");
+			return false;
 		}
 
-		/* Check to see if we've tried the same voltage 5 times */
-		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
-			++voltage_tries;
-			if (voltage_tries == 5) {
-				DRM_ERROR("too many voltage retries, give up\n");
-				break;
-			}
-		} else
-			voltage_tries = 0;
+		if (max_vswing_tries == 1) {
+			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
+			return false;
+		}
+
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Update training set as requested by target */
 		intel_get_adjust_train(intel_dp, link_status);
 		if (!intel_dp_update_link_train(intel_dp)) {
 			DRM_ERROR("failed to update link training\n");
-			break;
+			return false;
 		}
+
+		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) ==
+		    voltage)
+			++voltage_tries;
+		else
+			voltage_tries = 1;
+
+		if (intel_dp_link_max_vswing_reached(intel_dp))
+			++max_vswing_tries;
+
 	}
 }
 
@@ -210,9 +225,6 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
 	 * also mandatory for downstream devices that support HBR2. However, not
 	 * all sinks follow the spec.
-	 *
-	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
-	 * supported in source but still not enabled.
 	 */
 	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
 	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);
@@ -229,12 +241,12 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	return training_pattern;
 }
 
-static void
+static bool
 intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
-	bool channel_eq = false;
-	int tries, cr_tries;
+	int tries;
 	u32 training_pattern;
+	uint8_t link_status[DP_LINK_STATUS_SIZE];
 
 	training_pattern = intel_dp_training_pattern(intel_dp);
 
@@ -243,19 +255,11 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 				     training_pattern |
 				     DP_LINK_SCRAMBLING_DISABLE)) {
 		DRM_ERROR("failed to start channel equalization\n");
-		return;
+		return false;
 	}
 
-	tries = 0;
-	cr_tries = 0;
-	channel_eq = false;
-	for (;;) {
-		uint8_t link_status[DP_LINK_STATUS_SIZE];
-
-		if (cr_tries > 5) {
-			DRM_ERROR("failed to train DP, aborting\n");
-			break;
-		}
+	intel_dp->channel_eq_status = false;
+	for (tries = 0; tries < 5; tries++) {
 
 		drm_dp_link_train_channel_eq_delay(intel_dp->dpcd);
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
@@ -266,29 +270,18 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		/* Make sure clock is still ok */
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      intel_dp->lane_count)) {
-			intel_dp_link_training_clock_recovery(intel_dp);
-			intel_dp_set_link_train(intel_dp,
-						training_pattern |
-						DP_LINK_SCRAMBLING_DISABLE);
-			cr_tries++;
-			continue;
+			intel_dp_dump_link_status(link_status);
+			DRM_DEBUG_KMS("Clock recovery check failed, cannot "
+				      "continue channel equalization\n");
+			break;
 		}
 
 		if (drm_dp_channel_eq_ok(link_status,
 					 intel_dp->lane_count)) {
-			channel_eq = true;
+			intel_dp->channel_eq_status = true;
+			DRM_DEBUG_KMS("Channel EQ done. DP Training "
+				      "successful\n");
 			break;
-		}
-
-		/* Try 5 times, then try clock recovery if that fails */
-		if (tries > 5) {
-			intel_dp_link_training_clock_recovery(intel_dp);
-			intel_dp_set_link_train(intel_dp,
-						training_pattern |
-						DP_LINK_SCRAMBLING_DISABLE);
-			tries = 0;
-			cr_tries++;
-			continue;
 		}
 
 		/* Update training set as requested by target */
@@ -297,13 +290,18 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 			DRM_ERROR("failed to update link training\n");
 			break;
 		}
-		++tries;
+	}
+
+	/* Try 5 times, else fail and try at lower BW */
+	if (tries == 5) {
+		intel_dp_dump_link_status(link_status);
+		DRM_DEBUG_KMS("Channel equalization failed 5 times\n");
 	}
 
 	intel_dp_set_idle_link_train(intel_dp);
 
-	if (channel_eq)
-		DRM_DEBUG_KMS("Channel EQ done. DP Training successful\n");
+	return intel_dp->channel_eq_status;
+
 }
 
 void intel_dp_stop_link_train(struct intel_dp *intel_dp)

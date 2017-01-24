@@ -535,9 +535,8 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		 */
 		if (fdb->is_local)
 			return 0;
-		br_warn(br, "adding interface %s with same address "
-		       "as a received packet\n",
-		       source ? source->dev->name : br->dev->name);
+		br_warn(br, "adding interface %s with same address as a received packet (addr:%pM, vlan:%u)\n",
+		       source ? source->dev->name : br->dev->name, addr, vid);
 		fdb_delete(br, fdb);
 	}
 
@@ -583,9 +582,8 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		/* attempt to update an entry for a local interface */
 		if (unlikely(fdb->is_local)) {
 			if (net_ratelimit())
-				br_warn(br, "received packet on %s with "
-					"own address as source address\n",
-					source->dev->name);
+				br_warn(br, "received packet on %s with own address as source address (addr:%pM, vlan:%u)\n",
+					source->dev->name, addr, vid);
 		} else {
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {
@@ -710,24 +708,27 @@ int br_fdb_dump(struct sk_buff *skb,
 		struct netlink_callback *cb,
 		struct net_device *dev,
 		struct net_device *filter_dev,
-		int idx)
+		int *idx)
 {
 	struct net_bridge *br = netdev_priv(dev);
+	int err = 0;
 	int i;
 
 	if (!(dev->priv_flags & IFF_EBRIDGE))
 		goto out;
 
-	if (!filter_dev)
-		idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
+	if (!filter_dev) {
+		err = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
+		if (err < 0)
+			goto out;
+	}
 
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct net_bridge_fdb_entry *f;
 
 		hlist_for_each_entry_rcu(f, &br->hash[i], hlist) {
-			int err;
 
-			if (idx < cb->args[0])
+			if (*idx < cb->args[2])
 				goto skip;
 
 			if (filter_dev &&
@@ -750,17 +751,15 @@ int br_fdb_dump(struct sk_buff *skb,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
 					    NLM_F_MULTI);
-			if (err < 0) {
-				cb->args[1] = err;
-				break;
-			}
+			if (err < 0)
+				goto out;
 skip:
-			++idx;
+			*idx += 1;
 		}
 	}
 
 out:
-	return idx;
+	return err;
 }
 
 /* Update (create or replace) forwarding database entry */

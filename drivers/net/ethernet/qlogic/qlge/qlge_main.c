@@ -4788,6 +4788,13 @@ static int qlge_probe(struct pci_dev *pdev,
 	ndev->ethtool_ops = &qlge_ethtool_ops;
 	ndev->watchdog_timeo = 10 * HZ;
 
+	/* MTU range: this driver only supports 1500 or 9000, so this only
+	 * filters out values above or below, and we'll rely on
+	 * qlge_change_mtu to make sure only 1500 or 9000 are allowed
+	 */
+	ndev->min_mtu = ETH_DATA_LEN;
+	ndev->max_mtu = 9000;
+
 	err = register_netdev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "net device registration failed.\n");

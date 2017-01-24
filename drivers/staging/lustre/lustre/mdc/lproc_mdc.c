@@ -36,6 +36,42 @@
 #include "../include/lprocfs_status.h"
 #include "mdc_internal.h"
 
+static ssize_t active_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+
+	return sprintf(buf, "%u\n", !dev->u.cli.cl_import->imp_deactive);
+}
+
+static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
+			    const char *buffer, size_t count)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0 || val > 1)
+		return -ERANGE;
+
+	/* opposite senses */
+	if (dev->u.cli.cl_import->imp_deactive == val) {
+		rc = ptlrpc_set_import_active(dev->u.cli.cl_import, val);
+		if (rc)
+			count = rc;
+	} else {
+		CDEBUG(D_CONFIG, "activate %lu: ignoring repeat request\n", val);
+	}
+	return count;
+}
+LUSTRE_RW_ATTR(active);
+
 static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 				       struct attribute *attr,
 				       char *buf)
@@ -43,11 +79,10 @@ static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 	int len;
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
+	__u32 max;
 
-	spin_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%u\n", cli->cl_max_rpcs_in_flight);
-	spin_unlock(&cli->cl_loi_list_lock);
+	max = obd_get_max_rpcs_in_flight(&dev->u.cli);
+	len = sprintf(buf, "%u\n", max);
 
 	return len;
 }
@@ -59,7 +94,6 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 {
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
 	int rc;
 	unsigned long val;
 
@@ -67,16 +101,71 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	if (val < 1 || val > MDC_MAX_RIF_MAX)
-		return -ERANGE;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_max_rpcs_in_flight = val;
-	spin_unlock(&cli->cl_loi_list_lock);
+	rc = obd_set_max_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
 
 	return count;
 }
 LUSTRE_RW_ATTR(max_rpcs_in_flight);
+
+static ssize_t max_mod_rpcs_in_flight_show(struct kobject *kobj,
+					   struct attribute *attr,
+					   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 max;
+	int len;
+
+	max = dev->u.cli.cl_max_mod_rpcs_in_flight;
+	len = sprintf(buf, "%hu\n", max);
+
+	return len;
+}
+
+static ssize_t max_mod_rpcs_in_flight_store(struct kobject *kobj,
+					    struct attribute *attr,
+					    const char *buffer,
+					    size_t count)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 val;
+	int rc;
+
+	rc = kstrtou16(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	rc = obd_set_max_mod_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
+
+	return count;
+}
+LUSTRE_RW_ATTR(max_mod_rpcs_in_flight);
+
+static int mdc_rpc_stats_seq_show(struct seq_file *seq, void *v)
+{
+	struct obd_device *dev = seq->private;
+
+	return obd_mod_rpc_stats_seq_show(&dev->u.cli, seq);
+}
+
+static ssize_t mdc_rpc_stats_seq_write(struct file *file,
+				       const char __user *buf,
+				       size_t len, loff_t *off)
+{
+	struct seq_file *seq = file->private_data;
+	struct obd_device *dev = seq->private;
+	struct client_obd *cli = &dev->u.cli;
+
+	lprocfs_oh_clear(&cli->cl_mod_rpcs_hist);
+
+	return len;
+}
+LPROC_SEQ_FOPS(mdc_rpc_stats);
 
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
 
@@ -117,11 +206,15 @@ static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
 	{ "import",		&mdc_import_fops,		NULL, 0 },
 	{ "state",		&mdc_state_fops,		NULL, 0 },
 	{ "pinger_recov",	&mdc_pinger_recov_fops,		NULL, 0 },
+	{ .name =	"rpc_stats",
+	  .fops =	&mdc_rpc_stats_fops		},
 	{ NULL }
 };
 
 static struct attribute *mdc_attrs[] = {
+	&lustre_attr_active.attr,
 	&lustre_attr_max_rpcs_in_flight.attr,
+	&lustre_attr_max_mod_rpcs_in_flight.attr,
 	&lustre_attr_max_pages_per_rpc.attr,
 	NULL,
 };

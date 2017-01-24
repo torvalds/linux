@@ -23,6 +23,7 @@
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
+#include <asm/export.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -62,6 +63,8 @@
 #define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
 #endif
 
+#define SIZEOF_PTREGS 17*4
+
 /*
  * Number of possible pages in the lowmem region.
  *
@@ -94,7 +97,7 @@ RESERVE_BRK(pagetables, INIT_MAP_SIZE)
  */
 __HEAD
 ENTRY(startup_32)
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
@@ -247,19 +250,19 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 #ifdef CONFIG_PARAVIRT
 	/* This is can only trip for a broken bootloader... */
 	cmpw $0x207, pa(boot_params + BP_version)
-	jb default_entry
+	jb .Ldefault_entry
 
 	/* Paravirt-compatible boot parameters.  Look to see what architecture
 		we're booting under. */
 	movl pa(boot_params + BP_hardware_subarch), %eax
 	cmpl $num_subarch_entries, %eax
-	jae bad_subarch
+	jae .Lbad_subarch
 
 	movl pa(subarch_entries)(,%eax,4), %eax
 	subl $__PAGE_OFFSET, %eax
 	jmp *%eax
 
-bad_subarch:
+.Lbad_subarch:
 WEAK(lguest_entry)
 WEAK(xen_entry)
 	/* Unknown implementation; there's really
@@ -269,14 +272,14 @@ WEAK(xen_entry)
 	__INITDATA
 
 subarch_entries:
-	.long default_entry		/* normal x86/PC */
+	.long .Ldefault_entry		/* normal x86/PC */
 	.long lguest_entry		/* lguest hypervisor */
 	.long xen_entry			/* Xen hypervisor */
-	.long default_entry		/* Moorestown MID */
+	.long .Ldefault_entry		/* Moorestown MID */
 num_subarch_entries = (. - subarch_entries) / 4
 .previous
 #else
-	jmp default_entry
+	jmp .Ldefault_entry
 #endif /* CONFIG_PARAVIRT */
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -286,9 +289,10 @@ num_subarch_entries = (. - subarch_entries) / 4
  * start_secondary().
  */
 ENTRY(start_cpu0)
-	movl stack_start, %ecx
+	movl initial_stack, %ecx
 	movl %ecx, %esp
-	jmp  *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
 ENDPROC(start_cpu0)
 #endif
 
@@ -307,7 +311,7 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
 
@@ -316,7 +320,7 @@ ENTRY(startup_32_smp)
 	call load_ucode_ap
 #endif
 
-default_entry:
+.Ldefault_entry:
 #define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
 			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
 			 X86_CR0_PG)
@@ -346,7 +350,7 @@ default_entry:
 	pushfl
 	popl %eax			# get EFLAGS
 	testl $X86_EFLAGS_ID,%eax	# did EFLAGS.ID remained set?
-	jz enable_paging		# hw disallowed setting of ID bit
+	jz .Lenable_paging		# hw disallowed setting of ID bit
 					# which means no CPUID and no CR4
 
 	xorl %eax,%eax
@@ -356,13 +360,13 @@ default_entry:
 	movl $1,%eax
 	cpuid
 	andl $~1,%edx			# Ignore CPUID.FPU
-	jz enable_paging		# No flags or only CPUID.FPU = no CR4
+	jz .Lenable_paging		# No flags or only CPUID.FPU = no CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
 
 	testb $X86_CR4_PAE, %al		# check if PAE is enabled
-	jz enable_paging
+	jz .Lenable_paging
 
 	/* Check if extended functions are implemented */
 	movl $0x80000000, %eax
@@ -370,7 +374,7 @@ default_entry:
 	/* Value must be in the range 0x80000001 to 0x8000ffff */
 	subl $0x80000001, %eax
 	cmpl $(0x8000ffff-0x80000001), %eax
-	ja enable_paging
+	ja .Lenable_paging
 
 	/* Clear bogus XD_DISABLE bits */
 	call verify_cpu
@@ -379,7 +383,7 @@ default_entry:
 	cpuid
 	/* Execute Disable bit supported? */
 	btl $(X86_FEATURE_NX & 31), %edx
-	jnc enable_paging
+	jnc .Lenable_paging
 
 	/* Setup EFER (Extended Feature Enable Register) */
 	movl $MSR_EFER, %ecx
@@ -389,7 +393,7 @@ default_entry:
 	/* Make changes effective */
 	wrmsr
 
-enable_paging:
+.Lenable_paging:
 
 /*
  * Enable paging
@@ -418,7 +422,7 @@ enable_paging:
  */
 	movb $4,X86			# at least 486
 	cmpl $-1,X86_CPUID
-	je is486
+	je .Lis486
 
 	/* get vendor info */
 	xorl %eax,%eax			# call CPUID with 0 -> return vendor ID
@@ -429,7 +433,7 @@ enable_paging:
 	movl %ecx,X86_VENDOR_ID+8	# last 4 chars
 
 	orl %eax,%eax			# do we have processor info as well?
-	je is486
+	je .Lis486
 
 	movl $1,%eax		# Use the CPUID instruction to get CPU type
 	cpuid
@@ -443,7 +447,7 @@ enable_paging:
 	movb %cl,X86_MASK
 	movl %edx,X86_CAPABILITY
 
-is486:
+.Lis486:
 	movl $0x50022,%ecx	# set AM, WP, NE and MP
 	movl %cr0,%eax
 	andl $0x80000011,%eax	# Save PG,PE,ET
@@ -469,8 +473,9 @@ is486:
 	xorl %eax,%eax			# Clear LDT
 	lldt %ax
 
-	pushl $0		# fake return address for unwinder
-	jmp *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
+ENDPROC(startup_32_smp)
 
 #include "verify_cpu.S"
 
@@ -664,15 +669,19 @@ __PAGE_ALIGNED_BSS
 initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
-ENTRY(initial_page_table)
+.globl initial_page_table
+initial_page_table:
 	.fill 1024,4,0
 #endif
 initial_pg_fixmap:
 	.fill 1024,4,0
-ENTRY(empty_zero_page)
+.globl empty_zero_page
+empty_zero_page:
 	.fill 4096,1,0
-ENTRY(swapper_pg_dir)
+.globl swapper_pg_dir
+swapper_pg_dir:
 	.fill 1024,4,0
+EXPORT_SYMBOL(empty_zero_page)
 
 /*
  * This starts the data section.
@@ -703,8 +712,13 @@ ENTRY(initial_page_table)
 
 .data
 .balign 4
-ENTRY(stack_start)
-	.long init_thread_union+THREAD_SIZE
+ENTRY(initial_stack)
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.long init_thread_union + THREAD_SIZE - SIZEOF_PTREGS - \
+	      TOP_OF_KERNEL_STACK_PADDING;
 
 __INITRODATA
 int_msg:

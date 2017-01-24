@@ -24,7 +24,7 @@
 #include <linux/kdebug.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -733,6 +733,7 @@ block:
 			 * return to userspace schedule() to block. */
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
+			set_preempt_need_resched();
 		}
 	}
 out:
@@ -740,28 +741,21 @@ out:
 	put_task_struct(tsk);
 }
 
-static int pfault_cpu_notify(struct notifier_block *self, unsigned long action,
-			     void *hcpu)
+static int pfault_cpu_dead(unsigned int cpu)
 {
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DEAD:
-		spin_lock_irq(&pfault_lock);
-		list_for_each_entry_safe(thread, next, &pfault_list, list) {
-			thread->pfault_wait = 0;
-			list_del(&thread->list);
-			tsk = container_of(thread, struct task_struct, thread);
-			wake_up_process(tsk);
-			put_task_struct(tsk);
-		}
-		spin_unlock_irq(&pfault_lock);
-		break;
-	default:
-		break;
+	spin_lock_irq(&pfault_lock);
+	list_for_each_entry_safe(thread, next, &pfault_list, list) {
+		thread->pfault_wait = 0;
+		list_del(&thread->list);
+		tsk = container_of(thread, struct task_struct, thread);
+		wake_up_process(tsk);
+		put_task_struct(tsk);
 	}
-	return NOTIFY_OK;
+	spin_unlock_irq(&pfault_lock);
+	return 0;
 }
 
 static int __init pfault_irq_init(void)
@@ -775,7 +769,8 @@ static int __init pfault_irq_init(void)
 	if (rc)
 		goto out_pfault;
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	hotcpu_notifier(pfault_cpu_notify, 0);
+	cpuhp_setup_state_nocalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
+				  NULL, pfault_cpu_dead);
 	return 0;
 
 out_pfault:

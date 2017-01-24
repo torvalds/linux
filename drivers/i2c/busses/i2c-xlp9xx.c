@@ -393,6 +393,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	init_completion(&priv->msg_complete);
 	priv->adapter.dev.parent = &pdev->dev;
 	priv->adapter.algo = &xlp9xx_i2c_algo;
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.dev.of_node = pdev->dev.of_node;
 	priv->dev = &pdev->dev;
 
@@ -400,10 +401,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&priv->adapter, priv);
 
 	err = i2c_add_adapter(&priv->adapter);
-	if (err) {
-		dev_err(&pdev->dev, "failed to add I2C adapter!\n");
+	if (err)
 		return err;
-	}
 
 	platform_set_drvdata(pdev, priv);
 	dev_dbg(&pdev->dev, "I2C bus:%d added\n", priv->adapter.nr);
@@ -428,6 +427,7 @@ static const struct of_device_id xlp9xx_i2c_of_match[] = {
 	{ .compatible = "netlogic,xlp980-i2c", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, xlp9xx_i2c_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp9xx_i2c_acpi_ids[] = {

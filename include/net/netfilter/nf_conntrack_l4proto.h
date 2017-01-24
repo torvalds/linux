@@ -98,7 +98,7 @@ struct nf_conntrack_l4proto {
 		const struct nla_policy *nla_policy;
 	} ctnl_timeout;
 #endif
-	int	*net_id;
+	unsigned int	*net_id;
 	/* Init l4proto pernet data */
 	int (*init_net)(struct net *net, u_int16_t proto);
 
@@ -125,22 +125,24 @@ struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
 void nf_ct_l4proto_put(struct nf_conntrack_l4proto *p);
 
 /* Protocol pernet registration. */
+int nf_ct_l4proto_pernet_register_one(struct net *net,
+				      struct nf_conntrack_l4proto *proto);
+void nf_ct_l4proto_pernet_unregister_one(struct net *net,
+					 struct nf_conntrack_l4proto *proto);
 int nf_ct_l4proto_pernet_register(struct net *net,
-				  struct nf_conntrack_l4proto *proto);
+				  struct nf_conntrack_l4proto *proto[],
+				  unsigned int num_proto);
 void nf_ct_l4proto_pernet_unregister(struct net *net,
-				     struct nf_conntrack_l4proto *proto);
+				     struct nf_conntrack_l4proto *proto[],
+				     unsigned int num_proto);
 
 /* Protocol global registration. */
-int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto);
-void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto);
-
-static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
-{
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	kfree(pn->ctl_compat_table);
-	pn->ctl_compat_table = NULL;
-#endif
-}
+int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *proto);
+void nf_ct_l4proto_unregister_one(struct nf_conntrack_l4proto *proto);
+int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto[],
+			   unsigned int num_proto);
+void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto[],
+			      unsigned int num_proto);
 
 /* Generic netlink helpers */
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,

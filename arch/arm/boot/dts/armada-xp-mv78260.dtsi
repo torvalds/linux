@@ -87,7 +87,7 @@
 		 * configured as x4 or quad x1 lanes. One unit is
 		 * x4 only.
 		 */
-		pcie-controller {
+		pciec: pcie-controller@82000000 {
 			compatible = "marvell,armada-xp-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -129,7 +129,7 @@
 				0x82000000 0x9 0     MBUS_ID(0x04, 0xf8) 0 1 0 /* Port 2.0 MEM */
 				0x81000000 0x9 0     MBUS_ID(0x04, 0xf0) 0 1 0 /* Port 2.0 IO  */>;
 
-			pcie@1,0 {
+			pcie1: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -146,7 +146,7 @@
 				status = "disabled";
 			};
 
-			pcie@2,0 {
+			pcie2: pcie@2,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
@@ -163,7 +163,7 @@
 				status = "disabled";
 			};
 
-			pcie@3,0 {
+			pcie3: pcie@3,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
 				reg = <0x1800 0 0 0 0>;
@@ -180,7 +180,7 @@
 				status = "disabled";
 			};
 
-			pcie@4,0 {
+			pcie4: pcie@4,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x4c000 0 0x2000>;
 				reg = <0x2000 0 0 0 0>;
@@ -197,7 +197,7 @@
 				status = "disabled";
 			};
 
-			pcie@5,0 {
+			pcie5: pcie@5,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x80000 0 0x2000>;
 				reg = <0x2800 0 0 0 0>;
@@ -214,7 +214,7 @@
 				status = "disabled";
 			};
 
-			pcie@6,0 {
+			pcie6: pcie@6,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x84000 0 0x2000>;
 				reg = <0x3000 0 0 0 0>;
@@ -231,7 +231,7 @@
 				status = "disabled";
 			};
 
-			pcie@7,0 {
+			pcie7: pcie@7,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x88000 0 0x2000>;
 				reg = <0x3800 0 0 0 0>;
@@ -248,7 +248,7 @@
 				status = "disabled";
 			};
 
-			pcie@8,0 {
+			pcie8: pcie@8,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x8c000 0 0x2000>;
 				reg = <0x4000 0 0 0 0>;
@@ -265,7 +265,7 @@
 				status = "disabled";
 			};
 
-			pcie@9,0 {
+			pcie9: pcie@9,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x42000 0 0x2000>;
 				reg = <0x4800 0 0 0 0>;

@@ -22,12 +22,12 @@
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
 #include <asm/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
 
-LIST_HEAD(module_bug_list);
+static LIST_HEAD(module_bug_list);
 
 static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 				    const Elf_Shdr *sechdrs,

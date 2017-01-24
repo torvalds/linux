@@ -90,10 +90,6 @@ static inline int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sec
 }
 #endif
 
-struct exception_table_entry;
-void sort_ex_table(struct exception_table_entry *start,
-		   struct exception_table_entry *finish);
-
 #if defined(CONFIG_MODVERSIONS) && defined(CONFIG_PPC64)
 #define ARCH_RELOCATES_KCRCTAB
 #define reloc_start PHYSICAL_START

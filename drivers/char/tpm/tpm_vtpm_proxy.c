@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015, 2016 IBM Corporation
+ * Copyright (C) 2016 Intel Corporation
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -41,6 +42,7 @@ struct proxy_dev {
 	long state;                  /* internal state */
 #define STATE_OPENED_FLAG        BIT(0)
 #define STATE_WAIT_RESPONSE_FLAG BIT(1)  /* waiting for emulator response */
+#define STATE_REGISTERED_FLAG	 BIT(2)
 
 	size_t req_len;              /* length of queued TPM request */
 	size_t resp_len;             /* length of queued TPM response */
@@ -369,12 +371,9 @@ static void vtpm_proxy_work(struct work_struct *work)
 
 	rc = tpm_chip_register(proxy_dev->chip);
 	if (rc)
-		goto err;
-
-	return;
-
-err:
-	vtpm_proxy_fops_undo_open(proxy_dev);
+		vtpm_proxy_fops_undo_open(proxy_dev);
+	else
+		proxy_dev->state |= STATE_REGISTERED_FLAG;
 }
 
 /*
@@ -515,7 +514,8 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
 	 */
 	vtpm_proxy_fops_undo_open(proxy_dev);
 
-	tpm_chip_unregister(proxy_dev->chip);
+	if (proxy_dev->state & STATE_REGISTERED_FLAG)
+		tpm_chip_unregister(proxy_dev->chip);
 
 	vtpm_proxy_delete_proxy_dev(proxy_dev);
 }
@@ -524,6 +524,50 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
  * Code related to the control device /dev/vtpmx
  */
 
+/**
+ * vtpmx_ioc_new_dev - handler for the %VTPM_PROXY_IOC_NEW_DEV ioctl
+ * @file:	/dev/vtpmx
+ * @ioctl:	the ioctl number
+ * @arg:	pointer to the struct vtpmx_proxy_new_dev
+ *
+ * Creates an anonymous file that is used by the process acting as a TPM to
+ * communicate with the client processes. The function will also add a new TPM
+ * device through which data is proxied to this TPM acting process. The caller
+ * will be provided with a file descriptor to communicate with the clients and
+ * major and minor numbers for the TPM device.
+ */
+static long vtpmx_ioc_new_dev(struct file *file, unsigned int ioctl,
+			      unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	struct vtpm_proxy_new_dev __user *vtpm_new_dev_p;
+	struct vtpm_proxy_new_dev vtpm_new_dev;
+	struct file *vtpm_file;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	vtpm_new_dev_p = argp;
+
+	if (copy_from_user(&vtpm_new_dev, vtpm_new_dev_p,
+			   sizeof(vtpm_new_dev)))
+		return -EFAULT;
+
+	vtpm_file = vtpm_proxy_create_device(&vtpm_new_dev);
+	if (IS_ERR(vtpm_file))
+		return PTR_ERR(vtpm_file);
+
+	if (copy_to_user(vtpm_new_dev_p, &vtpm_new_dev,
+			 sizeof(vtpm_new_dev))) {
+		put_unused_fd(vtpm_new_dev.fd);
+		fput(vtpm_file);
+		return -EFAULT;
+	}
+
+	fd_install(vtpm_new_dev.fd, vtpm_file);
+	return 0;
+}
+
 /*
  * vtpmx_fops_ioctl: ioctl on /dev/vtpmx
  *
@@ -531,34 +575,11 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
  *      Returns 0 on success, a negative error code otherwise.
  */
 static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,
-				   unsigned long arg)
+			     unsigned long arg)
 {
-	void __user *argp = (void __user *)arg;
-	struct vtpm_proxy_new_dev __user *vtpm_new_dev_p;
-	struct vtpm_proxy_new_dev vtpm_new_dev;
-	struct file *file;
-
 	switch (ioctl) {
 	case VTPM_PROXY_IOC_NEW_DEV:
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		vtpm_new_dev_p = argp;
-		if (copy_from_user(&vtpm_new_dev, vtpm_new_dev_p,
-				   sizeof(vtpm_new_dev)))
-			return -EFAULT;
-		file = vtpm_proxy_create_device(&vtpm_new_dev);
-		if (IS_ERR(file))
-			return PTR_ERR(file);
-		if (copy_to_user(vtpm_new_dev_p, &vtpm_new_dev,
-				 sizeof(vtpm_new_dev))) {
-			put_unused_fd(vtpm_new_dev.fd);
-			fput(file);
-			return -EFAULT;
-		}
-
-		fd_install(vtpm_new_dev.fd, file);
-		return 0;
-
+		return vtpmx_ioc_new_dev(f, ioctl, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

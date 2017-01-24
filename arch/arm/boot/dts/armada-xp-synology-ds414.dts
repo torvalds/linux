@@ -70,7 +70,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x40000000>; /* 1GB */
 	};
@@ -81,89 +81,11 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * Connected to Marvell 88SX7042 SATA-II controller
-			 * handling the four disks.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/*
-			 * Connected to EtronTech EJ168A XHCI controller
-			 * providing the two rear USB 3.0 ports.
-			 */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			/* RTC is provided by Seiko S-35390A below */
 			rtc@10300 {
 				status = "disabled";
-			};
-
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "micron,n25q064", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <20000000>;
-
-					/*
-					 * Warning!
-					 *
-					 * Synology u-boot uses its compiled-in environment
-					 * and it seems Synology did not care to change u-boot
-					 * default configuration in order to allow saving a
-					 * modified environment at a sensible location. So,
-					 * if you do a 'saveenv' under u-boot, your modified
-					 * environment will be saved at 1MB after the start
-					 * of the flash, i.e. in the middle of the uImage.
-					 * For that reason, it is strongly advised not to
-					 * change the default environment, unless you know
-					 * what you are doing.
-					 */
-					partition@00000000 { /* u-boot */
-						label = "RedBoot";
-						reg = <0x00000000 0x000d0000>; /* 832KB */
-					};
-
-					partition@000c0000 { /* uImage */
-						label = "zImage";
-						reg = <0x000d0000 0x002d0000>; /* 2880KB */
-					};
-
-					partition@003a0000 { /* uInitramfs */
-						label = "rd.gz";
-						reg = <0x003a0000 0x00430000>; /* 4250KB */
-					};
-
-					partition@007d0000 { /* MAC address and serial number */
-						label = "vendor";
-						reg = <0x007d0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007e0000 {
-						label = "RedBoot config";
-						reg = <0x007e0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007f0000 {
-						label = "FIS directory";
-						reg = <0x007f0000 0x00010000>; /* 64KB */
-					};
-				};
 			};
 
 			i2c@11000 {
@@ -206,16 +128,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1512 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1512 */
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
 				status = "okay";
 				pinctrl-0 = <&ge0_rgmii_pins>;
@@ -242,7 +154,7 @@
 			     &sata3_pwr_pin &sata4_pwr_pin>;
 		pinctrl-names = "default";
 
-		sata1_regulator: sata1-regulator {
+		sata1_regulator: sata1-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "SATA1 Power";
@@ -255,7 +167,7 @@
 			gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata2_regulator: sata2-regulator {
+		sata2_regulator: sata2-regulator@2 {
 			compatible = "regulator-fixed";
 			reg = <2>;
 			regulator-name = "SATA2 Power";
@@ -268,7 +180,7 @@
 			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata3_regulator: sata3-regulator {
+		sata3_regulator: sata3-regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
 			regulator-name = "SATA3 Power";
@@ -281,7 +193,7 @@
 			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata4_regulator: sata4-regulator {
+		sata4_regulator: sata4-regulator@4 {
 			compatible = "regulator-fixed";
 			reg = <4>;
 			regulator-name = "SATA4 Power";
@@ -293,6 +205,39 @@
 			regulator-boot-on;
 			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * Connected to Marvell 88SX7042 SATA-II controller
+	 * handling the four disks.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/*
+	 * Connected to EtronTech EJ168A XHCI controller
+	 * providing the two rear USB 3.0 ports.
+	 */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+
+&mdio {
+	phy0: ethernet-phy@0 { /* Marvell 88E1512 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1512 */
+		reg = <1>;
 	};
 };
 
@@ -360,5 +305,61 @@
 	fan2_alarm_pin: fan2-alarm-pin {
 		marvell,pins = "mpp32";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q064", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <20000000>;
+
+		/*
+		 * Warning!
+		 *
+		 * Synology u-boot uses its compiled-in environment
+		 * and it seems Synology did not care to change u-boot
+		 * default configuration in order to allow saving a
+		 * modified environment at a sensible location. So,
+		 * if you do a 'saveenv' under u-boot, your modified
+		 * environment will be saved at 1MB after the start
+		 * of the flash, i.e. in the middle of the uImage.
+		 * For that reason, it is strongly advised not to
+		 * change the default environment, unless you know
+		 * what you are doing.
+		 */
+		partition@00000000 { /* u-boot */
+			label = "RedBoot";
+			reg = <0x00000000 0x000d0000>; /* 832KB */
+		};
+
+		partition@000c0000 { /* uImage */
+			label = "zImage";
+			reg = <0x000d0000 0x002d0000>; /* 2880KB */
+		};
+
+		partition@003a0000 { /* uInitramfs */
+			label = "rd.gz";
+			reg = <0x003a0000 0x00430000>; /* 4250KB */
+		};
+
+		partition@007d0000 { /* MAC address and serial number */
+			label = "vendor";
+			reg = <0x007d0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007e0000 {
+			label = "RedBoot config";
+			reg = <0x007e0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007f0000 {
+			label = "FIS directory";
+			reg = <0x007f0000 0x00010000>; /* 64KB */
+		};
 	};
 };

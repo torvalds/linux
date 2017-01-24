@@ -205,7 +205,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
  */
-int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
+int do_page_fault(struct pt_regs *regs, unsigned long address,
 			    unsigned long error_code)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -391,6 +391,20 @@ good_area:
 
 	if (is_exec) {
 		/*
+		 * An execution fault + no execute ?
+		 *
+		 * On CPUs that don't have CPU_FTR_COHERENT_ICACHE we
+		 * deliberately create NX mappings, and use the fault to do the
+		 * cache flush. This is usually handled in hash_page_do_lazy_icache()
+		 * but we could end up here if that races with a concurrent PTE
+		 * update. In that case we need to fall through here to the VMA
+		 * check below.
+		 */
+		if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
+			(regs->msr & SRR1_ISI_N_OR_G))
+			goto bad_area;
+
+		/*
 		 * Allow execution from readable areas if the MMU does not
 		 * provide separate controls over reading and executing.
 		 *
@@ -404,6 +418,7 @@ good_area:
 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
+
 #ifdef CONFIG_PPC_STD_MMU
 		/*
 		 * protfault should only happen due to us
@@ -498,8 +513,8 @@ bad_area_nosemaphore:
 bail:
 	exception_exit(prev_state);
 	return rc;
-
 }
+NOKPROBE_SYMBOL(do_page_fault);
 
 /*
  * bad_page_fault is called when we have a bad access from the kernel.
@@ -512,7 +527,7 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this fault?  */
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
-		regs->nip = entry->fixup;
+		regs->nip = extable_fixup(entry);
 		return;
 	}
 

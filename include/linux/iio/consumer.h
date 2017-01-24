@@ -165,6 +165,18 @@ struct iio_channel
 *iio_channel_cb_get_channels(const struct iio_cb_buffer *cb_buffer);
 
 /**
+ * iio_channel_cb_get_iio_dev() - get access to the underlying device.
+ * @cb_buffer:		The callback buffer from whom we want the device
+ *			information.
+ *
+ * This function allows one to obtain information about the device.
+ * The primary aim is to allow drivers that are consuming a device to query
+ * things like current trigger.
+ */
+struct iio_dev
+*iio_channel_cb_get_iio_dev(const struct iio_cb_buffer *cb_buffer);
+
+/**
  * iio_read_channel_raw() - read from a given channel
  * @chan:		The channel being queried.
  * @val:		Value read back.
@@ -214,6 +226,34 @@ int iio_read_channel_processed(struct iio_channel *chan, int *val);
 int iio_write_channel_raw(struct iio_channel *chan, int val);
 
 /**
+ * iio_read_max_channel_raw() - read maximum available raw value from a given
+ *				channel, i.e. the maximum possible value.
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ *
+ * Note raw reads from iio channels are in adc counts and hence
+ * scale will need to be applied if standard units are required.
+ */
+int iio_read_max_channel_raw(struct iio_channel *chan, int *val);
+
+/**
+ * iio_read_avail_channel_raw() - read available raw values from a given channel
+ * @chan:		The channel being queried.
+ * @vals:		Available values read back.
+ * @length:		Number of entries in vals.
+ *
+ * Returns an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST.
+ *
+ * For ranges, three vals are always returned; min, step and max.
+ * For lists, all the possible values are enumerated.
+ *
+ * Note raw available values from iio channels are in adc counts and
+ * hence scale will need to be applied if standard units are required.
+ */
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.
@@ -222,6 +262,19 @@ int iio_write_channel_raw(struct iio_channel *chan, int val);
  */
 int iio_get_channel_type(struct iio_channel *channel,
 			 enum iio_chan_type *type);
+
+/**
+ * iio_read_channel_offset() - read the offset value for a channel
+ * @chan:		The channel being queried.
+ * @val:		First part of value read back.
+ * @val2:		Second part of value read back.
+ *
+ * Note returns a description of what is in val and val2, such
+ * as IIO_VAL_INT_PLUS_MICRO telling us we have a value of val
+ * + val2/1e6
+ */
+int iio_read_channel_offset(struct iio_channel *chan, int *val,
+			   int *val2);
 
 /**
  * iio_read_channel_scale() - read the scale value for a channel

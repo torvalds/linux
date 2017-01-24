@@ -33,7 +33,7 @@
 #include <linux/nmi.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -239,7 +239,7 @@ static void __global_reg_poll(struct global_reg_snapshot *gp)
 	}
 }
 
-void arch_trigger_all_cpu_backtrace(bool include_self)
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
@@ -255,15 +255,15 @@ void arch_trigger_all_cpu_backtrace(bool include_self)
 
 	memset(global_cpu_snapshot, 0, sizeof(global_cpu_snapshot));
 
-	if (include_self)
+	if (cpumask_test_cpu(this_cpu, mask) && !exclude_self)
 		__global_reg_self(tp, regs, this_cpu);
 
 	smp_fetch_global_regs();
 
-	for_each_online_cpu(cpu) {
+	for_each_cpu(cpu, mask) {
 		struct global_reg_snapshot *gp;
 
-		if (!include_self && cpu == this_cpu)
+		if (exclude_self && cpu == this_cpu)
 			continue;
 
 		gp = &global_cpu_snapshot[cpu].reg;
@@ -300,7 +300,7 @@ void arch_trigger_all_cpu_backtrace(bool include_self)
 
 static void sysrq_handle_globreg(int key)
 {
-	arch_trigger_all_cpu_backtrace(true);
+	trigger_all_cpu_backtrace();
 }
 
 static struct sysrq_key_op sparc_globalreg_op = {

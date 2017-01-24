@@ -38,7 +38,7 @@
 /*
  * Timeout for guest-host handshake for services.
  */
-#define HV_UTIL_NEGO_TIMEOUT 60
+#define HV_UTIL_NEGO_TIMEOUT 55
 
 /*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
@@ -495,7 +495,7 @@ struct hv_ring_buffer_debug_info {
 
 extern int hv_init(void);
 
-extern void hv_cleanup(void);
+extern void hv_cleanup(bool crash);
 
 extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
@@ -522,18 +522,19 @@ extern unsigned int host_info_edx;
 /* Interface */
 
 
-int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
-		   u32 buflen);
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
+		       struct page *pages, u32 pagecnt);
 
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
-int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_write(struct vmbus_channel *channel,
 		    struct kvec *kv_list,
-		    u32 kv_count, bool *signal, bool lock);
+		    u32 kv_count, bool lock,
+		    bool kick_q);
 
-int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
+int hv_ringbuffer_read(struct vmbus_channel *channel,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
-		       u64 *requestid, bool *signal, bool raw);
+		       u64 *requestid, bool raw);
 
 void hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);

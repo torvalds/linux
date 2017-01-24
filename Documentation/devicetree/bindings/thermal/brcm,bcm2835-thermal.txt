@@ -1,0 +1,17 @@
+Binding for Thermal Sensor driver for BCM2835 SoCs.
+
+Required parameters:
+-------------------
+
+compatible: 	should be one of: "brcm,bcm2835-thermal",
+		"brcm,bcm2836-thermal" or "brcm,bcm2837-thermal"
+reg:		Address range of the thermal registers.
+clocks: 	Phandle of the clock used by the thermal sensor.
+
+Example:
+
+thermal: thermal@7e212000 {
+	compatible = "brcm,bcm2835-thermal";
+	reg = <0x7e212000 0x8>;
+	clocks = <&clocks BCM2835_CLOCK_TSENS>;
+};

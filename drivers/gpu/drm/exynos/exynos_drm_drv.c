@@ -45,37 +45,11 @@ struct exynos_atomic_commit {
 	u32			crtcs;
 };
 
-static void exynos_atomic_wait_for_commit(struct drm_atomic_state *state)
-{
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	int i, ret;
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-		if (!crtc->state->enable)
-			continue;
-
-		ret = drm_crtc_vblank_get(crtc);
-		if (ret)
-			continue;
-
-		exynos_drm_crtc_wait_pending_update(exynos_crtc);
-		drm_crtc_vblank_put(crtc);
-	}
-}
-
 static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 {
 	struct drm_device *dev = commit->dev;
 	struct exynos_drm_private *priv = dev->dev_private;
 	struct drm_atomic_state *state = commit->state;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_plane_state *plane_state;
-	struct drm_crtc_state *crtc_state;
-	int i;
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
@@ -89,29 +63,13 @@ static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 	 * have the relevant clocks enabled to perform the update.
 	 */
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
-		atomic_set(&exynos_crtc->pending_update, 0);
-	}
-
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct exynos_drm_crtc *exynos_crtc =
-						to_exynos_crtc(plane->crtc);
-
-		if (!plane->crtc)
-			continue;
-
-		atomic_inc(&exynos_crtc->pending_update);
-	}
-
-	drm_atomic_helper_commit_planes(dev, state, false);
-
-	exynos_atomic_wait_for_commit(state);
+	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	spin_lock(&priv->lock);
 	priv->pending &= ~commit->crtcs;
@@ -296,12 +254,33 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		exynos_atomic_commit_complete(commit);
 
 	return 0;
+}
+
+int exynos_atomic_check(struct drm_device *dev,
+			struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
@@ -387,9 +366,7 @@ static const struct file_operations exynos_drm_driver_fops = {
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release	= drm_release,
 };
 

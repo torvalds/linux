@@ -20,7 +20,7 @@ prototypes:
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 	struct vfsmount *(*d_automount)(struct path *path);
-	int (*d_manage)(struct dentry *, bool);
+	int (*d_manage)(const struct path *, bool);
 	struct dentry *(*d_real)(struct dentry *, const struct inode *,
 				 unsigned int);
 
@@ -51,8 +51,6 @@ prototypes:
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *);
-	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
 	const char *(*get_link) (struct dentry *, struct inode *, void **);
@@ -61,10 +59,7 @@ prototypes:
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
@@ -83,30 +78,43 @@ symlink:	yes
 mkdir:		yes
 unlink:		yes (both)
 rmdir:		yes (both)	(see below)
-rename:		yes (all)	(see below)
-rename2:	yes (all)	(see below)
+rename:	yes (all)	(see below)
 readlink:	no
 get_link:	no
 setattr:	yes
 permission:	no (may not block if called in rcu-walk mode)
 get_acl:	no
 getattr:	no
-setxattr:	yes
-getxattr:	no
 listxattr:	no
-removexattr:	yes
 fiemap:		no
 update_time:	no
 atomic_open:	yes
 tmpfile:	no
 
+
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
-	cross-directory ->rename() and rename2() has (per-superblock)
-->s_vfs_rename_sem.
+	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 
 See Documentation/filesystems/directory-locking for more detailed discussion
 of the locking scheme for directory operations.
+
+----------------------- xattr_handler operations -----------------------
+prototypes:
+	bool (*list)(struct dentry *dentry);
+	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
+		   struct inode *inode, const char *name, void *buffer,
+		   size_t size);
+	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
+		   struct inode *inode, const char *name, const void *buffer,
+		   size_t size, int flags);
+
+locking rules:
+	all may block
+		i_mutex(inode)
+list:		no
+get:		no
+set:		yes
 
 --------------------------- super_operations ---------------------------
 prototypes:
@@ -439,7 +447,6 @@ prototypes:
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
 	int (*fsync) (struct file *, loff_t start, loff_t end, int datasync);
-	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
 	ssize_t (*readv) (struct file *, const struct iovec *, unsigned long,
@@ -549,7 +556,7 @@ till "end_pgoff". ->map_pages() is called with page table locked and must
 not block.  If it's not possible to reach a page without blocking,
 filesystem should skip it. Filesystem should use do_set_pte() to setup
 page table entry. Pointer to entry associated with the page is passed in
-"pte" field in fault_env structure. Pointers to entries for other offsets
+"pte" field in vm_fault structure. Pointers to entries for other offsets
 should be calculated relative to "pte".
 
 	->page_mkwrite() is called when a previously read-only pte is

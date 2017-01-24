@@ -195,12 +195,19 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	switch (port_type) {
 	case PORT_8250 ... PORT_MAX_8250:
 	{
+		u32 tx_threshold;
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
 		port8250.port = port;
 
 		if (port.fifosize)
 			port8250.capabilities = UART_CAP_FIFO;
+
+		/* Check for TX FIFO threshold & set tx_loadsz */
+		if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
+					  &tx_threshold) == 0) &&
+		    (tx_threshold < port.fifosize))
+			port8250.tx_loadsz = port.fifosize - tx_threshold;
 
 		if (of_property_read_bool(ofdev->dev.of_node,
 					  "auto-flow-control"))
@@ -324,8 +331,6 @@ static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "altr,16550-FIFO128",
 		.data = (void *)PORT_ALTR_16550_F128, },
 	{ .compatible = "mrvl,mmp-uart",
-		.data = (void *)PORT_XSCALE, },
-	{ .compatible = "mrvl,pxa-uart",
 		.data = (void *)PORT_XSCALE, },
 	{ /* end of list */ },
 };

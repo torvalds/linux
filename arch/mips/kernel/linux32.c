@@ -26,7 +26,6 @@
 #include <linux/utsname.h>
 #include <linux/personality.h>
 #include <linux/dnotify.h>
-#include <linux/module.h>
 #include <linux/binfmts.h>
 #include <linux/security.h>
 #include <linux/compat.h>
@@ -39,7 +38,7 @@
 
 #include <asm/compat-signal.h>
 #include <asm/sim.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/mman.h>
 

@@ -51,10 +51,11 @@ DEFINE_MUTEX(drm_global_mutex);
  * Drivers must define the file operations structure that forms the DRM
  * userspace API entry point, even though most of those operations are
  * implemented in the DRM core. The mandatory functions are drm_open(),
- * drm_read(), drm_ioctl() and drm_compat_ioctl if CONFIG_COMPAT is enabled.
- * Drivers which implement private ioctls that require 32/64 bit compatibility
- * support must provided their onw .compat_ioctl() handler that processes
- * private ioctls and calls drm_compat_ioctl() for core ioctls.
+ * drm_read(), drm_ioctl() and drm_compat_ioctl() if CONFIG_COMPAT is enabled
+ * (note that drm_compat_ioctl will be NULL if CONFIG_COMPAT=n). Drivers which
+ * implement private ioctls that require 32/64 bit compatibility support must
+ * provide their own .compat_ioctl() handler that processes private ioctls and
+ * calls drm_compat_ioctl() for core ioctls.
  *
  * In addition drm_read() and drm_poll() provide support for DRM events. DRM
  * events are a generic and extensible means to send asynchronous events to
@@ -75,9 +76,7 @@ DEFINE_MUTEX(drm_global_mutex);
  *             .open = drm_open,
  *             .release = drm_release,
  *             .unlocked_ioctl = drm_ioctl,
- *     #ifdef CONFIG_COMPAT
- *             .compat_ioctl = drm_compat_ioctl,
- *     #endif
+ *             .compat_ioctl = drm_compat_ioctl, // NULL if CONFIG_COMPAT=n
  *             .poll = drm_poll,
  *             .read = drm_read,
  *             .llseek = no_llseek,
@@ -92,7 +91,7 @@ static int drm_setup(struct drm_device * dev)
 	int ret;
 
 	if (dev->driver->firstopen &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
+	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
 		ret = dev->driver->firstopen(dev);
 		if (ret != 0)
 			return ret;
@@ -199,7 +198,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	filp->private_data = priv;
 	priv->filp = filp;
-	priv->uid = current_euid();
 	priv->pid = get_pid(task_pid(current));
 	priv->minor = minor;
 
@@ -346,7 +344,7 @@ void drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
 }
 
@@ -389,7 +387,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_lock_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
@@ -664,6 +662,10 @@ void drm_event_cancel_free(struct drm_device *dev,
 		list_del(&p->pending_link);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (p->fence)
+		dma_fence_put(p->fence);
+
 	kfree(p);
 }
 EXPORT_SYMBOL(drm_event_cancel_free);
@@ -693,8 +695,8 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 	}
 
 	if (e->fence) {
-		fence_signal(e->fence);
-		fence_put(e->fence);
+		dma_fence_signal(e->fence);
+		dma_fence_put(e->fence);
 	}
 
 	if (!e->file_priv) {

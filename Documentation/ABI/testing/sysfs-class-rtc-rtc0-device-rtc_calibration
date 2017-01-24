@@ -1,8 +1,9 @@
-What:           Attribute for calibrating ST-Ericsson AB8500 Real Time Clock
+What:           /sys/class/rtc/rtc0/device/rtc_calibration
 Date:           Oct 2011
 KernelVersion:  3.0
 Contact:        Mark Godfrey <mark.godfrey@stericsson.com>
-Description:    The rtc_calibration attribute allows the userspace to
+Description:    Attribute for calibrating ST-Ericsson AB8500 Real Time Clock
+		The rtc_calibration attribute allows the userspace to
                 calibrate the AB8500.s 32KHz Real Time Clock.
                 Every 60 seconds the AB8500 will correct the RTC's value
                 by adding to it the value of this attribute.

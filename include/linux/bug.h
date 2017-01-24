@@ -13,6 +13,7 @@ enum bug_trap_type {
 struct pt_regs;
 
 #ifdef __CHECKER__
+#define __BUILD_BUG_ON_NOT_POWER_OF_2(n) (0)
 #define BUILD_BUG_ON_NOT_POWER_OF_2(n) (0)
 #define BUILD_BUG_ON_ZERO(e) (0)
 #define BUILD_BUG_ON_NULL(e) ((void*)0)
@@ -24,6 +25,8 @@ struct pt_regs;
 #else /* __CHECKER__ */
 
 /* Force a compilation error if a constant expression is not a power of 2 */
+#define __BUILD_BUG_ON_NOT_POWER_OF_2(n)	\
+	BUILD_BUG_ON(((n) & ((n) - 1)) != 0)
 #define BUILD_BUG_ON_NOT_POWER_OF_2(n)			\
 	BUILD_BUG_ON((n) == 0 || (((n) & ((n) - 1)) != 0))
 
@@ -118,4 +121,21 @@ static inline enum bug_trap_type report_bug(unsigned long bug_addr,
 }
 
 #endif	/* CONFIG_GENERIC_BUG */
+
+/*
+ * Since detected data corruption should stop operation on the affected
+ * structures, this returns false if the corruption condition is found.
+ */
+#define CHECK_DATA_CORRUPTION(condition, fmt, ...)			 \
+	do {								 \
+		if (unlikely(condition)) {				 \
+			if (IS_ENABLED(CONFIG_BUG_ON_DATA_CORRUPTION)) { \
+				pr_err(fmt, ##__VA_ARGS__);		 \
+				BUG();					 \
+			} else						 \
+				WARN(1, fmt, ##__VA_ARGS__);		 \
+			return false;					 \
+		}							 \
+	} while (0)
+
 #endif	/* _LINUX_BUG_H */

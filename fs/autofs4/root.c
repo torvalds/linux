@@ -32,7 +32,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,
 				     struct dentry *, unsigned int);
 static struct vfsmount *autofs4_d_automount(struct path *);
-static int autofs4_d_manage(struct dentry *, bool);
+static int autofs4_d_manage(const struct path *, bool);
 static void autofs4_dentry_release(struct dentry *);
 
 const struct file_operations autofs4_root_operations = {
@@ -123,7 +123,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	 * it.
 	 */
 	spin_lock(&sbi->lookup_lock);
-	if (!d_mountpoint(dentry) && simple_empty(dentry)) {
+	if (!path_is_mountpoint(&file->f_path) && simple_empty(dentry)) {
 		spin_unlock(&sbi->lookup_lock);
 		return -ENOENT;
 	}
@@ -269,39 +269,41 @@ next:
 	return NULL;
 }
 
-static int autofs4_mount_wait(struct dentry *dentry, bool rcu_walk)
+static int autofs4_mount_wait(const struct path *path, bool rcu_walk)
 {
-	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct autofs_sb_info *sbi = autofs4_sbi(path->dentry->d_sb);
+	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
 	int status = 0;
 
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		if (rcu_walk)
 			return -ECHILD;
-		pr_debug("waiting for mount name=%pd\n", dentry);
-		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
+		pr_debug("waiting for mount name=%pd\n", path->dentry);
+		status = autofs4_wait(sbi, path, NFY_MOUNT);
 		pr_debug("mount wait done status=%d\n", status);
 	}
 	ino->last_used = jiffies;
 	return status;
 }
 
-static int do_expire_wait(struct dentry *dentry, bool rcu_walk)
+static int do_expire_wait(const struct path *path, bool rcu_walk)
 {
+	struct dentry *dentry = path->dentry;
 	struct dentry *expiring;
 
 	expiring = autofs4_lookup_expiring(dentry, rcu_walk);
 	if (IS_ERR(expiring))
 		return PTR_ERR(expiring);
 	if (!expiring)
-		return autofs4_expire_wait(dentry, rcu_walk);
+		return autofs4_expire_wait(path, rcu_walk);
 	else {
+		const struct path this = { .mnt = path->mnt, .dentry = expiring };
 		/*
 		 * If we are racing with expire the request might not
 		 * be quite complete, but the directory has been removed
 		 * so it must have been successful, just wait for it.
 		 */
-		autofs4_expire_wait(expiring, 0);
+		autofs4_expire_wait(&this, 0);
 		autofs4_del_expiring(expiring);
 		dput(expiring);
 	}
@@ -354,7 +356,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	 * and the directory was removed, so just go ahead and try
 	 * the mount.
 	 */
-	status = do_expire_wait(dentry, 0);
+	status = do_expire_wait(path, 0);
 	if (status && status != -EAGAIN)
 		return NULL;
 
@@ -362,7 +364,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	spin_lock(&sbi->fs_lock);
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		spin_unlock(&sbi->fs_lock);
-		status = autofs4_mount_wait(dentry, 0);
+		status = autofs4_mount_wait(path, 0);
 		if (status)
 			return ERR_PTR(status);
 		goto done;
@@ -370,28 +372,28 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 
 	/*
 	 * If the dentry is a symlink it's equivalent to a directory
-	 * having d_mountpoint() true, so there's no need to call back
-	 * to the daemon.
+	 * having path_is_mountpoint() true, so there's no need to call
+	 * back to the daemon.
 	 */
 	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
 		spin_unlock(&sbi->fs_lock);
 		goto done;
 	}
 
-	if (!d_mountpoint(dentry)) {
+	if (!path_is_mountpoint(path)) {
 		/*
 		 * It's possible that user space hasn't removed directories
 		 * after umounting a rootless multi-mount, although it
-		 * should. For v5 have_submounts() is sufficient to handle
-		 * this because the leaves of the directory tree under the
-		 * mount never trigger mounts themselves (they have an autofs
-		 * trigger mount mounted on them). But v4 pseudo direct mounts
-		 * do need the leaves to trigger mounts. In this case we
-		 * have no choice but to use the list_empty() check and
+		 * should. For v5 path_has_submounts() is sufficient to
+		 * handle this because the leaves of the directory tree under
+		 * the mount never trigger mounts themselves (they have an
+		 * autofs trigger mount mounted on them). But v4 pseudo direct
+		 * mounts do need the leaves to trigger mounts. In this case
+		 * we have no choice but to use the list_empty() check and
 		 * require user space behave.
 		 */
 		if (sbi->version > 4) {
-			if (have_submounts(dentry)) {
+			if (path_has_submounts(path)) {
 				spin_unlock(&sbi->fs_lock);
 				goto done;
 			}
@@ -403,7 +405,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
-		status = autofs4_mount_wait(dentry, 0);
+		status = autofs4_mount_wait(path, 0);
 		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_PENDING;
 		if (status) {
@@ -421,8 +423,9 @@ done:
 	return NULL;
 }
 
-static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
+static int autofs4_d_manage(const struct path *path, bool rcu_walk)
 {
+	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
@@ -431,20 +434,20 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 
 	/* The daemon never waits. */
 	if (autofs4_oz_mode(sbi)) {
-		if (!d_mountpoint(dentry))
+		if (!path_is_mountpoint(path))
 			return -EISDIR;
 		return 0;
 	}
 
 	/* Wait for pending expires */
-	if (do_expire_wait(dentry, rcu_walk) == -ECHILD)
+	if (do_expire_wait(path, rcu_walk) == -ECHILD)
 		return -ECHILD;
 
 	/*
 	 * This dentry may be under construction so wait on mount
 	 * completion.
 	 */
-	status = autofs4_mount_wait(dentry, rcu_walk);
+	status = autofs4_mount_wait(path, rcu_walk);
 	if (status)
 		return status;
 
@@ -460,7 +463,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 
 		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
 			return 0;
-		if (d_mountpoint(dentry))
+		if (path_is_mountpoint(path))
 			return 0;
 		inode = d_inode_rcu(dentry);
 		if (inode && S_ISLNK(inode->i_mode))
@@ -487,7 +490,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 * we can avoid needless calls ->d_automount() and avoid
 		 * an incorrect ELOOP error return.
 		 */
-		if ((!d_mountpoint(dentry) && !simple_empty(dentry)) ||
+		if ((!path_is_mountpoint(path) && !simple_empty(dentry)) ||
 		    (d_really_is_positive(dentry) && d_is_symlink(dentry)))
 			status = -EISDIR;
 	}
@@ -577,8 +580,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 	inode = autofs4_get_inode(dir->i_sb, S_IFLNK | 0555);
 	if (!inode) {
 		kfree(cp);
-		if (!dentry->d_fsdata)
-			kfree(ino);
 		return -ENOMEM;
 	}
 	inode->i_private = cp;
@@ -591,7 +592,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	return 0;
 }
@@ -631,7 +632,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
 
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs4_add_expiring(dentry);
@@ -762,7 +763,7 @@ static int autofs4_dir_mkdir(struct inode *dir,
 	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 	inc_nlink(dir);
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	return 0;
 }
@@ -842,7 +843,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 	if (may_umount(mnt))
 		status = 1;
 
-	pr_debug("returning %d\n", status);
+	pr_debug("may umount %d\n", status);
 
 	status = put_user(status, p);
 

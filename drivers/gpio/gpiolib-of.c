@@ -26,14 +26,18 @@
 
 #include "gpiolib.h"
 
-static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 {
-	return chip->gpiodev->dev.of_node == data;
+	struct of_phandle_args *gpiospec = data;
+
+	return chip->gpiodev->dev.of_node == gpiospec->np &&
+				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
 
-static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
+static struct gpio_chip *of_find_gpiochip_by_xlate(
+					struct of_phandle_args *gpiospec)
 {
-	return gpiochip_find(np, of_gpiochip_match_node);
+	return gpiochip_find(gpiospec, of_gpiochip_match_node_and_xlate);
 }
 
 static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
@@ -79,7 +83,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		return ERR_PTR(ret);
 	}
 
-	chip = of_find_gpiochip_by_node(gpiospec.np);
+	chip = of_find_gpiochip_by_xlate(&gpiospec);
 	if (!chip) {
 		desc = ERR_PTR(-EPROBE_DEFER);
 		goto out;
@@ -112,6 +116,45 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 		return desc_to_gpio(desc);
 }
 EXPORT_SYMBOL(of_get_named_gpio_flags);
+
+struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
+			       unsigned int idx,
+			       enum gpio_lookup_flags *flags)
+{
+	char prop_name[32]; /* 32 is max size of property name */
+	enum of_gpio_flags of_flags;
+	struct gpio_desc *desc;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id)
+			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
+				 gpio_suffixes[i]);
+		else
+			snprintf(prop_name, sizeof(prop_name), "%s",
+				 gpio_suffixes[i]);
+
+		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
+						&of_flags);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
+			break;
+	}
+
+	if (IS_ERR(desc))
+		return desc;
+
+	if (of_flags & OF_GPIO_ACTIVE_LOW)
+		*flags |= GPIO_ACTIVE_LOW;
+
+	if (of_flags & OF_GPIO_SINGLE_ENDED) {
+		if (of_flags & OF_GPIO_ACTIVE_LOW)
+			*flags |= GPIO_OPEN_DRAIN;
+		else
+			*flags |= GPIO_OPEN_SOURCE;
+	}
+
+	return desc;
+}
 
 /**
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
@@ -183,51 +226,6 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 }
 
 /**
- * of_gpiochip_set_names() - set up the names of the lines
- * @chip: GPIO chip whose lines should be named, if possible
- */
-static void of_gpiochip_set_names(struct gpio_chip *gc)
-{
-	struct gpio_device *gdev = gc->gpiodev;
-	struct device_node *np = gc->of_node;
-	int i;
-	int nstrings;
-
-	nstrings = of_property_count_strings(np, "gpio-line-names");
-	if (nstrings <= 0)
-		/* Lines names not present */
-		return;
-
-	/* This is normally not what you want */
-	if (gdev->ngpio != nstrings)
-		dev_info(&gdev->dev, "gpio-line-names specifies %d line "
-			 "names but there are %d lines on the chip\n",
-			 nstrings, gdev->ngpio);
-
-	/*
-	 * Make sure to not index beyond the end of the number of descriptors
-	 * of the GPIO device.
-	 */
-	for (i = 0; i < gdev->ngpio; i++) {
-		const char *name;
-		int ret;
-
-		ret = of_property_read_string_index(np,
-						    "gpio-line-names",
-						    i,
-						    &name);
-		if (ret) {
-			if (ret != -ENODATA)
-                                dev_err(&gdev->dev,
-                                        "unable to name line %d: %d\n",
-                                        i, ret);
-			break;
-		}
-		gdev->descs[i].name = name;
-	}
-}
-
-/**
  * of_gpiochip_scan_gpios - Scan gpio-controller for gpio definitions
  * @chip:	gpio chip to act on
  *
@@ -253,8 +251,10 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 			continue;
 
 		ret = gpiod_hog(desc, name, lflags, dflags);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -483,7 +483,7 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
-		of_gpiochip_set_names(chip);
+		devprop_gpiochip_set_names(chip);
 
 	of_node_get(chip->of_node);
 

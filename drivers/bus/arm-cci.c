@@ -144,14 +144,11 @@ struct cci_pmu {
 	int num_cntrs;
 	atomic_t active_events;
 	struct mutex reserve_mutex;
-	struct list_head entry;
+	struct hlist_node node;
 	cpumask_t cpus;
 };
 
 #define to_cci_pmu(c)	(container_of(c, struct cci_pmu, pmu))
-
-static DEFINE_MUTEX(cci_pmu_mutex);
-static LIST_HEAD(cci_pmu_list);
 
 enum cci_models {
 #ifdef CONFIG_ARM_CCI400_PMU
@@ -1506,25 +1503,21 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 	return perf_pmu_register(&cci_pmu->pmu, name, -1);
 }
 
-static int cci_pmu_offline_cpu(unsigned int cpu)
+static int cci_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct cci_pmu *cci_pmu;
+	struct cci_pmu *cci_pmu = hlist_entry_safe(node, struct cci_pmu, node);
 	unsigned int target;
 
-	mutex_lock(&cci_pmu_mutex);
-	list_for_each_entry(cci_pmu, &cci_pmu_list, entry) {
-		if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
-			continue;
-		target = cpumask_any_but(cpu_online_mask, cpu);
-		if (target >= nr_cpu_ids)
-			continue;
-		/*
-		 * TODO: migrate context once core races on event->ctx have
-		 * been fixed.
-		 */
-		cpumask_set_cpu(target, &cci_pmu->cpus);
-	}
-	mutex_unlock(&cci_pmu_mutex);
+	if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
+		return 0;
+	target = cpumask_any_but(cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
+		return 0;
+	/*
+	 * TODO: migrate context once core races on event->ctx have
+	 * been fixed.
+	 */
+	cpumask_set_cpu(target, &cci_pmu->cpus);
 	return 0;
 }
 
@@ -1768,10 +1761,8 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	mutex_lock(&cci_pmu_mutex);
-	list_add(&cci_pmu->entry, &cci_pmu_list);
-	mutex_unlock(&cci_pmu_mutex);
-
+	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+					 &cci_pmu->node);
 	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
 }
@@ -1804,9 +1795,9 @@ static int __init cci_platform_init(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
-					"AP_PERF_ARM_CCI_ONLINE", NULL,
-					cci_pmu_offline_cpu);
+	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+				      "perf/arm/cci:online", NULL,
+				      cci_pmu_offline_cpu);
 	if (ret)
 		return ret;
 
@@ -2199,6 +2190,9 @@ static int cci_probe_ports(struct device_node *np)
 		if (!of_match_node(arm_cci_ctrl_if_matches, cp))
 			continue;
 
+		if (!of_device_is_available(cp))
+			continue;
+
 		i = nb_ace + nb_ace_lite;
 
 		if (i >= nb_cci_ports)
@@ -2240,6 +2234,13 @@ static int cci_probe_ports(struct device_node *np)
 		}
 		ports[i].dn = cp;
 	}
+
+	/*
+	 * If there is no CCI port that is under kernel control
+	 * return early and report probe status.
+	 */
+	if (!nb_ace && !nb_ace_lite)
+		return -ENODEV;
 
 	 /* initialize a stashed array of ACE ports to speed-up look-up */
 	cci_ace_init_ports();

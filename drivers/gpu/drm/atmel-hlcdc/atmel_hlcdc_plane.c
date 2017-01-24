@@ -393,7 +393,7 @@ static void atmel_hlcdc_plane_update_format(struct atmel_hlcdc_plane *plane,
 
 	if ((state->base.fb->pixel_format == DRM_FORMAT_YUV422 ||
 	     state->base.fb->pixel_format == DRM_FORMAT_NV61) &&
-	    (state->base.rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))))
+	    drm_rotation_90_or_270(state->base.rotation))
 		cfg |= ATMEL_HLCDC_YUV422ROT;
 
 	atmel_hlcdc_layer_update_cfg(&plane->layer,
@@ -628,7 +628,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	/*
 	 * Swap width and size in case of 90 or 270 degrees rotation
 	 */
-	if (state->base.rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
+	if (drm_rotation_90_or_270(state->base.rotation)) {
 		tmp = state->crtc_w;
 		state->crtc_w = state->crtc_h;
 		state->crtc_h = tmp;
@@ -677,7 +677,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 			return -EINVAL;
 
 		switch (state->base.rotation & DRM_ROTATE_MASK) {
-		case BIT(DRM_ROTATE_90):
+		case DRM_ROTATE_90:
 			offset = ((y_offset + state->src_y + patched_src_w - 1) /
 				  ydiv) * fb->pitches[i];
 			offset += ((x_offset + state->src_x) / xdiv) *
@@ -686,7 +686,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 					  fb->pitches[i];
 			state->pstride[i] = -fb->pitches[i] - state->bpp[i];
 			break;
-		case BIT(DRM_ROTATE_180):
+		case DRM_ROTATE_180:
 			offset = ((y_offset + state->src_y + patched_src_h - 1) /
 				  ydiv) * fb->pitches[i];
 			offset += ((x_offset + state->src_x + patched_src_w - 1) /
@@ -695,7 +695,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 					   state->bpp[i]) - fb->pitches[i];
 			state->pstride[i] = -2 * state->bpp[i];
 			break;
-		case BIT(DRM_ROTATE_270):
+		case DRM_ROTATE_270:
 			offset = ((y_offset + state->src_y) / ydiv) *
 				 fb->pitches[i];
 			offset += ((x_offset + state->src_x + patched_src_h - 1) /
@@ -705,7 +705,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 					  (2 * state->bpp[i]);
 			state->pstride[i] = fb->pitches[i] - state->bpp[i];
 			break;
-		case BIT(DRM_ROTATE_0):
+		case DRM_ROTATE_0:
 		default:
 			offset = ((y_offset + state->src_y) / ydiv) *
 				 fb->pitches[i];
@@ -755,7 +755,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
-					const struct drm_plane_state *new_state)
+					struct drm_plane_state *new_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's
@@ -780,7 +780,7 @@ static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_cleanup_fb(struct drm_plane *p,
-				const struct drm_plane_state *old_state)
+					 struct drm_plane_state *old_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's
@@ -883,9 +883,9 @@ static int atmel_hlcdc_plane_atomic_get_property(struct drm_plane *p,
 	return 0;
 }
 
-static void atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
-				const struct atmel_hlcdc_layer_desc *desc,
-				struct atmel_hlcdc_plane_properties *props)
+static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
+					     const struct atmel_hlcdc_layer_desc *desc,
+					     struct atmel_hlcdc_plane_properties *props)
 {
 	struct regmap *regmap = plane->layer.hlcdc->regmap;
 
@@ -902,10 +902,18 @@ static void atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
 				ATMEL_HLCDC_LAYER_GA_MASK);
 	}
 
-	if (desc->layout.xstride && desc->layout.pstride)
-		drm_object_attach_property(&plane->base.base,
-				plane->base.dev->mode_config.rotation_property,
-				BIT(DRM_ROTATE_0));
+	if (desc->layout.xstride && desc->layout.pstride) {
+		int ret;
+
+		ret = drm_plane_create_rotation_property(&plane->base,
+							 DRM_ROTATE_0,
+							 DRM_ROTATE_0 |
+							 DRM_ROTATE_90 |
+							 DRM_ROTATE_180 |
+							 DRM_ROTATE_270);
+		if (ret)
+			return ret;
+	}
 
 	if (desc->layout.csc) {
 		/*
@@ -925,6 +933,8 @@ static void atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
 			     ATMEL_HLCDC_LAYER_CSC_CFG(&plane->layer, 2),
 			     0x40040890);
 	}
+
+	return 0;
 }
 
 static struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
@@ -1036,7 +1046,9 @@ atmel_hlcdc_plane_create(struct drm_device *dev,
 			     &atmel_hlcdc_layer_plane_helper_funcs);
 
 	/* Set default property values*/
-	atmel_hlcdc_plane_init_properties(plane, desc, props);
+	ret = atmel_hlcdc_plane_init_properties(plane, desc, props);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return plane;
 }
@@ -1052,15 +1064,6 @@ atmel_hlcdc_plane_create_properties(struct drm_device *dev)
 
 	props->alpha = drm_property_create_range(dev, 0, "alpha", 0, 255);
 	if (!props->alpha)
-		return ERR_PTR(-ENOMEM);
-
-	dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev,
-							  BIT(DRM_ROTATE_0) |
-							  BIT(DRM_ROTATE_90) |
-							  BIT(DRM_ROTATE_180) |
-							  BIT(DRM_ROTATE_270));
-	if (!dev->mode_config.rotation_property)
 		return ERR_PTR(-ENOMEM);
 
 	return props;

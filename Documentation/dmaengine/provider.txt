@@ -282,6 +282,17 @@ supported.
 			that is supposed to push the current
 			transaction descriptor to a pending queue, waiting
 			for issue_pending to be called.
+     - In this structure the function pointer callback_result can be
+       initialized in order for the submitter to be notified that a
+       transaction has completed. In the earlier code the function pointer
+       callback has been used. However it does not provide any status to the
+       transaction and will be deprecated. The result structure defined as
+       dmaengine_result that is passed in to callback_result has two fields:
+       + result: This provides the transfer result defined by
+		 dmaengine_tx_result. Either success or some error
+		 condition.
+       + residue: Provides the residue bytes of the transfer for those that
+		  support residue.
 
    * device_issue_pending
      - Takes the first transaction descriptor in the pending queue,
@@ -373,7 +384,7 @@ where to put them)
     - The descriptor should be prepared for reuse by invoking
       dmaengine_desc_set_reuse() which will set DMA_CTRL_REUSE.
     - dmaengine_desc_set_reuse() will succeed only when channel support
-      reusable descriptor as exhibited by capablities
+      reusable descriptor as exhibited by capabilities
     - As a consequence, if a device driver wants to skip the dma_map_sg() and
       dma_unmap_sg() in between 2 transfers, because the DMA'd data wasn't used,
       it can resubmit the transfer right after its completion.

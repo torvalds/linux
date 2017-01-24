@@ -289,15 +289,10 @@ static
 struct s3c24xx_dma_phy *s3c24xx_dma_get_phy(struct s3c24xx_dma_chan *s3cchan)
 {
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
-	const struct s3c24xx_dma_platdata *pdata = s3cdma->pdata;
-	struct s3c24xx_dma_channel *cdata;
 	struct s3c24xx_dma_phy *phy = NULL;
 	unsigned long flags;
 	int i;
 	int ret;
-
-	if (s3cchan->slave)
-		cdata = &pdata->channels[s3cchan->id];
 
 	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
 		phy = &s3cdma->phy_chans[i];
@@ -823,11 +818,11 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_memcpy(
 	struct s3c24xx_sg *dsg;
 	int src_mod, dest_mod;
 
-	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %d bytes from %s\n",
+	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %zu bytes from %s\n",
 			len, s3cchan->name);
 
 	if ((len & S3C24XX_DCON_TC_MASK) != len) {
-		dev_err(&s3cdma->pdev->dev, "memcpy size %d to large\n", len);
+		dev_err(&s3cdma->pdev->dev, "memcpy size %zu to large\n", len);
 		return NULL;
 	}
 
@@ -1301,6 +1296,9 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	s3cdma->slave.device_prep_dma_cyclic = s3c24xx_dma_prep_dma_cyclic;
 	s3cdma->slave.device_config = s3c24xx_dma_set_runtime_config;
 	s3cdma->slave.device_terminate_all = s3c24xx_dma_terminate_all;
+	s3cdma->slave.filter.map = pdata->slave_map;
+	s3cdma->slave.filter.mapcnt = pdata->slavecnt;
+	s3cdma->slave.filter.fn = s3c24xx_dma_filter;
 
 	/* Register as many memcpy channels as there are physical channels */
 	ret = s3c24xx_dma_init_virtual_channels(s3cdma, &s3cdma->memcpy,
@@ -1418,7 +1416,7 @@ bool s3c24xx_dma_filter(struct dma_chan *chan, void *param)
 
 	s3cchan = to_s3c24xx_dma_chan(chan);
 
-	return s3cchan->id == (int)param;
+	return s3cchan->id == (uintptr_t)param;
 }
 EXPORT_SYMBOL(s3c24xx_dma_filter);
 

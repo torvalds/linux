@@ -23,8 +23,7 @@
 #include <asm/cpu.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
-#include <asm/idle.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mwait.h>
 #include <asm/fpu/internal.h>
 #include <asm/debugreg.h>
@@ -32,6 +31,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/vm86.h>
+#include <asm/switch_to.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -63,23 +63,6 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 #endif
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
-
-#ifdef CONFIG_X86_64
-static DEFINE_PER_CPU(unsigned char, is_idle);
-static ATOMIC_NOTIFIER_HEAD(idle_notifier);
-
-void idle_notifier_register(struct notifier_block *n)
-{
-	atomic_notifier_chain_register(&idle_notifier, n);
-}
-EXPORT_SYMBOL_GPL(idle_notifier_register);
-
-void idle_notifier_unregister(struct notifier_block *n)
-{
-	atomic_notifier_chain_unregister(&idle_notifier, n);
-}
-EXPORT_SYMBOL_GPL(idle_notifier_unregister);
-#endif
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -250,39 +233,10 @@ static inline void play_dead(void)
 }
 #endif
 
-#ifdef CONFIG_X86_64
-void enter_idle(void)
-{
-	this_cpu_write(is_idle, 1);
-	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
-}
-
-static void __exit_idle(void)
-{
-	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
-		return;
-	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
-}
-
-/* Called from interrupts to signify idle end */
-void exit_idle(void)
-{
-	/* idle loop has pid 0 */
-	if (current->pid)
-		return;
-	__exit_idle();
-}
-#endif
-
 void arch_cpu_idle_enter(void)
 {
+	tsc_verify_tsc_adjust(false);
 	local_touch_nmi();
-	enter_idle();
-}
-
-void arch_cpu_idle_exit(void)
-{
-	__exit_idle();
 }
 
 void arch_cpu_idle_dead(void)
@@ -301,7 +255,7 @@ void arch_cpu_idle(void)
 /*
  * We use this if we don't have any better idle routine..
  */
-void default_idle(void)
+void __cpuidle default_idle(void)
 {
 	trace_cpu_idle_rcuidle(1, smp_processor_id());
 	safe_halt();
@@ -335,59 +289,33 @@ void stop_this_cpu(void *dummy)
 		halt();
 }
 
-bool amd_e400_c1e_detected;
-EXPORT_SYMBOL(amd_e400_c1e_detected);
-
-static cpumask_var_t amd_e400_c1e_mask;
-
-void amd_e400_remove_cpu(int cpu)
-{
-	if (amd_e400_c1e_mask != NULL)
-		cpumask_clear_cpu(cpu, amd_e400_c1e_mask);
-}
-
 /*
- * AMD Erratum 400 aware idle routine. We check for C1E active in the interrupt
- * pending message MSR. If we detect C1E, then we handle it the same
- * way as C3 power states (local apic timer and TSC stop)
+ * AMD Erratum 400 aware idle routine. We handle it the same way as C3 power
+ * states (local apic timer and TSC stop).
  */
 static void amd_e400_idle(void)
 {
-	if (!amd_e400_c1e_detected) {
-		u32 lo, hi;
-
-		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-
-		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-			amd_e400_c1e_detected = true;
-			if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-				mark_tsc_unstable("TSC halt in AMD C1E");
-			pr_info("System has AMD C1E enabled\n");
-		}
+	/*
+	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * gets set after static_cpu_has() places have been converted via
+	 * alternatives.
+	 */
+	if (!boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		default_idle();
+		return;
 	}
 
-	if (amd_e400_c1e_detected) {
-		int cpu = smp_processor_id();
+	tick_broadcast_enter();
 
-		if (!cpumask_test_cpu(cpu, amd_e400_c1e_mask)) {
-			cpumask_set_cpu(cpu, amd_e400_c1e_mask);
-			/* Force broadcast so ACPI can not interfere. */
-			tick_broadcast_force();
-			pr_info("Switch to broadcast mode on CPU%d\n", cpu);
-		}
-		tick_broadcast_enter();
+	default_idle();
 
-		default_idle();
-
-		/*
-		 * The switch back from broadcast mode needs to be
-		 * called with interrupts disabled.
-		 */
-		local_irq_disable();
-		tick_broadcast_exit();
-		local_irq_enable();
-	} else
-		default_idle();
+	/*
+	 * The switch back from broadcast mode needs to be called with
+	 * interrupts disabled.
+	 */
+	local_irq_disable();
+	tick_broadcast_exit();
+	local_irq_enable();
 }
 
 /*
@@ -416,7 +344,7 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
  * with interrupts enabled and no flags, which is backwards compatible with the
  * original MWAIT implementation.
  */
-static void mwait_idle(void)
+static __cpuidle void mwait_idle(void)
 {
 	if (!current_set_polling_and_test()) {
 		trace_cpu_idle_rcuidle(1, smp_processor_id());
@@ -447,8 +375,7 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 	if (x86_idle || boot_option_idle_override == IDLE_POLL)
 		return;
 
-	if (cpu_has_bug(c, X86_BUG_AMD_APIC_C1E)) {
-		/* E400: APIC timer interrupt does not wake up CPU from C1e */
+	if (boot_cpu_has_bug(X86_BUG_AMD_E400)) {
 		pr_info("using AMD E400 aware idle routine\n");
 		x86_idle = amd_e400_idle;
 	} else if (prefer_mwait_c1_over_halt(c)) {
@@ -458,11 +385,37 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 		x86_idle = default_idle;
 }
 
-void __init init_amd_e400_c1e_mask(void)
+void amd_e400_c1e_apic_setup(void)
 {
-	/* If we're using amd_e400_idle, we need to allocate amd_e400_c1e_mask. */
-	if (x86_idle == amd_e400_idle)
-		zalloc_cpumask_var(&amd_e400_c1e_mask, GFP_KERNEL);
+	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		pr_info("Switch to broadcast mode on CPU%d\n", smp_processor_id());
+		local_irq_disable();
+		tick_broadcast_force();
+		local_irq_enable();
+	}
+}
+
+void __init arch_post_acpi_subsys_init(void)
+{
+	u32 lo, hi;
+
+	if (!boot_cpu_has_bug(X86_BUG_AMD_E400))
+		return;
+
+	/*
+	 * AMD E400 detection needs to happen after ACPI has been enabled. If
+	 * the machine is affected K8_INTP_C1E_ACTIVE_MASK bits are set in
+	 * MSR_K8_INT_PENDING_MSG.
+	 */
+	rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+	if (!(lo & K8_INTP_C1E_ACTIVE_MASK))
+		return;
+
+	boot_cpu_set_bug(X86_BUG_AMD_APIC_C1E);
+
+	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+		mark_tsc_unstable("TSC halt in AMD C1E");
+	pr_info("System has AMD C1E enabled\n");
 }
 
 static int __init idle_setup(char *str)
@@ -508,8 +461,18 @@ unsigned long arch_align_stack(unsigned long sp)
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	unsigned long range_end = mm->brk + 0x02000000;
-	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
+	return randomize_page(mm->brk, 0x02000000);
+}
+
+/*
+ * Return saved PC of a blocked thread.
+ * What is this good for? it will be always the scheduler or ret_from_fork.
+ */
+unsigned long thread_saved_pc(struct task_struct *tsk)
+{
+	struct inactive_task_frame *frame =
+		(struct inactive_task_frame *) READ_ONCE(tsk->thread.sp);
+	return READ_ONCE_NOCHECK(frame->ret_addr);
 }
 
 /*
@@ -520,15 +483,18 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
  */
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long start, bottom, top, sp, fp, ip;
+	unsigned long start, bottom, top, sp, fp, ip, ret = 0;
 	int count = 0;
 
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
+	if (!try_get_task_stack(p))
+		return 0;
+
 	start = (unsigned long)task_stack_page(p);
 	if (!start)
-		return 0;
+		goto out;
 
 	/*
 	 * Layout of the stack page:
@@ -537,9 +503,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 * PADDING
 	 * ----------- top = topmax - TOP_OF_KERNEL_STACK_PADDING
 	 * stack
-	 * ----------- bottom = start + sizeof(thread_info)
-	 * thread_info
-	 * ----------- start
+	 * ----------- bottom = start
 	 *
 	 * The tasks stack pointer points at the location where the
 	 * framepointer is stored. The data on the stack is:
@@ -550,20 +514,25 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	top = start + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
 	top -= 2 * sizeof(unsigned long);
-	bottom = start + sizeof(struct thread_info);
+	bottom = start;
 
 	sp = READ_ONCE(p->thread.sp);
 	if (sp < bottom || sp > top)
-		return 0;
+		goto out;
 
-	fp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
+	fp = READ_ONCE_NOCHECK(((struct inactive_task_frame *)sp)->bp);
 	do {
 		if (fp < bottom || fp > top)
-			return 0;
+			goto out;
 		ip = READ_ONCE_NOCHECK(*(unsigned long *)(fp + sizeof(unsigned long)));
-		if (!in_sched_functions(ip))
-			return ip;
+		if (!in_sched_functions(ip)) {
+			ret = ip;
+			goto out;
+		}
 		fp = READ_ONCE_NOCHECK(*(unsigned long *)fp);
 	} while (count++ < 16 && p->state != TASK_RUNNING);
-	return 0;
+
+out:
+	put_task_stack(p);
+	return ret;
 }

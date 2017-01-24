@@ -565,11 +565,6 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	return r;
 }
 
-void __init omapdss_early_init_of(void)
-{
-
-}
-
 static const char * const omapdss_compat_names[] __initconst = {
 	"ti,omap2-dss",
 	"ti,omap3-dss",

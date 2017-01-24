@@ -77,6 +77,9 @@ config ACPI_DEBUGGER_USER
 
 endif
 
+config ACPI_SPCR_TABLE
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
@@ -101,7 +104,7 @@ config ACPI_PROCFS_POWER
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
 config ACPI_REV_OVERRIDE_POSSIBLE
-	bool "Allow supported ACPI revision to be overriden"
+	bool "Allow supported ACPI revision to be overridden"
 	depends on X86
 	default y
 	help
@@ -227,7 +230,6 @@ config ACPI_MCFG
 config ACPI_CPPC_LIB
 	bool
 	depends on ACPI_PROCESSOR
-	depends on !ACPI_CPU_FREQ_PSS
 	select MAILBOX
 	select PCC
 	help
@@ -340,7 +342,7 @@ config ACPI_DEBUG
 
 	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
 	  parameters documented in Documentation/acpi/debug.txt and
-	  Documentation/kernel-parameters.txt to control the type and
+	  Documentation/admin-guide/kernel-parameters.rst to control the type and
 	  amount of debug output.
 
 config ACPI_PCI_SLOT
@@ -462,6 +464,9 @@ source "drivers/acpi/nfit/Kconfig"
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
+config ACPI_WATCHDOG
+	bool
+
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
 	depends on X86_MCE && X86_LOCAL_APIC
@@ -520,5 +525,9 @@ config ACPI_CONFIGFS
 	  Select this option to enable support for ACPI configuration from
 	  userspace. The configurable ACPI groups will be visible under
 	  /config/acpi, assuming configfs is mounted under /config.
+
+if ARM64
+source "drivers/acpi/arm64/Kconfig"
+endif
 
 endif	# ACPI

@@ -7,7 +7,7 @@ config SYNC_FILE
 	select DMA_SHARED_BUFFER
 	---help---
 	  The Sync File Framework adds explicit syncronization via
-	  userspace. It enables send/receive 'struct fence' objects to/from
+	  userspace. It enables send/receive 'struct dma_fence' objects to/from
 	  userspace via Sync File fds for synchronization between drivers via
 	  userspace components. It has been ported from Android.
 
@@ -16,5 +16,18 @@ config SYNC_FILE
 	  is attached to the buffer and is transferred via userspace, using Sync
 	  Files fds, to the DRM driver for example. More details at
 	  Documentation/sync_file.txt.
+
+config SW_SYNC
+	bool "Sync File Validation Framework"
+	default n
+	depends on SYNC_FILE
+	depends on DEBUG_FS
+	---help---
+	  A sync object driver that uses a 32bit counter to coordinate
+	  synchronization.  Useful when there is no hardware primitive backing
+	  the synchronization.
+
+	  WARNING: improper use of this can result in deadlocking kernel
+	  drivers from userspace. Intended for test and debug only.
 
 endmenu

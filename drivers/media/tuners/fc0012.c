@@ -55,11 +55,10 @@ static int fc0012_readreg(struct fc0012_priv *priv, u8 reg, u8 *val)
 	return 0;
 }
 
-static int fc0012_release(struct dvb_frontend *fe)
+static void fc0012_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int fc0012_init(struct dvb_frontend *fe)

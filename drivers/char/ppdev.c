@@ -86,6 +86,9 @@ struct pp_struct {
 	long default_inactivity;
 };
 
+/* should we use PARDEVICE_MAX here? */
+static struct device *devices[PARPORT_MAX];
+
 /* pp_struct.flags bitfields */
 #define PP_CLAIMED    (1<<0)
 #define PP_EXCL       (1<<1)
@@ -286,7 +289,8 @@ static int register_device(int minor, struct pp_struct *pp)
 	struct parport *port;
 	struct pardevice *pdev = NULL;
 	char *name;
-	int fl;
+	struct pardev_cb ppdev_cb;
+	int rc = 0;
 
 	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
 	if (name == NULL)
@@ -294,25 +298,29 @@ static int register_device(int minor, struct pp_struct *pp)
 
 	port = parport_find_number(minor);
 	if (!port) {
-		printk(KERN_WARNING "%s: no associated port!\n", name);
-		kfree(name);
-		return -ENXIO;
+		pr_warn("%s: no associated port!\n", name);
+		rc = -ENXIO;
+		goto err;
 	}
 
-	fl = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
-	pdev = parport_register_device(port, name, NULL,
-				       NULL, pp_irq, fl, pp);
+	memset(&ppdev_cb, 0, sizeof(ppdev_cb));
+	ppdev_cb.irq_func = pp_irq;
+	ppdev_cb.flags = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
+	ppdev_cb.private = pp;
+	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
 	parport_put_port(port);
 
 	if (!pdev) {
-		printk(KERN_WARNING "%s: failed to register device!\n", name);
-		kfree(name);
-		return -ENXIO;
+		pr_warn("%s: failed to register device!\n", name);
+		rc = -ENXIO;
+		goto err;
 	}
 
 	pp->pdev = pdev;
 	dev_dbg(&pdev->dev, "registered pardevice\n");
-	return 0;
+err:
+	kfree(name);
+	return rc;
 }
 
 static enum ieee1284_phase init_phase(int mode)
@@ -746,10 +754,7 @@ static int pp_release(struct inode *inode, struct file *file)
 	}
 
 	if (pp->pdev) {
-		const char *name = pp->pdev->name;
-
 		parport_unregister_device(pp->pdev);
-		kfree(name);
 		pp->pdev = NULL;
 		pr_debug(CHRDEV "%x: unregistered pardevice\n", minor);
 	}
@@ -790,19 +795,48 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	device_create(ppdev_class, port->dev, MKDEV(PP_MAJOR, port->number),
-		      NULL, "parport%d", port->number);
+	struct device *ret;
+
+	if (devices[port->number])
+		return;
+
+	ret = device_create(ppdev_class, port->dev,
+			    MKDEV(PP_MAJOR, port->number), NULL,
+			    "parport%d", port->number);
+	if (IS_ERR(ret)) {
+		pr_err("Failed to create device parport%d\n",
+		       port->number);
+		return;
+	}
+	devices[port->number] = ret;
 }
 
 static void pp_detach(struct parport *port)
 {
+	if (!devices[port->number])
+		return;
+
 	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	devices[port->number] = NULL;
+}
+
+static int pp_probe(struct pardevice *par_dev)
+{
+	struct device_driver *drv = par_dev->dev.driver;
+	int len = strlen(drv->name);
+
+	if (strncmp(par_dev->name, drv->name, len))
+		return -ENODEV;
+
+	return 0;
 }
 
 static struct parport_driver pp_driver = {
 	.name		= CHRDEV,
-	.attach		= pp_attach,
+	.probe		= pp_probe,
+	.match_port	= pp_attach,
 	.detach		= pp_detach,
+	.devmodel	= true,
 };
 
 static int __init ppdev_init(void)
@@ -810,8 +844,7 @@ static int __init ppdev_init(void)
 	int err = 0;
 
 	if (register_chrdev(PP_MAJOR, CHRDEV, &pp_fops)) {
-		printk(KERN_WARNING CHRDEV ": unable to get major %d\n",
-		       PP_MAJOR);
+		pr_warn(CHRDEV ": unable to get major %d\n", PP_MAJOR);
 		return -EIO;
 	}
 	ppdev_class = class_create(THIS_MODULE, CHRDEV);
@@ -821,11 +854,11 @@ static int __init ppdev_init(void)
 	}
 	err = parport_register_driver(&pp_driver);
 	if (err < 0) {
-		printk(KERN_WARNING CHRDEV ": unable to register with parport\n");
+		pr_warn(CHRDEV ": unable to register with parport\n");
 		goto out_class;
 	}
 
-	printk(KERN_INFO PP_VERSION "\n");
+	pr_info(PP_VERSION "\n");
 	goto out;
 
 out_class:

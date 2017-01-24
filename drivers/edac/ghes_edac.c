@@ -14,7 +14,7 @@
 #include <acpi/ghes.h>
 #include <linux/edac.h>
 #include <linux/dmi.h>
-#include "edac_core.h"
+#include "edac_module.h"
 #include <ras/ras_event.h>
 
 #define GHES_EDAC_REVISION " Ver: 1.0.0"

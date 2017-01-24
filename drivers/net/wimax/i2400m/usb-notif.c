@@ -206,7 +206,6 @@ int i2400mu_notification_setup(struct i2400mu *i2400mu)
 	i2400mu->notif_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!i2400mu->notif_urb) {
 		ret = -ENOMEM;
-		dev_err(dev, "notification: cannot allocate URB\n");
 		goto error_alloc_urb;
 	}
 	epd = usb_get_epd(i2400mu->usb_iface,

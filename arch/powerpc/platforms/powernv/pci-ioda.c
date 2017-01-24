@@ -83,7 +83,7 @@ void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			PCI_SLOT(pe->rid), PCI_FUNC(pe->rid));
 #endif /* CONFIG_PCI_IOV*/
 
-	printk("%spci %s: [PE# %.3d] %pV",
+	printk("%spci %s: [PE# %.2x] %pV",
 	       level, pfix, pe->pe_number, &vaf);
 
 	va_end(args);
@@ -133,8 +133,21 @@ static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
 
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 {
+	s64 rc;
+
 	phb->ioda.pe_array[pe_no].phb = phb;
 	phb->ioda.pe_array[pe_no].pe_number = pe_no;
+
+	/*
+	 * Clear the PE frozen state as it might be put into frozen state
+	 * in the last PCI remove path. It's not harmful to do so when the
+	 * PE is already in unfrozen state.
+	 */
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
+				       OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+	if (rc != OPAL_SUCCESS && rc != OPAL_UNSUPPORTED)
+		pr_warn("%s: Error %lld unfreezing PHB#%x-PE#%x\n",
+			__func__, rc, phb->hose->global_number, pe_no);
 
 	return &phb->ioda.pe_array[pe_no];
 }
@@ -142,13 +155,13 @@ static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 {
 	if (!(pe_no >= 0 && pe_no < phb->ioda.total_pe_num)) {
-		pr_warn("%s: Invalid PE %d on PHB#%x\n",
+		pr_warn("%s: Invalid PE %x on PHB#%x\n",
 			__func__, pe_no, phb->hose->global_number);
 		return;
 	}
 
 	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc))
-		pr_debug("%s: PE %d was reserved on PHB#%x\n",
+		pr_debug("%s: PE %x was reserved on PHB#%x\n",
 			 __func__, pe_no, phb->hose->global_number);
 
 	pnv_ioda_init_pe(phb, pe_no);
@@ -216,7 +229,7 @@ static int pnv_ioda2_init_m64(struct pnv_phb *phb)
 	else if (phb->ioda.reserved_pe_idx == (phb->ioda.total_pe_num - 1))
 		r->end -= (2 * phb->ioda.m64_segsize);
 	else
-		pr_warn("  Cannot strip M64 segment for reserved PE#%d\n",
+		pr_warn("  Cannot strip M64 segment for reserved PE#%x\n",
 			phb->ioda.reserved_pe_idx);
 
 	return 0;
@@ -278,7 +291,7 @@ static int pnv_ioda1_init_m64(struct pnv_phb *phb)
 				OPAL_M64_WINDOW_TYPE, index, base, 0,
 				PNV_IODA1_M64_SEGS * segsz);
 		if (rc != OPAL_SUCCESS) {
-			pr_warn("  Error %lld setting M64 PHB#%d-BAR#%d\n",
+			pr_warn("  Error %lld setting M64 PHB#%x-BAR#%d\n",
 				rc, phb->hose->global_number, index);
 			goto fail;
 		}
@@ -287,7 +300,7 @@ static int pnv_ioda1_init_m64(struct pnv_phb *phb)
 				OPAL_M64_WINDOW_TYPE, index,
 				OPAL_ENABLE_M64_SPLIT);
 		if (rc != OPAL_SUCCESS) {
-			pr_warn("  Error %lld enabling M64 PHB#%d-BAR#%d\n",
+			pr_warn("  Error %lld enabling M64 PHB#%x-BAR#%d\n",
 				rc, phb->hose->global_number, index);
 			goto fail;
 		}
@@ -303,7 +316,7 @@ static int pnv_ioda1_init_m64(struct pnv_phb *phb)
 	else if (phb->ioda.reserved_pe_idx == (phb->ioda.total_pe_num - 1))
 		r->end -= (2 * phb->ioda.m64_segsize);
 	else
-		WARN(1, "Wrong reserved PE#%d on PHB#%d\n",
+		WARN(1, "Wrong reserved PE#%x on PHB#%x\n",
 		     phb->ioda.reserved_pe_idx, phb->hose->global_number);
 
 	return 0;
@@ -401,7 +414,7 @@ static struct pnv_ioda_pe *pnv_ioda_pick_m64_pe(struct pci_bus *bus, bool all)
 					pe->pe_number / PNV_IODA1_M64_SEGS,
 					pe->pe_number % PNV_IODA1_M64_SEGS);
 			if (rc != OPAL_SUCCESS)
-				pr_warn("%s: Error %lld mapping M64 for PHB#%d-PE#%d\n",
+				pr_warn("%s: Error %lld mapping M64 for PHB#%x-PE#%x\n",
 					__func__, rc, phb->hose->global_number,
 					pe->pe_number);
 		}
@@ -417,7 +430,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	struct device_node *dn = hose->dn;
 	struct resource *res;
 	u32 m64_range[2], i;
-	const u32 *r;
+	const __be32 *r;
 	u64 pci_addr;
 
 	if (phb->type != PNV_PHB_IODA1 && phb->type != PNV_PHB_IODA2) {
@@ -928,14 +941,14 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 	pe->mve_number = pe->pe_number;
 	rc = opal_pci_set_mve(phb->opal_id, pe->mve_number, pe->pe_number);
 	if (rc != OPAL_SUCCESS) {
-		pe_err(pe, "OPAL error %ld setting up MVE %d\n",
+		pe_err(pe, "OPAL error %ld setting up MVE %x\n",
 		       rc, pe->mve_number);
 		pe->mve_number = -1;
 	} else {
 		rc = opal_pci_set_mve_enable(phb->opal_id,
 					     pe->mve_number, OPAL_ENABLE_MVE);
 		if (rc) {
-			pe_err(pe, "OPAL error %ld enabling MVE %d\n",
+			pe_err(pe, "OPAL error %ld enabling MVE %x\n",
 			       rc, pe->mve_number);
 			pe->mve_number = -1;
 		}
@@ -1146,10 +1159,10 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	pe->rid = bus->busn_res.start << 8;
 
 	if (all)
-		pe_info(pe, "Secondary bus %d..%d associated with PE#%d\n",
+		pe_info(pe, "Secondary bus %d..%d associated with PE#%x\n",
 			bus->busn_res.start, bus->busn_res.end, pe->pe_number);
 	else
-		pe_info(pe, "Secondary bus %d associated with PE#%d\n",
+		pe_info(pe, "Secondary bus %d associated with PE#%x\n",
 			bus->busn_res.start, pe->pe_number);
 
 	if (pnv_ioda_configure_pe(phb, pe)) {
@@ -1200,7 +1213,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
 			 * peer NPU.
 			 */
 			dev_info(&npu_pdev->dev,
-				"Associating to existing PE %d\n", pe_num);
+				"Associating to existing PE %x\n", pe_num);
 			pci_dev_get(npu_pdev);
 			npu_pdn = pci_get_pdn(npu_pdev);
 			rid = npu_pdev->bus->number << 8 | npu_pdn->devfn;
@@ -1526,7 +1539,7 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		pe->rid = (pci_iov_virtfn_bus(pdev, vf_index) << 8) |
 			   pci_iov_virtfn_devfn(pdev, vf_index);
 
-		pe_info(pe, "VF %04d:%02d:%02d.%d associated with PE#%d\n",
+		pe_info(pe, "VF %04d:%02d:%02d.%d associated with PE#%x\n",
 			hose->global_number, pdev->bus->number,
 			PCI_SLOT(pci_iov_virtfn_devfn(pdev, vf_index)),
 			PCI_FUNC(pci_iov_virtfn_devfn(pdev, vf_index)), pe_num);
@@ -2718,15 +2731,21 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 }
 
 #ifdef CONFIG_PCI_MSI
-static void pnv_ioda2_msi_eoi(struct irq_data *d)
+int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
 {
-	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	struct pnv_phb *phb = container_of(chip, struct pnv_phb,
 					   ioda.irq_chip);
-	int64_t rc;
 
-	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
+	return opal_pci_msi_eoi(phb->opal_id, hw_irq);
+}
+
+static void pnv_ioda2_msi_eoi(struct irq_data *d)
+{
+	int64_t rc;
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+
+	rc = pnv_opal_pci_msi_eoi(chip, hw_irq);
 	WARN_ON_ONCE(rc);
 
 	icp_native_eoi(d);
@@ -2755,6 +2774,16 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 	}
 	irq_set_chip(virq, &phb->ioda.irq_chip);
 }
+
+/*
+ * Returns true iff chip is something that we could call
+ * pnv_opal_pci_msi_eoi for.
+ */
+bool is_pnv_opal_msi(struct irq_chip *chip)
+{
+	return chip->irq_eoi == pnv_ioda2_msi_eoi;
+}
+EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
 static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 				  unsigned int hwirq, unsigned int virq,
@@ -2815,7 +2844,7 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 	pnv_set_msi_irq_chip(phb, virq);
 
 	pr_devel("%s: %s-bit MSI on hwirq %x (xive #%d),"
-		 " address=%x_%08x data=%x PE# %d\n",
+		 " address=%x_%08x data=%x PE# %x\n",
 		 pci_name(dev), is_64 ? "64" : "32", hwirq, xive_num,
 		 msg->address_hi, msg->address_lo, data, pe->pe_number);
 
@@ -2964,7 +2993,7 @@ static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
 			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
 				pe->pe_number, OPAL_IO_WINDOW_TYPE, 0, index);
 			if (rc != OPAL_SUCCESS) {
-				pr_err("%s: Error %lld mapping IO segment#%d to PE#%d\n",
+				pr_err("%s: Error %lld mapping IO segment#%d to PE#%x\n",
 				       __func__, rc, index, pe->pe_number);
 				break;
 			}
@@ -2988,7 +3017,7 @@ static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
 			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
 				pe->pe_number, OPAL_M32_WINDOW_TYPE, 0, index);
 			if (rc != OPAL_SUCCESS) {
-				pr_err("%s: Error %lld mapping M32 segment#%d to PE#%d",
+				pr_err("%s: Error %lld mapping M32 segment#%d to PE#%x",
 				       __func__, rc, index, pe->pe_number);
 				break;
 			}
@@ -3033,6 +3062,38 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int pnv_pci_diag_data_set(void *data, u64 val)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+	s64 ret;
+
+	if (val != 1ULL)
+		return -EINVAL;
+
+	hose = (struct pci_controller *)data;
+	if (!hose || !hose->private_data)
+		return -ENODEV;
+
+	phb = hose->private_data;
+
+	/* Retrieve the diag data from firmware */
+	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					  PNV_PCI_DIAG_BUF_SIZE);
+	if (ret != OPAL_SUCCESS)
+		return -EIO;
+
+	/* Print the diag data to the kernel log */
+	pnv_pci_dump_phb_diag_data(phb->hose, phb->diag.blob);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pnv_pci_diag_data_fops, NULL,
+			pnv_pci_diag_data_set, "%llu\n");
+
+#endif /* CONFIG_DEBUG_FS */
+
 static void pnv_pci_ioda_create_dbgfs(void)
 {
 #ifdef CONFIG_DEBUG_FS
@@ -3048,9 +3109,14 @@ static void pnv_pci_ioda_create_dbgfs(void)
 
 		sprintf(name, "PCI%04x", hose->global_number);
 		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
-		if (!phb->dbgfs)
+		if (!phb->dbgfs) {
 			pr_warning("%s: Error on creating debugfs on PHB#%x\n",
 				__func__, hose->global_number);
+			continue;
+		}
+
+		debugfs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
+				    &pnv_pci_diag_data_fops);
 	}
 #endif /* CONFIG_DEBUG_FS */
 }
@@ -3215,7 +3281,7 @@ static void pnv_pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 		pnv_pci_ioda2_setup_dma_pe(phb, pe);
 		break;
 	default:
-		pr_warn("%s: No DMA for PHB#%d (type %d)\n",
+		pr_warn("%s: No DMA for PHB#%x (type %d)\n",
 			__func__, phb->hose->global_number, phb->type);
 	}
 }
@@ -3763,10 +3829,11 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	if (rc)
 		pr_warning("  OPAL Error %ld performing IODA table reset !\n", rc);
 
-	/* If we're running in kdump kerenl, the previous kerenl never
+	/*
+	 * If we're running in kdump kernel, the previous kernel never
 	 * shutdown PCI devices correctly. We already got IODA table
 	 * cleaned out. So we have to issue PHB reset to stop all PCI
-	 * transactions from previous kerenl.
+	 * transactions from previous kernel.
 	 */
 	if (is_kdump_kernel()) {
 		pr_info("  Issue PHB reset ...\n");

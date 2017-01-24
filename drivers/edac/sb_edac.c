@@ -23,10 +23,11 @@
 #include <linux/math64.h>
 #include <linux/mod_devicetable.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/mce.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Static vars */
 static LIST_HEAD(sbridge_edac_list);
@@ -2474,7 +2475,7 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha0 ||
-	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta)
+	    !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
 	if (saw_chan_mask != 0x0f)
@@ -2563,8 +2564,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_ha0 || !pvt->pci_br0 ||
-	    !pvt->pci_br1 || !pvt->pci_tad || !pvt->pci_ras  ||
-	    !pvt->pci_ta)
+	    !pvt->pci_br1 || !pvt->pci_ras || !pvt->pci_ta)
 		goto enodev;
 
 	if (saw_chan_mask != 0x0f && /* -EN */
@@ -3366,12 +3366,13 @@ fail0:
 	{ X86_VENDOR_INTEL, 6, model, 0, (unsigned long)&table }
 
 static const struct x86_cpu_id sbridge_cpuids[] = {
-	ICPU(0x2d, pci_dev_descr_sbridge_table),	/* SANDY_BRIDGE */
-	ICPU(0x3e, pci_dev_descr_ibridge_table),	/* IVY_BRIDGE */
-	ICPU(0x3f, pci_dev_descr_haswell_table),	/* HASWELL */
-	ICPU(0x4f, pci_dev_descr_broadwell_table),	/* BROADWELL */
-	ICPU(0x56, pci_dev_descr_broadwell_table),	/* BROADWELL-DE */
-	ICPU(0x57, pci_dev_descr_knl_table),		/* KNIGHTS_LANDING */
+	ICPU(INTEL_FAM6_SANDYBRIDGE_X,	  pci_dev_descr_sbridge_table),
+	ICPU(INTEL_FAM6_IVYBRIDGE_X,	  pci_dev_descr_ibridge_table),
+	ICPU(INTEL_FAM6_HASWELL_X,	  pci_dev_descr_haswell_table),
+	ICPU(INTEL_FAM6_BROADWELL_X,	  pci_dev_descr_broadwell_table),
+	ICPU(INTEL_FAM6_BROADWELL_XEON_D, pci_dev_descr_broadwell_table),
+	ICPU(INTEL_FAM6_XEON_PHI_KNL,	  pci_dev_descr_knl_table),
+	ICPU(INTEL_FAM6_XEON_PHI_KNM,	  pci_dev_descr_knl_table),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);

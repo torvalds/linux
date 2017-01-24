@@ -29,7 +29,7 @@
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * retrieve the contents of SCORE userspace general registers
@@ -131,7 +131,7 @@ read_tsk_long(struct task_struct *child,
 {
 	int copied;
 
-	copied = access_process_vm(child, addr, res, sizeof(*res), 0);
+	copied = access_process_vm(child, addr, res, sizeof(*res), FOLL_FORCE);
 
 	return copied != sizeof(*res) ? -EIO : 0;
 }
@@ -142,7 +142,7 @@ read_tsk_short(struct task_struct *child,
 {
 	int copied;
 
-	copied = access_process_vm(child, addr, res, sizeof(*res), 0);
+	copied = access_process_vm(child, addr, res, sizeof(*res), FOLL_FORCE);
 
 	return copied != sizeof(*res) ? -EIO : 0;
 }
@@ -153,7 +153,8 @@ write_tsk_short(struct task_struct *child,
 {
 	int copied;
 
-	copied = access_process_vm(child, addr, &val, sizeof(val), 1);
+	copied = access_process_vm(child, addr, &val, sizeof(val),
+			FOLL_FORCE | FOLL_WRITE);
 
 	return copied != sizeof(val) ? -EIO : 0;
 }
@@ -164,7 +165,8 @@ write_tsk_long(struct task_struct *child,
 {
 	int copied;
 
-	copied = access_process_vm(child, addr, &val, sizeof(val), 1);
+	copied = access_process_vm(child, addr, &val, sizeof(val),
+			FOLL_FORCE | FOLL_WRITE);
 
 	return copied != sizeof(val) ? -EIO : 0;
 }

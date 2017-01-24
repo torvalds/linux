@@ -72,7 +72,7 @@
 static const char	hcd_name [] = "ohci_hcd";
 
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
-#define	IO_WATCHDOG_DELAY	msecs_to_jiffies(250)
+#define	IO_WATCHDOG_DELAY	msecs_to_jiffies(275)
 
 #include "ohci.h"
 #include "pci-quirks.h"
@@ -1219,11 +1219,6 @@ MODULE_LICENSE ("GPL");
 #define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
 
-#ifdef CONFIG_USB_OHCI_HCD_DAVINCI
-#include "ohci-da8xx.c"
-#define DAVINCI_PLATFORM_DRIVER	ohci_hcd_da8xx_driver
-#endif
-
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF
 #include "ohci-ppc-of.c"
 #define OF_PLATFORM_DRIVER	ohci_hcd_ppc_of_driver
@@ -1303,19 +1298,9 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_tmio;
 #endif
 
-#ifdef DAVINCI_PLATFORM_DRIVER
-	retval = platform_driver_register(&DAVINCI_PLATFORM_DRIVER);
-	if (retval < 0)
-		goto error_davinci;
-#endif
-
 	return retval;
 
 	/* Error path */
-#ifdef DAVINCI_PLATFORM_DRIVER
-	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
- error_davinci:
-#endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);
  error_tmio:
@@ -1351,9 +1336,6 @@ module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
-#ifdef DAVINCI_PLATFORM_DRIVER
-	platform_driver_unregister(&DAVINCI_PLATFORM_DRIVER);
-#endif
 #ifdef TMIO_OHCI_DRIVER
 	platform_driver_unregister(&TMIO_OHCI_DRIVER);
 #endif

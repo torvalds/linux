@@ -50,7 +50,6 @@ struct devlink_sb_pool_info {
 };
 
 struct devlink_ops {
-	size_t priv_size;
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
@@ -93,6 +92,8 @@ struct devlink_ops {
 
 	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
 	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
+	int (*eswitch_inline_mode_get)(struct devlink *devlink, u8 *p_inline_mode);
+	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

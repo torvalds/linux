@@ -163,7 +163,7 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 	struct drm_master *master = file_priv->master;
 	int ret = 0;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return -EINVAL;
 
 	++file_priv->lock_count;
@@ -176,7 +176,8 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 		  lock->context, task_pid_nr(current),
-		  master->lock.hw_lock->lock, lock->flags);
+		  master->lock.hw_lock ? master->lock.hw_lock->lock : -1,
+		  lock->flags);
 
 	add_wait_queue(&master->lock.lock_queue, &entry);
 	spin_lock_bh(&master->lock.spinlock);
@@ -252,7 +253,7 @@ int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_
 	struct drm_lock *lock = data;
 	struct drm_master *master = file_priv->master;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return -EINVAL;
 
 	if (lock->context == DRM_KERNEL_CONTEXT) {

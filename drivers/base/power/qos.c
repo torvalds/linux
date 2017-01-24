@@ -856,7 +856,10 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 		struct dev_pm_qos_request *req;
 
 		if (val < 0) {
-			ret = -EINVAL;
+			if (val == PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT)
+				ret = 0;
+			else
+				ret = -EINVAL;
 			goto out;
 		}
 		req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -883,6 +886,7 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dev_pm_qos_update_user_latency_tolerance);
 
 /**
  * dev_pm_qos_expose_latency_tolerance - Expose latency tolerance to userspace

@@ -47,6 +47,11 @@ static int gc_thread_func(void *data)
 			continue;
 		}
 
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+		if (time_to_inject(sbi, FAULT_CHECKPOINT))
+			f2fs_stop_checkpoint(sbi, false);
+#endif
+
 		/*
 		 * [GC triggering condition]
 		 * 0. GC is not conducted currently.
@@ -77,7 +82,7 @@ static int gc_thread_func(void *data)
 		stat_inc_bggc_count(sbi);
 
 		/* if return value is not zero, no victim was selected */
-		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC)))
+		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC), true))
 			wait_ms = gc_th->no_gc_sleep_time;
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
@@ -96,7 +101,7 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
 	int err = 0;
 
-	gc_th = f2fs_kmalloc(sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
+	gc_th = f2fs_kmalloc(sbi, sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
 	if (!gc_th) {
 		err = -ENOMEM;
 		goto out;
@@ -270,7 +275,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	struct victim_sel_policy p;
-	unsigned int secno, max_cost, last_victim;
+	unsigned int secno, last_victim;
 	unsigned int last_segment = MAIN_SEGS(sbi);
 	unsigned int nsearched = 0;
 
@@ -280,7 +285,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	select_policy(sbi, gc_type, type, &p);
 
 	p.min_segno = NULL_SEGNO;
-	p.min_cost = max_cost = get_max_cost(sbi, &p);
+	p.min_cost = get_max_cost(sbi, &p);
 
 	if (p.max_search == 0)
 		goto out;
@@ -423,10 +428,10 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
 static void gc_node_segment(struct f2fs_sb_info *sbi,
 		struct f2fs_summary *sum, unsigned int segno, int gc_type)
 {
-	bool initial = true;
 	struct f2fs_summary *entry;
 	block_t start_addr;
 	int off;
+	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
 
@@ -439,16 +444,24 @@ next_step:
 		struct node_info ni;
 
 		/* stop BG_GC if there is not enough free sections. */
-		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0))
+		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0, 0))
 			return;
 
 		if (check_valid_map(sbi, segno, off) == 0)
 			continue;
 
-		if (initial) {
+		if (phase == 0) {
+			ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), 1,
+							META_NAT, true);
+			continue;
+		}
+
+		if (phase == 1) {
 			ra_node_page(sbi, nid);
 			continue;
 		}
+
+		/* phase == 2 */
 		node_page = get_node_page(sbi, nid);
 		if (IS_ERR(node_page))
 			continue;
@@ -469,10 +482,8 @@ next_step:
 		stat_inc_node_blk_count(sbi, 1, gc_type);
 	}
 
-	if (initial) {
-		initial = false;
+	if (++phase < 3)
 		goto next_step;
-	}
 }
 
 /*
@@ -533,13 +544,14 @@ static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	return true;
 }
 
-static void move_encrypted_block(struct inode *inode, block_t bidx)
+static void move_encrypted_block(struct inode *inode, block_t bidx,
+							unsigned int segno, int off)
 {
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(inode),
 		.type = DATA,
 		.op = REQ_OP_READ,
-		.op_flags = READ_SYNC,
+		.op_flags = 0,
 		.encrypted_page = NULL,
 	};
 	struct dnode_of_data dn;
@@ -553,6 +565,9 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	page = f2fs_grab_cache_page(inode->i_mapping, bidx, false);
 	if (!page)
 		return;
+
+	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
+		goto out;
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, bidx, LOOKUP_NODE);
@@ -614,7 +629,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
 
 	fio.op = REQ_OP_WRITE;
-	fio.op_flags = WRITE_SYNC;
+	fio.op_flags = REQ_SYNC;
 	fio.new_blkaddr = newaddr;
 	f2fs_submit_page_mbio(&fio);
 
@@ -634,13 +649,17 @@ out:
 	f2fs_put_page(page, 1);
 }
 
-static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
+static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
+							unsigned int segno, int off)
 {
 	struct page *page;
 
 	page = get_lock_data_page(inode, bidx, true);
 	if (IS_ERR(page))
 		return;
+
+	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
+		goto out;
 
 	if (gc_type == BG_GC) {
 		if (PageWriteback(page))
@@ -652,7 +671,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.sbi = F2FS_I_SB(inode),
 			.type = DATA,
 			.op = REQ_OP_WRITE,
-			.op_flags = WRITE_SYNC,
+			.op_flags = REQ_SYNC,
 			.page = page,
 			.encrypted_page = NULL,
 		};
@@ -662,8 +681,10 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 retry:
 		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA, true);
-		if (clear_page_dirty_for_io(page))
+		if (clear_page_dirty_for_io(page)) {
 			inode_dec_dirty_pages(inode);
+			remove_dirty_inode(inode);
+		}
 
 		set_cold_data(page);
 
@@ -672,8 +693,6 @@ retry:
 			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
-
-		clear_cold_data(page);
 	}
 out:
 	f2fs_put_page(page, 1);
@@ -706,16 +725,23 @@ next_step:
 		struct node_info dni; /* dnode info for the data */
 		unsigned int ofs_in_node, nofs;
 		block_t start_bidx;
+		nid_t nid = le32_to_cpu(entry->nid);
 
 		/* stop BG_GC if there is not enough free sections. */
-		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0))
+		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0, 0))
 			return;
 
 		if (check_valid_map(sbi, segno, off) == 0)
 			continue;
 
 		if (phase == 0) {
-			ra_node_page(sbi, le32_to_cpu(entry->nid));
+			ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), 1,
+							META_NAT, true);
+			continue;
+		}
+
+		if (phase == 1) {
+			ra_node_page(sbi, nid);
 			continue;
 		}
 
@@ -723,14 +749,14 @@ next_step:
 		if (!is_alive(sbi, entry, &dni, start_addr + off, &nofs))
 			continue;
 
-		if (phase == 1) {
+		if (phase == 2) {
 			ra_node_page(sbi, dni.ino);
 			continue;
 		}
 
 		ofs_in_node = le16_to_cpu(entry->ofs_in_node);
 
-		if (phase == 2) {
+		if (phase == 3) {
 			inode = f2fs_iget(sb, dni.ino);
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
@@ -756,7 +782,7 @@ next_step:
 			continue;
 		}
 
-		/* phase 3 */
+		/* phase 4 */
 		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
 			struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -776,9 +802,9 @@ next_step:
 			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
 			if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
-				move_encrypted_block(inode, start_bidx);
+				move_encrypted_block(inode, start_bidx, segno, off);
 			else
-				move_data_page(inode, start_bidx, gc_type);
+				move_data_page(inode, start_bidx, gc_type, segno, off);
 
 			if (locked) {
 				up_write(&fi->dio_rwsem[WRITE]);
@@ -789,7 +815,7 @@ next_step:
 		}
 	}
 
-	if (++phase < 4)
+	if (++phase < 5)
 		goto next_step;
 }
 
@@ -815,7 +841,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	struct blk_plug plug;
 	unsigned int segno = start_segno;
 	unsigned int end_segno = start_segno + sbi->segs_per_sec;
-	int seg_freed = 0;
+	int sec_freed = 0;
 	unsigned char type = IS_DATASEG(get_seg_entry(sbi, segno)->type) ?
 						SUM_TYPE_DATA : SUM_TYPE_NODE;
 
@@ -834,14 +860,15 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 
 	for (segno = start_segno; segno < end_segno; segno++) {
 
-		if (get_valid_blocks(sbi, segno, 1) == 0)
-			continue;
-
 		/* find segment summary of victim */
 		sum_page = find_get_page(META_MAPPING(sbi),
 					GET_SUM_BLOCK(sbi, segno));
-		f2fs_bug_on(sbi, !PageUptodate(sum_page));
 		f2fs_put_page(sum_page, 0);
+
+		if (get_valid_blocks(sbi, segno, 1) == 0 ||
+				!PageUptodate(sum_page) ||
+				unlikely(f2fs_cp_error(sbi)))
+			goto next;
 
 		sum = page_address(sum_page);
 		f2fs_bug_on(sbi, type != GET_SUM_TYPE((&sum->footer)));
@@ -861,7 +888,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 								gc_type);
 
 		stat_inc_seg_count(sbi, type, gc_type);
-
+next:
 		f2fs_put_page(sum_page, 0);
 	}
 
@@ -871,22 +898,20 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 
 	blk_finish_plug(&plug);
 
-	if (gc_type == FG_GC) {
-		while (start_segno < end_segno)
-			if (get_valid_blocks(sbi, start_segno++, 1) == 0)
-				seg_freed++;
-	}
+	if (gc_type == FG_GC &&
+		get_valid_blocks(sbi, start_segno, sbi->segs_per_sec) == 0)
+		sec_freed = 1;
 
 	stat_inc_call_count(sbi->stat_info);
 
-	return seg_freed;
+	return sec_freed;
 }
 
-int f2fs_gc(struct f2fs_sb_info *sbi, bool sync)
+int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background)
 {
 	unsigned int segno;
 	int gc_type = sync ? FG_GC : BG_GC;
-	int sec_freed = 0, seg_freed;
+	int sec_freed = 0;
 	int ret = -EINVAL;
 	struct cp_control cpc;
 	struct gc_inode_list gc_list = {
@@ -905,7 +930,7 @@ gc_more:
 		goto stop;
 	}
 
-	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
+	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed, 0)) {
 		gc_type = FG_GC;
 		/*
 		 * If there is no victim and no prefree segment but still not
@@ -914,31 +939,37 @@ gc_more:
 		 */
 		if (__get_victim(sbi, &segno, gc_type) ||
 						prefree_segments(sbi)) {
-			write_checkpoint(sbi, &cpc);
+			ret = write_checkpoint(sbi, &cpc);
+			if (ret)
+				goto stop;
 			segno = NULL_SEGNO;
-		} else if (has_not_enough_free_secs(sbi, 0)) {
-			write_checkpoint(sbi, &cpc);
+		} else if (has_not_enough_free_secs(sbi, 0, 0)) {
+			ret = write_checkpoint(sbi, &cpc);
+			if (ret)
+				goto stop;
 		}
+	} else if (gc_type == BG_GC && !background) {
+		/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
+		goto stop;
 	}
 
 	if (segno == NULL_SEGNO && !__get_victim(sbi, &segno, gc_type))
 		goto stop;
 	ret = 0;
 
-	seg_freed = do_garbage_collect(sbi, segno, &gc_list, gc_type);
-
-	if (gc_type == FG_GC && seg_freed == sbi->segs_per_sec)
+	if (do_garbage_collect(sbi, segno, &gc_list, gc_type) &&
+			gc_type == FG_GC)
 		sec_freed++;
 
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
 	if (!sync) {
-		if (has_not_enough_free_secs(sbi, sec_freed))
+		if (has_not_enough_free_secs(sbi, sec_freed, 0))
 			goto gc_more;
 
 		if (gc_type == FG_GC)
-			write_checkpoint(sbi, &cpc);
+			ret = write_checkpoint(sbi, &cpc);
 	}
 stop:
 	mutex_unlock(&sbi->gc_mutex);

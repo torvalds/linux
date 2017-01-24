@@ -74,7 +74,7 @@ static int ssp_accel_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static struct iio_info ssp_accel_iio_info = {
+static const struct iio_info ssp_accel_iio_info = {
 	.read_raw = &ssp_accel_read_raw,
 	.write_raw = &ssp_accel_write_raw,
 };

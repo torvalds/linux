@@ -57,21 +57,9 @@ struct notifier_block;
 
 #define CPU_ONLINE		0x0002 /* CPU (unsigned)v is up */
 #define CPU_UP_PREPARE		0x0003 /* CPU (unsigned)v coming up */
-#define CPU_UP_CANCELED		0x0004 /* CPU (unsigned)v NOT coming up */
-#define CPU_DOWN_PREPARE	0x0005 /* CPU (unsigned)v going down */
-#define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
 #define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
-#define CPU_DYING		0x0008 /* CPU (unsigned)v not running any task,
-					* not handling interrupts, soon dead.
-					* Called on the dying cpu, interrupts
-					* are already disabled. Must not
-					* sleep, must not fail */
 #define CPU_POST_DEAD		0x0009 /* CPU (unsigned)v dead, cpu_hotplug
 					* lock is dropped */
-#define CPU_STARTING		0x000A /* CPU (unsigned)v soon running.
-					* Called on the new cpu, just before
-					* enabling interrupts. Must not sleep,
-					* must not fail */
 #define CPU_BROKEN		0x000B /* CPU (unsigned)v did not die properly,
 					* perhaps due to preemption. */
 
@@ -86,106 +74,22 @@ struct notifier_block;
 #define CPU_DOWN_PREPARE_FROZEN	(CPU_DOWN_PREPARE | CPU_TASKS_FROZEN)
 #define CPU_DOWN_FAILED_FROZEN	(CPU_DOWN_FAILED | CPU_TASKS_FROZEN)
 #define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
-#define CPU_DYING_FROZEN	(CPU_DYING | CPU_TASKS_FROZEN)
-#define CPU_STARTING_FROZEN	(CPU_STARTING | CPU_TASKS_FROZEN)
-
 
 #ifdef CONFIG_SMP
 extern bool cpuhp_tasks_frozen;
-/* Need to know about CPUs going up/down? */
-#if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE)
-#define cpu_notifier(fn, pri) {					\
-	static struct notifier_block fn##_nb =			\
-		{ .notifier_call = fn, .priority = pri };	\
-	register_cpu_notifier(&fn##_nb);			\
-}
-
-#define __cpu_notifier(fn, pri) {				\
-	static struct notifier_block fn##_nb =			\
-		{ .notifier_call = fn, .priority = pri };	\
-	__register_cpu_notifier(&fn##_nb);			\
-}
-#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
-#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
-
-#ifdef CONFIG_HOTPLUG_CPU
-extern int register_cpu_notifier(struct notifier_block *nb);
-extern int __register_cpu_notifier(struct notifier_block *nb);
-extern void unregister_cpu_notifier(struct notifier_block *nb);
-extern void __unregister_cpu_notifier(struct notifier_block *nb);
-#else
-
-#ifndef MODULE
-extern int register_cpu_notifier(struct notifier_block *nb);
-extern int __register_cpu_notifier(struct notifier_block *nb);
-#else
-static inline int register_cpu_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int __register_cpu_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-#endif
-
-static inline void unregister_cpu_notifier(struct notifier_block *nb)
-{
-}
-
-static inline void __unregister_cpu_notifier(struct notifier_block *nb)
-{
-}
-#endif
-
 int cpu_up(unsigned int cpu);
 void notify_cpu_starting(unsigned int cpu);
 extern void cpu_maps_update_begin(void);
 extern void cpu_maps_update_done(void);
 
-#define cpu_notifier_register_begin	cpu_maps_update_begin
-#define cpu_notifier_register_done	cpu_maps_update_done
-
 #else	/* CONFIG_SMP */
 #define cpuhp_tasks_frozen	0
-
-#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-
-static inline int register_cpu_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int __register_cpu_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline void unregister_cpu_notifier(struct notifier_block *nb)
-{
-}
-
-static inline void __unregister_cpu_notifier(struct notifier_block *nb)
-{
-}
 
 static inline void cpu_maps_update_begin(void)
 {
 }
 
 static inline void cpu_maps_update_done(void)
-{
-}
-
-static inline void cpu_notifier_register_begin(void)
-{
-}
-
-static inline void cpu_notifier_register_done(void)
 {
 }
 
@@ -201,12 +105,6 @@ extern void get_online_cpus(void);
 extern void put_online_cpus(void);
 extern void cpu_hotplug_disable(void);
 extern void cpu_hotplug_enable(void);
-#define hotcpu_notifier(fn, pri)	cpu_notifier(fn, pri)
-#define __hotcpu_notifier(fn, pri)	__cpu_notifier(fn, pri)
-#define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
-#define __register_hotcpu_notifier(nb)	__register_cpu_notifier(nb)
-#define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
-#define __unregister_hotcpu_notifier(nb)	__unregister_cpu_notifier(nb)
 void clear_tasks_mm_cpumask(int cpu);
 int cpu_down(unsigned int cpu);
 
@@ -218,17 +116,14 @@ static inline void cpu_hotplug_done(void) {}
 #define put_online_cpus()	do { } while (0)
 #define cpu_hotplug_disable()	do { } while (0)
 #define cpu_hotplug_enable()	do { } while (0)
-#define hotcpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-#define __hotcpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-/* These aren't inline functions due to a GCC bug. */
-#define register_hotcpu_notifier(nb)	({ (void)(nb); 0; })
-#define __register_hotcpu_notifier(nb)	({ (void)(nb); 0; })
-#define unregister_hotcpu_notifier(nb)	({ (void)(nb); })
-#define __unregister_hotcpu_notifier(nb)	({ (void)(nb); })
 #endif		/* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_PM_SLEEP_SMP
-extern int disable_nonboot_cpus(void);
+extern int freeze_secondary_cpus(int primary);
+static inline int disable_nonboot_cpus(void)
+{
+	return freeze_secondary_cpus(0);
+}
 extern void enable_nonboot_cpus(void);
 #else /* !CONFIG_PM_SLEEP_SMP */
 static inline int disable_nonboot_cpus(void) { return 0; }
@@ -239,6 +134,11 @@ void cpu_startup_entry(enum cpuhp_state state);
 
 void cpu_idle_poll_ctrl(bool enable);
 
+/* Attach to any functions which should be considered cpuidle. */
+#define __cpuidle	__attribute__((__section__(".cpuidle.text")))
+
+bool cpu_in_idle(unsigned long pc);
+
 void arch_cpu_idle(void);
 void arch_cpu_idle_prepare(void);
 void arch_cpu_idle_enter(void);
@@ -248,6 +148,8 @@ void arch_cpu_idle_dead(void);
 int cpu_report_state(int cpu);
 int cpu_check_up_prepare(int cpu);
 void cpu_set_state_online(int cpu);
+void play_idle(unsigned long duration_ms);
+
 #ifdef CONFIG_HOTPLUG_CPU
 bool cpu_wait_death(unsigned int cpu, int seconds);
 bool cpu_report_death(void);

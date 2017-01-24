@@ -903,6 +903,7 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 {
 	lnet_rc_data_t *rcd = NULL;
 	lnet_ping_info_t *pi;
+	lnet_md_t md;
 	int rc;
 	int i;
 
@@ -925,15 +926,15 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	}
 	rcd->rcd_pinginfo = pi;
 
+	md.start = pi;
+	md.user_ptr = rcd;
+	md.length = LNET_PINGINFO_SIZE;
+	md.threshold = LNET_MD_THRESH_INF;
+	md.options = LNET_MD_TRUNCATE;
+	md.eq_handle = the_lnet.ln_rc_eqh;
+
 	LASSERT(!LNetHandleIsInvalid(the_lnet.ln_rc_eqh));
-	rc = LNetMDBind((lnet_md_t){.start     = pi,
-				    .user_ptr  = rcd,
-				    .length    = LNET_PINGINFO_SIZE,
-				    .threshold = LNET_MD_THRESH_INF,
-				    .options   = LNET_MD_TRUNCATE,
-				    .eq_handle = the_lnet.ln_rc_eqh},
-			LNET_UNLINK,
-			&rcd->rcd_mdh);
+	rc = LNetMDBind(md, LNET_UNLINK, &rcd->rcd_mdh);
 	if (rc < 0) {
 		CERROR("Can't bind MD: %d\n", rc);
 		goto out;
@@ -1307,7 +1308,7 @@ lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
 	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
 
 	while (--npages >= 0)
-		__free_page(rb->rb_kiov[npages].kiov_page);
+		__free_page(rb->rb_kiov[npages].bv_page);
 
 	LIBCFS_FREE(rb, sz);
 }
@@ -1333,15 +1334,15 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 				GFP_KERNEL | __GFP_ZERO, 0);
 		if (!page) {
 			while (--i >= 0)
-				__free_page(rb->rb_kiov[i].kiov_page);
+				__free_page(rb->rb_kiov[i].bv_page);
 
 			LIBCFS_FREE(rb, sz);
 			return NULL;
 		}
 
-		rb->rb_kiov[i].kiov_len = PAGE_SIZE;
-		rb->rb_kiov[i].kiov_offset = 0;
-		rb->rb_kiov[i].kiov_page = page;
+		rb->rb_kiov[i].bv_len = PAGE_SIZE;
+		rb->rb_kiov[i].bv_offset = 0;
+		rb->rb_kiov[i].bv_page = page;
 	}
 
 	return rb;
@@ -1693,7 +1694,7 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 int
 lnet_rtrpools_enable(void)
 {
-	int rc;
+	int rc = 0;
 
 	if (the_lnet.ln_routing)
 		return 0;
@@ -1706,9 +1707,9 @@ lnet_rtrpools_enable(void)
 		 * if we are just configuring this for the first
 		 * time.
 		 */
-		return lnet_rtrpools_alloc(1);
-
-	rc = lnet_rtrpools_adjust_helper(0, 0, 0);
+		rc = lnet_rtrpools_alloc(1);
+	else
+		rc = lnet_rtrpools_adjust_helper(0, 0, 0);
 	if (rc)
 		return rc;
 
@@ -1718,7 +1719,7 @@ lnet_rtrpools_enable(void)
 	the_lnet.ln_ping_info->pi_features &= ~LNET_PING_FEAT_RTE_DISABLED;
 	lnet_net_unlock(LNET_LOCK_EX);
 
-	return 0;
+	return rc;
 }
 
 void

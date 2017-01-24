@@ -153,6 +153,7 @@ static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
 
 /* make u16 wide id out of u8 group and opcode */
 #define WIDE_ID(grp, opcode) ((grp << 8) | opcode)
+#define DEF_ID(opcode) ((1 << 8) | (opcode))
 
 /* due to the conversion, this group is special; new groups
  * should be defined in the appropriate fw-api header files
@@ -262,8 +263,6 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	(i.e. mark it as non-idle).
  * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
  *	called after this command completes. Valid only with CMD_ASYNC.
- * @CMD_TB_BITMAP_POS: Position of the first bit for the TB bitmap. We need to
- *	check that we leave enough room for the TBs bitmap which needs 20 bits.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
@@ -274,8 +273,6 @@ enum CMD_MODE {
 	CMD_MAKE_TRANS_IDLE	= BIT(5),
 	CMD_WAKE_UP_TRANS	= BIT(6),
 	CMD_WANT_ASYNC_CALLBACK	= BIT(7),
-
-	CMD_TB_BITMAP_POS	= 11,
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -488,7 +485,6 @@ struct iwl_hcmd_arr {
  * @bc_table_dword: set to true if the BC table expects the byte count to be
  *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
- * @wide_cmd_header: firmware supports wide host command header
  * @sw_csum_tx: transport should compute the TCP checksum
  * @command_groups: array of command groups, each member is an array of the
  *	commands in the group; for debugging only
@@ -510,7 +506,6 @@ struct iwl_trans_config {
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
 	bool scd_set_active;
-	bool wide_cmd_header;
 	bool sw_csum_tx;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -649,6 +644,8 @@ struct iwl_trans_ops {
 	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
 				    bool shared);
 
+	dma_addr_t (*get_txq_byte_table)(struct iwl_trans *trans, int txq_id);
+
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
@@ -772,6 +769,7 @@ enum iwl_plat_pm_mode {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
+ * @wide_cmd_header: true when ucode supports wide command header format
  * @num_rx_queues: number of RX queues allocated by the transport;
  *	the transport must set this before calling iwl_drv_start()
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
@@ -823,6 +821,7 @@ struct iwl_trans {
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
+	bool wide_cmd_header;
 
 	u8 num_rx_queues;
 
@@ -1071,6 +1070,15 @@ static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 {
 	if (trans->ops->txq_set_shared_mode)
 		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
+}
+
+static inline dma_addr_t iwl_trans_get_txq_byte_table(struct iwl_trans *trans,
+						      int queue)
+{
+	/* we should never be called if the trans doesn't support it */
+	BUG_ON(!trans->ops->get_txq_byte_table);
+
+	return trans->ops->get_txq_byte_table(trans, queue);
 }
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,

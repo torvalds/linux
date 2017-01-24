@@ -39,7 +39,7 @@
  */
 static u8 rxe_get_key(void)
 {
-	static unsigned key = 1;
+	static u32 key = 1;
 
 	key = key << 1;
 
@@ -354,6 +354,9 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 	int			i;
 	size_t			offset;
 	u32			crc = crcp ? (*crcp) : 0;
+
+	if (length == 0)
+		return 0;
 
 	if (mem->type == RXE_MEM_TYPE_DMA) {
 		u8 *src, *dest;

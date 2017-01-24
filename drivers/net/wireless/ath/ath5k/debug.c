@@ -66,7 +66,6 @@
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
-#include <linux/vmalloc.h>
 #include "debug.h"
 #include "ath5k.h"
 #include "reg.h"
@@ -909,7 +908,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	struct ath5k_hw *ah = inode->i_private;
 	bool res;
 	int i, ret;
-	u32 eesize;
+	u32 eesize;	/* NB: in 16-bit words */
 	u16 val, *buf;
 
 	/* Get eeprom size */
@@ -932,7 +931,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	/* Create buffer and read in eeprom */
 
-	buf = vmalloc(eesize);
+	buf = vmalloc(eesize * 2);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -952,7 +951,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 	}
 
 	ep->buf = buf;
-	ep->len = i;
+	ep->len = eesize * 2;
 
 	file->private_data = (void *)ep;
 

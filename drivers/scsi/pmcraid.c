@@ -306,7 +306,7 @@ static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth)
  * Return Value
  *	 None
  */
-void pmcraid_init_cmdblk(struct pmcraid_cmd *cmd, int index)
+static void pmcraid_init_cmdblk(struct pmcraid_cmd *cmd, int index)
 {
 	struct pmcraid_ioarcb *ioarcb = &(cmd->ioa_cb->ioarcb);
 	dma_addr_t dma_addr = cmd->ioa_cb_bus_addr;
@@ -401,7 +401,7 @@ static struct pmcraid_cmd *pmcraid_get_free_cmd(
  * Return Value:
  *	nothing
  */
-void pmcraid_return_cmd(struct pmcraid_cmd *cmd)
+static void pmcraid_return_cmd(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	unsigned long lock_flags;
@@ -1368,13 +1368,8 @@ static struct genl_multicast_group pmcraid_mcgrps[] = {
 	{ .name = "events", /* not really used - see ID discussion below */ },
 };
 
-static struct genl_family pmcraid_event_family = {
-	/*
-	 * Due to prior multicast group abuse (the code having assumed that
-	 * the family ID can be used as a multicast group ID) we need to
-	 * statically allocate a family (and thus group) ID.
-	 */
-	.id = GENL_ID_PMCRAID,
+static struct genl_family pmcraid_event_family __ro_after_init = {
+	.module = THIS_MODULE,
 	.name = "pmcraid",
 	.version = 1,
 	.maxattr = PMCRAID_AEN_ATTR_MAX,
@@ -1389,7 +1384,7 @@ static struct genl_family pmcraid_event_family = {
  *	0 if the pmcraid_event_family is successfully registered
  *	with netlink generic, non-zero otherwise
  */
-static int pmcraid_netlink_init(void)
+static int __init pmcraid_netlink_init(void)
 {
 	int result;
 
@@ -1710,7 +1705,7 @@ static struct pmcraid_ioasc_error *pmcraid_get_error_info(u32 ioasc)
  * @ioasc: ioasc code
  * @cmd: pointer to command that resulted in 'ioasc'
  */
-void pmcraid_ioasc_logger(u32 ioasc, struct pmcraid_cmd *cmd)
+static void pmcraid_ioasc_logger(u32 ioasc, struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_ioasc_error *error_info = pmcraid_get_error_info(ioasc);
 
@@ -3137,7 +3132,7 @@ static int pmcraid_eh_host_reset_handler(struct scsi_cmnd *scmd)
  *   returns pointer pmcraid_ioadl_desc, initialized to point to internal
  *   or external IOADLs
  */
-struct pmcraid_ioadl_desc *
+static struct pmcraid_ioadl_desc *
 pmcraid_init_ioadls(struct pmcraid_cmd *cmd, int sgcount)
 {
 	struct pmcraid_ioadl_desc *ioadl;
@@ -3792,11 +3787,11 @@ static long pmcraid_ioctl_passthrough(
 						      direction);
 		if (rc) {
 			pmcraid_err("couldn't build passthrough ioadls\n");
-			goto out_free_buffer;
+			goto out_free_cmd;
 		}
 	} else if (request_size < 0) {
 		rc = -EINVAL;
-		goto out_free_buffer;
+		goto out_free_cmd;
 	}
 
 	/* If data is being written into the device, copy the data from user
@@ -3913,6 +3908,8 @@ out_handle_response:
 
 out_free_sglist:
 	pmcraid_release_passthrough_ioadls(cmd, request_size, direction);
+
+out_free_cmd:
 	pmcraid_return_cmd(cmd);
 
 out_free_buffer:
@@ -6023,8 +6020,10 @@ static int __init pmcraid_init(void)
 
 	error = pmcraid_netlink_init();
 
-	if (error)
+	if (error) {
+		class_destroy(pmcraid_class);
 		goto out_unreg_chrdev;
+	}
 
 	error = pci_register_driver(&pmcraid_driver);
 

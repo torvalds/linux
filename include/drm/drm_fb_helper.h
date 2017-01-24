@@ -32,6 +32,7 @@
 
 struct drm_fb_helper;
 
+#include <drm/drm_crtc.h>
 #include <linux/kgdb.h>
 
 enum mode_set_atomic {
@@ -176,6 +177,7 @@ struct drm_fb_helper_connector {
  *              the screen buffer
  * @dirty_lock: spinlock protecting @dirty_clip
  * @dirty_work: worker used to flush the framebuffer
+ * @resume_work: worker used during resume if the console lock is already taken
  *
  * This is the main structure used by the fbdev helpers. Drivers supporting
  * fbdev emulation should embedded this into their overall driver structure.
@@ -196,6 +198,7 @@ struct drm_fb_helper {
 	struct drm_clip_rect dirty_clip;
 	spinlock_t dirty_lock;
 	struct work_struct dirty_work;
+	struct work_struct resume_work;
 
 	/**
 	 * @kernel_fb_list:
@@ -214,8 +217,22 @@ struct drm_fb_helper {
 	bool delayed_hotplug;
 };
 
+/**
+ * define DRM_FB_HELPER_DEFAULT_OPS - helper define for drm drivers
+ *
+ * Helper define to register default implementations of drm_fb_helper
+ * functions. To be used in struct fb_ops of drm drivers.
+ */
+#define DRM_FB_HELPER_DEFAULT_OPS \
+	.fb_check_var	= drm_fb_helper_check_var, \
+	.fb_set_par	= drm_fb_helper_set_par, \
+	.fb_setcmap	= drm_fb_helper_setcmap, \
+	.fb_blank	= drm_fb_helper_blank, \
+	.fb_pan_display	= drm_fb_helper_pan_display, \
+	.fb_debug_enter = drm_fb_helper_debug_enter, \
+	.fb_debug_leave = drm_fb_helper_debug_leave
+
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-int drm_fb_helper_modinit(void);
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
@@ -263,7 +280,9 @@ void drm_fb_helper_cfb_copyarea(struct fb_info *info,
 void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image);
 
-void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state);
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend);
+void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
+					bool suspend);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
@@ -283,11 +302,6 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
 #else
-static inline int drm_fb_helper_modinit(void)
-{
-	return 0;
-}
-
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
 					const struct drm_fb_helper_funcs *funcs)
@@ -417,7 +431,12 @@ static inline void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 }
 
 static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
-					     int state)
+					     bool suspend)
+{
+}
+
+static inline void
+drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper, bool suspend)
 {
 }
 
@@ -475,5 +494,18 @@ drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 {
 	return 0;
 }
+
 #endif
+
+static inline int
+drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
+					      const char *name, bool primary)
+{
+#if IS_REACHABLE(CONFIG_FB)
+	return remove_conflicting_framebuffers(a, name, primary);
+#else
+	return 0;
+#endif
+}
+
 #endif

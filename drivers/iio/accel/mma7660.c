@@ -39,7 +39,7 @@
 
 #define MMA7660_SCALE_AVAIL	"0.467142857"
 
-const int mma7660_nscale = 467142857;
+static const int mma7660_nscale = 467142857;
 
 #define MMA7660_CHANNEL(reg, axis) {	\
 	.type = IIO_ACCEL,	\
@@ -251,6 +251,7 @@ static const struct i2c_device_id mma7660_i2c_id[] = {
 	{"mma7660", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, mma7660_i2c_id);
 
 static const struct acpi_device_id mma7660_acpi_id[] = {
 	{"MMA7660", 0},

@@ -91,7 +91,7 @@ static char *media[MAX_UNITS];
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -580,6 +580,10 @@ static int sundance_probe1(struct pci_dev *pdev,
 	dev->ethtool_ops = &ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
+	/* MTU range: 68 - 8191 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = 8191;
+
 	pci_set_drvdata(pdev, dev);
 
 	i = register_netdev(dev);
@@ -713,8 +717,6 @@ err_out_netdev:
 
 static int change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > 8191)) /* Set by RxDMAFrameLen */
-		return -EINVAL;
 	if (netif_running(dev))
 		return -EBUSY;
 	dev->mtu = new_mtu;
@@ -867,7 +869,7 @@ static int netdev_open(struct net_device *dev)
 
 	/* Initialize other registers. */
 	__set_mac_addr(dev);
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 	iowrite16(dev->mtu + 18, ioaddr + MaxFrameSize);
 #else
 	iowrite16(dev->mtu + 14, ioaddr + MaxFrameSize);

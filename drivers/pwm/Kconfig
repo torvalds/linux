@@ -175,6 +175,15 @@ config PWM_FSL_FTM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-fsl-ftm.
 
+config PWM_HIBVT
+	tristate "HiSilicon BVT PWM support"
+	depends on ARCH_HISI || COMPILE_TEST
+	help
+	  Generic PWM framework driver for HiSilicon BVT SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-hibvt.
+
 config PWM_IMG
 	tristate "Imagination Technologies PWM driver"
 	depends on HAS_IOMEM
@@ -261,6 +270,15 @@ config PWM_LPSS_PLATFORM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss-platform.
+
+config PWM_MESON
+	tristate "Amlogic Meson PWM driver"
+	depends on ARCH_MESON
+	help
+	  The platform driver for Amlogic Meson PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-meson.
 
 config PWM_MTK_DISP
 	tristate "MediaTek display PWM driver"

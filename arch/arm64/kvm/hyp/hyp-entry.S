@@ -27,16 +27,6 @@
 	.text
 	.pushsection	.hyp.text, "ax"
 
-.macro	save_x0_to_x3
-	stp	x0, x1, [sp, #-16]!
-	stp	x2, x3, [sp, #-16]!
-.endm
-
-.macro	restore_x0_to_x3
-	ldp	x2, x3, [sp], #16
-	ldp	x0, x1, [sp], #16
-.endm
-
 .macro do_el2_call
 	/*
 	 * Shuffle the parameters before calling the function
@@ -79,23 +69,23 @@ ENTRY(__kvm_hyp_teardown)
 ENDPROC(__kvm_hyp_teardown)
 	
 el1_sync:				// Guest trapped into EL2
-	save_x0_to_x3
+	stp	x0, x1, [sp, #-16]!
 
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	mrs	x1, esr_el2
 alternative_else
 	mrs	x1, esr_el1
 alternative_endif
-	lsr	x2, x1, #ESR_ELx_EC_SHIFT
+	lsr	x0, x1, #ESR_ELx_EC_SHIFT
 
-	cmp	x2, #ESR_ELx_EC_HVC64
+	cmp	x0, #ESR_ELx_EC_HVC64
 	b.ne	el1_trap
 
-	mrs	x3, vttbr_el2		// If vttbr is valid, the 64bit guest
-	cbnz	x3, el1_trap		// called HVC
+	mrs	x1, vttbr_el2		// If vttbr is valid, the 64bit guest
+	cbnz	x1, el1_trap		// called HVC
 
 	/* Here, we're pretty sure the host called HVC. */
-	restore_x0_to_x3
+	ldp	x0, x1, [sp], #16
 
 	cmp	x0, #HVC_GET_VECTORS
 	b.ne	1f
@@ -113,23 +103,57 @@ alternative_endif
 
 el1_trap:
 	/*
-	 * x1: ESR
-	 * x2: ESR_EC
+	 * x0: ESR_EC
 	 */
 
-	/* Guest accessed VFP/SIMD registers, save host, restore Guest */
-	cmp	x2, #ESR_ELx_EC_FP_ASIMD
+	/*
+	 * We trap the first access to the FP/SIMD to save the host context
+	 * and restore the guest context lazily.
+	 * If FP/SIMD is not implemented, handle the trap and inject an
+	 * undefined instruction exception to the guest.
+	 */
+alternative_if_not ARM64_HAS_NO_FPSIMD
+	cmp	x0, #ESR_ELx_EC_FP_ASIMD
 	b.eq	__fpsimd_guest_restore
+alternative_else_nop_endif
 
-	mrs	x0, tpidr_el2
-	mov	x1, #ARM_EXCEPTION_TRAP
+	mrs	x1, tpidr_el2
+	mov	x0, #ARM_EXCEPTION_TRAP
 	b	__guest_exit
 
 el1_irq:
-	save_x0_to_x3
-	mrs	x0, tpidr_el2
-	mov	x1, #ARM_EXCEPTION_IRQ
+	stp     x0, x1, [sp, #-16]!
+	mrs	x1, tpidr_el2
+	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
+
+el1_error:
+	stp     x0, x1, [sp, #-16]!
+	mrs	x1, tpidr_el2
+	mov	x0, #ARM_EXCEPTION_EL1_SERROR
+	b	__guest_exit
+
+el2_error:
+	/*
+	 * Only two possibilities:
+	 * 1) Either we come from the exit path, having just unmasked
+	 *    PSTATE.A: change the return code to an EL2 fault, and
+	 *    carry on, as we're already in a sane state to handle it.
+	 * 2) Or we come from anywhere else, and that's a bug: we panic.
+	 *
+	 * For (1), x0 contains the original return code and x1 doesn't
+	 * contain anything meaningful at that stage. We can reuse them
+	 * as temp registers.
+	 * For (2), who cares?
+	 */
+	mrs	x0, elr_el2
+	adr	x1, abort_guest_exit_start
+	cmp	x0, x1
+	adr	x1, abort_guest_exit_end
+	ccmp	x0, x1, #4, ne
+	b.ne	__hyp_panic
+	mov	x0, #(1 << ARM_EXIT_WITH_SERROR_BIT)
+	eret
 
 ENTRY(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
@@ -155,11 +179,9 @@ ENDPROC(\label)
 	invalid_vector	el2h_sync_invalid
 	invalid_vector	el2h_irq_invalid
 	invalid_vector	el2h_fiq_invalid
-	invalid_vector	el2h_error_invalid
 	invalid_vector	el1_sync_invalid
 	invalid_vector	el1_irq_invalid
 	invalid_vector	el1_fiq_invalid
-	invalid_vector	el1_error_invalid
 
 	.ltorg
 
@@ -174,15 +196,15 @@ ENTRY(__kvm_hyp_vector)
 	ventry	el2h_sync_invalid		// Synchronous EL2h
 	ventry	el2h_irq_invalid		// IRQ EL2h
 	ventry	el2h_fiq_invalid		// FIQ EL2h
-	ventry	el2h_error_invalid		// Error EL2h
+	ventry	el2_error			// Error EL2h
 
 	ventry	el1_sync			// Synchronous 64-bit EL1
 	ventry	el1_irq				// IRQ 64-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 64-bit EL1
-	ventry	el1_error_invalid		// Error 64-bit EL1
+	ventry	el1_error			// Error 64-bit EL1
 
 	ventry	el1_sync			// Synchronous 32-bit EL1
 	ventry	el1_irq				// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
-	ventry	el1_error_invalid		// Error 32-bit EL1
+	ventry	el1_error			// Error 32-bit EL1
 ENDPROC(__kvm_hyp_vector)

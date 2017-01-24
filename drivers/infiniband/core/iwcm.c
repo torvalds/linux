@@ -59,6 +59,27 @@ MODULE_AUTHOR("Tom Tucker");
 MODULE_DESCRIPTION("iWARP CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static const char * const iwcm_rej_reason_strs[] = {
+	[ECONNRESET]			= "reset by remote host",
+	[ECONNREFUSED]			= "refused by remote application",
+	[ETIMEDOUT]			= "setup timeout",
+};
+
+const char *__attribute_const__ iwcm_reject_msg(int reason)
+{
+	size_t index;
+
+	/* iWARP uses negative errnos */
+	index = -reason;
+
+	if (index < ARRAY_SIZE(iwcm_rej_reason_strs) &&
+	    iwcm_rej_reason_strs[index])
+		return iwcm_rej_reason_strs[index];
+	else
+		return "unrecognized reason";
+}
+EXPORT_SYMBOL(iwcm_reject_msg);
+
 static struct ibnl_client_cbs iwcm_nl_cb_table[] = {
 	[RDMA_NL_IWPM_REG_PID] = {.dump = iwpm_register_pid_cb},
 	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
@@ -1160,7 +1181,7 @@ static int __init iw_cm_init(void)
 	if (ret)
 		pr_err("iw_cm: couldn't register netlink callbacks\n");
 
-	iwcm_wq = create_singlethread_workqueue("iw_cm_wq");
+	iwcm_wq = alloc_ordered_workqueue("iw_cm_wq", WQ_MEM_RECLAIM);
 	if (!iwcm_wq)
 		return -ENOMEM;
 

@@ -484,6 +484,7 @@ struct acpi_gpe_event_info {
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
 	u8 runtime_count;	/* References to a run GPE */
+	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -494,6 +495,7 @@ struct acpi_gpe_register_info {
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
+	u8 mask_for_run;	/* GPEs to keep masked when running */
 	u8 enable_mask;		/* Current mask of enabled GPEs */
 };
 
@@ -763,7 +765,7 @@ union acpi_parse_value {
 	union acpi_parse_value          value;          /* Value or args associated with the opcode */\
 	u8                              arg_list_length; /* Number of elements in the arg list */\
 	ACPI_DISASM_ONLY_MEMBERS (\
-	u8                              disasm_flags;   /* Used during AML disassembly */\
+	u16                             disasm_flags;   /* Used during AML disassembly */\
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
 	char                            *operator_symbol;/* Used for C-style operator name strings */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
@@ -866,14 +868,15 @@ struct acpi_parse_state {
 
 /* Parse object disasm_flags */
 
-#define ACPI_PARSEOP_IGNORE                 0x01
-#define ACPI_PARSEOP_PARAMETER_LIST         0x02
-#define ACPI_PARSEOP_EMPTY_TERMLIST         0x04
-#define ACPI_PARSEOP_PREDEFINED_CHECKED     0x08
-#define ACPI_PARSEOP_CLOSING_PAREN          0x10
-#define ACPI_PARSEOP_COMPOUND_ASSIGNMENT    0x20
-#define ACPI_PARSEOP_ASSIGNMENT             0x40
-#define ACPI_PARSEOP_ELSEIF                 0x80
+#define ACPI_PARSEOP_IGNORE                 0x0001
+#define ACPI_PARSEOP_PARAMETER_LIST         0x0002
+#define ACPI_PARSEOP_EMPTY_TERMLIST         0x0004
+#define ACPI_PARSEOP_PREDEFINED_CHECKED     0x0008
+#define ACPI_PARSEOP_CLOSING_PAREN          0x0010
+#define ACPI_PARSEOP_COMPOUND_ASSIGNMENT    0x0020
+#define ACPI_PARSEOP_ASSIGNMENT             0x0040
+#define ACPI_PARSEOP_ELSEIF                 0x0080
+#define ACPI_PARSEOP_LEGACY_ASL_ONLY        0x0100
 
 /*****************************************************************************
  *

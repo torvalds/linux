@@ -922,15 +922,13 @@ static int adv7511_parse_dt(struct device_node *np,
 	return 0;
 }
 
-static const int edid_i2c_addr = 0x7e;
-static const int packet_i2c_addr = 0x70;
-static const int cec_i2c_addr = 0x78;
-
 static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct adv7511_link_config link_config;
 	struct adv7511 *adv7511;
 	struct device *dev = &i2c->dev;
+	unsigned int main_i2c_addr = i2c->addr << 1;
+	unsigned int edid_i2c_addr = main_i2c_addr + 4;
 	unsigned int val;
 	int ret;
 
@@ -991,8 +989,10 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR, edid_i2c_addr);
 	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
-		     packet_i2c_addr);
-	regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR, cec_i2c_addr);
+		     main_i2c_addr - 0xa);
+	regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
+		     main_i2c_addr - 2);
+
 	adv7511_packet_disable(adv7511, 0xffff);
 
 	adv7511->i2c_main = i2c;
@@ -1037,6 +1037,8 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		goto err_unregister_cec;
 	}
 
+	adv7511_audio_init(dev, adv7511);
+
 	return 0;
 
 err_unregister_cec:
@@ -1057,6 +1059,8 @@ static int adv7511_remove(struct i2c_client *i2c)
 	}
 
 	drm_bridge_remove(&adv7511->bridge);
+
+	adv7511_audio_exit(adv7511);
 
 	i2c_unregister_device(adv7511->i2c_edid);
 

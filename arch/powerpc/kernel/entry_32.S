@@ -33,6 +33,7 @@
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
 
 /*
  * MSR_KERNEL is > 0x10000 on 4xx/Book-E since it include MSR_CE.
@@ -654,7 +655,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 #endif /* CONFIG_SMP */
 
 	tophys(r0,r4)
-	CLR_TOP32(r0)
 	mtspr	SPRN_SPRG_THREAD,r0	/* Update current THREAD phys addr */
 	lwz	r1,KSP(r4)	/* Load new stack pointer */
 
@@ -674,7 +674,11 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
 END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 #endif /* CONFIG_SPE */
-
+#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+	lwz	r0,TSK_STACK_CANARY(r2)
+	lis	r4,__stack_chk_guard@ha
+	stw	r0,__stack_chk_guard@l(r4)
+#endif
 	lwz	r0,_CCR(r1)
 	mtcrf	0xFF,r0
 	/* r3-r12 are destroyed -- Cort */
@@ -1359,6 +1363,7 @@ _GLOBAL(_mcount)
 	MCOUNT_RESTORE_FRAME
 	bctr
 #endif
+EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_stub)
 	blr

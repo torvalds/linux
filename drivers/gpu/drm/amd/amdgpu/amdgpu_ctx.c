@@ -35,7 +35,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
 	ctx->fences = kcalloc(amdgpu_sched_jobs * AMDGPU_MAX_RINGS,
-			      sizeof(struct fence*), GFP_KERNEL);
+			      sizeof(struct dma_fence*), GFP_KERNEL);
 	if (!ctx->fences)
 		return -ENOMEM;
 
@@ -43,6 +43,9 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 		ctx->rings[i].sequence = 1;
 		ctx->rings[i].fences = &ctx->fences[amdgpu_sched_jobs * i];
 	}
+
+	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
@@ -52,17 +55,18 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
 					  rq, amdgpu_sched_jobs);
 		if (r)
-			break;
+			goto failed;
 	}
 
-	if (i < adev->num_rings) {
-		for (j = 0; j < i; j++)
-			amd_sched_entity_fini(&adev->rings[j]->sched,
-					      &ctx->rings[j].entity);
-		kfree(ctx->fences);
-		return r;
-	}
 	return 0;
+
+failed:
+	for (j = 0; j < i; j++)
+		amd_sched_entity_fini(&adev->rings[j]->sched,
+				      &ctx->rings[j].entity);
+	kfree(ctx->fences);
+	ctx->fences = NULL;
+	return r;
 }
 
 static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
@@ -75,8 +79,9 @@ static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		for (j = 0; j < amdgpu_sched_jobs; ++j)
-			fence_put(ctx->rings[i].fences[j]);
+			dma_fence_put(ctx->rings[i].fences[j]);
 	kfree(ctx->fences);
+	ctx->fences = NULL;
 
 	for (i = 0; i < adev->num_rings; i++)
 		amd_sched_entity_fini(&adev->rings[i]->sched,
@@ -236,39 +241,39 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
 }
 
 uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
-			      struct fence *fence)
+			      struct dma_fence *fence)
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
 	uint64_t seq = cring->sequence;
 	unsigned idx = 0;
-	struct fence *other = NULL;
+	struct dma_fence *other = NULL;
 
 	idx = seq & (amdgpu_sched_jobs - 1);
 	other = cring->fences[idx];
 	if (other) {
 		signed long r;
-		r = fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
+		r = dma_fence_wait_timeout(other, false, MAX_SCHEDULE_TIMEOUT);
 		if (r < 0)
 			DRM_ERROR("Error (%ld) waiting for fence!\n", r);
 	}
 
-	fence_get(fence);
+	dma_fence_get(fence);
 
 	spin_lock(&ctx->ring_lock);
 	cring->fences[idx] = fence;
 	cring->sequence++;
 	spin_unlock(&ctx->ring_lock);
 
-	fence_put(other);
+	dma_fence_put(other);
 
 	return seq;
 }
 
-struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
-				   struct amdgpu_ring *ring, uint64_t seq)
+struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
+				       struct amdgpu_ring *ring, uint64_t seq)
 {
 	struct amdgpu_ctx_ring *cring = & ctx->rings[ring->idx];
-	struct fence *fence;
+	struct dma_fence *fence;
 
 	spin_lock(&ctx->ring_lock);
 
@@ -283,7 +288,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 		return NULL;
 	}
 
-	fence = fence_get(cring->fences[seq & (amdgpu_sched_jobs - 1)]);
+	fence = dma_fence_get(cring->fences[seq & (amdgpu_sched_jobs - 1)]);
 	spin_unlock(&ctx->ring_lock);
 
 	return fence;

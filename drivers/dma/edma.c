@@ -263,22 +263,29 @@ static const struct edmacc_param dummy_paramset = {
 
 #define EDMA_BINDING_LEGACY	0
 #define EDMA_BINDING_TPCC	1
+static const u32 edma_binding_type[] = {
+	[EDMA_BINDING_LEGACY] = EDMA_BINDING_LEGACY,
+	[EDMA_BINDING_TPCC] = EDMA_BINDING_TPCC,
+};
+
 static const struct of_device_id edma_of_ids[] = {
 	{
 		.compatible = "ti,edma3",
-		.data = (void *)EDMA_BINDING_LEGACY,
+		.data = &edma_binding_type[EDMA_BINDING_LEGACY],
 	},
 	{
 		.compatible = "ti,edma3-tpcc",
-		.data = (void *)EDMA_BINDING_TPCC,
+		.data = &edma_binding_type[EDMA_BINDING_TPCC],
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, edma_of_ids);
 
 static const struct of_device_id edma_tptc_of_ids[] = {
 	{ .compatible = "ti,edma3-tptc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, edma_tptc_of_ids);
 
 static inline unsigned int edma_read(struct edma_cc *ecc, int offset)
 {
@@ -405,16 +412,10 @@ static inline void edma_param_or(struct edma_cc *ecc, int offset, int param_no,
 	edma_or(ecc, EDMA_PARM + offset + (param_no << 5), or);
 }
 
-static inline void set_bits(int offset, int len, unsigned long *p)
+static inline void edma_set_bits(int offset, int len, unsigned long *p)
 {
 	for (; len > 0; len--)
 		set_bit(offset + (len - 1), p);
-}
-
-static inline void clear_bits(int offset, int len, unsigned long *p)
-{
-	for (; len > 0; len--)
-		clear_bit(offset + (len - 1), p);
 }
 
 static void edma_assign_priority_to_queue(struct edma_cc *ecc, int queue_no,
@@ -464,13 +465,15 @@ static void edma_write_slot(struct edma_cc *ecc, unsigned slot,
 	memcpy_toio(ecc->base + PARM_OFFSET(slot), param, PARM_SIZE);
 }
 
-static void edma_read_slot(struct edma_cc *ecc, unsigned slot,
+static int edma_read_slot(struct edma_cc *ecc, unsigned slot,
 			   struct edmacc_param *param)
 {
 	slot = EDMA_CHAN_SLOT(slot);
 	if (slot >= ecc->num_slots)
-		return;
+		return -EINVAL;
 	memcpy_fromio(param, ecc->base + PARM_OFFSET(slot), PARM_SIZE);
+
+	return 0;
 }
 
 /**
@@ -1476,13 +1479,15 @@ static void edma_error_handler(struct edma_chan *echan)
 	struct edma_cc *ecc = echan->ecc;
 	struct device *dev = echan->vchan.chan.device->dev;
 	struct edmacc_param p;
+	int err;
 
 	if (!echan->edesc)
 		return;
 
 	spin_lock(&echan->vchan.lock);
 
-	edma_read_slot(ecc, echan->slot[0], &p);
+	err = edma_read_slot(ecc, echan->slot[0], &p);
+
 	/*
 	 * Issue later based on missed flag which will be sure
 	 * to happen as:
@@ -1495,7 +1500,7 @@ static void edma_error_handler(struct edma_chan *echan)
 	 * lead to some nasty recursion when we are in a NULL
 	 * slot. So we avoid doing so and set the missed flag.
 	 */
-	if (p.a_b_cnt == 0 && p.ccnt == 0) {
+	if (err || (p.a_b_cnt == 0 && p.ccnt == 0)) {
 		dev_dbg(dev, "Error on null slot, setting miss\n");
 		echan->missed = 1;
 	} else {
@@ -1623,6 +1628,7 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	if (echan->slot[0] < 0) {
 		dev_err(dev, "Entry slot allocation failed for channel %u\n",
 			EDMA_CHAN_SLOT(echan->ch_num));
+		ret = echan->slot[0];
 		goto err_slot;
 	}
 
@@ -2019,8 +2025,7 @@ static struct edma_soc_info *edma_setup_info_from_dt(struct device *dev,
 {
 	struct edma_soc_info *info;
 	struct property *prop;
-	size_t sz;
-	int ret;
+	int sz, ret;
 
 	info = devm_kzalloc(dev, sizeof(struct edma_soc_info), GFP_KERNEL);
 	if (!info)
@@ -2182,7 +2187,7 @@ static int edma_probe(struct platform_device *pdev)
 		const struct of_device_id *match;
 
 		match = of_match_node(edma_of_ids, node);
-		if (match && (u32)match->data == EDMA_BINDING_TPCC)
+		if (match && (*(u32 *)match->data) == EDMA_BINDING_TPCC)
 			legacy_mode = false;
 
 		info = edma_setup_info_from_dt(dev, legacy_mode);
@@ -2260,7 +2265,7 @@ static int edma_probe(struct platform_device *pdev)
 			for (i = 0; rsv_slots[i][0] != -1; i++) {
 				off = rsv_slots[i][0];
 				ln = rsv_slots[i][1];
-				set_bits(off, ln, ecc->slot_inuse);
+				edma_set_bits(off, ln, ecc->slot_inuse);
 			}
 		}
 	}
@@ -2445,6 +2450,9 @@ static int edma_pm_resume(struct device *dev)
 	struct edma_chan *echan = ecc->slave_chans;
 	int i;
 	s8 (*queue_priority_mapping)[2];
+
+	/* re initialize dummy slot to dummy param set */
+	edma_write_slot(ecc, ecc->dummy_slot, &dummy_paramset);
 
 	queue_priority_mapping = ecc->info->queue_priority_mapping;
 

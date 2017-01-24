@@ -91,7 +91,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_RXBUF               512
 #define ATH_TXBUF               512
 #define ATH_TXBUF_RESERVE       5
-#define ATH_MAX_QDEPTH          (ATH_TXBUF / 4 - ATH_TXBUF_RESERVE)
 #define ATH_TXMAXTRY            13
 #define ATH_MAX_SW_RETRIES      30
 
@@ -145,7 +144,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define BAW_WITHIN(_start, _bawsz, _seqno) \
 	((((_seqno) - (_start)) & 4095) < (_bawsz))
 
-#define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
+#define ATH_AN_2_TID(_an, _tidno) ath_node_to_tid(_an, _tidno)
 
 #define IS_HT_RATE(rate)   (rate & 0x80)
 #define IS_CCK_RATE(rate)  ((rate >= 0x18) && (rate <= 0x1e))
@@ -164,7 +163,6 @@ struct ath_txq {
 	spinlock_t axq_lock;
 	u32 axq_depth;
 	u32 axq_ampdu_depth;
-	bool stopped;
 	bool axq_tx_inprogress;
 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
 	u8 txq_headidx;
@@ -232,7 +230,6 @@ struct ath_buf {
 
 struct ath_atx_tid {
 	struct list_head list;
-	struct sk_buff_head buf_q;
 	struct sk_buff_head retry_q;
 	struct ath_node *an;
 	struct ath_txq *txq;
@@ -247,13 +244,13 @@ struct ath_atx_tid {
 	s8 bar_index;
 	bool active;
 	bool clear_ps_filter;
+	bool has_queued;
 };
 
 struct ath_node {
 	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
-	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
 
 	u16 maxampdu;
 	u8 mpdudensity;
@@ -276,7 +273,6 @@ struct ath_tx_control {
 	struct ath_node *an;
 	struct ieee80211_sta *sta;
 	u8 paprd;
-	bool force_channel;
 };
 
 
@@ -293,7 +289,6 @@ struct ath_tx {
 	struct ath_descdma txdma;
 	struct ath_txq *txq_map[IEEE80211_NUM_ACS];
 	struct ath_txq *uapsdq;
-	u32 txq_max_pending[IEEE80211_NUM_ACS];
 	u16 max_aggr_framelen[IEEE80211_NUM_ACS][4][32];
 };
 
@@ -420,6 +415,22 @@ struct ath_offchannel {
 	int roc_duration;
 	int duration;
 };
+
+static inline struct ath_atx_tid *
+ath_node_to_tid(struct ath_node *an, u8 tidno)
+{
+	struct ieee80211_sta *sta = an->sta;
+	struct ieee80211_vif *vif = an->vif;
+	struct ieee80211_txq *txq;
+
+	BUG_ON(!vif);
+	if (sta)
+		txq = sta->txq[tidno % ARRAY_SIZE(sta->txq)];
+	else
+		txq = vif->txq;
+
+	return (struct ath_atx_tid *) txq->drv_priv;
+}
 
 #define case_rtn_string(val) case val: return #val
 
@@ -575,7 +586,6 @@ void ath_tx_edma_tasklet(struct ath_softc *sc);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
-void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 
 void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_aggr_sleep(struct ieee80211_sta *sta, struct ath_softc *sc,
@@ -585,6 +595,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 				   u16 tids, int nframes,
 				   enum ieee80211_frame_release_type reason,
 				   bool more_data);
+void ath9k_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *queue);
 
 /********/
 /* VIFs */

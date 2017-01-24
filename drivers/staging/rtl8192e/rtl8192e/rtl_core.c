@@ -38,7 +38,7 @@ static int channels = 0x3fff;
 static char *ifname = "wlan%d";
 
 
-static struct rtl819x_ops rtl819xp_ops = {
+static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.get_eeprom_size		= rtl92e_get_eeprom_size,
 	.init_adapter_variable		= rtl92e_init_variables,
@@ -367,7 +367,7 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 	}
 }
 
-static struct rtllib_qos_parameters def_qos_parameters = {
+static const struct rtllib_qos_parameters def_qos_parameters = {
 	{cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3)},
 	{cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7)},
 	{2, 2, 2, 2},
@@ -993,8 +993,8 @@ static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	spin_lock_init(&priv->ps_lock);
-	sema_init(&priv->wx_sem, 1);
-	sema_init(&priv->rf_sem, 1);
+	mutex_init(&priv->wx_mutex);
+	mutex_init(&priv->rf_mutex);
 	mutex_init(&priv->mutex);
 }
 
@@ -1247,7 +1247,7 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 
 RESET_START:
 
-		down(&priv->wx_sem);
+		mutex_lock(&priv->wx_mutex);
 
 		if (priv->rtllib->state == RTLLIB_LINKED)
 			rtl92e_leisure_ps_leave(dev);
@@ -1255,7 +1255,7 @@ RESET_START:
 		if (priv->up) {
 			netdev_info(dev, "%s():the driver is not up.\n",
 				    __func__);
-			up(&priv->wx_sem);
+			mutex_unlock(&priv->wx_mutex);
 			return;
 		}
 		priv->up = 0;
@@ -1277,14 +1277,14 @@ RESET_START:
 		rtllib_stop_scan_syncro(ieee);
 
 		if (ieee->state == RTLLIB_LINKED) {
-			SEM_DOWN_IEEE_WX(&ieee->wx_sem);
+			mutex_lock(&ieee->wx_mutex);
 			netdev_info(dev, "ieee->state is RTLLIB_LINKED\n");
 			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
 			rtllib_stop_scan(ieee);
 			netif_carrier_off(dev);
-			SEM_UP_IEEE_WX(&ieee->wx_sem);
+			mutex_unlock(&ieee->wx_mutex);
 		} else {
 			netdev_info(dev, "ieee->state is NOT LINKED\n");
 			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
@@ -1292,7 +1292,7 @@ RESET_START:
 
 		rtl92e_dm_backup_state(dev);
 
-		up(&priv->wx_sem);
+		mutex_unlock(&priv->wx_mutex);
 		RT_TRACE(COMP_RESET,
 			 "%s():<==========down process is finished\n",
 			 __func__);
@@ -1982,7 +1982,7 @@ void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 					weighting) / 6;
 }
 
-u8 rtl92e_rx_db_to_percent(char antpower)
+u8 rtl92e_rx_db_to_percent(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
@@ -1993,9 +1993,9 @@ u8 rtl92e_rx_db_to_percent(char antpower)
 
 }	/* QueryRxPwrPercentage */
 
-u8 rtl92e_evm_db_to_percent(char value)
+u8 rtl92e_evm_db_to_percent(s8 value)
 {
-	char ret_val;
+	s8 ret_val;
 
 	ret_val = value;
 
@@ -2179,9 +2179,9 @@ static int _rtl92e_open(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = _rtl92e_try_up(dev);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 
 }
@@ -2206,11 +2206,11 @@ static int _rtl92e_close(struct net_device *dev)
 		rtllib_stop_scan(priv->rtllib);
 	}
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = _rtl92e_down(dev, true);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 
@@ -2242,11 +2242,11 @@ static void _rtl92e_restart(void *data)
 				  reset_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	rtl92e_commit(dev);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 }
 
 static void _rtl92e_set_multicast(struct net_device *dev)
@@ -2265,12 +2265,12 @@ static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct sockaddr *addr = mac;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return 0;
 }
@@ -2287,7 +2287,7 @@ static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct iw_point *p = &wrq->u.data;
 	struct ieee_param *ipw = NULL;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	switch (cmd) {
 	case RTL_IOCTL_WPA_SUPPLICANT:
@@ -2393,7 +2393,7 @@ static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 
 out:
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -2545,7 +2545,6 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_set_rx_mode = _rtl92e_set_multicast,
 	.ndo_set_mac_address = _rtl92e_set_mac_adr,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_change_mtu = eth_change_mtu,
 	.ndo_start_xmit = rtllib_xmit,
 };
 

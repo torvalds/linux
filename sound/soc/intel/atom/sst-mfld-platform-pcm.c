@@ -670,7 +670,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	return str_info->buffer_ptr;
 }
 
-static struct snd_pcm_ops sst_platform_ops = {
+static const struct snd_pcm_ops sst_platform_ops = {
 	.open = sst_platform_open,
 	.ioctl = snd_pcm_lib_ioctl,
 	.trigger = sst_platform_pcm_trigger,
@@ -771,6 +771,9 @@ static int sst_soc_prepare(struct device *dev)
 	struct sst_data *drv = dev_get_drvdata(dev);
 	struct snd_soc_pcm_runtime *rtd;
 
+	if (!drv->soc_card)
+		return 0;
+
 	/* suspend all pcms first */
 	snd_soc_suspend(drv->soc_card->dev);
 	snd_soc_poweroff(drv->soc_card->dev);
@@ -792,6 +795,9 @@ static void sst_soc_complete(struct device *dev)
 {
 	struct sst_data *drv = dev_get_drvdata(dev);
 	struct snd_soc_pcm_runtime *rtd;
+
+	if (!drv->soc_card)
+		return;
 
 	/* restart SSPs */
 	list_for_each_entry(rtd, &drv->soc_card->rtd_list, list) {

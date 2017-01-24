@@ -834,12 +834,14 @@ static struct snd_soc_codec_driver adav80x_codec_driver = {
 	.set_pll = adav80x_set_pll,
 	.set_sysclk = adav80x_set_sysclk,
 
-	.controls = adav80x_controls,
-	.num_controls = ARRAY_SIZE(adav80x_controls),
-	.dapm_widgets = adav80x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adav80x_dapm_widgets),
-	.dapm_routes = adav80x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(adav80x_dapm_routes),
+	.component_driver = {
+		.controls		= adav80x_controls,
+		.num_controls		= ARRAY_SIZE(adav80x_controls),
+		.dapm_widgets		= adav80x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adav80x_dapm_widgets),
+		.dapm_routes		= adav80x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adav80x_dapm_routes),
+	},
 };
 
 int adav80x_bus_probe(struct device *dev, struct regmap *regmap)

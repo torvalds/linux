@@ -5,7 +5,7 @@
  */
 
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int get_reg(struct pt_regs *regs, int nr)
 {

@@ -5,6 +5,7 @@
  */
 #include <linux/compat.h>
 #include <linux/cpu.h>
+#include <linux/mman.h>
 #include <linux/pkeys.h>
 
 #include <asm/fpu/api.h>
@@ -64,6 +65,7 @@ void fpu__xstate_clear_all_cpu_caps(void)
 	setup_clear_cpu_cap(X86_FEATURE_AVX);
 	setup_clear_cpu_cap(X86_FEATURE_AVX2);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512IFMA);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
@@ -72,7 +74,10 @@ void fpu__xstate_clear_all_cpu_caps(void)
 	setup_clear_cpu_cap(X86_FEATURE_AVX512VL);
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
 	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512VBMI);
 	setup_clear_cpu_cap(X86_FEATURE_PKU);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512_4VNNIW);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512_4FMAPS);
 }
 
 /*
@@ -866,9 +871,10 @@ const void *get_xsave_field_ptr(int xsave_state)
 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
 }
 
+#ifdef CONFIG_ARCH_HAS_PKEYS
+
 #define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
 #define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
-
 /*
  * This will go out and modify PKRU register to set the access
  * rights for @pkey to @init_val.
@@ -886,15 +892,6 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	 */
 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
 		return -EINVAL;
-	/*
-	 * For most XSAVE components, this would be an arduous task:
-	 * brining fpstate up to date with fpregs, updating fpstate,
-	 * then re-populating fpregs.  But, for components that are
-	 * never lazily managed, we can just access the fpregs
-	 * directly.  PKRU is never managed lazily, so we can just
-	 * manipulate it directly.  Make sure it stays that way.
-	 */
-	WARN_ON_ONCE(!use_eager_fpu());
 
 	/* Set the bits we need in PKRU:  */
 	if (init_val & PKEY_DISABLE_ACCESS)
@@ -914,6 +911,7 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 
 	return 0;
 }
+#endif /* ! CONFIG_ARCH_HAS_PKEYS */
 
 /*
  * This is similar to user_regset_copyout(), but will not add offset to

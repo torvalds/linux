@@ -55,8 +55,10 @@ enum xgene_enet_rm {
 #define PREFETCH_BUF_EN		BIT(21)
 #define CSR_RING_ID_BUF		0x000c
 #define CSR_PBM_COAL		0x0014
+#define CSR_PBM_CTICK0		0x0018
 #define CSR_PBM_CTICK1		0x001c
 #define CSR_PBM_CTICK2		0x0020
+#define CSR_PBM_CTICK3		0x0024
 #define CSR_THRESHOLD0_SET1	0x0030
 #define CSR_THRESHOLD1_SET1	0x0034
 #define CSR_RING_NE_INT_MODE	0x017c
@@ -124,6 +126,12 @@ enum xgene_enet_rm {
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
 
+#define PCS_ADDR_REG_OFFSET		0x00
+#define PCS_COMMAND_REG_OFFSET		0x04
+#define PCS_WRITE_REG_OFFSET		0x08
+#define PCS_READ_REG_OFFSET		0x0c
+#define PCS_COMMAND_DONE_REG_OFFSET	0x10
+
 #define MII_MGMT_CONFIG_ADDR		0x20
 #define MII_MGMT_COMMAND_ADDR		0x24
 #define MII_MGMT_ADDRESS_ADDR		0x28
@@ -157,10 +165,23 @@ enum xgene_enet_rm {
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
 #define CFG_CLE_FPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 16, 4)
+#define CFG_CLE_NXTFPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 20, 4)
 #define CFG_MACMODE_SET(dst, val)		xgene_set_bits(dst, val, 18, 2)
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
-#define CFG_CLE_DSTQID0(val)		(val & GENMASK(11, 0))
-#define CFG_CLE_FPSEL0(val)		((val << 16) & GENMASK(19, 16))
+#define CFG_CLE_DSTQID0(val)		((val) & GENMASK(11, 0))
+#define CFG_CLE_FPSEL0(val)		(((val) << 16) & GENMASK(19, 16))
+#define CSR_ECM_CFG_0_ADDR		0x0220
+#define CSR_ECM_CFG_1_ADDR		0x0224
+#define CSR_MULTI_DPF0_ADDR		0x0230
+#define RXBUF_PAUSE_THRESH		0x0534
+#define RXBUF_PAUSE_OFF_THRESH		0x0540
+#define DEF_PAUSE_THRES			0x7d
+#define DEF_PAUSE_OFF_THRES		0x6d
+#define DEF_QUANTA			0x8000
+#define NORM_PAUSE_OPCODE		0x0001
+#define PAUSE_XON_EN			BIT(30)
+#define MULTI_DPF_AUTOCTRL		BIT(28)
+#define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
 #define RX_DV_GATE_REG_0_ADDR		0x05fc
@@ -188,6 +209,8 @@ enum xgene_enet_rm {
 #define SOFT_RESET1			BIT(31)
 #define TX_EN				BIT(0)
 #define RX_EN				BIT(2)
+#define TX_FLOW_EN			BIT(4)
+#define RX_FLOW_EN			BIT(5)
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)
@@ -231,6 +254,8 @@ enum xgene_enet_rm {
 #define TCPHDR_LEN			6
 #define IPHDR_POS			6
 #define IPHDR_LEN			6
+#define MSS_POS				20
+#define MSS_LEN				2
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
 #define ET_POS				23	/* Enable TSO */
@@ -246,6 +271,11 @@ enum xgene_enet_rm {
 #define DATALEN_MASK			GENMASK(11, 0)
 
 #define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
+
+#define TSO_MSS0_POS			0
+#define TSO_MSS0_LEN			14
+#define TSO_MSS1_POS			16
+#define TSO_MSS1_LEN			14
 
 struct xgene_enet_raw_desc {
 	__le64 m0;
@@ -329,6 +359,14 @@ static inline u8 xgene_enet_ring_bufnum(u16 id)
 static inline bool xgene_enet_is_bufpool(u16 id)
 {
 	return ((id & RING_BUFNUM_MASK) >= 0x20) ? true : false;
+}
+
+static inline u8 xgene_enet_get_fpsel(u16 id)
+{
+	if (xgene_enet_is_bufpool(id))
+		return xgene_enet_ring_bufnum(id) - RING_BUFNUM_BUFPOOL;
+
+	return 0;
 }
 
 static inline u16 xgene_enet_get_numslots(u16 id, u32 size)

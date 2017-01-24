@@ -47,7 +47,7 @@ static const char driver_name[] = "vme_user";
 static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
-/* Currently Documentation/devices.txt defines the following for VME:
+/* Currently Documentation/admin-guide/devices.rst defines the following for VME:
  *
  * 221 char	VME bus
  *		  0 = /dev/bus/vme/m0		First master image
@@ -661,7 +661,7 @@ err_sysfs:
 	}
 	class_destroy(vme_user_sysfs_class);
 
-	/* Ensure counter set correcty to unalloc all master windows */
+	/* Ensure counter set correctly to unalloc all master windows */
 	i = MASTER_MAX + 1;
 err_master:
 	while (i > MASTER_MINOR) {
@@ -671,7 +671,7 @@ err_master:
 	}
 
 	/*
-	 * Ensure counter set correcty to unalloc all slave windows and buffers
+	 * Ensure counter set correctly to unalloc all slave windows and buffers
 	 */
 	i = SLAVE_MAX + 1;
 err_slave:
@@ -716,7 +716,7 @@ static int vme_user_remove(struct vme_dev *dev)
 	/* Unregister device driver */
 	cdev_del(vme_user_cdev);
 
-	/* Unregiser the major and minor device numbers */
+	/* Unregister the major and minor device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
 
 	return 0;
@@ -773,7 +773,7 @@ static void __exit vme_user_exit(void)
 }
 
 MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the driver is connected");
-module_param_array(bus, int, &bus_num, 0);
+module_param_array(bus, int, &bus_num, 0000);
 
 MODULE_DESCRIPTION("VME User Space Access Driver");
 MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");

@@ -25,8 +25,7 @@
 #include "lpass.h"
 
 struct lpass_pcm_data {
-	int rdma_ch;
-	int wrdma_ch;
+	int dma_ch;
 	int i2s_port;
 };
 
@@ -61,7 +60,41 @@ static int lpass_platform_pcmops_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	int ret;
+	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
+	struct lpass_data *drvdata =
+		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_variant *v = drvdata->variant;
+	int ret, dma_ch, dir = substream->stream;
+	struct lpass_pcm_data *data;
+
+	data = devm_kzalloc(soc_runtime->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->i2s_port = cpu_dai->driver->id;
+	runtime->private_data = data;
+
+	dma_ch = 0;
+	if (v->alloc_dma_channel)
+		dma_ch = v->alloc_dma_channel(drvdata, dir);
+	else
+		dma_ch = 0;
+
+	if (dma_ch < 0)
+		return dma_ch;
+
+	drvdata->substream[dma_ch] = substream;
+
+	ret = regmap_write(drvdata->lpaif_map,
+			LPAIF_DMACTL_REG(v, dma_ch, dir), 0);
+	if (ret) {
+		dev_err(soc_runtime->dev,
+			"%s() error writing to rdmactl reg: %d\n",
+			__func__, ret);
+			return ret;
+	}
+
+	data->dma_ch = dma_ch;
 
 	snd_soc_set_runtime_hwparams(substream, &lpass_platform_pcm_hardware);
 
@@ -80,13 +113,32 @@ static int lpass_platform_pcmops_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int lpass_platform_pcmops_close(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
+	struct lpass_data *drvdata =
+		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct lpass_variant *v = drvdata->variant;
+	struct lpass_pcm_data *data;
+
+	data = runtime->private_data;
+	v = drvdata->variant;
+	drvdata->substream[data->dma_ch] = NULL;
+	if (v->free_dma_channel)
+		v->free_dma_channel(drvdata, data->dma_ch);
+
+	return 0;
+}
+
 static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct snd_pcm_runtime *rt = substream->runtime;
+	struct lpass_pcm_data *pcm_data = rt->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
@@ -95,10 +147,7 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 	int bitwidth;
 	int ret, dma_port = pcm_data->i2s_port + v->dmactl_audif_start;
 
-	if (dir ==  SNDRV_PCM_STREAM_PLAYBACK)
-		ch = pcm_data->rdma_ch;
-	else
-		ch = pcm_data->wrdma_ch;
+	ch = pcm_data->dma_ch;
 
 	bitwidth = snd_pcm_format_width(format);
 	if (bitwidth < 0) {
@@ -177,18 +226,15 @@ static int lpass_platform_pcmops_hw_params(struct snd_pcm_substream *substream,
 static int lpass_platform_pcmops_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct snd_pcm_runtime *rt = substream->runtime;
+	struct lpass_pcm_data *pcm_data = rt->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	unsigned int reg;
 	int ret;
 
-	if (substream->stream ==  SNDRV_PCM_STREAM_PLAYBACK)
-		reg = LPAIF_RDMACTL_REG(v, pcm_data->rdma_ch);
-	else
-		reg = LPAIF_WRDMACTL_REG(v, pcm_data->wrdma_ch);
-
+	reg = LPAIF_DMACTL_REG(v, pcm_data->dma_ch, substream->stream);
 	ret = regmap_write(drvdata->lpaif_map, reg, 0);
 	if (ret)
 		dev_err(soc_runtime->dev, "%s() error writing to rdmactl reg: %d\n",
@@ -201,16 +247,14 @@ static int lpass_platform_pcmops_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct snd_pcm_runtime *rt = substream->runtime;
+	struct lpass_pcm_data *pcm_data = rt->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch, dir = substream->stream;
 
-	if (dir ==  SNDRV_PCM_STREAM_PLAYBACK)
-		ch = pcm_data->rdma_ch;
-	else
-		ch = pcm_data->wrdma_ch;
+	ch = pcm_data->dma_ch;
 
 	ret = regmap_write(drvdata->lpaif_map,
 			LPAIF_DMABASE_REG(v, ch, dir),
@@ -255,16 +299,14 @@ static int lpass_platform_pcmops_trigger(struct snd_pcm_substream *substream,
 		int cmd)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct snd_pcm_runtime *rt = substream->runtime;
+	struct lpass_pcm_data *pcm_data = rt->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	int ret, ch, dir = substream->stream;
 
-	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-		ch = pcm_data->rdma_ch;
-	else
-		ch = pcm_data->wrdma_ch;
+	ch = pcm_data->dma_ch;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -331,17 +373,15 @@ static snd_pcm_uframes_t lpass_platform_pcmops_pointer(
 		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct lpass_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(soc_runtime);
 	struct lpass_data *drvdata =
 			snd_soc_platform_get_drvdata(soc_runtime->platform);
+	struct snd_pcm_runtime *rt = substream->runtime;
+	struct lpass_pcm_data *pcm_data = rt->private_data;
 	struct lpass_variant *v = drvdata->variant;
 	unsigned int base_addr, curr_addr;
 	int ret, ch, dir = substream->stream;
 
-	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-		ch = pcm_data->rdma_ch;
-	else
-		ch = pcm_data->wrdma_ch;
+	ch = pcm_data->dma_ch;
 
 	ret = regmap_read(drvdata->lpaif_map,
 			LPAIF_DMABASE_REG(v, ch, dir), &base_addr);
@@ -372,8 +412,9 @@ static int lpass_platform_pcmops_mmap(struct snd_pcm_substream *substream,
 			runtime->dma_bytes);
 }
 
-static struct snd_pcm_ops lpass_platform_pcm_ops = {
+static const struct snd_pcm_ops lpass_platform_pcm_ops = {
 	.open		= lpass_platform_pcmops_open,
+	.close		= lpass_platform_pcmops_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= lpass_platform_pcmops_hw_params,
 	.hw_free	= lpass_platform_pcmops_hw_free,
@@ -470,117 +511,45 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 {
 	struct snd_pcm *pcm = soc_runtime->pcm;
 	struct snd_pcm_substream *psubstream, *csubstream;
-	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
-	struct lpass_data *drvdata =
-		snd_soc_platform_get_drvdata(soc_runtime->platform);
-	struct lpass_variant *v = drvdata->variant;
 	int ret = -EINVAL;
-	struct lpass_pcm_data *data;
 	size_t size = lpass_platform_pcm_hardware.buffer_bytes_max;
-
-	data = devm_kzalloc(soc_runtime->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->i2s_port = cpu_dai->driver->id;
-	snd_soc_pcm_set_drvdata(soc_runtime, data);
 
 	psubstream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (psubstream) {
-		if (v->alloc_dma_channel)
-			data->rdma_ch = v->alloc_dma_channel(drvdata,
-						SNDRV_PCM_STREAM_PLAYBACK);
-
-		if (data->rdma_ch < 0)
-			return data->rdma_ch;
-
-		drvdata->substream[data->rdma_ch] = psubstream;
-
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 					soc_runtime->platform->dev,
 					size, &psubstream->dma_buffer);
-		if (ret)
-			goto playback_alloc_err;
-
-		ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_RDMACTL_REG(v, data->rdma_ch), 0);
 		if (ret) {
-			dev_err(soc_runtime->dev,
-				"%s() error writing to rdmactl reg: %d\n",
-				__func__, ret);
-			goto capture_alloc_err;
+			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
+			return ret;
 		}
 	}
 
 	csubstream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	if (csubstream) {
-		if (v->alloc_dma_channel)
-			data->wrdma_ch = v->alloc_dma_channel(drvdata,
-						SNDRV_PCM_STREAM_CAPTURE);
-
-		if (data->wrdma_ch < 0) {
-			ret = data->wrdma_ch;
-			goto capture_alloc_err;
-		}
-
-		drvdata->substream[data->wrdma_ch] = csubstream;
-
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
 					soc_runtime->platform->dev,
 					size, &csubstream->dma_buffer);
-		if (ret)
-			goto capture_alloc_err;
-
-		ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_WRDMACTL_REG(v, data->wrdma_ch), 0);
 		if (ret) {
-			dev_err(soc_runtime->dev,
-				"%s() error writing to wrdmactl reg: %d\n",
-				__func__, ret);
-			goto capture_reg_err;
+			dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
+			if (psubstream)
+				snd_dma_free_pages(&psubstream->dma_buffer);
+			return ret;
 		}
+
 	}
 
 	return 0;
-
-capture_reg_err:
-	if (csubstream)
-		snd_dma_free_pages(&csubstream->dma_buffer);
-
-capture_alloc_err:
-	if (psubstream)
-		snd_dma_free_pages(&psubstream->dma_buffer);
-
- playback_alloc_err:
-	dev_err(soc_runtime->dev, "Cannot allocate buffer(s)\n");
-
-	return ret;
 }
 
 static void lpass_platform_pcm_free(struct snd_pcm *pcm)
 {
-	struct snd_soc_pcm_runtime *rt;
-	struct lpass_data *drvdata;
-	struct lpass_pcm_data *data;
-	struct lpass_variant *v;
 	struct snd_pcm_substream *substream;
-	int ch, i;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pcm->streams); i++) {
 		substream = pcm->streams[i].substream;
 		if (substream) {
-			rt = substream->private_data;
-			data = snd_soc_pcm_get_drvdata(rt);
-			drvdata = snd_soc_platform_get_drvdata(rt->platform);
-
-			ch = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				? data->rdma_ch
-				: data->wrdma_ch;
-			v = drvdata->variant;
-			drvdata->substream[ch] = NULL;
-			if (v->free_dma_channel)
-				v->free_dma_channel(drvdata, ch);
-
 			snd_dma_free_pages(&substream->dma_buffer);
 			substream->dma_buffer.area = NULL;
 			substream->dma_buffer.addr = 0;

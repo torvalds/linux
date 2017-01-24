@@ -68,8 +68,9 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 {
 	int ret = 0;
 
-	/* all algorithms must implement ssthresh and cong_avoid ops */
-	if (!ca->ssthresh || !ca->cong_avoid) {
+	/* all algorithms must implement these */
+	if (!ca->ssthresh || !ca->undo_cwnd ||
+	    !(ca->cong_avoid || ca->cong_control)) {
 		pr_err("%s does not implement required ops\n", ca->name);
 		return -EINVAL;
 	}
@@ -200,8 +201,10 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 	icsk->icsk_ca_ops = ca;
 	icsk->icsk_ca_setsockopt = 1;
 
-	if (sk->sk_state != TCP_CLOSE)
+	if (sk->sk_state != TCP_CLOSE) {
+		memset(icsk->icsk_ca_priv, 0, sizeof(icsk->icsk_ca_priv));
 		tcp_init_congestion_control(sk);
+	}
 }
 
 /* Manage refcounts on socket close. */
@@ -441,10 +444,19 @@ u32 tcp_reno_ssthresh(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
 
+u32 tcp_reno_undo_cwnd(struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+
+	return max(tp->snd_cwnd, tp->snd_ssthresh << 1);
+}
+EXPORT_SYMBOL_GPL(tcp_reno_undo_cwnd);
+
 struct tcp_congestion_ops tcp_reno = {
 	.flags		= TCP_CONG_NON_RESTRICTED,
 	.name		= "reno",
 	.owner		= THIS_MODULE,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 };

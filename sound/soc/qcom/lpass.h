@@ -58,6 +58,7 @@ struct lpass_data {
 	/* 8016 specific */
 	struct clk *pcnoc_mport_clk;
 	struct clk *pcnoc_sway_clk;
+
 };
 
 /* Vairant data per each SOC */

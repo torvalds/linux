@@ -20,7 +20,6 @@
 #include "nic.h"
 #include "farch_regs.h"
 #include "io.h"
-#include "phy.h"
 #include "workarounds.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
@@ -34,19 +33,24 @@ static void siena_init_wol(struct efx_nic *efx);
 
 static void siena_push_irq_moderation(struct efx_channel *channel)
 {
+	struct efx_nic *efx = channel->efx;
 	efx_dword_t timer_cmd;
 
-	if (channel->irq_moderation)
+	if (channel->irq_moderation_us) {
+		unsigned int ticks;
+
+		ticks = efx_usecs_to_ticks(efx, channel->irq_moderation_us);
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_CZ_TC_TIMER_MODE,
 				     FFE_CZ_TIMER_MODE_INT_HLDOFF,
 				     FRF_CZ_TC_TIMER_VAL,
-				     channel->irq_moderation - 1);
-	else
+				     ticks - 1);
+	} else {
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_CZ_TC_TIMER_MODE,
 				     FFE_CZ_TIMER_MODE_DIS,
 				     FRF_CZ_TC_TIMER_VAL, 0);
+	}
 	efx_writed_page_locked(channel->efx, &timer_cmd, FR_BZ_TIMER_COMMAND_P0,
 			       channel->channel);
 }
@@ -222,6 +226,9 @@ static int siena_probe_nvconfig(struct efx_nic *efx)
 	efx->timer_quantum_ns =
 		(caps & (1 << MC_CMD_CAPABILITIES_TURBO_ACTIVE_LBN)) ?
 		3072 : 6144; /* 768 cycles */
+	efx->timer_max_ns = efx->type->timer_period_max *
+			    efx->timer_quantum_ns;
+
 	return rc;
 }
 
@@ -396,6 +403,7 @@ static int siena_init_nic(struct efx_nic *efx)
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
 	siena_rx_push_rss_config(efx, false, efx->rx_indir_table);
+	efx->rss_active = true;
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -710,7 +718,7 @@ static void siena_mcdi_request(struct efx_nic *efx,
 	unsigned int i;
 	unsigned int inlen_dw = DIV_ROUND_UP(sdu_len, 4);
 
-	EFX_BUG_ON_PARANOID(hdr_len != 4);
+	EFX_WARN_ON_PARANOID(hdr_len != 4);
 
 	efx_writed(efx, hdr, pdu);
 
@@ -969,6 +977,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
+	.tx_limit_len = efx_farch_tx_limit_len,
 	.rx_push_rss_config = siena_rx_push_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,

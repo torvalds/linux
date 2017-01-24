@@ -79,12 +79,12 @@ config I2C_AMD8111
 
 config I2C_HIX5HD2
 	tristate "Hix5hd2 high-speed I2C driver"
-	depends on ARCH_HIX5HD2 || COMPILE_TEST
+	depends on ARCH_HISI || ARCH_HIX5HD2 || COMPILE_TEST
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Hisilicon based hix5hd2 SoCs.
+	  Say Y here to include support for the high-speed I2C controller
+	  used in HiSilicon hix5hd2 SoCs.
 
-	  This driver can also be built as a module.  If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called i2c-hix5hd2.
 
 config I2C_I801
@@ -426,7 +426,7 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
-	depends on ARCH_ZYNQ || ARM64
+	depends on ARCH_ZYNQ || ARM64 || XTENSA
 	help
 	  Say yes here to select Cadence I2C Host Controller. This controller is
 	  e.g. used by Xilinx Zynq.
@@ -589,13 +589,23 @@ config I2C_IMG
 
 config I2C_IMX
 	tristate "IMX I2C interface"
-	depends on ARCH_MXC || ARCH_LAYERSCAPE
+	depends on ARCH_MXC || ARCH_LAYERSCAPE || COLDFIRE
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Freescale i.MX/MXC or Layerscape processors.
+	  the Freescale i.MX/MXC, Layerscape or ColdFire processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
+
+config I2C_IMX_LPI2C
+	tristate "IMX Low Power I2C interface"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+          Say Y here if you want to use the Low Power IIC bus controller
+          on the Freescale i.MX processors.
+
+          This driver can also be built as a module. If so, the module
+          will be called i2c-imx-lpi2c.
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
@@ -763,7 +773,7 @@ config I2C_PUV3
 
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"
-	depends on ARCH_PXA || ARCH_MMP || (X86_32 && PCI && OF)
+	depends on ARCH_PXA || ARCH_MMP || ARCH_MVEBU || (X86_32 && PCI && OF)
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module
@@ -836,7 +846,7 @@ config I2C_SH7760
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
 	depends on HAS_DMA
-	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
+	depends on ARCH_SHMOBILE || ARCH_RENESAS || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Renesas SH-Mobile processor.
@@ -955,6 +965,17 @@ config I2C_OCTEON
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-octeon.
+
+config I2C_THUNDERX
+	tristate "Cavium ThunderX I2C bus support"
+	depends on 64BIT && PCI && (ARM64 || COMPILE_TEST)
+	select I2C_SMBUS
+	help
+	  Say yes if you want to support the I2C serial bus on Cavium
+	  ThunderX SOC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-thunderx.
 
 config I2C_XILINX
 	tristate "Xilinx I2C Controller"
@@ -1138,6 +1159,17 @@ config I2C_ELEKTOR
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
+
+config I2C_MLXCPLD
+	tristate "Mellanox I2C driver"
+	depends on X86_64
+	help
+	  This exposes the Mellanox platform I2C busses to the linux I2C layer
+	  for X86 based systems.
+	  Controller is implemented as CPLD logic.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-mlxcpld.
 
 config I2C_PCA_ISA
 	tristate "PCA9564/PCA9665 on an ISA bus"

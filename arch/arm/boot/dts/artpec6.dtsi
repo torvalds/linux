@@ -41,6 +41,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/axis,artpec6-clkctrl.h>
 #include "skeleton.dtsi"
 
 / {
@@ -66,7 +67,7 @@
 		};
 	};
 
-	syscon {
+	syscon: syscon@f8000000 {
 		compatible = "axis,artpec6-syscon", "syscon";
 		reg = <0xf8000000 0x48>;
 	};
@@ -109,14 +110,14 @@
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0xfaf00200 0x20>;
 		interrupts = <GIC_PPI 11 0xf01>;
-		clocks = <&clkctrl 1>;
+		clocks = <&clkctrl ARTPEC6_CLK_CPU_PERIPH>;
 	};
 
 	timer@faf00600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0xfaf00600 0x20>;
 		interrupts = <GIC_PPI 13 0xf04>;
-		clocks = <&clkctrl 1>;
+		clocks = <&clkctrl ARTPEC6_CLK_CPU_PERIPH>;
 		status = "disabled";
 	};
 
@@ -136,13 +137,48 @@
 		arm,data-latency = <1 1 1>;
 		arm,tag-latency = <1 1 1>;
 		arm,filter-ranges = <0x0 0x80000000>;
+		arm,double-linefill = <1>;
+		arm,double-linefill-incr = <0>;
+		arm,double-linefill-wrap = <0>;
+		prefetch-data = <1>;
+		prefetch-instr = <1>;
+		arm,prefetch-offset = <0>;
+		arm,prefetch-drop = <1>;
 	};
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
 		interrupt-parent = <&intc>;
+	};
+
+	pcie: pcie@f8050000 {
+		compatible = "axis,artpec6-pcie", "snps,dw-pcie";
+		reg = <0xf8050000 0x2000
+		       0xf8040000 0x1000
+		       0xc0000000 0x2000>;
+		reg-names = "dbi", "phy", "config";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+			  /* downstream I/O */
+		ranges = <0x81000000 0 0 0xc0002000 0 0x00010000
+			  /* non-prefetchable memory */
+			  0x82000000 0 0xc0012000 0xc0012000 0 0x1ffee000>;
+		num-lanes = <2>;
+		bus-range = <0x00 0xff>;
+		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		interrupt-map = <0 0 0 1 &intc GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &intc GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &intc GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &intc GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		axis,syscon-pcie = <&syscon>;
+		status = "disabled";
 	};
 
 	amba@0 {
@@ -157,7 +193,7 @@
 		ethernet: ethernet@f8010000 {
 			clock-names = "phy_ref_clk", "apb_pclk";
 			clocks = <&eth_phy_ref_clk>,
-				<&clkctrl 4>;
+				<&clkctrl ARTPEC6_CLK_ETH_ACLK>;
 			compatible = "snps,dwc-qos-ethernet-4.10";
 			interrupt-parent = <&intc>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -175,8 +211,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xf8036000 0x1000>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clkctrl 13>,
-				<&clkctrl 12>;
+			clocks = <&clkctrl ARTPEC6_CLK_UART_REFCLK>,
+				<&clkctrl ARTPEC6_CLK_UART_PCLK>;
 			clock-names = "uart_clk", "apb_pclk";
 			status = "disabled";
 		};
@@ -184,8 +220,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xf8037000 0x1000>;
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clkctrl 13>,
-				<&clkctrl 12>;
+			clocks = <&clkctrl ARTPEC6_CLK_UART_REFCLK>,
+				<&clkctrl ARTPEC6_CLK_UART_PCLK>;
 			clock-names = "uart_clk", "apb_pclk";
 			status = "disabled";
 		};
@@ -193,8 +229,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xf8038000 0x1000>;
 			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clkctrl 13>,
-				<&clkctrl 12>;
+			clocks = <&clkctrl ARTPEC6_CLK_UART_REFCLK>,
+				<&clkctrl ARTPEC6_CLK_UART_PCLK>;
 			clock-names = "uart_clk", "apb_pclk";
 			status = "disabled";
 		};
@@ -202,8 +238,8 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xf8039000 0x1000>;
 			interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clkctrl 13>,
-				<&clkctrl 12>;
+			clocks = <&clkctrl ARTPEC6_CLK_UART_REFCLK>,
+				<&clkctrl ARTPEC6_CLK_UART_PCLK>;
 			clock-names = "uart_clk", "apb_pclk";
 			status = "disabled";
 		};

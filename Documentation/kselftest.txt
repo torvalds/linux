@@ -1,8 +1,9 @@
 Linux Kernel Selftests
 
 The kernel contains a set of "self tests" under the tools/testing/selftests/
-directory. These are intended to be small unit tests to exercise individual
-code paths in the kernel.
+directory. These are intended to be small tests to exercise individual code
+paths in the kernel. Tests are intended to be run after building, installing
+and booting a kernel.
 
 On some systems, hot-plug tests could hang forever waiting for cpu and
 memory to be ready to be offlined. A special hot-plug target is created
@@ -69,6 +70,17 @@ To install selftests in an user specified location:
    $ cd tools/testing/selftests
    $ ./kselftest_install.sh install_dir
 
+Running installed selftests
+===========================
+
+Kselftest install as well as the Kselftest tarball provide a script
+named "run_kselftest.sh" to run the tests.
+
+You can simply do the following to run the installed Kselftests. Please
+note some tests will require root privileges.
+
+cd kselftest
+./run_kselftest.sh
 
 Contributing new tests
 ======================

@@ -699,13 +699,16 @@ EXPORT_SYMBOL(rdma_addr_cancel);
 struct resolve_cb_context {
 	struct rdma_dev_addr *addr;
 	struct completion comp;
+	int status;
 };
 
 static void resolve_cb(int status, struct sockaddr *src_addr,
 	     struct rdma_dev_addr *addr, void *context)
 {
-	memcpy(((struct resolve_cb_context *)context)->addr, addr, sizeof(struct
-				rdma_dev_addr));
+	if (!status)
+		memcpy(((struct resolve_cb_context *)context)->addr,
+		       addr, sizeof(struct rdma_dev_addr));
+	((struct resolve_cb_context *)context)->status = status;
 	complete(&((struct resolve_cb_context *)context)->comp);
 }
 
@@ -742,6 +745,10 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 		return ret;
 
 	wait_for_completion(&ctx.comp);
+
+	ret = ctx.status;
+	if (ret)
+		return ret;
 
 	memcpy(dmac, dev_addr.dst_dev_addr, ETH_ALEN);
 	dev = dev_get_by_index(&init_net, dev_addr.bound_dev_if);
@@ -800,7 +807,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = create_singlethread_workqueue("ib_addr");
+	addr_wq = alloc_workqueue("ib_addr", WQ_MEM_RECLAIM, 0);
 	if (!addr_wq)
 		return -ENOMEM;
 

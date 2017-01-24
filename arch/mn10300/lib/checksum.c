@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/checksum.h>
 #include "internal.h"
 

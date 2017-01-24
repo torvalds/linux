@@ -5,6 +5,46 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/export.h>
+
+/*
+ * void *memmove(void *dest, const void *src, size_t n)
+ */
+ENTRY(memmove)
+	ltgr	%r4,%r4
+	lgr	%r1,%r2
+	bzr	%r14
+	clgr	%r2,%r3
+	jnh	.Lmemmove_forward
+	la	%r5,0(%r4,%r3)
+	clgr	%r2,%r5
+	jl	.Lmemmove_reverse
+.Lmemmove_forward:
+	aghi	%r4,-1
+	srlg	%r0,%r4,8
+	ltgr	%r0,%r0
+	jz	.Lmemmove_rest
+.Lmemmove_loop:
+	mvc	0(256,%r1),0(%r3)
+	la	%r1,256(%r1)
+	la	%r3,256(%r3)
+	brctg	%r0,.Lmemmove_loop
+.Lmemmove_rest:
+	larl	%r5,.Lmemmove_mvc
+	ex	%r4,0(%r5)
+	br	%r14
+.Lmemmove_reverse:
+	aghi	%r4,-1
+.Lmemmove_reverse_loop:
+	ic	%r0,0(%r4,%r3)
+	stc	%r0,0(%r4,%r1)
+	brctg	%r4,.Lmemmove_reverse_loop
+	ic	%r0,0(%r4,%r3)
+	stc	%r0,0(%r4,%r1)
+	br	%r14
+.Lmemmove_mvc:
+	mvc	0(1,%r1),0(%r3)
+EXPORT_SYMBOL(memmove)
 
 /*
  * memset implementation
@@ -60,6 +100,7 @@ ENTRY(memset)
 	xc	0(1,%r1),0(%r1)
 .Lmemset_mvc:
 	mvc	1(1,%r1),0(%r1)
+EXPORT_SYMBOL(memset)
 
 /*
  * memcpy implementation
@@ -86,3 +127,4 @@ ENTRY(memcpy)
 	j	.Lmemcpy_rest
 .Lmemcpy_mvc:
 	mvc	0(1,%r1),0(%r3)
+EXPORT_SYMBOL(memcpy)

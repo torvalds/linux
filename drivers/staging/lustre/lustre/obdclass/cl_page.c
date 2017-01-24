@@ -99,7 +99,6 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 
 	PASSERT(env, page, list_empty(&page->cp_batch));
 	PASSERT(env, page, !page->cp_owner);
-	PASSERT(env, page, !page->cp_req);
 	PASSERT(env, page, page->cp_state == CPS_FREEING);
 
 	while (!list_empty(&page->cp_layers)) {
@@ -150,8 +149,6 @@ struct cl_page *cl_page_alloc(const struct lu_env *env,
 		page->cp_type = type;
 		INIT_LIST_HEAD(&page->cp_layers);
 		INIT_LIST_HEAD(&page->cp_batch);
-		INIT_LIST_HEAD(&page->cp_flight);
-		mutex_init(&page->cp_mutex);
 		lu_ref_init(&page->cp_reference);
 		head = o->co_lu.lo_header;
 		list_for_each_entry(o, &head->loh_layers, co_lu.lo_linkage) {
@@ -171,7 +168,6 @@ struct cl_page *cl_page_alloc(const struct lu_env *env,
 	}
 	return page;
 }
-EXPORT_SYMBOL(cl_page_alloc);
 
 /**
  * Returns a cl_page with index \a idx at the object \a o, and associated with
@@ -229,11 +225,6 @@ EXPORT_SYMBOL(cl_page_find);
 
 static inline int cl_page_invariant(const struct cl_page *pg)
 {
-	/*
-	 * Page invariant is protected by a VM lock.
-	 */
-	LINVRNT(cl_page_is_vmlocked(NULL, pg));
-
 	return cl_page_in_use_noref(pg);
 }
 
@@ -397,30 +388,6 @@ EXPORT_SYMBOL(cl_page_at);
 	__result;						       \
 })
 
-#define CL_PAGE_INVOKE_REVERSE(_env, _page, _op, _proto, ...)		\
-({									\
-	const struct lu_env        *__env  = (_env);			\
-	struct cl_page             *__page = (_page);			\
-	const struct cl_page_slice *__scan;				\
-	int                         __result;				\
-	ptrdiff_t                   __op   = (_op);			\
-	int                       (*__method)_proto;			\
-									\
-	__result = 0;							\
-	list_for_each_entry_reverse(__scan, &__page->cp_layers,		\
-					cpl_linkage) {			\
-		__method = *(void **)((char *)__scan->cpl_ops +  __op);	\
-		if (__method) {						\
-			__result = (*__method)(__env, __scan, ## __VA_ARGS__); \
-			if (__result != 0)				\
-				break;					\
-		}							\
-	}								\
-	if (__result > 0)						\
-		__result = 0;						\
-	__result;							\
-})
-
 #define CL_PAGE_INVOID(_env, _page, _op, _proto, ...)		   \
 do {								    \
 	const struct lu_env	*__env  = (_env);		    \
@@ -478,7 +445,6 @@ static void cl_page_owner_clear(struct cl_page *page)
 		LASSERT(page->cp_owner->ci_owned_nr > 0);
 		page->cp_owner->ci_owned_nr--;
 		page->cp_owner = NULL;
-		page->cp_task = NULL;
 	}
 }
 
@@ -560,9 +526,7 @@ static int cl_page_own0(const struct lu_env *env, struct cl_io *io,
 					io, nonblock);
 		if (result == 0) {
 			PASSERT(env, pg, !pg->cp_owner);
-			PASSERT(env, pg, !pg->cp_req);
 			pg->cp_owner = cl_io_top(io);
-			pg->cp_task  = current;
 			cl_page_owner_set(pg);
 			if (pg->cp_state != CPS_FREEING) {
 				cl_page_state_set(env, pg, CPS_OWNED);
@@ -619,7 +583,6 @@ void cl_page_assume(const struct lu_env *env,
 	cl_page_invoid(env, io, pg, CL_PAGE_OP(cpo_assume));
 	PASSERT(env, pg, !pg->cp_owner);
 	pg->cp_owner = cl_io_top(io);
-	pg->cp_task = current;
 	cl_page_owner_set(pg);
 	cl_page_state_set(env, pg, CPS_OWNED);
 }
@@ -704,7 +667,7 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg)
 	PASSERT(env, pg, pg->cp_state != CPS_FREEING);
 
 	/*
-	 * Severe all ways to obtain new pointers to @pg.
+	 * Sever all ways to obtain new pointers to @pg.
 	 */
 	cl_page_owner_clear(pg);
 
@@ -855,15 +818,9 @@ void cl_page_completion(const struct lu_env *env,
 	struct cl_sync_io *anchor = pg->cp_sync_io;
 
 	PASSERT(env, pg, crt < CRT_NR);
-	/* cl_page::cp_req already cleared by the caller (osc_completion()) */
-	PASSERT(env, pg, !pg->cp_req);
 	PASSERT(env, pg, pg->cp_state == cl_req_type_state(crt));
 
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, ioret);
-	if (crt == CRT_READ && ioret == 0) {
-		PASSERT(env, pg, !(pg->cp_flags & CPF_READ_COMPLETED));
-		pg->cp_flags |= CPF_READ_COMPLETED;
-	}
 
 	cl_page_state_set(env, pg, CPS_CACHED);
 	if (crt >= CRT_NR)
@@ -872,19 +829,10 @@ void cl_page_completion(const struct lu_env *env,
 			       (const struct lu_env *,
 				const struct cl_page_slice *, int), ioret);
 	if (anchor) {
-		LASSERT(cl_page_is_vmlocked(env, pg));
 		LASSERT(pg->cp_sync_io == anchor);
 		pg->cp_sync_io = NULL;
-	}
-	/*
-	 * As page->cp_obj is pinned by a reference from page->cp_req, it is
-	 * safe to call cl_page_put() without risking object destruction in a
-	 * non-blocking context.
-	 */
-	cl_page_put(env, pg);
-
-	if (anchor)
 		cl_sync_io_note(env, anchor, ioret);
+	}
 }
 EXPORT_SYMBOL(cl_page_completion);
 
@@ -942,29 +890,6 @@ int cl_page_flush(const struct lu_env *env, struct cl_io *io,
 EXPORT_SYMBOL(cl_page_flush);
 
 /**
- * Checks whether page is protected by any extent lock is at least required
- * mode.
- *
- * \return the same as in cl_page_operations::cpo_is_under_lock() method.
- * \see cl_page_operations::cpo_is_under_lock()
- */
-int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page *page, pgoff_t *max_index)
-{
-	int rc;
-
-	PINVRNT(env, page, cl_page_invariant(page));
-
-	rc = CL_PAGE_INVOKE_REVERSE(env, page, CL_PAGE_OP(cpo_is_under_lock),
-				    (const struct lu_env *,
-				     const struct cl_page_slice *,
-				      struct cl_io *, pgoff_t *),
-				    io, max_index);
-	return rc;
-}
-EXPORT_SYMBOL(cl_page_is_under_lock);
-
-/**
  * Tells transfer engine that only part of a page is to be transmitted.
  *
  * \see cl_page_operations::cpo_clip()
@@ -989,10 +914,10 @@ void cl_page_header_print(const struct lu_env *env, void *cookie,
 			  lu_printer_t printer, const struct cl_page *pg)
 {
 	(*printer)(env, cookie,
-		   "page@%p[%d %p %d %d %d %p %p %#x]\n",
+		   "page@%p[%d %p %d %d %p]\n",
 		   pg, atomic_read(&pg->cp_ref), pg->cp_obj,
-		   pg->cp_state, pg->cp_error, pg->cp_type,
-		   pg->cp_owner, pg->cp_req, pg->cp_flags);
+		   pg->cp_state, pg->cp_type,
+		   pg->cp_owner);
 }
 EXPORT_SYMBOL(cl_page_header_print);
 
@@ -1020,7 +945,6 @@ int cl_page_cancel(const struct lu_env *env, struct cl_page *page)
 			      (const struct lu_env *,
 			       const struct cl_page_slice *));
 }
-EXPORT_SYMBOL(cl_page_cancel);
 
 /**
  * Converts a byte offset within object \a obj into a page index.
@@ -1046,9 +970,9 @@ pgoff_t cl_index(const struct cl_object *obj, loff_t offset)
 }
 EXPORT_SYMBOL(cl_index);
 
-int cl_page_size(const struct cl_object *obj)
+size_t cl_page_size(const struct cl_object *obj)
 {
-	return 1 << PAGE_SHIFT;
+	return 1UL << PAGE_SHIFT;
 }
 EXPORT_SYMBOL(cl_page_size);
 
@@ -1087,11 +1011,11 @@ struct cl_client_cache *cl_cache_init(unsigned long lru_page_max)
 	/* Initialize cache data */
 	atomic_set(&cache->ccc_users, 1);
 	cache->ccc_lru_max = lru_page_max;
-	atomic_set(&cache->ccc_lru_left, lru_page_max);
+	atomic_long_set(&cache->ccc_lru_left, lru_page_max);
 	spin_lock_init(&cache->ccc_lru_lock);
 	INIT_LIST_HEAD(&cache->ccc_lru);
 
-	atomic_set(&cache->ccc_unstable_nr, 0);
+	atomic_long_set(&cache->ccc_unstable_nr, 0);
 	init_waitqueue_head(&cache->ccc_unstable_waitq);
 
 	return cache;

@@ -25,6 +25,9 @@
 
 #include <linux/types.h>
 
+struct drm_device;
+struct i2c_adapter;
+
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
 #define DDC_ADDR2 0x52 /* E-DDC 1.2 - where DisplayID can hide */
@@ -327,7 +330,6 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
 int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
-struct drm_connector *drm_select_eld(struct drm_encoder *encoder);
 
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
 int drm_load_edid_firmware(struct drm_connector *connector);
@@ -423,9 +425,36 @@ static inline u8 drm_eld_get_conn_type(const uint8_t *eld)
 	return eld[DRM_ELD_SAD_COUNT_CONN_TYPE] & DRM_ELD_CONN_TYPE_MASK;
 }
 
+bool drm_probe_ddc(struct i2c_adapter *adapter);
 struct edid *drm_do_get_edid(struct drm_connector *connector,
 	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
 			      size_t len),
 	void *data);
+struct edid *drm_get_edid(struct drm_connector *connector,
+			  struct i2c_adapter *adapter);
+struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+				     struct i2c_adapter *adapter);
+struct edid *drm_edid_duplicate(const struct edid *edid);
+int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
+
+u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
+enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
+bool drm_detect_hdmi_monitor(struct edid *edid);
+bool drm_detect_monitor_audio(struct edid *edid);
+bool drm_rgb_quant_range_selectable(struct edid *edid);
+int drm_add_modes_noedid(struct drm_connector *connector,
+			 int hdisplay, int vdisplay);
+void drm_set_preferred_mode(struct drm_connector *connector,
+			    int hpref, int vpref);
+
+int drm_edid_header_is_valid(const u8 *raw_edid);
+bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
+			  bool *edid_corrupt);
+bool drm_edid_is_valid(struct edid *edid);
+void drm_edid_get_monitor_name(struct edid *edid, char *name,
+			       int buflen);
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh,
+					   bool rb);
 
 #endif /* __DRM_EDID_H__ */

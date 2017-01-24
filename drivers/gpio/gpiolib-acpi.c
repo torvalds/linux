@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
@@ -395,7 +396,7 @@ struct acpi_gpio_lookup {
 	int n;
 };
 
-static int acpi_find_gpio(struct acpi_resource *ares, void *data)
+static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 {
 	struct acpi_gpio_lookup *lookup = data;
 
@@ -440,7 +441,8 @@ static int acpi_gpio_resource_lookup(struct acpi_gpio_lookup *lookup,
 
 	INIT_LIST_HEAD(&res_list);
 
-	ret = acpi_dev_get_resources(lookup->adev, &res_list, acpi_find_gpio,
+	ret = acpi_dev_get_resources(lookup->adev, &res_list,
+				     acpi_populate_gpio_lookup,
 				     lookup);
 	if (ret < 0)
 		return ret;
@@ -466,7 +468,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	int ret;
 
 	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, propname, index, &args);
+	ret = __acpi_node_get_property_reference(fwnode, propname, index, 3,
+						 &args);
 	if (ret) {
 		struct acpi_device *adev = to_acpi_device_node(fwnode);
 
@@ -481,13 +484,13 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	 * on returned args.
 	 */
 	lookup->adev = args.adev;
-	if (args.nargs >= 2) {
-		lookup->index = args.args[0];
-		lookup->pin_index = args.args[1];
-		/* 3rd argument, if present is used to specify active_low. */
-		if (args.nargs >= 3)
-			lookup->active_low = !!args.args[2];
-	}
+	if (args.nargs != 3)
+		return -EPROTO;
+
+	lookup->index = args.args[0];
+	lookup->pin_index = args.args[1];
+	lookup->active_low = !!args.args[2];
+
 	return 0;
 }
 
@@ -513,7 +516,7 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
  * Note: if the GPIO resource has multiple entries in the pin list, this
  * function only returns the first.
  */
-struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
+static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 					  const char *propname, int index,
 					  struct acpi_gpio_info *info)
 {
@@ -544,6 +547,55 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);
 	return ret ? ERR_PTR(ret) : lookup.desc;
+}
+
+struct gpio_desc *acpi_find_gpio(struct device *dev,
+				 const char *con_id,
+				 unsigned int idx,
+				 enum gpiod_flags flags,
+				 enum gpio_lookup_flags *lookupflags)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_gpio_info info;
+	struct gpio_desc *desc;
+	char propname[32];
+	int i;
+
+	/* Try first from _DSD */
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id && strcmp(con_id, "gpios")) {
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, gpio_suffixes[i]);
+		} else {
+			snprintf(propname, sizeof(propname), "%s",
+				 gpio_suffixes[i]);
+		}
+
+		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+			break;
+	}
+
+	/* Then from plain _CRS GPIOs */
+	if (IS_ERR(desc)) {
+		if (!acpi_can_fallback_to_crs(adev, con_id))
+			return ERR_PTR(-ENOENT);
+
+		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
+		if (IS_ERR(desc))
+			return desc;
+
+		if ((flags == GPIOD_OUT_LOW || flags == GPIOD_OUT_HIGH) &&
+		    info.gpioint) {
+			dev_dbg(dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
+			return ERR_PTR(-ENOENT);
+		}
+	}
+
+	if (info.polarity == GPIO_ACTIVE_LOW)
+		*lookupflags |= GPIO_ACTIVE_LOW;
+
+	return desc;
 }
 
 /**
@@ -602,14 +654,17 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 {
 	int idx, i;
 	unsigned int irq_flags;
+	int ret = -ENOENT;
 
 	for (i = 0, idx = 0; idx <= index; i++) {
 		struct acpi_gpio_info info;
 		struct gpio_desc *desc;
 
 		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
-		if (IS_ERR(desc))
+		if (IS_ERR(desc)) {
+			ret = PTR_ERR(desc);
 			break;
+		}
 		if (info.gpioint && idx++ == index) {
 			int irq = gpiod_to_irq(desc);
 
@@ -628,7 +683,7 @@ int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
 		}
 
 	}
-	return -ENOENT;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get);
 
@@ -805,6 +860,77 @@ static void acpi_gpiochip_free_regions(struct acpi_gpio_chip *achip)
 	}
 }
 
+static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
+	struct acpi_gpio_chip *achip, struct fwnode_handle *fwnode,
+	const char **name, unsigned int *lflags, unsigned int *dflags)
+{
+	struct gpio_chip *chip = achip->chip;
+	struct gpio_desc *desc;
+	u32 gpios[2];
+	int ret;
+
+	*lflags = 0;
+	*dflags = 0;
+	*name = NULL;
+
+	ret = fwnode_property_read_u32_array(fwnode, "gpios", gpios,
+					     ARRAY_SIZE(gpios));
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	ret = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, gpios[0]);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	desc = gpiochip_get_desc(chip, ret);
+	if (IS_ERR(desc))
+		return desc;
+
+	if (gpios[1])
+		*lflags |= GPIO_ACTIVE_LOW;
+
+	if (fwnode_property_present(fwnode, "input"))
+		*dflags |= GPIOD_IN;
+	else if (fwnode_property_present(fwnode, "output-low"))
+		*dflags |= GPIOD_OUT_LOW;
+	else if (fwnode_property_present(fwnode, "output-high"))
+		*dflags |= GPIOD_OUT_HIGH;
+	else
+		return ERR_PTR(-EINVAL);
+
+	fwnode_property_read_string(fwnode, "line-name", name);
+
+	return desc;
+}
+
+static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
+{
+	struct gpio_chip *chip = achip->chip;
+	struct fwnode_handle *fwnode;
+
+	device_for_each_child_node(chip->parent, fwnode) {
+		unsigned int lflags, dflags;
+		struct gpio_desc *desc;
+		const char *name;
+		int ret;
+
+		if (!fwnode_property_present(fwnode, "gpio-hog"))
+			continue;
+
+		desc = acpi_gpiochip_parse_own_gpio(achip, fwnode, &name,
+						    &lflags, &dflags);
+		if (IS_ERR(desc))
+			continue;
+
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret) {
+			dev_err(chip->parent, "Failed to hog GPIO\n");
+			fwnode_handle_put(fwnode);
+			return;
+		}
+	}
+}
+
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_gpio_chip *acpi_gpio;
@@ -835,7 +961,11 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 		return;
 	}
 
+	if (!chip->names)
+		devprop_gpiochip_set_names(chip);
+
 	acpi_gpiochip_request_regions(acpi_gpio);
+	acpi_gpiochip_scan_gpios(acpi_gpio);
 	acpi_walk_dep_device_list(handle);
 }
 
@@ -864,18 +994,27 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	kfree(acpi_gpio);
 }
 
-static unsigned int acpi_gpio_package_count(const union acpi_object *obj)
+static int acpi_gpio_package_count(const union acpi_object *obj)
 {
 	const union acpi_object *element = obj->package.elements;
 	const union acpi_object *end = element + obj->package.count;
 	unsigned int count = 0;
 
 	while (element < end) {
-		if (element->type == ACPI_TYPE_LOCAL_REFERENCE)
+		switch (element->type) {
+		case ACPI_TYPE_LOCAL_REFERENCE:
+			element += 3;
+			/* Fallthrough */
+		case ACPI_TYPE_INTEGER:
+			element++;
 			count++;
+			break;
 
-		element++;
+		default:
+			return -EPROTO;
+		}
 	}
+
 	return count;
 }
 

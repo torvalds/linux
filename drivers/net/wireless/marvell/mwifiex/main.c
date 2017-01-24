@@ -23,6 +23,7 @@
 #include "11n.h"
 
 #define VERSION	"1.0"
+#define MFG_FIRMWARE	"mwifiex_mfg.bin"
 
 static unsigned int debug_mask = MWIFIEX_DEFAULT_DEBUG_MASK;
 module_param(debug_mask, uint, 0);
@@ -36,6 +37,10 @@ static unsigned short driver_mode;
 module_param(driver_mode, ushort, 0);
 MODULE_PARM_DESC(driver_mode,
 		 "station=0x1(default), ap-sta=0x3, station-p2p=0x5, ap-sta-p2p=0x7");
+
+bool mfg_mode;
+module_param(mfg_mode, bool, 0);
+MODULE_PARM_DESC(mfg_mode, "manufacturing mode enable:1, disable:0");
 
 /*
  * This function registers the device and performs all the necessary
@@ -138,6 +143,8 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 		kfree(adapter->nd_info);
 		adapter->nd_info = NULL;
 	}
+
+	kfree(adapter->regd);
 
 	vfree(adapter->chan_stats);
 	kfree(adapter);
@@ -301,6 +308,9 @@ process_start:
 			/* We have tried to wakeup the card already */
 			if (adapter->pm_wakeup_fw_try)
 				break;
+			if (adapter->ps_state == PS_STATE_PRE_SLEEP)
+				mwifiex_check_ps_cond(adapter);
+
 			if (adapter->ps_state != PS_STATE_AWAKE)
 				break;
 			if (adapter->tx_lock_flag) {
@@ -348,10 +358,8 @@ process_start:
 
 		/* Check if we need to confirm Sleep Request
 		   received previously */
-		if (adapter->ps_state == PS_STATE_PRE_SLEEP) {
-			if (!adapter->cmd_sent && !adapter->curr_cmd)
-				mwifiex_check_ps_cond(adapter);
-		}
+		if (adapter->ps_state == PS_STATE_PRE_SLEEP)
+			mwifiex_check_ps_cond(adapter);
 
 		/* * The ps_state may have been changed during processing of
 		 * Sleep Request event.
@@ -486,9 +494,11 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
  */
 static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
 {
-	flush_workqueue(adapter->workqueue);
-	destroy_workqueue(adapter->workqueue);
-	adapter->workqueue = NULL;
+	if (adapter->workqueue) {
+		flush_workqueue(adapter->workqueue);
+		destroy_workqueue(adapter->workqueue);
+		adapter->workqueue = NULL;
+	}
 
 	if (adapter->rx_workqueue) {
 		flush_workqueue(adapter->rx_workqueue);
@@ -508,12 +518,11 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
 	int ret;
 	char fmt[64];
-	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
-	struct semaphore *sem = adapter->card_sem;
 	bool init_failed = false;
 	struct wireless_dev *wdev;
+	struct completion *fw_done = adapter->fw_done;
 
 	if (!firmware) {
 		mwifiex_dbg(adapter, ERROR,
@@ -559,16 +568,19 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 		goto done;
 	}
 	/* Wait for mwifiex_init to complete */
-	wait_event_interruptible(adapter->init_wait_q,
-				 adapter->init_wait_q_woken);
-	if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
-		goto err_init_fw;
+	if (!adapter->mfg_mode) {
+		wait_event_interruptible(adapter->init_wait_q,
+					 adapter->init_wait_q_woken);
+		if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
+			goto err_init_fw;
+	}
 
-	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
-	if (mwifiex_register_cfg80211(adapter)) {
-		mwifiex_dbg(adapter, ERROR,
-			    "cannot register with cfg80211\n");
-		goto err_init_fw;
+	if (!adapter->wiphy) {
+		if (mwifiex_register_cfg80211(adapter)) {
+			mwifiex_dbg(adapter, ERROR,
+				    "cannot register with cfg80211\n");
+			goto err_init_fw;
+		}
 	}
 
 	if (mwifiex_init_channel_scan_gap(adapter)) {
@@ -655,23 +667,49 @@ done:
 	}
 	if (init_failed)
 		mwifiex_free_adapter(adapter);
-	up(sem);
+	/* Tell all current and future waiters we're finished */
+	complete_all(fw_done);
 	return;
 }
 
 /*
  * This function initializes the hardware and gets firmware.
  */
-static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
+static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
+			      bool req_fw_nowait)
 {
 	int ret;
 
-	ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
-				      adapter->dev, GFP_KERNEL, adapter,
-				      mwifiex_fw_dpc);
-	if (ret < 0)
-		mwifiex_dbg(adapter, ERROR,
-			    "request_firmware_nowait error %d\n", ret);
+	/* Override default firmware with manufacturing one if
+	 * manufacturing mode is enabled
+	 */
+	if (mfg_mode) {
+		if (strlcpy(adapter->fw_name, MFG_FIRMWARE,
+			    sizeof(adapter->fw_name)) >=
+			    sizeof(adapter->fw_name)) {
+			pr_err("%s: fw_name too long!\n", __func__);
+			return -1;
+		}
+	}
+
+	if (req_fw_nowait) {
+		ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
+					      adapter->dev, GFP_KERNEL, adapter,
+					      mwifiex_fw_dpc);
+		if (ret < 0)
+			mwifiex_dbg(adapter, ERROR,
+				    "request_firmware_nowait error %d\n", ret);
+	} else {
+		ret = request_firmware(&adapter->firmware,
+				       adapter->fw_name,
+				       adapter->dev);
+		if (ret < 0)
+			mwifiex_dbg(adapter, ERROR,
+				    "request_firmware error %d\n", ret);
+		else
+			mwifiex_fw_dpc(adapter->firmware, (void *)adapter);
+	}
+
 	return ret;
 }
 
@@ -1321,6 +1359,246 @@ static void mwifiex_main_work_queue(struct work_struct *work)
 }
 
 /*
+ * This function gets called during PCIe function level reset. Required
+ * code is extracted from mwifiex_remove_card()
+ */
+static int
+mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	int i;
+
+	if (!adapter)
+		goto exit_return;
+
+	wait_for_completion(adapter->fw_done);
+	/* Caller should ensure we aren't suspending while this happens */
+	reinit_completion(adapter->fw_done);
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+	mwifiex_deauthenticate(priv, NULL);
+
+	/* We can no longer handle interrupts once we start doing the teardown
+	 * below.
+	 */
+	if (adapter->if_ops.disable_int)
+		adapter->if_ops.disable_int(adapter);
+
+	adapter->surprise_removed = true;
+	mwifiex_terminate_workqueue(adapter);
+
+	/* Stop data */
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (priv && priv->netdev) {
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+			if (netif_carrier_ok(priv->netdev))
+				netif_carrier_off(priv->netdev);
+			netif_device_detach(priv->netdev);
+		}
+	}
+
+	mwifiex_dbg(adapter, CMD, "cmd: calling mwifiex_shutdown_drv...\n");
+	adapter->init_wait_q_woken = false;
+
+	if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
+		wait_event_interruptible(adapter->init_wait_q,
+					 adapter->init_wait_q_woken);
+	if (adapter->if_ops.down_dev)
+		adapter->if_ops.down_dev(adapter);
+
+	mwifiex_dbg(adapter, CMD, "cmd: mwifiex_shutdown_drv done\n");
+	if (atomic_read(&adapter->rx_pending) ||
+	    atomic_read(&adapter->tx_pending) ||
+	    atomic_read(&adapter->cmd_pending)) {
+		mwifiex_dbg(adapter, ERROR,
+			    "rx_pending=%d, tx_pending=%d,\t"
+			    "cmd_pending=%d\n",
+			    atomic_read(&adapter->rx_pending),
+			    atomic_read(&adapter->tx_pending),
+			    atomic_read(&adapter->cmd_pending));
+	}
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (!priv)
+			continue;
+		rtnl_lock();
+		if (priv->netdev &&
+		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
+		rtnl_unlock();
+	}
+
+	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
+exit_return:
+	return 0;
+}
+
+/* This function gets called during PCIe function level reset. Required
+ * code is extracted from mwifiex_add_card()
+ */
+static int
+mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct completion *fw_done,
+		  struct mwifiex_if_ops *if_ops, u8 iface_type)
+{
+	char fw_name[32];
+	struct pcie_service_card *card = adapter->card;
+
+	mwifiex_init_lock_list(adapter);
+	if (adapter->if_ops.up_dev)
+		adapter->if_ops.up_dev(adapter);
+
+	adapter->iface_type = iface_type;
+	adapter->fw_done = fw_done;
+
+	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
+	adapter->surprise_removed = false;
+	init_waitqueue_head(&adapter->init_wait_q);
+	adapter->is_suspended = false;
+	adapter->hs_activated = false;
+	init_waitqueue_head(&adapter->hs_activate_wait_q);
+	init_waitqueue_head(&adapter->cmd_wait_q.wait);
+	adapter->cmd_wait_q.status = 0;
+	adapter->scan_wait_q_woken = false;
+
+	if ((num_possible_cpus() > 1) || adapter->iface_type == MWIFIEX_USB)
+		adapter->rx_work_enabled = true;
+
+	adapter->workqueue =
+		alloc_workqueue("MWIFIEX_WORK_QUEUE",
+				WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
+	if (!adapter->workqueue)
+		goto err_kmalloc;
+
+	INIT_WORK(&adapter->main_work, mwifiex_main_work_queue);
+
+	if (adapter->rx_work_enabled) {
+		adapter->rx_workqueue = alloc_workqueue("MWIFIEX_RX_WORK_QUEUE",
+							WQ_HIGHPRI |
+							WQ_MEM_RECLAIM |
+							WQ_UNBOUND, 1);
+		if (!adapter->rx_workqueue)
+			goto err_kmalloc;
+		INIT_WORK(&adapter->rx_work, mwifiex_rx_work_queue);
+	}
+
+	/* Register the device. Fill up the private data structure with
+	 * relevant information from the card. Some code extracted from
+	 * mwifiex_register_dev()
+	 */
+	mwifiex_dbg(adapter, INFO, "%s, mwifiex_init_hw_fw()...\n", __func__);
+	strcpy(fw_name, adapter->fw_name);
+	strcpy(adapter->fw_name, PCIE8997_DEFAULT_WIFIFW_NAME);
+
+	adapter->tx_buf_size = card->pcie.tx_buf_size;
+	adapter->ext_scan = card->pcie.can_ext_scan;
+	if (mwifiex_init_hw_fw(adapter, false)) {
+		strcpy(adapter->fw_name, fw_name);
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: firmware init failed\n", __func__);
+		goto err_init_fw;
+	}
+	strcpy(adapter->fw_name, fw_name);
+	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
+
+	complete_all(adapter->fw_done);
+	return 0;
+
+err_init_fw:
+	mwifiex_dbg(adapter, ERROR, "info: %s: unregister device\n", __func__);
+	if (adapter->if_ops.unregister_dev)
+		adapter->if_ops.unregister_dev(adapter);
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
+		mwifiex_dbg(adapter, ERROR,
+			    "info: %s: shutdown mwifiex\n", __func__);
+		adapter->init_wait_q_woken = false;
+
+		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
+			wait_event_interruptible(adapter->init_wait_q,
+						 adapter->init_wait_q_woken);
+	}
+
+err_kmalloc:
+	mwifiex_terminate_workqueue(adapter);
+	adapter->surprise_removed = true;
+	complete_all(adapter->fw_done);
+	mwifiex_dbg(adapter, INFO, "%s, error\n", __func__);
+
+	return -1;
+}
+
+/* This function processes pre and post PCIe function level resets.
+ * It performs software cleanup without touching PCIe specific code.
+ * Also, during initialization PCIe stuff is skipped.
+ */
+void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
+{
+	struct mwifiex_if_ops if_ops;
+
+	if (!prepare) {
+		mwifiex_reinit_sw(adapter, adapter->fw_done, &if_ops,
+				  adapter->iface_type);
+	} else {
+		memcpy(&if_ops, &adapter->if_ops,
+		       sizeof(struct mwifiex_if_ops));
+		mwifiex_shutdown_sw(adapter);
+	}
+}
+EXPORT_SYMBOL_GPL(mwifiex_do_flr);
+
+static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
+{
+	struct mwifiex_adapter *adapter = priv;
+
+	if (adapter->irq_wakeup >= 0) {
+		dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
+		adapter->wake_by_wifi = true;
+		disable_irq_nosync(irq);
+	}
+
+	/* Notify PM core we are wakeup source */
+	pm_wakeup_event(adapter->dev, 0);
+
+	return IRQ_HANDLED;
+}
+
+static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
+{
+	int ret;
+	struct device *dev = adapter->dev;
+
+	if (!dev->of_node)
+		return;
+
+	adapter->dt_node = dev->of_node;
+	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_node, 0);
+	if (!adapter->irq_wakeup) {
+		dev_info(dev, "fail to parse irq_wakeup from device tree\n");
+		return;
+	}
+
+	ret = devm_request_irq(dev, adapter->irq_wakeup,
+			       mwifiex_irq_wakeup_handler, IRQF_TRIGGER_LOW,
+			       "wifi_wake", adapter);
+	if (ret) {
+		dev_err(dev, "Failed to request irq_wakeup %d (%d)\n",
+			adapter->irq_wakeup, ret);
+		goto err_exit;
+	}
+
+	disable_irq(adapter->irq_wakeup);
+	if (device_init_wakeup(dev, true)) {
+		dev_err(dev, "fail to init wakeup for mwifiex\n");
+		goto err_exit;
+	}
+	return;
+
+err_exit:
+	adapter->irq_wakeup = 0;
+}
+
+/*
  * This function adds the card.
  *
  * This function follows the following major steps to set up the device -
@@ -1334,21 +1612,22 @@ static void mwifiex_main_work_queue(struct work_struct *work)
  *      - Add logical interfaces
  */
 int
-mwifiex_add_card(void *card, struct semaphore *sem,
-		 struct mwifiex_if_ops *if_ops, u8 iface_type)
+mwifiex_add_card(void *card, struct completion *fw_done,
+		 struct mwifiex_if_ops *if_ops, u8 iface_type,
+		 struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
-
-	if (down_interruptible(sem))
-		goto exit_sem_err;
 
 	if (mwifiex_register(card, if_ops, (void **)&adapter)) {
 		pr_err("%s: software init failed\n", __func__);
 		goto err_init_sw;
 	}
 
+	adapter->dev = dev;
+	mwifiex_probe_of(adapter);
+
 	adapter->iface_type = iface_type;
-	adapter->card_sem = sem;
+	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1391,7 +1670,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_registerdev;
 	}
 
-	if (mwifiex_init_hw_fw(adapter)) {
+	if (mwifiex_init_hw_fw(adapter, true)) {
 		pr_err("%s: firmware init failed\n", __func__);
 		goto err_init_fw;
 	}
@@ -1417,9 +1696,7 @@ err_kmalloc:
 	mwifiex_free_adapter(adapter);
 
 err_init_sw:
-	up(sem);
 
-exit_sem_err:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(mwifiex_add_card);
@@ -1435,13 +1712,10 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
  *      - Unregister the device
  *      - Free the adapter structure
  */
-int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
+int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv = NULL;
 	int i;
-
-	if (down_trylock(sem))
-		goto exit_sem_err;
 
 	if (!adapter)
 		goto exit_remove;
@@ -1512,8 +1786,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	mwifiex_free_adapter(adapter);
 
 exit_remove:
-	up(sem);
-exit_sem_err:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);

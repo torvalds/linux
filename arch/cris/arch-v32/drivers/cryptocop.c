@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/atomic.h>
 
@@ -1210,7 +1210,7 @@ static int cryptocop_setup_dma_list(struct cryptocop_operation *operation, struc
 		assert(active_count >= eop_needed_count);
 		assert((eop_needed_count == 0) || (eop_needed_count == 1));
 		if (eop_needed_count) {
-			/* This means that the bulk operation (cipeher/m2m) is terminated. */
+			/* This means that the bulk operation (cipher/m2m) is terminated. */
 			if (active_count > 1) {
 				/* Use zero length EOP descriptor. */
 				struct cryptocop_dma_desc *ed = alloc_cdesc(alloc_flag);
@@ -2722,7 +2722,6 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	err = get_user_pages((unsigned long int)(oper.indata + prev_ix),
 			     noinpages,
 			     0,  /* read access only for in data */
-			     0, /* no force */
 			     inpages,
 			     NULL);
 
@@ -2736,8 +2735,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	if (oper.do_cipher){
 		err = get_user_pages((unsigned long int)oper.cipher_outdata,
 				     nooutpages,
-				     1, /* write access for out data */
-				     0, /* no force */
+				     FOLL_WRITE, /* write access for out data */
 				     outpages,
 				     NULL);
 		up_read(&current->mm->mmap_sem);
@@ -3151,7 +3149,7 @@ static void print_dma_descriptors(struct cryptocop_int_operation *iop)
 	printk("print_dma_descriptors start\n");
 
 	printk("iop:\n");
-	printk("\tsid: 0x%lld\n", iop->sid);
+	printk("\tsid: 0x%llx\n", iop->sid);
 
 	printk("\tcdesc_out: 0x%p\n", iop->cdesc_out);
 	printk("\tcdesc_in: 0x%p\n", iop->cdesc_in);

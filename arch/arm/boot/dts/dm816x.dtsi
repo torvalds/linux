@@ -7,11 +7,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,dm816";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -83,6 +84,7 @@
 			reg = <0x48140000 0x21000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			ranges = <0 0x48140000 0x21000>;
 
 			dm816x_pinmux: pinmux@800 {
@@ -90,6 +92,7 @@
 				reg = <0x800 0x50a>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				#pinctrl-cells = <1>;
 				pinctrl-single,register-width = <16>;
 				pinctrl-single,function-mask = <0xf>;
 			};

@@ -415,3 +415,12 @@ the "compatible" property in the _DSD or a _CID as long as one of their
 ancestors provides a _DSD with a valid "compatible" property.  Such device
 objects are then simply regarded as additional "blocks" providing hierarchical
 configuration information to the driver of the composite ancestor device.
+
+However, PRP0001 can only be returned from either _HID or _CID of a device
+object if all of the properties returned by the _DSD associated with it (either
+the _DSD of the device object itself or the _DSD of its ancestor in the
+"composite device" case described above) can be used in the ACPI environment.
+Otherwise, the _DSD itself is regarded as invalid and therefore the "compatible"
+property returned by it is meaningless.
+
+Refer to DSD-properties-rules.txt for more information.

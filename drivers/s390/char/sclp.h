@@ -59,6 +59,7 @@
 
 typedef unsigned int sclp_cmdw_t;
 
+#define SCLP_CMDW_READ_CPU_INFO		0x00010001
 #define SCLP_CMDW_READ_EVENT_DATA	0x00770005
 #define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
 #define SCLP_CMDW_WRITE_EVENT_MASK	0x00780005
@@ -101,6 +102,28 @@ struct init_sccb {
 	sccb_mask_t sclp_receive_mask;
 	sccb_mask_t sclp_send_mask;
 } __attribute__((packed));
+
+struct read_cpu_info_sccb {
+	struct	sccb_header header;
+	u16	nr_configured;
+	u16	offset_configured;
+	u16	nr_standby;
+	u16	offset_standby;
+	u8	reserved[4096 - 16];
+} __attribute__((packed, aligned(PAGE_SIZE)));
+
+static inline void sclp_fill_core_info(struct sclp_core_info *info,
+				       struct read_cpu_info_sccb *sccb)
+{
+	char *page = (char *) sccb;
+
+	memset(info, 0, sizeof(*info));
+	info->configured = sccb->nr_configured;
+	info->standby = sccb->nr_standby;
+	info->combined = sccb->nr_configured + sccb->nr_standby;
+	memcpy(&info->core, page + sccb->offset_configured,
+	       info->combined * sizeof(struct sclp_core_entry));
+}
 
 #define SCLP_HAS_CHP_INFO	(sclp.facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp.facilities & 0x2000000000000000ULL)

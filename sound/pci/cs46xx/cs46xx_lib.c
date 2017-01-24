@@ -2460,7 +2460,7 @@ static int cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 		udelay(10);
 		if (snd_cs46xx_codec_read(chip, AC97_RESET, codec) & 0x8000) {
 			dev_dbg(chip->card->dev,
-				"seconadry codec not present\n");
+				"secondary codec not present\n");
 			return -ENXIO;
 		}
 	}
@@ -2503,7 +2503,7 @@ int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 	chip->nr_ac97_codecs = 1;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	dev_dbg(chip->card->dev, "detecting seconadry codec\n");
+	dev_dbg(chip->card->dev, "detecting secondary codec\n");
 	/* try detect a secondary codec */
 	if (! cs46xx_detect_codec(chip, CS46XX_SECONDARY_CODEC_INDEX))
 		chip->nr_ac97_codecs = 2;
@@ -2718,7 +2718,7 @@ int snd_cs46xx_midi(struct snd_cs46xx *chip, int device)
  * gameport interface
  */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 static void snd_cs46xx_gameport_trigger(struct gameport *gameport)
 {

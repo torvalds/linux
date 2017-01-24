@@ -10,7 +10,6 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
@@ -54,7 +53,7 @@ static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 				     AFU_Cntl | command);
 		cpu_relax();
 		AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
-	};
+	}
 
 	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
 		/*
@@ -167,7 +166,7 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			cpu_relax();
 		}
 		PSL_CNTL = cxl_p1n_read(afu, CXL_PSL_SCNTL_An);
-	};
+	}
 	end = local_clock();
 	pr_devel("PSL purged in %lld ns\n", end - start);
 
@@ -287,6 +286,37 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 			return -EIO;
 		cpu_relax();
 	}
+	return 0;
+}
+
+int cxl_data_cache_flush(struct cxl *adapter)
+{
+	u64 reg;
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+
+	pr_devel("Flushing data cache\n");
+
+	reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	reg |= CXL_PSL_Control_Fr;
+	cxl_p1_write(adapter, CXL_PSL_Control, reg);
+
+	reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	while ((reg & CXL_PSL_Control_Fs_MASK) != CXL_PSL_Control_Fs_Complete) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&adapter->dev, "WARNING: cache flush timed out!\n");
+			return -EBUSY;
+		}
+
+		if (!cxl_ops->link_ok(adapter, NULL)) {
+			dev_warn(&adapter->dev, "WARNING: link down when flushing cache\n");
+			return -EIO;
+		}
+		cpu_relax();
+		reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	}
+
+	reg &= ~CXL_PSL_Control_Fr;
+	cxl_p1_write(adapter, CXL_PSL_Control, reg);
 	return 0;
 }
 
@@ -900,9 +930,18 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	struct cxl_afu *afu = data;
 	struct cxl_context *ctx;
 	struct cxl_irq_info irq_info;
-	int ph = cxl_p2n_read(afu, CXL_PSL_PEHandle_An) & 0xffff;
-	int ret;
+	u64 phreg = cxl_p2n_read(afu, CXL_PSL_PEHandle_An);
+	int ph, ret;
 
+	/* check if eeh kicked in while the interrupt was in flight */
+	if (unlikely(phreg == ~0ULL)) {
+		dev_warn(&afu->dev,
+			 "Ignoring slice interrupt(%d) due to fenced card",
+			 irq);
+		return IRQ_HANDLED;
+	}
+	/* Mask the pe-handle from register value */
+	ph = phreg & 0xffff;
 	if ((ret = native_get_irq_info(afu, &irq_info))) {
 		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
 		return fail_psl_irq(afu, &irq_info);

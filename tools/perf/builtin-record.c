@@ -22,6 +22,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
+#include "util/drv_configs.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/symbol.h"
@@ -36,13 +37,14 @@
 #include "util/llvm-utils.h"
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
+#include "util/perf-hooks.h"
 #include "asm/bug.h"
 
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>
 #include <asm/bug.h>
-
+#include <linux/time64.h>
 
 struct record {
 	struct perf_tool	tool;
@@ -96,7 +98,7 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 	*start = head;
 	while (true) {
 		if (evt_head - head >= (unsigned int)size) {
-			pr_debug("Finshed reading backward ring buffer: rewind\n");
+			pr_debug("Finished reading backward ring buffer: rewind\n");
 			if (evt_head - head > (unsigned int)size)
 				evt_head -= pheader->size;
 			*end = evt_head;
@@ -106,7 +108,7 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
 
 		if (pheader->size == 0) {
-			pr_debug("Finshed reading backward ring buffer: get start\n");
+			pr_debug("Finished reading backward ring buffer: get start\n");
 			*end = evt_head;
 			return 0;
 		}
@@ -203,6 +205,12 @@ static void sig_handler(int sig)
 		signr = sig;
 
 	done = 1;
+}
+
+static void sigsegv_handler(int sig)
+{
+	perf_hooks__recover();
+	sighandler_dump_stack(sig);
 }
 
 static void record__sig_exit(void)
@@ -383,6 +391,7 @@ static int record__open(struct record *rec)
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct record_opts *opts = &rec->opts;
+	struct perf_evsel_config_term *err_term;
 	int rc = 0;
 
 	perf_evlist__config(evlist, opts, &callchain_param);
@@ -408,6 +417,14 @@ try_again:
 		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
+		rc = -1;
+		goto out;
+	}
+
+	if (perf_evlist__apply_drv_configs(evlist, &pos, &err_term)) {
+		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		      err_term->val.drv_cfg, perf_evsel__name(pos), errno,
+		      str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
 	}
@@ -823,6 +840,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
+	signal(SIGSEGV, sigsegv_handler);
 
 	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output) {
 		signal(SIGUSR2, snapshot_sig_handler);
@@ -954,12 +972,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	}
 
 	if (opts->initial_delay) {
-		usleep(opts->initial_delay * 1000);
+		usleep(opts->initial_delay * USEC_PER_MSEC);
 		perf_evlist__enable(rec->evlist);
 	}
 
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
+	perf_hooks__invoke_record_start();
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
@@ -1103,6 +1122,8 @@ out_child:
 			}
 		}
 	}
+
+	perf_hooks__invoke_record_end();
 
 	if (!err && !quiet) {
 		char samples[128];
@@ -1384,7 +1405,7 @@ static bool dry_run;
  * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
-struct option __record_options[] = {
+static struct option __record_options[] = {
 	OPT_CALLBACK('e', "event", &record.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
@@ -1563,28 +1584,38 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!rec->itr) {
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
 					      rec->opts.auxtrace_snapshot_opts);
 	if (err)
-		return err;
+		goto out;
+
+	/*
+	 * Allow aliases to facilitate the lookup of symbols for address
+	 * filters. Refer to auxtrace_parse_filters().
+	 */
+	symbol_conf.allow_aliases = true;
+
+	symbol__init(NULL);
+
+	err = auxtrace_parse_filters(rec->evlist);
+	if (err)
+		goto out;
 
 	if (dry_run)
-		return 0;
+		goto out;
 
 	err = bpf__setup_stdout(rec->evlist);
 	if (err) {
 		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
 		pr_err("ERROR: Setup BPF stdout failed: %s\n",
 			 errbuf);
-		return err;
+		goto out;
 	}
 
 	err = -ENOMEM;
-
-	symbol__init(NULL);
 
 	if (symbol_conf.kptr_restrict)
 		pr_warning(
@@ -1605,7 +1636,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --signal-trigger --no-no-buildid \
+		 *  perf record --switch-output --no-no-buildid \
 		 *              --no-no-buildid-cache
 		 *
 		 * Following code equals to:
@@ -1633,7 +1664,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	if (rec->opts.target.tid && !rec->opts.no_inherit_set)
@@ -1653,8 +1684,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		ui__error("%s", errbuf);
 
 		err = -saved_errno;
-		goto out_symbol_exit;
+		goto out;
 	}
+
+	/* Enable ignoring missing threads when -u option is defined. */
+	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX;
 
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
@@ -1662,7 +1696,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
 	if (err)
-		goto out_symbol_exit;
+		goto out;
 
 	/*
 	 * We take all buildids when the file contains
@@ -1674,11 +1708,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
-		goto out_symbol_exit;
+		goto out;
 	}
 
 	err = __cmd_record(&record, argc, argv);
-out_symbol_exit:
+out:
 	perf_evlist__delete(rec->evlist);
 	symbol__exit();
 	auxtrace_record__free(rec->itr);

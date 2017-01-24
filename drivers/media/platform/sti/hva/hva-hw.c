@@ -245,7 +245,7 @@ static irqreturn_t hva_hw_err_irq_thread(int irq, void *arg)
 		ctx->hw_err = true;
 	}
 
-	if (hva->lmi_err_reg) {
+	if (hva->emi_err_reg) {
 		dev_err(dev, "%s     external memory interface error: 0x%08x\n",
 			ctx->name, hva->emi_err_reg);
 		ctx->hw_err = true;
@@ -305,16 +305,16 @@ int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva)
 	/* get memory for registers */
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hva->regs = devm_ioremap_resource(dev, regs);
-	if (IS_ERR_OR_NULL(hva->regs)) {
+	if (IS_ERR(hva->regs)) {
 		dev_err(dev, "%s     failed to get regs\n", HVA_PREFIX);
 		return PTR_ERR(hva->regs);
 	}
 
 	/* get memory for esram */
 	esram = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (IS_ERR_OR_NULL(esram)) {
+	if (!esram) {
 		dev_err(dev, "%s     failed to get esram\n", HVA_PREFIX);
-		return PTR_ERR(esram);
+		return -ENODEV;
 	}
 	hva->esram_addr = esram->start;
 	hva->esram_size = resource_size(esram);

@@ -11,8 +11,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __CPP_H__
-#define __CPP_H__
+#ifndef __CCP_H__
+#define __CCP_H__
 
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
@@ -238,9 +238,6 @@ struct ccp_xts_aes_engine {
 };
 
 /***** SHA engine *****/
-#define CCP_SHA_BLOCKSIZE               SHA256_BLOCK_SIZE
-#define CCP_SHA_CTXSIZE                 SHA256_DIGEST_SIZE
-
 /**
  * ccp_sha_type - type of SHA operation
  *
@@ -556,7 +553,7 @@ enum ccp_engine {
 #define CCP_CMD_PASSTHRU_NO_DMA_MAP	0x00000002
 
 /**
- * struct ccp_cmd - CPP operation request
+ * struct ccp_cmd - CCP operation request
  * @entry: list element (ccp driver use only)
  * @work: work element used for callbacks (ccp driver use only)
  * @ccp: CCP device to be run on (ccp driver use only)

@@ -24,4 +24,52 @@
 			bias-pull-up;
 		};
 	};
+
+	adv7533_int_active: adv533_int_active {
+		pinmux {
+			function = "gpio";
+			pins = "gpio31";
+		};
+		pinconf {
+			pins = "gpio31";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	adv7533_int_suspend: adv7533_int_suspend {
+		pinmux {
+			function = "gpio";
+			pins = "gpio31";
+		};
+		pinconf {
+			pins = "gpio31";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	adv7533_switch_active: adv7533_switch_active {
+		pinmux {
+			function = "gpio";
+			pins = "gpio32";
+		};
+		pinconf {
+			pins = "gpio32";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	adv7533_switch_suspend: adv7533_switch_suspend {
+		pinmux {
+			function = "gpio";
+			pins = "gpio32";
+		};
+		pinconf {
+			pins = "gpio32";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
 };

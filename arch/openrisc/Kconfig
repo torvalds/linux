@@ -26,6 +26,7 @@ config OPENRISC
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
+	select NO_BOOTMEM
 
 config MMU
 	def_bool y
@@ -98,6 +99,9 @@ config OPENRISC_HAVE_INST_DIV
 	  Select this if your implementation has a hardware divide instruction
 endmenu
 
+config NR_CPUS
+	int
+	default "1"
 
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt

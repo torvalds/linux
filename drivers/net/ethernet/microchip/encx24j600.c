@@ -30,7 +30,7 @@
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
-module_param(debug, int, 0);
+module_param(debug, int, 0000);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* SRAM memory layout:
@@ -105,6 +105,7 @@ static u16 encx24j600_read_reg(struct encx24j600_priv *priv, u8 reg)
 	struct net_device *dev = priv->ndev;
 	unsigned int val = 0;
 	int ret = regmap_read(priv->ctx.regmap, reg, &val);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d reading reg %02x\n",
 			  __func__, ret, reg);
@@ -115,6 +116,7 @@ static void encx24j600_write_reg(struct encx24j600_priv *priv, u8 reg, u16 val)
 {
 	struct net_device *dev = priv->ndev;
 	int ret = regmap_write(priv->ctx.regmap, reg, val);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d writing reg %02x=%04x\n",
 			  __func__, ret, reg, val);
@@ -125,6 +127,7 @@ static void encx24j600_update_reg(struct encx24j600_priv *priv, u8 reg,
 {
 	struct net_device *dev = priv->ndev;
 	int ret = regmap_update_bits(priv->ctx.regmap, reg, mask, val);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d updating reg %02x=%04x~%04x\n",
 			  __func__, ret, reg, val, mask);
@@ -135,6 +138,7 @@ static u16 encx24j600_read_phy(struct encx24j600_priv *priv, u8 reg)
 	struct net_device *dev = priv->ndev;
 	unsigned int val = 0;
 	int ret = regmap_read(priv->ctx.phymap, reg, &val);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d reading %02x\n",
 			  __func__, ret, reg);
@@ -145,6 +149,7 @@ static void encx24j600_write_phy(struct encx24j600_priv *priv, u8 reg, u16 val)
 {
 	struct net_device *dev = priv->ndev;
 	int ret = regmap_write(priv->ctx.phymap, reg, val);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d writing reg %02x=%04x\n",
 			  __func__, ret, reg, val);
@@ -164,6 +169,7 @@ static void encx24j600_cmd(struct encx24j600_priv *priv, u8 cmd)
 {
 	struct net_device *dev = priv->ndev;
 	int ret = regmap_write(priv->ctx.regmap, cmd, 0);
+
 	if (unlikely(ret))
 		netif_err(priv, drv, dev, "%s: error %d with cmd %02x\n",
 			  __func__, ret, cmd);
@@ -173,6 +179,7 @@ static int encx24j600_raw_read(struct encx24j600_priv *priv, u8 reg, u8 *data,
 			       size_t count)
 {
 	int ret;
+
 	mutex_lock(&priv->ctx.mutex);
 	ret = regmap_encx24j600_spi_read(&priv->ctx, reg, data, count);
 	mutex_unlock(&priv->ctx.mutex);
@@ -184,6 +191,7 @@ static int encx24j600_raw_write(struct encx24j600_priv *priv, u8 reg,
 				const u8 *data, size_t count)
 {
 	int ret;
+
 	mutex_lock(&priv->ctx.mutex);
 	ret = regmap_encx24j600_spi_write(&priv->ctx, reg, data, count);
 	mutex_unlock(&priv->ctx.mutex);
@@ -194,6 +202,7 @@ static int encx24j600_raw_write(struct encx24j600_priv *priv, u8 reg,
 static void encx24j600_update_phcon1(struct encx24j600_priv *priv)
 {
 	u16 phcon1 = encx24j600_read_phy(priv, PHCON1);
+
 	if (priv->autoneg == AUTONEG_ENABLE) {
 		phcon1 |= ANEN | RENEG;
 	} else {
@@ -328,6 +337,7 @@ static int encx24j600_receive_packet(struct encx24j600_priv *priv,
 {
 	struct net_device *dev = priv->ndev;
 	struct sk_buff *skb = netdev_alloc_skb(dev, rsv->len + NET_IP_ALIGN);
+
 	if (!skb) {
 		pr_err_ratelimited("RX: OOM: packet dropped\n");
 		dev->stats.rx_dropped++;
@@ -346,7 +356,6 @@ static int encx24j600_receive_packet(struct encx24j600_priv *priv,
 	/* Maintain stats */
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rsv->len;
-	priv->next_packet = rsv->next_packet;
 
 	netif_rx(skb);
 
@@ -382,6 +391,8 @@ static void encx24j600_rx_packets(struct encx24j600_priv *priv, u8 packet_count)
 		} else {
 			encx24j600_receive_packet(priv, &rsv);
 		}
+
+		priv->next_packet = rsv.next_packet;
 
 		newrxtail = priv->next_packet - 2;
 		if (newrxtail == ENC_RX_BUF_START)
@@ -821,12 +832,13 @@ static void encx24j600_set_multicast_list(struct net_device *dev)
 	}
 
 	if (oldfilter != priv->rxfilter)
-		queue_kthread_work(&priv->kworker, &priv->setrx_work);
+		kthread_queue_work(&priv->kworker, &priv->setrx_work);
 }
 
 static void encx24j600_hw_tx(struct encx24j600_priv *priv)
 {
 	struct net_device *dev = priv->ndev;
+
 	netif_info(priv, tx_queued, dev, "TX Packet Len:%d\n",
 		   priv->tx_skb->len);
 
@@ -879,7 +891,7 @@ static netdev_tx_t encx24j600_tx(struct sk_buff *skb, struct net_device *dev)
 	/* Remember the skb for deferred processing */
 	priv->tx_skb = skb;
 
-	queue_kthread_work(&priv->kworker, &priv->tx_work);
+	kthread_queue_work(&priv->kworker, &priv->tx_work);
 
 	return NETDEV_TX_OK;
 }
@@ -894,7 +906,6 @@ static void encx24j600_tx_timeout(struct net_device *dev)
 
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
-	return;
 }
 
 static int encx24j600_get_regs_len(struct net_device *dev)
@@ -957,12 +968,14 @@ static int encx24j600_set_settings(struct net_device *dev,
 static u32 encx24j600_get_msglevel(struct net_device *dev)
 {
 	struct encx24j600_priv *priv = netdev_priv(dev);
+
 	return priv->msg_enable;
 }
 
 static void encx24j600_set_msglevel(struct net_device *dev, u32 val)
 {
 	struct encx24j600_priv *priv = netdev_priv(dev);
+
 	priv->msg_enable = val;
 }
 
@@ -1037,9 +1050,9 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
-	init_kthread_worker(&priv->kworker);
-	init_kthread_work(&priv->tx_work, encx24j600_tx_proc);
-	init_kthread_work(&priv->setrx_work, encx24j600_setrx_proc);
+	kthread_init_worker(&priv->kworker);
+	kthread_init_work(&priv->tx_work, encx24j600_tx_proc);
+	kthread_init_work(&priv->setrx_work, encx24j600_setrx_proc);
 
 	priv->kworker_task = kthread_run(kthread_worker_fn, &priv->kworker,
 					 "encx24j600");

@@ -35,32 +35,33 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 
-static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
+static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
-	if (!mutex_is_locked(mutex))
+	switch (mutex_trylock_recursive(&dev->struct_mutex)) {
+	case MUTEX_TRYLOCK_FAILED:
 		return false;
 
-#if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_MUTEX_SPIN_ON_OWNER)
-	return mutex->owner == task;
-#else
-	/* Since UP may be pre-empted, we cannot assume that we own the lock */
-	return false;
-#endif
-}
+	case MUTEX_TRYLOCK_SUCCESS:
+		*unlock = true;
+		return true;
 
-static int num_vma_bound(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-	int count = 0;
-
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (drm_mm_node_allocated(&vma->node))
-			count++;
-		if (vma->pin_count)
-			count++;
+	case MUTEX_TRYLOCK_RECURSIVE:
+		*unlock = false;
+		return true;
 	}
 
-	return count;
+	BUG();
+}
+
+static bool any_vma_pinned(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
+		if (i915_vma_is_pinned(vma))
+			return true;
+
+	return false;
 }
 
 static bool swap_available(void)
@@ -70,8 +71,11 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
-	/* Only shmemfs objects are backed by swap */
-	if (!obj->base.filp)
+	if (!obj->mm.pages)
+		return false;
+
+	/* Consider only shrinkable ojects. */
+	if (!i915_gem_object_is_shrinkable(obj))
 		return false;
 
 	/* Only report true if by unbinding the object and putting its pages
@@ -82,14 +86,24 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * to the GPU, simply unbinding from the GPU is not going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
-	if (obj->pages_pin_count != num_vma_bound(obj))
+	if (atomic_read(&obj->mm.pages_pin_count) > obj->bind_count)
+		return false;
+
+	if (any_vma_pinned(obj))
 		return false;
 
 	/* We can only return physical pages to the system if we can either
 	 * discard the contents (because the user has marked them as being
 	 * purgeable) or if we can move their contents out to swap.
 	 */
-	return swap_available() || obj->madv == I915_MADV_DONTNEED;
+	return swap_available() || obj->mm.madv == I915_MADV_DONTNEED;
+}
+
+static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
+{
+	if (i915_gem_object_unbind(obj) == 0)
+		__i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
+	return !READ_ONCE(obj->mm.pages);
 }
 
 /**
@@ -129,6 +143,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		{ NULL, 0 },
 	}, *phase;
 	unsigned long count = 0;
+	bool unlock;
+
+	if (!i915_gem_shrinker_lock(&dev_priv->drm, &unlock))
+		return 0;
 
 	trace_i915_gem_shrink(dev_priv, target, flags);
 	i915_gem_retire_requests(dev_priv);
@@ -163,53 +181,62 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	 */
 	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
+		struct drm_i915_gem_object *obj;
 
 		if ((flags & phase->bit) == 0)
 			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(phase->list)) {
-			struct drm_i915_gem_object *obj;
-			struct i915_vma *vma, *v;
-
-			obj = list_first_entry(phase->list,
-					       typeof(*obj), global_list);
-			list_move_tail(&obj->global_list, &still_in_list);
+		while (count < target &&
+		       (obj = list_first_entry_or_null(phase->list,
+						       typeof(*obj),
+						       global_link))) {
+			list_move_tail(&obj->global_link, &still_in_list);
+			if (!obj->mm.pages) {
+				list_del_init(&obj->global_link);
+				continue;
+			}
 
 			if (flags & I915_SHRINK_PURGEABLE &&
-			    obj->madv != I915_MADV_DONTNEED)
+			    obj->mm.madv != I915_MADV_DONTNEED)
 				continue;
 
 			if (flags & I915_SHRINK_VMAPS &&
-			    !is_vmalloc_addr(obj->mapping))
+			    !is_vmalloc_addr(obj->mm.mapping))
 				continue;
 
-			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
+			if (!(flags & I915_SHRINK_ACTIVE) &&
+			    (i915_gem_object_is_active(obj) ||
+			     obj->framebuffer_references))
 				continue;
 
 			if (!can_release_pages(obj))
 				continue;
 
-			drm_gem_object_reference(&obj->base);
-
-			/* For the unbound phase, this should be a no-op! */
-			list_for_each_entry_safe(vma, v,
-						 &obj->vma_list, obj_link)
-				if (i915_vma_unbind(vma))
-					break;
-
-			if (i915_gem_object_put_pages(obj) == 0)
-				count += obj->base.size >> PAGE_SHIFT;
-
-			drm_gem_object_unreference(&obj->base);
+			if (unsafe_drop_pages(obj)) {
+				/* May arrive from get_pages on another bo */
+				mutex_lock_nested(&obj->mm.lock,
+						  I915_MM_SHRINKER);
+				if (!obj->mm.pages) {
+					__i915_gem_object_invalidate(obj);
+					list_del_init(&obj->global_link);
+					count += obj->base.size >> PAGE_SHIFT;
+				}
+				mutex_unlock(&obj->mm.lock);
+			}
 		}
-		list_splice(&still_in_list, phase->list);
+		list_splice_tail(&still_in_list, phase->list);
 	}
 
 	if (flags & I915_SHRINK_BOUND)
 		intel_runtime_pm_put(dev_priv);
 
 	i915_gem_retire_requests(dev_priv);
+	if (unlock)
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	/* expedite the RCU grace period to free some request slabs */
+	synchronize_rcu_expedited();
 
 	return count;
 }
@@ -230,26 +257,15 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
  */
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	return i915_gem_shrink(dev_priv, -1UL,
-			       I915_SHRINK_BOUND |
-			       I915_SHRINK_UNBOUND |
-			       I915_SHRINK_ACTIVE);
-}
+	unsigned long freed;
 
-static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
-{
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return false;
+	freed = i915_gem_shrink(dev_priv, -1UL,
+				I915_SHRINK_BOUND |
+				I915_SHRINK_UNBOUND |
+				I915_SHRINK_ACTIVE);
+	rcu_barrier(); /* wait until our RCU delayed slab frees are completed */
 
-		if (to_i915(dev)->mm.shrinker_no_lock_stealing)
-			return false;
-
-		*unlock = false;
-	} else
-		*unlock = true;
-
-	return true;
+	return freed;
 }
 
 static unsigned long
@@ -268,12 +284,12 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 	i915_gem_retire_requests(dev_priv);
 
 	count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link)
 		if (can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->active && can_release_pages(obj))
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 
@@ -321,17 +337,22 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 				       struct shrinker_lock_uninterruptible *slu,
 				       int timeout_ms)
 {
-	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
+	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
 
-	while (!i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock)) {
+	do {
+		if (i915_gem_wait_for_idle(dev_priv, 0) == 0 &&
+		    i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock))
+			break;
+
 		schedule_timeout_killable(1);
 		if (fatal_signal_pending(current))
 			return false;
-		if (--timeout == 0) {
+
+		if (time_after(jiffies, timeout)) {
 			pr_err("Unable to lock GPU to purge memory.\n");
 			return false;
 		}
-	}
+	} while (1);
 
 	slu->was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
@@ -368,13 +389,19 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * being pointed to by hardware.
 	 */
 	unbound = bound = unevictable = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+		if (!obj->mm.pages)
+			continue;
+
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+		if (!obj->mm.pages)
+			continue;
+
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
@@ -410,7 +437,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(dev_priv);
+	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
 	if (ret)
 		goto out;
 

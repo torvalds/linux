@@ -272,7 +272,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 		.count = 2,
 		.base = { 0x14000, 0x16000 },
 		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
-				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 1,
@@ -282,7 +282,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 	.lm = {
 		.count = 2, /* LM0 and LM3 */
 		.base = { 0x44000, 0x47000 },
-		.nb_stages = 5,
+		.nb_stages = 8,
 		.max_width = 2048,
 		.max_height = 0xFFFF,
 	},
@@ -550,6 +550,10 @@ static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev)
 	static struct mdp5_cfg_platform config = {};
 
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
+	if (config.iommu) {
+		config.iommu->geometry.aperture_start = 0x1000;
+		config.iommu->geometry.aperture_end = 0xffffffff;
+	}
 
 	return &config;
 }

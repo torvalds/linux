@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
 
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 
 /* MC EDAC Controls, setable by module parameter, and sysfs */

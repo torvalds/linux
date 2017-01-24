@@ -24,9 +24,16 @@
 #include <linux/dmi.h>
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/clocksource.h>
 #include <asm/div64.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
+#include <asm/timer.h>
+#include <asm/apic.h>
+#include <asm/timer.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt)	"vmware: " fmt
 
 #define CPUID_VMWARE_INFO_LEAF	0x40000000
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
@@ -46,6 +53,8 @@
 			"2"(VMWARE_HYPERVISOR_PORT), "3"(UINT_MAX) :	\
 			"memory");
 
+static unsigned long vmware_tsc_khz __ro_after_init;
+
 static inline int __vmware_platform(void)
 {
 	uint32_t eax, ebx, ecx, edx;
@@ -55,37 +64,95 @@ static inline int __vmware_platform(void)
 
 static unsigned long vmware_get_tsc_khz(void)
 {
-	uint64_t tsc_hz, lpj;
-	uint32_t eax, ebx, ecx, edx;
-
-	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
-
-	tsc_hz = eax | (((uint64_t)ebx) << 32);
-	do_div(tsc_hz, 1000);
-	BUG_ON(tsc_hz >> 32);
-	pr_info("TSC freq read from hypervisor : %lu.%03lu MHz\n",
-			 (unsigned long) tsc_hz / 1000,
-			 (unsigned long) tsc_hz % 1000);
-
-	if (!preset_lpj) {
-		lpj = ((u64)tsc_hz * 1000);
-		do_div(lpj, HZ);
-		preset_lpj = lpj;
-	}
-
-	return tsc_hz;
+	return vmware_tsc_khz;
 }
+
+#ifdef CONFIG_PARAVIRT
+static struct cyc2ns_data vmware_cyc2ns __ro_after_init;
+static int vmw_sched_clock __initdata = 1;
+
+static __init int setup_vmw_sched_clock(char *s)
+{
+	vmw_sched_clock = 0;
+	return 0;
+}
+early_param("no-vmw-sched-clock", setup_vmw_sched_clock);
+
+static unsigned long long vmware_sched_clock(void)
+{
+	unsigned long long ns;
+
+	ns = mul_u64_u32_shr(rdtsc(), vmware_cyc2ns.cyc2ns_mul,
+			     vmware_cyc2ns.cyc2ns_shift);
+	ns -= vmware_cyc2ns.cyc2ns_offset;
+	return ns;
+}
+
+static void __init vmware_sched_clock_setup(void)
+{
+	struct cyc2ns_data *d = &vmware_cyc2ns;
+	unsigned long long tsc_now = rdtsc();
+
+	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
+			       vmware_tsc_khz, NSEC_PER_MSEC, 0);
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+					   d->cyc2ns_shift);
+
+	pv_time_ops.sched_clock = vmware_sched_clock;
+	pr_info("using sched offset of %llu ns\n", d->cyc2ns_offset);
+}
+
+static void __init vmware_paravirt_ops_setup(void)
+{
+	pv_info.name = "VMware hypervisor";
+	pv_cpu_ops.io_delay = paravirt_nop;
+
+	if (vmware_tsc_khz && vmw_sched_clock)
+		vmware_sched_clock_setup();
+}
+#else
+#define vmware_paravirt_ops_setup() do {} while (0)
+#endif
 
 static void __init vmware_platform_setup(void)
 {
 	uint32_t eax, ebx, ecx, edx;
+	uint64_t lpj, tsc_khz;
 
 	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
 
-	if (ebx != UINT_MAX)
+	if (ebx != UINT_MAX) {
+		lpj = tsc_khz = eax | (((uint64_t)ebx) << 32);
+		do_div(tsc_khz, 1000);
+		WARN_ON(tsc_khz >> 32);
+		pr_info("TSC freq read from hypervisor : %lu.%03lu MHz\n",
+			(unsigned long) tsc_khz / 1000,
+			(unsigned long) tsc_khz % 1000);
+
+		if (!preset_lpj) {
+			do_div(lpj, HZ);
+			preset_lpj = lpj;
+		}
+
+		vmware_tsc_khz = tsc_khz;
 		x86_platform.calibrate_tsc = vmware_get_tsc_khz;
-	else
+		x86_platform.calibrate_cpu = vmware_get_tsc_khz;
+
+#ifdef CONFIG_X86_LOCAL_APIC
+		/* Skip lapic calibration since we know the bus frequency. */
+		lapic_timer_frequency = ecx / HZ;
+		pr_info("Host bus clock speed read from hypervisor : %u Hz\n",
+			ecx);
+#endif
+	} else {
 		pr_warn("Failed to get TSC freq from the hypervisor\n");
+	}
+
+	vmware_paravirt_ops_setup();
+
+#ifdef CONFIG_X86_IO_APIC
+	no_timer_check = 1;
+#endif
 }
 
 /*

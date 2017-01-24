@@ -62,7 +62,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x40000000>; /* 1GB */
 	};
@@ -72,28 +72,6 @@
 			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* First mini-PCIe port */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Second mini-PCIe port */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Renesas uPD720202 USB 3.0 controller */
-			pcie@3,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 			/* UART0 */
@@ -111,16 +89,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
 				pinctrl-0 = <&ge0_rgmii_pins>;
 				pinctrl-names = "default";
@@ -135,18 +103,6 @@
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
 			};
-
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "n25q128a13", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <108000000>;
-				};
-			};
 		};
 	};
 
@@ -157,11 +113,43 @@
 		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
-		button@1 {
+		reset {
 			label = "Factory Reset Button";
 			linux,code = <KEY_SETUP>;
 			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* First mini-PCIe port */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Renesas uPD720202 USB 3.0 controller */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
 	};
 };
 
@@ -177,5 +165,17 @@
 	phy_int_pin: phy-int-pin {
 		marvell,pins = "mpp32";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q128a13", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <108000000>;
 	};
 };

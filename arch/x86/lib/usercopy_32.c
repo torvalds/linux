@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/backing-dev.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmx.h>
 #include <asm/asm.h>
 
@@ -640,52 +640,3 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);
-
-/**
- * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-unsigned long _copy_to_user(void __user *to, const void *from, unsigned n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		n = __copy_to_user(to, from, n);
-	return n;
-}
-EXPORT_SYMBOL(_copy_to_user);
-
-/**
- * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-unsigned long _copy_from_user(void *to, const void __user *from, unsigned n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		n = __copy_from_user(to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
-}
-EXPORT_SYMBOL(_copy_from_user);

@@ -288,12 +288,13 @@ static int parse_reply_info_extra(void **p, void *end,
 				  struct ceph_mds_reply_info_parsed *info,
 				  u64 features)
 {
-	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
+	u32 op = le32_to_cpu(info->head->op);
+
+	if (op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_READDIR ||
-		 info->head->op == CEPH_MDS_OP_LSSNAP)
+	else if (op == CEPH_MDS_OP_READDIR || op == CEPH_MDS_OP_LSSNAP)
 		return parse_reply_info_dir(p, end, info, features);
-	else if (info->head->op == CEPH_MDS_OP_CREATE)
+	else if (op == CEPH_MDS_OP_CREATE)
 		return parse_reply_info_create(p, end, info, features);
 	else
 		return -EIO;
@@ -370,6 +371,7 @@ const char *ceph_session_state_name(int s)
 	case CEPH_MDS_SESSION_CLOSING: return "closing";
 	case CEPH_MDS_SESSION_RESTARTING: return "restarting";
 	case CEPH_MDS_SESSION_RECONNECTING: return "reconnecting";
+	case CEPH_MDS_SESSION_REJECTED: return "rejected";
 	default: return "???";
 	}
 }
@@ -1150,8 +1152,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		while (!list_empty(&ci->i_cap_flush_list)) {
 			cf = list_first_entry(&ci->i_cap_flush_list,
 					      struct ceph_cap_flush, i_list);
-			list_del(&cf->i_list);
-			list_add(&cf->i_list, &to_remove);
+			list_move(&cf->i_list, &to_remove);
 		}
 
 		spin_lock(&mdsc->cap_dirty_lock);
@@ -1378,7 +1379,7 @@ static int request_close_session(struct ceph_mds_client *mdsc,
 	if (!msg)
 		return -ENOMEM;
 	ceph_con_send(&session->s_con, msg);
-	return 0;
+	return 1;
 }
 
 /*
@@ -2100,17 +2101,31 @@ static int __do_request(struct ceph_mds_client *mdsc,
 		err = -EIO;
 		goto finish;
 	}
+	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_MOUNTING) {
+		if (mdsc->mdsmap_err) {
+			err = mdsc->mdsmap_err;
+			dout("do_request mdsmap err %d\n", err);
+			goto finish;
+		}
+		if (mdsc->mdsmap->m_epoch == 0) {
+			dout("do_request no mdsmap, waiting for map\n");
+			list_add(&req->r_wait, &mdsc->waiting_for_map);
+			goto finish;
+		}
+		if (!(mdsc->fsc->mount_options->flags &
+		      CEPH_MOUNT_OPT_MOUNTWAIT) &&
+		    !ceph_mdsmap_is_cluster_available(mdsc->mdsmap)) {
+			err = -ENOENT;
+			pr_info("probably no mds server is up\n");
+			goto finish;
+		}
+	}
 
 	put_request_session(req);
 
 	mds = __choose_mds(mdsc, req);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
-		if (mdsc->mdsmap_err) {
-			err = mdsc->mdsmap_err;
-			dout("do_request mdsmap err %d\n", err);
-			goto finish;
-		}
 		dout("do_request no mds or not active, waiting for map\n");
 		list_add(&req->r_wait, &mdsc->waiting_for_map);
 		goto out;
@@ -2131,6 +2146,10 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	     ceph_session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
 	    session->s_state != CEPH_MDS_SESSION_HUNG) {
+		if (session->s_state == CEPH_MDS_SESSION_REJECTED) {
+			err = -EACCES;
+			goto out_session;
+		}
 		if (session->s_state == CEPH_MDS_SESSION_NEW ||
 		    session->s_state == CEPH_MDS_SESSION_CLOSING)
 			__open_session(mdsc, session);
@@ -2650,6 +2669,15 @@ static void handle_session(struct ceph_mds_session *session,
 		session->s_readonly = true;
 		spin_unlock(&session->s_cap_lock);
 		wake_up_session_caps(session, 0);
+		break;
+
+	case CEPH_SESSION_REJECT:
+		WARN_ON(session->s_state != CEPH_MDS_SESSION_OPENING);
+		pr_info("mds%d rejected session\n", session->s_mds);
+		session->s_state = CEPH_MDS_SESSION_REJECTED;
+		cleanup_session_requests(mdsc, session);
+		remove_session_caps(session);
+		wake = 2; /* for good measure */
 		break;
 
 	default:
@@ -3557,11 +3585,11 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 /*
  * true if all sessions are closed, or we force unmount
  */
-static bool done_closing_sessions(struct ceph_mds_client *mdsc)
+static bool done_closing_sessions(struct ceph_mds_client *mdsc, int skipped)
 {
 	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
 		return true;
-	return atomic_read(&mdsc->num_sessions) == 0;
+	return atomic_read(&mdsc->num_sessions) <= skipped;
 }
 
 /*
@@ -3572,6 +3600,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	struct ceph_options *opts = mdsc->fsc->client->options;
 	struct ceph_mds_session *session;
 	int i;
+	int skipped = 0;
 
 	dout("close_sessions\n");
 
@@ -3583,7 +3612,8 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 			continue;
 		mutex_unlock(&mdsc->mutex);
 		mutex_lock(&session->s_mutex);
-		__close_session(mdsc, session);
+		if (__close_session(mdsc, session) <= 0)
+			skipped++;
 		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
 		mutex_lock(&mdsc->mutex);
@@ -3591,7 +3621,8 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 
 	dout("waiting for sessions to close\n");
-	wait_event_timeout(mdsc->session_close_wq, done_closing_sessions(mdsc),
+	wait_event_timeout(mdsc->session_close_wq,
+			   done_closing_sessions(mdsc, skipped),
 			   ceph_timeout_jiffies(opts->mount_timeout));
 
 	/* tear down remaining sessions */
@@ -3927,13 +3958,13 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 }
 
 
-static int verify_authorizer_reply(struct ceph_connection *con, int len)
+static int verify_authorizer_reply(struct ceph_connection *con)
 {
 	struct ceph_mds_session *s = con->private;
 	struct ceph_mds_client *mdsc = s->s_mdsc;
 	struct ceph_auth_client *ac = mdsc->fsc->client->monc.auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer, len);
+	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)

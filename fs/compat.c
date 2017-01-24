@@ -49,24 +49,10 @@
 #include <linux/pagemap.h>
 #include <linux/aio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/ioctls.h>
 #include "internal.h"
-
-int compat_log = 1;
-
-int compat_printk(const char *fmt, ...)
-{
-	va_list ap;
-	int ret;
-	if (!compat_log)
-		return 0;
-	va_start(ap, fmt);
-	ret = vprintk(fmt, ap);
-	va_end(ap);
-	return ret;
-}
 
 /*
  * Not all architectures have sys_utime, so implement this in terms
@@ -267,9 +253,9 @@ COMPAT_SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct compat_statfs __user *,
 
 static int put_compat_statfs64(struct compat_statfs64 __user *ubuf, struct kstatfs *kbuf)
 {
-	if (sizeof ubuf->f_blocks == 4) {
-		if ((kbuf->f_blocks | kbuf->f_bfree | kbuf->f_bavail |
-		     kbuf->f_bsize | kbuf->f_frsize) & 0xffffffff00000000ULL)
+	if (sizeof(ubuf->f_bsize) == 4) {
+		if ((kbuf->f_type | kbuf->f_bsize | kbuf->f_namelen |
+		     kbuf->f_frsize | kbuf->f_flags) & 0xffffffff00000000ULL)
 			return -EOVERFLOW;
 		/* f_files and f_ffree may be -1; it's okay
 		 * to stuff that into 32 bits */
@@ -501,45 +487,6 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 	return compat_sys_fcntl64(fd, cmd, arg);
 }
 
-COMPAT_SYSCALL_DEFINE2(io_setup, unsigned, nr_reqs, u32 __user *, ctx32p)
-{
-	long ret;
-	aio_context_t ctx64;
-
-	mm_segment_t oldfs = get_fs();
-	if (unlikely(get_user(ctx64, ctx32p)))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_io_setup(nr_reqs, (aio_context_t __user *) &ctx64);
-	set_fs(oldfs);
-	/* truncating is ok because it's a user address */
-	if (!ret)
-		ret = put_user((u32) ctx64, ctx32p);
-	return ret;
-}
-
-COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
-		       compat_long_t, min_nr,
-		       compat_long_t, nr,
-		       struct io_event __user *, events,
-		       struct compat_timespec __user *, timeout)
-{
-	struct timespec t;
-	struct timespec __user *ut = NULL;
-
-	if (timeout) {
-		if (compat_get_timespec(&t, timeout))
-			return -EFAULT;
-
-		ut = compat_alloc_user_space(sizeof(*ut));
-		if (copy_to_user(ut, &t, sizeof(t)) )
-			return -EFAULT;
-	} 
-	return sys_io_getevents(ctx_id, min_nr, nr, events, ut);
-}
-
 /* A write operation does a read from user space and vice versa */
 #define vrfy_dir(type) ((type) == READ ? VERIFY_WRITE : VERIFY_READ)
 
@@ -562,7 +509,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		goto out;
 
 	ret = -EINVAL;
-	if (nr_segs > UIO_MAXIOV || nr_segs < 0)
+	if (nr_segs > UIO_MAXIOV)
 		goto out;
 	if (nr_segs > fast_segs) {
 		ret = -ENOMEM;
@@ -613,42 +560,6 @@ ssize_t compat_rw_copy_check_uvector(int type,
 	ret = tot_len;
 
 out:
-	return ret;
-}
-
-static inline long
-copy_iocb(long nr, u32 __user *ptr32, struct iocb __user * __user *ptr64)
-{
-	compat_uptr_t uptr;
-	int i;
-
-	for (i = 0; i < nr; ++i) {
-		if (get_user(uptr, ptr32 + i))
-			return -EFAULT;
-		if (put_user(compat_ptr(uptr), ptr64 + i))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-#define MAX_AIO_SUBMITS 	(PAGE_SIZE/sizeof(struct iocb *))
-
-COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
-		       int, nr, u32 __user *, iocb)
-{
-	struct iocb __user * __user *iocb64; 
-	long ret;
-
-	if (unlikely(nr < 0))
-		return -EINVAL;
-
-	if (nr > MAX_AIO_SUBMITS)
-		nr = MAX_AIO_SUBMITS;
-	
-	iocb64 = compat_alloc_user_space(nr * sizeof(*iocb64));
-	ret = copy_iocb(nr, iocb, iocb64);
-	if (!ret)
-		ret = do_io_submit(ctx_id, nr, iocb64, 1);
 	return ret;
 }
 

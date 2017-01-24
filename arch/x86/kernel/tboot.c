@@ -188,12 +188,12 @@ static int tboot_setup_sleep(void)
 
 	tboot->num_mac_regions = 0;
 
-	for (i = 0; i < e820.nr_map; i++) {
-		if ((e820.map[i].type != E820_RAM)
-		 && (e820.map[i].type != E820_RESERVED_KERN))
+	for (i = 0; i < e820->nr_map; i++) {
+		if ((e820->map[i].type != E820_RAM)
+		 && (e820->map[i].type != E820_RESERVED_KERN))
 			continue;
 
-		add_mac_region(e820.map[i].addr, e820.map[i].size);
+		add_mac_region(e820->map[i].addr, e820->map[i].size);
 	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector =
@@ -408,7 +408,7 @@ static __init int tboot_late_init(void)
 	tboot_create_trampoline();
 
 	atomic_set(&ap_wfs_count, 0);
-	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "AP_X86_TBOOT_DYING", NULL,
+	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "x86/tboot:dying", NULL,
 			  tboot_dying_cpu);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("tboot_log", S_IRUSR,

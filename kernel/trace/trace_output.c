@@ -1098,6 +1098,71 @@ static struct trace_event trace_user_stack_event = {
 	.funcs		= &trace_user_stack_funcs,
 };
 
+/* TRACE_HWLAT */
+static enum print_line_t
+trace_hwlat_print(struct trace_iterator *iter, int flags,
+		  struct trace_event *event)
+{
+	struct trace_entry *entry = iter->ent;
+	struct trace_seq *s = &iter->seq;
+	struct hwlat_entry *field;
+
+	trace_assign_type(field, entry);
+
+	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%ld.%09ld",
+			 field->seqnum,
+			 field->duration,
+			 field->outer_duration,
+			 field->timestamp.tv_sec,
+			 field->timestamp.tv_nsec);
+
+	if (field->nmi_count) {
+		/*
+		 * The generic sched_clock() is not NMI safe, thus
+		 * we only record the count and not the time.
+		 */
+		if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK))
+			trace_seq_printf(s, " nmi-total:%llu",
+					 field->nmi_total_ts);
+		trace_seq_printf(s, " nmi-count:%u",
+				 field->nmi_count);
+	}
+
+	trace_seq_putc(s, '\n');
+
+	return trace_handle_return(s);
+}
+
+
+static enum print_line_t
+trace_hwlat_raw(struct trace_iterator *iter, int flags,
+		struct trace_event *event)
+{
+	struct hwlat_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	trace_seq_printf(s, "%llu %lld %ld %09ld %u\n",
+			 field->duration,
+			 field->outer_duration,
+			 field->timestamp.tv_sec,
+			 field->timestamp.tv_nsec,
+			 field->seqnum);
+
+	return trace_handle_return(s);
+}
+
+static struct trace_event_functions trace_hwlat_funcs = {
+	.trace		= trace_hwlat_print,
+	.raw		= trace_hwlat_raw,
+};
+
+static struct trace_event trace_hwlat_event = {
+	.type		= TRACE_HWLAT,
+	.funcs		= &trace_hwlat_funcs,
+};
+
 /* TRACE_BPUTS */
 static enum print_line_t
 trace_bputs_print(struct trace_iterator *iter, int flags,
@@ -1223,6 +1288,35 @@ static struct trace_event trace_print_event = {
 	.funcs		= &trace_print_funcs,
 };
 
+static enum print_line_t trace_raw_data(struct trace_iterator *iter, int flags,
+					 struct trace_event *event)
+{
+	struct raw_data_entry *field;
+	int i;
+
+	trace_assign_type(field, iter->ent);
+
+	trace_seq_printf(&iter->seq, "# %x buf:", field->id);
+
+	for (i = 0; i < iter->ent_size - offsetof(struct raw_data_entry, buf); i++)
+		trace_seq_printf(&iter->seq, " %02x",
+				 (unsigned char)field->buf[i]);
+
+	trace_seq_putc(&iter->seq, '\n');
+
+	return trace_handle_return(&iter->seq);
+}
+
+static struct trace_event_functions trace_raw_data_funcs = {
+	.trace		= trace_raw_data,
+	.raw		= trace_raw_data,
+};
+
+static struct trace_event trace_raw_data_event = {
+	.type	 	= TRACE_RAW_DATA,
+	.funcs		= &trace_raw_data_funcs,
+};
+
 
 static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
@@ -1233,6 +1327,8 @@ static struct trace_event *events[] __initdata = {
 	&trace_bputs_event,
 	&trace_bprint_event,
 	&trace_print_event,
+	&trace_hwlat_event,
+	&trace_raw_data_event,
 	NULL
 };
 

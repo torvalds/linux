@@ -28,13 +28,15 @@ enum {
 	XFS_IO_DELALLOC,	/* covers delalloc region */
 	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
 	XFS_IO_OVERWRITE,	/* covers already allocated extent */
+	XFS_IO_COW,		/* covers copy-on-write extent */
 };
 
 #define XFS_IO_TYPES \
 	{ XFS_IO_INVALID,		"invalid" }, \
 	{ XFS_IO_DELALLOC,		"delalloc" }, \
 	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
-	{ XFS_IO_OVERWRITE,		"overwrite" }
+	{ XFS_IO_OVERWRITE,		"overwrite" }, \
+	{ XFS_IO_COW,			"CoW" }
 
 /*
  * Structure for buffered I/O completions.
@@ -53,15 +55,7 @@ struct xfs_ioend {
 
 extern const struct address_space_operations xfs_address_space_operations;
 
-int	xfs_get_blocks(struct inode *inode, sector_t offset,
-		       struct buffer_head *map_bh, int create);
-int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
-			      struct buffer_head *map_bh, int create);
-int	xfs_get_blocks_dax_fault(struct inode *inode, sector_t offset,
-			         struct buffer_head *map_bh, int create);
-
-int	xfs_end_io_direct_write(struct kiocb *iocb, loff_t offset,
-		ssize_t size, void *private);
+int	xfs_setfilesize(struct xfs_inode *ip, xfs_off_t offset, size_t size);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 extern struct block_device *xfs_find_bdev_for_inode(struct inode *);

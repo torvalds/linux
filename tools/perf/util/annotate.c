@@ -17,16 +17,120 @@
 #include "debug.h"
 #include "annotate.h"
 #include "evsel.h"
+#include "block-range.h"
+#include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
+#include <sys/utsname.h>
 
 const char 	*disassembler_style;
 const char	*objdump_path;
 static regex_t	 file_lineno;
 
-static struct ins *ins__find(const char *name);
-static int disasm_line__parse(char *line, char **namep, char **rawp);
+static struct ins_ops *ins__find(struct arch *arch, const char *name);
+static void ins__sort(struct arch *arch);
+static int disasm_line__parse(char *line, const char **namep, char **rawp);
+
+struct arch {
+	const char	*name;
+	struct ins	*instructions;
+	size_t		nr_instructions;
+	size_t		nr_instructions_allocated;
+	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
+	bool		sorted_instructions;
+	bool		initialized;
+	void		*priv;
+	int		(*init)(struct arch *arch);
+	struct		{
+		char comment_char;
+		char skip_functions_char;
+	} objdump;
+};
+
+static struct ins_ops call_ops;
+static struct ins_ops dec_ops;
+static struct ins_ops jump_ops;
+static struct ins_ops mov_ops;
+static struct ins_ops nop_ops;
+static struct ins_ops lock_ops;
+static struct ins_ops ret_ops;
+
+static int arch__grow_instructions(struct arch *arch)
+{
+	struct ins *new_instructions;
+	size_t new_nr_allocated;
+
+	if (arch->nr_instructions_allocated == 0 && arch->instructions)
+		goto grow_from_non_allocated_table;
+
+	new_nr_allocated = arch->nr_instructions_allocated + 128;
+	new_instructions = realloc(arch->instructions, new_nr_allocated * sizeof(struct ins));
+	if (new_instructions == NULL)
+		return -1;
+
+out_update_instructions:
+	arch->instructions = new_instructions;
+	arch->nr_instructions_allocated = new_nr_allocated;
+	return 0;
+
+grow_from_non_allocated_table:
+	new_nr_allocated = arch->nr_instructions + 128;
+	new_instructions = calloc(new_nr_allocated, sizeof(struct ins));
+	if (new_instructions == NULL)
+		return -1;
+
+	memcpy(new_instructions, arch->instructions, arch->nr_instructions);
+	goto out_update_instructions;
+}
+
+static int arch__associate_ins_ops(struct arch* arch, const char *name, struct ins_ops *ops)
+{
+	struct ins *ins;
+
+	if (arch->nr_instructions == arch->nr_instructions_allocated &&
+	    arch__grow_instructions(arch))
+		return -1;
+
+	ins = &arch->instructions[arch->nr_instructions];
+	ins->name = strdup(name);
+	if (!ins->name)
+		return -1;
+
+	ins->ops  = ops;
+	arch->nr_instructions++;
+
+	ins__sort(arch);
+	return 0;
+}
+
+#include "arch/arm/annotate/instructions.c"
+#include "arch/arm64/annotate/instructions.c"
+#include "arch/x86/annotate/instructions.c"
+#include "arch/powerpc/annotate/instructions.c"
+
+static struct arch architectures[] = {
+	{
+		.name = "arm",
+		.init = arm__annotate_init,
+	},
+	{
+		.name = "arm64",
+		.init = arm64__annotate_init,
+	},
+	{
+		.name = "x86",
+		.instructions = x86__instructions,
+		.nr_instructions = ARRAY_SIZE(x86__instructions),
+		.objdump =  {
+			.comment_char = '#',
+		},
+	},
+	{
+		.name = "powerpc",
+		.init = powerpc__annotate_init,
+	},
+};
 
 static void ins__delete(struct ins_operands *ops)
 {
@@ -53,7 +157,7 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 	return ins__raw_scnprintf(ins, bf, size, ops);
 }
 
-static int call__parse(struct ins_operands *ops)
+static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
 {
 	char *endptr, *tok, *name;
 
@@ -65,10 +169,9 @@ static int call__parse(struct ins_operands *ops)
 
 	name++;
 
-#ifdef __arm__
-	if (strchr(name, '+'))
+	if (arch->objdump.skip_functions_char &&
+	    strchr(name, arch->objdump.skip_functions_char))
 		return -1;
-#endif
 
 	tok = strchr(name, '>');
 	if (tok == NULL)
@@ -81,15 +184,15 @@ static int call__parse(struct ins_operands *ops)
 	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
-	tok = strchr(endptr, '(');
-	if (tok != NULL) {
-		ops->target.addr = 0;
+	tok = strchr(endptr, '*');
+	if (tok == NULL) {
+		struct symbol *sym = map__find_symbol(map, map->map_ip(map, ops->target.addr));
+		if (sym != NULL)
+			ops->target.name = strdup(sym->name);
+		else
+			ops->target.addr = 0;
 		return 0;
 	}
-
-	tok = strchr(endptr, '*');
-	if (tok == NULL)
-		return -1;
 
 	ops->target.addr = strtoull(tok + 1, NULL, 16);
 	return 0;
@@ -117,16 +220,22 @@ bool ins__is_call(const struct ins *ins)
 	return ins->ops == &call_ops;
 }
 
-static int jump__parse(struct ins_operands *ops)
+static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	const char *s = strchr(ops->raw, '+');
+	const char *c = strchr(ops->raw, ',');
 
-	ops->target.addr = strtoull(ops->raw, NULL, 16);
-
-	if (s++ != NULL)
-		ops->target.offset = strtoull(s, NULL, 16);
+	if (c++ != NULL)
+		ops->target.addr = strtoull(c, NULL, 16);
 	else
-		ops->target.offset = UINT64_MAX;
+		ops->target.addr = strtoull(ops->raw, NULL, 16);
+
+	if (s++ != NULL) {
+		ops->target.offset = strtoull(s, NULL, 16);
+		ops->target.offset_avail = true;
+	} else {
+		ops->target.offset_avail = false;
+	}
 
 	return 0;
 }
@@ -134,6 +243,9 @@ static int jump__parse(struct ins_operands *ops)
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
+	if (!ops->target.addr || ops->target.offset < 0)
+		return ins__raw_scnprintf(ins, bf, size, ops);
+
 	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
 }
 
@@ -172,28 +284,22 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 	return 0;
 }
 
-static int lock__parse(struct ins_operands *ops)
+static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
 {
-	char *name;
-
 	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
 	if (ops->locked.ops == NULL)
 		return 0;
 
-	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
+	if (disasm_line__parse(ops->raw, &ops->locked.ins.name, &ops->locked.ops->raw) < 0)
 		goto out_free_ops;
 
-	ops->locked.ins = ins__find(name);
-	free(name);
+	ops->locked.ins.ops = ins__find(arch, ops->locked.ins.name);
 
-	if (ops->locked.ins == NULL)
+	if (ops->locked.ins.ops == NULL)
 		goto out_free_ops;
 
-	if (!ops->locked.ins->ops)
-		return 0;
-
-	if (ops->locked.ins->ops->parse &&
-	    ops->locked.ins->ops->parse(ops->locked.ops) < 0)
+	if (ops->locked.ins.ops->parse &&
+	    ops->locked.ins.ops->parse(arch, ops->locked.ops, map) < 0)
 		goto out_free_ops;
 
 	return 0;
@@ -208,19 +314,19 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 {
 	int printed;
 
-	if (ops->locked.ins == NULL)
+	if (ops->locked.ins.ops == NULL)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
 	printed = scnprintf(bf, size, "%-6.6s ", ins->name);
-	return printed + ins__scnprintf(ops->locked.ins, bf + printed,
+	return printed + ins__scnprintf(&ops->locked.ins, bf + printed,
 					size - printed, ops->locked.ops);
 }
 
 static void lock__delete(struct ins_operands *ops)
 {
-	struct ins *ins = ops->locked.ins;
+	struct ins *ins = &ops->locked.ins;
 
-	if (ins && ins->ops->free)
+	if (ins->ops && ins->ops->free)
 		ins->ops->free(ops->locked.ops);
 	else
 		ins__delete(ops->locked.ops);
@@ -236,7 +342,7 @@ static struct ins_ops lock_ops = {
 	.scnprintf = lock__scnprintf,
 };
 
-static int mov__parse(struct ins_operands *ops)
+static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
 
@@ -251,11 +357,7 @@ static int mov__parse(struct ins_operands *ops)
 		return -1;
 
 	target = ++s;
-#ifdef __arm__
-	comment = strchr(s, ';');
-#else
-	comment = strchr(s, '#');
-#endif
+	comment = strchr(s, arch->objdump.comment_char);
 
 	if (comment != NULL)
 		s = comment - 1;
@@ -303,7 +405,7 @@ static struct ins_ops mov_ops = {
 	.scnprintf = mov__scnprintf,
 };
 
-static int dec__parse(struct ins_operands *ops)
+static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
 {
 	char *target, *comment, *s, prev;
 
@@ -320,7 +422,7 @@ static int dec__parse(struct ins_operands *ops)
 	if (ops->target.raw == NULL)
 		return -1;
 
-	comment = strchr(s, '#');
+	comment = strchr(s, arch->objdump.comment_char);
 	if (comment == NULL)
 		return 0;
 
@@ -363,99 +465,6 @@ bool ins__is_ret(const struct ins *ins)
 	return ins->ops == &ret_ops;
 }
 
-static struct ins instructions[] = {
-	{ .name = "add",   .ops  = &mov_ops, },
-	{ .name = "addl",  .ops  = &mov_ops, },
-	{ .name = "addq",  .ops  = &mov_ops, },
-	{ .name = "addw",  .ops  = &mov_ops, },
-	{ .name = "and",   .ops  = &mov_ops, },
-#ifdef __arm__
-	{ .name = "b",     .ops  = &jump_ops, }, // might also be a call
-	{ .name = "bcc",   .ops  = &jump_ops, },
-	{ .name = "bcs",   .ops  = &jump_ops, },
-	{ .name = "beq",   .ops  = &jump_ops, },
-	{ .name = "bge",   .ops  = &jump_ops, },
-	{ .name = "bgt",   .ops  = &jump_ops, },
-	{ .name = "bhi",   .ops  = &jump_ops, },
-	{ .name = "bl",    .ops  = &call_ops, },
-	{ .name = "bls",   .ops  = &jump_ops, },
-	{ .name = "blt",   .ops  = &jump_ops, },
-	{ .name = "blx",   .ops  = &call_ops, },
-	{ .name = "bne",   .ops  = &jump_ops, },
-#endif
-	{ .name = "bts",   .ops  = &mov_ops, },
-	{ .name = "call",  .ops  = &call_ops, },
-	{ .name = "callq", .ops  = &call_ops, },
-	{ .name = "cmp",   .ops  = &mov_ops, },
-	{ .name = "cmpb",  .ops  = &mov_ops, },
-	{ .name = "cmpl",  .ops  = &mov_ops, },
-	{ .name = "cmpq",  .ops  = &mov_ops, },
-	{ .name = "cmpw",  .ops  = &mov_ops, },
-	{ .name = "cmpxch", .ops  = &mov_ops, },
-	{ .name = "dec",   .ops  = &dec_ops, },
-	{ .name = "decl",  .ops  = &dec_ops, },
-	{ .name = "imul",  .ops  = &mov_ops, },
-	{ .name = "inc",   .ops  = &dec_ops, },
-	{ .name = "incl",  .ops  = &dec_ops, },
-	{ .name = "ja",	   .ops  = &jump_ops, },
-	{ .name = "jae",   .ops  = &jump_ops, },
-	{ .name = "jb",	   .ops  = &jump_ops, },
-	{ .name = "jbe",   .ops  = &jump_ops, },
-	{ .name = "jc",	   .ops  = &jump_ops, },
-	{ .name = "jcxz",  .ops  = &jump_ops, },
-	{ .name = "je",	   .ops  = &jump_ops, },
-	{ .name = "jecxz", .ops  = &jump_ops, },
-	{ .name = "jg",	   .ops  = &jump_ops, },
-	{ .name = "jge",   .ops  = &jump_ops, },
-	{ .name = "jl",    .ops  = &jump_ops, },
-	{ .name = "jle",   .ops  = &jump_ops, },
-	{ .name = "jmp",   .ops  = &jump_ops, },
-	{ .name = "jmpq",  .ops  = &jump_ops, },
-	{ .name = "jna",   .ops  = &jump_ops, },
-	{ .name = "jnae",  .ops  = &jump_ops, },
-	{ .name = "jnb",   .ops  = &jump_ops, },
-	{ .name = "jnbe",  .ops  = &jump_ops, },
-	{ .name = "jnc",   .ops  = &jump_ops, },
-	{ .name = "jne",   .ops  = &jump_ops, },
-	{ .name = "jng",   .ops  = &jump_ops, },
-	{ .name = "jnge",  .ops  = &jump_ops, },
-	{ .name = "jnl",   .ops  = &jump_ops, },
-	{ .name = "jnle",  .ops  = &jump_ops, },
-	{ .name = "jno",   .ops  = &jump_ops, },
-	{ .name = "jnp",   .ops  = &jump_ops, },
-	{ .name = "jns",   .ops  = &jump_ops, },
-	{ .name = "jnz",   .ops  = &jump_ops, },
-	{ .name = "jo",	   .ops  = &jump_ops, },
-	{ .name = "jp",	   .ops  = &jump_ops, },
-	{ .name = "jpe",   .ops  = &jump_ops, },
-	{ .name = "jpo",   .ops  = &jump_ops, },
-	{ .name = "jrcxz", .ops  = &jump_ops, },
-	{ .name = "js",	   .ops  = &jump_ops, },
-	{ .name = "jz",	   .ops  = &jump_ops, },
-	{ .name = "lea",   .ops  = &mov_ops, },
-	{ .name = "lock",  .ops  = &lock_ops, },
-	{ .name = "mov",   .ops  = &mov_ops, },
-	{ .name = "movb",  .ops  = &mov_ops, },
-	{ .name = "movdqa",.ops  = &mov_ops, },
-	{ .name = "movl",  .ops  = &mov_ops, },
-	{ .name = "movq",  .ops  = &mov_ops, },
-	{ .name = "movslq", .ops  = &mov_ops, },
-	{ .name = "movzbl", .ops  = &mov_ops, },
-	{ .name = "movzwl", .ops  = &mov_ops, },
-	{ .name = "nop",   .ops  = &nop_ops, },
-	{ .name = "nopl",  .ops  = &nop_ops, },
-	{ .name = "nopw",  .ops  = &nop_ops, },
-	{ .name = "or",    .ops  = &mov_ops, },
-	{ .name = "orl",   .ops  = &mov_ops, },
-	{ .name = "test",  .ops  = &mov_ops, },
-	{ .name = "testb", .ops  = &mov_ops, },
-	{ .name = "testl", .ops  = &mov_ops, },
-	{ .name = "xadd",  .ops  = &mov_ops, },
-	{ .name = "xbeginl", .ops  = &jump_ops, },
-	{ .name = "xbeginq", .ops  = &jump_ops, },
-	{ .name = "retq",  .ops  = &ret_ops, },
-};
-
 static int ins__key_cmp(const void *name, const void *insp)
 {
 	const struct ins *ins = insp;
@@ -471,31 +480,70 @@ static int ins__cmp(const void *a, const void *b)
 	return strcmp(ia->name, ib->name);
 }
 
-static void ins__sort(void)
+static void ins__sort(struct arch *arch)
 {
-	const int nmemb = ARRAY_SIZE(instructions);
+	const int nmemb = arch->nr_instructions;
 
-	qsort(instructions, nmemb, sizeof(struct ins), ins__cmp);
+	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-static struct ins *ins__find(const char *name)
+static struct ins_ops *__ins__find(struct arch *arch, const char *name)
 {
-	const int nmemb = ARRAY_SIZE(instructions);
+	struct ins *ins;
+	const int nmemb = arch->nr_instructions;
+
+	if (!arch->sorted_instructions) {
+		ins__sort(arch);
+		arch->sorted_instructions = true;
+	}
+
+	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	return ins ? ins->ops : NULL;
+}
+
+static struct ins_ops *ins__find(struct arch *arch, const char *name)
+{
+	struct ins_ops *ops = __ins__find(arch, name);
+
+	if (!ops && arch->associate_instruction_ops)
+		ops = arch->associate_instruction_ops(arch, name);
+
+	return ops;
+}
+
+static int arch__key_cmp(const void *name, const void *archp)
+{
+	const struct arch *arch = archp;
+
+	return strcmp(name, arch->name);
+}
+
+static int arch__cmp(const void *a, const void *b)
+{
+	const struct arch *aa = a;
+	const struct arch *ab = b;
+
+	return strcmp(aa->name, ab->name);
+}
+
+static void arch__sort(void)
+{
+	const int nmemb = ARRAY_SIZE(architectures);
+
+	qsort(architectures, nmemb, sizeof(struct arch), arch__cmp);
+}
+
+static struct arch *arch__find(const char *name)
+{
+	const int nmemb = ARRAY_SIZE(architectures);
 	static bool sorted;
 
 	if (!sorted) {
-		ins__sort();
+		arch__sort();
 		sorted = true;
 	}
 
-	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__key_cmp);
-}
-
-int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym)
-{
-	struct annotation *notes = symbol__annotation(sym);
-	pthread_mutex_init(&notes->lock, NULL);
-	return 0;
+	return bsearch(name, architectures, nmemb, sizeof(struct arch), arch__key_cmp);
 }
 
 int symbol__alloc_hist(struct symbol *sym)
@@ -599,7 +647,8 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr >= sym->end) {
+	if ((addr < sym->start || addr >= sym->end) &&
+	    (addr != sym->end || sym->start != sym->end)) {
 		pr_debug("%s(%d): ERANGE! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 "\n",
 		       __func__, __LINE__, sym->name, sym->start, addr, sym->end);
 		return -ERANGE;
@@ -715,21 +764,18 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip);
 }
 
-static void disasm_line__init_ins(struct disasm_line *dl)
+static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map *map)
 {
-	dl->ins = ins__find(dl->name);
+	dl->ins.ops = ins__find(arch, dl->ins.name);
 
-	if (dl->ins == NULL)
+	if (!dl->ins.ops)
 		return;
 
-	if (!dl->ins->ops)
-		return;
-
-	if (dl->ins->ops->parse && dl->ins->ops->parse(&dl->ops) < 0)
-		dl->ins = NULL;
+	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, map) < 0)
+		dl->ins.ops = NULL;
 }
 
-static int disasm_line__parse(char *line, char **namep, char **rawp)
+static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
 	char *name = line, tmp;
 
@@ -762,12 +808,15 @@ static int disasm_line__parse(char *line, char **namep, char **rawp)
 	return 0;
 
 out_free_name:
-	zfree(namep);
+	free((void *)namep);
+	*namep = NULL;
 	return -1;
 }
 
 static struct disasm_line *disasm_line__new(s64 offset, char *line,
-					size_t privsize, int line_nr)
+					    size_t privsize, int line_nr,
+					    struct arch *arch,
+					    struct map *map)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
 
@@ -779,10 +828,10 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line,
 			goto out_delete;
 
 		if (offset != -1) {
-			if (disasm_line__parse(dl->line, &dl->name, &dl->ops.raw) < 0)
+			if (disasm_line__parse(dl->line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
-			disasm_line__init_ins(dl);
+			disasm_line__init_ins(dl, arch, map);
 		}
 	}
 
@@ -798,20 +847,21 @@ out_delete:
 void disasm_line__free(struct disasm_line *dl)
 {
 	zfree(&dl->line);
-	zfree(&dl->name);
-	if (dl->ins && dl->ins->ops->free)
-		dl->ins->ops->free(&dl->ops);
+	if (dl->ins.ops && dl->ins.ops->free)
+		dl->ins.ops->free(&dl->ops);
 	else
 		ins__delete(&dl->ops);
+	free((void *)dl->ins.name);
+	dl->ins.name = NULL;
 	free(dl);
 }
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw)
 {
-	if (raw || !dl->ins)
-		return scnprintf(bf, size, "%-6.6s %s", dl->name, dl->ops.raw);
+	if (raw || !dl->ins.ops)
+		return scnprintf(bf, size, "%-6.6s %s", dl->ins.name, dl->ops.raw);
 
-	return ins__scnprintf(dl->ins, bf, size, &dl->ops);
+	return ins__scnprintf(&dl->ins, bf, size, &dl->ops);
 }
 
 static void disasm__add(struct list_head *head, struct disasm_line *line)
@@ -866,6 +916,89 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 	return percent;
 }
 
+static const char *annotate__address_color(struct block_range *br)
+{
+	double cov = block_range__coverage(br);
+
+	if (cov >= 0) {
+		/* mark red for >75% coverage */
+		if (cov > 0.75)
+			return PERF_COLOR_RED;
+
+		/* mark dull for <1% coverage */
+		if (cov < 0.01)
+			return PERF_COLOR_NORMAL;
+	}
+
+	return PERF_COLOR_MAGENTA;
+}
+
+static const char *annotate__asm_color(struct block_range *br)
+{
+	double cov = block_range__coverage(br);
+
+	if (cov >= 0) {
+		/* mark dull for <1% coverage */
+		if (cov < 0.01)
+			return PERF_COLOR_NORMAL;
+	}
+
+	return PERF_COLOR_BLUE;
+}
+
+static void annotate__branch_printf(struct block_range *br, u64 addr)
+{
+	bool emit_comment = true;
+
+	if (!br)
+		return;
+
+#if 1
+	if (br->is_target && br->start == addr) {
+		struct block_range *branch = br;
+		double p;
+
+		/*
+		 * Find matching branch to our target.
+		 */
+		while (!branch->is_branch)
+			branch = block_range__next(branch);
+
+		p = 100 *(double)br->entry / branch->coverage;
+
+		if (p > 0.1) {
+			if (emit_comment) {
+				emit_comment = false;
+				printf("\t#");
+			}
+
+			/*
+			 * The percentage of coverage joined at this target in relation
+			 * to the next branch.
+			 */
+			printf(" +%.2f%%", p);
+		}
+	}
+#endif
+	if (br->is_branch && br->end == addr) {
+		double p = 100*(double)br->taken / br->coverage;
+
+		if (p > 0.1) {
+			if (emit_comment) {
+				emit_comment = false;
+				printf("\t#");
+			}
+
+			/*
+			 * The percentage of coverage leaving at this branch, and
+			 * its prediction ratio.
+			 */
+			printf(" -%.2f%% (p:%.2f%%)", p, 100*(double)br->pred  / br->taken);
+		}
+	}
+}
+
+
 static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 start,
 		      struct perf_evsel *evsel, u64 len, int min_pcnt, int printed,
 		      int max_lines, struct disasm_line *queue)
@@ -885,6 +1018,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		s64 offset = dl->offset;
 		const u64 addr = start + offset;
 		struct disasm_line *next;
+		struct block_range *br;
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
@@ -954,8 +1088,12 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		}
 
 		printf(" :	");
-		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
-		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", dl->line);
+
+		br = block_range__find(addr);
+		color_fprintf(stdout, annotate__address_color(br), "  %" PRIx64 ":", addr);
+		color_fprintf(stdout, annotate__asm_color(br), "%s", dl->line);
+		annotate__branch_printf(br, addr);
+		printf("\n");
 
 		if (ppercents != &percent)
 			free(ppercents);
@@ -1004,6 +1142,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
  * The ops.raw part will be parsed further according to type of the instruction.
  */
 static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
+				      struct arch *arch,
 				      FILE *file, size_t privsize,
 				      int *line_nr)
 {
@@ -1066,25 +1205,27 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			parsed_line = tmp2 + 1;
 	}
 
-	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr);
+	dl = disasm_line__new(offset, parsed_line, privsize, *line_nr, arch, map);
 	free(line);
 	(*line_nr)++;
 
 	if (dl == NULL)
 		return -1;
 
-	if (dl->ops.target.offset == UINT64_MAX)
+	if (!disasm_line__has_offset(dl)) {
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
+		dl->ops.target.offset_avail = true;
+	}
 
 	/* kcore has no symbols, so add the call target name */
-	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
+	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.name) {
 		struct addr_map_symbol target = {
 			.map = map,
 			.addr = dl->ops.target.addr,
 		};
 
-		if (!map_groups__find_ams(&target, NULL) &&
+		if (!map_groups__find_ams(&target) &&
 		    target.sym->start == target.al_addr)
 			dl->ops.target.name = strdup(target.sym->name);
 	}
@@ -1108,8 +1249,8 @@ static void delete_last_nop(struct symbol *sym)
 	while (!list_empty(list)) {
 		dl = list_entry(list->prev, struct disasm_line, node);
 
-		if (dl->ins && dl->ins->ops) {
-			if (dl->ins->ops != &nop_ops)
+		if (dl->ins.ops) {
+			if (dl->ins.ops != &nop_ops)
 				return;
 		} else {
 			if (!strstr(dl->line, " nop ") &&
@@ -1162,14 +1303,59 @@ int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *
 	return 0;
 }
 
-int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
+static int dso__disassemble_filename(struct dso *dso, char *filename, size_t filename_size)
+{
+	char linkname[PATH_MAX];
+	char *build_id_filename;
+
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	    !dso__is_kcore(dso))
+		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
+
+	build_id_filename = dso__build_id_filename(dso, NULL, 0);
+	if (build_id_filename) {
+		__symbol__join_symfs(filename, filename_size, build_id_filename);
+		free(build_id_filename);
+	} else {
+		if (dso->has_build_id)
+			return ENOMEM;
+		goto fallback;
+	}
+
+	if (dso__is_kcore(dso) ||
+	    readlink(filename, linkname, sizeof(linkname)) < 0 ||
+	    strstr(linkname, DSO__NAME_KALLSYMS) ||
+	    access(filename, R_OK)) {
+fallback:
+		/*
+		 * If we don't have build-ids or the build-id file isn't in the
+		 * cache, or is just a kallsyms file, well, lets hope that this
+		 * DSO is the same as when 'perf record' ran.
+		 */
+		__symbol__join_symfs(filename, filename_size, dso->long_name);
+	}
+
+	return 0;
+}
+
+static const char *annotate__norm_arch(const char *arch_name)
+{
+	struct utsname uts;
+
+	if (!arch_name) { /* Assume we are annotating locally. */
+		if (uname(&uts) < 0)
+			return NULL;
+		arch_name = uts.machine;
+	}
+	return normalize_arch((char *)arch_name);
+}
+
+int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_name, size_t privsize)
 {
 	struct dso *dso = map->dso;
-	char *filename = dso__build_id_filename(dso, NULL, 0);
-	bool free_filename = true;
 	char command[PATH_MAX * 2];
+	struct arch *arch = NULL;
 	FILE *file;
-	int err = 0;
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
 	bool delete_extract = false;
@@ -1177,38 +1363,29 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 	int lineno = 0;
 	int nline;
 	pid_t pid;
+	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
 
-	if (filename)
-		symbol__join_symfs(symfs_filename, filename);
+	if (err)
+		return err;
 
-	if (filename == NULL) {
-		if (dso->has_build_id)
-			return ENOMEM;
-		goto fallback;
-	} else if (dso__is_kcore(dso) ||
-		   readlink(symfs_filename, command, sizeof(command)) < 0 ||
-		   strstr(command, DSO__NAME_KALLSYMS) ||
-		   access(symfs_filename, R_OK)) {
-		free(filename);
-fallback:
-		/*
-		 * If we don't have build-ids or the build-id file isn't in the
-		 * cache, or is just a kallsyms file, well, lets hope that this
-		 * DSO is the same as when 'perf record' ran.
-		 */
-		filename = (char *)dso->long_name;
-		symbol__join_symfs(symfs_filename, filename);
-		free_filename = false;
-	}
+	arch_name = annotate__norm_arch(arch_name);
+	if (!arch_name)
+		return -1;
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
-	    !dso__is_kcore(dso)) {
-		err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
-		goto out_free_filename;
+	arch = arch__find(arch_name);
+	if (arch == NULL)
+		return -ENOTSUP;
+
+	if (arch->init) {
+		err = arch->init(arch);
+		if (err) {
+			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
+			return err;
+		}
 	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
-		 filename, sym->name, map->unmap_ip(map, sym->start),
+		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));
 
 	pr_debug("annotating [%p] %30s : [%p] %30s\n",
@@ -1223,11 +1400,6 @@ fallback:
 			delete_extract = true;
 			strlcpy(symfs_filename, kce.extract_filename,
 				sizeof(symfs_filename));
-			if (free_filename) {
-				free(filename);
-				free_filename = false;
-			}
-			filename = symfs_filename;
 		}
 	} else if (dso__needs_decompress(dso)) {
 		char tmp[PATH_MAX];
@@ -1236,14 +1408,14 @@ fallback:
 		bool ret;
 
 		if (kmod_path__parse_ext(&m, symfs_filename))
-			goto out_free_filename;
+			goto out;
 
 		snprintf(tmp, PATH_MAX, "/tmp/perf-kmod-XXXXXX");
 
 		fd = mkstemp(tmp);
 		if (fd < 0) {
 			free(m.ext);
-			goto out_free_filename;
+			goto out;
 		}
 
 		ret = decompress_to_file(m.ext, symfs_filename, fd);
@@ -1255,7 +1427,7 @@ fallback:
 		close(fd);
 
 		if (!ret)
-			goto out_free_filename;
+			goto out;
 
 		strcpy(symfs_filename, tmp);
 	}
@@ -1271,7 +1443,7 @@ fallback:
 		 map__rip_2objdump(map, sym->end),
 		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
 		 symbol_conf.annotate_src ? "-S" : "",
-		 symfs_filename, filename);
+		 symfs_filename, symfs_filename);
 
 	pr_debug("Executing: %s\n", command);
 
@@ -1310,7 +1482,7 @@ fallback:
 
 	nline = 0;
 	while (!feof(file)) {
-		if (symbol__parse_objdump_line(sym, map, file, privsize,
+		if (symbol__parse_objdump_line(sym, map, arch, file, privsize,
 			    &lineno) < 0)
 			break;
 		nline++;
@@ -1333,11 +1505,10 @@ out_remove_tmp:
 
 	if (dso__needs_decompress(dso))
 		unlink(symfs_filename);
-out_free_filename:
+
 	if (delete_extract)
 		kcore_extract__delete(&kce);
-	if (free_filename)
-		free(filename);
+out:
 	return err;
 
 out_close_stdout:
@@ -1680,7 +1851,7 @@ static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
 	if (dl->offset == -1)
 		return fprintf(fp, "%s\n", dl->line);
 
-	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->name);
+	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->ins.name);
 
 	if (dl->ops.raw[0] != '\0') {
 		printed += fprintf(fp, "%.*s %s\n", 6 - (int)printed, " ",
@@ -1709,7 +1880,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
-	if (symbol__disassemble(sym, map, 0) < 0)
+	if (symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), 0) < 0)
 		return -1;
 
 	len = symbol__size(sym);

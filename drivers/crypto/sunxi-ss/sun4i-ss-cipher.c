@@ -29,7 +29,8 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	u32 tx_cnt = 0;
 	u32 spaces;
 	u32 v;
-	int i, err = 0;
+	int err = 0;
+	unsigned int i;
 	unsigned int ileft = areq->nbytes;
 	unsigned int oleft = areq->nbytes;
 	unsigned int todo;
@@ -139,7 +140,8 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	u32 tx_cnt = 0;
 	u32 v;
 	u32 spaces;
-	int i, err = 0;
+	int err = 0;
+	unsigned int i;
 	unsigned int ileft = areq->nbytes;
 	unsigned int oleft = areq->nbytes;
 	unsigned int todo;

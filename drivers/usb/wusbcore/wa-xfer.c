@@ -1203,6 +1203,7 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 				sizeof(struct wa_xfer_packet_info_hwaiso) +
 				(seg_isoc_frame_count * sizeof(__le16));
 		}
+		result = -ENOMEM;
 		seg = xfer->seg[cnt] = kmalloc(alloc_size + iso_pkt_descr_size,
 						GFP_ATOMIC);
 		if (seg == NULL)
@@ -2865,10 +2866,8 @@ int wa_dti_start(struct wahc *wa)
 		goto out;
 
 	wa->dti_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (wa->dti_urb == NULL) {
-		dev_err(dev, "Can't allocate DTI URB\n");
+	if (wa->dti_urb == NULL)
 		goto error_dti_urb_alloc;
-	}
 	usb_fill_bulk_urb(
 		wa->dti_urb, wa->usb_dev,
 		usb_rcvbulkpipe(wa->usb_dev, 0x80 | dti_epd->bEndpointAddress),

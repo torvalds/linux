@@ -25,7 +25,7 @@
 
 #define GACT_TAB_MASK	15
 
-static int gact_net_id;
+static unsigned int gact_net_id;
 static struct tc_action_ops act_gact_ops;
 
 #ifdef CONFIG_GACT_PROB
@@ -156,7 +156,8 @@ static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 	int action = READ_ONCE(gact->tcf_action);
 	struct tcf_t *tm = &gact->tcf_tm;
 
-	_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), bytes, packets);
+	_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), bytes,
+			   packets);
 	if (action == TC_ACT_SHOT)
 		this_cpu_ptr(gact->common.cpu_qstats)->drops += packets;
 

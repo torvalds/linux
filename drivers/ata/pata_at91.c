@@ -347,10 +347,8 @@ static int at91sam9_smc_fields_init(struct device *dev)
 
 	field.reg = AT91SAM9_SMC_MODE(AT91SAM9_SMC_GENERIC);
 	fields.mode = devm_regmap_field_alloc(dev, smc, field);
-	if (IS_ERR(fields.mode))
-		return PTR_ERR(fields.mode);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(fields.mode);
 }
 
 static int pata_at91_probe(struct platform_device *pdev)

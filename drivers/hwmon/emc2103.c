@@ -251,7 +251,7 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *da,
 	if (result < 0)
 		return result;
 
-	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), -63, 127);
+	val = DIV_ROUND_CLOSEST(clamp_val(val, -63000, 127000), 1000);
 
 	mutex_lock(&data->update_lock);
 	data->temp_min[nr] = val;
@@ -273,7 +273,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *da,
 	if (result < 0)
 		return result;
 
-	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), -63, 127);
+	val = DIV_ROUND_CLOSEST(clamp_val(val, -63000, 127000), 1000);
 
 	mutex_lock(&data->update_lock);
 	data->temp_max[nr] = val;

@@ -127,6 +127,8 @@ void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 
 void fpsimd_thread_switch(struct task_struct *next)
 {
+	if (!system_supports_fpsimd())
+		return;
 	/*
 	 * Save the current FPSIMD state to memory, but only if whatever is in
 	 * the registers is in fact the most recent userland FPSIMD state of
@@ -157,6 +159,8 @@ void fpsimd_thread_switch(struct task_struct *next)
 
 void fpsimd_flush_thread(void)
 {
+	if (!system_supports_fpsimd())
+		return;
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
 	fpsimd_flush_task_state(current);
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
@@ -168,6 +172,8 @@ void fpsimd_flush_thread(void)
  */
 void fpsimd_preserve_current_state(void)
 {
+	if (!system_supports_fpsimd())
+		return;
 	preempt_disable();
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE))
 		fpsimd_save_state(&current->thread.fpsimd_state);
@@ -181,6 +187,8 @@ void fpsimd_preserve_current_state(void)
  */
 void fpsimd_restore_current_state(void)
 {
+	if (!system_supports_fpsimd())
+		return;
 	preempt_disable();
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		struct fpsimd_state *st = &current->thread.fpsimd_state;
@@ -199,6 +207,8 @@ void fpsimd_restore_current_state(void)
  */
 void fpsimd_update_current_state(struct fpsimd_state *state)
 {
+	if (!system_supports_fpsimd())
+		return;
 	preempt_disable();
 	fpsimd_load_state(state);
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
@@ -228,6 +238,8 @@ static DEFINE_PER_CPU(struct fpsimd_partial_state, softirq_fpsimdstate);
  */
 void kernel_neon_begin_partial(u32 num_regs)
 {
+	if (WARN_ON(!system_supports_fpsimd()))
+		return;
 	if (in_interrupt()) {
 		struct fpsimd_partial_state *s = this_cpu_ptr(
 			in_irq() ? &hardirq_fpsimdstate : &softirq_fpsimdstate);
@@ -252,6 +264,8 @@ EXPORT_SYMBOL(kernel_neon_begin_partial);
 
 void kernel_neon_end(void)
 {
+	if (!system_supports_fpsimd())
+		return;
 	if (in_interrupt()) {
 		struct fpsimd_partial_state *s = this_cpu_ptr(
 			in_irq() ? &hardirq_fpsimdstate : &softirq_fpsimdstate);
@@ -299,28 +313,16 @@ static inline void fpsimd_pm_init(void) { }
 #endif /* CONFIG_CPU_PM */
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int fpsimd_cpu_hotplug_notifier(struct notifier_block *nfb,
-				       unsigned long action,
-				       void *hcpu)
+static int fpsimd_cpu_dead(unsigned int cpu)
 {
-	unsigned int cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		per_cpu(fpsimd_last_state, cpu) = NULL;
-		break;
-	}
-	return NOTIFY_OK;
+	per_cpu(fpsimd_last_state, cpu) = NULL;
+	return 0;
 }
-
-static struct notifier_block fpsimd_cpu_hotplug_notifier_block = {
-	.notifier_call = fpsimd_cpu_hotplug_notifier,
-};
 
 static inline void fpsimd_hotplug_init(void)
 {
-	register_cpu_notifier(&fpsimd_cpu_hotplug_notifier_block);
+	cpuhp_setup_state_nocalls(CPUHP_ARM64_FPSIMD_DEAD, "arm64/fpsimd:dead",
+				  NULL, fpsimd_cpu_dead);
 }
 
 #else

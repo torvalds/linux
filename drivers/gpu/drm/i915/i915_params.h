@@ -40,7 +40,7 @@ struct i915_params {
 	int enable_ppgtt;
 	int enable_execlists;
 	int enable_psr;
-	unsigned int preliminary_hw_support;
+	unsigned int alpha_support;
 	int disable_power_well;
 	int enable_ips;
 	int invert_brightness;
@@ -57,7 +57,9 @@ struct i915_params {
 	bool fastboot;
 	bool prefault_disable;
 	bool load_detect_test;
+	bool force_reset_modeset_test;
 	bool reset;
+	bool error_capture;
 	bool disable_display;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;

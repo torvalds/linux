@@ -61,7 +61,7 @@
 #include <net/ipconfig.h>
 #include <net/route.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/checksum.h>
 #include <asm/processor.h>
 
@@ -85,7 +85,6 @@
 /* Define the timeout for waiting for a DHCP/BOOTP/RARP reply */
 #define CONF_OPEN_RETRIES 	2	/* (Re)open devices twice */
 #define CONF_SEND_RETRIES 	6	/* Send six requests per open */
-#define CONF_INTER_TIMEOUT	(HZ)	/* Inter-device timeout: 1 second */
 #define CONF_BASE_TIMEOUT	(HZ*2)	/* Initial timeout: 2 seconds */
 #define CONF_TIMEOUT_RANDOM	(HZ)	/* Maximum amount of randomization */
 #define CONF_TIMEOUT_MULT	*7/4	/* Rate of timeout growth */
@@ -188,7 +187,7 @@ struct ic_device {
 };
 
 static struct ic_device *ic_first_dev __initdata;	/* List of open device */
-static struct net_device *ic_dev __initdata;		/* Selected device */
+static struct ic_device *ic_dev __initdata;		/* Selected device */
 
 static bool __init ic_is_init_dev(struct net_device *dev)
 {
@@ -307,7 +306,7 @@ static void __init ic_close_devs(void)
 	while ((d = next)) {
 		next = d->next;
 		dev = d->dev;
-		if (dev != ic_dev && !netdev_uses_dsa(dev)) {
+		if ((!ic_dev || dev != ic_dev->dev) && !netdev_uses_dsa(dev)) {
 			pr_debug("IP-Config: Downing %s\n", dev->name);
 			dev_change_flags(dev, d->flags);
 		}
@@ -372,7 +371,7 @@ static int __init ic_setup_if(void)
 	int err;
 
 	memset(&ir, 0, sizeof(ir));
-	strcpy(ir.ifr_ifrn.ifrn_name, ic_dev->name);
+	strcpy(ir.ifr_ifrn.ifrn_name, ic_dev->dev->name);
 	set_sockaddr(sin, ic_myaddr, 0);
 	if ((err = ic_devinet_ioctl(SIOCSIFADDR, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface address (%d)\n",
@@ -396,7 +395,7 @@ static int __init ic_setup_if(void)
 	 * out, we'll try to muddle along.
 	 */
 	if (ic_dev_mtu != 0) {
-		strcpy(ir.ifr_name, ic_dev->name);
+		strcpy(ir.ifr_name, ic_dev->dev->name);
 		ir.ifr_mtu = ic_dev_mtu;
 		if ((err = ic_dev_ioctl(SIOCSIFMTU, &ir)) < 0)
 			pr_err("IP-Config: Unable to set interface mtu to %d (%d)\n",
@@ -568,7 +567,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 		goto drop_unlock;
 
 	/* We have a winner! */
-	ic_dev = dev;
+	ic_dev = d;
 	if (ic_myaddr == NONE)
 		ic_myaddr = tip;
 	ic_servaddr = sip;
@@ -655,8 +654,6 @@ static struct packet_type bootp_packet_type __initdata = {
 	.func =	ic_bootp_recv,
 };
 
-static __be32 ic_dev_xid;		/* Device under configuration */
-
 /*
  *  Initialize DHCP/BOOTP extension fields in the request.
  */
@@ -666,14 +663,14 @@ static const u8 ic_bootp_cookie[4] = { 99, 130, 83, 99 };
 #ifdef IPCONFIG_DHCP
 
 static void __init
-ic_dhcp_init_options(u8 *options)
+ic_dhcp_init_options(u8 *options, struct ic_device *d)
 {
 	u8 mt = ((ic_servaddr == NONE)
 		 ? DHCPDISCOVER : DHCPREQUEST);
 	u8 *e = options;
 	int len;
 
-	pr_debug("DHCP: Sending message type %d\n", mt);
+	pr_debug("DHCP: Sending message type %d (%s)\n", mt, d->dev->name);
 
 	memcpy(e, ic_bootp_cookie, 4);	/* RFC1048 Magic Cookie */
 	e += 4;
@@ -857,7 +854,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	/* add DHCP options or BOOTP extensions */
 #ifdef IPCONFIG_DHCP
 	if (ic_proto_enabled & IC_USE_DHCP)
-		ic_dhcp_init_options(b->exten);
+		ic_dhcp_init_options(b->exten, d);
 	else
 #endif
 		ic_bootp_init_ext(b->exten);
@@ -1033,14 +1030,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply to our BOOTP request? */
 	if (b->op != BOOTP_REPLY ||
 	    b->xid != d->xid) {
-		net_err_ratelimited("DHCP/BOOTP: Reply not for us, op[%x] xid[%x]\n",
-				    b->op, b->xid);
-		goto drop_unlock;
-	}
-
-	/* Is it a reply for the device we are configuring? */
-	if (b->xid != ic_dev_xid) {
-		net_err_ratelimited("DHCP/BOOTP: Ignoring delayed packet\n");
+		net_err_ratelimited("DHCP/BOOTP: Reply not for us on %s, op[%x] xid[%x]\n",
+				    d->dev->name, b->op, b->xid);
 		goto drop_unlock;
 	}
 
@@ -1075,7 +1066,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				}
 			}
 
-			pr_debug("DHCP: Got message type %d\n", mt);
+			pr_debug("DHCP: Got message type %d (%s)\n", mt, d->dev->name);
 
 			switch (mt) {
 			case DHCPOFFER:
@@ -1130,7 +1121,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	}
 
 	/* We have a winner! */
-	ic_dev = dev;
+	ic_dev = d;
 	ic_myaddr = b->your_ip;
 	ic_servaddr = b->server_ip;
 	ic_addrservaddr = b->iph.saddr;
@@ -1225,9 +1216,6 @@ static int __init ic_dynamic(void)
 	timeout = CONF_BASE_TIMEOUT + (timeout % (unsigned int) CONF_TIMEOUT_RANDOM);
 	for (;;) {
 #ifdef IPCONFIG_BOOTP
-		/* Track the device we are configuring */
-		ic_dev_xid = d->xid;
-
 		if (do_bootp && (d->able & IC_BOOTP))
 			ic_bootp_send_if(d, jiffies - start_jiffies);
 #endif
@@ -1236,15 +1224,19 @@ static int __init ic_dynamic(void)
 			ic_rarp_send_if(d);
 #endif
 
-		jiff = jiffies + (d->next ? CONF_INTER_TIMEOUT : timeout);
-		while (time_before(jiffies, jiff) && !ic_got_reply)
-			schedule_timeout_uninterruptible(1);
+		if (!d->next) {
+			jiff = jiffies + timeout;
+			while (time_before(jiffies, jiff) && !ic_got_reply)
+				schedule_timeout_uninterruptible(1);
+		}
 #ifdef IPCONFIG_DHCP
 		/* DHCP isn't done until we get a DHCPACK. */
 		if ((ic_got_reply & IC_BOOTP) &&
 		    (ic_proto_enabled & IC_USE_DHCP) &&
 		    ic_dhcp_msgtype != DHCPACK) {
 			ic_got_reply = 0;
+			/* continue on device that got the reply */
+			d = ic_dev;
 			pr_cont(",");
 			continue;
 		}
@@ -1487,7 +1479,7 @@ static int __init ip_auto_config(void)
 #endif /* IPCONFIG_DYNAMIC */
 	} else {
 		/* Device selected manually or only one device -> use it */
-		ic_dev = ic_first_dev->dev;
+		ic_dev = ic_first_dev;
 	}
 
 	addr = root_nfs_parse_addr(root_server_path);
@@ -1498,14 +1490,6 @@ static int __init ip_auto_config(void)
 	 * Use defaults wherever applicable.
 	 */
 	if (ic_defaults() < 0)
-		return -1;
-
-	/*
-	 * Close all network devices except the device we've
-	 * autoconfigured and set up routes.
-	 */
-	ic_close_devs();
-	if (ic_setup_if() < 0 || ic_setup_routes() < 0)
 		return -1;
 
 	/*
@@ -1522,7 +1506,7 @@ static int __init ip_auto_config(void)
 	pr_info("IP-Config: Complete:\n");
 
 	pr_info("     device=%s, hwaddr=%*phC, ipaddr=%pI4, mask=%pI4, gw=%pI4\n",
-		ic_dev->name, ic_dev->addr_len, ic_dev->dev_addr,
+		ic_dev->dev->name, ic_dev->dev->addr_len, ic_dev->dev->dev_addr,
 		&ic_myaddr, &ic_netmask, &ic_gateway);
 	pr_info("     host=%s, domain=%s, nis-domain=%s\n",
 		utsname()->nodename, ic_domain, utsname()->domainname);
@@ -1542,7 +1526,18 @@ static int __init ip_auto_config(void)
 	pr_cont("\n");
 #endif /* !SILENT */
 
-	return 0;
+	/*
+	 * Close all network devices except the device we've
+	 * autoconfigured and set up routes.
+	 */
+	if (ic_setup_if() < 0 || ic_setup_routes() < 0)
+		err = -1;
+	else
+		err = 0;
+
+	ic_close_devs();
+
+	return err;
 }
 
 late_initcall(ip_auto_config);

@@ -750,7 +750,7 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	init_kthread_worker(&itv->irq_worker);
+	kthread_init_worker(&itv->irq_worker);
 	itv->irq_worker_task = kthread_run(kthread_worker_fn, &itv->irq_worker,
 					   "%s", itv->v4l2_dev.name);
 	if (IS_ERR(itv->irq_worker_task)) {
@@ -760,7 +760,7 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	/* must use the FIFO scheduler as it is realtime sensitive */
 	sched_setscheduler(itv->irq_worker_task, SCHED_FIFO, &param);
 
-	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
+	kthread_init_work(&itv->irq_work, ivtv_irq_work_handler);
 
 	/* Initial settings */
 	itv->cxhdl.port = CX2341X_PORT_MEMORY;
@@ -885,8 +885,8 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && ivtv_pci_latency) {
-		IVTV_INFO("Unreasonably low latency timer, "
-			       "setting to 64 (was %d)\n", pci_latency);
+		IVTV_INFO("Unreasonably low latency timer, setting to 64 (was %d)\n",
+			  pci_latency);
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
 		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 	}
@@ -896,8 +896,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	   these problems. */
 	pci_write_config_dword(pdev, 0x40, 0xffff);
 
-	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
-		   "irq: %d, latency: %d, memory: 0x%llx\n",
+	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, irq: %d, latency: %d, memory: 0x%llx\n",
 		   pdev->device, pdev->revision, pdev->bus->number,
 		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 		   pdev->irq, pci_latency, (u64)itv->base_addr);
@@ -1047,13 +1046,10 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	itv->enc_mem = ioremap_nocache(itv->base_addr + IVTV_ENCODER_OFFSET,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
-		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
-			 "encoder memory\n");
-		IVTV_ERR("Each capture card with a CX23415/6 needs 8 MB of "
-			 "vmalloc address space for this window\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 encoder memory\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 8 MB of vmalloc address space for this window\n");
 		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
-		IVTV_ERR("Use the vmalloc= kernel command line option to set "
-			 "VmallocTotal to a larger value\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1064,14 +1060,10 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		itv->dec_mem = ioremap_nocache(itv->base_addr + IVTV_DECODER_OFFSET,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
-			IVTV_ERR("ioremap failed. Can't get a window into "
-				 "CX23415 decoder memory\n");
-			IVTV_ERR("Each capture card with a CX23415 needs 8 MB "
-				 "of vmalloc address space for this window\n");
-			IVTV_ERR("Check the output of 'grep Vmalloc "
-				 "/proc/meminfo'\n");
-			IVTV_ERR("Use the vmalloc= kernel command line option "
-				 "to set VmallocTotal to a larger value\n");
+			IVTV_ERR("ioremap failed. Can't get a window into CX23415 decoder memory\n");
+			IVTV_ERR("Each capture card with a CX23415 needs 8 MB of vmalloc address space for this window\n");
+			IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+			IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 			retval = -ENOMEM;
 			goto free_mem;
 		}
@@ -1086,13 +1078,10 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	itv->reg_mem =
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
-		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 "
-			 "register space\n");
-		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of "
-			 "vmalloc address space for this window\n");
+		IVTV_ERR("ioremap failed. Can't get a window into CX23415/6 register space\n");
+		IVTV_ERR("Each capture card with a CX23415/6 needs 64 kB of vmalloc address space for this window\n");
 		IVTV_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
-		IVTV_ERR("Use the vmalloc= kernel command line option to set "
-			 "VmallocTotal to a larger value\n");
+		IVTV_ERR("Use the vmalloc= kernel command line option to set VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_io;
 	}
@@ -1441,7 +1430,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	del_timer_sync(&itv->dma_timer);
 
 	/* Kill irq worker */
-	flush_kthread_worker(&itv->irq_worker);
+	kthread_flush_worker(&itv->irq_worker);
 	kthread_stop(itv->irq_worker_task);
 
 	ivtv_streams_cleanup(itv);

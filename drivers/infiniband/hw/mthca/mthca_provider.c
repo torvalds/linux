@@ -46,7 +46,7 @@
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
-#include "mthca_user.h"
+#include <rdma/mthca-abi.h>
 #include "mthca_memfree.h"
 
 static void init_query_mad(struct ib_smp *mad)
@@ -193,7 +193,8 @@ static int mthca_modify_device(struct ib_device *ibdev,
 	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
 		if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
 			return -ERESTARTSYS;
-		memcpy(ibdev->node_desc, props->node_desc, 64);
+		memcpy(ibdev->node_desc, props->node_desc,
+		       IB_DEVICE_NODE_DESC_MAX);
 		mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);
 	}
 
@@ -409,7 +410,9 @@ static int mthca_dealloc_pd(struct ib_pd *pd)
 }
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
-				     struct ib_ah_attr *ah_attr)
+				     struct ib_ah_attr *ah_attr,
+				     struct ib_udata *udata)
+
 {
 	int err;
 	struct mthca_ah *ah;
@@ -1138,7 +1141,7 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 	if (err)
 		goto out;
 
-	memcpy(dev->ib_dev.node_desc, out_mad->data, 64);
+	memcpy(dev->ib_dev.node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 

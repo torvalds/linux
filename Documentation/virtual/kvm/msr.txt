@@ -208,7 +208,9 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		__u64 steal;
 		__u32 version;
 		__u32 flags;
-		__u32 pad[12];
+		__u8  preempted;
+		__u8  u8_pad[3];
+		__u32 pad[11];
 	}
 
 	whose data will be filled in by the hypervisor periodically. Only one
@@ -231,6 +233,11 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		steal: the amount of time in which this vCPU did not run, in
 		nanoseconds. Time during which the vcpu is idle, will not be
 		reported as steal time.
+
+		preempted: indicate the vCPU who owns this struct is running or
+		not. Non-zero values mean the vCPU has been preempted. Zero
+		means the vCPU is not preempted. NOTE, it is always zero if the
+		the hypervisor doesn't support this field.
 
 MSR_KVM_EOI_EN: 0x4b564d04
 	data: Bit 0 is 1 when PV end of interrupt is enabled on the vcpu; 0

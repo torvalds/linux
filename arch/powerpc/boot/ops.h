@@ -30,6 +30,7 @@ struct platform_ops {
 	void *	(*realloc)(void *ptr, unsigned long size);
 	void	(*exit)(void);
 	void *	(*vmlinux_alloc)(unsigned long size);
+	void  	(*kentry)(unsigned long fdt_addr, void *vmlinux_addr);
 };
 extern struct platform_ops platform_ops;
 
@@ -259,5 +260,8 @@ int __ilog2_u32(u32 n)
 	asm ("cntlzw %0,%1" : "=r" (bit) : "r" (n));
 	return 31 - bit;
 }
+
+long partial_decompress(void *inbuf, unsigned long input_size, void *outbuf,
+	unsigned long output_size, unsigned long skip);
 
 #endif /* _PPC_BOOT_OPS_H_ */

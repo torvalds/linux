@@ -138,11 +138,11 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	base_addr = pci_resource_start(ndev->ntb.pdev, bar);
 
 	if (bar != 1) {
-		xlat_reg = AMD_BAR23XLAT_OFFSET + ((bar - 2) << 3);
-		limit_reg = AMD_BAR23LMT_OFFSET + ((bar - 2) << 3);
+		xlat_reg = AMD_BAR23XLAT_OFFSET + ((bar - 2) << 2);
+		limit_reg = AMD_BAR23LMT_OFFSET + ((bar - 2) << 2);
 
 		/* Set the limit if supported */
-		limit = base_addr + size;
+		limit = size;
 
 		/* set and verify setting the translation address */
 		write64(addr, peer_mmio + xlat_reg);
@@ -164,14 +164,8 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 		xlat_reg = AMD_BAR1XLAT_OFFSET;
 		limit_reg = AMD_BAR1LMT_OFFSET;
 
-		/* split bar addr range must all be 32 bit */
-		if (addr & (~0ull << 32))
-			return -EINVAL;
-		if ((addr + size) & (~0ull << 32))
-			return -EINVAL;
-
 		/* Set the limit if supported */
-		limit = base_addr + size;
+		limit = size;
 
 		/* set and verify setting the translation address */
 		write64(addr, peer_mmio + xlat_reg);
@@ -199,6 +193,11 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	if (!ndev->peer_sta)
 		return NTB_LNK_STA_ACTIVE(ndev->cntl_sta);
 
+	if (ndev->peer_sta & AMD_LINK_UP_EVENT) {
+		ndev->peer_sta = 0;
+		return 1;
+	}
+
 	/* If peer_sta is reset or D0 event, the ISR has
 	 * started a timer to check link status of hardware.
 	 * So here just clear status bit. And if peer_sta is
@@ -207,7 +206,7 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	 */
 	if (ndev->peer_sta & AMD_PEER_RESET_EVENT)
 		ndev->peer_sta &= ~AMD_PEER_RESET_EVENT;
-	else if (ndev->peer_sta & AMD_PEER_D0_EVENT)
+	else if (ndev->peer_sta & (AMD_PEER_D0_EVENT | AMD_LINK_DOWN_EVENT))
 		ndev->peer_sta = 0;
 
 	return 0;
@@ -491,6 +490,8 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 		break;
 	case AMD_PEER_D3_EVENT:
 	case AMD_PEER_PMETO_EVENT:
+	case AMD_LINK_UP_EVENT:
+	case AMD_LINK_DOWN_EVENT:
 		amd_ack_smu(ndev, status);
 
 		/* link down */
@@ -598,7 +599,7 @@ static int ndev_init_isr(struct amd_ntb_dev *ndev,
 
 err_msix_request:
 	while (i-- > 0)
-		free_irq(ndev->msix[i].vector, ndev);
+		free_irq(ndev->msix[i].vector, &ndev->vec[i]);
 	pci_disable_msix(pdev);
 err_msix_enable:
 	kfree(ndev->msix);

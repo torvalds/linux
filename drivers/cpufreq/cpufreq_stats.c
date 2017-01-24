@@ -41,6 +41,18 @@ static int cpufreq_stats_update(struct cpufreq_stats *stats)
 	return 0;
 }
 
+static void cpufreq_stats_clear_table(struct cpufreq_stats *stats)
+{
+	unsigned int count = stats->max_state;
+
+	memset(stats->time_in_state, 0, count * sizeof(u64));
+#ifdef CONFIG_CPU_FREQ_STAT_DETAILS
+	memset(stats->trans_table, 0, count * count * sizeof(int));
+#endif
+	stats->last_time = get_jiffies_64();
+	stats->total_trans = 0;
+}
+
 static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%d\n", policy->stats->total_trans);
@@ -62,6 +74,14 @@ static ssize_t show_time_in_state(struct cpufreq_policy *policy, char *buf)
 			jiffies_64_to_clock_t(stats->time_in_state[i]));
 	}
 	return len;
+}
+
+static ssize_t store_reset(struct cpufreq_policy *policy, const char *buf,
+			   size_t count)
+{
+	/* We don't care what is written to the attribute. */
+	cpufreq_stats_clear_table(policy->stats);
+	return count;
 }
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
@@ -113,10 +133,12 @@ cpufreq_freq_attr_ro(trans_table);
 
 cpufreq_freq_attr_ro(total_trans);
 cpufreq_freq_attr_ro(time_in_state);
+cpufreq_freq_attr_wo(reset);
 
 static struct attribute *default_attrs[] = {
 	&total_trans.attr,
 	&time_in_state.attr,
+	&reset.attr,
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	&trans_table.attr,
 #endif

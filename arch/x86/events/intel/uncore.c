@@ -319,9 +319,9 @@ static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
  */
 static int uncore_pmu_event_init(struct perf_event *event);
 
-static bool is_uncore_event(struct perf_event *event)
+static bool is_box_event(struct intel_uncore_box *box, struct perf_event *event)
 {
-	return event->pmu->event_init == uncore_pmu_event_init;
+	return &box->pmu->pmu == event->pmu;
 }
 
 static int
@@ -340,7 +340,7 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
 
 	n = box->n_events;
 
-	if (is_uncore_event(leader)) {
+	if (is_box_event(box, leader)) {
 		box->event_list[n] = leader;
 		n++;
 	}
@@ -349,7 +349,7 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
 		return n;
 
 	list_for_each_entry(event, &leader->sibling_list, group_entry) {
-		if (!is_uncore_event(event) ||
+		if (!is_box_event(box, event) ||
 		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 
@@ -664,6 +664,8 @@ static int uncore_pmu_event_init(struct perf_event *event)
 	event->cpu = box->cpu;
 	event->pmu_private = box;
 
+	event->event_caps |= PERF_EV_CAP_READ_ACTIVE_PKG;
+
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
@@ -683,7 +685,8 @@ static int uncore_pmu_event_init(struct perf_event *event)
 		/* fixed counters have event field hardcoded to zero */
 		hwc->config = 0ULL;
 	} else {
-		hwc->config = event->attr.config & pmu->type->event_mask;
+		hwc->config = event->attr.config &
+			      (pmu->type->event_mask | ((u64)pmu->type->event_mask_ext << 32));
 		if (pmu->type->ops->hw_config) {
 			ret = pmu->type->ops->hw_config(box, event);
 			if (ret)
@@ -730,6 +733,7 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 			.start		= uncore_pmu_event_start,
 			.stop		= uncore_pmu_event_stop,
 			.read		= uncore_pmu_event_read,
+			.module		= THIS_MODULE,
 		};
 	} else {
 		pmu->pmu = *pmu->type->pmu;
@@ -1321,6 +1325,11 @@ static const struct intel_uncore_init_fun skl_uncore_init __initconst = {
 	.pci_init = skl_uncore_pci_init,
 };
 
+static const struct intel_uncore_init_fun skx_uncore_init __initconst = {
+	.cpu_init = skx_uncore_cpu_init,
+	.pci_init = skx_uncore_pci_init,
+};
+
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_NEHALEM_EP,	  nhm_uncore_init),
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_NEHALEM,	  nhm_uncore_init),
@@ -1341,8 +1350,10 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_X,	  bdx_uncore_init),
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_XEON_D, bdx_uncore_init),
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNL,	  knl_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNM,	  knl_uncore_init),
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SKYLAKE_DESKTOP,skl_uncore_init),
 	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SKYLAKE_MOBILE, skl_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SKYLAKE_X,      skx_uncore_init),
 	{},
 };
 
@@ -1388,22 +1399,22 @@ static int __init intel_uncore_init(void)
 	 */
 	if (!cret) {
 	       ret = cpuhp_setup_state(CPUHP_PERF_X86_UNCORE_PREP,
-					"PERF_X86_UNCORE_PREP",
-					uncore_cpu_prepare, NULL);
+				       "perf/x86/intel/uncore:prepare",
+				       uncore_cpu_prepare, NULL);
 		if (ret)
 			goto err;
 	} else {
 		cpuhp_setup_state_nocalls(CPUHP_PERF_X86_UNCORE_PREP,
-					  "PERF_X86_UNCORE_PREP",
+					  "perf/x86/intel/uncore:prepare",
 					  uncore_cpu_prepare, NULL);
 	}
 	first_init = 1;
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_STARTING,
-			  "AP_PERF_X86_UNCORE_STARTING",
+			  "perf/x86/uncore:starting",
 			  uncore_cpu_starting, uncore_cpu_dying);
 	first_init = 0;
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_ONLINE,
-			  "AP_PERF_X86_UNCORE_ONLINE",
+			  "perf/x86/uncore:online",
 			  uncore_event_cpu_online, uncore_event_cpu_offline);
 	return 0;
 

@@ -26,7 +26,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/signal.h>
 #include <linux/module.h>

@@ -24,6 +24,7 @@
 #include "boot_loader.h"
 
 #define WAIT_FOR_HALP_VOTE_MS 100
+#define WAIT_FOR_SCAN_ABORT_MS 1000
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
@@ -213,7 +214,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
-static bool wil_ap_is_connected(struct wil6210_priv *wil)
+static bool wil_is_connected(struct wil6210_priv *wil)
 {
 	int i;
 
@@ -231,6 +232,9 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
+
+	if (unlikely(!ndev))
+		return;
 
 	might_sleep();
 	wil_info(wil, "%s(bssid=%pM, reason=%d, ev%s)\n", __func__, bssid,
@@ -264,7 +268,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_bcast_fini(wil);
-		netif_tx_stop_all_queues(ndev);
+		wil_update_net_queues_bh(wil, NULL, true);
 		netif_carrier_off(ndev);
 
 		if (test_bit(wil_status_fwconnected, wil->status)) {
@@ -280,8 +284,12 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		if (!wil_ap_is_connected(wil))
+		if (!wil_is_connected(wil)) {
+			wil_update_net_queues_bh(wil, NULL, true);
 			clear_bit(wil_status_fwconnected, wil->status);
+		} else {
+			wil_update_net_queues_bh(wil, NULL, false);
+		}
 		break;
 	default:
 		break;
@@ -381,18 +389,19 @@ static void wil_fw_error_worker(struct work_struct *work)
 
 	wil->last_fw_recovery = jiffies;
 
+	wil_info(wil, "fw error recovery requested (try %d)...\n",
+		 wil->recovery_count);
+	if (!no_fw_recovery)
+		wil->recovery_state = fw_recovery_running;
+	if (wil_wait_for_recovery(wil) != 0)
+		return;
+
 	mutex_lock(&wil->mutex);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
-		wil_info(wil, "fw error recovery requested (try %d)...\n",
-			 wil->recovery_count);
-		if (!no_fw_recovery)
-			wil->recovery_state = fw_recovery_running;
-		if (0 != wil_wait_for_recovery(wil))
-			break;
-
+		/* silent recovery, upper layers will see disconnect */
 		__wil_down(wil);
 		__wil_up(wil);
 		break;
@@ -509,10 +518,13 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
 	INIT_WORK(&wil->probe_client_worker, wil_probe_client_worker);
+	INIT_WORK(&wil->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	INIT_LIST_HEAD(&wil->probe_client_pending);
 	spin_lock_init(&wil->wmi_ev_lock);
+	spin_lock_init(&wil->net_queue_lock);
+	wil->net_queue_stopped = 1;
 	init_waitqueue_head(&wil->wq);
 
 	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME "_wmi");
@@ -568,6 +580,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
 	cancel_work_sync(&wil->p2p.discovery_expired_work);
+	cancel_work_sync(&wil->p2p.delayed_listen_work);
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	mutex_unlock(&wil->mutex);
@@ -680,6 +693,19 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
+}
+
+static void wil_collect_fw_info(struct wil6210_priv *wil)
+{
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+	u8 retry_short;
+	int rc;
+
+	rc = wmi_get_mgmt_retry(wil, &retry_short);
+	if (!rc) {
+		wiphy->retry_short = retry_short;
+		wil_dbg_misc(wil, "FW retry_short: %d\n", retry_short);
+	}
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
@@ -798,6 +824,34 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 	return 0;
 }
 
+void wil_abort_scan(struct wil6210_priv *wil, bool sync)
+{
+	int rc;
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
+
+	lockdep_assert_held(&wil->p2p_wdev_mutex);
+
+	if (!wil->scan_request)
+		return;
+
+	wil_dbg_misc(wil, "Abort scan_request 0x%p\n", wil->scan_request);
+	del_timer_sync(&wil->scan_timer);
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	rc = wmi_abort_scan(wil);
+	if (!rc && sync)
+		wait_event_interruptible_timeout(wil->wq, !wil->scan_request,
+						 msecs_to_jiffies(
+						 WAIT_FOR_SCAN_ABORT_MS));
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+	if (wil->scan_request) {
+		cfg80211_scan_done(wil->scan_request, &info);
+		wil->scan_request = NULL;
+	}
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload
@@ -849,17 +903,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	bitmap_zero(wil->status, wil_status_last);
 	mutex_unlock(&wil->wmi_mutex);
 
-	if (wil->scan_request) {
-		struct cfg80211_scan_info info = {
-			.aborted = true,
-		};
-
-		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
-			     wil->scan_request);
-		del_timer_sync(&wil->scan_timer);
-		cfg80211_scan_done(wil->scan_request, &info);
-		wil->scan_request = NULL;
-	}
+	mutex_lock(&wil->p2p_wdev_mutex);
+	wil_abort_scan(wil, false);
+	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_mask_irq(wil);
 
@@ -888,11 +934,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			 WIL_FW2_NAME);
 
 		wil_halt_cpu(wil);
+		memset(wil->fw_version, 0, sizeof(wil->fw_version));
 		/* Loading f/w from the file */
-		rc = wil_request_firmware(wil, WIL_FW_NAME);
+		rc = wil_request_firmware(wil, WIL_FW_NAME, true);
 		if (rc)
 			return rc;
-		rc = wil_request_firmware(wil, WIL_FW2_NAME);
+		rc = wil_request_firmware(wil, WIL_FW2_NAME, true);
 		if (rc)
 			return rc;
 
@@ -933,6 +980,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 				__func__, rc);
 			return rc;
 		}
+
+		wil_collect_fw_info(wil);
 
 		if (wil->platform_ops.notify) {
 			rc = wil->platform_ops.notify(wil->platform_handle,
@@ -1035,9 +1084,9 @@ int wil_up(struct wil6210_priv *wil)
 
 int __wil_down(struct wil6210_priv *wil)
 {
-	int rc;
-
 	WARN_ON(!mutex_is_locked(&wil->mutex));
+
+	set_bit(wil_status_resetting, wil->status);
 
 	if (wil->platform_ops.bus_request)
 		wil->platform_ops.bus_request(wil->platform_handle, 0);
@@ -1050,31 +1099,10 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	wil_enable_irq(wil);
 
-	(void)wil_p2p_stop_discovery(wil);
-
-	if (wil->scan_request) {
-		struct cfg80211_scan_info info = {
-			.aborted = true,
-		};
-
-		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
-			     wil->scan_request);
-		del_timer_sync(&wil->scan_timer);
-		cfg80211_scan_done(wil->scan_request, &info);
-		wil->scan_request = NULL;
-	}
-
-	if (test_bit(wil_status_fwconnected, wil->status) ||
-	    test_bit(wil_status_fwconnecting, wil->status)) {
-
-		mutex_unlock(&wil->mutex);
-		rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
-			      WMI_DISCONNECT_EVENTID, NULL, 0,
-			      WIL6210_DISCONNECT_TO_MS);
-		mutex_lock(&wil->mutex);
-		if (rc)
-			wil_err(wil, "timeout waiting for disconnect\n");
-	}
+	mutex_lock(&wil->p2p_wdev_mutex);
+	wil_p2p_stop_radio_operations(wil);
+	wil_abort_scan(wil, false);
+	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_reset(wil, false);
 
@@ -1118,23 +1146,26 @@ void wil_halp_vote(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->halp.lock);
 
-	wil_dbg_misc(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	if (++wil->halp.ref_cnt == 1) {
 		wil6210_set_halp(wil);
 		rc = wait_for_completion_timeout(&wil->halp.comp, to_jiffies);
-		if (!rc)
+		if (!rc) {
 			wil_err(wil, "%s: HALP vote timed out\n", __func__);
-		else
-			wil_dbg_misc(wil,
-				     "%s: HALP vote completed after %d ms\n",
-				     __func__,
-				     jiffies_to_msecs(to_jiffies - rc));
+			/* Mask HALP as done in case the interrupt is raised */
+			wil6210_mask_halp(wil);
+		} else {
+			wil_dbg_irq(wil,
+				    "%s: HALP vote completed after %d ms\n",
+				    __func__,
+				    jiffies_to_msecs(to_jiffies - rc));
+		}
 	}
 
-	wil_dbg_misc(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	mutex_unlock(&wil->halp.lock);
 }
@@ -1145,16 +1176,16 @@ void wil_halp_unvote(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->halp.lock);
 
-	wil_dbg_misc(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	if (--wil->halp.ref_cnt == 0) {
 		wil6210_clear_halp(wil);
-		wil_dbg_misc(wil, "%s: HALP unvote\n", __func__);
+		wil_dbg_irq(wil, "%s: HALP unvote\n", __func__);
 	}
 
-	wil_dbg_misc(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	mutex_unlock(&wil->halp.lock);
 }
