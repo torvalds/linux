@@ -678,9 +678,6 @@ struct pci_error_handlers {
 	/* MMIO has been re-enabled, but not DMA */
 	pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
 
-	/* PCI Express link has been reset */
-	pci_ers_result_t (*link_reset)(struct pci_dev *dev);
-
 	/* PCI slot has been reset */
 	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
 
