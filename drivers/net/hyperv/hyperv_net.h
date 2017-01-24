@@ -714,6 +714,14 @@ struct net_device_context {
 	u32 vf_serial;
 };
 
+/* Per channel data */
+struct netvsc_channel {
+	struct vmbus_channel *channel;
+	struct multi_send_data msd;
+	struct multi_recv_comp mrc;
+	atomic_t queue_sends;
+};
+
 /* Per netvsc device */
 struct netvsc_device {
 	u32 nvsp_version;
@@ -744,27 +752,25 @@ struct netvsc_device {
 
 	struct nvsp_message revoke_packet;
 
-	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
 	u32 num_chn;
 	spinlock_t sc_lock; /* Protects num_sc_offered variable */
 	u32 num_sc_offered;
-	atomic_t queue_sends[VRSS_CHANNEL_MAX];
 
 	/* Holds rndis device info */
 	void *extension;
 
 	int ring_size;
 
-	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
 
-	struct multi_recv_comp mrc[VRSS_CHANNEL_MAX];
 	atomic_t num_outstanding_recvs;
 
 	atomic_t open_cnt;
+
+	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
 };
 
 static inline struct netvsc_device *

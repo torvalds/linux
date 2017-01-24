@@ -1012,15 +1012,15 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	if (chn_index >= nvscdev->num_chn)
 		return;
 
-	nvscdev->mrc[chn_index].buf = vzalloc(NETVSC_RECVSLOT_MAX *
-					      sizeof(struct recv_comp_data));
+	nvscdev->chan_table[chn_index].mrc.buf
+		= vzalloc(NETVSC_RECVSLOT_MAX * sizeof(struct recv_comp_data));
 
 	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
 			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,
 			 netvsc_channel_cb, new_sc);
 
 	if (ret == 0)
-		nvscdev->chn_table[chn_index] = new_sc;
+		nvscdev->chan_table[chn_index].channel = new_sc;
 
 	spin_lock_irqsave(&nvscdev->sc_lock, flags);
 	nvscdev->num_sc_offered--;

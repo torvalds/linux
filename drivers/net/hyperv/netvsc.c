@@ -67,8 +67,8 @@ static struct netvsc_device *alloc_net_device(void)
 	if (!net_device)
 		return NULL;
 
-	net_device->mrc[0].buf = vzalloc(NETVSC_RECVSLOT_MAX *
-					 sizeof(struct recv_comp_data));
+	net_device->chan_table[0].mrc.buf
+		= vzalloc(NETVSC_RECVSLOT_MAX * sizeof(struct recv_comp_data));
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
@@ -85,7 +85,7 @@ static void free_netvsc_device(struct netvsc_device *nvdev)
 	int i;
 
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
-		vfree(nvdev->mrc[i].buf);
+		vfree(nvdev->chan_table[i].mrc.buf);
 
 	kfree(nvdev);
 }
@@ -632,7 +632,9 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 
 	num_outstanding_sends =
 		atomic_dec_return(&net_device->num_outstanding_sends);
-	queue_sends = atomic_dec_return(&net_device->queue_sends[q_idx]);
+
+	queue_sends =
+		atomic_dec_return(&net_device->chan_table[q_idx].queue_sends);
 
 	if (net_device->destroy && num_outstanding_sends == 0)
 		wake_up(&net_device->wait_drain);
@@ -757,9 +759,11 @@ static inline int netvsc_send_pkt(
 	struct sk_buff *skb)
 {
 	struct nvsp_message nvmsg;
-	u16 q_idx = packet->q_idx;
-	struct vmbus_channel *out_channel = net_device->chn_table[q_idx];
+	struct netvsc_channel *nvchan
+		= &net_device->chan_table[packet->q_idx];
+	struct vmbus_channel *out_channel = nvchan->channel;
 	struct net_device *ndev = hv_get_drvdata(device);
+	struct netdev_queue *txq = netdev_get_tx_queue(ndev, packet->q_idx);
 	u64 req_id;
 	int ret;
 	struct hv_page_buffer *pgbuf;
@@ -820,22 +824,18 @@ static inline int netvsc_send_pkt(
 
 	if (ret == 0) {
 		atomic_inc(&net_device->num_outstanding_sends);
-		atomic_inc(&net_device->queue_sends[q_idx]);
+		atomic_inc_return(&nvchan->queue_sends);
 
 		if (ring_avail < RING_AVAIL_PERCENT_LOWATER) {
-			netif_tx_stop_queue(netdev_get_tx_queue(ndev, q_idx));
+			netif_tx_stop_queue(txq);
 
-			if (atomic_read(&net_device->
-				queue_sends[q_idx]) < 1)
-				netif_tx_wake_queue(netdev_get_tx_queue(
-						    ndev, q_idx));
+			if (atomic_read(&nvchan->queue_sends) < 1)
+				netif_tx_wake_queue(txq);
 		}
 	} else if (ret == -EAGAIN) {
-		netif_tx_stop_queue(netdev_get_tx_queue(
-				    ndev, q_idx));
-		if (atomic_read(&net_device->queue_sends[q_idx]) < 1) {
-			netif_tx_wake_queue(netdev_get_tx_queue(
-					    ndev, q_idx));
+		netif_tx_stop_queue(txq);
+		if (atomic_read(&nvchan->queue_sends) < 1) {
+			netif_tx_wake_queue(txq);
 			ret = -ENOSPC;
 		}
 	} else {
@@ -866,8 +866,7 @@ int netvsc_send(struct hv_device *device,
 {
 	struct netvsc_device *net_device;
 	int ret = 0;
-	struct vmbus_channel *out_channel;
-	u16 q_idx = packet->q_idx;
+	struct netvsc_channel *nvchan;
 	u32 pktlen = packet->total_data_buflen, msd_len = 0;
 	unsigned int section_index = NETVSC_INVALID_INDEX;
 	struct multi_send_data *msdp;
@@ -887,8 +886,7 @@ int netvsc_send(struct hv_device *device,
 	if (!net_device->send_section_map)
 		return -EAGAIN;
 
-	out_channel = net_device->chn_table[q_idx];
-
+	nvchan = &net_device->chan_table[packet->q_idx];
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
 
@@ -900,9 +898,8 @@ int netvsc_send(struct hv_device *device,
 		goto send_now;
 	}
 
-	msdp = &net_device->msd[q_idx];
-
 	/* batch packets in send buffer if possible */
+	msdp = &nvchan->msd;
 	if (msdp->pkt)
 		msd_len = msdp->pkt->total_data_buflen;
 
@@ -1003,8 +1000,9 @@ static int netvsc_send_recv_completion(struct vmbus_channel *channel,
 static inline void count_recv_comp_slot(struct netvsc_device *nvdev, u16 q_idx,
 					u32 *filled, u32 *avail)
 {
-	u32 first = nvdev->mrc[q_idx].first;
-	u32 next = nvdev->mrc[q_idx].next;
+	struct multi_recv_comp *mrc = &nvdev->chan_table[q_idx].mrc;
+	u32 first = mrc->first;
+	u32 next = mrc->next;
 
 	*filled = (first > next) ? NETVSC_RECVSLOT_MAX - first + next :
 		  next - first;
@@ -1016,26 +1014,26 @@ static inline void count_recv_comp_slot(struct netvsc_device *nvdev, u16 q_idx,
 static inline struct recv_comp_data *read_recv_comp_slot(struct netvsc_device
 							 *nvdev, u16 q_idx)
 {
+	struct multi_recv_comp *mrc = &nvdev->chan_table[q_idx].mrc;
 	u32 filled, avail;
 
-	if (!nvdev->mrc[q_idx].buf)
+	if (unlikely(!mrc->buf))
 		return NULL;
 
 	count_recv_comp_slot(nvdev, q_idx, &filled, &avail);
 	if (!filled)
 		return NULL;
 
-	return nvdev->mrc[q_idx].buf + nvdev->mrc[q_idx].first *
-	       sizeof(struct recv_comp_data);
+	return mrc->buf + mrc->first * sizeof(struct recv_comp_data);
 }
 
 /* Put the first filled slot back to available pool */
 static inline void put_recv_comp_slot(struct netvsc_device *nvdev, u16 q_idx)
 {
+	struct multi_recv_comp *mrc = &nvdev->chan_table[q_idx].mrc;
 	int num_recv;
 
-	nvdev->mrc[q_idx].first = (nvdev->mrc[q_idx].first + 1) %
-				  NETVSC_RECVSLOT_MAX;
+	mrc->first = (mrc->first + 1) % NETVSC_RECVSLOT_MAX;
 
 	num_recv = atomic_dec_return(&nvdev->num_outstanding_recvs);
 
@@ -1070,13 +1068,14 @@ static void netvsc_chk_recv_comp(struct netvsc_device *nvdev,
 static inline struct recv_comp_data *get_recv_comp_slot(
 	struct netvsc_device *nvdev, struct vmbus_channel *channel, u16 q_idx)
 {
+	struct multi_recv_comp *mrc = &nvdev->chan_table[q_idx].mrc;
 	u32 filled, avail, next;
 	struct recv_comp_data *rcd;
 
-	if (!nvdev->recv_section)
+	if (unlikely(!nvdev->recv_section))
 		return NULL;
 
-	if (!nvdev->mrc[q_idx].buf)
+	if (unlikely(!mrc->buf))
 		return NULL;
 
 	if (atomic_read(&nvdev->num_outstanding_recvs) >
@@ -1087,9 +1086,9 @@ static inline struct recv_comp_data *get_recv_comp_slot(
 	if (!avail)
 		return NULL;
 
-	next = nvdev->mrc[q_idx].next;
-	rcd = nvdev->mrc[q_idx].buf + next * sizeof(struct recv_comp_data);
-	nvdev->mrc[q_idx].next = (next + 1) % NETVSC_RECVSLOT_MAX;
+	next = mrc->next;
+	rcd = mrc->buf + next * sizeof(struct recv_comp_data);
+	mrc->next = (next + 1) % NETVSC_RECVSLOT_MAX;
 
 	atomic_inc(&nvdev->num_outstanding_recvs);
 
@@ -1159,7 +1158,7 @@ static void netvsc_receive(struct netvsc_device *net_device,
 					      channel);
 	}
 
-	if (!net_device->mrc[q_idx].buf) {
+	if (!net_device->chan_table[q_idx].mrc.buf) {
 		ret = netvsc_send_recv_completion(channel,
 						  vmxferpage_packet->d.trans_id,
 						  status);
@@ -1333,7 +1332,7 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	 * opened.
 	 */
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
-		net_device->chn_table[i] = device->channel;
+		net_device->chan_table[i].channel = device->channel;
 
 	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
 	 * populated.
