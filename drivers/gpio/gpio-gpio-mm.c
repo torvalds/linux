@@ -263,7 +263,7 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 
 	dev_set_drvdata(dev, gpiommgpio);
 
-	err = gpiochip_add_data(&gpiommgpio->chip, gpiommgpio);
+	err = devm_gpiochip_add_data(dev, &gpiommgpio->chip, gpiommgpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -282,21 +282,11 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	return 0;
 }
 
-static int gpiomm_remove(struct device *dev, unsigned int id)
-{
-	struct gpiomm_gpio *const gpiommgpio = dev_get_drvdata(dev);
-
-	gpiochip_remove(&gpiommgpio->chip);
-
-	return 0;
-}
-
 static struct isa_driver gpiomm_driver = {
 	.probe = gpiomm_probe,
 	.driver = {
 		.name = "gpio-mm"
 	},
-	.remove = gpiomm_remove
 };
 
 module_isa_driver(gpiomm_driver, num_gpiomm);
