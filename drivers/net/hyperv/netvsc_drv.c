@@ -780,7 +780,7 @@ static int netvsc_set_channels(struct net_device *net,
 		return ret;
 
 	net_device_ctx->start_remove = true;
-	rndis_filter_device_remove(dev);
+	rndis_filter_device_remove(dev, nvdev);
 
 	ret = netvsc_set_queues(net, dev, count);
 	if (ret == 0)
@@ -865,7 +865,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 		goto out;
 
 	ndevctx->start_remove = true;
-	rndis_filter_device_remove(hdev);
+	rndis_filter_device_remove(hdev, nvdev);
 
 	ndev->mtu = mtu;
 
@@ -1493,7 +1493,7 @@ static int netvsc_probe(struct hv_device *dev,
 	ret = register_netdev(net);
 	if (ret != 0) {
 		pr_err("Unable to register netdev.\n");
-		rndis_filter_device_remove(dev);
+		rndis_filter_device_remove(dev, nvdev);
 		netvsc_free_netdev(net);
 	}
 
@@ -1533,7 +1533,7 @@ static int netvsc_remove(struct hv_device *dev)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	rndis_filter_device_remove(dev);
+	rndis_filter_device_remove(dev, ndev_ctx->nvdev);
 
 	hv_set_drvdata(dev, NULL);
 

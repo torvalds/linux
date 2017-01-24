@@ -198,7 +198,8 @@ int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			    struct netvsc_device_info *info);
-void rndis_filter_device_remove(struct hv_device *dev);
+void rndis_filter_device_remove(struct hv_device *dev,
+				struct netvsc_device *nvdev);
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key, int num_queue);
 int rndis_filter_receive(struct net_device *ndev,
