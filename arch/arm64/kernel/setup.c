@@ -209,7 +209,7 @@ static void __init request_standard_resources(void)
 		res = alloc_bootmem_low(sizeof(*res));
 		if (memblock_is_nomap(region)) {
 			res->name  = "reserved";
-			res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+			res->flags = IORESOURCE_MEM;
 		} else {
 			res->name  = "System RAM";
 			res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
