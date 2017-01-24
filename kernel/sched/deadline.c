@@ -1771,12 +1771,11 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 #ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->dl.overloaded)
 			queue_push_tasks(rq);
-#else
+#endif
 		if (dl_task(rq->curr))
 			check_preempt_curr_dl(rq, p, 0);
 		else
 			resched_curr(rq);
-#endif
 	}
 }
 
