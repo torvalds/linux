@@ -1066,6 +1066,7 @@ bool dc_pre_update_surfaces_to_stream(
 	int i, j;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	uint32_t prev_disp_clk = core_dc->current_context->bw_results.dispclk_khz;
+	int new_disp_clk;
 	struct dc_stream_status *stream_status = NULL;
 	struct validate_context *context;
 	struct validate_context *temp_context;
@@ -1150,6 +1151,7 @@ bool dc_pre_update_surfaces_to_stream(
 		ret = false;
 		goto unexpected_fail;
 	}
+	new_disp_clk = context->bw_results.dispclk_khz;
 
 	if (core_dc->res_pool->funcs->apply_clk_constraints) {
 		temp_context = core_dc->res_pool->funcs->apply_clk_constraints(
@@ -1166,7 +1168,7 @@ bool dc_pre_update_surfaces_to_stream(
 		context = temp_context;
 	}
 
-	if (prev_disp_clk < context->bw_results.dispclk_khz) {
+	if (prev_disp_clk < new_disp_clk) {
 		pplib_apply_display_requirements(core_dc, context,
 						&context->pp_display_cfg);
 		context->res_ctx.pool->display_clock->funcs->set_clock(
