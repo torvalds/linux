@@ -110,6 +110,7 @@ extern int watchdog_user_enabled;
 extern int watchdog_thresh;
 extern unsigned long watchdog_enabled;
 extern unsigned long *watchdog_cpumask_bits;
+extern atomic_t watchdog_park_in_progress;
 #ifdef CONFIG_SMP
 extern int sysctl_softlockup_all_cpu_backtrace;
 extern int sysctl_hardlockup_all_cpu_backtrace;
