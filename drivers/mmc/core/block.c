@@ -1634,7 +1634,8 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	enum mmc_blk_status status;
 	struct mmc_queue_req *mq_rq;
 	struct request *req;
-	struct mmc_async_req *areq;
+	struct mmc_async_req *new_areq;
+	struct mmc_async_req *old_areq;
 
 	if (!rqc && !mq->mqrq_prev->req)
 		return 0;
@@ -1654,11 +1655,12 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			}
 
 			mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
-			areq = &mq->mqrq_cur->mmc_active;
+			new_areq = &mq->mqrq_cur->mmc_active;
 		} else
-			areq = NULL;
-		areq = mmc_start_req(card->host, areq, &status);
-		if (!areq) {
+			new_areq = NULL;
+
+		old_areq = mmc_start_req(card->host, new_areq, &status);
+		if (!old_areq) {
 			/*
 			 * We have just put the first request into the pipeline
 			 * and there is nothing more to do until it is
@@ -1673,7 +1675,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		 * An asynchronous request has been completed and we proceed
 		 * to handle the result of it.
 		 */
-		mq_rq = container_of(areq, struct mmc_queue_req, mmc_active);
+		mq_rq =	container_of(old_areq, struct mmc_queue_req, mmc_active);
 		brq = &mq_rq->brq;
 		req = mq_rq->req;
 		type = rq_data_dir(req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
