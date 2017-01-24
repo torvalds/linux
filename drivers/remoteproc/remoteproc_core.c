@@ -961,14 +961,14 @@ clean_up:
 }
 
 /*
- * take a firmware and look for virtio devices to register.
+ * take a firmware and boot it up.
  *
  * Note: this function is called asynchronously upon registration of the
  * remote processor (so we must wait until it completes before we try
  * to unregister the device. one other option is just to use kref here,
  * that might be cleaner).
  */
-static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
+static void rproc_auto_boot_callback(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
 
@@ -977,21 +977,17 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
-static int rproc_add_virtio_devices(struct rproc *rproc)
+static int rproc_trigger_auto_boot(struct rproc *rproc)
 {
 	int ret;
 
 	/*
-	 * We must retrieve early virtio configuration info from
-	 * the firmware (e.g. whether to register a virtio device,
-	 * what virtio features does it support, ...).
-	 *
 	 * We're initiating an asynchronous firmware loading, so we can
 	 * be built-in kernel code, without hanging the boot process.
 	 */
 	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				      rproc->firmware, &rproc->dev, GFP_KERNEL,
-				      rproc, rproc_fw_config_virtio);
+				      rproc, rproc_auto_boot_callback);
 	if (ret < 0)
 		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
 
@@ -1287,7 +1283,7 @@ int rproc_add(struct rproc *rproc)
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot) {
-		ret = rproc_add_virtio_devices(rproc);
+		ret = rproc_trigger_auto_boot(rproc);
 		if (ret < 0)
 			return ret;
 	}
