@@ -651,10 +651,11 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
-	if (insert_request(&request->priotree, &engine->execlist_queue))
+	if (insert_request(&request->priotree, &engine->execlist_queue)) {
 		engine->execlist_first = &request->priotree.node;
-	if (execlists_elsp_idle(engine))
-		tasklet_hi_schedule(&engine->irq_tasklet);
+		if (execlists_elsp_idle(engine))
+			tasklet_hi_schedule(&engine->irq_tasklet);
+	}
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
