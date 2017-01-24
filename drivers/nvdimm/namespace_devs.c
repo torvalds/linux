@@ -52,17 +52,17 @@ static void namespace_blk_release(struct device *dev)
 	kfree(nsblk);
 }
 
-static struct device_type namespace_io_device_type = {
+static const struct device_type namespace_io_device_type = {
 	.name = "nd_namespace_io",
 	.release = namespace_io_release,
 };
 
-static struct device_type namespace_pmem_device_type = {
+static const struct device_type namespace_pmem_device_type = {
 	.name = "nd_namespace_pmem",
 	.release = namespace_pmem_release,
 };
 
-static struct device_type namespace_blk_device_type = {
+static const struct device_type namespace_blk_device_type = {
 	.name = "nd_namespace_blk",
 	.release = namespace_blk_release,
 };
