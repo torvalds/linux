@@ -60,10 +60,40 @@ void timgad_tasks_clean(void)
 	rhashtable_destroy(&timgad_tasks_table);
 }
 
-int timgad_set_flag(struct timgad_task *timgad_tsk, unsigned long op,
-		    unsigned long flag, unsigned long value)
+int timgad_task_set_flag(struct timgad_task *timgad_tsk, unsigned long op,
+			 unsigned long flag, unsigned long value)
 {
 	int ret = -EINVAL;
 
 	return ret;
+}
+
+int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
+{
+	int ret = -EINVAL;
+
+	return ret;
+}
+
+static struct timgad_task *__lookup_timgad_task(struct task_struct *tsk)
+{
+	return rhashtable_lookup_fast(&timgad_tasks_table, tsk,
+				      timgad_tasks_params);
+}
+
+struct timgad_task *get_timgad_task(struct task_struct *tsk)
+{
+	struct timgad_task ttask;
+
+	return NULL;
+}
+
+void put_timgad_task(struct timgad_task *timgad_tsk)
+{
+	return;
+}
+
+struct timgad_task *lookup_timgad_task(struct task_struct *tsk)
+{
+	return NULL;
 }

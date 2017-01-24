@@ -28,9 +28,11 @@ static inline int timgad_op_to_flag(unsigned long op,
 	return 0;
 }
 
-int timgad_set_flag(struct timgad_task *timgad_tsk,
-		    unsigned long op, unsigned long flag,
-		    unsigned long value);
+int timgad_task_set_flag(struct timgad_task *timgad_tsk,
+			 unsigned long op, unsigned long flag,
+			 unsigned long value);
+
+int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
 
 struct timgad_task *get_timgad_task(struct task_struct *tsk);
 void put_timgad_task(struct timgad_task *timgad_tsk);
