@@ -1729,6 +1729,14 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 		/* ERR->XXX */
 		switch (new_state) {
 		case QED_ROCE_QP_STATE_RESET:
+			if ((qp->rq.prod != qp->rq.cons) ||
+			    (qp->sq.prod != qp->sq.cons)) {
+				DP_NOTICE(dev,
+					  "Error->Reset with rq/sq not empty rq.prod=%x rq.cons=%x sq.prod=%x sq.cons=%x\n",
+					  qp->rq.prod, qp->rq.cons, qp->sq.prod,
+					  qp->sq.cons);
+				status = -EINVAL;
+			}
 			break;
 		default:
 			status = -EINVAL;
