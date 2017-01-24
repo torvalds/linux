@@ -2348,7 +2348,7 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	u32 value = 0;
-	int res;
+	int res = 0;
 
 	if ((lvl == IPPROTO_TCP) && (sock->type == SOCK_STREAM))
 		return 0;
@@ -2388,7 +2388,6 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 		break;
 	case TIPC_CONN_TIMEOUT:
 		tipc_sk(sk)->conn_timeout = value;
-		/* no need to set "res", since already 0 at this point */
 		break;
 	case TIPC_MCAST_BROADCAST:
 		tsk->mc_method.rcast = false;
