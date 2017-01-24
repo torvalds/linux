@@ -67,12 +67,6 @@ static struct netvsc_device *alloc_net_device(void)
 	if (!net_device)
 		return NULL;
 
-	net_device->cb_buffer = kzalloc(NETVSC_PACKET_SIZE, GFP_KERNEL);
-	if (!net_device->cb_buffer) {
-		kfree(net_device);
-		return NULL;
-	}
-
 	net_device->mrc[0].buf = vzalloc(NETVSC_RECVSLOT_MAX *
 					 sizeof(struct recv_comp_data));
 
@@ -93,7 +87,6 @@ static void free_netvsc_device(struct netvsc_device *nvdev)
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
 		vfree(nvdev->mrc[i].buf);
 
-	kfree(nvdev->cb_buffer);
 	kfree(nvdev);
 }
 
@@ -584,7 +577,6 @@ void netvsc_device_remove(struct hv_device *device)
 	vmbus_close(device->channel);
 
 	/* Release all resources */
-	vfree(net_device->sub_cb_buf);
 	free_netvsc_device(net_device);
 }
 
@@ -1271,16 +1263,11 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 
 void netvsc_channel_cb(void *context)
 {
-	int ret;
-	struct vmbus_channel *channel = (struct vmbus_channel *)context;
+	struct vmbus_channel *channel = context;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
 	struct hv_device *device;
 	struct netvsc_device *net_device;
-	u32 bytes_recvd;
-	u64 request_id;
 	struct vmpacket_descriptor *desc;
-	unsigned char *buffer;
-	int bufferlen = NETVSC_PACKET_SIZE;
 	struct net_device *ndev;
 	bool need_to_commit = false;
 
@@ -1292,65 +1279,19 @@ void netvsc_channel_cb(void *context)
 	net_device = get_inbound_net_device(device);
 	if (!net_device)
 		return;
+
 	ndev = hv_get_drvdata(device);
-	buffer = get_per_channel_state(channel);
 
-	do {
-		desc = get_next_pkt_raw(channel);
-		if (desc != NULL) {
-			netvsc_process_raw_pkt(device,
-					       channel,
-					       net_device,
-					       ndev,
-					       desc->trans_id,
-					       desc);
+	while ((desc = get_next_pkt_raw(channel)) != NULL) {
+		netvsc_process_raw_pkt(device, channel, net_device,
+				       ndev, desc->trans_id, desc);
 
-			put_pkt_raw(channel, desc);
-			need_to_commit = true;
-			continue;
-		}
-		if (need_to_commit) {
-			need_to_commit = false;
-			commit_rd_index(channel);
-		}
+		put_pkt_raw(channel, desc);
+		need_to_commit = true;
+	}
 
-		ret = vmbus_recvpacket_raw(channel, buffer, bufferlen,
-					   &bytes_recvd, &request_id);
-		if (ret == 0) {
-			if (bytes_recvd > 0) {
-				desc = (struct vmpacket_descriptor *)buffer;
-				netvsc_process_raw_pkt(device,
-						       channel,
-						       net_device,
-						       ndev,
-						       request_id,
-						       desc);
-			} else {
-				/*
-				 * We are done for this pass.
-				 */
-				break;
-			}
-
-		} else if (ret == -ENOBUFS) {
-			if (bufferlen > NETVSC_PACKET_SIZE)
-				kfree(buffer);
-			/* Handle large packet */
-			buffer = kmalloc(bytes_recvd, GFP_ATOMIC);
-			if (buffer == NULL) {
-				/* Try again next time around */
-				netdev_err(ndev,
-					   "unable to allocate buffer of size "
-					   "(%d)!!\n", bytes_recvd);
-				break;
-			}
-
-			bufferlen = bytes_recvd;
-		}
-	} while (1);
-
-	if (bufferlen > NETVSC_PACKET_SIZE)
-		kfree(buffer);
+	if (need_to_commit)
+		commit_rd_index(channel);
 
 	netvsc_chk_recv_comp(net_device, channel, q_idx);
 }
@@ -1373,8 +1314,6 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 		return -ENOMEM;
 
 	net_device->ring_size = ring_size;
-
-	set_per_channel_state(device->channel, net_device->cb_buffer);
 
 	/* Open the channel */
 	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,

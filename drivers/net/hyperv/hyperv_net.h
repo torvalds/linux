@@ -748,11 +748,6 @@ struct netvsc_device {
 
 	int ring_size;
 
-	/* The primary channel callback buffer */
-	unsigned char *cb_buffer;
-	/* The sub channel callback buffer */
-	unsigned char *sub_cb_buf;
-
 	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
