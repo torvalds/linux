@@ -85,17 +85,30 @@ struct timgad_task *get_timgad_task(struct task_struct *tsk)
 {
 	struct timgad_task ttask;
 
-	return NULL;
+	rcu_read_lock();
+	ttask = __lookup_timgad_task(tsk);
+	if (ttask)
+		atomic_inc(&ttask->usage);
+	rcu_read_unlock();
+
+	return ttask;
 }
 
 void put_timgad_task(struct timgad_task *timgad_tsk)
 {
-	return;
+	if (timgad_tsk && atomic_dec_and_test(&timgad_tsk->usage))
+		schedule_work(&timgad_tsk->clean_work);
 }
 
 struct timgad_task *lookup_timgad_task(struct task_struct *tsk)
 {
-	return NULL;
+	struct timgad_task ttask;
+
+	rcu_read_lock();
+	ttask = __lookup_timgad_task(tsk);
+	rcu_read_unlock();
+
+	return ttask;
 }
 
 static void reclaim_timgad_task(struct work_struct *work)
