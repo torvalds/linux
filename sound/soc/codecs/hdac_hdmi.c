@@ -85,10 +85,6 @@ struct hdac_hdmi_pin {
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
 	struct hdac_hdmi_eld eld;
 	struct hdac_ext_device *edev;
-	struct mutex lock;
-	bool chmap_set;
-	unsigned char chmap[8]; /* ALSA API channel-map */
-	int channels; /* current number of channels */
 };
 
 struct hdac_hdmi_pcm {
@@ -100,6 +96,9 @@ struct hdac_hdmi_pcm {
 	int stream_tag;
 	int channels;
 	int format;
+	bool chmap_set;
+	unsigned char chmap[8]; /* ALSA API channel-map */
+	struct mutex lock;
 };
 
 struct hdac_hdmi_dai_pin_map {
@@ -217,13 +216,13 @@ struct dp_audio_infoframe {
 };
 
 static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
-				hda_nid_t cvt_nid, hda_nid_t pin_nid)
+		   struct hdac_hdmi_pcm *pcm, struct hdac_hdmi_pin *pin)
 {
 	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
 	struct hdmi_audio_infoframe frame;
 	struct dp_audio_infoframe dp_ai;
 	struct hdac_hdmi_priv *hdmi = hdac->private_data;
-	struct hdac_hdmi_pin *pin;
+	struct hdac_hdmi_cvt *cvt = pcm->cvt;
 	u8 *dip;
 	int ret;
 	int i;
@@ -231,19 +230,14 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 	u8 conn_type;
 	int channels, ca;
 
-	list_for_each_entry(pin, &hdmi->pin_list, head) {
-		if (pin->nid == pin_nid)
-			break;
-	}
-
 	ca = snd_hdac_channel_allocation(&hdac->hdac, pin->eld.info.spk_alloc,
-			pin->channels, pin->chmap_set, true, pin->chmap);
+			pcm->channels, pcm->chmap_set, true, pcm->chmap);
 
 	channels = snd_hdac_get_active_channels(ca);
-	hdmi->chmap.ops.set_channel_count(&hdac->hdac, cvt_nid, channels);
+	hdmi->chmap.ops.set_channel_count(&hdac->hdac, cvt->nid, channels);
 
 	snd_hdac_setup_channel_mapping(&hdmi->chmap, pin->nid, false, ca,
-				pin->channels, pin->chmap, pin->chmap_set);
+				pcm->channels, pcm->chmap, pcm->chmap_set);
 
 	eld_buf = pin->eld.eld_buffer;
 	conn_type = drm_eld_get_conn_type(eld_buf);
@@ -279,26 +273,26 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 	}
 
 	/* stop infoframe transmission */
-	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
-	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
+	snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
 			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_DISABLE);
 
 
 	/*  Fill infoframe. Index auto-incremented */
-	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
+	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
 	if (conn_type == DRM_ELD_CONN_TYPE_HDMI) {
 		for (i = 0; i < sizeof(buffer); i++)
-			snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+			snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
 				AC_VERB_SET_HDMI_DIP_DATA, buffer[i]);
 	} else {
 		for (i = 0; i < sizeof(dp_ai); i++)
-			snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+			snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
 				AC_VERB_SET_HDMI_DIP_DATA, dip[i]);
 	}
 
 	/* Start infoframe */
-	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
-	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
+	snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
 			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_BEST);
 
 	return 0;
@@ -476,18 +470,22 @@ static void hdac_hdmi_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
 	struct hdac_hdmi_priv *hdmi = hdac->private_data;
 	struct hdac_hdmi_dai_pin_map *dai_map;
+	struct hdac_hdmi_pcm *pcm;
 
 	dai_map = &hdmi->dai_map[dai->id];
 
-	if (dai_map->pin) {
-		mutex_lock(&dai_map->pin->lock);
-		dai_map->pin->chmap_set = false;
-		memset(dai_map->pin->chmap, 0, sizeof(dai_map->pin->chmap));
-		dai_map->pin->channels = 0;
-		mutex_unlock(&dai_map->pin->lock);
+	pcm = hdac_hdmi_get_pcm_from_cvt(hdmi, dai_map->cvt);
 
-		dai_map->pin = NULL;
+	if (pcm) {
+		mutex_lock(&pcm->lock);
+		pcm->chmap_set = false;
+		memset(pcm->chmap, 0, sizeof(pcm->chmap));
+		pcm->channels = 0;
+		mutex_unlock(&pcm->lock);
 	}
+
+	if (dai_map->pin)
+		dai_map->pin = NULL;
 }
 
 static int
@@ -611,8 +609,7 @@ static int hdac_hdmi_pin_output_widget_event(struct snd_soc_dapm_widget *w,
 
 		hdac_hdmi_set_amp(edev, pin->nid, AMP_OUT_UNMUTE);
 
-		return hdac_hdmi_setup_audio_infoframe(edev, pcm->cvt->nid,
-								pin->nid);
+		return hdac_hdmi_setup_audio_infoframe(edev, pcm, pin);
 
 	case SND_SOC_DAPM_POST_PMD:
 		hdac_hdmi_set_amp(edev, pin->nid, AMP_OUT_MUTE);
@@ -1110,7 +1107,6 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 	hdmi->num_pin++;
 
 	pin->edev = edev;
-	mutex_init(&pin->lock);
 
 	return 0;
 }
@@ -1361,6 +1357,7 @@ int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device)
 		return -ENOMEM;
 	pcm->pcm_id = device;
 	pcm->cvt = hdmi->dai_map[dai->id].cvt;
+	mutex_init(&pcm->lock);
 
 	snd_pcm = hdac_hdmi_get_pcm_from_id(dai->component->card, device);
 	if (snd_pcm) {
@@ -1506,13 +1503,8 @@ static void hdac_hdmi_get_chmap(struct hdac_device *hdac, int pcm_idx,
 	struct hdac_ext_device *edev = to_ehdac_device(hdac);
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
-	struct hdac_hdmi_pin *pin = pcm->pin;
 
-	/* chmap is already set to 0 in caller */
-	if (!pin)
-		return;
-
-	memcpy(chmap, pin->chmap, ARRAY_SIZE(pin->chmap));
+	memcpy(chmap, pcm->chmap, ARRAY_SIZE(pcm->chmap));
 }
 
 static void hdac_hdmi_set_chmap(struct hdac_device *hdac, int pcm_idx,
@@ -1523,12 +1515,12 @@ static void hdac_hdmi_set_chmap(struct hdac_device *hdac, int pcm_idx,
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_pin *pin = pcm->pin;
 
-	mutex_lock(&pin->lock);
-	pin->chmap_set = true;
-	memcpy(pin->chmap, chmap, ARRAY_SIZE(pin->chmap));
+	mutex_lock(&pcm->lock);
+	pcm->chmap_set = true;
+	memcpy(pcm->chmap, chmap, ARRAY_SIZE(pcm->chmap));
 	if (prepared)
-		hdac_hdmi_setup_audio_infoframe(edev, pcm->cvt->nid, pin->nid);
-	mutex_unlock(&pin->lock);
+		hdac_hdmi_setup_audio_infoframe(edev, pcm, pin);
+	mutex_unlock(&pcm->lock);
 }
 
 static bool is_hdac_hdmi_pcm_attached(struct hdac_device *hdac, int pcm_idx)
