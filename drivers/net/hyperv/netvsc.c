@@ -90,6 +90,16 @@ static void free_netvsc_device(struct netvsc_device *nvdev)
 	kfree(nvdev);
 }
 
+
+static inline bool netvsc_channel_idle(const struct netvsc_device *net_device,
+				       u16 q_idx)
+{
+	const struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
+
+	return atomic_read(&net_device->num_outstanding_recvs) == 0 &&
+		atomic_read(&nvchan->queue_sends) == 0;
+}
+
 static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 {
 	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
@@ -97,22 +107,6 @@ static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
 	if (net_device && net_device->destroy)
 		net_device = NULL;
 
-	return net_device;
-}
-
-static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
-{
-	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
-
-	if (!net_device)
-		goto get_in_err;
-
-	if (net_device->destroy &&
-	    atomic_read(&net_device->num_outstanding_sends) == 0 &&
-	    atomic_read(&net_device->num_outstanding_recvs) == 0)
-		net_device = NULL;
-
-get_in_err:
 	return net_device;
 }
 
@@ -612,7 +606,6 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	struct vmbus_channel *channel = device->channel;
-	int num_outstanding_sends;
 	u16 q_idx = 0;
 	int queue_sends;
 
@@ -630,13 +623,10 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 		dev_consume_skb_any(skb);
 	}
 
-	num_outstanding_sends =
-		atomic_dec_return(&net_device->num_outstanding_sends);
-
 	queue_sends =
 		atomic_dec_return(&net_device->chan_table[q_idx].queue_sends);
 
-	if (net_device->destroy && num_outstanding_sends == 0)
+	if (net_device->destroy && queue_sends == 0)
 		wake_up(&net_device->wait_drain);
 
 	if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
@@ -823,15 +813,10 @@ static inline int netvsc_send_pkt(
 	}
 
 	if (ret == 0) {
-		atomic_inc(&net_device->num_outstanding_sends);
 		atomic_inc_return(&nvchan->queue_sends);
 
-		if (ring_avail < RING_AVAIL_PERCENT_LOWATER) {
+		if (ring_avail < RING_AVAIL_PERCENT_LOWATER)
 			netif_tx_stop_queue(txq);
-
-			if (atomic_read(&nvchan->queue_sends) < 1)
-				netif_tx_wake_queue(txq);
-		}
 	} else if (ret == -EAGAIN) {
 		netif_tx_stop_queue(txq);
 		if (atomic_read(&nvchan->queue_sends) < 1) {
@@ -1259,11 +1244,14 @@ void netvsc_channel_cb(void *context)
 	else
 		device = channel->device_obj;
 
-	net_device = get_inbound_net_device(device);
-	if (!net_device)
+	ndev = hv_get_drvdata(device);
+	if (unlikely(!ndev))
 		return;
 
-	ndev = hv_get_drvdata(device);
+	net_device = net_device_to_netvsc_device(ndev);
+	if (unlikely(net_device->destroy) &&
+	    netvsc_channel_idle(net_device, q_idx))
+		return;
 
 	while ((desc = get_next_pkt_raw(channel)) != NULL) {
 		netvsc_process_raw_pkt(device, channel, net_device,

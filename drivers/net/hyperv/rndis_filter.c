@@ -903,6 +903,23 @@ cleanup:
 	return ret;
 }
 
+static bool netvsc_device_idle(const struct netvsc_device *nvdev)
+{
+	int i;
+
+	if (atomic_read(&nvdev->num_outstanding_recvs) > 0)
+		return false;
+
+	for (i = 0; i < nvdev->num_chn; i++) {
+		const struct netvsc_channel *nvchan = &nvdev->chan_table[i];
+
+		if (atomic_read(&nvchan->queue_sends) > 0)
+			return false;
+	}
+
+	return true;
+}
+
 static void rndis_filter_halt_device(struct rndis_device *dev)
 {
 	struct rndis_request *request;
@@ -933,9 +950,7 @@ cleanup:
 	spin_unlock_irqrestore(&hdev->channel->inbound_lock, flags);
 
 	/* Wait for all send completions */
-	wait_event(nvdev->wait_drain,
-		   atomic_read(&nvdev->num_outstanding_sends) == 0 &&
-		   atomic_read(&nvdev->num_outstanding_recvs) == 0);
+	wait_event(nvdev->wait_drain, netvsc_device_idle(nvdev));
 
 	if (request)
 		put_rndis_request(dev, request);
