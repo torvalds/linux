@@ -1909,6 +1909,14 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 static void musb_irq_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, irq_work.work);
+	int error;
+
+	error = pm_runtime_get_sync(musb->controller);
+	if (error < 0) {
+		dev_err(musb->controller, "Could not enable: %i\n", error);
+
+		return;
+	}
 
 	musb_pm_runtime_check_session(musb);
 
@@ -1916,6 +1924,9 @@ static void musb_irq_work(struct work_struct *data)
 		musb->xceiv_old_state = musb->xceiv->otg->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
+
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 }
 
 static void musb_recover_from_babble(struct musb *musb)
