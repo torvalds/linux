@@ -418,22 +418,6 @@ static const struct flexfb_lcd_controller flexfb_chip_table[] = {
 		.init_seq_sz = ARRAY_SIZE(ili9225_init),
 	},
 	{
-		.name = "ili9225",
-		.width = 176,
-		.height = 220,
-		.regwidth = 16,
-		.init_seq = ili9225_init,
-		.init_seq_sz = ARRAY_SIZE(ili9225_init),
-	},
-	{
-		.name = "ili9225",
-		.width = 176,
-		.height = 220,
-		.regwidth = 16,
-		.init_seq = ili9225_init,
-		.init_seq_sz = ARRAY_SIZE(ili9225_init),
-	},
-	{
 		.name = "ili9320",
 		.width = 240,
 		.height = 320,
