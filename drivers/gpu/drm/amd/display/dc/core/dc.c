@@ -1568,7 +1568,9 @@ void dc_update_surfaces_for_stream(struct dc *dc,
 							 surface, context);
 					context_timing_trace(dc, &context->res_ctx);
 				}
-			} else if (updates[i].flip_addr)
+			}
+
+			if (updates[i].flip_addr)
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
 
 			if (update_type == UPDATE_TYPE_FAST)
