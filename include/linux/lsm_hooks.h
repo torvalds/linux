@@ -1479,6 +1479,7 @@ union security_list_options {
 	int (*file_open)(struct file *file, const struct cred *cred);
 
 	int (*task_create)(unsigned long clone_flags);
+	int (*task_copy)(struct task_struct *task);
 	void (*task_free)(struct task_struct *task);
 	int (*cred_alloc_blank)(struct cred *cred, gfp_t gfp);
 	void (*cred_free)(struct cred *cred);
@@ -1745,6 +1746,7 @@ struct security_hook_heads {
 	struct list_head file_receive;
 	struct list_head file_open;
 	struct list_head task_create;
+	struct list_head task_copy;
 	struct list_head task_free;
 	struct list_head cred_alloc_blank;
 	struct list_head cred_free;

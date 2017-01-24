@@ -1746,6 +1746,10 @@ static __latent_entropy struct task_struct *copy_process(
 	if (retval)
 		goto bad_fork_free_pid;
 
+	retval = security_task_copy(p);
+	if (retval)
+		goto bad_fork_cancel_cgroup;
+
 	/*
 	 * Make it visible to the rest of the system, but dont wake it up yet.
 	 * Need tasklist lock for parent etc handling!
