@@ -972,9 +972,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
 
-	/* if rproc is marked always-on, request it to boot */
-	if (rproc->auto_boot)
-		rproc_boot(rproc);
+	rproc_boot(rproc);
 
 	release_firmware(fw);
 }
@@ -1286,9 +1284,13 @@ int rproc_add(struct rproc *rproc)
 
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
-	ret = rproc_add_virtio_devices(rproc);
-	if (ret < 0)
-		return ret;
+
+	/* if rproc is marked always-on, request it to boot */
+	if (rproc->auto_boot) {
+		ret = rproc_add_virtio_devices(rproc);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* expose to rproc_get_by_phandle users */
 	mutex_lock(&rproc_list_mutex);
