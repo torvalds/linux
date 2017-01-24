@@ -380,7 +380,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		execlists_context_status_change(port[0].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
 	desc[0] = execlists_update_context(port[0].request);
-	engine->preempt_wa = port[0].count++; /* bdw only? fixed on skl? */
+	port[0].count++;
 
 	if (port[1].request) {
 		GEM_BUG_ON(port[1].count);
@@ -545,15 +545,11 @@ bool intel_execlists_idle(struct drm_i915_private *dev_priv)
 	return true;
 }
 
-static bool execlists_elsp_ready(struct intel_engine_cs *engine)
+static bool execlists_elsp_ready(const struct intel_engine_cs *engine)
 {
-	int port;
+	const struct execlist_port *port = engine->execlist_port;
 
-	port = 1; /* wait for a free slot */
-	if (engine->preempt_wa)
-		port = 0; /* wait for GPU to be idle before continuing */
-
-	return !engine->execlist_port[port].request;
+	return port[0].count + port[1].count < 2;
 }
 
 /*
@@ -601,8 +597,6 @@ static void intel_lrc_irq_handler(unsigned long data)
 				i915_gem_request_put(port[0].request);
 				port[0] = port[1];
 				memset(&port[1], 0, sizeof(port[1]));
-
-				engine->preempt_wa = false;
 			}
 
 			GEM_BUG_ON(port[0].count == 0 &&

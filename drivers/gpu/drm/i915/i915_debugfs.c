@@ -3320,15 +3320,21 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 			rcu_read_lock();
 			rq = READ_ONCE(engine->execlist_port[0].request);
-			if (rq)
-				print_request(m, rq, "\t\tELSP[0] ");
-			else
+			if (rq) {
+				seq_printf(m, "\t\tELSP[0] count=%d, ",
+					   engine->execlist_port[0].count);
+				print_request(m, rq, "rq: ");
+			} else {
 				seq_printf(m, "\t\tELSP[0] idle\n");
+			}
 			rq = READ_ONCE(engine->execlist_port[1].request);
-			if (rq)
-				print_request(m, rq, "\t\tELSP[1] ");
-			else
+			if (rq) {
+				seq_printf(m, "\t\tELSP[1] count=%d, ",
+					   engine->execlist_port[1].count);
+				print_request(m, rq, "rq: ");
+			} else {
 				seq_printf(m, "\t\tELSP[1] idle\n");
+			}
 			rcu_read_unlock();
 
 			spin_lock_irq(&engine->timeline->lock);
