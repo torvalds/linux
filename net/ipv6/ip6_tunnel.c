@@ -1313,6 +1313,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowlabel = key->label;
 	} else {
 		offset = ip6_tnl_parse_tlv_enc_lim(skb, skb_network_header(skb));
+		/* ip6_tnl_parse_tlv_enc_lim() might have reallocated skb->head */
+		ipv6h = ipv6_hdr(skb);
 		if (offset > 0) {
 			struct ipv6_tlv_tnl_enc_lim *tel;
 
