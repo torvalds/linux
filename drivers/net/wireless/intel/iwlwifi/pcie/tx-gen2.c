@@ -284,14 +284,12 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 	return 0;
 }
 
-#define TX_CMD_FLG_MH_PAD_MSK cpu_to_le32(TX_CMD_FLG_MH_PAD)
-
 int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_cmd *dev_cmd, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr;
-	struct iwl_tx_cmd *tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
+	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_txq *txq;
 	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
@@ -345,9 +343,6 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	scratch_phys = tb0_phys + sizeof(struct iwl_cmd_header) +
 		       offsetof(struct iwl_tx_cmd, scratch);
 
-	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
-
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[txq->write_ptr].meta;
 	out_meta->flags = 0;
@@ -361,9 +356,6 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_FIRST_TB_SIZE;
 	tb1_len = ALIGN(len, 4);
-	/* Tell NIC about any 2-byte padding after MAC header */
-	if (tb1_len != len)
-		tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
 
 	/*
 	 * The first TB points to bi-directional DMA data, we'll

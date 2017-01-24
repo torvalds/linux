@@ -205,11 +205,11 @@ struct iwl_cmd_meta {
  * into the buffer regardless of whether it should be mapped or not.
  * This indicates how big the first TB must be to include the scratch buffer
  * and the assigned PN.
- * Since PN location is 16 bytes at offset 24, it's 40 now.
+ * Since PN location is 8 bytes at offset 12, it's 20 now.
  * If we make it bigger then allocations will be bigger and copy slower, so
  * that's probably not useful.
  */
-#define IWL_FIRST_TB_SIZE	40
+#define IWL_FIRST_TB_SIZE	20
 #define IWL_FIRST_TB_SIZE_ALIGN ALIGN(IWL_FIRST_TB_SIZE, 64)
 
 struct iwl_pcie_txq_entry {
