@@ -166,10 +166,14 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	INIT_WORK(&vgdev->config_changed_work,
 		  virtio_gpu_config_changed_work_func);
 
+#ifdef __LITTLE_ENDIAN
 	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_VIRGL))
 		vgdev->has_virgl_3d = true;
 	DRM_INFO("virgl 3d acceleration %s\n",
-		 vgdev->has_virgl_3d ? "enabled" : "not available");
+		 vgdev->has_virgl_3d ? "enabled" : "not supported by host");
+#else
+	DRM_INFO("virgl 3d acceleration not supported by guest\n");
+#endif
 
 	ret = vgdev->vdev->config->find_vqs(vgdev->vdev, 2, vqs,
 					    callbacks, names);
