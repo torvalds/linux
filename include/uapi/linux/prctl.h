@@ -197,4 +197,8 @@ struct prctl_mm_map {
 # define PR_CAP_AMBIENT_LOWER		3
 # define PR_CAP_AMBIENT_CLEAR_ALL	4
 
+#define PR_TIMGAD_OPTS			48
+# define PR_TIMGAD_SET_MOD_HARDEN       1
+# define PR_TIMGAD_GET_MOD_HARDEN       2
+
 #endif /* _LINUX_PRCTL_H */
