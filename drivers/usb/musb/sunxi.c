@@ -645,7 +645,7 @@ static struct musb_fifo_cfg sunxi_musb_mode_cfg[] = {
 	MUSB_EP_FIFO_SINGLE(5, FIFO_RX, 512),
 };
 
-static struct musb_hdrc_config sunxi_musb_hdrc_config = {
+static const struct musb_hdrc_config sunxi_musb_hdrc_config = {
 	.fifo_cfg       = sunxi_musb_mode_cfg,
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg),
 	.multipoint	= true,
