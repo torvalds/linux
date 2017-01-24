@@ -40,8 +40,6 @@ void rate_control_rate_init(struct sta_info *sta)
 
 	ieee80211_sta_set_rx_nss(sta);
 
-	ieee80211_recalc_min_chandef(sta->sdata);
-
 	if (!ref)
 		return;
 
