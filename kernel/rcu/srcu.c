@@ -320,7 +320,16 @@ static bool try_check_zero(struct srcu_struct *sp, int idx, int trycount)
  */
 static void srcu_flip(struct srcu_struct *sp)
 {
-	sp->completed++;
+	WRITE_ONCE(sp->completed, sp->completed + 1);
+
+	/*
+	 * Ensure that if the updater misses an __srcu_read_unlock()
+	 * increment, that task's next __srcu_read_lock() will see the
+	 * above counter update.  Note that both this memory barrier
+	 * and the one in srcu_readers_active_idx_check() provide the
+	 * guarantee for __srcu_read_lock().
+	 */
+	smp_mb(); /* D */  /* Pairs with C. */
 }
 
 /*
