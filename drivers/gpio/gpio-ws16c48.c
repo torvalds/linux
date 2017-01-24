@@ -46,7 +46,6 @@ MODULE_PARM_DESC(irq, "WinSystems WS16C48 interrupt line numbers");
  * @irq_mask:	I/O bits affected by interrupts
  * @flow_mask:	IRQ flow type mask for the respective I/O bits
  * @base:	base port address of the GPIO device
- * @irq:	Interrupt line number
  */
 struct ws16c48_gpio {
 	struct gpio_chip chip;
@@ -56,7 +55,6 @@ struct ws16c48_gpio {
 	unsigned long irq_mask;
 	unsigned long flow_mask;
 	unsigned base;
-	unsigned irq;
 };
 
 static int ws16c48_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
@@ -371,13 +369,12 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.set = ws16c48_gpio_set;
 	ws16c48gpio->chip.set_multiple = ws16c48_gpio_set_multiple;
 	ws16c48gpio->base = base[id];
-	ws16c48gpio->irq = irq[id];
 
 	spin_lock_init(&ws16c48gpio->lock);
 
 	dev_set_drvdata(dev, ws16c48gpio);
 
-	err = gpiochip_add_data(&ws16c48gpio->chip, ws16c48gpio);
+	err = devm_gpiochip_add_data(dev, &ws16c48gpio->chip, ws16c48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -394,29 +391,15 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
 
-	err = request_irq(irq[id], ws16c48_irq_handler, IRQF_SHARED, name,
-		ws16c48gpio);
+	err = devm_request_irq(dev, irq[id], ws16c48_irq_handler, IRQF_SHARED,
+		name, ws16c48gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
-
-	return 0;
-
-err_gpiochip_remove:
-	gpiochip_remove(&ws16c48gpio->chip);
-	return err;
-}
-
-static int ws16c48_remove(struct device *dev, unsigned int id)
-{
-	struct ws16c48_gpio *const ws16c48gpio = dev_get_drvdata(dev);
-
-	free_irq(ws16c48gpio->irq, ws16c48gpio);
-	gpiochip_remove(&ws16c48gpio->chip);
 
 	return 0;
 }
@@ -426,7 +409,6 @@ static struct isa_driver ws16c48_driver = {
 	.driver = {
 		.name = "ws16c48"
 	},
-	.remove = ws16c48_remove
 };
 
 module_isa_driver(ws16c48_driver, num_ws16c48);
