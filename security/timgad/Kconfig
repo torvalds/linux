@@ -1,0 +1,10 @@
+config SECURITY_TIMGAD
+	bool "TIMGAD support"
+	depends on SECURITY
+	default n
+	help
+	  This selects TIMGAD, which applies restrictions on module auto-loading
+          feature. Further information can be found in
+          Documentation/security/timgad.txt.
+
+	  If you are unsure how to answer this question, answer N.
