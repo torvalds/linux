@@ -296,7 +296,7 @@ thp_split_page is incremented every time a huge page is split into base
 	reason is that a huge page is old and is being reclaimed.
 	This action implies splitting all PMD the page mapped with.
 
-thp_split_page_failed is is incremented if kernel fails to split huge
+thp_split_page_failed is incremented if kernel fails to split huge
 	page. This can happen if the page was pinned by somebody.
 
 thp_deferred_split_page is incremented when a huge page is put onto split
