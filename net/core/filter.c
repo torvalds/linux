@@ -2784,19 +2784,8 @@ static bool __is_valid_access(int off, int size)
 	switch (off) {
 	case offsetof(struct __sk_buff, cb[0]) ...
 	     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
-		if (size == sizeof(__u16) &&
-		    off > offsetof(struct __sk_buff, cb[4]) + sizeof(__u16))
-			return false;
-		if (size == sizeof(__u32) &&
-		    off > offsetof(struct __sk_buff, cb[4]))
-			return false;
-		if (size == sizeof(__u64) &&
-		    off > offsetof(struct __sk_buff, cb[2]))
-			return false;
-		if (size != sizeof(__u8)  &&
-		    size != sizeof(__u16) &&
-		    size != sizeof(__u32) &&
-		    size != sizeof(__u64))
+		if (off + size >
+		    offsetof(struct __sk_buff, cb[4]) + sizeof(__u32))
 			return false;
 		break;
 	default:
