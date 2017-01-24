@@ -387,6 +387,7 @@
 #define GLOBAL2_PTP_AVB_DATA	0x17
 #define GLOBAL2_SMI_PHY_CMD			0x18
 #define GLOBAL2_SMI_PHY_CMD_BUSY		BIT(15)
+#define GLOBAL2_SMI_PHY_CMD_EXTERNAL		BIT(13)
 #define GLOBAL2_SMI_PHY_CMD_MODE_22		BIT(12)
 #define GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA	((0x1 << 10) | \
 						 GLOBAL2_SMI_PHY_CMD_MODE_22 | \
@@ -730,11 +731,8 @@ struct mv88e6xxx_chip {
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
 
-	/* Device node for the MDIO bus */
-	struct device_node *mdio_np;
-
-	/* And the MDIO bus itself */
-	struct mii_bus *mdio_bus;
+	/* List of mdio busses */
+	struct list_head mdios;
 
 	/* There can be two interrupt controllers, which are chained
 	 * off a GPIO as interrupt source
@@ -750,6 +748,13 @@ struct mv88e6xxx_bus_ops {
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 };
 
+struct mv88e6xxx_mdio_bus {
+	struct mii_bus *bus;
+	struct mv88e6xxx_chip *chip;
+	struct list_head list;
+	bool external;
+};
+
 struct mv88e6xxx_ops {
 	int (*get_eeprom)(struct mv88e6xxx_chip *chip,
 			  struct ethtool_eeprom *eeprom, u8 *data);
@@ -758,10 +763,12 @@ struct mv88e6xxx_ops {
 
 	int (*set_switch_mac)(struct mv88e6xxx_chip *chip, u8 *addr);
 
-	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			u16 *val);
-	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			 u16 val);
+	int (*phy_read)(struct mv88e6xxx_chip *chip,
+			struct mii_bus *bus,
+			int addr, int reg, u16 *val);
+	int (*phy_write)(struct mv88e6xxx_chip *chip,
+			 struct mii_bus *bus,
+			 int addr, int reg, u16 val);
 
 	/* PHY Polling Unit (PPU) operations */
 	int (*ppu_enable)(struct mv88e6xxx_chip *chip);

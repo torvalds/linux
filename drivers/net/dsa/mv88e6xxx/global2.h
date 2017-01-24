@@ -23,10 +23,12 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
-int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip, int addr, int reg,
-			      u16 *val);
-int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr, int reg,
-			       u16 val);
+int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
+			      struct mii_bus *bus,
+			      int addr, int reg, u16 *val);
+int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
+			       struct mii_bus *bus,
+			       int addr, int reg, u16 val);
 int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr);
 
 int mv88e6xxx_g2_get_eeprom8(struct mv88e6xxx_chip *chip,
@@ -57,12 +59,14 @@ static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 }
 
 static inline int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
+					    struct mii_bus *bus,
 					    int addr, int reg, u16 *val)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
+					     struct mii_bus *bus,
 					     int addr, int reg, u16 val)
 {
 	return -EOPNOTSUPP;

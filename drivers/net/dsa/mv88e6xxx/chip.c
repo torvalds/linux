@@ -222,26 +222,62 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 	return 0;
 }
 
+static int mv88e6165_phy_read(struct mv88e6xxx_chip *chip,
+			      struct mii_bus *bus,
+			      int addr, int reg, u16 *val)
+{
+	return mv88e6xxx_read(chip, addr, reg, val);
+}
+
+static int mv88e6165_phy_write(struct mv88e6xxx_chip *chip,
+			       struct mii_bus *bus,
+			       int addr, int reg, u16 val)
+{
+	return mv88e6xxx_write(chip, addr, reg, val);
+}
+
+static struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip)
+{
+	struct mv88e6xxx_mdio_bus *mdio_bus;
+
+	mdio_bus = list_first_entry(&chip->mdios, struct mv88e6xxx_mdio_bus,
+				    list);
+	if (!mdio_bus)
+		return NULL;
+
+	return mdio_bus->bus;
+}
+
 static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
 			      int reg, u16 *val)
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
+	struct mii_bus *bus;
+
+	bus = mv88e6xxx_default_mdio_bus(chip);
+	if (!bus)
+		return -EOPNOTSUPP;
 
 	if (!chip->info->ops->phy_read)
 		return -EOPNOTSUPP;
 
-	return chip->info->ops->phy_read(chip, addr, reg, val);
+	return chip->info->ops->phy_read(chip, bus, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
 			       int reg, u16 val)
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
+	struct mii_bus *bus;
+
+	bus = mv88e6xxx_default_mdio_bus(chip);
+	if (!bus)
+		return -EOPNOTSUPP;
 
 	if (!chip->info->ops->phy_write)
 		return -EOPNOTSUPP;
 
-	return chip->info->ops->phy_write(chip, addr, reg, val);
+	return chip->info->ops->phy_write(chip, bus, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
@@ -611,8 +647,9 @@ static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
 	del_timer_sync(&chip->ppu_timer);
 }
 
-static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
-				  int reg, u16 *val)
+static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip,
+				  struct mii_bus *bus,
+				  int addr, int reg, u16 *val)
 {
 	int err;
 
@@ -625,8 +662,9 @@ static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
 	return err;
 }
 
-static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, int addr,
-				   int reg, u16 val)
+static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip,
+				   struct mii_bus *bus,
+				   int addr, int reg, u16 val)
 {
 	int err;
 
@@ -2821,7 +2859,7 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	int i;
 
 	chip->ds = ds;
-	ds->slave_mii_bus = chip->mdio_bus;
+	ds->slave_mii_bus = mv88e6xxx_default_mdio_bus(chip);
 
 	mutex_lock(&chip->reg_lock);
 
@@ -2878,15 +2916,19 @@ static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
 
 static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 {
-	struct mv88e6xxx_chip *chip = bus->priv;
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	struct mv88e6xxx_chip *chip = mdio_bus->chip;
 	u16 val;
 	int err;
 
 	if (phy >= mv88e6xxx_num_ports(chip))
 		return 0xffff;
 
+	if (!chip->info->ops->phy_read)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_phy_read(chip, phy, reg, &val);
+	err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
 	mutex_unlock(&chip->reg_lock);
 
 	return err ? err : val;
@@ -2894,34 +2936,42 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 
 static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
-	struct mv88e6xxx_chip *chip = bus->priv;
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	struct mv88e6xxx_chip *chip = mdio_bus->chip;
 	int err;
 
 	if (phy >= mv88e6xxx_num_ports(chip))
 		return 0xffff;
 
+	if (!chip->info->ops->phy_write)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_phy_write(chip, phy, reg, val);
+	err = chip->info->ops->phy_write(chip, bus, phy, reg, val);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
 }
 
 static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
-				   struct device_node *np)
+				   struct device_node *np,
+				   bool external)
 {
 	static int index;
+	struct mv88e6xxx_mdio_bus *mdio_bus;
 	struct mii_bus *bus;
 	int err;
 
-	if (np)
-		chip->mdio_np = of_get_child_by_name(np, "mdio");
-
-	bus = devm_mdiobus_alloc(chip->dev);
+	bus = devm_mdiobus_alloc_size(chip->dev, sizeof(*mdio_bus));
 	if (!bus)
 		return -ENOMEM;
 
-	bus->priv = (void *)chip;
+	mdio_bus = bus->priv;
+	mdio_bus->bus = bus;
+	mdio_bus->chip = chip;
+	INIT_LIST_HEAD(&mdio_bus->list);
+	mdio_bus->external = external;
+
 	if (np) {
 		bus->name = np->full_name;
 		snprintf(bus->id, MII_BUS_ID_SIZE, "%s", np->full_name);
@@ -2934,34 +2984,72 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	bus->write = mv88e6xxx_mdio_write;
 	bus->parent = chip->dev;
 
-	if (chip->mdio_np)
-		err = of_mdiobus_register(bus, chip->mdio_np);
+	if (np)
+		err = of_mdiobus_register(bus, np);
 	else
 		err = mdiobus_register(bus);
 	if (err) {
 		dev_err(chip->dev, "Cannot register MDIO bus (%d)\n", err);
-		goto out;
+		return err;
 	}
-	chip->mdio_bus = bus;
+
+	if (external)
+		list_add_tail(&mdio_bus->list, &chip->mdios);
+	else
+		list_add(&mdio_bus->list, &chip->mdios);
 
 	return 0;
-
-out:
-	if (chip->mdio_np)
-		of_node_put(chip->mdio_np);
-
-	return err;
 }
 
-static void mv88e6xxx_mdio_unregister(struct mv88e6xxx_chip *chip)
+static const struct of_device_id mv88e6xxx_mdio_external_match[] = {
+	{ .compatible = "marvell,mv88e6xxx-mdio-external",
+	  .data = (void *)true },
+	{ },
+};
+
+static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
+				    struct device_node *np)
+{
+	const struct of_device_id *match;
+	struct device_node *child;
+	int err;
+
+	/* Always register one mdio bus for the internal/default mdio
+	 * bus. This maybe represented in the device tree, but is
+	 * optional.
+	 */
+	child = of_get_child_by_name(np, "mdio");
+	err = mv88e6xxx_mdio_register(chip, child, false);
+	if (err)
+		return err;
+
+	/* Walk the device tree, and see if there are any other nodes
+	 * which say they are compatible with the external mdio
+	 * bus.
+	 */
+	for_each_available_child_of_node(np, child) {
+		match = of_match_node(mv88e6xxx_mdio_external_match, child);
+		if (match) {
+			err = mv88e6xxx_mdio_register(chip, child, true);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 
 {
-	struct mii_bus *bus = chip->mdio_bus;
+	struct mv88e6xxx_mdio_bus *mdio_bus;
+	struct mii_bus *bus;
 
-	mdiobus_unregister(bus);
+	list_for_each_entry(mdio_bus, &chip->mdios, list) {
+		bus = mdio_bus->bus;
 
-	if (chip->mdio_np)
-		of_node_put(chip->mdio_np);
+		mdiobus_unregister(bus);
+	}
 }
 
 static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
@@ -3085,8 +3173,8 @@ static const struct mv88e6xxx_ops mv88e6097_ops = {
 static const struct mv88e6xxx_ops mv88e6123_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -3132,8 +3220,8 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 static const struct mv88e6xxx_ops mv88e6161_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -3157,8 +3245,8 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 static const struct mv88e6xxx_ops mv88e6165_ops = {
 	/* MV88E6XXX_FAMILY_6165 */
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
-	.phy_read = mv88e6xxx_read,
-	.phy_write = mv88e6xxx_write,
+	.phy_read = mv88e6165_phy_read,
+	.phy_write = mv88e6165_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -4088,6 +4176,7 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 	chip->dev = dev;
 
 	mutex_init(&chip->reg_lock);
+	INIT_LIST_HEAD(&chip->mdios);
 
 	return chip;
 }
@@ -4162,7 +4251,7 @@ static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 
 	mv88e6xxx_phy_init(chip);
 
-	err = mv88e6xxx_mdio_register(chip, NULL);
+	err = mv88e6xxx_mdios_register(chip, NULL);
 	if (err)
 		goto free;
 
@@ -4363,7 +4452,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 		}
 	}
 
-	err = mv88e6xxx_mdio_register(chip, np);
+	err = mv88e6xxx_mdios_register(chip, np);
 	if (err)
 		goto out_g2_irq;
 
@@ -4374,7 +4463,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	return 0;
 
 out_mdio:
-	mv88e6xxx_mdio_unregister(chip);
+	mv88e6xxx_mdios_unregister(chip);
 out_g2_irq:
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT) && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
@@ -4395,7 +4484,7 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 
 	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);
-	mv88e6xxx_mdio_unregister(chip);
+	mv88e6xxx_mdios_unregister(chip);
 
 	if (chip->irq > 0) {
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
