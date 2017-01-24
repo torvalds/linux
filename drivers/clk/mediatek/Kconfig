@@ -52,9 +52,9 @@ config COMMON_CLK_MT2701_BDPSYS
 
 config COMMON_CLK_MT8135
 	bool "Clock driver for Mediatek MT8135"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
-	default ARCH_MEDIATEK
+	default ARCH_MEDIATEK && ARM
 	---help---
 	  This driver supports Mediatek MT8135 clocks.
 
