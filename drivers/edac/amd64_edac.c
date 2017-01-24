@@ -3363,6 +3363,8 @@ static int probe_one_instance(unsigned int nid)
 
 		if (boot_cpu_data.x86 < 0x17)
 			restore_ecc_error_reporting(s, nid, F3);
+
+		goto err_enable;
 	}
 
 	return ret;
