@@ -574,9 +574,12 @@ static void intel_lrc_irq_handler(unsigned long data)
 		csb = readl(csb_mmio);
 		head = GEN8_CSB_READ_PTR(csb);
 		tail = GEN8_CSB_WRITE_PTR(csb);
+		if (head == tail)
+			break;
+
 		if (tail < head)
 			tail += GEN8_CSB_ENTRIES;
-		while (head < tail) {
+		do {
 			unsigned int idx = ++head % GEN8_CSB_ENTRIES;
 			unsigned int status = readl(buf + 2 * idx);
 
@@ -601,7 +604,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 			GEM_BUG_ON(port[0].count == 0 &&
 				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
-		}
+		} while (head < tail);
 
 		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
 				     GEN8_CSB_WRITE_PTR(csb) << 8),
