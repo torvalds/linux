@@ -184,7 +184,8 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		goto out;
 	}
 
-	if (!arg) {
+	if (!arg && ((cmd == UDF_GETVOLIDENT) || (cmd == UDF_GETEASIZE) ||
+		     (cmd == UDF_RELOCATE_BLOCKS) || (cmd == UDF_GETEABLOCK))) {
 		udf_debug("invalid argument to udf_ioctl\n");
 		result = -EINVAL;
 		goto out;
@@ -220,6 +221,8 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				      UDF_I(inode)->i_ext.i_data,
 				      UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
 		goto out;
+	default:
+		return -ENOIOCTLCMD;
 	}
 
 out:
