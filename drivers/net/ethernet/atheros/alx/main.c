@@ -703,7 +703,7 @@ static void alx_free_rings(struct alx_priv *alx)
 	if (alx->qnapi[0] && alx->qnapi[0]->rxq)
 		kfree(alx->qnapi[0]->rxq->bufs);
 
-	if (!alx->descmem.virt)
+	if (alx->descmem.virt)
 		dma_free_coherent(&alx->hw.pdev->dev,
 				  alx->descmem.size,
 				  alx->descmem.virt,
