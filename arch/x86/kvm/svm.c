@@ -971,8 +971,8 @@ static void svm_disable_lbrv(struct vcpu_svm *svm)
  * a particular vCPU.
  */
 #define SVM_VM_DATA_HASH_BITS	8
-DECLARE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
-static spinlock_t svm_vm_data_hash_lock;
+static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
+static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
 
 /* Note:
  * This function is called from IOMMU driver to notify
@@ -1077,8 +1077,6 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("AVIC enabled\n");
 
-			hash_init(svm_vm_data_hash);
-			spin_lock_init(&svm_vm_data_hash_lock);
 			amd_iommu_register_ga_log_notifier(&avic_ga_log_notifier);
 		}
 	}
