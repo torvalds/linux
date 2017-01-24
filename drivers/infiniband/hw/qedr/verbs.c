@@ -471,8 +471,6 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 			    struct ib_ucontext *context, struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
-	struct qedr_ucontext *uctx = NULL;
-	struct qedr_alloc_pd_uresp uresp;
 	struct qedr_pd *pd;
 	u16 pd_id;
 	int rc;
@@ -489,21 +487,33 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	dev->ops->rdma_alloc_pd(dev->rdma_ctx, &pd_id);
+	rc = dev->ops->rdma_alloc_pd(dev->rdma_ctx, &pd_id);
+	if (rc)
+		goto err;
 
-	uresp.pd_id = pd_id;
 	pd->pd_id = pd_id;
 
 	if (udata && context) {
+		struct qedr_alloc_pd_uresp uresp;
+
+		uresp.pd_id = pd_id;
+
 		rc = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
-		if (rc)
+		if (rc) {
 			DP_ERR(dev, "copy error pd_id=0x%x.\n", pd_id);
-		uctx = get_qedr_ucontext(context);
-		uctx->pd = pd;
-		pd->uctx = uctx;
+			dev->ops->rdma_dealloc_pd(dev->rdma_ctx, pd_id);
+			goto err;
+		}
+
+		pd->uctx = get_qedr_ucontext(context);
+		pd->uctx->pd = pd;
 	}
 
 	return &pd->ibpd;
+
+err:
+	kfree(pd);
+	return ERR_PTR(rc);
 }
 
 int qedr_dealloc_pd(struct ib_pd *ibpd)
