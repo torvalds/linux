@@ -191,22 +191,41 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 	return ppi;
 }
 
+/*
+ * Select queue for transmit.
+ *
+ * If a valid queue has already been assigned, then use that.
+ * Otherwise compute tx queue based on hash and the send table.
+ *
+ * This is basically similar to default (__netdev_pick_tx) with the added step
+ * of using the host send_table when no other queue has been assigned.
+ *
+ * TODO support XPS - but get_xps_queue not exported
+ */
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 			void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	struct netvsc_device *nvsc_dev = net_device_ctx->nvdev;
-	u32 hash;
-	u16 q_idx = 0;
+	struct sock *sk = skb->sk;
+	int q_idx = sk_tx_queue_get(sk);
 
-	if (nvsc_dev == NULL || ndev->real_num_tx_queues <= 1)
-		return 0;
+	if (q_idx < 0 || skb->ooo_okay ||
+	    q_idx >= ndev->real_num_tx_queues) {
+		u16 hash = __skb_tx_hash(ndev, skb, VRSS_SEND_TAB_SIZE);
+		int new_idx;
 
-	hash = skb_get_hash(skb);
-	q_idx = nvsc_dev->send_table[hash % VRSS_SEND_TAB_SIZE] %
-		ndev->real_num_tx_queues;
+		new_idx = nvsc_dev->send_table[hash]
+			% nvsc_dev->num_chn;
 
-	if (!nvsc_dev->chn_table[q_idx])
+		if (q_idx != new_idx && sk &&
+		    sk_fullsock(sk) && rcu_access_pointer(sk->sk_dst_cache))
+			sk_tx_queue_set(sk, new_idx);
+
+		q_idx = new_idx;
+	}
+
+	if (unlikely(!nvsc_dev->chn_table[q_idx]))
 		q_idx = 0;
 
 	return q_idx;
