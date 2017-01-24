@@ -139,7 +139,7 @@ static inline void atomic64_dec(atomic64_t *v)
 #define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i), (v)) == 0)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 #define atomic64_inc_and_test(v)	(atomic64_inc_return((v)) == 0)
-
+#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
 
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&(v)->counter, old, new))
 #define atomic_xchg(v, new)		(xchg(&(v)->counter, new))
@@ -175,6 +175,23 @@ static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
 		c = old;
 	}
 	return c != u;
+}
+
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long c, old, dec;
+
+	c = atomic64_read(v);
+	for (;;) {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+		old = atomic64_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+		return dec;
 }
 
 #define ATOMIC_OP(op)							\
