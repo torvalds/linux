@@ -556,7 +556,7 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
  * of the two sections, and some non-in_sync devices may
  * be insync in the section most affected by failed devices.
  */
-static int calc_degraded(struct r5conf *conf)
+int raid5_calc_degraded(struct r5conf *conf)
 {
 	int degraded, degraded2;
 	int i;
@@ -619,7 +619,7 @@ static int has_failed(struct r5conf *conf)
 	if (conf->mddev->reshape_position == MaxSector)
 		return conf->mddev->degraded > conf->max_degraded;
 
-	degraded = calc_degraded(conf);
+	degraded = raid5_calc_degraded(conf);
 	if (degraded > conf->max_degraded)
 		return 1;
 	return 0;
@@ -2555,7 +2555,7 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 
 	spin_lock_irqsave(&conf->device_lock, flags);
 	clear_bit(In_sync, &rdev->flags);
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
@@ -2569,6 +2569,7 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 		bdevname(rdev->bdev, b),
 		mdname(mddev),
 		conf->raid_disks - mddev->degraded);
+	r5c_update_on_rdev_error(mddev);
 }
 
 /*
@@ -7091,7 +7092,7 @@ static int raid5_run(struct mddev *mddev)
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 
 	if (has_failed(conf)) {
 		pr_crit("md/raid:%s: not enough operational devices (%d/%d failed)\n",
@@ -7338,7 +7339,7 @@ static int raid5_spare_active(struct mddev *mddev)
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	print_raid5_conf(conf);
 	return count;
@@ -7698,7 +7699,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 		 * pre and post number of devices.
 		 */
 		spin_lock_irqsave(&conf->device_lock, flags);
-		mddev->degraded = calc_degraded(conf);
+		mddev->degraded = raid5_calc_degraded(conf);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
@@ -7786,7 +7787,7 @@ static void raid5_finish_reshape(struct mddev *mddev)
 		} else {
 			int d;
 			spin_lock_irq(&conf->device_lock);
-			mddev->degraded = calc_degraded(conf);
+			mddev->degraded = raid5_calc_degraded(conf);
 			spin_unlock_irq(&conf->device_lock);
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
