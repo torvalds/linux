@@ -43,6 +43,8 @@ struct lwtunnel_encap_ops {
 	int (*get_encap_size)(struct lwtunnel_state *lwtstate);
 	int (*cmp_encap)(struct lwtunnel_state *a, struct lwtunnel_state *b);
 	int (*xmit)(struct sk_buff *skb);
+
+	struct module *owner;
 };
 
 #ifdef CONFIG_LWTUNNEL
