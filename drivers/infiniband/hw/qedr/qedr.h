@@ -251,9 +251,6 @@ struct qedr_cq {
 
 	u16 icid;
 
-	/* Lock to protect completion handler */
-	spinlock_t comp_handler_lock;
-
 	/* Lock to protect multiplem CQ's */
 	spinlock_t cq_lock;
 	u8 arm_flags;
