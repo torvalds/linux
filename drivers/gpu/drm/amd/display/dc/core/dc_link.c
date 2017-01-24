@@ -37,6 +37,7 @@
 #include "link_encoder.h"
 #include "hw_sequencer.h"
 #include "resource.h"
+#include "abm.h"
 #include "fixed31_32.h"
 #include "dpcd_defs.h"
 
@@ -1386,48 +1387,40 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream *stream)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-	struct dc_context *ctx = link->ctx;
-	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
+	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct core_stream *core_stream = NULL;
+	struct abm *abm = core_dc->res_pool->abm;
 	unsigned int controller_id = 0;
 	int i;
-	uint32_t dmcu_status;
 
-	dm_logger_write(ctx->logger, LOG_BACKLIGHT,
+	if ((abm == NULL) || (abm->funcs->set_backlight_level == NULL))
+		return false;
+
+	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n", level, level);
 
-	dmcu_status = dm_read_reg(ctx, mmDMCU_STATUS);
-
-	/* If DMCU is in reset state, DMCU is uninitialized */
-	if (get_reg_field_value(dmcu_status, mmDMCU_STATUS, UC_IN_RESET)) {
-		link->link_enc->funcs->set_lcd_backlight_level(link->link_enc,
-						level);
-	} else {
-		for (i = 0; i < MAX_PIPES; i++) {
-			if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
-					== core_stream)
-				/* dmcu -1 for all controller id values,
-				 * therefore +1 here
-				 */
-				controller_id = core_dc->current_context->res_ctx.
-						pipe_ctx[i].tg->inst + 1;
+	if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD) {
+		if (stream != NULL) {
+			core_stream = DC_STREAM_TO_CORE(stream);
+			for (i = 0; i < MAX_PIPES; i++) {
+				if (core_dc->current_context->res_ctx.
+						pipe_ctx[i].stream
+						== core_stream)
+					/* DMCU -1 for all controller id values,
+					 * therefore +1 here
+					 */
+					controller_id =
+						core_dc->current_context->
+						res_ctx.pipe_ctx[i].tg->inst +
+						1;
+			}
 		}
-
-		link->link_enc->funcs->set_dmcu_backlight_level
-				(link->link_enc, level,
-				frame_ramp, controller_id);
+		abm->funcs->set_backlight_level(
+				abm,
+				level,
+				frame_ramp,
+				controller_id);
 	}
-	return true;
-}
-
-
-bool dc_link_init_dmcu_backlight_settings(const struct dc_link *dc_link)
-{
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-
-	if (link->link_enc->funcs->init_dmcu_backlight_settings != NULL)
-		link->link_enc->funcs->
-			init_dmcu_backlight_settings(link->link_enc);
 
 	return true;
 }

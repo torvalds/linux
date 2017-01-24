@@ -220,11 +220,6 @@ struct link_encoder_funcs {
 	void (*update_mst_stream_allocation_table)(
 		struct link_encoder *enc,
 		const struct link_mst_stream_allocation_table *table);
-	void (*set_lcd_backlight_level) (struct link_encoder *enc,
-		uint32_t level);
-	void (*set_dmcu_backlight_level)(struct link_encoder *enc,
-		uint32_t level, uint32_t frame_ramp, uint32_t controller_id);
-	void (*init_dmcu_backlight_settings)(struct link_encoder *enc);
 	void (*set_dmcu_psr_enable)(struct link_encoder *enc, bool enable);
 	void (*setup_dmcu_psr)(struct link_encoder *enc,
 			struct psr_dmcu_context *psr_context);

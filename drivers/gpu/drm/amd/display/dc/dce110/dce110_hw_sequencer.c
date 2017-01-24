@@ -2214,8 +2214,10 @@ static void init_hw(struct core_dc *dc)
 	}
 
 	abm = dc->res_pool->abm;
-	if (abm != NULL)
+	if (abm != NULL) {
+		abm->funcs->init_backlight(abm);
 		abm->funcs->abm_init(abm);
+	}
 }
 
 /* TODO: move this to apply_ctx_tohw some how?*/

@@ -240,34 +240,6 @@ static void stream_update_scaling(
 	}
 }
 
-static bool set_backlight(struct dc *dc, unsigned int backlight_level,
-			unsigned int frame_ramp, const struct dc_stream *stream)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int i;
-
-	if (stream->sink->sink_signal == SIGNAL_TYPE_EDP) {
-		for (i = 0; i < core_dc->link_count; i++)
-			dc_link_set_backlight_level(&core_dc->links[i]->public,
-					backlight_level, frame_ramp, stream);
-	}
-
-	return true;
-
-}
-
-static bool init_dmcu_backlight_settings(struct dc *dc)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int i;
-
-	for (i = 0; i < core_dc->link_count; i++)
-		dc_link_init_dmcu_backlight_settings
-			(&core_dc->links[i]->public);
-
-	return true;
-}
-
 static bool set_psr_enable(struct dc *dc, bool enable)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
@@ -389,12 +361,6 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 	core_dc->public.stream_funcs.set_gamut_remap =
 			set_gamut_remap;
-
-	core_dc->public.stream_funcs.set_backlight =
-			set_backlight;
-
-	core_dc->public.stream_funcs.init_dmcu_backlight_settings =
-			init_dmcu_backlight_settings;
 
 	core_dc->public.stream_funcs.set_psr_enable =
 			set_psr_enable;

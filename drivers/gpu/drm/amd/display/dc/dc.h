@@ -100,9 +100,6 @@ struct dc_stream_funcs {
 			const struct rect *dst);
 	bool (*set_gamut_remap)(struct dc *dc,
 			const struct dc_stream **stream, int num_streams);
-	bool (*set_backlight)(struct dc *dc, unsigned int backlight_level,
-		unsigned int frame_ramp, const struct dc_stream *stream);
-	bool (*init_dmcu_backlight_settings)(struct dc *dc);
 	bool (*set_psr_enable)(struct dc *dc, bool enable);
 	bool (*setup_psr)(struct dc *dc, const struct dc_stream *stream);
 };
@@ -571,8 +568,6 @@ const struct graphics_object_id dc_get_link_id_at_index(
 /* Set backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream *stream);
-
-bool dc_link_init_dmcu_backlight_settings(const struct dc_link *dc_link);
 
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 

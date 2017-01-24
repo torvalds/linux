@@ -226,13 +226,6 @@ union dce110_dmcu_psr_config_data_reg3 {
 	unsigned int u32All;
 };
 
-struct dce110_abm_backlight_registers {
-	unsigned int vBL_PWM_CNTL;
-	unsigned int vBL_PWM_CNTL2;
-	unsigned int vBL_PWM_PERIOD_CNTL;
-	unsigned int vLVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-};
-
 bool dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
@@ -316,23 +309,6 @@ void dce110_link_encoder_dp_set_phy_pattern(
 void dce110_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
 	const struct link_mst_stream_allocation_table *table);
-
-void dce110_link_encoder_set_lcd_backlight_level(
-	struct link_encoder *enc,
-	uint32_t level);
-
-void dce110_link_encoder_set_dmcu_backlight_level(
-	struct link_encoder *enc,
-	uint32_t level,
-	uint32_t frame_ramp,
-	uint32_t controller_id);
-
-void dce110_link_encoder_init_dmcu_backlight_settings(
-	struct link_encoder *enc);
-
-void dce110_link_encoder_set_dmcu_abm_level(
-	struct link_encoder *enc,
-	uint32_t level);
 
 void dce110_link_encoder_set_dmcu_psr_enable(
 		struct link_encoder *enc, bool enable);

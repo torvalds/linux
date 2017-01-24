@@ -35,6 +35,11 @@ struct abm {
 struct abm_funcs {
 	void (*abm_init)(struct abm *abm);
 	bool (*set_abm_level)(struct abm *abm, unsigned int abm_level);
+	bool (*init_backlight)(struct abm *abm);
+	bool (*set_backlight_level)(struct abm *abm,
+			unsigned int backlight_level,
+			unsigned int frame_ramp,
+			unsigned int controller_id);
 };
 
 #endif
