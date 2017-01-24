@@ -1,0 +1,128 @@
+/*
+ * Timgad Linux Security Module
+ *
+ * Author: Djalal Harouni
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2, as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#include <linux/lsm_hooks.h>
+#include <linux/sysctl.h>
+#include <linux/prctl.h>
+
+enum {
+	TIMGAD_MOD_HARDEN_OFF	= 0,
+	TIMGAD_MOD_HARDEN_ON	= 1,
+};
+
+static int module_restrict;
+
+static int timgad_set_op_value(struct task_struct *tsk,
+			       unsigned long op, unsigned long value)
+{
+	int ret = -EINVAL;
+
+	return ret;
+}
+
+static int timgad_get_op_value(struct task_struct *tsk, unsigned long op)
+{
+	int ret = -EINVAL;
+
+	return ret;
+}
+
+int timgad_copy_task_filter(struct task_struct *tsk)
+{
+	int ret = -EINVAL;
+
+	return ret;
+}
+
+/*
+ * Return 0 on success, -error on error.  -EINVAL is returned when Timgad
+ * does not handle the given option.
+ */
+int timgad_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+		      unsigned long arg4, unsigned long arg5)
+{
+	int ret = -EINVAL;
+
+	switch (arg2) {
+	case PR_TIMGAD_SET_MOD_HARDEN:
+		ret = timgad_set_op_value(tsk, PR_TIMGAD_SET_MOD_HARDEN, arg3);
+		break;
+	case PR_TIMGAD_GET_MOD_HARDEN:
+		ret = timgad_get_op_value(tsk, PR_TIMGAD_GET_MOD_HARDEN);
+		break;
+	}
+
+	return ret;
+}
+
+void timgad_task_free(struct task_struct *task)
+{
+}
+
+static struct security_hook_list timgad_hooks[] = {
+	LSM_HOOK_INIT(task_copy, timgad_task_copy),
+	LSM_HOOK_INIT(task_prctl, timgad_task_prctl),
+	LSM_HOOK_INIT(task_free, timgad_task_free),
+};
+
+#ifdef CONFIG_SYSCTL
+static int timgad_dointvec_minmax(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table table_copy;
+
+	if (write && !capable(CAP_SYS_MODULE))
+		return -EPERM;
+
+	/* Lock the max value if it ever gets set. */
+	table_copy = *table;
+	if (*(int *)table_copy.data == *(int *)table_copy.extra2)
+		table_copy.extra1 = table_copy.extra2;
+
+	return proc_dointvec_minmax(&table_copy, write, buffer, lenp, ppos);
+}
+
+static int zero;
+static int max_harden_scope = TIMGAD_MOD_HARDEN_ON;
+
+struct ctl_path timgad_sysctl_path[] = {
+	{ .procname = "kernel", },
+	{ .procname = "timgad", },
+	{ }
+};
+
+static struct ctl_table yama_sysctl_table[] = {
+	{
+		.procname       = "module_restrict",
+		.data           = &ptrace_scope,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = timgad_dointvec_minmax,
+		.extra1         = &zero,
+		.extra2         = &max_scope,
+	},
+	{ }
+};
+static void __init timgad_init_sysctl(void)
+{
+	if (!register_sysctl_paths(timgad_sysctl_path, timgad_sysctl_table))
+		panic("Timgad: sysctl registration failed.\n");
+}
+#else
+static inline void yama_init_sysctl(void) { }
+#endif /* CONFIG_SYSCTL */
+
+void __init yama_add_hooks(void)
+{
+	pr_info("Timgad: becoming mindful.\n");
+	security_add_hooks(timgad_hooks, ARRAY_SIZE(timgad_hooks));
+	timgad_init_sysctl();
+}
