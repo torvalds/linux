@@ -161,6 +161,22 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 	return c;
 }
 
+static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
+{
+	long long c, old;
+
+	c = atomic64_read(v);
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		old = atomic64_cmpxchg(v, c, c + i);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return c != u;
+}
+
 #define ATOMIC_OP(op)							\
 static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 {									\
