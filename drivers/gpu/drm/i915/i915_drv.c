@@ -950,6 +950,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 		goto put_bridge;
 
 	intel_uncore_init(dev_priv);
+	i915_gem_init_mmio(dev_priv);
 
 	return 0;
 
@@ -1730,6 +1731,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_GEN9_LP(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
+
+	i915_gem_sanitize(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
