@@ -1008,6 +1008,21 @@ static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
+static int
+netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+		 u32 *rules)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+	struct netvsc_device *nvdev = ndc->nvdev;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = nvdev->num_chn;
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netvsc_poll_controller(struct net_device *net)
 {
@@ -1028,6 +1043,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_settings	= netvsc_get_settings,
 	.set_settings	= netvsc_set_settings,
+	.get_rxnfc	= netvsc_get_rxnfc,
 };
 
 static const struct net_device_ops device_ops = {
