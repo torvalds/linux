@@ -36,8 +36,11 @@ int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
 
 struct timgad_task *get_timgad_task(struct task_struct *tsk);
 void put_timgad_task(struct timgad_task *timgad_tsk);
-
 struct timgad_task *lookup_timgad_task(struct task_struct *tsk);
+int insert_timgad_task(struct timgad_task *timgad_tsk);
+
+struct timgad_task *init_timgad_task(struct task_struct *tsk,
+				     unsigned long flag)
 
 int timgad_tasks_init(void);
 void timgad_tasks_clean(void);

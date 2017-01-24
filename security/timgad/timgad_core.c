@@ -83,7 +83,7 @@ static struct timgad_task *__lookup_timgad_task(struct task_struct *tsk)
 
 struct timgad_task *get_timgad_task(struct task_struct *tsk)
 {
-	struct timgad_task ttask;
+	struct timgad_task *ttask;
 
 	rcu_read_lock();
 	ttask = __lookup_timgad_task(tsk);
@@ -102,13 +102,27 @@ void put_timgad_task(struct timgad_task *timgad_tsk)
 
 struct timgad_task *lookup_timgad_task(struct task_struct *tsk)
 {
-	struct timgad_task ttask;
+	struct timgad_task *ttask;
 
 	rcu_read_lock();
 	ttask = __lookup_timgad_task(tsk);
 	rcu_read_unlock();
 
 	return ttask;
+}
+
+int insert_timgad_task(struct timgad_task *timgad_tsk)
+{
+	int ret;
+
+	atomic_inc(&timgad_tsk->usage);
+	ret = rhashtable_lookup_insert_key(&timgad_tasks_table,
+					   timgad_tsk->task, &timgad_tsk->node,
+					   timgad_tasks_params);
+	if (ret)
+		atomic_dec(&timgad_tsk->usage);
+
+	return ret;
 }
 
 static void reclaim_timgad_task(struct work_struct *work)
@@ -122,4 +136,22 @@ static void reclaim_timgad_task(struct work_struct *work)
 			       timgad_tasks_params);
 
 	kfree(ttask);
+}
+
+struct timgad_task *init_timgad_task(struct task_struct *tsk,
+				     unsigned long flag)
+{
+	struct timgad_task *ttask;
+
+	ttask = kzalloc(sizeof(*ttask), GFP_KERNEL | __GFP_NOWARN);
+	if (ttask == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	ttask->task = tsk;
+	ttask->mod_harden = flag;
+
+	atomic_set(&ttask->usage, 0);
+	INIT_WORK(&ttask->clean_work, reclaim_timgad_task);
+
+	return ttask;
 }
