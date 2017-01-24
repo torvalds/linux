@@ -459,15 +459,15 @@ static int intel_breadcrumbs_signaler(void *arg)
 		 */
 		request = READ_ONCE(b->first_signal);
 		if (signal_complete(request)) {
+			local_bh_disable();
+			dma_fence_signal(&request->fence);
+			local_bh_enable(); /* kick start the tasklets */
+
 			/* Wake up all other completed waiters and select the
 			 * next bottom-half for the next user interrupt.
 			 */
 			intel_engine_remove_wait(engine,
 						 &request->signaling.wait);
-
-			local_bh_disable();
-			dma_fence_signal(&request->fence);
-			local_bh_enable(); /* kick start the tasklets */
 
 			/* Find the next oldest signal. Note that as we have
 			 * not been holding the lock, another client may
