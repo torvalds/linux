@@ -11,7 +11,7 @@
 #ifndef _FSCRYPT_PRIVATE_H
 #define _FSCRYPT_PRIVATE_H
 
-#include <linux/fscrypto.h>
+#include <linux/fscrypt_supp.h>
 
 #define FS_FNAME_CRYPTO_DIGEST_SIZE	32
 
