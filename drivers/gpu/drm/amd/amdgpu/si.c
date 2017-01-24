@@ -32,7 +32,7 @@
 #include "amdgpu_vce.h"
 #include "atom.h"
 #include "amdgpu_powerplay.h"
-#include "si/sid.h"
+#include "sid.h"
 #include "si_ih.h"
 #include "gfx_v6_0.h"
 #include "gmc_v6_0.h"

@@ -25,7 +25,7 @@
 #include "amdgpu_ih.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_ucode.h"
-#include "si/clearstate_si.h"
+#include "clearstate_si.h"
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"
 #include "oss/oss_1_0_d.h"

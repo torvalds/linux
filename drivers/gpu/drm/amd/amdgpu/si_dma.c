@@ -24,7 +24,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
-#include "si/sid.h"
+#include "sid.h"
 
 const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
