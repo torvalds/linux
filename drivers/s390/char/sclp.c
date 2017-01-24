@@ -140,31 +140,6 @@ static void __sclp_make_read_req(void);
 static int sclp_init_mask(int calculate);
 static int sclp_init(void);
 
-/* Perform service call. Return 0 on success, non-zero otherwise. */
-int
-sclp_service_call(sclp_cmdw_t command, void *sccb)
-{
-	int cc = 4; /* Initialize for program check handling */
-
-	asm volatile(
-		"0:	.insn	rre,0xb2200000,%1,%2\n"  /* servc %1,%2 */
-		"1:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"2:\n"
-		EX_TABLE(0b, 2b)
-		EX_TABLE(1b, 2b)
-		: "+&d" (cc) : "d" (command), "a" (__pa(sccb))
-		: "cc", "memory");
-	if (cc == 4)
-		return -EINVAL;
-	if (cc == 3)
-		return -EIO;
-	if (cc == 2)
-		return -EBUSY;
-	return 0;
-}
-
-
 static void
 __sclp_queue_read_req(void)
 {

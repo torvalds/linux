@@ -1864,7 +1864,7 @@ static int __init s390_ipl_init(void)
 {
 	char str[8] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
 
-	sclp_get_ipl_info(&sclp_ipl_info);
+	sclp_early_get_ipl_info(&sclp_ipl_info);
 	/*
 	 * Fix loadparm: There are systems where the (SCSI) LOADPARM
 	 * returned by read SCP info is invalid (contains EBCDIC blanks)

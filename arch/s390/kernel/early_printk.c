@@ -9,7 +9,7 @@
 
 static void sclp_early_write(struct console *con, const char *s, unsigned int len)
 {
-	__sclp_print_early(s, len);
+	__sclp_early_printk(s, len);
 }
 
 static struct console sclp_early_console = {

@@ -2,29 +2,24 @@
  *    Copyright IBM Corp. 2015
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
+
 #include <linux/kernel.h>
+#include <asm/processor.h>
+#include <asm/lowcore.h>
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
-#include <asm/lowcore.h>
-#include <asm/processor.h>
-#include <asm/sclp.h>
+#include "sclp.h"
+#include "sclp_rw.h"
 
-#define EVTYP_VT220MSG_MASK	0x00000040
-#define EVTYP_MSG_MASK		0x40000000
-
-static char _sclp_work_area[4096] __aligned(PAGE_SIZE) __section(data);
-static bool have_vt220 __section(data);
-static bool have_linemode __section(data);
-
+char sclp_early_sccb[PAGE_SIZE] __aligned(PAGE_SIZE) __section(data);
 int sclp_init_state __section(data) = sclp_init_state_uninitialized;
 
-static void _sclp_wait_int(void)
+void sclp_early_wait_irq(void)
 {
-	unsigned long psw_mask, addr, flags;
+	unsigned long psw_mask, addr;
 	psw_t psw_ext_save, psw_wait;
 	union ctlreg0 cr0, cr0_new;
 
-	raw_local_irq_save(flags);
 	__ctl_store(cr0.val, 0, 0);
 	cr0_new.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
 	cr0_new.lap = 0;
@@ -53,165 +48,173 @@ static void _sclp_wait_int(void)
 
 	S390_lowcore.external_new_psw = psw_ext_save;
 	__ctl_load(cr0.val, 0, 0);
-	raw_local_irq_restore(flags);
 }
 
-static int _sclp_servc(unsigned int cmd, char *sccb)
+int sclp_early_cmd_sync(sclp_cmdw_t cmd, void *sccb)
 {
-	unsigned int cc;
-
-	do {
-		asm volatile(
-			"	.insn	rre,0xb2200000,%1,%2\n"
-			"	ipm	%0\n"
-			: "=d" (cc) : "d" (cmd), "a" (sccb)
-			: "cc", "memory");
-		cc >>= 28;
-		if (cc == 3)
-			return -EINVAL;
-		_sclp_wait_int();
-	} while (cc != 0);
-	return (*(unsigned short *)(sccb + 6) == 0x20) ? 0 : -EIO;
-}
-
-static int _sclp_setup(int disable)
-{
-	static unsigned char init_sccb[] = {
-		0x00, 0x1c,
-		0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00,
-		0x00, 0x04,
-		0x80, 0x00, 0x00, 0x00,	0x40, 0x00, 0x00, 0x40,
-		0x00, 0x00, 0x00, 0x00,	0x00, 0x00, 0x00, 0x00
-	};
-	unsigned int *masks;
+	unsigned long flags;
 	int rc;
 
-	memcpy(_sclp_work_area, init_sccb, 28);
-	masks = (unsigned int *)(_sclp_work_area + 12);
-	if (disable)
-		memset(masks, 0, 16);
-	/* SCLP write mask */
-	rc = _sclp_servc(0x00780005, _sclp_work_area);
+	raw_local_irq_save(flags);
+	rc = sclp_service_call(cmd, sccb);
 	if (rc)
-		return rc;
-	have_vt220 = masks[2] & EVTYP_VT220MSG_MASK;
-	have_linemode = masks[2] & EVTYP_MSG_MASK;
+		goto out;
+	sclp_early_wait_irq();
+out:
+	raw_local_irq_restore(flags);
+	return rc;
+}
+
+int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb)
+{
+	int rc;
+
+	do {
+		rc = sclp_early_cmd_sync(cmd, sccb);
+	} while (rc == -EBUSY);
+	if (rc)
+		return -EIO;
+	if (((struct sccb_header *) sccb)->response_code != 0x0020)
+		return -EIO;
 	return 0;
 }
 
-/* Output multi-line text using SCLP Message interface. */
-static void _sclp_print_lm(const char *str, unsigned int len)
-{
-	static unsigned char write_head[] = {
-		/* sccb header */
-		0x00, 0x52,					/* 0 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,		/* 2 */
-		/* evbuf */
-		0x00, 0x4a,					/* 8 */
-		0x02, 0x00, 0x00, 0x00,				/* 10 */
-		/* mdb */
-		0x00, 0x44,					/* 14 */
-		0x00, 0x01,					/* 16 */
-		0xd4, 0xc4, 0xc2, 0x40,				/* 18 */
-		0x00, 0x00, 0x00, 0x01,				/* 22 */
-		/* go */
-		0x00, 0x38,					/* 26 */
-		0x00, 0x01,					/* 28 */
-		0x00, 0x00, 0x00, 0x00,				/* 30 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 34 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 42 */
-		0x00, 0x00, 0x00, 0x00,				/* 50 */
-		0x00, 0x00,					/* 54 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 56 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 64 */
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* 72 */
-		0x00, 0x00,					/* 80 */
-	};
-	static unsigned char write_mto[] = {
-		/* mto	*/
-		0x00, 0x0a,					/* 0 */
-		0x00, 0x04,					/* 2 */
-		0x10, 0x00,					/* 4 */
-		0x00, 0x00, 0x00, 0x00				/* 6 */
-	};
-	unsigned char *ptr, *end_ptr, ch;
-	unsigned int count, num;
+struct write_sccb {
+	struct sccb_header header;
+	struct msg_buf msg;
+} __packed;
 
-	num = 0;
-	memcpy(_sclp_work_area, write_head, sizeof(write_head));
-	ptr = _sclp_work_area + sizeof(write_head);
-	end_ptr = _sclp_work_area + sizeof(_sclp_work_area) - 1;
+/* Output multi-line text using SCLP Message interface. */
+static void sclp_early_print_lm(const char *str, unsigned int len)
+{
+	unsigned char *ptr, *end, ch;
+	unsigned int count, offset;
+	struct write_sccb *sccb;
+	struct msg_buf *msg;
+	struct mdb *mdb;
+	struct mto *mto;
+	struct go *go;
+
+	sccb = (struct write_sccb *) &sclp_early_sccb;
+	end = (unsigned char *) sccb + sizeof(sclp_early_sccb) - 1;
+	memset(sccb, 0, sizeof(*sccb));
+	ptr = (unsigned char *) &sccb->msg.mdb.mto;
+	offset = 0;
 	do {
-		if (ptr + sizeof(write_mto) > end_ptr)
-			break;
-		memcpy(ptr, write_mto, sizeof(write_mto));
-		for (count = sizeof(write_mto); num < len; count++) {
-			num++;
-			ch = *str++;
-			if (ch == 0x0a)
-				break;
-			if (ptr > end_ptr)
+		for (count = sizeof(*mto); offset < len; count++) {
+			ch = str[offset++];
+			if ((ch == 0x0a) || (ptr + count > end))
 				break;
 			ptr[count] = _ascebc[ch];
 		}
-		/* Update length fields in mto, mdb, evbuf and sccb */
-		*(unsigned short *) ptr = count;
-		*(unsigned short *)(_sclp_work_area + 14) += count;
-		*(unsigned short *)(_sclp_work_area + 8) += count;
-		*(unsigned short *)(_sclp_work_area + 0) += count;
+		mto = (struct mto *) ptr;
+		memset(mto, 0, sizeof(*mto));
+		mto->length = count;
+		mto->type = 4;
+		mto->line_type_flags = LNTPFLGS_ENDTEXT;
 		ptr += count;
-	} while (num < len);
-
-	/* SCLP write data */
-	_sclp_servc(0x00760005, _sclp_work_area);
+	} while ((offset < len) && (ptr + sizeof(*mto) <= end));
+	len = ptr - (unsigned char *) sccb;
+	sccb->header.length = len - offsetof(struct write_sccb, header);
+	msg = &sccb->msg;
+	msg->header.type = EVTYP_MSG;
+	msg->header.length = len - offsetof(struct write_sccb, msg.header);
+	mdb = &msg->mdb;
+	mdb->header.type = 1;
+	mdb->header.tag = 0xD4C4C240;
+	mdb->header.revision_code = 1;
+	mdb->header.length = len - offsetof(struct write_sccb, msg.mdb.header);
+	go = &mdb->go;
+	go->length = sizeof(*go);
+	go->type = 1;
+	sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_DATA, sccb);
 }
+
+struct vt220_sccb {
+	struct sccb_header header;
+	struct {
+		struct evbuf_header header;
+		char data[];
+	} msg;
+} __packed;
 
 /* Output multi-line text (plus a newline) using SCLP VT220
  * interface.
  */
-static void _sclp_print_vt220(const char *str, unsigned int len)
+static void sclp_early_print_vt220(const char *str, unsigned int len)
 {
-	static unsigned char const write_head[] = {
-		/* sccb header */
-		0x00, 0x0e,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* evbuf header */
-		0x00, 0x06,
-		0x1a, 0x00, 0x00, 0x00,
-	};
+	struct vt220_sccb *sccb;
 
-	if (sizeof(write_head) + len >= sizeof(_sclp_work_area))
-		len = sizeof(_sclp_work_area) - sizeof(write_head) - 1;
+	sccb = (struct vt220_sccb *) &sclp_early_sccb;
+	if (sizeof(*sccb) + len >= sizeof(sclp_early_sccb))
+		len = sizeof(sclp_early_sccb) - sizeof(*sccb) - 1;
+	memset(sccb, 0, sizeof(*sccb));
+	memcpy(&sccb->msg.data, str, len);
+	sccb->msg.data[len] = '\n';
+	sccb->header.length = sizeof(*sccb) + len + 1;
+	sccb->msg.header.length = sizeof(sccb->msg) + len + 1;
+	sccb->msg.header.type = EVTYP_VT220MSG;
+	sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_DATA, sccb);
+}
 
-	memcpy(_sclp_work_area, write_head, sizeof(write_head));
-	memcpy(_sclp_work_area + sizeof(write_head), str, len);
-	_sclp_work_area[sizeof(write_head) + len] = '\n';
+int sclp_early_set_event_mask(struct init_sccb *sccb,
+			      unsigned long receive_mask,
+			      unsigned long send_mask)
+{
+	memset(sccb, 0, sizeof(*sccb));
+	sccb->header.length = sizeof(*sccb);
+	sccb->mask_length = sizeof(sccb_mask_t);
+	sccb->receive_mask = receive_mask;
+	sccb->send_mask = send_mask;
+	return sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
+}
 
-	/* Update length fields in evbuf and sccb headers */
-	*(unsigned short *)(_sclp_work_area + 8) += len + 1;
-	*(unsigned short *)(_sclp_work_area + 0) += len + 1;
+unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb)
+{
+	if (!(sccb->sclp_send_mask & EVTYP_OPCMD_MASK))
+		return 0;
+	if (!(sccb->sclp_receive_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK)))
+		return 0;
+	return 1;
+}
 
-	/* SCLP write data */
-	(void)_sclp_servc(0x00760005, _sclp_work_area);
+static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
+{
+	unsigned long receive_mask, send_mask;
+	struct init_sccb *sccb;
+	int rc;
+
+	*have_linemode = *have_vt220 = 0;
+	sccb = (struct init_sccb *) &sclp_early_sccb;
+	receive_mask = disable ? 0 : EVTYP_OPCMD_MASK;
+	send_mask = disable ? 0 : EVTYP_VT220MSG_MASK | EVTYP_MSG_MASK;
+	rc = sclp_early_set_event_mask(sccb, receive_mask, send_mask);
+	if (rc)
+		return rc;
+	*have_linemode = sclp_early_con_check_linemode(sccb);
+	*have_vt220 = sccb->send_mask & EVTYP_VT220MSG_MASK;
+	return rc;
 }
 
 /* Output one or more lines of text on the SCLP console (VT220 and /
  * or line-mode). All lines get terminated; no need for a trailing LF.
  */
-void __sclp_print_early(const char *str, unsigned int len)
+void __sclp_early_printk(const char *str, unsigned int len)
 {
+	int have_linemode, have_vt220;
+
 	if (sclp_init_state != sclp_init_state_uninitialized)
 		return;
-	if (_sclp_setup(0) != 0)
+	if (sclp_early_setup(0, &have_linemode, &have_vt220) != 0)
 		return;
 	if (have_linemode)
-		_sclp_print_lm(str, len);
+		sclp_early_print_lm(str, len);
 	if (have_vt220)
-		_sclp_print_vt220(str, len);
-	_sclp_setup(1);
+		sclp_early_print_vt220(str, len);
+	sclp_early_setup(1, &have_linemode, &have_vt220);
 }
 
-void _sclp_print_early(const char *str)
+void sclp_early_printk(const char *str)
 {
-	__sclp_print_early(str, strlen(str));
+	__sclp_early_printk(str, strlen(str));
 }
