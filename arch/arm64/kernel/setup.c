@@ -359,9 +359,9 @@ void __init setup_arch(char **cmdline_p)
 	 * thread.
 	 */
 #ifdef CONFIG_THREAD_INFO_IN_TASK
-	init_task.thread_info.ttbr0 = virt_to_phys(empty_zero_page);
+	init_task.thread_info.ttbr0 = __pa_symbol(empty_zero_page);
 #else
-	init_thread_info.ttbr0 = virt_to_phys(empty_zero_page);
+	init_thread_info.ttbr0 = __pa_symbol(empty_zero_page);
 #endif
 #endif
 
