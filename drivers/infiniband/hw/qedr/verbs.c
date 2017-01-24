@@ -1657,7 +1657,7 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 	int status = 0;
 
 	if (new_state == qp->state)
-		return 1;
+		return 0;
 
 	switch (qp->state) {
 	case QED_ROCE_QP_STATE_RESET:
