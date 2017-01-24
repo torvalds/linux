@@ -1059,6 +1059,48 @@ static void netvsc_poll_controller(struct net_device *net)
 }
 #endif
 
+static u32 netvsc_get_rxfh_key_size(struct net_device *dev)
+{
+	return NETVSC_HASH_KEYLEN;
+}
+
+static u32 netvsc_rss_indir_size(struct net_device *dev)
+{
+	return 0;
+}
+
+static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+			   u8 *hfunc)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+	struct netvsc_device *ndev = ndc->nvdev;
+	struct rndis_device *rndis_dev = ndev->extension;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;	/* Toeplitz */
+
+	if (key)
+		memcpy(key, rndis_dev->rss_key, NETVSC_HASH_KEYLEN);
+
+	return 0;
+}
+
+static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
+			   const u8 *key, const u8 hfunc)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+	struct netvsc_device *ndev = ndc->nvdev;
+	struct rndis_device *rndis_dev = ndev->extension;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (!key || memcmp(key, rndis_dev->rss_key, NETVSC_HASH_KEYLEN) == 0)
+		return 0; /* no change */
+
+	return rndis_filter_set_rss_param(rndis_dev, key, ndev->num_chn);
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
@@ -1071,6 +1113,10 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_settings	= netvsc_get_settings,
 	.set_settings	= netvsc_set_settings,
 	.get_rxnfc	= netvsc_get_rxnfc,
+	.get_rxfh_key_size = netvsc_get_rxfh_key_size,
+	.get_rxfh_indir_size = netvsc_rss_indir_size,
+	.get_rxfh	= netvsc_get_rxfh,
+	.set_rxfh	= netvsc_set_rxfh,
 };
 
 static const struct net_device_ops device_ops = {

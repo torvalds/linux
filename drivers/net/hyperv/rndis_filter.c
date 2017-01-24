@@ -57,6 +57,14 @@ struct rndis_request {
 	u8 request_ext[RNDIS_EXT_LEN];
 };
 
+static const u8 netvsc_hash_key[NETVSC_HASH_KEYLEN] = {
+	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+};
+
 static struct rndis_device *get_rndis_device(void)
 {
 	struct rndis_device *device;
@@ -729,23 +737,15 @@ cleanup:
 	return ret;
 }
 
-static const u8 netvsc_hash_key[] = {
-	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
-};
-#define HASH_KEYLEN ARRAY_SIZE(netvsc_hash_key)
-
-static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
+int rndis_filter_set_rss_param(struct rndis_device *rdev,
+			       const u8 *rss_key, int num_queue)
 {
 	struct net_device *ndev = rdev->ndev;
 	struct rndis_request *request;
 	struct rndis_set_request *set;
 	struct rndis_set_complete *set_complete;
 	u32 extlen = sizeof(struct ndis_recv_scale_param) +
-		     4*ITAB_NUM + HASH_KEYLEN;
+		     4 * ITAB_NUM + NETVSC_HASH_KEYLEN;
 	struct ndis_recv_scale_param *rssp;
 	u32 *itab;
 	u8 *keyp;
@@ -773,7 +773,7 @@ static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 			 NDIS_HASH_TCP_IPV6;
 	rssp->indirect_tabsize = 4*ITAB_NUM;
 	rssp->indirect_taboffset = sizeof(struct ndis_recv_scale_param);
-	rssp->hashkey_size = HASH_KEYLEN;
+	rssp->hashkey_size = NETVSC_HASH_KEYLEN;
 	rssp->kashkey_offset = rssp->indirect_taboffset +
 			       rssp->indirect_tabsize;
 
@@ -784,8 +784,7 @@ static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 
 	/* Set hask key values */
 	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
-	for (i = 0; i < HASH_KEYLEN; i++)
-		keyp[i] = netvsc_hash_key[i];
+	memcpy(keyp, rss_key, NETVSC_HASH_KEYLEN);
 
 	ret = rndis_filter_send_request(rdev, request);
 	if (ret != 0)
@@ -793,7 +792,9 @@ static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 
 	wait_for_completion(&request->wait_event);
 	set_complete = &request->response_msg.msg.set_complete;
-	if (set_complete->status != RNDIS_STATUS_SUCCESS) {
+	if (set_complete->status == RNDIS_STATUS_SUCCESS)
+		memcpy(rdev->rss_key, rss_key, NETVSC_HASH_KEYLEN);
+	else {
 		netdev_err(ndev, "Fail to set RSS parameters:0x%x\n",
 			   set_complete->status);
 		ret = -EINVAL;
@@ -1235,7 +1236,8 @@ int rndis_filter_device_add(struct hv_device *dev,
 	net_device->num_chn = 1 +
 		init_packet->msg.v5_msg.subchn_comp.num_subchannels;
 
-	ret = rndis_filter_set_rss_param(rndis_device, net_device->num_chn);
+	ret = rndis_filter_set_rss_param(rndis_device, netvsc_hash_key,
+					 net_device->num_chn);
 
 	/*
 	 * Set the number of sub-channels to be received.
