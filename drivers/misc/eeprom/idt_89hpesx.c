@@ -965,8 +965,10 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 		csraddr_len = colon_ch - buf;
 		csraddr_str =
 			kmalloc(sizeof(char)*(csraddr_len + 1), GFP_KERNEL);
-		if (csraddr_str == NULL)
-			return -ENOMEM;
+		if (csraddr_str == NULL) {
+			ret = -ENOMEM;
+			goto free_buf;
+		}
 		/* Copy the register address to the substring buffer */
 		strncpy(csraddr_str, buf, csraddr_len);
 		csraddr_str[csraddr_len] = '\0';
