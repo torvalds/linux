@@ -389,17 +389,30 @@ void r5c_check_cached_full_stripe(struct r5conf *conf)
 /*
  * Total log space (in sectors) needed to flush all data in cache
  *
- * Currently, writing-out phase automatically includes all pending writes
- * to the same sector. So the reclaim of each stripe takes up to
- * (conf->raid_disks + 1) pages of log space.
+ * To avoid deadlock due to log space, it is necessary to reserve log
+ * space to flush critical stripes (stripes that occupying log space near
+ * last_checkpoint). This function helps check how much log space is
+ * required to flush all cached stripes.
  *
- * To totally avoid deadlock due to log space, the code reserves
- * (conf->raid_disks + 1) pages for each stripe in cache, which is not
- * necessary in most cases.
+ * To reduce log space requirements, two mechanisms are used to give cache
+ * flush higher priorities:
+ *    1. In handle_stripe_dirtying() and schedule_reconstruction(),
+ *       stripes ALREADY in journal can be flushed w/o pending writes;
+ *    2. In r5l_write_stripe() and r5c_cache_data(), stripes NOT in journal
+ *       can be delayed (r5l_add_no_space_stripe).
  *
- * To improve this, we will need writing-out phase to be able to NOT include
- * pending writes, which will reduce the requirement to
- * (conf->max_degraded + 1) pages per stripe in cache.
+ * In cache flush, the stripe goes through 1 and then 2. For a stripe that
+ * already passed 1, flushing it requires at most (conf->max_degraded + 1)
+ * pages of journal space. For stripes that has not passed 1, flushing it
+ * requires (conf->raid_disks + 1) pages of journal space. There are at
+ * most (conf->group_cnt + 1) stripe that passed 1. So total journal space
+ * required to flush all cached stripes (in pages) is:
+ *
+ *     (stripe_in_journal_count - group_cnt - 1) * (max_degraded + 1) +
+ *     (group_cnt + 1) * (raid_disks + 1)
+ * or
+ *     (stripe_in_journal_count) * (max_degraded + 1) +
+ *     (group_cnt + 1) * (raid_disks - max_degraded)
  */
 static sector_t r5c_log_required_to_flush_cache(struct r5conf *conf)
 {
@@ -408,8 +421,9 @@ static sector_t r5c_log_required_to_flush_cache(struct r5conf *conf)
 	if (!r5c_is_writeback(log))
 		return 0;
 
-	return BLOCK_SECTORS * (conf->raid_disks + 1) *
-		atomic_read(&log->stripe_in_journal_count);
+	return BLOCK_SECTORS *
+		((conf->max_degraded + 1) * atomic_read(&log->stripe_in_journal_count) +
+		 (conf->raid_disks - conf->max_degraded) * (conf->group_cnt + 1));
 }
 
 /*
