@@ -1142,6 +1142,7 @@ struct pvclock_gtod_data {
 
 	u64		boot_ns;
 	u64		nsec_base;
+	u64		wall_time_sec;
 };
 
 static struct pvclock_gtod_data pvclock_gtod_data;
@@ -1164,6 +1165,8 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 
 	vdata->boot_ns			= boot_ns;
 	vdata->nsec_base		= tk->tkr_mono.xtime_nsec;
+
+	vdata->wall_time_sec            = tk->xtime_sec;
 
 	write_seqcount_end(&vdata->seq);
 }
@@ -1626,6 +1629,28 @@ static int do_monotonic_boot(s64 *t, u64 *cycle_now)
 	return mode;
 }
 
+static int do_realtime(struct timespec *ts, u64 *cycle_now)
+{
+	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+	unsigned long seq;
+	int mode;
+	u64 ns;
+
+	do {
+		seq = read_seqcount_begin(&gtod->seq);
+		mode = gtod->clock.vclock_mode;
+		ts->tv_sec = gtod->wall_time_sec;
+		ns = gtod->nsec_base;
+		ns += vgettsc(cycle_now);
+		ns >>= gtod->clock.shift;
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
+
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
+
+	return mode;
+}
+
 /* returns true if host is using tsc clocksource */
 static bool kvm_get_time_and_clockread(s64 *kernel_ns, u64 *cycle_now)
 {
@@ -1634,6 +1659,17 @@ static bool kvm_get_time_and_clockread(s64 *kernel_ns, u64 *cycle_now)
 		return false;
 
 	return do_monotonic_boot(kernel_ns, cycle_now) == VCLOCK_TSC;
+}
+
+/* returns true if host is using tsc clocksource */
+static bool kvm_get_walltime_and_clockread(struct timespec *ts,
+					   u64 *cycle_now)
+{
+	/* checked again under seqlock below */
+	if (pvclock_gtod_data.clock.vclock_mode != VCLOCK_TSC)
+		return false;
+
+	return do_realtime(ts, cycle_now) == VCLOCK_TSC;
 }
 #endif
 
@@ -6112,6 +6148,33 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
+static int kvm_pv_clock_pairing(struct kvm_vcpu *vcpu, gpa_t paddr,
+			        unsigned long clock_type)
+{
+	struct kvm_clock_pairing clock_pairing;
+	struct timespec ts;
+	cycle_t cycle;
+	int ret;
+
+	if (clock_type != KVM_CLOCK_PAIRING_WALLCLOCK)
+		return -KVM_EOPNOTSUPP;
+
+	if (kvm_get_walltime_and_clockread(&ts, &cycle) == false)
+		return -KVM_EOPNOTSUPP;
+
+	clock_pairing.sec = ts.tv_sec;
+	clock_pairing.nsec = ts.tv_nsec;
+	clock_pairing.tsc = kvm_read_l1_tsc(vcpu, cycle);
+	clock_pairing.flags = 0;
+
+	ret = 0;
+	if (kvm_write_guest(vcpu->kvm, paddr, &clock_pairing,
+			    sizeof(struct kvm_clock_pairing)))
+		ret = -KVM_EFAULT;
+
+	return ret;
+}
+
 /*
  * kvm_pv_kick_cpu_op:  Kick a vcpu.
  *
@@ -6175,6 +6238,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	case KVM_HC_KICK_CPU:
 		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
 		ret = 0;
+		break;
+	case KVM_HC_CLOCK_PAIRING:
+		ret = kvm_pv_clock_pairing(vcpu, a0, a1);
 		break;
 	default:
 		ret = -KVM_ENOSYS;
