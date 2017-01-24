@@ -485,7 +485,35 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	query->info_buflen = 0;
 	query->dev_vc_handle = 0;
 
-	if (oid == OID_GEN_RECEIVE_SCALE_CAPABILITIES) {
+	if (oid == OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES) {
+		struct net_device_context *ndevctx = netdev_priv(dev->ndev);
+		struct netvsc_device *nvdev = ndevctx->nvdev;
+		struct ndis_offload *hwcaps;
+		u32 nvsp_version = nvdev->nvsp_version;
+		u8 ndis_rev;
+		size_t size;
+
+		if (nvsp_version >= NVSP_PROTOCOL_VERSION_5) {
+			ndis_rev = NDIS_OFFLOAD_PARAMETERS_REVISION_3;
+			size = NDIS_OFFLOAD_SIZE;
+		} else if (nvsp_version >= NVSP_PROTOCOL_VERSION_4) {
+			ndis_rev = NDIS_OFFLOAD_PARAMETERS_REVISION_2;
+			size = NDIS_OFFLOAD_SIZE_6_1;
+		} else {
+			ndis_rev = NDIS_OFFLOAD_PARAMETERS_REVISION_1;
+			size = NDIS_OFFLOAD_SIZE_6_0;
+		}
+
+		request->request_msg.msg_len += size;
+		query->info_buflen = size;
+		hwcaps = (struct ndis_offload *)
+			((unsigned long)query + query->info_buf_offset);
+
+		hwcaps->header.type = NDIS_OBJECT_TYPE_OFFLOAD;
+		hwcaps->header.revision = ndis_rev;
+		hwcaps->header.size = size;
+
+	} else if (oid == OID_GEN_RECEIVE_SCALE_CAPABILITIES) {
 		struct ndis_recv_scale_cap *cap;
 
 		request->request_msg.msg_len +=
@@ -524,6 +552,44 @@ cleanup:
 		put_rndis_request(dev, request);
 
 	return ret;
+}
+
+/* Get the hardware offload capabilities */
+static int
+rndis_query_hwcaps(struct rndis_device *dev, struct ndis_offload *caps)
+{
+	u32 caps_len = sizeof(*caps);
+	int ret;
+
+	memset(caps, 0, sizeof(*caps));
+
+	ret = rndis_filter_query_device(dev,
+					OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES,
+					caps, &caps_len);
+	if (ret)
+		return ret;
+
+	if (caps->header.type != NDIS_OBJECT_TYPE_OFFLOAD) {
+		netdev_warn(dev->ndev, "invalid NDIS objtype %#x\n",
+			    caps->header.type);
+		return -EINVAL;
+	}
+
+	if (caps->header.revision < NDIS_OFFLOAD_PARAMETERS_REVISION_1) {
+		netdev_warn(dev->ndev, "invalid NDIS objrev %x\n",
+			    caps->header.revision);
+		return -EINVAL;
+	}
+
+	if (caps->header.size > caps_len ||
+	    caps->header.size < NDIS_OFFLOAD_SIZE_6_0) {
+		netdev_warn(dev->ndev,
+			    "invalid NDIS objsize %u, data size %u\n",
+			    caps->header.size, caps_len);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int rndis_filter_query_device_mac(struct rndis_device *dev)
@@ -974,10 +1040,12 @@ int rndis_filter_device_add(struct hv_device *dev,
 	struct netvsc_device *net_device;
 	struct rndis_device *rndis_device;
 	struct netvsc_device_info *device_info = additional_info;
+	struct ndis_offload hwcaps;
 	struct ndis_offload_params offloads;
 	struct nvsp_message *init_packet;
 	struct ndis_recv_scale_cap rsscap;
 	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
+	unsigned int gso_max_size = GSO_MAX_SIZE;
 	u32 mtu, size;
 	u32 num_rss_qs;
 	u32 sc_delta;
@@ -1034,19 +1102,65 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
-	/* Turn on the offloads; the host supports all of the relevant
-	 * offloads.
-	 */
+	/* Find HW offload capabilities */
+	ret = rndis_query_hwcaps(rndis_device, &hwcaps);
+	if (ret != 0) {
+		rndis_filter_device_remove(dev);
+		return ret;
+	}
+
+	/* A value of zero means "no change"; now turn on what we want. */
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
-	/* A value of zero means "no change"; now turn on what we
-	 * want.
-	 */
-	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.tcp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.udp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
-	offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
+
+	/* Linux does not care about IP checksum, always does in kernel */
+	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED;
+
+	/* Compute tx offload settings based on hw capabilities */
+	net->hw_features = NETIF_F_RXCSUM;
+
+	if ((hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_ALL_TCP4) == NDIS_TXCSUM_ALL_TCP4) {
+		/* Can checksum TCP */
+		net->hw_features |= NETIF_F_IP_CSUM;
+		net_device_ctx->tx_checksum_mask |= TRANSPORT_INFO_IPV4_TCP;
+
+		offloads.tcp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+
+		if (hwcaps.lsov2.ip4_encap & NDIS_OFFLOAD_ENCAP_8023) {
+			offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
+			net->hw_features |= NETIF_F_TSO;
+
+			if (hwcaps.lsov2.ip4_maxsz < gso_max_size)
+				gso_max_size = hwcaps.lsov2.ip4_maxsz;
+		}
+
+		if (hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_CAP_UDP4) {
+			offloads.udp_ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+			net_device_ctx->tx_checksum_mask |= TRANSPORT_INFO_IPV4_UDP;
+		}
+	}
+
+	if ((hwcaps.csum.ip6_txcsum & NDIS_TXCSUM_ALL_TCP6) == NDIS_TXCSUM_ALL_TCP6) {
+		net->hw_features |= NETIF_F_IPV6_CSUM;
+
+		offloads.tcp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+		net_device_ctx->tx_checksum_mask |= TRANSPORT_INFO_IPV6_TCP;
+
+		if ((hwcaps.lsov2.ip6_encap & NDIS_OFFLOAD_ENCAP_8023) &&
+		    (hwcaps.lsov2.ip6_opts & NDIS_LSOV2_CAP_IP6) == NDIS_LSOV2_CAP_IP6) {
+			offloads.lso_v2_ipv6 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
+			net->hw_features |= NETIF_F_TSO6;
+
+			if (hwcaps.lsov2.ip6_maxsz < gso_max_size)
+				gso_max_size = hwcaps.lsov2.ip6_maxsz;
+		}
+
+		if (hwcaps.csum.ip6_txcsum & NDIS_TXCSUM_CAP_UDP6) {
+			offloads.udp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+			net_device_ctx->tx_checksum_mask |= TRANSPORT_INFO_IPV6_UDP;
+		}
+	}
+
+	netif_set_gso_max_size(net, gso_max_size);
 
 	ret = rndis_filter_set_offload_params(net, &offloads);
 	if (ret)
