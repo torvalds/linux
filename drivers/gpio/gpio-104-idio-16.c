@@ -46,7 +46,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-IDIO-16 interrupt line numbers");
  * @lock:	synchronization lock to prevent I/O race conditions
  * @irq_mask:	I/O bits affected by interrupts
  * @base:	base port address of the GPIO device
- * @irq:	Interrupt line number
  * @out_state:	output bits state
  */
 struct idio_16_gpio {
@@ -54,7 +53,6 @@ struct idio_16_gpio {
 	spinlock_t lock;
 	unsigned long irq_mask;
 	unsigned base;
-	unsigned irq;
 	unsigned out_state;
 };
 
@@ -240,14 +238,13 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	idio16gpio->chip.set = idio_16_gpio_set;
 	idio16gpio->chip.set_multiple = idio_16_gpio_set_multiple;
 	idio16gpio->base = base[id];
-	idio16gpio->irq = irq[id];
 	idio16gpio->out_state = 0xFFFF;
 
 	spin_lock_init(&idio16gpio->lock);
 
 	dev_set_drvdata(dev, idio16gpio);
 
-	err = gpiochip_add_data(&idio16gpio->chip, idio16gpio);
+	err = devm_gpiochip_add_data(dev, &idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -261,28 +258,15 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
 
-	err = request_irq(irq[id], idio_16_irq_handler, 0, name, idio16gpio);
+	err = devm_request_irq(dev, irq[id], idio_16_irq_handler, 0, name,
+		idio16gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
-
-	return 0;
-
-err_gpiochip_remove:
-	gpiochip_remove(&idio16gpio->chip);
-	return err;
-}
-
-static int idio_16_remove(struct device *dev, unsigned int id)
-{
-	struct idio_16_gpio *const idio16gpio = dev_get_drvdata(dev);
-
-	free_irq(idio16gpio->irq, idio16gpio);
-	gpiochip_remove(&idio16gpio->chip);
 
 	return 0;
 }
@@ -292,7 +276,6 @@ static struct isa_driver idio_16_driver = {
 	.driver = {
 		.name = "104-idio-16"
 	},
-	.remove = idio_16_remove
 };
 
 module_isa_driver(idio_16_driver, num_idio_16);
