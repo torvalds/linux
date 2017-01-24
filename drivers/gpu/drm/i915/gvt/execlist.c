@@ -798,7 +798,7 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
 	}
 
-	vgpu->workloads = kmem_cache_create("gvt-g vgpu workload",
+	vgpu->workloads = kmem_cache_create("gvt-g_vgpu_workload",
 			sizeof(struct intel_vgpu_workload), 0,
 			SLAB_HWCACHE_ALIGN,
 			NULL);
