@@ -581,12 +581,10 @@ static bool convert_to_custom_float(
 static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		*output_tf, struct pwl_params *regamma_params)
 {
-	if (output_tf == NULL || regamma_params == NULL)
-		return false;
-
-	struct gamma_curve *arr_curve_points = regamma_params->arr_curve_points;
-	struct curve_points *arr_points = regamma_params->arr_points;
-	struct pwl_result_data *rgb_resulted = regamma_params->rgb_resulted;
+	struct curve_points *arr_points;
+	struct pwl_result_data *rgb_resulted;
+	struct pwl_result_data *rgb;
+	struct pwl_result_data *rgb_plus_1;
 	struct fixed31_32 y_r;
 	struct fixed31_32 y_g;
 	struct fixed31_32 y_b;
@@ -594,8 +592,14 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	struct fixed31_32 y3_max;
 
 	int32_t segment_start, segment_end;
-	uint32_t i, j, k, seg_distr[16], increment, start_index;
-	uint32_t hw_points = 0;
+	uint32_t i, j, k, seg_distr[16], increment, start_index, hw_points;
+
+	if (output_tf == NULL || regamma_params == NULL)
+		return false;
+
+	arr_points = regamma_params->arr_points;
+	rgb_resulted = regamma_params->rgb_resulted;
+	hw_points = 0;
 
 	memset(regamma_params, 0, sizeof(struct pwl_params));
 
@@ -742,8 +746,8 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		regamma_params->arr_curve_points[k].segments_num =
 				seg_distr[k];
 
-	struct pwl_result_data *rgb = rgb_resulted;
-	struct pwl_result_data *rgb_plus_1 = rgb_resulted + 1;
+	rgb = rgb_resulted;
+	rgb_plus_1 = rgb_resulted + 1;
 
 	i = 1;
 
