@@ -339,30 +339,13 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104dev->chip = &stx104gpio->chip;
 	dev_set_drvdata(dev, stx104dev);
 
-	err = gpiochip_add_data(&stx104gpio->chip, stx104gpio);
+	err = devm_gpiochip_add_data(dev, &stx104gpio->chip, stx104gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err) {
-		dev_err(dev, "IIO device registering failed (%d)\n", err);
-		gpiochip_remove(&stx104gpio->chip);
-		return err;
-	}
-
-	return 0;
-}
-
-static int stx104_remove(struct device *dev, unsigned int id)
-{
-	struct stx104_dev *const stx104dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(stx104dev->indio_dev);
-	gpiochip_remove(stx104dev->chip);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static struct isa_driver stx104_driver = {
@@ -370,7 +353,6 @@ static struct isa_driver stx104_driver = {
 	.driver = {
 		.name = "stx104"
 	},
-	.remove = stx104_remove
 };
 
 module_isa_driver(stx104_driver, num_stx104);
