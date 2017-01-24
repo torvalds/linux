@@ -8909,7 +8909,20 @@ M:	Josh Poimboeuf <jpoimboe@redhat.com>
 S:	Supported
 F:	tools/objtool/
 
-OMAP SUPPORT
+OMAP1 SUPPORT
+M:	Aaro Koskinen <aaro.koskinen@iki.fi>
+M:	Tony Lindgren <tony@atomide.com>
+L:	linux-omap@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-omap/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
+S:	Maintained
+F:	arch/arm/mach-omap1/
+F:	arch/arm/plat-omap/
+F:	arch/arm/configs/omap1_defconfig
+F:	drivers/i2c/busses/i2c-omap.c
+F:	include/linux/i2c-omap.h
+
+OMAP2+ SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
 W:	http://www.muru.com/linux/omap/
@@ -8917,8 +8930,8 @@ W:	http://linux.omap.com/
 Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 S:	Maintained
-F:	arch/arm/*omap*/
-F:	arch/arm/configs/omap1_defconfig
+F:	arch/arm/mach-omap2/
+F:	arch/arm/plat-omap/
 F:	arch/arm/configs/omap2plus_defconfig
 F:	drivers/i2c/busses/i2c-omap.c
 F:	drivers/irqchip/irq-omap-intc.c
