@@ -147,7 +147,8 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	ret = amdgpu_gem_object_create(adev, aligned_size, 0,
 				       AMDGPU_GEM_DOMAIN_VRAM,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
 				       true, &gobj);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
@@ -240,8 +241,6 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	/* setup helper */
 	rfbdev->helper.fb = fb;
-
-	memset_io(abo->kptr, 0x0, amdgpu_bo_size(abo));
 
 	strcpy(info->fix.id, "amdgpudrmfb");
 
