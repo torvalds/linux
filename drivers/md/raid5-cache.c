@@ -2060,7 +2060,7 @@ static int
 r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 				       struct r5l_recovery_ctx *ctx)
 {
-	struct stripe_head *sh, *next;
+	struct stripe_head *sh;
 	struct mddev *mddev = log->rdev->mddev;
 	struct page *page;
 	sector_t next_checkpoint = MaxSector;
@@ -2074,7 +2074,7 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 
 	WARN_ON(list_empty(&ctx->cached_list));
 
-	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
+	list_for_each_entry(sh, &ctx->cached_list, lru) {
 		struct r5l_meta_block *mb;
 		int i;
 		int offset;
@@ -2124,12 +2124,37 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 		ctx->pos = write_pos;
 		ctx->seq += 1;
 		next_checkpoint = sh->log_start;
-		list_del_init(&sh->lru);
-		raid5_release_stripe(sh);
 	}
 	log->next_checkpoint = next_checkpoint;
 	__free_page(page);
 	return 0;
+}
+
+static void r5c_recovery_flush_data_only_stripes(struct r5l_log *log,
+						 struct r5l_recovery_ctx *ctx)
+{
+	struct mddev *mddev = log->rdev->mddev;
+	struct r5conf *conf = mddev->private;
+	struct stripe_head *sh, *next;
+
+	if (ctx->data_only_stripes == 0)
+		return;
+
+	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_BACK;
+
+	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
+		r5c_make_stripe_write_out(sh);
+		set_bit(STRIPE_HANDLE, &sh->state);
+		list_del_init(&sh->lru);
+		raid5_release_stripe(sh);
+	}
+
+	md_wakeup_thread(conf->mddev->thread);
+	/* reuse conf->wait_for_quiescent in recovery */
+	wait_event(conf->wait_for_quiescent,
+		   atomic_read(&conf->active_stripes) == 0);
+
+	log->r5c_journal_mode = R5C_JOURNAL_MODE_WRITE_THROUGH;
 }
 
 static int r5l_recovery_log(struct r5l_log *log)
@@ -2158,32 +2183,31 @@ static int r5l_recovery_log(struct r5l_log *log)
 	pos = ctx.pos;
 	ctx.seq += 10000;
 
-	if (ctx.data_only_stripes == 0) {
-		log->next_checkpoint = ctx.pos;
-		r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq++);
-		ctx.pos = r5l_ring_add(log, ctx.pos, BLOCK_SECTORS);
-	}
 
 	if ((ctx.data_only_stripes == 0) && (ctx.data_parity_stripes == 0))
 		pr_debug("md/raid:%s: starting from clean shutdown\n",
 			 mdname(mddev));
-	else {
+	else
 		pr_debug("md/raid:%s: recovering %d data-only stripes and %d data-parity stripes\n",
 			 mdname(mddev), ctx.data_only_stripes,
 			 ctx.data_parity_stripes);
 
-		if (ctx.data_only_stripes > 0)
-			if (r5c_recovery_rewrite_data_only_stripes(log, &ctx)) {
-				pr_err("md/raid:%s: failed to rewrite stripes to journal\n",
-				       mdname(mddev));
-				return -EIO;
-			}
+	if (ctx.data_only_stripes == 0) {
+		log->next_checkpoint = ctx.pos;
+		r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq++);
+		ctx.pos = r5l_ring_add(log, ctx.pos, BLOCK_SECTORS);
+	} else if (r5c_recovery_rewrite_data_only_stripes(log, &ctx)) {
+		pr_err("md/raid:%s: failed to rewrite stripes to journal\n",
+		       mdname(mddev));
+		return -EIO;
 	}
 
 	log->log_start = ctx.pos;
 	log->seq = ctx.seq;
 	log->last_checkpoint = pos;
 	r5l_write_super(log, pos);
+
+	r5c_recovery_flush_data_only_stripes(log, &ctx);
 	return 0;
 }
 
