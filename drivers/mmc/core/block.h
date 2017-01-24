@@ -4,6 +4,6 @@
 struct mmc_queue;
 struct request;
 
-int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req);
+void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req);
 
 #endif
