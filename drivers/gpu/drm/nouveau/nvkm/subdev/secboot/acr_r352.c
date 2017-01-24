@@ -502,8 +502,8 @@ acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 
 	/* WPR region information if WPR is not fixed */
 	if (sb->wpr_size == 0) {
-		u32 wpr_start = ls_blob->addr;
-		u32 wpr_end = wpr_start + ls_blob->size;
+		u64 wpr_start = ls_blob->addr;
+		u64 wpr_end = wpr_start + ls_blob->size;
 
 		desc->wpr_region_id = 1;
 		desc->regions.no_regions = 2;
