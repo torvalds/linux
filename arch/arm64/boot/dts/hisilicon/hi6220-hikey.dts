@@ -42,6 +42,78 @@
 		};
 	};
 
+	overlay_mgr {
+		compatible = "linux,overlay_manager";
+		hardware_cfg_innolux_panel {
+			overlay_0 {
+				fragment@0 {
+					target-path="/soc/dsi@f4107800";
+					__overlay__ { /* For panel reg's value should >= 1 */
+						#address-cells = <1>;
+						#size-cells = <0>;
+						ports {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							/* 1 for output port */
+							port@1 {
+								#address-cells = <1>;
+								#size-cells = <0>;
+								reg = <1>;
+								dsi_out1: endpoint@1 {
+									reg = <1>;
+									remote-endpoint = <&panel0_in>;
+								};
+							};
+						};
+						panel@1 {
+							compatible = "innolux,n070icn-pb1";
+							reg = <1>;
+							power-on-delay= <50>;
+							reset-delay = <100>;
+							init-delay = <100>;
+							panel-width-mm = <58>;
+							panel-height-mm = <103>;
+							pwr-en-gpio = <&gpio2 1 0>;
+							bl-en-gpio = <&gpio2 3 0>;
+							pwm-gpio = <&gpio12 7 0>;
+
+							port {
+								panel0_in: endpoint {
+									remote-endpoint = <&dsi_out1>;
+								};
+							};
+						};
+					};
+				};
+			};
+		};
+		hardware_cfg_spidev0 {
+			overlay_0 {
+				fragment@0 {
+					target-path="/soc/spi@f7106000/spidev@0";
+					__overlay__ {
+						status = "ok";
+					};
+				};
+			};
+		};
+		hardware_cfg_cs_sd_qb {
+			overlay_0 {
+				fragment@0 { /* Select SD from Quick Bus */
+					target-path="/soc/gpio@f7020000";
+					__overlay__ {
+						sd_sel {
+							gpio-hog;
+							gpios = <4 0>;
+							output-high;
+							line-name = "gpio_sd_sel";
+						};
+					};
+				};
+			};
+		};
+	};
+
 	/*
 	 * Reserve below regions from memory node:
 	 *
@@ -520,5 +592,6 @@
 		compatible = "linux,spidev";
 		spi-max-frequency = <500000>;
 		reg = <0>;
+		status = "disabled";
 	};
 };
