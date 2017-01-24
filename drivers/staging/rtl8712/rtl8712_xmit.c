@@ -302,7 +302,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 	int last_txcmdsz = 0;
 	int padding_sz = 0;
 
-	/* 802.3->802.11 convertor */
+	/* 802.3->802.11 converter */
 	r8712_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
 	/* free skb struct */
 	r8712_xmit_complete(padapter, pxmitframe);

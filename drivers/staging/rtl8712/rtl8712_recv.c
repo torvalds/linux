@@ -758,7 +758,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		/* CCK Driver info Structure is not the same as OFDM packet.*/
 		pcck_buf = (struct phy_cck_rx_status *)pphy_stat;
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by hardware
+		 * (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		if (!cck_highpwr) {
@@ -853,7 +853,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			rssi = query_rx_pwr_percentage(rx_pwr[i]);
 			total_rssi += rssi;
 		}
-		/* (2)PWDB, Average PWDB cacluated by hardware (for
+		/* (2)PWDB, Average PWDB calculated by hardware (for
 		 * rate adaptive)
 		 */
 		rx_pwr_all = (((pphy_head[PHY_STAT_PWDB_ALL_SHT]) >> 1) & 0x7f)

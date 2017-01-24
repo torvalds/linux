@@ -202,7 +202,7 @@ static int mp_start_test(struct _adapter *padapter)
 		res = _FAIL;
 		goto end_of_mp_start_test;
 	}
-	/* 3 3. join psudo AdHoc */
+	/* 3 3. join pseudo AdHoc */
 	tgt_network->join_res = 1;
 	tgt_network->aid = psta->aid = 1;
 	memcpy(&tgt_network->network, &bssid, length);
@@ -227,7 +227,7 @@ static int mp_stop_test(struct _adapter *padapter)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (!check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		goto end_of_mp_stop_test;
-	/* 3 1. disconnect psudo AdHoc */
+	/* 3 1. disconnect pseudo AdHoc */
 	r8712_os_indicate_disconnect(padapter);
 	/* 3 2. clear psta used in mp test mode. */
 	psta = r8712_get_stainfo(&padapter->stapriv,
