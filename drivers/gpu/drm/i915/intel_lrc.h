@@ -68,8 +68,6 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
 int logical_render_ring_init(struct intel_engine_cs *engine);
 int logical_xcs_ring_init(struct intel_engine_cs *engine);
 
-int intel_engines_init(struct drm_i915_private *dev_priv);
-
 /* Logical Ring Contexts */
 
 /* One extra page is added before LRC for GuC as shared data */
