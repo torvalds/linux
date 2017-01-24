@@ -4596,6 +4596,8 @@ static void gfx_v8_0_cp_compute_fini(struct amdgpu_device *adev)
 
 			amdgpu_bo_unref(&ring->mqd_obj);
 			ring->mqd_obj = NULL;
+			ring->mqd_ptr = NULL;
+			ring->mqd_gpu_addr = 0;
 		}
 	}
 }
