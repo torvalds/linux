@@ -47,19 +47,6 @@
 
 #define HOTPLUG_DEBOUNCE_MS		1100
 
-/* AVI header and aspect ratio */
-#define HDMI_AVI_VERSION		0x02
-#define HDMI_AVI_LENGTH			0x0d
-
-/* AUI header info */
-#define HDMI_AUI_VERSION		0x01
-#define HDMI_AUI_LENGTH			0x0a
-
-/* AVI active format aspect ratio */
-#define AVI_SAME_AS_PIC_ASPECT_RATIO	0x08
-#define AVI_4_3_CENTER_RATIO		0x09
-#define AVI_16_9_CENTER_RATIO		0x0a
-
 enum hdmi_type {
 	HDMI_TYPE13,
 	HDMI_TYPE14,
@@ -131,7 +118,6 @@ struct hdmi_context {
 	bool				dvi_mode;
 	struct delayed_work		hotplug_work;
 	struct drm_display_mode		current_mode;
-	u8				cea_video_id;
 	const struct hdmi_driver_data	*drv_data;
 
 	void __iomem			*regs;
@@ -681,6 +667,13 @@ static inline void hdmi_reg_writev(struct hdmi_context *hdata, u32 reg_id,
 	}
 }
 
+static inline void hdmi_reg_write_buf(struct hdmi_context *hdata, u32 reg_id,
+				      u8 *buf, int size)
+{
+	for (reg_id = hdmi_map_reg(hdata, reg_id); size; --size, reg_id += 4)
+		writel(*buf++, hdata->regs + reg_id);
+}
+
 static inline void hdmi_reg_writemask(struct hdmi_context *hdata,
 				 u32 reg_id, u32 value, u32 mask)
 {
@@ -762,93 +755,50 @@ static int hdmi_clk_set_parents(struct hdmi_context *hdata, bool to_phy)
 	return ret;
 }
 
-static u8 hdmi_chksum(struct hdmi_context *hdata,
-			u32 start, u8 len, u32 hdr_sum)
+static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 {
-	int i;
-
-	/* hdr_sum : header0 + header1 + header2
-	* start : start address of packet byte1
-	* len : packet bytes - 1 */
-	for (i = 0; i < len; ++i)
-		hdr_sum += 0xff & hdmi_reg_read(hdata, start + i * 4);
-
-	/* return 2's complement of 8 bit hdr_sum */
-	return (u8)(~(hdr_sum & 0xff) + 1);
-}
-
-static void hdmi_reg_infoframe(struct hdmi_context *hdata,
-			union hdmi_infoframe *infoframe)
-{
-	u32 hdr_sum;
-	u8 chksum;
-	u8 ar;
+	union hdmi_infoframe frm;
+	u8 buf[25];
+	int ret;
 
 	if (hdata->dvi_mode) {
-		hdmi_reg_writeb(hdata, HDMI_VSI_CON,
-				HDMI_VSI_CON_DO_NOT_TRANSMIT);
 		hdmi_reg_writeb(hdata, HDMI_AVI_CON,
 				HDMI_AVI_CON_DO_NOT_TRANSMIT);
+		hdmi_reg_writeb(hdata, HDMI_VSI_CON,
+				HDMI_VSI_CON_DO_NOT_TRANSMIT);
 		hdmi_reg_writeb(hdata, HDMI_AUI_CON, HDMI_AUI_CON_NO_TRAN);
 		return;
 	}
 
-	switch (infoframe->any.type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
+			&hdata->current_mode);
+	if (!ret)
+		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, sizeof(buf));
+	if (ret > 0) {
 		hdmi_reg_writeb(hdata, HDMI_AVI_CON, HDMI_AVI_CON_EVERY_VSYNC);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER0, infoframe->any.type);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER1,
-				infoframe->any.version);
-		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER2, infoframe->any.length);
-		hdr_sum = infoframe->any.type + infoframe->any.version +
-			  infoframe->any.length;
+		hdmi_reg_write_buf(hdata, HDMI_AVI_HEADER0, buf, ret);
+	} else {
+		DRM_INFO("%s: invalid AVI infoframe (%d)\n", __func__, ret);
+	}
 
-		/* Output format zero hardcoded ,RGB YBCR selection */
-		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(1), 0 << 5 |
-			AVI_ACTIVE_FORMAT_VALID |
-			AVI_UNDERSCANNED_DISPLAY_VALID);
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frm.vendor.hdmi,
+			&hdata->current_mode);
+	if (!ret)
+		ret = hdmi_vendor_infoframe_pack(&frm.vendor.hdmi, buf,
+				sizeof(buf));
+	if (ret > 0) {
+		hdmi_reg_writeb(hdata, HDMI_VSI_CON, HDMI_VSI_CON_EVERY_VSYNC);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, ret);
+	}
 
-		/*
-		 * Set the aspect ratio as per the mode, mentioned in
-		 * Table 9 AVI InfoFrame Data Byte 2 of CEA-861-D Standard
-		 */
-		ar = hdata->current_mode.picture_aspect_ratio;
-		switch (ar) {
-		case HDMI_PICTURE_ASPECT_4_3:
-			ar |= AVI_4_3_CENTER_RATIO;
-			break;
-		case HDMI_PICTURE_ASPECT_16_9:
-			ar |= AVI_16_9_CENTER_RATIO;
-			break;
-		case HDMI_PICTURE_ASPECT_NONE:
-		default:
-			ar |= AVI_SAME_AS_PIC_ASPECT_RATIO;
-			break;
-		}
-		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(2), ar);
-
-		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(4), hdata->cea_video_id);
-
-		chksum = hdmi_chksum(hdata, HDMI_AVI_BYTE(1),
-					infoframe->any.length, hdr_sum);
-		DRM_DEBUG_KMS("AVI checksum = 0x%x\n", chksum);
-		hdmi_reg_writeb(hdata, HDMI_AVI_CHECK_SUM, chksum);
-		break;
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		hdmi_reg_writeb(hdata, HDMI_AUI_CON, 0x02);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER0, infoframe->any.type);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER1,
-				infoframe->any.version);
-		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER2, infoframe->any.length);
-		hdr_sum = infoframe->any.type + infoframe->any.version +
-			  infoframe->any.length;
-		chksum = hdmi_chksum(hdata, HDMI_AUI_BYTE(1),
-					infoframe->any.length, hdr_sum);
-		DRM_DEBUG_KMS("AUI checksum = 0x%x\n", chksum);
-		hdmi_reg_writeb(hdata, HDMI_AUI_CHECK_SUM, chksum);
-		break;
-	default:
-		break;
+	ret = hdmi_audio_infoframe_init(&frm.audio);
+	if (!ret) {
+		frm.audio.channels = 2;
+		ret = hdmi_audio_infoframe_pack(&frm.audio, buf, sizeof(buf));
+	}
+	if (ret > 0) {
+		hdmi_reg_writeb(hdata, HDMI_AUI_CON, HDMI_AUI_CON_EVERY_VSYNC);
+		hdmi_reg_write_buf(hdata, HDMI_AUI_HEADER0, buf, ret);
 	}
 }
 
@@ -1127,8 +1077,6 @@ static void hdmi_start(struct hdmi_context *hdata, bool start)
 
 static void hdmi_conf_init(struct hdmi_context *hdata)
 {
-	union hdmi_infoframe infoframe;
-
 	/* disable HPD interrupts from HDMI IP block, use GPIO instead */
 	hdmi_reg_writemask(hdata, HDMI_INTC_CON, 0, HDMI_INTC_EN_GLOBAL |
 		HDMI_INTC_EN_HPD_PLUG | HDMI_INTC_EN_HPD_UNPLUG);
@@ -1164,15 +1112,7 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 		hdmi_reg_writeb(hdata, HDMI_V13_AUI_CON, 0x02);
 		hdmi_reg_writeb(hdata, HDMI_V13_ACR_CON, 0x04);
 	} else {
-		infoframe.any.type = HDMI_INFOFRAME_TYPE_AVI;
-		infoframe.any.version = HDMI_AVI_VERSION;
-		infoframe.any.length = HDMI_AVI_LENGTH;
-		hdmi_reg_infoframe(hdata, &infoframe);
-
-		infoframe.any.type = HDMI_INFOFRAME_TYPE_AUDIO;
-		infoframe.any.version = HDMI_AUI_VERSION;
-		infoframe.any.length = HDMI_AUI_LENGTH;
-		hdmi_reg_infoframe(hdata, &infoframe);
+		hdmi_reg_infoframes(hdata);
 
 		/* enable AVI packet every vsync, fixes purple line problem */
 		hdmi_reg_writemask(hdata, HDMI_CON_1, 2, 3 << 5);
@@ -1458,7 +1398,6 @@ static void hdmi_mode_set(struct drm_encoder *encoder,
 		"INTERLACED" : "PROGRESSIVE");
 
 	drm_mode_copy(&hdata->current_mode, m);
-	hdata->cea_video_id = drm_match_cea_mode(mode);
 }
 
 static void hdmi_set_refclk(struct hdmi_context *hdata, bool on)

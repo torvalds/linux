@@ -224,8 +224,8 @@ static int vce_v2_0_sw_init(void *handle)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
-		r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-				     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
+		r = amdgpu_ring_init(adev, ring, 512,
+				     &adev->vce.irq, 0);
 		if (r)
 			return r;
 	}
@@ -592,7 +592,7 @@ static int vce_v2_0_set_powergating_state(void *handle,
 		return vce_v2_0_start(adev);
 }
 
-const struct amd_ip_funcs vce_v2_0_ip_funcs = {
+static const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 	.name = "vce_v2_0",
 	.early_init = vce_v2_0_early_init,
 	.late_init = NULL,
@@ -610,10 +610,15 @@ const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_VCE,
+	.align_mask = 0xf,
+	.nop = VCE_CMD_NO_OP,
 	.get_rptr = vce_v2_0_ring_get_rptr,
 	.get_wptr = vce_v2_0_ring_get_wptr,
 	.set_wptr = vce_v2_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs,
+	.emit_frame_size = 6, /* amdgpu_vce_ring_emit_fence  x1 no user fence */
+	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
@@ -622,8 +627,6 @@ static const struct amdgpu_ring_funcs vce_v2_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
-	.get_emit_ib_size = amdgpu_vce_ring_get_emit_ib_size,
-	.get_dma_frame_size = amdgpu_vce_ring_get_dma_frame_size,
 };
 
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -643,4 +646,13 @@ static void vce_v2_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->vce.irq.num_types = 1;
 	adev->vce.irq.funcs = &vce_v2_0_irq_funcs;
+};
+
+const struct amdgpu_ip_block_version vce_v2_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_VCE,
+		.major = 2,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vce_v2_0_ip_funcs,
 };

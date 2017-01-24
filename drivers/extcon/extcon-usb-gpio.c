@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
@@ -36,7 +35,9 @@ struct usb_extcon_info {
 	struct extcon_dev *edev;
 
 	struct gpio_desc *id_gpiod;
+	struct gpio_desc *vbus_gpiod;
 	int id_irq;
+	int vbus_irq;
 
 	unsigned long debounce_jiffies;
 	struct delayed_work wq_detcable;
@@ -48,31 +49,47 @@ static const unsigned int usb_extcon_cable[] = {
 	EXTCON_NONE,
 };
 
+/*
+ * "USB" = VBUS and "USB-HOST" = !ID, so we have:
+ * Both "USB" and "USB-HOST" can't be set as active at the
+ * same time so if "USB-HOST" is active (i.e. ID is 0)  we keep "USB" inactive
+ * even if VBUS is on.
+ *
+ *  State              |    ID   |   VBUS
+ * ----------------------------------------
+ *  [1] USB            |    H    |    H
+ *  [2] none           |    H    |    L
+ *  [3] USB-HOST       |    L    |    H
+ *  [4] USB-HOST       |    L    |    L
+ *
+ * In case we have only one of these signals:
+ * - VBUS only - we want to distinguish between [1] and [2], so ID is always 1.
+ * - ID only - we want to distinguish between [1] and [4], so VBUS = ID.
+*/
 static void usb_extcon_detect_cable(struct work_struct *work)
 {
-	int id;
+	int id, vbus;
 	struct usb_extcon_info *info = container_of(to_delayed_work(work),
 						    struct usb_extcon_info,
 						    wq_detcable);
 
-	/* check ID and update cable state */
-	id = gpiod_get_value_cansleep(info->id_gpiod);
-	if (id) {
-		/*
-		 * ID = 1 means USB HOST cable detached.
-		 * As we don't have event for USB peripheral cable attached,
-		 * we simulate USB peripheral attach here.
-		 */
+	/* check ID and VBUS and update cable state */
+	id = info->id_gpiod ?
+		gpiod_get_value_cansleep(info->id_gpiod) : 1;
+	vbus = info->vbus_gpiod ?
+		gpiod_get_value_cansleep(info->vbus_gpiod) : id;
+
+	/* at first we clean states which are no longer active */
+	if (id)
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
-		extcon_set_state_sync(info->edev, EXTCON_USB, true);
-	} else {
-		/*
-		 * ID = 0 means USB HOST cable attached.
-		 * As we don't have event for USB peripheral cable detached,
-		 * we simulate USB peripheral detach here.
-		 */
+	if (!vbus)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
+
+	if (!id) {
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
+	} else {
+		if (vbus)
+			extcon_set_state_sync(info->edev, EXTCON_USB, true);
 	}
 }
 
@@ -101,11 +118,20 @@ static int usb_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->dev = dev;
-	info->id_gpiod = devm_gpiod_get(&pdev->dev, "id", GPIOD_IN);
-	if (IS_ERR(info->id_gpiod)) {
-		dev_err(dev, "failed to get ID GPIO\n");
-		return PTR_ERR(info->id_gpiod);
+	info->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id", GPIOD_IN);
+	info->vbus_gpiod = devm_gpiod_get_optional(&pdev->dev, "vbus",
+						   GPIOD_IN);
+
+	if (!info->id_gpiod && !info->vbus_gpiod) {
+		dev_err(dev, "failed to get gpios\n");
+		return -ENODEV;
 	}
+
+	if (IS_ERR(info->id_gpiod))
+		return PTR_ERR(info->id_gpiod);
+
+	if (IS_ERR(info->vbus_gpiod))
+		return PTR_ERR(info->vbus_gpiod);
 
 	info->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
@@ -119,32 +145,56 @@ static int usb_extcon_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = gpiod_set_debounce(info->id_gpiod,
-				 USB_GPIO_DEBOUNCE_MS * 1000);
+	if (info->id_gpiod)
+		ret = gpiod_set_debounce(info->id_gpiod,
+					 USB_GPIO_DEBOUNCE_MS * 1000);
+	if (!ret && info->vbus_gpiod)
+		ret = gpiod_set_debounce(info->vbus_gpiod,
+					 USB_GPIO_DEBOUNCE_MS * 1000);
+
 	if (ret < 0)
 		info->debounce_jiffies = msecs_to_jiffies(USB_GPIO_DEBOUNCE_MS);
 
 	INIT_DELAYED_WORK(&info->wq_detcable, usb_extcon_detect_cable);
 
-	info->id_irq = gpiod_to_irq(info->id_gpiod);
-	if (info->id_irq < 0) {
-		dev_err(dev, "failed to get ID IRQ\n");
-		return info->id_irq;
+	if (info->id_gpiod) {
+		info->id_irq = gpiod_to_irq(info->id_gpiod);
+		if (info->id_irq < 0) {
+			dev_err(dev, "failed to get ID IRQ\n");
+			return info->id_irq;
+		}
+
+		ret = devm_request_threaded_irq(dev, info->id_irq, NULL,
+						usb_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						pdev->name, info);
+		if (ret < 0) {
+			dev_err(dev, "failed to request handler for ID IRQ\n");
+			return ret;
+		}
 	}
 
-	ret = devm_request_threaded_irq(dev, info->id_irq, NULL,
-					usb_irq_handler,
-					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					pdev->name, info);
-	if (ret < 0) {
-		dev_err(dev, "failed to request handler for ID IRQ\n");
-		return ret;
+	if (info->vbus_gpiod) {
+		info->vbus_irq = gpiod_to_irq(info->vbus_gpiod);
+		if (info->vbus_irq < 0) {
+			dev_err(dev, "failed to get VBUS IRQ\n");
+			return info->vbus_irq;
+		}
+
+		ret = devm_request_threaded_irq(dev, info->vbus_irq, NULL,
+						usb_irq_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						pdev->name, info);
+		if (ret < 0) {
+			dev_err(dev, "failed to request handler for VBUS IRQ\n");
+			return ret;
+		}
 	}
 
 	platform_set_drvdata(pdev, info);
 	device_init_wakeup(dev, true);
-	dev_pm_set_wake_irq(dev, info->id_irq);
 
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
@@ -157,8 +207,6 @@ static int usb_extcon_remove(struct platform_device *pdev)
 	struct usb_extcon_info *info = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&info->wq_detcable);
-
-	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
 
 	return 0;
@@ -170,12 +218,32 @@ static int usb_extcon_suspend(struct device *dev)
 	struct usb_extcon_info *info = dev_get_drvdata(dev);
 	int ret = 0;
 
+	if (device_may_wakeup(dev)) {
+		if (info->id_gpiod) {
+			ret = enable_irq_wake(info->id_irq);
+			if (ret)
+				return ret;
+		}
+		if (info->vbus_gpiod) {
+			ret = enable_irq_wake(info->vbus_irq);
+			if (ret) {
+				if (info->id_gpiod)
+					disable_irq_wake(info->id_irq);
+
+				return ret;
+			}
+		}
+	}
+
 	/*
 	 * We don't want to process any IRQs after this point
 	 * as GPIOs used behind I2C subsystem might not be
 	 * accessible until resume completes. So disable IRQ.
 	 */
-	disable_irq(info->id_irq);
+	if (info->id_gpiod)
+		disable_irq(info->id_irq);
+	if (info->vbus_gpiod)
+		disable_irq(info->vbus_irq);
 
 	return ret;
 }
@@ -185,7 +253,28 @@ static int usb_extcon_resume(struct device *dev)
 	struct usb_extcon_info *info = dev_get_drvdata(dev);
 	int ret = 0;
 
-	enable_irq(info->id_irq);
+	if (device_may_wakeup(dev)) {
+		if (info->id_gpiod) {
+			ret = disable_irq_wake(info->id_irq);
+			if (ret)
+				return ret;
+		}
+		if (info->vbus_gpiod) {
+			ret = disable_irq_wake(info->vbus_irq);
+			if (ret) {
+				if (info->id_gpiod)
+					enable_irq_wake(info->id_irq);
+
+				return ret;
+			}
+		}
+	}
+
+	if (info->id_gpiod)
+		enable_irq(info->id_irq);
+	if (info->vbus_gpiod)
+		enable_irq(info->vbus_irq);
+
 	if (!device_may_wakeup(dev))
 		queue_delayed_work(system_power_efficient_wq,
 				   &info->wq_detcable, 0);

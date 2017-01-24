@@ -451,9 +451,6 @@ otherwise noted.
 	exist; this is checked by the VFS.  Unlike plain rename,
 	source and target may be of different type.
 
-  readlink: called by the readlink(2) system call. Only required if
-	you want to support reading symbolic links
-
   get_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
 	symbolic links.  This method returns the symlink body
@@ -467,6 +464,12 @@ otherwise noted.
 	May be called in RCU mode; that is indicated by NULL dentry
 	argument.  If request can't be handled without leaving RCU mode,
 	have it return ERR_PTR(-ECHILD).
+
+  readlink: this is now just an override for use by readlink(2) for the
+	cases when ->get_link uses nd_jump_link() or object is not in
+	fact a symlink.  Normally filesystems should only implement
+	->get_link for symlinks and readlink(2) will automatically use
+	that.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
@@ -948,7 +951,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
-	int (*d_manage)(struct dentry *, bool);
+	int (*d_manage)(const struct path *, bool);
 	struct dentry *(*d_real)(struct dentry *, const struct inode *,
 				 unsigned int);
 };

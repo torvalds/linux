@@ -14,8 +14,6 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
-static int irq_prio;
-
 /*
  * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
@@ -24,7 +22,7 @@ static int irq_prio;
  */
 void arc_init_IRQ(void)
 {
-	unsigned int tmp;
+	unsigned int tmp, irq_prio;
 
 	struct irq_build {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -67,12 +65,12 @@ void arc_init_IRQ(void)
 
 	irq_prio = irq_bcr.prio;	/* Encoded as N-1 for N levels */
 	pr_info("archs-intc\t: %d priority levels (default %d)%s\n",
-		irq_prio + 1, irq_prio,
+		irq_prio + 1, ARCV2_IRQ_DEF_PRIO,
 		irq_bcr.firq ? " FIRQ (not used)":"");
 
 	/* setup status32, don't enable intr yet as kernel doesn't want */
 	tmp = read_aux_reg(0xa);
-	tmp |= STATUS_AD_MASK | (irq_prio << 1);
+	tmp |= STATUS_AD_MASK | (ARCV2_IRQ_DEF_PRIO << 1);
 	tmp &= ~STATUS_IE_MASK;
 	asm volatile("kflag %0	\n"::"r"(tmp));
 }
@@ -93,7 +91,7 @@ void arcv2_irq_enable(struct irq_data *data)
 {
 	/* set default priority */
 	write_aux_reg(AUX_IRQ_SELECT, data->irq);
-	write_aux_reg(AUX_IRQ_PRIORITY, irq_prio);
+	write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
 
 	/*
 	 * hw auto enables (linux unmask) all by default

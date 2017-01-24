@@ -29,7 +29,7 @@
 #include <linux/completion.h>
 #include <linux/scatterlist.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #if 0
 #define CARM_DEBUG

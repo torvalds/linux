@@ -278,7 +278,7 @@ static void cinergyt2_fe_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cinergyt2_fe_ops;
+static const struct dvb_frontend_ops cinergyt2_fe_ops;
 
 struct dvb_frontend *cinergyt2_fe_attach(struct dvb_usb_device *d)
 {
@@ -295,7 +295,7 @@ struct dvb_frontend *cinergyt2_fe_attach(struct dvb_usb_device *d)
 }
 
 
-static struct dvb_frontend_ops cinergyt2_fe_ops = {
+static const struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= DRIVER_NAME,

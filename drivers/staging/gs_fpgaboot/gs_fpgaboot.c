@@ -38,7 +38,7 @@ static u8 bits_magic[] = {
 static struct platform_device	*firmware_pdev;
 
 static char	*file = "xlinx_fpga_firmware.bit";
-module_param(file, charp, S_IRUGO);
+module_param(file, charp, 0444);
 MODULE_PARM_DESC(file, "Xilinx FPGA firmware file.");
 
 static void read_bitstream(char *bitdata, char *buf, int *offset, int rdsize)

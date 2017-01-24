@@ -41,6 +41,7 @@
  */
 #include "sunxi-reference-design-tablet.dtsi"
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 
 / {
@@ -84,6 +85,23 @@
 };
 
 &i2c1 {
+	/*
+	 * The gsl1680 is rated at 400KHz and it will not work reliable at
+	 * 100KHz, this has been confirmed on multiple different q8 tablets.
+	 * All other devices on this bus are also rated for 400KHz.
+	 */
+	clock-frequency = <400000>;
+
+	touchscreen: touchscreen {
+		interrupt-parent = <&pio>;
+		interrupts = <6 11 IRQ_TYPE_EDGE_FALLING>; /* EINT11 (PG11) */
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_power_pin>;
+		power-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
+		/* Tablet dts must provide reg and compatible */
+		status = "disabled";
+	};
+
 	pcf8563: rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
@@ -123,6 +141,13 @@
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	ts_power_pin: ts_power_pin {
+		pins = "PB3";
+		function = "gpio_out";
+		drive-strength = <10>;
+		bias-disable;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {

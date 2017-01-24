@@ -22,6 +22,8 @@
 
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -36,6 +38,13 @@ static unsigned int btcx_debug;
 module_param(btcx_debug, int, 0644);
 MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (no)");
 
+#define dprintk(fmt, arg...) do {				\
+	if (btcx_debug)						\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),		\
+		       __func__, ##arg);			\
+} while (0)
+
+
 /* ---------------------------------------------------------- */
 /* allocate/free risc memory                                  */
 
@@ -46,11 +55,11 @@ void btcx_riscmem_free(struct pci_dev *pci,
 {
 	if (NULL == risc->cpu)
 		return;
-	if (btcx_debug) {
-		memcnt--;
-		printk("btcx: riscmem free [%d] dma=%lx\n",
-		       memcnt, (unsigned long)risc->dma);
-	}
+
+	memcnt--;
+	dprintk("btcx: riscmem free [%d] dma=%lx\n",
+		memcnt, (unsigned long)risc->dma);
+
 	pci_free_consistent(pci, risc->size, risc->cpu, risc->dma);
 	memset(risc,0,sizeof(*risc));
 }
@@ -71,11 +80,10 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		risc->cpu  = cpu;
 		risc->dma  = dma;
 		risc->size = size;
-		if (btcx_debug) {
-			memcnt++;
-			printk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
-			       memcnt, (unsigned long)dma, cpu, size);
-		}
+
+		memcnt++;
+		dprintk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
+			memcnt, (unsigned long)dma, cpu, size);
 	}
 	memset(risc->cpu,0,risc->size);
 	return 0;
@@ -137,9 +145,8 @@ btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips, unsigned int n, int m
 	dx = nx - win->left;
 	win->left  = nx;
 	win->width = nw;
-	if (btcx_debug)
-		printk(KERN_DEBUG "btcx: window align %dx%d+%d+%d [dx=%d]\n",
-		       win->width, win->height, win->left, win->top, dx);
+	dprintk("btcx: window align %dx%d+%d+%d [dx=%d]\n",
+	       win->width, win->height, win->left, win->top, dx);
 
 	/* fixup clips */
 	for (i = 0; i < n; i++) {
@@ -149,10 +156,9 @@ btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips, unsigned int n, int m
 			nw += mask+1;
 		clips[i].c.left  = nx;
 		clips[i].c.width = nw;
-		if (btcx_debug)
-			printk(KERN_DEBUG "btcx:   clip align %dx%d+%d+%d\n",
-			       clips[i].c.width, clips[i].c.height,
-			       clips[i].c.left, clips[i].c.top);
+		dprintk("btcx:   clip align %dx%d+%d+%d\n",
+		       clips[i].c.width, clips[i].c.height,
+		       clips[i].c.left, clips[i].c.top);
 	}
 	return 0;
 }
@@ -228,10 +234,10 @@ btcx_calc_skips(int line, int width, int *maxy,
 	*maxy = maxline;
 
 	if (btcx_debug) {
-		printk(KERN_DEBUG "btcx: skips line %d-%d:",line,maxline);
+		dprintk("btcx: skips line %d-%d:", line, maxline);
 		for (skip = 0; skip < *nskips; skip++) {
-			printk(" %d-%d",skips[skip].start,skips[skip].end);
+			pr_cont(" %d-%d", skips[skip].start, skips[skip].end);
 		}
-		printk("\n");
+		pr_cont("\n");
 	}
 }

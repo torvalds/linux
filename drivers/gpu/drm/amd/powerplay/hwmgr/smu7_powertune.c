@@ -603,9 +603,10 @@ int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 	return 0;
 }
 
-static int smu7_set_overdriver_target_tdp(struct pp_hwmgr *pHwMgr, uint32_t target_tdp)
+static int smu7_set_overdriver_target_tdp(struct pp_hwmgr *hwmgr,
+						uint32_t target_tdp)
 {
-	return smum_send_msg_to_smc_with_parameter(pHwMgr->smumgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 			PPSMC_MSG_OverDriveSetTargetTdp, target_tdp);
 }
 

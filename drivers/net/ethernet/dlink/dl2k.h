@@ -31,7 +31,7 @@
 #include <linux/bitops.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/time.h>

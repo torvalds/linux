@@ -45,7 +45,7 @@
 
 #define REALLY_SLOW_IO
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef __arm__
 #undef  HD_IRQ

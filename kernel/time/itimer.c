@@ -14,7 +14,7 @@
 #include <linux/hrtimer.h>
 #include <trace/events/timer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * itimer_get_remtime - get remaining time for the timer
@@ -34,10 +34,10 @@ static struct timeval itimer_get_remtime(struct hrtimer *timer)
 	 * then we return 0 - which is correct.
 	 */
 	if (hrtimer_active(timer)) {
-		if (rem.tv64 <= 0)
-			rem.tv64 = NSEC_PER_USEC;
+		if (rem <= 0)
+			rem = NSEC_PER_USEC;
 	} else
-		rem.tv64 = 0;
+		rem = 0;
 
 	return ktime_to_timeval(rem);
 }
@@ -216,12 +216,12 @@ again:
 			goto again;
 		}
 		expires = timeval_to_ktime(value->it_value);
-		if (expires.tv64 != 0) {
+		if (expires != 0) {
 			tsk->signal->it_real_incr =
 				timeval_to_ktime(value->it_interval);
 			hrtimer_start(timer, expires, HRTIMER_MODE_REL);
 		} else
-			tsk->signal->it_real_incr.tv64 = 0;
+			tsk->signal->it_real_incr = 0;
 
 		trace_itimer_state(ITIMER_REAL, value, 0);
 		spin_unlock_irq(&tsk->sighand->siglock);
@@ -238,6 +238,8 @@ again:
 	return 0;
 }
 
+#ifdef __ARCH_WANT_SYS_ALARM
+
 /**
  * alarm_setitimer - set alarm in seconds
  *
@@ -250,7 +252,7 @@ again:
  * On 32 bit machines the seconds value is limited to (INT_MAX/2) to avoid
  * negative timeval settings which would cause immediate expiry.
  */
-unsigned int alarm_setitimer(unsigned int seconds)
+static unsigned int alarm_setitimer(unsigned int seconds)
 {
 	struct itimerval it_new, it_old;
 
@@ -274,6 +276,17 @@ unsigned int alarm_setitimer(unsigned int seconds)
 
 	return it_old.it_value.tv_sec;
 }
+
+/*
+ * For backwards compatibility?  This can be done in libc so Alpha
+ * and all newer ports shouldn't need it.
+ */
+SYSCALL_DEFINE1(alarm, unsigned int, seconds)
+{
+	return alarm_setitimer(seconds);
+}
+
+#endif
 
 SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
 		struct itimerval __user *, ovalue)

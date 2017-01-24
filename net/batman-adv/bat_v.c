@@ -750,7 +750,7 @@ batadv_v_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	u32 max_bw = 0, bw;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
+	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
 		if (!kref_get_unless_zero(&gw_node->refcount))
 			continue;
 
@@ -787,7 +787,7 @@ static bool batadv_v_gw_is_eligible(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *curr_gw_orig,
 				    struct batadv_orig_node *orig_node)
 {
-	struct batadv_gw_node *curr_gw = NULL, *orig_gw = NULL;
+	struct batadv_gw_node *curr_gw, *orig_gw = NULL;
 	u32 gw_throughput, orig_throughput, threshold;
 	bool ret = false;
 
@@ -889,7 +889,7 @@ static void batadv_v_gw_print(struct batadv_priv *bat_priv,
 		 "      Gateway        ( throughput)           Nexthop [outgoingIF]: advertised uplink bandwidth\n");
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
+	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
 		/* fails if orig_node has no router */
 		if (batadv_v_gw_write_buffer_text(bat_priv, seq, gw_node) < 0)
 			continue;
@@ -1009,7 +1009,7 @@ static void batadv_v_gw_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	int idx = 0;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
+	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.gateway_list, list) {
 		if (idx++ < idx_skip)
 			continue;
 

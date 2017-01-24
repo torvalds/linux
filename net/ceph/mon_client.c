@@ -1028,21 +1028,21 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	err = -ENOMEM;
 	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
 				     sizeof(struct ceph_mon_subscribe_ack),
-				     GFP_NOFS, true);
+				     GFP_KERNEL, true);
 	if (!monc->m_subscribe_ack)
 		goto out_auth;
 
-	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 128, GFP_NOFS,
-					 true);
+	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 128,
+					 GFP_KERNEL, true);
 	if (!monc->m_subscribe)
 		goto out_subscribe_ack;
 
-	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, GFP_NOFS,
-					  true);
+	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096,
+					  GFP_KERNEL, true);
 	if (!monc->m_auth_reply)
 		goto out_subscribe;
 
-	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, GFP_NOFS, true);
+	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, GFP_KERNEL, true);
 	monc->pending_auth = 0;
 	if (!monc->m_auth)
 		goto out_auth_reply;

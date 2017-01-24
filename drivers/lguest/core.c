@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <asm/paravirt.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/poll.h>
 #include <asm/asm-offsets.h>
 #include "lg.h"

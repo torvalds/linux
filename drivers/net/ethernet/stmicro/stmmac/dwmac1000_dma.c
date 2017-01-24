@@ -84,37 +84,39 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_AXI_BUS_MODE);
 }
 
-static void dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
-			       int aal, u32 dma_tx, u32 dma_rx, int atds)
+static void dwmac1000_dma_init(void __iomem *ioaddr,
+			       struct stmmac_dma_cfg *dma_cfg,
+			       u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+	int rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
 	/*
 	 * Set the DMA PBL (Programmable Burst Length) mode.
 	 *
 	 * Note: before stmmac core 3.50 this mode bit was 4xPBL, and
 	 * post 3.5 mode bit acts as 8*PBL.
-	 *
-	 * This configuration doesn't take care about the Separate PBL
-	 * so only the bits: 13-8 are programmed with the PBL passed from the
-	 * platform.
 	 */
-	value |= DMA_BUS_MODE_MAXPBL;
-	value &= ~DMA_BUS_MODE_PBL_MASK;
-	value |= (pbl << DMA_BUS_MODE_PBL_SHIFT);
+	if (dma_cfg->pblx8)
+		value |= DMA_BUS_MODE_MAXPBL;
+	value |= DMA_BUS_MODE_USP;
+	value &= ~(DMA_BUS_MODE_PBL_MASK | DMA_BUS_MODE_RPBL_MASK);
+	value |= (txpbl << DMA_BUS_MODE_PBL_SHIFT);
+	value |= (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
 
 	/* Set the Fixed burst mode */
-	if (fb)
+	if (dma_cfg->fixed_burst)
 		value |= DMA_BUS_MODE_FB;
 
 	/* Mixed Burst has no effect when fb is set */
-	if (mb)
+	if (dma_cfg->mixed_burst)
 		value |= DMA_BUS_MODE_MB;
 
 	if (atds)
 		value |= DMA_BUS_MODE_ATDS;
 
-	if (aal)
+	if (dma_cfg->aal)
 		value |= DMA_BUS_MODE_AAL;
 
 	writel(value, ioaddr + DMA_BUS_MODE);

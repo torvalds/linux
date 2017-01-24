@@ -457,7 +457,8 @@ retry:
 			goto exit;
 
 		/* First we want to make sure we power off everything
-		 * and then activate back again */
+		 * and then activate back again
+		 */
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 		arche_platform_poweroff_seq(arche_pdata);
 

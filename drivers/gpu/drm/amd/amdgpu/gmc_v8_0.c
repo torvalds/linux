@@ -472,7 +472,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	 * size equal to the 1024 or vram, whichever is larger.
 	 */
 	if (amdgpu_gart_size == -1)
-		adev->mc.gtt_size = amdgpu_ttm_get_gtt_mem_size(adev);
+		adev->mc.gtt_size = max((1024ULL << 20), adev->mc.mc_vram_size);
 	else
 		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
 
@@ -837,7 +837,7 @@ static void gmc_v8_0_vm_decode_fault(struct amdgpu_device *adev,
 	mc_id = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			      MEMORY_CLIENT_ID);
 
-	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
+	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,
 	       REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			     MEMORY_CLIENT_RW) ?
@@ -949,11 +949,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	r = gmc_v8_0_init_microcode(adev);
 	if (r) {
 		DRM_ERROR("Failed to load mc firmware!\n");
-		return r;
-	}
-
-	r = amdgpu_ttm_global_init(adev);
-	if (r) {
 		return r;
 	}
 
@@ -1242,13 +1237,15 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
-	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
-		entry->src_id, entry->src_data);
-	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-		addr);
-	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-		status);
-	gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
+	if (printk_ratelimit()) {
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
+			entry->src_id, entry->src_data);
+		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
+			addr);
+		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
+			status);
+		gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
+	}
 
 	return 0;
 }
@@ -1437,7 +1434,7 @@ static int gmc_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
+static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.name = "gmc_v8_0",
 	.early_init = gmc_v8_0_early_init,
 	.late_init = gmc_v8_0_late_init,
@@ -1478,3 +1475,30 @@ static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->mc.vm_fault.num_types = 1;
 	adev->mc.vm_fault.funcs = &gmc_v8_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version gmc_v8_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GMC,
+	.major = 8,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &gmc_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version gmc_v8_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GMC,
+	.major = 8,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &gmc_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version gmc_v8_5_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GMC,
+	.major = 8,
+	.minor = 5,
+	.rev = 0,
+	.funcs = &gmc_v8_0_ip_funcs,
+};

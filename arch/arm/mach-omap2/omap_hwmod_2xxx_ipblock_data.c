@@ -569,7 +569,6 @@ struct omap_hwmod omap2xxx_dss_core_hwmod = {
 struct omap_hwmod omap2xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap2_dispc_hwmod_class,
-	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_fck",
 	.prcm		= {
 		.omap2 = {

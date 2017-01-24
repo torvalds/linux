@@ -253,6 +253,7 @@ extern void iommu_group_remove_device(struct device *dev);
 extern int iommu_group_for_each_dev(struct iommu_group *group, void *data,
 				    int (*fn)(struct device *, void *));
 extern struct iommu_group *iommu_group_get(struct device *dev);
+extern struct iommu_group *iommu_group_ref_get(struct iommu_group *group);
 extern void iommu_group_put(struct iommu_group *group);
 extern int iommu_group_register_notifier(struct iommu_group *group,
 					 struct notifier_block *nb);
@@ -351,6 +352,9 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 		      const struct iommu_ops *ops);
 void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids);
+void iommu_register_instance(struct fwnode_handle *fwnode,
+			     const struct iommu_ops *ops);
+const struct iommu_ops *iommu_get_instance(struct fwnode_handle *fwnode);
 
 #else /* CONFIG_IOMMU_API */
 
@@ -578,6 +582,17 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 				       int num_ids)
 {
 	return -ENODEV;
+}
+
+static inline void iommu_register_instance(struct fwnode_handle *fwnode,
+					   const struct iommu_ops *ops)
+{
+}
+
+static inline
+const struct iommu_ops *iommu_get_instance(struct fwnode_handle *fwnode)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_IOMMU_API */

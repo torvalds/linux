@@ -1181,7 +1181,9 @@ map_failed:
 
 static void ibmveth_rx_mss_helper(struct sk_buff *skb, u16 mss, int lrg_pkt)
 {
+	struct tcphdr *tcph;
 	int offset = 0;
+	int hdr_len;
 
 	/* only TCP packets will be aggregated */
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -1208,13 +1210,19 @@ static void ibmveth_rx_mss_helper(struct sk_buff *skb, u16 mss, int lrg_pkt)
 	/* if mss is not set through Large Packet bit/mss in rx buffer,
 	 * expect that the mss will be written to the tcp header checksum.
 	 */
+	tcph = (struct tcphdr *)(skb->data + offset);
 	if (lrg_pkt) {
 		skb_shinfo(skb)->gso_size = mss;
 	} else if (offset) {
-		struct tcphdr *tcph = (struct tcphdr *)(skb->data + offset);
-
 		skb_shinfo(skb)->gso_size = ntohs(tcph->check);
 		tcph->check = 0;
+	}
+
+	if (skb_shinfo(skb)->gso_size) {
+		hdr_len = offset + tcph->doff * 4;
+		skb_shinfo(skb)->gso_segs =
+				DIV_ROUND_UP(skb->len - hdr_len,
+					     skb_shinfo(skb)->gso_size);
 	}
 }
 
@@ -1409,9 +1417,6 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	int new_mtu_oh = new_mtu + IBMVETH_BUFF_OH;
 	int i, rc;
 	int need_restart = 0;
-
-	if (new_mtu < IBMVETH_MIN_MTU)
-		return -EINVAL;
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		if (new_mtu_oh <= adapter->rx_buff_pool[i].buff_size)
@@ -1611,6 +1616,9 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	} else {
 		netdev->hw_features |= NETIF_F_TSO;
 	}
+
+	netdev->min_mtu = IBMVETH_MIN_MTU;
+	netdev->max_mtu = ETH_MAX_MTU;
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 

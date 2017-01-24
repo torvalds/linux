@@ -49,7 +49,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -1956,7 +1956,6 @@ static const struct net_device_ops de_netdev_ops = {
 	.ndo_start_xmit		= de_start_xmit,
 	.ndo_get_stats		= de_get_stats,
 	.ndo_tx_timeout 	= de_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

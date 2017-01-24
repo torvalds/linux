@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/remoteproc.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 
 #include "remoteproc_internal.h"

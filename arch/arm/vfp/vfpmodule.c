@@ -34,11 +34,11 @@
 /*
  * Our undef handlers (in entry.S)
  */
-void vfp_testing_entry(void);
-void vfp_support_entry(void);
-void vfp_null_entry(void);
+asmlinkage void vfp_testing_entry(void);
+asmlinkage void vfp_support_entry(void);
+asmlinkage void vfp_null_entry(void);
 
-void (*vfp_vector)(void) = vfp_null_entry;
+asmlinkage void (*vfp_vector)(void) = vfp_null_entry;
 
 /*
  * Dual-use variable.
@@ -799,7 +799,7 @@ static int __init vfp_init(void)
 	}
 
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_VFP_STARTING,
-				  "AP_ARM_VFP_STARTING", vfp_starting_cpu,
+				  "arm/vfp:starting", vfp_starting_cpu,
 				  vfp_dying_cpu);
 
 	vfp_vector = vfp_support_entry;

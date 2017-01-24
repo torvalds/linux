@@ -26,7 +26,7 @@
 #include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/security.h>
 #include <linux/seqlock.h>
 #include <linux/swap.h>
@@ -1273,38 +1273,44 @@ rename_retry:
 	goto again;
 }
 
-/*
- * Search for at least 1 mount point in the dentry's subdirs.
- * We descend to the next level whenever the d_subdirs
- * list is non-empty and continue searching.
- */
+struct check_mount {
+	struct vfsmount *mnt;
+	unsigned int mounted;
+};
 
-static enum d_walk_ret check_mount(void *data, struct dentry *dentry)
+static enum d_walk_ret path_check_mount(void *data, struct dentry *dentry)
 {
-	int *ret = data;
-	if (d_mountpoint(dentry)) {
-		*ret = 1;
+	struct check_mount *info = data;
+	struct path path = { .mnt = info->mnt, .dentry = dentry };
+
+	if (likely(!d_mountpoint(dentry)))
+		return D_WALK_CONTINUE;
+	if (__path_is_mountpoint(&path)) {
+		info->mounted = 1;
 		return D_WALK_QUIT;
 	}
 	return D_WALK_CONTINUE;
 }
 
 /**
- * have_submounts - check for mounts over a dentry
- * @parent: dentry to check.
+ * path_has_submounts - check for mounts over a dentry in the
+ *                      current namespace.
+ * @parent: path to check.
  *
  * Return true if the parent or its subdirectories contain
- * a mount point
+ * a mount point in the current namespace.
  */
-int have_submounts(struct dentry *parent)
+int path_has_submounts(const struct path *parent)
 {
-	int ret = 0;
+	struct check_mount data = { .mnt = parent->mnt, .mounted = 0 };
 
-	d_walk(parent, &ret, check_mount, NULL);
+	read_seqlock_excl(&mount_lock);
+	d_walk(parent->dentry, &data, path_check_mount, NULL);
+	read_sequnlock_excl(&mount_lock);
 
-	return ret;
+	return data.mounted;
 }
-EXPORT_SYMBOL(have_submounts);
+EXPORT_SYMBOL(path_has_submounts);
 
 /*
  * Called by mount code to set a mountpoint and check if the mountpoint is

@@ -48,6 +48,8 @@ struct pxa_reg_layout {
 	u32 isar;
 	u32 ilcr;
 	u32 iwcr;
+	u32 fm;
+	u32 hs;
 };
 
 enum pxa_i2c_types {
@@ -55,7 +57,11 @@ enum pxa_i2c_types {
 	REGS_PXA3XX,
 	REGS_CE4100,
 	REGS_PXA910,
+	REGS_A3700,
 };
+
+#define ICR_BUSMODE_FM	(1 << 16)	   /* shifted fast mode for armada-3700 */
+#define ICR_BUSMODE_HS	(1 << 17)	   /* shifted high speed mode for armada-3700 */
 
 /*
  * I2C registers definitions
@@ -91,6 +97,15 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.ilcr = 0x28,
 		.iwcr = 0x30,
 	},
+	[REGS_A3700] = {
+		.ibmr =	0x00,
+		.idbr =	0x04,
+		.icr =	0x08,
+		.isr =	0x0c,
+		.isar =	0x10,
+		.fm = ICR_BUSMODE_FM,
+		.hs = ICR_BUSMODE_HS,
+	},
 };
 
 static const struct platform_device_id i2c_pxa_id_table[] = {
@@ -98,6 +113,7 @@ static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ "pxa3xx-pwri2c",	REGS_PXA3XX },
 	{ "ce4100-i2c",		REGS_CE4100 },
 	{ "pxa910-i2c",		REGS_PXA910 },
+	{ "armada-3700-i2c",	REGS_A3700  },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
@@ -193,6 +209,8 @@ struct pxa_i2c {
 	unsigned char		master_code;
 	unsigned long		rate;
 	bool			highmode_enter;
+	u32			fm_mask;
+	u32			hs_mask;
 };
 
 #define _IBMR(i2c)	((i2c)->reg_ibmr)
@@ -503,8 +521,8 @@ static void i2c_pxa_reset(struct pxa_i2c *i2c)
 		writel(i2c->slave_addr, _ISAR(i2c));
 
 	/* set control register values */
-	writel(I2C_ICR_INIT | (i2c->fast_mode ? ICR_FM : 0), _ICR(i2c));
-	writel(readl(_ICR(i2c)) | (i2c->high_mode ? ICR_HS : 0), _ICR(i2c));
+	writel(I2C_ICR_INIT | (i2c->fast_mode ? i2c->fm_mask : 0), _ICR(i2c));
+	writel(readl(_ICR(i2c)) | (i2c->high_mode ? i2c->hs_mask : 0), _ICR(i2c));
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 	dev_info(&i2c->adap.dev, "Enabling slave mode\n");
@@ -1137,6 +1155,7 @@ static const struct of_device_id i2c_pxa_dt_ids[] = {
 	{ .compatible = "mrvl,pxa-i2c", .data = (void *)REGS_PXA2XX },
 	{ .compatible = "mrvl,pwri2c", .data = (void *)REGS_PXA3XX },
 	{ .compatible = "mrvl,mmp-twsi", .data = (void *)REGS_PXA910 },
+	{ .compatible = "marvell,armada-3700-i2c", .data = (void *)REGS_A3700 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, i2c_pxa_dt_ids);
@@ -1234,6 +1253,9 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->reg_idbr = i2c->reg_base + pxa_reg_layout[i2c_type].idbr;
 	i2c->reg_icr = i2c->reg_base + pxa_reg_layout[i2c_type].icr;
 	i2c->reg_isr = i2c->reg_base + pxa_reg_layout[i2c_type].isr;
+	i2c->fm_mask = pxa_reg_layout[i2c_type].fm ? : ICR_FM;
+	i2c->hs_mask = pxa_reg_layout[i2c_type].hs ? : ICR_HS;
+
 	if (i2c_type != REGS_CE4100)
 		i2c->reg_isar = i2c->reg_base + pxa_reg_layout[i2c_type].isar;
 

@@ -3,7 +3,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corp. 2002, 2015
+ * Copyright IBM Corp. 2002, 2016
  */
 
 #ifndef ZFCP_EXT_H
@@ -35,6 +35,8 @@ extern void zfcp_dbf_adapter_unregister(struct zfcp_adapter *);
 extern void zfcp_dbf_rec_trig(char *, struct zfcp_adapter *,
 			      struct zfcp_port *, struct scsi_device *, u8, u8);
 extern void zfcp_dbf_rec_run(char *, struct zfcp_erp_action *);
+extern void zfcp_dbf_rec_run_lvl(int level, char *tag,
+				 struct zfcp_erp_action *erp);
 extern void zfcp_dbf_rec_run_wka(char *, struct zfcp_fc_wka_port *, u64);
 extern void zfcp_dbf_hba_fsf_uss(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_fsf_res(char *, int, struct zfcp_fsf_req *);
@@ -84,8 +86,8 @@ extern void zfcp_fc_link_test_work(struct work_struct *);
 extern void zfcp_fc_wka_ports_force_offline(struct zfcp_fc_wka_ports *);
 extern int zfcp_fc_gs_setup(struct zfcp_adapter *);
 extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
-extern int zfcp_fc_exec_bsg_job(struct fc_bsg_job *);
-extern int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *);
+extern int zfcp_fc_exec_bsg_job(struct bsg_job *);
+extern int zfcp_fc_timeout_bsg_job(struct bsg_job *);
 extern void zfcp_fc_sym_name_update(struct work_struct *);
 extern unsigned int zfcp_fc_port_scan_backoff(void);
 extern void zfcp_fc_conditional_port_scan(struct zfcp_adapter *);

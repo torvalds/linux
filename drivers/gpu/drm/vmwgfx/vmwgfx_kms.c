@@ -516,7 +516,7 @@ static const struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 					   struct vmw_surface *surface,
 					   struct vmw_framebuffer **out,
-					   const struct drm_mode_fb_cmd
+					   const struct drm_mode_fb_cmd2
 					   *mode_cmd,
 					   bool is_dmabuf_proxy)
 
@@ -525,6 +525,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	struct vmw_framebuffer_surface *vfbs;
 	enum SVGA3dSurfaceFormat format;
 	int ret;
+	struct drm_format_name_buf format_name;
 
 	/* 3D is only supported on HWv8 and newer hosts */
 	if (dev_priv->active_display_unit == vmw_du_legacy)
@@ -548,21 +549,22 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	switch (mode_cmd->depth) {
-	case 32:
+	switch (mode_cmd->pixel_format) {
+	case DRM_FORMAT_ARGB8888:
 		format = SVGA3D_A8R8G8B8;
 		break;
-	case 24:
+	case DRM_FORMAT_XRGB8888:
 		format = SVGA3D_X8R8G8B8;
 		break;
-	case 16:
+	case DRM_FORMAT_RGB565:
 		format = SVGA3D_R5G6B5;
 		break;
-	case 15:
+	case DRM_FORMAT_XRGB1555:
 		format = SVGA3D_A1R5G5B5;
 		break;
 	default:
-		DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
+		DRM_ERROR("Invalid pixel format: %s\n",
+			  drm_get_format_name(mode_cmd->pixel_format, &format_name));
 		return -EINVAL;
 	}
 
@@ -581,14 +583,9 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	/* XXX get the first 3 from the surface info */
-	vfbs->base.base.bits_per_pixel = mode_cmd->bpp;
-	vfbs->base.base.pitches[0] = mode_cmd->pitch;
-	vfbs->base.base.depth = mode_cmd->depth;
-	vfbs->base.base.width = mode_cmd->width;
-	vfbs->base.base.height = mode_cmd->height;
+	drm_helper_mode_fill_fb_struct(&vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
-	vfbs->base.user_handle = mode_cmd->handle;
+	vfbs->base.user_handle = mode_cmd->handles[0];
 	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
 
 	*out = &vfbs->base;
@@ -755,7 +752,7 @@ static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
  * 0 on success, error code otherwise
  */
 static int vmw_create_dmabuf_proxy(struct drm_device *dev,
-				   const struct drm_mode_fb_cmd *mode_cmd,
+				   const struct drm_mode_fb_cmd2 *mode_cmd,
 				   struct vmw_dma_buffer *dmabuf_mob,
 				   struct vmw_surface **srf_out)
 {
@@ -763,17 +760,18 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 	struct drm_vmw_size content_base_size;
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
+	struct drm_format_name_buf format_name;
 	int ret;
 
-	switch (mode_cmd->depth) {
-	case 32:
-	case 24:
+	switch (mode_cmd->pixel_format) {
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB8888:
 		format = SVGA3D_X8R8G8B8;
 		bytes_pp = 4;
 		break;
 
-	case 16:
-	case 15:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB1555:
 		format = SVGA3D_R5G6B5;
 		bytes_pp = 2;
 		break;
@@ -784,11 +782,12 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 		break;
 
 	default:
-		DRM_ERROR("Invalid framebuffer format %d\n", mode_cmd->depth);
+		DRM_ERROR("Invalid framebuffer format %s\n",
+			  drm_get_format_name(mode_cmd->pixel_format, &format_name));
 		return -EINVAL;
 	}
 
-	content_base_size.width  = mode_cmd->pitch / bytes_pp;
+	content_base_size.width  = mode_cmd->pitches[0] / bytes_pp;
 	content_base_size.height = mode_cmd->height;
 	content_base_size.depth  = 1;
 
@@ -826,16 +825,17 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 					  struct vmw_dma_buffer *dmabuf,
 					  struct vmw_framebuffer **out,
-					  const struct drm_mode_fb_cmd
+					  const struct drm_mode_fb_cmd2
 					  *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_dmabuf *vfbd;
 	unsigned int requested_size;
+	struct drm_format_name_buf format_name;
 	int ret;
 
-	requested_size = mode_cmd->height * mode_cmd->pitch;
+	requested_size = mode_cmd->height * mode_cmd->pitches[0];
 	if (unlikely(requested_size > dmabuf->base.num_pages * PAGE_SIZE)) {
 		DRM_ERROR("Screen buffer object size is too small "
 			  "for requested mode.\n");
@@ -844,27 +844,16 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 
 	/* Limited framebuffer color depth support for screen objects */
 	if (dev_priv->active_display_unit == vmw_du_screen_object) {
-		switch (mode_cmd->depth) {
-		case 32:
-		case 24:
-			/* Only support 32 bpp for 32 and 24 depth fbs */
-			if (mode_cmd->bpp == 32)
-				break;
-
-			DRM_ERROR("Invalid color depth/bbp: %d %d\n",
-				  mode_cmd->depth, mode_cmd->bpp);
-			return -EINVAL;
-		case 16:
-		case 15:
-			/* Only support 16 bpp for 16 and 15 depth fbs */
-			if (mode_cmd->bpp == 16)
-				break;
-
-			DRM_ERROR("Invalid color depth/bbp: %d %d\n",
-				  mode_cmd->depth, mode_cmd->bpp);
-			return -EINVAL;
+		switch (mode_cmd->pixel_format) {
+		case DRM_FORMAT_XRGB8888:
+		case DRM_FORMAT_ARGB8888:
+			break;
+		case DRM_FORMAT_XRGB1555:
+		case DRM_FORMAT_RGB565:
+			break;
 		default:
-			DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
+			DRM_ERROR("Invalid pixel format: %s\n",
+				  drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			return -EINVAL;
 		}
 	}
@@ -875,14 +864,10 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
-	vfbd->base.base.pitches[0] = mode_cmd->pitch;
-	vfbd->base.base.depth = mode_cmd->depth;
-	vfbd->base.base.width = mode_cmd->width;
-	vfbd->base.base.height = mode_cmd->height;
+	drm_helper_mode_fill_fb_struct(&vfbd->base.base, mode_cmd);
 	vfbd->base.dmabuf = true;
 	vfbd->buffer = vmw_dmabuf_reference(dmabuf);
-	vfbd->base.user_handle = mode_cmd->handle;
+	vfbd->base.user_handle = mode_cmd->handles[0];
 	*out = &vfbd->base;
 
 	ret = drm_framebuffer_init(dev, &vfbd->base.base,
@@ -916,7 +901,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			struct vmw_dma_buffer *dmabuf,
 			struct vmw_surface *surface,
 			bool only_2d,
-			const struct drm_mode_fb_cmd *mode_cmd)
+			const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct vmw_framebuffer *vfb = NULL;
 	bool is_dmabuf_proxy = false;
@@ -971,7 +956,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 
 static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 						 struct drm_file *file_priv,
-						 const struct drm_mode_fb_cmd2 *mode_cmd2)
+						 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
@@ -979,15 +964,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *bo = NULL;
 	struct ttm_base_object *user_obj;
-	struct drm_mode_fb_cmd mode_cmd;
 	int ret;
-
-	mode_cmd.width = mode_cmd2->width;
-	mode_cmd.height = mode_cmd2->height;
-	mode_cmd.pitch = mode_cmd2->pitches[0];
-	mode_cmd.handle = mode_cmd2->handles[0];
-	drm_fb_get_bpp_depth(mode_cmd2->pixel_format, &mode_cmd.depth,
-				    &mode_cmd.bpp);
 
 	/**
 	 * This code should be conditioned on Screen Objects not being used.
@@ -996,8 +973,8 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	 */
 
 	if (!vmw_kms_validate_mode_vram(dev_priv,
-					mode_cmd.pitch,
-					mode_cmd.height)) {
+					mode_cmd->pitches[0],
+					mode_cmd->height)) {
 		DRM_ERROR("Requested mode exceed bounding box limit.\n");
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1011,7 +988,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	 * command stream using user-space handles.
 	 */
 
-	user_obj = ttm_base_object_lookup(tfile, mode_cmd.handle);
+	user_obj = ttm_base_object_lookup(tfile, mode_cmd->handles[0]);
 	if (unlikely(user_obj == NULL)) {
 		DRM_ERROR("Could not locate requested kms frame buffer.\n");
 		return ERR_PTR(-ENOENT);
@@ -1023,14 +1000,14 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	/* returns either a dmabuf or surface */
 	ret = vmw_user_lookup_handle(dev_priv, tfile,
-				     mode_cmd.handle,
+				     mode_cmd->handles[0],
 				     &surface, &bo);
 	if (ret)
 		goto err_out;
 
 	vfb = vmw_kms_new_framebuffer(dev_priv, bo, surface,
 				      !(dev_priv->capabilities & SVGA_CAP_3D),
-				      &mode_cmd);
+				      mode_cmd);
 	if (IS_ERR(vfb)) {
 		ret = PTR_ERR(vfb);
 		goto err_out;

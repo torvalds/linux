@@ -31,7 +31,7 @@
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*****************************************************************************/
 #include <asm/nwflash.h>

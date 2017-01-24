@@ -2211,7 +2211,7 @@ static int dwceqos_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 tx_error:
 	dwceqos_tx_rollback(lp, &trans);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return 0;
 }
 

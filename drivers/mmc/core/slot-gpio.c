@@ -258,6 +258,14 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 }
 EXPORT_SYMBOL(mmc_gpiod_request_cd);
 
+bool mmc_can_gpio_cd(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+
+	return ctx->cd_gpio ? true : false;
+}
+EXPORT_SYMBOL(mmc_can_gpio_cd);
+
 /**
  * mmc_gpiod_request_ro - request a gpio descriptor for write protection
  * @host: mmc host

@@ -594,6 +594,9 @@ static int __init cstate_probe(const struct cstate_model *cm)
 
 static inline void cstate_cleanup(void)
 {
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
+
 	if (has_cstate_core)
 		perf_pmu_unregister(&cstate_core_pmu);
 
@@ -606,16 +609,16 @@ static int __init cstate_init(void)
 	int err;
 
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_STARTING,
-			  "AP_PERF_X86_CSTATE_STARTING", cstate_cpu_init,
-			  NULL);
+			  "perf/x86/cstate:starting", cstate_cpu_init, NULL);
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_ONLINE,
-			  "AP_PERF_X86_CSTATE_ONLINE", NULL, cstate_cpu_exit);
+			  "perf/x86/cstate:online", NULL, cstate_cpu_exit);
 
 	if (has_cstate_core) {
 		err = perf_pmu_register(&cstate_core_pmu, cstate_core_pmu.name, -1);
 		if (err) {
 			has_cstate_core = false;
 			pr_info("Failed to register cstate core pmu\n");
+			cstate_cleanup();
 			return err;
 		}
 	}
@@ -629,8 +632,7 @@ static int __init cstate_init(void)
 			return err;
 		}
 	}
-
-	return err;
+	return 0;
 }
 
 static int __init cstate_pmu_init(void)
@@ -655,8 +657,6 @@ module_init(cstate_pmu_init);
 
 static void __exit cstate_pmu_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
 	cstate_cleanup();
 }
 module_exit(cstate_pmu_exit);

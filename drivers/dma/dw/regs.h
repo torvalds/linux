@@ -12,7 +12,8 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 
-#define DW_DMA_MAX_NR_CHANNELS	8
+#include "internal.h"
+
 #define DW_DMA_MAX_NR_REQUESTS	16
 
 /* flow controller */

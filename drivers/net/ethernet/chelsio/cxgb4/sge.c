@@ -377,8 +377,8 @@ unmap:			dma_unmap_page(dev, be64_to_cpu(p->addr[0]),
  *	Reclaims Tx descriptors from an SGE Tx queue and frees the associated
  *	Tx buffers.  Called with the Tx queue lock held.
  */
-static void free_tx_desc(struct adapter *adap, struct sge_txq *q,
-			 unsigned int n, bool unmap)
+void free_tx_desc(struct adapter *adap, struct sge_txq *q,
+		  unsigned int n, bool unmap)
 {
 	struct tx_sw_desc *d;
 	unsigned int cidx = q->cidx;
@@ -1543,7 +1543,7 @@ static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
  *	inability to map packets.  A periodic timer attempts to restart
  *	queues so marked.
  */
-static void txq_stop_maperr(struct sge_ofld_txq *q)
+static void txq_stop_maperr(struct sge_uld_txq *q)
 {
 	q->mapping_err++;
 	q->q.stops++;
@@ -1559,7 +1559,7 @@ static void txq_stop_maperr(struct sge_ofld_txq *q)
  *	Stops an offload Tx queue that has become full and modifies the packet
  *	being written to request a wakeup.
  */
-static void ofldtxq_stop(struct sge_ofld_txq *q, struct sk_buff *skb)
+static void ofldtxq_stop(struct sge_uld_txq *q, struct sk_buff *skb)
 {
 	struct fw_wr_hdr *wr = (struct fw_wr_hdr *)skb->data;
 
@@ -1586,7 +1586,7 @@ static void ofldtxq_stop(struct sge_ofld_txq *q, struct sk_buff *skb)
  *	boolean "service_ofldq_running" to make sure that only one instance
  *	is ever running at a time ...
  */
-static void service_ofldq(struct sge_ofld_txq *q)
+static void service_ofldq(struct sge_uld_txq *q)
 {
 	u64 *pos, *before, *end;
 	int credits;
@@ -1706,7 +1706,7 @@ static void service_ofldq(struct sge_ofld_txq *q)
  *
  *	Send an offload packet through an SGE offload queue.
  */
-static int ofld_xmit(struct sge_ofld_txq *q, struct sk_buff *skb)
+static int ofld_xmit(struct sge_uld_txq *q, struct sk_buff *skb)
 {
 	skb->priority = calc_tx_flits_ofld(skb);       /* save for restart */
 	spin_lock(&q->sendq.lock);
@@ -1735,7 +1735,7 @@ static int ofld_xmit(struct sge_ofld_txq *q, struct sk_buff *skb)
  */
 static void restart_ofldq(unsigned long data)
 {
-	struct sge_ofld_txq *q = (struct sge_ofld_txq *)data;
+	struct sge_uld_txq *q = (struct sge_uld_txq *)data;
 
 	spin_lock(&q->sendq.lock);
 	q->full = 0;            /* the queue actually is completely empty now */
@@ -1767,9 +1767,15 @@ static inline unsigned int is_ctrl_pkt(const struct sk_buff *skb)
 	return skb->queue_mapping & 1;
 }
 
-static inline int ofld_send(struct adapter *adap, struct sk_buff *skb)
+static inline int uld_send(struct adapter *adap, struct sk_buff *skb,
+			   unsigned int tx_uld_type)
 {
+	struct sge_uld_txq_info *txq_info;
+	struct sge_uld_txq *txq;
 	unsigned int idx = skb_txq(skb);
+
+	txq_info = adap->sge.uld_txq_info[tx_uld_type];
+	txq = &txq_info->uldtxq[idx];
 
 	if (unlikely(is_ctrl_pkt(skb))) {
 		/* Single ctrl queue is a requirement for LE workaround path */
@@ -1777,7 +1783,7 @@ static inline int ofld_send(struct adapter *adap, struct sk_buff *skb)
 			idx = 0;
 		return ctrl_xmit(&adap->sge.ctrlq[idx], skb);
 	}
-	return ofld_xmit(&adap->sge.ofldtxq[idx], skb);
+	return ofld_xmit(txq, skb);
 }
 
 /**
@@ -1794,7 +1800,7 @@ int t4_ofld_send(struct adapter *adap, struct sk_buff *skb)
 	int ret;
 
 	local_bh_disable();
-	ret = ofld_send(adap, skb);
+	ret = uld_send(adap, skb, CXGB4_TX_OFLD);
 	local_bh_enable();
 	return ret;
 }
@@ -1812,6 +1818,39 @@ int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb)
 	return t4_ofld_send(netdev2adap(dev), skb);
 }
 EXPORT_SYMBOL(cxgb4_ofld_send);
+
+/**
+ *	t4_crypto_send - send crypto packet
+ *	@adap: the adapter
+ *	@skb: the packet
+ *
+ *	Sends crypto packet.  We use the packet queue_mapping to select the
+ *	appropriate Tx queue as follows: bit 0 indicates whether the packet
+ *	should be sent as regular or control, bits 1-15 select the queue.
+ */
+static int t4_crypto_send(struct adapter *adap, struct sk_buff *skb)
+{
+	int ret;
+
+	local_bh_disable();
+	ret = uld_send(adap, skb, CXGB4_TX_CRYPTO);
+	local_bh_enable();
+	return ret;
+}
+
+/**
+ *	cxgb4_crypto_send - send crypto packet
+ *	@dev: the net device
+ *	@skb: the packet
+ *
+ *	Sends crypto packet.  This is an exported version of @t4_crypto_send,
+ *	intended for ULDs.
+ */
+int cxgb4_crypto_send(struct net_device *dev, struct sk_buff *skb)
+{
+	return t4_crypto_send(netdev2adap(dev), skb);
+}
+EXPORT_SYMBOL(cxgb4_crypto_send);
 
 static inline void copy_frags(struct sk_buff *skb,
 			      const struct pkt_gl *gl, unsigned int offset)
@@ -2479,7 +2518,7 @@ static void sge_tx_timer_cb(unsigned long data)
 	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
 		for (m = s->txq_maperr[i]; m; m &= m - 1) {
 			unsigned long id = __ffs(m) + i * BITS_PER_LONG;
-			struct sge_ofld_txq *txq = s->egr_map[id];
+			struct sge_uld_txq *txq = s->egr_map[id];
 
 			clear_bit(id, s->txq_maperr);
 			tasklet_schedule(&txq->qresume_tsk);
@@ -2799,6 +2838,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 		return ret;
 	}
 
+	txq->q.q_type = CXGB4_TXQ_ETH;
 	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->txq = netdevq;
 	txq->tso = txq->tx_cso = txq->vlan_ins = 0;
@@ -2852,6 +2892,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 		return ret;
 	}
 
+	txq->q.q_type = CXGB4_TXQ_CTRL;
 	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_G(ntohl(c.cmpliqid_eqid)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
@@ -2872,13 +2913,15 @@ int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 	return t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
 }
 
-int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
-			  struct net_device *dev, unsigned int iqid)
+int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
+			 struct net_device *dev, unsigned int iqid,
+			 unsigned int uld_type)
 {
 	int ret, nentries;
 	struct fw_eq_ofld_cmd c;
 	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
+	int cmd = FW_EQ_OFLD_CMD;
 
 	/* Add status entries */
 	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
@@ -2891,7 +2934,9 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
+	if (unlikely(uld_type == CXGB4_TX_CRYPTO))
+		cmd = FW_EQ_CTRL_CMD;
+	c.op_to_vfn = htonl(FW_CMD_OP_V(cmd) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
 			    FW_EQ_OFLD_CMD_PFN_V(adap->pf) |
 			    FW_EQ_OFLD_CMD_VFN_V(0));
@@ -2919,6 +2964,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 		return ret;
 	}
 
+	txq->q.q_type = CXGB4_TXQ_ULD;
 	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
@@ -2928,7 +2974,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 	return 0;
 }
 
-static void free_txq(struct adapter *adap, struct sge_txq *q)
+void free_txq(struct adapter *adap, struct sge_txq *q)
 {
 	struct sge *s = &adap->sge;
 
@@ -3025,21 +3071,6 @@ void t4_free_sge_resources(struct adapter *adap)
 		}
 	}
 
-	/* clean up offload Tx queues */
-	for (i = 0; i < ARRAY_SIZE(adap->sge.ofldtxq); i++) {
-		struct sge_ofld_txq *q = &adap->sge.ofldtxq[i];
-
-		if (q->q.desc) {
-			tasklet_kill(&q->qresume_tsk);
-			t4_ofld_eq_free(adap, adap->mbox, adap->pf, 0,
-					q->q.cntxt_id);
-			free_tx_desc(adap, &q->q, q->q.in_use, false);
-			kfree(q->q.sdesc);
-			__skb_queue_purge(&q->sendq);
-			free_txq(adap, &q->q);
-		}
-	}
-
 	/* clean up control Tx queues */
 	for (i = 0; i < ARRAY_SIZE(adap->sge.ctrlq); i++) {
 		struct sge_ctrl_txq *cq = &adap->sge.ctrlq[i];
@@ -3092,12 +3123,34 @@ void t4_sge_stop(struct adapter *adap)
 	if (s->tx_timer.function)
 		del_timer_sync(&s->tx_timer);
 
-	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++) {
-		struct sge_ofld_txq *q = &s->ofldtxq[i];
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info;
 
-		if (q->q.desc)
-			tasklet_kill(&q->qresume_tsk);
+		txq_info = adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+		if (txq_info) {
+			struct sge_uld_txq *txq = txq_info->uldtxq;
+
+			for_each_ofldtxq(&adap->sge, i) {
+				if (txq->q.desc)
+					tasklet_kill(&txq->qresume_tsk);
+			}
+		}
 	}
+
+	if (is_pci_uld(adap)) {
+		struct sge_uld_txq_info *txq_info;
+
+		txq_info = adap->sge.uld_txq_info[CXGB4_TX_CRYPTO];
+		if (txq_info) {
+			struct sge_uld_txq *txq = txq_info->uldtxq;
+
+			for_each_ofldtxq(&adap->sge, i) {
+				if (txq->q.desc)
+					tasklet_kill(&txq->qresume_tsk);
+			}
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(s->ctrlq); i++) {
 		struct sge_ctrl_txq *cq = &s->ctrlq[i];
 

@@ -292,6 +292,9 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 char *acpi_ns_name_of_current_scope(struct acpi_walk_state *walk_state);
 
 acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer);
+
+acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,
 			   struct acpi_buffer *buffer, u8 no_trailing);
 

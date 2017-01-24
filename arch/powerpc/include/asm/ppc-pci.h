@@ -53,7 +53,7 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev);
 struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr);
 void eeh_slot_error_detail(struct eeh_pe *pe, int severity);
 int eeh_pci_enable(struct eeh_pe *pe, int function);
-int eeh_reset_pe(struct eeh_pe *);
+int eeh_pe_reset_full(struct eeh_pe *pe);
 void eeh_save_bars(struct eeh_dev *edev);
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
 int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);

@@ -16,11 +16,24 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   dma-buf
+   device_link
    message-based
    sound
    frame-buffer
    input
+   usb
    spi
    i2c
    hsi
+   edac
    miscellaneous
+   vme
+   80211/index
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

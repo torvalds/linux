@@ -19,32 +19,30 @@
 
 #include "../dss/omapdss.h"
 
-static const struct omap_video_timings dvic_default_timings = {
-	.x_res		= 640,
-	.y_res		= 480,
+static const struct videomode dvic_default_vm = {
+	.hactive	= 640,
+	.vactive	= 480,
 
 	.pixelclock	= 23500000,
 
-	.hfp		= 48,
-	.hsw		= 32,
-	.hbp		= 80,
+	.hfront_porch	= 48,
+	.hsync_len	= 32,
+	.hback_porch	= 80,
 
-	.vfp		= 3,
-	.vsw		= 4,
-	.vbp		= 7,
+	.vfront_porch	= 3,
+	.vsync_len	= 4,
+	.vback_porch	= 7,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH |
+			  DISPLAY_FLAGS_SYNC_NEGEDGE | DISPLAY_FLAGS_DE_HIGH |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings timings;
+	struct videomode vm;
 
 	struct i2c_adapter *i2c_adapter;
 };
@@ -90,7 +88,7 @@ static int dvic_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dvi->set_timings(in, &ddata->timings);
+	in->ops.dvi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dvi->enable(in);
 	if (r)
@@ -115,32 +113,32 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 }
 
 static void dvic_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			     struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->timings = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dvi->set_timings(in, timings);
+	in->ops.dvi->set_timings(in, vm);
 }
 
 static void dvic_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			     struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->timings;
+	*vm = ddata->vm;
 }
 
 static int dvic_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			      struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dvi->check_timings(in, timings);
+	return in->ops.dvi->check_timings(in, vm);
 }
 
 static int dvic_ddc_read(struct i2c_adapter *adapter,
@@ -287,14 +285,14 @@ static int dvic_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	ddata->timings = dvic_default_timings;
+	ddata->vm = dvic_default_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->driver = &dvic_driver;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = dvic_default_timings;
+	dssdev->panel.vm = dvic_default_vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

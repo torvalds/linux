@@ -164,14 +164,14 @@ void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val)
 
 	mutex_lock(&priv->state_lock);
 
-	if (priv->params.rx_cqe_compress == val)
+	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
 		goto unlock;
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened)
 		mlx5e_close_locked(priv->netdev);
 
-	priv->params.rx_cqe_compress = val;
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
 
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);
@@ -737,10 +737,10 @@ static inline
 struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     u16 wqe_counter, u32 cqe_bcnt)
 {
-	struct bpf_prog *xdp_prog = READ_ONCE(rq->xdp_prog);
 	struct mlx5e_dma_info *di;
 	struct sk_buff *skb;
 	void *va, *data;
+	bool consumed;
 
 	di             = &rq->dma_info[wqe_counter];
 	va             = page_address(di->page);
@@ -759,7 +759,11 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 		return NULL;
 	}
 
-	if (mlx5e_xdp_handle(rq, xdp_prog, di, data, cqe_bcnt))
+	rcu_read_lock();
+	consumed = mlx5e_xdp_handle(rq, READ_ONCE(rq->xdp_prog), di, data,
+				    cqe_bcnt);
+	rcu_read_unlock();
+	if (consumed)
 		return NULL; /* page/packet was consumed by XDP */
 
 	skb = build_skb(va, RQ_PAGE_SIZE(rq));

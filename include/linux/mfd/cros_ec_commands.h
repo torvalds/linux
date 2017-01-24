@@ -713,6 +713,90 @@ struct ec_response_get_set_value {
 /* More than one command can use these structs to get/set paramters. */
 #define EC_CMD_GSV_PAUSE_IN_S5	0x0c
 
+/*****************************************************************************/
+/* List the features supported by the firmware */
+#define EC_CMD_GET_FEATURES  0x0d
+
+/* Supported features */
+enum ec_feature_code {
+	/*
+	 * This image contains a limited set of features. Another image
+	 * in RW partition may support more features.
+	 */
+	EC_FEATURE_LIMITED = 0,
+	/*
+	 * Commands for probing/reading/writing/erasing the flash in the
+	 * EC are present.
+	 */
+	EC_FEATURE_FLASH = 1,
+	/*
+	 * Can control the fan speed directly.
+	 */
+	EC_FEATURE_PWM_FAN = 2,
+	/*
+	 * Can control the intensity of the keyboard backlight.
+	 */
+	EC_FEATURE_PWM_KEYB = 3,
+	/*
+	 * Support Google lightbar, introduced on Pixel.
+	 */
+	EC_FEATURE_LIGHTBAR = 4,
+	/* Control of LEDs  */
+	EC_FEATURE_LED = 5,
+	/* Exposes an interface to control gyro and sensors.
+	 * The host goes through the EC to access these sensors.
+	 * In addition, the EC may provide composite sensors, like lid angle.
+	 */
+	EC_FEATURE_MOTION_SENSE = 6,
+	/* The keyboard is controlled by the EC */
+	EC_FEATURE_KEYB = 7,
+	/* The AP can use part of the EC flash as persistent storage. */
+	EC_FEATURE_PSTORE = 8,
+	/* The EC monitors BIOS port 80h, and can return POST codes. */
+	EC_FEATURE_PORT80 = 9,
+	/*
+	 * Thermal management: include TMP specific commands.
+	 * Higher level than direct fan control.
+	 */
+	EC_FEATURE_THERMAL = 10,
+	/* Can switch the screen backlight on/off */
+	EC_FEATURE_BKLIGHT_SWITCH = 11,
+	/* Can switch the wifi module on/off */
+	EC_FEATURE_WIFI_SWITCH = 12,
+	/* Monitor host events, through for example SMI or SCI */
+	EC_FEATURE_HOST_EVENTS = 13,
+	/* The EC exposes GPIO commands to control/monitor connected devices. */
+	EC_FEATURE_GPIO = 14,
+	/* The EC can send i2c messages to downstream devices. */
+	EC_FEATURE_I2C = 15,
+	/* Command to control charger are included */
+	EC_FEATURE_CHARGER = 16,
+	/* Simple battery support. */
+	EC_FEATURE_BATTERY = 17,
+	/*
+	 * Support Smart battery protocol
+	 * (Common Smart Battery System Interface Specification)
+	 */
+	EC_FEATURE_SMART_BATTERY = 18,
+	/* EC can dectect when the host hangs. */
+	EC_FEATURE_HANG_DETECT = 19,
+	/* Report power information, for pit only */
+	EC_FEATURE_PMU = 20,
+	/* Another Cros EC device is present downstream of this one */
+	EC_FEATURE_SUB_MCU = 21,
+	/* Support USB Power delivery (PD) commands */
+	EC_FEATURE_USB_PD = 22,
+	/* Control USB multiplexer, for audio through USB port for instance. */
+	EC_FEATURE_USB_MUX = 23,
+	/* Motion Sensor code has an internal software FIFO */
+	EC_FEATURE_MOTION_SENSE_FIFO = 24,
+};
+
+#define EC_FEATURE_MASK_0(event_code) (1UL << (event_code % 32))
+#define EC_FEATURE_MASK_1(event_code) (1UL << (event_code - 32))
+struct ec_response_get_features {
+	uint32_t flags[2];
+} __packed;
 
 /*****************************************************************************/
 /* Flash commands */
@@ -1315,6 +1399,24 @@ enum motionsense_command {
 	 */
 	MOTIONSENSE_CMD_KB_WAKE_ANGLE = 5,
 
+	/*
+	 * Returns a single sensor data.
+	 */
+	MOTIONSENSE_CMD_DATA = 6,
+
+	/*
+	 * Perform low level calibration.. On sensors that support it, ask to
+	 * do offset calibration.
+	 */
+	MOTIONSENSE_CMD_PERFORM_CALIB = 10,
+
+	/*
+	 * Sensor Offset command is a setter/getter command for the offset used
+	 * for calibration. The offsets can be calculated by the host, or via
+	 * PERFORM_CALIB command.
+	 */
+	MOTIONSENSE_CMD_SENSOR_OFFSET = 11,
+
 	/* Number of motionsense sub-commands. */
 	MOTIONSENSE_NUM_CMDS
 };
@@ -1335,12 +1437,18 @@ enum motionsensor_id {
 enum motionsensor_type {
 	MOTIONSENSE_TYPE_ACCEL = 0,
 	MOTIONSENSE_TYPE_GYRO = 1,
+	MOTIONSENSE_TYPE_MAG = 2,
+	MOTIONSENSE_TYPE_PROX = 3,
+	MOTIONSENSE_TYPE_LIGHT = 4,
+	MOTIONSENSE_TYPE_ACTIVITY = 5,
+	MOTIONSENSE_TYPE_MAX
 };
 
 /* List of motion sensor locations. */
 enum motionsensor_location {
 	MOTIONSENSE_LOC_BASE = 0,
 	MOTIONSENSE_LOC_LID = 1,
+	MOTIONSENSE_LOC_MAX,
 };
 
 /* List of motion sensor chips. */
@@ -1361,6 +1469,31 @@ enum motionsensor_chip {
  */
 #define EC_MOTION_SENSE_NO_VALUE -1
 
+#define EC_MOTION_SENSE_INVALID_CALIB_TEMP 0x8000
+
+/* Set Calibration information */
+#define MOTION_SENSE_SET_OFFSET	1
+
+struct ec_response_motion_sensor_data {
+	/* Flags for each sensor. */
+	uint8_t flags;
+	/* Sensor number the data comes from */
+	uint8_t sensor_num;
+	/* Each sensor is up to 3-axis. */
+	union {
+		int16_t             data[3];
+		struct {
+			uint16_t    rsvd;
+			uint32_t    timestamp;
+		} __packed;
+		struct {
+			uint8_t     activity; /* motionsensor_activity */
+			uint8_t     state;
+			int16_t     add_info[2];
+		};
+	};
+} __packed;
+
 struct ec_params_motion_sense {
 	uint8_t cmd;
 	union {
@@ -1378,9 +1511,37 @@ struct ec_params_motion_sense {
 			int16_t data;
 		} ec_rate, kb_wake_angle;
 
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			uint8_t sensor_num;
+
+			/*
+			 * bit 0: If set (MOTION_SENSE_SET_OFFSET), set
+			 * the calibration information in the EC.
+			 * If unset, just retrieve calibration information.
+			 */
+			uint16_t flags;
+
+			/*
+			 * Temperature at calibration, in units of 0.01 C
+			 * 0x8000: invalid / unknown.
+			 * 0x0: 0C
+			 * 0x7fff: +327.67C
+			 */
+			int16_t temp;
+
+			/*
+			 * Offset for calibration.
+			 * Unit:
+			 * Accelerometer: 1/1024 g
+			 * Gyro:          1/1024 deg/s
+			 * Compass:       1/16 uT
+			 */
+			int16_t offset[3];
+		} __packed sensor_offset;
+
 		/* Used for MOTIONSENSE_CMD_INFO. */
 		struct {
-			/* Should be element of enum motionsensor_id. */
 			uint8_t sensor_num;
 		} info;
 
@@ -1410,11 +1571,14 @@ struct ec_response_motion_sense {
 			/* Flags representing the motion sensor module. */
 			uint8_t module_flags;
 
-			/* Flags for each sensor in enum motionsensor_id. */
-			uint8_t sensor_flags[EC_MOTION_SENSOR_COUNT];
+			/* Number of sensors managed directly by the EC. */
+			uint8_t sensor_count;
 
-			/* Array of all sensor data. Each sensor is 3-axis. */
-			int16_t data[3*EC_MOTION_SENSOR_COUNT];
+			/*
+			 * Sensor data is truncated if response_max is too small
+			 * for holding all the data.
+			 */
+			struct ec_response_motion_sensor_data sensor[0];
 		} dump;
 
 		/* Used for MOTIONSENSE_CMD_INFO. */
@@ -1429,6 +1593,9 @@ struct ec_response_motion_sense {
 			uint8_t chip;
 		} info;
 
+		/* Used for MOTIONSENSE_CMD_DATA */
+		struct ec_response_motion_sensor_data data;
+
 		/*
 		 * Used for MOTIONSENSE_CMD_EC_RATE, MOTIONSENSE_CMD_SENSOR_ODR,
 		 * MOTIONSENSE_CMD_SENSOR_RANGE, and
@@ -1438,6 +1605,12 @@ struct ec_response_motion_sense {
 			/* Current value of the parameter queried. */
 			int32_t ret;
 		} ec_rate, sensor_odr, sensor_range, kb_wake_angle;
+
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			int16_t temp;
+			int16_t offset[3];
+		} sensor_offset, perform_calib;
 	};
 } __packed;
 

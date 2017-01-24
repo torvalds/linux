@@ -100,10 +100,7 @@ static void __usbhsf_pkt_del(struct usbhs_pkt *pkt)
 
 static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 {
-	if (list_empty(&pipe->list))
-		return NULL;
-
-	return list_first_entry(&pipe->list, struct usbhs_pkt, node);
+	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
 }
 
 static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,

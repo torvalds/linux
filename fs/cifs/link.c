@@ -45,13 +45,8 @@
 	(CIFS_MF_SYMLINK_LINK_OFFSET + CIFS_MF_SYMLINK_LINK_MAXLEN)
 
 #define CIFS_MF_SYMLINK_LEN_FORMAT "XSym\n%04u\n"
-#define CIFS_MF_SYMLINK_MD5_FORMAT \
-	"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n"
-#define CIFS_MF_SYMLINK_MD5_ARGS(md5_hash) \
-	md5_hash[0],  md5_hash[1],  md5_hash[2],  md5_hash[3], \
-	md5_hash[4],  md5_hash[5],  md5_hash[6],  md5_hash[7], \
-	md5_hash[8],  md5_hash[9],  md5_hash[10], md5_hash[11],\
-	md5_hash[12], md5_hash[13], md5_hash[14], md5_hash[15]
+#define CIFS_MF_SYMLINK_MD5_FORMAT "%16phN\n"
+#define CIFS_MF_SYMLINK_MD5_ARGS(md5_hash) md5_hash
 
 static int
 symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)

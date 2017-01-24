@@ -258,9 +258,8 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* These workarounds need to be applied after ehci_setup() */
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_NEC:
-		ehci->need_io_watchdog = 0;
-		break;
 	case PCI_VENDOR_ID_INTEL:
+	case PCI_VENDOR_ID_AMD:
 		ehci->need_io_watchdog = 0;
 		break;
 	case PCI_VENDOR_ID_NVIDIA:

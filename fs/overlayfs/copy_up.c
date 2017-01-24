@@ -33,7 +33,7 @@ static int ovl_check_fd(const void *data, struct file *f, unsigned int fd)
 {
 	const struct dentry *dentry = data;
 
-	if (f->f_inode == d_inode(dentry))
+	if (file_inode(f) == d_inode(dentry))
 		pr_warn_ratelimited("overlayfs: Warning: Copying up %pD, but open R/O on fd %u which will cease to be coherent [pid=%d %s]\n",
 				    f, fd, current->pid, current->comm);
 	return 0;
@@ -153,6 +153,13 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 		goto out_fput;
 	}
 
+	/* Try to use clone_file_range to clone up within the same fs */
+	error = vfs_clone_file_range(old_file, 0, new_file, 0, len);
+	if (!error)
+		goto out;
+	/* Couldn't clone, so now we try to copy the data */
+	error = 0;
+
 	/* FIXME: copy up sparse files efficiently */
 	while (len) {
 		size_t this_len = OVL_COPY_UP_CHUNK_SIZE;
@@ -177,7 +184,7 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 
 		len -= bytes;
 	}
-
+out:
 	if (!error)
 		error = vfs_fsync(new_file, 0);
 	fput(new_file);
@@ -231,10 +238,15 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry = NULL;
 	struct dentry *upper = NULL;
-	umode_t mode = stat->mode;
 	int err;
 	const struct cred *old_creds = NULL;
 	struct cred *new_creds = NULL;
+	struct cattr cattr = {
+		/* Can't properly set mode on creation because of the umask */
+		.mode = stat->mode & S_IFMT,
+		.rdev = stat->rdev,
+		.link = link
+	};
 
 	newdentry = ovl_lookup_temp(workdir, dentry);
 	err = PTR_ERR(newdentry);
@@ -254,10 +266,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	/* Can't properly set mode on creation because of the umask */
-	stat->mode &= S_IFMT;
-	err = ovl_create_real(wdir, newdentry, stat, link, NULL, true);
-	stat->mode = mode;
+	err = ovl_create_real(wdir, newdentry, &cattr, NULL, true);
 
 	if (new_creds) {
 		revert_creds(old_creds);
@@ -296,12 +305,6 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	ovl_dentry_update(dentry, newdentry);
 	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
 	newdentry = NULL;
-
-	/*
-	 * Non-directores become opaque when copied up.
-	 */
-	if (!S_ISDIR(stat->mode))
-		ovl_dentry_set_opaque(dentry, true);
 out2:
 	dput(upper);
 out1:
@@ -317,20 +320,14 @@ out_cleanup:
 /*
  * Copy up a single dentry
  *
- * Directory renames only allowed on "pure upper" (already created on
- * upper filesystem, never copied up).  Directories which are on lower or
- * are merged may not be renamed.  For these -EXDEV is returned and
- * userspace has to deal with it.  This means, when copying up a
- * directory we can rely on it and ancestors being stable.
- *
- * Non-directory renames start with copy up of source if necessary.  The
- * actual rename will only proceed once the copy up was successful.  Copy
- * up uses upper parent i_mutex for exclusion.  Since rename can change
- * d_parent it is possible that the copy up will lock the old parent.  At
- * that point the file will have already been copied up anyway.
+ * All renames start with copy up of source if necessary.  The actual
+ * rename will only proceed once the copy up was successful.  Copy up uses
+ * upper parent i_mutex for exclusion.  Since rename can change d_parent it
+ * is possible that the copy up will lock the old parent.  At that point
+ * the file will have already been copied up anyway.
  */
-int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
-		    struct path *lowerpath, struct kstat *stat)
+static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
+			   struct path *lowerpath, struct kstat *stat)
 {
 	DEFINE_DELAYED_CALL(done);
 	struct dentry *workdir = ovl_workdir(dentry);
@@ -339,7 +336,6 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct path parentpath;
 	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
-	struct dentry *upperdentry;
 	const char *link = NULL;
 
 	if (WARN_ON(!workdir))
@@ -365,8 +361,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		pr_err("overlayfs: failed to lock workdir+upperdir\n");
 		goto out_unlock;
 	}
-	upperdentry = ovl_dentry_upper(dentry);
-	if (upperdentry) {
+	if (ovl_dentry_upper(dentry)) {
 		/* Raced with another copy-up?  Nothing to do, then... */
 		err = 0;
 		goto out_unlock;
@@ -385,7 +380,7 @@ out_unlock:
 	return err;
 }
 
-int ovl_copy_up(struct dentry *dentry)
+int ovl_copy_up_flags(struct dentry *dentry, int flags)
 {
 	int err = 0;
 	const struct cred *old_cred = ovl_override_creds(dentry->d_sb);
@@ -415,6 +410,9 @@ int ovl_copy_up(struct dentry *dentry)
 
 		ovl_path_lower(next, &lowerpath);
 		err = vfs_getattr(&lowerpath, &stat);
+		/* maybe truncate regular file. this has no effect on dirs */
+		if (flags & O_TRUNC)
+			stat.size = 0;
 		if (!err)
 			err = ovl_copy_up_one(parent, next, &lowerpath, &stat);
 
@@ -424,4 +422,9 @@ int ovl_copy_up(struct dentry *dentry)
 	revert_creds(old_cred);
 
 	return err;
+}
+
+int ovl_copy_up(struct dentry *dentry)
+{
+	return ovl_copy_up_flags(dentry, 0);
 }

@@ -8,14 +8,6 @@ Digital TV Common functions
 
 .. kernel-doc:: drivers/media/dvb-core/dvbdev.h
 
-
-
-.. kernel-doc:: drivers/media/dvb-core/dvb_math.h
-   :export: drivers/media/dvb-core/dvb_math.c
-
-.. kernel-doc:: drivers/media/dvb-core/dvbdev.h
-   :export: drivers/media/dvb-core/dvbdev.c
-
 Digital TV Ring buffer
 ----------------------
 

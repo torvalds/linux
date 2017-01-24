@@ -585,14 +585,7 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	 */
 	i = dev->fw_client_presentation_num - 1;
 	device_uuid = dev->fw_clients[i].props.protocol_name;
-	dev_name = kasprintf(GFP_KERNEL,
-		"{%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
-		device_uuid.b[3], device_uuid.b[2], device_uuid.b[1],
-		device_uuid.b[0], device_uuid.b[5], device_uuid.b[4],
-		device_uuid.b[7], device_uuid.b[6], device_uuid.b[8],
-		device_uuid.b[9], device_uuid.b[10], device_uuid.b[11],
-		device_uuid.b[12], device_uuid.b[13], device_uuid.b[14],
-		device_uuid.b[15]);
+	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", device_uuid.b);
 	if (!dev_name)
 		return	-ENOMEM;
 

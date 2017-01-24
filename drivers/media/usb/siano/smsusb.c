@@ -604,8 +604,8 @@ static int smsusb_resume(struct usb_interface *intf)
 				       intf->cur_altsetting->desc.
 				       bInterfaceNumber, 0);
 		if (rc < 0) {
-			printk(KERN_INFO "%s usb_set_interface failed, "
-			       "rc %d\n", __func__, rc);
+			printk(KERN_INFO "%s usb_set_interface failed, rc %d\n",
+			       __func__, rc);
 			return rc;
 		}
 	}

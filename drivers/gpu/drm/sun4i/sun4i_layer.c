@@ -73,12 +73,18 @@ static const struct drm_plane_funcs sun4i_backend_layer_funcs = {
 static const uint32_t sun4i_backend_layer_formats_primary[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
 
 static const uint32_t sun4i_backend_layer_formats_overlay[] = {
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_RGBA4444,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
 

@@ -7,7 +7,9 @@ Please refer to clock-bindings.txt for common clock controller binding usage.
 Please also refer to reset.txt for common reset controller binding usage.
 
 Required properties:
-- compatible: Should be "st,stm32f42xx-rcc"
+- compatible: Should be:
+  "st,stm32f42xx-rcc"
+  "st,stm32f469-rcc"
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below

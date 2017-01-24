@@ -381,3 +381,88 @@ next_table:
 	acpi_os_unmap_memory(table, length);
 	return_ACPI_STATUS(AE_OK);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_get_table
+ *
+ * PARAMETERS:  table_desc          - Table descriptor
+ *              out_table           - Where the pointer to the table is returned
+ *
+ * RETURN:      Status and pointer to the requested table
+ *
+ * DESCRIPTION: Increase a reference to a table descriptor and return the
+ *              validated table pointer.
+ *              If the table descriptor is an entry of the root table list,
+ *              this API must be invoked with ACPI_MTX_TABLES acquired.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_tb_get_table(struct acpi_table_desc *table_desc,
+		  struct acpi_table_header **out_table)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_tb_get_table);
+
+	if (table_desc->validation_count == 0) {
+
+		/* Table need to be "VALIDATED" */
+
+		status = acpi_tb_validate_table(table_desc);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	table_desc->validation_count++;
+	if (table_desc->validation_count == 0) {
+		ACPI_ERROR((AE_INFO,
+			    "Table %p, Validation count is zero after increment\n",
+			    table_desc));
+		table_desc->validation_count--;
+		return_ACPI_STATUS(AE_LIMIT);
+	}
+
+	*out_table = table_desc->pointer;
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_put_table
+ *
+ * PARAMETERS:  table_desc          - Table descriptor
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decrease a reference to a table descriptor and release the
+ *              validated table pointer if no references.
+ *              If the table descriptor is an entry of the root table list,
+ *              this API must be invoked with ACPI_MTX_TABLES acquired.
+ *
+ ******************************************************************************/
+
+void acpi_tb_put_table(struct acpi_table_desc *table_desc)
+{
+
+	ACPI_FUNCTION_TRACE(acpi_tb_put_table);
+
+	if (table_desc->validation_count == 0) {
+		ACPI_WARNING((AE_INFO,
+			      "Table %p, Validation count is zero before decrement\n",
+			      table_desc));
+		return_VOID;
+	}
+	table_desc->validation_count--;
+
+	if (table_desc->validation_count == 0) {
+
+		/* Table need to be "INVALIDATED" */
+
+		acpi_tb_invalidate_table(table_desc);
+	}
+
+	return_VOID;
+}

@@ -35,7 +35,7 @@
 
 #define IFE_TAB_MASK 15
 
-static int ife_net_id;
+static unsigned int ife_net_id;
 static int max_metacnt = IFE_META_MAX + 1;
 static struct tc_action_ops act_ife_ops;
 

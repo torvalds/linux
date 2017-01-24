@@ -216,7 +216,6 @@ static const struct cec_adap_ops vivid_cec_adap_ops = {
 
 struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
-					 struct device *parent,
 					 bool is_source)
 {
 	char name[sizeof(dev->vid_out_dev.name) + 2];
@@ -227,5 +226,5 @@ struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 		 is_source ? dev->vid_out_dev.name : dev->vid_cap_dev.name,
 		 idx);
 	return cec_allocate_adapter(&vivid_cec_adap_ops, dev,
-		name, caps, 1, parent);
+		name, caps, 1);
 }

@@ -34,7 +34,6 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "i915_gem_dmabuf.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -288,7 +287,7 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 	if (DBG_USE_CPU_RELOC)
 		return DBG_USE_CPU_RELOC > 0;
 
-	return (HAS_LLC(obj->base.dev) ||
+	return (HAS_LLC(to_i915(obj->base.dev)) ||
 		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
 		obj->cache_level != I915_CACHE_NONE);
 }
@@ -332,7 +331,8 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->page = -1;
 	cache->vaddr = 0;
 	cache->i915 = i915;
-	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
+	/* Must be a variable in the struct to allow GCC to unroll. */
+	cache->use_64bit_reloc = HAS_64BIT_RELOC(i915);
 	cache->node.allocated = false;
 }
 
@@ -370,8 +370,7 @@ static void reloc_cache_fini(struct reloc_cache *cache)
 
 			ggtt->base.clear_range(&ggtt->base,
 					       cache->node.start,
-					       cache->node.size,
-					       true);
+					       cache->node.size);
 			drm_mm_remove_node(&cache->node);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
@@ -419,17 +418,8 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	unsigned long offset;
 	void *vaddr;
 
-	if (cache->node.allocated) {
-		wmb();
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, page),
-				       cache->node.start, I915_CACHE_NONE, 0);
-		cache->page = page;
-		return unmask_page(cache->vaddr);
-	}
-
 	if (cache->vaddr) {
-		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
+		io_mapping_unmap_atomic((void __force __iomem *) unmask_page(cache->vaddr));
 	} else {
 		struct i915_vma *vma;
 		int ret;
@@ -467,6 +457,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 
 	offset = cache->node.start;
 	if (cache->node.allocated) {
+		wmb();
 		ggtt->base.insert_page(&ggtt->base,
 				       i915_gem_object_get_dma_address(obj, page),
 				       offset, I915_CACHE_NONE, 0);
@@ -474,7 +465,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		offset += page << PAGE_SHIFT;
 	}
 
-	vaddr = io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
+	vaddr = (void __force *) io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
 	cache->page = page;
 	cache->vaddr = (unsigned long)vaddr;
 
@@ -552,27 +543,13 @@ repeat:
 	return 0;
 }
 
-static bool object_is_idle(struct drm_i915_gem_object *obj)
-{
-	unsigned long active = i915_gem_object_get_active(obj);
-	int idx;
-
-	for_each_active(active, idx) {
-		if (!i915_gem_active_is_idle(&obj->last_read[idx],
-					     &obj->base.dev->struct_mutex))
-			return false;
-	}
-
-	return true;
-}
-
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
 				   struct drm_i915_gem_relocation_entry *reloc,
 				   struct reloc_cache *cache)
 {
-	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_gem_object *target_obj;
 	struct drm_i915_gem_object *target_i915_obj;
 	struct i915_vma *target_vma;
@@ -591,7 +568,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
 	 * pipe_control writes because the gpu doesn't properly redirect them
 	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(dev) &&
+	if (unlikely(IS_GEN6(dev_priv) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
 		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
 				    PIN_GLOBAL);
@@ -649,10 +626,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return -EINVAL;
 	}
 
-	/* We can't wait for rendering with pagefaults disabled */
-	if (pagefault_disabled() && !object_is_idle(obj))
-		return -EFAULT;
-
 	ret = relocate_entry(obj, reloc, cache, target_offset);
 	if (ret)
 		return ret;
@@ -679,12 +652,23 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	remain = entry->relocation_count;
 	while (remain) {
 		struct drm_i915_gem_relocation_entry *r = stack_reloc;
-		int count = remain;
-		if (count > ARRAY_SIZE(stack_reloc))
-			count = ARRAY_SIZE(stack_reloc);
+		unsigned long unwritten;
+		unsigned int count;
+
+		count = min_t(unsigned int, remain, ARRAY_SIZE(stack_reloc));
 		remain -= count;
 
-		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]))) {
+		/* This is the fast path and we cannot handle a pagefault
+		 * whilst holding the struct mutex lest the user pass in the
+		 * relocations contained within a mmaped bo. For in such a case
+		 * we, the page fault handler would call i915_gem_fault() and
+		 * we would try to acquire the struct mutex again. Obviously
+		 * this is bad and so lockdep complains vehemently.
+		 */
+		pagefault_disable();
+		unwritten = __copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]));
+		pagefault_enable();
+		if (unlikely(unwritten)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -696,11 +680,26 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 			if (ret)
 				goto out;
 
-			if (r->presumed_offset != offset &&
-			    __put_user(r->presumed_offset,
-				       &user_relocs->presumed_offset)) {
-				ret = -EFAULT;
-				goto out;
+			if (r->presumed_offset != offset) {
+				pagefault_disable();
+				unwritten = __put_user(r->presumed_offset,
+						       &user_relocs->presumed_offset);
+				pagefault_enable();
+				if (unlikely(unwritten)) {
+					/* Note that reporting an error now
+					 * leaves everything in an inconsistent
+					 * state as we have *already* changed
+					 * the relocation value inside the
+					 * object. As we have not changed the
+					 * reloc.presumed_offset or will not
+					 * change the execobject.offset, on the
+					 * call we may not rewrite the value
+					 * inside the object, leaving it
+					 * dangling and causing a GPU hang.
+					 */
+					ret = -EFAULT;
+					goto out;
+				}
 			}
 
 			user_relocs++;
@@ -740,20 +739,11 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	struct i915_vma *vma;
 	int ret = 0;
 
-	/* This is the fast path and we cannot handle a pagefault whilst
-	 * holding the struct mutex lest the user pass in the relocations
-	 * contained within a mmaped bo. For in such a case we, the page
-	 * fault handler would call i915_gem_fault() and we would try to
-	 * acquire the struct mutex again. Obviously this is bad and so
-	 * lockdep complains vehemently.
-	 */
-	pagefault_disable();
 	list_for_each_entry(vma, &eb->vmas, exec_list) {
 		ret = i915_gem_execbuffer_relocate_vma(vma, eb);
 		if (ret)
 			break;
 	}
-	pagefault_enable();
 
 	return ret;
 }
@@ -843,7 +833,7 @@ need_reloc_mappable(struct i915_vma *vma)
 		return false;
 
 	/* See also use_cpu_reloc() */
-	if (HAS_LLC(vma->obj->base.dev))
+	if (HAS_LLC(to_i915(vma->obj->base.dev)))
 		return false;
 
 	if (vma->obj->base.write_domain == I915_GEM_DOMAIN_CPU)
@@ -1111,44 +1101,20 @@ err:
 	return ret;
 }
 
-static unsigned int eb_other_engines(struct drm_i915_gem_request *req)
-{
-	unsigned int mask;
-
-	mask = ~intel_engine_flag(req->engine) & I915_BO_ACTIVE_MASK;
-	mask <<= I915_BO_ACTIVE_SHIFT;
-
-	return mask;
-}
-
 static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
 	int ret;
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		struct reservation_object *resv;
 
-		if (obj->flags & other_rings) {
-			ret = i915_gem_request_await_object
-				(req, obj, obj->base.pending_write_domain);
-			if (ret)
-				return ret;
-		}
-
-		resv = i915_gem_object_get_dmabuf_resv(obj);
-		if (resv) {
-			ret = i915_sw_fence_await_reservation
-				(&req->submit, resv, &i915_fence_ops,
-				 obj->base.pending_write_domain, 10*HZ,
-				 GFP_KERNEL | __GFP_NOWARN);
-			if (ret < 0)
-				return ret;
-		}
+		ret = i915_gem_request_await_object
+			(req, obj, obj->base.pending_write_domain);
+		if (ret)
+			return ret;
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
 			i915_gem_clflush_object(obj, false);
@@ -1296,8 +1262,6 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
-	obj->dirty = 1; /* be paranoid  */
-
 	/* Add a reference if we're newly entering the active list.
 	 * The order in which we add operations to the retirement queue is
 	 * vital here: mark_active adds to the start of the callback list,
@@ -1305,15 +1269,15 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_object_is_active(obj))
-		i915_gem_object_get(obj);
-	i915_gem_object_set_active(obj, idx);
-	i915_gem_active_set(&obj->last_read[idx], req);
+	if (!i915_vma_is_active(vma))
+		obj->active_count++;
+	i915_vma_set_active(vma, idx);
+	i915_gem_active_set(&vma->last_read[idx], req);
+	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
 	if (flags & EXEC_OBJECT_WRITE) {
-		i915_gem_active_set(&obj->last_write, req);
-
-		intel_fb_obj_invalidate(obj, ORIGIN_CS);
+		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
+			i915_gem_active_set(&obj->frontbuffer_write, req);
 
 		/* update for the implicit flush after a batch */
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
@@ -1323,21 +1287,13 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_gem_active_set(&vma->last_fence, req);
-
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], req);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
 
 static void eb_export_fence(struct drm_i915_gem_object *obj,
 			    struct drm_i915_gem_request *req,
 			    unsigned int flags)
 {
-	struct reservation_object *resv;
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (!resv)
-		return;
+	struct reservation_object *resv = obj->resv;
 
 	/* Ignore errors from failing to allocate the new fence, we can't
 	 * handle an error right now. Worst case should be missed
@@ -1607,12 +1563,12 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 			return NULL;
 		}
 
-		engine = &dev_priv->engine[_VCS(bsd_idx)];
+		engine = dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		engine = &dev_priv->engine[user_ring_map[user_ring_id]];
+		engine = dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_engine_initialized(engine)) {
+	if (!engine) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
 		return NULL;
 	}
@@ -1667,7 +1623,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
-		if (!HAS_RESOURCE_STREAMER(dev)) {
+		if (!HAS_RESOURCE_STREAMER(dev_priv)) {
 			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
 			return -EINVAL;
 		}
@@ -1921,7 +1877,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		exec2_list[i].relocs_ptr = exec_list[i].relocs_ptr;
 		exec2_list[i].alignment = exec_list[i].alignment;
 		exec2_list[i].offset = exec_list[i].offset;
-		if (INTEL_INFO(dev)->gen < 4)
+		if (INTEL_GEN(to_i915(dev)) < 4)
 			exec2_list[i].flags = EXEC_OBJECT_NEEDS_FENCE;
 		else
 			exec2_list[i].flags = 0;

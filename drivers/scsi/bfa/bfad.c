@@ -27,7 +27,7 @@
 #include <linux/fs.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fcntl.h>
 
 #include "bfad_drv.h"

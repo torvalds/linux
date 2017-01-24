@@ -113,13 +113,18 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 	if (inode->i_state & I_NEW) {
 		rc = ll_read_inode2(inode, md);
 		if (!rc && S_ISREG(inode->i_mode) &&
-		    !ll_i2info(inode)->lli_clob) {
-			CDEBUG(D_INODE, "%s: apply lsm %p to inode "DFID"\n",
-			       ll_get_fsname(sb, NULL, 0), md->lsm,
-			       PFID(ll_inode2fid(inode)));
+		    !ll_i2info(inode)->lli_clob)
 			rc = cl_file_inode_init(inode, md);
-		}
+
 		if (rc) {
+			/*
+			 * Let's clear directory lsm here, otherwise
+			 * make_bad_inode() will reset the inode mode
+			 * to regular, then ll_clear_inode will not
+			 * be able to clear lsm_md
+			 */
+			if (S_ISDIR(inode->i_mode))
+				ll_dir_clear_lsm_md(inode);
 			make_bad_inode(inode);
 			unlock_new_inode(inode);
 			iput(inode);
@@ -132,6 +137,8 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p): rc = %d\n",
 		       PFID(&md->body->mbo_fid1), inode, rc);
 		if (rc) {
+			if (S_ISDIR(inode->i_mode))
+				ll_dir_clear_lsm_md(inode);
 			iput(inode);
 			inode = ERR_PTR(rc);
 		}
@@ -258,7 +265,9 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			struct ll_inode_info *lli = ll_i2info(inode);
 
 			spin_lock(&lli->lli_lock);
-			lli->lli_flags &= ~LLIF_MDS_SIZE_LOCK;
+			LTIME_S(inode->i_mtime) = 0;
+			LTIME_S(inode->i_atime) = 0;
+			LTIME_S(inode->i_ctime) = 0;
 			spin_unlock(&lli->lli_lock);
 		}
 
@@ -287,11 +296,39 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 				hash = cl_fid_build_ino(&lli->lli_pfid,
 							ll_need_32bit_api(ll_i2sbi(inode)));
-
-				master_inode = ilookup5(inode->i_sb, hash,
-							ll_test_inode_by_fid,
-							(void *)&lli->lli_pfid);
-				if (master_inode && !IS_ERR(master_inode)) {
+				/*
+				 * Do not lookup the inode with ilookup5,
+				 * otherwise it will cause dead lock,
+				 *
+				 * 1. Client1 send chmod req to the MDT0, then
+				 * on MDT0, it enqueues master and all of its
+				 * slaves lock, (mdt_attr_set() ->
+				 * mdt_lock_slaves()), after gets master and
+				 * stripe0 lock, it will send the enqueue req
+				 * (for stripe1) to MDT1, then MDT1 finds the
+				 * lock has been granted to client2. Then MDT1
+				 * sends blocking ast to client2.
+				 *
+				 * 2. At the same time, client2 tries to unlink
+				 * the striped dir (rm -rf striped_dir), and
+				 * during lookup, it will hold the master inode
+				 * of the striped directory, whose inode state
+				 * is NEW, then tries to revalidate all of its
+				 * slaves, (ll_prep_inode()->ll_iget()->
+				 * ll_read_inode2()-> ll_update_inode().). And
+				 * it will be blocked on the server side because
+				 * of 1.
+				 *
+				 * 3. Then the client get the blocking_ast req,
+				 * cancel the lock, but being blocked if using
+				 * ->ilookup5()), because master inode state is
+				 *  NEW.
+				 */
+				master_inode = ilookup5_nowait(inode->i_sb,
+							       hash,
+							       ll_test_inode_by_fid,
+							       (void *)&lli->lli_pfid);
+				if (master_inode) {
 					ll_invalidate_negative_children(master_inode);
 					iput(master_inode);
 				}
@@ -395,17 +432,9 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
  */
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
-	struct dentry *new;
-	int rc;
-
 	if (inode) {
-		new = ll_find_alias(inode, de);
+		struct dentry *new = ll_find_alias(inode, de);
 		if (new) {
-			rc = ll_d_init(new);
-			if (rc < 0) {
-				dput(new);
-				return ERR_PTR(rc);
-			}
 			d_move(new, de);
 			iput(inode);
 			CDEBUG(D_DENTRY,
@@ -414,9 +443,6 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 			return new;
 		}
 	}
-	rc = ll_d_init(de);
-	if (rc < 0)
-		return ERR_PTR(rc);
 	d_add(de, inode);
 	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
 	       de, d_inode(de), d_count(de), de->d_flags);
@@ -534,6 +560,10 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 			goto out;
 		}
 	}
+
+	if (it->it_op & IT_OPEN && it->it_flags & FMODE_WRITE &&
+	    dentry->d_sb->s_flags & MS_RDONLY)
+		return ERR_PTR(-EROFS);
 
 	if (it->it_op & IT_CREAT)
 		opc = LUSTRE_OPC_CREATE;
@@ -801,7 +831,8 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(inode);
 
 	d_instantiate(dentry, inode);
-	return 0;
+
+	return ll_init_security(dentry, inode, dir);
 }
 
 void ll_update_times(struct ptlrpc_request *request, struct inode *inode)
@@ -896,6 +927,8 @@ again:
 		goto err_exit;
 
 	d_instantiate(dentry, inode);
+
+	err = ll_init_security(dentry, inode, dir);
 err_exit:
 	if (request)
 		ptlrpc_req_finished(request);

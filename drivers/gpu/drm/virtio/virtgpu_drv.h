@@ -49,7 +49,6 @@
 #define DRIVER_PATCHLEVEL 1
 
 /* virtgpu_drm_bus.c */
-int drm_virtio_set_busid(struct drm_device *dev, struct drm_master *master);
 int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev);
 
 struct virtio_gpu_object {
@@ -82,7 +81,7 @@ struct virtio_gpu_fence_driver {
 };
 
 struct virtio_gpu_fence {
-	struct fence f;
+	struct dma_fence f;
 	struct virtio_gpu_fence_driver *drv;
 	struct list_head node;
 	uint64_t seq;

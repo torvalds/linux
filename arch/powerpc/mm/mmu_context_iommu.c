@@ -56,7 +56,7 @@ static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
 	}
 
 	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
-			current->pid,
+			current ? current->pid : 0,
 			incr ? '+' : '-',
 			npages << PAGE_SHIFT,
 			mm->locked_vm << PAGE_SHIFT,
@@ -66,12 +66,9 @@ static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
 	return ret;
 }
 
-bool mm_iommu_preregistered(void)
+bool mm_iommu_preregistered(struct mm_struct *mm)
 {
-	if (!current || !current->mm)
-		return false;
-
-	return !list_empty(&current->mm->context.iommu_group_mem_list);
+	return !list_empty(&mm->context.iommu_group_mem_list);
 }
 EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
 
@@ -124,19 +121,16 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	return 0;
 }
 
-long mm_iommu_get(unsigned long ua, unsigned long entries,
+long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		struct mm_iommu_table_group_mem_t **pmem)
 {
 	struct mm_iommu_table_group_mem_t *mem;
 	long i, j, ret = 0, locked_entries = 0;
 	struct page *page = NULL;
 
-	if (!current || !current->mm)
-		return -ESRCH; /* process exited */
-
 	mutex_lock(&mem_list_mutex);
 
-	list_for_each_entry_rcu(mem, &current->mm->context.iommu_group_mem_list,
+	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list,
 			next) {
 		if ((mem->ua == ua) && (mem->entries == entries)) {
 			++mem->used;
@@ -154,7 +148,7 @@ long mm_iommu_get(unsigned long ua, unsigned long entries,
 
 	}
 
-	ret = mm_iommu_adjust_locked_vm(current->mm, entries, true);
+	ret = mm_iommu_adjust_locked_vm(mm, entries, true);
 	if (ret)
 		goto unlock_exit;
 
@@ -215,11 +209,11 @@ populate:
 	mem->entries = entries;
 	*pmem = mem;
 
-	list_add_rcu(&mem->next, &current->mm->context.iommu_group_mem_list);
+	list_add_rcu(&mem->next, &mm->context.iommu_group_mem_list);
 
 unlock_exit:
 	if (locked_entries && ret)
-		mm_iommu_adjust_locked_vm(current->mm, locked_entries, false);
+		mm_iommu_adjust_locked_vm(mm, locked_entries, false);
 
 	mutex_unlock(&mem_list_mutex);
 
@@ -264,16 +258,12 @@ static void mm_iommu_free(struct rcu_head *head)
 static void mm_iommu_release(struct mm_iommu_table_group_mem_t *mem)
 {
 	list_del_rcu(&mem->next);
-	mm_iommu_adjust_locked_vm(current->mm, mem->entries, false);
 	call_rcu(&mem->rcu, mm_iommu_free);
 }
 
-long mm_iommu_put(struct mm_iommu_table_group_mem_t *mem)
+long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 {
 	long ret = 0;
-
-	if (!current || !current->mm)
-		return -ESRCH; /* process exited */
 
 	mutex_lock(&mem_list_mutex);
 
@@ -297,6 +287,8 @@ long mm_iommu_put(struct mm_iommu_table_group_mem_t *mem)
 	/* @mapped became 0 so now mappings are disabled, release the region */
 	mm_iommu_release(mem);
 
+	mm_iommu_adjust_locked_vm(mm, mem->entries, false);
+
 unlock_exit:
 	mutex_unlock(&mem_list_mutex);
 
@@ -304,14 +296,12 @@ unlock_exit:
 }
 EXPORT_SYMBOL_GPL(mm_iommu_put);
 
-struct mm_iommu_table_group_mem_t *mm_iommu_lookup(unsigned long ua,
-		unsigned long size)
+struct mm_iommu_table_group_mem_t *mm_iommu_lookup(struct mm_struct *mm,
+		unsigned long ua, unsigned long size)
 {
 	struct mm_iommu_table_group_mem_t *mem, *ret = NULL;
 
-	list_for_each_entry_rcu(mem,
-			&current->mm->context.iommu_group_mem_list,
-			next) {
+	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list, next) {
 		if ((mem->ua <= ua) &&
 				(ua + size <= mem->ua +
 				 (mem->entries << PAGE_SHIFT))) {
@@ -324,14 +314,12 @@ struct mm_iommu_table_group_mem_t *mm_iommu_lookup(unsigned long ua,
 }
 EXPORT_SYMBOL_GPL(mm_iommu_lookup);
 
-struct mm_iommu_table_group_mem_t *mm_iommu_find(unsigned long ua,
-		unsigned long entries)
+struct mm_iommu_table_group_mem_t *mm_iommu_find(struct mm_struct *mm,
+		unsigned long ua, unsigned long entries)
 {
 	struct mm_iommu_table_group_mem_t *mem, *ret = NULL;
 
-	list_for_each_entry_rcu(mem,
-			&current->mm->context.iommu_group_mem_list,
-			next) {
+	list_for_each_entry_rcu(mem, &mm->context.iommu_group_mem_list, next) {
 		if ((mem->ua == ua) && (mem->entries == entries)) {
 			ret = mem;
 			break;
@@ -373,17 +361,7 @@ void mm_iommu_mapped_dec(struct mm_iommu_table_group_mem_t *mem)
 }
 EXPORT_SYMBOL_GPL(mm_iommu_mapped_dec);
 
-void mm_iommu_init(mm_context_t *ctx)
+void mm_iommu_init(struct mm_struct *mm)
 {
-	INIT_LIST_HEAD_RCU(&ctx->iommu_group_mem_list);
-}
-
-void mm_iommu_cleanup(mm_context_t *ctx)
-{
-	struct mm_iommu_table_group_mem_t *mem, *tmp;
-
-	list_for_each_entry_safe(mem, tmp, &ctx->iommu_group_mem_list, next) {
-		list_del_rcu(&mem->next);
-		mm_iommu_do_free(mem);
-	}
+	INIT_LIST_HEAD_RCU(&mm->context.iommu_group_mem_list);
 }

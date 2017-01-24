@@ -38,7 +38,7 @@
  * Some userspace presumes that the first connected connector is the main
  * display, where it's supposed to display e.g. the login screen. For
  * laptops, this should be the main panel. Use this function to sort all
- * (eDP/LVDS) panels to the front of the connector list, instead of
+ * (eDP/LVDS/DSI) panels to the front of the connector list, instead of
  * painstakingly trying to initialize them in the right order.
  */
 void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
@@ -51,7 +51,8 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		    connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_DSI)
 			list_move_tail(&connector->head, &panel_list);
 	}
 
@@ -70,17 +71,31 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
 void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	const struct drm_format_info *info;
 	int i;
+
+	info = drm_format_info(mode_cmd->pixel_format);
+	if (!info || !info->depth) {
+		struct drm_format_name_buf format_name;
+
+		DRM_DEBUG_KMS("non-RGB pixel format %s\n",
+		              drm_get_format_name(mode_cmd->pixel_format,
+		                                  &format_name));
+
+		fb->depth = 0;
+		fb->bits_per_pixel = 0;
+	} else {
+		fb->depth = info->depth;
+		fb->bits_per_pixel = info->cpp[0] * 8;
+	}
 
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
 		fb->pitches[i] = mode_cmd->pitches[i];
 		fb->offsets[i] = mode_cmd->offsets[i];
-		fb->modifier[i] = mode_cmd->modifier[i];
 	}
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
-				    &fb->bits_per_pixel);
+	fb->modifier = mode_cmd->modifier[0];
 	fb->pixel_format = mode_cmd->pixel_format;
 	fb->flags = mode_cmd->flags;
 }

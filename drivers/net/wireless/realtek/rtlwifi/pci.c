@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -663,11 +659,9 @@ tx_status_ok:
 	}
 
 	if (((rtlpriv->link_info.num_rx_inperiod +
-		rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		(rtlpriv->link_info.num_rx_inperiod > 2)) {
-		rtlpriv->enter_ps = false;
-		schedule_work(&rtlpriv->works.lps_change_work);
-	}
+	      rtlpriv->link_info.num_tx_inperiod) > 8) ||
+	      (rtlpriv->link_info.num_rx_inperiod > 2))
+		rtl_lps_leave(hw);
 }
 
 static int _rtl_pci_init_one_rxdesc(struct ieee80211_hw *hw,
@@ -918,10 +912,8 @@ new_trx_end:
 		}
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		      (rtlpriv->link_info.num_rx_inperiod > 2)) {
-			rtlpriv->enter_ps = false;
-			schedule_work(&rtlpriv->works.lps_change_work);
-		}
+		      (rtlpriv->link_info.num_rx_inperiod > 2))
+			rtl_lps_leave(hw);
 		skb = new_skb;
 no_new:
 		if (rtlpriv->use_new_trx_flow) {

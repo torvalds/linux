@@ -142,7 +142,6 @@ static inline void acpi_os_terminate_command_signals(void)
 /*
  * OSL interfaces added by Linux
  */
-void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
 
 #endif				/* __KERNEL__ */
 

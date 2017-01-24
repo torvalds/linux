@@ -58,6 +58,18 @@ config AD7476
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
 
+config AD7766
+	tristate "Analog Devices AD7766/AD7767 ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7766, AD7766-1,
+	  AD7766-2, AD7767, AD7767-1, AD7767-2 SPI analog to digital converters.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7766.
+
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
 	depends on SPI
@@ -194,6 +206,16 @@ config DA9150_GPADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
+
+config ENVELOPE_DETECTOR
+	tristate "Envelope detector using a DAC and a comparator"
+	depends on OF
+	help
+	  Say yes here to build support for an envelope detector using a DAC
+	  and a comparator.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called envelope-detector.
 
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
@@ -419,6 +441,28 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config STM32_ADC_CORE
+	tristate "STMicroelectronics STM32 adc core"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OF
+	depends on REGULATOR
+	help
+	  Select this option to enable the core driver for STMicroelectronics
+	  STM32 analog-to-digital converter (ADC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-adc-core.
+
+config STM32_ADC
+	tristate "STMicroelectronics STM32 adc"
+	depends on STM32_ADC_CORE
+	help
+	  Say yes here to build support for STMicroelectronics stm32 Analog
+	  to Digital Converter (ADC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-adc.
+
 config STX104
 	tristate "Apex Embedded Systems STX104 driver"
 	depends on X86 && ISA_BUS_API
@@ -449,6 +493,8 @@ config TI_ADC081C
 config TI_ADC0832
 	tristate "Texas Instruments ADC0831/ADC0832/ADC0834/ADC0838"
 	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  If you say yes here you get support for Texas Instruments ADC0831,
 	  ADC0832, ADC0834, ADC0838 ADC chips.

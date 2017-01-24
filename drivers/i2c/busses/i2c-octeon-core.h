@@ -141,11 +141,14 @@ static inline void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)
  */
 static inline void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
 {
+	int tries = 1000;
 	u64 tmp;
 
 	__raw_writeq(SW_TWSI_V | eop_reg | data, i2c->twsi_base + SW_TWSI(i2c));
 	do {
 		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		if (--tries < 0)
+			return;
 	} while ((tmp & SW_TWSI_V) != 0);
 }
 
@@ -163,24 +166,32 @@ static inline void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 
  *
  * The I2C core registers are accessed indirectly via the SW_TWSI CSR.
  */
-static inline u8 octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg)
+static inline int octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg,
+				      int *error)
 {
+	int tries = 1000;
 	u64 tmp;
 
 	__raw_writeq(SW_TWSI_V | eop_reg | SW_TWSI_R, i2c->twsi_base + SW_TWSI(i2c));
 	do {
 		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		if (--tries < 0) {
+			/* signal that the returned data is invalid */
+			if (error)
+				*error = -EIO;
+			return 0;
+		}
 	} while ((tmp & SW_TWSI_V) != 0);
 
 	return tmp & 0xFF;
 }
 
 #define octeon_i2c_ctl_read(i2c)					\
-	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_CTL)
-#define octeon_i2c_data_read(i2c)					\
-	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_DATA)
+	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_CTL, NULL)
+#define octeon_i2c_data_read(i2c, error)				\
+	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_DATA, error)
 #define octeon_i2c_stat_read(i2c)					\
-	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT)
+	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT, NULL)
 
 /**
  * octeon_i2c_read_int - read the TWSI_INT register

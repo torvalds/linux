@@ -22,7 +22,7 @@
 #include <linux/tracehook.h>
 
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/coprocessor.h>
 #include <asm/unistd.h>

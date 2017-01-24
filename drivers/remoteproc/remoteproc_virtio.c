@@ -79,7 +79,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vring *rvring;
 	struct virtqueue *vq;
 	void *addr;
-	int len, size, ret;
+	int len, size;
 
 	/* we're temporarily limited to two virtqueues per rvdev */
 	if (id >= ARRAY_SIZE(rvdev->vring))
@@ -87,10 +87,6 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	if (!name)
 		return NULL;
-
-	ret = rproc_alloc_vring(rvdev, id);
-	if (ret)
-		return ERR_PTR(ret);
 
 	rvring = &rvdev->vring[id];
 	addr = rvring->va;
@@ -130,7 +126,6 @@ static void __rproc_virtio_del_vqs(struct virtio_device *vdev)
 		rvring = vq->priv;
 		rvring->vq = NULL;
 		vring_del_virtqueue(vq);
-		rproc_free_vring(rvring);
 	}
 }
 
@@ -282,14 +277,13 @@ static const struct virtio_config_ops rproc_virtio_config_ops = {
  * Never call this function directly; it will be called by the driver
  * core when needed.
  */
-static void rproc_vdev_release(struct device *dev)
+static void rproc_virtio_dev_release(struct device *dev)
 {
 	struct virtio_device *vdev = dev_to_virtio(dev);
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
-	list_del(&rvdev->node);
-	kfree(rvdev);
+	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
 }
@@ -313,7 +307,7 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
-	vdev->dev.release = rproc_vdev_release;
+	vdev->dev.release = rproc_virtio_dev_release;
 
 	/*
 	 * We're indirectly making a non-temporary copy of the rproc pointer
@@ -324,6 +318,9 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	 * it _only_ when the vdev is released.
 	 */
 	get_device(&rproc->dev);
+
+	/* Reference the vdev and vring allocations */
+	kref_get(&rvdev->refcount);
 
 	ret = register_virtio_device(vdev);
 	if (ret) {

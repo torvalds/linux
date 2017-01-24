@@ -867,10 +867,21 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * can be dropped.
 	 */
 	if (rx_stats->rs_status & ATH9K_RXERR_PHY) {
-		ath9k_dfs_process_phyerr(sc, hdr, rx_stats, rx_status->mactime);
-		if (ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats, rx_status->mactime))
+		/*
+		 * DFS and spectral are mutually exclusive
+		 *
+		 * Since some chips use PHYERR_RADAR as indication for both, we
+		 * need to double check which feature is enabled to prevent
+		 * feeding spectral or dfs-detector with wrong frames.
+		 */
+		if (hw->conf.radar_enabled) {
+			ath9k_dfs_process_phyerr(sc, hdr, rx_stats,
+						 rx_status->mactime);
+		} else if (sc->spec_priv.spectral_mode != SPECTRAL_DISABLED &&
+			   ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats,
+					       rx_status->mactime)) {
 			RX_STAT_INC(rx_spectral);
-
+		}
 		return -EINVAL;
 	}
 

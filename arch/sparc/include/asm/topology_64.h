@@ -4,6 +4,7 @@
 #ifdef CONFIG_NUMA
 
 #include <asm/mmzone.h>
+#include <asm/cpudata.h>
 
 static inline int cpu_to_node(int cpu)
 {

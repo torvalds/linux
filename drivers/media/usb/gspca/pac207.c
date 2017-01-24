@@ -179,8 +179,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	PDEBUG(D_PROBE,
-		"Pixart PAC207BCA Image Processor and Control Chip detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+		"Pixart PAC207BCA Image Processor and Control Chip detected (vid/pid 0x%04X:0x%04X)",
+		id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;

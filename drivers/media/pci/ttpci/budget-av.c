@@ -1636,5 +1636,4 @@ module_exit(budget_av_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called "
-		   "budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");

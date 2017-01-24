@@ -118,7 +118,6 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 
 	if (!mei_cl_is_connected(cl)) {
 		cl_dbg(dev, cl, "not connected\n");
-		list_move_tail(&cb->list, &complete_list->list);
 		cb->status = -ENODEV;
 		goto discard;
 	}
@@ -128,8 +127,6 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	if (buf_sz < cb->buf_idx) {
 		cl_err(dev, cl, "message is too big len %d idx %zu\n",
 		       mei_hdr->length, cb->buf_idx);
-
-		list_move_tail(&cb->list, &complete_list->list);
 		cb->status = -EMSGSIZE;
 		goto discard;
 	}
@@ -137,8 +134,6 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	if (cb->buf.size < buf_sz) {
 		cl_dbg(dev, cl, "message overflow. size %zu len %d idx %zu\n",
 			cb->buf.size, mei_hdr->length, cb->buf_idx);
-
-		list_move_tail(&cb->list, &complete_list->list);
 		cb->status = -EMSGSIZE;
 		goto discard;
 	}
@@ -158,6 +153,8 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 	return 0;
 
 discard:
+	if (cb)
+		list_move_tail(&cb->list, &complete_list->list);
 	mei_irq_discard_msg(dev, mei_hdr);
 	return 0;
 }

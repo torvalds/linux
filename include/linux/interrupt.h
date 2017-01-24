@@ -232,6 +232,18 @@ struct irq_affinity_notify {
 	void (*release)(struct kref *ref);
 };
 
+/**
+ * struct irq_affinity - Description for automatic irq affinity assignements
+ * @pre_vectors:	Don't apply affinity to @pre_vectors at beginning of
+ *			the MSI(-X) vector space
+ * @post_vectors:	Don't apply affinity to @post_vectors at end of
+ *			the MSI(-X) vector space
+ */
+struct irq_affinity {
+	int	pre_vectors;
+	int	post_vectors;
+};
+
 #if defined(CONFIG_SMP)
 
 extern cpumask_var_t irq_default_affinity;
@@ -278,8 +290,8 @@ extern int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m);
 extern int
 irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
 
-struct cpumask *irq_create_affinity_masks(const struct cpumask *affinity, int nvec);
-int irq_calc_affinity_vectors(const struct cpumask *affinity, int maxvec);
+struct cpumask *irq_create_affinity_masks(int nvec, const struct irq_affinity *affd);
+int irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd);
 
 #else /* CONFIG_SMP */
 
@@ -313,13 +325,13 @@ irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
 }
 
 static inline struct cpumask *
-irq_create_affinity_masks(const struct cpumask *affinity, int nvec)
+irq_create_affinity_masks(int nvec, const struct irq_affinity *affd)
 {
 	return NULL;
 }
 
 static inline int
-irq_calc_affinity_vectors(const struct cpumask *affinity, int maxvec)
+irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd)
 {
 	return maxvec;
 }

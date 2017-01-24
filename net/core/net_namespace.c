@@ -39,6 +39,9 @@ EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
 
+#define MIN_PERNET_OPS_ID	\
+	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
+
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
@@ -46,27 +49,28 @@ static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
 static struct net_generic *net_alloc_generic(void)
 {
 	struct net_generic *ng;
-	size_t generic_size = offsetof(struct net_generic, ptr[max_gen_ptrs]);
+	unsigned int generic_size = offsetof(struct net_generic, ptr[max_gen_ptrs]);
 
 	ng = kzalloc(generic_size, GFP_KERNEL);
 	if (ng)
-		ng->len = max_gen_ptrs;
+		ng->s.len = max_gen_ptrs;
 
 	return ng;
 }
 
-static int net_assign_generic(struct net *net, int id, void *data)
+static int net_assign_generic(struct net *net, unsigned int id, void *data)
 {
 	struct net_generic *ng, *old_ng;
 
 	BUG_ON(!mutex_is_locked(&net_mutex));
-	BUG_ON(id == 0);
+	BUG_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
 					   lockdep_is_held(&net_mutex));
-	ng = old_ng;
-	if (old_ng->len >= id)
-		goto assign;
+	if (old_ng->s.len > id) {
+		old_ng->ptr[id] = data;
+		return 0;
+	}
 
 	ng = net_alloc_generic();
 	if (ng == NULL)
@@ -83,12 +87,12 @@ static int net_assign_generic(struct net *net, int id, void *data)
 	 * the old copy for kfree after a grace period.
 	 */
 
-	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
+	memcpy(&ng->ptr[MIN_PERNET_OPS_ID], &old_ng->ptr[MIN_PERNET_OPS_ID],
+	       (old_ng->s.len - MIN_PERNET_OPS_ID) * sizeof(void *));
+	ng->ptr[id] = data;
 
 	rcu_assign_pointer(net->gen, ng);
-	kfree_rcu(old_ng, rcu);
-assign:
-	ng->ptr[id - 1] = data;
+	kfree_rcu(old_ng, s.rcu);
 	return 0;
 }
 
@@ -122,8 +126,7 @@ out:
 static void ops_free(const struct pernet_operations *ops, struct net *net)
 {
 	if (ops->id && ops->size) {
-		int id = *ops->id;
-		kfree(net_generic(net, id));
+		kfree(net_generic(net, *ops->id));
 	}
 }
 
@@ -215,16 +218,15 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id);
  */
 int peernet2id_alloc(struct net *net, struct net *peer)
 {
-	unsigned long flags;
 	bool alloc;
 	int id;
 
 	if (atomic_read(&net->count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	alloc = atomic_read(&peer->count) == 0 ? false : true;
 	id = __peernet2id_alloc(net, peer, &alloc);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
 		rtnl_net_notifyid(net, RTM_NEWNSID, id);
 	return id;
@@ -233,12 +235,11 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 /* This function returns, if assigned, the id of a peer netns. */
 int peernet2id(struct net *net, struct net *peer)
 {
-	unsigned long flags;
 	int id;
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	id = __peernet2id(net, peer);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	return id;
 }
 EXPORT_SYMBOL(peernet2id);
@@ -253,18 +254,17 @@ bool peernet_has_id(struct net *net, struct net *peer)
 
 struct net *get_net_ns_by_id(struct net *net, int id)
 {
-	unsigned long flags;
 	struct net *peer;
 
 	if (id < 0)
 		return NULL;
 
 	rcu_read_lock();
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	peer = idr_find(&net->netns_ids, id);
 	if (peer)
 		get_net(peer);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	rcu_read_unlock();
 
 	return peer;
@@ -384,7 +384,14 @@ struct net *copy_net_ns(unsigned long flags,
 
 	get_user_ns(user_ns);
 
-	mutex_lock(&net_mutex);
+	rv = mutex_lock_killable(&net_mutex);
+	if (rv < 0) {
+		net_free(net);
+		dec_net_namespaces(ucounts);
+		put_user_ns(user_ns);
+		return ERR_PTR(rv);
+	}
+
 	net->ucounts = ucounts;
 	rv = setup_net(net, user_ns);
 	if (rv == 0) {
@@ -427,17 +434,17 @@ static void cleanup_net(struct work_struct *work)
 		for_each_net(tmp) {
 			int id;
 
-			spin_lock_irq(&tmp->nsid_lock);
+			spin_lock_bh(&tmp->nsid_lock);
 			id = __peernet2id(tmp, net);
 			if (id >= 0)
 				idr_remove(&tmp->netns_ids, id);
-			spin_unlock_irq(&tmp->nsid_lock);
+			spin_unlock_bh(&tmp->nsid_lock);
 			if (id >= 0)
 				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
 		}
-		spin_lock_irq(&net->nsid_lock);
+		spin_lock_bh(&net->nsid_lock);
 		idr_destroy(&net->netns_ids);
-		spin_unlock_irq(&net->nsid_lock);
+		spin_unlock_bh(&net->nsid_lock);
 
 	}
 	rtnl_unlock();
@@ -566,7 +573,6 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
-	unsigned long flags;
 	struct net *peer;
 	int nsid, err;
 
@@ -587,15 +593,15 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (IS_ERR(peer))
 		return PTR_ERR(peer);
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	if (__peernet2id(net, peer) >= 0) {
-		spin_unlock_irqrestore(&net->nsid_lock, flags);
+		spin_unlock_bh(&net->nsid_lock);
 		err = -EEXIST;
 		goto out;
 	}
 
 	err = alloc_netid(net, peer, nsid);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
 		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
@@ -717,11 +723,10 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 		.idx = 0,
 		.s_idx = cb->args[0],
 	};
-	unsigned long flags;
 
-	spin_lock_irqsave(&net->nsid_lock, flags);
+	spin_lock_bh(&net->nsid_lock);
 	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
-	spin_unlock_irqrestore(&net->nsid_lock, flags);
+	spin_unlock_bh(&net->nsid_lock);
 
 	cb->args[0] = net_cb.idx;
 	return skb->len;
@@ -868,7 +873,7 @@ static int register_pernet_operations(struct list_head *list,
 
 	if (ops->id) {
 again:
-		error = ida_get_new_above(&net_generic_ids, 1, ops->id);
+		error = ida_get_new_above(&net_generic_ids, MIN_PERNET_OPS_ID, ops->id);
 		if (error < 0) {
 			if (error == -EAGAIN) {
 				ida_pre_get(&net_generic_ids, GFP_KERNEL);
@@ -876,7 +881,7 @@ again:
 			}
 			return error;
 		}
-		max_gen_ptrs = max_t(unsigned int, max_gen_ptrs, *ops->id);
+		max_gen_ptrs = max(max_gen_ptrs, *ops->id + 1);
 	}
 	error = __register_pernet_operations(list, ops);
 	if (error) {

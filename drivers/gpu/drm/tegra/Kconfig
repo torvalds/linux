@@ -3,7 +3,6 @@ config DRM_TEGRA
 	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
 	depends on COMMON_CLK
 	depends on DRM
-	depends on RESET_CONTROLLER
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL

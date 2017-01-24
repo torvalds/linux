@@ -128,6 +128,8 @@ int bench_futex_requeue(int argc, const char **argv,
 
 	if (!nthreads)
 		nthreads = ncpus;
+	else
+		nthreads = futexbench_sanitize_numeric(nthreads);
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)

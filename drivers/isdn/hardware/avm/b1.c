@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/isdn/capilli.h>
 #include "avmcard.h"

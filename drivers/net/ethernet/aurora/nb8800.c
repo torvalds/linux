@@ -975,8 +975,10 @@ static int nb8800_open(struct net_device *dev)
 	phydev = of_phy_connect(dev, priv->phy_node,
 				nb8800_link_reconfigure, 0,
 				priv->phy_mode);
-	if (!phydev)
+	if (!phydev) {
+		err = -ENODEV;
 		goto err_free_irq;
+	}
 
 	nb8800_pause_adv(dev);
 
@@ -1032,19 +1034,8 @@ static const struct net_device_ops nb8800_netdev_ops = {
 	.ndo_set_mac_address	= nb8800_set_mac_address,
 	.ndo_set_rx_mode	= nb8800_set_rx_mode,
 	.ndo_do_ioctl		= nb8800_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
-
-static int nb8800_nway_reset(struct net_device *dev)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return genphy_restart_aneg(phydev);
-}
 
 static void nb8800_get_pauseparam(struct net_device *dev,
 				  struct ethtool_pauseparam *pp)
@@ -1164,7 +1155,7 @@ static void nb8800_get_ethtool_stats(struct net_device *dev,
 }
 
 static const struct ethtool_ops nb8800_ethtool_ops = {
-	.nway_reset		= nb8800_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_pauseparam		= nb8800_get_pauseparam,
 	.set_pauseparam		= nb8800_set_pauseparam,

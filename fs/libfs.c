@@ -16,7 +16,7 @@
 #include <linux/writeback.h>
 #include <linux/buffer_head.h> /* sync_mapping_buffers */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -465,6 +465,8 @@ EXPORT_SYMBOL(simple_write_begin);
  * is not called, so a filesystem that actually does store data in .write_inode
  * should extend on what's done here with a call to mark_inode_dirty() in the
  * case that i_size has changed.
+ *
+ * Use *ONLY* with simple_readpage()
  */
 int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
@@ -474,14 +476,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 	loff_t last_pos = pos + copied;
 
 	/* zero the stale part of the page if we did a short copy */
-	if (copied < len) {
-		unsigned from = pos & (PAGE_SIZE - 1);
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			unsigned from = pos & (PAGE_SIZE - 1);
 
-		zero_user(page, from + copied, len - copied);
-	}
-
-	if (!PageUptodate(page))
+			zero_user(page, from + copied, len - copied);
+		}
 		SetPageUptodate(page);
+	}
 	/*
 	 * No need to use i_size_read() here, the i_size
 	 * cannot change under us because we hold the i_mutex.
@@ -1129,7 +1131,6 @@ EXPORT_SYMBOL(simple_get_link);
 
 const struct inode_operations simple_symlink_inode_operations = {
 	.get_link = simple_get_link,
-	.readlink = generic_readlink
 };
 EXPORT_SYMBOL(simple_symlink_inode_operations);
 

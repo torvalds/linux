@@ -103,8 +103,6 @@ struct lu_client_fld {
 
 	/** Client fld debugfs entry name. */
 	char			 lcf_name[LUSTRE_MDT_MAXNAMELEN];
-
-	int			 lcf_flags;
 };
 
 /* Client methods */

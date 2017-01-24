@@ -436,6 +436,20 @@ config STE_DMA40
 	help
 	  Support for ST-Ericsson DMA40 controller
 
+config ST_FDMA
+	tristate "ST FDMA dmaengine support"
+	depends on ARCH_STI
+	depends on REMOTEPROC
+	select ST_SLIM_REMOTEPROC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for ST FDMA controller.
+	  It supports 16 independent DMA channels, accepts up to 32 DMA requests
+
+	  Say Y here if you have such a chipset.
+	  If unsure, say N.
+
 config STM32_DMA
 	bool "STMicroelectronics STM32 DMA support"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -480,7 +494,7 @@ config TEGRA20_APB_DMA
 	  or vice versa. It does not support memory to memory data transfer.
 
 config TEGRA210_ADMA
-	bool "NVIDIA Tegra210 ADMA support"
+	tristate "NVIDIA Tegra210 ADMA support"
 	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS

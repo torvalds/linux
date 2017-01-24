@@ -230,6 +230,7 @@ struct ttm_bo_driver cirrus_bo_driver = {
 	.ttm_tt_populate = cirrus_ttm_tt_populate,
 	.ttm_tt_unpopulate = cirrus_ttm_tt_unpopulate,
 	.init_mem_type = cirrus_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = cirrus_bo_evict_flags,
 	.move = NULL,
 	.verify_access = cirrus_bo_verify_access,

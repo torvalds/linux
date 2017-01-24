@@ -621,6 +621,9 @@ int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 		wmb();
 	}
 
+	if (sdev->request_queue)
+		blk_set_queue_depth(sdev->request_queue, depth);
+
 	return sdev->queue_depth;
 }
 EXPORT_SYMBOL(scsi_change_queue_depth);

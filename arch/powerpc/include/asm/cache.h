@@ -20,11 +20,14 @@
 #endif
 #else /* CONFIG_PPC64 */
 #define L1_CACHE_SHIFT		7
+#define IFETCH_ALIGN_SHIFT	4 /* POWER8,9 */
 #endif
 
 #define	L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
 #define	SMP_CACHE_BYTES		L1_CACHE_BYTES
+
+#define IFETCH_ALIGN_BYTES	(1 << IFETCH_ALIGN_SHIFT)
 
 #if defined(__powerpc64__) && !defined(__ASSEMBLY__)
 struct ppc64_caches {

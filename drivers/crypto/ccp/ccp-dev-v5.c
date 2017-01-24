@@ -21,6 +21,12 @@
 
 #include "ccp-dev.h"
 
+/* Allocate the requested number of contiguous LSB slots
+ * from the LSB bitmap. Look in the private range for this
+ * queue first; failing that, check the public area.
+ * If no space is available, wait around.
+ * Return: first slot number
+ */
 static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 {
 	struct ccp_device *ccp;
@@ -50,7 +56,7 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 			bitmap_set(ccp->lsbmap, start, count);
 
 			mutex_unlock(&ccp->sb_mutex);
-			return start * LSB_ITEM_SIZE;
+			return start;
 		}
 
 		ccp->sb_avail = 0;
@@ -63,17 +69,18 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 	}
 }
 
+/* Free a number of LSB slots from the bitmap, starting at
+ * the indicated starting slot number.
+ */
 static void ccp_lsb_free(struct ccp_cmd_queue *cmd_q, unsigned int start,
 			 unsigned int count)
 {
-	int lsbno = start / LSB_SIZE;
-
 	if (!start)
 		return;
 
-	if (cmd_q->lsb == lsbno) {
+	if (cmd_q->lsb == start) {
 		/* An entry from the private LSB */
-		bitmap_clear(cmd_q->lsbmap, start % LSB_SIZE, count);
+		bitmap_clear(cmd_q->lsbmap, start, count);
 	} else {
 		/* From the shared LSBs */
 		struct ccp_device *ccp = cmd_q->ccp;
@@ -396,7 +403,7 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
-	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size;
+	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size >> 3;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
 	CCP5_CMD_LEN(&desc) = op->u.rsa.input_len;
@@ -411,10 +418,10 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
 	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	/* Key (Exponent) is in external memory */
-	CCP5_CMD_KEY_LO(&desc) = ccp_addr_lo(&op->exp.u.dma);
-	CCP5_CMD_KEY_HI(&desc) = ccp_addr_hi(&op->exp.u.dma);
-	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
+	/* Exponent is in LSB memory */
+	CCP5_CMD_KEY_LO(&desc) = op->sb_key * LSB_ITEM_SIZE;
+	CCP5_CMD_KEY_HI(&desc) = 0;
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
 
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
@@ -750,9 +757,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		dev_err(dev, "unable to allocate an IRQ\n");
 		goto e_pool;
 	}
-
-	/* Initialize the queue used to suspend */
-	init_waitqueue_head(&ccp->suspend_queue);
 
 	dev_dbg(dev, "Loading LSB map...\n");
 	/* Copy the private LSB mask to the public registers */

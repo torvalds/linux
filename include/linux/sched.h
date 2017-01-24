@@ -262,20 +262,9 @@ extern char ___assert_task_state[1 - 2*!!(
 #define set_task_state(tsk, state_value)			\
 	do {							\
 		(tsk)->task_state_change = _THIS_IP_;		\
-		smp_store_mb((tsk)->state, (state_value));		\
+		smp_store_mb((tsk)->state, (state_value));	\
 	} while (0)
 
-/*
- * set_current_state() includes a barrier so that the write of current->state
- * is correctly serialised wrt the caller's subsequent test of whether to
- * actually sleep:
- *
- *	set_current_state(TASK_UNINTERRUPTIBLE);
- *	if (do_i_need_to_sleep())
- *		schedule();
- *
- * If the caller does not need such serialisation then use __set_current_state()
- */
 #define __set_current_state(state_value)			\
 	do {							\
 		current->task_state_change = _THIS_IP_;		\
@@ -284,11 +273,19 @@ extern char ___assert_task_state[1 - 2*!!(
 #define set_current_state(state_value)				\
 	do {							\
 		current->task_state_change = _THIS_IP_;		\
-		smp_store_mb(current->state, (state_value));		\
+		smp_store_mb(current->state, (state_value));	\
 	} while (0)
 
 #else
 
+/*
+ * @tsk had better be current, or you get to keep the pieces.
+ *
+ * The only reason is that computing current can be more expensive than
+ * using a pointer that's already available.
+ *
+ * Therefore, see set_current_state().
+ */
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
 #define set_task_state(tsk, state_value)		\
@@ -299,11 +296,34 @@ extern char ___assert_task_state[1 - 2*!!(
  * is correctly serialised wrt the caller's subsequent test of whether to
  * actually sleep:
  *
+ *   for (;;) {
  *	set_current_state(TASK_UNINTERRUPTIBLE);
- *	if (do_i_need_to_sleep())
- *		schedule();
+ *	if (!need_sleep)
+ *		break;
  *
- * If the caller does not need such serialisation then use __set_current_state()
+ *	schedule();
+ *   }
+ *   __set_current_state(TASK_RUNNING);
+ *
+ * If the caller does not need such serialisation (because, for instance, the
+ * condition test and condition change and wakeup are under the same lock) then
+ * use __set_current_state().
+ *
+ * The above is typically ordered against the wakeup, which does:
+ *
+ *	need_sleep = false;
+ *	wake_up_state(p, TASK_UNINTERRUPTIBLE);
+ *
+ * Where wake_up_state() (and all other wakeup primitives) imply enough
+ * barriers to order the store of the variable against wakeup.
+ *
+ * Wakeup will do: if (@state & p->state) p->state = TASK_RUNNING, that is,
+ * once it observes the TASK_UNINTERRUPTIBLE store the waking CPU can issue a
+ * TASK_RUNNING store which can collide with __set_current_state(TASK_RUNNING).
+ *
+ * This is obviously fine, since they both store the exact same value.
+ *
+ * Also see the comments of try_to_wake_up().
  */
 #define __set_current_state(state_value)		\
 	do { current->state = (state_value); } while (0)
@@ -520,7 +540,11 @@ static inline int get_dumpable(struct mm_struct *mm)
 					/* leave room for more dump flags */
 #define MMF_VM_MERGEABLE	16	/* KSM may merge identical pages */
 #define MMF_VM_HUGEPAGE		17	/* set when VM_HUGEPAGE is set on vma */
-#define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
+/*
+ * This one-shot flag is dropped due to necessity of changing exe once again
+ * on NFS restore
+ */
+//#define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
 
 #define MMF_HAS_UPROBES		19	/* has uprobes */
 #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
@@ -989,7 +1013,7 @@ enum cpu_idle_type {
  * already in a wake queue, the wakeup will happen soon and the second
  * waker can just skip it.
  *
- * The WAKE_Q macro declares and initializes the list head.
+ * The DEFINE_WAKE_Q macro declares and initializes the list head.
  * wake_up_q() does NOT reinitialize the list; it's expected to be
  * called near the end of a function, where the fact that the queue is
  * not used again will be easy to see by inspection.
@@ -1009,7 +1033,7 @@ struct wake_q_head {
 
 #define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
 
-#define WAKE_Q(name)					\
+#define DEFINE_WAKE_Q(name)				\
 	struct wake_q_head name = { WAKE_Q_TAIL, &name.first }
 
 extern void wake_q_add(struct wake_q_head *head,
@@ -1056,6 +1080,8 @@ static inline int cpu_numa_flags(void)
 	return SD_NUMA;
 }
 #endif
+
+extern int arch_asym_cpu_priority(int cpu);
 
 struct sched_domain_attr {
 	int relax_domain_level;
@@ -1627,7 +1653,10 @@ struct task_struct {
 	int __user *set_child_tid;		/* CLONE_CHILD_SETTID */
 	int __user *clear_child_tid;		/* CLONE_CHILD_CLEARTID */
 
-	cputime_t utime, stime, utimescaled, stimescaled;
+	cputime_t utime, stime;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+	cputime_t utimescaled, stimescaled;
+#endif
 	cputime_t gtime;
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
@@ -1656,6 +1685,7 @@ struct task_struct {
 	struct list_head cpu_timers[3];
 
 /* process credentials */
+	const struct cred __rcu *ptracer_cred; /* Tracer's credentials at attach */
 	const struct cred __rcu *real_cred; /* objective and real subjective task
 					 * credentials (COW) */
 	const struct cred __rcu *cred;	/* effective (overridable) subjective task
@@ -1790,6 +1820,9 @@ struct task_struct {
 	struct css_set __rcu *cgroups;
 	/* cg_list protected by css_set_lock and tsk->alloc_lock */
 	struct list_head cg_list;
+#endif
+#ifdef CONFIG_INTEL_RDT_A
+	int closid;
 #endif
 #ifdef CONFIG_FUTEX
 	struct robust_list_head __user *robust_list;
@@ -2220,27 +2253,13 @@ struct task_struct *try_get_task_struct(struct task_struct **ptask);
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void task_cputime(struct task_struct *t,
 			 cputime_t *utime, cputime_t *stime);
-extern void task_cputime_scaled(struct task_struct *t,
-				cputime_t *utimescaled, cputime_t *stimescaled);
 extern cputime_t task_gtime(struct task_struct *t);
 #else
 static inline void task_cputime(struct task_struct *t,
 				cputime_t *utime, cputime_t *stime)
 {
-	if (utime)
-		*utime = t->utime;
-	if (stime)
-		*stime = t->stime;
-}
-
-static inline void task_cputime_scaled(struct task_struct *t,
-				       cputime_t *utimescaled,
-				       cputime_t *stimescaled)
-{
-	if (utimescaled)
-		*utimescaled = t->utimescaled;
-	if (stimescaled)
-		*stimescaled = t->stimescaled;
+	*utime = t->utime;
+	*stime = t->stime;
 }
 
 static inline cputime_t task_gtime(struct task_struct *t)
@@ -2248,12 +2267,31 @@ static inline cputime_t task_gtime(struct task_struct *t)
 	return t->gtime;
 }
 #endif
+
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
+static inline void task_cputime_scaled(struct task_struct *t,
+				       cputime_t *utimescaled,
+				       cputime_t *stimescaled)
+{
+	*utimescaled = t->utimescaled;
+	*stimescaled = t->stimescaled;
+}
+#else
+static inline void task_cputime_scaled(struct task_struct *t,
+				       cputime_t *utimescaled,
+				       cputime_t *stimescaled)
+{
+	task_cputime(t, utimescaled, stimescaled);
+}
+#endif
+
 extern void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 
 /*
  * Per process flags
  */
+#define PF_IDLE		0x00000002	/* I am an IDLE thread */
 #define PF_EXITING	0x00000004	/* getting shut down */
 #define PF_EXITPIDONE	0x00000008	/* pi exit done on shut down */
 #define PF_VCPU		0x00000010	/* I'm a virtual CPU */
@@ -2444,6 +2482,10 @@ static inline void calc_load_enter_idle(void) { }
 static inline void calc_load_exit_idle(void) { }
 #endif /* CONFIG_NO_HZ_COMMON */
 
+#ifndef cpu_relax_yield
+#define cpu_relax_yield() cpu_relax()
+#endif
+
 /*
  * Do not use outside of architecture code which knows its limitations.
  *
@@ -2611,7 +2653,7 @@ extern struct task_struct *idle_task(int cpu);
  */
 static inline bool is_idle_task(const struct task_struct *p)
 {
-	return p->pid == 0;
+	return !!(p->flags & PF_IDLE);
 }
 extern struct task_struct *curr_task(int cpu);
 extern void ia64_set_curr_task(int cpu, struct task_struct *p);
@@ -3507,6 +3549,18 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 }
 
 #endif /* CONFIG_SMP */
+
+/*
+ * In order to reduce various lock holder preemption latencies provide an
+ * interface to see if a vCPU is currently running or not.
+ *
+ * This allows us to terminate optimistic spin loops and block, analogous to
+ * the native optimistic spin heuristic of testing if the lock owner task is
+ * running or not.
+ */
+#ifndef vcpu_is_preempted
+# define vcpu_is_preempted(cpu)	false
+#endif
 
 extern long sched_setaffinity(pid_t pid, const struct cpumask *new_mask);
 extern long sched_getaffinity(pid_t pid, struct cpumask *mask);

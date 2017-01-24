@@ -20,7 +20,7 @@
 #include "ccu_mux.h"
 
 /**
- * struct _ccu_div - Internal divider description
+ * struct ccu_div_internal - Internal divider description
  * @shift: Bit offset of the divider in its register
  * @width: Width of the divider field in its register
  * @max: Maximum value allowed for that divider. This is the
@@ -36,7 +36,7 @@
  * It is basically a wrapper around the clk_divider functions
  * arguments.
  */
-struct _ccu_div {
+struct ccu_div_internal {
 	u8			shift;
 	u8			width;
 
@@ -78,7 +78,7 @@ struct _ccu_div {
 struct ccu_div {
 	u32			enable;
 
-	struct _ccu_div		div;
+	struct ccu_div_internal		div;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
 };

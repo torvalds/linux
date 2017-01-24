@@ -54,9 +54,6 @@ int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds);
 int lmv_fid_alloc(const struct lu_env *env, struct obd_export *exp,
 		  struct lu_fid *fid, struct md_op_data *op_data);
 
-int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
-		  const union lmv_mds_md *lmm, int stripe_count);
-
 int lmv_revalidate_slaves(struct obd_export *exp,
 			  const struct lmv_stripe_md *lsm,
 			  ldlm_blocking_callback cb_blocking,

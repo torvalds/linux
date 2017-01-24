@@ -56,7 +56,7 @@ static const char *kobject_actions[] = {
  * kobject_action_type - translate action string to numeric type
  *
  * @buf: buffer containing the action string, newline is ignored
- * @len: length of buffer
+ * @count: length of buffer
  * @type: pointer to the location to store the action type
  *
  * Returns 0 if the action string was recognized.
@@ -154,8 +154,8 @@ static void cleanup_uevent_env(struct subprocess_info *info)
 /**
  * kobject_uevent_env - send an uevent with environmental data
  *
- * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
+ * @action: action that is happening
  * @envp_ext: pointer to environmental data
  *
  * Returns 0 if kobject_uevent_env() is completed with success or the
@@ -363,8 +363,8 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
 /**
  * kobject_uevent - notify userspace by sending an uevent
  *
- * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
+ * @action: action that is happening
  *
  * Returns 0 if kobject_uevent() is completed with success or the
  * corresponding error when it fails.

@@ -266,7 +266,7 @@ static void ffs_ep0_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ffs_data *ffs = req->context;
 
-	complete_all(&ffs->ep0req_completion);
+	complete(&ffs->ep0req_completion);
 }
 
 static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
@@ -949,7 +949,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			goto error_mutex;
 		}
 		if (!io_data->read &&
-		    copy_from_iter(data, data_len, &io_data->data) != data_len) {
+		    !copy_from_iter_full(data, data_len, &io_data->data)) {
 			ret = -EFAULT;
 			goto error_mutex;
 		}

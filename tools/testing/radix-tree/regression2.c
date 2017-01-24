@@ -50,6 +50,7 @@
 #include <stdio.h>
 
 #include "regression.h"
+#include "test.h"
 
 #define PAGECACHE_TAG_DIRTY     0
 #define PAGECACHE_TAG_WRITEBACK 1
@@ -90,7 +91,7 @@ void regression2_test(void)
 	/* 1. */
 	start = 0;
 	end = max_slots - 2;
-	radix_tree_range_tag_if_tagged(&mt_tree, &start, end, 1,
+	tag_tagged_items(&mt_tree, NULL, start, end, 1,
 				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
 
 	/* 2. */

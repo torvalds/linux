@@ -1,0 +1,20 @@
+* Device tree bindings for Texas Instruments da8xx DDR2/mDDR memory controller
+
+The DDR2/mDDR memory controller present on Texas Instruments da8xx SoCs features
+a set of registers which allow to tweak the controller's behavior.
+
+Documentation:
+OMAP-L138 (DA850) - http://www.ti.com/lit/ug/spruh82c/spruh82c.pdf
+
+Required properties:
+
+- compatible:		"ti,da850-ddr-controller" - for da850 SoC based boards
+- reg:			a tuple containing the base address of the memory
+			controller and the size of the memory area to map
+
+Example for da850 shown below.
+
+ddrctl {
+	compatible = "ti,da850-ddr-controller";
+	reg = <0xb0000000 0xe8>;
+};

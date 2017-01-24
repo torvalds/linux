@@ -268,7 +268,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_dynset_type;
 static const struct nft_expr_ops nft_dynset_ops = {
 	.type		= &nft_dynset_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_dynset)),
@@ -278,20 +277,10 @@ static const struct nft_expr_ops nft_dynset_ops = {
 	.dump		= nft_dynset_dump,
 };
 
-static struct nft_expr_type nft_dynset_type __read_mostly = {
+struct nft_expr_type nft_dynset_type __read_mostly = {
 	.name		= "dynset",
 	.ops		= &nft_dynset_ops,
 	.policy		= nft_dynset_policy,
 	.maxattr	= NFTA_DYNSET_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_dynset_module_init(void)
-{
-	return nft_register_expr(&nft_dynset_type);
-}
-
-void nft_dynset_module_exit(void)
-{
-	nft_unregister_expr(&nft_dynset_type);
-}

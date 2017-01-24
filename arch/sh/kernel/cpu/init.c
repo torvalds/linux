@@ -16,7 +16,7 @@
 #include <linux/log2.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/cache.h>

@@ -98,13 +98,6 @@
 	};
 };
 
-&reg_ldo_io1 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-touchscreen";
-	status = "okay";
-};
-
 &touchscreen {
 	reg = <0x40>;
 	compatible = "silead,gsl1680";

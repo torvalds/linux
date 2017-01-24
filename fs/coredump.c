@@ -38,7 +38,7 @@
 #include <linux/path.h>
 #include <linux/timekeeping.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/exec.h>

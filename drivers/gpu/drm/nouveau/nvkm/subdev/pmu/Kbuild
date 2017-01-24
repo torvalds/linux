@@ -8,3 +8,5 @@ nvkm-y += nvkm/subdev/pmu/gk110.o
 nvkm-y += nvkm/subdev/pmu/gk208.o
 nvkm-y += nvkm/subdev/pmu/gk20a.o
 nvkm-y += nvkm/subdev/pmu/gm107.o
+nvkm-y += nvkm/subdev/pmu/gp100.o
+nvkm-y += nvkm/subdev/pmu/gp102.o

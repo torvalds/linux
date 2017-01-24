@@ -43,6 +43,18 @@
 
 #include "ptlrpc_internal.h"
 
+const struct ptlrpc_bulk_frag_ops ptlrpc_bulk_kiov_pin_ops = {
+	.add_kiov_frag	= ptlrpc_prep_bulk_page_pin,
+	.release_frags	= ptlrpc_release_bulk_page_pin,
+};
+EXPORT_SYMBOL(ptlrpc_bulk_kiov_pin_ops);
+
+const struct ptlrpc_bulk_frag_ops ptlrpc_bulk_kiov_nopin_ops = {
+	.add_kiov_frag	= ptlrpc_prep_bulk_page_nopin,
+	.release_frags	= NULL,
+};
+EXPORT_SYMBOL(ptlrpc_bulk_kiov_nopin_ops);
+
 static int ptlrpc_send_new_req(struct ptlrpc_request *req);
 static int ptlrpcd_check_work(struct ptlrpc_request *req);
 static int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async);
@@ -95,24 +107,43 @@ struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
  * Allocate and initialize new bulk descriptor on the sender.
  * Returns pointer to the descriptor or NULL on error.
  */
-struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
-					 unsigned type, unsigned portal)
+struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
+					 unsigned int max_brw,
+					 enum ptlrpc_bulk_op_type type,
+					 unsigned int portal,
+					 const struct ptlrpc_bulk_frag_ops *ops)
 {
 	struct ptlrpc_bulk_desc *desc;
 	int i;
 
-	desc = kzalloc(offsetof(struct ptlrpc_bulk_desc, bd_iov[npages]),
-		       GFP_NOFS);
+	/* ensure that only one of KIOV or IOVEC is set but not both */
+	LASSERT((ptlrpc_is_bulk_desc_kiov(type) && ops->add_kiov_frag) ||
+		(ptlrpc_is_bulk_desc_kvec(type) && ops->add_iov_frag));
+
+	desc = kzalloc(sizeof(*desc), GFP_NOFS);
 	if (!desc)
 		return NULL;
 
+	if (type & PTLRPC_BULK_BUF_KIOV) {
+		GET_KIOV(desc) = kcalloc(nfrags, sizeof(*GET_KIOV(desc)),
+					 GFP_NOFS);
+		if (!GET_KIOV(desc))
+			goto free_desc;
+	} else {
+		GET_KVEC(desc) = kcalloc(nfrags, sizeof(*GET_KVEC(desc)),
+					 GFP_NOFS);
+		if (!GET_KVEC(desc))
+			goto free_desc;
+	}
+
 	spin_lock_init(&desc->bd_lock);
 	init_waitqueue_head(&desc->bd_waitq);
-	desc->bd_max_iov = npages;
+	desc->bd_max_iov = nfrags;
 	desc->bd_iov_count = 0;
 	desc->bd_portal = portal;
 	desc->bd_type = type;
 	desc->bd_md_count = 0;
+	desc->bd_frag_ops = (struct ptlrpc_bulk_frag_ops *)ops;
 	LASSERT(max_brw > 0);
 	desc->bd_md_max_brw = min(max_brw, PTLRPC_BULK_OPS_COUNT);
 	/*
@@ -123,24 +154,31 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 		LNetInvalidateHandle(&desc->bd_mds[i]);
 
 	return desc;
+free_desc:
+	kfree(desc);
+	return NULL;
 }
 
 /**
  * Prepare bulk descriptor for specified outgoing request \a req that
- * can fit \a npages * pages. \a type is bulk type. \a portal is where
+ * can fit \a nfrags * pages. \a type is bulk type. \a portal is where
  * the bulk to be sent. Used on client-side.
  * Returns pointer to newly allocated initialized bulk descriptor or NULL on
  * error.
  */
 struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
-					      unsigned npages, unsigned max_brw,
-					      unsigned type, unsigned portal)
+					      unsigned int nfrags,
+					      unsigned int max_brw,
+					      unsigned int type,
+					      unsigned int portal,
+					      const struct ptlrpc_bulk_frag_ops *ops)
 {
 	struct obd_import *imp = req->rq_import;
 	struct ptlrpc_bulk_desc *desc;
 
-	LASSERT(type == BULK_PUT_SINK || type == BULK_GET_SOURCE);
-	desc = ptlrpc_new_bulk(npages, max_brw, type, portal);
+	LASSERT(ptlrpc_is_bulk_op_passive(type));
+
+	desc = ptlrpc_new_bulk(nfrags, max_brw, type, portal, ops);
 	if (!desc)
 		return NULL;
 
@@ -158,56 +196,82 @@ struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
 }
 EXPORT_SYMBOL(ptlrpc_prep_bulk_imp);
 
-/**
- * Add a page \a page to the bulk descriptor \a desc.
- * Data to transfer in the page starts at offset \a pageoffset and
- * amount of data to transfer from the page is \a len
- */
 void __ptlrpc_prep_bulk_page(struct ptlrpc_bulk_desc *desc,
 			     struct page *page, int pageoffset, int len, int pin)
 {
+	struct bio_vec *kiov;
+
 	LASSERT(desc->bd_iov_count < desc->bd_max_iov);
 	LASSERT(page);
 	LASSERT(pageoffset >= 0);
 	LASSERT(len > 0);
 	LASSERT(pageoffset + len <= PAGE_SIZE);
+	LASSERT(ptlrpc_is_bulk_desc_kiov(desc->bd_type));
+
+	kiov = &BD_GET_KIOV(desc, desc->bd_iov_count);
 
 	desc->bd_nob += len;
 
 	if (pin)
 		get_page(page);
 
-	ptlrpc_add_bulk_page(desc, page, pageoffset, len);
+	kiov->bv_page = page;
+	kiov->bv_offset = pageoffset;
+	kiov->bv_len = len;
+
+	desc->bd_iov_count++;
 }
 EXPORT_SYMBOL(__ptlrpc_prep_bulk_page);
 
-/**
- * Uninitialize and free bulk descriptor \a desc.
- * Works on bulk descriptors both from server and client side.
- */
-void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
+int ptlrpc_prep_bulk_frag(struct ptlrpc_bulk_desc *desc,
+			  void *frag, int len)
 {
-	int i;
+	struct kvec *iovec;
 
+	LASSERT(desc->bd_iov_count < desc->bd_max_iov);
+	LASSERT(frag);
+	LASSERT(len > 0);
+	LASSERT(ptlrpc_is_bulk_desc_kvec(desc->bd_type));
+
+	iovec = &BD_GET_KVEC(desc, desc->bd_iov_count);
+
+	desc->bd_nob += len;
+
+	iovec->iov_base = frag;
+	iovec->iov_len = len;
+
+	desc->bd_iov_count++;
+
+	return desc->bd_nob;
+}
+EXPORT_SYMBOL(ptlrpc_prep_bulk_frag);
+
+void ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc)
+{
 	LASSERT(desc->bd_iov_count != LI_POISON); /* not freed already */
 	LASSERT(desc->bd_md_count == 0);	 /* network hands off */
 	LASSERT((desc->bd_export != NULL) ^ (desc->bd_import != NULL));
+	LASSERT(desc->bd_frag_ops);
 
-	sptlrpc_enc_pool_put_pages(desc);
+	if (ptlrpc_is_bulk_desc_kiov(desc->bd_type))
+		sptlrpc_enc_pool_put_pages(desc);
 
 	if (desc->bd_export)
 		class_export_put(desc->bd_export);
 	else
 		class_import_put(desc->bd_import);
 
-	if (unpin) {
-		for (i = 0; i < desc->bd_iov_count; i++)
-			put_page(desc->bd_iov[i].bv_page);
-	}
+	if (desc->bd_frag_ops->release_frags)
+		desc->bd_frag_ops->release_frags(desc);
+
+	if (ptlrpc_is_bulk_desc_kiov(desc->bd_type))
+		kfree(GET_KIOV(desc));
+	else
+		kfree(GET_KVEC(desc));
 
 	kfree(desc);
 }
-EXPORT_SYMBOL(__ptlrpc_free_bulk);
+EXPORT_SYMBOL(ptlrpc_free_bulk);
 
 /**
  * Set server timelimit for this req, i.e. how long are we willing to wait
@@ -589,6 +653,42 @@ static void __ptlrpc_free_req_to_pool(struct ptlrpc_request *request)
 	spin_unlock(&pool->prp_lock);
 }
 
+void ptlrpc_add_unreplied(struct ptlrpc_request *req)
+{
+	struct obd_import	*imp = req->rq_import;
+	struct list_head	*tmp;
+	struct ptlrpc_request	*iter;
+
+	assert_spin_locked(&imp->imp_lock);
+	LASSERT(list_empty(&req->rq_unreplied_list));
+
+	/* unreplied list is sorted by xid in ascending order */
+	list_for_each_prev(tmp, &imp->imp_unreplied_list) {
+		iter = list_entry(tmp, struct ptlrpc_request,
+				  rq_unreplied_list);
+
+		LASSERT(req->rq_xid != iter->rq_xid);
+		if (req->rq_xid < iter->rq_xid)
+			continue;
+		list_add(&req->rq_unreplied_list, &iter->rq_unreplied_list);
+		return;
+	}
+	list_add(&req->rq_unreplied_list, &imp->imp_unreplied_list);
+}
+
+void ptlrpc_assign_next_xid_nolock(struct ptlrpc_request *req)
+{
+	req->rq_xid = ptlrpc_next_xid();
+	ptlrpc_add_unreplied(req);
+}
+
+static inline void ptlrpc_assign_next_xid(struct ptlrpc_request *req)
+{
+	spin_lock(&req->rq_import->imp_lock);
+	ptlrpc_assign_next_xid_nolock(req);
+	spin_unlock(&req->rq_import->imp_lock);
+}
+
 int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 			     __u32 version, int opcode, char **bufs,
 			     struct ptlrpc_cli_ctx *ctx)
@@ -637,8 +737,8 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	ptlrpc_at_set_req_timeout(request);
 
-	request->rq_xid = ptlrpc_next_xid();
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
+	ptlrpc_assign_next_xid(request);
 
 	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
 	if (cfs_fail_val == opcode) {
@@ -1129,7 +1229,9 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 		lnet_nid_t nid = imp->imp_connection->c_peer.nid;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 
-		if (ptlrpc_console_allow(req))
+		/* -EAGAIN is normal when using POSIX flocks */
+		if (ptlrpc_console_allow(req) &&
+		    !(opc == LDLM_ENQUEUE && err == -EAGAIN))
 			LCONSOLE_ERROR_MSG(0x011, "%s: operation %s to node %s failed: rc = %d\n",
 					   imp->imp_obd->obd_name,
 					   ll_opcode2str(opc),
@@ -1166,6 +1268,24 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 	       versions[0], versions[1]);
 }
 
+__u64 ptlrpc_known_replied_xid(struct obd_import *imp)
+{
+	struct ptlrpc_request *req;
+
+	assert_spin_locked(&imp->imp_lock);
+	if (list_empty(&imp->imp_unreplied_list))
+		return 0;
+
+	req = list_entry(imp->imp_unreplied_list.next, struct ptlrpc_request,
+			 rq_unreplied_list);
+	LASSERTF(req->rq_xid >= 1, "XID:%llu\n", req->rq_xid);
+
+	if (imp->imp_known_replied_xid < req->rq_xid - 1)
+		imp->imp_known_replied_xid = req->rq_xid - 1;
+
+	return req->rq_xid - 1;
+}
+
 /**
  * Callback function called when client receives RPC reply for \a req.
  * Returns 0 on success or error code.
@@ -1180,6 +1300,7 @@ static int after_reply(struct ptlrpc_request *req)
 	int rc;
 	struct timespec64 work_start;
 	long timediff;
+	u64 committed;
 
 	LASSERT(obd);
 	/* repbuf must be unlinked */
@@ -1206,6 +1327,10 @@ static int after_reply(struct ptlrpc_request *req)
 		return 0;
 	}
 
+	ktime_get_real_ts64(&work_start);
+	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
+		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
+								 NSEC_PER_USEC;
 	/*
 	 * NB Until this point, the whole of the incoming message,
 	 * including buflens, status etc is in the sender's byte order.
@@ -1235,13 +1360,6 @@ static int after_reply(struct ptlrpc_request *req)
 		spin_unlock(&req->rq_lock);
 		req->rq_nr_resend++;
 
-		/* allocate new xid to avoid reply reconstruction */
-		if (!req->rq_bulk) {
-			/* new xid is already allocated for bulk in ptlrpc_check_set() */
-			req->rq_xid = ptlrpc_next_xid();
-			DEBUG_REQ(D_RPCTRACE, req, "Allocating new xid for resend on EINPROGRESS");
-		}
-
 		/* Readjust the timeout for current conditions */
 		ptlrpc_at_set_req_timeout(req);
 		/*
@@ -1255,13 +1373,14 @@ static int after_reply(struct ptlrpc_request *req)
 		else
 			req->rq_sent = now + req->rq_nr_resend;
 
+		/* Resend for EINPROGRESS will use a new XID */
+		spin_lock(&imp->imp_lock);
+		list_del_init(&req->rq_unreplied_list);
+		spin_unlock(&imp->imp_lock);
+
 		return 0;
 	}
 
-	ktime_get_real_ts64(&work_start);
-	timediff = (work_start.tv_sec - req->rq_sent_tv.tv_sec) * USEC_PER_SEC +
-		   (work_start.tv_nsec - req->rq_sent_tv.tv_nsec) /
-								 NSEC_PER_USEC;
 	if (obd->obd_svc_stats) {
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
@@ -1338,10 +1457,9 @@ static int after_reply(struct ptlrpc_request *req)
 		}
 
 		/* Replay-enabled imports return commit-status information. */
-		if (lustre_msg_get_last_committed(req->rq_repmsg)) {
-			imp->imp_peer_committed_transno =
-				lustre_msg_get_last_committed(req->rq_repmsg);
-		}
+		committed = lustre_msg_get_last_committed(req->rq_repmsg);
+		if (likely(committed > imp->imp_peer_committed_transno))
+			imp->imp_peer_committed_transno = committed;
 
 		ptlrpc_free_committed(imp);
 
@@ -1373,9 +1491,17 @@ static int after_reply(struct ptlrpc_request *req)
 static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 {
 	struct obd_import *imp = req->rq_import;
+	u64 min_xid = 0;
 	int rc;
 
 	LASSERT(req->rq_phase == RQ_PHASE_NEW);
+
+	/* do not try to go further if there is not enough memory in enc_pool */
+	if (req->rq_sent && req->rq_bulk)
+		if (req->rq_bulk->bd_iov_count > get_free_pages_in_pool() &&
+		    pool_is_at_full_capacity())
+			return -ENOMEM;
+
 	if (req->rq_sent && (req->rq_sent > ktime_get_real_seconds()) &&
 	    (!req->rq_generation_set ||
 	     req->rq_import_generation == imp->imp_generation))
@@ -1384,6 +1510,9 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	ptlrpc_rqphase_move(req, RQ_PHASE_RPC);
 
 	spin_lock(&imp->imp_lock);
+
+	LASSERT(req->rq_xid);
+	LASSERT(!list_empty(&req->rq_unreplied_list));
 
 	if (!req->rq_generation_set)
 		req->rq_import_generation = imp->imp_generation;
@@ -1414,7 +1543,24 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	LASSERT(list_empty(&req->rq_list));
 	list_add_tail(&req->rq_list, &imp->imp_sending_list);
 	atomic_inc(&req->rq_import->imp_inflight);
+
+	/* find the known replied XID from the unreplied list, CONNECT
+	 * and DISCONNECT requests are skipped to make the sanity check
+	 * on server side happy. see process_req_last_xid().
+	 *
+	 * For CONNECT: Because replay requests have lower XID, it'll
+	 * break the sanity check if CONNECT bump the exp_last_xid on
+	 * server.
+	 *
+	 * For DISCONNECT: Since client will abort inflight RPC before
+	 * sending DISCONNECT, DISCONNECT may carry an XID which higher
+	 * than the inflight RPC.
+	 */
+	if (!ptlrpc_req_is_connect(req) && !ptlrpc_req_is_disconnect(req))
+		min_xid = ptlrpc_known_replied_xid(imp);
 	spin_unlock(&imp->imp_lock);
+
+	lustre_msg_set_last_xid(req->rq_reqmsg, min_xid);
 
 	lustre_msg_set_status(req->rq_reqmsg, current_pid());
 
@@ -1438,6 +1584,16 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	       lustre_msg_get_opc(req->rq_reqmsg));
 
 	rc = ptl_send_rpc(req, 0);
+	if (rc == -ENOMEM) {
+		spin_lock(&imp->imp_lock);
+		if (!list_empty(&req->rq_list)) {
+			list_del_init(&req->rq_list);
+			atomic_dec(&req->rq_import->imp_inflight);
+		}
+		spin_unlock(&imp->imp_lock);
+		ptlrpc_rqphase_move(req, RQ_PHASE_NEW);
+		return rc;
+	}
 	if (rc) {
 		DEBUG_REQ(D_HA, req, "send failed (%d); expect timeout", rc);
 		spin_lock(&req->rq_lock);
@@ -1688,18 +1844,9 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					spin_lock(&req->rq_lock);
 					req->rq_resend = 1;
 					spin_unlock(&req->rq_lock);
-					if (req->rq_bulk) {
-						__u64 old_xid;
-
-						if (!ptlrpc_unregister_bulk(req, 1))
-							continue;
-
-						/* ensure previous bulk fails */
-						old_xid = req->rq_xid;
-						req->rq_xid = ptlrpc_next_xid();
-						CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
-						       old_xid, req->rq_xid);
-					}
+					if (req->rq_bulk &&
+					    !ptlrpc_unregister_bulk(req, 1))
+						continue;
 				}
 				/*
 				 * rq_wait_ctx is only touched by ptlrpcd,
@@ -1727,6 +1874,14 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				}
 
 				rc = ptl_send_rpc(req, 0);
+				if (rc == -ENOMEM) {
+					spin_lock(&imp->imp_lock);
+					if (!list_empty(&req->rq_list))
+						list_del_init(&req->rq_list);
+					spin_unlock(&imp->imp_lock);
+					ptlrpc_rqphase_move(req, RQ_PHASE_NEW);
+					continue;
+				}
 				if (rc) {
 					DEBUG_REQ(D_HA, req,
 						  "send failed: rc = %d", rc);
@@ -1850,6 +2005,7 @@ interpret:
 			list_del_init(&req->rq_list);
 			atomic_dec(&imp->imp_inflight);
 		}
+		list_del_init(&req->rq_unreplied_list);
 		spin_unlock(&imp->imp_lock);
 
 		atomic_dec(&set->set_remaining);
@@ -2247,6 +2403,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 		if (!locked)
 			spin_lock(&request->rq_import->imp_lock);
 		list_del_init(&request->rq_replay_list);
+		list_del_init(&request->rq_unreplied_list);
 		if (!locked)
 			spin_unlock(&request->rq_import->imp_lock);
 	}
@@ -2266,7 +2423,7 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 		request->rq_import = NULL;
 	}
 	if (request->rq_bulk)
-		ptlrpc_free_bulk_pin(request->rq_bulk);
+		ptlrpc_free_bulk(request->rq_bulk);
 
 	if (request->rq_reqbuf || request->rq_clrbuf)
 		sptlrpc_cli_free_reqbuf(request);
@@ -2542,14 +2699,6 @@ void ptlrpc_resend_req(struct ptlrpc_request *req)
 	req->rq_resend = 1;
 	req->rq_net_err = 0;
 	req->rq_timedout = 0;
-	if (req->rq_bulk) {
-		__u64 old_xid = req->rq_xid;
-
-		/* ensure previous bulk fails */
-		req->rq_xid = ptlrpc_next_xid();
-		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
-		       old_xid, req->rq_xid);
-	}
 	ptlrpc_client_wake_req(req);
 	spin_unlock(&req->rq_lock);
 }
@@ -2591,6 +2740,10 @@ void ptlrpc_retain_replayable_request(struct ptlrpc_request *req,
 		return;
 
 	lustre_msg_add_flags(req->rq_reqmsg, MSG_REPLAY);
+
+	spin_lock(&req->rq_lock);
+	req->rq_resend = 0;
+	spin_unlock(&req->rq_lock);
 
 	LASSERT(imp->imp_replayable);
 	/* Balanced in ptlrpc_free_committed, usually. */
@@ -2667,8 +2820,15 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 
 	atomic_dec(&imp->imp_replay_inflight);
 
-	if (!ptlrpc_client_replied(req)) {
-		CERROR("request replay timed out, restarting recovery\n");
+	/*
+	 * Note: if it is bulk replay (MDS-MDS replay), then even if
+	 * server got the request, but bulk transfer timeout, let's
+	 * replay the bulk req again
+	 */
+	if (!ptlrpc_client_replied(req) ||
+	    (req->rq_bulk &&
+	     lustre_msg_get_status(req->rq_repmsg) == -ETIMEDOUT)) {
+		DEBUG_REQ(D_ERROR, req, "request replay timed out.\n");
 		rc = -ETIMEDOUT;
 		goto out;
 	}
@@ -2936,6 +3096,48 @@ __u64 ptlrpc_next_xid(void)
 	spin_unlock(&ptlrpc_last_xid_lock);
 
 	return next;
+}
+
+/**
+ * If request has a new allocated XID (new request or EINPROGRESS resend),
+ * use this XID as matchbits of bulk, otherwise allocate a new matchbits for
+ * request to ensure previous bulk fails and avoid problems with lost replies
+ * and therefore several transfers landing into the same buffer from different
+ * sending attempts.
+ */
+void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
+{
+	struct ptlrpc_bulk_desc *bd = req->rq_bulk;
+
+	LASSERT(bd);
+
+	if (!req->rq_resend) {
+		/* this request has a new xid, just use it as bulk matchbits */
+		req->rq_mbits = req->rq_xid;
+
+	} else { /* needs to generate a new matchbits for resend */
+		u64 old_mbits = req->rq_mbits;
+
+		if ((bd->bd_import->imp_connect_data.ocd_connect_flags &
+		     OBD_CONNECT_BULK_MBITS)) {
+			req->rq_mbits = ptlrpc_next_xid();
+		} else {
+			/* old version transfers rq_xid to peer as matchbits */
+			req->rq_mbits = ptlrpc_next_xid();
+			req->rq_xid = req->rq_mbits;
+		}
+
+		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
+		       old_mbits, req->rq_mbits);
+	}
+
+	/*
+	 * For multi-bulk RPCs, rq_mbits is the last mbits needed for bulks so
+	 * that server can infer the number of bulks that were prepared,
+	 * see LU-1431
+	 */
+	req->rq_mbits += ((bd->bd_iov_count + LNET_MAX_IOV - 1) /
+			  LNET_MAX_IOV) - 1;
 }
 
 /**

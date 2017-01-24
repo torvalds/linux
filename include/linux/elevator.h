@@ -30,7 +30,7 @@ typedef int (elevator_dispatch_fn) (struct request_queue *, int);
 typedef void (elevator_add_req_fn) (struct request_queue *, struct request *);
 typedef struct request *(elevator_request_list_fn) (struct request_queue *, struct request *);
 typedef void (elevator_completed_req_fn) (struct request_queue *, struct request *);
-typedef int (elevator_may_queue_fn) (struct request_queue *, int, int);
+typedef int (elevator_may_queue_fn) (struct request_queue *, unsigned int);
 
 typedef void (elevator_init_icq_fn) (struct io_cq *);
 typedef void (elevator_exit_icq_fn) (struct io_cq *);
@@ -108,6 +108,11 @@ struct elevator_type
 
 #define ELV_HASH_BITS 6
 
+void elv_rqhash_del(struct request_queue *q, struct request *rq);
+void elv_rqhash_add(struct request_queue *q, struct request *rq);
+void elv_rqhash_reposition(struct request_queue *q, struct request *rq);
+struct request *elv_rqhash_find(struct request_queue *q, sector_t offset);
+
 /*
  * each queue has an elevator_queue associated with it
  */
@@ -139,7 +144,7 @@ extern struct request *elv_former_request(struct request_queue *, struct request
 extern struct request *elv_latter_request(struct request_queue *, struct request *);
 extern int elv_register_queue(struct request_queue *q);
 extern void elv_unregister_queue(struct request_queue *q);
-extern int elv_may_queue(struct request_queue *, int, int);
+extern int elv_may_queue(struct request_queue *, unsigned int);
 extern void elv_completed_request(struct request_queue *, struct request *);
 extern int elv_set_request(struct request_queue *q, struct request *rq,
 			   struct bio *bio, gfp_t gfp_mask);

@@ -27,7 +27,7 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <arch/svinto.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sync_serial.h>
 #include <arch/io_interface_mux.h>
 

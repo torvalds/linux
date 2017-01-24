@@ -15,6 +15,7 @@
 #include "pm8916.dtsi"
 #include "apq8016-sbc-soc-pins.dtsi"
 #include "apq8016-sbc-pmic-pins.dtsi"
+#include <dt-bindings/sound/apq8016-lpass.h>
 
 / {
 	aliases {
@@ -251,6 +252,60 @@
 				vddio-supply = <&pm8916_l6>;
 			};
 		};
+
+		lpass_codec: codec{
+			status = "okay";
+		};
+
+		/*
+		Internal Codec
+			playback - Primary MI2S
+			capture - Ter MI2S
+
+		External Primary:
+			playback - secondary MI2S
+			capture - Quat MI2S
+
+		External Secondary:
+			playback - Quat MI2S
+			capture - Quat MI2S
+
+		*/
+
+                sound: sound {
+                        compatible = "qcom,apq8016-sbc-sndcard";
+                        reg = <0x07702000 0x4>, <0x07702004 0x4>;
+                        reg-names = "mic-iomux", "spkr-iomux";
+
+                        status = "okay";
+                        pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
+                        pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
+                        pinctrl-names = "default", "sleep";
+                        qcom,model = "DB410c";
+                        qcom,audio-routing =
+                                "AMIC2", "MIC BIAS Internal2",
+                                "AMIC3", "MIC BIAS External1";
+
+                        internal-codec-playback-dai-link@0 {            /* I2S - Internal codec */
+                                link-name = "WCD";
+                                cpu { /* PRIMARY */
+                                        sound-dai = <&lpass MI2S_PRIMARY>;
+                                };
+                                codec {
+                                        sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+                                };
+                        };
+
+                        internal-codec-capture-dai-link@0 {             /* I2S - Internal codec */
+                                link-name = "WCD-Capture";
+                                cpu { /* PRIMARY */
+                                        sound-dai = <&lpass MI2S_TERTIARY>;
+                                };
+                                codec {
+                                        sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+                                };
+                        };
+                };
 	};
 
 	usb2513 {
@@ -276,6 +331,12 @@
 			};
 		};
 	};
+};
+
+&wcd_codec {
+        status = "okay";
+        clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
+        clock-names = "mclk";
 };
 
 &smd_rpm_regulators {
@@ -308,8 +369,8 @@
 	};
 
 	l2 {
-		regulator-min-microvolt = <375000>;
-		regulator-max-microvolt = <1525000>;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
 	};
 
 	l3 {
@@ -328,8 +389,8 @@
 	};
 
 	l6 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	l7 {
@@ -388,8 +449,8 @@
 	};
 
 	l17 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	l18 {

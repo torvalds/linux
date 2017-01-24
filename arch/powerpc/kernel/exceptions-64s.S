@@ -1408,7 +1408,7 @@ USE_TEXT_SECTION()
 /*
  * Hash table stuff
  */
-	.align	7
+	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
 #ifdef CONFIG_PPC_STD_MMU_64
 	andis.	r0,r4,0xa410		/* weird error? */

@@ -85,12 +85,26 @@
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
-/* Calculate number of CQEs to reserve for all SQEs.
- * Its 1/256th level of CQ size.
- * '+ 1' to account for pipelining
+
+/* RED and Backpressure levels of CQ for pkt reception
+ * For CQ, level is a measure of emptiness i.e 0x0 means full
+ * eg: For CQ of size 4K, and for pass/drop levels of 160/144
+ * HW accepts pkt if unused CQE >= 2560
+ * RED accepts pkt if unused CQE < 2304 & >= 2560
+ * DROPs pkts if unused CQE < 2304
  */
-#define RQ_CQ_DROP		((256 / (CMP_QUEUE_LEN / \
-				 (CMP_QUEUE_LEN - MAX_CQES_FOR_TX))) + 1)
+#define RQ_PASS_CQ_LVL		160ULL
+#define RQ_DROP_CQ_LVL		144ULL
+
+/* RED and Backpressure levels of RBDR for pkt reception
+ * For RBDR, level is a measure of fullness i.e 0x0 means empty
+ * eg: For RBDR of size 8K, and for pass/drop levels of 4/0
+ * HW accepts pkt if unused RBs >= 256
+ * RED accepts pkt if unused RBs < 256 & >= 0
+ * DROPs pkts if unused RBs < 0
+ */
+#define RQ_PASS_RBDR_LVL	8ULL
+#define RQ_DROP_RBDR_LVL	0ULL
 
 /* Descriptor size in bytes */
 #define SND_QUEUE_DESC_SIZE	16
@@ -292,7 +306,8 @@ void nicvf_sq_disable(struct nicvf *nic, int qidx);
 void nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt);
 void nicvf_sq_free_used_descs(struct net_device *netdev,
 			      struct snd_queue *sq, int qidx);
-int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb);
+int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
+			struct sk_buff *skb, u8 sq_num);
 
 struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
 void nicvf_rbdr_task(unsigned long data);

@@ -26,14 +26,12 @@
 #define UVC_EVENT_DATA			(V4L2_EVENT_PRIVATE_START + 5)
 #define UVC_EVENT_LAST			(V4L2_EVENT_PRIVATE_START + 5)
 
-struct uvc_request_data
-{
+struct uvc_request_data {
 	__s32 length;
 	__u8 data[60];
 };
 
-struct uvc_event
-{
+struct uvc_event {
 	union {
 		enum usb_device_speed speed;
 		struct usb_ctrlrequest req;
@@ -104,8 +102,7 @@ extern unsigned int uvc_gadget_trace_param;
  * Structures
  */
 
-struct uvc_video
-{
+struct uvc_video {
 	struct usb_ep *ep;
 
 	/* Frame parameters */
@@ -134,15 +131,13 @@ struct uvc_video
 	unsigned int fid;
 };
 
-enum uvc_state
-{
+enum uvc_state {
 	UVC_STATE_DISCONNECTED,
 	UVC_STATE_CONNECTED,
 	UVC_STATE_STREAMING,
 };
 
-struct uvc_device
-{
+struct uvc_device {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	enum uvc_state state;
@@ -175,8 +170,7 @@ static inline struct uvc_device *to_uvc(struct usb_function *f)
 	return container_of(f, struct uvc_device, func);
 }
 
-struct uvc_file_handle
-{
+struct uvc_file_handle {
 	struct v4l2_fh vfh;
 	struct uvc_video *device;
 };

@@ -227,7 +227,7 @@ mspec_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * be because another thread has installed the pte first, so it
 	 * is no problem.
 	 */
-	vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+	vm_insert_pfn(vma, vmf->address, pfn);
 
 	return VM_FAULT_NOPAGE;
 }

@@ -81,7 +81,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->correct = val == expect;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+		trace_buffer_unlock_commit_nostack(buffer, event);
 
  out:
 	current->trace_recursion &= ~TRACE_BRANCH_BIT;

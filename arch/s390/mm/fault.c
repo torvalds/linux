@@ -733,6 +733,7 @@ block:
 			 * return to userspace schedule() to block. */
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
+			set_preempt_need_resched();
 		}
 	}
 out:

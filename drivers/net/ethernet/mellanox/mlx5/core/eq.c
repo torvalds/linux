@@ -139,6 +139,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_PORT_CHANGE";
 	case MLX5_EVENT_TYPE_GPIO_EVENT:
 		return "MLX5_EVENT_TYPE_GPIO_EVENT";
+	case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
+		return "MLX5_EVENT_TYPE_PORT_MODULE_EVENT";
 	case MLX5_EVENT_TYPE_REMOTE_CONFIG:
 		return "MLX5_EVENT_TYPE_REMOTE_CONFIG";
 	case MLX5_EVENT_TYPE_DB_BF_CONGESTION:
@@ -285,6 +287,11 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
 			break;
 #endif
+
+		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
+			mlx5_port_module_event(dev, eqe);
+			break;
+
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -469,7 +476,7 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev)
 int mlx5_start_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
+	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
 	if (MLX5_CAP_GEN(dev, pg))
@@ -479,6 +486,11 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	    MLX5_CAP_GEN(dev, vport_group_manager) &&
 	    mlx5_core_is_pf(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
+
+	if (MLX5_CAP_GEN(dev, port_module_event))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PORT_MODULE_EVENT);
+	else
+		mlx5_core_dbg(dev, "port_module_event is not set\n");
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

@@ -116,29 +116,65 @@ static const unsigned int nicvf_n_hw_stats = ARRAY_SIZE(nicvf_hw_stats);
 static const unsigned int nicvf_n_drv_stats = ARRAY_SIZE(nicvf_drv_stats);
 static const unsigned int nicvf_n_queue_stats = ARRAY_SIZE(nicvf_queue_stats);
 
-static int nicvf_get_settings(struct net_device *netdev,
-			      struct ethtool_cmd *cmd)
+static int nicvf_get_link_ksettings(struct net_device *netdev,
+				    struct ethtool_link_ksettings *cmd)
 {
 	struct nicvf *nic = netdev_priv(netdev);
+	u32 supported, advertising;
 
-	cmd->supported = 0;
-	cmd->transceiver = XCVR_EXTERNAL;
+	supported = 0;
+	advertising = 0;
 
 	if (!nic->link_up) {
-		cmd->duplex = DUPLEX_UNKNOWN;
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
 		return 0;
 	}
 
-	if (nic->speed <= 1000) {
-		cmd->port = PORT_MII;
-		cmd->autoneg = AUTONEG_ENABLE;
-	} else {
-		cmd->port = PORT_FIBRE;
-		cmd->autoneg = AUTONEG_DISABLE;
+	switch (nic->speed) {
+	case SPEED_1000:
+		cmd->base.port = PORT_MII | PORT_TP;
+		cmd->base.autoneg = AUTONEG_ENABLE;
+		supported |= SUPPORTED_MII | SUPPORTED_TP;
+		supported |= SUPPORTED_1000baseT_Full |
+				  SUPPORTED_1000baseT_Half |
+				  SUPPORTED_100baseT_Full  |
+				  SUPPORTED_100baseT_Half  |
+				  SUPPORTED_10baseT_Full   |
+				  SUPPORTED_10baseT_Half;
+		supported |= SUPPORTED_Autoneg;
+		advertising |= ADVERTISED_1000baseT_Full |
+				    ADVERTISED_1000baseT_Half |
+				    ADVERTISED_100baseT_Full  |
+				    ADVERTISED_100baseT_Half  |
+				    ADVERTISED_10baseT_Full   |
+				    ADVERTISED_10baseT_Half;
+		break;
+	case SPEED_10000:
+		if (nic->mac_type == BGX_MODE_RXAUI) {
+			cmd->base.port = PORT_TP;
+			supported |= SUPPORTED_TP;
+		} else {
+			cmd->base.port = PORT_FIBRE;
+			supported |= SUPPORTED_FIBRE;
+		}
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_10000baseT_Full;
+		break;
+	case SPEED_40000:
+		cmd->base.port = PORT_FIBRE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_FIBRE;
+		supported |= SUPPORTED_40000baseCR4_Full;
+		break;
 	}
-	cmd->duplex = nic->duplex;
-	ethtool_cmd_speed_set(cmd, nic->speed);
+	cmd->base.duplex = nic->duplex;
+	cmd->base.speed = nic->speed;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
@@ -690,8 +726,56 @@ static int nicvf_set_channels(struct net_device *dev,
 	return err;
 }
 
+static void nicvf_get_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 1;
+	if (!nicvf_send_msg_to_pf(nic, &mbx)) {
+		pause->autoneg = nic->pfc.autoneg;
+		pause->rx_pause = nic->pfc.fc_rx;
+		pause->tx_pause = nic->pfc.fc_tx;
+	}
+}
+
+static int nicvf_set_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return -EOPNOTSUPP;
+
+	if (pause->autoneg)
+		return -EOPNOTSUPP;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 0;
+	mbx.pfc.fc_rx = pause->rx_pause;
+	mbx.pfc.fc_tx = pause->tx_pause;
+	if (nicvf_send_msg_to_pf(nic, &mbx))
+		return -EAGAIN;
+
+	nic->pfc.fc_rx = pause->rx_pause;
+	nic->pfc.fc_tx = pause->tx_pause;
+
+	return 0;
+}
+
 static const struct ethtool_ops nicvf_ethtool_ops = {
-	.get_settings		= nicvf_get_settings,
 	.get_link		= nicvf_get_link,
 	.get_drvinfo		= nicvf_get_drvinfo,
 	.get_msglevel		= nicvf_get_msglevel,
@@ -711,7 +795,10 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.set_rxfh		= nicvf_set_rxfh,
 	.get_channels		= nicvf_get_channels,
 	.set_channels		= nicvf_set_channels,
+	.get_pauseparam         = nicvf_get_pauseparam,
+	.set_pauseparam         = nicvf_set_pauseparam,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings	= nicvf_get_link_ksettings,
 };
 
 void nicvf_set_ethtool_ops(struct net_device *netdev)

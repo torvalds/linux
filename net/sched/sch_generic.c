@@ -709,7 +709,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 
 	qdisc_put_stab(rtnl_dereference(qdisc->stab));
 #endif
-	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
+	gen_kill_estimator(&qdisc->rate_est);
 	if (ops->reset)
 		ops->reset(qdisc);
 	if (ops->destroy)

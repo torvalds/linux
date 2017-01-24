@@ -88,10 +88,16 @@
 
 			switch0: switch0@0 {
 				compatible = "marvell,mv88e6085";
+				pinctrl-0 = <&pinctrl_gpio_switch0>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 
 				ports {
 					#address-cells = <1>;
@@ -99,16 +105,19 @@
 					port@0 {
 						reg = <0>;
 						label = "lan0";
+						phy-handle = <&switch0phy0>;
 					};
 
 					port@1 {
 						reg = <1>;
 						label = "lan1";
+						phy-handle = <&switch0phy1>;
 					};
 
 					port@2 {
 						reg = <2>;
 						label = "lan2";
+						phy-handle = <&switch0phy2>;
 					};
 
 					switch0port5: port@5 {
@@ -133,6 +142,24 @@
 						};
 					};
 				};
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					switch0phy0: switch0phy0@0 {
+						reg = <0>;
+						interrupt-parent = <&switch0>;
+						interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+					};
+					switch0phy1: switch1phy0@1 {
+						reg = <1>;
+						interrupt-parent = <&switch0>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;					};
+					switch0phy2: switch1phy0@2 {
+						reg = <2>;
+						interrupt-parent = <&switch0>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+					};
+				};
 			};
 		};
 
@@ -143,10 +170,16 @@
 
 			switch1: switch1@0 {
 				compatible = "marvell,mv88e6085";
+				pinctrl-0 = <&pinctrl_gpio_switch1>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
 
 				ports {
 					#address-cells = <1>;
@@ -196,12 +229,18 @@
 					#size-cells = <0>;
 					switch1phy0: switch1phy0@0 {
 						reg = <0>;
+						interrupt-parent = <&switch1>;
+						interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 					};
 					switch1phy1: switch1phy0@1 {
 						reg = <1>;
+						interrupt-parent = <&switch1>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 					};
 					switch1phy2: switch1phy0@2 {
 						reg = <2>;
+						interrupt-parent = <&switch1>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 					};
 				};
 			};
@@ -499,13 +538,6 @@
 	};
 };
 
-&i2c3 {
-	clock-frequency = <100000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c3>;
-	status = "okay";
-};
-
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart0>;
@@ -636,6 +668,18 @@
 		>;
 	};
 
+	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
+		fsl,pins = <
+			VF610_PAD_PTB5__GPIO_27		0x219d
+		>;
+	};
+
+	pinctrl_gpio_switch1: pinctrl-gpio-switch1 {
+		fsl,pins = <
+			VF610_PAD_PTB4__GPIO_26		0x219d
+		>;
+	};
+
 	pinctrl_i2c_mux_reset: pinctrl-i2c-mux-reset {
 		fsl,pins = <
 			 VF610_PAD_PTE14__GPIO_119	0x31c2
@@ -660,13 +704,6 @@
 		fsl,pins = <
 			VF610_PAD_PTA22__I2C2_SCL	0x37ff
 			VF610_PAD_PTA23__I2C2_SDA	0x37ff
-		>;
-	};
-
-	pinctrl_i2c3: i2c3grp {
-		fsl,pins = <
-			VF610_PAD_PTA30__I2C3_SCL	0x37ff
-			VF610_PAD_PTA31__I2C3_SDA	0x37ff
 		>;
 	};
 

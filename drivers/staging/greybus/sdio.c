@@ -191,9 +191,8 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 		state_changed = 1;
 	}
 
-	if (event & GB_SDIO_WP) {
+	if (event & GB_SDIO_WP)
 		host->read_only = true;
-	}
 
 	if (state_changed) {
 		dev_info(mmc_dev(host->mmc), "card %s now event\n",

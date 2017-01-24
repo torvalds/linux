@@ -24,6 +24,7 @@
 	[_id] = {							\
 		.desc = {						\
 			.name			= _name,		\
+			.supply_name		= _of "-in",		\
 			.id			= _id,			\
 			.of_match		= of_match_ptr(_of),	\
 			.regulators_node	= of_match_ptr("regulators"),\

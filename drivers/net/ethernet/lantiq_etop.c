@@ -303,15 +303,9 @@ ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int
-ltq_etop_nway_reset(struct net_device *dev)
-{
-	return phy_start_aneg(dev->phydev);
-}
-
 static const struct ethtool_ops ltq_etop_ethtool_ops = {
 	.get_drvinfo = ltq_etop_get_drvinfo,
-	.nway_reset = ltq_etop_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
@@ -519,18 +513,16 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 static int
 ltq_etop_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret = eth_change_mtu(dev, new_mtu);
+	struct ltq_etop_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
-	if (!ret) {
-		struct ltq_etop_priv *priv = netdev_priv(dev);
-		unsigned long flags;
+	dev->mtu = new_mtu;
 
-		spin_lock_irqsave(&priv->lock, flags);
-		ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu,
-			LTQ_ETOP_IGPLEN);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-	return ret;
+	spin_lock_irqsave(&priv->lock, flags);
+	ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu, LTQ_ETOP_IGPLEN);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int

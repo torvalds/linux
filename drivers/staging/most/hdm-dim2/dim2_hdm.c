@@ -306,14 +306,11 @@ static int deliver_netinfo_thread(void *data)
 static void retrieve_netinfo(struct dim2_hdm *dev, struct mbo *mbo)
 {
 	u8 *data = mbo->virt_address;
-	u8 *mac = dev->mac_addrs;
 
 	pr_info("Node Address: 0x%03x\n", (u16)data[16] << 8 | data[17]);
 	dev->link_state = data[18];
 	pr_info("NIState: %d\n", dev->link_state);
-	memcpy(mac, data + 19, 6);
-	pr_info("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	memcpy(dev->mac_addrs, data + 19, 6);
 	dev->deliver_netinfo++;
 	wake_up_interruptible(&dev->netinfo_waitq);
 }

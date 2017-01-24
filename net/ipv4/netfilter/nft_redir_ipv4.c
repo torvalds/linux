@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
+ * Copyright (c) 2014 Arturo Borrero Gonzalez <arturo@debian.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -35,8 +35,13 @@ static void nft_redir_ipv4_eval(const struct nft_expr *expr,
 
 	mr.range[0].flags |= priv->flags;
 
-	regs->verdict.code = nf_nat_redirect_ipv4(pkt->skb, &mr,
-						  pkt->hook);
+	regs->verdict.code = nf_nat_redirect_ipv4(pkt->skb, &mr, nft_hook(pkt));
+}
+
+static void
+nft_redir_ipv4_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
+{
+	nf_ct_netns_put(ctx->net, NFPROTO_IPV4);
 }
 
 static struct nft_expr_type nft_redir_ipv4_type;
@@ -45,6 +50,7 @@ static const struct nft_expr_ops nft_redir_ipv4_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_redir)),
 	.eval		= nft_redir_ipv4_eval,
 	.init		= nft_redir_init,
+	.destroy	= nft_redir_ipv4_destroy,
 	.dump		= nft_redir_dump,
 	.validate	= nft_redir_validate,
 };
@@ -72,5 +78,5 @@ module_init(nft_redir_ipv4_module_init);
 module_exit(nft_redir_ipv4_module_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>");
+MODULE_AUTHOR("Arturo Borrero Gonzalez <arturo@debian.org>");
 MODULE_ALIAS_NFT_AF_EXPR(AF_INET, "redir");

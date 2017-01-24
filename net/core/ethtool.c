@@ -119,6 +119,12 @@ tunable_strings[__ETHTOOL_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_TX_COPYBREAK]	= "tx-copybreak",
 };
 
+static const char
+phy_tunable_strings[__ETHTOOL_PHY_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
+	[ETHTOOL_ID_UNSPEC]     = "Unspec",
+	[ETHTOOL_PHY_DOWNSHIFT]	= "phy-downshift",
+};
+
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gfeatures cmd = {
@@ -227,6 +233,9 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_TUNABLES)
 		return ARRAY_SIZE(tunable_strings);
 
+	if (sset == ETH_SS_PHY_TUNABLES)
+		return ARRAY_SIZE(phy_tunable_strings);
+
 	if (sset == ETH_SS_PHY_STATS) {
 		if (dev->phydev)
 			return phy_get_sset_count(dev->phydev);
@@ -253,6 +262,8 @@ static void __ethtool_get_strings(struct net_device *dev,
 		       sizeof(rss_hash_func_strings));
 	else if (stringset == ETH_SS_TUNABLES)
 		memcpy(data, tunable_strings, sizeof(tunable_strings));
+	else if (stringset == ETH_SS_PHY_TUNABLES)
+		memcpy(data, phy_tunable_strings, sizeof(phy_tunable_strings));
 	else if (stringset == ETH_SS_PHY_STATS) {
 		struct phy_device *phydev = dev->phydev;
 
@@ -2422,6 +2433,85 @@ static int ethtool_set_per_queue(struct net_device *dev, void __user *useraddr)
 	};
 }
 
+static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		if (tuna->len != sizeof(u8) ||
+		    tuna->type_id != ETHTOOL_TUNABLE_U8)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
+{
+	int ret;
+	struct ethtool_tunable tuna;
+	struct phy_device *phydev = dev->phydev;
+	void *data;
+
+	if (!(phydev && phydev->drv && phydev->drv->get_tunable))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
+		return -EFAULT;
+	ret = ethtool_phy_tunable_valid(&tuna);
+	if (ret)
+		return ret;
+	data = kmalloc(tuna.len, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+	mutex_lock(&phydev->lock);
+	ret = phydev->drv->get_tunable(phydev, &tuna, data);
+	mutex_unlock(&phydev->lock);
+	if (ret)
+		goto out;
+	useraddr += sizeof(tuna);
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, data, tuna.len))
+		goto out;
+	ret = 0;
+
+out:
+	kfree(data);
+	return ret;
+}
+
+static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
+{
+	int ret;
+	struct ethtool_tunable tuna;
+	struct phy_device *phydev = dev->phydev;
+	void *data;
+
+	if (!(phydev && phydev->drv && phydev->drv->set_tunable))
+		return -EOPNOTSUPP;
+	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
+		return -EFAULT;
+	ret = ethtool_phy_tunable_valid(&tuna);
+	if (ret)
+		return ret;
+	data = kmalloc(tuna.len, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+	useraddr += sizeof(tuna);
+	ret = -EFAULT;
+	if (copy_from_user(data, useraddr, tuna.len))
+		goto out;
+	mutex_lock(&phydev->lock);
+	ret = phydev->drv->set_tunable(phydev, &tuna, data);
+	mutex_unlock(&phydev->lock);
+
+out:
+	kfree(data);
+	return ret;
+}
+
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -2479,6 +2569,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GET_TS_INFO:
 	case ETHTOOL_GEEE:
 	case ETHTOOL_GTUNABLE:
+	case ETHTOOL_PHY_GTUNABLE:
 	case ETHTOOL_GLINKSETTINGS:
 		break;
 	default:
@@ -2684,6 +2775,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_SLINKSETTINGS:
 		rc = ethtool_set_link_ksettings(dev, useraddr);
+		break;
+	case ETHTOOL_PHY_GTUNABLE:
+		rc = get_phy_tunable(dev, useraddr);
+		break;
+	case ETHTOOL_PHY_STUNABLE:
+		rc = set_phy_tunable(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

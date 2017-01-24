@@ -1,4 +1,6 @@
 /*
+ * Socfpga Reset Controller Driver
+ *
  * Copyright 2014 Steffen Trumtrar <s.trumtrar@pengutronix.de>
  *
  * based on
@@ -16,7 +18,7 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -148,8 +150,4 @@ static struct platform_driver socfpga_reset_driver = {
 		.of_match_table	= socfpga_reset_dt_ids,
 	},
 };
-module_platform_driver(socfpga_reset_driver);
-
-MODULE_AUTHOR("Steffen Trumtrar <s.trumtrar@pengutronix.de");
-MODULE_DESCRIPTION("Socfpga Reset Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(socfpga_reset_driver);

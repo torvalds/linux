@@ -8,11 +8,13 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "skeleton.dtsi"
 #include "imx6sl-pinfunc.h"
 #include <dt-bindings/clock/imx6sl-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -893,8 +895,11 @@
 			};
 
 			weim: weim@021b8000 {
+				#address-cells = <2>;
+				#size-cells = <1>;
 				reg = <0x021b8000 0x4000>;
 				interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
+				fsl,weim-cs-gpr = <&gpr>;
 			};
 
 			ocotp: ocotp@021bc000 {

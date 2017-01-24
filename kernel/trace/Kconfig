@@ -70,6 +70,7 @@ config FTRACE_NMI_ENTER
 
 config EVENT_TRACING
 	select CONTEXT_SWITCH_TRACER
+        select GLOB
 	bool
 
 config CONTEXT_SWITCH_TRACER
@@ -133,6 +134,7 @@ config FUNCTION_TRACER
 	select KALLSYMS
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
+        select GLOB
 	help
 	  Enable the kernel to trace every kernel function. This is done
 	  by using a compiler feature to insert a small, 5-byte No-Operation

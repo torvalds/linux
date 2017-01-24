@@ -262,6 +262,12 @@ xfs_mount_validate_sb(
 		return -EFSCORRUPTED;
 	}
 
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
+		xfs_notice(mp, "v5 SB sanity check failed");
+		return -EFSCORRUPTED;
+	}
+
 	/*
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
@@ -338,13 +344,16 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 					XFS_PQUOTA_CHKD : XFS_GQUOTA_CHKD;
 	sbp->sb_qflags &= ~(XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD);
 
-	if (sbp->sb_qflags & XFS_PQUOTA_ACCT)  {
+	if (sbp->sb_qflags & XFS_PQUOTA_ACCT &&
+	    sbp->sb_gquotino != NULLFSINO)  {
 		/*
 		 * In older version of superblock, on-disk superblock only
 		 * has sb_gquotino, and in-core superblock has both sb_gquotino
 		 * and sb_pquotino. But, only one of them is supported at any
 		 * point of time. So, if PQUOTA is set in disk superblock,
-		 * copy over sb_gquotino to sb_pquotino.
+		 * copy over sb_gquotino to sb_pquotino.  The NULLFSINO test
+		 * above is to make sure we don't do this twice and wipe them
+		 * both out!
 		 */
 		sbp->sb_pquotino = sbp->sb_gquotino;
 		sbp->sb_gquotino = NULLFSINO;

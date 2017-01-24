@@ -23,3 +23,31 @@ reset_trigger() { # reset all current setting triggers
     done
 }
 
+reset_events_filter() { # reset all current setting filters
+    grep -v ^none events/*/*/filter |
+    while read line; do
+	echo 0 > `echo $line | cut -f1 -d:`
+    done
+}
+
+disable_events() {
+    echo 0 > events/enable
+}
+
+initialize_ftrace() { # Reset ftrace to initial-state
+# As the initial state, ftrace will be set to nop tracer,
+# no events, no triggers, no filters, no function filters,
+# no probes, and tracing on.
+    disable_tracing
+    reset_tracer
+    reset_trigger
+    reset_events_filter
+    disable_events
+    echo > set_event_pid	# event tracer is always on
+    [ -f set_ftrace_filter ] && echo | tee set_ftrace_*
+    [ -f set_graph_function ] && echo | tee set_graph_*
+    [ -f stack_trace_filter ] && echo > stack_trace_filter
+    [ -f kprobe_events ] && echo > kprobe_events
+    [ -f uprobe_events ] && echo > uprobe_events
+    enable_tracing
+}

@@ -127,18 +127,21 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	struct gntalloc_gref *gref, *next;
 
 	readonly = !(op->flags & GNTALLOC_FLAG_WRITABLE);
-	rc = -ENOMEM;
 	for (i = 0; i < op->count; i++) {
 		gref = kzalloc(sizeof(*gref), GFP_KERNEL);
-		if (!gref)
+		if (!gref) {
+			rc = -ENOMEM;
 			goto undo;
+		}
 		list_add_tail(&gref->next_gref, &queue_gref);
 		list_add_tail(&gref->next_file, &queue_file);
 		gref->users = 1;
 		gref->file_index = op->index + i * PAGE_SIZE;
 		gref->page = alloc_page(GFP_KERNEL|__GFP_ZERO);
-		if (!gref->page)
+		if (!gref->page) {
+			rc = -ENOMEM;
 			goto undo;
+		}
 
 		/* Grant foreign access to the page. */
 		rc = gnttab_grant_foreign_access(op->domid,

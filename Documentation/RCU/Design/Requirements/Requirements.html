@@ -547,7 +547,7 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	It could reuse a value formerly fetched from this same pointer.
 	It could also fetch the pointer from <tt>gp</tt> in a byte-at-a-time
 	manner, resulting in <i>load tearing</i>, in turn resulting a bytewise
-	mash-up of two distince pointer values.
+	mash-up of two distinct pointer values.
 	It might even use value-speculation optimizations, where it makes
 	a wrong guess, but by the time it gets around to checking the
 	value, an update has changed the pointer to match the wrong guess.
@@ -659,6 +659,29 @@ systems with more than one CPU:
 	In other words, a given instance of <tt>synchronize_rcu()</tt>
 	can avoid waiting on a given RCU read-side critical section only
 	if it can prove that <tt>synchronize_rcu()</tt> started first.
+
+	<p>
+	A related question is &ldquo;When <tt>rcu_read_lock()</tt>
+	doesn't generate any code, why does it matter how it relates
+	to a grace period?&rdquo;
+	The answer is that it is not the relationship of
+	<tt>rcu_read_lock()</tt> itself that is important, but rather
+	the relationship of the code within the enclosed RCU read-side
+	critical section to the code preceding and following the
+	grace period.
+	If we take this viewpoint, then a given RCU read-side critical
+	section begins before a given grace period when some access
+	preceding the grace period observes the effect of some access
+	within the critical section, in which case none of the accesses
+	within the critical section may observe the effects of any
+	access following the grace period.
+
+	<p>
+	As of late 2016, mathematical models of RCU take this
+	viewpoint, for example, see slides&nbsp;62 and&nbsp;63
+	of the
+	<a href="http://www2.rdrop.com/users/paulmck/scalability/paper/LinuxMM.2016.10.04c.LCE.pdf">2016 LinuxCon EU</a>
+	presentation.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>

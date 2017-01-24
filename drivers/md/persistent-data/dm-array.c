@@ -700,13 +700,11 @@ static int populate_ablock_with_values(struct dm_array_info *info, struct array_
 {
 	int r;
 	unsigned i;
-	uint32_t nr_entries;
 	struct dm_btree_value_type *vt = &info->value_type;
 
 	BUG_ON(le32_to_cpu(ab->nr_entries));
 	BUG_ON(new_nr > le32_to_cpu(ab->max_entries));
 
-	nr_entries = le32_to_cpu(ab->nr_entries);
 	for (i = 0; i < new_nr; i++) {
 		r = fn(base + i, element_at(info, ab, i), context);
 		if (r)

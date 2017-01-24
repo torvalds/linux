@@ -124,11 +124,7 @@ pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
 	if (likely(mem_init_done)) {
 		pte = (pte_t *) __get_free_page(GFP_KERNEL);
 	} else {
-		pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-#if 0
-		/* FIXME: use memblock... */
 		pte = (pte_t *) __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
-#endif
 	}
 
 	if (pte)

@@ -428,7 +428,7 @@ int kvm_vgic_hyp_init(void)
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_KVM_ARM_VGIC_INIT_STARTING,
-				"AP_KVM_ARM_VGIC_INIT_STARTING",
+				"kvm/arm/vgic:starting",
 				vgic_init_cpu_starting, vgic_init_cpu_dying);
 	if (ret) {
 		kvm_err("Cannot register vgic CPU notifier\n");

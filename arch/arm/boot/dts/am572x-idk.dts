@@ -83,3 +83,7 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
 };
+
+&sn65hvs882 {
+	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+};

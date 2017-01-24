@@ -191,7 +191,7 @@ static int x2apic_cluster_probe(void)
 	if (!x2apic_mode)
 		return 0;
 
-	ret = cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "X2APIC_PREPARE",
+	ret = cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "x86/x2apic:prepare",
 				x2apic_prepare_cpu, x2apic_dead_cpu);
 	if (ret < 0) {
 		pr_err("Failed to register X2APIC_PREPARE\n");

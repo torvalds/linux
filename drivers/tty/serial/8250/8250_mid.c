@@ -303,10 +303,10 @@ static void mid8250_remove(struct pci_dev *pdev)
 {
 	struct mid8250 *mid = pci_get_drvdata(pdev);
 
+	serial8250_unregister_port(mid->line);
+
 	if (mid->board->exit)
 		mid->board->exit(mid);
-
-	serial8250_unregister_port(mid->line);
 }
 
 static const struct mid8250_board pnw_board = {

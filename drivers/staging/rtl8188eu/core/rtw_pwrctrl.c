@@ -56,7 +56,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-			rtw_led_control(padapter, LED_CTL_NO_LINK);
+			LedControl8188eu(padapter, LED_CTL_NO_LINK);
 
 			rtw_os_indicate_disconnect(padapter);
 
@@ -94,7 +94,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
 
-	if (pm_netdev_open(pnetdev, false) != 0) {
+	if (ips_netdrv_open((struct adapter *)rtw_netdev_priv(pnetdev)) != _SUCCESS) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto error_exit;
 	}

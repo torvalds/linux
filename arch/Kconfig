@@ -5,6 +5,9 @@
 config KEXEC_CORE
 	bool
 
+config HAVE_IMA_KEXEC
+	bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING
@@ -96,6 +99,7 @@ config KPROBES_ON_FTRACE
 
 config UPROBES
 	def_bool n
+	depends on ARCH_SUPPORTS_UPROBES
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
 	  enable instrumentation applications (such as 'perf probe')
@@ -363,8 +367,9 @@ menuconfig GCC_PLUGINS
 	  See Documentation/gcc-plugins.txt for details.
 
 config GCC_PLUGIN_CYC_COMPLEXITY
-	bool "Compute the cyclomatic complexity of a function"
+	bool "Compute the cyclomatic complexity of a function" if EXPERT
 	depends on GCC_PLUGINS
+	depends on !COMPILE_TEST
 	help
 	  The complexity M of a function's control flow graph is defined as:
 	   M = E - N + 2P
@@ -373,6 +378,10 @@ config GCC_PLUGIN_CYC_COMPLEXITY
 	  E = the number of edges
 	  N = the number of nodes
 	  P = the number of connected components (exit nodes).
+
+	  Enabling this plugin reports the complexity to stderr during the
+	  build. It mainly serves as a simple example of how to create a
+	  gcc plugin for the kernel.
 
 config GCC_PLUGIN_SANCOV
 	bool
@@ -510,6 +519,9 @@ config HAVE_CONTEXT_TRACKING
 	  irq exit still need to be protected.
 
 config HAVE_VIRT_CPU_ACCOUNTING
+	bool
+
+config ARCH_HAS_SCALED_CPUTIME
 	bool
 
 config HAVE_VIRT_CPU_ACCOUNTING_GEN

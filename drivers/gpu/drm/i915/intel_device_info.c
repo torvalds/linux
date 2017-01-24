@@ -28,20 +28,14 @@ void intel_device_info_dump(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = &dev_priv->info;
 
-#define PRINT_S(name) "%s"
-#define SEP_EMPTY
-#define PRINT_FLAG(name) info->name ? #name "," : ""
-#define SEP_COMMA ,
-	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x flags="
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
+	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x",
 			 info->gen,
 			 dev_priv->drm.pdev->device,
-			 dev_priv->drm.pdev->revision,
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
-#undef PRINT_S
-#undef SEP_EMPTY
+			 dev_priv->drm.pdev->revision);
+#define PRINT_FLAG(name) \
+	DRM_DEBUG_DRIVER("i915 device info: " #name ": %s", yesno(info->name))
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
-#undef SEP_COMMA
 }
 
 static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
@@ -288,12 +282,13 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
-	else
+	} else if (INTEL_GEN(dev_priv) >= 5) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
+	}
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");

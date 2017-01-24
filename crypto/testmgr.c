@@ -33,6 +33,7 @@
 #include <crypto/drbg.h>
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
+#include <crypto/acompress.h>
 
 #include "internal.h"
 
@@ -62,7 +63,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
  */
 #define IDX1		32
 #define IDX2		32400
-#define IDX3		1
+#define IDX3		1511
 #define IDX4		8193
 #define IDX5		22222
 #define IDX6		17101
@@ -1442,6 +1443,126 @@ out:
 	return ret;
 }
 
+static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
+		      struct comp_testvec *dtemplate, int ctcount, int dtcount)
+{
+	const char *algo = crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
+	unsigned int i;
+	char *output;
+	int ret;
+	struct scatterlist src, dst;
+	struct acomp_req *req;
+	struct tcrypt_result result;
+
+	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!output)
+		return -ENOMEM;
+
+	for (i = 0; i < ctcount; i++) {
+		unsigned int dlen = COMP_BUF_SIZE;
+		int ilen = ctemplate[i].inlen;
+
+		memset(output, 0, dlen);
+		init_completion(&result.completion);
+		sg_init_one(&src, ctemplate[i].input, ilen);
+		sg_init_one(&dst, output, dlen);
+
+		req = acomp_request_alloc(tfm);
+		if (!req) {
+			pr_err("alg: acomp: request alloc failed for %s\n",
+			       algo);
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					   tcrypt_complete, &result);
+
+		ret = wait_async_op(&result, crypto_acomp_compress(req));
+		if (ret) {
+			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (req->dlen != ctemplate[i].outlen) {
+			pr_err("alg: acomp: Compression test %d failed for %s: output len = %d\n",
+			       i + 1, algo, req->dlen);
+			ret = -EINVAL;
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (memcmp(output, ctemplate[i].output, req->dlen)) {
+			pr_err("alg: acomp: Compression test %d failed for %s\n",
+			       i + 1, algo);
+			hexdump(output, req->dlen);
+			ret = -EINVAL;
+			acomp_request_free(req);
+			goto out;
+		}
+
+		acomp_request_free(req);
+	}
+
+	for (i = 0; i < dtcount; i++) {
+		unsigned int dlen = COMP_BUF_SIZE;
+		int ilen = dtemplate[i].inlen;
+
+		memset(output, 0, dlen);
+		init_completion(&result.completion);
+		sg_init_one(&src, dtemplate[i].input, ilen);
+		sg_init_one(&dst, output, dlen);
+
+		req = acomp_request_alloc(tfm);
+		if (!req) {
+			pr_err("alg: acomp: request alloc failed for %s\n",
+			       algo);
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					   tcrypt_complete, &result);
+
+		ret = wait_async_op(&result, crypto_acomp_decompress(req));
+		if (ret) {
+			pr_err("alg: acomp: decompression failed on test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (req->dlen != dtemplate[i].outlen) {
+			pr_err("alg: acomp: Decompression test %d failed for %s: output len = %d\n",
+			       i + 1, algo, req->dlen);
+			ret = -EINVAL;
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (memcmp(output, dtemplate[i].output, req->dlen)) {
+			pr_err("alg: acomp: Decompression test %d failed for %s\n",
+			       i + 1, algo);
+			hexdump(output, req->dlen);
+			ret = -EINVAL;
+			acomp_request_free(req);
+			goto out;
+		}
+
+		acomp_request_free(req);
+	}
+
+	ret = 0;
+
+out:
+	kfree(output);
+	return ret;
+}
+
 static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
 		      unsigned int tcount)
 {
@@ -1509,7 +1630,7 @@ static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 	struct crypto_aead *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_aead(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_aead(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: aead: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
@@ -1538,7 +1659,7 @@ static int alg_test_cipher(const struct alg_test_desc *desc,
 	struct crypto_cipher *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_cipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_cipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: cipher: Failed to load transform for "
 		       "%s: %ld\n", driver, PTR_ERR(tfm));
@@ -1567,7 +1688,7 @@ static int alg_test_skcipher(const struct alg_test_desc *desc,
 	struct crypto_skcipher *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_skcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_skcipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: skcipher: Failed to load transform for "
 		       "%s: %ld\n", driver, PTR_ERR(tfm));
@@ -1593,22 +1714,38 @@ out:
 static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 			 u32 type, u32 mask)
 {
-	struct crypto_comp *tfm;
+	struct crypto_comp *comp;
+	struct crypto_acomp *acomp;
 	int err;
+	u32 algo_type = type & CRYPTO_ALG_TYPE_ACOMPRESS_MASK;
 
-	tfm = crypto_alloc_comp(driver, type, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: comp: Failed to load transform for %s: "
-		       "%ld\n", driver, PTR_ERR(tfm));
-		return PTR_ERR(tfm);
+	if (algo_type == CRYPTO_ALG_TYPE_ACOMPRESS) {
+		acomp = crypto_alloc_acomp(driver, type, mask);
+		if (IS_ERR(acomp)) {
+			pr_err("alg: acomp: Failed to load transform for %s: %ld\n",
+			       driver, PTR_ERR(acomp));
+			return PTR_ERR(acomp);
+		}
+		err = test_acomp(acomp, desc->suite.comp.comp.vecs,
+				 desc->suite.comp.decomp.vecs,
+				 desc->suite.comp.comp.count,
+				 desc->suite.comp.decomp.count);
+		crypto_free_acomp(acomp);
+	} else {
+		comp = crypto_alloc_comp(driver, type, mask);
+		if (IS_ERR(comp)) {
+			pr_err("alg: comp: Failed to load transform for %s: %ld\n",
+			       driver, PTR_ERR(comp));
+			return PTR_ERR(comp);
+		}
+
+		err = test_comp(comp, desc->suite.comp.comp.vecs,
+				desc->suite.comp.decomp.vecs,
+				desc->suite.comp.comp.count,
+				desc->suite.comp.decomp.count);
+
+		crypto_free_comp(comp);
 	}
-
-	err = test_comp(tfm, desc->suite.comp.comp.vecs,
-			desc->suite.comp.decomp.vecs,
-			desc->suite.comp.comp.count,
-			desc->suite.comp.decomp.count);
-
-	crypto_free_comp(tfm);
 	return err;
 }
 
@@ -1618,7 +1755,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	struct crypto_ahash *tfm;
 	int err;
 
-	tfm = crypto_alloc_ahash(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_ahash(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: hash: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
@@ -1646,7 +1783,7 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 	if (err)
 		goto out;
 
-	tfm = crypto_alloc_shash(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_shash(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: crc32c: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(tfm));
@@ -1688,7 +1825,7 @@ static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
 	struct crypto_rng *rng;
 	int err;
 
-	rng = crypto_alloc_rng(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	rng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(rng)) {
 		printk(KERN_ERR "alg: cprng: Failed to load transform for %s: "
 		       "%ld\n", driver, PTR_ERR(rng));
@@ -1715,7 +1852,7 @@ static int drbg_cavs_test(struct drbg_testvec *test, int pr,
 	if (!buf)
 		return -ENOMEM;
 
-	drng = crypto_alloc_rng(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	drng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(drng)) {
 		printk(KERN_ERR "alg: drbg: could not allocate DRNG handle for "
 		       "%s\n", driver);
@@ -1909,7 +2046,7 @@ static int alg_test_kpp(const struct alg_test_desc *desc, const char *driver,
 	struct crypto_kpp *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_kpp(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_kpp(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		pr_err("alg: kpp: Failed to load tfm for %s: %ld\n",
 		       driver, PTR_ERR(tfm));
@@ -2068,7 +2205,7 @@ static int alg_test_akcipher(const struct alg_test_desc *desc,
 	struct crypto_akcipher *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_akcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	tfm = crypto_alloc_akcipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		pr_err("alg: akcipher: Failed to load tfm for %s: %ld\n",
 		       driver, PTR_ERR(tfm));
@@ -2091,88 +2228,6 @@ static int alg_test_null(const struct alg_test_desc *desc,
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
-		.alg = "__cbc-cast5-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__cbc-cast6-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__cbc-serpent-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__cbc-serpent-avx2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__cbc-serpent-sse2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__cbc-twofish-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-aes-aesni",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "__driver-cbc-camellia-aesni",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-camellia-aesni-avx2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-cast5-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-cast6-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-serpent-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-serpent-avx2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-serpent-sse2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-cbc-twofish-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-aes-aesni",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "__driver-ecb-camellia-aesni",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-camellia-aesni-avx2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-cast5-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-cast6-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-serpent-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-serpent-avx2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-serpent-sse2",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-ecb-twofish-avx",
-		.test = alg_test_null,
-	}, {
-		.alg = "__driver-gcm-aes-aesni",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "__ghash-pclmulqdqni",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
 		.alg = "ansi_cprng",
 		.test = alg_test_cprng,
 		.suite = {
@@ -2659,55 +2714,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "cryptd(__driver-cbc-aes-aesni)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "cryptd(__driver-cbc-camellia-aesni)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-cbc-camellia-aesni-avx2)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-cbc-serpent-avx2)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-aes-aesni)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "cryptd(__driver-ecb-camellia-aesni)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-camellia-aesni-avx2)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-cast5-avx)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-cast6-avx)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-serpent-avx)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-serpent-avx2)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-serpent-sse2)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-ecb-twofish-avx)",
-		.test = alg_test_null,
-	}, {
-		.alg = "cryptd(__driver-gcm-aes-aesni)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "cryptd(__ghash-pclmulqdqni)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
 		.alg = "ctr(aes)",
 		.test = alg_test_skcipher,
 		.fips_allowed = 1,
@@ -3033,10 +3039,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "drbg_pr_sha512",
 		.fips_allowed = 1,
 		.test = alg_test_null,
-	}, {
-		.alg = "ecb(__aes-aesni)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
 	}, {
 		.alg = "ecb(aes)",
 		.test = alg_test_skcipher,

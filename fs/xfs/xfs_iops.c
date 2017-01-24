@@ -983,15 +983,13 @@ xfs_vn_setattr(
 		struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 		uint			iolock = XFS_IOLOCK_EXCL;
 
-		xfs_ilock(ip, iolock);
-		error = xfs_break_layouts(d_inode(dentry), &iolock, true);
-		if (!error) {
-			xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-			iolock |= XFS_MMAPLOCK_EXCL;
+		error = xfs_break_layouts(d_inode(dentry), &iolock);
+		if (error)
+			return error;
 
-			error = xfs_vn_setattr_size(dentry, iattr);
-		}
-		xfs_iunlock(ip, iolock);
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		error = xfs_vn_setattr_size(dentry, iattr);
+		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
 		error = xfs_vn_setattr_nonsize(dentry, iattr);
 	}
@@ -1122,7 +1120,6 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 };
 
 static const struct inode_operations xfs_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -1131,7 +1128,6 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 };
 
 static const struct inode_operations xfs_inline_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link_inline,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,

@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/module.h>
 #include <net/ethoc.h>
 
@@ -221,6 +222,9 @@ struct ethoc {
 	struct mii_bus *mdio;
 	struct clk *clk;
 	s8 phy_id;
+
+	int old_link;
+	int old_duplex;
 };
 
 /**
@@ -572,7 +576,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 
 	/* We always handle the dropped packet interrupt */
 	if (pending & INT_MASK_BUSY) {
-		dev_err(&dev->dev, "packet dropped\n");
+		dev_dbg(&dev->dev, "packet dropped\n");
 		dev->stats.rx_dropped++;
 	}
 
@@ -667,6 +671,32 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 
 static void ethoc_mdio_poll(struct net_device *dev)
 {
+	struct ethoc *priv = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	bool changed = false;
+	u32 mode;
+
+	if (priv->old_link != phydev->link) {
+		changed = true;
+		priv->old_link = phydev->link;
+	}
+
+	if (priv->old_duplex != phydev->duplex) {
+		changed = true;
+		priv->old_duplex = phydev->duplex;
+	}
+
+	if (!changed)
+		return;
+
+	mode = ethoc_read(priv, MODER);
+	if (phydev->duplex == DUPLEX_FULL)
+		mode |= MODER_FULLD;
+	else
+		mode &= ~MODER_FULLD;
+	ethoc_write(priv, MODER, mode);
+
+	phy_print_status(phydev);
 }
 
 static int ethoc_mdio_probe(struct net_device *dev)
@@ -684,6 +714,9 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		dev_err(&dev->dev, "no PHY found\n");
 		return -ENXIO;
 	}
+
+	priv->old_duplex = -1;
+	priv->old_link = -1;
 
 	err = phy_connect_direct(dev, phy, ethoc_mdio_poll,
 				 PHY_INTERFACE_MODE_GMII);
@@ -720,6 +753,9 @@ static int ethoc_open(struct net_device *dev)
 		dev_dbg(&dev->dev, " starting queue\n");
 		netif_start_queue(dev);
 	}
+
+	priv->old_link = -1;
+	priv->old_duplex = -1;
 
 	phy_start(dev->phydev);
 	napi_enable(&priv->napi);
@@ -966,6 +1002,7 @@ static int ethoc_set_ringparam(struct net_device *dev,
 const struct ethtool_ops ethoc_ethtool_ops = {
 	.get_regs_len = ethoc_get_regs_len,
 	.get_regs = ethoc_get_regs,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = ethoc_get_ringparam,
 	.set_ringparam = ethoc_set_ringparam,
@@ -1122,11 +1159,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		const uint8_t *mac;
+		const void *mac;
 
-		mac = of_get_property(pdev->dev.of_node,
-				      "local-mac-address",
-				      NULL);
+		mac = of_get_mac_address(pdev->dev.of_node);
 		if (mac)
 			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
 		priv->phy_id = -1;

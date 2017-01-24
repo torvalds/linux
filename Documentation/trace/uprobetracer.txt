@@ -76,15 +76,15 @@ Usage examples
  * Add a probe as a new uprobe event, write a new definition to uprobe_events
 as below: (sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash)
 
-    echo 'p: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'p /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
  * Add a probe as a new uretprobe event:
 
-    echo 'r: /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'r /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
 
  * Unset registered event:
 
-    echo '-:bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
+    echo '-:p_bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
 
  * Print out the events that are registered:
 

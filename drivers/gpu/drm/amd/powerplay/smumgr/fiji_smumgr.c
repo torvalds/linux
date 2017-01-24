@@ -159,7 +159,7 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
 	return result;
 }
 
-int fiji_setup_pwr_virus(struct pp_smumgr *smumgr)
+static int fiji_setup_pwr_virus(struct pp_smumgr *smumgr)
 {
 	int i, result = -1;
 	uint32_t reg, data;
@@ -224,7 +224,7 @@ static int fiji_start_avfs_btc(struct pp_smumgr *smumgr)
 	return result;
 }
 
-int fiji_setup_pm_fuse_for_avfs(struct pp_smumgr *smumgr)
+static int fiji_setup_pm_fuse_for_avfs(struct pp_smumgr *smumgr)
 {
 	int result = 0;
 	uint32_t table_start;
@@ -260,7 +260,7 @@ int fiji_setup_pm_fuse_for_avfs(struct pp_smumgr *smumgr)
 	return result;
 }
 
-int fiji_setup_graphics_level_structure(struct pp_smumgr *smumgr)
+static int fiji_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 {
 	int32_t vr_config;
 	uint32_t table_start;
@@ -299,7 +299,7 @@ int fiji_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 }
 
 /* Work in Progress */
-int fiji_restore_vft_table(struct pp_smumgr *smumgr)
+static int fiji_restore_vft_table(struct pp_smumgr *smumgr)
 {
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
@@ -311,7 +311,7 @@ int fiji_restore_vft_table(struct pp_smumgr *smumgr)
 }
 
 /* Work in Progress */
-int fiji_save_vft_table(struct pp_smumgr *smumgr)
+static int fiji_save_vft_table(struct pp_smumgr *smumgr)
 {
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
@@ -322,7 +322,7 @@ int fiji_save_vft_table(struct pp_smumgr *smumgr)
 		return -EINVAL;
 }
 
-int fiji_avfs_event_mgr(struct pp_smumgr *smumgr, bool smu_started)
+static int fiji_avfs_event_mgr(struct pp_smumgr *smumgr, bool smu_started)
 {
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
@@ -396,7 +396,8 @@ static int fiji_start_smu(struct pp_smumgr *smumgr)
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(smumgr)) {
+	if (!(smu7_is_smc_ram_running(smumgr)
+		|| cgs_is_virtualization_enabled(smumgr->device))) {
 		fiji_avfs_event_mgr(smumgr, false);
 
 		/* Check if SMU is running in protected mode */
@@ -442,6 +443,9 @@ static bool fiji_is_hw_avfs_present(struct pp_smumgr *smumgr)
 
 	uint32_t efuse = 0;
 	uint32_t mask = (1 << ((AVFS_EN_MSB - AVFS_EN_LSB) + 1)) - 1;
+
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		return 0;
 
 	if (!atomctrl_read_efuse(smumgr->device, AVFS_EN_LSB, AVFS_EN_MSB,
 			mask, &efuse)) {

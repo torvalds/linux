@@ -40,7 +40,7 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	struct cpuinfo_arc_cache *p;
 
 #define PR_CACHE(p, cfg, str)						\
-	if (!(p)->ver)							\
+	if (!(p)->line_len)						\
 		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
 	else								\
 		n += scnprintf(buf + n, len - n,			\
@@ -54,7 +54,7 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
 	p = &cpuinfo_arc700[c].slc;
-	if (p->ver)
+	if (p->line_len)
 		n += scnprintf(buf + n, len - n,
 			       "SLC\t\t: %uK, %uB Line%s\n",
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
@@ -104,7 +104,6 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	READ_BCR(ARC_REG_SLC_BCR, sbcr);
 	if (sbcr.ver) {
 		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
-		p_slc->ver = sbcr.ver;
 		p_slc->sz_k = 128 << slc_cfg.sz;
 		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
 	}
@@ -152,7 +151,6 @@ void read_decode_cache_bcr(void)
 
 	p_ic->line_len = 8 << ibcr.line_len;
 	p_ic->sz_k = 1 << (ibcr.sz - 1);
-	p_ic->ver = ibcr.ver;
 	p_ic->vipt = 1;
 	p_ic->alias = p_ic->sz_k/p_ic->assoc/TO_KB(PAGE_SIZE) > 1;
 
@@ -176,7 +174,6 @@ dc_chk:
 
 	p_dc->line_len = 16 << dbcr.line_len;
 	p_dc->sz_k = 1 << (dbcr.sz - 1);
-	p_dc->ver = dbcr.ver;
 
 slc_chk:
 	if (is_isa_arcv2())
@@ -945,16 +942,12 @@ void arc_cache_init(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
 
-		if (!ic->ver)
+		if (!ic->line_len)
 			panic("cache support enabled but non-existent cache\n");
 
 		if (ic->line_len != L1_CACHE_BYTES)
 			panic("ICache line [%d] != kernel Config [%d]",
 			      ic->line_len, L1_CACHE_BYTES);
-
-		if (ic->ver != CONFIG_ARC_MMU_VER)
-			panic("Cache ver [%d] doesn't match MMU ver [%d]\n",
-			      ic->ver, CONFIG_ARC_MMU_VER);
 
 		/*
 		 * In MMU v4 (HS38x) the aliasing icache config uses IVIL/PTAG
@@ -969,7 +962,7 @@ void arc_cache_init(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE)) {
 		struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
 
-		if (!dc->ver)
+		if (!dc->line_len)
 			panic("cache support enabled but non-existent cache\n");
 
 		if (dc->line_len != L1_CACHE_BYTES)
@@ -979,11 +972,16 @@ void arc_cache_init(void)
 		/* check for D-Cache aliasing on ARCompact: ARCv2 has PIPT */
 		if (is_isa_arcompact()) {
 			int handled = IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
+			int num_colors = dc->sz_k/dc->assoc/TO_KB(PAGE_SIZE);
 
-			if (dc->alias && !handled)
-				panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-			else if (!dc->alias && handled)
+			if (dc->alias) {
+				if (!handled)
+					panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+				if (CACHE_COLORS_NUM != num_colors)
+					panic("CACHE_COLORS_NUM not optimized for config\n");
+			} else if (!dc->alias && handled) {
 				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+			}
 		}
 	}
 

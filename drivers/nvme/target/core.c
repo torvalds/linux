@@ -264,7 +264,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	int ret = 0;
 
 	mutex_lock(&subsys->lock);
-	if (!list_empty(&ns->dev_link))
+	if (ns->enabled)
 		goto out_unlock;
 
 	ns->bdev = blkdev_get_by_path(ns->device_path, FMODE_READ | FMODE_WRITE,
@@ -309,6 +309,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
 		nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE, 0, 0);
 
+	ns->enabled = true;
 	ret = 0;
 out_unlock:
 	mutex_unlock(&subsys->lock);
@@ -325,11 +326,11 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 	struct nvmet_ctrl *ctrl;
 
 	mutex_lock(&subsys->lock);
-	if (list_empty(&ns->dev_link)) {
-		mutex_unlock(&subsys->lock);
-		return;
-	}
-	list_del_init(&ns->dev_link);
+	if (!ns->enabled)
+		goto out_unlock;
+
+	ns->enabled = false;
+	list_del_rcu(&ns->dev_link);
 	mutex_unlock(&subsys->lock);
 
 	/*
@@ -351,6 +352,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 
 	if (ns->bdev)
 		blkdev_put(ns->bdev, FMODE_WRITE|FMODE_READ);
+out_unlock:
 	mutex_unlock(&subsys->lock);
 }
 
@@ -617,7 +619,7 @@ u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
 			subsysnqn);
-		req->rsp->result = IPO_IATTR_CONNECT_DATA(subsysnqn);
+		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
 		return NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 	}
 
@@ -638,7 +640,7 @@ u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 
 	pr_warn("could not find controller %d for subsys %s / host %s\n",
 		cntlid, subsysnqn, hostnqn);
-	req->rsp->result = IPO_IATTR_CONNECT_DATA(cntlid);
+	req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
 	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 
 out:
@@ -700,7 +702,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!subsys) {
 		pr_warn("connect request for invalid subsystem %s!\n",
 			subsysnqn);
-		req->rsp->result = IPO_IATTR_CONNECT_DATA(subsysnqn);
+		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(subsysnqn);
 		goto out;
 	}
 
@@ -709,7 +711,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!nvmet_host_allowed(req, subsys, hostnqn)) {
 		pr_info("connect by host %s for subsystem %s not allowed\n",
 			hostnqn, subsysnqn);
-		req->rsp->result = IPO_IATTR_CONNECT_DATA(hostnqn);
+		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
 		goto out_put_subsystem;
 	}

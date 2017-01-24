@@ -74,7 +74,7 @@ config CRYPTO_DEV_FSL_CAAM_INTC_TIME_THLD
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	tristate "Register algorithm implementations with the Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
@@ -89,7 +89,7 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 
 config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_HASH
 	help
@@ -101,7 +101,7 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 
 config CRYPTO_DEV_FSL_CAAM_PKC_API
         tristate "Register public key cryptography implementations with Crypto API"
-        depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+        depends on CRYPTO_DEV_FSL_CAAM_JR
         default y
         select CRYPTO_RSA
         help
@@ -113,7 +113,7 @@ config CRYPTO_DEV_FSL_CAAM_PKC_API
 
 config CRYPTO_DEV_FSL_CAAM_RNG_API
 	tristate "Register caam device for hwrng API"
-	depends on CRYPTO_DEV_FSL_CAAM && CRYPTO_DEV_FSL_CAAM_JR
+	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_RNG
 	select HW_RANDOM
@@ -134,3 +134,6 @@ config CRYPTO_DEV_FSL_CAAM_DEBUG
 	help
 	  Selecting this will enable printing of various debug
 	  information in the CAAM driver.
+
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
+	def_tristate CRYPTO_DEV_FSL_CAAM_CRYPTO_API

@@ -58,6 +58,11 @@ struct atusb {
 	struct urb *tx_urb;
 	struct sk_buff *tx_skb;
 	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
+
+	/* Firmware variable */
+	unsigned char fw_ver_maj;	/* Firmware major version number */
+	unsigned char fw_ver_min;	/* Firmware minor version number */
+	unsigned char fw_hw_type;	/* Firmware hardware type */
 };
 
 /* ----- USB commands without data ----------------------------------------- */
@@ -541,6 +546,21 @@ atusb_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 retries
 }
 
 static int
+atusb_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
+{
+	struct atusb *atusb = hw->priv;
+	struct device *dev = &atusb->usb_dev->dev;
+
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
+		dev_info(dev, "Automatic frame retransmission is only available from "
+			"firmware version 0.3. Please update if you want this feature.");
+		return -EINVAL;
+	}
+
+	return atusb_write_subreg(atusb, SR_MAX_FRAME_RETRIES, retries);
+}
+
+static int
 atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
 	struct atusb *atusb = hw->priv;
@@ -567,7 +587,7 @@ atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	return 0;
 }
 
-static struct ieee802154_ops atusb_ops = {
+static const struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
 	.ed			= atusb_ed,
@@ -579,6 +599,7 @@ static struct ieee802154_ops atusb_ops = {
 	.set_cca_mode		= atusb_set_cca_mode,
 	.set_cca_ed_level	= atusb_set_cca_ed_level,
 	.set_csma_params	= atusb_set_csma_params,
+	.set_frame_retries	= atusb_set_frame_retries,
 	.set_promiscuous_mode	= atusb_set_promiscuous_mode,
 };
 
@@ -594,14 +615,19 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_ID, ATUSB_REQ_FROM_DEV, 0, 0,
 				buffer, 3, 1000);
-	if (ret >= 0)
+	if (ret >= 0) {
+		atusb->fw_ver_maj = buffer[0];
+		atusb->fw_ver_min = buffer[1];
+		atusb->fw_hw_type = buffer[2];
+
 		dev_info(&usb_dev->dev,
 			 "Firmware: major: %u, minor: %u, hardware type: %u\n",
-			 buffer[0], buffer[1], buffer[2]);
-	if (buffer[0] == 0 && buffer[1] < 2) {
+			 atusb->fw_ver_maj, atusb->fw_ver_min, atusb->fw_hw_type);
+	}
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 2) {
 		dev_info(&usb_dev->dev,
-			 "Firmware version (%u.%u) is predates our first public release.",
-			 buffer[0], buffer[1]);
+			 "Firmware version (%u.%u) predates our first public release.",
+			 atusb->fw_ver_maj, atusb->fw_ver_min);
 		dev_info(&usb_dev->dev, "Please update to version 0.2 or newer");
 	}
 
@@ -669,6 +695,43 @@ fail:
 	return -ENODEV;
 }
 
+static int atusb_set_extended_addr(struct atusb *atusb)
+{
+	struct usb_device *usb_dev = atusb->usb_dev;
+	unsigned char buffer[IEEE802154_EXTENDED_ADDR_LEN];
+	__le64 extended_addr;
+	u64 addr;
+	int ret;
+
+	/* Firmware versions before 0.3 do not support the EUI64_READ command.
+	 * Just use a random address and be done */
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+		return 0;
+	}
+
+	/* Firmware is new enough so we fetch the address from EEPROM */
+	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
+				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
+				buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000);
+	if (ret < 0)
+		dev_err(&usb_dev->dev, "failed to fetch extended address\n");
+
+	memcpy(&extended_addr, buffer, IEEE802154_EXTENDED_ADDR_LEN);
+	/* Check if read address is not empty and the unicast bit is set correctly */
+	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
+		dev_info(&usb_dev->dev, "no permanent extended address found, random address set\n");
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+	} else {
+		atusb->hw->phy->perm_extended_addr = extended_addr;
+		addr = swab64((__force u64)atusb->hw->phy->perm_extended_addr);
+		dev_info(&usb_dev->dev, "Read permanent extended address %8phC from device\n",
+			&addr);
+	}
+
+	return ret;
+}
+
 /* ----- Setup ------------------------------------------------------------- */
 
 static int atusb_probe(struct usb_interface *interface,
@@ -707,7 +770,8 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS;
+		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS |
+		    IEEE802154_HW_FRAME_RETRIES;
 
 	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER | WPAN_PHY_FLAG_CCA_ED_LEVEL |
 			 WPAN_PHY_FLAG_CCA_MODE;
@@ -728,13 +792,14 @@ static int atusb_probe(struct usb_interface *interface,
 	hw->phy->supported.tx_powers = atusb_powers;
 	hw->phy->supported.tx_powers_size = ARRAY_SIZE(atusb_powers);
 	hw->phy->transmit_power = hw->phy->supported.tx_powers[0];
-	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 	hw->phy->cca_ed_level = hw->phy->supported.cca_ed_levels[7];
 
 	atusb_command(atusb, ATUSB_RF_RESET, 0);
 	atusb_get_and_show_chip(atusb);
 	atusb_get_and_show_revision(atusb);
 	atusb_get_and_show_build(atusb);
+	atusb_set_extended_addr(atusb);
+
 	ret = atusb_get_and_clear_error(atusb);
 	if (ret) {
 		dev_err(&atusb->usb_dev->dev,

@@ -40,19 +40,20 @@
 #define DEBUG_SUBSYSTEM S_LOV
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include "../include/obd_support.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_net.h"
 #include "../include/lustre/lustre_idl.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_mds.h"
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_param.h"
+#include "../include/lustre/lustre_ioctl.h"
+
 #include "../include/cl_object.h"
-#include "../include/lustre/ll_fiemap.h"
+#include "../include/lustre_dlm.h"
 #include "../include/lustre_fid.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_mds.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_swab.h"
+#include "../include/lprocfs_status.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
 
 #include "lov_internal.h"
 
@@ -826,29 +827,6 @@ out:
 	return rc;
 }
 
-static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
-{
-	struct lov_obd *lov = &obd->u.lov;
-
-	switch (stage) {
-	case OBD_CLEANUP_EARLY: {
-		int i;
-
-		for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-			if (!lov->lov_tgts[i] || !lov->lov_tgts[i]->ltd_active)
-				continue;
-			obd_precleanup(class_exp2obd(lov->lov_tgts[i]->ltd_exp),
-				       OBD_CLEANUP_EARLY);
-		}
-		break;
-	}
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int lov_cleanup(struct obd_device *obd)
 {
 	struct lov_obd *lov = &obd->u.lov;
@@ -972,163 +950,6 @@ out:
 	return rc;
 }
 
-#define ASSERT_LSM_MAGIC(lsmp)						  \
-do {									    \
-	LASSERT((lsmp));						\
-	LASSERTF(((lsmp)->lsm_magic == LOV_MAGIC_V1 ||			  \
-		 (lsmp)->lsm_magic == LOV_MAGIC_V3),			    \
-		 "%p->lsm_magic=%x\n", (lsmp), (lsmp)->lsm_magic);	      \
-} while (0)
-
-static int lov_getattr_interpret(struct ptlrpc_request_set *rqset,
-				 void *data, int rc)
-{
-	struct lov_request_set *lovset = (struct lov_request_set *)data;
-	int err;
-
-	/* don't do attribute merge if this async op failed */
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_getattr_set(lovset);
-	return rc ? rc : err;
-}
-
-static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
-			     struct ptlrpc_request_set *rqset)
-{
-	struct lov_request_set *lovset;
-	struct lov_obd *lov;
-	struct lov_request *req;
-	int rc = 0, err;
-
-	LASSERT(oinfo);
-	ASSERT_LSM_MAGIC(oinfo->oi_md);
-
-	if (!exp || !exp->exp_obd)
-		return -ENODEV;
-
-	lov = &exp->exp_obd->u.lov;
-
-	rc = lov_prep_getattr_set(exp, oinfo, &lovset);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INFO, "objid "DOSTID": %ux%u byte stripes\n",
-	       POSTID(&oinfo->oi_md->lsm_oi), oinfo->oi_md->lsm_stripe_count,
-	       oinfo->oi_md->lsm_stripe_size);
-
-	list_for_each_entry(req, &lovset->set_list, rq_link) {
-		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
-		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
-		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
-		rc = obd_getattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
-				       &req->rq_oi, rqset);
-		if (rc) {
-			CERROR("%s: getattr objid "DOSTID" subobj"
-			       DOSTID" on OST idx %d: rc = %d\n",
-			       exp->exp_obd->obd_name,
-			       POSTID(&oinfo->oi_oa->o_oi),
-			       POSTID(&req->rq_oi.oi_oa->o_oi),
-			       req->rq_idx, rc);
-			goto out;
-		}
-	}
-
-	if (!list_empty(&rqset->set_requests)) {
-		LASSERT(rc == 0);
-		LASSERT(!rqset->set_interpret);
-		rqset->set_interpret = lov_getattr_interpret;
-		rqset->set_arg = (void *)lovset;
-		return rc;
-	}
-out:
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_getattr_set(lovset);
-	return rc ? rc : err;
-}
-
-static int lov_setattr_interpret(struct ptlrpc_request_set *rqset,
-				 void *data, int rc)
-{
-	struct lov_request_set *lovset = (struct lov_request_set *)data;
-	int err;
-
-	if (rc)
-		atomic_set(&lovset->set_completes, 0);
-	err = lov_fini_setattr_set(lovset);
-	return rc ? rc : err;
-}
-
-/* If @oti is given, the request goes from MDS and responses from OSTs are not
- * needed. Otherwise, a client is waiting for responses.
- */
-static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
-			     struct obd_trans_info *oti,
-			     struct ptlrpc_request_set *rqset)
-{
-	struct lov_request_set *set;
-	struct lov_request *req;
-	struct lov_obd *lov;
-	int rc = 0;
-
-	LASSERT(oinfo);
-	ASSERT_LSM_MAGIC(oinfo->oi_md);
-	if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE) {
-		LASSERT(oti);
-		LASSERT(oti->oti_logcookies);
-	}
-
-	if (!exp || !exp->exp_obd)
-		return -ENODEV;
-
-	lov = &exp->exp_obd->u.lov;
-	rc = lov_prep_setattr_set(exp, oinfo, oti, &set);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INFO, "objid "DOSTID": %ux%u byte stripes\n",
-	       POSTID(&oinfo->oi_md->lsm_oi),
-	       oinfo->oi_md->lsm_stripe_count,
-	       oinfo->oi_md->lsm_stripe_size);
-
-	list_for_each_entry(req, &set->set_list, rq_link) {
-		if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
-			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
-
-		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
-		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
-		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
-
-		rc = obd_setattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
-				       &req->rq_oi, oti, rqset);
-		if (rc) {
-			CERROR("error: setattr objid "DOSTID" subobj"
-			       DOSTID" on OST idx %d: rc = %d\n",
-			       POSTID(&set->set_oi->oi_oa->o_oi),
-			       POSTID(&req->rq_oi.oi_oa->o_oi),
-			       req->rq_idx, rc);
-			break;
-		}
-	}
-
-	/* If we are not waiting for responses on async requests, return. */
-	if (rc || !rqset || list_empty(&rqset->set_requests)) {
-		int err;
-
-		if (rc)
-			atomic_set(&set->set_completes, 0);
-		err = lov_fini_setattr_set(set);
-		return rc ? rc : err;
-	}
-
-	LASSERT(!rqset->set_interpret);
-	rqset->set_interpret = lov_setattr_interpret;
-	rqset->set_arg = (void *)set;
-
-	return 0;
-}
-
 int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
 {
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
@@ -1183,7 +1004,10 @@ static int lov_statfs(const struct lu_env *env, struct obd_export *exp,
 		      struct obd_statfs *osfs, __u64 max_age, __u32 flags)
 {
 	struct ptlrpc_request_set *set = NULL;
-	struct obd_info oinfo = { };
+	struct obd_info oinfo = {
+		.oi_osfs = osfs,
+		.oi_flags = flags,
+	};
 	int rc = 0;
 
 	/* for obdclass we forbid using obd_statfs_rqset, but prefer using async
@@ -1193,8 +1017,6 @@ static int lov_statfs(const struct lu_env *env, struct obd_export *exp,
 	if (!set)
 		return -ENOMEM;
 
-	oinfo.oi_osfs = osfs;
-	oinfo.oi_flags = flags;
 	rc = lov_statfs_async(exp, &oinfo, max_age, set);
 	if (rc == 0)
 		rc = ptlrpc_set_wait(set);
@@ -1235,8 +1057,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		/* copy UUID */
 		if (copy_to_user(data->ioc_pbuf2, obd2cli_tgt(osc_obd),
-				 min((int)data->ioc_plen2,
-				     (int)sizeof(struct obd_uuid))))
+				 min_t(unsigned long, data->ioc_plen2,
+				       sizeof(struct obd_uuid))))
 			return -EFAULT;
 
 		memcpy(&flags, data->ioc_inlbuf1, sizeof(__u32));
@@ -1249,8 +1071,8 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		if (rc)
 			return rc;
 		if (copy_to_user(data->ioc_pbuf1, &stat_buf,
-				 min((int)data->ioc_plen1,
-				     (int)sizeof(stat_buf))))
+				 min_t(unsigned long, data->ioc_plen1,
+				       sizeof(stat_buf))))
 			return -EFAULT;
 		break;
 	}
@@ -1367,8 +1189,6 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			osc_obd->obd_force = obddev->obd_force;
 			err = obd_iocontrol(cmd, lov->lov_tgts[i]->ltd_exp,
 					    len, karg, uarg);
-			if (err == -ENODATA && cmd == OBD_IOC_POLL_QUOTACHECK)
-				return err;
 			if (err) {
 				if (lov->lov_tgts[i]->ltd_active) {
 					CDEBUG(err == -ENOTTY ?
@@ -1391,454 +1211,35 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 	return rc;
 }
 
-#define FIEMAP_BUFFER_SIZE 4096
-
-/**
- * Non-zero fe_logical indicates that this is a continuation FIEMAP
- * call. The local end offset and the device are sent in the first
- * fm_extent. This function calculates the stripe number from the index.
- * This function returns a stripe_no on which mapping is to be restarted.
- *
- * This function returns fm_end_offset which is the in-OST offset at which
- * mapping should be restarted. If fm_end_offset=0 is returned then caller
- * will re-calculate proper offset in next stripe.
- * Note that the first extent is passed to lov_get_info via the value field.
- *
- * \param fiemap fiemap request header
- * \param lsm striping information for the file
- * \param fm_start logical start of mapping
- * \param fm_end logical end of mapping
- * \param start_stripe starting stripe will be returned in this
- */
-static u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
-				     struct lov_stripe_md *lsm, u64 fm_start,
-				     u64 fm_end, int *start_stripe)
-{
-	u64 local_end = fiemap->fm_extents[0].fe_logical;
-	u64 lun_start, lun_end;
-	u64 fm_end_offset;
-	int stripe_no = -1, i;
-
-	if (fiemap->fm_extent_count == 0 ||
-	    fiemap->fm_extents[0].fe_logical == 0)
-		return 0;
-
-	/* Find out stripe_no from ost_index saved in the fe_device */
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		struct lov_oinfo *oinfo = lsm->lsm_oinfo[i];
-
-		if (lov_oinfo_is_dummy(oinfo))
-			continue;
-
-		if (oinfo->loi_ost_idx == fiemap->fm_extents[0].fe_device) {
-			stripe_no = i;
-			break;
-		}
-	}
-	if (stripe_no == -1)
-		return -EINVAL;
-
-	/* If we have finished mapping on previous device, shift logical
-	 * offset to start of next device
-	 */
-	if ((lov_stripe_intersects(lsm, stripe_no, fm_start, fm_end,
-				   &lun_start, &lun_end)) != 0 &&
-				   local_end < lun_end) {
-		fm_end_offset = local_end;
-		*start_stripe = stripe_no;
-	} else {
-		/* This is a special value to indicate that caller should
-		 * calculate offset in next stripe.
-		 */
-		fm_end_offset = 0;
-		*start_stripe = (stripe_no + 1) % lsm->lsm_stripe_count;
-	}
-
-	return fm_end_offset;
-}
-
-/**
- * We calculate on which OST the mapping will end. If the length of mapping
- * is greater than (stripe_size * stripe_count) then the last_stripe will
- * will be one just before start_stripe. Else we check if the mapping
- * intersects each OST and find last_stripe.
- * This function returns the last_stripe and also sets the stripe_count
- * over which the mapping is spread
- *
- * \param lsm striping information for the file
- * \param fm_start logical start of mapping
- * \param fm_end logical end of mapping
- * \param start_stripe starting stripe of the mapping
- * \param stripe_count the number of stripes across which to map is returned
- *
- * \retval last_stripe return the last stripe of the mapping
- */
-static int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
-				   u64 fm_end, int start_stripe,
-				   int *stripe_count)
-{
-	int last_stripe;
-	u64 obd_start, obd_end;
-	int i, j;
-
-	if (fm_end - fm_start > lsm->lsm_stripe_size * lsm->lsm_stripe_count) {
-		last_stripe = start_stripe < 1 ? lsm->lsm_stripe_count - 1 :
-							      start_stripe - 1;
-		*stripe_count = lsm->lsm_stripe_count;
-	} else {
-		for (j = 0, i = start_stripe; j < lsm->lsm_stripe_count;
-		     i = (i + 1) % lsm->lsm_stripe_count, j++) {
-			if ((lov_stripe_intersects(lsm, i, fm_start, fm_end,
-						   &obd_start, &obd_end)) == 0)
-				break;
-		}
-		*stripe_count = j;
-		last_stripe = (start_stripe + j - 1) % lsm->lsm_stripe_count;
-	}
-
-	return last_stripe;
-}
-
-/**
- * Set fe_device and copy extents from local buffer into main return buffer.
- *
- * \param fiemap fiemap request header
- * \param lcl_fm_ext array of local fiemap extents to be copied
- * \param ost_index OST index to be written into the fm_device field for each
-		    extent
- * \param ext_count number of extents to be copied
- * \param current_extent where to start copying in main extent array
- */
-static void fiemap_prepare_and_copy_exts(struct ll_user_fiemap *fiemap,
-					 struct ll_fiemap_extent *lcl_fm_ext,
-					 int ost_index, unsigned int ext_count,
-					 int current_extent)
-{
-	char *to;
-	int ext;
-
-	for (ext = 0; ext < ext_count; ext++) {
-		lcl_fm_ext[ext].fe_device = ost_index;
-		lcl_fm_ext[ext].fe_flags |= FIEMAP_EXTENT_NET;
-	}
-
-	/* Copy fm_extent's from fm_local to return buffer */
-	to = (char *)fiemap + fiemap_count_to_size(current_extent);
-	memcpy(to, lcl_fm_ext, ext_count * sizeof(struct ll_fiemap_extent));
-}
-
-/**
- * Break down the FIEMAP request and send appropriate calls to individual OSTs.
- * This also handles the restarting of FIEMAP calls in case mapping overflows
- * the available number of extents in single call.
- */
-static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
-		      __u32 *vallen, void *val, struct lov_stripe_md *lsm)
-{
-	struct ll_fiemap_info_key *fm_key = key;
-	struct ll_user_fiemap *fiemap = val;
-	struct ll_user_fiemap *fm_local = NULL;
-	struct ll_fiemap_extent *lcl_fm_ext;
-	int count_local;
-	unsigned int get_num_extents = 0;
-	int ost_index = 0, actual_start_stripe, start_stripe;
-	u64 fm_start, fm_end, fm_length, fm_end_offset;
-	u64 curr_loc;
-	int current_extent = 0, rc = 0, i;
-	/* Whether have we collected enough extents */
-	bool enough = false;
-	int ost_eof = 0; /* EOF for object */
-	int ost_done = 0; /* done with required mapping for this OST? */
-	int last_stripe;
-	int cur_stripe = 0, cur_stripe_wrap = 0, stripe_count;
-	unsigned int buffer_size = FIEMAP_BUFFER_SIZE;
-
-	if (!lsm_has_objects(lsm)) {
-		if (lsm && lsm_is_released(lsm) && (fm_key->fiemap.fm_start <
-		    fm_key->oa.o_size)) {
-			/*
-			 * released file, return a minimal FIEMAP if
-			 * request fits in file-size.
-			 */
-			fiemap->fm_mapped_extents = 1;
-			fiemap->fm_extents[0].fe_logical =
-					fm_key->fiemap.fm_start;
-			if (fm_key->fiemap.fm_start + fm_key->fiemap.fm_length <
-			    fm_key->oa.o_size) {
-				fiemap->fm_extents[0].fe_length =
-					fm_key->fiemap.fm_length;
-			} else {
-				fiemap->fm_extents[0].fe_length =
-					fm_key->oa.o_size - fm_key->fiemap.fm_start;
-				fiemap->fm_extents[0].fe_flags |=
-						(FIEMAP_EXTENT_UNKNOWN |
-						 FIEMAP_EXTENT_LAST);
-			}
-		}
-		rc = 0;
-		goto out;
-	}
-
-	if (fiemap_count_to_size(fm_key->fiemap.fm_extent_count) < buffer_size)
-		buffer_size = fiemap_count_to_size(fm_key->fiemap.fm_extent_count);
-
-	fm_local = libcfs_kvzalloc(buffer_size, GFP_NOFS);
-	if (!fm_local) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	lcl_fm_ext = &fm_local->fm_extents[0];
-
-	count_local = fiemap_size_to_count(buffer_size);
-
-	memcpy(fiemap, &fm_key->fiemap, sizeof(*fiemap));
-	fm_start = fiemap->fm_start;
-	fm_length = fiemap->fm_length;
-	/* Calculate start stripe, last stripe and length of mapping */
-	start_stripe = lov_stripe_number(lsm, fm_start);
-	actual_start_stripe = start_stripe;
-	fm_end = (fm_length == ~0ULL ? fm_key->oa.o_size :
-						fm_start + fm_length - 1);
-	/* If fm_length != ~0ULL but fm_start+fm_length-1 exceeds file size */
-	if (fm_end > fm_key->oa.o_size)
-		fm_end = fm_key->oa.o_size;
-
-	last_stripe = fiemap_calc_last_stripe(lsm, fm_start, fm_end,
-					      actual_start_stripe,
-					      &stripe_count);
-
-	fm_end_offset = fiemap_calc_fm_end_offset(fiemap, lsm, fm_start,
-						  fm_end, &start_stripe);
-	if (fm_end_offset == -EINVAL) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	if (fiemap_count_to_size(fiemap->fm_extent_count) > *vallen)
-		fiemap->fm_extent_count = fiemap_size_to_count(*vallen);
-	if (fiemap->fm_extent_count == 0) {
-		get_num_extents = 1;
-		count_local = 0;
-	}
-	/* Check each stripe */
-	for (cur_stripe = start_stripe, i = 0; i < stripe_count;
-	     i++, cur_stripe = (cur_stripe + 1) % lsm->lsm_stripe_count) {
-		u64 req_fm_len; /* Stores length of required mapping */
-		u64 len_mapped_single_call;
-		u64 lun_start, lun_end, obd_object_end;
-		unsigned int ext_count;
-
-		cur_stripe_wrap = cur_stripe;
-
-		/* Find out range of mapping on this stripe */
-		if ((lov_stripe_intersects(lsm, cur_stripe, fm_start, fm_end,
-					   &lun_start, &obd_object_end)) == 0)
-			continue;
-
-		if (lov_oinfo_is_dummy(lsm->lsm_oinfo[cur_stripe])) {
-			rc = -EIO;
-			goto out;
-		}
-
-		/* If this is a continuation FIEMAP call and we are on
-		 * starting stripe then lun_start needs to be set to
-		 * fm_end_offset
-		 */
-		if (fm_end_offset != 0 && cur_stripe == start_stripe)
-			lun_start = fm_end_offset;
-
-		if (fm_length != ~0ULL) {
-			/* Handle fm_start + fm_length overflow */
-			if (fm_start + fm_length < fm_start)
-				fm_length = ~0ULL - fm_start;
-			lun_end = lov_size_to_stripe(lsm, fm_start + fm_length,
-						     cur_stripe);
-		} else {
-			lun_end = ~0ULL;
-		}
-
-		if (lun_start == lun_end)
-			continue;
-
-		req_fm_len = obd_object_end - lun_start;
-		fm_local->fm_length = 0;
-		len_mapped_single_call = 0;
-
-		/* If the output buffer is very large and the objects have many
-		 * extents we may need to loop on a single OST repeatedly
-		 */
-		ost_eof = 0;
-		ost_done = 0;
-		do {
-			if (get_num_extents == 0) {
-				/* Don't get too many extents. */
-				if (current_extent + count_local >
-				    fiemap->fm_extent_count)
-					count_local = fiemap->fm_extent_count -
-								 current_extent;
-			}
-
-			lun_start += len_mapped_single_call;
-			fm_local->fm_length = req_fm_len - len_mapped_single_call;
-			req_fm_len = fm_local->fm_length;
-			fm_local->fm_extent_count = enough ? 1 : count_local;
-			fm_local->fm_mapped_extents = 0;
-			fm_local->fm_flags = fiemap->fm_flags;
-
-			fm_key->oa.o_oi = lsm->lsm_oinfo[cur_stripe]->loi_oi;
-			ost_index = lsm->lsm_oinfo[cur_stripe]->loi_ost_idx;
-
-			if (ost_index < 0 ||
-			    ost_index >= lov->desc.ld_tgt_count) {
-				rc = -EINVAL;
-				goto out;
-			}
-
-			/* If OST is inactive, return extent with UNKNOWN flag */
-			if (!lov->lov_tgts[ost_index]->ltd_active) {
-				fm_local->fm_flags |= FIEMAP_EXTENT_LAST;
-				fm_local->fm_mapped_extents = 1;
-
-				lcl_fm_ext[0].fe_logical = lun_start;
-				lcl_fm_ext[0].fe_length = obd_object_end -
-								      lun_start;
-				lcl_fm_ext[0].fe_flags |= FIEMAP_EXTENT_UNKNOWN;
-
-				goto inactive_tgt;
-			}
-
-			fm_local->fm_start = lun_start;
-			fm_local->fm_flags &= ~FIEMAP_FLAG_DEVICE_ORDER;
-			memcpy(&fm_key->fiemap, fm_local, sizeof(*fm_local));
-			*vallen = fiemap_count_to_size(fm_local->fm_extent_count);
-			rc = obd_get_info(NULL,
-					  lov->lov_tgts[ost_index]->ltd_exp,
-					  keylen, key, vallen, fm_local, lsm);
-			if (rc != 0)
-				goto out;
-
-inactive_tgt:
-			ext_count = fm_local->fm_mapped_extents;
-			if (ext_count == 0) {
-				ost_done = 1;
-				/* If last stripe has hole at the end,
-				 * then we need to return
-				 */
-				if (cur_stripe_wrap == last_stripe) {
-					fiemap->fm_mapped_extents = 0;
-					goto finish;
-				}
-				break;
-			} else if (enough) {
-				/*
-				 * We've collected enough extents and there are
-				 * more extents after it.
-				 */
-				goto finish;
-			}
-
-			/* If we just need num of extents then go to next device */
-			if (get_num_extents) {
-				current_extent += ext_count;
-				break;
-			}
-
-			len_mapped_single_call =
-				lcl_fm_ext[ext_count - 1].fe_logical -
-				lun_start + lcl_fm_ext[ext_count - 1].fe_length;
-
-			/* Have we finished mapping on this device? */
-			if (req_fm_len <= len_mapped_single_call)
-				ost_done = 1;
-
-			/* Clear the EXTENT_LAST flag which can be present on
-			 * last extent
-			 */
-			if (lcl_fm_ext[ext_count - 1].fe_flags &
-			    FIEMAP_EXTENT_LAST)
-				lcl_fm_ext[ext_count - 1].fe_flags &=
-							    ~FIEMAP_EXTENT_LAST;
-
-			curr_loc = lov_stripe_size(lsm,
-					lcl_fm_ext[ext_count - 1].fe_logical +
-					lcl_fm_ext[ext_count - 1].fe_length,
-					cur_stripe);
-			if (curr_loc >= fm_key->oa.o_size)
-				ost_eof = 1;
-
-			fiemap_prepare_and_copy_exts(fiemap, lcl_fm_ext,
-						     ost_index, ext_count,
-						     current_extent);
-
-			current_extent += ext_count;
-
-			/* Ran out of available extents? */
-			if (current_extent >= fiemap->fm_extent_count)
-				enough = true;
-		} while (ost_done == 0 && ost_eof == 0);
-
-		if (cur_stripe_wrap == last_stripe)
-			goto finish;
-	}
-
-finish:
-	/* Indicate that we are returning device offsets unless file just has
-	 * single stripe
-	 */
-	if (lsm->lsm_stripe_count > 1)
-		fiemap->fm_flags |= FIEMAP_FLAG_DEVICE_ORDER;
-
-	if (get_num_extents)
-		goto skip_last_device_calc;
-
-	/* Check if we have reached the last stripe and whether mapping for that
-	 * stripe is done.
-	 */
-	if (cur_stripe_wrap == last_stripe) {
-		if (ost_done || ost_eof)
-			fiemap->fm_extents[current_extent - 1].fe_flags |=
-							     FIEMAP_EXTENT_LAST;
-	}
-
-skip_last_device_calc:
-	fiemap->fm_mapped_extents = current_extent;
-
-out:
-	kvfree(fm_local);
-	return rc;
-}
-
 static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *lsm)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	struct obd_device *obddev = class_exp2obd(exp);
 	struct lov_obd *lov = &obddev->u.lov;
-	int rc;
+	struct lov_desc *ld = &lov->desc;
+	int rc = 0;
 
 	if (!vallen || !val)
 		return -EFAULT;
 
 	obd_getref(obddev);
 
-	if (KEY_IS(KEY_LOVDESC)) {
-		struct lov_desc *desc_ret = val;
-		*desc_ret = lov->desc;
+	if (KEY_IS(KEY_MAX_EASIZE)) {
+		u32 max_stripe_count = min_t(u32, ld->ld_active_tgt_count,
+					     LOV_MAX_STRIPE_COUNT);
 
-		rc = 0;
-		goto out;
-	} else if (KEY_IS(KEY_FIEMAP)) {
-		rc = lov_fiemap(lov, keylen, key, vallen, val, lsm);
-		goto out;
+		*((u32 *)val) = lov_mds_md_size(max_stripe_count, LOV_MAGIC_V3);
+	} else if (KEY_IS(KEY_DEFAULT_EASIZE)) {
+		u32 def_stripe_count = min_t(u32, ld->ld_default_stripe_count,
+					     LOV_MAX_STRIPE_COUNT);
+
+		*((u32 *)val) = lov_mds_md_size(def_stripe_count, LOV_MAGIC_V3);
 	} else if (KEY_IS(KEY_TGT_COUNT)) {
 		*((int *)val) = lov->desc.ld_tgt_count;
-		rc = 0;
-		goto out;
+	} else {
+		rc = -EINVAL;
 	}
 
-	rc = -EINVAL;
-
-out:
 	obd_putref(obddev);
 	return rc;
 }
@@ -1926,12 +1327,8 @@ static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 	__u64		bhardlimit = 0;
 	int		  i, rc = 0;
 
-	if (oqctl->qc_cmd != LUSTRE_Q_QUOTAON &&
-	    oqctl->qc_cmd != LUSTRE_Q_QUOTAOFF &&
-	    oqctl->qc_cmd != Q_GETOQUOTA &&
-	    oqctl->qc_cmd != Q_INITQUOTA &&
-	    oqctl->qc_cmd != LUSTRE_Q_SETQUOTA &&
-	    oqctl->qc_cmd != Q_FINVALIDATE) {
+	if (oqctl->qc_cmd != Q_GETOQUOTA &&
+	    oqctl->qc_cmd != LUSTRE_Q_SETQUOTA) {
 		CERROR("bad quota opc %x for lov obd\n", oqctl->qc_cmd);
 		return -EFAULT;
 	}
@@ -1978,63 +1375,15 @@ static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 	return rc;
 }
 
-static int lov_quotacheck(struct obd_device *obd, struct obd_export *exp,
-			  struct obd_quotactl *oqctl)
-{
-	struct lov_obd *lov = &obd->u.lov;
-	int	     i, rc = 0;
-
-	obd_getref(obd);
-
-	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-		if (!lov->lov_tgts[i])
-			continue;
-
-		/* Skip quota check on the administratively disabled OSTs. */
-		if (!lov->lov_tgts[i]->ltd_activate) {
-			CWARN("lov idx %d was administratively disabled, skip quotacheck on it.\n",
-			      i);
-			continue;
-		}
-
-		if (!lov->lov_tgts[i]->ltd_active) {
-			CERROR("lov idx %d inactive\n", i);
-			rc = -EIO;
-			goto out;
-		}
-	}
-
-	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-		int err;
-
-		if (!lov->lov_tgts[i] || !lov->lov_tgts[i]->ltd_activate)
-			continue;
-
-		err = obd_quotacheck(lov->lov_tgts[i]->ltd_exp, oqctl);
-		if (err && !rc)
-			rc = err;
-	}
-
-out:
-	obd_putref(obd);
-
-	return rc;
-}
-
 static struct obd_ops lov_obd_ops = {
 	.owner          = THIS_MODULE,
 	.setup          = lov_setup,
-	.precleanup     = lov_precleanup,
 	.cleanup        = lov_cleanup,
 	/*.process_config       = lov_process_config,*/
 	.connect        = lov_connect,
 	.disconnect     = lov_disconnect,
 	.statfs         = lov_statfs,
 	.statfs_async   = lov_statfs_async,
-	.packmd         = lov_packmd,
-	.unpackmd       = lov_unpackmd,
-	.getattr_async  = lov_getattr_async,
-	.setattr_async  = lov_setattr_async,
 	.iocontrol      = lov_iocontrol,
 	.get_info       = lov_get_info,
 	.set_info_async = lov_set_info_async,
@@ -2046,7 +1395,6 @@ static struct obd_ops lov_obd_ops = {
 	.getref         = lov_getref,
 	.putref         = lov_putref,
 	.quotactl       = lov_quotactl,
-	.quotacheck     = lov_quotacheck,
 };
 
 struct kmem_cache *lov_oinfo_slab;

@@ -400,6 +400,9 @@ static int __init mlxcpld_led_init(void)
 	struct platform_device *pdev;
 	int err;
 
+	if (!dmi_match(DMI_CHASSIS_VENDOR, "Mellanox Technologies Ltd."))
+		return -ENODEV;
+
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);
 	if (IS_ERR(pdev)) {
 		pr_err("Device allocation failed\n");
@@ -426,5 +429,5 @@ module_exit(mlxcpld_led_exit);
 
 MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox board LED driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:leds_mlxcpld");

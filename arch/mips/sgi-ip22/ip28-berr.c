@@ -19,7 +19,7 @@
 #include <asm/sgi/ioc.h>
 #include <asm/sgi/ip22.h>
 #include <asm/r4kcache.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bootinfo.h>
 
 static unsigned int count_be_is_fixup;

@@ -253,7 +253,7 @@ static enum hrtimer_restart ec_bhf_timer_fun(struct hrtimer *timer)
 	if (!netif_running(priv->net_dev))
 		return HRTIMER_NORESTART;
 
-	hrtimer_forward_now(timer, ktime_set(0, polling_frequency));
+	hrtimer_forward_now(timer, polling_frequency);
 	return HRTIMER_RESTART;
 }
 
@@ -427,8 +427,7 @@ static int ec_bhf_open(struct net_device *net_dev)
 
 	hrtimer_init(&priv->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	priv->hrtimer.function = ec_bhf_timer_fun;
-	hrtimer_start(&priv->hrtimer, ktime_set(0, polling_frequency),
-		      HRTIMER_MODE_REL);
+	hrtimer_start(&priv->hrtimer, polling_frequency, HRTIMER_MODE_REL);
 
 	return 0;
 
@@ -482,7 +481,6 @@ static const struct net_device_ops ec_bhf_netdev_ops = {
 	.ndo_open		= ec_bhf_open,
 	.ndo_stop		= ec_bhf_stop,
 	.ndo_get_stats64	= ec_bhf_get_stats,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr
 };
