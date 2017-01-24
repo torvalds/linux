@@ -441,7 +441,7 @@ static void mwifiex_delay_for_sleep_cookie(struct mwifiex_adapter *adapter,
 	u32 sleep_cookie, count;
 
 	for (count = 0; count < max_delay_loop_cnt; count++) {
-		buffer = card->cmdrsp_buf->data - INTF_HEADER_LEN;
+		buffer = card->cmdrsp_buf->data;
 		sleep_cookie = READ_ONCE(*(u32 *)buffer);
 
 		if (sleep_cookie == MWIFIEX_DEF_SLEEP_COOKIE) {
@@ -1690,7 +1690,13 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 	mwifiex_dbg(adapter, CMD,
 		    "info: Rx CMD Response\n");
 
-	mwifiex_unmap_pci_memory(adapter, skb, PCI_DMA_FROMDEVICE);
+	if (adapter->curr_cmd)
+		mwifiex_unmap_pci_memory(adapter, skb, PCI_DMA_FROMDEVICE);
+	else
+		pci_dma_sync_single_for_cpu(card->dev,
+					    MWIFIEX_SKB_DMA_ADDR(skb),
+					    MWIFIEX_UPLD_SIZE,
+					    PCI_DMA_FROMDEVICE);
 
 	/* Unmap the command as a response has been received. */
 	if (card->cmd_buf) {
@@ -1703,10 +1709,13 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 	rx_len = le16_to_cpu(pkt_len);
 	skb_put(skb, MWIFIEX_UPLD_SIZE - skb->len);
 	skb_trim(skb, rx_len);
-	skb_pull(skb, INTF_HEADER_LEN);
 
 	if (!adapter->curr_cmd) {
 		if (adapter->ps_state == PS_STATE_SLEEP_CFM) {
+			pci_dma_sync_single_for_device(card->dev,
+						MWIFIEX_SKB_DMA_ADDR(skb),
+						MWIFIEX_SLEEP_COOKIE_SIZE,
+						PCI_DMA_FROMDEVICE);
 			if (mwifiex_write_reg(adapter,
 					      PCIE_CPU_INT_EVENT,
 					      CPU_INTR_SLEEP_CFM_DONE)) {
@@ -1716,6 +1725,9 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 			}
 			mwifiex_delay_for_sleep_cookie(adapter,
 						       MWIFIEX_MAX_DELAY_COUNT);
+			mwifiex_unmap_pci_memory(adapter, skb,
+						 PCI_DMA_FROMDEVICE);
+			skb_pull(skb, INTF_HEADER_LEN);
 			while (reg->sleep_cookie && (count++ < 10) &&
 			       mwifiex_pcie_ok_to_access_hw(adapter))
 				usleep_range(50, 60);
@@ -1733,6 +1745,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 					   PCI_DMA_FROMDEVICE))
 			return -1;
 	} else if (mwifiex_pcie_ok_to_access_hw(adapter)) {
+		skb_pull(skb, INTF_HEADER_LEN);
 		adapter->curr_cmd->resp_skb = skb;
 		adapter->cmd_resp_received = true;
 		/* Take the pointer and set it to CMD node and will

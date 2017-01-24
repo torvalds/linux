@@ -116,6 +116,7 @@
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
 #define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
+#define MWIFIEX_SLEEP_COOKIE_SIZE			4
 #define MWIFIEX_MAX_DELAY_COUNT				100
 
 struct mwifiex_pcie_card_reg {
