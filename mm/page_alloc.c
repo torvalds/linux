@@ -3763,7 +3763,7 @@ retry_cpuset:
 	 */
 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
 					ac.high_zoneidx, ac.nodemask);
-	if (!ac.preferred_zoneref) {
+	if (!ac.preferred_zoneref->zone) {
 		page = NULL;
 		goto no_zone;
 	}
