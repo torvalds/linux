@@ -239,7 +239,6 @@ static inline int had_chk_intrmiss(struct snd_intelhad *intelhaddata,
 
 int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 {
-	int retval = 0;
 	u32 len = 1;
 	enum intel_had_aud_buf_type buf_id;
 	enum intel_had_aud_buf_type buff_done;
@@ -258,7 +257,7 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
 		pr_err("%s:Device already disconnected\n", __func__);
-		return retval;
+		return 0;
 	}
 	buf_id = intelhaddata->curr_buf;
 	intelhaddata->buff_done = buf_id;
@@ -280,7 +279,7 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 		if (!intr_count || (intr_count > 3)) {
 			pr_err("HAD SW state in non-recoverable!!! mode\n");
 			pr_err("Already played stale data\n");
-			return retval;
+			return 0;
 		}
 		buf_id += (intr_count - 1);
 		buf_id = buf_id % 4;
@@ -298,7 +297,7 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 
 	if (had_get_hwstate(intelhaddata)) {
 		pr_err("HDMI cable plugged-out\n");
-		return retval;
+		return 0;
 	}
 
 	/*Reprogram the registers with addr and length*/
@@ -322,12 +321,11 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 		stream->period_elapsed(stream->had_substream);
 	}
 
-	return retval;
+	return 0;
 }
 
 int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 {
-	int retval = 0;
 	enum intel_had_aud_buf_type buf_id;
 	struct pcm_stream_info *stream;
 	struct had_pvt_data *had_stream;
@@ -355,7 +353,7 @@ int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 
 	if (drv_status == HAD_DRV_DISCONNECTED) {
 		pr_err("%s:Device already disconnected\n", __func__);
-		return retval;
+		return 0;
 	}
 
 	if (stream_type == HAD_RUNNING_STREAM) {
@@ -364,12 +362,11 @@ int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 		stream->period_elapsed(stream->had_substream);
 	}
 
-	return retval;
+	return 0;
 }
 
 int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
-	int retval = 0;
 	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
 	struct had_pvt_data *had_stream;
@@ -384,7 +381,7 @@ int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 	if (intelhaddata->drv_status == HAD_DRV_CONNECTED) {
 		pr_debug("Device already connected\n");
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-		return retval;
+		return 0;
 	}
 	buf_id = intelhaddata->curr_buf;
 	intelhaddata->buff_done = buf_id;
@@ -422,12 +419,12 @@ int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 
 	had_build_channel_allocation_map(intelhaddata);
 
-	return retval;
+	return 0;
 
 err:
 	pm_runtime_disable(intelhaddata->dev);
 	intelhaddata->dev = NULL;
-	return retval;
+	return 0;
 }
 
 int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
