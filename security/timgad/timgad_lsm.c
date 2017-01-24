@@ -16,6 +16,8 @@
 #include <linux/sysctl.h>
 #include <linux/prctl.h>
 
+#include "timgad_core.h"
+
 enum {
 	TIMGAD_MOD_HARDEN_OFF	= 0,
 	TIMGAD_MOD_HARDEN_ON	= 1,
@@ -26,14 +28,37 @@ static int module_restrict;
 static int timgad_set_op_value(struct task_struct *tsk,
 			       unsigned long op, unsigned long value)
 {
-	int ret = -EINVAL;
+	int ret = 0;
+	struct timgad_task *ttask;
+	unsigned long flag = 0;
 
+	ret = timgad_op_to_flag(op, value, &flag);
+	if (ret < 0)
+		return ret;
+
+	/*
+	ttask = give_me_timgad_task(tsk);
+	if (IS_ERR(ttask))
+		return PTR_ERR(ttask);
+	*/
+
+	ret = timgad_set_flag(ttask, op, flag, value);
+
+	put_timgad_task(ttask);
 	return ret;
 }
 
 static int timgad_get_op_value(struct task_struct *tsk, unsigned long op)
 {
 	int ret = -EINVAL;
+	struct timgad_task *ttask;
+
+	ttask = get_timgad_task(tsk);
+	if (!ttask)
+		return ret;
+
+	ret = timgad_task_is_op_set(ttask, op);
+	put_timgad_task(ttask);
 
 	return ret;
 }
@@ -41,6 +66,9 @@ static int timgad_get_op_value(struct task_struct *tsk, unsigned long op)
 int timgad_task_copy(struct task_struct *tsk)
 {
 	int ret = -EINVAL;
+	struct timgad_task *tparent;
+	struct timgad_task *ttask = NULL;
+
 
 	return ret;
 }
@@ -76,6 +104,13 @@ int timgad_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 
 void timgad_task_free(struct task_struct *task)
 {
+	struct timgad_task *ttask;
+
+	ttask = lookup_timgad_task(tsk);
+	if (!ytask)
+		return;
+
+	put_timgad_task(ttask);
 }
 
 static struct security_hook_list timgad_hooks[] = {
@@ -85,8 +120,9 @@ static struct security_hook_list timgad_hooks[] = {
 };
 
 #ifdef CONFIG_SYSCTL
-static int timgad_dointvec_minmax(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+static int timgad_mod_dointvec_minmax(struct ctl_table *table, int write,
+				      void __user *buffer, size_t *lenp,
+				      loff_t *ppos)
 {
 	struct ctl_table table_copy;
 
@@ -116,7 +152,7 @@ static struct ctl_table timgad_sysctl_table[] = {
 		.data           = &module_restrict,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = timgad_dointvec_minmax,
+		.proc_handler   = timgad_mod_dointvec_minmax,
 		.extra1         = &zero,
 		.extra2         = &max_module_restrict_scope,
 	},
@@ -128,12 +164,15 @@ static void __init timgad_init_sysctl(void)
 		panic("Timgad: sysctl registration failed.\n");
 }
 #else
-static inline void yama_init_sysctl(void) { }
+static inline void timgad_init_sysctl(void) { }
 #endif /* CONFIG_SYSCTL */
 
-void __init yama_add_hooks(void)
+void __init timgad_add_hooks(void)
 {
 	pr_info("Timgad: becoming mindful.\n");
 	security_add_hooks(timgad_hooks, ARRAY_SIZE(timgad_hooks));
 	timgad_init_sysctl();
+
+	if (timgad_tasks_init())
+		panic("Timgad: tasks initialization failed.\n");
 }
