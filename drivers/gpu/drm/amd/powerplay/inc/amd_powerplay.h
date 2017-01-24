@@ -46,6 +46,7 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_TEMP,
 	AMDGPU_PP_SENSOR_VCE_POWER,
 	AMDGPU_PP_SENSOR_UVD_POWER,
+	AMDGPU_PP_SENSOR_GPU_POWER,
 };
 
 enum amd_pp_event {
@@ -293,6 +294,13 @@ enum pp_clock_type {
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
+};
+
+struct pp_gpu_power {
+	uint32_t vddc_power;
+	uint32_t vddci_power;
+	uint32_t max_gpu_power;
+	uint32_t average_gpu_power;
 };
 
 #define PP_GROUP_MASK        0xF0000000

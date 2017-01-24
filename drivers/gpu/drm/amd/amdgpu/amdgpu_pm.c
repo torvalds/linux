@@ -1533,6 +1533,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
+	struct pp_gpu_power query = {0};
 
 	/* sanity check PP is enabled */
 	if (!(adev->powerplay.pp_funcs &&
@@ -1549,6 +1550,16 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 		seq_printf(m, "\t%u mV (VDDGFX)\n", value);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value))
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER, (void *)&query)) {
+		seq_printf(m, "\t%u.%u W (VDDC)\n", query.vddc_power >> 8,
+				query.vddc_power & 0xff);
+		seq_printf(m, "\t%u.%u W (VDDCI)\n", query.vddci_power >> 8,
+				query.vddci_power & 0xff);
+		seq_printf(m, "\t%u.%u W (max GPU)\n", query.max_gpu_power >> 8,
+				query.max_gpu_power & 0xff);
+		seq_printf(m, "\t%u.%u W (average GPU)\n", query.average_gpu_power >> 8,
+				query.average_gpu_power & 0xff);
+	}
 	seq_printf(m, "\n");
 
 	/* GPU Temp */
