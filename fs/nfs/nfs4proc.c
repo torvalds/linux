@@ -8371,6 +8371,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		goto out;
 	}
 
+	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	err = nfs4_handle_exception(server, nfs4err, exception);
 	if (!status) {
 		if (exception->retry)
