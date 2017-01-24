@@ -827,12 +827,12 @@ out:
 	return ret;
 }
 
-static int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
+static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	int tuning_seq_cnt = 3;
 	u8 phase, tuned_phases[16], tuned_phase_cnt = 0;
 	int rc;
-	struct mmc_host *mmc = host->mmc;
 	struct mmc_ios ios = host->mmc->ios;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
@@ -855,6 +855,7 @@ static int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 	if (host->flags & SDHCI_HS400_TUNING) {
 		sdhci_msm_hc_select_mode(host);
 		msm_set_clock_rate_for_bus_mode(host, ios.clock);
+		host->flags &= ~SDHCI_HS400_TUNING;
 	}
 
 retry:
@@ -1119,7 +1120,6 @@ static const struct of_device_id sdhci_msm_dt_match[] = {
 MODULE_DEVICE_TABLE(of, sdhci_msm_dt_match);
 
 static const struct sdhci_ops sdhci_msm_ops = {
-	.platform_execute_tuning = sdhci_msm_execute_tuning,
 	.reset = sdhci_reset,
 	.set_clock = sdhci_msm_set_clock,
 	.get_min_clock = sdhci_msm_get_min_clock,
@@ -1294,6 +1294,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 					 MSM_MMC_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
 
+	host->mmc_host_ops.execute_tuning = sdhci_msm_execute_tuning;
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto pm_runtime_disable;
