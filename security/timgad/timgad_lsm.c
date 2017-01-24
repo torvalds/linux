@@ -40,7 +40,7 @@ static int timgad_set_op_value(struct task_struct *tsk,
 	if (IS_ERR(ttask))
 		return PTR_ERR(ttask);
 
-	ret = timgad_task_set_flag(ttask, op, flag, value);
+	ret = timgad_task_set_op_flag(ttask, op, flag, value);
 
 	put_timgad_task(ttask);
 	return ret;
@@ -91,7 +91,7 @@ int timgad_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		ret = timgad_set_op_value(myself, PR_TIMGAD_SET_MOD_HARDEN, arg3);
 		break;
 	case PR_TIMGAD_GET_MOD_HARDEN:
-		ret = timgad_get_op_value(myself, PR_TIMGAD_GET_MOD_HARDEN);
+		ret = timgad_get_op_value(myself, PR_TIMGAD_SET_MOD_HARDEN);
 		break;
 	}
 
