@@ -596,13 +596,13 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 }
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
-				struct hv_netvsc_packet *packet,
-				struct ndis_tcp_ip_checksum_info *csum_info,
-				void *data, u16 vlan_tci)
+					     const struct ndis_tcp_ip_checksum_info *csum_info,
+					     const struct ndis_pkt_8021q_info *vlan,
+					     void *data, u32 buflen)
 {
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb_ip_align(net, packet->total_data_buflen);
+	skb = netdev_alloc_skb_ip_align(net, buflen);
 	if (!skb)
 		return skb;
 
@@ -610,8 +610,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	memcpy(skb_put(skb, packet->total_data_buflen), data,
-	       packet->total_data_buflen);
+	memcpy(skb_put(skb, buflen), data, buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
 
@@ -628,9 +627,12 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (vlan_tci & VLAN_TAG_PRESENT)
+	if (vlan) {
+		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT);
+
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       vlan_tci);
+	}
 
 	return skb;
 }
@@ -639,14 +641,12 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
  * netvsc_recv_callback -  Callback when we receive a packet from the
  * "wire" on the specified device.
  */
-int netvsc_recv_callback(struct hv_device *device_obj,
-				struct hv_netvsc_packet *packet,
-				void **data,
-				struct ndis_tcp_ip_checksum_info *csum_info,
-				struct vmbus_channel *channel,
-				u16 vlan_tci)
+int netvsc_recv_callback(struct net_device *net,
+			 struct vmbus_channel *channel,
+			 void  *data, u32 len,
+			 const struct ndis_tcp_ip_checksum_info *csum_info,
+			 const struct ndis_pkt_8021q_info *vlan)
 {
-	struct net_device *net = hv_get_drvdata(device_obj);
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct net_device *vf_netdev;
 	struct sk_buff *skb;
@@ -668,7 +668,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		net = vf_netdev;
 
 	/* Allocate a skb - TODO direct I/O to pages? */
-	skb = netvsc_alloc_recv_skb(net, packet, csum_info, *data, vlan_tci);
+	skb = netvsc_alloc_recv_skb(net, csum_info, vlan, data, len);
 	if (unlikely(!skb)) {
 		++net->stats.rx_dropped;
 		rcu_read_unlock();
@@ -687,7 +687,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
-	rx_stats->bytes += packet->total_data_buflen;
+	rx_stats->bytes += len;
 
 	if (skb->pkt_type == PACKET_BROADCAST)
 		++rx_stats->broadcast;

@@ -119,6 +119,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 
 /* Fwd declaration */
 struct ndis_tcp_ip_checksum_info;
+struct ndis_pkt_8021q_info;
 
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
@@ -186,12 +187,11 @@ int netvsc_send(struct hv_device *device,
 		struct sk_buff *skb);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);
-int netvsc_recv_callback(struct hv_device *device_obj,
-			struct hv_netvsc_packet *packet,
-			void **data,
-			struct ndis_tcp_ip_checksum_info *csum_info,
-			struct vmbus_channel *channel,
-			u16 vlan_tci);
+int netvsc_recv_callback(struct net_device *net,
+			 struct vmbus_channel *channel,
+			 void  *data, u32 len,
+			 const struct ndis_tcp_ip_checksum_info *csum_info,
+			 const struct ndis_pkt_8021q_info *vlan);
 void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
@@ -200,10 +200,11 @@ int rndis_filter_device_add(struct hv_device *dev,
 void rndis_filter_device_remove(struct hv_device *dev);
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key, int num_queue);
-int rndis_filter_receive(struct hv_device *dev,
-			struct hv_netvsc_packet *pkt,
-			void **data,
-			struct vmbus_channel *channel);
+int rndis_filter_receive(struct net_device *ndev,
+			 struct netvsc_device *net_dev,
+			 struct hv_device *dev,
+			 struct vmbus_channel *channel,
+			 void *data, u32 buflen);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
