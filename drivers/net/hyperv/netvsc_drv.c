@@ -695,7 +695,7 @@ int netvsc_recv_callback(struct net_device *net,
 	 * is done.
 	 * TODO - use NAPI?
 	 */
-	netif_rx(skb);
+	netif_receive_skb(skb);
 	rcu_read_unlock();
 
 	return 0;
