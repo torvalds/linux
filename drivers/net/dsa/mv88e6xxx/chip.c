@@ -2902,7 +2902,8 @@ static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
 
 static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 {
-	struct mv88e6xxx_chip *chip = bus->priv;
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	struct mv88e6xxx_chip *chip = mdio_bus->chip;
 	u16 val;
 	int err;
 
@@ -2921,7 +2922,8 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 
 static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
-	struct mv88e6xxx_chip *chip = bus->priv;
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	struct mv88e6xxx_chip *chip = mdio_bus->chip;
 	int err;
 
 	if (phy >= mv88e6xxx_num_ports(chip))
@@ -2941,17 +2943,20 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 				   struct device_node *np)
 {
 	static int index;
+	struct mv88e6xxx_mdio_bus *mdio_bus;
 	struct mii_bus *bus;
 	int err;
 
 	if (np)
 		chip->mdio_np = of_get_child_by_name(np, "mdio");
 
-	bus = devm_mdiobus_alloc(chip->dev);
+	bus = devm_mdiobus_alloc_size(chip->dev, sizeof(*mdio_bus));
 	if (!bus)
 		return -ENOMEM;
 
-	bus->priv = (void *)chip;
+	mdio_bus = bus->priv;
+	mdio_bus->chip = chip;
+
 	if (np) {
 		bus->name = np->full_name;
 		snprintf(bus->id, MII_BUS_ID_SIZE, "%s", np->full_name);
