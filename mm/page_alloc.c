@@ -3534,6 +3534,17 @@ retry_cpuset:
 	no_progress_loops = 0;
 	compact_priority = DEF_COMPACT_PRIORITY;
 	cpuset_mems_cookie = read_mems_allowed_begin();
+	/*
+	 * We need to recalculate the starting point for the zonelist iterator
+	 * because we might have used different nodemask in the fast path, or
+	 * there was a cpuset modification and we are retrying - otherwise we
+	 * could end up iterating over non-eligible zones endlessly.
+	 */
+	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+					ac->high_zoneidx, ac->nodemask);
+	if (!ac->preferred_zoneref->zone)
+		goto nopage;
+
 
 	/*
 	 * The fast path uses conservative alloc_flags to succeed only until
@@ -3694,6 +3705,13 @@ retry:
 				&compaction_retries))
 		goto retry;
 
+	/*
+	 * It's possible we raced with cpuset update so the OOM would be
+	 * premature (see below the nopage: label for full explanation).
+	 */
+	if (read_mems_allowed_retry(cpuset_mems_cookie))
+		goto retry_cpuset;
+
 	/* Reclaim has failed us, start killing things */
 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
 	if (page)
@@ -3707,10 +3725,11 @@ retry:
 
 nopage:
 	/*
-	 * When updating a task's mems_allowed, it is possible to race with
-	 * parallel threads in such a way that an allocation can fail while
-	 * the mask is being updated. If a page allocation is about to fail,
-	 * check if the cpuset changed during allocation and if so, retry.
+	 * When updating a task's mems_allowed or mempolicy nodemask, it is
+	 * possible to race with parallel threads in such a way that our
+	 * allocation can fail while the mask is being updated. If we are about
+	 * to fail, check if the cpuset changed during allocation and if so,
+	 * retry.
 	 */
 	if (read_mems_allowed_retry(cpuset_mems_cookie))
 		goto retry_cpuset;
@@ -3801,15 +3820,9 @@ no_zone:
 	/*
 	 * Restore the original nodemask if it was potentially replaced with
 	 * &cpuset_current_mems_allowed to optimize the fast-path attempt.
-	 * Also recalculate the starting point for the zonelist iterator or
-	 * we could end up iterating over non-eligible zones endlessly.
 	 */
-	if (unlikely(ac.nodemask != nodemask)) {
+	if (unlikely(ac.nodemask != nodemask))
 		ac.nodemask = nodemask;
-		ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
-						ac.high_zoneidx, ac.nodemask);
-		/* If we have NULL preferred zone, slowpath wll handle that */
-	}
 
 	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
 
