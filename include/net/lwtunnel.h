@@ -48,10 +48,7 @@ struct lwtunnel_encap_ops {
 };
 
 #ifdef CONFIG_LWTUNNEL
-static inline void lwtstate_free(struct lwtunnel_state *lws)
-{
-	kfree(lws);
-}
+void lwtstate_free(struct lwtunnel_state *lws);
 
 static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
