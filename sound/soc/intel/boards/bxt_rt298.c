@@ -26,8 +26,18 @@
 #include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/rt298.h"
 
-static struct snd_soc_jack broxton_headset;
 /* Headset jack detection DAPM pins */
+static struct snd_soc_jack broxton_headset;
+
+struct bxt_hdmi_pcm {
+	struct list_head head;
+	struct snd_soc_dai *codec_dai;
+	int device;
+};
+
+struct bxt_rt286_private {
+	struct list_head hdmi_pcm_list;
+};
 
 enum {
 	BXT_DPCM_AUDIO_PB = 0,
@@ -139,9 +149,20 @@ static int broxton_rt298_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 static int broxton_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct bxt_rt286_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
+	struct bxt_hdmi_pcm *pcm;
 
-	return hdac_hdmi_jack_init(dai, BXT_DPCM_AUDIO_HDMI1_PB + dai->id);
+	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return -ENOMEM;
+
+	pcm->device = BXT_DPCM_AUDIO_HDMI1_PB + dai->id;
+	pcm->codec_dai = dai;
+
+	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+
+	return 0;
 }
 
 static int broxton_ssp5_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -432,6 +453,22 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	},
 };
 
+static int bxt_card_late_probe(struct snd_soc_card *card)
+{
+	struct bxt_rt286_private *ctx = snd_soc_card_get_drvdata(card);
+	struct bxt_hdmi_pcm *pcm;
+	int err;
+
+	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
+		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+
 /* broxton audio machine driver for SPT + RT298S */
 static struct snd_soc_card broxton_rt298 = {
 	.name = "broxton-rt298",
@@ -445,11 +482,22 @@ static struct snd_soc_card broxton_rt298 = {
 	.dapm_routes = broxton_rt298_map,
 	.num_dapm_routes = ARRAY_SIZE(broxton_rt298_map),
 	.fully_routed = true,
+	.late_probe = bxt_card_late_probe,
+
 };
 
 static int broxton_audio_probe(struct platform_device *pdev)
 {
+	struct bxt_rt286_private *ctx;
+
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+
 	broxton_rt298.dev = &pdev->dev;
+	snd_soc_card_set_drvdata(&broxton_rt298, ctx);
 
 	return devm_snd_soc_register_card(&pdev->dev, &broxton_rt298);
 }
