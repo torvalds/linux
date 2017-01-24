@@ -50,15 +50,23 @@ int timgad_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		      unsigned long arg4, unsigned long arg5)
 {
 	int ret = -EINVAL;
+	struct task_struct *myself = current;
+
+	if (option != PR_TIMGAD_OPTS)
+		return ret;
+
+	get_task_struct(myself);
 
 	switch (arg2) {
 	case PR_TIMGAD_SET_MOD_HARDEN:
-		ret = timgad_set_op_value(tsk, PR_TIMGAD_SET_MOD_HARDEN, arg3);
+		ret = timgad_set_op_value(myself, PR_TIMGAD_SET_MOD_HARDEN, arg3);
 		break;
 	case PR_TIMGAD_GET_MOD_HARDEN:
-		ret = timgad_get_op_value(tsk, PR_TIMGAD_GET_MOD_HARDEN);
+		ret = timgad_get_op_value(myself, PR_TIMGAD_GET_MOD_HARDEN);
 		break;
 	}
+
+	put_task_struct(myself);
 
 	return ret;
 }
