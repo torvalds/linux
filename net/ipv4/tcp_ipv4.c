@@ -1556,8 +1556,7 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 	 * It has been noticed pure SACK packets were sometimes dropped
 	 * (if cooked by drivers without copybreak feature).
 	 */
-	if (!skb->data_len)
-		skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
+	skb_condense(skb);
 
 	if (unlikely(sk_add_backlog(sk, skb, limit))) {
 		bh_unlock_sock(sk);

@@ -4507,6 +4507,7 @@ add_sack:
 end:
 	if (skb) {
 		tcp_grow_window(sk, skb);
+		skb_condense(skb);
 		skb_set_owner_r(skb, sk);
 	}
 }
