@@ -2354,7 +2354,7 @@ static int vxlan_open(struct net_device *dev)
 }
 
 /* Purge the forwarding table */
-static void vxlan_flush(struct vxlan_dev *vxlan)
+static void vxlan_flush(struct vxlan_dev *vxlan, bool do_all)
 {
 	unsigned int h;
 
@@ -2364,6 +2364,8 @@ static void vxlan_flush(struct vxlan_dev *vxlan)
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
+			if (!do_all && (f->state & (NUD_PERMANENT | NUD_NOARP)))
+				continue;
 			/* the all_zeros_mac entry is deleted at vxlan_uninit */
 			if (!is_zero_ether_addr(f->eth_addr))
 				vxlan_fdb_destroy(vxlan, f);
@@ -2385,7 +2387,7 @@ static int vxlan_stop(struct net_device *dev)
 
 	del_timer_sync(&vxlan->age_timer);
 
-	vxlan_flush(vxlan);
+	vxlan_flush(vxlan, false);
 	vxlan_sock_release(vxlan);
 
 	return ret;
@@ -3057,6 +3059,8 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
+
+	vxlan_flush(vxlan, true);
 
 	spin_lock(&vn->sock_lock);
 	if (!hlist_unhashed(&vxlan->hlist))
