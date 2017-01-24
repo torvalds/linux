@@ -758,10 +758,12 @@ struct mv88e6xxx_ops {
 
 	int (*set_switch_mac)(struct mv88e6xxx_chip *chip, u8 *addr);
 
-	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			u16 *val);
-	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
-			 u16 val);
+	int (*phy_read)(struct mv88e6xxx_chip *chip,
+			struct mii_bus *bus,
+			int addr, int reg, u16 *val);
+	int (*phy_write)(struct mv88e6xxx_chip *chip,
+			 struct mii_bus *bus,
+			 int addr, int reg, u16 val);
 
 	/* PHY Polling Unit (PPU) operations */
 	int (*ppu_enable)(struct mv88e6xxx_chip *chip);

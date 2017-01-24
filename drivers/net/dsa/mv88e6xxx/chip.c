@@ -222,14 +222,16 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 	return 0;
 }
 
-static int mv88e6165_phy_read(struct mv88e6xxx_chip *chip, int addr,
-			      int reg, u16 *val)
+static int mv88e6165_phy_read(struct mv88e6xxx_chip *chip,
+			      struct mii_bus *bus,
+			      int addr, int reg, u16 *val)
 {
 	return mv88e6xxx_read(chip, addr, reg, val);
 }
 
-static int mv88e6165_phy_write(struct mv88e6xxx_chip *chip, int addr,
-			       int reg, u16 val)
+static int mv88e6165_phy_write(struct mv88e6xxx_chip *chip,
+			       struct mii_bus *bus,
+			       int addr, int reg, u16 val)
 {
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
@@ -238,22 +240,30 @@ static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
 			      int reg, u16 *val)
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
+	struct mii_bus *bus = chip->mdio_bus;
 
 	if (!chip->info->ops->phy_read)
 		return -EOPNOTSUPP;
 
-	return chip->info->ops->phy_read(chip, addr, reg, val);
+	if (!bus)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->phy_read(chip, bus, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
 			       int reg, u16 val)
 {
 	int addr = phy; /* PHY devices addresses start at 0x0 */
+	struct mii_bus *bus = chip->mdio_bus;
 
 	if (!chip->info->ops->phy_write)
 		return -EOPNOTSUPP;
 
-	return chip->info->ops->phy_write(chip, addr, reg, val);
+	if (!bus)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->phy_write(chip, bus, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
@@ -623,8 +633,9 @@ static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
 	del_timer_sync(&chip->ppu_timer);
 }
 
-static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
-				  int reg, u16 *val)
+static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip,
+				  struct mii_bus *bus,
+				  int addr, int reg, u16 *val)
 {
 	int err;
 
@@ -637,8 +648,9 @@ static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
 	return err;
 }
 
-static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip, int addr,
-				   int reg, u16 val)
+static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip,
+				   struct mii_bus *bus,
+				   int addr, int reg, u16 val)
 {
 	int err;
 
@@ -2897,8 +2909,11 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 	if (phy >= mv88e6xxx_num_ports(chip))
 		return 0xffff;
 
+	if (!chip->info->ops->phy_read)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_phy_read(chip, phy, reg, &val);
+	err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
 	mutex_unlock(&chip->reg_lock);
 
 	return err ? err : val;
@@ -2912,8 +2927,11 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	if (phy >= mv88e6xxx_num_ports(chip))
 		return 0xffff;
 
+	if (!chip->info->ops->phy_write)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_phy_write(chip, phy, reg, val);
+	err = chip->info->ops->phy_write(chip, bus, phy, reg, val);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
