@@ -43,6 +43,7 @@ static DEFINE_MUTEX(had_mutex);
 static int hdmi_card_index = SNDRV_DEFAULT_IDX1;
 static char *hdmi_card_id = SNDRV_DEFAULT_STR1;
 static struct snd_intelhad *had_data;
+static int underrun_count;
 
 module_param_named(index, hdmi_card_index, int, 0444);
 MODULE_PARM_DESC(index,
@@ -1052,6 +1053,7 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 	intelhaddata = snd_pcm_substream_chip(substream);
 	had_stream = intelhaddata->private_data;
 	runtime = substream->runtime;
+	underrun_count = 0;
 
 	pm_runtime_get(intelhaddata->dev);
 
@@ -1445,10 +1447,23 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 
 	buf_id = intelhaddata->curr_buf % 4;
 	had_read_register(AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH), &t);
-	if (t == 0) {
-		pr_debug("discovered buffer done for buf %d\n", buf_id);
-		/* had_process_buffer_done(intelhaddata); */
+
+	if ((t == 0) || (t == ((u32)-1L))) {
+		underrun_count++;
+		pr_debug("discovered buffer done for buf %d, count = %d\n",
+			buf_id, underrun_count);
+
+		if (underrun_count > (HAD_MIN_PERIODS/2)) {
+			pr_debug("assume audio_codec_reset, underrun = %d - do xrun\n",
+				underrun_count);
+			underrun_count = 0;
+			return SNDRV_PCM_POS_XRUN;
+		}
+	} else {
+		/* Reset Counter */
+		underrun_count = 0;
 	}
+
 	t = intelhaddata->buf_info[buf_id].buf_size - t;
 
 	if (intelhaddata->stream_info.buffer_rendered)
