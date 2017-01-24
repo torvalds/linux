@@ -1670,7 +1670,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (rec->evlist == NULL)
 		return -ENOMEM;
 
-	perf_config(perf_record_config, rec);
+	err = perf_config(perf_record_config, rec);
+	if (err)
+		return err;
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);

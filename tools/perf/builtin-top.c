@@ -1216,7 +1216,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	perf_config(perf_top_config, &top);
+	status = perf_config(perf_top_config, &top);
+	if (status)
+		return status;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)

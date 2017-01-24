@@ -1920,10 +1920,12 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct perf_session *session;
-	int ret = -1;
 	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	int ret = perf_config(kmem_config, NULL);
 
-	perf_config(kmem_config, NULL);
+	if (ret)
+		return ret;
+
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage, 0);
 
@@ -1947,6 +1949,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -1;
+
+	ret = -1;
 
 	if (kmem_slab) {
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,

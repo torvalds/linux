@@ -90,11 +90,12 @@ static int pager_command_config(const char *var, const char *value, void *data)
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
 int check_pager_config(const char *cmd)
 {
+	int err;
 	struct pager_config c;
 	c.cmd = cmd;
 	c.val = -1;
-	perf_config(pager_command_config, &c);
-	return c.val;
+	err = perf_config(pager_command_config, &c);
+	return err ?: c.val;
 }
 
 static int browser_command_config(const char *var, const char *value, void *data)
@@ -113,11 +114,12 @@ static int browser_command_config(const char *var, const char *value, void *data
  */
 static int check_browser_config(const char *cmd)
 {
+	int err;
 	struct pager_config c;
 	c.cmd = cmd;
 	c.val = -1;
-	perf_config(browser_command_config, &c);
-	return c.val;
+	err = perf_config(browser_command_config, &c);
+	return err ?: c.val;
 }
 
 static void commit_pager_choice(void)
@@ -509,6 +511,7 @@ static void cache_line_size(int *cacheline_sizep)
 
 int main(int argc, const char **argv)
 {
+	int err;
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
 	int value;
@@ -534,7 +537,9 @@ int main(int argc, const char **argv)
 	srandom(time(NULL));
 
 	perf_config__init();
-	perf_config(perf_default_config, NULL);
+	err = perf_config(perf_default_config, NULL);
+	if (err)
+		return err;
 	set_buildid_dir(NULL);
 
 	/* get debugfs/tracefs mount point from /proc/mounts */
