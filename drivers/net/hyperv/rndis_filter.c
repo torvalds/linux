@@ -845,7 +845,6 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 	struct rndis_request *request;
 	struct rndis_set_request *set;
 	struct rndis_set_complete *set_complete;
-	u32 status;
 	int ret;
 
 	request = get_rndis_request(dev, RNDIS_MSG_SET,
@@ -872,8 +871,6 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 	wait_for_completion(&request->wait_event);
 
 	set_complete = &request->response_msg.msg.set_complete;
-	status = set_complete->status;
-
 cleanup:
 	if (request)
 		put_rndis_request(dev, request);
