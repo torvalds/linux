@@ -121,7 +121,8 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* We should never see a reserved reason code without knowing how to
 	 * handle it
 	 */
-	WARN_ON(brcm_tag[2] & BRCM_EG_RC_RSVD);
+	if (unlikely(brcm_tag[2] & BRCM_EG_RC_RSVD))
+		goto out_drop;
 
 	/* Locate which port this is coming from */
 	source_port = brcm_tag[3] & BRCM_EG_PID_MASK;
