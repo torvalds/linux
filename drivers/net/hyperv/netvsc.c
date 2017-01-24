@@ -1283,11 +1283,11 @@ void netvsc_channel_cb(void *context)
  * netvsc_device_add - Callback when the device belonging to this
  * driver is added
  */
-int netvsc_device_add(struct hv_device *device, void *additional_info)
+int netvsc_device_add(struct hv_device *device,
+		      const struct netvsc_device_info *device_info)
 {
 	int i, ret = 0;
-	int ring_size =
-	((struct netvsc_device_info *)additional_info)->ring_size;
+	int ring_size = device_info->ring_size;
 	struct netvsc_device *net_device;
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);

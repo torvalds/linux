@@ -1005,13 +1005,12 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 }
 
 int rndis_filter_device_add(struct hv_device *dev,
-			    void *additional_info)
+			    struct netvsc_device_info *device_info)
 {
 	struct net_device *net = hv_get_drvdata(dev);
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct netvsc_device *net_device;
 	struct rndis_device *rndis_device;
-	struct netvsc_device_info *device_info = additional_info;
 	struct ndis_offload hwcaps;
 	struct ndis_offload_params offloads;
 	struct nvsp_message *init_packet;
@@ -1035,7 +1034,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	 * NOTE! Once the channel is created, we may get a receive callback
 	 * (RndisFilterOnReceive()) before this call is completed
 	 */
-	ret = netvsc_device_add(dev, additional_info);
+	ret = netvsc_device_add(dev, device_info);
 	if (ret != 0) {
 		kfree(rndis_device);
 		return ret;
