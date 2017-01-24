@@ -1598,6 +1598,17 @@ static int mmc_blk_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 	return ret;
 }
 
+static void mmc_blk_rw_cmd_abort(struct mmc_card *card, struct request *req)
+{
+	int ret = 1;
+
+	if (mmc_card_removed(card))
+		req->rq_flags |= RQF_QUIET;
+	while (ret)
+		ret = blk_end_request(req, -EIO,
+				      blk_rq_cur_bytes(req));
+}
+
 static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 {
 	struct mmc_blk_data *md = mq->blkdata;
@@ -1737,11 +1748,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	return 1;
 
  cmd_abort:
-	if (mmc_card_removed(card))
-		req->rq_flags |= RQF_QUIET;
-	while (ret)
-		ret = blk_end_request(req, -EIO,
-				blk_rq_cur_bytes(req));
+	mmc_blk_rw_cmd_abort(card, req);
 
  start_new_req:
 	if (rqc) {
