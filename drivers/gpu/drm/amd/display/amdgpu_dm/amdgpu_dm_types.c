@@ -2253,7 +2253,7 @@ static void remove_stream(struct amdgpu_device *adev, struct amdgpu_crtc *acrtc)
 int amdgpu_dm_atomic_commit(
 	struct drm_device *dev,
 	struct drm_atomic_state *state,
-	bool async)
+	bool nonblock)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
@@ -2282,7 +2282,7 @@ int amdgpu_dm_atomic_commit(
 	 * we should not pin/unpin the fb here, it should be done in
 	 * amdgpu_crtc_flip and from the vblank irq handler.
 	 */
-	if (!async) {
+	if (!nonblock) {
 		ret = drm_atomic_helper_prepare_planes(dev, state);
 		if (ret)
 			return ret;
@@ -2620,7 +2620,7 @@ int amdgpu_dm_atomic_commit(
 	/* In this state all old framebuffers would be unpinned */
 
 	/* TODO: Revisit when we support true asynchronous commit.*/
-	if (!async)
+	if (!nonblock)
 		drm_atomic_helper_cleanup_planes(dev, state);
 
 	drm_atomic_state_put(state);
