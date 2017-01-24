@@ -28,7 +28,7 @@ unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
-			       unsigned long sz, const int cacheop);
+			       unsigned long sz, const int op, const int full_page);
 
 void (*__dma_cache_wback_inv)(phys_addr_t start, unsigned long sz);
 void (*__dma_cache_inv)(phys_addr_t start, unsigned long sz);
@@ -233,11 +233,10 @@ slc_chk:
 
 static inline
 void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -279,11 +278,10 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd, aux_tag;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -349,17 +347,16 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int cacheop)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page_op = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
-	if (cacheop == OP_INV_IC) {
+	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
 	} else {
 		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
-		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
@@ -368,7 +365,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
-	if (!full_page_op) {
+	if (!full_page) {
 		sz += paddr & ~CACHE_LINE_MASK;
 		paddr &= CACHE_LINE_MASK;
 	}
@@ -381,7 +378,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *   - (and needs to be written before the lower 32 bits)
 	 */
 	if (is_pae40_enabled()) {
-		if (cacheop == OP_INV_IC)
+		if (op == OP_INV_IC)
 			/*
 			 * Non aliasing I-cache in HS38,
 			 * aliasing I-cache handled in __cache_line_loop_v3()
@@ -486,13 +483,14 @@ static void __dc_enable(void)
 static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 				unsigned long sz, const int op)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
 	__before_dc_op(op);
 
-	__cache_line_loop(paddr, vaddr, sz, op);
+	__cache_line_loop(paddr, vaddr, sz, op, full_page);
 
 	__after_dc_op(op);
 
@@ -521,10 +519,11 @@ static inline void
 __ic_line_inv_vaddr_local(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC);
+	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC, full_page);
 	local_irq_restore(flags);
 }
 
