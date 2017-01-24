@@ -937,7 +937,7 @@ static const char *decode_error_status(struct mce *m)
 	}
 
 	if (m->status & MCI_STATUS_DEFERRED)
-		return "Deferred error.";
+		return "Deferred error, no action required.";
 
 	return "Corrected error, no action required.";
 }
