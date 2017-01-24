@@ -3300,15 +3300,6 @@ static int init_one_instance(unsigned int nid)
 		goto err_add_mc;
 	}
 
-	/* register stuff with EDAC MCE */
-	if (report_gart_errors)
-		amd_report_gart_errors(true);
-
-	if (pvt->umc)
-		amd_register_ecc_decoder(decode_umc_error);
-	else
-		amd_register_ecc_decoder(decode_bus_error);
-
 	return 0;
 
 err_add_mc:
@@ -3398,14 +3389,6 @@ static void remove_one_instance(unsigned int nid)
 
 	free_mc_sibling_devs(pvt);
 
-	/* unregister from EDAC MCE */
-	amd_report_gart_errors(false);
-
-	if (pvt->umc)
-		amd_unregister_ecc_decoder(decode_umc_error);
-	else
-		amd_unregister_ecc_decoder(decode_bus_error);
-
 	kfree(ecc_stngs[nid]);
 	ecc_stngs[nid] = NULL;
 
@@ -3479,6 +3462,15 @@ static int __init amd64_edac_init(void)
 		}
 	}
 
+	/* register stuff with EDAC MCE */
+	if (report_gart_errors)
+		amd_report_gart_errors(true);
+
+	if (boot_cpu_data.x86 >= 0x17)
+		amd_register_ecc_decoder(decode_umc_error);
+	else
+		amd_register_ecc_decoder(decode_bus_error);
+
 	setup_pci_device();
 
 #ifdef CONFIG_X86_32
@@ -3507,6 +3499,14 @@ static void __exit amd64_edac_exit(void)
 
 	if (pci_ctl)
 		edac_pci_release_generic_ctl(pci_ctl);
+
+	/* unregister from EDAC MCE */
+	amd_report_gart_errors(false);
+
+	if (boot_cpu_data.x86 >= 0x17)
+		amd_unregister_ecc_decoder(decode_umc_error);
+	else
+		amd_unregister_ecc_decoder(decode_bus_error);
 
 	for (i = 0; i < amd_nb_num(); i++)
 		remove_one_instance(i);
