@@ -432,7 +432,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 
 	if (!IS_POSIXACL(parent) || !exp_connect_umask(ll_i2mdexp(parent)))
 		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
+	mode = (mode & (0777 | S_ISVTX)) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, parent, NULL, dirname,
 				     strlen(dirname), mode, LUSTRE_OPC_MKDIR,
 				     lump);

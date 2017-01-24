@@ -1883,7 +1883,7 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 		goto free_hss;
 	}
 
-	attr->ia_mode = hui->hui_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+	attr->ia_mode = hui->hui_mode & 0777;
 	attr->ia_mode |= S_IFREG;
 	attr->ia_uid = make_kuid(&init_user_ns, hui->hui_uid);
 	attr->ia_gid = make_kgid(&init_user_ns, hui->hui_gid);

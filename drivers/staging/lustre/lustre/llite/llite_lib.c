@@ -1599,7 +1599,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 	if (((attr->ia_valid & (ATTR_MODE | ATTR_FORCE | ATTR_SIZE)) ==
 			       (ATTR_SIZE | ATTR_MODE)) &&
 	    (((mode & S_ISUID) && !(attr->ia_mode & S_ISUID)) ||
-	     (((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
+	     (((mode & (S_ISGID | 0010)) == (S_ISGID | 0010)) &&
 	      !(attr->ia_mode & S_ISGID))))
 		attr->ia_valid |= ATTR_FORCE;
 
@@ -1610,7 +1610,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 		attr->ia_valid |= ATTR_KILL_SUID;
 
 	if ((attr->ia_valid & ATTR_MODE) &&
-	    ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
+	    ((mode & (S_ISGID | 0010)) == (S_ISGID | 0010)) &&
 	    !(attr->ia_mode & S_ISGID) &&
 	    !(attr->ia_valid & ATTR_KILL_SGID))
 		attr->ia_valid |= ATTR_KILL_SGID;
