@@ -896,6 +896,8 @@ struct intel_dp_compliance {
 	unsigned long test_type;
 	struct intel_dp_compliance_data test_data;
 	bool test_active;
+	int test_link_rate;
+	u8 test_lane_count;
 };
 
 struct intel_dp {
