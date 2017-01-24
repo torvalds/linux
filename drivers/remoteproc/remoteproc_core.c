@@ -1315,8 +1315,6 @@ static void rproc_type_release(struct device *dev)
 
 	dev_info(&rproc->dev, "releasing %s\n", rproc->name);
 
-	rproc_delete_debug_dir(rproc);
-
 	idr_destroy(&rproc->notifyids);
 
 	if (rproc->index >= 0)
@@ -1490,6 +1488,8 @@ int rproc_del(struct rproc *rproc)
 	/* TODO: make sure this works with rproc->power > 1 */
 	if (rproc->auto_boot)
 		rproc_shutdown(rproc);
+
+	rproc_delete_debug_dir(rproc);
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */
 	mutex_lock(&rproc_list_mutex);
