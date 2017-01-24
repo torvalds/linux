@@ -106,8 +106,8 @@ void timgad_task_free(struct task_struct *task)
 {
 	struct timgad_task *ttask;
 
-	ttask = lookup_timgad_task(tsk);
-	if (!ytask)
+	ttask = lookup_timgad_task(task);
+	if (!ttask)
 		return;
 
 	put_timgad_task(ttask);
