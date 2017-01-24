@@ -730,11 +730,8 @@ struct mv88e6xxx_chip {
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
 
-	/* Device node for the MDIO bus */
-	struct device_node *mdio_np;
-
-	/* And the MDIO bus itself */
-	struct mii_bus *mdio_bus;
+	/* List of mdio busses */
+	struct list_head mdios;
 
 	/* There can be two interrupt controllers, which are chained
 	 * off a GPIO as interrupt source
@@ -751,7 +748,10 @@ struct mv88e6xxx_bus_ops {
 };
 
 struct mv88e6xxx_mdio_bus {
+	struct mii_bus *bus;
 	struct mv88e6xxx_chip *chip;
+	struct list_head list;
+	bool external;
 };
 
 struct mv88e6xxx_ops {
