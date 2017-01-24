@@ -653,7 +653,7 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 
 	if (insert_request(&request->priotree, &engine->execlist_queue)) {
 		engine->execlist_first = &request->priotree.node;
-		if (execlists_elsp_idle(engine))
+		if (execlists_elsp_ready(engine))
 			tasklet_hi_schedule(&engine->irq_tasklet);
 	}
 
