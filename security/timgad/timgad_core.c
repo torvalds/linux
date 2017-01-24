@@ -50,12 +50,12 @@ static inline int cmp_timgad_task(struct rhashtable_compare_arg *arg,
 
 static const struct rhashtable_params timgad_tasks_params = {
 	.nelem_hint = 1024,
-	.head_offset = offsetof(struct yama_task, node),
-	.key_offset = offsetof(struct yama_task, key),
+	.head_offset = offsetof(struct timgad_task, node),
+	.key_offset = offsetof(struct timgad_task, key),
 	.key_len = sizeof(unsigned long),
 	.max_size = 16384,
 	.min_size = 256,
-	.obj_cmpfn = cmp_yama_task,
+	.obj_cmpfn = cmp_timgad_task,
 	.automatic_shrinking = true,
 };
 
@@ -69,8 +69,16 @@ void timgad_tasks_clean(void)
 	rhashtable_destroy(&timgad_tasks_table);
 }
 
-int timgad_task_set_op_flag(struct timgad_task *timgad_tsk, unsigned long op,
-			    unsigned long flag, unsigned long value)
+static int get_timgad_task_new_flags(unsigned long op, unsigned long used,
+				     unsigned long flag, int *new_flags)
+{
+	int ret = -EINVAL;
+
+	return ret;
+}
+
+static int update_timgad_task_flags(struct timgad_task *timgad_tsk,
+				    unsigned long op, int new_flags)
 {
 	int ret = -EINVAL;
 
@@ -83,6 +91,24 @@ int timgad_task_is_op_set(struct timgad_task *timgad_tsk, unsigned long op)
 		return timgad_tsk->mod_harden;
 
 	return -EINVAL;
+}
+
+int timgad_task_set_op_flag(struct timgad_task *timgad_tsk, unsigned long op,
+			    unsigned long flag, unsigned long value)
+{
+	int ret = -EINVAL;
+	int new_flag = 0;
+	int used = timgad_task_is_op_set(timgad_tsk, op);
+
+	ret = get_timgad_task_new_flags(op, used, flag, &new_flag);
+	if (ret < 0)
+		return ret;
+
+	/* Nothing to do if new flag did not change */
+	if (new_flag == used)
+		return 0;
+
+	return update_timgad_task_flags(timgad_tsk, op, new_flag);
 }
 
 static struct timgad_task *__lookup_timgad_task(struct task_struct *tsk)
@@ -149,7 +175,7 @@ static void reclaim_timgad_task(struct work_struct *work)
 }
 
 struct timgad_task *init_timgad_task(struct task_struct *tsk,
-				     unsigned long flag)
+				     unsigned long value)
 {
 	struct timgad_task *ttask;
 
@@ -158,7 +184,7 @@ struct timgad_task *init_timgad_task(struct task_struct *tsk,
 		return ERR_PTR(-ENOMEM);
 
 	ttask->task = tsk;
-	ttask->mod_harden = flag;
+	ttask->mod_harden = value;
 
 	atomic_set(&ttask->usage, 0);
 	INIT_WORK(&ttask->clean_work, reclaim_timgad_task);
@@ -167,16 +193,13 @@ struct timgad_task *init_timgad_task(struct task_struct *tsk,
 }
 
 /* On success, callers have to do put_timgad_task() */
-struct timgad_task *give_me_timgad_task(struct task_struct *tsk)
+struct timgad_task *give_me_timgad_task(struct task_struct *tsk,
+					unsigned long value)
 {
 	int ret;
 	struct timgad_task *ttask;
 
-	ttask = get_timgad_task(tsk);
-	if (ttask)
-		return ttask;
-
-	ttask = init_timgad_task(tsk, NULL);
+	ttask = init_timgad_task(tsk, value);
 	if (IS_ERR(ttask))
 		return ttask;
 
@@ -186,8 +209,6 @@ struct timgad_task *give_me_timgad_task(struct task_struct *tsk)
 		kfree(ttask);
 		return ERR_PTR(ret);
 	}
-
-	atomic_inc(&ttask->usage);
 
 	return ttask;
 }
