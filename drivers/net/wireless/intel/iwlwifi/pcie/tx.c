@@ -2080,10 +2080,10 @@ static void iwl_compute_pseudo_hdr_csum(void *iph, struct tcphdr *tcph,
 	}
 }
 
-int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
-			    struct iwl_txq *txq, u8 hdr_len,
-			    struct iwl_cmd_meta *out_meta,
-			    struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
+				   struct iwl_txq *txq, u8 hdr_len,
+				   struct iwl_cmd_meta *out_meta,
+				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
 {
 	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
