@@ -25,5 +25,5 @@ struct kepler_channel_gpfifo_a_v0 {
 	__u64 vm;
 };
 
-#define NVA06F_V0_NTFY_UEVENT                                              0x00
+#define NVA06F_V0_NTFY_NON_STALL_INTERRUPT                                 0x00
 #endif

@@ -35,7 +35,7 @@ g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 		   struct nvkm_event **pevent)
 {
 	switch (type) {
-	case G82_CHANNEL_DMA_V0_NTFY_UEVENT:
+	case NV826E_V0_NTFY_NON_STALL_INTERRUPT:
 		*pevent = &chan->fifo->uevent;
 		return 0;
 	default:
