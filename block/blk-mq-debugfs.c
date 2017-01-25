@@ -270,6 +270,135 @@ static const struct file_operations hctx_sched_tags_bitmap_fops = {
 	.release	= single_release,
 };
 
+static int hctx_io_poll_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "considered=%lu\n", hctx->poll_considered);
+	seq_printf(m, "invoked=%lu\n", hctx->poll_invoked);
+	seq_printf(m, "success=%lu\n", hctx->poll_success);
+	return 0;
+}
+
+static int hctx_io_poll_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_io_poll_show, inode->i_private);
+}
+
+static ssize_t hctx_io_poll_write(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
+	return count;
+}
+
+static const struct file_operations hctx_io_poll_fops = {
+	.open		= hctx_io_poll_open,
+	.read		= seq_read,
+	.write		= hctx_io_poll_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
+{
+	seq_printf(m, "samples=%d, mean=%lld, min=%llu, max=%llu",
+		   stat->nr_samples, stat->mean, stat->min, stat->max);
+}
+
+static int hctx_stats_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct blk_rq_stat stat[2];
+
+	blk_stat_init(&stat[BLK_STAT_READ]);
+	blk_stat_init(&stat[BLK_STAT_WRITE]);
+
+	blk_hctx_stat_get(hctx, stat);
+
+	seq_puts(m, "read: ");
+	print_stat(m, &stat[BLK_STAT_READ]);
+	seq_puts(m, "\n");
+
+	seq_puts(m, "write: ");
+	print_stat(m, &stat[BLK_STAT_WRITE]);
+	seq_puts(m, "\n");
+	return 0;
+}
+
+static int hctx_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_stats_show, inode->i_private);
+}
+
+static ssize_t hctx_stats_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct blk_mq_ctx *ctx;
+	int i;
+
+	hctx_for_each_ctx(hctx, ctx, i) {
+		blk_stat_init(&ctx->stat[BLK_STAT_READ]);
+		blk_stat_init(&ctx->stat[BLK_STAT_WRITE]);
+	}
+	return count;
+}
+
+static const struct file_operations hctx_stats_fops = {
+	.open		= hctx_stats_open,
+	.read		= seq_read,
+	.write		= hctx_stats_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_dispatched_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	int i;
+
+	seq_printf(m, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
+
+	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
+		unsigned int d = 1U << (i - 1);
+
+		seq_printf(m, "%8u\t%lu\n", d, hctx->dispatched[i]);
+	}
+
+	seq_printf(m, "%8u+\t%lu\n", 1U << (i - 1), hctx->dispatched[i]);
+	return 0;
+}
+
+static int hctx_dispatched_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_dispatched_show, inode->i_private);
+}
+
+static ssize_t hctx_dispatched_write(struct file *file, const char __user *buf,
+				     size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_hw_ctx *hctx = m->private;
+	int i;
+
+	for (i = 0; i < BLK_MQ_MAX_DISPATCH_ORDER; i++)
+		hctx->dispatched[i] = 0;
+	return count;
+}
+
+static const struct file_operations hctx_dispatched_fops = {
+	.open		= hctx_dispatched_open,
+	.read		= seq_read,
+	.write		= hctx_dispatched_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
 {
 	struct blk_mq_ctx *ctx = m->private;
@@ -320,6 +449,9 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"tags_bitmap", 0400, &hctx_tags_bitmap_fops},
 	{"sched_tags", 0400, &hctx_sched_tags_fops},
 	{"sched_tags_bitmap", 0400, &hctx_sched_tags_bitmap_fops},
+	{"io_poll", 0600, &hctx_io_poll_fops},
+	{"stats", 0600, &hctx_stats_fops},
+	{"dispatched", 0600, &hctx_dispatched_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {

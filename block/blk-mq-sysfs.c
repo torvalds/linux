@@ -139,21 +139,6 @@ static ssize_t blk_mq_sysfs_completed_show(struct blk_mq_ctx *ctx, char *page)
 				ctx->rq_completed[0]);
 }
 
-static ssize_t blk_mq_hw_sysfs_poll_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	return sprintf(page, "considered=%lu, invoked=%lu, success=%lu\n",
-		       hctx->poll_considered, hctx->poll_invoked,
-		       hctx->poll_success);
-}
-
-static ssize_t blk_mq_hw_sysfs_poll_store(struct blk_mq_hw_ctx *hctx,
-					  const char *page, size_t size)
-{
-	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
-
-	return size;
-}
-
 static ssize_t blk_mq_hw_sysfs_queued_show(struct blk_mq_hw_ctx *hctx,
 					   char *page)
 {
@@ -163,25 +148,6 @@ static ssize_t blk_mq_hw_sysfs_queued_show(struct blk_mq_hw_ctx *hctx,
 static ssize_t blk_mq_hw_sysfs_run_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
 	return sprintf(page, "%lu\n", hctx->run);
-}
-
-static ssize_t blk_mq_hw_sysfs_dispatched_show(struct blk_mq_hw_ctx *hctx,
-					       char *page)
-{
-	char *start_page = page;
-	int i;
-
-	page += sprintf(page, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
-
-	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
-		unsigned int d = 1U << (i - 1);
-
-		page += sprintf(page, "%8u\t%lu\n", d, hctx->dispatched[i]);
-	}
-
-	page += sprintf(page, "%8u+\t%lu\n", 1U << (i - 1),
-						hctx->dispatched[i]);
-	return page - start_page;
 }
 
 static ssize_t blk_mq_hw_sysfs_nr_tags_show(struct blk_mq_hw_ctx *hctx,
@@ -219,47 +185,6 @@ static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 	return ret;
 }
 
-static void blk_mq_stat_clear(struct blk_mq_hw_ctx *hctx)
-{
-	struct blk_mq_ctx *ctx;
-	unsigned int i;
-
-	hctx_for_each_ctx(hctx, ctx, i) {
-		blk_stat_init(&ctx->stat[BLK_STAT_READ]);
-		blk_stat_init(&ctx->stat[BLK_STAT_WRITE]);
-	}
-}
-
-static ssize_t blk_mq_hw_sysfs_stat_store(struct blk_mq_hw_ctx *hctx,
-					  const char *page, size_t count)
-{
-	blk_mq_stat_clear(hctx);
-	return count;
-}
-
-static ssize_t print_stat(char *page, struct blk_rq_stat *stat, const char *pre)
-{
-	return sprintf(page, "%s samples=%llu, mean=%lld, min=%lld, max=%lld\n",
-			pre, (long long) stat->nr_samples,
-			(long long) stat->mean, (long long) stat->min,
-			(long long) stat->max);
-}
-
-static ssize_t blk_mq_hw_sysfs_stat_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	struct blk_rq_stat stat[2];
-	ssize_t ret;
-
-	blk_stat_init(&stat[BLK_STAT_READ]);
-	blk_stat_init(&stat[BLK_STAT_WRITE]);
-
-	blk_hctx_stat_get(hctx, stat);
-
-	ret = print_stat(page, &stat[BLK_STAT_READ], "read :");
-	ret += print_stat(page + ret, &stat[BLK_STAT_WRITE], "write:");
-	return ret;
-}
-
 static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_dispatched = {
 	.attr = {.name = "dispatched", .mode = S_IRUGO },
 	.show = blk_mq_sysfs_dispatched_show,
@@ -288,10 +213,6 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_run = {
 	.attr = {.name = "run", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_run_show,
 };
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_dispatched = {
-	.attr = {.name = "dispatched", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_dispatched_show,
-};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_tags = {
 	.attr = {.name = "nr_tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_nr_tags_show,
@@ -308,27 +229,14 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
 	.attr = {.name = "cpu_list", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_cpus_show,
 };
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_poll = {
-	.attr = {.name = "io_poll", .mode = S_IWUSR | S_IRUGO },
-	.show = blk_mq_hw_sysfs_poll_show,
-	.store = blk_mq_hw_sysfs_poll_store,
-};
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_stat = {
-	.attr = {.name = "stats", .mode = S_IRUGO | S_IWUSR },
-	.show = blk_mq_hw_sysfs_stat_show,
-	.store = blk_mq_hw_sysfs_stat_store,
-};
 
 static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_queued.attr,
 	&blk_mq_hw_sysfs_run.attr,
-	&blk_mq_hw_sysfs_dispatched.attr,
 	&blk_mq_hw_sysfs_nr_tags.attr,
 	&blk_mq_hw_sysfs_nr_reserved_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
 	&blk_mq_hw_sysfs_active.attr,
-	&blk_mq_hw_sysfs_poll.attr,
-	&blk_mq_hw_sysfs_stat.attr,
 	NULL,
 };
 
