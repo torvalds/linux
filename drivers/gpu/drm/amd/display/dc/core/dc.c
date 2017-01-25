@@ -1065,7 +1065,7 @@ bool dc_pre_update_surfaces_to_stream(
 {
 	int i, j;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	uint32_t prev_disp_clk = core_dc->current_context->bw_results.dispclk_khz;
+	int prev_disp_clk = core_dc->current_context->bw_results.dispclk_khz;
 	int new_disp_clk;
 	struct dc_stream_status *stream_status = NULL;
 	struct validate_context *context;
@@ -1146,36 +1146,23 @@ bool dc_pre_update_surfaces_to_stream(
 			}
 		}
 
-	if (core_dc->res_pool->funcs->validate_bandwidth(core_dc, context) != DC_OK) {
-		BREAK_TO_DEBUGGER();
-		ret = false;
-		goto unexpected_fail;
-	}
-	new_disp_clk = context->bw_results.dispclk_khz;
-
-	if (core_dc->res_pool->funcs->apply_clk_constraints) {
-		temp_context = core_dc->res_pool->funcs->apply_clk_constraints(
-				core_dc,
-				context);
-		if (!temp_context) {
-			dm_error("%s:failed apply clk constraints\n", __func__);
+	if (core_dc->res_pool->funcs->validate_bandwidth)
+		if (core_dc->res_pool->funcs->validate_bandwidth(core_dc, context) != DC_OK) {
+			BREAK_TO_DEBUGGER();
 			ret = false;
 			goto unexpected_fail;
 		}
-		resource_validate_ctx_destruct(context);
-		ASSERT(core_dc->scratch_val_ctx == temp_context);
-		core_dc->scratch_val_ctx = context;
-		context = temp_context;
-	}
+	new_disp_clk = context->bw_results.dispclk_khz;
 
-	if (prev_disp_clk < new_disp_clk) {
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)
+			&& prev_disp_clk < new_disp_clk) {
 		pplib_apply_display_requirements(core_dc, context,
 						&context->pp_display_cfg);
 		context->res_ctx.pool->display_clock->funcs->set_clock(
 				context->res_ctx.pool->display_clock,
-				context->bw_results.dispclk_khz * 115 / 100);
-		core_dc->current_context->bw_results.dispclk_khz =
-				context->bw_results.dispclk_khz;
+				new_disp_clk * 115 / 100);
+		core_dc->current_context->bw_results.dispclk_khz = new_disp_clk;
+		core_dc->current_context->dispclk_khz = new_disp_clk;
 	}
 
 	for (i = 0; i < new_surface_count; i++)
@@ -1209,15 +1196,14 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream == NULL) {
 			core_dc->current_context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
-							core_dc, &core_dc->current_context->res_ctx.pipe_ctx[i]);
+					core_dc, &core_dc->current_context->res_ctx.pipe_ctx[i]);
 		}
-
-
-	if (core_dc->res_pool->funcs->validate_bandwidth(core_dc, core_dc->current_context)
-			!= DC_OK) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
+	if (core_dc->res_pool->funcs->validate_bandwidth)
+		if (core_dc->res_pool->funcs->validate_bandwidth(
+				core_dc, core_dc->current_context) != DC_OK) {
+			BREAK_TO_DEBUGGER();
+			return false;
+		}
 
 	core_dc->hwss.set_bandwidth(core_dc);
 
