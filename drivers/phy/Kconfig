@@ -437,6 +437,13 @@ config PHY_QCOM_UFS
 	help
 	  Support for UFS PHY on QCOM chipsets.
 
+config PHY_QCOM_USB_HSIC
+	tristate "Qualcomm USB HSIC ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB HSIC ULPI compliant PHY on QCOM chipsets.
+
 config PHY_TUSB1210
 	tristate "TI TUSB1210 ULPI PHY module"
 	depends on USB_ULPI_BUS
