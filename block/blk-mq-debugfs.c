@@ -134,6 +134,26 @@ static const struct file_operations hctx_dispatch_fops = {
 	.release	= seq_release,
 };
 
+static int hctx_ctx_map_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	sbitmap_bitmap_show(&hctx->ctx_map, m);
+	return 0;
+}
+
+static int hctx_ctx_map_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_ctx_map_show, inode->i_private);
+}
+
+static const struct file_operations hctx_ctx_map_fops = {
+	.open		= hctx_ctx_map_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
 {
 	struct blk_mq_ctx *ctx = m->private;
@@ -179,6 +199,7 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"state", 0400, &hctx_state_fops},
 	{"flags", 0400, &hctx_flags_fops},
 	{"dispatch", 0400, &hctx_dispatch_fops},
+	{"ctx_map", 0400, &hctx_ctx_map_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
