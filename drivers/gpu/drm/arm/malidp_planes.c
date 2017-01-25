@@ -197,6 +197,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		ptr = mp->layer->ptr + (i << 4);
 
 		obj = drm_fb_cma_get_gem_obj(plane->state->fb, i);
+		obj->paddr += plane->state->fb->offsets[i];
 		malidp_hw_write(mp->hwdev, lower_32_bits(obj->paddr), ptr);
 		malidp_hw_write(mp->hwdev, upper_32_bits(obj->paddr), ptr + 4);
 		malidp_hw_write(mp->hwdev, plane->state->fb->pitches[i],
