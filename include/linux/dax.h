@@ -7,6 +7,16 @@
 #include <asm/pgtable.h>
 
 struct iomap_ops;
+struct dax_device;
+struct dax_operations {
+	/*
+	 * direct_access: translate a device-relative
+	 * logical-page-offset into an absolute physical pfn. Return the
+	 * number of pages available for DAX at that pfn.
+	 */
+	long (*direct_access)(struct dax_device *, pgoff_t, long,
+			void **, pfn_t *);
+};
 
 int dax_read_lock(void);
 void dax_read_unlock(int id);
