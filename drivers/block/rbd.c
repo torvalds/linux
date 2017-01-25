@@ -978,6 +978,21 @@ static u32 rbd_obj_bytes(struct rbd_image_header *header)
 	return 1U << header->obj_order;
 }
 
+static void rbd_init_layout(struct rbd_device *rbd_dev)
+{
+	if (rbd_dev->header.stripe_unit == 0 ||
+	    rbd_dev->header.stripe_count == 0) {
+		rbd_dev->header.stripe_unit = rbd_obj_bytes(&rbd_dev->header);
+		rbd_dev->header.stripe_count = 1;
+	}
+
+	rbd_dev->layout.stripe_unit = rbd_dev->header.stripe_unit;
+	rbd_dev->layout.stripe_count = rbd_dev->header.stripe_count;
+	rbd_dev->layout.object_size = rbd_obj_bytes(&rbd_dev->header);
+	rbd_dev->layout.pool_id = rbd_dev->spec->pool_id;
+	RCU_INIT_POINTER(rbd_dev->layout.pool_ns, NULL);
+}
+
 /*
  * Fill an rbd image header with information from the given format 1
  * on-disk header.
@@ -1053,6 +1068,7 @@ static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 	if (first_time) {
 		header->object_prefix = object_prefix;
 		header->obj_order = ondisk->options.order;
+		rbd_init_layout(rbd_dev);
 	} else {
 		ceph_put_snap_context(header->snapc);
 		kfree(header->snap_names);
@@ -4804,12 +4820,6 @@ static struct rbd_device *__rbd_dev_create(struct rbd_client *rbdc,
 	rbd_dev->rbd_client = rbdc;
 	rbd_dev->spec = spec;
 
-	rbd_dev->layout.stripe_unit = 1 << RBD_MAX_OBJ_ORDER;
-	rbd_dev->layout.stripe_count = 1;
-	rbd_dev->layout.object_size = 1 << RBD_MAX_OBJ_ORDER;
-	rbd_dev->layout.pool_id = spec->pool_id;
-	RCU_INIT_POINTER(rbd_dev->layout.pool_ns, NULL);
-
 	return rbd_dev;
 }
 
@@ -5848,12 +5858,13 @@ static int rbd_dev_v2_header_onetime(struct rbd_device *rbd_dev)
 			goto out_err;
 	}
 
+	rbd_init_layout(rbd_dev);
 	return 0;
+
 out_err:
 	rbd_dev->header.features = 0;
 	kfree(rbd_dev->header.object_prefix);
 	rbd_dev->header.object_prefix = NULL;
-
 	return ret;
 }
 
