@@ -1733,6 +1733,10 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
+	case WACOM_HID_WD_TOUCHRINGSTATUS:
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+		break;
 	}
 
 	switch (equivalent_usage & 0xfffffff0) {
@@ -1775,12 +1779,22 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct input_dev *input = wacom_wac->pad_input;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
+	/*
+	 * Avoid reporting this event and setting inrange_state if this usage
+	 * hasn't been mapped.
+	 */
+	if (!usage->type)
+		return;
+
 	if (wacom_equivalent_usage(field->physical) == HID_DG_TABLETFUNCTIONKEY) {
-		wacom_wac->hid_data.inrange_state |= value;
+		if (usage->hid != WACOM_HID_WD_TOUCHRING)
+			wacom_wac->hid_data.inrange_state |= value;
 	}
 
 	switch (equivalent_usage) {
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
+		if (!value)
+			input_event(input, usage->type, usage->code, 0);
 		break;
 
 	default:
@@ -2286,6 +2300,9 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 
 	if (wacom->wacom_wac.features.type != HID_GENERIC)
+		return;
+
+	if (value > field->logical_maximum || value < field->logical_minimum)
 		return;
 
 	if (WACOM_PAD_FIELD(field)) {
