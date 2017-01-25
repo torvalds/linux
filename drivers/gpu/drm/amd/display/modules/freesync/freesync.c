@@ -208,6 +208,8 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	struct core_stream *core_stream = NULL;
 	struct core_dc *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
+	int persistent_freesync_enable = 0;
+	struct persistent_data_flag flag;
 
 	if (mod_freesync == NULL)
 		return false;
@@ -215,9 +217,6 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 	core_stream = DC_STREAM_TO_CORE(stream);
 	core_dc = DC_TO_CORE(core_freesync->dc);
-
-	int persistent_freesync_enable = 0;
-	struct persistent_data_flag flag;
 
 	flag.save_per_edid = true;
 	flag.save_per_link = false;
@@ -779,7 +778,7 @@ bool mod_freesync_get_state(struct mod_freesync *mod_freesync,
 		const struct dc_stream *stream,
 		struct mod_freesync_params *freesync_params)
 {
-	unsigned int index = NULL;
+	unsigned int index = 0;
 	struct core_freesync *core_freesync = NULL;
 
 	if (mod_freesync == NULL)
