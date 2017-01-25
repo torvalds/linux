@@ -318,10 +318,25 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 static void xgpu_vi_mailbox_send_ack(struct amdgpu_device *adev)
 {
 	u32 reg;
+	int timeout = VI_MAILBOX_TIMEDOUT;
+	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
 	reg = RREG32(mmMAILBOX_CONTROL);
 	reg = REG_SET_FIELD(reg, MAILBOX_CONTROL, RCV_MSG_ACK, 1);
 	WREG32(mmMAILBOX_CONTROL, reg);
+
+	/*Wait for RCV_MSG_VALID to be 0*/
+	reg = RREG32(mmMAILBOX_CONTROL);
+	while (reg & mask) {
+		if (timeout <= 0) {
+			pr_err("RCV_MSG_VALID is not cleared\n");
+			break;
+		}
+		mdelay(1);
+		timeout -=1;
+
+		reg = RREG32(mmMAILBOX_CONTROL);
+	}
 }
 
 static void xgpu_vi_mailbox_set_valid(struct amdgpu_device *adev, bool val)
@@ -351,6 +366,11 @@ static int xgpu_vi_mailbox_rcv_msg(struct amdgpu_device *adev,
 				   enum idh_event event)
 {
 	u32 reg;
+	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
+
+	reg = RREG32(mmMAILBOX_CONTROL);
+	if (!(reg & mask))
+		return -ENOENT;
 
 	reg = RREG32(mmMAILBOX_MSGBUF_RCV_DW0);
 	if (reg != event)
@@ -419,7 +439,9 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 	xgpu_vi_mailbox_set_valid(adev, false);
 
 	/* start to check msg if request is idh_req_gpu_init_access */
-	if (request == IDH_REQ_GPU_INIT_ACCESS) {
+	if (request == IDH_REQ_GPU_INIT_ACCESS ||
+		request == IDH_REQ_GPU_FINI_ACCESS ||
+		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r)
 			return r;
