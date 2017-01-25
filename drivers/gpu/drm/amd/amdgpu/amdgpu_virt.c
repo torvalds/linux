@@ -97,7 +97,7 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
 
-	mutex_init(&adev->virt.lock);
+	mutex_init(&adev->virt.lock_kiq);
 }
 
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
@@ -110,14 +110,14 @@ uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 
 	BUG_ON(!ring->funcs->emit_rreg);
 
-	mutex_lock(&adev->virt.lock);
+	mutex_lock(&adev->virt.lock_kiq);
 	amdgpu_ring_alloc(ring, 32);
 	amdgpu_ring_emit_hdp_flush(ring);
 	amdgpu_ring_emit_rreg(ring, reg);
 	amdgpu_ring_emit_hdp_invalidate(ring);
 	amdgpu_fence_emit(ring, &f);
 	amdgpu_ring_commit(ring);
-	mutex_unlock(&adev->virt.lock);
+	mutex_unlock(&adev->virt.lock_kiq);
 
 	r = dma_fence_wait(f, false);
 	if (r)
@@ -138,14 +138,14 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	BUG_ON(!ring->funcs->emit_wreg);
 
-	mutex_lock(&adev->virt.lock);
+	mutex_lock(&adev->virt.lock_kiq);
 	amdgpu_ring_alloc(ring, 32);
 	amdgpu_ring_emit_hdp_flush(ring);
 	amdgpu_ring_emit_wreg(ring, reg, v);
 	amdgpu_ring_emit_hdp_invalidate(ring);
 	amdgpu_fence_emit(ring, &f);
 	amdgpu_ring_commit(ring);
-	mutex_unlock(&adev->virt.lock);
+	mutex_unlock(&adev->virt.lock_kiq);
 
 	r = dma_fence_wait(f, false);
 	if (r)
