@@ -43,7 +43,7 @@ static int amdgpu_create_pp_handle(struct amdgpu_device *adev)
 	amd_pp = &(adev->powerplay);
 	pp_init.chip_family = adev->family;
 	pp_init.chip_id = adev->asic_type;
-	pp_init.pm_en = amdgpu_dpm != 0 ? true : false;
+	pp_init.pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
 	pp_init.feature_mask = amdgpu_pp_feature_mask;
 	pp_init.device = amdgpu_cgs_create_device(adev);
 	ret = amd_powerplay_create(&pp_init, &(amd_pp->pp_handle));

@@ -286,7 +286,7 @@ static int pp_resume(void *handle)
 	}
 
 	if (ret1 == PP_DPM_DISABLED)
-		return ret1;
+		return 0;
 
 	eventmgr = pp_handle->eventmgr;
 
