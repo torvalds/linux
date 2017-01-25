@@ -73,7 +73,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			 plane->drm_plane.name,
 			 plane->drm_plane.fb->width,
 			 plane->drm_plane.fb->height,
-			 (char *)&plane->drm_plane.fb->pixel_format,
+			 (char *)&plane->drm_plane.fb->format->format,
 			 fpks / 1000, fpks % 1000,
 			 sti_plane_to_str(plane));
 	}
