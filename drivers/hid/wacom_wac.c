@@ -43,6 +43,8 @@ static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 
 static int wacom_numbered_button_to_key(int n);
 
+static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
+			     int group);
 /*
  * Percent of battery capacity for Graphire.
  * 8th value means AC online and show 100% capacity.
@@ -1715,12 +1717,14 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_Z, 0);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
+	case WACOM_HID_WD_BUTTONCENTER:
+		wacom->generic_has_leds = true;
+		/* fall through */
 	case WACOM_HID_WD_BUTTONHOME:
 	case WACOM_HID_WD_BUTTONUP:
 	case WACOM_HID_WD_BUTTONDOWN:
 	case WACOM_HID_WD_BUTTONLEFT:
 	case WACOM_HID_WD_BUTTONRIGHT:
-	case WACOM_HID_WD_BUTTONCENTER:
 		wacom_map_usage(input, usage, field, EV_KEY,
 				wacom_numbered_button_to_key(features->numbered_buttons),
 				0);
@@ -1797,7 +1801,9 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pad_input;
+	struct wacom_features *features = &wacom_wac->features;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
+	int i;
 
 	/*
 	 * Avoid reporting this event and setting inrange_state if this usage
@@ -1824,6 +1830,12 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			input_sync(wacom_wac->shared->touch_input);
 		}
 		break;
+
+	case WACOM_HID_WD_BUTTONCENTER:
+		for (i = 0; i < wacom->led.count; i++)
+			wacom_update_led(wacom, features->numbered_buttons,
+					 value, i);
+		 /* fall through*/
 	default:
 		input_event(input, usage->type, usage->code, value);
 		break;

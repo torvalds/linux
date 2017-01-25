@@ -79,6 +79,7 @@
 #define WAC_CMD_ICON_XFER               0x23
 #define WAC_CMD_ICON_BT_XFER            0x26
 #define WAC_CMD_DELETE_PAIRING          0x20
+#define WAC_CMD_LED_CONTROL_GENERIC     0x32
 #define WAC_CMD_UNPAIR_ALL              0xFF
 #define WAC_CMD_WL_INTUOSP2             0x82
 
