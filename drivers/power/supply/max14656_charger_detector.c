@@ -305,11 +305,13 @@ static const struct i2c_device_id max14656_id[] = {
 	{ "max14656", 0 },
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, max14656_id);
 
 static const struct of_device_id max14656_match_table[] = {
 	{ .compatible = "maxim,max14656", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, max14656_match_table);
 
 static struct i2c_driver max14656_i2c_driver = {
 	.driver = {
