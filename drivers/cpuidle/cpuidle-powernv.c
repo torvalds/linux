@@ -19,6 +19,7 @@
 #include <asm/firmware.h>
 #include <asm/opal.h>
 #include <asm/runlatch.h>
+#include <asm/cpuidle.h>
 
 /*
  * Expose only those Hardware idle states via the cpuidle framework
@@ -34,7 +35,12 @@ static struct cpuidle_driver powernv_idle_driver = {
 static int max_idle_state;
 static struct cpuidle_state *cpuidle_state_table;
 
-static u64 stop_psscr_table[CPUIDLE_STATE_MAX];
+struct stop_psscr_table {
+	u64 val;
+	u64 mask;
+};
+
+static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX];
 
 static u64 snooze_timeout;
 static bool snooze_timeout_en;
@@ -106,7 +112,8 @@ static int stop_loop(struct cpuidle_device *dev,
 		     int index)
 {
 	ppc64_runlatch_off();
-	power9_idle_stop(stop_psscr_table[index]);
+	power9_idle_stop(stop_psscr_table[index].val,
+			 stop_psscr_table[index].mask);
 	ppc64_runlatch_on();
 	return index;
 }
@@ -178,7 +185,7 @@ static inline void add_powernv_state(int index, const char *name,
 						    int),
 				     unsigned int target_residency,
 				     unsigned int exit_latency,
-				     u64 psscr_val)
+				     u64 psscr_val, u64 psscr_mask)
 {
 	strlcpy(powernv_states[index].name, name, CPUIDLE_NAME_LEN);
 	strlcpy(powernv_states[index].desc, name, CPUIDLE_NAME_LEN);
@@ -186,7 +193,8 @@ static inline void add_powernv_state(int index, const char *name,
 	powernv_states[index].target_residency = target_residency;
 	powernv_states[index].exit_latency = exit_latency;
 	powernv_states[index].enter = idle_fn;
-	stop_psscr_table[index] = psscr_val;
+	stop_psscr_table[index].val = psscr_val;
+	stop_psscr_table[index].mask = psscr_mask;
 }
 
 static int powernv_add_idle_states(void)
@@ -198,7 +206,9 @@ static int powernv_add_idle_states(void)
 	u32 residency_ns[CPUIDLE_STATE_MAX];
 	u32 flags[CPUIDLE_STATE_MAX];
 	u64 psscr_val[CPUIDLE_STATE_MAX];
+	u64 psscr_mask[CPUIDLE_STATE_MAX];
 	const char *names[CPUIDLE_STATE_MAX];
+	u32 has_stop_states = 0;
 	int i, rc;
 
 	/* Currently we have snooze statically defined */
@@ -245,14 +255,24 @@ static int powernv_add_idle_states(void)
 
 	/*
 	 * If the idle states use stop instruction, probe for psscr values
-	 * which are necessary to specify required stop level.
+	 * and psscr mask which are necessary to specify required stop level.
 	 */
-	if (flags[0] & (OPAL_PM_STOP_INST_FAST | OPAL_PM_STOP_INST_DEEP))
+	has_stop_states = (flags[0] &
+			   (OPAL_PM_STOP_INST_FAST | OPAL_PM_STOP_INST_DEEP));
+	if (has_stop_states) {
 		if (of_property_read_u64_array(power_mgt,
 		    "ibm,cpu-idle-state-psscr", psscr_val, dt_idle_states)) {
-			pr_warn("cpuidle-powernv: missing ibm,cpu-idle-states-psscr in DT\n");
+			pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-psscr in DT\n");
 			goto out;
 		}
+
+		if (of_property_read_u64_array(power_mgt,
+					       "ibm,cpu-idle-state-psscr-mask",
+						psscr_mask, dt_idle_states)) {
+			pr_warn("cpuidle-powernv:Missing ibm,cpu-idle-state-psscr-mask in DT\n");
+			goto out;
+		}
+	}
 
 	rc = of_property_read_u32_array(power_mgt,
 		"ibm,cpu-idle-state-residency-ns", residency_ns, dt_idle_states);
@@ -276,6 +296,16 @@ static int powernv_add_idle_states(void)
 		else
 			target_residency = 0;
 
+		if (has_stop_states) {
+			int err = validate_psscr_val_mask(&psscr_val[i],
+							  &psscr_mask[i],
+							  flags[i]);
+			if (err) {
+				report_invalid_psscr_val(psscr_val[i], err);
+				continue;
+			}
+		}
+
 		/*
 		 * For nap and fastsleep, use default target_residency
 		 * values if f/w does not expose it.
@@ -286,13 +316,13 @@ static int powernv_add_idle_states(void)
 			/* Add NAP state */
 			add_powernv_state(nr_idle_states, "Nap",
 					  CPUIDLE_FLAG_NONE, nap_loop,
-					  target_residency, exit_latency, 0);
+					  target_residency, exit_latency, 0, 0);
 		} else if ((flags[i] & OPAL_PM_STOP_INST_FAST) &&
 				!(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_NONE, stop_loop,
 					  target_residency, exit_latency,
-					  psscr_val[i]);
+					  psscr_val[i], psscr_mask[i]);
 		}
 
 		/*
@@ -308,13 +338,13 @@ static int powernv_add_idle_states(void)
 			add_powernv_state(nr_idle_states, "FastSleep",
 					  CPUIDLE_FLAG_TIMER_STOP,
 					  fastsleep_loop,
-					  target_residency, exit_latency, 0);
+					  target_residency, exit_latency, 0, 0);
 		} else if ((flags[i] & OPAL_PM_STOP_INST_DEEP) &&
 				(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_TIMER_STOP, stop_loop,
 					  target_residency, exit_latency,
-					  psscr_val[i]);
+					  psscr_val[i], psscr_mask[i]);
 		}
 #endif
 		nr_idle_states++;
