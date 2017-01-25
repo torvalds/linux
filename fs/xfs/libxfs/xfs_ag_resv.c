@@ -200,22 +200,27 @@ __xfs_ag_resv_init(
 	struct xfs_mount		*mp = pag->pag_mount;
 	struct xfs_ag_resv		*resv;
 	int				error;
+	xfs_extlen_t			reserved;
 
-	resv = xfs_perag_resv(pag, type);
 	if (used > ask)
 		ask = used;
-	resv->ar_asked = ask;
-	resv->ar_reserved = resv->ar_orig_reserved = ask - used;
-	mp->m_ag_max_usable -= ask;
+	reserved = ask - used;
 
-	trace_xfs_ag_resv_init(pag, type, ask);
-
-	error = xfs_mod_fdblocks(mp, -(int64_t)resv->ar_reserved, true);
-	if (error)
+	error = xfs_mod_fdblocks(mp, -(int64_t)reserved, true);
+	if (error) {
 		trace_xfs_ag_resv_init_error(pag->pag_mount, pag->pag_agno,
 				error, _RET_IP_);
+		return error;
+	}
 
-	return error;
+	mp->m_ag_max_usable -= ask;
+
+	resv = xfs_perag_resv(pag, type);
+	resv->ar_asked = ask;
+	resv->ar_reserved = resv->ar_orig_reserved = reserved;
+
+	trace_xfs_ag_resv_init(pag, type, ask);
+	return 0;
 }
 
 /* Create a per-AG block reservation. */
