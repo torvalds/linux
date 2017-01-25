@@ -372,7 +372,7 @@ struct drm_plane_funcs {
 	 *
 	 * This optional hook should be used to unregister the additional
 	 * userspace interfaces attached to the plane from
-	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * @late_register. It is called from drm_dev_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
 	 */
