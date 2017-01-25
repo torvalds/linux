@@ -101,6 +101,7 @@
 #define WACOM_HID_SP_DIGITIZER          0x000d0000
 #define WACOM_HID_SP_DIGITIZERINFO      0x00100000
 #define WACOM_HID_WD_DIGITIZER          (WACOM_HID_UP_WACOMDIGITIZER | 0x01)
+#define WACOM_HID_WD_PEN                (WACOM_HID_UP_WACOMDIGITIZER | 0x02)
 #define WACOM_HID_WD_SENSE              (WACOM_HID_UP_WACOMDIGITIZER | 0x36)
 #define WACOM_HID_WD_DIGITIZERFNKEYS    (WACOM_HID_UP_WACOMDIGITIZER | 0x39)
 #define WACOM_HID_WD_SERIALHI           (WACOM_HID_UP_WACOMDIGITIZER | 0x5c)
@@ -137,6 +138,12 @@
 #define WACOM_HID_UP_G11                0xff110000
 #define WACOM_HID_G11_PEN               (WACOM_HID_UP_G11 | 0x02)
 #define WACOM_HID_G11_TOUCHSCREEN       (WACOM_HID_UP_G11 | 0x11)
+#define WACOM_HID_UP_WACOMTOUCH         0xff000000
+#define WACOM_HID_WT_TOUCHSCREEN        (WACOM_HID_UP_WACOMTOUCH | 0x04)
+#define WACOM_HID_WT_TOUCHPAD           (WACOM_HID_UP_WACOMTOUCH | 0x05)
+#define WACOM_HID_WT_CONTACTMAX         (WACOM_HID_UP_WACOMTOUCH | 0x55)
+#define WACOM_HID_WT_X                  (WACOM_HID_UP_WACOMTOUCH | 0x130)
+#define WACOM_HID_WT_Y                  (WACOM_HID_UP_WACOMTOUCH | 0x131)
 
 #define WACOM_PAD_FIELD(f)	(((f)->physical == HID_DG_TABLETFUNCTIONKEY) || \
 				 ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS) || \
@@ -154,7 +161,14 @@
 				 ((f)->physical == HID_DG_FINGER) || \
 				 ((f)->application == HID_DG_TOUCHSCREEN) || \
 				 ((f)->application == WACOM_HID_G9_TOUCHSCREEN) || \
-				 ((f)->application == WACOM_HID_G11_TOUCHSCREEN))
+				 ((f)->application == WACOM_HID_G11_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_WT_TOUCHPAD) || \
+				 ((f)->application == HID_DG_TOUCHPAD))
+
+#define WACOM_DIRECT_DEVICE(f)	(((f)->application == HID_DG_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_WT_TOUCHSCREEN) || \
+				 ((f)->application == HID_DG_PEN) || \
+				 ((f)->application == WACOM_HID_WD_PEN))
 
 enum {
 	PENPARTNER = 0,
