@@ -1205,8 +1205,7 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 {
 	int           ret = 0;
 
-	if (ah_attr->port_num < rdma_start_port(device) ||
-	    ah_attr->port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, ah_attr->port_num))
 		return -EINVAL;
 
 	if (!rdma_cap_eth_ah(device, ah_attr->port_num))

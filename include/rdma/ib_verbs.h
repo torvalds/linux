@@ -2280,6 +2280,13 @@ static inline u8 rdma_end_port(const struct ib_device *device)
 	return rdma_cap_ib_switch(device) ? 0 : device->phys_port_cnt;
 }
 
+static inline int rdma_is_port_valid(const struct ib_device *device,
+				     unsigned int port)
+{
+	return (port >= rdma_start_port(device) &&
+		port <= rdma_end_port(device));
+}
+
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;

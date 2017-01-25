@@ -269,8 +269,7 @@ struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter	filter,
 int cma_get_default_gid_type(struct cma_device *cma_dev,
 			     unsigned int port)
 {
-	if (port < rdma_start_port(cma_dev->device) ||
-	    port > rdma_end_port(cma_dev->device))
+	if (!rdma_is_port_valid(cma_dev->device, port))
 		return -EINVAL;
 
 	return cma_dev->default_gid_type[port - rdma_start_port(cma_dev->device)];
@@ -282,8 +281,7 @@ int cma_set_default_gid_type(struct cma_device *cma_dev,
 {
 	unsigned long supported_gids;
 
-	if (port < rdma_start_port(cma_dev->device) ||
-	    port > rdma_end_port(cma_dev->device))
+	if (!rdma_is_port_valid(cma_dev->device, port))
 		return -EINVAL;
 
 	supported_gids = roce_gid_type_mask_support(cma_dev->device, port);
