@@ -52,6 +52,7 @@
 struct mlx5_nic_flow_attr {
 	u32 action;
 	u32 flow_tag;
+	u32 mod_hdr_id;
 };
 
 enum {
@@ -97,10 +98,12 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		.action = attr->action,
 		.flow_tag = attr->flow_tag,
 		.encap_id = 0,
+		.modify_id = attr->mod_hdr_id,
 	};
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_flow_handle *rule;
 	bool table_created = false;
+	int err;
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
@@ -112,6 +115,18 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 		dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 		dest.counter = counter;
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		err = mlx5_modify_header_alloc(dev, MLX5_FLOW_NAMESPACE_KERNEL,
+					       parse_attr->num_mod_hdr_actions,
+					       parse_attr->mod_hdr_actions,
+					       &attr->mod_hdr_id);
+		kfree(parse_attr->mod_hdr_actions);
+		if (err) {
+			rule = ERR_PTR(err);
+			goto err_create_mod_hdr_id;
+		}
 	}
 
 	if (IS_ERR_OR_NULL(priv->fs.tc.t)) {
@@ -146,6 +161,10 @@ err_add_rule:
 		priv->fs.tc.t = NULL;
 	}
 err_create_ft:
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+		mlx5_modify_header_dealloc(priv->mdev,
+					   attr->mod_hdr_id);
+err_create_mod_hdr_id:
 	mlx5_fc_destroy(dev, counter);
 
 	return rule;
@@ -164,6 +183,10 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 		mlx5_destroy_flow_table(priv->fs.tc.t);
 		priv->fs.tc.t = NULL;
 	}
+
+	if (flow->nic_attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+		mlx5_modify_header_dealloc(priv->mdev,
+					   flow->nic_attr->mod_hdr_id);
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
@@ -955,6 +978,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	const struct tc_action *a;
 	LIST_HEAD(actions);
+	int err;
 
 	if (tc_no_actions(exts))
 		return -EINVAL;
@@ -973,6 +997,17 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			if (MLX5_CAP_FLOWTABLE(priv->mdev,
 					       flow_table_properties_nic_receive.flow_counter))
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			continue;
+		}
+
+		if (is_tcf_pedit(a)) {
+			err = parse_tc_pedit_action(priv, a, MLX5_FLOW_NAMESPACE_KERNEL,
+						    parse_attr);
+			if (err)
+				return err;
+
+			attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR |
+					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			continue;
 		}
 
