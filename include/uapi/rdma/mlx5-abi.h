@@ -90,6 +90,17 @@ enum mlx5_user_cmds_supp_uhw {
 	MLX5_USER_CMDS_SUPP_UHW_CREATE_AH    = 1 << 1,
 };
 
+/* The eth_min_inline response value is set to off-by-one vs the FW
+ * returned value to allow user-space to deal with older kernels.
+ */
+enum mlx5_user_inline_mode {
+	MLX5_USER_INLINE_MODE_NA,
+	MLX5_USER_INLINE_MODE_NONE,
+	MLX5_USER_INLINE_MODE_L2,
+	MLX5_USER_INLINE_MODE_IP,
+	MLX5_USER_INLINE_MODE_TCP_UDP,
+};
+
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
@@ -106,7 +117,8 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	response_length;
 	__u8	cqe_version;
 	__u8	cmds_supp_uhw;
-	__u16	reserved2;
+	__u8	eth_min_inline;
+	__u8	reserved2;
 	__u64	hca_core_clock_offset;
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;

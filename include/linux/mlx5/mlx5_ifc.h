@@ -547,7 +547,9 @@ struct mlx5_ifc_e_switch_cap_bits {
 struct mlx5_ifc_qos_cap_bits {
 	u8         packet_pacing[0x1];
 	u8         esw_scheduling[0x1];
-	u8         reserved_at_2[0x1e];
+	u8         esw_bw_share[0x1];
+	u8         esw_rate_limit[0x1];
+	u8         reserved_at_4[0x1c];
 
 	u8         reserved_at_20[0x20];
 

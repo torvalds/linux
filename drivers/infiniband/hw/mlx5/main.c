@@ -53,6 +53,7 @@
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <linux/mlx5/fs.h>
+#include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
 
 #define DRIVER_NAME "mlx5_ib"
@@ -1200,6 +1201,14 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 		resp.cmds_supp_uhw |= MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE |
 				      MLX5_USER_CMDS_SUPP_UHW_CREATE_AH;
 		resp.response_length += sizeof(resp.cmds_supp_uhw);
+	}
+
+	if (field_avail(typeof(resp), eth_min_inline, udata->outlen)) {
+		if (mlx5_ib_port_link_layer(ibdev, 1) == IB_LINK_LAYER_ETHERNET) {
+			mlx5_query_min_inline(dev->mdev, &resp.eth_min_inline);
+			resp.eth_min_inline++;
+		}
+		resp.response_length += sizeof(resp.eth_min_inline);
 	}
 
 	/*

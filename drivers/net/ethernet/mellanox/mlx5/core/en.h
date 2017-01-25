@@ -101,6 +101,7 @@
 
 #define MLX5E_LOG_INDIR_RQT_SIZE       0x7
 #define MLX5E_INDIR_RQT_SIZE           BIT(MLX5E_LOG_INDIR_RQT_SIZE)
+#define MLX5E_MIN_NUM_CHANNELS         0x1
 #define MLX5E_MAX_NUM_CHANNELS         (MLX5E_INDIR_RQT_SIZE >> 1)
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
@@ -786,7 +787,7 @@ void mlx5e_pps_event_handler(struct mlx5e_priv *priv,
 			     struct ptp_clock_event *event);
 int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr);
 int mlx5e_hwstamp_get(struct net_device *dev, struct ifreq *ifr);
-void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val);
+void mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);
@@ -845,12 +846,6 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 static inline u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 {
 	return wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
-}
-
-static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
-{
-	return min_t(int, mdev->priv.eq_table.num_comp_vectors,
-		     MLX5E_MAX_NUM_CHANNELS);
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;

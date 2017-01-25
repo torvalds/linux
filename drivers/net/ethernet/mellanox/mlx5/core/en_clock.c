@@ -106,11 +106,12 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
+	mutex_lock(&priv->state_lock);
 	/* RX HW timestamp */
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		/* Reset CQE compression to Admin default */
-		mlx5e_modify_rx_cqe_compression(priv, priv->params.rx_cqe_compress_def);
+		mlx5e_modify_rx_cqe_compression_locked(priv, priv->params.rx_cqe_compress_def);
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -128,14 +129,16 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		/* Disable CQE compression */
 		netdev_warn(dev, "Disabling cqe compression");
-		mlx5e_modify_rx_cqe_compression(priv, false);
+		mlx5e_modify_rx_cqe_compression_locked(priv, false);
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
+		mutex_unlock(&priv->state_lock);
 		return -ERANGE;
 	}
 
 	memcpy(&priv->tstamp.hwtstamp_config, &config, sizeof(config));
+	mutex_unlock(&priv->state_lock);
 
 	return copy_to_user(ifr->ifr_data, &config,
 			    sizeof(config)) ? -EFAULT : 0;
