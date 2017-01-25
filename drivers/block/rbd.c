@@ -123,9 +123,11 @@ static int atomic_dec_return_safe(atomic_t *v)
 #define RBD_FEATURE_LAYERING	(1<<0)
 #define RBD_FEATURE_STRIPINGV2	(1<<1)
 #define RBD_FEATURE_EXCLUSIVE_LOCK (1<<2)
+#define RBD_FEATURE_DATA_POOL (1<<7)
 #define RBD_FEATURES_ALL	(RBD_FEATURE_LAYERING |		\
 				 RBD_FEATURE_STRIPINGV2 |	\
-				 RBD_FEATURE_EXCLUSIVE_LOCK)
+				 RBD_FEATURE_EXCLUSIVE_LOCK |	\
+				 RBD_FEATURE_DATA_POOL)
 
 /* Features supported by this (client software) implementation. */
 
@@ -146,6 +148,7 @@ struct rbd_image_header {
 	__u8 obj_order;
 	u64 stripe_unit;
 	u64 stripe_count;
+	s64 data_pool_id;
 	u64 features;		/* Might be changeable someday? */
 
 	/* The remaining fields need to be updated occasionally */
@@ -989,7 +992,8 @@ static void rbd_init_layout(struct rbd_device *rbd_dev)
 	rbd_dev->layout.stripe_unit = rbd_dev->header.stripe_unit;
 	rbd_dev->layout.stripe_count = rbd_dev->header.stripe_count;
 	rbd_dev->layout.object_size = rbd_obj_bytes(&rbd_dev->header);
-	rbd_dev->layout.pool_id = rbd_dev->spec->pool_id;
+	rbd_dev->layout.pool_id = rbd_dev->header.data_pool_id == CEPH_NOPOOL ?
+			  rbd_dev->spec->pool_id : rbd_dev->header.data_pool_id;
 	RCU_INIT_POINTER(rbd_dev->layout.pool_ns, NULL);
 }
 
@@ -4797,6 +4801,7 @@ static struct rbd_device *__rbd_dev_create(struct rbd_client *rbdc,
 	INIT_LIST_HEAD(&rbd_dev->node);
 	init_rwsem(&rbd_dev->header_rwsem);
 
+	rbd_dev->header.data_pool_id = CEPH_NOPOOL;
 	ceph_oid_init(&rbd_dev->header_oid);
 	rbd_dev->header_oloc.pool = spec->pool_id;
 
@@ -5158,6 +5163,24 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 	rbd_dev->header.stripe_unit = stripe_unit;
 	rbd_dev->header.stripe_count = stripe_count;
 
+	return 0;
+}
+
+static int rbd_dev_v2_data_pool(struct rbd_device *rbd_dev)
+{
+	__le64 data_pool_id;
+	int ret;
+
+	ret = rbd_obj_method_sync(rbd_dev, &rbd_dev->header_oid,
+				  &rbd_dev->header_oloc, "get_data_pool",
+				  NULL, 0, &data_pool_id, sizeof(data_pool_id));
+	if (ret < 0)
+		return ret;
+	if (ret < sizeof(data_pool_id))
+		return -EBADMSG;
+
+	rbd_dev->header.data_pool_id = le64_to_cpu(data_pool_id);
+	WARN_ON(rbd_dev->header.data_pool_id == CEPH_NOPOOL);
 	return 0;
 }
 
@@ -5855,6 +5878,12 @@ static int rbd_dev_v2_header_onetime(struct rbd_device *rbd_dev)
 	if (rbd_dev->header.features & RBD_FEATURE_STRIPINGV2) {
 		ret = rbd_dev_v2_striping_info(rbd_dev);
 		if (ret < 0)
+			goto out_err;
+	}
+
+	if (rbd_dev->header.features & RBD_FEATURE_DATA_POOL) {
+		ret = rbd_dev_v2_data_pool(rbd_dev);
+		if (ret)
 			goto out_err;
 	}
 
