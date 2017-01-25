@@ -469,6 +469,7 @@ int lustre_shrink_msg(struct lustre_msg *msg, int segment,
 	default:
 		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
 	}
+	return 0;
 }
 EXPORT_SYMBOL(lustre_shrink_msg);
 
