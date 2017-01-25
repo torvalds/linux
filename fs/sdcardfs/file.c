@@ -225,7 +225,7 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 	}
 
 	/* save current_cred and override it */
-	OVERRIDE_CRED(sbi, saved_cred);
+	OVERRIDE_CRED(sbi, saved_cred, SDCARDFS_I(inode));
 
 	file->private_data =
 		kzalloc(sizeof(struct sdcardfs_file_info), GFP_KERNEL);

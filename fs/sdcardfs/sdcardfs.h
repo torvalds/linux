@@ -65,6 +65,9 @@
 #define AID_SDCARD_PICS   1033	/* external storage photos access */
 #define AID_SDCARD_AV     1034	/* external storage audio/video access */
 #define AID_SDCARD_ALL    1035	/* access all users external storage */
+#define AID_MEDIA_OBB     1059  /* obb files */
+
+#define AID_SDCARD_IMAGE  1057
 
 #define AID_PACKAGE_INFO  1027
 
@@ -91,12 +94,12 @@
  * These two macro should be used in pair, and OVERRIDE_CRED() should be
  * placed at the beginning of a function, right after variable declaration.
  */
-#define OVERRIDE_CRED(sdcardfs_sbi, saved_cred)		\
-	saved_cred = override_fsids(sdcardfs_sbi);	\
+#define OVERRIDE_CRED(sdcardfs_sbi, saved_cred, info)		\
+	saved_cred = override_fsids(sdcardfs_sbi, info);	\
 	if (!saved_cred) { return -ENOMEM; }
 
-#define OVERRIDE_CRED_PTR(sdcardfs_sbi, saved_cred)	\
-	saved_cred = override_fsids(sdcardfs_sbi);	\
+#define OVERRIDE_CRED_PTR(sdcardfs_sbi, saved_cred, info)	\
+	saved_cred = override_fsids(sdcardfs_sbi, info);	\
 	if (!saved_cred) { return ERR_PTR(-ENOMEM); }
 
 #define REVERT_CRED(saved_cred)	revert_fsids(saved_cred)
@@ -127,13 +130,18 @@ typedef enum {
     PERM_ANDROID_OBB,
     /* This node is "/Android/media" */
     PERM_ANDROID_MEDIA,
+    /* This node is "/Android/[data|media|obb]/[package]" */
+    PERM_ANDROID_PACKAGE,
+    /* This node is "/Android/[data|media|obb]/[package]/cache" */
+    PERM_ANDROID_PACKAGE_CACHE,
 } perm_t;
 
 struct sdcardfs_sb_info;
 struct sdcardfs_mount_options;
+struct sdcardfs_inode_info;
 
 /* Do not directly use this function. Use OVERRIDE_CRED() instead. */
-const struct cred * override_fsids(struct sdcardfs_sb_info* sbi);
+const struct cred * override_fsids(struct sdcardfs_sb_info* sbi, struct sdcardfs_inode_info *info);
 /* Do not directly use this function, use REVERT_CRED() instead. */
 void revert_fsids(const struct cred * old_cred);
 
@@ -175,6 +183,8 @@ struct sdcardfs_inode_info {
 	userid_t userid;
 	uid_t d_uid;
 	bool under_android;
+	bool under_cache;
+	bool under_obb;
 	/* top folder for ownership */
 	struct inode *top;
 
@@ -447,6 +457,7 @@ extern struct list_head sdcardfs_super_list;
 
 /* for packagelist.c */
 extern appid_t get_appid(const char *app_name);
+extern appid_t get_ext_gid(const char *app_name);
 extern appid_t is_excluded(const char *app_name, userid_t userid);
 extern int check_caller_access_to_name(struct inode *parent_node, const char* name);
 extern int open_flags_to_access_mode(int open_flags);
@@ -466,11 +477,13 @@ struct limit_search {
 extern void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 			uid_t uid, bool under_android, struct inode *top);
 extern void get_derived_permission(struct dentry *parent, struct dentry *dentry);
-extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, struct dentry *newdentry);
+extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, const char *name);
+extern void drop_recursive(struct dentry *parent);
 extern void fixup_top_recursive(struct dentry *parent);
 extern void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit);
 
 extern void update_derived_permission_lock(struct dentry *dentry);
+void fixup_lower_ownership(struct dentry* dentry, const char *name);
 extern int need_graft_path(struct dentry *dentry);
 extern int is_base_obbpath(struct dentry *dentry);
 extern int is_obbpath_invalid(struct dentry *dentry);
