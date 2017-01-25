@@ -395,10 +395,8 @@ static int bcm54612e_config_aneg(struct phy_device *phydev)
 	    (phydev->interface != PHY_INTERFACE_MODE_RGMII_RXID)) {
 		u16 reg;
 
-		/* Errata: reads require filling in the write selector field */
-		bcm54xx_auxctl_write(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
-				     MII_BCM54XX_AUXCTL_MISC_RDSEL_MISC);
-		reg = phy_read(phydev, MII_BCM54XX_AUX_CTL);
+		reg = bcm54xx_auxctl_read(phydev,
+					  MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
 		/* Disable RXD to RXC delay (default set) */
 		reg &= ~MII_BCM54XX_AUXCTL_MISC_RXD_RXC_SKEW;
 		/* Clear shadow selector field */
