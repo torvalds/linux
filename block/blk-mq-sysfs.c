@@ -184,17 +184,16 @@ static ssize_t blk_mq_hw_sysfs_dispatched_show(struct blk_mq_hw_ctx *hctx,
 	return page - start_page;
 }
 
-static ssize_t blk_mq_hw_sysfs_sched_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
+static ssize_t blk_mq_hw_sysfs_nr_tags_show(struct blk_mq_hw_ctx *hctx,
+					    char *page)
 {
-	if (hctx->sched_tags)
-		return blk_mq_tag_sysfs_show(hctx->sched_tags, page);
-
-	return 0;
+	return sprintf(page, "%u\n", hctx->tags->nr_tags);
 }
 
-static ssize_t blk_mq_hw_sysfs_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
+static ssize_t blk_mq_hw_sysfs_nr_reserved_tags_show(struct blk_mq_hw_ctx *hctx,
+						     char *page)
 {
-	return blk_mq_tag_sysfs_show(hctx->tags, page);
+	return sprintf(page, "%u\n", hctx->tags->nr_reserved_tags);
 }
 
 static ssize_t blk_mq_hw_sysfs_active_show(struct blk_mq_hw_ctx *hctx, char *page)
@@ -293,17 +292,17 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_dispatched = {
 	.attr = {.name = "dispatched", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_dispatched_show,
 };
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_tags = {
+	.attr = {.name = "nr_tags", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_nr_tags_show,
+};
+static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_reserved_tags = {
+	.attr = {.name = "nr_reserved_tags", .mode = S_IRUGO },
+	.show = blk_mq_hw_sysfs_nr_reserved_tags_show,
+};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_active = {
 	.attr = {.name = "active", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_active_show,
-};
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_sched_tags = {
-	.attr = {.name = "sched_tags", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_sched_tags_show,
-};
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_tags = {
-	.attr = {.name = "tags", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_tags_show,
 };
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
 	.attr = {.name = "cpu_list", .mode = S_IRUGO },
@@ -324,8 +323,8 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_queued.attr,
 	&blk_mq_hw_sysfs_run.attr,
 	&blk_mq_hw_sysfs_dispatched.attr,
-	&blk_mq_hw_sysfs_tags.attr,
-	&blk_mq_hw_sysfs_sched_tags.attr,
+	&blk_mq_hw_sysfs_nr_tags.attr,
+	&blk_mq_hw_sysfs_nr_reserved_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
 	&blk_mq_hw_sysfs_active.attr,
 	&blk_mq_hw_sysfs_poll.attr,

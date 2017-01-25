@@ -20,6 +20,7 @@
 
 #include <linux/blk-mq.h>
 #include "blk-mq.h"
+#include "blk-mq-tag.h"
 
 struct blk_mq_debugfs_attr {
 	const char *name;
@@ -154,6 +155,73 @@ static const struct file_operations hctx_ctx_map_fops = {
 	.release	= single_release,
 };
 
+static void blk_mq_debugfs_tags_show(struct seq_file *m,
+				     struct blk_mq_tags *tags)
+{
+	seq_printf(m, "nr_tags=%u\n", tags->nr_tags);
+	seq_printf(m, "nr_reserved_tags=%u\n", tags->nr_reserved_tags);
+	seq_printf(m, "active_queues=%d\n",
+		   atomic_read(&tags->active_queues));
+
+	seq_puts(m, "\nbitmap_tags:\n");
+	sbitmap_queue_show(&tags->bitmap_tags, m);
+
+	if (tags->nr_reserved_tags) {
+		seq_puts(m, "\nbreserved_tags:\n");
+		sbitmap_queue_show(&tags->breserved_tags, m);
+	}
+}
+
+static int hctx_tags_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct request_queue *q = hctx->queue;
+
+	mutex_lock(&q->sysfs_lock);
+	if (hctx->tags)
+		blk_mq_debugfs_tags_show(m, hctx->tags);
+	mutex_unlock(&q->sysfs_lock);
+
+	return 0;
+}
+
+static int hctx_tags_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_tags_show, inode->i_private);
+}
+
+static const struct file_operations hctx_tags_fops = {
+	.open		= hctx_tags_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_sched_tags_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct request_queue *q = hctx->queue;
+
+	mutex_lock(&q->sysfs_lock);
+	if (hctx->sched_tags)
+		blk_mq_debugfs_tags_show(m, hctx->sched_tags);
+	mutex_unlock(&q->sysfs_lock);
+
+	return 0;
+}
+
+static int hctx_sched_tags_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_sched_tags_show, inode->i_private);
+}
+
+static const struct file_operations hctx_sched_tags_fops = {
+	.open		= hctx_sched_tags_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
 {
 	struct blk_mq_ctx *ctx = m->private;
@@ -200,6 +268,8 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"flags", 0400, &hctx_flags_fops},
 	{"dispatch", 0400, &hctx_dispatch_fops},
 	{"ctx_map", 0400, &hctx_ctx_map_fops},
+	{"tags", 0400, &hctx_tags_fops},
+	{"sched_tags", 0400, &hctx_sched_tags_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
