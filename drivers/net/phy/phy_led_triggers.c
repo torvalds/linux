@@ -102,8 +102,10 @@ int phy_led_triggers_register(struct phy_device *phy)
 					    sizeof(struct phy_led_trigger) *
 						   phy->phy_num_led_triggers,
 					    GFP_KERNEL);
-	if (!phy->phy_led_triggers)
-		return -ENOMEM;
+	if (!phy->phy_led_triggers) {
+		err = -ENOMEM;
+		goto out_clear;
+	}
 
 	for (i = 0; i < phy->phy_num_led_triggers; i++) {
 		err = phy_led_trigger_register(phy, &phy->phy_led_triggers[i],
@@ -120,6 +122,8 @@ out_unreg:
 	while (i--)
 		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
 	devm_kfree(&phy->mdio.dev, phy->phy_led_triggers);
+out_clear:
+	phy->phy_num_led_triggers = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(phy_led_triggers_register);
