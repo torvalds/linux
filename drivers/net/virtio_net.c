@@ -1715,6 +1715,11 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	u16 xdp_qp = 0, curr_qp;
 	int i, err;
 
+	if (prog && prog->xdp_adjust_head) {
+		netdev_warn(dev, "Does not support bpf_xdp_adjust_head()\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO4) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO6) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_ECN) ||
