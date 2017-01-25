@@ -1358,7 +1358,6 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 	pdev->ee_file->size = pdev->eesize;
 	ret = sysfs_create_bin_file(&dev->kobj, pdev->ee_file);
 	if (ret != 0) {
-		kfree(pdev->ee_file);
 		dev_err(dev, "Failed to create EEPROM sysfs-node");
 		return ret;
 	}
@@ -1380,9 +1379,6 @@ static void idt_remove_sysfs_files(struct idt_89hpesx_dev *pdev)
 
 	/* Remove EEPROM sysfs file */
 	sysfs_remove_bin_file(&dev->kobj, pdev->ee_file);
-
-	/* Free memory allocated for bin_attribute structure */
-	kfree(pdev->ee_file);
 }
 
 /*
