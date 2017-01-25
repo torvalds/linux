@@ -230,15 +230,14 @@ struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
 
 		rq = tags->static_rqs[tag];
 
-		if (blk_mq_tag_busy(data->hctx)) {
-			rq->rq_flags = RQF_MQ_INFLIGHT;
-			atomic_inc(&data->hctx->nr_active);
-		}
-
 		if (data->flags & BLK_MQ_REQ_INTERNAL) {
 			rq->tag = -1;
 			rq->internal_tag = tag;
 		} else {
+			if (blk_mq_tag_busy(data->hctx)) {
+				rq->rq_flags = RQF_MQ_INFLIGHT;
+				atomic_inc(&data->hctx->nr_active);
+			}
 			rq->tag = tag;
 			rq->internal_tag = -1;
 		}
@@ -869,6 +868,10 @@ done:
 
 	rq->tag = blk_mq_get_tag(&data);
 	if (rq->tag >= 0) {
+		if (blk_mq_tag_busy(data.hctx)) {
+			rq->rq_flags |= RQF_MQ_INFLIGHT;
+			atomic_inc(&data.hctx->nr_active);
+		}
 		data.hctx->tags->rqs[rq->tag] = rq;
 		goto done;
 	}
