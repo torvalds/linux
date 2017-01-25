@@ -678,7 +678,7 @@ static u8 state_to_phys_state(enum ib_port_state state)
 }
 
 static int eth_link_query_port(struct ib_device *ibdev, u8 port,
-			       struct ib_port_attr *props, int netw_view)
+			       struct ib_port_attr *props)
 {
 
 	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
@@ -745,7 +745,7 @@ int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	err = mlx4_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND ?
 		ib_link_query_port(ibdev, port, props, netw_view) :
-				eth_link_query_port(ibdev, port, props, netw_view);
+				eth_link_query_port(ibdev, port, props);
 
 	return err;
 }
