@@ -824,8 +824,6 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 	return 1 << drm_crtc_index(crtc);
 }
 
-void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
-			    int *hdisplay, int *vdisplay);
 int drm_crtc_force_disable(struct drm_crtc *crtc);
 int drm_crtc_force_disable_all(struct drm_device *dev);
 

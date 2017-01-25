@@ -11105,7 +11105,7 @@ static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
 		return PTR_ERR(plane_state);
 
 	if (mode)
-		drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
+		drm_mode_get_hv_timing(mode, &hdisplay, &vdisplay);
 	else
 		hdisplay = vdisplay = 0;
 
@@ -12990,7 +12990,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	 * computation to clearly distinguish it from the adjusted mode, which
 	 * can be changed by the connectors in the below retry loop.
 	 */
-	drm_crtc_get_hv_timing(&pipe_config->base.mode,
+	drm_mode_get_hv_timing(&pipe_config->base.mode,
 			       &pipe_config->pipe_src_w,
 			       &pipe_config->pipe_src_h);
 

@@ -2367,7 +2367,7 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	if (ret != 0)
 		return ret;
 
-	drm_crtc_get_hv_timing(set->mode, &hdisplay, &vdisplay);
+	drm_mode_get_hv_timing(set->mode, &hdisplay, &vdisplay);
 
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	primary_state->crtc_x = 0;
