@@ -1170,7 +1170,13 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 				     nic_data->piobuf_size / efx_piobuf_size);
 
 		rc = efx_ef10_alloc_piobufs(efx, n_piobufs);
-		if (rc)
+		if (rc == -ENOSPC)
+			netif_dbg(efx, probe, efx->net_dev,
+				  "out of PIO buffers; cannot allocate more\n");
+		else if (rc == -EPERM)
+			netif_dbg(efx, probe, efx->net_dev,
+				  "not permitted to allocate PIO buffers\n");
+		else if (rc)
 			netif_err(efx, probe, efx->net_dev,
 				  "failed to allocate PIO buffers (%d)\n", rc);
 		else
@@ -1317,8 +1323,14 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 				efx_ef10_free_piobufs(efx);
 		}
 
-		/* Log an error on failure, but this is non-fatal */
-		if (rc)
+		/* Log an error on failure, but this is non-fatal.
+		 * Permission errors are less important - we've presumably
+		 * had the PIO buffer licence removed.
+		 */
+		if (rc == -EPERM)
+			netif_dbg(efx, drv, efx->net_dev,
+				  "not permitted to restore PIO buffers\n");
+		else if (rc)
 			netif_err(efx, drv, efx->net_dev,
 				  "failed to restore PIO buffers (%d)\n", rc);
 		nic_data->must_restore_piobufs = false;
