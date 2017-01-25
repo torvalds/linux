@@ -756,6 +756,10 @@ static int wacom_led_control(struct wacom *wacom)
 		report_id = WAC_CMD_WL_LED_CONTROL;
 		buf_size = 13;
 	}
+	else if (wacom->wacom_wac.features.type == INTUOSP2_BT) {
+		report_id = WAC_CMD_WL_INTUOSP2;
+		buf_size = 51;
+	}
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -780,6 +784,16 @@ static int wacom_led_control(struct wacom *wacom)
 			buf[4] = led_bits;
 		} else
 			buf[1] = led_bits;
+	}
+	else if (wacom->wacom_wac.features.type == INTUOSP2_BT) {
+		buf[0] = report_id;
+		buf[4] = 100; // Power Connection LED (ORANGE)
+		buf[5] = 100; // BT Connection LED (BLUE)
+		buf[6] = 100; // Paper Mode (RED?)
+		buf[7] = 100; // Paper Mode (GREEN?)
+		buf[8] = 100; // Paper Mode (BLUE?)
+		buf[9] = wacom->led.llv;
+		buf[10] = wacom->led.groups[0].select & 0x03;
 	}
 	else {
 		int led = wacom->led.groups[0].select | 0x4;
@@ -1408,6 +1422,17 @@ static int wacom_initialize_leds(struct wacom *wacom)
 		error = wacom_devm_sysfs_create_group(wacom,
 						      &intuos5_led_attr_group);
 		break;
+
+	case INTUOSP2_BT:
+		wacom->led.llv = 50;
+		wacom->led.max_llv = 100;
+		error = wacom_leds_alloc_and_register(wacom, 1, 4, false);
+		if (error) {
+			hid_err(wacom->hdev,
+				"cannot create leds err: %d\n", error);
+			return error;
+		}
+		return 0;
 
 	case REMOTE:
 		wacom->led.llv = 255;

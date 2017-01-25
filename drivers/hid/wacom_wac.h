@@ -12,8 +12,8 @@
 #include <linux/types.h>
 #include <linux/hid.h>
 
-/* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	192
+/* maximum packet length for USB/BT devices */
+#define WACOM_PKGLEN_MAX	361
 
 #define WACOM_NAME_MAX		64
 #define WACOM_MAX_REMOTES	5
@@ -80,6 +80,7 @@
 #define WAC_CMD_ICON_BT_XFER            0x26
 #define WAC_CMD_DELETE_PAIRING          0x20
 #define WAC_CMD_UNPAIR_ALL              0xFF
+#define WAC_CMD_WL_INTUOSP2             0x82
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
@@ -179,6 +180,7 @@ enum {
 	INTUOSPS,
 	INTUOSPM,
 	INTUOSPL,
+	INTUOSP2_BT,
 	WACOM_21UX2,
 	WACOM_22HD,
 	DTK,
