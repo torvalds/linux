@@ -968,6 +968,34 @@ static struct irq_domain_ops gic_ipi_domain_ops = {
 	.match = gic_ipi_domain_match,
 };
 
+static void __init gic_map_single_int(struct device_node *node,
+				      unsigned int irq)
+{
+	unsigned int linux_irq;
+	struct irq_fwspec local_int_fwspec = {
+		.fwnode         = &node->fwnode,
+		.param_count    = 3,
+		.param          = {
+			[0]     = GIC_LOCAL,
+			[1]     = irq,
+			[2]     = IRQ_TYPE_NONE,
+		},
+	};
+
+	if (!gic_local_irq_is_routable(irq))
+		return;
+
+	linux_irq = irq_create_fwspec_mapping(&local_int_fwspec);
+	WARN_ON(!linux_irq);
+}
+
+static void __init gic_map_interrupts(struct device_node *node)
+{
+	gic_map_single_int(node, GIC_LOCAL_INT_TIMER);
+	gic_map_single_int(node, GIC_LOCAL_INT_PERFCTR);
+	gic_map_single_int(node, GIC_LOCAL_INT_FDC);
+}
+
 static void __init __gic_init(unsigned long gic_base_addr,
 			      unsigned long gic_addrspace_size,
 			      unsigned int cpu_vec, unsigned int irqbase,
@@ -1067,6 +1095,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	}
 
 	gic_basic_init();
+	gic_map_interrupts(node);
 }
 
 void __init gic_init(unsigned long gic_base_addr,
