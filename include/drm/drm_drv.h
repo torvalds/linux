@@ -151,20 +151,6 @@ struct drm_driver {
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 
 	/**
-	 * @device_is_agp:
-	 *
-	 * Called by drm_device_is_agp().  Typically used to determine if a card
-	 * is really attached to AGP or not.
-	 *
-	 * Returns:
-	 *
-	 * One of three values is returned depending on whether or not the
-	 * card is absolutely not AGP (return of 0), absolutely is AGP
-	 * (return of 1), or may or may not be AGP (return of 2).
-	 */
-	int (*device_is_agp) (struct drm_device *dev);
-
-	/**
 	 * @get_scanout_position:
 	 *
 	 * Called by vblank timestamping code.
