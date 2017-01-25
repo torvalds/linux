@@ -91,6 +91,9 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_HW_IP_VCN_DEC:
+		*out_ring = &adev->vcn.ring_dec;
+		break;
 	}
 
 	if (!(*out_ring && (*out_ring)->adev)) {
