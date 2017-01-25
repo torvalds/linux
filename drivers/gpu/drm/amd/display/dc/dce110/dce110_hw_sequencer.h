@@ -58,5 +58,8 @@ void dce110_power_down(struct core_dc *dc);
 
 void dce110_update_pending_status(struct pipe_ctx *pipe_ctx);
 
+bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
+		*output_tf, struct pwl_params *regamma_params);
+
 #endif /* __DC_HWSS_DCE110_H__ */
 

@@ -578,7 +578,7 @@ static bool convert_to_custom_float(
 	return true;
 }
 
-static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
+bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		*output_tf, struct pwl_params *regamma_params)
 {
 	struct curve_points *arr_points;
