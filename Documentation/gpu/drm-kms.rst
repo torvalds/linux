@@ -48,10 +48,16 @@ CRTC Abstraction
 ================
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :export:
+   :doc: overview
+
+CRTC Functions Reference
+--------------------------------
 
 .. kernel-doc:: include/drm/drm_crtc.h
    :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :export:
 
 Frame Buffer Abstraction
 ========================

@@ -641,7 +641,7 @@ struct drm_crtc {
 	 *
 	 * This provides a read lock for the overall crtc state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, crtc properties ...). Full
+	 * without a full modeset (fb, cursor data, crtc properties ...). A full
 	 * modeset also need to grab &drm_mode_config.connection_mutex.
 	 */
 	struct drm_modeset_lock mutex;
@@ -774,10 +774,8 @@ struct drm_crtc {
  * @connectors: array of connectors to drive with this CRTC if possible
  * @num_connectors: size of @connectors array
  *
- * Represents a single crtc the connectors that it drives with what mode
- * and from which framebuffer it scans out from.
- *
- * This is used to set modes.
+ * This represents a modeset configuration for the legacy SETCRTC ioctl and is
+ * also used internally. Atomic drivers instead use &drm_atomic_state.
  */
 struct drm_mode_set {
 	struct drm_framebuffer *fb;
@@ -834,7 +832,15 @@ int drm_crtc_force_disable_all(struct drm_device *dev);
 int drm_mode_set_config_internal(struct drm_mode_set *set);
 struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 
-/* Helpers */
+/**
+ * drm_crtc_find - look up a CRTC object from its ID
+ * @dev: DRM device
+ * @id: &drm_mode_object ID
+ *
+ * This can be used to look up a CRTC from its userspace ID. Only used by
+ * drivers for legacy IOCTLs and interface, nowadays extensions to the KMS
+ * userspace interface should be done using &drm_property.
+ */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	uint32_t id)
 {
@@ -843,6 +849,13 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	return mo ? obj_to_crtc(mo) : NULL;
 }
 
+/**
+ * drm_for_each_crtc - iterate over all CRTCs
+ * @crtc: a &struct drm_crtc as the loop cursor
+ * @dev: the &struct drm_device
+ *
+ * Iterate over all CRTCs of @dev.
+ */
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 

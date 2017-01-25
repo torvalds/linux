@@ -47,6 +47,27 @@
 #include "drm_internal.h"
 
 /**
+ * DOC: overview
+ *
+ * A CRTC represents the overall display pipeline. It receives pixel data from
+ * &drm_plane and blends them together. The &drm_display_mode is also attached
+ * to the CRTC, specifying display timings. On the output side the data is fed
+ * to one or more &drm_encoder, which are then each connected to one
+ * &drm_connector.
+ *
+ * To create a CRTC, a KMS drivers allocates and zeroes an instances of
+ * &struct drm_crtc (possibly as part of a larger structure) and registers it
+ * with a call to drm_crtc_init_with_planes().
+ *
+ * The CRTC is also the entry point for legacy modeset operations, see
+ * &drm_crtc_funcs.set_config, legacy plane operations, see
+ * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
+ * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
+ * features are controlled through &drm_property and
+ * &drm_mode_config_funcs.atomic_check and &drm_mode_config_funcs.atomic_check.
+ */
+
+/**
  * drm_crtc_from_index - find the registered CRTC at an index
  * @dev: DRM device
  * @idx: index of registered CRTC to find for
