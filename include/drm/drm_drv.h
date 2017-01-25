@@ -81,7 +81,6 @@ struct drm_driver {
 	 * Zero on success, non-zero value on failure.
 	 */
 	int (*load) (struct drm_device *, unsigned long flags);
-	int (*firstopen) (struct drm_device *);
 	int (*open) (struct drm_device *, struct drm_file *);
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	void (*postclose) (struct drm_device *, struct drm_file *);
@@ -103,9 +102,6 @@ struct drm_driver {
 	 *
 	 */
 	void (*unload) (struct drm_device *);
-	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	int (*dma_quiescent) (struct drm_device *);
-	int (*context_dtor) (struct drm_device *dev, int context);
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -413,13 +409,20 @@ struct drm_driver {
 	char *date;
 
 	u32 driver_features;
-	int dev_priv_size;
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 
+	/* Everything below here is for legacy driver, never use! */
+	/* private: */
+
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
+	int (*firstopen) (struct drm_device *);
+	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
+	int (*dma_quiescent) (struct drm_device *);
+	int (*context_dtor) (struct drm_device *dev, int context);
+	int dev_priv_size;
 };
 
 extern __printf(6, 7)
