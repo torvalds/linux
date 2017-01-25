@@ -1631,7 +1631,9 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
-	dout("%s %p osd_req %p\n", __func__, obj_request, osd_req);
+	dout("%s %p \"%s\" %llu~%llu osd_req %p\n", __func__,
+	     obj_request, obj_request->object_name, obj_request->offset,
+	     obj_request->length, osd_req);
 	if (obj_request_img_data_test(obj_request)) {
 		WARN_ON(obj_request->callback != rbd_img_obj_callback);
 		rbd_img_request_get(obj_request->img_request);
@@ -2073,7 +2075,6 @@ static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
 /* object_name is assumed to be a non-null pointer and NUL-terminated */
 
 static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
-						u64 offset, u64 length,
 						enum obj_request_type type)
 {
 	struct rbd_obj_request *obj_request;
@@ -2094,18 +2095,13 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	}
 
 	obj_request->object_name = memcpy(name, object_name, size);
-	obj_request->offset = offset;
-	obj_request->length = length;
-	obj_request->flags = 0;
 	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
 	init_completion(&obj_request->completion);
 	kref_init(&obj_request->kref);
 
-	dout("%s: \"%s\" %llu/%llu %d -> obj %p\n", __func__, object_name,
-		offset, length, (int)type, obj_request);
-
+	dout("%s %p\n", __func__, obj_request);
 	return obj_request;
 }
 
@@ -2517,20 +2513,20 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	while (resid) {
 		struct ceph_osd_request *osd_req;
 		const char *object_name;
-		u64 offset;
-		u64 length;
+		u64 offset = rbd_segment_offset(rbd_dev, img_offset);
+		u64 length = rbd_segment_length(rbd_dev, img_offset, resid);
 
 		object_name = rbd_segment_name(rbd_dev, img_offset);
 		if (!object_name)
 			goto out_unwind;
-		offset = rbd_segment_offset(rbd_dev, img_offset);
-		length = rbd_segment_length(rbd_dev, img_offset, resid);
-		obj_request = rbd_obj_request_create(object_name,
-						offset, length, type);
+		obj_request = rbd_obj_request_create(object_name, type);
 		/* object request has its own copy of the object name */
 		rbd_segment_name_free(object_name);
 		if (!obj_request)
 			goto out_unwind;
+
+		obj_request->offset = offset;
+		obj_request->length = length;
 
 		/*
 		 * set obj_request->img_request before creating the
@@ -2870,7 +2866,7 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 	size_t size;
 	int ret;
 
-	stat_request = rbd_obj_request_create(obj_request->object_name, 0, 0,
+	stat_request = rbd_obj_request_create(obj_request->object_name,
 					      OBJ_REQUEST_PAGES);
 	if (!stat_request)
 		return -ENOMEM;
