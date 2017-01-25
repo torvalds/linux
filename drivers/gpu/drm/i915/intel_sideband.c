@@ -60,8 +60,7 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	}
 
 	I915_WRITE(VLV_IOSF_ADDR, addr);
-	if (!is_read)
-		I915_WRITE(VLV_IOSF_DATA, *val);
+	I915_WRITE(VLV_IOSF_DATA, is_read ? 0 : *val);
 	I915_WRITE(VLV_IOSF_DOORBELL_REQ, cmd);
 
 	if (intel_wait_for_register(dev_priv,
@@ -74,7 +73,6 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 
 	if (is_read)
 		*val = I915_READ(VLV_IOSF_DATA);
-	I915_WRITE(VLV_IOSF_DATA, 0);
 
 	return 0;
 }
