@@ -971,6 +971,14 @@ static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
 }
 
 /*
+ * returns the size of an object in the image
+ */
+static u32 rbd_obj_bytes(struct rbd_image_header *header)
+{
+	return 1U << header->obj_order;
+}
+
+/*
  * Fill an rbd image header with information from the given format 1
  * on-disk header.
  */
@@ -1255,7 +1263,7 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 
 static u64 rbd_segment_offset(struct rbd_device *rbd_dev, u64 offset)
 {
-	u64 segment_size = (u64) 1 << rbd_dev->header.obj_order;
+	u64 segment_size = rbd_obj_bytes(&rbd_dev->header);
 
 	return offset & (segment_size - 1);
 }
@@ -1263,7 +1271,7 @@ static u64 rbd_segment_offset(struct rbd_device *rbd_dev, u64 offset)
 static u64 rbd_segment_length(struct rbd_device *rbd_dev,
 				u64 offset, u64 length)
 {
-	u64 segment_size = (u64) 1 << rbd_dev->header.obj_order;
+	u64 segment_size = rbd_obj_bytes(&rbd_dev->header);
 
 	offset &= segment_size - 1;
 
@@ -1272,14 +1280,6 @@ static u64 rbd_segment_length(struct rbd_device *rbd_dev,
 		length = segment_size - offset;
 
 	return length;
-}
-
-/*
- * returns the size of an object in the image
- */
-static u64 rbd_obj_bytes(struct rbd_image_header *header)
-{
-	return 1 << header->obj_order;
 }
 
 /*
@@ -2721,7 +2721,7 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	 * child image to which the original request was to be sent.
 	 */
 	img_offset = obj_request->img_offset - obj_request->offset;
-	length = (u64)1 << rbd_dev->header.obj_order;
+	length = rbd_obj_bytes(&rbd_dev->header);
 
 	/*
 	 * There is no defined parent data beyond the parent
@@ -5130,7 +5130,7 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 	 * out, and only fail if the image has non-default values.
 	 */
 	ret = -EINVAL;
-	obj_size = (u64)1 << rbd_dev->header.obj_order;
+	obj_size = rbd_obj_bytes(&rbd_dev->header);
 	p = &striping_info_buf;
 	stripe_unit = ceph_decode_64(&p);
 	if (stripe_unit != obj_size) {
