@@ -468,6 +468,8 @@ static void __blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 		kobject_put(&hctx->kobj);
 	}
 
+	blk_mq_debugfs_unregister(q);
+
 	kobject_uevent(&q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(&q->mq_kobj);
 	kobject_put(&q->mq_kobj);
@@ -517,6 +519,8 @@ int blk_mq_register_dev(struct device *dev, struct request_queue *q)
 
 	kobject_uevent(&q->mq_kobj, KOBJ_ADD);
 
+	blk_mq_debugfs_register(q, kobject_name(&dev->kobj));
+
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_register_hctx(hctx);
 		if (ret)
@@ -542,6 +546,8 @@ void blk_mq_sysfs_unregister(struct request_queue *q)
 	if (!q->mq_sysfs_init_done)
 		return;
 
+	blk_mq_debugfs_unregister_hctxs(q);
+
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_unregister_hctx(hctx);
 }
@@ -553,6 +559,8 @@ int blk_mq_sysfs_register(struct request_queue *q)
 
 	if (!q->mq_sysfs_init_done)
 		return ret;
+
+	blk_mq_debugfs_register_hctxs(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_register_hctx(hctx);

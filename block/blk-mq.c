@@ -2799,6 +2799,8 @@ void blk_mq_enable_hotplug(void)
 
 static int __init blk_mq_init(void)
 {
+	blk_mq_debugfs_init();
+
 	cpuhp_setup_state_multi(CPUHP_BLK_MQ_DEAD, "block/mq:dead", NULL,
 				blk_mq_hctx_notify_dead);
 
