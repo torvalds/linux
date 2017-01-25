@@ -992,15 +992,11 @@ static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 	/* Allocate this now to avoid having to handle failure below */
 
 	if (first_time) {
-		size_t len;
-
-		len = strnlen(ondisk->object_prefix,
-				sizeof (ondisk->object_prefix));
-		object_prefix = kmalloc(len + 1, GFP_KERNEL);
+		object_prefix = kstrndup(ondisk->object_prefix,
+					 sizeof(ondisk->object_prefix),
+					 GFP_KERNEL);
 		if (!object_prefix)
 			return -ENOMEM;
-		memcpy(object_prefix, ondisk->object_prefix, len);
-		object_prefix[len] = '\0';
 	}
 
 	/* Allocate the snapshot context and fill it in */
