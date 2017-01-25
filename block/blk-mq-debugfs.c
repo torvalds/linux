@@ -197,6 +197,30 @@ static const struct file_operations hctx_tags_fops = {
 	.release	= single_release,
 };
 
+static int hctx_tags_bitmap_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct request_queue *q = hctx->queue;
+
+	mutex_lock(&q->sysfs_lock);
+	if (hctx->tags)
+		sbitmap_bitmap_show(&hctx->tags->bitmap_tags.sb, m);
+	mutex_unlock(&q->sysfs_lock);
+	return 0;
+}
+
+static int hctx_tags_bitmap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_tags_bitmap_show, inode->i_private);
+}
+
+static const struct file_operations hctx_tags_bitmap_fops = {
+	.open		= hctx_tags_bitmap_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int hctx_sched_tags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
@@ -217,6 +241,30 @@ static int hctx_sched_tags_open(struct inode *inode, struct file *file)
 
 static const struct file_operations hctx_sched_tags_fops = {
 	.open		= hctx_sched_tags_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_sched_tags_bitmap_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+	struct request_queue *q = hctx->queue;
+
+	mutex_lock(&q->sysfs_lock);
+	if (hctx->sched_tags)
+		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags.sb, m);
+	mutex_unlock(&q->sysfs_lock);
+	return 0;
+}
+
+static int hctx_sched_tags_bitmap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_sched_tags_bitmap_show, inode->i_private);
+}
+
+static const struct file_operations hctx_sched_tags_bitmap_fops = {
+	.open		= hctx_sched_tags_bitmap_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -269,7 +317,9 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"dispatch", 0400, &hctx_dispatch_fops},
 	{"ctx_map", 0400, &hctx_ctx_map_fops},
 	{"tags", 0400, &hctx_tags_fops},
+	{"tags_bitmap", 0400, &hctx_tags_bitmap_fops},
 	{"sched_tags", 0400, &hctx_sched_tags_fops},
+	{"sched_tags_bitmap", 0400, &hctx_sched_tags_bitmap_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
