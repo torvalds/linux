@@ -42,8 +42,8 @@
  * drm_object_attach_property().
  *
  * Property values are only 64bit. To support bigger piles of data (like gamma
- * tables, color correction matrizes or large structures) a property can instead
- * point at a &drm_property_blob with that additional data
+ * tables, color correction matrices or large structures) a property can instead
+ * point at a &drm_property_blob with that additional data.
  *
  * Properties are defined by their symbolic name, userspace must keep a
  * per-object mapping from those names to the property ID used in the atomic

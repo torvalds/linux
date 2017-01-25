@@ -38,8 +38,8 @@
  * Hence they are reference-counted using drm_connector_reference() and
  * drm_connector_unreference().
  *
- * KMS driver must create, initialize, register and attach at a struct
- * &drm_connector for each such sink. The instance is created as other KMS
+ * KMS driver must create, initialize, register and attach at a &struct
+ * drm_connector for each such sink. The instance is created as other KMS
  * objects and initialized by setting the following fields.
  *
  * The connector is then registered with a call to drm_connector_init() with a
@@ -49,7 +49,7 @@
  * Connectors must be attached to an encoder to be used. For devices that map
  * connectors to encoders 1:1, the connector should be attached at
  * initialization time with a call to drm_mode_connector_attach_encoder(). The
- * driver must also set the &struct drm_connector encoder field to point to the
+ * driver must also set the &drm_connector.encoder field to point to the
  * attached encoder.
  *
  * For connectors which are not fixed (like built-in panels) the driver needs to
@@ -497,7 +497,7 @@ static struct lockdep_map connector_list_iter_dep_map = {
  * @dev: DRM device
  * @iter: connector_list iterator
  *
- * Sets @iter up to walk the connector list in &drm_mode_config of @dev. @iter
+ * Sets @iter up to walk the &drm_mode_config.connector_list of @dev. @iter
  * must always be cleaned up again by calling drm_connector_list_iter_put().
  * Iteration itself happens using drm_connector_list_iter_next() or
  * drm_for_each_connector_iter().
@@ -696,8 +696,8 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	drivers this is only provided for backwards compatibility with existing
  * 	drivers, it remaps to controlling the "ACTIVE" property on the CRTC the
  * 	connector is linked to. Drivers should never set this property directly,
- * 	it is handled by the DRM core by calling the ->dpms() callback in
- * 	&drm_connector_funcs. Atomic drivers should implement this hook using
+ * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
+ * 	callback. Atomic drivers should implement this hook using
  * 	drm_atomic_helper_connector_dpms(). This is the only property standard
  * 	connector property that userspace can change.
  * PATH:

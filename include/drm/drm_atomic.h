@@ -123,7 +123,8 @@ struct drm_crtc_commit {
 	/**
 	 * @commit_entry:
 	 *
-	 * Entry on the per-CRTC commit_list. Protected by crtc->commit_lock.
+	 * Entry on the per-CRTC &drm_crtc.commit_list. Protected by
+	 * $drm_crtc.commit_lock.
 	 */
 	struct list_head commit_entry;
 
@@ -429,7 +430,8 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  *
  * For example if the CRTC mode has changed, and the hardware is able to enact
  * the requested mode change without going through a full modeset, the driver
- * should clear mode_changed during its ->atomic_check.
+ * should clear mode_changed in its &drm_mode_config_funcs.atomic_check
+ * implementation.
  */
 static inline bool
 drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)

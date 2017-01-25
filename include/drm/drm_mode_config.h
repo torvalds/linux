@@ -132,8 +132,8 @@ struct drm_mode_config_funcs {
 	 *    that before calling this hook.
 	 *
 	 * See the documentation of @atomic_commit for an exhaustive list of
-	 * error conditions which don't have to be checked at the
-	 * ->atomic_check() stage?
+	 * error conditions which don't have to be checked at the in this
+	 * callback.
 	 *
 	 * See the documentation for &struct drm_atomic_state for how exactly
 	 * an atomic modeset update is described.
@@ -198,10 +198,10 @@ struct drm_mode_config_funcs {
 	 * completed. These events are per-CRTC and can be distinguished by the
 	 * CRTC index supplied in &drm_event to userspace.
 	 *
-	 * The drm core will supply a &struct drm_event in the event
-	 * member of each CRTC's &drm_crtc_state structure. See the
-	 * documentation for &drm_crtc_state for more details about the precise
-	 * semantics of this event.
+	 * The drm core will supply a &struct drm_event in each CRTC's
+	 * &drm_crtc_state.event. See the documentation for
+	 * &drm_crtc_state.event for more details about the precise semantics of
+	 * this event.
 	 *
 	 * NOTE:
 	 *

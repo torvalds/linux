@@ -247,11 +247,11 @@ struct drm_plane_funcs {
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current atomic state for this plane and return it.
-	 * The core and helpers gurantee that any atomic state duplicated with
+	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
-	 * driver by calling ->atomic_commit() from struct
-	 * &drm_mode_config_funcs) will be cleaned up by calling the
-	 * @atomic_destroy_state hook in this structure.
+	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
+	 * cleaned up by calling the @atomic_destroy_state hook in this
+	 * structure.
 	 *
 	 * Atomic drivers which don't subclass &struct drm_plane_state should use
 	 * drm_atomic_helper_plane_duplicate_state(). Drivers that subclass the
@@ -259,7 +259,7 @@ struct drm_plane_funcs {
 	 * __drm_atomic_helper_plane_duplicate_state() to make sure shared state is
 	 * duplicated in a consistent fashion across drivers.
 	 *
-	 * It is an error to call this hook before plane->state has been
+	 * It is an error to call this hook before &drm_plane.state has been
 	 * initialized correctly.
 	 *
 	 * NOTE:
@@ -423,8 +423,8 @@ enum drm_plane_type {
 	 *
 	 * Primary planes represent a "main" plane for a CRTC.  Primary planes
 	 * are the planes operated upon by CRTC modesetting and flipping
-	 * operations described in the page_flip and set_config hooks in struct
-	 * &drm_crtc_funcs.
+	 * operations described in the &drm_crtc_funcs.page_flip and
+	 * &drm_crtc_funcs.set_config hooks.
 	 */
 	DRM_PLANE_TYPE_PRIMARY,
 
@@ -470,9 +470,9 @@ struct drm_plane {
 	/**
 	 * @mutex:
 	 *
-	 * Protects modeset plane state, together with the mutex of &drm_crtc
-	 * this plane is linked to (when active, getting actived or getting
-	 * disabled).
+	 * Protects modeset plane state, together with the &drm_crtc.mutex of
+	 * CRTC this plane is linked to (when active, getting activated or
+	 * getting disabled).
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -580,7 +580,7 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
  *
  * Iterate over all legacy planes of @dev, excluding primary and cursor planes.
  * This is useful for implementing userspace apis when userspace is not
- * universal plane aware. See also enum &drm_plane_type.
+ * universal plane aware. See also &enum drm_plane_type.
  */
 #define drm_for_each_legacy_plane(plane, dev) \
 	list_for_each_entry(plane, &(dev)->mode_config.plane_list, head) \

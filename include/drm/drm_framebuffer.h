@@ -40,8 +40,8 @@ struct drm_framebuffer_funcs {
 	 *
 	 * Clean up framebuffer resources, specifically also unreference the
 	 * backing storage. The core guarantees to call this function for every
-	 * framebuffer successfully created by ->fb_create() in
-	 * &drm_mode_config_funcs. Drivers must also call
+	 * framebuffer successfully created by calling
+	 * &drm_mode_config_funcs.fb_create. Drivers must also call
 	 * drm_framebuffer_cleanup() to release DRM core resources for this
 	 * framebuffer.
 	 */
@@ -112,8 +112,8 @@ struct drm_framebuffer {
 	 */
 	struct drm_device *dev;
 	/**
-	 * @head: Place on the dev->mode_config.fb_list, access protected by
-	 * dev->mode_config.fb_lock.
+	 * @head: Place on the &drm_mode_config.fb_list, access protected by
+	 * &drm_mode_config.fb_lock.
 	 */
 	struct list_head head;
 
@@ -187,8 +187,7 @@ struct drm_framebuffer {
 	 */
 	int hot_y;
 	/**
-	 * @filp_head: Placed on &struct drm_file fbs list_head, protected by
-	 * fbs_lock in the same structure.
+	 * @filp_head: Placed on &drm_file.fbs, protected by &drm_file.fbs_lock.
 	 */
 	struct list_head filp_head;
 };
@@ -260,8 +259,8 @@ static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
  * @fb: the loop cursor
  * @dev: the DRM device
  *
- * Iterate over all framebuffers of @dev. User must hold the fb_lock from
- * &drm_mode_config.
+ * Iterate over all framebuffers of @dev. User must hold
+ * &drm_mode_config.fb_lock.
  */
 #define drm_for_each_fb(fb, dev) \
 	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\

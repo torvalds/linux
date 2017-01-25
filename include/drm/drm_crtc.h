@@ -81,8 +81,8 @@ struct drm_plane_helper_funcs;
  * @enable: whether the CRTC should be enabled, gates all other state
  * @active: whether the CRTC is actively displaying (used for DPMS)
  * @planes_changed: planes on this crtc are updated
- * @mode_changed: crtc_state->mode or crtc_state->enable has been changed
- * @active_changed: crtc_state->active has been toggled.
+ * @mode_changed: @mode or @enable has been changed
+ * @active_changed: @active has been toggled.
  * @connectors_changed: connectors to this crtc have been updated
  * @zpos_changed: zpos values of planes on this crtc have been updated
  * @color_mgmt_changed: color management properties have changed (degamma or
@@ -102,9 +102,10 @@ struct drm_plane_helper_funcs;
  *
  * Note that the distinction between @enable and @active is rather subtile:
  * Flipping @active while @enable is set without changing anything else may
- * never return in a failure from the ->atomic_check callback. Userspace assumes
- * that a DPMS On will always succeed. In other words: @enable controls resource
- * assignment, @active controls the actual hardware state.
+ * never return in a failure from the &drm_mode_config_funcs.atomic_check
+ * callback. Userspace assumes that a DPMS On will always succeed. In other
+ * words: @enable controls resource assignment, @active controls the actual
+ * hardware state.
  *
  * The three booleans active_changed, connectors_changed and mode_changed are
  * intended to indicate whether a full modeset is needed, rather than strictly
@@ -346,8 +347,8 @@ struct drm_crtc_funcs {
 	 * through the DRM_MODE_PAGE_FLIP_ASYNC flag). When an application
 	 * requests a page flip the DRM core verifies that the new frame buffer
 	 * is large enough to be scanned out by the CRTC in the currently
-	 * configured mode and then calls the CRTC ->page_flip() operation with a
-	 * pointer to the new frame buffer.
+	 * configured mode and then calls this hook with a pointer to the new
+	 * frame buffer.
 	 *
 	 * The driver must wait for any pending rendering to the new framebuffer
 	 * to complete before executing the flip. It should also wait for any
@@ -382,7 +383,7 @@ struct drm_crtc_funcs {
 	 * RETURNS:
 	 *
 	 * 0 on success or a negative error code on failure. Note that if a
-	 * ->page_flip() operation is already pending the callback should return
+	 * page flip operation is already pending the callback should return
 	 * -EBUSY. Pageflips on a disabled CRTC (either by setting a NULL mode
 	 * or just runtime disabled through DPMS respectively the new atomic
 	 * "ACTIVE" state) should result in an -EINVAL error code. Note that
@@ -434,19 +435,19 @@ struct drm_crtc_funcs {
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current atomic state for this CRTC and return it.
-	 * The core and helpers gurantee that any atomic state duplicated with
+	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
-	 * driver by calling ->atomic_commit() from struct
-	 * &drm_mode_config_funcs) will be cleaned up by calling the
-	 * @atomic_destroy_state hook in this structure.
+	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
+	 * cleaned up by calling the @atomic_destroy_state hook in this
+	 * structure.
 	 *
-	 * Atomic drivers which don't subclass &struct drm_crtc should use
+	 * Atomic drivers which don't subclass &struct drm_crtc_state should use
 	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_crtc_duplicate_state() to make sure shared state is
 	 * duplicated in a consistent fashion across drivers.
 	 *
-	 * It is an error to call this hook before crtc->state has been
+	 * It is an error to call this hook before &drm_crtc.state has been
 	 * initialized correctly.
 	 *
 	 * NOTE:
@@ -641,7 +642,7 @@ struct drm_crtc {
 	 * This provides a read lock for the overall crtc state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
 	 * without a full modeset (fb, cursor data, crtc properties ...). Full
-	 * modeset also need to grab dev->mode_config.connection_mutex.
+	 * modeset also need to grab &drm_mode_config.connection_mutex.
 	 */
 	struct drm_modeset_lock mutex;
 

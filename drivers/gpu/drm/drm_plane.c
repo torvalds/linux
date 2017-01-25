@@ -42,7 +42,7 @@
  *
  * Cursor and overlay planes are optional. All drivers should provide one
  * primary plane per CRTC to avoid surprising userspace too much. See enum
- * &drm_plane_type for a more in-depth discussion of these special uapi-relevant
+ * drm_plane_type for a more in-depth discussion of these special uapi-relevant
  * plane types. Special planes are associated with their CRTC by calling
  * drm_crtc_init_with_planes().
  *

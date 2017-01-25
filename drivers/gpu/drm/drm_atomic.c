@@ -195,8 +195,8 @@ EXPORT_SYMBOL(drm_atomic_state_default_clear);
  * all locks. So someone else could sneak in and change the current modeset
  * configuration. Which means that all the state assembled in @state is no
  * longer an atomic update to the current state, but to some arbitrary earlier
- * state. Which could break assumptions the driver's ->atomic_check likely
- * relies on.
+ * state. Which could break assumptions the driver's
+ * &drm_mode_config_funcs.atomic_check likely relies on.
  *
  * Hence we must clear all cached state and completely start over, using this
  * function.
@@ -456,11 +456,10 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling crtc->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_crtc_funcs.atomic_set_property for driver properties. To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -532,10 +531,10 @@ EXPORT_SYMBOL(drm_atomic_crtc_set_property);
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_crtc_funcs.atomic_get_property for driver properties. To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -716,11 +715,10 @@ EXPORT_SYMBOL(drm_atomic_get_plane_state);
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling plane->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_plane_funcs.atomic_set_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -791,10 +789,10 @@ EXPORT_SYMBOL(drm_atomic_plane_set_property);
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_plane_funcs.atomic_get_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -1057,11 +1055,10 @@ EXPORT_SYMBOL(drm_atomic_get_connector_state);
  * @property: the property to set
  * @val: the new property value
  *
- * Use this instead of calling connector->atomic_set_property directly.
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_set_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_connector_funcs.atomic_set_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -1136,10 +1133,10 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
  * @property: the property to set
  * @val: return location for the property value
  *
- * This function handles generic/core properties and calls out to
- * driver's ->atomic_get_property() for driver properties.  To ensure
- * consistent behavior you must call this function rather than the
- * driver hook directly.
+ * This function handles generic/core properties and calls out to driver's
+ * &drm_connector_funcs.atomic_get_property for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the driver hook
+ * directly.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -1312,12 +1309,11 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
  * implicit or explicit fencing.
  *
  * This function will not set the fence to the state if it was set
- * via explicit fencing interfaces on the atomic ioctl. It will
- * all drope the reference to the fence as we not storing it
- * anywhere.
- *
- * Otherwise, if plane_state->fence is not set this function we
- * just set it with the received implict fence.
+ * via explicit fencing interfaces on the atomic ioctl. In that case it will
+ * drop the reference to the fence as we are not storing it anywhere.
+ * Otherwise, if &drm_plane_state.fence is not set this function we just set it
+ * with the received implicit fence. In both cases this function consumes a
+ * reference for @fence.
  */
 void
 drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
@@ -1616,7 +1612,7 @@ int drm_atomic_commit(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_atomic_commit);
 
 /**
- * drm_atomic_nonblocking_commit - atomic&nonblocking configuration commit
+ * drm_atomic_nonblocking_commit - atomic nonblocking commit
  * @state: atomic configuration to check
  *
  * Note that this function can return -EDEADLK if the driver needed to acquire
@@ -1829,10 +1825,10 @@ static int atomic_set_prop(struct drm_atomic_state *state,
  * @plane_mask: plane mask for planes that were updated.
  * @ret: return value, can be -EDEADLK for a retry.
  *
- * Before doing an update plane->old_fb is set to plane->fb,
- * but before dropping the locks old_fb needs to be set to NULL
- * and plane->fb updated. This is a common operation for each
- * atomic update, so this call is split off as a helper.
+ * Before doing an update &drm_plane.old_fb is set to &drm_plane.fb, but before
+ * dropping the locks old_fb needs to be set to NULL and plane->fb updated. This
+ * is a common operation for each atomic update, so this call is split off as a
+ * helper.
  */
 void drm_atomic_clean_old_fb(struct drm_device *dev,
 			     unsigned plane_mask,
@@ -1873,7 +1869,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &reservation_object structures.
+ * a &struct dma_buf this is tracked in &struct reservation_object.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *

@@ -415,11 +415,12 @@ int drm_mode_getcrtc(struct drm_device *dev,
 }
 
 /**
- * drm_mode_set_config_internal - helper to call ->set_config
+ * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
  * @set: modeset config to set
  *
- * This is a little helper to wrap internal calls to the ->set_config driver
- * interface. The only thing it adds is correct refcounting dance.
+ * This is a little helper to wrap internal calls to the
+ * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
+ * correct refcounting dance.
  *
  * Returns:
  * Zero on success, negative errno on failure.

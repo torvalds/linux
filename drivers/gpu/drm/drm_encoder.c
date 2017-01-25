@@ -98,7 +98,7 @@ void drm_encoder_unregister_all(struct drm_device *dev)
  *
  * Initialises a preallocated encoder. Encoder should be subclassed as part of
  * driver encoder objects. At driver unload time drm_encoder_cleanup() should be
- * called from the driver's destroy hook in &drm_encoder_funcs.
+ * called from the driver's &drm_encoder_funcs.destroy hook.
  *
  * Returns:
  * Zero on success, error code on failure.
