@@ -1619,44 +1619,6 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
 }
 
-static void rbd_obj_request_end(struct rbd_obj_request *obj_request)
-{
-	dout("%s %p\n", __func__, obj_request);
-	ceph_osdc_cancel_request(obj_request->osd_req);
-}
-
-/*
- * Wait for an object request to complete.  If interrupted, cancel the
- * underlying osd request.
- *
- * @timeout: in jiffies, 0 means "wait forever"
- */
-static int __rbd_obj_request_wait(struct rbd_obj_request *obj_request,
-				  unsigned long timeout)
-{
-	long ret;
-
-	dout("%s %p\n", __func__, obj_request);
-	ret = wait_for_completion_interruptible_timeout(
-					&obj_request->completion,
-					ceph_timeout_jiffies(timeout));
-	if (ret <= 0) {
-		if (ret == 0)
-			ret = -ETIMEDOUT;
-		rbd_obj_request_end(obj_request);
-	} else {
-		ret = 0;
-	}
-
-	dout("%s %p ret %d\n", __func__, obj_request, (int)ret);
-	return ret;
-}
-
-static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
-{
-	return __rbd_obj_request_wait(obj_request, 0);
-}
-
 static void rbd_img_request_complete(struct rbd_img_request *img_request)
 {
 
