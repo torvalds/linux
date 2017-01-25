@@ -78,6 +78,31 @@
 	status = "disabled";
 };
 
+&nor_flash {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nor_pins_default>;
+	status = "okay";
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+	};
+};
+
+&pio {
+	nor_pins_default: nor {
+		pins1 {
+			pinmux = <MT2701_PIN_240_EXT_XCS__FUNC_EXT_XCS>,
+				 <MT2701_PIN_241_EXT_SCK__FUNC_EXT_SCK>,
+				 <MT2701_PIN_239_EXT_SDIO0__FUNC_EXT_SDIO0>,
+				 <MT2701_PIN_238_EXT_SDIO1__FUNC_EXT_SDIO1>,
+				 <MT2701_PIN_237_EXT_SDIO2__FUNC_EXT_SDIO2>,
+				 <MT2701_PIN_236_EXT_SDIO3__FUNC_EXT_SDIO3>;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up;
+		};
+	};
+};
+
 &uart0 {
 	status = "okay";
 };
