@@ -98,6 +98,7 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	adev->enable_virtual_display = true;
 
 	mutex_init(&adev->virt.lock_kiq);
+	mutex_init(&adev->virt.lock_reset);
 }
 
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
