@@ -40,11 +40,10 @@
  *
  * KMS driver must create, initialize, register and attach at a &struct
  * drm_connector for each such sink. The instance is created as other KMS
- * objects and initialized by setting the following fields.
- *
- * The connector is then registered with a call to drm_connector_init() with a
- * pointer to the connector functions and a connector type, and exposed through
- * sysfs with a call to drm_connector_register().
+ * objects and initialized by setting the following fields. The connector is
+ * initialized with a call to drm_connector_init() with a pointer to the
+ * &struct drm_connector_funcs and a connector type, and then exposed to
+ * userspace with a call to drm_connector_register().
  *
  * Connectors must be attached to an encoder to be used. For devices that map
  * connectors to encoders 1:1, the connector should be attached at
