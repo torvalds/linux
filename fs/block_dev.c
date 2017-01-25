@@ -328,6 +328,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = bdev_file_inode(file);
 	struct block_device *bdev = I_BDEV(inode);
+	struct blk_plug plug;
 	struct blkdev_dio *dio;
 	struct bio *bio;
 	bool is_read = (iov_iter_rw(iter) == READ);
@@ -353,6 +354,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	dio->multi_bio = false;
 	dio->should_dirty = is_read && (iter->type == ITER_IOVEC);
 
+	blk_start_plug(&plug);
 	for (;;) {
 		bio->bi_bdev = bdev;
 		bio->bi_iter.bi_sector = pos >> 9;
@@ -394,6 +396,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		submit_bio(bio);
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 	}
+	blk_finish_plug(&plug);
 
 	if (!dio->is_sync)
 		return -EIOCBQUEUED;

@@ -501,6 +501,7 @@ dtb-$(CONFIG_ARCH_OMAP3) += \
 	am3517-evm.dtb \
 	am3517_mt_ventoux.dtb \
 	logicpd-torpedo-37xx-devkit.dtb \
+	logicpd-som-lv-37xx-devkit.dtb \
 	omap3430-sdp.dtb \
 	omap3-beagle.dtb \
 	omap3-beagle-xm.dtb \
@@ -845,6 +846,7 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-a83t-allwinner-h8homlet-v2.dtb \
 	sun8i-a83t-cubietruck-plus.dtb \
 	sun8i-h3-bananapi-m2-plus.dtb \
+	sun8i-h3-nanopi-m1.dtb	\
 	sun8i-h3-nanopi-neo.dtb \
 	sun8i-h3-orangepi-2.dtb \
 	sun8i-h3-orangepi-lite.dtb \

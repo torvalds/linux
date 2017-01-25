@@ -1176,6 +1176,10 @@ config CGROUP_DEBUG
 
 	  Say N.
 
+config SOCK_CGROUP_DATA
+	bool
+	default n
+
 endif # CGROUPS
 
 config CHECKPOINT_RESTORE

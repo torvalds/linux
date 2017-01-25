@@ -2025,7 +2025,6 @@ static void end_requests(struct fuse_conn *fc, struct list_head *head)
 		struct fuse_req *req;
 		req = list_entry(head->next, struct fuse_req, list);
 		req->out.h.error = -ECONNABORTED;
-		clear_bit(FR_PENDING, &req->flags);
 		clear_bit(FR_SENT, &req->flags);
 		list_del_init(&req->list);
 		request_end(fc, req);
@@ -2103,6 +2102,8 @@ void fuse_abort_conn(struct fuse_conn *fc)
 		spin_lock(&fiq->waitq.lock);
 		fiq->connected = 0;
 		list_splice_init(&fiq->pending, &to_end2);
+		list_for_each_entry(req, &to_end2, list)
+			clear_bit(FR_PENDING, &req->flags);
 		while (forget_pending(fiq))
 			kfree(dequeue_forget(fiq, 1, NULL));
 		wake_up_all_locked(&fiq->waitq);

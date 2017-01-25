@@ -1690,6 +1690,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
 		tmp = SSCR0_SCR(2) | SSCR0_Motorola | SSCR0_DataSize(8);
 		pxa2xx_spi_write(drv_data, SSCR0, tmp);
+		break;
 	default:
 		tmp = SSCR1_RxTresh(RX_THRESH_DFLT) |
 		      SSCR1_TxTresh(TX_THRESH_DFLT);

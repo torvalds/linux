@@ -640,6 +640,7 @@ static inline void radix_tree_shrink(struct radix_tree_root *root,
 				update_node(node, private);
 		}
 
+		WARN_ON_ONCE(!list_empty(&node->private_list));
 		radix_tree_node_free(node);
 	}
 }
@@ -666,6 +667,7 @@ static void delete_node(struct radix_tree_root *root,
 			root->rnode = NULL;
 		}
 
+		WARN_ON_ONCE(!list_empty(&node->private_list));
 		radix_tree_node_free(node);
 
 		node = parent;
@@ -767,6 +769,7 @@ static void radix_tree_free_nodes(struct radix_tree_node *node)
 			struct radix_tree_node *old = child;
 			offset = child->offset + 1;
 			child = child->parent;
+			WARN_ON_ONCE(!list_empty(&old->private_list));
 			radix_tree_node_free(old);
 			if (old == entry_to_node(node))
 				return;
@@ -1824,15 +1827,19 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
  *	__radix_tree_delete_node    -    try to free node after clearing a slot
  *	@root:		radix tree root
  *	@node:		node containing @index
+ *	@update_node:	callback for changing leaf nodes
+ *	@private:	private data to pass to @update_node
  *
  *	After clearing the slot at @index in @node from radix tree
  *	rooted at @root, call this function to attempt freeing the
  *	node and shrinking the tree.
  */
 void __radix_tree_delete_node(struct radix_tree_root *root,
-			      struct radix_tree_node *node)
+			      struct radix_tree_node *node,
+			      radix_tree_update_node_t update_node,
+			      void *private)
 {
-	delete_node(root, node, NULL, NULL);
+	delete_node(root, node, update_node, private);
 }
 
 /**

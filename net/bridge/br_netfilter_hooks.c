@@ -399,7 +399,7 @@ bridged_dnat:
 				br_nf_hook_thresh(NF_BR_PRE_ROUTING,
 						  net, sk, skb, skb->dev,
 						  NULL,
-						  br_nf_pre_routing_finish);
+						  br_nf_pre_routing_finish_bridge);
 				return 0;
 			}
 			ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
