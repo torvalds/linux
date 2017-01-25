@@ -218,8 +218,8 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	ci->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!ci->base)
-		return -ENOMEM;
+	if (IS_ERR(ci->base))
+		return PTR_ERR(ci->base);
 
 	ci->rcdev.owner = THIS_MODULE;
 	ci->rcdev.ops = &ci_hdrc_msm_reset_ops;
