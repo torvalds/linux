@@ -2810,8 +2810,8 @@ static const struct of_device_id of_sci_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_sci_match);
 
-static struct plat_sci_port *
-sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
+static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
+					  unsigned int *dev_id)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
