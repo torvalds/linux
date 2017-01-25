@@ -1851,7 +1851,6 @@ static int get_serial_info(struct moschip_port *mos7720_port,
 	tmp.line		= mos7720_port->port->minor;
 	tmp.port		= mos7720_port->port->port_number;
 	tmp.irq			= 0;
-	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 	tmp.xmit_fifo_size	= NUM_URBS * URB_TRANSFER_BUFFER_SIZE;
 	tmp.baud_base		= 9600;
 	tmp.close_delay		= 5*HZ;
