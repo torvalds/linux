@@ -1103,7 +1103,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	}
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, msg->msg_name,
-				    msg->msg_namelen, flags);
+				    msg->msg_namelen, flags, 1);
 	inet->defer_connect = 0;
 	*copied = tp->fastopen_req->copied;
 	tcp_free_fastopen_req(tp);
