@@ -169,17 +169,64 @@ module_param_named(debug, uv_nmi_debug, int, 0644);
 			pr_info(fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-/*
- * Valid NMI Actions:
- *  "dump"	- dump process stack for each cpu
- *  "ips"	- dump IP info for each cpu
- *  "kdump"	- do crash dump
- *  "kdb"	- enter KDB (default)
- *  "kgdb"	- enter KGDB
- *  "health"	- check if CPUs respond to NMI
- */
-static char uv_nmi_action[8] = "kdb";
-module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
+/* Valid NMI Actions */
+#define	ACTION_LEN	16
+static struct nmi_action {
+	char	*action;
+	char	*desc;
+} valid_acts[] = {
+	{	"kdump",	"do kernel crash dump"			},
+	{	"dump",		"dump process stack for each cpu"	},
+	{	"ips",		"dump Inst Ptr info for each cpu"	},
+	{	"kdb",		"enter KDB (needs kgdboc= assignment)"	},
+	{	"kgdb",		"enter KGDB (needs gdb target remote)"	},
+	{	"health",	"check if CPUs respond to NMI"		},
+};
+typedef char action_t[ACTION_LEN];
+static action_t uv_nmi_action = { "dump" };
+
+static int param_get_action(char *buffer, const struct kernel_param *kp)
+{
+	return sprintf(buffer, "%s\n", uv_nmi_action);
+}
+
+static int param_set_action(const char *val, const struct kernel_param *kp)
+{
+	int i;
+	int n = ARRAY_SIZE(valid_acts);
+	char arg[ACTION_LEN], *p;
+
+	/* (remove possible '\n') */
+	strncpy(arg, val, ACTION_LEN - 1);
+	arg[ACTION_LEN - 1] = '\0';
+	p = strchr(arg, '\n');
+	if (p)
+		*p = '\0';
+
+	for (i = 0; i < n; i++)
+		if (!strcmp(arg, valid_acts[i].action))
+			break;
+
+	if (i < n) {
+		strcpy(uv_nmi_action, arg);
+		pr_info("UV: New NMI action:%s\n", uv_nmi_action);
+		return 0;
+	}
+
+	pr_err("UV: Invalid NMI action:%s, valid actions are:\n", arg);
+	for (i = 0; i < n; i++)
+		pr_err("UV: %-8s - %s\n",
+			valid_acts[i].action, valid_acts[i].desc);
+	return -EINVAL;
+}
+
+static const struct kernel_param_ops param_ops_action = {
+	.get = param_get_action,
+	.set = param_set_action,
+};
+#define param_check_action(name, p) __param_check(name, p, action_t)
+
+module_param_named(action, uv_nmi_action, action, 0644);
 
 static inline bool uv_nmi_action_is(const char *action)
 {
