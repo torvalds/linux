@@ -174,31 +174,6 @@ out:
 	return p;
 }
 
-static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
-			       const unsigned char *addr, bool local_orig)
-{
-	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-	const unsigned char *src = eth_hdr(skb)->h_source;
-
-	if (!should_deliver(p, skb))
-		return;
-
-	/* Even with hairpin, no soliloquies - prevent breaking IPv6 DAD */
-	if (skb->dev == p->dev && ether_addr_equal(src, addr))
-		return;
-
-	skb = skb_copy(skb, GFP_ATOMIC);
-	if (!skb) {
-		dev->stats.tx_dropped++;
-		return;
-	}
-
-	if (!is_broadcast_ether_addr(addr))
-		memcpy(eth_hdr(skb)->h_dest, addr, ETH_ALEN);
-
-	__br_forward(p, skb, local_orig);
-}
-
 /* called under rcu_read_lock */
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig)
@@ -245,6 +220,31 @@ out:
 }
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
+			       const unsigned char *addr, bool local_orig)
+{
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+	const unsigned char *src = eth_hdr(skb)->h_source;
+
+	if (!should_deliver(p, skb))
+		return;
+
+	/* Even with hairpin, no soliloquies - prevent breaking IPv6 DAD */
+	if (skb->dev == p->dev && ether_addr_equal(src, addr))
+		return;
+
+	skb = skb_copy(skb, GFP_ATOMIC);
+	if (!skb) {
+		dev->stats.tx_dropped++;
+		return;
+	}
+
+	if (!is_broadcast_ether_addr(addr))
+		memcpy(eth_hdr(skb)->h_dest, addr, ETH_ALEN);
+
+	__br_forward(p, skb, local_orig);
+}
+
 /* called with rcu_read_lock */
 void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 			struct sk_buff *skb,
