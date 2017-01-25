@@ -143,6 +143,7 @@ MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
+	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;
 	struct pinctrl *pinctrl;
@@ -189,6 +190,12 @@ static int sh_mobile_sdhi_clk_enable(struct tmio_mmc_host *host)
 	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
+
+	ret = clk_prepare_enable(priv->clk_cd);
+	if (ret < 0) {
+		clk_disable_unprepare(priv->clk);
+		return ret;
+	}
 
 	/*
 	 * The clock driver may not know what maximum frequency
@@ -255,6 +262,7 @@ static void sh_mobile_sdhi_clk_disable(struct tmio_mmc_host *host)
 	struct sh_mobile_sdhi *priv = host_to_priv(host);
 
 	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk_cd);
 }
 
 static int sh_mobile_sdhi_card_busy(struct mmc_host *mmc)
@@ -571,6 +579,21 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
 		goto eprobe;
 	}
+
+	/*
+	 * Some controllers provide a 2nd clock just to run the internal card
+	 * detection logic. Unfortunately, the existing driver architecture does
+	 * not support a separation of clocks for runtime PM usage. When
+	 * native hotplug is used, the tmio driver assumes that the core
+	 * must continue to run for card detect to stay active, so we cannot
+	 * disable it.
+	 * Additionally, it is prohibited to supply a clock to the core but not
+	 * to the card detect circuit. That leaves us with if separate clocks
+	 * are presented, we must treat them both as virtually 1 clock.
+	 */
+	priv->clk_cd = devm_clk_get(&pdev->dev, "cd");
+	if (IS_ERR(priv->clk_cd))
+		priv->clk_cd = NULL;
 
 	priv->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!IS_ERR(priv->pinctrl)) {
