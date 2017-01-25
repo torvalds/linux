@@ -66,12 +66,12 @@ enum snd_jack_types {
 				  SND_JACK_MICROPHONE2,
 
 	/* Kept separate from switches to facilitate implementation */
-	SND_JACK_BTN_0		= 0x4000,
-	SND_JACK_BTN_1		= 0x2000,
-	SND_JACK_BTN_2		= 0x1000,
-	SND_JACK_BTN_3		= 0x0800,
-	SND_JACK_BTN_4		= 0x0400,
-	SND_JACK_BTN_5		= 0x0200,
+	SND_JACK_BTN_0		= 0x8000,
+	SND_JACK_BTN_1		= 0x4000,
+	SND_JACK_BTN_2		= 0x2000,
+	SND_JACK_BTN_3		= 0x1000,
+	SND_JACK_BTN_4		= 0x0800,
+	SND_JACK_BTN_5		= 0x0400,
 };
 
 struct snd_jack {
