@@ -427,13 +427,21 @@ void ci_platform_configure(struct ci_hdrc *ci)
 	is_device_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_DC;
 	is_host_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_HC;
 
-	if (is_device_mode &&
-		(ci->platdata->flags & CI_HDRC_DISABLE_DEVICE_STREAMING))
-		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+	if (is_device_mode) {
+		phy_set_mode(ci->phy, PHY_MODE_USB_DEVICE);
 
-	if (is_host_mode &&
-		(ci->platdata->flags & CI_HDRC_DISABLE_HOST_STREAMING))
-		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+		if (ci->platdata->flags & CI_HDRC_DISABLE_DEVICE_STREAMING)
+			hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS,
+				 USBMODE_CI_SDIS);
+	}
+
+	if (is_host_mode) {
+		phy_set_mode(ci->phy, PHY_MODE_USB_HOST);
+
+		if (ci->platdata->flags & CI_HDRC_DISABLE_HOST_STREAMING)
+			hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS,
+				 USBMODE_CI_SDIS);
+	}
 
 	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
 		if (ci->hw_bank.lpm)
