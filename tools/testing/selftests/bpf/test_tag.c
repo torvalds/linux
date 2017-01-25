@@ -99,7 +99,7 @@ static void tag_from_fdinfo(int fd_prog, uint8_t *tag, uint32_t len)
 	assert(fp);
 
 	while (fgets(buff, sizeof(buff), fp)) {
-		if (strncmp(buff, "prog_tag:\t", len))
+		if (strncmp(buff, "prog_tag:\t", prefix_len))
 			continue;
 		ret = hex2bin(tag, buff + prefix_len, len);
 		break;
