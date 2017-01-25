@@ -44,25 +44,3 @@ static int __init edac_report_setup(char *str)
 	return 0;
 }
 __setup("edac_report=", edac_report_setup);
-
-/*
- * called to determine if there is an EDAC driver interested in
- * knowing an event (such as NMI) occurred
- */
-int edac_handler_set(void)
-{
-	if (edac_op_state == EDAC_OPSTATE_POLL)
-		return 0;
-
-	return atomic_read(&edac_handlers);
-}
-EXPORT_SYMBOL_GPL(edac_handler_set);
-
-/*
- * handler for NMI type of interrupts to assert error
- */
-void edac_atomic_assert_error(void)
-{
-	edac_err_assert++;
-}
-EXPORT_SYMBOL_GPL(edac_atomic_assert_error);
