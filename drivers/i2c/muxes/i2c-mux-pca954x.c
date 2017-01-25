@@ -84,6 +84,11 @@ static const struct chip_desc chips[] = {
 		.enable = 0x4,
 		.muxtype = pca954x_ismux,
 	},
+	[pca_9542] = {
+		.nchans = 2,
+		.enable = 0x4,
+		.muxtype = pca954x_ismux,
+	},
 	[pca_9543] = {
 		.nchans = 2,
 		.muxtype = pca954x_isswi,
@@ -110,7 +115,7 @@ static const struct chip_desc chips[] = {
 
 static const struct i2c_device_id pca954x_id[] = {
 	{ "pca9540", pca_9540 },
-	{ "pca9542", pca_9540 },
+	{ "pca9542", pca_9542 },
 	{ "pca9543", pca_9543 },
 	{ "pca9544", pca_9544 },
 	{ "pca9545", pca_9545 },
@@ -124,7 +129,7 @@ MODULE_DEVICE_TABLE(i2c, pca954x_id);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id pca954x_acpi_ids[] = {
 	{ .id = "PCA9540", .driver_data = pca_9540 },
-	{ .id = "PCA9542", .driver_data = pca_9540 },
+	{ .id = "PCA9542", .driver_data = pca_9542 },
 	{ .id = "PCA9543", .driver_data = pca_9543 },
 	{ .id = "PCA9544", .driver_data = pca_9544 },
 	{ .id = "PCA9545", .driver_data = pca_9545 },
