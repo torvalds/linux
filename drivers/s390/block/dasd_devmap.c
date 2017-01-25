@@ -1518,14 +1518,12 @@ dasd_path_threshold_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return -ENODEV;
 
-	if ((kstrtoul(buf, 10, &val) != 0) ||
-	    (val > DASD_THRHLD_MAX) || val == 0) {
+	if (kstrtoul(buf, 10, &val) != 0 || val > DASD_THRHLD_MAX) {
 		dasd_put_device(device);
 		return -EINVAL;
 	}
 	spin_lock_irqsave(get_ccwdev_lock(to_ccwdev(dev)), flags);
-	if (val)
-		device->path_thrhld = val;
+	device->path_thrhld = val;
 	spin_unlock_irqrestore(get_ccwdev_lock(to_ccwdev(dev)), flags);
 	dasd_put_device(device);
 	return count;
