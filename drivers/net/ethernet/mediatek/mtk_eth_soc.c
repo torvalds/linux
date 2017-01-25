@@ -2518,7 +2518,7 @@ static int mtk_remove(struct platform_device *pdev)
 }
 
 const struct of_device_id of_mtk_match[] = {
-	{ .compatible = "mediatek,mt7623-eth" },
+	{ .compatible = "mediatek,mt2701-eth" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_mtk_match);
