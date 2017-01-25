@@ -213,6 +213,15 @@ Video BIOS Table (VBT)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
    :internal:
 
+intel hdmi lpe audio support
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :doc:  LPE Audio integration for HDMI or DP playback
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 

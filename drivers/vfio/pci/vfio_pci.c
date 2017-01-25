@@ -1142,6 +1142,10 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 			return ret;
 
 		vdev->barmap[index] = pci_iomap(pdev, index, 0);
+		if (!vdev->barmap[index]) {
+			pci_release_selected_regions(pdev, 1 << index);
+			return -ENOMEM;
+		}
 	}
 
 	vma->vm_private_data = vdev;

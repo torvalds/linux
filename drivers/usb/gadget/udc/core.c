@@ -1317,7 +1317,11 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 			if (!ret)
 				break;
 		}
-		if (!ret && !udc->driver)
+		if (ret)
+			ret = -ENODEV;
+		else if (udc->driver)
+			ret = -EBUSY;
+		else
 			goto found;
 	} else {
 		list_for_each_entry(udc, &udc_list, list) {

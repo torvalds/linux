@@ -98,6 +98,7 @@ static int amdgpu_pp_early_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 	case CHIP_TOPAZ:

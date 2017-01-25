@@ -713,10 +713,9 @@ static void __init xen_reserve_xen_mfnlist(void)
 		size = PFN_PHYS(xen_start_info->nr_p2m_frames);
 	}
 
-	if (!xen_is_e820_reserved(start, size)) {
-		memblock_reserve(start, size);
+	memblock_reserve(start, size);
+	if (!xen_is_e820_reserved(start, size))
 		return;
-	}
 
 #ifdef CONFIG_X86_32
 	/*
@@ -727,6 +726,7 @@ static void __init xen_reserve_xen_mfnlist(void)
 	BUG();
 #else
 	xen_relocate_p2m();
+	memblock_free(start, size);
 #endif
 }
 

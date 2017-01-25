@@ -23,7 +23,7 @@
 
 static int l2_line_sz;
 static int ioc_exists;
-int slc_enable = 1, ioc_enable = 0;
+int slc_enable = 1, ioc_enable = 1;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
@@ -271,7 +271,11 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
 
 /*
  * For ARC700 MMUv3 I-cache and D-cache flushes
- * Also reused for HS38 aliasing I-cache configuration
+ *  - ARC700 programming model requires paddr and vaddr be passed in seperate
+ *    AUX registers (*_IV*L and *_PTAG respectively) irrespective of whether the
+ *    caches actually alias or not.
+ * -  For HS38, only the aliasing I-cache configuration uses the PTAG reg
+ *    (non aliasing I-cache version doesn't; while D-cache can't possibly alias)
  */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
@@ -458,6 +462,21 @@ static inline void __dc_entire_op(const int op)
 	__after_dc_op(op);
 }
 
+static inline void __dc_disable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	__dc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | DC_CTRL_DIS);
+}
+
+static void __dc_enable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~DC_CTRL_DIS);
+}
+
 /* For kernel mappings cache operation: index is same as paddr */
 #define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
 
@@ -483,6 +502,8 @@ static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 #else
 
 #define __dc_entire_op(op)
+#define __dc_disable()
+#define __dc_enable()
 #define __dc_line_op(paddr, vaddr, sz, op)
 #define __dc_line_op_k(paddr, sz, op)
 
@@ -595,6 +616,40 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 
 	spin_unlock_irqrestore(&lock, flags);
 #endif
+}
+
+noinline static void slc_entire_op(const int op)
+{
+	unsigned int ctrl, r = ARC_REG_SLC_CTRL;
+
+	ctrl = read_aux_reg(r);
+
+	if (!(op & OP_FLUSH))		/* i.e. OP_INV */
+		ctrl &= ~SLC_CTRL_IM;	/* clear IM: Disable flush before Inv */
+	else
+		ctrl |= SLC_CTRL_IM;
+
+	write_aux_reg(r, ctrl);
+
+	write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
+
+	/* Important to wait for flush to complete */
+	while (read_aux_reg(r) & SLC_CTRL_BUSY);
+}
+
+static inline void arc_slc_disable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	slc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | SLC_CTRL_DIS);
+}
+
+static inline void arc_slc_enable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~SLC_CTRL_DIS);
 }
 
 /***********************************************************
@@ -923,21 +978,54 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 	return 0;
 }
 
-void arc_cache_init(void)
+/*
+ * IO-Coherency (IOC) setup rules:
+ *
+ * 1. Needs to be at system level, so only once by Master core
+ *    Non-Masters need not be accessing caches at that time
+ *    - They are either HALT_ON_RESET and kick started much later or
+ *    - if run on reset, need to ensure that arc_platform_smp_wait_to_boot()
+ *      doesn't perturb caches or coherency unit
+ *
+ * 2. caches (L1 and SLC) need to be purged (flush+inv) before setting up IOC,
+ *    otherwise any straggler data might behave strangely post IOC enabling
+ *
+ * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
+ *    Coherency transactions
+ */
+noinline void __init arc_ioc_setup(void)
 {
-	unsigned int __maybe_unused cpu = smp_processor_id();
-	char str[256];
+	unsigned int ap_sz;
 
-	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+	/* Flush + invalidate + disable L1 dcache */
+	__dc_disable();
+
+	/* Flush + invalidate SLC */
+	if (read_aux_reg(ARC_REG_SLC_BCR))
+		slc_entire_op(OP_FLUSH_N_INV);
+
+	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
+	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
 
 	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
+	 * IOC Aperture size:
+	 *   decoded as 2 ^ (SIZE + 2) KB: so setting 0x11 implies 512M
+	 * TBD: fix for PGU + 1GB of low mem
+	 * TBD: fix for PAE
 	 */
-	if (cpu)
-		return;
+	ap_sz = order_base_2(arc_get_mem_sz()/1024) - 2;
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, ap_sz);
+
+	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
+	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+
+	/* Re-enable L1 dcache */
+	__dc_enable();
+}
+
+void __init arc_cache_init_master(void)
+{
+	unsigned int __maybe_unused cpu = smp_processor_id();
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
@@ -985,30 +1073,14 @@ void arc_cache_init(void)
 		}
 	}
 
-	if (is_isa_arcv2() && l2_line_sz && !slc_enable) {
+	/* Note that SLC disable not formally supported till HS 3.0 */
+	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
+		arc_slc_disable();
 
-		/* IM set : flush before invalidate */
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_IM);
-
-		write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
-
-		/* Important to wait for flush to complete */
-		while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
-	}
+	if (is_isa_arcv2() && ioc_enable)
+		arc_ioc_setup();
 
 	if (is_isa_arcv2() && ioc_enable) {
-		/* IO coherency base - 0x8z */
-		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
-		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */
-		write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
-		/* Enable partial writes */
-		write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
-		/* Enable IO coherency */
-		write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
-
 		__dma_cache_wback_inv = __dma_cache_wback_inv_ioc;
 		__dma_cache_inv = __dma_cache_inv_ioc;
 		__dma_cache_wback = __dma_cache_wback_ioc;
@@ -1021,4 +1093,21 @@ void arc_cache_init(void)
 		__dma_cache_inv = __dma_cache_inv_l1;
 		__dma_cache_wback = __dma_cache_wback_l1;
 	}
+}
+
+void __ref arc_cache_init(void)
+{
+	unsigned int __maybe_unused cpu = smp_processor_id();
+	char str[256];
+
+	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+
+	/*
+	 * Only master CPU needs to execute rest of function:
+	 *  - Assume SMP so all cores will have same cache config so
+	 *    any geomtry checks will be same for all
+	 *  - IOC setup / dma callbacks only need to be setup once
+	 */
+	if (!cpu)
+		arc_cache_init_master();
 }

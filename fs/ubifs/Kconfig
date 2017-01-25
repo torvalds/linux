@@ -53,7 +53,7 @@ config UBIFS_ATIME_SUPPORT
 
 config UBIFS_FS_ENCRYPTION
 	bool "UBIFS Encryption"
-	depends on UBIFS_FS
+	depends on UBIFS_FS && BLOCK
 	select FS_ENCRYPTION
 	default n
 	help

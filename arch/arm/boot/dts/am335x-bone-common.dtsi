@@ -6,8 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <dt-bindings/mfd/tps65217.h>
-
 / {
 	cpus {
 		cpu@0 {
@@ -319,13 +317,13 @@
 	ti,pmic-shutdown-controller;
 
 	charger {
-		interrupts = <TPS65217_IRQ_AC>, <TPS65217_IRQ_USB>;
-		interrupts-names = "AC", "USB";
+		interrupts = <0>, <1>;
+		interrupt-names = "USB", "AC";
 		status = "okay";
 	};
 
 	pwrbutton {
-		interrupts = <TPS65217_IRQ_PB>;
+		interrupts = <2>;
 		status = "okay";
 	};
 

@@ -54,9 +54,9 @@ This is the hardware sector size of the device, in bytes.
 
 io_poll (RW)
 ------------
-When read, this file shows the total number of block IO polls and how
-many returned success.  Writing '0' to this file will disable polling
-for this device.  Writing any non-zero value will enable this feature.
+When read, this file shows whether polling is enabled (1) or disabled
+(0).  Writing '0' to this file will disable polling for this device.
+Writing any non-zero value will enable this feature.
 
 io_poll_delay (RW)
 ------------------

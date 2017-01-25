@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <drm/i915_component.h>
+#include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
 #include <drm/drmP.h>
@@ -630,6 +631,9 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
+
+	intel_lpe_audio_notify(dev_priv, connector->eld, port,
+			crtc_state->port_clock);
 }
 
 /**
@@ -663,6 +667,8 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
+
+	intel_lpe_audio_notify(dev_priv, NULL, port, 0);
 }
 
 /**
@@ -930,4 +936,29 @@ void i915_audio_component_cleanup(struct drm_i915_private *dev_priv)
 
 	component_del(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	dev_priv->audio_component_registered = false;
+}
+
+/**
+ * intel_audio_init() - Initialize the audio driver either using
+ * component framework or using lpe audio bridge
+ * @dev_priv: the i915 drm device private data
+ *
+ */
+void intel_audio_init(struct drm_i915_private *dev_priv)
+{
+	if (intel_lpe_audio_init(dev_priv) < 0)
+		i915_audio_component_init(dev_priv);
+}
+
+/**
+ * intel_audio_deinit() - deinitialize the audio driver
+ * @dev_priv: the i915 drm device private data
+ *
+ */
+void intel_audio_deinit(struct drm_i915_private *dev_priv)
+{
+	if ((dev_priv)->lpe_audio.platdev != NULL)
+		intel_lpe_audio_teardown(dev_priv);
+	else
+		i915_audio_component_cleanup(dev_priv);
 }

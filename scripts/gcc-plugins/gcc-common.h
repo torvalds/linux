@@ -39,6 +39,9 @@
 #include "hash-map.h"
 #endif
 
+#if BUILDING_GCC_VERSION >= 7000
+#include "memmodel.h"
+#endif
 #include "emit-rtl.h"
 #include "debug.h"
 #include "target.h"
@@ -91,6 +94,9 @@
 #include "tree-ssa-alias.h"
 #include "tree-ssa.h"
 #include "stringpool.h"
+#if BUILDING_GCC_VERSION >= 7000
+#include "tree-vrp.h"
+#endif
 #include "tree-ssanames.h"
 #include "print-tree.h"
 #include "tree-eh.h"
@@ -287,6 +293,22 @@ static inline struct cgraph_node *cgraph_next_function_with_gimple_body(struct c
 	return NULL;
 }
 
+static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
+{
+	cgraph_node_ptr alias;
+
+	if (callback(node, data))
+		return true;
+
+	for (alias = node->same_body; alias; alias = alias->next) {
+		if (include_overwritable || cgraph_function_body_availability(alias) > AVAIL_OVERWRITABLE)
+			if (cgraph_for_node_and_aliases(alias, callback, data, include_overwritable))
+				return true;
+	}
+
+	return false;
+}
+
 #define FOR_EACH_FUNCTION_WITH_GIMPLE_BODY(node) \
 	for ((node) = cgraph_first_function_with_gimple_body(); (node); \
 		(node) = cgraph_next_function_with_gimple_body(node))
@@ -399,6 +421,7 @@ typedef union gimple_statement_d gassign;
 typedef union gimple_statement_d gcall;
 typedef union gimple_statement_d gcond;
 typedef union gimple_statement_d gdebug;
+typedef union gimple_statement_d ggoto;
 typedef union gimple_statement_d gphi;
 typedef union gimple_statement_d greturn;
 
@@ -452,6 +475,16 @@ static inline const gdebug *as_a_const_gdebug(const_gimple stmt)
 	return stmt;
 }
 
+static inline ggoto *as_a_ggoto(gimple stmt)
+{
+	return stmt;
+}
+
+static inline const ggoto *as_a_const_ggoto(const_gimple stmt)
+{
+	return stmt;
+}
+
 static inline gphi *as_a_gphi(gimple stmt)
 {
 	return stmt;
@@ -496,6 +529,14 @@ static inline const greturn *as_a_const_greturn(const_gimple stmt)
 
 typedef struct rtx_def rtx_insn;
 
+static inline const char *get_decl_section_name(const_tree decl)
+{
+	if (DECL_SECTION_NAME(decl) == NULL_TREE)
+		return NULL;
+
+	return TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
+}
+
 static inline void set_decl_section_name(tree node, const char *value)
 {
 	if (value)
@@ -511,6 +552,7 @@ typedef struct gimple_statement_base gassign;
 typedef struct gimple_statement_call gcall;
 typedef struct gimple_statement_base gcond;
 typedef struct gimple_statement_base gdebug;
+typedef struct gimple_statement_base ggoto;
 typedef struct gimple_statement_phi gphi;
 typedef struct gimple_statement_base greturn;
 
@@ -564,6 +606,16 @@ static inline const gdebug *as_a_const_gdebug(const_gimple stmt)
 	return stmt;
 }
 
+static inline ggoto *as_a_ggoto(gimple stmt)
+{
+	return stmt;
+}
+
+static inline const ggoto *as_a_const_ggoto(const_gimple stmt)
+{
+	return stmt;
+}
+
 static inline gphi *as_a_gphi(gimple stmt)
 {
 	return as_a<gphi>(stmt);
@@ -611,6 +663,11 @@ inline bool is_a_helper<const gassign *>::test(const_gimple gs)
 
 #define INSN_DELETED_P(insn) (insn)->deleted()
 
+static inline const char *get_decl_section_name(const_tree decl)
+{
+	return DECL_SECTION_NAME(decl);
+}
+
 /* symtab/cgraph related */
 #define debug_cgraph_node(node) (node)->debug()
 #define cgraph_get_node(decl) cgraph_node::get(decl)
@@ -619,6 +676,7 @@ inline bool is_a_helper<const gassign *>::test(const_gimple gs)
 #define cgraph_n_nodes symtab->cgraph_count
 #define cgraph_max_uid symtab->cgraph_max_uid
 #define varpool_get_node(decl) varpool_node::get(decl)
+#define dump_varpool_node(file, node) (node)->dump(file)
 
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq, nest) \
 	(caller)->create_edge((callee), (call_stmt), (count), (freq))
@@ -672,6 +730,11 @@ static inline enum availability cgraph_function_body_availability(cgraph_node_pt
 static inline cgraph_node_ptr cgraph_alias_target(cgraph_node_ptr node)
 {
 	return node->get_alias_target();
+}
+
+static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
+{
+	return node->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
 }
 
 static inline struct cgraph_node_hook_list *cgraph_add_function_insertion_hook(cgraph_node_hook hook, void *data)
@@ -731,6 +794,13 @@ static inline gimple gimple_build_assign_with_ops(enum tree_code subcode, tree l
 
 template <>
 template <>
+inline bool is_a_helper<const ggoto *>::test(const_gimple gs)
+{
+	return gs->code == GIMPLE_GOTO;
+}
+
+template <>
+template <>
 inline bool is_a_helper<const greturn *>::test(const_gimple gs)
 {
 	return gs->code == GIMPLE_RETURN;
@@ -764,6 +834,16 @@ static inline gcall *as_a_gcall(gimple stmt)
 static inline const gcall *as_a_const_gcall(const_gimple stmt)
 {
 	return as_a<const gcall *>(stmt);
+}
+
+static inline ggoto *as_a_ggoto(gimple stmt)
+{
+	return as_a<ggoto *>(stmt);
+}
+
+static inline const ggoto *as_a_const_ggoto(const_gimple stmt)
+{
+	return as_a<const ggoto *>(stmt);
 }
 
 static inline gphi *as_a_gphi(gimple stmt)
@@ -826,6 +906,11 @@ static inline void debug_gimple_stmt(const_gimple s)
 #else
 #define debug_tree(t) debug_tree(CONST_CAST_TREE(t))
 #define debug_gimple_stmt(s) debug_gimple_stmt(CONST_CAST_GIMPLE(s))
+#endif
+
+#if BUILDING_GCC_VERSION >= 7000
+#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
+	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep)
 #endif
 
 #endif
