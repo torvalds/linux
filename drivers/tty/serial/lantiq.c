@@ -557,7 +557,7 @@ lqasc_verify_port(struct uart_port *port,
 	return ret;
 }
 
-static struct uart_ops lqasc_pops = {
+static const struct uart_ops lqasc_pops = {
 	.tx_empty =	lqasc_tx_empty,
 	.set_mctrl =	lqasc_set_mctrl,
 	.get_mctrl =	lqasc_get_mctrl,
