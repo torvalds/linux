@@ -3601,10 +3601,11 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * empty
 		 */
 		/* sync blockdev and partitions */
-		rc = fsync_bdev(device->block->bdev);
-		if (rc != 0)
-			goto interrupted;
-
+		if (device->block) {
+			rc = fsync_bdev(device->block->bdev);
+			if (rc != 0)
+				goto interrupted;
+		}
 		/* schedule device tasklet and wait for completion */
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,
