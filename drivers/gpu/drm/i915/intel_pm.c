@@ -4935,10 +4935,6 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
  * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
 static void gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
-	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		return;
-
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
 	WARN_ON(val < dev_priv->rps.min_freq);
@@ -5335,22 +5331,6 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 {
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		/*
-		 * BIOS could leave the Hw Turbo enabled, so need to explicitly
-		 * clear out the Control register just to avoid inconsitency
-		 * with debugfs interface, which will show  Turbo as enabled
-		 * only and that is not expected by the User after adding the
-		 * WaGsvDisableTurbo. Apart from this there is no problem even
-		 * if the Turbo is left enabled in the Control register, as the
-		 * Up/Down interrupts would remain masked.
-		 */
-		gen9_disable_rps(dev_priv);
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-		return;
-	}
-
 	/* Program defaults and thresholds for RPS*/
 	I915_WRITE(GEN6_RC_VIDEO_FREQ,
 		GEN9_FREQUENCY(dev_priv->rps.rp1_freq));
@@ -5410,18 +5390,9 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	if (intel_enable_rc6() & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
-	/* WaRsUseTimeoutMode:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
-		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us */
-		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-			   GEN7_RC_CTL_TO_MODE |
-			   rc6_mask);
-	} else {
-		I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
-		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-			   GEN6_RC_CTL_EI_MODE(1) |
-			   rc6_mask);
-	}
+	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
+	I915_WRITE(GEN6_RC_CONTROL,
+		   GEN6_RC_CTL_HW_ENABLE | GEN6_RC_CTL_EI_MODE(1) | rc6_mask);
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
