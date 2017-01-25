@@ -1004,7 +1004,7 @@ static const struct acpi_device_id bxt_pinctrl_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bxt_pinctrl_acpi_match);
 
 static const struct platform_device_id bxt_pinctrl_platform_ids[] = {
-	{ "apl-pinctrl", (kernel_ulong_t)&apl_pinctrl_soc_data },
+	{ "apollolake-pinctrl", (kernel_ulong_t)&apl_pinctrl_soc_data },
 	{ "broxton-pinctrl", (kernel_ulong_t)&bxt_pinctrl_soc_data },
 	{ },
 };
