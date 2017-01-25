@@ -1257,18 +1257,16 @@ static void rbd_segment_name_free(const char *name)
 
 static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 {
+	const char *name_format = rbd_dev->image_format == 1 ?
+				      RBD_V1_DATA_FORMAT : RBD_V2_DATA_FORMAT;
 	char *name;
 	u64 segment;
 	int ret;
-	char *name_format;
 
 	name = kmem_cache_alloc(rbd_segment_name_cache, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
-	name_format = "%s.%012llx";
-	if (rbd_dev->image_format == 2)
-		name_format = "%s.%016llx";
 	ret = snprintf(name, CEPH_MAX_OID_NAME_LEN + 1, name_format,
 			rbd_dev->header.object_prefix, segment);
 	if (ret < 0 || ret > CEPH_MAX_OID_NAME_LEN) {

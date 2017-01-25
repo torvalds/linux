@@ -25,8 +25,8 @@
  */
 
 #define RBD_HEADER_PREFIX      "rbd_header."
-#define RBD_DATA_PREFIX        "rbd_data."
 #define RBD_ID_PREFIX          "rbd_id."
+#define RBD_V2_DATA_FORMAT     "%s.%016llx"
 
 #define RBD_LOCK_NAME          "rbd_lock"
 #define RBD_LOCK_TAG           "internal"
@@ -42,13 +42,14 @@ enum rbd_notify_op {
 /*
  * For format version 1, rbd image 'foo' consists of objects
  *   foo.rbd		- image metadata
- *   rb.<idhi>.<idlo>.00000000
- *   rb.<idhi>.<idlo>.00000001
+ *   rb.<idhi>.<idlo>.<extra>.000000000000
+ *   rb.<idhi>.<idlo>.<extra>.000000000001
  *   ...		- data
  * There is no notion of a persistent image id in rbd format 1.
  */
 
 #define RBD_SUFFIX		".rbd"
+#define RBD_V1_DATA_FORMAT	"%s.%012llx"
 
 #define RBD_DIRECTORY           "rbd_directory"
 #define RBD_INFO                "rbd_info"
