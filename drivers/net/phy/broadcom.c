@@ -398,7 +398,7 @@ static int bcm54612e_config_aneg(struct phy_device *phydev)
 		reg = bcm54xx_auxctl_read(phydev,
 					  MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
 		/* Disable RXD to RXC delay (default set) */
-		reg &= ~MII_BCM54XX_AUXCTL_MISC_RXD_RXC_SKEW;
+		reg &= ~MII_BCM54XX_AUXCTL_SHDWSEL_MISC_RGMII_SKEW_EN;
 		/* Clear shadow selector field */
 		reg &= ~MII_BCM54XX_AUXCTL_SHDWSEL_MASK;
 		bcm54xx_auxctl_write(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
