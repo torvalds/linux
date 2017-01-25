@@ -2053,6 +2053,24 @@ static void wacom_release_resources(struct wacom *wacom)
 	wacom->wacom_wac.pad_input = NULL;
 }
 
+static void wacom_set_shared_values(struct wacom_wac *wacom_wac)
+{
+	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH) {
+		wacom_wac->shared->type = wacom_wac->features.type;
+		wacom_wac->shared->touch_input = wacom_wac->touch_input;
+	}
+
+	if (wacom_wac->has_mute_touch_switch)
+		wacom_wac->shared->has_mute_touch_switch = true;
+
+	if (wacom_wac->shared->has_mute_touch_switch &&
+	    wacom_wac->shared->touch_input) {
+		set_bit(EV_SW, wacom_wac->shared->touch_input->evbit);
+		input_set_capability(wacom_wac->shared->touch_input, EV_SW,
+				     SW_MUTE_DEVICE);
+	}
+}
+
 static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
@@ -2172,13 +2190,7 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
 		error = hid_hw_open(hdev);
 
-	if ((wacom_wac->features.type == INTUOSHT ||
-	     wacom_wac->features.type == INTUOSHT2) &&
-	    (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)) {
-		wacom_wac->shared->type = wacom_wac->features.type;
-		wacom_wac->shared->touch_input = wacom_wac->touch_input;
-	}
-
+	wacom_set_shared_values(wacom_wac);
 	devres_close_group(&hdev->dev, wacom);
 
 	return 0;

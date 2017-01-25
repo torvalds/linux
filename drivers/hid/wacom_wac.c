@@ -1728,7 +1728,17 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHONOFF:
-		wacom_map_usage(input, usage, field, EV_SW, SW_MUTE_DEVICE, 0);
+		/*
+		 * This usage, which is used to mute touch events, comes
+		 * from the pad packet, but is reported on the touch
+		 * interface. Because the touch interface may not have
+		 * been created yet, we cannot call wacom_map_usage(). In
+		 * order to process this usage when we receive it, we set
+		 * the usage type and code directly.
+		 */
+		wacom_wac->has_mute_touch_switch = true;
+		usage->type = EV_SW;
+		usage->code = SW_MUTE_DEVICE;
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHSTRIP:
@@ -1807,6 +1817,13 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 			input_event(input, usage->type, usage->code, 0);
 		break;
 
+	case WACOM_HID_WD_TOUCHONOFF:
+		if (wacom_wac->shared->touch_input) {
+			input_report_switch(wacom_wac->shared->touch_input,
+					    SW_MUTE_DEVICE, !value);
+			input_sync(wacom_wac->shared->touch_input);
+		}
+		break;
 	default:
 		input_event(input, usage->type, usage->code, value);
 		break;
