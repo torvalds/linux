@@ -24,6 +24,7 @@ config DRM_I915_DEBUG
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
+	select DRM_DEBUG_MM_SELFTEST
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
         default n
         help
