@@ -477,7 +477,10 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	if (test_opt(sbi, NOBARRIER))
 		return 0;
 
-	if (!test_opt(sbi, FLUSH_MERGE) || !atomic_read(&fcc->submit_flush)) {
+	if (!test_opt(sbi, FLUSH_MERGE))
+		return submit_flush_wait(sbi);
+
+	if (!atomic_read(&fcc->submit_flush)) {
 		int ret;
 
 		atomic_inc(&fcc->submit_flush);
