@@ -145,6 +145,7 @@ static struct airq_info *airq_areas[MAX_AIRQ_AREAS];
 #define CCW_CMD_WRITE_CONF 0x21
 #define CCW_CMD_WRITE_STATUS 0x31
 #define CCW_CMD_READ_VQ_CONF 0x32
+#define CCW_CMD_READ_STATUS 0x72
 #define CCW_CMD_SET_IND_ADAPTER 0x73
 #define CCW_CMD_SET_VIRTIO_REV 0x83
 
@@ -160,6 +161,7 @@ static struct airq_info *airq_areas[MAX_AIRQ_AREAS];
 #define VIRTIO_CCW_DOING_SET_CONF_IND 0x04000000
 #define VIRTIO_CCW_DOING_SET_IND_ADAPTER 0x08000000
 #define VIRTIO_CCW_DOING_SET_VIRTIO_REV 0x10000000
+#define VIRTIO_CCW_DOING_READ_STATUS 0x20000000
 #define VIRTIO_CCW_INTPARM_MASK 0xffff0000
 
 static struct virtio_ccw_device *to_vc_device(struct virtio_device *vdev)
@@ -452,7 +454,7 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	 * This may happen on device detach.
 	 */
 	if (ret && (ret != -ENODEV))
-		dev_warn(&vq->vdev->dev, "Error %d while deleting queue %d",
+		dev_warn(&vq->vdev->dev, "Error %d while deleting queue %d\n",
 			 ret, index);
 
 	vring_del_virtqueue(vq);
@@ -892,6 +894,28 @@ out_free:
 static u8 virtio_ccw_get_status(struct virtio_device *vdev)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
+	u8 old_status = *vcdev->status;
+	struct ccw1 *ccw;
+
+	if (vcdev->revision < 1)
+		return *vcdev->status;
+
+	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
+	if (!ccw)
+		return old_status;
+
+	ccw->cmd_code = CCW_CMD_READ_STATUS;
+	ccw->flags = 0;
+	ccw->count = sizeof(*vcdev->status);
+	ccw->cda = (__u32)(unsigned long)vcdev->status;
+	ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_READ_STATUS);
+/*
+ * If the channel program failed (should only happen if the device
+ * was hotunplugged, and then we clean up via the machine check
+ * handler anyway), vcdev->status was not overwritten and we just
+ * return the old status, which is fine.
+*/
+	kfree(ccw);
 
 	return *vcdev->status;
 }
@@ -920,7 +944,7 @@ static void virtio_ccw_set_status(struct virtio_device *vdev, u8 status)
 	kfree(ccw);
 }
 
-static struct virtio_config_ops virtio_ccw_config_ops = {
+static const struct virtio_config_ops virtio_ccw_config_ops = {
 	.get_features = virtio_ccw_get_features,
 	.finalize_features = virtio_ccw_finalize_features,
 	.get = virtio_ccw_get_config,
@@ -987,6 +1011,7 @@ static void virtio_ccw_check_activity(struct virtio_ccw_device *vcdev,
 		case VIRTIO_CCW_DOING_READ_CONFIG:
 		case VIRTIO_CCW_DOING_WRITE_CONFIG:
 		case VIRTIO_CCW_DOING_WRITE_STATUS:
+		case VIRTIO_CCW_DOING_READ_STATUS:
 		case VIRTIO_CCW_DOING_SET_VQ:
 		case VIRTIO_CCW_DOING_SET_IND:
 		case VIRTIO_CCW_DOING_SET_CONF_IND:

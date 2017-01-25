@@ -154,29 +154,38 @@ out_err:
 static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 			    struct dentry **ret)
 {
-	const char *s = d->name.name;
+	/* Counting down from the end, since the prefix can change */
+	size_t rem = d->name.len - 1;
 	struct dentry *dentry = NULL;
 	int err;
 
-	if (*s != '/')
+	if (d->name.name[0] != '/')
 		return ovl_lookup_single(base, d, d->name.name, d->name.len,
 					 0, "", ret);
 
-	while (*s++ == '/' && !IS_ERR_OR_NULL(base) && d_can_lookup(base)) {
+	while (!IS_ERR_OR_NULL(base) && d_can_lookup(base)) {
+		const char *s = d->name.name + d->name.len - rem;
 		const char *next = strchrnul(s, '/');
-		size_t slen = strlen(s);
+		size_t thislen = next - s;
+		bool end = !next[0];
 
-		if (WARN_ON(slen > d->name.len) ||
-		    WARN_ON(strcmp(d->name.name + d->name.len - slen, s)))
+		/* Verify we did not go off the rails */
+		if (WARN_ON(s[-1] != '/'))
 			return -EIO;
 
-		err = ovl_lookup_single(base, d, s, next - s,
-					d->name.len - slen, next, &base);
+		err = ovl_lookup_single(base, d, s, thislen,
+					d->name.len - rem, next, &base);
 		dput(dentry);
 		if (err)
 			return err;
 		dentry = base;
-		s = next;
+		if (end)
+			break;
+
+		rem -= thislen + 1;
+
+		if (WARN_ON(rem >= d->name.len))
+			return -EIO;
 	}
 	*ret = dentry;
 	return 0;

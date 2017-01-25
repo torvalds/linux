@@ -2936,7 +2936,7 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 	int insn_cnt = env->prog->len;
 	int i, j, err;
 
-	err = bpf_prog_calc_digest(env->prog);
+	err = bpf_prog_calc_tag(env->prog);
 	if (err)
 		return err;
 

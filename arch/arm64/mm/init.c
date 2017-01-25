@@ -404,6 +404,8 @@ void __init mem_init(void)
 	if (swiotlb_force == SWIOTLB_FORCE ||
 	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
 		swiotlb_init(1);
+	else
+		swiotlb_force = SWIOTLB_NO_FORCE;
 
 	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
 

@@ -295,6 +295,8 @@ static inline void perf_read_regs(struct pt_regs *regs)
 	 */
 	if (TRAP(regs) != 0xf00)
 		use_siar = 0;
+	else if ((ppmu->flags & PPMU_NO_SIAR))
+		use_siar = 0;
 	else if (marked)
 		use_siar = 1;
 	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING))
