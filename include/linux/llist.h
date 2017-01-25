@@ -3,28 +3,33 @@
 /*
  * Lock-less NULL terminated single linked list
  *
- * If there are multiple producers and multiple consumers, llist_add
- * can be used in producers and llist_del_all can be used in
- * consumers.  They can work simultaneously without lock.  But
- * llist_del_first can not be used here.  Because llist_del_first
- * depends on list->first->next does not changed if list->first is not
- * changed during its operation, but llist_del_first, llist_add,
- * llist_add (or llist_del_all, llist_add, llist_add) sequence in
- * another consumer may violate that.
+ * Cases where locking is not needed:
+ * If there are multiple producers and multiple consumers, llist_add can be
+ * used in producers and llist_del_all can be used in consumers simultaneously
+ * without locking. Also a single consumer can use llist_del_first while
+ * multiple producers simultaneously use llist_add, without any locking.
  *
- * If there are multiple producers and one consumer, llist_add can be
- * used in producers and llist_del_all or llist_del_first can be used
- * in the consumer.
+ * Cases where locking is needed:
+ * If we have multiple consumers with llist_del_first used in one consumer, and
+ * llist_del_first or llist_del_all used in other consumers, then a lock is
+ * needed.  This is because llist_del_first depends on list->first->next not
+ * changing, but without lock protection, there's no way to be sure about that
+ * if a preemption happens in the middle of the delete operation and on being
+ * preempted back, the list->first is the same as before causing the cmpxchg in
+ * llist_del_first to succeed. For example, while a llist_del_first operation
+ * is in progress in one consumer, then a llist_del_first, llist_add,
+ * llist_add (or llist_del_all, llist_add, llist_add) sequence in another
+ * consumer may cause violations.
  *
- * This can be summarized as follow:
+ * This can be summarized as follows:
  *
  *           |   add    | del_first |  del_all
  * add       |    -     |     -     |     -
  * del_first |          |     L     |     L
  * del_all   |          |           |     -
  *
- * Where "-" stands for no lock is needed, while "L" stands for lock
- * is needed.
+ * Where, a particular row's operation can happen concurrently with a column's
+ * operation, with "-" being no lock needed, while "L" being lock is needed.
  *
  * The list entries deleted via llist_del_all can be traversed with
  * traversing function such as llist_for_each etc.  But the list
