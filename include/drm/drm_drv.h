@@ -345,9 +345,6 @@ struct drm_driver {
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
 
-	/* vga arb irq handler */
-	void (*vgaarb_irq)(struct drm_device *dev, bool state);
-
 	/**
 	 * @dumb_create:
 	 *

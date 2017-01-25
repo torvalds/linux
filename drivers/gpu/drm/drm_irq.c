@@ -415,29 +415,6 @@ err:
 }
 EXPORT_SYMBOL(drm_vblank_init);
 
-static void drm_irq_vgaarb_nokms(void *cookie, bool state)
-{
-	struct drm_device *dev = cookie;
-
-	if (dev->driver->vgaarb_irq) {
-		dev->driver->vgaarb_irq(dev, state);
-		return;
-	}
-
-	if (!dev->irq_enabled)
-		return;
-
-	if (state) {
-		if (dev->driver->irq_uninstall)
-			dev->driver->irq_uninstall(dev);
-	} else {
-		if (dev->driver->irq_preinstall)
-			dev->driver->irq_preinstall(dev);
-		if (dev->driver->irq_postinstall)
-			dev->driver->irq_postinstall(dev);
-	}
-}
-
 /**
  * drm_irq_install - install IRQ handler
  * @dev: DRM device
@@ -491,9 +468,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		dev->irq_enabled = false;
 		return ret;
 	}
-
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		vga_client_register(dev->pdev, (void *)dev, drm_irq_vgaarb_nokms, NULL);
 
 	/* After installing handler */
 	if (dev->driver->irq_postinstall)
