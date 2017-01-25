@@ -309,7 +309,7 @@ void drm_minor_release(struct drm_minor *minor)
  * userspace the device instance can be published using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
- * bus-specific helpers and the ->load() callback. But due to
+ * bus-specific helpers and the &drm_driver.load callback. But due to
  * backwards-compatibility needs the device instance have to be published too
  * early, which requires unpretty global locking to make safe and is therefore
  * only support for existing drivers not yet converted to the new scheme.
@@ -718,9 +718,9 @@ static void remove_compat_control_link(struct drm_device *dev)
  * Never call this twice on any device!
  *
  * NOTE: To ensure backward compatibility with existing drivers method this
- * function calls the ->load() method after registering the device nodes,
- * creating race conditions. Usage of the ->load() methods is therefore
- * deprecated, drivers must perform all initialization before calling
+ * function calls the &drm_driver.load method after registering the device
+ * nodes, creating race conditions. Usage of the &drm_driver.load methods is
+ * therefore deprecated, drivers must perform all initialization before calling
  * drm_dev_register().
  *
  * RETURNS:

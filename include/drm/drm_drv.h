@@ -314,7 +314,7 @@ struct drm_driver {
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is for drivers which are not encumbered with dev->struct_mutex
+	 * This is for drivers which are not encumbered with &drm_device.struct_mutex
 	 * legacy locking schemes. Use this hook instead of @gem_free_object.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
