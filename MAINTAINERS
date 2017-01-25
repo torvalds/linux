@@ -4153,7 +4153,7 @@ F:	Documentation/gpu/i915.rst
 INTEL GVT-g DRIVERS (Intel GPU Virtualization)
 M:      Zhenyu Wang <zhenyuw@linux.intel.com>
 M:      Zhi Wang <zhi.a.wang@intel.com>
-L:      igvt-g-dev@lists.01.org
+L:      intel-gvt-dev@lists.freedesktop.org
 L:      intel-gfx@lists.freedesktop.org
 W:      https://01.org/igvt-g
 T:      git https://github.com/01org/gvt-linux.git
