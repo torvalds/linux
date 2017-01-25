@@ -67,6 +67,18 @@ static struct uv_hub_nmi_s **uv_hub_nmi_list;
 DEFINE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 EXPORT_PER_CPU_SYMBOL_GPL(uv_cpu_nmi);
 
+/* UV hubless values */
+#define NMI_CONTROL_PORT	0x70
+#define NMI_DUMMY_PORT		0x71
+#define GPI_NMI_STS_GPP_D_0	0x164
+#define GPI_NMI_ENA_GPP_D_0	0x174
+#define STS_GPP_D_0_MASK	0x1
+#define PAD_CFG_DW0_GPP_D_0	0x4c0
+#define GPIROUTNMI		(1ul << 17)
+#define PCH_PCR_GPIO_1_BASE	0xfdae0000ul
+#define PCH_PCR_GPIO_ADDRESS(offset) (int *)((u64)(pch_base) | (u64)(offset))
+
+static u64 *pch_base;
 static unsigned long nmi_mmr;
 static unsigned long nmi_mmr_clear;
 static unsigned long nmi_mmr_pending;
@@ -144,6 +156,19 @@ module_param_named(wait_count, uv_nmi_wait_count, int, 0644);
 static int uv_nmi_retry_count = 500;
 module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
 
+static bool uv_pch_intr_enable = true;
+static bool uv_pch_intr_now_enabled;
+module_param_named(pch_intr_enable, uv_pch_intr_enable, bool, 0644);
+
+static int uv_nmi_debug;
+module_param_named(debug, uv_nmi_debug, int, 0644);
+
+#define nmi_debug(fmt, ...)				\
+	do {						\
+		if (uv_nmi_debug)			\
+			pr_info(fmt, ##__VA_ARGS__);	\
+	} while (0)
+
 /*
  * Valid NMI Actions:
  *  "dump"	- dump process stack for each cpu
@@ -192,6 +217,77 @@ static inline void uv_local_mmr_clear_nmi(void)
 }
 
 /*
+ * UV hubless NMI handler functions
+ */
+static inline void uv_reassert_nmi(void)
+{
+	/* (from arch/x86/include/asm/mach_traps.h) */
+	outb(0x8f, NMI_CONTROL_PORT);
+	inb(NMI_DUMMY_PORT);		/* dummy read */
+	outb(0x0f, NMI_CONTROL_PORT);
+	inb(NMI_DUMMY_PORT);		/* dummy read */
+}
+
+static void uv_init_hubless_pch_io(int offset, int mask, int data)
+{
+	int *addr = PCH_PCR_GPIO_ADDRESS(offset);
+	int readd = readl(addr);
+
+	if (mask) {			/* OR in new data */
+		int writed = (readd & ~mask) | data;
+
+		nmi_debug("UV:PCH: %p = %x & %x | %x (%x)\n",
+			addr, readd, ~mask, data, writed);
+		writel(writed, addr);
+	} else if (readd & data) {	/* clear status bit */
+		nmi_debug("UV:PCH: %p = %x\n", addr, data);
+		writel(data, addr);
+	}
+
+	(void)readl(addr);		/* flush write data */
+}
+
+static void uv_nmi_setup_hubless_intr(void)
+{
+	uv_pch_intr_now_enabled = uv_pch_intr_enable;
+
+	uv_init_hubless_pch_io(
+		PAD_CFG_DW0_GPP_D_0, GPIROUTNMI,
+		uv_pch_intr_now_enabled ? GPIROUTNMI : 0);
+
+	nmi_debug("UV:NMI: GPP_D_0 interrupt %s\n",
+		uv_pch_intr_now_enabled ? "enabled" : "disabled");
+}
+
+static int uv_nmi_test_hubless(struct uv_hub_nmi_s *hub_nmi)
+{
+	int *pstat = PCH_PCR_GPIO_ADDRESS(GPI_NMI_STS_GPP_D_0);
+	int status = *pstat;
+
+	hub_nmi->nmi_value = status;
+	atomic_inc(&hub_nmi->read_mmr_count);
+
+	if (!(status & STS_GPP_D_0_MASK))	/* Not a UV external NMI */
+		return 0;
+
+	*pstat = STS_GPP_D_0_MASK;	/* Is a UV NMI: clear GPP_D_0 status */
+	(void)*pstat;			/* flush write */
+
+	return 1;
+}
+
+static int uv_test_nmi(struct uv_hub_nmi_s *hub_nmi)
+{
+	if (hub_nmi->hub_present)
+		return uv_nmi_test_mmr(hub_nmi);
+
+	if (hub_nmi->pch_owner)		/* Only PCH owner can check status */
+		return uv_nmi_test_hubless(hub_nmi);
+
+	return -1;
+}
+
+/*
  * If first cpu in on this hub, set hub_nmi "in_nmi" and "owner" values and
  * return true.  If first cpu in on the system, set global "in_nmi" flag.
  */
@@ -214,6 +310,7 @@ static int uv_check_nmi(struct uv_hub_nmi_s *hub_nmi)
 {
 	int cpu = smp_processor_id();
 	int nmi = 0;
+	int nmi_detected = 0;
 
 	local64_inc(&uv_nmi_count);
 	this_cpu_inc(uv_cpu_nmi.queries);
@@ -224,20 +321,26 @@ static int uv_check_nmi(struct uv_hub_nmi_s *hub_nmi)
 			break;
 
 		if (raw_spin_trylock(&hub_nmi->nmi_lock)) {
+			nmi_detected = uv_test_nmi(hub_nmi);
 
-			/* check hub MMR NMI flag */
-			if (uv_nmi_test_mmr(hub_nmi)) {
+			/* check flag for UV external NMI */
+			if (nmi_detected > 0) {
 				uv_set_in_nmi(cpu, hub_nmi);
 				nmi = 1;
 				break;
 			}
 
-			/* MMR NMI flag is clear */
+			/* A non-PCH node in a hubless system waits for NMI */
+			else if (nmi_detected < 0)
+				goto slave_wait;
+
+			/* MMR/PCH NMI flag is clear */
 			raw_spin_unlock(&hub_nmi->nmi_lock);
 
 		} else {
-			/* wait a moment for the hub nmi locker to set flag */
-			cpu_relax();
+
+			/* Wait a moment for the HUB NMI locker to set flag */
+slave_wait:		cpu_relax();
 			udelay(uv_nmi_slave_delay);
 
 			/* re-check hub in_nmi flag */
@@ -246,12 +349,19 @@ static int uv_check_nmi(struct uv_hub_nmi_s *hub_nmi)
 				break;
 		}
 
-		/* check if this BMC missed setting the MMR NMI flag */
+		/*
+		 * Check if this BMC missed setting the MMR NMI flag (or)
+		 * UV hubless system where only PCH owner can check flag
+		 */
 		if (!nmi) {
 			nmi = atomic_read(&uv_in_nmi);
 			if (nmi)
 				uv_set_in_nmi(cpu, hub_nmi);
 		}
+
+		/* If we're holding the hub lock, release it now */
+		if (nmi_detected < 0)
+			raw_spin_unlock(&hub_nmi->nmi_lock);
 
 	} while (0);
 
@@ -269,7 +379,10 @@ static inline void uv_clear_nmi(int cpu)
 	if (cpu == atomic_read(&hub_nmi->cpu_owner)) {
 		atomic_set(&hub_nmi->cpu_owner, -1);
 		atomic_set(&hub_nmi->in_nmi, 0);
-		uv_local_mmr_clear_nmi();
+		if (hub_nmi->hub_present)
+			uv_local_mmr_clear_nmi();
+		else
+			uv_reassert_nmi();
 		raw_spin_unlock(&hub_nmi->nmi_lock);
 	}
 }
@@ -297,17 +410,24 @@ static void uv_nmi_cleanup_mask(void)
 	}
 }
 
-/* Loop waiting as cpus enter nmi handler */
+/* Loop waiting as cpus enter NMI handler */
 static int uv_nmi_wait_cpus(int first)
 {
 	int i, j, k, n = num_online_cpus();
 	int last_k = 0, waiting = 0;
+	int cpu = smp_processor_id();
 
 	if (first) {
 		cpumask_copy(uv_nmi_cpu_mask, cpu_online_mask);
 		k = 0;
 	} else {
 		k = n - cpumask_weight(uv_nmi_cpu_mask);
+	}
+
+	/* PCH NMI causes only one cpu to respond */
+	if (first && uv_pch_intr_now_enabled) {
+		cpumask_clear_cpu(cpu, uv_nmi_cpu_mask);
+		return n - k - 1;
 	}
 
 	udelay(uv_nmi_initial_delay);
@@ -358,7 +478,7 @@ static void uv_nmi_wait(int master)
 			break;
 
 		/* if not all made it in, send IPI NMI to them */
-		pr_alert("UV: Sending NMI IPI to %d non-responding CPUs: %*pbl\n",
+		pr_alert("UV: Sending NMI IPI to %d CPUs: %*pbl\n",
 			 cpumask_weight(uv_nmi_cpu_mask),
 			 cpumask_pr_args(uv_nmi_cpu_mask));
 
@@ -538,7 +658,7 @@ static inline int uv_nmi_kdb_reason(void)
 #else /* !CONFIG_KGDB_KDB */
 static inline int uv_nmi_kdb_reason(void)
 {
-	/* Insure user is expecting to attach gdb remote */
+	/* Ensure user is expecting to attach gdb remote */
 	if (uv_nmi_action_is("kgdb"))
 		return 0;
 
@@ -626,15 +746,18 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	/* Pause as all cpus enter the NMI handler */
 	uv_nmi_wait(master);
 
-	/* Dump state of each cpu */
-	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump"))
+	/* Process actions other than "kdump": */
+	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump")) {
 		uv_nmi_dump_state(cpu, regs, master);
-
-	/* Call KGDB/KDB if enabled */
-	else if (uv_nmi_action_is("kdb") || uv_nmi_action_is("kgdb"))
+	} else if (uv_nmi_action_is("kdb") || uv_nmi_action_is("kgdb")) {
 		uv_call_kgdb_kdb(cpu, regs, master);
+	} else {
+		if (master)
+			pr_alert("UV: unknown NMI action: %s\n", uv_nmi_action);
+		uv_nmi_sync_exit(master);
+	}
 
-	/* Clear per_cpu "in nmi" flag */
+	/* Clear per_cpu "in_nmi" flag */
 	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_OUT);
 
 	/* Clear MMR NMI flag on each hub */
@@ -648,6 +771,7 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 		atomic_set(&uv_nmi_cpu, -1);
 		atomic_set(&uv_in_nmi, 0);
 		atomic_set(&uv_nmi_kexec_failed, 0);
+		atomic_set(&uv_nmi_slave_continue, SLAVE_CLEAR);
 	}
 
 	uv_nmi_touch_watchdogs();
@@ -697,28 +821,53 @@ void uv_nmi_init(void)
 	apic_write(APIC_LVT1, value);
 }
 
-void uv_nmi_setup(void)
+/* Setup HUB NMI info */
+void __init uv_nmi_setup_common(bool hubbed)
 {
 	int size = sizeof(void *) * (1 << NODES_SHIFT);
-	int cpu, nid;
+	int cpu;
 
-	/* Setup hub nmi info */
-	uv_nmi_setup_mmrs();
 	uv_hub_nmi_list = kzalloc(size, GFP_KERNEL);
-	pr_info("UV: NMI hub list @ 0x%p (%d)\n", uv_hub_nmi_list, size);
+	nmi_debug("UV: NMI hub list @ 0x%p (%d)\n", uv_hub_nmi_list, size);
 	BUG_ON(!uv_hub_nmi_list);
 	size = sizeof(struct uv_hub_nmi_s);
 	for_each_present_cpu(cpu) {
-		nid = cpu_to_node(cpu);
+		int nid = cpu_to_node(cpu);
 		if (uv_hub_nmi_list[nid] == NULL) {
 			uv_hub_nmi_list[nid] = kzalloc_node(size,
 							    GFP_KERNEL, nid);
 			BUG_ON(!uv_hub_nmi_list[nid]);
 			raw_spin_lock_init(&(uv_hub_nmi_list[nid]->nmi_lock));
 			atomic_set(&uv_hub_nmi_list[nid]->cpu_owner, -1);
+			uv_hub_nmi_list[nid]->hub_present = hubbed;
+			uv_hub_nmi_list[nid]->pch_owner = (nid == 0);
 		}
 		uv_hub_nmi_per(cpu) = uv_hub_nmi_list[nid];
 	}
 	BUG_ON(!alloc_cpumask_var(&uv_nmi_cpu_mask, GFP_KERNEL));
+}
+
+/* Setup for UV Hub systems */
+void __init uv_nmi_setup(void)
+{
+	uv_nmi_setup_mmrs();
+	uv_nmi_setup_common(true);
 	uv_register_nmi_notifier();
+	pr_info("UV: Hub NMI enabled\n");
+}
+
+/* Setup for UV Hubless systems */
+void __init uv_nmi_setup_hubless(void)
+{
+	uv_nmi_setup_common(false);
+	pch_base = xlate_dev_mem_ptr(PCH_PCR_GPIO_1_BASE);
+	nmi_debug("UV: PCH base:%p from 0x%lx, GPP_D_0\n",
+		pch_base, PCH_PCR_GPIO_1_BASE);
+	uv_init_hubless_pch_io(GPI_NMI_ENA_GPP_D_0,
+				STS_GPP_D_0_MASK, STS_GPP_D_0_MASK);
+	uv_nmi_setup_hubless_intr();
+	/* Ensure NMI enabled in Processor Interface Reg: */
+	uv_reassert_nmi();
+	uv_register_nmi_notifier();
+	pr_info("UV: Hubless NMI enabled\n");
 }
