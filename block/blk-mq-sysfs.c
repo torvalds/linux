@@ -122,34 +122,6 @@ static ssize_t blk_mq_hw_sysfs_store(struct kobject *kobj,
 	return res;
 }
 
-static ssize_t blk_mq_sysfs_dispatched_show(struct blk_mq_ctx *ctx, char *page)
-{
-	return sprintf(page, "%lu %lu\n", ctx->rq_dispatched[1],
-				ctx->rq_dispatched[0]);
-}
-
-static ssize_t blk_mq_sysfs_merged_show(struct blk_mq_ctx *ctx, char *page)
-{
-	return sprintf(page, "%lu\n", ctx->rq_merged);
-}
-
-static ssize_t blk_mq_sysfs_completed_show(struct blk_mq_ctx *ctx, char *page)
-{
-	return sprintf(page, "%lu %lu\n", ctx->rq_completed[1],
-				ctx->rq_completed[0]);
-}
-
-static ssize_t blk_mq_hw_sysfs_queued_show(struct blk_mq_hw_ctx *hctx,
-					   char *page)
-{
-	return sprintf(page, "%lu\n", hctx->queued);
-}
-
-static ssize_t blk_mq_hw_sysfs_run_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	return sprintf(page, "%lu\n", hctx->run);
-}
-
 static ssize_t blk_mq_hw_sysfs_nr_tags_show(struct blk_mq_hw_ctx *hctx,
 					    char *page)
 {
@@ -160,11 +132,6 @@ static ssize_t blk_mq_hw_sysfs_nr_reserved_tags_show(struct blk_mq_hw_ctx *hctx,
 						     char *page)
 {
 	return sprintf(page, "%u\n", hctx->tags->nr_reserved_tags);
-}
-
-static ssize_t blk_mq_hw_sysfs_active_show(struct blk_mq_hw_ctx *hctx, char *page)
-{
-	return sprintf(page, "%u\n", atomic_read(&hctx->nr_active));
 }
 
 static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
@@ -185,34 +152,10 @@ static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 	return ret;
 }
 
-static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_dispatched = {
-	.attr = {.name = "dispatched", .mode = S_IRUGO },
-	.show = blk_mq_sysfs_dispatched_show,
-};
-static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_merged = {
-	.attr = {.name = "merged", .mode = S_IRUGO },
-	.show = blk_mq_sysfs_merged_show,
-};
-static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_completed = {
-	.attr = {.name = "completed", .mode = S_IRUGO },
-	.show = blk_mq_sysfs_completed_show,
-};
-
 static struct attribute *default_ctx_attrs[] = {
-	&blk_mq_sysfs_dispatched.attr,
-	&blk_mq_sysfs_merged.attr,
-	&blk_mq_sysfs_completed.attr,
 	NULL,
 };
 
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_queued = {
-	.attr = {.name = "queued", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_queued_show,
-};
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_run = {
-	.attr = {.name = "run", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_run_show,
-};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_tags = {
 	.attr = {.name = "nr_tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_nr_tags_show,
@@ -221,22 +164,15 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_reserved_tags = {
 	.attr = {.name = "nr_reserved_tags", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_nr_reserved_tags_show,
 };
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_active = {
-	.attr = {.name = "active", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_active_show,
-};
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
 	.attr = {.name = "cpu_list", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_cpus_show,
 };
 
 static struct attribute *default_hw_ctx_attrs[] = {
-	&blk_mq_hw_sysfs_queued.attr,
-	&blk_mq_hw_sysfs_run.attr,
 	&blk_mq_hw_sysfs_nr_tags.attr,
 	&blk_mq_hw_sysfs_nr_reserved_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
-	&blk_mq_hw_sysfs_active.attr,
 	NULL,
 };
 

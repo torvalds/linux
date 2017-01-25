@@ -399,6 +399,88 @@ static const struct file_operations hctx_dispatched_fops = {
 	.release	= single_release,
 };
 
+static int hctx_queued_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "%lu\n", hctx->queued);
+	return 0;
+}
+
+static int hctx_queued_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_queued_show, inode->i_private);
+}
+
+static ssize_t hctx_queued_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	hctx->queued = 0;
+	return count;
+}
+
+static const struct file_operations hctx_queued_fops = {
+	.open		= hctx_queued_open,
+	.read		= seq_read,
+	.write		= hctx_queued_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_run_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "%lu\n", hctx->run);
+	return 0;
+}
+
+static int hctx_run_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_run_show, inode->i_private);
+}
+
+static ssize_t hctx_run_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	hctx->run = 0;
+	return count;
+}
+
+static const struct file_operations hctx_run_fops = {
+	.open		= hctx_run_open,
+	.read		= seq_read,
+	.write		= hctx_run_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_active_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "%d\n", atomic_read(&hctx->nr_active));
+	return 0;
+}
+
+static int hctx_active_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_active_show, inode->i_private);
+}
+
+static const struct file_operations hctx_active_fops = {
+	.open		= hctx_active_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
 {
 	struct blk_mq_ctx *ctx = m->private;
@@ -440,6 +522,99 @@ static const struct file_operations ctx_rq_list_fops = {
 	.release	= seq_release,
 };
 
+static int ctx_dispatched_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	seq_printf(m, "%lu %lu\n", ctx->rq_dispatched[1], ctx->rq_dispatched[0]);
+	return 0;
+}
+
+static int ctx_dispatched_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ctx_dispatched_show, inode->i_private);
+}
+
+static ssize_t ctx_dispatched_write(struct file *file, const char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_ctx *ctx = m->private;
+
+	ctx->rq_dispatched[0] = ctx->rq_dispatched[1] = 0;
+	return count;
+}
+
+static const struct file_operations ctx_dispatched_fops = {
+	.open		= ctx_dispatched_open,
+	.read		= seq_read,
+	.write		= ctx_dispatched_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int ctx_merged_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	seq_printf(m, "%lu\n", ctx->rq_merged);
+	return 0;
+}
+
+static int ctx_merged_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ctx_merged_show, inode->i_private);
+}
+
+static ssize_t ctx_merged_write(struct file *file, const char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_ctx *ctx = m->private;
+
+	ctx->rq_merged = 0;
+	return count;
+}
+
+static const struct file_operations ctx_merged_fops = {
+	.open		= ctx_merged_open,
+	.read		= seq_read,
+	.write		= ctx_merged_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int ctx_completed_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	seq_printf(m, "%lu %lu\n", ctx->rq_completed[1], ctx->rq_completed[0]);
+	return 0;
+}
+
+static int ctx_completed_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ctx_completed_show, inode->i_private);
+}
+
+static ssize_t ctx_completed_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct blk_mq_ctx *ctx = m->private;
+
+	ctx->rq_completed[0] = ctx->rq_completed[1] = 0;
+	return count;
+}
+
+static const struct file_operations ctx_completed_fops = {
+	.open		= ctx_completed_open,
+	.read		= seq_read,
+	.write		= ctx_completed_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"state", 0400, &hctx_state_fops},
 	{"flags", 0400, &hctx_flags_fops},
@@ -452,10 +627,16 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"io_poll", 0600, &hctx_io_poll_fops},
 	{"stats", 0600, &hctx_stats_fops},
 	{"dispatched", 0600, &hctx_dispatched_fops},
+	{"queued", 0600, &hctx_queued_fops},
+	{"run", 0600, &hctx_run_fops},
+	{"active", 0400, &hctx_active_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{"rq_list", 0400, &ctx_rq_list_fops},
+	{"dispatched", 0600, &ctx_dispatched_fops},
+	{"merged", 0600, &ctx_merged_fops},
+	{"completed", 0600, &ctx_completed_fops},
 };
 
 int blk_mq_debugfs_register(struct request_queue *q, const char *name)
