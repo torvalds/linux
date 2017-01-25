@@ -464,6 +464,9 @@ static int probe_itpm(struct tpm_chip *chip)
 	size_t len = sizeof(cmd_getticks);
 	u16 vendor;
 
+	if (priv->flags & TPM_TIS_ITPM_WORKAROUND)
+		return 0;
+
 	rc = tpm_tis_read16(priv, TPM_DID_VID(0), &vendor);
 	if (rc < 0)
 		return rc;
@@ -479,12 +482,15 @@ static int probe_itpm(struct tpm_chip *chip)
 	tpm_tis_ready(chip);
 	release_locality(chip, priv->locality, 0);
 
+	priv->flags |= TPM_TIS_ITPM_WORKAROUND;
+
 	rc = tpm_tis_send_data(chip, cmd_getticks, len);
-	if (rc == 0) {
+	if (rc == 0)
 		dev_info(&chip->dev, "Detected an iTPM.\n");
-		rc = 1;
-	} else
+	else {
+		priv->flags &= ~TPM_TIS_ITPM_WORKAROUND;
 		rc = -EFAULT;
+	}
 
 out:
 	tpm_tis_ready(chip);
@@ -741,15 +747,10 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		 (chip->flags & TPM_CHIP_FLAG_TPM2) ? "2.0" : "1.2",
 		 vendor >> 16, rid);
 
-	if (!(priv->flags & TPM_TIS_ITPM_WORKAROUND)) {
-		probe = probe_itpm(chip);
-		if (probe < 0) {
-			rc = -ENODEV;
-			goto out_err;
-		}
-
-		if (!!probe)
-			priv->flags |= TPM_TIS_ITPM_WORKAROUND;
+	probe = probe_itpm(chip);
+	if (probe < 0) {
+		rc = -ENODEV;
+		goto out_err;
 	}
 
 	/* Figure out the capabilities */
