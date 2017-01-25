@@ -5204,17 +5204,12 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	if ((link_info->support_auto_speeds | diff) !=
 	    link_info->support_auto_speeds) {
 		/* An advertised speed is no longer supported, so we need to
-		 * update the advertisement settings.  See bnxt_reset() for
-		 * comments about the rtnl_lock() sequence below.
+		 * update the advertisement settings.  Caller holds RTNL
+		 * so we can modify link settings.
 		 */
-		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
-		rtnl_lock();
 		link_info->advertising = link_info->support_auto_speeds;
-		if (test_bit(BNXT_STATE_OPEN, &bp->state) &&
-		    (link_info->autoneg & BNXT_AUTONEG_SPEED))
+		if (link_info->autoneg & BNXT_AUTONEG_SPEED)
 			bnxt_hwrm_set_link_setting(bp, true, false);
-		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
-		rtnl_unlock();
 	}
 	return 0;
 }
@@ -6130,7 +6125,6 @@ static void bnxt_cfg_ntp_filters(struct bnxt *);
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
-	int rc;
 
 	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 	smp_mb__after_atomic();
@@ -6144,16 +6138,6 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_RX_NTP_FLTR_SP_EVENT, &bp->sp_event))
 		bnxt_cfg_ntp_filters(bp);
-	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
-		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
-				       &bp->sp_event))
-			bnxt_hwrm_phy_qcaps(bp);
-
-		rc = bnxt_update_link(bp, true);
-		if (rc)
-			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
-				   rc);
-	}
 	if (test_and_clear_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_exec_fwd_req(bp);
 	if (test_and_clear_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event)) {
@@ -6183,6 +6167,21 @@ static void bnxt_sp_task(struct work_struct *work)
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
 	 */
+	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
+		int rc = 0;
+
+		if (test_and_clear_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT,
+				       &bp->sp_event))
+			bnxt_hwrm_phy_qcaps(bp);
+
+		bnxt_rtnl_lock_sp(bp);
+		if (test_bit(BNXT_STATE_OPEN, &bp->state))
+			rc = bnxt_update_link(bp, true);
+		bnxt_rtnl_unlock_sp(bp);
+		if (rc)
+			netdev_err(bp->dev, "SP task can't update link (rc: %x)\n",
+				   rc);
+	}
 	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
 		bnxt_reset(bp, false);
 
