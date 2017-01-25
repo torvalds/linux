@@ -4242,63 +4242,46 @@ static void rbd_free_disk(struct rbd_device *rbd_dev)
 }
 
 static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
-				const char *object_name,
-				u64 offset, u64 length, void *buf)
+			     struct ceph_object_id *oid,
+			     struct ceph_object_locator *oloc,
+			     void *buf, int buf_len)
 
 {
-	struct rbd_obj_request *obj_request;
-	struct page **pages = NULL;
-	u32 page_count;
-	size_t size;
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct ceph_osd_request *req;
+	struct page **pages;
+	int num_pages = calc_pages_for(0, buf_len);
 	int ret;
 
-	page_count = (u32) calc_pages_for(offset, length);
-	pages = ceph_alloc_page_vector(page_count, GFP_KERNEL);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
+	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
 
-	ret = -ENOMEM;
-	obj_request = rbd_obj_request_create(object_name, offset, length,
-							OBJ_REQUEST_PAGES);
-	if (!obj_request)
-		goto out;
+	ceph_oid_copy(&req->r_base_oid, oid);
+	ceph_oloc_copy(&req->r_base_oloc, oloc);
+	req->r_flags = CEPH_OSD_FLAG_READ;
 
-	obj_request->pages = pages;
-	obj_request->page_count = page_count;
-
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, OBJ_OP_READ, 1,
-						  obj_request);
-	if (!obj_request->osd_req)
-		goto out;
-
-	osd_req_op_extent_init(obj_request->osd_req, 0, CEPH_OSD_OP_READ,
-					offset, length, 0, 0);
-	osd_req_op_extent_osd_data_pages(obj_request->osd_req, 0,
-					obj_request->pages,
-					obj_request->length,
-					obj_request->offset & ~PAGE_MASK,
-					false, false);
-
-	rbd_obj_request_submit(obj_request);
-	ret = rbd_obj_request_wait(obj_request);
+	ret = ceph_osdc_alloc_messages(req, GFP_KERNEL);
 	if (ret)
-		goto out;
+		goto out_req;
 
-	ret = obj_request->result;
-	if (ret < 0)
-		goto out;
+	pages = ceph_alloc_page_vector(num_pages, GFP_KERNEL);
+	if (IS_ERR(pages)) {
+		ret = PTR_ERR(pages);
+		goto out_req;
+	}
 
-	rbd_assert(obj_request->xferred <= (u64) SIZE_MAX);
-	size = (size_t) obj_request->xferred;
-	ceph_copy_from_page_vector(pages, buf, 0, size);
-	rbd_assert(size <= (size_t)INT_MAX);
-	ret = (int)size;
-out:
-	if (obj_request)
-		rbd_obj_request_put(obj_request);
-	else
-		ceph_release_page_vector(pages, page_count);
+	osd_req_op_extent_init(req, 0, CEPH_OSD_OP_READ, 0, buf_len, 0, 0);
+	osd_req_op_extent_osd_data_pages(req, 0, pages, buf_len, 0, false,
+					 true);
 
+	ceph_osdc_start_request(osdc, req, false);
+	ret = ceph_osdc_wait_request(osdc, req);
+	if (ret >= 0)
+		ceph_copy_from_page_vector(pages, buf, 0, ret);
+
+out_req:
+	ceph_osdc_put_request(req);
 	return ret;
 }
 
@@ -4334,8 +4317,8 @@ static int rbd_dev_v1_header_info(struct rbd_device *rbd_dev)
 		if (!ondisk)
 			return -ENOMEM;
 
-		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_oid.name,
-				       0, size, ondisk);
+		ret = rbd_obj_read_sync(rbd_dev, &rbd_dev->header_oid,
+					&rbd_dev->header_oloc, ondisk, size);
 		if (ret < 0)
 			goto out;
 		if ((size_t)ret < size) {
