@@ -176,6 +176,7 @@ module_param_named(debug, uv_nmi_debug, int, 0644);
  *  "kdump"	- do crash dump
  *  "kdb"	- enter KDB (default)
  *  "kgdb"	- enter KGDB
+ *  "health"	- check if CPUs respond to NMI
  */
 static char uv_nmi_action[8] = "kdb";
 module_param_string(action, uv_nmi_action, sizeof(uv_nmi_action), 0644);
@@ -571,6 +572,22 @@ static void uv_nmi_sync_exit(int master)
 	}
 }
 
+/* Current "health" check is to check which CPU's are responsive */
+static void uv_nmi_action_health(int cpu, struct pt_regs *regs, int master)
+{
+	if (master) {
+		int in = atomic_read(&uv_nmi_cpus_in_nmi);
+		int out = num_online_cpus() - in;
+
+		pr_alert("UV: NMI CPU health check (non-responding:%d)\n", out);
+		atomic_set(&uv_nmi_slave_continue, SLAVE_EXIT);
+	} else {
+		while (!atomic_read(&uv_nmi_slave_continue))
+			cpu_relax();
+	}
+	uv_nmi_sync_exit(master);
+}
+
 /* Walk through cpu list and dump state of each */
 static void uv_nmi_dump_state(int cpu, struct pt_regs *regs, int master)
 {
@@ -747,7 +764,9 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	uv_nmi_wait(master);
 
 	/* Process actions other than "kdump": */
-	if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump")) {
+	if (uv_nmi_action_is("health")) {
+		uv_nmi_action_health(cpu, regs, master);
+	} else if (uv_nmi_action_is("ips") || uv_nmi_action_is("dump")) {
 		uv_nmi_dump_state(cpu, regs, master);
 	} else if (uv_nmi_action_is("kdb") || uv_nmi_action_is("kgdb")) {
 		uv_call_kgdb_kdb(cpu, regs, master);
