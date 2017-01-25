@@ -70,6 +70,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(uv_cpu_nmi);
 /* UV hubless values */
 #define NMI_CONTROL_PORT	0x70
 #define NMI_DUMMY_PORT		0x71
+#define PAD_OWN_GPP_D_0		0x2c
 #define GPI_NMI_STS_GPP_D_0	0x164
 #define GPI_NMI_ENA_GPP_D_0	0x174
 #define STS_GPP_D_0_MASK	0x1
@@ -159,6 +160,9 @@ module_param_named(retry_count, uv_nmi_retry_count, int, 0644);
 static bool uv_pch_intr_enable = true;
 static bool uv_pch_intr_now_enabled;
 module_param_named(pch_intr_enable, uv_pch_intr_enable, bool, 0644);
+
+static bool uv_pch_init_enable = true;
+module_param_named(pch_init_enable, uv_pch_init_enable, bool, 0644);
 
 static int uv_nmi_debug;
 module_param_named(debug, uv_nmi_debug, int, 0644);
@@ -305,6 +309,127 @@ static void uv_nmi_setup_hubless_intr(void)
 
 	nmi_debug("UV:NMI: GPP_D_0 interrupt %s\n",
 		uv_pch_intr_now_enabled ? "enabled" : "disabled");
+}
+
+static struct init_nmi {
+	unsigned int	offset;
+	unsigned int	mask;
+	unsigned int	data;
+} init_nmi[] = {
+	{	/* HOSTSW_OWN_GPP_D_0 */
+	.offset = 0x84,
+	.mask = 0x1,
+	.data = 0x0,	/* ACPI Mode */
+	},
+
+/* clear status */
+	{	/* GPI_INT_STS_GPP_D_0 */
+	.offset = 0x104,
+	.mask = 0x0,
+	.data = 0x1,	/* Clear Status */
+	},
+	{	/* GPI_GPE_STS_GPP_D_0 */
+	.offset = 0x124,
+	.mask = 0x0,
+	.data = 0x1,	/* Clear Status */
+	},
+	{	/* GPI_SMI_STS_GPP_D_0 */
+	.offset = 0x144,
+	.mask = 0x0,
+	.data = 0x1,	/* Clear Status */
+	},
+	{	/* GPI_NMI_STS_GPP_D_0 */
+	.offset = 0x164,
+	.mask = 0x0,
+	.data = 0x1,	/* Clear Status */
+	},
+
+/* disable interrupts */
+	{	/* GPI_INT_EN_GPP_D_0 */
+	.offset = 0x114,
+	.mask = 0x1,
+	.data = 0x0,	/* disable interrupt generation */
+	},
+	{	/* GPI_GPE_EN_GPP_D_0 */
+	.offset = 0x134,
+	.mask = 0x1,
+	.data = 0x0,	/* disable interrupt generation */
+	},
+	{	/* GPI_SMI_EN_GPP_D_0 */
+	.offset = 0x154,
+	.mask = 0x1,
+	.data = 0x0,	/* disable interrupt generation */
+	},
+	{	/* GPI_NMI_EN_GPP_D_0 */
+	.offset = 0x174,
+	.mask = 0x1,
+	.data = 0x0,	/* disable interrupt generation */
+	},
+
+/* setup GPP_D_0 Pad Config */
+	{	/* PAD_CFG_DW0_GPP_D_0 */
+	.offset = 0x4c0,
+	.mask = 0xffffffff,
+	.data = 0x82020100,
+/*
+ *  31:30 Pad Reset Config (PADRSTCFG): = 2h  # PLTRST# (default)
+ *
+ *  29    RX Pad State Select (RXPADSTSEL): = 0 # Raw RX pad state directly
+ *                                                from RX buffer (default)
+ *
+ *  28    RX Raw Override to '1' (RXRAW1): = 0 # No Override
+ *
+ *  26:25 RX Level/Edge Configuration (RXEVCFG):
+ *      = 0h # Level
+ *      = 1h # Edge
+ *
+ *  23    RX Invert (RXINV): = 0 # No Inversion (signal active high)
+ *
+ *  20    GPIO Input Route IOxAPIC (GPIROUTIOXAPIC):
+ * = 0 # Routing does not cause peripheral IRQ...
+ *     # (we want an NMI not an IRQ)
+ *
+ *  19    GPIO Input Route SCI (GPIROUTSCI): = 0 # Routing does not cause SCI.
+ *  18    GPIO Input Route SMI (GPIROUTSMI): = 0 # Routing does not cause SMI.
+ *  17    GPIO Input Route NMI (GPIROUTNMI): = 1 # Routing can cause NMI.
+ *
+ *  11:10 Pad Mode (PMODE1/0): = 0h = GPIO control the Pad.
+ *   9    GPIO RX Disable (GPIORXDIS):
+ * = 0 # Enable the input buffer (active low enable)
+ *
+ *   8    GPIO TX Disable (GPIOTXDIS):
+ * = 1 # Disable the output buffer; i.e. Hi-Z
+ *
+ *   1 GPIO RX State (GPIORXSTATE): This is the current internal RX pad state..
+ *   0 GPIO TX State (GPIOTXSTATE):
+ * = 0 # (Leave at default)
+ */
+	},
+
+/* Pad Config DW1 */
+	{	/* PAD_CFG_DW1_GPP_D_0 */
+	.offset = 0x4c4,
+	.mask = 0x3c00,
+	.data = 0,	/* Termination = none (default) */
+	},
+};
+
+static void uv_init_hubless_pch_d0(void)
+{
+	int i, read;
+
+	read = *PCH_PCR_GPIO_ADDRESS(PAD_OWN_GPP_D_0);
+	if (read != 0) {
+		pr_info("UV: Hubless NMI already configured\n");
+		return;
+	}
+
+	nmi_debug("UV: Initializing UV Hubless NMI on PCH\n");
+	for (i = 0; i < ARRAY_SIZE(init_nmi); i++) {
+		uv_init_hubless_pch_io(init_nmi[i].offset,
+					init_nmi[i].mask,
+					init_nmi[i].data);
+	}
 }
 
 static int uv_nmi_test_hubless(struct uv_hub_nmi_s *hub_nmi)
@@ -929,6 +1054,8 @@ void __init uv_nmi_setup_hubless(void)
 	pch_base = xlate_dev_mem_ptr(PCH_PCR_GPIO_1_BASE);
 	nmi_debug("UV: PCH base:%p from 0x%lx, GPP_D_0\n",
 		pch_base, PCH_PCR_GPIO_1_BASE);
+	if (uv_pch_init_enable)
+		uv_init_hubless_pch_d0();
 	uv_init_hubless_pch_io(GPI_NMI_ENA_GPP_D_0,
 				STS_GPP_D_0_MASK, STS_GPP_D_0_MASK);
 	uv_nmi_setup_hubless_intr();
