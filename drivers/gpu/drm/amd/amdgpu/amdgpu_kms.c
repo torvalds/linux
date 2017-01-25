@@ -319,6 +319,12 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
 			break;
+		case AMDGPU_HW_IP_VCN_DEC:
+			type = AMD_IP_BLOCK_TYPE_VCN;
+			ring_mask = adev->vcn.ring_dec.ready ? 1 : 0;
+			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
+			ib_size_alignment = 16;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -360,6 +366,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_UVD_ENC:
 			type = AMD_IP_BLOCK_TYPE_UVD;
+			break;
+		case AMDGPU_HW_IP_VCN_DEC:
+			type = AMD_IP_BLOCK_TYPE_VCN;
 			break;
 		default:
 			return -EINVAL;
