@@ -16,15 +16,7 @@
 #include <linux/input/mt.h>
 
 #define WAC_MSG_RETRIES		5
-
-#define WAC_CMD_WL_LED_CONTROL	0x03
-#define WAC_CMD_LED_CONTROL	0x20
-#define WAC_CMD_ICON_START	0x21
-#define WAC_CMD_ICON_XFER	0x23
-#define WAC_CMD_ICON_BT_XFER	0x26
 #define WAC_CMD_RETRIES		10
-#define WAC_CMD_DELETE_PAIRING	0x20
-#define WAC_CMD_UNPAIR_ALL	0xFF
 
 #define DEV_ATTR_RW_PERM (S_IRUGO | S_IWUSR | S_IWGRP)
 #define DEV_ATTR_WO_PERM (S_IWUSR | S_IWGRP)

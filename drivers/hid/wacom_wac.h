@@ -72,6 +72,15 @@
 #define WACOM_REPORT_REMOTE		17
 #define WACOM_REPORT_INTUOSHT2_ID	8
 
+/* wacom command report ids */
+#define WAC_CMD_WL_LED_CONTROL          0x03
+#define WAC_CMD_LED_CONTROL             0x20
+#define WAC_CMD_ICON_START              0x21
+#define WAC_CMD_ICON_XFER               0x23
+#define WAC_CMD_ICON_BT_XFER            0x26
+#define WAC_CMD_DELETE_PAIRING          0x20
+#define WAC_CMD_UNPAIR_ALL              0xFF
+
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
 #define WACOM_QUIRK_SENSE		0x0002
