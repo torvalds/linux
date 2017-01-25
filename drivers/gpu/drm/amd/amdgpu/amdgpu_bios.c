@@ -358,8 +358,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 	struct acpi_table_header *hdr;
 	acpi_size tbl_size;
 	UEFI_ACPI_VFCT *vfct;
-	GOP_VBIOS_CONTENT *vbios;
-	VFCT_IMAGE_HEADER *vhdr;
+	unsigned offset;
 
 	if (!ACPI_SUCCESS(acpi_get_table("VFCT", 1, &hdr)))
 		return false;
@@ -370,42 +369,45 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 	}
 
 	vfct = (UEFI_ACPI_VFCT *)hdr;
-	if (vfct->VBIOSImageOffset + sizeof(VFCT_IMAGE_HEADER) > tbl_size) {
-		DRM_ERROR("ACPI VFCT table present but broken (too short #2)\n");
-		return false;
+	offset = vfct->VBIOSImageOffset;
+
+	while (offset < tbl_size) {
+		GOP_VBIOS_CONTENT *vbios = (GOP_VBIOS_CONTENT *)((char *)hdr + offset);
+		VFCT_IMAGE_HEADER *vhdr = &vbios->VbiosHeader;
+
+		offset += sizeof(VFCT_IMAGE_HEADER);
+		if (offset > tbl_size) {
+			DRM_ERROR("ACPI VFCT image header truncated\n");
+			return false;
+		}
+
+		offset += vhdr->ImageLength;
+		if (offset > tbl_size) {
+			DRM_ERROR("ACPI VFCT image truncated\n");
+			return false;
+		}
+
+		if (vhdr->ImageLength &&
+		    vhdr->PCIBus == adev->pdev->bus->number &&
+		    vhdr->PCIDevice == PCI_SLOT(adev->pdev->devfn) &&
+		    vhdr->PCIFunction == PCI_FUNC(adev->pdev->devfn) &&
+		    vhdr->VendorID == adev->pdev->vendor &&
+		    vhdr->DeviceID == adev->pdev->device) {
+			adev->bios = kmemdup(&vbios->VbiosContent,
+					     vhdr->ImageLength,
+					     GFP_KERNEL);
+
+			if (!check_atom_bios(adev->bios, vhdr->ImageLength)) {
+				kfree(adev->bios);
+				return false;
+			}
+			adev->bios_size = vhdr->ImageLength;
+			return true;
+		}
 	}
 
-	vbios = (GOP_VBIOS_CONTENT *)((char *)hdr + vfct->VBIOSImageOffset);
-	vhdr = &vbios->VbiosHeader;
-	DRM_INFO("ACPI VFCT contains a BIOS for %02x:%02x.%d %04x:%04x, size %d\n",
-			vhdr->PCIBus, vhdr->PCIDevice, vhdr->PCIFunction,
-			vhdr->VendorID, vhdr->DeviceID, vhdr->ImageLength);
-
-	if (vhdr->PCIBus != adev->pdev->bus->number ||
-	    vhdr->PCIDevice != PCI_SLOT(adev->pdev->devfn) ||
-	    vhdr->PCIFunction != PCI_FUNC(adev->pdev->devfn) ||
-	    vhdr->VendorID != adev->pdev->vendor ||
-	    vhdr->DeviceID != adev->pdev->device) {
-		DRM_INFO("ACPI VFCT table is not for this card\n");
-		return false;
-	}
-
-	if (vfct->VBIOSImageOffset + sizeof(VFCT_IMAGE_HEADER) + vhdr->ImageLength > tbl_size) {
-		DRM_ERROR("ACPI VFCT image truncated\n");
-		return false;
-	}
-
-	adev->bios = kmemdup(&vbios->VbiosContent,
-				vhdr->ImageLength,
-				GFP_KERNEL);
-
-	if (!check_atom_bios(adev->bios, vhdr->ImageLength)) {
-		kfree(adev->bios);
-		return false;
-	}
-	adev->bios_size = vhdr->ImageLength;
-
-	return true;
+	DRM_ERROR("ACPI VFCT table present but broken (too short #2)\n");
+	return false;
 }
 #else
 static inline bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
