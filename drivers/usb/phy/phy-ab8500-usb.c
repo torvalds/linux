@@ -1023,19 +1023,6 @@ static void ab8500_usb_vbus_turn_on_event_work(struct work_struct *work)
 	ab->enabled_charging_detection = true;
 }
 
-static unsigned ab8500_eyediagram_workaroud(struct ab8500_usb *ab, unsigned mA)
-{
-	/*
-	 * AB8500 V2 has eye diagram issues when drawing more than 100mA from
-	 * VBUS.  Set charging current to 100mA in case of standard host
-	 */
-	if (is_ab8500_2p0_or_earlier(ab->ab8500))
-		if (mA > 100)
-			mA = 100;
-
-	return mA;
-}
-
 static int ab8500_usb_set_suspend(struct usb_phy *x, int suspend)
 {
 	/* TODO */
