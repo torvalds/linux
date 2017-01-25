@@ -169,8 +169,7 @@ config CIFS_NFSD_EXPORT
 
 config CIFS_SMB2
 	bool "SMB2 and SMB3 network file system support"
-	depends on CIFS && INET
-	select NLS
+	depends on CIFS
 	select KEYS
 	select FSCACHE
 	select DNS_RESOLVER
@@ -194,7 +193,7 @@ config CIFS_SMB2
 
 config CIFS_SMB311
 	bool "SMB3.1.1 network file system support (Experimental)"
-	depends on CIFS_SMB2 && INET
+	depends on CIFS_SMB2
 
 	help
 	  This enables experimental support for the newest, SMB3.1.1, dialect.
