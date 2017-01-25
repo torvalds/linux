@@ -1631,7 +1631,7 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 	return ocr;
 }
 
-int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
+int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 {
 	int err = 0;
 	int old_signal_voltage = host->ios.signal_voltage;
@@ -1691,7 +1691,7 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 	host->ios.clock = 0;
 	mmc_set_ios(host);
 
-	if (__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180)) {
+	if (mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180)) {
 		/*
 		 * Voltages may not have been switched, but we've already
 		 * sent CMD11, so a power cycle is required anyway
@@ -1800,11 +1800,11 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	mmc_set_initial_state(host);
 
 	/* Try to set signal voltage to 3.3V but fall back to 1.8v or 1.2v */
-	if (__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330) == 0)
+	if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330))
 		dev_dbg(mmc_dev(host), "Initial signal voltage of 3.3v\n");
-	else if (__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180) == 0)
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180))
 		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.8v\n");
-	else if (__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120) == 0)
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120))
 		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.2v\n");
 
 	/*

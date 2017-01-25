@@ -1122,14 +1122,14 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 	 */
 	err = -EINVAL;
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
 	if (err && (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_8V))
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 
 	/* make sure vccq is 3.3v after switching disaster */
 	if (err)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
 
 	return err;
 }
@@ -1296,10 +1296,10 @@ static int mmc_select_hs400es(struct mmc_card *card)
 	}
 
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_2V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
 	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_8V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 
 	/* If fails try again during next card power cycle */
 	if (err)
@@ -1405,10 +1405,10 @@ static int mmc_select_hs200(struct mmc_card *card)
 
 	old_signal_voltage = host->ios.signal_voltage;
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
 	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
-		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 
 	/* If fails try again during next card power cycle */
 	if (err)
@@ -1450,7 +1450,7 @@ static int mmc_select_hs200(struct mmc_card *card)
 err:
 	if (err) {
 		/* fall back to the old signal voltage, if fails report error */
-		if (__mmc_set_signal_voltage(host, old_signal_voltage))
+		if (mmc_set_signal_voltage(host, old_signal_voltage))
 			err = -EIO;
 
 		pr_err("%s: %s failed, error %d\n", mmc_hostname(card->host),
