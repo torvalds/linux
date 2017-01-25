@@ -799,7 +799,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 
 static void gfs2_merge_trans(struct gfs2_trans *old, struct gfs2_trans *new)
 {
-	WARN_ON_ONCE(old->tr_attached != 1);
+	WARN_ON_ONCE(!test_bit(TR_ATTACHED, &old->tr_flags));
 
 	old->tr_num_buf_new	+= new->tr_num_buf_new;
 	old->tr_num_databuf_new	+= new->tr_num_databuf_new;
@@ -823,9 +823,9 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	if (sdp->sd_log_tr) {
 		gfs2_merge_trans(sdp->sd_log_tr, tr);
 	} else if (tr->tr_num_buf_new || tr->tr_num_databuf_new) {
-		gfs2_assert_withdraw(sdp, tr->tr_alloced);
+		gfs2_assert_withdraw(sdp, test_bit(TR_ALLOCED, &tr->tr_flags));
 		sdp->sd_log_tr = tr;
-		tr->tr_attached = 1;
+		set_bit(TR_ATTACHED, &tr->tr_flags);
 	}
 
 	sdp->sd_log_commited_revoke += tr->tr_num_revoke - tr->tr_num_revoke_rm;

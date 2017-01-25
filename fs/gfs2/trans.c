@@ -48,7 +48,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
-	tr->tr_alloced = 1;
+	set_bit(TR_ALLOCED, &tr->tr_flags);
 	if (blocks)
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
@@ -78,7 +78,8 @@ static void gfs2_print_trans(const struct gfs2_trans *tr)
 {
 	pr_warn("Transaction created at: %pSR\n", (void *)tr->tr_ip);
 	pr_warn("blocks=%u revokes=%u reserved=%u touched=%u\n",
-		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
+		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
+		test_bit(TR_TOUCHED, &tr->tr_flags));
 	pr_warn("Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
 		tr->tr_num_buf_new, tr->tr_num_buf_rm,
 		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
@@ -89,12 +90,12 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr = current->journal_info;
 	s64 nbuf;
-	int alloced = tr->tr_alloced;
+	int alloced = test_bit(TR_ALLOCED, &tr->tr_flags);
 
 	BUG_ON(!tr);
 	current->journal_info = NULL;
 
-	if (!tr->tr_touched) {
+	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
 		gfs2_log_release(sdp, tr->tr_reserved);
 		if (alloced) {
 			kfree(tr);
@@ -112,8 +113,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_print_trans(tr);
 
 	gfs2_log_commit(sdp, tr);
-	if (alloced && !tr->tr_attached)
-			kfree(tr);
+	if (alloced && !test_bit(TR_ATTACHED, &tr->tr_flags))
+		kfree(tr);
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
@@ -182,7 +183,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_lock(sdp);
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
-	tr->tr_touched = 1;
+	set_bit(TR_TOUCHED, &tr->tr_flags);
 	if (list_empty(&bd->bd_list)) {
 		set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 		set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
@@ -201,7 +202,7 @@ static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	tr = current->journal_info;
-	tr->tr_touched = 1;
+	set_bit(TR_TOUCHED, &tr->tr_flags);
 	if (!list_empty(&bd->bd_list))
 		return;
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
@@ -256,7 +257,7 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 
 	BUG_ON(!list_empty(&bd->bd_list));
 	gfs2_add_revoke(sdp, bd);
-	tr->tr_touched = 1;
+	set_bit(TR_TOUCHED, &tr->tr_flags);
 	tr->tr_num_revoke++;
 }
 
