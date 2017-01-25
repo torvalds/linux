@@ -232,6 +232,7 @@ enum obj_req_flags {
 
 struct rbd_obj_request {
 	const char		*object_name;
+	u64			object_no;
 	u64			offset;		/* object start byte */
 	u64			length;		/* bytes from offset */
 	unsigned long		flags;
@@ -1629,8 +1630,8 @@ static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
-	dout("%s %p \"%s\" %llu~%llu osd_req %p\n", __func__,
-	     obj_request, obj_request->object_name, obj_request->offset,
+	dout("%s %p object_no %016llx %llu~%llu osd_req %p\n", __func__,
+	     obj_request, obj_request->object_no, obj_request->offset,
 	     obj_request->length, osd_req);
 	if (obj_request_img_data_test(obj_request)) {
 		WARN_ON(obj_request->callback != rbd_img_obj_callback);
@@ -1925,8 +1926,8 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req)
 		rbd_osd_call_callback(obj_request);
 		break;
 	default:
-		rbd_warn(NULL, "%s: unsupported op %hu",
-			obj_request->object_name, (unsigned short) opcode);
+		rbd_warn(NULL, "unexpected OSD op: object_no %016llx opcode %d",
+			 obj_request->object_no, opcode);
 		break;
 	}
 
@@ -1958,6 +1959,8 @@ __rbd_osd_req_create(struct rbd_device *rbd_dev,
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct ceph_osd_request *req;
+	const char *name_format = rbd_dev->image_format == 1 ?
+				      RBD_V1_DATA_FORMAT : RBD_V2_DATA_FORMAT;
 
 	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false, GFP_NOIO);
 	if (!req)
@@ -1968,8 +1971,8 @@ __rbd_osd_req_create(struct rbd_device *rbd_dev,
 	req->r_priv = obj_request;
 
 	req->r_base_oloc.pool = rbd_dev->layout.pool_id;
-	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, "%s",
-			     obj_request->object_name))
+	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, name_format,
+			rbd_dev->header.object_prefix, obj_request->object_no))
 		goto err_req;
 
 	if (ceph_osdc_alloc_messages(req, GFP_NOIO))
@@ -2488,6 +2491,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	while (resid) {
 		struct ceph_osd_request *osd_req;
 		const char *object_name;
+		u64 object_no = img_offset >> rbd_dev->header.obj_order;
 		u64 offset = rbd_segment_offset(rbd_dev, img_offset);
 		u64 length = rbd_segment_length(rbd_dev, img_offset, resid);
 
@@ -2500,6 +2504,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		if (!obj_request)
 			goto out_unwind;
 
+		obj_request->object_no = object_no;
 		obj_request->offset = offset;
 		obj_request->length = length;
 
@@ -2845,6 +2850,8 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 					      OBJ_REQUEST_PAGES);
 	if (!stat_request)
 		return -ENOMEM;
+
+	stat_request->object_no = obj_request->object_no;
 
 	stat_request->osd_req = rbd_osd_req_create(rbd_dev, OBJ_OP_READ, 1,
 						   stat_request);
