@@ -6080,21 +6080,30 @@ bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
-/* Only called from bnxt_sp_task() */
-static void bnxt_reset(struct bnxt *bp, bool silent)
+static void bnxt_rtnl_lock_sp(struct bnxt *bp)
 {
-	/* bnxt_reset_task() calls bnxt_close_nic() which waits
-	 * for BNXT_STATE_IN_SP_TASK to clear.
-	 * If there is a parallel dev_close(), bnxt_close() may be holding
+	/* We are called from bnxt_sp_task which has BNXT_STATE_IN_SP_TASK
+	 * set.  If the device is being closed, bnxt_close() may be holding
 	 * rtnl() and waiting for BNXT_STATE_IN_SP_TASK to clear.  So we
 	 * must clear BNXT_STATE_IN_SP_TASK before holding rtnl().
 	 */
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 	rtnl_lock();
-	if (test_bit(BNXT_STATE_OPEN, &bp->state))
-		bnxt_reset_task(bp, silent);
+}
+
+static void bnxt_rtnl_unlock_sp(struct bnxt *bp)
+{
 	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 	rtnl_unlock();
+}
+
+/* Only called from bnxt_sp_task() */
+static void bnxt_reset(struct bnxt *bp, bool silent)
+{
+	bnxt_rtnl_lock_sp(bp);
+	if (test_bit(BNXT_STATE_OPEN, &bp->state))
+		bnxt_reset_task(bp, silent);
+	bnxt_rtnl_unlock_sp(bp);
 }
 
 static void bnxt_cfg_ntp_filters(struct bnxt *);
@@ -6142,17 +6151,20 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
 	}
-	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
-		bnxt_reset(bp, false);
-
-	if (test_and_clear_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event))
-		bnxt_reset(bp, true);
-
 	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event))
 		bnxt_get_port_module_status(bp);
 
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_port_qstats(bp);
+
+	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
+	 * must be the last functions to be called before exiting.
+	 */
+	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
+		bnxt_reset(bp, false);
+
+	if (test_and_clear_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event))
+		bnxt_reset(bp, true);
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
