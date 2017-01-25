@@ -243,7 +243,6 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
-	bool input_event_flag;
 };
 
 struct wacom_shared {

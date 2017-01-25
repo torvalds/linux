@@ -1773,7 +1773,6 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pad_input;
-	struct wacom_features *features = &wacom_wac->features;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
 	if (wacom_equivalent_usage(field->physical) == HID_DG_TABLETFUNCTIONKEY) {
@@ -1785,7 +1784,6 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		break;
 
 	default:
-		features->input_event_flag = true;
 		input_event(input, usage->type, usage->code, value);
 		break;
 	}
@@ -1823,20 +1821,15 @@ static void wacom_wac_pad_report(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct wacom_features *features = &wacom_wac->features;
 	struct input_dev *input = wacom_wac->pad_input;
 	bool active = wacom_wac->hid_data.inrange_state != 0;
 
 	/* report prox for expresskey events */
 	if (wacom_equivalent_usage(report->field[0]->physical) == HID_DG_TABLETFUNCTIONKEY) {
-		features->input_event_flag = true;
 		input_event(input, EV_ABS, ABS_MISC, active ? PAD_DEVICE_ID : 0);
-	}
-
-	if (features->input_event_flag) {
-		features->input_event_flag = false;
 		input_sync(input);
 	}
+
 }
 
 static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
