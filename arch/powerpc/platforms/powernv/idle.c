@@ -298,7 +298,7 @@ u64 pnv_deepest_stop_state;
  * @dt_idle_states: Number of idle state entries
  * Returns 0 on success
  */
-static int __init pnv_arch300_idle_init(struct device_node *np, u32 *flags,
+static int __init pnv_power9_idle_init(struct device_node *np, u32 *flags,
 					int dt_idle_states)
 {
 	u64 *psscr_val = NULL;
@@ -373,7 +373,7 @@ static void __init pnv_probe_idle_states(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		if (pnv_arch300_idle_init(np, flags, dt_idle_states))
+		if (pnv_power9_idle_init(np, flags, dt_idle_states))
 			goto out;
 	}
 
