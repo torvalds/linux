@@ -178,14 +178,6 @@ struct dsa_switch {
 	 */
 	s8		rtable[DSA_MAX_SWITCHES];
 
-#ifdef CONFIG_NET_DSA_HWMON
-	/*
-	 * Hardware monitoring information
-	 */
-	char			hwmon_name[IFNAMSIZ + 8];
-	struct device		*hwmon_dev;
-#endif
-
 	/*
 	 * The lower device this switch uses to talk to the host
 	 */
