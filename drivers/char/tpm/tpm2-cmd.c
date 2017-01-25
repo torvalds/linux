@@ -529,7 +529,7 @@ out:
 	tpm_buf_destroy(&buf);
 
 	if (rc > 0) {
-		if ((rc & TPM2_RC_HASH) == TPM2_RC_HASH)
+		if (tpm2_rc_value(rc) == TPM2_RC_HASH)
 			rc = -EINVAL;
 		else
 			rc = -EPERM;
