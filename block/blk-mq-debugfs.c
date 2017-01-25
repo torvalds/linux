@@ -29,6 +29,20 @@ struct blk_mq_debugfs_attr {
 
 static struct dentry *block_debugfs_root;
 
+static int blk_mq_debugfs_seq_open(struct inode *inode, struct file *file,
+				   const struct seq_operations *ops)
+{
+	struct seq_file *m;
+	int ret;
+
+	ret = seq_open(file, ops);
+	if (!ret) {
+		m = file->private_data;
+		m->private = inode->i_private;
+	}
+	return ret;
+}
+
 static int hctx_state_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
@@ -69,12 +83,104 @@ static const struct file_operations hctx_flags_fops = {
 	.release	= single_release,
 };
 
+static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
+{
+	struct request *rq = list_entry_rq(v);
+
+	seq_printf(m, "%p\n", rq);
+	return 0;
+}
+
+static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	spin_lock(&hctx->lock);
+	return seq_list_start(&hctx->dispatch, *pos);
+}
+
+static void *hctx_dispatch_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	return seq_list_next(v, &hctx->dispatch, pos);
+}
+
+static void hctx_dispatch_stop(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	spin_unlock(&hctx->lock);
+}
+
+static const struct seq_operations hctx_dispatch_seq_ops = {
+	.start	= hctx_dispatch_start,
+	.next	= hctx_dispatch_next,
+	.stop	= hctx_dispatch_stop,
+	.show	= blk_mq_debugfs_rq_show,
+};
+
+static int hctx_dispatch_open(struct inode *inode, struct file *file)
+{
+	return blk_mq_debugfs_seq_open(inode, file, &hctx_dispatch_seq_ops);
+}
+
+static const struct file_operations hctx_dispatch_fops = {
+	.open		= hctx_dispatch_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	spin_lock(&ctx->lock);
+	return seq_list_start(&ctx->rq_list, *pos);
+}
+
+static void *ctx_rq_list_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	return seq_list_next(v, &ctx->rq_list, pos);
+}
+
+static void ctx_rq_list_stop(struct seq_file *m, void *v)
+{
+	struct blk_mq_ctx *ctx = m->private;
+
+	spin_unlock(&ctx->lock);
+}
+
+static const struct seq_operations ctx_rq_list_seq_ops = {
+	.start	= ctx_rq_list_start,
+	.next	= ctx_rq_list_next,
+	.stop	= ctx_rq_list_stop,
+	.show	= blk_mq_debugfs_rq_show,
+};
+
+static int ctx_rq_list_open(struct inode *inode, struct file *file)
+{
+	return blk_mq_debugfs_seq_open(inode, file, &ctx_rq_list_seq_ops);
+}
+
+static const struct file_operations ctx_rq_list_fops = {
+	.open		= ctx_rq_list_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"state", 0400, &hctx_state_fops},
 	{"flags", 0400, &hctx_flags_fops},
+	{"dispatch", 0400, &hctx_dispatch_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
+	{"rq_list", 0400, &ctx_rq_list_fops},
 };
 
 int blk_mq_debugfs_register(struct request_queue *q, const char *name)

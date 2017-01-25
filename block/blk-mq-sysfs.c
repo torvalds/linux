@@ -139,41 +139,6 @@ static ssize_t blk_mq_sysfs_completed_show(struct blk_mq_ctx *ctx, char *page)
 				ctx->rq_completed[0]);
 }
 
-static ssize_t sysfs_list_show(char *page, struct list_head *list, char *msg)
-{
-	struct request *rq;
-	int len = snprintf(page, PAGE_SIZE - 1, "%s:\n", msg);
-
-	list_for_each_entry(rq, list, queuelist) {
-		const int rq_len = 2 * sizeof(rq) + 2;
-
-		/* if the output will be truncated */
-		if (PAGE_SIZE - 1 < len + rq_len) {
-			/* backspacing if it can't hold '\t...\n' */
-			if (PAGE_SIZE - 1 < len + 5)
-				len -= rq_len;
-			len += snprintf(page + len, PAGE_SIZE - 1 - len,
-					"\t...\n");
-			break;
-		}
-		len += snprintf(page + len, PAGE_SIZE - 1 - len,
-				"\t%p\n", rq);
-	}
-
-	return len;
-}
-
-static ssize_t blk_mq_sysfs_rq_list_show(struct blk_mq_ctx *ctx, char *page)
-{
-	ssize_t ret;
-
-	spin_lock(&ctx->lock);
-	ret = sysfs_list_show(page, &ctx->rq_list, "CTX pending");
-	spin_unlock(&ctx->lock);
-
-	return ret;
-}
-
 static ssize_t blk_mq_hw_sysfs_poll_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
 	return sprintf(page, "considered=%lu, invoked=%lu, success=%lu\n",
@@ -217,18 +182,6 @@ static ssize_t blk_mq_hw_sysfs_dispatched_show(struct blk_mq_hw_ctx *hctx,
 	page += sprintf(page, "%8u+\t%lu\n", 1U << (i - 1),
 						hctx->dispatched[i]);
 	return page - start_page;
-}
-
-static ssize_t blk_mq_hw_sysfs_rq_list_show(struct blk_mq_hw_ctx *hctx,
-					    char *page)
-{
-	ssize_t ret;
-
-	spin_lock(&hctx->lock);
-	ret = sysfs_list_show(page, &hctx->dispatch, "HCTX pending");
-	spin_unlock(&hctx->lock);
-
-	return ret;
 }
 
 static ssize_t blk_mq_hw_sysfs_sched_tags_show(struct blk_mq_hw_ctx *hctx, char *page)
@@ -320,16 +273,11 @@ static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_completed = {
 	.attr = {.name = "completed", .mode = S_IRUGO },
 	.show = blk_mq_sysfs_completed_show,
 };
-static struct blk_mq_ctx_sysfs_entry blk_mq_sysfs_rq_list = {
-	.attr = {.name = "rq_list", .mode = S_IRUGO },
-	.show = blk_mq_sysfs_rq_list_show,
-};
 
 static struct attribute *default_ctx_attrs[] = {
 	&blk_mq_sysfs_dispatched.attr,
 	&blk_mq_sysfs_merged.attr,
 	&blk_mq_sysfs_completed.attr,
-	&blk_mq_sysfs_rq_list.attr,
 	NULL,
 };
 
@@ -348,10 +296,6 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_dispatched = {
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_active = {
 	.attr = {.name = "active", .mode = S_IRUGO },
 	.show = blk_mq_hw_sysfs_active_show,
-};
-static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_pending = {
-	.attr = {.name = "pending", .mode = S_IRUGO },
-	.show = blk_mq_hw_sysfs_rq_list_show,
 };
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_sched_tags = {
 	.attr = {.name = "sched_tags", .mode = S_IRUGO },
@@ -380,7 +324,6 @@ static struct attribute *default_hw_ctx_attrs[] = {
 	&blk_mq_hw_sysfs_queued.attr,
 	&blk_mq_hw_sysfs_run.attr,
 	&blk_mq_hw_sysfs_dispatched.attr,
-	&blk_mq_hw_sysfs_pending.attr,
 	&blk_mq_hw_sysfs_tags.attr,
 	&blk_mq_hw_sysfs_sched_tags.attr,
 	&blk_mq_hw_sysfs_cpus.attr,
