@@ -4023,7 +4023,7 @@ EXPORT_SYMBOL(ceph_osdc_maybe_request_map);
  * Execute an OSD class method on an object.
  *
  * @flags: CEPH_OSD_FLAG_*
- * @resp_len: out param for reply length
+ * @resp_len: in/out param for reply length
  */
 int ceph_osdc_call(struct ceph_osd_client *osdc,
 		   struct ceph_object_id *oid,
@@ -4035,6 +4035,9 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 {
 	struct ceph_osd_request *req;
 	int ret;
+
+	if (req_len > PAGE_SIZE || (resp_page && *resp_len > PAGE_SIZE))
+		return -E2BIG;
 
 	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_NOIO);
 	if (!req)
@@ -4054,7 +4057,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 						  0, false, false);
 	if (resp_page)
 		osd_req_op_cls_response_data_pages(req, 0, &resp_page,
-						   PAGE_SIZE, 0, false, false);
+						   *resp_len, 0, false, false);
 
 	ceph_osdc_start_request(osdc, req, false);
 	ret = ceph_osdc_wait_request(osdc, req);

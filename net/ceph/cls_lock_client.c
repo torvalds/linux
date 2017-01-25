@@ -278,7 +278,7 @@ int ceph_cls_lock_info(struct ceph_osd_client *osdc,
 	int get_info_op_buf_size;
 	int name_len = strlen(lock_name);
 	struct page *get_info_op_page, *reply_page;
-	size_t reply_len;
+	size_t reply_len = PAGE_SIZE;
 	void *p, *end;
 	int ret;
 
