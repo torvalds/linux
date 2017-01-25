@@ -29,7 +29,49 @@ struct blk_mq_debugfs_attr {
 
 static struct dentry *block_debugfs_root;
 
+static int hctx_state_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "0x%lx\n", hctx->state);
+	return 0;
+}
+
+static int hctx_state_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_state_show, inode->i_private);
+}
+
+static const struct file_operations hctx_state_fops = {
+	.open		= hctx_state_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int hctx_flags_show(struct seq_file *m, void *v)
+{
+	struct blk_mq_hw_ctx *hctx = m->private;
+
+	seq_printf(m, "0x%lx\n", hctx->flags);
+	return 0;
+}
+
+static int hctx_flags_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hctx_flags_show, inode->i_private);
+}
+
+static const struct file_operations hctx_flags_fops = {
+	.open		= hctx_flags_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
+	{"state", 0400, &hctx_state_fops},
+	{"flags", 0400, &hctx_flags_fops},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
