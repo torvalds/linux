@@ -571,6 +571,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		ieee80211_cqm_rssi_notify(
 			vif,
 			NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+			sig,
 			GFP_KERNEL);
 	} else if (sig > thold &&
 		   (last_event == 0 || sig > last_event + hyst)) {
@@ -580,6 +581,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		ieee80211_cqm_rssi_notify(
 			vif,
 			NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+			sig,
 			GFP_KERNEL);
 	}
 }

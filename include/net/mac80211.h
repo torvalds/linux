@@ -5278,6 +5278,7 @@ void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @rssi_event: the RSSI trigger event type
+ * @rssi_level: new RSSI level value or 0 if not available
  * @gfp: context flags
  *
  * When the %IEEE80211_VIF_SUPPORTS_CQM_RSSI is set, and a connection quality
@@ -5286,6 +5287,7 @@ void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
  */
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       s32 rssi_level,
 			       gfp_t gfp);
 
 /**
