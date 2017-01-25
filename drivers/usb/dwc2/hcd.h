@@ -521,7 +521,7 @@ static inline u8 dwc2_hcd_is_pipe_out(struct dwc2_hcd_pipe_info *pipe)
 	return !dwc2_hcd_is_pipe_in(pipe);
 }
 
-int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq);
+int dwc2_hcd_init(struct dwc2_hsotg *hsotg);
 void dwc2_hcd_remove(struct dwc2_hsotg *hsotg);
 
 /* Transaction Execution Functions */

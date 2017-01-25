@@ -5032,7 +5032,7 @@ static void dwc2_hcd_release(struct dwc2_hsotg *hsotg)
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
+int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 	struct resource *res;
@@ -5240,7 +5240,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
+	retval = usb_add_hcd(hcd, hsotg->irq, IRQF_SHARED);
 	if (retval < 0)
 		goto error4;
 
