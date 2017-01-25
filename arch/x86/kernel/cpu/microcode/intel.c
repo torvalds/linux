@@ -150,7 +150,7 @@ static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
 {
 	struct ucode_patch *p;
 
-	p = kzalloc(size, GFP_KERNEL);
+	p = kzalloc(sizeof(struct ucode_patch), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -368,26 +368,6 @@ next:
 	return patch;
 }
 
-static void cpuid_1(void)
-{
-	/*
-	 * According to the Intel SDM, Volume 3, 9.11.7:
-	 *
-	 *   CPUID returns a value in a model specific register in
-	 *   addition to its usual register return values. The
-	 *   semantics of CPUID cause it to deposit an update ID value
-	 *   in the 64-bit model-specific register at address 08BH
-	 *   (IA32_BIOS_SIGN_ID). If no update is present in the
-	 *   processor, the value in the MSR remains unmodified.
-	 *
-	 * Use native_cpuid -- this code runs very early and we don't
-	 * want to mess with paravirt.
-	 */
-	unsigned int eax = 1, ebx, ecx = 0, edx;
-
-	native_cpuid(&eax, &ebx, &ecx, &edx);
-}
-
 static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 {
 	unsigned int val[2];
@@ -410,15 +390,8 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 		native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
 		csig.pf = 1 << ((val[1] >> 18) & 7);
 	}
-	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
-	/* As documented in the SDM: Do a CPUID 1 here */
-	cpuid_1();
-
-	/* get the current revision from MSR 0x8B */
-	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-
-	csig.rev = val[1];
+	csig.rev = intel_get_microcode_revision();
 
 	uci->cpu_sig = csig;
 	uci->valid = 1;
@@ -602,7 +575,7 @@ static inline void print_ucode(struct ucode_cpu_info *uci)
 static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 {
 	struct microcode_intel *mc;
-	unsigned int val[2];
+	u32 rev;
 
 	mc = uci->mc;
 	if (!mc)
@@ -610,21 +583,16 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 
 	/* write microcode via MSR 0x79 */
 	native_wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
-	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
-	/* As documented in the SDM: Do a CPUID 1 here */
-	cpuid_1();
-
-	/* get the current revision from MSR 0x8B */
-	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-	if (val[1] != mc->hdr.rev)
+	rev = intel_get_microcode_revision();
+	if (rev != mc->hdr.rev)
 		return -1;
 
 #ifdef CONFIG_X86_64
 	/* Flush global tlb. This is precaution. */
 	flush_tlb_early();
 #endif
-	uci->cpu_sig.rev = val[1];
+	uci->cpu_sig.rev = rev;
 
 	if (early)
 		print_ucode(uci);
@@ -804,8 +772,8 @@ static int apply_microcode_intel(int cpu)
 	struct microcode_intel *mc;
 	struct ucode_cpu_info *uci;
 	struct cpuinfo_x86 *c;
-	unsigned int val[2];
 	static int prev_rev;
+	u32 rev;
 
 	/* We should bind the task to the CPU */
 	if (WARN_ON(raw_smp_processor_id() != cpu))
@@ -822,33 +790,28 @@ static int apply_microcode_intel(int cpu)
 
 	/* write microcode via MSR 0x79 */
 	wrmsrl(MSR_IA32_UCODE_WRITE, (unsigned long)mc->bits);
-	wrmsrl(MSR_IA32_UCODE_REV, 0);
 
-	/* As documented in the SDM: Do a CPUID 1 here */
-	cpuid_1();
+	rev = intel_get_microcode_revision();
 
-	/* get the current revision from MSR 0x8B */
-	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-
-	if (val[1] != mc->hdr.rev) {
+	if (rev != mc->hdr.rev) {
 		pr_err("CPU%d update to revision 0x%x failed\n",
 		       cpu, mc->hdr.rev);
 		return -1;
 	}
 
-	if (val[1] != prev_rev) {
+	if (rev != prev_rev) {
 		pr_info("updated to revision 0x%x, date = %04x-%02x-%02x\n",
-			val[1],
+			rev,
 			mc->hdr.date & 0xffff,
 			mc->hdr.date >> 24,
 			(mc->hdr.date >> 16) & 0xff);
-		prev_rev = val[1];
+		prev_rev = rev;
 	}
 
 	c = &cpu_data(cpu);
 
-	uci->cpu_sig.rev = val[1];
-	c->microcode = val[1];
+	uci->cpu_sig.rev = rev;
+	c->microcode = rev;
 
 	return 0;
 }
@@ -860,7 +823,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	u8 *ucode_ptr = data, *new_mc = NULL, *mc = NULL;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover = size;
-	unsigned int curr_mc_size = 0;
+	unsigned int curr_mc_size = 0, new_mc_size = 0;
 	unsigned int csig, cpf;
 
 	while (leftover) {
@@ -901,6 +864,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 			vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;
+			new_mc_size = mc_size;
 			mc = NULL;	/* trigger new vmalloc */
 		}
 
@@ -926,7 +890,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	 * permanent memory. So it will be loaded early when a CPU is hot added
 	 * or resumes.
 	 */
-	save_mc_for_early(new_mc, curr_mc_size);
+	save_mc_for_early(new_mc, new_mc_size);
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
 		 cpu, new_rev, uci->cpu_sig.rev);

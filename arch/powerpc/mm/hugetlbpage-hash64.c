@@ -125,11 +125,14 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 int hugepd_ok(hugepd_t hpd)
 {
 	bool is_hugepd;
+	unsigned long hpdval;
+
+	hpdval = hpd_val(hpd);
 
 	/*
 	 * We should not find this format in page directory, warn otherwise.
 	 */
-	is_hugepd = (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
+	is_hugepd = (((hpdval & 0x3) == 0x0) && ((hpdval & HUGEPD_SHIFT_MASK) != 0));
 	WARN(is_hugepd, "Found wrong page directory format\n");
 	return 0;
 }

@@ -36,7 +36,6 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
-#include <linux/pid_namespace.h>
 #include <linux/mdev.h>
 #include <linux/notifier.h>
 
@@ -495,8 +494,7 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 				  unsigned long *pfn_base, bool do_accounting)
 {
 	unsigned long limit;
-	bool lock_cap = ns_capable(task_active_pid_ns(dma->task)->user_ns,
-				   CAP_IPC_LOCK);
+	bool lock_cap = has_capability(dma->task, CAP_IPC_LOCK);
 	struct mm_struct *mm;
 	int ret;
 	bool rsvd;

@@ -906,6 +906,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 			struct buffer_head *map_bh)
 {
 	const unsigned blkbits = sdio->blkbits;
+	const unsigned i_blkbits = blkbits + sdio->blkfactor;
 	int ret = 0;
 
 	while (sdio->block_in_file < sdio->final_block_in_request) {
@@ -949,7 +950,7 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 					clean_bdev_aliases(
 						map_bh->b_bdev,
 						map_bh->b_blocknr,
-						map_bh->b_size >> blkbits);
+						map_bh->b_size >> i_blkbits);
 				}
 
 				if (!sdio->blkfactor)

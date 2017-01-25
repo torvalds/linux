@@ -167,7 +167,7 @@ static void meson_venc_cvbs_encoder_disable(struct drm_encoder *encoder)
 
 	/* Disable CVBS VDAC */
 	regmap_write(priv->hhi, HHI_VDAC_CNTL0, 0);
-	regmap_write(priv->hhi, HHI_VDAC_CNTL1, 0);
+	regmap_write(priv->hhi, HHI_VDAC_CNTL1, 8);
 }
 
 static void meson_venc_cvbs_encoder_enable(struct drm_encoder *encoder)
