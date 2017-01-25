@@ -1952,6 +1952,38 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 	osd_req->r_data_offset = obj_request->offset;
 }
 
+static struct ceph_osd_request *
+__rbd_osd_req_create(struct rbd_device *rbd_dev,
+		     struct ceph_snap_context *snapc,
+		     int num_ops, unsigned int flags,
+		     struct rbd_obj_request *obj_request)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct ceph_osd_request *req;
+
+	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false, GFP_NOIO);
+	if (!req)
+		return NULL;
+
+	req->r_flags = flags;
+	req->r_callback = rbd_osd_req_callback;
+	req->r_priv = obj_request;
+
+	req->r_base_oloc.pool = rbd_dev->layout.pool_id;
+	if (ceph_oid_aprintf(&req->r_base_oid, GFP_NOIO, "%s",
+			     obj_request->object_name))
+		goto err_req;
+
+	if (ceph_osdc_alloc_messages(req, GFP_NOIO))
+		goto err_req;
+
+	return req;
+
+err_req:
+	ceph_osdc_put_request(req);
+	return NULL;
+}
+
 /*
  * Create an osd request.  A read request has one osd op (read).
  * A write request has either one (watch) or two (hint+write) osd ops.
@@ -1965,8 +1997,6 @@ static struct ceph_osd_request *rbd_osd_req_create(
 					struct rbd_obj_request *obj_request)
 {
 	struct ceph_snap_context *snapc = NULL;
-	struct ceph_osd_client *osdc;
-	struct ceph_osd_request *osd_req;
 
 	if (obj_request_img_data_test(obj_request) &&
 		(op_type == OBJ_OP_DISCARD || op_type == OBJ_OP_WRITE)) {
@@ -1981,35 +2011,10 @@ static struct ceph_osd_request *rbd_osd_req_create(
 
 	rbd_assert(num_ops == 1 || ((op_type == OBJ_OP_WRITE) && num_ops == 2));
 
-	/* Allocate and initialize the request, for the num_ops ops */
-
-	osdc = &rbd_dev->rbd_client->client->osdc;
-	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false,
-					  GFP_NOIO);
-	if (!osd_req)
-		goto fail;
-
-	if (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD)
-		osd_req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
-	else
-		osd_req->r_flags = CEPH_OSD_FLAG_READ;
-
-	osd_req->r_callback = rbd_osd_req_callback;
-	osd_req->r_priv = obj_request;
-
-	osd_req->r_base_oloc.pool = rbd_dev->layout.pool_id;
-	if (ceph_oid_aprintf(&osd_req->r_base_oid, GFP_NOIO, "%s",
-			     obj_request->object_name))
-		goto fail;
-
-	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
-		goto fail;
-
-	return osd_req;
-
-fail:
-	ceph_osdc_put_request(osd_req);
-	return NULL;
+	return __rbd_osd_req_create(rbd_dev, snapc, num_ops,
+	    (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD) ?
+	    CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK : CEPH_OSD_FLAG_READ,
+	    obj_request);
 }
 
 /*
@@ -2022,10 +2027,6 @@ static struct ceph_osd_request *
 rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
-	struct ceph_snap_context *snapc;
-	struct rbd_device *rbd_dev;
-	struct ceph_osd_client *osdc;
-	struct ceph_osd_request *osd_req;
 	int num_osd_ops = 3;
 
 	rbd_assert(obj_request_img_data_test(obj_request));
@@ -2037,35 +2038,11 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	if (img_request_discard_test(img_request))
 		num_osd_ops = 2;
 
-	/* Allocate and initialize the request, for all the ops */
-
-	snapc = img_request->snapc;
-	rbd_dev = img_request->rbd_dev;
-	osdc = &rbd_dev->rbd_client->client->osdc;
-	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_osd_ops,
-						false, GFP_NOIO);
-	if (!osd_req)
-		goto fail;
-
-	osd_req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
-	osd_req->r_callback = rbd_osd_req_callback;
-	osd_req->r_priv = obj_request;
-
-	osd_req->r_base_oloc.pool = rbd_dev->layout.pool_id;
-	if (ceph_oid_aprintf(&osd_req->r_base_oid, GFP_NOIO, "%s",
-			     obj_request->object_name))
-		goto fail;
-
-	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
-		goto fail;
-
-	return osd_req;
-
-fail:
-	ceph_osdc_put_request(osd_req);
-	return NULL;
+	return __rbd_osd_req_create(img_request->rbd_dev,
+				    img_request->snapc, num_osd_ops,
+				    CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
+				    obj_request);
 }
-
 
 static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
 {
