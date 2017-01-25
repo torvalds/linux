@@ -5799,7 +5799,7 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
 		/* One for parent inode, two for dir entries */
 		num_bytes = 3 * fs_info->nodesize;
-		ret = btrfs_qgroup_reserve_meta(root, num_bytes);
+		ret = btrfs_qgroup_reserve_meta(root, num_bytes, true);
 		if (ret)
 			return ret;
 	} else {
@@ -5975,7 +5975,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
 		ret = btrfs_qgroup_reserve_meta(root,
-				nr_extents * fs_info->nodesize);
+				nr_extents * fs_info->nodesize, true);
 		if (ret)
 			goto out_fail;
 	}
