@@ -9,5 +9,8 @@
 #define NS_GET_USERNS	_IO(NSIO, 0x1)
 /* Returns a file descriptor that refers to a parent namespace */
 #define NS_GET_PARENT	_IO(NSIO, 0x2)
+/* Returns the type of namespace (CLONE_NEW* value) referred to by
+   file descriptor */
+#define NS_GET_NSTYPE	_IO(NSIO, 0x3)
 
 #endif /* __LINUX_NSFS_H */
