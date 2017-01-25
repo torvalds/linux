@@ -195,40 +195,14 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 	unlock_buffer(bh);
 }
 
-static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_meta_header *mh;
-	struct gfs2_trans *tr;
-	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
-
-	tr = current->journal_info;
-	set_bit(TR_TOUCHED, &tr->tr_flags);
-	if (!list_empty(&bd->bd_list))
-		return;
-	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
-	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
-	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
-	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
-		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
-		       (unsigned long long)bd->bd_bh->b_blocknr);
-		BUG();
-	}
-	if (unlikely(state == SFS_FROZEN)) {
-		printk(KERN_INFO "GFS2:adding buf while frozen\n");
-		gfs2_assert_withdraw(sdp, 0);
-	}
-	gfs2_pin(sdp, bd->bd_bh);
-	mh->__pad0 = cpu_to_be64(0);
-	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
-	list_add(&bd->bd_list, &tr->tr_buf);
-	tr->tr_num_buf_new++;
-}
-
 void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_bufdata *bd;
+	struct gfs2_meta_header *mh;
+	struct gfs2_trans *tr;
+	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	lock_buffer(bh);
 	gfs2_log_lock(sdp);
@@ -246,7 +220,28 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_lock(sdp);
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
-	meta_lo_add(sdp, bd);
+	tr = current->journal_info;
+	set_bit(TR_TOUCHED, &tr->tr_flags);
+	if (!list_empty(&bd->bd_list))
+		goto out_unlock;
+	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
+	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
+	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
+		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
+		       (unsigned long long)bd->bd_bh->b_blocknr);
+		BUG();
+	}
+	if (unlikely(state == SFS_FROZEN)) {
+		printk(KERN_INFO "GFS2:adding buf while frozen\n");
+		gfs2_assert_withdraw(sdp, 0);
+	}
+	gfs2_pin(sdp, bd->bd_bh);
+	mh->__pad0 = cpu_to_be64(0);
+	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
+	list_add(&bd->bd_list, &tr->tr_buf);
+	tr->tr_num_buf_new++;
+out_unlock:
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 }
