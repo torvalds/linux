@@ -660,8 +660,11 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	else
 		expected_size = sizeof(struct iwl_notif_statistics_v10);
 
-	if (iwl_rx_packet_payload_len(pkt) != expected_size)
-		goto invalid;
+	if (iwl_rx_packet_payload_len(pkt) != expected_size) {
+		IWL_ERR(mvm, "received invalid statistics size (%d)!\n",
+			iwl_rx_packet_payload_len(pkt));
+		return;
+	}
 
 	data.mac_id = stats->rx.general.mac_id;
 	data.beacon_filter_average_energy =
@@ -714,12 +717,6 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		sta->avg_energy = energy[i];
 	}
 	rcu_read_unlock();
-
-	return;
-
- invalid:
-	IWL_ERR(mvm, "received invalid statistics size (%d)!\n",
-		iwl_rx_packet_payload_len(pkt));
 }
 
 void iwl_mvm_rx_statistics(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
