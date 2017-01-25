@@ -13,6 +13,7 @@
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -110,13 +111,13 @@ static struct scm_request *scm_request_fetch(void)
 {
 	struct scm_request *scmrq = NULL;
 
-	spin_lock(&list_lock);
+	spin_lock_irq(&list_lock);
 	if (list_empty(&inactive_requests))
 		goto out;
 	scmrq = list_first_entry(&inactive_requests, struct scm_request, list);
 	list_del(&scmrq->list);
 out:
-	spin_unlock(&list_lock);
+	spin_unlock_irq(&list_lock);
 	return scmrq;
 }
 
@@ -232,26 +233,17 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	scmrq->next_aidaw = (void *) &aob->msb[nr_requests_per_io];
 }
 
-static void scm_ensure_queue_restart(struct scm_blk_dev *bdev)
-{
-	if (atomic_read(&bdev->queued_reqs)) {
-		/* Queue restart is triggered by the next interrupt. */
-		return;
-	}
-	blk_delay_queue(bdev->rq, SCM_QUEUE_DELAY);
-}
-
 static void scm_request_requeue(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	int i;
 
 	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++)
-		blk_requeue_request(bdev->rq, scmrq->request[i]);
+		blk_mq_requeue_request(scmrq->request[i], false);
 
 	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
-	scm_ensure_queue_restart(bdev);
+	blk_mq_kick_requeue_list(bdev->rq);
 }
 
 static void scm_request_finish(struct scm_request *scmrq)
@@ -259,73 +251,74 @@ static void scm_request_finish(struct scm_request *scmrq)
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	int i;
 
-	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++)
-		blk_end_request_all(scmrq->request[i], scmrq->error);
+	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
+		if (scmrq->error)
+			blk_mq_end_request(scmrq->request[i], scmrq->error);
+		else
+			blk_mq_complete_request(scmrq->request[i]);
+	}
 
 	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
 }
 
-static int scm_request_start(struct scm_request *scmrq)
+static void scm_request_start(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
-	int ret;
 
 	atomic_inc(&bdev->queued_reqs);
-	if (!scmrq->aob->request.msb_count) {
-		scm_request_requeue(scmrq);
-		return -EINVAL;
-	}
-
-	ret = eadm_start_aob(scmrq->aob);
-	if (ret) {
+	if (eadm_start_aob(scmrq->aob)) {
 		SCM_LOG(5, "no subchannel");
 		scm_request_requeue(scmrq);
 	}
-	return ret;
 }
 
-static void scm_blk_request(struct request_queue *rq)
+static int scm_blk_request(struct blk_mq_hw_ctx *hctx,
+			   const struct blk_mq_queue_data *qd)
 {
-	struct scm_device *scmdev = rq->queuedata;
+	struct scm_device *scmdev = hctx->queue->queuedata;
 	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
-	struct scm_request *scmrq = NULL;
-	struct request *req;
+	struct request *req = qd->rq;
+	struct scm_request *scmrq;
 
-	while ((req = blk_peek_request(rq))) {
-		if (!scm_permit_request(bdev, req))
-			goto out;
-
-		if (!scmrq) {
-			scmrq = scm_request_fetch();
-			if (!scmrq) {
-				SCM_LOG(5, "no request");
-				goto out;
-			}
-			scm_request_init(bdev, scmrq);
-		}
-		scm_request_set(scmrq, req);
-
-		if (scm_request_prepare(scmrq)) {
-			SCM_LOG(5, "aidaw alloc failed");
-			scm_request_set(scmrq, NULL);
-			goto out;
-		}
-		blk_start_request(req);
-
-		if (scmrq->aob->request.msb_count < nr_requests_per_io)
-			continue;
-
-		if (scm_request_start(scmrq))
-			return;
-
-		scmrq = NULL;
+	spin_lock(&bdev->rq_lock);
+	if (!scm_permit_request(bdev, req)) {
+		spin_unlock(&bdev->rq_lock);
+		return BLK_MQ_RQ_QUEUE_BUSY;
 	}
-out:
-	if (scmrq)
+
+	scmrq = hctx->driver_data;
+	if (!scmrq) {
+		scmrq = scm_request_fetch();
+		if (!scmrq) {
+			SCM_LOG(5, "no request");
+			spin_unlock(&bdev->rq_lock);
+			return BLK_MQ_RQ_QUEUE_BUSY;
+		}
+		scm_request_init(bdev, scmrq);
+		hctx->driver_data = scmrq;
+	}
+	scm_request_set(scmrq, req);
+
+	if (scm_request_prepare(scmrq)) {
+		SCM_LOG(5, "aidaw alloc failed");
+		scm_request_set(scmrq, NULL);
+
+		if (scmrq->aob->request.msb_count)
+			scm_request_start(scmrq);
+
+		hctx->driver_data = NULL;
+		spin_unlock(&bdev->rq_lock);
+		return BLK_MQ_RQ_QUEUE_BUSY;
+	}
+	blk_mq_start_request(req);
+
+	if (qd->last || scmrq->aob->request.msb_count == nr_requests_per_io) {
 		scm_request_start(scmrq);
-	else
-		scm_ensure_queue_restart(bdev);
+		hctx->driver_data = NULL;
+	}
+	spin_unlock(&bdev->rq_lock);
+	return BLK_MQ_RQ_QUEUE_OK;
 }
 
 static void __scmrq_log_error(struct scm_request *scmrq)
@@ -387,9 +380,7 @@ restart:
 		return;
 
 requeue:
-	spin_lock_irqsave(&bdev->rq_lock, flags);
 	scm_request_requeue(scmrq);
-	spin_unlock_irqrestore(&bdev->rq_lock, flags);
 }
 
 static void scm_blk_tasklet(struct scm_blk_dev *bdev)
@@ -416,19 +407,21 @@ static void scm_blk_tasklet(struct scm_blk_dev *bdev)
 		spin_lock_irqsave(&bdev->lock, flags);
 	}
 	spin_unlock_irqrestore(&bdev->lock, flags);
-	/* Look out for more requests. */
-	blk_run_queue(bdev->rq);
 }
 
 static const struct block_device_operations scm_blk_devops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct blk_mq_ops scm_mq_ops = {
+	.queue_rq = scm_blk_request,
+};
+
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 {
-	struct request_queue *rq;
-	int len, ret = -ENOMEM;
 	unsigned int devindex, nr_max_blk;
+	struct request_queue *rq;
+	int len, ret;
 
 	devindex = atomic_inc_return(&nr_devices) - 1;
 	/* scma..scmz + scmaa..scmzz */
@@ -447,10 +440,20 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 		     (void (*)(unsigned long)) scm_blk_tasklet,
 		     (unsigned long) bdev);
 
-	rq = blk_init_queue(scm_blk_request, &bdev->rq_lock);
-	if (!rq)
+	bdev->tag_set.ops = &scm_mq_ops;
+	bdev->tag_set.nr_hw_queues = 1;
+	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
+	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+
+	ret = blk_mq_alloc_tag_set(&bdev->tag_set);
+	if (ret)
 		goto out;
 
+	rq = blk_mq_init_queue(&bdev->tag_set);
+	if (IS_ERR(rq)) {
+		ret = PTR_ERR(rq);
+		goto out_tag;
+	}
 	bdev->rq = rq;
 	nr_max_blk = min(scmdev->nr_max_block,
 			 (unsigned int) (PAGE_SIZE / sizeof(struct aidaw)));
@@ -462,9 +465,10 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, rq);
 
 	bdev->gendisk = alloc_disk(SCM_NR_PARTS);
-	if (!bdev->gendisk)
+	if (!bdev->gendisk) {
+		ret = -ENOMEM;
 		goto out_queue;
-
+	}
 	rq->queuedata = scmdev;
 	bdev->gendisk->private_data = scmdev;
 	bdev->gendisk->fops = &scm_blk_devops;
@@ -489,6 +493,8 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 
 out_queue:
 	blk_cleanup_queue(rq);
+out_tag:
+	blk_mq_free_tag_set(&bdev->tag_set);
 out:
 	atomic_dec(&nr_devices);
 	return ret;
@@ -499,6 +505,7 @@ void scm_blk_dev_cleanup(struct scm_blk_dev *bdev)
 	tasklet_kill(&bdev->tasklet);
 	del_gendisk(bdev->gendisk);
 	blk_cleanup_queue(bdev->gendisk->queue);
+	blk_mq_free_tag_set(&bdev->tag_set);
 	put_disk(bdev->gendisk);
 }
 

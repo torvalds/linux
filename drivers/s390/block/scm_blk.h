@@ -4,6 +4,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/genhd.h>
 #include <linux/list.h>
 
@@ -17,6 +18,7 @@ struct scm_blk_dev {
 	struct tasklet_struct tasklet;
 	struct request_queue *rq;
 	struct gendisk *gendisk;
+	struct blk_mq_tag_set tag_set;
 	struct scm_device *scmdev;
 	spinlock_t rq_lock;	/* guard the request queue */
 	spinlock_t lock;	/* guard the rest of the blockdev */
