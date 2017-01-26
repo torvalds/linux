@@ -27,6 +27,7 @@
 #include <core/firmware.h>
 #include <core/msgqueue.h>
 #include <subdev/pmu.h>
+#include <engine/sec2.h>
 
 /**
  * acr_ls_ucode_load_msgqueue - load and prepare a ucode img for a msgqueue fw
@@ -114,4 +115,35 @@ acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 	u32 addr_args = pmu->falcon->data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE;
 
 	acr_ls_msgqueue_post_run(pmu->queue, pmu->falcon, addr_args);
+}
+
+int
+acr_ls_ucode_load_sec2(const struct nvkm_subdev *subdev,
+		       struct ls_ucode_img *img)
+{
+	struct nvkm_sec2 *sec = subdev->device->sec2;
+	int ret;
+
+	ret = acr_ls_ucode_load_msgqueue(subdev, "sec2", img);
+	if (ret)
+		return ret;
+
+	/* Allocate the PMU queue corresponding to the FW version */
+	ret = nvkm_msgqueue_new(img->ucode_desc.app_version, sec->falcon,
+				&sec->queue);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void
+acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
+{
+	struct nvkm_device *device = sb->subdev.device;
+	struct nvkm_sec2 *sec = device->sec2;
+	/* on SEC arguments are always at the beginning of EMEM */
+	u32 addr_args = 0x01000000;
+
+	acr_ls_msgqueue_post_run(sec->queue, sec->falcon, addr_args);
 }

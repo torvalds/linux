@@ -151,5 +151,7 @@ int acr_ls_ucode_load_fecs(const struct nvkm_subdev *, struct ls_ucode_img *);
 int acr_ls_ucode_load_gpccs(const struct nvkm_subdev *, struct ls_ucode_img *);
 int acr_ls_ucode_load_pmu(const struct nvkm_subdev *, struct ls_ucode_img *);
 void acr_ls_pmu_post_run(const struct nvkm_acr *, const struct nvkm_secboot *);
+int acr_ls_ucode_load_sec2(const struct nvkm_subdev *, struct ls_ucode_img *);
+void acr_ls_sec2_post_run(const struct nvkm_acr *, const struct nvkm_secboot *);
 
 #endif

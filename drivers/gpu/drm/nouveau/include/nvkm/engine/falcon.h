@@ -10,6 +10,7 @@ enum nvkm_falcon_dmaidx {
 	FALCON_DMAIDX_PHYS_VID		= 2,
 	FALCON_DMAIDX_PHYS_SYS_COH	= 3,
 	FALCON_DMAIDX_PHYS_SYS_NCOH	= 4,
+	FALCON_SEC2_DMAIDX_UCODE	= 6,
 };
 
 struct nvkm_falcon {
