@@ -395,13 +395,13 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new max_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev_priv, val);
+	ret = intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
-	return count;
+	return ret ?: count;
 }
 
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -448,14 +448,13 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new min_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev_priv, val);
+	ret = intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
-	return count;
-
+	return ret ?: count;
 }
 
 static DEVICE_ATTR(gt_act_freq_mhz, S_IRUGO, gt_act_freq_mhz_show, NULL);

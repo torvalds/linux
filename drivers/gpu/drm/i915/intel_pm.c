@@ -4933,7 +4933,7 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 /* gen6_set_rps is called to update the frequency request, but should also be
  * called when the range (min_delay and max_delay) is modified so that we can
  * update the GEN6_RP_INTERRUPT_LIMITS register accordingly. */
-static void gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
+static int gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
@@ -4968,10 +4968,14 @@ static void gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 
 	dev_priv->rps.cur_freq = val;
 	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
+
+	return 0;
 }
 
-static void valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
+static int valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
+	int err;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
 	WARN_ON(val < dev_priv->rps.min_freq);
@@ -4983,13 +4987,18 @@ static void valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	if (val != dev_priv->rps.cur_freq) {
-		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		err = vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		if (err)
+			return err;
+
 		if (!IS_CHERRYVIEW(dev_priv))
 			gen6_set_rps_thresholds(dev_priv, val);
 	}
 
 	dev_priv->rps.cur_freq = val;
 	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
+
+	return 0;
 }
 
 /* vlv_set_rps_idle: Set the frequency to idle, if Gfx clocks are down
@@ -5002,6 +5011,7 @@ static void valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
 	u32 val = dev_priv->rps.idle_freq;
+	int err;
 
 	if (dev_priv->rps.cur_freq <= val)
 		return;
@@ -5019,8 +5029,11 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	 * power than the render powerwell.
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
-	valleyview_set_rps(dev_priv, val);
+	err = valleyview_set_rps(dev_priv, val);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
+
+	if (err)
+		DRM_ERROR("Failed to set RPS for idle\n");
 }
 
 void gen6_rps_busy(struct drm_i915_private *dev_priv)
@@ -5035,10 +5048,11 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 		gen6_enable_rps_interrupts(dev_priv);
 
 		/* Ensure we start at the user's desired frequency */
-		intel_set_rps(dev_priv,
-			      clamp(dev_priv->rps.cur_freq,
-				    dev_priv->rps.min_freq_softlimit,
-				    dev_priv->rps.max_freq_softlimit));
+		if (intel_set_rps(dev_priv,
+				  clamp(dev_priv->rps.cur_freq,
+					dev_priv->rps.min_freq_softlimit,
+					dev_priv->rps.max_freq_softlimit)))
+			DRM_DEBUG_DRIVER("Failed to set idle frequency\n");
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
@@ -5106,12 +5120,16 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	spin_unlock(&dev_priv->rps.client_lock);
 }
 
-void intel_set_rps(struct drm_i915_private *dev_priv, u8 val)
+int intel_set_rps(struct drm_i915_private *dev_priv, u8 val)
 {
+	int err;
+
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		valleyview_set_rps(dev_priv, val);
+		err = valleyview_set_rps(dev_priv, val);
 	else
-		gen6_set_rps(dev_priv, val);
+		err = gen6_set_rps(dev_priv, val);
+
+	return err;
 }
 
 static void gen9_disable_rc6(struct drm_i915_private *dev_priv)
@@ -5315,7 +5333,7 @@ static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
 }
 
 static void reset_rps(struct drm_i915_private *dev_priv,
-		      void (*set)(struct drm_i915_private *, u8))
+		      int (*set)(struct drm_i915_private *, u8))
 {
 	u8 freq = dev_priv->rps.cur_freq;
 
@@ -5323,7 +5341,8 @@ static void reset_rps(struct drm_i915_private *dev_priv,
 	dev_priv->rps.power = -1;
 	dev_priv->rps.cur_freq = -1;
 
-	set(dev_priv, freq);
+	if (set(dev_priv, freq))
+		DRM_ERROR("Failed to reset RPS to initial values\n");
 }
 
 /* See the Gen9_GT_PM_Programming_Guide doc for the below */
