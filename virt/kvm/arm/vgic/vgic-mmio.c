@@ -475,6 +475,74 @@ static bool check_region(const struct kvm *kvm,
 	return false;
 }
 
+static const struct vgic_register_region *
+vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
+		     gpa_t addr, int len)
+{
+	const struct vgic_register_region *region;
+
+	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
+				       addr - iodev->base_addr);
+	if (!region || !check_region(vcpu->kvm, region, addr, len))
+		return NULL;
+
+	return region;
+}
+
+static int vgic_uaccess_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
+			     gpa_t addr, u32 *val)
+{
+	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
+	const struct vgic_register_region *region;
+	struct kvm_vcpu *r_vcpu;
+
+	region = vgic_get_mmio_region(vcpu, iodev, addr, sizeof(u32));
+	if (!region) {
+		*val = 0;
+		return 0;
+	}
+
+	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
+	if (region->uaccess_read)
+		*val = region->uaccess_read(r_vcpu, addr, sizeof(u32));
+	else
+		*val = region->read(r_vcpu, addr, sizeof(u32));
+
+	return 0;
+}
+
+static int vgic_uaccess_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
+			      gpa_t addr, const u32 *val)
+{
+	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
+	const struct vgic_register_region *region;
+	struct kvm_vcpu *r_vcpu;
+
+	region = vgic_get_mmio_region(vcpu, iodev, addr, sizeof(u32));
+	if (!region)
+		return 0;
+
+	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
+	if (region->uaccess_write)
+		region->uaccess_write(r_vcpu, addr, sizeof(u32), *val);
+	else
+		region->write(r_vcpu, addr, sizeof(u32), *val);
+
+	return 0;
+}
+
+/*
+ * Userland access to VGIC registers.
+ */
+int vgic_uaccess(struct kvm_vcpu *vcpu, struct vgic_io_device *dev,
+		 bool is_write, int offset, u32 *val)
+{
+	if (is_write)
+		return vgic_uaccess_write(vcpu, &dev->dev, offset, val);
+	else
+		return vgic_uaccess_read(vcpu, &dev->dev, offset, val);
+}
+
 static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 			      gpa_t addr, int len, void *val)
 {
@@ -482,9 +550,8 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	const struct vgic_register_region *region;
 	unsigned long data = 0;
 
-	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
-				       addr - iodev->base_addr);
-	if (!region || !check_region(vcpu->kvm, region, addr, len)) {
+	region = vgic_get_mmio_region(vcpu, iodev, addr, len);
+	if (!region) {
 		memset(val, 0, len);
 		return 0;
 	}
@@ -515,9 +582,8 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	const struct vgic_register_region *region;
 	unsigned long data = vgic_data_mmio_bus_to_host(val, len);
 
-	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
-				       addr - iodev->base_addr);
-	if (!region || !check_region(vcpu->kvm, region, addr, len))
+	region = vgic_get_mmio_region(vcpu, iodev, addr, len);
+	if (!region)
 		return 0;
 
 	switch (iodev->iodev_type) {

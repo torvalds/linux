@@ -207,6 +207,60 @@ static unsigned long vgic_mmio_read_v3_idregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static unsigned long vgic_v3_uaccess_read_pending(struct kvm_vcpu *vcpu,
+						  gpa_t addr, unsigned int len)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
+	u32 value = 0;
+	int i;
+
+	/*
+	 * pending state of interrupt is latched in pending_latch variable.
+	 * Userspace will save and restore pending state and line_level
+	 * separately.
+	 * Refer to Documentation/virtual/kvm/devices/arm-vgic-v3.txt
+	 * for handling of ISPENDR and ICPENDR.
+	 */
+	for (i = 0; i < len * 8; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		if (irq->pending_latch)
+			value |= (1U << i);
+
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+
+	return value;
+}
+
+static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
+					  gpa_t addr, unsigned int len,
+					  unsigned long val)
+{
+	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
+	int i;
+
+	for (i = 0; i < len * 8; i++) {
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		spin_lock(&irq->irq_lock);
+		if (test_bit(i, &val)) {
+			/*
+			 * pending_latch is set irrespective of irq type
+			 * (level or edge) to avoid dependency that VM should
+			 * restore irq config before pending info.
+			 */
+			irq->pending_latch = true;
+			vgic_queue_irq_unlock(vcpu->kvm, irq);
+		} else {
+			irq->pending_latch = false;
+			spin_unlock(&irq->irq_lock);
+		}
+
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+}
+
 /* We want to avoid outer shareable. */
 u64 vgic_sanitise_shareability(u64 field)
 {
@@ -356,7 +410,7 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
  * We take some special care here to fix the calculation of the register
  * offset.
  */
-#define REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(off, rd, wr, bpi, acc)	\
+#define REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(off, rd, wr, ur, uw, bpi, acc) \
 	{								\
 		.reg_offset = off,					\
 		.bits_per_irq = bpi,					\
@@ -371,6 +425,8 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 		.access_flags = acc,					\
 		.read = rd,						\
 		.write = wr,						\
+		.uaccess_read = ur,					\
+		.uaccess_write = uw,					\
 	}
 
 static const struct vgic_register_region vgic_v3_dist_registers[] = {
@@ -378,40 +434,42 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 		vgic_mmio_read_v3_misc, vgic_mmio_write_v3_misc, 16,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IGROUPR,
-		vgic_mmio_read_rao, vgic_mmio_write_wi, 1,
+		vgic_mmio_read_rao, vgic_mmio_write_wi, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISENABLER,
-		vgic_mmio_read_enable, vgic_mmio_write_senable, 1,
+		vgic_mmio_read_enable, vgic_mmio_write_senable, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICENABLER,
-		vgic_mmio_read_enable, vgic_mmio_write_cenable, 1,
+		vgic_mmio_read_enable, vgic_mmio_write_cenable, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISPENDR,
-		vgic_mmio_read_pending, vgic_mmio_write_spending, 1,
+		vgic_mmio_read_pending, vgic_mmio_write_spending,
+		vgic_v3_uaccess_read_pending, vgic_v3_uaccess_write_pending, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICPENDR,
-		vgic_mmio_read_pending, vgic_mmio_write_cpending, 1,
-		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISACTIVER,
-		vgic_mmio_read_active, vgic_mmio_write_sactive, 1,
-		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICACTIVER,
-		vgic_mmio_read_active, vgic_mmio_write_cactive, 1,
-		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IPRIORITYR,
-		vgic_mmio_read_priority, vgic_mmio_write_priority, 8,
-		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ITARGETSR,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 8,
-		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICFGR,
-		vgic_mmio_read_config, vgic_mmio_write_config, 2,
-		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IGRPMODR,
+		vgic_mmio_read_pending, vgic_mmio_write_cpending,
 		vgic_mmio_read_raz, vgic_mmio_write_wi, 1,
 		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISACTIVER,
+		vgic_mmio_read_active, vgic_mmio_write_sactive, NULL, NULL, 1,
+		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICACTIVER,
+		vgic_mmio_read_active, vgic_mmio_write_cactive, NULL, NULL, 1,
+		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IPRIORITYR,
+		vgic_mmio_read_priority, vgic_mmio_write_priority, NULL, NULL,
+		8, VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ITARGETSR,
+		vgic_mmio_read_raz, vgic_mmio_write_wi, NULL, NULL, 8,
+		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICFGR,
+		vgic_mmio_read_config, vgic_mmio_write_config, NULL, NULL, 2,
+		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IGRPMODR,
+		vgic_mmio_read_raz, vgic_mmio_write_wi, NULL, NULL, 1,
+		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IROUTER,
-		vgic_mmio_read_irouter, vgic_mmio_write_irouter, 64,
+		vgic_mmio_read_irouter, vgic_mmio_write_irouter, NULL, NULL, 64,
 		VGIC_ACCESS_64bit | VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICD_IDREGS,
 		vgic_mmio_read_v3_idregs, vgic_mmio_write_wi, 48,
@@ -449,11 +507,13 @@ static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GICR_ICENABLER0,
 		vgic_mmio_read_enable, vgic_mmio_write_cenable, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ISPENDR0,
-		vgic_mmio_read_pending, vgic_mmio_write_spending, 4,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISPENDR0,
+		vgic_mmio_read_pending, vgic_mmio_write_spending,
+		vgic_v3_uaccess_read_pending, vgic_v3_uaccess_write_pending, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ICPENDR0,
-		vgic_mmio_read_pending, vgic_mmio_write_cpending, 4,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICPENDR0,
+		vgic_mmio_read_pending, vgic_mmio_write_cpending,
+		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICR_ISACTIVER0,
 		vgic_mmio_read_active, vgic_mmio_write_sactive, 4,
