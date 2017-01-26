@@ -623,7 +623,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		result = put_user(ir->d.max_timeout, (__u32 __user *)arg);
 		break;
 	default:
-		result = -EINVAL;
+		result = -ENOTTY;
 	}
 
 	mutex_unlock(&ir->irctl_lock);
