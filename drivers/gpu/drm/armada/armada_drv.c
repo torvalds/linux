@@ -209,9 +209,6 @@ static void armada_drm_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(&priv->drm);
 	armada_fbdev_fini(&priv->drm);
 
-#ifdef CONFIG_DEBUG_FS
-	armada_drm_debugfs_cleanup(priv->drm.primary);
-#endif
 	drm_dev_unregister(&priv->drm);
 
 	component_unbind_all(dev, &priv->drm);
