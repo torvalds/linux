@@ -301,6 +301,34 @@ bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_bypass_insert);
 
+static void blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state)) {
+		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+		if (blk_mq_hctx_has_pending(hctx))
+			blk_mq_run_hw_queue(hctx, true);
+	}
+}
+
+void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx)
+{
+	unsigned int i;
+
+	if (!(hctx->flags & BLK_MQ_F_TAG_SHARED))
+		blk_mq_sched_restart_hctx(hctx);
+	else {
+		struct request_queue *q = hctx->queue;
+
+		if (!test_bit(QUEUE_FLAG_RESTART, &q->queue_flags))
+			return;
+
+		clear_bit(QUEUE_FLAG_RESTART, &q->queue_flags);
+
+		queue_for_each_hw_ctx(q, hctx, i)
+			blk_mq_sched_restart_hctx(hctx);
+	}
+}
+
 static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 				   struct blk_mq_hw_ctx *hctx,
 				   unsigned int hctx_idx)

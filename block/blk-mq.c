@@ -40,7 +40,7 @@ static LIST_HEAD(all_q_list);
 /*
  * Check if any of the ctx's have pending work in this hardware queue
  */
-static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
+bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
 	return sbitmap_any_bit_set(&hctx->ctx_map) ||
 			!list_empty_careful(&hctx->dispatch) ||
@@ -345,6 +345,7 @@ void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 		blk_mq_put_tag(hctx, hctx->tags, ctx, rq->tag);
 	if (sched_tag != -1)
 		blk_mq_sched_completed_request(hctx, rq);
+	blk_mq_sched_restart_queues(hctx);
 	blk_queue_exit(q);
 }
 

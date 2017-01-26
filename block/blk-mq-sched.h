@@ -19,6 +19,7 @@ bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq);
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio);
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio);
 bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq);
+void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx);
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx);
 void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
@@ -123,11 +124,6 @@ blk_mq_sched_completed_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	BUG_ON(rq->internal_tag == -1);
 
 	blk_mq_put_tag(hctx, hctx->sched_tags, rq->mq_ctx, rq->internal_tag);
-
-	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state)) {
-		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
-		blk_mq_run_hw_queue(hctx, true);
-	}
 }
 
 static inline void blk_mq_sched_started_request(struct request *rq)
@@ -160,8 +156,15 @@ static inline bool blk_mq_sched_has_work(struct blk_mq_hw_ctx *hctx)
 
 static inline void blk_mq_sched_mark_restart(struct blk_mq_hw_ctx *hctx)
 {
-	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state)) {
 		set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+		if (hctx->flags & BLK_MQ_F_TAG_SHARED) {
+			struct request_queue *q = hctx->queue;
+
+			if (!test_bit(QUEUE_FLAG_RESTART, &q->queue_flags))
+				set_bit(QUEUE_FLAG_RESTART, &q->queue_flags);
+		}
+	}
 }
 
 static inline bool blk_mq_sched_needs_restart(struct blk_mq_hw_ctx *hctx)
