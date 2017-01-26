@@ -260,11 +260,8 @@ static void atmel_sha_fill_padding(struct atmel_sha_reqctx *ctx, int length)
 	}
 }
 
-static int atmel_sha_init(struct ahash_request *req)
+static struct atmel_sha_dev *atmel_sha_find_dev(struct atmel_sha_ctx *tctx)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct atmel_sha_ctx *tctx = crypto_ahash_ctx(tfm);
-	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct atmel_sha_dev *dd = NULL;
 	struct atmel_sha_dev *tmp;
 
@@ -280,6 +277,16 @@ static int atmel_sha_init(struct ahash_request *req)
 	}
 
 	spin_unlock_bh(&atmel_sha.lock);
+
+	return dd;
+}
+
+static int atmel_sha_init(struct ahash_request *req)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct atmel_sha_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
+	struct atmel_sha_dev *dd = atmel_sha_find_dev(tctx);
 
 	ctx->dd = dd;
 
