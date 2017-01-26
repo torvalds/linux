@@ -85,6 +85,11 @@ const char *lkl_strerror(int err);
 void lkl_perror(char *msg, int err);
 
 /**
+ * struct lkl_dev_blk_ops - block device host operations, defined in lkl_host.h.
+ */
+struct lkl_dev_blk_ops;
+
+/**
  * lkl_disk - host disk handle
  *
  * @dev - a pointer to 'virtio_blk_dev' structure for this disk
@@ -97,6 +102,7 @@ struct lkl_disk {
 		int fd;
 		void *handle;
 	};
+	struct lkl_dev_blk_ops *ops;
 };
 
 /**
