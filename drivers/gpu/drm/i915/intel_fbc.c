@@ -742,8 +742,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		cache->crtc.hsw_bdw_pixel_rate =
-			ilk_pipe_pixel_rate(crtc_state);
+		cache->crtc.hsw_bdw_pixel_rate = crtc_state->pixel_rate;
 
 	cache->plane.rotation = plane_state->base.rotation;
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;

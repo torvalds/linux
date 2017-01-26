@@ -544,6 +544,12 @@ struct intel_crtc_state {
 	 * and get clipped at the edges. */
 	int pipe_src_w, pipe_src_h;
 
+	/*
+	 * Pipe pixel rate, adjusted for
+	 * panel fitter/pipe scaler downscaling.
+	 */
+	unsigned int pixel_rate;
+
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;

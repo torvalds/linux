@@ -1820,12 +1820,12 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 
 	cpp = pstate->base.fb->format->cpp[0];
 
-	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
+	method1 = ilk_wm_method1(cstate->pixel_rate, cpp, mem_value);
 
 	if (!is_lp)
 		return method1;
 
-	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+	method2 = ilk_wm_method2(cstate->pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->base.dst),
 				 cpp, mem_value);
@@ -1849,8 +1849,8 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 
 	cpp = pstate->base.fb->format->cpp[0];
 
-	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
-	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+	method1 = ilk_wm_method1(cstate->pixel_rate, cpp, mem_value);
+	method2 = ilk_wm_method2(cstate->pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->base.dst),
 				 cpp, mem_value);
@@ -1876,7 +1876,7 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 	if (!cstate->base.active)
 		return 0;
 
-	return ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+	return ilk_wm_method2(cstate->pixel_rate,
 			      cstate->base.adjusted_mode.crtc_htotal,
 			      width, cpp, mem_value);
 }
@@ -3559,7 +3559,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 	 * Adjusted plane pixel rate is just the pipe's adjusted pixel rate
 	 * with additional adjustments for plane-specific scaling.
 	 */
-	adjusted_pixel_rate = ilk_pipe_pixel_rate(cstate);
+	adjusted_pixel_rate = cstate->pixel_rate;
 	downscale_amount = skl_plane_downscale_amount(pstate);
 
 	pixel_rate = adjusted_pixel_rate * downscale_amount >> 16;
@@ -3787,7 +3787,7 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 	if (!cstate->base.active)
 		return 0;
 
-	pixel_rate = ilk_pipe_pixel_rate(cstate);
+	pixel_rate = cstate->pixel_rate;
 
 	if (WARN_ON(pixel_rate == 0))
 		return 0;
