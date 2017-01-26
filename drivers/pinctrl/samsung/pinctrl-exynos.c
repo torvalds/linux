@@ -24,6 +24,7 @@
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -632,6 +633,60 @@ static void exynos_pinctrl_resume(struct samsung_pinctrl_drv_data *drvdata)
 			exynos_pinctrl_resume_bank(drvdata, bank);
 }
 
+/* Retention control for S5PV210 are located at the end of clock controller */
+#define S5P_OTHERS 0xE000
+
+#define S5P_OTHERS_RET_IO		(1 << 31)
+#define S5P_OTHERS_RET_CF		(1 << 30)
+#define S5P_OTHERS_RET_MMC		(1 << 29)
+#define S5P_OTHERS_RET_UART		(1 << 28)
+
+static void s5pv210_retention_disable(struct samsung_pinctrl_drv_data *drvdata)
+{
+	void *clk_base = drvdata->retention_ctrl->priv;
+	u32 tmp;
+
+	tmp = __raw_readl(clk_base + S5P_OTHERS);
+	tmp |= (S5P_OTHERS_RET_IO | S5P_OTHERS_RET_CF | S5P_OTHERS_RET_MMC |
+		S5P_OTHERS_RET_UART);
+	__raw_writel(tmp, clk_base + S5P_OTHERS);
+}
+
+static struct samsung_retention_ctrl *
+s5pv210_retention_init(struct samsung_pinctrl_drv_data *drvdata,
+		       const struct samsung_retention_data *data)
+{
+	struct samsung_retention_ctrl *ctrl;
+	struct device_node *np;
+	void *clk_base;
+
+	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
+	if (!ctrl)
+		return ERR_PTR(-ENOMEM);
+
+	np = of_find_compatible_node(NULL, NULL, "samsung,s5pv210-clock");
+	if (!np) {
+		pr_err("%s: failed to find clock controller DT node\n",
+			__func__);
+		return ERR_PTR(-ENODEV);
+	}
+
+	clk_base = of_iomap(np, 0);
+	if (!clk_base) {
+		pr_err("%s: failed to map clock registers\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
+	ctrl->priv = clk_base;
+	ctrl->disable = s5pv210_retention_disable;
+
+	return ctrl;
+}
+
+static const struct samsung_retention_data s5pv210_retention_data __initconst = {
+	.init	 = s5pv210_retention_init,
+};
+
 /* pin banks of s5pv210 pin-controller */
 static const struct samsung_pin_bank_data s5pv210_pin_bank[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpa0", 0x00),
@@ -679,6 +734,7 @@ const struct samsung_pin_ctrl s5pv210_pin_ctrl[] __initconst = {
 		.eint_wkup_init = exynos_eint_wkup_init,
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
+		.retention_data	= &s5pv210_retention_data,
 	},
 };
 
