@@ -26,6 +26,7 @@
 #define SHA_MR_ALGO_SHA384		(2 << 8)
 #define SHA_MR_ALGO_SHA512		(3 << 8)
 #define SHA_MR_ALGO_SHA224		(4 << 8)
+#define SHA_MR_HMAC			(1 << 11)
 #define	SHA_MR_DUALBUFF			(1 << 16)
 
 #define SHA_IER				0x10
@@ -41,6 +42,9 @@
 #define SHA_ISR_URAT_ODR		(0x1 << 12)
 #define SHA_ISR_URAT_MR			(0x2 << 12)
 #define SHA_ISR_URAT_WO			(0x5 << 12)
+
+#define SHA_MSR				0x20
+#define SHA_BCR				0x30
 
 #define	SHA_HW_VERSION		0xFC
 
