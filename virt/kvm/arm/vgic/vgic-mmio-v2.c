@@ -369,21 +369,30 @@ unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev)
 
 int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
-	int nr_irqs = dev->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
-	const struct vgic_register_region *regions;
+	const struct vgic_register_region *region;
+	struct vgic_io_device iodev;
+	struct vgic_reg_attr reg_attr;
+	struct kvm_vcpu *vcpu;
 	gpa_t addr;
-	int nr_regions, i, len;
+	int ret;
 
-	addr = attr->attr & KVM_DEV_ARM_VGIC_OFFSET_MASK;
+	ret = vgic_v2_parse_attr(dev, attr, &reg_attr);
+	if (ret)
+		return ret;
+
+	vcpu = reg_attr.vcpu;
+	addr = reg_attr.addr;
 
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
-		regions = vgic_v2_dist_registers;
-		nr_regions = ARRAY_SIZE(vgic_v2_dist_registers);
+		iodev.regions = vgic_v2_dist_registers;
+		iodev.nr_regions = ARRAY_SIZE(vgic_v2_dist_registers);
+		iodev.base_addr = 0;
 		break;
 	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
-		regions = vgic_v2_cpu_registers;
-		nr_regions = ARRAY_SIZE(vgic_v2_cpu_registers);
+		iodev.regions = vgic_v2_cpu_registers;
+		iodev.nr_regions = ARRAY_SIZE(vgic_v2_cpu_registers);
+		iodev.base_addr = 0;
 		break;
 	default:
 		return -ENXIO;
@@ -393,18 +402,11 @@ int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
 	if (addr & 3)
 		return -ENXIO;
 
-	for (i = 0; i < nr_regions; i++) {
-		if (regions[i].bits_per_irq)
-			len = (regions[i].bits_per_irq * nr_irqs) / 8;
-		else
-			len = regions[i].len;
+	region = vgic_get_mmio_region(vcpu, &iodev, addr, sizeof(u32));
+	if (!region)
+		return -ENXIO;
 
-		if (regions[i].reg_offset <= addr &&
-		    regions[i].reg_offset + len > addr)
-			return 0;
-	}
-
-	return -ENXIO;
+	return 0;
 }
 
 int vgic_v2_cpuif_uaccess(struct kvm_vcpu *vcpu, bool is_write,

@@ -475,7 +475,7 @@ static bool check_region(const struct kvm *kvm,
 	return false;
 }
 
-static const struct vgic_register_region *
+const struct vgic_register_region *
 vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
 		     gpa_t addr, int len)
 {

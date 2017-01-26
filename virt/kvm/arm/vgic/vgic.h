@@ -30,6 +30,28 @@
 
 #define vgic_irq_is_sgi(intid) ((intid) < VGIC_NR_SGIS)
 
+#define VGIC_AFFINITY_0_SHIFT 0
+#define VGIC_AFFINITY_0_MASK (0xffUL << VGIC_AFFINITY_0_SHIFT)
+#define VGIC_AFFINITY_1_SHIFT 8
+#define VGIC_AFFINITY_1_MASK (0xffUL << VGIC_AFFINITY_1_SHIFT)
+#define VGIC_AFFINITY_2_SHIFT 16
+#define VGIC_AFFINITY_2_MASK (0xffUL << VGIC_AFFINITY_2_SHIFT)
+#define VGIC_AFFINITY_3_SHIFT 24
+#define VGIC_AFFINITY_3_MASK (0xffUL << VGIC_AFFINITY_3_SHIFT)
+
+#define VGIC_AFFINITY_LEVEL(reg, level) \
+	((((reg) & VGIC_AFFINITY_## level ##_MASK) \
+	>> VGIC_AFFINITY_## level ##_SHIFT) << MPIDR_LEVEL_SHIFT(level))
+
+/*
+ * The Userspace encodes the affinity differently from the MPIDR,
+ * Below macro converts vgic userspace format to MPIDR reg format.
+ */
+#define VGIC_TO_MPIDR(val) (VGIC_AFFINITY_LEVEL(val, 0) | \
+			    VGIC_AFFINITY_LEVEL(val, 1) | \
+			    VGIC_AFFINITY_LEVEL(val, 2) | \
+			    VGIC_AFFINITY_LEVEL(val, 3))
+
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
@@ -45,6 +67,18 @@ struct vgic_vmcr {
 	u32	pmr;
 };
 
+struct vgic_reg_attr {
+	struct kvm_vcpu *vcpu;
+	gpa_t addr;
+};
+
+int vgic_v3_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
+		       struct vgic_reg_attr *reg_attr);
+int vgic_v2_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
+		       struct vgic_reg_attr *reg_attr);
+const struct vgic_register_region *
+vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
+		     gpa_t addr, int len);
 struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid);
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq);
@@ -97,7 +131,11 @@ bool vgic_has_its(struct kvm *kvm);
 int kvm_vgic_register_its_device(void);
 void vgic_enable_lpis(struct kvm_vcpu *vcpu);
 int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi);
-
+int vgic_v3_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr);
+int vgic_v3_dist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
+			 int offset, u32 *val);
+int vgic_v3_redist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
+			 int offset, u32 *val);
 int kvm_register_vgic_device(unsigned long type);
 int vgic_lazy_init(struct kvm *kvm);
 int vgic_init(struct kvm *kvm);
