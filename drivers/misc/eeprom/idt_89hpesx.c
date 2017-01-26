@@ -1229,9 +1229,6 @@ static void idt_free_pdev(struct idt_89hpesx_dev *pdev)
 {
 	/* Clear driver data from device private field */
 	i2c_set_clientdata(pdev->client, NULL);
-
-	/* Just free memory allocated for data */
-	devm_kfree(&pdev->client->dev, pdev);
 }
 
 /*
