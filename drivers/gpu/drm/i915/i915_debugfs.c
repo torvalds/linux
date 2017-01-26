@@ -35,32 +35,6 @@ static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 	return to_i915(node->minor->dev);
 }
 
-/* As the drm_debugfs_init() routines are called before dev->dev_private is
- * allocated we need to hook into the minor for release. */
-static int
-drm_add_fake_info_node(struct drm_minor *minor,
-		       struct dentry *ent,
-		       const void *key)
-{
-	struct drm_info_node *node;
-
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (node == NULL) {
-		debugfs_remove(ent);
-		return -ENOMEM;
-	}
-
-	node->minor = minor;
-	node->dent = ent;
-	node->info_ent = (void *)key;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-
-	return 0;
-}
-
 static int i915_capabilities(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4593,37 +4567,6 @@ static const struct file_operations i915_forcewake_fops = {
 	.release = i915_forcewake_release,
 };
 
-static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
-{
-	struct dentry *ent;
-
-	ent = debugfs_create_file("i915_forcewake_user",
-				  S_IRUSR,
-				  root, to_i915(minor->dev),
-				  &i915_forcewake_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	return drm_add_fake_info_node(minor, ent, &i915_forcewake_fops);
-}
-
-static int i915_debugfs_create(struct dentry *root,
-			       struct drm_minor *minor,
-			       const char *name,
-			       const struct file_operations *fops)
-{
-	struct dentry *ent;
-
-	ent = debugfs_create_file(name,
-				  S_IRUGO | S_IWUSR,
-				  root, to_i915(minor->dev),
-				  fops);
-	if (!ent)
-		return -ENOMEM;
-
-	return drm_add_fake_info_node(minor, ent, fops);
-}
-
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
@@ -4706,48 +4649,32 @@ static const struct i915_debugfs_files {
 int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_minor *minor = dev_priv->drm.primary;
+	struct dentry *ent;
 	int ret, i;
 
-	ret = i915_forcewake_create(minor->debugfs_root, minor);
-	if (ret)
-		return ret;
+	ent = debugfs_create_file("i915_forcewake_user", S_IRUSR,
+				  minor->debugfs_root, to_i915(minor->dev),
+				  &i915_forcewake_fops);
+	if (!ent)
+		return -ENOMEM;
 
 	ret = intel_pipe_crc_create(minor);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
-		ret = i915_debugfs_create(minor->debugfs_root, minor,
-					  i915_debugfs_files[i].name,
+		ent = debugfs_create_file(i915_debugfs_files[i].name,
+					  S_IRUGO | S_IWUSR,
+					  minor->debugfs_root,
+					  to_i915(minor->dev),
 					  i915_debugfs_files[i].fops);
-		if (ret)
-			return ret;
+		if (!ent)
+			return -ENOMEM;
 	}
 
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
-}
-
-void i915_debugfs_unregister(struct drm_i915_private *dev_priv)
-{
-	struct drm_minor *minor = dev_priv->drm.primary;
-	int i;
-
-	drm_debugfs_remove_files(i915_debugfs_list,
-				 I915_DEBUGFS_ENTRIES, minor);
-
-	drm_debugfs_remove_files((struct drm_info_list *)&i915_forcewake_fops,
-				 1, minor);
-
-	intel_pipe_crc_cleanup(minor);
-
-	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
-		struct drm_info_list *info_list =
-			(struct drm_info_list *)i915_debugfs_files[i].fops;
-
-		drm_debugfs_remove_files(info_list, 1, minor);
-	}
 }
 
 struct dpcd_block {

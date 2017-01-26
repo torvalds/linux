@@ -1167,7 +1167,6 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 	i915_teardown_sysfs(dev_priv);
 	i915_guc_log_unregister(dev_priv);
-	i915_debugfs_unregister(dev_priv);
 	drm_dev_unregister(&dev_priv->drm);
 
 	i915_gem_shrinker_cleanup(dev_priv);
