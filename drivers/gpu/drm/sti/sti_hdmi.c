@@ -731,13 +731,6 @@ static struct drm_info_list hdmi_debugfs_files[] = {
 	{ "hdmi", hdmi_dbg_show, 0, NULL },
 };
 
-static void hdmi_debugfs_exit(struct sti_hdmi *hdmi, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(hdmi_debugfs_files,
-				 ARRAY_SIZE(hdmi_debugfs_files),
-				 minor);
-}
-
 static int hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
 {
 	unsigned int i;
@@ -1359,10 +1352,6 @@ err_sysfs:
 static void sti_hdmi_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	hdmi_debugfs_exit(hdmi, drm_dev->primary);
 }
 
 static const struct component_ops sti_hdmi_ops = {

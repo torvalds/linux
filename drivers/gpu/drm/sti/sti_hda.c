@@ -365,13 +365,6 @@ static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static void hda_debugfs_exit(struct sti_hda *hda, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(hda_debugfs_files,
-				 ARRAY_SIZE(hda_debugfs_files),
-				 minor);
-}
-
 static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
 	unsigned int i;
@@ -739,10 +732,6 @@ err_sysfs:
 static void sti_hda_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	struct sti_hda *hda = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	hda_debugfs_exit(hda, drm_dev->primary);
 }
 
 static const struct component_ops sti_hda_ops = {
