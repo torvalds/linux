@@ -2362,7 +2362,7 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 	_(NVENC0 , device->nvenc[0],  device->nvenc[0]);
 	_(NVENC1 , device->nvenc[1],  device->nvenc[1]);
 	_(NVENC2 , device->nvenc[2],  device->nvenc[2]);
-	_(NVDEC  , device->nvdec   ,  device->nvdec);
+	_(NVDEC  , device->nvdec   , &device->nvdec->engine);
 	_(PM     , device->pm      , &device->pm->engine);
 	_(SEC    , device->sec     ,  device->sec);
 	_(SW     , device->sw      , &device->sw->engine);
