@@ -1052,34 +1052,6 @@ __gen6_read(64)
 #undef GEN6_READ_FOOTER
 #undef GEN6_READ_HEADER
 
-#define VGPU_READ_HEADER(x) \
-	unsigned long irqflags; \
-	u##x val = 0; \
-	assert_rpm_device_not_suspended(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
-
-#define VGPU_READ_FOOTER \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
-	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
-	return val
-
-#define __vgpu_read(x) \
-static u##x \
-vgpu_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
-	VGPU_READ_HEADER(x); \
-	val = __raw_i915_read##x(dev_priv, reg); \
-	VGPU_READ_FOOTER; \
-}
-
-__vgpu_read(8)
-__vgpu_read(16)
-__vgpu_read(32)
-__vgpu_read(64)
-
-#undef __vgpu_read
-#undef VGPU_READ_FOOTER
-#undef VGPU_READ_HEADER
-
 #define GEN2_WRITE_HEADER \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	assert_rpm_wakelock_held(dev_priv); \
@@ -1201,31 +1173,6 @@ __gen6_write(32)
 #undef __gen6_write
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
-
-#define VGPU_WRITE_HEADER \
-	unsigned long irqflags; \
-	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	assert_rpm_device_not_suspended(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
-
-#define VGPU_WRITE_FOOTER \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
-
-#define __vgpu_write(x) \
-static void vgpu_write##x(struct drm_i915_private *dev_priv, \
-			  i915_reg_t reg, u##x val, bool trace) { \
-	VGPU_WRITE_HEADER; \
-	__raw_i915_write##x(dev_priv, reg, val); \
-	VGPU_WRITE_FOOTER; \
-}
-
-__vgpu_write(8)
-__vgpu_write(16)
-__vgpu_write(32)
-
-#undef __vgpu_write
-#undef VGPU_WRITE_FOOTER
-#undef VGPU_WRITE_HEADER
 
 #define ASSIGN_WRITE_MMIO_VFUNCS(x) \
 do { \
@@ -1460,11 +1407,6 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	intel_fw_table_check(dev_priv);
 	if (INTEL_GEN(dev_priv) >= 8)
 		intel_shadow_table_check();
-
-	if (intel_vgpu_active(dev_priv)) {
-		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);
-		ASSIGN_READ_MMIO_VFUNCS(vgpu);
-	}
 
 	i915_check_and_clear_faults(dev_priv);
 }
