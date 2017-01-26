@@ -81,7 +81,8 @@ static const struct file_operations drm_debugfs_fops = {
  * \return Zero on success, non-zero on failure
  *
  * Create a given set of debugfs files represented by an array of
- * gdm_debugfs_lists in the given root directory.
+ * &drm_info_list in the given root directory. These files will be removed
+ * automatically on drm_debugfs_cleanup().
  */
 int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			     struct dentry *root, struct drm_minor *minor)
@@ -218,6 +219,19 @@ int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 }
 EXPORT_SYMBOL(drm_debugfs_remove_files);
 
+static void drm_debugfs_remove_all_files(struct drm_minor *minor)
+{
+	struct drm_info_node *node, *tmp;
+
+	mutex_lock(&minor->debugfs_lock);
+	list_for_each_entry_safe(node, tmp, &minor->debugfs_list, list) {
+		debugfs_remove(node->dent);
+		list_del(&node->list);
+		kfree(node);
+	}
+	mutex_unlock(&minor->debugfs_lock);
+}
+
 /**
  * Cleanup the debugfs filesystem resources.
  *
@@ -245,9 +259,9 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 		}
 	}
 
-	drm_debugfs_remove_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_all_files(minor);
 
-	debugfs_remove(minor->debugfs_root);
+	debugfs_remove_recursive(minor->debugfs_root);
 	minor->debugfs_root = NULL;
 
 	return 0;
