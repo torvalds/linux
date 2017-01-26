@@ -3548,6 +3548,7 @@ static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5648", 0 },
 	{ "10EC5650", 0 },
 	{ "10EC5640", 0 },
+	{ "10EC3270", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
