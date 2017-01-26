@@ -116,7 +116,6 @@ struct omap_drm_private {
 
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
-void omap_debugfs_cleanup(struct drm_minor *minor);
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);

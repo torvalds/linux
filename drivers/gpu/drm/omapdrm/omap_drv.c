@@ -812,7 +812,6 @@ static struct drm_driver omap_drm_driver = {
 	.disable_vblank = omap_irq_disable_vblank,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
-	.debugfs_cleanup = omap_debugfs_cleanup,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
