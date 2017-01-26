@@ -41,6 +41,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix);
 int cmd_inject(int argc, const char **argv, const char *prefix);
 int cmd_mem(int argc, const char **argv, const char *prefix);
 int cmd_data(int argc, const char **argv, const char *prefix);
+int cmd_ftrace(int argc, const char **argv, const char *prefix);
 
 int find_scripts(char **scripts_array, char **scripts_path_array);
 #endif
