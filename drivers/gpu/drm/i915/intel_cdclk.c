@@ -547,6 +547,8 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->sb_lock);
 
 	intel_update_cdclk(dev_priv);
+
+	vlv_program_pfi_credits(dev_priv);
 }
 
 static void chv_set_cdclk(struct drm_i915_private *dev_priv,
@@ -586,6 +588,8 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_update_cdclk(dev_priv);
+
+	vlv_program_pfi_credits(dev_priv);
 }
 
 static int bdw_calc_cdclk(int max_pixclk)
@@ -1524,7 +1528,6 @@ static void vlv_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	else
 		vlv_set_cdclk(dev_priv, &dev_priv->cdclk.actual);
 
-	vlv_program_pfi_credits(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
