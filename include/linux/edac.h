@@ -29,7 +29,6 @@ struct device;
 
 extern int edac_op_state;
 extern int edac_err_assert;
-extern atomic_t edac_handlers;
 
 extern struct bus_type *edac_get_sysfs_subsys(void);
 

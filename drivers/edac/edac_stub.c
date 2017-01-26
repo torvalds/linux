@@ -20,9 +20,6 @@
 int edac_op_state = EDAC_OPSTATE_INVAL;
 EXPORT_SYMBOL_GPL(edac_op_state);
 
-atomic_t edac_handlers = ATOMIC_INIT(0);
-EXPORT_SYMBOL_GPL(edac_handlers);
-
 int edac_err_assert = 0;
 EXPORT_SYMBOL_GPL(edac_err_assert);
 

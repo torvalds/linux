@@ -601,7 +601,6 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 	}
 
 	list_add_tail_rcu(&mci->link, insert_before);
-	atomic_inc(&edac_handlers);
 	return 0;
 
 fail0:
@@ -619,7 +618,6 @@ fail1:
 
 static int del_mc_from_global_list(struct mem_ctl_info *mci)
 {
-	int handlers = atomic_dec_return(&edac_handlers);
 	list_del_rcu(&mci->link);
 
 	/* these are for safe removal of devices from global list while
@@ -628,7 +626,7 @@ static int del_mc_from_global_list(struct mem_ctl_info *mci)
 	synchronize_rcu();
 	INIT_LIST_HEAD(&mci->link);
 
-	return handlers;
+	return list_empty(&mc_devices);
 }
 
 struct mem_ctl_info *edac_mc_find(int idx)
@@ -763,7 +761,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 	/* mark MCI offline: */
 	mci->op_state = OP_OFFLINE;
 
-	if (!del_mc_from_global_list(mci))
+	if (del_mc_from_global_list(mci))
 		edac_mc_owner = NULL;
 
 	mutex_unlock(&mem_ctls_mutex);
