@@ -272,8 +272,6 @@ void rcu_bh_qs(void)
 	}
 }
 
-static DEFINE_PER_CPU(int, rcu_sched_qs_mask);
-
 /*
  * Steal a bit from the bottom of ->dynticks for idle entry/exit
  * control.  Initially this is for TLB flushing.
@@ -464,8 +462,8 @@ static void rcu_momentary_dyntick_idle(void)
 	 * Yes, we can lose flag-setting operations.  This is OK, because
 	 * the flag will be set again after some delay.
 	 */
-	resched_mask = raw_cpu_read(rcu_sched_qs_mask);
-	raw_cpu_write(rcu_sched_qs_mask, 0);
+	resched_mask = raw_cpu_read(rcu_dynticks.rcu_sched_qs_mask);
+	raw_cpu_write(rcu_dynticks.rcu_sched_qs_mask, 0);
 
 	/* Find the flavor that needs a quiescent state. */
 	for_each_rcu_flavor(rsp) {
@@ -499,7 +497,7 @@ void rcu_note_context_switch(void)
 	trace_rcu_utilization(TPS("Start context switch"));
 	rcu_sched_qs();
 	rcu_preempt_note_context_switch();
-	if (unlikely(raw_cpu_read(rcu_sched_qs_mask)))
+	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_sched_qs_mask)))
 		rcu_momentary_dyntick_idle();
 	trace_rcu_utilization(TPS("End context switch"));
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
@@ -524,7 +522,7 @@ void rcu_all_qs(void)
 	unsigned long flags;
 
 	barrier(); /* Avoid RCU read-side critical sections leaking down. */
-	if (unlikely(raw_cpu_read(rcu_sched_qs_mask))) {
+	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_sched_qs_mask))) {
 		local_irq_save(flags);
 		rcu_momentary_dyntick_idle();
 		local_irq_restore(flags);
@@ -1351,7 +1349,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 	 * is set too high, we override with half of the RCU CPU stall
 	 * warning delay.
 	 */
-	rcrmp = &per_cpu(rcu_sched_qs_mask, rdp->cpu);
+	rcrmp = &per_cpu(rcu_dynticks.rcu_sched_qs_mask, rdp->cpu);
 	if (time_after(jiffies, rdp->rsp->gp_start + jtsq) ||
 	    time_after(jiffies, rdp->rsp->jiffies_resched)) {
 		if (!(READ_ONCE(*rcrmp) & rdp->rsp->flavor_mask)) {
