@@ -250,7 +250,7 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 
 	memset(txb, 0, sizeof(struct ieee80211_txb));
 	txb->nr_frags = nr_frags;
-	txb->frag_size = txb_size;
+	txb->frag_size = __cpu_to_le16(txb_size);
 
 	for (i = 0; i < nr_frags; i++) {
 		txb->fragments[i] = dev_alloc_skb(txb_size);
@@ -752,7 +752,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto failed;
 		}
 		txb->encrypted = encrypt;
-		txb->payload_size = bytes;
+		txb->payload_size = __cpu_to_le16(bytes);
 
 		//if (ieee->current_network.QoS_Enable)
 		if(qos_actived)
@@ -859,7 +859,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		txb->encrypted = 0;
-		txb->payload_size = skb->len;
+		txb->payload_size = __cpu_to_le16(skb->len);
 		memcpy(skb_put(txb->fragments[0],skb->len), skb->data, skb->len);
 	}
 
@@ -896,7 +896,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		}else{
 			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
 				stats->tx_packets++;
-				stats->tx_bytes += txb->payload_size;
+				stats->tx_bytes += __le16_to_cpu(txb->payload_size);
 				return 0;
 			}
 			ieee80211_txb_free(txb);
