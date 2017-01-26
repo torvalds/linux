@@ -980,7 +980,6 @@ driver_stub = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = nouveau_drm_debugfs_init,
-	.debugfs_cleanup = nouveau_drm_debugfs_cleanup,
 #endif
 
 	.enable_vblank = nouveau_display_vblank_enable,
