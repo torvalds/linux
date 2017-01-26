@@ -1255,7 +1255,7 @@ const struct samsung_pin_ctrl exynos5420_pin_ctrl[] __initconst = {
 };
 
 /* pin banks of exynos5433 pin-controller - ALIVE */
-static const struct samsung_pin_bank_data exynos5433_pin_banks0[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks0[] __initconst = {
 	EXYNOS_PIN_BANK_EINTW(8, 0x000, "gpa0", 0x00),
 	EXYNOS_PIN_BANK_EINTW(8, 0x020, "gpa1", 0x04),
 	EXYNOS_PIN_BANK_EINTW(8, 0x040, "gpa2", 0x08),
@@ -1268,28 +1268,28 @@ static const struct samsung_pin_bank_data exynos5433_pin_banks0[] = {
 };
 
 /* pin banks of exynos5433 pin-controller - AUD */
-static const struct samsung_pin_bank_data exynos5433_pin_banks1[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks1[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(7, 0x000, "gpz0", 0x00),
 	EXYNOS_PIN_BANK_EINTG(4, 0x020, "gpz1", 0x04),
 };
 
 /* pin banks of exynos5433 pin-controller - CPIF */
-static const struct samsung_pin_bank_data exynos5433_pin_banks2[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks2[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(2, 0x000, "gpv6", 0x00),
 };
 
 /* pin banks of exynos5433 pin-controller - eSE */
-static const struct samsung_pin_bank_data exynos5433_pin_banks3[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks3[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(3, 0x000, "gpj2", 0x00),
 };
 
 /* pin banks of exynos5433 pin-controller - FINGER */
-static const struct samsung_pin_bank_data exynos5433_pin_banks4[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks4[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(4, 0x000, "gpd5", 0x00),
 };
 
 /* pin banks of exynos5433 pin-controller - FSYS */
-static const struct samsung_pin_bank_data exynos5433_pin_banks5[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks5[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(6, 0x000, "gph1", 0x00),
 	EXYNOS_PIN_BANK_EINTG(7, 0x020, "gpr4", 0x04),
 	EXYNOS_PIN_BANK_EINTG(5, 0x040, "gpr0", 0x08),
@@ -1299,17 +1299,17 @@ static const struct samsung_pin_bank_data exynos5433_pin_banks5[] = {
 };
 
 /* pin banks of exynos5433 pin-controller - IMEM */
-static const struct samsung_pin_bank_data exynos5433_pin_banks6[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks6[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpf0", 0x00),
 };
 
 /* pin banks of exynos5433 pin-controller - NFC */
-static const struct samsung_pin_bank_data exynos5433_pin_banks7[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks7[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(3, 0x000, "gpj0", 0x00),
 };
 
 /* pin banks of exynos5433 pin-controller - PERIC */
-static const struct samsung_pin_bank_data exynos5433_pin_banks8[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks8[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(6, 0x000, "gpv7", 0x00),
 	EXYNOS_PIN_BANK_EINTG(5, 0x020, "gpb0", 0x04),
 	EXYNOS_PIN_BANK_EINTG(8, 0x040, "gpc0", 0x08),
@@ -1330,7 +1330,7 @@ static const struct samsung_pin_bank_data exynos5433_pin_banks8[] = {
 };
 
 /* pin banks of exynos5433 pin-controller - TOUCH */
-static const struct samsung_pin_bank_data exynos5433_pin_banks9[] = {
+static const struct samsung_pin_bank_data exynos5433_pin_banks9[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(3, 0x000, "gpj1", 0x00),
 };
 
@@ -1338,7 +1338,7 @@ static const struct samsung_pin_bank_data exynos5433_pin_banks9[] = {
  * Samsung pinctrl driver data for Exynos5433 SoC. Exynos5433 SoC includes
  * ten gpio/pin-mux/pinconfig controllers.
  */
-const struct samsung_pin_ctrl exynos5433_pin_ctrl[] = {
+const struct samsung_pin_ctrl exynos5433_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 data */
 		.pin_banks	= exynos5433_pin_banks0,
