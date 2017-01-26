@@ -528,6 +528,8 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
+	disk.ops = NULL;
+
 	ret = lkl_disk_add(&disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));

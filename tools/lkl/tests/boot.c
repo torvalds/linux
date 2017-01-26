@@ -349,6 +349,8 @@ int test_disk_add(char *str, int len)
 #endif
 		goto out_unlink;
 
+	disk.ops = NULL;
+
 	disk_id = lkl_disk_add(&disk);
 	if (disk_id < 0)
 		goto out_close;
