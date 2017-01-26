@@ -79,12 +79,12 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
-static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
+static phys_addr_t i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct resource *r;
-	u32 base;
+	phys_addr_t base;
 
 	/* Almost universally we can find the Graphics Base of Stolen Memory
 	 * at register BSM (0x5c) in the igfx configuration space. On a few
@@ -196,7 +196,7 @@ static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
 		struct {
-			u32 start, end;
+			phys_addr_t start, end;
 		} stolen[2] = {
 			{ .start = base, .end = base + ggtt->stolen_size, },
 			{ .start = base, .end = base + ggtt->stolen_size, },
@@ -228,11 +228,13 @@ static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
+			phys_addr_t end = base + ggtt->stolen_size - 1;
+
 			DRM_DEBUG_KMS("GTT within stolen memory at 0x%llx-0x%llx\n",
 				      (unsigned long long)ggtt_start,
 				      (unsigned long long)ggtt_end - 1);
-			DRM_DEBUG_KMS("Stolen memory adjusted to 0x%x-0x%x\n",
-				      base, base + (u32)ggtt->stolen_size - 1);
+			DRM_DEBUG_KMS("Stolen memory adjusted to %pa - %pa\n",
+				      &base, &end);
 		}
 	}
 
@@ -261,8 +263,10 @@ static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 		 * range. Apparently this works.
 		 */
 		if (r == NULL && !IS_GEN3(dev_priv)) {
-			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
-				  base, base + (uint32_t)ggtt->stolen_size);
+			phys_addr_t end = base + ggtt->stolen_size;
+
+			DRM_ERROR("conflict detected with stolen region: [%pa - %pa]\n",
+				  &base, &end);
 			base = 0;
 		}
 	}
