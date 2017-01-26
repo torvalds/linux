@@ -3819,10 +3819,7 @@ cache_acl:
 		break;
 	case S_IFDIR:
 		inode->i_fop = &btrfs_dir_file_operations;
-		if (root == root->fs_info->tree_root)
-			inode->i_op = &btrfs_dir_ro_inode_operations;
-		else
-			inode->i_op = &btrfs_dir_inode_operations;
+		inode->i_op = &btrfs_dir_inode_operations;
 		break;
 	case S_IFLNK:
 		inode->i_op = &btrfs_symlink_inode_operations;
