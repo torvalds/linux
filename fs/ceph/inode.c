@@ -1286,8 +1286,8 @@ retry_lookup:
 				ceph_dir_clear_ordered(dir);
 				dout("d_delete %p\n", dn);
 				d_delete(dn);
-			} else {
-				if (have_lease && d_unhashed(dn))
+			} else if (have_lease) {
+				if (d_unhashed(dn))
 					d_add(dn, NULL);
 				update_dentry_lease(dn, rinfo->dlease,
 						    session,
