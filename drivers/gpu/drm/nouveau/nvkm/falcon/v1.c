@@ -120,6 +120,7 @@ static void
 nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 {
 	u32 inst_loc;
+	u32 fbif;
 
 	/* disable instance block binding */
 	if (ctx == NULL) {
@@ -127,15 +128,29 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 		return;
 	}
 
+	switch (falcon->owner->index) {
+	case NVKM_ENGINE_NVENC0:
+	case NVKM_ENGINE_NVENC1:
+	case NVKM_ENGINE_NVENC2:
+		fbif = 0x800;
+		break;
+	case NVKM_SUBDEV_PMU:
+		fbif = 0xe00;
+		break;
+	default:
+		fbif = 0x600;
+		break;
+	}
+
 	nvkm_falcon_wr32(falcon, 0x10c, 0x1);
 
 	/* setup apertures - virtual */
-	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_UCODE, 0x4);
-	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_VIRT, 0x0);
+	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_UCODE, 0x4);
+	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_VIRT, 0x0);
 	/* setup apertures - physical */
-	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_PHYS_VID, 0x4);
-	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_PHYS_SYS_COH, 0x5);
-	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_PHYS_SYS_NCOH, 0x6);
+	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_PHYS_VID, 0x4);
+	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_PHYS_SYS_COH, 0x5);
+	nvkm_falcon_wr32(falcon, fbif + 4 * FALCON_DMAIDX_PHYS_SYS_NCOH, 0x6);
 
 	/* Set context */
 	switch (nvkm_memory_target(ctx->memory)) {
