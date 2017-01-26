@@ -65,12 +65,12 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_CONFIG0,
 		   I915_READ(GEN8_CONFIG0) | GEN9_DEFAULT_FIXES);
 
-	/* WaEnableChickenDCPR:skl,bxt,kbl */
+	/* WaEnableChickenDCPR:skl,bxt,kbl,glk */
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
 
 	/* WaFbcTurnOffFbcWatermark:skl,bxt,kbl */
-	/* WaFbcWakeMemOn:skl,bxt,kbl */
+	/* WaFbcWakeMemOn:skl,bxt,kbl,glk */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_WM_DIS |
 		   DISP_FBC_MEMORY_WAKE);
@@ -102,6 +102,19 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER))
 		I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
 			   PWM1_GATING_DIS | PWM2_GATING_DIS);
+}
+
+static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
+{
+	gen9_init_clock_gating(dev_priv);
+
+	/*
+	 * WaDisablePWMClockGating:glk
+	 * Backlight PWM may stop in the asserted state, causing backlight
+	 * to stay fully on.
+	 */
+	I915_WRITE(GEN9_CLKGATE_DIS_0, I915_READ(GEN9_CLKGATE_DIS_0) |
+		   PWM1_GATING_DIS | PWM2_GATING_DIS);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_i915_private *dev_priv)
@@ -2173,7 +2186,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		}
 
 		/*
-		 * WaWmMemoryReadLatency:skl
+		 * WaWmMemoryReadLatency:skl,glk
 		 *
 		 * punit doesn't take into account the read latency so we need
 		 * to add 2us to the various latency levels we retrieve from the
@@ -7645,8 +7658,10 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = skylake_init_clock_gating;
 	else if (IS_KABYLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = kabylake_init_clock_gating;
-	else if (IS_GEN9_LP(dev_priv))
+	else if (IS_BROXTON(dev_priv))
 		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
+	else if (IS_GEMINILAKE(dev_priv))
+		dev_priv->display.init_clock_gating = glk_init_clock_gating;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
 	else if (IS_CHERRYVIEW(dev_priv))

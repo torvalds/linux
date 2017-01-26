@@ -191,7 +191,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 			  "Platform that should have a MOCS table does not.\n");
 	}
 
-	/* WaDisableSkipCaching:skl,bxt,kbl */
+	/* WaDisableSkipCaching:skl,bxt,kbl,glk */
 	if (IS_GEN9(dev_priv)) {
 		int i;
 
