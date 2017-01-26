@@ -209,7 +209,7 @@ static inline int sane_case(int x, int high)
 }
 
 int mkdir_p(char *path, mode_t mode);
-int rm_rf(char *path);
+int rm_rf(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
