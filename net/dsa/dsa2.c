@@ -93,8 +93,8 @@ static bool dsa_port_is_cpu(struct dsa_port *port)
 	return !!of_parse_phandle(port->dn, "ethernet", 0);
 }
 
-static bool dsa_ds_find_port(struct dsa_switch *ds,
-			     struct device_node *port)
+static bool dsa_ds_find_port_dn(struct dsa_switch *ds,
+				struct device_node *port)
 {
 	u32 index;
 
@@ -104,8 +104,8 @@ static bool dsa_ds_find_port(struct dsa_switch *ds,
 	return false;
 }
 
-static struct dsa_switch *dsa_dst_find_port(struct dsa_switch_tree *dst,
-					    struct device_node *port)
+static struct dsa_switch *dsa_dst_find_port_dn(struct dsa_switch_tree *dst,
+					       struct device_node *port)
 {
 	struct dsa_switch *ds;
 	u32 index;
@@ -115,7 +115,7 @@ static struct dsa_switch *dsa_dst_find_port(struct dsa_switch_tree *dst,
 		if (!ds)
 			continue;
 
-		if (dsa_ds_find_port(ds, port))
+		if (dsa_ds_find_port_dn(ds, port))
 			return ds;
 	}
 
@@ -136,7 +136,7 @@ static int dsa_port_complete(struct dsa_switch_tree *dst,
 		if (!link)
 			break;
 
-		dst_ds = dsa_dst_find_port(dst, link);
+		dst_ds = dsa_dst_find_port_dn(dst, link);
 		of_node_put(link);
 
 		if (!dst_ds)
@@ -545,7 +545,7 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_parse_member(struct device_node *np, u32 *tree, u32 *index)
+static int dsa_parse_member_dn(struct device_node *np, u32 *tree, u32 *index)
 {
 	int err;
 
@@ -591,7 +591,7 @@ static int _dsa_register_switch(struct dsa_switch *ds, struct device *dev)
 	u32 tree, index;
 	int i, err;
 
-	err = dsa_parse_member(np, &tree, &index);
+	err = dsa_parse_member_dn(np, &tree, &index);
 	if (err)
 		return err;
 
