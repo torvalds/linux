@@ -3335,7 +3335,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	u64 block_start;
 	u64 iosize;
 	sector_t sector;
-	struct extent_state *cached_state = NULL;
 	struct extent_map *em;
 	struct block_device *bdev;
 	size_t pg_offset = 0;
@@ -3356,8 +3355,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 			update_nr_written(page, wbc, nr_written);
 			unlock_page(page);
-			ret = 1;
-			goto done_unlocked;
+			return 1;
 		}
 	}
 
@@ -3459,11 +3457,6 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	}
 done:
 	*nr_ret = nr;
-
-done_unlocked:
-
-	/* drop our reference on any cached states */
-	free_extent_state(cached_state);
 	return ret;
 }
 
