@@ -8090,6 +8090,9 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 	if (task == TASK_TOMBSTONE)
 		return;
 
+	if (!ifh->nr_file_filters)
+		return;
+
 	mm = get_task_mm(event->ctx->task);
 	if (!mm)
 		goto restart;
@@ -8268,6 +8271,18 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 				if (!filename)
 					goto fail;
 
+				/*
+				 * For now, we only support file-based filters
+				 * in per-task events; doing so for CPU-wide
+				 * events requires additional context switching
+				 * trickery, since same object code will be
+				 * mapped at different virtual addresses in
+				 * different processes.
+				 */
+				ret = -EOPNOTSUPP;
+				if (!event->ctx->task)
+					goto fail_free_name;
+
 				/* look up the path and grab its inode */
 				ret = kern_path(filename, LOOKUP_FOLLOW, &path);
 				if (ret)
@@ -8283,6 +8298,8 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 				    !S_ISREG(filter->inode->i_mode))
 					/* free_filters_list() will iput() */
 					goto fail;
+
+				event->addr_filters.nr_file_filters++;
 			}
 
 			/* ready to consume more filters */
@@ -8322,30 +8339,27 @@ perf_event_set_addr_filter(struct perf_event *event, char *filter_str)
 	if (WARN_ON_ONCE(event->parent))
 		return -EINVAL;
 
-	/*
-	 * For now, we only support filtering in per-task events; doing so
-	 * for CPU-wide events requires additional context switching trickery,
-	 * since same object code will be mapped at different virtual
-	 * addresses in different processes.
-	 */
-	if (!event->ctx->task)
-		return -EOPNOTSUPP;
-
 	ret = perf_event_parse_addr_filter(event, filter_str, &filters);
 	if (ret)
-		return ret;
+		goto fail_clear_files;
 
 	ret = event->pmu->addr_filters_validate(&filters);
-	if (ret) {
-		free_filters_list(&filters);
-		return ret;
-	}
+	if (ret)
+		goto fail_free_filters;
 
 	/* remove existing filters, if any */
 	perf_addr_filters_splice(event, &filters);
 
 	/* install new filters */
 	perf_event_for_each_child(event, perf_event_addr_filters_apply);
+
+	return ret;
+
+fail_free_filters:
+	free_filters_list(&filters);
+
+fail_clear_files:
+	event->addr_filters.nr_file_filters = 0;
 
 	return ret;
 }
