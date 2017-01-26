@@ -219,14 +219,21 @@ skl_update_plane(struct drm_plane *drm_plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
-	plane_ctl = PLANE_CTL_ENABLE |
-		PLANE_CTL_PIPE_GAMMA_ENABLE |
-		PLANE_CTL_PIPE_CSC_ENABLE;
+	plane_ctl = PLANE_CTL_ENABLE;
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		I915_WRITE(PLANE_COLOR_CTL(pipe, plane_id),
+			   PLANE_COLOR_PIPE_GAMMA_ENABLE |
+			   PLANE_COLOR_PLANE_GAMMA_DISABLE);
+	} else {
+		plane_ctl |=
+			PLANE_CTL_PIPE_GAMMA_ENABLE |
+			PLANE_CTL_PIPE_CSC_ENABLE |
+			PLANE_CTL_PLANE_GAMMA_DISABLE;
+	}
 
 	plane_ctl |= skl_plane_ctl_format(fb->format->format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
-
-	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
 	if (key->flags) {

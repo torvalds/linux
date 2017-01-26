@@ -5869,10 +5869,17 @@ enum {
 #define _PLANE_KEYMSK_2_A			0x70298
 #define _PLANE_KEYMAX_1_A			0x701a0
 #define _PLANE_KEYMAX_2_A			0x702a0
+#define _PLANE_COLOR_CTL_1_A			0x701CC /* GLK+ */
+#define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
+#define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
+#define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30)
+#define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23)
+#define   PLANE_COLOR_PLANE_GAMMA_DISABLE	(1 << 13)
 #define _PLANE_BUF_CFG_1_A			0x7027c
 #define _PLANE_BUF_CFG_2_A			0x7037c
 #define _PLANE_NV12_BUF_CFG_1_A		0x70278
 #define _PLANE_NV12_BUF_CFG_2_A		0x70378
+
 
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
@@ -5968,7 +5975,17 @@ enum {
 #define PLANE_NV12_BUF_CFG(pipe, plane)	\
 	_MMIO_PLANE(plane, _PLANE_NV12_BUF_CFG_1(pipe), _PLANE_NV12_BUF_CFG_2(pipe))
 
-/* SKL new cursor registers */
+#define _PLANE_COLOR_CTL_1_B			0x711CC
+#define _PLANE_COLOR_CTL_2_B			0x712CC
+#define _PLANE_COLOR_CTL_3_B			0x713CC
+#define _PLANE_COLOR_CTL_1(pipe)	\
+	_PIPE(pipe, _PLANE_COLOR_CTL_1_A, _PLANE_COLOR_CTL_1_B)
+#define _PLANE_COLOR_CTL_2(pipe)	\
+	_PIPE(pipe, _PLANE_COLOR_CTL_2_A, _PLANE_COLOR_CTL_2_B)
+#define PLANE_COLOR_CTL(pipe, plane)	\
+	_MMIO_PLANE(plane, _PLANE_COLOR_CTL_1(pipe), _PLANE_COLOR_CTL_2(pipe))
+
+#/* SKL new cursor registers */
 #define _CUR_BUF_CFG_A				0x7017c
 #define _CUR_BUF_CFG_B				0x7117c
 #define CUR_BUF_CFG(pipe)	_MMIO_PIPE(pipe, _CUR_BUF_CFG_A, _CUR_BUF_CFG_B)
