@@ -632,6 +632,8 @@ The uac2 function provides these attributes in its function directory:
 	p_chmask - playback channel mask
 	p_srate - playback sampling rate
 	p_ssize - playback sample size (bytes)
+	req_number - the number of pre-allocated request for both capture
+		     and playback
 
 The attributes have sane default values.
 

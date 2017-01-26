@@ -275,6 +275,12 @@ struct usba_dma_desc {
 	u32 ctrl;
 };
 
+struct usba_fifo_cfg {
+	u8			hw_ep_num;
+	u16			fifo_size;
+	u8			nr_banks;
+};
+
 struct usba_ep {
 	int					state;
 	void __iomem				*ep_regs;
@@ -293,7 +299,7 @@ struct usba_ep {
 	unsigned int				can_isoc:1;
 	unsigned int				is_isoc:1;
 	unsigned int				is_in:1;
-
+	unsigned long				ept_cfg;
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	u32					last_dma_status;
 	struct dentry				*debugfs_dir;
@@ -338,6 +344,8 @@ struct usba_udc {
 	int vbus_pin;
 	int vbus_pin_inverted;
 	int num_ep;
+	int configured_ep;
+	struct usba_fifo_cfg *fifo_cfg;
 	struct clk *pclk;
 	struct clk *hclk;
 	struct usba_ep *usba_ep;
