@@ -1250,10 +1250,12 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			debounce = readl(db_reg);
 			debounce &= ~BYT_DEBOUNCE_PULSE_MASK;
 
+			if (arg)
+				conf |= BYT_DEBOUNCE_EN;
+			else
+				conf &= ~BYT_DEBOUNCE_EN;
+
 			switch (arg) {
-			case 0:
-				conf &= BYT_DEBOUNCE_EN;
-				break;
 			case 375:
 				debounce |= BYT_DEBOUNCE_PULSE_375US;
 				break;
@@ -1276,7 +1278,9 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 				debounce |= BYT_DEBOUNCE_PULSE_24MS;
 				break;
 			default:
-				ret = -EINVAL;
+				if (arg)
+					ret = -EINVAL;
+				break;
 			}
 
 			if (!ret)
