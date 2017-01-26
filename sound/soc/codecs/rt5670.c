@@ -2814,6 +2814,7 @@ MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);
 static const struct acpi_device_id rt5670_acpi_match[] = {
 	{ "10EC5670", 0},
 	{ "10EC5672", 0},
+	{ "10EC5640", 0}, /* quirk */
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5670_acpi_match);
