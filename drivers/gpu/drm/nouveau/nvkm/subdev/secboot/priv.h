@@ -30,7 +30,8 @@ struct nvkm_secboot_func {
 	int (*oneinit)(struct nvkm_secboot *);
 	int (*fini)(struct nvkm_secboot *, bool suspend);
 	void *(*dtor)(struct nvkm_secboot *);
-	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *);
+	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *,
+			struct nvkm_falcon *);
 };
 
 int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_acr *,

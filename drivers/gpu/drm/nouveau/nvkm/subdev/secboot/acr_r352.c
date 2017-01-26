@@ -816,11 +816,10 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
  * Returns the start address to use, or a negative error value.
  */
 static int
-acr_r352_load(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
+acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 	      struct nvkm_gpuobj *blob, u64 offset)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
-	struct nvkm_falcon *falcon = sb->boot_falcon;
 	struct fw_bin_header *hdr = acr->hsbl_blob;
 	struct fw_bl_desc *hsbl_desc = acr->hsbl_blob + hdr->header_offset;
 	void *blob_data = acr->hsbl_blob + hdr->data_offset;
@@ -873,7 +872,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		int ret;
 
 		nvkm_debug(&sb->subdev, "running HS unload blob\n");
-		ret = sb->func->run_blob(sb, acr->unload_blob);
+		ret = sb->func->run_blob(sb, acr->unload_blob, sb->halt_falcon);
 		if (ret)
 			return ret;
 		nvkm_debug(&sb->subdev, "HS unload blob completed\n");
@@ -935,7 +934,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		return ret;
 
 	nvkm_debug(subdev, "running HS load blob\n");
-	ret = sb->func->run_blob(sb, acr->load_blob);
+	ret = sb->func->run_blob(sb, acr->load_blob, sb->boot_falcon);
 	/* clear halt interrupt */
 	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
 	sb->wpr_set = acr_r352_wpr_is_set(acr, sb);
@@ -967,9 +966,10 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	nvkm_falcon_wr32(sb->boot_falcon, 0x10, 0xff);
 	nvkm_mc_intr_mask(subdev->device, sb->boot_falcon->owner->index, true);
 
-	/* Start PMU */
+	/* Start LS firmware on boot falcon */
 	nvkm_falcon_start(sb->boot_falcon);
-	nvkm_debug(subdev, "PMU started\n");
+	nvkm_debug(subdev, "%s started\n",
+		   nvkm_secboot_falcon_name[acr->base.boot_falcon]);
 
 	return 0;
 }

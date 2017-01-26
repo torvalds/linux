@@ -45,6 +45,7 @@ struct nvkm_secboot {
 	struct nvkm_acr *acr;
 	struct nvkm_subdev subdev;
 	struct nvkm_falcon *boot_falcon;
+	struct nvkm_falcon *halt_falcon;
 
 	u64 wpr_addr;
 	u32 wpr_size;

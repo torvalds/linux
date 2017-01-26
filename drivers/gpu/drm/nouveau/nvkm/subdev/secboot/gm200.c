@@ -34,11 +34,11 @@
  *
  */
 int
-gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
+gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,
+		       struct nvkm_falcon *falcon)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	struct nvkm_subdev *subdev = &gsb->base.subdev;
-	struct nvkm_falcon *falcon = gsb->base.boot_falcon;
 	struct nvkm_vma vma;
 	u32 start_address;
 	int ret;
@@ -61,7 +61,7 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	nvkm_falcon_bind_context(falcon, gsb->inst);
 
 	/* Load the HS bootloader into the falcon's IMEM/DMEM */
-	ret = sb->acr->func->load(sb->acr, &gsb->base, blob, vma.offset);
+	ret = sb->acr->func->load(sb->acr, falcon, blob, vma.offset);
 	if (ret < 0)
 		goto end;
 
@@ -83,7 +83,7 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	/* If mailbox register contains an error code, then ACR has failed */
 	ret = nvkm_falcon_rd32(falcon, 0x040);
 	if (ret) {
-		nvkm_error(subdev, "ACR boot failed, ret 0x%08x", ret);
+		nvkm_error(subdev, "HS blob failed, ret 0x%08x", ret);
 		ret = -EINVAL;
 		goto end;
 	}

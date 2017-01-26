@@ -37,7 +37,7 @@ struct nvkm_acr_func {
 	void (*dtor)(struct nvkm_acr *);
 	int (*oneinit)(struct nvkm_acr *, struct nvkm_secboot *);
 	int (*fini)(struct nvkm_acr *, struct nvkm_secboot *, bool);
-	int (*load)(struct nvkm_acr *, struct nvkm_secboot *,
+	int (*load)(struct nvkm_acr *, struct nvkm_falcon *,
 		    struct nvkm_gpuobj *, u64);
 	int (*reset)(struct nvkm_acr *, struct nvkm_secboot *,
 		     enum nvkm_secboot_falcon);
