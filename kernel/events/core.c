@@ -8260,6 +8260,7 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 		 * attribute.
 		 */
 		if (state == IF_STATE_END) {
+			ret = -EINVAL;
 			if (kernel && event->attr.exclude_kernel)
 				goto fail;
 
