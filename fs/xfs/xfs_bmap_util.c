@@ -528,7 +528,6 @@ xfs_getbmap(
 	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
 	xfs_mount_t		*mp;		/* file system mount point */
 	int			nex;		/* # of user extents can do */
-	int			nexleft;	/* # of user extents left */
 	int			subnex;		/* # of bmapi's can do */
 	int			nmap;		/* number of map entries */
 	struct getbmapx		*out;		/* output structure */
@@ -686,10 +685,8 @@ xfs_getbmap(
 		goto out_free_map;
 	}
 
-	nexleft = nex;
-
 	do {
-		nmap = (nexleft > subnex) ? subnex : nexleft;
+		nmap = (nex> subnex) ? subnex : nex;
 		error = xfs_bmapi_read(ip, XFS_BB_TO_FSBT(mp, bmv->bmv_offset),
 				       XFS_BB_TO_FSB(mp, bmv->bmv_length),
 				       map, &nmap, bmapi_flags);
@@ -697,8 +694,8 @@ xfs_getbmap(
 			goto out_free_map;
 		ASSERT(nmap <= subnex);
 
-		for (i = 0; i < nmap && nexleft && bmv->bmv_length &&
-				cur_ext < bmv->bmv_count; i++) {
+		for (i = 0; i < nmap && bmv->bmv_length &&
+				cur_ext < bmv->bmv_count - 1; i++) {
 			out[cur_ext].bmv_oflags = 0;
 			if (map[i].br_state == XFS_EXT_UNWRITTEN)
 				out[cur_ext].bmv_oflags |= BMV_OF_PREALLOC;
@@ -760,16 +757,27 @@ xfs_getbmap(
 				continue;
 			}
 
+			/*
+			 * In order to report shared extents accurately,
+			 * we report each distinct shared/unshared part
+			 * of a single bmbt record using multiple bmap
+			 * extents.  To make that happen, we iterate the
+			 * same map array item multiple times, each
+			 * time trimming out the subextent that we just
+			 * reported.
+			 *
+			 * Because of this, we must check the out array
+			 * index (cur_ext) directly against bmv_count-1
+			 * to avoid overflows.
+			 */
 			if (inject_map.br_startblock != NULLFSBLOCK) {
 				map[i] = inject_map;
 				i--;
-			} else
-				nexleft--;
+			}
 			bmv->bmv_entries++;
 			cur_ext++;
 		}
-	} while (nmap && nexleft && bmv->bmv_length &&
-		 cur_ext < bmv->bmv_count);
+	} while (nmap && bmv->bmv_length && cur_ext < bmv->bmv_count - 1);
 
  out_free_map:
 	kmem_free(map);
