@@ -138,6 +138,7 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 	/* Set context */
 	switch (nvkm_memory_target(ctx->memory)) {
 	case NVKM_MEM_TARGET_VRAM: inst_loc = 0; break;
+	case NVKM_MEM_TARGET_HOST: inst_loc = 2; break;
 	case NVKM_MEM_TARGET_NCOH: inst_loc = 3; break;
 	default:
 		WARN_ON(1);
