@@ -28,6 +28,7 @@
 #include <subdev/mc.h>
 #include <subdev/pmu.h>
 #include <core/msgqueue.h>
+#include <engine/sec2.h>
 
 /**
  * struct hsf_fw_header - HS firmware descriptor
@@ -1017,7 +1018,7 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	       enum nvkm_secboot_falcon falcon)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
-	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
+	struct nvkm_msgqueue *queue;
 	const char *fname = nvkm_secboot_falcon_name[falcon];
 	bool wpr_already_set = sb->wpr_set;
 	int ret;
@@ -1037,9 +1038,20 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 			return ret;
 	}
 
-	/* Otherwise just ask the PMU to reset the falcon */
+	switch (_acr->boot_falcon) {
+	case NVKM_SECBOOT_FALCON_PMU:
+		queue = sb->subdev.device->pmu->queue;
+		break;
+	case NVKM_SECBOOT_FALCON_SEC2:
+		queue = sb->subdev.device->sec2->queue;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Otherwise just ask the LS firmware to reset the falcon */
 	nvkm_debug(&sb->subdev, "resetting %s falcon\n", fname);
-	ret = nvkm_msgqueue_acr_boot_falcon(pmu->queue, falcon);
+	ret = nvkm_msgqueue_acr_boot_falcon(queue, falcon);
 	if (ret) {
 		nvkm_error(&sb->subdev, "cannot boot %s falcon\n", fname);
 		return ret;
