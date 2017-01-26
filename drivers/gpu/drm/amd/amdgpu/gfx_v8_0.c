@@ -7315,6 +7315,11 @@ static int gfx_v8_0_compute_mqd_soft_init(struct amdgpu_device *adev)
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
 			return r;
 		}
+
+		/* prepare MQD backup */
+		adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS] = kmalloc(sizeof(struct vi_mqd), GFP_KERNEL);
+		if (!adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS])
+				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 	}
 
 	/* create MQD for each KCQ */
@@ -7329,6 +7334,11 @@ static int gfx_v8_0_compute_mqd_soft_init(struct amdgpu_device *adev)
 				dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
 				return r;
 			}
+
+			/* prepare MQD backup */
+			adev->gfx.mec.mqd_backup[i] = kmalloc(sizeof(struct vi_mqd), GFP_KERNEL);
+			if (!adev->gfx.mec.mqd_backup[i])
+				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 		}
 	}
 

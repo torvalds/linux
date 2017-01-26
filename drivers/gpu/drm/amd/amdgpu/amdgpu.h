@@ -783,6 +783,7 @@ struct amdgpu_mec {
 	u32 num_pipe;
 	u32 num_mec;
 	u32 num_queue;
+	struct vi_mqd	*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS + 1];
 };
 
 struct amdgpu_kiq {
