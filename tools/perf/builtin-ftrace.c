@@ -202,7 +202,7 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int ret;
 	struct perf_ftrace ftrace = {
-		.tracer = "function_graph",
+		.tracer = DEFAULT_TRACER,
 		.target = { .uid = UINT_MAX, },
 	};
 	const char * const ftrace_usage[] = {
@@ -230,9 +230,6 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 	ret = perf_evlist__create_maps(ftrace.evlist, &ftrace.target);
 	if (ret < 0)
 		goto out_delete_evlist;
-
-	if (ftrace.tracer == NULL)
-		ftrace.tracer = DEFAULT_TRACER;
 
 	ret = __cmd_ftrace(&ftrace, argc, argv);
 
