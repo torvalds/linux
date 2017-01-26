@@ -238,6 +238,13 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 		vgic_v3->vgic_sre = 0;
 	}
 
+	vcpu->arch.vgic_cpu.num_id_bits = (kvm_vgic_global_state.ich_vtr_el2 &
+					   ICH_VTR_ID_BITS_MASK) >>
+					   ICH_VTR_ID_BITS_SHIFT;
+	vcpu->arch.vgic_cpu.num_pri_bits = ((kvm_vgic_global_state.ich_vtr_el2 &
+					    ICH_VTR_PRI_BITS_MASK) >>
+					    ICH_VTR_PRI_BITS_SHIFT) + 1;
+
 	/* Get the show on the road... */
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
 }
@@ -336,6 +343,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	 */
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
+	kvm_vgic_global_state.ich_vtr_el2 = ich_vtr_el2;
 
 	if (!info->vcpu.start) {
 		kvm_info("GICv3: no GICV resource entry\n");

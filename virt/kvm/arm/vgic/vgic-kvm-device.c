@@ -504,6 +504,14 @@ static int vgic_v3_attr_regs_access(struct kvm_device *dev,
 		if (!is_write)
 			*reg = tmp32;
 		break;
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS: {
+		u64 regid;
+
+		regid = (attr->attr & KVM_DEV_ARM_VGIC_SYSREG_INSTR_MASK);
+		ret = vgic_v3_cpu_sysregs_uaccess(vcpu, is_write,
+						  regid, reg);
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
@@ -537,6 +545,15 @@ static int vgic_v3_set_attr(struct kvm_device *dev,
 		reg = tmp32;
 		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
 	}
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 reg;
+
+		if (get_user(reg, uaddr))
+			return -EFAULT;
+
+		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
+	}
 	}
 	return -ENXIO;
 }
@@ -563,6 +580,15 @@ static int vgic_v3_get_attr(struct kvm_device *dev,
 		tmp32 = reg;
 		return put_user(tmp32, uaddr);
 	}
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 reg;
+
+		ret = vgic_v3_attr_regs_access(dev, attr, &reg, false);
+		if (ret)
+			return ret;
+		return put_user(reg, uaddr);
+	}
 	}
 
 	return -ENXIO;
@@ -581,6 +607,7 @@ static int vgic_v3_has_attr(struct kvm_device *dev,
 		break;
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
 	case KVM_DEV_ARM_VGIC_GRP_REDIST_REGS:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
 		return vgic_v3_has_attr_regs(dev, attr);
 	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
 		return 0;

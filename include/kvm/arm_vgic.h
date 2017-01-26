@@ -71,6 +71,8 @@ struct vgic_global {
 
 	/* GIC system register CPU interface */
 	struct static_key_false gicv3_cpuif;
+
+	u32			ich_vtr_el2;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -275,6 +277,12 @@ struct vgic_cpu {
 	u64 pendbaser;
 
 	bool lpis_enabled;
+
+	/* Cache guest priority bits */
+	u32 num_pri_bits;
+
+	/* Cache guest interrupt ID bits */
+	u32 num_id_bits;
 };
 
 extern struct static_key_false vgic_v2_cpuif_trap;

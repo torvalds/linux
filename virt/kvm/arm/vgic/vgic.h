@@ -52,6 +52,27 @@
 			    VGIC_AFFINITY_LEVEL(val, 2) | \
 			    VGIC_AFFINITY_LEVEL(val, 3))
 
+/*
+ * As per Documentation/virtual/kvm/devices/arm-vgic-v3.txt,
+ * below macros are defined for CPUREG encoding.
+ */
+#define KVM_REG_ARM_VGIC_SYSREG_OP0_MASK   0x000000000000c000
+#define KVM_REG_ARM_VGIC_SYSREG_OP0_SHIFT  14
+#define KVM_REG_ARM_VGIC_SYSREG_OP1_MASK   0x0000000000003800
+#define KVM_REG_ARM_VGIC_SYSREG_OP1_SHIFT  11
+#define KVM_REG_ARM_VGIC_SYSREG_CRN_MASK   0x0000000000000780
+#define KVM_REG_ARM_VGIC_SYSREG_CRN_SHIFT  7
+#define KVM_REG_ARM_VGIC_SYSREG_CRM_MASK   0x0000000000000078
+#define KVM_REG_ARM_VGIC_SYSREG_CRM_SHIFT  3
+#define KVM_REG_ARM_VGIC_SYSREG_OP2_MASK   0x0000000000000007
+#define KVM_REG_ARM_VGIC_SYSREG_OP2_SHIFT  0
+
+#define KVM_DEV_ARM_VGIC_SYSREG_MASK (KVM_REG_ARM_VGIC_SYSREG_OP0_MASK | \
+				      KVM_REG_ARM_VGIC_SYSREG_OP1_MASK | \
+				      KVM_REG_ARM_VGIC_SYSREG_CRN_MASK | \
+				      KVM_REG_ARM_VGIC_SYSREG_CRM_MASK | \
+				      KVM_REG_ARM_VGIC_SYSREG_OP2_MASK)
+
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
@@ -139,6 +160,10 @@ int vgic_v3_dist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
 			 int offset, u32 *val);
 int vgic_v3_redist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
 			 int offset, u32 *val);
+int vgic_v3_cpu_sysregs_uaccess(struct kvm_vcpu *vcpu, bool is_write,
+			 u64 id, u64 *val);
+int vgic_v3_has_cpu_sysregs_attr(struct kvm_vcpu *vcpu, bool is_write, u64 id,
+				u64 *reg);
 int kvm_register_vgic_device(unsigned long type);
 void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
