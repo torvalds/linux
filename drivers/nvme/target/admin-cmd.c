@@ -509,7 +509,7 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 		break;
 	case nvme_admin_identify:
 		req->data_len = 4096;
-		switch (le32_to_cpu(cmd->identify.cns)) {
+		switch (cmd->identify.cns) {
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
 			return 0;

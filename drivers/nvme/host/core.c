@@ -560,7 +560,7 @@ int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 
 	/* gcc-4.4.4 (at least) has issues with initializers and anon unions */
 	c.identify.opcode = nvme_admin_identify;
-	c.identify.cns = cpu_to_le32(NVME_ID_CNS_CTRL);
+	c.identify.cns = NVME_ID_CNS_CTRL;
 
 	*id = kmalloc(sizeof(struct nvme_id_ctrl), GFP_KERNEL);
 	if (!*id)
@@ -578,7 +578,7 @@ static int nvme_identify_ns_list(struct nvme_ctrl *dev, unsigned nsid, __le32 *n
 	struct nvme_command c = { };
 
 	c.identify.opcode = nvme_admin_identify;
-	c.identify.cns = cpu_to_le32(NVME_ID_CNS_NS_ACTIVE_LIST);
+	c.identify.cns = NVME_ID_CNS_NS_ACTIVE_LIST;
 	c.identify.nsid = cpu_to_le32(nsid);
 	return nvme_submit_sync_cmd(dev->admin_q, &c, ns_list, 0x1000);
 }
@@ -592,6 +592,7 @@ int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 	/* gcc-4.4.4 (at least) has issues with initializers and anon unions */
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.nsid = cpu_to_le32(nsid);
+	c.identify.cns = NVME_ID_CNS_NS;
 
 	*id = kmalloc(sizeof(struct nvme_id_ns), GFP_KERNEL);
 	if (!*id)
