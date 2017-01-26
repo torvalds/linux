@@ -109,7 +109,14 @@ void mv_cesa_tdma_chain(struct mv_cesa_engine *engine,
 		last->next = dreq->chain.first;
 		engine->chain.last = dreq->chain.last;
 
-		if (!(last->flags & CESA_TDMA_BREAK_CHAIN))
+		/*
+		 * Break the DMA chain if the CESA_TDMA_BREAK_CHAIN is set on
+		 * the last element of the current chain, or if the request
+		 * being queued needs the IV regs to be set before lauching
+		 * the request.
+		 */
+		if (!(last->flags & CESA_TDMA_BREAK_CHAIN) &&
+		    !(dreq->chain.first->flags & CESA_TDMA_SET_STATE))
 			last->next_dma = dreq->chain.first->cur_dma;
 	}
 }
