@@ -110,8 +110,9 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 
 /* basic switch operations **************************************************/
 int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
-		      struct device_node *port_dn, int port)
+		      struct dsa_port *dport, int port)
 {
+	struct device_node *port_dn = dport->dn;
 	struct phy_device *phydev;
 	int ret, mode;
 
@@ -141,15 +142,15 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 
 static int dsa_cpu_dsa_setups(struct dsa_switch *ds, struct device *dev)
 {
-	struct device_node *port_dn;
+	struct dsa_port *dport;
 	int ret, port;
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
-		port_dn = ds->ports[port].dn;
-		ret = dsa_cpu_dsa_setup(ds, dev, port_dn, port);
+		dport = &ds->ports[port];
+		ret = dsa_cpu_dsa_setup(ds, dev, dport, port);
 		if (ret)
 			return ret;
 	}
@@ -364,8 +365,10 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	return ds;
 }
 
-void dsa_cpu_dsa_destroy(struct device_node *port_dn)
+void dsa_cpu_dsa_destroy(struct dsa_port *port)
 {
+	struct device_node *port_dn = port->dn;
+
 	if (of_phy_is_fixed_link(port_dn))
 		of_phy_deregister_fixed_link(port_dn);
 }
@@ -389,7 +392,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
-		dsa_cpu_dsa_destroy(ds->ports[port].dn);
+		dsa_cpu_dsa_destroy(&ds->ports[port]);
 
 		/* Clearing a bit which is not set does no harm */
 		ds->cpu_port_mask |= ~(1 << port);
