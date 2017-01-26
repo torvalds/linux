@@ -731,16 +731,23 @@ static void __iomem *byt_gpio_reg(struct byt_gpio *vg, unsigned int offset,
 				  int reg)
 {
 	struct byt_community *comm = byt_get_community(vg, offset);
-	u32 reg_offset = 0;
+	u32 reg_offset;
 
 	if (!comm)
 		return NULL;
 
 	offset -= comm->pin_base;
-	if (reg == BYT_INT_STAT_REG)
+	switch (reg) {
+	case BYT_INT_STAT_REG:
 		reg_offset = (offset / 32) * 4;
-	else
+		break;
+	case BYT_DEBOUNCE_REG:
+		reg_offset = 0;
+		break;
+	default:
 		reg_offset = comm->pad_map[offset] * 16;
+		break;
+	}
 
 	return comm->reg_base + reg_offset + reg;
 }
