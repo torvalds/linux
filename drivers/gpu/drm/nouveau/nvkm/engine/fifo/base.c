@@ -32,6 +32,17 @@
 #include <nvif/unpack.h>
 
 void
+nvkm_fifo_recover_chan(struct nvkm_fifo *fifo, int chid)
+{
+	unsigned long flags;
+	if (WARN_ON(!fifo->func->recover_chan))
+		return;
+	spin_lock_irqsave(&fifo->lock, flags);
+	fifo->func->recover_chan(fifo, chid);
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+void
 nvkm_fifo_pause(struct nvkm_fifo *fifo, unsigned long *flags)
 {
 	return fifo->func->pause(fifo, flags);

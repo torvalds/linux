@@ -8,6 +8,7 @@ int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *,
 void nvkm_fifo_uevent(struct nvkm_fifo *);
 void nvkm_fifo_cevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
+void nvkm_fifo_recover_chan(struct nvkm_fifo *, int chid);
 
 struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
@@ -20,6 +21,7 @@ struct nvkm_fifo_func {
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 	void (*uevent_init)(struct nvkm_fifo *);
 	void (*uevent_fini)(struct nvkm_fifo *);
+	void (*recover_chan)(struct nvkm_fifo *, int chid);
 	int (*class_get)(struct nvkm_fifo *, int index,
 			 const struct nvkm_fifo_chan_oclass **);
 	const struct nvkm_fifo_chan_oclass *chan[];
