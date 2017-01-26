@@ -434,6 +434,19 @@ static void atmel_sha_write_ctrl(struct atmel_sha_dev *dd, int dma)
 	atmel_sha_write(dd, SHA_MR, valmr);
 }
 
+static inline int atmel_sha_wait_for_data_ready(struct atmel_sha_dev *dd,
+						atmel_sha_fn_t resume)
+{
+	u32 isr = atmel_sha_read(dd, SHA_ISR);
+
+	if (unlikely(isr & SHA_INT_DATARDY))
+		return resume(dd);
+
+	dd->resume = resume;
+	atmel_sha_write(dd, SHA_IER, SHA_INT_DATARDY);
+	return -EINPROGRESS;
+}
+
 static int atmel_sha_xmit_cpu(struct atmel_sha_dev *dd, const u8 *buf,
 			      size_t length, int final)
 {
