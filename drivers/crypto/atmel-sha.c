@@ -51,14 +51,16 @@
 #define SHA_FLAGS_CPU			BIT(5)
 #define SHA_FLAGS_DMA_READY		BIT(6)
 
+/* bits[10:8] are reserved. */
+#define SHA_FLAGS_ALGO_MASK	SHA_MR_ALGO_MASK
+#define SHA_FLAGS_SHA1		SHA_MR_ALGO_SHA1
+#define SHA_FLAGS_SHA256	SHA_MR_ALGO_SHA256
+#define SHA_FLAGS_SHA384	SHA_MR_ALGO_SHA384
+#define SHA_FLAGS_SHA512	SHA_MR_ALGO_SHA512
+#define SHA_FLAGS_SHA224	SHA_MR_ALGO_SHA224
+
 #define SHA_FLAGS_FINUP		BIT(16)
 #define SHA_FLAGS_SG		BIT(17)
-#define SHA_FLAGS_ALGO_MASK	GENMASK(22, 18)
-#define SHA_FLAGS_SHA1		BIT(18)
-#define SHA_FLAGS_SHA224	BIT(19)
-#define SHA_FLAGS_SHA256	BIT(20)
-#define SHA_FLAGS_SHA384	BIT(21)
-#define SHA_FLAGS_SHA512	BIT(22)
 #define SHA_FLAGS_ERROR		BIT(23)
 #define SHA_FLAGS_PAD		BIT(24)
 #define SHA_FLAGS_RESTORE	BIT(25)
@@ -264,7 +266,9 @@ static void atmel_sha_fill_padding(struct atmel_sha_reqctx *ctx, int length)
 	bits[1] = cpu_to_be64(size[0] << 3);
 	bits[0] = cpu_to_be64(size[1] << 3 | size[0] >> 61);
 
-	if (ctx->flags & (SHA_FLAGS_SHA384 | SHA_FLAGS_SHA512)) {
+	switch (ctx->flags & SHA_FLAGS_ALGO_MASK) {
+	case SHA_FLAGS_SHA384:
+	case SHA_FLAGS_SHA512:
 		index = ctx->bufcnt & 0x7f;
 		padlen = (index < 112) ? (112 - index) : ((128+112) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -272,7 +276,9 @@ static void atmel_sha_fill_padding(struct atmel_sha_reqctx *ctx, int length)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, bits, 16);
 		ctx->bufcnt += padlen + 16;
 		ctx->flags |= SHA_FLAGS_PAD;
-	} else {
+		break;
+
+	default:
 		index = ctx->bufcnt & 0x3f;
 		padlen = (index < 56) ? (56 - index) : ((64+56) - index);
 		*(ctx->buffer + ctx->bufcnt) = 0x80;
@@ -280,6 +286,7 @@ static void atmel_sha_fill_padding(struct atmel_sha_reqctx *ctx, int length)
 		memcpy(ctx->buffer + ctx->bufcnt + padlen, &bits[1], 8);
 		ctx->bufcnt += padlen + 8;
 		ctx->flags |= SHA_FLAGS_PAD;
+		break;
 	}
 }
 
@@ -828,16 +835,28 @@ static void atmel_sha_copy_ready_hash(struct ahash_request *req)
 	if (!req->result)
 		return;
 
-	if (ctx->flags & SHA_FLAGS_SHA1)
+	switch (ctx->flags & SHA_FLAGS_ALGO_MASK) {
+	default:
+	case SHA_FLAGS_SHA1:
 		memcpy(req->result, ctx->digest, SHA1_DIGEST_SIZE);
-	else if (ctx->flags & SHA_FLAGS_SHA224)
+		break;
+
+	case SHA_FLAGS_SHA224:
 		memcpy(req->result, ctx->digest, SHA224_DIGEST_SIZE);
-	else if (ctx->flags & SHA_FLAGS_SHA256)
+		break;
+
+	case SHA_FLAGS_SHA256:
 		memcpy(req->result, ctx->digest, SHA256_DIGEST_SIZE);
-	else if (ctx->flags & SHA_FLAGS_SHA384)
+		break;
+
+	case SHA_FLAGS_SHA384:
 		memcpy(req->result, ctx->digest, SHA384_DIGEST_SIZE);
-	else
+		break;
+
+	case SHA_FLAGS_SHA512:
 		memcpy(req->result, ctx->digest, SHA512_DIGEST_SIZE);
+		break;
+	}
 }
 
 static int atmel_sha_finish(struct ahash_request *req)

@@ -19,6 +19,7 @@
 #define SHA_MR_PROCDLY			(1 << 4)
 #define SHA_MR_UIHV			(1 << 5)
 #define SHA_MR_UIEHV			(1 << 6)
+#define SHA_MR_ALGO_MASK		GENMASK(10, 8)
 #define SHA_MR_ALGO_SHA1		(0 << 8)
 #define SHA_MR_ALGO_SHA256		(1 << 8)
 #define SHA_MR_ALGO_SHA384		(2 << 8)
