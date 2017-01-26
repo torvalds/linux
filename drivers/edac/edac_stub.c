@@ -17,9 +17,6 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 
-int edac_op_state = EDAC_OPSTATE_INVAL;
-EXPORT_SYMBOL_GPL(edac_op_state);
-
 int edac_report_status = EDAC_REPORTING_ENABLED;
 EXPORT_SYMBOL_GPL(edac_report_status);
 

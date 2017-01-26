@@ -40,6 +40,9 @@
 #define edac_atomic_scrub(va, size) do { } while (0)
 #endif
 
+int edac_op_state = EDAC_OPSTATE_INVAL;
+EXPORT_SYMBOL_GPL(edac_op_state);
+
 /* lock to memory controller's control array */
 static DEFINE_MUTEX(mem_ctls_mutex);
 static LIST_HEAD(mc_devices);
