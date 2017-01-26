@@ -173,12 +173,12 @@ int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (data->vce_power_gated == bgate)
-		return 0;
-
 	data->vce_power_gated = bgate;
 
 	if (bgate) {
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_UNGATE);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_VCE,
 				AMD_CG_STATE_GATE);
@@ -186,10 +186,13 @@ int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		smu7_powerdown_vce(hwmgr);
 	} else {
 		smu7_powerup_vce(hwmgr);
-		smu7_update_vce_dpm(hwmgr, false);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_VCE,
 				AMD_CG_STATE_UNGATE);
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_UNGATE);
+		smu7_update_vce_dpm(hwmgr, false);
 	}
 	return 0;
 }
