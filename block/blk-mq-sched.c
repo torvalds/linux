@@ -134,7 +134,8 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 			rq = __blk_mq_alloc_request(data, op);
 	} else {
 		rq = __blk_mq_alloc_request(data, op);
-		data->hctx->tags->rqs[rq->tag] = rq;
+		if (rq)
+			data->hctx->tags->rqs[rq->tag] = rq;
 	}
 
 	if (rq) {
