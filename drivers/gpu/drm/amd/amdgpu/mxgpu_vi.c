@@ -505,9 +505,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
 	/* wait until RCV_MSG become 3 */
-	if (!xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL))
-		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
-	else {
+	if (xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
 		pr_err("failed to recieve FLR_CMPL\n");
 		return;
 	}
