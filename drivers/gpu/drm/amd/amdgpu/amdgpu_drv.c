@@ -693,7 +693,6 @@ static struct drm_driver kms_driver = {
 	.get_scanout_position = amdgpu_get_crtc_scanoutpos,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = amdgpu_debugfs_init,
-	.debugfs_cleanup = amdgpu_debugfs_cleanup,
 #endif
 	.irq_preinstall = amdgpu_irq_preinstall,
 	.irq_postinstall = amdgpu_irq_postinstall,
