@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Common Clock Framework support for Exynos5443 SoC.
+ * Common Clock Framework support for Exynos5433 SoC.
  */
 
 #include <linux/clk-provider.h>
@@ -698,7 +698,7 @@ static const struct samsung_gate_clock top_gate_clks[] __initconst = {
  * ATLAS_PLL & APOLLO_PLL & MEM0_PLL & MEM1_PLL & BUS_PLL & MFC_PLL
  * & MPHY_PLL & G3D_PLL & DISP_PLL & ISP_PLL
  */
-static const struct samsung_pll_rate_table exynos5443_pll_rates[] __initconst = {
+static const struct samsung_pll_rate_table exynos5433_pll_rates[] __initconst = {
 	PLL_35XX_RATE(2500000000U, 625, 6,  0),
 	PLL_35XX_RATE(2400000000U, 500, 5,  0),
 	PLL_35XX_RATE(2300000000U, 575, 6,  0),
@@ -751,7 +751,7 @@ static const struct samsung_pll_rate_table exynos5443_pll_rates[] __initconst = 
 };
 
 /* AUD_PLL */
-static const struct samsung_pll_rate_table exynos5443_aud_pll_rates[] __initconst = {
+static const struct samsung_pll_rate_table exynos5433_aud_pll_rates[] __initconst = {
 	PLL_36XX_RATE(400000000U, 200, 3, 2,      0),
 	PLL_36XX_RATE(393216000U, 197, 3, 2, -25690),
 	PLL_36XX_RATE(384000000U, 128, 2, 2,      0),
@@ -766,9 +766,9 @@ static const struct samsung_pll_rate_table exynos5443_aud_pll_rates[] __initcons
 
 static const struct samsung_pll_clock top_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_ISP_PLL, "fout_isp_pll", "oscclk",
-		ISP_PLL_LOCK, ISP_PLL_CON0, exynos5443_pll_rates),
+		ISP_PLL_LOCK, ISP_PLL_CON0, exynos5433_pll_rates),
 	PLL(pll_36xx, CLK_FOUT_AUD_PLL, "fout_aud_pll", "oscclk",
-		AUD_PLL_LOCK, AUD_PLL_CON0, exynos5443_aud_pll_rates),
+		AUD_PLL_LOCK, AUD_PLL_CON0, exynos5433_aud_pll_rates),
 };
 
 static const struct samsung_cmu_info top_cmu_info __initconst = {
@@ -822,7 +822,7 @@ PNAME(mout_mphy_pll_p)		= { "oscclk", "fout_mphy_pll", };
 
 static const struct samsung_pll_clock cpif_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_MPHY_PLL, "fout_mphy_pll", "oscclk",
-		MPHY_PLL_LOCK, MPHY_PLL_CON0, exynos5443_pll_rates),
+		MPHY_PLL_LOCK, MPHY_PLL_CON0, exynos5433_pll_rates),
 };
 
 static const struct samsung_mux_clock cpif_mux_clks[] __initconst = {
@@ -1013,13 +1013,13 @@ static const unsigned long mif_clk_regs[] __initconst = {
 
 static const struct samsung_pll_clock mif_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_MEM0_PLL, "fout_mem0_pll", "oscclk",
-		MEM0_PLL_LOCK, MEM0_PLL_CON0, exynos5443_pll_rates),
+		MEM0_PLL_LOCK, MEM0_PLL_CON0, exynos5433_pll_rates),
 	PLL(pll_35xx, CLK_FOUT_MEM1_PLL, "fout_mem1_pll", "oscclk",
-		MEM1_PLL_LOCK, MEM1_PLL_CON0, exynos5443_pll_rates),
+		MEM1_PLL_LOCK, MEM1_PLL_CON0, exynos5433_pll_rates),
 	PLL(pll_35xx, CLK_FOUT_BUS_PLL, "fout_bus_pll", "oscclk",
-		BUS_PLL_LOCK, BUS_PLL_CON0, exynos5443_pll_rates),
+		BUS_PLL_LOCK, BUS_PLL_CON0, exynos5433_pll_rates),
 	PLL(pll_35xx, CLK_FOUT_MFC_PLL, "fout_mfc_pll", "oscclk",
-		MFC_PLL_LOCK, MFC_PLL_CON0, exynos5443_pll_rates),
+		MFC_PLL_LOCK, MFC_PLL_CON0, exynos5433_pll_rates),
 };
 
 /* list of all parent clock list */
@@ -2541,7 +2541,7 @@ PNAME(mout_sclk_decon_tv_vclk_b_disp_p)	= { "mout_sclk_decon_tv_vclk_a_disp",
 
 static const struct samsung_pll_clock disp_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_DISP_PLL, "fout_disp_pll", "oscclk",
-		DISP_PLL_LOCK, DISP_PLL_CON0, exynos5443_pll_rates),
+		DISP_PLL_LOCK, DISP_PLL_CON0, exynos5433_pll_rates),
 };
 
 static const struct samsung_fixed_factor_clock disp_fixed_factor_clks[] __initconst = {
@@ -3228,7 +3228,7 @@ PNAME(mout_g3d_pll_p)		= { "oscclk", "fout_g3d_pll", };
 
 static const struct samsung_pll_clock g3d_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_G3D_PLL, "fout_g3d_pll", "oscclk",
-		G3D_PLL_LOCK, G3D_PLL_CON0, exynos5443_pll_rates),
+		G3D_PLL_LOCK, G3D_PLL_CON0, exynos5433_pll_rates),
 };
 
 static const struct samsung_mux_clock g3d_mux_clks[] __initconst = {
@@ -3518,7 +3518,7 @@ PNAME(mout_apollo_p)			= { "mout_apollo_pll",
 
 static const struct samsung_pll_clock apollo_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_APOLLO_PLL, "fout_apollo_pll", "oscclk",
-		APOLLO_PLL_LOCK, APOLLO_PLL_CON0, exynos5443_pll_rates),
+		APOLLO_PLL_LOCK, APOLLO_PLL_CON0, exynos5433_pll_rates),
 };
 
 static const struct samsung_mux_clock apollo_mux_clks[] __initconst = {
@@ -3741,7 +3741,7 @@ PNAME(mout_atlas_p)			= { "mout_atlas_pll",
 
 static const struct samsung_pll_clock atlas_pll_clks[] __initconst = {
 	PLL(pll_35xx, CLK_FOUT_ATLAS_PLL, "fout_atlas_pll", "oscclk",
-		ATLAS_PLL_LOCK, ATLAS_PLL_CON0, exynos5443_pll_rates),
+		ATLAS_PLL_LOCK, ATLAS_PLL_CON0, exynos5433_pll_rates),
 };
 
 static const struct samsung_mux_clock atlas_mux_clks[] __initconst = {
