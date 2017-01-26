@@ -894,12 +894,6 @@ static int tegra_debugfs_init(struct drm_minor *minor)
 					ARRAY_SIZE(tegra_debugfs_list),
 					minor->debugfs_root, minor);
 }
-
-static void tegra_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(tegra_debugfs_list,
-				 ARRAY_SIZE(tegra_debugfs_list), minor);
-}
 #endif
 
 static struct drm_driver tegra_drm_driver = {
@@ -917,7 +911,6 @@ static struct drm_driver tegra_drm_driver = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = tegra_debugfs_init,
-	.debugfs_cleanup = tegra_debugfs_cleanup,
 #endif
 
 	.gem_free_object_unlocked = tegra_bo_free_object,
