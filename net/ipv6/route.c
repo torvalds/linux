@@ -3416,12 +3416,6 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		goto errout;
 	}
 
-	/* Reserve room for dummy headers, this skb can pass
-	   through good chunk of routing engine.
-	 */
-	skb_reset_mac_header(skb);
-	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr));
-
 	skb_dst_set(skb, &rt->dst);
 
 	err = rt6_fill_node(net, skb, rt, &fl6.daddr, &fl6.saddr, iif,
