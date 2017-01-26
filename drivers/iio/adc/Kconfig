@@ -499,6 +499,8 @@ config STM32_ADC_CORE
 	depends on ARCH_STM32 || COMPILE_TEST
 	depends on OF
 	depends on REGULATOR
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Select this option to enable the core driver for STMicroelectronics
 	  STM32 analog-to-digital converter (ADC).
