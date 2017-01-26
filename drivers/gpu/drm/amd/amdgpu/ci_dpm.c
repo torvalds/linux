@@ -4256,12 +4256,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 	if (amdgpu_current_state->evclk != amdgpu_new_state->evclk) {
 		if (amdgpu_new_state->evclk) {
-			/* turn the clocks on when encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_UNGATE);
-			if (ret)
-				return ret;
-
 			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(adev);
 			tmp = RREG32_SMC(ixDPM_TABLE_475);
 			tmp &= ~DPM_TABLE_475__VceBootLevel_MASK;
@@ -4273,9 +4267,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 			ret = ci_enable_vce_dpm(adev, false);
 			if (ret)
 				return ret;
-			/* turn the clocks off when not encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_GATE);
 		}
 	}
 	return ret;
