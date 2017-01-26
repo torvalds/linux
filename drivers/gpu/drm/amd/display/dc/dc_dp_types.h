@@ -432,8 +432,7 @@ union phy_test_pattern {
 union compliance_test_state {
 	struct {
 		unsigned char STEREO_3D_RUNNING        : 1;
-		unsigned char SET_TEST_PATTERN_PENDING : 1;
-		unsigned char RESERVED                 : 6;
+		unsigned char RESERVED                 : 7;
 	} bits;
 	unsigned char raw;
 };

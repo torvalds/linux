@@ -251,6 +251,8 @@ void dp_retrain_link_dp_test(struct core_link *link,
 
 			dp_receiver_power_ctrl(link, false);
 
+			link->dc->hwss.disable_stream(&pipes[i]);
+
 			link->link_enc->funcs->disable_output(
 					link->link_enc,
 					SIGNAL_TYPE_DISPLAY_PORT);
@@ -272,6 +274,8 @@ void dp_retrain_link_dp_test(struct core_link *link,
 					skip_video_pattern);
 
 			link->public.cur_link_settings = *link_setting;
+
+			link->dc->hwss.enable_stream(&pipes[i]);
 
 			link->dc->hwss.unblank_stream(&pipes[i],
 					link_setting);

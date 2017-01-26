@@ -1738,8 +1738,7 @@ static void handle_automated_test(struct core_link *link)
 	}
 	if (test_request.bits.LINK_TEST_PATTRN) {
 		dp_test_send_link_test_pattern(link);
-		link->public.compliance_test_state.bits.
-			SET_TEST_PATTERN_PENDING = 1;
+		test_response.bits.ACK = 1;
 	}
 	if (test_request.bits.PHY_TEST_PATTERN) {
 		dp_test_send_phy_test_pattern(link);
@@ -2308,11 +2307,9 @@ bool dc_link_dp_set_test_pattern(
 	unsigned int i;
 	unsigned char link_qual_pattern[LANE_COUNT_DP_MAX] = {0};
 	union dpcd_training_pattern training_pattern;
-	union test_response test_response;
 	enum dpcd_phy_test_patterns pattern;
 
 	memset(&training_pattern, 0, sizeof(training_pattern));
-	memset(&test_response, 0, sizeof(test_response));
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipes[i].stream->sink->link == core_link) {
@@ -2442,20 +2439,6 @@ bool dc_link_dp_set_test_pattern(
 		set_crtc_test_pattern(core_link, &pipe_ctx, test_pattern);
 		/* Set Test Pattern state */
 		core_link->public.test_pattern_enabled = true;
-
-		/* If this is called because of compliance test request,
-		 * we respond ack here.
-		 */
-		if (core_link->public.compliance_test_state.bits.
-				SET_TEST_PATTERN_PENDING == 1) {
-			core_link->public.compliance_test_state.bits.
-						SET_TEST_PATTERN_PENDING = 0;
-			test_response.bits.ACK = 1;
-			core_link_write_dpcd(core_link,
-					DP_TEST_RESPONSE,
-					&test_response.raw,
-					sizeof(test_response));
-		}
 	}
 
 	return true;
