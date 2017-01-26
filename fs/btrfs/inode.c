@@ -10585,8 +10585,6 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 static const struct inode_operations btrfs_dir_ro_inode_operations = {
 	.lookup		= btrfs_lookup,
 	.permission	= btrfs_permission,
-	.get_acl	= btrfs_get_acl,
-	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 };
 
