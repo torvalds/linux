@@ -12867,10 +12867,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	if (intel_state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
-		if (dev_priv->display.modeset_commit_cdclk &&
-		    !intel_cdclk_state_compare(&dev_priv->cdclk.hw,
-					       &dev_priv->cdclk.actual))
-			dev_priv->display.modeset_commit_cdclk(state);
+		intel_set_cdclk(dev_priv, &dev_priv->cdclk.actual);
 
 		/*
 		 * SKL workaround: bspec recommends we disable the SAGV when we
