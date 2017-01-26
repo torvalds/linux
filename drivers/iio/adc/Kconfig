@@ -500,6 +500,8 @@ config STM32_ADC_CORE
 	depends on OF
 	depends on REGULATOR
 	select IIO_BUFFER
+	select MFD_STM32_TIMERS
+	select IIO_STM32_TIMER_TRIGGER
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Select this option to enable the core driver for STMicroelectronics

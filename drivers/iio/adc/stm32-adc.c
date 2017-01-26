@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/timer/stm32-timer-trigger.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
@@ -79,6 +80,36 @@ enum stm32_adc_exten {
 	STM32_EXTEN_HWTRIG_RISING_EDGE,
 	STM32_EXTEN_HWTRIG_FALLING_EDGE,
 	STM32_EXTEN_HWTRIG_BOTH_EDGES,
+};
+
+/* extsel - trigger mux selection value */
+enum stm32_adc_extsel {
+	STM32_EXT0,
+	STM32_EXT1,
+	STM32_EXT2,
+	STM32_EXT3,
+	STM32_EXT4,
+	STM32_EXT5,
+	STM32_EXT6,
+	STM32_EXT7,
+	STM32_EXT8,
+	STM32_EXT9,
+	STM32_EXT10,
+	STM32_EXT11,
+	STM32_EXT12,
+	STM32_EXT13,
+	STM32_EXT14,
+	STM32_EXT15,
+};
+
+/**
+ * struct stm32_adc_trig_info - ADC trigger info
+ * @name:		name of the trigger, corresponding to its source
+ * @extsel:		trigger selection
+ */
+struct stm32_adc_trig_info {
+	const char *name;
+	enum stm32_adc_extsel extsel;
 };
 
 /**
@@ -174,6 +205,26 @@ static const struct stm32_adc_regs stm32f4_sq[STM32_ADC_MAX_SQ + 1] = {
 	{ STM32F4_ADC_SQR1, GENMASK(9, 5), 5 },
 	{ STM32F4_ADC_SQR1, GENMASK(14, 10), 10 },
 	{ STM32F4_ADC_SQR1, GENMASK(19, 15), 15 },
+};
+
+/* STM32F4 external trigger sources for all instances */
+static struct stm32_adc_trig_info stm32f4_adc_trigs[] = {
+	{ TIM1_CH1, STM32_EXT0 },
+	{ TIM1_CH2, STM32_EXT1 },
+	{ TIM1_CH3, STM32_EXT2 },
+	{ TIM2_CH2, STM32_EXT3 },
+	{ TIM2_CH3, STM32_EXT4 },
+	{ TIM2_CH4, STM32_EXT5 },
+	{ TIM2_TRGO, STM32_EXT6 },
+	{ TIM3_CH1, STM32_EXT7 },
+	{ TIM3_TRGO, STM32_EXT8 },
+	{ TIM4_CH4, STM32_EXT9 },
+	{ TIM5_CH1, STM32_EXT10 },
+	{ TIM5_CH2, STM32_EXT11 },
+	{ TIM5_CH3, STM32_EXT12 },
+	{ TIM8_CH1, STM32_EXT13 },
+	{ TIM8_TRGO, STM32_EXT14 },
+	{}, /* sentinel */
 };
 
 /**
@@ -318,6 +369,20 @@ static int stm32_adc_conf_scan_seq(struct iio_dev *indio_dev,
  */
 static int stm32_adc_get_trig_extsel(struct iio_trigger *trig)
 {
+	int i;
+
+	/* lookup triggers registered by stm32 timer trigger driver */
+	for (i = 0; stm32f4_adc_trigs[i].name; i++) {
+		/**
+		 * Checking both stm32 timer trigger type and trig name
+		 * should be safe against arbitrary trigger names.
+		 */
+		if (is_stm32_timer_trigger(trig) &&
+		    !strcmp(stm32f4_adc_trigs[i].name, trig->name)) {
+			return stm32f4_adc_trigs[i].extsel;
+		}
+	}
+
 	return -EINVAL;
 }
 
