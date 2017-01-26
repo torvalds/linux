@@ -188,8 +188,7 @@ static int pmc_core_check_read_lock_bit(void)
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, SPT_PMC_PM_CFG_OFFSET);
-	return test_bit(SPT_PMC_READ_DISABLE_BIT,
-			(unsigned long *)&value);
+	return value & BIT(SPT_PMC_READ_DISABLE_BIT);
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -238,8 +237,7 @@ static int pmc_core_mtpmc_link_status(void)
 	u32 value;
 
 	value = pmc_core_reg_read(pmcdev, SPT_PMC_PM_STS_OFFSET);
-	return test_bit(SPT_PMC_MSG_FULL_STS_BIT,
-			(unsigned long *)&value);
+	return value & BIT(SPT_PMC_MSG_FULL_STS_BIT);
 }
 
 static int pmc_core_send_msg(u32 *addr_xram)
