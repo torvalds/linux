@@ -84,9 +84,6 @@ struct msm_rd_state {
 
 	bool open;
 
-	struct dentry *ent;
-	struct drm_info_node *node;
-
 	/* current submit to read out: */
 	struct msm_gem_submit *submit;
 
@@ -219,6 +216,7 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 {
 	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_rd_state *rd;
+	struct dentry *ent;
 
 	/* only create on first minor: */
 	if (priv->rd)
@@ -236,25 +234,13 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 
 	init_waitqueue_head(&rd->fifo_event);
 
-	rd->node = kzalloc(sizeof(*rd->node), GFP_KERNEL);
-	if (!rd->node)
-		goto fail;
-
-	rd->ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
+	ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
 			minor->debugfs_root, rd, &rd_debugfs_fops);
-	if (!rd->ent) {
+	if (!ent) {
 		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/rd\n",
 				minor->debugfs_root);
 		goto fail;
 	}
-
-	rd->node->minor = minor;
-	rd->node->dent  = rd->ent;
-	rd->node->info_ent = NULL;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&rd->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 
@@ -272,18 +258,7 @@ void msm_rd_debugfs_cleanup(struct drm_minor *minor)
 		return;
 
 	priv->rd = NULL;
-
-	debugfs_remove(rd->ent);
-
-	if (rd->node) {
-		mutex_lock(&minor->debugfs_lock);
-		list_del(&rd->node->list);
-		mutex_unlock(&minor->debugfs_lock);
-		kfree(rd->node);
-	}
-
 	mutex_destroy(&rd->read_lock);
-
 	kfree(rd);
 }
 

@@ -214,12 +214,6 @@ static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 
 	return 0;
 }
-
-static void mdp5_kms_debugfs_cleanup(struct msm_kms *kms, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(mdp5_debugfs_list,
-			ARRAY_SIZE(mdp5_debugfs_list), minor);
-}
 #endif
 
 static const struct mdp_kms_funcs kms_funcs = {
@@ -242,7 +236,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.destroy         = mdp5_kms_destroy,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init    = mdp5_kms_debugfs_init,
-		.debugfs_cleanup = mdp5_kms_debugfs_cleanup,
 #endif
 	},
 	.set_irqmask         = mdp5_set_irqmask,
