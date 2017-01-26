@@ -1329,17 +1329,20 @@ static int cp210x_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
 	return 0;
 }
 
-static int cp210x_gpio_set_single_ended(struct gpio_chip *gc, unsigned int gpio,
-					enum single_ended_mode mode)
+static int cp210x_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
+				  unsigned long config)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	enum pin_config_param param = pinconf_to_config_param(config);
 
 	/* Succeed only if in correct mode (this can't be set at runtime) */
-	if ((mode == LINE_MODE_PUSH_PULL) && (priv->gpio_mode & BIT(gpio)))
+	if ((param == PIN_CONFIG_DRIVE_PUSH_PULL) &&
+	    (priv->gpio_mode & BIT(gpio)))
 		return 0;
 
-	if ((mode == LINE_MODE_OPEN_DRAIN) && !(priv->gpio_mode & BIT(gpio)))
+	if ((param == PIN_CONFIG_DRIVE_OPEN_DRAIN) &&
+	    !(priv->gpio_mode & BIT(gpio)))
 		return 0;
 
 	return -ENOTSUPP;
@@ -1402,7 +1405,7 @@ static int cp2105_shared_gpio_init(struct usb_serial *serial)
 	priv->gc.direction_output = cp210x_gpio_direction_output;
 	priv->gc.get = cp210x_gpio_get;
 	priv->gc.set = cp210x_gpio_set;
-	priv->gc.set_single_ended = cp210x_gpio_set_single_ended;
+	priv->gc.set_config = cp210x_gpio_set_config;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.parent = &serial->interface->dev;
 	priv->gc.base = -1;
