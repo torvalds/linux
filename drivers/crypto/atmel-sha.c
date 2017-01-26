@@ -138,6 +138,7 @@ struct atmel_sha_dev {
 	struct crypto_queue	queue;
 	struct ahash_request	*req;
 	bool			is_async;
+	atmel_sha_fn_t		resume;
 
 	struct atmel_sha_dma	dma_lch_in;
 
@@ -946,6 +947,8 @@ static int atmel_sha_handle_queue(struct atmel_sha_dev *dd,
 	return (start_async) ? ret : err;
 }
 
+static int atmel_sha_done(struct atmel_sha_dev *dd);
+
 static int atmel_sha_start(struct atmel_sha_dev *dd)
 {
 	struct ahash_request *req = dd->req;
@@ -960,6 +963,7 @@ static int atmel_sha_start(struct atmel_sha_dev *dd)
 	if (err)
 		goto err1;
 
+	dd->resume = atmel_sha_done;
 	if (ctx->op == SHA_OP_UPDATE) {
 		err = atmel_sha_update_req(dd);
 		if (err != -EINPROGRESS && (ctx->flags & SHA_FLAGS_FINUP))
@@ -1215,12 +1219,9 @@ static void atmel_sha_queue_task(unsigned long data)
 	atmel_sha_handle_queue(dd, NULL);
 }
 
-static void atmel_sha_done_task(unsigned long data)
+static int atmel_sha_done(struct atmel_sha_dev *dd)
 {
-	struct atmel_sha_dev *dd = (struct atmel_sha_dev *)data;
 	int err = 0;
-
-	dd->is_async = true;
 
 	if (SHA_FLAGS_CPU & dd->flags) {
 		if (SHA_FLAGS_OUTPUT_READY & dd->flags) {
@@ -1245,11 +1246,21 @@ static void atmel_sha_done_task(unsigned long data)
 				goto finish;
 		}
 	}
-	return;
+	return err;
 
 finish:
 	/* finish curent request */
 	atmel_sha_finish_req(dd->req, err);
+
+	return err;
+}
+
+static void atmel_sha_done_task(unsigned long data)
+{
+	struct atmel_sha_dev *dd = (struct atmel_sha_dev *)data;
+
+	dd->is_async = true;
+	(void)dd->resume(dd);
 }
 
 static irqreturn_t atmel_sha_irq(int irq, void *dev_id)
