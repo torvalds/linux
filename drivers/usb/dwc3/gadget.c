@@ -1184,8 +1184,11 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 		return;
 	}
 
-	/* 4 micro frames in the future */
-	uf = cur_uf + dep->interval * 4;
+	/*
+	 * Schedule the first trb for one interval in the future or at
+	 * least 4 microframes.
+	 */
+	uf = cur_uf + max_t(u32, 4, dep->interval);
 
 	__dwc3_gadget_kick_transfer(dep, uf);
 }
