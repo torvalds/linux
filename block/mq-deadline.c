@@ -287,14 +287,16 @@ done:
 	return rq;
 }
 
-static void dd_dispatch_requests(struct blk_mq_hw_ctx *hctx,
-				 struct list_head *rq_list)
+static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
 	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
+	struct request *rq;
 
 	spin_lock(&dd->lock);
-	blk_mq_sched_move_to_dispatch(hctx, rq_list, __dd_dispatch_request);
+	rq = __dd_dispatch_request(hctx);
 	spin_unlock(&dd->lock);
+
+	return rq;
 }
 
 static void dd_exit_queue(struct elevator_queue *e)
@@ -517,7 +519,7 @@ static struct elv_fs_entry deadline_attrs[] = {
 static struct elevator_type mq_deadline = {
 	.ops.mq = {
 		.insert_requests	= dd_insert_requests,
-		.dispatch_requests	= dd_dispatch_requests,
+		.dispatch_request	= dd_dispatch_request,
 		.next_request		= elv_rb_latter_request,
 		.former_request		= elv_rb_former_request,
 		.bio_merge		= dd_bio_merge,

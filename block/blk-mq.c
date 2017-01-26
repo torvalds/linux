@@ -998,7 +998,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	 */
 	if (!list_empty(list)) {
 		spin_lock(&hctx->lock);
-		list_splice(list, &hctx->dispatch);
+		list_splice_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
 
 		/*

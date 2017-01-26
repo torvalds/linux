@@ -201,15 +201,22 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 * leave them there for as long as we can. Mark the hw queue as
 	 * needing a restart in that case.
 	 */
-	if (list_empty(&rq_list)) {
-		if (e && e->type->ops.mq.dispatch_requests)
-			e->type->ops.mq.dispatch_requests(hctx, &rq_list);
-		else
-			blk_mq_flush_busy_ctxs(hctx, &rq_list);
-	} else
+	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart(hctx);
+		blk_mq_dispatch_rq_list(hctx, &rq_list);
+	} else if (!e || !e->type->ops.mq.dispatch_request) {
+		blk_mq_flush_busy_ctxs(hctx, &rq_list);
+		blk_mq_dispatch_rq_list(hctx, &rq_list);
+	} else {
+		do {
+			struct request *rq;
 
-	blk_mq_dispatch_rq_list(hctx, &rq_list);
+			rq = e->type->ops.mq.dispatch_request(hctx);
+			if (!rq)
+				break;
+			list_add(&rq->queuelist, &rq_list);
+		} while (blk_mq_dispatch_rq_list(hctx, &rq_list));
+	}
 }
 
 void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
