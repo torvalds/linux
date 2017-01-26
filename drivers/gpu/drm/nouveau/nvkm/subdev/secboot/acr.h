@@ -49,7 +49,6 @@ struct nvkm_acr_func {
  * @boot_falcon: ID of the falcon that will perform secure boot
  * @managed_falcons: bitfield of falcons managed by this ACR
  * @optional_falcons: bitfield of falcons we can live without
- * @start_address: virtual start address of the HS bootloader
  */
 struct nvkm_acr {
 	const struct nvkm_acr_func *func;
@@ -58,7 +57,6 @@ struct nvkm_acr {
 	enum nvkm_secboot_falcon boot_falcon;
 	unsigned long managed_falcons;
 	unsigned long optional_falcons;
-	u32 start_address;
 };
 
 void *nvkm_acr_load_firmware(const struct nvkm_subdev *, const char *, size_t);

@@ -754,9 +754,6 @@ acr_r352_prepare_hsbl_blob(struct acr_r352 *acr)
 	hdr = acr->hsbl_blob;
 	hsbl_desc = acr->hsbl_blob + hdr->header_offset;
 
-	/* virtual start address for boot vector */
-	acr->base.start_address = hsbl_desc->start_tag << 8;
-
 	return 0;
 }
 
@@ -813,8 +810,9 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 }
 
 /**
- * acr_r352_load() - prepare HS falcon to run the specified blob, mapped
- * at GPU address offset.
+ * acr_r352_load() - prepare HS falcon to run the specified blob, mapped.
+ *
+ * Returns the start address to use, or a negative error value.
  */
 static int
 acr_r352_load(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
@@ -861,7 +859,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	nvkm_falcon_load_dmem(falcon, bl_desc, hsbl_desc->dmem_load_off,
 			      bl_desc_size, 0);
 
-	return 0;
+	return hsbl_desc->start_tag << 8;
 }
 
 static int
