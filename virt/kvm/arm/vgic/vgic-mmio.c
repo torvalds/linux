@@ -362,6 +362,60 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 	}
 }
 
+u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid)
+{
+	int i;
+	u64 val = 0;
+	int nr_irqs = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
+
+	for (i = 0; i < 32; i++) {
+		struct vgic_irq *irq;
+
+		if ((intid + i) < VGIC_NR_SGIS || (intid + i) >= nr_irqs)
+			continue;
+
+		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		if (irq->config == VGIC_CONFIG_LEVEL && irq->line_level)
+			val |= (1U << i);
+
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+
+	return val;
+}
+
+void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
+				    const u64 val)
+{
+	int i;
+	int nr_irqs = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
+
+	for (i = 0; i < 32; i++) {
+		struct vgic_irq *irq;
+		bool new_level;
+
+		if ((intid + i) < VGIC_NR_SGIS || (intid + i) >= nr_irqs)
+			continue;
+
+		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+
+		/*
+		 * Line level is set irrespective of irq type
+		 * (level or edge) to avoid dependency that VM should
+		 * restore irq config before line level.
+		 */
+		new_level = !!(val & (1U << i));
+		spin_lock(&irq->irq_lock);
+		irq->line_level = new_level;
+		if (new_level)
+			vgic_queue_irq_unlock(vcpu->kvm, irq);
+		else
+			spin_unlock(&irq->irq_lock);
+
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+}
+
 static int match_region(const void *key, const void *elt)
 {
 	const unsigned int offset = (unsigned long)key;

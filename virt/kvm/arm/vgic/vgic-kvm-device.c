@@ -512,6 +512,21 @@ static int vgic_v3_attr_regs_access(struct kvm_device *dev,
 						  regid, reg);
 		break;
 	}
+	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO: {
+		unsigned int info, intid;
+
+		info = (attr->attr & KVM_DEV_ARM_VGIC_LINE_LEVEL_INFO_MASK) >>
+			KVM_DEV_ARM_VGIC_LINE_LEVEL_INFO_SHIFT;
+		if (info == VGIC_LEVEL_INFO_LINE_LEVEL) {
+			intid = attr->attr &
+				KVM_DEV_ARM_VGIC_LINE_LEVEL_INTID_MASK;
+			ret = vgic_v3_line_level_info_uaccess(vcpu, is_write,
+							      intid, reg);
+		} else {
+			ret = -EINVAL;
+		}
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
@@ -554,6 +569,17 @@ static int vgic_v3_set_attr(struct kvm_device *dev,
 
 		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
 	}
+	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO: {
+		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
+		u64 reg;
+		u32 tmp32;
+
+		if (get_user(tmp32, uaddr))
+			return -EFAULT;
+
+		reg = tmp32;
+		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
+	}
 	}
 	return -ENXIO;
 }
@@ -589,8 +615,18 @@ static int vgic_v3_get_attr(struct kvm_device *dev,
 			return ret;
 		return put_user(reg, uaddr);
 	}
-	}
+	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO: {
+		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
+		u64 reg;
+		u32 tmp32;
 
+		ret = vgic_v3_attr_regs_access(dev, attr, &reg, false);
+		if (ret)
+			return ret;
+		tmp32 = reg;
+		return put_user(tmp32, uaddr);
+	}
+	}
 	return -ENXIO;
 }
 
@@ -611,6 +647,13 @@ static int vgic_v3_has_attr(struct kvm_device *dev,
 		return vgic_v3_has_attr_regs(dev, attr);
 	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
 		return 0;
+	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO: {
+		if (((attr->attr & KVM_DEV_ARM_VGIC_LINE_LEVEL_INFO_MASK) >>
+		      KVM_DEV_ARM_VGIC_LINE_LEVEL_INFO_SHIFT) ==
+		      VGIC_LEVEL_INFO_LINE_LEVEL)
+			return 0;
+		break;
+	}
 	case KVM_DEV_ARM_VGIC_GRP_CTRL:
 		switch (attr->attr) {
 		case KVM_DEV_ARM_VGIC_CTRL_INIT:

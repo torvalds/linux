@@ -177,6 +177,11 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 int vgic_uaccess(struct kvm_vcpu *vcpu, struct vgic_io_device *dev,
 		 bool is_write, int offset, u32 *val);
 
+u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid);
+
+void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
+				    const u64 val);
+
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 
 unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev);
