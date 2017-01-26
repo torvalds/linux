@@ -1389,7 +1389,7 @@ const struct mei_cfg mei_me_pch8_sps_cfg = {
  * @pdev: The pci device structure
  * @cfg: per device generation config
  *
- * Return: The mei_device_device pointer on success, NULL on failure.
+ * Return: The mei_device pointer on success, NULL on failure.
  */
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg)
@@ -1397,8 +1397,8 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
 
-	dev = kzalloc(sizeof(struct mei_device) +
-			 sizeof(struct mei_me_hw), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
+			   sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 	hw = to_me_hw(dev);

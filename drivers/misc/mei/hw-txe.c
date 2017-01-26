@@ -1207,8 +1207,8 @@ struct mei_device *mei_txe_dev_init(struct pci_dev *pdev)
 	struct mei_device *dev;
 	struct mei_txe_hw *hw;
 
-	dev = kzalloc(sizeof(struct mei_device) +
-			 sizeof(struct mei_txe_hw), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
+			   sizeof(struct mei_txe_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
