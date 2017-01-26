@@ -2005,7 +2005,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 			limits = &performance_limits;
 			perf_limits = limits;
 		}
-		if (policy->max >= policy->cpuinfo.max_freq) {
+		if (policy->max >= policy->cpuinfo.max_freq &&
+		    !limits->no_turbo) {
 			pr_debug("set performance\n");
 			intel_pstate_set_performance_limits(perf_limits);
 			goto out;
@@ -2046,6 +2047,17 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 	if (policy->policy != CPUFREQ_POLICY_POWERSAVE &&
 	    policy->policy != CPUFREQ_POLICY_PERFORMANCE)
 		return -EINVAL;
+
+	/* When per-CPU limits are used, sysfs limits are not used */
+	if (!per_cpu_limits) {
+		unsigned int max_freq, min_freq;
+
+		max_freq = policy->cpuinfo.max_freq *
+						limits->max_sysfs_pct / 100;
+		min_freq = policy->cpuinfo.max_freq *
+						limits->min_sysfs_pct / 100;
+		cpufreq_verify_within_limits(policy, min_freq, max_freq);
+	}
 
 	return 0;
 }
