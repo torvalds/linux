@@ -721,6 +721,13 @@ tcp_challenge_ack_limit - INTEGER
 
 UDP variables:
 
+udp_l3mdev_accept - BOOLEAN
+	Enabling this option allows a "global" bound socket to work
+	across L3 master domains (e.g., VRFs) with packets capable of
+	being received regardless of the L3 domain in which they
+	originated. Only valid when the kernel was compiled with
+	CONFIG_NET_L3_MASTER_DEV.
+
 udp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all UDP sockets.
 
