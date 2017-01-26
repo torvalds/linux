@@ -1469,7 +1469,6 @@ ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 {
-
 	lockdep_assert_held(&ctx->lock);
 
 	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
@@ -1624,6 +1623,8 @@ static void perf_group_attach(struct perf_event *event)
 {
 	struct perf_event *group_leader = event->group_leader, *pos;
 
+	lockdep_assert_held(&event->ctx->lock);
+
 	/*
 	 * We can have double attach due to group movement in perf_event_open.
 	 */
@@ -1696,6 +1697,8 @@ static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
 	struct list_head *list = NULL;
+
+	lockdep_assert_held(&event->ctx->lock);
 
 	/*
 	 * We can have double detach due to exit/hot-unplug + close.
@@ -1895,9 +1898,29 @@ __perf_remove_from_context(struct perf_event *event,
  */
 static void perf_remove_from_context(struct perf_event *event, unsigned long flags)
 {
-	lockdep_assert_held(&event->ctx->mutex);
+	struct perf_event_context *ctx = event->ctx;
+
+	lockdep_assert_held(&ctx->mutex);
 
 	event_function_call(event, __perf_remove_from_context, (void *)flags);
+
+	/*
+	 * The above event_function_call() can NO-OP when it hits
+	 * TASK_TOMBSTONE. In that case we must already have been detached
+	 * from the context (by perf_event_exit_event()) but the grouping
+	 * might still be in-tact.
+	 */
+	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
+	if ((flags & DETACH_GROUP) &&
+	    (event->attach_state & PERF_ATTACH_GROUP)) {
+		/*
+		 * Since in that case we cannot possibly be scheduled, simply
+		 * detach now.
+		 */
+		raw_spin_lock_irq(&ctx->lock);
+		perf_group_detach(event);
+		raw_spin_unlock_irq(&ctx->lock);
+	}
 }
 
 /*
