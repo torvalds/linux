@@ -1478,13 +1478,22 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 	struct nlattr *helpinfo = NULL;
 	int err;
 
-	/* don't change helper of sibling connections */
-	if (ct->master)
-		return -EBUSY;
-
 	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname, &helpinfo);
 	if (err < 0)
 		return err;
+
+	/* don't change helper of sibling connections */
+	if (ct->master) {
+		/* If we try to change the helper to the same thing twice,
+		 * treat the second attempt as a no-op instead of returning
+		 * an error.
+		 */
+		if (help && help->helper &&
+		    !strcmp(help->helper->name, helpname))
+			return 0;
+		else
+			return -EBUSY;
+	}
 
 	if (!strcmp(helpname, "")) {
 		if (help && help->helper) {
