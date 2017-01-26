@@ -149,9 +149,12 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 
 	/* Enable context */
 	nvkm_falcon_mask(falcon, 0x048, 0x1, 0x1);
-	nvkm_falcon_wr32(falcon, 0x480,
+	nvkm_falcon_wr32(falcon, 0x054,
 			 ((ctx->addr >> 12) & 0xfffffff) |
 			 (inst_loc << 28) | (1 << 30));
+
+	nvkm_falcon_mask(falcon, 0x090, 0x10000, 0x10000);
+	nvkm_falcon_mask(falcon, 0x0a4, 0x8, 0x8);
 }
 
 static void
