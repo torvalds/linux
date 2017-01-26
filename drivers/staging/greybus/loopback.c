@@ -1051,8 +1051,13 @@ static int gb_loopback_fn(void *data)
 			gb_loopback_calculate_stats(gb, !!error);
 		}
 		gb->send_count++;
-		if (us_wait)
-			udelay(us_wait);
+
+		if (us_wait) {
+			if (us_wait < 20000)
+				usleep_range(us_wait, us_wait + 100);
+			else
+				msleep(us_wait / 1000);
+		}
 	}
 
 	gb_pm_runtime_put_autosuspend(bundle);
