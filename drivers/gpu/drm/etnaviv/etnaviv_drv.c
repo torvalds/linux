@@ -258,12 +258,6 @@ static int etnaviv_debugfs_init(struct drm_minor *minor)
 
 	return ret;
 }
-
-static void etnaviv_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(etnaviv_debugfs_list,
-			ARRAY_SIZE(etnaviv_debugfs_list), minor);
-}
 #endif
 
 /*
@@ -509,7 +503,6 @@ static struct drm_driver etnaviv_drm_driver = {
 	.gem_prime_mmap     = etnaviv_gem_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = etnaviv_debugfs_init,
-	.debugfs_cleanup    = etnaviv_debugfs_cleanup,
 #endif
 	.ioctls             = etnaviv_ioctls,
 	.num_ioctls         = DRM_ETNAVIV_NUM_IOCTLS,
