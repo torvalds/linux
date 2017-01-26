@@ -380,6 +380,7 @@ static struct snd_soc_card snd_soc_card_chtrt5650 = {
 static struct cht_acpi_card snd_soc_cards[] = {
 	{"10EC5640", CODEC_TYPE_RT5645, &snd_soc_card_chtrt5645},
 	{"10EC5645", CODEC_TYPE_RT5645, &snd_soc_card_chtrt5645},
+	{"10EC5648", CODEC_TYPE_RT5645, &snd_soc_card_chtrt5645},
 	{"10EC5650", CODEC_TYPE_RT5650, &snd_soc_card_chtrt5650},
 };
 
