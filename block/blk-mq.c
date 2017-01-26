@@ -1476,7 +1476,8 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (q->elevator) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_sched_insert_request(rq, false, true, true);
+		blk_mq_sched_insert_request(rq, false, true,
+						!is_sync || is_flush_fua);
 		goto done;
 	}
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
@@ -1585,7 +1586,8 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	if (q->elevator) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
-		blk_mq_sched_insert_request(rq, false, true, true);
+		blk_mq_sched_insert_request(rq, false, true,
+						!is_sync || is_flush_fua);
 		goto done;
 	}
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
