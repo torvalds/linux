@@ -8166,6 +8166,7 @@ enum {
 #define   PAL_PREC_10_12_BIT		(0 << 31)
 #define   PAL_PREC_SPLIT_MODE		(1 << 31)
 #define   PAL_PREC_AUTO_INCREMENT	(1 << 15)
+#define   PAL_PREC_INDEX_VALUE_MASK	(0x3ff << 0)
 #define _PAL_PREC_DATA_A	0x4A404
 #define _PAL_PREC_DATA_B	0x4AC04
 #define _PAL_PREC_DATA_C	0x4B404
