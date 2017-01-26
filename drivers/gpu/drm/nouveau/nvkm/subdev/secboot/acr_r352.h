@@ -142,6 +142,9 @@ struct acr_r352 {
 	/* HS bootloader */
 	void *hsbl_blob;
 
+	/* HS bootloader for unload blob, if using a different falcon */
+	void *hsbl_unload_blob;
+
 	/* LS FWs, to be loaded by the HS ACR */
 	struct nvkm_gpuobj *ls_blob;
 

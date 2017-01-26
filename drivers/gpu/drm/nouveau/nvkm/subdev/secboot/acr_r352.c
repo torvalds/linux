@@ -737,27 +737,6 @@ cleanup:
 	return ret;
 }
 
-static int
-acr_r352_prepare_hsbl_blob(struct acr_r352 *acr)
-{
-	const struct nvkm_subdev *subdev = acr->base.subdev;
-	struct fw_bin_header *hdr;
-	struct fw_bl_desc *hsbl_desc;
-
-	acr->hsbl_blob = nvkm_acr_load_firmware(subdev, "acr/bl", 0);
-	if (IS_ERR(acr->hsbl_blob)) {
-		int ret = PTR_ERR(acr->hsbl_blob);
-
-		acr->hsbl_blob = NULL;
-		return ret;
-	}
-
-	hdr = acr->hsbl_blob;
-	hsbl_desc = acr->hsbl_blob + hdr->header_offset;
-
-	return 0;
-}
-
 /**
  * acr_r352_load_blobs - load blobs common to all ACR V1 versions.
  *
@@ -768,6 +747,7 @@ acr_r352_prepare_hsbl_blob(struct acr_r352 *acr)
 int
 acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
+	struct nvkm_subdev *subdev = &sb->subdev;
 	int ret;
 
 	/* Firmware already loaded? */
@@ -799,9 +779,24 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 
 	/* Load the HS firmware bootloader */
 	if (!acr->hsbl_blob) {
-		ret = acr_r352_prepare_hsbl_blob(acr);
-		if (ret)
+		acr->hsbl_blob = nvkm_acr_load_firmware(subdev, "acr/bl", 0);
+		if (IS_ERR(acr->hsbl_blob)) {
+			ret = PTR_ERR(acr->hsbl_blob);
+			acr->hsbl_blob = NULL;
 			return ret;
+		}
+
+		if (acr->base.boot_falcon != NVKM_SECBOOT_FALCON_PMU) {
+			acr->hsbl_unload_blob = nvkm_acr_load_firmware(subdev,
+							    "acr/unload_bl", 0);
+			if (IS_ERR(acr->hsbl_unload_blob)) {
+				ret = PTR_ERR(acr->hsbl_unload_blob);
+				acr->hsbl_unload_blob = NULL;
+				return ret;
+			}
+		} else {
+			acr->hsbl_unload_blob = acr->hsbl_blob;
+		}
 	}
 
 	acr->firmware_ok = true;
@@ -820,25 +815,32 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 	      struct nvkm_gpuobj *blob, u64 offset)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
-	struct fw_bin_header *hdr = acr->hsbl_blob;
-	struct fw_bl_desc *hsbl_desc = acr->hsbl_blob + hdr->header_offset;
-	void *blob_data = acr->hsbl_blob + hdr->data_offset;
-	void *hsbl_code = blob_data + hsbl_desc->code_off;
-	void *hsbl_data = blob_data + hsbl_desc->data_off;
-	u32 code_size = ALIGN(hsbl_desc->code_size, 256);
-	const struct hsf_load_header *load_hdr;
 	const u32 bl_desc_size = acr->func->hs_bl_desc_size;
+	const struct hsf_load_header *load_hdr;
+	struct fw_bin_header *bl_hdr;
+	struct fw_bl_desc *hsbl_desc;
+	void *bl, *blob_data, *hsbl_code, *hsbl_data;
+	u32 code_size;
 	u8 bl_desc[bl_desc_size];
 
 	/* Find the bootloader descriptor for our blob and copy it */
 	if (blob == acr->load_blob) {
 		load_hdr = &acr->load_bl_header;
+		bl = acr->hsbl_blob;
 	} else if (blob == acr->unload_blob) {
 		load_hdr = &acr->unload_bl_header;
+		bl = acr->hsbl_unload_blob;
 	} else {
 		nvkm_error(_acr->subdev, "invalid secure boot blob!\n");
 		return -EINVAL;
 	}
+
+	bl_hdr = bl;
+	hsbl_desc = bl + bl_hdr->header_offset;
+	blob_data = bl + bl_hdr->data_offset;
+	hsbl_code = blob_data + hsbl_desc->code_off;
+	hsbl_data = blob_data + hsbl_desc->data_off;
+	code_size = ALIGN(hsbl_desc->code_size, 256);
 
 	/*
 	 * Copy HS bootloader data
@@ -1087,6 +1089,8 @@ acr_r352_dtor(struct nvkm_acr *_acr)
 
 	nvkm_gpuobj_del(&acr->unload_blob);
 
+	if (_acr->boot_falcon != NVKM_SECBOOT_FALCON_PMU)
+		kfree(acr->hsbl_unload_blob);
 	kfree(acr->hsbl_blob);
 	nvkm_gpuobj_del(&acr->load_blob);
 	nvkm_gpuobj_del(&acr->ls_blob);
