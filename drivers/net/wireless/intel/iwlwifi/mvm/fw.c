@@ -897,24 +897,27 @@ static void iwl_mvm_parse_shared_mem_a000(struct iwl_mvm *mvm,
 					  struct iwl_rx_packet *pkt)
 {
 	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
-	int i;
+	int i, lmac;
+	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
 
-	mvm->shared_mem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
-	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		mvm->shared_mem_cfg.txfifo_size[i] =
-			le32_to_cpu(mem_cfg->txfifo_size[i]);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
-		mvm->shared_mem_cfg.rxfifo_size[i] =
-			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
+		return;
 
-	BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
-		     sizeof(mem_cfg->internal_txfifo_size));
+	mvm->smem_cfg.num_lmacs = lmac_num;
+	mvm->smem_cfg.num_txfifo_entries =
+		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
+	mvm->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
 
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
-	     i++)
-		mvm->shared_mem_cfg.internal_txfifo_size[i] =
-			le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+	for (lmac = 0; lmac < lmac_num; lmac++) {
+		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
+			&mem_cfg->lmac_smem[lmac];
+
+		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
+			mvm->smem_cfg.lmac[lmac].txfifo_size[i] =
+				le32_to_cpu(lmac_cfg->txfifo_size[i]);
+		mvm->smem_cfg.lmac[lmac].rxfifo1_size =
+			le32_to_cpu(lmac_cfg->rxfifo1_size);
+	}
 }
 
 static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
@@ -923,25 +926,27 @@ static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
 	struct iwl_shared_mem_cfg_v1 *mem_cfg = (void *)pkt->data;
 	int i;
 
-	mvm->shared_mem_cfg.num_txfifo_entries =
-		ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size);
+	mvm->smem_cfg.num_lmacs = 1;
+
+	mvm->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
 	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
-		mvm->shared_mem_cfg.txfifo_size[i] =
+		mvm->smem_cfg.lmac[0].txfifo_size[i] =
 			le32_to_cpu(mem_cfg->txfifo_size[i]);
-	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
-		mvm->shared_mem_cfg.rxfifo_size[i] =
-			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+
+	mvm->smem_cfg.lmac[0].rxfifo1_size =
+		le32_to_cpu(mem_cfg->rxfifo_size[0]);
+	mvm->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
 
 	/* new API has more data, from rxfifo_addr field and on */
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(mvm->shared_mem_cfg.internal_txfifo_size) !=
+		BUILD_BUG_ON(sizeof(mvm->smem_cfg.internal_txfifo_size) !=
 			     sizeof(mem_cfg->internal_txfifo_size));
 
 		for (i = 0;
-		     i < ARRAY_SIZE(mvm->shared_mem_cfg.internal_txfifo_size);
+		     i < ARRAY_SIZE(mvm->smem_cfg.internal_txfifo_size);
 		     i++)
-			mvm->shared_mem_cfg.internal_txfifo_size[i] =
+			mvm->smem_cfg.internal_txfifo_size[i] =
 				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
 	}
 }

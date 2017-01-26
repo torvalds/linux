@@ -2026,19 +2026,48 @@ struct iwl_shared_mem_cfg_v1 {
 	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_2 */
 
+/**
+ * struct iwl_shared_mem_lmac_cfg - LMAC shared memory configuration
+ *
+ * @txfifo_addr: start addr of TXF0 (excluding the context table 0.5KB)
+ * @txfifo_size: size of TX FIFOs
+ * @rxfifo1_addr: RXF1 addr
+ * @rxfifo1_size: RXF1 size
+ */
+struct iwl_shared_mem_lmac_cfg {
+	__le32 txfifo_addr;
+	__le32 txfifo_size[TX_FIFO_MAX_NUM];
+	__le32 rxfifo1_addr;
+	__le32 rxfifo1_size;
+
+} __packed; /* SHARED_MEM_ALLOC_LMAC_API_S_VER_1 */
+
+/**
+ * Shared memory configuration information from the FW
+ *
+ * @shared_mem_addr: shared memory address
+ * @shared_mem_size: shared memory size
+ * @sample_buff_addr: internal sample (mon/adc) buff addr
+ * @sample_buff_size: internal sample buff size
+ * @rxfifo2_addr: start addr of RXF2
+ * @rxfifo2_size: size of RXF2
+ * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
+ *	when paging is not supported this should be 0
+ * @page_buff_size: size of %page_buff_addr
+ * @lmac_num: number of LMACs (1 or 2)
+ * @lmac_smem: per - LMAC smem data
+ */
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
 	__le32 shared_mem_size;
 	__le32 sample_buff_addr;
 	__le32 sample_buff_size;
-	__le32 txfifo_addr;
-	__le32 txfifo_size[TX_FIFO_MAX_NUM];
-	__le32 rxfifo_size[RX_FIFO_MAX_NUM];
+	__le32 rxfifo2_addr;
+	__le32 rxfifo2_size;
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
-	__le32 rxfifo_addr;
-	__le32 internal_txfifo_addr;
-	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
+	__le32 lmac_num;
+	struct iwl_shared_mem_lmac_cfg lmac_smem[2];
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
 
 /**

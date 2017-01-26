@@ -744,7 +744,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * fifo to be able to send bursts.
 	 */
 	max_amsdu_len = min_t(unsigned int, max_amsdu_len,
-			      mvm->shared_mem_cfg.txfifo_size[txf] - 256);
+			      mvm->smem_cfg.lmac[0].txfifo_size[txf] - 256);
 
 	if (unlikely(dbg_max_amsdu_len))
 		max_amsdu_len = min_t(unsigned int, max_amsdu_len,
