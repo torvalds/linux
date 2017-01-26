@@ -44,5 +44,6 @@
 #define CLKID_MALI_1_SEL	103
 #define CLKID_MALI_1		105
 #define CLKID_MALI		106
+#define CLKID_CTS_AMCLK		107
 
 #endif /* __GXBB_CLKC_H */
