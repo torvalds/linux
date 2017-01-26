@@ -133,6 +133,13 @@ fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 }
 
 static void
+vgpu_fw_domains_nop(struct drm_i915_private *dev_priv,
+		    enum forcewake_domains fw_domains)
+{
+	/* Guest driver doesn't need to takes care forcewake. */
+}
+
+static void
 fw_domains_posting_read(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *d;
@@ -1373,6 +1380,11 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 			fw_domains_put_with_fifo;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE, FORCEWAKE_ACK);
+	}
+
+	if (intel_vgpu_active(dev_priv)) {
+		dev_priv->uncore.funcs.force_wake_get = vgpu_fw_domains_nop;
+		dev_priv->uncore.funcs.force_wake_put = vgpu_fw_domains_nop;
 	}
 
 	/* All future platforms are expected to require complex power gating */
