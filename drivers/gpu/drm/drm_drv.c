@@ -312,7 +312,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		return ret;
+		goto err_debugfs;
 	}
 
 	ret = device_add(minor->kdev);
