@@ -16,6 +16,7 @@
 #define SHA_MR_MODE_MANUAL		0x0
 #define SHA_MR_MODE_AUTO		0x1
 #define SHA_MR_MODE_PDC			0x2
+#define SHA_MR_MODE_IDATAR0		0x2
 #define SHA_MR_PROCDLY			(1 << 4)
 #define SHA_MR_UIHV			(1 << 5)
 #define SHA_MR_UIEHV			(1 << 6)
