@@ -265,13 +265,24 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 
-	/* Select clk_i2s1_asrc as ASRC clock source */
-	rt5645_sel_asrc_clk_src(codec,
-				RT5645_DA_STEREO_FILTER |
-				RT5645_DA_MONO_L_FILTER |
-				RT5645_DA_MONO_R_FILTER |
-				RT5645_AD_STEREO_FILTER,
-				RT5645_CLK_SEL_I2S1_ASRC);
+	if ((cht_rt5645_quirk & CHT_RT5645_SSP2_AIF2) ||
+	    (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF2)) {
+		/* Select clk_i2s2_asrc as ASRC clock source */
+		rt5645_sel_asrc_clk_src(codec,
+					RT5645_DA_STEREO_FILTER |
+					RT5645_DA_MONO_L_FILTER |
+					RT5645_DA_MONO_R_FILTER |
+					RT5645_AD_STEREO_FILTER,
+					RT5645_CLK_SEL_I2S2_ASRC);
+	} else {
+		/* Select clk_i2s1_asrc as ASRC clock source */
+		rt5645_sel_asrc_clk_src(codec,
+					RT5645_DA_STEREO_FILTER |
+					RT5645_DA_MONO_L_FILTER |
+					RT5645_DA_MONO_R_FILTER |
+					RT5645_AD_STEREO_FILTER,
+					RT5645_CLK_SEL_I2S1_ASRC);
+	}
 
 	if (cht_rt5645_quirk & CHT_RT5645_SSP2_AIF2) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
