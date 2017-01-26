@@ -92,7 +92,6 @@ config QCOM_Q6V5_PIL
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
 	select MFD_SYSCON
-	select QCOM_MDT_LOADER
 	select QCOM_SCM
 	help
 	  Say y here to support the Qualcomm Peripherial Image Loader for the
