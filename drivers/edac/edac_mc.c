@@ -505,22 +505,6 @@ struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 EXPORT_SYMBOL_GPL(find_mci_by_dev);
 
 /*
- * handler for EDAC to check if NMI type handler has asserted interrupt
- */
-static int edac_mc_assert_error_check_and_clear(void)
-{
-	int old_state;
-
-	if (edac_op_state == EDAC_OPSTATE_POLL)
-		return 1;
-
-	old_state = edac_err_assert;
-	edac_err_assert = 0;
-
-	return old_state;
-}
-
-/*
  * edac_mc_workq_function
  *	performs the operation scheduled by a workq request
  */
@@ -536,7 +520,7 @@ static void edac_mc_workq_function(struct work_struct *work_req)
 		return;
 	}
 
-	if (edac_mc_assert_error_check_and_clear())
+	if (edac_op_state == EDAC_OPSTATE_POLL)
 		mci->edac_check(mci);
 
 	mutex_unlock(&mem_ctls_mutex);

@@ -20,9 +20,6 @@
 int edac_op_state = EDAC_OPSTATE_INVAL;
 EXPORT_SYMBOL_GPL(edac_op_state);
 
-int edac_err_assert = 0;
-EXPORT_SYMBOL_GPL(edac_err_assert);
-
 int edac_report_status = EDAC_REPORTING_ENABLED;
 EXPORT_SYMBOL_GPL(edac_report_status);
 

@@ -28,7 +28,6 @@ struct device;
 #define EDAC_OPSTATE_INT	2
 
 extern int edac_op_state;
-extern int edac_err_assert;
 
 extern struct bus_type *edac_get_sysfs_subsys(void);
 
