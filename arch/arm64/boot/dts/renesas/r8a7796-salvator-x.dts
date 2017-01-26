@@ -261,3 +261,7 @@
 	timeout-sec = <60>;
 	status = "okay";
 };
+
+&i2c_dvfs {
+	status = "okay";
+};
