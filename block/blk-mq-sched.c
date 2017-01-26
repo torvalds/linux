@@ -117,7 +117,7 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 	ctx = blk_mq_get_ctx(q);
 	hctx = blk_mq_map_queue(q, ctx->cpu);
 
-	blk_mq_set_alloc_data(data, q, 0, ctx, hctx);
+	blk_mq_set_alloc_data(data, q, data->flags, ctx, hctx);
 
 	if (e) {
 		data->flags |= BLK_MQ_REQ_INTERNAL;
@@ -134,7 +134,8 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 			rq = __blk_mq_alloc_request(data, op);
 	} else {
 		rq = __blk_mq_alloc_request(data, op);
-		data->hctx->tags->rqs[rq->tag] = rq;
+		if (rq)
+			data->hctx->tags->rqs[rq->tag] = rq;
 	}
 
 	if (rq) {
