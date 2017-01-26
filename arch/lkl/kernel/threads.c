@@ -5,8 +5,6 @@
 #include <asm/cpu.h>
 #include <asm/sched.h>
 
-static volatile int threads_counter;
-
 static int init_ti(struct thread_info *ti)
 {
 	ti->sched_sem = lkl_ops->sem_alloc(0);
@@ -122,10 +120,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		lkl_ops->sem_down(_prev->sched_sem);
 	}
 
-	if (_prev->dead) {
-		__sync_fetch_and_sub(&threads_counter, 1);
+	if (_prev->dead)
 		lkl_ops->thread_exit();
-	}
 
 	return abs_prev;
 }
@@ -193,8 +189,6 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 		return -ENOMEM;
 	}
 
-	__sync_fetch_and_add(&threads_counter, 1);
-
 	return 0;
 }
 
@@ -218,11 +212,6 @@ void threads_init(void)
 	ti->tid = lkl_ops->thread_self();
 }
 
-void threads_cnt_dec(void)
-{
-	__sync_fetch_and_sub(&threads_counter, 1);
-}
-
 void threads_cleanup(void)
 {
 	struct task_struct *p, *t;
@@ -238,9 +227,6 @@ void threads_cleanup(void)
 
 		kill_thread(ti);
 	}
-
-	while (threads_counter)
-		;
 
 	lkl_ops->sem_free(init_thread_union.thread_info.sched_sem);
 }
