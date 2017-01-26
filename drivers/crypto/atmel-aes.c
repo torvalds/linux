@@ -879,6 +879,7 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	struct crypto_async_request *areq, *backlog;
 	struct atmel_aes_base_ctx *ctx;
 	unsigned long flags;
+	bool start_async;
 	int err, ret = 0;
 
 	spin_lock_irqsave(&dd->lock, flags);
@@ -904,10 +905,12 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 
 	dd->areq = areq;
 	dd->ctx = ctx;
-	dd->is_async = (areq != new_areq);
+	start_async = (areq != new_areq);
+	dd->is_async = start_async;
 
+	/* WARNING: ctx->start() MAY change dd->is_async. */
 	err = ctx->start(dd);
-	return (dd->is_async) ? ret : err;
+	return (start_async) ? ret : err;
 }
 
 
