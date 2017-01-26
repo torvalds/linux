@@ -363,6 +363,7 @@ config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on EXTCON
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_COMMON
