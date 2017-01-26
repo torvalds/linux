@@ -415,6 +415,18 @@ config CRYPTO_DEV_BFIN_CRC
 	  Newer Blackfin processors have CRC hardware. Select this if you
 	  want to use the Blackfin CRC module.
 
+config CRYPTO_DEV_ATMEL_AUTHENC
+	tristate "Support for Atmel IPSEC/SSL hw accelerator"
+	depends on (ARCH_AT91 && HAS_DMA) || COMPILE_TEST
+	select CRYPTO_AUTHENC
+	select CRYPTO_DEV_ATMEL_AES
+	select CRYPTO_DEV_ATMEL_SHA
+	help
+	  Some Atmel processors can combine the AES and SHA hw accelerators
+	  to enhance support of IPSEC/SSL.
+	  Select this if you want to use the Atmel modules for
+	  authenc(hmac(shaX),Y(cbc)) algorithms.
+
 config CRYPTO_DEV_ATMEL_AES
 	tristate "Support for Atmel AES hw accelerator"
 	depends on HAS_DMA

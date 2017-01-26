@@ -41,6 +41,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/platform_data/crypto-atmel.h>
 #include "atmel-sha-regs.h"
+#include "atmel-authenc.h"
 
 /* SHA flags */
 #define SHA_FLAGS_BUSY			BIT(0)
@@ -52,19 +53,6 @@
 #define SHA_FLAGS_DMA_READY		BIT(6)
 
 /* bits[11:8] are reserved. */
-#define SHA_FLAGS_ALGO_MASK	SHA_MR_ALGO_MASK
-#define SHA_FLAGS_SHA1		SHA_MR_ALGO_SHA1
-#define SHA_FLAGS_SHA256	SHA_MR_ALGO_SHA256
-#define SHA_FLAGS_SHA384	SHA_MR_ALGO_SHA384
-#define SHA_FLAGS_SHA512	SHA_MR_ALGO_SHA512
-#define SHA_FLAGS_SHA224	SHA_MR_ALGO_SHA224
-#define SHA_FLAGS_HMAC		SHA_MR_HMAC
-#define SHA_FLAGS_HMAC_SHA1	(SHA_FLAGS_HMAC | SHA_FLAGS_SHA1)
-#define SHA_FLAGS_HMAC_SHA256	(SHA_FLAGS_HMAC | SHA_FLAGS_SHA256)
-#define SHA_FLAGS_HMAC_SHA384	(SHA_FLAGS_HMAC | SHA_FLAGS_SHA384)
-#define SHA_FLAGS_HMAC_SHA512	(SHA_FLAGS_HMAC | SHA_FLAGS_SHA512)
-#define SHA_FLAGS_HMAC_SHA224	(SHA_FLAGS_HMAC | SHA_FLAGS_SHA224)
-#define SHA_FLAGS_MODE_MASK	(SHA_FLAGS_HMAC | SHA_FLAGS_ALGO_MASK)
 
 #define SHA_FLAGS_FINUP		BIT(16)
 #define SHA_FLAGS_SG		BIT(17)
@@ -156,6 +144,7 @@ struct atmel_sha_dev {
 	struct crypto_queue	queue;
 	struct ahash_request	*req;
 	bool			is_async;
+	bool			force_complete;
 	atmel_sha_fn_t		resume;
 	atmel_sha_fn_t		cpu_transfer_complete;
 
@@ -198,7 +187,7 @@ static inline int atmel_sha_complete(struct atmel_sha_dev *dd, int err)
 
 	clk_disable(dd->iclk);
 
-	if (dd->is_async && req->base.complete)
+	if ((dd->is_async || dd->force_complete) && req->base.complete)
 		req->base.complete(&req->base, err);
 
 	/* handle new request */
@@ -992,6 +981,7 @@ static int atmel_sha_handle_queue(struct atmel_sha_dev *dd,
 	dd->req = ahash_request_cast(async_req);
 	start_async = (dd->req != req);
 	dd->is_async = start_async;
+	dd->force_complete = false;
 
 	/* WARNING: ctx->start() MAY change dd->is_async. */
 	err = ctx->start(dd);
@@ -2099,6 +2089,332 @@ static struct ahash_alg sha_hmac_algs[] = {
 	}
 },
 };
+
+#ifdef CONFIG_CRYPTO_DEV_ATMEL_AUTHENC
+/* authenc functions */
+
+static int atmel_sha_authenc_init2(struct atmel_sha_dev *dd);
+static int atmel_sha_authenc_init_done(struct atmel_sha_dev *dd);
+static int atmel_sha_authenc_final_done(struct atmel_sha_dev *dd);
+
+
+struct atmel_sha_authenc_ctx {
+	struct crypto_ahash	*tfm;
+};
+
+struct atmel_sha_authenc_reqctx {
+	struct atmel_sha_reqctx	base;
+
+	atmel_aes_authenc_fn_t	cb;
+	struct atmel_aes_dev	*aes_dev;
+
+	/* _init() parameters. */
+	struct scatterlist	*assoc;
+	u32			assoclen;
+	u32			textlen;
+
+	/* _final() parameters. */
+	u32			*digest;
+	unsigned int		digestlen;
+};
+
+static void atmel_sha_authenc_complete(struct crypto_async_request *areq,
+				       int err)
+{
+	struct ahash_request *req = areq->data;
+	struct atmel_sha_authenc_reqctx *authctx  = ahash_request_ctx(req);
+
+	authctx->cb(authctx->aes_dev, err, authctx->base.dd->is_async);
+}
+
+static int atmel_sha_authenc_start(struct atmel_sha_dev *dd)
+{
+	struct ahash_request *req = dd->req;
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	int err;
+
+	/*
+	 * Force atmel_sha_complete() to call req->base.complete(), ie
+	 * atmel_sha_authenc_complete(), which in turn calls authctx->cb().
+	 */
+	dd->force_complete = true;
+
+	err = atmel_sha_hw_init(dd);
+	return authctx->cb(authctx->aes_dev, err, dd->is_async);
+}
+
+bool atmel_sha_authenc_is_ready(void)
+{
+	struct atmel_sha_ctx dummy;
+
+	dummy.dd = NULL;
+	return (atmel_sha_find_dev(&dummy) != NULL);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_is_ready);
+
+unsigned int atmel_sha_authenc_get_reqsize(void)
+{
+	return sizeof(struct atmel_sha_authenc_reqctx);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_get_reqsize);
+
+struct atmel_sha_authenc_ctx *atmel_sha_authenc_spawn(unsigned long mode)
+{
+	struct atmel_sha_authenc_ctx *auth;
+	struct crypto_ahash *tfm;
+	struct atmel_sha_ctx *tctx;
+	const char *name;
+	int err = -EINVAL;
+
+	switch (mode & SHA_FLAGS_MODE_MASK) {
+	case SHA_FLAGS_HMAC_SHA1:
+		name = "atmel-hmac-sha1";
+		break;
+
+	case SHA_FLAGS_HMAC_SHA224:
+		name = "atmel-hmac-sha224";
+		break;
+
+	case SHA_FLAGS_HMAC_SHA256:
+		name = "atmel-hmac-sha256";
+		break;
+
+	case SHA_FLAGS_HMAC_SHA384:
+		name = "atmel-hmac-sha384";
+		break;
+
+	case SHA_FLAGS_HMAC_SHA512:
+		name = "atmel-hmac-sha512";
+		break;
+
+	default:
+		goto error;
+	}
+
+	tfm = crypto_alloc_ahash(name,
+				 CRYPTO_ALG_TYPE_AHASH,
+				 CRYPTO_ALG_TYPE_AHASH_MASK);
+	if (IS_ERR(tfm)) {
+		err = PTR_ERR(tfm);
+		goto error;
+	}
+	tctx = crypto_ahash_ctx(tfm);
+	tctx->start = atmel_sha_authenc_start;
+	tctx->flags = mode;
+
+	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	if (!auth) {
+		err = -ENOMEM;
+		goto err_free_ahash;
+	}
+	auth->tfm = tfm;
+
+	return auth;
+
+err_free_ahash:
+	crypto_free_ahash(tfm);
+error:
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_spawn);
+
+void atmel_sha_authenc_free(struct atmel_sha_authenc_ctx *auth)
+{
+	if (auth)
+		crypto_free_ahash(auth->tfm);
+	kfree(auth);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_free);
+
+int atmel_sha_authenc_setkey(struct atmel_sha_authenc_ctx *auth,
+			     const u8 *key, unsigned int keylen,
+			     u32 *flags)
+{
+	struct crypto_ahash *tfm = auth->tfm;
+	int err;
+
+	crypto_ahash_clear_flags(tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_ahash_set_flags(tfm, *flags & CRYPTO_TFM_REQ_MASK);
+	err = crypto_ahash_setkey(tfm, key, keylen);
+	*flags = crypto_ahash_get_flags(tfm);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_setkey);
+
+int atmel_sha_authenc_schedule(struct ahash_request *req,
+			       struct atmel_sha_authenc_ctx *auth,
+			       atmel_aes_authenc_fn_t cb,
+			       struct atmel_aes_dev *aes_dev)
+{
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	struct atmel_sha_reqctx *ctx = &authctx->base;
+	struct crypto_ahash *tfm = auth->tfm;
+	struct atmel_sha_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct atmel_sha_dev *dd;
+
+	/* Reset request context (MUST be done first). */
+	memset(authctx, 0, sizeof(*authctx));
+
+	/* Get SHA device. */
+	dd = atmel_sha_find_dev(tctx);
+	if (!dd)
+		return cb(aes_dev, -ENODEV, false);
+
+	/* Init request context. */
+	ctx->dd = dd;
+	ctx->buflen = SHA_BUFFER_LEN;
+	authctx->cb = cb;
+	authctx->aes_dev = aes_dev;
+	ahash_request_set_tfm(req, tfm);
+	ahash_request_set_callback(req, 0, atmel_sha_authenc_complete, req);
+
+	return atmel_sha_handle_queue(dd, req);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_schedule);
+
+int atmel_sha_authenc_init(struct ahash_request *req,
+			   struct scatterlist *assoc, unsigned int assoclen,
+			   unsigned int textlen,
+			   atmel_aes_authenc_fn_t cb,
+			   struct atmel_aes_dev *aes_dev)
+{
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	struct atmel_sha_reqctx *ctx = &authctx->base;
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct atmel_sha_hmac_ctx *hmac = crypto_ahash_ctx(tfm);
+	struct atmel_sha_dev *dd = ctx->dd;
+
+	if (unlikely(!IS_ALIGNED(assoclen, sizeof(u32))))
+		return atmel_sha_complete(dd, -EINVAL);
+
+	authctx->cb = cb;
+	authctx->aes_dev = aes_dev;
+	authctx->assoc = assoc;
+	authctx->assoclen = assoclen;
+	authctx->textlen = textlen;
+
+	ctx->flags = hmac->base.flags;
+	return atmel_sha_hmac_setup(dd, atmel_sha_authenc_init2);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_init);
+
+static int atmel_sha_authenc_init2(struct atmel_sha_dev *dd)
+{
+	struct ahash_request *req = dd->req;
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	struct atmel_sha_reqctx *ctx = &authctx->base;
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct atmel_sha_hmac_ctx *hmac = crypto_ahash_ctx(tfm);
+	size_t hs = ctx->hash_size;
+	size_t i, num_words = hs / sizeof(u32);
+	u32 mr, msg_size;
+
+	atmel_sha_write(dd, SHA_CR, SHA_CR_WUIHV);
+	for (i = 0; i < num_words; ++i)
+		atmel_sha_write(dd, SHA_REG_DIN(i), hmac->ipad[i]);
+
+	atmel_sha_write(dd, SHA_CR, SHA_CR_WUIEHV);
+	for (i = 0; i < num_words; ++i)
+		atmel_sha_write(dd, SHA_REG_DIN(i), hmac->opad[i]);
+
+	mr = (SHA_MR_MODE_IDATAR0 |
+	      SHA_MR_HMAC |
+	      SHA_MR_DUALBUFF);
+	mr |= ctx->flags & SHA_FLAGS_ALGO_MASK;
+	atmel_sha_write(dd, SHA_MR, mr);
+
+	msg_size = authctx->assoclen + authctx->textlen;
+	atmel_sha_write(dd, SHA_MSR, msg_size);
+	atmel_sha_write(dd, SHA_BCR, msg_size);
+
+	atmel_sha_write(dd, SHA_CR, SHA_CR_FIRST);
+
+	/* Process assoc data. */
+	return atmel_sha_cpu_start(dd, authctx->assoc, authctx->assoclen,
+				   true, false,
+				   atmel_sha_authenc_init_done);
+}
+
+static int atmel_sha_authenc_init_done(struct atmel_sha_dev *dd)
+{
+	struct ahash_request *req = dd->req;
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+
+	return authctx->cb(authctx->aes_dev, 0, dd->is_async);
+}
+
+int atmel_sha_authenc_final(struct ahash_request *req,
+			    u32 *digest, unsigned int digestlen,
+			    atmel_aes_authenc_fn_t cb,
+			    struct atmel_aes_dev *aes_dev)
+{
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	struct atmel_sha_reqctx *ctx = &authctx->base;
+	struct atmel_sha_dev *dd = ctx->dd;
+
+	switch (ctx->flags & SHA_FLAGS_ALGO_MASK) {
+	case SHA_FLAGS_SHA1:
+		authctx->digestlen = SHA1_DIGEST_SIZE;
+		break;
+
+	case SHA_FLAGS_SHA224:
+		authctx->digestlen = SHA224_DIGEST_SIZE;
+		break;
+
+	case SHA_FLAGS_SHA256:
+		authctx->digestlen = SHA256_DIGEST_SIZE;
+		break;
+
+	case SHA_FLAGS_SHA384:
+		authctx->digestlen = SHA384_DIGEST_SIZE;
+		break;
+
+	case SHA_FLAGS_SHA512:
+		authctx->digestlen = SHA512_DIGEST_SIZE;
+		break;
+
+	default:
+		return atmel_sha_complete(dd, -EINVAL);
+	}
+	if (authctx->digestlen > digestlen)
+		authctx->digestlen = digestlen;
+
+	authctx->cb = cb;
+	authctx->aes_dev = aes_dev;
+	authctx->digest = digest;
+	return atmel_sha_wait_for_data_ready(dd,
+					     atmel_sha_authenc_final_done);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_final);
+
+static int atmel_sha_authenc_final_done(struct atmel_sha_dev *dd)
+{
+	struct ahash_request *req = dd->req;
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	size_t i, num_words = authctx->digestlen / sizeof(u32);
+
+	for (i = 0; i < num_words; ++i)
+		authctx->digest[i] = atmel_sha_read(dd, SHA_REG_DIGEST(i));
+
+	return atmel_sha_complete(dd, 0);
+}
+
+void atmel_sha_authenc_abort(struct ahash_request *req)
+{
+	struct atmel_sha_authenc_reqctx *authctx = ahash_request_ctx(req);
+	struct atmel_sha_reqctx *ctx = &authctx->base;
+	struct atmel_sha_dev *dd = ctx->dd;
+
+	/* Prevent atmel_sha_complete() from calling req->base.complete(). */
+	dd->is_async = false;
+	dd->force_complete = false;
+	(void)atmel_sha_complete(dd, 0);
+}
+EXPORT_SYMBOL_GPL(atmel_sha_authenc_abort);
+
+#endif /* CONFIG_CRYPTO_DEV_ATMEL_AUTHENC */
+
 
 static void atmel_sha_unregister_algs(struct atmel_sha_dev *dd)
 {
