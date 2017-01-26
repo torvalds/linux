@@ -57,7 +57,6 @@ struct exynos_wkup_irq {
 struct exynos_pm_data {
 	const struct exynos_wkup_irq *wkup_irq;
 	unsigned int wake_disable_mask;
-	unsigned int *release_ret_regs;
 
 	void (*pm_prepare)(void);
 	void (*pm_resume_prepare)(void);
@@ -93,47 +92,6 @@ static const struct exynos_wkup_irq exynos5250_wkup_irq[] = {
 	{ 43, BIT(1) }, /* RTC alarm */
 	{ 44, BIT(2) }, /* RTC tick */
 	{ /* sentinel */ },
-};
-
-static unsigned int exynos_release_ret_regs[] = {
-	S5P_PAD_RET_MAUDIO_OPTION,
-	S5P_PAD_RET_GPIO_OPTION,
-	S5P_PAD_RET_UART_OPTION,
-	S5P_PAD_RET_MMCA_OPTION,
-	S5P_PAD_RET_MMCB_OPTION,
-	S5P_PAD_RET_EBIA_OPTION,
-	S5P_PAD_RET_EBIB_OPTION,
-	REG_TABLE_END,
-};
-
-static unsigned int exynos3250_release_ret_regs[] = {
-	S5P_PAD_RET_MAUDIO_OPTION,
-	S5P_PAD_RET_GPIO_OPTION,
-	S5P_PAD_RET_UART_OPTION,
-	S5P_PAD_RET_MMCA_OPTION,
-	S5P_PAD_RET_MMCB_OPTION,
-	S5P_PAD_RET_EBIA_OPTION,
-	S5P_PAD_RET_EBIB_OPTION,
-	S5P_PAD_RET_MMC2_OPTION,
-	S5P_PAD_RET_SPI_OPTION,
-	REG_TABLE_END,
-};
-
-static unsigned int exynos5420_release_ret_regs[] = {
-	EXYNOS_PAD_RET_DRAM_OPTION,
-	EXYNOS_PAD_RET_MAUDIO_OPTION,
-	EXYNOS_PAD_RET_JTAG_OPTION,
-	EXYNOS5420_PAD_RET_GPIO_OPTION,
-	EXYNOS5420_PAD_RET_UART_OPTION,
-	EXYNOS5420_PAD_RET_MMCA_OPTION,
-	EXYNOS5420_PAD_RET_MMCB_OPTION,
-	EXYNOS5420_PAD_RET_MMCC_OPTION,
-	EXYNOS5420_PAD_RET_HSI_OPTION,
-	EXYNOS_PAD_RET_EBIA_OPTION,
-	EXYNOS_PAD_RET_EBIB_OPTION,
-	EXYNOS5420_PAD_RET_SPI_OPTION,
-	EXYNOS5420_PAD_RET_DRAM_COREBLK_OPTION,
-	REG_TABLE_END,
 };
 
 static int exynos_irq_set_wake(struct irq_data *data, unsigned int state)
@@ -442,24 +400,12 @@ static int exynos5420_pm_suspend(void)
 	return 0;
 }
 
-static void exynos_pm_release_retention(void)
-{
-	unsigned int i;
-
-	for (i = 0; (pm_data->release_ret_regs[i] != REG_TABLE_END); i++)
-		pmu_raw_writel(EXYNOS_WAKEUP_FROM_LOWPWR,
-				pm_data->release_ret_regs[i]);
-}
-
 static void exynos_pm_resume(void)
 {
 	u32 cpuid = read_cpuid_part();
 
 	if (exynos_pm_central_resume())
 		goto early_wakeup;
-
-	/* For release retention */
-	exynos_pm_release_retention();
 
 	if (cpuid == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(S5P_VA_SCU);
@@ -481,9 +427,6 @@ static void exynos3250_pm_resume(void)
 
 	if (exynos_pm_central_resume())
 		goto early_wakeup;
-
-	/* For release retention */
-	exynos_pm_release_retention();
 
 	pmu_raw_writel(S5P_USE_STANDBY_WFI_ALL, S5P_CENTRAL_SEQ_OPTION);
 
@@ -521,9 +464,6 @@ static void exynos5420_pm_resume(void)
 
 	if (exynos_pm_central_resume())
 		goto early_wakeup;
-
-	/* For release retention */
-	exynos_pm_release_retention();
 
 	pmu_raw_writel(exynos_pmu_spare3, S5P_PMU_SPARE3);
 
@@ -637,7 +577,6 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 static const struct exynos_pm_data exynos3250_pm_data = {
 	.wkup_irq	= exynos3250_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.release_ret_regs = exynos3250_release_ret_regs,
 	.pm_suspend	= exynos_pm_suspend,
 	.pm_resume	= exynos3250_pm_resume,
 	.pm_prepare	= exynos3250_pm_prepare,
@@ -647,7 +586,6 @@ static const struct exynos_pm_data exynos3250_pm_data = {
 static const struct exynos_pm_data exynos4_pm_data = {
 	.wkup_irq	= exynos4_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.release_ret_regs = exynos_release_ret_regs,
 	.pm_suspend	= exynos_pm_suspend,
 	.pm_resume	= exynos_pm_resume,
 	.pm_prepare	= exynos_pm_prepare,
@@ -657,7 +595,6 @@ static const struct exynos_pm_data exynos4_pm_data = {
 static const struct exynos_pm_data exynos5250_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.release_ret_regs = exynos_release_ret_regs,
 	.pm_suspend	= exynos_pm_suspend,
 	.pm_resume	= exynos_pm_resume,
 	.pm_prepare	= exynos_pm_prepare,
@@ -667,7 +604,6 @@ static const struct exynos_pm_data exynos5250_pm_data = {
 static const struct exynos_pm_data exynos5420_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = (0x7F << 7) | (0x1F << 1),
-	.release_ret_regs = exynos5420_release_ret_regs,
 	.pm_resume_prepare = exynos5420_prepare_pm_resume,
 	.pm_resume	= exynos5420_pm_resume,
 	.pm_suspend	= exynos5420_pm_suspend,
