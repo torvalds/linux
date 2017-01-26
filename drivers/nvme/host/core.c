@@ -590,8 +590,8 @@ int nvme_identify_ns(struct nvme_ctrl *dev, unsigned nsid,
 	int error;
 
 	/* gcc-4.4.4 (at least) has issues with initializers and anon unions */
-	c.identify.opcode = nvme_admin_identify,
-	c.identify.nsid = cpu_to_le32(nsid),
+	c.identify.opcode = nvme_admin_identify;
+	c.identify.nsid = cpu_to_le32(nsid);
 
 	*id = kmalloc(sizeof(struct nvme_id_ns), GFP_KERNEL);
 	if (!*id)
