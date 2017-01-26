@@ -381,8 +381,8 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	return 0;
 }
 
-/* Both size and address of WPR need to be 128K-aligned */
-#define WPR_ALIGNMENT	0x20000
+/* Both size and address of WPR need to be 256K-aligned */
+#define WPR_ALIGNMENT	0x40000
 /**
  * acr_r352_prepare_ls_blob() - prepare the LS blob
  *
