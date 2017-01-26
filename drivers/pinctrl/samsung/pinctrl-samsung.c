@@ -1060,6 +1060,13 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	if (res)
 		drvdata->irq = res->start;
 
+	if (ctrl->retention_data) {
+		drvdata->retention_ctrl = ctrl->retention_data->init(drvdata,
+							  ctrl->retention_data);
+		if (IS_ERR(drvdata->retention_ctrl))
+			return PTR_ERR(drvdata->retention_ctrl);
+	}
+
 	ret = samsung_gpiolib_register(pdev, drvdata);
 	if (ret)
 		return ret;
@@ -1126,6 +1133,8 @@ static void samsung_pinctrl_suspend_dev(
 
 	if (drvdata->suspend)
 		drvdata->suspend(drvdata);
+	if (drvdata->retention_ctrl && drvdata->retention_ctrl->enable)
+		drvdata->retention_ctrl->enable(drvdata);
 }
 
 /**
@@ -1173,6 +1182,9 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 			if (widths[type])
 				writel(bank->pm_save[type], reg + offs[type]);
 	}
+
+	if (drvdata->retention_ctrl && drvdata->retention_ctrl->disable)
+		drvdata->retention_ctrl->disable(drvdata);
 }
 
 /**
