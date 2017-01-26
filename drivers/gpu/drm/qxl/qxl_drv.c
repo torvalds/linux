@@ -269,7 +269,6 @@ static struct drm_driver qxl_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
-	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

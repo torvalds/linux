@@ -100,15 +100,6 @@ qxl_debugfs_init(struct drm_minor *minor)
 	return 0;
 }
 
-void
-qxl_debugfs_takedown(struct drm_minor *minor)
-{
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_remove_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
-				 minor);
-#endif
-}
-
 int qxl_debugfs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
 			  unsigned nfiles)
