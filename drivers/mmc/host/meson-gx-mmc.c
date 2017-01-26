@@ -481,9 +481,9 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			blk_len = cfg & (CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 			blk_len >>= CFG_BLK_LEN_SHIFT;
 			if (blk_len != ilog2(cmd->data->blksz)) {
-				dev_warn(host->dev, "%s: update blk_len %d -> %d\n",
+				dev_dbg(host->dev, "%s: update blk_len %d -> %d\n",
 					__func__, blk_len,
-					 ilog2(cmd->data->blksz));
+					ilog2(cmd->data->blksz));
 				blk_len = ilog2(cmd->data->blksz);
 				cfg &= ~(CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 				cfg |= blk_len << CFG_BLK_LEN_SHIFT;
@@ -743,7 +743,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret) {
-		dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
 		goto free_host;
 	}
 
