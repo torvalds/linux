@@ -928,8 +928,16 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 		if (!blk_mq_get_driver_tag(rq, &hctx, false)) {
 			if (!queued && reorder_tags_to_front(list))
 				continue;
+
+			/*
+			 * We failed getting a driver tag. Mark the queue(s)
+			 * as needing a restart. Retry getting a tag again,
+			 * in case the needed IO completed right before we
+			 * marked the queue as needing a restart.
+			 */
 			blk_mq_sched_mark_restart(hctx);
-			break;
+			if (!blk_mq_get_driver_tag(rq, &hctx, false))
+				break;
 		}
 		list_del_init(&rq->queuelist);
 
