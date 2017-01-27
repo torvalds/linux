@@ -280,8 +280,6 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
-	emac_mac_start(adpt);
-
 	return 0;
 }
 

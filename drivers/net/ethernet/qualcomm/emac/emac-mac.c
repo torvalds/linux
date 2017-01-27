@@ -556,7 +556,7 @@ void emac_mac_reset(struct emac_adapter *adpt)
 	emac_reg_update32(adpt->base + EMAC_DMA_MAS_CTRL, 0, INT_RD_CLR_EN);
 }
 
-void emac_mac_start(struct emac_adapter *adpt)
+static void emac_mac_start(struct emac_adapter *adpt)
 {
 	struct phy_device *phydev = adpt->phydev;
 	u32 mac, csr1;
