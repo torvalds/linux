@@ -3042,6 +3042,32 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 				DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
+static bool intel_dp_get_y_cord_status(struct intel_dp *intel_dp)
+{
+	uint8_t psr_caps = 0;
+
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_CAPS, &psr_caps);
+	return psr_caps & DP_PSR2_SU_Y_COORDINATE_REQUIRED;
+}
+
+static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
+{
+	uint8_t dprx = 0;
+
+	drm_dp_dpcd_readb(&intel_dp->aux,
+			DP_DPRX_FEATURE_ENUMERATION_LIST,
+			&dprx);
+	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
+}
+
+static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
+{
+	uint8_t alpm_caps = 0;
+
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_RECEIVER_ALPM_CAP, &alpm_caps);
+	return alpm_caps & DP_ALPM_CAP;
+}
+
 /* These are source-specific values. */
 uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
@@ -3412,7 +3438,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	if (HAS_DDI(dev_priv)) {
 		signal_levels = ddi_signal_levels(intel_dp);
 
-		if (IS_BROXTON(dev_priv))
+		if (IS_GEN9_LP(dev_priv))
 			signal_levels = 0;
 		else
 			mask = DDI_BUF_EMP_MASK;
@@ -3620,6 +3646,16 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 		dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
 		DRM_DEBUG_KMS("PSR2 %s on sink",
 			      dev_priv->psr.psr2_support ? "supported" : "not supported");
+
+		if (dev_priv->psr.psr2_support) {
+			dev_priv->psr.y_cord_support =
+				intel_dp_get_y_cord_status(intel_dp);
+			dev_priv->psr.colorimetry_support =
+				intel_dp_get_colorimetry_status(intel_dp);
+			dev_priv->psr.alpm =
+				intel_dp_get_alpm_status(intel_dp);
+		}
+
 	}
 
 	/* Read the eDP Display control capabilities registers */

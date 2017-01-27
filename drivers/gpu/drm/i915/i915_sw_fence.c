@@ -63,6 +63,7 @@ static inline void debug_fence_destroy(struct i915_sw_fence *fence)
 static inline void debug_fence_free(struct i915_sw_fence *fence)
 {
 	debug_object_free(fence, &i915_sw_fence_debug_descr);
+	smp_wmb(); /* flush the change in state before reallocation */
 }
 
 static inline void debug_fence_assert(struct i915_sw_fence *fence)

@@ -647,8 +647,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 			stolen_offset, gtt_offset, size);
 
 	/* KISS and expect everything to be page-aligned */
-	if (WARN_ON(size == 0) || WARN_ON(size & 4095) ||
-	    WARN_ON(stolen_offset & 4095))
+	if (WARN_ON(size == 0) ||
+	    WARN_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
+	    WARN_ON(!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
 		return NULL;
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
@@ -682,7 +683,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	if (ret)
 		goto err;
 
-	vma = i915_gem_obj_lookup_or_create_vma(obj, &ggtt->base, NULL);
+	vma = i915_vma_instance(obj, &ggtt->base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_pages;
@@ -693,14 +694,15 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
-	vma->node.start = gtt_offset;
-	vma->node.size = size;
-
-	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
+	ret = i915_gem_gtt_reserve(&ggtt->base, &vma->node,
+				   size, gtt_offset, obj->cache_level,
+				   0);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
 		goto err_pages;
 	}
+
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;

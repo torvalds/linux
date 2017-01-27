@@ -284,7 +284,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 out_destroy_fbi:
 	drm_fb_helper_release_fbi(helper);
 out_unpin:
-	intel_unpin_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
+	intel_unpin_fb_vma(vma);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -549,7 +549,7 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	if (ifbdev->fb) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
-		intel_unpin_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
+		intel_unpin_fb_vma(ifbdev->vma);
 		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
 
 		drm_framebuffer_remove(&ifbdev->fb->base);
@@ -741,6 +741,9 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
+
+	if (!ifbdev)
+		return;
 
 	ifbdev->cookie = async_schedule(intel_fbdev_initial_config, ifbdev);
 }

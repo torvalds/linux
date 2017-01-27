@@ -58,7 +58,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		units = 1;
 		div = 1200;		/* 833.33ns */
 	}

@@ -78,8 +78,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170109"
-#define DRIVER_TIMESTAMP	1483953121
+#define DRIVER_DATE		"20170123"
+#define DRIVER_TIMESTAMP	1485156432
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -1069,6 +1069,8 @@ struct intel_fbc {
 	struct work_struct underrun_work;
 
 	struct intel_fbc_state_cache {
+		struct i915_vma *vma;
+
 		struct {
 			unsigned int mode_flags;
 			uint32_t hsw_bdw_pixel_rate;
@@ -1082,15 +1084,14 @@ struct intel_fbc {
 		} plane;
 
 		struct {
-			u64 ilk_ggtt_offset;
 			const struct drm_format_info *format;
 			unsigned int stride;
-			int fence_reg;
-			unsigned int tiling_mode;
 		} fb;
 	} state_cache;
 
 	struct intel_fbc_reg_params {
+		struct i915_vma *vma;
+
 		struct {
 			enum pipe pipe;
 			enum plane plane;
@@ -1098,10 +1099,8 @@ struct intel_fbc {
 		} crtc;
 
 		struct {
-			u64 ggtt_offset;
 			const struct drm_format_info *format;
 			unsigned int stride;
-			int fence_reg;
 		} fb;
 
 		int cfb_size;
@@ -1154,6 +1153,9 @@ struct i915_psr {
 	bool psr2_support;
 	bool aux_frame_sync;
 	bool link_standby;
+	bool y_cord_support;
+	bool colorimetry_support;
+	bool alpm;
 };
 
 enum intel_pch {
@@ -1809,6 +1811,7 @@ struct intel_pipe_crc {
 	enum intel_pipe_crc_source source;
 	int head, tail;
 	wait_queue_head_t wq;
+	int skipped;
 };
 
 struct i915_frontbuffer_tracking {
@@ -2069,6 +2072,7 @@ struct drm_i915_private {
 
 	struct intel_gvt *gvt;
 
+	struct intel_huc huc;
 	struct intel_guc guc;
 
 	struct intel_csr csr;
@@ -2843,6 +2847,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_GUC(dev_priv)	((dev_priv)->info.has_guc)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
+#define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 
 #define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
 
@@ -3101,10 +3106,10 @@ int i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 int i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
-int i915_gem_set_tiling(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-int i915_gem_get_tiling(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
+int i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
 void i915_gem_init_userptr(struct drm_i915_private *dev_priv);
 int i915_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file);
@@ -3323,7 +3328,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 	return READ_ONCE(error->reset_count);
 }
 
-void i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
+int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
@@ -3360,11 +3365,6 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
-u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv, u64 size,
-			   int tiling_mode);
-u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
-				int tiling_mode, bool fenced);
-
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
 
@@ -3374,34 +3374,10 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-struct i915_vma *
-i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-		     struct i915_address_space *vm,
-		     const struct i915_ggtt_view *view);
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm,
-				  const struct i915_ggtt_view *view);
-
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
 	return container_of(vm, struct i915_hw_ppgtt, base);
-}
-
-static inline struct i915_vma *
-i915_gem_object_to_ggtt(struct drm_i915_gem_object *obj,
-			const struct i915_ggtt_view *view)
-{
-	return i915_gem_obj_to_vma(obj, &to_i915(obj->base.dev)->ggtt.base, view);
-}
-
-static inline unsigned long
-i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
-			    const struct i915_ggtt_view *view)
-{
-	return i915_ggtt_offset(i915_gem_object_to_ggtt(o, view));
 }
 
 /* i915_gem_fence_reg.c */
@@ -3471,8 +3447,9 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  unsigned cache_level,
 					  u64 start, u64 end,
 					  unsigned flags);
-int __must_check i915_gem_evict_for_vma(struct i915_vma *vma,
-					unsigned int flags);
+int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
+					 struct drm_mm_node *node,
+					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 
 /* belongs in i915_gem_gtt.h */
@@ -3506,7 +3483,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
-				unsigned int size);
+				phys_addr_t size);
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
@@ -3530,6 +3507,11 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		i915_gem_object_is_tiled(obj);
 }
+
+u32 i915_gem_fence_size(struct drm_i915_private *dev_priv, u32 size,
+			unsigned int tiling, unsigned int stride);
+u32 i915_gem_fence_alignment(struct drm_i915_private *dev_priv, u32 size,
+			     unsigned int tiling, unsigned int stride);
 
 /* i915_debugfs.c */
 #ifdef CONFIG_DEBUG_FS

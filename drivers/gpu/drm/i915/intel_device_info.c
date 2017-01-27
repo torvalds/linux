@@ -192,7 +192,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
 		hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
-		IS_BROXTON(dev_priv) && sseu_subslice_total(sseu) > 1;
+		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
 	if (IS_BROXTON(dev_priv)) {

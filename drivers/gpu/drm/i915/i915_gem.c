@@ -1696,12 +1696,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
 {
-	u64 size;
-
-	size = i915_gem_object_get_stride(obj);
-	size *= i915_gem_object_get_tiling(obj) == I915_TILING_Y ? 32 : 8;
-
-	return size >> PAGE_SHIFT;
+	return i915_gem_object_get_tile_row_size(obj) >> PAGE_SHIFT;
 }
 
 /**
@@ -1752,6 +1747,29 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
 int i915_gem_mmap_gtt_version(void)
 {
 	return 1;
+}
+
+static inline struct i915_ggtt_view
+compute_partial_view(struct drm_i915_gem_object *obj,
+		     pgoff_t page_offset,
+		     unsigned int chunk)
+{
+	struct i915_ggtt_view view;
+
+	if (i915_gem_object_is_tiled(obj))
+		chunk = roundup(chunk, tile_row_pages(obj));
+
+	view.type = I915_GGTT_VIEW_PARTIAL;
+	view.partial.offset = rounddown(page_offset, chunk);
+	view.partial.size =
+		min_t(unsigned int, chunk,
+		      (obj->base.size >> PAGE_SHIFT) - view.partial.offset);
+
+	/* If the partial covers the entire object, just create a normal VMA. */
+	if (chunk >= obj->base.size >> PAGE_SHIFT)
+		view.type = I915_GGTT_VIEW_NORMAL;
+
+	return view;
 }
 
 /**
@@ -1830,26 +1848,9 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	/* Now pin it into the GTT as needed */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, flags);
 	if (IS_ERR(vma)) {
-		struct i915_ggtt_view view;
-		unsigned int chunk_size;
-
 		/* Use a partial view if it is bigger than available space */
-		chunk_size = MIN_CHUNK_PAGES;
-		if (i915_gem_object_is_tiled(obj))
-			chunk_size = roundup(chunk_size, tile_row_pages(obj));
-
-		memset(&view, 0, sizeof(view));
-		view.type = I915_GGTT_VIEW_PARTIAL;
-		view.params.partial.offset = rounddown(page_offset, chunk_size);
-		view.params.partial.size =
-			min_t(unsigned int, chunk_size,
-			      vma_pages(area) - view.params.partial.offset);
-
-		/* If the partial covers the entire object, just create a
-		 * normal VMA.
-		 */
-		if (chunk_size >= obj->base.size >> PAGE_SHIFT)
-			view.type = I915_GGTT_VIEW_NORMAL;
+		struct i915_ggtt_view view =
+			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
 
 		/* Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
@@ -1878,7 +1879,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area,
-			       area->vm_start + (vma->ggtt_view.params.partial.offset << PAGE_SHIFT),
+			       area->vm_start + (vma->ggtt_view.partial.offset << PAGE_SHIFT),
 			       (ggtt->mappable_base + vma->node.start) >> PAGE_SHIFT,
 			       min_t(u64, vma->size, area->vm_end - area->vm_start),
 			       &ggtt->mappable);
@@ -2019,69 +2020,6 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 		GEM_BUG_ON(!list_empty(&reg->vma->obj->userfault_link));
 		reg->dirty = true;
 	}
-}
-
-/**
- * i915_gem_get_ggtt_size - return required global GTT size for an object
- * @dev_priv: i915 device
- * @size: object size
- * @tiling_mode: tiling mode
- *
- * Return the required global GTT size for an object, taking into account
- * potential fence register mapping.
- */
-u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
-			   u64 size, int tiling_mode)
-{
-	u64 ggtt_size;
-
-	GEM_BUG_ON(size == 0);
-
-	if (INTEL_GEN(dev_priv) >= 4 ||
-	    tiling_mode == I915_TILING_NONE)
-		return size;
-
-	/* Previous chips need a power-of-two fence region when tiling */
-	if (IS_GEN3(dev_priv))
-		ggtt_size = 1024*1024;
-	else
-		ggtt_size = 512*1024;
-
-	while (ggtt_size < size)
-		ggtt_size <<= 1;
-
-	return ggtt_size;
-}
-
-/**
- * i915_gem_get_ggtt_alignment - return required global GTT alignment
- * @dev_priv: i915 device
- * @size: object size
- * @tiling_mode: tiling mode
- * @fenced: is fenced alignment required or not
- *
- * Return the required global GTT alignment for an object, taking into account
- * potential fence register mapping.
- */
-u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
-				int tiling_mode, bool fenced)
-{
-	GEM_BUG_ON(size == 0);
-
-	/*
-	 * Minimum alignment is 4k (GTT page size), but might be greater
-	 * if a fence register is needed for the object.
-	 */
-	if (INTEL_GEN(dev_priv) >= 4 ||
-	    (!fenced && (IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))) ||
-	    tiling_mode == I915_TILING_NONE)
-		return 4096;
-
-	/*
-	 * Previous chips need to be aligned to the size of the smallest
-	 * fence register that can contain the object.
-	 */
-	return i915_gem_get_ggtt_size(dev_priv, size, tiling_mode);
 }
 
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
@@ -2666,13 +2604,52 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 		if (__i915_gem_request_completed(request))
 			continue;
 
+		GEM_BUG_ON(request->engine != engine);
 		return request;
 	}
 
 	return NULL;
 }
 
-static void reset_request(struct drm_i915_gem_request *request)
+static bool engine_stalled(struct intel_engine_cs *engine)
+{
+	if (!engine->hangcheck.stalled)
+		return false;
+
+	/* Check for possible seqno movement after hang declaration */
+	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
+		DRM_DEBUG_DRIVER("%s pardoned\n", engine->name);
+		return false;
+	}
+
+	return true;
+}
+
+int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/* Ensure irq handler finishes, and not run again. */
+	for_each_engine(engine, dev_priv, id) {
+		struct drm_i915_gem_request *request;
+
+		tasklet_kill(&engine->irq_tasklet);
+
+		if (engine_stalled(engine)) {
+			request = i915_gem_find_active_request(engine);
+			if (request && request->fence.error == -EIO)
+				err = -EIO; /* Previous reset failed! */
+		}
+	}
+
+	i915_gem_revoke_fences(dev_priv);
+
+	return err;
+}
+
+static void skip_request(struct drm_i915_gem_request *request)
 {
 	void *vaddr = request->ring->vaddr;
 	u32 head;
@@ -2687,20 +2664,74 @@ static void reset_request(struct drm_i915_gem_request *request)
 		head = 0;
 	}
 	memset(vaddr + head, 0, request->postfix - head);
+
+	dma_fence_set_error(&request->fence, -EIO);
 }
 
-void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
+static void engine_skip_context(struct drm_i915_gem_request *request)
 {
-	i915_gem_revoke_fences(dev_priv);
+	struct intel_engine_cs *engine = request->engine;
+	struct i915_gem_context *hung_ctx = request->ctx;
+	struct intel_timeline *timeline;
+	unsigned long flags;
+
+	timeline = i915_gem_context_lookup_timeline(hung_ctx, engine);
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock(&timeline->lock);
+
+	list_for_each_entry_continue(request, &engine->timeline->requests, link)
+		if (request->ctx == hung_ctx)
+			skip_request(request);
+
+	list_for_each_entry(request, &timeline->requests, link)
+		skip_request(request);
+
+	spin_unlock(&timeline->lock);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
+/* Returns true if the request was guilty of hang */
+static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
+{
+	/* Read once and return the resolution */
+	const bool guilty = engine_stalled(request->engine);
+
+	/* The guilty request will get skipped on a hung engine.
+	 *
+	 * Users of client default contexts do not rely on logical
+	 * state preserved between batches so it is safe to execute
+	 * queued requests following the hang. Non default contexts
+	 * rely on preserved state, so skipping a batch loses the
+	 * evolution of the state and it needs to be considered corrupted.
+	 * Executing more queued batches on top of corrupted state is
+	 * risky. But we take the risk by trying to advance through
+	 * the queued requests in order to make the client behaviour
+	 * more predictable around resets, by not throwing away random
+	 * amount of batches it has prepared for execution. Sophisticated
+	 * clients can use gem_reset_stats_ioctl and dma fence status
+	 * (exported via sync_file info ioctl on explicit fences) to observe
+	 * when it loses the context state and should rebuild accordingly.
+	 *
+	 * The context ban, and ultimately the client ban, mechanism are safety
+	 * valves if client submission ends up resulting in nothing more than
+	 * subsequent hangs.
+	 */
+
+	if (guilty) {
+		i915_gem_context_mark_guilty(request->ctx);
+		skip_request(request);
+	} else {
+		i915_gem_context_mark_innocent(request->ctx);
+		dma_fence_set_error(&request->fence, -EAGAIN);
+	}
+
+	return guilty;
 }
 
 static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
-	struct i915_gem_context *hung_ctx;
-	struct intel_timeline *timeline;
-	unsigned long flags;
-	bool ring_hung;
 
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
@@ -2709,22 +2740,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (!request)
 		return;
 
-	hung_ctx = request->ctx;
-
-	ring_hung = engine->hangcheck.stalled;
-	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
-		DRM_DEBUG_DRIVER("%s pardoned, was guilty? %s\n",
-				 engine->name,
-				 yesno(ring_hung));
-		ring_hung = false;
-	}
-
-	if (ring_hung)
-		i915_gem_context_mark_guilty(hung_ctx);
-	else
-		i915_gem_context_mark_innocent(hung_ctx);
-
-	if (!ring_hung)
+	if (!i915_gem_reset_request(request))
 		return;
 
 	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
@@ -2734,34 +2750,8 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	engine->reset_hw(engine, request);
 
 	/* If this context is now banned, skip all of its pending requests. */
-	if (!i915_gem_context_is_banned(hung_ctx))
-		return;
-
-	/* Users of the default context do not rely on logical state
-	 * preserved between batches. They have to emit full state on
-	 * every batch and so it is safe to execute queued requests following
-	 * the hang.
-	 *
-	 * Other contexts preserve state, now corrupt. We want to skip all
-	 * queued requests that reference the corrupt context.
-	 */
-	if (i915_gem_context_is_default(hung_ctx))
-		return;
-
-	timeline = i915_gem_context_lookup_timeline(hung_ctx, engine);
-
-	spin_lock_irqsave(&engine->timeline->lock, flags);
-	spin_lock(&timeline->lock);
-
-	list_for_each_entry_continue(request, &engine->timeline->requests, link)
-		if (request->ctx == hung_ctx)
-			reset_request(request);
-
-	list_for_each_entry(request, &timeline->requests, link)
-		reset_request(request);
-
-	spin_unlock(&timeline->lock);
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	if (i915_gem_context_is_banned(request->ctx))
+		engine_skip_context(request);
 }
 
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
@@ -2788,12 +2778,16 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	dma_fence_set_error(&request->fence, -EIO);
 	i915_gem_request_submit(request);
 	intel_engine_init_global_seqno(request->engine, request->global_seqno);
 }
 
-static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
+static void engine_set_wedged(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_request *request;
+	unsigned long flags;
+
 	/* We need to be sure that no thread is running the old callback as
 	 * we install the nop handler (otherwise we would submit a request
 	 * to hardware that will never complete). In order to prevent this
@@ -2801,6 +2795,12 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 	 * (using stop_machine()).
 	 */
 	engine->submit_request = nop_submit_request;
+
+	/* Mark all executing requests as skipped */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	list_for_each_entry(request, &engine->timeline->requests, link)
+		dma_fence_set_error(&request->fence, -EIO);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	/* Mark all pending requests as complete so that any concurrent
 	 * (lockless) lookup doesn't try and wait upon the request as we
@@ -2837,7 +2837,7 @@ static int __i915_gem_set_wedged_BKL(void *data)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id)
-		i915_gem_cleanup_engine(engine);
+		engine_set_wedged(engine);
 
 	return 0;
 }
@@ -3397,7 +3397,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
-	int ret;
+	int ret = 0;
 
 	switch (args->caching) {
 	case I915_CACHING_NONE:
@@ -3422,20 +3422,29 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	obj = i915_gem_object_lookup(file, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	if (obj->cache_level == level)
+		goto out;
+
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file));
+	if (ret)
+		goto out;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		return ret;
-
-	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+		goto out;
 
 	ret = i915_gem_object_set_cache_level(obj, level);
-	i915_gem_object_put(obj);
-unlock:
 	mutex_unlock(&dev->struct_mutex);
+
+out:
+	i915_gem_object_put(obj);
 	return ret;
 }
 
@@ -3485,7 +3494,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * try to preserve the existing ABI).
 	 */
 	vma = ERR_PTR(-ENOSPC);
-	if (view->type == I915_GGTT_VIEW_NORMAL)
+	if (!view || view->type == I915_GGTT_VIEW_NORMAL)
 		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
 	if (IS_ERR(vma)) {
@@ -3544,11 +3553,10 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 		return;
 
 	if (--vma->obj->pin_display == 0)
-		vma->display_alignment = 0;
+		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
-	if (!i915_vma_is_active(vma))
-		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	i915_gem_object_bump_inactive_ggtt(vma->obj);
 
 	i915_vma_unpin(vma);
 }
@@ -3679,8 +3687,8 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	vma = i915_gem_obj_lookup_or_create_vma(obj, vm, view);
-	if (IS_ERR(vma))
+	vma = i915_vma_instance(obj, vm, view);
+	if (unlikely(IS_ERR(vma)))
 		return vma;
 
 	if (i915_vma_misplaced(vma, size, alignment, flags)) {
@@ -3689,10 +3697,6 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			return ERR_PTR(-ENOSPC);
 
 		if (flags & PIN_MAPPABLE) {
-			u32 fence_size;
-
-			fence_size = i915_gem_get_ggtt_size(dev_priv, vma->size,
-							    i915_gem_object_get_tiling(obj));
 			/* If the required space is larger than the available
 			 * aperture, we will not able to find a slot for the
 			 * object and unbinding the object now will be in
@@ -3700,7 +3704,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 * the object in and out of the Global GTT and
 			 * waste a lot of cycles under the mutex.
 			 */
-			if (fence_size > dev_priv->ggtt.mappable_end)
+			if (vma->fence_size > dev_priv->ggtt.mappable_end)
 				return ERR_PTR(-E2BIG);
 
 			/* If NONBLOCK is set the caller is optimistically
@@ -3719,7 +3723,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 * we could try to minimise harm to others.
 			 */
 			if (flags & PIN_NONBLOCK &&
-			    fence_size > dev_priv->ggtt.mappable_end / 2)
+			    vma->fence_size > dev_priv->ggtt.mappable_end / 2)
 				return ERR_PTR(-ENOSPC);
 		}
 
@@ -4193,7 +4197,8 @@ static void assert_kernel_context_is_current(struct drm_i915_private *dev_priv)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id)
-		GEM_BUG_ON(!i915_gem_context_is_kernel(engine->last_retired_context));
+		GEM_BUG_ON(engine->last_retired_context &&
+			   !i915_gem_context_is_kernel(engine->last_retired_context));
 }
 
 int i915_gem_suspend(struct drm_i915_private *dev_priv)

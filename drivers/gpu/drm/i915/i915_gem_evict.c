@@ -231,7 +231,8 @@ found:
 
 /**
  * i915_gem_evict_for_vma - Evict vmas to make room for binding a new one
- * @target: address space and range to evict for
+ * @vm: address space to evict from
+ * @target: range (and color) to evict for
  * @flags: additional flags to control the eviction algorithm
  *
  * This function will try to evict vmas that overlap the target node.
@@ -239,18 +240,20 @@ found:
  * To clarify: This is for freeing up virtual address space, not for freeing
  * memory in e.g. the shrinker.
  */
-int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
+int i915_gem_evict_for_node(struct i915_address_space *vm,
+			    struct drm_mm_node *target,
+			    unsigned int flags)
 {
 	LIST_HEAD(eviction_list);
 	struct drm_mm_node *node;
-	u64 start = target->node.start;
-	u64 end = start + target->node.size;
+	u64 start = target->start;
+	u64 end = start + target->size;
 	struct i915_vma *vma, *next;
 	bool check_color;
 	int ret = 0;
 
-	lockdep_assert_held(&target->vm->i915->drm.struct_mutex);
-	trace_i915_gem_evict_vma(target, flags);
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+	trace_i915_gem_evict_node(vm, target, flags);
 
 	/* Retire before we search the active list. Although we have
 	 * reasonable accuracy in our retirement lists, we may have
@@ -258,18 +261,18 @@ int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 	 * retiring.
 	 */
 	if (!(flags & PIN_NONBLOCK))
-		i915_gem_retire_requests(target->vm->i915);
+		i915_gem_retire_requests(vm->i915);
 
-	check_color = target->vm->mm.color_adjust;
+	check_color = vm->mm.color_adjust;
 	if (check_color) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */
-		if (start > target->vm->start)
-			start -= 4096;
-		if (end < target->vm->start + target->vm->total)
-			end += 4096;
+		if (start > vm->start)
+			start -= I915_GTT_PAGE_SIZE;
+		if (end < vm->start + vm->total)
+			end += I915_GTT_PAGE_SIZE;
 	}
 
-	drm_mm_for_each_node_in_range(node, &target->vm->mm, start, end) {
+	drm_mm_for_each_node_in_range(node, &vm->mm, start, end) {
 		/* If we find any non-objects (!vma), we cannot evict them */
 		if (node->color == I915_COLOR_UNEVICTABLE) {
 			ret = -ENOSPC;
@@ -285,12 +288,12 @@ int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 		 * those as well to make room for our guard pages.
 		 */
 		if (check_color) {
-			if (vma->node.start + vma->node.size == target->node.start) {
-				if (vma->node.color == target->node.color)
+			if (vma->node.start + vma->node.size == node->start) {
+				if (vma->node.color == node->color)
 					continue;
 			}
-			if (vma->node.start == target->node.start + target->node.size) {
-				if (vma->node.color == target->node.color)
+			if (vma->node.start == node->start + node->size) {
+				if (vma->node.color == node->color)
 					continue;
 			}
 		}
@@ -302,7 +305,7 @@ int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 		}
 
 		/* Overlap of objects in the same batch? */
-		if (i915_vma_is_pinned(vma)) {
+		if (i915_vma_is_pinned(vma) || !list_empty(&vma->exec_list)) {
 			ret = -ENOSPC;
 			if (vma->exec_entry &&
 			    vma->exec_entry->flags & EXEC_OBJECT_PINNED)

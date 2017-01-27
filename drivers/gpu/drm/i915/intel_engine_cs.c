@@ -264,7 +264,7 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
 		return PTR_ERR(obj);
 	}
 
-	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_unref;
