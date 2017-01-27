@@ -146,6 +146,7 @@ struct dsa_port {
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;
+	struct net_device	*bridge_dev;
 };
 
 struct dsa_switch {
