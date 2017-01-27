@@ -190,12 +190,6 @@
 #define CTX_R_PWR_CLK_STATE		0x42
 #define CTX_GPGPU_CSR_BASE_ADDRESS	0x44
 
-#define GEN8_CTX_VALID (1<<0)
-#define GEN8_CTX_FORCE_PD_RESTORE (1<<1)
-#define GEN8_CTX_FORCE_RESTORE (1<<2)
-#define GEN8_CTX_L3LLC_COHERENT (1<<5)
-#define GEN8_CTX_PRIVILEGE (1<<8)
-
 #define ASSIGN_CTX_REG(reg_state, pos, reg, val) do { \
 	(reg_state)[(pos)+0] = i915_mmio_reg_offset(reg); \
 	(reg_state)[(pos)+1] = (val); \
@@ -212,14 +206,6 @@
 	reg_state[CTX_PDP0_LDW + 1] = lower_32_bits(px_dma(&ppgtt->pml4)); \
 } while (0)
 
-enum {
-	FAULT_AND_HANG = 0,
-	FAULT_AND_HALT, /* Debug only */
-	FAULT_AND_STREAM,
-	FAULT_AND_CONTINUE /* Unsupported */
-};
-#define GEN8_CTX_ID_SHIFT 32
-#define GEN8_CTX_ID_WIDTH 21
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
 #define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
 
@@ -267,21 +253,6 @@ int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv, int enabl
 	return 0;
 }
 
-static void
-logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	engine->ctx_desc_template = GEN8_CTX_VALID;
-	if (IS_GEN8(dev_priv))
-		engine->ctx_desc_template |= GEN8_CTX_L3LLC_COHERENT;
-	engine->ctx_desc_template |= GEN8_CTX_PRIVILEGE;
-
-	/* TODO: WaDisableLiteRestore when we start using semaphore
-	 * signalling between Command Streamers */
-	/* ring->ctx_desc_template |= GEN8_CTX_FORCE_RESTORE; */
-}
-
 /**
  * intel_lr_context_descriptor_update() - calculate & cache the descriptor
  * 					  descriptor for a pinned context
@@ -295,7 +266,7 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  *
  * This is what a descriptor looks like, from LSB to MSB::
  *
- *      bits  0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
+ *      bits  0-11:    flags, GEN8_CTX_* (cached in ctx->desc_template)
  *      bits 12-31:    LRCA, GTT address of (the HWSP of) this context
  *      bits 32-52:    ctx ID, a globally unique tag
  *      bits 53-54:    mbz, reserved for use by hardware
@@ -310,8 +281,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (1<<GEN8_CTX_ID_WIDTH));
 
-	desc = ctx->desc_template;				/* bits  3-4  */
-	desc |= engine->ctx_desc_template;			/* bits  0-11 */
+	desc = ctx->desc_template;				/* bits  0-11 */
 	desc |= i915_ggtt_offset(ce->state) + LRC_PPHWSP_PN * PAGE_SIZE;
 								/* bits 12-31 */
 	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
@@ -1805,7 +1775,6 @@ logical_ring_setup(struct intel_engine_cs *engine)
 	tasklet_init(&engine->irq_tasklet,
 		     intel_lrc_irq_handler, (unsigned long)engine);
 
-	logical_ring_init_platform_invariants(engine);
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
 }
