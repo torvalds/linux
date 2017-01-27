@@ -143,6 +143,7 @@ struct dc_debug {
 	bool disable_dfs_bypass;
 	bool disable_clock_gate;
 	bool disable_dmcu;
+	bool force_abm_enable;
 };
 
 struct dc {
