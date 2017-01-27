@@ -2,8 +2,6 @@
 #define _ASM_X86_PGTABLE_H
 
 #include <asm/page.h>
-#include <asm/e820/api.h>
-
 #include <asm/pgtable_types.h>
 
 /*

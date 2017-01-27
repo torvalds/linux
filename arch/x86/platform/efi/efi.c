@@ -47,6 +47,7 @@
 
 #include <asm/setup.h>
 #include <asm/efi.h>
+#include <asm/e820/api.h>
 #include <asm/time.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

@@ -7,7 +7,9 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+
 #include <asm/pci_x86.h>
+#include <asm/e820/types.h>
 #include <asm/pci-functions.h>
 #include <asm/cacheflush.h>
 

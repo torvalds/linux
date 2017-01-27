@@ -25,6 +25,7 @@
 #include <asm/setup.h>
 #include <asm/crash.h>
 #include <asm/efi.h>
+#include <asm/e820/api.h>
 #include <asm/kexec-bzimage64.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */

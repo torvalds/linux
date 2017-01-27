@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 
+#include <asm/e820/types.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 

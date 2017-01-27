@@ -9,7 +9,9 @@
 
 #include <linux/efi.h>
 #include <linux/pci.h>
+
 #include <asm/efi.h>
+#include <asm/e820/types.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
 

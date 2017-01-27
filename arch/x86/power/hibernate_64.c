@@ -16,6 +16,7 @@
 
 #include <crypto/hash.h>
 
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/proto.h>
 #include <asm/page.h>

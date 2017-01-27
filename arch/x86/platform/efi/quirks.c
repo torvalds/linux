@@ -11,6 +11,8 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <asm/e820/api.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
