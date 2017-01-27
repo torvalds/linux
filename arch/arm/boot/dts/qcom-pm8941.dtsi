@@ -45,6 +45,10 @@
 					  "chg-gone",
 					  "usb-valid",
 					  "dc-valid";
+
+			usb-otg-in-supply = <&pm8941_5vs1>;
+
+			chg_otg: otg-vbus { };
 		};
 
 		pm8941_gpios: gpios@c000 {
