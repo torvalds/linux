@@ -385,16 +385,16 @@ static void dwc2_set_param(struct dwc2_hsotg *hsotg, void *param,
 }
 
 /**
- * dwc2_set_param_u16() - Set a u16 parameter
+ * dwc2_set_param_u32() - Set a u32 parameter
  *
  * See dwc2_set_param().
  */
-static void dwc2_set_param_u16(struct dwc2_hsotg *hsotg, u16 *param,
+static void dwc2_set_param_u32(struct dwc2_hsotg *hsotg, u32 *param,
 			       bool lookup, char *property, u16 legacy,
 			       u16 def, u16 min, u16 max)
 {
 	dwc2_set_param(hsotg, param, lookup, property,
-		       legacy, def, min, max, 2);
+		       legacy, def, min, max, 4);
 }
 
 /**
@@ -1178,12 +1178,12 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 		 * auto-detect if the hardware does not support the
 		 * default.
 		 */
-		dwc2_set_param_u16(hsotg, &p->g_rx_fifo_size,
+		dwc2_set_param_u32(hsotg, &p->g_rx_fifo_size,
 				   true, "g-rx-fifo-size", 2048,
 				   hw->rx_fifo_size,
 				   16, hw->rx_fifo_size);
 
-		dwc2_set_param_u16(hsotg, &p->g_np_tx_fifo_size,
+		dwc2_set_param_u32(hsotg, &p->g_np_tx_fifo_size,
 				   true, "g-np-tx-fifo-size", 1024,
 				   hw->dev_nperio_tx_fifo_size,
 				   16, hw->dev_nperio_tx_fifo_size);

@@ -202,6 +202,8 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			i = 128;
 			pin_num = AMD_GPIO_PINS_BANK2 + i;
 			break;
+		default:
+			return;
 		}
 
 		for (; i < pin_num; i++) {
