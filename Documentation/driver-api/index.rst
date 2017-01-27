@@ -22,6 +22,7 @@ available subsections can be seen below.
    message-based
    sound
    frame-buffer
+   regulator
    iio/index
    input
    usb
