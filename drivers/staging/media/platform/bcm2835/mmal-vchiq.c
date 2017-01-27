@@ -239,7 +239,7 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 		pr_err("buffer list empty trying to submit bulk receive\n");
 
 		/* todo: this is a serious error, we should never have
-		 * commited a buffer_to_host operation to the mmal
+		 * committed a buffer_to_host operation to the mmal
 		 * port without the buffer to back it up (underflow
 		 * handling) and there is no obvious way to deal with
 		 * this - how is the mmal servie going to react when
@@ -352,7 +352,7 @@ static int inline_receive(struct vchiq_mmal_instance *instance,
 		pr_err("buffer list empty trying to receive inline\n");
 
 		/* todo: this is a serious error, we should never have
-		 * commited a buffer_to_host operation to the mmal
+		 * committed a buffer_to_host operation to the mmal
 		 * port without the buffer to back it up (with
 		 * underflow handling) and there is no obvious way to
 		 * deal with this. Less bad than the bulk case as we
@@ -653,7 +653,7 @@ static void service_callback(void *param,
 			break;
 
 		default:
-			/* messages dependant on header context to complete */
+			/* messages dependent on header context to complete */
 
 			/* todo: the msg.context really ought to be sanity
 			 * checked before we just use it, afaict it comes back
@@ -780,7 +780,7 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 		 port->current_buffer.num,
 		 port->current_buffer.size, port->current_buffer.alignment);
 
-	pr_debug("elementry stream: type:%d encoding:0x%x varient:0x%x\n",
+	pr_debug("elementry stream: type:%d encoding:0x%x variant:0x%x\n",
 		 port->format.type,
 		 port->format.encoding, port->format.encoding_variant);
 
@@ -883,7 +883,7 @@ release_msg:
 	return ret;
 }
 
-/* use port info get message to retrive port information */
+/* use port info get message to retrieve port information */
 static int port_info_get(struct vchiq_mmal_instance *instance,
 			 struct vchiq_mmal_port *port)
 {
@@ -923,7 +923,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	/* copy the values out of the message */
 	port->handle = rmsg->u.port_info_get_reply.port_handle;
 
-	/* port type and index cached to use on port info set becuase
+	/* port type and index cached to use on port info set because
 	 * it does not use a port handle
 	 */
 	port->type = rmsg->u.port_info_get_reply.port_type;
