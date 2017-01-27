@@ -814,10 +814,13 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
-	if (!q->mq_ops)
+	if (!q->mq_ops) {
+		if (q->exit_rq_fn)
+			q->exit_rq_fn(q, q->fq->flush_rq);
 		blk_free_flush_queue(q->fq);
-	else
+	} else {
 		blk_mq_release(q);
+	}
 
 	blk_trace_shutdown(q);
 

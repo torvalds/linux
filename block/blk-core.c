@@ -606,15 +606,39 @@ void blk_cleanup_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_cleanup_queue);
 
 /* Allocate memory local to the request queue */
-static void *alloc_request_struct(gfp_t gfp_mask, void *data)
+static void *alloc_request_simple(gfp_t gfp_mask, void *data)
 {
-	int nid = (int)(long)data;
-	return kmem_cache_alloc_node(request_cachep, gfp_mask, nid);
+	struct request_queue *q = data;
+
+	return kmem_cache_alloc_node(request_cachep, gfp_mask, q->node);
 }
 
-static void free_request_struct(void *element, void *unused)
+static void free_request_simple(void *element, void *data)
 {
 	kmem_cache_free(request_cachep, element);
+}
+
+static void *alloc_request_size(gfp_t gfp_mask, void *data)
+{
+	struct request_queue *q = data;
+	struct request *rq;
+
+	rq = kmalloc_node(sizeof(struct request) + q->cmd_size, gfp_mask,
+			q->node);
+	if (rq && q->init_rq_fn && q->init_rq_fn(q, rq, gfp_mask) < 0) {
+		kfree(rq);
+		rq = NULL;
+	}
+	return rq;
+}
+
+static void free_request_size(void *element, void *data)
+{
+	struct request_queue *q = data;
+
+	if (q->exit_rq_fn)
+		q->exit_rq_fn(q, element);
+	kfree(element);
 }
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
@@ -629,10 +653,15 @@ int blk_init_rl(struct request_list *rl, struct request_queue *q,
 	init_waitqueue_head(&rl->wait[BLK_RW_SYNC]);
 	init_waitqueue_head(&rl->wait[BLK_RW_ASYNC]);
 
-	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, alloc_request_struct,
-					  free_request_struct,
-					  (void *)(long)q->node, gfp_mask,
-					  q->node);
+	if (q->cmd_size) {
+		rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ,
+				alloc_request_size, free_request_size,
+				q, gfp_mask, q->node);
+	} else {
+		rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ,
+				alloc_request_simple, free_request_simple,
+				q, gfp_mask, q->node);
+	}
 	if (!rl->rq_pool)
 		return -ENOMEM;
 
@@ -846,12 +875,15 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 int blk_init_allocated_queue(struct request_queue *q)
 {
-	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, 0);
+	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, q->cmd_size);
 	if (!q->fq)
 		return -ENOMEM;
 
+	if (q->init_rq_fn && q->init_rq_fn(q, q->fq->flush_rq, GFP_KERNEL))
+		goto out_free_flush_queue;
+
 	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
-		goto fail;
+		goto out_exit_flush_rq;
 
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	q->queue_flags		|= QUEUE_FLAG_DEFAULT;
@@ -869,13 +901,16 @@ int blk_init_allocated_queue(struct request_queue *q)
 	/* init elevator */
 	if (elevator_init(q, NULL)) {
 		mutex_unlock(&q->sysfs_lock);
-		goto fail;
+		goto out_exit_flush_rq;
 	}
 
 	mutex_unlock(&q->sysfs_lock);
 	return 0;
 
-fail:
+out_exit_flush_rq:
+	if (q->exit_rq_fn)
+		q->exit_rq_fn(q, q->fq->flush_rq);
+out_free_flush_queue:
 	blk_free_flush_queue(q->fq);
 	wbt_exit(q);
 	return -ENOMEM;
