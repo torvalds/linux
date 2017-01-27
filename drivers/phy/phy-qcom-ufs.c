@@ -189,12 +189,12 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 	if (err)
 		goto out;
 
+skip_txrx_clk:
 	err = ufs_qcom_phy_clk_get(phy_common->dev, "ref_clk_src",
 				   &phy_common->ref_clk_src);
 	if (err)
 		goto out;
 
-skip_txrx_clk:
 	/*
 	 * "ref_clk_parent" is optional hence don't abort init if it's not
 	 * found.
