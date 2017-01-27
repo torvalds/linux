@@ -3096,9 +3096,34 @@ static u32 intel_hpd_enabled_irqs(struct drm_i915_private *dev_priv,
 	return enabled_irqs;
 }
 
+static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug;
+
+	/*
+	 * Enable digital hotplug on the PCH, and configure the DP short pulse
+	 * duration to 2ms (which is the minimum in the Display Port spec).
+	 * The pulse duration bits are reserved on LPT+.
+	 */
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug &= ~(PORTB_PULSE_DURATION_MASK |
+		     PORTC_PULSE_DURATION_MASK |
+		     PORTD_PULSE_DURATION_MASK);
+	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
+	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
+	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
+	/*
+	 * When CPU and PCH are on the same package, port A
+	 * HPD must be enabled in both north and south.
+	 */
+	if (HAS_PCH_LPT_LP(dev_priv))
+		hotplug |= PORTA_HOTPLUG_ENABLE;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
+
 static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug_irqs, hotplug, enabled_irqs;
+	u32 hotplug_irqs, enabled_irqs;
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		hotplug_irqs = SDE_HOTPLUG_MASK;
@@ -3110,23 +3135,7 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
-	/*
-	 * Enable digital hotplug on the PCH, and configure the DP short pulse
-	 * duration to 2ms (which is the minimum in the Display Port spec).
-	 * The pulse duration bits are reserved on LPT+.
-	 */
-	hotplug = I915_READ(PCH_PORT_HOTPLUG);
-	hotplug &= ~(PORTD_PULSE_DURATION_MASK|PORTC_PULSE_DURATION_MASK|PORTB_PULSE_DURATION_MASK);
-	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
-	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
-	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
-	/*
-	 * When CPU and PCH are on the same package, port A
-	 * HPD must be enabled in both north and south.
-	 */
-	if (HAS_PCH_LPT_LP(dev_priv))
-		hotplug |= PORTA_HOTPLUG_ENABLE;
-	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+	ibx_hpd_detection_setup(dev_priv);
 }
 
 static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -3158,9 +3167,25 @@ static void spt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	spt_hpd_detection_setup(dev_priv);
 }
 
+static void ilk_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug;
+
+	/*
+	 * Enable digital hotplug on the CPU, and configure the DP short pulse
+	 * duration to 2ms (which is the minimum in the Display Port spec)
+	 * The pulse duration bits are reserved on HSW+.
+	 */
+	hotplug = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
+	hotplug &= ~DIGITAL_PORTA_PULSE_DURATION_MASK;
+	hotplug |= DIGITAL_PORTA_HOTPLUG_ENABLE |
+		   DIGITAL_PORTA_PULSE_DURATION_2ms;
+	I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, hotplug);
+}
+
 static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
-	u32 hotplug_irqs, hotplug, enabled_irqs;
+	u32 hotplug_irqs, enabled_irqs;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		hotplug_irqs = GEN8_PORT_DP_A_HOTPLUG;
@@ -3179,15 +3204,7 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
 	}
 
-	/*
-	 * Enable digital hotplug on the CPU, and configure the DP short pulse
-	 * duration to 2ms (which is the minimum in the Display Port spec)
-	 * The pulse duration bits are reserved on HSW+.
-	 */
-	hotplug = I915_READ(DIGITAL_PORT_HOTPLUG_CNTRL);
-	hotplug &= ~DIGITAL_PORTA_PULSE_DURATION_MASK;
-	hotplug |= DIGITAL_PORTA_HOTPLUG_ENABLE | DIGITAL_PORTA_PULSE_DURATION_2ms;
-	I915_WRITE(DIGITAL_PORT_HOTPLUG_CNTRL, hotplug);
+	ilk_hpd_detection_setup(dev_priv);
 
 	ibx_hpd_irq_setup(dev_priv);
 }
@@ -3258,7 +3275,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
 	    HAS_PCH_LPT(dev_priv))
-		; /* TODO: Enable HPD detection on older PCH platforms too */
+		ibx_hpd_detection_setup(dev_priv);
 	else
 		spt_hpd_detection_setup(dev_priv);
 }
@@ -3334,6 +3351,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	GEN5_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
 
 	gen5_gt_irq_postinstall(dev);
+
+	ilk_hpd_detection_setup(dev_priv);
 
 	ibx_irq_postinstall(dev);
 
@@ -3475,6 +3494,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (IS_GEN9_LP(dev_priv))
 		bxt_hpd_detection_setup(dev_priv);
+	else if (IS_BROADWELL(dev_priv))
+		ilk_hpd_detection_setup(dev_priv);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
