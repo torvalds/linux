@@ -1117,6 +1117,11 @@ static int pwrap_probe(struct platform_device *pdev)
 	const struct of_device_id *of_slave_id = NULL;
 	struct resource *res;
 
+	if (!of_id) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+
 	if (pdev->dev.of_node->child)
 		of_slave_id = of_match_node(of_slave_match_tbl,
 					    pdev->dev.of_node->child);
