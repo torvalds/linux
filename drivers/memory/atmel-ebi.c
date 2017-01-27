@@ -503,7 +503,7 @@ static int at91_ebi_dev_setup(struct at91_ebi *ebi, struct device_node *np,
 		 * Attach the EBI device to the generic SMC logic if at least
 		 * one "atmel,smc-" property is present.
 		 */
-		if (ebi->ebi_csa && ret)
+		if (ebi->ebi_csa && apply)
 			regmap_field_update_bits(ebi->ebi_csa,
 						 BIT(cs), 0);
 	}
