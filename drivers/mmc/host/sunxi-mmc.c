@@ -101,6 +101,7 @@
 	(SDXC_SOFT_RESET | SDXC_FIFO_RESET | SDXC_DMA_RESET)
 
 /* clock control bits */
+#define SDXC_MASK_DATA0			BIT(31)
 #define SDXC_CARD_CLOCK_ON		BIT(16)
 #define SDXC_LOW_POWER_ON		BIT(17)
 
@@ -253,6 +254,9 @@ struct sunxi_mmc_cfg {
 
 	/* does the IP block support autocalibration? */
 	bool can_calibrate;
+
+	/* Does DATA0 needs to be masked while the clock is updated */
+	bool mask_data0;
 
 	bool needs_new_timings;
 };
@@ -657,10 +661,12 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	u32 rval;
 
 	rval = mmc_readl(host, REG_CLKCR);
-	rval &= ~(SDXC_CARD_CLOCK_ON | SDXC_LOW_POWER_ON);
+	rval &= ~(SDXC_CARD_CLOCK_ON | SDXC_LOW_POWER_ON | SDXC_MASK_DATA0);
 
 	if (oclk_en)
 		rval |= SDXC_CARD_CLOCK_ON;
+	if (host->cfg->mask_data0)
+		rval |= SDXC_MASK_DATA0;
 
 	mmc_writel(host, REG_CLKCR, rval);
 
@@ -678,6 +684,11 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	if (rval & SDXC_START) {
 		dev_err(mmc_dev(host->mmc), "fatal err update clk timeout\n");
 		return -EIO;
+	}
+
+	if (host->cfg->mask_data0) {
+		rval = mmc_readl(host, REG_CLKCR);
+		mmc_writel(host, REG_CLKCR, rval & ~SDXC_MASK_DATA0);
 	}
 
 	return 0;
@@ -1081,6 +1092,7 @@ static const struct sunxi_mmc_cfg sun50i_a64_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = NULL,
 	.can_calibrate = true,
+	.mask_data0 = true,
 	.needs_new_timings = true,
 };
 
