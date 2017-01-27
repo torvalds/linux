@@ -6339,7 +6339,7 @@ static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 }
 
 #ifdef CONFIG_PM
-static struct wiphy_wowlan_support brcmf_wowlan_support = {
+static const struct wiphy_wowlan_support brcmf_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = BRCMF_WOWL_MAXPATTERNS,
 	.pattern_max_len = BRCMF_WOWL_MAXPATTERNSIZE,
@@ -6352,21 +6352,29 @@ static void brcmf_wiphy_wowl_params(struct wiphy *wiphy, struct brcmf_if *ifp)
 {
 #ifdef CONFIG_PM
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct wiphy_wowlan_support *wowl;
+
+	wowl = kmemdup(&brcmf_wowlan_support, sizeof(brcmf_wowlan_support),
+		       GFP_KERNEL);
+	if (!wowl) {
+		brcmf_err("only support basic wowlan features\n");
+		wiphy->wowlan = &brcmf_wowlan_support;
+		return;
+	}
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {
 		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_ND)) {
-			brcmf_wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
-			brcmf_wowlan_support.max_nd_match_sets =
-				BRCMF_PNO_MAX_PFN_COUNT;
+			wowl->flags |= WIPHY_WOWLAN_NET_DETECT;
+			wowl->max_nd_match_sets = BRCMF_PNO_MAX_PFN_COUNT;
 			init_waitqueue_head(&cfg->wowl.nd_data_wait);
 		}
 	}
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK)) {
-		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
-		brcmf_wowlan_support.flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
+		wowl->flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY;
+		wowl->flags |= WIPHY_WOWLAN_GTK_REKEY_FAILURE;
 	}
 
-	wiphy->wowlan = &brcmf_wowlan_support;
+	wiphy->wowlan = wowl;
 #endif
 }
 
@@ -6747,6 +6755,10 @@ static void brcmf_free_wiphy(struct wiphy *wiphy)
 		kfree(wiphy->bands[NL80211_BAND_5GHZ]->channels);
 		kfree(wiphy->bands[NL80211_BAND_5GHZ]);
 	}
+#if IS_ENABLED(CONFIG_PM)
+	if (wiphy->wowlan != &brcmf_wowlan_support)
+		kfree(wiphy->wowlan);
+#endif
 	wiphy_free(wiphy);
 }
 
