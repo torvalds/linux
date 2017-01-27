@@ -66,8 +66,6 @@ struct dlci_local
 
 struct frad_local
 {
-   struct net_device_stats stats;
-
    /* devices which this FRAD is slaved to */
    struct net_device     *master[CONFIG_DLCI_MAX];
    short             dlci[CONFIG_DLCI_MAX];
