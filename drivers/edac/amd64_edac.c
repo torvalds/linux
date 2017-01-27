@@ -3065,6 +3065,8 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 		/* Check whether at least one UMC is enabled: */
 		if (umc_en_mask)
 			ecc_en = umc_en_mask == ecc_en_mask;
+		else
+			edac_dbg(0, "Node %d: No enabled UMCs.\n", nid);
 
 		/* Assume UMC MCA banks are enabled. */
 		nb_mce_en = true;
@@ -3075,14 +3077,15 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 
 		nb_mce_en = nb_mce_bank_enabled_on_node(nid);
 		if (!nb_mce_en)
-			amd64_notice("NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
+			edac_dbg(0, "NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
 				     MSR_IA32_MCG_CTL, nid);
 	}
 
-	amd64_info("DRAM ECC %s.\n", (ecc_en ? "enabled" : "disabled"));
+	amd64_info("Node %d: DRAM ECC %s.\n",
+		   nid, (ecc_en ? "enabled" : "disabled"));
 
 	if (!ecc_en || !nb_mce_en) {
-		amd64_notice("%s", ecc_msg);
+		amd64_info("%s", ecc_msg);
 		return false;
 	}
 	return true;
