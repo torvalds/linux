@@ -280,6 +280,14 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
+	ret = adpt->phy.open(adpt);
+	if (ret) {
+		emac_mac_down(adpt);
+		emac_mac_rx_tx_rings_free_all(adpt);
+		free_irq(irq->irq, irq);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -290,6 +298,7 @@ static int emac_close(struct net_device *netdev)
 
 	mutex_lock(&adpt->reset_lock);
 
+	adpt->phy.close(adpt);
 	emac_mac_down(adpt);
 	emac_mac_rx_tx_rings_free_all(adpt);
 
@@ -645,6 +654,7 @@ static int emac_probe(struct platform_device *pdev)
 	adpt->msg_enable = EMAC_MSG_DEFAULT;
 
 	phy = &adpt->phy;
+	atomic_set(&phy->decode_error_count, 0);
 
 	mutex_init(&adpt->reset_lock);
 	spin_lock_init(&adpt->stats.lock);
