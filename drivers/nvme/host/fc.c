@@ -2562,8 +2562,7 @@ static int __init nvme_fc_init_module(void)
 	if (!nvme_fc_wq)
 		return -ENOMEM;
 
-	nvmf_register_transport(&nvme_fc_transport);
-	return 0;
+	return nvmf_register_transport(&nvme_fc_transport);
 }
 
 static void __exit nvme_fc_exit_module(void)

@@ -2063,8 +2063,7 @@ static int __init nvme_rdma_init_module(void)
 		return ret;
 	}
 
-	nvmf_register_transport(&nvme_rdma_transport);
-	return 0;
+	return nvmf_register_transport(&nvme_rdma_transport);
 }
 
 static void __exit nvme_rdma_cleanup_module(void)
