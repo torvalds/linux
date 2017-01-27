@@ -1246,6 +1246,43 @@ struct drm_connector_state *amdgpu_dm_connector_atomic_duplicate_state(
 	return NULL;
 }
 
+
+/**
+ * amdgpu_dm_atomic_get_property - fetch connector property value
+ * @connector: connector to fetch property for
+ * @state: state containing the property value
+ * @property: property to look up
+ * @val: pointer to write property value into
+ *
+ * The DRM core does not store shadow copies of properties for
+ * atomic-capable drivers.  This entrypoint is used to fetch
+ * the current value of a driver-specific connector property.
+ */
+int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
+							  const struct drm_connector_state *state,
+							  struct drm_property *property,
+							  uint64_t *val)
+{
+	int i;
+
+	/*
+	 * TODO: Get properties from atomic state or objs.  Until it's ready,
+	 * continue to look up all property values in the DRM's shadow copy
+	 * in obj->properties->values[].
+	 *
+	 * When the crtc/connector state work matures, this function should
+	 * be updated to read the values out of the state structure instead.
+	 */
+	for (i = 0; i < connector->base.properties->count; i++) {
+		if (connector->base.properties->properties[i] == property) {
+			*val = connector->base.properties->values[i];
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.reset = amdgpu_dm_connector_funcs_reset,
 	.detect = amdgpu_dm_connector_detect,
@@ -1253,7 +1290,8 @@ static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.destroy = amdgpu_dm_connector_destroy,
 	.atomic_duplicate_state = amdgpu_dm_connector_atomic_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_set_property = amdgpu_dm_connector_atomic_set_property
+	.atomic_set_property = amdgpu_dm_connector_atomic_set_property,
+	.atomic_get_property = amdgpu_dm_connector_atomic_get_property,
 };
 
 static struct drm_encoder *best_encoder(struct drm_connector *connector)
