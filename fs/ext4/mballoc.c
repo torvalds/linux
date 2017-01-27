@@ -3120,6 +3120,13 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	if (ar->pright && start + size - 1 >= ar->lright)
 		size -= start + size - ar->lright;
 
+	/*
+	 * Trim allocation request for filesystems with artificially small
+	 * groups.
+	 */
+	if (size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb))
+		size = EXT4_BLOCKS_PER_GROUP(ac->ac_sb);
+
 	end = start + size;
 
 	/* check we don't cross already preallocated blocks */
