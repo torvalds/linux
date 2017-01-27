@@ -1189,7 +1189,7 @@ irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 {
 	struct mei_device *dev = (struct mei_device *) dev_id;
-	struct mei_cl_cb complete_list;
+	struct list_head cmpl_list;
 	s32 slots;
 	u32 hcsr;
 	int rets = 0;
@@ -1201,7 +1201,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	hcsr = mei_hcsr_read(dev);
 	me_intr_clear(dev, hcsr);
 
-	mei_io_list_init(&complete_list);
+	INIT_LIST_HEAD(&cmpl_list);
 
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
@@ -1227,7 +1227,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	slots = mei_count_full_read_slots(dev);
 	while (slots > 0) {
 		dev_dbg(dev->dev, "slots to read = %08x\n", slots);
-		rets = mei_irq_read_handler(dev, &complete_list, &slots);
+		rets = mei_irq_read_handler(dev, &cmpl_list, &slots);
 		/* There is a race between ME write and interrupt delivery:
 		 * Not all data is always available immediately after the
 		 * interrupt, so try to read again on the next interrupt.
@@ -1252,11 +1252,11 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	 */
 	if (dev->pg_event != MEI_PG_EVENT_WAIT &&
 	    dev->pg_event != MEI_PG_EVENT_RECEIVED) {
-		rets = mei_irq_write_handler(dev, &complete_list);
+		rets = mei_irq_write_handler(dev, &cmpl_list);
 		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 	}
 
-	mei_irq_compl_handler(dev, &complete_list);
+	mei_irq_compl_handler(dev, &cmpl_list);
 
 end:
 	dev_dbg(dev->dev, "interrupt thread end ret = %d\n", rets);

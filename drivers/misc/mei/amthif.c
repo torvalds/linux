@@ -132,8 +132,7 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
-	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
-					typeof(*cb), list);
+	cb = list_first_entry_or_null(&dev->amthif_cmd_list, typeof(*cb), list);
 	if (!cb) {
 		dev->iamthif_state = MEI_IAMTHIF_IDLE;
 		cl->fp = NULL;
@@ -167,7 +166,7 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	struct mei_device *dev = cl->dev;
 
-	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
+	list_add_tail(&cb->list, &dev->amthif_cmd_list);
 
 	/*
 	 * The previous request is still in processing, queue this one.
@@ -211,7 +210,7 @@ unsigned int mei_amthif_poll(struct file *file, poll_table *wait)
  * Return: 0, OK; otherwise, error.
  */
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-			 struct mei_cl_cb *cmpl_list)
+			 struct list_head *cmpl_list)
 {
 	int ret;
 
@@ -237,7 +236,7 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  */
 int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
-			    struct mei_cl_cb *cmpl_list)
+			    struct list_head *cmpl_list)
 {
 	struct mei_device *dev;
 	int ret;
@@ -354,7 +353,7 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 	}
 
 	/* Don't clean ctrl_rd_list here, the reads has to be completed */
-	mei_clear_list(file, &dev->amthif_cmd_list.list);
+	mei_clear_list(file, &dev->amthif_cmd_list);
 	mei_clear_list(file, &cl->rd_completed);
 
 	return 0;

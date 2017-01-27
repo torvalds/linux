@@ -379,17 +379,17 @@ static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl,
 /**
  * __mei_io_list_flush - removes and frees cbs belonging to cl.
  *
- * @list:  an instance of our list structure
+ * @head:  an instance of our list structure
  * @cl:    host client, can be NULL for flushing the whole list
  * @free:  whether to free the cbs
  */
-static void __mei_io_list_flush(struct mei_cl_cb *list,
+static void __mei_io_list_flush(struct list_head *head,
 				struct mei_cl *cl, bool free)
 {
 	struct mei_cl_cb *cb, *next;
 
 	/* enable removing everything if no cl is specified */
-	list_for_each_entry_safe(cb, next, &list->list, list) {
+	list_for_each_entry_safe(cb, next, head, list) {
 		if (!cl || mei_cl_cmp_id(cl, cb->cl)) {
 			list_del_init(&cb->list);
 			if (free)
@@ -401,23 +401,23 @@ static void __mei_io_list_flush(struct mei_cl_cb *list,
 /**
  * mei_io_list_flush - removes list entry belonging to cl.
  *
- * @list:  An instance of our list structure
+ * @head: An instance of our list structure
  * @cl: host client
  */
-static inline void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
+static inline void mei_io_list_flush(struct list_head *head, struct mei_cl *cl)
 {
-	__mei_io_list_flush(list, cl, false);
+	__mei_io_list_flush(head, cl, false);
 }
 
 /**
  * mei_io_list_free - removes cb belonging to cl and free them
  *
- * @list:  An instance of our list structure
+ * @head: An instance of our list structure
  * @cl: host client
  */
-static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
+static inline void mei_io_list_free(struct list_head *head, struct mei_cl *cl)
 {
-	__mei_io_list_flush(list, cl, true);
+	__mei_io_list_flush(head, cl, true);
 }
 
 /**
@@ -479,7 +479,7 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
 	if (!cb)
 		return NULL;
 
-	list_add_tail(&cb->list, &cl->dev->ctrl_wr_list.list);
+	list_add_tail(&cb->list, &cl->dev->ctrl_wr_list);
 	return cb;
 }
 
@@ -831,7 +831,7 @@ static int mei_cl_send_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb)
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
 	mei_schedule_stall_timer(dev);
 
@@ -849,7 +849,7 @@ static int mei_cl_send_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb)
  * Return: 0, OK; otherwise, error.
  */
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			    struct mei_cl_cb *cmpl_list)
+			  struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -864,7 +864,7 @@ int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	ret = mei_cl_send_disconnect(cl, cb);
 	if (ret)
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 
 	return ret;
 }
@@ -986,7 +986,7 @@ static bool mei_cl_is_other_connecting(struct mei_cl *cl)
 
 	dev = cl->dev;
 
-	list_for_each_entry(cb, &dev->ctrl_rd_list.list, list) {
+	list_for_each_entry(cb, &dev->ctrl_rd_list, list) {
 		if (cb->fop_type == MEI_FOP_CONNECT &&
 		    mei_cl_me_id(cl) == mei_cl_me_id(cb->cl))
 			return true;
@@ -1017,7 +1017,7 @@ static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	cl->timer_count = MEI_CONNECT_TIMEOUT;
 	mei_schedule_stall_timer(dev);
 	return 0;
@@ -1033,7 +1033,7 @@ static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
  * Return: 0, OK; otherwise, error.
  */
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			      struct mei_cl_cb *cmpl_list)
+		       struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -1051,7 +1051,7 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	rets = mei_cl_send_connect(cl, cb);
 	if (rets)
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 
 	return rets;
 }
@@ -1276,7 +1276,7 @@ enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
  * Return: 0 on such and error otherwise.
  */
 int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
-		      struct mei_cl_cb *cmpl_list)
+		      struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
 	u32 msg_slots;
@@ -1294,11 +1294,11 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 	ret = mei_hbm_cl_notify_req(dev, cl, request);
 	if (ret) {
 		cl->status = ret;
-		list_move_tail(&cb->list, &cmpl_list->list);
+		list_move_tail(&cb->list, cmpl_list);
 		return ret;
 	}
 
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	return 0;
 }
 
@@ -1353,7 +1353,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 			rets = -ENODEV;
 			goto out;
 		}
-		list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+		list_move_tail(&cb->list, &dev->ctrl_rd_list);
 	}
 
 	mutex_unlock(&dev->device_lock);
@@ -1533,7 +1533,7 @@ nortpm:
  * Return: 0, OK; otherwise error.
  */
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-		     struct mei_cl_cb *cmpl_list)
+		     struct list_head *cmpl_list)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
@@ -1605,13 +1605,13 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	if (mei_hdr.msg_complete)
-		list_move_tail(&cb->list, &dev->write_waiting_list.list);
+		list_move_tail(&cb->list, &dev->write_waiting_list);
 
 	return 0;
 
 err:
 	cl->status = rets;
-	list_move_tail(&cb->list, &cmpl_list->list);
+	list_move_tail(&cb->list, cmpl_list);
 	return rets;
 }
 
@@ -1701,9 +1701,9 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 out:
 	if (mei_hdr.msg_complete)
-		list_add_tail(&cb->list, &dev->write_waiting_list.list);
+		list_add_tail(&cb->list, &dev->write_waiting_list);
 	else
-		list_add_tail(&cb->list, &dev->write_list.list);
+		list_add_tail(&cb->list, &dev->write_list);
 
 	cb = NULL;
 	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
