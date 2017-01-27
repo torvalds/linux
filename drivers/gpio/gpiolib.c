@@ -1422,8 +1422,7 @@ void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip)
 
 	ret = devres_release(dev, devm_gpio_chip_release,
 			     devm_gpio_chip_match, chip);
-	if (!ret)
-		WARN_ON(ret);
+	WARN_ON(ret);
 }
 EXPORT_SYMBOL_GPL(devm_gpiochip_remove);
 
