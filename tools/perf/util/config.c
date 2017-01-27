@@ -646,8 +646,13 @@ static int perf_config_set__init(struct perf_config_set *set)
 			goto out;
 		}
 
-		if (stat(user_config, &st) < 0)
+		if (stat(user_config, &st) < 0) {
+			if (errno == ENOENT)
+				ret = 0;
 			goto out_free;
+		}
+
+		ret = 0;
 
 		if (st.st_uid && (st.st_uid != geteuid())) {
 			warning("File %s not owned by current user or root, "
@@ -655,11 +660,8 @@ static int perf_config_set__init(struct perf_config_set *set)
 			goto out_free;
 		}
 
-		if (!st.st_size)
-			goto out_free;
-
-		ret = perf_config_from_file(collect_config, user_config, set);
-
+		if (st.st_size)
+			ret = perf_config_from_file(collect_config, user_config, set);
 out_free:
 		free(user_config);
 	}
