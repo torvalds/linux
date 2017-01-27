@@ -696,8 +696,6 @@ void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 	e820_print_map("extended");
 }
 
-#if defined(CONFIG_X86_64) || \
-	(defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION))
 /**
  * Find the ranges of physical addresses that do not correspond to
  * e820 RAM areas and mark the corresponding pages as nosave for
@@ -726,7 +724,6 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 			break;
 	}
 }
-#endif
 
 #ifdef CONFIG_ACPI
 /**

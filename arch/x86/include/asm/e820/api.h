@@ -30,12 +30,7 @@ extern void e820_reserve_resources_late(void);
 extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
 extern void e820_reallocate_tables(void);
-
-#if defined(CONFIG_X86_64) || defined(CONFIG_X86_32) && defined(CONFIG_HIBERNATION)
 extern void e820_mark_nosave_regions(unsigned long limit_pfn);
-#else
-static inline void e820_mark_nosave_regions(unsigned long limit_pfn) { }
-#endif
 
 /*
  * Returns true iff the specified range [start,end) is completely contained inside
