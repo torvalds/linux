@@ -61,7 +61,7 @@ int assign_chcr_device(struct chcr_dev **dev)
 	 */
 	mutex_lock(&dev_mutex); /* TODO ? */
 	list_for_each_entry(u_ctx, &uld_ctx_list, entry)
-		if (u_ctx && u_ctx->dev) {
+		if (u_ctx->dev) {
 			*dev = u_ctx->dev;
 			ret = 0;
 			break;
