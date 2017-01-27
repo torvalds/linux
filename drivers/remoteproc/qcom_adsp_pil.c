@@ -29,6 +29,7 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
+#include "qcom_common.h"
 #include "qcom_mdt_loader.h"
 #include "remoteproc_internal.h"
 

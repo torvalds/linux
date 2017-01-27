@@ -33,6 +33,7 @@
 #include <linux/soc/qcom/smem_state.h>
 
 #include "remoteproc_internal.h"
+#include "qcom_common.h"
 #include "qcom_mdt_loader.h"
 
 #include <linux/qcom_scm.h>

@@ -27,25 +27,6 @@
 #include "qcom_mdt_loader.h"
 
 /**
- * qcom_mdt_find_rsc_table() - provide dummy resource table for remoteproc
- * @rproc:	remoteproc handle
- * @fw:		firmware header
- * @tablesz:	outgoing size of the table
- *
- * Returns a dummy table.
- */
-struct resource_table *qcom_mdt_find_rsc_table(struct rproc *rproc,
-					       const struct firmware *fw,
-					       int *tablesz)
-{
-	static struct resource_table table = { .ver = 1, };
-
-	*tablesz = sizeof(table);
-	return &table;
-}
-EXPORT_SYMBOL_GPL(qcom_mdt_find_rsc_table);
-
-/**
  * qcom_mdt_parse() - extract useful parameters from the mdt header
  * @fw:		firmware handle
  * @fw_addr:	optional reference for base of the firmware's memory region
