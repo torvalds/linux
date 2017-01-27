@@ -366,6 +366,7 @@
 
 	sdhci@c8000000 {
 		status = "okay";
+		broken-cd;
 		bus-width = <4>;
 	};
 
