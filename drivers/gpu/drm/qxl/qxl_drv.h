@@ -242,7 +242,6 @@ void qxl_debugfs_remove_files(struct qxl_device *qdev);
 struct qxl_device;
 
 struct qxl_device {
-	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
 	unsigned long flags;
