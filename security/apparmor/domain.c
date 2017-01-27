@@ -779,7 +779,7 @@ static struct aa_label *handle_onexec(struct aa_label *label,
  */
 int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 {
-	struct aa_task_ctx *tctx;
+	struct aa_task_ctx *ctx;
 	struct aa_label *label, *new = NULL;
 	struct aa_profile *profile;
 	char *buffer = NULL;
@@ -794,17 +794,17 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	if (bprm->called_set_creds)
 		return 0;
 
-	tctx = current_task_ctx();
+	ctx = current_task_ctx();
 	AA_BUG(!cred_label(bprm->cred));
-	AA_BUG(!tctx);
+	AA_BUG(!ctx);
 
 	label = aa_get_newest_label(cred_label(bprm->cred));
 
 	/* buffer freed below, name is pointer into buffer */
 	get_buffers(buffer);
 	/* Test for onexec first as onexec override other x transitions. */
-	if (tctx->onexec)
-		new = handle_onexec(label, tctx->onexec, tctx->token,
+	if (ctx->onexec)
+		new = handle_onexec(label, ctx->onexec, ctx->token,
 				    bprm, buffer, &cond, &unsafe);
 	else
 		new = fn_label_build(label, profile, GFP_ATOMIC,
@@ -1047,7 +1047,7 @@ build:
 int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 {
 	const struct cred *cred;
-	struct aa_task_ctx *tctx;
+	struct aa_task_ctx *ctx;
 	struct aa_label *label, *previous, *new = NULL, *target = NULL;
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
@@ -1067,9 +1067,9 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 
 	/* released below */
 	cred = get_current_cred();
-	tctx = current_task_ctx();
+	ctx = current_task_ctx();
 	label = aa_get_newest_cred_label(cred);
-	previous = aa_get_newest_label(tctx->previous);
+	previous = aa_get_newest_label(ctx->previous);
 
 	if (unconfined(label)) {
 		info = "unconfined can not change_hat";
