@@ -171,7 +171,7 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		}
 		break;
 
-	case CRYPTO_ALG_TYPE_BLKCIPHER:
+	case CRYPTO_ALG_TYPE_ABLKCIPHER:
 		ctx_req.req.ablk_req = (struct ablkcipher_request *)req;
 		ctx_req.ctx.ablk_ctx =
 			ablkcipher_request_ctx(ctx_req.req.ablk_req);
@@ -2492,7 +2492,7 @@ static struct chcr_alg_template driver_algs[] = {
 			.cra_name		= "cbc(aes)",
 			.cra_driver_name	= "cbc-aes-chcr",
 			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct chcr_context)
@@ -2519,7 +2519,7 @@ static struct chcr_alg_template driver_algs[] = {
 			.cra_name		= "xts(aes)",
 			.cra_driver_name	= "xts-aes-chcr",
 			.cra_priority		= CHCR_CRA_PRIORITY,
-			.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER |
+			.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 				CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= AES_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct chcr_context) +
