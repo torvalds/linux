@@ -111,7 +111,6 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
 	struct request *rq;
-	const bool is_flush = op & (REQ_PREFLUSH | REQ_FUA);
 
 	blk_queue_enter_live(q);
 	ctx = blk_mq_get_ctx(q);
@@ -126,7 +125,7 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 		 * Flush requests are special and go directly to the
 		 * dispatch list.
 		 */
-		if (!is_flush && e->type->ops.mq.get_request) {
+		if (!op_is_flush(op) && e->type->ops.mq.get_request) {
 			rq = e->type->ops.mq.get_request(q, op, data);
 			if (rq)
 				rq->rq_flags |= RQF_QUEUED;
@@ -139,7 +138,7 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 	}
 
 	if (rq) {
-		if (!is_flush) {
+		if (!op_is_flush(op)) {
 			rq->elv.icq = NULL;
 			if (e && e->type->icq_cache)
 				blk_mq_sched_assign_ioc(q, rq, bio);
