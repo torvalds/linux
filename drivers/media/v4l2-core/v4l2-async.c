@@ -100,18 +100,11 @@ static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
 {
 	int ret;
 
-	/* Remove from the waiting list */
-	list_del(&asd->list);
-	sd->asd = asd;
-	sd->notifier = notifier;
-
 	if (notifier->bound) {
 		ret = notifier->bound(notifier, sd, asd);
 		if (ret < 0)
 			return ret;
 	}
-	/* Move from the global subdevice list to notifier's done */
-	list_move(&sd->async_list, &notifier->done);
 
 	ret = v4l2_device_register_subdev(notifier->v4l2_dev, sd);
 	if (ret < 0) {
@@ -119,6 +112,14 @@ static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
 			notifier->unbind(notifier, sd, asd);
 		return ret;
 	}
+
+	/* Remove from the waiting list */
+	list_del(&asd->list);
+	sd->asd = asd;
+	sd->notifier = notifier;
+
+	/* Move from the global subdevice list to notifier's done */
+	list_move(&sd->async_list, &notifier->done);
 
 	if (list_empty(&notifier->waiting) && notifier->complete)
 		return notifier->complete(notifier);
@@ -169,9 +170,6 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 
 	mutex_lock(&list_lock);
 
-	/* Keep also completed notifiers on the list */
-	list_add(&notifier->list, &notifier_list);
-
 	list_for_each_entry_safe(sd, tmp, &subdev_list, async_list) {
 		int ret;
 
@@ -185,6 +183,9 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 			return ret;
 		}
 	}
+
+	/* Keep also completed notifiers on the list */
+	list_add(&notifier->list, &notifier_list);
 
 	mutex_unlock(&list_lock);
 
