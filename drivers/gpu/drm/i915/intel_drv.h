@@ -1002,7 +1002,6 @@ struct intel_dp {
 struct intel_lspcon {
 	bool active;
 	enum drm_lspcon_mode mode;
-	bool desc_valid;
 };
 
 struct intel_digital_port {
