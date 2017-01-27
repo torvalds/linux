@@ -2,7 +2,7 @@
  * Handle the memory map.
  * The functions here do the job until bootmem takes over.
  *
- *  Getting sanitize_e820_map() in sync with i386 version by applying change:
+ *  Getting sanitize_e820_array() in sync with i386 version by applying change:
  *  -  Provisions for empty E820 memory regions (reported by certain BIOSes).
  *     Alex Achenbach <xela@slit.de>, December 2002.
  *  Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
@@ -27,11 +27,11 @@
 #include <asm/cpufeature.h>
 
 /*
- * The e820 map is the map that gets modified e.g. with command line parameters
+ * The e820 table is the array that gets modified e.g. with command line parameters
  * and that is also registered with modifications in the kernel resource tree
  * with the iomem_resource as parent.
  *
- * The e820_saved is directly saved after the BIOS-provided memory map is
+ * The e820_array_saved is directly saved after the BIOS-provided memory map is
  * copied. It doesn't get modified afterwards. It's registered for the
  * /sys/firmware/memmap interface.
  *
@@ -40,10 +40,10 @@
  * user can e.g. boot the original kernel with mem=1G while still booting the
  * next kernel with full memory.
  */
-static struct e820_array initial_e820  __initdata;
-static struct e820_array initial_e820_saved  __initdata;
-struct e820_array *e820 __refdata = &initial_e820;
-struct e820_array *e820_saved __refdata = &initial_e820_saved;
+static struct e820_array e820_array_init  __initdata;
+static struct e820_array initial_e820_array_saved  __initdata;
+struct e820_array *e820_array __refdata = &e820_array_init;
+struct e820_array *e820_array_saved __refdata = &initial_e820_array_saved;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
@@ -60,8 +60,8 @@ e820_any_mapped(u64 start, u64 end, unsigned type)
 {
 	int i;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 
 		if (type && ei->type != type)
 			continue;
@@ -83,8 +83,8 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 {
 	int i;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 
 		if (type && ei->type != type)
 			continue;
@@ -130,7 +130,7 @@ static void __init __e820_add_region(struct e820_array *e820x, u64 start, u64 si
 
 void __init e820_add_region(u64 start, u64 size, int type)
 {
-	__e820_add_region(e820, start, size, type);
+	__e820_add_region(e820_array, start, size, type);
 }
 
 static void __init e820_print_type(u32 type)
@@ -166,12 +166,12 @@ void __init e820_print_map(char *who)
 {
 	int i;
 
-	for (i = 0; i < e820->nr_map; i++) {
+	for (i = 0; i < e820_array->nr_map; i++) {
 		printk(KERN_INFO "%s: [mem %#018Lx-%#018Lx] ", who,
-		       (unsigned long long) e820->map[i].addr,
+		       (unsigned long long) e820_array->map[i].addr,
 		       (unsigned long long)
-		       (e820->map[i].addr + e820->map[i].size - 1));
-		e820_print_type(e820->map[i].type);
+		       (e820_array->map[i].addr + e820_array->map[i].size - 1));
+		e820_print_type(e820_array->map[i].type);
 		printk(KERN_CONT "\n");
 	}
 }
@@ -195,7 +195,7 @@ void __init e820_print_map(char *who)
  * sanitizing succeeds the *pnr_map will be updated with the new
  * number of valid entries (something no more than max_nr_map).
  *
- * The return value from sanitize_e820_map() is zero if it
+ * The return value from sanitize_e820_array() is zero if it
  * successfully 'sanitized' the map entries passed in, and is -1
  * if it did nothing, which can happen if either of (1) it was
  * only passed one map entry, or (2) any of the input map entries
@@ -259,7 +259,7 @@ static int __init cpcompare(const void *a, const void *b)
 	return (ap->addr != ap->pbios->addr) - (bp->addr != bp->pbios->addr);
 }
 
-int __init sanitize_e820_map(struct e820_entry *biosmap, int max_nr_map,
+int __init sanitize_e820_array(struct e820_entry *biosmap, int max_nr_map,
 			     u32 *pnr_map)
 {
 	static struct change_member change_point_list[2*E820_X_MAX] __initdata;
@@ -385,7 +385,7 @@ int __init sanitize_e820_map(struct e820_entry *biosmap, int max_nr_map,
 	return 0;
 }
 
-static int __init __append_e820_map(struct e820_entry *biosmap, int nr_map)
+static int __init __append_e820_array(struct e820_entry *biosmap, int nr_map)
 {
 	while (nr_map) {
 		u64 start = biosmap->addr;
@@ -414,13 +414,13 @@ static int __init __append_e820_map(struct e820_entry *biosmap, int nr_map)
  * will have given us a memory map that we can use to properly
  * set up memory.  If we aren't, we'll fake a memory map.
  */
-static int __init append_e820_map(struct e820_entry *biosmap, int nr_map)
+static int __init append_e820_array(struct e820_entry *biosmap, int nr_map)
 {
 	/* Only one memory region (or negative)? Ignore it */
 	if (nr_map < 2)
 		return -1;
 
-	return __append_e820_map(biosmap, nr_map);
+	return __append_e820_array(biosmap, nr_map);
 }
 
 static u64 __init __e820_update_range(struct e820_array *e820x, u64 start,
@@ -495,13 +495,13 @@ static u64 __init __e820_update_range(struct e820_array *e820x, u64 start,
 u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 			     unsigned new_type)
 {
-	return __e820_update_range(e820, start, size, old_type, new_type);
+	return __e820_update_range(e820_array, start, size, old_type, new_type);
 }
 
 static u64 __init e820_update_range_saved(u64 start, u64 size,
 					  unsigned old_type, unsigned new_type)
 {
-	return __e820_update_range(e820_saved, start, size, old_type,
+	return __e820_update_range(e820_array_saved, start, size, old_type,
 				     new_type);
 }
 
@@ -523,8 +523,8 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 		e820_print_type(old_type);
 	printk(KERN_CONT "\n");
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 		u64 final_start, final_end;
 		u64 ei_end;
 
@@ -568,15 +568,15 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	if (sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map))
+	if (sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map), &e820_array->nr_map))
 		return;
 	printk(KERN_INFO "e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
-static void __init update_e820_saved(void)
+static void __init update_e820_array_saved(void)
 {
-	sanitize_e820_map(e820_saved->map, ARRAY_SIZE(e820_saved->map),
-				&e820_saved->nr_map);
+	sanitize_e820_array(e820_array_saved->map, ARRAY_SIZE(e820_array_saved->map),
+				&e820_array_saved->nr_map);
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -586,12 +586,12 @@ static int __init e820_search_gap(unsigned long *gapstart,
 		unsigned long *gapsize)
 {
 	unsigned long long last = MAX_GAP_END;
-	int i = e820->nr_map;
+	int i = e820_array->nr_map;
 	int found = 0;
 
 	while (--i >= 0) {
-		unsigned long long start = e820->map[i].addr;
-		unsigned long long end = start + e820->map[i].size;
+		unsigned long long start = e820_array->map[i].addr;
+		unsigned long long end = start + e820_array->map[i].size;
 
 		/*
 		 * Since "last" is at most 4GB, we know we'll
@@ -650,7 +650,7 @@ __init void e820_setup_gap(void)
 /*
  * Called late during init, in free_initmem().
  *
- * Initial e820 and e820_saved are largish __initdata arrays.
+ * Initial e820 and e820_array_saved are largish __initdata arrays.
  * Copy them to (usually much smaller) dynamically allocated area.
  * This is done after all tweaks we ever do to them:
  * all functions which modify them are __init functions,
@@ -661,23 +661,23 @@ __init void e820_reallocate_tables(void)
 	struct e820_array *n;
 	int size;
 
-	size = offsetof(struct e820_array, map) + sizeof(struct e820_entry) * e820->nr_map;
+	size = offsetof(struct e820_array, map) + sizeof(struct e820_entry) * e820_array->nr_map;
 	n = kmalloc(size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820, size);
-	e820 = n;
+	memcpy(n, e820_array, size);
+	e820_array = n;
 
-	size = offsetof(struct e820_array, map) + sizeof(struct e820_entry) * e820_saved->nr_map;
+	size = offsetof(struct e820_array, map) + sizeof(struct e820_entry) * e820_array_saved->nr_map;
 	n = kmalloc(size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820_saved, size);
-	e820_saved = n;
+	memcpy(n, e820_array_saved, size);
+	e820_array_saved = n;
 }
 
 /**
  * Because of the size limitation of struct boot_params, only first
  * 128 E820 memory entries are passed to kernel via
- * boot_params.e820_map, others are passed via SETUP_E820_EXT node of
+ * boot_params.e820_array, others are passed via SETUP_E820_EXT node of
  * linked list of struct setup_data, which is parsed here.
  */
 void __init parse_e820_ext(u64 phys_addr, u32 data_len)
@@ -689,8 +689,8 @@ void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 	sdata = early_memremap(phys_addr, data_len);
 	entries = sdata->len / sizeof(struct e820_entry);
 	extmap = (struct e820_entry *)(sdata->data);
-	__append_e820_map(extmap, entries);
-	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
+	__append_e820_array(extmap, entries);
+	sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map), &e820_array->nr_map);
 	early_memunmap(sdata, data_len);
 	printk(KERN_INFO "e820: extended physical RAM map:\n");
 	e820_print_map("extended");
@@ -709,8 +709,8 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 	int i;
 	unsigned long pfn = 0;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 
 		if (pfn < PFN_UP(ei->addr))
 			register_nosave_region(pfn, PFN_UP(ei->addr));
@@ -734,8 +734,8 @@ static int __init e820_mark_nvs_memory(void)
 {
 	int i;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 
 		if (ei->type == E820_NVS)
 			acpi_nvs_register(ei->addr, ei->size);
@@ -747,7 +747,7 @@ core_initcall(e820_mark_nvs_memory);
 #endif
 
 /*
- * pre allocated 4k and reserved it in memblock and e820_saved
+ * pre allocated 4k and reserved it in memblock and e820_array_saved
  */
 u64 __init early_reserve_e820(u64 size, u64 align)
 {
@@ -756,8 +756,8 @@ u64 __init early_reserve_e820(u64 size, u64 align)
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
 		e820_update_range_saved(addr, size, E820_RAM, E820_RESERVED);
-		printk(KERN_INFO "e820: update e820_saved for early_reserve_e820\n");
-		update_e820_saved();
+		printk(KERN_INFO "e820: update e820_array_saved for early_reserve_e820\n");
+		update_e820_array_saved();
 	}
 
 	return addr;
@@ -782,8 +782,8 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 	unsigned long last_pfn = 0;
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 		unsigned long start_pfn;
 		unsigned long end_pfn;
 
@@ -874,7 +874,7 @@ static int __init parse_memmap_one(char *p)
 		 */
 		saved_max_pfn = e820_end_of_ram_pfn();
 #endif
-		e820->nr_map = 0;
+		e820_array->nr_map = 0;
 		userdef = 1;
 		return 0;
 	}
@@ -921,8 +921,8 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		if (sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map),
-					&e820->nr_map) < 0)
+		if (sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map),
+					&e820_array->nr_map) < 0)
 			early_panic("Invalid user supplied memory map");
 
 		printk(KERN_INFO "e820: user-defined physical RAM map:\n");
@@ -1009,35 +1009,35 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem(sizeof(struct resource) * e820->nr_map);
+	res = alloc_bootmem(sizeof(struct resource) * e820_array->nr_map);
 	e820_res = res;
-	for (i = 0; i < e820->nr_map; i++) {
-		end = e820->map[i].addr + e820->map[i].size - 1;
+	for (i = 0; i < e820_array->nr_map; i++) {
+		end = e820_array->map[i].addr + e820_array->map[i].size - 1;
 		if (end != (resource_size_t)end) {
 			res++;
 			continue;
 		}
-		res->name = e820_type_to_string(e820->map[i].type);
-		res->start = e820->map[i].addr;
+		res->name = e820_type_to_string(e820_array->map[i].type);
+		res->start = e820_array->map[i].addr;
 		res->end = end;
 
-		res->flags = e820_type_to_iomem_type(e820->map[i].type);
-		res->desc = e820_type_to_iores_desc(e820->map[i].type);
+		res->flags = e820_type_to_iomem_type(e820_array->map[i].type);
+		res->desc = e820_type_to_iores_desc(e820_array->map[i].type);
 
 		/*
 		 * don't register the region that could be conflicted with
 		 * pci device BAR resource and insert them later in
 		 * pcibios_resource_survey()
 		 */
-		if (do_mark_busy(e820->map[i].type, res)) {
+		if (do_mark_busy(e820_array->map[i].type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
 		}
 		res++;
 	}
 
-	for (i = 0; i < e820_saved->nr_map; i++) {
-		struct e820_entry *entry = &e820_saved->map[i];
+	for (i = 0; i < e820_array_saved->nr_map; i++) {
+		struct e820_entry *entry = &e820_array_saved->map[i];
 		firmware_map_add_early(entry->addr,
 			entry->addr + entry->size,
 			e820_type_to_string(entry->type));
@@ -1069,7 +1069,7 @@ void __init e820_reserve_resources_late(void)
 	struct resource *res;
 
 	res = e820_res;
-	for (i = 0; i < e820->nr_map; i++) {
+	for (i = 0; i < e820_array->nr_map; i++) {
 		if (!res->parent && res->end)
 			insert_resource_expand_to_fit(&iomem_resource, res);
 		res++;
@@ -1079,8 +1079,8 @@ void __init e820_reserve_resources_late(void)
 	 * Try to bump up RAM regions to reasonable boundaries to
 	 * avoid stolen RAM:
 	 */
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *entry = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *entry = &e820_array->map[i];
 		u64 start, end;
 
 		if (entry->type != E820_RAM)
@@ -1110,11 +1110,11 @@ char *__init default_machine_specific_memory_setup(void)
 	 * the next section from 1mb->appropriate_mem_k
 	 */
 	new_nr = boot_params.e820_entries;
-	sanitize_e820_map(boot_params.e820_map,
-			ARRAY_SIZE(boot_params.e820_map),
+	sanitize_e820_array(boot_params.e820_array,
+			ARRAY_SIZE(boot_params.e820_array),
 			&new_nr);
 	boot_params.e820_entries = new_nr;
-	if (append_e820_map(boot_params.e820_map, boot_params.e820_entries)
+	if (append_e820_array(boot_params.e820_array, boot_params.e820_entries)
 	  < 0) {
 		u64 mem_size;
 
@@ -1128,7 +1128,7 @@ char *__init default_machine_specific_memory_setup(void)
 			who = "BIOS-e801";
 		}
 
-		e820->nr_map = 0;
+		e820_array->nr_map = 0;
 		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
 		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
 	}
@@ -1142,7 +1142,7 @@ void __init setup_memory_map(void)
 	char *who;
 
 	who = x86_init.resources.memory_setup();
-	memcpy(e820_saved, e820, sizeof(struct e820_array));
+	memcpy(e820_array_saved, e820_array, sizeof(struct e820_array));
 	printk(KERN_INFO "e820: BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
 }
@@ -1159,8 +1159,8 @@ void __init memblock_x86_fill(void)
 	 */
 	memblock_allow_resize();
 
-	for (i = 0; i < e820->nr_map; i++) {
-		struct e820_entry *ei = &e820->map[i];
+	for (i = 0; i < e820_array->nr_map; i++) {
+		struct e820_entry *ei = &e820_array->map[i];
 
 		end = ei->addr + ei->size;
 		if (end != (resource_size_t)end)

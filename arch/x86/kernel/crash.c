@@ -512,7 +512,7 @@ static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 	if (nr_e820_entries >= E820MAX)
 		return 1;
 
-	memcpy(&params->e820_map[nr_e820_entries], entry,
+	memcpy(&params->e820_array[nr_e820_entries], entry,
 			sizeof(struct e820_entry));
 	params->e820_entries++;
 	return 0;

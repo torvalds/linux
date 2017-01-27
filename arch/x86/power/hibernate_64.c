@@ -232,7 +232,7 @@ static int get_e820_md5(struct e820_array *map, void *buf)
 
 static void hibernation_e820_save(void *buf)
 {
-	get_e820_md5(e820_saved, buf);
+	get_e820_md5(e820_array_saved, buf);
 }
 
 static bool hibernation_e820_mismatch(void *buf)
@@ -245,7 +245,7 @@ static bool hibernation_e820_mismatch(void *buf)
 	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
 		return false;
 
-	ret = get_e820_md5(e820_saved, result);
+	ret = get_e820_md5(e820_array_saved, result);
 	if (ret)
 		return true;
 
