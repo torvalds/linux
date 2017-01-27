@@ -665,6 +665,10 @@ static int mei_cl_device_remove(struct device *dev)
 	if (!cldev || !dev->driver)
 		return 0;
 
+	cldrv = to_mei_cl_driver(dev->driver);
+	if (cldrv->remove)
+		ret = cldrv->remove(cldev);
+
 	if (cldev->rx_cb) {
 		cancel_work_sync(&cldev->rx_work);
 		cldev->rx_cb = NULL;
@@ -673,10 +677,6 @@ static int mei_cl_device_remove(struct device *dev)
 		cancel_work_sync(&cldev->notif_work);
 		cldev->notif_cb = NULL;
 	}
-
-	cldrv = to_mei_cl_driver(dev->driver);
-	if (cldrv->remove)
-		ret = cldrv->remove(cldev);
 
 	module_put(THIS_MODULE);
 	dev->driver = NULL;
