@@ -761,6 +761,10 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	u32 rval, clock = ios->clock;
 	int ret;
 
+	ret = sunxi_mmc_oclk_onoff(host, 0);
+	if (ret)
+		return ret;
+
 	/* 8 bit DDR requires a higher module clock */
 	if (ios->timing == MMC_TIMING_MMC_DDR52 &&
 	    ios->bus_width == MMC_BUS_WIDTH_8)
@@ -782,10 +786,6 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 			rate, ret);
 		return ret;
 	}
-
-	ret = sunxi_mmc_oclk_onoff(host, 0);
-	if (ret)
-		return ret;
 
 	/* clear internal divider */
 	rval = mmc_readl(host, REG_CLKCR);
