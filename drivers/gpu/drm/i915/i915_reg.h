@@ -48,6 +48,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	return !i915_mmio_reg_equal(reg, INVALID_MMIO_REG);
 }
 
+#define _PICK(__index, ...) (((const u32 []){ __VA_ARGS__ })[__index])
+
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
 #define _MMIO_PIPE(pipe, a, b) _MMIO(_PIPE(pipe, a, b))
 #define _PLANE(plane, a, b) _PIPE(plane, a, b)
@@ -56,14 +58,11 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_TRANS(tran, a, b) _MMIO(_TRANS(tran, a, b))
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 #define _MMIO_PORT(port, a, b) _MMIO(_PORT(port, a, b))
-#define _PIPE3(pipe, a, b, c) ((pipe) == PIPE_A ? (a) : \
-			       (pipe) == PIPE_B ? (b) : (c))
+#define _PIPE3(pipe, ...) _PICK(pipe, __VA_ARGS__)
 #define _MMIO_PIPE3(pipe, a, b, c) _MMIO(_PIPE3(pipe, a, b, c))
-#define _PORT3(port, a, b, c) ((port) == PORT_A ? (a) : \
-			       (port) == PORT_B ? (b) : (c))
+#define _PORT3(port, ...) _PICK(port, __VA_ARGS__)
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PORT3(pipe, a, b, c))
-#define _PHY3(phy, a, b, c) ((phy) == DPIO_PHY0 ? (a) : \
-			     (phy) == DPIO_PHY1 ? (b) : (c))
+#define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
 #define _MASKED_FIELD(mask, value) ({					   \
