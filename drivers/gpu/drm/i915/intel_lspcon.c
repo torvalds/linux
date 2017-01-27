@@ -158,6 +158,8 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 {
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	unsigned long start = jiffies;
 
 	if (!lspcon->desc_valid)
@@ -173,7 +175,8 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 		if (!__intel_dp_read_desc(intel_dp, &desc))
 			return;
 
-		if (!memcmp(&intel_dp->desc, &desc, sizeof(desc))) {
+		if (intel_digital_port_connected(dev_priv, dig_port) &&
+		    !memcmp(&intel_dp->desc, &desc, sizeof(desc))) {
 			DRM_DEBUG_KMS("LSPCON recovering in PCON mode after %u ms\n",
 				      jiffies_to_msecs(jiffies - start));
 			return;
