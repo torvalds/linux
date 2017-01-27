@@ -4347,6 +4347,15 @@ do {								\
 })
 #endif
 
+/* if @cond then downgrade to debug, else print at @level */
+#define netif_cond_dbg(priv, type, netdev, cond, level, fmt, args...)     \
+	do {                                                              \
+		if (cond)                                                 \
+			netif_dbg(priv, type, netdev, fmt, ##args);       \
+		else                                                      \
+			netif_ ## level(priv, type, netdev, fmt, ##args); \
+	} while (0)
+
 #if defined(VERBOSE_DEBUG)
 #define netif_vdbg	netif_dbg
 #else
