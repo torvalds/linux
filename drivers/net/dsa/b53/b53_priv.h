@@ -70,7 +70,6 @@ enum {
 
 struct b53_port {
 	u16		vlan_ctl_mask;
-	struct net_device *bridge_dev;
 };
 
 struct b53_vlan {
