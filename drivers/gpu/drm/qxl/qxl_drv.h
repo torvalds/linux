@@ -243,7 +243,6 @@ struct qxl_device;
 
 struct qxl_device {
 	struct drm_device		*ddev;
-	struct pci_dev			*pdev;
 	unsigned long flags;
 
 	resource_size_t vram_base, vram_size;

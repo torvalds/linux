@@ -375,7 +375,7 @@ static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 	byte = param->index / 8;
 	idx = param->index % 8;
 
-	if (qdev->pdev->revision < 4)
+	if (dev->pdev->revision < 4)
 		return -ENOSYS;
 
 	if (byte >= 58)

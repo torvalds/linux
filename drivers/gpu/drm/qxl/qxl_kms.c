@@ -123,7 +123,6 @@ int qxl_device_init(struct qxl_device *qdev,
 	int r, sb;
 
 	qdev->ddev = ddev;
-	qdev->pdev = pdev;
 	qdev->flags = flags;
 
 	mutex_init(&qdev->gem.mutex);
