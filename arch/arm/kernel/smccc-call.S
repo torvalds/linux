@@ -16,7 +16,6 @@
 #include <asm/opcodes-sec.h>
 #include <asm/opcodes-virt.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 	/*
 	 * Wrap c macros in asm macros to delay expansion until after the
@@ -52,7 +51,6 @@ UNWIND(	.fnend)
 ENTRY(arm_smccc_smc)
 	SMCCC SMCCC_SMC
 ENDPROC(arm_smccc_smc)
-EXPORT_SYMBOL(arm_smccc_smc)
 
 /*
  * void smccc_hvc(unsigned long a0, unsigned long a1, unsigned long a2,
@@ -62,4 +60,3 @@ EXPORT_SYMBOL(arm_smccc_smc)
 ENTRY(arm_smccc_hvc)
 	SMCCC SMCCC_HVC
 ENDPROC(arm_smccc_hvc)
-EXPORT_SYMBOL(arm_smccc_hvc)

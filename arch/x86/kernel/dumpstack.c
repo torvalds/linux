@@ -112,7 +112,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		for (; stack < stack_info.end; stack++) {
 			unsigned long real_addr;
 			int reliable = 0;
-			unsigned long addr = *stack;
+			unsigned long addr = READ_ONCE_NOCHECK(*stack);
 			unsigned long *ret_addr_p =
 				unwind_get_return_address_ptr(&state);
 

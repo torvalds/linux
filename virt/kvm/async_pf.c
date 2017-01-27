@@ -84,12 +84,14 @@ static void async_pf_execute(struct work_struct *work)
 	 * mm and might be done in another context, so we must
 	 * use FOLL_REMOTE.
 	 */
-	__get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL, FOLL_REMOTE);
+	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
+			FOLL_WRITE | FOLL_REMOTE);
 
 	kvm_async_page_present_sync(vcpu, apf);
 
 	spin_lock(&vcpu->async_pf.lock);
 	list_add_tail(&apf->link, &vcpu->async_pf.done);
+	apf->vcpu = NULL;
 	spin_unlock(&vcpu->async_pf.lock);
 
 	/*
@@ -112,6 +114,8 @@ static void async_pf_execute(struct work_struct *work)
 
 void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 {
+	spin_lock(&vcpu->async_pf.lock);
+
 	/* cancel outstanding work queue item */
 	while (!list_empty(&vcpu->async_pf.queue)) {
 		struct kvm_async_pf *work =
@@ -119,6 +123,14 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 					 typeof(*work), queue);
 		list_del(&work->queue);
 
+		/*
+		 * We know it's present in vcpu->async_pf.done, do
+		 * nothing here.
+		 */
+		if (!work->vcpu)
+			continue;
+
+		spin_unlock(&vcpu->async_pf.lock);
 #ifdef CONFIG_KVM_ASYNC_PF_SYNC
 		flush_work(&work->work);
 #else
@@ -128,9 +140,9 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 			kmem_cache_free(async_pf_cache, work);
 		}
 #endif
+		spin_lock(&vcpu->async_pf.lock);
 	}
 
-	spin_lock(&vcpu->async_pf.lock);
 	while (!list_empty(&vcpu->async_pf.done)) {
 		struct kvm_async_pf *work =
 			list_first_entry(&vcpu->async_pf.done,

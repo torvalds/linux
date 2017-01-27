@@ -795,10 +795,19 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
 			case CHIP_TOPAZ:
-				strcpy(fw_name, "amdgpu/topaz_smc.bin");
+				if (((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x81)) ||
+				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x83)) ||
+				    ((adev->pdev->device == 0x6907) && (adev->pdev->revision == 0x87)))
+					strcpy(fw_name, "amdgpu/topaz_k_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/topaz_smc.bin");
 				break;
 			case CHIP_TONGA:
-				strcpy(fw_name, "amdgpu/tonga_smc.bin");
+				if (((adev->pdev->device == 0x6939) && (adev->pdev->revision == 0xf1)) ||
+				    ((adev->pdev->device == 0x6938) && (adev->pdev->revision == 0xf1)))
+					strcpy(fw_name, "amdgpu/tonga_k_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/tonga_smc.bin");
 				break;
 			case CHIP_FIJI:
 				strcpy(fw_name, "amdgpu/fiji_smc.bin");

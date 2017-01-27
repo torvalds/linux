@@ -2347,7 +2347,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	struct mmc_test_req *rq = mmc_test_req_alloc();
 	struct mmc_host *host = test->card->host;
 	struct mmc_test_area *t = &test->area;
-	struct mmc_async_req areq;
+	struct mmc_test_async_req test_areq = { .test = test };
 	struct mmc_request *mrq;
 	unsigned long timeout;
 	bool expired = false;
@@ -2363,8 +2363,8 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 		mrq->sbc = &rq->sbc;
 	mrq->cap_cmd_during_tfr = true;
 
-	areq.mrq = mrq;
-	areq.err_check = mmc_test_check_result_async;
+	test_areq.areq.mrq = mrq;
+	test_areq.areq.err_check = mmc_test_check_result_async;
 
 	mmc_test_prepare_mrq(test, mrq, t->sg, t->sg_len, dev_addr, t->blocks,
 			     512, write);
@@ -2378,7 +2378,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Start ongoing data request */
 	if (use_areq) {
-		mmc_start_req(host, &areq, &ret);
+		mmc_start_req(host, &test_areq.areq, &ret);
 		if (ret)
 			goto out_free;
 	} else {

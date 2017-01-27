@@ -687,7 +687,8 @@ static void delete_all_elements(struct bpf_htab *htab)
 
 		hlist_for_each_entry_safe(l, n, head, hash_node) {
 			hlist_del_rcu(&l->hash_node);
-			htab_elem_free(htab, l);
+			if (l->state != HTAB_EXTRA_ELEM_USED)
+				htab_elem_free(htab, l);
 		}
 	}
 }

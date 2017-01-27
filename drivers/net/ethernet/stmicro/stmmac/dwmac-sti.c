@@ -345,13 +345,15 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return -ENOMEM;
+	if (!dwmac) {
+		ret = -ENOMEM;
+		goto err_remove_config_dt;
+	}
 
 	ret = sti_dwmac_parse_data(dwmac, pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to parse OF data\n");
-		return ret;
+		goto err_remove_config_dt;
 	}
 
 	dwmac->fix_retime_src = data->fix_retime_src;
@@ -363,9 +365,20 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 
 	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_dwmac_exit;
+
+	return 0;
+
+err_dwmac_exit:
+	sti_dwmac_exit(pdev, plat_dat->bsp_priv);
+err_remove_config_dt:
+	stmmac_remove_config_dt(pdev, plat_dat);
+
+	return ret;
 }
 
 static const struct sti_dwmac_of_data stih4xx_dwmac_data = {

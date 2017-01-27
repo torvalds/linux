@@ -152,7 +152,7 @@ void sctp_unhash_endpoint(struct sctp_endpoint *);
 struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
-void sctp_err_finish(struct sock *, struct sctp_association *);
+void sctp_err_finish(struct sock *, struct sctp_transport *);
 void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 			   struct sctp_transport *t, __u32 pmtu);
 void sctp_icmp_redirect(struct sock *, struct sctp_transport *,

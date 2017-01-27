@@ -194,7 +194,7 @@ static int map_create(union bpf_attr *attr)
 
 	err = bpf_map_charge_memlock(map);
 	if (err)
-		goto free_map;
+		goto free_map_nouncharge;
 
 	err = bpf_map_new_fd(map);
 	if (err < 0)
@@ -204,6 +204,8 @@ static int map_create(union bpf_attr *attr)
 	return err;
 
 free_map:
+	bpf_map_uncharge_memlock(map);
+free_map_nouncharge:
 	map->ops->map_free(map);
 	return err;
 }

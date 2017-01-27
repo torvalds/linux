@@ -166,13 +166,9 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 				bool enable, struct regmap *map)
 {
 	int i;
-	bool ret;
-
-	ret = aspeed_sig_expr_eval(expr, enable, map);
-	if (ret)
-		return ret;
 
 	for (i = 0; i < expr->ndescs; i++) {
+		bool ret;
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
 		u32 pattern = enable ? desc->enable : desc->disable;
 
@@ -199,12 +195,18 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 static bool aspeed_sig_expr_enable(const struct aspeed_sig_expr *expr,
 				   struct regmap *map)
 {
+	if (aspeed_sig_expr_eval(expr, true, map))
+		return true;
+
 	return aspeed_sig_expr_set(expr, true, map);
 }
 
 static bool aspeed_sig_expr_disable(const struct aspeed_sig_expr *expr,
 				    struct regmap *map)
 {
+	if (!aspeed_sig_expr_eval(expr, true, map))
+		return true;
+
 	return aspeed_sig_expr_set(expr, false, map);
 }
 

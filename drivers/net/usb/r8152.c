@@ -1730,7 +1730,7 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 	u8 checksum = CHECKSUM_NONE;
 	u32 opts2, opts3;
 
-	if (tp->version == RTL_VER_01)
+	if (tp->version == RTL_VER_01 || tp->version == RTL_VER_02)
 		goto return_result;
 
 	opts2 = le32_to_cpu(rx_desc->opts2);
@@ -1745,7 +1745,7 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 			checksum = CHECKSUM_NONE;
 		else
 			checksum = CHECKSUM_UNNECESSARY;
-	} else if (RD_IPV6_CS) {
+	} else if (opts2 & RD_IPV6_CS) {
 		if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
 			checksum = CHECKSUM_UNNECESSARY;
 		else if ((opts2 & RD_TCP_CS) && !(opts3 & TCPF))
@@ -3266,10 +3266,8 @@ static int rtl8152_open(struct net_device *netdev)
 		goto out;
 
 	res = usb_autopm_get_interface(tp->intf);
-	if (res < 0) {
-		free_all_mem(tp);
-		goto out;
-	}
+	if (res < 0)
+		goto out_free;
 
 	mutex_lock(&tp->control);
 
@@ -3285,10 +3283,9 @@ static int rtl8152_open(struct net_device *netdev)
 			netif_device_detach(tp->netdev);
 		netif_warn(tp, ifup, netdev, "intr_urb submit failed: %d\n",
 			   res);
-		free_all_mem(tp);
-	} else {
-		napi_enable(&tp->napi);
+		goto out_unlock;
 	}
+	napi_enable(&tp->napi);
 
 	mutex_unlock(&tp->control);
 
@@ -3297,7 +3294,13 @@ static int rtl8152_open(struct net_device *netdev)
 	tp->pm_notifier.notifier_call = rtl_notifier;
 	register_pm_notifier(&tp->pm_notifier);
 #endif
+	return 0;
 
+out_unlock:
+	mutex_unlock(&tp->control);
+	usb_autopm_put_interface(tp->intf);
+out_free:
+	free_all_mem(tp);
 out:
 	return res;
 }

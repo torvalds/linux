@@ -113,7 +113,7 @@ struct debug_store {
  * Per register state.
  */
 struct er_account {
-	raw_spinlock_t		lock;	/* per-core: protect structure */
+	raw_spinlock_t      lock;	/* per-core: protect structure */
 	u64                 config;	/* extra MSR config */
 	u64                 reg;	/* extra MSR number */
 	atomic_t            ref;	/* reference count */

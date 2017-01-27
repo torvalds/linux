@@ -1301,8 +1301,9 @@ static int check_version(Elf_Shdr *sechdrs,
 		goto bad_version;
 	}
 
-	pr_warn("%s: no symbol version for %s\n", mod->name, symname);
-	return 0;
+	/* Broken toolchain. Warn once, then let it go.. */
+	pr_warn_once("%s: no symbol version for %s\n", mod->name, symname);
+	return 1;
 
 bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",

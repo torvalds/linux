@@ -388,12 +388,6 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
 		netif_dbg(dev, timer, dev->net, "CDC: carrier %s\n",
 			  event->wValue ? "on" : "off");
-
-		/* Work-around for devices with broken off-notifications */
-		if (event->wValue &&
-		    !test_bit(__LINK_STATE_NOCARRIER, &dev->net->state))
-			usbnet_link_change(dev, 0, 0);
-
 		usbnet_link_change(dev, !!event->wValue, 0);
 		break;
 	case USB_CDC_NOTIFY_SPEED_CHANGE:	/* tx/rx rates */
@@ -466,6 +460,36 @@ static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	return 1;
 }
 
+/* Ensure correct link state
+ *
+ * Some devices (ZTE MF823/831/910) export two carrier on notifications when
+ * connected. This causes the link state to be incorrect. Work around this by
+ * always setting the state to off, then on.
+ */
+void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
+{
+	struct usb_cdc_notification *event;
+
+	if (urb->actual_length < sizeof(*event))
+		return;
+
+	event = urb->transfer_buffer;
+
+	if (event->bNotificationType != USB_CDC_NOTIFY_NETWORK_CONNECTION) {
+		usbnet_cdc_status(dev, urb);
+		return;
+	}
+
+	netif_dbg(dev, timer, dev->net, "CDC: carrier %s\n",
+		  event->wValue ? "on" : "off");
+
+	if (event->wValue &&
+	    netif_carrier_ok(dev->net))
+		netif_carrier_off(dev->net);
+
+	usbnet_link_change(dev, !!event->wValue, 0);
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
@@ -481,7 +505,7 @@ static const struct driver_info	zte_cdc_info = {
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
 	.bind =		usbnet_cdc_zte_bind,
 	.unbind =	usbnet_cdc_unbind,
-	.status =	usbnet_cdc_status,
+	.status =	usbnet_cdc_zte_status,
 	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
 	.rx_fixup = usbnet_cdc_zte_rx_fixup,

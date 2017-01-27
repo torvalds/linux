@@ -315,7 +315,7 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = host->pwr;
 
-	sdhci_set_power(host, mode, vdd);
+	sdhci_set_power_noreg(host, mode, vdd);
 
 	if (host->pwr == pwr)
 		return;

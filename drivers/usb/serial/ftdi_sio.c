@@ -986,7 +986,8 @@ static const struct usb_device_id id_table_combined[] = {
 	/* ekey Devices */
 	{ USB_DEVICE(FTDI_VID, FTDI_EKEY_CONV_USB_PID) },
 	/* Infineon Devices */
-	{ USB_DEVICE_INTERFACE_NUMBER(INFINEON_VID, INFINEON_TRIBOARD_PID, 1) },
+	{ USB_DEVICE_INTERFACE_NUMBER(INFINEON_VID, INFINEON_TRIBOARD_TC1798_PID, 1) },
+	{ USB_DEVICE_INTERFACE_NUMBER(INFINEON_VID, INFINEON_TRIBOARD_TC2X7_PID, 1) },
 	/* GE Healthcare devices */
 	{ USB_DEVICE(GE_HEALTHCARE_VID, GE_HEALTHCARE_NEMO_TRACKER_PID) },
 	/* Active Research (Actisense) devices */
@@ -1011,6 +1012,8 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7561U_PID) },
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7563U_PID) },
 	{ USB_DEVICE(WICED_VID, WICED_USB20706V2_PID) },
+	{ USB_DEVICE(TI_VID, TI_CC3200_LAUNCHPAD_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ }					/* Terminating entry */
 };
 

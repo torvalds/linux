@@ -659,6 +659,8 @@ out_recv:
 out_pernet:
 	unregister_pernet_subsys(&rds_tcp_net_ops);
 out_slab:
+	if (unregister_netdevice_notifier(&rds_tcp_dev_notifier))
+		pr_warn("could not unregister rds_tcp_dev_notifier\n");
 	kmem_cache_destroy(rds_tcp_conn_slab);
 out:
 	return ret;

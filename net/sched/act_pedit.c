@@ -108,6 +108,17 @@ static void tcf_pedit_cleanup(struct tc_action *a, int bind)
 	kfree(keys);
 }
 
+static bool offset_valid(struct sk_buff *skb, int offset)
+{
+	if (offset > 0 && offset > skb->len)
+		return false;
+
+	if  (offset < 0 && -offset > skb_headroom(skb))
+		return false;
+
+	return true;
+}
+
 static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 		     struct tcf_result *res)
 {
@@ -134,6 +145,11 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			if (tkey->offmask) {
 				char *d, _d;
 
+				if (!offset_valid(skb, off + tkey->at)) {
+					pr_info("tc filter pedit 'at' offset %d out of bounds\n",
+						off + tkey->at);
+					goto bad;
+				}
 				d = skb_header_pointer(skb, off + tkey->at, 1,
 						       &_d);
 				if (!d)
@@ -146,10 +162,10 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 					" offset must be on 32 bit boundaries\n");
 				goto bad;
 			}
-			if (offset > 0 && offset > skb->len) {
-				pr_info("tc filter pedit"
-					" offset %d can't exceed pkt length %d\n",
-				       offset, skb->len);
+
+			if (!offset_valid(skb, off + offset)) {
+				pr_info("tc filter pedit offset %d out of bounds\n",
+					offset);
 				goto bad;
 			}
 

@@ -259,7 +259,10 @@
  * own by defining an empty RO_AFTER_INIT_DATA.
  */
 #ifndef RO_AFTER_INIT_DATA
-#define RO_AFTER_INIT_DATA *(.data..ro_after_init)
+#define RO_AFTER_INIT_DATA						\
+	__start_data_ro_after_init = .;					\
+	*(.data..ro_after_init)						\
+	__end_data_ro_after_init = .;
 #endif
 
 /*

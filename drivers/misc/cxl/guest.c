@@ -1152,6 +1152,9 @@ struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_devic
 	if ((rc = cxl_sysfs_adapter_add(adapter)))
 		goto err_put1;
 
+	/* release the context lock as the adapter is configured */
+	cxl_adapter_context_unlock(adapter);
+
 	return adapter;
 
 err_put1:

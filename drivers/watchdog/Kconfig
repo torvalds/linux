@@ -155,6 +155,7 @@ config TANGOX_WATCHDOG
 config WDAT_WDT
 	tristate "ACPI Watchdog Action Table (WDAT)"
 	depends on ACPI
+	select WATCHDOG_CORE
 	select ACPI_WATCHDOG
 	help
 	  This driver adds support for systems with ACPI Watchdog Action

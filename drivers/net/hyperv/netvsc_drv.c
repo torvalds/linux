@@ -47,6 +47,10 @@
 				 NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
 				 NETIF_F_HW_CSUM)
+
+/* Restrict GSO size to account for NVGRE */
+#define NETVSC_GSO_MAX_SIZE	62768
+
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -447,7 +451,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 * Setup the sendside checksum offload only if this is not a
 	 * GSO packet.
 	 */
-	if (skb_is_gso(skb)) {
+	if ((net_trans_info & (INFO_TCP | INFO_UDP)) && skb_is_gso(skb)) {
 		struct ndis_tcp_lso_info *lso_info;
 
 		rndis_msg_size += NDIS_LSO_PPI_SIZE;
@@ -607,15 +611,18 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	       packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
-	if (csum_info) {
-		/* We only look at the IP checksum here.
-		 * Should we be dropping the packet if checksum
-		 * failed? How do we deal with other checksums - TCP/UDP?
-		 */
-		if (csum_info->receive.ip_checksum_succeeded)
+
+	/* skb is already created with CHECKSUM_NONE */
+	skb_checksum_none_assert(skb);
+
+	/*
+	 * In Linux, the IP checksum is always checked.
+	 * Do L4 checksum offload if enabled and present.
+	 */
+	if (csum_info && (net->features & NETIF_F_RXCSUM)) {
+		if (csum_info->receive.tcp_checksum_succeeded ||
+		    csum_info->receive.udp_checksum_succeeded)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else
-			skb->ip_summed = CHECKSUM_NONE;
 	}
 
 	if (vlan_tci & VLAN_TAG_PRESENT)
@@ -696,12 +703,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
-	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *dev = net_device_ctx->device_ctx;
-
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, vmbus_dev_name(dev), sizeof(info->bus_info));
 }
 
 static void netvsc_get_channels(struct net_device *net,
@@ -1401,6 +1404,7 @@ static int netvsc_probe(struct hv_device *dev,
 	nvdev = net_device_ctx->nvdev;
 	netif_set_real_num_tx_queues(net, nvdev->num_chn);
 	netif_set_real_num_rx_queues(net, nvdev->num_chn);
+	netif_set_gso_max_size(net, NETVSC_GSO_MAX_SIZE);
 
 	ret = register_netdev(net);
 	if (ret != 0) {

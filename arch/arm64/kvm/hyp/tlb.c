@@ -64,6 +64,21 @@ void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, vttbr_el2);
 }
 
+void __hyp_text __kvm_tlb_flush_local_vmid(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = kern_hyp_va(kern_hyp_va(vcpu)->kvm);
+
+	/* Switch to requested VMID */
+	write_sysreg(kvm->arch.vttbr, vttbr_el2);
+	isb();
+
+	asm volatile("tlbi vmalle1" : : );
+	dsb(nsh);
+	isb();
+
+	write_sysreg(0, vttbr_el2);
+}
+
 void __hyp_text __kvm_flush_vm_context(void)
 {
 	dsb(ishst);

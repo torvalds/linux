@@ -112,17 +112,17 @@ MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
 
 module_param_named(xeon_b2b_usd_bar4_addr64,
 		   xeon_b2b_usd_addr.bar4_addr64, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar4_addr64,
 		 "XEON B2B USD BAR 4 64-bit address");
 
 module_param_named(xeon_b2b_usd_bar4_addr32,
 		   xeon_b2b_usd_addr.bar4_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar4_addr32,
 		 "XEON B2B USD split-BAR 4 32-bit address");
 
 module_param_named(xeon_b2b_usd_bar5_addr32,
 		   xeon_b2b_usd_addr.bar5_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar5_addr32,
 		 "XEON B2B USD split-BAR 5 32-bit address");
 
 module_param_named(xeon_b2b_dsd_bar2_addr64,
@@ -132,17 +132,17 @@ MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
 
 module_param_named(xeon_b2b_dsd_bar4_addr64,
 		   xeon_b2b_dsd_addr.bar4_addr64, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar4_addr64,
 		 "XEON B2B DSD BAR 4 64-bit address");
 
 module_param_named(xeon_b2b_dsd_bar4_addr32,
 		   xeon_b2b_dsd_addr.bar4_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar4_addr32,
 		 "XEON B2B DSD split-BAR 4 32-bit address");
 
 module_param_named(xeon_b2b_dsd_bar5_addr32,
 		   xeon_b2b_dsd_addr.bar5_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar5_addr32,
 		 "XEON B2B DSD split-BAR 5 32-bit address");
 
 #ifndef ioread64
@@ -1755,6 +1755,8 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 					    XEON_B2B_MIN_SIZE);
 		if (!ndev->peer_mmio)
 			return -EIO;
+
+		ndev->peer_addr = pci_resource_start(pdev, b2b_bar);
 	}
 
 	return 0;
@@ -2019,6 +2021,7 @@ static int intel_ntb_init_pci(struct intel_ntb_dev *ndev, struct pci_dev *pdev)
 		goto err_mmio;
 	}
 	ndev->peer_mmio = ndev->self_mmio;
+	ndev->peer_addr = pci_resource_start(pdev, 0);
 
 	return 0;
 

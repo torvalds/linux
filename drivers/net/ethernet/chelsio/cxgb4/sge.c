@@ -2951,7 +2951,6 @@ void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,
 			  rq->desc, rq->phys_addr);
-	napi_hash_del(&rq->napi);
 	netif_napi_del(&rq->napi);
 	rq->netdev = NULL;
 	rq->cntxt_id = rq->abs_id = 0;

@@ -658,12 +658,10 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 		return false;
 
 	if (amdgpu_passthrough(adev)) {
-		/* for FIJI: In whole GPU pass-through virtualization case
-		 * old smc fw won't clear some registers (e.g. MEM_SIZE, BIOS_SCRATCH)
-		 * so amdgpu_card_posted return false and driver will incorrectly skip vPost.
-		 * but if we force vPost do in pass-through case, the driver reload will hang.
-		 * whether doing vPost depends on amdgpu_card_posted if smc version is above
-		 * 00160e00 for FIJI.
+		/* for FIJI: In whole GPU pass-through virtualization case, after VM reboot
+		 * some old smc fw still need driver do vPost otherwise gpu hang, while
+		 * those smc fw version above 22.15 doesn't have this flaw, so we force
+		 * vpost executed for smc version below 22.15
 		 */
 		if (adev->asic_type == CHIP_FIJI) {
 			int err;
@@ -674,22 +672,11 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 				return true;
 
 			fw_ver = *((uint32_t *)adev->pm.fw->data + 69);
-			if (fw_ver >= 0x00160e00)
-				return !amdgpu_card_posted(adev);
+			if (fw_ver < 0x00160e00)
+				return true;
 		}
-	} else {
-		/* in bare-metal case, amdgpu_card_posted return false
-		 * after system reboot/boot, and return true if driver
-		 * reloaded.
-		 * we shouldn't do vPost after driver reload otherwise GPU
-		 * could hang.
-		 */
-		if (amdgpu_card_posted(adev))
-			return false;
 	}
-
-	/* we assume vPost is neede for all other cases */
-	return true;
+	return !amdgpu_card_posted(adev);
 }
 
 /**
@@ -1408,16 +1395,6 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_UVD ||
-			adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_VCE)
-			continue;
-		/* enable clockgating to save power */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-								    AMD_CG_STATE_GATE);
-		if (r) {
-			DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
-			return r;
-		}
 		if (adev->ip_blocks[i].funcs->late_init) {
 			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
 			if (r) {
@@ -1425,6 +1402,18 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 				return r;
 			}
 			adev->ip_block_status[i].late_initialized = true;
+		}
+		/* skip CG for VCE/UVD, it's handled specially */
+		if (adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_VCE) {
+			/* enable clockgating to save power */
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_GATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+				return r;
+			}
 		}
 	}
 
@@ -1434,6 +1423,30 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 static int amdgpu_fini(struct amdgpu_device *adev)
 {
 	int i, r;
+
+	/* need to disable SMC first */
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].hw)
+			continue;
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) {
+			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_UNGATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+				return r;
+			}
+			r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
+			/* XXX handle errors */
+			if (r) {
+				DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+			}
+			adev->ip_block_status[i].hw = false;
+			break;
+		}
+	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_block_status[i].hw)
@@ -1480,7 +1493,7 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_suspend(struct amdgpu_device *adev)
+int amdgpu_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -1933,6 +1946,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	/* evict remaining vram memory */
 	amdgpu_bo_evict_vram(adev);
 
+	amdgpu_atombios_scratch_regs_save(adev);
 	pci_save_state(dev->pdev);
 	if (suspend) {
 		/* Shut down the device */
@@ -1984,6 +1998,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			return r;
 		}
 	}
+	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* post card */
 	if (!amdgpu_card_posted(adev) || !resume) {
@@ -2073,7 +2088,8 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		if (adev->ip_blocks[i].funcs->check_soft_reset)
-			adev->ip_blocks[i].funcs->check_soft_reset(adev);
+			adev->ip_block_status[i].hang =
+				adev->ip_blocks[i].funcs->check_soft_reset(adev);
 		if (adev->ip_block_status[i].hang) {
 			DRM_INFO("IP block:%d is hang!\n", i);
 			asic_hang = true;
@@ -2102,12 +2118,20 @@ static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 
 static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 {
-	if (adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_ACP].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang) {
-		DRM_INFO("Some block need full reset!\n");
-		return true;
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if ((adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_ACP) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_DCE)) {
+			if (adev->ip_block_status[i].hang) {
+				DRM_INFO("Some block need full reset!\n");
+				return true;
+			}
+		}
 	}
 	return false;
 }
@@ -2233,8 +2257,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	}
 
 	if (need_full_reset) {
-		/* save scratch */
-		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_suspend(adev);
 
 retry:
@@ -2244,8 +2266,9 @@ retry:
 			amdgpu_display_stop_mc_access(adev, &save);
 			amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
 		}
-
+		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_asic_reset(adev);
+		amdgpu_atombios_scratch_regs_restore(adev);
 		/* post card */
 		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
@@ -2253,8 +2276,6 @@ retry:
 			dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
 			r = amdgpu_resume(adev);
 		}
-		/* restore scratch */
-		amdgpu_atombios_scratch_regs_restore(adev);
 	}
 	if (!r) {
 		amdgpu_irq_gpu_reset_resume_helper(adev);

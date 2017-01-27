@@ -1656,9 +1656,9 @@ void
 xfs_inode_set_cowblocks_tag(
 	xfs_inode_t	*ip)
 {
-	trace_xfs_inode_set_eofblocks_tag(ip);
+	trace_xfs_inode_set_cowblocks_tag(ip);
 	return __xfs_inode_set_eofblocks_tag(ip, xfs_queue_cowblocks,
-			trace_xfs_perag_set_eofblocks,
+			trace_xfs_perag_set_cowblocks,
 			XFS_ICI_COWBLOCKS_TAG);
 }
 
@@ -1666,7 +1666,7 @@ void
 xfs_inode_clear_cowblocks_tag(
 	xfs_inode_t	*ip)
 {
-	trace_xfs_inode_clear_eofblocks_tag(ip);
+	trace_xfs_inode_clear_cowblocks_tag(ip);
 	return __xfs_inode_clear_eofblocks_tag(ip,
-			trace_xfs_perag_clear_eofblocks, XFS_ICI_COWBLOCKS_TAG);
+			trace_xfs_perag_clear_cowblocks, XFS_ICI_COWBLOCKS_TAG);
 }

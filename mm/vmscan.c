@@ -2354,6 +2354,8 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 			}
 		}
 
+		cond_resched();
+
 		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
 			continue;
 
@@ -3043,7 +3045,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 					    sc.gfp_mask,
 					    sc.reclaim_idx);
 
+	current->flags |= PF_MEMALLOC;
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+	current->flags &= ~PF_MEMALLOC;
 
 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
 

@@ -44,7 +44,7 @@
  */
 
 /dts-v1/;
-#include "ntc-gr8.dtsi"
+#include "sun5i-gr8.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>

@@ -1487,6 +1487,8 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	if ((rc = cxl_native_register_psl_err_irq(adapter)))
 		goto err;
 
+	/* Release the context lock as adapter is configured */
+	cxl_adapter_context_unlock(adapter);
 	return 0;
 
 err:

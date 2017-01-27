@@ -43,9 +43,11 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	if (axi->axi_xit_frm)
 		value |= DMA_AXI_LPI_XIT_FRM;
 
+	value &= ~DMA_AXI_WR_OSR_LMT;
 	value |= (axi->axi_wr_osr_lmt & DMA_AXI_WR_OSR_LMT_MASK) <<
 		 DMA_AXI_WR_OSR_LMT_SHIFT;
 
+	value &= ~DMA_AXI_RD_OSR_LMT;
 	value |= (axi->axi_rd_osr_lmt & DMA_AXI_RD_OSR_LMT_MASK) <<
 		 DMA_AXI_RD_OSR_LMT_SHIFT;
 

@@ -147,20 +147,26 @@ int stk_camera_write_reg(struct stk_camera *dev, u16 index, u8 value)
 int stk_camera_read_reg(struct stk_camera *dev, u16 index, int *value)
 {
 	struct usb_device *udev = dev->udev;
+	unsigned char *buf;
 	int ret;
+
+	buf = kmalloc(sizeof(u8), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			0x00,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0x00,
 			index,
-			(u8 *) value,
+			buf,
 			sizeof(u8),
 			500);
-	if (ret < 0)
-		return ret;
-	else
-		return 0;
+	if (ret >= 0)
+		memcpy(value, buf, sizeof(u8));
+
+	kfree(buf);
+	return ret;
 }
 
 static int stk_start_stream(struct stk_camera *dev)

@@ -138,7 +138,7 @@ static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
 		*mask = dest_id & 0xff;
 		return true;
 	case KVM_APIC_MODE_XAPIC_CLUSTER:
-		*cluster = map->xapic_cluster_map[dest_id >> 4];
+		*cluster = map->xapic_cluster_map[(dest_id >> 4) & 0xf];
 		*mask = dest_id & 0xf;
 		return true;
 	default:

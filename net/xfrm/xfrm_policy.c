@@ -1268,12 +1268,14 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
 			err = security_xfrm_policy_lookup(pol->security,
 						      fl->flowi_secid,
 						      policy_to_flow_dir(dir));
-			if (!err && !xfrm_pol_hold_rcu(pol))
-				goto again;
-			else if (err == -ESRCH)
+			if (!err) {
+				if (!xfrm_pol_hold_rcu(pol))
+					goto again;
+			} else if (err == -ESRCH) {
 				pol = NULL;
-			else
+			} else {
 				pol = ERR_PTR(err);
+			}
 		} else
 			pol = NULL;
 	}

@@ -155,14 +155,18 @@
 #define	ERDES4_L3_L4_FILT_NO_MATCH_MASK	GENMASK(27, 26)
 
 /* Extended RDES4 message type definitions */
-#define RDES_EXT_NO_PTP			0
-#define RDES_EXT_SYNC			1
-#define RDES_EXT_FOLLOW_UP		2
-#define RDES_EXT_DELAY_REQ		3
-#define RDES_EXT_DELAY_RESP		4
-#define RDES_EXT_PDELAY_REQ		5
-#define RDES_EXT_PDELAY_RESP		6
-#define RDES_EXT_PDELAY_FOLLOW_UP	7
+#define RDES_EXT_NO_PTP			0x0
+#define RDES_EXT_SYNC			0x1
+#define RDES_EXT_FOLLOW_UP		0x2
+#define RDES_EXT_DELAY_REQ		0x3
+#define RDES_EXT_DELAY_RESP		0x4
+#define RDES_EXT_PDELAY_REQ		0x5
+#define RDES_EXT_PDELAY_RESP		0x6
+#define RDES_EXT_PDELAY_FOLLOW_UP	0x7
+#define RDES_PTP_ANNOUNCE		0x8
+#define RDES_PTP_MANAGEMENT		0x9
+#define RDES_PTP_SIGNALING		0xa
+#define RDES_PTP_PKT_RESERVED_TYPE	0xf
 
 /* Basic descriptor structure for normal and alternate descriptors */
 struct dma_desc {

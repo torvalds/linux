@@ -1144,7 +1144,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	rb_node = hfi1_mmu_rb_extract(pq->handler,
 				      (unsigned long)iovec->iov.iov_base,
 				      iovec->iov.iov_len);
-	if (rb_node && !IS_ERR(rb_node))
+	if (rb_node)
 		node = container_of(rb_node, struct sdma_mmu_node, rb);
 	else
 		rb_node = NULL;

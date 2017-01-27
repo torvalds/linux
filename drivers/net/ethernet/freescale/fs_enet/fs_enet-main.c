@@ -980,7 +980,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 		err = clk_prepare_enable(clk);
 		if (err) {
 			ret = err;
-			goto out_free_fpi;
+			goto out_deregister_fixed_link;
 		}
 		fpi->clk_per = clk;
 	}
@@ -1061,6 +1061,9 @@ out_put:
 	of_node_put(fpi->phy_node);
 	if (fpi->clk_per)
 		clk_disable_unprepare(fpi->clk_per);
+out_deregister_fixed_link:
+	if (of_phy_is_fixed_link(ofdev->dev.of_node))
+		of_phy_deregister_fixed_link(ofdev->dev.of_node);
 out_free_fpi:
 	kfree(fpi);
 	return ret;
@@ -1079,6 +1082,8 @@ static int fs_enet_remove(struct platform_device *ofdev)
 	of_node_put(fep->fpi->phy_node);
 	if (fep->fpi->clk_per)
 		clk_disable_unprepare(fep->fpi->clk_per);
+	if (of_phy_is_fixed_link(ofdev->dev.of_node))
+		of_phy_deregister_fixed_link(ofdev->dev.of_node);
 	free_netdev(ndev);
 	return 0;
 }

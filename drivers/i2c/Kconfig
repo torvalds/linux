@@ -59,7 +59,6 @@ config I2C_CHARDEV
 
 config I2C_MUX
 	tristate "I2C bus multiplexing support"
-	depends on HAS_IOMEM
 	help
 	  Say Y here if you want the I2C core to support the ability to
 	  handle multiplexed I2C bus topologies, by presenting each

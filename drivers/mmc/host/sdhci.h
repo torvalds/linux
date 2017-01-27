@@ -73,6 +73,7 @@
 #define  SDHCI_DATA_LVL_MASK	0x00F00000
 #define   SDHCI_DATA_LVL_SHIFT	20
 #define   SDHCI_DATA_0_LVL_MASK	0x00100000
+#define  SDHCI_CMD_LVL		0x01000000
 
 #define SDHCI_HOST_CONTROL	0x28
 #define  SDHCI_CTRL_LED		0x01
@@ -683,6 +684,8 @@ u16 sdhci_calc_clk(struct sdhci_host *host, unsigned int clock,
 void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
 void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		     unsigned short vdd);
+void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
+			   unsigned short vdd);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);
 void sdhci_reset(struct sdhci_host *host, u8 mask);
 void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);

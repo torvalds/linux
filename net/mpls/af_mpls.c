@@ -1252,7 +1252,7 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		if (!nla)
 			continue;
 
-		switch(index) {
+		switch (index) {
 		case RTA_OIF:
 			cfg->rc_ifindex = nla_get_u32(nla);
 			break;

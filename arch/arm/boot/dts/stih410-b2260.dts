@@ -74,7 +74,7 @@
 		/* Low speed expansion connector */
 		spi0: spi@9844000 {
 			label = "LS-SPI0";
-			cs-gpio = <&pio30 3 0>;
+			cs-gpios = <&pio30 3 0>;
 			status = "okay";
 		};
 

@@ -981,14 +981,27 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	plat_dat->resume = rk_gmac_resume;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
-	if (IS_ERR(plat_dat->bsp_priv))
-		return PTR_ERR(plat_dat->bsp_priv);
+	if (IS_ERR(plat_dat->bsp_priv)) {
+		ret = PTR_ERR(plat_dat->bsp_priv);
+		goto err_remove_config_dt;
+	}
 
 	ret = rk_gmac_init(pdev, plat_dat->bsp_priv);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_gmac_exit;
+
+	return 0;
+
+err_gmac_exit:
+	rk_gmac_exit(pdev, plat_dat->bsp_priv);
+err_remove_config_dt:
+	stmmac_remove_config_dt(pdev, plat_dat);
+
+	return ret;
 }
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {

@@ -410,7 +410,7 @@
 			};
 
 			uart3_pins: uart3 {
-				allwinner,pins = "PG13", "PG14";
+				allwinner,pins = "PA13", "PA14";
 				allwinner,function = "uart3";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;

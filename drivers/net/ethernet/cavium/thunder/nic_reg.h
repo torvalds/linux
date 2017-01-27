@@ -106,6 +106,7 @@
 #define   NIC_PF_MPI_0_2047_CFG			(0x210000)
 #define   NIC_PF_RSSI_0_4097_RQ			(0x220000)
 #define   NIC_PF_LMAC_0_7_CFG			(0x240000)
+#define   NIC_PF_LMAC_0_7_CFG2			(0x240100)
 #define   NIC_PF_LMAC_0_7_SW_XOFF		(0x242000)
 #define   NIC_PF_LMAC_0_7_CREDIT		(0x244000)
 #define   NIC_PF_CHAN_0_255_TX_CFG		(0x400000)

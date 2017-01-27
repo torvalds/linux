@@ -1242,8 +1242,8 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &sdevid);
 	if (sdevid != PCI_DEVICE_ID_THUNDER_RGX) {
-		bgx->bgx_id =
-		    (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24) & 1;
+		bgx->bgx_id = (pci_resource_start(pdev,
+			PCI_CFG_REG_BAR_NUM) >> 24) & BGX_ID_MASK;
 		bgx->bgx_id += nic_get_node_id(pdev) * MAX_BGX_PER_NODE;
 		bgx->max_lmac = MAX_LMAC_PER_BGX;
 		bgx_vnic[bgx->bgx_id] = bgx;

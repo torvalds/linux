@@ -3395,6 +3395,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 	if (buf) {
 		dev->urb_intr = usb_alloc_urb(0, GFP_KERNEL);
 		if (!dev->urb_intr) {
+			ret = -ENOMEM;
 			kfree(buf);
 			goto out3;
 		} else {

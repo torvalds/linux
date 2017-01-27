@@ -400,12 +400,6 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 
 		skb_put(skb, pktlength);
 
-		/* make cache consistent with receive packet buffer */
-		dma_sync_single_for_cpu(priv->device,
-					priv->rx_ring[entry].dma_addr,
-					priv->rx_ring[entry].len,
-					DMA_FROM_DEVICE);
-
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
 
@@ -469,7 +463,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     tse_tx_avail(priv) > TSE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
 		if (netif_queue_stopped(priv->dev) &&
 		    tse_tx_avail(priv) > TSE_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
@@ -477,7 +470,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 					   __func__);
 			netif_wake_queue(priv->dev);
 		}
-		netif_tx_unlock(priv->dev);
 	}
 
 	spin_unlock(&priv->tx_lock);
@@ -591,10 +583,6 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	buffer->skb = skb;
 	buffer->dma_addr = dma_addr;
 	buffer->len = nopaged_len;
-
-	/* Push data out of the cache hierarchy into main memory */
-	dma_sync_single_for_device(priv->device, buffer->dma_addr,
-				   buffer->len, DMA_TO_DEVICE);
 
 	priv->dmaops->tx_buffer(priv, buffer);
 
@@ -819,6 +807,8 @@ static int init_phy(struct net_device *dev)
 
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");
+		if (fixed_link)
+			of_phy_deregister_fixed_link(priv->device->of_node);
 		return -ENODEV;
 	}
 
@@ -1545,9 +1535,14 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct altera_tse_private *priv = netdev_priv(ndev);
 
-	if (ndev->phydev)
+	if (ndev->phydev) {
 		phy_disconnect(ndev->phydev);
+
+		if (of_phy_is_fixed_link(priv->device->of_node))
+			of_phy_deregister_fixed_link(priv->device->of_node);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);

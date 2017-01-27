@@ -2813,7 +2813,6 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 		if (eqo->q.created) {
 			be_eq_clean(eqo);
 			be_cmd_q_destroy(adapter, &eqo->q, QTYPE_EQ);
-			napi_hash_del(&eqo->napi);
 			netif_napi_del(&eqo->napi);
 			free_cpumask_var(eqo->affinity_mask);
 		}

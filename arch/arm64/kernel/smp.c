@@ -544,6 +544,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 			return;
 		}
 		bootcpu_valid = true;
+		early_map_cpu_to_node(0, acpi_numa_get_nid(0, hwid));
 		return;
 	}
 

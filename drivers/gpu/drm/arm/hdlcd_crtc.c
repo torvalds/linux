@@ -150,15 +150,14 @@ static void hdlcd_crtc_enable(struct drm_crtc *crtc)
 	clk_prepare_enable(hdlcd->clk);
 	hdlcd_crtc_mode_set_nofb(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 1);
+	drm_crtc_vblank_on(crtc);
 }
 
 static void hdlcd_crtc_disable(struct drm_crtc *crtc)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
-	if (!crtc->state->active)
-		return;
-
+	drm_crtc_vblank_off(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
 	clk_disable_unprepare(hdlcd->clk);
 }

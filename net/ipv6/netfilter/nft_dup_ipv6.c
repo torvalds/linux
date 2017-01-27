@@ -26,7 +26,7 @@ static void nft_dup_ipv6_eval(const struct nft_expr *expr,
 {
 	struct nft_dup_ipv6 *priv = nft_expr_priv(expr);
 	struct in6_addr *gw = (struct in6_addr *)&regs->data[priv->sreg_addr];
-	int oif = regs->data[priv->sreg_dev];
+	int oif = priv->sreg_dev ? regs->data[priv->sreg_dev] : -1;
 
 	nf_dup_ipv6(pkt->net, pkt->skb, pkt->hook, gw, oif);
 }
@@ -57,7 +57,9 @@ static int nft_dup_ipv6_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	struct nft_dup_ipv6 *priv = nft_expr_priv(expr);
 
-	if (nft_dump_register(skb, NFTA_DUP_SREG_ADDR, priv->sreg_addr) ||
+	if (nft_dump_register(skb, NFTA_DUP_SREG_ADDR, priv->sreg_addr))
+		goto nla_put_failure;
+	if (priv->sreg_dev &&
 	    nft_dump_register(skb, NFTA_DUP_SREG_DEV, priv->sreg_dev))
 		goto nla_put_failure;
 
