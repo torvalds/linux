@@ -32,10 +32,13 @@
 #define IOMMU_NOEXEC	(1 << 3)
 #define IOMMU_MMIO	(1 << 4) /* e.g. things like MSI doorbells */
 /*
- * This is to make the IOMMU API setup privileged
- * mapppings accessible by the master only at higher
- * privileged execution level and inaccessible at
- * less privileged levels.
+ * Where the bus hardware includes a privilege level as part of its access type
+ * markings, and certain devices are capable of issuing transactions marked as
+ * either 'supervisor' or 'user', the IOMMU_PRIV flag requests that the other
+ * given permission flags only apply to accesses at the higher privilege level,
+ * and that unprivileged transactions should have as little access as possible.
+ * This would usually imply the same permissions as kernel mappings on the CPU,
+ * if the IOMMU page table format is equivalent.
  */
 #define IOMMU_PRIV	(1 << 5)
 
