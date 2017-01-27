@@ -92,7 +92,7 @@ struct elevator_mq_ops {
 	struct request *(*get_request)(struct request_queue *, unsigned int, struct blk_mq_alloc_data *);
 	void (*put_request)(struct request *);
 	void (*insert_requests)(struct blk_mq_hw_ctx *, struct list_head *, bool);
-	void (*dispatch_requests)(struct blk_mq_hw_ctx *, struct list_head *);
+	struct request *(*dispatch_request)(struct blk_mq_hw_ctx *);
 	bool (*has_work)(struct blk_mq_hw_ctx *);
 	void (*completed_request)(struct blk_mq_hw_ctx *, struct request *);
 	void (*started_request)(struct request *);

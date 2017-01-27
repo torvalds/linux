@@ -221,6 +221,15 @@ static inline bool op_is_write(unsigned int op)
 }
 
 /*
+ * Check if the bio or request is one that needs special treatment in the
+ * flush state machine.
+ */
+static inline bool op_is_flush(unsigned int op)
+{
+	return op & (REQ_FUA | REQ_PREFLUSH);
+}
+
+/*
  * Reads are always treated as synchronous, as are requests with the FUA or
  * PREFLUSH flag.  Other operations may be marked as synchronous using the
  * REQ_SYNC flag.
