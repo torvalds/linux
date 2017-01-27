@@ -746,17 +746,14 @@ qca8k_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 }
 
 static int
-qca8k_port_bridge_join(struct dsa_switch *ds, int port,
-		       struct net_device *bridge)
+qca8k_port_bridge_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	int port_mask = BIT(QCA8K_CPU_PORT);
 	int i;
 
-	priv->port_sts[port].bridge_dev = bridge;
-
 	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
-		if (priv->port_sts[i].bridge_dev != bridge)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 		/* Add this port to the portvlan mask of the other ports
 		 * in the bridge
@@ -781,8 +778,7 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 	int i;
 
 	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
-		if (priv->port_sts[i].bridge_dev !=
-		    priv->port_sts[port].bridge_dev)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 		/* Remove this port to the portvlan mask of the other ports
 		 * in the bridge
@@ -791,7 +787,7 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 				QCA8K_PORT_LOOKUP_CTRL(i),
 				BIT(port));
 	}
-	priv->port_sts[port].bridge_dev = NULL;
+
 	/* Set the cpu port to be the only one in the portvlan mask of
 	 * this port
 	 */
