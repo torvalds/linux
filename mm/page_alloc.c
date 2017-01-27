@@ -1864,13 +1864,13 @@ int move_freepages(struct zone *zone,
 #endif
 
 	for (page = start_page; page <= end_page;) {
-		/* Make sure we are not inadvertently changing nodes */
-		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
-
 		if (!pfn_valid_within(page_to_pfn(page))) {
 			page++;
 			continue;
 		}
+
+		/* Make sure we are not inadvertently changing nodes */
+		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
 
 		if (!PageBuddy(page)) {
 			page++;
@@ -2583,30 +2583,22 @@ int __isolate_free_page(struct page *page, unsigned int order)
  * Update NUMA hit/miss statistics
  *
  * Must be called with interrupts disabled.
- *
- * When __GFP_OTHER_NODE is set assume the node of the preferred
- * zone is the local node. This is useful for daemons who allocate
- * memory on behalf of other processes.
  */
-static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
-								gfp_t flags)
+static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
 {
 #ifdef CONFIG_NUMA
-	int local_nid = numa_node_id();
 	enum zone_stat_item local_stat = NUMA_LOCAL;
 
-	if (unlikely(flags & __GFP_OTHER_NODE)) {
+	if (z->node != numa_node_id())
 		local_stat = NUMA_OTHER;
-		local_nid = preferred_zone->node;
-	}
 
-	if (z->node == local_nid) {
+	if (z->node == preferred_zone->node)
 		__inc_zone_state(z, NUMA_HIT);
-		__inc_zone_state(z, local_stat);
-	} else {
+	else {
 		__inc_zone_state(z, NUMA_MISS);
 		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
 	}
+	__inc_zone_state(z, local_stat);
 #endif
 }
 
@@ -2674,7 +2666,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 	}
 
 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
-	zone_statistics(preferred_zone, zone, gfp_flags);
+	zone_statistics(preferred_zone, zone);
 	local_irq_restore(flags);
 
 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
@@ -3531,12 +3523,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	struct page *page = NULL;
 	unsigned int alloc_flags;
 	unsigned long did_some_progress;
-	enum compact_priority compact_priority = DEF_COMPACT_PRIORITY;
+	enum compact_priority compact_priority;
 	enum compact_result compact_result;
-	int compaction_retries = 0;
-	int no_progress_loops = 0;
+	int compaction_retries;
+	int no_progress_loops;
 	unsigned long alloc_start = jiffies;
 	unsigned int stall_timeout = 10 * HZ;
+	unsigned int cpuset_mems_cookie;
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -3556,6 +3549,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	if (WARN_ON_ONCE((gfp_mask & (__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)) ==
 				(__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)))
 		gfp_mask &= ~__GFP_ATOMIC;
+
+retry_cpuset:
+	compaction_retries = 0;
+	no_progress_loops = 0;
+	compact_priority = DEF_COMPACT_PRIORITY;
+	cpuset_mems_cookie = read_mems_allowed_begin();
+	/*
+	 * We need to recalculate the starting point for the zonelist iterator
+	 * because we might have used different nodemask in the fast path, or
+	 * there was a cpuset modification and we are retrying - otherwise we
+	 * could end up iterating over non-eligible zones endlessly.
+	 */
+	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+					ac->high_zoneidx, ac->nodemask);
+	if (!ac->preferred_zoneref->zone)
+		goto nopage;
+
 
 	/*
 	 * The fast path uses conservative alloc_flags to succeed only until
@@ -3716,6 +3726,13 @@ retry:
 				&compaction_retries))
 		goto retry;
 
+	/*
+	 * It's possible we raced with cpuset update so the OOM would be
+	 * premature (see below the nopage: label for full explanation).
+	 */
+	if (read_mems_allowed_retry(cpuset_mems_cookie))
+		goto retry_cpuset;
+
 	/* Reclaim has failed us, start killing things */
 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
 	if (page)
@@ -3728,6 +3745,16 @@ retry:
 	}
 
 nopage:
+	/*
+	 * When updating a task's mems_allowed or mempolicy nodemask, it is
+	 * possible to race with parallel threads in such a way that our
+	 * allocation can fail while the mask is being updated. If we are about
+	 * to fail, check if the cpuset changed during allocation and if so,
+	 * retry.
+	 */
+	if (read_mems_allowed_retry(cpuset_mems_cookie))
+		goto retry_cpuset;
+
 	warn_alloc(gfp_mask,
 			"page allocation failure: order:%u", order);
 got_pg:
@@ -3742,7 +3769,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
 	struct page *page;
-	unsigned int cpuset_mems_cookie;
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
 	gfp_t alloc_mask = gfp_mask; /* The gfp_t that was actually used for allocation */
 	struct alloc_context ac = {
@@ -3779,9 +3805,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
 		alloc_flags |= ALLOC_CMA;
 
-retry_cpuset:
-	cpuset_mems_cookie = read_mems_allowed_begin();
-
 	/* Dirty zone balancing only done in the fast path */
 	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
 
@@ -3792,8 +3815,13 @@ retry_cpuset:
 	 */
 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
 					ac.high_zoneidx, ac.nodemask);
-	if (!ac.preferred_zoneref) {
+	if (!ac.preferred_zoneref->zone) {
 		page = NULL;
+		/*
+		 * This might be due to race with cpuset_current_mems_allowed
+		 * update, so make sure we retry with original nodemask in the
+		 * slow path.
+		 */
 		goto no_zone;
 	}
 
@@ -3802,6 +3830,7 @@ retry_cpuset:
 	if (likely(page))
 		goto out;
 
+no_zone:
 	/*
 	 * Runtime PM, block IO and its error handling path can deadlock
 	 * because I/O on the device might not complete.
@@ -3813,21 +3842,10 @@ retry_cpuset:
 	 * Restore the original nodemask if it was potentially replaced with
 	 * &cpuset_current_mems_allowed to optimize the fast-path attempt.
 	 */
-	if (cpusets_enabled())
+	if (unlikely(ac.nodemask != nodemask))
 		ac.nodemask = nodemask;
-	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
 
-no_zone:
-	/*
-	 * When updating a task's mems_allowed, it is possible to race with
-	 * parallel threads in such a way that an allocation can fail while
-	 * the mask is being updated. If a page allocation is about to fail,
-	 * check if the cpuset changed during allocation and if so, retry.
-	 */
-	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie))) {
-		alloc_mask = gfp_mask;
-		goto retry_cpuset;
-	}
+	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
 
 out:
 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
@@ -3904,8 +3922,8 @@ EXPORT_SYMBOL(free_pages);
  * drivers to provide a backing region of memory for use as either an
  * sk_buff->head, or to be used in the "frags" portion of skb_shared_info.
  */
-static struct page *__page_frag_refill(struct page_frag_cache *nc,
-				       gfp_t gfp_mask)
+static struct page *__page_frag_cache_refill(struct page_frag_cache *nc,
+					     gfp_t gfp_mask)
 {
 	struct page *page = NULL;
 	gfp_t gfp = gfp_mask;
@@ -3925,22 +3943,23 @@ static struct page *__page_frag_refill(struct page_frag_cache *nc,
 	return page;
 }
 
-void __page_frag_drain(struct page *page, unsigned int order,
-		       unsigned int count)
+void __page_frag_cache_drain(struct page *page, unsigned int count)
 {
 	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
 
 	if (page_ref_sub_and_test(page, count)) {
+		unsigned int order = compound_order(page);
+
 		if (order == 0)
 			free_hot_cold_page(page, false);
 		else
 			__free_pages_ok(page, order);
 	}
 }
-EXPORT_SYMBOL(__page_frag_drain);
+EXPORT_SYMBOL(__page_frag_cache_drain);
 
-void *__alloc_page_frag(struct page_frag_cache *nc,
-			unsigned int fragsz, gfp_t gfp_mask)
+void *page_frag_alloc(struct page_frag_cache *nc,
+		      unsigned int fragsz, gfp_t gfp_mask)
 {
 	unsigned int size = PAGE_SIZE;
 	struct page *page;
@@ -3948,7 +3967,7 @@ void *__alloc_page_frag(struct page_frag_cache *nc,
 
 	if (unlikely(!nc->va)) {
 refill:
-		page = __page_frag_refill(nc, gfp_mask);
+		page = __page_frag_cache_refill(nc, gfp_mask);
 		if (!page)
 			return NULL;
 
@@ -3991,19 +4010,19 @@ refill:
 
 	return nc->va + offset;
 }
-EXPORT_SYMBOL(__alloc_page_frag);
+EXPORT_SYMBOL(page_frag_alloc);
 
 /*
  * Frees a page fragment allocated out of either a compound or order 0 page.
  */
-void __free_page_frag(void *addr)
+void page_frag_free(void *addr)
 {
 	struct page *page = virt_to_head_page(addr);
 
 	if (unlikely(put_page_testzero(page)))
 		__free_pages_ok(page, compound_order(page));
 }
-EXPORT_SYMBOL(__free_page_frag);
+EXPORT_SYMBOL(page_frag_free);
 
 static void *make_alloc_exact(unsigned long addr, unsigned int order,
 		size_t size)
@@ -7255,6 +7274,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 		.zone = page_zone(pfn_to_page(start)),
 		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
+		.gfp_mask = GFP_KERNEL,
 	};
 	INIT_LIST_HEAD(&cc.migratepages);
 

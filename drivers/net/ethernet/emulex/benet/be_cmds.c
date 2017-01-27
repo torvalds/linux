@@ -1118,7 +1118,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 err:
 	mutex_unlock(&adapter->mcc_lock);
 
-	 if (status == MCC_STATUS_UNAUTHORIZED_REQUEST)
+	 if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
 		status = -EPERM;
 
 	return status;

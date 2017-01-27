@@ -1378,6 +1378,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		rtc: rtc@48838000 {

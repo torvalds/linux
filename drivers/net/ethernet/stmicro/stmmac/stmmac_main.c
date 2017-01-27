@@ -3319,8 +3319,16 @@ int stmmac_dvr_probe(struct device *device,
 		ndev->max_mtu = JUMBO_LEN;
 	else
 		ndev->max_mtu = SKB_MAX_HEAD(NET_SKB_PAD + NET_IP_ALIGN);
-	if (priv->plat->maxmtu < ndev->max_mtu)
+	/* Will not overwrite ndev->max_mtu if plat->maxmtu > ndev->max_mtu
+	 * as well as plat->maxmtu < ndev->min_mtu which is a invalid range.
+	 */
+	if ((priv->plat->maxmtu < ndev->max_mtu) &&
+	    (priv->plat->maxmtu >= ndev->min_mtu))
 		ndev->max_mtu = priv->plat->maxmtu;
+	else if (priv->plat->maxmtu < ndev->min_mtu)
+		dev_warn(priv->device,
+			 "%s: warning: maxmtu having invalid value (%d)\n",
+			 __func__, priv->plat->maxmtu);
 
 	if (flow_ctrl)
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
@@ -3332,7 +3340,8 @@ int stmmac_dvr_probe(struct device *device,
 	 */
 	if ((priv->synopsys_id >= DWMAC_CORE_3_50) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
-		netdev_info(priv->dev, "Enable RX Mitigation via HW Watchdog Timer\n");
+		dev_info(priv->device,
+			 "Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
 	netif_napi_add(ndev, &priv->napi, stmmac_poll, 64);
@@ -3358,17 +3367,17 @@ int stmmac_dvr_probe(struct device *device,
 		/* MDIO bus Registration */
 		ret = stmmac_mdio_register(ndev);
 		if (ret < 0) {
-			netdev_err(priv->dev,
-				   "%s: MDIO bus (id: %d) registration failed",
-				   __func__, priv->plat->bus_id);
+			dev_err(priv->device,
+				"%s: MDIO bus (id: %d) registration failed",
+				__func__, priv->plat->bus_id);
 			goto error_mdio_register;
 		}
 	}
 
 	ret = register_netdev(ndev);
 	if (ret) {
-		netdev_err(priv->dev, "%s: ERROR %i registering the device\n",
-			   __func__, ret);
+		dev_err(priv->device, "%s: ERROR %i registering the device\n",
+			__func__, ret);
 		goto error_netdev_register;
 	}
 

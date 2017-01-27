@@ -694,6 +694,7 @@ unsigned long native_calibrate_tsc(void)
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
 		case INTEL_FAM6_SKYLAKE_X:
+		case INTEL_FAM6_ATOM_DENVERTON:
 			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
 		case INTEL_FAM6_ATOM_GOLDMONT:

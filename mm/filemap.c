@@ -138,7 +138,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
 				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
 			/* Wakeup waiters for exceptional entry lock */
 			dax_wake_mapping_entry_waiter(mapping, page->index, p,
-						      false);
+						      true);
 		}
 	}
 	__radix_tree_replace(&mapping->page_tree, node, slot, page,

@@ -7,3 +7,12 @@ config DRM_CIRRUS_QEMU
 	 This is a KMS driver for emulated cirrus device in qemu.
 	 It is *NOT* intended for real cirrus devices. This requires
 	 the modesetting userspace X.org driver.
+
+	 Cirrus is obsolete, the hardware was designed in the 90ies
+	 and can't keep up with todays needs.  More background:
+	 https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/
+
+	 Better alternatives are:
+	   - stdvga (DRM_BOCHS, qemu -vga std, default in qemu 2.2+)
+	   - qxl (DRM_QXL, qemu -vga qxl, works best with spice)
+	   - virtio (DRM_VIRTIO_GPU), qemu -vga virtio)

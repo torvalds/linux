@@ -146,8 +146,18 @@ void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
 	drm_connector_list_iter_put(&conn_iter);
 
 	if (dev->mode_config.delayed_event) {
+		/*
+		 * FIXME:
+		 *
+		 * Use short (1s) delay to handle the initial delayed event.
+		 * This delay should not be needed, but Optimus/nouveau will
+		 * fail in a mysterious way if the delayed event is handled as
+		 * soon as possible like it is done in
+		 * drm_helper_probe_single_connector_modes() in case the poll
+		 * was enabled before.
+		 */
 		poll = true;
-		delay = 0;
+		delay = HZ;
 	}
 
 	if (poll)

@@ -152,6 +152,9 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 {
 	int ret;
 
+	if (!cldev->bus->hbm_f_os_supported)
+		return;
+
 	ret = mei_cldev_enable(cldev);
 	if (ret)
 		return;
