@@ -1860,7 +1860,9 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeEmpty"));
 		} else {
-			rdp->nocb_defer_wakeup = RCU_NOGP_WAKE;
+			WRITE_ONCE(rdp->nocb_defer_wakeup, RCU_NOGP_WAKE);
+			/* Store ->nocb_defer_wakeup before ->rcu_urgent_qs. */
+			smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeEmptyIsDeferred"));
 		}
@@ -1872,7 +1874,9 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeOvf"));
 		} else {
-			rdp->nocb_defer_wakeup = RCU_NOGP_WAKE_FORCE;
+			WRITE_ONCE(rdp->nocb_defer_wakeup, RCU_NOGP_WAKE_FORCE);
+			/* Store ->nocb_defer_wakeup before ->rcu_urgent_qs. */
+			smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 					    TPS("WakeOvfIsDeferred"));
 		}

@@ -331,6 +331,8 @@ static void sync_sched_exp_handler(void *data)
 		return;
 	}
 	__this_cpu_write(rcu_sched_data.cpu_no_qs.b.exp, true);
+	/* Store .exp before .rcu_urgent_qs. */
+	smp_store_release(this_cpu_ptr(&rcu_dynticks.rcu_urgent_qs), true);
 	resched_cpu(smp_processor_id());
 }
 
