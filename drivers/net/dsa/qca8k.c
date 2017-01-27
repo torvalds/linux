@@ -775,7 +775,7 @@ qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_port_bridge_leave(struct dsa_switch *ds, int port)
+qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	int i;

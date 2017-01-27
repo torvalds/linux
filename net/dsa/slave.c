@@ -565,16 +565,16 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 	return ret == -EOPNOTSUPP ? 0 : ret;
 }
 
-static void dsa_slave_bridge_port_leave(struct net_device *dev)
+static void dsa_slave_bridge_port_leave(struct net_device *dev,
+					struct net_device *br)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;
 
+	p->dp->bridge_dev = NULL;
 
 	if (ds->ops->port_bridge_leave)
-		ds->ops->port_bridge_leave(ds, p->dp->index);
-
-	p->dp->bridge_dev = NULL;
+		ds->ops->port_bridge_leave(ds, p->dp->index, br);
 
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
@@ -1343,7 +1343,7 @@ static int dsa_slave_port_upper_event(struct net_device *dev,
 			if (info->linking)
 				err = dsa_slave_bridge_port_join(dev, upper);
 			else
-				dsa_slave_bridge_port_leave(dev);
+				dsa_slave_bridge_port_leave(dev, upper);
 		}
 
 		break;

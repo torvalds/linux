@@ -2343,7 +2343,8 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
+static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
+					struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	struct net_device *bridge = chip->ports[port].bridge_dev;

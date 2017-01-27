@@ -325,7 +325,8 @@ struct dsa_switch_ops {
 	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct net_device *bridge);
-	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
+	void	(*port_bridge_leave)(struct dsa_switch *ds, int port,
+				     struct net_device *bridge);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
 	void	(*port_fast_age)(struct dsa_switch *ds, int port);
