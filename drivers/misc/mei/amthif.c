@@ -353,9 +353,9 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 		dev->iamthif_canceled = true;
 	}
 
+	/* Don't clean ctrl_rd_list here, the reads has to be completed */
 	mei_clear_list(file, &dev->amthif_cmd_list.list);
 	mei_clear_list(file, &cl->rd_completed);
-	mei_clear_list(file, &dev->ctrl_rd_list.list);
 
 	return 0;
 }
