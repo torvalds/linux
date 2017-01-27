@@ -241,6 +241,38 @@ EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
 DEFINE_STATIC_KEY_FALSE(arch_timer_read_ool_enabled);
 EXPORT_SYMBOL_GPL(arch_timer_read_ool_enabled);
 
+static void erratum_set_next_event_tval_generic(const int access, unsigned long evt,
+						struct clock_event_device *clk)
+{
+	unsigned long ctrl;
+	u64 cval = evt + arch_counter_get_cntvct();
+
+	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
+	ctrl |= ARCH_TIMER_CTRL_ENABLE;
+	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
+
+	if (access == ARCH_TIMER_PHYS_ACCESS)
+		write_sysreg(cval, cntp_cval_el0);
+	else
+		write_sysreg(cval, cntv_cval_el0);
+
+	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
+}
+
+static int erratum_set_next_event_tval_virt(unsigned long evt,
+					    struct clock_event_device *clk)
+{
+	erratum_set_next_event_tval_generic(ARCH_TIMER_VIRT_ACCESS, evt, clk);
+	return 0;
+}
+
+static int erratum_set_next_event_tval_phys(unsigned long evt,
+					    struct clock_event_device *clk)
+{
+	erratum_set_next_event_tval_generic(ARCH_TIMER_PHYS_ACCESS, evt, clk);
+	return 0;
+}
+
 static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 #ifdef CONFIG_FSL_ERRATUM_A008585
 	{
@@ -347,6 +379,9 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 
 #else
 #define arch_timer_check_ool_workaround(t,a)		do { } while(0)
+#define erratum_set_next_event_tval_virt(...)		({BUG(); 0;})
+#define erratum_set_next_event_tval_phys(...)		({BUG(); 0;})
+#define needs_unstable_timer_counter_workaround()	({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
 static __always_inline irqreturn_t timer_handler(const int access,
@@ -436,43 +471,12 @@ static __always_inline void set_next_event(const int access, unsigned long evt,
 	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
 }
 
-#ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
-static __always_inline void erratum_set_next_event_generic(const int access,
-		unsigned long evt, struct clock_event_device *clk)
-{
-	unsigned long ctrl;
-	u64 cval = evt + arch_counter_get_cntvct();
-
-	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
-	ctrl |= ARCH_TIMER_CTRL_ENABLE;
-	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
-
-	if (access == ARCH_TIMER_PHYS_ACCESS)
-		write_sysreg(cval, cntp_cval_el0);
-	else if (access == ARCH_TIMER_VIRT_ACCESS)
-		write_sysreg(cval, cntv_cval_el0);
-
-	arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
-}
-
-static int erratum_set_next_event_virt(unsigned long evt,
-					   struct clock_event_device *clk)
-{
-	erratum_set_next_event_generic(ARCH_TIMER_VIRT_ACCESS, evt, clk);
-	return 0;
-}
-
-static int erratum_set_next_event_phys(unsigned long evt,
-					   struct clock_event_device *clk)
-{
-	erratum_set_next_event_generic(ARCH_TIMER_PHYS_ACCESS, evt, clk);
-	return 0;
-}
-#endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
-
 static int arch_timer_set_next_event_virt(unsigned long evt,
 					  struct clock_event_device *clk)
 {
+	if (needs_unstable_timer_counter_workaround())
+		return erratum_set_next_event_tval_virt(evt, clk);
+
 	set_next_event(ARCH_TIMER_VIRT_ACCESS, evt, clk);
 	return 0;
 }
@@ -480,6 +484,9 @@ static int arch_timer_set_next_event_virt(unsigned long evt,
 static int arch_timer_set_next_event_phys(unsigned long evt,
 					  struct clock_event_device *clk)
 {
+	if (needs_unstable_timer_counter_workaround())
+		return erratum_set_next_event_tval_phys(evt, clk);
+
 	set_next_event(ARCH_TIMER_PHYS_ACCESS, evt, clk);
 	return 0;
 }
@@ -496,19 +503,6 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
 {
 	set_next_event(ARCH_TIMER_MEM_PHYS_ACCESS, evt, clk);
 	return 0;
-}
-
-static void erratum_workaround_set_sne(struct clock_event_device *clk)
-{
-#ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
-	if (!static_branch_unlikely(&arch_timer_read_ool_enabled))
-		return;
-
-	if (arch_timer_uses_ppi == VIRT_PPI)
-		clk->set_next_event = erratum_set_next_event_virt;
-	else
-		clk->set_next_event = erratum_set_next_event_phys;
-#endif
 }
 
 static void __arch_timer_setup(unsigned type,
@@ -541,8 +535,6 @@ static void __arch_timer_setup(unsigned type,
 		}
 
 		arch_timer_check_ool_workaround(ate_match_local_cap_id, NULL);
-
-		erratum_workaround_set_sne(clk);
 	} else {
 		clk->features |= CLOCK_EVT_FEAT_DYNIRQ;
 		clk->name = "arch_mem_timer";
