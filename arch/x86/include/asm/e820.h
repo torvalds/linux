@@ -5,12 +5,12 @@
  * E820_X_MAX is the maximum size of the extended E820 table.  The extended
  * table may contain up to 3 extra E820 entries per possible NUMA node, so we
  * make room for 3 * MAX_NUMNODES possible entries, beyond the standard 128.
- * Also note that E820_X_MAX *must* be defined before we include uapi/asm/e820.h.
+ * Also note that E820_X_MAX *must* be defined before we include asm/e820/types.h.
  */
 #include <linux/numa.h>
 #define E820_X_MAX (E820MAX + 3 * MAX_NUMNODES)
 
-#include <uapi/asm/e820.h>
+#include <asm/e820/types.h>
 
 #ifndef __ASSEMBLY__
 /* see comment in arch/x86/kernel/e820.c */
