@@ -42,6 +42,8 @@ enum arch_timer_erratum_match_type {
 	ate_match_local_cap_id,
 };
 
+struct clock_event_device;
+
 struct arch_timer_erratum_workaround {
 	enum arch_timer_erratum_match_type match_type;
 	const void *id;
@@ -49,6 +51,8 @@ struct arch_timer_erratum_workaround {
 	u32 (*read_cntp_tval_el0)(void);
 	u32 (*read_cntv_tval_el0)(void);
 	u64 (*read_cntvct_el0)(void);
+	int (*set_next_event_phys)(unsigned long, struct clock_event_device *);
+	int (*set_next_event_virt)(unsigned long, struct clock_event_device *);
 };
 
 extern const struct arch_timer_erratum_workaround *timer_unstable_counter_workaround;

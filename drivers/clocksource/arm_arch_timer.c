@@ -282,6 +282,8 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.read_cntp_tval_el0 = fsl_a008585_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = fsl_a008585_read_cntv_tval_el0,
 		.read_cntvct_el0 = fsl_a008585_read_cntvct_el0,
+		.set_next_event_phys = erratum_set_next_event_tval_phys,
+		.set_next_event_virt = erratum_set_next_event_tval_virt,
 	},
 #endif
 #ifdef CONFIG_HISILICON_ERRATUM_161010101
@@ -292,6 +294,8 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
 		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
+		.set_next_event_phys = erratum_set_next_event_tval_phys,
+		.set_next_event_virt = erratum_set_next_event_tval_virt,
 	},
 #endif
 };
@@ -377,11 +381,24 @@ static void arch_timer_check_ool_workaround(enum arch_timer_erratum_match_type t
 		local ? "local" : "global", wa->desc);
 }
 
+#define erratum_handler(fn, r, ...)					\
+({									\
+	bool __val;							\
+	if (needs_unstable_timer_counter_workaround() &&		\
+	    timer_unstable_counter_workaround->fn) {			\
+		r = timer_unstable_counter_workaround->fn(__VA_ARGS__);	\
+		__val = true;						\
+	} else {							\
+		__val = false;						\
+	}								\
+	__val;								\
+})
+
 #else
 #define arch_timer_check_ool_workaround(t,a)		do { } while(0)
 #define erratum_set_next_event_tval_virt(...)		({BUG(); 0;})
 #define erratum_set_next_event_tval_phys(...)		({BUG(); 0;})
-#define needs_unstable_timer_counter_workaround()	({false;})
+#define erratum_handler(fn, r, ...)			({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
 
 static __always_inline irqreturn_t timer_handler(const int access,
@@ -474,8 +491,10 @@ static __always_inline void set_next_event(const int access, unsigned long evt,
 static int arch_timer_set_next_event_virt(unsigned long evt,
 					  struct clock_event_device *clk)
 {
-	if (needs_unstable_timer_counter_workaround())
-		return erratum_set_next_event_tval_virt(evt, clk);
+	int ret;
+
+	if (erratum_handler(set_next_event_virt, ret, evt, clk))
+		return ret;
 
 	set_next_event(ARCH_TIMER_VIRT_ACCESS, evt, clk);
 	return 0;
@@ -484,8 +503,10 @@ static int arch_timer_set_next_event_virt(unsigned long evt,
 static int arch_timer_set_next_event_phys(unsigned long evt,
 					  struct clock_event_device *clk)
 {
-	if (needs_unstable_timer_counter_workaround())
-		return erratum_set_next_event_tval_phys(evt, clk);
+	int ret;
+
+	if (erratum_handler(set_next_event_phys, ret, evt, clk))
+		return ret;
 
 	set_next_event(ARCH_TIMER_PHYS_ACCESS, evt, clk);
 	return 0;
