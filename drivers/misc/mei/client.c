@@ -1428,6 +1428,11 @@ int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev)
 
 	dev = cl->dev;
 
+	if (!dev->hbm_f_ev_supported) {
+		cl_dbg(dev, cl, "notifications not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
