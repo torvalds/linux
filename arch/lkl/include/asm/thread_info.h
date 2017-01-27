@@ -49,7 +49,6 @@ void free_thread_stack(struct task_struct *tsk);
 
 void threads_init(void);
 void threads_cleanup(void);
-void threads_cnt_dec(void);
 
 #define TIF_SYSCALL_TRACE		0
 #define TIF_NOTIFY_RESUME		1

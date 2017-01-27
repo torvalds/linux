@@ -160,7 +160,6 @@ static int lkl_run_init(struct linux_binprm *bprm)
 	init_pid_ns.child_reaper = 0;
 
 	syscalls_init();
-	threads_cnt_dec();
 
 	lkl_ops->sem_up(init_sem);
 	lkl_ops->thread_exit();
