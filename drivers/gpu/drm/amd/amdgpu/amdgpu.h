@@ -569,6 +569,7 @@ struct amdgpu_mc {
 	uint32_t		vram_type;
 	uint32_t                srbm_soft_reset;
 	struct amdgpu_mode_mc_save save;
+	bool			prt_warning;
 };
 
 /*
