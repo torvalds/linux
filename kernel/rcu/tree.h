@@ -113,7 +113,7 @@ struct rcu_dynticks {
 				    /* Process level is worth LLONG_MAX/2. */
 	int dynticks_nmi_nesting;   /* Track NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
-	int rcu_sched_qs_mask;      /* GP old, need heavy quiescent state. */
+	bool rcu_need_heavy_qs;      /* GP old, need heavy quiescent state. */
 	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
 #ifdef CONFIG_NO_HZ_FULL_SYSIDLE
 	long long dynticks_idle_nesting;
@@ -484,7 +484,6 @@ struct rcu_state {
 	struct rcu_node *level[RCU_NUM_LVLS + 1];
 						/* Hierarchy levels (+1 to */
 						/*  shut bogus gcc warning) */
-	u8 flavor_mask;				/* bit in flavor mask. */
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 	call_rcu_func_t call;			/* call_rcu() flavor. */
 	int ncpus;				/* # CPUs seen so far. */
