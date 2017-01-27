@@ -18,7 +18,7 @@
 #include <asm/segment.h>
 #include <generated/utsrelease.h>
 #include <asm/boot.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/page_types.h>
 #include <asm/setup.h>
 #include <asm/bootparam.h>

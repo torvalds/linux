@@ -75,7 +75,7 @@
 #include <asm/mtrr.h>
 #include <asm/apic.h>
 #include <asm/realmode.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/efi.h>

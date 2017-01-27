@@ -21,7 +21,7 @@
 #include <linux/memblock.h>
 #include <linux/sort.h>
 
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
 #include <asm/cpufeature.h>

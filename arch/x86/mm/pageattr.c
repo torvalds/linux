@@ -15,7 +15,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>

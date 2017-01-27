@@ -23,7 +23,7 @@
 #include <asm/x86_init.h>
 #include <asm/pgtable.h>
 #include <asm/fcntl.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/page.h>
 #include <asm/msr.h>

@@ -27,7 +27,7 @@
 #include <linux/range.h>
 
 #include <asm/processor.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 

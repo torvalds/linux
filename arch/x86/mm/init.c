@@ -6,7 +6,7 @@
 #include <linux/bootmem.h>	/* for max_low_pfn */
 
 #include <asm/cacheflush.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/init.h>
 #include <asm/page.h>
 #include <asm/page_types.h>

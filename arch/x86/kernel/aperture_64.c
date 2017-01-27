@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>

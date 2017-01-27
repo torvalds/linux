@@ -1,5 +1,5 @@
 #include <linux/ioport.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 
 static void resource_clip(struct resource *res, resource_size_t start,
 			  resource_size_t end)

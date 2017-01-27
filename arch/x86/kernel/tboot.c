@@ -42,7 +42,7 @@
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 
 #include "../realmode/rm/wakeup.h"

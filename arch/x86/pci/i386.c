@@ -34,7 +34,7 @@
 #include <linux/bootmem.h>
 
 #include <asm/pat.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/pci_x86.h>
 #include <asm/io_apic.h>
 

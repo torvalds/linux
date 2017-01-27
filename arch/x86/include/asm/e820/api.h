@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_E820_H
-#define _ASM_X86_E820_H
+#ifndef _ASM_E820_API_H
+#define _ASM_E820_API_H
 
 /*
  * E820_X_MAX is the maximum size of the extended E820 table.  The extended
@@ -70,4 +70,4 @@ static inline bool is_ISA_range(u64 s, u64 e)
 #include <linux/ioport.h>
 
 #define HIGH_MEMORY	(1024*1024)
-#endif /* _ASM_X86_E820_H */
+#endif /* _ASM_E820_API_H */

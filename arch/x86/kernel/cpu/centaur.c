@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 
 #include <asm/cpufeature.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 

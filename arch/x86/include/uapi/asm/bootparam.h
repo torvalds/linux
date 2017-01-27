@@ -34,7 +34,7 @@
 #include <linux/screen_info.h>
 #include <linux/apm_bios.h>
 #include <linux/edd.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/ist.h>
 #include <video/edid.h>
 

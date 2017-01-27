@@ -67,7 +67,7 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/fpu/api.h>

@@ -14,7 +14,7 @@
 
 #include <asm/elf.h>
 #include <asm/vdso.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
 #include <asm/numa.h>

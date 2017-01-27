@@ -14,7 +14,7 @@
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/io_apic.h>

@@ -41,7 +41,7 @@
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
 #include <asm/fixmap.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/apic.h>
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
