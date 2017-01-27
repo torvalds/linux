@@ -75,35 +75,9 @@ struct qcom_adsp {
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
-	phys_addr_t fw_addr;
-	size_t fw_size;
-	bool relocate;
-	int ret;
 
-	ret = qcom_scm_pas_init_image(adsp->pas_id, fw->data, fw->size);
-	if (ret) {
-		dev_err(&rproc->dev, "invalid firmware metadata\n");
-		return ret;
-	}
-
-	ret = qcom_mdt_parse(fw, &fw_addr, &fw_size, &relocate);
-	if (ret) {
-		dev_err(&rproc->dev, "failed to parse mdt header\n");
-		return ret;
-	}
-
-	if (relocate) {
-		adsp->mem_reloc = fw_addr;
-
-		ret = qcom_scm_pas_mem_setup(adsp->pas_id,
-					     adsp->mem_phys, fw_size);
-		if (ret) {
-			dev_err(&rproc->dev, "unable to setup memory for image\n");
-			return ret;
-		}
-	}
-
-	return qcom_mdt_load(rproc, fw, rproc->firmware);
+	return qcom_mdt_load(adsp->dev, fw, rproc->firmware, adsp->pas_id,
+			     adsp->mem_region, adsp->mem_phys, adsp->mem_size);
 }
 
 static const struct rproc_fw_ops adsp_fw_ops = {

@@ -153,34 +153,9 @@ void qcom_wcnss_assign_iris(struct qcom_wcnss *wcnss,
 static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
-	phys_addr_t fw_addr;
-	size_t fw_size;
-	bool relocate;
-	int ret;
 
-	ret = qcom_scm_pas_init_image(WCNSS_PAS_ID, fw->data, fw->size);
-	if (ret) {
-		dev_err(&rproc->dev, "invalid firmware metadata\n");
-		return ret;
-	}
-
-	ret = qcom_mdt_parse(fw, &fw_addr, &fw_size, &relocate);
-	if (ret) {
-		dev_err(&rproc->dev, "failed to parse mdt header\n");
-		return ret;
-	}
-
-	if (relocate) {
-		wcnss->mem_reloc = fw_addr;
-
-		ret = qcom_scm_pas_mem_setup(WCNSS_PAS_ID, wcnss->mem_phys, fw_size);
-		if (ret) {
-			dev_err(&rproc->dev, "unable to setup memory for image\n");
-			return ret;
-		}
-	}
-
-	return qcom_mdt_load(rproc, fw, rproc->firmware);
+	return qcom_mdt_load(wcnss->dev, fw, rproc->firmware, WCNSS_PAS_ID,
+			     wcnss->mem_region, wcnss->mem_phys, wcnss->mem_size);
 }
 
 static const struct rproc_fw_ops wcnss_fw_ops = {
