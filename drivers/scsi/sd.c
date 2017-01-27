@@ -781,7 +781,7 @@ static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 	rq->special_vec.bv_len = len;
 
 	rq->rq_flags |= RQF_SPECIAL_PAYLOAD;
-	rq->resid_len = len;
+	scsi_req(rq)->resid_len = len;
 
 	ret = scsi_init_io(cmd);
 out:
@@ -1164,7 +1164,7 @@ static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		__free_page(rq->special_vec.bv_page);
 
-	if (SCpnt->cmnd != rq->cmd) {
+	if (SCpnt->cmnd != scsi_req(rq)->cmd) {
 		mempool_free(SCpnt->cmnd, sd_cdb_pool);
 		SCpnt->cmnd = NULL;
 		SCpnt->cmd_len = 0;

@@ -132,8 +132,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->__sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	rq->cmd = rq->__cmd;
-	rq->cmd_len = BLK_MAX_CDB;
 	rq->tag = -1;
 	rq->internal_tag = -1;
 	rq->start_time = jiffies;
@@ -160,8 +158,6 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
 {
-	int bit;
-
 	printk(KERN_INFO "%s: dev %s: type=%x, flags=%llx\n", msg,
 		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
 		(unsigned long long) rq->cmd_flags);
@@ -171,13 +167,6 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
 	printk(KERN_INFO "  bio %p, biotail %p, len %u\n",
 	       rq->bio, rq->biotail, blk_rq_bytes(rq));
-
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
-		printk(KERN_INFO "  cdb: ");
-		for (bit = 0; bit < BLK_MAX_CDB; bit++)
-			printk("%02x ", rq->cmd[bit]);
-		printk("\n");
-	}
 }
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
@@ -1316,18 +1305,6 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 EXPORT_SYMBOL(blk_get_request);
 
 /**
- * blk_rq_set_block_pc - initialize a request to type BLOCK_PC
- * @rq:		request to be initialized
- *
- */
-void blk_rq_set_block_pc(struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-}
-EXPORT_SYMBOL(blk_rq_set_block_pc);
-
-/**
  * blk_requeue_request - put a request back on queue
  * @q:		request queue where request should be inserted
  * @rq:		request to be inserted
@@ -2458,14 +2435,6 @@ void blk_start_request(struct request *req)
 		req->rq_flags |= RQF_STATS;
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
-
-	/*
-	 * We are now handing the request to the hardware, initialize
-	 * resid_len to full count and add the timeout handler.
-	 */
-	req->resid_len = blk_rq_bytes(req);
-	if (unlikely(blk_bidi_rq(req)))
-		req->next_rq->resid_len = blk_rq_bytes(req->next_rq);
 
 	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
 	blk_add_timer(req);

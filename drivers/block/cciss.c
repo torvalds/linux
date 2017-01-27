@@ -52,6 +52,7 @@
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi_request.h>
 #include <linux/cdrom.h>
 #include <linux/scatterlist.h>
 #include <linux/kthread.h>
@@ -1854,7 +1855,7 @@ static void cciss_softirq_done(struct request *rq)
 
 	/* set the residual count for pc requests */
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC)
-		rq->resid_len = c->err_info->ResidualCnt;
+		scsi_req(rq)->resid_len = c->err_info->ResidualCnt;
 
 	blk_end_request_all(rq, (rq->errors == 0) ? 0 : -EIO);
 
@@ -1941,9 +1942,16 @@ static void cciss_get_serial_no(ctlr_info_t *h, int logvol,
 static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 				int drv_index)
 {
-	disk->queue = blk_init_queue(do_cciss_request, &h->lock);
+	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)
 		goto init_queue_failure;
+
+	disk->queue->cmd_size = sizeof(struct scsi_request);
+	disk->queue->request_fn = do_cciss_request;
+	disk->queue->queue_lock = &h->lock;
+	if (blk_init_allocated_queue(disk->queue) < 0)
+		goto cleanup_queue;
+
 	sprintf(disk->disk_name, "cciss/c%dd%d", h->ctlr, drv_index);
 	disk->major = h->major;
 	disk->first_minor = drv_index << NWD_SHIFT;
@@ -3111,15 +3119,7 @@ static inline int evaluate_target_status(ctlr_info_t *h,
 		return error_value;
 	}
 
-	/* SG_IO or similar, copy sense data back */
-	if (cmd->rq->sense) {
-		if (cmd->rq->sense_len > cmd->err_info->SenseLen)
-			cmd->rq->sense_len = cmd->err_info->SenseLen;
-		memcpy(cmd->rq->sense, cmd->err_info->SenseInfo,
-			cmd->rq->sense_len);
-	} else
-		cmd->rq->sense_len = 0;
-
+	scsi_req(cmd->rq)->sense_len = cmd->err_info->SenseLen;
 	return error_value;
 }
 
@@ -3150,7 +3150,6 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 			dev_warn(&h->pdev->dev, "cmd %p has"
 			       " completed with data underrun "
 			       "reported\n", cmd);
-			cmd->rq->resid_len = cmd->err_info->ResidualCnt;
 		}
 		break;
 	case CMD_DATA_OVERRUN:
@@ -3426,8 +3425,9 @@ static void do_cciss_request(struct request_queue *q)
 			c->Request.CDB[14] = c->Request.CDB[15] = 0;
 		}
 	} else if (creq->cmd_type == REQ_TYPE_BLOCK_PC) {
-		c->Request.CDBLen = creq->cmd_len;
-		memcpy(c->Request.CDB, creq->cmd, BLK_MAX_CDB);
+		c->Request.CDBLen = scsi_req(creq)->cmd_len;
+		memcpy(c->Request.CDB, scsi_req(creq)->cmd, BLK_MAX_CDB);
+		scsi_req(creq)->sense = c->err_info->SenseInfo;
 	} else {
 		dev_warn(&h->pdev->dev, "bad request type %d\n",
 			creq->cmd_type);

@@ -1013,7 +1013,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		goto fail;
 	}
 
-	blk_rq_set_block_pc(req);
+	scsi_req_init(req);
 
 	if (sgl) {
 		ret = pscsi_map_sg(cmd, sgl, sgl_nents, req);
@@ -1023,10 +1023,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
-	req->cmd_len = scsi_command_size(pt->pscsi_cdb);
-	req->cmd = &pt->pscsi_cdb[0];
-	req->sense = &pt->pscsi_sense[0];
-	req->sense_len = 0;
+	scsi_req(req)->cmd_len = scsi_command_size(pt->pscsi_cdb);
+	scsi_req(req)->cmd = &pt->pscsi_cdb[0];
 	if (pdv->pdv_sd->type == TYPE_DISK)
 		req->timeout = PS_TIMEOUT_DISK;
 	else
@@ -1075,7 +1073,7 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	struct pscsi_plugin_task *pt = cmd->priv;
 
 	pt->pscsi_result = req->errors;
-	pt->pscsi_resid = req->resid_len;
+	pt->pscsi_resid = scsi_req(req)->resid_len;
 
 	cmd->scsi_status = status_byte(pt->pscsi_result) << 1;
 	if (cmd->scsi_status) {
@@ -1096,6 +1094,7 @@ static void pscsi_req_done(struct request *req, int uptodate)
 		break;
 	}
 
+	memcpy(pt->pscsi_sense, scsi_req(req)->sense, TRANSPORT_SENSE_BUFFER);
 	__blk_put_request(req->q, req);
 	kfree(pt);
 }

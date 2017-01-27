@@ -274,15 +274,15 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 
 	switch (req_data[1]) {
 	case SMP_REPORT_GENERAL:
-		req->resid_len -= 8;
-		rsp->resid_len -= 32;
+		scsi_req(req)->resid_len -= 8;
+		scsi_req(rsp)->resid_len -= 32;
 		resp_data[2] = SMP_RESP_FUNC_ACC;
 		resp_data[9] = sas_ha->num_phys;
 		break;
 
 	case SMP_REPORT_MANUF_INFO:
-		req->resid_len -= 8;
-		rsp->resid_len -= 64;
+		scsi_req(req)->resid_len -= 8;
+		scsi_req(rsp)->resid_len -= 64;
 		resp_data[2] = SMP_RESP_FUNC_ACC;
 		memcpy(resp_data + 12, shost->hostt->name,
 		       SAS_EXPANDER_VENDOR_ID_LEN);
@@ -295,13 +295,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_DISCOVER:
-		req->resid_len -= 16;
-		if ((int)req->resid_len < 0) {
-			req->resid_len = 0;
+		scsi_req(req)->resid_len -= 16;
+		if ((int)scsi_req(req)->resid_len < 0) {
+			scsi_req(req)->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		rsp->resid_len -= 56;
+		scsi_req(rsp)->resid_len -= 56;
 		sas_host_smp_discover(sas_ha, resp_data, req_data[9]);
 		break;
 
@@ -311,13 +311,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_REPORT_PHY_SATA:
-		req->resid_len -= 16;
-		if ((int)req->resid_len < 0) {
-			req->resid_len = 0;
+		scsi_req(req)->resid_len -= 16;
+		if ((int)scsi_req(req)->resid_len < 0) {
+			scsi_req(req)->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		rsp->resid_len -= 60;
+		scsi_req(rsp)->resid_len -= 60;
 		sas_report_phy_sata(sas_ha, resp_data, req_data[9]);
 		break;
 
@@ -331,15 +331,15 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		int to_write = req_data[4];
 
 		if (blk_rq_bytes(req) < base_frame_size + to_write * 4 ||
-		    req->resid_len < base_frame_size + to_write * 4) {
+		    scsi_req(req)->resid_len < base_frame_size + to_write * 4) {
 			resp_data[2] = SMP_RESP_INV_FRM_LEN;
 			break;
 		}
 
 		to_write = sas_host_smp_write_gpio(sas_ha, resp_data, req_data[2],
 						   req_data[3], to_write, &req_data[8]);
-		req->resid_len -= base_frame_size + to_write * 4;
-		rsp->resid_len -= 8;
+		scsi_req(req)->resid_len -= base_frame_size + to_write * 4;
+		scsi_req(rsp)->resid_len -= 8;
 		break;
 	}
 
@@ -348,13 +348,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_PHY_CONTROL:
-		req->resid_len -= 44;
-		if ((int)req->resid_len < 0) {
-			req->resid_len = 0;
+		scsi_req(req)->resid_len -= 44;
+		if ((int)scsi_req(req)->resid_len < 0) {
+			scsi_req(req)->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		rsp->resid_len -= 8;
+		scsi_req(rsp)->resid_len -= 8;
 		sas_phy_control(sas_ha, req_data[9], req_data[10],
 				req_data[32] >> 4, req_data[33] >> 4,
 				resp_data);

@@ -279,7 +279,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 
 static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
 {
-	u8 cmd = rq->cmd[0];
+	u8 cmd = scsi_req(rq)->cmd[0];
 
 	switch (cmd) {
 	case REQ_PARK_HEADS:
@@ -545,6 +545,7 @@ repeat:
 			goto plug_device;
 		}
 
+		scsi_req(rq)->resid_len = blk_rq_bytes(rq);
 		hwif->rq = rq;
 
 		spin_unlock_irq(&hwif->lock);

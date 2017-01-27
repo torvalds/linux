@@ -148,7 +148,7 @@ static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 	struct request *rq = drive->hwif->rq;
 
 	if (rq && rq->cmd_type == REQ_TYPE_DRV_PRIV &&
-	    rq->cmd[0] == REQ_DRIVE_RESET) {
+	    scsi_req(rq)->cmd[0] == REQ_DRIVE_RESET) {
 		if (err <= 0 && rq->errors == 0)
 			rq->errors = -EIO;
 		ide_complete_rq(drive, err ? err : 0, blk_rq_bytes(rq));

@@ -2320,10 +2320,10 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		SmpPassthroughReply_t *smprep;
 
 		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
-		memcpy(req->sense, smprep, sizeof(*smprep));
-		req->sense_len = sizeof(*smprep);
-		req->resid_len = 0;
-		rsp->resid_len -= smprep->ResponseDataLength;
+		memcpy(scsi_req(req)->sense, smprep, sizeof(*smprep));
+		scsi_req(req)->sense_len = sizeof(*smprep);
+		scsi_req(req)->resid_len = 0;
+		scsi_req(rsp)->resid_len -= smprep->ResponseDataLength;
 	} else {
 		printk(MYIOC_s_ERR_FMT
 		    "%s: smp passthru reply failed to be returned\n",

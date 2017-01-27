@@ -1968,6 +1968,7 @@ static void eh_lock_door_done(struct request *req, int uptodate)
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
 	struct request *req;
+	struct scsi_request *rq;
 
 	/*
 	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
@@ -1976,17 +1977,16 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
 	if (IS_ERR(req))
 		return;
+	rq = scsi_req(req);
+	scsi_req_init(req);
 
-	blk_rq_set_block_pc(req);
-
-	req->cmd[0] = ALLOW_MEDIUM_REMOVAL;
-	req->cmd[1] = 0;
-	req->cmd[2] = 0;
-	req->cmd[3] = 0;
-	req->cmd[4] = SCSI_REMOVAL_PREVENT;
-	req->cmd[5] = 0;
-
-	req->cmd_len = COMMAND_SIZE(req->cmd[0]);
+	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
+	rq->cmd[1] = 0;
+	rq->cmd[2] = 0;
+	rq->cmd[3] = 0;
+	rq->cmd[4] = SCSI_REMOVAL_PREVENT;
+	rq->cmd[5] = 0;
+	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
@@ -2355,7 +2355,7 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 	scmd = (struct scsi_cmnd *)(rq + 1);
 	scsi_init_command(dev, scmd);
 	scmd->request = rq;
-	scmd->cmnd = rq->cmd;
+	scmd->cmnd = scsi_req(rq)->cmd;
 
 	scmd->scsi_done		= scsi_reset_provider_done_command;
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
