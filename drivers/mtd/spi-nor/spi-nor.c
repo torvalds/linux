@@ -122,7 +122,7 @@ static int read_fsr(struct spi_nor *nor)
 /*
  * Read configuration register, returning its value in the
  * location. Return the configuration register value.
- * Returns negative if error occured.
+ * Returns negative if error occurred.
  */
 static int read_cr(struct spi_nor *nor)
 {
@@ -1236,7 +1236,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
  * Write status Register and configuration register with 2 bytes
  * The first byte will be written to the status register, while the
  * second byte will be written to the configuration register.
- * Return negative if error occured.
+ * Return negative if error occurred.
  */
 static int write_sr_cr(struct spi_nor *nor, u16 val)
 {
