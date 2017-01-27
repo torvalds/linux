@@ -661,6 +661,9 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	unsigned long expire = jiffies + msecs_to_jiffies(750);
 	u32 rval;
 
+	dev_dbg(mmc_dev(host->mmc), "%sabling the clock\n",
+		oclk_en ? "en" : "dis");
+
 	rval = mmc_readl(host, REG_CLKCR);
 	rval &= ~(SDXC_CARD_CLOCK_ON | SDXC_LOW_POWER_ON | SDXC_MASK_DATA0);
 
@@ -737,6 +740,7 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 			index = SDXC_CLK_50M_DDR;
 		}
 	} else {
+		dev_dbg(mmc_dev(host->mmc), "Invalid clock... returning\n");
 		return -EINVAL;
 	}
 
@@ -749,6 +753,7 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 				  struct mmc_ios *ios)
 {
+	struct mmc_host *mmc = host->mmc;
 	long rate;
 	u32 rval, clock = ios->clock;
 	int ret;
@@ -756,6 +761,9 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	ret = sunxi_mmc_oclk_onoff(host, 0);
 	if (ret)
 		return ret;
+
+	/* Our clock is gated now */
+	mmc->actual_clock = 0;
 
 	if (!ios->clock)
 		return 0;
@@ -767,17 +775,17 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 
 	rate = clk_round_rate(host->clk_mmc, clock);
 	if (rate < 0) {
-		dev_err(mmc_dev(host->mmc), "error rounding clk to %d: %ld\n",
+		dev_err(mmc_dev(mmc), "error rounding clk to %d: %ld\n",
 			clock, rate);
 		return rate;
 	}
-	dev_dbg(mmc_dev(host->mmc), "setting clk to %d, rounded %ld\n",
+	dev_dbg(mmc_dev(mmc), "setting clk to %d, rounded %ld\n",
 		clock, rate);
 
 	/* setting clock rate */
 	ret = clk_set_rate(host->clk_mmc, rate);
 	if (ret) {
-		dev_err(mmc_dev(host->mmc), "error setting clk to %ld: %d\n",
+		dev_err(mmc_dev(mmc), "error setting clk to %ld: %d\n",
 			rate, ret);
 		return ret;
 	}
@@ -812,7 +820,14 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	 * least on the A64).
 	 */
 
-	return sunxi_mmc_oclk_onoff(host, 1);
+	ret = sunxi_mmc_oclk_onoff(host, 1);
+	if (ret)
+		return ret;
+
+	/* And we just enabled our clock back */
+	mmc->actual_clock = rate;
+
+	return 0;
 }
 
 static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
