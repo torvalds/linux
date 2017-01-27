@@ -65,6 +65,45 @@ struct dax_device {
 	const struct dax_operations *ops;
 };
 
+/**
+ * dax_direct_access() - translate a device pgoff to an absolute pfn
+ * @dax_dev: a dax_device instance representing the logical memory range
+ * @pgoff: offset in pages from the start of the device to translate
+ * @nr_pages: number of consecutive pages caller can handle relative to @pfn
+ * @kaddr: output parameter that returns a virtual address mapping of pfn
+ * @pfn: output parameter that returns an absolute pfn translation of @pgoff
+ *
+ * Return: negative errno if an error occurs, otherwise the number of
+ * pages accessible at the device relative @pgoff.
+ */
+long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
+		void **kaddr, pfn_t *pfn)
+{
+	long avail;
+
+	/*
+	 * The device driver is allowed to sleep, in order to make the
+	 * memory directly accessible.
+	 */
+	might_sleep();
+
+	if (!dax_dev)
+		return -EOPNOTSUPP;
+
+	if (!dax_alive(dax_dev))
+		return -ENXIO;
+
+	if (nr_pages < 0)
+		return nr_pages;
+
+	avail = dax_dev->ops->direct_access(dax_dev, pgoff, nr_pages,
+			kaddr, pfn);
+	if (!avail)
+		return -ERANGE;
+	return min(avail, nr_pages);
+}
+EXPORT_SYMBOL_GPL(dax_direct_access);
+
 bool dax_alive(struct dax_device *dax_dev)
 {
 	lockdep_assert_held(&dax_srcu);
