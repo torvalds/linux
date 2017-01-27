@@ -1846,6 +1846,11 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 			return;
 	}
 
+	/* turn off otg test pattern if enable */
+	pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
+			CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+			COLOR_DEPTH_UNDEFINED);
+
 	core_dc->hwss.enable_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
