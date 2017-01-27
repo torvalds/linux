@@ -111,6 +111,11 @@ static const struct cros_ec_bs_map cros_ec_keyb_bs[] = {
 		.bit		= EC_MKBP_LID_OPEN,
 		.inverted	= true,
 	},
+	{
+		.ev_type	= EV_SW,
+		.code		= SW_TABLET_MODE,
+		.bit		= EC_MKBP_TABLET_MODE,
+	},
 };
 
 /*
