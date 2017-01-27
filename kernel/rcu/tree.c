@@ -436,9 +436,6 @@ bool rcu_eqs_special_set(int cpu)
 	return true;
 }
 
-DEFINE_PER_CPU_SHARED_ALIGNED(unsigned long, rcu_qs_ctr);
-EXPORT_PER_CPU_SYMBOL_GPL(rcu_qs_ctr);
-
 /*
  * Let the RCU core know that this CPU has gone through the scheduler,
  * which is a quiescent state.  This is called when the need for a
@@ -542,7 +539,7 @@ void rcu_all_qs(void)
 		rcu_sched_qs();
 		preempt_enable();
 	}
-	this_cpu_inc(rcu_qs_ctr);
+	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
 }
 EXPORT_SYMBOL_GPL(rcu_all_qs);
@@ -1315,7 +1312,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 	 */
 	rnp = rdp->mynode;
 	if (time_after(jiffies, rdp->rsp->gp_start + jtsq) &&
-	    READ_ONCE(rdp->rcu_qs_ctr_snap) != per_cpu(rcu_qs_ctr, rdp->cpu) &&
+	    READ_ONCE(rdp->rcu_qs_ctr_snap) != per_cpu(rcu_dynticks.rcu_qs_ctr, rdp->cpu) &&
 	    READ_ONCE(rdp->gpnum) == rnp->gpnum && !rdp->gpwrap) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, TPS("rqc"));
 		return 1;
@@ -2024,7 +2021,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpustart"));
 		need_gp = !!(rnp->qsmask & rdp->grpmask);
 		rdp->cpu_no_qs.b.norm = need_gp;
-		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_qs_ctr);
+		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_dynticks.rcu_qs_ctr);
 		rdp->core_needs_qs = need_gp;
 		zero_cpu_stall_ticks(rdp);
 		WRITE_ONCE(rdp->gpwrap, false);
@@ -2622,7 +2619,7 @@ rcu_report_qs_rdp(int cpu, struct rcu_state *rsp, struct rcu_data *rdp)
 		 * within the current grace period.
 		 */
 		rdp->cpu_no_qs.b.norm = true;	/* need qs for new gp. */
-		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_qs_ctr);
+		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_dynticks.rcu_qs_ctr);
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
@@ -3620,7 +3617,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
 	if (rcu_scheduler_fully_active &&
 	    rdp->core_needs_qs && rdp->cpu_no_qs.b.norm &&
-	    rdp->rcu_qs_ctr_snap == __this_cpu_read(rcu_qs_ctr)) {
+	    rdp->rcu_qs_ctr_snap == __this_cpu_read(rcu_dynticks.rcu_qs_ctr)) {
 		rdp->n_rp_core_needs_qs++;
 	} else if (rdp->core_needs_qs && !rdp->cpu_no_qs.b.norm) {
 		rdp->n_rp_report_qs++;
@@ -3933,7 +3930,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->gpnum = rnp->completed; /* Make CPU later note any new GP. */
 	rdp->completed = rnp->completed;
 	rdp->cpu_no_qs.b.norm = true;
-	rdp->rcu_qs_ctr_snap = per_cpu(rcu_qs_ctr, cpu);
+	rdp->rcu_qs_ctr_snap = per_cpu(rcu_dynticks.rcu_qs_ctr, cpu);
 	rdp->core_needs_qs = false;
 	trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);

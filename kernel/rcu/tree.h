@@ -113,7 +113,8 @@ struct rcu_dynticks {
 				    /* Process level is worth LLONG_MAX/2. */
 	int dynticks_nmi_nesting;   /* Track NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
-	int rcu_sched_qs_mask;      /* GP old, need quiescent state. */
+	int rcu_sched_qs_mask;      /* GP old, need heavy quiescent state. */
+	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
 #ifdef CONFIG_NO_HZ_FULL_SYSIDLE
 	long long dynticks_idle_nesting;
 				    /* irq/process nesting level from idle. */

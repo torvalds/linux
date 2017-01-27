@@ -45,8 +45,6 @@
 #define RCU_TREE_NONCORE
 #include "tree.h"
 
-DECLARE_PER_CPU_SHARED_ALIGNED(unsigned long, rcu_qs_ctr);
-
 static int r_open(struct inode *inode, struct file *file,
 					const struct seq_operations *op)
 {
@@ -121,7 +119,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
 		   rdp->cpu_no_qs.b.norm,
-		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
+		   rdp->rcu_qs_ctr_snap == per_cpu(rdp->dynticks->rcu_qs_ctr, rdp->cpu),
 		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   rcu_dynticks_snap(rdp->dynticks),
