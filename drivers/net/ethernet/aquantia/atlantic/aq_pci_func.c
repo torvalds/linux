@@ -145,8 +145,6 @@ int aq_pci_func_init(struct aq_pci_func_s *self)
 		}
 	}
 
-	if (err < 0)
-		goto err_exit;
 	for (i = 0; i < self->aq_hw_caps.msix_irqs; i++)
 		self->msix_entry[i].entry = i;
 
