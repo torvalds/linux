@@ -3567,7 +3567,7 @@ F:	drivers/infiniband/hw/cxgb3/
 F:	include/uapi/rdma/cxgb3-abi.h
 
 CXGB4 ETHERNET DRIVER (CXGB4)
-M:	Hariprasad S <hariprasad@chelsio.com>
+M:	Ganesh Goudar <ganeshgr@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported

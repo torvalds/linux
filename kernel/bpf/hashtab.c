@@ -13,7 +13,6 @@
 #include <linux/bpf.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
-#include <linux/vmalloc.h>
 #include "percpu_freelist.h"
 #include "bpf_lru_list.h"
 
@@ -103,7 +102,7 @@ static void htab_free_elems(struct bpf_htab *htab)
 		free_percpu(pptr);
 	}
 free_elems:
-	vfree(htab->elems);
+	bpf_map_area_free(htab->elems);
 }
 
 static struct htab_elem *prealloc_lru_pop(struct bpf_htab *htab, void *key,
@@ -125,7 +124,8 @@ static int prealloc_init(struct bpf_htab *htab)
 {
 	int err = -ENOMEM, i;
 
-	htab->elems = vzalloc(htab->elem_size * htab->map.max_entries);
+	htab->elems = bpf_map_area_alloc(htab->elem_size *
+					 htab->map.max_entries);
 	if (!htab->elems)
 		return -ENOMEM;
 
@@ -320,14 +320,10 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		goto free_htab;
 
 	err = -ENOMEM;
-	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct bucket),
-				      GFP_USER | __GFP_NOWARN);
-
-	if (!htab->buckets) {
-		htab->buckets = vmalloc(htab->n_buckets * sizeof(struct bucket));
-		if (!htab->buckets)
-			goto free_htab;
-	}
+	htab->buckets = bpf_map_area_alloc(htab->n_buckets *
+					   sizeof(struct bucket));
+	if (!htab->buckets)
+		goto free_htab;
 
 	for (i = 0; i < htab->n_buckets; i++) {
 		INIT_HLIST_HEAD(&htab->buckets[i].head);
@@ -354,7 +350,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 free_extra_elems:
 	free_percpu(htab->extra_elems);
 free_buckets:
-	kvfree(htab->buckets);
+	bpf_map_area_free(htab->buckets);
 free_htab:
 	kfree(htab);
 	return ERR_PTR(err);
@@ -1014,7 +1010,7 @@ static void htab_map_free(struct bpf_map *map)
 		prealloc_destroy(htab);
 
 	free_percpu(htab->extra_elems);
-	kvfree(htab->buckets);
+	bpf_map_area_free(htab->buckets);
 	kfree(htab);
 }
 
