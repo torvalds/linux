@@ -1254,9 +1254,12 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	post_surface_trace(dc);
 
 	for (i = 0; i < core_dc->current_context->res_ctx.pool->pipe_count; i++)
-		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream == NULL)
+		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream == NULL) {
+			core_dc->current_context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
-				core_dc, &core_dc->current_context->res_ctx.pipe_ctx[i]);
+							core_dc, &core_dc->current_context->res_ctx.pipe_ctx[i]);
+		}
+
 
 	if (core_dc->res_pool->funcs->validate_bandwidth(core_dc, core_dc->current_context)
 			!= DC_OK) {
