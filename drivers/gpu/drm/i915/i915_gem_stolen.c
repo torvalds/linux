@@ -79,12 +79,12 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
-static phys_addr_t i915_stolen_to_physical(struct drm_i915_private *dev_priv)
+static dma_addr_t i915_stolen_to_dma(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct resource *r;
-	phys_addr_t base;
+	dma_addr_t base;
 
 	/* Almost universally we can find the Graphics Base of Stolen Memory
 	 * at register BSM (0x5c) in the igfx configuration space. On a few
@@ -196,7 +196,7 @@ static phys_addr_t i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
 		struct {
-			phys_addr_t start, end;
+			dma_addr_t start, end;
 		} stolen[2] = {
 			{ .start = base, .end = base + ggtt->stolen_size, },
 			{ .start = base, .end = base + ggtt->stolen_size, },
@@ -228,12 +228,12 @@ static phys_addr_t i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
-			phys_addr_t end = base + ggtt->stolen_size - 1;
+			dma_addr_t end = base + ggtt->stolen_size - 1;
 
 			DRM_DEBUG_KMS("GTT within stolen memory at 0x%llx-0x%llx\n",
 				      (unsigned long long)ggtt_start,
 				      (unsigned long long)ggtt_end - 1);
-			DRM_DEBUG_KMS("Stolen memory adjusted to %pa - %pa\n",
+			DRM_DEBUG_KMS("Stolen memory adjusted to %pad - %pad\n",
 				      &base, &end);
 		}
 	}
@@ -263,9 +263,9 @@ static phys_addr_t i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 		 * range. Apparently this works.
 		 */
 		if (r == NULL && !IS_GEN3(dev_priv)) {
-			phys_addr_t end = base + ggtt->stolen_size;
+			dma_addr_t end = base + ggtt->stolen_size;
 
-			DRM_ERROR("conflict detected with stolen region: [%pa - %pa]\n",
+			DRM_ERROR("conflict detected with stolen region: [%pad - %pad]\n",
 				  &base, &end);
 			base = 0;
 		}
@@ -285,13 +285,13 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 }
 
 static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, u32 *size)
+				    dma_addr_t *base, u32 *size)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
 				     CTG_STOLEN_RESERVED :
 				     ELK_STOLEN_RESERVED);
-	phys_addr_t stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
+	dma_addr_t stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 
@@ -308,7 +308,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     phys_addr_t *base, u32 *size)
+				     dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -334,7 +334,7 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     phys_addr_t *base, u32 *size)
+				     dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -354,7 +354,7 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, u32 *size)
+				    dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -380,11 +380,11 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, u32 *size)
+				    dma_addr_t *base, u32 *size)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
-	phys_addr_t stolen_top;
+	dma_addr_t stolen_top;
 
 	stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
@@ -403,7 +403,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	phys_addr_t reserved_base, stolen_top;
+	dma_addr_t reserved_base, stolen_top;
 	u32 reserved_total, reserved_size;
 	u32 stolen_usable_start;
 
@@ -419,7 +419,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	if (ggtt->stolen_size == 0)
 		return 0;
 
-	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev_priv);
+	dev_priv->mm.stolen_base = i915_stolen_to_dma(dev_priv);
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
@@ -468,8 +468,8 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 
 	if (reserved_base < dev_priv->mm.stolen_base ||
 	    reserved_base + reserved_size > stolen_top) {
-		phys_addr_t reserved_top = reserved_base + reserved_size;
-		DRM_DEBUG_KMS("Stolen reserved area [%pa - %pa] outside stolen memory [%pa - %pa]\n",
+		dma_addr_t reserved_top = reserved_base + reserved_size;
+		DRM_DEBUG_KMS("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
 			      &reserved_base, &reserved_top,
 			      &dev_priv->mm.stolen_base, &stolen_top);
 		return 0;
