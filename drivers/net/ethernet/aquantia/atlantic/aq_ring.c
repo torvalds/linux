@@ -304,8 +304,6 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 
 		buff = NULL;
 	}
-	if (err < 0)
-		goto err_exit;
 
 err_exit:
 	if (err < 0) {
