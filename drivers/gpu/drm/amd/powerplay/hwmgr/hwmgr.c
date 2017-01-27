@@ -95,6 +95,7 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
+		case CHIP_POLARIS12:
 			polaris_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
@@ -745,7 +746,7 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_TablelessHardwareInterface);
 
-	if (hwmgr->chip_id == CHIP_POLARIS11)
+	if ((hwmgr->chip_id == CHIP_POLARIS11) || (hwmgr->chip_id == CHIP_POLARIS12))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
 	return 0;

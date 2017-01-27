@@ -625,8 +625,8 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
 unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 					   int nid, unsigned int lru_mask)
 {
+	struct lruvec *lruvec = mem_cgroup_lruvec(NODE_DATA(nid), memcg);
 	unsigned long nr = 0;
-	struct mem_cgroup_per_node *mz;
 	enum lru_list lru;
 
 	VM_BUG_ON((unsigned)nid >= nr_node_ids);
@@ -634,8 +634,7 @@ unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 	for_each_lru(lru) {
 		if (!(BIT(lru) & lru_mask))
 			continue;
-		mz = mem_cgroup_nodeinfo(memcg, nid);
-		nr += mz->lru_size[lru];
+		nr += mem_cgroup_get_lru_size(lruvec, lru);
 	}
 	return nr;
 }
@@ -1002,6 +1001,7 @@ out:
  * mem_cgroup_update_lru_size - account for adding or removing an lru page
  * @lruvec: mem_cgroup per zone lru vector
  * @lru: index of lru list the page is sitting on
+ * @zid: zone id of the accounted pages
  * @nr_pages: positive when adding or negative when removing
  *
  * This function must be called under lru_lock, just before a page is added
@@ -1009,27 +1009,25 @@ out:
  * so as to allow it to check that lru_size 0 is consistent with list_empty).
  */
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
-				int nr_pages)
+				int zid, int nr_pages)
 {
 	struct mem_cgroup_per_node *mz;
 	unsigned long *lru_size;
 	long size;
-	bool empty;
 
 	if (mem_cgroup_disabled())
 		return;
 
 	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
-	lru_size = mz->lru_size + lru;
-	empty = list_empty(lruvec->lists + lru);
+	lru_size = &mz->lru_zone_size[zid][lru];
 
 	if (nr_pages < 0)
 		*lru_size += nr_pages;
 
 	size = *lru_size;
-	if (WARN_ONCE(size < 0 || empty != !size,
-		"%s(%p, %d, %d): lru_size %ld but %sempty\n",
-		__func__, lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
+	if (WARN_ONCE(size < 0,
+		"%s(%p, %d, %d): lru_size %ld\n",
+		__func__, lruvec, lru, nr_pages, size)) {
 		VM_BUG_ON(1);
 		*lru_size = 0;
 	}

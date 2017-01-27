@@ -48,6 +48,12 @@ static char ocfs2_hb_ctl_path[OCFS2_MAX_HB_CTL_PATH] = "/sbin/ocfs2_hb_ctl";
  */
 static struct ocfs2_stack_plugin *active_stack;
 
+inline int ocfs2_is_o2cb_active(void)
+{
+	return !strcmp(active_stack->sp_name, OCFS2_STACK_PLUGIN_O2CB);
+}
+EXPORT_SYMBOL_GPL(ocfs2_is_o2cb_active);
+
 static struct ocfs2_stack_plugin *ocfs2_stack_lookup(const char *name)
 {
 	struct ocfs2_stack_plugin *p;

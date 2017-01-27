@@ -515,6 +515,9 @@ EXPORT_SYMBOL_GPL(skl_sst_init_fw);
 
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
+
+	if (ctx->dsp->fw)
+		release_firmware(ctx->dsp->fw);
 	skl_clear_module_table(ctx->dsp);
 	skl_freeup_uuid_list(ctx);
 	skl_ipc_free(&ctx->ipc);

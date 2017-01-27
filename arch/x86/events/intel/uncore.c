@@ -733,6 +733,7 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 			.start		= uncore_pmu_event_start,
 			.stop		= uncore_pmu_event_stop,
 			.read		= uncore_pmu_event_read,
+			.module		= THIS_MODULE,
 		};
 	} else {
 		pmu->pmu = *pmu->type->pmu;

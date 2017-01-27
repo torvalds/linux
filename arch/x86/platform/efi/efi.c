@@ -210,6 +210,70 @@ int __init efi_memblock_x86_reserve_range(void)
 	return 0;
 }
 
+#define OVERFLOW_ADDR_SHIFT	(64 - EFI_PAGE_SHIFT)
+#define OVERFLOW_ADDR_MASK	(U64_MAX << OVERFLOW_ADDR_SHIFT)
+#define U64_HIGH_BIT		(~(U64_MAX >> 1))
+
+static bool __init efi_memmap_entry_valid(const efi_memory_desc_t *md, int i)
+{
+	u64 end = (md->num_pages << EFI_PAGE_SHIFT) + md->phys_addr - 1;
+	u64 end_hi = 0;
+	char buf[64];
+
+	if (md->num_pages == 0) {
+		end = 0;
+	} else if (md->num_pages > EFI_PAGES_MAX ||
+		   EFI_PAGES_MAX - md->num_pages <
+		   (md->phys_addr >> EFI_PAGE_SHIFT)) {
+		end_hi = (md->num_pages & OVERFLOW_ADDR_MASK)
+			>> OVERFLOW_ADDR_SHIFT;
+
+		if ((md->phys_addr & U64_HIGH_BIT) && !(end & U64_HIGH_BIT))
+			end_hi += 1;
+	} else {
+		return true;
+	}
+
+	pr_warn_once(FW_BUG "Invalid EFI memory map entries:\n");
+
+	if (end_hi) {
+		pr_warn("mem%02u: %s range=[0x%016llx-0x%llx%016llx] (invalid)\n",
+			i, efi_md_typeattr_format(buf, sizeof(buf), md),
+			md->phys_addr, end_hi, end);
+	} else {
+		pr_warn("mem%02u: %s range=[0x%016llx-0x%016llx] (invalid)\n",
+			i, efi_md_typeattr_format(buf, sizeof(buf), md),
+			md->phys_addr, end);
+	}
+	return false;
+}
+
+static void __init efi_clean_memmap(void)
+{
+	efi_memory_desc_t *out = efi.memmap.map;
+	const efi_memory_desc_t *in = out;
+	const efi_memory_desc_t *end = efi.memmap.map_end;
+	int i, n_removal;
+
+	for (i = n_removal = 0; in < end; i++) {
+		if (efi_memmap_entry_valid(in, i)) {
+			if (out != in)
+				memcpy(out, in, efi.memmap.desc_size);
+			out = (void *)out + efi.memmap.desc_size;
+		} else {
+			n_removal++;
+		}
+		in = (void *)in + efi.memmap.desc_size;
+	}
+
+	if (n_removal > 0) {
+		u64 size = efi.memmap.nr_map - n_removal;
+
+		pr_warn("Removing %d invalid memory map entries.\n", n_removal);
+		efi_memmap_install(efi.memmap.phys_map, size);
+	}
+}
+
 void __init efi_print_memmap(void)
 {
 	efi_memory_desc_t *md;
@@ -471,6 +535,8 @@ void __init efi_init(void)
 			return;
 		}
 	}
+
+	efi_clean_memmap();
 
 	if (efi_enabled(EFI_DBG))
 		efi_print_memmap();

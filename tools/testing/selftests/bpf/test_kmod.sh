@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 SRC_TREE=../../../../
 

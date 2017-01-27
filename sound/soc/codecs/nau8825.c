@@ -561,9 +561,9 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 	nau8825_xtalk_backup(nau8825);
 	/* Config IIS as master to output signal by codec */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
-		NAU8825_I2S_MS_MASK | NAU8825_I2S_DRV_MASK |
+		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_MASTER |
-		(0x2 << NAU8825_I2S_DRV_SFT) | 0x1);
+		(0x2 << NAU8825_I2S_LRC_DIV_SFT) | 0x1);
 	/* Ramp up headphone volume to 0dB to get better performance and
 	 * avoid pop noise in headphone.
 	 */
@@ -657,7 +657,7 @@ static void nau8825_xtalk_clean(struct nau8825 *nau8825)
 		NAU8825_IRQ_RMS_EN, NAU8825_IRQ_RMS_EN);
 	/* Recover default value for IIS */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
-		NAU8825_I2S_MS_MASK | NAU8825_I2S_DRV_MASK |
+		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_SLAVE);
 	/* Restore value of specific register for cross talk */
 	nau8825_xtalk_restore(nau8825);
@@ -2006,7 +2006,8 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 			NAU8825_FLL_INTEGER_MASK, fll_param->fll_int);
 	/* FLL pre-scaler */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL4,
-			NAU8825_FLL_REF_DIV_MASK, fll_param->clk_ref_div);
+			NAU8825_FLL_REF_DIV_MASK,
+			fll_param->clk_ref_div << NAU8825_FLL_REF_DIV_SFT);
 	/* select divided VCO input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 		NAU8825_FLL_CLK_SW_MASK, NAU8825_FLL_CLK_SW_REF);
