@@ -837,11 +837,9 @@ static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 						  outbuf, outlen, outlen_actual,
 						  quiet, NULL, raw_rc);
 		} else {
-			netif_printk(efx, hw,
-				     rc == -EPERM ? KERN_DEBUG : KERN_ERR,
-				     efx->net_dev,
-				     "MC command 0x%x failed after proxy auth rc=%d\n",
-				     cmd, rc);
+			netif_cond_dbg(efx, hw, efx->net_dev, rc == -EPERM, err,
+				       "MC command 0x%x failed after proxy auth rc=%d\n",
+				       cmd, rc);
 
 			if (rc == -EINTR || rc == -EIO)
 				efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
@@ -1084,10 +1082,9 @@ void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
 		code = MCDI_DWORD(outbuf, ERR_CODE);
 	if (outlen >= MC_CMD_ERR_ARG_OFST + 4)
 		err_arg = MCDI_DWORD(outbuf, ERR_ARG);
-	netif_printk(efx, hw, rc == -EPERM ? KERN_DEBUG : KERN_ERR,
-		     efx->net_dev,
-		     "MC command 0x%x inlen %zu failed rc=%d (raw=%d) arg=%d\n",
-		     cmd, inlen, rc, code, err_arg);
+	netif_cond_dbg(efx, hw, efx->net_dev, rc == -EPERM, err,
+		       "MC command 0x%x inlen %zu failed rc=%d (raw=%d) arg=%d\n",
+		       cmd, inlen, rc, code, err_arg);
 }
 
 /* Switch to polled MCDI completions.  This can be called in various
@@ -2057,8 +2054,8 @@ fail:
 	/* Older firmware lacks GET_WORKAROUNDS and this isn't especially
 	 * terrifying.  The call site will have to deal with it though.
 	 */
-	netif_printk(efx, hw, rc == -ENOSYS ? KERN_DEBUG : KERN_ERR,
-		     efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	netif_cond_dbg(efx, hw, efx->net_dev, rc == -ENOSYS, err,
+		       "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

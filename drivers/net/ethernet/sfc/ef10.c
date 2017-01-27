@@ -4881,10 +4881,10 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 
 	rc = efx_ef10_filter_insert(efx, &spec, true);
 	if (rc < 0) {
-		netif_printk(efx, drv, rc == -EPERM ? KERN_DEBUG : KERN_WARNING,
-			     efx->net_dev,
-			     "%scast mismatch filter insert failed rc=%d\n",
-			     multicast ? "Multi" : "Uni", rc);
+		netif_cond_dbg(efx, drv, efx->net_dev,
+			       rc == -EPERM, warn,
+			       "%scast mismatch filter insert failed rc=%d\n",
+			       multicast ? "Multi" : "Uni", rc);
 	} else if (multicast) {
 		EFX_WARN_ON_PARANOID(vlan->mcdef != EFX_EF10_FILTER_ID_INVALID);
 		vlan->mcdef = efx_ef10_filter_get_unsafe_id(efx, rc);
