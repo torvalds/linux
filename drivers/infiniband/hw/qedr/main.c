@@ -576,8 +576,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	return 0;
 }
 
-void qedr_unaffiliated_event(void *context,
-			     u8 event_code)
+void qedr_unaffiliated_event(void *context, u8 event_code)
 {
 	pr_err("unaffiliated event not implemented yet\n");
 }
@@ -792,6 +791,9 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 		if (device_create_file(&dev->ibdev.dev, qedr_attributes[i]))
 			goto sysfs_err;
 
+	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
+
 	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
@@ -824,17 +826,22 @@ static void qedr_remove(struct qedr_dev *dev)
 	ib_dealloc_device(&dev->ibdev);
 }
 
-static int qedr_close(struct qedr_dev *dev)
+static void qedr_close(struct qedr_dev *dev)
 {
-	qedr_ib_dispatch_event(dev, 1, IB_EVENT_PORT_ERR);
-
-	return 0;
+	if (test_and_clear_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ERR);
 }
 
 static void qedr_shutdown(struct qedr_dev *dev)
 {
 	qedr_close(dev);
 	qedr_remove(dev);
+}
+
+static void qedr_open(struct qedr_dev *dev)
+{
+	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
+		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
 }
 
 static void qedr_mac_address_change(struct qedr_dev *dev)
@@ -863,7 +870,7 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 
 	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
 
-	qedr_ib_dispatch_event(dev, 1, IB_EVENT_GID_CHANGE);
+	qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_GID_CHANGE);
 
 	if (rc)
 		DP_ERR(dev, "Error updating mac filter\n");
@@ -877,7 +884,7 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
 {
 	switch (event) {
 	case QEDE_UP:
-		qedr_ib_dispatch_event(dev, 1, IB_EVENT_PORT_ACTIVE);
+		qedr_open(dev);
 		break;
 	case QEDE_DOWN:
 		qedr_close(dev);
