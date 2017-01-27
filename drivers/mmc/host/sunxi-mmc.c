@@ -683,41 +683,19 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 
 static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
 {
-	u32 reg = readl(host->reg_base + reg_off);
-	u32 delay;
-	unsigned long timeout;
-
 	if (!host->cfg->can_calibrate)
 		return 0;
 
-	reg &= ~(SDXC_CAL_DL_MASK << SDXC_CAL_DL_SW_SHIFT);
-	reg &= ~SDXC_CAL_DL_SW_EN;
-
-	writel(reg | SDXC_CAL_START, host->reg_base + reg_off);
-
-	dev_dbg(mmc_dev(host->mmc), "calibration started\n");
-
-	timeout = jiffies + HZ * SDXC_CAL_TIMEOUT;
-
-	while (!((reg = readl(host->reg_base + reg_off)) & SDXC_CAL_DONE)) {
-		if (time_before(jiffies, timeout))
-			cpu_relax();
-		else {
-			reg &= ~SDXC_CAL_START;
-			writel(reg, host->reg_base + reg_off);
-
-			return -ETIMEDOUT;
-		}
-	}
-
-	delay = (reg >> SDXC_CAL_DL_SHIFT) & SDXC_CAL_DL_MASK;
-
-	reg &= ~SDXC_CAL_START;
-	reg |= (delay << SDXC_CAL_DL_SW_SHIFT) | SDXC_CAL_DL_SW_EN;
-
-	writel(reg, host->reg_base + reg_off);
-
-	dev_dbg(mmc_dev(host->mmc), "calibration ended, reg is 0x%x\n", reg);
+	/*
+	 * FIXME:
+	 * This is not clear how the calibration is supposed to work
+	 * yet. The best rate have been obtained by simply setting the
+	 * delay to 0, as Allwinner does in its BSP.
+	 *
+	 * The only mode that doesn't have such a delay is HS400, that
+	 * is in itself a TODO.
+	 */
+	writel(SDXC_CAL_DL_SW_EN, host->reg_base + reg_off);
 
 	return 0;
 }
@@ -809,7 +787,13 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	if (ret)
 		return ret;
 
-	/* TODO: enable calibrate on sdc2 SDXC_REG_DS_DL_REG of A64 */
+	/*
+	 * FIXME:
+	 *
+	 * In HS400 we'll also need to calibrate the data strobe
+	 * signal. This should only happen on the MMC2 controller (at
+	 * least on the A64).
+	 */
 
 	return sunxi_mmc_oclk_onoff(host, 1);
 }
