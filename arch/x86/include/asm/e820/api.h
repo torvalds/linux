@@ -3,7 +3,6 @@
 
 #include <asm/e820/types.h>
 
-#ifndef __ASSEMBLY__
 /* see comment in arch/x86/kernel/e820.c */
 extern struct e820map *e820;
 extern struct e820map *e820_saved;
@@ -47,7 +46,6 @@ static inline bool is_ISA_range(u64 start, u64 end)
 	return start >= ISA_START_ADDRESS && end <= ISA_END_ADDRESS;
 }
 
-#endif /* __ASSEMBLY__ */
 #include <linux/ioport.h>
 
 #define HIGH_MEMORY	(1024*1024)
