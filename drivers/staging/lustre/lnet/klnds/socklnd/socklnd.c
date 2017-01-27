@@ -1108,12 +1108,12 @@ ksocknal_create_conn(lnet_ni_t *ni, struct ksock_route *route,
 		write_unlock_bh(global_lock);
 
 		if (!conn->ksnc_proto) {
-			 conn->ksnc_proto = &ksocknal_protocol_v3x;
+			conn->ksnc_proto = &ksocknal_protocol_v3x;
 #if SOCKNAL_VERSION_DEBUG
-			 if (*ksocknal_tunables.ksnd_protocol == 2)
-				 conn->ksnc_proto = &ksocknal_protocol_v2x;
-			 else if (*ksocknal_tunables.ksnd_protocol == 1)
-				 conn->ksnc_proto = &ksocknal_protocol_v1x;
+			if (*ksocknal_tunables.ksnd_protocol == 2)
+				conn->ksnc_proto = &ksocknal_protocol_v2x;
+			else if (*ksocknal_tunables.ksnd_protocol == 1)
+				conn->ksnc_proto = &ksocknal_protocol_v1x;
 #endif
 		}
 
