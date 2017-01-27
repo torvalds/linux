@@ -4519,8 +4519,8 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
  *
  * Return %true if @port is connected, %false otherwise.
  */
-static bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
-					 struct intel_digital_port *port)
+bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
+				  struct intel_digital_port *port)
 {
 	if (HAS_PCH_IBX(dev_priv))
 		return ibx_digital_port_connected(dev_priv, port);
