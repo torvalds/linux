@@ -3,9 +3,6 @@
 
 #include <uapi/asm/e820/types.h>
 
-/* Our map: */
-#define E820MAP			0x2d0
-
 /*
  * The legacy E820 BIOS limits us to 128 (E820MAX) nodes due to the
  * constrained space in the zeropage.
@@ -31,9 +28,13 @@
  * to allow more than three entries per node or otherwise refine
  * this size.
  */
-#ifndef __KERNEL__
-# define E820_X_MAX		E820MAX
-#endif
+
+#include <linux/numa.h>
+
+#define E820_X_MAX		(E820MAX + 3*MAX_NUMNODES)
+
+/* Our map: */
+#define E820MAP			0x2d0
 
 /* Number of entries in E820MAP: */
 #define E820NR			0x1e8
