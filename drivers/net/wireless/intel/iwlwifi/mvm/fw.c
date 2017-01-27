@@ -190,7 +190,7 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 	 * CPU2 paging CSS
 	 * CPU2 paging image (including instruction and data)
 	 */
-	for (sec_idx = 0; sec_idx < IWL_UCODE_SECTION_MAX; sec_idx++) {
+	for (sec_idx = 0; sec_idx < image->num_sec; sec_idx++) {
 		if (image->sec[sec_idx].offset == PAGING_SEPARATOR_SECTION) {
 			sec_idx++;
 			break;
@@ -201,7 +201,7 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 	 * If paging is enabled there should be at least 2 more sections left
 	 * (one for CSS and one for Paging data)
 	 */
-	if (sec_idx >= ARRAY_SIZE(image->sec) - 1) {
+	if (sec_idx >= image->num_sec - 1) {
 		IWL_ERR(mvm, "Paging: Missing CSS and/or paging sections\n");
 		iwl_free_fw_paging(mvm);
 		return -EINVAL;
@@ -259,9 +259,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 {
 	struct page *block;
 	dma_addr_t phys = 0;
-	int blk_idx = 0;
-	int order, num_of_pages;
-	int dma_enabled;
+	int blk_idx, order, num_of_pages, size, dma_enabled;
 
 	if (mvm->fw_paging_db[0].fw_paging_block)
 		return 0;
@@ -272,9 +270,8 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 	BUILD_BUG_ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
 
 	num_of_pages = image->paging_mem_size / FW_PAGING_SIZE;
-	mvm->num_of_paging_blk = ((num_of_pages - 1) /
-				    NUM_OF_PAGE_PER_GROUP) + 1;
-
+	mvm->num_of_paging_blk =
+		DIV_ROUND_UP(num_of_pages, NUM_OF_PAGE_PER_GROUP);
 	mvm->num_of_pages_in_last_blk =
 		num_of_pages -
 		NUM_OF_PAGE_PER_GROUP * (mvm->num_of_paging_blk - 1);
@@ -284,46 +281,13 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 		     mvm->num_of_paging_blk,
 		     mvm->num_of_pages_in_last_blk);
 
-	/* allocate block of 4Kbytes for paging CSS */
-	order = get_order(FW_PAGING_SIZE);
-	block = alloc_pages(GFP_KERNEL, order);
-	if (!block) {
-		/* free all the previous pages since we failed */
-		iwl_free_fw_paging(mvm);
-		return -ENOMEM;
-	}
-
-	mvm->fw_paging_db[blk_idx].fw_paging_block = block;
-	mvm->fw_paging_db[blk_idx].fw_paging_size = FW_PAGING_SIZE;
-
-	if (dma_enabled) {
-		phys = dma_map_page(mvm->trans->dev, block, 0,
-				    PAGE_SIZE << order, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(mvm->trans->dev, phys)) {
-			/*
-			 * free the previous pages and the current one since
-			 * we failed to map_page.
-			 */
-			iwl_free_fw_paging(mvm);
-			return -ENOMEM;
-		}
-		mvm->fw_paging_db[blk_idx].fw_paging_phys = phys;
-	} else {
-		mvm->fw_paging_db[blk_idx].fw_paging_phys = PAGING_ADDR_SIG |
-			blk_idx << BLOCK_2_EXP_SIZE;
-	}
-
-	IWL_DEBUG_FW(mvm,
-		     "Paging: allocated 4K(CSS) bytes (order %d) for firmware paging.\n",
-		     order);
-
 	/*
-	 * allocate blocks in dram.
-	 * since that CSS allocated in fw_paging_db[0] loop start from index 1
+	 * Allocate CSS and paging blocks in dram.
 	 */
-	for (blk_idx = 1; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
-		/* allocate block of PAGING_BLOCK_SIZE (32K) */
-		order = get_order(PAGING_BLOCK_SIZE);
+	for (blk_idx = 0; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
+		/* For CSS allocate 4KB, for others PAGING_BLOCK_SIZE (32K) */
+		size = blk_idx ? PAGING_BLOCK_SIZE : FW_PAGING_SIZE;
+		order = get_order(size);
 		block = alloc_pages(GFP_KERNEL, order);
 		if (!block) {
 			/* free all the previous pages since we failed */
@@ -332,7 +296,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 		}
 
 		mvm->fw_paging_db[blk_idx].fw_paging_block = block;
-		mvm->fw_paging_db[blk_idx].fw_paging_size = PAGING_BLOCK_SIZE;
+		mvm->fw_paging_db[blk_idx].fw_paging_size = size;
 
 		if (dma_enabled) {
 			phys = dma_map_page(mvm->trans->dev, block, 0,
@@ -353,9 +317,14 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 				blk_idx << BLOCK_2_EXP_SIZE;
 		}
 
-		IWL_DEBUG_FW(mvm,
-			     "Paging: allocated 32K bytes (order %d) for firmware paging.\n",
-			     order);
+		if (!blk_idx)
+			IWL_DEBUG_FW(mvm,
+				     "Paging: allocated 4K(CSS) bytes (order %d) for firmware paging.\n",
+				     order);
+		else
+			IWL_DEBUG_FW(mvm,
+				     "Paging: allocated 32K bytes (order %d) for firmware paging.\n",
+				     order);
 	}
 
 	return 0;

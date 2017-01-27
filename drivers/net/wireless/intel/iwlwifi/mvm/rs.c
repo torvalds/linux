@@ -161,9 +161,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
-	struct iwl_mvm_sta *mvmsta;
-	struct iwl_mvm_vif *mvmvif;
-
 	if (!sta->ht_cap.ht_supported)
 		return false;
 
@@ -175,9 +172,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		return false;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
 
 	if (mvm->nvm_data->sku_cap_mimo_disabled)
 		return false;
@@ -3071,7 +3065,7 @@ static void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
 
 void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 {
-	u8 nss = 0, mcs = 0;
+	u8 nss = 0;
 
 	spin_lock(&mvm->drv_stats_lock);
 
@@ -3099,11 +3093,9 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 
 	if (rate & RATE_MCS_HT_MSK) {
 		mvm->drv_rx_stats.ht_frames++;
-		mcs = rate & RATE_HT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_HT_MCS_NSS_MSK) >> RATE_HT_MCS_NSS_POS) + 1;
 	} else if (rate & RATE_MCS_VHT_MSK) {
 		mvm->drv_rx_stats.vht_frames++;
-		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK) >>
 		       RATE_VHT_MCS_NSS_POS) + 1;
 	} else {

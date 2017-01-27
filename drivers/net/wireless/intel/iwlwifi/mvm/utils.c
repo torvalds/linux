@@ -693,10 +693,6 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			.tid = cfg->tid,
 		};
 
-		/* Set sta_id in the command, if it exists */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			cmd.sta_id = cfg->sta_id;
-
 		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
 					 wdg_timeout);
 		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd),
@@ -706,8 +702,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	}
 }
 
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			 u8 tid, u8 flags)
+int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u8 tid, u8 flags)
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
@@ -720,7 +716,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	if (WARN_ON(mvm->queue_info[queue].hw_queue_refcount == 0)) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		return;
+		return 0;
 	}
 
 	mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);
@@ -760,7 +756,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	/* If the queue is still enabled - nothing left to do in this func */
 	if (cmd.action == SCD_CFG_ENABLE_QUEUE) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		return;
+		return 0;
 	}
 
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
@@ -791,6 +787,8 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	if (ret)
 		IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
 			queue, ret);
+
+	return ret;
 }
 
 /**

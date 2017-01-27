@@ -1657,8 +1657,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
  * Disable a TXQ.
  * Note that in non-DQA mode the %mac80211_queue and %tid params are ignored.
  */
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			 u8 tid, u8 flags);
+int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u8 tid, u8 flags);
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
 
 /* Return a bitmask with all the hw supported queues, except for the

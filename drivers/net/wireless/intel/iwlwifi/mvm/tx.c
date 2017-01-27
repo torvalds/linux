@@ -102,14 +102,13 @@ iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
 #define OPT_HDR(type, skb, off) \
 	(type *)(skb_network_header(skb) + (off))
 
-static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
-			    struct ieee80211_hdr *hdr,
-			    struct ieee80211_tx_info *info,
-			    struct iwl_tx_cmd *tx_cmd)
+static u16 iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
+			   struct ieee80211_hdr *hdr,
+			   struct ieee80211_tx_info *info)
 {
+	u16 offload_assist = 0;
 #if IS_ENABLED(CONFIG_INET)
 	u16 mh_len = ieee80211_hdrlen(hdr->frame_control);
-	u16 offload_assist = le16_to_cpu(tx_cmd->offload_assist);
 	u8 protocol = 0;
 
 	/*
@@ -117,7 +116,7 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * compute it
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL || IWL_MVM_SW_TX_CSUM_OFFLOAD)
-		return;
+		goto out;
 
 	/* We do not expect to be requested to csum stuff we do not support */
 	if (WARN_ONCE(!(mvm->hw->netdev_features & IWL_TX_CSUM_NETIF_FLAGS) ||
@@ -125,7 +124,7 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 		       skb->protocol != htons(ETH_P_IPV6)),
 		      "No support for requested checksum\n")) {
 		skb_checksum_help(skb);
-		return;
+		goto out;
 	}
 
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -145,7 +144,7 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 			    protocol != NEXTHDR_HOP &&
 			    protocol != NEXTHDR_DEST) {
 				skb_checksum_help(skb);
-				return;
+				goto out;
 			}
 
 			hp = OPT_HDR(struct ipv6_opt_hdr, skb, off);
@@ -159,7 +158,7 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (protocol != IPPROTO_TCP && protocol != IPPROTO_UDP) {
 		WARN_ON_ONCE(1);
 		skb_checksum_help(skb);
-		return;
+		goto out;
 	}
 
 	/* enable L4 csum */
@@ -191,8 +190,9 @@ static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
 	mh_len /= 2;
 	offload_assist |= mh_len << TX_CMD_OFFLD_MH_SIZE;
 
-	tx_cmd->offload_assist = cpu_to_le16(offload_assist);
+out:
 #endif
+	return offload_assist;
 }
 
 /*
@@ -295,7 +295,52 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !(tx_cmd->offload_assist & cpu_to_le16(BIT(TX_CMD_OFFLD_AMSDU))))
 		tx_cmd->offload_assist |= cpu_to_le16(BIT(TX_CMD_OFFLD_PAD));
 
-	iwl_mvm_tx_csum(mvm, skb, hdr, info, tx_cmd);
+	tx_cmd->offload_assist |=
+		cpu_to_le16(iwl_mvm_tx_csum(mvm, skb, hdr, info));
+}
+
+static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
+			       struct ieee80211_tx_info *info,
+			       struct ieee80211_sta *sta)
+{
+	int rate_idx;
+	u8 rate_plcp;
+	u32 rate_flags;
+
+	/* HT rate doesn't make sense for a non data frame */
+	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS,
+		  "Got an HT rate (flags:0x%x/mcs:%d) for a non data frame\n",
+		  info->control.rates[0].flags,
+		  info->control.rates[0].idx);
+
+	rate_idx = info->control.rates[0].idx;
+	/* if the rate isn't a well known legacy rate, take the lowest one */
+	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
+		rate_idx = rate_lowest_index(
+				&mvm->nvm_data->bands[info->band], sta);
+
+	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
+	if (info->band == NL80211_BAND_5GHZ)
+		rate_idx += IWL_FIRST_OFDM_RATE;
+
+	/* For 2.4 GHZ band, check that there is no need to remap */
+	BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+
+	/* Get PLCP rate for tx_cmd->rate_n_flags */
+	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
+
+	if (info->band == NL80211_BAND_2GHZ &&
+	    !iwl_mvm_bt_coex_is_shared_ant_avail(mvm))
+		rate_flags = mvm->cfg->non_shared_ant << RATE_MCS_ANT_POS;
+	else
+		rate_flags =
+			BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
+
+	/* Set CCK flag as needed */
+	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
+		rate_flags |= RATE_MCS_CCK_MSK;
+
+	return (u32)rate_plcp | rate_flags;
 }
 
 /*
@@ -305,10 +350,6 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 			    struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, __le16 fc)
 {
-	u32 rate_flags;
-	int rate_idx;
-	u8 rate_plcp;
-
 	/* Set retry limit on RTS packets */
 	tx_cmd->rts_retry_limit = IWL_RTS_DFAULT_RETRY_LIMIT;
 
@@ -337,46 +378,12 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 			cpu_to_le32(TX_CMD_FLG_ACK | TX_CMD_FLG_BAR);
 	}
 
-	/* HT rate doesn't make sense for a non data frame */
-	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS,
-		  "Got an HT rate (flags:0x%x/mcs:%d) for a non data frame (fc:0x%x)\n",
-		  info->control.rates[0].flags,
-		  info->control.rates[0].idx,
-		  le16_to_cpu(fc));
-
-	rate_idx = info->control.rates[0].idx;
-	/* if the rate isn't a well known legacy rate, take the lowest one */
-	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
-		rate_idx = rate_lowest_index(
-				&mvm->nvm_data->bands[info->band], sta);
-
-	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
-	if (info->band == NL80211_BAND_5GHZ)
-		rate_idx += IWL_FIRST_OFDM_RATE;
-
-	/* For 2.4 GHZ band, check that there is no need to remap */
-	BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
-
-	/* Get PLCP rate for tx_cmd->rate_n_flags */
-	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
-
 	mvm->mgmt_last_antenna_idx =
 		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
 				     mvm->mgmt_last_antenna_idx);
 
-	if (info->band == NL80211_BAND_2GHZ &&
-	    !iwl_mvm_bt_coex_is_shared_ant_avail(mvm))
-		rate_flags = mvm->cfg->non_shared_ant << RATE_MCS_ANT_POS;
-	else
-		rate_flags =
-			BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
-
-	/* Set CCK flag as needed */
-	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
-		rate_flags |= RATE_MCS_CCK_MSK;
-
 	/* Set the rate in the TX cmd */
-	tx_cmd->rate_n_flags = cpu_to_le32((u32)rate_plcp | rate_flags);
+	tx_cmd->rate_n_flags = cpu_to_le32(iwl_mvm_get_tx_rate(mvm, info, sta));
 }
 
 static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,

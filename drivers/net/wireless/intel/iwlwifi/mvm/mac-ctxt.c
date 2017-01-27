@@ -1565,7 +1565,7 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	rx_status.flag |= RX_FLAG_MACTIME_PLCP_START;
 	rx_status.device_timestamp = le32_to_cpu(sb->system_time);
 	rx_status.band =
-		(sb->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
+		(sb->band & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
 				NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	rx_status.freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(sb->channel),
