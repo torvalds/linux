@@ -2189,8 +2189,7 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	struct chcr_context *ctx = crypto_aead_ctx(aead);
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(ctx);
 	struct chcr_gcm_ctx *gctx = GCM_CTX(aeadctx);
-	struct blkcipher_desc h_desc;
-	struct scatterlist src[1];
+	struct crypto_cipher *cipher;
 	unsigned int ck_size;
 	int ret = 0, key_ctx_size = 0;
 
@@ -2223,27 +2222,26 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 						CHCR_KEYCTX_MAC_KEY_SIZE_128,
 						0, 0,
 						key_ctx_size >> 4);
-	/* Calculate the H = CIPH(K, 0 repeated 16 times) using sync aes
-	 * blkcipher It will go on key context
+	/* Calculate the H = CIPH(K, 0 repeated 16 times).
+	 * It will go in key context
 	 */
-	h_desc.tfm = crypto_alloc_blkcipher("cbc(aes-generic)", 0, 0);
-	if (IS_ERR(h_desc.tfm)) {
+	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
+	if (IS_ERR(cipher)) {
 		aeadctx->enckey_len = 0;
 		ret = -ENOMEM;
 		goto out;
 	}
-	h_desc.flags = 0;
-	ret = crypto_blkcipher_setkey(h_desc.tfm, key, keylen);
+
+	ret = crypto_cipher_setkey(cipher, key, keylen);
 	if (ret) {
 		aeadctx->enckey_len = 0;
 		goto out1;
 	}
 	memset(gctx->ghash_h, 0, AEAD_H_SIZE);
-	sg_init_one(&src[0], gctx->ghash_h, AEAD_H_SIZE);
-	ret = crypto_blkcipher_encrypt(&h_desc, &src[0], &src[0], AEAD_H_SIZE);
+	crypto_cipher_encrypt_one(cipher, gctx->ghash_h, gctx->ghash_h);
 
 out1:
-	crypto_free_blkcipher(h_desc.tfm);
+	crypto_free_cipher(cipher);
 out:
 	return ret;
 }
