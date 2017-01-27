@@ -171,8 +171,8 @@ static const struct v4l2_mmal_scene_config scene_configs[] = {
 /* control handlers*/
 
 static int ctrl_set_rational(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			     struct v4l2_ctrl *ctrl,
+			     const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	struct mmal_parameter_rational rational_value;
 	struct vchiq_mmal_port *control;
@@ -189,8 +189,8 @@ static int ctrl_set_rational(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_value(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			  struct v4l2_ctrl *ctrl,
+			  const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
@@ -205,8 +205,8 @@ static int ctrl_set_value(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_iso(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			struct v4l2_ctrl *ctrl,
+			const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
@@ -235,15 +235,15 @@ static int ctrl_set_iso(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_value_ev(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			     struct v4l2_ctrl *ctrl,
+			     const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	s32 s32_value;
 	struct vchiq_mmal_port *control;
 
 	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
 
-	s32_value = (ctrl->val-12)*2;	/* Convert from index to 1/6ths */
+	s32_value = (ctrl->val - 12) * 2;	/* Convert from index to 1/6ths */
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
 					     mmal_ctrl->mmal_id,
@@ -251,8 +251,8 @@ static int ctrl_set_value_ev(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_rotate(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			   struct v4l2_ctrl *ctrl,
+			   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret;
 	u32 u32_value;
@@ -282,8 +282,8 @@ static int ctrl_set_rotate(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_flip(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			 struct v4l2_ctrl *ctrl,
+			 const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret;
 	u32 u32_value;
@@ -322,12 +322,11 @@ static int ctrl_set_flip(struct bm2835_mmal_dev *dev,
 					    &u32_value, sizeof(u32_value));
 
 	return ret;
-
 }
 
 static int ctrl_set_exposure(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			     struct v4l2_ctrl *ctrl,
+			     const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	enum mmal_parameter_exposuremode exp_mode = dev->exposure_mode_user;
 	u32 shutter_speed = 0;
@@ -362,15 +361,15 @@ static int ctrl_set_exposure(struct bm2835_mmal_dev *dev,
 			shutter_speed = dev->manual_shutter_speed;
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_SHUTTER_SPEED,
-					&shutter_speed,
-					sizeof(shutter_speed));
+						    control,
+						    MMAL_PARAMETER_SHUTTER_SPEED,
+						    &shutter_speed,
+						    sizeof(shutter_speed));
 		ret += vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_EXPOSURE_MODE,
-					&exp_mode,
-					sizeof(u32));
+						     control,
+						     MMAL_PARAMETER_EXPOSURE_MODE,
+						     &exp_mode,
+						     sizeof(u32));
 		dev->exposure_mode_active = exp_mode;
 	}
 	/* exposure_dynamic_framerate (V4L2_CID_EXPOSURE_AUTO_PRIORITY) should
@@ -382,8 +381,8 @@ static int ctrl_set_exposure(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
-			   struct v4l2_ctrl *ctrl,
-			   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+				  struct v4l2_ctrl *ctrl,
+				  const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	switch (ctrl->val) {
 	case V4L2_EXPOSURE_METERING_AVERAGE:
@@ -403,7 +402,6 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
 		break;
 	*/
-
 	}
 
 	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
@@ -420,8 +418,8 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_flicker_avoidance(struct bm2835_mmal_dev *dev,
-			   struct v4l2_ctrl *ctrl,
-			   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+				      struct v4l2_ctrl *ctrl,
+				      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
@@ -449,8 +447,8 @@ static int ctrl_set_flicker_avoidance(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_awb_mode(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			     struct v4l2_ctrl *ctrl,
+			     const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *control;
@@ -497,7 +495,6 @@ static int ctrl_set_awb_mode(struct bm2835_mmal_dev *dev,
 	case V4L2_WHITE_BALANCE_SHADE:
 		u32_value = MMAL_PARAM_AWBMODE_SHADE;
 		break;
-
 	}
 
 	return vchiq_mmal_port_parameter_set(dev->instance, control,
@@ -506,8 +503,8 @@ static int ctrl_set_awb_mode(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_awb_gains(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			      struct v4l2_ctrl *ctrl,
+			      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	struct vchiq_mmal_port *control;
 	struct mmal_parameter_awbgains gains;
@@ -529,8 +526,8 @@ static int ctrl_set_awb_gains(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
-		   struct v4l2_ctrl *ctrl,
-		   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+				 struct v4l2_ctrl *ctrl,
+				 const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret = -EINVAL;
 	int i, j;
@@ -539,7 +536,6 @@ static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
 
 	for (i = 0; i < ARRAY_SIZE(v4l2_to_mmal_effects_values); i++) {
 		if (ctrl->val == v4l2_to_mmal_effects_values[i].v4l2_effect) {
-
 			imagefx.effect =
 				v4l2_to_mmal_effects_values[i].mmal_effect;
 			imagefx.num_effect_params =
@@ -588,8 +584,8 @@ exit:
 }
 
 static int ctrl_set_colfx(struct bm2835_mmal_dev *dev,
-		   struct v4l2_ctrl *ctrl,
-		   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			  struct v4l2_ctrl *ctrl,
+			  const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret = -EINVAL;
 	struct vchiq_mmal_port *control;
@@ -600,8 +596,9 @@ static int ctrl_set_colfx(struct bm2835_mmal_dev *dev,
 	dev->colourfx.enable = ctrl->val & 0xff;
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance, control,
-					MMAL_PARAMETER_COLOUR_EFFECT,
-					&dev->colourfx, sizeof(dev->colourfx));
+					    MMAL_PARAMETER_COLOUR_EFFECT,
+					    &dev->colourfx,
+					    sizeof(dev->colourfx));
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 		 "%s: After: mmal_ctrl:%p ctrl id:0x%x ctrl val:%d ret %d(%d)\n",
@@ -611,8 +608,8 @@ static int ctrl_set_colfx(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_bitrate(struct bm2835_mmal_dev *dev,
-		   struct v4l2_ctrl *ctrl,
-		   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			    struct v4l2_ctrl *ctrl,
+			    const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret;
 	struct vchiq_mmal_port *encoder_out;
@@ -629,8 +626,8 @@ static int ctrl_set_bitrate(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_bitrate_mode(struct bm2835_mmal_dev *dev,
-		   struct v4l2_ctrl *ctrl,
-		   const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+				 struct v4l2_ctrl *ctrl,
+				 const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 bitrate_mode;
 	struct vchiq_mmal_port *encoder_out;
@@ -649,15 +646,15 @@ static int ctrl_set_bitrate_mode(struct bm2835_mmal_dev *dev,
 	}
 
 	vchiq_mmal_port_parameter_set(dev->instance, encoder_out,
-					     mmal_ctrl->mmal_id,
+				      mmal_ctrl->mmal_id,
 					     &bitrate_mode,
 					     sizeof(bitrate_mode));
 	return 0;
 }
 
 static int ctrl_set_image_encode_output(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+					struct v4l2_ctrl *ctrl,
+					const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *jpeg_out;
@@ -672,8 +669,8 @@ static int ctrl_set_image_encode_output(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_video_encode_param_output(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+					      struct v4l2_ctrl *ctrl,
+					      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	u32 u32_value;
 	struct vchiq_mmal_port *vid_enc_ctl;
@@ -688,8 +685,8 @@ static int ctrl_set_video_encode_param_output(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_video_encode_profile_level(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+					       struct v4l2_ctrl *ctrl,
+					       const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	struct mmal_parameter_video_profile param;
 	int ret = 0;
@@ -791,7 +788,7 @@ static int ctrl_set_video_encode_profile_level(struct bm2835_mmal_dev *dev,
 		}
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
-			&dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0],
+						    &dev->component[MMAL_COMPONENT_VIDEO_ENCODE]->output[0],
 			mmal_ctrl->mmal_id,
 			&param, sizeof(param));
 	}
@@ -799,16 +796,16 @@ static int ctrl_set_video_encode_profile_level(struct bm2835_mmal_dev *dev,
 }
 
 static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
-		      struct v4l2_ctrl *ctrl,
-		      const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
+			       struct v4l2_ctrl *ctrl,
+			       const struct bm2835_mmal_v4l2_ctrl *mmal_ctrl)
 {
 	int ret = 0;
 	int shutter_speed;
 	struct vchiq_mmal_port *control;
 
 	v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
-		"scene mode selected %d, was %d\n", ctrl->val,
-		dev->scene_mode);
+		 "scene mode selected %d, was %d\n", ctrl->val,
+		 dev->scene_mode);
 	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
 
 	if (ctrl->val == dev->scene_mode)
@@ -824,25 +821,25 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 			shutter_speed = 0;
 
 		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			"%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
-			__func__, shutter_speed, dev->exposure_mode_user,
-			dev->metering_mode);
+			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 __func__, shutter_speed, dev->exposure_mode_user,
+			 dev->metering_mode);
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_SHUTTER_SPEED,
-					&shutter_speed,
-					sizeof(shutter_speed));
+						    control,
+						    MMAL_PARAMETER_SHUTTER_SPEED,
+						    &shutter_speed,
+						    sizeof(shutter_speed));
 		ret += vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_EXPOSURE_MODE,
-					&dev->exposure_mode_user,
-					sizeof(u32));
+						     control,
+						     MMAL_PARAMETER_EXPOSURE_MODE,
+						     &dev->exposure_mode_user,
+						     sizeof(u32));
 		dev->exposure_mode_active = dev->exposure_mode_user;
 		ret += vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_EXP_METERING_MODE,
-					&dev->metering_mode,
-					sizeof(u32));
+						     control,
+						     MMAL_PARAMETER_EXP_METERING_MODE,
+						     &dev->metering_mode,
+						     sizeof(u32));
 		ret += set_framerate_params(dev);
 	} else {
 		/* Set up scene mode */
@@ -875,33 +872,32 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		metering_mode = scene->metering_mode;
 
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			"%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
-			__func__, shutter_speed, exposure_mode, metering_mode);
+			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 __func__, shutter_speed, exposure_mode, metering_mode);
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance, control,
-					MMAL_PARAMETER_SHUTTER_SPEED,
-					&shutter_speed,
-					sizeof(shutter_speed));
-		ret += vchiq_mmal_port_parameter_set(dev->instance,
-					control,
-					MMAL_PARAMETER_EXPOSURE_MODE,
-					&exposure_mode,
-					sizeof(u32));
+						    MMAL_PARAMETER_SHUTTER_SPEED,
+						    &shutter_speed,
+						    sizeof(shutter_speed));
+		ret += vchiq_mmal_port_parameter_set(dev->instance, control,
+						     MMAL_PARAMETER_EXPOSURE_MODE,
+						     &exposure_mode,
+						     sizeof(u32));
 		dev->exposure_mode_active = exposure_mode;
 		ret += vchiq_mmal_port_parameter_set(dev->instance, control,
-					MMAL_PARAMETER_EXPOSURE_MODE,
-					&exposure_mode,
-					sizeof(u32));
+						     MMAL_PARAMETER_EXPOSURE_MODE,
+						     &exposure_mode,
+						     sizeof(u32));
 		ret += vchiq_mmal_port_parameter_set(dev->instance, control,
-					MMAL_PARAMETER_EXP_METERING_MODE,
-					&metering_mode,
-					sizeof(u32));
+						     MMAL_PARAMETER_EXP_METERING_MODE,
+						     &metering_mode,
+						     sizeof(u32));
 		ret += set_framerate_params(dev);
 	}
 	if (ret) {
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			"%s: Setting scene to %d, ret=%d\n",
-			__func__, ctrl->val, ret);
+			 "%s: Setting scene to %d, ret=%d\n",
+			 __func__, ctrl->val, ret);
 		ret = -EINVAL;
 	}
 	return 0;
@@ -925,7 +921,7 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	ret = mmal_ctrl->setter(dev, ctrl, mmal_ctrl);
 	if (ret)
 		pr_warn("ctrl id:%d/MMAL param %08X- returned ret %d\n",
-				ctrl->id, mmal_ctrl->mmal_id, ret);
+			ctrl->id, mmal_ctrl->mmal_id, ret);
 	if (mmal_ctrl->ignore_errors)
 		ret = 0;
 	return ret;
@@ -934,8 +930,6 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops bm2835_mmal_ctrl_ops = {
 	.s_ctrl = bm2835_mmal_s_ctrl,
 };
-
-
 
 static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
@@ -1005,7 +999,7 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
 		V4L2_CID_EXPOSURE_ABSOLUTE, MMAL_CONTROL_TYPE_STD,
 		/* Units of 100usecs */
-		1, 1*1000*10, 100*10, 1, NULL,
+		1, 1 * 1000 * 10, 100 * 10, 1, NULL,
 		MMAL_PARAMETER_SHUTTER_SPEED,
 		&ctrl_set_exposure,
 		false
@@ -1013,7 +1007,7 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
 		V4L2_CID_AUTO_EXPOSURE_BIAS, MMAL_CONTROL_TYPE_INT_MENU,
 		0, ARRAY_SIZE(ev_bias_qmenu) - 1,
-		(ARRAY_SIZE(ev_bias_qmenu)+1)/2 - 1, 0, ev_bias_qmenu,
+		(ARRAY_SIZE(ev_bias_qmenu) + 1) / 2 - 1, 0, ev_bias_qmenu,
 		MMAL_PARAMETER_EXPOSURE_COMP,
 		&ctrl_set_value_ev,
 		false
@@ -1101,7 +1095,7 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	},
 	{
 		V4L2_CID_MPEG_VIDEO_BITRATE, MMAL_CONTROL_TYPE_STD,
-		25*1000, 25*1000*1000, 10*1000*1000, 25*1000, NULL,
+		25 * 1000, 25 * 1000 * 1000, 10 * 1000 * 1000, 25 * 1000, NULL,
 		MMAL_PARAMETER_VIDEO_BIT_RATE,
 		&ctrl_set_bitrate,
 		false
@@ -1192,8 +1186,8 @@ int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev)
 						   &v4l2_ctrls[c]);
 			if (!v4l2_ctrls[c].ignore_errors && ret) {
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-					"Failed when setting default values for ctrl %d\n",
-					c);
+					 "Failed when setting default values for ctrl %d\n",
+					 c);
 				break;
 			}
 		}
@@ -1207,7 +1201,7 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 	int ret;
 
 	if ((dev->exposure_mode_active != MMAL_PARAM_EXPOSUREMODE_OFF) &&
-	     (dev->exp_auto_priority)) {
+	    (dev->exp_auto_priority)) {
 		/* Variable FPS. Define min FPS as 1fps.
 		 * Max as max defined FPS.
 		 */
@@ -1224,35 +1218,32 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 	}
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			 "Set fps range to %d/%d to %d/%d\n",
-			 fps_range.fps_low.num,
-			 fps_range.fps_low.den,
-			 fps_range.fps_high.num,
-			 fps_range.fps_high.den
-		 );
+		 "Set fps range to %d/%d to %d/%d\n",
+		 fps_range.fps_low.num,
+		 fps_range.fps_low.den,
+		 fps_range.fps_high.num,
+		 fps_range.fps_high.den);
 
 	ret = vchiq_mmal_port_parameter_set(dev->instance,
-				      &dev->component[MMAL_COMPONENT_CAMERA]->
-					output[MMAL_CAMERA_PORT_PREVIEW],
-				      MMAL_PARAMETER_FPS_RANGE,
-				      &fps_range, sizeof(fps_range));
+					    &dev->component[MMAL_COMPONENT_CAMERA]->
+					    output[MMAL_CAMERA_PORT_PREVIEW],
+					    MMAL_PARAMETER_FPS_RANGE,
+					    &fps_range, sizeof(fps_range));
 	ret += vchiq_mmal_port_parameter_set(dev->instance,
-				      &dev->component[MMAL_COMPONENT_CAMERA]->
-					output[MMAL_CAMERA_PORT_VIDEO],
-				      MMAL_PARAMETER_FPS_RANGE,
-				      &fps_range, sizeof(fps_range));
+					     &dev->component[MMAL_COMPONENT_CAMERA]->
+					     output[MMAL_CAMERA_PORT_VIDEO],
+					     MMAL_PARAMETER_FPS_RANGE,
+					     &fps_range, sizeof(fps_range));
 	ret += vchiq_mmal_port_parameter_set(dev->instance,
-				      &dev->component[MMAL_COMPONENT_CAMERA]->
-					output[MMAL_CAMERA_PORT_CAPTURE],
-				      MMAL_PARAMETER_FPS_RANGE,
-				      &fps_range, sizeof(fps_range));
+					     &dev->component[MMAL_COMPONENT_CAMERA]->
+					     output[MMAL_CAMERA_PORT_CAPTURE],
+					     MMAL_PARAMETER_FPS_RANGE,
+					     &fps_range, sizeof(fps_range));
 	if (ret)
 		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
-		 "Failed to set fps ret %d\n",
-		 ret);
+			 "Failed to set fps ret %d\n", ret);
 
 	return ret;
-
 }
 
 int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
@@ -1318,7 +1309,7 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 
 	if (hdl->error) {
 		pr_err("error adding control %d/%d id 0x%x\n", c,
-			 V4L2_CTRL_COUNT, ctrl->id);
+		       V4L2_CTRL_COUNT, ctrl->id);
 		return hdl->error;
 	}
 
@@ -1328,7 +1319,7 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 		switch (ctrl->type) {
 		case MMAL_CONTROL_TYPE_CLUSTER:
 			v4l2_ctrl_auto_cluster(ctrl->min,
-					       &dev->ctrls[c+1],
+					       &dev->ctrls[c + 1],
 					       ctrl->max,
 					       ctrl->def);
 			break;
@@ -1338,7 +1329,6 @@ int bm2835_mmal_init_controls(struct bm2835_mmal_dev *dev,
 		case MMAL_CONTROL_TYPE_INT_MENU:
 			break;
 		}
-
 	}
 
 	return 0;

@@ -637,7 +637,6 @@ static void service_callback(void *param,
 
 		/* handling is different for buffer messages */
 		switch (msg->h.type) {
-
 		case MMAL_MSG_TYPE_BUFFER_FROM_HOST:
 			vchi_held_msg_release(&msg_handle);
 			break;
@@ -722,7 +721,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 	if (payload_len >
 	    (MMAL_MSG_MAX_SIZE - sizeof(struct mmal_msg_header))) {
 		pr_err("payload length %d exceeds max:%d\n", payload_len,
-			 (MMAL_MSG_MAX_SIZE - sizeof(struct mmal_msg_header)));
+		       (MMAL_MSG_MAX_SIZE - sizeof(struct mmal_msg_header)));
 		return -EINVAL;
 	}
 
@@ -749,7 +748,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&msg_context.u.sync.cmplt, 3*HZ);
+	ret = wait_for_completion_timeout(&msg_context.u.sync.cmplt, 3 * HZ);
 	if (ret <= 0) {
 		pr_err("error %d waiting for sync completion\n", ret);
 		if (ret == 0)
@@ -807,7 +806,6 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 
 static void port_to_mmal_msg(struct vchiq_mmal_port *port, struct mmal_port *p)
 {
-
 	/* todo do readonly fields need setting at all? */
 	p->type = port->type;
 	p->index = port->index;
@@ -883,7 +881,6 @@ release_msg:
 	vchi_held_msg_release(&rmsg_handle);
 
 	return ret;
-
 }
 
 /* use port info get message to retrive port information */
@@ -1334,7 +1331,7 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 		       rmsg->u.port_parameter_get_reply.size);
 
 	pr_debug("%s:result:%d component:0x%x port:%d parameter:%d\n", __func__,
-	        ret, port->component->handle, port->handle, parameter_id);
+		 ret, port->component->handle, port->handle, parameter_id);
 
 release_msg:
 	vchi_held_msg_release(&rmsg_handle);
@@ -1358,12 +1355,12 @@ static int port_disable(struct vchiq_mmal_instance *instance,
 	ret = port_action_port(instance, port,
 			       MMAL_MSG_PORT_ACTION_TYPE_DISABLE);
 	if (ret == 0) {
-
 		/* drain all queued buffers on port */
 		spin_lock_irqsave(&port->slock, flags);
 
 		list_for_each_safe(buf_head, q, &port->buffers) {
 			struct mmal_buffer *mmalbuf;
+
 			mmalbuf = list_entry(buf_head, struct mmal_buffer,
 					     list);
 			list_del(buf_head);
@@ -1415,6 +1412,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 		hdr_count = 1;
 		list_for_each(buf_head, &port->buffers) {
 			struct mmal_buffer *mmalbuf;
+
 			mmalbuf = list_entry(buf_head, struct mmal_buffer,
 					     list);
 			ret = buffer_from_host(instance, port, mmalbuf);
@@ -1456,7 +1454,6 @@ release_unlock:
 	mutex_unlock(&instance->vchiq_mutex);
 
 	return ret;
-
 }
 
 int vchiq_mmal_port_parameter_set(struct vchiq_mmal_instance *instance,
