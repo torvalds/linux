@@ -1656,11 +1656,7 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-#define snd_soc_of_parse_audio_prefix(card, codec_conf, of_node, propname) \
-	snd_soc_of_parse_audio_prefix_from_node(card, NULL, codec_conf, \
-						of_node, propname)
-void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
-				   struct device_node *np,
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname);
