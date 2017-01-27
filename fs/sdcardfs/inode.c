@@ -466,7 +466,6 @@ static int sdcardfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dir_dentry = NULL;
 	struct vfsmount *lower_mnt = NULL;
 	struct dentry *trap = NULL;
-	struct dentry *new_parent = NULL;
 	struct path lower_old_path, lower_new_path;
 	const struct cred *saved_cred = NULL;
 
@@ -516,17 +515,6 @@ static int sdcardfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dir != old_dir) {
 		sdcardfs_copy_and_fix_attrs(old_dir, d_inode(lower_old_dir_dentry));
 		fsstack_copy_inode_size(old_dir, d_inode(lower_old_dir_dentry));
-
-		/* update the derived permission of the old_dentry
-		 * with its new parent
-		 */
-		new_parent = dget_parent(new_dentry);
-		if(new_parent) {
-			if(d_inode(old_dentry)) {
-				update_derived_permission_lock(old_dentry);
-			}
-			dput(new_parent);
-		}
 	}
 	/* At this point, not all dentry information has been moved, so
 	 * we pass along new_dentry for the name.*/
