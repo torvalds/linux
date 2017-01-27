@@ -404,7 +404,7 @@ static int dsa_fastest_ageing_time(struct dsa_switch *ds,
 {
 	int i;
 
-	for (i = 0; i < DSA_MAX_PORTS; ++i) {
+	for (i = 0; i < ds->num_ports; ++i) {
 		struct dsa_port *dp = &ds->ports[i];
 
 		if (dp && dp->ageing_time && dp->ageing_time < ageing_time)

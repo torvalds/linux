@@ -127,7 +127,7 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!ds)
 		goto out_drop;
 
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	/*

@@ -98,7 +98,7 @@ static bool dsa_ds_find_port_dn(struct dsa_switch *ds,
 {
 	u32 index;
 
-	for (index = 0; index < DSA_MAX_PORTS; index++)
+	for (index = 0; index < ds->num_ports; index++)
 		if (ds->ports[index].dn == port)
 			return true;
 	return false;
@@ -159,7 +159,7 @@ static int dsa_ds_complete(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	u32 index;
 	int err;
 
-	for (index = 0; index < DSA_MAX_PORTS; index++) {
+	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
 		if (!dsa_port_is_valid(port))
 			continue;
@@ -312,7 +312,7 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 			return err;
 	}
 
-	for (index = 0; index < DSA_MAX_PORTS; index++) {
+	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
 		if (!dsa_port_is_valid(port))
 			continue;
@@ -344,7 +344,7 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	struct dsa_port *port;
 	u32 index;
 
-	for (index = 0; index < DSA_MAX_PORTS; index++) {
+	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
 		if (!dsa_port_is_valid(port))
 			continue;
@@ -475,7 +475,7 @@ static int dsa_ds_parse(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	u32 index;
 	int err;
 
-	for (index = 0; index < DSA_MAX_PORTS; index++) {
+	for (index = 0; index < ds->num_ports; index++) {
 		port = &ds->ports[index];
 		if (!dsa_port_is_valid(port))
 			continue;
@@ -529,7 +529,7 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 		if (err)
 			return err;
 
-		if (reg >= DSA_MAX_PORTS)
+		if (reg >= ds->num_ports)
 			return -EINVAL;
 
 		ds->ports[reg].dn = port;
