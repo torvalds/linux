@@ -48,5 +48,4 @@ static inline bool is_ISA_range(u64 start, u64 end)
 
 #include <linux/ioport.h>
 
-#define HIGH_MEMORY	(1024*1024)
 #endif /* _ASM_E820_API_H */

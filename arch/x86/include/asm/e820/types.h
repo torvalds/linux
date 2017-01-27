@@ -74,13 +74,15 @@ struct e820map {
 };
 
 /*
- * Various legacy ranges in physical memory:
+ * Various well-known legacy memory ranges in physical memory:
  */
 #define ISA_START_ADDRESS	0x000a0000
 #define ISA_END_ADDRESS		0x00100000
 
 #define BIOS_BEGIN		0x000a0000
 #define BIOS_END		0x00100000
+
+#define HIGH_MEMORY		0x00100000
 
 #define BIOS_ROM_BASE		0xffe00000
 #define BIOS_ROM_END		0xffffffff
