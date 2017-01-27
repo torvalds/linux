@@ -101,26 +101,6 @@ static int dax_is_empty_entry(void *entry)
 	return (unsigned long)entry & RADIX_DAX_EMPTY;
 }
 
-struct page *read_dax_sector(struct block_device *bdev, sector_t n)
-{
-	struct page *page = alloc_pages(GFP_KERNEL, 0);
-	struct blk_dax_ctl dax = {
-		.size = PAGE_SIZE,
-		.sector = n & ~((((int) PAGE_SIZE) / 512) - 1),
-	};
-	long rc;
-
-	if (!page)
-		return ERR_PTR(-ENOMEM);
-
-	rc = dax_map_atomic(bdev, &dax);
-	if (rc < 0)
-		return ERR_PTR(rc);
-	memcpy_from_pmem(page_address(page), dax.addr, PAGE_SIZE);
-	dax_unmap_atomic(bdev, &dax);
-	return page;
-}
-
 /*
  * DAX radix tree locking
  */
