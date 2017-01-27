@@ -1,11 +1,10 @@
 #ifndef _ASM_E820_TYPES_H
 #define _ASM_E820_TYPES_H
 
+#include <uapi/asm/e820/types.h>
+
 /* Our map: */
 #define E820MAP			0x2d0
-
-/* The maximum number of entries in E820MAP: */
-#define E820MAX			128
 
 /*
  * The legacy E820 BIOS limits us to 128 (E820MAX) nodes due to the
@@ -67,16 +66,6 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
-
-/*
- * A single E820 map entry, describing a memory range of [addr...addr+size-1],
- * of 'type' memory type:
- */
-struct e820entry {
-	__u64 addr;
-	__u64 size;
-	__u32 type;
-} __attribute__((packed));
 
 /*
  * The whole array of E820 entries:
