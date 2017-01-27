@@ -3440,8 +3440,11 @@ static int __init amd64_edac_init(void)
 	int err = -ENODEV;
 	int i;
 
+	if (!x86_match_cpu(amd64_cpuids))
+		return -ENODEV;
+
 	if (amd_cache_northbridges() < 0)
-		goto err_ret;
+		return -ENODEV;
 
 	opstate_init();
 
@@ -3497,7 +3500,6 @@ err_free:
 	kfree(ecc_stngs);
 	ecc_stngs = NULL;
 
-err_ret:
 	return err;
 }
 
