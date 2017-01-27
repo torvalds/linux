@@ -375,6 +375,11 @@
 				bias-pull-up;
 			};
 
+			spdif_tx_pins_a: spdif@0 {
+				pins = "PA17";
+				function = "spdif";
+			};
+
 			spi0_pins: spi0 {
 				pins = "PC0", "PC1", "PC2", "PC3";
 				function = "spi0";
