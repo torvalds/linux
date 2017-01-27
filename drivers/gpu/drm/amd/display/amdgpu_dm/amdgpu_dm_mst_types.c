@@ -127,14 +127,6 @@ dm_dp_mst_detect(struct drm_connector *connector, bool force)
 			&master->mst_mgr,
 			aconnector->port);
 
-	/*
-	 * we do not want to make this connector connected until we have edid on
-	 * it
-	 */
-	if (status == connector_status_connected &&
-		!aconnector->port->cached_edid)
-		status = connector_status_disconnected;
-
 	return status;
 }
 
