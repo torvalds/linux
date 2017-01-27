@@ -68,6 +68,17 @@
 		clock-frequency = <32768>;
 	};
 
+	vreg_vph_pwr: vreg-vph-pwr {
+		compatible = "regulator-fixed";
+		status = "okay";
+		regulator-name = "vph-pwr";
+
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+
+		regulator-always-on;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
