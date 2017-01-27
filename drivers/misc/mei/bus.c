@@ -542,6 +542,37 @@ out:
 EXPORT_SYMBOL_GPL(mei_cldev_disable);
 
 /**
+ * mei_cl_bus_module_get - acquire module of the underlying
+ *    hw module.
+ *
+ * @cl: host client
+ *
+ * Return: true on success; false if the module was removed.
+ */
+bool mei_cl_bus_module_get(struct mei_cl *cl)
+{
+	struct mei_cl_device *cldev = cl->cldev;
+
+	if (!cldev)
+		return true;
+
+	return try_module_get(cldev->bus->dev->driver->owner);
+}
+
+/**
+ * mei_cl_bus_module_put -  release the underlying hw module.
+ *
+ * @cl: host client
+ */
+void mei_cl_bus_module_put(struct mei_cl *cl)
+{
+	struct mei_cl_device *cldev = cl->cldev;
+
+	if (cldev)
+		module_put(cldev->bus->dev->driver->owner);
+}
+
+/**
  * mei_cl_device_find - find matching entry in the driver id table
  *
  * @cldev: me client device

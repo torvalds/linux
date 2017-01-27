@@ -774,6 +774,8 @@ static void mei_cl_set_disconnected(struct mei_cl *cl)
 	cl->tx_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
 
+	mei_cl_bus_module_put(cl);
+
 	if (!cl->me_cl)
 		return;
 
@@ -1077,13 +1079,17 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 
 	dev = cl->dev;
 
+	if (!mei_cl_bus_module_get(cl))
+		return -ENODEV;
+
 	rets = mei_cl_set_connecting(cl, me_cl);
 	if (rets)
-		return rets;
+		goto nortpm;
 
 	if (mei_cl_is_fixed_address(cl)) {
 		cl->state = MEI_FILE_CONNECTED;
-		return 0;
+		rets = 0;
+		goto nortpm;
 	}
 
 	rets = pm_runtime_get(dev->dev);
