@@ -39,3 +39,5 @@
 		};
 	};
 };
+
+#include "msm8994-smd-rpm.dtsi"
