@@ -25,12 +25,8 @@ struct dsa_slave_priv {
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
-	/*
-	 * Which switch this port is a part of, and the port index
-	 * for this port.
-	 */
-	struct dsa_switch	*parent;
-	u8			port;
+	/* DSA port data, such as switch, port index, etc. */
+	struct dsa_port		*dp;
 
 	/*
 	 * The phylib phy_device pointer for the PHY connected

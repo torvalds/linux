@@ -50,7 +50,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	trailer = skb_put(nskb, 4);
 	trailer[0] = 0x80;
-	trailer[1] = 1 << p->port;
+	trailer[1] = 1 << p->dp->index;
 	trailer[2] = 0x10;
 	trailer[3] = 0x00;
 

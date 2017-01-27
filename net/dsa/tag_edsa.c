@@ -42,8 +42,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x60 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x60 | p->dp->ds->index;
+		edsa_header[5] = p->dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 6 to byte 5.
@@ -67,8 +67,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x40 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x40 | p->dp->ds->index;
+		edsa_header[5] = p->dp->index << 3;
 		edsa_header[6] = 0x00;
 		edsa_header[7] = 0x00;
 	}
