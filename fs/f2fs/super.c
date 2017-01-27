@@ -556,6 +556,7 @@ static int parse_options(struct super_block *sb, char *options)
 				return -EINVAL;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 			f2fs_build_fault_attr(sbi, arg);
+			set_opt(sbi, FAULT_INJECTION);
 #else
 			f2fs_msg(sb, KERN_INFO,
 				"FAULT_INJECTION was not selected");
@@ -946,6 +947,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 	if (F2FS_IO_SIZE_BITS(sbi))
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (test_opt(sbi, FAULT_INJECTION))
+		seq_puts(seq, ",fault_injection");
+#endif
 
 	return 0;
 }
