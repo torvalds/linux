@@ -138,7 +138,7 @@ config DRM_KMS_CMA_HELPER
 
 config DRM_VM
 	bool
-	depends on DRM
+	depends on DRM && MMU
 
 source "drivers/gpu/drm/i2c/Kconfig"
 
@@ -267,7 +267,7 @@ source "drivers/gpu/drm/meson/Kconfig"
 
 menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
-	depends on DRM
+	depends on DRM && MMU
 	select DRM_VM
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous

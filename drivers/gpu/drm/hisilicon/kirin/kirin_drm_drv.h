@@ -20,7 +20,6 @@ struct kirin_dc_ops {
 };
 
 struct kirin_drm_private {
-	struct drm_crtc *crtc[MAX_CRTC];
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct drm_fbdev_cma *fbdev;
 #endif

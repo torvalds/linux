@@ -149,6 +149,15 @@ struct drm_crtc_state {
 	struct drm_property_blob *gamma_lut;
 
 	/**
+	 * @target_vblank:
+	 *
+	 * Target vertical blank period when a page flip
+	 * should take effect.
+	 */
+
+	u32 target_vblank;
+
+	/**
 	 * @event:
 	 *
 	 * Optional pointer to a DRM event to signal upon completion of the

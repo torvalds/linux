@@ -35,7 +35,6 @@
 #include "qxl_object.h"
 
 #include <linux/delay.h>
-static int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 {
@@ -436,11 +435,6 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
 	DRM_INFO("qxl: %uM of Surface memory size\n",
 		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
-	r = qxl_ttm_debugfs_init(qdev);
-	if (r) {
-		DRM_ERROR("Failed to init debugfs\n");
-		return r;
-	}
 	return 0;
 }
 
@@ -473,7 +467,7 @@ static int qxl_mm_dump_table(struct seq_file *m, void *data)
 }
 #endif
 
-static int qxl_ttm_debugfs_init(struct qxl_device *qdev)
+int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];

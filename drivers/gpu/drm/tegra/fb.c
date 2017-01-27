@@ -271,8 +271,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	return 0;
 
 destroy:
-	drm_framebuffer_unregister_private(fb);
-	tegra_fb_destroy(fb);
+	drm_framebuffer_remove(fb);
 release:
 	drm_fb_helper_release_fbi(helper);
 	return err;
@@ -342,10 +341,8 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 	drm_fb_helper_unregister_fbi(&fbdev->base);
 	drm_fb_helper_release_fbi(&fbdev->base);
 
-	if (fbdev->fb) {
-		drm_framebuffer_unregister_private(&fbdev->fb->base);
+	if (fbdev->fb)
 		drm_framebuffer_remove(&fbdev->fb->base);
-	}
 
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);

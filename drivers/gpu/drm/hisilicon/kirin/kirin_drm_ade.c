@@ -304,8 +304,8 @@ static void ade_set_medianoc_qos(struct ade_crtc *acrtc)
 
 static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
-	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
 
@@ -320,8 +320,8 @@ static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 static void ade_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
-	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
 
@@ -575,7 +575,6 @@ static const struct drm_crtc_funcs ade_crtc_funcs = {
 static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			 struct drm_plane *plane)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
 	struct device_node *port;
 	int ret;
 
@@ -599,7 +598,6 @@ static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	}
 
 	drm_crtc_helper_add(crtc, &ade_crtc_helper_funcs);
-	priv->crtc[drm_crtc_index(crtc)] = crtc;
 
 	return 0;
 }

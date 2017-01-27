@@ -109,9 +109,6 @@ static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct exynos_drm_private *private = crtc->dev->dev_private;
-
-	private->crtc[exynos_crtc->pipe] = NULL;
 
 	drm_crtc_cleanup(crtc);
 	kfree(exynos_crtc);
@@ -134,7 +131,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					void *ctx)
 {
 	struct exynos_drm_crtc *exynos_crtc;
-	struct exynos_drm_private *private = drm_dev->dev_private;
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -148,8 +144,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	exynos_crtc->ctx = ctx;
 
 	crtc = &exynos_crtc->base;
-
-	private->crtc[pipe] = crtc;
 
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, plane, NULL,
 					&exynos_crtc_funcs, NULL);
