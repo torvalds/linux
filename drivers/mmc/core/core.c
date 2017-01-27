@@ -676,16 +676,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		    ((mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1) ||
 		     (mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1B)) &&
 		    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT)) {
-
-			/* Cancel the prepared request */
-			if (areq)
-				mmc_post_req(host, areq->mrq, -EINVAL);
-
 			mmc_start_bkops(host->card, true);
-
-			/* prepare the request again */
-			if (areq)
-				mmc_pre_req(host, areq->mrq);
 		}
 	}
 
