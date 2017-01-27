@@ -94,13 +94,6 @@ static struct timer_list sclp_request_timer;
 /* Timer for queued requests. */
 static struct timer_list sclp_queue_timer;
 
-/* Internal state: is the driver initialized? */
-static volatile enum sclp_init_state_t {
-	sclp_init_state_uninitialized,
-	sclp_init_state_initializing,
-	sclp_init_state_initialized
-} sclp_init_state = sclp_init_state_uninitialized;
-
 /* Internal state: is a request active at the sclp? */
 static volatile enum sclp_running_state_t {
 	sclp_running_state_idle,

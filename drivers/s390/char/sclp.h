@@ -211,6 +211,13 @@ int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
 
+enum {
+	sclp_init_state_uninitialized,
+	sclp_init_state_initializing,
+	sclp_init_state_initialized
+};
+
+extern int sclp_init_state;
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;

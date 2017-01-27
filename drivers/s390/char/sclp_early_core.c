@@ -16,6 +16,8 @@ static char _sclp_work_area[4096] __aligned(PAGE_SIZE) __section(data);
 static bool have_vt220 __section(data);
 static bool have_linemode __section(data);
 
+int sclp_init_state __section(data) = sclp_init_state_uninitialized;
+
 static void _sclp_wait_int(void)
 {
 	unsigned long psw_mask, addr, flags;
@@ -198,6 +200,8 @@ static void _sclp_print_vt220(const char *str, unsigned int len)
  */
 void __sclp_print_early(const char *str, unsigned int len)
 {
+	if (sclp_init_state != sclp_init_state_uninitialized)
+		return;
 	if (_sclp_setup(0) != 0)
 		return;
 	if (have_linemode)
