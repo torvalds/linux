@@ -65,9 +65,6 @@
  */
 #define E820_RESERVED_KERN	128
 
-#ifndef __ASSEMBLY__
-#include <linux/types.h>
-
 /*
  * The whole array of E820 entries:
  */
@@ -87,7 +84,5 @@ struct e820map {
 
 #define BIOS_ROM_BASE		0xffe00000
 #define BIOS_ROM_END		0xffffffff
-
-#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_E820_TYPES_H */
