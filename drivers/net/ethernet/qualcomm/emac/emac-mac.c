@@ -103,14 +103,6 @@
 #define RXEN                            0x00000002
 #define TXEN                            0x00000001
 
-
-/* EMAC_WOL_CTRL0 */
-#define LK_CHG_PME			0x20
-#define LK_CHG_EN			0x10
-#define MG_FRAME_PME			0x8
-#define MG_FRAME_EN			0x4
-#define WK_FRAME_EN			0x1
-
 /* EMAC_DESC_CTRL_3 */
 #define RFD_RING_SIZE_BMSK                                       0xfff
 
@@ -619,8 +611,6 @@ static void emac_mac_start(struct emac_adapter *adpt)
 
 	emac_reg_update32(adpt->base + EMAC_ATHR_HEADER_CTRL,
 			  (HEADER_ENABLE | HEADER_CNT_EN), 0);
-
-	emac_reg_update32(adpt->csr + EMAC_EMAC_WRAPPER_CSR2, 0, WOL_EN);
 }
 
 void emac_mac_stop(struct emac_adapter *adpt)
