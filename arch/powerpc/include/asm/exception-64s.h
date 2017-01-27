@@ -97,6 +97,15 @@
 	ld	reg,PACAKBASE(r13);					\
 	ori	reg,reg,(ABS_ADDR(label))@l;
 
+/*
+ * Branches from unrelocated code (e.g., interrupts) to labels outside
+ * head-y require >64K offsets.
+ */
+#define __LOAD_FAR_HANDLER(reg, label)					\
+	ld	reg,PACAKBASE(r13);					\
+	ori	reg,reg,(ABS_ADDR(label))@l;				\
+	addis	reg,reg,(ABS_ADDR(label))@h;
+
 /* Exception register prefixes */
 #define EXC_HV	H
 #define EXC_STD
@@ -227,11 +236,39 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtctr	reg;							\
 	bctr
 
+/*
+ * KVM requires __LOAD_FAR_HANDLER.
+ *
+ * __BRANCH_TO_KVM_EXIT branches are also a special case because they
+ * explicitly use r9 then reload it from PACA before branching. Hence
+ * the double-underscore.
+ */
+#define __BRANCH_TO_KVM_EXIT(area, label)				\
+	mfctr	r9;							\
+	std	r9,HSTATE_SCRATCH1(r13);				\
+	__LOAD_FAR_HANDLER(r9, label);					\
+	mtctr	r9;							\
+	ld	r9,area+EX_R9(r13);					\
+	bctr
+
+#define BRANCH_TO_KVM(reg, label)					\
+	__LOAD_FAR_HANDLER(reg, label);					\
+	mtctr	reg;							\
+	bctr
+
 #else
 #define BRANCH_TO_COMMON(reg, label)					\
 	b	label
 
+#define BRANCH_TO_KVM(reg, label)					\
+	b	label
+
+#define __BRANCH_TO_KVM_EXIT(area, label)				\
+	ld	r9,area+EX_R9(r13);					\
+	b	label
+
 #endif
+
 
 #define __KVM_HANDLER(area, h, n)					\
 	BEGIN_FTR_SECTION_NESTED(947)					\
@@ -246,8 +283,8 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	std	r12,HSTATE_SCRATCH0(r13);				\
 	sldi	r12,r9,32;						\
 	ori	r12,r12,(n);						\
-	ld	r9,area+EX_R9(r13);					\
-	b	kvmppc_interrupt
+	/* This reloads r9 before branching to kvmppc_interrupt */	\
+	__BRANCH_TO_KVM_EXIT(area, kvmppc_interrupt)
 
 #define __KVM_HANDLER_SKIP(area, h, n)					\
 	cmpwi	r10,KVM_GUEST_MODE_SKIP;				\
@@ -260,8 +297,8 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	std	r12,HSTATE_SCRATCH0(r13);				\
 	sldi	r12,r9,32;						\
 	ori	r12,r12,(n);						\
-	ld	r9,area+EX_R9(r13);					\
-	b	kvmppc_interrupt;					\
+	/* This reloads r9 before branching to kvmppc_interrupt */	\
+	__BRANCH_TO_KVM_EXIT(area, kvmppc_interrupt);			\
 89:	mtocrf	0x80,r9;						\
 	ld	r9,area+EX_R9(r13);					\
 	ld	r10,area+EX_R10(r13);					\
