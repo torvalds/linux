@@ -666,6 +666,22 @@ out:
 	return err;
 }
 
+struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
+{
+	size_t size = sizeof(struct dsa_switch) + n * sizeof(struct dsa_port);
+	struct dsa_switch *ds;
+
+	ds = devm_kzalloc(dev, size, GFP_KERNEL);
+	if (!ds)
+		return NULL;
+
+	ds->dev = dev;
+	ds->num_ports = n;
+
+	return ds;
+}
+EXPORT_SYMBOL_GPL(dsa_switch_alloc);
+
 int dsa_register_switch(struct dsa_switch *ds, struct device *dev)
 {
 	int err;

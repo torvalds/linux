@@ -347,8 +347,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Allocate and initialise switch state.
 	 */
-	ds = devm_kzalloc(parent, sizeof(*ds), GFP_KERNEL);
-	if (ds == NULL)
+	ds = dsa_switch_alloc(parent, DSA_MAX_PORTS);
+	if (!ds)
 		return ERR_PTR(-ENOMEM);
 
 	ds->dst = dst;
@@ -356,7 +356,6 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->cd = cd;
 	ds->ops = ops;
 	ds->priv = priv;
-	ds->dev = parent;
 
 	ret = dsa_switch_setup_one(ds, parent);
 	if (ret)
