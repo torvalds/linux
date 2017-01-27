@@ -55,11 +55,6 @@ unsigned int summary_only;
 unsigned int dump_only;
 unsigned int do_snb_cstates;
 unsigned int do_knl_cstates;
-unsigned int do_pc2;
-unsigned int do_pc3;
-unsigned int do_pc6;
-unsigned int do_pc7;
-unsigned int do_c8_c9_c10;
 unsigned int do_skl_residency;
 unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
@@ -365,6 +360,9 @@ struct msr_counter bic[] = {
 	{ 0x0, "Pkg%pc3" },
 	{ 0x0, "Pkg%pc6" },
 	{ 0x0, "Pkg%pc7" },
+	{ 0x0, "Pkg%pc8" },
+	{ 0x0, "Pkg%pc9" },
+	{ 0x0, "Pkg%pc10" },
 	{ 0x0, "PkgWatt" },
 	{ 0x0, "CorWatt" },
 	{ 0x0, "GFXWatt" },
@@ -403,26 +401,30 @@ struct msr_counter bic[] = {
 #define	BIC_Pkgpc3	(1ULL << 18)
 #define	BIC_Pkgpc6	(1ULL << 19)
 #define	BIC_Pkgpc7	(1ULL << 20)
-#define	BIC_PkgWatt	(1ULL << 21)
-#define	BIC_CorWatt	(1ULL << 22)
-#define	BIC_GFXWatt	(1ULL << 23)
-#define	BIC_PkgCnt	(1ULL << 24)
-#define	BIC_RAMWatt	(1ULL << 27)
-#define	BIC_PKG__	(1ULL << 28)
-#define	BIC_RAM__	(1ULL << 29)
-#define	BIC_Pkg_J	(1ULL << 30)
-#define	BIC_Cor_J	(1ULL << 31)
-#define	BIC_GFX_J	(1ULL << 30)
-#define	BIC_RAM_J	(1ULL << 31)
-#define	BIC_Core	(1ULL << 32)
-#define	BIC_CPU		(1ULL << 33)
-#define	BIC_Mod_c6	(1ULL << 34)
+#define	BIC_Pkgpc8	(1ULL << 21)
+#define	BIC_Pkgpc9	(1ULL << 22)
+#define	BIC_Pkgpc10	(1ULL << 23)
+#define	BIC_PkgWatt	(1ULL << 24)
+#define	BIC_CorWatt	(1ULL << 25)
+#define	BIC_GFXWatt	(1ULL << 26)
+#define	BIC_PkgCnt	(1ULL << 27)
+#define	BIC_RAMWatt	(1ULL << 28)
+#define	BIC_PKG__	(1ULL << 29)
+#define	BIC_RAM__	(1ULL << 30)
+#define	BIC_Pkg_J	(1ULL << 31)
+#define	BIC_Cor_J	(1ULL << 32)
+#define	BIC_GFX_J	(1ULL << 33)
+#define	BIC_RAM_J	(1ULL << 34)
+#define	BIC_Core	(1ULL << 35)
+#define	BIC_CPU		(1ULL << 36)
+#define	BIC_Mod_c6	(1ULL << 37)
 
 unsigned long long bic_enabled = 0xFFFFFFFFFFFFFFFFULL;
 unsigned long long bic_present;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
 #define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
+#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
 
 /*
  * bic_lookup
@@ -539,19 +541,20 @@ void print_header(void)
 		outp += sprintf(outp, "\tCPUGFX%%");
 	}
 
-	if (do_pc2)
+	if (DO_BIC(BIC_Pkgpc2))
 		outp += sprintf(outp, "\tPkg%%pc2");
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		outp += sprintf(outp, "\tPkg%%pc3");
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		outp += sprintf(outp, "\tPkg%%pc6");
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		outp += sprintf(outp, "\tPkg%%pc7");
-	if (do_c8_c9_c10) {
+	if (DO_BIC(BIC_Pkgpc8))
 		outp += sprintf(outp, "\tPkg%%pc8");
+	if (DO_BIC(BIC_Pkgpc9))
 		outp += sprintf(outp, "\tPkg%%pc9");
+	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "\tPk%%pc10");
-	}
 
 	if (do_rapl && !rapl_joules) {
 		if (DO_BIC(BIC_PkgWatt))
@@ -644,11 +647,11 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "CPU + GFX: %016llX\n", p->pkg_both_core_gfxe_c0);
 
 		outp += sprintf(outp, "pc2: %016llX\n", p->pc2);
-		if (do_pc3)
+		if (DO_BIC(BIC_Pkgpc3))
 			outp += sprintf(outp, "pc3: %016llX\n", p->pc3);
-		if (do_pc6)
+		if (DO_BIC(BIC_Pkgpc6))
 			outp += sprintf(outp, "pc6: %016llX\n", p->pc6);
-		if (do_pc7)
+		if (DO_BIC(BIC_Pkgpc7))
 			outp += sprintf(outp, "pc7: %016llX\n", p->pc7);
 		outp += sprintf(outp, "pc8: %016llX\n", p->pc8);
 		outp += sprintf(outp, "pc9: %016llX\n", p->pc9);
@@ -827,19 +830,20 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pkg_both_core_gfxe_c0/tsc);
 	}
 
-	if (do_pc2)
+	if (DO_BIC(BIC_Pkgpc2))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc2/tsc);
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc3/tsc);
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc6/tsc);
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc7/tsc);
-	if (do_c8_c9_c10) {
+	if (DO_BIC(BIC_Pkgpc8))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc8/tsc);
+	if (DO_BIC(BIC_Pkgpc9))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc9/tsc);
+	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "\t%.2f", 100.0 * p->pc10/tsc);
-	}
 
 	/*
  	 * If measurement interval exceeds minimum RAPL Joule Counter range,
@@ -949,11 +953,11 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 		old->pkg_both_core_gfxe_c0 = new->pkg_both_core_gfxe_c0 - old->pkg_both_core_gfxe_c0;
 	}
 	old->pc2 = new->pc2 - old->pc2;
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		old->pc3 = new->pc3 - old->pc3;
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		old->pc6 = new->pc6 - old->pc6;
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		old->pc7 = new->pc7 - old->pc7;
 	old->pc8 = new->pc8 - old->pc8;
 	old->pc9 = new->pc9 - old->pc9;
@@ -1126,11 +1130,11 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pkg_both_core_gfxe_c0 = 0;
 
 	p->pc2 = 0;
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		p->pc3 = 0;
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		p->pc6 = 0;
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		p->pc7 = 0;
 	p->pc8 = 0;
 	p->pc9 = 0;
@@ -1204,11 +1208,11 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	}
 
 	average.packages.pc2 += p->pc2;
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		average.packages.pc3 += p->pc3;
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		average.packages.pc6 += p->pc6;
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		average.packages.pc7 += p->pc7;
 	average.packages.pc8 += p->pc8;
 	average.packages.pc9 += p->pc9;
@@ -1266,11 +1270,11 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	}
 
 	average.packages.pc2 /= topo.num_packages;
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		average.packages.pc3 /= topo.num_packages;
-	if (do_pc6)
+	if (DO_BIC(BIC_Pkgpc6))
 		average.packages.pc6 /= topo.num_packages;
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		average.packages.pc7 /= topo.num_packages;
 
 	average.packages.pc8 /= topo.num_packages;
@@ -1448,10 +1452,10 @@ retry:
 		if (get_msr(cpu, MSR_PKG_BOTH_CORE_GFXE_C0_RES, &p->pkg_both_core_gfxe_c0))
 			return -13;
 	}
-	if (do_pc3)
+	if (DO_BIC(BIC_Pkgpc3))
 		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
 			return -9;
-	if (do_pc6) {
+	if (DO_BIC(BIC_Pkgpc6)) {
 		if (do_slm_cstates) {
 			if (get_msr(cpu, MSR_ATOM_PKG_C6_RESIDENCY, &p->pc6))
 				return -10;
@@ -1461,20 +1465,22 @@ retry:
 		}
 	}
 
-	if (do_pc2)
+	if (DO_BIC(BIC_Pkgpc2))
 		if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
 			return -11;
-	if (do_pc7)
+	if (DO_BIC(BIC_Pkgpc7))
 		if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
 			return -12;
-	if (do_c8_c9_c10) {
+	if (DO_BIC(BIC_Pkgpc8))
 		if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
 			return -13;
+	if (DO_BIC(BIC_Pkgpc9))
 		if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
 			return -13;
+	if (DO_BIC(BIC_Pkgpc10))
 		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
 			return -13;
-	}
+
 	if (do_rapl & RAPL_PKG) {
 		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
 			return -13;
@@ -3824,17 +3830,27 @@ void process_cpuid()
 		BIC_PRESENT(BIC_CPU_c7);
 
 	do_irtl_snb = has_snb_msrs(family, model);
-	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
-	do_pc3 = (pkg_cstate_limit >= PCL__3);
-	do_pc6 = (pkg_cstate_limit >= PCL__6);
-	do_pc7 = do_snb_cstates && (pkg_cstate_limit >= PCL__7);
+	if (do_snb_cstates && (pkg_cstate_limit >= PCL__2))
+		BIC_PRESENT(BIC_Pkgpc2);
+	if (pkg_cstate_limit >= PCL__3)
+		BIC_PRESENT(BIC_Pkgpc3);
+	if (pkg_cstate_limit >= PCL__6)
+		BIC_PRESENT(BIC_Pkgpc6);
+	if (do_snb_cstates && (pkg_cstate_limit >= PCL__7))
+		BIC_PRESENT(BIC_Pkgpc7);
 	if (has_slv_msrs(family, model)) {
-		do_pc2 = do_pc3 = do_pc7 = 0;
-		do_pc6 = 1;
+		BIC_NOT_PRESENT(BIC_Pkgpc2);
+		BIC_NOT_PRESENT(BIC_Pkgpc3);
+		BIC_PRESENT(BIC_Pkgpc6);
+		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		BIC_PRESENT(BIC_Mod_c6);
 		use_c1_residency_msr = 1;
 	}
-	do_c8_c9_c10 = has_hsw_msrs(family, model);
+	if (has_hsw_msrs(family, model)) {
+		BIC_PRESENT(BIC_Pkgpc8);
+		BIC_PRESENT(BIC_Pkgpc9);
+		BIC_PRESENT(BIC_Pkgpc10);
+	}
 	do_irtl_hsw = has_hsw_msrs(family, model);
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
@@ -3981,7 +3997,7 @@ void topology_probe()
 	if (debug > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
 			max_core_id, topo.num_cores_per_pkg);
-	if (debug && !summary_only && topo.num_cores_per_pkg > 1)
+	if (!summary_only && topo.num_cores_per_pkg > 1)
 		BIC_PRESENT(BIC_Core);
 
 	topo.num_packages = max_package_id + 1;
@@ -4282,7 +4298,7 @@ int add_counter(unsigned int msr_num, char *name, unsigned int width,
 void parse_add_command(char *add_command)
 {
 	int msr_num = 0;
-	char name_buffer[NAME_BYTES];
+	char name_buffer[NAME_BYTES] = "";
 	int width = 64;
 	int fail = 0;
 	enum counter_scope scope = SCOPE_CPU;
