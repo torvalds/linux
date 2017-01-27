@@ -81,6 +81,7 @@ struct intel_community {
 
 /* Additional features supported by the hardware */
 #define PINCTRL_FEATURE_DEBOUNCE	BIT(0)
+#define PINCTRL_FEATURE_1K_PD		BIT(1)
 
 #define PIN_GROUP(n, p, m)			\
 	{					\

@@ -458,12 +458,14 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
+	const struct intel_community *community;
 	u32 value, term;
 	u32 arg = 0;
 
 	if (!intel_pad_owned_by_host(pctrl, pin))
 		return -ENOTSUPP;
 
+	community = intel_get_community(pctrl, pin);
 	value = readl(intel_get_padcfg(pctrl, pin, PADCFG1));
 	term = (value & PADCFG1_TERM_MASK) >> PADCFG1_TERM_SHIFT;
 
@@ -499,6 +501,11 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_1K:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD))
+				return -EINVAL;
+			arg = 1000;
+			break;
 		case PADCFG1_TERM_5K:
 			arg = 5000;
 			break;
@@ -540,6 +547,7 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 {
 	unsigned param = pinconf_to_config_param(config);
 	unsigned arg = pinconf_to_config_argument(config);
+	const struct intel_community *community;
 	void __iomem *padcfg1;
 	unsigned long flags;
 	int ret = 0;
@@ -547,6 +555,7 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
+	community = intel_get_community(pctrl, pin);
 	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
 	value = readl(padcfg1);
 
@@ -588,6 +597,11 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 			break;
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
+			break;
+		case 1000:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD))
+				return -EINVAL;
+			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
 			break;
 		default:
 			ret = -EINVAL;
@@ -1115,8 +1129,10 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 			u32 rev;
 
 			rev = (readl(regs + REVID) & REVID_MASK) >> REVID_SHIFT;
-			if (rev >= 0x94)
+			if (rev >= 0x94) {
 				community->features |= PINCTRL_FEATURE_DEBOUNCE;
+				community->features |= PINCTRL_FEATURE_1K_PD;
+			}
 		}
 
 		/* Read offset of the pad configuration registers */
