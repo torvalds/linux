@@ -226,8 +226,5 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		return -ENODEV;
 	}
 
-	if (adpt->phydev->drv)
-		phy_attached_print(adpt->phydev, NULL);
-
 	return 0;
 }

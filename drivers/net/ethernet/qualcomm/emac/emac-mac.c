@@ -981,6 +981,7 @@ int emac_mac_up(struct emac_adapter *adpt)
 	emac_mac_config(adpt);
 	emac_mac_rx_descs_refill(adpt, &adpt->rx_q);
 
+	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {
@@ -988,11 +989,12 @@ int emac_mac_up(struct emac_adapter *adpt)
 		return ret;
 	}
 
+	phy_attached_print(adpt->phydev, NULL);
+
 	/* enable mac irq */
 	writel((u32)~DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(adpt->irq.mask, adpt->base + EMAC_INT_MASK);
 
-	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	phy_start(adpt->phydev);
 
 	napi_enable(&adpt->rx_q.napi);
