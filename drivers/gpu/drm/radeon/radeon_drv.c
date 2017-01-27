@@ -366,11 +366,10 @@ static void
 radeon_pci_shutdown(struct pci_dev *pdev)
 {
 	/* if we are running in a VM, make sure the device
-	 * torn down properly on reboot/shutdown.
-	 * unfortunately we can't detect certain
-	 * hypervisors so just do this all the time.
+	 * torn down properly on reboot/shutdown
 	 */
-	radeon_pci_remove(pdev);
+	if (radeon_device_is_virtual())
+		radeon_pci_remove(pdev);
 }
 
 static int radeon_pmops_suspend(struct device *dev)
