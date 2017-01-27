@@ -487,67 +487,50 @@ static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
  *
  * @adev: amdgpu_device pointer
  * @bo_va: bo_va to update
+ * @list: validation list
+ * @operation: map or unmap
  *
- * Update the bo_va directly after setting it's address. Errors are not
+ * Update the bo_va directly after setting its address. Errors are not
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct amdgpu_bo_va *bo_va,
+				    struct list_head *list,
 				    uint32_t operation)
 {
-	struct ttm_validate_buffer tv, *entry;
-	struct amdgpu_bo_list_entry vm_pd;
-	struct ww_acquire_ctx ticket;
-	struct list_head list, duplicates;
-	int r;
+	struct ttm_validate_buffer *entry;
+	int r = -ERESTARTSYS;
 
-	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
-
-	tv.bo = &bo_va->bo->tbo;
-	tv.shared = true;
-	list_add(&tv.head, &list);
-
-	amdgpu_vm_get_pd_bo(bo_va->vm, &list, &vm_pd);
-
-	/* Provide duplicates to avoid -EALREADY */
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
-	if (r)
-		goto error_print;
-
-	list_for_each_entry(entry, &list, head) {
+	list_for_each_entry(entry, list, head) {
 		struct amdgpu_bo *bo =
 			container_of(entry->bo, struct amdgpu_bo, tbo);
 
 		/* if anything is swapped out don't swap it in here,
 		   just abort and wait for the next CS */
 		if (!amdgpu_bo_gpu_accessible(bo))
-			goto error_unreserve;
+			goto error;
 
 		if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
-			goto error_unreserve;
+			goto error;
 	}
 
 	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
 				      NULL);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	if (operation == AMDGPU_VA_OP_MAP)
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 
-error_unreserve:
-	ttm_eu_backoff_reservation(&ticket, &list);
-
-error_print:
+error:
 	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
@@ -640,10 +623,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-	ttm_eu_backoff_reservation(&ticket, &list);
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) &&
 	    !amdgpu_vm_debug)
-		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
+		amdgpu_gem_va_update_vm(adev, bo_va, &list, args->operation);
+	ttm_eu_backoff_reservation(&ticket, &list);
 
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
