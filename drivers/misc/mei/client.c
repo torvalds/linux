@@ -546,7 +546,6 @@ int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp)
 	mei_io_list_free(&cl->dev->write_waiting_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
 	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
-	mei_io_list_flush(&cl->dev->amthif_cmd_list, cl);
 
 	mei_cl_read_cb_flush(cl, fp);
 
@@ -769,6 +768,7 @@ static void mei_cl_set_disconnected(struct mei_cl *cl)
 	mei_io_list_free(&dev->write_waiting_list, cl);
 	mei_io_list_flush(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
+	mei_io_list_free(&dev->amthif_cmd_list, cl);
 	mei_cl_wake_all(cl);
 	cl->rx_flow_ctrl_creds = 0;
 	cl->tx_flow_ctrl_creds = 0;
