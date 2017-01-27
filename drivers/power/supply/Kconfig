@@ -220,6 +220,18 @@ config BATTERY_DA9150
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-fg.
 
+config CHARGER_AXP20X
+	tristate "X-Powers AXP20X and AXP22X AC power supply driver"
+	depends on MFD_AXP20X
+	depends on AXP20X_ADC
+	depends on IIO
+	help
+	  Say Y here to enable support for X-Powers AXP20X and AXP22X PMICs' AC
+	  power supply.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axp20x_ac_power.
+
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
