@@ -917,7 +917,7 @@ static void add_e820ext(struct boot_params *params,
 static efi_status_t setup_e820(struct boot_params *params,
 			       struct setup_data *e820ext, u32 e820ext_size)
 {
-	struct e820_entry *e820_array = &params->e820_array[0];
+	struct e820_entry *e820_table = &params->e820_table[0];
 	struct efi_info *efi = &params->efi_info;
 	struct e820_entry *prev = NULL;
 	u32 nr_entries;
@@ -982,7 +982,7 @@ static efi_status_t setup_e820(struct boot_params *params,
 			continue;
 		}
 
-		if (nr_entries == ARRAY_SIZE(params->e820_array)) {
+		if (nr_entries == ARRAY_SIZE(params->e820_table)) {
 			u32 need = (nr_desc - i) * sizeof(struct e820_entry) +
 				   sizeof(struct setup_data);
 
@@ -990,18 +990,18 @@ static efi_status_t setup_e820(struct boot_params *params,
 				return EFI_BUFFER_TOO_SMALL;
 
 			/* boot_params map full, switch to e820 extended */
-			e820_array = (struct e820_entry *)e820ext->data;
+			e820_table = (struct e820_entry *)e820ext->data;
 		}
 
-		e820_array->addr = d->phys_addr;
-		e820_array->size = d->num_pages << PAGE_SHIFT;
-		e820_array->type = e820_type;
-		prev = e820_array++;
+		e820_table->addr = d->phys_addr;
+		e820_table->size = d->num_pages << PAGE_SHIFT;
+		e820_table->type = e820_type;
+		prev = e820_table++;
 		nr_entries++;
 	}
 
-	if (nr_entries > ARRAY_SIZE(params->e820_array)) {
-		u32 nr_e820ext = nr_entries - ARRAY_SIZE(params->e820_array);
+	if (nr_entries > ARRAY_SIZE(params->e820_table)) {
+		u32 nr_e820ext = nr_entries - ARRAY_SIZE(params->e820_table);
 
 		add_e820ext(params, e820ext, nr_e820ext);
 		nr_entries -= nr_e820ext;
@@ -1055,9 +1055,9 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 
 	if (first) {
 		nr_desc = *map->buff_size / *map->desc_size;
-		if (nr_desc > ARRAY_SIZE(p->boot_params->e820_array)) {
+		if (nr_desc > ARRAY_SIZE(p->boot_params->e820_table)) {
 			u32 nr_e820ext = nr_desc -
-					ARRAY_SIZE(p->boot_params->e820_array);
+					ARRAY_SIZE(p->boot_params->e820_table);
 
 			status = alloc_e820ext(nr_e820ext, &p->e820ext,
 					       &p->e820ext_size);

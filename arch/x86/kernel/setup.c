@@ -458,8 +458,8 @@ static void __init e820_reserve_setup_data(void)
 		early_memunmap(data, sizeof(*data));
 	}
 
-	sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map), &e820_array->nr_map);
-	memcpy(e820_array_saved, e820_array, sizeof(struct e820_array));
+	sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
+	memcpy(e820_table_saved, e820_table, sizeof(struct e820_table));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
 }
@@ -763,7 +763,7 @@ static void __init trim_bios_range(void)
 	 */
 	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 
-	sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map), &e820_array->nr_map);
+	sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
 }
 
 /* called before trim_bios_range() to spare extra sanitize */
@@ -1026,7 +1026,7 @@ void __init setup_arch(char **cmdline_p)
 		early_dump_pci_devices();
 #endif
 
-	/* update the e820_array_saved too */
+	/* update the e820_table_saved too */
 	e820_reserve_setup_data();
 	finish_e820_parsing();
 
@@ -1056,7 +1056,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppro_with_ram_bug()) {
 		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
 				  E820_RESERVED);
-		sanitize_e820_array(e820_array->map, ARRAY_SIZE(e820_array->map), &e820_array->nr_map);
+		sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
 		printk(KERN_INFO "fixed physical RAM map:\n");
 		e820_print_map("bad_ppro");
 	}

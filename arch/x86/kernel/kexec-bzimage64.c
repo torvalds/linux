@@ -100,14 +100,14 @@ static int setup_e820_entries(struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 
-	nr_e820_entries = e820_array_saved->nr_map;
+	nr_e820_entries = e820_table_saved->nr_map;
 
 	/* TODO: Pass entries more than E820MAX in bootparams setup data */
 	if (nr_e820_entries > E820MAX)
 		nr_e820_entries = E820MAX;
 
 	params->e820_entries = nr_e820_entries;
-	memcpy(&params->e820_array, &e820_array_saved->map,
+	memcpy(&params->e820_table, &e820_table_saved->map,
 	       nr_e820_entries * sizeof(struct e820_entry));
 
 	return 0;
@@ -233,10 +233,10 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
-		if (params->e820_array[i].type != E820_RAM)
+		if (params->e820_table[i].type != E820_RAM)
 			continue;
-		start = params->e820_array[i].addr;
-		end = params->e820_array[i].addr + params->e820_array[i].size - 1;
+		start = params->e820_table[i].addr;
+		end = params->e820_table[i].addr + params->e820_table[i].size - 1;
 
 		if ((start <= 0x100000) && end > 0x100000) {
 			mem_k = (end >> 10) - (0x100000 >> 10);

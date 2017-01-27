@@ -188,12 +188,12 @@ static int tboot_setup_sleep(void)
 
 	tboot->num_mac_regions = 0;
 
-	for (i = 0; i < e820_array->nr_map; i++) {
-		if ((e820_array->map[i].type != E820_RAM)
-		 && (e820_array->map[i].type != E820_RESERVED_KERN))
+	for (i = 0; i < e820_table->nr_map; i++) {
+		if ((e820_table->map[i].type != E820_RAM)
+		 && (e820_table->map[i].type != E820_RESERVED_KERN))
 			continue;
 
-		add_mac_region(e820_array->map[i].addr, e820_array->map[i].size);
+		add_mac_region(e820_table->map[i].addr, e820_table->map[i].size);
 	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector =

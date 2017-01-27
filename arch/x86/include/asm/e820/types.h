@@ -21,7 +21,7 @@
  *
  * This allows for bootstrap/firmware quirks such as possible duplicate
  * E820 entries that might need room in the same arrays, prior to the
- * call to sanitize_e820_array() to remove duplicates.  The allowance
+ * call to sanitize_e820_table() to remove duplicates.  The allowance
  * of three memory map entries per node is "enough" entries for
  * the initial hardware platform motivating this mechanism to make
  * use of additional EFI map entries.  Future platforms may want
@@ -68,7 +68,7 @@
 /*
  * The whole array of E820 entries:
  */
-struct e820_array {
+struct e820_table {
 	__u32 nr_map;
 	struct e820_entry map[E820_X_MAX];
 };

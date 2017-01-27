@@ -201,7 +201,7 @@ struct restore_data_record {
  * @map: the e820 map to be calculated
  * @buf: the md5 result to be stored to
  */
-static int get_e820_md5(struct e820_array *map, void *buf)
+static int get_e820_md5(struct e820_table *map, void *buf)
 {
 	struct scatterlist sg;
 	struct crypto_ahash *tfm;
@@ -214,7 +214,7 @@ static int get_e820_md5(struct e820_array *map, void *buf)
 
 	{
 		AHASH_REQUEST_ON_STACK(req, tfm);
-		size = offsetof(struct e820_array, map)
+		size = offsetof(struct e820_table, map)
 			+ sizeof(struct e820_entry) * map->nr_map;
 		ahash_request_set_tfm(req, tfm);
 		sg_init_one(&sg, (u8 *)map, size);
@@ -232,7 +232,7 @@ static int get_e820_md5(struct e820_array *map, void *buf)
 
 static void hibernation_e820_save(void *buf)
 {
-	get_e820_md5(e820_array_saved, buf);
+	get_e820_md5(e820_table_saved, buf);
 }
 
 static bool hibernation_e820_mismatch(void *buf)
@@ -245,7 +245,7 @@ static bool hibernation_e820_mismatch(void *buf)
 	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
 		return false;
 
-	ret = get_e820_md5(e820_array_saved, result);
+	ret = get_e820_md5(e820_table_saved, result);
 	if (ret)
 		return true;
 
