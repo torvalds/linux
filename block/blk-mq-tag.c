@@ -329,11 +329,6 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 
 }
 
-static unsigned int bt_unused_tags(const struct sbitmap_queue *bt)
-{
-	return bt->sb.depth - sbitmap_weight(&bt->sb);
-}
-
 static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
 		    bool round_robin, int node)
 {
@@ -469,25 +464,3 @@ u32 blk_mq_unique_tag(struct request *rq)
 		(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
 }
 EXPORT_SYMBOL(blk_mq_unique_tag);
-
-ssize_t blk_mq_tag_sysfs_show(struct blk_mq_tags *tags, char *page)
-{
-	char *orig_page = page;
-	unsigned int free, res;
-
-	if (!tags)
-		return 0;
-
-	page += sprintf(page, "nr_tags=%u, reserved_tags=%u, "
-			"bits_per_word=%u\n",
-			tags->nr_tags, tags->nr_reserved_tags,
-			1U << tags->bitmap_tags.sb.shift);
-
-	free = bt_unused_tags(&tags->bitmap_tags);
-	res = bt_unused_tags(&tags->breserved_tags);
-
-	page += sprintf(page, "nr_free=%u, nr_reserved=%u\n", free, res);
-	page += sprintf(page, "active_queues=%u\n", atomic_read(&tags->active_queues));
-
-	return page - orig_page;
-}

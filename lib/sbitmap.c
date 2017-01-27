@@ -17,6 +17,7 @@
 
 #include <linux/random.h>
 #include <linux/sbitmap.h>
+#include <linux/seq_file.h>
 
 int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		      gfp_t flags, int node)
@@ -179,6 +180,62 @@ unsigned int sbitmap_weight(const struct sbitmap *sb)
 	return weight;
 }
 EXPORT_SYMBOL_GPL(sbitmap_weight);
+
+void sbitmap_show(struct sbitmap *sb, struct seq_file *m)
+{
+	seq_printf(m, "depth=%u\n", sb->depth);
+	seq_printf(m, "busy=%u\n", sbitmap_weight(sb));
+	seq_printf(m, "bits_per_word=%u\n", 1U << sb->shift);
+	seq_printf(m, "map_nr=%u\n", sb->map_nr);
+}
+EXPORT_SYMBOL_GPL(sbitmap_show);
+
+static inline void emit_byte(struct seq_file *m, unsigned int offset, u8 byte)
+{
+	if ((offset & 0xf) == 0) {
+		if (offset != 0)
+			seq_putc(m, '\n');
+		seq_printf(m, "%08x:", offset);
+	}
+	if ((offset & 0x1) == 0)
+		seq_putc(m, ' ');
+	seq_printf(m, "%02x", byte);
+}
+
+void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m)
+{
+	u8 byte = 0;
+	unsigned int byte_bits = 0;
+	unsigned int offset = 0;
+	int i;
+
+	for (i = 0; i < sb->map_nr; i++) {
+		unsigned long word = READ_ONCE(sb->map[i].word);
+		unsigned int word_bits = READ_ONCE(sb->map[i].depth);
+
+		while (word_bits > 0) {
+			unsigned int bits = min(8 - byte_bits, word_bits);
+
+			byte |= (word & (BIT(bits) - 1)) << byte_bits;
+			byte_bits += bits;
+			if (byte_bits == 8) {
+				emit_byte(m, offset, byte);
+				byte = 0;
+				byte_bits = 0;
+				offset++;
+			}
+			word >>= bits;
+			word_bits -= bits;
+		}
+	}
+	if (byte_bits) {
+		emit_byte(m, offset, byte);
+		offset++;
+	}
+	if (offset)
+		seq_putc(m, '\n');
+}
+EXPORT_SYMBOL_GPL(sbitmap_bitmap_show);
 
 static unsigned int sbq_calc_wake_batch(unsigned int depth)
 {
@@ -377,3 +434,37 @@ void sbitmap_queue_wake_all(struct sbitmap_queue *sbq)
 	}
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_wake_all);
+
+void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m)
+{
+	bool first;
+	int i;
+
+	sbitmap_show(&sbq->sb, m);
+
+	seq_puts(m, "alloc_hint={");
+	first = true;
+	for_each_possible_cpu(i) {
+		if (!first)
+			seq_puts(m, ", ");
+		first = false;
+		seq_printf(m, "%u", *per_cpu_ptr(sbq->alloc_hint, i));
+	}
+	seq_puts(m, "}\n");
+
+	seq_printf(m, "wake_batch=%u\n", sbq->wake_batch);
+	seq_printf(m, "wake_index=%d\n", atomic_read(&sbq->wake_index));
+
+	seq_puts(m, "ws={\n");
+	for (i = 0; i < SBQ_WAIT_QUEUES; i++) {
+		struct sbq_wait_state *ws = &sbq->ws[i];
+
+		seq_printf(m, "\t{.wait_cnt=%d, .wait=%s},\n",
+			   atomic_read(&ws->wait_cnt),
+			   waitqueue_active(&ws->wait) ? "active" : "inactive");
+	}
+	seq_puts(m, "}\n");
+
+	seq_printf(m, "round_robin=%d\n", sbq->round_robin);
+}
+EXPORT_SYMBOL_GPL(sbitmap_queue_show);
