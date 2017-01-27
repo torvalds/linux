@@ -459,7 +459,7 @@ static void __init e820_reserve_setup_data(void)
 	}
 
 	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
-	memcpy(e820_saved, e820, sizeof(struct e820map));
+	memcpy(e820_saved, e820, sizeof(struct e820_array));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
 }

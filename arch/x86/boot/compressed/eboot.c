@@ -900,7 +900,7 @@ static void add_e820ext(struct boot_params *params,
 	unsigned long size;
 
 	e820ext->type = SETUP_E820_EXT;
-	e820ext->len = nr_entries * sizeof(struct e820entry);
+	e820ext->len = nr_entries * sizeof(struct e820_entry);
 	e820ext->next = 0;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
@@ -917,9 +917,9 @@ static void add_e820ext(struct boot_params *params,
 static efi_status_t setup_e820(struct boot_params *params,
 			       struct setup_data *e820ext, u32 e820ext_size)
 {
-	struct e820entry *e820_map = &params->e820_map[0];
+	struct e820_entry *e820_map = &params->e820_map[0];
 	struct efi_info *efi = &params->efi_info;
-	struct e820entry *prev = NULL;
+	struct e820_entry *prev = NULL;
 	u32 nr_entries;
 	u32 nr_desc;
 	int i;
@@ -983,14 +983,14 @@ static efi_status_t setup_e820(struct boot_params *params,
 		}
 
 		if (nr_entries == ARRAY_SIZE(params->e820_map)) {
-			u32 need = (nr_desc - i) * sizeof(struct e820entry) +
+			u32 need = (nr_desc - i) * sizeof(struct e820_entry) +
 				   sizeof(struct setup_data);
 
 			if (!e820ext || e820ext_size < need)
 				return EFI_BUFFER_TOO_SMALL;
 
 			/* boot_params map full, switch to e820 extended */
-			e820_map = (struct e820entry *)e820ext->data;
+			e820_map = (struct e820_entry *)e820ext->data;
 		}
 
 		e820_map->addr = d->phys_addr;
@@ -1019,7 +1019,7 @@ static efi_status_t alloc_e820ext(u32 nr_desc, struct setup_data **e820ext,
 	unsigned long size;
 
 	size = sizeof(struct setup_data) +
-		sizeof(struct e820entry) * nr_desc;
+		sizeof(struct e820_entry) * nr_desc;
 
 	if (*e820ext) {
 		efi_call_early(free_pool, *e820ext);

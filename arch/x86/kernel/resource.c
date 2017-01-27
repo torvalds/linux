@@ -25,7 +25,7 @@ static void resource_clip(struct resource *res, resource_size_t start,
 static void remove_e820_regions(struct resource *avail)
 {
 	int i;
-	struct e820entry *entry;
+	struct e820_entry *entry;
 
 	for (i = 0; i < e820->nr_map; i++) {
 		entry = &e820->map[i];

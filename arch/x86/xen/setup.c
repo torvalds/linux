@@ -41,7 +41,7 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 unsigned long xen_released_pages;
 
 /* E820 map used during setting up memory. */
-static struct e820entry xen_e820_map[E820_X_MAX] __initdata;
+static struct e820_entry xen_e820_map[E820_X_MAX] __initdata;
 static u32 xen_e820_map_entries __initdata;
 
 /*
@@ -198,7 +198,7 @@ void __init xen_inv_extra_mem(void)
  */
 static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 {
-	const struct e820entry *entry = xen_e820_map;
+	const struct e820_entry *entry = xen_e820_map;
 	unsigned int i;
 	unsigned long done = 0;
 
@@ -457,7 +457,7 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 {
 	phys_addr_t start = 0;
 	unsigned long ret_val = 0;
-	const struct e820entry *entry = xen_e820_map;
+	const struct e820_entry *entry = xen_e820_map;
 	int i;
 
 	/*
@@ -601,7 +601,7 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 
 static void __init xen_ignore_unusable(void)
 {
-	struct e820entry *entry = xen_e820_map;
+	struct e820_entry *entry = xen_e820_map;
 	unsigned int i;
 
 	for (i = 0; i < xen_e820_map_entries; i++, entry++) {
@@ -612,7 +612,7 @@ static void __init xen_ignore_unusable(void)
 
 bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 {
-	struct e820entry *entry;
+	struct e820_entry *entry;
 	unsigned mapcnt;
 	phys_addr_t end;
 
@@ -645,7 +645,7 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
 {
 	unsigned mapcnt;
 	phys_addr_t addr, start;
-	struct e820entry *entry = xen_e820_map;
+	struct e820_entry *entry = xen_e820_map;
 
 	for (mapcnt = 0; mapcnt < xen_e820_map_entries; mapcnt++, entry++) {
 		if (entry->type != E820_RAM || entry->size < size)

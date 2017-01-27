@@ -108,7 +108,7 @@ static int setup_e820_entries(struct boot_params *params)
 
 	params->e820_entries = nr_e820_entries;
 	memcpy(&params->e820_map, &e820_saved->map,
-	       nr_e820_entries * sizeof(struct e820entry));
+	       nr_e820_entries * sizeof(struct e820_entry));
 
 	return 0;
 }

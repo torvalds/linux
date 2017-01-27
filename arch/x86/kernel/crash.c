@@ -504,7 +504,7 @@ static int prepare_elf_headers(struct kimage *image, void **addr,
 	return ret;
 }
 
-static int add_e820_entry(struct boot_params *params, struct e820entry *entry)
+static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 {
 	unsigned int nr_e820_entries;
 
@@ -513,7 +513,7 @@ static int add_e820_entry(struct boot_params *params, struct e820entry *entry)
 		return 1;
 
 	memcpy(&params->e820_map[nr_e820_entries], entry,
-			sizeof(struct e820entry));
+			sizeof(struct e820_entry));
 	params->e820_entries++;
 	return 0;
 }
@@ -522,7 +522,7 @@ static int memmap_entry_callback(u64 start, u64 end, void *arg)
 {
 	struct crash_memmap_data *cmd = arg;
 	struct boot_params *params = cmd->params;
-	struct e820entry ei;
+	struct e820_entry ei;
 
 	ei.addr = start;
 	ei.size = end - start + 1;
@@ -561,7 +561,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 {
 	int i, ret = 0;
 	unsigned long flags;
-	struct e820entry ei;
+	struct e820_entry ei;
 	struct crash_memmap_data cmd;
 	struct crash_mem *cmem;
 

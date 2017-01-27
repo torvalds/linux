@@ -426,7 +426,7 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct e820entry *entry,
+static void process_e820_entry(struct e820_entry *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {

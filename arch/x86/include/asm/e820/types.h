@@ -68,9 +68,9 @@
 /*
  * The whole array of E820 entries:
  */
-struct e820map {
+struct e820_array {
 	__u32 nr_map;
-	struct e820entry map[E820_X_MAX];
+	struct e820_entry map[E820_X_MAX];
 };
 
 /*

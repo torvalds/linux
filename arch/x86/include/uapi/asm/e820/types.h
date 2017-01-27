@@ -10,7 +10,7 @@
  * A single E820 map entry, describing a memory range of [addr...addr+size-1],
  * of 'type' memory type:
  */
-struct e820entry {
+struct e820_entry {
 	__u64 addr;
 	__u64 size;
 	__u32 type;

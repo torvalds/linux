@@ -34,5 +34,5 @@ Offset	Proto	Name		Meaning
 1EF/001	ALL	sentinel	Used to detect broken bootloaders
 290/040	ALL	edd_mbr_sig_buffer EDD MBR signatures
 2D0/A00	ALL	e820_map	E820 memory map table
-				(array of struct e820entry)
+				(array of struct e820_entry)
 D00/1EC	ALL	eddbuf		EDD data (array of struct edd_info)
