@@ -87,9 +87,6 @@ config QCOM_ADSP_PIL
 config QCOM_RPROC_COMMON
 	tristate
 
-config QCOM_MDT_LOADER
-	tristate
-
 config QCOM_Q6V5_PIL
 	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
 	depends on OF && ARCH_QCOM

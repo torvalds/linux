@@ -26,11 +26,11 @@
 #include <linux/qcom_scm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
+#include <linux/soc/qcom/mdt_loader.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
 #include "qcom_common.h"
-#include "qcom_mdt_loader.h"
 #include "remoteproc_internal.h"
 
 struct adsp_data {
