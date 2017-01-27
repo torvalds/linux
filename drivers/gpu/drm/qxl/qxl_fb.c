@@ -268,7 +268,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	info->par = qfbdev;
 
-	qxl_framebuffer_init(qdev->ddev, &qfbdev->qfb, &mode_cmd, gobj,
+	qxl_framebuffer_init(&qdev->ddev, &qfbdev->qfb, &mode_cmd, gobj,
 			     &qxlfb_fb_funcs);
 
 	fb = &qfbdev->qfb.base;
@@ -297,7 +297,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 			       sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = qdev->ddev->mode_config.fb_base;
+	info->apertures->ranges[0].base = qdev->ddev.mode_config.fb_base;
 	info->apertures->ranges[0].size = qdev->vram_size;
 
 	info->fix.mmio_start = 0;
@@ -395,10 +395,10 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 	spin_lock_init(&qfbdev->delayed_ops_lock);
 	INIT_LIST_HEAD(&qfbdev->delayed_ops);
 
-	drm_fb_helper_prepare(qdev->ddev, &qfbdev->helper,
+	drm_fb_helper_prepare(&qdev->ddev, &qfbdev->helper,
 			      &qxl_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
+	ret = drm_fb_helper_init(&qdev->ddev, &qfbdev->helper,
 				 qxl_num_crtc,
 				 QXLFB_CONN_LIMIT);
 	if (ret)
@@ -426,7 +426,7 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 	if (!qdev->mode_info.qfbdev)
 		return;
 
-	qxl_fbdev_destroy(qdev->ddev, qdev->mode_info.qfbdev);
+	qxl_fbdev_destroy(&qdev->ddev, qdev->mode_info.qfbdev);
 	kfree(qdev->mode_info.qfbdev);
 	qdev->mode_info.qfbdev = NULL;
 }

@@ -93,7 +93,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 	if (bo == NULL)
 		return -ENOMEM;
 	size = roundup(size, PAGE_SIZE);
-	r = drm_gem_object_init(qdev->ddev, &bo->gem_base, size);
+	r = drm_gem_object_init(&qdev->ddev, &bo->gem_base, size);
 	if (unlikely(r)) {
 		kfree(bo);
 		return r;
@@ -113,7 +113,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 			NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
-			dev_err(qdev->ddev->dev,
+			dev_err(qdev->ddev.dev,
 				"object_init failed for (%lu, 0x%08X)\n",
 				size, domain);
 		return r;
@@ -270,9 +270,9 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 
 	if (list_empty(&qdev->gem.objects))
 		return;
-	dev_err(qdev->ddev->dev, "Userspace still has active objects !\n");
+	dev_err(qdev->ddev.dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &qdev->gem.objects, list) {
-		dev_err(qdev->ddev->dev, "%p %p %lu %lu force free\n",
+		dev_err(qdev->ddev.dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
 		mutex_lock(&qdev->gem.mutex);

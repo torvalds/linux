@@ -62,7 +62,6 @@ static struct pci_driver qxl_pci_driver;
 static int
 qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct drm_device *drm;
 	struct qxl_device *qdev;
 	int ret;
 
@@ -72,29 +71,19 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EINVAL; /* TODO: ENODEV ? */
 	}
 
-	drm = drm_dev_alloc(&qxl_driver, &pdev->dev);
-	if (IS_ERR(drm))
-		return -ENOMEM;
-
 	qdev = kzalloc(sizeof(struct qxl_device), GFP_KERNEL);
-	if (!qdev) {
-		ret = -ENOMEM;
-		goto free_drm_device;
-	}
+	if (!qdev)
+		return -ENOMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto free_drm_device;
+		goto free_dev;
 
-	drm->pdev = pdev;
-	pci_set_drvdata(pdev, drm);
-	drm->dev_private = qdev;
-
-	ret = qxl_device_init(qdev, drm, pdev, ent->driver_data);
+	ret = qxl_device_init(qdev, &qxl_driver, pdev, ent->driver_data);
 	if (ret)
 		goto disable_pci;
 
-	ret = drm_vblank_init(drm, 1);
+	ret = drm_vblank_init(&qdev->ddev, 1);
 	if (ret)
 		goto unload;
 
@@ -102,10 +91,10 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto vblank_cleanup;
 
-	drm_kms_helper_poll_init(qdev->ddev);
+	drm_kms_helper_poll_init(&qdev->ddev);
 
 	/* Complete initialization. */
-	ret = drm_dev_register(drm, ent->driver_data);
+	ret = drm_dev_register(&qdev->ddev, ent->driver_data);
 	if (ret)
 		goto modeset_cleanup;
 
@@ -114,14 +103,13 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 modeset_cleanup:
 	qxl_modeset_fini(qdev);
 vblank_cleanup:
-	drm_vblank_cleanup(drm);
+	drm_vblank_cleanup(&qdev->ddev);
 unload:
 	qxl_device_fini(qdev);
 disable_pci:
 	pci_disable_device(pdev);
-free_drm_device:
+free_dev:
 	kfree(qdev);
-	kfree(drm);
 	return ret;
 }
 

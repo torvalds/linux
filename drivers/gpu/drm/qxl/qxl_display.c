@@ -136,7 +136,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 
 static void qxl_update_offset_props(struct qxl_device *qdev)
 {
-	struct drm_device *dev = qdev->ddev;
+	struct drm_device *dev = &qdev->ddev;
 	struct drm_connector *connector;
 	struct qxl_output *output;
 	struct qxl_head *head;
@@ -156,7 +156,7 @@ static void qxl_update_offset_props(struct qxl_device *qdev)
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 {
 
-	struct drm_device *dev = qdev->ddev;
+	struct drm_device *dev = &qdev->ddev;
 	int status;
 
 	status = qxl_display_copy_rom_client_monitors_config(qdev);
@@ -174,10 +174,10 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 	drm_modeset_lock_all(dev);
 	qxl_update_offset_props(qdev);
 	drm_modeset_unlock_all(dev);
-	if (!drm_helper_hpd_irq_event(qdev->ddev)) {
+	if (!drm_helper_hpd_irq_event(dev)) {
 		/* notify that the monitor configuration changed, to
 		   adjust at the arbitrary resolution */
-		drm_kms_helper_hotplug_event(qdev->ddev);
+		drm_kms_helper_hotplug_event(dev);
 	}
 }
 
@@ -1036,7 +1036,7 @@ static int qxl_mode_create_hotplug_mode_update_property(struct qxl_device *qdev)
 		return 0;
 
 	qdev->hotplug_mode_update_property =
-		drm_property_create_range(qdev->ddev, DRM_MODE_PROP_IMMUTABLE,
+		drm_property_create_range(&qdev->ddev, DRM_MODE_PROP_IMMUTABLE,
 					  "hotplug_mode_update", 0, 1);
 
 	return 0;
@@ -1175,28 +1175,28 @@ int qxl_modeset_init(struct qxl_device *qdev)
 	int i;
 	int ret;
 
-	drm_mode_config_init(qdev->ddev);
+	drm_mode_config_init(&qdev->ddev);
 
 	ret = qxl_create_monitors_object(qdev);
 	if (ret)
 		return ret;
 
-	qdev->ddev->mode_config.funcs = (void *)&qxl_mode_funcs;
+	qdev->ddev.mode_config.funcs = (void *)&qxl_mode_funcs;
 
 	/* modes will be validated against the framebuffer size */
-	qdev->ddev->mode_config.min_width = 320;
-	qdev->ddev->mode_config.min_height = 200;
-	qdev->ddev->mode_config.max_width = 8192;
-	qdev->ddev->mode_config.max_height = 8192;
+	qdev->ddev.mode_config.min_width = 320;
+	qdev->ddev.mode_config.min_height = 200;
+	qdev->ddev.mode_config.max_width = 8192;
+	qdev->ddev.mode_config.max_height = 8192;
 
-	qdev->ddev->mode_config.fb_base = qdev->vram_base;
+	qdev->ddev.mode_config.fb_base = qdev->vram_base;
 
-	drm_mode_create_suggested_offset_properties(qdev->ddev);
+	drm_mode_create_suggested_offset_properties(&qdev->ddev);
 	qxl_mode_create_hotplug_mode_update_property(qdev);
 
 	for (i = 0 ; i < qxl_num_crtc; ++i) {
-		qdev_crtc_init(qdev->ddev, i);
-		qdev_output_init(qdev->ddev, i);
+		qdev_crtc_init(&qdev->ddev, i);
+		qdev_output_init(&qdev->ddev, i);
 	}
 
 	qdev->mode_info.mode_config_initialized = true;
@@ -1214,7 +1214,7 @@ void qxl_modeset_fini(struct qxl_device *qdev)
 
 	qxl_destroy_monitors_object(qdev);
 	if (qdev->mode_info.mode_config_initialized) {
-		drm_mode_config_cleanup(qdev->ddev);
+		drm_mode_config_cleanup(&qdev->ddev);
 		qdev->mode_info.mode_config_initialized = false;
 	}
 }
