@@ -21,6 +21,12 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio);
 bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq);
 void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx);
 
+void blk_mq_sched_insert_request(struct request *rq, bool at_head,
+				 bool run_queue, bool async, bool can_block);
+void blk_mq_sched_insert_requests(struct request_queue *q,
+				  struct blk_mq_ctx *ctx,
+				  struct list_head *list, bool run_queue_async);
+
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx);
 void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
 			struct list_head *rq_list,
@@ -60,45 +66,6 @@ static inline void blk_mq_sched_put_rq_priv(struct request_queue *q,
 
 	if (e && e->type->ops.mq.put_rq_priv)
 		e->type->ops.mq.put_rq_priv(q, rq);
-}
-
-static inline void
-blk_mq_sched_insert_request(struct request *rq, bool at_head, bool run_queue,
-			    bool async)
-{
-	struct request_queue *q = rq->q;
-	struct elevator_queue *e = q->elevator;
-	struct blk_mq_ctx *ctx = rq->mq_ctx;
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-
-	if (e && e->type->ops.mq.insert_requests) {
-		LIST_HEAD(list);
-
-		list_add(&rq->queuelist, &list);
-		e->type->ops.mq.insert_requests(hctx, &list, at_head);
-	} else {
-		spin_lock(&ctx->lock);
-		__blk_mq_insert_request(hctx, rq, at_head);
-		spin_unlock(&ctx->lock);
-	}
-
-	if (run_queue)
-		blk_mq_run_hw_queue(hctx, async);
-}
-
-static inline void
-blk_mq_sched_insert_requests(struct request_queue *q, struct blk_mq_ctx *ctx,
-			     struct list_head *list, bool run_queue_async)
-{
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-	struct elevator_queue *e = hctx->queue->elevator;
-
-	if (e && e->type->ops.mq.insert_requests)
-		e->type->ops.mq.insert_requests(hctx, list, false);
-	else
-		blk_mq_insert_requests(hctx, ctx, list);
-
-	blk_mq_run_hw_queue(hctx, run_queue_async);
 }
 
 static inline bool

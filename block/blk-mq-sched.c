@@ -335,6 +335,64 @@ void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
+/*
+ * Add flush/fua to the queue. If we fail getting a driver tag, then
+ * punt to the requeue list. Requeue will re-invoke us from a context
+ * that's safe to block from.
+ */
+static void blk_mq_sched_insert_flush(struct blk_mq_hw_ctx *hctx,
+				      struct request *rq, bool can_block)
+{
+	if (blk_mq_get_driver_tag(rq, &hctx, can_block)) {
+		blk_insert_flush(rq);
+		blk_mq_run_hw_queue(hctx, true);
+	} else
+		blk_mq_add_to_requeue_list(rq, true, true);
+}
+
+void blk_mq_sched_insert_request(struct request *rq, bool at_head,
+				 bool run_queue, bool async, bool can_block)
+{
+	struct request_queue *q = rq->q;
+	struct elevator_queue *e = q->elevator;
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+
+	if (rq->tag == -1 && (rq->cmd_flags & (REQ_PREFLUSH | REQ_FUA))) {
+		blk_mq_sched_insert_flush(hctx, rq, can_block);
+		return;
+	}
+
+	if (e && e->type->ops.mq.insert_requests) {
+		LIST_HEAD(list);
+
+		list_add(&rq->queuelist, &list);
+		e->type->ops.mq.insert_requests(hctx, &list, at_head);
+	} else {
+		spin_lock(&ctx->lock);
+		__blk_mq_insert_request(hctx, rq, at_head);
+		spin_unlock(&ctx->lock);
+	}
+
+	if (run_queue)
+		blk_mq_run_hw_queue(hctx, async);
+}
+
+void blk_mq_sched_insert_requests(struct request_queue *q,
+				  struct blk_mq_ctx *ctx,
+				  struct list_head *list, bool run_queue_async)
+{
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	struct elevator_queue *e = hctx->queue->elevator;
+
+	if (e && e->type->ops.mq.insert_requests)
+		e->type->ops.mq.insert_requests(hctx, list, false);
+	else
+		blk_mq_insert_requests(hctx, ctx, list);
+
+	blk_mq_run_hw_queue(hctx, run_queue_async);
+}
+
 static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 				   struct blk_mq_hw_ctx *hctx,
 				   unsigned int hctx_idx)
