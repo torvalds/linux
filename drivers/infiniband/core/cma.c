@@ -3837,7 +3837,7 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	if (!status && id_priv->id.qp) {
 		status = ib_attach_mcast(id_priv->id.qp, &multicast->rec.mgid,
 					 be16_to_cpu(multicast->rec.mlid));
-		if (!status)
+		if (status)
 			pr_debug_ratelimited("RDMA CM: MULTICAST_ERROR: failed to attach QP. status %d\n",
 					     status);
 	}
