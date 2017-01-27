@@ -2511,6 +2511,10 @@ static inline void sched_clock_tick(void)
 {
 }
 
+static inline void clear_sched_clock_stable(void)
+{
+}
+
 static inline void sched_clock_idle_sleep_event(void)
 {
 }
