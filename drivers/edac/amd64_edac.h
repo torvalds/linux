@@ -20,14 +20,8 @@
 #include "edac_module.h"
 #include "mce_amd.h"
 
-#define amd64_debug(fmt, arg...) \
-	edac_printk(KERN_DEBUG, "amd64", fmt, ##arg)
-
 #define amd64_info(fmt, arg...) \
 	edac_printk(KERN_INFO, "amd64", fmt, ##arg)
-
-#define amd64_notice(fmt, arg...) \
-	edac_printk(KERN_NOTICE, "amd64", fmt, ##arg)
 
 #define amd64_warn(fmt, arg...) \
 	edac_printk(KERN_WARNING, "amd64", "Warning: " fmt, ##arg)
