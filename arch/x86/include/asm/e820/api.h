@@ -46,6 +46,4 @@ static inline bool is_ISA_range(u64 start, u64 end)
 	return start >= ISA_START_ADDRESS && end <= ISA_END_ADDRESS;
 }
 
-#include <linux/ioport.h>
-
 #endif /* _ASM_E820_API_H */

@@ -9,6 +9,7 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mmiotrace.h>
