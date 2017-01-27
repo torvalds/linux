@@ -676,10 +676,6 @@ struct mv88e6xxx_vtu_entry {
 
 struct mv88e6xxx_bus_ops;
 
-struct mv88e6xxx_priv_port {
-	struct net_device *bridge_dev;
-};
-
 struct mv88e6xxx_irq {
 	u16 masked;
 	struct irq_chip chip;
@@ -719,8 +715,6 @@ struct mv88e6xxx_chip {
 	 * Hold this mutex over snapshot + dump sequences.
 	 */
 	struct mutex	stats_mutex;
-
-	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
 	/* A switch may have a GPIO line tied to its reset pin. Parse
 	 * this from the device tree, and use it before performing

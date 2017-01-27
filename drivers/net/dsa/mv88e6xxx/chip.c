@@ -1247,8 +1247,8 @@ static int _mv88e6xxx_atu_remove(struct mv88e6xxx_chip *chip, u16 fid,
 
 static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
 {
-	struct net_device *bridge = chip->ports[port].bridge_dev;
 	struct dsa_switch *ds = chip->ds;
+	struct net_device *bridge = ds->ports[port].bridge_dev;
 	u16 output_ports = 0;
 	int i;
 
@@ -1258,7 +1258,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
 	} else {
 		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
 			/* allow sending frames to every group member */
-			if (bridge && chip->ports[i].bridge_dev == bridge)
+			if (bridge && ds->ports[i].bridge_dev == bridge)
 				output_ports |= BIT(i);
 
 			/* allow sending frames to CPU port and DSA link(s) */
@@ -1820,17 +1820,17 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			    GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 				continue;
 
-			if (chip->ports[i].bridge_dev ==
-			    chip->ports[port].bridge_dev)
+			if (ds->ports[i].bridge_dev ==
+			    ds->ports[port].bridge_dev)
 				break; /* same bridge, check next VLAN */
 
-			if (!chip->ports[i].bridge_dev)
+			if (!ds->ports[i].bridge_dev)
 				continue;
 
 			netdev_warn(ds->ports[port].netdev,
 				    "hardware VLAN %d already used by %s\n",
 				    vlan.vid,
-				    netdev_name(chip->ports[i].bridge_dev));
+				    netdev_name(ds->ports[i].bridge_dev));
 			err = -EOPNOTSUPP;
 			goto unlock;
 		}
@@ -2320,18 +2320,16 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-				      struct net_device *bridge)
+				      struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int i, err = 0;
 
 	mutex_lock(&chip->reg_lock);
 
-	/* Assign the bridge and remap each port's VLANTable */
-	chip->ports[port].bridge_dev = bridge;
-
+	/* Remap each port's VLANTable */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		if (chip->ports[i].bridge_dev == bridge) {
+		if (ds->ports[i].bridge_dev == br) {
 			err = _mv88e6xxx_port_based_vlan_map(chip, i);
 			if (err)
 				break;
@@ -2347,16 +2345,13 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 					struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	struct net_device *bridge = chip->ports[port].bridge_dev;
 	int i;
 
 	mutex_lock(&chip->reg_lock);
 
-	/* Unassign the bridge and remap each port's VLANTable */
-	chip->ports[port].bridge_dev = NULL;
-
+	/* Remap each port's VLANTable */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-		if (i == port || chip->ports[i].bridge_dev == bridge)
+		if (i == port || ds->ports[i].bridge_dev == br)
 			if (_mv88e6xxx_port_based_vlan_map(chip, i))
 				netdev_warn(ds->ports[i].netdev,
 					    "failed to remap\n");
