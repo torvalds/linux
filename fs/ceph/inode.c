@@ -1360,6 +1360,26 @@ retry_lookup:
 			goto done;
 		}
 		req->r_dentry = dn;  /* may have spliced */
+	} else if (rinfo->head->is_dentry) {
+		struct ceph_vino *ptvino = NULL;
+
+		if ((le32_to_cpu(rinfo->diri.in->cap.caps) & CEPH_CAP_FILE_SHARED) ||
+		    le32_to_cpu(rinfo->dlease->duration_ms)) {
+			dvino.ino = le64_to_cpu(rinfo->diri.in->ino);
+			dvino.snap = le64_to_cpu(rinfo->diri.in->snapid);
+
+			if (rinfo->head->is_target) {
+				tvino.ino = le64_to_cpu(rinfo->targeti.in->ino);
+				tvino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
+				ptvino = &tvino;
+			}
+
+			update_dentry_lease(req->r_dentry, rinfo->dlease,
+				session, req->r_request_started, ptvino,
+				&dvino);
+		} else {
+			dout("%s: no dentry lease or dir cap\n", __func__);
+		}
 	}
 done:
 	dout("fill_trace done err=%d\n", err);
