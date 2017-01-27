@@ -1,11 +1,13 @@
 /*
- *  Deadline i/o scheduler.
+ *  MQ Deadline i/o scheduler - adaptation of the legacy deadline scheduler,
+ *  for the blk-mq scheduling framework
  *
- *  Copyright (C) 2002 Jens Axboe <axboe@kernel.dk>
+ *  Copyright (C) 2016 Jens Axboe <axboe@kernel.dk>
  */
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/elevator.h>
 #include <linux/bio.h>
 #include <linux/module.h>
@@ -13,6 +15,12 @@
 #include <linux/init.h>
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <linux/sbitmap.h>
+
+#include "blk.h"
+#include "blk-mq.h"
+#include "blk-mq-tag.h"
+#include "blk-mq-sched.h"
 
 /*
  * See Documentation/block/deadline-iosched.txt
@@ -31,7 +39,7 @@ struct deadline_data {
 	/*
 	 * requests (deadline_rq s) are present on both sort_list and fifo_list
 	 */
-	struct rb_root sort_list[2];	
+	struct rb_root sort_list[2];
 	struct list_head fifo_list[2];
 
 	/*
@@ -48,9 +56,10 @@ struct deadline_data {
 	int fifo_batch;
 	int writes_starved;
 	int front_merges;
-};
 
-static void deadline_move_request(struct deadline_data *, struct request *);
+	spinlock_t lock;
+	struct list_head dispatch;
+};
 
 static inline struct rb_root *
 deadline_rb_root(struct deadline_data *dd, struct request *rq)
@@ -92,66 +101,27 @@ deadline_del_rq_rb(struct deadline_data *dd, struct request *rq)
 }
 
 /*
- * add rq to rbtree and fifo
- */
-static void
-deadline_add_request(struct request_queue *q, struct request *rq)
-{
-	struct deadline_data *dd = q->elevator->elevator_data;
-	const int data_dir = rq_data_dir(rq);
-
-	deadline_add_rq_rb(dd, rq);
-
-	/*
-	 * set expire time and add to fifo list
-	 */
-	rq->fifo_time = jiffies + dd->fifo_expire[data_dir];
-	list_add_tail(&rq->queuelist, &dd->fifo_list[data_dir]);
-}
-
-/*
  * remove rq from rbtree and fifo.
  */
 static void deadline_remove_request(struct request_queue *q, struct request *rq)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
-	rq_fifo_clear(rq);
-	deadline_del_rq_rb(dd, rq);
-}
-
-static int
-deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
-{
-	struct deadline_data *dd = q->elevator->elevator_data;
-	struct request *__rq;
-	int ret;
+	list_del_init(&rq->queuelist);
 
 	/*
-	 * check for front merge
+	 * We might not be on the rbtree, if we are doing an insert merge
 	 */
-	if (dd->front_merges) {
-		sector_t sector = bio_end_sector(bio);
+	if (!RB_EMPTY_NODE(&rq->rb_node))
+		deadline_del_rq_rb(dd, rq);
 
-		__rq = elv_rb_find(&dd->sort_list[bio_data_dir(bio)], sector);
-		if (__rq) {
-			BUG_ON(sector != blk_rq_pos(__rq));
-
-			if (elv_bio_merge_ok(__rq, bio)) {
-				ret = ELEVATOR_FRONT_MERGE;
-				goto out;
-			}
-		}
-	}
-
-	return ELEVATOR_NO_MERGE;
-out:
-	*req = __rq;
-	return ret;
+	elv_rqhash_del(q, rq);
+	if (q->last_merge == rq)
+		q->last_merge = NULL;
 }
 
-static void deadline_merged_request(struct request_queue *q,
-				    struct request *req, int type)
+static void dd_request_merged(struct request_queue *q, struct request *req,
+			      int type)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
@@ -164,9 +134,8 @@ static void deadline_merged_request(struct request_queue *q,
 	}
 }
 
-static void
-deadline_merged_requests(struct request_queue *q, struct request *req,
-			 struct request *next)
+static void dd_merged_requests(struct request_queue *q, struct request *req,
+			       struct request *next)
 {
 	/*
 	 * if next expires before rq, assign its expire time to rq
@@ -187,18 +156,6 @@ deadline_merged_requests(struct request_queue *q, struct request *req,
 }
 
 /*
- * move request from sort list to dispatch queue.
- */
-static inline void
-deadline_move_to_dispatch(struct deadline_data *dd, struct request *rq)
-{
-	struct request_queue *q = rq->q;
-
-	deadline_remove_request(q, rq);
-	elv_dispatch_add_tail(q, rq);
-}
-
-/*
  * move an entry to dispatch queue
  */
 static void
@@ -211,10 +168,9 @@ deadline_move_request(struct deadline_data *dd, struct request *rq)
 	dd->next_rq[data_dir] = deadline_latter_request(rq);
 
 	/*
-	 * take it off the sort and fifo list, move
-	 * to dispatch queue
+	 * take it off the sort and fifo list
 	 */
-	deadline_move_to_dispatch(dd, rq);
+	deadline_remove_request(rq->q, rq);
 }
 
 /*
@@ -238,13 +194,21 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
  * deadline_dispatch_requests selects the best request according to
  * read/write expire, fifo_batch, etc
  */
-static int deadline_dispatch_requests(struct request_queue *q, int force)
+static struct request *__dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
-	struct deadline_data *dd = q->elevator->elevator_data;
-	const int reads = !list_empty(&dd->fifo_list[READ]);
-	const int writes = !list_empty(&dd->fifo_list[WRITE]);
+	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
 	struct request *rq;
+	bool reads, writes;
 	int data_dir;
+
+	if (!list_empty(&dd->dispatch)) {
+		rq = list_first_entry(&dd->dispatch, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+		goto done;
+	}
+
+	reads = !list_empty(&dd->fifo_list[READ]);
+	writes = !list_empty(&dd->fifo_list[WRITE]);
 
 	/*
 	 * batches are currently reads XOR writes
@@ -289,7 +253,7 @@ dispatch_writes:
 		goto dispatch_find_request;
 	}
 
-	return 0;
+	return NULL;
 
 dispatch_find_request:
 	/*
@@ -318,11 +282,24 @@ dispatch_request:
 	 */
 	dd->batching++;
 	deadline_move_request(dd, rq);
-
-	return 1;
+done:
+	rq->rq_flags |= RQF_STARTED;
+	return rq;
 }
 
-static void deadline_exit_queue(struct elevator_queue *e)
+static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
+{
+	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
+	struct request *rq;
+
+	spin_lock(&dd->lock);
+	rq = __dd_dispatch_request(hctx);
+	spin_unlock(&dd->lock);
+
+	return rq;
+}
+
+static void dd_exit_queue(struct elevator_queue *e)
 {
 	struct deadline_data *dd = e->elevator_data;
 
@@ -335,7 +312,7 @@ static void deadline_exit_queue(struct elevator_queue *e)
 /*
  * initialize elevator private data (deadline_data).
  */
-static int deadline_init_queue(struct request_queue *q, struct elevator_type *e)
+static int dd_init_queue(struct request_queue *q, struct elevator_type *e)
 {
 	struct deadline_data *dd;
 	struct elevator_queue *eq;
@@ -360,17 +337,118 @@ static int deadline_init_queue(struct request_queue *q, struct elevator_type *e)
 	dd->writes_starved = writes_starved;
 	dd->front_merges = 1;
 	dd->fifo_batch = fifo_batch;
+	spin_lock_init(&dd->lock);
+	INIT_LIST_HEAD(&dd->dispatch);
 
-	spin_lock_irq(q->queue_lock);
 	q->elevator = eq;
-	spin_unlock_irq(q->queue_lock);
 	return 0;
+}
+
+static int dd_request_merge(struct request_queue *q, struct request **rq,
+			    struct bio *bio)
+{
+	struct deadline_data *dd = q->elevator->elevator_data;
+	sector_t sector = bio_end_sector(bio);
+	struct request *__rq;
+
+	if (!dd->front_merges)
+		return ELEVATOR_NO_MERGE;
+
+	__rq = elv_rb_find(&dd->sort_list[bio_data_dir(bio)], sector);
+	if (__rq) {
+		BUG_ON(sector != blk_rq_pos(__rq));
+
+		if (elv_bio_merge_ok(__rq, bio)) {
+			*rq = __rq;
+			return ELEVATOR_FRONT_MERGE;
+		}
+	}
+
+	return ELEVATOR_NO_MERGE;
+}
+
+static bool dd_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
+{
+	struct request_queue *q = hctx->queue;
+	struct deadline_data *dd = q->elevator->elevator_data;
+	int ret;
+
+	spin_lock(&dd->lock);
+	ret = blk_mq_sched_try_merge(q, bio);
+	spin_unlock(&dd->lock);
+
+	return ret;
+}
+
+/*
+ * add rq to rbtree and fifo
+ */
+static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
+			      bool at_head)
+{
+	struct request_queue *q = hctx->queue;
+	struct deadline_data *dd = q->elevator->elevator_data;
+	const int data_dir = rq_data_dir(rq);
+
+	if (blk_mq_sched_try_insert_merge(q, rq))
+		return;
+
+	blk_mq_sched_request_inserted(rq);
+
+	if (blk_mq_sched_bypass_insert(hctx, rq))
+		return;
+
+	if (at_head || rq->cmd_type != REQ_TYPE_FS) {
+		if (at_head)
+			list_add(&rq->queuelist, &dd->dispatch);
+		else
+			list_add_tail(&rq->queuelist, &dd->dispatch);
+	} else {
+		deadline_add_rq_rb(dd, rq);
+
+		if (rq_mergeable(rq)) {
+			elv_rqhash_add(q, rq);
+			if (!q->last_merge)
+				q->last_merge = rq;
+		}
+
+		/*
+		 * set expire time and add to fifo list
+		 */
+		rq->fifo_time = jiffies + dd->fifo_expire[data_dir];
+		list_add_tail(&rq->queuelist, &dd->fifo_list[data_dir]);
+	}
+}
+
+static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
+			       struct list_head *list, bool at_head)
+{
+	struct request_queue *q = hctx->queue;
+	struct deadline_data *dd = q->elevator->elevator_data;
+
+	spin_lock(&dd->lock);
+	while (!list_empty(list)) {
+		struct request *rq;
+
+		rq = list_first_entry(list, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+		dd_insert_request(hctx, rq, at_head);
+	}
+	spin_unlock(&dd->lock);
+}
+
+static bool dd_has_work(struct blk_mq_hw_ctx *hctx)
+{
+	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
+
+	return !list_empty_careful(&dd->dispatch) ||
+		!list_empty_careful(&dd->fifo_list[0]) ||
+		!list_empty_careful(&dd->fifo_list[1]);
 }
 
 /*
  * sysfs parts below
  */
-
 static ssize_t
 deadline_var_show(int var, char *page)
 {
@@ -438,32 +516,35 @@ static struct elv_fs_entry deadline_attrs[] = {
 	__ATTR_NULL
 };
 
-static struct elevator_type iosched_deadline = {
-	.ops.sq = {
-		.elevator_merge_fn = 		deadline_merge,
-		.elevator_merged_fn =		deadline_merged_request,
-		.elevator_merge_req_fn =	deadline_merged_requests,
-		.elevator_dispatch_fn =		deadline_dispatch_requests,
-		.elevator_add_req_fn =		deadline_add_request,
-		.elevator_former_req_fn =	elv_rb_former_request,
-		.elevator_latter_req_fn =	elv_rb_latter_request,
-		.elevator_init_fn =		deadline_init_queue,
-		.elevator_exit_fn =		deadline_exit_queue,
+static struct elevator_type mq_deadline = {
+	.ops.mq = {
+		.insert_requests	= dd_insert_requests,
+		.dispatch_request	= dd_dispatch_request,
+		.next_request		= elv_rb_latter_request,
+		.former_request		= elv_rb_former_request,
+		.bio_merge		= dd_bio_merge,
+		.request_merge		= dd_request_merge,
+		.requests_merged	= dd_merged_requests,
+		.request_merged		= dd_request_merged,
+		.has_work		= dd_has_work,
+		.init_sched		= dd_init_queue,
+		.exit_sched		= dd_exit_queue,
 	},
 
+	.uses_mq	= true,
 	.elevator_attrs = deadline_attrs,
-	.elevator_name = "deadline",
+	.elevator_name = "mq-deadline",
 	.elevator_owner = THIS_MODULE,
 };
 
 static int __init deadline_init(void)
 {
-	return elv_register(&iosched_deadline);
+	return elv_register(&mq_deadline);
 }
 
 static void __exit deadline_exit(void)
 {
-	elv_unregister(&iosched_deadline);
+	elv_unregister(&mq_deadline);
 }
 
 module_init(deadline_init);
@@ -471,4 +552,4 @@ module_exit(deadline_exit);
 
 MODULE_AUTHOR("Jens Axboe");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("deadline IO scheduler");
+MODULE_DESCRIPTION("MQ deadline IO scheduler");

@@ -221,6 +221,15 @@ static inline bool op_is_write(unsigned int op)
 }
 
 /*
+ * Check if the bio or request is one that needs special treatment in the
+ * flush state machine.
+ */
+static inline bool op_is_flush(unsigned int op)
+{
+	return op & (REQ_FUA | REQ_PREFLUSH);
+}
+
+/*
  * Reads are always treated as synchronous, as are requests with the FUA or
  * PREFLUSH flag.  Other operations may be marked as synchronous using the
  * REQ_SYNC flag.
@@ -232,27 +241,39 @@ static inline bool op_is_sync(unsigned int op)
 }
 
 typedef unsigned int blk_qc_t;
-#define BLK_QC_T_NONE	-1U
-#define BLK_QC_T_SHIFT	16
+#define BLK_QC_T_NONE		-1U
+#define BLK_QC_T_SHIFT		16
+#define BLK_QC_T_INTERNAL	(1U << 31)
 
 static inline bool blk_qc_t_valid(blk_qc_t cookie)
 {
 	return cookie != BLK_QC_T_NONE;
 }
 
-static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num)
+static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num,
+				       bool internal)
 {
-	return tag | (queue_num << BLK_QC_T_SHIFT);
+	blk_qc_t ret = tag | (queue_num << BLK_QC_T_SHIFT);
+
+	if (internal)
+		ret |= BLK_QC_T_INTERNAL;
+
+	return ret;
 }
 
 static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)
 {
-	return cookie >> BLK_QC_T_SHIFT;
+	return (cookie & ~BLK_QC_T_INTERNAL) >> BLK_QC_T_SHIFT;
 }
 
 static inline unsigned int blk_qc_t_to_tag(blk_qc_t cookie)
 {
 	return cookie & ((1u << BLK_QC_T_SHIFT) - 1);
+}
+
+static inline bool blk_qc_t_is_internal(blk_qc_t cookie)
+{
+	return (cookie & BLK_QC_T_INTERNAL) != 0;
 }
 
 struct blk_issue_stat {
