@@ -31,7 +31,7 @@ do { \
 		udelay(_US_); \
 	} \
 	if (!AQ_HW_WAIT_FOR_i) {\
-		err = ETIME; \
+		err = -ETIME; \
 	} \
 } while (0)
 
