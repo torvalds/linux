@@ -151,18 +151,17 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 {
 	struct uld_ctx *u_ctx = (struct uld_ctx *)handle;
 	struct chcr_dev *dev = u_ctx->dev;
-	const struct cpl_act_establish *rpl = (struct cpl_act_establish
-					       *)rsp;
+	const struct cpl_fw6_pld *rpl = (struct cpl_fw6_pld *)rsp;
 
-	if (rpl->ot.opcode != CPL_FW6_PLD) {
+	if (rpl->opcode != CPL_FW6_PLD) {
 		pr_err("Unsupported opcode\n");
 		return 0;
 	}
 
 	if (!pgl)
-		work_handlers[rpl->ot.opcode](dev, (unsigned char *)&rsp[1]);
+		work_handlers[rpl->opcode](dev, (unsigned char *)&rsp[1]);
 	else
-		work_handlers[rpl->ot.opcode](dev, pgl->va);
+		work_handlers[rpl->opcode](dev, pgl->va);
 	return 0;
 }
 
