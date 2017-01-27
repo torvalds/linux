@@ -2456,13 +2456,14 @@ static int chcr_aead_op(struct aead_request *req,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct chcr_context *ctx = crypto_aead_ctx(tfm);
-	struct uld_ctx *u_ctx = ULD_CTX(ctx);
+	struct uld_ctx *u_ctx;
 	struct sk_buff *skb;
 
-	if (ctx && !ctx->dev) {
+	if (!ctx->dev) {
 		pr_err("chcr : %s : No crypto device.\n", __func__);
 		return -ENXIO;
 	}
+	u_ctx = ULD_CTX(ctx);
 	if (cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 				   ctx->tx_channel_id)) {
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
