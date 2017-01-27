@@ -196,12 +196,12 @@ struct restore_data_record {
 
 #if IS_BUILTIN(CONFIG_CRYPTO_MD5)
 /**
- * get_e820_md5 - calculate md5 according to given e820 map
+ * get_e820_md5 - calculate md5 according to given e820 table
  *
- * @map: the e820 map to be calculated
+ * @table: the e820 table to be calculated
  * @buf: the md5 result to be stored to
  */
-static int get_e820_md5(struct e820_table *map, void *buf)
+static int get_e820_md5(struct e820_table *table, void *buf)
 {
 	struct scatterlist sg;
 	struct crypto_ahash *tfm;
@@ -214,10 +214,9 @@ static int get_e820_md5(struct e820_table *map, void *buf)
 
 	{
 		AHASH_REQUEST_ON_STACK(req, tfm);
-		size = offsetof(struct e820_table, map)
-			+ sizeof(struct e820_entry) * map->nr_map;
+		size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * table->nr_entries;
 		ahash_request_set_tfm(req, tfm);
-		sg_init_one(&sg, (u8 *)map, size);
+		sg_init_one(&sg, (u8 *)table, size);
 		ahash_request_set_callback(req, 0, NULL, NULL);
 		ahash_request_set_crypt(req, &sg, buf, size);
 

@@ -167,7 +167,7 @@ static void __init do_add_efi_memmap(void)
 		}
 		e820_add_region(start, size, e820_type);
 	}
-	sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
+	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 }
 
 int __init efi_memblock_x86_reserve_range(void)

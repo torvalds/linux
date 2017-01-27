@@ -861,7 +861,7 @@ char * __init xen_memory_setup(void)
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
 
-	sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
+	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 
 	/*
 	 * Check whether the kernel itself conflicts with the target E820 map.

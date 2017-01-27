@@ -60,8 +60,8 @@ e820_any_mapped(u64 start, u64 end, unsigned type)
 {
 	int i;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 
 		if (type && ei->type != type)
 			continue;
@@ -83,8 +83,8 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 {
 	int i;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 
 		if (type && ei->type != type)
 			continue;
@@ -110,22 +110,21 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel e820 map.
  */
-static void __init __e820_add_region(struct e820_table *e820x, u64 start, u64 size,
-					 int type)
+static void __init __e820_add_region(struct e820_table *table, u64 start, u64 size, int type)
 {
-	int x = e820x->nr_map;
+	int x = table->nr_entries;
 
-	if (x >= ARRAY_SIZE(e820x->map)) {
+	if (x >= ARRAY_SIZE(table->entries)) {
 		printk(KERN_ERR "e820: too many entries; ignoring [mem %#010llx-%#010llx]\n",
 		       (unsigned long long) start,
 		       (unsigned long long) (start + size - 1));
 		return;
 	}
 
-	e820x->map[x].addr = start;
-	e820x->map[x].size = size;
-	e820x->map[x].type = type;
-	e820x->nr_map++;
+	table->entries[x].addr = start;
+	table->entries[x].size = size;
+	table->entries[x].type = type;
+	table->nr_entries++;
 }
 
 void __init e820_add_region(u64 start, u64 size, int type)
@@ -166,12 +165,12 @@ void __init e820_print_map(char *who)
 {
 	int i;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
+	for (i = 0; i < e820_table->nr_entries; i++) {
 		printk(KERN_INFO "%s: [mem %#018Lx-%#018Lx] ", who,
-		       (unsigned long long) e820_table->map[i].addr,
+		       (unsigned long long) e820_table->entries[i].addr,
 		       (unsigned long long)
-		       (e820_table->map[i].addr + e820_table->map[i].size - 1));
-		e820_print_type(e820_table->map[i].type);
+		       (e820_table->entries[i].addr + e820_table->entries[i].size - 1));
+		e820_print_type(e820_table->entries[i].type);
 		printk(KERN_CONT "\n");
 	}
 }
@@ -423,7 +422,7 @@ static int __init append_e820_table(struct e820_entry *biosmap, int nr_map)
 	return __append_e820_table(biosmap, nr_map);
 }
 
-static u64 __init __e820_update_range(struct e820_table *e820x, u64 start,
+static u64 __init __e820_update_range(struct e820_table *table, u64 start,
 					u64 size, unsigned old_type,
 					unsigned new_type)
 {
@@ -444,8 +443,8 @@ static u64 __init __e820_update_range(struct e820_table *e820x, u64 start,
 	e820_print_type(new_type);
 	printk(KERN_CONT "\n");
 
-	for (i = 0; i < e820x->nr_map; i++) {
-		struct e820_entry *ei = &e820x->map[i];
+	for (i = 0; i < table->nr_entries; i++) {
+		struct e820_entry *ei = &table->entries[i];
 		u64 final_start, final_end;
 		u64 ei_end;
 
@@ -462,8 +461,8 @@ static u64 __init __e820_update_range(struct e820_table *e820x, u64 start,
 
 		/* new range is totally covered? */
 		if (ei->addr < start && ei_end > end) {
-			__e820_add_region(e820x, start, size, new_type);
-			__e820_add_region(e820x, end, ei_end - end, ei->type);
+			__e820_add_region(table, start, size, new_type);
+			__e820_add_region(table, end, ei_end - end, ei->type);
 			ei->size = start - ei->addr;
 			real_updated_size += size;
 			continue;
@@ -475,7 +474,7 @@ static u64 __init __e820_update_range(struct e820_table *e820x, u64 start,
 		if (final_start >= final_end)
 			continue;
 
-		__e820_add_region(e820x, final_start, final_end - final_start,
+		__e820_add_region(table, final_start, final_end - final_start,
 				  new_type);
 
 		real_updated_size += final_end - final_start;
@@ -523,8 +522,8 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 		e820_print_type(old_type);
 	printk(KERN_CONT "\n");
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 		u64 final_start, final_end;
 		u64 ei_end;
 
@@ -568,15 +567,14 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	if (sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map))
+	if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries))
 		return;
 	printk(KERN_INFO "e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
 static void __init update_e820_table_saved(void)
 {
-	sanitize_e820_table(e820_table_saved->map, ARRAY_SIZE(e820_table_saved->map),
-				&e820_table_saved->nr_map);
+	sanitize_e820_table(e820_table_saved->entries, ARRAY_SIZE(e820_table_saved->entries), &e820_table_saved->nr_entries);
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -586,12 +584,12 @@ static int __init e820_search_gap(unsigned long *gapstart,
 		unsigned long *gapsize)
 {
 	unsigned long long last = MAX_GAP_END;
-	int i = e820_table->nr_map;
+	int i = e820_table->nr_entries;
 	int found = 0;
 
 	while (--i >= 0) {
-		unsigned long long start = e820_table->map[i].addr;
-		unsigned long long end = start + e820_table->map[i].size;
+		unsigned long long start = e820_table->entries[i].addr;
+		unsigned long long end = start + e820_table->entries[i].size;
 
 		/*
 		 * Since "last" is at most 4GB, we know we'll
@@ -661,13 +659,13 @@ __init void e820_reallocate_tables(void)
 	struct e820_table *n;
 	int size;
 
-	size = offsetof(struct e820_table, map) + sizeof(struct e820_entry) * e820_table->nr_map;
+	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * e820_table->nr_entries;
 	n = kmalloc(size, GFP_KERNEL);
 	BUG_ON(!n);
 	memcpy(n, e820_table, size);
 	e820_table = n;
 
-	size = offsetof(struct e820_table, map) + sizeof(struct e820_entry) * e820_table_saved->nr_map;
+	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * e820_table_saved->nr_entries;
 	n = kmalloc(size, GFP_KERNEL);
 	BUG_ON(!n);
 	memcpy(n, e820_table_saved, size);
@@ -690,7 +688,7 @@ void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 	entries = sdata->len / sizeof(struct e820_entry);
 	extmap = (struct e820_entry *)(sdata->data);
 	__append_e820_table(extmap, entries);
-	sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map), &e820_table->nr_map);
+	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 	early_memunmap(sdata, data_len);
 	printk(KERN_INFO "e820: extended physical RAM map:\n");
 	e820_print_map("extended");
@@ -709,8 +707,8 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 	int i;
 	unsigned long pfn = 0;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 
 		if (pfn < PFN_UP(ei->addr))
 			register_nosave_region(pfn, PFN_UP(ei->addr));
@@ -734,8 +732,8 @@ static int __init e820_mark_nvs_memory(void)
 {
 	int i;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 
 		if (ei->type == E820_NVS)
 			acpi_nvs_register(ei->addr, ei->size);
@@ -782,8 +780,8 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 	unsigned long last_pfn = 0;
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 		unsigned long start_pfn;
 		unsigned long end_pfn;
 
@@ -874,7 +872,7 @@ static int __init parse_memmap_one(char *p)
 		 */
 		saved_max_pfn = e820_end_of_ram_pfn();
 #endif
-		e820_table->nr_map = 0;
+		e820_table->nr_entries = 0;
 		userdef = 1;
 		return 0;
 	}
@@ -921,8 +919,8 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		if (sanitize_e820_table(e820_table->map, ARRAY_SIZE(e820_table->map),
-					&e820_table->nr_map) < 0)
+		if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries),
+					&e820_table->nr_entries) < 0)
 			early_panic("Invalid user supplied memory map");
 
 		printk(KERN_INFO "e820: user-defined physical RAM map:\n");
@@ -1009,35 +1007,35 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem(sizeof(struct resource) * e820_table->nr_map);
+	res = alloc_bootmem(sizeof(struct resource) * e820_table->nr_entries);
 	e820_res = res;
-	for (i = 0; i < e820_table->nr_map; i++) {
-		end = e820_table->map[i].addr + e820_table->map[i].size - 1;
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		end = e820_table->entries[i].addr + e820_table->entries[i].size - 1;
 		if (end != (resource_size_t)end) {
 			res++;
 			continue;
 		}
-		res->name = e820_type_to_string(e820_table->map[i].type);
-		res->start = e820_table->map[i].addr;
+		res->name = e820_type_to_string(e820_table->entries[i].type);
+		res->start = e820_table->entries[i].addr;
 		res->end = end;
 
-		res->flags = e820_type_to_iomem_type(e820_table->map[i].type);
-		res->desc = e820_type_to_iores_desc(e820_table->map[i].type);
+		res->flags = e820_type_to_iomem_type(e820_table->entries[i].type);
+		res->desc = e820_type_to_iores_desc(e820_table->entries[i].type);
 
 		/*
 		 * don't register the region that could be conflicted with
 		 * pci device BAR resource and insert them later in
 		 * pcibios_resource_survey()
 		 */
-		if (do_mark_busy(e820_table->map[i].type, res)) {
+		if (do_mark_busy(e820_table->entries[i].type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
 		}
 		res++;
 	}
 
-	for (i = 0; i < e820_table_saved->nr_map; i++) {
-		struct e820_entry *entry = &e820_table_saved->map[i];
+	for (i = 0; i < e820_table_saved->nr_entries; i++) {
+		struct e820_entry *entry = &e820_table_saved->entries[i];
 		firmware_map_add_early(entry->addr,
 			entry->addr + entry->size,
 			e820_type_to_string(entry->type));
@@ -1069,7 +1067,7 @@ void __init e820_reserve_resources_late(void)
 	struct resource *res;
 
 	res = e820_res;
-	for (i = 0; i < e820_table->nr_map; i++) {
+	for (i = 0; i < e820_table->nr_entries; i++) {
 		if (!res->parent && res->end)
 			insert_resource_expand_to_fit(&iomem_resource, res);
 		res++;
@@ -1079,8 +1077,8 @@ void __init e820_reserve_resources_late(void)
 	 * Try to bump up RAM regions to reasonable boundaries to
 	 * avoid stolen RAM:
 	 */
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *entry = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *entry = &e820_table->entries[i];
 		u64 start, end;
 
 		if (entry->type != E820_RAM)
@@ -1128,7 +1126,7 @@ char *__init default_machine_specific_memory_setup(void)
 			who = "BIOS-e801";
 		}
 
-		e820_table->nr_map = 0;
+		e820_table->nr_entries = 0;
 		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
 		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
 	}
@@ -1159,8 +1157,8 @@ void __init memblock_x86_fill(void)
 	 */
 	memblock_allow_resize();
 
-	for (i = 0; i < e820_table->nr_map; i++) {
-		struct e820_entry *ei = &e820_table->map[i];
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *ei = &e820_table->entries[i];
 
 		end = ei->addr + ei->size;
 		if (end != (resource_size_t)end)
