@@ -1649,12 +1649,8 @@ void snd_soc_util_exit(void);
 int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
 					 struct device_node *np,
 					 const char *propname);
-#define snd_soc_of_parse_audio_simple_widgets(card, propname)\
-	snd_soc_of_parse_audio_simple_widgets_from_node(card, NULL, propname)
-int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
-						    struct device_node *np,
-						    const char *propname);
-
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
+					  const char *propname);
 int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,

@@ -3530,16 +3530,13 @@ static const struct snd_soc_dapm_widget simple_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
-int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
-					  struct device_node *np,
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	struct snd_soc_dapm_widget *widgets;
 	const char *template, *wname;
 	int i, j, num_widgets, ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	num_widgets = of_property_count_strings(np, propname);
 	if (num_widgets < 0) {
@@ -3611,7 +3608,7 @@ int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets);
 
 static int snd_soc_of_get_slot_mask(struct device_node *np,
 				    const char *prop_name,
