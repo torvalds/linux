@@ -96,8 +96,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state,
-					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	omap_atomic_wait_for_completion(dev, old_state);
