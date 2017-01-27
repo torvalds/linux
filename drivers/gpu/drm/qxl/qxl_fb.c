@@ -399,7 +399,7 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 			      &qxl_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
-				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
+				 qxl_num_crtc,
 				 QXLFB_CONN_LIMIT);
 	if (ret)
 		goto free;
