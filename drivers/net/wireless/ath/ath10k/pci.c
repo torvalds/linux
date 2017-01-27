@@ -896,7 +896,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	 */
 	alloc_nbytes = min_t(unsigned int, nbytes, DIAG_TRANSFER_LIMIT);
 
-	data_buf = (unsigned char *)dma_alloc_coherent(ar->dev,
+	data_buf = (unsigned char *)dma_zalloc_coherent(ar->dev,
 						       alloc_nbytes,
 						       &ce_data_base,
 						       GFP_ATOMIC);
@@ -905,7 +905,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		ret = -ENOMEM;
 		goto done;
 	}
-	memset(data_buf, 0, alloc_nbytes);
 
 	remaining_bytes = nbytes;
 	ce_data = ce_data_base;

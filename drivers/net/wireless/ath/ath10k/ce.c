@@ -958,7 +958,7 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
-		dma_alloc_coherent(ar->dev,
+		dma_zalloc_coherent(ar->dev,
 				   (nentries * sizeof(struct ce_desc) +
 				    CE_DESC_RING_ALIGN),
 				   &base_addr, GFP_KERNEL);
@@ -968,13 +968,6 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
 	}
 
 	dest_ring->base_addr_ce_space_unaligned = base_addr;
-
-	/*
-	 * Correctly initialize memory to 0 to prevent garbage
-	 * data crashing system when download firmware
-	 */
-	memset(dest_ring->base_addr_owner_space_unaligned, 0,
-	       nentries * sizeof(struct ce_desc) + CE_DESC_RING_ALIGN);
 
 	dest_ring->base_addr_owner_space = PTR_ALIGN(
 			dest_ring->base_addr_owner_space_unaligned,
