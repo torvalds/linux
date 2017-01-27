@@ -499,6 +499,25 @@ out:
 EXPORT_SYMBOL_GPL(mei_cldev_enable);
 
 /**
+ * mei_cldev_unregister_callbacks - internal wrapper for unregistering
+ *  callbacks.
+ *
+ * @cldev: client device
+ */
+static void mei_cldev_unregister_callbacks(struct mei_cl_device *cldev)
+{
+	if (cldev->rx_cb) {
+		cancel_work_sync(&cldev->rx_work);
+		cldev->rx_cb = NULL;
+	}
+
+	if (cldev->notif_cb) {
+		cancel_work_sync(&cldev->notif_work);
+		cldev->notif_cb = NULL;
+	}
+}
+
+/**
  * mei_cldev_disable - disable me client device
  *     disconnect form the me client
  *
@@ -518,6 +537,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	cl = cldev->cl;
 
 	bus = cldev->bus;
+
+	mei_cldev_unregister_callbacks(cldev);
 
 	mutex_lock(&bus->device_lock);
 
@@ -700,14 +721,7 @@ static int mei_cl_device_remove(struct device *dev)
 	if (cldrv->remove)
 		ret = cldrv->remove(cldev);
 
-	if (cldev->rx_cb) {
-		cancel_work_sync(&cldev->rx_work);
-		cldev->rx_cb = NULL;
-	}
-	if (cldev->notif_cb) {
-		cancel_work_sync(&cldev->notif_work);
-		cldev->notif_cb = NULL;
-	}
+	mei_cldev_unregister_callbacks(cldev);
 
 	module_put(THIS_MODULE);
 	dev->driver = NULL;
