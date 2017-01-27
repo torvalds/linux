@@ -140,6 +140,8 @@ struct dsa_switch_tree {
 };
 
 struct dsa_port {
+	struct dsa_switch	*ds;
+	unsigned int		index;
 	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;

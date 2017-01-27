@@ -670,6 +670,7 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 {
 	size_t size = sizeof(struct dsa_switch) + n * sizeof(struct dsa_port);
 	struct dsa_switch *ds;
+	int i;
 
 	ds = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!ds)
@@ -677,6 +678,11 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 
 	ds->dev = dev;
 	ds->num_ports = n;
+
+	for (i = 0; i < ds->num_ports; ++i) {
+		ds->ports[i].index = i;
+		ds->ports[i].ds = ds;
+	}
 
 	return ds;
 }
