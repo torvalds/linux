@@ -2584,6 +2584,18 @@ int is_dnv(unsigned int family, unsigned int model)
 	}
 	return 0;
 }
+int is_skx(unsigned int family, unsigned int model)
+{
+
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_SKYLAKE_X:
+		return 1;
+	}
+	return 0;
+}
 
 int has_nhm_turbo_ratio_limit(unsigned int family, unsigned int model)
 {
@@ -3870,6 +3882,12 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_CPU_c7);
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		use_c1_residency_msr = 1;
+	}
+	if (is_skx(family, model)) {
+		BIC_NOT_PRESENT(BIC_CPU_c3);
+		BIC_NOT_PRESENT(BIC_Pkgpc3);
+		BIC_NOT_PRESENT(BIC_CPU_c7);
+		BIC_NOT_PRESENT(BIC_Pkgpc7);
 	}
 	if (has_hsw_msrs(family, model)) {
 		BIC_PRESENT(BIC_Pkgpc8);
