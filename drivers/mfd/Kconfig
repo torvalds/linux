@@ -1621,6 +1621,17 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_STM32_TIMERS
+	tristate "Support for STM32 Timers"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 timers driver used
+	  for PWM and IIO Timer. This driver allow to share the
+	  registers between the others drivers.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
