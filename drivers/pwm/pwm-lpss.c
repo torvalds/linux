@@ -15,6 +15,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -80,17 +81,37 @@ static inline void pwm_lpss_write(const struct pwm_device *pwm, u32 value)
 	writel(value, lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
 }
 
-static void pwm_lpss_update(struct pwm_device *pwm)
+static int pwm_lpss_update(struct pwm_device *pwm)
 {
-	/*
-	 * Set a limit for busyloop since not all implementations correctly
-	 * clear PWM_SW_UPDATE bit (at least it's not visible on OS side).
-	 */
-	unsigned int count = 10;
+	struct pwm_lpss_chip *lpwm = to_lpwm(pwm->chip);
+	const void __iomem *addr = lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM;
+	const unsigned int ms = 500 * USEC_PER_MSEC;
+	u32 val;
+	int err;
 
 	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
-	while (pwm_lpss_read(pwm) & PWM_SW_UPDATE && --count)
-		usleep_range(10, 20);
+
+	/*
+	 * PWM Configuration register has SW_UPDATE bit that is set when a new
+	 * configuration is written to the register. The bit is automatically
+	 * cleared at the start of the next output cycle by the IP block.
+	 *
+	 * If one writes a new configuration to the register while it still has
+	 * the bit enabled, PWM may freeze. That is, while one can still write
+	 * to the register, it won't have an effect. Thus, we try to sleep long
+	 * enough that the bit gets cleared and make sure the bit is not
+	 * enabled while we update the configuration.
+	 */
+	err = readl_poll_timeout(addr, val, !(val & PWM_SW_UPDATE), 40, ms);
+	if (err)
+		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was not cleared\n");
+
+	return err;
+}
+
+static inline int pwm_lpss_is_updating(struct pwm_device *pwm)
+{
+	return (pwm_lpss_read(pwm) & PWM_SW_UPDATE) ? -EBUSY : 0;
 }
 
 static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
@@ -129,16 +150,29 @@ static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			  struct pwm_state *state)
 {
 	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
+	int ret;
 
 	if (state->enabled) {
 		if (!pwm_is_enabled(pwm)) {
 			pm_runtime_get_sync(chip->dev);
+			ret = pwm_lpss_is_updating(pwm);
+			if (ret) {
+				pm_runtime_put(chip->dev);
+				return ret;
+			}
 			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
-			pwm_lpss_update(pwm);
+			ret = pwm_lpss_update(pwm);
+			if (ret) {
+				pm_runtime_put(chip->dev);
+				return ret;
+			}
 			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
 		} else {
+			ret = pwm_lpss_is_updating(pwm);
+			if (ret)
+				return ret;
 			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
-			pwm_lpss_update(pwm);
+			return pwm_lpss_update(pwm);
 		}
 	} else if (pwm_is_enabled(pwm)) {
 		pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
