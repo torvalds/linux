@@ -332,7 +332,9 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
 int radix_tree_tag_get(const struct radix_tree_root *,
 			unsigned long index, unsigned int tag);
-void radix_tree_iter_tag_set(struct radix_tree_root *root,
+void radix_tree_iter_tag_set(struct radix_tree_root *,
+		const struct radix_tree_iter *iter, unsigned int tag);
+void radix_tree_iter_tag_clear(struct radix_tree_root *,
 		const struct radix_tree_iter *iter, unsigned int tag);
 unsigned int
 radix_tree_gang_lookup_tag(const struct radix_tree_root *, void **results,
