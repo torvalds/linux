@@ -106,7 +106,7 @@ static int arizona_micsupp_set_bypass(struct regulator_dev *rdev, bool ena)
 	return ret;
 }
 
-static struct regulator_ops arizona_micsupp_ops = {
+static const struct regulator_ops arizona_micsupp_ops = {
 	.enable = arizona_micsupp_enable,
 	.disable = arizona_micsupp_disable,
 	.is_enabled = regulator_is_enabled_regmap,
