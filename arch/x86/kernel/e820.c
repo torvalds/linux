@@ -148,14 +148,14 @@ void __init e820__range_add(u64 start, u64 size, enum e820_type type)
 static void __init e820_print_type(enum e820_type type)
 {
 	switch (type) {
-	case E820_RAM:			/* Fall through: */
-	case E820_RESERVED_KERN:	pr_cont("usable");			break;
-	case E820_RESERVED:		pr_cont("reserved");			break;
-	case E820_ACPI:			pr_cont("ACPI data");			break;
-	case E820_NVS:			pr_cont("ACPI NVS");			break;
-	case E820_UNUSABLE:		pr_cont("unusable");			break;
-	case E820_PMEM:			/* Fall through: */
-	case E820_PRAM:			pr_cont("persistent (type %u)", type);	break;
+	case E820_TYPE_RAM:		/* Fall through: */
+	case E820_TYPE_RESERVED_KERN:	pr_cont("usable");			break;
+	case E820_TYPE_RESERVED:	pr_cont("reserved");			break;
+	case E820_TYPE_ACPI:		pr_cont("ACPI data");			break;
+	case E820_TYPE_NVS:		pr_cont("ACPI NVS");			break;
+	case E820_TYPE_UNUSABLE:	pr_cont("unusable");			break;
+	case E820_TYPE_PMEM:		/* Fall through: */
+	case E820_TYPE_PRAM:		pr_cont("persistent (type %u)", type);	break;
 	default:			pr_cont("type %u", type);		break;
 	}
 }
@@ -340,7 +340,7 @@ int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *p
 		}
 
 		/* Continue building up new BIOS map based on this information: */
-		if (current_type != last_type || current_type == E820_PRAM) {
+		if (current_type != last_type || current_type == E820_TYPE_PRAM) {
 			if (last_type != 0)	 {
 				new_bios[new_bios_entry].size = change_point[chgidx]->addr - last_addr;
 				/* Move forward only if the new size was non-zero: */
@@ -704,7 +704,7 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 
 		pfn = PFN_DOWN(entry->addr + entry->size);
 
-		if (entry->type != E820_RAM && entry->type != E820_RESERVED_KERN)
+		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
 			register_nosave_region(PFN_UP(entry->addr), pfn);
 
 		if (pfn >= limit_pfn)
@@ -724,7 +724,7 @@ static int __init e820_mark_nvs_memory(void)
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		struct e820_entry *entry = &e820_table->entries[i];
 
-		if (entry->type == E820_NVS)
+		if (entry->type == E820_TYPE_NVS)
 			acpi_nvs_register(entry->addr, entry->size);
 	}
 
@@ -747,7 +747,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
-		e820__range_update_firmware(addr, size, E820_RAM, E820_RESERVED);
+		e820__range_update_firmware(addr, size, E820_TYPE_RAM, E820_TYPE_RESERVED);
 		pr_info("e820: update e820_table_firmware for e820__memblock_alloc_reserved()\n");
 		e820__update_table_firmware();
 	}
@@ -805,12 +805,12 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, enum e820_type
 
 unsigned long __init e820_end_of_ram_pfn(void)
 {
-	return e820_end_pfn(MAX_ARCH_PFN, E820_RAM);
+	return e820_end_pfn(MAX_ARCH_PFN, E820_TYPE_RAM);
 }
 
 unsigned long __init e820_end_of_low_ram_pfn(void)
 {
-	return e820_end_pfn(1UL << (32 - PAGE_SHIFT), E820_RAM);
+	return e820_end_pfn(1UL << (32 - PAGE_SHIFT), E820_TYPE_RAM);
 }
 
 static void __init early_panic(char *msg)
@@ -846,7 +846,7 @@ static int __init parse_memopt(char *p)
 	if (mem_size == 0)
 		return -EINVAL;
 
-	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
 
 	return 0;
 }
@@ -882,18 +882,18 @@ static int __init parse_memmap_one(char *p)
 	userdef = 1;
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
-		e820__range_add(start_at, mem_size, E820_RAM);
+		e820__range_add(start_at, mem_size, E820_TYPE_RAM);
 	} else if (*p == '#') {
 		start_at = memparse(p+1, &p);
-		e820__range_add(start_at, mem_size, E820_ACPI);
+		e820__range_add(start_at, mem_size, E820_TYPE_ACPI);
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
-		e820__range_add(start_at, mem_size, E820_RESERVED);
+		e820__range_add(start_at, mem_size, E820_TYPE_RESERVED);
 	} else if (*p == '!') {
 		start_at = memparse(p+1, &p);
-		e820__range_add(start_at, mem_size, E820_PRAM);
+		e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
 	} else {
-		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
 	}
 
 	return *p == '\0' ? 0 : -EINVAL;
@@ -926,7 +926,7 @@ void __init e820_reserve_setup_data(void)
 
 	while (pa_data) {
 		data = early_memremap(pa_data, sizeof(*data));
-		e820__range_update(pa_data, sizeof(*data)+data->len, E820_RAM, E820_RESERVED_KERN);
+		e820__range_update(pa_data, sizeof(*data)+data->len, E820_TYPE_RAM, E820_TYPE_RESERVED_KERN);
 		pa_data = data->next;
 		early_memunmap(data, sizeof(*data));
 	}
@@ -956,42 +956,42 @@ void __init e820__finish_early_params(void)
 static const char *__init e820_type_to_string(struct e820_entry *entry)
 {
 	switch (entry->type) {
-	case E820_RESERVED_KERN: /* Fall-through: */
-	case E820_RAM:		 return "System RAM";
-	case E820_ACPI:		 return "ACPI Tables";
-	case E820_NVS:		 return "ACPI Non-volatile Storage";
-	case E820_UNUSABLE:	 return "Unusable memory";
-	case E820_PRAM:		 return "Persistent Memory (legacy)";
-	case E820_PMEM:		 return "Persistent Memory";
-	default:		 return "Reserved";
+	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
+	case E820_TYPE_RAM:		return "System RAM";
+	case E820_TYPE_ACPI:		return "ACPI Tables";
+	case E820_TYPE_NVS:		return "ACPI Non-volatile Storage";
+	case E820_TYPE_UNUSABLE:	return "Unusable memory";
+	case E820_TYPE_PRAM:		return "Persistent Memory (legacy)";
+	case E820_TYPE_PMEM:		return "Persistent Memory";
+	default:			return "Reserved";
 	}
 }
 
 static unsigned long __init e820_type_to_iomem_type(struct e820_entry *entry)
 {
 	switch (entry->type) {
-	case E820_RESERVED_KERN: /* Fall-through: */
-	case E820_RAM:		 return IORESOURCE_SYSTEM_RAM;
-	case E820_ACPI:		 /* Fall-through: */
-	case E820_NVS:		 /* Fall-through: */
-	case E820_UNUSABLE:	 /* Fall-through: */
-	case E820_PRAM:		 /* Fall-through: */
-	case E820_PMEM:		 /* Fall-through: */
-	default:		 return IORESOURCE_MEM;
+	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
+	case E820_TYPE_RAM:		return IORESOURCE_SYSTEM_RAM;
+	case E820_TYPE_ACPI:		/* Fall-through: */
+	case E820_TYPE_NVS:		/* Fall-through: */
+	case E820_TYPE_UNUSABLE:	/* Fall-through: */
+	case E820_TYPE_PRAM:		/* Fall-through: */
+	case E820_TYPE_PMEM:		/* Fall-through: */
+	default:			return IORESOURCE_MEM;
 	}
 }
 
 static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
 {
 	switch (entry->type) {
-	case E820_ACPI:		 return IORES_DESC_ACPI_TABLES;
-	case E820_NVS:		 return IORES_DESC_ACPI_NV_STORAGE;
-	case E820_PMEM:		 return IORES_DESC_PERSISTENT_MEMORY;
-	case E820_PRAM:		 return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
-	case E820_RESERVED_KERN: /* Fall-through: */
-	case E820_RAM:		 /* Fall-through: */
-	case E820_UNUSABLE:	 /* Fall-through: */
-	default:		 return IORES_DESC_NONE;
+	case E820_TYPE_ACPI:		return IORES_DESC_ACPI_TABLES;
+	case E820_TYPE_NVS:		return IORES_DESC_ACPI_NV_STORAGE;
+	case E820_TYPE_PMEM:		return IORES_DESC_PERSISTENT_MEMORY;
+	case E820_TYPE_PRAM:		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
+	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
+	case E820_TYPE_RAM:		/* Fall-through: */
+	case E820_TYPE_UNUSABLE:	/* Fall-through: */
+	default:			return IORES_DESC_NONE;
 	}
 }
 
@@ -1006,9 +1006,9 @@ static bool __init do_mark_busy(u32 type, struct resource *res)
 	 * for exclusive use of a driver
 	 */
 	switch (type) {
-	case E820_RESERVED:
-	case E820_PRAM:
-	case E820_PMEM:
+	case E820_TYPE_RESERVED:
+	case E820_TYPE_PRAM:
+	case E820_TYPE_PMEM:
 		return false;
 	default:
 		return true;
@@ -1102,7 +1102,7 @@ void __init e820_reserve_resources_late(void)
 		struct e820_entry *entry = &e820_table->entries[i];
 		u64 start, end;
 
-		if (entry->type != E820_RAM)
+		if (entry->type != E820_TYPE_RAM)
 			continue;
 
 		start = entry->addr + entry->size;
@@ -1148,8 +1148,8 @@ char *__init e820__memory_setup_default(void)
 		}
 
 		e820_table->nr_entries = 0;
-		e820__range_add(0, LOWMEMSIZE(), E820_RAM);
-		e820__range_add(HIGH_MEMORY, mem_size << 10, E820_RAM);
+		e820__range_add(0, LOWMEMSIZE(), E820_TYPE_RAM);
+		e820__range_add(HIGH_MEMORY, mem_size << 10, E820_TYPE_RAM);
 	}
 
 	return who;
@@ -1198,7 +1198,7 @@ void __init e820__memblock_setup(void)
 		if (end != (resource_size_t)end)
 			continue;
 
-		if (entry->type != E820_RAM && entry->type != E820_RESERVED_KERN)
+		if (entry->type != E820_TYPE_RAM && entry->type != E820_TYPE_RESERVED_KERN)
 			continue;
 
 		memblock_add(entry->addr, entry->size);

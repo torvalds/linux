@@ -307,11 +307,11 @@ void __init early_gart_iommu_check(void)
 
 	if (gart_fix_e820 && !fix && aper_enabled) {
 		if (e820__mapped_any(aper_base, aper_base + aper_size,
-				    E820_RAM)) {
+				    E820_TYPE_RAM)) {
 			/* reserve it, so we can reuse it in second kernel */
 			pr_info("e820: reserve [mem %#010Lx-%#010Lx] for GART\n",
 				aper_base, aper_base + aper_size - 1);
-			e820__range_add(aper_base, aper_size, E820_RESERVED);
+			e820__range_add(aper_base, aper_size, E820_TYPE_RESERVED);
 			e820__update_table_print();
 		}
 	}

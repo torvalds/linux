@@ -206,7 +206,7 @@ static unsigned long __init xen_find_pfn_range(unsigned long *min_pfn)
 		unsigned long s_pfn;
 		unsigned long e_pfn;
 
-		if (entry->type != E820_RAM)
+		if (entry->type != E820_TYPE_RAM)
 			continue;
 
 		e_pfn = PFN_DOWN(entry->addr + entry->size);
@@ -473,11 +473,11 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
 	 */
 	for (i = 0; i < xen_e820_table_entries; i++, entry++) {
 		phys_addr_t end = entry->addr + entry->size;
-		if (entry->type == E820_RAM || i == xen_e820_table_entries - 1) {
+		if (entry->type == E820_TYPE_RAM || i == xen_e820_table_entries - 1) {
 			unsigned long start_pfn = PFN_DOWN(start);
 			unsigned long end_pfn = PFN_UP(end);
 
-			if (entry->type == E820_RAM)
+			if (entry->type == E820_TYPE_RAM)
 				end_pfn = PFN_UP(entry->addr);
 
 			if (start_pfn < end_pfn)
@@ -591,7 +591,7 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 	phys_addr_t end = start + size;
 
 	/* Align RAM regions to page boundaries. */
-	if (type == E820_RAM) {
+	if (type == E820_TYPE_RAM) {
 		start = PAGE_ALIGN(start);
 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
 	}
@@ -605,8 +605,8 @@ static void __init xen_ignore_unusable(void)
 	unsigned int i;
 
 	for (i = 0; i < xen_e820_table_entries; i++, entry++) {
-		if (entry->type == E820_UNUSABLE)
-			entry->type = E820_RAM;
+		if (entry->type == E820_TYPE_UNUSABLE)
+			entry->type = E820_TYPE_RAM;
 	}
 }
 
@@ -623,7 +623,7 @@ bool __init xen_is_e820_reserved(phys_addr_t start, phys_addr_t size)
 	entry = xen_e820_table;
 
 	for (mapcnt = 0; mapcnt < xen_e820_table_entries; mapcnt++) {
-		if (entry->type == E820_RAM && entry->addr <= start &&
+		if (entry->type == E820_TYPE_RAM && entry->addr <= start &&
 		    (entry->addr + entry->size) >= end)
 			return false;
 
@@ -648,7 +648,7 @@ phys_addr_t __init xen_find_free_area(phys_addr_t size)
 	struct e820_entry *entry = xen_e820_table;
 
 	for (mapcnt = 0; mapcnt < xen_e820_table_entries; mapcnt++, entry++) {
-		if (entry->type != E820_RAM || entry->size < size)
+		if (entry->type != E820_TYPE_RAM || entry->size < size)
 			continue;
 		start = entry->addr;
 		for (addr = start; addr < start + size; addr += PAGE_SIZE) {
@@ -764,7 +764,7 @@ char * __init xen_memory_setup(void)
 		xen_e820_table[0].size = mem_end;
 		/* 8MB slack (to balance backend allocations). */
 		xen_e820_table[0].size += 8ULL << 20;
-		xen_e820_table[0].type = E820_RAM;
+		xen_e820_table[0].type = E820_TYPE_RAM;
 		rc = 0;
 	}
 	BUG_ON(rc);
@@ -819,7 +819,7 @@ char * __init xen_memory_setup(void)
 		chunk_size = size;
 		type = xen_e820_table[i].type;
 
-		if (type == E820_RAM) {
+		if (type == E820_TYPE_RAM) {
 			if (addr < mem_end) {
 				chunk_size = min(size, mem_end - addr);
 			} else if (extra_pages) {
@@ -859,7 +859,7 @@ char * __init xen_memory_setup(void)
 	 * about in there.
 	 */
 	e820__range_add(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
-			E820_RESERVED);
+			E820_TYPE_RESERVED);
 
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 

@@ -119,7 +119,7 @@
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
  * max_pfn_mapped:     highest direct mapped pfn over 4GB
  *
- * The direct mapping only covers E820_RAM regions, so the ranges and gaps are
+ * The direct mapping only covers E820_TYPE_RAM regions, so the ranges and gaps are
  * represented by pfn_mapped
  */
 unsigned long max_low_pfn_mapped;
@@ -731,14 +731,14 @@ static void __init trim_bios_range(void)
 	 * since some BIOSes are known to corrupt low memory.  See the
 	 * Kconfig help text for X86_RESERVE_LOW.
 	 */
-	e820__range_update(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
+	e820__range_update(0, PAGE_SIZE, E820_TYPE_RAM, E820_TYPE_RESERVED);
 
 	/*
 	 * special case: Some BIOSen report the PC BIOS
 	 * area (640->1Mb) as ram even though it is not.
 	 * take them out.
 	 */
-	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
+	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_TYPE_RAM, 1);
 
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 }
@@ -750,18 +750,18 @@ static void __init e820_add_kernel_range(void)
 	u64 size = __pa_symbol(_end) - start;
 
 	/*
-	 * Complain if .text .data and .bss are not marked as E820_RAM and
+	 * Complain if .text .data and .bss are not marked as E820_TYPE_RAM and
 	 * attempt to fix it by adding the range. We may have a confused BIOS,
 	 * or the user may have used memmap=exactmap or memmap=xxM$yyM to
 	 * exclude kernel range. If we really are running on top non-RAM,
 	 * we will crash later anyways.
 	 */
-	if (e820__mapped_all(start, start + size, E820_RAM))
+	if (e820__mapped_all(start, start + size, E820_TYPE_RAM))
 		return;
 
-	pr_warn(".text .data .bss are not marked as E820_RAM!\n");
-	e820__range_remove(start, size, E820_RAM, 0);
-	e820__range_add(start, size, E820_RAM);
+	pr_warn(".text .data .bss are not marked as E820_TYPE_RAM!\n");
+	e820__range_remove(start, size, E820_TYPE_RAM, 0);
+	e820__range_add(start, size, E820_TYPE_RAM);
 }
 
 static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
@@ -1031,8 +1031,8 @@ void __init setup_arch(char **cmdline_p)
 	trim_bios_range();
 #ifdef CONFIG_X86_32
 	if (ppro_with_ram_bug()) {
-		e820__range_update(0x70000000ULL, 0x40000ULL, E820_RAM,
-				  E820_RESERVED);
+		e820__range_update(0x70000000ULL, 0x40000ULL, E820_TYPE_RAM,
+				  E820_TYPE_RESERVED);
 		e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 		printk(KERN_INFO "fixed physical RAM map:\n");
 		e820__print_table("bad_ppro");

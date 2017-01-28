@@ -7,12 +7,12 @@
 #ifndef __ASSEMBLY__
 
 enum e820_type {
-	E820_RAM		= 1,
-	E820_RESERVED		= 2,
-	E820_ACPI		= 3,
-	E820_NVS		= 4,
-	E820_UNUSABLE		= 5,
-	E820_PMEM		= 7,
+	E820_TYPE_RAM		= 1,
+	E820_TYPE_RESERVED	= 2,
+	E820_TYPE_ACPI		= 3,
+	E820_TYPE_NVS		= 4,
+	E820_TYPE_UNUSABLE	= 5,
+	E820_TYPE_PMEM		= 7,
 
 	/*
 	 * This is a non-standardized way to represent ADR or
@@ -25,7 +25,7 @@ enum e820_type {
 	 *   type of memory, but newer versions switched to 12 as
 	 *   6 was assigned differently. Some time they will learn... )
 	 */
-	E820_PRAM		= 12,
+	E820_TYPE_PRAM		= 12,
 
 	/*
 	 * Reserved RAM used by the kernel itself if
@@ -34,7 +34,7 @@ enum e820_type {
 	 * and so should not include any memory that the BIOS
 	 * might alter over the S3 transition:
 	 */
-	E820_RESERVED_KERN	= 128,
+	E820_TYPE_RESERVED_KERN	= 128,
 };
 
 /*

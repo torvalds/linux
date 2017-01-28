@@ -430,7 +430,7 @@ unsigned long __ref init_memory_mapping(unsigned long start,
 
 /*
  * We need to iterate through the E820 memory map and create direct mappings
- * for only E820_RAM and E820_KERN_RESERVED regions. We cannot simply
+ * for only E820_TYPE_RAM and E820_KERN_RESERVED regions. We cannot simply
  * create direct mappings for all pfns from [0 to max_low_pfn) and
  * [4GB to max_pfn) because of possible memory holes in high addresses
  * that cannot be marked as UC by fixed/variable range MTRRs.

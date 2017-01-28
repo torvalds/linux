@@ -435,7 +435,7 @@ static void process_e820_entry(struct e820_entry *entry,
 	unsigned long start_orig;
 
 	/* Skip non-RAM entries. */
-	if (entry->type != E820_RAM)
+	if (entry->type != E820_TYPE_RAM)
 		return;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */

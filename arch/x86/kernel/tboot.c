@@ -69,8 +69,8 @@ void __init tboot_probe(void)
 	 * set_fixmap(), to reduce chance of garbage value causing crash
 	 */
 	if (!e820__mapped_any(boot_params.tboot_addr,
-			     boot_params.tboot_addr, E820_RESERVED)) {
-		pr_warning("non-0 tboot_addr but it is not of type E820_RESERVED\n");
+			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
+		pr_warning("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -189,8 +189,8 @@ static int tboot_setup_sleep(void)
 	tboot->num_mac_regions = 0;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		if ((e820_table->entries[i].type != E820_RAM)
-		 && (e820_table->entries[i].type != E820_RESERVED_KERN))
+		if ((e820_table->entries[i].type != E820_TYPE_RAM)
+		 && (e820_table->entries[i].type != E820_TYPE_RESERVED_KERN))
 			continue;
 
 		add_mac_region(e820_table->entries[i].addr, e820_table->entries[i].size);

@@ -452,7 +452,7 @@ static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
 	int num_buses;
 	char *method = with_e820 ? "E820" : "ACPI motherboard resources";
 
-	while (!is_reserved(addr, addr + size, E820_RESERVED)) {
+	while (!is_reserved(addr, addr + size, E820_TYPE_RESERVED)) {
 		size >>= 1;
 		if (size < (16UL<<20))
 			break;

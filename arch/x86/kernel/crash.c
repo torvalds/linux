@@ -575,17 +575,17 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	/* Add first 640K segment */
 	ei.addr = image->arch.backup_src_start;
 	ei.size = image->arch.backup_src_sz;
-	ei.type = E820_RAM;
+	ei.type = E820_TYPE_RAM;
 	add_e820_entry(params, &ei);
 
 	/* Add ACPI tables */
-	cmd.type = E820_ACPI;
+	cmd.type = E820_TYPE_ACPI;
 	flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	walk_iomem_res_desc(IORES_DESC_ACPI_TABLES, flags, 0, -1, &cmd,
 		       memmap_entry_callback);
 
 	/* Add ACPI Non-volatile Storage */
-	cmd.type = E820_NVS;
+	cmd.type = E820_TYPE_NVS;
 	walk_iomem_res_desc(IORES_DESC_ACPI_NV_STORAGE, flags, 0, -1, &cmd,
 			memmap_entry_callback);
 
@@ -593,7 +593,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 	if (crashk_low_res.end) {
 		ei.addr = crashk_low_res.start;
 		ei.size = crashk_low_res.end - crashk_low_res.start + 1;
-		ei.type = E820_RAM;
+		ei.type = E820_TYPE_RAM;
 		add_e820_entry(params, &ei);
 	}
 
@@ -610,7 +610,7 @@ int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 		if (ei.size < PAGE_SIZE)
 			continue;
 		ei.addr = cmem->ranges[i].start;
-		ei.type = E820_RAM;
+		ei.type = E820_TYPE_RAM;
 		add_e820_entry(params, &ei);
 	}
 

@@ -232,7 +232,7 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
-		if (params->e820_table[i].type != E820_RAM)
+		if (params->e820_table[i].type != E820_TYPE_RAM)
 			continue;
 		start = params->e820_table[i].addr;
 		end = params->e820_table[i].addr + params->e820_table[i].size - 1;
