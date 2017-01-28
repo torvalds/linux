@@ -1109,7 +1109,7 @@ void __init setup_arch(char **cmdline_p)
 	early_alloc_pgt_buf();
 
 	/*
-	 * Need to conclude brk, before memblock_x86_fill()
+	 * Need to conclude brk, before e820__memblock_setup()
 	 *  it could use memblock_find_in_range, could overlap with
 	 *  brk area.
 	 */
@@ -1118,7 +1118,7 @@ void __init setup_arch(char **cmdline_p)
 	cleanup_highmap();
 
 	memblock_set_current_limit(ISA_END_ADDRESS);
-	memblock_x86_fill();
+	e820__memblock_setup();
 
 	reserve_bios_regions();
 

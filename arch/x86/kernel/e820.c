@@ -1138,15 +1138,19 @@ void __init e820__memory_setup(void)
 	e820_print_map(who);
 }
 
-void __init memblock_x86_fill(void)
+void __init e820__memblock_setup(void)
 {
 	int i;
 	u64 end;
 
 	/*
-	 * EFI may have more than 128 entries
-	 * We are safe to enable resizing, beause memblock_x86_fill()
-	 * is rather later for x86
+	 * The bootstrap memblock region count maximum is 128 entries
+	 * (INIT_MEMBLOCK_REGIONS), but EFI might pass us more E820 entries
+	 * than that - so allow memblock resizing.
+	 *
+	 * This is safe, because this call happens pretty late during x86 setup,
+	 * so we know about reserved memory regions already. (This is important
+	 * so that memblock resizing does no stomp over reserved areas.)
 	 */
 	memblock_allow_resize();
 
@@ -1163,7 +1167,7 @@ void __init memblock_x86_fill(void)
 		memblock_add(ei->addr, ei->size);
 	}
 
-	/* throw away partial pages */
+	/* Throw away partial pages: */
 	memblock_trim_memory(PAGE_SIZE);
 
 	memblock_dump_all();

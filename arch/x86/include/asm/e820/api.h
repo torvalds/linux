@@ -21,7 +21,7 @@ extern void parse_e820_ext(u64 phys_addr, u32 data_len);
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
 extern u64  early_reserve_e820(u64 sizet, u64 align);
-extern void memblock_x86_fill(void);
+extern void e820__memblock_setup(void);
 extern void memblock_find_dma_reserve(void);
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
