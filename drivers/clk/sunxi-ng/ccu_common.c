@@ -25,13 +25,18 @@ static DEFINE_SPINLOCK(ccu_lock);
 
 void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
 {
+	void __iomem *addr;
 	u32 reg;
 
 	if (!lock)
 		return;
 
-	WARN_ON(readl_relaxed_poll_timeout(common->base + common->reg, reg,
-					   reg & lock, 100, 70000));
+	if (common->features & CCU_FEATURE_LOCK_REG)
+		addr = common->base + common->lock_reg;
+	else
+		addr = common->base + common->reg;
+
+	WARN_ON(readl_relaxed_poll_timeout(addr, reg, reg & lock, 100, 70000));
 }
 
 int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
