@@ -1097,7 +1097,7 @@ void __init e820_reserve_resources_late(void)
 	}
 }
 
-char *__init default_machine_specific_memory_setup(void)
+char *__init e820__memory_setup_default(void)
 {
 	char *who = "BIOS-e820";
 	u32 new_nr;
@@ -1135,7 +1135,12 @@ char *__init default_machine_specific_memory_setup(void)
 	return who;
 }
 
-void __init setup_memory_map(void)
+/*
+ * Calls e820__memory_setup_default() in essence to pick up the firmware/bootloader
+ * E820 map - with an optional platform quirk available for virtual platforms
+ * to override this method of boot environment processing:
+ */
+void __init e820__memory_setup(void)
 {
 	char *who;
 

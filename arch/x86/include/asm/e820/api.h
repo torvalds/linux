@@ -27,8 +27,8 @@ extern void memblock_find_dma_reserve(void);
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
-extern void setup_memory_map(void);
-extern char *default_machine_specific_memory_setup(void);
+extern void e820__memory_setup(void);
+extern char *e820__memory_setup_default(void);
 extern void e820_reallocate_tables(void);
 extern void e820_mark_nosave_regions(unsigned long limit_pfn);
 
