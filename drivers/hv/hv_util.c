@@ -185,7 +185,7 @@ static void hv_set_host_time(struct work_struct *work)
 	struct adj_time_work	*wrk;
 	s64 host_tns;
 	u64 newtime;
-	struct timespec host_ts;
+	struct timespec64 host_ts;
 
 	wrk = container_of(work, struct adj_time_work, work);
 
@@ -204,9 +204,9 @@ static void hv_set_host_time(struct work_struct *work)
 		newtime += (current_tick - wrk->ref_time);
 	}
 	host_tns = (newtime - WLTIMEDELTA) * 100;
-	host_ts = ns_to_timespec(host_tns);
+	host_ts = ns_to_timespec64(host_tns);
 
-	do_settimeofday(&host_ts);
+	do_settimeofday64(&host_ts);
 }
 
 /*
