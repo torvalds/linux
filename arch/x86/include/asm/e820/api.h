@@ -16,7 +16,7 @@ extern u64  e820__range_update(u64 start, u64 size, enum e820_type old_type, enu
 extern u64  e820__range_remove(u64 start, u64 size, enum e820_type old_type, int checktype);
 
 extern void e820__print_table(char *who);
-extern int  e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map);
+extern int  e820__update_table(struct e820_table *table);
 extern void e820__update_table_print(void);
 
 extern unsigned long e820_end_of_ram_pfn(void);

@@ -740,7 +740,7 @@ static void __init trim_bios_range(void)
 	 */
 	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_TYPE_RAM, 1);
 
-	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+	e820__update_table(e820_table);
 }
 
 /* called before trim_bios_range() to spare extra sanitize */
@@ -1033,7 +1033,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppro_with_ram_bug()) {
 		e820__range_update(0x70000000ULL, 0x40000ULL, E820_TYPE_RAM,
 				  E820_TYPE_RESERVED);
-		e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+		e820__update_table(e820_table);
 		printk(KERN_INFO "fixed physical RAM map:\n");
 		e820__print_table("bad_ppro");
 	}
