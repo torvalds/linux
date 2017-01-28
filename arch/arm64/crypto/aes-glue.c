@@ -409,5 +409,7 @@ unregister_simds:
 module_cpu_feature_match(AES, aes_init);
 #else
 module_init(aes_init);
+EXPORT_SYMBOL(neon_aes_ecb_encrypt);
+EXPORT_SYMBOL(neon_aes_cbc_encrypt);
 #endif
 module_exit(aes_exit);
