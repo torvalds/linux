@@ -602,7 +602,7 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
  *
  * Hopefully the BIOS let enough space left.
  */
-__init void e820_setup_gap(void)
+__init void e820__setup_pci_gap(void)
 {
 	unsigned long gapstart, gapsize;
 	int found;

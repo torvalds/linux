@@ -1241,7 +1241,7 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.resources.reserve_resources();
 
-	e820_setup_gap();
+	e820__setup_pci_gap();
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
