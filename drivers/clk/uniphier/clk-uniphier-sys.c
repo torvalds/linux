@@ -35,6 +35,9 @@
 #define UNIPHIER_LD11_SYS_CLK_NAND(idx)					\
 	UNIPHIER_CLK_GATE("nand", (idx), NULL, 0x210c, 0)
 
+#define UNIPHIER_LD11_SYS_CLK_EMMC(idx)					\
+	UNIPHIER_CLK_GATE("emmc", (idx), NULL, 0x210c, 2)
+
 #define UNIPHIER_SLD3_SYS_CLK_STDMAC(idx)				\
 	UNIPHIER_CLK_GATE("stdmac", (idx), NULL, 0x2104, 10)
 
@@ -144,6 +147,8 @@ const struct uniphier_clk_data uniphier_ld11_sys_clk_data[] = {
 	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 34),
 	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 40),
 	UNIPHIER_LD11_SYS_CLK_NAND(2),
+	UNIPHIER_LD11_SYS_CLK_EMMC(4),
+	/* Index 5 reserved for eMMC PHY */
 	UNIPHIER_LD11_SYS_CLK_STDMAC(8),			/* HSC, MIO */
 	UNIPHIER_CLK_FACTOR("usb2", -1, "ref", 24, 25),
 	/* CPU gears */
@@ -170,6 +175,8 @@ const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
 	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 34),
 	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 40),
 	UNIPHIER_LD11_SYS_CLK_NAND(2),
+	UNIPHIER_LD11_SYS_CLK_EMMC(4),
+	/* Index 5 reserved for eMMC PHY */
 	UNIPHIER_LD20_SYS_CLK_SD,
 	UNIPHIER_LD11_SYS_CLK_STDMAC(8),			/* HSC */
 	/* GIO is always clock-enabled: no function for 0x210c bit5 */
