@@ -1099,7 +1099,6 @@ F:	drivers/*/*aspeed*
 ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Alexandre Belloni <alexandre.belloni@free-electrons.com>
-M:	Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.linux4sam.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nferre/linux-at91.git
