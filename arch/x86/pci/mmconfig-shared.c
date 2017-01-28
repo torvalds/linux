@@ -423,7 +423,7 @@ static acpi_status find_mboard_resource(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static int is_acpi_reserved(u64 start, u64 end, unsigned not_used)
+static bool is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 {
 	struct resource mcfg_res;
 
@@ -440,11 +440,11 @@ static int is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 	return mcfg_res.flags;
 }
 
-typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
+typedef bool (*check_reserved_t)(u64 start, u64 end, unsigned type);
 
-static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
-				    struct pci_mmcfg_region *cfg,
-				    struct device *dev, int with_e820)
+static bool __ref is_mmconf_reserved(check_reserved_t is_reserved,
+				     struct pci_mmcfg_region *cfg,
+				     struct device *dev, int with_e820)
 {
 	u64 addr = cfg->res.start;
 	u64 size = resource_size(&cfg->res);
@@ -494,8 +494,8 @@ static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
 	return 1;
 }
 
-static int __ref pci_mmcfg_check_reserved(struct device *dev,
-		  struct pci_mmcfg_region *cfg, int early)
+static bool __ref
+pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int early)
 {
 	if (!early && !acpi_disabled) {
 		if (is_mmconf_reserved(is_acpi_reserved, cfg, dev, 0))

@@ -68,7 +68,7 @@ EXPORT_SYMBOL(pci_mem_start);
  * This function checks if any part of the range <start,end> is mapped
  * with type.
  */
-int e820__mapped_any(u64 start, u64 end, enum e820_type type)
+bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
 {
 	int i;
 
@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(e820__mapped_any);
  * Note: this function only works correctly once the E820 table is sorted and
  * not-overlapping (at least for the range specified), which is the case normally.
  */
-int __init e820__mapped_all(u64 start, u64 end, enum e820_type type)
+bool __init e820__mapped_all(u64 start, u64 end, enum e820_type type)
 {
 	int i;
 
@@ -492,7 +492,7 @@ static u64 __init e820__range_update_firmware(u64 start, u64 size, enum e820_typ
 }
 
 /* Remove a range of memory from the E820 table: */
-u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, int checktype)
+u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
 {
 	int i;
 	u64 end;
@@ -503,7 +503,7 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, int 
 
 	end = start + size;
 	pr_debug("e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
-	if (checktype)
+	if (check_type)
 		e820_print_type(old_type);
 	pr_cont("\n");
 
@@ -512,7 +512,7 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, int 
 		u64 final_start, final_end;
 		u64 entry_end;
 
-		if (checktype && entry->type != old_type)
+		if (check_type && entry->type != old_type)
 			continue;
 
 		entry_end = entry->addr + entry->size;
