@@ -528,7 +528,7 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 	return ret;
 }
 
-static struct regulator_ops palmas_ops_smps = {
+static const struct regulator_ops palmas_ops_smps = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -542,7 +542,7 @@ static struct regulator_ops palmas_ops_smps = {
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
-static struct regulator_ops palmas_ops_ext_control_smps = {
+static const struct regulator_ops palmas_ops_ext_control_smps = {
 	.set_mode		= palmas_set_mode_smps,
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -553,7 +553,7 @@ static struct regulator_ops palmas_ops_ext_control_smps = {
 	.set_ramp_delay		= palmas_smps_set_ramp_delay,
 };
 
-static struct regulator_ops palmas_ops_smps10 = {
+static const struct regulator_ops palmas_ops_smps10 = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -565,7 +565,7 @@ static struct regulator_ops palmas_ops_smps10 = {
 	.get_bypass		= regulator_get_bypass_regmap,
 };
 
-static struct regulator_ops tps65917_ops_smps = {
+static const struct regulator_ops tps65917_ops_smps = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -578,7 +578,7 @@ static struct regulator_ops tps65917_ops_smps = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops tps65917_ops_ext_control_smps = {
+static const struct regulator_ops tps65917_ops_ext_control_smps = {
 	.set_mode		= palmas_set_mode_smps,
 	.get_mode		= palmas_get_mode_smps,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -602,7 +602,7 @@ static int palmas_is_enabled_ldo(struct regulator_dev *dev)
 	return !!(reg);
 }
 
-static struct regulator_ops palmas_ops_ldo = {
+static const struct regulator_ops palmas_ops_ldo = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -612,7 +612,7 @@ static struct regulator_ops palmas_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
-static struct regulator_ops palmas_ops_ldo9 = {
+static const struct regulator_ops palmas_ops_ldo9 = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -624,23 +624,23 @@ static struct regulator_ops palmas_ops_ldo9 = {
 	.get_bypass		= regulator_get_bypass_regmap,
 };
 
-static struct regulator_ops palmas_ops_ext_control_ldo = {
+static const struct regulator_ops palmas_ops_ext_control_ldo = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
-static struct regulator_ops palmas_ops_extreg = {
+static const struct regulator_ops palmas_ops_extreg = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 };
 
-static struct regulator_ops palmas_ops_ext_control_extreg = {
+static const struct regulator_ops palmas_ops_ext_control_extreg = {
 };
 
-static struct regulator_ops tps65917_ops_ldo = {
+static const struct regulator_ops tps65917_ops_ldo = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -651,7 +651,7 @@ static struct regulator_ops tps65917_ops_ldo = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops tps65917_ops_ldo_1_2 = {
+static const struct regulator_ops tps65917_ops_ldo_1_2 = {
 	.is_enabled		= palmas_is_enabled_ldo,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
