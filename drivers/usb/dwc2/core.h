@@ -513,8 +513,8 @@ struct dwc2_core_params {
 	/* Gadget parameters */
 	bool g_dma;
 	bool g_dma_desc;
-	u16 g_rx_fifo_size;
-	u16 g_np_tx_fifo_size;
+	u32 g_rx_fifo_size;
+	u32 g_np_tx_fifo_size;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
 };
 

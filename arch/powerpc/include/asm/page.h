@@ -294,14 +294,11 @@ extern long long virt_phys_offset;
 #include <asm/pgtable-types.h>
 #endif
 
-typedef struct { signed long pd; } hugepd_t;
 
 #ifndef CONFIG_HUGETLB_PAGE
 #define is_hugepd(pdep)		(0)
 #define pgd_huge(pgd)		(0)
 #endif /* CONFIG_HUGETLB_PAGE */
-
-#define __hugepd(x) ((hugepd_t) { (x) })
 
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);

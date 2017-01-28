@@ -955,6 +955,8 @@ struct xgbe_prv_data {
 
 	/* XPCS indirect addressing lock */
 	spinlock_t xpcs_lock;
+	unsigned int xpcs_window_def_reg;
+	unsigned int xpcs_window_sel_reg;
 	unsigned int xpcs_window;
 	unsigned int xpcs_window_size;
 	unsigned int xpcs_window_mask;

@@ -37,13 +37,6 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
-#define MB_TO_BYTES(mb) ((mb) << 20ULL)
-#define BYTES_TO_MB(b) ((b) >> 20ULL)
-
-#define HOST_LOW_GM_SIZE MB_TO_BYTES(128)
-#define HOST_HIGH_GM_SIZE MB_TO_BYTES(384)
-#define HOST_FENCE 4
-
 static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -165,6 +158,14 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	POSTING_READ(fence_reg_lo);
 }
 
+static void _clear_vgpu_fence(struct intel_vgpu *vgpu)
+{
+	int i;
+
+	for (i = 0; i < vgpu_fence_sz(vgpu); i++)
+		intel_vgpu_write_fence(vgpu, i, 0);
+}
+
 static void free_vgpu_fence(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -178,9 +179,9 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	_clear_vgpu_fence(vgpu);
 	for (i = 0; i < vgpu_fence_sz(vgpu); i++) {
 		reg = vgpu->fence.regs[i];
-		intel_vgpu_write_fence(vgpu, i, 0);
 		list_add_tail(&reg->link,
 			      &dev_priv->mm.fence_list);
 	}
@@ -208,12 +209,13 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 			continue;
 		list_del(pos);
 		vgpu->fence.regs[i] = reg;
-		intel_vgpu_write_fence(vgpu, i, 0);
 		if (++i == vgpu_fence_sz(vgpu))
 			break;
 	}
 	if (i != vgpu_fence_sz(vgpu))
 		goto out_free_fence;
+
+	_clear_vgpu_fence(vgpu);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	intel_runtime_pm_put(dev_priv);
@@ -311,6 +313,22 @@ void intel_vgpu_free_resource(struct intel_vgpu *vgpu)
 	free_vgpu_gm(vgpu);
 	free_vgpu_fence(vgpu);
 	free_resource(vgpu);
+}
+
+/**
+ * intel_vgpu_reset_resource - reset resource state owned by a vGPU
+ * @vgpu: a vGPU
+ *
+ * This function is used to reset resource state owned by a vGPU.
+ *
+ */
+void intel_vgpu_reset_resource(struct intel_vgpu *vgpu)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	intel_runtime_pm_get(dev_priv);
+	_clear_vgpu_fence(vgpu);
+	intel_runtime_pm_put(dev_priv);
 }
 
 /**

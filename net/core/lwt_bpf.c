@@ -386,6 +386,7 @@ static const struct lwtunnel_encap_ops bpf_encap_ops = {
 	.fill_encap	= bpf_fill_encap_info,
 	.get_encap_size = bpf_encap_nlsize,
 	.cmp_encap	= bpf_encap_cmp,
+	.owner		= THIS_MODULE,
 };
 
 static int __init bpf_lwt_init(void)

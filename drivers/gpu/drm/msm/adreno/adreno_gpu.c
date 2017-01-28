@@ -345,7 +345,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct msm_mmu *mmu;
 	int ret;
 
 	adreno_gpu->funcs = funcs;
@@ -385,8 +384,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	mmu = gpu->aspace->mmu;
-	if (mmu) {
+	if (gpu->aspace && gpu->aspace->mmu) {
+		struct msm_mmu *mmu = gpu->aspace->mmu;
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret)

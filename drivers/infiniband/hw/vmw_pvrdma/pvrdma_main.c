@@ -1029,7 +1029,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	if (ret) {
 		dev_err(&pdev->dev, "failed to allocate interrupts\n");
 		ret = -ENOMEM;
-		goto err_netdevice;
+		goto err_free_cq_ring;
 	}
 
 	/* Allocate UAR table. */
@@ -1092,8 +1092,6 @@ err_free_uar_table:
 err_free_intrs:
 	pvrdma_free_irq(dev);
 	pvrdma_disable_msi_all(dev);
-err_netdevice:
-	unregister_netdevice_notifier(&dev->nb_netdev);
 err_free_cq_ring:
 	pvrdma_page_dir_cleanup(dev, &dev->cq_pdir);
 err_free_async_ring:
