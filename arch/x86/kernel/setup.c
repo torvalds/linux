@@ -441,29 +441,6 @@ static void __init parse_setup_data(void)
 	}
 }
 
-static void __init e820_reserve_setup_data(void)
-{
-	struct setup_data *data;
-	u64 pa_data;
-
-	pa_data = boot_params.hdr.setup_data;
-	if (!pa_data)
-		return;
-
-	while (pa_data) {
-		data = early_memremap(pa_data, sizeof(*data));
-		e820_update_range(pa_data, sizeof(*data)+data->len,
-			 E820_RAM, E820_RESERVED_KERN);
-		pa_data = data->next;
-		early_memunmap(data, sizeof(*data));
-	}
-
-	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
-	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
-	printk(KERN_INFO "extended physical RAM map:\n");
-	e820_print_map("reserve setup_data");
-}
-
 static void __init memblock_x86_reserve_range_setup_data(void)
 {
 	struct setup_data *data;
