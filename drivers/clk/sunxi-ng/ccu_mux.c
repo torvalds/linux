@@ -71,7 +71,7 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 	unsigned int i;
 
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
-		unsigned long tmp_rate, parent_rate;
+		unsigned long tmp_rate, parent_rate, adj_parent_rate;
 		struct clk_hw *parent;
 
 		parent = clk_hw_get_parent_by_index(hw, i);
@@ -79,10 +79,11 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 			continue;
 
 		parent_rate = clk_hw_get_rate(parent);
+		adj_parent_rate = parent_rate;
 		ccu_mux_helper_adjust_parent_for_prediv(common, cm, i,
-							&parent_rate);
+							&adj_parent_rate);
 
-		tmp_rate = round(cm, clk_hw_get_rate(parent), req->rate, data);
+		tmp_rate = round(cm, adj_parent_rate, req->rate, data);
 		if (tmp_rate == req->rate) {
 			best_parent = parent;
 			best_parent_rate = parent_rate;
