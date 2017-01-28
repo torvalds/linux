@@ -74,7 +74,7 @@ xfs_bmdr_to_bmbt(
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
 				 XFS_BMAP_CRC_MAGIC, 0, 0, ip->i_ino,
-				 XFS_BTREE_LONG_PTRS | XFS_BTREE_CRC_BLOCKS);
+				 XFS_BTREE_LONG_PTRS);
 	else
 		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
 				 XFS_BMAP_MAGIC, 0, 0, ip->i_ino,

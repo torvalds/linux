@@ -1090,6 +1090,8 @@ xfs_btree_init_block_int(
 	__u64			owner,
 	unsigned int		flags)
 {
+	int			crc = xfs_sb_version_hascrc(&mp->m_sb);
+
 	buf->bb_magic = cpu_to_be32(magic);
 	buf->bb_level = cpu_to_be16(level);
 	buf->bb_numrecs = cpu_to_be16(numrecs);
@@ -1097,7 +1099,7 @@ xfs_btree_init_block_int(
 	if (flags & XFS_BTREE_LONG_PTRS) {
 		buf->bb_u.l.bb_leftsib = cpu_to_be64(NULLFSBLOCK);
 		buf->bb_u.l.bb_rightsib = cpu_to_be64(NULLFSBLOCK);
-		if (flags & XFS_BTREE_CRC_BLOCKS) {
+		if (crc) {
 			buf->bb_u.l.bb_blkno = cpu_to_be64(blkno);
 			buf->bb_u.l.bb_owner = cpu_to_be64(owner);
 			uuid_copy(&buf->bb_u.l.bb_uuid, &mp->m_sb.sb_meta_uuid);
@@ -1110,7 +1112,7 @@ xfs_btree_init_block_int(
 
 		buf->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		buf->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		if (flags & XFS_BTREE_CRC_BLOCKS) {
+		if (crc) {
 			buf->bb_u.s.bb_blkno = cpu_to_be64(blkno);
 			buf->bb_u.s.bb_owner = cpu_to_be32(__owner);
 			uuid_copy(&buf->bb_u.s.bb_uuid, &mp->m_sb.sb_meta_uuid);
