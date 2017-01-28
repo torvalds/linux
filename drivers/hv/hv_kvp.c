@@ -651,10 +651,14 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp,
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
 				 recv_buffer, fw_versions, FW_VER_COUNT,
 				 kvp_versions, KVP_VER_COUNT,
-				 NULL, &kvp_srv_version);
+				 NULL, &kvp_srv_version)) {
+				pr_info("KVP IC version %d.%d\n",
+					kvp_srv_version >> 16,
+					kvp_srv_version & 0xFFFF);
+			}
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +

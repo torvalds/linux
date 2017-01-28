@@ -304,7 +304,7 @@ void hv_vss_onchannelcallback(void *context)
 	u32 recvlen;
 	u64 requestid;
 	struct hv_vss_msg *vss_msg;
-
+	int vss_srv_version;
 
 	struct icmsg_hdr *icmsghdrp;
 
@@ -319,10 +319,15 @@ void hv_vss_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp,
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
 				 recv_buffer, fw_versions, FW_VER_COUNT,
 				 vss_versions, VSS_VER_COUNT,
-				 NULL, NULL);
+				 NULL, &vss_srv_version)) {
+
+				pr_info("VSS IC version %d.%d\n",
+					vss_srv_version >> 16,
+					vss_srv_version & 0xFFFF);
+			}
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +

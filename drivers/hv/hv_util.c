@@ -295,7 +295,7 @@ static void timesync_onchannelcallback(void *context)
 						fw_versions, FW_VER_COUNT,
 						ts_versions, TS_VER_COUNT,
 						NULL, &ts_srv_version)) {
-				pr_info("TimeSync version %d.%d\n",
+				pr_info("TimeSync IC version %d.%d\n",
 					ts_srv_version >> 16,
 					ts_srv_version & 0xFFFF);
 			}
@@ -361,7 +361,7 @@ static void heartbeat_onchannelcallback(void *context)
 					hb_versions, HB_VER_COUNT,
 					NULL, &hb_srv_version)) {
 
-				pr_info("Heartbeat version %d.%d\n",
+				pr_info("Heartbeat IC version %d.%d\n",
 					hb_srv_version >> 16,
 					hb_srv_version & 0xFFFF);
 			}
