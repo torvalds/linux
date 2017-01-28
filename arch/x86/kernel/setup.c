@@ -426,7 +426,7 @@ static void __init parse_setup_data(void)
 
 		switch (data_type) {
 		case SETUP_E820_EXT:
-			parse_e820_ext(pa_data, data_len);
+			e820__memory_setup_extended(pa_data, data_len);
 			break;
 		case SETUP_DTB:
 			add_dtb(pa_data);

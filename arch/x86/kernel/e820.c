@@ -665,7 +665,7 @@ __init void e820_reallocate_tables(void)
  * the remaining (if any) entries are passed via the SETUP_E820_EXT node of
  * struct setup_data, which is parsed here.
  */
-void __init parse_e820_ext(u64 phys_addr, u32 data_len)
+void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 {
 	int entries;
 	struct e820_entry *extmap;

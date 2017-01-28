@@ -17,7 +17,7 @@ extern u64  e820_update_range(u64 start, u64 size, unsigned old_type, unsigned n
 extern u64  e820_remove_range(u64 start, u64 size, unsigned old_type, int checktype);
 extern void update_e820(void);
 extern void e820_setup_gap(void);
-extern void parse_e820_ext(u64 phys_addr, u32 data_len);
+extern void e820__memory_setup_extended(u64 phys_addr, u32 data_len);
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
 extern u64  early_reserve_e820(u64 sizet, u64 align);
