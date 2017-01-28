@@ -1144,7 +1144,7 @@ xfs_file_iomap_end(
 	return 0;
 }
 
-struct iomap_ops xfs_iomap_ops = {
+const struct iomap_ops xfs_iomap_ops = {
 	.iomap_begin		= xfs_file_iomap_begin,
 	.iomap_end		= xfs_file_iomap_end,
 };
@@ -1190,6 +1190,6 @@ out_unlock:
 	return error;
 }
 
-struct iomap_ops xfs_xattr_iomap_ops = {
+const struct iomap_ops xfs_xattr_iomap_ops = {
 	.iomap_begin		= xfs_xattr_iomap_begin,
 };
