@@ -1271,7 +1271,7 @@ static int atapi_drain_needed(struct request *rq)
 	if (!blk_rq_bytes(rq) || op_is_write(req_op(rq)))
 		return 0;
 
-	return atapi_cmd_type(rq->cmd[0]) == ATAPI_MISC;
+	return atapi_cmd_type(scsi_req(rq)->cmd[0]) == ATAPI_MISC;
 }
 
 static int ata_scsi_dev_config(struct scsi_device *sdev,

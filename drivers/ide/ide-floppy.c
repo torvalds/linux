@@ -203,7 +203,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	put_unaligned(cpu_to_be16(blocks), (unsigned short *)&pc->c[7]);
 	put_unaligned(cpu_to_be32(block), (unsigned int *) &pc->c[2]);
 
-	memcpy(rq->cmd, pc->c, 12);
+	memcpy(scsi_req(rq)->cmd, pc->c, 12);
 
 	pc->rq = rq;
 	if (cmd == WRITE)
@@ -216,7 +216,7 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 		struct ide_atapi_pc *pc, struct request *rq)
 {
 	ide_init_pc(pc);
-	memcpy(pc->c, rq->cmd, sizeof(pc->c));
+	memcpy(pc->c, scsi_req(rq)->cmd, sizeof(pc->c));
 	pc->rq = rq;
 	if (blk_rq_bytes(rq)) {
 		pc->flags |= PC_FLAG_DMA_OK;

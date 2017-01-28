@@ -52,6 +52,7 @@ struct virtio_blk {
 };
 
 struct virtblk_req {
+	struct scsi_request sreq;	/* for SCSI passthrough */
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
@@ -91,7 +92,7 @@ static int __virtblk_add_req(struct virtqueue *vq,
 	 * inhdr with additional status information.
 	 */
 	if (type == cpu_to_virtio32(vq->vdev, VIRTIO_BLK_T_SCSI_CMD)) {
-		sg_init_one(&cmd, vbr->req->cmd, vbr->req->cmd_len);
+		sg_init_one(&cmd, vbr->sreq.cmd, vbr->sreq.cmd_len);
 		sgs[num_out++] = &cmd;
 	}
 
@@ -103,7 +104,6 @@ static int __virtblk_add_req(struct virtqueue *vq,
 	}
 
 	if (type == cpu_to_virtio32(vq->vdev, VIRTIO_BLK_T_SCSI_CMD)) {
-		memcpy(vbr->sense, vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
 		sg_init_one(&sense, vbr->sense, SCSI_SENSE_BUFFERSIZE);
 		sgs[num_out + num_in++] = &sense;
 		sg_init_one(&inhdr, &vbr->in_hdr, sizeof(vbr->in_hdr));
@@ -123,8 +123,10 @@ static inline void virtblk_request_done(struct request *req)
 	int error = virtblk_result(vbr);
 
 	if (req->cmd_type == REQ_TYPE_BLOCK_PC) {
-		req->resid_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.residual);
-		req->sense_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.sense_len);
+		scsi_req(req)->resid_len =
+			virtio32_to_cpu(vblk->vdev, vbr->in_hdr.residual);
+		vbr->sreq.sense_len =
+			virtio32_to_cpu(vblk->vdev, vbr->in_hdr.sense_len);
 		req->errors = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.errors);
 	} else if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 		req->errors = (error != 0);
@@ -538,6 +540,7 @@ static int virtblk_init_request(void *data, struct request *rq,
 	struct virtio_blk *vblk = data;
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(rq);
 
+	vbr->sreq.sense = vbr->sense;
 	sg_init_table(vbr->sg, vblk->sg_elems);
 	return 0;
 }

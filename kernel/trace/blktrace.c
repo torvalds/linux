@@ -712,15 +712,13 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 	if (likely(!bt))
 		return;
 
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
+	if (rq->cmd_type != REQ_TYPE_FS)
 		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, nr_bytes, req_op(rq), rq->cmd_flags,
-				what, rq->errors, rq->cmd_len, rq->cmd);
-	} else  {
+	else
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, blk_rq_pos(rq), nr_bytes, req_op(rq),
-				rq->cmd_flags, what, rq->errors, 0, NULL);
-	}
+
+	__blk_add_trace(bt, blk_rq_trace_sector(rq), nr_bytes, req_op(rq),
+			rq->cmd_flags, what, rq->errors, 0, NULL);
 }
 
 static void blk_add_trace_rq_abort(void *ignore,
@@ -972,11 +970,7 @@ void blk_add_driver_data(struct request_queue *q,
 	if (likely(!bt))
 		return;
 
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC)
-		__blk_add_trace(bt, 0, blk_rq_bytes(rq), 0, 0,
-				BLK_TA_DRV_DATA, rq->errors, len, data);
-	else
-		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), 0, 0,
+	__blk_add_trace(bt, blk_rq_trace_sector(rq), blk_rq_bytes(rq), 0, 0,
 				BLK_TA_DRV_DATA, rq->errors, len, data);
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
@@ -1751,31 +1745,6 @@ void blk_trace_remove_sysfs(struct device *dev)
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 
 #ifdef CONFIG_EVENT_TRACING
-
-void blk_dump_cmd(char *buf, struct request *rq)
-{
-	int i, end;
-	int len = rq->cmd_len;
-	unsigned char *cmd = rq->cmd;
-
-	if (rq->cmd_type != REQ_TYPE_BLOCK_PC) {
-		buf[0] = '\0';
-		return;
-	}
-
-	for (end = len - 1; end >= 0; end--)
-		if (cmd[end])
-			break;
-	end++;
-
-	for (i = 0; i < len; i++) {
-		buf += sprintf(buf, "%s%02x", i == 0 ? "" : " ", cmd[i]);
-		if (i == end && end != len - 1) {
-			sprintf(buf, " ..");
-			break;
-		}
-	}
-}
 
 void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes)
 {

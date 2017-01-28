@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 /* for request_sense */
 #include <linux/cdrom.h>
+#include <scsi/scsi_cmnd.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
@@ -51,6 +52,11 @@ enum ata_cmd_type_bits {
 #define ata_pm_request(rq)	\
 	((rq)->cmd_type == REQ_TYPE_ATA_PM_SUSPEND || \
 	 (rq)->cmd_type == REQ_TYPE_ATA_PM_RESUME)
+
+struct ide_request {
+	struct scsi_request sreq;
+	u8 sense[SCSI_SENSE_BUFFERSIZE];
+};
 
 /* Error codes returned in rq->errors to the higher part of the driver. */
 enum {
@@ -579,7 +585,7 @@ struct ide_drive_s {
 
 	/* current sense rq and buffer */
 	bool sense_rq_armed;
-	struct request sense_rq;
+	struct request *sense_rq;
 	struct request_sense sense_data;
 };
 

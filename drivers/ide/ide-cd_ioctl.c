@@ -304,6 +304,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 	int ret;
 
 	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
+	scsi_req_init(rq);
 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->rq_flags = RQF_QUIET;
 	ret = blk_execute_rq(drive->queue, cd->disk, rq, 0);

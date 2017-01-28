@@ -110,16 +110,16 @@ struct compat_blk_user_trace_setup {
 
 #endif
 
-#if defined(CONFIG_EVENT_TRACING) && defined(CONFIG_BLOCK)
-
-static inline int blk_cmd_buf_len(struct request *rq)
-{
-	return (rq->cmd_type == REQ_TYPE_BLOCK_PC) ? rq->cmd_len * 3 : 1;
-}
-
-extern void blk_dump_cmd(char *buf, struct request *rq);
 extern void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes);
 
-#endif /* CONFIG_EVENT_TRACING && CONFIG_BLOCK */
+static inline sector_t blk_rq_trace_sector(struct request *rq)
+{
+	return (rq->cmd_type != REQ_TYPE_FS) ? 0 : blk_rq_pos(rq);
+}
+
+static inline unsigned int blk_rq_trace_nr_sectors(struct request *rq)
+{
+	return (rq->cmd_type != REQ_TYPE_FS) ? 0 : blk_rq_sectors(rq);
+}
 
 #endif
