@@ -8,13 +8,8 @@
  * quirks and other tweaks, and feeds that into the generic Linux memory
  * allocation code routines via a platform independent interface (memblock, etc.).
  */
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/init.h>
 #include <linux/crash_dump.h>
-#include <linux/export.h>
 #include <linux/bootmem.h>
-#include <linux/pfn.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/firmware-map.h>
@@ -22,9 +17,7 @@
 #include <linux/sort.h>
 
 #include <asm/e820/api.h>
-#include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/cpufeature.h>
 
 /*
  * We organize the E820 table into two main data structures:
