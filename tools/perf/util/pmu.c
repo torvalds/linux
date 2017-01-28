@@ -275,6 +275,8 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
 	}
 	alias->per_pkg = perpkg && sscanf(perpkg, "%d", &num) == 1 && num == 1;
+	alias->str = strdup(val);
+
 	list_add_tail(&alias->list, list);
 
 	return 0;
@@ -1087,6 +1089,8 @@ struct sevent {
 	char *name;
 	char *desc;
 	char *topic;
+	char *str;
+	char *pmu;
 };
 
 static int cmp_sevent(const void *a, const void *b)
@@ -1183,6 +1187,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			aliases[j].desc = long_desc ? alias->long_desc :
 						alias->desc;
 			aliases[j].topic = alias->topic;
+			aliases[j].str = alias->str;
+			aliases[j].pmu = pmu->name;
 			j++;
 		}
 		if (pmu->selectable &&
@@ -1217,6 +1223,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			printf("%*s", 8, "[");
 			wordwrap(aliases[j].desc, 8, columns, 0);
 			printf("]\n");
+			if (verbose)
+				printf("%*s%s/%s/\n", 8, "", aliases[j].pmu, aliases[j].str);
 		} else
 			printf("  %-50s [Kernel PMU event]\n", aliases[j].name);
 		printed++;
