@@ -130,7 +130,7 @@ static void __init __e820_add_region(struct e820_table *table, u64 start, u64 si
 	int x = table->nr_entries;
 
 	if (x >= ARRAY_SIZE(table->entries)) {
-		printk(KERN_ERR "e820: too many entries; ignoring [mem %#010llx-%#010llx]\n", start, start + size - 1);
+		pr_err("e820: too many entries; ignoring [mem %#010llx-%#010llx]\n", start, start + size - 1);
 		return;
 	}
 
@@ -149,14 +149,14 @@ static void __init e820_print_type(u32 type)
 {
 	switch (type) {
 	case E820_RAM:			/* Fall through: */
-	case E820_RESERVED_KERN:	printk(KERN_CONT "usable");			break;
-	case E820_RESERVED:		printk(KERN_CONT "reserved");			break;
-	case E820_ACPI:			printk(KERN_CONT "ACPI data");			break;
-	case E820_NVS:			printk(KERN_CONT "ACPI NVS");			break;
-	case E820_UNUSABLE:		printk(KERN_CONT "unusable");			break;
+	case E820_RESERVED_KERN:	pr_cont("usable");			break;
+	case E820_RESERVED:		pr_cont("reserved");			break;
+	case E820_ACPI:			pr_cont("ACPI data");			break;
+	case E820_NVS:			pr_cont("ACPI NVS");			break;
+	case E820_UNUSABLE:		pr_cont("unusable");			break;
 	case E820_PMEM:			/* Fall through: */
-	case E820_PRAM:			printk(KERN_CONT "persistent (type %u)", type);	break;
-	default:			printk(KERN_CONT "type %u", type);		break;
+	case E820_PRAM:			pr_cont("persistent (type %u)", type);	break;
+	default:			pr_cont("type %u", type);		break;
 	}
 }
 
@@ -165,12 +165,12 @@ void __init e820_print_map(char *who)
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		printk(KERN_INFO "%s: [mem %#018Lx-%#018Lx] ", who,
+		pr_info("%s: [mem %#018Lx-%#018Lx] ", who,
 		       e820_table->entries[i].addr,
 		       e820_table->entries[i].addr + e820_table->entries[i].size - 1);
 
 		e820_print_type(e820_table->entries[i].type);
-		printk(KERN_CONT "\n");
+		pr_cont("\n");
 	}
 }
 
@@ -419,11 +419,11 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	printk(KERN_DEBUG "e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
+	pr_debug("e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
 	e820_print_type(old_type);
-	printk(KERN_CONT " ==> ");
+	pr_cont(" ==> ");
 	e820_print_type(new_type);
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 
 	for (i = 0; i < table->nr_entries; i++) {
 		struct e820_entry *entry = &table->entries[i];
@@ -495,10 +495,10 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	printk(KERN_DEBUG "e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
+	pr_debug("e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
 	if (checktype)
 		e820_print_type(old_type);
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		struct e820_entry *entry = &e820_table->entries[i];
@@ -551,7 +551,7 @@ void __init update_e820(void)
 	if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries))
 		return;
 
-	printk(KERN_INFO "e820: modified physical RAM map:\n");
+	pr_info("e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
 
@@ -613,7 +613,7 @@ __init void e820_setup_gap(void)
 	if (!found) {
 #ifdef CONFIG_X86_64
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
-		printk(KERN_ERR
+		pr_err(
 			"e820: Cannot find an available gap in the 32-bit address range\n"
 			"e820: PCI devices with unassigned 32-bit BARs may not work!\n");
 #else
@@ -626,7 +626,7 @@ __init void e820_setup_gap(void)
 	 */
 	pci_mem_start = gapstart;
 
-	printk(KERN_INFO "e820: [mem %#010lx-%#010lx] available for PCI devices\n", gapstart, gapstart + gapsize - 1);
+	pr_info("e820: [mem %#010lx-%#010lx] available for PCI devices\n", gapstart, gapstart + gapsize - 1);
 }
 
 /*
@@ -679,7 +679,7 @@ void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 
 	early_memunmap(sdata, data_len);
-	printk(KERN_INFO "e820: extended physical RAM map:\n");
+	pr_info("e820: extended physical RAM map:\n");
 	e820_print_map("extended");
 }
 
@@ -743,7 +743,7 @@ u64 __init early_reserve_e820(u64 size, u64 align)
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
 		e820_update_range_firmware(addr, size, E820_RAM, E820_RESERVED);
-		printk(KERN_INFO "e820: update e820_table_firmware for early_reserve_e820\n");
+		pr_info("e820: update e820_table_firmware for early_reserve_e820\n");
 		update_e820_table_firmware();
 	}
 
@@ -793,7 +793,7 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 	if (last_pfn > max_arch_pfn)
 		last_pfn = max_arch_pfn;
 
-	printk(KERN_INFO "e820: last_pfn = %#lx max_arch_pfn = %#lx\n",
+	pr_info("e820: last_pfn = %#lx max_arch_pfn = %#lx\n",
 			 last_pfn, max_arch_pfn);
 	return last_pfn;
 }
@@ -829,7 +829,7 @@ static int __init parse_memopt(char *p)
 		setup_clear_cpu_cap(X86_FEATURE_PSE);
 		return 0;
 #else
-		printk(KERN_WARNING "mem=nopentium ignored! (only supported on x86_32)\n");
+		pr_warn("mem=nopentium ignored! (only supported on x86_32)\n");
 		return -EINVAL;
 #endif
 	}
@@ -916,7 +916,7 @@ void __init finish_e820_parsing(void)
 		if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries) < 0)
 			early_panic("Invalid user supplied memory map");
 
-		printk(KERN_INFO "e820: user-defined physical RAM map:\n");
+		pr_info("e820: user-defined physical RAM map:\n");
 		e820_print_map("user");
 	}
 }
@@ -1078,7 +1078,7 @@ void __init e820_reserve_resources_late(void)
 		if (start >= end)
 			continue;
 
-		printk(KERN_DEBUG "e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
+		pr_debug("e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
 		reserve_region_with_split(&iomem_resource, start, end, "RAM buffer");
 	}
 }
@@ -1134,7 +1134,7 @@ void __init e820__memory_setup(void)
 
 	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 
-	printk(KERN_INFO "e820: BIOS-provided physical RAM map:\n");
+	pr_info("e820: BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
 }
 
