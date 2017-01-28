@@ -87,7 +87,7 @@ static int joydev_correct(int value, struct js_corr *corr)
 		return 0;
 	}
 
-	return value < -32767 ? -32767 : (value > 32767 ? 32767 : value);
+	return clamp(value, -32767, 32767);
 }
 
 static void joydev_pass_event(struct joydev_client *client,
