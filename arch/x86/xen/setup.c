@@ -596,7 +596,7 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
 	}
 
-	e820_add_region(start, end - start, type);
+	e820__range_add(start, end - start, type);
 }
 
 static void __init xen_ignore_unusable(void)
@@ -858,7 +858,7 @@ char * __init xen_memory_setup(void)
 	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
 	 */
-	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
+	e820__range_add(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
 
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
@@ -936,7 +936,7 @@ char * __init xen_auto_xlated_memory_setup(void)
 			  &xen_e820_table_entries);
 
 	for (i = 0; i < xen_e820_table_entries; i++)
-		e820_add_region(xen_e820_table[i].addr, xen_e820_table[i].size,
+		e820__range_add(xen_e820_table[i].addr, xen_e820_table[i].size,
 				xen_e820_table[i].type);
 
 	/* Remove p2m info, it is not needed. */

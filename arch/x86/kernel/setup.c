@@ -731,14 +731,14 @@ static void __init trim_bios_range(void)
 	 * since some BIOSes are known to corrupt low memory.  See the
 	 * Kconfig help text for X86_RESERVE_LOW.
 	 */
-	e820_update_range(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
+	e820__range_update(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
 
 	/*
 	 * special case: Some BIOSen report the PC BIOS
 	 * area (640->1Mb) as ram even though it is not.
 	 * take them out.
 	 */
-	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
+	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
 
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 }
@@ -760,8 +760,8 @@ static void __init e820_add_kernel_range(void)
 		return;
 
 	pr_warn(".text .data .bss are not marked as E820_RAM!\n");
-	e820_remove_range(start, size, E820_RAM, 0);
-	e820_add_region(start, size, E820_RAM);
+	e820__range_remove(start, size, E820_RAM, 0);
+	e820__range_add(start, size, E820_RAM);
 }
 
 static unsigned reserve_low = CONFIG_X86_RESERVE_LOW << 10;
@@ -1031,7 +1031,7 @@ void __init setup_arch(char **cmdline_p)
 	trim_bios_range();
 #ifdef CONFIG_X86_32
 	if (ppro_with_ram_bug()) {
-		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
+		e820__range_update(0x70000000ULL, 0x40000ULL, E820_RAM,
 				  E820_RESERVED);
 		e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 		printk(KERN_INFO "fixed physical RAM map:\n");

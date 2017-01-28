@@ -546,7 +546,7 @@ intel_graphics_stolen(int num, int slot, int func,
 	       &base, &end);
 
 	/* Mark this space as reserved */
-	e820_add_region(base, size, E820_RESERVED);
+	e820__range_add(base, size, E820_RESERVED);
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 }
 

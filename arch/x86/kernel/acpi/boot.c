@@ -1715,6 +1715,6 @@ int __acpi_release_global_lock(unsigned int *lock)
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 {
-	e820_add_region(addr, size, E820_ACPI);
+	e820__range_add(addr, size, E820_ACPI);
 	e820__update_table_print();
 }

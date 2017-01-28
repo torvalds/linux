@@ -1178,7 +1178,7 @@ static __init char *lguest_memory_setup(void)
 	 * The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit.
 	 */
-	e820_add_region(boot_params.e820_table[0].addr,
+	e820__range_add(boot_params.e820_table[0].addr,
 			  boot_params.e820_table[0].size,
 			  boot_params.e820_table[0].type);
 

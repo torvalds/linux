@@ -125,7 +125,7 @@ int __init e820__mapped_all(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel E820 map.
  */
-static void __init __e820_add_region(struct e820_table *table, u64 start, u64 size, int type)
+static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, int type)
 {
 	int x = table->nr_entries;
 
@@ -140,9 +140,9 @@ static void __init __e820_add_region(struct e820_table *table, u64 start, u64 si
 	table->nr_entries++;
 }
 
-void __init e820_add_region(u64 start, u64 size, int type)
+void __init e820__range_add(u64 start, u64 size, int type)
 {
-	__e820_add_region(e820_table, start, size, type);
+	__e820__range_add(e820_table, start, size, type);
 }
 
 static void __init e820_print_type(u32 type)
@@ -380,7 +380,7 @@ static int __init __append_e820_table(struct e820_entry *biosmap, int nr_map)
 		if (start > end && likely(size))
 			return -1;
 
-		e820_add_region(start, size, type);
+		e820__range_add(start, size, type);
 
 		biosmap++;
 		nr_map--;
@@ -407,7 +407,7 @@ static int __init append_e820_table(struct e820_entry *biosmap, int nr_map)
 }
 
 static u64 __init
-__e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_type, unsigned new_type)
+__e820__range_update(struct e820_table *table, u64 start, u64 size, unsigned old_type, unsigned new_type)
 {
 	u64 end;
 	unsigned int i;
@@ -444,8 +444,8 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 
 		/* New range is completely covered? */
 		if (entry->addr < start && entry_end > end) {
-			__e820_add_region(table, start, size, new_type);
-			__e820_add_region(table, end, entry_end - end, entry->type);
+			__e820__range_add(table, start, size, new_type);
+			__e820__range_add(table, end, entry_end - end, entry->type);
 			entry->size = start - entry->addr;
 			real_updated_size += size;
 			continue;
@@ -457,7 +457,7 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 		if (final_start >= final_end)
 			continue;
 
-		__e820_add_region(table, final_start, final_end - final_start, new_type);
+		__e820__range_add(table, final_start, final_end - final_start, new_type);
 
 		real_updated_size += final_end - final_start;
 
@@ -474,18 +474,18 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 	return real_updated_size;
 }
 
-u64 __init e820_update_range(u64 start, u64 size, unsigned old_type, unsigned new_type)
+u64 __init e820__range_update(u64 start, u64 size, unsigned old_type, unsigned new_type)
 {
-	return __e820_update_range(e820_table, start, size, old_type, new_type);
+	return __e820__range_update(e820_table, start, size, old_type, new_type);
 }
 
-static u64 __init e820_update_range_firmware(u64 start, u64 size, unsigned old_type, unsigned new_type)
+static u64 __init e820__range_update_firmware(u64 start, u64 size, unsigned old_type, unsigned new_type)
 {
-	return __e820_update_range(e820_table_firmware, start, size, old_type, new_type);
+	return __e820__range_update(e820_table_firmware, start, size, old_type, new_type);
 }
 
 /* Remove a range of memory from the E820 table: */
-u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checktype)
+u64 __init e820__range_remove(u64 start, u64 size, unsigned old_type, int checktype)
 {
 	int i;
 	u64 end;
@@ -519,7 +519,7 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 
 		/* Is the new range completely covered? */
 		if (entry->addr < start && entry_end > end) {
-			e820_add_region(end, entry_end - end, entry->type);
+			e820__range_add(end, entry_end - end, entry->type);
 			entry->size = start - entry->addr;
 			real_removed_size += size;
 			continue;
@@ -747,7 +747,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
-		e820_update_range_firmware(addr, size, E820_RAM, E820_RESERVED);
+		e820__range_update_firmware(addr, size, E820_RAM, E820_RESERVED);
 		pr_info("e820: update e820_table_firmware for e820__memblock_alloc_reserved()\n");
 		e820__update_table_firmware();
 	}
@@ -846,7 +846,7 @@ static int __init parse_memopt(char *p)
 	if (mem_size == 0)
 		return -EINVAL;
 
-	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	return 0;
 }
@@ -882,18 +882,18 @@ static int __init parse_memmap_one(char *p)
 	userdef = 1;
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
-		e820_add_region(start_at, mem_size, E820_RAM);
+		e820__range_add(start_at, mem_size, E820_RAM);
 	} else if (*p == '#') {
 		start_at = memparse(p+1, &p);
-		e820_add_region(start_at, mem_size, E820_ACPI);
+		e820__range_add(start_at, mem_size, E820_ACPI);
 	} else if (*p == '$') {
 		start_at = memparse(p+1, &p);
-		e820_add_region(start_at, mem_size, E820_RESERVED);
+		e820__range_add(start_at, mem_size, E820_RESERVED);
 	} else if (*p == '!') {
 		start_at = memparse(p+1, &p);
-		e820_add_region(start_at, mem_size, E820_PRAM);
+		e820__range_add(start_at, mem_size, E820_PRAM);
 	} else {
-		e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
+		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 	}
 
 	return *p == '\0' ? 0 : -EINVAL;
@@ -926,7 +926,7 @@ void __init e820_reserve_setup_data(void)
 
 	while (pa_data) {
 		data = early_memremap(pa_data, sizeof(*data));
-		e820_update_range(pa_data, sizeof(*data)+data->len, E820_RAM, E820_RESERVED_KERN);
+		e820__range_update(pa_data, sizeof(*data)+data->len, E820_RAM, E820_RESERVED_KERN);
 		pa_data = data->next;
 		early_memunmap(data, sizeof(*data));
 	}
@@ -1146,8 +1146,8 @@ char *__init e820__memory_setup_default(void)
 		}
 
 		e820_table->nr_entries = 0;
-		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
-		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
+		e820__range_add(0, LOWMEMSIZE(), E820_RAM);
+		e820__range_add(HIGH_MEMORY, mem_size << 10, E820_RAM);
 	}
 
 	return who;
