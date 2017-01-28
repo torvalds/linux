@@ -8,8 +8,8 @@ extern struct e820_table *e820_table_firmware;
 
 extern unsigned long pci_mem_start;
 
-extern int  e820_any_mapped(u64 start, u64 end, unsigned type);
-extern int  e820_all_mapped(u64 start, u64 end, unsigned type);
+extern int  e820__mapped_any(u64 start, u64 end, unsigned type);
+extern int  e820__mapped_all(u64 start, u64 end, unsigned type);
 extern void e820_add_region(u64 start, u64 size, int type);
 extern void e820_print_map(char *who);
 extern int  e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map);

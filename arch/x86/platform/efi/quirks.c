@@ -249,7 +249,7 @@ static bool can_free_region(u64 start, u64 size)
 	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
 		return false;
 
-	if (!e820_all_mapped(start, start+size, E820_RAM))
+	if (!e820__mapped_all(start, start+size, E820_RAM))
 		return false;
 
 	return true;

@@ -68,7 +68,7 @@ EXPORT_SYMBOL(pci_mem_start);
  * This function checks if any part of the range <start,end> is mapped
  * with type.
  */
-int e820_any_mapped(u64 start, u64 end, unsigned type)
+int e820__mapped_any(u64 start, u64 end, unsigned type)
 {
 	int i;
 
@@ -83,7 +83,7 @@ int e820_any_mapped(u64 start, u64 end, unsigned type)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(e820_any_mapped);
+EXPORT_SYMBOL_GPL(e820__mapped_any);
 
 /*
  * This function checks if the entire <start,end> range is mapped with 'type'.
@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(e820_any_mapped);
  * Note: this function only works correctly once the E820 table is sorted and
  * not-overlapping (at least for the range specified), which is the case normally.
  */
-int __init e820_all_mapped(u64 start, u64 end, unsigned type)
+int __init e820__mapped_all(u64 start, u64 end, unsigned type)
 {
 	int i;
 

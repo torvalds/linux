@@ -68,7 +68,7 @@ void __init tboot_probe(void)
 	 * also verify that it is mapped as we expect it before calling
 	 * set_fixmap(), to reduce chance of garbage value causing crash
 	 */
-	if (!e820_any_mapped(boot_params.tboot_addr,
+	if (!e820__mapped_any(boot_params.tboot_addr,
 			     boot_params.tboot_addr, E820_RESERVED)) {
 		pr_warning("non-0 tboot_addr but it is not of type E820_RESERVED\n");
 		return;

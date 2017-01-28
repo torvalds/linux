@@ -514,7 +514,7 @@ static int __ref pci_mmcfg_check_reserved(struct device *dev,
 	}
 
 	/*
-	 * e820_all_mapped() is marked as __init.
+	 * e820__mapped_all() is marked as __init.
 	 * All entries from ACPI MCFG table have been checked at boot time.
 	 * For MCFG information constructed from hotpluggable host bridge's
 	 * _CBA method, just assume it's reserved.
@@ -525,7 +525,7 @@ static int __ref pci_mmcfg_check_reserved(struct device *dev,
 	/* Don't try to do this check unless configuration
 	   type 1 is available. how about type 2 ?*/
 	if (raw_pci_ops)
-		return is_mmconf_reserved(e820_all_mapped, cfg, dev, 1);
+		return is_mmconf_reserved(e820__mapped_all, cfg, dev, 1);
 
 	return 0;
 }

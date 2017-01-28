@@ -756,7 +756,7 @@ static void __init e820_add_kernel_range(void)
 	 * exclude kernel range. If we really are running on top non-RAM,
 	 * we will crash later anyways.
 	 */
-	if (e820_all_mapped(start, start + size, E820_RAM))
+	if (e820__mapped_all(start, start + size, E820_RAM))
 		return;
 
 	pr_warn(".text .data .bss are not marked as E820_RAM!\n");
