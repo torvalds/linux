@@ -1324,7 +1324,7 @@ xfs_inode_free_eofblocks(
 	int			flags,
 	void			*args)
 {
-	int ret;
+	int ret = 0;
 	struct xfs_eofblocks *eofb = args;
 	bool need_iolock = true;
 	int match;
@@ -1360,19 +1360,25 @@ xfs_inode_free_eofblocks(
 			return 0;
 
 		/*
-		 * A scan owner implies we already hold the iolock. Skip it in
-		 * xfs_free_eofblocks() to avoid deadlock. This also eliminates
-		 * the possibility of EAGAIN being returned.
+		 * A scan owner implies we already hold the iolock. Skip it here
+		 * to avoid deadlock.
 		 */
 		if (eofb->eof_scan_owner == ip->i_ino)
 			need_iolock = false;
 	}
 
-	ret = xfs_free_eofblocks(ip->i_mount, ip, need_iolock);
-
-	/* don't revisit the inode if we're not waiting */
-	if (ret == -EAGAIN && !(flags & SYNC_WAIT))
-		ret = 0;
+	/*
+	 * If the caller is waiting, return -EAGAIN to keep the background
+	 * scanner moving and revisit the inode in a subsequent pass.
+	 */
+	if (need_iolock && !xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+		if (flags & SYNC_WAIT)
+			ret = -EAGAIN;
+		return ret;
+	}
+	ret = xfs_free_eofblocks(ip);
+	if (need_iolock)
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
 	return ret;
 }
