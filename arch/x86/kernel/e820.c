@@ -629,7 +629,7 @@ __init void e820__setup_pci_gap(void)
 	}
 
 	/*
-	 * e820_reserve_resources_late protect stolen RAM already
+	 * e820__reserve_resources_late() protects stolen RAM already:
 	 */
 	pci_mem_start = gapstart;
 
@@ -1035,7 +1035,7 @@ static bool __init do_mark_busy(u32 type, struct resource *res)
 
 static struct resource __initdata *e820_res;
 
-void __init e820_reserve_resources(void)
+void __init e820__reserve_resources(void)
 {
 	int i;
 	struct resource *res;
@@ -1059,9 +1059,9 @@ void __init e820_reserve_resources(void)
 		res->desc  = e820_type_to_iores_desc(entry);
 
 		/*
-		 * don't register the region that could be conflicted with
-		 * pci device BAR resource and insert them later in
-		 * pcibios_resource_survey()
+		 * Don't register the region that could be conflicted with
+		 * PCI device BAR resources and insert them later in
+		 * pcibios_resource_survey():
 		 */
 		if (do_mark_busy(entry->type, res)) {
 			res->flags |= IORESOURCE_BUSY;
@@ -1077,7 +1077,9 @@ void __init e820_reserve_resources(void)
 	}
 }
 
-/* How much should we pad RAM ending depending on where it is? */
+/*
+ * How much should we pad the end of RAM, depending on where it is?
+ */
 static unsigned long __init ram_alignment(resource_size_t pos)
 {
 	unsigned long mb = pos >> 20;
@@ -1096,7 +1098,7 @@ static unsigned long __init ram_alignment(resource_size_t pos)
 
 #define MAX_RESOURCE_SIZE ((resource_size_t)-1)
 
-void __init e820_reserve_resources_late(void)
+void __init e820__reserve_resources_late(void)
 {
 	int i;
 	struct resource *res;

@@ -27,8 +27,8 @@ extern void e820__memblock_setup(void);
 
 extern void e820__reserve_setup_data(void);
 extern void e820__finish_early_params(void);
-extern void e820_reserve_resources(void);
-extern void e820_reserve_resources_late(void);
+extern void e820__reserve_resources(void);
+extern void e820__reserve_resources_late(void);
 
 extern void e820__memory_setup(void);
 extern void e820__memory_setup_extended(u64 phys_addr, u32 data_len);
