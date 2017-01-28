@@ -107,8 +107,6 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
 
-	if (duty_ns <= 0)
-		duty_ns = 1;
 	on_time_div = 255ULL * duty_ns;
 	do_div(on_time_div, period_ns);
 	on_time_div = 255ULL - on_time_div;
