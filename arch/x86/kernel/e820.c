@@ -1164,6 +1164,9 @@ void __init e820__memory_setup(void)
 {
 	char *who;
 
+	/* This is a firmware interface ABI - make sure we don't break it: */
+	BUILD_BUG_ON(sizeof(struct e820_entry) != 20);
+
 	who = x86_init.resources.memory_setup();
 
 	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
