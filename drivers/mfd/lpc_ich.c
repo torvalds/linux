@@ -551,6 +551,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	},
 	[LPC_APL] = {
 		.name = "Apollo Lake SoC",
+		.iTCO_version = 5,
 		.spi_type = INTEL_SPI_BXT,
 	},
 };
