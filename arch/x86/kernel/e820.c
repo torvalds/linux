@@ -932,7 +932,12 @@ void __init e820_reserve_setup_data(void)
 	e820_print_map("reserve setup_data");
 }
 
-void __init finish_e820_parsing(void)
+/*
+ * Called after parse_early_param(), after early parameters (such as mem=)
+ * have been processed, in which case we already have an E820 table filled in
+ * via the parameter callback function(s), but it's not sorted and printed yet:
+ */
+void __init e820__finish_early_params(void)
 {
 	if (userdef) {
 		if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries) < 0)

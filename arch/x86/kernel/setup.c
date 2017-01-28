@@ -1005,7 +1005,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* update the e820_table_firmware too */
 	e820_reserve_setup_data();
-	finish_e820_parsing();
+	e820__finish_early_params();
 
 	if (efi_enabled(EFI_BOOT))
 		efi_init();

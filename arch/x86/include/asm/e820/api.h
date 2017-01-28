@@ -23,7 +23,7 @@ extern unsigned long e820_end_of_low_ram_pfn(void);
 extern u64  early_reserve_e820(u64 sizet, u64 align);
 extern void e820__memblock_setup(void);
 extern void e820_reserve_setup_data(void);
-extern void finish_e820_parsing(void);
+extern void e820__finish_early_params(void);
 extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
 extern void e820__memory_setup(void);
