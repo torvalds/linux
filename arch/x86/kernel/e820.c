@@ -73,11 +73,11 @@ int e820_any_mapped(u64 start, u64 end, unsigned type)
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 
-		if (type && ei->type != type)
+		if (type && entry->type != type)
 			continue;
-		if (ei->addr >= end || ei->addr + ei->size <= start)
+		if (entry->addr >= end || entry->addr + entry->size <= start)
 			continue;
 		return 1;
 	}
@@ -96,21 +96,21 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 
-		if (type && ei->type != type)
+		if (type && entry->type != type)
 			continue;
 
 		/* Is the region (part) in overlap with the current region? */
-		if (ei->addr >= end || ei->addr + ei->size <= start)
+		if (entry->addr >= end || entry->addr + entry->size <= start)
 			continue;
 
 		/*
 		 * If the region is at the beginning of <start,end> we move
 		 * 'start' to the end of the region since it's ok until there
 		 */
-		if (ei->addr <= start)
-			start = ei->addr + ei->size;
+		if (entry->addr <= start)
+			start = entry->addr + entry->size;
 
 		/*
 		 * If 'start' is now at or beyond 'end', we're done, full
@@ -426,34 +426,34 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 	printk(KERN_CONT "\n");
 
 	for (i = 0; i < table->nr_entries; i++) {
-		struct e820_entry *ei = &table->entries[i];
+		struct e820_entry *entry = &table->entries[i];
 		u64 final_start, final_end;
-		u64 ei_end;
+		u64 entry_end;
 
-		if (ei->type != old_type)
+		if (entry->type != old_type)
 			continue;
 
-		ei_end = ei->addr + ei->size;
+		entry_end = entry->addr + entry->size;
 
 		/* Completely covered by new range? */
-		if (ei->addr >= start && ei_end <= end) {
-			ei->type = new_type;
-			real_updated_size += ei->size;
+		if (entry->addr >= start && entry_end <= end) {
+			entry->type = new_type;
+			real_updated_size += entry->size;
 			continue;
 		}
 
 		/* New range is completely covered? */
-		if (ei->addr < start && ei_end > end) {
+		if (entry->addr < start && entry_end > end) {
 			__e820_add_region(table, start, size, new_type);
-			__e820_add_region(table, end, ei_end - end, ei->type);
-			ei->size = start - ei->addr;
+			__e820_add_region(table, end, entry_end - end, entry->type);
+			entry->size = start - entry->addr;
 			real_updated_size += size;
 			continue;
 		}
 
 		/* Partially covered: */
-		final_start = max(start, ei->addr);
-		final_end = min(end, ei_end);
+		final_start = max(start, entry->addr);
+		final_end = min(end, entry_end);
 		if (final_start >= final_end)
 			continue;
 
@@ -465,11 +465,11 @@ __e820_update_range(struct e820_table *table, u64 start, u64 size, unsigned old_
 		 * Left range could be head or tail, so need to update
 		 * its size first:
 		 */
-		ei->size -= final_end - final_start;
-		if (ei->addr < final_start)
+		entry->size -= final_end - final_start;
+		if (entry->addr < final_start)
 			continue;
 
-		ei->addr = final_end;
+		entry->addr = final_end;
 	}
 	return real_updated_size;
 }
@@ -501,33 +501,33 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 	printk(KERN_CONT "\n");
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 		u64 final_start, final_end;
-		u64 ei_end;
+		u64 entry_end;
 
-		if (checktype && ei->type != old_type)
+		if (checktype && entry->type != old_type)
 			continue;
 
-		ei_end = ei->addr + ei->size;
+		entry_end = entry->addr + entry->size;
 
 		/* Completely covered? */
-		if (ei->addr >= start && ei_end <= end) {
-			real_removed_size += ei->size;
-			memset(ei, 0, sizeof(struct e820_entry));
+		if (entry->addr >= start && entry_end <= end) {
+			real_removed_size += entry->size;
+			memset(entry, 0, sizeof(struct e820_entry));
 			continue;
 		}
 
 		/* Is the new range completely covered? */
-		if (ei->addr < start && ei_end > end) {
-			e820_add_region(end, ei_end - end, ei->type);
-			ei->size = start - ei->addr;
+		if (entry->addr < start && entry_end > end) {
+			e820_add_region(end, entry_end - end, entry->type);
+			entry->size = start - entry->addr;
 			real_removed_size += size;
 			continue;
 		}
 
 		/* Partially covered: */
-		final_start = max(start, ei->addr);
-		final_end = min(end, ei_end);
+		final_start = max(start, entry->addr);
+		final_end = min(end, entry_end);
 		if (final_start >= final_end)
 			continue;
 
@@ -537,11 +537,11 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 		 * Left range could be head or tail, so need to update
 		 * the size first:
 		 */
-		ei->size -= final_end - final_start;
-		if (ei->addr < final_start)
+		entry->size -= final_end - final_start;
+		if (entry->addr < final_start)
 			continue;
 
-		ei->addr = final_end;
+		entry->addr = final_end;
 	}
 	return real_removed_size;
 }
@@ -697,15 +697,15 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
 	unsigned long pfn = 0;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 
-		if (pfn < PFN_UP(ei->addr))
-			register_nosave_region(pfn, PFN_UP(ei->addr));
+		if (pfn < PFN_UP(entry->addr))
+			register_nosave_region(pfn, PFN_UP(entry->addr));
 
-		pfn = PFN_DOWN(ei->addr + ei->size);
+		pfn = PFN_DOWN(entry->addr + entry->size);
 
-		if (ei->type != E820_RAM && ei->type != E820_RESERVED_KERN)
-			register_nosave_region(PFN_UP(ei->addr), pfn);
+		if (entry->type != E820_RAM && entry->type != E820_RESERVED_KERN)
+			register_nosave_region(PFN_UP(entry->addr), pfn);
 
 		if (pfn >= limit_pfn)
 			break;
@@ -722,10 +722,10 @@ static int __init e820_mark_nvs_memory(void)
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 
-		if (ei->type == E820_NVS)
-			acpi_nvs_register(ei->addr, ei->size);
+		if (entry->type == E820_NVS)
+			acpi_nvs_register(entry->addr, entry->size);
 	}
 
 	return 0;
@@ -770,15 +770,15 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 		unsigned long start_pfn;
 		unsigned long end_pfn;
 
-		if (ei->type != type)
+		if (entry->type != type)
 			continue;
 
-		start_pfn = ei->addr >> PAGE_SHIFT;
-		end_pfn = (ei->addr + ei->size) >> PAGE_SHIFT;
+		start_pfn = entry->addr >> PAGE_SHIFT;
+		end_pfn = (entry->addr + entry->size) >> PAGE_SHIFT;
 
 		if (start_pfn >= limit_pfn)
 			continue;
@@ -1155,16 +1155,16 @@ void __init e820__memblock_setup(void)
 	memblock_allow_resize();
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *ei = &e820_table->entries[i];
+		struct e820_entry *entry = &e820_table->entries[i];
 
-		end = ei->addr + ei->size;
+		end = entry->addr + entry->size;
 		if (end != (resource_size_t)end)
 			continue;
 
-		if (ei->type != E820_RAM && ei->type != E820_RESERVED_KERN)
+		if (entry->type != E820_RAM && entry->type != E820_RESERVED_KERN)
 			continue;
 
-		memblock_add(ei->addr, ei->size);
+		memblock_add(entry->addr, entry->size);
 	}
 
 	/* Throw away partial pages: */
