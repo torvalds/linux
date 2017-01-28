@@ -22,10 +22,10 @@ extern void e820__update_table_print(void);
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
 
-extern u64  e820__memblock_alloc_reserved(u64 sizet, u64 align);
+extern u64  e820__memblock_alloc_reserved(u64 size, u64 align);
 extern void e820__memblock_setup(void);
 
-extern void e820_reserve_setup_data(void);
+extern void e820__reserve_setup_data(void);
 extern void e820__finish_early_params(void);
 extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);

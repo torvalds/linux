@@ -922,7 +922,12 @@ static int __init parse_memmap_opt(char *str)
 }
 early_param("memmap", parse_memmap_opt);
 
-void __init e820_reserve_setup_data(void)
+/*
+ * Reserve all entries from the bootloader's extensible data nodes list,
+ * because if present we are going to use it later on to fetch e820
+ * entries from it:
+ */
+void __init e820__reserve_setup_data(void)
 {
 	struct setup_data *data;
 	u64 pa_data;
@@ -939,8 +944,10 @@ void __init e820_reserve_setup_data(void)
 	}
 
 	e820__update_table(e820_table);
+
 	memcpy(e820_table_firmware, e820_table, sizeof(*e820_table_firmware));
-	printk(KERN_INFO "extended physical RAM map:\n");
+
+	pr_info("extended physical RAM map:\n");
 	e820__print_table("reserve setup_data");
 }
 

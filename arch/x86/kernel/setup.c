@@ -1003,8 +1003,7 @@ void __init setup_arch(char **cmdline_p)
 		early_dump_pci_devices();
 #endif
 
-	/* update the e820_table_firmware too */
-	e820_reserve_setup_data();
+	e820__reserve_setup_data();
 	e820__finish_early_params();
 
 	if (efi_enabled(EFI_BOOT))
