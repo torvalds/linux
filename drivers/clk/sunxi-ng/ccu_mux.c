@@ -70,6 +70,21 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 	struct clk_hw *best_parent, *hw = &common->hw;
 	unsigned int i;
 
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_NO_REPARENT) {
+		unsigned long adj_parent_rate;
+
+		best_parent = clk_hw_get_parent(hw);
+		best_parent_rate = clk_hw_get_rate(best_parent);
+
+		adj_parent_rate = best_parent_rate;
+		ccu_mux_helper_adjust_parent_for_prediv(common, cm, -1,
+							&adj_parent_rate);
+
+		best_rate = round(cm, adj_parent_rate, req->rate, data);
+
+		goto out;
+	}
+
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
 		unsigned long tmp_rate, parent_rate, adj_parent_rate;
 		struct clk_hw *parent;
