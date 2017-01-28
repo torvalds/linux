@@ -459,7 +459,7 @@ static void __init e820_reserve_setup_data(void)
 	}
 
 	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
-	memcpy(e820_table_saved, e820_table, sizeof(struct e820_table));
+	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
 }
@@ -1026,7 +1026,7 @@ void __init setup_arch(char **cmdline_p)
 		early_dump_pci_devices();
 #endif
 
-	/* update the e820_table_saved too */
+	/* update the e820_table_firmware too */
 	e820_reserve_setup_data();
 	finish_e820_parsing();
 

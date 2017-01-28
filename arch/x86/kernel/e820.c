@@ -27,23 +27,43 @@
 #include <asm/cpufeature.h>
 
 /*
- * The e820 table is the array that gets modified e.g. with command line parameters
- * and that is also registered with modifications in the kernel resource tree
- * with the iomem_resource as parent.
+ * The firmware and bootloader passes us an E820 table that is the primary
+ * physical memory layout description available about x86 systems.
  *
- * The e820_table_saved is directly saved after the BIOS-provided memory map is
- * copied. It doesn't get modified afterwards. It's registered for the
- * /sys/firmware/memmap interface.
+ * The kernel takes the e820 memory layout and optionally modifies it with
+ * quirks and other tweaks, and feeds that into the generic Linux memory
+ * allocation code routines via a platform independent interface (memblock, etc.).
  *
- * That memory map is not modified and is used as base for kexec. The kexec'd
- * kernel should get the same memory map as the firmware provides. Then the
- * user can e.g. boot the original kernel with mem=1G while still booting the
- * next kernel with full memory.
+ * We organize the E820 table into two main data structures:
+ *
+ * - 'e820_table_firmware': the original firmware version passed to us by the
+ *   bootloader - not modified by the kernel. We use this to:
+ *
+ *       - inform the user about the firmware's notion of memory layout
+ *         via /sys/firmware/memmap
+ *
+ *       - the hibernation code uses it to generate a kernel-independent MD5
+ *         fingerprint of the physical memory layout of a system.
+ *
+ *       - kexec, which is a bootloader in disguise, uses the original e820
+ *         layout to pass to the kexec-ed kernel. This way the original kernel
+ *         can have a restricted e820 map while the kexec()-ed kexec-kernel
+ *         can have access to full memory - etc.
+ *
+ * - 'e820_table': this is the main e820 table that is massaged by the
+ *   low level x86 platform code, or modified by boot parameters, before
+ *   passed on to higher level MM layers.
+ *
+ * Once the e820 map has been converted to the standard Linux memory layout
+ * information its role stops - modifying it has no effect and does not get
+ * re-propagated. So itsmain role is a temporary bootstrap storage of firmware
+ * specific memory layout data during early bootup.
  */
-static struct e820_table e820_table_init  __initdata;
-static struct e820_table initial_e820_table_saved  __initdata;
-struct e820_table *e820_table __refdata = &e820_table_init;
-struct e820_table *e820_table_saved __refdata = &initial_e820_table_saved;
+static struct e820_table e820_table_init		__initdata;
+static struct e820_table e820_table_firmware_init	__initdata;
+
+struct e820_table *e820_table __refdata			= &e820_table_init;
+struct e820_table *e820_table_firmware __refdata	= &e820_table_firmware_init;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
@@ -497,10 +517,10 @@ u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 	return __e820_update_range(e820_table, start, size, old_type, new_type);
 }
 
-static u64 __init e820_update_range_saved(u64 start, u64 size,
+static u64 __init e820_update_range_firmware(u64 start, u64 size,
 					  unsigned old_type, unsigned new_type)
 {
-	return __e820_update_range(e820_table_saved, start, size, old_type,
+	return __e820_update_range(e820_table_firmware, start, size, old_type,
 				     new_type);
 }
 
@@ -572,9 +592,9 @@ void __init update_e820(void)
 	printk(KERN_INFO "e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
-static void __init update_e820_table_saved(void)
+static void __init update_e820_table_firmware(void)
 {
-	sanitize_e820_table(e820_table_saved->entries, ARRAY_SIZE(e820_table_saved->entries), &e820_table_saved->nr_entries);
+	sanitize_e820_table(e820_table_firmware->entries, ARRAY_SIZE(e820_table_firmware->entries), &e820_table_firmware->nr_entries);
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -648,7 +668,7 @@ __init void e820_setup_gap(void)
 /*
  * Called late during init, in free_initmem().
  *
- * Initial e820 and e820_table_saved are largish __initdata arrays.
+ * Initial e820 and e820_table_firmware are largish __initdata arrays.
  * Copy them to (usually much smaller) dynamically allocated area.
  * This is done after all tweaks we ever do to them:
  * all functions which modify them are __init functions,
@@ -665,11 +685,11 @@ __init void e820_reallocate_tables(void)
 	memcpy(n, e820_table, size);
 	e820_table = n;
 
-	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * e820_table_saved->nr_entries;
+	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry) * e820_table_firmware->nr_entries;
 	n = kmalloc(size, GFP_KERNEL);
 	BUG_ON(!n);
-	memcpy(n, e820_table_saved, size);
-	e820_table_saved = n;
+	memcpy(n, e820_table_firmware, size);
+	e820_table_firmware = n;
 }
 
 /**
@@ -745,7 +765,7 @@ core_initcall(e820_mark_nvs_memory);
 #endif
 
 /*
- * pre allocated 4k and reserved it in memblock and e820_table_saved
+ * pre allocated 4k and reserved it in memblock and e820_table_firmware
  */
 u64 __init early_reserve_e820(u64 size, u64 align)
 {
@@ -753,9 +773,9 @@ u64 __init early_reserve_e820(u64 size, u64 align)
 
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
-		e820_update_range_saved(addr, size, E820_RAM, E820_RESERVED);
-		printk(KERN_INFO "e820: update e820_table_saved for early_reserve_e820\n");
-		update_e820_table_saved();
+		e820_update_range_firmware(addr, size, E820_RAM, E820_RESERVED);
+		printk(KERN_INFO "e820: update e820_table_firmware for early_reserve_e820\n");
+		update_e820_table_firmware();
 	}
 
 	return addr;
@@ -1034,8 +1054,8 @@ void __init e820_reserve_resources(void)
 		res++;
 	}
 
-	for (i = 0; i < e820_table_saved->nr_entries; i++) {
-		struct e820_entry *entry = &e820_table_saved->entries[i];
+	for (i = 0; i < e820_table_firmware->nr_entries; i++) {
+		struct e820_entry *entry = &e820_table_firmware->entries[i];
 		firmware_map_add_early(entry->addr,
 			entry->addr + entry->size,
 			e820_type_to_string(entry->type));
@@ -1145,7 +1165,7 @@ void __init e820__memory_setup(void)
 	char *who;
 
 	who = x86_init.resources.memory_setup();
-	memcpy(e820_table_saved, e820_table, sizeof(struct e820_table));
+	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 	printk(KERN_INFO "e820: BIOS-provided physical RAM map:\n");
 	e820_print_map(who);
 }

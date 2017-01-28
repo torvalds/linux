@@ -3,9 +3,8 @@
 
 #include <asm/e820/types.h>
 
-/* see comment in arch/x86/kernel/e820.c */
 extern struct e820_table *e820_table;
-extern struct e820_table *e820_table_saved;
+extern struct e820_table *e820_table_firmware;
 
 extern unsigned long pci_mem_start;
 
