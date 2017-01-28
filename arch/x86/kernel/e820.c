@@ -306,7 +306,7 @@ int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *p
 	chg_nr = chgidx;
 
 	/* Sort change-point list by memory addresses (low -> high): */
-	sort(change_point, chg_nr, sizeof *change_point, cpcompare, NULL);
+	sort(change_point, chg_nr, sizeof(*change_point), cpcompare, NULL);
 
 	/* Create a new BIOS memory map, removing overlaps: */
 	overlap_entries = 0;	 /* Number of entries in the overlap table */
@@ -362,7 +362,7 @@ int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *p
 	new_nr = new_bios_entry;
 
 	/* Copy new BIOS mapping into the original location: */
-	memcpy(biosmap, new_bios, new_nr*sizeof(struct e820_entry));
+	memcpy(biosmap, new_bios, new_nr*sizeof(*biosmap));
 	*pnr_map = new_nr;
 
 	return 0;
@@ -513,7 +513,7 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, int 
 		/* Completely covered? */
 		if (entry->addr >= start && entry_end <= end) {
 			real_removed_size += entry->size;
-			memset(entry, 0, sizeof(struct e820_entry));
+			memset(entry, 0, sizeof(*entry));
 			continue;
 		}
 
@@ -672,7 +672,7 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	struct setup_data *sdata;
 
 	sdata = early_memremap(phys_addr, data_len);
-	entries = sdata->len / sizeof(struct e820_entry);
+	entries = sdata->len / sizeof(*extmap);
 	extmap = (struct e820_entry *)(sdata->data);
 
 	__append_e820_table(extmap, entries);
@@ -932,7 +932,7 @@ void __init e820_reserve_setup_data(void)
 	}
 
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
-	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
+	memcpy(e820_table_firmware, e820_table, sizeof(*e820_table_firmware));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820__print_table("reserve setup_data");
 }
@@ -1169,7 +1169,7 @@ void __init e820__memory_setup(void)
 
 	who = x86_init.resources.memory_setup();
 
-	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
+	memcpy(e820_table_firmware, e820_table, sizeof(*e820_table_firmware));
 
 	pr_info("e820: BIOS-provided physical RAM map:\n");
 	e820__print_table(who);
