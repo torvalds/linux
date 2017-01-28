@@ -53,7 +53,6 @@ struct virtio_blk {
 
 struct virtblk_req {
 	struct scsi_request sreq;	/* for SCSI passthrough */
-	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
 	u8 status;
@@ -148,7 +147,9 @@ static void virtblk_done(struct virtqueue *vq)
 	do {
 		virtqueue_disable_cb(vq);
 		while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
-			blk_mq_complete_request(vbr->req, vbr->req->errors);
+			struct request *req = blk_mq_rq_from_pdu(vbr);
+
+			blk_mq_complete_request(req, req->errors);
 			req_done = true;
 		}
 		if (unlikely(virtqueue_is_broken(vq)))
@@ -175,27 +176,26 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
-	vbr->req = req;
 	if (req_op(req) == REQ_OP_FLUSH) {
 		vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_FLUSH);
 		vbr->out_hdr.sector = 0;
-		vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
+		vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
 	} else {
 		switch (req->cmd_type) {
 		case REQ_TYPE_FS:
 			vbr->out_hdr.type = 0;
-			vbr->out_hdr.sector = cpu_to_virtio64(vblk->vdev, blk_rq_pos(vbr->req));
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
+			vbr->out_hdr.sector = cpu_to_virtio64(vblk->vdev, blk_rq_pos(req));
+			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
 			break;
 		case REQ_TYPE_BLOCK_PC:
 			vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_SCSI_CMD);
 			vbr->out_hdr.sector = 0;
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
+			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
 			break;
 		case REQ_TYPE_DRV_PRIV:
 			vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_GET_ID);
 			vbr->out_hdr.sector = 0;
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(vbr->req));
+			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
 			break;
 		default:
 			/* We don't put anything else in the queue. */
@@ -205,9 +205,9 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(req);
 
-	num = blk_rq_map_sg(hctx->queue, vbr->req, vbr->sg);
+	num = blk_rq_map_sg(hctx->queue, req, vbr->sg);
 	if (num) {
-		if (rq_data_dir(vbr->req) == WRITE)
+		if (rq_data_dir(req) == WRITE)
 			vbr->out_hdr.type |= cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_OUT);
 		else
 			vbr->out_hdr.type |= cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_IN);
