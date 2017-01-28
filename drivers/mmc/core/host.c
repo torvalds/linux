@@ -34,14 +34,11 @@
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
 static DEFINE_IDA(mmc_host_ida);
-static DEFINE_SPINLOCK(mmc_host_lock);
 
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
-	spin_lock(&mmc_host_lock);
-	ida_remove(&mmc_host_ida, host->index);
-	spin_unlock(&mmc_host_lock);
+	ida_simple_remove(&mmc_host_ida, host->index);
 	kfree(host);
 }
 
@@ -356,22 +353,13 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	/* scanning will be enabled when we're ready */
 	host->rescan_disable = 1;
 
-again:
-	if (!ida_pre_get(&mmc_host_ida, GFP_KERNEL)) {
+	err = ida_simple_get(&mmc_host_ida, 0, 0, GFP_KERNEL);
+	if (err < 0) {
 		kfree(host);
 		return NULL;
 	}
 
-	spin_lock(&mmc_host_lock);
-	err = ida_get_new(&mmc_host_ida, &host->index);
-	spin_unlock(&mmc_host_lock);
-
-	if (err == -EAGAIN) {
-		goto again;
-	} else if (err) {
-		kfree(host);
-		return NULL;
-	}
+	host->index = err;
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
 
