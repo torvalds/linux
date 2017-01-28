@@ -690,15 +690,15 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	e820__print_table("extended");
 }
 
-/**
+/*
  * Find the ranges of physical addresses that do not correspond to
- * E820 RAM areas and mark the corresponding pages as 'nosave' for
+ * E820 RAM areas and register the corresponding pages as 'nosave' for
  * hibernation (32-bit) or software suspend and suspend to RAM (64-bit).
  *
  * This function requires the E820 map to be sorted and without any
  * overlapping entries.
  */
-void __init e820_mark_nosave_regions(unsigned long limit_pfn)
+void __init e820__register_nosave_regions(unsigned long limit_pfn)
 {
 	int i;
 	unsigned long pfn = 0;
@@ -724,7 +724,7 @@ void __init e820_mark_nosave_regions(unsigned long limit_pfn)
  * Register ACPI NVS memory regions, so that we can save/restore them during
  * hibernation and the subsequent resume:
  */
-static int __init e820_mark_nvs_memory(void)
+static int __init e820__register_nvs_regions(void)
 {
 	int i;
 
@@ -737,7 +737,7 @@ static int __init e820_mark_nvs_memory(void)
 
 	return 0;
 }
-core_initcall(e820_mark_nvs_memory);
+core_initcall(e820__register_nvs_regions);
 #endif
 
 /*

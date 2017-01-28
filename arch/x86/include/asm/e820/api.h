@@ -36,7 +36,7 @@ extern char *e820__memory_setup_default(void);
 extern void e820__setup_pci_gap(void);
 
 extern void e820_reallocate_tables(void);
-extern void e820_mark_nosave_regions(unsigned long limit_pfn);
+extern void e820__register_nosave_regions(unsigned long limit_pfn);
 
 /*
  * Returns true iff the specified range [start,end) is completely contained inside
