@@ -89,8 +89,8 @@ CPU_BE(	rev		w8, w8		)
 	eor		w7, w7, w11
 	eor		w8, w8, w12
 
-	ldr		tt, =\ttab
-	ldr		lt, =\ltab
+	adr_l		tt, \ttab
+	adr_l		lt, \ltab
 
 	tbnz		rounds, #1, 1f
 
@@ -111,9 +111,6 @@ CPU_BE(	rev		w8, w8		)
 	stp		w5, w6, [out]
 	stp		w7, w8, [out, #8]
 	ret
-
-	.align		4
-	.ltorg
 	.endm
 
 	.align		5
