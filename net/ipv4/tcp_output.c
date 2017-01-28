@@ -2771,6 +2771,13 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	if ((TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN_ECN) == TCPHDR_SYN_ECN)
 		tcp_ecn_clear_syn(sk, skb);
 
+	/* Update global and local TCP statistics. */
+	segs = tcp_skb_pcount(skb);
+	TCP_ADD_STATS(sock_net(sk), TCP_MIB_RETRANSSEGS, segs);
+	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
+	tp->total_retrans += segs;
+
 	/* make sure skb->data is aligned on arches that require it
 	 * and check if ack-trimming & collapsing extended the headroom
 	 * beyond what csum_start can cover.
@@ -2788,14 +2795,9 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	}
 
 	if (likely(!err)) {
-		segs = tcp_skb_pcount(skb);
-
 		TCP_SKB_CB(skb)->sacked |= TCPCB_EVER_RETRANS;
-		/* Update global TCP statistics. */
-		TCP_ADD_STATS(sock_net(sk), TCP_MIB_RETRANSSEGS, segs);
-		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)
-			__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
-		tp->total_retrans += segs;
+	} else if (err != -EBUSY) {
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
 	}
 	return err;
 }
@@ -2818,8 +2820,6 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 		if (!tp->retrans_stamp)
 			tp->retrans_stamp = tcp_skb_timestamp(skb);
 
-	} else if (err != -EBUSY) {
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPRETRANSFAIL);
 	}
 
 	if (tp->undo_retrans < 0)
