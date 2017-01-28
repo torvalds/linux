@@ -587,6 +587,7 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 		spin_lock_irqsave(&dm_device.ha_lock, flags);
 		dm_device.num_pages_onlined += mem->nr_pages;
 		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
+		/* Fall through */
 	case MEM_CANCEL_ONLINE:
 		if (dm_device.ha_waiting) {
 			dm_device.ha_waiting = false;
