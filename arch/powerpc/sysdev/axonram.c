@@ -139,6 +139,10 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	return BLK_QC_T_NONE;
 }
 
+static const struct block_device_operations axon_ram_devops = {
+	.owner		= THIS_MODULE,
+};
+
 static long
 __axon_ram_direct_access(struct axon_ram_bank *bank, pgoff_t pgoff, long nr_pages,
 		       void **kaddr, pfn_t *pfn)
@@ -149,25 +153,6 @@ __axon_ram_direct_access(struct axon_ram_bank *bank, pgoff_t pgoff, long nr_page
 	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
 	return (bank->size - offset) / PAGE_SIZE;
 }
-
-/**
- * axon_ram_direct_access - direct_access() method for block device
- * @device, @sector, @data: see block_device_operations method
- */
-static long
-axon_ram_blk_direct_access(struct block_device *device, sector_t sector,
-		       void **kaddr, pfn_t *pfn, long size)
-{
-	struct axon_ram_bank *bank = device->bd_disk->private_data;
-
-	return __axon_ram_direct_access(bank, (sector * 512) / PAGE_SIZE,
-			size / PAGE_SIZE, kaddr, pfn) * PAGE_SIZE;
-}
-
-static const struct block_device_operations axon_ram_devops = {
-	.owner		= THIS_MODULE,
-	.direct_access	= axon_ram_blk_direct_access
-};
 
 static long
 axon_ram_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,

@@ -220,19 +220,9 @@ __weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 	return PHYS_PFN(pmem->size - pmem->pfn_pad - offset);
 }
 
-static long pmem_blk_direct_access(struct block_device *bdev, sector_t sector,
-		void **kaddr, pfn_t *pfn, long size)
-{
-	struct pmem_device *pmem = bdev->bd_queue->queuedata;
-
-	return __pmem_direct_access(pmem, PHYS_PFN(sector * 512),
-			PHYS_PFN(size), kaddr, pfn);
-}
-
 static const struct block_device_operations pmem_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		pmem_rw_page,
-	.direct_access =	pmem_blk_direct_access,
 	.revalidate_disk =	nvdimm_revalidate_disk,
 };
 

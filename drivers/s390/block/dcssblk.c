@@ -31,8 +31,6 @@ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static blk_qc_t dcssblk_make_request(struct request_queue *q,
 						struct bio *bio);
-static long dcssblk_blk_direct_access(struct block_device *bdev, sector_t secnum,
-			 void **kaddr, pfn_t *pfn, long size);
 static long dcssblk_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 		long nr_pages, void **kaddr, pfn_t *pfn);
 
@@ -43,7 +41,6 @@ static const struct block_device_operations dcssblk_devops = {
 	.owner   	= THIS_MODULE,
 	.open    	= dcssblk_open,
 	.release 	= dcssblk_release,
-	.direct_access 	= dcssblk_blk_direct_access,
 };
 
 static const struct dax_operations dcssblk_dax_ops = {
@@ -913,19 +910,6 @@ __dcssblk_direct_access(struct dcssblk_dev_info *dev_info, pgoff_t pgoff,
 	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset), PFN_DEV);
 
 	return (dev_sz - offset) / PAGE_SIZE;
-}
-
-static long
-dcssblk_blk_direct_access(struct block_device *bdev, sector_t secnum,
-			void **kaddr, pfn_t *pfn, long size)
-{
-	struct dcssblk_dev_info *dev_info;
-
-	dev_info = bdev->bd_disk->private_data;
-	if (!dev_info)
-		return -ENODEV;
-	return __dcssblk_direct_access(dev_info, PHYS_PFN(secnum * 512),
-			PHYS_PFN(size), kaddr, pfn) * PAGE_SIZE;
 }
 
 static long
