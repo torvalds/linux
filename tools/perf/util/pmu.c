@@ -590,14 +590,16 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_format(name, &format))
 		return NULL;
 
+	/*
+	 * Check the type first to avoid unnecessary work.
+	 */
+	if (pmu_type(name, &type))
+		return NULL;
+
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
 	pmu_add_cpu_aliases(&aliases, name);
-
-	if (pmu_type(name, &type))
-		return NULL;
-
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
@@ -1195,6 +1197,9 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	len = j;
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
+		/* Skip duplicates */
+		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name))
+			continue;
 		if (name_only) {
 			printf("%s ", aliases[j].name);
 			continue;
