@@ -11,7 +11,7 @@ DOCBOOKS := z8530book.xml  \
 	    writing_usb_driver.xml networking.xml \
 	    kernel-api.xml filesystems.xml lsm.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
-	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
+	    genericirq.xml s390-drivers.xml scsi.xml \
 	    sh.xml regulator.xml w1.xml \
 	    writing_musb_glue_layer.xml iio.xml
 
