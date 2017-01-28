@@ -1044,12 +1044,12 @@ void __init setup_arch(char **cmdline_p)
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
-	max_pfn = e820_end_of_ram_pfn();
+	max_pfn = e820__end_of_ram_pfn();
 
 	/* update e820 for memory not covered by WB MTRRs */
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
-		max_pfn = e820_end_of_ram_pfn();
+		max_pfn = e820__end_of_ram_pfn();
 
 	max_possible_pfn = max_pfn;
 
@@ -1068,7 +1068,7 @@ void __init setup_arch(char **cmdline_p)
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */
 	if (max_pfn > (1UL<<(32 - PAGE_SHIFT)))
-		max_low_pfn = e820_end_of_low_ram_pfn();
+		max_low_pfn = e820__end_of_low_ram_pfn();
 	else
 		max_low_pfn = max_pfn;
 

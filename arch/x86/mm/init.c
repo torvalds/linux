@@ -701,7 +701,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 void __ref free_initmem(void)
 {
-	e820_reallocate_tables();
+	e820__reallocate_tables();
 
 	free_init_pages("unused kernel",
 			(unsigned long)(&__init_begin),

@@ -19,8 +19,8 @@ extern void e820__print_table(char *who);
 extern int  e820__update_table(struct e820_table *table);
 extern void e820__update_table_print(void);
 
-extern unsigned long e820_end_of_ram_pfn(void);
-extern unsigned long e820_end_of_low_ram_pfn(void);
+extern unsigned long e820__end_of_ram_pfn(void);
+extern unsigned long e820__end_of_low_ram_pfn(void);
 
 extern u64  e820__memblock_alloc_reserved(u64 size, u64 align);
 extern void e820__memblock_setup(void);
@@ -35,7 +35,7 @@ extern void e820__memory_setup_extended(u64 phys_addr, u32 data_len);
 extern char *e820__memory_setup_default(void);
 extern void e820__setup_pci_gap(void);
 
-extern void e820_reallocate_tables(void);
+extern void e820__reallocate_tables(void);
 extern void e820__register_nosave_regions(unsigned long limit_pfn);
 
 /*

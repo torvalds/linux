@@ -641,7 +641,7 @@ __init void e820__setup_pci_gap(void)
  * All functions which modify them are __init functions, which won't exist
  * after free_initmem().
  */
-__init void e820_reallocate_tables(void)
+__init void e820__reallocate_tables(void)
 {
 	struct e820_table *n;
 	int size;
@@ -803,12 +803,12 @@ static unsigned long __init e820_end_pfn(unsigned long limit_pfn, enum e820_type
 	return last_pfn;
 }
 
-unsigned long __init e820_end_of_ram_pfn(void)
+unsigned long __init e820__end_of_ram_pfn(void)
 {
 	return e820_end_pfn(MAX_ARCH_PFN, E820_TYPE_RAM);
 }
 
-unsigned long __init e820_end_of_low_ram_pfn(void)
+unsigned long __init e820__end_of_low_ram_pfn(void)
 {
 	return e820_end_pfn(1UL << (32 - PAGE_SHIFT), E820_TYPE_RAM);
 }
@@ -867,7 +867,7 @@ static int __init parse_memmap_one(char *p)
 		 * the real memory size before the original memory map is
 		 * reset.
 		 */
-		saved_max_pfn = e820_end_of_ram_pfn();
+		saved_max_pfn = e820__end_of_ram_pfn();
 #endif
 		e820_table->nr_entries = 0;
 		userdef = 1;
