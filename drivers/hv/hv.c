@@ -71,16 +71,6 @@ int hv_init(void)
 }
 
 /*
- * hv_cleanup - Cleanup routine.
- *
- * This routine is called normally during driver unloading or exiting.
- */
-void hv_cleanup(bool crash)
-{
-
-}
-
-/*
  * hv_post_message - Post a message using the hypervisor message IPC.
  *
  * This involves a hypercall.

@@ -171,5 +171,6 @@ void hv_remove_crash_handler(void);
 void hyperv_init(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);
+void hyperv_cleanup(void);
 #endif
 #endif

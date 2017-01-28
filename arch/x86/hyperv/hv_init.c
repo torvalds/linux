@@ -166,6 +166,22 @@ void hyperv_init(void)
 }
 
 /*
+ * This routine is called before kexec/kdump, it does the required cleanup.
+ */
+void hyperv_cleanup(void)
+{
+	union hv_x64_msr_hypercall_contents hypercall_msr;
+
+	/* Reset our OS id */
+	wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
+
+	/* Reset the hypercall page */
+	hypercall_msr.as_uint64 = 0;
+	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
+}
+EXPORT_SYMBOL_GPL(hyperv_cleanup);
+
+/*
  * hv_do_hypercall- Invoke the specified hypercall
  */
 u64 hv_do_hypercall(u64 control, void *input, void *output)
