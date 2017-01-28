@@ -58,7 +58,31 @@
 static int sd_srv_version;
 static int ts_srv_version;
 static int hb_srv_version;
-static int util_fw_version;
+
+#define SD_VER_COUNT 2
+static const int sd_versions[] = {
+	SD_VERSION,
+	SD_VERSION_1
+};
+
+#define TS_VER_COUNT 3
+static const int ts_versions[] = {
+	TS_VERSION,
+	TS_VERSION_3,
+	TS_VERSION_1
+};
+
+#define HB_VER_COUNT 2
+static const int hb_versions[] = {
+	HB_VERSION,
+	HB_VERSION_1
+};
+
+#define FW_VER_COUNT 2
+static const int fw_versions[] = {
+	UTIL_FW_VERSION,
+	UTIL_WS2K8_FW_VERSION
+};
 
 static void shutdown_onchannelcallback(void *context);
 static struct hv_util_service util_shutdown = {
@@ -119,7 +143,6 @@ static void shutdown_onchannelcallback(void *context)
 	struct shutdown_msg_data *shutdown_msg;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
 
 	vmbus_recvpacket(channel, shut_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -129,9 +152,14 @@ static void shutdown_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-					shut_txf_buf, util_fw_version,
-					sd_srv_version);
+			if (vmbus_prep_negotiate_resp(icmsghdrp, shut_txf_buf,
+					fw_versions, FW_VER_COUNT,
+					sd_versions, SD_VER_COUNT,
+					NULL, &sd_srv_version)) {
+				pr_info("Shutdown IC version %d.%d\n",
+					sd_srv_version >> 16,
+					sd_srv_version & 0xFFFF);
+			}
 		} else {
 			shutdown_msg =
 				(struct shutdown_msg_data *)&shut_txf_buf[
@@ -254,7 +282,6 @@ static void timesync_onchannelcallback(void *context)
 	struct ictimesync_data *timedatap;
 	struct ictimesync_ref_data *refdata;
 	u8 *time_txf_buf = util_timesynch.recv_buffer;
-	struct icmsg_negotiate *negop = NULL;
 
 	vmbus_recvpacket(channel, time_txf_buf,
 			 PAGE_SIZE, &recvlen, &requestid);
@@ -264,12 +291,14 @@ static void timesync_onchannelcallback(void *context)
 				sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-						time_txf_buf,
-						util_fw_version,
-						ts_srv_version);
-			pr_info("Using TimeSync version %d.%d\n",
-				ts_srv_version >> 16, ts_srv_version & 0xFFFF);
+			if (vmbus_prep_negotiate_resp(icmsghdrp, time_txf_buf,
+						fw_versions, FW_VER_COUNT,
+						ts_versions, TS_VER_COUNT,
+						NULL, &ts_srv_version)) {
+				pr_info("TimeSync version %d.%d\n",
+					ts_srv_version >> 16,
+					ts_srv_version & 0xFFFF);
+			}
 		} else {
 			if (ts_srv_version > TS_VERSION_3) {
 				refdata = (struct ictimesync_ref_data *)
@@ -313,7 +342,6 @@ static void heartbeat_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct heartbeat_msg_data *heartbeat_msg;
 	u8 *hbeat_txf_buf = util_heartbeat.recv_buffer;
-	struct icmsg_negotiate *negop = NULL;
 
 	while (1) {
 
@@ -327,9 +355,16 @@ static void heartbeat_onchannelcallback(void *context)
 				sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				hbeat_txf_buf, util_fw_version,
-				hb_srv_version);
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+					hbeat_txf_buf,
+					fw_versions, FW_VER_COUNT,
+					hb_versions, HB_VER_COUNT,
+					NULL, &hb_srv_version)) {
+
+				pr_info("Heartbeat version %d.%d\n",
+					hb_srv_version >> 16,
+					hb_srv_version & 0xFFFF);
+			}
 		} else {
 			heartbeat_msg =
 				(struct heartbeat_msg_data *)&hbeat_txf_buf[
@@ -378,33 +413,6 @@ static int util_probe(struct hv_device *dev,
 	set_channel_read_state(dev->channel, false);
 
 	hv_set_drvdata(dev, srv);
-
-	/*
-	 * Based on the host; initialize the framework and
-	 * service version numbers we will negotiate.
-	 */
-	switch (vmbus_proto_version) {
-	case (VERSION_WS2008):
-		util_fw_version = UTIL_WS2K8_FW_VERSION;
-		sd_srv_version = SD_VERSION_1;
-		ts_srv_version = TS_VERSION_1;
-		hb_srv_version = HB_VERSION_1;
-		break;
-	case VERSION_WIN7:
-	case VERSION_WIN8:
-	case VERSION_WIN8_1:
-		util_fw_version = UTIL_FW_VERSION;
-		sd_srv_version = SD_VERSION;
-		ts_srv_version = TS_VERSION_3;
-		hb_srv_version = HB_VERSION;
-		break;
-	case VERSION_WIN10:
-	default:
-		util_fw_version = UTIL_FW_VERSION;
-		sd_srv_version = SD_VERSION;
-		ts_srv_version = TS_VERSION;
-		hb_srv_version = HB_VERSION;
-	}
 
 	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
 			srv->util_cb, dev->channel);
