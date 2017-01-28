@@ -18,18 +18,23 @@ extern u64  e820__range_remove(u64 start, u64 size, unsigned old_type, int check
 extern void e820__print_table(char *who);
 extern int  e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map);
 extern void e820__update_table_print(void);
-extern void e820__setup_pci_gap(void);
-extern void e820__memory_setup_extended(u64 phys_addr, u32 data_len);
+
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
+
 extern u64  e820__memblock_alloc_reserved(u64 sizet, u64 align);
 extern void e820__memblock_setup(void);
+
 extern void e820_reserve_setup_data(void);
 extern void e820__finish_early_params(void);
 extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
+
 extern void e820__memory_setup(void);
+extern void e820__memory_setup_extended(u64 phys_addr, u32 data_len);
 extern char *e820__memory_setup_default(void);
+extern void e820__setup_pci_gap(void);
+
 extern void e820_reallocate_tables(void);
 extern void e820_mark_nosave_regions(unsigned long limit_pfn);
 
