@@ -294,7 +294,7 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	beiscsi_conn = conn->dd_data;
 	phba = beiscsi_conn->phba;
 
-	inv_tbl = kzalloc(sizeof(*inv_tbl), GFP_KERNEL);
+	inv_tbl = kzalloc(sizeof(*inv_tbl), GFP_ATOMIC);
 	if (!inv_tbl) {
 		spin_unlock_bh(&session->frwd_lock);
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
