@@ -15,7 +15,7 @@ extern void e820__range_add   (u64 start, u64 size, int type);
 extern u64  e820__range_update(u64 start, u64 size, unsigned old_type, unsigned new_type);
 extern u64  e820__range_remove(u64 start, u64 size, unsigned old_type, int checktype);
 
-extern void e820_print_map(char *who);
+extern void e820__print_table(char *who);
 extern int  e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map);
 extern void e820__update_table_print(void);
 extern void e820__setup_pci_gap(void);

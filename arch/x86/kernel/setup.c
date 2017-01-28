@@ -1035,7 +1035,7 @@ void __init setup_arch(char **cmdline_p)
 				  E820_RESERVED);
 		e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 		printk(KERN_INFO "fixed physical RAM map:\n");
-		e820_print_map("bad_ppro");
+		e820__print_table("bad_ppro");
 	}
 #else
 	early_gart_iommu_check();

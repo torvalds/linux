@@ -160,7 +160,7 @@ static void __init e820_print_type(u32 type)
 	}
 }
 
-void __init e820_print_map(char *who)
+void __init e820__print_table(char *who)
 {
 	int i;
 
@@ -552,7 +552,7 @@ void __init e820__update_table_print(void)
 		return;
 
 	pr_info("e820: modified physical RAM map:\n");
-	e820_print_map("modified");
+	e820__print_table("modified");
 }
 
 static void __init e820__update_table_firmware(void)
@@ -680,7 +680,7 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 
 	early_memunmap(sdata, data_len);
 	pr_info("e820: extended physical RAM map:\n");
-	e820_print_map("extended");
+	e820__print_table("extended");
 }
 
 /**
@@ -934,7 +934,7 @@ void __init e820_reserve_setup_data(void)
 	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 	printk(KERN_INFO "extended physical RAM map:\n");
-	e820_print_map("reserve setup_data");
+	e820__print_table("reserve setup_data");
 }
 
 /*
@@ -949,7 +949,7 @@ void __init e820__finish_early_params(void)
 			early_panic("Invalid user supplied memory map");
 
 		pr_info("e820: user-defined physical RAM map:\n");
-		e820_print_map("user");
+		e820__print_table("user");
 	}
 }
 
@@ -1167,7 +1167,7 @@ void __init e820__memory_setup(void)
 	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 
 	pr_info("e820: BIOS-provided physical RAM map:\n");
-	e820_print_map(who);
+	e820__print_table(who);
 }
 
 void __init e820__memblock_setup(void)
