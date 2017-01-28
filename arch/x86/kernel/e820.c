@@ -546,7 +546,7 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 	return real_removed_size;
 }
 
-void __init update_e820(void)
+void __init e820__update_table_print(void)
 {
 	if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries))
 		return;
@@ -555,7 +555,7 @@ void __init update_e820(void)
 	e820_print_map("modified");
 }
 
-static void __init update_e820_table_firmware(void)
+static void __init e820__update_table_firmware(void)
 {
 	sanitize_e820_table(e820_table_firmware->entries, ARRAY_SIZE(e820_table_firmware->entries), &e820_table_firmware->nr_entries);
 }
@@ -749,7 +749,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 	if (addr) {
 		e820_update_range_firmware(addr, size, E820_RAM, E820_RESERVED);
 		pr_info("e820: update e820_table_firmware for e820__memblock_alloc_reserved()\n");
-		update_e820_table_firmware();
+		e820__update_table_firmware();
 	}
 
 	return addr;

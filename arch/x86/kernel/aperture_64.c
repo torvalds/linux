@@ -312,7 +312,7 @@ void __init early_gart_iommu_check(void)
 			pr_info("e820: reserve [mem %#010Lx-%#010Lx] for GART\n",
 				aper_base, aper_base + aper_size - 1);
 			e820_add_region(aper_base, aper_size, E820_RESERVED);
-			update_e820();
+			e820__update_table_print();
 		}
 	}
 

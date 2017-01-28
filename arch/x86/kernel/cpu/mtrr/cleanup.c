@@ -978,7 +978,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 			WARN_ON(1);
 
 		pr_info("update e820 for mtrr\n");
-		update_e820();
+		e820__update_table_print();
 
 		return 1;
 	}
