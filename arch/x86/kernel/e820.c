@@ -953,9 +953,9 @@ void __init e820__finish_early_params(void)
 	}
 }
 
-static const char *__init e820_type_to_string(int e820_type)
+static const char *__init e820_type_to_string(struct e820_entry *entry)
 {
-	switch (e820_type) {
+	switch (entry->type) {
 	case E820_RESERVED_KERN: /* Fall-through: */
 	case E820_RAM:		 return "System RAM";
 	case E820_ACPI:		 return "ACPI Tables";
@@ -967,9 +967,9 @@ static const char *__init e820_type_to_string(int e820_type)
 	}
 }
 
-static unsigned long __init e820_type_to_iomem_type(int e820_type)
+static unsigned long __init e820_type_to_iomem_type(struct e820_entry *entry)
 {
-	switch (e820_type) {
+	switch (entry->type) {
 	case E820_RESERVED_KERN: /* Fall-through: */
 	case E820_RAM:		 return IORESOURCE_SYSTEM_RAM;
 	case E820_ACPI:		 /* Fall-through: */
@@ -981,9 +981,9 @@ static unsigned long __init e820_type_to_iomem_type(int e820_type)
 	}
 }
 
-static unsigned long __init e820_type_to_iores_desc(int e820_type)
+static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
 {
-	switch (e820_type) {
+	switch (entry->type) {
 	case E820_ACPI:		 return IORES_DESC_ACPI_TABLES;
 	case E820_NVS:		 return IORES_DESC_ACPI_NV_STORAGE;
 	case E820_PMEM:		 return IORES_DESC_PERSISTENT_MEMORY;
@@ -1027,27 +1027,29 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem(sizeof(struct resource) * e820_table->nr_entries);
+	res = alloc_bootmem(sizeof(*res) * e820_table->nr_entries);
 	e820_res = res;
+
 	for (i = 0; i < e820_table->nr_entries; i++) {
-		end = e820_table->entries[i].addr + e820_table->entries[i].size - 1;
+		struct e820_entry *entry = e820_table->entries + i;
+
+		end = entry->addr + entry->size - 1;
 		if (end != (resource_size_t)end) {
 			res++;
 			continue;
 		}
-		res->name = e820_type_to_string(e820_table->entries[i].type);
-		res->start = e820_table->entries[i].addr;
-		res->end = end;
-
-		res->flags = e820_type_to_iomem_type(e820_table->entries[i].type);
-		res->desc = e820_type_to_iores_desc(e820_table->entries[i].type);
+		res->start = entry->addr;
+		res->end   = end;
+		res->name  = e820_type_to_string(entry);
+		res->flags = e820_type_to_iomem_type(entry);
+		res->desc  = e820_type_to_iores_desc(entry);
 
 		/*
 		 * don't register the region that could be conflicted with
 		 * pci device BAR resource and insert them later in
 		 * pcibios_resource_survey()
 		 */
-		if (do_mark_busy(e820_table->entries[i].type, res)) {
+		if (do_mark_busy(entry->type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
 		}
@@ -1055,9 +1057,9 @@ void __init e820_reserve_resources(void)
 	}
 
 	for (i = 0; i < e820_table_firmware->nr_entries; i++) {
-		struct e820_entry *entry = &e820_table_firmware->entries[i];
+		struct e820_entry *entry = e820_table_firmware->entries + i;
 
-		firmware_map_add_early(entry->addr, entry->addr + entry->size, e820_type_to_string(entry->type));
+		firmware_map_add_early(entry->addr, entry->addr + entry->size, e820_type_to_string(entry));
 	}
 }
 
