@@ -227,6 +227,8 @@ enum {
 	TCP_NLA_BUSY,		/* Time (usec) busy sending data */
 	TCP_NLA_RWND_LIMITED,	/* Time (usec) limited by receive window */
 	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
+	TCP_NLA_DATA_SEGS_OUT,	/* Data pkts sent including retransmission */
+	TCP_NLA_TOTAL_RETRANS,	/* Data pkts retransmitted */
 };
 
 /* for TCP_MD5SIG socket option */
