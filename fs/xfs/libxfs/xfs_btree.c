@@ -1100,13 +1100,14 @@ xfs_btree_init_block_int(
 	struct xfs_mount	*mp,
 	struct xfs_btree_block	*buf,
 	xfs_daddr_t		blkno,
-	__u32			magic,
+	xfs_btnum_t		btnum,
 	__u16			level,
 	__u16			numrecs,
 	__u64			owner,
 	unsigned int		flags)
 {
 	int			crc = xfs_sb_version_hascrc(&mp->m_sb);
+	__u32			magic = xfs_btree_magic(crc, btnum);
 
 	buf->bb_magic = cpu_to_be32(magic);
 	buf->bb_level = cpu_to_be16(level);
@@ -1141,14 +1142,14 @@ void
 xfs_btree_init_block(
 	struct xfs_mount *mp,
 	struct xfs_buf	*bp,
-	__u32		magic,
+	xfs_btnum_t	btnum,
 	__u16		level,
 	__u16		numrecs,
 	__u64		owner,
 	unsigned int	flags)
 {
 	xfs_btree_init_block_int(mp, XFS_BUF_TO_BLOCK(bp), bp->b_bn,
-				 magic, level, numrecs, owner, flags);
+				 btnum, level, numrecs, owner, flags);
 }
 
 STATIC void
@@ -1159,8 +1160,6 @@ xfs_btree_init_block_cur(
 	int			numrecs)
 {
 	__u64			owner;
-	int			crc = xfs_sb_version_hascrc(&cur->bc_mp->m_sb);
-	xfs_btnum_t		btnum = cur->bc_btnum;
 
 	/*
 	 * we can pull the owner from the cursor right now as the different
@@ -1174,7 +1173,7 @@ xfs_btree_init_block_cur(
 		owner = cur->bc_private.a.agno;
 
 	xfs_btree_init_block_int(cur->bc_mp, XFS_BUF_TO_BLOCK(bp), bp->b_bn,
-				 xfs_btree_magic(crc, btnum), level, numrecs,
+				 cur->bc_btnum, level, numrecs,
 				 owner, cur->bc_flags);
 }
 
