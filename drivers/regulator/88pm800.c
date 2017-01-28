@@ -180,7 +180,7 @@ static int pm800_get_current_limit(struct regulator_dev *rdev)
 	return info->max_ua;
 }
 
-static struct regulator_ops pm800_volt_range_ops = {
+static const struct regulator_ops pm800_volt_range_ops = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
@@ -191,7 +191,7 @@ static struct regulator_ops pm800_volt_range_ops = {
 	.get_current_limit	= pm800_get_current_limit,
 };
 
-static struct regulator_ops pm800_volt_table_ops = {
+static const struct regulator_ops pm800_volt_table_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 	.map_voltage		= regulator_map_voltage_iterate,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
