@@ -1504,15 +1504,18 @@ static void perf_pmu__parse_init(void)
 	struct perf_pmu_alias *alias;
 	int len = 0;
 
-	pmu = perf_pmu__find("cpu");
-	if ((pmu == NULL) || list_empty(&pmu->aliases)) {
+	pmu = NULL;
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			if (strchr(alias->name, '-'))
+				len++;
+			len++;
+		}
+	}
+
+	if (len == 0) {
 		perf_pmu_events_list_num = -1;
 		return;
-	}
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		if (strchr(alias->name, '-'))
-			len++;
-		len++;
 	}
 	perf_pmu_events_list = malloc(sizeof(struct perf_pmu_event_symbol) * len);
 	if (!perf_pmu_events_list)
@@ -1520,19 +1523,22 @@ static void perf_pmu__parse_init(void)
 	perf_pmu_events_list_num = len;
 
 	len = 0;
-	list_for_each_entry(alias, &pmu->aliases, list) {
-		struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
-		char *tmp = strchr(alias->name, '-');
+	pmu = NULL;
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
+			char *tmp = strchr(alias->name, '-');
 
-		if (tmp != NULL) {
-			SET_SYMBOL(strndup(alias->name, tmp - alias->name),
-					PMU_EVENT_SYMBOL_PREFIX);
-			p++;
-			SET_SYMBOL(strdup(++tmp), PMU_EVENT_SYMBOL_SUFFIX);
-			len += 2;
-		} else {
-			SET_SYMBOL(strdup(alias->name), PMU_EVENT_SYMBOL);
-			len++;
+			if (tmp != NULL) {
+				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
+						PMU_EVENT_SYMBOL_PREFIX);
+				p++;
+				SET_SYMBOL(strdup(++tmp), PMU_EVENT_SYMBOL_SUFFIX);
+				len += 2;
+			} else {
+				SET_SYMBOL(strdup(alias->name), PMU_EVENT_SYMBOL);
+				len++;
+			}
 		}
 	}
 	qsort(perf_pmu_events_list, len,
