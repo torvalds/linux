@@ -76,6 +76,8 @@ union xfs_btree_rec {
 #define	XFS_BTNUM_RMAP	((xfs_btnum_t)XFS_BTNUM_RMAPi)
 #define	XFS_BTNUM_REFC	((xfs_btnum_t)XFS_BTNUM_REFCi)
 
+__uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
+
 /*
  * For logging record fields.
  */
