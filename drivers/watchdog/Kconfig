@@ -301,6 +301,17 @@ config 977_WATCHDOG
 
 	  Not sure? It's safe to say N.
 
+config GEMINI_WATCHDOG
+	tristate "Gemini watchdog"
+	depends on ARCH_GEMINI
+	select WATCHDOG_CORE
+	help
+	  Say Y here if to include support for the watchdog timer
+	  embedded in the Cortina Systems Gemini family of devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gemini_wdt.
+
 config IXP4XX_WATCHDOG
 	tristate "IXP4xx Watchdog"
 	depends on ARCH_IXP4XX
