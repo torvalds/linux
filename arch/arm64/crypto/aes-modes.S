@@ -337,7 +337,7 @@ AES_ENTRY(aes_ctr_encrypt)
 
 .Lctrcarrydone:
 	subs		w4, w4, #1
-	bmi		.Lctrhalfblock		/* blocks < 0 means 1/2 block */
+	bmi		.Lctrtailblock		/* blocks <0 means tail block */
 	ld1		{v3.16b}, [x1], #16
 	eor		v3.16b, v0.16b, v3.16b
 	st1		{v3.16b}, [x0], #16
@@ -348,10 +348,8 @@ AES_ENTRY(aes_ctr_encrypt)
 	FRAME_POP
 	ret
 
-.Lctrhalfblock:
-	ld1		{v3.8b}, [x1]
-	eor		v3.8b, v0.8b, v3.8b
-	st1		{v3.8b}, [x0]
+.Lctrtailblock:
+	st1		{v0.16b}, [x0]
 	FRAME_POP
 	ret
 

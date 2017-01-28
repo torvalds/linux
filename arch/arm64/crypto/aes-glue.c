@@ -215,14 +215,15 @@ static int ctr_encrypt(struct skcipher_request *req)
 		u8 *tsrc = walk.src.virt.addr;
 
 		/*
-		 * Minimum alignment is 8 bytes, so if nbytes is <= 8, we need
-		 * to tell aes_ctr_encrypt() to only read half a block.
+		 * Tell aes_ctr_encrypt() to process a tail block.
 		 */
-		blocks = (nbytes <= 8) ? -1 : 1;
+		blocks = -1;
 
-		aes_ctr_encrypt(tail, tsrc, (u8 *)ctx->key_enc, rounds,
+		aes_ctr_encrypt(tail, NULL, (u8 *)ctx->key_enc, rounds,
 				blocks, walk.iv, first);
-		memcpy(tdst, tail, nbytes);
+		if (tdst != tsrc)
+			memcpy(tdst, tsrc, nbytes);
+		crypto_xor(tdst, tail, nbytes);
 		err = skcipher_walk_done(&walk, 0);
 	}
 	kernel_neon_end();
@@ -282,7 +283,6 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-		.cra_alignmask		= 7,
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= AES_MIN_KEY_SIZE,
@@ -298,7 +298,6 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-		.cra_alignmask		= 7,
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= AES_MIN_KEY_SIZE,
@@ -315,7 +314,6 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-		.cra_alignmask		= 7,
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= AES_MIN_KEY_SIZE,
@@ -332,7 +330,6 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_priority		= PRIO - 1,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
-		.cra_alignmask		= 7,
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= AES_MIN_KEY_SIZE,
@@ -350,7 +347,6 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct crypto_aes_xts_ctx),
-		.cra_alignmask		= 7,
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= 2 * AES_MIN_KEY_SIZE,
