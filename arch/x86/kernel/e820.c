@@ -68,7 +68,7 @@ EXPORT_SYMBOL(pci_mem_start);
  * This function checks if any part of the range <start,end> is mapped
  * with type.
  */
-int e820__mapped_any(u64 start, u64 end, unsigned type)
+int e820__mapped_any(u64 start, u64 end, enum e820_type type)
 {
 	int i;
 
@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(e820__mapped_any);
  * Note: this function only works correctly once the E820 table is sorted and
  * not-overlapping (at least for the range specified), which is the case normally.
  */
-int __init e820__mapped_all(u64 start, u64 end, unsigned type)
+int __init e820__mapped_all(u64 start, u64 end, enum e820_type type)
 {
 	int i;
 
@@ -125,7 +125,7 @@ int __init e820__mapped_all(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel E820 map.
  */
-static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, int type)
+static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, enum e820_type type)
 {
 	int x = table->nr_entries;
 
@@ -140,12 +140,12 @@ static void __init __e820__range_add(struct e820_table *table, u64 start, u64 si
 	table->nr_entries++;
 }
 
-void __init e820__range_add(u64 start, u64 size, int type)
+void __init e820__range_add(u64 start, u64 size, enum e820_type type)
 {
 	__e820__range_add(e820_table, start, size, type);
 }
 
-static void __init e820_print_type(u32 type)
+static void __init e820_print_type(enum e820_type type)
 {
 	switch (type) {
 	case E820_RAM:			/* Fall through: */
@@ -265,7 +265,7 @@ int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *p
 	static struct change_member *change_point[2*E820_X_MAX] __initdata;
 	static struct e820_entry *overlap_list[E820_X_MAX] __initdata;
 	static struct e820_entry new_bios[E820_X_MAX] __initdata;
-	unsigned long current_type, last_type;
+	enum e820_type current_type, last_type;
 	unsigned long long last_addr;
 	int chgidx;
 	int overlap_entries;
@@ -407,7 +407,7 @@ static int __init append_e820_table(struct e820_entry *biosmap, int nr_map)
 }
 
 static u64 __init
-__e820__range_update(struct e820_table *table, u64 start, u64 size, unsigned old_type, unsigned new_type)
+__e820__range_update(struct e820_table *table, u64 start, u64 size, enum e820_type old_type, enum e820_type new_type)
 {
 	u64 end;
 	unsigned int i;
@@ -474,18 +474,18 @@ __e820__range_update(struct e820_table *table, u64 start, u64 size, unsigned old
 	return real_updated_size;
 }
 
-u64 __init e820__range_update(u64 start, u64 size, unsigned old_type, unsigned new_type)
+u64 __init e820__range_update(u64 start, u64 size, enum e820_type old_type, enum e820_type new_type)
 {
 	return __e820__range_update(e820_table, start, size, old_type, new_type);
 }
 
-static u64 __init e820__range_update_firmware(u64 start, u64 size, unsigned old_type, unsigned new_type)
+static u64 __init e820__range_update_firmware(u64 start, u64 size, enum e820_type old_type, enum e820_type  new_type)
 {
 	return __e820__range_update(e820_table_firmware, start, size, old_type, new_type);
 }
 
 /* Remove a range of memory from the E820 table: */
-u64 __init e820__range_remove(u64 start, u64 size, unsigned old_type, int checktype)
+u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, int checktype)
 {
 	int i;
 	u64 end;
@@ -768,7 +768,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 /*
  * Find the highest page frame number we have available
  */
-static unsigned long __init e820_end_pfn(unsigned long limit_pfn, unsigned type)
+static unsigned long __init e820_end_pfn(unsigned long limit_pfn, enum e820_type type)
 {
 	int i;
 	unsigned long last_pfn = 0;
