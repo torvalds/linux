@@ -274,37 +274,67 @@ void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 		struct irq_chip *irqchip,
 		int parent_irq);
 
-int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
-			  struct irq_chip *irqchip,
-			  unsigned int first_irq,
-			  irq_flow_handler_t handler,
-			  unsigned int type,
-			  bool nested,
-			  struct lock_class_key *lock_key);
+int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
+			     struct irq_chip *irqchip,
+			     unsigned int first_irq,
+			     irq_flow_handler_t handler,
+			     unsigned int type,
+			     bool nested,
+			     struct lock_class_key *lock_key);
 
-/* FIXME: I assume threaded IRQchips do not have the lockdep problem */
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Lockdep requires that each irqchip instance be created with a
+ * unique key so as to avoid unnecessary warnings. This upfront
+ * boilerplate static inlines provides such a key for each
+ * unique instance.
+ */
+static inline int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+				       struct irq_chip *irqchip,
+				       unsigned int first_irq,
+				       irq_flow_handler_t handler,
+				       unsigned int type)
+{
+	static struct lock_class_key key;
+
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, false, &key);
+}
+
 static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
 			  struct irq_chip *irqchip,
 			  unsigned int first_irq,
 			  irq_flow_handler_t handler,
 			  unsigned int type)
 {
-	return _gpiochip_irqchip_add(gpiochip, irqchip, first_irq,
-				     handler, type, true, NULL);
+
+	static struct lock_class_key key;
+
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, true, &key);
+}
+#else
+static inline int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+				       struct irq_chip *irqchip,
+				       unsigned int first_irq,
+				       irq_flow_handler_t handler,
+				       unsigned int type)
+{
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, false, NULL);
 }
 
-#ifdef CONFIG_LOCKDEP
-#define gpiochip_irqchip_add(...)				\
-(								\
-	({							\
-		static struct lock_class_key _key;		\
-		_gpiochip_irqchip_add(__VA_ARGS__, false, &_key); \
-	})							\
-)
-#else
-#define gpiochip_irqchip_add(...)				\
-	_gpiochip_irqchip_add(__VA_ARGS__, false, NULL)
-#endif
+static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
+			  struct irq_chip *irqchip,
+			  unsigned int first_irq,
+			  irq_flow_handler_t handler,
+			  unsigned int type)
+{
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, true, NULL);
+}
+#endif /* CONFIG_LOCKDEP */
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 

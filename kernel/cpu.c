@@ -764,7 +764,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int prev_state, ret = 0;
-	bool hasdied = false;
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
@@ -809,7 +808,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 		cpuhp_kick_ap_work(cpu);
 	}
 
-	hasdied = prev_state != st->state && st->state == CPUHP_OFFLINE;
 out:
 	cpu_hotplug_done();
 	return ret;
@@ -1302,10 +1300,24 @@ static int cpuhp_cb_check(enum cpuhp_state state)
  */
 static int cpuhp_reserve_state(enum cpuhp_state state)
 {
-	enum cpuhp_state i;
+	enum cpuhp_state i, end;
+	struct cpuhp_step *step;
 
-	for (i = CPUHP_AP_ONLINE_DYN; i <= CPUHP_AP_ONLINE_DYN_END; i++) {
-		if (!cpuhp_ap_states[i].name)
+	switch (state) {
+	case CPUHP_AP_ONLINE_DYN:
+		step = cpuhp_ap_states + CPUHP_AP_ONLINE_DYN;
+		end = CPUHP_AP_ONLINE_DYN_END;
+		break;
+	case CPUHP_BP_PREPARE_DYN:
+		step = cpuhp_bp_states + CPUHP_BP_PREPARE_DYN;
+		end = CPUHP_BP_PREPARE_DYN_END;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = state; i <= end; i++, step++) {
+		if (!step->name)
 			return i;
 	}
 	WARN(1, "No more dynamic states available for CPU hotplug\n");
@@ -1323,7 +1335,7 @@ static int cpuhp_store_callbacks(enum cpuhp_state state, const char *name,
 
 	mutex_lock(&cpuhp_state_mutex);
 
-	if (state == CPUHP_AP_ONLINE_DYN) {
+	if (state == CPUHP_AP_ONLINE_DYN || state == CPUHP_BP_PREPARE_DYN) {
 		ret = cpuhp_reserve_state(state);
 		if (ret < 0)
 			goto out;

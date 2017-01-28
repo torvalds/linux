@@ -351,6 +351,7 @@ void stmmac_remove_config_dt(struct platform_device *pdev,
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
 	of_node_put(plat->phy_node);
+	of_node_put(plat->mdio_node);
 }
 #else
 struct plat_stmmacenet_data *

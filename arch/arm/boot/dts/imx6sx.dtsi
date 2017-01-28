@@ -977,6 +977,7 @@
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_EIM_SLOW>;
 				fsl,weim-cs-gpr = <&gpr>;
+				status = "disabled";
 			};
 
 			ocotp: ocotp@021bc000 {

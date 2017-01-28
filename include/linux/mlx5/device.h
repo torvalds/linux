@@ -1071,11 +1071,6 @@ enum {
 	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 };
 
-enum {
-	MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP       = 0x0,
-	MLX5_PCIE_TIMERS_AND_STATES_COUNTERS_GROUP = 0x2,
-};
-
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 {
 	if (pkey_sz > MLX5_MAX_LOG_PKEY_TABLE)

@@ -1541,7 +1541,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	rets = first_chunk ? mei_cl_tx_flow_ctrl_creds(cl) : 1;
 	if (rets < 0)
-		return rets;
+		goto err;
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
@@ -1575,11 +1575,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			cb->buf.size, cb->buf_idx);
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
-	if (rets) {
-		cl->status = rets;
-		list_move_tail(&cb->list, &cmpl_list->list);
-		return rets;
-	}
+	if (rets)
+		goto err;
 
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
@@ -1587,14 +1584,21 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cb->completed = mei_hdr.msg_complete == 1;
 
 	if (first_chunk) {
-		if (mei_cl_tx_flow_ctrl_creds_reduce(cl))
-			return -EIO;
+		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
+			rets = -EIO;
+			goto err;
+		}
 	}
 
 	if (mei_hdr.msg_complete)
 		list_move_tail(&cb->list, &dev->write_waiting_list.list);
 
 	return 0;
+
+err:
+	cl->status = rets;
+	list_move_tail(&cb->list, &cmpl_list->list);
+	return rets;
 }
 
 /**

@@ -125,25 +125,12 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 	if (WARN_ON(!reg_is_mmio(gvt, offset + bytes - 1)))
 		goto err;
 
-	mmio = intel_gvt_find_mmio_info(gvt, rounddown(offset, 4));
-	if (!mmio && !vgpu->mmio.disable_warn_untrack) {
-		gvt_err("vgpu%d: read untracked MMIO %x len %d val %x\n",
-				vgpu->id, offset, bytes, *(u32 *)p_data);
-
-		if (offset == 0x206c) {
-			gvt_err("------------------------------------------\n");
-			gvt_err("vgpu%d: likely triggers a gfx reset\n",
-			vgpu->id);
-			gvt_err("------------------------------------------\n");
-			vgpu->mmio.disable_warn_untrack = true;
-		}
-	}
-
 	if (!intel_gvt_mmio_is_unalign(gvt, offset)) {
 		if (WARN_ON(!IS_ALIGNED(offset, bytes)))
 			goto err;
 	}
 
+	mmio = intel_gvt_find_mmio_info(gvt, rounddown(offset, 4));
 	if (mmio) {
 		if (!intel_gvt_mmio_is_unalign(gvt, mmio->offset)) {
 			if (WARN_ON(offset + bytes > mmio->offset + mmio->size))
@@ -152,8 +139,22 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 				goto err;
 		}
 		ret = mmio->read(vgpu, offset, p_data, bytes);
-	} else
+	} else {
 		ret = intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
+
+		if (!vgpu->mmio.disable_warn_untrack) {
+			gvt_err("vgpu%d: read untracked MMIO %x(%dB) val %x\n",
+				vgpu->id, offset, bytes, *(u32 *)p_data);
+
+			if (offset == 0x206c) {
+				gvt_err("------------------------------------------\n");
+				gvt_err("vgpu%d: likely triggers a gfx reset\n",
+					vgpu->id);
+				gvt_err("------------------------------------------\n");
+				vgpu->mmio.disable_warn_untrack = true;
+			}
+		}
+	}
 
 	if (ret)
 		goto err;
@@ -301,4 +302,57 @@ err:
 			vgpu->id, offset, bytes);
 	mutex_unlock(&gvt->lock);
 	return ret;
+}
+
+
+/**
+ * intel_vgpu_reset_mmio - reset virtual MMIO space
+ * @vgpu: a vGPU
+ *
+ */
+void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	const struct intel_gvt_device_info *info = &gvt->device_info;
+
+	memcpy(vgpu->mmio.vreg, gvt->firmware.mmio, info->mmio_size);
+	memcpy(vgpu->mmio.sreg, gvt->firmware.mmio, info->mmio_size);
+
+	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+
+	/* set the bit 0:2(Core C-State ) to C0 */
+	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+}
+
+/**
+ * intel_vgpu_init_mmio - init MMIO  space
+ * @vgpu: a vGPU
+ *
+ * Returns:
+ * Zero on success, negative error code if failed
+ */
+int intel_vgpu_init_mmio(struct intel_vgpu *vgpu)
+{
+	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
+
+	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+	if (!vgpu->mmio.vreg)
+		return -ENOMEM;
+
+	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
+
+	intel_vgpu_reset_mmio(vgpu);
+
+	return 0;
+}
+
+/**
+ * intel_vgpu_clean_mmio - clean MMIO space
+ * @vgpu: a vGPU
+ *
+ */
+void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu)
+{
+	vfree(vgpu->mmio.vreg);
+	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
 }
