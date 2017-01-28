@@ -41,7 +41,7 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 unsigned long xen_released_pages;
 
 /* E820 map used during setting up memory. */
-static struct e820_entry xen_e820_table[E820_X_MAX] __initdata;
+static struct e820_entry xen_e820_table[E820_MAX_ENTRIES] __initdata;
 static u32 xen_e820_table_entries __initdata;
 
 /*

@@ -1,8 +1,11 @@
 #ifndef _UAPI_ASM_E820_TYPES_H
 #define _UAPI_ASM_E820_TYPES_H
 
-/* The maximum number of entries in E820MAP: */
-#define E820MAX			128
+/*
+ * This is the maximum number of entries in struct boot_params::e820_table (the zeropage),
+ * which is part of the x86 boot protocol ABI:
+ */
+#define E820_MAX_ENTRIES_ZEROPAGE 128
 
 #ifndef __ASSEMBLY__
 

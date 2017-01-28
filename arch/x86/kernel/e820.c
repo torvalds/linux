@@ -261,10 +261,10 @@ static int __init cpcompare(const void *a, const void *b)
 
 int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map)
 {
-	static struct change_member change_point_list[2*E820_X_MAX] __initdata;
-	static struct change_member *change_point[2*E820_X_MAX] __initdata;
-	static struct e820_entry *overlap_list[E820_X_MAX] __initdata;
-	static struct e820_entry new_bios[E820_X_MAX] __initdata;
+	static struct change_member change_point_list[2*E820_MAX_ENTRIES] __initdata;
+	static struct change_member *change_point[2*E820_MAX_ENTRIES] __initdata;
+	static struct e820_entry *overlap_list[E820_MAX_ENTRIES] __initdata;
+	static struct e820_entry new_bios[E820_MAX_ENTRIES] __initdata;
 	enum e820_type current_type, last_type;
 	unsigned long long last_addr;
 	int chgidx;

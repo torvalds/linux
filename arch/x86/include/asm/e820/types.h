@@ -4,12 +4,12 @@
 #include <uapi/asm/e820/types.h>
 
 /*
- * The legacy E820 BIOS limits us to 128 (E820MAX) nodes due to the
- * constrained space in the zeropage.
+ * The legacy E820 BIOS limits us to 128 (E820_MAX_ENTRIES_ZEROPAGE) nodes
+ * due to the constrained space in the zeropage.
  *
  * On large systems we can easily have thousands of nodes with RAM,
  * which cannot be fit into so few entries - so we have a mechanism
- * to extend the e820 table size at build-time, via the E820_X_MAX
+ * to extend the e820 table size at build-time, via the E820_MAX_ENTRIES
  * define below.
  *
  * ( Those extra entries are enumerated via the EFI memory map, not
@@ -17,7 +17,7 @@
  *
  * Size our internal memory map tables to have room for these additional
  * entries, based on a heuristic calculation: up to three entries per
- * NUMA node, plus E820MAX for some extra space.
+ * NUMA node, plus E820_MAX_ENTRIES_ZEROPAGE for some extra space.
  *
  * This allows for bootstrap/firmware quirks such as possible duplicate
  * E820 entries that might need room in the same arrays, prior to the
@@ -31,20 +31,14 @@
 
 #include <linux/numa.h>
 
-#define E820_X_MAX		(E820MAX + 3*MAX_NUMNODES)
-
-/* Our map: */
-#define E820MAP			0x2d0
-
-/* Number of entries in E820MAP: */
-#define E820NR			0x1e8
+#define E820_MAX_ENTRIES	(E820_MAX_ENTRIES_ZEROPAGE + 3*MAX_NUMNODES)
 
 /*
  * The whole array of E820 entries:
  */
 struct e820_table {
 	__u32 nr_entries;
-	struct e820_entry entries[E820_X_MAX];
+	struct e820_entry entries[E820_MAX_ENTRIES];
 };
 
 /*

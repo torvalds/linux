@@ -102,9 +102,9 @@ static int setup_e820_entries(struct boot_params *params)
 
 	nr_e820_entries = e820_table_firmware->nr_entries;
 
-	/* TODO: Pass entries more than E820MAX in bootparams setup data */
-	if (nr_e820_entries > E820MAX)
-		nr_e820_entries = E820MAX;
+	/* TODO: Pass entries more than E820_MAX_ENTRIES_ZEROPAGE in bootparams setup data */
+	if (nr_e820_entries > E820_MAX_ENTRIES_ZEROPAGE)
+		nr_e820_entries = E820_MAX_ENTRIES_ZEROPAGE;
 
 	params->e820_entries = nr_e820_entries;
 	memcpy(&params->e820_table, &e820_table_firmware->entries, nr_e820_entries*sizeof(struct e820_entry));

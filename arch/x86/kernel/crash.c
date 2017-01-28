@@ -509,7 +509,7 @@ static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 	unsigned int nr_e820_entries;
 
 	nr_e820_entries = params->e820_entries;
-	if (nr_e820_entries >= E820MAX)
+	if (nr_e820_entries >= E820_MAX_ENTRIES_ZEROPAGE)
 		return 1;
 
 	memcpy(&params->e820_table[nr_e820_entries], entry,
