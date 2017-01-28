@@ -734,16 +734,21 @@ core_initcall(e820_mark_nvs_memory);
 #endif
 
 /*
- * pre allocated 4k and reserved it in memblock and e820_table_firmware
+ * Allocate the requested number of bytes with the requsted alignment
+ * and return (the physical address) to the caller. Also register this
+ * range in the 'firmware' E820 table as a reserved range.
+ *
+ * This allows kexec to fake a new mptable, as if it came from the real
+ * system.
  */
-u64 __init early_reserve_e820(u64 size, u64 align)
+u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 {
 	u64 addr;
 
 	addr = __memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 	if (addr) {
 		e820_update_range_firmware(addr, size, E820_RAM, E820_RESERVED);
-		pr_info("e820: update e820_table_firmware for early_reserve_e820\n");
+		pr_info("e820: update e820_table_firmware for e820__memblock_alloc_reserved()\n");
 		update_e820_table_firmware();
 	}
 

@@ -1112,7 +1112,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 
 	/* preallocate 4k for mptable mpc */
-	early_reserve_e820_mpc_new();
+	e820__memblock_alloc_reserved_mpc_new();
 
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 	setup_bios_corruption_check();
