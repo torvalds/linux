@@ -229,11 +229,13 @@ static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
 }
 
 static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
-				 char *desc, char *val, char *long_desc,
-				 char *topic)
+				 char *desc, char *val,
+				 char *long_desc, char *topic,
+				 char *unit, char *perpkg)
 {
 	struct perf_pmu_alias *alias;
 	int ret;
+	int num;
 
 	alias = malloc(sizeof(*alias));
 	if (!alias)
@@ -267,7 +269,12 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	alias->long_desc = long_desc ? strdup(long_desc) :
 				desc ? strdup(desc) : NULL;
 	alias->topic = topic ? strdup(topic) : NULL;
-
+	if (unit) {
+		if (convert_scale(unit, &unit, &alias->scale) < 0)
+			return -1;
+		snprintf(alias->unit, sizeof(alias->unit), "%s", unit);
+	}
+	alias->per_pkg = perpkg && sscanf(perpkg, "%d", &num) == 1 && num == 1;
 	list_add_tail(&alias->list, list);
 
 	return 0;
@@ -284,7 +291,8 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 
 	buf[ret] = 0;
 
-	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL);
+	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL, NULL,
+				     NULL);
 }
 
 static inline bool pmu_alias_info_file(char *name)
@@ -504,7 +512,7 @@ char * __weak get_cpuid_str(void)
  * to the current running CPU. Then, add all PMU events from that table
  * as aliases.
  */
-static void pmu_add_cpu_aliases(struct list_head *head)
+static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
 {
 	int i;
 	struct pmu_events_map *map;
@@ -540,14 +548,21 @@ static void pmu_add_cpu_aliases(struct list_head *head)
 	 */
 	i = 0;
 	while (1) {
+		const char *pname;
+
 		pe = &map->table[i++];
 		if (!pe->name)
 			break;
 
+		pname = pe->pmu ? pe->pmu : "cpu";
+		if (strncmp(pname, name, strlen(pname)))
+			continue;
+
 		/* need type casts to override 'const' */
 		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
 				(char *)pe->desc, (char *)pe->event,
-				(char *)pe->long_desc, (char *)pe->topic);
+				(char *)pe->long_desc, (char *)pe->topic,
+				(char *)pe->unit, (char *)pe->perpkg);
 	}
 
 out:
@@ -578,8 +593,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
-	if (!strcmp(name, "cpu"))
-		pmu_add_cpu_aliases(&aliases);
+	pmu_add_cpu_aliases(&aliases, name);
 
 	if (pmu_type(name, &type))
 		return NULL;
