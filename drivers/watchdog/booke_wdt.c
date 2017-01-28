@@ -197,7 +197,7 @@ static struct watchdog_info booke_wdt_info __ro_after_init = {
 	.identity = "PowerPC Book-E Watchdog",
 };
 
-static struct watchdog_ops booke_wdt_ops = {
+static const struct watchdog_ops booke_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = booke_wdt_start,
 	.stop = booke_wdt_stop,

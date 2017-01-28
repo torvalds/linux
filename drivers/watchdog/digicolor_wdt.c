@@ -96,7 +96,7 @@ static unsigned int dc_wdt_get_timeleft(struct watchdog_device *wdog)
 	return count / clk_get_rate(wdt->clk);
 }
 
-static struct watchdog_ops dc_wdt_ops = {
+static const struct watchdog_ops dc_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= dc_wdt_start,
 	.stop		= dc_wdt_stop,

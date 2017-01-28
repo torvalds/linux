@@ -110,7 +110,7 @@ static struct watchdog_info mt7621_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops mt7621_wdt_ops = {
+static const struct watchdog_ops mt7621_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = mt7621_wdt_start,
 	.stop = mt7621_wdt_stop,

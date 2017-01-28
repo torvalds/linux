@@ -107,7 +107,7 @@ static const struct watchdog_info sama5d4_wdt_info = {
 	.identity = "Atmel SAMA5D4 Watchdog",
 };
 
-static struct watchdog_ops sama5d4_wdt_ops = {
+static const struct watchdog_ops sama5d4_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = sama5d4_wdt_start,
 	.stop = sama5d4_wdt_stop,

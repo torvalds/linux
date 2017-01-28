@@ -99,7 +99,7 @@ static const struct watchdog_info ep93xx_wdt_ident = {
 	.identity	= "EP93xx Watchdog",
 };
 
-static struct watchdog_ops ep93xx_wdt_ops = {
+static const struct watchdog_ops ep93xx_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= ep93xx_wdt_start,
 	.stop		= ep93xx_wdt_stop,

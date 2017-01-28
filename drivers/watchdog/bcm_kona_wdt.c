@@ -266,7 +266,7 @@ static int bcm_kona_wdt_stop(struct watchdog_device *wdog)
 					    SECWDOG_SRSTEN_MASK, 0);
 }
 
-static struct watchdog_ops bcm_kona_wdt_ops = {
+static const struct watchdog_ops bcm_kona_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	bcm_kona_wdt_start,
 	.stop =		bcm_kona_wdt_stop,

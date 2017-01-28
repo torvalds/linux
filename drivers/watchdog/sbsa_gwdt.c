@@ -215,7 +215,7 @@ static const struct watchdog_info sbsa_gwdt_info = {
 			  WDIOF_CARDRESET,
 };
 
-static struct watchdog_ops sbsa_gwdt_ops = {
+static const struct watchdog_ops sbsa_gwdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= sbsa_gwdt_start,
 	.stop		= sbsa_gwdt_stop,

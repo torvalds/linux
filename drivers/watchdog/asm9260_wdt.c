@@ -186,7 +186,7 @@ static const struct watchdog_info asm9260_wdt_ident = {
 	.identity         =	"Alphascale asm9260 Watchdog",
 };
 
-static struct watchdog_ops asm9260_wdt_ops = {
+static const struct watchdog_ops asm9260_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= asm9260_wdt_enable,
 	.stop		= asm9260_wdt_disable,
