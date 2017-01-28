@@ -547,7 +547,7 @@ intel_graphics_stolen(int num, int slot, int func,
 
 	/* Mark this space as reserved */
 	e820_add_region(base, size, E820_RESERVED);
-	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 }
 
 static void __init intel_graphics_quirks(int num, int slot, int func)

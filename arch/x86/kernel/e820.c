@@ -193,7 +193,7 @@ void __init e820_print_map(char *who)
  * sanitizing succeeds the *pnr_map will be updated with the new
  * number of valid entries (something no more than max_nr_map).
  *
- * The return value from sanitize_e820_table() is zero if it
+ * The return value from e820__update_table() is zero if it
  * successfully 'sanitized' the map entries passed in, and is -1
  * if it did nothing, which can happen if either of (1) it was
  * only passed one map entry, or (2) any of the input map entries
@@ -259,7 +259,7 @@ static int __init cpcompare(const void *a, const void *b)
 	return (ap->addr != ap->pbios->addr) - (bp->addr != bp->pbios->addr);
 }
 
-int __init sanitize_e820_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map)
+int __init e820__update_table(struct e820_entry *biosmap, int max_nr_map, u32 *pnr_map)
 {
 	static struct change_member change_point_list[2*E820_X_MAX] __initdata;
 	static struct change_member *change_point[2*E820_X_MAX] __initdata;
@@ -548,7 +548,7 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type, int checkty
 
 void __init e820__update_table_print(void)
 {
-	if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries))
+	if (e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries))
 		return;
 
 	pr_info("e820: modified physical RAM map:\n");
@@ -557,7 +557,7 @@ void __init e820__update_table_print(void)
 
 static void __init e820__update_table_firmware(void)
 {
-	sanitize_e820_table(e820_table_firmware->entries, ARRAY_SIZE(e820_table_firmware->entries), &e820_table_firmware->nr_entries);
+	e820__update_table(e820_table_firmware->entries, ARRAY_SIZE(e820_table_firmware->entries), &e820_table_firmware->nr_entries);
 }
 
 #define MAX_GAP_END 0x100000000ull
@@ -676,7 +676,7 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	extmap = (struct e820_entry *)(sdata->data);
 
 	__append_e820_table(extmap, entries);
-	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 
 	early_memunmap(sdata, data_len);
 	pr_info("e820: extended physical RAM map:\n");
@@ -931,7 +931,7 @@ void __init e820_reserve_setup_data(void)
 		early_memunmap(data, sizeof(*data));
 	}
 
-	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 	memcpy(e820_table_firmware, e820_table, sizeof(struct e820_table));
 	printk(KERN_INFO "extended physical RAM map:\n");
 	e820_print_map("reserve setup_data");
@@ -945,7 +945,7 @@ void __init e820_reserve_setup_data(void)
 void __init e820__finish_early_params(void)
 {
 	if (userdef) {
-		if (sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries) < 0)
+		if (e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries) < 0)
 			early_panic("Invalid user supplied memory map");
 
 		pr_info("e820: user-defined physical RAM map:\n");
@@ -1130,7 +1130,7 @@ char *__init e820__memory_setup_default(void)
 	 * the next section from 1mb->appropriate_mem_k
 	 */
 	new_nr = boot_params.e820_entries;
-	sanitize_e820_table(boot_params.e820_table, ARRAY_SIZE(boot_params.e820_table), &new_nr);
+	e820__update_table(boot_params.e820_table, ARRAY_SIZE(boot_params.e820_table), &new_nr);
 	boot_params.e820_entries = new_nr;
 
 	if (append_e820_table(boot_params.e820_table, boot_params.e820_entries) < 0) {

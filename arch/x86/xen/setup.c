@@ -783,7 +783,7 @@ char * __init xen_memory_setup(void)
 		xen_ignore_unusable();
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
-	sanitize_e820_table(xen_e820_table, ARRAY_SIZE(xen_e820_table),
+	e820__update_table(xen_e820_table, ARRAY_SIZE(xen_e820_table),
 			  &xen_e820_table_entries);
 
 	max_pages = xen_get_max_pages();
@@ -861,7 +861,7 @@ char * __init xen_memory_setup(void)
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
 
-	sanitize_e820_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
+	e820__update_table(e820_table->entries, ARRAY_SIZE(e820_table->entries), &e820_table->nr_entries);
 
 	/*
 	 * Check whether the kernel itself conflicts with the target E820 map.
@@ -932,7 +932,7 @@ char * __init xen_auto_xlated_memory_setup(void)
 
 	xen_e820_table_entries = memmap.nr_entries;
 
-	sanitize_e820_table(xen_e820_table, ARRAY_SIZE(xen_e820_table),
+	e820__update_table(xen_e820_table, ARRAY_SIZE(xen_e820_table),
 			  &xen_e820_table_entries);
 
 	for (i = 0; i < xen_e820_table_entries; i++)

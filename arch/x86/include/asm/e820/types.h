@@ -21,7 +21,7 @@
  *
  * This allows for bootstrap/firmware quirks such as possible duplicate
  * E820 entries that might need room in the same arrays, prior to the
- * call to sanitize_e820_table() to remove duplicates.  The allowance
+ * call to e820__update_table() to remove duplicates.  The allowance
  * of three memory map entries per node is "enough" entries for
  * the initial hardware platform motivating this mechanism to make
  * use of additional EFI map entries.  Future platforms may want
