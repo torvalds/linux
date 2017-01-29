@@ -210,6 +210,18 @@ static int osc_io_submit(const struct lu_env *env,
 	if (queued > 0)
 		result = osc_queue_sync_pages(env, osc, &list, cmd, brw_flags);
 
+	/* Update c/mtime for sync write. LU-7310 */
+	if (qout->pl_nr > 0 && !result) {
+		struct cl_attr *attr = &osc_env_info(env)->oti_attr;
+		struct cl_object *obj = ios->cis_obj;
+
+		cl_object_attr_lock(obj);
+		attr->cat_mtime = LTIME_S(CURRENT_TIME);
+		attr->cat_ctime = attr->cat_mtime;
+		cl_object_attr_update(env, obj, attr, CAT_MTIME | CAT_CTIME);
+		cl_object_attr_unlock(obj);
+	}
+
 	CDEBUG(D_INFO, "%d/%d %d\n", qin->pl_nr, qout->pl_nr, result);
 	return qout->pl_nr > 0 ? 0 : result;
 }
