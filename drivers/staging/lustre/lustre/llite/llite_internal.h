@@ -506,6 +506,7 @@ struct ll_sb_info {
 						 */
 	/* root squash */
 	struct root_squash_info	  ll_squash;
+	struct path		 ll_mnt;
 
 	__kernel_fsid_t		  ll_fsid;
 	struct kobject		 ll_kobj; /* sysfs object */
