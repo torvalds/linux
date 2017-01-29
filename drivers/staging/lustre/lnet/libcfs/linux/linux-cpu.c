@@ -1082,8 +1082,9 @@ cfs_cpu_init(void)
 	}
 	spin_unlock(&cpt_data.cpt_lock);
 
-	LCONSOLE(0, "HW CPU cores: %d, npartitions: %d\n",
-		 num_online_cpus(), cfs_cpt_number(cfs_cpt_table));
+	LCONSOLE(0, "HW nodes: %d, HW CPU cores: %d, npartitions: %d\n",
+		 num_online_nodes(), num_online_cpus(),
+		 cfs_cpt_number(cfs_cpt_table));
 	return 0;
 
  failed:
