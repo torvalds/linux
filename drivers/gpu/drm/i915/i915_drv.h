@@ -969,6 +969,16 @@ struct drm_i915_error_state {
 		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
 		struct intel_instdone instdone;
 
+		struct drm_i915_error_context {
+			char comm[TASK_COMM_LEN];
+			pid_t pid;
+			u32 handle;
+			u32 hw_id;
+			int ban_score;
+			int active;
+			int guilty;
+		} context;
+
 		struct drm_i915_error_object {
 			u64 gtt_offset;
 			u64 gtt_size;
@@ -1002,10 +1012,6 @@ struct drm_i915_error_state {
 				u32 pp_dir_base;
 			};
 		} vm_info;
-
-		pid_t pid;
-		char comm[TASK_COMM_LEN];
-		int context_bans;
 	} engine[I915_NUM_ENGINES];
 
 	struct drm_i915_error_buffer {
