@@ -34,6 +34,7 @@
 #define __LUSTRE_LU_OBJECT_H
 
 #include <stdarg.h>
+#include <linux/percpu_counter.h>
 #include "../../include/linux/libcfs/libcfs.h"
 #include "lustre/lustre_idl.h"
 #include "lu_ref.h"
@@ -580,7 +581,6 @@ enum {
 	LU_SS_CACHE_RACE,
 	LU_SS_CACHE_DEATH_RACE,
 	LU_SS_LRU_PURGED,
-	LU_SS_LRU_LEN,	/* # of objects in lsb_lru lists */
 	LU_SS_LAST_STAT
 };
 
@@ -635,6 +635,10 @@ struct lu_site {
 	 * XXX: a hack! fld has to find md_site via site, remove when possible
 	 */
 	struct seq_server_site	*ld_seq_site;
+	/**
+	 * Number of objects in lsb_lru_lists - used for shrinking
+	 */
+	struct percpu_counter	 ls_lru_len_counter;
 };
 
 static inline struct lu_site_bkt_data *
