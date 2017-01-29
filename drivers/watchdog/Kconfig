@@ -1120,6 +1120,7 @@ config NV_TCO
 config RDC321X_WDT
 	tristate "RDC R-321x SoC watchdog"
 	depends on X86_RDC321X || COMPILE_TEST
+	depends on PCI
 	help
 	  This is the driver for the built in hardware watchdog
 	  in the RDC R-321x SoC.
