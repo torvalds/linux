@@ -1,0 +1,50 @@
+Marvell Prestera Switch Chip bindings
+-------------------------------------
+
+Required properties:
+- compatible: one of the following
+	"marvell,prestera-98dx3236",
+	"marvell,prestera-98dx3336",
+	"marvell,prestera-98dx4251",
+- reg: address and length of the register set for the device.
+- interrupts: interrupt for the device
+
+Optional properties:
+- dfx: phandle reference to the "DFX Server" node
+
+Example:
+
+switch {
+	compatible = "simple-bus";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 MBUS_ID(0x03, 0x00) 0 0x100000>;
+
+	packet-processor@0 {
+		compatible = "marvell,prestera-98dx3236";
+		reg = <0 0x4000000>;
+		interrupts = <33>, <34>, <35>;
+		dfx = <&dfx>;
+	};
+};
+
+DFX Server bindings
+-------------------
+
+Required properties:
+- compatible: must be "marvell,dfx-server"
+- reg: address and length of the register set for the device.
+
+Example:
+
+dfx-registers {
+	compatible = "simple-bus";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 MBUS_ID(0x08, 0x00) 0 0x100000>;
+
+	dfx: dfx@0 {
+		compatible = "marvell,dfx-server";
+		reg = <0 0x100000>;
+	};
+};
