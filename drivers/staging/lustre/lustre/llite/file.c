@@ -417,6 +417,17 @@ out:
 	ptlrpc_req_finished(req);
 	ll_intent_drop_lock(itp);
 
+	/*
+	 * We did open by fid, but by the time we got to the server,
+	 * the object disappeared. If this is a create, we cannot really
+	 * tell the userspace that the file it was trying to create
+	 * does not exist. Instead let's return -ESTALE, and the VFS will
+	 * retry the create with LOOKUP_REVAL that we are going to catch
+	 * in ll_revalidate_dentry() and use lookup then.
+	 */
+	if (rc == -ENOENT && itp->it_op & IT_CREAT)
+		rc = -ESTALE;
+
 	return rc;
 }
 
