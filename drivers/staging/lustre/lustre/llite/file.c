@@ -122,26 +122,25 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 				     enum mds_op_bias bias,
 				     void *data)
 {
-	struct obd_export *exp = ll_i2mdexp(inode);
+	const struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req = NULL;
-	struct obd_device *obd = class_exp2obd(exp);
 	int rc;
 
-	if (!obd) {
-		/*
-		 * XXX: in case of LMV, is this correct to access
-		 * ->exp_handle?
-		 */
-		CERROR("Invalid MDC connection handle %#llx\n",
-		       ll_i2mdexp(inode)->exp_handle.h_cookie);
+	if (!class_exp2obd(md_exp)) {
+		CERROR("%s: invalid MDC connection handle closing " DFID "\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(&lli->lli_fid));
 		rc = 0;
 		goto out;
 	}
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	/*
+	 * We leak openhandle and request here on error, but not much to be
+	 * done in OOM case since app won't retry close on error either.
+	 */
 	if (!op_data) {
-		/* XXX We leak openhandle and request here. */
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -170,10 +169,9 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 	}
 
 	rc = md_close(md_exp, op_data, och->och_mod, &req);
-	if (rc) {
-		CERROR("%s: inode "DFID" mdc close failed: rc = %d\n",
-		       ll_i2mdexp(inode)->exp_obd->obd_name,
-		       PFID(ll_inode2fid(inode)), rc);
+	if (rc && rc != -EINTR) {
+		CERROR("%s: inode " DFID " mdc close failed: rc = %d\n",
+		       md_exp->exp_obd->obd_name, PFID(&lli->lli_fid), rc);
 	}
 
 	if (op_data->op_bias & (MDS_HSM_RELEASE | MDS_CLOSE_LAYOUT_SWAP) &&
@@ -192,8 +190,7 @@ out:
 	och->och_fh.cookie = DEAD_HANDLE_MAGIC;
 	kfree(och);
 
-	if (req) /* This is close request */
-		ptlrpc_req_finished(req);
+	ptlrpc_req_finished(req);
 	return rc;
 }
 
