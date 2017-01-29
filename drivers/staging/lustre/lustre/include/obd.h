@@ -403,18 +403,10 @@ struct lmv_tgt_desc {
 	unsigned long		ltd_active:1; /* target up for requests */
 };
 
-enum placement_policy {
-	PLACEMENT_CHAR_POLICY   = 0,
-	PLACEMENT_NID_POLICY    = 1,
-	PLACEMENT_INVAL_POLICY  = 2,
-	PLACEMENT_MAX_POLICY
-};
-
 struct lmv_obd {
 	int			refcount;
 	struct lu_client_fld	lmv_fld;
 	spinlock_t		lmv_lock;
-	enum placement_policy	lmv_placement;
 	struct lmv_desc		desc;
 	struct obd_uuid		cluuid;
 	struct obd_export	*exp;

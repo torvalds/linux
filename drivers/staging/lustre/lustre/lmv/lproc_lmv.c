@@ -50,73 +50,6 @@ static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(numobd);
 
-static const char *placement_name[] = {
-	[PLACEMENT_CHAR_POLICY] = "CHAR",
-	[PLACEMENT_NID_POLICY]  = "NID",
-	[PLACEMENT_INVAL_POLICY]  = "INVAL"
-};
-
-static enum placement_policy placement_name2policy(char *name, int len)
-{
-	int		     i;
-
-	for (i = 0; i < PLACEMENT_MAX_POLICY; i++) {
-		if (!strncmp(placement_name[i], name, len))
-			return i;
-	}
-	return PLACEMENT_INVAL_POLICY;
-}
-
-static const char *placement_policy2name(enum placement_policy placement)
-{
-	LASSERT(placement < PLACEMENT_MAX_POLICY);
-	return placement_name[placement];
-}
-
-static ssize_t placement_show(struct kobject *kobj, struct attribute *attr,
-			      char *buf)
-{
-	struct obd_device *dev = container_of(kobj, struct obd_device,
-					      obd_kobj);
-	struct lmv_obd *lmv;
-
-	lmv = &dev->u.lmv;
-	return sprintf(buf, "%s\n", placement_policy2name(lmv->lmv_placement));
-}
-
-#define MAX_POLICY_STRING_SIZE 64
-
-static ssize_t placement_store(struct kobject *kobj, struct attribute *attr,
-			       const char *buffer,
-			       size_t count)
-{
-	struct obd_device *dev = container_of(kobj, struct obd_device,
-					      obd_kobj);
-	char dummy[MAX_POLICY_STRING_SIZE + 1];
-	enum placement_policy policy;
-	struct lmv_obd *lmv = &dev->u.lmv;
-
-	memcpy(dummy, buffer, MAX_POLICY_STRING_SIZE);
-
-	if (count > MAX_POLICY_STRING_SIZE)
-		count = MAX_POLICY_STRING_SIZE;
-
-	if (dummy[count - 1] == '\n')
-		count--;
-	dummy[count] = '\0';
-
-	policy = placement_name2policy(dummy, count);
-	if (policy != PLACEMENT_INVAL_POLICY) {
-		spin_lock(&lmv->lmv_lock);
-		lmv->lmv_placement = policy;
-		spin_unlock(&lmv->lmv_lock);
-	} else {
-		return -EINVAL;
-	}
-	return count;
-}
-LUSTRE_RW_ATTR(placement);
-
 static ssize_t activeobd_show(struct kobject *kobj, struct attribute *attr,
 			      char *buf)
 {
@@ -226,7 +159,6 @@ const struct file_operations lmv_proc_target_fops = {
 static struct attribute *lmv_attrs[] = {
 	&lustre_attr_activeobd.attr,
 	&lustre_attr_numobd.attr,
-	&lustre_attr_placement.attr,
 	NULL,
 };
 

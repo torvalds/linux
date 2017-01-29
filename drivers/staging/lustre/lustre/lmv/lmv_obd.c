@@ -1284,7 +1284,6 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	lmv->desc.ld_active_tgt_count = 0;
 	lmv->max_def_easize = 0;
 	lmv->max_easize = 0;
-	lmv->lmv_placement = PLACEMENT_CHAR_POLICY;
 
 	spin_lock_init(&lmv->lmv_lock);
 	mutex_init(&lmv->lmv_init_mutex);
