@@ -114,9 +114,9 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		     struct ptlrpc_request_set *rqset, int async, int agl);
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
-		   __u32 type, union ldlm_policy_data *policy, __u32 mode,
-		   __u64 *flags, void *data, struct lustre_handle *lockh,
-		   int unref);
+		   enum ldlm_type type, union ldlm_policy_data *policy,
+		   enum ldlm_mode mode, __u64 *flags, void *data,
+		   struct lustre_handle *lockh, int unref);
 
 int osc_setattr_async(struct obd_export *exp, struct obdo *oa,
 		      obd_enqueue_update_f upcall, void *cookie,
