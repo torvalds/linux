@@ -59,7 +59,7 @@ MODULE_PARM_DESC(cpu_npartitions, "# of CPU partitions");
  *
  * NB: If user specified cpu_pattern, cpu_npartitions will be ignored
  */
-static char	*cpu_pattern = "";
+static char	*cpu_pattern = "N";
 module_param(cpu_pattern, charp, 0444);
 MODULE_PARM_DESC(cpu_pattern, "CPU partitions pattern");
 
