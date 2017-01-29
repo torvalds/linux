@@ -49,7 +49,6 @@
 
 struct imx_chip {
 	struct clk	*clk_per;
-	struct clk	*clk_ipg;
 
 	void __iomem	*mmio_base;
 
@@ -206,13 +205,13 @@ static int imx_pwm_config(struct pwm_chip *chip,
 	struct imx_chip *imx = to_imx_chip(chip);
 	int ret;
 
-	ret = clk_prepare_enable(imx->clk_ipg);
+	ret = clk_prepare_enable(imx->clk_per);
 	if (ret)
 		return ret;
 
 	ret = imx->config(chip, pwm, duty_ns, period_ns);
 
-	clk_disable_unprepare(imx->clk_ipg);
+	clk_disable_unprepare(imx->clk_per);
 
 	return ret;
 }
@@ -291,13 +290,6 @@ static int imx_pwm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "getting per clock failed with %ld\n",
 				PTR_ERR(imx->clk_per));
 		return PTR_ERR(imx->clk_per);
-	}
-
-	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(imx->clk_ipg)) {
-		dev_err(&pdev->dev, "getting ipg clock failed with %ld\n",
-				PTR_ERR(imx->clk_ipg));
-		return PTR_ERR(imx->clk_ipg);
 	}
 
 	imx->chip.ops = &imx_pwm_ops;
