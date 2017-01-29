@@ -729,6 +729,10 @@ static void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 
 	spin_lock(&ras->ras_lock);
 
+	if (!hit)
+		CDEBUG(D_READA, DFID " pages at %lu miss.\n",
+		       PFID(ll_inode2fid(inode)), index);
+
 	ll_ra_stats_inc_sbi(sbi, hit ? RA_STAT_HIT : RA_STAT_MISS);
 
 	/* reset the read-ahead window in two cases.  First when the app seeks
