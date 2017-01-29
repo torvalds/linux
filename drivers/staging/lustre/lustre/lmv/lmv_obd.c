@@ -3012,24 +3012,40 @@ static int lmv_clear_open_replay_data(struct obd_export *exp,
 }
 
 static int lmv_intent_getattr_async(struct obd_export *exp,
-				    struct md_enqueue_info *minfo,
-				    struct ldlm_enqueue_info *einfo)
+				    struct md_enqueue_info *minfo)
 {
 	struct md_op_data       *op_data = &minfo->mi_data;
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
-	struct lmv_tgt_desc     *tgt = NULL;
+	struct lmv_tgt_desc *ptgt = NULL;
+	struct lmv_tgt_desc *ctgt = NULL;
 	int		      rc;
+
+	if (!fid_is_sane(&op_data->op_fid2))
+		return -EINVAL;
 
 	rc = lmv_check_connect(obd);
 	if (rc)
 		return rc;
 
-	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
+	ptgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
+	if (IS_ERR(ptgt))
+		return PTR_ERR(ptgt);
 
-	return md_intent_getattr_async(tgt->ltd_exp, minfo, einfo);
+	ctgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid2);
+	if (IS_ERR(ctgt))
+		return PTR_ERR(ctgt);
+
+	/*
+	 * if child is on remote MDT, we need 2 async RPCs to fetch both LOOKUP
+	 * lock on parent, and UPDATE lock on child MDT, which makes all
+	 * complicated. Considering remote dir is rare case, and not supporting
+	 * it in statahead won't cause any issue, drop its support for now.
+	 */
+	if (ptgt != ctgt)
+		return -ENOTSUPP;
+
+	return md_intent_getattr_async(ptgt->ltd_exp, minfo);
 }
 
 static int lmv_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,

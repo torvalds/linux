@@ -761,6 +761,7 @@ struct md_enqueue_info {
 	struct lookup_intent    mi_it;
 	struct lustre_handle    mi_lockh;
 	struct inode	   *mi_dir;
+	struct ldlm_enqueue_info	mi_einfo;
 	int (*mi_cb)(struct ptlrpc_request *req,
 		     struct md_enqueue_info *minfo, int rc);
 	void			*mi_cbdata;
@@ -978,8 +979,7 @@ struct md_ops {
 				struct lu_fid *fid);
 
 	int (*intent_getattr_async)(struct obd_export *,
-				    struct md_enqueue_info *,
-				    struct ldlm_enqueue_info *);
+				    struct md_enqueue_info *);
 
 	int (*revalidate_lock)(struct obd_export *, struct lookup_intent *,
 			       struct lu_fid *, __u64 *bits);
