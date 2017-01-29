@@ -1119,7 +1119,7 @@ skip:
 	}
 }
 
-int create_discard_cmd_control(struct f2fs_sb_info *sbi)
+static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 {
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
 	struct discard_cmd_control *dcc;
@@ -1156,7 +1156,7 @@ init_thread:
 	return err;
 }
 
-void destroy_discard_cmd_control(struct f2fs_sb_info *sbi, bool free)
+static void destroy_discard_cmd_control(struct f2fs_sb_info *sbi, bool free)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 
