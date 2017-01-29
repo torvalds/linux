@@ -672,7 +672,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 	MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 	func_cap->physical_port = field;
 	if (func_cap->physical_port != gen_or_port) {
-		err = -ENOSYS;
+		err = -EINVAL;
 		goto out;
 	}
 

@@ -1980,7 +1980,7 @@ static int mlx4_en_get_module_info(struct net_device *dev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
-		return -ENOSYS;
+		return -EINVAL;
 	}
 
 	return 0;

@@ -1396,7 +1396,7 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 	case RES_MTT:
 		return remove_mtt_ok((struct res_mtt *)res, extra);
 	case RES_MAC:
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	case RES_EQ:
 		return remove_eq_ok((struct res_eq *)res);
 	case RES_COUNTER:
