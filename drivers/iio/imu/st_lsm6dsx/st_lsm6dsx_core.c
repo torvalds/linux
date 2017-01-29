@@ -17,7 +17,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 8KB
  *
- * - LSM6DSM:
+ * - LSM6DSL/LSM6DSM:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -168,7 +168,8 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x6a,
 		.max_fifo_size = 4096,
 		.id = {
-			[0] = ST_LSM6DSM_ID,
+			[0] = ST_LSM6DSL_ID,
+			[1] = ST_LSM6DSM_ID,
 		},
 	},
 };

@@ -1,7 +1,7 @@
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DSM: The FIFO buffer can be configured to store data
+ * LSM6DS3/LSM6DSL/LSM6DSM: The FIFO buffer can be configured to store data
  * from gyroscope and accelerometer. Samples are queued without any tag
  * according to a specific pattern based on 'FIFO data sets' (6 bytes each):
  *  - 1st data set is reserved for gyroscope data
@@ -206,7 +206,7 @@ out:
 }
 
 /**
- * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DSM read FIFO routine
+ * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DSL-LSM6DSM read FIFO routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
