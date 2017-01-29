@@ -53,6 +53,8 @@
 #define MLX4_FLAG2_V_IGNORE_FCS_MASK		BIT(1)
 #define MLX4_FLAG2_V_USER_MTU_MASK		BIT(5)
 #define MLX4_FLAG_V_MTU_MASK			BIT(0)
+#define MLX4_FLAG_V_PPRX_MASK			BIT(1)
+#define MLX4_FLAG_V_PPTX_MASK			BIT(2)
 #define MLX4_IGNORE_FCS_MASK			0x1
 #define MLX4_TC_MAX_NUMBER			8
 
@@ -1305,12 +1307,32 @@ mlx4_en_set_port_user_mtu(struct mlx4_dev *dev, int slave, int port,
 	gen_context->user_mtu = cpu_to_be16(master->max_user_mtu[port]);
 }
 
+static void
+mlx4_en_set_port_global_pause(struct mlx4_dev *dev, int slave,
+			      struct mlx4_set_port_general_context *gen_context)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_mfunc_master_ctx *master = &priv->mfunc.master;
+
+	/* Slave cannot change Global Pause configuration */
+	if (slave != mlx4_master_func_num(dev) &&
+	    (gen_context->pptx != master->pptx ||
+	     gen_context->pprx != master->pprx)) {
+		gen_context->pptx = master->pptx;
+		gen_context->pprx = master->pprx;
+		mlx4_warn(dev, "denying Global Pause change for slave:%d\n",
+			  slave);
+	} else {
+		master->pptx = gen_context->pptx;
+		master->pprx = gen_context->pprx;
+	}
+}
+
 static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				u8 op_mod, struct mlx4_cmd_mailbox *inbox)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_port_info *port_info;
-	struct mlx4_mfunc_master_ctx *master = &priv->mfunc.master;
 	struct mlx4_set_port_rqp_calc_context *qpn_context;
 	struct mlx4_set_port_general_context *gen_context;
 	struct mlx4_roce_gid_entry *gid_entry_tbl, *gid_entry_mbox, *gid_entry_mb1;
@@ -1372,19 +1394,11 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				mlx4_en_set_port_user_mtu(dev, slave, port,
 							  gen_context);
 
-			/* Slave cannot change Global Pause configuration */
-			if (slave != mlx4_master_func_num(dev) &&
-			    ((gen_context->pptx != master->pptx) ||
-			     (gen_context->pprx != master->pprx))) {
-				gen_context->pptx = master->pptx;
-				gen_context->pprx = master->pprx;
-				mlx4_warn(dev,
-					  "denying Global Pause change for slave:%d\n",
-					  slave);
-			} else {
-				master->pptx = gen_context->pptx;
-				master->pprx = gen_context->pprx;
-			}
+			if (gen_context->flags &
+			    (MLX4_FLAG_V_PPRX_MASK || MLX4_FLAG_V_PPTX_MASK))
+				mlx4_en_set_port_global_pause(dev, slave,
+							      gen_context);
+
 			break;
 		case MLX4_SET_PORT_GID_TABLE:
 			/* change to MULTIPLE entries: number of guest's gids

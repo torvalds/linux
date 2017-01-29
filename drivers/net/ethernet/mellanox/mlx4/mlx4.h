@@ -776,7 +776,9 @@ struct mlx4_vlan_table {
 	int			max;
 };
 
-#define SET_PORT_GEN_ALL_VALID		0x7
+#define SET_PORT_GEN_ALL_VALID	(MLX4_FLAG_V_MTU_MASK	| \
+				 MLX4_FLAG_V_PPRX_MASK	| \
+				 MLX4_FLAG_V_PPTX_MASK)
 #define SET_PORT_PROMISC_SHIFT		31
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
