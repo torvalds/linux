@@ -47,7 +47,7 @@ extern void rcuwait_wake_up(struct rcuwait *w);
 	for (;;) {							\
 		/*							\
 		 * Implicit barrier (A) pairs with (B) in		\
-		 * rcuwait_trywake().					\
+		 * rcuwait_wake_up().					\
 		 */							\
 		set_current_state(TASK_UNINTERRUPTIBLE);		\
 		if (condition)						\
