@@ -211,6 +211,9 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	writel(SUN6I_LOSC_CTRL_KEY | SUN6I_LOSC_CTRL_EXT_OSC,
 	       rtc->base + SUN6I_LOSC_CTRL);
 
+	/* Yes, I know, this is ugly. */
+	sun6i_rtc = rtc;
+
 	/* Deal with old DTs */
 	if (!of_get_property(node, "clocks", NULL))
 		return;
@@ -243,9 +246,6 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	clk_data->num = 1;
 	clk_data->hws[0] = &rtc->hw;
 	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-
-	/* Yes, I know, this is ugly. */
-	sun6i_rtc = rtc;
 }
 CLK_OF_DECLARE_DRIVER(sun6i_rtc_clk, "allwinner,sun6i-a31-rtc",
 		      sun6i_rtc_clk_init);
