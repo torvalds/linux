@@ -356,6 +356,10 @@ void multiorder_tagged_iteration(void)
 	item_kill_tree(&tree);
 }
 
+/*
+ * Basic join checks: make sure we can't find an entry in the tree after
+ * a larger entry has replaced it
+ */
 static void multiorder_join1(unsigned long index,
 				unsigned order1, unsigned order2)
 {
@@ -374,6 +378,10 @@ static void multiorder_join1(unsigned long index,
 	item_kill_tree(&tree);
 }
 
+/*
+ * Check that the accounting of exceptional entries is handled correctly
+ * by joining an exceptional entry to a normal pointer.
+ */
 static void multiorder_join2(unsigned order1, unsigned order2)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
@@ -386,6 +394,9 @@ static void multiorder_join2(unsigned order1, unsigned order2)
 	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
 	assert(item2 == (void *)0x12UL);
 	assert(node->exceptional == 1);
+
+	item2 = radix_tree_lookup(&tree, 0);
+	free(item2);
 
 	radix_tree_join(&tree, 0, order1, item1);
 	item2 = __radix_tree_lookup(&tree, 1 << order2, &node, NULL);
@@ -472,6 +483,7 @@ static void __multiorder_split(int old_order, int new_order)
 	void **slot;
 	struct radix_tree_iter iter;
 	unsigned alloc;
+	struct item *item;
 
 	radix_tree_preload(GFP_KERNEL);
 	assert(item_insert_order(&tree, 0, old_order) == 0);
@@ -480,7 +492,7 @@ static void __multiorder_split(int old_order, int new_order)
 	/* Wipe out the preloaded cache or it'll confuse check_mem() */
 	radix_tree_cpu_dead(0);
 
-	radix_tree_tag_set(&tree, 0, 2);
+	item = radix_tree_tag_set(&tree, 0, 2);
 
 	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
 	alloc = nr_allocated;
@@ -493,6 +505,7 @@ static void __multiorder_split(int old_order, int new_order)
 	radix_tree_preload_end();
 
 	item_kill_tree(&tree);
+	free(item);
 }
 
 static void __multiorder_split2(int old_order, int new_order)
