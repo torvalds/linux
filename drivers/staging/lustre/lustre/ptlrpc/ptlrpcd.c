@@ -82,7 +82,8 @@ struct ptlrpcd {
  */
 static int max_ptlrpcds;
 module_param(max_ptlrpcds, int, 0644);
-MODULE_PARM_DESC(max_ptlrpcds, "Max ptlrpcd thread count to be started.");
+MODULE_PARM_DESC(max_ptlrpcds,
+		 "Max ptlrpcd thread count to be started (obsolete).");
 
 /*
  * ptlrpcd_bind_policy is obsolete, but retained to ensure that
@@ -102,7 +103,7 @@ MODULE_PARM_DESC(ptlrpcd_bind_policy,
 static int ptlrpcd_per_cpt_max;
 module_param(ptlrpcd_per_cpt_max, int, 0644);
 MODULE_PARM_DESC(ptlrpcd_per_cpt_max,
-		 "Max ptlrpcd thread count to be started per cpt.");
+		 "Max ptlrpcd thread count to be started per CPT.");
 
 /*
  * ptlrpcd_partner_group_size: The desired number of threads in each
