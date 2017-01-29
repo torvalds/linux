@@ -42,8 +42,6 @@
  * of the format that the request conforms to.
  */
 
-#if !defined(__REQ_LAYOUT_USER__)
-
 #define DEBUG_SUBSYSTEM S_RPC
 
 #include <linux/module.h>
@@ -57,8 +55,6 @@
 #include "../include/obd.h"
 #include "../include/obd_support.h"
 
-/* __REQ_LAYOUT_USER__ */
-#endif
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
@@ -1558,8 +1554,6 @@ struct req_format RQF_OST_GET_INFO_FIEMAP =
 			ost_get_fiemap_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
 
-#if !defined(__REQ_LAYOUT_USER__)
-
 /* Convenience macro */
 #define FMT_FIELD(fmt, i, j) (fmt)->rf_fields[(i)].d[(j)]
 
@@ -2238,6 +2232,3 @@ void req_capsule_shrink(struct req_capsule *pill,
 							    1);
 }
 EXPORT_SYMBOL(req_capsule_shrink);
-
-/* __REQ_LAYOUT_USER__ */
-#endif
