@@ -1452,8 +1452,10 @@ struct cl_read_ahead {
 	 * cra_end is included.
 	 */
 	pgoff_t cra_end;
+	/* optimal RPC size for this read, by pages */
+	unsigned long cra_rpc_size;
 	/*
-	 * Release routine. If readahead holds resources underneath, this
+	 * Release callback. If readahead holds resources underneath, this
 	 * function should be called to release it.
 	 */
 	void (*cra_release)(const struct lu_env *env, void *cbdata);

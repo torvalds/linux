@@ -99,6 +99,7 @@ static int osc_io_read_ahead(const struct lu_env *env,
 			ldlm_lock_decref(&lockh, dlmlock->l_req_mode);
 		}
 
+		ra->cra_rpc_size = osc_cli(osc)->cl_max_pages_per_rpc;
 		ra->cra_end = cl_index(osc2cl(osc),
 				       dlmlock->l_policy_data.l_extent.end);
 		ra->cra_release = osc_read_ahead_release;
@@ -138,7 +139,7 @@ static int osc_io_submit(const struct lu_env *env,
 
 	LASSERT(qin->pl_nr > 0);
 
-	CDEBUG(D_CACHE, "%d %d\n", qin->pl_nr, crt);
+	CDEBUG(D_CACHE | D_READA, "%d %d\n", qin->pl_nr, crt);
 
 	osc = cl2osc(ios->cis_obj);
 	cli = osc_cli(osc);

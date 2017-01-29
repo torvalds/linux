@@ -281,10 +281,8 @@ static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 	return container_of(inode, struct ll_inode_info, lli_vfs_inode);
 }
 
-/* default to about 40meg of readahead on a given system.  That much tied
- * up in 512k readahead requests serviced at 40ms each is about 1GB/s.
- */
-#define SBI_DEFAULT_READAHEAD_MAX (40UL << (20 - PAGE_SHIFT))
+/* default to about 64M of readahead on a given system. */
+#define SBI_DEFAULT_READAHEAD_MAX	(64UL << (20 - PAGE_SHIFT))
 
 /* default to read-ahead full files smaller than 2MB on the second read */
 #define SBI_DEFAULT_READAHEAD_WHOLE_MAX (2UL << (20 - PAGE_SHIFT))
@@ -321,6 +319,9 @@ struct ll_ra_info {
 struct ra_io_arg {
 	unsigned long ria_start;  /* start offset of read-ahead*/
 	unsigned long ria_end;    /* end offset of read-ahead*/
+	unsigned long ria_reserved; /* reserved pages for read-ahead */
+	unsigned long ria_end_min;  /* minimum end to cover current read */
+	bool ria_eof;		    /* reach end of file */
 	/* If stride read pattern is detected, ria_stoff means where
 	 * stride read is started. Note: for normal read-ahead, the
 	 * value here is meaningless, and also it will not be accessed
@@ -550,6 +551,11 @@ struct ll_readahead_state {
 	 * PTLRPC_MAX_BRW_PAGES chunks up to ->ra_max_pages.
 	 */
 	unsigned long   ras_window_start, ras_window_len;
+	/*
+	 * Optimal RPC size. It decides how many pages will be sent
+	 * for each read-ahead.
+	 */
+	unsigned long	ras_rpc_size;
 	/*
 	 * Where next read-ahead should start at. This lies within read-ahead
 	 * window. Read-ahead window is read in pieces rather than at once
