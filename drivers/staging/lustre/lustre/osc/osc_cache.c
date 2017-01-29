@@ -1001,6 +1001,7 @@ static int osc_extent_truncate(struct osc_extent *ext, pgoff_t trunc_index,
 	env = cl_env_get(&refcheck);
 	io  = &osc_env_info(env)->oti_io;
 	io->ci_obj = cl_object_top(osc2cl(obj));
+	io->ci_ignore_layout = 1;
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (rc < 0)
 		goto out;

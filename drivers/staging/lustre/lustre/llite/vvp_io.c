@@ -1348,13 +1348,6 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 			io->ci_lockreq = CILR_MANDATORY;
 	}
 
-	/* ignore layout change for generic CIT_MISC but not for glimpse.
-	 * io context for glimpse must set ci_verify_layout to true,
-	 * see cl_glimpse_size0() for details.
-	 */
-	if (io->ci_type == CIT_MISC && !io->ci_verify_layout)
-		io->ci_ignore_layout = 1;
-
 	/* Enqueue layout lock and get layout version. We need to do this
 	 * even for operations requiring to open file, such as read and write,
 	 * because it might not grant layout lock in IT_OPEN.
