@@ -448,6 +448,11 @@ struct mlx5e_dma_info {
 	dma_addr_t	addr;
 };
 
+struct mlx5e_wqe_frag_info {
+	struct mlx5e_dma_info di;
+	u32 offset;
+};
+
 struct mlx5e_umr_dma_info {
 	__be64                *mtt;
 	dma_addr_t             mtt_addr;
@@ -509,7 +514,12 @@ struct mlx5e_rq {
 	struct mlx5_wq_ll      wq;
 
 	union {
-		struct mlx5e_dma_info *dma_info;
+		struct {
+			struct mlx5e_wqe_frag_info *frag_info;
+			u32 frag_sz;	/* max possible skb frag_sz */
+			bool page_reuse;
+			bool xdp_xmit;
+		} wqe;
 		struct {
 			struct mlx5e_mpw_info *info;
 			void                  *mtt_no_align;
