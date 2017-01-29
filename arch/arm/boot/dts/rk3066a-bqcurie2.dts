@@ -71,7 +71,7 @@
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
-		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
 	};
@@ -81,7 +81,7 @@
 		autorepeat;
 
 		power {
-			gpios = <&gpio6 2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
+			gpios = <&gpio6 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
@@ -89,7 +89,7 @@
 			debounce-interval = <100>;
 		};
 		volume-down {
-			gpios = <&gpio4 21 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
+			gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "GPIO Key Vol-";
 			linux,input-type = <1>;
@@ -111,7 +111,7 @@
 		reg = <0x2d>;
 
 		interrupt-parent = <&gpio6>;
-		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
 
 		vcc5-supply = <&vcc_io>;
 		vcc6-supply = <&vcc_io>;

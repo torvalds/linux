@@ -55,7 +55,7 @@
 
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio6 1 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio6 RK_PA1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_int>;
 	};
@@ -65,7 +65,7 @@
 
 		power {
 			wakeup-source;
-			gpios = <&gpio6 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio6 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 			pinctrl-names = "default";
@@ -115,7 +115,7 @@
 	vcc_sata: sata-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sata_pwr>;
 		regulator-name = "usb_5v";
@@ -127,7 +127,7 @@
 
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr>;
 		regulator-name = "vcc_sd";
@@ -140,7 +140,7 @@
 	vcc_host: usb-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_drv>;
 		regulator-name = "host-pwr";
@@ -153,7 +153,7 @@
 	vcc_otg: usb-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_drv>;
 		regulator-name = "vcc_otg";
@@ -201,7 +201,7 @@
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0d>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PC1 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&comp_int>;
 	};
@@ -210,7 +210,7 @@
 		compatible = "fsl,mma8452";
 		reg = <0x1d>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <16 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PC0 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gsensor_int>;
 	};
@@ -223,7 +223,7 @@
 	tps: tps@2d {
 		reg = <0x2d>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <4 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PA4 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>, <&pwr_hold>;
 
