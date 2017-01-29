@@ -1,4 +1,5 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
 &pm8916_gpios {
 
@@ -29,6 +30,18 @@
 };
 
 &pm8916_mpps {
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&ls_exp_gpio_f>;
+
+	ls_exp_gpio_f: pm8916_mpp4 {
+		pinconf {
+			pins = "mpp4";
+			function = "digital";
+			output-low;
+			power-source = <PM8916_MPP_L5>;	// 1.8V
+		};
+	};
 
 	pm8916_mpps_leds: pm8916_mpps_leds {
 		pinconf {
