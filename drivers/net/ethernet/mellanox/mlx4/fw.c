@@ -2983,7 +2983,7 @@ static int mlx4_SET_PORT_phv_bit(struct mlx4_dev *dev, u8 port, u8 phv_bit)
 		return PTR_ERR(mailbox);
 	context = mailbox->buf;
 
-	context->v_ignore_fcs |=  SET_PORT_GEN_PHV_VALID;
+	context->flags2 |=  SET_PORT_GEN_PHV_VALID;
 	if (phv_bit)
 		context->phv_en |=  SET_PORT_GEN_PHV_EN;
 

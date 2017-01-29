@@ -50,7 +50,8 @@
 #define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
 #define MLX4_STATS_PORT_COUNTERS_MASK		0x1fe00000ULL
 
-#define MLX4_FLAG_V_IGNORE_FCS_MASK		0x2
+#define MLX4_FLAG2_V_IGNORE_FCS_MASK		BIT(1)
+#define MLX4_FLAG2_V_USER_MTU_MASK		BIT(5)
 #define MLX4_IGNORE_FCS_MASK			0x1
 #define MLX4_TC_MAX_NUMBER			8
 
@@ -1239,6 +1240,38 @@ void mlx4_reset_roce_gids(struct mlx4_dev *dev, int slave)
 	return;
 }
 
+static void
+mlx4_en_set_port_user_mtu(struct mlx4_dev *dev, int slave, int port,
+			  struct mlx4_set_port_general_context *gen_context)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_mfunc_master_ctx *master = &priv->mfunc.master;
+	struct mlx4_slave_state *slave_st = &master->slave_state[slave];
+	u16 user_mtu, prev_user_mtu;
+
+	/* User Mtu is configured as the max USER_MTU among all
+	 * the functions on the port.
+	 */
+	user_mtu = be16_to_cpu(gen_context->user_mtu);
+	user_mtu = min_t(int, user_mtu, dev->caps.eth_mtu_cap[port]);
+	prev_user_mtu = slave_st->user_mtu[port];
+	slave_st->user_mtu[port] = user_mtu;
+	if (user_mtu > master->max_user_mtu[port])
+		master->max_user_mtu[port] = user_mtu;
+	if (user_mtu < prev_user_mtu &&
+	    prev_user_mtu == master->max_user_mtu[port]) {
+		int i;
+
+		slave_st->user_mtu[port] = user_mtu;
+		master->max_user_mtu[port] = user_mtu;
+		for (i = 0; i < dev->num_slaves; i++)
+			master->max_user_mtu[port] =
+				max_t(u16, master->max_user_mtu[port],
+				      master->slave_state[i].user_mtu[port]);
+	}
+	gen_context->user_mtu = cpu_to_be16(master->max_user_mtu[port]);
+}
+
 static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				u8 op_mod, struct mlx4_cmd_mailbox *inbox)
 {
@@ -1269,7 +1302,9 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	is_eth = op_mod;
 	port_info = &priv->port[port];
 
-	/* Slaves cannot perform SET_PORT operations except changing MTU */
+	/* Slaves cannot perform SET_PORT operations,
+	 * except for changing MTU and USER_MTU.
+	 */
 	if (is_eth) {
 		if (slave != dev->caps.function &&
 		    in_modifier != MLX4_SET_PORT_GENERAL &&
@@ -1316,8 +1351,12 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 					    master->slave_state[i].mtu[port]);
 				}
 			}
-
 			gen_context->mtu = cpu_to_be16(master->max_mtu[port]);
+
+			if (gen_context->flags2 & MLX4_FLAG2_V_USER_MTU_MASK)
+				mlx4_en_set_port_user_mtu(dev, slave, port,
+							  gen_context);
+
 			/* Slave cannot change Global Pause configuration */
 			if (slave != mlx4_master_func_num(dev) &&
 			    ((gen_context->pptx != master->pptx) ||
@@ -1608,6 +1647,30 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_qpn_calc);
 
+int mlx4_SET_PORT_user_mtu(struct mlx4_dev *dev, u8 port, u16 user_mtu)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_set_port_general_context *context;
+	u32 in_mod;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	context = mailbox->buf;
+	context->flags2 |= MLX4_FLAG2_V_USER_MTU_MASK;
+	context->user_mtu = cpu_to_be16(user_mtu);
+
+	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
+	err = mlx4_cmd(dev, mailbox->dma, in_mod, MLX4_SET_PORT_ETH_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_user_mtu);
+
 int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -1619,7 +1682,7 @@ int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port, u8 ignore_fcs_value)
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 	context = mailbox->buf;
-	context->v_ignore_fcs |= MLX4_FLAG_V_IGNORE_FCS_MASK;
+	context->flags2 |= MLX4_FLAG2_V_IGNORE_FCS_MASK;
 	if (ignore_fcs_value)
 		context->ignore_fcs |= MLX4_IGNORE_FCS_MASK;
 	else
