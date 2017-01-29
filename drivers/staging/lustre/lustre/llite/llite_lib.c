@@ -103,6 +103,7 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	sbi->ll_flags |= LL_SBI_CHECKSUM;
 
 	sbi->ll_flags |= LL_SBI_LRU_RESIZE;
+	sbi->ll_flags |= LL_SBI_LAZYSTATFS;
 
 	for (i = 0; i <= LL_PROCESS_HIST_MAX; i++) {
 		spin_lock_init(&sbi->ll_rw_extents_info.pp_extents[i].
