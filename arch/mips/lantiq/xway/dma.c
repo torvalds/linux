@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -257,7 +257,6 @@ static const struct of_device_id dma_match[] = {
 	{ .compatible = "lantiq,dma-xway" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dma_match);
 
 static struct platform_driver dma_driver = {
 	.probe = ltq_dma_init,

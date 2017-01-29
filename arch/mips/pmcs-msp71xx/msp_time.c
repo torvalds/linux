@@ -26,7 +26,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
 #include <linux/ptrace.h>
 
 #include <asm/cevt-r4k.h>
