@@ -198,8 +198,8 @@
 				brcm,pins = <0 1>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c0_gpio32: i2c0_gpio32 {
-				brcm,pins = <32 34>;
+			i2c0_gpio28: i2c0_gpio28 {
+				brcm,pins = <28 29>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
 			i2c0_gpio44: i2c0_gpio44 {
