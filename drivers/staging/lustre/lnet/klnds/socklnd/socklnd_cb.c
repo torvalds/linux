@@ -80,7 +80,9 @@ ksocknal_alloc_tx_noop(__u64 cookie, int nonblk)
 	tx->tx_niov    = 1;
 	tx->tx_nonblk  = nonblk;
 
-	socklnd_init_msg(&tx->tx_msg, KSOCK_MSG_NOOP);
+	tx->tx_msg.ksm_csum = 0;
+	tx->tx_msg.ksm_type = KSOCK_MSG_NOOP;
+	tx->tx_msg.ksm_zc_cookies[0] = 0;
 	tx->tx_msg.ksm_zc_cookies[1] = cookie;
 
 	return tx;
@@ -1004,7 +1006,10 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 			tx->tx_zc_capable = 1;
 	}
 
-	socklnd_init_msg(&tx->tx_msg, KSOCK_MSG_LNET);
+	tx->tx_msg.ksm_csum = 0;
+	tx->tx_msg.ksm_type = KSOCK_MSG_LNET;
+	tx->tx_msg.ksm_zc_cookies[0] = 0;
+	tx->tx_msg.ksm_zc_cookies[1] = 0;
 
 	/* The first fragment will be set later in pro_pack */
 	rc = ksocknal_launch_packet(ni, tx, target);
