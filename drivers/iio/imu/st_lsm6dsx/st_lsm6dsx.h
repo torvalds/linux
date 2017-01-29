@@ -20,6 +20,7 @@
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
 	ST_LSM6DSM_ID,
+	ST_LSM6DSX_MAX_ID,
 };
 
 #define ST_LSM6DSX_CHAN_SIZE		2
@@ -50,7 +51,7 @@ struct st_lsm6dsx_reg {
 struct st_lsm6dsx_settings {
 	u8 wai;
 	u16 max_fifo_size;
-	enum st_lsm6dsx_hw_id id;
+	enum st_lsm6dsx_hw_id id[ST_LSM6DSX_MAX_ID];
 };
 
 enum st_lsm6dsx_sensor_id {
