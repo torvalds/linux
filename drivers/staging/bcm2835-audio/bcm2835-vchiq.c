@@ -100,6 +100,11 @@ bcm2835_vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 			      size);
 }
 
+static const u32 BCM2835_AUDIO_WRITE_COOKIE1 = ('B' << 24 | 'C' << 16 ||
+						'M' << 8  | 'A');
+static const u32 BCM2835_AUDIO_WRITE_COOKIE2 = ('D' << 24 | 'A' << 16 ||
+						'T' << 8  | 'A');
+
 struct bcm2835_audio_work {
 	struct work_struct my_work;
 	struct bcm2835_alsa_stream *alsa_stream;
@@ -248,21 +253,18 @@ static void audio_vchi_callback(void *param,
 		complete(&instance->msg_avail_comp);
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
 		struct bcm2835_alsa_stream *alsa_stream = instance->alsa_stream;
-#if defined(CONFIG_64BIT)
-		irq_handler_t callback =
-			(irq_handler_t) (((unsigned long) m.u.complete.callbackl) |
-			((unsigned long) m.u.complete.callbackh << 32));
-#else
-		irq_handler_t callback = (irq_handler_t) m.u.complete.callback;
-#endif
 		LOG_DBG(" .. instance=%p, m.type=VC_AUDIO_MSG_TYPE_COMPLETE, complete=%d\n",
 			instance, m.u.complete.count);
-		if (alsa_stream && callback) {
-			atomic_add(m.u.complete.count, &alsa_stream->retrieved);
-			callback(0, alsa_stream);
+		if (m.u.complete.cookie1 != BCM2835_AUDIO_WRITE_COOKIE1 ||
+		    m.u.complete.cookie2 != BCM2835_AUDIO_WRITE_COOKIE2)
+			LOG_ERR(" .. response is corrupt\n");
+		else if (alsa_stream) {
+			atomic_add(m.u.complete.count,
+				   &alsa_stream->retrieved);
+			bcm2835_playback_fifo(alsa_stream);
 		} else {
-			LOG_ERR(" .. unexpected alsa_stream=%p, callback=%p\n",
-				alsa_stream, callback);
+			LOG_ERR(" .. unexpected alsa_stream=%p\n",
+				alsa_stream);
 		}
 	} else {
 		LOG_ERR(" .. unexpected m.type=%d\n", m.type);
@@ -815,13 +817,8 @@ int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 	m.u.write.count = count;
 	// old version uses bulk, new version uses control
 	m.u.write.max_packet = instance->peer_version < 2 || force_bulk ? 0 : 4000;
-#if defined(CONFIG_64BIT)
-	m.u.write.callbackl = (u32) (((unsigned long) alsa_stream->fifo_irq_handler)&0xFFFFFFFF);
-	m.u.write.callbackh = (u32) ((((unsigned long) alsa_stream->fifo_irq_handler) >> 32)&0xFFFFFFFF);
-#else
-	m.u.write.callback = alsa_stream->fifo_irq_handler;
-	m.u.write.cookie = alsa_stream;
-#endif
+	m.u.write.cookie1 = BCM2835_AUDIO_WRITE_COOKIE1;
+	m.u.write.cookie2 = BCM2835_AUDIO_WRITE_COOKIE2;
 	m.u.write.silence = src == NULL;
 
 	/* Send the message to the videocore */

@@ -74,13 +74,8 @@ struct vc_audio_stop {
 /* configure the write audio samples */
 struct vc_audio_write {
 	u32 count; // in bytes
-#if defined(CONFIG_64BIT)
-	u32 callbackl;
-	u32 callbackh;
-#else
-	void *callback;
-	void *cookie;
-#endif
+	u32 cookie1;
+	u32 cookie2;
 	s16 silence;
 	s16 max_packet;
 };
@@ -93,13 +88,8 @@ struct vc_audio_result {
 /* Generic result for a request (VC->HOST) */
 struct vc_audio_complete {
 	s32 count; // Success value
-#if defined(CONFIG_64BIT)
-	u32 callbackl;
-	u32 callbackh;
-#else
-	void *callback;
-	void *cookie;
-#endif
+	u32 cookie1;
+	u32 cookie2;
 };
 
 /* Message header for all messages in HOST->VC direction */

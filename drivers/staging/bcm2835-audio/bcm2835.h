@@ -137,9 +137,6 @@ struct bcm2835_alsa_stream {
 	unsigned int buffer_size;
 	unsigned int period_size;
 
-	unsigned int enable_fifo_irq;
-	irq_handler_t fifo_irq_handler;
-
 	atomic_t retrieved;
 	struct bcm2835_audio_instance *instance;
 	struct workqueue_struct *my_wq;
@@ -162,6 +159,7 @@ int bcm2835_audio_set_ctls(struct bcm2835_chip *chip);
 int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			unsigned int count,
 			void *src);
+void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream);
 unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream);
 void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream);
 void bcm2835_audio_flush_playback_buffers(struct bcm2835_alsa_stream *alsa_stream);

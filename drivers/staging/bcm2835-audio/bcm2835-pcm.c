@@ -61,9 +61,8 @@ static void snd_bcm2835_playback_free(struct snd_pcm_runtime *runtime)
 	runtime->private_data = NULL;
 }
 
-static irqreturn_t bcm2835_playback_fifo_irq(int irq, void *dev_id)
+void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
 {
-	struct bcm2835_alsa_stream *alsa_stream = dev_id;
 	unsigned int consumed = 0;
 	int new_period = 0;
 
@@ -103,8 +102,6 @@ static irqreturn_t bcm2835_playback_fifo_irq(int irq, void *dev_id)
 		audio_warning(" unexpected NULL substream\n");
 	}
 	audio_info(" .. OUT\n");
-
-	return IRQ_HANDLED;
 }
 
 /* open callback */
@@ -163,10 +160,6 @@ static int snd_bcm2835_playback_open_generic(
 	sema_init(&alsa_stream->buffers_update_sem, 0);
 	sema_init(&alsa_stream->control_sem, 0);
 	spin_lock_init(&alsa_stream->lock);
-
-	/* Enabled in start trigger, called on each "fifo irq" after that */
-	alsa_stream->enable_fifo_irq = 0;
-	alsa_stream->fifo_irq_handler = bcm2835_playback_fifo_irq;
 
 	err = bcm2835_audio_open(alsa_stream);
 	if (err) {
