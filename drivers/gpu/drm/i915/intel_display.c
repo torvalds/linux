@@ -2251,6 +2251,9 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	intel_fill_fb_ggtt_view(&view, fb, rotation);
 	vma = i915_gem_object_to_ggtt(obj, &view);
 
+	if (WARN_ON_ONCE(!vma))
+		return;
+
 	i915_vma_unpin_fence(vma);
 	i915_gem_object_unpin_from_display_plane(vma);
 }
