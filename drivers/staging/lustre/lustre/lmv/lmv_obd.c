@@ -173,14 +173,7 @@ static int lmv_notify(struct obd_device *obd, struct obd_device *watched,
 		 */
 		obd->obd_self_export->exp_connect_data = *conn_data;
 	}
-#if 0
-	else if (ev == OBD_NOTIFY_DISCON) {
-		/*
-		 * For disconnect event, flush fld cache for failout MDS case.
-		 */
-		fld_client_flush(&lmv->lmv_fld);
-	}
-#endif
+
 	/*
 	 * Pass the notification up the chain.
 	 */

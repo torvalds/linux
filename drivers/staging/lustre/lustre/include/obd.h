@@ -483,8 +483,6 @@ enum obd_notify_event {
 	OBD_NOTIFY_ACTIVE,
 	/* Device deactivated */
 	OBD_NOTIFY_INACTIVE,
-	/* Device disconnected */
-	OBD_NOTIFY_DISCON,
 	/* Connect data for import were changed */
 	OBD_NOTIFY_OCD,
 	/* Sync request */
