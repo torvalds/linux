@@ -15,11 +15,13 @@
 #include <linux/device.h>
 
 #define ST_LSM6DS3_DEV_NAME	"lsm6ds3"
+#define ST_LSM6DS3H_DEV_NAME	"lsm6ds3h"
 #define ST_LSM6DSL_DEV_NAME	"lsm6dsl"
 #define ST_LSM6DSM_DEV_NAME	"lsm6dsm"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
+	ST_LSM6DS3H_ID,
 	ST_LSM6DSL_ID,
 	ST_LSM6DSM_ID,
 	ST_LSM6DSX_MAX_ID,
