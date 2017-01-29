@@ -475,8 +475,6 @@ struct niobuf_local {
  * Events signalled through obd_notify() upcall-chain.
  */
 enum obd_notify_event {
-	/* target added */
-	OBD_NOTIFY_CREATE,
 	/* Device connect start */
 	OBD_NOTIFY_CONNECT,
 	/* Device activated */
