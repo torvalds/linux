@@ -902,6 +902,7 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_ptys_reg ptys_reg;
 	__be32 proto_admin;
+	u8 cur_autoneg;
 	int ret;
 
 	u32 ptys_adv = ethtool2ptys_link_modes(
@@ -931,10 +932,21 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 		return 0;
 	}
 
-	proto_admin = link_ksettings->base.autoneg == AUTONEG_ENABLE ?
-		cpu_to_be32(ptys_adv) :
-		speed_set_ptys_admin(priv, speed,
-				     ptys_reg.eth_proto_cap);
+	cur_autoneg = ptys_reg.flags & MLX4_PTYS_AN_DISABLE_ADMIN ?
+				AUTONEG_DISABLE : AUTONEG_ENABLE;
+
+	if (link_ksettings->base.autoneg == AUTONEG_DISABLE) {
+		proto_admin = speed_set_ptys_admin(priv, speed,
+						   ptys_reg.eth_proto_cap);
+		if ((be32_to_cpu(proto_admin) &
+		     (MLX4_PROT_MASK(MLX4_1000BASE_CX_SGMII) |
+		      MLX4_PROT_MASK(MLX4_1000BASE_KX))) &&
+		    (ptys_reg.flags & MLX4_PTYS_AN_DISABLE_CAP))
+			ptys_reg.flags |= MLX4_PTYS_AN_DISABLE_ADMIN;
+	} else {
+		proto_admin = cpu_to_be32(ptys_adv);
+		ptys_reg.flags &= ~MLX4_PTYS_AN_DISABLE_ADMIN;
+	}
 
 	proto_admin &= ptys_reg.eth_proto_cap;
 	if (!proto_admin) {
@@ -942,7 +954,9 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 		return -EINVAL; /* nothing to change due to bad input */
 	}
 
-	if (proto_admin == ptys_reg.eth_proto_admin)
+	if ((proto_admin == ptys_reg.eth_proto_admin) &&
+	    ((ptys_reg.flags & MLX4_PTYS_AN_DISABLE_CAP) &&
+	     (link_ksettings->base.autoneg == cur_autoneg)))
 		return 0; /* Nothing to change */
 
 	en_dbg(DRV, priv, "mlx4_ACCESS_PTYS_REG SET: ptys_reg.eth_proto_admin = 0x%x\n",

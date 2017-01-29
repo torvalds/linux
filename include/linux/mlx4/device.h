@@ -1539,8 +1539,13 @@ enum mlx4_ptys_proto {
 	MLX4_PTYS_EN = 1<<2,
 };
 
+enum mlx4_ptys_flags {
+	MLX4_PTYS_AN_DISABLE_CAP   = 1 << 5,
+	MLX4_PTYS_AN_DISABLE_ADMIN = 1 << 6,
+};
+
 struct mlx4_ptys_reg {
-	u8 resrvd1;
+	u8 flags;
 	u8 local_port;
 	u8 resrvd2;
 	u8 proto_mask;
