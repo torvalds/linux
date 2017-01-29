@@ -522,13 +522,14 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		 */
 		spin_lock(&imp->imp_lock);
 		ptlrpc_assign_next_xid_nolock(request);
-		request->rq_mbits = request->rq_xid;
 		min_xid = ptlrpc_known_replied_xid(imp);
 		spin_unlock(&imp->imp_lock);
 
 		lustre_msg_set_last_xid(request->rq_reqmsg, min_xid);
 		DEBUG_REQ(D_RPCTRACE, request, "Allocating new xid for resend on EINPROGRESS");
-	} else if (request->rq_bulk) {
+	}
+
+	if (request->rq_bulk) {
 		ptlrpc_set_bulk_mbits(request);
 		lustre_msg_set_mbits(request->rq_reqmsg, request->rq_mbits);
 	}
