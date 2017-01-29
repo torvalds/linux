@@ -33,7 +33,7 @@ Required properties:
 - i80-if-timings: timing configuration for lcd i80 interface support.
 
 Optional Properties:
-- samsung,power-domain: a phandle to DECON power domain node.
+- power-domains: a phandle to DECON power domain node.
 - display-timings: timing settings for DECON, as described in document [1].
 		Can be used in case timings cannot be provided otherwise
 		or to override timings provided by the panel.
