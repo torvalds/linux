@@ -1050,7 +1050,15 @@ cfs_cpu_init(void)
 	ret = -EINVAL;
 
 	if (*cpu_pattern) {
-		cfs_cpt_table = cfs_cpt_table_create_pattern(cpu_pattern);
+		char *cpu_pattern_dup = kstrdup(cpu_pattern, GFP_KERNEL);
+
+		if (!cpu_pattern_dup) {
+			CERROR("Failed to duplicate cpu_pattern\n");
+			goto failed;
+		}
+
+		cfs_cpt_table = cfs_cpt_table_create_pattern(cpu_pattern_dup);
+		kfree(cpu_pattern_dup);
 		if (!cfs_cpt_table) {
 			CERROR("Failed to create cptab from pattern %s\n",
 			       cpu_pattern);
