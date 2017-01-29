@@ -3,6 +3,16 @@ if ARCH_ROCKCHIP || COMPILE_TEST
 #
 # Rockchip Soc drivers
 #
+
+config ROCKCHIP_GRF
+	bool
+	default y
+	help
+	  The General Register Files are a central component providing
+	  special additional settings registers for a lot of soc-components.
+	  In a lot of cases there also need to be default settings initialized
+	  to make some of them conform to expectations of the kernel.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
