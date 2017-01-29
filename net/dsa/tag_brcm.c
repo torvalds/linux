@@ -80,9 +80,9 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev
 			((skb->priority << BRCM_IG_TC_SHIFT) & BRCM_IG_TC_MASK);
 	brcm_tag[1] = 0;
 	brcm_tag[2] = 0;
-	if (p->port == 8)
+	if (p->dp->index == 8)
 		brcm_tag[2] = BRCM_IG_DSTMAP2_MASK;
-	brcm_tag[3] = (1 << p->port) & BRCM_IG_DSTMAP1_MASK;
+	brcm_tag[3] = (1 << p->dp->index) & BRCM_IG_DSTMAP1_MASK;
 
 	return skb;
 
@@ -128,7 +128,7 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_port = brcm_tag[3] & BRCM_EG_PID_MASK;
 
 	/* Validate port against switch setup, either the port is totally */
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	/* Remove Broadcom tag and update checksum */

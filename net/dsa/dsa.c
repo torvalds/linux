@@ -145,7 +145,7 @@ static int dsa_cpu_dsa_setups(struct dsa_switch *ds, struct device *dev)
 	struct dsa_port *dport;
 	int ret, port;
 
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
@@ -218,7 +218,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	/*
 	 * Validate supplied switch configuration.
 	 */
-	for (i = 0; i < DSA_MAX_PORTS; i++) {
+	for (i = 0; i < ds->num_ports; i++) {
 		char *name;
 
 		name = cd->port_names[i];
@@ -242,7 +242,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		valid_name_found = true;
 	}
 
-	if (!valid_name_found && i == DSA_MAX_PORTS)
+	if (!valid_name_found && i == ds->num_ports)
 		return -EINVAL;
 
 	/* Make the built-in MII bus mask match the number of ports,
@@ -295,7 +295,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	/*
 	 * Create network devices for physical switch ports.
 	 */
-	for (i = 0; i < DSA_MAX_PORTS; i++) {
+	for (i = 0; i < ds->num_ports; i++) {
 		ds->ports[i].dn = cd->port_dn[i];
 
 		if (!(ds->enabled_port_mask & (1 << i)))
@@ -347,8 +347,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Allocate and initialise switch state.
 	 */
-	ds = devm_kzalloc(parent, sizeof(*ds), GFP_KERNEL);
-	if (ds == NULL)
+	ds = dsa_switch_alloc(parent, DSA_MAX_PORTS);
+	if (!ds)
 		return ERR_PTR(-ENOMEM);
 
 	ds->dst = dst;
@@ -356,7 +356,6 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->cd = cd;
 	ds->ops = ops;
 	ds->priv = priv;
-	ds->dev = parent;
 
 	ret = dsa_switch_setup_one(ds, parent);
 	if (ret)
@@ -378,7 +377,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 	int port;
 
 	/* Destroy network devices for physical switch ports. */
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (!(ds->enabled_port_mask & (1 << port)))
 			continue;
 
@@ -389,7 +388,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 	}
 
 	/* Disable configuration of the CPU and DSA ports */
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 		dsa_cpu_dsa_destroy(&ds->ports[port]);
@@ -409,7 +408,7 @@ int dsa_switch_suspend(struct dsa_switch *ds)
 	int i, ret = 0;
 
 	/* Suspend slave network devices */
-	for (i = 0; i < DSA_MAX_PORTS; i++) {
+	for (i = 0; i < ds->num_ports; i++) {
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
@@ -436,7 +435,7 @@ int dsa_switch_resume(struct dsa_switch *ds)
 		return ret;
 
 	/* Resume slave network devices */
-	for (i = 0; i < DSA_MAX_PORTS; i++) {
+	for (i = 0; i < ds->num_ports; i++) {
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 

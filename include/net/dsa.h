@@ -140,10 +140,13 @@ struct dsa_switch_tree {
 };
 
 struct dsa_port {
+	struct dsa_switch	*ds;
+	unsigned int		index;
 	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
 	u8			stp_state;
+	struct net_device	*bridge_dev;
 };
 
 struct dsa_switch {
@@ -190,8 +193,11 @@ struct dsa_switch {
 	u32			cpu_port_mask;
 	u32			enabled_port_mask;
 	u32			phys_mii_mask;
-	struct dsa_port		ports[DSA_MAX_PORTS];
 	struct mii_bus		*slave_mii_bus;
+
+	/* Dynamically allocated ports, keep last */
+	size_t num_ports;
+	struct dsa_port ports[];
 };
 
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
@@ -319,7 +325,8 @@ struct dsa_switch_ops {
 	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct net_device *bridge);
-	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
+	void	(*port_bridge_leave)(struct dsa_switch *ds, int port,
+				     struct net_device *bridge);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
 	void	(*port_fast_age)(struct dsa_switch *ds, int port);
@@ -386,6 +393,7 @@ static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 	return dst->rcv != NULL;
 }
 
+struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds, struct device *dev);
 #ifdef CONFIG_PM_SLEEP
