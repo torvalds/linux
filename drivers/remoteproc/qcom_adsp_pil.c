@@ -70,6 +70,8 @@ struct qcom_adsp {
 	phys_addr_t mem_reloc;
 	void *mem_region;
 	size_t mem_size;
+
+	struct qcom_rproc_subdev smd_subdev;
 };
 
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
@@ -404,6 +406,8 @@ static int adsp_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
+
 	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
@@ -422,6 +426,8 @@ static int adsp_remove(struct platform_device *pdev)
 
 	qcom_smem_state_put(adsp->state);
 	rproc_del(adsp->rproc);
+
+	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
 	rproc_free(adsp->rproc);
 
 	return 0;

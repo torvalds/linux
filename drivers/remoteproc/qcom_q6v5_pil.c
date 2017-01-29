@@ -151,6 +151,8 @@ struct q6v5 {
 	phys_addr_t mpss_reloc;
 	void *mpss_region;
 	size_t mpss_size;
+
+	struct qcom_rproc_subdev smd_subdev;
 };
 
 static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
@@ -1035,6 +1037,8 @@ static int q6v5_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
+
 	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
@@ -1052,6 +1056,8 @@ static int q6v5_remove(struct platform_device *pdev)
 	struct q6v5 *qproc = platform_get_drvdata(pdev);
 
 	rproc_del(qproc->rproc);
+
+	qcom_remove_smd_subdev(qproc->rproc, &qproc->smd_subdev);
 	rproc_free(qproc->rproc);
 
 	return 0;
