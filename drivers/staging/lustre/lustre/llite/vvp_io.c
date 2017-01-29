@@ -288,7 +288,7 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	       io->ci_ignore_layout, io->ci_verify_layout,
 	       vio->vui_layout_gen, io->ci_restore_needed);
 
-	if (io->ci_restore_needed == 1) {
+	if (io->ci_restore_needed) {
 		int	rc;
 
 		/* file was detected release, we need to restore it
@@ -657,7 +657,15 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 static void vvp_io_setattr_fini(const struct lu_env *env,
 				const struct cl_io_slice *ios)
 {
+	bool restore_needed = ios->cis_io->ci_restore_needed;
+	struct inode *inode = vvp_object_inode(ios->cis_obj);
+
 	vvp_io_fini(env, ios);
+
+	if (restore_needed && !ios->cis_io->ci_restore_needed) {
+		/* restore finished, set data modified flag for HSM */
+		set_bit(LLIF_DATA_MODIFIED, &(ll_i2info(inode))->lli_flags);
+	}
 }
 
 static int vvp_io_read_start(const struct lu_env *env,

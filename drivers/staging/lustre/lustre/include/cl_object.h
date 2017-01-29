@@ -284,12 +284,6 @@ struct cl_layout {
 	size_t		cl_size;
 	/** Layout generation. */
 	u32		cl_layout_gen;
-	/**
-	 * True if this is a released file.
-	 * Temporarily added for released file truncate in ll_setattr_raw().
-	 * It will be removed later. -Jinshan
-	 */
-	bool		cl_is_released;
 };
 
 /**

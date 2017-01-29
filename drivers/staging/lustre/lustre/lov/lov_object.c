@@ -1453,14 +1453,11 @@ static int lov_object_layout_get(const struct lu_env *env,
 	if (!lsm) {
 		cl->cl_size = 0;
 		cl->cl_layout_gen = CL_LAYOUT_GEN_EMPTY;
-		cl->cl_is_released = false;
-
 		return 0;
 	}
 
 	cl->cl_size = lov_mds_md_size(lsm->lsm_stripe_count, lsm->lsm_magic);
 	cl->cl_layout_gen = lsm->lsm_layout_gen;
-	cl->cl_is_released = lsm_is_released(lsm);
 
 	rc = lov_lsm_pack(lsm, buf->lb_buf, buf->lb_len);
 	lov_lsm_put(lsm);
