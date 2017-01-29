@@ -2675,6 +2675,11 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	INIT_LIST_HEAD(&cli->cl_grant_shrink_list);
 	ns_register_cancel(obd->obd_namespace, osc_cancel_weight);
+
+	spin_lock(&osc_shrink_lock);
+	list_add_tail(&cli->cl_shrink_list, &osc_shrink_list);
+	spin_unlock(&osc_shrink_lock);
+
 	return rc;
 
 out_ptlrpcd_work:
@@ -2727,6 +2732,10 @@ static int osc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc;
+
+	spin_lock(&osc_shrink_lock);
+	list_del(&cli->cl_shrink_list);
+	spin_unlock(&osc_shrink_lock);
 
 	/* lru cleanup */
 	if (cli->cl_cache) {
@@ -2795,6 +2804,15 @@ static struct obd_ops osc_obd_ops = {
 	.quotactl       = osc_quotactl,
 };
 
+struct list_head osc_shrink_list = LIST_HEAD_INIT(osc_shrink_list);
+DEFINE_SPINLOCK(osc_shrink_lock);
+
+static struct shrinker osc_cache_shrinker = {
+	.count_objects	= osc_cache_shrink_count,
+	.scan_objects	= osc_cache_shrink_scan,
+	.seeks		= DEFAULT_SEEKS,
+};
+
 static int __init osc_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
@@ -2818,6 +2836,8 @@ static int __init osc_init(void)
 				 LUSTRE_OSC_NAME, &osc_device_type);
 	if (rc)
 		goto out_kmem;
+
+	register_shrinker(&osc_cache_shrinker);
 
 	/* This is obviously too much memory, only prevent overflow here */
 	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {
@@ -2857,6 +2877,7 @@ out_kmem:
 
 static void /*__exit*/ osc_exit(void)
 {
+	unregister_shrinker(&osc_cache_shrinker);
 	class_unregister_type(LUSTRE_OSC_NAME);
 	lu_kmem_fini(osc_caches);
 	ptlrpc_free_rq_pool(osc_rq_pool);

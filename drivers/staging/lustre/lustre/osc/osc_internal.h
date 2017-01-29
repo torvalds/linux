@@ -222,4 +222,13 @@ struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 
 int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc);
 
+/** osc shrink list to link all osc client obd */
+extern struct list_head osc_shrink_list;
+/** spin lock to protect osc_shrink_list */
+extern spinlock_t osc_shrink_lock;
+unsigned long osc_cache_shrink_count(struct shrinker *sk,
+				     struct shrink_control *sc);
+unsigned long osc_cache_shrink_scan(struct shrinker *sk,
+				    struct shrink_control *sc);
+
 #endif /* OSC_INTERNAL_H */

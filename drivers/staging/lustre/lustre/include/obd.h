@@ -287,6 +287,8 @@ struct client_obd {
 	 * the transaction has NOT yet committed.
 	 */
 	atomic_long_t		 cl_unstable_count;
+	/** Link to osc_shrinker_list */
+	struct list_head	 cl_shrink_list;
 
 	/* number of in flight destroy rpcs is limited to max_rpcs_in_flight */
 	atomic_t	     cl_destroy_in_flight;

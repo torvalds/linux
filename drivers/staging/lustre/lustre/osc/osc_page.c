@@ -943,4 +943,91 @@ bool osc_over_unstable_soft_limit(struct client_obd *cli)
 				    cli->cl_max_rpcs_in_flight;
 }
 
+/**
+ * Return how many LRU pages in the cache of all OSC devices
+ *
+ * Return:	return # of cached LRU pages times reclaimation tendency
+ *		SHRINK_STOP if it cannot do any scanning in this time
+ */
+unsigned long osc_cache_shrink_count(struct shrinker *sk,
+				     struct shrink_control *sc)
+{
+	struct client_obd *cli;
+	unsigned long cached = 0;
+
+	spin_lock(&osc_shrink_lock);
+	list_for_each_entry(cli, &osc_shrink_list, cl_shrink_list)
+		cached += atomic_long_read(&cli->cl_lru_in_list);
+	spin_unlock(&osc_shrink_lock);
+
+	return (cached  * sysctl_vfs_cache_pressure) / 100;
+}
+
+/**
+ * Scan and try to reclaim sc->nr_to_scan cached LRU pages
+ *
+ * Return:	number of cached LRU pages reclaimed
+ *		SHRINK_STOP if it cannot do any scanning in this time
+ *
+ * Linux kernel will loop calling this shrinker scan routine with
+ * sc->nr_to_scan = SHRINK_BATCH(128 for now) until kernel got enough memory.
+ *
+ * If sc->nr_to_scan is 0, the VM is querying the cache size, we don't need
+ * to scan and try to reclaim LRU pages, just return 0 and
+ * osc_cache_shrink_count() will report the LRU page number.
+ */
+unsigned long osc_cache_shrink_scan(struct shrinker *sk,
+				    struct shrink_control *sc)
+{
+	struct client_obd *stop_anchor = NULL;
+	struct client_obd *cli;
+	struct lu_env *env;
+	long shrank = 0;
+	int refcheck;
+	int rc;
+
+	if (!sc->nr_to_scan)
+		return 0;
+
+	if (!(sc->gfp_mask & __GFP_FS))
+		return SHRINK_STOP;
+
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return SHRINK_STOP;
+
+	spin_lock(&osc_shrink_lock);
+	while (!list_empty(&osc_shrink_list)) {
+		cli = list_entry(osc_shrink_list.next, struct client_obd,
+				 cl_shrink_list);
+
+		if (!stop_anchor)
+			stop_anchor = cli;
+		else if (cli == stop_anchor)
+			break;
+
+		list_move_tail(&cli->cl_shrink_list, &osc_shrink_list);
+		spin_unlock(&osc_shrink_lock);
+
+		/* shrink no more than max_pages_per_rpc for an OSC */
+		rc = osc_lru_shrink(env, cli, (sc->nr_to_scan - shrank) >
+				    cli->cl_max_pages_per_rpc ?
+				    cli->cl_max_pages_per_rpc :
+				    sc->nr_to_scan - shrank, true);
+		if (rc > 0)
+			shrank += rc;
+
+		if (shrank >= sc->nr_to_scan)
+			goto out;
+
+		spin_lock(&osc_shrink_lock);
+	}
+	spin_unlock(&osc_shrink_lock);
+
+out:
+	cl_env_put(env, &refcheck);
+
+	return shrank;
+}
+
 /** @} osc */
