@@ -147,7 +147,13 @@ static void *lmv_tgt_seq_start(struct seq_file *p, loff_t *pos)
 	struct obd_device       *dev = p->private;
 	struct lmv_obd	  *lmv = &dev->u.lmv;
 
-	return (*pos >= lmv->desc.ld_tgt_count) ? NULL : lmv->tgts[*pos];
+	while (*pos < lmv->tgts_size) {
+		if (lmv->tgts[*pos])
+			return lmv->tgts[*pos];
+		++*pos;
+	}
+
+	return  NULL;
 }
 
 static void lmv_tgt_seq_stop(struct seq_file *p, void *v)
@@ -159,8 +165,15 @@ static void *lmv_tgt_seq_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	struct obd_device       *dev = p->private;
 	struct lmv_obd	  *lmv = &dev->u.lmv;
+
 	++*pos;
-	return (*pos >= lmv->desc.ld_tgt_count) ? NULL : lmv->tgts[*pos];
+	while (*pos < lmv->tgts_size) {
+		if (lmv->tgts[*pos])
+			return lmv->tgts[*pos];
+		++*pos;
+	}
+
+	return  NULL;
 }
 
 static int lmv_tgt_seq_show(struct seq_file *p, void *v)
