@@ -330,7 +330,7 @@ lnet_acceptor(void *arg)
 	__u32 magic;
 	__u32 peer_ip;
 	int peer_port;
-	int secure = (int)((long_ptr_t)arg);
+	int secure = (int)((long)arg);
 
 	LASSERT(!lnet_acceptor_state.pta_sock);
 
@@ -459,7 +459,7 @@ lnet_acceptor_start(void)
 	if (!lnet_count_acceptor_nis())  /* not required */
 		return 0;
 
-	task = kthread_run(lnet_acceptor, (void *)(ulong_ptr_t)secure,
+	task = kthread_run(lnet_acceptor, (void *)(uintptr_t)secure,
 			   "acceptor_%03ld", secure);
 	if (IS_ERR(task)) {
 		rc2 = PTR_ERR(task);

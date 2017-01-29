@@ -2507,7 +2507,7 @@ ksocknal_base_startup(void)
 
 		snprintf(name, sizeof(name), "socknal_cd%02d", i);
 		rc = ksocknal_thread_start(ksocknal_connd,
-					   (void *)((ulong_ptr_t)i), name);
+					   (void *)((uintptr_t)i), name);
 		if (rc) {
 			spin_lock_bh(&ksocknal_data.ksnd_connd_lock);
 			ksocknal_data.ksnd_connd_starting--;
