@@ -295,17 +295,17 @@
 			/* Separate from the uart0_gpio14 group
 			 * because it conflicts with spi1_gpio16, and
 			 * people often run uart0 on the two pins
-			 * without flow contrl.
+			 * without flow control.
 			 */
 			uart0_ctsrts_gpio16: uart0_ctsrts_gpio16 {
 				brcm,pins = <16 17>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_gpio30: uart0_gpio30 {
+			uart0_ctsrts_gpio30: uart0_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_ctsrts_gpio32: uart0_ctsrts_gpio32 {
+			uart0_gpio32: uart0_gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
