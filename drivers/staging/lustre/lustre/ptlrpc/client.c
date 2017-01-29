@@ -2662,11 +2662,16 @@ free_req:
 	list_for_each_entry_safe(req, saved, &imp->imp_committed_list,
 				 rq_replay_list) {
 		LASSERT(req->rq_transno != 0);
-		if (req->rq_import_generation < imp->imp_generation) {
-			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
-			ptlrpc_free_request(req);
-		} else if (!req->rq_replay) {
-			DEBUG_REQ(D_RPCTRACE, req, "free closed open request");
+		if (req->rq_import_generation < imp->imp_generation ||
+		    !req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "free %s open request",
+				  req->rq_import_generation <
+				  imp->imp_generation ? "stale" : "closed");
+
+			if (imp->imp_replay_cursor == &req->rq_replay_list)
+				imp->imp_replay_cursor =
+					req->rq_replay_list.next;
+
 			ptlrpc_free_request(req);
 		}
 	}
