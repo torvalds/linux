@@ -266,6 +266,13 @@ static int lov_init_raid0(const struct lu_env *env, struct lov_device *dev,
 			if (result != 0)
 				goto out;
 
+			if (!dev->ld_target[ost_idx]) {
+				CERROR("%s: OST %04x is not initialized\n",
+				lov2obd(dev->ld_lov)->obd_name, ost_idx);
+				result = -EIO;
+				goto out;
+			}
+
 			subdev = lovsub2cl_dev(dev->ld_target[ost_idx]);
 			subconf->u.coc_oinfo = oinfo;
 			LASSERTF(subdev, "not init ost %d\n", ost_idx);
