@@ -370,12 +370,17 @@ static int osc_cache_too_much(struct client_obd *cli)
 			return lru_shrink_min(cli);
 	} else {
 		time64_t duration = ktime_get_real_seconds();
+		long timediff;
 
 		/* knock out pages by duration of no IO activity */
 		duration -= cli->cl_lru_last_used;
-		duration >>= 6; /* approximately 1 minute */
-		if (duration > 0 &&
-		    pages >= div64_s64((s64)budget, duration))
+		/*
+		 * The difference shouldn't be more than 70 years
+		 * so we can safely case to a long. Round to
+		 * approximately 1 minute.
+		 */
+		timediff = (long)(duration >> 6);
+		if (timediff > 0 && pages >= budget / timediff)
 			return lru_shrink_min(cli);
 	}
 	return 0;
