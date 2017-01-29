@@ -366,9 +366,9 @@ int __init e820__update_table(struct e820_table *table)
 	return __e820__update_table(table->entries, ARRAY_SIZE(table->entries), &table->nr_entries);
 }
 
-static int __init __append_e820_table(struct e820_entry *entries, u32 nr_entries)
+static int __init __append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
 {
-	struct e820_entry *entry = entries;
+	struct boot_e820_entry *entry = entries;
 
 	while (nr_entries) {
 		u64 start = entry->addr;
@@ -397,7 +397,7 @@ static int __init __append_e820_table(struct e820_entry *entries, u32 nr_entries
  * will have given us a memory map that we can use to properly
  * set up memory.  If we aren't, we'll fake a memory map.
  */
-static int __init append_e820_table(struct e820_entry *entries, u32 nr_entries)
+static int __init append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
 {
 	/* Only one memory region (or negative)? Ignore it */
 	if (nr_entries < 2)
@@ -668,12 +668,12 @@ __init void e820__reallocate_tables(void)
 void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 {
 	int entries;
-	struct e820_entry *extmap;
+	struct boot_e820_entry *extmap;
 	struct setup_data *sdata;
 
 	sdata = early_memremap(phys_addr, data_len);
 	entries = sdata->len / sizeof(*extmap);
-	extmap = (struct e820_entry *)(sdata->data);
+	extmap = (struct boot_e820_entry *)(sdata->data);
 
 	__append_e820_table(extmap, entries);
 	e820__update_table(e820_table);
@@ -1140,7 +1140,6 @@ void __init e820__reserve_resources_late(void)
 char *__init e820__memory_setup_default(void)
 {
 	char *who = "BIOS-e820";
-	u32 new_nr;
 
 	/*
 	 * Try to copy the BIOS-supplied E820-map.
@@ -1148,10 +1147,6 @@ char *__init e820__memory_setup_default(void)
 	 * Otherwise fake a memory map; one section from 0k->640k,
 	 * the next section from 1mb->appropriate_mem_k
 	 */
-	new_nr = boot_params.e820_entries;
-	__e820__update_table(boot_params.e820_table, ARRAY_SIZE(boot_params.e820_table), &new_nr);
-	boot_params.e820_entries = new_nr;
-
 	if (append_e820_table(boot_params.e820_table, boot_params.e820_entries) < 0) {
 		u64 mem_size;
 
@@ -1169,6 +1164,9 @@ char *__init e820__memory_setup_default(void)
 		e820__range_add(HIGH_MEMORY, mem_size << 10, E820_TYPE_RAM);
 	}
 
+	/* We just appended a lot of ranges, sanitize the table: */
+	e820__update_table(e820_table);
+
 	return who;
 }
 
@@ -1182,7 +1180,7 @@ void __init e820__memory_setup(void)
 	char *who;
 
 	/* This is a firmware interface ABI - make sure we don't break it: */
-	BUILD_BUG_ON(sizeof(struct e820_entry) != 20);
+	BUILD_BUG_ON(sizeof(struct boot_e820_entry) != 20);
 
 	who = x86_init.resources.memory_setup();
 

@@ -900,7 +900,7 @@ static void add_e820ext(struct boot_params *params,
 	unsigned long size;
 
 	e820ext->type = SETUP_E820_EXT;
-	e820ext->len = nr_entries * sizeof(struct e820_entry);
+	e820ext->len = nr_entries * sizeof(struct boot_e820_entry);
 	e820ext->next = 0;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
@@ -917,9 +917,9 @@ static void add_e820ext(struct boot_params *params,
 static efi_status_t setup_e820(struct boot_params *params,
 			       struct setup_data *e820ext, u32 e820ext_size)
 {
-	struct e820_entry *e820_table = &params->e820_table[0];
+	struct boot_e820_entry *entry = params->e820_table;
 	struct efi_info *efi = &params->efi_info;
-	struct e820_entry *prev = NULL;
+	struct boot_e820_entry *prev = NULL;
 	u32 nr_entries;
 	u32 nr_desc;
 	int i;
@@ -990,13 +990,13 @@ static efi_status_t setup_e820(struct boot_params *params,
 				return EFI_BUFFER_TOO_SMALL;
 
 			/* boot_params map full, switch to e820 extended */
-			e820_table = (struct e820_entry *)e820ext->data;
+			entry = (struct boot_e820_entry *)e820ext->data;
 		}
 
-		e820_table->addr = d->phys_addr;
-		e820_table->size = d->num_pages << PAGE_SHIFT;
-		e820_table->type = e820_type;
-		prev = e820_table++;
+		entry->addr = d->phys_addr;
+		entry->size = d->num_pages << PAGE_SHIFT;
+		entry->type = e820_type;
+		prev = entry++;
 		nr_entries++;
 	}
 
