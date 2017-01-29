@@ -15,6 +15,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/memory.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
@@ -75,7 +76,7 @@ static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 	if (!cpu_ctrl)
 		goto unmap_scu;
 
-	vectors_base = ioremap(CONFIG_VECTORS_BASE, SZ_32K);
+	vectors_base = ioremap(VECTORS_BASE, SZ_32K);
 	if (!vectors_base)
 		goto unmap_scu;
 
