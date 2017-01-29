@@ -111,6 +111,8 @@
 
 #endif /* !CONFIG_MMU */
 
+#define VECTORS_BASE		UL(0xffff0000)
+
 #ifdef CONFIG_XIP_KERNEL
 #define KERNEL_START		_sdata
 #else
