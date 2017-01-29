@@ -1160,7 +1160,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 		if (atomic_read(&imp->imp_inval_count) != 0) {
 			DEBUG_REQ(D_ERROR, req, "invalidate in flight");
 			*status = -EIO;
-		} else if (imp->imp_dlm_fake || req->rq_no_delay) {
+		} else if (req->rq_no_delay) {
 			*status = -EWOULDBLOCK;
 		} else if (req->rq_allow_replay &&
 			  (imp->imp_state == LUSTRE_IMP_REPLAY ||
