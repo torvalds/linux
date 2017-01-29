@@ -867,7 +867,7 @@ int __ceph_caps_file_wanted(struct ceph_inode_info *ci)
 /*
  * Return caps we have registered with the MDS(s) as 'wanted'.
  */
-int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
+int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check)
 {
 	struct ceph_cap *cap;
 	struct rb_node *p;
@@ -875,7 +875,7 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
 
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (!__cap_is_valid(cap))
+		if (check && !__cap_is_valid(cap))
 			continue;
 		if (cap == ci->i_auth_cap)
 			mds_wanted |= cap->mds_wanted;
@@ -2491,7 +2491,7 @@ again:
 				ret = 1;
 				goto out_unlock;
 			}
-			mds_wanted = __ceph_caps_mds_wanted(ci);
+			mds_wanted = __ceph_caps_mds_wanted(ci, false);
 			if (need & ~(mds_wanted & need)) {
 				dout("get_cap_refs %p caps were dropped"
 				     " (session killed?)\n", inode);

@@ -283,7 +283,7 @@ int ceph_open(struct inode *inode, struct file *file)
 	spin_lock(&ci->i_ceph_lock);
 	if (__ceph_is_any_real_caps(ci) &&
 	    (((fmode & CEPH_FILE_MODE_WR) == 0) || ci->i_auth_cap)) {
-		int mds_wanted = __ceph_caps_mds_wanted(ci);
+		int mds_wanted = __ceph_caps_mds_wanted(ci, true);
 		int issued = __ceph_caps_issued(ci, NULL);
 
 		dout("open %p fmode %d want %s issued %s using existing\n",

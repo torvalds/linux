@@ -602,7 +602,7 @@ static inline int __ceph_caps_wanted(struct ceph_inode_info *ci)
 }
 
 /* what the mds thinks we want */
-extern int __ceph_caps_mds_wanted(struct ceph_inode_info *ci);
+extern int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check);
 
 extern void ceph_caps_init(struct ceph_mds_client *mdsc);
 extern void ceph_caps_finalize(struct ceph_mds_client *mdsc);
