@@ -14,6 +14,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8916.h>
 #include <dt-bindings/reset/qcom,gcc-msm8916.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8916";
@@ -82,7 +83,7 @@
 			no-map;
 		};
 
-		wcnss@89300000 {
+		wcnss_mem: wcnss@89300000 {
 			reg = <0x0 0x89300000 0x0 0x600000>;
 			no-map;
 		};
@@ -856,6 +857,76 @@
 				memory-region = <&mpss_mem>;
 			};
 		};
+
+		pronto: wcnss@a21b000 {
+			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
+			reg = <0x0a204000 0x2000>, <0x0a202000 0x1000>, <0x0a21b000 0x3000>;
+			reg-names = "ccu", "dxe", "pmu";
+
+			memory-region = <&wcnss_mem>;
+
+			interrupts-extended = <&intc 0 149 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
+
+			vddmx-supply = <&pm8916_l3>;
+			vddpx-supply = <&pm8916_l7>;
+
+			qcom,state = <&wcnss_smp2p_out 0>;
+			qcom,state-names = "stop";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wcnss_pin_a>;
+
+			status = "disabled";
+
+			iris {
+				compatible = "qcom,wcn3620";
+
+				clocks = <&rpmcc RPM_SMD_RF_CLK2>;
+				clock-names = "xo";
+
+				vddxo-supply = <&pm8916_l7>;
+				vddrfa-supply = <&pm8916_s3>;
+				vddpa-supply = <&pm8916_l9>;
+				vdddig-supply = <&pm8916_l5>;
+			};
+
+			smd-edge {
+				interrupts = <0 142 1>;
+
+				qcom,ipc = <&apcs 8 17>;
+				qcom,smd-edge = <6>;
+				qcom,remote-pid = <4>;
+
+				label = "pronto";
+
+				wcnss {
+					compatible = "qcom,wcnss";
+					qcom,smd-channels = "WCNSS_CTRL";
+
+					qcom,mmio = <&pronto>;
+
+					bt {
+						compatible = "qcom,wcnss-bt";
+					};
+
+					wifi {
+						compatible = "qcom,wcnss-wlan";
+
+						interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>,
+							     <0 146 IRQ_TYPE_LEVEL_HIGH>;
+						interrupt-names = "tx", "rx";
+
+						qcom,smem-states = <&apps_smsm 10>, <&apps_smsm 9>;
+						qcom,smem-state-names = "tx-enable", "tx-rings-empty";
+					};
+				};
+			};
+		};
 	};
 
 	smd {
@@ -871,7 +942,7 @@
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: qcom,rpmcc {
-					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+					compatible = "qcom,rpmcc-msm8916";
 					#clock-cells = <1>;
 				};
 
