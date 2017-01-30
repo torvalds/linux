@@ -158,6 +158,7 @@ EXPORT_SYMBOL(vchi_msg_remove);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
+static
 int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 	ssize_t (*copy_callback)(void *context, void *dest,
 				 size_t offset, size_t maxsize),
@@ -186,7 +187,6 @@ int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 
 	return vchiq_status_to_vchi(status);
 }
-EXPORT_SYMBOL(vchi_msg_queue);
 
 static ssize_t
 vchi_queue_kernel_message_callback(void *context,
