@@ -54,11 +54,42 @@ static void da850_sata_init(struct device *dev, void __iomem *pwrdn_reg,
 	writel(val, ahci_base + SATA_P0PHYCR_REG);
 }
 
+static int ahci_da850_softreset(struct ata_link *link,
+				unsigned int *class, unsigned long deadline)
+{
+	int pmp, ret;
+
+	pmp = sata_srst_pmp(link);
+
+	/*
+	 * There's an issue with the SATA controller on da850 SoCs: if we
+	 * enable Port Multiplier support, but the drive is connected directly
+	 * to the board, it can't be detected. As a workaround: if PMP is
+	 * enabled, we first call ahci_do_softreset() and pass it the result of
+	 * sata_srst_pmp(). If this call fails, we retry with pmp = 0.
+	 */
+	ret = ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
+	if (pmp && ret == -EBUSY)
+		return ahci_do_softreset(link, class, 0,
+					 deadline, ahci_check_ready);
+
+	return ret;
+}
+
+static struct ata_port_operations ahci_da850_port_ops = {
+	.inherits = &ahci_platform_ops,
+	.softreset = ahci_da850_softreset,
+	/*
+	 * No need to override .pmp_softreset - it's only used for actual
+	 * PMP-enabled ports.
+	 */
+};
+
 static const struct ata_port_info ahci_da850_port_info = {
 	.flags		= AHCI_FLAG_COMMON,
 	.pio_mask	= ATA_PIO4,
 	.udma_mask	= ATA_UDMA6,
-	.port_ops	= &ahci_platform_ops,
+	.port_ops	= &ahci_da850_port_ops,
 };
 
 static struct scsi_host_template ahci_platform_sht = {
