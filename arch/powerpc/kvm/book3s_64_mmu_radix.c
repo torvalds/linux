@@ -463,6 +463,60 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 }
 
+/* Called with kvm->lock held */
+int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+		    unsigned long gfn)
+{
+	pte_t *ptep;
+	unsigned long gpa = gfn << PAGE_SHIFT;
+	unsigned int shift;
+
+	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
+					   NULL, &shift);
+	if (ptep && pte_present(*ptep)) {
+		kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
+					gpa, shift);
+		kvmppc_radix_tlbie_page(kvm, gpa, shift);
+	}
+	return 0;				
+}
+
+/* Called with kvm->lock held */
+int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+		  unsigned long gfn)
+{
+	pte_t *ptep;
+	unsigned long gpa = gfn << PAGE_SHIFT;
+	unsigned int shift;
+	int ref = 0;
+
+	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
+					   NULL, &shift);
+	if (ptep && pte_present(*ptep) && pte_young(*ptep)) {
+		kvmppc_radix_update_pte(kvm, ptep, _PAGE_ACCESSED, 0,
+					gpa, shift);
+		/* XXX need to flush tlb here? */
+		ref = 1;
+	}
+	return ref;
+}
+
+/* Called with kvm->lock held */
+int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+		       unsigned long gfn)
+{
+	pte_t *ptep;
+	unsigned long gpa = gfn << PAGE_SHIFT;
+	unsigned int shift;
+	int ref = 0;
+
+	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
+					   NULL, &shift);
+	if (ptep && pte_present(*ptep) && pte_young(*ptep))
+		ref = 1;
+	return ref;
+}
+
 void kvmppc_free_radix(struct kvm *kvm)
 {
 	unsigned long ig, iu, im;

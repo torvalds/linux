@@ -192,6 +192,12 @@ extern int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 extern void kvmppc_free_radix(struct kvm *kvm);
 extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
+extern int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
+extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
+extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			unsigned long gfn);
 
 /* XXX remove this export when load_last_inst() is generic */
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
