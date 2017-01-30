@@ -86,6 +86,7 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
 		#power-domain-cells = <0>;
+		label = "LCD1";
 	};
 
 	l2c: l2-cache-controller@10502000 {

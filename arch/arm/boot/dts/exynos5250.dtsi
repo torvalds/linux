@@ -115,18 +115,21 @@
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10044000 0x20>;
 			#power-domain-cells = <0>;
+			label = "GSC";
 		};
 
 		pd_mfc: mfc-power-domain@10044040 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10044040 0x20>;
 			#power-domain-cells = <0>;
+			label = "MFC";
 		};
 
 		pd_disp1: disp1-power-domain@100440A0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100440A0 0x20>;
 			#power-domain-cells = <0>;
+			label = "DISP1";
 			clocks = <&clock CLK_FIN_PLL>,
 				 <&clock CLK_MOUT_ACLK200_DISP1_SUB>,
 				 <&clock CLK_MOUT_ACLK300_DISP1_SUB>;
