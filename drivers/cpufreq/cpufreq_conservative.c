@@ -305,7 +305,7 @@ static void cs_start(struct cpufreq_policy *policy)
 #ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 static
 #endif
-static struct dbs_governor cs_governor = {
+struct dbs_governor cs_governor = {
 	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
 	.kobj_type = { .default_attrs = cs_attributes },
 	.gov_dbs_timer = cs_dbs_timer,
