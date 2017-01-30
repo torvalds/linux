@@ -624,15 +624,10 @@ static int clcdfb_snprintf_mode(char *buf, int size, struct fb_videomode *mode)
 			mode->refresh);
 }
 
-static int clcdfb_of_get_backlight(struct device_node *endpoint,
+static int clcdfb_of_get_backlight(struct device_node *panel,
 				   struct clcd_panel *clcd_panel)
 {
-	struct device_node *panel;
 	struct device_node *backlight;
-
-	panel = of_graph_get_remote_port_parent(endpoint);
-	if (!panel)
-		return -ENODEV;
 
 	/* Look up the optional backlight phandle */
 	backlight = of_parse_phandle(panel, "backlight", 0);
@@ -646,18 +641,13 @@ static int clcdfb_of_get_backlight(struct device_node *endpoint,
 	return 0;
 }
 
-static int clcdfb_of_get_mode(struct device *dev, struct device_node *endpoint,
-		struct clcd_panel *clcd_panel)
+static int clcdfb_of_get_mode(struct device *dev, struct device_node *panel,
+			      struct clcd_panel *clcd_panel)
 {
 	int err;
-	struct device_node *panel;
 	struct fb_videomode *mode;
 	char *name;
 	int len;
-
-	panel = of_graph_get_remote_port_parent(endpoint);
-	if (!panel)
-		return -ENODEV;
 
 	/* Only directly connected DPI panels supported for now */
 	if (of_device_is_compatible(panel, "panel-dpi"))
@@ -791,11 +781,11 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 			return err;
 	}
 
-	err = clcdfb_of_get_backlight(endpoint, fb->panel);
+	err = clcdfb_of_get_backlight(panel, fb->panel);
 	if (err)
 		return err;
 
-	err = clcdfb_of_get_mode(&fb->dev->dev, endpoint, fb->panel);
+	err = clcdfb_of_get_mode(&fb->dev->dev, panel, fb->panel);
 	if (err)
 		return err;
 
