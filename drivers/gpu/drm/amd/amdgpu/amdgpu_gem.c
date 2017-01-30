@@ -547,7 +547,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_bo_list_entry vm_pd;
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
-	struct list_head list, duplicates;
+	struct list_head list;
 	uint32_t invalid_flags, va_flags = 0;
 	int r = 0;
 
@@ -585,14 +585,13 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	abo = gem_to_amdgpu_bo(gobj);
 	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
 	tv.bo = &abo->tbo;
-	tv.shared = true;
+	tv.shared = false;
 	list_add(&tv.head, &list);
 
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
