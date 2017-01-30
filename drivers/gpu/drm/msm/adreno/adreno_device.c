@@ -224,8 +224,10 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (!config.fast_rate) {
-		dev_err(dev, "could not find clk rates\n");
-		return -ENXIO;
+		dev_warn(dev, "could not find clk rates\n");
+		/* This is a safe low speed for all devices: */
+		config.fast_rate = 200000000;
+		config.slow_rate = 27000000;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(quirks); i++)

@@ -12,12 +12,6 @@ Required properties:
   * "mem_iface_clk"
 - qcom,chipid: gpu chip-id.  Note this may become optional for future
   devices if we can reliably read the chipid from hw
-- qcom,gpu-pwrlevels: list of operating points
-  - compatible: "qcom,gpu-pwrlevels"
-  - for each qcom,gpu-pwrlevel:
-    - qcom,gpu-freq: requested gpu clock speed
-    - NOTE: downstream android driver defines additional parameters to
-      configure memory bandwidth scaling per OPP.
 
 Example:
 
@@ -39,14 +33,5 @@ Example:
 		    <&mmcc GFX3D_AHB_CLK>,
 		    <&mmcc MMSS_IMEM_AHB_CLK>;
 		qcom,chipid = <0x03020100>;
-		qcom,gpu-pwrlevels {
-			compatible = "qcom,gpu-pwrlevels";
-			qcom,gpu-pwrlevel@0 {
-				qcom,gpu-freq = <450000000>;
-			};
-			qcom,gpu-pwrlevel@1 {
-				qcom,gpu-freq = <27000000>;
-			};
-		};
 	};
 };
