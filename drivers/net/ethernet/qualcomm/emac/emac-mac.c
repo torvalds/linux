@@ -103,14 +103,6 @@
 #define RXEN                            0x00000002
 #define TXEN                            0x00000001
 
-
-/* EMAC_WOL_CTRL0 */
-#define LK_CHG_PME			0x20
-#define LK_CHG_EN			0x10
-#define MG_FRAME_PME			0x8
-#define MG_FRAME_EN			0x4
-#define WK_FRAME_EN			0x1
-
 /* EMAC_DESC_CTRL_3 */
 #define RFD_RING_SIZE_BMSK                                       0xfff
 
@@ -556,7 +548,7 @@ void emac_mac_reset(struct emac_adapter *adpt)
 	emac_reg_update32(adpt->base + EMAC_DMA_MAS_CTRL, 0, INT_RD_CLR_EN);
 }
 
-void emac_mac_start(struct emac_adapter *adpt)
+static void emac_mac_start(struct emac_adapter *adpt)
 {
 	struct phy_device *phydev = adpt->phydev;
 	u32 mac, csr1;
@@ -619,8 +611,6 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	emac_reg_update32(adpt->base + EMAC_ATHR_HEADER_CTRL,
 			  (HEADER_ENABLE | HEADER_CNT_EN), 0);
-
-	emac_reg_update32(adpt->csr + EMAC_EMAC_WRAPPER_CSR2, 0, WOL_EN);
 }
 
 void emac_mac_stop(struct emac_adapter *adpt)
@@ -961,12 +951,16 @@ static void emac_mac_rx_descs_refill(struct emac_adapter *adpt,
 static void emac_adjust_link(struct net_device *netdev)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
+	struct emac_sgmii *sgmii = &adpt->phy;
 	struct phy_device *phydev = netdev->phydev;
 
-	if (phydev->link)
+	if (phydev->link) {
 		emac_mac_start(adpt);
-	else
+		sgmii->link_up(adpt);
+	} else {
+		sgmii->link_down(adpt);
 		emac_mac_stop(adpt);
+	}
 
 	phy_print_status(phydev);
 }
@@ -981,6 +975,7 @@ int emac_mac_up(struct emac_adapter *adpt)
 	emac_mac_config(adpt);
 	emac_mac_rx_descs_refill(adpt, &adpt->rx_q);
 
+	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {
@@ -988,11 +983,12 @@ int emac_mac_up(struct emac_adapter *adpt)
 		return ret;
 	}
 
+	phy_attached_print(adpt->phydev, NULL);
+
 	/* enable mac irq */
 	writel((u32)~DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(adpt->irq.mask, adpt->base + EMAC_INT_MASK);
 
-	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	phy_start(adpt->phydev);
 
 	napi_enable(&adpt->rx_q.napi);

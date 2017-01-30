@@ -167,10 +167,6 @@ enum emac_clk_id {
 
 #define EMAC_MAX_SETUP_LNK_CYCLE                                   100
 
-/* Wake On Lan */
-#define EMAC_WOL_PHY                     0x00000001 /* PHY Status Change */
-#define EMAC_WOL_MAGIC                   0x00000002 /* Magic Packet */
-
 struct emac_stats {
 	/* rx */
 	u64 rx_ok;              /* good packets */
