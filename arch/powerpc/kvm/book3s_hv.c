@@ -3091,8 +3091,8 @@ static void kvmppc_setup_partition_table(struct kvm *kvm)
 	/* HTABSIZE and HTABORG fields */
 	dw0 |= kvm->arch.sdr1;
 
-	/* Second dword has GR=0; other fields are unused since UPRT=0 */
-	dw1 = 0;
+	/* Second dword as set by userspace */
+	dw1 = kvm->arch.process_table;
 
 	mmu_partition_table_set_entry(kvm->arch.lpid, dw0, dw1);
 }
@@ -3657,10 +3657,37 @@ static void init_default_hcalls(void)
 	}
 }
 
-/* dummy implementations for now */
 static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 {
-	return -EINVAL;
+	unsigned long lpcr;
+
+	/* If not on a POWER9, reject it */
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+
+	/* If any unknown flags set, reject it */
+	if (cfg->flags & ~(KVM_PPC_MMUV3_RADIX | KVM_PPC_MMUV3_GTSE))
+		return -EINVAL;
+
+	/* We can't do radix yet */
+	if (cfg->flags & KVM_PPC_MMUV3_RADIX)
+		return -EINVAL;
+
+	/* GR (guest radix) bit in process_table field must match */
+	if (cfg->process_table & PATB_GR)
+		return -EINVAL;
+
+	/* Process table size field must be reasonable, i.e. <= 24 */
+	if ((cfg->process_table & PRTS_MASK) > 24)
+		return -EINVAL;
+
+	kvm->arch.process_table = cfg->process_table;
+	kvmppc_setup_partition_table(kvm);
+
+	lpcr = (cfg->flags & KVM_PPC_MMUV3_GTSE) ? LPCR_GTSE : 0;
+	kvmppc_update_lpcr(kvm, lpcr, LPCR_GTSE);
+
+	return 0;
 }
 
 static int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info)

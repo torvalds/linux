@@ -264,6 +264,7 @@ struct kvm_arch {
 	atomic_t hpte_mod_interest;
 	cpumask_t need_tlb_flush;
 	int hpt_cma_alloc;
+	u64 process_table;
 	struct dentry *debugfs_dir;
 	struct dentry *htab_dentry;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
