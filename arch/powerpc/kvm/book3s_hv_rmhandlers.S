@@ -148,6 +148,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	addi	r1, r1, 112
 	ld	r7, HSTATE_HOST_MSR(r13)
 
+	/*
+	 * If we came back from the guest via a relocation-on interrupt,
+	 * we will be in virtual mode at this point, which makes it a
+	 * little easier to get back to the caller.
+	 */
+	mfmsr	r0
+	andi.	r0, r0, MSR_IR		/* in real mode? */
+	bne	.Lvirt_return
+
 	cmpwi	cr1, r12, BOOK3S_INTERRUPT_MACHINE_CHECK
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
 	beq	11f
@@ -180,6 +189,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 15:	mtspr SPRN_HSRR0, r8
 	mtspr SPRN_HSRR1, r7
 	ba    0xe80
+
+	/* Virtual-mode return - can't get here for HMI or machine check */
+.Lvirt_return:
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+	beq	16f
+	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
+	beq	17f
+	andi.	r0, r7, MSR_EE		/* were interrupts hard-enabled? */
+	beq	18f
+	mtmsrd	r7, 1			/* if so then re-enable them */
+18:	mtlr	r8
+	blr
+
+16:	mtspr	SPRN_HSRR0, r8		/* jump to reloc-on external vector */
+	mtspr	SPRN_HSRR1, r7
+	b	exc_virt_0x4500_hardware_interrupt
+
+17:	mtspr	SPRN_HSRR0, r8
+	mtspr	SPRN_HSRR1, r7
+	b	exc_virt_0x4e80_h_doorbell
 
 kvmppc_primary_no_guest:
 	/* We handle this much like a ceded vcpu */
