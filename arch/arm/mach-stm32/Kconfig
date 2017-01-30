@@ -19,3 +19,8 @@ config MACH_STM32F746
 	bool "STMicrolectronics STM32F746"
 	depends on ARCH_STM32
 	default y
+
+config MACH_STM32H743
+	bool "STMicrolectronics STM32H743"
+	depends on ARCH_STM32
+	default y
