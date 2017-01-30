@@ -318,6 +318,7 @@ static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
 static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
 #endif
 
+struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname);
 void msm_writel(u32 data, void __iomem *addr);

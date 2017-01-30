@@ -11,9 +11,9 @@ Required properties:
 - clocks: device clocks
   See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
-  * "core_clk"
-  * "iface_clk"
-  * "mem_iface_clk"
+  * "core"
+  * "iface"
+  * "mem_iface"
 
 Example:
 
@@ -27,9 +27,9 @@ Example:
 		interrupts = <GIC_SPI 80 0>;
 		interrupt-names = "kgsl_3d0_irq";
 		clock-names =
-		    "core_clk",
-		    "iface_clk",
-		    "mem_iface_clk";
+		    "core",
+		    "iface",
+		    "mem_iface";
 		clocks =
 		    <&mmcc GFX3D_CLK>,
 		    <&mmcc GFX3D_AHB_CLK>,
