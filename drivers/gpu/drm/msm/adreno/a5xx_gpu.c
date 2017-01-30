@@ -327,7 +327,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Enable RBBM error reporting bits */
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL0, 0x00000001);
 
-	if (adreno_gpu->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
 		/*
 		 * Mask out the activity signals from RB1-3 to avoid false
 		 * positives
@@ -381,7 +381,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write(gpu, REG_A5XX_PC_DBG_ECO_CNTL, (0x400 << 11 | 0x300 << 22));
 
-	if (adreno_gpu->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
 		gpu_rmw(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0, (1 << 8));
 
 	gpu_write(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0xc0200100);

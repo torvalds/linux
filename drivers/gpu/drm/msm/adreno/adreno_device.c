@@ -75,12 +75,14 @@ static const struct adreno_info gpulist[] = {
 		.gmem  = (SZ_1M + SZ_512K),
 		.init  = a4xx_gpu_init,
 	}, {
-		.rev = ADRENO_REV(5, 3, 0, ANY_ID),
+		.rev = ADRENO_REV(5, 3, 0, 2),
 		.revn = 530,
 		.name = "A530",
 		.pm4fw = "a530_pm4.fw",
 		.pfpfw = "a530_pfp.fw",
 		.gmem = SZ_1M,
+		.quirks = ADRENO_QUIRK_TWO_PASS_USE_WFI |
+			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.gpmufw = "a530v3_gpmu.fw2",
 	},
@@ -181,14 +183,6 @@ static void set_gpu_pdev(struct drm_device *dev,
 	priv->gpu_pdev = pdev;
 }
 
-static const struct {
-	const char *str;
-	uint32_t flag;
-} quirks[] = {
-	{ "qcom,gpu-quirk-two-pass-use-wfi", ADRENO_QUIRK_TWO_PASS_USE_WFI },
-	{ "qcom,gpu-quirk-fault-detect-mask", ADRENO_QUIRK_FAULT_DETECT_MASK },
-};
-
 static int find_chipid(struct device *dev, u32 *chipid)
 {
 	struct device_node *node = dev->of_node;
@@ -231,7 +225,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	static struct adreno_platform_config config = {};
 	struct device_node *child, *node = dev->of_node;
 	u32 val;
-	int ret, i;
+	int ret;
 
 	ret = find_chipid(dev, &val);
 	if (ret) {
@@ -266,10 +260,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 		config.fast_rate = 200000000;
 		config.slow_rate = 27000000;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(quirks); i++)
-		if (of_property_read_bool(node, quirks[i].str))
-			config.quirks |= quirks[i].flag;
 
 	dev->platform_data = &config;
 	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));
