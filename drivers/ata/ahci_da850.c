@@ -71,11 +71,27 @@ static int ahci_da850_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct resource *res;
 	void __iomem *pwrdn_reg;
+	struct clk *clk;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
+
+	/*
+	 * Internally ahci_platform_get_resources() calls clk_get(dev, NULL)
+	 * when trying to obtain the functional clock. This SATA controller
+	 * uses two clocks for which we specify two connection ids. If we don't
+	 * have the functional clock at this point - call clk_get() again with
+	 * con_id = "fck".
+	 */
+	if (!hpriv->clks[0]) {
+		clk = clk_get(dev, "fck");
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
+
+		hpriv->clks[0] = clk;
+	}
 
 	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
