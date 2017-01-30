@@ -310,6 +310,9 @@ struct amdgpu_display_funcs {
 struct amdgpu_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_gem_object *obj;
+
+	/* caching for later use */
+	uint64_t address;
 };
 
 struct amdgpu_fbdev {
@@ -430,6 +433,7 @@ struct amdgpu_crtc {
 	uint32_t flip_flags;
 	/* After Set Mode stream will be non-NULL */
 	const struct dc_stream *stream;
+	struct drm_pending_vblank_event *event;
 };
 
 struct amdgpu_encoder_atom_dig {
