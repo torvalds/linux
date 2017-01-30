@@ -734,50 +734,65 @@ err_exit:;
 	(void)err;
 }
 
-void aq_nic_get_link_settings(struct aq_nic_s *self, struct ethtool_cmd *cmd)
+void aq_nic_get_link_ksettings(struct aq_nic_s *self,
+			       struct ethtool_link_ksettings *cmd)
 {
-	cmd->port = PORT_TP;
-	cmd->transceiver = XCVR_EXTERNAL;
+	u32 supported, advertising;
+
+	cmd->base.port = PORT_TP;
 	/* This driver supports only 10G capable adapters, so DUPLEX_FULL */
-	cmd->duplex = DUPLEX_FULL;
-	cmd->autoneg = self->aq_nic_cfg.is_autoneg;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.autoneg = self->aq_nic_cfg.is_autoneg;
 
-	cmd->supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_10G) ?
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+
+	supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_10G) ?
 				ADVERTISED_10000baseT_Full : 0U;
-	cmd->supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_1G) ?
+	supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_1G) ?
 				ADVERTISED_1000baseT_Full : 0U;
-	cmd->supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_100M) ?
+	supported |= (self->aq_hw_caps.link_speed_msk & AQ_NIC_RATE_100M) ?
 				ADVERTISED_100baseT_Full : 0U;
-	cmd->supported |= self->aq_hw_caps.flow_control ? SUPPORTED_Pause : 0;
-	cmd->supported |= SUPPORTED_Autoneg;
+	supported |= self->aq_hw_caps.flow_control ? SUPPORTED_Pause : 0;
+	supported |= SUPPORTED_Autoneg;
+	supported |= SUPPORTED_TP;
 
-	cmd->advertising = (self->aq_nic_cfg.is_autoneg) ?
+	advertising = (self->aq_nic_cfg.is_autoneg) ?
 							ADVERTISED_Autoneg : 0U;
-	cmd->advertising |=
+	advertising |=
 			(self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_10G) ?
 			ADVERTISED_10000baseT_Full : 0U;
-	cmd->advertising |=
+	advertising |=
 			(self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_1G) ?
 			ADVERTISED_1000baseT_Full : 0U;
 
-	cmd->advertising |=
+	advertising |=
 			(self->aq_nic_cfg.link_speed_msk & AQ_NIC_RATE_100M) ?
 			ADVERTISED_100baseT_Full : 0U;
-	cmd->advertising |= (self->aq_nic_cfg.flow_control) ?
+	advertising |= (self->aq_nic_cfg.flow_control) ?
 				ADVERTISED_Pause : 0U;
+	advertising |= ADVERTISED_TP;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 }
 
-int aq_nic_set_link_settings(struct aq_nic_s *self, struct ethtool_cmd *cmd)
+int aq_nic_set_link_ksettings(struct aq_nic_s *self,
+			      const struct ethtool_link_ksettings *cmd)
 {
 	u32 speed = 0U;
 	u32 rate = 0U;
 	int err = 0;
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		rate = self->aq_hw_caps.link_speed_msk;
 		self->aq_nic_cfg.is_autoneg = true;
 	} else {
-		speed = ethtool_cmd_speed(cmd);
+		speed = cmd->base.speed;
 
 		switch (speed) {
 		case SPEED_100:

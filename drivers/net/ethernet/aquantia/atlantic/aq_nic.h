@@ -99,8 +99,10 @@ int aq_nic_set_mac(struct aq_nic_s *self, struct net_device *ndev);
 int aq_nic_set_packet_filter(struct aq_nic_s *self, unsigned int flags);
 int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev);
 unsigned int aq_nic_get_link_speed(struct aq_nic_s *self);
-void aq_nic_get_link_settings(struct aq_nic_s *self, struct ethtool_cmd *cmd);
-int aq_nic_set_link_settings(struct aq_nic_s *self, struct ethtool_cmd *cmd);
+void aq_nic_get_link_ksettings(struct aq_nic_s *self,
+			       struct ethtool_link_ksettings *cmd);
+int aq_nic_set_link_ksettings(struct aq_nic_s *self,
+			      const struct ethtool_link_ksettings *cmd);
 struct aq_nic_cfg_s *aq_nic_get_cfg(struct aq_nic_s *self);
 u32 aq_nic_get_fw_version(struct aq_nic_s *self);
 int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg);

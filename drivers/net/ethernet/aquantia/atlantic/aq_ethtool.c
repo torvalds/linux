@@ -35,24 +35,25 @@ static u32 aq_ethtool_get_link(struct net_device *ndev)
 	return ethtool_op_get_link(ndev);
 }
 
-static int aq_ethtool_get_settings(struct net_device *ndev,
-				   struct ethtool_cmd *cmd)
+static int aq_ethtool_get_link_ksettings(struct net_device *ndev,
+					 struct ethtool_link_ksettings *cmd)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
-	aq_nic_get_link_settings(aq_nic, cmd);
-	ethtool_cmd_speed_set(cmd, netif_carrier_ok(ndev) ?
-				aq_nic_get_link_speed(aq_nic) : 0U);
+	aq_nic_get_link_ksettings(aq_nic, cmd);
+	cmd->base.speed = netif_carrier_ok(ndev) ?
+				aq_nic_get_link_speed(aq_nic) : 0U;
 
 	return 0;
 }
 
-static int aq_ethtool_set_settings(struct net_device *ndev,
-				   struct ethtool_cmd *cmd)
+static int
+aq_ethtool_set_link_ksettings(struct net_device *ndev,
+			      const struct ethtool_link_ksettings *cmd)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
-	return aq_nic_set_link_settings(aq_nic, cmd);
+	return aq_nic_set_link_ksettings(aq_nic, cmd);
 }
 
 /* there "5U" is number of queue[#] stats lines (InPackets+...+InErrors) */
@@ -248,8 +249,6 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
 	.get_regs            = aq_ethtool_get_regs,
-	.get_settings        = aq_ethtool_get_settings,
-	.set_settings        = aq_ethtool_set_settings,
 	.get_drvinfo         = aq_ethtool_get_drvinfo,
 	.get_strings         = aq_ethtool_get_strings,
 	.get_rxfh_indir_size = aq_ethtool_get_rss_indir_size,
@@ -257,5 +256,7 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_rxfh            = aq_ethtool_get_rss,
 	.get_rxnfc           = aq_ethtool_get_rxnfc,
 	.get_sset_count      = aq_ethtool_get_sset_count,
-	.get_ethtool_stats   = aq_ethtool_stats
+	.get_ethtool_stats   = aq_ethtool_stats,
+	.get_link_ksettings  = aq_ethtool_get_link_ksettings,
+	.set_link_ksettings  = aq_ethtool_set_link_ksettings,
 };
