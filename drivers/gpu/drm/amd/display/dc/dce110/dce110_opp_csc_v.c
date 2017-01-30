@@ -383,8 +383,6 @@ static bool configure_graphics_mode_v(
 			/* not supported for underlay on CZ */
 			return false;
 
-		case COLOR_SPACE_YCBCR601:
-		case COLOR_SPACE_YPBPR601:
 		case COLOR_SPACE_YCBCR601_LIMITED:
 			/* YCbCr601 */
 			set_reg_field_value(
@@ -394,7 +392,6 @@ static bool configure_graphics_mode_v(
 				OUTPUT_CSC_MODE);
 			break;
 		case COLOR_SPACE_YCBCR709:
-		case COLOR_SPACE_YPBPR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
 			/* YCbCr709 */
 			set_reg_field_value(
@@ -421,7 +418,6 @@ static bool configure_graphics_mode_v(
 			/* not supported for underlay on CZ */
 			return false;
 		case COLOR_SPACE_YCBCR601:
-		case COLOR_SPACE_YPBPR601:
 		case COLOR_SPACE_YCBCR601_LIMITED:
 			/* YCbCr601 */
 			set_reg_field_value(
@@ -431,7 +427,6 @@ static bool configure_graphics_mode_v(
 				OUTPUT_CSC_MODE);
 			break;
 		case COLOR_SPACE_YCBCR709:
-		case COLOR_SPACE_YPBPR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
 			 /* YCbCr709 */
 			set_reg_field_value(

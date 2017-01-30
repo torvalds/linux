@@ -827,14 +827,12 @@ static bool configure_graphics_mode(
 					OUTPUT_CSC_GRPH_MODE, 1);
 				break;
 			case COLOR_SPACE_YCBCR601:
-			case COLOR_SPACE_YPBPR601:
 			case COLOR_SPACE_YCBCR601_LIMITED:
 				/* YCbCr601 */
 				REG_SET(OUTPUT_CSC_CONTROL, 0,
 					OUTPUT_CSC_GRPH_MODE, 2);
 				break;
 			case COLOR_SPACE_YCBCR709:
-			case COLOR_SPACE_YPBPR709:
 			case COLOR_SPACE_YCBCR709_LIMITED:
 				/* YCbCr709 */
 				REG_SET(OUTPUT_CSC_CONTROL, 0,
@@ -858,14 +856,12 @@ static bool configure_graphics_mode(
 				OUTPUT_CSC_GRPH_MODE, 1);
 			break;
 		case COLOR_SPACE_YCBCR601:
-		case COLOR_SPACE_YPBPR601:
 		case COLOR_SPACE_YCBCR601_LIMITED:
 			/* YCbCr601 */
 			REG_SET(OUTPUT_CSC_CONTROL, 0,
 				OUTPUT_CSC_GRPH_MODE, 2);
 			break;
 		case COLOR_SPACE_YCBCR709:
-		case COLOR_SPACE_YPBPR709:
 		case COLOR_SPACE_YCBCR709_LIMITED:
 			 /* YCbCr709 */
 			REG_SET(OUTPUT_CSC_CONTROL, 0,

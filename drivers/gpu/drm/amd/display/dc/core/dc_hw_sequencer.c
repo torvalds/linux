@@ -66,11 +66,6 @@ void color_space_to_black_color(
 	}
 
 	switch (colorspace) {
-	case COLOR_SPACE_YPBPR601:
-		*black_color = black_color_format[BLACK_COLOR_FORMAT_YUV_TV];
-		break;
-
-	case COLOR_SPACE_YPBPR709:
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR709:
 	case COLOR_SPACE_YCBCR601_LIMITED:
