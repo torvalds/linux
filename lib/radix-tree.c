@@ -1685,7 +1685,6 @@ void **radix_tree_iter_resume(void **slot, struct radix_tree_iter *iter)
 
 	slot++;
 	iter->index = __radix_tree_iter_add(iter, 1);
-	node = rcu_dereference_raw(*slot);
 	skip_siblings(&node, slot, iter);
 	iter->next_index = iter->index;
 	iter->tags = 0;
