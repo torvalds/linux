@@ -3161,9 +3161,10 @@ static bool amd_iommu_capable(enum iommu_cap cap)
 	return false;
 }
 
-static void amd_iommu_get_dm_regions(struct device *dev,
-				     struct list_head *head)
+static void amd_iommu_get_resv_regions(struct device *dev,
+				       struct list_head *head)
 {
+	struct iommu_resv_region *region;
 	struct unity_map_entry *entry;
 	int devid;
 
@@ -3172,41 +3173,56 @@ static void amd_iommu_get_dm_regions(struct device *dev,
 		return;
 
 	list_for_each_entry(entry, &amd_iommu_unity_map, list) {
-		struct iommu_dm_region *region;
+		size_t length;
+		int prot = 0;
 
 		if (devid < entry->devid_start || devid > entry->devid_end)
 			continue;
 
-		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		length = entry->address_end - entry->address_start;
+		if (entry->prot & IOMMU_PROT_IR)
+			prot |= IOMMU_READ;
+		if (entry->prot & IOMMU_PROT_IW)
+			prot |= IOMMU_WRITE;
+
+		region = iommu_alloc_resv_region(entry->address_start,
+						 length, prot,
+						 IOMMU_RESV_DIRECT);
 		if (!region) {
 			pr_err("Out of memory allocating dm-regions for %s\n",
 				dev_name(dev));
 			return;
 		}
-
-		region->start = entry->address_start;
-		region->length = entry->address_end - entry->address_start;
-		if (entry->prot & IOMMU_PROT_IR)
-			region->prot |= IOMMU_READ;
-		if (entry->prot & IOMMU_PROT_IW)
-			region->prot |= IOMMU_WRITE;
-
 		list_add_tail(&region->list, head);
 	}
+
+	region = iommu_alloc_resv_region(MSI_RANGE_START,
+					 MSI_RANGE_END - MSI_RANGE_START + 1,
+					 0, IOMMU_RESV_RESERVED);
+	if (!region)
+		return;
+	list_add_tail(&region->list, head);
+
+	region = iommu_alloc_resv_region(HT_RANGE_START,
+					 HT_RANGE_END - HT_RANGE_START + 1,
+					 0, IOMMU_RESV_RESERVED);
+	if (!region)
+		return;
+	list_add_tail(&region->list, head);
 }
 
-static void amd_iommu_put_dm_regions(struct device *dev,
+static void amd_iommu_put_resv_regions(struct device *dev,
 				     struct list_head *head)
 {
-	struct iommu_dm_region *entry, *next;
+	struct iommu_resv_region *entry, *next;
 
 	list_for_each_entry_safe(entry, next, head, list)
 		kfree(entry);
 }
 
-static void amd_iommu_apply_dm_region(struct device *dev,
+static void amd_iommu_apply_resv_region(struct device *dev,
 				      struct iommu_domain *domain,
-				      struct iommu_dm_region *region)
+				      struct iommu_resv_region *region)
 {
 	struct dma_ops_domain *dma_dom = to_dma_ops_domain(to_pdomain(domain));
 	unsigned long start, end;
@@ -3230,9 +3246,9 @@ static const struct iommu_ops amd_iommu_ops = {
 	.add_device = amd_iommu_add_device,
 	.remove_device = amd_iommu_remove_device,
 	.device_group = amd_iommu_device_group,
-	.get_dm_regions = amd_iommu_get_dm_regions,
-	.put_dm_regions = amd_iommu_put_dm_regions,
-	.apply_dm_region = amd_iommu_apply_dm_region,
+	.get_resv_regions = amd_iommu_get_resv_regions,
+	.put_resv_regions = amd_iommu_put_resv_regions,
+	.apply_resv_region = amd_iommu_apply_resv_region,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 
