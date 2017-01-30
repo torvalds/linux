@@ -31,6 +31,13 @@
 #define IOMMU_CACHE	(1 << 2) /* DMA cache coherency */
 #define IOMMU_NOEXEC	(1 << 3)
 #define IOMMU_MMIO	(1 << 4) /* e.g. things like MSI doorbells */
+/*
+ * This is to make the IOMMU API setup privileged
+ * mapppings accessible by the master only at higher
+ * privileged execution level and inaccessible at
+ * less privileged levels.
+ */
+#define IOMMU_PRIV	(1 << 5)
 
 struct iommu_ops;
 struct iommu_group;
