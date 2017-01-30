@@ -130,6 +130,7 @@ config SERIAL_8250_PCI
 config SERIAL_8250_EXAR
         tristate "8250/16550 PCI device support"
         depends on SERIAL_8250_PCI
+	default SERIAL_8250
 
 config SERIAL_8250_HP300
 	tristate
