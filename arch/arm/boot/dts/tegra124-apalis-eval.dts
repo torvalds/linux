@@ -187,14 +187,8 @@
 	/* Apalis SD1 */
 	sdhci@700b0400 {
 		status = "okay";
-		/*
-		 * Don't use SD1_CD# aka SDMMC3_CLK_LB_OUT for now as it
-		 * features some magic properties even though the external
-		 * loopback is disabled and the internal loopback used as per
-		 * SDMMC_VENDOR_MISC_CNTRL_0 register's SDMMC_SPARE1 bits being
-		 * set to 0xfffd according to the TRM!
-		 * cd-gpios = <&gpio TEGRA_GPIO(EE, 4) GPIO_ACTIVE_LOW>;
-		 */
+		/* SD1_CD# */
+		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc3>;
 	};
