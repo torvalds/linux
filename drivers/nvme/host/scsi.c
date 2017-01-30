@@ -43,6 +43,7 @@
 #include <asm/unaligned.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_request.h>
 
 #include "nvme.h"
 
