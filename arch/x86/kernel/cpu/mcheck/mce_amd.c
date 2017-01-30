@@ -816,14 +816,14 @@ static inline void __smp_deferred_error_interrupt(void)
 	deferred_error_int_vector();
 }
 
-asmlinkage __visible void smp_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_deferred_error_interrupt(void)
 {
 	entering_irq();
 	__smp_deferred_error_interrupt();
 	exiting_ack_irq();
 }
 
-asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_trace_deferred_error_interrupt(void)
 {
 	entering_irq();
 	trace_deferred_error_apic_entry(DEFERRED_ERROR_VECTOR);
