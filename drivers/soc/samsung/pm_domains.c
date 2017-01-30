@@ -35,7 +35,6 @@ struct exynos_pm_domain_config {
  */
 struct exynos_pm_domain {
 	void __iomem *base;
-	char const *name;
 	bool is_off;
 	struct generic_pm_domain pd;
 	struct clk *oscclk;
@@ -70,7 +69,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 			pd->pclk[i] = clk_get_parent(pd->clk[i]);
 			if (clk_set_parent(pd->clk[i], pd->oscclk))
 				pr_err("%s: error setting oscclk as parent to clock %d\n",
-						pd->name, i);
+						domain->name, i);
 		}
 	}
 
@@ -101,7 +100,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 				continue; /* Skip on first power up */
 			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
 				pr_err("%s: error setting parent to clock%d\n",
-						pd->name, i);
+						domain->name, i);
 		}
 	}
 
@@ -163,7 +162,6 @@ static __init int exynos4_pm_init_power_domain(void)
 			return -ENOMEM;
 		}
 
-		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
 		if (!pd->base) {
 			pr_warn("%s: failed to map memory\n", __func__);
