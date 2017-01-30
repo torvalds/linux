@@ -246,8 +246,6 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	spin_lock_init(&idi48gpio->lock);
 	spin_lock_init(&idi48gpio->ack_lock);
 
-	dev_set_drvdata(dev, idi48gpio);
-
 	err = devm_gpiochip_add_data(dev, &idi48gpio->chip, idi48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
