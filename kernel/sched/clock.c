@@ -77,57 +77,27 @@ EXPORT_SYMBOL_GPL(sched_clock);
 
 __read_mostly int sched_clock_running;
 
+void sched_clock_init(void)
+{
+	sched_clock_running = 1;
+}
+
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
-static int __sched_clock_stable_early;
+/*
+ * We must start with !__sched_clock_stable because the unstable -> stable
+ * transition is accurate, while the stable -> unstable transition is not.
+ *
+ * Similarly we start with __sched_clock_stable_early, thereby assuming we
+ * will become stable, such that there's only a single 1 -> 0 transition.
+ */
+static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
+static int __sched_clock_stable_early = 1;
 
-int sched_clock_stable(void)
-{
-	return static_key_false(&__sched_clock_stable);
-}
-
-static void __set_sched_clock_stable(void)
-{
-	if (!sched_clock_stable())
-		static_key_slow_inc(&__sched_clock_stable);
-
-	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
-}
-
-void set_sched_clock_stable(void)
-{
-	__sched_clock_stable_early = 1;
-
-	smp_mb(); /* matches sched_clock_init() */
-
-	if (!sched_clock_running)
-		return;
-
-	__set_sched_clock_stable();
-}
-
-static void __clear_sched_clock_stable(struct work_struct *work)
-{
-	/* XXX worry about clock continuity */
-	if (sched_clock_stable())
-		static_key_slow_dec(&__sched_clock_stable);
-
-	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
-}
-
-static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
-
-void clear_sched_clock_stable(void)
-{
-	__sched_clock_stable_early = 0;
-
-	smp_mb(); /* matches sched_clock_init() */
-
-	if (!sched_clock_running)
-		return;
-
-	schedule_work(&sched_clock_work);
-}
+/*
+ * We want: ktime_get_ns() + gtod_offset == sched_clock() + raw_offset
+ */
+static __read_mostly u64 raw_offset;
+static __read_mostly u64 gtod_offset;
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -147,21 +117,66 @@ static inline struct sched_clock_data *cpu_sdc(int cpu)
 	return &per_cpu(sched_clock_data, cpu);
 }
 
-void sched_clock_init(void)
+int sched_clock_stable(void)
 {
-	u64 ktime_now = ktime_to_ns(ktime_get());
-	int cpu;
+	return static_branch_likely(&__sched_clock_stable);
+}
 
-	for_each_possible_cpu(cpu) {
-		struct sched_clock_data *scd = cpu_sdc(cpu);
+static void __set_sched_clock_stable(void)
+{
+	struct sched_clock_data *scd = this_scd();
 
-		scd->tick_raw = 0;
-		scd->tick_gtod = ktime_now;
-		scd->clock = ktime_now;
-	}
+	/*
+	 * Attempt to make the (initial) unstable->stable transition continuous.
+	 */
+	raw_offset = (scd->tick_gtod + gtod_offset) - (scd->tick_raw);
 
-	sched_clock_running = 1;
+	printk(KERN_INFO "sched_clock: Marking stable (%lld, %lld)->(%lld, %lld)\n",
+			scd->tick_gtod, gtod_offset,
+			scd->tick_raw,  raw_offset);
 
+	static_branch_enable(&__sched_clock_stable);
+	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
+}
+
+static void __clear_sched_clock_stable(struct work_struct *work)
+{
+	struct sched_clock_data *scd = this_scd();
+
+	/*
+	 * Attempt to make the stable->unstable transition continuous.
+	 *
+	 * Trouble is, this is typically called from the TSC watchdog
+	 * timer, which is late per definition. This means the tick
+	 * values can already be screwy.
+	 *
+	 * Still do what we can.
+	 */
+	gtod_offset = (scd->tick_raw + raw_offset) - (scd->tick_gtod);
+
+	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
+			scd->tick_gtod, gtod_offset,
+			scd->tick_raw,  raw_offset);
+
+	static_branch_disable(&__sched_clock_stable);
+	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
+}
+
+static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
+
+void clear_sched_clock_stable(void)
+{
+	__sched_clock_stable_early = 0;
+
+	smp_mb(); /* matches sched_clock_init_late() */
+
+	if (sched_clock_running == 2)
+		schedule_work(&sched_clock_work);
+}
+
+void sched_clock_init_late(void)
+{
+	sched_clock_running = 2;
 	/*
 	 * Ensure that it is impossible to not do a static_key update.
 	 *
@@ -173,8 +188,6 @@ void sched_clock_init(void)
 
 	if (__sched_clock_stable_early)
 		__set_sched_clock_stable();
-	else
-		__clear_sched_clock_stable(NULL);
 }
 
 /*
@@ -216,7 +229,7 @@ again:
 	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
-	clock = scd->tick_gtod + delta;
+	clock = scd->tick_gtod + gtod_offset + delta;
 	min_clock = wrap_max(scd->tick_gtod, old_clock);
 	max_clock = wrap_max(old_clock, scd->tick_gtod + TICK_NSEC);
 
@@ -302,7 +315,7 @@ u64 sched_clock_cpu(int cpu)
 	u64 clock;
 
 	if (sched_clock_stable())
-		return sched_clock();
+		return sched_clock() + raw_offset;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
@@ -323,23 +336,22 @@ EXPORT_SYMBOL_GPL(sched_clock_cpu);
 void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd;
-	u64 now, now_gtod;
-
-	if (sched_clock_stable())
-		return;
-
-	if (unlikely(!sched_clock_running))
-		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
+	/*
+	 * Update these values even if sched_clock_stable(), because it can
+	 * become unstable at any point in time at which point we need some
+	 * values to fall back on.
+	 *
+	 * XXX arguably we can skip this if we expose tsc_clocksource_reliable
+	 */
 	scd = this_scd();
-	now_gtod = ktime_to_ns(ktime_get());
-	now = sched_clock();
+	scd->tick_raw  = sched_clock();
+	scd->tick_gtod = ktime_get_ns();
 
-	scd->tick_raw = now;
-	scd->tick_gtod = now_gtod;
-	sched_clock_local(scd);
+	if (!sched_clock_stable() && likely(sched_clock_running))
+		sched_clock_local(scd);
 }
 
 /*
@@ -366,11 +378,6 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
-void sched_clock_init(void)
-{
-	sched_clock_running = 1;
-}
-
 u64 sched_clock_cpu(int cpu)
 {
 	if (unlikely(!sched_clock_running))
@@ -378,6 +385,7 @@ u64 sched_clock_cpu(int cpu)
 
 	return sched_clock();
 }
+
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 /*
