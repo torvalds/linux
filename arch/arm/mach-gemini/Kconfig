@@ -7,6 +7,7 @@ menuconfig ARCH_GEMINI
 	select GPIO_GEMINI
 	select GPIOLIB
 	select POWER_RESET
+	select POWER_RESET_GEMINI_POWEROFF
 	select POWER_RESET_SYSCON
 	select SERIAL_OF_PLATFORM
 	help
