@@ -155,7 +155,6 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 
 void kvmppc_free_hpt(struct kvm *kvm)
 {
-	kvmppc_free_lpid(kvm->arch.lpid);
 	vfree(kvm->arch.revmap);
 	if (kvm->arch.hpt_cma_alloc)
 		kvm_release_hpt(virt_to_page(kvm->arch.hpt_virt),

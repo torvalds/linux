@@ -610,6 +610,51 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 	return 0;
 }
 
+static void add_rmmu_ap_encoding(struct kvm_ppc_rmmu_info *info,
+				 int psize, int *indexp)
+{
+	if (!mmu_psize_defs[psize].shift)
+		return;
+	info->ap_encodings[*indexp] = mmu_psize_defs[psize].shift |
+		(mmu_psize_defs[psize].ap << 29);
+	++(*indexp);
+}
+
+int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info)
+{
+	int i;
+
+	if (!radix_enabled())
+		return -EINVAL;
+	memset(info, 0, sizeof(*info));
+
+	/* 4k page size */
+	info->geometries[0].page_shift = 12;
+	info->geometries[0].level_bits[0] = 9;
+	for (i = 1; i < 4; ++i)
+		info->geometries[0].level_bits[i] = p9_supported_radix_bits[i];
+	/* 64k page size */
+	info->geometries[1].page_shift = 16;
+	for (i = 0; i < 4; ++i)
+		info->geometries[1].level_bits[i] = p9_supported_radix_bits[i];
+
+	i = 0;
+	add_rmmu_ap_encoding(info, MMU_PAGE_4K, &i);
+	add_rmmu_ap_encoding(info, MMU_PAGE_64K, &i);
+	add_rmmu_ap_encoding(info, MMU_PAGE_2M, &i);
+	add_rmmu_ap_encoding(info, MMU_PAGE_1G, &i);
+
+	return 0;
+}
+
+int kvmppc_init_vm_radix(struct kvm *kvm)
+{
+	kvm->arch.pgtable = pgd_alloc(kvm->mm);
+	if (!kvm->arch.pgtable)
+		return -ENOMEM;
+	return 0;
+}
+
 void kvmppc_free_radix(struct kvm *kvm)
 {
 	unsigned long ig, iu, im;

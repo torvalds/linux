@@ -566,7 +566,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = kvmppc_hwrng_present();
 		break;
 	case KVM_CAP_PPC_MMU_RADIX:
-		r = !!(0 && hv_enabled && radix_enabled());
+		r = !!(hv_enabled && radix_enabled());
 		break;
 	case KVM_CAP_PPC_MMU_HASH_V3:
 		r = !!(hv_enabled && !radix_enabled() &&

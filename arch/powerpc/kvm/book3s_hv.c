@@ -1135,7 +1135,7 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	/*
 	 * Userspace can only modify DPFD (default prefetch depth),
 	 * ILE (interrupt little-endian) and TC (translation control).
-	 * On POWER8 userspace can also modify AIL (alt. interrupt loc.)
+	 * On POWER8 and POWER9 userspace can also modify AIL (alt. interrupt loc.).
 	 */
 	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -2922,7 +2922,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	smp_mb();
 
 	/* On the first time here, set up HTAB and VRMA */
-	if (!vcpu->kvm->arch.hpte_setup_done) {
+	if (!kvm_is_radix(vcpu->kvm) && !vcpu->kvm->arch.hpte_setup_done) {
 		r = kvmppc_hv_setup_htab_rma(vcpu);
 		if (r)
 			goto out;
@@ -2983,6 +2983,13 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 					 struct kvm_ppc_smmu_info *info)
 {
 	struct kvm_ppc_one_seg_page_size *sps;
+
+	/*
+	 * Since we don't yet support HPT guests on a radix host,
+	 * return an error if the host uses radix.
+	 */
+	if (radix_enabled())
+		return -EINVAL;
 
 	info->flags = KVM_PPC_PAGE_SIZES_REAL;
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
@@ -3069,6 +3076,15 @@ static void kvmppc_core_free_memslot_hv(struct kvm_memory_slot *free,
 static int kvmppc_core_create_memslot_hv(struct kvm_memory_slot *slot,
 					 unsigned long npages)
 {
+	/*
+	 * For now, if radix_enabled() then we only support radix guests,
+	 * and in that case we don't need the rmap array.
+	 */
+	if (radix_enabled()) {
+		slot->arch.rmap = NULL;
+		return 0;
+	}
+
 	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
 	if (!slot->arch.rmap)
 		return -ENOMEM;
@@ -3149,14 +3165,20 @@ static void kvmppc_setup_partition_table(struct kvm *kvm)
 {
 	unsigned long dw0, dw1;
 
-	/* PS field - page size for VRMA */
-	dw0 = ((kvm->arch.vrma_slb_v & SLB_VSID_L) >> 1) |
-		((kvm->arch.vrma_slb_v & SLB_VSID_LP) << 1);
-	/* HTABSIZE and HTABORG fields */
-	dw0 |= kvm->arch.sdr1;
+	if (!kvm_is_radix(kvm)) {
+		/* PS field - page size for VRMA */
+		dw0 = ((kvm->arch.vrma_slb_v & SLB_VSID_L) >> 1) |
+			((kvm->arch.vrma_slb_v & SLB_VSID_LP) << 1);
+		/* HTABSIZE and HTABORG fields */
+		dw0 |= kvm->arch.sdr1;
 
-	/* Second dword as set by userspace */
-	dw1 = kvm->arch.process_table;
+		/* Second dword as set by userspace */
+		dw1 = kvm->arch.process_table;
+	} else {
+		dw0 = PATB_HR | radix__get_tree_size() |
+			__pa(kvm->arch.pgtable) | RADIX_PGD_INDEX_SIZE;
+		dw1 = PATB_GR | kvm->arch.process_table;
+	}
 
 	mmu_partition_table_set_entry(kvm->arch.lpid, dw0, dw1);
 }
@@ -3326,6 +3348,7 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 {
 	unsigned long lpcr, lpid;
 	char buf[32];
+	int ret;
 
 	/* Allocate the guest's logical partition ID */
 
@@ -3373,13 +3396,30 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		lpcr |= LPCR_HVICE;
 	}
 
+	/*
+	 * For now, if the host uses radix, the guest must be radix.
+	 */
+	if (radix_enabled()) {
+		kvm->arch.radix = 1;
+		lpcr &= ~LPCR_VPM1;
+		lpcr |= LPCR_UPRT | LPCR_GTSE | LPCR_HR;
+		ret = kvmppc_init_vm_radix(kvm);
+		if (ret) {
+			kvmppc_free_lpid(kvm->arch.lpid);
+			return ret;
+		}
+		kvmppc_setup_partition_table(kvm);
+	}
+
 	kvm->arch.lpcr = lpcr;
 
 	/*
 	 * Work out how many sets the TLB has, for the use of
 	 * the TLB invalidation loop in book3s_hv_rmhandlers.S.
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (kvm_is_radix(kvm))
+		kvm->arch.tlb_sets = POWER9_TLB_SETS_RADIX;	/* 128 */
+	else if (cpu_has_feature(CPU_FTR_ARCH_300))
 		kvm->arch.tlb_sets = POWER9_TLB_SETS_HASH;	/* 256 */
 	else if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		kvm->arch.tlb_sets = POWER8_TLB_SETS;		/* 512 */
@@ -3389,8 +3429,11 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	/*
 	 * Track that we now have a HV mode VM active. This blocks secondary
 	 * CPU threads from coming online.
+	 * On POWER9, we only need to do this for HPT guests on a radix
+	 * host, which is not yet supported.
 	 */
-	kvm_hv_vm_activated();
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm_hv_vm_activated();
 
 	/*
 	 * Create a debugfs directory for the VM
@@ -3416,9 +3459,12 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
 	debugfs_remove_recursive(kvm->arch.debugfs_dir);
 
-	kvm_hv_vm_deactivated();
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm_hv_vm_deactivated();
 
 	kvmppc_free_vcores(kvm);
+
+	kvmppc_free_lpid(kvm->arch.lpid);
 
 	if (kvm_is_radix(kvm))
 		kvmppc_free_radix(kvm);
@@ -3451,11 +3497,6 @@ static int kvmppc_core_check_processor_compat_hv(void)
 {
 	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
 	    !cpu_has_feature(CPU_FTR_ARCH_206))
-		return -EIO;
-	/*
-	 * Disable KVM for Power9 in radix mode.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && radix_enabled())
 		return -EIO;
 
 	return 0;
@@ -3727,6 +3768,7 @@ static void init_default_hcalls(void)
 static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 {
 	unsigned long lpcr;
+	int radix;
 
 	/* If not on a POWER9, reject it */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
@@ -3736,12 +3778,13 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	if (cfg->flags & ~(KVM_PPC_MMUV3_RADIX | KVM_PPC_MMUV3_GTSE))
 		return -EINVAL;
 
-	/* We can't do radix yet */
-	if (cfg->flags & KVM_PPC_MMUV3_RADIX)
+	/* We can't change a guest to/from radix yet */
+	radix = !!(cfg->flags & KVM_PPC_MMUV3_RADIX);
+	if (radix != kvm_is_radix(kvm))
 		return -EINVAL;
 
 	/* GR (guest radix) bit in process_table field must match */
-	if (cfg->process_table & PATB_GR)
+	if (!!(cfg->process_table & PATB_GR) != radix)
 		return -EINVAL;
 
 	/* Process table size field must be reasonable, i.e. <= 24 */
@@ -3755,11 +3798,6 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_GTSE);
 
 	return 0;
-}
-
-static int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info)
-{
-	return -EINVAL;
 }
 
 static struct kvmppc_ops kvm_ops_hv = {
