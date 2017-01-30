@@ -52,6 +52,13 @@ struct bcm_sf2_port_status {
 	struct ethtool_eee eee;
 };
 
+struct bcm_sf2_cfp_priv {
+	/* Mutex protecting concurrent accesses to the CFP registers */
+	struct mutex lock;
+	DECLARE_BITMAP(used, CFP_NUM_RULES);
+	unsigned int rules_cnt;
+};
+
 struct bcm_sf2_priv {
 	/* Base registers, keep those in order with BCM_SF2_REGS_NAME */
 	void __iomem			*core;
@@ -103,6 +110,9 @@ struct bcm_sf2_priv {
 
 	/* Bitmask of ports needing BRCM tags */
 	unsigned int			brcm_tag_mask;
+
+	/* CFP rules context */
+	struct bcm_sf2_cfp_priv		cfp;
 };
 
 static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
@@ -196,5 +206,12 @@ SF2_IO_MACRO(acb);
 
 SWITCH_INTR_L2(0);
 SWITCH_INTR_L2(1);
+
+/* RXNFC */
+int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
+		      struct ethtool_rxnfc *nfc, u32 *rule_locs);
+int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
+		      struct ethtool_rxnfc *nfc);
+int bcm_sf2_cfp_rst(struct bcm_sf2_priv *priv);
 
 #endif /* __BCM_SF2_H */

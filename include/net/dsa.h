@@ -377,6 +377,14 @@ struct dsa_switch_ops {
 	int	(*port_mdb_dump)(struct dsa_switch *ds, int port,
 				 struct switchdev_obj_port_mdb *mdb,
 				 int (*cb)(struct switchdev_obj *obj));
+
+	/*
+	 * RXNFC
+	 */
+	int	(*get_rxnfc)(struct dsa_switch *ds, int port,
+			     struct ethtool_rxnfc *nfc, u32 *rule_locs);
+	int	(*set_rxnfc)(struct dsa_switch *ds, int port,
+			     struct ethtool_rxnfc *nfc);
 };
 
 struct dsa_switch_driver {
