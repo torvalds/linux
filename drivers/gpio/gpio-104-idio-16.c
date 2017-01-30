@@ -242,8 +242,6 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 
 	spin_lock_init(&idio16gpio->lock);
 
-	dev_set_drvdata(dev, idio16gpio);
-
 	err = devm_gpiochip_add_data(dev, &idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
