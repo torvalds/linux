@@ -235,6 +235,11 @@ struct change_member {
 	unsigned long long	addr;
 };
 
+static struct change_member	change_point_list[2*E820_MAX_ENTRIES]	__initdata;
+static struct change_member	*change_point[2*E820_MAX_ENTRIES]	__initdata;
+static struct e820_entry	*overlap_list[E820_MAX_ENTRIES]		__initdata;
+static struct e820_entry	new_entries[E820_MAX_ENTRIES]		__initdata;
+
 static int __init cpcompare(const void *a, const void *b)
 {
 	struct change_member * const *app = a, * const *bpp = b;
@@ -252,51 +257,46 @@ static int __init cpcompare(const void *a, const void *b)
 	return (ap->addr != ap->entry->addr) - (bp->addr != bp->entry->addr);
 }
 
-static int __init __e820__update_table(struct e820_entry *entries, u32 max_nr_entries, u32 *nr_entries)
+int __init e820__update_table(struct e820_table *table)
 {
-	static struct change_member change_point_list[2*E820_MAX_ENTRIES] __initdata;
-	static struct change_member *change_point[2*E820_MAX_ENTRIES] __initdata;
-	static struct e820_entry *overlap_list[E820_MAX_ENTRIES] __initdata;
-	static struct e820_entry new_entries[E820_MAX_ENTRIES] __initdata;
+	struct e820_entry *entries = table->entries;
+	u32 max_nr_entries = ARRAY_SIZE(table->entries);
 	enum e820_type current_type, last_type;
 	unsigned long long last_addr;
-	u32 chgidx;
-	u32 overlap_entries;
-	u32 new_nr_entries;
-	u32 old_nr, new_nr, chg_nr;
-	u32 i;
+	u32 new_nr_entries, overlap_entries;
+	u32 i, chg_idx, chg_nr;
 
 	/* If there's only one memory region, don't bother: */
-	if (*nr_entries < 2)
+	if (table->nr_entries < 2)
 		return -1;
 
-	old_nr = *nr_entries;
-	BUG_ON(old_nr > max_nr_entries);
+	table->nr_entries = table->nr_entries;
+	BUG_ON(table->nr_entries > max_nr_entries);
 
 	/* Bail out if we find any unreasonable addresses in the map: */
-	for (i = 0; i < old_nr; i++) {
+	for (i = 0; i < table->nr_entries; i++) {
 		if (entries[i].addr + entries[i].size < entries[i].addr)
 			return -1;
 	}
 
 	/* Create pointers for initial change-point information (for sorting): */
-	for (i = 0; i < 2 * old_nr; i++)
+	for (i = 0; i < 2 * table->nr_entries; i++)
 		change_point[i] = &change_point_list[i];
 
 	/*
 	 * Record all known change-points (starting and ending addresses),
 	 * omitting empty memory regions:
 	 */
-	chgidx = 0;
-	for (i = 0; i < old_nr; i++)	{
+	chg_idx = 0;
+	for (i = 0; i < table->nr_entries; i++)	{
 		if (entries[i].size != 0) {
-			change_point[chgidx]->addr	= entries[i].addr;
-			change_point[chgidx++]->entry	= &entries[i];
-			change_point[chgidx]->addr	= entries[i].addr + entries[i].size;
-			change_point[chgidx++]->entry	= &entries[i];
+			change_point[chg_idx]->addr	= entries[i].addr;
+			change_point[chg_idx++]->entry	= &entries[i];
+			change_point[chg_idx]->addr	= entries[i].addr + entries[i].size;
+			change_point[chg_idx++]->entry	= &entries[i];
 		}
 	}
-	chg_nr = chgidx;
+	chg_nr = chg_idx;
 
 	/* Sort change-point list by memory addresses (low -> high): */
 	sort(change_point, chg_nr, sizeof(*change_point), cpcompare, NULL);
@@ -308,15 +308,15 @@ static int __init __e820__update_table(struct e820_entry *entries, u32 max_nr_en
 	last_addr = 0;		 /* Start with 0 as last starting address */
 
 	/* Loop through change-points, determining effect on the new map: */
-	for (chgidx = 0; chgidx < chg_nr; chgidx++) {
+	for (chg_idx = 0; chg_idx < chg_nr; chg_idx++) {
 		/* Keep track of all overlapping entries */
-		if (change_point[chgidx]->addr == change_point[chgidx]->entry->addr) {
+		if (change_point[chg_idx]->addr == change_point[chg_idx]->entry->addr) {
 			/* Add map entry to overlap list (> 1 entry implies an overlap) */
-			overlap_list[overlap_entries++] = change_point[chgidx]->entry;
+			overlap_list[overlap_entries++] = change_point[chg_idx]->entry;
 		} else {
 			/* Remove entry from list (order independent, so swap with last): */
 			for (i = 0; i < overlap_entries; i++) {
-				if (overlap_list[i] == change_point[chgidx]->entry)
+				if (overlap_list[i] == change_point[chg_idx]->entry)
 					overlap_list[i] = overlap_list[overlap_entries-1];
 			}
 			overlap_entries--;
@@ -335,7 +335,7 @@ static int __init __e820__update_table(struct e820_entry *entries, u32 max_nr_en
 		/* Continue building up new map based on this information: */
 		if (current_type != last_type || current_type == E820_TYPE_PRAM) {
 			if (last_type != 0)	 {
-				new_entries[new_nr_entries].size = change_point[chgidx]->addr - last_addr;
+				new_entries[new_nr_entries].size = change_point[chg_idx]->addr - last_addr;
 				/* Move forward only if the new size was non-zero: */
 				if (new_entries[new_nr_entries].size != 0)
 					/* No more space left for new entries? */
@@ -343,27 +343,19 @@ static int __init __e820__update_table(struct e820_entry *entries, u32 max_nr_en
 						break;
 			}
 			if (current_type != 0)	{
-				new_entries[new_nr_entries].addr = change_point[chgidx]->addr;
+				new_entries[new_nr_entries].addr = change_point[chg_idx]->addr;
 				new_entries[new_nr_entries].type = current_type;
-				last_addr = change_point[chgidx]->addr;
+				last_addr = change_point[chg_idx]->addr;
 			}
 			last_type = current_type;
 		}
 	}
 
-	/* Retain count for the new entries: */
-	new_nr = new_nr_entries;
-
 	/* Copy the new entries into the original location: */
-	memcpy(entries, new_entries, new_nr*sizeof(*entries));
-	*nr_entries = new_nr;
+	memcpy(entries, new_entries, new_nr_entries*sizeof(*entries));
+	table->nr_entries = new_nr_entries;
 
 	return 0;
-}
-
-int __init e820__update_table(struct e820_table *table)
-{
-	return __e820__update_table(table->entries, ARRAY_SIZE(table->entries), &table->nr_entries);
 }
 
 static int __init __append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
