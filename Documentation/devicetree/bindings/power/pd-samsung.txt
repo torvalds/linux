@@ -6,6 +6,7 @@ to gate power to one or more peripherals on the processor.
 Required Properties:
 - compatible: should be one of the following.
     * samsung,exynos4210-pd - for exynos4210 type power domain.
+    * samsung,exynos5433-pd - for exynos5433 type power domain.
 - reg: physical base address of the controller and length of memory mapped
     region.
 - #power-domain-cells: number of cells in power domain specifier;
