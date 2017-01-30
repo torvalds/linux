@@ -3356,7 +3356,10 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 
 	kvmppc_free_vcores(kvm);
 
-	kvmppc_free_hpt(kvm);
+	if (kvm_is_radix(kvm))
+		kvmppc_free_radix(kvm);
+	else
+		kvmppc_free_hpt(kvm);
 
 	kvmppc_free_pimap(kvm);
 }
@@ -3768,6 +3771,11 @@ static int kvm_init_subcore_bitmap(void)
 	return 0;
 }
 
+static int kvmppc_radix_possible(void)
+{
+	return cpu_has_feature(CPU_FTR_ARCH_300) && radix_enabled();
+}
+
 static int kvmppc_book3s_init_hv(void)
 {
 	int r;
@@ -3807,12 +3815,19 @@ static int kvmppc_book3s_init_hv(void)
 	init_vcore_lists();
 
 	r = kvmppc_mmu_hv_init();
+	if (r)
+		return r;
+
+	if (kvmppc_radix_possible())
+		r = kvmppc_radix_init();
 	return r;
 }
 
 static void kvmppc_book3s_exit_hv(void)
 {
 	kvmppc_free_host_rm_ops();
+	if (kvmppc_radix_possible())
+		kvmppc_radix_exit();
 	kvmppc_hv_ops = NULL;
 }
 
