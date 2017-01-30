@@ -606,6 +606,7 @@ struct kvm_vcpu_arch {
 	ulong fault_dar;
 	u32 fault_dsisr;
 	unsigned long intr_msr;
+	ulong fault_gpa;	/* guest real address of page fault (POWER9) */
 #endif
 
 #ifdef CONFIG_BOOKE
