@@ -23,6 +23,7 @@
 #include <asm/prom.h>
 #include <linux/uaccess.h>
 #include <asm/debug.h>
+#include <asm/isa-bridge.h>
 
 static int opal_lpc_chip_id = -1;
 
