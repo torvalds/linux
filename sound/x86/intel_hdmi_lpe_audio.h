@@ -362,19 +362,6 @@ union aud_cfg {
 		u32 aud_en:1;
 		u32 layout:1;
 		u32 fmt:2;
-		u32 num_ch:2;
-		u32 rsvd0:1;
-		u32 set:1;
-		u32 flat:1;
-		u32 val_bit:1;
-		u32 user_bit:1;
-		u32 underrun:1;
-		u32 rsvd1:20;
-	} cfg_regx;
-	struct {
-		u32 aud_en:1;
-		u32 layout:1;
-		u32 fmt:2;
 		u32 num_ch:3;
 		u32 set:1;
 		u32 flat:1;
@@ -439,11 +426,6 @@ union aud_ch_status_1 {
  */
 union aud_hdmi_cts {
 	struct {
-		u32 cts_val:20;
-		u32 en_cts_prog:1;
-		u32 rsvd:11;
-	} cts_regx;
-	struct {
 		u32 cts_val:24;
 		u32 en_cts_prog:1;
 		u32 rsvd:7;
@@ -460,11 +442,6 @@ union aud_hdmi_cts {
  */
 union aud_hdmi_n_enable {
 	struct {
-		u32 n_val:20;
-		u32 en_n_prog:1;
-		u32 rsvd:11;
-	} n_regx;
-	struct {
 		u32 n_val:24;
 		u32 en_n_prog:1;
 		u32 rsvd:7;
@@ -480,12 +457,6 @@ union aud_hdmi_n_enable {
  *
  */
 union aud_buf_config {
-	struct {
-		u32 fifo_width:8;
-		u32 rsvd0:8;
-		u32 aud_delay:8;
-		u32 rsvd1:8;
-	} buf_cfg_regx;
 	struct {
 		u32 audio_fifo_watermark:8;
 		u32 dma_fifo_watermark:3;
