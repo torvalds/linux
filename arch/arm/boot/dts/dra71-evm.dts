@@ -138,6 +138,11 @@
 	};
 };
 
+&pcf_lcd {
+	interrupt-parent = <&gpio7>;
+	interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+};
+
 &pcf_gpio_21 {
 	interrupt-parent = <&gpio7>;
 	interrupts = <31 IRQ_TYPE_EDGE_FALLING>;

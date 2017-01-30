@@ -132,7 +132,8 @@ dtb-$(CONFIG_ARCH_CLPS711X) += \
 dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-lcdk.dtb \
 	da850-enbw-cmc.dtb \
-	da850-evm.dtb
+	da850-evm.dtb \
+	da850-lego-ev3.dtb
 dtb-$(CONFIG_ARCH_DIGICOLOR) += \
 	cx92755_equinox.dtb
 dtb-$(CONFIG_ARCH_EFM32) += \
@@ -568,7 +569,9 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-base0033.dtb \
 	am335x-bone.dtb \
 	am335x-boneblack.dtb \
+	am335x-boneblack-wireless.dtb \
 	am335x-bonegreen.dtb \
+	am335x-bonegreen-wireless.dtb \
 	am335x-chiliboard.dtb \
 	am335x-cm-t335.dtb \
 	am335x-evm.dtb \
