@@ -98,26 +98,8 @@ static int h3_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int h3_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int h3_panel_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return 0;
-}
-
-static int h3_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver h3_panel_driver = {
 	.probe		= h3_panel_probe,
-	.remove		= h3_panel_remove,
-	.suspend	= h3_panel_suspend,
-	.resume		= h3_panel_resume,
 	.driver		= {
 		.name	= "lcd_h3",
 	},

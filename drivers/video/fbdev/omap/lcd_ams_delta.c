@@ -195,27 +195,8 @@ static int ams_delta_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ams_delta_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int ams_delta_panel_suspend(struct platform_device *pdev,
-		pm_message_t mesg)
-{
-	return 0;
-}
-
-static int ams_delta_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ams_delta_panel_driver = {
 	.probe		= ams_delta_panel_probe,
-	.remove		= ams_delta_panel_remove,
-	.suspend	= ams_delta_panel_suspend,
-	.resume		= ams_delta_panel_resume,
 	.driver		= {
 		.name	= "lcd_ams_delta",
 	},

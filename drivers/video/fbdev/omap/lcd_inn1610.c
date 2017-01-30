@@ -104,27 +104,8 @@ static int innovator1610_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int innovator1610_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int innovator1610_panel_suspend(struct platform_device *pdev,
-				       pm_message_t mesg)
-{
-	return 0;
-}
-
-static int innovator1610_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver innovator1610_panel_driver = {
 	.probe		= innovator1610_panel_probe,
-	.remove		= innovator1610_panel_remove,
-	.suspend	= innovator1610_panel_suspend,
-	.resume		= innovator1610_panel_resume,
 	.driver		= {
 		.name	= "lcd_inn1610",
 	},
