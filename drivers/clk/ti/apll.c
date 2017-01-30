@@ -194,7 +194,6 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 
 	clk_hw->dpll_data = ad;
 	clk_hw->hw.init = init;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 
 	init->name = node->name;
 	init->ops = &apll_ck_ops;

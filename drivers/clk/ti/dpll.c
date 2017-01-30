@@ -248,7 +248,6 @@ struct clk *ti_clk_register_dpll(struct ti_clk *setup)
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;
 	clk_hw->hw.init = &init;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 
 	init.name = setup->name;
 	init.ops = ops;
@@ -380,7 +379,6 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	clk_hw->dpll_data = dd;
 	clk_hw->ops = &clkhwops_omap3_dpll;
 	clk_hw->hw.init = init;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 
 	init->name = node->name;
 	init->ops = ops;

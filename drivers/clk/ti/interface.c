@@ -47,7 +47,6 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 
 	clk_hw->hw.init = &init;
 	clk_hw->ops = ops;
-	clk_hw->flags = MEMMAP_ADDRESSING;
 	clk_hw->enable_reg = reg;
 	clk_hw->enable_bit = bit_idx;
 

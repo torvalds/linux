@@ -113,7 +113,7 @@ static struct clk *_register_gate(struct device *dev, const char *name,
 	clk_hw->enable_bit = bit_idx;
 	clk_hw->ops = hw_ops;
 
-	clk_hw->flags = MEMMAP_ADDRESSING | clk_gate_flags;
+	clk_hw->flags = clk_gate_flags;
 
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -203,7 +203,6 @@ struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup)
 		ops = &clkhwops_iclk_wait;
 
 	gate->ops = ops;
-	gate->flags = MEMMAP_ADDRESSING;
 
 	return &gate->hw;
 }
@@ -269,7 +268,6 @@ _of_ti_composite_gate_clk_setup(struct device_node *node,
 
 	gate->enable_bit = val;
 	gate->ops = hw_ops;
-	gate->flags = MEMMAP_ADDRESSING;
 
 	if (!ti_clk_add_component(node, &gate->hw, CLK_COMPONENT_TYPE_GATE))
 		return;
