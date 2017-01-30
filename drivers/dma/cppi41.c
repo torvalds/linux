@@ -648,7 +648,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		if (!c->is_tx) {
 			reg |= GCR_STARV_RETRY;
 			reg |= GCR_DESC_TYPE_HOST;
-			reg |= c->q_comp_num;
+			reg |= cdd->td_queue.complete;
 		}
 		reg |= GCR_TEARDOWN;
 		cppi_writel(reg, c->gcr_reg);
@@ -659,7 +659,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	if (!c->td_seen || !c->td_desc_seen) {
 
 		desc_phys = cppi41_pop_desc(cdd, cdd->td_queue.complete);
-		if (!desc_phys)
+		if (!desc_phys && c->is_tx)
 			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 
 		if (desc_phys == c->desc_phys) {
