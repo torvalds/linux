@@ -591,7 +591,7 @@ EXPORT_SYMBOL(srp_reconnect_rport);
  * Note: This function is called from soft-IRQ context and with the request
  * queue lock held.
  */
-static enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
+enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
@@ -603,6 +603,7 @@ static enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
 		i->f->reset_timer_if_blocked && scsi_device_blocked(sdev) ?
 		BLK_EH_RESET_TIMER : BLK_EH_NOT_HANDLED;
 }
+EXPORT_SYMBOL(srp_timed_out);
 
 static void srp_rport_release(struct device *dev)
 {
@@ -819,8 +820,6 @@ srp_attach_transport(struct srp_function_template *ft)
 	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (!i)
 		return NULL;
-
-	i->t.eh_timed_out = srp_timed_out;
 
 	i->t.tsk_mgmt_response = srp_tsk_mgmt_response;
 	i->t.it_nexus_response = srp_it_nexus_response;

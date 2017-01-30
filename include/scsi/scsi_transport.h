@@ -58,17 +58,6 @@ struct scsi_transport_template {
 	void (* eh_strategy_handler)(struct Scsi_Host *);
 
 	/*
-	 * This is an optional routine that allows the transport to become
-	 * involved when a scsi io timer fires. The return value tells the
-	 * timer routine how to finish the io timeout handling:
-	 * EH_HANDLED:		I fixed the error, please complete the command
-	 * EH_RESET_TIMER:	I need more time, reset the timer and
-	 *			begin counting again
-	 * EH_NOT_HANDLED	Begin normal error recovery
-	 */
-	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
-
-	/*
 	 * Used as callback for the completion of i_t_nexus request
 	 * for target drivers.
 	 */
