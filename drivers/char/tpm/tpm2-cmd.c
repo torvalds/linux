@@ -53,22 +53,6 @@ struct tpm2_pcr_read_out {
 	u8	digest[TPM_DIGEST_SIZE];
 } __packed;
 
-struct tpm2_null_auth_area {
-	__be32			handle;
-	__be16			nonce_size;
-	u8			attributes;
-	__be16			auth_size;
-} __packed;
-
-struct tpm2_pcr_extend_in {
-	__be32				pcr_idx;
-	__be32				auth_area_size;
-	struct tpm2_null_auth_area	auth_area;
-	__be32				digest_cnt;
-	__be16				hash_alg;
-	u8				digest[TPM_DIGEST_SIZE];
-} __packed;
-
 struct tpm2_get_tpm_pt_in {
 	__be32	cap_id;
 	__be32	property_id;
@@ -97,7 +81,6 @@ union tpm2_cmd_params {
 	struct	tpm2_self_test_in	selftest_in;
 	struct	tpm2_pcr_read_in	pcrread_in;
 	struct	tpm2_pcr_read_out	pcrread_out;
-	struct	tpm2_pcr_extend_in	pcrextend_in;
 	struct	tpm2_get_tpm_pt_in	get_tpm_pt_in;
 	struct	tpm2_get_tpm_pt_out	get_tpm_pt_out;
 	struct	tpm2_get_random_in	getrandom_in;
@@ -294,48 +277,70 @@ int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 	return rc;
 }
 
-#define TPM2_GET_PCREXTEND_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_pcr_extend_in))
-
-static const struct tpm_input_header tpm2_pcrextend_header = {
-	.tag = cpu_to_be16(TPM2_ST_SESSIONS),
-	.length = cpu_to_be32(TPM2_GET_PCREXTEND_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_PCR_EXTEND)
-};
+struct tpm2_null_auth_area {
+	__be32  handle;
+	__be16  nonce_size;
+	u8  attributes;
+	__be16  auth_size;
+} __packed;
 
 /**
  * tpm2_pcr_extend() - extend a PCR value
  *
  * @chip:	TPM chip to use.
  * @pcr_idx:	index of the PCR.
- * @hash:	hash value to use for the extend operation.
+ * @count:	number of digests passed.
+ * @digests:	list of pcr banks and corresponding digest values to extend.
  *
  * Return: Same as with tpm_transmit_cmd.
  */
-int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash)
+int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
+		    struct tpm2_digest *digests)
 {
-	struct tpm2_cmd cmd;
+	struct tpm_buf buf;
+	struct tpm2_null_auth_area auth_area;
 	int rc;
+	int i;
+	int j;
 
-	cmd.header.in = tpm2_pcrextend_header;
-	cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(pcr_idx);
-	cmd.params.pcrextend_in.auth_area_size =
-		cpu_to_be32(sizeof(struct tpm2_null_auth_area));
-	cmd.params.pcrextend_in.auth_area.handle =
-		cpu_to_be32(TPM2_RS_PW);
-	cmd.params.pcrextend_in.auth_area.nonce_size = 0;
-	cmd.params.pcrextend_in.auth_area.attributes = 0;
-	cmd.params.pcrextend_in.auth_area.auth_size = 0;
-	cmd.params.pcrextend_in.digest_cnt = cpu_to_be32(1);
-	cmd.params.pcrextend_in.hash_alg = cpu_to_be16(TPM2_ALG_SHA1);
-	memcpy(cmd.params.pcrextend_in.digest, hash, TPM_DIGEST_SIZE);
+	if (count > ARRAY_SIZE(chip->active_banks))
+		return -EINVAL;
 
-	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), 0, 0,
+	rc = tpm_buf_init(&buf, TPM2_ST_SESSIONS, TPM2_CC_PCR_EXTEND);
+	if (rc)
+		return rc;
+
+	tpm_buf_append_u32(&buf, pcr_idx);
+
+	auth_area.handle = cpu_to_be32(TPM2_RS_PW);
+	auth_area.nonce_size = 0;
+	auth_area.attributes = 0;
+	auth_area.auth_size = 0;
+
+	tpm_buf_append_u32(&buf, sizeof(struct tpm2_null_auth_area));
+	tpm_buf_append(&buf, (const unsigned char *)&auth_area,
+		       sizeof(auth_area));
+	tpm_buf_append_u32(&buf, count);
+
+	for (i = 0; i < count; i++) {
+		for (j = 0; j < ARRAY_SIZE(tpm2_hash_map); j++) {
+			if (digests[i].alg_id != tpm2_hash_map[j].tpm_id)
+				continue;
+			tpm_buf_append_u16(&buf, digests[i].alg_id);
+			tpm_buf_append(&buf, (const unsigned char
+					      *)&digests[i].digest,
+			       hash_digest_size[tpm2_hash_map[j].crypto_id]);
+		}
+	}
+
+	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 0, 0,
 			      "attempting extend a PCR value");
+
+	tpm_buf_destroy(&buf);
 
 	return rc;
 }
+
 
 #define TPM2_GETRANDOM_IN_SIZE \
 	(sizeof(struct tpm_input_header) + \
@@ -1024,6 +1029,8 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 			goto out;
 		}
 	}
+
+	rc = tpm2_get_pcr_allocation(chip);
 
 out:
 	if (rc > 0)

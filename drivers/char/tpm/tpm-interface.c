@@ -789,13 +789,25 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	struct tpm_cmd_t cmd;
 	int rc;
 	struct tpm_chip *chip;
+	struct tpm2_digest digest_list[ARRAY_SIZE(chip->active_banks)];
+	u32 count = 0;
+	int i;
 
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		rc = tpm2_pcr_extend(chip, pcr_idx, hash);
+		memset(digest_list, 0, sizeof(digest_list));
+
+		for (i = 0; chip->active_banks[i] != TPM2_ALG_ERROR &&
+		     i < ARRAY_SIZE(chip->active_banks); i++) {
+			digest_list[i].alg_id = chip->active_banks[i];
+			memcpy(digest_list[i].digest, hash, TPM_DIGEST_SIZE);
+			count++;
+		}
+
+		rc = tpm2_pcr_extend(chip, pcr_idx, count, digest_list);
 		tpm_put_ops(chip);
 		return rc;
 	}
