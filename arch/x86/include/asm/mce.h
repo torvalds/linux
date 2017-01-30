@@ -97,10 +97,6 @@
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
-/* Software defined banks */
-#define MCE_EXTENDED_BANK	128
-#define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
-
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
@@ -193,6 +189,15 @@ extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
 extern struct mca_msr_regs msr_ops;
+
+enum mce_notifier_prios {
+	MCE_PRIO_SRAO		= INT_MAX,
+	MCE_PRIO_EXTLOG		= INT_MAX - 1,
+	MCE_PRIO_NFIT		= INT_MAX - 2,
+	MCE_PRIO_EDAC		= INT_MAX - 3,
+	MCE_PRIO_LOWEST		= 0,
+};
+
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
@@ -306,8 +311,6 @@ extern void (*deferred_error_int_vector)(void);
 
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
-void mce_log_therm_throt_event(__u64 status);
-
 /* Interrupt Handler for core thermal thresholds */
 extern int (*platform_thermal_notify)(__u64 msr_val);
 
@@ -362,12 +365,13 @@ struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
 	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
+	u8 count;		/* Number of instances. */
 };
 
 struct smca_bank {
 	struct smca_hwid *hwid;
-	/* Instance ID */
-	u32 id;
+	u32 id;			/* Value of MCA_IPID[InstanceId]. */
+	u8 sysfs_id;		/* Value used for sysfs name. */
 };
 
 extern struct smca_bank smca_banks[MAX_NR_BANKS];
