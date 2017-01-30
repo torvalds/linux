@@ -31,6 +31,8 @@
 #include <sound/control.h>
 #include <sound/pcm.h>
 
+struct platform_device;
+
 #define AUD_CONFIG_VALID_BIT			(1<<9)
 #define AUD_CONFIG_DP_MODE			(1<<15)
 #define AUD_CONFIG_BLOCK_BIT			(1<<7)
@@ -642,15 +644,16 @@ struct hdmi_audio_event {
 	int type;
 };
 
-void mid_hdmi_audio_signal_event(enum had_event_type event);
+int mid_hdmi_audio_read(struct platform_device *pdev, u32 reg, u32 *val);
+int mid_hdmi_audio_write(struct platform_device *pdev, u32 reg, u32 val);
+int mid_hdmi_audio_rmw(struct platform_device *pdev,
+		       u32 reg, u32 val, u32 mask);
 
-int mid_hdmi_audio_read(u32 reg, u32 *val);
-int mid_hdmi_audio_write(u32 reg, u32 val);
-int mid_hdmi_audio_rmw(u32 reg, u32 val, u32 mask);
-
-int mid_hdmi_audio_get_caps(enum had_caps_list get_element,
+int mid_hdmi_audio_get_caps(struct platform_device *pdev,
+			    enum had_caps_list get_element,
 			    void *capabilities);
-int mid_hdmi_audio_set_caps(enum had_caps_list set_element,
+int mid_hdmi_audio_set_caps(struct platform_device *pdev,
+			    enum had_caps_list set_element,
 			    void *capabilties);
 
 #endif

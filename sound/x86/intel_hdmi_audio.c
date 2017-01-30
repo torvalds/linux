@@ -172,11 +172,12 @@ int had_get_hwstate(struct snd_intelhad *intelhaddata)
 int had_get_caps(struct snd_intelhad *intelhaddata,
 		 enum had_caps_list query, void *caps)
 {
+	struct platform_device *pdev = to_platform_device(intelhaddata->dev);
 	int retval;
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = mid_hdmi_audio_get_caps(query, caps);
+		retval = mid_hdmi_audio_get_caps(pdev, query, caps);
 
 	return retval;
 }
@@ -184,33 +185,36 @@ int had_get_caps(struct snd_intelhad *intelhaddata,
 int had_set_caps(struct snd_intelhad *intelhaddata,
 		 enum had_caps_list set_element, void *caps)
 {
+	struct platform_device *pdev = to_platform_device(intelhaddata->dev);
 	int retval;
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = mid_hdmi_audio_set_caps(set_element, caps);
+		retval = mid_hdmi_audio_set_caps(pdev, set_element, caps);
 
 	return retval;
 }
 
 int had_read_register(struct snd_intelhad *intelhaddata, u32 offset, u32 *data)
 {
+	struct platform_device *pdev = to_platform_device(intelhaddata->dev);
 	int retval;
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = mid_hdmi_audio_read(offset, data);
+		retval = mid_hdmi_audio_read(pdev, offset, data);
 
 	return retval;
 }
 
 int had_write_register(struct snd_intelhad *intelhaddata, u32 offset, u32 data)
 {
+	struct platform_device *pdev = to_platform_device(intelhaddata->dev);
 	int retval;
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = mid_hdmi_audio_write(offset, data);
+		retval = mid_hdmi_audio_write(pdev, offset, data);
 
 	return retval;
 }
@@ -218,11 +222,12 @@ int had_write_register(struct snd_intelhad *intelhaddata, u32 offset, u32 data)
 int had_read_modify(struct snd_intelhad *intelhaddata, u32 offset,
 		    u32 data, u32 mask)
 {
+	struct platform_device *pdev = to_platform_device(intelhaddata->dev);
 	int retval;
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = mid_hdmi_audio_rmw(offset, data, mask);
+		retval = mid_hdmi_audio_rmw(pdev, offset, data, mask);
 
 	return retval;
 }
