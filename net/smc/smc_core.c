@@ -532,6 +532,7 @@ int smc_sndbuf_create(struct smc_sock *smc)
 						__GFP_NORETRY);
 		if (!sndbuf_desc->cpu_addr) {
 			kfree(sndbuf_desc);
+			sndbuf_desc = NULL;
 			/* if send buffer allocation has failed,
 			 * try a smaller one
 			 */
@@ -543,6 +544,7 @@ int smc_sndbuf_create(struct smc_sock *smc)
 		if (rc) {
 			kfree(sndbuf_desc->cpu_addr);
 			kfree(sndbuf_desc);
+			sndbuf_desc = NULL;
 			continue; /* if mapping failed, try smaller one */
 		}
 		sndbuf_desc->used = 1;
@@ -596,6 +598,7 @@ int smc_rmb_create(struct smc_sock *smc)
 					     __GFP_NORETRY);
 		if (!rmb_desc->cpu_addr) {
 			kfree(rmb_desc);
+			rmb_desc = NULL;
 			/* if RMB allocation has failed,
 			 * try a smaller one
 			 */
@@ -607,6 +610,7 @@ int smc_rmb_create(struct smc_sock *smc)
 		if (rc) {
 			kfree(rmb_desc->cpu_addr);
 			kfree(rmb_desc);
+			rmb_desc = NULL;
 			continue; /* if mapping failed, try smaller one */
 		}
 		rc = smc_ib_get_memory_region(lgr->lnk[SMC_SINGLE_LINK].roce_pd,
@@ -619,6 +623,7 @@ int smc_rmb_create(struct smc_sock *smc)
 					 DMA_FROM_DEVICE);
 			kfree(rmb_desc->cpu_addr);
 			kfree(rmb_desc);
+			rmb_desc = NULL;
 			continue;
 		}
 		rmb_desc->used = 1;
