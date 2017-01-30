@@ -123,7 +123,6 @@ struct had_callback_ops {
  * @chmap: holds channel map info
  * @audio_reg_base: hdmi audio register base offset
  * @hw_silence: flag indicates SoC support for HW silence/Keep alive
- * @ops: holds ops functions based on platform
  */
 struct snd_intelhad {
 	struct snd_card	*card;
@@ -149,24 +148,7 @@ struct snd_intelhad {
 	unsigned int	*audio_reg_base;
 	unsigned int	audio_cfg_offset;
 	bool		hw_silence;
-	struct had_ops	*ops;
 };
-
-struct had_ops {
-	void (*enable_audio)(struct snd_pcm_substream *substream,
-			u8 enable);
-	void (*reset_audio)(u8 reset);
-	int (*prog_n)(u32 aud_samp_freq, u32 *n_param,
-			struct snd_intelhad *intelhaddata);
-	void (*prog_cts)(u32 aud_samp_freq, u32 tmds, u32 link_rate,
-			 u32 n_param, struct snd_intelhad *intelhaddata);
-	int (*audio_ctrl)(struct snd_pcm_substream *substream,
-				struct snd_intelhad *intelhaddata);
-	void (*prog_dip)(struct snd_pcm_substream *substream,
-				struct snd_intelhad *intelhaddata);
-	void (*handle_underrun)(struct snd_intelhad *intelhaddata);
-};
-
 
 int had_event_handler(enum had_event_type event_type, void *data);
 
@@ -184,6 +166,9 @@ int snd_intelhad_prog_buffer(struct snd_intelhad *intelhaddata,
 int snd_intelhad_invd_buffer(int start, int end);
 int snd_intelhad_read_len(struct snd_intelhad *intelhaddata);
 void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata);
+
+void snd_intelhad_enable_audio(struct snd_pcm_substream *substream, u8 enable);
+void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata);
 
 /* Register access functions */
 int had_get_hwstate(struct snd_intelhad *intelhaddata);

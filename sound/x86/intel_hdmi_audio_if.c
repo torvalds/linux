@@ -349,7 +349,7 @@ int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 	pr_debug("Enter:%s buf_id=%d, stream_type=%d\n",
 			__func__, buf_id, stream_type);
 
-	intelhaddata->ops->handle_underrun(intelhaddata);
+	snd_intelhad_handle_underrun(intelhaddata);
 
 	if (drv_status == HAD_DRV_DISCONNECTED) {
 		pr_err("%s:Device already disconnected\n", __func__);
@@ -451,7 +451,7 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 		caps = HDMI_AUDIO_BUFFER_DONE;
 		retval = had_set_caps(HAD_SET_DISABLE_AUDIO_INT, &caps);
 		retval = had_set_caps(HAD_SET_DISABLE_AUDIO, NULL);
-		intelhaddata->ops->enable_audio(
+		snd_intelhad_enable_audio(
 			intelhaddata->stream_info.had_substream, 0);
 	}
 
