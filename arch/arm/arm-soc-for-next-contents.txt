@@ -1,26 +1,9 @@
 fixes
-	<no branch> (c415f9e8304a1d235ef118d912f374ee2e46c45d)
-		https://github.com/Xilinx/linux-xlnx tags/zynmp-dt-fixes-for-4.10
 	patch
-		ARM, ARM64: dts: drop "arm,amba-bus" in favor of "simple-bus" part 3
-	<no branch> (37530e74609a28ae3a3b51e7685fe54a00b1e2f2)
-		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-4.10-2
-	<no branch> (3116d37651d77125bf50f81f859b1278e02ccce6)
-		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-fixes-for-4.10
-	<no branch> (3ef01c968fbfb21c2f16281445d30a865ee4412c)
-		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-fixes-4.10
-	<no branch> (91546c56624a79f4a8fd80bede6b5a38c0f0ad78)
-		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.10/defconfig-fixes
-	<no branch> (6771e01f7965ea13988d0a5a7972f97be4e46452)
-		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.10/devicetree-fixes
-	<no branch> (f0e8faa7a5e894b0fc99d24be1b18685a92ea466)
-		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-fix-for-armsoc
-	patch
-		ARM64: dts: meson-gxbb-odroidc2: Disable SCPI DVFS
-	<no branch> (1ea6af3216b092ec97129ac81bd95cf254c4b140)
-		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.10/fixes-rc4
-	patch
-		ARM: dts: da850-evm: fix read access to SPI flash
+		ARM64: dts: meson-gxbb-odroidc2: fix GbE tx link breakage
+		ARM64: dts: meson-gx: Add firmware reserved memory zones
+	<no branch> (a971c5545c3d45a1e33fda6e57913bb75aaa20c9)
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-4.10-3
 
 next/fixes-non-critical
 
@@ -69,6 +52,12 @@ next/dt
 		ARM: dts: tango4: Import USB nodes
 	brcm/dt
 		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree
+	rockchip/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-rockchip-dts32-1
+	keystone/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_dts_for_4.11
+	uniphier/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt-v4.11
 
 next/dt64
 	renesas/dt64
@@ -81,6 +70,12 @@ next/dt64
 		git://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-updates-4.11
 	brcm/dt64
 		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/devicetree-arm64
+	rockchip/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-rockchip-dts64-1
+	uniphier/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt64-v4.11
+	qcom/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-arm64-for-4.11
 
 next/defconfig
 	patch
@@ -98,8 +93,20 @@ next/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-defconfig
 	aspeed/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-defconfig
+	keystone/config
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_config_for_4.11
+	qcom/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-defconfig-for-4.11
 
 next/drivers
 	at91/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-drivers
+	drivers/reset
+		git://git.pengutronix.de/pza/linux tags/reset-for-4.11
+	samsung/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11
+	rockchip/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-armsoc-drivers1
+	keystone/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_soc_for_4.11
 
