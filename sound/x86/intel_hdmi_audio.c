@@ -1568,13 +1568,6 @@ static struct snd_kcontrol_new had_control_iec958 = {
 	.put =          had_iec958_put
 };
 
-static struct snd_intel_had_interface had_interface = {
-	.name =         "hdmi-audio",
-	.query =        hdmi_audio_query,
-	.suspend =      hdmi_audio_suspend,
-	.resume =       hdmi_audio_resume,
-};
-
 /**
  * hdmi_audio_probe - to create sound card instance for HDMI audio playabck
  *
@@ -1704,7 +1697,7 @@ int hdmi_audio_probe(void *deviceptr)
 	pm_runtime_enable(intelhaddata->dev);
 
 	mutex_unlock(&had_mutex);
-	retval = mid_hdmi_audio_register(&had_interface, intelhaddata);
+	retval = mid_hdmi_audio_register(intelhaddata);
 	if (retval) {
 		pr_err("registering with display driver failed %#x\n", retval);
 		snd_card_free(card);

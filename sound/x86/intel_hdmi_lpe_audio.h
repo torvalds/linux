@@ -645,21 +645,10 @@ struct hdmi_audio_event {
 	int type;
 };
 
-struct snd_intel_had_interface {
-	const char *name;
-	int (*query)(void *had_data, struct hdmi_audio_event event);
-	int (*suspend)(void *had_data, struct hdmi_audio_event event);
-	int (*resume)(void *had_data);
-};
-
 bool mid_hdmi_audio_is_busy(void *dev);
-bool mid_hdmi_audio_suspend(void *dev);
-void mid_hdmi_audio_resume(void *dev);
 void mid_hdmi_audio_signal_event(enum had_event_type event);
 int mid_hdmi_audio_setup(had_event_call_back audio_callbacks);
-int mid_hdmi_audio_register(
-	struct snd_intel_had_interface *driver,
-	void *had_data);
+int mid_hdmi_audio_register(void *had_data);
 
 int mid_hdmi_audio_read(u32 reg, u32 *val);
 int mid_hdmi_audio_write(u32 reg, u32 val);

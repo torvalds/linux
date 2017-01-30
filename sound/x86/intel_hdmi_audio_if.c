@@ -91,12 +91,11 @@ int hdmi_audio_query(void *haddata, struct hdmi_audio_event event)
  * hdmi_audio_suspend - power management suspend function
  *
  *@haddata: pointer to HAD private data
- *@event: pm event for which this method is invoked
  *
  * This function is called by client driver to suspend the
  * hdmi audio.
  */
-int hdmi_audio_suspend(void *haddata, struct hdmi_audio_event event)
+int hdmi_audio_suspend(void *haddata)
 {
 	int caps, retval = 0;
 	struct had_pvt_data *had_stream;
