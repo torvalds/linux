@@ -170,6 +170,10 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 	}
 
 	lock_buffer(bh);
+	if (buffer_pinned(bh)) {
+		set_bit(TR_TOUCHED, &tr->tr_flags);
+		goto out;
+	}
 	gfs2_log_lock(sdp);
 	bd = bh->b_private;
 	if (bd == NULL) {
@@ -192,6 +196,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		list_add_tail(&bd->bd_list, &tr->tr_databuf);
 	}
 	gfs2_log_unlock(sdp);
+out:
 	unlock_buffer(bh);
 }
 
@@ -201,10 +206,14 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_bufdata *bd;
 	struct gfs2_meta_header *mh;
-	struct gfs2_trans *tr;
+	struct gfs2_trans *tr = current->journal_info;
 	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	lock_buffer(bh);
+	if (buffer_pinned(bh)) {
+		set_bit(TR_TOUCHED, &tr->tr_flags);
+		goto out;
+	}
 	gfs2_log_lock(sdp);
 	bd = bh->b_private;
 	if (bd == NULL) {
@@ -220,7 +229,6 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_lock(sdp);
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
-	tr = current->journal_info;
 	set_bit(TR_TOUCHED, &tr->tr_flags);
 	if (!list_empty(&bd->bd_list))
 		goto out_unlock;
@@ -243,6 +251,7 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	tr->tr_num_buf_new++;
 out_unlock:
 	gfs2_log_unlock(sdp);
+out:
 	unlock_buffer(bh);
 }
 
