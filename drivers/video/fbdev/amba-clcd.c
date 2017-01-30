@@ -10,27 +10,22 @@
  *
  *  ARM PrimeCell PL110 Color LCD Controller
  */
-#include <linux/dma-mapping.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/slab.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/clcd.h>
+#include <linux/backlight.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/mm.h>
+#include <linux/dma-mapping.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
-#include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
-#include <linux/bitops.h>
-#include <linux/clk.h>
-#include <linux/hardirq.h>
-#include <linux/of.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
-#include <linux/backlight.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
