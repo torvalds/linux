@@ -423,7 +423,7 @@ send_enbdis(struct net_device *netdev, int state,
 
 /**
  *	visornic_disable_with_timeout - Disable network adapter
- *	@netdev: netdevice to disale
+ *	@netdev: netdevice to disable
  *	@timeout: timeout to wait for disable
  *
  *	Disable the network adapter and inform the IO Partition that we
@@ -532,7 +532,7 @@ init_rcv_bufs(struct net_device *netdev, struct visornic_devdata *devdata)
 		return -ENOMEM;
 	count = i;
 
-	/* Ensure we can alloc 2/3rd of the requeested number of buffers.
+	/* Ensure we can alloc 2/3rd of the requested number of buffers.
 	 * 2/3 is an arbitrary choice; used also in ndis init.c
 	 */
 	if (count < ((2 * devdata->num_rcv_bufs) / 3)) {
@@ -561,7 +561,7 @@ init_rcv_bufs(struct net_device *netdev, struct visornic_devdata *devdata)
  *
  *	Sends enable to IOVM, inits, and posts receive buffers to IOVM
  *	timeout is defined in msecs (timeout of 0 specifies infinite wait)
- *	Return 0 for success, negavite for failure.
+ *	Return 0 for success, negative for failure.
  */
 static int
 visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
@@ -750,7 +750,7 @@ static inline bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
  *	@skb: Packet to be sent
  *	@netdev: net device the packet is being sent from
  *
- *	Convert the skb to a cmdrsp so the IO Partition can undersand it.
+ *	Convert the skb to a cmdrsp so the IO Partition can understand it.
  *	Send the XMIT command to the IO Partition for processing. This
  *	function is protected from concurrent calls by a spinlock xmit_lock
  *	in the net_device struct, but as soon as the function returns it
@@ -1097,7 +1097,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *
  *	Got a receive packet back from the IO Part, handle it and send
  *	it up the stack.
- *	Returns 1 iff an skb was receieved, otherwise 0
+ *	Returns 1 iff an skb was received, otherwise 0
  */
 static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
@@ -1227,7 +1227,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		}
 	}
 
-	/* set up packet's protocl type using ethernet header - this
+	/* set up packet's protocol type using ethernet header - this
 	 * sets up skb->pkt_type & it also PULLS out the eth header
 	 */
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1549,7 +1549,7 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
  *	@cmdrsp: io channel command response message
  *	@devdata: visornic device to drain
  *
- *	Drain the respones queue of any responses from the IO partition.
+ *	Drain the response queue of any responses from the IO partition.
  *	Process the responses as we get them.
  *	Returns when response queue is empty or when the thread stops.
  */
@@ -1665,7 +1665,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
  *	poll_for_irq	- Checks the status of the response queue.
  *	@v: void pointer to the visronic devdata
  *
- *	Main function of the vnic_incoming thread. Peridocially check the
+ *	Main function of the vnic_incoming thread. Periodically check the
  *	response queue and drain it if needed.
  *	Returns when thread has stopped.
  */
@@ -1711,7 +1711,7 @@ static int visornic_probe(struct visor_device *dev)
 	netdev->watchdog_timeo = 5 * HZ;
 	SET_NETDEV_DEV(netdev, &dev->device);
 
-	/* Get MAC adddress from channel and read it into the device. */
+	/* Get MAC address from channel and read it into the device. */
 	netdev->addr_len = ETH_ALEN;
 	channel_offset = offsetof(struct spar_io_channel_protocol,
 				  vnic.macaddr);
@@ -1835,7 +1835,7 @@ static int visornic_probe(struct visor_device *dev)
 	/* Let's start our threads to get responses */
 	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
 
-	/* Note: Interupts have to be enable before the while
+	/* Note: Interrupts have to be enable before the while
 	 * loop below because the napi routine is responsible for
 	 * setting enab_dis_acked
 	 */
@@ -1848,7 +1848,7 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_napi_add;
 	}
 
-	/* create debgug/sysfs directories */
+	/* create debug/sysfs directories */
 	devdata->eth_debugfs_dir = debugfs_create_dir(netdev->name,
 						      visornic_debugfs_dir);
 	if (!devdata->eth_debugfs_dir) {
