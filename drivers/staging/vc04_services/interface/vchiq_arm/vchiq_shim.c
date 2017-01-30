@@ -188,6 +188,28 @@ int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 }
 EXPORT_SYMBOL(vchi_msg_queue);
 
+static ssize_t
+vchi_queue_kernel_message_callback(void *context,
+				   void *dest,
+				   size_t offset,
+				   size_t maxsize)
+{
+	memcpy(dest, context + offset, maxsize);
+	return maxsize;
+}
+
+int
+vchi_queue_kernel_message(VCHI_SERVICE_HANDLE_T handle,
+			  void *data,
+			  unsigned int size)
+{
+	return vchi_msg_queue(handle,
+			      vchi_queue_kernel_message_callback,
+			      data,
+			      size);
+}
+EXPORT_SYMBOL(vchi_queue_kernel_message);
+
 /***********************************************************
  * Name: vchi_bulk_queue_receive
  *
