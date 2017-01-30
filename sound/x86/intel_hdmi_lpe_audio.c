@@ -439,15 +439,14 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void notify_audio_lpe(void *audio_ptr)
+static void notify_audio_lpe(struct platform_device *pdev)
 {
-	struct hdmi_lpe_audio_ctx *ctx = get_hdmi_context();
-	struct intel_hdmi_lpe_audio_pdata *pdata = hlpe_pdev->dev.platform_data;
-	struct intel_hdmi_lpe_audio_eld *eld = audio_ptr;
+	struct hdmi_lpe_audio_ctx *ctx = platform_get_drvdata(pdev);
+	struct intel_hdmi_lpe_audio_pdata *pdata = pdev->dev.platform_data;
 
 	if (pdata->hdmi_connected != true) {
 
-		dev_dbg(&hlpe_pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
+		dev_dbg(&pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
 
 		if (hlpe_state == hdmi_connector_status_connected) {
@@ -458,10 +457,11 @@ static void notify_audio_lpe(void *audio_ptr)
 			mid_hdmi_audio_signal_event(
 				HAD_EVENT_HOT_UNPLUG);
 		} else
-			dev_dbg(&hlpe_pdev->dev, "%s: Already Unplugged!\n",
+			dev_dbg(&pdev->dev, "%s: Already Unplugged!\n",
 				__func__);
 
-	} else if (eld != NULL) {
+	} else {
+		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
 
 		switch (eld->pipe_id) {
 		case 0:
@@ -474,7 +474,7 @@ static void notify_audio_lpe(void *audio_ptr)
 			ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
 			break;
 		default:
-			dev_dbg(&hlpe_pdev->dev, "Invalid pipe %d\n",
+			dev_dbg(&pdev->dev, "Invalid pipe %d\n",
 				eld->pipe_id);
 			break;
 		}
@@ -485,7 +485,7 @@ static void notify_audio_lpe(void *audio_ptr)
 
 		hlpe_state = hdmi_connector_status_connected;
 
-		dev_dbg(&hlpe_pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
+		dev_dbg(&pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
 			__func__, eld->port_id,	pdata->tmds_clock_speed);
 
 		if (pdata->tmds_clock_speed) {
@@ -494,8 +494,7 @@ static void notify_audio_lpe(void *audio_ptr)
 			ctx->link_rate = pdata->link_rate;
 			mid_hdmi_audio_signal_event(HAD_EVENT_MODE_CHANGING);
 		}
-	} else
-		dev_dbg(&hlpe_pdev->dev, "%s: Event: NULL EDID!!\n", __func__);
+	}
 }
 
 /**
@@ -606,7 +605,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	if (pdata->notify_pending) {
 
 		dev_dbg(&hlpe_pdev->dev, "%s: handle pending notification\n", __func__);
-		notify_audio_lpe(&pdata->eld);
+		notify_audio_lpe(pdev);
 		pdata->notify_pending = false;
 	}
 	spin_unlock_irqrestore(&pdata->lpe_audio_slock, flag_irq);

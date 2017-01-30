@@ -378,8 +378,7 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 	}
 
 	if (pdata->notify_audio_lpe)
-		pdata->notify_audio_lpe(
-			(eld != NULL) ? &pdata->eld : NULL);
+		pdata->notify_audio_lpe(dev_priv->lpe_audio.platdev);
 	else
 		pdata->notify_pending = true;
 

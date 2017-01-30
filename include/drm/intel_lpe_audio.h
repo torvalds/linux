@@ -27,6 +27,8 @@
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 
+struct platform_device;
+
 #define HDMI_MAX_ELD_BYTES	128
 
 struct intel_hdmi_lpe_audio_eld {
@@ -42,7 +44,7 @@ struct intel_hdmi_lpe_audio_pdata {
 	bool dp_output;
 	int link_rate;
 	struct intel_hdmi_lpe_audio_eld eld;
-	void (*notify_audio_lpe)(void *audio_ptr);
+	void (*notify_audio_lpe)(struct platform_device *pdev);
 	spinlock_t lpe_audio_slock;
 };
 
