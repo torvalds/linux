@@ -107,7 +107,6 @@ struct had_callback_ops {
  * @card: ptr to hold card details
  * @card_index: sound card index
  * @card_id: detected sound card id
- * @reg_ops: register operations to program registers
  * @query_ops: caps call backs for get/set operations
  * @drv_status: driver status
  * @buf_info: ring buffer info
@@ -128,7 +127,6 @@ struct snd_intelhad {
 	struct snd_card	*card;
 	int		card_index;
 	char		*card_id;
-	struct hdmi_audio_registers_ops	reg_ops;
 	struct hdmi_audio_query_set_ops	query_ops;
 	enum had_drv_status	drv_status;
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];

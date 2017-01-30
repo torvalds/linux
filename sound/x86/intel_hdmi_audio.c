@@ -205,8 +205,7 @@ int had_read_register(u32 offset, u32 *data)
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = intelhaddata->reg_ops.hdmi_audio_read_register(
-				offset + intelhaddata->audio_cfg_offset, data);
+		retval = mid_hdmi_audio_read(offset, data);
 
 	return retval;
 }
@@ -218,8 +217,7 @@ int had_write_register(u32 offset, u32 data)
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = intelhaddata->reg_ops.hdmi_audio_write_register(
-				offset + intelhaddata->audio_cfg_offset, data);
+		retval = mid_hdmi_audio_write(offset, data);
 
 	return retval;
 }
@@ -231,9 +229,7 @@ int had_read_modify(u32 offset, u32 data, u32 mask)
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = intelhaddata->reg_ops.hdmi_audio_read_modify(
-				offset + intelhaddata->audio_cfg_offset,
-				data, mask);
+		retval = mid_hdmi_audio_rmw(offset, data, mask);
 
 	return retval;
 }
@@ -1622,7 +1618,6 @@ int hdmi_audio_probe(void *deviceptr)
 
 	retval = mid_hdmi_audio_setup(
 			ops_cb.intel_had_event_call_back,
-			&(intelhaddata->reg_ops),
 			&(intelhaddata->query_ops));
 	if (retval) {
 		pr_err("querying display driver APIs failed %#x\n", retval);

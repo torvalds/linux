@@ -641,15 +641,6 @@ enum had_event_type {
 typedef int (*had_event_call_back) (enum had_event_type event_type,
 		void *ctxt_info);
 
-struct hdmi_audio_registers_ops {
-	int (*hdmi_audio_get_register_base)(u32 **reg_base,
-			u32 *config_offset);
-	int (*hdmi_audio_read_register)(u32 reg_addr, u32 *data);
-	int (*hdmi_audio_write_register)(u32 reg_addr, u32 data);
-	int (*hdmi_audio_read_modify)(u32 reg_addr, u32 data,
-			u32 mask);
-};
-
 struct hdmi_audio_query_set_ops {
 	int (*hdmi_audio_get_caps)(enum had_caps_list query_element,
 			void *capabilties);
@@ -674,10 +665,13 @@ void mid_hdmi_audio_resume(void *dev);
 void mid_hdmi_audio_signal_event(enum had_event_type event);
 int mid_hdmi_audio_setup(
 	had_event_call_back audio_callbacks,
-	struct hdmi_audio_registers_ops *reg_ops,
 	struct hdmi_audio_query_set_ops *query_ops);
 int mid_hdmi_audio_register(
 	struct snd_intel_had_interface *driver,
 	void *had_data);
+
+int mid_hdmi_audio_read(u32 reg, u32 *val);
+int mid_hdmi_audio_write(u32 reg, u32 val);
+int mid_hdmi_audio_rmw(u32 reg, u32 val, u32 mask);
 
 #endif

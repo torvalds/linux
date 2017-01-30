@@ -178,10 +178,10 @@ void mid_hdmi_audio_signal_event(enum had_event_type event)
 			ctx->had_pvt_data);
 }
 
-/**
+/*
  * used to write into display controller HDMI audio registers.
  */
-static int hdmi_audio_write(u32 reg, u32 val)
+int mid_hdmi_audio_write(u32 reg, u32 val)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 
@@ -190,58 +190,49 @@ static int hdmi_audio_write(u32 reg, u32 val)
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__, reg, val);
 
 	if (ctx->dp_output) {
-		if ((reg == AUDIO_HDMI_CONFIG_A) ||
-		    (reg == AUDIO_HDMI_CONFIG_B) ||
-		    (reg == AUDIO_HDMI_CONFIG_C)) {
-			if (val & AUD_CONFIG_VALID_BIT)
-				val = val | AUD_CONFIG_DP_MODE |
-					AUD_CONFIG_BLOCK_BIT;
-		}
+		if (reg == AUD_CONFIG && (val & AUD_CONFIG_VALID_BIT))
+			val |= AUD_CONFIG_DP_MODE | AUD_CONFIG_BLOCK_BIT;
 	}
-	iowrite32(val, (ctx->mmio_start+reg));
+	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
 
 	return 0;
 }
 
-/**
+/*
  * used to get the register value read from
  * display controller HDMI audio registers.
  */
-static int hdmi_audio_read(u32 reg, u32 *val)
+int mid_hdmi_audio_read(u32 reg, u32 *val)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 
 	ctx = platform_get_drvdata(hlpe_pdev);
-	*val = ioread32(ctx->mmio_start+reg);
+	*val = ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__, reg, *val);
 	return 0;
 }
 
-/**
+/*
  * used to update the masked bits in display controller HDMI
  * audio registers.
  */
-static int hdmi_audio_rmw(u32 reg, u32 val, u32 mask)
+int mid_hdmi_audio_rmw(u32 reg, u32 val, u32 mask)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 	u32 val_tmp = 0;
 
 	ctx = platform_get_drvdata(hlpe_pdev);
 
-	val_tmp = (val & mask) |
-			((ioread32(ctx->mmio_start + reg)) & ~mask);
+	val_tmp = ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+	val_tmp &= ~mask;
+	val_tmp |= (val & mask);
 
 	if (ctx->dp_output) {
-		if ((reg == AUDIO_HDMI_CONFIG_A) ||
-		    (reg == AUDIO_HDMI_CONFIG_B) ||
-		    (reg == AUDIO_HDMI_CONFIG_C)) {
-			if (val_tmp & AUD_CONFIG_VALID_BIT)
-				val_tmp = val_tmp | AUD_CONFIG_DP_MODE |
-					AUD_CONFIG_BLOCK_BIT;
-		}
+		if (reg == AUD_CONFIG && (val_tmp & AUD_CONFIG_VALID_BIT))
+			val_tmp |= AUD_CONFIG_DP_MODE | AUD_CONFIG_BLOCK_BIT;
 	}
 
-	iowrite32(val_tmp, (ctx->mmio_start+reg));
+	iowrite32(val_tmp, ctx->mmio_start + ctx->had_config_offset + reg);
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__,
 				reg, val_tmp);
 
@@ -291,22 +282,6 @@ static int hdmi_audio_get_caps(enum had_caps_list get_element,
 }
 
 /**
- * used to get the current hdmi base address
- */
-int hdmi_audio_get_register_base(u32 **reg_base,
-		u32 *config_offset)
-{
-	struct hdmi_lpe_audio_ctx *ctx;
-
-	ctx = platform_get_drvdata(hlpe_pdev);
-	*reg_base = (u32 *)(ctx->mmio_start);
-	*config_offset = ctx->had_config_offset;
-	dev_dbg(&hlpe_pdev->dev, "%s: reg_base = 0x%p, cfg_off = 0x%x\n",
-				__func__, *reg_base, *config_offset);
-	return 0;
-}
-
-/**
  * used to set the HDMI audio capabilities.
  * e.g. Audio INT.
  */
@@ -324,15 +299,11 @@ int hdmi_audio_set_caps(enum had_caps_list set_element,
 		{
 			u32 status_reg;
 
-			hdmi_audio_read(AUD_HDMI_STATUS_v2 +
-				ctx->had_config_offset, &status_reg);
+			mid_hdmi_audio_read(AUD_HDMI_STATUS_v2, &status_reg);
 			status_reg |=
 				HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
-			hdmi_audio_write(AUD_HDMI_STATUS_v2 +
-				ctx->had_config_offset, status_reg);
-			hdmi_audio_read(AUD_HDMI_STATUS_v2 +
-				ctx->had_config_offset, &status_reg);
-
+			mid_hdmi_audio_write(AUD_HDMI_STATUS_v2, status_reg);
+			mid_hdmi_audio_read(AUD_HDMI_STATUS_v2, &status_reg);
 		}
 		break;
 	default:
@@ -342,13 +313,6 @@ int hdmi_audio_set_caps(enum had_caps_list set_element,
 	return 0;
 }
 
-static struct  hdmi_audio_registers_ops hdmi_audio_reg_ops = {
-	.hdmi_audio_get_register_base = hdmi_audio_get_register_base,
-	.hdmi_audio_read_register = hdmi_audio_read,
-	.hdmi_audio_write_register = hdmi_audio_write,
-	.hdmi_audio_read_modify = hdmi_audio_rmw,
-};
-
 static struct hdmi_audio_query_set_ops hdmi_audio_get_set_ops = {
 	.hdmi_audio_get_caps = hdmi_audio_get_caps,
 	.hdmi_audio_set_caps = hdmi_audio_set_caps,
@@ -356,7 +320,6 @@ static struct hdmi_audio_query_set_ops hdmi_audio_get_set_ops = {
 
 int mid_hdmi_audio_setup(
 		had_event_call_back audio_callbacks,
-		struct hdmi_audio_registers_ops *reg_ops,
 		struct hdmi_audio_query_set_ops *query_ops)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
@@ -365,14 +328,6 @@ int mid_hdmi_audio_setup(
 
 	dev_dbg(&hlpe_pdev->dev, "%s: called\n",  __func__);
 
-	reg_ops->hdmi_audio_get_register_base =
-		(hdmi_audio_reg_ops.hdmi_audio_get_register_base);
-	reg_ops->hdmi_audio_read_register =
-		(hdmi_audio_reg_ops.hdmi_audio_read_register);
-	reg_ops->hdmi_audio_write_register =
-		(hdmi_audio_reg_ops.hdmi_audio_write_register);
-	reg_ops->hdmi_audio_read_modify =
-		(hdmi_audio_reg_ops.hdmi_audio_read_modify);
 	query_ops->hdmi_audio_get_caps =
 		hdmi_audio_get_set_ops.hdmi_audio_get_caps;
 	query_ops->hdmi_audio_set_caps =
@@ -421,17 +376,17 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 
 	ctx = platform_get_drvdata(hlpe_pdev);
 
-	audio_reg = ctx->had_config_offset + AUD_HDMI_STATUS_v2;
-	hdmi_audio_read(audio_reg, &audio_stat);
+	audio_reg = AUD_HDMI_STATUS_v2;
+	mid_hdmi_audio_read(audio_reg, &audio_stat);
 
 	if (audio_stat & HDMI_AUDIO_UNDERRUN) {
-		hdmi_audio_write(audio_reg, HDMI_AUDIO_UNDERRUN);
+		mid_hdmi_audio_write(audio_reg, HDMI_AUDIO_UNDERRUN);
 		mid_hdmi_audio_signal_event(
 				HAD_EVENT_AUDIO_BUFFER_UNDERRUN);
 	}
 
 	if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
-		hdmi_audio_write(audio_reg, HDMI_AUDIO_BUFFER_DONE);
+		mid_hdmi_audio_write(audio_reg, HDMI_AUDIO_BUFFER_DONE);
 		mid_hdmi_audio_signal_event(
 				HAD_EVENT_AUDIO_BUFFER_DONE);
 	}
