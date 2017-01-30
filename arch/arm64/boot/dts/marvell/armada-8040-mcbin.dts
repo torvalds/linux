@@ -1,9 +1,5 @@
 /*
- * Device Tree file for Freescale LS2080a RDB Board.
- *
- * Copyright (C) 2015, Freescale Semiconductor
- *
- * Bhupesh Sharma <bhupesh.sharma@freescale.com>
+ * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -44,126 +40,99 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
+/*
+ * Device Tree file for MACCHIATOBin Armada 8040 community board platform
+ */
 
-#include "fsl-ls2080a.dtsi"
+#include "armada-8040.dtsi"
 
 / {
-	model = "Freescale Layerscape 2080a RDB Board";
-	compatible = "fsl,ls2080a-rdb", "fsl,ls2080a";
+	model = "Marvell 8040 MACHIATOBin";
+	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
+			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	chosen {
-		stdout-path = "serial1:115200n8";
+	/* Regulator labels correspond with schematics */
+	v_3_3: regulator-3-3v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_3_3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	v_vddo_h: regulator-1-8v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_vddo_h";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		status = "okay";
+	};
+
+	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
+		compatible = "regulator-fixed";
+		regulator-name = "v_5v0_usb3_hst_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		/* actually GPIO controlled, but 8k has no GPIO support yet */
+		regulator-always-on;
+		status = "okay";
+	};
+
+	usb3h0_phy: usb3_phy0 {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&v_5v0_usb3_hst_vbus>;
 	};
 };
 
-&esdhc {
+&uart0 {
 	status = "okay";
 };
 
-&ifc {
+&cpm_i2c0 {
+	clock-frequency = <100000>;
 	status = "okay";
-	#address-cells = <2>;
-	#size-cells = <1>;
-	ranges = <0x0 0x0 0x5 0x80000000 0x08000000
-		  0x2 0x0 0x5 0x30000000 0x00010000
-		  0x3 0x0 0x5 0x20000000 0x00010000>;
-
-	nor@0,0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "cfi-flash";
-		reg = <0x0 0x0 0x8000000>;
-		bank-width = <2>;
-		device-width = <1>;
-	};
-
-	nand@2,0 {
-	     compatible = "fsl,ifc-nand";
-	     reg = <0x2 0x0 0x10000>;
-	};
-
-	cpld@3,0 {
-	     reg = <0x3 0x0 0x10000>;
-	     compatible = "fsl,ls2080aqds-fpga", "fsl,fpga-qixis";
-	};
-
 };
 
-&i2c0 {
+&cpm_sata0 {
+	/* CPM Lane 0 - U29 */
 	status = "okay";
-	pca9547@75 {
-		compatible = "nxp,pca9547";
-		reg = <0x75>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		i2c@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x01>;
-			rtc@68 {
-				compatible = "dallas,ds3232";
-				reg = <0x68>;
-			};
-		};
-
-		i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x3>;
-
-			adt7481@4c {
-				compatible = "adi,adt7461";
-				reg = <0x4c>;
-			};
-		};
-	};
 };
 
-&i2c1 {
-	status = "disabled";
-};
-
-&i2c2 {
-	status = "disabled";
-};
-
-&i2c3 {
-	status = "disabled";
-};
-
-&dspi {
+&cpm_usb3_0 {
+	/* J38? - USB2.0 only */
 	status = "okay";
-	dflash0: n25q512a {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "st,m25p80";
-		spi-max-frequency = <3000000>;
+};
+
+&cpm_usb3_1 {
+	/* J38? - USB2.0 only */
+	status = "okay";
+};
+
+&cps_sata0 {
+	/* CPS Lane 1 - U32 */
+	/* CPS Lane 3 - U31 */
+	status = "okay";
+};
+
+&cps_spi1 {
+	status = "okay";
+
+	spi-flash@0 {
+		compatible = "st,w25q32";
+		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
 };
 
-&qspi {
-	status = "disabled";
-};
-
-&sata0 {
-	status = "okay";
-};
-
-&sata1 {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
+&cps_usb3_0 {
+	/* CPS Lane 2 - CON7 */
+	usb-phy = <&usb3h0_phy>;
 	status = "okay";
 };
