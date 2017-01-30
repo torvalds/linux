@@ -3053,6 +3053,9 @@ extern bool current_is_single_threaded(void);
 #define for_each_process_thread(p, t)	\
 	for_each_process(p) for_each_thread(p, t)
 
+typedef int (*proc_visitor)(struct task_struct *p, void *data);
+void walk_process_tree(struct task_struct *top, proc_visitor, void *);
+
 static inline int get_nr_threads(struct task_struct *tsk)
 {
 	return tsk->signal->nr_threads;
