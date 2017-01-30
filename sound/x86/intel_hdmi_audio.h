@@ -99,10 +99,6 @@ struct had_pvt_data {
 	enum had_status_stream		stream_type;
 };
 
-struct had_callback_ops {
-	had_event_call_back intel_had_event_call_back;
-};
-
 /**
  * struct snd_intelhad - intelhad driver structure
  *

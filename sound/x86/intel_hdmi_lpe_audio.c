@@ -44,7 +44,6 @@ static union otm_hdmi_eld_t hlpe_eld;
 struct hdmi_lpe_audio_ctx {
 	int irq;
 	void __iomem *mmio_start;
-	had_event_call_back had_event_callbacks;
 	struct snd_intelhad *had;
 	int tmds_clock_speed;
 	bool dp_output;
@@ -118,8 +117,7 @@ void mid_hdmi_audio_signal_event(enum had_event_type event)
 	/* The handler is protected in the respective
 	 * event handlers to avoid races
 	 */
-	if (ctx->had_event_callbacks)
-		(*ctx->had_event_callbacks)(event, ctx->had);
+	had_event_handler(event, ctx->had);
 }
 
 /*
@@ -253,19 +251,6 @@ int mid_hdmi_audio_set_caps(enum had_caps_list set_element,
 	default:
 		break;
 	}
-
-	return 0;
-}
-
-int mid_hdmi_audio_setup(had_event_call_back audio_callbacks)
-{
-	struct hdmi_lpe_audio_ctx *ctx;
-
-	ctx = platform_get_drvdata(hlpe_pdev);
-
-	dev_dbg(&hlpe_pdev->dev, "%s: called\n",  __func__);
-
-	ctx->had_event_callbacks = audio_callbacks;
 
 	return 0;
 }

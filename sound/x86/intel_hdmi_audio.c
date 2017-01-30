@@ -1591,7 +1591,6 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	int retval;
 	struct snd_pcm *pcm;
 	struct snd_card *card;
-	struct had_callback_ops ops_cb;
 	struct snd_intelhad *intelhaddata;
 	struct had_pvt_data *had_stream;
 
@@ -1608,16 +1607,6 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	if (!had_stream) {
 		retval = -ENOMEM;
 		goto free_haddata;
-	}
-
-	ops_cb.intel_had_event_call_back = had_event_handler;
-
-	/* registering with display driver to get access to display APIs */
-
-	retval = mid_hdmi_audio_setup(ops_cb.intel_had_event_call_back);
-	if (retval) {
-		pr_err("querying display driver APIs failed %#x\n", retval);
-		goto free_hadstream;
 	}
 
 	spin_lock_init(&intelhaddata->had_spinlock);
