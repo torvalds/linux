@@ -178,13 +178,8 @@ void fpstate_init(union fpregs_state *state)
 
 	memset(state, 0, fpu_kernel_xstate_size);
 
-	/*
-	 * XRSTORS requires that this bit is set in xcomp_bv, or
-	 * it will #GP. Make sure it is replaced after the memset().
-	 */
 	if (static_cpu_has(X86_FEATURE_XSAVES))
-		state->xsave.header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT;
-
+		fpstate_init_xstate(&state->xsave);
 	if (static_cpu_has(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(&state->fxsave);
 	else
