@@ -119,6 +119,9 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 	long err = -EBUSY;
 	long order;
 
+	if (kvm_is_radix(kvm))
+		return -EINVAL;
+
 	mutex_lock(&kvm->lock);
 	if (kvm->arch.hpte_setup_done) {
 		kvm->arch.hpte_setup_done = 0;
@@ -157,7 +160,7 @@ void kvmppc_free_hpt(struct kvm *kvm)
 	if (kvm->arch.hpt_cma_alloc)
 		kvm_release_hpt(virt_to_page(kvm->arch.hpt_virt),
 				1 << (kvm->arch.hpt_order - PAGE_SHIFT));
-	else
+	else if (kvm->arch.hpt_virt)
 		free_pages(kvm->arch.hpt_virt,
 			   kvm->arch.hpt_order - PAGE_SHIFT);
 }
@@ -1675,7 +1678,10 @@ void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.slb_nr = 32;		/* POWER7/POWER8 */
 
-	mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
+	if (kvm_is_radix(vcpu->kvm))
+		mmu->xlate = kvmppc_mmu_radix_xlate;
+	else
+		mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
 	mmu->reset_msr = kvmppc_mmu_book3s_64_hv_reset_msr;
 
 	vcpu->arch.hflags |= BOOK3S_HFLAG_SLB;
