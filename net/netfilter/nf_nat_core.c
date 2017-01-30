@@ -42,7 +42,7 @@ struct nf_nat_conn_key {
 	const struct nf_conntrack_zone *zone;
 };
 
-static struct rhashtable nf_nat_bysource_table;
+static struct rhltable nf_nat_bysource_table;
 
 inline const struct nf_nat_l3proto *
 __nf_nat_l3proto_find(u8 family)
@@ -193,9 +193,12 @@ static int nf_nat_bysource_cmp(struct rhashtable_compare_arg *arg,
 	const struct nf_nat_conn_key *key = arg->key;
 	const struct nf_conn *ct = obj;
 
-	return same_src(ct, key->tuple) &&
-	       net_eq(nf_ct_net(ct), key->net) &&
-	       nf_ct_zone_equal(ct, key->zone, IP_CT_DIR_ORIGINAL);
+	if (!same_src(ct, key->tuple) ||
+	    !net_eq(nf_ct_net(ct), key->net) ||
+	    !nf_ct_zone_equal(ct, key->zone, IP_CT_DIR_ORIGINAL))
+		return 1;
+
+	return 0;
 }
 
 static struct rhashtable_params nf_nat_bysource_params = {
@@ -204,7 +207,6 @@ static struct rhashtable_params nf_nat_bysource_params = {
 	.obj_cmpfn = nf_nat_bysource_cmp,
 	.nelem_hint = 256,
 	.min_size = 1024,
-	.nulls_base = (1U << RHT_BASE_SHIFT),
 };
 
 /* Only called for SRC manip */
@@ -223,11 +225,14 @@ find_appropriate_src(struct net *net,
 		.tuple = tuple,
 		.zone = zone
 	};
+	struct rhlist_head *hl;
 
-	ct = rhashtable_lookup_fast(&nf_nat_bysource_table, &key,
-				    nf_nat_bysource_params);
-	if (!ct)
+	hl = rhltable_lookup(&nf_nat_bysource_table, &key,
+			     nf_nat_bysource_params);
+	if (!hl)
 		return 0;
+
+	ct = container_of(hl, typeof(*ct), nat_bysource);
 
 	nf_ct_invert_tuplepr(result,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
@@ -446,11 +451,17 @@ nf_nat_setup_info(struct nf_conn *ct,
 	}
 
 	if (maniptype == NF_NAT_MANIP_SRC) {
+		struct nf_nat_conn_key key = {
+			.net = nf_ct_net(ct),
+			.tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+			.zone = nf_ct_zone(ct),
+		};
 		int err;
 
-		err = rhashtable_insert_fast(&nf_nat_bysource_table,
-					     &ct->nat_bysource,
-					     nf_nat_bysource_params);
+		err = rhltable_insert_key(&nf_nat_bysource_table,
+					  &key,
+					  &ct->nat_bysource,
+					  nf_nat_bysource_params);
 		if (err)
 			return NF_DROP;
 	}
@@ -567,8 +578,8 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * will delete entry from already-freed table.
 	 */
 	ct->status &= ~IPS_NAT_DONE_MASK;
-	rhashtable_remove_fast(&nf_nat_bysource_table, &ct->nat_bysource,
-			       nf_nat_bysource_params);
+	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
+			nf_nat_bysource_params);
 
 	/* don't delete conntrack.  Although that would make things a lot
 	 * simpler, we'd end up flushing all conntracks on nat rmmod.
@@ -671,6 +682,18 @@ int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
 			 &nf_nat_l4proto_tcp);
 	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDP],
 			 &nf_nat_l4proto_udp);
+#ifdef CONFIG_NF_NAT_PROTO_DCCP
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_DCCP],
+			 &nf_nat_l4proto_dccp);
+#endif
+#ifdef CONFIG_NF_NAT_PROTO_SCTP
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_SCTP],
+			 &nf_nat_l4proto_sctp);
+#endif
+#ifdef CONFIG_NF_NAT_PROTO_UDPLITE
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDPLITE],
+			 &nf_nat_l4proto_udplite);
+#endif
 	mutex_unlock(&nf_nat_proto_mutex);
 
 	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
@@ -698,8 +721,8 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 	if (!nat)
 		return;
 
-	rhashtable_remove_fast(&nf_nat_bysource_table, &ct->nat_bysource,
-			       nf_nat_bysource_params);
+	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
+			nf_nat_bysource_params);
 }
 
 static struct nf_ct_ext_type nat_extend __read_mostly = {
@@ -834,13 +857,13 @@ static int __init nf_nat_init(void)
 {
 	int ret;
 
-	ret = rhashtable_init(&nf_nat_bysource_table, &nf_nat_bysource_params);
+	ret = rhltable_init(&nf_nat_bysource_table, &nf_nat_bysource_params);
 	if (ret)
 		return ret;
 
 	ret = nf_ct_extend_register(&nat_extend);
 	if (ret < 0) {
-		rhashtable_destroy(&nf_nat_bysource_table);
+		rhltable_destroy(&nf_nat_bysource_table);
 		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
 		return ret;
 	}
@@ -864,7 +887,7 @@ static int __init nf_nat_init(void)
 	return 0;
 
  cleanup_extend:
-	rhashtable_destroy(&nf_nat_bysource_table);
+	rhltable_destroy(&nf_nat_bysource_table);
 	nf_ct_extend_unregister(&nat_extend);
 	return ret;
 }
@@ -883,7 +906,7 @@ static void __exit nf_nat_cleanup(void)
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		kfree(nf_nat_l4protos[i]);
 
-	rhashtable_destroy(&nf_nat_bysource_table);
+	rhltable_destroy(&nf_nat_bysource_table);
 }
 
 MODULE_LICENSE("GPL");

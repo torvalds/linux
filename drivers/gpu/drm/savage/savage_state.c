@@ -1004,6 +1004,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		kvb_addr = memdup_user(cmdbuf->vb_addr, cmdbuf->vb_size);
 		if (IS_ERR(kvb_addr)) {
 			ret = PTR_ERR(kvb_addr);
+			kvb_addr = NULL;
 			goto done;
 		}
 		cmdbuf->vb_addr = kvb_addr;

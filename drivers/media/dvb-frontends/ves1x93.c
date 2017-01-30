@@ -454,7 +454,7 @@ static int ves1x93_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 	}
 }
 
-static struct dvb_frontend_ops ves1x93_ops;
+static const struct dvb_frontend_ops ves1x93_ops;
 
 struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 				    struct i2c_adapter* i2c)
@@ -512,7 +512,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops ves1x93_ops = {
+static const struct dvb_frontend_ops ves1x93_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "VLSI VES1x93 DVB-S",

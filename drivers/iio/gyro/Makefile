@@ -14,6 +14,11 @@ obj-$(CONFIG_BMG160_SPI) += bmg160_spi.o
 
 obj-$(CONFIG_HID_SENSOR_GYRO_3D) += hid-sensor-gyro-3d.o
 
+# Currently this is rolled into one module, split it if
+# we ever create a separate SPI interface for MPU-3050
+obj-$(CONFIG_MPU3050) += mpu3050.o
+mpu3050-objs := mpu3050-core.o mpu3050-i2c.o
+
 itg3200-y               := itg3200_core.o
 itg3200-$(CONFIG_IIO_BUFFER) += itg3200_buffer.o
 obj-$(CONFIG_ITG3200)   += itg3200.o

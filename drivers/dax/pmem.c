@@ -78,7 +78,9 @@ static int dax_pmem_probe(struct device *dev)
 	nsio = to_nd_namespace_io(&ndns->dev);
 
 	/* parse the 'pfn' info block via ->rw_bytes */
-	devm_nsio_enable(dev, nsio);
+	rc = devm_nsio_enable(dev, nsio);
+	if (rc)
+		return rc;
 	altmap = nvdimm_setup_pfn(nd_pfn, &res, &__altmap);
 	if (IS_ERR(altmap))
 		return PTR_ERR(altmap);
@@ -87,7 +89,8 @@ static int dax_pmem_probe(struct device *dev)
 	pfn_sb = nd_pfn->pfn_sb;
 
 	if (!devm_request_mem_region(dev, nsio->res.start,
-				resource_size(&nsio->res), dev_name(dev))) {
+				resource_size(&nsio->res),
+				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
 		return -EBUSY;
 	}

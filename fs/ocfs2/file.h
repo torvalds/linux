@@ -82,4 +82,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 
 int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
 				   size_t count);
+int ocfs2_remove_inode_range(struct inode *inode,
+			     struct buffer_head *di_bh, u64 byte_start,
+			     u64 byte_len);
 #endif /* OCFS2_FILE_H */

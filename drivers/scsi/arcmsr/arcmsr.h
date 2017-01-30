@@ -629,7 +629,6 @@ struct AdapterControlBlock
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
 	unsigned long			vir2phy_offset;
-	struct msix_entry	entries[ARCMST_NUM_MSIX_VECTORS];
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	uint32_t			outbound_int_enable;
 	uint32_t			cdb_phyaddr_hi32;
@@ -671,8 +670,6 @@ struct AdapterControlBlock
 	/* iop init */
 	#define ACB_F_ABORT				0x0200
 	#define ACB_F_FIRMWARE_TRAP           		0x0400
-	#define ACB_F_MSI_ENABLED		0x1000
-	#define ACB_F_MSIX_ENABLED		0x2000
 	struct CommandControlBlock *			pccb_pool[ARCMSR_MAX_FREECCB_NUM];
 	/* used for memory free */
 	struct list_head		ccb_free_list;
@@ -725,7 +722,7 @@ struct AdapterControlBlock
 	atomic_t 			rq_map_token;
 	atomic_t			ante_token_value;
 	uint32_t	maxOutstanding;
-	int		msix_vector_count;
+	int		vector_count;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************

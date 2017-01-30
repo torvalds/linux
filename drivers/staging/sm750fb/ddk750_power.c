@@ -1,8 +1,8 @@
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_power.h"
 
-void ddk750_setDPMS(DPMS_t state)
+void ddk750_set_dpms(DPMS_t state)
 {
 	unsigned int value;
 
@@ -17,7 +17,7 @@ void ddk750_setDPMS(DPMS_t state)
 	}
 }
 
-static unsigned int getPowerMode(void)
+static unsigned int get_power_mode(void)
 {
 	if (sm750_get_chip_type() == SM750LE)
 		return 0;
@@ -29,26 +29,26 @@ static unsigned int getPowerMode(void)
  * SM50x can operate in one of three modes: 0, 1 or Sleep.
  * On hardware reset, power mode 0 is default.
  */
-void setPowerMode(unsigned int powerMode)
+void sm750_set_power_mode(unsigned int mode)
 {
-	unsigned int control_value = 0;
+	unsigned int ctrl = 0;
 
-	control_value = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
+	ctrl = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
 
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
-	switch (powerMode) {
+	switch (mode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
-		control_value |= POWER_MODE_CTRL_MODE_MODE0;
+		ctrl |= POWER_MODE_CTRL_MODE_MODE0;
 		break;
 
 	case POWER_MODE_CTRL_MODE_MODE1:
-		control_value |= POWER_MODE_CTRL_MODE_MODE1;
+		ctrl |= POWER_MODE_CTRL_MODE_MODE1;
 		break;
 
 	case POWER_MODE_CTRL_MODE_SLEEP:
-		control_value |= POWER_MODE_CTRL_MODE_SLEEP;
+		ctrl |= POWER_MODE_CTRL_MODE_SLEEP;
 		break;
 
 	default:
@@ -56,44 +56,28 @@ void setPowerMode(unsigned int powerMode)
 	}
 
 	/* Set up other fields in Power Control Register */
-	if (powerMode == POWER_MODE_CTRL_MODE_SLEEP) {
-		control_value &= ~POWER_MODE_CTRL_OSC_INPUT;
+	if (mode == POWER_MODE_CTRL_MODE_SLEEP) {
+		ctrl &= ~POWER_MODE_CTRL_OSC_INPUT;
 #ifdef VALIDATION_CHIP
-		control_value &= ~POWER_MODE_CTRL_336CLK;
+		ctrl &= ~POWER_MODE_CTRL_336CLK;
 #endif
 	} else {
-		control_value |= POWER_MODE_CTRL_OSC_INPUT;
+		ctrl |= POWER_MODE_CTRL_OSC_INPUT;
 #ifdef VALIDATION_CHIP
-		control_value |= POWER_MODE_CTRL_336CLK;
+		ctrl |= POWER_MODE_CTRL_336CLK;
 #endif
 	}
 
 	/* Program new power mode. */
-	POKE32(POWER_MODE_CTRL, control_value);
+	POKE32(POWER_MODE_CTRL, ctrl);
 }
 
-void setCurrentGate(unsigned int gate)
+void sm750_set_current_gate(unsigned int gate)
 {
-	unsigned int gate_reg;
-	unsigned int mode;
-
-	/* Get current power mode. */
-	mode = getPowerMode();
-
-	switch (mode) {
-	case POWER_MODE_CTRL_MODE_MODE0:
-		gate_reg = MODE0_GATE;
-		break;
-
-	case POWER_MODE_CTRL_MODE_MODE1:
-		gate_reg = MODE1_GATE;
-		break;
-
-	default:
-		gate_reg = MODE0_GATE;
-		break;
-	}
-	POKE32(gate_reg, gate);
+	if (get_power_mode() == POWER_MODE_CTRL_MODE_MODE1)
+		POKE32(MODE1_GATE, gate);
+	else
+		POKE32(MODE0_GATE, gate);
 }
 
 
@@ -101,7 +85,7 @@ void setCurrentGate(unsigned int gate)
 /*
  * This function enable/disable the 2D engine.
  */
-void enable2DEngine(unsigned int enable)
+void sm750_enable_2d_engine(unsigned int enable)
 {
 	u32 gate;
 
@@ -111,10 +95,10 @@ void enable2DEngine(unsigned int enable)
 	else
 		gate &= ~(CURRENT_GATE_DE | CURRENT_GATE_CSC);
 
-	setCurrentGate(gate);
+	sm750_set_current_gate(gate);
 }
 
-void enableDMA(unsigned int enable)
+void sm750_enable_dma(unsigned int enable)
 {
 	u32 gate;
 
@@ -125,13 +109,13 @@ void enableDMA(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_DMA;
 
-	setCurrentGate(gate);
+	sm750_set_current_gate(gate);
 }
 
 /*
  * This function enable/disable the GPIO Engine
  */
-void enableGPIO(unsigned int enable)
+void sm750_enable_gpio(unsigned int enable)
 {
 	u32 gate;
 
@@ -142,13 +126,13 @@ void enableGPIO(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_GPIO;
 
-	setCurrentGate(gate);
+	sm750_set_current_gate(gate);
 }
 
 /*
  * This function enable/disable the I2C Engine
  */
-void enableI2C(unsigned int enable)
+void sm750_enable_i2c(unsigned int enable)
 {
 	u32 gate;
 
@@ -159,7 +143,7 @@ void enableI2C(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_I2C;
 
-	setCurrentGate(gate);
+	sm750_set_current_gate(gate);
 }
 
 

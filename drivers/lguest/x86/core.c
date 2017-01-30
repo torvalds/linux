@@ -45,7 +45,7 @@
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/lguest.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 #include "../lg.h"
@@ -247,14 +247,6 @@ unsigned long *lguest_arch_regptr(struct lg_cpu *cpu, size_t reg_off, bool any)
 void lguest_arch_run_guest(struct lg_cpu *cpu)
 {
 	/*
-	 * Remember the awfully-named TS bit?  If the Guest has asked to set it
-	 * we set it now, so we can trap and pass that trap to the Guest if it
-	 * uses the FPU.
-	 */
-	if (cpu->ts && fpregs_active())
-		stts();
-
-	/*
 	 * SYSENTER is an optimized way of doing system calls.  We can't allow
 	 * it because it always jumps to privilege level 0.  A normal Guest
 	 * won't try it because we don't advertise it in CPUID, but a malicious
@@ -281,10 +273,6 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 /* Restore SYSENTER if it's supposed to be on. */
 	 if (boot_cpu_has(X86_FEATURE_SEP))
 		wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
-
-	/* Clear the host TS bit if it was set above. */
-	if (cpu->ts && fpregs_active())
-		clts();
 
 	/*
 	 * If the Guest page faulted, then the cr2 register will tell us the
@@ -421,12 +409,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 			kill_guest(cpu, "Writing cr2");
 		break;
 	case 7: /* We've intercepted a Device Not Available fault. */
-		/*
-		 * If the Guest doesn't want to know, we already restored the
-		 * Floating Point Unit, so we just continue without telling it.
-		 */
-		if (!cpu->ts)
-			return;
+		/* No special handling is needed here. */
 		break;
 	case 32 ... 255:
 		/* This might be a syscall. */

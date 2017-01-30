@@ -26,8 +26,7 @@
 
 static int force_lna_activation;
 module_param(force_lna_activation, int, 0644);
-MODULE_PARM_DESC(force_lna_activation, "force the activation of Low-Noise-Amplifyer(s) (LNA), "
-		"if applicable for the device (default: 0=automatic/off).");
+MODULE_PARM_DESC(force_lna_activation, "force the activation of Low-Noise-Amplifyer(s) (LNA), if applicable for the device (default: 0=automatic/off).");
 
 struct dib0700_adapter_state {
 	int (*set_param_save) (struct dvb_frontend *);
@@ -508,8 +507,6 @@ static int stk7700ph_tuner_attach(struct dvb_usb_adapter *adap)
 
 #define DEFAULT_RC_INTERVAL 50
 
-static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
-
 /*
  * This function is used only when firmware is < 1.20 version. Newer
  * firmwares use bulk mode, with functions implemented at dib0700_core,
@@ -517,7 +514,6 @@ static u8 rc_request[] = { REQUEST_POLL_RC, 0 };
  */
 static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 {
-	u8 key[4];
 	enum rc_type protocol;
 	u32 scancode;
 	u8 toggle;
@@ -532,39 +528,43 @@ static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 		return 0;
 	}
 
-	i = dib0700_ctrl_rd(d, rc_request, 2, key, 4);
+	st->buf[0] = REQUEST_POLL_RC;
+	st->buf[1] = 0;
+
+	i = dib0700_ctrl_rd(d, st->buf, 2, st->buf, 4);
 	if (i <= 0) {
 		err("RC Query Failed");
-		return -1;
+		return -EIO;
 	}
 
 	/* losing half of KEY_0 events from Philipps rc5 remotes.. */
-	if (key[0] == 0 && key[1] == 0 && key[2] == 0 && key[3] == 0)
+	if (st->buf[0] == 0 && st->buf[1] == 0
+	    && st->buf[2] == 0 && st->buf[3] == 0)
 		return 0;
 
-	/* info("%d: %2X %2X %2X %2X",dvb_usb_dib0700_ir_proto,(int)key[3-2],(int)key[3-3],(int)key[3-1],(int)key[3]);  */
+	/* info("%d: %2X %2X %2X %2X",dvb_usb_dib0700_ir_proto,(int)st->buf[3 - 2],(int)st->buf[3 - 3],(int)st->buf[3 - 1],(int)st->buf[3]);  */
 
 	dib0700_rc_setup(d, NULL); /* reset ir sensor data to prevent false events */
 
 	switch (d->props.rc.core.protocol) {
 	case RC_BIT_NEC:
 		/* NEC protocol sends repeat code as 0 0 0 FF */
-		if ((key[3-2] == 0x00) && (key[3-3] == 0x00) &&
-		    (key[3] == 0xff)) {
+		if ((st->buf[3 - 2] == 0x00) && (st->buf[3 - 3] == 0x00) &&
+		    (st->buf[3] == 0xff)) {
 			rc_repeat(d->rc_dev);
 			return 0;
 		}
 
 		protocol = RC_TYPE_NEC;
-		scancode = RC_SCANCODE_NEC(key[3-2], key[3-3]);
+		scancode = RC_SCANCODE_NEC(st->buf[3 - 2], st->buf[3 - 3]);
 		toggle = 0;
 		break;
 
 	default:
 		/* RC-5 protocol changes toggle bit on new keypress */
 		protocol = RC_TYPE_RC5;
-		scancode = RC_SCANCODE_RC5(key[3-2], key[3-3]);
-		toggle = key[3-1];
+		scancode = RC_SCANCODE_RC5(st->buf[3 - 2], st->buf[3 - 3]);
+		toggle = st->buf[3 - 1];
 		break;
 	}
 

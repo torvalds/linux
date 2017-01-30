@@ -176,7 +176,7 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
  * Check if sg_io_v4 from user is allowed and valid
  */
 static int
-bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
+bsg_validate_sgv4_hdr(struct sg_io_v4 *hdr, int *rw)
 {
 	int ret = 0;
 
@@ -226,7 +226,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm,
 		hdr->dout_xfer_len, (unsigned long long) hdr->din_xferp,
 		hdr->din_xfer_len);
 
-	ret = bsg_validate_sgv4_hdr(q, hdr, &rw);
+	ret = bsg_validate_sgv4_hdr(hdr, &rw);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -654,6 +654,9 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	int ret;
 
 	dprintk("%s: write %Zd bytes\n", bd->name, count);
+
+	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+		return -EINVAL;
 
 	bsg_set_block(bd, file);
 

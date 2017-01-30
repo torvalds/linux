@@ -1,0 +1,294 @@
+[
+    {
+        "PublicDescription": "Counts cycles the IDQ is empty.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "Errata": "HSD135",
+        "EventName": "IDQ.EMPTY",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Instruction Decode Queue (IDQ) empty cycles",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ from MITE path. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "IDQ.MITE_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Increment each cycle. # of uops delivered to IDQ from DSB path. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "IDQ.DSB_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set Cmask = 1 to count cycles. Add Edge=1 to count # of delivery.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "IDQ.MS_DSB_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by MITE. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x20",
+        "EventName": "IDQ.MS_MITE_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts uops delivered by the Front-end with the assistance of the microcode sequencer.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EventName": "IDQ.MS_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts cycles during which the microcode sequencer assisted the Front-end in delivering uops.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EventName": "IDQ.MS_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "IDQ.MITE_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from MITE path.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "IDQ.DSB_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from Decode Stream Buffer (DSB) path.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "IDQ.MS_DSB_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when uops initiated by Decode Stream Buffer (DSB) are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EdgeDetect": "1",
+        "EventName": "IDQ.MS_DSB_OCCUR",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Deliveries to Instruction Decode Queue (IDQ) initiated by Decode Stream Buffer (DSB) while Microcode Sequenser (MS) is busy.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts cycles DSB is delivered four uops. Set Cmask = 4.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x18",
+        "EventName": "IDQ.ALL_DSB_CYCLES_4_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles Decode Stream Buffer (DSB) is delivering 4 Uops",
+        "CounterMask": "4",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts cycles DSB is delivered at least one uops. Set Cmask = 1.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x18",
+        "EventName": "IDQ.ALL_DSB_CYCLES_ANY_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles Decode Stream Buffer (DSB) is delivering any Uop",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts cycles MITE is delivered four uops. Set Cmask = 4.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x24",
+        "EventName": "IDQ.ALL_MITE_CYCLES_4_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles MITE is delivering 4 Uops",
+        "CounterMask": "4",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts cycles MITE is delivered at least one uop. Set Cmask = 1.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x24",
+        "EventName": "IDQ.ALL_MITE_CYCLES_ANY_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles MITE is delivering any Uop",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Number of uops delivered to IDQ from any path.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x3c",
+        "EventName": "IDQ.MITE_ALL_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from MITE path",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x80",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "ICACHE.HIT",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Reads. both cacheable and noncacheable, including UC fetches.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts Instruction Cache (ICACHE) misses.",
+        "EventCode": "0x80",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "ICACHE.MISSES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Misses. Includes Uncacheable accesses.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x80",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "ICACHE.IFETCH_STALL",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles where a code fetch is stalled due to L1 instruction-cache miss.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event count the number of undelivered (unallocated) uops from the Front-end to the Resource Allocation Table (RAT) while the Back-end of the processor is not stalled. The Front-end can allocate up to 4 uops per cycle so this event can increment 0-4 times per cycle depending on the number of unallocated uops. This event is counted on a per-core basis.",
+        "EventCode": "0x9C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "PublicDescription": "This event counts the number cycles during which the Front-end allocated exactly zero uops to the Resource Allocation Table (RAT) while the Back-end of the processor is not stalled.  This event is counted on a per-core basis.",
+        "EventCode": "0x9C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles per thread when 4 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled",
+        "CounterMask": "4",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0x9C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_1_UOP_DELIV.CORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles per thread when 3 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled.",
+        "CounterMask": "3",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0x9C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_2_UOP_DELIV.CORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles with less than 2 uops delivered by the front end.",
+        "CounterMask": "2",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0x9C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_3_UOP_DELIV.CORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles with less than 3 uops delivered by the front end.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0x9C",
+        "Invert": "1",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "HSD135",
+        "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_FE_WAS_OK",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Counts cycles FE delivered 4 uops or Resource Allocation Table (RAT) was stalling FE.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xAB",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "DSB2MITE_SWITCHES.PENALTY_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EdgeDetect": "1",
+        "EventName": "IDQ.MS_SWITCHES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x80",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "ICACHE.IFDATA_STALL",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles where a code fetch is stalled due to L1 instruction-cache miss.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    }
+]

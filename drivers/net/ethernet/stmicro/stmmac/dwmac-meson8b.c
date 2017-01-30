@@ -264,32 +264,48 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return -ENOMEM;
+	if (!dwmac) {
+		ret = -ENOMEM;
+		goto err_remove_config_dt;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	dwmac->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dwmac->regs))
-		return PTR_ERR(dwmac->regs);
+	if (IS_ERR(dwmac->regs)) {
+		ret = PTR_ERR(dwmac->regs);
+		goto err_remove_config_dt;
+	}
 
 	dwmac->pdev = pdev;
 	dwmac->phy_mode = of_get_phy_mode(pdev->dev.of_node);
 	if (dwmac->phy_mode < 0) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_remove_config_dt;
 	}
 
 	ret = meson8b_init_clk(dwmac);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
 	ret = meson8b_init_prg_eth(dwmac);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
 	plat_dat->bsp_priv = dwmac;
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_clk_disable;
+
+	return 0;
+
+err_clk_disable:
+	clk_disable_unprepare(dwmac->m25_div_clk);
+err_remove_config_dt:
+	stmmac_remove_config_dt(pdev, plat_dat);
+
+	return ret;
 }
 
 static int meson8b_dwmac_remove(struct platform_device *pdev)

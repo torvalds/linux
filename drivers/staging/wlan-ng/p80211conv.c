@@ -1,56 +1,56 @@
 /* src/p80211/p80211conv.c
-*
-* Ether/802.11 conversions and packet buffer routines
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*
-* This file defines the functions that perform Ethernet to/from
-* 802.11 frame conversions.
-*
-* --------------------------------------------------------------------
-*
-*================================================================
-*/
+ *
+ * Ether/802.11 conversions and packet buffer routines
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ *
+ * This file defines the functions that perform Ethernet to/from
+ * 802.11 frame conversions.
+ *
+ * --------------------------------------------------------------------
+ *
+ *================================================================
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -79,31 +79,31 @@ static const u8 oui_rfc1042[] = { 0x00, 0x00, 0x00 };
 static const u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 
 /*----------------------------------------------------------------
-* p80211pb_ether_to_80211
-*
-* Uses the contents of the ether frame and the etherconv setting
-* to build the elements of the 802.11 frame.
-*
-* We don't actually set
-* up the frame header here.  That's the MAC's job.  We're only handling
-* conversion of DIXII or 802.3+LLC frames to something that works
-* with 802.11.
-*
-* Note -- 802.11 header is NOT part of the skb.  Likewise, the 802.11
-*         FCS is also not present and will need to be added elsewhere.
-*
-* Arguments:
-*	ethconv		Conversion type to perform
-*	skb		skbuff containing the ether frame
-*       p80211_hdr      802.11 header
-*
-* Returns:
-*	0 on success, non-zero otherwise
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211pb_ether_to_80211
+ *
+ * Uses the contents of the ether frame and the etherconv setting
+ * to build the elements of the 802.11 frame.
+ *
+ * We don't actually set
+ * up the frame header here.  That's the MAC's job.  We're only handling
+ * conversion of DIXII or 802.3+LLC frames to something that works
+ * with 802.11.
+ *
+ * Note -- 802.11 header is NOT part of the skb.  Likewise, the 802.11
+ *         FCS is also not present and will need to be added elsewhere.
+ *
+ * Arguments:
+ *	ethconv		Conversion type to perform
+ *	skb		skbuff containing the ether frame
+ *       p80211_hdr      802.11 header
+ *
+ * Returns:
+ *	0 on success, non-zero otherwise
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			struct sk_buff *skb, union p80211_hdr *p80211_hdr,
 			struct p80211_metawep *p80211_wep)
@@ -255,25 +255,25 @@ static void orinoco_spy_gather(struct wlandevice *wlandev, char *mac,
 }
 
 /*----------------------------------------------------------------
-* p80211pb_80211_to_ether
-*
-* Uses the contents of a received 802.11 frame and the etherconv
-* setting to build an ether frame.
-*
-* This function extracts the src and dest address from the 802.11
-* frame to use in the construction of the eth frame.
-*
-* Arguments:
-*	ethconv		Conversion type to perform
-*	skb		Packet buffer containing the 802.11 frame
-*
-* Returns:
-*	0 on success, non-zero otherwise
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211pb_80211_to_ether
+ *
+ * Uses the contents of a received 802.11 frame and the etherconv
+ * setting to build an ether frame.
+ *
+ * This function extracts the src and dest address from the 802.11
+ * frame to use in the construction of the eth frame.
+ *
+ * Arguments:
+ *	ethconv		Conversion type to perform
+ *	skb		Packet buffer containing the 802.11 frame
+ *
+ * Returns:
+ *	0 on success, non-zero otherwise
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			struct sk_buff *skb)
 {
@@ -508,22 +508,22 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 }
 
 /*----------------------------------------------------------------
-* p80211_stt_findproto
-*
-* Searches the 802.1h Selective Translation Table for a given
-* protocol.
-*
-* Arguments:
-*	proto	protocol number (in host order) to search for.
-*
-* Returns:
-*	1 - if the table is empty or a match is found.
-*	0 - if the table is non-empty and a match is not found.
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211_stt_findproto
+ *
+ * Searches the 802.1h Selective Translation Table for a given
+ * protocol.
+ *
+ * Arguments:
+ *	proto	protocol number (in host order) to search for.
+ *
+ * Returns:
+ *	1 - if the table is empty or a match is found.
+ *	0 - if the table is non-empty and a match is not found.
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 int p80211_stt_findproto(u16 proto)
 {
 	/* Always return found for now.  This is the behavior used by the */
@@ -540,21 +540,21 @@ int p80211_stt_findproto(u16 proto)
 }
 
 /*----------------------------------------------------------------
-* p80211skb_rxmeta_detach
-*
-* Disconnects the frmmeta and rxmeta from an skb.
-*
-* Arguments:
-*	wlandev		The wlandev this skb belongs to.
-*	skb		The skb we're attaching to.
-*
-* Returns:
-*	0 on success, non-zero otherwise
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211skb_rxmeta_detach
+ *
+ * Disconnects the frmmeta and rxmeta from an skb.
+ *
+ * Arguments:
+ *	wlandev		The wlandev this skb belongs to.
+ *	skb		The skb we're attaching to.
+ *
+ * Returns:
+ *	0 on success, non-zero otherwise
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 void p80211skb_rxmeta_detach(struct sk_buff *skb)
 {
 	struct p80211_rxmeta *rxmeta;
@@ -584,22 +584,22 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 }
 
 /*----------------------------------------------------------------
-* p80211skb_rxmeta_attach
-*
-* Allocates a p80211rxmeta structure, initializes it, and attaches
-* it to an skb.
-*
-* Arguments:
-*	wlandev		The wlandev this skb belongs to.
-*	skb		The skb we're attaching to.
-*
-* Returns:
-*	0 on success, non-zero otherwise
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211skb_rxmeta_attach
+ *
+ * Allocates a p80211rxmeta structure, initializes it, and attaches
+ * it to an skb.
+ *
+ * Arguments:
+ *	wlandev		The wlandev this skb belongs to.
+ *	skb		The skb we're attaching to.
+ *
+ * Returns:
+ *	0 on success, non-zero otherwise
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	int result = 0;
@@ -615,11 +615,9 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	}
 
 	/* Allocate the rxmeta */
-	rxmeta = kzalloc(sizeof(struct p80211_rxmeta), GFP_ATOMIC);
+	rxmeta = kzalloc(sizeof(*rxmeta), GFP_ATOMIC);
 
 	if (!rxmeta) {
-		netdev_err(wlandev->netdev,
-			   "%s: Failed to allocate rxmeta.\n", wlandev->name);
 		result = 1;
 		goto exit;
 	}
@@ -638,22 +636,22 @@ exit:
 }
 
 /*----------------------------------------------------------------
-* p80211skb_free
-*
-* Frees an entire p80211skb by checking and freeing the meta struct
-* and then freeing the skb.
-*
-* Arguments:
-*	wlandev		The wlandev this skb belongs to.
-*	skb		The skb we're attaching to.
-*
-* Returns:
-*	0 on success, non-zero otherwise
-*
-* Call context:
-*	May be called in interrupt or non-interrupt context
-*----------------------------------------------------------------
-*/
+ * p80211skb_free
+ *
+ * Frees an entire p80211skb by checking and freeing the meta struct
+ * and then freeing the skb.
+ *
+ * Arguments:
+ *	wlandev		The wlandev this skb belongs to.
+ *	skb		The skb we're attaching to.
+ *
+ * Returns:
+ *	0 on success, non-zero otherwise
+ *
+ * Call context:
+ *	May be called in interrupt or non-interrupt context
+ *----------------------------------------------------------------
+ */
 void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	struct p80211_frmmeta *meta;

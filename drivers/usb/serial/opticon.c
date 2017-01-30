@@ -336,9 +336,6 @@ static int get_serial_info(struct usb_serial_port *port,
 {
 	struct serial_struct tmp;
 
-	if (!serial)
-		return -EFAULT;
-
 	memset(&tmp, 0x00, sizeof(tmp));
 
 	/* fake emulate a 16550 uart to make userspace code happy */

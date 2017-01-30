@@ -348,7 +348,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	kref_get(&gw_node->refcount);
-	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
+	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.gateway_list);
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -376,7 +376,8 @@ struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
 	struct batadv_gw_node *gw_node_tmp, *gw_node = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node_tmp, &bat_priv->gw.list, list) {
+	hlist_for_each_entry_rcu(gw_node_tmp, &bat_priv->gw.gateway_list,
+				 list) {
 		if (gw_node_tmp->orig_node != orig_node)
 			continue;
 
@@ -475,7 +476,7 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 	hlist_for_each_entry_safe(gw_node, node_tmp,
-				  &bat_priv->gw.list, list) {
+				  &bat_priv->gw.gateway_list, list) {
 		hlist_del_init_rcu(&gw_node->list);
 		batadv_gw_node_put(gw_node);
 	}
@@ -704,7 +705,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 {
 	struct batadv_neigh_node *neigh_curr = NULL;
 	struct batadv_neigh_node *neigh_old = NULL;
-	struct batadv_orig_node *orig_dst_node = NULL;
+	struct batadv_orig_node *orig_dst_node;
 	struct batadv_gw_node *gw_node = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_neigh_ifinfo *curr_ifinfo, *old_ifinfo;

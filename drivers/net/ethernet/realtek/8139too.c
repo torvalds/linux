@@ -924,19 +924,10 @@ static int rtl8139_set_features(struct net_device *dev, netdev_features_t featur
 	return 0;
 }
 
-static int rtl8139_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 68 || new_mtu > MAX_ETH_DATA_SIZE)
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_open		= rtl8139_open,
 	.ndo_stop		= rtl8139_close,
 	.ndo_get_stats64	= rtl8139_get_stats64,
-	.ndo_change_mtu		= rtl8139_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= rtl8139_set_mac_address,
 	.ndo_start_xmit		= rtl8139_start_xmit,
@@ -1021,6 +1012,10 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
+
+	/* MTU range: 68 - 1770 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = MAX_ETH_DATA_SIZE;
 
 	/* tp zeroed and aligned in alloc_etherdev */
 	tp = netdev_priv(dev);

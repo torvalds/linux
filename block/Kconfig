@@ -5,6 +5,7 @@ menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
        select SBITMAP
+       select SRCU
        help
 	 Provide block layer support for the kernel.
 
@@ -89,6 +90,14 @@ config BLK_DEV_INTEGRITY
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
+config BLK_DEV_ZONED
+	bool "Zoned block device support"
+	---help---
+	Block layer zoned block device support. This option enables
+	support for ZAC/ZBC host-managed and host-aware zoned block devices.
+
+	Say yes here if you have a ZAC or ZBC storage device.
+
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
@@ -111,6 +120,32 @@ config BLK_CMDLINE_PARSER
 	partitions on a block device.
 
 	See Documentation/block/cmdline-partition.txt for more information.
+
+config BLK_WBT
+	bool "Enable support for block device writeback throttling"
+	default n
+	---help---
+	Enabling this option enables the block layer to throttle buffered
+	background writeback from the VM, making it more smooth and having
+	less impact on foreground operations. The throttling is done
+	dynamically on an algorithm loosely based on CoDel, factoring in
+	the realtime performance of the disk.
+
+config BLK_WBT_SQ
+	bool "Single queue writeback throttling"
+	default n
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on legacy single queue devices
+
+config BLK_WBT_MQ
+	bool "Multiqueue writeback throttling"
+	default y
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on multiqueue devices.
+	Multiqueue currently doesn't have support for IO scheduling,
+	enabling this option is recommended.
 
 menu "Partition Types"
 

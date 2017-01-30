@@ -1,7 +1,10 @@
-* Marvell Armada 370 / Armada XP Ethernet Controller (NETA)
+* Marvell Armada 370 / Armada XP / Armada 3700 Ethernet Controller (NETA)
 
 Required properties:
-- compatible: "marvell,armada-370-neta" or "marvell,armada-xp-neta".
+- compatible: could be one of the followings
+	"marvell,armada-370-neta"
+	"marvell,armada-xp-neta"
+	"marvell,armada-3700-neta"
 - reg: address and length of the register set for the device.
 - interrupts: interrupt for the device
 - phy: See ethernet.txt file in the same directory.

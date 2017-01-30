@@ -16,7 +16,7 @@
 #include <linux/cuda.h>
 #include <linux/pmu.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/segment.h>
 #include <asm/setup.h>

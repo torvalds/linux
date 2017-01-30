@@ -144,7 +144,7 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 	dev->iamthif_state = MEI_IAMTHIF_WRITING;
 	cl->fp = cb->fp;
 
-	ret = mei_cl_write(cl, cb, false);
+	ret = mei_cl_write(cl, cb);
 	if (ret < 0)
 		return ret;
 

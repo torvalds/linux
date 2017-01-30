@@ -30,6 +30,12 @@ gf100_pmu = {
 	.code.size = sizeof(gf100_pmu_code),
 	.data.data = gf100_pmu_data,
 	.data.size = sizeof(gf100_pmu_data),
+	.reset = gt215_pmu_reset,
+	.init = gt215_pmu_init,
+	.fini = gt215_pmu_fini,
+	.intr = gt215_pmu_intr,
+	.send = gt215_pmu_send,
+	.recv = gt215_pmu_recv,
 };
 
 int

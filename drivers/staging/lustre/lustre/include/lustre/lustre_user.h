@@ -63,9 +63,13 @@
 #if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
 typedef struct stat64   lstat_t;
 #define lstat_f  lstat64
+#define fstat_f		fstat64
+#define fstatat_f	fstatat64
 #else
 typedef struct stat     lstat_t;
 #define lstat_f  lstat
+#define fstat_f		fstat
+#define fstatat_f	fstatat
 #endif
 
 #define HAVE_LOV_USER_MDS_DATA
@@ -82,7 +86,6 @@ typedef struct stat     lstat_t;
 #define FSFILT_IOC_SETVERSION	     _IOW('f', 4, long)
 #define FSFILT_IOC_GETVERSION_OLD	 _IOR('v', 1, long)
 #define FSFILT_IOC_SETVERSION_OLD	 _IOW('v', 2, long)
-#define FSFILT_IOC_FIEMAP		 _IOWR('f', 11, struct ll_user_fiemap)
 #endif
 
 /* FIEMAP flags supported by Lustre */
@@ -235,7 +238,7 @@ struct ost_id {
 /* #define LL_IOC_POLL_QUOTACHECK	161 OBD_IOC_POLL_QUOTACHECK */
 /* #define LL_IOC_QUOTACTL		162 OBD_IOC_QUOTACTL */
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
-#define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
+/*	IOC_LOV_GETINFO			165 obsolete */
 #define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
 /* LL_IOC_RMTACL			167 obsolete */
 #define LL_IOC_GETOBDCOUNT	      _IOR('f', 168, long)
@@ -342,6 +345,9 @@ enum ll_lease_type {
 #define LOV_MAX_STRIPE_COUNT 2000  /* ((12 * 4096 - 256) / 24) */
 #define LOV_ALL_STRIPES       0xffff /* only valid for directories */
 #define LOV_V1_INSANE_STRIPE_COUNT 65532 /* maximum stripe count bz13933 */
+
+#define XATTR_LUSTRE_PREFIX	"lustre."
+#define XATTR_LUSTRE_LOV	"lustre.lov"
 
 #define lov_user_ost_data lov_user_ost_data_v1
 struct lov_user_ost_data_v1 {     /* per-stripe data structure */
@@ -451,8 +457,6 @@ static inline int lmv_user_md_size(int stripes, int lmm_magic)
 		      stripes * sizeof(struct lmv_user_mds_data);
 }
 
-void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
-
 struct ll_recreate_obj {
 	__u64 lrc_id;
 	__u32 lrc_ost_idx;
@@ -522,25 +526,20 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 }
 
 /* printf display format
- * e.g. printf("file FID is "DFID"\n", PFID(fid));
+ * * usage: printf("file FID is "DFID"\n", PFID(fid));
  */
 #define FID_NOBRACE_LEN 40
 #define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE "%#llx:0x%x:0x%x"
 #define DFID "["DFID_NOBRACE"]"
-#define PFID(fid)     \
-	(fid)->f_seq, \
-	(fid)->f_oid, \
-	(fid)->f_ver
+#define PFID(fid) (unsigned long long)(fid)->f_seq, (fid)->f_oid, (fid)->f_ver
 
-/* scanf input parse format -- strip '[' first.
- * e.g. sscanf(fidstr, SFID, RFID(&fid));
+/* scanf input parse format for fids in DFID_NOBRACE format
+ * Need to strip '[' from DFID format first or use "["SFID"]" at caller.
+ * usage: sscanf(fidstr, SFID, RFID(&fid));
  */
 #define SFID "0x%llx:0x%x:0x%x"
-#define RFID(fid)     \
-	&((fid)->f_seq), \
-	&((fid)->f_oid), \
-	&((fid)->f_ver)
+#define RFID(fid) &((fid)->f_seq), &((fid)->f_oid), &((fid)->f_ver)
 
 /********* Quotas **********/
 
@@ -551,22 +550,17 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 #define Q_FINVALIDATE  0x800104 /* deprecated as of 2.4 */
 
 /* these must be explicitly translated into linux Q_* in ll_dir_ioctl */
-#define LUSTRE_Q_QUOTAON    0x800002     /* turn quotas on */
-#define LUSTRE_Q_QUOTAOFF   0x800003     /* turn quotas off */
+#define LUSTRE_Q_QUOTAON    0x800002	/* deprecated as of 2.4 */
+#define LUSTRE_Q_QUOTAOFF   0x800003	/* deprecated as of 2.4 */
 #define LUSTRE_Q_GETINFO    0x800005     /* get information about quota files */
 #define LUSTRE_Q_SETINFO    0x800006     /* set information about quota files */
 #define LUSTRE_Q_GETQUOTA   0x800007     /* get user quota structure */
 #define LUSTRE_Q_SETQUOTA   0x800008     /* set user quota structure */
 /* lustre-specific control commands */
-#define LUSTRE_Q_INVALIDATE  0x80000b     /* invalidate quota data */
-#define LUSTRE_Q_FINVALIDATE 0x80000c     /* invalidate filter quota data */
+#define LUSTRE_Q_INVALIDATE  0x80000b	/* deprecated as of 2.4 */
+#define LUSTRE_Q_FINVALIDATE 0x80000c	/* deprecated as of 2.4 */
 
 #define UGQUOTA 2       /* set both USRQUOTA and GRPQUOTA */
-
-struct if_quotacheck {
-	char		    obd_type[16];
-	struct obd_uuid	 obd_uuid;
-};
 
 #define IDENTITY_DOWNCALL_MAGIC 0x6d6dd629
 
@@ -649,6 +643,7 @@ struct if_quotactl {
 #define SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
 #define SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
 #define SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
+#define SWAP_LAYOUTS_CLOSE		BIT(4)
 
 /* Swap XATTR_NAME_HSM as well, only on the MDT so far */
 #define SWAP_LAYOUTS_MDS_HSM		(1 << 31)
@@ -999,6 +994,7 @@ struct ioc_data_version {
  * See HSM_FLAGS below.
  */
 enum hsm_states {
+	HS_NONE		= 0x00000000,
 	HS_EXISTS	= 0x00000001,
 	HS_DIRTY	= 0x00000002,
 	HS_RELEASED	= 0x00000004,

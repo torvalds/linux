@@ -12,6 +12,27 @@ config ARM_BIG_LITTLE_CPUFREQ
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
 
+config ARM_BRCMSTB_AVS_CPUFREQ
+	tristate "Broadcom STB AVS CPUfreq driver"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default y
+	help
+	  Some Broadcom STB SoCs use a co-processor running proprietary firmware
+	  ("AVS") to handle voltage and frequency scaling. This driver provides
+	  a standard CPUfreq interface to to the firmware.
+
+	  Say Y, if you have a Broadcom SoC with AVS support for DFS or DVFS.
+
+config ARM_BRCMSTB_AVS_CPUFREQ_DEBUG
+	bool "Broadcom STB AVS CPUfreq driver sysfs debug capability"
+	depends on ARM_BRCMSTB_AVS_CPUFREQ
+	help
+	  Enabling this option turns on debug support via sysfs under
+	  /sys/kernel/debug/brcmstb-avs-cpufreq. It is possible to read all and
+	  write some AVS mailbox registers through sysfs entries.
+
+	  If in doubt, say N.
+
 config ARM_DT_BL_CPUFREQ
 	tristate "Generic probing via DT for ARM big LITTLE CPUfreq driver"
 	depends on ARM_BIG_LITTLE_CPUFREQ && OF
@@ -59,14 +80,6 @@ config ARM_IMX6Q_CPUFREQ
 	  This adds cpufreq driver support for Freescale i.MX6 series SoCs.
 
 	  If in doubt, say N.
-
-config ARM_INTEGRATOR
-	tristate "CPUfreq driver for ARM Integrator CPUs"
-	depends on ARCH_INTEGRATOR
-	default y
-	help
-	  This enables the CPUfreq driver for ARM Integrator CPUs.
-	  If in doubt, say Y.
 
 config ARM_KIRKWOOD_CPUFREQ
 	def_bool MACH_KIRKWOOD

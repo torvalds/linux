@@ -14,8 +14,6 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <asm/mach-types.h>
-
 #include "../codecs/wm8580.h"
 #include "i2s.h"
 
@@ -147,7 +145,6 @@ static int smdk_wm8580_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 enum {
 	PRI_PLAYBACK = 0,
 	PRI_CAPTURE,
-	SEC_PLAYBACK,
 };
 
 #define SMDK_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
@@ -157,7 +154,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 	[PRI_PLAYBACK] = { /* Primary Playback i/f */
 		.name = "WM8580 PAIF RX",
 		.stream_name = "Playback",
-		.cpu_dai_name = "samsung-i2s.0",
+		.cpu_dai_name = "samsung-i2s.2",
 		.codec_dai_name = "wm8580-hifi-playback",
 		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
@@ -167,22 +164,12 @@ static struct snd_soc_dai_link smdk_dai[] = {
 	[PRI_CAPTURE] = { /* Primary Capture i/f */
 		.name = "WM8580 PAIF TX",
 		.stream_name = "Capture",
-		.cpu_dai_name = "samsung-i2s.0",
+		.cpu_dai_name = "samsung-i2s.2",
 		.codec_dai_name = "wm8580-hifi-capture",
 		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
 		.dai_fmt = SMDK_DAI_FMT,
 		.init = smdk_wm8580_init_paiftx,
-		.ops = &smdk_ops,
-	},
-	[SEC_PLAYBACK] = { /* Sec_Fifo Playback i/f */
-		.name = "Sec_FIFO TX",
-		.stream_name = "Playback",
-		.cpu_dai_name = "samsung-i2s-sec",
-		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-i2s-sec",
-		.codec_name = "wm8580.0-001b",
-		.dai_fmt = SMDK_DAI_FMT,
 		.ops = &smdk_ops,
 	},
 };
@@ -191,7 +178,7 @@ static struct snd_soc_card smdk = {
 	.name = "SMDK-I2S",
 	.owner = THIS_MODULE,
 	.dai_link = smdk_dai,
-	.num_links = 2,
+	.num_links = ARRAY_SIZE(smdk_dai),
 
 	.dapm_widgets = smdk_wm8580_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(smdk_wm8580_dapm_widgets),
@@ -204,17 +191,6 @@ static struct platform_device *smdk_snd_device;
 static int __init smdk_audio_init(void)
 {
 	int ret;
-	char *str;
-
-	if (machine_is_smdkc100()
-			|| machine_is_smdkv210() || machine_is_smdkc110()) {
-		smdk.num_links = 3;
-	} else if (machine_is_smdk6410()) {
-		str = (char *)smdk_dai[PRI_PLAYBACK].cpu_dai_name;
-		str[strlen(str) - 1] = '2';
-		str = (char *)smdk_dai[PRI_CAPTURE].cpu_dai_name;
-		str[strlen(str) - 1] = '2';
-	}
 
 	smdk_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!smdk_snd_device)

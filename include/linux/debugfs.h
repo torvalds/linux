@@ -52,7 +52,8 @@ extern struct srcu_struct debugfs_srcu;
  * Must only be called under the protection established by
  * debugfs_use_file_start().
  */
-static inline const struct file_operations *debugfs_real_fops(struct file *filp)
+static inline const struct file_operations *
+debugfs_real_fops(const struct file *filp)
 	__must_hold(&debugfs_srcu)
 {
 	/*
@@ -60,6 +61,21 @@ static inline const struct file_operations *debugfs_real_fops(struct file *filp)
 	 * contents ever change -- srcu_dereference() is not needed here.
 	 */
 	return filp->f_path.dentry->d_fsdata;
+}
+
+#define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+static int __fops ## _open(struct inode *inode, struct file *file)	\
+{									\
+	__simple_attr_check_format(__fmt, 0ull);			\
+	return simple_attr_open(inode, file, __get, __set, __fmt);	\
+}									\
+static const struct file_operations __fops = {				\
+	.owner	 = THIS_MODULE,						\
+	.open	 = __fops ## _open,					\
+	.release = simple_attr_release,					\
+	.read	 = debugfs_attr_read,					\
+	.write	 = debugfs_attr_write,					\
+	.llseek  = generic_file_llseek,					\
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -98,21 +114,6 @@ ssize_t debugfs_attr_read(struct file *file, char __user *buf,
 			size_t len, loff_t *ppos);
 ssize_t debugfs_attr_write(struct file *file, const char __user *buf,
 			size_t len, loff_t *ppos);
-
-#define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
-static int __fops ## _open(struct inode *inode, struct file *file)	\
-{									\
-	__simple_attr_check_format(__fmt, 0ull);			\
-	return simple_attr_open(inode, file, __get, __set, __fmt);	\
-}									\
-static const struct file_operations __fops = {				\
-	.owner	 = THIS_MODULE,					\
-	.open	 = __fops ## _open,					\
-	.release = simple_attr_release,				\
-	.read	 = debugfs_attr_read,					\
-	.write	 = debugfs_attr_write,					\
-	.llseek  = generic_file_llseek,				\
-}
 
 struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, const char *new_name);
@@ -233,8 +234,18 @@ static inline void debugfs_use_file_finish(int srcu_idx)
 	__releases(&debugfs_srcu)
 { }
 
-#define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)	\
-	static const struct file_operations __fops = { 0 }
+static inline ssize_t debugfs_attr_read(struct file *file, char __user *buf,
+					size_t len, loff_t *ppos)
+{
+	return -ENODEV;
+}
+
+static inline ssize_t debugfs_attr_write(struct file *file,
+					const char __user *buf,
+					size_t len, loff_t *ppos)
+{
+	return -ENODEV;
+}
 
 static inline struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, char *new_name)

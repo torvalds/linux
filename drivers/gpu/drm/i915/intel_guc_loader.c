@@ -100,12 +100,13 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int irqs;
 
 	/* tell all command streamers NOT to forward interrupts or vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route all GT interrupts to the host */
@@ -117,12 +118,13 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int irqs;
 	u32 tmp;
 
 	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
 	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
@@ -209,11 +211,13 @@ static void guc_params_init(struct drm_i915_private *dev_priv)
 	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
 			GUC_CTL_VCS2_ENABLED;
 
+	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
+
 	if (i915.guc_log_level >= 0) {
-		params[GUC_CTL_LOG_PARAMS] = guc->log_flags;
 		params[GUC_CTL_DEBUG] =
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	}
+	} else
+		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
 
 	if (guc->ads_vma) {
 		u32 ads = i915_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
@@ -347,7 +351,6 @@ static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
 static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	struct drm_device *dev = &dev_priv->drm;
 	struct i915_vma *vma;
 	int ret;
 
@@ -375,24 +378,22 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	/* Enable MIA caching. GuC clock gating is disabled. */
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
-	/* WaDisableMinuteIaClockGating:skl,bxt */
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_B0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+	/* WaDisableMinuteIaClockGating:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
 		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
 					      ~GUC_ENABLE_MIA_CLOCK_GATING));
 	}
 
-	/* WaC6DisallowByGfxPause*/
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_C0) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_B0))
+	/* WaC6DisallowByGfxPause:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
 		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	else
 		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-	if (IS_GEN9(dev)) {
+	if (IS_GEN9(dev_priv)) {
 		/* DOP Clock Gating Enable for GuC clocks */
 		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
 					    I915_READ(GEN7_MISCCPCTL)));
@@ -484,6 +485,7 @@ int intel_guc_setup(struct drm_device *dev)
 	}
 
 	guc_interrupts_release(dev_priv);
+	gen9_reset_guc_interrupts(dev_priv);
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
@@ -528,6 +530,9 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
+		if (i915.guc_log_level >= 0)
+			gen9_enable_guc_interrupts(dev_priv);
+
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
@@ -561,7 +566,7 @@ fail:
 		ret = 0;
 	}
 
-	if (err == 0 && !HAS_GUC_UCODE(dev))
+	if (err == 0 && !HAS_GUC_UCODE(dev_priv))
 		;	/* Don't mention the GuC! */
 	else if (err == 0)
 		DRM_INFO("GuC firmware load skipped\n");
@@ -720,23 +725,28 @@ void intel_guc_init(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
-	/* A negative value means "use platform default" */
-	if (i915.enable_guc_loading < 0)
-		i915.enable_guc_loading = HAS_GUC_UCODE(dev);
-	if (i915.enable_guc_submission < 0)
-		i915.enable_guc_submission = HAS_GUC_SCHED(dev);
+	if (!HAS_GUC(dev_priv)) {
+		i915.enable_guc_loading = 0;
+		i915.enable_guc_submission = 0;
+	} else {
+		/* A negative value means "use platform default" */
+		if (i915.enable_guc_loading < 0)
+			i915.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
+		if (i915.enable_guc_submission < 0)
+			i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
+	}
 
-	if (!HAS_GUC_UCODE(dev)) {
+	if (!HAS_GUC_UCODE(dev_priv)) {
 		fw_path = NULL;
-	} else if (IS_SKYLAKE(dev)) {
+	} else if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = SKL_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = SKL_FW_MINOR;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		fw_path = I915_BXT_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = BXT_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev)) {
+	} else if (IS_KABYLAKE(dev_priv)) {
 		fw_path = I915_KBL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = KBL_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = KBL_FW_MINOR;

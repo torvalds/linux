@@ -1120,6 +1120,7 @@ static const struct platform_device_id axp288_fg_id_table[] = {
 	{ .name = DEV_NAME },
 	{},
 };
+MODULE_DEVICE_TABLE(platform, axp288_fg_id_table);
 
 static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 {

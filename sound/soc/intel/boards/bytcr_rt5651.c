@@ -219,11 +219,11 @@ static int byt_rt5651_aif1_startup(struct snd_pcm_substream *substream)
 			&constraints_48000);
 }
 
-static struct snd_soc_ops byt_rt5651_aif1_ops = {
+static const struct snd_soc_ops byt_rt5651_aif1_ops = {
 	.startup = byt_rt5651_aif1_startup,
 };
 
-static struct snd_soc_ops byt_rt5651_be_ssp2_ops = {
+static const struct snd_soc_ops byt_rt5651_be_ssp2_ops = {
 	.hw_params = byt_rt5651_aif1_hw_params,
 };
 

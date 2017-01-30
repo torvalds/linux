@@ -717,9 +717,5 @@ static struct platform_driver qe_driver = {
 	.resume = qe_resume,
 };
 
-static int __init qe_drv_init(void)
-{
-	return platform_driver_register(&qe_driver);
-}
-device_initcall(qe_drv_init);
+builtin_platform_driver(qe_driver);
 #endif /* defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx) */

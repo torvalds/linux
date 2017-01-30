@@ -501,7 +501,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 		if (intel_connector->mst_port)
 			continue;
 
-		if (!connector->polled && I915_HAS_HOTPLUG(dev) &&
+		if (!connector->polled && I915_HAS_HOTPLUG(dev_priv) &&
 		    intel_connector->encoder->hpd_pin > HPD_NONE) {
 			connector->polled = enabled ?
 				DRM_CONNECTOR_POLL_CONNECT |

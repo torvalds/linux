@@ -42,11 +42,10 @@ struct tua6100_priv {
 	u32 frequency;
 };
 
-static int tua6100_release(struct dvb_frontend *fe)
+static void tua6100_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int tua6100_sleep(struct dvb_frontend *fe)

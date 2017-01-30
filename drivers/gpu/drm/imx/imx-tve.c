@@ -227,12 +227,6 @@ static int tve_setup_vga(struct imx_tve *tve)
 				 TVE_TVDAC_TEST_MODE_MASK, 1);
 }
 
-static enum drm_connector_status imx_tve_connector_detect(
-				struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static int imx_tve_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_tve *tve = con_to_tve(connector);
@@ -352,7 +346,6 @@ static int imx_tve_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_tve_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_tve_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

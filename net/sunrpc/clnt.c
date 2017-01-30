@@ -1926,6 +1926,8 @@ call_connect_status(struct rpc_task *task)
 	case -EADDRINUSE:
 	case -ENOBUFS:
 	case -EPIPE:
+		xprt_conditional_disconnect(task->tk_rqstp->rq_xprt,
+					    task->tk_rqstp->rq_connect_cookie);
 		if (RPC_IS_SOFTCONN(task))
 			break;
 		/* retry with existing socket, after a delay */
@@ -2753,14 +2755,18 @@ EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
 
 void rpc_clnt_xprt_switch_put(struct rpc_clnt *clnt)
 {
+	rcu_read_lock();
 	xprt_switch_put(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_put);
 
 void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 {
+	rcu_read_lock();
 	rpc_xprt_switch_add_xprt(rcu_dereference(clnt->cl_xpi.xpi_xpswitch),
 				 xprt);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_add_xprt);
 
@@ -2770,9 +2776,8 @@ bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 	struct rpc_xprt_switch *xps;
 	bool ret;
 
-	xps = rcu_dereference(clnt->cl_xpi.xpi_xpswitch);
-
 	rcu_read_lock();
+	xps = rcu_dereference(clnt->cl_xpi.xpi_xpswitch);
 	ret = rpc_xprt_switch_has_addr(xps, sap);
 	rcu_read_unlock();
 	return ret;

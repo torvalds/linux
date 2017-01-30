@@ -88,6 +88,10 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
 &codec {
 	status = "okay";
 };

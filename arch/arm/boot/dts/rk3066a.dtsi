@@ -151,6 +151,14 @@
 
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		assigned-clocks = <&cru PLL_CPLL>, <&cru PLL_GPLL>,
+				  <&cru ACLK_CPU>, <&cru HCLK_CPU>,
+				  <&cru PCLK_CPU>, <&cru ACLK_PERI>,
+				  <&cru HCLK_PERI>, <&cru PCLK_PERI>;
+		assigned-clock-rates = <400000000>, <594000000>,
+				       <300000000>, <150000000>,
+				       <75000000>, <300000000>,
+				       <150000000>, <75000000>;
 	};
 
 	timer@2000e000 {
@@ -162,7 +170,7 @@
 	};
 
 	efuse: efuse@20010000 {
-		compatible = "rockchip,rockchip-efuse";
+		compatible = "rockchip,rk3066a-efuse";
 		reg = <0x20010000 0x4000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -197,7 +205,7 @@
 		clock-names = "saradc", "apb_pclk";
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
-		resets = <&cru SRST_SARADC>;
+		resets = <&cru SRST_TSADC>;
 		reset-names = "saradc-apb";
 		status = "disabled";
 	};
@@ -628,13 +636,24 @@
 };
 
 &mmc0 {
+	clock-frequency = <50000000>;
+	dmas = <&dmac2 1>;
+	dma-names = "rx-tx";
+	max-frequency = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
 };
 
 &mmc1 {
+	dmas = <&dmac2 3>;
+	dma-names = "rx-tx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_bus4>;
+};
+
+&emmc {
+	dmas = <&dmac2 4>;
+	dma-names = "rx-tx";
 };
 
 &pwm0 {
@@ -668,21 +687,29 @@
 };
 
 &uart0 {
+	dmas = <&dmac1_s 0>, <&dmac1_s 1>;
+	dma-names = "tx", "rx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer>;
 };
 
 &uart1 {
+	dmas = <&dmac1_s 2>, <&dmac1_s 3>;
+	dma-names = "tx", "rx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_xfer>;
 };
 
 &uart2 {
+	dmas = <&dmac2 6>, <&dmac2 7>;
+	dma-names = "tx", "rx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;
 };
 
 &uart3 {
+	dmas = <&dmac2 8>, <&dmac2 9>;
+	dma-names = "tx", "rx";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_xfer>;
 };

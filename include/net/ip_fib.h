@@ -221,7 +221,8 @@ enum fib_event_type {
 	FIB_EVENT_RULE_DEL,
 };
 
-int register_fib_notifier(struct notifier_block *nb);
+int register_fib_notifier(struct notifier_block *nb,
+			  void (*cb)(struct notifier_block *nb));
 int unregister_fib_notifier(struct notifier_block *nb);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
@@ -243,6 +244,7 @@ int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
 int fib_table_flush(struct net *net, struct fib_table *table);
 struct fib_table *fib_trie_unmerge(struct fib_table *main_tb);
+void fib_table_flush_external(struct fib_table *table);
 void fib_free_table(struct fib_table *tb);
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
@@ -395,6 +397,11 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 }
 
 void free_fib_info(struct fib_info *fi);
+
+static inline void fib_info_hold(struct fib_info *fi)
+{
+	atomic_inc(&fi->fib_clntref);
+}
 
 static inline void fib_info_put(struct fib_info *fi)
 {

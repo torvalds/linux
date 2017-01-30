@@ -293,7 +293,7 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	 * We were not able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
-	if (info->si_addr == (void *)-1) {
+	if (info->si_addr == (void __user *)-1) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -350,12 +350,12 @@ int mpx_enable_management(void)
 	 * The copy_xregs_to_kernel() beneath get_xsave_field_ptr() is
 	 * expected to be relatively expensive. Storing the bounds
 	 * directory here means that we do not have to do xsave in the
-	 * unmap path; we can just use mm->bd_addr instead.
+	 * unmap path; we can just use mm->context.bd_addr instead.
 	 */
 	bd_base = mpx_get_bounds_dir();
 	down_write(&mm->mmap_sem);
-	mm->bd_addr = bd_base;
-	if (mm->bd_addr == MPX_INVALID_BOUNDS_DIR)
+	mm->context.bd_addr = bd_base;
+	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
 		ret = -ENXIO;
 
 	up_write(&mm->mmap_sem);
@@ -370,7 +370,7 @@ int mpx_disable_management(void)
 		return -ENXIO;
 
 	down_write(&mm->mmap_sem);
-	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
+	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
 	up_write(&mm->mmap_sem);
 	return 0;
 }
@@ -947,7 +947,7 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 		end = bta_end_vaddr;
 	}
 
-	bde_vaddr = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
+	bde_vaddr = mm->context.bd_addr + mpx_get_bd_entry_offset(mm, start);
 	ret = get_bt_addr(mm, bde_vaddr, &bt_addr);
 	/*
 	 * No bounds table there, so nothing to unmap.

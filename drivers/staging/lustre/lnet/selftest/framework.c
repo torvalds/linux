@@ -131,7 +131,8 @@ sfw_find_test_case(int id)
 }
 
 static int
-sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *cliops)
+sfw_register_test(struct srpc_service *service,
+		  struct sfw_test_client_ops *cliops)
 {
 	struct sfw_test_case *tsc;
 
@@ -254,7 +255,7 @@ sfw_session_expired(void *data)
 
 static inline void
 sfw_init_session(struct sfw_session *sn, lst_sid_t sid,
-		 unsigned features, const char *name)
+		 unsigned int features, const char *name)
 {
 	struct stt_timer *timer = &sn->sn_timer;
 
@@ -469,7 +470,8 @@ sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 }
 
 static int
-sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *reply)
+sfw_remove_session(struct srpc_rmsn_reqst *request,
+		   struct srpc_rmsn_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -501,7 +503,8 @@ sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *repl
 }
 
 static int
-sfw_debug_session(struct srpc_debug_reqst *request, struct srpc_debug_reply *reply)
+sfw_debug_session(struct srpc_debug_reqst *request,
+		  struct srpc_debug_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -897,7 +900,7 @@ sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 
 int
 sfw_create_test_rpc(struct sfw_test_unit *tsu, lnet_process_id_t peer,
-		    unsigned features, int nblk, int blklen,
+		    unsigned int features, int nblk, int blklen,
 		    struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_client_rpc *rpc = NULL;
@@ -1064,7 +1067,8 @@ sfw_stop_batch(struct sfw_batch *tsb, int force)
 }
 
 static int
-sfw_query_batch(struct sfw_batch *tsb, int testidx, struct srpc_batch_reply *reply)
+sfw_query_batch(struct sfw_batch *tsb, int testidx,
+		struct srpc_batch_reply *reply)
 {
 	struct sfw_test_instance *tsi;
 
@@ -1101,7 +1105,7 @@ sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 	LASSERT(!rpc->srpc_bulk);
 	LASSERT(npages > 0 && npages <= LNET_MAX_IOV);
 
-	rpc->srpc_bulk = srpc_alloc_bulk(cpt, npages, len, sink);
+	rpc->srpc_bulk = srpc_alloc_bulk(cpt, 0, npages, len, sink);
 	if (!rpc->srpc_bulk)
 		return -ENOMEM;
 
@@ -1179,7 +1183,8 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 }
 
 static int
-sfw_control_batch(struct srpc_batch_reqst *request, struct srpc_batch_reply *reply)
+sfw_control_batch(struct srpc_batch_reqst *request,
+		  struct srpc_batch_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	int rc = 0;
@@ -1225,7 +1230,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
 	struct srpc_msg *reply = &rpc->srpc_replymsg;
 	struct srpc_msg *request = &rpc->srpc_reqstbuf->buf_msg;
-	unsigned features = LST_FEATS_MASK;
+	unsigned int features = LST_FEATS_MASK;
 	int rc = 0;
 
 	LASSERT(!sfw_data.fw_active_srpc);
@@ -1375,7 +1380,7 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 
 struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
-	       unsigned features, int nbulkiov, int bulklen,
+	       unsigned int features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv)
 {
 	struct srpc_client_rpc *rpc = NULL;

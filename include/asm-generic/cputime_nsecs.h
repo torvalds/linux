@@ -34,7 +34,6 @@ typedef u64 __nocast cputime64_t;
  */
 #define cputime_to_jiffies(__ct)	\
 	cputime_div(__ct, NSEC_PER_SEC / HZ)
-#define cputime_to_scaled(__ct)		(__ct)
 #define jiffies_to_cputime(__jif)	\
 	(__force cputime_t)((__jif) * (NSEC_PER_SEC / HZ))
 #define cputime64_to_jiffies64(__ct)	\

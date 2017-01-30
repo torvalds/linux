@@ -1489,7 +1489,7 @@ out_fpo:
 static void kiblnd_fail_fmr_poolset(struct kib_fmr_poolset *fps,
 				    struct list_head *zombies)
 {
-	if (!fps->fps_net) /* intialized? */
+	if (!fps->fps_net) /* initialized? */
 		return;
 
 	spin_lock(&fps->fps_lock);
@@ -1637,7 +1637,7 @@ int kiblnd_fmr_pool_map(struct kib_fmr_poolset *fps, struct kib_tx *tx,
 {
 	__u64 *pages = tx->tx_pages;
 	bool is_rx = (rd != tx->tx_rd);
-        bool tx_pages_mapped = 0;
+	bool tx_pages_mapped = false;
 	struct kib_fmr_pool *fpo;
 	int npages = 0;
 	__u64 version;
@@ -1812,7 +1812,7 @@ static void kiblnd_destroy_pool_list(struct list_head *head)
 
 static void kiblnd_fail_poolset(struct kib_poolset *ps, struct list_head *zombies)
 {
-	if (!ps->ps_net) /* intialized? */
+	if (!ps->ps_net) /* initialized? */
 		return;
 
 	spin_lock(&ps->ps_lock);

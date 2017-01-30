@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/clk.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -155,12 +156,27 @@ static struct miscdevice sa1100dog_miscdev = {
 };
 
 static int margin __initdata = 60;		/* (secs) Default is 1 minute */
+static struct clk *clk;
 
 static int __init sa1100dog_init(void)
 {
 	int ret;
 
-	oscr_freq = get_clock_tick_rate();
+	clk = clk_get(NULL, "OSTIMER0");
+	if (IS_ERR(clk)) {
+		pr_err("SA1100/PXA2xx Watchdog Timer: clock not found: %d\n",
+		       (int) PTR_ERR(clk));
+		return PTR_ERR(clk);
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("SA1100/PXA2xx Watchdog Timer: clock failed to prepare+enable: %d\n",
+		       ret);
+		goto err;
+	}
+
+	oscr_freq = clk_get_rate(clk);
 
 	/*
 	 * Read the reset status, and save it for later.  If
@@ -176,11 +192,17 @@ static int __init sa1100dog_init(void)
 		pr_info("SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
 			margin);
 	return ret;
+err:
+	clk_disable_unprepare(clk);
+	clk_put(clk);
+	return ret;
 }
 
 static void __exit sa1100dog_exit(void)
 {
 	misc_deregister(&sa1100dog_miscdev);
+	clk_disable_unprepare(clk);
+	clk_put(clk);
 }
 
 module_init(sa1100dog_init);

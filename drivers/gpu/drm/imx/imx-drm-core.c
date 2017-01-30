@@ -18,7 +18,6 @@
 #include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/reservation.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -151,38 +150,11 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
-static int imx_drm_atomic_commit(struct drm_device *dev,
-				 struct drm_atomic_state *state,
-				 bool nonblock)
-{
-	struct drm_plane_state *plane_state;
-	struct drm_plane *plane;
-	struct dma_buf *dma_buf;
-	int i;
-
-	/*
-	 * If the plane fb has an dma-buf attached, fish out the exclusive
-	 * fence for the atomic helper to wait on.
-	 */
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
-			dma_buf = drm_fb_cma_get_gem_obj(plane_state->fb,
-							 0)->base.dma_buf;
-			if (!dma_buf)
-				continue;
-			plane_state->fence =
-				reservation_object_get_excl_rcu(dma_buf->resv);
-		}
-	}
-
-	return drm_atomic_helper_commit(dev, state, nonblock);
-}
-
 static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = imx_drm_output_poll_changed,
 	.atomic_check = imx_drm_atomic_check,
-	.atomic_commit = imx_drm_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
@@ -357,8 +329,8 @@ static int imx_drm_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&imx_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	imxdrm = devm_kzalloc(dev, sizeof(*imxdrm), GFP_KERNEL);
 	if (!imxdrm) {
@@ -436,9 +408,11 @@ static int imx_drm_bind(struct device *dev)
 
 err_fbhelper:
 	drm_kms_helper_poll_fini(drm);
+#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_fini(imxdrm->fbhelper);
 err_unbind:
+#endif
 	component_unbind_all(drm->dev, drm);
 err_vblank:
 	drm_vblank_cleanup(drm);

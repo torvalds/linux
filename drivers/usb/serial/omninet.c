@@ -38,6 +38,7 @@ static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 				const unsigned char *buf, int count);
 static int  omninet_write_room(struct tty_struct *tty);
 static void omninet_disconnect(struct usb_serial *serial);
+static int omninet_attach(struct usb_serial *serial);
 static int omninet_port_probe(struct usb_serial_port *port);
 static int omninet_port_remove(struct usb_serial_port *port);
 
@@ -56,6 +57,7 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.description =		"ZyXEL - omni.net lcd plus usb",
 	.id_table =		id_table,
 	.num_ports =		1,
+	.attach =		omninet_attach,
 	.port_probe =		omninet_port_probe,
 	.port_remove =		omninet_port_remove,
 	.open =			omninet_open,
@@ -103,6 +105,17 @@ struct omninet_header {
 struct omninet_data {
 	__u8	od_outseq;	/* Sequence number for bulk_out URBs */
 };
+
+static int omninet_attach(struct usb_serial *serial)
+{
+	/* The second bulk-out endpoint is used for writing. */
+	if (serial->num_bulk_out < 2) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static int omninet_port_probe(struct usb_serial_port *port)
 {

@@ -302,6 +302,29 @@ static void watch_fired(struct xenbus_watch *watch,
 	mutex_unlock(&adap->dev_data->reply_mutex);
 }
 
+static int xenbus_command_reply(struct xenbus_file_priv *u,
+				unsigned int msg_type, const char *reply)
+{
+	struct {
+		struct xsd_sockmsg hdr;
+		const char body[16];
+	} msg;
+	int rc;
+
+	msg.hdr = u->u.msg;
+	msg.hdr.type = msg_type;
+	msg.hdr.len = strlen(reply) + 1;
+	if (msg.hdr.len > sizeof(msg.body))
+		return -E2BIG;
+
+	mutex_lock(&u->reply_mutex);
+	rc = queue_reply(&u->read_buffers, &msg, sizeof(msg.hdr) + msg.hdr.len);
+	wake_up(&u->read_waitq);
+	mutex_unlock(&u->reply_mutex);
+
+	return rc;
+}
+
 static int xenbus_write_transaction(unsigned msg_type,
 				    struct xenbus_file_priv *u)
 {
@@ -316,12 +339,12 @@ static int xenbus_write_transaction(unsigned msg_type,
 			rc = -ENOMEM;
 			goto out;
 		}
-	} else if (msg_type == XS_TRANSACTION_END) {
+	} else if (u->u.msg.tx_id != 0) {
 		list_for_each_entry(trans, &u->transactions, list)
 			if (trans->handle.id == u->u.msg.tx_id)
 				break;
 		if (&trans->list == &u->transactions)
-			return -ESRCH;
+			return xenbus_command_reply(u, XS_ERROR, "ENOENT");
 	}
 
 	reply = xenbus_dev_request_and_reply(&u->u.msg);
@@ -372,12 +395,12 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 	path = u->u.buffer + sizeof(u->u.msg);
 	token = memchr(path, 0, u->u.msg.len);
 	if (token == NULL) {
-		rc = -EILSEQ;
+		rc = xenbus_command_reply(u, XS_ERROR, "EINVAL");
 		goto out;
 	}
 	token++;
 	if (memchr(token, 0, u->u.msg.len - (token - path)) == NULL) {
-		rc = -EILSEQ;
+		rc = xenbus_command_reply(u, XS_ERROR, "EINVAL");
 		goto out;
 	}
 
@@ -411,23 +434,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 	}
 
 	/* Success.  Synthesize a reply to say all is OK. */
-	{
-		struct {
-			struct xsd_sockmsg hdr;
-			char body[3];
-		} __packed reply = {
-			{
-				.type = msg_type,
-				.len = sizeof(reply.body)
-			},
-			"OK"
-		};
-
-		mutex_lock(&u->reply_mutex);
-		rc = queue_reply(&u->read_buffers, &reply, sizeof(reply));
-		wake_up(&u->read_waitq);
-		mutex_unlock(&u->reply_mutex);
-	}
+	rc = xenbus_command_reply(u, msg_type, "OK");
 
 out:
 	return rc;
@@ -537,6 +544,8 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 		return -ENOENT;
 
 	nonseekable_open(inode, filp);
+
+	filp->f_mode &= ~FMODE_ATOMIC_POS; /* cdev-style semantics */
 
 	u = kzalloc(sizeof(*u), GFP_KERNEL);
 	if (u == NULL)

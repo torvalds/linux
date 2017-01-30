@@ -7,6 +7,7 @@
 			- "qcom,pcie-ipq8064" for ipq8064
 			- "qcom,pcie-apq8064" for apq8064
 			- "qcom,pcie-apq8084" for apq8084
+			- "qcom,pcie-msm8996" for msm8996 or apq8096
 
 - reg:
 	Usage: required
@@ -92,6 +93,17 @@
 			- "aux"		Auxiliary (AUX) clock
 			- "bus_master"	Master AXI clock
 			- "bus_slave"	Slave AXI clock
+
+- clock-names:
+	Usage: required for msm8996/apq8096
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "pipe"	Pipe Clock driving internal logic
+			- "aux"		Auxiliary (AUX) clock
+			- "cfg"		Configuration clock
+			- "bus_master"	Master AXI clock
+			- "bus_slave"	Slave AXI clock
+
 - resets:
 	Usage: required
 	Value type: <prop-encoded-array>
@@ -115,7 +127,7 @@
 			- "core" Core reset
 
 - power-domains:
-	Usage: required for apq8084
+	Usage: required for apq8084 and msm8996/apq8096
 	Value type: <prop-encoded-array>
 	Definition: A phandle and power domain specifier pair to the
 		    power domain which is responsible for collapsing

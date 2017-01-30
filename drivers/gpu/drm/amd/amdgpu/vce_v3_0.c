@@ -52,6 +52,8 @@
 #define VCE_V3_0_STACK_SIZE	(64 * 1024)
 #define VCE_V3_0_DATA_SIZE	((16 * 1024 * AMDGPU_MAX_VCE_HANDLES) + (52 * 1024))
 
+#define FW_52_8_3	((52 << 24) | (8 << 16) | (3 << 8))
+
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -132,7 +134,7 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 	   accessible but the firmware will throttle the clocks on the
 	   fly as necessary.
 	*/
-	if (gated) {
+	if (!gated) {
 		data = RREG32(mmVCE_CLOCK_GATING_B);
 		data |= 0x1ff;
 		data &= ~0xef0000;
@@ -318,11 +320,12 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	/* Fiji, Stoney, Polaris10, Polaris11 are single pipe */
+	/* Fiji, Stoney, Polaris10, Polaris11, Polaris12 are single pipe */
 	if ((adev->asic_type == CHIP_FIJI) ||
 	    (adev->asic_type == CHIP_STONEY) ||
 	    (adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11))
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12))
 		return AMDGPU_VCE_HARVEST_VCE1;
 
 	/* Tonga and CZ are dual or single pipe */
@@ -382,6 +385,10 @@ static int vce_v3_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* 52.8.3 required for 3 ring support */
+	if (adev->vce.fw_version < FW_52_8_3)
+		adev->vce.num_rings = 2;
+
 	r = amdgpu_vce_resume(adev);
 	if (r)
 		return r;
@@ -389,8 +396,7 @@ static int vce_v3_0_sw_init(void *handle)
 	for (i = 0; i < adev->vce.num_rings; i++) {
 		ring = &adev->vce.ring[i];
 		sprintf(ring->name, "vce%d", i);
-		r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-				     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)
 			return r;
 	}
@@ -808,28 +814,7 @@ static void vce_v3_0_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, seq);
 }
 
-static unsigned vce_v3_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		5; /* vce_v3_0_ring_emit_ib */
-}
-
-static unsigned vce_v3_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		4 + /* vce_v3_0_emit_pipeline_sync */
-		6; /* amdgpu_vce_ring_emit_fence x1 no user fence */
-}
-
-static unsigned vce_v3_0_ring_get_dma_frame_size_vm(struct amdgpu_ring *ring)
-{
-	return
-		6 + /* vce_v3_0_emit_vm_flush */
-		4 + /* vce_v3_0_emit_pipeline_sync */
-		6 + 6; /* amdgpu_vce_ring_emit_fence x2 vm fence */
-}
-
-const struct amd_ip_funcs vce_v3_0_ip_funcs = {
+static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.name = "vce_v3_0",
 	.early_init = vce_v3_0_early_init,
 	.late_init = NULL,
@@ -850,10 +835,17 @@ const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
+	.type = AMDGPU_RING_TYPE_VCE,
+	.align_mask = 0xf,
+	.nop = VCE_CMD_NO_OP,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs,
+	.emit_frame_size =
+		4 + /* vce_v3_0_emit_pipeline_sync */
+		6, /* amdgpu_vce_ring_emit_fence x1 no user fence */
+	.emit_ib_size = 5, /* vce_v3_0_ring_emit_ib */
 	.emit_ib = amdgpu_vce_ring_emit_ib,
 	.emit_fence = amdgpu_vce_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
@@ -862,15 +854,21 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
-	.get_emit_ib_size = vce_v3_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = vce_v3_0_ring_get_dma_frame_size,
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_VCE,
+	.align_mask = 0xf,
+	.nop = VCE_CMD_NO_OP,
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
-	.parse_cs = NULL,
+	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
+	.emit_frame_size =
+		6 + /* vce_v3_0_emit_vm_flush */
+		4 + /* vce_v3_0_emit_pipeline_sync */
+		6 + 6, /* amdgpu_vce_ring_emit_fence x2 vm fence */
+	.emit_ib_size = 4, /* amdgpu_vce_ring_emit_ib */
 	.emit_ib = vce_v3_0_ring_emit_ib,
 	.emit_vm_flush = vce_v3_0_emit_vm_flush,
 	.emit_pipeline_sync = vce_v3_0_emit_pipeline_sync,
@@ -881,8 +879,6 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
-	.get_emit_ib_size = vce_v3_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = vce_v3_0_ring_get_dma_frame_size_vm,
 };
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -909,4 +905,31 @@ static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->vce.irq.num_types = 1;
 	adev->vce.irq.funcs = &vce_v3_0_irq_funcs;
+};
+
+const struct amdgpu_ip_block_version vce_v3_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_VCE,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &vce_v3_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version vce_v3_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_VCE,
+	.major = 3,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &vce_v3_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version vce_v3_4_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_VCE,
+	.major = 3,
+	.minor = 4,
+	.rev = 0,
+	.funcs = &vce_v3_0_ip_funcs,
 };

@@ -455,7 +455,7 @@ static int tonga_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs tonga_ih_ip_funcs = {
+static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.name = "tonga_ih",
 	.early_init = tonga_ih_early_init,
 	.late_init = NULL,
@@ -487,3 +487,11 @@ static void tonga_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &tonga_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version tonga_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &tonga_ih_ip_funcs,
+};

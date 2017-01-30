@@ -69,7 +69,7 @@ static int intel_hid_set_enable(struct device *device, int enable)
 
 	arg0.integer.value = enable;
 	status = acpi_evaluate_object(ACPI_HANDLE(device), "HDSM", &args, NULL);
-	if (!ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status)) {
 		dev_warn(device, "failed to %sable hotkeys\n",
 			 enable ? "en" : "dis");
 		return -EIO;
@@ -148,7 +148,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	}
 
 	status = acpi_evaluate_integer(handle, "HDEM", NULL, &ev_index);
-	if (!ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&device->dev, "failed to get event index\n");
 		return;
 	}
@@ -167,7 +167,7 @@ static int intel_hid_probe(struct platform_device *device)
 	int err;
 
 	status = acpi_evaluate_integer(handle, "HDMM", NULL, &mode);
-	if (!ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&device->dev, "failed to read mode\n");
 		return -ENODEV;
 	}
@@ -264,7 +264,7 @@ check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 
 	if (acpi_match_device_ids(dev, ids) == 0)
-		if (acpi_create_platform_device(dev))
+		if (acpi_create_platform_device(dev, NULL))
 			dev_info(&dev->dev,
 				 "intel-hid: created platform device\n");
 

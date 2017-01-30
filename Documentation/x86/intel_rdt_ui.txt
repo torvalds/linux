@@ -1,0 +1,214 @@
+User Interface for Resource Allocation in Intel Resource Director Technology
+
+Copyright (C) 2016 Intel Corporation
+
+Fenghua Yu <fenghua.yu@intel.com>
+Tony Luck <tony.luck@intel.com>
+
+This feature is enabled by the CONFIG_INTEL_RDT_A Kconfig and the
+X86 /proc/cpuinfo flag bits "rdt", "cat_l3" and "cdp_l3".
+
+To use the feature mount the file system:
+
+ # mount -t resctrl resctrl [-o cdp] /sys/fs/resctrl
+
+mount options are:
+
+"cdp": Enable code/data prioritization in L3 cache allocations.
+
+
+Info directory
+--------------
+
+The 'info' directory contains information about the enabled
+resources. Each resource has its own subdirectory. The subdirectory
+names reflect the resource names. Each subdirectory contains the
+following files:
+
+"num_closids":  The number of CLOSIDs which are valid for this
+	        resource. The kernel uses the smallest number of
+		CLOSIDs of all enabled resources as limit.
+
+"cbm_mask":     The bitmask which is valid for this resource. This
+		mask is equivalent to 100%.
+
+"min_cbm_bits": The minimum number of consecutive bits which must be
+		set when writing a mask.
+
+
+Resource groups
+---------------
+Resource groups are represented as directories in the resctrl file
+system. The default group is the root directory. Other groups may be
+created as desired by the system administrator using the "mkdir(1)"
+command, and removed using "rmdir(1)".
+
+There are three files associated with each group:
+
+"tasks": A list of tasks that belongs to this group. Tasks can be
+	added to a group by writing the task ID to the "tasks" file
+	(which will automatically remove them from the previous
+	group to which they belonged). New tasks created by fork(2)
+	and clone(2) are added to the same group as their parent.
+	If a pid is not in any sub partition, it is in root partition
+	(i.e. default partition).
+
+"cpus": A bitmask of logical CPUs assigned to this group. Writing
+	a new mask can add/remove CPUs from this group. Added CPUs
+	are removed from their previous group. Removed ones are
+	given to the default (root) group. You cannot remove CPUs
+	from the default group.
+
+"schemata": A list of all the resources available to this group.
+	Each resource has its own line and format - see below for
+	details.
+
+When a task is running the following rules define which resources
+are available to it:
+
+1) If the task is a member of a non-default group, then the schemata
+for that group is used.
+
+2) Else if the task belongs to the default group, but is running on a
+CPU that is assigned to some specific group, then the schemata for
+the CPU's group is used.
+
+3) Otherwise the schemata for the default group is used.
+
+
+Schemata files - general concepts
+---------------------------------
+Each line in the file describes one resource. The line starts with
+the name of the resource, followed by specific values to be applied
+in each of the instances of that resource on the system.
+
+Cache IDs
+---------
+On current generation systems there is one L3 cache per socket and L2
+caches are generally just shared by the hyperthreads on a core, but this
+isn't an architectural requirement. We could have multiple separate L3
+caches on a socket, multiple cores could share an L2 cache. So instead
+of using "socket" or "core" to define the set of logical cpus sharing
+a resource we use a "Cache ID". At a given cache level this will be a
+unique number across the whole system (but it isn't guaranteed to be a
+contiguous sequence, there may be gaps).  To find the ID for each logical
+CPU look in /sys/devices/system/cpu/cpu*/cache/index*/id
+
+Cache Bit Masks (CBM)
+---------------------
+For cache resources we describe the portion of the cache that is available
+for allocation using a bitmask. The maximum value of the mask is defined
+by each cpu model (and may be different for different cache levels). It
+is found using CPUID, but is also provided in the "info" directory of
+the resctrl file system in "info/{resource}/cbm_mask". X86 hardware
+requires that these masks have all the '1' bits in a contiguous block. So
+0x3, 0x6 and 0xC are legal 4-bit masks with two bits set, but 0x5, 0x9
+and 0xA are not.  On a system with a 20-bit mask each bit represents 5%
+of the capacity of the cache. You could partition the cache into four
+equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
+
+
+L3 details (code and data prioritization disabled)
+--------------------------------------------------
+With CDP disabled the L3 schemata format is:
+
+	L3:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+L3 details (CDP enabled via mount option to resctrl)
+----------------------------------------------------
+When CDP is enabled L3 control is split into two separate resources
+so you can specify independent masks for code and data like this:
+
+	L3data:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+	L3code:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+L2 details
+----------
+L2 cache does not support code and data prioritization, so the
+schemata format is always:
+
+	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+Example 1
+---------
+On a two socket machine (one L3 cache per socket) with just four bits
+for cache bit masks
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+# mkdir p0 p1
+# echo "L3:0=3;1=c" > /sys/fs/resctrl/p0/schemata
+# echo "L3:0=3;1=3" > /sys/fs/resctrl/p1/schemata
+
+The default resource group is unmodified, so we have access to all parts
+of all caches (its schemata file reads "L3:0=f;1=f").
+
+Tasks that are under the control of group "p0" may only allocate from the
+"lower" 50% on cache ID 0, and the "upper" 50% of cache ID 1.
+Tasks in group "p1" use the "lower" 50% of cache on both sockets.
+
+Example 2
+---------
+Again two sockets, but this time with a more realistic 20-bit mask.
+
+Two real time tasks pid=1234 running on processor 0 and pid=5678 running on
+processor 1 on socket 0 on a 2-socket and dual core machine. To avoid noisy
+neighbors, each of the two real-time tasks exclusively occupies one quarter
+of L3 cache on socket 0.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+
+First we reset the schemata for the default group so that the "upper"
+50% of the L3 cache on socket 0 cannot be used by ordinary tasks:
+
+# echo "L3:0=3ff;1=fffff" > schemata
+
+Next we make a resource group for our first real time task and give
+it access to the "top" 25% of the cache on socket 0.
+
+# mkdir p0
+# echo "L3:0=f8000;1=fffff" > p0/schemata
+
+Finally we move our first real time task into this resource group. We
+also use taskset(1) to ensure the task always runs on a dedicated CPU
+on socket 0. Most uses of resource groups will also constrain which
+processors tasks run on.
+
+# echo 1234 > p0/tasks
+# taskset -cp 1 1234
+
+Ditto for the second real time task (with the remaining 25% of cache):
+
+# mkdir p1
+# echo "L3:0=7c00;1=fffff" > p1/schemata
+# echo 5678 > p1/tasks
+# taskset -cp 2 5678
+
+Example 3
+---------
+
+A single socket system which has real-time tasks running on core 4-7 and
+non real-time workload assigned to core 0-3. The real-time tasks share text
+and data, so a per task association is not required and due to interaction
+with the kernel it's desired that the kernel on these cores shares L3 with
+the tasks.
+
+# mount -t resctrl resctrl /sys/fs/resctrl
+# cd /sys/fs/resctrl
+
+First we reset the schemata for the default group so that the "upper"
+50% of the L3 cache on socket 0 cannot be used by ordinary tasks:
+
+# echo "L3:0=3ff" > schemata
+
+Next we make a resource group for our real time cores and give
+it access to the "top" 50% of the cache on socket 0.
+
+# mkdir p0
+# echo "L3:0=ffc00;" > p0/schemata
+
+Finally we move core 4-7 over to the new group and make sure that the
+kernel and the tasks running there get 50% of the cache.
+
+# echo C0 > p0/cpus

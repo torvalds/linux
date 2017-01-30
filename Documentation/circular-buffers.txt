@@ -161,7 +161,7 @@ The producer will look something like this:
 
 	unsigned long head = buffer->head;
 	/* The spin_unlock() and next spin_lock() provide needed ordering. */
-	unsigned long tail = ACCESS_ONCE(buffer->tail);
+	unsigned long tail = READ_ONCE(buffer->tail);
 
 	if (CIRC_SPACE(head, tail, buffer->size) >= 1) {
 		/* insert one item into the buffer */
@@ -222,7 +222,7 @@ This will instruct the CPU to make sure the index is up to date before reading
 the new item, and then it shall make sure the CPU has finished reading the item
 before it writes the new tail pointer, which will erase the item.
 
-Note the use of ACCESS_ONCE() and smp_load_acquire() to read the
+Note the use of READ_ONCE() and smp_load_acquire() to read the
 opposition index.  This prevents the compiler from discarding and
 reloading its cached value - which some compilers will do across
 smp_read_barrier_depends().  This isn't strictly needed if you can

@@ -139,7 +139,7 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_time     = op_data->op_mod_time;
 	rec->cr_suppgid1 = op_data->op_suppgids[0];
 	rec->cr_suppgid2 = op_data->op_suppgids[1];
-	flags = op_data->op_flags & MF_SOM_LOCAL_FLAGS;
+	flags = 0;
 	if (op_data->op_bias & MDS_CREATE_VOLATILE)
 		flags |= MDS_OPEN_VOLATILE;
 	set_mrc_cr_flags(rec, flags);
@@ -301,27 +301,22 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 static void mdc_ioepoch_pack(struct mdt_ioepoch *epoch,
 			     struct md_op_data *op_data)
 {
-	memcpy(&epoch->handle, &op_data->op_handle, sizeof(epoch->handle));
-	epoch->ioepoch = op_data->op_ioepoch;
-	epoch->flags = op_data->op_flags & MF_SOM_LOCAL_FLAGS;
+	epoch->mio_handle = op_data->op_handle;
+	epoch->mio_unused1 = 0;
+	epoch->mio_unused2 = 0;
+	epoch->mio_padding = 0;
 }
 
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		      void *ea, size_t ealen, void *ea2, size_t ea2len)
+		      void *ea, size_t ealen)
 {
 	struct mdt_rec_setattr *rec;
-	struct mdt_ioepoch *epoch;
 	struct lov_user_md *lum = NULL;
 
 	CLASSERT(sizeof(struct mdt_rec_reint) ==
 					sizeof(struct mdt_rec_setattr));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
-
-	if (op_data->op_flags & (MF_SOM_CHANGE | MF_EPOCH_OPEN)) {
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-		mdc_ioepoch_pack(epoch, op_data);
-	}
 
 	if (ealen == 0)
 		return;
@@ -335,12 +330,6 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	} else {
 		memcpy(lum, ea, ealen);
 	}
-
-	if (ea2len == 0)
-		return;
-
-	memcpy(req_capsule_client_get(&req->rq_pill, &RMF_LOGCOOKIES), ea2,
-	       ea2len);
 }
 
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
@@ -387,6 +376,31 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	mdc_pack_name(req, &RMF_NAME, op_data->op_name, op_data->op_namelen);
 }
 
+static void mdc_intent_close_pack(struct ptlrpc_request *req,
+				  struct md_op_data *op_data)
+{
+	enum mds_op_bias bias = op_data->op_bias;
+	struct close_data *data;
+	struct ldlm_lock *lock;
+
+	if (!(bias & (MDS_HSM_RELEASE | MDS_CLOSE_LAYOUT_SWAP |
+		      MDS_RENAME_MIGRATE)))
+		return;
+
+	data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
+	LASSERT(data);
+
+	lock = ldlm_handle2lock(&op_data->op_lease_handle);
+	if (lock) {
+		data->cd_handle = lock->l_remote_handle;
+		LDLM_LOCK_PUT(lock);
+	}
+	ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
+
+	data->cd_data_version = op_data->op_data_version;
+	data->cd_fid = op_data->op_fid2;
+}
+
 void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const char *old, size_t oldlen,
 		     const char *new, size_t newlen)
@@ -415,6 +429,15 @@ void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 
 	if (new)
 		mdc_pack_name(req, &RMF_SYMTGT, new, newlen);
+
+	if (op_data->op_cli_flags & CLI_MIGRATE &&
+	    op_data->op_bias & MDS_RENAME_MIGRATE) {
+		struct mdt_ioepoch *epoch;
+
+		mdc_intent_close_pack(req, op_data);
+		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
+		mdc_ioepoch_pack(epoch, op_data);
+	}
 }
 
 void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
@@ -441,27 +464,6 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
 			      op_data->op_namelen);
 }
 
-static void mdc_hsm_release_pack(struct ptlrpc_request *req,
-				 struct md_op_data *op_data)
-{
-	if (op_data->op_bias & MDS_HSM_RELEASE) {
-		struct close_data *data;
-		struct ldlm_lock *lock;
-
-		data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
-
-		lock = ldlm_handle2lock(&op_data->op_lease_handle);
-		if (lock) {
-			data->cd_handle = lock->l_remote_handle;
-			LDLM_LOCK_PUT(lock);
-		}
-		ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
-
-		data->cd_data_version = op_data->op_data_version;
-		data->cd_fid = op_data->op_fid2;
-	}
-}
-
 void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_ioepoch *epoch;
@@ -484,5 +486,5 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 		rec->sa_valid &= ~MDS_ATTR_ATIME;
 
 	mdc_ioepoch_pack(epoch, op_data);
-	mdc_hsm_release_pack(req, op_data);
+	mdc_intent_close_pack(req, op_data);
 }

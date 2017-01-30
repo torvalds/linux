@@ -72,7 +72,7 @@ struct sisl_ioarcb {
 	u16 timeout;		/* in units specified by req_flags */
 	u32 rsvd1;
 	u8 cdb[16];		/* must be in big endian */
-	struct scsi_cmnd *scp;
+	u64 reserved;		/* Reserved area */
 } __packed;
 
 struct sisl_rc {

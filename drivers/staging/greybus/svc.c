@@ -757,7 +757,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -780,7 +780,7 @@ static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;
@@ -803,7 +803,7 @@ static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file->f_inode->i_private;
+	struct svc_debugfs_pwrmon_rail *pwrmon_rails = file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
 	u32 value;

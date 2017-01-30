@@ -49,6 +49,15 @@ Intel GVT-g Guest Support(vGPU)
 .. kernel-doc:: drivers/gpu/drm/i915/i915_vgpu.c
    :internal:
 
+Intel GVT-g Host Support(vGPU device model)
+-------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
+   :doc: Intel GVT-g host support
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
+   :internal:
+
 Display Hardware Handling
 =========================
 
@@ -180,7 +189,7 @@ Display Refresh Rate Switching (DRRS)
 DPIO
 ----
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_reg.h
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpio_phy.c
    :doc: DPIO
 
 CSR firmware support for DMC
@@ -249,19 +258,19 @@ Global GTT views
 GTT Fences and Swizzling
 ------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :internal:
 
 Global GTT Fence Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :doc: fence register handling
 
 Hardware Tiling and Swizzling Details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :doc: tiling swizzling details
 
 Object Tiling IOCTLs

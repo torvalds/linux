@@ -80,7 +80,6 @@ struct rk3399_dmcfreq {
 	struct regulator *vdd_center;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
-	struct dev_pm_opp *curr_opp;
 };
 
 static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
@@ -101,9 +100,6 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	target_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	dmcfreq->rate = dev_pm_opp_get_freq(dmcfreq->curr_opp);
-	dmcfreq->volt = dev_pm_opp_get_voltage(dmcfreq->curr_opp);
 
 	rcu_read_unlock();
 
@@ -165,7 +161,9 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 	if (err)
 		dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
 
-	dmcfreq->curr_opp = opp;
+	dmcfreq->rate = target_rate;
+	dmcfreq->volt = target_volt;
+
 out:
 	mutex_unlock(&dmcfreq->lock);
 	return err;
@@ -414,7 +412,6 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	 */
 	if (dev_pm_opp_of_add_table(dev)) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
-		rcu_read_unlock();
 		return -EINVAL;
 	}
 
@@ -431,12 +428,13 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
+	data->rate = dev_pm_opp_get_freq(opp);
+	data->volt = dev_pm_opp_get_voltage(opp);
 	rcu_read_unlock();
-	data->curr_opp = opp;
 
 	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
 
-	data->devfreq = devfreq_add_device(dev,
+	data->devfreq = devm_devfreq_add_device(dev,
 					   &rk3399_devfreq_dmc_profile,
 					   "simple_ondemand",
 					   &data->ondemand_data);
@@ -454,6 +452,7 @@ static const struct of_device_id rk3399dmc_devfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3399-dmc" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
 
 static struct platform_driver rk3399_dmcfreq_driver = {
 	.probe	= rk3399_dmcfreq_probe,

@@ -43,11 +43,22 @@ struct __packed pucan_command {
 	u16	args[3];
 };
 
+#define PUCAN_TSLOW_BRP_BITS		10
+#define PUCAN_TSLOW_TSGEG1_BITS		8
+#define PUCAN_TSLOW_TSGEG2_BITS		7
+#define PUCAN_TSLOW_SJW_BITS		7
+
+#define PUCAN_TSLOW_BRP_MASK		((1 << PUCAN_TSLOW_BRP_BITS) - 1)
+#define PUCAN_TSLOW_TSEG1_MASK		((1 << PUCAN_TSLOW_TSGEG1_BITS) - 1)
+#define PUCAN_TSLOW_TSEG2_MASK		((1 << PUCAN_TSLOW_TSGEG2_BITS) - 1)
+#define PUCAN_TSLOW_SJW_MASK		((1 << PUCAN_TSLOW_SJW_BITS) - 1)
+
 /* uCAN TIMING_SLOW command fields */
-#define PUCAN_TSLOW_SJW_T(s, t)		(((s) & 0xf) | ((!!(t)) << 7))
-#define PUCAN_TSLOW_TSEG2(t)		((t) & 0xf)
-#define PUCAN_TSLOW_TSEG1(t)		((t) & 0x3f)
-#define PUCAN_TSLOW_BRP(b)		((b) & 0x3ff)
+#define PUCAN_TSLOW_SJW_T(s, t)		(((s) & PUCAN_TSLOW_SJW_MASK) | \
+								((!!(t)) << 7))
+#define PUCAN_TSLOW_TSEG2(t)		((t) & PUCAN_TSLOW_TSEG2_MASK)
+#define PUCAN_TSLOW_TSEG1(t)		((t) & PUCAN_TSLOW_TSEG1_MASK)
+#define PUCAN_TSLOW_BRP(b)		((b) & PUCAN_TSLOW_BRP_MASK)
 
 struct __packed pucan_timing_slow {
 	__le16	opcode_channel;
@@ -60,11 +71,21 @@ struct __packed pucan_timing_slow {
 	__le16	brp;		/* BaudRate Prescaler */
 };
 
+#define PUCAN_TFAST_BRP_BITS		10
+#define PUCAN_TFAST_TSGEG1_BITS		5
+#define PUCAN_TFAST_TSGEG2_BITS		4
+#define PUCAN_TFAST_SJW_BITS		4
+
+#define PUCAN_TFAST_BRP_MASK		((1 << PUCAN_TFAST_BRP_BITS) - 1)
+#define PUCAN_TFAST_TSEG1_MASK		((1 << PUCAN_TFAST_TSGEG1_BITS) - 1)
+#define PUCAN_TFAST_TSEG2_MASK		((1 << PUCAN_TFAST_TSGEG2_BITS) - 1)
+#define PUCAN_TFAST_SJW_MASK		((1 << PUCAN_TFAST_SJW_BITS) - 1)
+
 /* uCAN TIMING_FAST command fields */
-#define PUCAN_TFAST_SJW(s)		((s) & 0x3)
-#define PUCAN_TFAST_TSEG2(t)		((t) & 0x7)
-#define PUCAN_TFAST_TSEG1(t)		((t) & 0xf)
-#define PUCAN_TFAST_BRP(b)		((b) & 0x3ff)
+#define PUCAN_TFAST_SJW(s)		((s) & PUCAN_TFAST_SJW_MASK)
+#define PUCAN_TFAST_TSEG2(t)		((t) & PUCAN_TFAST_TSEG2_MASK)
+#define PUCAN_TFAST_TSEG1(t)		((t) & PUCAN_TFAST_TSEG1_MASK)
+#define PUCAN_TFAST_BRP(b)		((b) & PUCAN_TFAST_BRP_MASK)
 
 struct __packed pucan_timing_fast {
 	__le16	opcode_channel;

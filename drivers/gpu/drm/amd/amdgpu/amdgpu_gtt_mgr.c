@@ -164,10 +164,13 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 	spin_unlock(&mgr->lock);
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	if (!node) {
+		r = -ENOMEM;
+		goto err_out;
+	}
 
 	node->start = AMDGPU_BO_INVALID_OFFSET;
+	node->size = mem->num_pages;
 	mem->mm_node = node;
 
 	if (place->fpfn || place->lpfn || place->flags & TTM_PL_FLAG_TOPDOWN) {
@@ -175,12 +178,20 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 		if (unlikely(r)) {
 			kfree(node);
 			mem->mm_node = NULL;
+			r = 0;
+			goto err_out;
 		}
 	} else {
 		mem->start = node->start;
 	}
 
 	return 0;
+err_out:
+	spin_lock(&mgr->lock);
+	mgr->available += mem->num_pages;
+	spin_unlock(&mgr->lock);
+
+	return r;
 }
 
 /**

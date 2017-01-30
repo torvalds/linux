@@ -405,7 +405,6 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	params->state = GBAUDIO_CODEC_SHUTDOWN;
 	mutex_unlock(&codec->lock);
 	pm_relax(dai->dev);
-	return;
 }
 
 static int gbcodec_hw_params(struct snd_pcm_substream *substream,
@@ -655,8 +654,10 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 			ret = gb_audio_apbridgea_shutdown_rx(data->connection,
 							     0);
 		params->state = GBAUDIO_CODEC_STOP;
-	} else
+	} else {
 		ret = -EINVAL;
+	}
+
 	if (ret)
 		dev_err_ratelimited(dai->dev,
 				    "%s:Error during %s %s stream:%d\n",

@@ -40,6 +40,7 @@ enum {
 	PFVF_STATUS_NOT_SUPPORTED,
 	PFVF_STATUS_NO_RESOURCE,
 	PFVF_STATUS_FORCED,
+	PFVF_STATUS_MALICIOUS,
 };
 
 /* vf pf channel tlvs */
@@ -622,6 +623,14 @@ void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn,
 				 u8 *num_vlan_filters);
 
 /**
+ * @brief Get number of MAC filters allocated for VF by qed
+ *
+ *  @param p_hwfn
+ *  @param num_rxqs - allocated MAC filters
+ */
+void qed_vf_get_num_mac_filters(struct qed_hwfn *p_hwfn, u8 *num_mac_filters);
+
+/**
  * @brief Check if VF can set a MAC address
  *
  * @param p_hwfn
@@ -657,10 +666,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn);
 /**
  * @brief VF - start the RX Queue by sending a message to the PF
  * @param p_hwfn
- * @param cid                   - zero based within the VF
- * @param rx_queue_id           - zero based within the VF
- * @param sb                    - VF status block for this queue
- * @param sb_index              - Index within the status block
+ * @param p_cid			- Only relative fields are relevant
  * @param bd_max_bytes          - maximum number of bytes per bd
  * @param bd_chain_phys_addr    - physical address of bd chain
  * @param cqe_pbl_addr          - physical address of pbl
@@ -671,9 +677,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn);
  * @return int
  */
 int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
-			u8 rx_queue_id,
-			u16 sb,
-			u8 sb_index,
+			struct qed_queue_cid *p_cid,
 			u16 bd_max_bytes,
 			dma_addr_t bd_chain_phys_addr,
 			dma_addr_t cqe_pbl_addr,
@@ -693,24 +697,23 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
  *
  * @return int
  */
-int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
-			u16 tx_queue_id,
-			u16 sb,
-			u8 sb_index,
-			dma_addr_t pbl_addr,
-			u16 pbl_size, void __iomem **pp_doorbell);
+int
+qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
+		    struct qed_queue_cid *p_cid,
+		    dma_addr_t pbl_addr,
+		    u16 pbl_size, void __iomem **pp_doorbell);
 
 /**
  * @brief VF - stop the RX queue by sending a message to the PF
  *
  * @param p_hwfn
- * @param rx_qid
+ * @param p_cid
  * @param cqe_completion
  *
  * @return int
  */
 int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
-		       u16 rx_qid, bool cqe_completion);
+		       struct qed_queue_cid *p_cid, bool cqe_completion);
 
 /**
  * @brief VF - stop the TX queue by sending a message to the PF
@@ -720,7 +723,7 @@ int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
  *
  * @return int
  */
-int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid);
+int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, struct qed_queue_cid *p_cid);
 
 /**
  * @brief VF - send a vport update command
@@ -871,6 +874,11 @@ static inline void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn,
 {
 }
 
+static inline void qed_vf_get_num_mac_filters(struct qed_hwfn *p_hwfn,
+					      u8 *num_mac_filters)
+{
+}
+
 static inline bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 {
 	return false;
@@ -888,9 +896,7 @@ static inline int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 }
 
 static inline int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
-				      u8 rx_queue_id,
-				      u16 sb,
-				      u8 sb_index,
+				      struct qed_queue_cid *p_cid,
 				      u16 bd_max_bytes,
 				      dma_addr_t bd_chain_phys_adr,
 				      dma_addr_t cqe_pbl_addr,
@@ -900,9 +906,7 @@ static inline int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 }
 
 static inline int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
-				      u16 tx_queue_id,
-				      u16 sb,
-				      u8 sb_index,
+				      struct qed_queue_cid *p_cid,
 				      dma_addr_t pbl_addr,
 				      u16 pbl_size, void __iomem **pp_doorbell)
 {
@@ -910,12 +914,14 @@ static inline int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 }
 
 static inline int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
-				     u16 rx_qid, bool cqe_completion)
+				     struct qed_queue_cid *p_cid,
+				     bool cqe_completion)
 {
 	return -EINVAL;
 }
 
-static inline int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
+static inline int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn,
+				     struct qed_queue_cid *p_cid)
 {
 	return -EINVAL;
 }

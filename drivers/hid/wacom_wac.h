@@ -74,6 +74,7 @@
 
 /* device quirks */
 #define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
+#define WACOM_QUIRK_SENSE		0x0002
 #define WACOM_QUIRK_BATTERY		0x0008
 
 /* device types */
@@ -84,23 +85,66 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 #define WACOM_DEVICETYPE_DIRECT         0x0010
 
-#define WACOM_VENDORDEFINED_PEN		0xff0d0001
-#define WACOM_G9_PAGE			0xff090000
-#define WACOM_G9_DIGITIZER		(WACOM_G9_PAGE | 0x02)
-#define WACOM_G9_TOUCHSCREEN		(WACOM_G9_PAGE | 0x11)
-#define WACOM_G11_PAGE			0xff110000
-#define WACOM_G11_DIGITIZER		(WACOM_G11_PAGE | 0x02)
-#define WACOM_G11_TOUCHSCREEN		(WACOM_G11_PAGE | 0x11)
+#define WACOM_HID_UP_WACOMDIGITIZER     0xff0d0000
+#define WACOM_HID_SP_PAD                0x00040000
+#define WACOM_HID_SP_BUTTON             0x00090000
+#define WACOM_HID_SP_DIGITIZER          0x000d0000
+#define WACOM_HID_SP_DIGITIZERINFO      0x00100000
+#define WACOM_HID_WD_DIGITIZER          (WACOM_HID_UP_WACOMDIGITIZER | 0x01)
+#define WACOM_HID_WD_SENSE              (WACOM_HID_UP_WACOMDIGITIZER | 0x36)
+#define WACOM_HID_WD_DIGITIZERFNKEYS    (WACOM_HID_UP_WACOMDIGITIZER | 0x39)
+#define WACOM_HID_WD_SERIALHI           (WACOM_HID_UP_WACOMDIGITIZER | 0x5c)
+#define WACOM_HID_WD_TOOLTYPE           (WACOM_HID_UP_WACOMDIGITIZER | 0x77)
+#define WACOM_HID_WD_DISTANCE           (WACOM_HID_UP_WACOMDIGITIZER | 0x0132)
+#define WACOM_HID_WD_TOUCHSTRIP         (WACOM_HID_UP_WACOMDIGITIZER | 0x0136)
+#define WACOM_HID_WD_TOUCHSTRIP2        (WACOM_HID_UP_WACOMDIGITIZER | 0x0137)
+#define WACOM_HID_WD_TOUCHRING          (WACOM_HID_UP_WACOMDIGITIZER | 0x0138)
+#define WACOM_HID_WD_TOUCHRINGSTATUS    (WACOM_HID_UP_WACOMDIGITIZER | 0x0139)
+#define WACOM_HID_WD_ACCELEROMETER_X    (WACOM_HID_UP_WACOMDIGITIZER | 0x0401)
+#define WACOM_HID_WD_ACCELEROMETER_Y    (WACOM_HID_UP_WACOMDIGITIZER | 0x0402)
+#define WACOM_HID_WD_ACCELEROMETER_Z    (WACOM_HID_UP_WACOMDIGITIZER | 0x0403)
+#define WACOM_HID_WD_BATTERY_CHARGING   (WACOM_HID_UP_WACOMDIGITIZER | 0x0404)
+#define WACOM_HID_WD_BATTERY_LEVEL      (WACOM_HID_UP_WACOMDIGITIZER | 0x043b)
+#define WACOM_HID_WD_EXPRESSKEY00       (WACOM_HID_UP_WACOMDIGITIZER | 0x0910)
+#define WACOM_HID_WD_EXPRESSKEYCAP00    (WACOM_HID_UP_WACOMDIGITIZER | 0x0950)
+#define WACOM_HID_WD_BUTTONHOME         (WACOM_HID_UP_WACOMDIGITIZER | 0x0990)
+#define WACOM_HID_WD_BUTTONUP           (WACOM_HID_UP_WACOMDIGITIZER | 0x0991)
+#define WACOM_HID_WD_BUTTONDOWN         (WACOM_HID_UP_WACOMDIGITIZER | 0x0992)
+#define WACOM_HID_WD_BUTTONLEFT         (WACOM_HID_UP_WACOMDIGITIZER | 0x0993)
+#define WACOM_HID_WD_BUTTONRIGHT        (WACOM_HID_UP_WACOMDIGITIZER | 0x0994)
+#define WACOM_HID_WD_BUTTONCENTER       (WACOM_HID_UP_WACOMDIGITIZER | 0x0995)
+#define WACOM_HID_WD_TOUCHONOFF         (WACOM_HID_UP_WACOMDIGITIZER | 0x0996)
+#define WACOM_HID_WD_FINGERWHEEL        (WACOM_HID_UP_WACOMDIGITIZER | 0x0d03)
+#define WACOM_HID_WD_OFFSETLEFT         (WACOM_HID_UP_WACOMDIGITIZER | 0x0d30)
+#define WACOM_HID_WD_OFFSETTOP          (WACOM_HID_UP_WACOMDIGITIZER | 0x0d31)
+#define WACOM_HID_WD_OFFSETRIGHT        (WACOM_HID_UP_WACOMDIGITIZER | 0x0d32)
+#define WACOM_HID_WD_OFFSETBOTTOM       (WACOM_HID_UP_WACOMDIGITIZER | 0x0d33)
+#define WACOM_HID_WD_DATAMODE           (WACOM_HID_UP_WACOMDIGITIZER | 0x1002)
+#define WACOM_HID_WD_DIGITIZERINFO      (WACOM_HID_UP_WACOMDIGITIZER | 0x1013)
+#define WACOM_HID_UP_G9                 0xff090000
+#define WACOM_HID_G9_PEN                (WACOM_HID_UP_G9 | 0x02)
+#define WACOM_HID_G9_TOUCHSCREEN        (WACOM_HID_UP_G9 | 0x11)
+#define WACOM_HID_UP_G11                0xff110000
+#define WACOM_HID_G11_PEN               (WACOM_HID_UP_G11 | 0x02)
+#define WACOM_HID_G11_TOUCHSCREEN       (WACOM_HID_UP_G11 | 0x11)
+
+#define WACOM_PAD_FIELD(f)	(((f)->physical == HID_DG_TABLETFUNCTIONKEY) || \
+				 ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS) || \
+				 ((f)->physical == WACOM_HID_WD_DIGITIZERINFO))
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_DIGITIZER) || \
-				 ((f)->application == WACOM_VENDORDEFINED_PEN))
+				 ((f)->application == WACOM_HID_WD_DIGITIZER) || \
+				 ((f)->application == WACOM_HID_G9_PEN) || \
+				 ((f)->application == WACOM_HID_G11_PEN))
 #define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
 				 ((f)->physical == HID_DG_FINGER) || \
-				 ((f)->application == HID_DG_TOUCHSCREEN))
+				 ((f)->application == HID_DG_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_G9_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_G11_TOUCHSCREEN))
 
 enum {
 	PENPARTNER = 0,
@@ -167,8 +211,10 @@ struct wacom_features {
 	int x_resolution;
 	int y_resolution;
 	int numbered_buttons;
-	int x_min;
-	int y_min;
+	int offset_left;
+	int offset_right;
+	int offset_top;
+	int offset_bottom;
 	int device_type;
 	int x_phy;
 	int y_phy;
@@ -186,6 +232,7 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
+	bool input_event_flag;
 };
 
 struct wacom_shared {
@@ -202,6 +249,7 @@ struct wacom_shared {
 struct hid_data {
 	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
+	bool sense_state;
 	bool inrange_state;
 	bool invert_state;
 	bool tipswitch;
@@ -217,6 +265,10 @@ struct hid_data {
 	int last_slot_field;
 	int num_expected;
 	int num_received;
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
 };
 
 struct wacom_remote_data {
@@ -234,7 +286,7 @@ struct wacom_wac {
 	unsigned char data[WACOM_PKGLEN_MAX];
 	int tool[2];
 	int id[2];
-	__u32 serial[2];
+	__u64 serial[2];
 	bool reporting_data;
 	struct wacom_features features;
 	struct wacom_shared *shared;

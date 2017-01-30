@@ -31,7 +31,7 @@ struct dsaf_device;
 #define MAC_MIN_MTU		68
 #define MAC_MAX_MTU_DBG		MAC_DEFAULT_MTU
 
-#define MAC_DEFAULT_PAUSE_TIME 0xff
+#define MAC_DEFAULT_PAUSE_TIME 0xffff
 
 #define MAC_GMAC_IDX 0
 #define MAC_XGMAC_IDX 1
@@ -55,9 +55,6 @@ struct dsaf_device;
 
 /*check mac addr multicast*/
 #define MAC_IS_MULTICAST(p)	((*((u8 *)((p) + 0)) & 0x01) ? (1) : (0))
-
-/**< Number of octets (8-bit bytes) in an ethernet address */
-#define MAC_NUM_OCTETS_PER_ADDR 6
 
 struct mac_priv {
 	void *mac;
@@ -189,7 +186,7 @@ struct mac_statistics {
 
 /*mac para struct ,mac get param from nic or dsaf when initialize*/
 struct mac_params {
-	char addr[MAC_NUM_OCTETS_PER_ADDR];
+	char addr[ETH_ALEN];
 	void *vaddr; /*virtual address*/
 	struct device *dev;
 	u8 mac_id;
@@ -214,7 +211,7 @@ struct mac_info {
 };
 
 struct mac_entry_idx {
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR];
+	u8 addr[ETH_ALEN];
 	u16 vlan_id:12;
 	u16 valid:1;
 	u16 qos:3;
@@ -317,6 +314,7 @@ struct hns_mac_cb {
 	u8 __iomem *serdes_vaddr;
 	struct regmap *serdes_ctrl;
 	struct regmap *cpld_ctrl;
+	char mc_mask[ETH_ALEN];
 	u32 cpld_ctrl_reg;
 	u32 port_rst_off;
 	u32 port_mode_off;
@@ -409,7 +407,7 @@ struct mac_driver {
 };
 
 struct mac_stats_string {
-	char desc[64];
+	char desc[ETH_GSTRING_LEN];
 	unsigned long offset;
 };
 
@@ -463,5 +461,10 @@ int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en);
 int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
 			       u8 vmid, u8 *port_num);
+int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+			const unsigned char *addr);
+int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+		       const unsigned char *addr);
+int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn);
 
 #endif /* _HNS_DSAF_MAC_H */

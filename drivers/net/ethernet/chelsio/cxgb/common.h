@@ -85,6 +85,11 @@ struct t1_rx_mode {
 #define SPEED_INVALID 0xffff
 #define DUPLEX_INVALID 0xff
 
+/* Max frame size PM3393 can handle. Includes Ethernet header and CRC. */
+#define PM3393_MAX_FRAME_SIZE 9600
+
+#define VSC7326_MAX_MTU 9600
+
 enum {
 	CHBT_BOARD_N110,
 	CHBT_BOARD_N210,

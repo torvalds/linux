@@ -36,11 +36,6 @@ struct smack_known smack_known_floor = {
 	.smk_secid	= 5,
 };
 
-struct smack_known smack_known_invalid = {
-	.smk_known	= "",
-	.smk_secid	= 6,
-};
-
 struct smack_known smack_known_web = {
 	.smk_known	= "@",
 	.smk_secid	= 7,
@@ -615,7 +610,7 @@ struct smack_known *smack_from_secid(const u32 secid)
 	 * of a secid that is not on the list.
 	 */
 	rcu_read_unlock();
-	return &smack_known_invalid;
+	return &smack_known_huh;
 }
 
 /*

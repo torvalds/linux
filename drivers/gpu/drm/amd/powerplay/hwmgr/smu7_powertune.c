@@ -521,7 +521,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris10);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
-			} else if (hwmgr->chip_id == CHIP_POLARIS11) {
+			} else if ((hwmgr->chip_id == CHIP_POLARIS11) || (hwmgr->chip_id == CHIP_POLARIS12)) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
 				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11);
@@ -603,9 +603,10 @@ int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 	return 0;
 }
 
-static int smu7_set_overdriver_target_tdp(struct pp_hwmgr *pHwMgr, uint32_t target_tdp)
+static int smu7_set_overdriver_target_tdp(struct pp_hwmgr *hwmgr,
+						uint32_t target_tdp)
 {
-	return smum_send_msg_to_smc_with_parameter(pHwMgr->smumgr,
+	return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 			PPSMC_MSG_OverDriveSetTargetTdp, target_tdp);
 }
 

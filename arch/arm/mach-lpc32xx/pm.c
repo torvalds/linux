@@ -73,7 +73,6 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include "common.h"
-#include "clock.h"
 
 #define TEMP_IRAM_AREA  IO_ADDRESS(LPC32XX_IRAM_BASE)
 

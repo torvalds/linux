@@ -51,9 +51,6 @@ struct pdt_entry {
 	u8 function_number;
 };
 
-int rmi_read_pdt_entry(struct rmi_device *rmi_dev, struct pdt_entry *entry,
-			u16 pdt_address);
-
 #define RMI_REG_DESC_PRESENSE_BITS	(32 * BITS_PER_BYTE)
 #define RMI_REG_DESC_SUBPACKET_BITS	(37 * BITS_PER_BYTE)
 
@@ -95,12 +92,40 @@ bool rmi_register_desc_has_subpacket(const struct rmi_register_desc_item *item,
 bool rmi_is_physical_driver(struct device_driver *);
 int rmi_register_physical_driver(void);
 void rmi_unregister_physical_driver(void);
+void rmi_free_function_list(struct rmi_device *rmi_dev);
+int rmi_enable_sensor(struct rmi_device *rmi_dev);
+int rmi_scan_pdt(struct rmi_device *rmi_dev, void *ctx,
+		 int (*callback)(struct rmi_device *rmi_dev, void *ctx,
+		 const struct pdt_entry *entry));
+int rmi_probe_interrupts(struct rmi_driver_data *data);
+void rmi_enable_irq(struct rmi_device *rmi_dev, bool clear_wake);
+void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake);
+int rmi_init_functions(struct rmi_driver_data *data);
+int rmi_initial_reset(struct rmi_device *rmi_dev, void *ctx,
+		      const struct pdt_entry *pdt);
 
 char *rmi_f01_get_product_ID(struct rmi_function *fn);
 
+#ifdef CONFIG_RMI4_F34
+int rmi_f34_create_sysfs(struct rmi_device *rmi_dev);
+void rmi_f34_remove_sysfs(struct rmi_device *rmi_dev);
+#else
+static inline int rmi_f34_create_sysfs(struct rmi_device *rmi_dev)
+{
+	return 0;
+}
+
+static inline void rmi_f34_remove_sysfs(struct rmi_device *rmi_dev)
+{
+}
+#endif /* CONFIG_RMI_F34 */
+
 extern struct rmi_function_handler rmi_f01_handler;
+extern struct rmi_function_handler rmi_f03_handler;
 extern struct rmi_function_handler rmi_f11_handler;
 extern struct rmi_function_handler rmi_f12_handler;
 extern struct rmi_function_handler rmi_f30_handler;
+extern struct rmi_function_handler rmi_f34_handler;
 extern struct rmi_function_handler rmi_f54_handler;
+extern struct rmi_function_handler rmi_f55_handler;
 #endif

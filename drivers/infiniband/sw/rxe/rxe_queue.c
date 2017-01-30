@@ -84,6 +84,15 @@ err1:
 	return -EINVAL;
 }
 
+inline void rxe_queue_reset(struct rxe_queue *q)
+{
+	/* queue is comprised from header and the memory
+	 * of the actual queue. See "struct rxe_queue_buf" in rxe_queue.h
+	 * reset only the queue itself and not the management header
+	 */
+	memset(q->buf->data, 0, q->buf_size - sizeof(struct rxe_queue_buf));
+}
+
 struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
 				 int *num_elem,
 				 unsigned int elem_size)

@@ -342,15 +342,13 @@ static int or51132_set_parameters(struct dvb_frontend *fe)
 		       fwname);
 		ret = request_firmware(&fw, fwname, state->i2c->dev.parent);
 		if (ret) {
-			printk(KERN_WARNING "or51132: No firmware up"
-			       "loaded(timeout or file not found?)\n");
+			printk(KERN_WARNING "or51132: No firmware uploaded(timeout or file not found?)\n");
 			return ret;
 		}
 		ret = or51132_load_firmware(fe, fw);
 		release_firmware(fw);
 		if (ret) {
-			printk(KERN_WARNING "or51132: Writing firmware to "
-			       "device failed!\n");
+			printk(KERN_WARNING "or51132: Writing firmware to device failed!\n");
 			return ret;
 		}
 		printk("or51132: Firmware upload complete.\n");
@@ -561,7 +559,7 @@ static void or51132_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops or51132_ops;
+static const struct dvb_frontend_ops or51132_ops;
 
 struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 				    struct i2c_adapter* i2c)
@@ -585,7 +583,7 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops or51132_ops = {
+static const struct dvb_frontend_ops or51132_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Oren OR51132 VSB/QAM Frontend",

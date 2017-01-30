@@ -46,7 +46,7 @@
 #include "rxe_loc.h"
 
 static LIST_HEAD(rxe_dev_list);
-static spinlock_t dev_list_lock; /* spinlock for device list */
+static DEFINE_SPINLOCK(dev_list_lock); /* spinlock for device list */
 
 struct rxe_dev *net_to_rxe(struct net_device *ndev)
 {
@@ -243,10 +243,8 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 {
 	int err;
 	struct socket *sock;
-	struct udp_port_cfg udp_cfg;
-	struct udp_tunnel_sock_cfg tnl_cfg;
-
-	memset(&udp_cfg, 0, sizeof(udp_cfg));
+	struct udp_port_cfg udp_cfg = {0};
+	struct udp_tunnel_sock_cfg tnl_cfg = {0};
 
 	if (ipv6) {
 		udp_cfg.family = AF_INET6;
@@ -264,10 +262,8 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 		return ERR_PTR(err);
 	}
 
-	tnl_cfg.sk_user_data = NULL;
 	tnl_cfg.encap_type = 1;
 	tnl_cfg.encap_rcv = rxe_udp_encap_recv;
-	tnl_cfg.encap_destroy = NULL;
 
 	/* Setup UDP tunnel */
 	setup_udp_tunnel_sock(net, sock, &tnl_cfg);
@@ -459,6 +455,7 @@ static int send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		return -EAGAIN;
 	}
 
+	atomic_inc(&pkt->qp->skb_out);
 	kfree_skb(skb);
 
 	return 0;
@@ -663,8 +660,6 @@ struct notifier_block rxe_net_notifier = {
 
 int rxe_net_ipv4_init(void)
 {
-	spin_lock_init(&dev_list_lock);
-
 	recv_sockets.sk4 = rxe_setup_udp_tunnel(&init_net,
 				htons(ROCE_V2_UDP_DPORT), false);
 	if (IS_ERR(recv_sockets.sk4)) {
@@ -679,8 +674,6 @@ int rxe_net_ipv4_init(void)
 int rxe_net_ipv6_init(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-
-	spin_lock_init(&dev_list_lock);
 
 	recv_sockets.sk6 = rxe_setup_udp_tunnel(&init_net,
 						htons(ROCE_V2_UDP_DPORT), true);

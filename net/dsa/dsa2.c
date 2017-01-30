@@ -28,8 +28,10 @@ static struct dsa_switch_tree *dsa_get_dst(u32 tree)
 	struct dsa_switch_tree *dst;
 
 	list_for_each_entry(dst, &dsa_switch_trees, list)
-		if (dst->tree == tree)
+		if (dst->tree == tree) {
+			kref_get(&dst->refcount);
 			return dst;
+		}
 	return NULL;
 }
 
@@ -392,9 +394,11 @@ static int dsa_dst_apply(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	err = dsa_cpu_port_ethtool_setup(dst->ds[0]);
-	if (err)
-		return err;
+	if (dst->ds[0]) {
+		err = dsa_cpu_port_ethtool_setup(dst->ds[0]);
+		if (err)
+			return err;
+	}
 
 	/* If we use a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point on get
@@ -431,7 +435,8 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 		dsa_ds_unapply(dst, ds);
 	}
 
-	dsa_cpu_port_ethtool_restore(dst->ds[0]);
+	if (dst->ds[0])
+		dsa_cpu_port_ethtool_restore(dst->ds[0]);
 
 	pr_info("DSA: tree %d unapplied\n", dst->tree);
 	dst->applied = false;

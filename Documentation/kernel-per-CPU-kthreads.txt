@@ -264,7 +264,7 @@ To reduce its OS jitter, do at least one of the following:
 	kthreads from being created in the first place.
 2.	Boot with "nosoftlockup=0", which will also prevent these kthreads
 	from being created.  Other related watchdog and softlockup boot
-	parameters may be found in Documentation/kernel-parameters.txt
+	parameters may be found in Documentation/admin-guide/kernel-parameters.rst
 	and Documentation/watchdog/watchdog-parameters.txt.
 3.	Echo a zero to /proc/sys/kernel/watchdog to disable the
 	watchdog timer.

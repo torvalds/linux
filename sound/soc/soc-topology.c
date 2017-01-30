@@ -49,10 +49,68 @@
 #define SOC_TPLG_PASS_GRAPH		5
 #define SOC_TPLG_PASS_PINS		6
 #define SOC_TPLG_PASS_BE_DAI		7
+#define SOC_TPLG_PASS_LINK		8
 
 #define SOC_TPLG_PASS_START	SOC_TPLG_PASS_MANIFEST
-#define SOC_TPLG_PASS_END	SOC_TPLG_PASS_BE_DAI
+#define SOC_TPLG_PASS_END	SOC_TPLG_PASS_LINK
 
+/*
+ * Old version of ABI structs, supported for backward compatibility.
+ */
+
+/* Manifest v4 */
+struct snd_soc_tplg_manifest_v4 {
+	__le32 size;		/* in bytes of this structure */
+	__le32 control_elems;	/* number of control elements */
+	__le32 widget_elems;	/* number of widget elements */
+	__le32 graph_elems;	/* number of graph elements */
+	__le32 pcm_elems;	/* number of PCM elements */
+	__le32 dai_link_elems;	/* number of DAI link elements */
+	struct snd_soc_tplg_private priv;
+} __packed;
+
+/* Stream Capabilities v4 */
+struct snd_soc_tplg_stream_caps_v4 {
+	__le32 size;		/* in bytes of this structure */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	__le64 formats;	/* supported formats SNDRV_PCM_FMTBIT_* */
+	__le32 rates;		/* supported rates SNDRV_PCM_RATE_* */
+	__le32 rate_min;	/* min rate */
+	__le32 rate_max;	/* max rate */
+	__le32 channels_min;	/* min channels */
+	__le32 channels_max;	/* max channels */
+	__le32 periods_min;	/* min number of periods */
+	__le32 periods_max;	/* max number of periods */
+	__le32 period_size_min;	/* min period size bytes */
+	__le32 period_size_max;	/* max period size bytes */
+	__le32 buffer_size_min;	/* min buffer size bytes */
+	__le32 buffer_size_max;	/* max buffer size bytes */
+} __packed;
+
+/* PCM v4 */
+struct snd_soc_tplg_pcm_v4 {
+	__le32 size;		/* in bytes of this structure */
+	char pcm_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	__le32 pcm_id;		/* unique ID - used to match with DAI link */
+	__le32 dai_id;		/* unique ID - used to match */
+	__le32 playback;	/* supports playback mode */
+	__le32 capture;		/* supports capture mode */
+	__le32 compress;	/* 1 = compressed; 0 = PCM */
+	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* for DAI link */
+	__le32 num_streams;	/* number of streams */
+	struct snd_soc_tplg_stream_caps_v4 caps[2]; /* playback and capture for DAI */
+} __packed;
+
+/* Physical link config v4 */
+struct snd_soc_tplg_link_config_v4 {
+	__le32 size;            /* in bytes of this structure */
+	__le32 id;              /* unique ID - used to match */
+	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* supported configs playback and captrure */
+	__le32 num_streams;     /* number of streams */
+} __packed;
+
+/* topology context */
 struct soc_tplg {
 	const struct firmware *fw;
 
@@ -428,33 +486,40 @@ static void remove_widget(struct snd_soc_component *comp,
 		dobj->ops->widget_unload(comp, dobj);
 
 	/*
-	 * Dynamic Widgets either have 1 enum kcontrol or 1..N mixers.
+	 * Dynamic Widgets either have 1..N enum kcontrols or mixers.
 	 * The enum may either have an array of values or strings.
 	 */
-	if (dobj->widget.kcontrol_enum) {
+	if (dobj->widget.kcontrol_type == SND_SOC_TPLG_TYPE_ENUM) {
 		/* enumerated widget mixer */
-		struct soc_enum *se =
-			(struct soc_enum *)w->kcontrols[0]->private_value;
-
-		snd_ctl_remove(card, w->kcontrols[0]);
-
-		kfree(se->dobj.control.dvalues);
-		for (i = 0; i < se->items; i++)
-			kfree(se->dobj.control.dtexts[i]);
-
-		kfree(se);
-		kfree(w->kcontrol_news);
-	} else {
-		/* non enumerated widget mixer */
 		for (i = 0; i < w->num_kcontrols; i++) {
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
-			struct soc_mixer_control *sm =
-			(struct soc_mixer_control *) kcontrol->private_value;
+			struct soc_enum *se =
+				(struct soc_enum *)kcontrol->private_value;
 
-			kfree(w->kcontrols[i]->tlv.p);
+			snd_ctl_remove(card, kcontrol);
 
-			snd_ctl_remove(card, w->kcontrols[i]);
-			kfree(sm);
+			kfree(se->dobj.control.dvalues);
+			for (i = 0; i < se->items; i++)
+				kfree(se->dobj.control.dtexts[i]);
+
+			kfree(se);
+		}
+		kfree(w->kcontrol_news);
+	} else {
+		/* volume mixer or bytes controls */
+		for (i = 0; i < w->num_kcontrols; i++) {
+			struct snd_kcontrol *kcontrol = w->kcontrols[i];
+
+			if (dobj->widget.kcontrol_type
+			    == SND_SOC_TPLG_TYPE_MIXER)
+				kfree(kcontrol->tlv.p);
+
+			/* Private value is used as struct soc_mixer_control
+			 * for volume mixers or soc_bytes_ext for bytes
+			 * controls.
+			 */
+			kfree((void *)kcontrol->private_value);
+			snd_ctl_remove(card, kcontrol);
 		}
 		kfree(w->kcontrol_news);
 	}
@@ -474,6 +539,7 @@ static void remove_dai(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->dai_unload)
 		dobj->ops->dai_unload(comp, dobj);
 
+	kfree(dai_drv->name);
 	list_del(&dobj->list);
 	kfree(dai_drv);
 }
@@ -490,6 +556,10 @@ static void remove_link(struct snd_soc_component *comp,
 
 	if (dobj->ops && dobj->ops->link_unload)
 		dobj->ops->link_unload(comp, dobj);
+
+	kfree(link->name);
+	kfree(link->stream_name);
+	kfree(link->cpu_dai_name);
 
 	list_del(&dobj->list);
 	snd_soc_remove_dai_link(comp->card, link);
@@ -1193,98 +1263,105 @@ err:
 }
 
 static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
-	struct soc_tplg *tplg)
+	struct soc_tplg *tplg, int num_kcontrols)
 {
 	struct snd_kcontrol_new *kc;
 	struct snd_soc_tplg_enum_control *ec;
 	struct soc_enum *se;
-	int i, err;
+	int i, j, err;
 
-	ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
-	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-		ec->priv.size);
-
-	/* validate kcontrol */
-	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-		SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return NULL;
-
-	kc = kzalloc(sizeof(*kc), GFP_KERNEL);
+	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (kc == NULL)
 		return NULL;
 
-	se = kzalloc(sizeof(*se), GFP_KERNEL);
-	if (se == NULL)
-		goto err;
+	for (i = 0; i < num_kcontrols; i++) {
+		ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
+		/* validate kcontrol */
+		if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
+			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+			return NULL;
 
-	dev_dbg(tplg->dev, " adding DAPM widget enum control %s\n",
-		ec->hdr.name);
+		se = kzalloc(sizeof(*se), GFP_KERNEL);
+		if (se == NULL)
+			goto err;
 
-	kc->name = ec->hdr.name;
-	kc->private_value = (long)se;
-	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc->access = ec->hdr.access;
-
-	/* we only support FL/FR channel mapping atm */
-	se->reg = tplc_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplc_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_r = tplc_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FR);
-
-	se->items = ec->items;
-	se->mask = ec->mask;
-	se->dobj.index = tplg->index;
-
-	switch (ec->hdr.ops.info) {
-	case SND_SOC_TPLG_CTL_ENUM_VALUE:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
-		err = soc_tplg_denum_create_values(se, ec);
-		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create values for %s\n",
-				ec->hdr.name);
-			goto err_se;
-		}
-		/* fall through to create texts */
-	case SND_SOC_TPLG_CTL_ENUM:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
-		err = soc_tplg_denum_create_texts(se, ec);
-		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create texts for %s\n",
-				ec->hdr.name);
-			goto err_se;
-		}
-		break;
-	default:
-		dev_err(tplg->dev, "ASoC: invalid enum control type %d for %s\n",
-			ec->hdr.ops.info, ec->hdr.name);
-		goto err_se;
-	}
-
-	/* map io handlers */
-	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, tplg);
-	if (err) {
-		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
-		goto err_se;
-	}
-
-	/* pass control to driver for optional further init */
-	err = soc_tplg_init_kcontrol(tplg, kc,
-		(struct snd_soc_tplg_ctl_hdr *)ec);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to init %s\n",
+		dev_dbg(tplg->dev, " adding DAPM widget enum control %s\n",
 			ec->hdr.name);
-		goto err_se;
+
+		kc[i].name = ec->hdr.name;
+		kc[i].private_value = (long)se;
+		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		kc[i].access = ec->hdr.access;
+
+		/* we only support FL/FR channel mapping atm */
+		se->reg = tplc_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
+		se->shift_l = tplc_chan_get_shift(tplg, ec->channel,
+						  SNDRV_CHMAP_FL);
+		se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
+						  SNDRV_CHMAP_FR);
+
+		se->items = ec->items;
+		se->mask = ec->mask;
+		se->dobj.index = tplg->index;
+
+		switch (ec->hdr.ops.info) {
+		case SND_SOC_TPLG_CTL_ENUM_VALUE:
+		case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
+			err = soc_tplg_denum_create_values(se, ec);
+			if (err < 0) {
+				dev_err(tplg->dev, "ASoC: could not create values for %s\n",
+					ec->hdr.name);
+				goto err_se;
+			}
+			/* fall through to create texts */
+		case SND_SOC_TPLG_CTL_ENUM:
+		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
+		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
+			err = soc_tplg_denum_create_texts(se, ec);
+			if (err < 0) {
+				dev_err(tplg->dev, "ASoC: could not create texts for %s\n",
+					ec->hdr.name);
+				goto err_se;
+			}
+			break;
+		default:
+			dev_err(tplg->dev, "ASoC: invalid enum control type %d for %s\n",
+				ec->hdr.ops.info, ec->hdr.name);
+			goto err_se;
+		}
+
+		/* map io handlers */
+		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc[i], tplg);
+		if (err) {
+			soc_control_err(tplg, &ec->hdr, ec->hdr.name);
+			goto err_se;
+		}
+
+		/* pass control to driver for optional further init */
+		err = soc_tplg_init_kcontrol(tplg, &kc[i],
+			(struct snd_soc_tplg_ctl_hdr *)ec);
+		if (err < 0) {
+			dev_err(tplg->dev, "ASoC: failed to init %s\n",
+				ec->hdr.name);
+			goto err_se;
+		}
+
+		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
+				ec->priv.size);
 	}
 
 	return kc;
 
 err_se:
-	/* free values and texts */
-	kfree(se->dobj.control.dvalues);
-	for (i = 0; i < ec->items; i++)
-		kfree(se->dobj.control.dtexts[i]);
+	for (; i >= 0; i--) {
+		/* free values and texts */
+		se = (struct soc_enum *)kc[i].private_value;
+		kfree(se->dobj.control.dvalues);
+		for (j = 0; j < ec->items; j++)
+			kfree(se->dobj.control.dtexts[j]);
 
-	kfree(se);
+		kfree(se);
+	}
 err:
 	kfree(kc);
 
@@ -1366,6 +1443,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	struct snd_soc_dapm_widget template, *widget;
 	struct snd_soc_tplg_ctl_hdr *control_hdr;
 	struct snd_soc_card *card = tplg->comp->card;
+	unsigned int kcontrol_type;
 	int ret = 0;
 
 	if (strnlen(w->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
@@ -1406,6 +1484,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	tplg->pos +=
 		(sizeof(struct snd_soc_tplg_dapm_widget) + w->priv.size);
 	if (w->num_kcontrols == 0) {
+		kcontrol_type = 0;
 		template.num_kcontrols = 0;
 		goto widget;
 	}
@@ -1421,6 +1500,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
 	case SND_SOC_TPLG_CTL_RANGE:
 	case SND_SOC_TPLG_DAPM_CTL_VOLSW:
+		kcontrol_type = SND_SOC_TPLG_TYPE_MIXER;  /* volume mixer */
 		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
 			soc_tplg_dapm_widget_dmixer_create(tplg,
@@ -1435,16 +1515,18 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
-		template.dobj.widget.kcontrol_enum = 1;
-		template.num_kcontrols = 1;
+		kcontrol_type = SND_SOC_TPLG_TYPE_ENUM;	/* enumerated mixer */
+		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
-			soc_tplg_dapm_widget_denum_create(tplg);
+			soc_tplg_dapm_widget_denum_create(tplg,
+			template.num_kcontrols);
 		if (!template.kcontrol_news) {
 			ret = -ENOMEM;
 			goto hdr_err;
 		}
 		break;
 	case SND_SOC_TPLG_CTL_BYTES:
+		kcontrol_type = SND_SOC_TPLG_TYPE_BYTES; /* bytes control */
 		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
 			soc_tplg_dapm_widget_dbytes_create(tplg,
@@ -1481,6 +1563,7 @@ widget:
 	}
 
 	widget->dobj.type = SND_SOC_DOBJ_WIDGET;
+	widget->dobj.widget.kcontrol_type = kcontrol_type;
 	widget->dobj.ops = tplg->ops;
 	widget->dobj.index = tplg->index;
 	kfree(template.sname);
@@ -1589,7 +1672,8 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	if (dai_drv == NULL)
 		return -ENOMEM;
 
-	dai_drv->name = pcm->dai_name;
+	if (strlen(pcm->dai_name))
+		dai_drv->name = kstrdup(pcm->dai_name, GFP_KERNEL);
 	dai_drv->id = pcm->dai_id;
 
 	if (pcm->playback) {
@@ -1621,8 +1705,31 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	return snd_soc_register_dai(tplg->comp, dai_drv);
 }
 
+static void set_link_flags(struct snd_soc_dai_link *link,
+		unsigned int flag_mask, unsigned int flags)
+{
+	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES)
+		link->symmetric_rates =
+			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES ? 1 : 0;
+
+	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS)
+		link->symmetric_channels =
+			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS ?
+			1 : 0;
+
+	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS)
+		link->symmetric_samplebits =
+			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS ?
+			1 : 0;
+
+	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP)
+		link->ignore_suspend =
+		flags & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP ?
+		1 : 0;
+}
+
 /* create the FE DAI link */
-static int soc_tplg_link_create(struct soc_tplg *tplg,
+static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
 	struct snd_soc_dai_link *link;
@@ -1632,11 +1739,15 @@ static int soc_tplg_link_create(struct soc_tplg *tplg,
 	if (link == NULL)
 		return -ENOMEM;
 
-	link->name = pcm->pcm_name;
-	link->stream_name = pcm->pcm_name;
+	if (strlen(pcm->pcm_name)) {
+		link->name = kstrdup(pcm->pcm_name, GFP_KERNEL);
+		link->stream_name = kstrdup(pcm->pcm_name, GFP_KERNEL);
+	}
 	link->id = pcm->pcm_id;
 
-	link->cpu_dai_name = pcm->dai_name;
+	if (strlen(pcm->dai_name))
+		link->cpu_dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
+
 	link->codec_name = "snd-soc-dummy";
 	link->codec_dai_name = "snd-soc-dummy-dai";
 
@@ -1644,6 +1755,8 @@ static int soc_tplg_link_create(struct soc_tplg *tplg,
 	link->dynamic = 1;
 	link->dpcm_playback = pcm->playback;
 	link->dpcm_capture = pcm->capture;
+	if (pcm->flag_mask)
+		set_link_flags(link, pcm->flag_mask, pcm->flags);
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_link_load(tplg, link);
@@ -1672,55 +1785,351 @@ static int soc_tplg_pcm_create(struct soc_tplg *tplg,
 	if (ret < 0)
 		return ret;
 
-	return  soc_tplg_link_create(tplg, pcm);
+	return  soc_tplg_fe_link_create(tplg, pcm);
+}
+
+/* copy stream caps from the old version 4 of source */
+static void stream_caps_new_ver(struct snd_soc_tplg_stream_caps *dest,
+				struct snd_soc_tplg_stream_caps_v4 *src)
+{
+	dest->size = sizeof(*dest);
+	memcpy(dest->name, src->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	dest->formats = src->formats;
+	dest->rates = src->rates;
+	dest->rate_min = src->rate_min;
+	dest->rate_max = src->rate_max;
+	dest->channels_min = src->channels_min;
+	dest->channels_max = src->channels_max;
+	dest->periods_min = src->periods_min;
+	dest->periods_max = src->periods_max;
+	dest->period_size_min = src->period_size_min;
+	dest->period_size_max = src->period_size_max;
+	dest->buffer_size_min = src->buffer_size_min;
+	dest->buffer_size_max = src->buffer_size_max;
+}
+
+/**
+ * pcm_new_ver - Create the new version of PCM from the old version.
+ * @tplg: topology context
+ * @src: older version of pcm as a source
+ * @pcm: latest version of pcm created from the source
+ *
+ * Support from vesion 4. User should free the returned pcm manually.
+ */
+static int pcm_new_ver(struct soc_tplg *tplg,
+		       struct snd_soc_tplg_pcm *src,
+		       struct snd_soc_tplg_pcm **pcm)
+{
+	struct snd_soc_tplg_pcm *dest;
+	struct snd_soc_tplg_pcm_v4 *src_v4;
+	int i;
+
+	*pcm = NULL;
+
+	if (src->size != sizeof(*src_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid PCM size\n");
+		return -EINVAL;
+	}
+
+	dev_warn(tplg->dev, "ASoC: old version of PCM\n");
+	src_v4 = (struct snd_soc_tplg_pcm_v4 *)src;
+	dest = kzalloc(sizeof(*dest), GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+
+	dest->size = sizeof(*dest);	/* size of latest abi version */
+	memcpy(dest->pcm_name, src_v4->pcm_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	memcpy(dest->dai_name, src_v4->dai_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	dest->pcm_id = src_v4->pcm_id;
+	dest->dai_id = src_v4->dai_id;
+	dest->playback = src_v4->playback;
+	dest->capture = src_v4->capture;
+	dest->compress = src_v4->compress;
+	dest->num_streams = src_v4->num_streams;
+	for (i = 0; i < dest->num_streams; i++)
+		memcpy(&dest->stream[i], &src_v4->stream[i],
+		       sizeof(struct snd_soc_tplg_stream));
+
+	for (i = 0; i < 2; i++)
+		stream_caps_new_ver(&dest->caps[i], &src_v4->caps[i]);
+
+	*pcm = dest;
+	return 0;
 }
 
 static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_pcm *pcm;
+	struct snd_soc_tplg_pcm *pcm, *_pcm;
 	int count = hdr->count;
-	int i;
+	int i, err;
+	bool abi_match;
 
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
 		return 0;
 
+	/* check the element size and count */
+	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
+	if (pcm->size > sizeof(struct snd_soc_tplg_pcm)
+		|| pcm->size < sizeof(struct snd_soc_tplg_pcm_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid size %d for PCM elems\n",
+			pcm->size);
+		return -EINVAL;
+	}
+
 	if (soc_tplg_check_elem_count(tplg,
-		sizeof(struct snd_soc_tplg_pcm), count,
+		pcm->size, count,
 		hdr->payload_size, "PCM DAI")) {
 		dev_err(tplg->dev, "ASoC: invalid count %d for PCM DAI elems\n",
 			count);
 		return -EINVAL;
 	}
 
-	/* create the FE DAIs and DAI links */
-	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
 	for (i = 0; i < count; i++) {
-		if (pcm->size != sizeof(*pcm)) {
-			dev_err(tplg->dev, "ASoC: invalid pcm size\n");
-			return -EINVAL;
+		pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
+
+		/* check ABI version by size, create a new version of pcm
+		 * if abi not match.
+		 */
+		if (pcm->size == sizeof(*pcm)) {
+			abi_match = true;
+			_pcm = pcm;
+		} else {
+			abi_match = false;
+			err = pcm_new_ver(tplg, pcm, &_pcm);
 		}
 
-		soc_tplg_pcm_create(tplg, pcm);
-		pcm++;
+		/* create the FE DAIs and DAI links */
+		soc_tplg_pcm_create(tplg, _pcm);
+
+		/* offset by version-specific struct size and
+		 * real priv data size
+		 */
+		tplg->pos += pcm->size + _pcm->priv.size;
+
+		if (!abi_match)
+			kfree(_pcm); /* free the duplicated one */
 	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d PCM DAIs\n", count);
-	tplg->pos += sizeof(struct snd_soc_tplg_pcm) * count;
 
 	return 0;
 }
 
-/* *
- * soc_tplg_be_dai_config - Find and configure an existing BE DAI.
+/**
+ * set_link_hw_format - Set the HW audio format of the physical DAI link.
  * @tplg: topology context
- * @be: topology BE DAI configs.
+ * @cfg: physical link configs.
  *
- * The BE dai should already be registered by the platform driver. The
- * platform driver should specify the BE DAI name and ID for matching.
+ * Topology context contains a list of supported HW formats (configs) and
+ * a default format ID for the physical link. This function will use this
+ * default ID to choose the HW format to set the link's DAI format for init.
  */
-static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
-				  struct snd_soc_tplg_be_dai *be)
+static void set_link_hw_format(struct snd_soc_dai_link *link,
+			struct snd_soc_tplg_link_config *cfg)
+{
+	struct snd_soc_tplg_hw_config *hw_config;
+	unsigned char bclk_master, fsync_master;
+	unsigned char invert_bclk, invert_fsync;
+	int i;
+
+	for (i = 0; i < cfg->num_hw_configs; i++) {
+		hw_config = &cfg->hw_config[i];
+		if (hw_config->id != cfg->default_hw_config_id)
+			continue;
+
+		link->dai_fmt = hw_config->fmt & SND_SOC_DAIFMT_FORMAT_MASK;
+
+		/* clock signal polarity */
+		invert_bclk = hw_config->invert_bclk;
+		invert_fsync = hw_config->invert_fsync;
+		if (!invert_bclk && !invert_fsync)
+			link->dai_fmt |= SND_SOC_DAIFMT_NB_NF;
+		else if (!invert_bclk && invert_fsync)
+			link->dai_fmt |= SND_SOC_DAIFMT_NB_IF;
+		else if (invert_bclk && !invert_fsync)
+			link->dai_fmt |= SND_SOC_DAIFMT_IB_NF;
+		else
+			link->dai_fmt |= SND_SOC_DAIFMT_IB_IF;
+
+		/* clock masters */
+		bclk_master = hw_config->bclk_master;
+		fsync_master = hw_config->fsync_master;
+		if (!bclk_master && !fsync_master)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+		else if (bclk_master && !fsync_master)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
+		else if (!bclk_master && fsync_master)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
+		else
+			link->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	}
+}
+
+/**
+ * link_new_ver - Create a new physical link config from the old
+ * version of source.
+ * @toplogy: topology context
+ * @src: old version of phyical link config as a source
+ * @link: latest version of physical link config created from the source
+ *
+ * Support from vesion 4. User need free the returned link config manually.
+ */
+static int link_new_ver(struct soc_tplg *tplg,
+			struct snd_soc_tplg_link_config *src,
+			struct snd_soc_tplg_link_config **link)
+{
+	struct snd_soc_tplg_link_config *dest;
+	struct snd_soc_tplg_link_config_v4 *src_v4;
+	int i;
+
+	*link = NULL;
+
+	if (src->size != sizeof(struct snd_soc_tplg_link_config_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid physical link config size\n");
+		return -EINVAL;
+	}
+
+	dev_warn(tplg->dev, "ASoC: old version of physical link config\n");
+
+	src_v4 = (struct snd_soc_tplg_link_config_v4 *)src;
+	dest = kzalloc(sizeof(*dest), GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+
+	dest->size = sizeof(*dest);
+	dest->id = src_v4->id;
+	dest->num_streams = src_v4->num_streams;
+	for (i = 0; i < dest->num_streams; i++)
+		memcpy(&dest->stream[i], &src_v4->stream[i],
+		       sizeof(struct snd_soc_tplg_stream));
+
+	*link = dest;
+	return 0;
+}
+
+/* Find and configure an existing physical DAI link */
+static int soc_tplg_link_config(struct soc_tplg *tplg,
+	struct snd_soc_tplg_link_config *cfg)
+{
+	struct snd_soc_dai_link *link;
+	const char *name, *stream_name;
+	size_t len;
+	int ret;
+
+	len = strnlen(cfg->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	if (len == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+	else if (len)
+		name = cfg->name;
+	else
+		name = NULL;
+
+	len = strnlen(cfg->stream_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	if (len == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+	else if (len)
+		stream_name = cfg->stream_name;
+	else
+		stream_name = NULL;
+
+	link = snd_soc_find_dai_link(tplg->comp->card, cfg->id,
+				     name, stream_name);
+	if (!link) {
+		dev_err(tplg->dev, "ASoC: physical link %s (id %d) not exist\n",
+			name, cfg->id);
+		return -EINVAL;
+	}
+
+	/* hw format */
+	if (cfg->num_hw_configs)
+		set_link_hw_format(link, cfg);
+
+	/* flags */
+	if (cfg->flag_mask)
+		set_link_flags(link, cfg->flag_mask, cfg->flags);
+
+	/* pass control to component driver for optional further init */
+	ret = soc_tplg_dai_link_load(tplg, link);
+	if (ret < 0) {
+		dev_err(tplg->dev, "ASoC: physical link loading failed\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+
+/* Load physical link config elements from the topology context */
+static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
+	struct snd_soc_tplg_hdr *hdr)
+{
+	struct snd_soc_tplg_link_config *link, *_link;
+	int count = hdr->count;
+	int i, ret;
+	bool abi_match;
+
+	if (tplg->pass != SOC_TPLG_PASS_LINK) {
+		tplg->pos += hdr->size + hdr->payload_size;
+		return 0;
+	};
+
+	/* check the element size and count */
+	link = (struct snd_soc_tplg_link_config *)tplg->pos;
+	if (link->size > sizeof(struct snd_soc_tplg_link_config)
+		|| link->size < sizeof(struct snd_soc_tplg_link_config_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid size %d for physical link elems\n",
+			link->size);
+		return -EINVAL;
+	}
+
+	if (soc_tplg_check_elem_count(tplg,
+		link->size, count,
+		hdr->payload_size, "physical link config")) {
+		dev_err(tplg->dev, "ASoC: invalid count %d for physical link elems\n",
+			count);
+		return -EINVAL;
+	}
+
+	/* config physical DAI links */
+	for (i = 0; i < count; i++) {
+		link = (struct snd_soc_tplg_link_config *)tplg->pos;
+		if (link->size == sizeof(*link)) {
+			abi_match = true;
+			_link = link;
+		} else {
+			abi_match = false;
+			ret = link_new_ver(tplg, link, &_link);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret = soc_tplg_link_config(tplg, _link);
+		if (ret < 0)
+			return ret;
+
+		/* offset by version-specific struct size and
+		 * real priv data size
+		 */
+		tplg->pos += link->size + _link->priv.size;
+
+		if (!abi_match)
+			kfree(_link); /* free the duplicated one */
+	}
+
+	return 0;
+}
+
+/**
+ * soc_tplg_dai_config - Find and configure an existing physical DAI.
+ * @tplg: topology context
+ * @d: physical DAI configs.
+ *
+ * The physical dai should already be registered by the platform driver.
+ * The platform driver should specify the DAI name and ID for matching.
+ */
+static int soc_tplg_dai_config(struct soc_tplg *tplg,
+			       struct snd_soc_tplg_dai *d)
 {
 	struct snd_soc_dai_link_component dai_component = {0};
 	struct snd_soc_dai *dai;
@@ -1729,17 +2138,17 @@ static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
 	struct snd_soc_tplg_stream_caps *caps;
 	int ret;
 
-	dai_component.dai_name = be->dai_name;
+	dai_component.dai_name = d->dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(tplg->dev, "ASoC: BE DAI %s not registered\n",
-			be->dai_name);
+		dev_err(tplg->dev, "ASoC: physical DAI %s not registered\n",
+			d->dai_name);
 		return -EINVAL;
 	}
 
-	if (be->dai_id != dai->id) {
-		dev_err(tplg->dev, "ASoC: BE DAI %s id mismatch\n",
-			be->dai_name);
+	if (d->dai_id != dai->id) {
+		dev_err(tplg->dev, "ASoC: physical DAI %s id mismatch\n",
+			d->dai_name);
 		return -EINVAL;
 	}
 
@@ -1747,20 +2156,20 @@ static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
 	if (!dai_drv)
 		return -EINVAL;
 
-	if (be->playback) {
+	if (d->playback) {
 		stream = &dai_drv->playback;
-		caps = &be->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
+		caps = &d->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
 		set_stream_info(stream, caps);
 	}
 
-	if (be->capture) {
+	if (d->capture) {
 		stream = &dai_drv->capture;
-		caps = &be->caps[SND_SOC_TPLG_STREAM_CAPTURE];
+		caps = &d->caps[SND_SOC_TPLG_STREAM_CAPTURE];
 		set_stream_info(stream, caps);
 	}
 
-	if (be->flag_mask)
-		set_dai_flags(dai_drv, be->flag_mask, be->flags);
+	if (d->flag_mask)
+		set_dai_flags(dai_drv, d->flag_mask, d->flags);
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_load(tplg, dai_drv);
@@ -1772,10 +2181,11 @@ static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
 	return 0;
 }
 
-static int soc_tplg_be_dai_elems_load(struct soc_tplg *tplg,
-				      struct snd_soc_tplg_hdr *hdr)
+/* load physical DAI elements */
+static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
+				   struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_be_dai *be;
+	struct snd_soc_tplg_dai *dai;
 	int count = hdr->count;
 	int i;
 
@@ -1784,41 +2194,95 @@ static int soc_tplg_be_dai_elems_load(struct soc_tplg *tplg,
 
 	/* config the existing BE DAIs */
 	for (i = 0; i < count; i++) {
-		be = (struct snd_soc_tplg_be_dai *)tplg->pos;
-		if (be->size != sizeof(*be)) {
-			dev_err(tplg->dev, "ASoC: invalid BE DAI size\n");
+		dai = (struct snd_soc_tplg_dai *)tplg->pos;
+		if (dai->size != sizeof(*dai)) {
+			dev_err(tplg->dev, "ASoC: invalid physical DAI size\n");
 			return -EINVAL;
 		}
 
-		soc_tplg_be_dai_config(tplg, be);
-		tplg->pos += (sizeof(*be) + be->priv.size);
+		soc_tplg_dai_config(tplg, dai);
+		tplg->pos += (sizeof(*dai) + dai->priv.size);
 	}
 
 	dev_dbg(tplg->dev, "ASoC: Configure %d BE DAIs\n", count);
 	return 0;
 }
 
+/**
+ * manifest_new_ver - Create a new version of manifest from the old version
+ * of source.
+ * @toplogy: topology context
+ * @src: old version of manifest as a source
+ * @manifest: latest version of manifest created from the source
+ *
+ * Support from vesion 4. Users need free the returned manifest manually.
+ */
+static int manifest_new_ver(struct soc_tplg *tplg,
+			    struct snd_soc_tplg_manifest *src,
+			    struct snd_soc_tplg_manifest **manifest)
+{
+	struct snd_soc_tplg_manifest *dest;
+	struct snd_soc_tplg_manifest_v4 *src_v4;
+
+	*manifest = NULL;
+
+	if (src->size != sizeof(*src_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
+		return -EINVAL;
+	}
+
+	dev_warn(tplg->dev, "ASoC: old version of manifest\n");
+
+	src_v4 = (struct snd_soc_tplg_manifest_v4 *)src;
+	dest = kzalloc(sizeof(*dest) + src_v4->priv.size, GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+
+	dest->size = sizeof(*dest);	/* size of latest abi version */
+	dest->control_elems = src_v4->control_elems;
+	dest->widget_elems = src_v4->widget_elems;
+	dest->graph_elems = src_v4->graph_elems;
+	dest->pcm_elems = src_v4->pcm_elems;
+	dest->dai_link_elems = src_v4->dai_link_elems;
+	dest->priv.size = src_v4->priv.size;
+	if (dest->priv.size)
+		memcpy(dest->priv.data, src_v4->priv.data,
+		       src_v4->priv.size);
+
+	*manifest = dest;
+	return 0;
+}
 
 static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 				  struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_manifest *manifest;
+	struct snd_soc_tplg_manifest *manifest, *_manifest;
+	bool abi_match;
+	int err;
 
 	if (tplg->pass != SOC_TPLG_PASS_MANIFEST)
 		return 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
-	if (manifest->size != sizeof(*manifest)) {
-		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
-		return -EINVAL;
+
+	/* check ABI version by size, create a new manifest if abi not match */
+	if (manifest->size == sizeof(*manifest)) {
+		abi_match = true;
+		_manifest = manifest;
+	} else {
+		abi_match = false;
+		err = manifest_new_ver(tplg, manifest, &_manifest);
+		if (err < 0)
+			return err;
 	}
 
-	tplg->pos += sizeof(struct snd_soc_tplg_manifest);
-
+	/* pass control to component driver for optional further init */
 	if (tplg->comp && tplg->ops && tplg->ops->manifest)
-		return tplg->ops->manifest(tplg->comp, manifest);
+		return tplg->ops->manifest(tplg->comp, _manifest);
 
-	dev_err(tplg->dev, "ASoC: Firmware manifest not supported\n");
+	if (!abi_match)	/* free the duplicated one */
+		kfree(_manifest);
+
 	return 0;
 }
 
@@ -1854,7 +2318,9 @@ static int soc_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	if (hdr->abi != SND_SOC_TPLG_ABI_VERSION) {
+	/* Support ABI from version 4 */
+	if (hdr->abi > SND_SOC_TPLG_ABI_VERSION
+		|| hdr->abi < SND_SOC_TPLG_ABI_VERSION_MIN) {
 		dev_err(tplg->dev,
 			"ASoC: pass %d invalid ABI version got 0x%x need 0x%x at offset 0x%lx size 0x%zx.\n",
 			tplg->pass, hdr->abi,
@@ -1902,8 +2368,12 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 		return soc_tplg_dapm_widget_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_PCM:
 		return soc_tplg_pcm_elems_load(tplg, hdr);
-	case SND_SOC_TPLG_TYPE_BE_DAI:
-		return soc_tplg_be_dai_elems_load(tplg, hdr);
+	case SND_SOC_TPLG_TYPE_DAI:
+		return soc_tplg_dai_elems_load(tplg, hdr);
+	case SND_SOC_TPLG_TYPE_DAI_LINK:
+	case SND_SOC_TPLG_TYPE_BACKEND_LINK:
+		/* physical link configurations */
+		return soc_tplg_link_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_MANIFEST:
 		return soc_tplg_manifest_load(tplg, hdr);
 	default:

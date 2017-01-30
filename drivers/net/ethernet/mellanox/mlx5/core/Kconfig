@@ -14,12 +14,10 @@ config MLX5_CORE
 config MLX5_CORE_EN
 	bool "Mellanox Technologies ConnectX-4 Ethernet support"
 	depends on NETDEVICES && ETHERNET && PCI && MLX5_CORE
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	default n
 	---help---
 	  Ethernet support in Mellanox Technologies ConnectX-4 NIC.
-	  Ethernet and Infiniband support in ConnectX-4 are currently mutually
-	  exclusive.
 
 config MLX5_CORE_EN_DCB
 	bool "Data Center Bridging (DCB) Support"

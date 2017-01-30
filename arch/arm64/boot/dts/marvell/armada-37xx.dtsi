@@ -91,7 +91,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		internal-regs {
+		internal-regs@d0000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -105,7 +105,7 @@
 				status = "disabled";
 			};
 
-			nb_perih_clk: nb-periph-clk@13000{
+			nb_periph_clk: nb-periph-clk@13000 {
 				compatible = "marvell,armada-3700-periph-clock-nb";
 				reg = <0x13000 0x100>;
 				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
@@ -113,7 +113,7 @@
 				#clock-cells = <1>;
 			};
 
-			sb_perih_clk: sb-periph-clk@18000{
+			sb_periph_clk: sb-periph-clk@18000 {
 				compatible = "marvell,armada-3700-periph-clock-sb";
 				reg = <0x18000 0x100>;
 				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
@@ -138,6 +138,29 @@
 					clock-output-names = "xtal";
 					#clock-cells = <0>;
 				};
+			};
+
+			eth0: ethernet@30000 {
+				   compatible = "marvell,armada-3700-neta";
+				   reg = <0x30000 0x4000>;
+				   interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+				   clocks = <&sb_periph_clk 8>;
+				   status = "disabled";
+			};
+
+			mdio: mdio@32004 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,orion-mdio";
+				reg = <0x32004 0x4>;
+			};
+
+			eth1: ethernet@40000 {
+				compatible = "marvell,armada-3700-neta";
+				reg = <0x40000 0x4000>;
+				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&sb_periph_clk 7>;
+				status = "disabled";
 			};
 
 			usb3: usb@58000 {

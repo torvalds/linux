@@ -464,8 +464,7 @@ static int tm6000_load_std(struct tm6000_core *dev, struct tm6000_reg_settings *
 	for (i = 0; set[i].req; i++) {
 		rc = tm6000_set_reg(dev, set[i].req, set[i].reg, set[i].value);
 		if (rc < 0) {
-			printk(KERN_ERR "Error %i while setting "
-			       "req %d, reg %d to value %d\n",
+			printk(KERN_ERR "Error %i while setting req %d, reg %d to value %d\n",
 			       rc, set[i].req, set[i].reg, set[i].value);
 			return rc;
 		}

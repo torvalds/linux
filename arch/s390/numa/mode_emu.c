@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
+#include <linux/bootmem.h>
 #include <linux/node.h>
 #include <linux/memory.h>
 #include <linux/slab.h>
@@ -307,13 +308,11 @@ fail:
 /*
  * Allocate and initialize core to node mapping
  */
-static void create_core_to_node_map(void)
+static void __ref create_core_to_node_map(void)
 {
 	int i;
 
-	emu_cores = kzalloc(sizeof(*emu_cores), GFP_KERNEL);
-	if (emu_cores == NULL)
-		panic("Could not allocate cores to node memory");
+	emu_cores = memblock_virt_alloc(sizeof(*emu_cores), 8);
 	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
 		emu_cores->to_node_id[i] = NODE_ID_FREE;
 }
@@ -354,13 +353,13 @@ static struct toptree *toptree_from_topology(void)
 
 	phys = toptree_new(TOPTREE_ID_PHYS, 1);
 
-	for_each_online_cpu(cpu) {
-		top = &per_cpu(cpu_topology, cpu);
+	for_each_cpu(cpu, &cpus_with_topology) {
+		top = &cpu_topology[cpu];
 		node = toptree_get_child(phys, 0);
 		drawer = toptree_get_child(node, top->drawer_id);
 		book = toptree_get_child(drawer, top->book_id);
 		mc = toptree_get_child(book, top->socket_id);
-		core = toptree_get_child(mc, top->core_id);
+		core = toptree_get_child(mc, smp_get_base_cpu(cpu));
 		if (!drawer || !book || !mc || !core)
 			panic("NUMA emulation could not allocate memory");
 		cpumask_set_cpu(cpu, &core->mask);
@@ -378,7 +377,7 @@ static void topology_add_core(struct toptree *core)
 	int cpu;
 
 	for_each_cpu(cpu, &core->mask) {
-		top = &per_cpu(cpu_topology, cpu);
+		top = &cpu_topology[cpu];
 		cpumask_copy(&top->thread_mask, &core->mask);
 		cpumask_copy(&top->core_mask, &core_mc(core)->mask);
 		cpumask_copy(&top->book_mask, &core_book(core)->mask);
@@ -425,6 +424,27 @@ static void print_node_to_core_map(void)
 	}
 }
 
+static void pin_all_possible_cpus(void)
+{
+	int core_id, node_id, cpu;
+	static int initialized;
+
+	if (initialized)
+		return;
+	print_node_to_core_map();
+	node_id = 0;
+	for_each_possible_cpu(cpu) {
+		core_id = smp_get_base_cpu(cpu);
+		if (emu_cores->to_node_id[core_id] != NODE_ID_FREE)
+			continue;
+		pin_core_to_node(core_id, node_id);
+		cpu_topology[cpu].node_id = node_id;
+		node_id = (node_id + 1) % emu_nodes;
+	}
+	print_node_to_core_map();
+	initialized = 1;
+}
+
 /*
  * Transfer physical topology into a NUMA topology and modify CPU masks
  * according to the NUMA topology.
@@ -442,7 +462,7 @@ static void emu_update_cpu_topology(void)
 	toptree_free(phys);
 	toptree_to_topology(numa);
 	toptree_free(numa);
-	print_node_to_core_map();
+	pin_all_possible_cpus();
 }
 
 /*

@@ -74,7 +74,7 @@ struct tipc_monitor;
 #define MAX_BEARERS	         3
 #define TIPC_DEF_MON_THRESHOLD  32
 
-extern int tipc_net_id __read_mostly;
+extern unsigned int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 

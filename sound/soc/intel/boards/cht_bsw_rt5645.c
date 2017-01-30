@@ -44,6 +44,7 @@ struct cht_acpi_card {
 struct cht_mc_private {
 	struct snd_soc_jack jack;
 	struct cht_acpi_card *acpi_card;
+	char codec_name[16];
 };
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
@@ -250,11 +251,11 @@ static int cht_aif1_startup(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops cht_aif1_ops = {
+static const struct snd_soc_ops cht_aif1_ops = {
 	.startup = cht_aif1_startup,
 };
 
-static struct snd_soc_ops cht_be_ssp2_ops = {
+static const struct snd_soc_ops cht_be_ssp2_ops = {
 	.hw_params = cht_aif1_hw_params,
 };
 
@@ -354,7 +355,6 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	int i;
 	struct cht_mc_private *drv;
 	struct snd_soc_card *card = snd_soc_cards[0].soc_card;
-	char codec_name[16];
 	struct sst_acpi_mach *mach;
 	const char *i2c_name = NULL;
 	int dai_index = 0;
@@ -374,12 +374,12 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 	card->dev = &pdev->dev;
 	mach = card->dev->platform_data;
-	sprintf(codec_name, "i2c-%s:00", drv->acpi_card->codec_id);
+	sprintf(drv->codec_name, "i2c-%s:00", drv->acpi_card->codec_id);
 
 	/* set correct codec name */
 	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++)
 		if (!strcmp(card->dai_link[i].codec_name, "i2c-10EC5645:00")) {
-			card->dai_link[i].codec_name = kstrdup(codec_name, GFP_KERNEL);
+			card->dai_link[i].codec_name = drv->codec_name;
 			dai_index = i;
 		}
 

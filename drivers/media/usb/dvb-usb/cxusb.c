@@ -45,9 +45,6 @@
 #include "si2168.h"
 #include "si2157.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  80
-
 /* debug */
 static int dvb_usb_cxusb_debug;
 module_param_named(debug, dvb_usb_cxusb_debug, int, 0644);
@@ -61,23 +58,27 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 			  u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
-	int wo = (rbuf == NULL || rlen == 0); /* write-only */
-	u8 sndbuf[MAX_XFER_SIZE];
+	struct cxusb_state *st = d->priv;
+	int ret, wo;
 
-	if (1 + wlen > sizeof(sndbuf)) {
-		warn("i2c wr: len=%d is too big!\n",
-		     wlen);
+	if (1 + wlen > MAX_XFER_SIZE) {
+		warn("i2c wr: len=%d is too big!\n", wlen);
 		return -EOPNOTSUPP;
 	}
 
-	memset(sndbuf, 0, 1+wlen);
+	wo = (rbuf == NULL || rlen == 0); /* write-only */
 
-	sndbuf[0] = cmd;
-	memcpy(&sndbuf[1], wbuf, wlen);
+	mutex_lock(&d->data_mutex);
+	st->data[0] = cmd;
+	memcpy(&st->data[1], wbuf, wlen);
 	if (wo)
-		return dvb_usb_generic_write(d, sndbuf, 1+wlen);
+		ret = dvb_usb_generic_write(d, st->data, 1 + wlen);
 	else
-		return dvb_usb_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen, 0);
+		ret = dvb_usb_generic_rw(d, st->data, 1 + wlen,
+					 rbuf, rlen, 0);
+
+	mutex_unlock(&d->data_mutex);
+	return ret;
 }
 
 /* GPIO */
@@ -366,6 +367,26 @@ static int cxusb_aver_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		cxusb_ctrl_msg(adap->dev, CMD_AVER_STREAM_OFF,
 			       NULL, 0, NULL, 0);
 	return 0;
+}
+
+static int cxusb_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
+{
+	struct dvb_usb_adapter *adap = (struct dvb_usb_adapter *)fe->dvb->priv;
+	struct cxusb_state *state = (struct cxusb_state *)adap->dev->priv;
+	int ret;
+
+	ret = state->fe_read_status(fe, status);
+
+	/* it need resync slave fifo when signal change from unlock to lock.*/
+	if ((*status & FE_HAS_LOCK) && (!state->last_lock)) {
+		mutex_lock(&state->stream_mutex);
+		cxusb_streaming_ctrl(adap, 1);
+		mutex_unlock(&state->stream_mutex);
+	}
+
+	state->last_lock = (*status & FE_HAS_LOCK) ? 1 : 0;
+	return ret;
 }
 
 static void cxusb_d680_dmb_drain_message(struct dvb_usb_device *d)
@@ -1370,6 +1391,12 @@ static int cxusb_mygica_t230_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->i2c_client_tuner = client_tuner;
+
+	/* hook fe: need to resync the slave fifo when signal locks. */
+	mutex_init(&st->stream_mutex);
+	st->last_lock = 0;
+	st->fe_read_status = adap->fe_adap[0].fe->ops.read_status;
+	adap->fe_adap[0].fe->ops.read_status = cxusb_read_status;
 
 	return 0;
 }

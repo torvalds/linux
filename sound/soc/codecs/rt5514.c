@@ -452,6 +452,9 @@ static int rt5514_set_dmic_clk(struct snd_soc_dapm_widget *w,
 			RT5514_CLK_DMIC_OUT_SEL_MASK,
 			idx << RT5514_CLK_DMIC_OUT_SEL_SFT);
 
+	if (rt5514->pdata.dmic_init_delay)
+		msleep(rt5514->pdata.dmic_init_delay);
+
 	return idx;
 }
 
@@ -1073,9 +1076,18 @@ static const struct of_device_id rt5514_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
+static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
+		&rt5514->pdata.dmic_init_delay);
+
+	return 0;
+}
+
 static int rt5514_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
+	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
 	int ret;
 	unsigned int val;
@@ -1086,6 +1098,11 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5514);
+
+	if (pdata)
+		rt5514->pdata = *pdata;
+	else if (i2c->dev.of_node)
+		rt5514_parse_dt(rt5514, &i2c->dev);
 
 	rt5514->i2c_regmap = devm_regmap_init_i2c(i2c, &rt5514_i2c_regmap);
 	if (IS_ERR(rt5514->i2c_regmap)) {

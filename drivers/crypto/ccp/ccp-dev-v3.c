@@ -404,10 +404,6 @@ static int ccp_init(struct ccp_device *ccp)
 		goto e_pool;
 	}
 
-	/* Initialize the queues used to wait for KSB space and suspend */
-	init_waitqueue_head(&ccp->sb_queue);
-	init_waitqueue_head(&ccp->suspend_queue);
-
 	dev_dbg(dev, "Starting threads...\n");
 	/* Create a kthread for each queue */
 	for (i = 0; i < ccp->cmd_q_count; i++) {

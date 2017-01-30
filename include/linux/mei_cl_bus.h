@@ -8,8 +8,7 @@
 struct mei_cl_device;
 struct mei_device;
 
-typedef void (*mei_cldev_event_cb_t)(struct mei_cl_device *cldev,
-				     u32 events, void *context);
+typedef void (*mei_cldev_cb_t)(struct mei_cl_device *cldev);
 
 /**
  * struct mei_cl_device - MEI device handle
@@ -24,12 +23,12 @@ typedef void (*mei_cldev_event_cb_t)(struct mei_cl_device *cldev,
  * @me_cl: me client
  * @cl: mei client
  * @name: device name
- * @event_work: async work to execute event callback
- * @event_cb: Drivers register this callback to get asynchronous ME
- *	events (e.g. Rx buffer pending) notifications.
- * @event_context: event callback run context
- * @events_mask: Events bit mask requested by driver.
- * @events: Events bitmask sent to the driver.
+ * @rx_work: async work to execute Rx event callback
+ * @rx_cb: Drivers register this callback to get asynchronous ME
+ *	Rx buffer pending notifications.
+ * @notif_work: async work to execute FW notif event callback
+ * @notif_cb: Drivers register this callback to get asynchronous ME
+ *	FW notification pending notifications.
  *
  * @do_match: wheather device can be matched with a driver
  * @is_added: device is already scanned
@@ -44,11 +43,10 @@ struct mei_cl_device {
 	struct mei_cl *cl;
 	char name[MEI_CL_NAME_SIZE];
 
-	struct work_struct event_work;
-	mei_cldev_event_cb_t event_cb;
-	void *event_context;
-	unsigned long events_mask;
-	unsigned long events;
+	struct work_struct rx_work;
+	mei_cldev_cb_t rx_cb;
+	struct work_struct notif_work;
+	mei_cldev_cb_t notif_cb;
 
 	unsigned int do_match:1;
 	unsigned int is_added:1;
@@ -74,16 +72,27 @@ int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
 
 void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 
+/**
+ * module_mei_cl_driver - Helper macro for registering mei cl driver
+ *
+ * @__mei_cldrv: mei_cl_driver structure
+ *
+ *  Helper macro for mei cl drivers which do not do anything special in module
+ *  init/exit, for eliminating a boilerplate code.
+ */
+#define module_mei_cl_driver(__mei_cldrv) \
+	module_driver(__mei_cldrv, \
+		      mei_cldev_driver_register,\
+		      mei_cldev_driver_unregister)
+
 ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
-ssize_t  mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
+				size_t length);
 
-int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
-				unsigned long event_mask,
-				mei_cldev_event_cb_t read_cb, void *context);
-
-#define MEI_CL_EVENT_RX 0
-#define MEI_CL_EVENT_TX 1
-#define MEI_CL_EVENT_NOTIF 2
+int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb);
+int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
+				mei_cldev_cb_t notif_cb);
 
 const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev);
 u8 mei_cldev_ver(const struct mei_cl_device *cldev);

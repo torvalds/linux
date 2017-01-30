@@ -87,6 +87,8 @@
 #define mmSMC_IND_DATA_6                                                        0x8d
 #define mmSMC_IND_INDEX_7                                                       0x8e
 #define mmSMC_IND_DATA_7                                                        0x8f
+#define mmSMC_IND_INDEX_11														0x1AC
+#define mmSMC_IND_DATA_11														0x1AD
 #define mmSMC_IND_ACCESS_CNTL                                                   0x92
 #define mmSMC_MESSAGE_0                                                         0x94
 #define mmSMC_RESP_0                                                            0x95

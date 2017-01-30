@@ -1,7 +1,15 @@
 #ifndef ISCSI_TARGET_UTIL_H
 #define ISCSI_TARGET_UTIL_H
 
+#include <linux/types.h>
+#include <scsi/iscsi_proto.h>        /* itt_t */
+
 #define MARKER_SIZE	8
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_conn_recovery;
+struct iscsi_session;
 
 extern int iscsit_add_r2t_to_list(struct iscsi_cmd *, u32, u32, int, u32);
 extern struct iscsi_r2t *iscsit_get_r2t_for_eos(struct iscsi_cmd *, u32, u32);

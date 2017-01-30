@@ -80,7 +80,6 @@ union ramrod_data {
 	struct roce_destroy_qp_resp_ramrod_data roce_destroy_qp_resp;
 	struct roce_destroy_qp_req_ramrod_data roce_destroy_qp_req;
 	struct rdma_create_cq_ramrod_data rdma_create_cq;
-	struct rdma_resize_cq_ramrod_data rdma_resize_cq;
 	struct rdma_destroy_cq_ramrod_data rdma_destroy_cq;
 	struct rdma_srq_create_ramrod_data rdma_create_srq;
 	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
@@ -111,8 +110,8 @@ union qed_spq_req_comp {
 };
 
 struct qed_spq_comp_done {
-	u64	done;
-	u8	fw_return_code;
+	unsigned int	done;
+	u8		fw_return_code;
 };
 
 struct qed_spq_entry {

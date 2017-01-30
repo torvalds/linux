@@ -62,6 +62,7 @@ enum nfp_bpf_action_type {
 	NN_ACT_TC_DROP,
 	NN_ACT_TC_REDIR,
 	NN_ACT_DIRECT,
+	NN_ACT_XDP,
 };
 
 /* Software register representation, hardware encoding in asm.h */
