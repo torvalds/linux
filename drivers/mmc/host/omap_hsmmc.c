@@ -1527,16 +1527,24 @@ static int
 omap_hsmmc_prepare_data(struct omap_hsmmc_host *host, struct mmc_request *req)
 {
 	int ret;
+	unsigned int timeout;
+
 	host->data = req->data;
 
 	if (req->data == NULL) {
 		OMAP_HSMMC_WRITE(host->base, BLK, 0);
-		/*
-		 * Set an arbitrary 100ms data timeout for commands with
-		 * busy signal.
-		 */
-		if (req->cmd->flags & MMC_RSP_BUSY)
-			set_data_timeout(host, 100000000U, 0);
+		if (req->cmd->flags & MMC_RSP_BUSY) {
+			timeout = req->cmd->busy_timeout * NSEC_PER_MSEC;
+
+			/*
+			 * Set an arbitrary 100ms data timeout for commands with
+			 * busy signal and no indication of busy_timeout.
+			 */
+			if (!timeout)
+				timeout = 100000000U;
+
+			set_data_timeout(host, timeout, 0);
+		}
 		return 0;
 	}
 
