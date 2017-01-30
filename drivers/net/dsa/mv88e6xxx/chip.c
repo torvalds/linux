@@ -2917,9 +2917,6 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 	u16 val;
 	int err;
 
-	if (phy >= mv88e6xxx_num_ports(chip))
-		return 0xffff;
-
 	if (!chip->info->ops->phy_read)
 		return -EOPNOTSUPP;
 
@@ -2935,9 +2932,6 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
 	struct mv88e6xxx_chip *chip = mdio_bus->chip;
 	int err;
-
-	if (phy >= mv88e6xxx_num_ports(chip))
-		return 0xffff;
 
 	if (!chip->info->ops->phy_write)
 		return -EOPNOTSUPP;
