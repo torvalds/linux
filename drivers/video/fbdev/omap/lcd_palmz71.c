@@ -51,7 +51,7 @@ static unsigned long palmz71_panel_get_caps(struct lcd_panel *panel)
 	return OMAPFB_CAPS_SET_BACKLIGHT;
 }
 
-struct lcd_panel palmz71_panel = {
+static struct lcd_panel palmz71_panel = {
 	.name		= "palmz71",
 	.config		= OMAP_LCDC_PANEL_TFT | OMAP_LCDC_INV_VSYNC |
 			  OMAP_LCDC_INV_HSYNC | OMAP_LCDC_HSVS_RISING_EDGE |

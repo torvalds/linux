@@ -73,7 +73,7 @@ static unsigned long osk_panel_get_caps(struct lcd_panel *panel)
 	return 0;
 }
 
-struct lcd_panel osk_panel = {
+static struct lcd_panel osk_panel = {
 	.name		= "osk",
 	.config		= OMAP_LCDC_PANEL_TFT,
 

@@ -49,7 +49,7 @@ static unsigned long palmte_panel_get_caps(struct lcd_panel *panel)
 	return 0;
 }
 
-struct lcd_panel palmte_panel = {
+static struct lcd_panel palmte_panel = {
 	.name		= "palmte",
 	.config		= OMAP_LCDC_PANEL_TFT | OMAP_LCDC_INV_VSYNC |
 			  OMAP_LCDC_INV_HSYNC | OMAP_LCDC_HSVS_RISING_EDGE |

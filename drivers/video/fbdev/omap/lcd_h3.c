@@ -68,7 +68,7 @@ static unsigned long h3_panel_get_caps(struct lcd_panel *panel)
 	return 0;
 }
 
-struct lcd_panel h3_panel = {
+static struct lcd_panel h3_panel = {
 	.name		= "h3",
 	.config		= OMAP_LCDC_PANEL_TFT,
 

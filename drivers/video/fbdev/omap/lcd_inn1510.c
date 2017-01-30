@@ -53,7 +53,7 @@ static unsigned long innovator1510_panel_get_caps(struct lcd_panel *panel)
 	return 0;
 }
 
-struct lcd_panel innovator1510_panel = {
+static struct lcd_panel innovator1510_panel = {
 	.name		= "inn1510",
 	.config		= OMAP_LCDC_PANEL_TFT,
 

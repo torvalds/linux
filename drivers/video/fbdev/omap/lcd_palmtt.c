@@ -56,7 +56,7 @@ static unsigned long palmtt_panel_get_caps(struct lcd_panel *panel)
 	return OMAPFB_CAPS_SET_BACKLIGHT;
 }
 
-struct lcd_panel palmtt_panel = {
+static struct lcd_panel palmtt_panel = {
 	.name		= "palmtt",
 	.config		= OMAP_LCDC_PANEL_TFT | OMAP_LCDC_INV_VSYNC |
 			OMAP_LCDC_INV_HSYNC | OMAP_LCDC_HSVS_RISING_EDGE |
