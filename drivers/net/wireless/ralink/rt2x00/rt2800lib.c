@@ -373,9 +373,6 @@ static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
 	int i, count;
 
 	rt2800_register_read(rt2x00dev, WLAN_FUN_CTRL, &reg);
-	if (rt2x00_get_field32(reg, WLAN_EN))
-		return 0;
-
 	rt2x00_set_field32(&reg, WLAN_GPIO_OUT_OE_BIT_ALL, 0xff);
 	rt2x00_set_field32(&reg, FRC_WL_ANT_SET, 1);
 	rt2x00_set_field32(&reg, WLAN_CLK_EN, 0);
