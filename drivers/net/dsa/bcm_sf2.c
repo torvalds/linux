@@ -1045,6 +1045,8 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,
+	.get_rxnfc		= bcm_sf2_get_rxnfc,
+	.set_rxnfc		= bcm_sf2_set_rxnfc,
 };
 
 struct bcm_sf2_of_data {
@@ -1168,6 +1170,12 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->indir_lock);
 	mutex_init(&priv->stats_mutex);
+	mutex_init(&priv->cfp.lock);
+
+	/* CFP rule #0 cannot be used for specific classifications, flag it as
+	 * permanently used
+	 */
+	set_bit(0, priv->cfp.used);
 
 	bcm_sf2_identify_ports(priv, dn->child);
 
@@ -1195,6 +1203,12 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_err("failed to register MDIO bus\n");
 		return ret;
+	}
+
+	ret = bcm_sf2_cfp_rst(priv);
+	if (ret) {
+		pr_err("failed to reset CFP\n");
+		goto out_mdio;
 	}
 
 	/* Disable all interrupts and request them */
