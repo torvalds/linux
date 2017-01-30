@@ -155,13 +155,6 @@ static const struct platform_suspend_ops s5pv210_suspend_ops = {
  */
 static void s5pv210_pm_resume(void)
 {
-	u32 tmp;
-
-	tmp = __raw_readl(S5P_OTHERS);
-	tmp |= (S5P_OTHERS_RET_IO | S5P_OTHERS_RET_CF |\
-		S5P_OTHERS_RET_MMC | S5P_OTHERS_RET_UART);
-	__raw_writel(tmp , S5P_OTHERS);
-
 	s3c_pm_do_restore_core(s5pv210_core_save, ARRAY_SIZE(s5pv210_core_save));
 }
 

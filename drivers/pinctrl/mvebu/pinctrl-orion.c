@@ -32,7 +32,8 @@
 static void __iomem *mpp_base;
 static void __iomem *high_mpp_base;
 
-static int orion_mpp_ctrl_get(unsigned pid, unsigned long *config)
+static int orion_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data,
+			      unsigned pid, unsigned long *config)
 {
 	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
 
@@ -47,7 +48,8 @@ static int orion_mpp_ctrl_get(unsigned pid, unsigned long *config)
 	return 0;
 }
 
-static int orion_mpp_ctrl_set(unsigned pid, unsigned long config)
+static int orion_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data,
+			      unsigned pid, unsigned long config)
 {
 	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
 
@@ -161,7 +163,7 @@ static struct mvebu_mpp_mode orion_mpp_modes[] = {
 		 MPP_VAR_FUNCTION(0x5, "gpio", NULL,        V_5182)),
 };
 
-static struct mvebu_mpp_ctrl orion_mpp_controls[] = {
+static const struct mvebu_mpp_ctrl orion_mpp_controls[] = {
 	MPP_FUNC_CTRL(0, 19, NULL, orion_mpp_ctrl),
 };
 

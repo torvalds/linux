@@ -113,7 +113,6 @@ static int da850_pupd_pin_config_group_set(struct pinctrl_dev *pctldev,
 	struct da850_pupd_data *data = pinctrl_dev_get_drvdata(pctldev);
 	u32 ena, sel;
 	enum pin_config_param param;
-	u16 arg;
 	int i;
 
 	ena = readl(data->base + DA850_PUPD_ENA);
@@ -121,7 +120,6 @@ static int da850_pupd_pin_config_group_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
-		arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -194,6 +192,7 @@ static const struct of_device_id da850_pupd_of_match[] = {
 	{ .compatible = "ti,da850-pupd" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, da850_pupd_of_match);
 
 static struct platform_driver da850_pupd_driver = {
 	.driver	= {

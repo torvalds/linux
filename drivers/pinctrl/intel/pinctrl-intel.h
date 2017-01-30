@@ -58,6 +58,7 @@ struct intel_function {
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
  *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc.
  * @npins: Number of pins in this community
+ * @features: Additional features supported by the hardware
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  * @ngpps: Number of groups (hw groups) in this community (reserved for
@@ -72,10 +73,15 @@ struct intel_community {
 	unsigned pin_base;
 	unsigned gpp_size;
 	size_t npins;
+	unsigned features;
 	void __iomem *regs;
 	void __iomem *pad_regs;
 	size_t ngpps;
 };
+
+/* Additional features supported by the hardware */
+#define PINCTRL_FEATURE_DEBOUNCE	BIT(0)
+#define PINCTRL_FEATURE_1K_PD		BIT(1)
 
 #define PIN_GROUP(n, p, m)			\
 	{					\
@@ -121,8 +127,6 @@ struct intel_pinctrl_soc_data {
 
 int intel_pinctrl_probe(struct platform_device *pdev,
 			const struct intel_pinctrl_soc_data *soc_data);
-int intel_pinctrl_remove(struct platform_device *pdev);
-
 #ifdef CONFIG_PM_SLEEP
 int intel_pinctrl_suspend(struct device *dev);
 int intel_pinctrl_resume(struct device *dev);

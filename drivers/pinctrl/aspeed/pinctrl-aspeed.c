@@ -14,6 +14,12 @@
 #include "../core.h"
 #include "pinctrl-aspeed.h"
 
+static const char *const aspeed_pinmux_ips[] = {
+	[ASPEED_IP_SCU] = "SCU",
+	[ASPEED_IP_GFX] = "GFX",
+	[ASPEED_IP_LPC] = "LPC",
+};
+
 int aspeed_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
@@ -78,7 +84,8 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 static inline void aspeed_sig_desc_print_val(
 		const struct aspeed_sig_desc *desc, bool enable, u32 rv)
 {
-	pr_debug("SCU%x[0x%08x]=0x%x, got 0x%x from 0x%08x\n", desc->reg,
+	pr_debug("Want %s%X[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
+			aspeed_pinmux_ips[desc->ip], desc->reg,
 			desc->mask, enable ? desc->enable : desc->disable,
 			(rv & desc->mask) >> __ffs(desc->mask), rv);
 }
@@ -88,10 +95,11 @@ static inline void aspeed_sig_desc_print_val(
  *
  * @desc: The signal descriptor of interest
  * @enabled: True to query the enabled state, false to query disabled state
- * @regmap: The SCU regmap instance
+ * @regmap: The IP block's regmap instance
  *
- * @return True if the descriptor's bitfield is configured to the state
- * selected by @enabled, false otherwise
+ * Return: 1 if the descriptor's bitfield is configured to the state
+ * selected by @enabled, 0 if not, and less than zero if an unrecoverable
+ * failure occurred
  *
  * Evaluation of descriptor state is non-trivial in that it is not a binary
  * outcome: The bitfields can be greater than one bit in size and thus can take
@@ -99,14 +107,19 @@ static inline void aspeed_sig_desc_print_val(
  * descriptor (typically this means a different function to the one of interest
  * is enabled). Thus we must explicitly test for either condition as required.
  */
-static bool aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
+static int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
 				 bool enabled, struct regmap *map)
 {
+	int ret;
 	unsigned int raw;
 	u32 want;
 
-	if (regmap_read(map, desc->reg, &raw) < 0)
-		return false;
+	if (!map)
+		return -ENODEV;
+
+	ret = regmap_read(map, desc->reg, &raw);
+	if (ret)
+		return ret;
 
 	aspeed_sig_desc_print_val(desc, enabled, raw);
 	want = enabled ? desc->enable : desc->disable;
@@ -119,10 +132,10 @@ static bool aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
  *
  * @expr: An expression controlling the signal for a mux function on a pin
  * @enabled: True to query the enabled state, false to query disabled state
- * @regmap: The SCU regmap instance
+ * @maps: The list of regmap instances
  *
- * @return True if the expression composed by @enabled evaluates true, false
- * otherwise
+ * Return: 1 if the expression composed by @enabled evaluates true, 0 if not,
+ * and less than zero if an unrecoverable failure occurred.
  *
  * A mux function is enabled or disabled if the function's signal expression
  * for each pin in the function's pin group evaluates true for the desired
@@ -135,19 +148,21 @@ static bool aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
  * neither the enabled nor disabled state. Thus we must explicitly test for
  * either condition as required.
  */
-static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
-				 bool enabled, struct regmap *map)
+static int aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
+				 bool enabled, struct regmap * const *maps)
 {
 	int i;
+	int ret;
 
 	for (i = 0; i < expr->ndescs; i++) {
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
 
-		if (!aspeed_sig_desc_eval(desc, enabled, map))
-			return false;
+		ret = aspeed_sig_desc_eval(desc, enabled, maps[desc->ip]);
+		if (ret <= 0)
+			return ret;
 	}
 
-	return true;
+	return 1;
 }
 
 /**
@@ -158,19 +173,24 @@ static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
  *        configured
  * @enable: true to enable an function's signal through a pin's signal
  *          expression, false to disable the function's signal
- * @map: The SCU's regmap instance for pinmux register access.
+ * @maps: The list of regmap instances for pinmux register access.
  *
- * @return true if the expression is configured as requested, false otherwise
+ * Return: 0 if the expression is configured as requested and a negative error
+ * code otherwise
  */
-static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
-				bool enable, struct regmap *map)
+static int aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
+				bool enable, struct regmap * const *maps)
 {
+	int ret;
 	int i;
 
 	for (i = 0; i < expr->ndescs; i++) {
-		bool ret;
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
 		u32 pattern = enable ? desc->enable : desc->disable;
+		u32 val = (pattern << __ffs(desc->mask));
+
+		if (!maps[desc->ip])
+			return -ENODEV;
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
@@ -179,64 +199,79 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 */
-		if (desc->reg == HW_STRAP1 || desc->reg == HW_STRAP2)
+		if ((desc->reg == HW_STRAP1 || desc->reg == HW_STRAP2) &&
+				desc->ip == ASPEED_IP_SCU)
 			continue;
 
-		ret = regmap_update_bits(map, desc->reg, desc->mask,
-				pattern << __ffs(desc->mask)) == 0;
+		ret = regmap_update_bits(maps[desc->ip], desc->reg,
+					 desc->mask, val);
 
-		if (!ret)
+		if (ret)
 			return ret;
 	}
 
-	return aspeed_sig_expr_eval(expr, enable, map);
+	ret = aspeed_sig_expr_eval(expr, enable, maps);
+	if (ret < 0)
+		return ret;
+
+	if (!ret)
+		return -EPERM;
+
+	return 0;
 }
 
-static bool aspeed_sig_expr_enable(const struct aspeed_sig_expr *expr,
-				   struct regmap *map)
+static int aspeed_sig_expr_enable(const struct aspeed_sig_expr *expr,
+				   struct regmap * const *maps)
 {
-	if (aspeed_sig_expr_eval(expr, true, map))
-		return true;
+	int ret;
 
-	return aspeed_sig_expr_set(expr, true, map);
+	ret = aspeed_sig_expr_eval(expr, true, maps);
+	if (ret < 0)
+		return ret;
+
+	if (!ret)
+		return aspeed_sig_expr_set(expr, true, maps);
+
+	return 0;
 }
 
-static bool aspeed_sig_expr_disable(const struct aspeed_sig_expr *expr,
-				    struct regmap *map)
+static int aspeed_sig_expr_disable(const struct aspeed_sig_expr *expr,
+				    struct regmap * const *maps)
 {
-	if (!aspeed_sig_expr_eval(expr, true, map))
-		return true;
+	int ret;
 
-	return aspeed_sig_expr_set(expr, false, map);
+	ret = aspeed_sig_expr_eval(expr, true, maps);
+	if (ret < 0)
+		return ret;
+
+	if (ret)
+		return aspeed_sig_expr_set(expr, false, maps);
+
+	return 0;
 }
 
 /**
  * Disable a signal on a pin by disabling all provided signal expressions.
  *
  * @exprs: The list of signal expressions (from a priority level on a pin)
- * @map: The SCU's regmap instance for pinmux register access.
+ * @maps: The list of regmap instances for pinmux register access.
  *
- * @return true if all expressions in the list are successfully disabled, false
- * otherwise
+ * Return: 0 if all expressions are disabled, otherwise a negative error code
  */
-static bool aspeed_disable_sig(const struct aspeed_sig_expr **exprs,
-			       struct regmap *map)
+static int aspeed_disable_sig(const struct aspeed_sig_expr **exprs,
+			       struct regmap * const *maps)
 {
-	bool disabled = true;
+	int ret = 0;
 
 	if (!exprs)
 		return true;
 
-	while (*exprs) {
-		bool ret;
-
-		ret = aspeed_sig_expr_disable(*exprs, map);
-		disabled = disabled && ret;
-
+	while (*exprs && !ret) {
+		ret = aspeed_sig_expr_disable(*exprs, maps);
 		exprs++;
 	}
 
-	return disabled;
+	return ret;
 }
 
 /**
@@ -246,8 +281,8 @@ static bool aspeed_disable_sig(const struct aspeed_sig_expr **exprs,
  * @exprs: List of signal expressions (haystack)
  * @name: The name of the requested function (needle)
  *
- * @return A pointer to the signal expression whose function tag matches the
- *         provided name, otherwise NULL.
+ * Return: A pointer to the signal expression whose function tag matches the
+ * provided name, otherwise NULL.
  *
  */
 static const struct aspeed_sig_expr *aspeed_find_expr_by_name(
@@ -330,6 +365,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			  unsigned int group)
 {
 	int i;
+	int ret;
 	const struct aspeed_pinctrl_data *pdata =
 		pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_pin_group *pgroup = &pdata->groups[group];
@@ -342,6 +378,8 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		const struct aspeed_sig_expr *expr = NULL;
 		const struct aspeed_sig_expr **funcs;
 		const struct aspeed_sig_expr ***prios;
+
+		pr_debug("Muxing pin %d for %s\n", pin, pfunc->name);
 
 		if (!pdesc)
 			return -EINVAL;
@@ -358,8 +396,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			if (expr)
 				break;
 
-			if (!aspeed_disable_sig(funcs, pdata->map))
-				return -EPERM;
+			ret = aspeed_disable_sig(funcs, pdata->maps);
+			if (ret)
+				return ret;
 
 			prios++;
 		}
@@ -377,8 +416,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			return -ENXIO;
 		}
 
-		if (!aspeed_sig_expr_enable(expr, pdata->map))
-			return -EPERM;
+		ret = aspeed_sig_expr_enable(expr, pdata->maps);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -414,6 +454,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range,
 			       unsigned int offset)
 {
+	int ret;
 	const struct aspeed_pinctrl_data *pdata =
 		pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_pin_desc *pdesc = pdata->pins[offset].drv_data;
@@ -432,8 +473,9 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 		if (aspeed_gpio_in_exprs(funcs))
 			break;
 
-		if (!aspeed_disable_sig(funcs, pdata->map))
-			return -EPERM;
+		ret = aspeed_disable_sig(funcs, pdata->maps);
+		if (ret)
+			return ret;
 
 		prios++;
 	}
@@ -462,10 +504,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	 * If GPIO is not the lowest priority signal type, assume there is only
 	 * one expression defined to enable the GPIO function
 	 */
-	if (!aspeed_sig_expr_enable(expr, pdata->map))
-		return -EPERM;
-
-	return 0;
+	return aspeed_sig_expr_enable(expr, pdata->maps);
 }
 
 int aspeed_pinctrl_probe(struct platform_device *pdev,
@@ -481,10 +520,10 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	pdata->map = syscon_node_to_regmap(parent->of_node);
-	if (IS_ERR(pdata->map)) {
+	pdata->maps[ASPEED_IP_SCU] = syscon_node_to_regmap(parent->of_node);
+	if (IS_ERR(pdata->maps[ASPEED_IP_SCU])) {
 		dev_err(&pdev->dev, "No regmap for syscon pincontroller parent\n");
-		return PTR_ERR(pdata->map);
+		return PTR_ERR(pdata->maps[ASPEED_IP_SCU]);
 	}
 
 	pctl = pinctrl_register(pdesc, &pdev->dev, pdata);
