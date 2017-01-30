@@ -1563,7 +1563,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
 
 	work_done = sxgbe_rx(priv, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		priv->hw->dma->enable_dma_irq(priv->ioaddr, qnum);
 	}
 

@@ -429,7 +429,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 
 	if (rx_count < budget) {
 		/* No more work */
-		napi_complete(napi);
+		napi_complete_done(napi, rx_count);
 		enable_irq(rx_group->irq);
 	}
 	return rx_count;

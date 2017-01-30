@@ -902,7 +902,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		b44_enable_ints(bp);
 	}
 

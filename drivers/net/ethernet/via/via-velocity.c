@@ -2160,7 +2160,7 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	velocity_tx_srv(vptr);
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 		mac_enable_int(vptr->mac_regs);
 	}
 	spin_unlock_irqrestore(&vptr->lock, flags);

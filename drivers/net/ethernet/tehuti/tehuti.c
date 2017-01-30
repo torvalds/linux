@@ -303,7 +303,7 @@ static int bdx_poll(struct napi_struct *napi, int budget)
 		 * device lock and allow waiting tasks (eg rmmod) to advance) */
 		priv->napi_stop = 0;
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		bdx_enable_interrupts(priv);
 	}
 	return work_done;

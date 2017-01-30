@@ -987,7 +987,7 @@ restart_poll:
 
 	if (frames_processed < budget) {
 		enable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);
-		napi_complete(napi);
+		napi_complete_done(napi, frames_processed);
 		if (pending_scrq(adapter, adapter->rx_scrq[scrq_num]) &&
 		    napi_reschedule(napi)) {
 			disable_scrq_irq(adapter, adapter->rx_scrq[scrq_num]);

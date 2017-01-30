@@ -1343,7 +1343,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 		 * exit polling
 		 */
 
-		napi_complete(napi);
+		napi_complete_done(napi, rq_work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[0]);
 		vnic_intr_unmask(&enic->intr[intr]);
@@ -1500,7 +1500,7 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 		 * exit polling
 		 */
 
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_set_int_moderation(enic, &enic->rq[rq]);
 		vnic_intr_unmask(&enic->intr[intr]);

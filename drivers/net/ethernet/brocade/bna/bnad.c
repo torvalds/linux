@@ -1881,7 +1881,7 @@ bnad_napi_poll_rx(struct napi_struct *napi, int budget)
 		return rcvd;
 
 poll_exit:
-	napi_complete(napi);
+	napi_complete_done(napi, rcvd);
 
 	rx_ctrl->rx_complete++;
 

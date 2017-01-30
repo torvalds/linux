@@ -749,7 +749,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* Slow packet rate, exit polling */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Re-enable interrupts */
 		cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD,
 					       cq->cq_idx);

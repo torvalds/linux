@@ -3786,7 +3786,7 @@ static int niu_poll(struct napi_struct *napi, int budget)
 	work_done = niu_poll_core(np, lp, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		niu_ldg_rearm(np, lp, 1);
 	}
 	return work_done;

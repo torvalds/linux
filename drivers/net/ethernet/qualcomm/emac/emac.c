@@ -129,7 +129,7 @@ static int emac_napi_rtx(struct napi_struct *napi, int budget)
 	emac_mac_rx_process(adpt, rx_q, &work_done, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		irq->mask |= rx_q->intr;
 		writel(irq->mask, adpt->base + EMAC_INT_MASK);

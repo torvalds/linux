@@ -942,7 +942,7 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 	}
 
 	if (num_rx < budget) {
-		napi_complete(napi_rx);
+		napi_complete_done(napi_rx, num_rx);
 		writel(0xff, &cpsw->wr_regs->rx_en);
 		if (cpsw->quirk_irq && cpsw->rx_irq_disabled) {
 			cpsw->rx_irq_disabled = false;

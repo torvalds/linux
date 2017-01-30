@@ -1155,7 +1155,7 @@ static int fjes_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		if (adapter->unset_rx_last) {
 			adapter->rx_last_jiffies = jiffies;

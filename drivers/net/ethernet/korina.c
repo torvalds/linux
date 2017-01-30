@@ -464,7 +464,7 @@ static int korina_poll(struct napi_struct *napi, int budget)
 
 	work_done = korina_rx(dev, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		writel(readl(&lp->rx_dma_regs->dmasm) &
 			~(DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR),

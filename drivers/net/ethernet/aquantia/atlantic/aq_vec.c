@@ -97,7 +97,7 @@ __acquires(&self->lock)
 			work_done = budget;
 
 		if (work_done < budget) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			self->aq_hw_ops->hw_irq_enable(self->aq_hw,
 					1U << self->aq_ring_param.vec_idx);
 		}

@@ -2265,7 +2265,7 @@ static int natsemi_poll(struct napi_struct *napi, int budget)
 		np->intr_status = readl(ioaddr + IntrStatus);
 	} while (np->intr_status);
 
-	napi_complete(napi);
+	napi_complete_done(napi, work_done);
 
 	/* Reenable interrupts providing nothing is trying to shut
 	 * the chip down. */

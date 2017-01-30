@@ -2799,7 +2799,7 @@ static int ath10k_pci_napi_poll(struct napi_struct *ctx, int budget)
 	done = ath10k_htt_txrx_compl_task(ar, budget);
 
 	if (done < budget) {
-		napi_complete(ctx);
+		napi_complete_done(ctx, done);
 		/* In case of MSI, it is possible that interrupts are received
 		 * while NAPI poll is inprogress. So pending interrupts that are
 		 * received after processing all copy engine pipes by NAPI poll

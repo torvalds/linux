@@ -3749,7 +3749,7 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 	if (rx_work < budget) {
 		/* re-enable interrupts
 		   (msix not enabled in napi) */
-		napi_complete(napi);
+		napi_complete_done(napi, rx_work);
 
 		writel(np->irqmask, base + NvRegIrqMask);
 	}

@@ -860,7 +860,7 @@ int sunvnet_poll_common(struct napi_struct *napi, int budget)
 	int processed = vnet_event_napi(port, budget);
 
 	if (processed < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 		port->rx_event &= ~LDC_EVENT_DATA_READY;
 		vio_set_intr(vio->vdev->rx_ino, HV_INTR_ENABLED);
 	}

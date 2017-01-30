@@ -614,7 +614,7 @@ static int ethoc_poll(struct napi_struct *napi, int budget)
 	tx_work_done = ethoc_tx(priv->netdev, budget);
 
 	if (rx_work_done < budget && tx_work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_work_done);
 		ethoc_enable_irq(priv, INT_MASK_TX | INT_MASK_RX);
 	}
 

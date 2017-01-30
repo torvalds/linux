@@ -2001,7 +2001,7 @@ static int dpaa_eth_poll(struct napi_struct *napi, int budget)
 	int cleaned = qman_p_poll_dqrr(np->p, budget);
 
 	if (cleaned < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, cleaned);
 		qman_p_irqsource_add(np->p, QM_PIRQ_DQRI);
 
 	} else if (np->down) {

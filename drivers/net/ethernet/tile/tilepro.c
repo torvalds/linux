@@ -842,7 +842,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	napi_complete(&info->napi);
+	napi_complete_done(&info->napi, work);
 
 	if (!priv->active)
 		goto done;

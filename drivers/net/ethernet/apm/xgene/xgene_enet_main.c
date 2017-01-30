@@ -840,7 +840,7 @@ static int xgene_enet_napi(struct napi_struct *napi, const int budget)
 	processed = xgene_enet_process_ring(ring, budget);
 
 	if (processed != budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, processed);
 		enable_irq(ring->irq);
 	}
 

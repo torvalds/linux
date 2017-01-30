@@ -2767,11 +2767,9 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 			rx_done = mvneta_rx_swbm(pp, budget, &pp->rxqs[rx_queue]);
 	}
 
-	budget -= rx_done;
-
-	if (budget > 0) {
+	if (rx_done < budget) {
 		cause_rx_tx = 0;
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 
 		if (pp->neta_armada3700) {
 			unsigned long flags;

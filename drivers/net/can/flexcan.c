@@ -703,7 +703,7 @@ static int flexcan_poll(struct napi_struct *napi, int quota)
 		work_done += flexcan_poll_bus_err(dev, reg_esr);
 
 	if (work_done < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* enable IRQs */
 		flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
 		flexcan_write(priv->reg_ctrl_default, &regs->ctrl);

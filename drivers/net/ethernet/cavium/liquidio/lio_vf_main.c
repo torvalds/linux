@@ -1631,7 +1631,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	if ((work_done < budget) && (tx_done)) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
 					     POLL_EVENT_ENABLE_INTR, 0);
 		return 0;

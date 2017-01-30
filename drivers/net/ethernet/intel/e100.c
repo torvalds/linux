@@ -2253,7 +2253,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		e100_enable_irq(nic);
 	}
 

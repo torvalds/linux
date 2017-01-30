@@ -1090,7 +1090,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 
 	work_done = bp->macbgem_ops.mog_rx(bp, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		/* Packets received while interrupts were disabled */
 		status = macb_readl(bp, RSR);

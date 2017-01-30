@@ -1261,7 +1261,7 @@ static int pxa168_rx_poll(struct napi_struct *napi, int budget)
 	}
 	work_done = rxq_process(dev, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		wrl(pep, INT_MASK, ALL_INTS);
 	}
 

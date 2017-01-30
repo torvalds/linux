@@ -68,7 +68,7 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	done = budget - quota;
 
 	if (done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, done);
 		wil6210_unmask_irq_rx(wil);
 		wil_dbg_txrx(wil, "NAPI RX complete\n");
 	}

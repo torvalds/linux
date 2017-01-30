@@ -1759,7 +1759,7 @@ static int bnxt_poll_nitroa0(struct napi_struct *napi, int budget)
 	}
 
 	if (!bnxt_has_work(bp, cpr) && rx_pkts < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_pkts);
 		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
 	}
 	return rx_pkts;

@@ -555,7 +555,7 @@ refill:
 		priv->reg_inten |= RCV_INT;
 		writel_relaxed(priv->reg_inten, priv->base + PPE_INTEN);
 	}
-	napi_complete(napi);
+	napi_complete_done(napi, rx);
 done:
 	/* clean up tx descriptors and start a new timer if necessary */
 	tx_remaining = hip04_tx_reclaim(ndev, false);

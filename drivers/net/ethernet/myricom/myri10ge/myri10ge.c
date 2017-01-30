@@ -1678,7 +1678,7 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 
 	myri10ge_ss_unlock_napi(ss);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		put_be32(htonl(3), ss->irq_claim);
 	}
 	return work_done;

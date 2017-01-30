@@ -1823,8 +1823,8 @@ static int vxge_poll_msix(struct napi_struct *napi, int budget)
 	vxge_hw_vpath_poll_rx(ring->handle);
 	pkts_processed = ring->pkts_processed;
 
-	if (ring->pkts_processed < budget_org) {
-		napi_complete(napi);
+	if (pkts_processed < budget_org) {
+		napi_complete_done(napi, pkts_processed);
 
 		/* Re enable the Rx interrupts for the vpath */
 		vxge_hw_channel_msix_unmask(
@@ -1863,7 +1863,7 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
 	VXGE_COMPLETE_ALL_TX(vdev);
 
 	if (pkts_processed < budget_org) {
-		napi_complete(napi);
+		napi_complete_done(napi, pkts_processed);
 		/* Re enable the Rx interrupts for the ring */
 		vxge_hw_device_unmask_all(hldev);
 		vxge_hw_device_flush_io(hldev);

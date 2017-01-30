@@ -513,7 +513,7 @@ static int tse_poll(struct napi_struct *napi, int budget)
 
 	if (rxcomplete < budget) {
 
-		napi_complete(napi);
+		napi_complete_done(napi, rxcomplete);
 
 		netdev_dbg(priv->dev,
 			   "NAPI Complete, did %d packets with budget %d\n",

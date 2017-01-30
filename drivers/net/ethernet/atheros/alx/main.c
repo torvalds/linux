@@ -311,7 +311,7 @@ static int alx_poll(struct napi_struct *napi, int budget)
 	if (!tx_complete || work == budget)
 		return budget;
 
-	napi_complete(&np->napi);
+	napi_complete_done(&np->napi, work);
 
 	/* enable interrupt */
 	if (alx->flags & ALX_FLAG_USING_MSIX) {

@@ -2385,7 +2385,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		poll_end_flag = true;
 
 	if (poll_end_flag) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		pch_gbe_irq_enable(adapter);
 	}
 
