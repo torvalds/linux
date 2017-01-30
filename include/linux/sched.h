@@ -734,13 +734,14 @@ struct signal_struct {
 	unsigned int		is_child_subreaper:1;
 	unsigned int		has_child_subreaper:1;
 
+#ifdef CONFIG_POSIX_TIMERS
+
 	/* POSIX.1b Interval Timers */
 	int			posix_timer_id;
 	struct list_head	posix_timers;
 
 	/* ITIMER_REAL timer for the process */
 	struct hrtimer real_timer;
-	struct pid *leader_pid;
 	ktime_t it_real_incr;
 
 	/*
@@ -759,11 +760,15 @@ struct signal_struct {
 	/* Earliest-expiration cache. */
 	struct task_cputime cputime_expires;
 
+	struct list_head cpu_timers[3];
+
+#endif
+
+	struct pid *leader_pid;
+
 #ifdef CONFIG_NO_HZ_FULL
 	atomic_t tick_dep_mask;
 #endif
-
-	struct list_head cpu_timers[3];
 
 	struct pid *tty_old_pgrp;
 
@@ -1691,8 +1696,10 @@ struct task_struct {
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
+#ifdef CONFIG_POSIX_TIMERS
 	struct task_cputime cputime_expires;
 	struct list_head cpu_timers[3];
+#endif
 
 /* process credentials */
 	const struct cred __rcu *ptracer_cred; /* Tracer's credentials at attach */

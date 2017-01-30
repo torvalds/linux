@@ -1275,51 +1275,14 @@ error: /* even if we error out, we forwarded the time, so call update */
 }
 EXPORT_SYMBOL(timekeeping_inject_offset);
 
-
 /**
- * timekeeping_get_tai_offset - Returns current TAI offset from UTC
- *
- */
-s32 timekeeping_get_tai_offset(void)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	unsigned int seq;
-	s32 ret;
-
-	do {
-		seq = read_seqcount_begin(&tk_core.seq);
-		ret = tk->tai_offset;
-	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	return ret;
-}
-
-/**
- * __timekeeping_set_tai_offset - Lock free worker function
+ * __timekeeping_set_tai_offset - Sets the TAI offset from UTC and monotonic
  *
  */
 static void __timekeeping_set_tai_offset(struct timekeeper *tk, s32 tai_offset)
 {
 	tk->tai_offset = tai_offset;
 	tk->offs_tai = ktime_add(tk->offs_real, ktime_set(tai_offset, 0));
-}
-
-/**
- * timekeeping_set_tai_offset - Sets the current TAI offset from UTC
- *
- */
-void timekeeping_set_tai_offset(s32 tai_offset)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&timekeeper_lock, flags);
-	write_seqcount_begin(&tk_core.seq);
-	__timekeeping_set_tai_offset(tk, tai_offset);
-	timekeeping_update(tk, TK_MIRROR | TK_CLOCK_WAS_SET);
-	write_seqcount_end(&tk_core.seq);
-	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
-	clock_was_set();
 }
 
 /**
