@@ -1117,7 +1117,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	struct dma_fence *exclusive;
 	int r;
 
-	if (clear) {
+	if (clear || !bo_va->bo) {
 		mem = NULL;
 		nodes = NULL;
 		exclusive = NULL;
@@ -1134,9 +1134,15 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		exclusive = reservation_object_get_excl(bo_va->bo->tbo.resv);
 	}
 
-	flags = amdgpu_ttm_tt_pte_flags(adev, bo_va->bo->tbo.ttm, mem);
-	gtt_flags = (amdgpu_ttm_is_bound(bo_va->bo->tbo.ttm) &&
-		adev == amdgpu_ttm_adev(bo_va->bo->tbo.bdev)) ? flags : 0;
+	if (bo_va->bo) {
+		flags = amdgpu_ttm_tt_pte_flags(adev, bo_va->bo->tbo.ttm, mem);
+		gtt_flags = (amdgpu_ttm_is_bound(bo_va->bo->tbo.ttm) &&
+			adev == amdgpu_ttm_adev(bo_va->bo->tbo.bdev)) ?
+			flags : 0;
+	} else {
+		flags = 0x0;
+		gtt_flags = ~0x0;
+	}
 
 	spin_lock(&vm->status_lock);
 	if (!list_empty(&bo_va->vm_status))
@@ -1271,7 +1277,8 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->invalids);
 	INIT_LIST_HEAD(&bo_va->vm_status);
 
-	list_add_tail(&bo_va->bo_list, &bo->va);
+	if (bo)
+		list_add_tail(&bo_va->bo_list, &bo->va);
 
 	return bo_va;
 }
@@ -1309,7 +1316,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 	/* make sure object fit at this offset */
 	eaddr = saddr + size - 1;
-	if ((saddr >= eaddr) || (offset + size > amdgpu_bo_size(bo_va->bo)))
+	if (saddr >= eaddr ||
+	    (bo_va->bo && offset + size > amdgpu_bo_size(bo_va->bo)))
 		return -EINVAL;
 
 	last_pfn = eaddr / AMDGPU_GPU_PAGE_SIZE;
