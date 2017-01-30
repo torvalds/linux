@@ -220,8 +220,8 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 
 	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
 
-	args->vram_size = rdev->mc.real_vram_size;
-	args->vram_visible = (u64)man->size << PAGE_SHIFT;
+	args->vram_size = (u64)man->size << PAGE_SHIFT;
+	args->vram_visible = rdev->mc.visible_vram_size;
 	args->vram_visible -= rdev->vram_pin_size;
 	args->gart_size = rdev->mc.gtt_size;
 	args->gart_size -= rdev->gart_pin_size;
