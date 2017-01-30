@@ -372,8 +372,6 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 
 	spin_lock_init(&ws16c48gpio->lock);
 
-	dev_set_drvdata(dev, ws16c48gpio);
-
 	err = devm_gpiochip_add_data(dev, &ws16c48gpio->chip, ws16c48gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
