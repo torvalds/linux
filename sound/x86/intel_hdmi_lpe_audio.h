@@ -642,7 +642,6 @@ struct hdmi_audio_event {
 	int type;
 };
 
-bool mid_hdmi_audio_is_busy(void *dev);
 void mid_hdmi_audio_signal_event(enum had_event_type event);
 
 int mid_hdmi_audio_read(u32 reg, u32 *val);

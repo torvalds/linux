@@ -83,29 +83,6 @@ static struct hdmi_lpe_audio_ctx *get_hdmi_context(void)
 	return ctx;
 }
 
-/*
- * return whether HDMI audio device is busy.
- */
-bool mid_hdmi_audio_is_busy(void *ddev)
-{
-	struct hdmi_lpe_audio_ctx *ctx;
-	int hdmi_audio_busy = 0;
-	struct hdmi_audio_event hdmi_audio_event;
-
-	dev_dbg(&hlpe_pdev->dev, "%s: Enter",  __func__);
-
-	ctx = platform_get_drvdata(hlpe_pdev);
-
-	if (hlpe_state == hdmi_connector_status_disconnected) {
-		/* HDMI is not connected, assuming audio device is idle. */
-		return false;
-	}
-
-	hdmi_audio_event.type = HAD_EVENT_QUERY_IS_AUDIO_BUSY;
-	hdmi_audio_busy = hdmi_audio_query(ctx->had, hdmi_audio_event);
-	return hdmi_audio_busy != 0;
-}
-
 void mid_hdmi_audio_signal_event(enum had_event_type event)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
