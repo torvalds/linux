@@ -1042,13 +1042,8 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		}
 	}
 
-	/* Nuke the existing Config, as we're going to rewrite it */
-	val &= ~(STRTAB_STE_0_CFG_MASK << STRTAB_STE_0_CFG_SHIFT);
-
-	if (ste->valid)
-		val |= STRTAB_STE_0_V;
-	else
-		val &= ~STRTAB_STE_0_V;
+	/* Nuke the existing STE_0 value, as we're going to rewrite it */
+	val = ste->valid ? STRTAB_STE_0_V : 0;
 
 	if (ste->bypass) {
 		val |= disable_bypass ? STRTAB_STE_0_CFG_ABORT
@@ -1083,7 +1078,6 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		val |= (ste->s1_cfg->cdptr_dma & STRTAB_STE_0_S1CTXPTR_MASK
 		        << STRTAB_STE_0_S1CTXPTR_SHIFT) |
 			STRTAB_STE_0_CFG_S1_TRANS;
-
 	}
 
 	if (ste->s2_cfg) {
@@ -1983,17 +1977,9 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 	u32 size, l1size;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
 
-	/*
-	 * If we can resolve everything with a single L2 table, then we
-	 * just need a single L1 descriptor. Otherwise, calculate the L1
-	 * size, capped to the SIDSIZE.
-	 */
-	if (smmu->sid_bits < STRTAB_SPLIT) {
-		size = 0;
-	} else {
-		size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
-		size = min(size, smmu->sid_bits - STRTAB_SPLIT);
-	}
+	/* Calculate the L1 size, capped to the SIDSIZE. */
+	size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
+	size = min(size, smmu->sid_bits - STRTAB_SPLIT);
 	cfg->num_l1_ents = 1 << size;
 
 	size += STRTAB_SPLIT;
@@ -2503,6 +2489,13 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	/* SID/SSID sizes */
 	smmu->ssid_bits = reg >> IDR1_SSID_SHIFT & IDR1_SSID_MASK;
 	smmu->sid_bits = reg >> IDR1_SID_SHIFT & IDR1_SID_MASK;
+
+	/*
+	 * If the SMMU supports fewer bits than would fill a single L2 stream
+	 * table, use a linear table instead.
+	 */
+	if (smmu->sid_bits <= STRTAB_SPLIT)
+		smmu->features &= ~ARM_SMMU_FEAT_2_LVL_STRTAB;
 
 	/* IDR5 */
 	reg = readl_relaxed(smmu->base + ARM_SMMU_IDR5);
