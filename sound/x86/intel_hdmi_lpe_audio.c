@@ -37,7 +37,6 @@
 #include "intel_hdmi_audio.h"
 
 /* globals*/
-static int hlpe_state;
 static union otm_hdmi_eld_t hlpe_eld;
 
 struct hdmi_lpe_audio_ctx {
@@ -51,6 +50,7 @@ struct hdmi_lpe_audio_ctx {
 	unsigned int had_config_offset;
 	int hdmi_audio_interrupt_mask;
 	struct work_struct hdmi_audio_wq;
+	int state; /* connection state */
 };
 
 static void hdmi_set_eld(void *eld)
@@ -263,10 +263,9 @@ static void notify_audio_lpe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
 
-		if (hlpe_state == hdmi_connector_status_connected) {
+		if (ctx->state == hdmi_connector_status_connected) {
 
-			hlpe_state =
-				hdmi_connector_status_disconnected;
+			ctx->state = hdmi_connector_status_disconnected;
 
 			mid_hdmi_audio_signal_event(pdev,
 				HAD_EVENT_HOT_UNPLUG);
@@ -297,7 +296,7 @@ static void notify_audio_lpe(struct platform_device *pdev)
 
 		mid_hdmi_audio_signal_event(pdev, HAD_EVENT_HOT_PLUG);
 
-		hlpe_state = hdmi_connector_status_connected;
+		ctx->state = hdmi_connector_status_connected;
 
 		dev_dbg(&pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
 			__func__, eld->port_id,	pdata->tmds_clock_speed);
@@ -338,9 +337,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Enter %s\n", __func__);
 
-	/*TBD:remove globals*/
-	hlpe_state = hdmi_connector_status_disconnected;
-
 	/* get resources */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -378,6 +374,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->mmio_start = mmio_start;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
 	INIT_WORK(&ctx->hdmi_audio_wq, _had_wq);
+	ctx->state = hdmi_connector_status_disconnected;
 
 	if (pci_dev_present(cherryview_ids))
 		dev_dbg(&pdev->dev, "%s: Cherrytrail LPE - Detected\n",
@@ -468,9 +465,9 @@ static int hdmi_lpe_audio_suspend(struct platform_device *pdev,
 {
 	struct hdmi_lpe_audio_ctx *ctx = platform_get_drvdata(pdev);
 
-	dev_dbg(&pdev->dev, "%s: hlpe_state %d",  __func__, hlpe_state);
+	dev_dbg(&pdev->dev, "%s: state %d",  __func__, ctx->state);
 	/* HDMI is not connected, assuming audio device is suspended already */
-	if (hlpe_state != hdmi_connector_status_disconnected)
+	if (ctx->state != hdmi_connector_status_disconnected)
 		hdmi_audio_suspend(ctx->had);
 	return 0;
 }
@@ -479,9 +476,9 @@ static int hdmi_lpe_audio_resume(struct platform_device *pdev)
 {
 	struct hdmi_lpe_audio_ctx *ctx = platform_get_drvdata(pdev);
 
-	dev_dbg(&pdev->dev, "%s: hlpe_state %d",  __func__, hlpe_state);
+	dev_dbg(&pdev->dev, "%s: state %d",  __func__, ctx->state);
 	/* HDMI is not connected, there is no need to resume audio device */
-	if (hlpe_state != hdmi_connector_status_disconnected)
+	if (ctx->state != hdmi_connector_status_disconnected)
 		hdmi_audio_resume(ctx->had);
 	return 0;
 }
