@@ -560,7 +560,6 @@ sas_domain_attach_transport(struct sas_domain_function_template *dft)
 	i = to_sas_internal(stt);
 	i->dft = dft;
 	stt->create_work_queue = 1;
-	stt->eh_timed_out = sas_scsi_timed_out;
 	stt->eh_strategy_handler = sas_scsi_recover_host;
 
 	return stt;
