@@ -341,6 +341,22 @@ static irqreturn_t ws16c48_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define WS16C48_NGPIO 48
+static const char *ws16c48_names[WS16C48_NGPIO] = {
+	"Port 0 Bit 0", "Port 0 Bit 1", "Port 0 Bit 2", "Port 0 Bit 3",
+	"Port 0 Bit 4", "Port 0 Bit 5", "Port 0 Bit 6", "Port 0 Bit 7",
+	"Port 1 Bit 0", "Port 1 Bit 1", "Port 1 Bit 2", "Port 1 Bit 3",
+	"Port 1 Bit 4", "Port 1 Bit 5", "Port 1 Bit 6", "Port 1 Bit 7",
+	"Port 2 Bit 0", "Port 2 Bit 1", "Port 2 Bit 2", "Port 2 Bit 3",
+	"Port 2 Bit 4", "Port 2 Bit 5", "Port 2 Bit 6", "Port 2 Bit 7",
+	"Port 3 Bit 0", "Port 3 Bit 1", "Port 3 Bit 2", "Port 3 Bit 3",
+	"Port 3 Bit 4", "Port 3 Bit 5", "Port 3 Bit 6", "Port 3 Bit 7",
+	"Port 4 Bit 0", "Port 4 Bit 1", "Port 4 Bit 2", "Port 4 Bit 3",
+	"Port 4 Bit 4", "Port 4 Bit 5", "Port 4 Bit 6", "Port 4 Bit 7",
+	"Port 5 Bit 0", "Port 5 Bit 1", "Port 5 Bit 2", "Port 5 Bit 3",
+	"Port 5 Bit 4", "Port 5 Bit 5", "Port 5 Bit 6", "Port 5 Bit 7"
+};
+
 static int ws16c48_probe(struct device *dev, unsigned int id)
 {
 	struct ws16c48_gpio *ws16c48gpio;
@@ -361,7 +377,8 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.parent = dev;
 	ws16c48gpio->chip.owner = THIS_MODULE;
 	ws16c48gpio->chip.base = -1;
-	ws16c48gpio->chip.ngpio = 48;
+	ws16c48gpio->chip.ngpio = WS16C48_NGPIO;
+	ws16c48gpio->chip.names = ws16c48_names;
 	ws16c48gpio->chip.get_direction = ws16c48_gpio_get_direction;
 	ws16c48gpio->chip.direction_input = ws16c48_gpio_direction_input;
 	ws16c48gpio->chip.direction_output = ws16c48_gpio_direction_output;
