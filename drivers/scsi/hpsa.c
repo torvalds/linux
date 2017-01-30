@@ -9263,13 +9263,9 @@ static int hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 		access = SA5_ioaccel_mode1_access;
 		writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
 		writel(4, &h->cfgtable->HostWrite.CoalIntCount);
-	} else {
-		if (trans_support & CFGTBL_Trans_io_accel2) {
+	} else
+		if (trans_support & CFGTBL_Trans_io_accel2)
 			access = SA5_ioaccel_mode2_access;
-			writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
-			writel(4, &h->cfgtable->HostWrite.CoalIntCount);
-		}
-	}
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	if (hpsa_wait_for_mode_change_ack(h)) {
 		dev_err(&h->pdev->dev,
