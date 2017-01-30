@@ -198,6 +198,8 @@ extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
 extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
+extern long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
+			struct kvm_memory_slot *memslot, unsigned long *map);
 
 /* XXX remove this export when load_last_inst() is generic */
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
@@ -228,8 +230,11 @@ extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 extern long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 			unsigned long pte_index, unsigned long avpn,
 			unsigned long *hpret);
-extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
+extern long kvmppc_hv_get_dirty_log_hpt(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
+extern void kvmppc_harvest_vpa_dirty(struct kvmppc_vpa *vpa,
+			struct kvm_memory_slot *memslot,
+			unsigned long *map);
 extern void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr,
 			unsigned long mask);
 extern void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr);

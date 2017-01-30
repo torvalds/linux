@@ -2961,8 +2961,10 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int r;
+	int i, r;
 	unsigned long n;
+	unsigned long *buf;
+	struct kvm_vcpu *vcpu;
 
 	mutex_lock(&kvm->slots_lock);
 
@@ -2976,15 +2978,32 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 	if (!memslot->dirty_bitmap)
 		goto out;
 
+	/*
+	 * Use second half of bitmap area because radix accumulates
+	 * bits in the first half.
+	 */
 	n = kvm_dirty_bitmap_bytes(memslot);
-	memset(memslot->dirty_bitmap, 0, n);
+	buf = memslot->dirty_bitmap + n / sizeof(long);
+	memset(buf, 0, n);
 
-	r = kvmppc_hv_get_dirty_log(kvm, memslot, memslot->dirty_bitmap);
+	if (kvm_is_radix(kvm))
+		r = kvmppc_hv_get_dirty_log_radix(kvm, memslot, buf);
+	else
+		r = kvmppc_hv_get_dirty_log_hpt(kvm, memslot, buf);
 	if (r)
 		goto out;
 
+	/* Harvest dirty bits from VPA and DTL updates */
+	/* Note: we never modify the SLB shadow buffer areas */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		kvmppc_harvest_vpa_dirty(&vcpu->arch.vpa, memslot, buf);
+		kvmppc_harvest_vpa_dirty(&vcpu->arch.dtl, memslot, buf);
+		spin_unlock(&vcpu->arch.vpa_update_lock);
+	}
+
 	r = -EFAULT;
-	if (copy_to_user(log->dirty_bitmap, memslot->dirty_bitmap, n))
+	if (copy_to_user(log->dirty_bitmap, buf, n))
 		goto out;
 
 	r = 0;
@@ -3037,7 +3056,7 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 	if (npages)
 		atomic64_inc(&kvm->arch.mmio_update);
 
-	if (npages && old->npages) {
+	if (npages && old->npages && !kvm_is_radix(kvm)) {
 		/*
 		 * If modifying a memslot, reset all the rmap dirty bits.
 		 * If this is a new memslot, we don't need to do anything
@@ -3046,7 +3065,7 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 		 */
 		slots = kvm_memslots(kvm);
 		memslot = id_to_memslot(slots, mem->slot);
-		kvmppc_hv_get_dirty_log(kvm, memslot, NULL);
+		kvmppc_hv_get_dirty_log_hpt(kvm, memslot, NULL);
 	}
 }
 

@@ -158,18 +158,21 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	asm volatile("ptesync": : :"memory");
 }
 
-void kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep, unsigned long clr,
-			     unsigned long set, unsigned long addr,
-			     unsigned int shift)
+unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
+				      unsigned long clr, unsigned long set,
+				      unsigned long addr, unsigned int shift)
 {
+	unsigned long old = 0;
+
 	if (!(clr & _PAGE_PRESENT) && cpu_has_feature(CPU_FTR_POWER9_DD1) &&
 	    pte_present(*ptep)) {
 		/* have to invalidate it first */
-		__radix_pte_update(ptep, _PAGE_PRESENT, 0);
+		old = __radix_pte_update(ptep, _PAGE_PRESENT, 0);
 		kvmppc_radix_tlbie_page(kvm, addr, shift);
 		set |= _PAGE_PRESENT;
+		old &= _PAGE_PRESENT;
 	}
-	__radix_pte_update(ptep, clr, set);
+	return __radix_pte_update(ptep, clr, set) | old;
 }
 
 void kvmppc_radix_set_pte_at(struct kvm *kvm, unsigned long addr,
@@ -197,6 +200,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	pud_t *pud, *new_pud = NULL;
 	pmd_t *pmd, *new_pmd = NULL;
 	pte_t *ptep, *new_ptep = NULL;
+	unsigned long old;
 	int ret;
 
 	/* Traverse the guest's 2nd-level tree, allocate new levels needed */
@@ -262,9 +266,11 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		ptep = pte_offset_kernel(pmd, gpa);
 		if (pte_present(*ptep)) {
 			/* PTE was previously valid, so invalidate it */
-			kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
-						0, gpa, 0);
+			old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
+						      0, gpa, 0);
 			kvmppc_radix_tlbie_page(kvm, gpa, 0);
+			if (old & _PAGE_DIRTY)
+				mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
 		}
 		kvmppc_radix_set_pte_at(kvm, gpa, ptep, pte);
 	} else {
@@ -463,6 +469,26 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 }
 
+static void mark_pages_dirty(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			     unsigned long gfn, unsigned int order)
+{
+	unsigned long i, limit;
+	unsigned long *dp;
+
+	if (!memslot->dirty_bitmap)
+		return;
+	limit = 1ul << order;
+	if (limit < BITS_PER_LONG) {
+		for (i = 0; i < limit; ++i)
+			mark_page_dirty(kvm, gfn + i);
+		return;
+	}
+	dp = memslot->dirty_bitmap + (gfn - memslot->base_gfn);
+	limit /= BITS_PER_LONG;
+	for (i = 0; i < limit; ++i)
+		*dp++ = ~0ul;
+}
+
 /* Called with kvm->lock held */
 int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		    unsigned long gfn)
@@ -470,13 +496,21 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	pte_t *ptep;
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
+	unsigned long old;
 
 	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
 					   NULL, &shift);
 	if (ptep && pte_present(*ptep)) {
-		kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
-					gpa, shift);
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT, 0,
+					      gpa, shift);
 		kvmppc_radix_tlbie_page(kvm, gpa, shift);
+		if (old & _PAGE_DIRTY) {
+			if (!shift)
+				mark_page_dirty(kvm, gfn);
+			else
+				mark_pages_dirty(kvm, memslot,
+						 gfn, shift - PAGE_SHIFT);
+		}
 	}
 	return 0;				
 }
@@ -515,6 +549,65 @@ int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	if (ptep && pte_present(*ptep) && pte_young(*ptep))
 		ref = 1;
 	return ref;
+}
+
+/* Returns the number of PAGE_SIZE pages that are dirty */
+static int kvm_radix_test_clear_dirty(struct kvm *kvm,
+				struct kvm_memory_slot *memslot, int pagenum)
+{
+	unsigned long gfn = memslot->base_gfn + pagenum;
+	unsigned long gpa = gfn << PAGE_SHIFT;
+	pte_t *ptep;
+	unsigned int shift;
+	int ret = 0;
+
+	ptep = __find_linux_pte_or_hugepte(kvm->arch.pgtable, gpa,
+					   NULL, &shift);
+	if (ptep && pte_present(*ptep) && pte_dirty(*ptep)) {
+		ret = 1;
+		if (shift)
+			ret = 1 << (shift - PAGE_SHIFT);
+		kvmppc_radix_update_pte(kvm, ptep, _PAGE_DIRTY, 0,
+					gpa, shift);
+		kvmppc_radix_tlbie_page(kvm, gpa, shift);
+	}
+	return ret;
+}
+
+long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
+			struct kvm_memory_slot *memslot, unsigned long *map)
+{
+	unsigned long i, j;
+	unsigned long n, *p;
+	int npages;
+
+	/*
+	 * Radix accumulates dirty bits in the first half of the
+	 * memslot's dirty_bitmap area, for when pages are paged
+	 * out or modified by the host directly.  Pick up these
+	 * bits and add them to the map.
+	 */
+	n = kvm_dirty_bitmap_bytes(memslot) / sizeof(long);
+	p = memslot->dirty_bitmap;
+	for (i = 0; i < n; ++i)
+		map[i] |= xchg(&p[i], 0);
+
+	for (i = 0; i < memslot->npages; i = j) {
+		npages = kvm_radix_test_clear_dirty(kvm, memslot, i);
+
+		/*
+		 * Note that if npages > 0 then i must be a multiple of npages,
+		 * since huge pages are only used to back the guest at guest
+		 * real addresses that are a multiple of their size.
+		 * Since we have at most one PTE covering any given guest
+		 * real address, if npages > 1 we can skip to i + npages.
+		 */
+		j = i + 1;
+		if (npages)
+			for (j = i; npages; ++j, --npages)
+				__set_bit_le(j, map);
+	}
+	return 0;
 }
 
 void kvmppc_free_radix(struct kvm *kvm)
