@@ -1897,7 +1897,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 	if (cfg->fc_encap) {
 		struct lwtunnel_state *lwtstate;
 
-		err = lwtunnel_build_state(dev, cfg->fc_encap_type,
+		err = lwtunnel_build_state(cfg->fc_encap_type,
 					   cfg->fc_encap, AF_INET6, cfg,
 					   &lwtstate);
 		if (err)

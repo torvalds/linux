@@ -303,7 +303,7 @@ drop:
 	return err;
 }
 
-static int seg6_build_state(struct net_device *dev, struct nlattr *nla,
+static int seg6_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts)
 {
