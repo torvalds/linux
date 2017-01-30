@@ -830,6 +830,31 @@ EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+	 /*
+	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
+	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
+	  * code to save that value into the guest state (it is the guest's PPR
+	  * value). Otherwise just change to HMT_MEDIUM as userspace has
+	  * already saved the PPR.
+	  */
+#define SYSCALL_KVMTEST							\
+	SET_SCRATCH0(r13);						\
+	GET_PACA(r13);							\
+	std	r9,PACA_EXGEN+EX_R9(r13);				\
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);			\
+	HMT_MEDIUM;							\
+	std	r10,PACA_EXGEN+EX_R10(r13);				\
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);	\
+	mfcr	r9;							\
+	KVMTEST_PR(0xc00);						\
+	GET_SCRATCH0(r13)
+
+#else
+#define SYSCALL_KVMTEST							\
+	HMT_MEDIUM
+#endif
+	
 #define LOAD_SYSCALL_HANDLER(reg)					\
 	__LOAD_HANDLER(reg, system_call_common)
 
@@ -883,34 +908,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 #endif
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0xd00)
-	 /*
-	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
-	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
-	  * code to save that value into the guest state (it is the guest's PPR
-	  * value). Otherwise just change to HMT_MEDIUM as userspace has
-	  * already saved the PPR.
-	  */
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	std	r9,PACA_EXGEN+EX_R9(r13)
-	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);
-	HMT_MEDIUM;
-	std	r10,PACA_EXGEN+EX_R10(r13)
-	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);
-	mfcr	r9
-	KVMTEST_PR(0xc00)
-	GET_SCRATCH0(r13)
-#else
-	HMT_MEDIUM;
-#endif
+	SYSCALL_KVMTEST
 	SYSCALL_PSERIES_1
 	SYSCALL_PSERIES_2_RFID
 	SYSCALL_PSERIES_3
 EXC_REAL_END(system_call, 0xc00, 0xd00)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x4d00)
-	HMT_MEDIUM
+	SYSCALL_KVMTEST
 	SYSCALL_PSERIES_1
 	SYSCALL_PSERIES_2_DIRECT
 	SYSCALL_PSERIES_3
@@ -925,7 +930,7 @@ TRAMP_KVM(PACA_EXGEN, 0xd00)
 EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 
 EXC_REAL_OOL_HV(h_data_storage, 0xe00, 0xe20)
-EXC_VIRT_NONE(0x4e00, 0x4e20)
+EXC_VIRT_OOL_HV(h_data_storage, 0x4e00, 0x4e20, 0xe00)
 TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0xe00)
 EXC_COMMON_BEGIN(h_data_storage_common)
 	mfspr   r10,SPRN_HDAR
@@ -941,7 +946,7 @@ EXC_COMMON_BEGIN(h_data_storage_common)
 
 
 EXC_REAL_OOL_HV(h_instr_storage, 0xe20, 0xe40)
-EXC_VIRT_NONE(0x4e20, 0x4e40)
+EXC_VIRT_OOL_HV(h_instr_storage, 0x4e20, 0x4e40, 0xe20)
 TRAMP_KVM_HV(PACA_EXGEN, 0xe20)
 EXC_COMMON(h_instr_storage_common, 0xe20, unknown_exception)
 
