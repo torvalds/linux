@@ -1851,7 +1851,7 @@ error_param:
 }
 
 /* If the VF is not trusted restrict the number of MAC/VLAN it can program */
-#define I40E_VC_MAX_MAC_ADDR_PER_VF 8
+#define I40E_VC_MAX_MAC_ADDR_PER_VF 12
 #define I40E_VC_MAX_VLAN_PER_VF 8
 
 /**
