@@ -764,7 +764,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 
 static int clcdfb_of_init_display(struct clcd_fb *fb)
 {
-	struct device_node *endpoint;
+	struct device_node *endpoint, *panel;
 	int err;
 	unsigned int bpp;
 	u32 max_bandwidth;
@@ -781,8 +781,12 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	if (!endpoint)
 		return -ENODEV;
 
+	panel = of_graph_get_remote_port_parent(endpoint);
+	if (!panel)
+		return -ENODEV;
+
 	if (fb->vendor->init_panel) {
-		err = fb->vendor->init_panel(fb, endpoint);
+		err = fb->vendor->init_panel(fb, panel);
 		if (err)
 			return err;
 	}
