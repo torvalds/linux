@@ -29,16 +29,6 @@
 
 #include "omapfb.h"
 
-static int osk_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
-{
-	/* gpio2 was allocated in board init */
-	return 0;
-}
-
-static void osk_panel_cleanup(struct lcd_panel *panel)
-{
-}
-
 static int osk_panel_enable(struct lcd_panel *panel)
 {
 	/* configure PWL pin */
@@ -68,11 +58,6 @@ static void osk_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(2, 0);
 }
 
-static unsigned long osk_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel osk_panel = {
 	.name		= "osk",
 	.config		= OMAP_LCDC_PANEL_TFT,
@@ -90,11 +75,8 @@ static struct lcd_panel osk_panel = {
 	.vbp		= 0,
 	.pcd		= 12,
 
-	.init		= osk_panel_init,
-	.cleanup	= osk_panel_cleanup,
 	.enable		= osk_panel_enable,
 	.disable	= osk_panel_disable,
-	.get_caps	= osk_panel_get_caps,
 };
 
 static int osk_panel_probe(struct platform_device *pdev)

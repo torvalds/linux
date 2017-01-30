@@ -26,26 +26,6 @@
 
 #include "omapfb.h"
 
-static int palmz71_panel_init(struct lcd_panel *panel,
-			      struct omapfb_device *fbdev)
-{
-	return 0;
-}
-
-static void palmz71_panel_cleanup(struct lcd_panel *panel)
-{
-
-}
-
-static int palmz71_panel_enable(struct lcd_panel *panel)
-{
-	return 0;
-}
-
-static void palmz71_panel_disable(struct lcd_panel *panel)
-{
-}
-
 static unsigned long palmz71_panel_get_caps(struct lcd_panel *panel)
 {
 	return OMAPFB_CAPS_SET_BACKLIGHT;
@@ -69,10 +49,6 @@ static struct lcd_panel palmz71_panel = {
 	.vbp		= 7,
 	.pcd		= 0,
 
-	.init		= palmz71_panel_init,
-	.cleanup	= palmz71_panel_cleanup,
-	.enable		= palmz71_panel_enable,
-	.disable	= palmz71_panel_disable,
 	.get_caps	= palmz71_panel_get_caps,
 };
 

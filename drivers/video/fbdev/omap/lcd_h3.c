@@ -28,15 +28,6 @@
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 
-static int h3_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
-{
-	return 0;
-}
-
-static void h3_panel_cleanup(struct lcd_panel *panel)
-{
-}
-
 static int h3_panel_enable(struct lcd_panel *panel)
 {
 	int r = 0;
@@ -63,11 +54,6 @@ static void h3_panel_disable(struct lcd_panel *panel)
 		pr_err(MODULE_NAME ": Unable to turn off LCD panel\n");
 }
 
-static unsigned long h3_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel h3_panel = {
 	.name		= "h3",
 	.config		= OMAP_LCDC_PANEL_TFT,
@@ -85,11 +71,8 @@ static struct lcd_panel h3_panel = {
 	.vbp		= 0,
 	.pcd		= 0,
 
-	.init		= h3_panel_init,
-	.cleanup	= h3_panel_cleanup,
 	.enable		= h3_panel_enable,
 	.disable	= h3_panel_disable,
-	.get_caps	= h3_panel_get_caps,
 };
 
 static int h3_panel_probe(struct platform_device *pdev)

@@ -69,11 +69,6 @@ static void innovator1610_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(15, 0);
 }
 
-static unsigned long innovator1610_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel innovator1610_panel = {
 	.name		= "inn1610",
 	.config		= OMAP_LCDC_PANEL_TFT,
@@ -95,7 +90,6 @@ static struct lcd_panel innovator1610_panel = {
 	.cleanup	= innovator1610_panel_cleanup,
 	.enable		= innovator1610_panel_enable,
 	.disable	= innovator1610_panel_disable,
-	.get_caps	= innovator1610_panel_get_caps,
 };
 
 static int innovator1610_panel_probe(struct platform_device *pdev)

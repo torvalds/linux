@@ -25,30 +25,6 @@
 
 #include "omapfb.h"
 
-static int palmte_panel_init(struct lcd_panel *panel,
-				struct omapfb_device *fbdev)
-{
-	return 0;
-}
-
-static void palmte_panel_cleanup(struct lcd_panel *panel)
-{
-}
-
-static int palmte_panel_enable(struct lcd_panel *panel)
-{
-	return 0;
-}
-
-static void palmte_panel_disable(struct lcd_panel *panel)
-{
-}
-
-static unsigned long palmte_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel palmte_panel = {
 	.name		= "palmte",
 	.config		= OMAP_LCDC_PANEL_TFT | OMAP_LCDC_INV_VSYNC |
@@ -67,12 +43,6 @@ static struct lcd_panel palmte_panel = {
 	.vfp		= 8,
 	.vbp		= 7,
 	.pcd		= 0,
-
-	.init		= palmte_panel_init,
-	.cleanup	= palmte_panel_cleanup,
-	.enable		= palmte_panel_enable,
-	.disable	= palmte_panel_disable,
-	.get_caps	= palmte_panel_get_caps,
 };
 
 static int palmte_panel_probe(struct platform_device *pdev)

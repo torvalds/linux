@@ -27,16 +27,6 @@
 
 #include "omapfb.h"
 
-static int innovator1510_panel_init(struct lcd_panel *panel,
-				    struct omapfb_device *fbdev)
-{
-	return 0;
-}
-
-static void innovator1510_panel_cleanup(struct lcd_panel *panel)
-{
-}
-
 static int innovator1510_panel_enable(struct lcd_panel *panel)
 {
 	__raw_writeb(0x7, OMAP1510_FPGA_LCD_PANEL_CONTROL);
@@ -46,11 +36,6 @@ static int innovator1510_panel_enable(struct lcd_panel *panel)
 static void innovator1510_panel_disable(struct lcd_panel *panel)
 {
 	__raw_writeb(0x0, OMAP1510_FPGA_LCD_PANEL_CONTROL);
-}
-
-static unsigned long innovator1510_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
 }
 
 static struct lcd_panel innovator1510_panel = {
@@ -70,11 +55,8 @@ static struct lcd_panel innovator1510_panel = {
 	.vbp		= 0,
 	.pcd		= 12,
 
-	.init		= innovator1510_panel_init,
-	.cleanup	= innovator1510_panel_cleanup,
 	.enable		= innovator1510_panel_enable,
 	.disable	= innovator1510_panel_disable,
-	.get_caps	= innovator1510_panel_get_caps,
 };
 
 static int innovator1510_panel_probe(struct platform_device *pdev)

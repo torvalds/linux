@@ -136,11 +136,6 @@ static void ams_delta_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(AMS_DELTA_GPIO_PIN_LCD_NDISP, 0);
 }
 
-static unsigned long ams_delta_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel ams_delta_panel = {
 	.name		= "ams-delta",
 	.config		= 0,
@@ -163,7 +158,6 @@ static struct lcd_panel ams_delta_panel = {
 	.cleanup	= ams_delta_panel_cleanup,
 	.enable		= ams_delta_panel_enable,
 	.disable	= ams_delta_panel_disable,
-	.get_caps	= ams_delta_panel_get_caps,
 };
 
 

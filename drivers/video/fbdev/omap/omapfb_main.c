@@ -337,7 +337,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (fbdev->state == OMAPFB_SUSPENDED) {
 			if (fbdev->ctrl->resume)
 				fbdev->ctrl->resume();
-			fbdev->panel->enable(fbdev->panel);
+			if (fbdev->panel->enable)
+				fbdev->panel->enable(fbdev->panel);
 			fbdev->state = OMAPFB_ACTIVE;
 			if (fbdev->ctrl->get_update_mode() ==
 					OMAPFB_MANUAL_UPDATE)
@@ -346,7 +347,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		break;
 	case FB_BLANK_POWERDOWN:
 		if (fbdev->state == OMAPFB_ACTIVE) {
-			fbdev->panel->disable(fbdev->panel);
+			if (fbdev->panel->disable)
+				fbdev->panel->disable(fbdev->panel);
 			if (fbdev->ctrl->suspend)
 				fbdev->ctrl->suspend();
 			fbdev->state = OMAPFB_SUSPENDED;
@@ -1030,7 +1032,8 @@ static void omapfb_get_caps(struct omapfb_device *fbdev, int plane,
 {
 	memset(caps, 0, sizeof(*caps));
 	fbdev->ctrl->get_caps(plane, caps);
-	caps->ctrl |= fbdev->panel->get_caps(fbdev->panel);
+	if (fbdev->panel->get_caps)
+		caps->ctrl |= fbdev->panel->get_caps(fbdev->panel);
 }
 
 /* For lcd testing */
@@ -1549,7 +1552,8 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 	case 7:
 		omapfb_unregister_sysfs(fbdev);
 	case 6:
-		fbdev->panel->disable(fbdev->panel);
+		if (fbdev->panel->disable)
+			fbdev->panel->disable(fbdev->panel);
 	case 5:
 		omapfb_set_update_mode(fbdev, OMAPFB_UPDATE_DISABLED);
 	case 4:
@@ -1557,7 +1561,8 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 	case 3:
 		ctrl_cleanup(fbdev);
 	case 2:
-		fbdev->panel->cleanup(fbdev->panel);
+		if (fbdev->panel->cleanup)
+			fbdev->panel->cleanup(fbdev->panel);
 	case 1:
 		dev_set_drvdata(fbdev->dev, NULL);
 		kfree(fbdev);
@@ -1680,9 +1685,11 @@ static int omapfb_do_probe(struct platform_device *pdev,
 		goto cleanup;
 	}
 
-	r = fbdev->panel->init(fbdev->panel, fbdev);
-	if (r)
-		goto cleanup;
+	if (fbdev->panel->init) {
+		r = fbdev->panel->init(fbdev->panel, fbdev);
+		if (r)
+			goto cleanup;
+	}
 
 	pr_info("omapfb: configured for panel %s\n", fbdev->panel->name);
 
@@ -1725,9 +1732,11 @@ static int omapfb_do_probe(struct platform_device *pdev,
 				   OMAPFB_MANUAL_UPDATE : OMAPFB_AUTO_UPDATE);
 	init_state++;
 
-	r = fbdev->panel->enable(fbdev->panel);
-	if (r)
-		goto cleanup;
+	if (fbdev->panel->enable) {
+		r = fbdev->panel->enable(fbdev->panel);
+		if (r)
+			goto cleanup;
+	}
 	init_state++;
 
 	r = omapfb_register_sysfs(fbdev);
