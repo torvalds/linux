@@ -36,9 +36,6 @@
 #include "intel_hdmi_lpe_audio.h"
 #include "intel_hdmi_audio.h"
 
-/* globals*/
-static union otm_hdmi_eld_t hlpe_eld;
-
 struct hdmi_lpe_audio_ctx {
 	struct platform_device *pdev;
 	int irq;
@@ -51,28 +48,8 @@ struct hdmi_lpe_audio_ctx {
 	int hdmi_audio_interrupt_mask;
 	struct work_struct hdmi_audio_wq;
 	int state; /* connection state */
+	union otm_hdmi_eld_t eld; /* ELD copy */
 };
-
-static void hdmi_set_eld(void *eld)
-{
-	int size;
-
-	BUILD_BUG_ON(sizeof(hlpe_eld) > HDMI_MAX_ELD_BYTES);
-
-	size = sizeof(hlpe_eld);
-	memcpy((void *)&hlpe_eld, eld, size);
-}
-
-static int hdmi_get_eld(void *eld)
-{
-	u8 *eld_data = (u8 *)&hlpe_eld;
-
-	memcpy(eld, (void *)&hlpe_eld, sizeof(hlpe_eld));
-
-	print_hex_dump_bytes("eld: ", DUMP_PREFIX_NONE, eld_data,
-			sizeof(hlpe_eld));
-	return 0;
-}
 
 static void mid_hdmi_audio_signal_event(struct platform_device *pdev,
 					enum had_event_type event)
@@ -159,7 +136,9 @@ int mid_hdmi_audio_get_caps(struct platform_device *pdev,
 
 	switch (get_element) {
 	case HAD_GET_ELD:
-		ret = hdmi_get_eld(capabilities);
+		memcpy(capabilities, &ctx->eld, sizeof(ctx->eld));
+		print_hex_dump_bytes("eld: ", DUMP_PREFIX_NONE,
+				     (u8 *)&ctx->eld, sizeof(ctx->eld));
 		break;
 	case HAD_GET_DISPLAY_RATE:
 		/* ToDo: Verify if sampling freq logic is correct */
@@ -292,7 +271,7 @@ static void notify_audio_lpe(struct platform_device *pdev)
 			break;
 		}
 
-		hdmi_set_eld(eld->eld_data);
+		memcpy(&ctx->eld, eld->eld_data, sizeof(ctx->eld));
 
 		mid_hdmi_audio_signal_event(pdev, HAD_EVENT_HOT_PLUG);
 
