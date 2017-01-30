@@ -689,6 +689,7 @@
 			compatible	= "st,sti-pwm";
 			#pwm-cells	= <2>;
 			reg		= <0x9510000 0x68>;
+			interrupts      = <GIC_SPI 131 IRQ_TYPE_NONE>;
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm1_chan0_default
 					&pinctrl_pwm1_chan1_default

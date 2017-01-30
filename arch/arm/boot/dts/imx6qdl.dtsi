@@ -634,8 +634,8 @@
 				regulator-1p1 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p1";
-					regulator-min-microvolt = <800000>;
-					regulator-max-microvolt = <1375000>;
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x110>;
 					anatop-vol-bit-shift = <8>;
@@ -662,15 +662,15 @@
 				regulator-2p5 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd2p5";
-					regulator-min-microvolt = <2000000>;
+					regulator-min-microvolt = <2250000>;
 					regulator-max-microvolt = <2750000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x130>;
 					anatop-vol-bit-shift = <8>;
 					anatop-vol-bit-width = <5>;
 					anatop-min-bit-val = <0>;
-					anatop-min-voltage = <2000000>;
-					anatop-max-voltage = <2750000>;
+					anatop-min-voltage = <2100000>;
+					anatop-max-voltage = <2875000>;
 				};
 
 				reg_arm: regulator-vddcore {
@@ -816,7 +816,7 @@
 				reg = <0x020e0000 0x4000>;
 			};
 
-			ldb: ldb@020e0008 {
+			ldb: ldb {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";

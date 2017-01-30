@@ -165,6 +165,7 @@ lg	LG Corporation
 linux	Linux-specific binding
 lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
+lwn	Liebherr-Werk Nenzing GmbH
 macnica	Macnica Americas
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
@@ -228,6 +229,7 @@ pine64	Pine64
 pixcir  PIXCIR MICROELECTRONICS Co., Ltd
 plathome	Plat'Home Co., Ltd.
 plda	PLDA
+poslab	Poslab Technology Co., Ltd.
 powervr	PowerVR (deprecated, use img)
 pulsedlight	PulsedLight, Inc
 qca	Qualcomm Atheros, Inc.

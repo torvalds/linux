@@ -48,12 +48,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -1078,6 +1079,7 @@
 			};
 
 			saif0: saif@80042000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
 				interrupts = <59>;
@@ -1094,6 +1096,7 @@
 			};
 
 			saif1: saif@80046000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 0x2000>;
 				interrupts = <58>;

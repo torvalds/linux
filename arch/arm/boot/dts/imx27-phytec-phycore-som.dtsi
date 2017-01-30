@@ -75,7 +75,6 @@
 &cspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi1>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
