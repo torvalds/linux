@@ -291,11 +291,33 @@ static struct fw_sec *get_sec(struct iwl_firmware_pieces *pieces,
 	return &pieces->img[type].sec[sec];
 }
 
+static void alloc_sec_data(struct iwl_firmware_pieces *pieces,
+			   enum iwl_ucode_type type,
+			   int sec)
+{
+	struct fw_img_parsing *img = &pieces->img[type];
+	struct fw_sec *sec_memory;
+	int size = sec + 1;
+	size_t alloc_size = sizeof(*img->sec) * size;
+
+	if (img->sec && img->sec_counter >= size)
+		return;
+
+	sec_memory = krealloc(img->sec, alloc_size, GFP_KERNEL);
+	if (!sec_memory)
+		return;
+
+	img->sec = sec_memory;
+	img->sec_counter = size;
+}
+
 static void set_sec_data(struct iwl_firmware_pieces *pieces,
 			 enum iwl_ucode_type type,
 			 int sec,
 			 const void *data)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].data = data;
 }
 
@@ -304,6 +326,8 @@ static void set_sec_size(struct iwl_firmware_pieces *pieces,
 			 int sec,
 			 size_t size)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].size = size;
 }
 
@@ -319,6 +343,8 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 			   int sec,
 			   u32 offset)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].offset = offset;
 }
 
