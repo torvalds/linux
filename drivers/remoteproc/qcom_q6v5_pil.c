@@ -160,6 +160,9 @@ static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
 	int rc;
 	int i;
 
+	if (!reg_res)
+		return 0;
+
 	for (i = 0; reg_res[i].supply; i++) {
 		regs[i].reg = devm_regulator_get(dev, reg_res[i].supply);
 		if (IS_ERR(regs[i].reg)) {
@@ -1032,14 +1035,6 @@ static const struct rproc_hexagon_res msm8916_mss = {
 		},
 		{
 			.supply = "pll",
-			.uA = 100000,
-		},
-		{}
-	},
-	.active_supply = (struct qcom_mss_reg_res[]) {
-		{
-			.supply = "mss",
-			.uV = 1050000,
 			.uA = 100000,
 		},
 		{}
