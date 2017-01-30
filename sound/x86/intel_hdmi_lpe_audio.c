@@ -400,16 +400,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		return -EACCES;
 	}
 
-	/* setup interrupt handler */
-	ret = request_irq(irq, display_pipe_interrupt_handler,
-			0,
-			pdev->name,
-			NULL);
-	if (ret < 0) {
-		dev_err(&hlpe_pdev->dev, "request_irq failed\n");
-		goto error_irq;
-	}
-
 	/* alloc and save context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL) {
@@ -438,10 +428,20 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	if (pdata == NULL) {
 		dev_err(&hlpe_pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
 		ret = -ENOMEM;
-		goto error_probe;
+		goto error_irq;
 	}
 
 	platform_set_drvdata(pdev, ctx);
+
+	/* setup interrupt handler */
+	ret = request_irq(irq, display_pipe_interrupt_handler,
+			0,
+			pdev->name,
+			NULL);
+	if (ret < 0) {
+		dev_err(&hlpe_pdev->dev, "request_irq failed\n");
+		goto error_irq;
+	}
 
 	ret = hdmi_audio_probe(pdev, &ctx->had);
 	if (ret < 0)
@@ -469,10 +469,10 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	return ret;
 
  error_probe:
-	kfree(ctx);
- error_ctx:
 	free_irq(irq, NULL);
  error_irq:
+	kfree(ctx);
+ error_ctx:
 	iounmap(mmio_start);
 	return ret;
 }
