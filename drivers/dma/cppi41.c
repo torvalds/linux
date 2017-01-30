@@ -223,6 +223,20 @@ static const struct chan_queues am335x_usb_queues_rx[] = {
 	[29] = { .submit = 30, .complete = 155},
 };
 
+static const struct chan_queues da8xx_usb_queues_tx[] = {
+	[0] = { .submit =  16, .complete = 24},
+	[1] = { .submit =  18, .complete = 24},
+	[2] = { .submit =  20, .complete = 24},
+	[3] = { .submit =  22, .complete = 24},
+};
+
+static const struct chan_queues da8xx_usb_queues_rx[] = {
+	[0] = { .submit =  1, .complete = 26},
+	[1] = { .submit =  3, .complete = 26},
+	[2] = { .submit =  5, .complete = 26},
+	[3] = { .submit =  7, .complete = 26},
+};
+
 struct cppi_glue_infos {
 	const struct chan_queues *queues_rx;
 	const struct chan_queues *queues_tx;
@@ -971,8 +985,17 @@ static const struct cppi_glue_infos am335x_usb_infos = {
 	.qmgr_num_pend = 5,
 };
 
+static const struct cppi_glue_infos da8xx_usb_infos = {
+	.queues_rx = da8xx_usb_queues_rx,
+	.queues_tx = da8xx_usb_queues_tx,
+	.td_queue = { .submit = 31, .complete = 0 },
+	.first_completion_queue = 24,
+	.qmgr_num_pend = 2,
+};
+
 static const struct of_device_id cppi41_dma_ids[] = {
 	{ .compatible = "ti,am3359-cppi41", .data = &am335x_usb_infos},
+	{ .compatible = "ti,da830-cppi41", .data = &da8xx_usb_infos},
 	{},
 };
 MODULE_DEVICE_TABLE(of, cppi41_dma_ids);
