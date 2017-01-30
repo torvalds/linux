@@ -36,6 +36,7 @@ struct adsp_data {
 	int crash_reason_smem;
 	const char *firmware_name;
 	int pas_id;
+	bool has_aggre2_clk;
 };
 
 struct qcom_adsp {
@@ -52,11 +53,14 @@ struct qcom_adsp {
 	unsigned stop_bit;
 
 	struct clk *xo;
+	struct clk *aggre2_clk;
 
 	struct regulator *cx_supply;
+	struct regulator *px_supply;
 
 	int pas_id;
 	int crash_reason_smem;
+	bool has_aggre2_clk;
 
 	struct completion start_done;
 	struct completion stop_done;
@@ -115,15 +119,23 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(adsp->aggre2_clk);
+	if (ret)
+		goto disable_xo_clk;
+
 	ret = regulator_enable(adsp->cx_supply);
 	if (ret)
-		goto disable_clocks;
+		goto disable_aggre2_clk;
+
+	ret = regulator_enable(adsp->px_supply);
+	if (ret)
+		goto disable_cx_supply;
 
 	ret = qcom_scm_pas_auth_and_reset(adsp->pas_id);
 	if (ret) {
 		dev_err(adsp->dev,
 			"failed to authenticate image and release reset\n");
-		goto disable_regulators;
+		goto disable_px_supply;
 	}
 
 	ret = wait_for_completion_timeout(&adsp->start_done,
@@ -132,14 +144,18 @@ static int adsp_start(struct rproc *rproc)
 		dev_err(adsp->dev, "start timed out\n");
 		qcom_scm_pas_shutdown(adsp->pas_id);
 		ret = -ETIMEDOUT;
-		goto disable_regulators;
+		goto disable_px_supply;
 	}
 
 	ret = 0;
 
-disable_regulators:
+disable_px_supply:
+	regulator_disable(adsp->px_supply);
+disable_cx_supply:
 	regulator_disable(adsp->cx_supply);
-disable_clocks:
+disable_aggre2_clk:
+	clk_disable_unprepare(adsp->aggre2_clk);
+disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 
 	return ret;
@@ -250,6 +266,17 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 		return ret;
 	}
 
+	if (adsp->has_aggre2_clk) {
+		adsp->aggre2_clk = devm_clk_get(adsp->dev, "aggre2");
+		if (IS_ERR(adsp->aggre2_clk)) {
+			ret = PTR_ERR(adsp->aggre2_clk);
+			if (ret != -EPROBE_DEFER)
+				dev_err(adsp->dev,
+					"failed to get aggre2 clock");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -260,6 +287,10 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 		return PTR_ERR(adsp->cx_supply);
 
 	regulator_set_load(adsp->cx_supply, 100000);
+
+	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
+	if (IS_ERR(adsp->px_supply))
+		return PTR_ERR(adsp->px_supply);
 
 	return 0;
 }
@@ -348,6 +379,7 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->rproc = rproc;
 	adsp->pas_id = desc->pas_id;
 	adsp->crash_reason_smem = desc->crash_reason_smem;
+	adsp->has_aggre2_clk = desc->has_aggre2_clk;
 	platform_set_drvdata(pdev, adsp);
 
 	init_completion(&adsp->start_done);
@@ -424,6 +456,7 @@ static const struct adsp_data adsp_resource_init = {
 		.crash_reason_smem = 423,
 		.firmware_name = "adsp.mdt",
 		.pas_id = 1,
+		.has_aggre2_clk = false,
 };
 
 static const struct of_device_id adsp_of_match[] = {
