@@ -985,6 +985,7 @@ static int add_display_components(struct device *dev,
  * as components.
  */
 static const struct of_device_id msm_gpu_match[] = {
+	{ .compatible = "qcom,adreno" },
 	{ .compatible = "qcom,adreno-3xx" },
 	{ .compatible = "qcom,kgsl-3d0" },
 	{ },
