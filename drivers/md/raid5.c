@@ -62,6 +62,8 @@
 #include "raid0.h"
 #include "bitmap.h"
 
+#define UNSUPPORTED_MDDEV_FLAGS	(1L << MD_FAILFAST_SUPPORTED)
+
 #define cpu_to_group(cpu) cpu_to_node(cpu)
 #define ANY_GROUP NUMA_NO_NODE
 
@@ -554,7 +556,7 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
  * of the two sections, and some non-in_sync devices may
  * be insync in the section most affected by failed devices.
  */
-static int calc_degraded(struct r5conf *conf)
+int raid5_calc_degraded(struct r5conf *conf)
 {
 	int degraded, degraded2;
 	int i;
@@ -617,7 +619,7 @@ static int has_failed(struct r5conf *conf)
 	if (conf->mddev->reshape_position == MaxSector)
 		return conf->mddev->degraded > conf->max_degraded;
 
-	degraded = calc_degraded(conf);
+	degraded = raid5_calc_degraded(conf);
 	if (degraded > conf->max_degraded)
 		return 1;
 	return 0;
@@ -1013,7 +1015,17 @@ again:
 
 			if (test_bit(R5_SkipCopy, &sh->dev[i].flags))
 				WARN_ON(test_bit(R5_UPTODATE, &sh->dev[i].flags));
-			sh->dev[i].vec.bv_page = sh->dev[i].page;
+
+			if (!op_is_write(op) &&
+			    test_bit(R5_InJournal, &sh->dev[i].flags))
+				/*
+				 * issuing read for a page in journal, this
+				 * must be preparing for prexor in rmw; read
+				 * the data into orig_page
+				 */
+				sh->dev[i].vec.bv_page = sh->dev[i].orig_page;
+			else
+				sh->dev[i].vec.bv_page = sh->dev[i].page;
 			bi->bi_vcnt = 1;
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			bi->bi_io_vec[0].bv_offset = 0;
@@ -2378,6 +2390,13 @@ static void raid5_end_read_request(struct bio * bi)
 		} else if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
 			clear_bit(R5_ReadNoMerge, &sh->dev[i].flags);
 
+		if (test_bit(R5_InJournal, &sh->dev[i].flags))
+			/*
+			 * end read for a page in journal, this
+			 * must be preparing for prexor in rmw
+			 */
+			set_bit(R5_OrigPageUPTDODATE, &sh->dev[i].flags);
+
 		if (atomic_read(&rdev->read_errors))
 			atomic_set(&rdev->read_errors, 0);
 	} else {
@@ -2536,7 +2555,7 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 
 	spin_lock_irqsave(&conf->device_lock, flags);
 	clear_bit(In_sync, &rdev->flags);
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
@@ -2550,6 +2569,7 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 		bdevname(rdev->bdev, b),
 		mdname(mddev),
 		conf->raid_disks - mddev->degraded);
+	r5c_update_on_rdev_error(mddev);
 }
 
 /*
@@ -2878,6 +2898,30 @@ sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous)
 	return r_sector;
 }
 
+/*
+ * There are cases where we want handle_stripe_dirtying() and
+ * schedule_reconstruction() to delay towrite to some dev of a stripe.
+ *
+ * This function checks whether we want to delay the towrite. Specifically,
+ * we delay the towrite when:
+ *
+ *   1. degraded stripe has a non-overwrite to the missing dev, AND this
+ *      stripe has data in journal (for other devices).
+ *
+ *      In this case, when reading data for the non-overwrite dev, it is
+ *      necessary to handle complex rmw of write back cache (prexor with
+ *      orig_page, and xor with page). To keep read path simple, we would
+ *      like to flush data in journal to RAID disks first, so complex rmw
+ *      is handled in the write patch (handle_stripe_dirtying).
+ *
+ */
+static inline bool delay_towrite(struct r5dev *dev,
+				   struct stripe_head_state *s)
+{
+	return !test_bit(R5_OVERWRITE, &dev->flags) &&
+		!test_bit(R5_Insync, &dev->flags) && s->injournal;
+}
+
 static void
 schedule_reconstruction(struct stripe_head *sh, struct stripe_head_state *s,
 			 int rcw, int expand)
@@ -2898,7 +2942,7 @@ schedule_reconstruction(struct stripe_head *sh, struct stripe_head_state *s,
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 
-			if (dev->towrite) {
+			if (dev->towrite && !delay_towrite(dev, s)) {
 				set_bit(R5_LOCKED, &dev->flags);
 				set_bit(R5_Wantdrain, &dev->flags);
 				if (!expand)
@@ -3293,13 +3337,6 @@ static int want_replace(struct stripe_head *sh, int disk_idx)
 	return rv;
 }
 
-/* fetch_block - checks the given member device to see if its data needs
- * to be read or computed to satisfy a request.
- *
- * Returns 1 when no more member devices need to be checked, otherwise returns
- * 0 to tell the loop in handle_stripe_fill to continue
- */
-
 static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 			   int disk_idx, int disks)
 {
@@ -3390,6 +3427,12 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	return 0;
 }
 
+/* fetch_block - checks the given member device to see if its data needs
+ * to be read or computed to satisfy a request.
+ *
+ * Returns 1 when no more member devices need to be checked, otherwise returns
+ * 0 to tell the loop in handle_stripe_fill to continue
+ */
 static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 		       int disk_idx, int disks)
 {
@@ -3476,10 +3519,26 @@ static void handle_stripe_fill(struct stripe_head *sh,
 	 * midst of changing due to a write
 	 */
 	if (!test_bit(STRIPE_COMPUTE_RUN, &sh->state) && !sh->check_state &&
-	    !sh->reconstruct_state)
+	    !sh->reconstruct_state) {
+
+		/*
+		 * For degraded stripe with data in journal, do not handle
+		 * read requests yet, instead, flush the stripe to raid
+		 * disks first, this avoids handling complex rmw of write
+		 * back cache (prexor with orig_page, and then xor with
+		 * page) in the read path
+		 */
+		if (s->injournal && s->failed) {
+			if (test_bit(STRIPE_R5C_CACHING, &sh->state))
+				r5c_make_stripe_write_out(sh);
+			goto out;
+		}
+
 		for (i = disks; i--; )
 			if (fetch_block(sh, s, i, disks))
 				break;
+	}
+out:
 	set_bit(STRIPE_HANDLE, &sh->state);
 }
 
@@ -3592,6 +3651,21 @@ unhash:
 		break_stripe_batch_list(head_sh, STRIPE_EXPAND_SYNC_FLAGS);
 }
 
+/*
+ * For RMW in write back cache, we need extra page in prexor to store the
+ * old data. This page is stored in dev->orig_page.
+ *
+ * This function checks whether we have data for prexor. The exact logic
+ * is:
+ *       R5_UPTODATE && (!R5_InJournal || R5_OrigPageUPTDODATE)
+ */
+static inline bool uptodate_for_rmw(struct r5dev *dev)
+{
+	return (test_bit(R5_UPTODATE, &dev->flags)) &&
+		(!test_bit(R5_InJournal, &dev->flags) ||
+		 test_bit(R5_OrigPageUPTDODATE, &dev->flags));
+}
+
 static int handle_stripe_dirtying(struct r5conf *conf,
 				  struct stripe_head *sh,
 				  struct stripe_head_state *s,
@@ -3620,12 +3694,11 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 	} else for (i = disks; i--; ) {
 		/* would I have to read this buffer for read_modify_write */
 		struct r5dev *dev = &sh->dev[i];
-		if ((dev->towrite || i == sh->pd_idx || i == sh->qd_idx ||
+		if (((dev->towrite && !delay_towrite(dev, s)) ||
+		     i == sh->pd_idx || i == sh->qd_idx ||
 		     test_bit(R5_InJournal, &dev->flags)) &&
 		    !test_bit(R5_LOCKED, &dev->flags) &&
-		    !((test_bit(R5_UPTODATE, &dev->flags) &&
-		       (!test_bit(R5_InJournal, &dev->flags) ||
-			dev->page != dev->orig_page)) ||
+		    !(uptodate_for_rmw(dev) ||
 		      test_bit(R5_Wantcompute, &dev->flags))) {
 			if (test_bit(R5_Insync, &dev->flags))
 				rmw++;
@@ -3637,7 +3710,6 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 		    i != sh->pd_idx && i != sh->qd_idx &&
 		    !test_bit(R5_LOCKED, &dev->flags) &&
 		    !(test_bit(R5_UPTODATE, &dev->flags) ||
-		      test_bit(R5_InJournal, &dev->flags) ||
 		      test_bit(R5_Wantcompute, &dev->flags))) {
 			if (test_bit(R5_Insync, &dev->flags))
 				rcw++;
@@ -3687,13 +3759,11 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
-			if ((dev->towrite ||
+			if (((dev->towrite && !delay_towrite(dev, s)) ||
 			     i == sh->pd_idx || i == sh->qd_idx ||
 			     test_bit(R5_InJournal, &dev->flags)) &&
 			    !test_bit(R5_LOCKED, &dev->flags) &&
-			    !((test_bit(R5_UPTODATE, &dev->flags) &&
-			       (!test_bit(R5_InJournal, &dev->flags) ||
-				dev->page != dev->orig_page)) ||
+			    !(uptodate_for_rmw(dev) ||
 			      test_bit(R5_Wantcompute, &dev->flags)) &&
 			    test_bit(R5_Insync, &dev->flags)) {
 				if (test_bit(STRIPE_PREREAD_ACTIVE,
@@ -3720,7 +3790,6 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 			    i != sh->pd_idx && i != sh->qd_idx &&
 			    !test_bit(R5_LOCKED, &dev->flags) &&
 			    !(test_bit(R5_UPTODATE, &dev->flags) ||
-			      test_bit(R5_InJournal, &dev->flags) ||
 			      test_bit(R5_Wantcompute, &dev->flags))) {
 				rcw++;
 				if (test_bit(R5_Insync, &dev->flags) &&
@@ -7023,7 +7092,7 @@ static int raid5_run(struct mddev *mddev)
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 
 	if (has_failed(conf)) {
 		pr_crit("md/raid:%s: not enough operational devices (%d/%d failed)\n",
@@ -7270,7 +7339,7 @@ static int raid5_spare_active(struct mddev *mddev)
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
-	mddev->degraded = calc_degraded(conf);
+	mddev->degraded = raid5_calc_degraded(conf);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	print_raid5_conf(conf);
 	return count;
@@ -7630,7 +7699,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 		 * pre and post number of devices.
 		 */
 		spin_lock_irqsave(&conf->device_lock, flags);
-		mddev->degraded = calc_degraded(conf);
+		mddev->degraded = raid5_calc_degraded(conf);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
@@ -7718,7 +7787,7 @@ static void raid5_finish_reshape(struct mddev *mddev)
 		} else {
 			int d;
 			spin_lock_irq(&conf->device_lock);
-			mddev->degraded = calc_degraded(conf);
+			mddev->degraded = raid5_calc_degraded(conf);
 			spin_unlock_irq(&conf->device_lock);
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
@@ -7829,8 +7898,9 @@ static void *raid5_takeover_raid1(struct mddev *mddev)
 	mddev->new_chunk_sectors = chunksect;
 
 	ret = setup_conf(mddev);
-	if (!IS_ERR_VALUE(ret))
-		clear_bit(MD_FAILFAST_SUPPORTED, &mddev->flags);
+	if (!IS_ERR(ret))
+		mddev_clear_unsupported_flags(mddev,
+			UNSUPPORTED_MDDEV_FLAGS);
 	return ret;
 }
 

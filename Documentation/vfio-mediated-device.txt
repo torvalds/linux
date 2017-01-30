@@ -127,22 +127,22 @@ the VFIO when devices are unbound from the driver.
 Physical Device Driver Interface
 --------------------------------
 
-The physical device driver interface provides the parent_ops[3] structure to
-define the APIs to manage work in the mediated core driver that is related to
-the physical device.
+The physical device driver interface provides the mdev_parent_ops[3] structure
+to define the APIs to manage work in the mediated core driver that is related
+to the physical device.
 
-The structures in the parent_ops structure are as follows:
+The structures in the mdev_parent_ops structure are as follows:
 
 * dev_attr_groups: attributes of the parent device
 * mdev_attr_groups: attributes of the mediated device
 * supported_config: attributes to define supported configurations
 
-The functions in the parent_ops structure are as follows:
+The functions in the mdev_parent_ops structure are as follows:
 
 * create: allocate basic resources in a driver for a mediated device
 * remove: free resources in a driver when a mediated device is destroyed
 
-The callbacks in the parent_ops structure are as follows:
+The callbacks in the mdev_parent_ops structure are as follows:
 
 * open: open callback of mediated device
 * close: close callback of mediated device
@@ -151,14 +151,14 @@ The callbacks in the parent_ops structure are as follows:
 * write: write emulation callback
 * mmap: mmap emulation callback
 
-A driver should use the parent_ops structure in the function call to register
-itself with the mdev core driver:
+A driver should use the mdev_parent_ops structure in the function call to
+register itself with the mdev core driver:
 
 extern int  mdev_register_device(struct device *dev,
-                                 const struct parent_ops *ops);
+                                 const struct mdev_parent_ops *ops);
 
-However, the parent_ops structure is not required in the function call that a
-driver should use to unregister itself with the mdev core driver:
+However, the mdev_parent_ops structure is not required in the function call
+that a driver should use to unregister itself with the mdev core driver:
 
 extern void mdev_unregister_device(struct device *dev);
 
@@ -222,6 +222,9 @@ Directories and files under the sysfs for Each Physical Device
   is as follows:
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
+
+  (or using mdev_parent_dev(mdev) to arrive at the parent device outside
+   of the core mdev code)
 
 * device_api
 
@@ -394,5 +397,5 @@ References
 
 [1] See Documentation/vfio.txt for more information on VFIO.
 [2] struct mdev_driver in include/linux/mdev.h
-[3] struct parent_ops in include/linux/mdev.h
+[3] struct mdev_parent_ops in include/linux/mdev.h
 [4] struct vfio_iommu_driver_ops in include/linux/vfio.h

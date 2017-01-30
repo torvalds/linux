@@ -12,6 +12,8 @@
 #include <linux/bpf.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/mmzone.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/license.h>
@@ -47,6 +49,30 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 void bpf_register_map_type(struct bpf_map_type_list *tl)
 {
 	list_add(&tl->list_node, &bpf_map_types);
+}
+
+void *bpf_map_area_alloc(size_t size)
+{
+	/* We definitely need __GFP_NORETRY, so OOM killer doesn't
+	 * trigger under memory pressure as we really just want to
+	 * fail instead.
+	 */
+	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
+	void *area;
+
+	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+		area = kmalloc(size, GFP_USER | flags);
+		if (area != NULL)
+			return area;
+	}
+
+	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | flags,
+			 PAGE_KERNEL);
+}
+
+void bpf_map_area_free(void *area)
+{
+	kvfree(area);
 }
 
 int bpf_map_precharge_memlock(u32 pages)
@@ -688,17 +714,17 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_prog *prog = filp->private_data;
-	char prog_digest[sizeof(prog->digest) * 2 + 1] = { };
+	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
 
-	bin2hex(prog_digest, prog->digest, sizeof(prog->digest));
+	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "prog_type:\t%u\n"
 		   "prog_jited:\t%u\n"
-		   "prog_digest:\t%s\n"
+		   "prog_tag:\t%s\n"
 		   "memlock:\t%llu\n",
 		   prog->type,
 		   prog->jited,
-		   prog_digest,
+		   prog_tag,
 		   prog->pages * 1ULL << PAGE_SHIFT);
 }
 #endif

@@ -975,6 +975,8 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 
 	case ETHTOOL_GRXFH: {
 		info->data = 0;
+		if (!efx->rss_active) /* No RSS */
+			return 0;
 		switch (info->flow_type) {
 		case UDP_V4_FLOW:
 			if (efx->rx_hash_udp_4tuple)

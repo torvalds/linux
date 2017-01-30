@@ -209,6 +209,7 @@ struct perf_sched {
 	u64		skipped_samples;
 	const char	*time_str;
 	struct perf_time_interval ptime;
+	struct perf_time_interval hist_time;
 };
 
 /* per thread run time data */
@@ -2460,6 +2461,11 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 		timehist_print_sample(sched, sample, &al, thread, t);
 
 out:
+	if (sched->hist_time.start == 0 && t >= ptime->start)
+		sched->hist_time.start = t;
+	if (ptime->end == 0 || t <= ptime->end)
+		sched->hist_time.end = t;
+
 	if (tr) {
 		/* time of this sched_switch event becomes last time task seen */
 		tr->last_time = sample->time;
@@ -2624,6 +2630,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 	struct thread *t;
 	struct thread_runtime *r;
 	int i;
+	u64 hist_time = sched->hist_time.end - sched->hist_time.start;
 
 	memset(&totals, 0, sizeof(totals));
 
@@ -2665,7 +2672,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 			totals.sched_count += r->run_stats.n;
 			printf("    CPU %2d idle for ", i);
 			print_sched_time(r->total_run_time, 6);
-			printf(" msec\n");
+			printf(" msec  (%6.2f%%)\n", 100.0 * r->total_run_time / hist_time);
 		} else
 			printf("    CPU %2d idle entire time window\n", i);
 	}
@@ -2701,12 +2708,16 @@ static void timehist_print_summary(struct perf_sched *sched,
 
 	printf("\n"
 	       "    Total number of unique tasks: %" PRIu64 "\n"
-	       "Total number of context switches: %" PRIu64 "\n"
-	       "           Total run time (msec): ",
+	       "Total number of context switches: %" PRIu64 "\n",
 	       totals.task_count, totals.sched_count);
 
+	printf("           Total run time (msec): ");
 	print_sched_time(totals.total_run_time, 2);
 	printf("\n");
+
+	printf("    Total scheduling time (msec): ");
+	print_sched_time(hist_time, 2);
+	printf(" (x %d)\n", sched->max_cpu);
 }
 
 typedef int (*sched_handler)(struct perf_tool *tool,

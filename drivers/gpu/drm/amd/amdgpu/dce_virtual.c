@@ -627,11 +627,8 @@ static const struct drm_encoder_helper_funcs dce_virtual_encoder_helper_funcs = 
 
 static void dce_virtual_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
-
-	kfree(amdgpu_encoder->enc_priv);
 	drm_encoder_cleanup(encoder);
-	kfree(amdgpu_encoder);
+	kfree(encoder);
 }
 
 static const struct drm_encoder_funcs dce_virtual_encoder_funcs = {

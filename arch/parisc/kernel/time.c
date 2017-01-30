@@ -235,9 +235,26 @@ void __init time_init(void)
 
 	cr16_hz = 100 * PAGE0->mem_10msec;  /* Hz */
 
-	/* register at clocksource framework */
-	clocksource_register_hz(&clocksource_cr16, cr16_hz);
-
 	/* register as sched_clock source */
 	sched_clock_register(read_cr16_sched_clock, BITS_PER_LONG, cr16_hz);
 }
+
+static int __init init_cr16_clocksource(void)
+{
+	/*
+	 * The cr16 interval timers are not syncronized across CPUs, so mark
+	 * them unstable and lower rating on SMP systems.
+	 */
+	if (num_online_cpus() > 1) {
+		clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
+		clocksource_cr16.rating = 0;
+	}
+
+	/* register at clocksource framework */
+	clocksource_register_hz(&clocksource_cr16,
+		100 * PAGE0->mem_10msec);
+
+	return 0;
+}
+
+device_initcall(init_cr16_clocksource);

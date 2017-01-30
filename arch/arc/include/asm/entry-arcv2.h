@@ -16,6 +16,7 @@
 	;
 	; Now manually save: r12, sp, fp, gp, r25
 
+	PUSH	r30
 	PUSH	r12
 
 	; Saving pt_regs->sp correctly requires some extra work due to the way
@@ -72,6 +73,7 @@
 	POPAX	AUX_USER_SP
 1:
 	POP	r12
+	POP	r30
 
 .endm
 
