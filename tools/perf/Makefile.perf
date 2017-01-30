@@ -661,6 +661,7 @@ ifndef NO_PERF_READ_VDSOX32
 endif
 ifndef NO_JVMTI
 	$(call QUIET_INSTALL, $(LIBJVMTI)) \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
 		$(INSTALL) $(OUTPUT)$(LIBJVMTI) '$(DESTDIR_SQ)$(libdir_SQ)';
 endif
 	$(call QUIET_INSTALL, libexec) \

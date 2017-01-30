@@ -434,7 +434,7 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char * const builtin_help_subcommands[] = {
 		"buildid-cache", "buildid-list", "diff", "evlist", "help", "list",
 		"record", "report", "bench", "stat", "timechart", "top", "annotate",
-		"script", "sched", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
+		"script", "sched", "kallsyms", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
 #ifdef HAVE_LIBELF_SUPPORT
 		"probe",
 #endif

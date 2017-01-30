@@ -94,6 +94,43 @@ static int pmu_format(const char *name, struct list_head *format)
 	return 0;
 }
 
+static int convert_scale(const char *scale, char **end, double *sval)
+{
+	char *lc;
+	int ret = 0;
+
+	/*
+	 * save current locale
+	 */
+	lc = setlocale(LC_NUMERIC, NULL);
+
+	/*
+	 * The lc string may be allocated in static storage,
+	 * so get a dynamic copy to make it survive setlocale
+	 * call below.
+	 */
+	lc = strdup(lc);
+	if (!lc) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * force to C locale to ensure kernel
+	 * scale string is converted correctly.
+	 * kernel uses default C locale.
+	 */
+	setlocale(LC_NUMERIC, "C");
+
+	*sval = strtod(scale, end);
+
+out:
+	/* restore locale */
+	setlocale(LC_NUMERIC, lc);
+	free(lc);
+	return ret;
+}
+
 static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *name)
 {
 	struct stat st;
@@ -101,7 +138,6 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	char scale[128];
 	int fd, ret = -1;
 	char path[PATH_MAX];
-	char *lc;
 
 	snprintf(path, PATH_MAX, "%s/%s.scale", dir, name);
 
@@ -121,37 +157,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	else
 		scale[sret] = '\0';
 
-	/*
-	 * save current locale
-	 */
-	lc = setlocale(LC_NUMERIC, NULL);
-
-	/*
-	 * The lc string may be allocated in static storage,
-	 * so get a dynamic copy to make it survive setlocale
-	 * call below.
-	 */
-	lc = strdup(lc);
-	if (!lc) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	/*
-	 * force to C locale to ensure kernel
-	 * scale string is converted correctly.
-	 * kernel uses default C locale.
-	 */
-	setlocale(LC_NUMERIC, "C");
-
-	alias->scale = strtod(scale, NULL);
-
-	/* restore locale */
-	setlocale(LC_NUMERIC, lc);
-
-	free(lc);
-
-	ret = 0;
+	ret = convert_scale(scale, NULL, &alias->scale);
 error:
 	close(fd);
 	return ret;

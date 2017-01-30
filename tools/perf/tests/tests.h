@@ -96,6 +96,7 @@ int test__perf_hooks(int subtest);
 int test__clang(int subtest);
 const char *test__clang_subtest_get_desc(int subtest);
 int test__clang_subtest_get_nr(void);
+int test__unit_number__scnprint(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT

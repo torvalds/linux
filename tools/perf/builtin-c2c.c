@@ -58,7 +58,7 @@ struct c2c_hist_entry {
 	struct hist_entry	he;
 };
 
-static char const *coalesce_default = "pid,tid,iaddr";
+static char const *coalesce_default = "pid,iaddr";
 
 struct perf_c2c {
 	struct perf_tool	tool;
@@ -2476,6 +2476,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"mean_rmt,"
 		"mean_lcl,"
 		"mean_load,"
+		"tot_recs,"
 		"cpucnt,",
 		add_sym ? "symbol," : "",
 		add_dso ? "dso," : "",

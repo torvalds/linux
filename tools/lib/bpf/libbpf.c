@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/list.h>
@@ -779,7 +780,7 @@ static int
 bpf_program__collect_reloc(struct bpf_program *prog,
 			   size_t nr_maps, GElf_Shdr *shdr,
 			   Elf_Data *data, Elf_Data *symbols,
-			   int maps_shndx)
+			   int maps_shndx, struct bpf_map *maps)
 {
 	int i, nrels;
 
@@ -829,7 +830,15 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
-		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
+		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
+			if (maps[map_idx].offset == sym.st_value) {
+				pr_debug("relocation: find map %zd (%s) for insn %u\n",
+					 map_idx, maps[map_idx].name, insn_idx);
+				break;
+			}
+		}
+
 		if (map_idx >= nr_maps) {
 			pr_warning("bpf relocation: map_idx %d large than %d\n",
 				   (int)map_idx, (int)nr_maps - 1);
@@ -953,7 +962,8 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 		err = bpf_program__collect_reloc(prog, nr_maps,
 						 shdr, data,
 						 obj->efile.symbols,
-						 obj->efile.maps_shndx);
+						 obj->efile.maps_shndx,
+						 obj->maps);
 		if (err)
 			return err;
 	}
@@ -1419,37 +1429,33 @@ static void bpf_program__set_type(struct bpf_program *prog,
 	prog->type = type;
 }
 
-int bpf_program__set_tracepoint(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-	return 0;
-}
-
-int bpf_program__set_kprobe(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
-	return 0;
-}
-
 static bool bpf_program__is_type(struct bpf_program *prog,
 				 enum bpf_prog_type type)
 {
 	return prog ? (prog->type == type) : false;
 }
 
-bool bpf_program__is_tracepoint(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-}
+#define BPF_PROG_TYPE_FNS(NAME, TYPE)			\
+int bpf_program__set_##NAME(struct bpf_program *prog)	\
+{							\
+	if (!prog)					\
+		return -EINVAL;				\
+	bpf_program__set_type(prog, TYPE);		\
+	return 0;					\
+}							\
+							\
+bool bpf_program__is_##NAME(struct bpf_program *prog)	\
+{							\
+	return bpf_program__is_type(prog, TYPE);	\
+}							\
 
-bool bpf_program__is_kprobe(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_KPROBE);
-}
+BPF_PROG_TYPE_FNS(socket_filter, BPF_PROG_TYPE_SOCKET_FILTER);
+BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
+BPF_PROG_TYPE_FNS(sched_cls, BPF_PROG_TYPE_SCHED_CLS);
+BPF_PROG_TYPE_FNS(sched_act, BPF_PROG_TYPE_SCHED_ACT);
+BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
+BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
+BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
 int bpf_map__fd(struct bpf_map *map)
 {
@@ -1536,4 +1542,11 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 			return &obj->maps[i];
 	}
 	return ERR_PTR(-ENOENT);
+}
+
+long libbpf_get_error(const void *ptr)
+{
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+	return 0;
 }
