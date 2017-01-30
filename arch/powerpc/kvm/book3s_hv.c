@@ -3657,6 +3657,17 @@ static void init_default_hcalls(void)
 	}
 }
 
+/* dummy implementations for now */
+static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
+{
+	return -EINVAL;
+}
+
+static int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info)
+{
+	return -EINVAL;
+}
+
 static struct kvmppc_ops kvm_ops_hv = {
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -3694,6 +3705,8 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.irq_bypass_add_producer = kvmppc_irq_bypass_add_producer_hv,
 	.irq_bypass_del_producer = kvmppc_irq_bypass_del_producer_hv,
 #endif
+	.configure_mmu = kvmhv_configure_mmu,
+	.get_rmmu_info = kvmhv_get_rmmu_info,
 };
 
 static int kvm_init_subcore_bitmap(void)
