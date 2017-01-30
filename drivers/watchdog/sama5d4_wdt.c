@@ -258,11 +258,28 @@ static const struct of_device_id sama5d4_wdt_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sama5d4_wdt_of_match);
 
+#ifdef CONFIG_PM_SLEEP
+static int sama5d4_wdt_resume(struct device *dev)
+{
+	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
+
+	wdt_write(wdt, AT91_WDT_MR, wdt->mr & ~AT91_WDT_WDDIS);
+	if (wdt->mr & AT91_WDT_WDDIS)
+		wdt_write(wdt, AT91_WDT_MR, wdt->mr);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(sama5d4_wdt_pm_ops, NULL,
+			 sama5d4_wdt_resume);
+
 static struct platform_driver sama5d4_wdt_driver = {
 	.probe		= sama5d4_wdt_probe,
 	.remove		= sama5d4_wdt_remove,
 	.driver		= {
 		.name	= "sama5d4_wdt",
+		.pm	= &sama5d4_wdt_pm_ops,
 		.of_match_table = sama5d4_wdt_of_match,
 	}
 };
