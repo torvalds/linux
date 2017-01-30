@@ -595,47 +595,21 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_pwrite *args,
 		     struct drm_file *file)
 {
-	struct drm_device *dev = obj->base.dev;
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
 	char __user *user_data = u64_to_user_ptr(args->data_ptr);
-	int ret;
 
 	/* We manually control the domain here and pretend that it
 	 * remains coherent i.e. in the GTT domain, like shmem_pwrite.
 	 */
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
-				   I915_WAIT_ALL,
-				   MAX_SCHEDULE_TIMEOUT,
-				   to_rps_client(file));
-	if (ret)
-		return ret;
-
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
-	if (__copy_from_user_inatomic_nocache(vaddr, user_data, args->size)) {
-		unsigned long unwritten;
-
-		/* The physical object once assigned is fixed for the lifetime
-		 * of the obj, so we can safely drop the lock and continue
-		 * to access vaddr.
-		 */
-		mutex_unlock(&dev->struct_mutex);
-		unwritten = copy_from_user(vaddr, user_data, args->size);
-		mutex_lock(&dev->struct_mutex);
-		if (unwritten) {
-			ret = -EFAULT;
-			goto out;
-		}
-	}
+	if (copy_from_user(vaddr, user_data, args->size))
+		return -EFAULT;
 
 	drm_clflush_virt_range(vaddr, args->size);
-	i915_gem_chipset_flush(to_i915(dev));
+	i915_gem_chipset_flush(to_i915(obj->base.dev));
 
-out:
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
-	return ret;
+	return 0;
 }
 
 void *i915_gem_object_alloc(struct drm_device *dev)

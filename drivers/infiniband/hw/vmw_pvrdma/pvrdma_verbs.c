@@ -306,7 +306,7 @@ struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_uc *cmd = &req.create_uc;
 	struct pvrdma_cmd_create_uc_resp *resp = &rsp.create_uc_resp;
-	struct pvrdma_alloc_ucontext_resp uresp;
+	struct pvrdma_alloc_ucontext_resp uresp = {0};
 	int ret;
 	void *ptr;
 

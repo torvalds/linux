@@ -217,6 +217,10 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 
+	/* Acquire the table lock */
+
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+
 	if (reload) {
 		/*
 		 * Validate the incoming table signature.
@@ -244,7 +248,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 					 new_table_desc.signature.integer));
 
 			status = AE_BAD_SIGNATURE;
-			goto release_and_exit;
+			goto unlock_and_exit;
 		}
 
 		/* Check if table is already registered */
@@ -279,7 +283,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 				/* Table is still loaded, this is an error */
 
 				status = AE_ALREADY_EXISTS;
-				goto release_and_exit;
+				goto unlock_and_exit;
 			} else {
 				/*
 				 * Table was unloaded, allow it to be reloaded.
@@ -290,6 +294,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 				 * indicate the re-installation.
 				 */
 				acpi_tb_uninstall_table(&new_table_desc);
+				(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 				*table_index = i;
 				return_ACPI_STATUS(AE_OK);
 			}
@@ -303,11 +308,19 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/* Invoke table handler if present */
 
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	if (acpi_gbl_table_handler) {
 		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_INSTALL,
 					     new_table_desc.pointer,
 					     acpi_gbl_table_handler_context);
 	}
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
+
+unlock_and_exit:
+
+	/* Release the table lock */
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 
 release_and_exit:
 
