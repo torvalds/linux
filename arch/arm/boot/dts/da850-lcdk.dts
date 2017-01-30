@@ -162,6 +162,10 @@
 	status = "okay";
 };
 
+&sata {
+	status = "okay";
+};
+
 &mdio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
