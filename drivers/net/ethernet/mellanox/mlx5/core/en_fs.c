@@ -1089,7 +1089,7 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 					       MLX5_FLOW_NAMESPACE_KERNEL);
 
 	if (!priv->fs.ns)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	err = mlx5e_arfs_create_tables(priv);
 	if (err) {
