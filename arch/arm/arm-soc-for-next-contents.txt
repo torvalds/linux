@@ -4,6 +4,8 @@ fixes
 		ARM64: dts: meson-gx: Add firmware reserved memory zones
 	<no branch> (a971c5545c3d45a1e33fda6e57913bb75aaa20c9)
 		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-4.10-3
+	<no branch> (8413299cb3933dade6186bbee8363f190032107e)
+		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti tags/sti-dt-for-v4.10-rc
 
 next/fixes-non-critical
 	davinci/fixes-nc
@@ -30,6 +32,16 @@ next/soc
 		git://github.com/hisilicon/linux-hisi tags/hisi-armv7-soc-for-4.11
 	pxa/devel
 		https://github.com/rjarzmik/linux tags/pxa-for-4.11
+	renesas/soc2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-soc2-for-v4.11
+	tegra/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-soc
+	mvebu/soc
+		git://git.infradead.org/linux-mvebu tags/mvebu-soc-4.11-1
+	imx/cleanup
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-cleanup-4.11
+	samsung/soc2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-4.11-2
 
 next/arm64
 	mvebu/defconfig64
@@ -79,6 +91,22 @@ next/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/dt-signed-v2
 	mediatek/dts32
 		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts32
+	renesas/dt2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-dt2-for-v4.11
+	at91/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-dt2
+	tegra/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-arm-dt
+	sti/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti sti-dt-for-v4.11-round2
+	mvebu/dt2
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-2
+	imx/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-nc-4.11
+	imx/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt-4.11
+	samsung/dt2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt-4.11-2
 
 next/dt64
 	renesas/dt64
@@ -101,6 +129,16 @@ next/dt64
 		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts
 	hisi/dt64
 		git://github.com/hisilicon/linux-hisi tags/hisi-arm64-dt-for-4.11
+	renesas/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-arm64-dt2-for-v4.11
+	tegra/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-arm64-dt
+	mvebu/dt64-2
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt64-4.11-2
+	imx/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt64-4.11
+	zte/dt64
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/zte-dt64-4.11
 
 next/defconfig
 	patch
@@ -130,6 +168,13 @@ next/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/defconfig-signed
 	hisi/defconfig
 		git://github.com/hisilicon/linux-hisi tags/hisi-defconfig-for-4.11
+	stm32/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-defconfig-for-v4.11-1
+	imx/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-4.11
+	patch
+		arm64: defconfig: enable CONFIG_MTD_BLOCK
+		arm64: defconfig: enable CONFIG_MTD_NAND and CONFIG_MTD_NAND_DENALI_DT
 
 next/drivers
 	at91/drivers
@@ -146,4 +191,12 @@ next/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-drivers-for-4.11
 	omap/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/drivers-signed
+	tegra/memory
+		git://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-4.11-memory
+	at91/drivers2
+		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-drivers2
+	zte/pd
+		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/zte-pd-4.11
+	samsung/drivers2
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-2
 
