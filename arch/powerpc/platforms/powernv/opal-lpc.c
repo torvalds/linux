@@ -407,9 +407,17 @@ void opal_lpc_init(void)
 	if (opal_lpc_chip_id < 0)
 		return;
 
-	/* Setup special IO ops */
-	ppc_pci_io = opal_lpc_io;
-	isa_io_special = true;
+	/* Does it support direct mapping ? */
+	if (of_get_property(np, "ranges", NULL)) {
+		pr_info("OPAL: Found memory mapped LPC bus on chip %d\n",
+			opal_lpc_chip_id);
+		isa_bridge_init_non_pci(np);
+	} else {
+		pr_info("OPAL: Found non-mapped LPC bus on chip %d\n",
+			opal_lpc_chip_id);
 
-	pr_info("OPAL: Power8 LPC bus found, chip ID %d\n", opal_lpc_chip_id);
+		/* Setup special IO ops */
+		ppc_pci_io = opal_lpc_io;
+		isa_io_special = true;
+	}
 }
