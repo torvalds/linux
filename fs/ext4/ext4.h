@@ -226,7 +226,7 @@ struct ext4_io_submit {
 /*
  * Maximal count of links to a file
  */
-#define EXT4_LINK_MAX		65000
+#define EXT4_LINK_MAX		999999999
 
 /*
  * Macro-instructions used to manage several block sizes
