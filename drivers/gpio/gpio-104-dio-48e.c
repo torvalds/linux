@@ -369,8 +369,6 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 
 	spin_lock_init(&dio48egpio->lock);
 
-	dev_set_drvdata(dev, dio48egpio);
-
 	err = devm_gpiochip_add_data(dev, &dio48egpio->chip, dio48egpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
