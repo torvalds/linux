@@ -76,16 +76,6 @@ struct stx104_gpio {
 	unsigned int out_state;
 };
 
-/**
- * struct stx104_dev - STX104 device private data structure
- * @indio_dev:	IIO device
- * @chip:	instance of the gpio_chip
- */
-struct stx104_dev {
-	struct iio_dev *indio_dev;
-	struct gpio_chip *chip;
-};
-
 static int stx104_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long mask)
 {
@@ -271,7 +261,6 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	struct iio_dev *indio_dev;
 	struct stx104_iio *priv;
 	struct stx104_gpio *stx104gpio;
-	struct stx104_dev *stx104dev;
 	int err;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
@@ -280,10 +269,6 @@ static int stx104_probe(struct device *dev, unsigned int id)
 
 	stx104gpio = devm_kzalloc(dev, sizeof(*stx104gpio), GFP_KERNEL);
 	if (!stx104gpio)
-		return -ENOMEM;
-
-	stx104dev = devm_kzalloc(dev, sizeof(*stx104dev), GFP_KERNEL);
-	if (!stx104dev)
 		return -ENOMEM;
 
 	if (!devm_request_region(dev, base[id], STX104_EXTENT,
@@ -334,10 +319,6 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104gpio->out_state = 0x0;
 
 	spin_lock_init(&stx104gpio->lock);
-
-	stx104dev->indio_dev = indio_dev;
-	stx104dev->chip = &stx104gpio->chip;
-	dev_set_drvdata(dev, stx104dev);
 
 	err = devm_gpiochip_add_data(dev, &stx104gpio->chip, stx104gpio);
 	if (err) {
