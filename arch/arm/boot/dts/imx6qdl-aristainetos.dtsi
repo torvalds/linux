@@ -100,7 +100,6 @@
 };
 
 &ecspi4 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio3 20 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
