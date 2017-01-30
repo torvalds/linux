@@ -136,6 +136,16 @@ config CM36651
 	 To compile this driver as a module, choose M here:
 	 the module will be called cm36651.
 
+config IIO_CROS_EC_LIGHT_PROX
+	tristate "ChromeOS EC Light and Proximity Sensors"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Say Y here if you use the light and proximity sensors
+	  presented by the ChromeOS EC Sensor hub.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called cros_ec_light_prox.
+
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C
