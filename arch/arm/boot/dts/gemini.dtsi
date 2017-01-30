@@ -75,6 +75,12 @@
 			#interrupt-cells = <2>;
 		};
 
+		power-controller@4b000000 {
+			compatible = "cortina,gemini-power-controller";
+			reg = <0x4b000000 0x100>;
+			interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+		};
+
 		gpio0: gpio@4d000000 {
 			compatible = "cortina,gemini-gpio";
 			reg = <0x4d000000 0x100>;
