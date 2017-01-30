@@ -179,8 +179,7 @@ int had_get_caps(enum had_caps_list query, void *caps)
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = intelhaddata->query_ops.hdmi_audio_get_caps(query,
-				caps);
+		retval = mid_hdmi_audio_get_caps(query, caps);
 
 	return retval;
 }
@@ -192,8 +191,7 @@ int had_set_caps(enum had_caps_list set_element, void *caps)
 
 	retval = had_get_hwstate(intelhaddata);
 	if (!retval)
-		retval = intelhaddata->query_ops.hdmi_audio_set_caps(
-				set_element, caps);
+		retval = mid_hdmi_audio_set_caps(set_element, caps);
 
 	return retval;
 }
@@ -1616,9 +1614,7 @@ int hdmi_audio_probe(void *deviceptr)
 
 	/* registering with display driver to get access to display APIs */
 
-	retval = mid_hdmi_audio_setup(
-			ops_cb.intel_had_event_call_back,
-			&(intelhaddata->query_ops));
+	retval = mid_hdmi_audio_setup(ops_cb.intel_had_event_call_back);
 	if (retval) {
 		pr_err("querying display driver APIs failed %#x\n", retval);
 		goto free_hadstream;

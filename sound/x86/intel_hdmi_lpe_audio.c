@@ -239,12 +239,12 @@ int mid_hdmi_audio_rmw(u32 reg, u32 val, u32 mask)
 	return 0;
 }
 
-/**
+/*
  * used to return the HDMI audio capabilities.
  * e.g. resolution, frame rate.
  */
-static int hdmi_audio_get_caps(enum had_caps_list get_element,
-			void *capabilities)
+int mid_hdmi_audio_get_caps(enum had_caps_list get_element,
+			    void *capabilities)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 	int ret = 0;
@@ -281,12 +281,12 @@ static int hdmi_audio_get_caps(enum had_caps_list get_element,
 	return ret;
 }
 
-/**
+/*
  * used to set the HDMI audio capabilities.
  * e.g. Audio INT.
  */
-int hdmi_audio_set_caps(enum had_caps_list set_element,
-			void *capabilties)
+int mid_hdmi_audio_set_caps(enum had_caps_list set_element,
+			    void *capabilties)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 
@@ -313,25 +313,13 @@ int hdmi_audio_set_caps(enum had_caps_list set_element,
 	return 0;
 }
 
-static struct hdmi_audio_query_set_ops hdmi_audio_get_set_ops = {
-	.hdmi_audio_get_caps = hdmi_audio_get_caps,
-	.hdmi_audio_set_caps = hdmi_audio_set_caps,
-};
-
-int mid_hdmi_audio_setup(
-		had_event_call_back audio_callbacks,
-		struct hdmi_audio_query_set_ops *query_ops)
+int mid_hdmi_audio_setup(had_event_call_back audio_callbacks)
 {
 	struct hdmi_lpe_audio_ctx *ctx;
 
 	ctx = platform_get_drvdata(hlpe_pdev);
 
 	dev_dbg(&hlpe_pdev->dev, "%s: called\n",  __func__);
-
-	query_ops->hdmi_audio_get_caps =
-		hdmi_audio_get_set_ops.hdmi_audio_get_caps;
-	query_ops->hdmi_audio_set_caps =
-		hdmi_audio_get_set_ops.hdmi_audio_set_caps;
 
 	ctx->had_event_callbacks = audio_callbacks;
 

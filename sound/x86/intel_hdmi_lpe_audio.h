@@ -641,13 +641,6 @@ enum had_event_type {
 typedef int (*had_event_call_back) (enum had_event_type event_type,
 		void *ctxt_info);
 
-struct hdmi_audio_query_set_ops {
-	int (*hdmi_audio_get_caps)(enum had_caps_list query_element,
-			void *capabilties);
-	int (*hdmi_audio_set_caps)(enum had_caps_list set_element,
-			void *capabilties);
-};
-
 struct hdmi_audio_event {
 	int type;
 };
@@ -663,9 +656,7 @@ bool mid_hdmi_audio_is_busy(void *dev);
 bool mid_hdmi_audio_suspend(void *dev);
 void mid_hdmi_audio_resume(void *dev);
 void mid_hdmi_audio_signal_event(enum had_event_type event);
-int mid_hdmi_audio_setup(
-	had_event_call_back audio_callbacks,
-	struct hdmi_audio_query_set_ops *query_ops);
+int mid_hdmi_audio_setup(had_event_call_back audio_callbacks);
 int mid_hdmi_audio_register(
 	struct snd_intel_had_interface *driver,
 	void *had_data);
@@ -673,5 +664,10 @@ int mid_hdmi_audio_register(
 int mid_hdmi_audio_read(u32 reg, u32 *val);
 int mid_hdmi_audio_write(u32 reg, u32 val);
 int mid_hdmi_audio_rmw(u32 reg, u32 val, u32 mask);
+
+int mid_hdmi_audio_get_caps(enum had_caps_list get_element,
+			    void *capabilities);
+int mid_hdmi_audio_set_caps(enum had_caps_list set_element,
+			    void *capabilties);
 
 #endif
