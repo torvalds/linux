@@ -43,6 +43,7 @@ static void *real_vmalloc_addr(void *x)
 static int global_invalidates(struct kvm *kvm, unsigned long flags)
 {
 	int global;
+	int cpu;
 
 	/*
 	 * If there is only one vcore, and it's currently running,
@@ -60,8 +61,14 @@ static int global_invalidates(struct kvm *kvm, unsigned long flags)
 		/* any other core might now have stale TLB entries... */
 		smp_wmb();
 		cpumask_setall(&kvm->arch.need_tlb_flush);
-		cpumask_clear_cpu(local_paca->kvm_hstate.kvm_vcore->pcpu,
-				  &kvm->arch.need_tlb_flush);
+		cpu = local_paca->kvm_hstate.kvm_vcore->pcpu;
+		/*
+		 * On POWER9, threads are independent but the TLB is shared,
+		 * so use the bit for the first thread to represent the core.
+		 */
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			cpu = cpu_first_thread_sibling(cpu);
+		cpumask_clear_cpu(cpu, &kvm->arch.need_tlb_flush);
 	}
 
 	return global;

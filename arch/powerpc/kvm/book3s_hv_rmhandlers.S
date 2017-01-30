@@ -598,30 +598,44 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 	/* See if we need to flush the TLB */
 	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
+BEGIN_FTR_SECTION
+	/*
+	 * On POWER9, individual threads can come in here, but the
+	 * TLB is shared between the 4 threads in a core, hence
+	 * invalidating on one thread invalidates for all.
+	 * Thus we make all 4 threads use the same bit here.
+	 */
+	clrrdi	r6,r6,2
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
 	srdi	r6,r6,6			/* doubleword number */
 	sldi	r6,r6,3			/* address offset */
 	add	r6,r6,r9
 	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
-	li	r0,1
-	sld	r0,r0,r7
+	li	r8,1
+	sld	r8,r8,r7
 	ld	r7,0(r6)
-	and.	r7,r7,r0
+	and.	r7,r7,r8
 	beq	22f
-23:	ldarx	r7,0,r6			/* if set, clear the bit */
-	andc	r7,r7,r0
-	stdcx.	r7,0,r6
-	bne	23b
 	/* Flush the TLB of any entries for this LPID */
-	lwz	r6,KVM_TLB_SETS(r9)
-	li	r0,0			/* RS for P9 version of tlbiel */
-	mtctr	r6
+	lwz	r0,KVM_TLB_SETS(r9)
+	mtctr	r0
 	li	r7,0x800		/* IS field = 0b10 */
 	ptesync
-28:	tlbiel	r7
+	li	r0,0			/* RS for P9 version of tlbiel */
+	bne	cr7, 29f
+28:	tlbiel	r7			/* On P9, rs=0, RIC=0, PRS=0, R=0 */
 	addi	r7,r7,0x1000
 	bdnz	28b
-	ptesync
+	b	30f
+29:	PPC_TLBIEL(7,0,2,1,1)		/* for radix, RIC=2, PRS=1, R=1 */
+	addi	r7,r7,0x1000
+	bdnz	29b
+30:	ptesync
+23:	ldarx	r7,0,r6			/* clear the bit after TLB flushed */
+	andc	r7,r7,r8
+	stdcx.	r7,0,r6
+	bne	23b
 
 	/* Add timebase offset onto timebase */
 22:	ld	r8,VCORE_TB_OFFSET(r5)

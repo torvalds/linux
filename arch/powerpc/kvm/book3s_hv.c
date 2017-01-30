@@ -1821,6 +1821,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	vcpu->arch.vcore = vcore;
 	vcpu->arch.ptid = vcpu->vcpu_id - vcore->first_vcpuid;
 	vcpu->arch.thread_cpu = -1;
+	vcpu->arch.prev_cpu = -1;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -1950,11 +1951,33 @@ static void kvmppc_release_hwthread(int cpu)
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
 }
 
+static void do_nothing(void *x)
+{
+}
+
+static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
+{
+	int i;
+
+	cpu = cpu_first_thread_sibling(cpu);
+	cpumask_set_cpu(cpu, &kvm->arch.need_tlb_flush);
+	/*
+	 * Make sure setting of bit in need_tlb_flush precedes
+	 * testing of cpu_in_guest bits.  The matching barrier on
+	 * the other side is the first smp_mb() in kvmppc_run_core().
+	 */
+	smp_mb();
+	for (i = 0; i < threads_per_core; ++i)
+		if (cpumask_test_cpu(cpu + i, &kvm->arch.cpu_in_guest))
+			smp_call_function_single(cpu + i, do_nothing, NULL, 1);
+}
+
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 {
 	int cpu;
 	struct paca_struct *tpaca;
 	struct kvmppc_vcore *mvc = vc->master_vcore;
+	struct kvm *kvm = vc->kvm;
 
 	cpu = vc->pcpu;
 	if (vcpu) {
@@ -1965,6 +1988,27 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 		cpu += vcpu->arch.ptid;
 		vcpu->cpu = mvc->pcpu;
 		vcpu->arch.thread_cpu = cpu;
+
+		/*
+		 * With radix, the guest can do TLB invalidations itself,
+		 * and it could choose to use the local form (tlbiel) if
+		 * it is invalidating a translation that has only ever been
+		 * used on one vcpu.  However, that doesn't mean it has
+		 * only ever been used on one physical cpu, since vcpus
+		 * can move around between pcpus.  To cope with this, when
+		 * a vcpu moves from one pcpu to another, we need to tell
+		 * any vcpus running on the same core as this vcpu previously
+		 * ran to flush the TLB.  The TLB is shared between threads,
+		 * so we use a single bit in .need_tlb_flush for all 4 threads.
+		 */
+		if (kvm_is_radix(kvm) && vcpu->arch.prev_cpu != cpu) {
+			if (vcpu->arch.prev_cpu >= 0 &&
+			    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
+			    cpu_first_thread_sibling(cpu))
+				radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
+			vcpu->arch.prev_cpu = cpu;
+		}
+		cpumask_set_cpu(cpu, &kvm->arch.cpu_in_guest);
 	}
 	tpaca = &paca[cpu];
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
@@ -2552,6 +2596,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		kvmppc_release_hwthread(pcpu + i);
 		if (sip && sip->napped[i])
 			kvmppc_ipi_thread(pcpu + i);
+		cpumask_clear_cpu(pcpu + i, &vc->kvm->arch.cpu_in_guest);
 	}
 
 	kvmppc_set_host_core(pcpu);

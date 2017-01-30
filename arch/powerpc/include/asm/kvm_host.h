@@ -263,6 +263,7 @@ struct kvm_arch {
 	unsigned long hpt_mask;
 	atomic_t hpte_mod_interest;
 	cpumask_t need_tlb_flush;
+	cpumask_t cpu_in_guest;
 	int hpt_cma_alloc;
 	u8 radix;
 	pgd_t *pgtable;
@@ -661,6 +662,7 @@ struct kvm_vcpu_arch {
 	int state;
 	int ptid;
 	int thread_cpu;
+	int prev_cpu;
 	bool timer_running;
 	wait_queue_head_t cpu_run;
 
