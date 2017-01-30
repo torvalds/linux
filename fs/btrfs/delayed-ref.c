@@ -909,11 +909,8 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
  * the head node if any where found, or NULL if not.
  */
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr)
+btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
 {
-	struct btrfs_delayed_ref_root *delayed_refs;
-
-	delayed_refs = &trans->transaction->delayed_refs;
 	return find_ref_head(&delayed_refs->href_root, bytenr, 0);
 }
 
