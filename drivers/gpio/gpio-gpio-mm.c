@@ -261,8 +261,6 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 
 	spin_lock_init(&gpiommgpio->lock);
 
-	dev_set_drvdata(dev, gpiommgpio);
-
 	err = devm_gpiochip_add_data(dev, &gpiommgpio->chip, gpiommgpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
