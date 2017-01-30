@@ -149,8 +149,6 @@ static __init int exynos4_pm_init_power_domain(void)
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
-			pr_err("%s: failed to allocate memory for domain\n",
-					__func__);
 			of_node_put(np);
 			return -ENOMEM;
 		}
