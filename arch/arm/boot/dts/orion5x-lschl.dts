@@ -2,7 +2,7 @@
  * Device Tree file for Buffalo Linkstation LS-CHLv3
  *
  * Copyright (C) 2016 Ash Hughes <ashley.hughes@blueyonder.co.uk>
- * Copyright (C) 2015, 2016
+ * Copyright (C) 2015-2017
  * Roger Shimizu <rogershimizu@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
@@ -52,7 +52,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Buffalo Linkstation Live v3 (LS-CHL)";
+	model = "Buffalo Linkstation LiveV3 (LS-CHL)";
 	compatible = "buffalo,lschl", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory { /* 128 MB */
