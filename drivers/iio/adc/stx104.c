@@ -256,6 +256,11 @@ static void stx104_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	spin_unlock_irqrestore(&stx104gpio->lock, flags);
 }
 
+#define STX104_NGPIO 8
+static const char *stx104_names[STX104_NGPIO] = {
+	"DIN0", "DIN1", "DIN2", "DIN3", "DOUT0", "DOUT1", "DOUT2", "DOUT3"
+};
+
 static int stx104_probe(struct device *dev, unsigned int id)
 {
 	struct iio_dev *indio_dev;
@@ -309,7 +314,8 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104gpio->chip.parent = dev;
 	stx104gpio->chip.owner = THIS_MODULE;
 	stx104gpio->chip.base = -1;
-	stx104gpio->chip.ngpio = 8;
+	stx104gpio->chip.ngpio = STX104_NGPIO;
+	stx104gpio->chip.names = stx104_names;
 	stx104gpio->chip.get_direction = stx104_gpio_get_direction;
 	stx104gpio->chip.direction_input = stx104_gpio_direction_input;
 	stx104gpio->chip.direction_output = stx104_gpio_direction_output;
