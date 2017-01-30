@@ -65,6 +65,8 @@ struct amdgpu_bo_list_entry;
 
 #define AMDGPU_PTE_FRAG(x)	((x & 0x1f) << 7)
 
+#define AMDGPU_PTE_PRT		(1UL << 63)
+
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
@@ -159,6 +161,10 @@ struct amdgpu_vm_manager {
 	atomic_t				vm_pte_next_ring;
 	/* client id counter */
 	atomic64_t				client_counter;
+
+	/* partial resident texture handling */
+	spinlock_t				prt_lock;
+	atomic_t				num_prt_mappings;
 };
 
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);

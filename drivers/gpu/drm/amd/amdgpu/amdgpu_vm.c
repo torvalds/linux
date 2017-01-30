@@ -69,6 +69,12 @@ struct amdgpu_pte_update_params {
 	bool shadow;
 };
 
+/* Helper to disable partial resident texture feature from a fence callback */
+struct amdgpu_prt_cb {
+	struct amdgpu_device *adev;
+	struct dma_fence_cb cb;
+};
+
 /**
  * amdgpu_vm_num_pde - return the number of page directory entries
  *
@@ -989,11 +995,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		goto error_free;
 
 	amdgpu_bo_fence(vm->page_directory, f, true);
-	if (fence) {
-		dma_fence_put(*fence);
-		*fence = dma_fence_get(f);
-	}
-	dma_fence_put(f);
+	dma_fence_put(*fence);
+	*fence = f;
 	return 0;
 
 error_free:
@@ -1177,6 +1180,61 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_update_prt_state - update the global PRT state
+ */
+static void amdgpu_vm_update_prt_state(struct amdgpu_device *adev)
+{
+	unsigned long flags;
+	bool enable;
+
+	spin_lock_irqsave(&adev->vm_manager.prt_lock, flags);
+	enable = !!atomic_read(&adev->vm_manager.num_prt_mappings);
+	adev->gart.gart_funcs->set_prt(adev, enable);
+	spin_unlock_irqrestore(&adev->vm_manager.prt_lock, flags);
+}
+
+/**
+ * amdgpu_vm_prt - callback for updating the PRT status
+ */
+static void amdgpu_vm_prt_cb(struct dma_fence *fence, struct dma_fence_cb *_cb)
+{
+	struct amdgpu_prt_cb *cb = container_of(_cb, struct amdgpu_prt_cb, cb);
+
+	amdgpu_vm_update_prt_state(cb->adev);
+	kfree(cb);
+}
+
+/**
+ * amdgpu_vm_free_mapping - free a mapping
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ * @mapping: mapping to be freed
+ * @fence: fence of the unmap operation
+ *
+ * Free a mapping and make sure we decrease the PRT usage count if applicable.
+ */
+static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
+				   struct amdgpu_vm *vm,
+				   struct amdgpu_bo_va_mapping *mapping,
+				   struct dma_fence *fence)
+{
+	if ((mapping->flags & AMDGPU_PTE_PRT) &&
+	    atomic_dec_return(&adev->vm_manager.num_prt_mappings) == 0) {
+		struct amdgpu_prt_cb *cb = kmalloc(sizeof(struct amdgpu_prt_cb),
+						   GFP_KERNEL);
+
+		cb->adev = adev;
+		if (!fence || dma_fence_add_callback(fence, &cb->cb,
+						     amdgpu_vm_prt_cb)) {
+			amdgpu_vm_update_prt_state(adev);
+			kfree(cb);
+		}
+	}
+	kfree(mapping);
+}
+
+/**
  * amdgpu_vm_clear_freed - clear freed BOs in the PT
  *
  * @adev: amdgpu_device pointer
@@ -1191,6 +1249,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping;
+	struct dma_fence *fence = NULL;
 	int r;
 
 	while (!list_empty(&vm->freed)) {
@@ -1199,12 +1258,15 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		list_del(&mapping->list);
 
 		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, NULL, vm, mapping,
-					       0, 0, NULL);
-		kfree(mapping);
-		if (r)
+					       0, 0, &fence);
+		amdgpu_vm_free_mapping(adev, vm, mapping, fence);
+		if (r) {
+			dma_fence_put(fence);
 			return r;
+		}
 
 	}
+	dma_fence_put(fence);
 	return 0;
 
 }
@@ -1314,6 +1376,15 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	    size == 0 || size & AMDGPU_GPU_PAGE_MASK)
 		return -EINVAL;
 
+	if (flags & AMDGPU_PTE_PRT) {
+		/* Check if we have PRT hardware support */
+		if (!adev->gart.gart_funcs->set_prt)
+			return -EINVAL;
+
+		if (atomic_inc_return(&adev->vm_manager.num_prt_mappings) == 1)
+			amdgpu_vm_update_prt_state(adev);
+	}
+
 	/* make sure object fit at this offset */
 	eaddr = saddr + size - 1;
 	if (saddr >= eaddr ||
@@ -1400,7 +1471,7 @@ error_free:
 	list_del(&mapping->list);
 	interval_tree_remove(&mapping->it, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
-	kfree(mapping);
+	amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
 
 error:
 	return r;
@@ -1452,7 +1523,8 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	if (valid)
 		list_add(&mapping->list, &vm->freed);
 	else
-		kfree(mapping);
+		amdgpu_vm_free_mapping(adev, vm, mapping,
+				       bo_va->last_pt_update);
 
 	return 0;
 }
@@ -1488,7 +1560,8 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	list_for_each_entry_safe(mapping, next, &bo_va->invalids, list) {
 		list_del(&mapping->list);
 		interval_tree_remove(&mapping->it, &vm->va);
-		kfree(mapping);
+		amdgpu_vm_free_mapping(adev, vm, mapping,
+				       bo_va->last_pt_update);
 	}
 
 	dma_fence_put(bo_va->last_pt_update);
@@ -1625,9 +1698,13 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		kfree(mapping);
 	}
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
+		if (mapping->flags & AMDGPU_PTE_PRT)
+			continue;
+
 		list_del(&mapping->list);
 		kfree(mapping);
 	}
+	amdgpu_vm_clear_freed(adev, vm);
 
 	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++) {
 		struct amdgpu_bo *pt = vm->page_tables[i].bo;
@@ -1673,6 +1750,8 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 	atomic64_set(&adev->vm_manager.client_counter, 0);
+	spin_lock_init(&adev->vm_manager.prt_lock);
+	atomic_set(&adev->vm_manager.num_prt_mappings, 0);
 }
 
 /**

@@ -294,6 +294,8 @@ struct amdgpu_gart_funcs {
 			   uint32_t gpu_page_idx, /* pte/pde to update */
 			   uint64_t addr, /* addr to write into pte/pde */
 			   uint32_t flags); /* access flags */
+	/* enable/disable PRT support */
+	void (*set_prt)(struct amdgpu_device *adev, bool enable);
 };
 
 /* provided by the ih block */
