@@ -347,10 +347,9 @@ static int __init parse_disable_radix(char *p)
 early_param("disable_radix", parse_disable_radix);
 
 /*
- * If we're running under a hypervisor, we currently can't do radix
- * since we don't have the code to do the H_REGISTER_PROC_TBL hcall.
- * We tell that we're running under a hypervisor by looking for the
- * /chosen/ibm,architecture-vec-5 property.
+ * If we're running under a hypervisor, we need to check the contents of
+ * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
+ * radix.  If not, we clear the radix feature bit so we fall back to hash.
  */
 static void early_check_vec5(void)
 {
@@ -365,7 +364,10 @@ static void early_check_vec5(void)
 	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
 	if (!vec5)
 		return;
-	cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+	if (size <= OV5_INDX(OV5_MMU_RADIX_300) ||
+	    !(vec5[OV5_INDX(OV5_MMU_RADIX_300)] & OV5_FEAT(OV5_MMU_RADIX_300)))
+		/* Hypervisor doesn't support radix */
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 }
 
 void __init mmu_early_init_devtree(void)
