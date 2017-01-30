@@ -407,15 +407,6 @@ good_area:
 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
-
-#ifdef CONFIG_PPC_STD_MMU
-		/*
-		 * protfault should only happen due to us
-		 * mapping a region readonly temporarily. PROT_NONE
-		 * is also covered by the VMA check above.
-		 */
-		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
-#endif /* CONFIG_PPC_STD_MMU */
 	/* a write */
 	} else if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -425,8 +416,40 @@ good_area:
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
-		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
 	}
+#ifdef CONFIG_PPC_STD_MMU
+	/*
+	 * For hash translation mode, we should never get a
+	 * PROTFAULT. Any update to pte to reduce access will result in us
+	 * removing the hash page table entry, thus resulting in a DSISR_NOHPTE
+	 * fault instead of DSISR_PROTFAULT.
+	 *
+	 * A pte update to relax the access will not result in a hash page table
+	 * entry invalidate and hence can result in DSISR_PROTFAULT.
+	 * ptep_set_access_flags() doesn't do a hpte flush. This is why we have
+	 * the special !is_write in the below conditional.
+	 *
+	 * For platforms that doesn't supports coherent icache and do support
+	 * per page noexec bit, we do setup things such that we do the
+	 * sync between D/I cache via fault. But that is handled via low level
+	 * hash fault code (hash_page_do_lazy_icache()) and we should not reach
+	 * here in such case.
+	 *
+	 * For wrong access that can result in PROTFAULT, the above vma->vm_flags
+	 * check should handle those and hence we should fall to the bad_area
+	 * handling correctly.
+	 *
+	 * For embedded with per page exec support that doesn't support coherent
+	 * icache we do get PROTFAULT and we handle that D/I cache sync in
+	 * set_pte_at while taking the noexec/prot fault. Hence this is WARN_ON
+	 * is conditional for server MMU.
+	 *
+	 * For radix, we can get prot fault for autonuma case, because radix
+	 * page table will have them marked noaccess for user.
+	 */
+	if (!radix_enabled() && !is_write)
+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
+#endif /* CONFIG_PPC_STD_MMU */
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,
