@@ -119,6 +119,7 @@ struct had_pvt_data {
  * @chmap: holds channel map info
  * @audio_reg_base: hdmi audio register base offset
  * @hw_silence: flag indicates SoC support for HW silence/Keep alive
+ * @underrun_count: PCM stream underrun counter
  */
 struct snd_intelhad {
 	struct snd_card	*card;
@@ -142,6 +143,7 @@ struct snd_intelhad {
 	unsigned int	*audio_reg_base;
 	unsigned int	audio_cfg_offset;
 	bool		hw_silence;
+	int underrun_count;
 };
 
 int had_event_handler(enum had_event_type event_type, void *data);
