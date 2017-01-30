@@ -1033,7 +1033,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %2d (%2d) %08llx %pad (%2d) %p %4d",
-			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
+			omap_obj->flags, obj->name, kref_read(&obj->refcount),
 			off, &omap_obj->paddr, omap_obj->paddr_cnt,
 			omap_obj->vaddr, omap_obj->roll);
 

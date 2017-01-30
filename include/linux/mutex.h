@@ -20,6 +20,8 @@
 #include <linux/osq_lock.h>
 #include <linux/debug_locks.h>
 
+struct ww_acquire_ctx;
+
 /*
  * Simple, straightforward mutexes with strict semantics:
  *
@@ -65,7 +67,7 @@ struct mutex {
 
 static inline struct task_struct *__mutex_owner(struct mutex *lock)
 {
-	return (struct task_struct *)(atomic_long_read(&lock->owner) & ~0x03);
+	return (struct task_struct *)(atomic_long_read(&lock->owner) & ~0x07);
 }
 
 /*
@@ -75,6 +77,7 @@ static inline struct task_struct *__mutex_owner(struct mutex *lock)
 struct mutex_waiter {
 	struct list_head	list;
 	struct task_struct	*task;
+	struct ww_acquire_ctx	*ww_ctx;
 #ifdef CONFIG_DEBUG_MUTEXES
 	void			*magic;
 #endif

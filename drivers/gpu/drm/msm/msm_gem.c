@@ -642,7 +642,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
 	for (id = 0; id < priv->num_aspaces; id++)

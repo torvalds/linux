@@ -1201,9 +1201,9 @@ static void __svc_rdma_free(struct work_struct *work)
 		ib_drain_qp(rdma->sc_qp);
 
 	/* We should only be called from kref_put */
-	if (atomic_read(&xprt->xpt_ref.refcount) != 0)
+	if (kref_read(&xprt->xpt_ref) != 0)
 		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
-		       atomic_read(&xprt->xpt_ref.refcount));
+		       kref_read(&xprt->xpt_ref));
 
 	/*
 	 * Destroy queued, but not processed read completions. Note

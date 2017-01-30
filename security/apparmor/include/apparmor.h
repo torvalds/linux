@@ -78,12 +78,6 @@ static inline void *kvzalloc(size_t size)
 	return __aa_kvmalloc(size, __GFP_ZERO);
 }
 
-/* returns 0 if kref not incremented */
-static inline int kref_get_not0(struct kref *kref)
-{
-	return atomic_inc_not_zero(&kref->refcount);
-}
-
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring
  * @str: a null terminated string

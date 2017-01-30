@@ -42,6 +42,3 @@ struct pv_lock_ops pv_lock_ops = {
 #endif /* SMP */
 };
 EXPORT_SYMBOL(pv_lock_ops);
-
-struct static_key paravirt_ticketlocks_enabled = STATIC_KEY_INIT_FALSE;
-EXPORT_SYMBOL(paravirt_ticketlocks_enabled);

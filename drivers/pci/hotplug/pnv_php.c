@@ -155,7 +155,7 @@ static void pnv_php_detach_device_nodes(struct device_node *parent)
 		pnv_php_detach_device_nodes(dn);
 
 		of_node_put(dn);
-		refcount = atomic_read(&dn->kobj.kref.refcount);
+		refcount = kref_read(&dn->kobj.kref);
 		if (refcount != 1)
 			pr_warn("Invalid refcount %d on <%s>\n",
 				refcount, of_node_full_name(dn));

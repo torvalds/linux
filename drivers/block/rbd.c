@@ -1535,7 +1535,7 @@ static bool obj_request_overlaps_parent(struct rbd_obj_request *obj_request)
 static void rbd_obj_request_get(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
-		atomic_read(&obj_request->kref.refcount));
+		kref_read(&obj_request->kref));
 	kref_get(&obj_request->kref);
 }
 
@@ -1544,14 +1544,14 @@ static void rbd_obj_request_put(struct rbd_obj_request *obj_request)
 {
 	rbd_assert(obj_request != NULL);
 	dout("%s: obj %p (was %d)\n", __func__, obj_request,
-		atomic_read(&obj_request->kref.refcount));
+		kref_read(&obj_request->kref));
 	kref_put(&obj_request->kref, rbd_obj_request_destroy);
 }
 
 static void rbd_img_request_get(struct rbd_img_request *img_request)
 {
 	dout("%s: img %p (was %d)\n", __func__, img_request,
-	     atomic_read(&img_request->kref.refcount));
+	     kref_read(&img_request->kref));
 	kref_get(&img_request->kref);
 }
 
@@ -1562,7 +1562,7 @@ static void rbd_img_request_put(struct rbd_img_request *img_request)
 {
 	rbd_assert(img_request != NULL);
 	dout("%s: img %p (was %d)\n", __func__, img_request,
-		atomic_read(&img_request->kref.refcount));
+		kref_read(&img_request->kref));
 	if (img_request_child_test(img_request))
 		kref_put(&img_request->kref, rbd_parent_request_destroy);
 	else

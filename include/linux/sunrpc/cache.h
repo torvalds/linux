@@ -198,7 +198,7 @@ static inline struct cache_head  *cache_get(struct cache_head *h)
 
 static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 {
-	if (atomic_read(&h->ref.refcount) <= 2 &&
+	if (kref_read(&h->ref) <= 2 &&
 	    h->expiry_time < cd->nextcheck)
 		cd->nextcheck = h->expiry_time;
 	kref_put(&h->ref, cd->cache_put);

@@ -97,7 +97,7 @@
 	typeof(sc) __sc = (sc);						\
 	mlog(ML_SOCKET, "[sc %p refs %d sock %p node %u page %p "	\
 	     "pg_off %zu] " fmt, __sc,					\
-	     atomic_read(&__sc->sc_kref.refcount), __sc->sc_sock,	\
+	     kref_read(&__sc->sc_kref), __sc->sc_sock,	\
 	    __sc->sc_node->nd_num, __sc->sc_page, __sc->sc_page_off ,	\
 	    ##args);							\
 } while (0)
