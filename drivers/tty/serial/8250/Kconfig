@@ -127,6 +127,10 @@ config SERIAL_8250_PCI
 	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
 	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
+config SERIAL_8250_EXAR
+        tristate "8250/16550 PCI device support"
+        depends on SERIAL_8250_PCI
+
 config SERIAL_8250_HP300
 	tristate
 	depends on SERIAL_8250 && HP300
