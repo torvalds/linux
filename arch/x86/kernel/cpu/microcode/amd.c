@@ -268,7 +268,7 @@ void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 		use_pa	= false;
 	}
 
-	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)))
+	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)) && !initrd_gone)
 		cp = find_microcode_in_initrd(path, use_pa);
 
 	/* Needed in load_microcode_amd() */
