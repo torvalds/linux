@@ -41,6 +41,9 @@ struct dsa_slave_priv {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
+
+	/* TC context */
+	struct list_head	mall_tc_list;
 };
 
 /* dsa.c */

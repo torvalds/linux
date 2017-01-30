@@ -1450,6 +1450,71 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_NONE;
 }
 
+int b53_mirror_add(struct dsa_switch *ds, int port,
+		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress)
+{
+	struct b53_device *dev = ds->priv;
+	u16 reg, loc;
+
+	if (ingress)
+		loc = B53_IG_MIR_CTL;
+	else
+		loc = B53_EG_MIR_CTL;
+
+	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
+	reg &= ~MIRROR_MASK;
+	reg |= BIT(port);
+	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
+
+	b53_read16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, &reg);
+	reg &= ~CAP_PORT_MASK;
+	reg |= mirror->to_local_port;
+	reg |= MIRROR_EN;
+	b53_write16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, reg);
+
+	return 0;
+}
+EXPORT_SYMBOL(b53_mirror_add);
+
+void b53_mirror_del(struct dsa_switch *ds, int port,
+		    struct dsa_mall_mirror_tc_entry *mirror)
+{
+	struct b53_device *dev = ds->priv;
+	bool loc_disable = false, other_loc_disable = false;
+	u16 reg, loc;
+
+	if (mirror->ingress)
+		loc = B53_IG_MIR_CTL;
+	else
+		loc = B53_EG_MIR_CTL;
+
+	/* Update the desired ingress/egress register */
+	b53_read16(dev, B53_MGMT_PAGE, loc, &reg);
+	reg &= ~BIT(port);
+	if (!(reg & MIRROR_MASK))
+		loc_disable = true;
+	b53_write16(dev, B53_MGMT_PAGE, loc, reg);
+
+	/* Now look at the other one to know if we can disable mirroring
+	 * entirely
+	 */
+	if (mirror->ingress)
+		b53_read16(dev, B53_MGMT_PAGE, B53_EG_MIR_CTL, &reg);
+	else
+		b53_read16(dev, B53_MGMT_PAGE, B53_IG_MIR_CTL, &reg);
+	if (!(reg & MIRROR_MASK))
+		other_loc_disable = true;
+
+	b53_read16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, &reg);
+	/* Both no longer have ports, let's disable mirroring */
+	if (loc_disable && other_loc_disable) {
+		reg &= ~MIRROR_EN;
+		reg &= ~mirror->to_local_port;
+	}
+	b53_write16(dev, B53_MGMT_PAGE, B53_MIR_CAP_CTL, reg);
+}
+EXPORT_SYMBOL(b53_mirror_del);
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
@@ -1474,6 +1539,8 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,
+	.port_mirror_add	= b53_mirror_add,
+	.port_mirror_del	= b53_mirror_del,
 };
 
 struct b53_chip_data {
