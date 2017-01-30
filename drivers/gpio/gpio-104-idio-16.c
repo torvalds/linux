@@ -210,6 +210,14 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define IDIO_16_NGPIO 32
+static const char *idio_16_names[IDIO_16_NGPIO] = {
+	"OUT0", "OUT1", "OUT2", "OUT3", "OUT4", "OUT5", "OUT6", "OUT7",
+	"OUT8", "OUT9", "OUT10", "OUT11", "OUT12", "OUT13", "OUT14", "OUT15",
+	"IIN0", "IIN1", "IIN2", "IIN3", "IIN4", "IIN5", "IIN6", "IIN7",
+	"IIN8", "IIN9", "IIN10", "IIN11", "IIN12", "IIN13", "IIN14", "IIN15"
+};
+
 static int idio_16_probe(struct device *dev, unsigned int id)
 {
 	struct idio_16_gpio *idio16gpio;
@@ -230,7 +238,8 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	idio16gpio->chip.parent = dev;
 	idio16gpio->chip.owner = THIS_MODULE;
 	idio16gpio->chip.base = -1;
-	idio16gpio->chip.ngpio = 32;
+	idio16gpio->chip.ngpio = IDIO_16_NGPIO;
+	idio16gpio->chip.names = idio_16_names;
 	idio16gpio->chip.get_direction = idio_16_gpio_get_direction;
 	idio16gpio->chip.direction_input = idio_16_gpio_direction_input;
 	idio16gpio->chip.direction_output = idio_16_gpio_direction_output;
