@@ -182,6 +182,8 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	unsigned long mmu_seq;
 	unsigned long rcbits, irq_flags = 0;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
 		return H_PARAMETER;
@@ -458,6 +460,8 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	struct revmap_entry *rev;
 	u64 pte, orig_pte, pte_r;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	if (pte_index >= kvm->arch.hpt_npte)
 		return H_PARAMETER;
 	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
@@ -529,6 +533,8 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 	struct revmap_entry *rev, *revs[4];
 	u64 hp0, hp1;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	global = global_invalidates(kvm, 0);
 	for (i = 0; i < 4 && ret == H_SUCCESS; ) {
 		n = 0;
@@ -642,6 +648,8 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long v, r, rb, mask, bits;
 	u64 pte_v, pte_r;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	if (pte_index >= kvm->arch.hpt_npte)
 		return H_PARAMETER;
 
@@ -711,6 +719,8 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 	int i, n = 1;
 	struct revmap_entry *rev = NULL;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	if (pte_index >= kvm->arch.hpt_npte)
 		return H_PARAMETER;
 	if (flags & H_READ_4) {
@@ -750,6 +760,8 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long *rmap;
 	long ret = H_NOT_FOUND;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	if (pte_index >= kvm->arch.hpt_npte)
 		return H_PARAMETER;
 
@@ -796,6 +808,8 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long *rmap;
 	long ret = H_NOT_FOUND;
 
+	if (kvm_is_radix(kvm))
+		return H_FUNCTION;
 	if (pte_index >= kvm->arch.hpt_npte)
 		return H_PARAMETER;
 
