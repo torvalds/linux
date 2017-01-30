@@ -19,11 +19,6 @@
 	model = "Marvell RD88f6281 Reference design, with A0 or higher SoC";
 	compatible = "marvell,rd88f6281-a", "marvell,rd88f6281","marvell,kirkwood-88f6281", "marvell,kirkwood";
 
-	dsa {
-		switch@0 {
-			reg = <10 0>;	 /* MDIO address 10, switch 0 in tree */
-		};
-	};
 };
 
 &mdio {
@@ -32,6 +27,10 @@
 	ethphy1: ethernet-phy@11 {
 		 reg = <11>;
 	};
+};
+
+&switch {
+	reg = <10>;
 };
 
 &eth1 {
