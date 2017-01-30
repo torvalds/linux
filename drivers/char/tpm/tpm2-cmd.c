@@ -1030,3 +1030,80 @@ out:
 		rc = -ENODEV;
 	return rc;
 }
+
+struct tpm2_pcr_selection {
+	__be16  hash_alg;
+	u8  size_of_select;
+	u8  pcr_select[3];
+} __packed;
+
+/**
+ * tpm2_get_pcr_allocation() - get TPM active PCR banks.
+ *
+ * @chip: TPM chip to use.
+ *
+ * Return: Same as with tpm_transmit_cmd.
+ */
+ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
+{
+	struct tpm2_pcr_selection pcr_selection;
+	struct tpm_buf buf;
+	void *marker;
+	void *end;
+	void *pcr_select_offset;
+	unsigned int count;
+	u32 sizeof_pcr_selection;
+	u32 rsp_len;
+	int rc;
+	int i = 0;
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	if (rc)
+		return rc;
+
+	tpm_buf_append_u32(&buf, TPM2_CAP_PCRS);
+	tpm_buf_append_u32(&buf, 0);
+	tpm_buf_append_u32(&buf, 1);
+
+	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 9, 0,
+			      "get tpm pcr allocation");
+	if (rc)
+		goto out;
+
+	count = be32_to_cpup(
+		(__be32 *)&buf.data[TPM_HEADER_SIZE + 5]);
+
+	if (count > ARRAY_SIZE(chip->active_banks)) {
+		rc = -ENODEV;
+		goto out;
+	}
+
+	marker = &buf.data[TPM_HEADER_SIZE + 9];
+
+	rsp_len = be32_to_cpup((__be32 *)&buf.data[2]);
+	end = &buf.data[rsp_len];
+
+	for (i = 0; i < count; i++) {
+		pcr_select_offset = marker +
+			offsetof(struct tpm2_pcr_selection, size_of_select);
+		if (pcr_select_offset >= end) {
+			rc = -EFAULT;
+			break;
+		}
+
+		memcpy(&pcr_selection, marker, sizeof(pcr_selection));
+		chip->active_banks[i] = be16_to_cpu(pcr_selection.hash_alg);
+		sizeof_pcr_selection = sizeof(pcr_selection.hash_alg) +
+			sizeof(pcr_selection.size_of_select) +
+			pcr_selection.size_of_select;
+		marker = marker + sizeof_pcr_selection;
+	}
+
+out:
+	if (i < ARRAY_SIZE(chip->active_banks))
+		chip->active_banks[i] = TPM2_ALG_ERROR;
+
+	tpm_buf_destroy(&buf);
+
+	return rc;
+}
