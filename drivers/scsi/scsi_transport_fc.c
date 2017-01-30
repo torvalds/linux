@@ -2160,19 +2160,6 @@ fc_user_scan(struct Scsi_Host *shost, uint channel, uint id, u64 lun)
 	return 0;
 }
 
-static int fc_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
-				int result)
-{
-	struct fc_internal *i = to_fc_internal(shost->transportt);
-	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
-}
-
-static int fc_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
-{
-	struct fc_internal *i = to_fc_internal(shost->transportt);
-	return i->f->it_nexus_response(shost, nexus, result);
-}
-
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
@@ -2213,10 +2200,6 @@ fc_attach_transport(struct fc_function_template *ft)
 	i->t.create_work_queue = 1;
 
 	i->t.user_scan = fc_user_scan;
-
-	/* target-mode drivers' functions */
-	i->t.tsk_mgmt_response = fc_tsk_mgmt_response;
-	i->t.it_nexus_response = fc_it_nexus_response;
 
 	/*
 	 * Setup SCSI Target Attributes.

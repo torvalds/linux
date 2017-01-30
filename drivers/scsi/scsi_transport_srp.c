@@ -794,19 +794,6 @@ void srp_stop_rport_timers(struct srp_rport *rport)
 }
 EXPORT_SYMBOL_GPL(srp_stop_rport_timers);
 
-static int srp_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
-				 int result)
-{
-	struct srp_internal *i = to_srp_internal(shost->transportt);
-	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
-}
-
-static int srp_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
-{
-	struct srp_internal *i = to_srp_internal(shost->transportt);
-	return i->f->it_nexus_response(shost, nexus, result);
-}
-
 /**
  * srp_attach_transport  -  instantiate SRP transport template
  * @ft:		SRP transport class function template
@@ -820,9 +807,6 @@ srp_attach_transport(struct srp_function_template *ft)
 	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (!i)
 		return NULL;
-
-	i->t.tsk_mgmt_response = srp_tsk_mgmt_response;
-	i->t.it_nexus_response = srp_it_nexus_response;
 
 	i->t.host_size = sizeof(struct srp_host_attrs);
 	i->t.host_attrs.ac.attrs = &i->host_attrs[0];
