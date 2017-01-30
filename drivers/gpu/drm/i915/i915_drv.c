@@ -779,8 +779,12 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
  */
 static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 {
-	if (IS_HSW_EARLY_SDV(dev_priv) ||
-	    IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0))
+	bool pre = false;
+
+	pre |= IS_HSW_EARLY_SDV(dev_priv);
+	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
+
+	if (pre)
 		DRM_ERROR("This is a pre-production stepping. "
 			  "It may not be fully functional.\n");
 }
