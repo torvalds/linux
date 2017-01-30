@@ -37,8 +37,6 @@
 #include <sound/initval.h>
 #include "intel_hdmi_audio.h"
 
-static DEFINE_MUTEX(had_mutex);
-
 /*standard module options for ALSA. This module supports only one card*/
 static int hdmi_card_index = SNDRV_DEFAULT_IDX1;
 static char *hdmi_card_id = SNDRV_DEFAULT_STR1;
@@ -1621,7 +1619,7 @@ int hdmi_audio_probe(struct platform_device *devptr,
 		pr_err("querying display driver APIs failed %#x\n", retval);
 		goto free_hadstream;
 	}
-	mutex_lock(&had_mutex);
+
 	spin_lock_init(&intelhaddata->had_spinlock);
 	intelhaddata->drv_status = HAD_DRV_DISCONNECTED;
 	pr_debug("%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
@@ -1632,7 +1630,7 @@ int hdmi_audio_probe(struct platform_device *devptr,
 				THIS_MODULE, 0, &card);
 
 	if (retval)
-		goto unlock_mutex;
+		goto free_hadstream;
 	intelhaddata->card = card;
 	intelhaddata->card_id = hdmi_card_id;
 	intelhaddata->card_index = card->number;
@@ -1705,16 +1703,12 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	pm_runtime_set_active(intelhaddata->dev);
 	pm_runtime_enable(intelhaddata->dev);
 
-	mutex_unlock(&had_mutex);
-
 	intelhaddata->hw_silence = 1;
 	*had_ret = intelhaddata;
 
 	return 0;
 err:
 	snd_card_free(card);
-unlock_mutex:
-	mutex_unlock(&had_mutex);
 free_hadstream:
 	kfree(had_stream);
 	pm_runtime_disable(intelhaddata->dev);
