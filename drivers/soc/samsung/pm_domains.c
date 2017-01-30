@@ -227,10 +227,10 @@ no_clk:
 
 		if (of_genpd_add_subdomain(&parent, &child))
 			pr_warn("%s failed to add subdomain: %s\n",
-				parent.np->name, child.np->name);
+				parent.np->full_name, child.np->full_name);
 		else
 			pr_info("%s has as child subdomain: %s.\n",
-				parent.np->name, child.np->name);
+				parent.np->full_name, child.np->full_name);
 	}
 
 	return 0;
