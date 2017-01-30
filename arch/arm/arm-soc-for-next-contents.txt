@@ -6,6 +6,10 @@ fixes
 		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-4.10-3
 
 next/fixes-non-critical
+	davinci/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/fixes-non-critical
+	omap/fixes-nc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/fixes-not-urgent-signed
 
 next/cleanup
 
@@ -20,10 +24,19 @@ next/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.11-soc
 	aspeed/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed tags/aspeed-4.11-soc
+	omap/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/soc-signed
+	hisi/soc
+		git://github.com/hisilicon/linux-hisi tags/hisi-armv7-soc-for-4.11
+	pxa/devel
+		https://github.com/rjarzmik/linux tags/pxa-for-4.11
 
 next/arm64
 	mvebu/defconfig64
 		git://git.infradead.org/linux-mvebu tags/mvebu-defconfig64-4.11-1
+	patch
+		arm64: defconfig: enable CONFIG_MMC_SDHCI_CADENCE
+		MAINTAINERS: Extend ARM/Mediatek SoC support section
 
 next/dt
 	renesas/dt
@@ -58,6 +71,14 @@ next/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_dts_for_4.11
 	uniphier/dt
 		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt-v4.11
+	qcom/dts
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-dts-for-4.11
+	davinci/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/dt
+	omap/dt
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/dt-signed-v2
+	mediatek/dts32
+		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts32
 
 next/dt64
 	renesas/dt64
@@ -76,6 +97,10 @@ next/dt64
 		git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier tags/uniphier-dt64-v4.11
 	qcom/dt64
 		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-arm64-for-4.11
+	mediatek/dts
+		https://github.com/mbgg/linux-mediatek tags/v4.10-next-dts
+	hisi/dt64
+		git://github.com/hisilicon/linux-hisi tags/hisi-arm64-dt-for-4.11
 
 next/defconfig
 	patch
@@ -97,6 +122,14 @@ next/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_config_for_4.11
 	qcom/defconfig
 		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-defconfig-for-4.11
+	davinci/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci tags/davinci-for-v4.11/defconfig
+	patch
+		ARM: Import tango4_defconfig
+	omap/defconfig
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/defconfig-signed
+	hisi/defconfig
+		git://github.com/hisilicon/linux-hisi tags/hisi-defconfig-for-4.11
 
 next/drivers
 	at91/drivers
@@ -109,4 +142,8 @@ next/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v4.11-armsoc-drivers1
 	keystone/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone tags/keystone_soc_for_4.11
+	qcom/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/agross/linux tags/qcom-drivers-for-4.11
+	omap/drivers
+		git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap tags/omap-for-v4.11/drivers-signed
 
