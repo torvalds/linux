@@ -461,7 +461,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 		}
 
 		ret = vc4_full_res_bounds_check(exec, *obj, surf);
-		if (!ret)
+		if (ret)
 			return ret;
 
 		return 0;

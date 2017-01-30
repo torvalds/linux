@@ -891,6 +891,8 @@
 #define PCS_V1_WINDOW_SELECT		0x03fc
 #define PCS_V2_WINDOW_DEF		0x9060
 #define PCS_V2_WINDOW_SELECT		0x9064
+#define PCS_V2_RV_WINDOW_DEF		0x1060
+#define PCS_V2_RV_WINDOW_SELECT		0x1064
 
 /* PCS register entry bit positions and sizes */
 #define PCS_V2_WINDOW_DEF_OFFSET_INDEX	6

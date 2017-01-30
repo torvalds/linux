@@ -200,7 +200,7 @@ static void nvmet_keep_alive_timer(struct work_struct *work)
 	pr_err("ctrl %d keep-alive timer (%d seconds) expired!\n",
 		ctrl->cntlid, ctrl->kato);
 
-	ctrl->ops->delete_ctrl(ctrl);
+	nvmet_ctrl_fatal_error(ctrl);
 }
 
 static void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl)
@@ -816,6 +816,9 @@ static void nvmet_ctrl_free(struct kref *ref)
 	list_del(&ctrl->subsys_entry);
 	mutex_unlock(&subsys->lock);
 
+	flush_work(&ctrl->async_event_work);
+	cancel_work_sync(&ctrl->fatal_err_work);
+
 	ida_simple_remove(&subsys->cntlid_ida, ctrl->cntlid);
 	nvmet_subsys_put(subsys);
 
@@ -933,6 +936,16 @@ static void nvmet_subsys_free(struct kref *ref)
 	ida_destroy(&subsys->cntlid_ida);
 	kfree(subsys->subsysnqn);
 	kfree(subsys);
+}
+
+void nvmet_subsys_del_ctrls(struct nvmet_subsys *subsys)
+{
+	struct nvmet_ctrl *ctrl;
+
+	mutex_lock(&subsys->lock);
+	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
+		ctrl->ops->delete_ctrl(ctrl);
+	mutex_unlock(&subsys->lock);
 }
 
 void nvmet_subsys_put(struct nvmet_subsys *subsys)

@@ -197,13 +197,13 @@ struct blkfront_info
 	/* Number of pages per ring buffer. */
 	unsigned int nr_ring_pages;
 	struct request_queue *rq;
-	unsigned int feature_flush;
-	unsigned int feature_fua;
+	unsigned int feature_flush:1;
+	unsigned int feature_fua:1;
 	unsigned int feature_discard:1;
 	unsigned int feature_secdiscard:1;
+	unsigned int feature_persistent:1;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
-	unsigned int feature_persistent:1;
 	/* Number of 4KB segments handled */
 	unsigned int max_indirect_segments;
 	int is_ready;
@@ -2223,7 +2223,7 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
 	}
 	else
 		grants = info->max_indirect_segments;
-	psegs = grants / GRANTS_PER_PSEG;
+	psegs = DIV_ROUND_UP(grants, GRANTS_PER_PSEG);
 
 	err = fill_grant_buffer(rinfo,
 				(grants + INDIRECT_GREFS(grants)) * BLK_RING_SIZE(info));
@@ -2323,13 +2323,16 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 		blkfront_setup_discard(info);
 
 	info->feature_persistent =
-		xenbus_read_unsigned(info->xbdev->otherend,
-				     "feature-persistent", 0);
+		!!xenbus_read_unsigned(info->xbdev->otherend,
+				       "feature-persistent", 0);
 
 	indirect_segments = xenbus_read_unsigned(info->xbdev->otherend,
 					"feature-max-indirect-segments", 0);
-	info->max_indirect_segments = min(indirect_segments,
-					  xen_blkif_max_segments);
+	if (indirect_segments > xen_blkif_max_segments)
+		indirect_segments = xen_blkif_max_segments;
+	if (indirect_segments <= BLKIF_MAX_SEGMENTS_PER_REQUEST)
+		indirect_segments = 0;
+	info->max_indirect_segments = indirect_segments;
 }
 
 /*
@@ -2651,6 +2654,9 @@ static int __init xlblk_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	if (xen_blkif_max_segments < BLKIF_MAX_SEGMENTS_PER_REQUEST)
+		xen_blkif_max_segments = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
 	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
 		pr_info("Invalid max_ring_order (%d), will use default max: %d.\n",

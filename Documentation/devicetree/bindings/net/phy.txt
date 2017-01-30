@@ -19,8 +19,9 @@ Optional Properties:
   specifications. If neither of these are specified, the default is to
   assume clause 22.
 
-  If the phy's identifier is known then the list may contain an entry
-  of the form: "ethernet-phy-idAAAA.BBBB" where
+  If the PHY reports an incorrect ID (or none at all) then the
+  "compatible" list may contain an entry with the correct PHY ID in the
+  form: "ethernet-phy-idAAAA.BBBB" where
      AAAA - The value of the 16 bit Phy Identifier 1 register as
             4 hex digits. This is the chip vendor OUI bits 3:18
      BBBB - The value of the 16 bit Phy Identifier 2 register as

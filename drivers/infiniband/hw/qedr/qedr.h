@@ -113,6 +113,8 @@ struct qedr_device_attr {
 	struct qed_rdma_events events;
 };
 
+#define QEDR_ENET_STATE_BIT	(0)
+
 struct qedr_dev {
 	struct ib_device	ibdev;
 	struct qed_dev		*cdev;
@@ -153,6 +155,8 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_sqcq;
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
+
+	unsigned long enet_state;
 };
 
 #define QEDR_MAX_SQ_PBL			(0x8000)
@@ -188,6 +192,7 @@ struct qedr_dev {
 #define QEDR_ROCE_MAX_CNQ_SIZE		(0x4000)
 
 #define QEDR_MAX_PORT			(1)
+#define QEDR_PORT			(1)
 
 #define QEDR_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
 
@@ -250,9 +255,6 @@ struct qedr_cq {
 	u32 sig;
 
 	u16 icid;
-
-	/* Lock to protect completion handler */
-	spinlock_t comp_handler_lock;
 
 	/* Lock to protect multiplem CQ's */
 	spinlock_t cq_lock;

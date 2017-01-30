@@ -478,17 +478,7 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	memset(props, 0, sizeof(*props));
 
 	props->max_mtu = IB_MTU_4096;
-
-	if (netdev->mtu  >= 4096)
-		props->active_mtu = IB_MTU_4096;
-	else if (netdev->mtu  >= 2048)
-		props->active_mtu = IB_MTU_2048;
-	else if (netdev->mtu  >= 1024)
-		props->active_mtu = IB_MTU_1024;
-	else if (netdev->mtu  >= 512)
-		props->active_mtu = IB_MTU_512;
-	else
-		props->active_mtu = IB_MTU_256;
+	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
 
 	props->lid = 1;
 	props->lmc = 0;

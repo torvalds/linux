@@ -1105,10 +1105,8 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 	/* Use already configured phy mode */
 	if (p->phy_interface == PHY_INTERFACE_MODE_NA)
 		p->phy_interface = p->phy->interface;
-	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
-			   p->phy_interface);
-
-	return 0;
+	return phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
+				  p->phy_interface);
 }
 
 static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
@@ -1202,6 +1200,8 @@ static void dsa_slave_set_lockdep_class_one(struct net_device *dev,
 int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	netif_device_detach(slave_dev);
 
 	if (p->phy) {
 		phy_stop(p->phy);
