@@ -210,6 +210,40 @@ vchi_queue_kernel_message(VCHI_SERVICE_HANDLE_T handle,
 }
 EXPORT_SYMBOL(vchi_queue_kernel_message);
 
+struct vchi_queue_user_message_context {
+	void __user *data;
+};
+
+static ssize_t
+vchi_queue_user_message_callback(void *context,
+				 void *dest,
+				 size_t offset,
+				 size_t maxsize)
+{
+	struct vchi_queue_user_message_context *copycontext = context;
+
+	if (copy_from_user(dest, copycontext->data + offset, maxsize))
+		return -EFAULT;
+
+	return maxsize;
+}
+
+int
+vchi_queue_user_message(VCHI_SERVICE_HANDLE_T handle,
+			void __user *data,
+			unsigned int size)
+{
+	struct vchi_queue_user_message_context copycontext = {
+		.data = data
+	};
+
+	return vchi_msg_queue(handle,
+			      vchi_queue_user_message_callback,
+			      &copycontext,
+			      size);
+}
+EXPORT_SYMBOL(vchi_queue_user_message);
+
 /***********************************************************
  * Name: vchi_bulk_queue_receive
  *
