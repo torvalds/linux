@@ -20,6 +20,8 @@
 #include <linux/phy_fixed.h>
 #include <linux/ethtool.h>
 
+struct tc_action;
+
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE = 0,
 	DSA_TAG_PROTO_DSA,
@@ -138,6 +140,28 @@ struct dsa_switch_tree {
 	 */
 	const struct dsa_device_ops *tag_ops;
 };
+
+/* TC matchall action types, only mirroring for now */
+enum dsa_port_mall_action_type {
+	DSA_PORT_MALL_MIRROR,
+};
+
+/* TC mirroring entry */
+struct dsa_mall_mirror_tc_entry {
+	u8 to_local_port;
+	bool ingress;
+};
+
+/* TC matchall entry */
+struct dsa_mall_tc_entry {
+	struct list_head list;
+	unsigned long cookie;
+	enum dsa_port_mall_action_type type;
+	union {
+		struct dsa_mall_mirror_tc_entry mirror;
+	};
+};
+
 
 struct dsa_port {
 	struct dsa_switch	*ds;
@@ -385,6 +409,15 @@ struct dsa_switch_ops {
 			     struct ethtool_rxnfc *nfc, u32 *rule_locs);
 	int	(*set_rxnfc)(struct dsa_switch *ds, int port,
 			     struct ethtool_rxnfc *nfc);
+
+	/*
+	 * TC integration
+	 */
+	int	(*port_mirror_add)(struct dsa_switch *ds, int port,
+				   struct dsa_mall_mirror_tc_entry *mirror,
+				   bool ingress);
+	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
+				   struct dsa_mall_mirror_tc_entry *mirror);
 };
 
 struct dsa_switch_driver {

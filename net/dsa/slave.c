@@ -16,11 +16,16 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/mdio.h>
+#include <linux/list.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_mirred.h>
 #include <linux/if_bridge.h>
 #include <linux/netpoll.h>
 #include "dsa_priv.h"
+
+static bool dsa_slave_dev_check(struct net_device *dev);
 
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
@@ -995,6 +1000,133 @@ static int dsa_slave_get_phys_port_name(struct net_device *dev,
 	return 0;
 }
 
+static struct dsa_mall_tc_entry *
+dsa_slave_mall_tc_entry_find(struct dsa_slave_priv *p,
+			     unsigned long cookie)
+{
+	struct dsa_mall_tc_entry *mall_tc_entry;
+
+	list_for_each_entry(mall_tc_entry, &p->mall_tc_list, list)
+		if (mall_tc_entry->cookie == cookie)
+			return mall_tc_entry;
+
+	return NULL;
+}
+
+static int dsa_slave_add_cls_matchall(struct net_device *dev,
+				      __be16 protocol,
+				      struct tc_cls_matchall_offload *cls,
+				      bool ingress)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_mall_tc_entry *mall_tc_entry;
+	struct dsa_switch *ds = p->dp->ds;
+	struct net *net = dev_net(dev);
+	struct dsa_slave_priv *to_p;
+	struct net_device *to_dev;
+	const struct tc_action *a;
+	int err = -EOPNOTSUPP;
+	LIST_HEAD(actions);
+	int ifindex;
+
+	if (!ds->ops->port_mirror_add)
+		return err;
+
+	if (!tc_single_action(cls->exts))
+		return err;
+
+	tcf_exts_to_list(cls->exts, &actions);
+	a = list_first_entry(&actions, struct tc_action, list);
+
+	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
+		struct dsa_mall_mirror_tc_entry *mirror;
+
+		ifindex = tcf_mirred_ifindex(a);
+		to_dev = __dev_get_by_index(net, ifindex);
+		if (!to_dev)
+			return -EINVAL;
+
+		if (!dsa_slave_dev_check(to_dev))
+			return -EOPNOTSUPP;
+
+		mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
+		if (!mall_tc_entry)
+			return -ENOMEM;
+
+		mall_tc_entry->cookie = cls->cookie;
+		mall_tc_entry->type = DSA_PORT_MALL_MIRROR;
+		mirror = &mall_tc_entry->mirror;
+
+		to_p = netdev_priv(to_dev);
+
+		mirror->to_local_port = to_p->dp->index;
+		mirror->ingress = ingress;
+
+		err = ds->ops->port_mirror_add(ds, p->dp->index, mirror,
+					       ingress);
+		if (err) {
+			kfree(mall_tc_entry);
+			return err;
+		}
+
+		list_add_tail(&mall_tc_entry->list, &p->mall_tc_list);
+	}
+
+	return 0;
+}
+
+static void dsa_slave_del_cls_matchall(struct net_device *dev,
+				       struct tc_cls_matchall_offload *cls)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_mall_tc_entry *mall_tc_entry;
+	struct dsa_switch *ds = p->dp->ds;
+
+	if (!ds->ops->port_mirror_del)
+		return;
+
+	mall_tc_entry = dsa_slave_mall_tc_entry_find(p, cls->cookie);
+	if (!mall_tc_entry)
+		return;
+
+	list_del(&mall_tc_entry->list);
+
+	switch (mall_tc_entry->type) {
+	case DSA_PORT_MALL_MIRROR:
+		ds->ops->port_mirror_del(ds, p->dp->index,
+					 &mall_tc_entry->mirror);
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	kfree(mall_tc_entry);
+}
+
+static int dsa_slave_setup_tc(struct net_device *dev, u32 handle,
+			      __be16 protocol, struct tc_to_netdev *tc)
+{
+	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
+	int ret = -EOPNOTSUPP;
+
+	switch (tc->type) {
+	case TC_SETUP_MATCHALL:
+		switch (tc->cls_mall->command) {
+		case TC_CLSMATCHALL_REPLACE:
+			return dsa_slave_add_cls_matchall(dev, protocol,
+							  tc->cls_mall,
+							  ingress);
+		case TC_CLSMATCHALL_DESTROY:
+			dsa_slave_del_cls_matchall(dev, tc->cls_mall);
+			return 0;
+		}
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
 {
 	ops->get_sset_count = dsa_cpu_port_get_sset_count;
@@ -1069,6 +1201,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
 	.ndo_get_phys_port_name	= dsa_slave_get_phys_port_name,
+	.ndo_setup_tc		= dsa_slave_setup_tc,
 };
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
@@ -1285,7 +1418,8 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	if (slave_dev == NULL)
 		return -ENOMEM;
 
-	slave_dev->features = master->vlan_features;
+	slave_dev->features = master->vlan_features | NETIF_F_HW_TC;
+	slave_dev->hw_features |= NETIF_F_HW_TC;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
@@ -1304,6 +1438,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	p = netdev_priv(slave_dev);
 	p->dp = &ds->ports[port];
+	INIT_LIST_HEAD(&p->mall_tc_list);
 	p->xmit = dst->tag_ops->xmit;
 
 	p->old_pause = -1;
