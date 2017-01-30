@@ -33,9 +33,6 @@ static int lpass_cpu_daiops_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	if (IS_ERR(drvdata->mi2s_osr_clk[dai->driver->id]))
-		return 0;
-
 	ret = clk_set_rate(drvdata->mi2s_osr_clk[dai->driver->id], freq);
 	if (ret)
 		dev_err(dai->dev, "%s() error setting mi2s osrclk to %u: %d\n",
@@ -50,23 +47,18 @@ static int lpass_cpu_daiops_startup(struct snd_pcm_substream *substream,
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	if (!IS_ERR(drvdata->mi2s_osr_clk[dai->driver->id])) {
-		ret = clk_prepare_enable(
-				drvdata->mi2s_osr_clk[dai->driver->id]);
-		if (ret) {
-			dev_err(dai->dev, "%s() error in enabling mi2s osr clk: %d\n",
-					__func__, ret);
-			return ret;
-		}
+	ret = clk_prepare_enable(drvdata->mi2s_osr_clk[dai->driver->id]);
+	if (ret) {
+		dev_err(dai->dev, "%s() error in enabling mi2s osr clk: %d\n",
+				__func__, ret);
+		return ret;
 	}
 
 	ret = clk_prepare_enable(drvdata->mi2s_bit_clk[dai->driver->id]);
 	if (ret) {
 		dev_err(dai->dev, "%s() error in enabling mi2s bit clk: %d\n",
 				__func__, ret);
-		if (!IS_ERR(drvdata->mi2s_osr_clk[dai->driver->id]))
-			clk_disable_unprepare(
-				drvdata->mi2s_osr_clk[dai->driver->id]);
+		clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
 		return ret;
 	}
 
@@ -80,8 +72,7 @@ static void lpass_cpu_daiops_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable_unprepare(drvdata->mi2s_bit_clk[dai->driver->id]);
 
-	if (!IS_ERR(drvdata->mi2s_osr_clk[dai->driver->id]))
-		clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
+	clk_disable_unprepare(drvdata->mi2s_osr_clk[dai->driver->id]);
 }
 
 static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
@@ -505,9 +496,11 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 								clk_name);
 		if (IS_ERR(drvdata->mi2s_osr_clk[dai_id])) {
 			dev_warn(&pdev->dev,
-				"%s() error getting mi2s-osr-clk: %ld\n",
+				"%s() error getting optional mi2s-osr-clk: %ld\n",
 				__func__,
 				PTR_ERR(drvdata->mi2s_osr_clk[dai_id]));
+
+			drvdata->mi2s_osr_clk[dai_id] = NULL;
 		}
 
 		if (variant->num_dai > 1)
