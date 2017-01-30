@@ -34,9 +34,9 @@
 unsigned long ccount_freq;		/* ccount Hz */
 EXPORT_SYMBOL(ccount_freq);
 
-static cycle_t ccount_read(struct clocksource *cs)
+static u64 ccount_read(struct clocksource *cs)
 {
-	return (cycle_t)get_ccount();
+	return (u64)get_ccount();
 }
 
 static u64 notrace ccount_sched_clock_read(void)
@@ -172,10 +172,11 @@ void __init time_init(void)
 {
 	of_clk_init(NULL);
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-	printk("Calibrating CPU frequency ");
+	pr_info("Calibrating CPU frequency ");
 	calibrate_ccount();
-	printk("%d.%02d MHz\n", (int)ccount_freq/1000000,
-			(int)(ccount_freq/10000)%100);
+	pr_cont("%d.%02d MHz\n",
+		(int)ccount_freq / 1000000,
+		(int)(ccount_freq / 10000) % 100);
 #else
 	ccount_freq = CONFIG_XTENSA_CPU_CLOCK*1000000UL;
 #endif
@@ -210,9 +211,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 void calibrate_delay(void)
 {
 	loops_per_jiffy = ccount_freq / HZ;
-	printk("Calibrating delay loop (skipped)... "
-	       "%lu.%02lu BogoMIPS preset\n",
-	       loops_per_jiffy/(1000000/HZ),
-	       (loops_per_jiffy/(10000/HZ)) % 100);
+	pr_info("Calibrating delay loop (skipped)... %lu.%02lu BogoMIPS preset\n",
+		loops_per_jiffy / (1000000 / HZ),
+		(loops_per_jiffy / (10000 / HZ)) % 100);
 }
 #endif

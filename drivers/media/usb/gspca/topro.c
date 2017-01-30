@@ -24,8 +24,7 @@
 #include "gspca.h"
 
 MODULE_DESCRIPTION("Topro TP6800/6810 gspca webcam driver");
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Anders Blomdell <anders.blomdell@control.lth.se>");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_LICENSE("GPL");
 
 static int force_sensor = -1;

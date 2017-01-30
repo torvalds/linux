@@ -72,9 +72,9 @@ struct adsp_hw_timer_struct {
 /*  Look for "TCX0" for related constants.  */
 static __iomem struct adsp_hw_timer_struct *rtos_timer;
 
-static cycle_t timer_get_cycles(struct clocksource *cs)
+static u64 timer_get_cycles(struct clocksource *cs)
 {
-	return (cycle_t) __vmgettime();
+	return (u64) __vmgettime();
 }
 
 static struct clocksource hexagon_clocksource = {

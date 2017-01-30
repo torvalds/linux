@@ -1284,61 +1284,21 @@ out:
 
 #endif /* CONFIG_PGTABLE_MAPPING */
 
-static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
-				void *pcpu)
+static int zs_cpu_prepare(unsigned int cpu)
 {
-	int ret, cpu = (long)pcpu;
 	struct mapping_area *area;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		area = &per_cpu(zs_map_area, cpu);
-		ret = __zs_cpu_up(area);
-		if (ret)
-			return notifier_from_errno(ret);
-		break;
-	case CPU_DEAD:
-	case CPU_UP_CANCELED:
-		area = &per_cpu(zs_map_area, cpu);
-		__zs_cpu_down(area);
-		break;
-	}
-
-	return NOTIFY_OK;
+	area = &per_cpu(zs_map_area, cpu);
+	return __zs_cpu_up(area);
 }
 
-static struct notifier_block zs_cpu_nb = {
-	.notifier_call = zs_cpu_notifier
-};
-
-static int zs_register_cpu_notifier(void)
+static int zs_cpu_dead(unsigned int cpu)
 {
-	int cpu, uninitialized_var(ret);
+	struct mapping_area *area;
 
-	cpu_notifier_register_begin();
-
-	__register_cpu_notifier(&zs_cpu_nb);
-	for_each_online_cpu(cpu) {
-		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
-		if (notifier_to_errno(ret))
-			break;
-	}
-
-	cpu_notifier_register_done();
-	return notifier_to_errno(ret);
-}
-
-static void zs_unregister_cpu_notifier(void)
-{
-	int cpu;
-
-	cpu_notifier_register_begin();
-
-	for_each_online_cpu(cpu)
-		zs_cpu_notifier(NULL, CPU_DEAD, (void *)(long)cpu);
-	__unregister_cpu_notifier(&zs_cpu_nb);
-
-	cpu_notifier_register_done();
+	area = &per_cpu(zs_map_area, cpu);
+	__zs_cpu_down(area);
+	return 0;
 }
 
 static void __init init_zs_size_classes(void)
@@ -2534,10 +2494,10 @@ static int __init zs_init(void)
 	if (ret)
 		goto out;
 
-	ret = zs_register_cpu_notifier();
-
+	ret = cpuhp_setup_state(CPUHP_MM_ZS_PREPARE, "mm/zsmalloc:prepare",
+				zs_cpu_prepare, zs_cpu_dead);
 	if (ret)
-		goto notifier_fail;
+		goto hp_setup_fail;
 
 	init_zs_size_classes();
 
@@ -2549,8 +2509,7 @@ static int __init zs_init(void)
 
 	return 0;
 
-notifier_fail:
-	zs_unregister_cpu_notifier();
+hp_setup_fail:
 	zsmalloc_unmount();
 out:
 	return ret;
@@ -2562,7 +2521,7 @@ static void __exit zs_exit(void)
 	zpool_unregister_driver(&zs_zpool_driver);
 #endif
 	zsmalloc_unmount();
-	zs_unregister_cpu_notifier();
+	cpuhp_remove_state(CPUHP_MM_ZS_PREPARE);
 
 	zs_stat_exit();
 }

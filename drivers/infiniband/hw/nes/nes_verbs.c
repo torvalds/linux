@@ -771,7 +771,8 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 /**
  * nes_create_ah
  */
-static struct ib_ah *nes_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
+static struct ib_ah *nes_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+				   struct ib_udata *udata)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -1075,7 +1076,6 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			mem = kzalloc(sizeof(*nesqp)+NES_SW_CONTEXT_ALIGN-1, GFP_KERNEL);
 			if (!mem) {
 				nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
-				nes_debug(NES_DBG_QP, "Unable to allocate QP\n");
 				return ERR_PTR(-ENOMEM);
 			}
 			u64nesqp = (unsigned long)mem;
@@ -1475,7 +1475,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	nescq = kzalloc(sizeof(struct nes_cq), GFP_KERNEL);
 	if (!nescq) {
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-		nes_debug(NES_DBG_CQ, "Unable to allocate nes_cq struct\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -2408,7 +2407,6 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			}
 			nespbl = kzalloc(sizeof(*nespbl), GFP_KERNEL);
 			if (!nespbl) {
-				nes_debug(NES_DBG_MR, "Unable to allocate PBL\n");
 				ib_umem_release(region);
 				return ERR_PTR(-ENOMEM);
 			}
@@ -2416,7 +2414,6 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			if (!nesmr) {
 				ib_umem_release(region);
 				kfree(nespbl);
-				nes_debug(NES_DBG_MR, "Unable to allocate nesmr\n");
 				return ERR_PTR(-ENOMEM);
 			}
 			nesmr->region = region;

@@ -84,6 +84,8 @@ int do_mmap_info(struct rxe_dev *rxe,
 		 size_t buf_size,
 		 struct rxe_mmap_info **ip_p);
 
+void rxe_queue_reset(struct rxe_queue *q);
+
 struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe,
 				 int *num_elem,
 				 unsigned int elem_size);

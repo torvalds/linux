@@ -136,7 +136,7 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 
 	/* Save the mpidr of the cpu we called cpu_suspend() on... */
 	if (sleep_cpu < 0) {
-		pr_err("Failing to hibernate on an unkown CPU.\n");
+		pr_err("Failing to hibernate on an unknown CPU.\n");
 		return -ENODEV;
 	}
 	hdr->sleep_cpu_mpidr = cpu_logical_map(sleep_cpu);
@@ -547,7 +547,7 @@ out:
 int hibernate_resume_nonboot_cpu_disable(void)
 {
 	if (sleep_cpu < 0) {
-		pr_err("Failing to resume from hibernate on an unkown CPU.\n");
+		pr_err("Failing to resume from hibernate on an unknown CPU.\n");
 		return -ENODEV;
 	}
 

@@ -186,16 +186,6 @@ static irqreturn_t sunxi_musb_interrupt(int irq, void *__hci)
 	if (musb->int_usb)
 		writeb(musb->int_usb, musb->mregs + SUNXI_MUSB_INTRUSB);
 
-	/*
-	 * sunxi musb often signals babble on low / full speed device
-	 * disconnect, without ever raising MUSB_INTR_DISCONNECT, since
-	 * normally babble never happens treat it as disconnect.
-	 */
-	if ((musb->int_usb & MUSB_INTR_BABBLE) && is_host_active(musb)) {
-		musb->int_usb &= ~MUSB_INTR_BABBLE;
-		musb->int_usb |= MUSB_INTR_DISCONNECT;
-	}
-
 	if ((musb->int_usb & MUSB_INTR_RESET) && !is_host_active(musb)) {
 		/* ep0 FADDR must be 0 when (re)entering peripheral mode */
 		musb_ep_select(musb->mregs, 0);
@@ -384,6 +374,20 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 	 * so let sunxi_musb_work deal with it.
 	 */
 	glue->phy_mode = new_mode;
+	set_bit(SUNXI_MUSB_FL_PHY_MODE_PEND, &glue->flags);
+	schedule_work(&glue->work);
+
+	return 0;
+}
+
+static int sunxi_musb_recover(struct musb *musb)
+{
+	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
+
+	/*
+	 * Schedule a phy_set_mode with the current glue->phy_mode value,
+	 * this will force end the current session.
+	 */
 	set_bit(SUNXI_MUSB_FL_PHY_MODE_PEND, &glue->flags);
 	schedule_work(&glue->work);
 
@@ -618,6 +622,7 @@ static const struct musb_platform_ops sunxi_musb_ops = {
 	.dma_init	= sunxi_musb_dma_controller_create,
 	.dma_exit	= sunxi_musb_dma_controller_destroy,
 	.set_mode	= sunxi_musb_set_mode,
+	.recover	= sunxi_musb_recover,
 	.set_vbus	= sunxi_musb_set_vbus,
 	.pre_root_reset_end = sunxi_musb_pre_root_reset_end,
 	.post_root_reset_end = sunxi_musb_post_root_reset_end,

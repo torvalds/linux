@@ -55,8 +55,10 @@ static int gb_log_request_handler(struct gb_operation *op)
 	/* Ensure the buffer is 0 terminated */
 	receive->msg[len - 1] = '\0';
 
-	/* Print with dev_dbg() so that it can be easily turned off using
-	 * dynamic debugging (and prevent any DoS) */
+	/*
+	 * Print with dev_dbg() so that it can be easily turned off using
+	 * dynamic debugging (and prevent any DoS)
+	 */
 	dev_dbg(dev, "%s", receive->msg);
 
 	return 0;

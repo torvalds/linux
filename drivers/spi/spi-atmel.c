@@ -24,6 +24,7 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 
@@ -264,17 +265,6 @@
 
 #define AUTOSUSPEND_TIMEOUT	2000
 
-struct atmel_spi_dma {
-	struct dma_chan			*chan_rx;
-	struct dma_chan			*chan_tx;
-	struct scatterlist		sgrx;
-	struct scatterlist		sgtx;
-	struct dma_async_tx_descriptor	*data_desc_rx;
-	struct dma_async_tx_descriptor	*data_desc_tx;
-
-	struct at_dma_slave	dma_slave;
-};
-
 struct atmel_spi_caps {
 	bool	is_spi2;
 	bool	has_wdrbt;
@@ -295,6 +285,7 @@ struct atmel_spi {
 	int			irq;
 	struct clk		*clk;
 	struct platform_device	*pdev;
+	unsigned long		spi_clk;
 
 	struct spi_transfer	*current_transfer;
 	int			current_remaining_bytes;
@@ -302,17 +293,11 @@ struct atmel_spi {
 
 	struct completion	xfer_completion;
 
-	/* scratch buffer */
-	void			*buffer;
-	dma_addr_t		buffer_dma;
-
 	struct atmel_spi_caps	caps;
 
 	bool			use_dma;
 	bool			use_pdc;
 	bool			use_cs_gpios;
-	/* dmaengine data */
-	struct atmel_spi_dma	dma;
 
 	bool			keep_cs;
 	bool			cs_active;
@@ -326,7 +311,7 @@ struct atmel_spi_device {
 	u32			csr;
 };
 
-#define BUFFER_SIZE		PAGE_SIZE
+#define SPI_MAX_DMA_XFER	65535 /* true for both PDC and DMA */
 #define INVALID_DMA_ADDRESS	0xffffffff
 
 /*
@@ -456,10 +441,20 @@ static inline bool atmel_spi_use_dma(struct atmel_spi *as,
 	return as->use_dma && xfer->len >= DMA_MIN_BYTES;
 }
 
+static bool atmel_spi_can_dma(struct spi_master *master,
+			      struct spi_device *spi,
+			      struct spi_transfer *xfer)
+{
+	struct atmel_spi *as = spi_master_get_devdata(master);
+
+	return atmel_spi_use_dma(as, xfer);
+}
+
 static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 				struct dma_slave_config *slave_config,
 				u8 bits_per_word)
 {
+	struct spi_master *master = platform_get_drvdata(as->pdev);
 	int err = 0;
 
 	if (bits_per_word > 8) {
@@ -491,7 +486,7 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	 * path works the same whether FIFOs are available (and enabled) or not.
 	 */
 	slave_config->direction = DMA_MEM_TO_DEV;
-	if (dmaengine_slave_config(as->dma.chan_tx, slave_config)) {
+	if (dmaengine_slave_config(master->dma_tx, slave_config)) {
 		dev_err(&as->pdev->dev,
 			"failed to configure tx dma channel\n");
 		err = -EINVAL;
@@ -506,7 +501,7 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	 * enabled) or not.
 	 */
 	slave_config->direction = DMA_DEV_TO_MEM;
-	if (dmaengine_slave_config(as->dma.chan_rx, slave_config)) {
+	if (dmaengine_slave_config(master->dma_rx, slave_config)) {
 		dev_err(&as->pdev->dev,
 			"failed to configure rx dma channel\n");
 		err = -EINVAL;
@@ -515,7 +510,8 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	return err;
 }
 
-static int atmel_spi_configure_dma(struct atmel_spi *as)
+static int atmel_spi_configure_dma(struct spi_master *master,
+				   struct atmel_spi *as)
 {
 	struct dma_slave_config	slave_config;
 	struct device *dev = &as->pdev->dev;
@@ -525,26 +521,26 @@ static int atmel_spi_configure_dma(struct atmel_spi *as)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	as->dma.chan_tx = dma_request_slave_channel_reason(dev, "tx");
-	if (IS_ERR(as->dma.chan_tx)) {
-		err = PTR_ERR(as->dma.chan_tx);
+	master->dma_tx = dma_request_slave_channel_reason(dev, "tx");
+	if (IS_ERR(master->dma_tx)) {
+		err = PTR_ERR(master->dma_tx);
 		if (err == -EPROBE_DEFER) {
 			dev_warn(dev, "no DMA channel available at the moment\n");
-			return err;
+			goto error_clear;
 		}
 		dev_err(dev,
 			"DMA TX channel not available, SPI unable to use DMA\n");
 		err = -EBUSY;
-		goto error;
+		goto error_clear;
 	}
 
 	/*
 	 * No reason to check EPROBE_DEFER here since we have already requested
 	 * tx channel. If it fails here, it's for another reason.
 	 */
-	as->dma.chan_rx = dma_request_slave_channel(dev, "rx");
+	master->dma_rx = dma_request_slave_channel(dev, "rx");
 
-	if (!as->dma.chan_rx) {
+	if (!master->dma_rx) {
 		dev_err(dev,
 			"DMA RX channel not available, SPI unable to use DMA\n");
 		err = -EBUSY;
@@ -557,31 +553,38 @@ static int atmel_spi_configure_dma(struct atmel_spi *as)
 
 	dev_info(&as->pdev->dev,
 			"Using %s (tx) and %s (rx) for DMA transfers\n",
-			dma_chan_name(as->dma.chan_tx),
-			dma_chan_name(as->dma.chan_rx));
+			dma_chan_name(master->dma_tx),
+			dma_chan_name(master->dma_rx));
+
 	return 0;
 error:
-	if (as->dma.chan_rx)
-		dma_release_channel(as->dma.chan_rx);
-	if (!IS_ERR(as->dma.chan_tx))
-		dma_release_channel(as->dma.chan_tx);
+	if (master->dma_rx)
+		dma_release_channel(master->dma_rx);
+	if (!IS_ERR(master->dma_tx))
+		dma_release_channel(master->dma_tx);
+error_clear:
+	master->dma_tx = master->dma_rx = NULL;
 	return err;
 }
 
-static void atmel_spi_stop_dma(struct atmel_spi *as)
+static void atmel_spi_stop_dma(struct spi_master *master)
 {
-	if (as->dma.chan_rx)
-		dmaengine_terminate_all(as->dma.chan_rx);
-	if (as->dma.chan_tx)
-		dmaengine_terminate_all(as->dma.chan_tx);
+	if (master->dma_rx)
+		dmaengine_terminate_all(master->dma_rx);
+	if (master->dma_tx)
+		dmaengine_terminate_all(master->dma_tx);
 }
 
-static void atmel_spi_release_dma(struct atmel_spi *as)
+static void atmel_spi_release_dma(struct spi_master *master)
 {
-	if (as->dma.chan_rx)
-		dma_release_channel(as->dma.chan_rx);
-	if (as->dma.chan_tx)
-		dma_release_channel(as->dma.chan_tx);
+	if (master->dma_rx) {
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
+	}
+	if (master->dma_tx) {
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
+	}
 }
 
 /* This function is called by the DMA driver from tasklet context */
@@ -611,14 +614,10 @@ static void atmel_spi_next_xfer_single(struct spi_master *master,
 		cpu_relax();
 	}
 
-	if (xfer->tx_buf) {
-		if (xfer->bits_per_word > 8)
-			spi_writel(as, TDR, *(u16 *)(xfer->tx_buf + xfer_pos));
-		else
-			spi_writel(as, TDR, *(u8 *)(xfer->tx_buf + xfer_pos));
-	} else {
-		spi_writel(as, TDR, 0);
-	}
+	if (xfer->bits_per_word > 8)
+		spi_writel(as, TDR, *(u16 *)(xfer->tx_buf + xfer_pos));
+	else
+		spi_writel(as, TDR, *(u8 *)(xfer->tx_buf + xfer_pos));
 
 	dev_dbg(master->dev.parent,
 		"  start pio xfer %p: len %u tx %p rx %p bitpw %d\n",
@@ -665,17 +664,12 @@ static void atmel_spi_next_xfer_fifo(struct spi_master *master,
 
 	/* Fill TX FIFO */
 	while (num_data >= 2) {
-		if (xfer->tx_buf) {
-			if (xfer->bits_per_word > 8) {
-				td0 = *words++;
-				td1 = *words++;
-			} else {
-				td0 = *bytes++;
-				td1 = *bytes++;
-			}
+		if (xfer->bits_per_word > 8) {
+			td0 = *words++;
+			td1 = *words++;
 		} else {
-			td0 = 0;
-			td1 = 0;
+			td0 = *bytes++;
+			td1 = *bytes++;
 		}
 
 		spi_writel(as, TDR, (td1 << 16) | td0);
@@ -683,14 +677,10 @@ static void atmel_spi_next_xfer_fifo(struct spi_master *master,
 	}
 
 	if (num_data) {
-		if (xfer->tx_buf) {
-			if (xfer->bits_per_word > 8)
-				td0 = *words++;
-			else
-				td0 = *bytes++;
-		} else {
-			td0 = 0;
-		}
+		if (xfer->bits_per_word > 8)
+			td0 = *words++;
+		else
+			td0 = *bytes++;
 
 		spi_writew(as, TDR, td0);
 		num_data--;
@@ -730,13 +720,12 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 				u32 *plen)
 {
 	struct atmel_spi	*as = spi_master_get_devdata(master);
-	struct dma_chan		*rxchan = as->dma.chan_rx;
-	struct dma_chan		*txchan = as->dma.chan_tx;
+	struct dma_chan		*rxchan = master->dma_rx;
+	struct dma_chan		*txchan = master->dma_tx;
 	struct dma_async_tx_descriptor *rxdesc;
 	struct dma_async_tx_descriptor *txdesc;
 	struct dma_slave_config	slave_config;
 	dma_cookie_t		cookie;
-	u32	len = *plen;
 
 	dev_vdbg(master->dev.parent, "atmel_spi_next_xfer_dma_submit\n");
 
@@ -747,44 +736,22 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 	/* release lock for DMA operations */
 	atmel_spi_unlock(as);
 
-	/* prepare the RX dma transfer */
-	sg_init_table(&as->dma.sgrx, 1);
-	if (xfer->rx_buf) {
-		as->dma.sgrx.dma_address = xfer->rx_dma + xfer->len - *plen;
-	} else {
-		as->dma.sgrx.dma_address = as->buffer_dma;
-		if (len > BUFFER_SIZE)
-			len = BUFFER_SIZE;
-	}
-
-	/* prepare the TX dma transfer */
-	sg_init_table(&as->dma.sgtx, 1);
-	if (xfer->tx_buf) {
-		as->dma.sgtx.dma_address = xfer->tx_dma + xfer->len - *plen;
-	} else {
-		as->dma.sgtx.dma_address = as->buffer_dma;
-		if (len > BUFFER_SIZE)
-			len = BUFFER_SIZE;
-		memset(as->buffer, 0, len);
-	}
-
-	sg_dma_len(&as->dma.sgtx) = len;
-	sg_dma_len(&as->dma.sgrx) = len;
-
-	*plen = len;
+	*plen = xfer->len;
 
 	if (atmel_spi_dma_slave_config(as, &slave_config,
 				       xfer->bits_per_word))
 		goto err_exit;
 
 	/* Send both scatterlists */
-	rxdesc = dmaengine_prep_slave_sg(rxchan, &as->dma.sgrx, 1,
+	rxdesc = dmaengine_prep_slave_sg(rxchan,
+					 xfer->rx_sg.sgl, xfer->rx_sg.nents,
 					 DMA_FROM_DEVICE,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
 		goto err_dma;
 
-	txdesc = dmaengine_prep_slave_sg(txchan, &as->dma.sgtx, 1,
+	txdesc = dmaengine_prep_slave_sg(txchan,
+					 xfer->tx_sg.sgl, xfer->tx_sg.nents,
 					 DMA_TO_DEVICE,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
@@ -818,7 +785,7 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 
 err_dma:
 	spi_writel(as, IDR, SPI_BIT(OVRES));
-	atmel_spi_stop_dma(as);
+	atmel_spi_stop_dma(master);
 err_exit:
 	atmel_spi_lock(as);
 	return -ENOMEM;
@@ -830,30 +797,10 @@ static void atmel_spi_next_xfer_data(struct spi_master *master,
 				dma_addr_t *rx_dma,
 				u32 *plen)
 {
-	struct atmel_spi	*as = spi_master_get_devdata(master);
-	u32			len = *plen;
-
-	/* use scratch buffer only when rx or tx data is unspecified */
-	if (xfer->rx_buf)
-		*rx_dma = xfer->rx_dma + xfer->len - *plen;
-	else {
-		*rx_dma = as->buffer_dma;
-		if (len > BUFFER_SIZE)
-			len = BUFFER_SIZE;
-	}
-
-	if (xfer->tx_buf)
-		*tx_dma = xfer->tx_dma + xfer->len - *plen;
-	else {
-		*tx_dma = as->buffer_dma;
-		if (len > BUFFER_SIZE)
-			len = BUFFER_SIZE;
-		memset(as->buffer, 0, len);
-		dma_sync_single_for_device(&as->pdev->dev,
-				as->buffer_dma, len, DMA_TO_DEVICE);
-	}
-
-	*plen = len;
+	*rx_dma = xfer->rx_dma + xfer->len - *plen;
+	*tx_dma = xfer->tx_dma + xfer->len - *plen;
+	if (*plen > master->max_dma_len)
+		*plen = master->max_dma_len;
 }
 
 static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
@@ -864,7 +811,7 @@ static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
 	unsigned long		bus_hz;
 
 	/* v1 chips start out at half the peripheral bus speed. */
-	bus_hz = clk_get_rate(as->clk);
+	bus_hz = as->spi_clk;
 	if (!atmel_spi_is_v2(as))
 		bus_hz /= 2;
 
@@ -1025,16 +972,12 @@ atmel_spi_pump_single_data(struct atmel_spi *as, struct spi_transfer *xfer)
 	u16		*rxp16;
 	unsigned long	xfer_pos = xfer->len - as->current_remaining_bytes;
 
-	if (xfer->rx_buf) {
-		if (xfer->bits_per_word > 8) {
-			rxp16 = (u16 *)(((u8 *)xfer->rx_buf) + xfer_pos);
-			*rxp16 = spi_readl(as, RDR);
-		} else {
-			rxp = ((u8 *)xfer->rx_buf) + xfer_pos;
-			*rxp = spi_readl(as, RDR);
-		}
+	if (xfer->bits_per_word > 8) {
+		rxp16 = (u16 *)(((u8 *)xfer->rx_buf) + xfer_pos);
+		*rxp16 = spi_readl(as, RDR);
 	} else {
-		spi_readl(as, RDR);
+		rxp = ((u8 *)xfer->rx_buf) + xfer_pos;
+		*rxp = spi_readl(as, RDR);
 	}
 	if (xfer->bits_per_word > 8) {
 		if (as->current_remaining_bytes > 2)
@@ -1073,12 +1016,10 @@ atmel_spi_pump_fifo_data(struct atmel_spi *as, struct spi_transfer *xfer)
 	/* Read data */
 	while (num_data) {
 		rd = spi_readl(as, RDR);
-		if (xfer->rx_buf) {
-			if (xfer->bits_per_word > 8)
-				*words++ = rd;
-			else
-				*bytes++ = rd;
-		}
+		if (xfer->bits_per_word > 8)
+			*words++ = rd;
+		else
+			*bytes++ = rd;
 		num_data--;
 	}
 }
@@ -1204,7 +1145,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 	u32			csr;
 	unsigned int		bits = spi->bits_per_word;
 	unsigned int		npcs_pin;
-	int			ret;
 
 	as = spi_master_get_devdata(spi->master);
 
@@ -1247,16 +1187,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 		if (!asd)
 			return -ENOMEM;
 
-		if (as->use_cs_gpios) {
-			ret = gpio_request(npcs_pin, dev_name(&spi->dev));
-			if (ret) {
-				kfree(asd);
-				return ret;
-			}
-
+		if (as->use_cs_gpios)
 			gpio_direction_output(npcs_pin,
 					      !(spi->mode & SPI_CS_HIGH));
-		}
 
 		asd->npcs_pin = npcs_pin;
 		spi->controller_state = asd;
@@ -1307,7 +1240,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 	 * better fault reporting.
 	 */
 	if ((!msg->is_dma_mapped)
-		&& (atmel_spi_use_dma(as, xfer)	|| as->use_pdc)) {
+		&& as->use_pdc) {
 		if (atmel_spi_dma_map_xfer(as, xfer) < 0)
 			return -ENOMEM;
 	}
@@ -1380,11 +1313,11 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 			spi_readl(as, SR);
 
 		} else if (atmel_spi_use_dma(as, xfer)) {
-			atmel_spi_stop_dma(as);
+			atmel_spi_stop_dma(master);
 		}
 
 		if (!msg->is_dma_mapped
-			&& (atmel_spi_use_dma(as, xfer) || as->use_pdc))
+			&& as->use_pdc)
 			atmel_spi_dma_unmap_xfer(master, xfer);
 
 		return 0;
@@ -1395,7 +1328,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 	}
 
 	if (!msg->is_dma_mapped
-		&& (atmel_spi_use_dma(as, xfer) || as->use_pdc))
+		&& as->use_pdc)
 		atmel_spi_dma_unmap_xfer(master, xfer);
 
 	if (xfer->delay_usecs)
@@ -1471,13 +1404,11 @@ msg_done:
 static void atmel_spi_cleanup(struct spi_device *spi)
 {
 	struct atmel_spi_device	*asd = spi->controller_state;
-	unsigned		gpio = (unsigned long) spi->controller_data;
 
 	if (!asd)
 		return;
 
 	spi->controller_state = NULL;
-	gpio_free(gpio);
 	kfree(asd);
 }
 
@@ -1499,6 +1430,39 @@ static void atmel_get_caps(struct atmel_spi *as)
 }
 
 /*-------------------------------------------------------------------------*/
+static int atmel_spi_gpio_cs(struct platform_device *pdev)
+{
+	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct atmel_spi	*as = spi_master_get_devdata(master);
+	struct device_node	*np = master->dev.of_node;
+	int			i;
+	int			ret = 0;
+	int			nb = 0;
+
+	if (!as->use_cs_gpios)
+		return 0;
+
+	if (!np)
+		return 0;
+
+	nb = of_gpio_named_count(np, "cs-gpios");
+	for (i = 0; i < nb; i++) {
+		int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
+						"cs-gpios", i);
+
+		if (cs_gpio == -EPROBE_DEFER)
+			return cs_gpio;
+
+		if (gpio_is_valid(cs_gpio)) {
+			ret = devm_gpio_request(&pdev->dev, cs_gpio,
+						dev_name(&pdev->dev));
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
 
 static int atmel_spi_probe(struct platform_device *pdev)
 {
@@ -1537,21 +1501,15 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->num_chipselect = master->dev.of_node ? 0 : 4;
 	master->setup = atmel_spi_setup;
+	master->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX);
 	master->transfer_one_message = atmel_spi_transfer_one_message;
 	master->cleanup = atmel_spi_cleanup;
 	master->auto_runtime_pm = true;
+	master->max_dma_len = SPI_MAX_DMA_XFER;
+	master->can_dma = atmel_spi_can_dma;
 	platform_set_drvdata(pdev, master);
 
 	as = spi_master_get_devdata(master);
-
-	/*
-	 * Scratch buffer is used for throwaway rx and tx data.
-	 * It's coherent to minimize dcache pollution.
-	 */
-	as->buffer = dma_alloc_coherent(&pdev->dev, BUFFER_SIZE,
-					&as->buffer_dma, GFP_KERNEL);
-	if (!as->buffer)
-		goto out_free;
 
 	spin_lock_init(&as->lock);
 
@@ -1559,7 +1517,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	as->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(as->regs)) {
 		ret = PTR_ERR(as->regs);
-		goto out_free_buffer;
+		goto out_unmap_regs;
 	}
 	as->phybase = regs->start;
 	as->irq = irq;
@@ -1577,14 +1535,19 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		master->num_chipselect = 4;
 	}
 
+	ret = atmel_spi_gpio_cs(pdev);
+	if (ret)
+		goto out_unmap_regs;
+
 	as->use_dma = false;
 	as->use_pdc = false;
 	if (as->caps.has_dma_support) {
-		ret = atmel_spi_configure_dma(as);
-		if (ret == 0)
+		ret = atmel_spi_configure_dma(master, as);
+		if (ret == 0) {
 			as->use_dma = true;
-		else if (ret == -EPROBE_DEFER)
+		} else if (ret == -EPROBE_DEFER) {
 			return ret;
+		}
 	} else {
 		as->use_pdc = true;
 	}
@@ -1606,6 +1569,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto out_free_irq;
+
+	as->spi_clk = clk_get_rate(clk);
+
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	if (as->caps.has_wdrbt) {
@@ -1626,10 +1592,6 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		spi_writel(as, CR, SPI_BIT(FIFOEN));
 	}
 
-	/* go! */
-	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
-			(unsigned long)regs->start, irq);
-
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -1639,6 +1601,10 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_free_dma;
 
+	/* go! */
+	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
+			(unsigned long)regs->start, irq);
+
 	return 0;
 
 out_free_dma:
@@ -1646,16 +1612,13 @@ out_free_dma:
 	pm_runtime_set_suspended(&pdev->dev);
 
 	if (as->use_dma)
-		atmel_spi_release_dma(as);
+		atmel_spi_release_dma(master);
 
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	clk_disable_unprepare(clk);
 out_free_irq:
 out_unmap_regs:
-out_free_buffer:
-	dma_free_coherent(&pdev->dev, BUFFER_SIZE, as->buffer,
-			as->buffer_dma);
 out_free:
 	spi_master_put(master);
 	return ret;
@@ -1671,17 +1634,14 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	/* reset the hardware and block queue progress */
 	spin_lock_irq(&as->lock);
 	if (as->use_dma) {
-		atmel_spi_stop_dma(as);
-		atmel_spi_release_dma(as);
+		atmel_spi_stop_dma(master);
+		atmel_spi_release_dma(master);
 	}
 
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	spi_readl(as, SR);
 	spin_unlock_irq(&as->lock);
-
-	dma_free_coherent(&pdev->dev, BUFFER_SIZE, as->buffer,
-			as->buffer_dma);
 
 	clk_disable_unprepare(as->clk);
 

@@ -8,7 +8,7 @@
  *  proc net directory handling functions
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/errno.h>
 #include <linux/time.h>

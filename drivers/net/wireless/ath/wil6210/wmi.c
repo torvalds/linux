@@ -84,19 +84,29 @@ MODULE_PARM_DESC(led_id,
  * array size should be in sync with the declaration in the wil6210.h
  */
 const struct fw_map fw_mapping[] = {
-	{0x000000, 0x040000, 0x8c0000, "fw_code"}, /* FW code RAM      256k */
-	{0x800000, 0x808000, 0x900000, "fw_data"}, /* FW data RAM       32k */
-	{0x840000, 0x860000, 0x908000, "fw_peri"}, /* periph. data RAM 128k */
-	{0x880000, 0x88a000, 0x880000, "rgf"},     /* various RGF       40k */
-	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl"}, /* AGC table          4k */
-	{0x88b000, 0x88c000, 0x88b000, "rgf_ext"}, /* Pcie_ext_rgf       4k */
-	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext"}, /* mac_ext_rgf  512b */
-	{0x8c0000, 0x949000, 0x8c0000, "upper"},   /* upper area       548k */
-	/*
-	 * 920000..930000 ucode code RAM
-	 * 930000..932000 ucode data RAM
-	 * 932000..949000 back-door debug data
+	/* FW code RAM 256k */
+	{0x000000, 0x040000, 0x8c0000, "fw_code", true},
+	/* FW data RAM 32k */
+	{0x800000, 0x808000, 0x900000, "fw_data", true},
+	/* periph data 128k */
+	{0x840000, 0x860000, 0x908000, "fw_peri", true},
+	/* various RGF 40k */
+	{0x880000, 0x88a000, 0x880000, "rgf", true},
+	/* AGC table   4k */
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl", true},
+	/* Pcie_ext_rgf 4k */
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext", true},
+	/* mac_ext_rgf 512b */
+	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true},
+	/* upper area 548k */
+	{0x8c0000, 0x949000, 0x8c0000, "upper", true},
+	/* UCODE areas - accessible by debugfs blobs but not by
+	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
+	/* ucode code RAM 128k */
+	{0x000000, 0x020000, 0x920000, "uc_code", false},
+	/* ucode data RAM 16k */
+	{0x800000, 0x804000, 0x940000, "uc_data", false},
 };
 
 struct blink_on_off_time led_blink_time[] = {
@@ -108,7 +118,7 @@ struct blink_on_off_time led_blink_time[] = {
 u8 led_polarity = LED_POLARITY_LOW_ACTIVE;
 
 /**
- * return AHB address for given firmware/ucode internal (linker) address
+ * return AHB address for given firmware internal (linker) address
  * @x - internal address
  * If address have no valid AHB mapping, return 0
  */
@@ -117,7 +127,8 @@ static u32 wmi_addr_remap(u32 x)
 	uint i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++) {
-		if ((x >= fw_mapping[i].from) && (x < fw_mapping[i].to))
+		if (fw_mapping[i].fw &&
+		    ((x >= fw_mapping[i].from) && (x < fw_mapping[i].to)))
 			return x + fw_mapping[i].host - fw_mapping[i].from;
 	}
 
@@ -427,18 +438,24 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 	mutex_lock(&wil->p2p_wdev_mutex);
 	if (wil->scan_request) {
 		struct wmi_scan_complete_event *data = d;
+		int status = le32_to_cpu(data->status);
 		struct cfg80211_scan_info info = {
-			.aborted = (data->status != WMI_SCAN_SUCCESS),
+			.aborted = ((status != WMI_SCAN_SUCCESS) &&
+				(status != WMI_SCAN_ABORT_REJECTED)),
 		};
 
-		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", data->status);
+		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", status);
 		wil_dbg_misc(wil, "Complete scan_request 0x%p aborted %d\n",
 			     wil->scan_request, info.aborted);
-
 		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, &info);
 		wil->radio_wdev = wil->wdev;
 		wil->scan_request = NULL;
+		wake_up_interruptible(&wil->wq);
+		if (wil->p2p.pending_listen_wdev) {
+			wil_dbg_misc(wil, "Scheduling delayed listen\n");
+			schedule_work(&wil->p2p.delayed_listen_work);
+		}
 	} else {
 		wil_err(wil, "SCAN_COMPLETE while not scanning\n");
 	}
@@ -548,7 +565,6 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
 		if (rc) {
-			netif_tx_stop_all_queues(ndev);
 			netif_carrier_off(ndev);
 			wil_err(wil,
 				"%s: cfg80211_connect_result with failure\n",
@@ -588,7 +604,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	wil->sta[evt->cid].status = wil_sta_connected;
 	set_bit(wil_status_fwconnected, wil->status);
-	netif_tx_wake_all_queues(ndev);
+	wil_update_net_queues_bh(wil, NULL, false);
 
 out:
 	if (rc)
@@ -1560,6 +1576,112 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 			le16_to_cpu(reply.evt.status));
 		rc = -EINVAL;
 	}
+
+	return rc;
+}
+
+int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
+			   enum wmi_ps_profile_type ps_profile)
+{
+	int rc;
+	struct wmi_ps_dev_profile_cfg_cmd cmd = {
+		.ps_profile = ps_profile,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_ps_dev_profile_cfg_event evt;
+	} __packed reply;
+	u32 status;
+
+	wil_dbg_wmi(wil, "Setting ps dev profile %d\n", ps_profile);
+
+	reply.evt.status = cpu_to_le32(WMI_PS_CFG_CMD_STATUS_ERROR);
+
+	rc = wmi_call(wil, WMI_PS_DEV_PROFILE_CFG_CMDID, &cmd, sizeof(cmd),
+		      WMI_PS_DEV_PROFILE_CFG_EVENTID, &reply, sizeof(reply),
+		      100);
+	if (rc)
+		return rc;
+
+	status = le32_to_cpu(reply.evt.status);
+
+	if (status != WMI_PS_CFG_CMD_STATUS_SUCCESS) {
+		wil_err(wil, "ps dev profile cfg failed with status %d\n",
+			status);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short)
+{
+	int rc;
+	struct wmi_set_mgmt_retry_limit_cmd cmd = {
+		.mgmt_retry_limit = retry_short,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_set_mgmt_retry_limit_event evt;
+	} __packed reply;
+
+	wil_dbg_wmi(wil, "Setting mgmt retry short %d\n", retry_short);
+
+	if (!test_bit(WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT, wil->fw_capabilities))
+		return -ENOTSUPP;
+
+	reply.evt.status = WMI_FW_STATUS_FAILURE;
+
+	rc = wmi_call(wil, WMI_SET_MGMT_RETRY_LIMIT_CMDID, &cmd, sizeof(cmd),
+		      WMI_SET_MGMT_RETRY_LIMIT_EVENTID, &reply, sizeof(reply),
+		      100);
+	if (rc)
+		return rc;
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "set mgmt retry limit failed with status %d\n",
+			reply.evt.status);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short)
+{
+	int rc;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_get_mgmt_retry_limit_event evt;
+	} __packed reply;
+
+	wil_dbg_wmi(wil, "getting mgmt retry short\n");
+
+	if (!test_bit(WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT, wil->fw_capabilities))
+		return -ENOTSUPP;
+
+	reply.evt.mgmt_retry_limit = 0;
+	rc = wmi_call(wil, WMI_GET_MGMT_RETRY_LIMIT_CMDID, NULL, 0,
+		      WMI_GET_MGMT_RETRY_LIMIT_EVENTID, &reply, sizeof(reply),
+		      100);
+	if (rc)
+		return rc;
+
+	if (retry_short)
+		*retry_short = reply.evt.mgmt_retry_limit;
+
+	return 0;
+}
+
+int wmi_abort_scan(struct wil6210_priv *wil)
+{
+	int rc;
+
+	wil_dbg_wmi(wil, "sending WMI_ABORT_SCAN_CMDID\n");
+
+	rc = wmi_send(wil, WMI_ABORT_SCAN_CMDID, NULL, 0);
+	if (rc)
+		wil_err(wil, "Failed to abort scan (%d)\n", rc);
 
 	return rc;
 }

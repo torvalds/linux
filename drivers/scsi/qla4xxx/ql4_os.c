@@ -6304,13 +6304,9 @@ static int qla4xxx_compare_tuple_ddb(struct scsi_qla_host *ha,
 	 * ISID would not match firmware generated ISID.
 	 */
 	if (is_isid_compare) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: old ISID [%02x%02x%02x"
-			"%02x%02x%02x] New ISID [%02x%02x%02x%02x%02x%02x]\n",
-			__func__, old_tddb->isid[5], old_tddb->isid[4],
-			old_tddb->isid[3], old_tddb->isid[2], old_tddb->isid[1],
-			old_tddb->isid[0], new_tddb->isid[5], new_tddb->isid[4],
-			new_tddb->isid[3], new_tddb->isid[2], new_tddb->isid[1],
-			new_tddb->isid[0]));
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+			"%s: old ISID [%pmR] New ISID [%pmR]\n",
+			__func__, old_tddb->isid, new_tddb->isid));
 
 		if (memcmp(&old_tddb->isid[0], &new_tddb->isid[0],
 			   sizeof(old_tddb->isid)))
@@ -7925,10 +7921,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 		rc = sprintf(buf, "%u\n", fnode_conn->keepalive_timeout);
 		break;
 	case ISCSI_FLASHNODE_ISID:
-		rc = sprintf(buf, "%02x%02x%02x%02x%02x%02x\n",
-			     fnode_sess->isid[0], fnode_sess->isid[1],
-			     fnode_sess->isid[2], fnode_sess->isid[3],
-			     fnode_sess->isid[4], fnode_sess->isid[5]);
+		rc = sprintf(buf, "%pm\n", fnode_sess->isid);
 		break;
 	case ISCSI_FLASHNODE_TSID:
 		rc = sprintf(buf, "%u\n", fnode_sess->tsid);

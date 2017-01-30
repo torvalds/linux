@@ -351,9 +351,8 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	/* allocate a new adapter struct */
 	nesadapter = kzalloc(adapter_size, GFP_KERNEL);
-	if (nesadapter == NULL) {
+	if (!nesadapter)
 		return NULL;
-	}
 
 	nes_debug(NES_DBG_INIT, "Allocating new nesadapter @ %p, size = %u (actual size = %u).\n",
 			nesadapter, (u32)sizeof(struct nes_adapter), adapter_size);
@@ -1007,8 +1006,7 @@ int nes_init_cqp(struct nes_device *nesdev)
 	/* Allocate a twice the number of CQP requests as the SQ size */
 	nesdev->nes_cqp_requests = kzalloc(sizeof(struct nes_cqp_request) *
 			2 * NES_CQP_SQ_SIZE, GFP_KERNEL);
-	if (nesdev->nes_cqp_requests == NULL) {
-		nes_debug(NES_DBG_INIT, "Unable to allocate memory CQP request entries.\n");
+	if (!nesdev->nes_cqp_requests) {
 		pci_free_consistent(nesdev->pcidev, nesdev->cqp_mem_size, nesdev->cqp.sq_vbase,
 				nesdev->cqp.sq_pbase);
 		return -ENOMEM;

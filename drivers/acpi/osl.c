@@ -42,7 +42,7 @@
 #include <linux/semaphore.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "internal.h"
@@ -182,15 +182,15 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 static unsigned long acpi_rsdp;
 static int __init setup_acpi_rsdp(char *arg)
 {
-	if (kstrtoul(arg, 16, &acpi_rsdp))
-		return -EINVAL;
-	return 0;
+	return kstrtoul(arg, 16, &acpi_rsdp);
 }
 early_param("acpi_rsdp", setup_acpi_rsdp);
 #endif
 
 acpi_physical_address __init acpi_os_get_root_pointer(void)
 {
+	acpi_physical_address pa = 0;
+
 #ifdef CONFIG_KEXEC
 	if (acpi_rsdp)
 		return acpi_rsdp;
@@ -199,21 +199,14 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 	if (efi_enabled(EFI_CONFIG_TABLES)) {
 		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
 			return efi.acpi20;
-		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
+		if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 			return efi.acpi;
-		else {
-			printk(KERN_ERR PREFIX
-			       "System description tables not found\n");
-			return 0;
-		}
+		pr_err(PREFIX "System description tables not found\n");
 	} else if (IS_ENABLED(CONFIG_ACPI_LEGACY_TABLES_LOOKUP)) {
-		acpi_physical_address pa = 0;
-
 		acpi_find_root_pointer(&pa);
-		return pa;
 	}
 
-	return 0;
+	return pa;
 }
 
 /* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
@@ -1693,7 +1686,7 @@ acpi_status acpi_os_prepare_sleep(u8 sleep_state, u32 pm1a_control,
 	if (rc < 0)
 		return AE_ERROR;
 	else if (rc > 0)
-		return AE_CTRL_SKIP;
+		return AE_CTRL_TERMINATE;
 
 	return AE_OK;
 }
@@ -1704,6 +1697,7 @@ void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
 	__acpi_os_prepare_sleep = func;
 }
 
+#if (ACPI_REDUCED_HARDWARE)
 acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
 				  u32 val_b)
 {
@@ -1714,13 +1708,35 @@ acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
 	if (rc < 0)
 		return AE_ERROR;
 	else if (rc > 0)
-		return AE_CTRL_SKIP;
+		return AE_CTRL_TERMINATE;
 
 	return AE_OK;
 }
+#else
+acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
+				  u32 val_b)
+{
+	return AE_OK;
+}
+#endif
 
 void acpi_os_set_prepare_extended_sleep(int (*func)(u8 sleep_state,
 			       u32 val_a, u32 val_b))
 {
 	__acpi_os_prepare_extended_sleep = func;
+}
+
+acpi_status acpi_os_enter_sleep(u8 sleep_state,
+				u32 reg_a_value, u32 reg_b_value)
+{
+	acpi_status status;
+
+	if (acpi_gbl_reduced_hardware)
+		status = acpi_os_prepare_extended_sleep(sleep_state,
+							reg_a_value,
+							reg_b_value);
+	else
+		status = acpi_os_prepare_sleep(sleep_state,
+					       reg_a_value, reg_b_value);
+	return status;
 }

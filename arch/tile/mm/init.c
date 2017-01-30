@@ -190,9 +190,9 @@ static void __init page_table_range_init(unsigned long start,
 
 static int __initdata ktext_hash = 1;  /* .text pages */
 static int __initdata kdata_hash = 1;  /* .data and .bss pages */
-int __write_once hash_default = 1;     /* kernel allocator pages */
+int __ro_after_init hash_default = 1;     /* kernel allocator pages */
 EXPORT_SYMBOL(hash_default);
-int __write_once kstack_hash = 1;      /* if no homecaching, use h4h */
+int __ro_after_init kstack_hash = 1;      /* if no homecaching, use h4h */
 
 /*
  * CPUs to use to for striping the pages of kernel data.  If hash-for-home
@@ -203,7 +203,7 @@ int __write_once kstack_hash = 1;      /* if no homecaching, use h4h */
 static __initdata struct cpumask kdata_mask;
 static __initdata int kdata_arg_seen;
 
-int __write_once kdata_huge;       /* if no homecaching, small pages */
+int __ro_after_init kdata_huge;       /* if no homecaching, small pages */
 
 
 /* Combine a generic pgprot_t with cache home to get a cache-aware pgprot. */
@@ -896,8 +896,8 @@ void __init pgtable_cache_init(void)
 		panic("pgtable_cache_init(): Cannot create pgd cache");
 }
 
-static long __write_once initfree = 1;
-static bool __write_once set_initfree_done;
+static long __ro_after_init initfree = 1;
+static bool __ro_after_init set_initfree_done;
 
 /* Select whether to free (1) or mark unusable (0) the __init pages. */
 static int __init set_initfree(char *str)

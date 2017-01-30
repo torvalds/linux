@@ -100,6 +100,7 @@ struct i40iw_puda_rsrc_info {
 	enum puda_resource_type type;	/* ILQ or IEQ */
 	u32 count;
 	u16 pd_id;
+	bool ceq_valid;
 	u32 cq_id;
 	u32 qp_id;
 	u32 sq_size;
@@ -107,8 +108,8 @@ struct i40iw_puda_rsrc_info {
 	u16 buf_size;
 	u16 mss;
 	u32 tx_buf_cnt;		/* total bufs allocated will be rq_size + tx_buf_cnt */
-	void (*receive)(struct i40iw_sc_dev *, struct i40iw_puda_buf *);
-	void (*xmit_complete)(struct i40iw_sc_dev *, void *);
+	void (*receive)(struct i40iw_sc_vsi *, struct i40iw_puda_buf *);
+	void (*xmit_complete)(struct i40iw_sc_vsi *, void *);
 };
 
 struct i40iw_puda_rsrc {
@@ -116,6 +117,7 @@ struct i40iw_puda_rsrc {
 	struct i40iw_sc_qp qp;
 	struct i40iw_sc_pd sc_pd;
 	struct i40iw_sc_dev *dev;
+	struct i40iw_sc_vsi *vsi;
 	struct i40iw_dma_mem cqmem;
 	struct i40iw_dma_mem qpmem;
 	struct i40iw_virt_mem ilq_mem;
@@ -123,6 +125,7 @@ struct i40iw_puda_rsrc {
 	enum puda_resource_type type;
 	u16 buf_size;		/*buffer must be max datalen + tcpip hdr + mac */
 	u16 mss;
+	bool ceq_valid;
 	u32 cq_id;
 	u32 qp_id;
 	u32 sq_size;
@@ -142,8 +145,8 @@ struct i40iw_puda_rsrc {
 	u32 avail_buf_count;		/* snapshot of currently available buffers */
 	spinlock_t bufpool_lock;
 	struct i40iw_puda_buf *alloclist;
-	void (*receive)(struct i40iw_sc_dev *, struct i40iw_puda_buf *);
-	void (*xmit_complete)(struct i40iw_sc_dev *, void *);
+	void (*receive)(struct i40iw_sc_vsi *, struct i40iw_puda_buf *);
+	void (*xmit_complete)(struct i40iw_sc_vsi *, void *);
 	/* puda stats */
 	u64 stats_buf_alloc_fail;
 	u64 stats_pkt_rcvd;
@@ -160,14 +163,13 @@ void i40iw_puda_send_buf(struct i40iw_puda_rsrc *rsrc,
 			 struct i40iw_puda_buf *buf);
 enum i40iw_status_code i40iw_puda_send(struct i40iw_sc_qp *qp,
 				       struct i40iw_puda_send_info *info);
-enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
+enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 					      struct i40iw_puda_rsrc_info *info);
-void i40iw_puda_dele_resources(struct i40iw_sc_dev *dev,
+void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 			       enum puda_resource_type type,
 			       bool reset);
 enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 						  struct i40iw_sc_cq *cq, u32 *compl_err);
-void i40iw_ieq_cleanup_qp(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 
 struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev,
 				     struct i40iw_puda_buf *buf);
@@ -180,4 +182,8 @@ void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 void i40iw_free_hash_desc(struct shash_desc *desc);
 void i40iw_ieq_update_tcpip_info(struct i40iw_puda_buf *buf, u16 length,
 				 u32 seqnum);
+enum i40iw_status_code i40iw_cqp_qp_create_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
+enum i40iw_status_code i40iw_cqp_cq_create_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq);
+void i40iw_cqp_qp_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
+void i40iw_cqp_cq_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq);
 #endif

@@ -1394,13 +1394,15 @@ void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
 	u8 ac = ieee802_1d_to_ac[tid & 7];
 
 	/*
-	 * If this AC is not trigger-enabled do nothing.
+	 * If this AC is not trigger-enabled do nothing unless the
+	 * driver is calling us after it already checked.
 	 *
 	 * NB: This could/should check a separate bitmap of trigger-
 	 * enabled queues, but for now we only implement uAPSD w/o
 	 * TSPEC changes to the ACs, so they're always the same.
 	 */
-	if (!(sta->sta.uapsd_queues & BIT(ac)))
+	if (!(sta->sta.uapsd_queues & ieee80211_ac_to_qos_mask[ac]) &&
+	    tid != IEEE80211_NUM_TIDS)
 		return;
 
 	/* if we are in a service period, do nothing */
@@ -2215,7 +2217,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
 	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN || !sdata->u.vlan.sta)) {
-		if (is_multicast_ether_addr(ehdr->h_dest)) {
+		if (is_multicast_ether_addr(ehdr->h_dest) &&
+		    ieee80211_vif_get_num_mcast_if(sdata) != 0) {
 			/*
 			 * send multicast frames both to higher layers in
 			 * local net stack and back to the wireless medium
@@ -2224,7 +2227,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			if (!xmit_skb)
 				net_info_ratelimited("%s: failed to clone multicast frame\n",
 						    dev->name);
-		} else {
+		} else if (!is_multicast_ether_addr(ehdr->h_dest)) {
 			dsta = sta_info_get(sdata, skb->data);
 			if (dsta) {
 				/*
@@ -2469,7 +2472,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	if (!ifmsh->mshcfg.dot11MeshForwarding)
 		goto out;
 
-	fwd_skb = skb_copy(skb, GFP_ATOMIC);
+	fwd_skb = skb_copy_expand(skb, local->tx_headroom, 0, GFP_ATOMIC);
 	if (!fwd_skb) {
 		net_info_ratelimited("%s: failed to clone mesh frame\n",
 				    sdata->name);

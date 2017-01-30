@@ -575,10 +575,11 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	mac |= TXEN | RXEN;     /* enable RX/TX */
 
-	/* We don't have ethtool support yet, so force flow-control mode
-	 * to 'full' always.
-	 */
-	mac |= TXFC | RXFC;
+	/* Configure MAC flow control to match the PHY's settings. */
+	if (phydev->pause)
+		mac |= RXFC;
+	if (phydev->pause != phydev->asym_pause)
+		mac |= TXFC;
 
 	/* setup link speed */
 	mac &= ~SPEED_MASK;
@@ -1002,6 +1003,12 @@ int emac_mac_up(struct emac_adapter *adpt)
 	/* enable mac irq */
 	writel((u32)~DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(adpt->irq.mask, adpt->base + EMAC_INT_MASK);
+
+	/* Enable pause frames.  Without this feature, the EMAC has been shown
+	 * to receive (and drop) frames with FCS errors at gigabit connections.
+	 */
+	adpt->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	adpt->phydev->advertising |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	phy_start(adpt->phydev);

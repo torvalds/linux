@@ -501,16 +501,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  */
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
-	u64 tsf_offset = 0;
-	u16 rx_bcn_offset;
-
-	rx_bcn_offset = cw_rxbcntsf_off[rx_rate % MAX_RATE];
-
-	tsf2 += (u64)rx_bcn_offset;
-
-	tsf_offset = tsf1 - tsf2;
-
-	return tsf_offset;
+	return tsf1 - tsf2 - (u64)cw_rxbcntsf_off[rx_rate % MAX_RATE];
 }
 
 /*
@@ -610,8 +601,8 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
-	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	*/
+	 *	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	 */
 	if (beacon_int) {
 		do_div(tsf, beacon_int);
 		tsf += 1;

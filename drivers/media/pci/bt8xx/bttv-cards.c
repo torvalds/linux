@@ -125,10 +125,8 @@ module_param_array(remote,   int, NULL, 0444);
 module_param_array(audiodev, int, NULL, 0444);
 module_param_array(audiomux, int, NULL, 0444);
 
-MODULE_PARM_DESC(triton1,"set ETBF pci config bit "
-		 "[enable bug compatibility for triton1 + others]");
-MODULE_PARM_DESC(vsfx,"set VSFX pci config bit "
-		 "[yet another chipset flaw workaround]");
+MODULE_PARM_DESC(triton1, "set ETBF pci config bit [enable bug compatibility for triton1 + others]");
+MODULE_PARM_DESC(vsfx, "set VSFX pci config bit [yet another chipset flaw workaround]");
 MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
 MODULE_PARM_DESC(pll, "specify installed crystal (0=none, 28=28 MHz, 35=35 MHz, 14=14 MHz)");
@@ -141,8 +139,7 @@ MODULE_PARM_DESC(audiodev, "specify audio device:\n"
 		"\t\t 2 = tda7432\n"
 		"\t\t 3 = tvaudio");
 MODULE_PARM_DESC(saa6588, "if 1, then load the saa6588 RDS module, default (0) is to use the card definition.");
-MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
-		" [some VIA/SIS chipsets are known to have problem with overlay]");
+MODULE_PARM_DESC(no_overlay, "allow override overlay default (0 disables, 1 enables) [some VIA/SIS chipsets are known to have problem with overlay]");
 
 /* ----------------------------------------------------------------------- */
 /* list of card IDs for bt878+ cards                                       */

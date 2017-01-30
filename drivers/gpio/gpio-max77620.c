@@ -21,9 +21,6 @@ struct max77620_gpio {
 	struct gpio_chip	gpio_chip;
 	struct regmap		*rmap;
 	struct device		*dev;
-	int			gpio_irq;
-	int			irq_base;
-	int			gpio_base;
 };
 
 static const struct regmap_irq max77620_gpio_irqs[] = {
@@ -254,7 +251,6 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 
 	mgpio->rmap = chip->rmap;
 	mgpio->dev = &pdev->dev;
-	mgpio->gpio_irq = gpio_irq;
 
 	mgpio->gpio_chip.label = pdev->name;
 	mgpio->gpio_chip.parent = &pdev->dev;
@@ -268,7 +264,6 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.ngpio = MAX77620_GPIO_NR;
 	mgpio->gpio_chip.can_sleep = 1;
 	mgpio->gpio_chip.base = -1;
-	mgpio->irq_base = -1;
 #ifdef CONFIG_OF_GPIO
 	mgpio->gpio_chip.of_node = pdev->dev.parent->of_node;
 #endif
@@ -281,9 +276,8 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mgpio->gpio_base = mgpio->gpio_chip.base;
-	ret = devm_regmap_add_irq_chip(&pdev->dev, chip->rmap, mgpio->gpio_irq,
-				       IRQF_ONESHOT, mgpio->irq_base,
+	ret = devm_regmap_add_irq_chip(&pdev->dev, chip->rmap, gpio_irq,
+				       IRQF_ONESHOT, -1,
 				       &max77620_gpio_irq_chip,
 				       &chip->gpio_irq_data);
 	if (ret < 0) {
@@ -296,6 +290,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id max77620_gpio_devtype[] = {
 	{ .name = "max77620-gpio", },
+	{ .name = "max20024-gpio", },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, max77620_gpio_devtype);

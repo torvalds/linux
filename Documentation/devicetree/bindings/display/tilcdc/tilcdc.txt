@@ -1,7 +1,9 @@
 Device-Tree bindings for tilcdc DRM driver
 
 Required properties:
- - compatible: value should be "ti,am33xx-tilcdc".
+ - compatible: value should be one of the following:
+    - "ti,am33xx-tilcdc" for AM335x based boards
+    - "ti,da850-tilcdc" for DA850/AM18x/OMAP-L138 based boards
  - interrupts: the interrupt number
  - reg: base address and size of the LCDC device
 
@@ -51,7 +53,7 @@ Optional nodes:
 Example:
 
 	fb: fb@4830e000 {
-		compatible = "ti,am33xx-tilcdc";
+		compatible = "ti,am33xx-tilcdc", "ti,da850-tilcdc";
 		reg = <0x4830e000 0x1000>;
 		interrupt-parent = <&intc>;
 		interrupts = <36>;

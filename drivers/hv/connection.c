@@ -39,6 +39,7 @@ struct vmbus_connection vmbus_connection = {
 	.conn_state		= DISCONNECTED,
 	.next_gpadl_handle	= ATOMIC_INIT(0xE1E10),
 };
+EXPORT_SYMBOL_GPL(vmbus_connection);
 
 /*
  * Negotiated protocol version with the host.

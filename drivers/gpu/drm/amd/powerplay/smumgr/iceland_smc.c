@@ -2006,6 +2006,12 @@ int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
+	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl);
+		return 0;
+	}
+
 	if (0 == smu7_data->fan_table_start) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2140,7 +2146,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2163,7 +2169,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	printk(KERN_WARNING "can't get the mac of %x\n", value);
 	return 0;
 }
 

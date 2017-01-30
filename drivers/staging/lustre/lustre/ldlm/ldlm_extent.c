@@ -193,6 +193,26 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	 * add the locks into grant list, for debug purpose, ..
 	 */
 	ldlm_resource_add_lock(res, &res->lr_granted, lock);
+
+	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_GRANT_CHECK)) {
+		struct ldlm_lock *lck;
+
+		list_for_each_entry_reverse(lck, &res->lr_granted,
+					    l_res_link) {
+			if (lck == lock)
+				continue;
+			if (lockmode_compat(lck->l_granted_mode,
+					    lock->l_granted_mode))
+				continue;
+			if (ldlm_extent_overlap(&lck->l_req_extent,
+						&lock->l_req_extent)) {
+				CDEBUG(D_ERROR, "granting conflicting lock %p %p\n",
+				       lck, lock);
+				ldlm_resource_dump(D_ERROR, res);
+				LBUG();
+			}
+		}
+	}
 }
 
 /** Remove cancelled lock from resource interval tree. */
@@ -220,8 +240,8 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock)
 	}
 }
 
-void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				      ldlm_policy_data_t *lpolicy)
+void ldlm_extent_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
+				      union ldlm_policy_data *lpolicy)
 {
 	memset(lpolicy, 0, sizeof(*lpolicy));
 	lpolicy->l_extent.start = wpolicy->l_extent.start;
@@ -229,8 +249,8 @@ void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
 	lpolicy->l_extent.gid = wpolicy->l_extent.gid;
 }
 
-void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
-				      ldlm_wire_policy_data_t *wpolicy)
+void ldlm_extent_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
+				      union ldlm_wire_policy_data *wpolicy)
 {
 	memset(wpolicy, 0, sizeof(*wpolicy));
 	wpolicy->l_extent.start = lpolicy->l_extent.start;

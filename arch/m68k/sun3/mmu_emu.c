@@ -18,7 +18,7 @@
 
 #include <asm/setup.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/sun3mmu.h>

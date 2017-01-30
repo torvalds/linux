@@ -451,6 +451,10 @@
 	status = "okay";
 };
 
+&pwm1 {
+	status = "okay";
+};
+
 &sata {
 	target-supply = <&reg_sata>;
 	fsl,transmit-level-mV = <1025>;

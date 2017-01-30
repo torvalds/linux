@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2016 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -207,37 +208,37 @@ static const struct nla_policy nft_ct_policy[NFTA_CT_MAX + 1] = {
 	[NFTA_CT_SREG]		= { .type = NLA_U32 },
 };
 
-static int nft_ct_l3proto_try_module_get(uint8_t family)
+static int nft_ct_netns_get(struct net *net, uint8_t family)
 {
 	int err;
 
 	if (family == NFPROTO_INET) {
-		err = nf_ct_l3proto_try_module_get(NFPROTO_IPV4);
+		err = nf_ct_netns_get(net, NFPROTO_IPV4);
 		if (err < 0)
 			goto err1;
-		err = nf_ct_l3proto_try_module_get(NFPROTO_IPV6);
+		err = nf_ct_netns_get(net, NFPROTO_IPV6);
 		if (err < 0)
 			goto err2;
 	} else {
-		err = nf_ct_l3proto_try_module_get(family);
+		err = nf_ct_netns_get(net, family);
 		if (err < 0)
 			goto err1;
 	}
 	return 0;
 
 err2:
-	nf_ct_l3proto_module_put(NFPROTO_IPV4);
+	nf_ct_netns_put(net, NFPROTO_IPV4);
 err1:
 	return err;
 }
 
-static void nft_ct_l3proto_module_put(uint8_t family)
+static void nft_ct_netns_put(struct net *net, uint8_t family)
 {
 	if (family == NFPROTO_INET) {
-		nf_ct_l3proto_module_put(NFPROTO_IPV4);
-		nf_ct_l3proto_module_put(NFPROTO_IPV6);
+		nf_ct_netns_put(net, NFPROTO_IPV4);
+		nf_ct_netns_put(net, NFPROTO_IPV6);
 	} else
-		nf_ct_l3proto_module_put(family);
+		nf_ct_netns_put(net, family);
 }
 
 static int nft_ct_get_init(const struct nft_ctx *ctx,
@@ -341,7 +342,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_ct_l3proto_try_module_get(ctx->afi->family);
+	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		return err;
 
@@ -389,7 +390,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		goto err1;
 
-	err = nft_ct_l3proto_try_module_get(ctx->afi->family);
+	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		goto err1;
 
@@ -404,7 +405,7 @@ err1:
 static void nft_ct_get_destroy(const struct nft_ctx *ctx,
 			       const struct nft_expr *expr)
 {
-	nft_ct_l3proto_module_put(ctx->afi->family);
+	nf_ct_netns_put(ctx->net, ctx->afi->family);
 }
 
 static void nft_ct_set_destroy(const struct nft_ctx *ctx,
@@ -422,7 +423,7 @@ static void nft_ct_set_destroy(const struct nft_ctx *ctx,
 		break;
 	}
 
-	nft_ct_l3proto_module_put(ctx->afi->family);
+	nft_ct_netns_put(ctx->net, ctx->afi->family);
 }
 
 static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -518,15 +519,61 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
+static void nft_notrack_eval(const struct nft_expr *expr,
+			     struct nft_regs *regs,
+			     const struct nft_pktinfo *pkt)
+{
+	struct sk_buff *skb = pkt->skb;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(pkt->skb, &ctinfo);
+	/* Previously seen (loopback or untracked)?  Ignore. */
+	if (ct)
+		return;
+
+	ct = nf_ct_untracked_get();
+	atomic_inc(&ct->ct_general.use);
+	skb->nfct = &ct->ct_general;
+	skb->nfctinfo = IP_CT_NEW;
+}
+
+static struct nft_expr_type nft_notrack_type;
+static const struct nft_expr_ops nft_notrack_ops = {
+	.type		= &nft_notrack_type,
+	.size		= NFT_EXPR_SIZE(0),
+	.eval		= nft_notrack_eval,
+};
+
+static struct nft_expr_type nft_notrack_type __read_mostly = {
+	.name		= "notrack",
+	.ops		= &nft_notrack_ops,
+	.owner		= THIS_MODULE,
+};
+
 static int __init nft_ct_module_init(void)
 {
+	int err;
+
 	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
 
-	return nft_register_expr(&nft_ct_type);
+	err = nft_register_expr(&nft_ct_type);
+	if (err < 0)
+		return err;
+
+	err = nft_register_expr(&nft_notrack_type);
+	if (err < 0)
+		goto err1;
+
+	return 0;
+err1:
+	nft_unregister_expr(&nft_ct_type);
+	return err;
 }
 
 static void __exit nft_ct_module_exit(void)
 {
+	nft_unregister_expr(&nft_notrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
 
@@ -536,3 +583,4 @@ module_exit(nft_ct_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("ct");
+MODULE_ALIAS_NFT_EXPR("notrack");

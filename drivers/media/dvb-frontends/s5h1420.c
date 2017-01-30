@@ -880,7 +880,7 @@ struct i2c_adapter *s5h1420_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(s5h1420_get_tuner_i2c_adapter);
 
-static struct dvb_frontend_ops s5h1420_ops;
+static const struct dvb_frontend_ops s5h1420_ops;
 
 struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 				    struct i2c_adapter *i2c)
@@ -934,7 +934,7 @@ error:
 }
 EXPORT_SYMBOL(s5h1420_attach);
 
-static struct dvb_frontend_ops s5h1420_ops = {
+static const struct dvb_frontend_ops s5h1420_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",

@@ -387,7 +387,7 @@ static int i8042_aux_write(struct serio *serio, unsigned char c)
 
 
 /*
- * i8042_aux_close attempts to clear AUX or KBD port state by disabling
+ * i8042_port_close attempts to clear AUX or KBD port state by disabling
  * and then re-enabling it.
  */
 

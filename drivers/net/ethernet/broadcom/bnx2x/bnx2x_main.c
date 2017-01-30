@@ -10138,7 +10138,7 @@ static void __bnx2x_add_udp_port(struct bnx2x *bp, u16 port,
 {
 	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
 
-	if (!netif_running(bp->dev) || !IS_PF(bp))
+	if (!netif_running(bp->dev) || !IS_PF(bp) || CHIP_IS_E1x(bp))
 		return;
 
 	if (udp_port->count && udp_port->dst_port == port) {
@@ -10163,7 +10163,7 @@ static void __bnx2x_del_udp_port(struct bnx2x *bp, u16 port,
 {
 	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
 
-	if (!IS_PF(bp))
+	if (!IS_PF(bp) || CHIP_IS_E1x(bp))
 		return;
 
 	if (!udp_port->count || udp_port->dst_port != port) {
@@ -12080,8 +12080,7 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 					   mtu_size, mtu);
 
 					/* if valid: update device mtu */
-					if (((mtu_size + ETH_HLEN) >=
-					     ETH_MIN_PACKET_SIZE) &&
+					if ((mtu_size >= ETH_MIN_PACKET_SIZE) &&
 					    (mtu_size <=
 					     ETH_MAX_JUMBO_PACKET_SIZE))
 						bp->dev->mtu = mtu_size;
@@ -13315,6 +13314,10 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
 #endif
 
+	/* MTU range, 46 - 9600 */
+	dev->min_mtu = ETH_MIN_PACKET_SIZE;
+	dev->max_mtu = ETH_MAX_JUMBO_PACKET_SIZE;
+
 	/* get_port_hwinfo() will set prtad and mmds properly */
 	bp->mdio.prtad = MDIO_PRTAD_NONE;
 	bp->mdio.mmds = 0;
@@ -13505,6 +13508,7 @@ static int bnx2x_init_firmware(struct bnx2x *bp)
 
 	/* Initialize the pointers to the init arrays */
 	/* Blob */
+	rc = -ENOMEM;
 	BNX2X_ALLOC_AND_SET(init_data, request_firmware_exit, be32_to_cpu_n);
 
 	/* Opcodes */
@@ -15219,7 +15223,7 @@ void bnx2x_set_rx_ts(struct bnx2x *bp, struct sk_buff *skb)
 }
 
 /* Read the PHC */
-static cycle_t bnx2x_cyclecounter_read(const struct cyclecounter *cc)
+static u64 bnx2x_cyclecounter_read(const struct cyclecounter *cc)
 {
 	struct bnx2x *bp = container_of(cc, struct bnx2x, cyclecounter);
 	int port = BP_PORT(bp);

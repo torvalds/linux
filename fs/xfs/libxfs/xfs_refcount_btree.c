@@ -354,6 +354,7 @@ xfs_refcountbt_init_cursor(
 	cur->bc_btnum = XFS_BTNUM_REFC;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_refcountbt_ops;
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_refcbt_2);
 
 	cur->bc_nlevels = be32_to_cpu(agf->agf_refcount_level);
 

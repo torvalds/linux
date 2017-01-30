@@ -42,7 +42,7 @@
 #include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
@@ -201,7 +201,7 @@ static struct dn_dev_sysctl_table {
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},
-	{0}
+	{ }
 	},
 };
 

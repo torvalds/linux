@@ -892,7 +892,13 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 		return NULL;
 
 	if (dev_is_pci(dev)) {
+		struct pci_dev *pf_pdev;
+
 		pdev = to_pci_dev(dev);
+		/* VFs aren't listed in scope tables; we need to look up
+		 * the PF instead to find the IOMMU. */
+		pf_pdev = pci_physfn(pdev);
+		dev = &pf_pdev->dev;
 		segment = pci_domain_nr(pdev->bus);
 	} else if (has_acpi_companion(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
@@ -905,6 +911,13 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, tmp) {
 			if (tmp == dev) {
+				/* For a VF use its original BDF# not that of the PF
+				 * which we used for the IOMMU lookup. Strictly speaking
+				 * we could do this for all PCI devices; we only need to
+				 * get the BDF# from the scope table for ACPI matches. */
+				if (pdev->is_virtfn)
+					goto got_pdev;
+
 				*bus = drhd->devices[i].bus;
 				*devfn = drhd->devices[i].devfn;
 				goto out;
@@ -4675,24 +4688,12 @@ static void free_all_cpu_cached_iovas(unsigned int cpu)
 	}
 }
 
-static int intel_iommu_cpu_notifier(struct notifier_block *nfb,
-				    unsigned long action, void *v)
+static int intel_iommu_cpu_dead(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned long)v;
-
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		free_all_cpu_cached_iovas(cpu);
-		flush_unmaps_timeout(cpu);
-		break;
-	}
-	return NOTIFY_OK;
+	free_all_cpu_cached_iovas(cpu);
+	flush_unmaps_timeout(cpu);
+	return 0;
 }
-
-static struct notifier_block intel_iommu_cpu_nb = {
-	.notifier_call = intel_iommu_cpu_notifier,
-};
 
 static ssize_t intel_iommu_show_version(struct device *dev,
 					struct device_attribute *attr,
@@ -4842,8 +4843,8 @@ int __init intel_iommu_init(void)
 	bus_register_notifier(&pci_bus_type, &device_nb);
 	if (si_domain && !hw_pass_through)
 		register_memory_notifier(&intel_iommu_memory_nb);
-	register_hotcpu_notifier(&intel_iommu_cpu_nb);
-
+	cpuhp_setup_state(CPUHP_IOMMU_INTEL_DEAD, "iommu/intel:dead", NULL,
+			  intel_iommu_cpu_dead);
 	intel_iommu_enabled = 1;
 
 	return 0;

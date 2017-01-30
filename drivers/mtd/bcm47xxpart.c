@@ -229,12 +229,10 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 			last_trx_part = curr_part - 1;
 
-			/*
-			 * We have whole TRX scanned, skip to the next part. Use
-			 * roundown (not roundup), as the loop will increase
-			 * offset in next step.
-			 */
-			offset = rounddown(offset + trx->length, blocksize);
+			/* Jump to the end of TRX */
+			offset = roundup(offset + trx->length, blocksize);
+			/* Next loop iteration will increase the offset */
+			offset -= blocksize;
 			continue;
 		}
 

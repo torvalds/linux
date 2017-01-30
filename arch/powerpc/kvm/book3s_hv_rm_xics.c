@@ -70,7 +70,11 @@ static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu)
 	hcpu = hcore << threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[hcore].rm_data = vcpu;
 	smp_muxed_ipi_set_message(hcpu, PPC_MSG_RM_HOST_ACTION);
-	icp_native_cause_ipi_rm(hcpu);
+	if (paca[hcpu].kvm_hstate.xics_phys)
+		icp_native_cause_ipi_rm(hcpu);
+	else
+		opal_rm_int_set_mfrr(get_hard_smp_processor_id(hcpu),
+				     IPI_PRIORITY);
 }
 #else
 static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
@@ -737,7 +741,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 
 unsigned long eoi_rc;
 
-static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
+static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 {
 	unsigned long xics_phys;
 	int64_t rc;
@@ -751,7 +755,12 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
 
 	/* EOI it */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
-	_stwcix(xics_phys + XICS_XIRR, xirr);
+	if (xics_phys) {
+		_stwcix(xics_phys + XICS_XIRR, xirr);
+	} else {
+		rc = opal_rm_int_eoi(be32_to_cpu(xirr));
+		*again = rc > 0;
+	}
 }
 
 static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu)
@@ -809,9 +818,10 @@ static void kvmppc_rm_handle_irq_desc(struct irq_desc *desc)
 }
 
 long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
-				 u32 xirr,
+				 __be32 xirr,
 				 struct kvmppc_irq_map *irq_map,
-				 struct kvmppc_passthru_irqmap *pimap)
+				 struct kvmppc_passthru_irqmap *pimap,
+				 bool *again)
 {
 	struct kvmppc_xics *xics;
 	struct kvmppc_icp *icp;
@@ -825,7 +835,8 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 	icp_rm_deliver_irq(xics, icp, irq);
 
 	/* EOI the interrupt */
-	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr);
+	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr,
+		again);
 
 	if (check_too_hard(xics, icp) == H_TOO_HARD)
 		return 2;

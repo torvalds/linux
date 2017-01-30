@@ -144,6 +144,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -176,6 +178,9 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 				 dma_params->stream_tag);
 	skl_set_suspend_active(substream, dai, true);
 	snd_pcm_set_sync(substream);
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	skl_tplg_d0i3_get(skl, mconfig->d0i3_caps);
 
 	return 0;
 }
@@ -302,6 +307,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
 	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -324,6 +330,9 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 		skl->skl_sst->enable_miscbdcge(dai->dev, true);
 		skl->skl_sst->miscbdcg_disabled = false;
 	}
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	skl_tplg_d0i3_put(skl, mconfig->d0i3_caps);
 
 	kfree(dma_params);
 }
@@ -1031,10 +1040,24 @@ static snd_pcm_uframes_t skl_platform_pcm_pointer
 			(struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 	unsigned int pos;
 
-	/* use the position buffer as default */
-	pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
+	/*
+	 * Use DPIB for Playback stream as the periodic DMA Position-in-
+	 * Buffer Writes may be scheduled at the same time or later than
+	 * the MSI and does not guarantee to reflect the Position of the
+	 * last buffer that was transferred. Whereas DPIB register in
+	 * HAD space reflects the actual data that is transferred.
+	 * Use the position buffer for capture, as DPIB write gets
+	 * completed earlier than the actual data written to the DDR.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		pos = readl(ebus->bus.remap_addr + AZX_REG_VS_SDXDPIB_XBASE +
+				(AZX_REG_VS_SDXDPIB_XINTERVAL *
+				hdac_stream(hstream)->index));
+	else
+		pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
 
 	if (pos >= hdac_stream(hstream)->bufsize)
 		pos = 0;
@@ -1197,6 +1220,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			return ret;
 		}
 		skl_populate_modules(skl);
+		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 	}
 	pm_runtime_mark_last_busy(platform->dev);
 	pm_runtime_put_autosuspend(platform->dev);

@@ -42,11 +42,14 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
+#include "../include/lustre/ll_fiemap.h"
+
+#include "../include/llog_swab.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_swab.h"
+#include "../include/obd_cksum.h"
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/obd_cksum.h"
-#include "../include/lustre/ll_fiemap.h"
 
 #include "ptlrpc_internal.h"
 
@@ -942,6 +945,25 @@ __u32 lustre_msg_get_opc(struct lustre_msg *msg)
 }
 EXPORT_SYMBOL(lustre_msg_get_opc);
 
+__u16 lustre_msg_get_tag(struct lustre_msg *msg)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		if (!pb) {
+			CERROR("invalid msg %p: no ptlrpc body!\n", msg);
+			return 0;
+		}
+		return pb->pb_tag;
+	}
+	default:
+		CERROR("incorrect message magic: %08x\n", msg->lm_magic);
+		return 0;
+	}
+}
+EXPORT_SYMBOL(lustre_msg_get_tag);
+
 __u64 lustre_msg_get_last_committed(struct lustre_msg *msg)
 {
 	switch (msg->lm_magic) {
@@ -1236,6 +1258,37 @@ void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc)
 	}
 }
 
+void lustre_msg_set_last_xid(struct lustre_msg *msg, u64 last_xid)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
+		pb->pb_last_xid = last_xid;
+		return;
+	}
+	default:
+		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
+	}
+}
+
+void lustre_msg_set_tag(struct lustre_msg *msg, __u16 tag)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
+		pb->pb_tag = tag;
+		return;
+	}
+	default:
+		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
+	}
+}
+EXPORT_SYMBOL(lustre_msg_set_tag);
+
 void lustre_msg_set_versions(struct lustre_msg *msg, __u64 *versions)
 {
 	switch (msg->lm_magic) {
@@ -1373,6 +1426,21 @@ void lustre_msg_set_cksum(struct lustre_msg *msg, __u32 cksum)
 	}
 }
 
+void lustre_msg_set_mbits(struct lustre_msg *msg, __u64 mbits)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
+		pb->pb_mbits = mbits;
+		return;
+	}
+	default:
+		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
+	}
+}
+
 void ptlrpc_request_set_replen(struct ptlrpc_request *req)
 {
 	int count = req_capsule_filled_sizes(&req->rq_pill, RCL_SERVER);
@@ -1442,7 +1510,7 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	__swab32s(&b->pb_opc);
 	__swab32s(&b->pb_status);
 	__swab64s(&b->pb_last_xid);
-	__swab64s(&b->pb_last_seen);
+	__swab16s(&b->pb_tag);
 	__swab64s(&b->pb_last_committed);
 	__swab64s(&b->pb_transno);
 	__swab32s(&b->pb_flags);
@@ -1456,7 +1524,12 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *b)
 	__swab64s(&b->pb_pre_versions[1]);
 	__swab64s(&b->pb_pre_versions[2]);
 	__swab64s(&b->pb_pre_versions[3]);
-	CLASSERT(offsetof(typeof(*b), pb_padding) != 0);
+	__swab64s(&b->pb_mbits);
+	CLASSERT(offsetof(typeof(*b), pb_padding0) != 0);
+	CLASSERT(offsetof(typeof(*b), pb_padding1) != 0);
+	CLASSERT(offsetof(typeof(*b), pb_padding64_0) != 0);
+	CLASSERT(offsetof(typeof(*b), pb_padding64_1) != 0);
+	CLASSERT(offsetof(typeof(*b), pb_padding64_2) != 0);
 	/* While we need to maintain compatibility between
 	 * clients and servers without ptlrpc_body_v2 (< 2.3)
 	 * do not swab any fields beyond pb_jobid, as we are
@@ -1492,8 +1565,12 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 		__swab32s(&ocd->ocd_max_easize);
 	if (ocd->ocd_connect_flags & OBD_CONNECT_MAXBYTES)
 		__swab64s(&ocd->ocd_maxbytes);
+	if (ocd->ocd_connect_flags & OBD_CONNECT_MULTIMODRPCS)
+		__swab16s(&ocd->ocd_maxmodrpcs);
+	CLASSERT(offsetof(typeof(*ocd), padding0));
 	CLASSERT(offsetof(typeof(*ocd), padding1) != 0);
-	CLASSERT(offsetof(typeof(*ocd), padding2) != 0);
+	if (ocd->ocd_connect_flags & OBD_CONNECT_FLAGS2)
+		__swab64s(&ocd->ocd_connect_flags2);
 	CLASSERT(offsetof(typeof(*ocd), padding3) != 0);
 	CLASSERT(offsetof(typeof(*ocd), padding4) != 0);
 	CLASSERT(offsetof(typeof(*ocd), padding5) != 0);
@@ -1666,7 +1743,7 @@ void lustre_swab_mdt_body(struct mdt_body *b)
 	__swab32s(&b->mbo_eadatasize);
 	__swab32s(&b->mbo_aclsize);
 	__swab32s(&b->mbo_max_mdsize);
-	__swab32s(&b->mbo_max_cookiesize);
+	CLASSERT(offsetof(typeof(*b), mbo_unused3));
 	__swab32s(&b->mbo_uid_h);
 	__swab32s(&b->mbo_gid_h);
 	CLASSERT(offsetof(typeof(*b), mbo_padding_5) != 0);
@@ -1675,9 +1752,10 @@ void lustre_swab_mdt_body(struct mdt_body *b)
 void lustre_swab_mdt_ioepoch(struct mdt_ioepoch *b)
 {
 	/* handle is opaque */
-	 __swab64s(&b->ioepoch);
-	 __swab32s(&b->flags);
-	 CLASSERT(offsetof(typeof(*b), padding) != 0);
+	/* mio_handle is opaque */
+	CLASSERT(offsetof(typeof(*b), mio_unused1));
+	CLASSERT(offsetof(typeof(*b), mio_unused2));
+	CLASSERT(offsetof(typeof(*b), mio_padding));
 }
 
 void lustre_swab_mgs_target_info(struct mgs_target_info *mti)
@@ -1772,7 +1850,7 @@ void lustre_swab_fid2path(struct getinfo_fid2path *gf)
 }
 EXPORT_SYMBOL(lustre_swab_fid2path);
 
-static void lustre_swab_fiemap_extent(struct ll_fiemap_extent *fm_extent)
+static void lustre_swab_fiemap_extent(struct fiemap_extent *fm_extent)
 {
 	__swab64s(&fm_extent->fe_logical);
 	__swab64s(&fm_extent->fe_physical);
@@ -1781,7 +1859,7 @@ static void lustre_swab_fiemap_extent(struct ll_fiemap_extent *fm_extent)
 	__swab32s(&fm_extent->fe_device);
 }
 
-void lustre_swab_fiemap(struct ll_user_fiemap *fiemap)
+void lustre_swab_fiemap(struct fiemap *fiemap)
 {
 	__u32 i;
 
@@ -1938,7 +2016,7 @@ static void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
 		__swab64s(&id->name[i]);
 }
 
-static void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
+static void lustre_swab_ldlm_policy_data(union ldlm_wire_policy_data *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock
@@ -2062,8 +2140,6 @@ static void dump_obdo(struct obdo *oa)
 	if (valid & OBD_MD_FLHANDLE)
 		CDEBUG(D_RPCTRACE, "obdo: o_handle = %lld\n",
 		       oa->o_handle.cookie);
-	if (valid & OBD_MD_FLCOOKIE)
-		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = (llog_cookie dumping not yet implemented)\n");
 }
 
 void dump_ost_body(struct ost_body *ob)

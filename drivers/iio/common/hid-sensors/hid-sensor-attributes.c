@@ -201,7 +201,7 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 	int ret;
 
 	if (val1 < 0 || val2 < 0)
-		ret = -EINVAL;
+		return -EINVAL;
 
 	value = val1 * pow_10(6) + val2;
 	if (value) {
@@ -249,6 +249,9 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 {
 	s32 value;
 	int ret;
+
+	if (val1 < 0 || val2 < 0)
+		return -EINVAL;
 
 	value = convert_to_vtf_format(st->sensitivity.size,
 				st->sensitivity.unit_expo,

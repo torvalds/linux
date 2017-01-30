@@ -413,7 +413,7 @@ struct pktgen_hdr {
 };
 
 
-static int pg_net_id __read_mostly;
+static unsigned int pg_net_id __read_mostly;
 
 struct pktgen_net {
 	struct net		*net;

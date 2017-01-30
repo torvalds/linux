@@ -120,7 +120,7 @@ static inline void ww_acquire_init(struct ww_acquire_ctx *ctx,
 				   struct ww_class *ww_class)
 {
 	ctx->task = current;
-	ctx->stamp = atomic_long_inc_return(&ww_class->stamp);
+	ctx->stamp = atomic_long_inc_return_relaxed(&ww_class->stamp);
 	ctx->acquired = 0;
 #ifdef CONFIG_DEBUG_MUTEXES
 	ctx->ww_class = ww_class;

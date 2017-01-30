@@ -132,9 +132,9 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		goto errout;
 
 	audit_log_format(ab, "action=%hhu hook=%u len=%u inif=%s outif=%s",
-			 info->type, par->hooknum, skb->len,
-			 par->in ? par->in->name : "?",
-			 par->out ? par->out->name : "?");
+			 info->type, xt_hooknum(par), skb->len,
+			 xt_in(par) ? xt_inname(par) : "?",
+			 xt_out(par) ? xt_outname(par) : "?");
 
 	if (skb->mark)
 		audit_log_format(ab, " mark=%#x", skb->mark);
@@ -144,7 +144,7 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 				 eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
 				 ntohs(eth_hdr(skb)->h_proto));
 
-		if (par->family == NFPROTO_BRIDGE) {
+		if (xt_family(par) == NFPROTO_BRIDGE) {
 			switch (eth_hdr(skb)->h_proto) {
 			case htons(ETH_P_IP):
 				audit_ip4(ab, skb);
@@ -157,7 +157,7 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		}
 	}
 
-	switch (par->family) {
+	switch (xt_family(par)) {
 	case NFPROTO_IPV4:
 		audit_ip4(ab, skb);
 		break;

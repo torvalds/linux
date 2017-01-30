@@ -67,13 +67,14 @@ Note that DSA does not currently create network interfaces for the "cpu" and
 Switch tagging protocols
 ------------------------
 
-DSA currently supports 4 different tagging protocols, and a tag-less mode as
+DSA currently supports 5 different tagging protocols, and a tag-less mode as
 well. The different protocols are implemented in:
 
 net/dsa/tag_trailer.c: Marvell's 4 trailer tag mode (legacy)
 net/dsa/tag_dsa.c: Marvell's original DSA tag
 net/dsa/tag_edsa.c: Marvell's enhanced DSA tag
 net/dsa/tag_brcm.c: Broadcom's 4 bytes tag
+net/dsa/tag_qca.c: Qualcomm's 2 bytes tag
 
 The exact format of the tag protocol is vendor specific, but in general, they
 all contain something which:

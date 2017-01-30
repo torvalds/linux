@@ -18,8 +18,8 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/fence.h>
-#include <linux/fence-array.h>
+#include <linux/dma-fence.h>
+#include <linux/dma-fence-array.h>
 
 /**
  * struct sync_file - sync file to export to the userspace
@@ -41,13 +41,13 @@ struct sync_file {
 
 	wait_queue_head_t	wq;
 
-	struct fence		*fence;
-	struct fence_cb cb;
+	struct dma_fence	*fence;
+	struct dma_fence_cb cb;
 };
 
-#define POLL_ENABLED FENCE_FLAG_USER_BITS
+#define POLL_ENABLED DMA_FENCE_FLAG_USER_BITS
 
-struct sync_file *sync_file_create(struct fence *fence);
-struct fence *sync_file_get_fence(int fd);
+struct sync_file *sync_file_create(struct dma_fence *fence);
+struct dma_fence *sync_file_get_fence(int fd);
 
 #endif /* _LINUX_SYNC_H */

@@ -316,7 +316,9 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+				   struct ib_udata *udata)
+
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -564,7 +566,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 	if (udata) {
 		if (udata->inlen) {
 			err = -EINVAL;
-			goto err1;
+			goto err2;
 		}
 		qp->is_user = 1;
 	}
@@ -573,12 +575,13 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	err = rxe_qp_from_init(rxe, qp, pd, init, udata, ibpd);
 	if (err)
-		goto err2;
+		goto err3;
 
 	return &qp->ibqp;
 
-err2:
+err3:
 	rxe_drop_index(qp);
+err2:
 	rxe_drop_ref(qp);
 err1:
 	return ERR_PTR(err);
@@ -1007,11 +1010,19 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
+	unsigned long irq_flags;
+	int ret = 0;
 
+	spin_lock_irqsave(&cq->cq_lock, irq_flags);
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = flags & IB_CQ_SOLICITED_MASK;
 
-	return 0;
+	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !queue_empty(cq->queue))
+		ret = 1;
+
+	spin_unlock_irqrestore(&cq->cq_lock, irq_flags);
+
+	return ret;
 }
 
 static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)

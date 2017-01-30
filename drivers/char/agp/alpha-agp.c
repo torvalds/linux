@@ -19,8 +19,7 @@ static int alpha_core_agp_vm_fault(struct vm_area_struct *vma,
 	unsigned long pa;
 	struct page *page;
 
-	dma_addr = (unsigned long)vmf->virtual_address - vma->vm_start
-						+ agp->aperture.bus_base;
+	dma_addr = vmf->address - vma->vm_start + agp->aperture.bus_base;
 	pa = agp->ops->translate(agp, dma_addr);
 
 	if (pa == (unsigned long)-EINVAL)

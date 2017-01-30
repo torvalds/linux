@@ -47,32 +47,15 @@ static void acpi_sleep_tts_switch(u32 acpi_state)
 	}
 }
 
-static void acpi_sleep_pts_switch(u32 acpi_state)
-{
-	acpi_status status;
-
-	status = acpi_execute_simple_method(NULL, "\\_PTS", acpi_state);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		/*
-		 * OS can't evaluate the _PTS object correctly. Some warning
-		 * message will be printed. But it won't break anything.
-		 */
-		printk(KERN_NOTICE "Failure in evaluating _PTS object\n");
-	}
-}
-
-static int sleep_notify_reboot(struct notifier_block *this,
+static int tts_notify_reboot(struct notifier_block *this,
 			unsigned long code, void *x)
 {
 	acpi_sleep_tts_switch(ACPI_STATE_S5);
-
-	acpi_sleep_pts_switch(ACPI_STATE_S5);
-
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sleep_notifier = {
-	.notifier_call	= sleep_notify_reboot,
+static struct notifier_block tts_notifier = {
+	.notifier_call	= tts_notify_reboot,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -691,6 +674,14 @@ static void acpi_sleep_suspend_setup(void)
 		if (acpi_sleep_state_supported(i))
 			sleep_states[i] = 1;
 
+	/*
+	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set and
+	 * the default suspend mode was not selected from the command line.
+	 */
+	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0 &&
+	    mem_sleep_default > PM_SUSPEND_MEM)
+		mem_sleep_default = PM_SUSPEND_FREEZE;
+
 	suspend_set_ops(old_suspend_ordering ?
 		&acpi_suspend_ops_old : &acpi_suspend_ops);
 	freeze_set_ops(&acpi_freeze_ops);
@@ -916,9 +907,9 @@ int __init acpi_sleep_init(void)
 	pr_info(PREFIX "(supports%s)\n", supported);
 
 	/*
-	 * Register the sleep_notifier to reboot notifier list so that the _TTS
-	 * and _PTS object can also be evaluated when the system enters S5.
+	 * Register the tts_notifier to reboot notifier list so that the _TTS
+	 * object can also be evaluated when the system enters S5.
 	 */
-	register_reboot_notifier(&sleep_notifier);
+	register_reboot_notifier(&tts_notifier);
 	return 0;
 }

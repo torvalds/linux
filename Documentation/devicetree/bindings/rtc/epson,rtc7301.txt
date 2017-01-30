@@ -1,0 +1,16 @@
+EPSON TOYOCOM RTC-7301SF/DG
+
+Required properties:
+
+- compatible: Should be "epson,rtc7301sf" or "epson,rtc7301dg"
+- reg: Specifies base physical address and size of the registers.
+- interrupts: A single interrupt specifier.
+
+Example:
+
+rtc: rtc@44a00000 {
+	compatible = "epson,rtc7301dg";
+	reg = <0x44a00000 0x10000>;
+	interrupt-parent = <&axi_intc_0>;
+	interrupts = <3 2>;
+};

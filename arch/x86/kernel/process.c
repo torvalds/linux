@@ -23,8 +23,7 @@
 #include <asm/cpu.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
-#include <asm/idle.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mwait.h>
 #include <asm/fpu/internal.h>
 #include <asm/debugreg.h>
@@ -64,23 +63,6 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 #endif
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
-
-#ifdef CONFIG_X86_64
-static DEFINE_PER_CPU(unsigned char, is_idle);
-static ATOMIC_NOTIFIER_HEAD(idle_notifier);
-
-void idle_notifier_register(struct notifier_block *n)
-{
-	atomic_notifier_chain_register(&idle_notifier, n);
-}
-EXPORT_SYMBOL_GPL(idle_notifier_register);
-
-void idle_notifier_unregister(struct notifier_block *n)
-{
-	atomic_notifier_chain_unregister(&idle_notifier, n);
-}
-EXPORT_SYMBOL_GPL(idle_notifier_unregister);
-#endif
 
 /*
  * this gets called so that we can store lazy state into memory and copy the
@@ -251,39 +233,10 @@ static inline void play_dead(void)
 }
 #endif
 
-#ifdef CONFIG_X86_64
-void enter_idle(void)
-{
-	this_cpu_write(is_idle, 1);
-	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
-}
-
-static void __exit_idle(void)
-{
-	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
-		return;
-	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
-}
-
-/* Called from interrupts to signify idle end */
-void exit_idle(void)
-{
-	/* idle loop has pid 0 */
-	if (current->pid)
-		return;
-	__exit_idle();
-}
-#endif
-
 void arch_cpu_idle_enter(void)
 {
+	tsc_verify_tsc_adjust(false);
 	local_touch_nmi();
-	enter_idle();
-}
-
-void arch_cpu_idle_exit(void)
-{
-	__exit_idle();
 }
 
 void arch_cpu_idle_dead(void)
@@ -336,59 +289,33 @@ void stop_this_cpu(void *dummy)
 		halt();
 }
 
-bool amd_e400_c1e_detected;
-EXPORT_SYMBOL(amd_e400_c1e_detected);
-
-static cpumask_var_t amd_e400_c1e_mask;
-
-void amd_e400_remove_cpu(int cpu)
-{
-	if (amd_e400_c1e_mask != NULL)
-		cpumask_clear_cpu(cpu, amd_e400_c1e_mask);
-}
-
 /*
- * AMD Erratum 400 aware idle routine. We check for C1E active in the interrupt
- * pending message MSR. If we detect C1E, then we handle it the same
- * way as C3 power states (local apic timer and TSC stop)
+ * AMD Erratum 400 aware idle routine. We handle it the same way as C3 power
+ * states (local apic timer and TSC stop).
  */
 static void amd_e400_idle(void)
 {
-	if (!amd_e400_c1e_detected) {
-		u32 lo, hi;
-
-		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-
-		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-			amd_e400_c1e_detected = true;
-			if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-				mark_tsc_unstable("TSC halt in AMD C1E");
-			pr_info("System has AMD C1E enabled\n");
-		}
+	/*
+	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * gets set after static_cpu_has() places have been converted via
+	 * alternatives.
+	 */
+	if (!boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		default_idle();
+		return;
 	}
 
-	if (amd_e400_c1e_detected) {
-		int cpu = smp_processor_id();
+	tick_broadcast_enter();
 
-		if (!cpumask_test_cpu(cpu, amd_e400_c1e_mask)) {
-			cpumask_set_cpu(cpu, amd_e400_c1e_mask);
-			/* Force broadcast so ACPI can not interfere. */
-			tick_broadcast_force();
-			pr_info("Switch to broadcast mode on CPU%d\n", cpu);
-		}
-		tick_broadcast_enter();
+	default_idle();
 
-		default_idle();
-
-		/*
-		 * The switch back from broadcast mode needs to be
-		 * called with interrupts disabled.
-		 */
-		local_irq_disable();
-		tick_broadcast_exit();
-		local_irq_enable();
-	} else
-		default_idle();
+	/*
+	 * The switch back from broadcast mode needs to be called with
+	 * interrupts disabled.
+	 */
+	local_irq_disable();
+	tick_broadcast_exit();
+	local_irq_enable();
 }
 
 /*
@@ -448,8 +375,7 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 	if (x86_idle || boot_option_idle_override == IDLE_POLL)
 		return;
 
-	if (cpu_has_bug(c, X86_BUG_AMD_APIC_C1E)) {
-		/* E400: APIC timer interrupt does not wake up CPU from C1e */
+	if (boot_cpu_has_bug(X86_BUG_AMD_E400)) {
 		pr_info("using AMD E400 aware idle routine\n");
 		x86_idle = amd_e400_idle;
 	} else if (prefer_mwait_c1_over_halt(c)) {
@@ -459,11 +385,37 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 		x86_idle = default_idle;
 }
 
-void __init init_amd_e400_c1e_mask(void)
+void amd_e400_c1e_apic_setup(void)
 {
-	/* If we're using amd_e400_idle, we need to allocate amd_e400_c1e_mask. */
-	if (x86_idle == amd_e400_idle)
-		zalloc_cpumask_var(&amd_e400_c1e_mask, GFP_KERNEL);
+	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		pr_info("Switch to broadcast mode on CPU%d\n", smp_processor_id());
+		local_irq_disable();
+		tick_broadcast_force();
+		local_irq_enable();
+	}
+}
+
+void __init arch_post_acpi_subsys_init(void)
+{
+	u32 lo, hi;
+
+	if (!boot_cpu_has_bug(X86_BUG_AMD_E400))
+		return;
+
+	/*
+	 * AMD E400 detection needs to happen after ACPI has been enabled. If
+	 * the machine is affected K8_INTP_C1E_ACTIVE_MASK bits are set in
+	 * MSR_K8_INT_PENDING_MSG.
+	 */
+	rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
+	if (!(lo & K8_INTP_C1E_ACTIVE_MASK))
+		return;
+
+	boot_cpu_set_bug(X86_BUG_AMD_APIC_C1E);
+
+	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+		mark_tsc_unstable("TSC halt in AMD C1E");
+	pr_info("System has AMD C1E enabled\n");
 }
 
 static int __init idle_setup(char *str)

@@ -239,7 +239,13 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	if (eh->h_proto == htons(ETH_P_PAE))
 		atomic_inc(&ifp->pend_8021x_cnt);
 
-	ret = brcmf_fws_process_skb(ifp, skb);
+	/* determine the priority */
+	if ((skb->priority == 0) || (skb->priority > 7))
+		skb->priority = cfg80211_classify8021d(skb, NULL);
+
+	ret = brcmf_proto_tx_queue_data(drvr, ifp->ifidx, skb);
+	if (ret < 0)
+		brcmf_txfinalize(ifp, skb, false);
 
 done:
 	if (ret) {

@@ -176,9 +176,7 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 		pvr2_stream_get_stats(sp, &stats, 0);
 		ccnt = scnprintf(
 			buf,acnt,
-			"Bytes streamed=%u"
-			" URBs: queued=%u idle=%u ready=%u"
-			" processed=%u failed=%u\n",
+			"Bytes streamed=%u URBs: queued=%u idle=%u ready=%u processed=%u failed=%u\n",
 			stats.bytes_processed,
 			stats.buffers_in_queue,
 			stats.buffers_in_idle,

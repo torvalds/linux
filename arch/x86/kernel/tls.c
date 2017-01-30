@@ -5,7 +5,7 @@
 #include <linux/regset.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
 #include <asm/processor.h>

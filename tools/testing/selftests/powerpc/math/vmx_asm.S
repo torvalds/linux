@@ -7,8 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "../basic_asm.h"
-#include "../vmx_asm.h"
+#include "basic_asm.h"
+#include "vmx_asm.h"
 
 # Should be safe from C, only touches r4, r5 and v0,v1,v2
 FUNC_START(check_vmx)

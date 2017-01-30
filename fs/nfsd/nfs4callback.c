@@ -1061,7 +1061,7 @@ static const struct rpc_call_ops nfsd4_cb_ops = {
 
 int nfsd4_create_callback_queue(void)
 {
-	callback_wq = create_singlethread_workqueue("nfsd4_callbacks");
+	callback_wq = alloc_ordered_workqueue("nfsd4_callbacks", 0);
 	if (!callback_wq)
 		return -ENOMEM;
 	return 0;

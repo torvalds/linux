@@ -38,7 +38,7 @@
 
 #define SOUND_FS	256
 
-unsigned int rt5514_dmic_delay;
+static unsigned int rt5514_dmic_delay;
 
 static struct snd_soc_jack rockchip_sound_jack;
 
@@ -228,15 +228,15 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_ops rockchip_sound_max98357a_ops = {
+static const struct snd_soc_ops rockchip_sound_max98357a_ops = {
 	.hw_params = rockchip_sound_max98357a_hw_params,
 };
 
-static struct snd_soc_ops rockchip_sound_rt5514_ops = {
+static const struct snd_soc_ops rockchip_sound_rt5514_ops = {
 	.hw_params = rockchip_sound_rt5514_hw_params,
 };
 
-static struct snd_soc_ops rockchip_sound_da7219_ops = {
+static const struct snd_soc_ops rockchip_sound_da7219_ops = {
 	.hw_params = rockchip_sound_da7219_hw_params,
 };
 

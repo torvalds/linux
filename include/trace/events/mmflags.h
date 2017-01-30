@@ -81,6 +81,7 @@
 
 #define __def_pageflag_names						\
 	{1UL << PG_locked,		"locked"	},		\
+	{1UL << PG_waiters,		"waiters"	},		\
 	{1UL << PG_error,		"error"		},		\
 	{1UL << PG_referenced,		"referenced"	},		\
 	{1UL << PG_uptodate,		"uptodate"	},		\
@@ -95,7 +96,6 @@
 	{1UL << PG_private_2,		"private_2"	},		\
 	{1UL << PG_writeback,		"writeback"	},		\
 	{1UL << PG_head,		"head"		},		\
-	{1UL << PG_swapcache,		"swapcache"	},		\
 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
 	{1UL << PG_reclaim,		"reclaim"	},		\
 	{1UL << PG_swapbacked,		"swapbacked"	},		\

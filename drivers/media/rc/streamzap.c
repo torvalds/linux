@@ -297,8 +297,7 @@ static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 		goto out;
 	}
 
-	snprintf(sz->name, sizeof(sz->name), "Streamzap PC Remote Infrared "
-		 "Receiver (%04x:%04x)",
+	snprintf(sz->name, sizeof(sz->name), "Streamzap PC Remote Infrared Receiver (%04x:%04x)",
 		 le16_to_cpu(sz->usbdev->descriptor.idVendor),
 		 le16_to_cpu(sz->usbdev->descriptor.idProduct));
 	usb_make_path(sz->usbdev, sz->phys, sizeof(sz->phys));
@@ -364,15 +363,15 @@ static int streamzap_probe(struct usb_interface *intf,
 
 	sz->endpoint = &(iface_host->endpoint[0].desc);
 	if (!usb_endpoint_dir_in(sz->endpoint)) {
-		dev_err(&intf->dev, "%s: endpoint doesn't match input device "
-			"02%02x\n", __func__, sz->endpoint->bEndpointAddress);
+		dev_err(&intf->dev, "%s: endpoint doesn't match input device 02%02x\n",
+			__func__, sz->endpoint->bEndpointAddress);
 		retval = -ENODEV;
 		goto free_sz;
 	}
 
 	if (!usb_endpoint_xfer_int(sz->endpoint)) {
-		dev_err(&intf->dev, "%s: endpoint attributes don't match xfer "
-			"02%02x\n", __func__, sz->endpoint->bmAttributes);
+		dev_err(&intf->dev, "%s: endpoint attributes don't match xfer 02%02x\n",
+			__func__, sz->endpoint->bmAttributes);
 		retval = -ENODEV;
 		goto free_sz;
 	}

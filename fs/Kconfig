@@ -55,7 +55,6 @@ config FS_DAX_PMD
 	depends on FS_DAX
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
-	depends on BROKEN
 
 endif # BLOCK
 
@@ -235,7 +234,6 @@ source "fs/efs/Kconfig"
 source "fs/jffs2/Kconfig"
 # UBIFS File system configuration
 source "fs/ubifs/Kconfig"
-source "fs/logfs/Kconfig"
 source "fs/cramfs/Kconfig"
 source "fs/squashfs/Kconfig"
 source "fs/freevxfs/Kconfig"

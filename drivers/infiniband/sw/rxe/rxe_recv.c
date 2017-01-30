@@ -391,16 +391,15 @@ int rxe_rcv(struct sk_buff *skb)
 			     payload_size(pkt));
 	calc_icrc = cpu_to_be32(~calc_icrc);
 	if (unlikely(calc_icrc != pack_icrc)) {
-		char saddr[sizeof(struct in6_addr)];
-
 		if (skb->protocol == htons(ETH_P_IPV6))
-			sprintf(saddr, "%pI6", &ipv6_hdr(skb)->saddr);
+			pr_warn_ratelimited("bad ICRC from %pI6c\n",
+					    &ipv6_hdr(skb)->saddr);
 		else if (skb->protocol == htons(ETH_P_IP))
-			sprintf(saddr, "%pI4", &ip_hdr(skb)->saddr);
+			pr_warn_ratelimited("bad ICRC from %pI4\n",
+					    &ip_hdr(skb)->saddr);
 		else
-			sprintf(saddr, "unknown");
+			pr_warn_ratelimited("bad ICRC from unknown\n");
 
-		pr_warn_ratelimited("bad ICRC from %s\n", saddr);
 		goto drop;
 	}
 

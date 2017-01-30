@@ -421,9 +421,4 @@ static struct pci_driver intel_gpio_driver = {
 	},
 };
 
-static int __init intel_gpio_init(void)
-{
-	return pci_register_driver(&intel_gpio_driver);
-}
-
-device_initcall(intel_gpio_init);
+builtin_pci_driver(intel_gpio_driver);

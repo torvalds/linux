@@ -9,9 +9,10 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		serial0 = &uart1;
 		serial1 = &uart2;
@@ -118,13 +119,6 @@
 				interrupts = <19>;
 				clocks = <&clks 25>;
 			};
-
-			clks: ccm@53f80000{
-				compatible = "fsl,imx31-ccm";
-				reg = <0x53f80000 0x4000>;
-				interrupts = <0 31 0x04 0 53 0x04>;
-				#clock-cells = <1>;
-			};
 		};
 
 		aips@53f00000 { /* AIPS2 */
@@ -133,6 +127,13 @@
 			#size-cells = <1>;
 			reg = <0x53f00000 0x100000>;
 			ranges;
+
+			clks: ccm@53f80000{
+				compatible = "fsl,imx31-ccm";
+				reg = <0x53f80000 0x4000>;
+				interrupts = <31>, <53>;
+				#clock-cells = <1>;
+			};
 
 			gpt: timer@53f90000 {
 				compatible = "fsl,imx31-gpt";

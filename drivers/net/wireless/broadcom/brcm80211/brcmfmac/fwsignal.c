@@ -2100,16 +2100,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	int rc = 0;
 
 	brcmf_dbg(DATA, "tx proto=0x%X\n", ntohs(eh->h_proto));
-	/* determine the priority */
-	if ((skb->priority == 0) || (skb->priority > 7))
-		skb->priority = cfg80211_classify8021d(skb, NULL);
-
-	if (fws->avoid_queueing) {
-		rc = brcmf_proto_txdata(drvr, ifp->ifidx, 0, skb);
-		if (rc < 0)
-			brcmf_txfinalize(ifp, skb, false);
-		return rc;
-	}
 
 	/* set control buffer information */
 	skcb->if_flags = 0;
@@ -2440,6 +2430,11 @@ void brcmf_fws_deinit(struct brcmf_pub *drvr)
 
 	/* free top structure */
 	kfree(fws);
+}
+
+bool brcmf_fws_queue_skbs(struct brcmf_fws_info *fws)
+{
+	return !fws->avoid_queueing;
 }
 
 bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)

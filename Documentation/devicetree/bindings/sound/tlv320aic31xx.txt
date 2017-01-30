@@ -12,6 +12,7 @@ Required properties:
     "ti,tlv320aic3120" - TLV320AIC3120 (mono speaker amp, MiniDSP)
     "ti,tlv320aic3111" - TLV320AIC3111 (stereo speaker amp, MiniDSP)
     "ti,tlv320dac3100" - TLV320DAC3100 (no ADC, mono speaker amp, no MiniDSP)
+    "ti,tlv320dac3101" - TLV320DAC3101 (no ADC, stereo speaker amp, no MiniDSP)
 
 - reg - <int> -  I2C slave address
 - HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,

@@ -5194,7 +5194,7 @@ int ocfs2_change_extent_flag(handle_t *handle,
 	rec = &el->l_recs[index];
 	if (new_flags && (rec->e_flags & new_flags)) {
 		mlog(ML_ERROR, "Owner %llu tried to set %d flags on an "
-		     "extent that already had them",
+		     "extent that already had them\n",
 		     (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 		     new_flags);
 		goto out;
@@ -5202,7 +5202,7 @@ int ocfs2_change_extent_flag(handle_t *handle,
 
 	if (clear_flags && !(rec->e_flags & clear_flags)) {
 		mlog(ML_ERROR, "Owner %llu tried to clear %d flags on an "
-		     "extent that didn't have them",
+		     "extent that didn't have them\n",
 		     (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 		     clear_flags);
 		goto out;
@@ -5713,8 +5713,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 	struct ocfs2_refcount_tree *ref_tree = NULL;
 
 	if ((flags & OCFS2_EXT_REFCOUNTED) && len) {
-		BUG_ON(!(OCFS2_I(inode)->ip_dyn_features &
-			 OCFS2_HAS_REFCOUNT_FL));
+		BUG_ON(!ocfs2_is_refcount_inode(inode));
 
 		if (!refcount_tree_locked) {
 			ret = ocfs2_lock_refcount_tree(osb, refcount_loc, 1,

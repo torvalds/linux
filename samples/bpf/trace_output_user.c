@@ -21,6 +21,7 @@
 #include <signal.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 static int pmu_fd;
 
@@ -61,7 +62,7 @@ struct perf_event_sample {
 	char data[];
 };
 
-void perf_event_read(print_fn fn)
+static void perf_event_read(print_fn fn)
 {
 	__u64 data_tail = header->data_tail;
 	__u64 data_head = header->data_head;
@@ -159,10 +160,10 @@ static void test_bpf_perf_event(void)
 	};
 	int key = 0;
 
-	pmu_fd = perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
+	pmu_fd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 
 	assert(pmu_fd >= 0);
-	assert(bpf_update_elem(map_fd[0], &key, &pmu_fd, BPF_ANY) == 0);
+	assert(bpf_map_update_elem(map_fd[0], &key, &pmu_fd, BPF_ANY) == 0);
 	ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
 }
 

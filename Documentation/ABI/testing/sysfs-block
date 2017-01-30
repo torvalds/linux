@@ -235,3 +235,45 @@ Description:
 		write_same_max_bytes is 0, write same is not supported
 		by the device.
 
+What:		/sys/block/<disk>/queue/write_zeroes_max_bytes
+Date:		November 2016
+Contact:	Chaitanya Kulkarni <chaitanya.kulkarni@wdc.com>
+Description:
+		Devices that support write zeroes operation in which a
+		single request can be issued to zero out the range of
+		contiguous blocks on storage without having any payload
+		in the request. This can be used to optimize writing zeroes
+		to the devices. write_zeroes_max_bytes indicates how many
+		bytes can be written in a single write zeroes command. If
+		write_zeroes_max_bytes is 0, write zeroes is not supported
+		by the device.
+
+What:		/sys/block/<disk>/queue/zoned
+Date:		September 2016
+Contact:	Damien Le Moal <damien.lemoal@hgst.com>
+Description:
+		zoned indicates if the device is a zoned block device
+		and the zone model of the device if it is indeed zoned.
+		The possible values indicated by zoned are "none" for
+		regular block devices and "host-aware" or "host-managed"
+		for zoned block devices. The characteristics of
+		host-aware and host-managed zoned block devices are
+		described in the ZBC (Zoned Block Commands) and ZAC
+		(Zoned Device ATA Command Set) standards. These standards
+		also define the "drive-managed" zone model. However,
+		since drive-managed zoned block devices do not support
+		zone commands, they will be treated as regular block
+		devices and zoned will report "none".
+
+What:		/sys/block/<disk>/queue/chunk_sectors
+Date:		September 2016
+Contact:	Hannes Reinecke <hare@suse.com>
+Description:
+		chunk_sectors has different meaning depending on the type
+		of the disk. For a RAID device (dm-raid), chunk_sectors
+		indicates the size in 512B sectors of the RAID volume
+		stripe segment. For a zoned block device, either
+		host-aware or host-managed, chunk_sectors indicates the
+		size of 512B sectors of the zones of the device, with
+		the eventual exception of the last zone of the device
+		which may be smaller.

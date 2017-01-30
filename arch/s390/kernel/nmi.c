@@ -102,7 +102,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 {
 	int kill_task;
 	u64 zero;
-	void *fpt_save_area, *fpt_creg_save_area;
+	void *fpt_save_area;
 
 	kill_task = 0;
 	zero = 0;
@@ -130,7 +130,6 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			kill_task = 1;
 	}
 	fpt_save_area = &S390_lowcore.floating_pt_save_area;
-	fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
@@ -142,11 +141,13 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		 */
 		if (S390_lowcore.fpu_flags & KERNEL_FPC)
 			s390_handle_damage();
-		asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
+		asm volatile("lfpc %0" : : "Q" (zero));
 		if (!test_cpu_flag(CIF_FPU))
 			kill_task = 1;
-	} else
-		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
+	} else {
+		asm volatile("lfpc %0"
+			     : : "Q" (S390_lowcore.fpt_creg_save_area));
+	}
 
 	if (!MACHINE_HAS_VX) {
 		/* Validate floating point registers */
@@ -167,7 +168,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			"	ld	13,104(%0)\n"
 			"	ld	14,112(%0)\n"
 			"	ld	15,120(%0)\n"
-			: : "a" (fpt_save_area));
+			: : "a" (fpt_save_area) : "memory");
 	} else {
 		/* Validate vector registers */
 		union ctlreg0 cr0;
@@ -217,7 +218,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	} else {
 		asm volatile(
 			"	lctlg	0,15,0(%0)"
-			: : "a" (&S390_lowcore.cregs_save_area));
+			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
 	}
 	/*
 	 * We don't even try to validate the TOD register, since we simply
@@ -234,9 +235,9 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			: : : "0", "cc");
 	else
 		asm volatile(
-			"	l	0,0(%0)\n"
+			"	l	0,%0\n"
 			"	sckpf"
-			: : "a" (&S390_lowcore.tod_progreg_save_area)
+			: : "Q" (S390_lowcore.tod_progreg_save_area)
 			: "0", "cc");
 	/* Validate clock comparator register */
 	set_clock_comparator(S390_lowcore.clock_comparator);

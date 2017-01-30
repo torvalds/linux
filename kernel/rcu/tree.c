@@ -1304,7 +1304,8 @@ static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
 	if (!rcu_kick_kthreads)
 		return;
 	j = READ_ONCE(rsp->jiffies_kick_kthreads);
-	if (time_after(jiffies, j) && rsp->gp_kthread) {
+	if (time_after(jiffies, j) && rsp->gp_kthread &&
+	    (rcu_gp_in_progress(rsp) || READ_ONCE(rsp->gp_flags))) {
 		WARN_ONCE(1, "Kicking %s grace-period kthread\n", rsp->name);
 		rcu_ftrace_dump(DUMP_ALL);
 		wake_up_process(rsp->gp_kthread);
@@ -2828,8 +2829,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
  * Also schedule RCU core processing.
  *
  * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.  If rcu_pending returns
- * false, there is no point in invoking rcu_check_callbacks().
+ * invoked from the scheduling-clock interrupt.
  */
 void rcu_check_callbacks(int user)
 {
@@ -3121,7 +3121,9 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
 	unsigned long flags;
 	struct rcu_data *rdp;
 
-	WARN_ON_ONCE((unsigned long)head & 0x1); /* Misaligned rcu_head! */
+	/* Misaligned rcu_head! */
+	WARN_ON_ONCE((unsigned long)head & (sizeof(void *) - 1));
+
 	if (debug_rcu_head_queue(head)) {
 		/* Probable double call_rcu(), so leak the callback. */
 		WRITE_ONCE(head->func, rcu_leak_callback);
@@ -3130,13 +3132,6 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func,
 	}
 	head->func = func;
 	head->next = NULL;
-
-	/*
-	 * Opportunistically note grace-period endings and beginnings.
-	 * Note that we might see a beginning right after we see an
-	 * end, but never vice versa, since this CPU has to pass through
-	 * a quiescent state betweentimes.
-	 */
 	local_irq_save(flags);
 	rdp = this_cpu_ptr(rsp->rda);
 

@@ -113,8 +113,7 @@ static const char *pvr2_buffer_state_decode(enum pvr2_buffer_state st)
 static void pvr2_buffer_describe(struct pvr2_buffer *bp,const char *msg)
 {
 	pvr2_trace(PVR2_TRACE_INFO,
-		   "buffer%s%s %p state=%s id=%d status=%d"
-		   " stream=%p purb=%p sig=0x%x",
+		   "buffer%s%s %p state=%s id=%d status=%d stream=%p purb=%p sig=0x%x",
 		   (msg ? " " : ""),
 		   (msg ? msg : ""),
 		   bp,
@@ -156,8 +155,7 @@ static void pvr2_buffer_remove(struct pvr2_buffer *bp)
 	(*cnt)--;
 	(*bcnt) -= ccnt;
 	pvr2_trace(PVR2_TRACE_BUF_FLOW,
-		   "/*---TRACE_FLOW---*/"
-		   " bufferPool     %8s dec cap=%07d cnt=%02d",
+		   "/*---TRACE_FLOW---*/ bufferPool	%8s dec cap=%07d cnt=%02d",
 		   pvr2_buffer_state_decode(bp->state),*bcnt,*cnt);
 	bp->state = pvr2_buffer_state_none;
 }
@@ -198,8 +196,7 @@ static int pvr2_buffer_set_ready(struct pvr2_buffer *bp)
 	(sp->r_count)++;
 	sp->r_bcount += bp->used_count;
 	pvr2_trace(PVR2_TRACE_BUF_FLOW,
-		   "/*---TRACE_FLOW---*/"
-		   " bufferPool     %8s inc cap=%07d cnt=%02d",
+		   "/*---TRACE_FLOW---*/ bufferPool	%8s inc cap=%07d cnt=%02d",
 		   pvr2_buffer_state_decode(bp->state),
 		   sp->r_bcount,sp->r_count);
 	spin_unlock_irqrestore(&sp->list_lock,irq_flags);
@@ -224,8 +221,7 @@ static void pvr2_buffer_set_idle(struct pvr2_buffer *bp)
 	(sp->i_count)++;
 	sp->i_bcount += bp->max_count;
 	pvr2_trace(PVR2_TRACE_BUF_FLOW,
-		   "/*---TRACE_FLOW---*/"
-		   " bufferPool     %8s inc cap=%07d cnt=%02d",
+		   "/*---TRACE_FLOW---*/ bufferPool	%8s inc cap=%07d cnt=%02d",
 		   pvr2_buffer_state_decode(bp->state),
 		   sp->i_bcount,sp->i_count);
 	spin_unlock_irqrestore(&sp->list_lock,irq_flags);
@@ -249,8 +245,7 @@ static void pvr2_buffer_set_queued(struct pvr2_buffer *bp)
 	(sp->q_count)++;
 	sp->q_bcount += bp->max_count;
 	pvr2_trace(PVR2_TRACE_BUF_FLOW,
-		   "/*---TRACE_FLOW---*/"
-		   " bufferPool     %8s inc cap=%07d cnt=%02d",
+		   "/*---TRACE_FLOW---*/ bufferPool	%8s inc cap=%07d cnt=%02d",
 		   pvr2_buffer_state_decode(bp->state),
 		   sp->q_bcount,sp->q_count);
 	spin_unlock_irqrestore(&sp->list_lock,irq_flags);
@@ -293,8 +288,8 @@ static void pvr2_buffer_done(struct pvr2_buffer *bp)
 	bp->signature = 0;
 	bp->stream = NULL;
 	usb_free_urb(bp->purb);
-	pvr2_trace(PVR2_TRACE_BUF_POOL,"/*---TRACE_FLOW---*/"
-		   " bufferDone     %p",bp);
+	pvr2_trace(PVR2_TRACE_BUF_POOL, "/*---TRACE_FLOW---*/ bufferDone     %p",
+		   bp);
 }
 
 static int pvr2_stream_buffer_count(struct pvr2_stream *sp,unsigned int cnt)
@@ -306,8 +301,7 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp,unsigned int cnt)
 	if (cnt == sp->buffer_total_count) return 0;
 
 	pvr2_trace(PVR2_TRACE_BUF_POOL,
-		   "/*---TRACE_FLOW---*/ poolResize    "
-		   " stream=%p cur=%d adj=%+d",
+		   "/*---TRACE_FLOW---*/ poolResize	stream=%p cur=%d adj=%+d",
 		   sp,
 		   sp->buffer_total_count,
 		   cnt-sp->buffer_total_count);
@@ -374,8 +368,7 @@ static int pvr2_stream_achieve_buffer_count(struct pvr2_stream *sp)
 	if (sp->buffer_total_count == sp->buffer_target_count) return 0;
 
 	pvr2_trace(PVR2_TRACE_BUF_POOL,
-		   "/*---TRACE_FLOW---*/"
-		   " poolCheck      stream=%p cur=%d tgt=%d",
+		   "/*---TRACE_FLOW---*/ poolCheck	stream=%p cur=%d tgt=%d",
 		   sp,sp->buffer_total_count,sp->buffer_target_count);
 
 	if (sp->buffer_total_count < sp->buffer_target_count) {
@@ -454,8 +447,8 @@ static void buffer_complete(struct urb *urb)
 		bp->used_count = urb->actual_length;
 		if (sp->fail_count) {
 			pvr2_trace(PVR2_TRACE_TOLERANCE,
-				   "stream %p transfer ok"
-				   " - fail count reset",sp);
+				   "stream %p transfer ok - fail count reset",
+				   sp);
 			sp->fail_count = 0;
 		}
 	} else if (sp->fail_count < sp->fail_tolerance) {
@@ -464,8 +457,7 @@ static void buffer_complete(struct urb *urb)
 		(sp->fail_count)++;
 		(sp->buffers_failed)++;
 		pvr2_trace(PVR2_TRACE_TOLERANCE,
-			   "stream %p ignoring error %d"
-			   " - fail count increased to %u",
+			   "stream %p ignoring error %d - fail count increased to %u",
 			   sp,urb->status,sp->fail_count);
 	} else {
 		(sp->buffers_failed)++;
@@ -666,8 +658,7 @@ int pvr2_buffer_set_buffer(struct pvr2_buffer *bp,void *ptr,unsigned int cnt)
 			bp->max_count = cnt;
 			bp->stream->i_bcount += bp->max_count;
 			pvr2_trace(PVR2_TRACE_BUF_FLOW,
-				   "/*---TRACE_FLOW---*/ bufferPool    "
-				   " %8s cap cap=%07d cnt=%02d",
+				   "/*---TRACE_FLOW---*/ bufferPool	%8s cap cap=%07d cnt=%02d",
 				   pvr2_buffer_state_decode(
 					   pvr2_buffer_state_idle),
 				   bp->stream->i_bcount,bp->stream->i_count);

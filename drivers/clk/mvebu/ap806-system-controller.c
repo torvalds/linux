@@ -14,7 +14,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -135,34 +135,17 @@ fail0:
 	return ret;
 }
 
-static int ap806_syscon_clk_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-	clk_unregister_fixed_factor(ap806_clks[3]);
-	clk_unregister_fixed_rate(ap806_clks[2]);
-	clk_unregister_fixed_rate(ap806_clks[1]);
-	clk_unregister_fixed_rate(ap806_clks[0]);
-
-	return 0;
-}
-
 static const struct of_device_id ap806_syscon_of_match[] = {
 	{ .compatible = "marvell,ap806-system-controller", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, armada8k_pcie_of_match);
 
 static struct platform_driver ap806_syscon_driver = {
 	.probe = ap806_syscon_clk_probe,
-	.remove = ap806_syscon_clk_remove,
 	.driver		= {
 		.name	= "marvell-ap806-system-controller",
 		.of_match_table = ap806_syscon_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
-
-module_platform_driver(ap806_syscon_driver);
-
-MODULE_DESCRIPTION("Marvell AP806 System Controller driver");
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(ap806_syscon_driver);

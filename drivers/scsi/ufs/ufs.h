@@ -46,6 +46,7 @@
 #define QUERY_DESC_HDR_SIZE       2
 #define QUERY_OSF_SIZE            (GENERAL_UPIU_REQUEST_SIZE - \
 					(sizeof(struct utp_upiu_header)))
+#define RESPONSE_UPIU_SENSE_DATA_LENGTH	18
 
 #define UPIU_HEADER_DWORD(byte3, byte2, byte1, byte0)\
 			cpu_to_be32((byte3 << 24) | (byte2 << 16) |\
@@ -162,7 +163,7 @@ enum desc_header_offset {
 };
 
 enum ufs_desc_max_size {
-	QUERY_DESC_DEVICE_MAX_SIZE		= 0x1F,
+	QUERY_DESC_DEVICE_MAX_SIZE		= 0x40,
 	QUERY_DESC_CONFIGURAION_MAX_SIZE	= 0x90,
 	QUERY_DESC_UNIT_MAX_SIZE		= 0x23,
 	QUERY_DESC_INTERCONNECT_MAX_SIZE	= 0x06,
@@ -416,7 +417,7 @@ struct utp_cmd_rsp {
 	__be32 residual_transfer_count;
 	__be32 reserved[4];
 	__be16 sense_data_len;
-	u8 sense_data[18];
+	u8 sense_data[RESPONSE_UPIU_SENSE_DATA_LENGTH];
 };
 
 /**

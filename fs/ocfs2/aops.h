@@ -44,8 +44,7 @@ int walk_page_buffers(	handle_t *handle,
 					struct buffer_head *bh));
 
 int ocfs2_write_end_nolock(struct address_space *mapping,
-			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata);
+			   loff_t pos, unsigned len, unsigned copied, void *fsdata);
 
 typedef enum {
 	OCFS2_WRITE_BUFFER = 0,

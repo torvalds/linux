@@ -57,7 +57,7 @@ int main(int argv, char **argc)
 	pid_t pid;
 
 
-	printf("Running Asyncrhonous Frequency Changing Tests...\n");
+	printf("Running Asynchronous Frequency Changing Tests...\n");
 
 	pid = fork();
 	if (!pid)

@@ -56,7 +56,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x80000000>; /* 2GB */
 	};
@@ -67,28 +67,6 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Connected to first Marvell 88SE9170 SATA controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Connected to second Marvell 88SE9170 SATA controller */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Connected to Fresco Logic FL1009 USB 3.0 controller */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
@@ -97,7 +75,6 @@
 			};
 
 			i2c@11000 {
-				compatible = "marvell,mv64xxx-i2c";
 				clock-frequency = <400000>;
 				status = "okay";
 
@@ -154,23 +131,19 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1318 */
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
+
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 
 			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
@@ -294,6 +267,39 @@
 		gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 	};
 };
+
+&pciec {
+	status = "okay";
+
+	/* Connected to first Marvell 88SE9170 SATA controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Connected to second Marvell 88SE9170 SATA controller */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Connected to Fresco Logic FL1009 USB 3.0 controller */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1318 */
+		reg = <1>;
+	};
+};
+
 
 &pinctrl {
 	poweroff: poweroff {

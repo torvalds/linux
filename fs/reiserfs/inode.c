@@ -19,6 +19,7 @@
 #include <linux/quotaops.h>
 #include <linux/swap.h>
 #include <linux/uio.h>
+#include <linux/bio.h>
 
 int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to);

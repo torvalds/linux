@@ -360,3 +360,71 @@ ENTRY(pci_sun4v_msg_setvalid)
 	 mov	%o0, %o0
 ENDPROC(pci_sun4v_msg_setvalid)
 
+	/*
+	 * %o0:	devhandle
+	 * %o1:	r_addr
+	 * %o2:	size
+	 * %o3:	pagesize
+	 * %o4:	virt
+	 * %o5: &iotsb_num/&iotsb_handle
+	 *
+	 * returns %o0:	status
+	 *         %o1:	iotsb_num/iotsb_handle
+	 */
+ENTRY(pci_sun4v_iotsb_conf)
+	mov	%o5, %g1
+	mov	HV_FAST_PCI_IOTSB_CONF, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 stx	%o1, [%g1]
+ENDPROC(pci_sun4v_iotsb_conf)
+
+	/*
+	 * %o0:	devhandle
+	 * %o1:	iotsb_num/iotsb_handle
+	 * %o2:	pci_device
+	 *
+	 * returns %o0:	status
+	 */
+ENTRY(pci_sun4v_iotsb_bind)
+	mov	HV_FAST_PCI_IOTSB_BIND, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+ENDPROC(pci_sun4v_iotsb_bind)
+
+	/*
+	 * %o0:	devhandle
+	 * %o1:	iotsb_num/iotsb_handle
+	 * %o2:	index_count
+	 * %o3:	iotte_attributes
+	 * %o4:	io_page_list_p
+	 * %o5: &mapped
+	 *
+	 * returns %o0:	status
+	 *         %o1:	#mapped
+	 */
+ENTRY(pci_sun4v_iotsb_map)
+	mov	%o5, %g1
+	mov	HV_FAST_PCI_IOTSB_MAP, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 stx	%o1, [%g1]
+ENDPROC(pci_sun4v_iotsb_map)
+
+	/*
+	 * %o0:	devhandle
+	 * %o1:	iotsb_num/iotsb_handle
+	 * %o2:	iotsb_index
+	 * %o3:	#iottes
+	 * %o4: &demapped
+	 *
+	 * returns %o0:	status
+	 *         %o1:	#demapped
+	 */
+ENTRY(pci_sun4v_iotsb_demap)
+	mov	HV_FAST_PCI_IOTSB_DEMAP, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 stx	%o1, [%o4]
+ENDPROC(pci_sun4v_iotsb_demap)

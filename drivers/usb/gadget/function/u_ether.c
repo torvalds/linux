@@ -142,15 +142,6 @@ static inline int qlen(struct usb_gadget *gadget, unsigned qmult)
 
 /* NETWORK DRIVER HOOKUP (to the layer above this driver) */
 
-static int ueth_change_mtu(struct net_device *net, int new_mtu)
-{
-	if (new_mtu <= ETH_HLEN || new_mtu > GETHER_MAX_ETH_FRAME_LEN)
-		return -ERANGE;
-	net->mtu = new_mtu;
-
-	return 0;
-}
-
 static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 {
 	struct eth_dev *dev = netdev_priv(net);
@@ -224,7 +215,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	if (dev->port_usb->is_fixed)
 		size = max_t(size_t, size, dev->port_usb->fixed_out_len);
 
-	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
+	skb = __netdev_alloc_skb(dev->net, size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
 		DBG(dev, "no rx skb\n");
 		goto enomem;
@@ -455,16 +446,17 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 		/* FALLTHROUGH */
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
+		dev_kfree_skb_any(skb);
 		break;
 	case 0:
 		dev->net->stats.tx_bytes += skb->len;
+		dev_consume_skb_any(skb);
 	}
 	dev->net->stats.tx_packets++;
 
 	spin_lock(&dev->req_lock);
 	list_add(&req->list, &dev->tx_reqs);
 	spin_unlock(&dev->req_lock);
-	dev_kfree_skb_any(skb);
 
 	atomic_dec(&dev->tx_qlen);
 	if (netif_carrier_ok(dev->net))
@@ -729,7 +721,6 @@ static const struct net_device_ops eth_netdev_ops = {
 	.ndo_open		= eth_open,
 	.ndo_stop		= eth_stop,
 	.ndo_start_xmit		= eth_start_xmit,
-	.ndo_change_mtu		= ueth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -791,6 +782,10 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 	net->netdev_ops = &eth_netdev_ops;
 
 	net->ethtool_ops = &ops;
+
+	/* MTU range: 14 - 15412 */
+	net->min_mtu = ETH_HLEN;
+	net->max_mtu = GETHER_MAX_ETH_FRAME_LEN;
 
 	dev->gadget = g;
 	SET_NETDEV_DEV(net, &g->dev);

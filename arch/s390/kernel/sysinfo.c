@@ -56,6 +56,20 @@ int stsi(void *sysinfo, int fc, int sel1, int sel2)
 }
 EXPORT_SYMBOL(stsi);
 
+static bool convert_ext_name(unsigned char encoding, char *name, size_t len)
+{
+	switch (encoding) {
+	case 1: /* EBCDIC */
+		EBCASC(name, len);
+		break;
+	case 2:	/* UTF-8 */
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 {
 	int i;
@@ -207,24 +221,19 @@ static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 		seq_printf(m, "LPAR CPUs S-MTID:     %d\n", info->mt_stid);
 		seq_printf(m, "LPAR CPUs PS-MTID:    %d\n", info->mt_psmtid);
 	}
+	if (convert_ext_name(info->vsne, info->ext_name, sizeof(info->ext_name))) {
+		seq_printf(m, "LPAR Extended Name:   %-.256s\n", info->ext_name);
+		seq_printf(m, "LPAR UUID:            %pUb\n", &info->uuid);
+	}
 }
 
 static void print_ext_name(struct seq_file *m, int lvl,
 			   struct sysinfo_3_2_2 *info)
 {
-	if (info->vm[lvl].ext_name_encoding == 0)
+	size_t len = sizeof(info->ext_names[lvl]);
+
+	if (!convert_ext_name(info->vm[lvl].evmne, info->ext_names[lvl], len))
 		return;
-	if (info->ext_names[lvl][0] == 0)
-		return;
-	switch (info->vm[lvl].ext_name_encoding) {
-	case 1: /* EBCDIC */
-		EBCASC(info->ext_names[lvl], sizeof(info->ext_names[lvl]));
-		break;
-	case 2:	/* UTF-8 */
-		break;
-	default:
-		return;
-	}
 	seq_printf(m, "VM%02d Extended Name:   %-.256s\n", lvl,
 		   info->ext_names[lvl]);
 }

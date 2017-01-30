@@ -15,6 +15,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramoops@88d00000{
+			compatible = "ramoops";
+			reg = <0x88d00000 0x100000>;
+			record-size     = <0x00020000>;
+			console-size    = <0x00020000>;
+			ftrace-size     = <0x00020000>;
+		};
+	};
+
 	ext_3p3v: regulator-fixed@1 {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
@@ -99,6 +113,7 @@
 				l2 {
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
 				};
 
 				/* msm_otg-HSUSB_3p3 */
@@ -133,13 +148,14 @@
 					regulator-min-microvolt = <3000000>;
 					regulator-max-microvolt = <3000000>;
 					bias-pull-down;
+					regulator-always-on;
 				};
 
 				/* pwm_power for backlight */
 				l17 {
 					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3600000>;
-					bias-pull-down;
+					regulator-max-microvolt = <3000000>;
+					regulator-always-on;
 				};
 
 				/* camera, qdsp6 */
@@ -182,6 +198,63 @@
 					bias-pull-down;
 				};
 			};
+		};
+
+		mdp@5100000 {
+			status = "okay";
+			ports {
+				port@1 {
+					mdp_dsi1_out: endpoint {
+						remote-endpoint = <&dsi0_in>;
+					};
+				};
+			};
+		};
+
+		dsi0: mdss_dsi@4700000 {
+			status = "okay";
+			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
+			vdd-supply = <&pm8921_l8>;
+			vddio-supply = <&pm8921_lvs7>;
+			avdd-supply = <&pm8921_l11>;
+			vcss-supply = <&ext_3p3v>;
+
+			panel@0 {
+				reg = <0>;
+				compatible = "jdi,lt070me05000";
+
+				vddp-supply = <&pm8921_l17>;
+				iovcc-supply = <&pm8921_lvs7>;
+
+				enable-gpios = <&pm8921_gpio 36 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&tlmm_pinmux 54 GPIO_ACTIVE_LOW>;
+				dcdc-en-gpios = <&pm8921_gpio 23 GPIO_ACTIVE_HIGH>;
+
+				port {
+					panel_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+			};
+			ports {
+				port@0 {
+					dsi0_in: endpoint {
+						remote-endpoint = <&mdp_dsi1_out>;
+					};
+				};
+
+				port@1 {
+					dsi0_out: endpoint {
+						remote-endpoint = <&panel_in>;
+						data-lanes = <0 1 2 3>;
+					};
+				};
+			};
+		};
+
+		dsi-phy@4700200 {
+			status = "okay";
+			vddio-supply = <&pm8921_lvs7>;/*VDD_PLL2_1 to 7*/
 		};
 
 		gsbi@16200000 {

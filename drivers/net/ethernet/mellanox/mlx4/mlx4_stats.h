@@ -55,6 +55,13 @@ struct mlx4_en_perf_stats {
 #define NUM_PERF_COUNTERS		6
 };
 
+struct mlx4_en_xdp_stats {
+	unsigned long rx_xdp_drop;
+	unsigned long rx_xdp_tx;
+	unsigned long rx_xdp_tx_full;
+#define NUM_XDP_STATS		3
+};
+
 #define NUM_MAIN_STATS	21
 
 #define MLX4_NUM_PRIORITIES	8
@@ -107,7 +114,8 @@ enum {
 };
 
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + \
-			 NUM_FLOW_STATS + NUM_PERF_STATS + NUM_PF_STATS)
+			 NUM_FLOW_STATS + NUM_PERF_STATS + NUM_PF_STATS + \
+			 NUM_XDP_STATS)
 
 #define MLX4_FIND_NETDEV_STAT(n) (offsetof(struct net_device_stats, n) / \
 				  sizeof(((struct net_device_stats *)0)->n))

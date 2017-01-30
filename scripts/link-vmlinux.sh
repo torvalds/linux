@@ -209,15 +209,6 @@ case "${KCONFIG_CONFIG}" in
 	. "./${KCONFIG_CONFIG}"
 esac
 
-archive_builtin
-
-#link vmlinux.o
-info LD vmlinux.o
-modpost_link vmlinux.o
-
-# modpost vmlinux.o to check for section mismatches
-${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
-
 # Update version
 info GEN .version
 if [ ! -r .version ]; then
@@ -230,6 +221,15 @@ fi;
 
 # final build of init/
 ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init GCC_PLUGINS_CFLAGS="${GCC_PLUGINS_CFLAGS}"
+
+archive_builtin
+
+#link vmlinux.o
+info LD vmlinux.o
+modpost_link vmlinux.o
+
+# modpost vmlinux.o to check for section mismatches
+${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
 
 kallsymso=""
 kallsyms_vmlinux=""
@@ -246,10 +246,14 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	#     the right size, but due to the added section, some
 	#     addresses have shifted.
 	#     From here, we generate a correct .tmp_kallsyms2.o
-	# 2a) We may use an extra pass as this has been necessary to
-	#     woraround some alignment related bugs.
-	#     KALLSYMS_EXTRA_PASS=1 is used to trigger this.
-	# 3)  The correct ${kallsymso} is linked into the final vmlinux.
+	# 3)  That link may have expanded the kernel image enough that
+	#     more linker branch stubs / trampolines had to be added, which
+	#     introduces new names, which further expands kallsyms. Do another
+	#     pass if that is the case. In theory it's possible this results
+	#     in even more stubs, but unlikely.
+	#     KALLSYMS_EXTRA_PASS=1 may also used to debug or work around
+	#     other bugs.
+	# 4)  The correct ${kallsymso} is linked into the final vmlinux.
 	#
 	# a)  Verify that the System.map from vmlinux matches the map from
 	#     ${kallsymso}.
@@ -265,8 +269,11 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	vmlinux_link .tmp_kallsyms1.o .tmp_vmlinux2
 	kallsyms .tmp_vmlinux2 .tmp_kallsyms2.o
 
-	# step 2a
-	if [ -n "${KALLSYMS_EXTRA_PASS}" ]; then
+	# step 3
+	size1=$(stat -c "%s" .tmp_kallsyms1.o)
+	size2=$(stat -c "%s" .tmp_kallsyms2.o)
+
+	if [ $size1 -ne $size2 ] || [ -n "${KALLSYMS_EXTRA_PASS}" ]; then
 		kallsymso=.tmp_kallsyms3.o
 		kallsyms_vmlinux=.tmp_vmlinux3
 

@@ -4603,8 +4603,16 @@ enum wmi_rate_preamble {
 
 #define ATH10K_HW_NSS(rate)		(1 + (((rate) >> 4) & 0x3))
 #define ATH10K_HW_PREAMBLE(rate)	(((rate) >> 6) & 0x3)
-#define ATH10K_HW_RATECODE(rate, nss, preamble)	\
+#define ATH10K_HW_MCS_RATE(rate)	((rate) & 0xf)
+#define ATH10K_HW_LEGACY_RATE(rate)	((rate) & 0x3f)
+#define ATH10K_HW_BW(flags)		(((flags) >> 3) & 0x3)
+#define ATH10K_HW_GI(flags)		(((flags) >> 5) & 0x1)
+#define ATH10K_HW_RATECODE(rate, nss, preamble) \
 	(((preamble) << 6) | ((nss) << 4) | (rate))
+
+#define VHT_MCS_NUM     10
+#define VHT_BW_NUM      4
+#define VHT_NSS_NUM     4
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
@@ -4676,7 +4684,8 @@ struct wmi_vdev_param_map {
 	u32 meru_vc;
 	u32 rx_decap_type;
 	u32 bw_nss_ratemask;
-	u32 set_tsf;
+	u32 inc_tsf;
+	u32 dec_tsf;
 };
 
 #define WMI_VDEV_PARAM_UNSUPPORTED 0
@@ -5009,6 +5018,11 @@ enum wmi_10_4_vdev_param {
 	WMI_10_4_VDEV_PARAM_STA_KICKOUT,
 	WMI_10_4_VDEV_PARAM_CAPABILITIES,
 	WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
+	WMI_10_4_VDEV_PARAM_RX_FILTER,
+	WMI_10_4_VDEV_PARAM_MGMT_TX_POWER,
+	WMI_10_4_VDEV_PARAM_ATF_SSID_SCHED_POLICY,
+	WMI_10_4_VDEV_PARAM_DISABLE_DYN_BW_RTS,
+	WMI_10_4_VDEV_PARAM_TSF_DECREMENT,
 };
 
 #define WMI_VDEV_PARAM_TXBF_SU_TX_BFEE BIT(0)

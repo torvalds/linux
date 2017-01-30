@@ -615,8 +615,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 		return -ENOMEM;
 	}
 
-	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d x %d packets"
-		    " (%d bytes) of %d bytes each to handle %u size\n",
+	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d x %d packets (%d bytes) of %d bytes each to handle %u size\n",
 		    max_packets, num_bufs, sb_size,
 		    dev->isoc_in.maxsize, size);
 
@@ -939,8 +938,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt) {
-		dprintk(dev, 2, "Fourcc format (0x%08x)"
-				" invalid.\n", f->fmt.pix.pixelformat);
+		dprintk(dev, 2, "Fourcc format (0x%08x) invalid.\n",
+			f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
 
@@ -1366,14 +1365,13 @@ static int __tm6000_open(struct file *file)
 	fh->width = dev->width;
 	fh->height = dev->height;
 
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, "
-						"dev->vidq=0x%08lx\n",
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, dev->vidq=0x%08lx\n",
 			(unsigned long)fh, (unsigned long)dev,
 			(unsigned long)&dev->vidq);
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
-				"queued=%d\n", list_empty(&dev->vidq.queued));
-	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty "
-				"active=%d\n", list_empty(&dev->vidq.active));
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty queued=%d\n",
+		list_empty(&dev->vidq.queued));
+	dprintk(dev, V4L2_DEBUG_OPEN, "Open: list_empty active=%d\n",
+		list_empty(&dev->vidq.active));
 
 	/* initialize hardware on analog mode */
 	rc = tm6000_init_analog_mode(dev);

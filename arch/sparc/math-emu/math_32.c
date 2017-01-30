@@ -68,7 +68,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/perf_event.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sfp-util_32.h"
 #include <math-emu/soft-fp.h>

@@ -26,7 +26,6 @@
 
 #include <asm/processor.h>
 #include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
@@ -271,58 +270,32 @@ static void thermal_throttle_remove_dev(struct device *dev)
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int
-thermal_throttle_cpu_callback(struct notifier_block *nfb,
-			      unsigned long action,
-			      void *hcpu)
+static int thermal_throttle_online(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
-	struct device *dev;
-	int err = 0;
+	struct device *dev = get_cpu_device(cpu);
 
-	dev = get_cpu_device(cpu);
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		err = thermal_throttle_add_dev(dev, cpu);
-		WARN_ON(err);
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		thermal_throttle_remove_dev(dev);
-		break;
-	}
-	return notifier_from_errno(err);
+	return thermal_throttle_add_dev(dev, cpu);
 }
 
-static struct notifier_block thermal_throttle_cpu_notifier =
+static int thermal_throttle_offline(unsigned int cpu)
 {
-	.notifier_call = thermal_throttle_cpu_callback,
-};
+	struct device *dev = get_cpu_device(cpu);
+
+	thermal_throttle_remove_dev(dev);
+	return 0;
+}
 
 static __init int thermal_throttle_init_device(void)
 {
-	unsigned int cpu = 0;
-	int err;
+	int ret;
 
 	if (!atomic_read(&therm_throt_en))
 		return 0;
 
-	cpu_notifier_register_begin();
-
-	/* connect live CPUs to sysfs */
-	for_each_online_cpu(cpu) {
-		err = thermal_throttle_add_dev(get_cpu_device(cpu), cpu);
-		WARN_ON(err);
-	}
-
-	__register_hotcpu_notifier(&thermal_throttle_cpu_notifier);
-	cpu_notifier_register_done();
-
-	return 0;
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/therm:online",
+				thermal_throttle_online,
+				thermal_throttle_offline);
+	return ret < 0 ? ret : 0;
 }
 device_initcall(thermal_throttle_init_device);
 

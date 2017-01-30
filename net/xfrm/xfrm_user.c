@@ -27,7 +27,7 @@
 #include <net/xfrm.h>
 #include <net/netlink.h>
 #include <net/ah.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/in6.h>
 #endif
@@ -2450,7 +2450,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 #ifdef CONFIG_COMPAT
 	if (in_compat_syscall())
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 #endif
 
 	type = nlh->nlmsg_type;

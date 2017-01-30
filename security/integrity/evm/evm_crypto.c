@@ -151,8 +151,16 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	memset(&hmac_misc, 0, sizeof(hmac_misc));
 	hmac_misc.ino = inode->i_ino;
 	hmac_misc.generation = inode->i_generation;
-	hmac_misc.uid = from_kuid(inode->i_sb->s_user_ns, inode->i_uid);
-	hmac_misc.gid = from_kgid(inode->i_sb->s_user_ns, inode->i_gid);
+	/* The hmac uid and gid must be encoded in the initial user
+	 * namespace (not the filesystems user namespace) as encoding
+	 * them in the filesystems user namespace allows an attack
+	 * where first they are written in an unprivileged fuse mount
+	 * of a filesystem and then the system is tricked to mount the
+	 * filesystem for real on next boot and trust it because
+	 * everything is signed.
+	 */
+	hmac_misc.uid = from_kuid(&init_user_ns, inode->i_uid);
+	hmac_misc.gid = from_kgid(&init_user_ns, inode->i_gid);
 	hmac_misc.mode = inode->i_mode;
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
 	if (evm_hmac_attrs & EVM_ATTR_FSUUID)

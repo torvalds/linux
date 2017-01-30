@@ -55,8 +55,11 @@ int ptlrpcd_start(struct ptlrpcd_ctl *pc);
 /* client.c */
 void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 			       unsigned int service_time);
-struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
-					 unsigned type, unsigned portal);
+struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
+					 unsigned int max_brw,
+					 enum ptlrpc_bulk_op_type type,
+					 unsigned int portal,
+					 const struct ptlrpc_bulk_frag_ops *ops);
 int ptlrpc_request_cache_init(void);
 void ptlrpc_request_cache_fini(void);
 struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags);
@@ -67,6 +70,10 @@ void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
 int ptlrpc_expired_set(void *data);
 int ptlrpc_set_next_timeout(struct ptlrpc_request_set *);
 void ptlrpc_resend_req(struct ptlrpc_request *request);
+void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req);
+void ptlrpc_assign_next_xid_nolock(struct ptlrpc_request *req);
+__u64 ptlrpc_known_replied_xid(struct obd_import *imp);
+void ptlrpc_add_unreplied(struct ptlrpc_request *req);
 
 /* events.c */
 int ptlrpc_init_portals(void);
@@ -226,8 +233,6 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink);
 /* pers.c */
 void ptlrpc_fill_bulk_md(lnet_md_t *md, struct ptlrpc_bulk_desc *desc,
 			 int mdcnt);
-void ptlrpc_add_bulk_page(struct ptlrpc_bulk_desc *desc, struct page *page,
-			  int pageoffset, int len);
 
 /* pack_generic.c */
 struct ptlrpc_reply_state *
@@ -322,6 +327,7 @@ static inline void ptlrpc_cli_req_init(struct ptlrpc_request *req)
 
 	INIT_LIST_HEAD(&cr->cr_set_chain);
 	INIT_LIST_HEAD(&cr->cr_ctx_chain);
+	INIT_LIST_HEAD(&cr->cr_unreplied_list);
 	init_waitqueue_head(&cr->cr_reply_waitq);
 	init_waitqueue_head(&cr->cr_set_waitq);
 }
@@ -336,6 +342,26 @@ static inline void ptlrpc_srv_req_init(struct ptlrpc_request *req)
 	INIT_LIST_HEAD(&sr->sr_exp_list);
 	INIT_LIST_HEAD(&sr->sr_timed_list);
 	INIT_LIST_HEAD(&sr->sr_hist_list);
+}
+
+static inline bool ptlrpc_req_is_connect(struct ptlrpc_request *req)
+{
+	if (lustre_msg_get_opc(req->rq_reqmsg) == MDS_CONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == OST_CONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == MGS_CONNECT)
+		return true;
+	else
+		return false;
+}
+
+static inline bool ptlrpc_req_is_disconnect(struct ptlrpc_request *req)
+{
+	if (lustre_msg_get_opc(req->rq_reqmsg) == MDS_DISCONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == OST_DISCONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == MGS_DISCONNECT)
+		return true;
+	else
+		return false;
 }
 
 #endif /* PTLRPC_INTERNAL_H */

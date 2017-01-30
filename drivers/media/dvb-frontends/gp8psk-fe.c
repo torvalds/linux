@@ -1,5 +1,5 @@
-/* DVB USB compliant Linux driver for the
- *  - GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
+/*
+ * Frontend driver for the GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
  *
  * Copyright (C) 2006,2007 Alan Nisota (alannisota@gmail.com)
  * Copyright (C) 2006,2007 Genpix Electronics (genpix@genpix-electronics.com)
@@ -8,11 +8,9 @@
  *
  * This module is based off the vp7045 and vp702x modules
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation, version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -325,7 +323,7 @@ static void gp8psk_fe_release(struct dvb_frontend* fe)
 	kfree(st);
 }
 
-static struct dvb_frontend_ops gp8psk_fe_ops;
+static const struct dvb_frontend_ops gp8psk_fe_ops;
 
 struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 				      void *priv, bool is_rev1)
@@ -353,7 +351,7 @@ struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 }
 EXPORT_SYMBOL_GPL(gp8psk_fe_attach);
 
-static struct dvb_frontend_ops gp8psk_fe_ops = {
+static const struct dvb_frontend_ops gp8psk_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Genpix DVB-S",
@@ -395,3 +393,8 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.dishnetwork_send_legacy_command = gp8psk_fe_send_legacy_dish_cmd,
 	.enable_high_lnb_voltage = gp8psk_fe_enable_high_lnb_voltage
 };
+
+MODULE_AUTHOR("Alan Nisota <alannisota@gamil.com>");
+MODULE_DESCRIPTION("Frontend Driver for Genpix DVB-S");
+MODULE_VERSION("1.1");
+MODULE_LICENSE("GPL");

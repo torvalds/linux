@@ -264,6 +264,39 @@ construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
 	}
 }
 
+static void iterate_diffusion_matrix(u32 xres, u32 yres, int x,
+				     int y, signed short *convert_buf,
+				     signed short pixel, signed short error)
+{
+	u16 i, j;
+
+	/* diffusion matrix row */
+	for (i = 0; i < DIFFUSING_MATRIX_WIDTH; ++i)
+		/* diffusion matrix column */
+		for (j = 0; j < DIFFUSING_MATRIX_HEIGHT; ++j) {
+			signed short *write_pos;
+			signed char coeff;
+
+			/* skip pixels out of zone */
+			if (x + i < 0 || x + i >= xres || y + j >= yres)
+				continue;
+			write_pos = &convert_buf[(y + j) * xres + x + i];
+			coeff = diffusing_matrix[i][j];
+			if (-1 == coeff)
+				/* pixel itself */
+				*write_pos = pixel;
+			else {
+				signed short p = *write_pos + error * coeff;
+
+				if (p > WHITE)
+					p = WHITE;
+				if (p < BLACK)
+					p = BLACK;
+				*write_pos = p;
+			}
+		}
+}
+
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16 = (u16 *)par->info->screen_buffer;
@@ -303,7 +336,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			signed short error_b = pixel - BLACK;
 			signed short error_w = pixel - WHITE;
 			signed short error;
-			u16 i, j;
 
 			/* what color close? */
 			if (abs(error_b) >= abs(error_w)) {
@@ -318,36 +350,10 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 			error /= 8;
 
-			/* diffusion matrix row */
-			for (i = 0; i < DIFFUSING_MATRIX_WIDTH; ++i)
-				/* diffusion matrix column */
-				for (j = 0; j < DIFFUSING_MATRIX_HEIGHT; ++j) {
-					signed short *write_pos;
-					signed char coeff;
-
-					/* skip pixels out of zone */
-					if (x + i < 0 ||
-						x + i >= par->info->var.xres
-						|| y + j >= par->info->var.yres)
-						continue;
-					write_pos = &convert_buf[
-						(y + j) * par->info->var.xres +
-						x + i];
-					coeff = diffusing_matrix[i][j];
-					if (coeff == -1)
-						/* pixel itself */
-						*write_pos = pixel;
-					else {
-						signed short p = *write_pos +
-							error * coeff;
-
-						if (p > WHITE)
-							p = WHITE;
-						if (p < BLACK)
-							p = BLACK;
-						*write_pos = p;
-					}
-				}
+			iterate_diffusion_matrix(par->info->var.xres,
+						 par->info->var.yres,
+						 x, y, convert_buf,
+						 pixel, error);
 		}
 
 	/* 1 string = 2 pages */

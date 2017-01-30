@@ -27,7 +27,7 @@
 
 #ifndef _VMWGFX_FENCE_H_
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #define VMW_FENCE_WAIT_TIMEOUT (5*HZ)
 
@@ -52,7 +52,7 @@ struct vmw_fence_action {
 };
 
 struct vmw_fence_obj {
-	struct fence base;
+	struct dma_fence base;
 
 	struct list_head head;
 	struct list_head seq_passed_actions;
@@ -71,14 +71,14 @@ vmw_fence_obj_unreference(struct vmw_fence_obj **fence_p)
 
 	*fence_p = NULL;
 	if (fence)
-		fence_put(&fence->base);
+		dma_fence_put(&fence->base);
 }
 
 static inline struct vmw_fence_obj *
 vmw_fence_obj_reference(struct vmw_fence_obj *fence)
 {
 	if (fence)
-		fence_get(&fence->base);
+		dma_fence_get(&fence->base);
 	return fence;
 }
 

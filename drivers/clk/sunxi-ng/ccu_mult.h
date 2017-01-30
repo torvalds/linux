@@ -4,21 +4,26 @@
 #include "ccu_common.h"
 #include "ccu_mux.h"
 
-struct _ccu_mult {
+struct ccu_mult_internal {
 	u8	shift;
 	u8	width;
+	u8	min;
 };
 
-#define _SUNXI_CCU_MULT(_shift, _width)		\
-	{					\
-		.shift	= _shift,		\
-		.width	= _width,		\
+#define _SUNXI_CCU_MULT_MIN(_shift, _width, _min)	\
+	{						\
+		.shift	= _shift,			\
+		.width	= _width,			\
+		.min	= _min,				\
 	}
+
+#define _SUNXI_CCU_MULT(_shift, _width)		\
+	_SUNXI_CCU_MULT_MIN(_shift, _width, 1)
 
 struct ccu_mult {
 	u32			enable;
 
-	struct _ccu_mult	mult;
+	struct ccu_mult_internal	mult;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
 };

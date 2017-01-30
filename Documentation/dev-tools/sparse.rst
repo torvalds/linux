@@ -51,13 +51,6 @@ sure that bitwise types don't get mixed up (little-endian vs big-endian
 vs cpu-endian vs whatever), and there the constant "0" really _is_
 special.
 
-__bitwise__ - to be used for relatively compact stuff (gfp_t, etc.) that
-is mostly warning-free and is supposed to stay that way.  Warnings will
-be generated without __CHECK_ENDIAN__.
-
-__bitwise - noisy stuff; in particular, __le*/__be* are that.  We really
-don't want to drown in noise unless we'd explicitly asked for it.
-
 Using sparse for lock checking
 ------------------------------
 
@@ -109,9 +102,4 @@ be recompiled or not.  The latter is a fast way to check the whole tree if you
 have already built it.
 
 The optional make variable CF can be used to pass arguments to sparse.  The
-build system passes -Wbitwise to sparse automatically.  To perform endianness
-checks, you may define __CHECK_ENDIAN__::
-
-        make C=2 CF="-D__CHECK_ENDIAN__"
-
-These checks are disabled by default as they generate a host of warnings.
+build system passes -Wbitwise to sparse automatically.

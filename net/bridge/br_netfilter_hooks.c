@@ -40,13 +40,13 @@
 #include <net/netfilter/br_netfilter.h>
 #include <net/netns/generic.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
 
-static int brnf_net_id __read_mostly;
+static unsigned int brnf_net_id __read_mostly;
 
 struct brnf_net {
 	bool enabled;
@@ -561,8 +561,8 @@ static int br_nf_forward_finish(struct net *net, struct sock *sk, struct sk_buff
 	}
 	nf_bridge_push_encap_header(skb);
 
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, net, sk, skb,
-		       in, skb->dev, br_forward_finish, 1);
+	br_nf_hook_thresh(NF_BR_FORWARD, net, sk, skb, in, skb->dev,
+			  br_forward_finish);
 	return 0;
 }
 
@@ -845,8 +845,10 @@ static unsigned int ip_sabotage_in(void *priv,
 				   struct sk_buff *skb,
 				   const struct nf_hook_state *state)
 {
-	if (skb->nf_bridge && !skb->nf_bridge->in_prerouting)
-		return NF_STOP;
+	if (skb->nf_bridge && !skb->nf_bridge->in_prerouting) {
+		state->okfn(state->net, state->sk, skb);
+		return NF_STOLEN;
+	}
 
 	return NF_ACCEPT;
 }
@@ -1006,20 +1008,20 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 	struct nf_hook_state state;
 	int ret;
 
-	elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
-
-	while (elem && (elem->ops.priority <= NF_BR_PRI_BRNF))
-		elem = rcu_dereference(elem->next);
+	for (elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+	     elem && nf_hook_entry_priority(elem) <= NF_BR_PRI_BRNF;
+	     elem = rcu_dereference(elem->next))
+		;
 
 	if (!elem)
 		return okfn(net, sk, skb);
 
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
-	nf_hook_state_init(&state, elem, hook, NF_BR_PRI_BRNF + 1,
-			   NFPROTO_BRIDGE, indev, outdev, sk, net, okfn);
+	nf_hook_state_init(&state, hook, NFPROTO_BRIDGE, indev, outdev,
+			   sk, net, okfn);
 
-	ret = nf_hook_slow(skb, &state);
+	ret = nf_hook_slow(skb, &state, elem);
 	rcu_read_unlock();
 	if (ret == 1)
 		ret = okfn(net, sk, skb);

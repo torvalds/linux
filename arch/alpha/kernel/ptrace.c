@@ -16,7 +16,7 @@
 #include <linux/tracehook.h>
 #include <linux/audit.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/fpu.h>
 
@@ -283,7 +283,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	/* When I and D space are separate, these will need to be fixed.  */
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA:
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp),
+		copied = ptrace_access_vm(child, addr, &tmp, sizeof(tmp),
 				FOLL_FORCE);
 		ret = -EIO;
 		if (copied != sizeof(tmp))

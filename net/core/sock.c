@@ -118,7 +118,7 @@
 #include <linux/memcontrol.h>
 #include <linux/prefetch.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/netdevice.h>
 #include <net/protocol.h>
@@ -453,7 +453,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
 int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
-		     const int nested, unsigned int trim_cap)
+		     const int nested, unsigned int trim_cap, bool refcounted)
 {
 	int rc = NET_RX_SUCCESS;
 
@@ -487,7 +487,8 @@ int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 
 	bh_unlock_sock(sk);
 out:
-	sock_put(sk);
+	if (refcounted)
+		sock_put(sk);
 	return rc;
 discard_and_relse:
 	kfree_skb(skb);
@@ -714,7 +715,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		val = min_t(u32, val, sysctl_wmem_max);
 set_sndbuf:
 		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-		sk->sk_sndbuf = max_t(u32, val * 2, SOCK_MIN_SNDBUF);
+		sk->sk_sndbuf = max_t(int, val * 2, SOCK_MIN_SNDBUF);
 		/* Wake up sending tasks if we upped the value. */
 		sk->sk_write_space(sk);
 		break;
@@ -750,7 +751,7 @@ set_rcvbuf:
 		 * returning the value we actually used in getsockopt
 		 * is the most desirable behavior.
 		 */
-		sk->sk_rcvbuf = max_t(u32, val * 2, SOCK_MIN_RCVBUF);
+		sk->sk_rcvbuf = max_t(int, val * 2, SOCK_MIN_RCVBUF);
 		break;
 
 	case SO_RCVBUFFORCE:
@@ -853,6 +854,13 @@ set_rcvbuf:
 				sk->sk_tskey = 0;
 			}
 		}
+
+		if (val & SOF_TIMESTAMPING_OPT_STATS &&
+		    !(val & SOF_TIMESTAMPING_OPT_TSONLY)) {
+			ret = -EINVAL;
+			break;
+		}
+
 		sk->sk_tsflags = val;
 		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 			sock_enable_timestamp(sk,
@@ -1543,6 +1551,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		RCU_INIT_POINTER(newsk->sk_reuseport_cb, NULL);
 
 		newsk->sk_err	   = 0;
+		newsk->sk_err_soft = 0;
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
@@ -2078,37 +2087,31 @@ void __sk_flush_backlog(struct sock *sk)
  */
 int sk_wait_data(struct sock *sk, long *timeo, const struct sk_buff *skb)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int rc;
-	DEFINE_WAIT(wait);
 
-	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+	add_wait_queue(sk_sleep(sk), &wait);
 	sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-	rc = sk_wait_event(sk, timeo, skb_peek_tail(&sk->sk_receive_queue) != skb);
+	rc = sk_wait_event(sk, timeo, skb_peek_tail(&sk->sk_receive_queue) != skb, &wait);
 	sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
-	finish_wait(sk_sleep(sk), &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
 }
 EXPORT_SYMBOL(sk_wait_data);
 
 /**
- *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	__sk_mem_raise_allocated - increase memory_allocated
  *	@sk: socket
  *	@size: memory size to allocate
+ *	@amt: pages to allocate
  *	@kind: allocation type
  *
- *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
- *	rmem allocation. This function assumes that protocols which have
- *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ *	Similar to __sk_mem_schedule(), but does not update sk_forward_alloc
  */
-int __sk_mem_schedule(struct sock *sk, int size, int kind)
+int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
 	struct proto *prot = sk->sk_prot;
-	int amt = sk_mem_pages(size);
-	long allocated;
-
-	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
-
-	allocated = sk_memory_allocated_add(sk, amt);
+	long allocated = sk_memory_allocated_add(sk, amt);
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
 	    !mem_cgroup_charge_skmem(sk->sk_memcg, amt))
@@ -2169,9 +2172,6 @@ suppress_allocation:
 
 	trace_sock_exceed_buf_limit(sk, prot, allocated);
 
-	/* Alas. Undo changes. */
-	sk->sk_forward_alloc -= amt * SK_MEM_QUANTUM;
-
 	sk_memory_allocated_sub(sk, amt);
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
@@ -2179,18 +2179,40 @@ suppress_allocation:
 
 	return 0;
 }
+EXPORT_SYMBOL(__sk_mem_raise_allocated);
+
+/**
+ *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@size: memory size to allocate
+ *	@kind: allocation type
+ *
+ *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
+ *	rmem allocation. This function assumes that protocols which have
+ *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ */
+int __sk_mem_schedule(struct sock *sk, int size, int kind)
+{
+	int ret, amt = sk_mem_pages(size);
+
+	sk->sk_forward_alloc += amt << SK_MEM_QUANTUM_SHIFT;
+	ret = __sk_mem_raise_allocated(sk, size, amt, kind);
+	if (!ret)
+		sk->sk_forward_alloc -= amt << SK_MEM_QUANTUM_SHIFT;
+	return ret;
+}
 EXPORT_SYMBOL(__sk_mem_schedule);
 
 /**
- *	__sk_mem_reclaim - reclaim memory_allocated
+ *	__sk_mem_reduce_allocated - reclaim memory_allocated
  *	@sk: socket
- *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
+ *	@amount: number of quanta
+ *
+ *	Similar to __sk_mem_reclaim(), but does not update sk_forward_alloc
  */
-void __sk_mem_reclaim(struct sock *sk, int amount)
+void __sk_mem_reduce_allocated(struct sock *sk, int amount)
 {
-	amount >>= SK_MEM_QUANTUM_SHIFT;
 	sk_memory_allocated_sub(sk, amount);
-	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		mem_cgroup_uncharge_skmem(sk->sk_memcg, amount);
@@ -2198,6 +2220,19 @@ void __sk_mem_reclaim(struct sock *sk, int amount)
 	if (sk_under_memory_pressure(sk) &&
 	    (sk_memory_allocated(sk) < sk_prot_mem_limits(sk, 0)))
 		sk_leave_memory_pressure(sk);
+}
+EXPORT_SYMBOL(__sk_mem_reduce_allocated);
+
+/**
+ *	__sk_mem_reclaim - reclaim sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
+ */
+void __sk_mem_reclaim(struct sock *sk, int amount)
+{
+	amount >>= SK_MEM_QUANTUM_SHIFT;
+	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
+	__sk_mem_reduce_allocated(sk, amount);
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
 
@@ -2434,8 +2469,11 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 		sk->sk_type	=	sock->type;
 		sk->sk_wq	=	sock->wq;
 		sock->sk	=	sk;
-	} else
+		sk->sk_uid	=	SOCK_INODE(sock)->i_uid;
+	} else {
 		sk->sk_wq	=	NULL;
+		sk->sk_uid	=	make_kuid(sock_net(sk)->user_ns, 0);
+	}
 
 	rwlock_init(&sk->sk_callback_lock);
 	lockdep_set_class_and_name(&sk->sk_callback_lock,

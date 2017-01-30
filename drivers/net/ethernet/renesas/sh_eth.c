@@ -518,7 +518,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 	.ecsr_value	= ECSR_ICD,
 	.ecsipr_value	= ECSIPR_ICDIP,
-	.eesipr_value	= 0xff7f009f,
+	.eesipr_value	= 0xe77f009f,
 
 	.tx_check	= EESR_TC1 | EESR_FTC,
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
@@ -2914,7 +2914,6 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static const struct net_device_ops sh_eth_netdev_ops_tsu = {
@@ -2929,7 +2928,6 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 #ifdef CONFIG_OF

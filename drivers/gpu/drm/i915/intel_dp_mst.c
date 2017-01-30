@@ -43,7 +43,6 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int mst_pbn;
 
-	pipe_config->dp_encoder_is_mst = true;
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
 	/*
@@ -523,6 +522,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 			 DRM_MODE_ENCODER_DPMST, "DP-MST %c", pipe_name(pipe));
 
 	intel_encoder->type = INTEL_OUTPUT_DP_MST;
+	intel_encoder->port = intel_dig_port->port;
 	intel_encoder->crtc_mask = 0x7;
 	intel_encoder->cloneable = 0;
 

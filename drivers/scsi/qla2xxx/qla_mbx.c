@@ -10,6 +10,43 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 
+struct rom_cmd {
+	uint16_t cmd;
+} rom_cmds[] = {
+	{ MBC_LOAD_RAM },
+	{ MBC_EXECUTE_FIRMWARE },
+	{ MBC_READ_RAM_WORD },
+	{ MBC_MAILBOX_REGISTER_TEST },
+	{ MBC_VERIFY_CHECKSUM },
+	{ MBC_GET_FIRMWARE_VERSION },
+	{ MBC_LOAD_RISC_RAM },
+	{ MBC_DUMP_RISC_RAM },
+	{ MBC_LOAD_RISC_RAM_EXTENDED },
+	{ MBC_DUMP_RISC_RAM_EXTENDED },
+	{ MBC_WRITE_RAM_WORD_EXTENDED },
+	{ MBC_READ_RAM_EXTENDED },
+	{ MBC_GET_RESOURCE_COUNTS },
+	{ MBC_SET_FIRMWARE_OPTION },
+	{ MBC_MID_INITIALIZE_FIRMWARE },
+	{ MBC_GET_FIRMWARE_STATE },
+	{ MBC_GET_MEM_OFFLOAD_CNTRL_STAT },
+	{ MBC_GET_RETRY_COUNT },
+	{ MBC_TRACE_CONTROL },
+};
+
+static int is_rom_cmd(uint16_t cmd)
+{
+	int i;
+	struct  rom_cmd *wc;
+
+	for (i = 0; i < ARRAY_SIZE(rom_cmds); i++) {
+		wc = rom_cmds + i;
+		if (wc->cmd == cmd)
+			return 1;
+	}
+
+	return 0;
+}
 
 /*
  * qla2x00_mailbox_command
@@ -89,6 +126,17 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 		ql_log(ql_log_warn, vha, 0x1004,
 		    "FW hung = %d.\n", ha->flags.isp82xx_fw_hung);
+		return QLA_FUNCTION_TIMEOUT;
+	}
+
+	/* check if ISP abort is active and return cmd with timeout */
+	if ((test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_RETRY, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags)) &&
+	    !is_rom_cmd(mcp->mb[0])) {
+		ql_log(ql_log_info, vha, 0x1005,
+		    "Cmd 0x%x aborted with timeout since ISP Abort is pending\n",
+		    mcp->mb[0]);
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
@@ -178,6 +226,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+		wait_time = jiffies;
 		if (!wait_for_completion_timeout(&ha->mbx_intr_comp,
 		    mcp->tov * HZ)) {
 			ql_dbg(ql_dbg_mbx, vha, 0x117a,
@@ -186,6 +235,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		}
+		if (time_after(jiffies, wait_time + 5 * HZ))
+			ql_log(ql_log_warn, vha, 0x1015, "cmd=0x%x, waited %d msecs\n",
+			    command, jiffies_to_msecs(jiffies - wait_time));
 	} else {
 		ql_dbg(ql_dbg_mbx, vha, 0x1011,
 		    "Cmd=%x Polling Mode.\n", command);
@@ -1194,11 +1246,16 @@ qla2x00_abort_command(srb_t *sp)
 	fc_port_t	*fcport = sp->fcport;
 	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = vha->req;
+	struct req_que *req;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x103b,
 	    "Entered %s.\n", __func__);
+
+	if (vha->flags.qpairs_available && sp->qpair)
+		req = sp->qpair->req;
+	else
+		req = vha->req;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < req->num_outstanding_cmds; handle++) {
@@ -2152,10 +2209,10 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1061,
 	    "Entered %s.\n", __func__);
 
-	if (ha->flags.cpu_affinity_enabled)
-		req = ha->req_q_map[0];
+	if (vha->vp_idx && vha->qpair)
+		req = vha->qpair->req;
 	else
-		req = vha->req;
+		req = ha->req_q_map[0];
 
 	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
@@ -2435,10 +2492,7 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	}
 	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
-	if (ql2xmaxqueues > 1)
-		req = ha->req_q_map[0];
-	else
-		req = vha->req;
+	req = vha->req;
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
 	lg->handle = MAKE_HANDLE(req->id, lg->handle);
@@ -2904,6 +2958,9 @@ qla24xx_abort_command(srb_t *sp)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x108c,
 	    "Entered %s.\n", __func__);
 
+	if (vha->flags.qpairs_available && sp->qpair)
+		req = sp->qpair->req;
+
 	if (ql2xasynctmfenable)
 		return qla24xx_async_abort_command(sp);
 
@@ -2984,6 +3041,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	struct qla_hw_data *ha;
 	struct req_que *req;
 	struct rsp_que *rsp;
+	struct qla_qpair *qpair;
 
 	vha = fcport->vha;
 	ha = vha->hw;
@@ -2992,10 +3050,15 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1092,
 	    "Entered %s.\n", __func__);
 
-	if (ha->flags.cpu_affinity_enabled)
-		rsp = ha->rsp_q_map[tag + 1];
-	else
+	if (vha->vp_idx && vha->qpair) {
+		/* NPIV port */
+		qpair = vha->qpair;
+		rsp = qpair->rsp;
+		req = qpair->req;
+	} else {
 		rsp = req->rsp;
+	}
+
 	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		ql_log(ql_log_warn, vha, 0x1093,

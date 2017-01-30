@@ -389,4 +389,21 @@ config IR_SUNXI
 	   To compile this driver as a module, choose M here: the module will
 	   be called sunxi-ir.
 
+config IR_SERIAL
+	tristate "Homebrew Serial Port Receiver"
+	depends on RC_CORE
+	---help---
+	   Say Y if you want to use Homebrew Serial Port Receivers and
+	   Transceivers.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called serial-ir.
+
+config IR_SERIAL_TRANSMITTER
+	bool "Serial Port Transmitter"
+	default y
+	depends on IR_SERIAL
+	---help---
+	   Serial Port Transmitter support
+
 endif #RC_DEVICES

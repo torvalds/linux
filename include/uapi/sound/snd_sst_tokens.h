@@ -157,6 +157,10 @@
  *
  * %SKL_TKN_STR_LIB_NAME:       Specifies the library name
  *
+ * %SKL_TKN_U32_PMODE:		Specifies the power mode for pipe
+ *
+ * %SKL_TKL_U32_D0I3_CAPS:	Specifies the D0i3 capability for module
+ *
  * module_id and loadable flags dont have tokens as these values will be
  * read from the DSP FW manifest
  */
@@ -208,7 +212,9 @@ enum SKL_TKNS {
 	SKL_TKN_U32_PROC_DOMAIN,
 	SKL_TKN_U32_LIB_COUNT,
 	SKL_TKN_STR_LIB_NAME,
-	SKL_TKN_MAX = SKL_TKN_STR_LIB_NAME,
+	SKL_TKN_U32_PMODE,
+	SKL_TKL_U32_D0I3_CAPS,
+	SKL_TKN_MAX = SKL_TKL_U32_D0I3_CAPS,
 };
 
 #endif

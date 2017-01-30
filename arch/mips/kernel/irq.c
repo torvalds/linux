@@ -23,7 +23,7 @@
 #include <linux/ftrace.h>
 
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.

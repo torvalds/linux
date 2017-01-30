@@ -7,6 +7,9 @@ Optional properties:
 - nxp,totem-pole : use totem pole (push-pull) instead of open-drain (pca9632 defaults
   to open-drain, newer chips to totem pole)
 - nxp,hw-blink : use hardware blinking instead of software blinking
+- nxp,period-scale : In some configurations, the chip blinks faster than expected.
+		     This parameter provides a scaling ratio (fixed point, decimal divided
+		     by 1000) to compensate, e.g. 1300=1.3x and 750=0.75x.
 
 Each led is represented as a sub-node of the nxp,pca963x device.
 

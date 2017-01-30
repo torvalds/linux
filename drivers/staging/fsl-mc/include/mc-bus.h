@@ -1,7 +1,7 @@
 /*
  * Freescale Management Complex (MC) bus declarations
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -42,8 +42,8 @@ struct msi_domain_info;
  */
 struct fsl_mc_resource_pool {
 	enum fsl_mc_pool_type type;
-	int16_t max_count;
-	int16_t free_count;
+	int max_count;
+	int free_count;
 	struct mutex mutex;	/* serializes access to free_list */
 	struct list_head free_list;
 	struct fsl_mc_bus *mc_bus;

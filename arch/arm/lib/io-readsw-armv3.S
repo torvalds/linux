@@ -9,7 +9,6 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 .Linsw_bad_alignment:
 		adr	r0, .Linsw_bad_align_msg
@@ -104,4 +103,4 @@ ENTRY(__raw_readsw)
 
 		ldmfd	sp!, {r4, r5, r6, pc}
 
-EXPORT_SYMBOL(__raw_readsw)
+

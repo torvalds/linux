@@ -129,14 +129,14 @@ struct efx_mcdi_data {
 
 static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 {
-	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARANOID(!efx->mcdi);
 	return &efx->mcdi->iface;
 }
 
 #ifdef CONFIG_SFC_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 {
-	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARANOID(!efx->mcdi);
 	return &efx->mcdi->hwmon;
 }
 #endif

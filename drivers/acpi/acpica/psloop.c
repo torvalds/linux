@@ -92,6 +92,10 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
+	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+			  "Get arguments for opcode [%s]\n",
+			  op->common.aml_op_name));
+
 	switch (op->common.aml_opcode) {
 	case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
 	case AML_WORD_OP:	/* AML_WORDDATA_ARG */

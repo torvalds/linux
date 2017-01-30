@@ -14,7 +14,6 @@
 
 #define WPS
 
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,13 +24,13 @@
 #include <linux/netdevice.h>	/* struct net_device_stats,  struct sk_buff     */
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
-#include <asm/atomic.h>	/* struct atmic_t                               */
+#include <linux/atomic.h>	/* struct atomic_t */
 #include <linux/timer.h>	/* struct timer_list */
 #include <linux/string.h>
 #include <linux/completion.h>	/* struct completion */
 #include <linux/workqueue.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "ks7010_sdio.h"
 
@@ -43,36 +42,36 @@
 #endif
 
 struct ks_wlan_parameter {
-	uint8_t operation_mode;	/* Operation Mode */
-	uint8_t channel;	/*  Channel */
-	uint8_t tx_rate;	/*  Transmit Rate */
+	u8 operation_mode;	/* Operation Mode */
+	u8 channel;	/*  Channel */
+	u8 tx_rate;	/*  Transmit Rate */
 	struct {
-		uint8_t size;
-		uint8_t body[16];
+		u8 size;
+		u8 body[16];
 	} rate_set;
-	uint8_t bssid[ETH_ALEN];	/* BSSID */
+	u8 bssid[ETH_ALEN];	/* BSSID */
 	struct {
-		uint8_t size;
-		uint8_t body[32 + 1];
+		u8 size;
+		u8 body[32 + 1];
 	} ssid;	/*  SSID */
-	uint8_t preamble;	/*  Preamble */
-	uint8_t powermgt;	/*  PowerManagementMode */
-	uint32_t scan_type;	/*  AP List Scan Type */
+	u8 preamble;	/*  Preamble */
+	u8 powermgt;	/*  PowerManagementMode */
+	u32 scan_type;	/*  AP List Scan Type */
 #define BEACON_LOST_COUNT_MIN 0
 #define BEACON_LOST_COUNT_MAX 65535
-	uint32_t beacon_lost_count;	/*  Beacon Lost Count */
-	uint32_t rts;	/*  RTS Threashold */
-	uint32_t fragment;	/*  Fragmentation Threashold */
-	uint32_t privacy_invoked;
-	uint32_t wep_index;
+	u32 beacon_lost_count;	/*  Beacon Lost Count */
+	u32 rts;	/*  RTS Threashold */
+	u32 fragment;	/*  Fragmentation Threashold */
+	u32 privacy_invoked;
+	u32 wep_index;
 	struct {
-		uint8_t size;
-		uint8_t val[13 * 2 + 1];
+		u8 size;
+		u8 val[13 * 2 + 1];
 	} wep_key[4];
-	uint16_t authenticate_type;
-	uint16_t phy_type;	/* 11b/11g/11bg mode type */
-	uint16_t cts_mode;	/* for 11g/11bg mode cts mode */
-	uint16_t phy_info_timer;	/* phy information timer */
+	u16 authenticate_type;
+	u16 phy_type;	/* 11b/11g/11bg mode type */
+	u16 cts_mode;	/* for 11g/11bg mode cts mode */
+	u16 phy_info_timer;	/* phy information timer */
 };
 
 enum {
@@ -216,37 +215,37 @@ struct hostt_t {
 
 #define RSN_IE_BODY_MAX 64
 struct rsn_ie_t {
-	uint8_t id;	/* 0xdd = WPA or 0x30 = RSN */
-	uint8_t size;	/* max ? 255 ? */
-	uint8_t body[RSN_IE_BODY_MAX];
+	u8 id;	/* 0xdd = WPA or 0x30 = RSN */
+	u8 size;	/* max ? 255 ? */
+	u8 body[RSN_IE_BODY_MAX];
 } __packed;
 
 #ifdef WPS
 #define WPS_IE_BODY_MAX 255
 struct wps_ie_t {
-	uint8_t id;	/* 221 'dd <len> 00 50 F2 04' */
-	uint8_t size;	/* max ? 255 ? */
-	uint8_t body[WPS_IE_BODY_MAX];
+	u8 id;	/* 221 'dd <len> 00 50 F2 04' */
+	u8 size;	/* max ? 255 ? */
+	u8 body[WPS_IE_BODY_MAX];
 } __packed;
 #endif /* WPS */
 
 struct local_ap_t {
-	uint8_t bssid[6];
-	uint8_t rssi;
-	uint8_t sq;
+	u8 bssid[6];
+	u8 rssi;
+	u8 sq;
 	struct {
-		uint8_t size;
-		uint8_t body[32];
-		uint8_t ssid_pad;
+		u8 size;
+		u8 body[32];
+		u8 ssid_pad;
 	} ssid;
 	struct {
-		uint8_t size;
-		uint8_t body[16];
-		uint8_t rate_pad;
+		u8 size;
+		u8 body[16];
+		u8 rate_pad;
 	} rate_set;
-	uint16_t capability;
-	uint8_t channel;
-	uint8_t noise;
+	u16 capability;
+	u8 channel;
+	u8 noise;
 	struct rsn_ie_t wpa_ie;
 	struct rsn_ie_t rsn_ie;
 #ifdef WPS
@@ -262,15 +261,15 @@ struct local_aplist_t {
 };
 
 struct local_gain_t {
-	uint8_t TxMode;
-	uint8_t RxMode;
-	uint8_t TxGain;
-	uint8_t RxGain;
+	u8 TxMode;
+	u8 RxMode;
+	u8 TxGain;
+	u8 RxGain;
 };
 
 struct local_eeprom_sum_t {
-	uint8_t type;
-	uint8_t result;
+	u8 type;
+	u8 result;
 };
 
 enum {
@@ -352,25 +351,25 @@ enum {
 #define MIC_KEY_SIZE 8
 
 struct wpa_key_t {
-	uint32_t ext_flags;	/* IW_ENCODE_EXT_xxx */
-	uint8_t tx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
-	uint8_t rx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
+	u32 ext_flags;	/* IW_ENCODE_EXT_xxx */
+	u8 tx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
+	u8 rx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
 	struct sockaddr addr;	/* ff:ff:ff:ff:ff:ff for broadcast/multicast
 				 * (group) keys or unicast address for
 				 * individual keys */
-	uint16_t alg;
-	uint16_t key_len;	/* WEP: 5 or 13, TKIP: 32, CCMP: 16 */
-	uint8_t key_val[IW_ENCODING_TOKEN_MAX];
-	uint8_t tx_mic_key[MIC_KEY_SIZE];
-	uint8_t rx_mic_key[MIC_KEY_SIZE];
+	u16 alg;
+	u16 key_len;	/* WEP: 5 or 13, TKIP: 32, CCMP: 16 */
+	u8 key_val[IW_ENCODING_TOKEN_MAX];
+	u8 tx_mic_key[MIC_KEY_SIZE];
+	u8 rx_mic_key[MIC_KEY_SIZE];
 };
 #define WPA_KEY_INDEX_MAX 4
 #define WPA_RX_SEQ_LEN 6
 
 struct mic_failure_t {
-	uint16_t failure;	/* MIC Failure counter 0 or 1 or 2 */
-	uint16_t counter;	/* 1sec counter 0-60 */
-	uint32_t last_failure_time;
+	u16 failure;	/* MIC Failure counter 0 or 1 or 2 */
+	u16 counter;	/* 1sec counter 0-60 */
+	u32 last_failure_time;
 	int stop;	/* stop flag */
 };
 
@@ -391,12 +390,12 @@ struct wpa_status_t {
 #include <linux/list.h>
 #define PMK_LIST_MAX 8
 struct pmk_list_t {
-	uint16_t size;
+	u16 size;
 	struct list_head head;
 	struct pmk_t {
 		struct list_head list;
-		uint8_t bssid[ETH_ALEN];
-		uint8_t pmkid[IW_PMKID_LEN];
+		u8 bssid[ETH_ALEN];
+		u8 pmkid[IW_PMKID_LEN];
 	} pmk[PMK_LIST_MAX];
 };
 
@@ -404,7 +403,7 @@ struct pmk_list_t {
 struct wps_status_t {
 	int wps_enabled;
 	int ielen;
-	uint8_t ie[255];
+	u8 ie[255];
 };
 #endif /* WPS */
 
@@ -439,7 +438,7 @@ struct ks_wlan_private {
 	struct pmk_list_t pmklist;
 	/* wireless parameter */
 	struct ks_wlan_parameter reg;
-	uint8_t current_rate;
+	u8 current_rate;
 
 	char nick[IW_ESSID_MAX_SIZE + 1];
 
@@ -472,24 +471,24 @@ struct ks_wlan_private {
 	/* spinlock_t lock; */
 #define FORCE_DISCONNECT    0x80000000
 #define CONNECT_STATUS_MASK 0x7FFFFFFF
-	uint32_t connect_status;	/* connect status */
+	u32 connect_status;	/* connect status */
 	int infra_status;	/* Infractructure status */
 
-	uint8_t data_buff[0x1000];
+	u8 data_buff[0x1000];
 
-	uint8_t scan_ssid_len;
-	uint8_t scan_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 scan_ssid_len;
+	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
 	struct local_gain_t gain;
 #ifdef WPS
 	struct net_device *l2_dev;
 	int l2_fd;
 	struct wps_status_t wps;
 #endif /* WPS */
-	uint8_t sleep_mode;
+	u8 sleep_mode;
 
-	uint8_t region;
+	u8 region;
 	struct local_eeprom_sum_t eeprom_sum;
-	uint8_t eeprom_checksum;
+	u8 eeprom_checksum;
 
 	struct hostt_t hostt;
 

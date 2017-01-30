@@ -156,8 +156,8 @@
  */
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
 
 /*
  * OSL interfaces used by utilities
@@ -191,6 +191,9 @@
 #ifndef __init
 #define __init
 #endif
+#ifndef __iomem
+#define __iomem
+#endif
 
 /* Host-dependent types and defines for user-space ACPICA */
 
@@ -198,7 +201,8 @@
 #define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
 
 #if defined(__ia64__)    || defined(__x86_64__) ||\
-	defined(__aarch64__) || defined(__PPC64__)
+	defined(__aarch64__) || defined(__PPC64__) ||\
+	defined(__s390x__)
 #define ACPI_MACHINE_WIDTH          64
 #define COMPILER_DEPENDENT_INT64    long
 #define COMPILER_DEPENDENT_UINT64   unsigned long

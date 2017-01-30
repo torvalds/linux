@@ -1,0 +1,81 @@
+/*
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "dra72x.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "am57xx-idk-common.dtsi"
+
+/ {
+	model = "TI AM5718 IDK";
+	compatible = "ti,am5718-idk", "ti,am5718", "ti,dra7";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x40000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		cpu0-led {
+			label = "status0:red:cpu0";
+			gpios = <&gpio2 25 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "cpu0";
+		};
+
+		usr0-led {
+			label = "status0:green:usr";
+			gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		heartbeat-led {
+			label = "status0:blue:heartbeat";
+			gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+
+		usr1-led {
+			label = "status1:red:usr";
+			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		usr2-led {
+			label = "status1:green:usr";
+			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		mmc0-led {
+			label = "status1:blue:mmc0";
+			gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	extcon_usb2: extcon_usb2 {
+	     compatible = "linux,extcon-usb-gpio";
+	     id-gpio = <&gpio5 7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&ldo1_reg>;
+	bus-width = <4>;
+	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
+};
+
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
+};

@@ -554,9 +554,7 @@ static int mic_dma_init(struct mic_dma_device *mic_dma_dev,
 	int ret;
 
 	for (i = first_chan; i < first_chan + MIC_DMA_NUM_CHAN; i++) {
-		unsigned long data;
 		ch = &mic_dma_dev->mic_ch[i];
-		data = (unsigned long)ch;
 		ch->ch_num = i;
 		ch->owner = owner;
 		spin_lock_init(&ch->cleanup_lock);

@@ -896,7 +896,7 @@ static inline int ntb_spad_is_unsafe(struct ntb_dev *ntb)
 }
 
 /**
- * ntb_mw_count() - get the number of scratchpads
+ * ntb_spad_count() - get the number of scratchpads
  * @ntb:	NTB device context.
  *
  * Hardware and topology may support a different number of scratchpads.
@@ -968,6 +968,9 @@ static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
  */
 static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
 {
+	if (!ntb->ops->peer_spad_read)
+		return 0;
+
 	return ntb->ops->peer_spad_read(ntb, idx);
 }
 

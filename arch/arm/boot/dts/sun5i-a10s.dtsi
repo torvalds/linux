@@ -243,14 +243,14 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	spi2_pins_a: spi2@0 {
+	spi2_pins_b: spi2@1 {
 		allwinner,pins = "PB12", "PB13", "PB14";
 		allwinner,function = "spi2";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	spi2_cs0_pins_a: spi2_cs0@0 {
+	spi2_cs0_pins_b: spi2_cs0@1 {
 		allwinner,pins = "PB11";
 		allwinner,function = "spi2";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;

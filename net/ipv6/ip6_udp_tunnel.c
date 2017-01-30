@@ -88,9 +88,6 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 
 	uh->len = htons(skb->len);
 
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED
-			    | IPSKB_REROUTED);
 	skb_dst_set(skb, dst);
 
 	udp6_set_csum(nocheck, skb, saddr, daddr, skb->len);

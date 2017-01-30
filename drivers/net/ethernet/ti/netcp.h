@@ -121,7 +121,7 @@ struct netcp_packet {
 	bool			rxtstamp_complete;
 	void			*ts_context;
 
-	int	(*txtstamp_complete)(void *ctx, struct netcp_packet *pkt);
+	void (*txtstamp)(void *ctx, struct sk_buff *skb);
 };
 
 static inline u32 *netcp_push_psdata(struct netcp_packet *p_info,

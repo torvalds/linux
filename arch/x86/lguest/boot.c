@@ -497,38 +497,24 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
  * a whole series of functions like read_cr0() and write_cr0().
  *
  * We start with cr0.  cr0 allows you to turn on and off all kinds of basic
- * features, but Linux only really cares about one: the horrifically-named Task
- * Switched (TS) bit at bit 3 (ie. 8)
+ * features, but the only cr0 bit that Linux ever used at runtime was the
+ * horrifically-named Task Switched (TS) bit at bit 3 (ie. 8)
  *
  * What does the TS bit do?  Well, it causes the CPU to trap (interrupt 7) if
  * the floating point unit is used.  Which allows us to restore FPU state
- * lazily after a task switch, and Linux uses that gratefully, but wouldn't a
- * name like "FPUTRAP bit" be a little less cryptic?
+ * lazily after a task switch if we wanted to, but wouldn't a name like
+ * "FPUTRAP bit" be a little less cryptic?
  *
- * We store cr0 locally because the Host never changes it.  The Guest sometimes
- * wants to read it and we'd prefer not to bother the Host unnecessarily.
+ * Fortunately, Linux keeps it simple and doesn't use TS, so we can ignore
+ * cr0.
  */
-static unsigned long current_cr0;
 static void lguest_write_cr0(unsigned long val)
 {
-	lazy_hcall1(LHCALL_TS, val & X86_CR0_TS);
-	current_cr0 = val;
 }
 
 static unsigned long lguest_read_cr0(void)
 {
-	return current_cr0;
-}
-
-/*
- * Intel provided a special instruction to clear the TS bit for people too cool
- * to use write_cr0() to do it.  This "clts" instruction is faster, because all
- * the vowels have been optimized out.
- */
-static void lguest_clts(void)
-{
-	lazy_hcall1(LHCALL_TS, 0);
-	current_cr0 &= ~X86_CR0_TS;
+	return 0;
 }
 
 /*
@@ -930,7 +916,7 @@ static unsigned long lguest_tsc_khz(void)
  * If we can't use the TSC, the kernel falls back to our lower-priority
  * "lguest_clock", where we read the time value given to us by the Host.
  */
-static cycle_t lguest_clock_read(struct clocksource *cs)
+static u64 lguest_clock_read(struct clocksource *cs)
 {
 	unsigned long sec, nsec;
 
@@ -1432,7 +1418,6 @@ __init void lguest_init(void)
 	pv_cpu_ops.load_tls = lguest_load_tls;
 	pv_cpu_ops.get_debugreg = lguest_get_debugreg;
 	pv_cpu_ops.set_debugreg = lguest_set_debugreg;
-	pv_cpu_ops.clts = lguest_clts;
 	pv_cpu_ops.read_cr0 = lguest_read_cr0;
 	pv_cpu_ops.write_cr0 = lguest_write_cr0;
 	pv_cpu_ops.read_cr4 = lguest_read_cr4;

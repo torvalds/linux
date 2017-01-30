@@ -24,7 +24,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/bitops.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/io.h>
 #include <linux/kvm_para.h>
 #include <linux/notifier.h>
@@ -233,16 +233,6 @@ static struct airq_info *new_airq_info(void)
 		return NULL;
 	}
 	return info;
-}
-
-static void destroy_airq_info(struct airq_info *info)
-{
-	if (!info)
-		return;
-
-	unregister_adapter_interrupt(&info->airq);
-	airq_iv_release(info->aiv);
-	kfree(info);
 }
 
 static unsigned long get_airq_indicator(struct virtqueue *vqs[], int nvqs,
@@ -1294,7 +1284,6 @@ static struct ccw_device_id virtio_ids[] = {
 	{ CCW_DEVICE(0x3832, 0) },
 	{},
 };
-MODULE_DEVICE_TABLE(ccw, virtio_ids);
 
 static struct ccw_driver virtio_ccw_driver = {
 	.driver = {
@@ -1406,14 +1395,4 @@ static int __init virtio_ccw_init(void)
 	no_auto_parse();
 	return ccw_driver_register(&virtio_ccw_driver);
 }
-module_init(virtio_ccw_init);
-
-static void __exit virtio_ccw_exit(void)
-{
-	int i;
-
-	ccw_driver_unregister(&virtio_ccw_driver);
-	for (i = 0; i < MAX_AIRQ_AREAS; i++)
-		destroy_airq_info(airq_areas[i]);
-}
-module_exit(virtio_ccw_exit);
+device_initcall(virtio_ccw_init);

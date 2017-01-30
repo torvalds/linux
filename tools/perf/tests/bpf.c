@@ -57,7 +57,7 @@ static struct {
 } bpf_testcase_table[] = {
 	{
 		LLVM_TESTCASE_BASE,
-		"Test basic BPF filtering",
+		"Basic BPF filtering",
 		"[basic_bpf_test]",
 		"fix 'perf test LLVM' first",
 		"load bpf object failed",
@@ -67,7 +67,7 @@ static struct {
 #ifdef HAVE_BPF_PROLOGUE
 	{
 		LLVM_TESTCASE_BPF_PROLOGUE,
-		"Test BPF prologue generation",
+		"BPF prologue generation",
 		"[bpf_prologue_test]",
 		"fix kbuild first",
 		"check your vmlinux setting?",
@@ -77,7 +77,7 @@ static struct {
 #endif
 	{
 		LLVM_TESTCASE_BPF_RELOCATION,
-		"Test BPF relocation checker",
+		"BPF relocation checker",
 		"[bpf_relocation_test]",
 		"fix 'perf test LLVM' first",
 		"libbpf error when dealing with relocation",
@@ -125,7 +125,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	/* Instead of perf_evlist__new_default, don't add default events */
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("No enough memory to create evlist\n");
+		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 

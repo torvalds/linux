@@ -296,6 +296,26 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V131"),
 		},
 	},
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1123661 */
+	 .callback = video_detect_force_native,
+	 .ident = "Dell XPS 17 L702X",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Dell System XPS L702X"),
+		},
+	},
+	{
+	/* https://bugzilla.redhat.com/show_bug.cgi?id=1204476 */
+	/* https://bugs.launchpad.net/ubuntu/+source/linux-lts-trusty/+bug/1416940 */
+	.callback = video_detect_force_native,
+	.ident = "HP Pavilion dv6",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv6 Notebook PC"),
+		},
+	},
+
 	{ },
 };
 

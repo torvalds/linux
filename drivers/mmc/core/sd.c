@@ -223,6 +223,7 @@ static int mmc_decode_scr(struct mmc_card *card)
 static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
+	u32 *raw_ssr;
 	int i;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
@@ -231,14 +232,21 @@ static int mmc_read_ssr(struct mmc_card *card)
 		return 0;
 	}
 
-	if (mmc_app_sd_status(card, card->raw_ssr)) {
+	raw_ssr = kmalloc(sizeof(card->raw_ssr), GFP_KERNEL);
+	if (!raw_ssr)
+		return -ENOMEM;
+
+	if (mmc_app_sd_status(card, raw_ssr)) {
 		pr_warn("%s: problem reading SD Status register\n",
 			mmc_hostname(card->host));
+		kfree(raw_ssr);
 		return 0;
 	}
 
 	for (i = 0; i < 16; i++)
-		card->raw_ssr[i] = be32_to_cpu(card->raw_ssr[i]);
+		card->raw_ssr[i] = be32_to_cpu(raw_ssr[i]);
+
+	kfree(raw_ssr);
 
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the
@@ -927,7 +935,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	u32 cid[4];
 	u32 rocr = 0;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
@@ -1043,9 +1050,6 @@ free_card:
  */
 static void mmc_sd_remove(struct mmc_host *host)
 {
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
 	mmc_remove_card(host->card);
 	host->card = NULL;
 }
@@ -1064,9 +1068,6 @@ static int mmc_sd_alive(struct mmc_host *host)
 static void mmc_sd_detect(struct mmc_host *host)
 {
 	int err;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_get_card(host->card);
 
@@ -1090,9 +1091,6 @@ static void mmc_sd_detect(struct mmc_host *host)
 static int _mmc_sd_suspend(struct mmc_host *host)
 {
 	int err = 0;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
 
@@ -1135,9 +1133,6 @@ static int mmc_sd_suspend(struct mmc_host *host)
 static int _mmc_sd_resume(struct mmc_host *host)
 {
 	int err = 0;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
 
@@ -1221,7 +1216,6 @@ int mmc_attach_sd(struct mmc_host *host)
 	int err;
 	u32 ocr, rocr;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);

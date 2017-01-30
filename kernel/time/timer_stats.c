@@ -43,7 +43,7 @@
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * This is our basic unit of interest: a timer expiry event identified

@@ -6,6 +6,8 @@
 #include <linux/if_vlan.h>
 #include <net/sch_generic.h>
 
+#define DEFAULT_TX_QUEUE_LEN	1000
+
 struct qdisc_walker {
 	int	stop;
 	int	skip;

@@ -424,6 +424,16 @@ static struct clk ehrpwm_clk = {
 	.gpsc		= 1,
 };
 
+static struct clk ehrpwm0_clk = {
+	.name		= "ehrpwm0",
+	.parent		= &ehrpwm_clk,
+};
+
+static struct clk ehrpwm1_clk = {
+	.name		= "ehrpwm1",
+	.parent		= &ehrpwm_clk,
+};
+
 #define DA8XX_EHRPWM_TBCLKSYNC	BIT(12)
 
 static void ehrpwm_tblck_enable(struct clk *clk)
@@ -451,11 +461,36 @@ static struct clk ehrpwm_tbclk = {
 	.clk_disable	= ehrpwm_tblck_disable,
 };
 
+static struct clk ehrpwm0_tbclk = {
+	.name		= "ehrpwm0_tbclk",
+	.parent		= &ehrpwm_tbclk,
+};
+
+static struct clk ehrpwm1_tbclk = {
+	.name		= "ehrpwm1_tbclk",
+	.parent		= &ehrpwm_tbclk,
+};
+
 static struct clk ecap_clk = {
 	.name		= "ecap",
 	.parent		= &async3_clk,
 	.lpsc		= DA8XX_LPSC1_ECAP,
 	.gpsc		= 1,
+};
+
+static struct clk ecap0_clk = {
+	.name		= "ecap0_clk",
+	.parent		= &ecap_clk,
+};
+
+static struct clk ecap1_clk = {
+	.name		= "ecap1_clk",
+	.parent		= &ecap_clk,
+};
+
+static struct clk ecap2_clk = {
+	.name		= "ecap2_clk",
+	.parent		= &ecap_clk,
 };
 
 static struct clk_lookup da850_clks[] = {
@@ -503,16 +538,23 @@ static struct clk_lookup da850_clks[] = {
 	CLK("da830-mmc.1",	NULL,		&mmcsd1_clk),
 	CLK("ti-aemif",		NULL,		&aemif_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
-	CLK(NULL,		"usb11",	&usb11_clk),
-	CLK(NULL,		"usb20",	&usb20_clk),
+	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
+	CLK("musb-da8xx",	"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("vpif",		NULL,		&vpif_clk),
 	CLK("ahci_da850",		NULL,		&sata_clk),
 	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
-	CLK("ehrpwm",		"fck",		&ehrpwm_clk),
-	CLK("ehrpwm",		"tbclk",	&ehrpwm_tbclk),
-	CLK("ecap",		"fck",		&ecap_clk),
+	CLK(NULL,		NULL,		&ehrpwm_clk),
+	CLK("ehrpwm.0",		"fck",		&ehrpwm0_clk),
+	CLK("ehrpwm.1",		"fck",		&ehrpwm1_clk),
+	CLK(NULL,		NULL,		&ehrpwm_tbclk),
+	CLK("ehrpwm.0",		"tbclk",	&ehrpwm0_tbclk),
+	CLK("ehrpwm.1",		"tbclk",	&ehrpwm1_tbclk),
+	CLK(NULL,		NULL,		&ecap_clk),
+	CLK("ecap.0",		"fck",		&ecap0_clk),
+	CLK("ecap.1",		"fck",		&ecap1_clk),
+	CLK("ecap.2",		"fck",		&ecap2_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -1171,44 +1213,6 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 	return clk->rate;
 }
 #endif
-
-int __init da850_register_pm(struct platform_device *pdev)
-{
-	int ret;
-	struct davinci_pm_config *pdata = pdev->dev.platform_data;
-
-	ret = davinci_cfg_reg(DA850_RTC_ALARM);
-	if (ret)
-		return ret;
-
-	pdata->ddr2_ctlr_base = da8xx_get_mem_ctlr();
-	pdata->deepsleep_reg = DA8XX_SYSCFG1_VIRT(DA8XX_DEEPSLEEP_REG);
-	pdata->ddrpsc_num = DA8XX_LPSC1_EMIF3C;
-
-	pdata->cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
-	if (!pdata->cpupll_reg_base)
-		return -ENOMEM;
-
-	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
-	if (!pdata->ddrpll_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpll_mem;
-	}
-
-	pdata->ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
-	if (!pdata->ddrpsc_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpsc_mem;
-	}
-
-	return platform_device_register(pdev);
-
-no_ddrpsc_mem:
-	iounmap(pdata->ddrpll_reg_base);
-no_ddrpll_mem:
-	iounmap(pdata->cpupll_reg_base);
-	return ret;
-}
 
 /* VPIF resource, platform data */
 static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);

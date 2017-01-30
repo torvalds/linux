@@ -902,7 +902,15 @@ list_update_cgroup_event(struct perf_event *event,
 	 * this will always be called from the right CPU.
 	 */
 	cpuctx = __get_cpu_context(ctx);
-	cpuctx->cgrp = add ? event->cgrp : NULL;
+
+	/*
+	 * cpuctx->cgrp is NULL until a cgroup event is sched in or
+	 * ctx->nr_cgroup == 0 .
+	 */
+	if (add && perf_cgroup_from_task(current, ctx) == event->cgrp)
+		cpuctx->cgrp = event->cgrp;
+	else if (!add)
+		cpuctx->cgrp = NULL;
 }
 
 #else /* !CONFIG_CGROUP_PERF */
@@ -6690,7 +6698,7 @@ static bool perf_addr_filter_match(struct perf_addr_filter *filter,
 				     struct file *file, unsigned long offset,
 				     unsigned long size)
 {
-	if (filter->inode != file->f_inode)
+	if (filter->inode != file_inode(file))
 		return false;
 
 	if (filter->offset > offset + size)
@@ -7715,7 +7723,7 @@ static void bpf_overflow_handler(struct perf_event *event,
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1))
 		goto out;
 	rcu_read_lock();
-	ret = BPF_PROG_RUN(event->prog, (void *)&ctx);
+	ret = BPF_PROG_RUN(event->prog, &ctx);
 	rcu_read_unlock();
 out:
 	__this_cpu_dec(bpf_prog_active);
@@ -8018,6 +8026,7 @@ restart:
  * if <size> is not specified, the range is treated as a single address.
  */
 enum {
+	IF_ACT_NONE = -1,
 	IF_ACT_FILTER,
 	IF_ACT_START,
 	IF_ACT_STOP,
@@ -8041,6 +8050,7 @@ static const match_table_t if_tokens = {
 	{ IF_SRC_KERNEL,	"%u/%u" },
 	{ IF_SRC_FILEADDR,	"%u@%s" },
 	{ IF_SRC_KERNELADDR,	"%u" },
+	{ IF_ACT_NONE,		NULL },
 };
 
 /*

@@ -52,10 +52,6 @@ struct extended_sigtable {
 
 #define exttable_size(et) ((et)->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE)
 
-extern int has_newer_microcode(void *mc, unsigned int csig, int cpf, int rev);
-extern int microcode_sanity_check(void *mc, int print_err);
-extern int find_matching_signature(void *mc, unsigned int csig, int cpf);
-
 #ifdef CONFIG_MICROCODE_INTEL
 extern void __init load_ucode_intel_bsp(void);
 extern void load_ucode_intel_ap(void);

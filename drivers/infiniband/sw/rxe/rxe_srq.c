@@ -169,7 +169,7 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 			}
 		}
 
-		err = rxe_queue_resize(q, (unsigned int *)&attr->max_wr,
+		err = rxe_queue_resize(q, &attr->max_wr,
 				       rcv_wqe_size(srq->rq.max_sge),
 				       srq->rq.queue->ip ?
 						srq->rq.queue->ip->context :

@@ -19,7 +19,7 @@
 #include <linux/mount.h>
 #include <linux/fcntl.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>
 #include <linux/pagemap.h>

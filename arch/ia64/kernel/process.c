@@ -41,7 +41,7 @@
 #include <asm/sal.h>
 #include <asm/switch_to.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unwind.h>
 #include <asm/user.h>
 

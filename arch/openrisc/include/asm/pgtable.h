@@ -69,7 +69,7 @@ extern void paging_init(void);
  */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-2))
 
-#define PTRS_PER_PGD	(1UL << (PAGE_SHIFT-2))
+#define PTRS_PER_PGD	(1UL << (32-PGDIR_SHIFT))
 
 /* calculate how many PGD entries a user-level program can use
  * the first mappable virtual address is 0

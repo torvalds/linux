@@ -9,7 +9,7 @@
 #ifndef _ASM_TERMIOS_H
 #define _ASM_TERMIOS_H
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <uapi/asm/termios.h>
 
 /*

@@ -332,7 +332,7 @@ static int skylake_nau8825_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops skylake_nau8825_ops = {
+static const struct snd_soc_ops skylake_nau8825_ops = {
 	.hw_params = skylake_nau8825_hw_params,
 };
 
@@ -382,7 +382,7 @@ static int skylake_dmic_startup(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 }
 
-static struct snd_soc_ops skylake_dmic_ops = {
+static const struct snd_soc_ops skylake_dmic_ops = {
 	.startup = skylake_dmic_startup,
 };
 
@@ -416,7 +416,7 @@ static int skylake_refcap_startup(struct snd_pcm_substream *substream)
 				&constraints_16000);
 }
 
-static struct snd_soc_ops skylaye_refcap_ops = {
+static const struct snd_soc_ops skylaye_refcap_ops = {
 	.startup = skylake_refcap_startup,
 };
 

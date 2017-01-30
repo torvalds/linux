@@ -109,11 +109,13 @@ struct option {
 	intptr_t defval;
 	bool *set;
 	void *data;
+	const struct option *parent;
 };
 
 #define check_vtype(v, type) ( BUILD_BUG_ON_ZERO(!__builtin_types_compatible_p(typeof(v), type)) + v )
 
 #define OPT_END()                   { .type = OPTION_END }
+#define OPT_PARENT(p)               { .type = OPTION_END, .parent = (p) }
 #define OPT_ARGUMENT(l, h)          { .type = OPTION_ARGUMENT, .long_name = (l), .help = (h) }
 #define OPT_GROUP(h)                { .type = OPTION_GROUP, .help = (h) }
 #define OPT_BIT(s, l, v, h, b)      { .type = OPTION_BIT, .short_name = (s), .long_name = (l), .value = check_vtype(v, int *), .help = (h), .defval = (b) }

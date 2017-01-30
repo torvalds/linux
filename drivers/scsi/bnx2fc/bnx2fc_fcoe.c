@@ -127,13 +127,6 @@ module_param_named(log_fka, bnx2fc_log_fka, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(log_fka, " Print message to kernel log when fcoe is "
 	"initiating a FIP keep alive when debug logging is enabled.");
 
-static int bnx2fc_cpu_callback(struct notifier_block *nfb,
-			     unsigned long action, void *hcpu);
-/* notification function for CPU hotplug events */
-static struct notifier_block bnx2fc_cpu_notifier = {
-	.notifier_call = bnx2fc_cpu_callback,
-};
-
 static inline struct net_device *bnx2fc_netdev(const struct fc_lport *lport)
 {
 	return ((struct bnx2fc_interface *)
@@ -970,7 +963,6 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 		sizeof(struct libfc_function_template));
 	fc_elsct_init(lport);
 	fc_exch_init(lport);
-	fc_rport_init(lport);
 	fc_disc_init(lport);
 	fc_disc_config(lport, lport);
 	return 0;
@@ -2623,37 +2615,19 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 		kthread_stop(thread);
 }
 
-/**
- * bnx2fc_cpu_callback - Handler for CPU hotplug events
- *
- * @nfb:    The callback data block
- * @action: The event triggering the callback
- * @hcpu:   The index of the CPU that the event is for
- *
- * This creates or destroys per-CPU data for fcoe
- *
- * Returns NOTIFY_OK always.
- */
-static int bnx2fc_cpu_callback(struct notifier_block *nfb,
-			     unsigned long action, void *hcpu)
-{
-	unsigned cpu = (unsigned long)hcpu;
 
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		printk(PFX "CPU %x online: Create Rx thread\n", cpu);
-		bnx2fc_percpu_thread_create(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		printk(PFX "CPU %x offline: Remove Rx thread\n", cpu);
-		bnx2fc_percpu_thread_destroy(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
+static int bnx2fc_cpu_online(unsigned int cpu)
+{
+	printk(PFX "CPU %x online: Create Rx thread\n", cpu);
+	bnx2fc_percpu_thread_create(cpu);
+	return 0;
+}
+
+static int bnx2fc_cpu_dead(unsigned int cpu)
+{
+	printk(PFX "CPU %x offline: Remove Rx thread\n", cpu);
+	bnx2fc_percpu_thread_destroy(cpu);
+	return 0;
 }
 
 static int bnx2fc_slave_configure(struct scsi_device *sdev)
@@ -2664,6 +2638,8 @@ static int bnx2fc_slave_configure(struct scsi_device *sdev)
 	scsi_change_queue_depth(sdev, bnx2fc_queue_depth);
 	return 0;
 }
+
+static enum cpuhp_state bnx2fc_online_state;
 
 /**
  * bnx2fc_mod_init - module init entry point
@@ -2725,21 +2701,31 @@ static int __init bnx2fc_mod_init(void)
 		spin_lock_init(&p->fp_work_lock);
 	}
 
-	cpu_notifier_register_begin();
+	get_online_cpus();
 
-	for_each_online_cpu(cpu) {
+	for_each_online_cpu(cpu)
 		bnx2fc_percpu_thread_create(cpu);
-	}
 
-	/* Initialize per CPU interrupt thread */
-	__register_hotcpu_notifier(&bnx2fc_cpu_notifier);
+	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+				       "scsi/bnx2fc:online",
+				       bnx2fc_cpu_online, NULL);
+	if (rc < 0)
+		goto stop_threads;
+	bnx2fc_online_state = rc;
 
-	cpu_notifier_register_done();
+	cpuhp_setup_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD, "scsi/bnx2fc:dead",
+				  NULL, bnx2fc_cpu_dead);
+	put_online_cpus();
 
 	cnic_register_driver(CNIC_ULP_FCOE, &bnx2fc_cnic_cb);
 
 	return 0;
 
+stop_threads:
+	for_each_online_cpu(cpu)
+		bnx2fc_percpu_thread_destroy(cpu);
+	put_online_cpus();
+	kthread_stop(l2_thread);
 free_wq:
 	destroy_workqueue(bnx2fc_wq);
 release_bt:
@@ -2798,16 +2784,16 @@ static void __exit bnx2fc_mod_exit(void)
 	if (l2_thread)
 		kthread_stop(l2_thread);
 
-	cpu_notifier_register_begin();
-
+	get_online_cpus();
 	/* Destroy per cpu threads */
 	for_each_online_cpu(cpu) {
 		bnx2fc_percpu_thread_destroy(cpu);
 	}
 
-	__unregister_hotcpu_notifier(&bnx2fc_cpu_notifier);
+	cpuhp_remove_state_nocalls(bnx2fc_online_state);
+	cpuhp_remove_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD);
 
-	cpu_notifier_register_done();
+	put_online_cpus();
 
 	destroy_workqueue(bnx2fc_wq);
 	/*

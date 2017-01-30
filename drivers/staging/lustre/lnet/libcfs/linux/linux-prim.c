@@ -45,8 +45,8 @@
 sigset_t
 cfs_block_allsigs(void)
 {
-	unsigned long	  flags;
-	sigset_t	old;
+	unsigned long flags;
+	sigset_t old;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	old = current->blocked;
@@ -60,8 +60,8 @@ EXPORT_SYMBOL(cfs_block_allsigs);
 
 sigset_t cfs_block_sigs(unsigned long sigs)
 {
-	unsigned long  flags;
-	sigset_t	old;
+	unsigned long flags;
+	sigset_t old;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	old = current->blocked;
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(cfs_block_sigsinv);
 void
 cfs_restore_sigs(sigset_t old)
 {
-	unsigned long  flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	current->blocked = old;

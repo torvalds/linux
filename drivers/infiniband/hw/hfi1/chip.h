@@ -320,6 +320,9 @@
 /* DC_DC8051_CFG_MODE.GENERAL bits */
 #define DISABLE_SELF_GUID_CHECK 0x2
 
+/* Bad L2 frame error code */
+#define BAD_L2_ERR      0x6
+
 /*
  * Eager buffer minimum and maximum sizes supported by the hardware.
  * All power-of-two sizes in between are supported as well.

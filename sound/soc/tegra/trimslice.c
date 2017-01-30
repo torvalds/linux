@@ -74,7 +74,7 @@ static int trimslice_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops trimslice_asoc_ops = {
+static const struct snd_soc_ops trimslice_asoc_ops = {
 	.hw_params = trimslice_asoc_hw_params,
 };
 

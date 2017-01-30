@@ -17,6 +17,7 @@
  * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *
  */
+#include <linux/bvec.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
@@ -408,7 +409,8 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	if (res <= 0)
 		return -ENOMEM;
 
-	nr_pages = res / PAGE_SIZE;
+	BUG_ON(dummy);
+	nr_pages = DIV_ROUND_UP(res, PAGE_SIZE);
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {
@@ -1085,7 +1087,13 @@ EXPORT_SYMBOL(do_splice_direct);
 
 static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 {
-	while (pipe->nrbufs == pipe->buffers) {
+	for (;;) {
+		if (unlikely(!pipe->readers)) {
+			send_sig(SIGPIPE, current, 0);
+			return -EPIPE;
+		}
+		if (pipe->nrbufs != pipe->buffers)
+			return 0;
 		if (flags & SPLICE_F_NONBLOCK)
 			return -EAGAIN;
 		if (signal_pending(current))
@@ -1094,7 +1102,6 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 		pipe_wait(pipe);
 		pipe->waiting_writers--;
 	}
-	return 0;
 }
 
 static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,

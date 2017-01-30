@@ -15,6 +15,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_of.h>
+
 #include "msm_drv.h"
 #include "msm_debugfs.h"
 #include "msm_fence.h"
@@ -44,17 +46,21 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.output_poll_changed = msm_fb_output_poll_changed,
 	.atomic_check = msm_atomic_check,
 	.atomic_commit = msm_atomic_commit,
+	.atomic_state_alloc = msm_atomic_state_alloc,
+	.atomic_state_clear = msm_atomic_state_clear,
+	.atomic_state_free = msm_atomic_state_free,
 };
 
-int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
+int msm_register_address_space(struct drm_device *dev,
+		struct msm_gem_address_space *aspace)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	int idx = priv->num_mmus++;
+	int idx = priv->num_aspaces++;
 
-	if (WARN_ON(idx >= ARRAY_SIZE(priv->mmus)))
+	if (WARN_ON(idx >= ARRAY_SIZE(priv->aspace)))
 		return -EINVAL;
 
-	priv->mmus[idx] = mmu;
+	priv->aspace[idx] = aspace;
 
 	return idx;
 }
@@ -76,6 +82,10 @@ module_param(fbdev, bool, 0600);
 static char *vram = "16m";
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU)");
 module_param(vram, charp, 0);
+
+bool dumpstate = false;
+MODULE_PARM_DESC(dumpstate, "Dump KMS state on errors");
+module_param(dumpstate, bool, 0600);
 
 /*
  * Util/helpers:
@@ -766,9 +776,7 @@ static const struct file_operations fops = {
 	.open               = drm_open,
 	.release            = drm_release,
 	.unlocked_ioctl     = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl       = drm_compat_ioctl,
-#endif
 	.poll               = drm_poll,
 	.read               = drm_read,
 	.llseek             = no_llseek,
@@ -903,10 +911,8 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * remote-endpoint isn't a component that we need to add
 		 */
 		if (of_device_is_compatible(np, "qcom,mdp4") &&
-		    ep.port == 0) {
-			of_node_put(ep_node);
+		    ep.port == 0)
 			continue;
-		}
 
 		/*
 		 * It's okay if some of the ports don't have a remote endpoint
@@ -914,15 +920,12 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * any external interface.
 		 */
 		intf = of_graph_get_remote_port_parent(ep_node);
-		if (!intf) {
-			of_node_put(ep_node);
+		if (!intf)
 			continue;
-		}
 
-		component_match_add(master_dev, matchptr, compare_of, intf);
-
+		drm_of_component_match_add(master_dev, matchptr, compare_of,
+					   intf);
 		of_node_put(intf);
-		of_node_put(ep_node);
 	}
 
 	return 0;
@@ -962,8 +965,8 @@ static int add_display_components(struct device *dev,
 		put_device(mdp_dev);
 
 		/* add the MDP component itself */
-		component_match_add(dev, matchptr, compare_of,
-				    mdp_dev->of_node);
+		drm_of_component_match_add(dev, matchptr, compare_of,
+					   mdp_dev->of_node);
 	} else {
 		/* MDP4 */
 		mdp_dev = dev;
@@ -996,7 +999,7 @@ static int add_gpu_components(struct device *dev,
 	if (!np)
 		return 0;
 
-	component_match_add(dev, matchptr, compare_of, np);
+	drm_of_component_match_add(dev, matchptr, compare_of, np);
 
 	of_node_put(np);
 
@@ -1035,7 +1038,13 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	/* on all devices that I am aware of, iommu's which can map
+	 * any address the cpu can see are used:
+	 */
+	ret = dma_set_mask_and_coherent(&pdev->dev, ~0);
+	if (ret)
+		return ret;
+
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
 }
 

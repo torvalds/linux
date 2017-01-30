@@ -43,8 +43,7 @@
  * @prepare_hash_request: do some prepare if need before handle the current request
  * @unprepare_hash_request: undo any work done by prepare_hash_request()
  * @hash_one_request: do hash for current request
- * @kworker: thread struct for request pump
- * @kworker_task: pointer to task for request pump kworker thread
+ * @kworker: kthread worker struct for request pump
  * @pump_requests: work struct for scheduling work to the request pump
  * @priv_data: the engine private data
  * @cur_req: the current request which is on processing
@@ -78,8 +77,7 @@ struct crypto_engine {
 	int (*hash_one_request)(struct crypto_engine *engine,
 				struct ahash_request *req);
 
-	struct kthread_worker           kworker;
-	struct task_struct              *kworker_task;
+	struct kthread_worker           *kworker;
 	struct kthread_work             pump_requests;
 
 	void				*priv_data;

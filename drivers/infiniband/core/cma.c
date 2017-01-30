@@ -101,6 +101,49 @@ const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event)
 }
 EXPORT_SYMBOL(rdma_event_msg);
 
+const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
+						int reason)
+{
+	if (rdma_ib_or_roce(id->device, id->port_num))
+		return ibcm_reject_msg(reason);
+
+	if (rdma_protocol_iwarp(id->device, id->port_num))
+		return iwcm_reject_msg(reason);
+
+	WARN_ON_ONCE(1);
+	return "unrecognized transport";
+}
+EXPORT_SYMBOL(rdma_reject_msg);
+
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason)
+{
+	if (rdma_ib_or_roce(id->device, id->port_num))
+		return reason == IB_CM_REJ_CONSUMER_DEFINED;
+
+	if (rdma_protocol_iwarp(id->device, id->port_num))
+		return reason == -ECONNREFUSED;
+
+	WARN_ON_ONCE(1);
+	return false;
+}
+EXPORT_SYMBOL(rdma_is_consumer_reject);
+
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len)
+{
+	const void *p;
+
+	if (rdma_is_consumer_reject(id, ev->status)) {
+		*data_len = ev->param.conn.private_data_len;
+		p = ev->param.conn.private_data;
+	} else {
+		*data_len = 0;
+		p = NULL;
+	}
+	return p;
+}
+EXPORT_SYMBOL(rdma_consumer_reject_data);
+
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
 
@@ -116,7 +159,7 @@ static LIST_HEAD(dev_list);
 static LIST_HEAD(listen_any_list);
 static DEFINE_MUTEX(lock);
 static struct workqueue_struct *cma_wq;
-static int cma_pernet_id;
+static unsigned int cma_pernet_id;
 
 struct cma_pernet {
 	struct idr tcp_ps;
@@ -2438,6 +2481,18 @@ static int iboe_tos_to_sl(struct net_device *ndev, int tos)
 	return 0;
 }
 
+static enum ib_gid_type cma_route_gid_type(enum rdma_network_type network_type,
+					   unsigned long supported_gids,
+					   enum ib_gid_type default_gid)
+{
+	if ((network_type == RDMA_NETWORK_IPV4 ||
+	     network_type == RDMA_NETWORK_IPV6) &&
+	    test_bit(IB_GID_TYPE_ROCE_UDP_ENCAP, &supported_gids))
+		return IB_GID_TYPE_ROCE_UDP_ENCAP;
+
+	return default_gid;
+}
+
 static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 {
 	struct rdma_route *route = &id_priv->id.route;
@@ -2463,6 +2518,8 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->num_paths = 1;
 
 	if (addr->dev_addr.bound_dev_if) {
+		unsigned long supported_gids;
+
 		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
 		if (!ndev) {
 			ret = -ENODEV;
@@ -2486,7 +2543,12 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 
 		route->path_rec->net = &init_net;
 		route->path_rec->ifindex = ndev->ifindex;
-		route->path_rec->gid_type = id_priv->gid_type;
+		supported_gids = roce_gid_type_mask_support(id_priv->id.device,
+							    id_priv->id.port_num);
+		route->path_rec->gid_type =
+			cma_route_gid_type(addr->dev_addr.network,
+					   supported_gids,
+					   id_priv->gid_type);
 	}
 	if (!ndev) {
 		ret = -ENODEV;

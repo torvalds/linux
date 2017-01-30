@@ -89,7 +89,7 @@ struct etnaviv_chip_identity {
 
 struct etnaviv_event {
 	bool used;
-	struct fence *fence;
+	struct dma_fence *fence;
 };
 
 struct etnaviv_cmdbuf;
@@ -163,7 +163,7 @@ struct etnaviv_cmdbuf {
 	/* vram node used if the cmdbuf is mapped through the MMUv2 */
 	struct drm_mm_node vram_node;
 	/* fence after which this buffer is to be disposed */
-	struct fence *fence;
+	struct dma_fence *fence;
 	/* target exec state */
 	u32 exec_state;
 	/* per GPU in-flight list */

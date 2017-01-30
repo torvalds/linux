@@ -46,7 +46,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>

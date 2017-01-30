@@ -430,6 +430,14 @@ config INET_UDP_DIAG
 	  Support for UDP socket monitoring interface used by the ss tool.
 	  If unsure, say Y.
 
+config INET_RAW_DIAG
+	tristate "RAW: socket monitoring interface"
+	depends on INET_DIAG && (IPV6 || IPV6=n)
+	default n
+	---help---
+	  Support for RAW socket monitoring interface used by the ss tool.
+	  If unsure, say Y.
+
 config INET_DIAG_DESTROY
 	bool "INET: allow privileged process to administratively close sockets"
 	depends on INET_DIAG
@@ -715,6 +723,7 @@ config DEFAULT_TCP_CONG
 	default "reno" if DEFAULT_RENO
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
+	default "bbr" if DEFAULT_BBR
 	default "cubic"
 
 config TCP_MD5SIG

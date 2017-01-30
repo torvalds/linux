@@ -46,7 +46,7 @@
 	model = "Rockchip RK3288 Fennec Board";
 	compatible = "rockchip,rk3288-fennec", "rockchip,rk3288";
 
-	memory {
+	memory@0 {
 		reg = <0x0 0x80000000>;
 		device_type = "memory";
 	};

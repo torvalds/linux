@@ -14,7 +14,7 @@ Linux GPU Driver Developer's Guide
    vga-switcheroo
    vgaarbiter
 
-.. only::  subproject
+.. only::  subproject and html
 
    Indices
    =======

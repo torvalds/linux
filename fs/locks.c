@@ -131,7 +131,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)

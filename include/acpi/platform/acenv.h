@@ -75,7 +75,8 @@
 	(defined ACPI_NAMES_APP)    || \
 	(defined ACPI_SRC_APP)      || \
 	(defined ACPI_XTRACT_APP)   || \
-	(defined ACPI_EXAMPLE_APP)
+	(defined ACPI_EXAMPLE_APP)  || \
+	(defined ACPI_EFI_HELLO)
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
 #define USE_NATIVE_ALLOCATE_ZEROED
@@ -357,7 +358,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#ifdef ACPI_APPLICATION
+#if defined (ACPI_APPLICATION) || defined(ACPI_LIBRARY)
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>

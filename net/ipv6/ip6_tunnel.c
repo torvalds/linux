@@ -42,7 +42,7 @@
 #include <linux/hash.h>
 #include <linux/etherdevice.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 #include <net/icmp.h>
@@ -83,7 +83,7 @@ static int ip6_tnl_dev_init(struct net_device *dev);
 static void ip6_tnl_dev_setup(struct net_device *dev);
 static struct rtnl_link_ops ip6_link_ops __read_mostly;
 
-static int ip6_tnl_net_id __read_mostly;
+static unsigned int ip6_tnl_net_id __read_mostly;
 struct ip6_tnl_net {
 	/* the IPv6 tunnel fallback device */
 	struct net_device *fb_tnl_dev;
@@ -1034,6 +1034,7 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 	int mtu;
 	unsigned int psh_hlen = sizeof(struct ipv6hdr) + t->encap_hlen;
 	unsigned int max_headroom = psh_hlen;
+	bool use_cache = false;
 	u8 hop_limit;
 	int err = -1;
 
@@ -1066,7 +1067,15 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 
 		memcpy(&fl6->daddr, addr6, sizeof(fl6->daddr));
 		neigh_release(neigh);
-	} else if (!fl6->flowi6_mark)
+	} else if (!(t->parms.flags &
+		     (IP6_TNL_F_USE_ORIG_TCLASS | IP6_TNL_F_USE_ORIG_FWMARK))) {
+		/* enable the cache only only if the routing decision does
+		 * not depend on the current inner header value
+		 */
+		use_cache = true;
+	}
+
+	if (use_cache)
 		dst = dst_cache_get(&t->dst_cache);
 
 	if (!ip6_tnl_xmit_ctl(t, &fl6->saddr, &fl6->daddr))
@@ -1150,14 +1159,14 @@ route_lookup:
 		if (t->encap.type != TUNNEL_ENCAP_NONE)
 			goto tx_err_dst_release;
 	} else {
-		if (!fl6->flowi6_mark && ndst)
+		if (use_cache && ndst)
 			dst_cache_set_ip6(&t->dst_cache, ndst, &fl6->saddr);
 	}
 	skb_dst_set(skb, dst);
 
 	if (encap_limit >= 0) {
 		init_tel_txopt(&opt, encap_limit);
-		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL);
+		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL, NULL);
 	}
 
 	/* Calculate max headroom for all the headers and adjust
@@ -1172,7 +1181,6 @@ route_lookup:
 	if (err)
 		return err;
 
-	skb->protocol = htons(ETH_P_IPV6);
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
@@ -1239,6 +1247,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
 	}
+
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
@@ -1317,6 +1327,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
 	}
+
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
@@ -1637,7 +1649,7 @@ int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 	struct ip6_tnl *tnl = netdev_priv(dev);
 
 	if (tnl->parms.proto == IPPROTO_IPIP) {
-		if (new_mtu < 68)
+		if (new_mtu < ETH_MIN_MTU)
 			return -EINVAL;
 	} else {
 		if (new_mtu < IPV6_MIN_MTU)
@@ -1790,6 +1802,8 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	dev->mtu = ETH_DATA_LEN - t_hlen;
 	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = 0xFFF8 - dev->hard_header_len;
 
 	return 0;
 

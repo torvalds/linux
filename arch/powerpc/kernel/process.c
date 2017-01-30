@@ -64,6 +64,12 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
+#ifdef CONFIG_CC_STACKPROTECTOR
+#include <linux/stackprotector.h>
+unsigned long __stack_chk_guard __read_mostly;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
+
 /* Transactional Memory debug */
 #ifdef TM_DEBUG_SW
 #define TM_DEBUG(x...) printk(KERN_INFO x)
@@ -1051,14 +1057,6 @@ static inline void save_sprs(struct thread_struct *t)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/* Conditionally save Load Monitor registers, if enabled */
-		if (t->fscr & FSCR_LM) {
-			t->lmrr = mfspr(SPRN_LMRR);
-			t->lmser = mfspr(SPRN_LMSER);
-		}
-	}
 #endif
 }
 
@@ -1093,16 +1091,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 
 		if (old_thread->tar != new_thread->tar)
 			mtspr(SPRN_TAR, new_thread->tar);
-	}
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		/* Conditionally restore Load Monitor registers, if enabled */
-		if (new_thread->fscr & FSCR_LM) {
-			if (old_thread->lmrr != new_thread->lmrr)
-				mtspr(SPRN_LMRR, new_thread->lmrr);
-			if (old_thread->lmser != new_thread->lmser)
-				mtspr(SPRN_LMSER, new_thread->lmser);
-		}
 	}
 #endif
 }
@@ -1215,7 +1203,7 @@ static void show_instructions(struct pt_regs *regs)
 		int instr;
 
 		if (!(i % 8))
-			printk("\n");
+			pr_cont("\n");
 
 #if !defined(CONFIG_BOOKE)
 		/* If executing with the IMMU off, adjust pc rather
@@ -1227,18 +1215,18 @@ static void show_instructions(struct pt_regs *regs)
 
 		if (!__kernel_text_address(pc) ||
 		     probe_kernel_address((unsigned int __user *)pc, instr)) {
-			printk(KERN_CONT "XXXXXXXX ");
+			pr_cont("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
-				printk(KERN_CONT "<%08x> ", instr);
+				pr_cont("<%08x> ", instr);
 			else
-				printk(KERN_CONT "%08x ", instr);
+				pr_cont("%08x ", instr);
 		}
 
 		pc += sizeof(int);
 	}
 
-	printk("\n");
+	pr_cont("\n");
 }
 
 struct regbit {
@@ -1282,7 +1270,7 @@ static void print_bits(unsigned long val, struct regbit *bits, const char *sep)
 
 	for (; bits->bit; ++bits)
 		if (val & bits->bit) {
-			printk("%s%s", s, bits->name);
+			pr_cont("%s%s", s, bits->name);
 			s = sep;
 		}
 }
@@ -1305,9 +1293,9 @@ static void print_tm_bits(unsigned long val)
  *   T: Transactional	(bit 34)
  */
 	if (val & (MSR_TM | MSR_TS_S | MSR_TS_T)) {
-		printk(",TM[");
+		pr_cont(",TM[");
 		print_bits(val, msr_tm_bits, "");
-		printk("]");
+		pr_cont("]");
 	}
 }
 #else
@@ -1316,10 +1304,10 @@ static void print_tm_bits(unsigned long val) {}
 
 static void print_msr_bits(unsigned long val)
 {
-	printk("<");
+	pr_cont("<");
 	print_bits(val, msr_bits, ",");
 	print_tm_bits(val);
-	printk(">");
+	pr_cont(">");
 }
 
 #ifdef CONFIG_PPC64
@@ -1347,29 +1335,29 @@ void show_regs(struct pt_regs * regs)
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
-		printk("CFAR: "REG" ", regs->orig_gpr3);
+		pr_cont("CFAR: "REG" ", regs->orig_gpr3);
 	if (trap == 0x200 || trap == 0x300 || trap == 0x600)
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-		printk("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
+		pr_cont("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
 #else
-		printk("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
+		pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
 #endif
 #ifdef CONFIG_PPC64
-	printk("SOFTE: %ld ", regs->softe);
+	pr_cont("SOFTE: %ld ", regs->softe);
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(regs->msr))
-		printk("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
+		pr_cont("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
 #endif
 
 	for (i = 0;  i < 32;  i++) {
 		if ((i % REGS_PER_LINE) == 0)
-			printk("\nGPR%02d: ", i);
-		printk(REG " ", regs->gpr[i]);
+			pr_cont("\nGPR%02d: ", i);
+		pr_cont(REG " ", regs->gpr[i]);
 		if (i == LAST_VOLATILE && !FULL_REGS(regs))
 			break;
 	}
-	printk("\n");
+	pr_cont("\n");
 #ifdef CONFIG_KALLSYMS
 	/*
 	 * Lookup NIP late so we have the best change of getting the
@@ -1900,14 +1888,14 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 			if ((ip == rth) && curr_frame >= 0) {
-				printk(" (%pS)",
+				pr_cont(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
 			}
 #endif
 			if (firstframe)
-				printk(" (unreliable)");
-			printk("\n");
+				pr_cont(" (unreliable)");
+			pr_cont("\n");
 		}
 		firstframe = 0;
 

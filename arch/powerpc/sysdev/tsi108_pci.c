@@ -30,7 +30,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/tsi108.h>
@@ -137,10 +137,8 @@ void tsi108_clear_pci_error(u32 pci_cfg_base)
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %0,-1\n"			\
 		"	b 2b\n"				\
-		".section __ex_table,\"a\"\n"		\
-		"	.align 2\n"			\
-		"	.long 1b,3b\n"			\
-		".text"					\
+		".previous\n"				\
+		EX_TABLE(1b, 3b)			\
 		: "=r"(x) : "r"(addr))
 
 int

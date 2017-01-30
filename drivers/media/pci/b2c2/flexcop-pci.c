@@ -185,8 +185,7 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 			fc->read_ibi_reg(fc,dma1_008).dma_0x8.dma_cur_addr << 2;
 		u32 cur_pos = cur_addr - fc_pci->dma[0].dma_addr0;
 
-		deb_irq("%u irq: %08x cur_addr: %llx: cur_pos: %08x, "
-			"last_cur_pos: %08x ",
+		deb_irq("%u irq: %08x cur_addr: %llx: cur_pos: %08x, last_cur_pos: %08x ",
 				jiffies_to_usecs(jiffies - fc_pci->last_irq),
 				v.raw, (unsigned long long)cur_addr, cur_pos,
 				fc_pci->last_dma1_cur_pos);
@@ -220,8 +219,8 @@ static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 		fc_pci->last_dma1_cur_pos = cur_pos;
 		fc_pci->count++;
 	} else {
-		deb_irq("isr for flexcop called, "
-			"apparently without reason (%08x)\n", v.raw);
+		deb_irq("isr for flexcop called, apparently without reason (%08x)\n",
+			v.raw);
 		ret = IRQ_NONE;
 	}
 
