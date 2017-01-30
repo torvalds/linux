@@ -1612,7 +1612,9 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 			continue;
 		}
 
+		raw_spin_lock(&vg->lock);
 		pending = readl(reg);
+		raw_spin_unlock(&vg->lock);
 		for_each_set_bit(pin, &pending, 32) {
 			virq = irq_find_mapping(vg->chip.irqdomain, base + pin);
 			generic_handle_irq(virq);
