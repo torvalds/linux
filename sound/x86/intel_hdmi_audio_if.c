@@ -137,8 +137,8 @@ int hdmi_audio_suspend(void *haddata)
 	 *  caps = HDMI_AUDIO_UNDERRUN | HDMI_AUDIO_BUFFER_DONE;
 	 */
 	caps = HDMI_AUDIO_BUFFER_DONE;
-	had_set_caps(HAD_SET_DISABLE_AUDIO_INT, &caps);
-	had_set_caps(HAD_SET_DISABLE_AUDIO, NULL);
+	had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO_INT, &caps);
+	had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO, NULL);
 	pr_debug("Exit:%s", __func__);
 	return retval;
 }
@@ -187,8 +187,8 @@ int hdmi_audio_resume(void *haddata)
 	 * caps = HDMI_AUDIO_UNDERRUN | HDMI_AUDIO_BUFFER_DONE;
 	 */
 	caps = HDMI_AUDIO_BUFFER_DONE;
-	retval = had_set_caps(HAD_SET_ENABLE_AUDIO_INT, &caps);
-	retval = had_set_caps(HAD_SET_ENABLE_AUDIO, NULL);
+	retval = had_set_caps(intelhaddata, HAD_SET_ENABLE_AUDIO_INT, &caps);
+	retval = had_set_caps(intelhaddata, HAD_SET_ENABLE_AUDIO, NULL);
 	pr_debug("Exit:%s", __func__);
 	return retval;
 }
@@ -221,11 +221,12 @@ static inline int had_chk_intrmiss(struct snd_intelhad *intelhaddata,
 
 			buf_size = intelhaddata->buf_info[j].buf_size;
 			buf_addr = intelhaddata->buf_info[j].buf_addr;
-			had_write_register(AUD_BUF_A_LENGTH +
-					(j * HAD_REG_WIDTH), buf_size);
-			had_write_register(
-					AUD_BUF_A_ADDR+(j * HAD_REG_WIDTH),
-					(buf_addr | BIT(0) | BIT(1)));
+			had_write_register(intelhaddata,
+					   AUD_BUF_A_LENGTH +
+					   (j * HAD_REG_WIDTH), buf_size);
+			had_write_register(intelhaddata,
+					   AUD_BUF_A_ADDR+(j * HAD_REG_WIDTH),
+					   (buf_addr | BIT(0) | BIT(1)));
 		}
 		buf_id = buf_id % 4;
 		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
@@ -300,14 +301,17 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	}
 
 	/*Reprogram the registers with addr and length*/
-	had_write_register(AUD_BUF_A_LENGTH +
-			(buf_id * HAD_REG_WIDTH), buf_size);
-	had_write_register(AUD_BUF_A_ADDR+(buf_id * HAD_REG_WIDTH),
-			intelhaddata->buf_info[buf_id].buf_addr|
-			BIT(0) | BIT(1));
+	had_write_register(intelhaddata,
+			   AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH),
+			   buf_size);
+	had_write_register(intelhaddata,
+			   AUD_BUF_A_ADDR + (buf_id * HAD_REG_WIDTH),
+			   intelhaddata->buf_info[buf_id].buf_addr |
+			   BIT(0) | BIT(1));
 
-	had_read_register(AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH),
-					&len);
+	had_read_register(intelhaddata,
+			  AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH),
+			  &len);
 	pr_debug("%s:Enabled buf[%d]\n", __func__, buf_id);
 
 	/* In case of actual data,
@@ -427,8 +431,10 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	} else {
 		/* Disable Audio */
 		caps = HDMI_AUDIO_BUFFER_DONE;
-		retval = had_set_caps(HAD_SET_DISABLE_AUDIO_INT, &caps);
-		retval = had_set_caps(HAD_SET_DISABLE_AUDIO, NULL);
+		retval = had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO_INT,
+				      &caps);
+		retval = had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO,
+				      NULL);
 		snd_intelhad_enable_audio(
 			intelhaddata->stream_info.had_substream, 0);
 	}

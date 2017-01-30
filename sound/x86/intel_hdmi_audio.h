@@ -39,6 +39,8 @@
 #include <sound/pcm.h>
 #include "intel_hdmi_lpe_audio.h"
 
+struct platform_device;
+
 #define PCM_INDEX		0
 #define MAX_PB_STREAMS		1
 #define MAX_CAP_STREAMS		0
@@ -168,13 +170,19 @@ void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata);
 
 /* Register access functions */
 int had_get_hwstate(struct snd_intelhad *intelhaddata);
-int had_get_caps(enum had_caps_list query_element, void *capabilties);
-int had_set_caps(enum had_caps_list set_element, void *capabilties);
-int had_read_register(u32 reg_addr, u32 *data);
-int had_write_register(u32 reg_addr, u32 data);
-int had_read_modify(u32 reg_addr, u32 data, u32 mask);
+int had_get_caps(struct snd_intelhad *intelhaddata,
+		 enum had_caps_list query_element, void *capabilties);
+int had_set_caps(struct snd_intelhad *intelhaddata,
+		 enum had_caps_list set_element, void *capabilties);
+int had_read_register(struct snd_intelhad *intelhaddata,
+		      u32 reg_addr, u32 *data);
+int had_write_register(struct snd_intelhad *intelhaddata,
+		       u32 reg_addr, u32 data);
+int had_read_modify(struct snd_intelhad *intelhaddata,
+		    u32 reg_addr, u32 data, u32 mask);
 
-int hdmi_audio_probe(void *devptr);
-int hdmi_audio_remove(void *pdev);
+int hdmi_audio_probe(struct platform_device *devptr,
+		     struct snd_intelhad **had_ret);
+int hdmi_audio_remove(struct snd_intelhad *intelhaddata);
 
 #endif /* _INTEL_HDMI_AUDIO_ */

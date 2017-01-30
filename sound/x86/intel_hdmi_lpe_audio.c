@@ -45,7 +45,7 @@ struct hdmi_lpe_audio_ctx {
 	int irq;
 	void __iomem *mmio_start;
 	had_event_call_back had_event_callbacks;
-	void *had_pvt_data;
+	struct snd_intelhad *had;
 	int tmds_clock_speed;
 	bool dp_output;
 	int link_rate;
@@ -103,7 +103,7 @@ bool mid_hdmi_audio_is_busy(void *ddev)
 	}
 
 	hdmi_audio_event.type = HAD_EVENT_QUERY_IS_AUDIO_BUSY;
-	hdmi_audio_busy = hdmi_audio_query(ctx->had_pvt_data, hdmi_audio_event);
+	hdmi_audio_busy = hdmi_audio_query(ctx->had, hdmi_audio_event);
 	return hdmi_audio_busy != 0;
 }
 
@@ -119,8 +119,7 @@ void mid_hdmi_audio_signal_event(enum had_event_type event)
 	 * event handlers to avoid races
 	 */
 	if (ctx->had_event_callbacks)
-		(*ctx->had_event_callbacks)(event,
-			ctx->had_pvt_data);
+		(*ctx->had_event_callbacks)(event, ctx->had);
 }
 
 /*
@@ -274,27 +273,6 @@ int mid_hdmi_audio_setup(had_event_call_back audio_callbacks)
 static void _had_wq(struct work_struct *work)
 {
 	mid_hdmi_audio_signal_event(HAD_EVENT_HOT_PLUG);
-}
-
-int mid_hdmi_audio_register(void *had_data)
-{
-	struct hdmi_lpe_audio_ctx *ctx;
-
-	ctx = platform_get_drvdata(hlpe_pdev);
-
-	dev_dbg(&hlpe_pdev->dev, "%s: called\n", __func__);
-
-	ctx->had_pvt_data = had_data;
-
-	/* The Audio driver is loading now and we need to notify
-	 * it if there is an HDMI device attached
-	 */
-	INIT_WORK(&ctx->hdmi_audio_wq, _had_wq);
-	dev_dbg(&hlpe_pdev->dev, "%s: Scheduling HDMI audio work queue\n",
-				__func__);
-	schedule_work(&ctx->hdmi_audio_wq);
-
-	return 0;
 }
 
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
@@ -460,6 +438,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	dev_dbg(&hlpe_pdev->dev, "hdmi lpe audio: irq num = %d\n", irq);
 	ctx->mmio_start = mmio_start;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
+	INIT_WORK(&ctx->hdmi_audio_wq, _had_wq);
 
 	if (pci_dev_present(cherryview_ids))
 		dev_dbg(&hlpe_pdev->dev, "%s: Cherrytrail LPE - Detected\n",
@@ -483,8 +462,15 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = hdmi_audio_probe((void *)pdev);
+	ret = hdmi_audio_probe(pdev, &ctx->had);
 	dev_dbg(&hlpe_pdev->dev, "hdmi lpe audio: setting pin eld notify callback\n");
+
+	/* The Audio driver is loading now and we need to notify
+	 * it if there is an HDMI device attached
+	 */
+	dev_dbg(&hlpe_pdev->dev, "%s: Scheduling HDMI audio work queue\n",
+				__func__);
+	schedule_work(&ctx->hdmi_audio_wq);
 
 	spin_lock_irqsave(&pdata->lpe_audio_slock, flag_irq);
 	pdata->notify_audio_lpe = notify_audio_lpe;
@@ -507,14 +493,13 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
  */
 static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 {
-	struct hdmi_lpe_audio_ctx *ctx;
+	struct hdmi_lpe_audio_ctx *ctx = platform_get_drvdata(pdev);
 
 	dev_dbg(&hlpe_pdev->dev, "Enter %s\n", __func__);
 
-	hdmi_audio_remove(pdev);
+	hdmi_audio_remove(ctx->had);
 
-	/* get context, release resources */
-	ctx = platform_get_drvdata(pdev);
+	/* release resources */
 	iounmap(ctx->mmio_start);
 	free_irq(ctx->irq, NULL);
 	kfree(ctx);
@@ -529,7 +514,7 @@ static int hdmi_lpe_audio_suspend(struct platform_device *pdev,
 	dev_dbg(&pdev->dev, "%s: hlpe_state %d",  __func__, hlpe_state);
 	/* HDMI is not connected, assuming audio device is suspended already */
 	if (hlpe_state != hdmi_connector_status_disconnected)
-		hdmi_audio_suspend(ctx->had_pvt_data);
+		hdmi_audio_suspend(ctx->had);
 	return 0;
 }
 
@@ -540,7 +525,7 @@ static int hdmi_lpe_audio_resume(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s: hlpe_state %d",  __func__, hlpe_state);
 	/* HDMI is not connected, there is no need to resume audio device */
 	if (hlpe_state != hdmi_connector_status_disconnected)
-		hdmi_audio_resume(ctx->had_pvt_data);
+		hdmi_audio_resume(ctx->had);
 	return 0;
 }
 
