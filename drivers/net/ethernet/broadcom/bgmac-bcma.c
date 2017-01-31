@@ -117,12 +117,11 @@ static int bgmac_probe(struct bcma_device *core)
 	u8 *mac;
 	int err;
 
-	bgmac = kzalloc(sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&core->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
 	bgmac->bcma.core = core;
-	bgmac->dev = &core->dev;
 	bgmac->dma_dev = core->dma_dev;
 	bgmac->irq = core->irq;
 
@@ -307,7 +306,6 @@ static int bgmac_probe(struct bcma_device *core)
 err1:
 	bcma_mdio_mii_unregister(bgmac->mii_bus);
 err:
-	kfree(bgmac);
 	bcma_set_drvdata(core, NULL);
 
 	return err;

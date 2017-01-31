@@ -517,7 +517,8 @@ struct bgmac {
 	int (*phy_connect)(struct bgmac *bgmac);
 };
 
-int bgmac_enet_probe(struct bgmac *info);
+struct bgmac *bgmac_alloc(struct device *dev);
+int bgmac_enet_probe(struct bgmac *bgmac);
 void bgmac_enet_remove(struct bgmac *bgmac);
 void bgmac_adjust_link(struct net_device *net_dev);
 int bgmac_phy_connect_direct(struct bgmac *bgmac);
