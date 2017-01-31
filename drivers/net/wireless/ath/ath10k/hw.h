@@ -578,6 +578,9 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
 
+/* Maximum number of Copy Engine's supported */
+#define CE_COUNT_MAX 12
+
 /* Number of Copy Engines supported */
 #define CE_COUNT ar->hw_values->ce_count
 
