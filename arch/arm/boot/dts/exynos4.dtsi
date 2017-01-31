@@ -102,18 +102,21 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C40 0x20>;
 		#power-domain-cells = <0>;
+		label = "MFC";
 	};
 
 	pd_g3d: g3d-power-domain@10023C60 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C60 0x20>;
 		#power-domain-cells = <0>;
+		label = "G3D";
 	};
 
 	pd_lcd0: lcd0-power-domain@10023C80 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C80 0x20>;
 		#power-domain-cells = <0>;
+		label = "LCD0";
 	};
 
 	pd_tv: tv-power-domain@10023C20 {
@@ -121,24 +124,28 @@
 		reg = <0x10023C20 0x20>;
 		#power-domain-cells = <0>;
 		power-domains = <&pd_lcd0>;
+		label = "TV";
 	};
 
 	pd_cam: cam-power-domain@10023C00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C00 0x20>;
 		#power-domain-cells = <0>;
+		label = "CAM";
 	};
 
 	pd_gps: gps-power-domain@10023CE0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CE0 0x20>;
 		#power-domain-cells = <0>;
+		label = "GPS";
 	};
 
 	pd_gps_alive: gps-alive-power-domain@10023D00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023D00 0x20>;
 		#power-domain-cells = <0>;
+		label = "GPS alive";
 	};
 
 	gic: interrupt-controller@10490000 {
