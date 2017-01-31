@@ -310,6 +310,12 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Enter %s\n", __func__);
 	dev_dbg(&pdev->dev, "dma_mask: %p\n", pdev->dev.dma_mask);
 
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_err(&pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
+		return -EINVAL;
+	}
+
 	/* get resources */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -351,14 +357,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* assume pipe A as default */
 	ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
-
-	pdata = pdev->dev.platform_data;
-
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
-		ret = -ENOMEM;
-		goto error_irq;
-	}
 
 	platform_set_drvdata(pdev, ctx);
 
