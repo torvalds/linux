@@ -1454,7 +1454,6 @@ static int hdmi_lpe_audio_suspend(struct platform_device *pdev,
 		return -EAGAIN;
 	}
 
-
 	spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
@@ -1500,15 +1499,8 @@ static int hdmi_lpe_audio_resume(struct platform_device *pdev)
 
 	if (intelhaddata->drv_status != HAD_DRV_SUSPENDED) {
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-		dev_err(intelhaddata->dev, "had is not in suspended state\n");
+		dev_dbg(intelhaddata->dev, "had is not in suspended state\n");
 		return 0;
-	}
-
-	if (had_get_hwstate(intelhaddata)) {
-		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-		dev_err(intelhaddata->dev,
-			"Failed to resume. Device not accessible\n");
-		return -ENODEV;
 	}
 
 	intelhaddata->drv_status = HAD_DRV_CONNECTED;
