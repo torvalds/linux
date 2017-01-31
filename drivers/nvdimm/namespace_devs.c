@@ -957,6 +957,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 {
 	resource_size_t allocated = 0, available = 0;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct nd_namespace_common *ndns = to_ndns(dev);
 	struct nd_mapping *nd_mapping;
 	struct nvdimm_drvdata *ndd;
 	struct nd_label_id label_id;
@@ -964,7 +965,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	u8 *uuid = NULL;
 	int rc, i;
 
-	if (dev->driver || to_ndns(dev)->claim)
+	if (dev->driver || ndns->claim)
 		return -EBUSY;
 
 	if (is_namespace_pmem(dev)) {
@@ -1034,19 +1035,15 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 
 		nd_namespace_pmem_set_resource(nd_region, nspm,
 				val * nd_region->ndr_mappings);
-	} else if (is_namespace_blk(dev)) {
-		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
-
-		/*
-		 * Try to delete the namespace if we deleted all of its
-		 * allocation, this is not the seed device for the
-		 * region, and it is not actively claimed by a btt
-		 * instance.
-		 */
-		if (val == 0 && nd_region->ns_seed != dev
-				&& !nsblk->common.claim)
-			nd_device_unregister(dev, ND_ASYNC);
 	}
+
+	/*
+	 * Try to delete the namespace if we deleted all of its
+	 * allocation, this is not the seed device for the region, and
+	 * it is not actively claimed by a btt instance.
+	 */
+	if (val == 0 && nd_region->ns_seed != dev && !ndns->claim)
+		nd_device_unregister(dev, ND_ASYNC);
 
 	return rc;
 }

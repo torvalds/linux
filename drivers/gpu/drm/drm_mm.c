@@ -839,6 +839,7 @@ void drm_mm_init(struct drm_mm * mm, u64 start, u64 size)
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
+	mm->head_node.allocated = 0;
 	mm->head_node.hole_follows = 1;
 	mm->head_node.scanned_block = 0;
 	mm->head_node.scanned_prev_free = 0;

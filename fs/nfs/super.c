@@ -2904,7 +2904,7 @@ module_param(max_session_slots, ushort, 0644);
 MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
 		"requests the client will negotiate");
 module_param(max_session_cb_slots, ushort, 0644);
-MODULE_PARM_DESC(max_session_slots, "Maximum number of parallel NFSv4.1 "
+MODULE_PARM_DESC(max_session_cb_slots, "Maximum number of parallel NFSv4.1 "
 		"callbacks the client will process for a given server");
 module_param(send_implementation_id, ushort, 0644);
 MODULE_PARM_DESC(send_implementation_id,

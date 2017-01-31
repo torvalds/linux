@@ -485,6 +485,7 @@ dtb-$(CONFIG_ARCH_OMAP3) += \
 	am3517-evm.dtb \
 	am3517_mt_ventoux.dtb \
 	logicpd-torpedo-37xx-devkit.dtb \
+	logicpd-som-lv-37xx-devkit.dtb \
 	omap3430-sdp.dtb \
 	omap3-beagle.dtb \
 	omap3-beagle-xm.dtb \

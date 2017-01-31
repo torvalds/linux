@@ -47,6 +47,7 @@ struct nvmet_ns {
 	loff_t			size;
 	u8			nguid[16];
 
+	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
 
@@ -59,11 +60,6 @@ struct nvmet_ns {
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_ns, group);
-}
-
-static inline bool nvmet_ns_enabled(struct nvmet_ns *ns)
-{
-	return !list_empty_careful(&ns->dev_link);
 }
 
 struct nvmet_cq {

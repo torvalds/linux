@@ -1452,7 +1452,7 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 
 	duration = sample->time - ttrace->entry_time;
 
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
 
@@ -1499,7 +1499,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
-			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
+			trace__fprintf_entry_head(trace, thread, 1, ttrace->entry_time, trace->output);
 			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
 		}
 	} else {
@@ -1592,7 +1592,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (trace->summary_only)
 		goto out;
 
-	trace__fprintf_entry_head(trace, thread, duration, sample->time, trace->output);
+	trace__fprintf_entry_head(trace, thread, duration, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
 		fprintf(trace->output, "%-70s", ttrace->entry_str);

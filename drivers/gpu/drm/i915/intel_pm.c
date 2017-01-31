@@ -2879,6 +2879,21 @@ skl_wm_plane_id(const struct intel_plane *plane)
 	}
 }
 
+/*
+ * FIXME: We still don't have the proper code detect if we need to apply the WA,
+ * so assume we'll always need it in order to avoid underruns.
+ */
+static bool skl_needs_memory_bw_wa(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv) ||
+	    IS_KABYLAKE(dev_priv))
+		return true;
+
+	return false;
+}
+
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
@@ -2940,24 +2955,10 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int
-intel_do_sagv_disable(struct drm_i915_private *dev_priv)
-{
-	int ret;
-	uint32_t temp = GEN9_SAGV_DISABLE;
-
-	ret = sandybridge_pcode_read(dev_priv, GEN9_PCODE_SAGV_CONTROL,
-				     &temp);
-	if (ret)
-		return ret;
-	else
-		return temp & GEN9_SAGV_IS_DISABLED;
-}
-
 int
 intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
-	int ret, result;
+	int ret;
 
 	if (!intel_has_sagv(dev_priv))
 		return 0;
@@ -2969,25 +2970,23 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = wait_for(result = intel_do_sagv_disable(dev_priv), 1);
+	ret = skl_pcode_request(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				GEN9_SAGV_DISABLE,
+				GEN9_SAGV_IS_DISABLED, GEN9_SAGV_IS_DISABLED,
+				1);
 	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	if (ret == -ETIMEDOUT) {
-		DRM_ERROR("Request to disable SAGV timed out\n");
-		return -ETIMEDOUT;
-	}
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (IS_SKYLAKE(dev_priv) && result == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
-	} else if (result < 0) {
-		DRM_ERROR("Failed to disable the SAGV\n");
-		return result;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to disable the SAGV (%d)\n", ret);
+		return ret;
 	}
 
 	dev_priv->sagv_status = I915_SAGV_DISABLED;
@@ -2999,9 +2998,10 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
+	struct intel_plane *plane;
 	enum pipe pipe;
-	int level, plane;
+	int level, id, latency;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
@@ -3019,27 +3019,36 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 	/* Since we're now guaranteed to only have one active CRTC... */
 	pipe = ffs(intel_state->active_crtcs) - 1;
-	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc->base.state->mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
-	for_each_plane(dev_priv, pipe, plane) {
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		id = skl_wm_plane_id(plane);
+
 		/* Skip this plane if it's not enabled */
-		if (intel_state->wm_results.plane[pipe][plane][0] == 0)
+		if (intel_state->wm_results.plane[pipe][id][0] == 0)
 			continue;
 
 		/* Find the highest enabled wm level for this plane */
 		for (level = ilk_wm_max_level(dev);
-		     intel_state->wm_results.plane[pipe][plane][level] == 0; --level)
+		     intel_state->wm_results.plane[pipe][id][level] == 0; --level)
 		     { }
+
+		latency = dev_priv->wm.skl_latency[level];
+
+		if (skl_needs_memory_bw_wa(intel_state) &&
+		    plane->base.state->fb->modifier[0] ==
+		    I915_FORMAT_MOD_X_TILED)
+			latency += 15;
 
 		/*
 		 * If any of the planes on this pipe don't enable wm levels
 		 * that incur memory latencies higher then 30µs we can't enable
 		 * the SAGV
 		 */
-		if (dev_priv->wm.skl_latency[level] < SKL_SAGV_BLOCK_TIME)
+		if (latency < SKL_SAGV_BLOCK_TIME)
 			return false;
 	}
 
@@ -3549,11 +3558,17 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
 	uint32_t y_tile_minimum, y_min_scanlines;
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(cstate->base.state);
+	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
 		return 0;
 	}
+
+	if (apply_memory_bw_wa && fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+		latency += 15;
 
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	height = drm_rect_height(&intel_pstate->base.src) >> 16;
@@ -3585,6 +3600,9 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	} else {
 		y_min_scanlines = 4;
 	}
+
+	if (apply_memory_bw_wa)
+		y_min_scanlines *= 2;
 
 	plane_bytes_per_line = width * cpp;
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
@@ -7919,6 +7937,81 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	}
 
 	return 0;
+}
+
+static bool skl_pcode_try_request(struct drm_i915_private *dev_priv, u32 mbox,
+				  u32 request, u32 reply_mask, u32 reply,
+				  u32 *status)
+{
+	u32 val = request;
+
+	*status = sandybridge_pcode_read(dev_priv, mbox, &val);
+
+	return *status || ((val & reply_mask) == reply);
+}
+
+/**
+ * skl_pcode_request - send PCODE request until acknowledgment
+ * @dev_priv: device private
+ * @mbox: PCODE mailbox ID the request is targeted for
+ * @request: request ID
+ * @reply_mask: mask used to check for request acknowledgment
+ * @reply: value used to check for request acknowledgment
+ * @timeout_base_ms: timeout for polling with preemption enabled
+ *
+ * Keep resending the @request to @mbox until PCODE acknowledges it, PCODE
+ * reports an error or an overall timeout of @timeout_base_ms+10 ms expires.
+ * The request is acknowledged once the PCODE reply dword equals @reply after
+ * applying @reply_mask. Polling is first attempted with preemption enabled
+ * for @timeout_base_ms and if this times out for another 10 ms with
+ * preemption disabled.
+ *
+ * Returns 0 on success, %-ETIMEDOUT in case of a timeout, <0 in case of some
+ * other error as reported by PCODE.
+ */
+int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
+		      u32 reply_mask, u32 reply, int timeout_base_ms)
+{
+	u32 status;
+	int ret;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+#define COND skl_pcode_try_request(dev_priv, mbox, request, reply_mask, reply, \
+				   &status)
+
+	/*
+	 * Prime the PCODE by doing a request first. Normally it guarantees
+	 * that a subsequent request, at most @timeout_base_ms later, succeeds.
+	 * _wait_for() doesn't guarantee when its passed condition is evaluated
+	 * first, so send the first request explicitly.
+	 */
+	if (COND) {
+		ret = 0;
+		goto out;
+	}
+	ret = _wait_for(COND, timeout_base_ms * 1000, 10);
+	if (!ret)
+		goto out;
+
+	/*
+	 * The above can time out if the number of requests was low (2 in the
+	 * worst case) _and_ PCODE was busy for some reason even after a
+	 * (queued) request and @timeout_base_ms delay. As a workaround retry
+	 * the poll with preemption disabled to maximize the number of
+	 * requests. Increase the timeout from @timeout_base_ms to 10ms to
+	 * account for interrupts that could reduce the number of these
+	 * requests.
+	 */
+	DRM_DEBUG_KMS("PCODE timeout, retrying with preemption disabled\n");
+	WARN_ON_ONCE(timeout_base_ms > 3);
+	preempt_disable();
+	ret = wait_for_atomic(COND, 10);
+	preempt_enable();
+
+out:
+	return ret ? ret : status;
+#undef COND
 }
 
 static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)

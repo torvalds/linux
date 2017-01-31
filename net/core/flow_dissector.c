@@ -445,8 +445,9 @@ ip_proto_again:
 			if (hdr->flags & GRE_ACK)
 				offset += sizeof(((struct pptp_gre_header *)0)->ack);
 
-			ppp_hdr = skb_header_pointer(skb, nhoff + offset,
-						     sizeof(_ppp_hdr), _ppp_hdr);
+			ppp_hdr = __skb_header_pointer(skb, nhoff + offset,
+						     sizeof(_ppp_hdr),
+						     data, hlen, _ppp_hdr);
 			if (!ppp_hdr)
 				goto out_bad;
 

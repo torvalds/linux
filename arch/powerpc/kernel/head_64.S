@@ -214,9 +214,9 @@ booting_thread_hwid:
  */
 _GLOBAL(book3e_start_thread)
 	LOAD_REG_IMMEDIATE(r5, MSR_KERNEL)
-	cmpi	0, r3, 0
+	cmpwi	r3, 0
 	beq	10f
-	cmpi	0, r3, 1
+	cmpwi	r3, 1
 	beq	11f
 	/* If the thread id is invalid, just exit. */
 	b	13f
@@ -241,9 +241,9 @@ _GLOBAL(book3e_start_thread)
  * r3 = the thread physical id
  */
 _GLOBAL(book3e_stop_thread)
-	cmpi	0, r3, 0
+	cmpwi	r3, 0
 	beq	10f
-	cmpi	0, r3, 1
+	cmpwi	r3, 1
 	beq	10f
 	/* If the thread id is invalid, just exit. */
 	b	13f

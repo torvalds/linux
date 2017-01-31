@@ -127,13 +127,16 @@ int rcu_num_nodes __read_mostly = NUM_RCU_NODES; /* Total # rcu_nodes in use. */
 int sysctl_panic_on_rcu_stall __read_mostly;
 
 /*
- * The rcu_scheduler_active variable transitions from zero to one just
- * before the first task is spawned.  So when this variable is zero, RCU
- * can assume that there is but one task, allowing RCU to (for example)
+ * The rcu_scheduler_active variable is initialized to the value
+ * RCU_SCHEDULER_INACTIVE and transitions RCU_SCHEDULER_INIT just before the
+ * first task is spawned.  So when this variable is RCU_SCHEDULER_INACTIVE,
+ * RCU can assume that there is but one task, allowing RCU to (for example)
  * optimize synchronize_rcu() to a simple barrier().  When this variable
- * is one, RCU must actually do all the hard work required to detect real
- * grace periods.  This variable is also used to suppress boot-time false
- * positives from lockdep-RCU error checking.
+ * is RCU_SCHEDULER_INIT, RCU must actually do all the hard work required
+ * to detect real grace periods.  This variable is also used to suppress
+ * boot-time false positives from lockdep-RCU error checking.  Finally, it
+ * transitions from RCU_SCHEDULER_INIT to RCU_SCHEDULER_RUNNING after RCU
+ * is fully initialized, including all of its kthreads having been spawned.
  */
 int rcu_scheduler_active __read_mostly;
 EXPORT_SYMBOL_GPL(rcu_scheduler_active);
@@ -3985,18 +3988,22 @@ static int __init rcu_spawn_gp_kthread(void)
 early_initcall(rcu_spawn_gp_kthread);
 
 /*
- * This function is invoked towards the end of the scheduler's initialization
- * process.  Before this is called, the idle task might contain
- * RCU read-side critical sections (during which time, this idle
- * task is booting the system).  After this function is called, the
- * idle tasks are prohibited from containing RCU read-side critical
- * sections.  This function also enables RCU lockdep checking.
+ * This function is invoked towards the end of the scheduler's
+ * initialization process.  Before this is called, the idle task might
+ * contain synchronous grace-period primitives (during which time, this idle
+ * task is booting the system, and such primitives are no-ops).  After this
+ * function is called, any synchronous grace-period primitives are run as
+ * expedited, with the requesting task driving the grace period forward.
+ * A later core_initcall() rcu_exp_runtime_mode() will switch to full
+ * runtime RCU functionality.
  */
 void rcu_scheduler_starting(void)
 {
 	WARN_ON(num_online_cpus() != 1);
 	WARN_ON(nr_context_switches() > 0);
-	rcu_scheduler_active = 1;
+	rcu_test_sync_prims();
+	rcu_scheduler_active = RCU_SCHEDULER_INIT;
+	rcu_test_sync_prims();
 }
 
 /*

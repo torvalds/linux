@@ -584,6 +584,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	struct clk *clk;
 	unsigned long freq, old_freq;
 	unsigned long u_volt, u_volt_min, u_volt_max;
+	unsigned long old_u_volt, old_u_volt_min, old_u_volt_max;
 	int ret;
 
 	if (unlikely(!target_freq)) {
@@ -633,6 +634,14 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		return ret;
 	}
 
+	if (IS_ERR(old_opp)) {
+		old_u_volt = 0;
+	} else {
+		old_u_volt = old_opp->u_volt;
+		old_u_volt_min = old_opp->u_volt_min;
+		old_u_volt_max = old_opp->u_volt_max;
+	}
+
 	u_volt = opp->u_volt;
 	u_volt_min = opp->u_volt_min;
 	u_volt_max = opp->u_volt_max;
@@ -677,9 +686,10 @@ restore_freq:
 			__func__, old_freq);
 restore_voltage:
 	/* This shouldn't harm even if the voltages weren't updated earlier */
-	if (!IS_ERR(old_opp))
-		_set_opp_voltage(dev, reg, old_opp->u_volt,
-				 old_opp->u_volt_min, old_opp->u_volt_max);
+	if (old_u_volt) {
+		_set_opp_voltage(dev, reg, old_u_volt, old_u_volt_min,
+				 old_u_volt_max);
+	}
 
 	return ret;
 }
@@ -1316,7 +1326,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_prop_name);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-int dev_pm_opp_set_regulator(struct device *dev, const char *name)
+struct opp_table *dev_pm_opp_set_regulator(struct device *dev, const char *name)
 {
 	struct opp_table *opp_table;
 	struct regulator *reg;
@@ -1354,20 +1364,20 @@ int dev_pm_opp_set_regulator(struct device *dev, const char *name)
 	opp_table->regulator = reg;
 
 	mutex_unlock(&opp_table_lock);
-	return 0;
+	return opp_table;
 
 err:
 	_remove_opp_table(opp_table);
 unlock:
 	mutex_unlock(&opp_table_lock);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_regulator);
 
 /**
  * dev_pm_opp_put_regulator() - Releases resources blocked for regulator
- * @dev: Device for which regulator was set.
+ * @opp_table: OPP table returned from dev_pm_opp_set_regulator().
  *
  * Locking: The internal opp_table and opp structures are RCU protected.
  * Hence this function internally uses RCU updater strategy with mutex locks
@@ -1375,22 +1385,12 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_regulator);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-void dev_pm_opp_put_regulator(struct device *dev)
+void dev_pm_opp_put_regulator(struct opp_table *opp_table)
 {
-	struct opp_table *opp_table;
-
 	mutex_lock(&opp_table_lock);
 
-	/* Check for existing table for 'dev' first */
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		dev_err(dev, "Failed to find opp_table: %ld\n",
-			PTR_ERR(opp_table));
-		goto unlock;
-	}
-
 	if (IS_ERR(opp_table->regulator)) {
-		dev_err(dev, "%s: Doesn't have regulator set\n", __func__);
+		pr_err("%s: Doesn't have regulator set\n", __func__);
 		goto unlock;
 	}
 

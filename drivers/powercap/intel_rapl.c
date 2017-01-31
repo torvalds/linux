@@ -442,6 +442,7 @@ static int contraint_to_pl(struct rapl_domain *rd, int cid)
 			return i;
 		}
 	}
+	pr_err("Cannot find matching power limit for constraint %d\n", cid);
 
 	return -EINVAL;
 }
@@ -457,6 +458,10 @@ static int set_power_limit(struct powercap_zone *power_zone, int cid,
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
 	id = contraint_to_pl(rd, cid);
+	if (id < 0) {
+		ret = id;
+		goto set_exit;
+	}
 
 	rp = rd->rp;
 
@@ -496,6 +501,11 @@ static int get_current_power_limit(struct powercap_zone *power_zone, int cid,
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
 	id = contraint_to_pl(rd, cid);
+	if (id < 0) {
+		ret = id;
+		goto get_exit;
+	}
+
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
 		prim = POWER_LIMIT1;
@@ -512,6 +522,7 @@ static int get_current_power_limit(struct powercap_zone *power_zone, int cid,
 	else
 		*data = val;
 
+get_exit:
 	put_online_cpus();
 
 	return ret;
@@ -527,6 +538,10 @@ static int set_time_window(struct powercap_zone *power_zone, int cid,
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
 	id = contraint_to_pl(rd, cid);
+	if (id < 0) {
+		ret = id;
+		goto set_time_exit;
+	}
 
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
@@ -538,6 +553,8 @@ static int set_time_window(struct powercap_zone *power_zone, int cid,
 	default:
 		ret = -EINVAL;
 	}
+
+set_time_exit:
 	put_online_cpus();
 	return ret;
 }
@@ -552,6 +569,10 @@ static int get_time_window(struct powercap_zone *power_zone, int cid, u64 *data)
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
 	id = contraint_to_pl(rd, cid);
+	if (id < 0) {
+		ret = id;
+		goto get_time_exit;
+	}
 
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
@@ -566,6 +587,8 @@ static int get_time_window(struct powercap_zone *power_zone, int cid, u64 *data)
 	}
 	if (!ret)
 		*data = val;
+
+get_time_exit:
 	put_online_cpus();
 
 	return ret;
@@ -707,7 +730,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 	case ENERGY_UNIT:
 		scale = ENERGY_UNIT_SCALE;
 		/* per domain unit takes precedence */
-		if (rd && rd->domain_energy_unit)
+		if (rd->domain_energy_unit)
 			units = rd->domain_energy_unit;
 		else
 			units = rp->energy_unit;

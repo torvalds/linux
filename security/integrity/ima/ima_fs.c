@@ -401,7 +401,7 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 	const char *cause = valid_policy ? "completed" : "failed";
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return 0;
+		return seq_release(inode, file);
 
 	if (valid_policy && ima_check_policy() < 0) {
 		cause = "failed";

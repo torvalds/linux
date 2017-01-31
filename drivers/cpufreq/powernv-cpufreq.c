@@ -647,8 +647,14 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	if (unlikely(rebooting) && new_index != get_nominal_index())
 		return 0;
 
-	if (!throttled)
+	if (!throttled) {
+		/* we don't want to be preempted while
+		 * checking if the CPU frequency has been throttled
+		 */
+		preempt_disable();
 		powernv_cpufreq_throttle_check(NULL);
+		preempt_enable();
+	}
 
 	cur_msec = jiffies_to_msecs(get_jiffies_64());
 

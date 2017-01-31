@@ -18,6 +18,7 @@
 
 	compatible = "ti,dra7xx";
 	interrupt-parent = <&crossbar_mpu>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -1376,6 +1377,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		rtc: rtc@48838000 {

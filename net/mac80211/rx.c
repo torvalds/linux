@@ -3939,21 +3939,31 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	u64_stats_update_end(&stats->syncp);
 
 	if (fast_rx->internal_forward) {
-		struct sta_info *dsta = sta_info_get(rx->sdata, skb->data);
+		struct sk_buff *xmit_skb = NULL;
+		bool multicast = is_multicast_ether_addr(skb->data);
 
-		if (dsta) {
+		if (multicast) {
+			xmit_skb = skb_copy(skb, GFP_ATOMIC);
+		} else if (sta_info_get(rx->sdata, skb->data)) {
+			xmit_skb = skb;
+			skb = NULL;
+		}
+
+		if (xmit_skb) {
 			/*
 			 * Send to wireless media and increase priority by 256
 			 * to keep the received priority instead of
 			 * reclassifying the frame (see cfg80211_classify8021d).
 			 */
-			skb->priority += 256;
-			skb->protocol = htons(ETH_P_802_3);
-			skb_reset_network_header(skb);
-			skb_reset_mac_header(skb);
-			dev_queue_xmit(skb);
-			return true;
+			xmit_skb->priority += 256;
+			xmit_skb->protocol = htons(ETH_P_802_3);
+			skb_reset_network_header(xmit_skb);
+			skb_reset_mac_header(xmit_skb);
+			dev_queue_xmit(xmit_skb);
 		}
+
+		if (!skb)
+			return true;
 	}
 
 	/* deliver to local stack */

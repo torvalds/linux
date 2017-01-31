@@ -4479,9 +4479,10 @@ int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
 
 	rcu_read_lock();
 	transport = sctp_addrs_lookup_transport(net, laddr, paddr);
-	if (!transport || !sctp_transport_hold(transport))
+	if (!transport || !sctp_transport_hold(transport)) {
+		rcu_read_unlock();
 		goto out;
-
+	}
 	rcu_read_unlock();
 	err = cb(transport, p);
 	sctp_transport_put(transport);

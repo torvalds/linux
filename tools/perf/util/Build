@@ -120,7 +120,7 @@ libperf-y += demangle-rust.o
 ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
 libperf-$(CONFIG_LIBELF) += genelf.o
-libperf-$(CONFIG_LIBELF) += genelf_debug.o
+libperf-$(CONFIG_DWARF) += genelf_debug.o
 endif
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"

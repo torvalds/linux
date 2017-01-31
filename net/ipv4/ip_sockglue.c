@@ -137,7 +137,7 @@ static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	__be16 *ports = (__be16 *)skb_transport_header(skb);
 
-	if (skb_transport_offset(skb) + 4 > skb->len)
+	if (skb_transport_offset(skb) + 4 > (int)skb->len)
 		return;
 
 	/* All current transport protocols have the port numbers in the
@@ -1202,8 +1202,14 @@ void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 		 * which has interface index (iif) as the first member of the
 		 * underlying inet{6}_skb_parm struct. This code then overlays
 		 * PKTINFO_SKB_CB and in_pktinfo also has iif as the first
-		 * element so the iif is picked up from the prior IPCB
+		 * element so the iif is picked up from the prior IPCB. If iif
+		 * is the loopback interface, then return the sending interface
+		 * (e.g., process binds socket to eth0 for Tx which is
+		 * redirected to loopback in the rtable/dst).
 		 */
+		if (pktinfo->ipi_ifindex == LOOPBACK_IFINDEX)
+			pktinfo->ipi_ifindex = inet_iif(skb);
+
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
 	} else {
 		pktinfo->ipi_ifindex = 0;

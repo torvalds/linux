@@ -322,7 +322,7 @@
 			compatible = "generic-ohci";
 			reg = <0x0 0xa7030000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
-			interrupts = <64 4>;
+			interrupts = <640 4>;
 			dma-coherent;
 			status = "disabled";
 		};
@@ -331,7 +331,7 @@
 			compatible = "generic-ehci";
 			reg = <0x0 0xa7020000 0x0 0x10000>;
 			interrupt-parent = <&mbigen_usb>;
-			interrupts = <65 4>;
+			interrupts = <641 4>;
 			dma-coherent;
 			status = "disabled";
 		};

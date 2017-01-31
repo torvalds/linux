@@ -19,7 +19,9 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <err.h>
+#ifdef HAVE_DWARF_SUPPORT
 #include <dwarf.h>
+#endif
 
 #include "perf.h"
 #include "genelf.h"
@@ -157,7 +159,7 @@ gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *cod
 int
 jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	      const void *code, int csize,
-	      void *debug, int nr_debug_entries)
+	      void *debug __maybe_unused, int nr_debug_entries __maybe_unused)
 {
 	Elf *e;
 	Elf_Data *d;
@@ -386,11 +388,14 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	shdr->sh_size = sizeof(bnote);
 	shdr->sh_entsize = 0;
 
+#ifdef HAVE_DWARF_SUPPORT
 	if (debug && nr_debug_entries) {
 		retval = jit_add_debug_info(e, load_addr, debug, nr_debug_entries);
 		if (retval)
 			goto error;
-	} else {
+	} else
+#endif
+	{
 		if (elf_update(e, ELF_C_WRITE) < 0) {
 			warnx("elf_update 4 failed");
 			goto error;

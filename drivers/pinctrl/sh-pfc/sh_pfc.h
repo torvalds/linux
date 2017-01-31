@@ -189,6 +189,12 @@ struct sh_pfc_window {
 	unsigned long size;
 };
 
+struct sh_pfc_bias_info {
+	u16 pin;
+	u16 reg : 11;
+	u16 bit : 5;
+};
+
 struct sh_pfc_pin_range;
 
 struct sh_pfc {

@@ -413,7 +413,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		    stmpe->partnum != STMPE1801) {
 			stmpe_reg_write(stmpe, statmsbreg + i, status[i]);
 			stmpe_reg_write(stmpe,
-					stmpe->regs[STMPE_IDX_GPEDR_LSB + i],
+					stmpe->regs[STMPE_IDX_GPEDR_MSB] + i,
 					status[i]);
 		}
 	}

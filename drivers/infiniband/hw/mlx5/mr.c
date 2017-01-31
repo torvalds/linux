@@ -628,7 +628,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->order = i + 2;
 		ent->dev = dev;
 
-		if (dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE)
+		if ((dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE) &&
+		    (mlx5_core_is_pf(dev->mdev)))
 			limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			limit = 0;
@@ -646,6 +647,33 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
+static void wait_for_async_commands(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_cache_ent *ent;
+	int total = 0;
+	int i;
+	int j;
+
+	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+		ent = &cache->ent[i];
+		for (j = 0 ; j < 1000; j++) {
+			if (!ent->pending)
+				break;
+			msleep(50);
+		}
+	}
+	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+		ent = &cache->ent[i];
+		total += ent->pending;
+	}
+
+	if (total)
+		mlx5_ib_warn(dev, "aborted while there are %d pending mr requests\n", total);
+	else
+		mlx5_ib_warn(dev, "done with all pending requests\n");
+}
+
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	int i;
@@ -659,6 +687,7 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 		clean_keys(dev, i);
 
 	destroy_workqueue(dev->cache.wq);
+	wait_for_async_commands(dev);
 	del_timer_sync(&dev->delay_timer);
 
 	return 0;

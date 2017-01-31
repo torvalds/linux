@@ -2507,9 +2507,20 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			if (err < 0)
 				ret = err;
 		} else {
-			ret = wait_event_interruptible(ci->i_cap_wq,
-					try_get_cap_refs(ci, need, want, endoff,
-							 true, &_got, &err));
+			DEFINE_WAIT_FUNC(wait, woken_wake_function);
+			add_wait_queue(&ci->i_cap_wq, &wait);
+
+			while (!try_get_cap_refs(ci, need, want, endoff,
+						 true, &_got, &err)) {
+				if (signal_pending(current)) {
+					ret = -ERESTARTSYS;
+					break;
+				}
+				wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
+			}
+
+			remove_wait_queue(&ci->i_cap_wq, &wait);
+
 			if (err == -EAGAIN)
 				continue;
 			if (err < 0)

@@ -171,6 +171,7 @@
 #define NearBranch  ((u64)1 << 52)  /* Near branches */
 #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
 #define IncSP       ((u64)1 << 54)  /* SP is incremented before ModRM calc */
+#define Aligned16   ((u64)1 << 55)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -446,6 +447,26 @@ FOP_END;
 FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
 FOP_END;
 
+/*
+ * XXX: inoutclob user must know where the argument is being expanded.
+ *      Relying on CC_HAVE_ASM_GOTO would allow us to remove _fault.
+ */
+#define asm_safe(insn, inoutclob...) \
+({ \
+	int _fault = 0; \
+ \
+	asm volatile("1:" insn "\n" \
+	             "2:\n" \
+	             ".pushsection .fixup, \"ax\"\n" \
+	             "3: movl $1, %[_fault]\n" \
+	             "   jmp  2b\n" \
+	             ".popsection\n" \
+	             _ASM_EXTABLE(1b, 3b) \
+	             : [_fault] "+qm"(_fault) inoutclob ); \
+ \
+	_fault ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE; \
+})
+
 static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 				    enum x86_intercept intercept,
 				    enum x86_intercept_stage stage)
@@ -632,21 +653,24 @@ static void set_segment_selector(struct x86_emulate_ctxt *ctxt, u16 selector,
  * depending on whether they're AVX encoded or not.
  *
  * Also included is CMPXCHG16B which is not a vector instruction, yet it is
- * subject to the same check.
+ * subject to the same check.  FXSAVE and FXRSTOR are checked here too as their
+ * 512 bytes of data must be aligned to a 16 byte boundary.
  */
-static bool insn_aligned(struct x86_emulate_ctxt *ctxt, unsigned size)
+static unsigned insn_alignment(struct x86_emulate_ctxt *ctxt, unsigned size)
 {
 	if (likely(size < 16))
-		return false;
+		return 1;
 
 	if (ctxt->d & Aligned)
-		return true;
+		return size;
 	else if (ctxt->d & Unaligned)
-		return false;
+		return 1;
 	else if (ctxt->d & Avx)
-		return false;
+		return 1;
+	else if (ctxt->d & Aligned16)
+		return 16;
 	else
-		return true;
+		return size;
 }
 
 static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
@@ -704,7 +728,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		}
 		break;
 	}
-	if (insn_aligned(ctxt, size) && ((la & (size - 1)) != 0))
+	if (la & (insn_alignment(ctxt, size) - 1))
 		return emulate_gp(ctxt, 0);
 	return X86EMUL_CONTINUE;
 bad:
@@ -789,6 +813,20 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	return ctxt->ops->read_std(ctxt, linear, data, size, &ctxt->exception);
+}
+
+static int segmented_write_std(struct x86_emulate_ctxt *ctxt,
+			       struct segmented_address addr,
+			       void *data,
+			       unsigned int size)
+{
+	int rc;
+	ulong linear;
+
+	rc = linearize(ctxt, addr, size, true, &linear);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+	return ctxt->ops->write_std(ctxt, linear, data, size, &ctxt->exception);
 }
 
 /*
@@ -1544,7 +1582,6 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				    &ctxt->exception);
 }
 
-/* Does not support long mode */
 static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				     u16 selector, int seg, u8 cpl,
 				     enum x86_transfer_type transfer,
@@ -1581,20 +1618,34 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	rpl = selector & 3;
 
-	/* NULL selector is not valid for TR, CS and SS (except for long mode) */
-	if ((seg == VCPU_SREG_CS
-	     || (seg == VCPU_SREG_SS
-		 && (ctxt->mode != X86EMUL_MODE_PROT64 || rpl != cpl))
-	     || seg == VCPU_SREG_TR)
-	    && null_selector)
-		goto exception;
-
 	/* TR should be in GDT only */
 	if (seg == VCPU_SREG_TR && (selector & (1 << 2)))
 		goto exception;
 
-	if (null_selector) /* for NULL selector skip all following checks */
+	/* NULL selector is not valid for TR, CS and (except for long mode) SS */
+	if (null_selector) {
+		if (seg == VCPU_SREG_CS || seg == VCPU_SREG_TR)
+			goto exception;
+
+		if (seg == VCPU_SREG_SS) {
+			if (ctxt->mode != X86EMUL_MODE_PROT64 || rpl != cpl)
+				goto exception;
+
+			/*
+			 * ctxt->ops->set_segment expects the CPL to be in
+			 * SS.DPL, so fake an expand-up 32-bit data segment.
+			 */
+			seg_desc.type = 3;
+			seg_desc.p = 1;
+			seg_desc.s = 1;
+			seg_desc.dpl = cpl;
+			seg_desc.d = 1;
+			seg_desc.g = 1;
+		}
+
+		/* Skip all following checks */
 		goto load;
+	}
 
 	ret = read_segment_descriptor(ctxt, selector, &seg_desc, &desc_addr);
 	if (ret != X86EMUL_CONTINUE)
@@ -1710,6 +1761,21 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				   u16 selector, int seg)
 {
 	u8 cpl = ctxt->ops->cpl(ctxt);
+
+	/*
+	 * None of MOV, POP and LSS can load a NULL selector in CPL=3, but
+	 * they can load it at CPL<3 (Intel's manual says only LSS can,
+	 * but it's wrong).
+	 *
+	 * However, the Intel manual says that putting IST=1/DPL=3 in
+	 * an interrupt gate will result in SS=3 (the AMD manual instead
+	 * says it doesn't), so allow SS=3 in __load_segment_descriptor
+	 * and only forbid it here.
+	 */
+	if (seg == VCPU_SREG_SS && selector == 3 &&
+	    ctxt->mode == X86EMUL_MODE_PROT64)
+		return emulate_exception(ctxt, GP_VECTOR, 0, true);
+
 	return __load_segment_descriptor(ctxt, selector, seg, cpl,
 					 X86_TRANSFER_NONE, NULL);
 }
@@ -3658,8 +3724,8 @@ static int emulate_store_desc_ptr(struct x86_emulate_ctxt *ctxt,
 	}
 	/* Disable writeback. */
 	ctxt->dst.type = OP_NONE;
-	return segmented_write(ctxt, ctxt->dst.addr.mem,
-			       &desc_ptr, 2 + ctxt->op_bytes);
+	return segmented_write_std(ctxt, ctxt->dst.addr.mem,
+				   &desc_ptr, 2 + ctxt->op_bytes);
 }
 
 static int em_sgdt(struct x86_emulate_ctxt *ctxt)
@@ -3840,6 +3906,131 @@ static int em_movsxd(struct x86_emulate_ctxt *ctxt)
 {
 	ctxt->dst.val = (s32) ctxt->src.val;
 	return X86EMUL_CONTINUE;
+}
+
+static int check_fxsr(struct x86_emulate_ctxt *ctxt)
+{
+	u32 eax = 1, ebx, ecx = 0, edx;
+
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx);
+	if (!(edx & FFL(FXSR)))
+		return emulate_ud(ctxt);
+
+	if (ctxt->ops->get_cr(ctxt, 0) & (X86_CR0_TS | X86_CR0_EM))
+		return emulate_nm(ctxt);
+
+	/*
+	 * Don't emulate a case that should never be hit, instead of working
+	 * around a lack of fxsave64/fxrstor64 on old compilers.
+	 */
+	if (ctxt->mode >= X86EMUL_MODE_PROT64)
+		return X86EMUL_UNHANDLEABLE;
+
+	return X86EMUL_CONTINUE;
+}
+
+/*
+ * FXSAVE and FXRSTOR have 4 different formats depending on execution mode,
+ *  1) 16 bit mode
+ *  2) 32 bit mode
+ *     - like (1), but FIP and FDP (foo) are only 16 bit.  At least Intel CPUs
+ *       preserve whole 32 bit values, though, so (1) and (2) are the same wrt.
+ *       save and restore
+ *  3) 64-bit mode with REX.W prefix
+ *     - like (2), but XMM 8-15 are being saved and restored
+ *  4) 64-bit mode without REX.W prefix
+ *     - like (3), but FIP and FDP are 64 bit
+ *
+ * Emulation uses (3) for (1) and (2) and preserves XMM 8-15 to reach the
+ * desired result.  (4) is not emulated.
+ *
+ * Note: Guest and host CPUID.(EAX=07H,ECX=0H):EBX[bit 13] (deprecate FPU CS
+ * and FPU DS) should match.
+ */
+static int em_fxsave(struct x86_emulate_ctxt *ctxt)
+{
+	struct fxregs_state fx_state;
+	size_t size;
+	int rc;
+
+	rc = check_fxsr(ctxt);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	ctxt->ops->get_fpu(ctxt);
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
+
+	ctxt->ops->put_fpu(ctxt);
+
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	if (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR)
+		size = offsetof(struct fxregs_state, xmm_space[8 * 16/4]);
+	else
+		size = offsetof(struct fxregs_state, xmm_space[0]);
+
+	return segmented_write_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
+}
+
+static int fxrstor_fixup(struct x86_emulate_ctxt *ctxt,
+		struct fxregs_state *new)
+{
+	int rc = X86EMUL_CONTINUE;
+	struct fxregs_state old;
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(old));
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	/*
+	 * 64 bit host will restore XMM 8-15, which is not correct on non-64
+	 * bit guests.  Load the current values in order to preserve 64 bit
+	 * XMMs after fxrstor.
+	 */
+#ifdef CONFIG_X86_64
+	/* XXX: accessing XMM 8-15 very awkwardly */
+	memcpy(&new->xmm_space[8 * 16/4], &old.xmm_space[8 * 16/4], 8 * 16);
+#endif
+
+	/*
+	 * Hardware doesn't save and restore XMM 0-7 without CR4.OSFXSR, but
+	 * does save and restore MXCSR.
+	 */
+	if (!(ctxt->ops->get_cr(ctxt, 4) & X86_CR4_OSFXSR))
+		memcpy(new->xmm_space, old.xmm_space, 8 * 16);
+
+	return rc;
+}
+
+static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
+{
+	struct fxregs_state fx_state;
+	int rc;
+
+	rc = check_fxsr(ctxt);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, 512);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	if (fx_state.mxcsr >> 16)
+		return emulate_gp(ctxt, 0);
+
+	ctxt->ops->get_fpu(ctxt);
+
+	if (ctxt->mode < X86EMUL_MODE_PROT64)
+		rc = fxrstor_fixup(ctxt, &fx_state);
+
+	if (rc == X86EMUL_CONTINUE)
+		rc = asm_safe("fxrstor %[fx]", : [fx] "m"(fx_state));
+
+	ctxt->ops->put_fpu(ctxt);
+
+	return rc;
 }
 
 static bool valid_cr(int nr)
@@ -4194,7 +4385,9 @@ static const struct gprefix pfx_0f_ae_7 = {
 };
 
 static const struct group_dual group15 = { {
-	N, N, N, N, N, N, N, GP(0, &pfx_0f_ae_7),
+	I(ModRM | Aligned16, em_fxsave),
+	I(ModRM | Aligned16, em_fxrstor),
+	N, N, N, N, N, GP(0, &pfx_0f_ae_7),
 }, {
 	N, N, N, N, N, N, N, N,
 } };
@@ -5066,21 +5259,13 @@ static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
 
 static int flush_pending_x87_faults(struct x86_emulate_ctxt *ctxt)
 {
-	bool fault = false;
+	int rc;
 
 	ctxt->ops->get_fpu(ctxt);
-	asm volatile("1: fwait \n\t"
-		     "2: \n\t"
-		     ".pushsection .fixup,\"ax\" \n\t"
-		     "3: \n\t"
-		     "movb $1, %[fault] \n\t"
-		     "jmp 2b \n\t"
-		     ".popsection \n\t"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [fault]"+qm"(fault));
+	rc = asm_safe("fwait");
 	ctxt->ops->put_fpu(ctxt);
 
-	if (unlikely(fault))
+	if (unlikely(rc != X86EMUL_CONTINUE))
 		return emulate_exception(ctxt, MF_VECTOR, 0, false);
 
 	return X86EMUL_CONTINUE;

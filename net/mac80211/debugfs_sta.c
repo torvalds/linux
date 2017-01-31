@@ -205,7 +205,7 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_rx);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				tid_rx ? tid_rx->dialog_token : 0);
+				tid_rx ? sta->ampdu_mlme.tid_rx_token[i] : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
 				tid_rx ? tid_rx->ssn : 0);
 

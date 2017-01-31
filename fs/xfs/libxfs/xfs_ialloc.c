@@ -2450,8 +2450,6 @@ xfs_ialloc_log_agi(
 	ASSERT(agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC));
 #endif
 
-	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_AGI_BUF);
-
 	/*
 	 * Compute byte offsets for the first and last fields in the first
 	 * region and log the agi buffer. This only logs up through
@@ -2512,8 +2510,15 @@ xfs_agi_verify(
 	if (!XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum)))
 		return false;
 
-	if (be32_to_cpu(agi->agi_level) > XFS_BTREE_MAXLEVELS)
+	if (be32_to_cpu(agi->agi_level) < 1 ||
+	    be32_to_cpu(agi->agi_level) > XFS_BTREE_MAXLEVELS)
 		return false;
+
+	if (xfs_sb_version_hasfinobt(&mp->m_sb) &&
+	    (be32_to_cpu(agi->agi_free_level) < 1 ||
+	     be32_to_cpu(agi->agi_free_level) > XFS_BTREE_MAXLEVELS))
+		return false;
+
 	/*
 	 * during growfs operations, the perag is not fully initialised,
 	 * so we can't use it for any useful checking. growfs ensures we can't
@@ -2592,6 +2597,8 @@ xfs_read_agi(
 			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
 	if (error)
 		return error;
+	if (tp)
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_AGI_BUF);
 
 	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
 	return 0;

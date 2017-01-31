@@ -149,6 +149,18 @@ void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss)
 }
 EXPORT_SYMBOL(cfg80211_assoc_timeout);
 
+void cfg80211_abandon_assoc(struct net_device *dev, struct cfg80211_bss *bss)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+
+	cfg80211_sme_abandon_assoc(wdev);
+
+	cfg80211_unhold_bss(bss_from_pub(bss));
+	cfg80211_put_bss(wiphy, bss);
+}
+EXPORT_SYMBOL(cfg80211_abandon_assoc);
+
 void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;

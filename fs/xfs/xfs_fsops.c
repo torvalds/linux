@@ -631,6 +631,20 @@ xfs_growfs_data_private(
 	xfs_set_low_space_thresholds(mp);
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
+	/*
+	 * If we expanded the last AG, free the per-AG reservation
+	 * so we can reinitialize it with the new size.
+	 */
+	if (new) {
+		struct xfs_perag	*pag;
+
+		pag = xfs_perag_get(mp, agno);
+		error = xfs_ag_resv_free(pag);
+		xfs_perag_put(pag);
+		if (error)
+			goto out;
+	}
+
 	/* Reserve AG metadata blocks. */
 	error = xfs_fs_reserve_ag_blocks(mp);
 	if (error && error != -ENOSPC)

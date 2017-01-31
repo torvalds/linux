@@ -419,6 +419,7 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 			     size_t size, dma_addr_t *handle,
 			     enum dma_data_direction dir)
 {
+	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	dma_addr_t dma_addr_base, dma_addr;
 	int flags = ZPCI_PTE_VALID;
@@ -426,8 +427,7 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned long pa = 0;
 	int ret;
 
-	size = PAGE_ALIGN(size);
-	dma_addr_base = dma_alloc_address(dev, size >> PAGE_SHIFT);
+	dma_addr_base = dma_alloc_address(dev, nr_pages);
 	if (dma_addr_base == DMA_ERROR_CODE)
 		return -ENOMEM;
 
@@ -436,26 +436,27 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		flags |= ZPCI_TABLE_PROTECTED;
 
 	for (s = sg; dma_addr < dma_addr_base + size; s = sg_next(s)) {
-		pa = page_to_phys(sg_page(s)) + s->offset;
-		ret = __dma_update_trans(zdev, pa, dma_addr, s->length, flags);
+		pa = page_to_phys(sg_page(s));
+		ret = __dma_update_trans(zdev, pa, dma_addr,
+					 s->offset + s->length, flags);
 		if (ret)
 			goto unmap;
 
-		dma_addr += s->length;
+		dma_addr += s->offset + s->length;
 	}
 	ret = __dma_purge_tlb(zdev, dma_addr_base, size, flags);
 	if (ret)
 		goto unmap;
 
 	*handle = dma_addr_base;
-	atomic64_add(size >> PAGE_SHIFT, &zdev->mapped_pages);
+	atomic64_add(nr_pages, &zdev->mapped_pages);
 
 	return ret;
 
 unmap:
 	dma_update_trans(zdev, 0, dma_addr_base, dma_addr - dma_addr_base,
 			 ZPCI_PTE_INVALID);
-	dma_free_address(dev, dma_addr_base, size >> PAGE_SHIFT);
+	dma_free_address(dev, dma_addr_base, nr_pages);
 	zpci_err("map error:\n");
 	zpci_err_dma(ret, pa);
 	return ret;

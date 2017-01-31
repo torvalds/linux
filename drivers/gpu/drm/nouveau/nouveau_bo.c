@@ -1209,6 +1209,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 			       nvbo->page_shift != vma->vm->mmu->lpg_shift)) {
 			nvkm_vm_map(vma, new_mem->mm_node);
 		} else {
+			WARN_ON(ttm_bo_wait(bo, false, false));
 			nvkm_vm_unmap(vma);
 		}
 	}

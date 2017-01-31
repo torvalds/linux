@@ -872,15 +872,17 @@ void huge_pmd_set_accessed(struct fault_env *fe, pmd_t orig_pmd)
 {
 	pmd_t entry;
 	unsigned long haddr;
+	bool write = fe->flags & FAULT_FLAG_WRITE;
 
 	fe->ptl = pmd_lock(fe->vma->vm_mm, fe->pmd);
 	if (unlikely(!pmd_same(*fe->pmd, orig_pmd)))
 		goto unlock;
 
 	entry = pmd_mkyoung(orig_pmd);
+	if (write)
+		entry = pmd_mkdirty(entry);
 	haddr = fe->address & HPAGE_PMD_MASK;
-	if (pmdp_set_access_flags(fe->vma, haddr, fe->pmd, entry,
-				fe->flags & FAULT_FLAG_WRITE))
+	if (pmdp_set_access_flags(fe->vma, haddr, fe->pmd, entry, write))
 		update_mmu_cache_pmd(fe->vma, fe->address, fe->pmd);
 
 unlock:

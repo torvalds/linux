@@ -772,6 +772,11 @@ int get_valid_checkpoint(struct f2fs_sb_info *sbi)
 	if (sanity_check_ckpt(sbi))
 		goto fail_no_cp;
 
+	if (cur_page == cp1)
+		sbi->cur_cp_pack = 1;
+	else
+		sbi->cur_cp_pack = 2;
+
 	if (cp_blks <= 1)
 		goto done;
 
@@ -1123,7 +1128,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 				le32_to_cpu(ckpt->checksum_offset)))
 				= cpu_to_le32(crc32);
 
-	start_blk = __start_cp_addr(sbi);
+	start_blk = __start_cp_next_addr(sbi);
 
 	/* need to wait for end_io results */
 	wait_on_all_pages_writeback(sbi);
@@ -1187,6 +1192,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	clear_prefree_segments(sbi, cpc);
 	clear_sbi_flag(sbi, SBI_IS_DIRTY);
 	clear_sbi_flag(sbi, SBI_NEED_CP);
+	__set_cp_next_pack(sbi);
 
 	/*
 	 * redirty superblock if metadata like node page or inode cache is

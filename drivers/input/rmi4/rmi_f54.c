@@ -200,7 +200,7 @@ static int rmi_f54_request_report(struct rmi_function *fn, u8 report_type)
 
 	error = rmi_write(rmi_dev, fn->fd.command_base_addr, F54_GET_REPORT);
 	if (error < 0)
-		return error;
+		goto unlock;
 
 	init_completion(&f54->cmd_done);
 
@@ -209,9 +209,10 @@ static int rmi_f54_request_report(struct rmi_function *fn, u8 report_type)
 
 	queue_delayed_work(f54->workqueue, &f54->work, 0);
 
+unlock:
 	mutex_unlock(&f54->data_mutex);
 
-	return 0;
+	return error;
 }
 
 static size_t rmi_f54_get_report_size(struct f54_data *f54)

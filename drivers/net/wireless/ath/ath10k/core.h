@@ -557,10 +557,8 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
 
-	/* Older firmware with HTT delivers incorrect tx status for null func
-	 * frames to driver, but this fixed in 10.2 and 10.4 firmware versions.
-	 * Also this workaround results in reporting of incorrect null func
-	 * status for 10.4. This flag is used to skip the workaround.
+	/* Unused flag and proven to be not working, enable this if you want
+	 * to experiment sending NULL func data frames in HTT TX
 	 */
 	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
 

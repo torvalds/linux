@@ -49,7 +49,7 @@ int __init pci_xen_swiotlb_detect(void)
 	 * activate this IOMMU. If running as PV privileged, activate it
 	 * irregardless.
 	 */
-	if ((xen_initial_domain() || swiotlb || swiotlb_force))
+	if (xen_initial_domain() || swiotlb || swiotlb_force == SWIOTLB_FORCE)
 		xen_swiotlb = 1;
 
 	/* If we are running under Xen, we MUST disable the native SWIOTLB.

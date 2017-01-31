@@ -310,17 +310,17 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4lld, wb_bios: %4d\n",
+		seq_printf(s, "  - inmem: %4d, wb_bios: %4d\n",
 			   si->inmem_pages, si->wb_bios);
-		seq_printf(s, "  - nodes: %4lld in %4d\n",
+		seq_printf(s, "  - nodes: %4d in %4d\n",
 			   si->ndirty_node, si->node_pages);
-		seq_printf(s, "  - dents: %4lld in dirs:%4d (%4d)\n",
+		seq_printf(s, "  - dents: %4d in dirs:%4d (%4d)\n",
 			   si->ndirty_dent, si->ndirty_dirs, si->ndirty_all);
-		seq_printf(s, "  - datas: %4lld in files:%4d\n",
+		seq_printf(s, "  - datas: %4d in files:%4d\n",
 			   si->ndirty_data, si->ndirty_files);
-		seq_printf(s, "  - meta: %4lld in %4d\n",
+		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
-		seq_printf(s, "  - imeta: %4lld\n",
+		seq_printf(s, "  - imeta: %4d\n",
 			   si->ndirty_imeta);
 		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
 			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);
@@ -373,6 +373,7 @@ static int stat_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations stat_fops = {
+	.owner = THIS_MODULE,
 	.open = stat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

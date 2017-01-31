@@ -967,7 +967,7 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
 				new_size = (dst + i) << PAGE_SHIFT;
 				if (dst_inode->i_size < new_size)
 					f2fs_i_size_write(dst_inode, new_size);
-			} while ((do_replace[i] || blkaddr[i] == NULL_ADDR) && --ilen);
+			} while (--ilen && (do_replace[i] || blkaddr[i] == NULL_ADDR));
 
 			f2fs_put_dnode(&dn);
 		} else {
@@ -1526,7 +1526,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		goto out;
 
 	f2fs_msg(F2FS_I_SB(inode)->sb, KERN_WARNING,
-		"Unexpected flush for atomic writes: ino=%lu, npages=%lld",
+		"Unexpected flush for atomic writes: ino=%lu, npages=%u",
 					inode->i_ino, get_dirty_pages(inode));
 	ret = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
 	if (ret)

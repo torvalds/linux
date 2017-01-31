@@ -926,10 +926,11 @@ static int s5p_mfc_release(struct file *file)
 	mfc_debug_enter();
 	if (dev)
 		mutex_lock(&dev->mfc_mutex);
-	s5p_mfc_clock_on();
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
 	if (dev) {
+		s5p_mfc_clock_on();
+
 		/* Mark context as idle */
 		clear_work_bit_irqsave(ctx);
 		/*
@@ -951,9 +952,9 @@ static int s5p_mfc_release(struct file *file)
 			if (s5p_mfc_power_off() < 0)
 				mfc_err("Power off failed\n");
 		}
+		mfc_debug(2, "Shutting down clock\n");
+		s5p_mfc_clock_off();
 	}
-	mfc_debug(2, "Shutting down clock\n");
-	s5p_mfc_clock_off();
 	if (dev)
 		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
@@ -1082,6 +1083,7 @@ static struct device *s5p_mfc_alloc_memdev(struct device *dev,
 							 idx);
 		if (ret == 0)
 			return child;
+		device_del(child);
 	}
 
 	put_device(child);

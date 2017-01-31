@@ -1253,8 +1253,10 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	if (!nonblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
-		if (ret)
+		if (ret) {
+			drm_atomic_helper_cleanup_planes(dev, state);
 			return ret;
+		}
 	}
 
 	/*

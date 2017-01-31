@@ -855,4 +855,5 @@ void rxe_qp_cleanup(void *arg)
 	free_rd_atomic_resources(qp);
 
 	kernel_sock_shutdown(qp->sk, SHUT_RDWR);
+	sock_release(qp->sk);
 }

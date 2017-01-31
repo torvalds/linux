@@ -30,14 +30,6 @@ efi_status_t efi_file_close(void *handle);
 
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
 
-efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
-			unsigned long orig_fdt_size,
-			void *fdt, int new_fdt_size, char *cmdline_ptr,
-			u64 initrd_addr, u64 initrd_size,
-			efi_memory_desc_t *memory_map,
-			unsigned long map_size, unsigned long desc_size,
-			u32 desc_ver);
-
 efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 					    void *handle,
 					    unsigned long *new_fdt_addr,

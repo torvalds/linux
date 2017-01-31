@@ -3947,8 +3947,12 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 	temp = mmRLC_SRM_INDEX_CNTL_ADDR_0;
 	data = mmRLC_SRM_INDEX_CNTL_DATA_0;
 	for (i = 0; i < sizeof(unique_indices) / sizeof(int); i++) {
-		amdgpu_mm_wreg(adev, temp + i, unique_indices[i] & 0x3FFFF, false);
-		amdgpu_mm_wreg(adev, data + i, unique_indices[i] >> 20, false);
+		if (unique_indices[i] != 0) {
+			amdgpu_mm_wreg(adev, temp + i,
+					unique_indices[i] & 0x3FFFF, false);
+			amdgpu_mm_wreg(adev, data + i,
+					unique_indices[i] >> 20, false);
+		}
 	}
 	kfree(register_list_format);
 
@@ -3994,7 +3998,7 @@ static void cz_enable_sck_slow_down_on_power_down(struct amdgpu_device *adev,
 
 static void cz_enable_cp_power_gating(struct amdgpu_device *adev, bool enable)
 {
-	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 1 : 0);
+	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 0 : 1);
 }
 
 static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
@@ -5891,29 +5895,24 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
-		/* 1 enable cntx_empty_int_enable/cntx_busy_int_enable/
-		 * Cmp_busy/GFX_Idle interrupts
-		 */
-		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
-
 		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
 		data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGCG_MASK;
 		if (temp1 != data1)
 			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
 
-		/* 2 wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		/* : wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
-		/* 3 - clear cgcg override */
+		/* 2 - clear cgcg override */
 		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
 
 		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
-		/* 4 - write cmd to set CGLS */
+		/* 3 - write cmd to set CGLS */
 		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGLS_EN, SET_BPM_SERDES_CMD);
 
-		/* 5 - enable cgcg */
+		/* 4 - enable cgcg */
 		data |= RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
 
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
@@ -5931,6 +5930,11 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
+
+		/* 5 enable cntx_empty_int_enable/cntx_busy_int_enable/
+		 * Cmp_busy/GFX_Idle interrupts
+		 */
+		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 	} else {
 		/* disable cntx_empty_int_enable & GFX Idle interrupt */
 		gfx_v8_0_enable_gui_idle_interrupt(adev, false);

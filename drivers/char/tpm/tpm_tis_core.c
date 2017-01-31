@@ -185,7 +185,12 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 				 TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 				 chip->timeout_c,
 				 &priv->read_queue, true) == 0) {
-		burstcnt = min_t(int, get_burstcount(chip), count - size);
+		burstcnt = get_burstcount(chip);
+		if (burstcnt < 0) {
+			dev_err(&chip->dev, "Unable to read burstcount\n");
+			return burstcnt;
+		}
+		burstcnt = min_t(int, burstcnt, count - size);
 
 		rc = tpm_tis_read_bytes(priv, TPM_DATA_FIFO(priv->locality),
 					burstcnt, buf + size);
@@ -271,7 +276,13 @@ static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 	}
 
 	while (count < len - 1) {
-		burstcnt = min_t(int, get_burstcount(chip), len - count - 1);
+		burstcnt = get_burstcount(chip);
+		if (burstcnt < 0) {
+			dev_err(&chip->dev, "Unable to read burstcount\n");
+			rc = burstcnt;
+			goto out_err;
+		}
+		burstcnt = min_t(int, burstcnt, len - count - 1);
 		rc = tpm_tis_write_bytes(priv, TPM_DATA_FIFO(priv->locality),
 					 burstcnt, buf + count);
 		if (rc < 0)

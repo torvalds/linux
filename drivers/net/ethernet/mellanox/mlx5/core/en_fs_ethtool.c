@@ -247,6 +247,7 @@ static int set_flow_attrs(u32 *match_c, u32 *match_v,
 	}
 	if (fs->flow_type & FLOW_MAC_EXT &&
 	    !is_zero_ether_addr(fs->m_ext.h_dest)) {
+		mask_spec(fs->m_ext.h_dest, fs->h_ext.h_dest, ETH_ALEN);
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4,
 					     outer_headers_c, dmac_47_16),
 				fs->m_ext.h_dest);

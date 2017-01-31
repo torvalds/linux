@@ -53,7 +53,7 @@
  */
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 
-int swiotlb_force;
+enum swiotlb_force swiotlb_force;
 
 /*
  * Used to do a quick range check in swiotlb_tbl_unmap_single and
@@ -106,8 +106,12 @@ setup_io_tlb_npages(char *str)
 	}
 	if (*str == ',')
 		++str;
-	if (!strcmp(str, "force"))
-		swiotlb_force = 1;
+	if (!strcmp(str, "force")) {
+		swiotlb_force = SWIOTLB_FORCE;
+	} else if (!strcmp(str, "noforce")) {
+		swiotlb_force = SWIOTLB_NO_FORCE;
+		io_tlb_nslabs = 1;
+	}
 
 	return 0;
 }
@@ -541,8 +545,15 @@ static phys_addr_t
 map_single(struct device *hwdev, phys_addr_t phys, size_t size,
 	   enum dma_data_direction dir)
 {
-	dma_addr_t start_dma_addr = phys_to_dma(hwdev, io_tlb_start);
+	dma_addr_t start_dma_addr;
 
+	if (swiotlb_force == SWIOTLB_NO_FORCE) {
+		dev_warn_ratelimited(hwdev, "Cannot do DMA to address %pa\n",
+				     &phys);
+		return SWIOTLB_MAP_ERROR;
+	}
+
+	start_dma_addr = phys_to_dma(hwdev, io_tlb_start);
 	return swiotlb_tbl_map_single(hwdev, start_dma_addr, phys, size, dir);
 }
 
@@ -707,6 +718,9 @@ static void
 swiotlb_full(struct device *dev, size_t size, enum dma_data_direction dir,
 	     int do_panic)
 {
+	if (swiotlb_force == SWIOTLB_NO_FORCE)
+		return;
+
 	/*
 	 * Ran out of IOMMU space for this operation. This is very bad.
 	 * Unfortunately the drivers cannot handle this operation properly.
@@ -749,7 +763,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
-	if (dma_capable(dev, dev_addr, size) && !swiotlb_force)
+	if (dma_capable(dev, dev_addr, size) && swiotlb_force != SWIOTLB_FORCE)
 		return dev_addr;
 
 	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
@@ -888,7 +902,7 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
 		phys_addr_t paddr = sg_phys(sg);
 		dma_addr_t dev_addr = phys_to_dma(hwdev, paddr);
 
-		if (swiotlb_force ||
+		if (swiotlb_force == SWIOTLB_FORCE ||
 		    !dma_capable(hwdev, dev_addr, sg->length)) {
 			phys_addr_t map = map_single(hwdev, sg_phys(sg),
 						     sg->length, dir);

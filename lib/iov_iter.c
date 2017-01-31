@@ -678,43 +678,50 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 }
 EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
 
-static void pipe_advance(struct iov_iter *i, size_t size)
+static inline void pipe_truncate(struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	struct pipe_buffer *buf;
-	int idx = i->idx;
-	size_t off = i->iov_offset, orig_sz;
-	
-	if (unlikely(i->count < size))
-		size = i->count;
-	orig_sz = size;
-
-	if (size) {
-		if (off) /* make it relative to the beginning of buffer */
-			size += off - pipe->bufs[idx].offset;
-		while (1) {
-			buf = &pipe->bufs[idx];
-			if (size <= buf->len)
-				break;
-			size -= buf->len;
-			idx = next_idx(idx, pipe);
-		}
-		buf->len = size;
-		i->idx = idx;
-		off = i->iov_offset = buf->offset + size;
-	}
-	if (off)
-		idx = next_idx(idx, pipe);
 	if (pipe->nrbufs) {
-		int unused = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
-		/* [curbuf,unused) is in use.  Free [idx,unused) */
-		while (idx != unused) {
+		size_t off = i->iov_offset;
+		int idx = i->idx;
+		int nrbufs = (idx - pipe->curbuf) & (pipe->buffers - 1);
+		if (off) {
+			pipe->bufs[idx].len = off - pipe->bufs[idx].offset;
+			idx = next_idx(idx, pipe);
+			nrbufs++;
+		}
+		while (pipe->nrbufs > nrbufs) {
 			pipe_buf_release(pipe, &pipe->bufs[idx]);
 			idx = next_idx(idx, pipe);
 			pipe->nrbufs--;
 		}
 	}
-	i->count -= orig_sz;
+}
+
+static void pipe_advance(struct iov_iter *i, size_t size)
+{
+	struct pipe_inode_info *pipe = i->pipe;
+	if (unlikely(i->count < size))
+		size = i->count;
+	if (size) {
+		struct pipe_buffer *buf;
+		size_t off = i->iov_offset, left = size;
+		int idx = i->idx;
+		if (off) /* make it relative to the beginning of buffer */
+			left += off - pipe->bufs[idx].offset;
+		while (1) {
+			buf = &pipe->bufs[idx];
+			if (left <= buf->len)
+				break;
+			left -= buf->len;
+			idx = next_idx(idx, pipe);
+		}
+		i->idx = idx;
+		i->iov_offset = buf->offset + left;
+	}
+	i->count -= size;
+	/* ... and discard everything past that point */
+	pipe_truncate(i);
 }
 
 void iov_iter_advance(struct iov_iter *i, size_t size)
@@ -774,6 +781,7 @@ void iov_iter_pipe(struct iov_iter *i, int direction,
 			size_t count)
 {
 	BUG_ON(direction != ITER_PIPE);
+	WARN_ON(pipe->nrbufs == pipe->buffers);
 	i->type = direction;
 	i->pipe = pipe;
 	i->idx = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);

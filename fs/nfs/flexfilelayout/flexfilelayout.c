@@ -28,6 +28,9 @@
 
 static struct group_info	*ff_zero_group;
 
+static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
+		struct nfs_pgio_header *hdr);
+
 static struct pnfs_layout_hdr *
 ff_layout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 {
@@ -1293,6 +1296,7 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 					hdr->pgio_mirror_idx + 1,
 					&hdr->pgio_mirror_idx))
 			goto out_eagain;
+		ff_layout_read_record_layoutstats_done(task, hdr);
 		pnfs_read_resend_pnfs(hdr);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:

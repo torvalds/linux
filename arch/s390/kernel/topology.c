@@ -448,6 +448,7 @@ static int __init s390_topology_init(void)
 	struct sysinfo_15_1_x *info;
 	int i;
 
+	set_sched_topology(s390_topology);
 	if (!MACHINE_HAS_TOPOLOGY)
 		return 0;
 	tl_info = (struct sysinfo_15_1_x *)__get_free_page(GFP_KERNEL);
@@ -460,7 +461,6 @@ static int __init s390_topology_init(void)
 	alloc_masks(info, &socket_info, 1);
 	alloc_masks(info, &book_info, 2);
 	alloc_masks(info, &drawer_info, 3);
-	set_sched_topology(s390_topology);
 	return 0;
 }
 early_initcall(s390_topology_init);

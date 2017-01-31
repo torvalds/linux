@@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
 			continue;
 		}
 		list_del(&page->lru);
-		dec_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
 		/*
 		 * We isolated non-lru movable page so here we can use
 		 * __PageMovable because LRU page's mapping cannot have
@@ -186,6 +184,8 @@ void putback_movable_pages(struct list_head *l)
 			put_page(page);
 		} else {
 			putback_lru_page(page);
+			dec_node_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 		}
 	}
 }
@@ -1121,8 +1121,15 @@ out:
 		 * restored.
 		 */
 		list_del(&page->lru);
-		dec_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
+
+		/*
+		 * Compaction can migrate also non-LRU pages which are
+		 * not accounted to NR_ISOLATED_*. They can be recognized
+		 * as __PageMovable
+		 */
+		if (likely(!__PageMovable(page)))
+			dec_node_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 	}
 
 	/*

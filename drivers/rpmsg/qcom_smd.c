@@ -739,7 +739,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 
 	while (qcom_smd_get_tx_avail(channel) < tlen) {
 		if (!wait) {
-			ret = -ENOMEM;
+			ret = -EAGAIN;
 			goto out;
 		}
 

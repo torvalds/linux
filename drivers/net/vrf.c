@@ -263,7 +263,9 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 		.flowi4_iif = LOOPBACK_IFINDEX,
 		.flowi4_tos = RT_TOS(ip4h->tos),
 		.flowi4_flags = FLOWI_FLAG_ANYSRC | FLOWI_FLAG_SKIP_NH_OIF,
+		.flowi4_proto = ip4h->protocol,
 		.daddr = ip4h->daddr,
+		.saddr = ip4h->saddr,
 	};
 	struct net *net = dev_net(vrf_dev);
 	struct rtable *rt;
@@ -370,6 +372,8 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	struct neighbour *neigh;
 	struct in6_addr *nexthop;
 	int ret;
+
+	nf_reset(skb);
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -551,6 +555,8 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	struct neighbour *neigh;
 	u32 nexthop;
 	int ret = -EINVAL;
+
+	nf_reset(skb);
 
 	/* Be paranoid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
@@ -850,8 +856,6 @@ static struct sk_buff *vrf_rcv_nfhook(u8 pf, unsigned int hook,
 {
 	struct net *net = dev_net(dev);
 
-	nf_reset(skb);
-
 	if (NF_HOOK(pf, hook, net, NULL, skb, dev, NULL, vrf_rcv_finish) < 0)
 		skb = NULL;    /* kfree_skb(skb) handled by nf code */
 
@@ -966,6 +970,7 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	 */
 	need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	if (!ipv6_ndisc_frame(skb) && !need_strict) {
+		vrf_rx_stats(vrf_dev, skb->len);
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 
@@ -1006,6 +1011,8 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 		skb->pkt_type = PACKET_HOST;
 		goto out;
 	}
+
+	vrf_rx_stats(vrf_dev, skb->len);
 
 	skb_push(skb, skb->mac_len);
 	dev_queue_xmit_nit(skb, vrf_dev);
@@ -1232,6 +1239,8 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 
 	vrf->tb_id = nla_get_u32(data[IFLA_VRF_TABLE]);
+	if (vrf->tb_id == RT_TABLE_UNSPEC)
+		return -EINVAL;
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 

@@ -145,7 +145,7 @@ static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 	 */
 	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
 				       OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
-	if (rc != OPAL_SUCCESS)
+	if (rc != OPAL_SUCCESS && rc != OPAL_UNSUPPORTED)
 		pr_warn("%s: Error %lld unfreezing PHB#%d-PE#%d\n",
 			__func__, rc, phb->hose->global_number, pe_no);
 

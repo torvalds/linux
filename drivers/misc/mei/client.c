@@ -425,7 +425,7 @@ static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
  *
  * @cl: host client
  * @length: size of the buffer
- * @type: operation type
+ * @fop_type: operation type
  * @fp: associated file pointer (might be NULL)
  *
  * Return: cb on success and NULL on failure
@@ -459,7 +459,7 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
  *
  * @cl: host client
  * @length: size of the buffer
- * @type: operation type
+ * @fop_type: operation type
  * @fp: associated file pointer (might be NULL)
  *
  * Return: cb on success and NULL on failure
@@ -686,7 +686,7 @@ void mei_host_client_init(struct mei_device *dev)
 
 	pm_runtime_mark_last_busy(dev->dev);
 	dev_dbg(dev->dev, "rpm: autosuspend\n");
-	pm_runtime_autosuspend(dev->dev);
+	pm_request_autosuspend(dev->dev);
 }
 
 /**
@@ -1536,7 +1536,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	rets = first_chunk ? mei_cl_tx_flow_ctrl_creds(cl) : 1;
 	if (rets < 0)
-		return rets;
+		goto err;
 
 	if (rets == 0) {
 		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
@@ -1570,11 +1570,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			cb->buf.size, cb->buf_idx);
 
 	rets = mei_write_message(dev, &mei_hdr, buf->data + cb->buf_idx);
-	if (rets) {
-		cl->status = rets;
-		list_move_tail(&cb->list, &cmpl_list->list);
-		return rets;
-	}
+	if (rets)
+		goto err;
 
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
@@ -1582,14 +1579,21 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cb->completed = mei_hdr.msg_complete == 1;
 
 	if (first_chunk) {
-		if (mei_cl_tx_flow_ctrl_creds_reduce(cl))
-			return -EIO;
+		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
+			rets = -EIO;
+			goto err;
+		}
 	}
 
 	if (mei_hdr.msg_complete)
 		list_move_tail(&cb->list, &dev->write_waiting_list.list);
 
 	return 0;
+
+err:
+	cl->status = rets;
+	list_move_tail(&cb->list, &cmpl_list->list);
+	return rets;
 }
 
 /**

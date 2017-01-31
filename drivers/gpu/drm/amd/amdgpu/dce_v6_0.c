@@ -1933,6 +1933,9 @@ static int dce_v6_0_cursor_move_locked(struct drm_crtc *crtc,
 
 	int w = amdgpu_crtc->cursor_width;
 
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
+
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
@@ -1952,8 +1955,6 @@ static int dce_v6_0_cursor_move_locked(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_CUR_SIZE + amdgpu_crtc->crtc_offset,
 	       ((w - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
 
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
 	return 0;
 }
 
@@ -2016,12 +2017,11 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	amdgpu_crtc->cursor_width = width;
-	amdgpu_crtc->cursor_height = height;
-
 	dce_v6_0_lock_cursor(crtc, true);
 
-	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	if (width != amdgpu_crtc->cursor_width ||
+	    height != amdgpu_crtc->cursor_height ||
+	    hot_x != amdgpu_crtc->cursor_hot_x ||
 	    hot_y != amdgpu_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -2030,6 +2030,8 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		dce_v6_0_cursor_move_locked(crtc, x, y);
 
+		amdgpu_crtc->cursor_width = width;
+		amdgpu_crtc->cursor_height = height;
 		amdgpu_crtc->cursor_hot_x = hot_x;
 		amdgpu_crtc->cursor_hot_y = hot_y;
 	}

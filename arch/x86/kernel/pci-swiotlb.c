@@ -70,7 +70,7 @@ int __init pci_swiotlb_detect_override(void)
 {
 	int use_swiotlb = swiotlb | swiotlb_force;
 
-	if (swiotlb_force)
+	if (swiotlb_force == SWIOTLB_FORCE)
 		swiotlb = 1;
 
 	return use_swiotlb;

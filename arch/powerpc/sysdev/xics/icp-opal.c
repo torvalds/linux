@@ -20,6 +20,7 @@
 #include <asm/xics.h>
 #include <asm/io.h>
 #include <asm/opal.h>
+#include <asm/kvm_ppc.h>
 
 static void icp_opal_teardown_cpu(void)
 {
@@ -39,7 +40,26 @@ static void icp_opal_flush_ipi(void)
 	 * Should we be flagging idle loop instead?
 	 * Or creating some task to be scheduled?
 	 */
-	opal_int_eoi((0x00 << 24) | XICS_IPI);
+	if (opal_int_eoi((0x00 << 24) | XICS_IPI) > 0)
+		force_external_irq_replay();
+}
+
+static unsigned int icp_opal_get_xirr(void)
+{
+	unsigned int kvm_xirr;
+	__be32 hw_xirr;
+	int64_t rc;
+
+	/* Handle an interrupt latched by KVM first */
+	kvm_xirr = kvmppc_get_xics_latch();
+	if (kvm_xirr)
+		return kvm_xirr;
+
+	/* Then ask OPAL */
+	rc = opal_int_get_xirr(&hw_xirr, false);
+	if (rc < 0)
+		return 0;
+	return be32_to_cpu(hw_xirr);
 }
 
 static unsigned int icp_opal_get_irq(void)
@@ -47,12 +67,8 @@ static unsigned int icp_opal_get_irq(void)
 	unsigned int xirr;
 	unsigned int vec;
 	unsigned int irq;
-	int64_t rc;
 
-	rc = opal_int_get_xirr(&xirr, false);
-	if (rc < 0)
-		return 0;
-	xirr = be32_to_cpu(xirr);
+	xirr = icp_opal_get_xirr();
 	vec = xirr & 0x00ffffff;
 	if (vec == XICS_IRQ_SPURIOUS)
 		return 0;
@@ -67,7 +83,8 @@ static unsigned int icp_opal_get_irq(void)
 	xics_mask_unknown_vec(vec);
 
 	/* We might learn about it later, so EOI it */
-	opal_int_eoi(xirr);
+	if (opal_int_eoi(xirr) > 0)
+		force_external_irq_replay();
 
 	return 0;
 }
