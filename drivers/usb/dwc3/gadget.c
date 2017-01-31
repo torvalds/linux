@@ -2006,14 +2006,13 @@ static const struct usb_gadget_ops dwc3_gadget_ops = {
 
 /* -------------------------------------------------------------------------- */
 
-static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
-		u8 num, u32 direction)
+static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc, u8 num)
 {
 	struct dwc3_ep			*dep;
-	u8				i;
+	u8				epnum;
 
-	for (i = 0; i < num; i++) {
-		u8 epnum = (i << 1) | (direction ? 1 : 0);
+	for (epnum = 0; epnum < num; epnum++) {
+		bool			direction = epnum & 1;
 
 		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 		if (!dep)
@@ -2021,12 +2020,12 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 
 		dep->dwc = dwc;
 		dep->number = epnum;
-		dep->direction = !!direction;
+		dep->direction = direction;
 		dep->regs = dwc->regs + DWC3_DEP_BASE(epnum);
 		dwc->eps[epnum] = dep;
 
 		snprintf(dep->name, sizeof(dep->name), "ep%d%s", epnum >> 1,
-				(epnum & 1) ? "in" : "out");
+				direction ? "in" : "out");
 
 		dep->endpoint.name = dep->name;
 
@@ -2053,7 +2052,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 			/* MDWIDTH is represented in bits, we need it in bytes */
 			mdwidth /= 8;
 
-			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(i));
+			size = dwc3_readl(dwc->regs, DWC3_GTXFIFOSIZ(epnum >> 1));
 			size = DWC3_GTXFIFOSIZ_TXFDEF(size);
 
 			/* FIFO Depth is in MDWDITH bytes. Multiply */
@@ -2103,7 +2102,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 			dep->endpoint.caps.type_int = true;
 		}
 
-		dep->endpoint.caps.dir_in = !!direction;
+		dep->endpoint.caps.dir_in = direction;
 		dep->endpoint.caps.dir_out = !direction;
 
 		INIT_LIST_HEAD(&dep->pending_list);
@@ -2115,23 +2114,9 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 
 static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 {
-	int				ret;
-
 	INIT_LIST_HEAD(&dwc->gadget.ep_list);
 
-	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_out_eps, 0);
-	if (ret < 0) {
-		dev_err(dwc->dev, "failed to initialize OUT endpoints\n");
-		return ret;
-	}
-
-	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_in_eps, 1);
-	if (ret < 0) {
-		dev_err(dwc->dev, "failed to initialize IN endpoints\n");
-		return ret;
-	}
-
-	return 0;
+	return dwc3_gadget_init_hw_endpoints(dwc, dwc->num_eps);
 }
 
 static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
