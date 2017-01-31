@@ -125,17 +125,11 @@ static inline int calc_divisor(int bps)
 static int ark3116_attach(struct usb_serial *serial)
 {
 	/* make sure we have our end-points */
-	if ((serial->num_bulk_in == 0) ||
-	    (serial->num_bulk_out == 0) ||
-	    (serial->num_interrupt_in == 0)) {
-		dev_err(&serial->dev->dev,
-			"%s - missing endpoint - "
-			"bulk in: %d, bulk out: %d, int in %d\n",
-			KBUILD_MODNAME,
-			serial->num_bulk_in,
-			serial->num_bulk_out,
-			serial->num_interrupt_in);
-		return -EINVAL;
+	if (serial->num_bulk_in == 0 ||
+			serial->num_bulk_out == 0 ||
+			serial->num_interrupt_in == 0) {
+		dev_err(&serial->interface->dev, "missing endpoint\n");
+		return -ENODEV;
 	}
 
 	return 0;
