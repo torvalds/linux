@@ -1792,17 +1792,6 @@ static struct snd_pcm_ops snd_intelhad_playback_ops = {
 	.mmap =	snd_intelhad_pcm_mmap,
 };
 
-/*
- * snd_intelhad_pcm_free - to free the memory allocated
- *
- * @pcm: pointer to pcm instance
- * This function is called when the device is removed
- */
-static void snd_intelhad_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int had_iec958_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
@@ -2063,7 +2052,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* setup private data which can be retrieved when required */
 	pcm->private_data = ctx;
-	pcm->private_free = snd_intelhad_pcm_free;
 	pcm->info_flags = 0;
 	strncpy(pcm->name, card->shortname, strlen(card->shortname));
 	/* setup the ops for playabck */
