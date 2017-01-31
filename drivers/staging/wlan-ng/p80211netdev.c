@@ -232,7 +232,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev, struct sk_buff *s
 	struct p80211_hdr_a3 *hdr;
 
 	hdr = (struct p80211_hdr_a3 *)skb->data;
-	if (p80211_rx_typedrop(wlandev, hdr->fc))
+	if (p80211_rx_typedrop(wlandev, le16_to_cpu(hdr->fc)))
 		return CONV_TO_ETHER_SKIPPED;
 
 	/* perform mcast filtering: allow my local address through but reject
