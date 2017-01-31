@@ -15,7 +15,6 @@
 #define SCM_QUEUE_DELAY 5
 
 struct scm_blk_dev {
-	struct tasklet_struct tasklet;
 	struct request_queue *rq;
 	struct gendisk *gendisk;
 	struct blk_mq_tag_set tag_set;

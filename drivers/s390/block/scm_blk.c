@@ -338,21 +338,6 @@ static void __scmrq_log_error(struct scm_request *scmrq)
 		       scmrq->error);
 }
 
-void scm_blk_irq(struct scm_device *scmdev, void *data, int error)
-{
-	struct scm_request *scmrq = data;
-	struct scm_blk_dev *bdev = scmrq->bdev;
-
-	scmrq->error = error;
-	if (error)
-		__scmrq_log_error(scmrq);
-
-	spin_lock(&bdev->lock);
-	list_add_tail(&scmrq->list, &bdev->finished_requests);
-	spin_unlock(&bdev->lock);
-	tasklet_hi_schedule(&bdev->tasklet);
-}
-
 static void scm_blk_handle_error(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
@@ -383,30 +368,25 @@ requeue:
 	scm_request_requeue(scmrq);
 }
 
-static void scm_blk_tasklet(struct scm_blk_dev *bdev)
+void scm_blk_irq(struct scm_device *scmdev, void *data, int error)
 {
-	struct scm_request *scmrq;
-	unsigned long flags;
+	struct scm_request *scmrq = data;
 
-	spin_lock_irqsave(&bdev->lock, flags);
-	while (!list_empty(&bdev->finished_requests)) {
-		scmrq = list_first_entry(&bdev->finished_requests,
-					 struct scm_request, list);
-		list_del(&scmrq->list);
-		spin_unlock_irqrestore(&bdev->lock, flags);
-
-		if (scmrq->error && scmrq->retries-- > 0) {
+	scmrq->error = error;
+	if (error) {
+		__scmrq_log_error(scmrq);
+		if (scmrq->retries-- > 0) {
 			scm_blk_handle_error(scmrq);
-
-			/* Request restarted or requeued, handle next. */
-			spin_lock_irqsave(&bdev->lock, flags);
-			continue;
+			return;
 		}
-
-		scm_request_finish(scmrq);
-		spin_lock_irqsave(&bdev->lock, flags);
 	}
-	spin_unlock_irqrestore(&bdev->lock, flags);
+
+	scm_request_finish(scmrq);
+}
+
+static void scm_blk_request_done(struct request *req)
+{
+	blk_mq_end_request(req, 0);
 }
 
 static const struct block_device_operations scm_blk_devops = {
@@ -415,6 +395,7 @@ static const struct block_device_operations scm_blk_devops = {
 
 static const struct blk_mq_ops scm_mq_ops = {
 	.queue_rq = scm_blk_request,
+	.complete = scm_blk_request_done,
 };
 
 int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
@@ -434,11 +415,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->state = SCM_OPER;
 	spin_lock_init(&bdev->rq_lock);
 	spin_lock_init(&bdev->lock);
-	INIT_LIST_HEAD(&bdev->finished_requests);
 	atomic_set(&bdev->queued_reqs, 0);
-	tasklet_init(&bdev->tasklet,
-		     (void (*)(unsigned long)) scm_blk_tasklet,
-		     (unsigned long) bdev);
 
 	bdev->tag_set.ops = &scm_mq_ops;
 	bdev->tag_set.nr_hw_queues = 1;
@@ -502,7 +479,6 @@ out:
 
 void scm_blk_dev_cleanup(struct scm_blk_dev *bdev)
 {
-	tasklet_kill(&bdev->tasklet);
 	del_gendisk(bdev->gendisk);
 	blk_cleanup_queue(bdev->gendisk->queue);
 	blk_mq_free_tag_set(&bdev->tag_set);
