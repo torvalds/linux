@@ -893,7 +893,7 @@ static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 	if (ret)
 		return ret;
 
-	return (ret < 0) ? ret : len;
+	return len;
 }
 
 static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
@@ -913,7 +913,7 @@ static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
 	if (ret)
 		return ret;
 
-	return (ret < 0) ? ret : len;
+	return len;
 }
 
 static int cqspi_erase(struct spi_nor *nor, loff_t offs)
