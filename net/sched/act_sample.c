@@ -81,8 +81,11 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
 	s->psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, s->psample_group_num);
-	if (!psample_group)
+	if (!psample_group) {
+		if (ret == ACT_P_CREATED)
+			tcf_hash_release(*a, bind);
 		return -ENOMEM;
+	}
 	RCU_INIT_POINTER(s->psample_group, psample_group);
 
 	if (tb[TCA_SAMPLE_TRUNC_SIZE]) {
