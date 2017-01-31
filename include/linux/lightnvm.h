@@ -80,8 +80,6 @@ struct nvm_dev_ops {
 	unsigned int		max_phys_sect;
 };
 
-
-
 #ifdef CONFIG_NVM
 
 #include <linux/blkdev.h>
@@ -272,15 +270,6 @@ enum {
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 
-/* system block cpu representation */
-struct nvm_sb_info {
-	unsigned long		seqnr;
-	unsigned long		erase_cnt;
-	unsigned int		version;
-	char			mmtype[NVM_MMTYPE_LEN];
-	struct ppa_addr		fs_ppa;
-};
-
 /* Device generic information */
 struct nvm_geo {
 	int nr_chnls;
@@ -308,6 +297,7 @@ struct nvm_geo {
 	int sec_per_lun;
 };
 
+/* sub-device structure */
 struct nvm_tgt_dev {
 	/* Device information */
 	struct nvm_geo geo;
@@ -329,17 +319,10 @@ struct nvm_dev {
 
 	struct list_head devices;
 
-	/* Media manager */
-	struct nvmm_type *mt;
-	void *mp;
-
-	/* System blocks */
-	struct nvm_sb_info sb;
-
 	/* Device information */
 	struct nvm_geo geo;
 
-	/* lower page table */
+	  /* lower page table */
 	int lps_per_blk;
 	int *lptbl;
 
@@ -359,6 +342,10 @@ struct nvm_dev {
 
 	struct mutex mlock;
 	spinlock_t lock;
+
+	/* target management */
+	struct list_head area_list;
+	struct list_head targets;
 };
 
 static inline struct ppa_addr linear_to_generic_addr(struct nvm_geo *geo,
@@ -452,11 +439,6 @@ static inline int ppa_cmp_blk(struct ppa_addr ppa1, struct ppa_addr ppa2)
 					(ppa1.g.blk == ppa2.g.blk));
 }
 
-static inline int ppa_to_slc(struct nvm_dev *dev, int slc_pg)
-{
-	return dev->lptbl[slc_pg];
-}
-
 typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
 typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *);
@@ -487,49 +469,6 @@ extern void nvm_unregister_tgt_type(struct nvm_tgt_type *);
 extern void *nvm_dev_dma_alloc(struct nvm_dev *, gfp_t, dma_addr_t *);
 extern void nvm_dev_dma_free(struct nvm_dev *, void *, dma_addr_t);
 
-typedef int (nvmm_register_fn)(struct nvm_dev *);
-typedef void (nvmm_unregister_fn)(struct nvm_dev *);
-
-typedef int (nvmm_create_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_create *);
-typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
-typedef int (nvmm_submit_io_fn)(struct nvm_tgt_dev *, struct nvm_rq *);
-typedef int (nvmm_erase_blk_fn)(struct nvm_tgt_dev *, struct ppa_addr *, int);
-typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
-typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
-typedef struct ppa_addr (nvmm_trans_ppa_fn)(struct nvm_tgt_dev *,
-					    struct ppa_addr, int);
-typedef void (nvmm_part_to_tgt_fn)(struct nvm_dev *, sector_t*, int);
-
-enum {
-	TRANS_TGT_TO_DEV =	0x0,
-	TRANS_DEV_TO_TGT =	0x1,
-};
-
-struct nvmm_type {
-	const char *name;
-	unsigned int version[3];
-
-	nvmm_register_fn *register_mgr;
-	nvmm_unregister_fn *unregister_mgr;
-
-	nvmm_create_tgt_fn *create_tgt;
-	nvmm_remove_tgt_fn *remove_tgt;
-
-	nvmm_submit_io_fn *submit_io;
-	nvmm_erase_blk_fn *erase_blk;
-
-	nvmm_get_area_fn *get_area;
-	nvmm_put_area_fn *put_area;
-
-	nvmm_trans_ppa_fn *trans_ppa;
-	nvmm_part_to_tgt_fn *part_to_tgt;
-
-	struct list_head list;
-};
-
-extern int nvm_register_mgr(struct nvmm_type *);
-extern void nvm_unregister_mgr(struct nvmm_type *);
-
 extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
@@ -559,31 +498,9 @@ extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
 extern int nvm_get_bb_tbl(struct nvm_dev *, struct ppa_addr, u8 *);
 extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
 
-/* sysblk.c */
-#define NVM_SYSBLK_MAGIC 0x4E564D53 /* "NVMS" */
-
-/* system block on disk representation */
-struct nvm_system_block {
-	__be32			magic;		/* magic signature */
-	__be32			seqnr;		/* sequence number */
-	__be32			erase_cnt;	/* erase count */
-	__be16			version;	/* version number */
-	u8			mmtype[NVM_MMTYPE_LEN]; /* media manager name */
-	__be64			fs_ppa;		/* PPA for media manager
-						 * superblock */
-};
-
-extern int nvm_get_sysblock(struct nvm_dev *, struct nvm_sb_info *);
-extern int nvm_update_sysblock(struct nvm_dev *, struct nvm_sb_info *);
-extern int nvm_init_sysblock(struct nvm_dev *, struct nvm_sb_info *);
-
 extern int nvm_dev_factory(struct nvm_dev *, int flags);
 
-#define nvm_for_each_lun_ppa(geo, ppa, chid, lunid)			\
-	for ((chid) = 0, (ppa).ppa = 0; (chid) < (geo)->nr_chnls;	\
-					(chid)++, (ppa).g.ch = (chid))	\
-		for ((lunid) = 0; (lunid) < (geo)->luns_per_chnl;	\
-					(lunid)++, (ppa).g.lun = (lunid))
+extern void nvm_part_to_tgt(struct nvm_dev *, sector_t *, int);
 
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;

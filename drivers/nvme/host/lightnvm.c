@@ -372,7 +372,7 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 		}
 
 		/* Transform physical address to target address space */
-		nvmdev->mt->part_to_tgt(nvmdev, entries, cmd_nlb);
+		nvm_part_to_tgt(nvmdev, entries, cmd_nlb);
 
 		if (update_l2p(cmd_slba, cmd_nlb, entries, priv)) {
 			ret = -EINTR;
@@ -633,10 +633,9 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 		return scnprintf(page, PAGE_SIZE, "%u\n", id->cap);
 	} else if (strcmp(attr->name, "device_mode") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", id->dom);
+	/* kept for compatibility */
 	} else if (strcmp(attr->name, "media_manager") == 0) {
-		if (!ndev->mt)
-			return scnprintf(page, PAGE_SIZE, "%s\n", "none");
-		return scnprintf(page, PAGE_SIZE, "%s\n", ndev->mt->name);
+		return scnprintf(page, PAGE_SIZE, "%s\n", "gennvm");
 	} else if (strcmp(attr->name, "ppa_format") == 0) {
 		return scnprintf(page, PAGE_SIZE,
 			"0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
