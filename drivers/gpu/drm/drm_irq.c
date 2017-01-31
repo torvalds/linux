@@ -95,7 +95,7 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
  *
  * Only to be called from drm_crtc_vblank_on().
  *
- * Note: caller must hold dev->vbl_lock since this reads & writes
+ * Note: caller must hold &drm_device.vbl_lock since this reads & writes
  * device vblank fields.
  */
 static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe)
@@ -142,7 +142,7 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
  * Only necessary when going from off->on, to account for frames we
  * didn't get an interrupt for.
  *
- * Note: caller must hold dev->vbl_lock since this reads & writes
+ * Note: caller must hold &drm_device.vbl_lock since this reads & writes
  * device vblank fields.
  */
 static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
@@ -415,29 +415,6 @@ err:
 }
 EXPORT_SYMBOL(drm_vblank_init);
 
-static void drm_irq_vgaarb_nokms(void *cookie, bool state)
-{
-	struct drm_device *dev = cookie;
-
-	if (dev->driver->vgaarb_irq) {
-		dev->driver->vgaarb_irq(dev, state);
-		return;
-	}
-
-	if (!dev->irq_enabled)
-		return;
-
-	if (state) {
-		if (dev->driver->irq_uninstall)
-			dev->driver->irq_uninstall(dev);
-	} else {
-		if (dev->driver->irq_preinstall)
-			dev->driver->irq_preinstall(dev);
-		if (dev->driver->irq_postinstall)
-			dev->driver->irq_postinstall(dev);
-	}
-}
-
 /**
  * drm_irq_install - install IRQ handler
  * @dev: DRM device
@@ -449,7 +426,7 @@ static void drm_irq_vgaarb_nokms(void *cookie, bool state)
  *
  * This is the simplified helper interface provided for drivers with no special
  * needs. Drivers which need to install interrupt handlers for multiple
- * interrupts must instead set drm_device->irq_enabled to signal the DRM core
+ * interrupts must instead set &drm_device.irq_enabled to signal the DRM core
  * that vblank interrupts are available.
  *
  * Returns:
@@ -492,9 +469,6 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		return ret;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		vga_client_register(dev->pdev, (void *)dev, drm_irq_vgaarb_nokms, NULL);
-
 	/* After installing handler */
 	if (dev->driver->irq_postinstall)
 		ret = dev->driver->irq_postinstall(dev);
@@ -519,7 +493,7 @@ EXPORT_SYMBOL(drm_irq_install);
  * Calls the driver's irq_uninstall() function and unregisters the IRQ handler.
  * This should only be called by drivers which used drm_irq_install() to set up
  * their interrupt handler. Other drivers must only reset
- * drm_device->irq_enabled to false.
+ * &drm_device.irq_enabled to false.
  *
  * Note that for kernel modesetting drivers it is a bug if this function fails.
  * The sanity checks are only to catch buggy user modesetting drivers which call
@@ -982,12 +956,11 @@ static void send_vblank_event(struct drm_device *dev,
  * period. This helper function implements exactly the required vblank arming
  * behaviour.
  *
- * NOTE: Drivers using this to send out the event in &struct drm_crtc_state
- * as part of an atomic commit must ensure that the next vblank happens at
- * exactly the same time as the atomic commit is committed to the hardware. This
- * function itself does **not** protect again the next vblank interrupt racing
- * with either this function call or the atomic commit operation. A possible
- * sequence could be:
+ * NOTE: Drivers using this to send out the &drm_crtc_state.event as part of an
+ * atomic commit must ensure that the next vblank happens at exactly the same
+ * time as the atomic commit is committed to the hardware. This function itself
+ * does **not** protect again the next vblank interrupt racing with either this
+ * function call or the atomic commit operation. A possible sequence could be:
  *
  * 1. Driver commits new hardware state into vblank-synchronized registers.
  * 2. A vblank happens, committing the hardware state. Also the corresponding

@@ -74,7 +74,7 @@ err_free:
  * .load() function.
  *
  * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your ->load() callback.
+ * drm_dev_register() instead and remove your &drm_driver.load callback.
  *
  * Return: 0 on success or a negative error code on failure.
  */

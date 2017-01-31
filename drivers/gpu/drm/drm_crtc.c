@@ -47,6 +47,27 @@
 #include "drm_internal.h"
 
 /**
+ * DOC: overview
+ *
+ * A CRTC represents the overall display pipeline. It receives pixel data from
+ * &drm_plane and blends them together. The &drm_display_mode is also attached
+ * to the CRTC, specifying display timings. On the output side the data is fed
+ * to one or more &drm_encoder, which are then each connected to one
+ * &drm_connector.
+ *
+ * To create a CRTC, a KMS drivers allocates and zeroes an instances of
+ * &struct drm_crtc (possibly as part of a larger structure) and registers it
+ * with a call to drm_crtc_init_with_planes().
+ *
+ * The CRTC is also the entry point for legacy modeset operations, see
+ * &drm_crtc_funcs.set_config, legacy plane operations, see
+ * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
+ * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
+ * features are controlled through &drm_property and
+ * &drm_mode_config_funcs.atomic_check and &drm_mode_config_funcs.atomic_check.
+ */
+
+/**
  * drm_crtc_from_index - find the registered CRTC at an index
  * @dev: DRM device
  * @idx: index of registered CRTC to find for
@@ -415,11 +436,12 @@ int drm_mode_getcrtc(struct drm_device *dev,
 }
 
 /**
- * drm_mode_set_config_internal - helper to call ->set_config
+ * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
  * @set: modeset config to set
  *
- * This is a little helper to wrap internal calls to the ->set_config driver
- * interface. The only thing it adds is correct refcounting dance.
+ * This is a little helper to wrap internal calls to the
+ * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
+ * correct refcounting dance.
  *
  * Returns:
  * Zero on success, negative errno on failure.
@@ -460,27 +482,6 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
 /**
- * drm_crtc_get_hv_timing - Fetches hdisplay/vdisplay for given mode
- * @mode: mode to query
- * @hdisplay: hdisplay value to fill in
- * @vdisplay: vdisplay value to fill in
- *
- * The vdisplay value will be doubled if the specified mode is a stereo mode of
- * the appropriate layout.
- */
-void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
-			    int *hdisplay, int *vdisplay)
-{
-	struct drm_display_mode adjusted;
-
-	drm_mode_copy(&adjusted, mode);
-	drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE_ONLY);
-	*hdisplay = adjusted.crtc_hdisplay;
-	*vdisplay = adjusted.crtc_vdisplay;
-}
-EXPORT_SYMBOL(drm_crtc_get_hv_timing);
-
-/**
  * drm_crtc_check_viewport - Checks that a framebuffer is big enough for the
  *     CRTC viewport
  * @crtc: CRTC that framebuffer will be displayed on
@@ -497,7 +498,7 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 {
 	int hdisplay, vdisplay;
 
-	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
+	drm_mode_get_hv_timing(mode, &hdisplay, &vdisplay);
 
 	if (crtc->state &&
 	    drm_rotation_90_or_270(crtc->primary->state->rotation))

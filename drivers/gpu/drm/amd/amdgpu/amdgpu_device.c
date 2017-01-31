@@ -1852,8 +1852,6 @@ failed:
 	return r;
 }
 
-static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev);
-
 /**
  * amdgpu_device_fini - tear down the driver
  *
@@ -1893,7 +1891,6 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	if (adev->asic_type >= CHIP_BONAIRE)
 		amdgpu_doorbell_fini(adev);
 	amdgpu_debugfs_regs_cleanup(adev);
-	amdgpu_debugfs_remove_files(adev);
 }
 
 
@@ -2505,19 +2502,6 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 				 adev->ddev->primary);
 #endif
 	return 0;
-}
-
-static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < adev->debugfs_count; i++) {
-		drm_debugfs_remove_files(adev->debugfs[i].files,
-					 adev->debugfs[i].num_files,
-					 adev->ddev->primary);
-	}
-#endif
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -3152,10 +3136,6 @@ static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
 int amdgpu_debugfs_init(struct drm_minor *minor)
 {
 	return 0;
-}
-
-void amdgpu_debugfs_cleanup(struct drm_minor *minor)
-{
 }
 #else
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)

@@ -28,6 +28,7 @@
 
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_annotate_wait_on);
 EXPORT_TRACEPOINT_SYMBOL(dma_fence_emit);
+EXPORT_TRACEPOINT_SYMBOL(dma_fence_enable_signal);
 
 /*
  * fence context counter: each execution context should have its own

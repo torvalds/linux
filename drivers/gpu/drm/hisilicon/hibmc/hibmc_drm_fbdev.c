@@ -121,7 +121,7 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 
 	hi_fbdev->fb = hibmc_framebuffer_init(priv->dev, &mode_cmd, gobj);
 	if (IS_ERR(hi_fbdev->fb)) {
-		ret = PTR_ERR(info);
+		ret = PTR_ERR(hi_fbdev->fb);
 		DRM_ERROR("failed to initialize framebuffer: %d\n", ret);
 		goto out_release_fbi;
 	}

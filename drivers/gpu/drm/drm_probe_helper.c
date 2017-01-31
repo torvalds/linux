@@ -43,7 +43,7 @@
  * DOC: output probing helper overview
  *
  * This library provides some helper code for output probing. It provides an
- * implementation of the core connector->fill_modes interface with
+ * implementation of the core &drm_connector_funcs.fill_modes interface with
  * drm_helper_probe_single_connector_modes.
  *
  * It also provides support for polling connectors with a work item and for
@@ -187,9 +187,9 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  * be added to the connector's probed_modes list, then culled (based on validity
  * and the @maxX, @maxY parameters) and put into the normal modes list.
  *
- * Intended to be used as a generic implementation of the ->fill_modes()
- * @connector vfunc for drivers that use the CRTC helpers for output mode
- * filtering and detection.
+ * Intended to be used as a generic implementation of the
+ * &drm_connector_funcs.fill_modes() vfunc for drivers that use the CRTC helpers
+ * for output mode filtering and detection.
  *
  * The basic procedure is as follows
  *
@@ -201,7 +201,7 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  *
  *    - debugfs 'override_edid' (used for testing only)
  *    - firmware EDID (drm_load_edid_firmware())
- *    - connector helper ->get_modes() vfunc
+ *    - &drm_connector_helper_funcs.get_modes vfunc
  *    - if the connector status is connector_status_connected, standard
  *      VESA DMT modes up to 1024x768 are automatically added
  *      (drm_add_modes_noedid())
@@ -222,8 +222,8 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  *      (if specified)
  *    - drm_mode_validate_flag() checks the modes againt basic connector
  *      capabilites (interlace_allowed,doublescan_allowed,stereo_allowed)
- *    - the optional connector ->mode_valid() helper can perform driver and/or
- *      hardware specific checks
+ *    - the optional &drm_connector_helper_funcs.mode_valid helper can perform
+ *      driver and/or hardware specific checks
  *
  * 5. Any mode whose status is not OK is pruned from the connector's modes list,
  *    accompanied by a debug message indicating the reason for the mode's

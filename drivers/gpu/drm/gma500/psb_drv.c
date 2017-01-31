@@ -406,11 +406,6 @@ out_err:
 	return ret;
 }
 
-static int psb_driver_device_is_agp(struct drm_device *dev)
-{
-	return 0;
-}
-
 static inline void get_brightness(struct backlight_device *bd)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
@@ -487,7 +482,6 @@ static struct drm_driver driver = {
 	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
-	.device_is_agp = psb_driver_device_is_agp,
 	.irq_preinstall = psb_irq_preinstall,
 	.irq_postinstall = psb_irq_postinstall,
 	.irq_uninstall = psb_irq_uninstall,

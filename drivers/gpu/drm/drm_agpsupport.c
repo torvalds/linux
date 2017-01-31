@@ -421,6 +421,8 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	head->base = head->agp_info.aper_base;
 	return head;
 }
+/* Only exported for i810.ko */
+EXPORT_SYMBOL(drm_agp_init);
 
 /**
  * drm_legacy_agp_clear - Clear AGP resource list

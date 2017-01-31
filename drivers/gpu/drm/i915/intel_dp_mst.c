@@ -587,7 +587,8 @@ intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_ba
 
 	/* create encoders */
 	intel_dp_create_fake_mst_encoders(intel_dig_port);
-	ret = drm_dp_mst_topology_mgr_init(&intel_dp->mst_mgr, dev->dev, &intel_dp->aux, 16, 3, conn_base_id);
+	ret = drm_dp_mst_topology_mgr_init(&intel_dp->mst_mgr, dev,
+					   &intel_dp->aux, 16, 3, conn_base_id);
 	if (ret) {
 		intel_dp->can_mst = false;
 		return ret;

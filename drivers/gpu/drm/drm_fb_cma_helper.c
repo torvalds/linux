@@ -622,3 +622,21 @@ void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, int state)
 		drm_fb_helper_set_suspend(&fbdev_cma->fb_helper, state);
 }
 EXPORT_SYMBOL(drm_fbdev_cma_set_suspend);
+
+/**
+ * drm_fbdev_cma_set_suspend_unlocked - wrapper around
+ *                                      drm_fb_helper_set_suspend_unlocked
+ * @fbdev_cma: The drm_fbdev_cma struct, may be NULL
+ * @state: desired state, zero to resume, non-zero to suspend
+ *
+ * Calls drm_fb_helper_set_suspend, which is a wrapper around
+ * fb_set_suspend implemented by fbdev core.
+ */
+void drm_fbdev_cma_set_suspend_unlocked(struct drm_fbdev_cma *fbdev_cma,
+					int state)
+{
+	if (fbdev_cma)
+		drm_fb_helper_set_suspend_unlocked(&fbdev_cma->fb_helper,
+						   state);
+}
+EXPORT_SYMBOL(drm_fbdev_cma_set_suspend_unlocked);

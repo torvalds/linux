@@ -81,7 +81,6 @@ struct drm_driver {
 	 * Zero on success, non-zero value on failure.
 	 */
 	int (*load) (struct drm_device *, unsigned long flags);
-	int (*firstopen) (struct drm_device *);
 	int (*open) (struct drm_device *, struct drm_file *);
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	void (*postclose) (struct drm_device *, struct drm_file *);
@@ -103,9 +102,6 @@ struct drm_driver {
 	 *
 	 */
 	void (*unload) (struct drm_device *);
-	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	int (*dma_quiescent) (struct drm_device *);
-	int (*context_dtor) (struct drm_device *dev, int context);
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -149,20 +145,6 @@ struct drm_driver {
 	 * argument.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
-
-	/**
-	 * @device_is_agp:
-	 *
-	 * Called by drm_device_is_agp().  Typically used to determine if a card
-	 * is really attached to AGP or not.
-	 *
-	 * Returns:
-	 *
-	 * One of three values is returned depending on whether or not the
-	 * card is absolutely not AGP (return of 0), absolutely is AGP
-	 * (return of 1), or may or may not be AGP (return of 2).
-	 */
-	int (*device_is_agp) (struct drm_device *dev);
 
 	/**
 	 * @get_scanout_position:
@@ -314,7 +296,7 @@ struct drm_driver {
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is for drivers which are not encumbered with dev->struct_mutex
+	 * This is for drivers which are not encumbered with &drm_device.struct_mutex
 	 * legacy locking schemes. Use this hook instead of @gem_free_object.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
@@ -358,9 +340,6 @@ struct drm_driver {
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
-
-	/* vga arb irq handler */
-	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
 	/**
 	 * @dumb_create:
@@ -430,13 +409,20 @@ struct drm_driver {
 	char *date;
 
 	u32 driver_features;
-	int dev_priv_size;
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 
+	/* Everything below here is for legacy driver, never use! */
+	/* private: */
+
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
+	int (*firstopen) (struct drm_device *);
+	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
+	int (*dma_quiescent) (struct drm_device *);
+	int (*context_dtor) (struct drm_device *dev, int context);
+	int dev_priv_size;
 };
 
 extern __printf(6, 7)

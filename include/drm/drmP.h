@@ -790,21 +790,6 @@ extern void drm_sysfs_hotplug_event(struct drm_device *dev);
 
 /*@}*/
 
-/* PCI section */
-static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
-{
-	if (dev->driver->device_is_agp != NULL) {
-		int err = (*dev->driver->device_is_agp) (dev);
-
-		if (err != 2) {
-			return err;
-		}
-	}
-
-	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
-}
-void drm_pci_agp_destroy(struct drm_device *dev);
-
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
 #ifdef CONFIG_PCI
