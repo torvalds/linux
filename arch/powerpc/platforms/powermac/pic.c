@@ -604,6 +604,7 @@ static int pmacpic_find_viaint(void)
 	if (np == NULL)
 		goto not_found;
 	viaint = irq_of_parse_and_map(np, 0);
+	of_node_put(np);
 
 not_found:
 #endif /* CONFIG_ADB_PMU */
