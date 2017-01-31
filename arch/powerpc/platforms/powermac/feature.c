@@ -2853,7 +2853,6 @@ set_initial_features(void)
 		}
 
 		/* Enable ATA-100 before PCI probe. */
-		np = of_find_node_by_name(NULL, "ata-6");
 		for_each_node_by_name(np, "ata-6") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
