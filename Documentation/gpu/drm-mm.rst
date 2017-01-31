@@ -291,10 +291,17 @@ To use :c:func:`drm_gem_mmap()`, drivers must fill the struct
 :c:type:`struct drm_driver <drm_driver>` gem_vm_ops field
 with a pointer to VM operations.
 
-struct vm_operations_struct \*gem_vm_ops struct
-vm_operations_struct { void (\*open)(struct vm_area_struct \* area);
-void (\*close)(struct vm_area_struct \* area); int (\*fault)(struct
-vm_area_struct \*vma, struct vm_fault \*vmf); };
+The VM operations is a :c:type:`struct vm_operations_struct <vm_operations_struct>`
+made up of several fields, the more interesting ones being:
+
+.. code-block:: c
+
+	struct vm_operations_struct {
+		void (*open)(struct vm_area_struct * area);
+		void (*close)(struct vm_area_struct * area);
+		int (*fault)(struct vm_fault *vmf);
+	};
+
 
 The open and close operations must update the GEM object reference
 count. Drivers can use the :c:func:`drm_gem_vm_open()` and
