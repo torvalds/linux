@@ -39,6 +39,14 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 
 	if (exynos_crtc->ops->disable)
 		exynos_crtc->ops->disable(exynos_crtc);
+
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+
+		crtc->state->event = NULL;
+	}
 }
 
 static void
@@ -202,24 +210,4 @@ void exynos_drm_crtc_te_handler(struct drm_crtc *crtc)
 
 	if (exynos_crtc->ops->te_handler)
 		exynos_crtc->ops->te_handler(exynos_crtc);
-}
-
-void exynos_drm_crtc_cancel_page_flip(struct drm_crtc *crtc,
-					struct drm_file *file)
-{
-	struct drm_pending_vblank_event *e;
-	unsigned long flags;
-
-	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-
-	e = crtc->state->event;
-	if (e && e->base.file_priv == file)
-		crtc->state->event = NULL;
-	else
-		e = NULL;
-
-	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-
-	if (e)
-		drm_event_cancel_free(crtc->dev, &e->base);
 }
