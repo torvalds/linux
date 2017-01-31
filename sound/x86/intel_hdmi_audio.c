@@ -593,9 +593,8 @@ static int had_register_chmap_ctls(struct snd_intelhad *intelhaddata,
 		return err;
 
 	intelhaddata->chmap->private_data = intelhaddata;
-	intelhaddata->kctl = intelhaddata->chmap->kctl;
-	intelhaddata->kctl->info = had_chmap_ctl_info;
-	intelhaddata->kctl->get = had_chmap_ctl_get;
+	intelhaddata->chmap->kctl->info = had_chmap_ctl_info;
+	intelhaddata->chmap->kctl->get = had_chmap_ctl_get;
 	intelhaddata->chmap->chmap = NULL;
 	return 0;
 }
@@ -1331,7 +1330,7 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 	intelhaddata = snd_pcm_substream_chip(substream);
 
 	if (intelhaddata->flag_underrun) {
-		intelhaddata->flag_underrun = 0;
+		intelhaddata->flag_underrun = false;
 		return SNDRV_PCM_POS_XRUN;
 	}
 
@@ -1690,7 +1689,7 @@ static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 
 	if (stream_type == HAD_RUNNING_STREAM) {
 		/* Report UNDERRUN error to above layers */
-		intelhaddata->flag_underrun = 1;
+		intelhaddata->flag_underrun = true;
 		had_period_elapsed(stream->had_substream);
 	}
 
@@ -1776,7 +1775,6 @@ static int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
 	kfree(intelhaddata->chmap->chmap);
 	intelhaddata->chmap->chmap = NULL;
-	intelhaddata->audio_reg_base = NULL;
 
 	return 0;
 }
@@ -2019,9 +2017,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->drv_status = HAD_DRV_DISCONNECTED;
 	ctx->dev = &pdev->dev;
 	ctx->card = card;
-	ctx->card_id = hdmi_card_id;
-	ctx->card_index = card->number;
-	ctx->flag_underrun = 0;
+	ctx->flag_underrun = false;
 	ctx->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	strcpy(card->driver, INTEL_HAD);
 	strcpy(card->shortname, INTEL_HAD);

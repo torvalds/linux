@@ -39,8 +39,6 @@
 #include <sound/pcm.h>
 #include "intel_hdmi_lpe_audio.h"
 
-struct platform_device;
-
 #define PCM_INDEX		0
 #define MAX_PB_STREAMS		1
 #define MAX_CAP_STREAMS		0
@@ -102,8 +100,6 @@ struct had_stream_data {
  * struct snd_intelhad - intelhad driver structure
  *
  * @card: ptr to hold card details
- * @card_index: sound card index
- * @card_id: detected sound card id
  * @drv_status: driver status
  * @buf_info: ring buffer info
  * @stream_info: stream information
@@ -114,15 +110,11 @@ struct had_stream_data {
  * @aes_bits: IEC958 status bits
  * @buff_done: id of current buffer done intr
  * @dev: platoform device handle
- * @kctl: holds kctl ptrs used for channel map
  * @chmap: holds channel map info
- * @audio_reg_base: hdmi audio register base offset
  * @underrun_count: PCM stream underrun counter
  */
 struct snd_intelhad {
 	struct snd_card	*card;
-	int		card_index;
-	char		*card_id;
 	enum had_drv_status	drv_status;
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
@@ -131,15 +123,12 @@ struct snd_intelhad {
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;
 	unsigned int	aes_bits;
-	int flag_underrun;
+	bool flag_underrun;
 	struct had_stream_data stream_data;
 	spinlock_t had_spinlock;
 	enum		intel_had_aud_buf_type buff_done;
 	struct device *dev;
-	struct snd_kcontrol *kctl;
 	struct snd_pcm_chmap *chmap;
-	unsigned int	*audio_reg_base;
-	unsigned int	audio_cfg_offset;
 	int underrun_count;
 	enum hdmi_connector_status state;
 	int tmds_clock_speed;
@@ -149,7 +138,6 @@ struct snd_intelhad {
 	int irq;
 	void __iomem *mmio_start;
 	unsigned int had_config_offset;
-	int hdmi_audio_interrupt_mask;
 	struct work_struct hdmi_audio_wq;
 };
 
