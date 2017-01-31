@@ -801,13 +801,11 @@ static int sst_get_frame_sync_polarity(struct snd_soc_dai *dai,
 
 	switch (format) {
 	case SND_SOC_DAIFMT_NB_NF:
-		return SSP_FS_ACTIVE_LOW;
-	case SND_SOC_DAIFMT_NB_IF:
-		return SSP_FS_ACTIVE_HIGH;
-	case SND_SOC_DAIFMT_IB_IF:
-		return SSP_FS_ACTIVE_LOW;
 	case SND_SOC_DAIFMT_IB_NF:
 		return SSP_FS_ACTIVE_HIGH;
+	case SND_SOC_DAIFMT_NB_IF:
+	case SND_SOC_DAIFMT_IB_IF:
+		return SSP_FS_ACTIVE_LOW;
 	default:
 		dev_err(dai->dev, "Invalid frame sync polarity %d\n", format);
 	}
