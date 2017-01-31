@@ -678,20 +678,20 @@ void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-static cputime_t vtime_delta(struct task_struct *tsk)
+static u64 vtime_delta(struct task_struct *tsk)
 {
 	unsigned long now = READ_ONCE(jiffies);
 
 	if (time_before(now, (unsigned long)tsk->vtime_snap))
 		return 0;
 
-	return jiffies_to_cputime(now - tsk->vtime_snap);
+	return jiffies_to_nsecs(now - tsk->vtime_snap);
 }
 
-static cputime_t get_vtime_delta(struct task_struct *tsk)
+static u64 get_vtime_delta(struct task_struct *tsk)
 {
 	unsigned long now = READ_ONCE(jiffies);
-	cputime_t delta, other;
+	u64 delta, other;
 
 	/*
 	 * Unlike tick based timing, vtime based timing never has lost
@@ -700,7 +700,7 @@ static cputime_t get_vtime_delta(struct task_struct *tsk)
 	 * elapsed time. Limit account_other_time to prevent rounding
 	 * errors from causing elapsed vtime to go negative.
 	 */
-	delta = jiffies_to_cputime(now - tsk->vtime_snap);
+	delta = jiffies_to_nsecs(now - tsk->vtime_snap);
 	other = account_other_time(delta);
 	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);
 	tsk->vtime_snap = now;
@@ -710,9 +710,7 @@ static cputime_t get_vtime_delta(struct task_struct *tsk)
 
 static void __vtime_account_system(struct task_struct *tsk)
 {
-	cputime_t delta_cpu = get_vtime_delta(tsk);
-
-	account_system_time(tsk, irq_count(), cputime_to_nsecs(delta_cpu));
+	account_system_time(tsk, irq_count(), get_vtime_delta(tsk));
 }
 
 void vtime_account_system(struct task_struct *tsk)
@@ -727,15 +725,10 @@ void vtime_account_system(struct task_struct *tsk)
 
 void vtime_account_user(struct task_struct *tsk)
 {
-	cputime_t delta_cpu;
-
 	write_seqcount_begin(&tsk->vtime_seqcount);
 	tsk->vtime_snap_whence = VTIME_SYS;
-	if (vtime_delta(tsk)) {
-		u64 nsecs;
-		delta_cpu = get_vtime_delta(tsk);
-		account_user_time(tsk, cputime_to_nsecs(delta_cpu));
-	}
+	if (vtime_delta(tsk))
+		account_user_time(tsk, get_vtime_delta(tsk));
 	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
@@ -776,9 +769,7 @@ EXPORT_SYMBOL_GPL(vtime_guest_exit);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
-	cputime_t delta_cpu = get_vtime_delta(tsk);
-
-	account_idle_time(cputime_to_nsecs(delta_cpu));
+	account_idle_time(get_vtime_delta(tsk));
 }
 
 void arch_vtime_task_switch(struct task_struct *prev)
@@ -818,7 +809,7 @@ u64 task_gtime(struct task_struct *t)
 
 		gtime = t->gtime;
 		if (t->vtime_snap_whence == VTIME_SYS && t->flags & PF_VCPU)
-			gtime += cputime_to_nsecs(vtime_delta(t));
+			gtime += vtime_delta(t);
 
 	} while (read_seqcount_retry(&t->vtime_seqcount, seq));
 
@@ -851,7 +842,7 @@ void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
 		if (t->vtime_snap_whence == VTIME_INACTIVE || is_idle_task(t))
 			continue;
 
-		delta = cputime_to_nsecs(vtime_delta(t));
+		delta = vtime_delta(t);
 
 		/*
 		 * Task runs either in user or kernel space, add pending nohz time to
