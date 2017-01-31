@@ -224,7 +224,7 @@ static int hva_open_encoder(struct hva_ctx *ctx, u32 streamformat,
 	return ret;
 }
 
-void hva_dbg_summary(struct hva_ctx *ctx)
+static void hva_dbg_summary(struct hva_ctx *ctx)
 {
 	struct device *dev = ctx_to_dev(ctx);
 	struct hva_streaminfo *stream = &ctx->streaminfo;
