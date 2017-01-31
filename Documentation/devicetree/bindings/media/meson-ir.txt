@@ -8,6 +8,9 @@ Required properties:
  - reg		: physical base address and length of the device registers
  - interrupts	: a single specifier for the interrupt from the device
 
+Optional properties:
+ - linux,rc-map-name:	see rc.txt file in the same directory.
+
 Example:
 
 	ir-receiver@c8100480 {
