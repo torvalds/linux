@@ -378,10 +378,10 @@ static inline struct ppa_addr linear_to_generic_addr(struct nvm_geo *geo,
 	return l;
 }
 
-static inline struct ppa_addr generic_to_dev_addr(struct nvm_dev *dev,
-						struct ppa_addr r)
+static inline struct ppa_addr generic_to_dev_addr(struct nvm_tgt_dev *tgt_dev,
+						  struct ppa_addr r)
 {
-	struct nvm_geo *geo = &dev->geo;
+	struct nvm_geo *geo = &tgt_dev->geo;
 	struct ppa_addr l;
 
 	l.ppa = ((u64)r.g.blk) << geo->ppaf.blk_offset;
@@ -394,10 +394,10 @@ static inline struct ppa_addr generic_to_dev_addr(struct nvm_dev *dev,
 	return l;
 }
 
-static inline struct ppa_addr dev_to_generic_addr(struct nvm_dev *dev,
-						struct ppa_addr r)
+static inline struct ppa_addr dev_to_generic_addr(struct nvm_tgt_dev *tgt_dev,
+						  struct ppa_addr r)
 {
-	struct nvm_geo *geo = &dev->geo;
+	struct nvm_geo *geo = &tgt_dev->geo;
 	struct ppa_addr l;
 
 	l.ppa = 0;
@@ -477,8 +477,6 @@ extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
-extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
-extern void nvm_addr_to_generic_mode(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
 					const struct ppa_addr *, int, int);
 extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);

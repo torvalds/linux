@@ -50,11 +50,6 @@ struct nvm_area {
 	sector_t end;	/* end is excluded */
 };
 
-enum {
-	TRANS_TGT_TO_DEV =	0x0,
-	TRANS_DEV_TO_TGT =	0x1,
-};
-
 static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
 {
 	struct nvm_target *tgt;
@@ -428,38 +423,46 @@ static void nvm_map_to_tgt(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 	p->g.lun -= lun_roff;
 }
 
-static void nvm_trans_rq(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
-			int flag)
+static void nvm_ppa_tgt_to_dev(struct nvm_tgt_dev *tgt_dev,
+				struct ppa_addr *ppa_list, int nr_ppas)
 {
 	int i;
 
-	if (rqd->nr_ppas == 1) {
-		if (flag == TRANS_TGT_TO_DEV)
-			nvm_map_to_dev(tgt_dev, &rqd->ppa_addr);
-		else
-			nvm_map_to_tgt(tgt_dev, &rqd->ppa_addr);
-		return;
-	}
-
-	for (i = 0; i < rqd->nr_ppas; i++) {
-		if (flag == TRANS_TGT_TO_DEV)
-			nvm_map_to_dev(tgt_dev, &rqd->ppa_list[i]);
-		else
-			nvm_map_to_tgt(tgt_dev, &rqd->ppa_list[i]);
+	for (i = 0; i < nr_ppas; i++) {
+		nvm_map_to_dev(tgt_dev, &ppa_list[i]);
+		ppa_list[i] = generic_to_dev_addr(tgt_dev, ppa_list[i]);
 	}
 }
 
-static struct ppa_addr nvm_trans_ppa(struct nvm_tgt_dev *tgt_dev,
-				     struct ppa_addr p, int dir)
+static void nvm_ppa_dev_to_tgt(struct nvm_tgt_dev *tgt_dev,
+				struct ppa_addr *ppa_list, int nr_ppas)
 {
-	struct ppa_addr ppa = p;
+	int i;
 
-	if (dir == TRANS_TGT_TO_DEV)
-		nvm_map_to_dev(tgt_dev, &ppa);
-	else
-		nvm_map_to_tgt(tgt_dev, &ppa);
+	for (i = 0; i < nr_ppas; i++) {
+		ppa_list[i] = dev_to_generic_addr(tgt_dev, ppa_list[i]);
+		nvm_map_to_tgt(tgt_dev, &ppa_list[i]);
+	}
+}
 
-	return ppa;
+static void nvm_rq_tgt_to_dev(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
+{
+	if (rqd->nr_ppas == 1) {
+		nvm_ppa_tgt_to_dev(tgt_dev, &rqd->ppa_addr, 1);
+		return;
+	}
+
+	nvm_ppa_tgt_to_dev(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
+}
+
+static void nvm_rq_dev_to_tgt(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
+{
+	if (rqd->nr_ppas == 1) {
+		nvm_ppa_dev_to_tgt(tgt_dev, &rqd->ppa_addr, 1);
+		return;
+	}
+
+	nvm_ppa_dev_to_tgt(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
 }
 
 void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
@@ -564,26 +567,6 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
-static void nvm_tgt_generic_to_addr_mode(struct nvm_tgt_dev *tgt_dev,
-					 struct nvm_rq *rqd)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	int i;
-
-	if (rqd->nr_ppas > 1) {
-		for (i = 0; i < rqd->nr_ppas; i++) {
-			rqd->ppa_list[i] = nvm_trans_ppa(tgt_dev,
-					rqd->ppa_list[i], TRANS_TGT_TO_DEV);
-			rqd->ppa_list[i] = generic_to_dev_addr(dev,
-							rqd->ppa_list[i]);
-		}
-	} else {
-		rqd->ppa_addr = nvm_trans_ppa(tgt_dev, rqd->ppa_addr,
-						TRANS_TGT_TO_DEV);
-		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
-	}
-}
-
 int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 		       int nr_ppas, int type)
 {
@@ -599,7 +582,7 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
-	nvm_tgt_generic_to_addr_mode(tgt_dev, &rqd);
+	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
 	nvm_free_rqd_ppalist(dev, &rqd);
@@ -627,8 +610,7 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	if (!dev->ops->submit_io)
 		return -ENODEV;
 
-	/* Convert address space */
-	nvm_generic_to_addr_mode(dev, rqd);
+	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
 	return dev->ops->submit_io(dev, rqd);
@@ -652,7 +634,7 @@ int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas, int flags)
 	if (ret)
 		return ret;
 
-	nvm_generic_to_addr_mode(dev, &rqd);
+	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	rqd.flags = flags;
 
@@ -741,34 +723,6 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 }
 EXPORT_SYMBOL(nvm_put_area);
 
-void nvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	int i;
-
-	if (rqd->nr_ppas > 1) {
-		for (i = 0; i < rqd->nr_ppas; i++)
-			rqd->ppa_list[i] = dev_to_generic_addr(dev,
-							rqd->ppa_list[i]);
-	} else {
-		rqd->ppa_addr = dev_to_generic_addr(dev, rqd->ppa_addr);
-	}
-}
-EXPORT_SYMBOL(nvm_addr_to_generic_mode);
-
-void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	int i;
-
-	if (rqd->nr_ppas > 1) {
-		for (i = 0; i < rqd->nr_ppas; i++)
-			rqd->ppa_list[i] = generic_to_dev_addr(dev,
-							rqd->ppa_list[i]);
-	} else {
-		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
-	}
-}
-EXPORT_SYMBOL(nvm_generic_to_addr_mode);
-
 int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 			const struct ppa_addr *ppas, int nr_ppas, int vblk)
 {
@@ -826,7 +780,7 @@ void nvm_end_io(struct nvm_rq *rqd, int error)
 
 	/* Convert address space */
 	if (tgt_dev)
-		nvm_trans_rq(tgt_dev, rqd, TRANS_DEV_TO_TGT);
+		nvm_rq_dev_to_tgt(tgt_dev, rqd);
 
 	rqd->error = error;
 	ins->tt->end_io(rqd);
@@ -874,8 +828,7 @@ int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 
-	ppa = nvm_trans_ppa(tgt_dev, ppa, TRANS_TGT_TO_DEV);
-	ppa = generic_to_dev_addr(dev, ppa);
+	nvm_ppa_tgt_to_dev(tgt_dev, &ppa, 1);
 
 	return dev->ops->get_bb_tbl(dev, ppa, blks);
 }
