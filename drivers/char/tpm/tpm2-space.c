@@ -32,18 +32,39 @@ struct tpm2_context {
 	__be16 blob_size;
 } __packed;
 
+static void tpm2_flush_sessions(struct tpm_chip *chip, struct tpm_space *space)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(space->session_tbl); i++) {
+		if (space->session_tbl[i])
+			tpm2_flush_context_cmd(chip, space->session_tbl[i],
+					       TPM_TRANSMIT_UNLOCKED);
+	}
+}
+
 int tpm2_init_space(struct tpm_space *space)
 {
 	space->context_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!space->context_buf)
 		return -ENOMEM;
 
+	space->session_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (space->session_buf == NULL) {
+		kfree(space->context_buf);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
-void tpm2_del_space(struct tpm_space *space)
+void tpm2_del_space(struct tpm_chip *chip, struct tpm_space *space)
 {
+	mutex_lock(&chip->tpm_mutex);
+	tpm2_flush_sessions(chip, space);
+	mutex_unlock(&chip->tpm_mutex);
 	kfree(space->context_buf);
+	kfree(space->session_buf);
 }
 
 static int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
@@ -69,6 +90,20 @@ static int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
 			 __func__, rc);
 		tpm_buf_destroy(&tbuf);
 		return -EFAULT;
+	} else if (tpm2_rc_value(rc) == TPM2_RC_HANDLE ||
+		   rc == TPM2_RC_REFERENCE_H0) {
+		/*
+		 * TPM_RC_HANDLE means that the session context can't
+		 * be loaded because of an internal counter mismatch
+		 * that makes the TPM think there might have been a
+		 * replay.  This might happen if the context was saved
+		 * and loaded outside the space.
+		 *
+		 * TPM_RC_REFERENCE_H0 means the session has been
+		 * flushed outside the space
+		 */
+		rc = -ENOENT;
+		tpm_buf_destroy(&tbuf);
 	} else if (rc > 0) {
 		dev_warn(&chip->dev, "%s: failed with a TPM error 0x%04X\n",
 			 __func__, rc);
@@ -121,7 +156,6 @@ static int tpm2_save_context(struct tpm_chip *chip, u32 handle, u8 *buf,
 	}
 
 	memcpy(&buf[*offset], &tbuf.data[TPM_HEADER_SIZE], body_size);
-	tpm2_flush_context_cmd(chip, handle, TPM_TRANSMIT_UNLOCKED);
 	*offset += body_size;
 	tpm_buf_destroy(&tbuf);
 	return 0;
@@ -136,6 +170,8 @@ static void tpm2_flush_space(struct tpm_chip *chip)
 		if (space->context_tbl[i] && ~space->context_tbl[i])
 			tpm2_flush_context_cmd(chip, space->context_tbl[i],
 					       TPM_TRANSMIT_UNLOCKED);
+
+	tpm2_flush_sessions(chip, space);
 }
 
 static int tpm2_load_space(struct tpm_chip *chip)
@@ -161,6 +197,28 @@ static int tpm2_load_space(struct tpm_chip *chip)
 			return rc;
 	}
 
+	for (i = 0, offset = 0; i < ARRAY_SIZE(space->session_tbl); i++) {
+		u32 handle;
+
+		if (!space->session_tbl[i])
+			continue;
+
+		rc = tpm2_load_context(chip, space->session_buf,
+				       &offset, &handle);
+		if (rc == -ENOENT) {
+			/* load failed, just forget session */
+			space->session_tbl[i] = 0;
+		} else if (rc) {
+			tpm2_flush_space(chip);
+			return rc;
+		}
+		if (handle != space->session_tbl[i]) {
+			dev_warn(&chip->dev, "session restored to wrong handle\n");
+			tpm2_flush_space(chip);
+			return -EFAULT;
+		}
+	}
+
 	return 0;
 }
 
@@ -171,7 +229,7 @@ static bool tpm2_map_to_phandle(struct tpm_space *space, void *handle)
 	int i;
 
 	i = 0xFFFFFF - (vhandle & 0xFFFFFF);
-	if (i > ARRAY_SIZE(space->context_tbl) || !space->context_tbl[i])
+	if (i >= ARRAY_SIZE(space->context_tbl) || !space->context_tbl[i])
 		return false;
 
 	phandle = space->context_tbl[i];
@@ -215,7 +273,10 @@ int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
 
 	memcpy(&chip->work_space.context_tbl, &space->context_tbl,
 	       sizeof(space->context_tbl));
+	memcpy(&chip->work_space.session_tbl, &space->session_tbl,
+	       sizeof(space->session_tbl));
 	memcpy(chip->work_space.context_buf, space->context_buf, PAGE_SIZE);
+	memcpy(chip->work_space.session_buf, space->session_buf, PAGE_SIZE);
 
 	rc = tpm2_load_space(chip);
 	if (rc) {
@@ -230,6 +291,22 @@ int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
 	}
 
 	return 0;
+}
+
+static bool tpm2_add_session(struct tpm_chip *chip, u32 handle)
+{
+	struct tpm_space *space = &chip->work_space;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(space->session_tbl); i++)
+		if (space->session_tbl[i] == 0)
+			break;
+
+	if (i == ARRAY_SIZE(space->session_tbl))
+		return false;
+
+	space->session_tbl[i] = handle;
+	return true;
 }
 
 static u32 tpm2_map_to_vhandle(struct tpm_space *space, u32 phandle, bool alloc)
@@ -288,6 +365,8 @@ static int tpm2_map_response_header(struct tpm_chip *chip, u32 cc, u8 *rsp,
 		break;
 	case TPM2_HT_HMAC_SESSION:
 	case TPM2_HT_POLICY_SESSION:
+		if (!tpm2_add_session(chip, phandle))
+			goto out_no_slots;
 		break;
 	default:
 		dev_err(&chip->dev, "%s: unknown handle 0x%08X\n",
@@ -350,14 +429,10 @@ static int tpm2_map_response_body(struct tpm_chip *chip, u32 cc, u8 *rsp,
 			data->handles[j] = cpu_to_be32(vhandle);
 			j++;
 			break;
-		case TPM2_HT_HMAC_SESSION:
-		case TPM2_HT_POLICY_SESSION:
+
+		default:
 			data->handles[j] = cpu_to_be32(phandle);
 			j++;
-			break;
-		default:
-			dev_err(&chip->dev, "%s: unknown handle 0x%08X\n",
-				__func__, phandle);
 			break;
 		}
 
@@ -388,7 +463,26 @@ static int tpm2_save_space(struct tpm_chip *chip)
 		} else if (rc)
 			return rc;
 
+		tpm2_flush_context_cmd(chip, space->context_tbl[i],
+				       TPM_TRANSMIT_UNLOCKED);
 		space->context_tbl[i] = ~0;
+	}
+
+	for (i = 0, offset = 0; i < ARRAY_SIZE(space->session_tbl); i++) {
+		if (!space->session_tbl[i])
+			continue;
+
+		rc = tpm2_save_context(chip, space->session_tbl[i],
+				       space->session_buf, PAGE_SIZE,
+				       &offset);
+
+		if (rc == -ENOENT) {
+			/* handle error saving session, just forget it */
+			space->session_tbl[i] = 0;
+		} else if (rc < 0) {
+			tpm2_flush_space(chip);
+			return rc;
+		}
 	}
 
 	return 0;
@@ -425,7 +519,10 @@ int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,
 
 	memcpy(&space->context_tbl, &chip->work_space.context_tbl,
 	       sizeof(space->context_tbl));
+	memcpy(&space->session_tbl, &chip->work_space.session_tbl,
+	       sizeof(space->session_tbl));
 	memcpy(space->context_buf, chip->work_space.context_buf, PAGE_SIZE);
+	memcpy(space->session_buf, chip->work_space.session_buf, PAGE_SIZE);
 
 	return 0;
 }

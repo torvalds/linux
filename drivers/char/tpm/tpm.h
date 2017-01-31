@@ -161,6 +161,8 @@ enum tpm2_cc_attrs {
 struct tpm_space {
 	u32 context_tbl[3];
 	u8 *context_buf;
+	u32 session_tbl[3];
+	u8 *session_buf;
 };
 
 enum tpm_chip_flags {
@@ -588,7 +590,7 @@ unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
 int tpm2_probe(struct tpm_chip *chip);
 int tpm2_find_cc(struct tpm_chip *chip, u32 cc);
 int tpm2_init_space(struct tpm_space *space);
-void tpm2_del_space(struct tpm_space *space);
+void tpm2_del_space(struct tpm_chip *chip, struct tpm_space *space);
 int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u32 cc,
 		       u8 *cmd);
 int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space,

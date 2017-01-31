@@ -130,6 +130,7 @@ static void tpm_dev_release(struct device *dev)
 
 	kfree(chip->log.bios_event_log);
 	kfree(chip->work_space.context_buf);
+	kfree(chip->work_space.session_buf);
 	kfree(chip);
 }
 
@@ -224,6 +225,11 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 		rc = -ENOMEM;
 		goto out;
 	}
+	chip->work_space.session_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!chip->work_space.session_buf) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	return chip;
 
@@ -294,7 +300,6 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
 			dev_name(&chip->devs), MAJOR(chip->devs.devt),
 			MINOR(chip->devs.devt), rc);
-		tpm_del_char_device(chip, true);
 		return rc;
 	}
 
@@ -306,7 +311,6 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 			dev_name(&chip->devs), MAJOR(chip->devs.devt),
 			MINOR(chip->devs.devt), rc);
 		cdev_del(&chip->cdevs);
-		tpm_del_char_device(chip, true);
 		return rc;
 	}
 
