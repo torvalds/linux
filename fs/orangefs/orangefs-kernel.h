@@ -439,9 +439,8 @@ struct inode *orangefs_new_inode(struct super_block *sb,
 
 int orangefs_setattr(struct dentry *dentry, struct iattr *iattr);
 
-int orangefs_getattr(struct vfsmount *mnt,
-		  struct dentry *dentry,
-		  struct kstat *kstat);
+int orangefs_getattr(const struct path *path, struct kstat *stat,
+		     u32 request_mask, unsigned int flags);
 
 int orangefs_permission(struct inode *inode, int mask);
 

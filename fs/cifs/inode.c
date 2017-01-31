@@ -1990,9 +1990,10 @@ int cifs_revalidate_dentry(struct dentry *dentry)
 	return cifs_revalidate_mapping(inode);
 }
 
-int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		 struct kstat *stat)
+int cifs_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
+	struct dentry *dentry = path->dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct inode *inode = d_inode(dentry);

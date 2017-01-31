@@ -1777,10 +1777,10 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	return ret;
 }
 
-static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
-			struct kstat *stat)
+static int fuse_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(entry);
+	struct inode *inode = d_inode(path->dentry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
 	if (!fuse_allow_current_process(fc))
