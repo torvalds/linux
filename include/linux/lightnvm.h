@@ -440,6 +440,8 @@ typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
 typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *);
 typedef void (nvm_tgt_exit_fn)(void *);
+typedef int (nvm_tgt_sysfs_init_fn)(struct gendisk *);
+typedef void (nvm_tgt_sysfs_exit_fn)(struct gendisk *);
 
 struct nvm_tgt_type {
 	const char *name;
@@ -452,6 +454,10 @@ struct nvm_tgt_type {
 	/* module-specific init/teardown */
 	nvm_tgt_init_fn *init;
 	nvm_tgt_exit_fn *exit;
+
+	/* sysfs */
+	nvm_tgt_sysfs_init_fn *sysfs_init;
+	nvm_tgt_sysfs_exit_fn *sysfs_exit;
 
 	/* For internal use */
 	struct list_head list;
