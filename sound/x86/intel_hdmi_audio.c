@@ -1028,14 +1028,12 @@ exit_put_handle:
 	return retval;
 }
 
-/**
+/*
  * had_period_elapsed - updates the hardware pointer status
- * @had_substream:substream for which the stream function is called
- *
+ * @had_substream: substream for which the stream function is called
  */
-static void had_period_elapsed(void *had_substream)
+static void had_period_elapsed(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_substream *substream = had_substream;
 	struct had_stream_pvt *stream;
 
 	if (!substream || !substream->runtime)
@@ -1058,7 +1056,6 @@ static int snd_intelhad_init_stream(struct snd_pcm_substream *substream)
 {
 	struct snd_intelhad *intelhaddata = snd_pcm_substream_chip(substream);
 
-	intelhaddata->stream_info.period_elapsed = had_period_elapsed;
 	intelhaddata->stream_info.had_substream = substream;
 	intelhaddata->stream_info.buffer_ptr = 0;
 	intelhaddata->stream_info.buffer_rendered = 0;
@@ -1648,11 +1645,11 @@ static int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	/* In case of actual data,
 	 * report buffer_done to above ALSA layer
 	 */
-	buf_size =  intelhaddata->buf_info[buf_id].buf_size;
+	buf_size = intelhaddata->buf_info[buf_id].buf_size;
 	if (stream_type >= HAD_RUNNING_STREAM) {
 		intelhaddata->stream_info.buffer_rendered +=
 			(intr_count * buf_size);
-		stream->period_elapsed(stream->had_substream);
+		had_period_elapsed(stream->had_substream);
 	}
 
 	return 0;
@@ -1694,7 +1691,7 @@ static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 	if (stream_type == HAD_RUNNING_STREAM) {
 		/* Report UNDERRUN error to above layers */
 		intelhaddata->flag_underrun = 1;
-		stream->period_elapsed(stream->had_substream);
+		had_period_elapsed(stream->had_substream);
 	}
 
 	return 0;
