@@ -620,13 +620,6 @@ struct task_cputime {
 #define prof_exp	stime
 #define sched_exp	sum_exec_runtime
 
-#define INIT_CPUTIME	\
-	(struct task_cputime) {					\
-		.utime = 0,					\
-		.stime = 0,					\
-		.sum_exec_runtime = 0,				\
-	}
-
 /*
  * This is the atomic variant of task_cputime, which can be used for
  * storing and updating task_cputime statistics without locking.
