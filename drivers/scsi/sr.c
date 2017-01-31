@@ -437,14 +437,17 @@ static int sr_init_command(struct scsi_cmnd *SCpnt)
 		goto out;
 	}
 
-	if (rq_data_dir(rq) == WRITE) {
+	switch (req_op(rq)) {
+	case REQ_OP_WRITE:
 		if (!cd->writeable)
 			goto out;
 		SCpnt->cmnd[0] = WRITE_10;
 		cd->cdi.media_written = 1;
-	} else if (rq_data_dir(rq) == READ) {
+		break;
+	case REQ_OP_READ:
 		SCpnt->cmnd[0] = READ_10;
-	} else {
+		break;
+	default:
 		blk_dump_rq_flags(rq, "Unknown sr command");
 		goto out;
 	}

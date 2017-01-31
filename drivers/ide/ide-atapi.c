@@ -92,9 +92,9 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	struct request *rq;
 	int error;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
 	scsi_req_init(rq);
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = (char *)pc;
 
 	if (buf && bufflen) {
@@ -193,7 +193,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 
 	BUG_ON(sense_len > sizeof(*sense));
 
-	if (rq->cmd_type == REQ_TYPE_ATA_SENSE || drive->sense_rq_armed)
+	if (ata_sense_request(rq) || drive->sense_rq_armed)
 		return;
 
 	memset(sense, 0, sizeof(*sense));
@@ -211,7 +211,8 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	}
 
 	sense_rq->rq_disk = rq->rq_disk;
-	sense_rq->cmd_type = REQ_TYPE_ATA_SENSE;
+	sense_rq->cmd_flags = REQ_OP_DRV_IN;
+	ide_req(sense_rq)->type = ATA_PRIV_SENSE;
 	sense_rq->rq_flags |= RQF_PREEMPT;
 
 	req->cmd[0] = GPCMD_REQUEST_SENSE;
@@ -310,15 +311,21 @@ EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
-	switch (rq->cmd_type) {
-	case REQ_TYPE_FS:
-		return 32768;
-	case REQ_TYPE_ATA_SENSE:
-	case REQ_TYPE_BLOCK_PC:
-	case REQ_TYPE_ATA_PC:
-		return blk_rq_bytes(rq);
+	switch (req_op(rq)) {
 	default:
-		return 0;
+		return 32768;
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
+		return blk_rq_bytes(rq);
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
+		switch (ide_req(rq)->type) {
+		case ATA_PRIV_PC:
+		case ATA_PRIV_SENSE:
+			return blk_rq_bytes(rq);
+		default:
+			return 0;
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
@@ -377,7 +384,7 @@ int ide_check_ireason(ide_drive_t *drive, struct request *rq, int len,
 				drive->name, __func__, ireason);
 	}
 
-	if (dev_is_idecd(drive) && rq->cmd_type == REQ_TYPE_ATA_PC)
+	if (dev_is_idecd(drive) && ata_pc_request(rq))
 		rq->rq_flags |= RQF_FAILED;
 
 	return 1;
@@ -480,12 +487,12 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (rq->cmd_type == REQ_TYPE_DRV_PRIV) {
+		if (ata_misc_request(rq)) {
 			rq->errors = 0;
 			error = 0;
 		} else {
 
-			if (rq->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
+			if (blk_rq_is_passthrough(rq) && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}

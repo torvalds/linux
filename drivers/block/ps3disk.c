@@ -196,16 +196,19 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
 	while ((req = blk_fetch_request(q))) {
-		if (req_op(req) == REQ_OP_FLUSH) {
+		switch (req_op(req)) {
+		case REQ_OP_FLUSH:
 			if (ps3disk_submit_flush_request(dev, req))
-				break;
-		} else if (req->cmd_type == REQ_TYPE_FS) {
+				return;
+			break;
+		case REQ_OP_READ:
+		case REQ_OP_WRITE:
 			if (ps3disk_submit_request_sg(dev, req))
-				break;
-		} else {
+				return;
+			break;
+		default:
 			blk_dump_rq_flags(req, DEVICE_NAME " bad request");
 			__blk_end_request_all(req, -EIO);
-			continue;
 		}
 	}
 }

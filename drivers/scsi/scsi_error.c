@@ -1106,7 +1106,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
 
 static int scsi_eh_action(struct scsi_cmnd *scmd, int rtn)
 {
-	if (scmd->request->cmd_type != REQ_TYPE_BLOCK_PC) {
+	if (!blk_rq_is_passthrough(scmd->request)) {
 		struct scsi_driver *sdrv = scsi_cmd_to_driver(scmd);
 		if (sdrv->eh_action)
 			rtn = sdrv->eh_action(scmd, rtn);
@@ -1746,7 +1746,7 @@ check_type:
 	 * the check condition was retryable.
 	 */
 	if (scmd->request->cmd_flags & REQ_FAILFAST_DEV ||
-	    scmd->request->cmd_type == REQ_TYPE_BLOCK_PC)
+	    blk_rq_is_passthrough(scmd->request))
 		return 1;
 	else
 		return 0;
@@ -1974,7 +1974,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
 	 * request becomes available
 	 */
-	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
+	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, GFP_KERNEL);
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);

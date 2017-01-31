@@ -1565,7 +1565,8 @@ static struct request *_make_request(struct request_queue *q, bool has_write,
 	struct bio *bio = oii->bio;
 	int ret;
 
-	req = blk_get_request(q, has_write ? WRITE : READ, flags);
+	req = blk_get_request(q, has_write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
+			flags);
 	if (IS_ERR(req))
 		return req;
 	scsi_req_init(req);

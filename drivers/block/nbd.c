@@ -193,13 +193,6 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 	set_bit(NBD_TIMEDOUT, &nbd->runtime_flags);
 	req->errors++;
 
-	/*
-	 * If our disconnect packet times out then we're already holding the
-	 * config_lock and could deadlock here, so just set an error and return,
-	 * we'll handle shutting everything down later.
-	 */
-	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
-		return BLK_EH_HANDLED;
 	mutex_lock(&nbd->config_lock);
 	sock_shutdown(nbd);
 	mutex_unlock(&nbd->config_lock);
@@ -278,14 +271,29 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	u32 type;
 	u32 tag = blk_mq_unique_tag(req);
 
-	if (req_op(req) == REQ_OP_DISCARD)
+	switch (req_op(req)) {
+	case REQ_OP_DISCARD:
 		type = NBD_CMD_TRIM;
-	else if (req_op(req) == REQ_OP_FLUSH)
+		break;
+	case REQ_OP_FLUSH:
 		type = NBD_CMD_FLUSH;
-	else if (rq_data_dir(req) == WRITE)
+		break;
+	case REQ_OP_WRITE:
 		type = NBD_CMD_WRITE;
-	else
+		break;
+	case REQ_OP_READ:
 		type = NBD_CMD_READ;
+		break;
+	default:
+		return -EIO;
+	}
+
+	if (rq_data_dir(req) == WRITE &&
+	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Write on read-only\n");
+		return -EIO;
+	}
 
 	memset(&request, 0, sizeof(request));
 	request.magic = htonl(NBD_REQUEST_MAGIC);
@@ -507,18 +515,6 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	if (test_bit(NBD_DISCONNECTED, &nbd->runtime_flags)) {
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
 				    "Attempted send on closed socket\n");
-		goto error_out;
-	}
-
-	if (req->cmd_type != REQ_TYPE_FS &&
-	    req->cmd_type != REQ_TYPE_DRV_PRIV)
-		goto error_out;
-
-	if (req->cmd_type == REQ_TYPE_FS &&
-	    rq_data_dir(req) == WRITE &&
-	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
-		dev_err_ratelimited(disk_to_dev(nbd->disk),
-				    "Write on read-only\n");
 		goto error_out;
 	}
 

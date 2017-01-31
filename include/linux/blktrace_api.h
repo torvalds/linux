@@ -114,12 +114,12 @@ extern void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes);
 
 static inline sector_t blk_rq_trace_sector(struct request *rq)
 {
-	return (rq->cmd_type != REQ_TYPE_FS) ? 0 : blk_rq_pos(rq);
+	return blk_rq_is_passthrough(rq) ? 0 : blk_rq_pos(rq);
 }
 
 static inline unsigned int blk_rq_trace_nr_sectors(struct request *rq)
 {
-	return (rq->cmd_type != REQ_TYPE_FS) ? 0 : blk_rq_sectors(rq);
+	return blk_rq_is_passthrough(rq) ? 0 : blk_rq_sectors(rq);
 }
 
 #endif
