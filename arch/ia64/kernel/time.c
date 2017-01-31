@@ -60,7 +60,7 @@ static struct clocksource *itc_clocksource;
 
 #include <linux/kernel_stat.h>
 
-extern cputime_t cycle_to_cputime(u64 cyc);
+extern u64 cycle_to_nsec(u64 cyc);
 
 void vtime_flush(struct task_struct *tsk)
 {
@@ -68,26 +68,26 @@ void vtime_flush(struct task_struct *tsk)
 	u64 delta;
 
 	if (ti->utime)
-		account_user_time(tsk, cputime_to_nsecs(cycle_to_cputime(ti->utime)));
+		account_user_time(tsk, cycle_to_nsec(ti->utime));
 
 	if (ti->gtime)
-		account_guest_time(tsk, cputime_to_nsecs(cycle_to_cputime(ti->gtime)));
+		account_guest_time(tsk, cycle_to_nsec(ti->gtime));
 
 	if (ti->idle_time)
-		account_idle_time(cputime_to_nsecs(cycle_to_cputime(ti->idle_time)));
+		account_idle_time(cycle_to_nsec(ti->idle_time));
 
 	if (ti->stime) {
-		delta = cputime_to_nsecs(cycle_to_cputime(ti->stime));
+		delta = cycle_to_nsec(ti->stime);
 		account_system_index_time(tsk, delta, CPUTIME_SYSTEM);
 	}
 
 	if (ti->hardirq_time) {
-		delta = cputime_to_nsecs(cycle_to_cputime(ti->hardirq_time));
+		delta = cycle_to_nsec(ti->hardirq_time);
 		account_system_index_time(tsk, delta, CPUTIME_IRQ);
 	}
 
 	if (ti->softirq_time) {
-		delta = cputime_to_nsecs(cycle_to_cputime(ti->softirq_time));
+		delta = cycle_to_nsec(ti->softirq_time));
 		account_system_index_time(tsk, delta, CPUTIME_SOFTIRQ);
 	}
 
