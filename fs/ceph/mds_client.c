@@ -2516,7 +2516,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	/* insert trace into our cache */
 	mutex_lock(&req->r_fill_mutex);
 	current->journal_info = req;
-	err = ceph_fill_trace(mdsc->fsc->sb, req, req->r_session);
+	err = ceph_fill_trace(mdsc->fsc->sb, req);
 	if (err == 0) {
 		if (result == 0 && (req->r_op == CEPH_MDS_OP_READDIR ||
 				    req->r_op == CEPH_MDS_OP_LSSNAP))

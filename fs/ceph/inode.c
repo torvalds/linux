@@ -1108,9 +1108,9 @@ out:
  *
  * Called with snap_rwsem (read).
  */
-int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
-		    struct ceph_mds_session *session)
+int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 {
+	struct ceph_mds_session *session = req->r_session;
 	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 	struct inode *in = NULL;
 	struct ceph_vino vino;

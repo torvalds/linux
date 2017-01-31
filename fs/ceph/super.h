@@ -764,8 +764,7 @@ extern void ceph_fill_file_time(struct inode *inode, int issued,
 				u64 time_warp_seq, struct timespec *ctime,
 				struct timespec *mtime, struct timespec *atime);
 extern int ceph_fill_trace(struct super_block *sb,
-			   struct ceph_mds_request *req,
-			   struct ceph_mds_session *session);
+			   struct ceph_mds_request *req);
 extern int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 				    struct ceph_mds_session *session);
 
