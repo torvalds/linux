@@ -964,10 +964,11 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 /* Calculate cpu time spent by current task in 100ns units */
 static u64 current_task_runtime_100ns(void)
 {
-	cputime_t utime, stime;
+	u64 utime, stime;
 
 	task_cputime_adjusted(current, &utime, &stime);
-	return div_u64(cputime_to_nsecs(utime + stime), 100);
+
+	return div_u64(utime + stime, 100);
 }
 
 static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)

@@ -401,7 +401,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	unsigned long long start_time;
 	unsigned long cmin_flt = 0, cmaj_flt = 0;
 	unsigned long  min_flt = 0,  maj_flt = 0;
-	cputime_t cutime, cstime, utime, stime;
+	u64 cutime, cstime, utime, stime;
 	u64 cgtime, gtime;
 	unsigned long rsslim = 0;
 	char tcomm[sizeof(task->comm)];
@@ -497,10 +497,10 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	seq_put_decimal_ull(m, " ", cmin_flt);
 	seq_put_decimal_ull(m, " ", maj_flt);
 	seq_put_decimal_ull(m, " ", cmaj_flt);
-	seq_put_decimal_ull(m, " ", cputime_to_clock_t(utime));
-	seq_put_decimal_ull(m, " ", cputime_to_clock_t(stime));
-	seq_put_decimal_ll(m, " ", cputime_to_clock_t(cutime));
-	seq_put_decimal_ll(m, " ", cputime_to_clock_t(cstime));
+	seq_put_decimal_ull(m, " ", nsec_to_clock_t(utime));
+	seq_put_decimal_ull(m, " ", nsec_to_clock_t(stime));
+	seq_put_decimal_ll(m, " ", nsec_to_clock_t(cutime));
+	seq_put_decimal_ll(m, " ", nsec_to_clock_t(cstime));
 	seq_put_decimal_ll(m, " ", priority);
 	seq_put_decimal_ll(m, " ", nice);
 	seq_put_decimal_ll(m, " ", num_threads);

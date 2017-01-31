@@ -1411,6 +1411,8 @@ static void fill_note(struct memelfnote *note, const char *name, int type,
 static void fill_prstatus(struct elf_prstatus *prstatus,
 		struct task_struct *p, long signr)
 {
+	struct timeval tv;
+
 	prstatus->pr_info.si_signo = prstatus->pr_cursig = signr;
 	prstatus->pr_sigpend = p->pending.signal.sig[0];
 	prstatus->pr_sighold = p->blocked.sig[0];
@@ -1437,8 +1439,13 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 		cputime_to_timeval(utime, &prstatus->pr_utime);
 		cputime_to_timeval(stime, &prstatus->pr_stime);
 	}
-	cputime_to_timeval(p->signal->cutime, &prstatus->pr_cutime);
-	cputime_to_timeval(p->signal->cstime, &prstatus->pr_cstime);
+	tv = ns_to_timeval(p->signal->cutime);
+	prstatus->pr_cutime.tv_sec = tv.tv_sec;
+	prstatus->pr_cutime.tv_usec = tv.tv_usec;
+
+	tv = ns_to_timeval(p->signal->cstime);
+	prstatus->pr_cstime.tv_sec = tv.tv_sec;
+	prstatus->pr_cstime.tv_usec = tv.tv_usec;
 }
 
 static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,

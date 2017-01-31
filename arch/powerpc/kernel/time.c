@@ -396,7 +396,7 @@ void vtime_flush(struct task_struct *tsk)
 		account_user_time(tsk, acct->utime);
 
 	if (acct->utime_scaled)
-		tsk->utimescaled += acct->utime_scaled;
+		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
 
 	if (acct->gtime)
 		account_guest_time(tsk, acct->gtime);
@@ -411,7 +411,7 @@ void vtime_flush(struct task_struct *tsk)
 		account_system_index_time(tsk, acct->stime, CPUTIME_SYSTEM);
 
 	if (acct->stime_scaled)
-		tsk->stimescaled += acct->stime_scaled;
+		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
 
 	if (acct->hardirq_time)
 		account_system_index_time(tsk, acct->hardirq_time, CPUTIME_IRQ);

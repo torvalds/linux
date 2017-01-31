@@ -134,7 +134,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
 	int index;
 
 	/* Add user time to process. */
-	p->utime += cputime;
+	p->utime += cputime_to_nsecs(cputime);
 	account_group_user_time(p, cputime);
 
 	index = (task_nice(p) > 0) ? CPUTIME_NICE : CPUTIME_USER;
@@ -156,7 +156,7 @@ void account_guest_time(struct task_struct *p, cputime_t cputime)
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 
 	/* Add guest time to process. */
-	p->utime += cputime;
+	p->utime += cputime_to_nsecs(cputime);
 	account_group_user_time(p, cputime);
 	p->gtime += cputime_to_nsecs(cputime);
 
@@ -180,7 +180,7 @@ void account_system_index_time(struct task_struct *p,
 			       cputime_t cputime, enum cpu_usage_stat index)
 {
 	/* Add system time to process. */
-	p->stime += cputime;
+	p->stime += cputime_to_nsecs(cputime);
 	account_group_system_time(p, cputime);
 
 	/* Add system time to cpustat. */
@@ -315,7 +315,7 @@ static u64 read_sum_exec_runtime(struct task_struct *t)
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 {
 	struct signal_struct *sig = tsk->signal;
-	cputime_t utime, stime;
+	u64 utime, stime;
 	struct task_struct *t;
 	unsigned int seq, nextseq;
 	unsigned long flags;
@@ -465,14 +465,14 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
 
-void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
+void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
 {
 	*ut = p->utime;
 	*st = p->stime;
 }
 EXPORT_SYMBOL_GPL(task_cputime_adjusted);
 
-void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
+void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
 {
 	struct task_cputime cputime;
 
@@ -543,7 +543,7 @@ void account_idle_ticks(unsigned long ticks)
  * Perform (stime * rtime) / total, but avoid multiplication overflow by
  * loosing precision when the numbers are big.
  */
-static cputime_t scale_stime(u64 stime, u64 rtime, u64 total)
+static u64 scale_stime(u64 stime, u64 rtime, u64 total)
 {
 	u64 scaled;
 
@@ -580,7 +580,7 @@ drop_precision:
 	 * followed by a 64/32->64 divide.
 	 */
 	scaled = div_u64((u64) (u32) stime * (u64) (u32) rtime, (u32)total);
-	return (__force cputime_t) scaled;
+	return scaled;
 }
 
 /*
@@ -605,14 +605,14 @@ drop_precision:
  */
 static void cputime_adjust(struct task_cputime *curr,
 			   struct prev_cputime *prev,
-			   cputime_t *ut, cputime_t *st)
+			   u64 *ut, u64 *st)
 {
-	cputime_t rtime, stime, utime;
+	u64 rtime, stime, utime;
 	unsigned long flags;
 
 	/* Serialize concurrent callers such that we can honour our guarantees */
 	raw_spin_lock_irqsave(&prev->lock, flags);
-	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
+	rtime = curr->sum_exec_runtime;
 
 	/*
 	 * This is possible under two circumstances:
@@ -643,8 +643,7 @@ static void cputime_adjust(struct task_cputime *curr,
 		goto update;
 	}
 
-	stime = scale_stime((__force u64)stime, (__force u64)rtime,
-			    (__force u64)(stime + utime));
+	stime = scale_stime(stime, rtime, stime + utime);
 
 update:
 	/*
@@ -677,7 +676,7 @@ out:
 	raw_spin_unlock_irqrestore(&prev->lock, flags);
 }
 
-void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
+void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
 {
 	struct task_cputime cputime = {
 		.sum_exec_runtime = p->se.sum_exec_runtime,
@@ -688,7 +687,7 @@ void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
 }
 EXPORT_SYMBOL_GPL(task_cputime_adjusted);
 
-void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
+void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
 {
 	struct task_cputime cputime;
 
@@ -849,9 +848,9 @@ u64 task_gtime(struct task_struct *t)
  * add up the pending nohz execution time since the last
  * cputime snapshot.
  */
-void task_cputime(struct task_struct *t, cputime_t *utime, cputime_t *stime)
+void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
 {
-	cputime_t delta;
+	u64 delta;
 	unsigned int seq;
 
 	if (!vtime_accounting_enabled()) {
@@ -870,7 +869,7 @@ void task_cputime(struct task_struct *t, cputime_t *utime, cputime_t *stime)
 		if (t->vtime_snap_whence == VTIME_INACTIVE || is_idle_task(t))
 			continue;
 
-		delta = vtime_delta(t);
+		delta = cputime_to_nsecs(vtime_delta(t));
 
 		/*
 		 * Task runs either in user or kernel space, add pending nohz time to

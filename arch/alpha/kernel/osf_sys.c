@@ -1163,8 +1163,8 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 		r.ru_majflt = current->maj_flt;
 		break;
 	case RUSAGE_CHILDREN:
-		utime_jiffies = cputime_to_jiffies(current->signal->cutime);
-		stime_jiffies = cputime_to_jiffies(current->signal->cstime);
+		utime_jiffies = nsecs_to_jiffies(current->signal->cutime);
+		stime_jiffies = nsecs_to_jiffies(current->signal->cstime);
 		jiffies_to_timeval32(utime_jiffies, &r.ru_utime);
 		jiffies_to_timeval32(stime_jiffies, &r.ru_stime);
 		r.ru_minflt = current->signal->cmin_flt;
