@@ -36,7 +36,7 @@ quiet_cmd_genpdf = GENPDF  $2
       cmd_genpdf = convert $2 $3
 
 quiet_cmd_gendot = DOT     $2
-      cmd_gendot = dot -Tsvg $2 > $3
+      cmd_gendot = dot -Tsvg $2 > $3 || { rm -f $3; exit 1; }
 
 %.pdf: %.svg
 	@$(call cmd,genpdf,$<,$@)
