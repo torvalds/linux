@@ -901,7 +901,7 @@ void rmi_enable_irq(struct rmi_device *rmi_dev, bool clear_wake)
 	data->enabled = true;
 	if (clear_wake && device_may_wakeup(rmi_dev->xport->dev)) {
 		retval = disable_irq_wake(irq);
-		if (!retval)
+		if (retval)
 			dev_warn(&rmi_dev->dev,
 				 "Failed to disable irq for wake: %d\n",
 				 retval);
@@ -936,7 +936,7 @@ void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake)
 	disable_irq(irq);
 	if (enable_wake && device_may_wakeup(rmi_dev->xport->dev)) {
 		retval = enable_irq_wake(irq);
-		if (!retval)
+		if (retval)
 			dev_warn(&rmi_dev->dev,
 				 "Failed to enable irq for wake: %d\n",
 				 retval);
