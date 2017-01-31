@@ -193,13 +193,6 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 	set_bit(NBD_TIMEDOUT, &nbd->runtime_flags);
 	req->errors++;
 
-	/*
-	 * If our disconnect packet times out then we're already holding the
-	 * config_lock and could deadlock here, so just set an error and return,
-	 * we'll handle shutting everything down later.
-	 */
-	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
-		return BLK_EH_HANDLED;
 	mutex_lock(&nbd->config_lock);
 	sock_shutdown(nbd);
 	mutex_unlock(&nbd->config_lock);
@@ -510,8 +503,7 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 		goto error_out;
 	}
 
-	if (req->cmd_type != REQ_TYPE_FS &&
-	    req->cmd_type != REQ_TYPE_DRV_PRIV)
+	if (req->cmd_type != REQ_TYPE_FS)
 		goto error_out;
 
 	if (req->cmd_type == REQ_TYPE_FS &&
