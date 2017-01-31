@@ -683,12 +683,34 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p, int flags)
+int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas, int flags)
 {
-	/* Convert address space */
-	nvm_map_to_dev(tgt_dev, p);
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_rq rqd;
+	int ret;
 
-	return nvm_erase_ppa(tgt_dev->parent, p, 1, flags);
+	if (!dev->ops->erase_block)
+		return 0;
+
+	ret = nvm_map_to_dev(tgt_dev, ppas);
+	if (ret)
+		return ret;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, 1, 1);
+	if (ret)
+		return ret;
+
+	nvm_generic_to_addr_mode(dev, &rqd);
+
+	rqd.flags = flags;
+
+	ret = dev->ops->erase_block(dev, &rqd);
+
+	nvm_free_rqd_ppalist(dev, &rqd);
+
+	return ret;
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
@@ -846,33 +868,6 @@ void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
 	nvm_dev_dma_free(dev, rqd->ppa_list, rqd->dma_ppa_list);
 }
 EXPORT_SYMBOL(nvm_free_rqd_ppalist);
-
-int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
-								int flags)
-{
-	struct nvm_rq rqd;
-	int ret;
-
-	if (!dev->ops->erase_block)
-		return 0;
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
-	if (ret)
-		return ret;
-
-	nvm_generic_to_addr_mode(dev, &rqd);
-
-	rqd.flags = flags;
-
-	ret = dev->ops->erase_block(dev, &rqd);
-
-	nvm_free_rqd_ppalist(dev, &rqd);
-
-	return ret;
-}
-EXPORT_SYMBOL(nvm_erase_ppa);
 
 void nvm_end_io(struct nvm_rq *rqd, int error)
 {
