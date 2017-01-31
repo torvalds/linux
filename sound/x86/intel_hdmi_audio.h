@@ -118,7 +118,6 @@ struct had_pvt_data {
  * @kctl: holds kctl ptrs used for channel map
  * @chmap: holds channel map info
  * @audio_reg_base: hdmi audio register base offset
- * @hw_silence: flag indicates SoC support for HW silence/Keep alive
  * @underrun_count: PCM stream underrun counter
  */
 struct snd_intelhad {
@@ -142,7 +141,6 @@ struct snd_intelhad {
 	struct snd_pcm_chmap *chmap;
 	unsigned int	*audio_reg_base;
 	unsigned int	audio_cfg_offset;
-	bool		hw_silence;
 	int underrun_count;
 };
 

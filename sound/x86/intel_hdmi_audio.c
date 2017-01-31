@@ -1696,7 +1696,6 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	pm_runtime_set_active(intelhaddata->dev);
 	pm_runtime_enable(intelhaddata->dev);
 
-	intelhaddata->hw_silence = 1;
 	*had_ret = intelhaddata;
 
 	return 0;
