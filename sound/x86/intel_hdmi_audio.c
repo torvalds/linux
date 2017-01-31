@@ -1857,14 +1857,6 @@ static struct snd_kcontrol_new had_control_iec958 = {
 	.put =          had_iec958_put
 };
 
-static void _had_wq(struct work_struct *work)
-{
-	struct snd_intelhad *ctx =
-		container_of(work, struct snd_intelhad, hdmi_audio_wq);
-
-	had_process_hot_plug(ctx);
-}
-
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 {
 	struct snd_intelhad *ctx = dev_id;
@@ -1889,21 +1881,28 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 static void notify_audio_lpe(struct platform_device *pdev)
 {
 	struct snd_intelhad *ctx = platform_get_drvdata(pdev);
-	struct intel_hdmi_lpe_audio_pdata *pdata = pdev->dev.platform_data;
 
-	if (pdata->hdmi_connected != true) {
+	schedule_work(&ctx->hdmi_audio_wq);
+}
 
-		dev_dbg(&pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
+static void had_audio_wq(struct work_struct *work)
+{
+	struct snd_intelhad *ctx =
+		container_of(work, struct snd_intelhad, hdmi_audio_wq);
+	struct intel_hdmi_lpe_audio_pdata *pdata = ctx->dev->platform_data;
+
+	if (!pdata->hdmi_connected) {
+		dev_dbg(ctx->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
 
-		if (ctx->state == hdmi_connector_status_connected) {
-
-			ctx->state = hdmi_connector_status_disconnected;
-
-			had_process_hot_unplug(ctx);
-		} else
-			dev_dbg(&pdev->dev, "%s: Already Unplugged!\n",
+		if (ctx->state != hdmi_connector_status_connected) {
+			dev_dbg(ctx->dev, "%s: Already Unplugged!\n",
 				__func__);
+			return;
+		}
+
+		ctx->state = hdmi_connector_status_disconnected;
+		had_process_hot_unplug(ctx);
 
 	} else {
 		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
@@ -1919,7 +1918,7 @@ static void notify_audio_lpe(struct platform_device *pdev)
 			ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
 			break;
 		default:
-			dev_dbg(&pdev->dev, "Invalid pipe %d\n",
+			dev_dbg(ctx->dev, "Invalid pipe %d\n",
 				eld->pipe_id);
 			break;
 		}
@@ -1930,7 +1929,7 @@ static void notify_audio_lpe(struct platform_device *pdev)
 
 		ctx->state = hdmi_connector_status_connected;
 
-		dev_dbg(&pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
+		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
 			__func__, eld->port_id,	pdata->tmds_clock_speed);
 
 		if (pdata->tmds_clock_speed) {
@@ -1949,6 +1948,8 @@ static void notify_audio_lpe(struct platform_device *pdev)
 static void hdmi_lpe_audio_free(struct snd_card *card)
 {
 	struct snd_intelhad *ctx = card->private_data;
+
+	cancel_work_sync(&ctx->hdmi_audio_wq);
 
 	if (ctx->mmio_start)
 		iounmap(ctx->mmio_start);
@@ -2013,7 +2014,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	ctx->irq = -1;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
-	INIT_WORK(&ctx->hdmi_audio_wq, _had_wq);
+	INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
 	ctx->state = hdmi_connector_status_disconnected;
 
 	card->private_free = hdmi_lpe_audio_free;
@@ -2086,17 +2087,13 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	spin_lock_irqsave(&pdata->lpe_audio_slock, flags);
 	pdata->notify_audio_lpe = notify_audio_lpe;
-	if (pdata->notify_pending) {
-
-		dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
-		notify_audio_lpe(pdev);
-		pdata->notify_pending = false;
-	}
+	pdata->notify_pending = false;
 	spin_unlock_irqrestore(&pdata->lpe_audio_slock, flags);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
+	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
 	schedule_work(&ctx->hdmi_audio_wq);
 
 	return 0;
