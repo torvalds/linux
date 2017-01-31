@@ -1664,7 +1664,7 @@ void iommu_register_instance(struct fwnode_handle *fwnode,
 	spin_unlock(&iommu_instance_lock);
 }
 
-const struct iommu_ops *iommu_get_instance(struct fwnode_handle *fwnode)
+const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
 {
 	struct iommu_instance *instance;
 	const struct iommu_ops *ops = NULL;

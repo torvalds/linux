@@ -39,7 +39,7 @@ static inline void of_iommu_set_ops(struct device_node *np,
 
 static inline const struct iommu_ops *of_iommu_get_ops(struct device_node *np)
 {
-	return iommu_get_instance(&np->fwnode);
+	return iommu_ops_from_fwnode(&np->fwnode);
 }
 
 extern struct of_device_id __iommu_of_table;
