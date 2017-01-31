@@ -119,7 +119,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GCFGC	0xf0 /* 915+ only */
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)
 #define   GC_DISPLAY_CLOCK_190_200_MHZ	(0 << 4)
-#define   GC_DISPLAY_CLOCK_333_MHZ	(4 << 4)
+#define   GC_DISPLAY_CLOCK_333_320_MHZ	(4 << 4)
 #define   GC_DISPLAY_CLOCK_267_MHZ_PNV	(0 << 4)
 #define   GC_DISPLAY_CLOCK_333_MHZ_PNV	(1 << 4)
 #define   GC_DISPLAY_CLOCK_444_MHZ_PNV	(2 << 4)
