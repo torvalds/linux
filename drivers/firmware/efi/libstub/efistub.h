@@ -29,14 +29,6 @@ void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
 			     void **__fh);
 
-efi_status_t efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
-			   efi_char16_t *filename_16, void **handle,
-			   u64 *file_sz);
-
-efi_status_t efi_file_read(void *handle, unsigned long *size, void *addr);
-
-efi_status_t efi_file_close(void *handle);
-
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
 
 efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
