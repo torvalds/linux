@@ -301,6 +301,10 @@ struct f34_data {
 	unsigned char bootloader_id[5];
 	unsigned char configuration_id[CONFIG_ID_SIZE*2 + 1];
 
+	int update_status;
+	int update_progress;
+	int update_size;
+
 	union {
 		struct f34v5_data v5;
 		struct f34v7_data v7;
