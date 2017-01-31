@@ -306,13 +306,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	void __iomem *mmio_start;
 	int ret = 0;
 	unsigned long flag_irq;
-	static const struct pci_device_id cherryview_ids[] = {
-		{PCI_DEVICE(0x8086, 0x22b0)},
-		{PCI_DEVICE(0x8086, 0x22b1)},
-		{PCI_DEVICE(0x8086, 0x22b2)},
-		{PCI_DEVICE(0x8086, 0x22b3)},
-		{}
-	};
 
 	dev_dbg(&pdev->dev, "Enter %s\n", __func__);
 	dev_dbg(&pdev->dev, "dma_mask: %p\n", pdev->dev.dma_mask);
@@ -355,13 +348,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
 	INIT_WORK(&ctx->hdmi_audio_wq, _had_wq);
 	ctx->state = hdmi_connector_status_disconnected;
-
-	if (pci_dev_present(cherryview_ids))
-		dev_dbg(&pdev->dev, "%s: Cherrytrail LPE - Detected\n",
-				__func__);
-	else
-		dev_dbg(&pdev->dev, "%s: Baytrail LPE - Assume\n",
-				__func__);
 
 	/* assume pipe A as default */
 	ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
