@@ -45,6 +45,12 @@ static struct {
 } at91_pm_data;
 
 static void __iomem *at91_ramc_base[2];
+#define at91_ramc_read(id, field) \
+	__raw_readl(at91_ramc_base[id] + field)
+
+#define at91_ramc_write(id, field, value) \
+	__raw_writel(value, at91_ramc_base[id] + field)
+
 
 static int at91_pm_valid_state(suspend_state_t state)
 {
