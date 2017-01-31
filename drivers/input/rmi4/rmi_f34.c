@@ -301,6 +301,52 @@ static int rmi_f34_status(struct rmi_function *fn)
 	return f34->update_status;
 }
 
+static ssize_t rmi_driver_bootloader_id_show(struct device *dev,
+					     struct device_attribute *dattr,
+					     char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct rmi_function *fn = data->f34_container;
+	struct f34_data *f34;
+
+	if (fn) {
+		f34 = dev_get_drvdata(&fn->dev);
+
+		if (f34->bl_version == 5)
+			return scnprintf(buf, PAGE_SIZE, "%c%c\n",
+					 f34->bootloader_id[0],
+					 f34->bootloader_id[1]);
+		else
+			return scnprintf(buf, PAGE_SIZE, "V%d.%d\n",
+					 f34->bootloader_id[1],
+					 f34->bootloader_id[0]);
+	}
+
+	return 0;
+}
+
+static DEVICE_ATTR(bootloader_id, 0444, rmi_driver_bootloader_id_show, NULL);
+
+static ssize_t rmi_driver_configuration_id_show(struct device *dev,
+						struct device_attribute *dattr,
+						char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct rmi_function *fn = data->f34_container;
+	struct f34_data *f34;
+
+	if (fn) {
+		f34 = dev_get_drvdata(&fn->dev);
+
+		return scnprintf(buf, PAGE_SIZE, "%s\n", f34->configuration_id);
+	}
+
+	return 0;
+}
+
+static DEVICE_ATTR(configuration_id, 0444,
+		   rmi_driver_configuration_id_show, NULL);
+
 static int rmi_firmware_update(struct rmi_driver_data *data,
 			       const struct firmware *fw)
 {
@@ -452,6 +498,8 @@ static DEVICE_ATTR(update_fw_status, 0444,
 		   rmi_driver_update_fw_status_show, NULL);
 
 static struct attribute *rmi_firmware_attrs[] = {
+	&dev_attr_bootloader_id.attr,
+	&dev_attr_configuration_id.attr,
 	&dev_attr_update_fw.attr,
 	&dev_attr_update_fw_status.attr,
 	NULL
