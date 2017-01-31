@@ -34,60 +34,6 @@
 #include "intel_hdmi_lpe_audio.h"
 
 /**
- * hdmi_audio_query - hdmi audio query function
- *
- *@haddata: pointer to HAD private data
- *@event: audio event for which this method is invoked
- *
- * This function is called by client driver to query the
- * hdmi audio.
- */
-int hdmi_audio_query(void *haddata, struct hdmi_audio_event event)
-{
-	struct snd_pcm_substream *substream = NULL;
-	struct had_stream_data *had_stream;
-	unsigned long flag_irqs;
-	struct snd_intelhad *intelhaddata = (struct snd_intelhad *)haddata;
-
-	if (intelhaddata->stream_info.had_substream)
-		substream = intelhaddata->stream_info.had_substream;
-	had_stream = &intelhaddata->stream_data;
-	switch (event.type) {
-	case HAD_EVENT_QUERY_IS_AUDIO_BUSY:
-		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
-
-		if ((had_stream->stream_type == HAD_RUNNING_STREAM) ||
-			substream) {
-			spin_unlock_irqrestore(&intelhaddata->had_spinlock,
-						flag_irqs);
-			pr_debug("Audio stream active\n");
-			return -EBUSY;
-		}
-		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-	break;
-
-	case HAD_EVENT_QUERY_IS_AUDIO_SUSPENDED:
-		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
-		if (intelhaddata->drv_status == HAD_DRV_SUSPENDED) {
-			spin_unlock_irqrestore(&intelhaddata->had_spinlock,
-						flag_irqs);
-			pr_debug("Audio is suspended\n");
-			return 1;
-		}
-		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-	break;
-
-	default:
-		pr_debug("error un-handled event !!\n");
-		return -EINVAL;
-	break;
-
-	}
-
-	return 0;
-}
-
-/**
  * hdmi_audio_suspend - power management suspend function
  *
  *@haddata: pointer to HAD private data

@@ -146,7 +146,6 @@ struct snd_intelhad {
 
 int had_event_handler(enum had_event_type event_type, void *data);
 
-int hdmi_audio_query(void *drv_data, struct hdmi_audio_event event);
 int hdmi_audio_suspend(void *drv_data);
 int hdmi_audio_resume(void *drv_data);
 int hdmi_audio_mode_change(struct snd_pcm_substream *substream);
