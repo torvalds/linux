@@ -431,8 +431,8 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		memcpy(&wq->name, &qstr, sizeof(struct qstr));
 		wq->dev = autofs4_get_dev(sbi);
 		wq->ino = autofs4_get_ino(sbi);
-		wq->uid = current_real_cred()->uid;
-		wq->gid = current_real_cred()->gid;
+		wq->uid = current_cred()->uid;
+		wq->gid = current_cred()->gid;
 		wq->pid = pid;
 		wq->tgid = tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
