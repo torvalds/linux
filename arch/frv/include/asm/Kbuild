@@ -1,6 +1,5 @@
 
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += exec.h
 generic-y += irq_work.h
 generic-y += mcs_spinlock.h

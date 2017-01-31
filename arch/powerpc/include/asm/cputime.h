@@ -16,9 +16,7 @@
 #ifndef __POWERPC_CPUTIME_H
 #define __POWERPC_CPUTIME_H
 
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-#include <asm-generic/cputime.h>
-#else
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 
 #include <linux/types.h>
 #include <linux/time.h>
