@@ -407,31 +407,17 @@ err_rmap:
 	return -ENOMEM;
 }
 
-static int nvm_map_to_dev(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
+static void nvm_map_to_dev(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev_map *dev_map = tgt_dev->map;
 	struct nvm_ch_map *ch_map = &dev_map->chnls[p->g.ch];
 	int lun_off = ch_map->lun_offs[p->g.lun];
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_dev_map *dev_rmap = dev->rmap;
-	struct nvm_ch_map *ch_rmap;
-	int lun_roff;
 
 	p->g.ch += ch_map->ch_off;
 	p->g.lun += lun_off;
-
-	ch_rmap = &dev_rmap->chnls[p->g.ch];
-	lun_roff = ch_rmap->lun_offs[p->g.lun];
-
-	if (unlikely(ch_rmap->ch_off < 0 || lun_roff < 0)) {
-		pr_err("nvm: corrupted device partition table\n");
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
-static int nvm_map_to_tgt(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
+static void nvm_map_to_tgt(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	struct nvm_dev_map *dev_rmap = dev->rmap;
@@ -440,34 +426,27 @@ static int nvm_map_to_tgt(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 
 	p->g.ch -= ch_rmap->ch_off;
 	p->g.lun -= lun_roff;
-
-	return 0;
 }
 
-static int nvm_trans_rq(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
+static void nvm_trans_rq(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 			int flag)
 {
 	int i;
-	int ret;
 
 	if (rqd->nr_ppas == 1) {
 		if (flag == TRANS_TGT_TO_DEV)
-			return nvm_map_to_dev(tgt_dev, &rqd->ppa_addr);
+			nvm_map_to_dev(tgt_dev, &rqd->ppa_addr);
 		else
-			return nvm_map_to_tgt(tgt_dev, &rqd->ppa_addr);
+			nvm_map_to_tgt(tgt_dev, &rqd->ppa_addr);
+		return;
 	}
 
 	for (i = 0; i < rqd->nr_ppas; i++) {
 		if (flag == TRANS_TGT_TO_DEV)
-			ret = nvm_map_to_dev(tgt_dev, &rqd->ppa_list[i]);
+			nvm_map_to_dev(tgt_dev, &rqd->ppa_list[i]);
 		else
-			ret = nvm_map_to_tgt(tgt_dev, &rqd->ppa_list[i]);
-
-		if (ret)
-			break;
+			nvm_map_to_tgt(tgt_dev, &rqd->ppa_list[i]);
 	}
-
-	return ret;
 }
 
 static struct ppa_addr nvm_trans_ppa(struct nvm_tgt_dev *tgt_dev,
@@ -665,9 +644,7 @@ int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas, int flags)
 	if (!dev->ops->erase_block)
 		return 0;
 
-	ret = nvm_map_to_dev(tgt_dev, ppas);
-	if (ret)
-		return ret;
+	nvm_map_to_dev(tgt_dev, ppas);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
