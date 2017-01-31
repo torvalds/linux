@@ -1586,6 +1586,7 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	pr_debug("%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
 			__func__, __LINE__);
 
+	intelhaddata->dev = &devptr->dev;
 	intelhaddata->card = card;
 	intelhaddata->card_id = hdmi_card_id;
 	intelhaddata->card_index = card->number;
@@ -1617,10 +1618,6 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	if (retval)
 		goto err;
 
-	retval = snd_card_register(card);
-	if (retval)
-		goto err;
-
 	/* IEC958 controls */
 	retval = snd_ctl_add(card, snd_ctl_new1(&had_control_iec958_mask,
 						intelhaddata));
@@ -1638,7 +1635,10 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	if (retval < 0)
 		goto err;
 
-	intelhaddata->dev = &devptr->dev;
+	retval = snd_card_register(card);
+	if (retval)
+		goto err;
+
 	pm_runtime_set_active(intelhaddata->dev);
 	pm_runtime_enable(intelhaddata->dev);
 
