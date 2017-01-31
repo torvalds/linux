@@ -46,6 +46,7 @@ The following properties are common to the infrared remote controllers:
   * "rc-flyvideo"
   * "rc-fusionhdtv-mce"
   * "rc-gadmei-rm008z"
+  * "rc-geekbox"
   * "rc-genius-tvgo-a11mce"
   * "rc-gotview7135"
   * "rc-hauppauge"
