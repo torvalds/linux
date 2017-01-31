@@ -2091,6 +2091,12 @@ int input_register_device(struct input_dev *dev)
 	const char *path;
 	int error;
 
+	if (test_bit(EV_ABS, dev->evbit) && !dev->absinfo) {
+		dev_err(&dev->dev,
+			"Absolute device without dev->absinfo, refusing to register\n");
+		return -EINVAL;
+	}
+
 	if (dev->devres_managed) {
 		devres = devres_alloc(devm_input_device_unregister,
 				      sizeof(struct input_devres), GFP_KERNEL);
