@@ -118,6 +118,9 @@ config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
 	depends on REMOTEPROC
+	select MAILBOX
+	select STI_MBOX
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support ST's adjunct processors via the remote
 	  processor framework.
