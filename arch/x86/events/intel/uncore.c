@@ -764,30 +764,6 @@ static void uncore_pmu_unregister(struct intel_uncore_pmu *pmu)
 	pmu->registered = false;
 }
 
-static void __uncore_exit_boxes(struct intel_uncore_type *type, int cpu)
-{
-	struct intel_uncore_pmu *pmu = type->pmus;
-	struct intel_uncore_box *box;
-	int i, pkg;
-
-	if (pmu) {
-		pkg = topology_physical_package_id(cpu);
-		for (i = 0; i < type->num_boxes; i++, pmu++) {
-			box = pmu->boxes[pkg];
-			if (box)
-				uncore_box_exit(box);
-		}
-	}
-}
-
-static void uncore_exit_boxes(void *dummy)
-{
-	struct intel_uncore_type **types;
-
-	for (types = uncore_msr_uncores; *types; types++)
-		__uncore_exit_boxes(*types++, smp_processor_id());
-}
-
 static void uncore_free_boxes(struct intel_uncore_pmu *pmu)
 {
 	int pkg;
@@ -1078,22 +1054,12 @@ static int uncore_cpu_dying(unsigned int cpu)
 	return 0;
 }
 
-static int first_init;
-
 static int uncore_cpu_starting(unsigned int cpu)
 {
 	struct intel_uncore_type *type, **types = uncore_msr_uncores;
 	struct intel_uncore_pmu *pmu;
 	struct intel_uncore_box *box;
-	int i, pkg, ncpus = 1;
-
-	if (first_init) {
-		/*
-		 * On init we get the number of online cpus in the package
-		 * and set refcount for all of them.
-		 */
-		ncpus = cpumask_weight(topology_core_cpumask(cpu));
-	}
+	int i, pkg;
 
 	pkg = topology_logical_package_id(cpu);
 	for (; *types; types++) {
@@ -1104,7 +1070,7 @@ static int uncore_cpu_starting(unsigned int cpu)
 			if (!box)
 				continue;
 			/* The first cpu on a package activates the box */
-			if (atomic_add_return(ncpus, &box->refcnt) == ncpus)
+			if (atomic_inc_return(&box->refcnt) == 1)
 				uncore_box_init(box);
 		}
 	}
@@ -1408,19 +1374,17 @@ static int __init intel_uncore_init(void)
 					  "perf/x86/intel/uncore:prepare",
 					  uncore_cpu_prepare, NULL);
 	}
-	first_init = 1;
+
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_STARTING,
 			  "perf/x86/uncore:starting",
 			  uncore_cpu_starting, uncore_cpu_dying);
-	first_init = 0;
+
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_ONLINE,
 			  "perf/x86/uncore:online",
 			  uncore_event_cpu_online, uncore_event_cpu_offline);
 	return 0;
 
 err:
-	/* Undo box->init_box() */
-	on_each_cpu_mask(&uncore_cpu_mask, uncore_exit_boxes, NULL, 1);
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_pci_exit();
 	return ret;
