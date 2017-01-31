@@ -402,7 +402,7 @@ void vtime_flush(struct task_struct *tsk)
 		account_guest_time(tsk, acct->gtime);
 
 	if (acct->steal_time)
-		account_steal_time(acct->steal_time);
+		account_steal_time(cputime_to_nsecs(acct->steal_time));
 
 	if (acct->idle_time)
 		account_idle_time(acct->idle_time);
