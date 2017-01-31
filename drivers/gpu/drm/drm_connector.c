@@ -225,6 +225,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
+	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
 
@@ -359,6 +360,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
 
+	mutex_destroy(&connector->mutex);
+
 	memset(connector, 0, sizeof(*connector));
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
@@ -374,14 +377,18 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  */
 int drm_connector_register(struct drm_connector *connector)
 {
-	int ret;
+	int ret = 0;
 
-	if (connector->registered)
+	if (!connector->dev->registered)
 		return 0;
+
+	mutex_lock(&connector->mutex);
+	if (connector->registered)
+		goto unlock;
 
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = drm_debugfs_connector_add(connector);
 	if (ret) {
@@ -397,12 +404,14 @@ int drm_connector_register(struct drm_connector *connector)
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registered = true;
-	return 0;
+	goto unlock;
 
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
 err_sysfs:
 	drm_sysfs_connector_remove(connector);
+unlock:
+	mutex_unlock(&connector->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_connector_register);
@@ -415,8 +424,11 @@ EXPORT_SYMBOL(drm_connector_register);
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
-	if (!connector->registered)
+	mutex_lock(&connector->mutex);
+	if (!connector->registered) {
+		mutex_unlock(&connector->mutex);
 		return;
+	}
 
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
@@ -425,6 +437,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 	drm_debugfs_connector_remove(connector);
 
 	connector->registered = false;
+	mutex_unlock(&connector->mutex);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
