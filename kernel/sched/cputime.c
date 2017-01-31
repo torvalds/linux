@@ -218,15 +218,15 @@ void account_steal_time(u64 cputime)
  * Account for idle time.
  * @cputime: the cpu time spent in idle wait
  */
-void account_idle_time(cputime_t cputime)
+void account_idle_time(u64 cputime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 	struct rq *rq = this_rq();
 
 	if (atomic_read(&rq->nr_iowait) > 0)
-		cpustat[CPUTIME_IOWAIT] += cputime_to_nsecs(cputime);
+		cpustat[CPUTIME_IOWAIT] += cputime;
 	else
-		cpustat[CPUTIME_IDLE] += cputime_to_nsecs(cputime);
+		cpustat[CPUTIME_IDLE] += cputime;
 }
 
 /*
@@ -392,7 +392,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	} else if (user_tick) {
 		account_user_time(p, cputime);
 	} else if (p == rq->idle) {
-		account_idle_time(old_cputime);
+		account_idle_time(cputime);
 	} else if (p->flags & PF_VCPU) { /* System time or guest time */
 
 		account_guest_time(p, old_cputime);
@@ -504,7 +504,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 	else if ((p != rq->idle) || (irq_count() != HARDIRQ_OFFSET))
 		account_system_time(p, HARDIRQ_OFFSET, old_cputime);
 	else
-		account_idle_time(old_cputime);
+		account_idle_time(cputime);
 }
 
 /*
@@ -513,15 +513,15 @@ void account_process_tick(struct task_struct *p, int user_tick)
  */
 void account_idle_ticks(unsigned long ticks)
 {
-	cputime_t cputime, steal;
+	u64 cputime, steal;
 
 	if (sched_clock_irqtime) {
 		irqtime_account_idle_ticks(ticks);
 		return;
 	}
 
-	cputime = jiffies_to_cputime(ticks);
-	steal = steal_account_process_time(ULONG_MAX);
+	cputime = ticks * TICK_NSEC;
+	steal = cputime_to_nsecs(steal_account_process_time(ULONG_MAX));
 
 	if (steal >= cputime)
 		return;
@@ -787,7 +787,7 @@ void vtime_account_idle(struct task_struct *tsk)
 {
 	cputime_t delta_cpu = get_vtime_delta(tsk);
 
-	account_idle_time(delta_cpu);
+	account_idle_time(cputime_to_nsecs(delta_cpu));
 }
 
 void arch_vtime_task_switch(struct task_struct *prev)

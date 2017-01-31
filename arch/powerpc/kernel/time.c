@@ -405,7 +405,7 @@ void vtime_flush(struct task_struct *tsk)
 		account_steal_time(cputime_to_nsecs(acct->steal_time));
 
 	if (acct->idle_time)
-		account_idle_time(acct->idle_time);
+		account_idle_time(cputime_to_nsecs(acct->idle_time));
 
 	if (acct->stime)
 		account_system_index_time(tsk, acct->stime, CPUTIME_SYSTEM);

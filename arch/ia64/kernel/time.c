@@ -73,7 +73,7 @@ void vtime_flush(struct task_struct *tsk)
 		account_guest_time(tsk, cycle_to_cputime(ti->gtime));
 
 	if (ti->idle_time)
-		account_idle_time(cycle_to_cputime(ti->idle_time));
+		account_idle_time(cputime_to_nsecs(cycle_to_cputime(ti->idle_time)));
 
 	if (ti->stime) {
 		delta = cycle_to_cputime(ti->stime);
