@@ -3394,7 +3394,9 @@ static void do_cciss_request(struct request_queue *q)
 		c->Header.SGList = h->max_cmd_sgentries;
 	set_performant_mode(h, c);
 
-	if (likely(creq->cmd_type == REQ_TYPE_FS)) {
+	switch (req_op(creq)) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
 		if(h->cciss_read == CCISS_READ_10) {
 			c->Request.CDB[1] = 0;
 			c->Request.CDB[2] = (start_blk >> 24) & 0xff; /* MSB */
@@ -3424,13 +3426,16 @@ static void do_cciss_request(struct request_queue *q)
 			c->Request.CDB[13]= blk_rq_sectors(creq) & 0xff;
 			c->Request.CDB[14] = c->Request.CDB[15] = 0;
 		}
-	} else if (creq->cmd_type == REQ_TYPE_BLOCK_PC) {
+		break;
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 		c->Request.CDBLen = scsi_req(creq)->cmd_len;
 		memcpy(c->Request.CDB, scsi_req(creq)->cmd, BLK_MAX_CDB);
 		scsi_req(creq)->sense = c->err_info->SenseInfo;
-	} else {
+		break;
+	default:
 		dev_warn(&h->pdev->dev, "bad request type %d\n",
-			creq->cmd_type);
+			creq->cmd_flags);
 		BUG();
 	}
 

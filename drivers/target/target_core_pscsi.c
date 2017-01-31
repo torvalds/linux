@@ -1005,7 +1005,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		scsi_command_size(cmd->t_task_cdb));
 
 	req = blk_get_request(pdv->pdv_sd->request_queue,
-			(cmd->data_direction == DMA_TO_DEVICE),
+			cmd->data_direction == DMA_TO_DEVICE ?
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
 			GFP_KERNEL);
 	if (IS_ERR(req)) {
 		pr_err("PSCSI: blk_get_request() failed\n");

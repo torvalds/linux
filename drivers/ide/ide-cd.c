@@ -176,7 +176,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 			if (!sense->valid)
 				break;
 			if (failed_command == NULL ||
-			    failed_command->cmd_type != REQ_TYPE_FS)
+			    blk_rq_is_passthrough(failed_command))
 				break;
 			sector = (sense->information[0] << 24) |
 				 (sense->information[1] << 16) |
@@ -293,7 +293,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	}
 
 	/* if we have an error, pass CHECK_CONDITION as the SCSI status byte */
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC && !rq->errors)
+	if (blk_rq_is_scsi(rq) && !rq->errors)
 		rq->errors = SAM_STAT_CHECK_CONDITION;
 
 	if (blk_noretry_request(rq))
@@ -301,13 +301,13 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 
 	switch (sense_key) {
 	case NOT_READY:
-		if (rq->cmd_type == REQ_TYPE_FS && rq_data_dir(rq) == WRITE) {
+		if (req_op(rq) == REQ_OP_WRITE) {
 			if (ide_cd_breathe(drive, rq))
 				return 1;
 		} else {
 			cdrom_saw_media_change(drive);
 
-			if (rq->cmd_type == REQ_TYPE_FS &&
+			if (!blk_rq_is_passthrough(rq) &&
 			    !(rq->rq_flags & RQF_QUIET))
 				printk(KERN_ERR PFX "%s: tray open\n",
 					drive->name);
@@ -317,7 +317,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 	case UNIT_ATTENTION:
 		cdrom_saw_media_change(drive);
 
-		if (rq->cmd_type != REQ_TYPE_FS)
+		if (blk_rq_is_passthrough(rq))
 			return 0;
 
 		/*
@@ -365,7 +365,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		do_end_request = 1;
 		break;
 	default:
-		if (rq->cmd_type != REQ_TYPE_FS)
+		if (blk_rq_is_passthrough(rq))
 			break;
 		if (err & ~ATA_ABORTED) {
 			/* go to the default handler for other errors */
@@ -376,7 +376,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			do_end_request = 1;
 	}
 
-	if (rq->cmd_type != REQ_TYPE_FS) {
+	if (blk_rq_is_passthrough(rq)) {
 		rq->rq_flags |= RQF_FAILED;
 		do_end_request = 1;
 	}
@@ -435,10 +435,10 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		int error;
 		bool delay = false;
 
-		rq = blk_get_request(drive->queue, write, __GFP_RECLAIM);
+		rq = blk_get_request(drive->queue,
+			write ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,  __GFP_RECLAIM);
 		scsi_req_init(rq);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
-		rq->cmd_type = REQ_TYPE_DRV_PRIV;
 		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;
 		rq->timeout = timeout;
@@ -564,7 +564,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	ide_read_bcount_and_ireason(drive, &len, &ireason);
 
-	thislen = (rq->cmd_type == REQ_TYPE_FS) ? len : cmd->nleft;
+	thislen = !blk_rq_is_passthrough(rq) ? len : cmd->nleft;
 	if (thislen > len)
 		thislen = len;
 
@@ -573,7 +573,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	/* If DRQ is clear, the command has completed. */
 	if ((stat & ATA_DRQ) == 0) {
-		if (rq->cmd_type == REQ_TYPE_FS) {
+		switch (req_op(rq)) {
+		default:
 			/*
 			 * If we're not done reading/writing, complain.
 			 * Otherwise, complete the command normally.
@@ -587,7 +588,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 					rq->rq_flags |= RQF_FAILED;
 				uptodate = 0;
 			}
-		} else if (rq->cmd_type != REQ_TYPE_BLOCK_PC) {
+			goto out_end;
+		case REQ_OP_DRV_IN:
+		case REQ_OP_DRV_OUT:
 			ide_cd_request_sense_fixup(drive, cmd);
 
 			uptodate = cmd->nleft ? 0 : 1;
@@ -603,8 +606,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 			if (!uptodate)
 				rq->rq_flags |= RQF_FAILED;
+			goto out_end;
+		case REQ_OP_SCSI_IN:
+		case REQ_OP_SCSI_OUT:
+			goto out_end;
 		}
-		goto out_end;
 	}
 
 	rc = ide_check_ireason(drive, rq, len, ireason, write);
@@ -636,7 +642,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	/* pad, if necessary */
 	if (len > 0) {
-		if (rq->cmd_type != REQ_TYPE_FS || write == 0)
+		if (blk_rq_is_passthrough(rq) || write == 0)
 			ide_pad_transfer(drive, write, len);
 		else {
 			printk(KERN_ERR PFX "%s: confused, missing data\n",
@@ -645,12 +651,18 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		}
 	}
 
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
+	switch (req_op(rq)) {
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 		timeout = rq->timeout;
-	} else {
+		break;
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
+		expiry = ide_cd_expiry;
+		/*FALLTHRU*/
+	default:
 		timeout = ATAPI_WAIT_PC;
-		if (rq->cmd_type != REQ_TYPE_FS)
-			expiry = ide_cd_expiry;
+		break;
 	}
 
 	hwif->expiry = expiry;
@@ -658,7 +670,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	return ide_started;
 
 out_end:
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC && rc == 0) {
+	if (blk_rq_is_scsi(rq) && rc == 0) {
 		scsi_req(rq)->resid_len = 0;
 		blk_end_request_all(rq, 0);
 		hwif->rq = NULL;
@@ -666,7 +678,7 @@ out_end:
 		if (sense && uptodate)
 			ide_cd_complete_failed_rq(drive, rq);
 
-		if (rq->cmd_type == REQ_TYPE_FS) {
+		if (!blk_rq_is_passthrough(rq)) {
 			if (cmd->nleft == 0)
 				uptodate = 1;
 		} else {
@@ -679,7 +691,7 @@ out_end:
 				return ide_stopped;
 
 		/* make sure it's fully ended */
-		if (rq->cmd_type != REQ_TYPE_FS) {
+		if (blk_rq_is_passthrough(rq)) {
 			scsi_req(rq)->resid_len -= cmd->nbytes - cmd->nleft;
 			if (uptodate == 0 && (cmd->tf_flags & IDE_TFLAG_WRITE))
 				scsi_req(rq)->resid_len += cmd->last_xfer_len;
@@ -739,7 +751,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	ide_debug_log(IDE_DBG_PC, "rq->cmd[0]: 0x%x, rq->cmd_type: 0x%x",
 				  rq->cmd[0], rq->cmd_type);
 
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC)
+	if (blk_rq_is_scsi(rq))
 		rq->rq_flags |= RQF_QUIET;
 	else
 		rq->rq_flags &= ~RQF_FAILED;
@@ -781,18 +793,20 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	if (drive->debug_mask & IDE_DBG_RQ)
 		blk_dump_rq_flags(rq, "ide_cd_do_request");
 
-	switch (rq->cmd_type) {
-	case REQ_TYPE_FS:
+	switch (req_op(rq)) {
+	default:
 		if (cdrom_start_rw(drive, rq) == ide_stopped)
 			goto out_end;
 		break;
-	case REQ_TYPE_BLOCK_PC:
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 	handle_pc:
 		if (!rq->timeout)
 			rq->timeout = ATAPI_WAIT_PC;
 		cdrom_do_block_pc(drive, rq);
 		break;
-	case REQ_TYPE_DRV_PRIV:
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_MISC:
 			/* right now this can only be a reset... */
@@ -801,9 +815,9 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		case ATA_PRIV_SENSE:
 		case ATA_PRIV_PC:
 			goto handle_pc;
+		default:
+			BUG();
 		}
-	default:
-		BUG();
 	}
 
 	/* prepare sense request for this command */
@@ -816,7 +830,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	cmd.rq = rq;
 
-	if (rq->cmd_type == REQ_TYPE_FS || blk_rq_bytes(rq)) {
+	if (!blk_rq_is_passthrough(rq) || blk_rq_bytes(rq)) {
 		ide_init_sg_cmd(&cmd, blk_rq_bytes(rq));
 		ide_map_sg(drive, &cmd);
 	}
@@ -1373,9 +1387,9 @@ static int ide_cdrom_prep_pc(struct request *rq)
 
 static int ide_cdrom_prep_fn(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_type == REQ_TYPE_FS)
+	if (!blk_rq_is_passthrough(rq))
 		return ide_cdrom_prep_fs(q, rq);
-	else if (rq->cmd_type == REQ_TYPE_BLOCK_PC)
+	else if (blk_rq_is_scsi(rq))
 		return ide_cdrom_prep_pc(rq);
 
 	return 0;

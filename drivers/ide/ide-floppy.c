@@ -72,7 +72,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 		drive->failed_pc = NULL;
 
 	if (pc->c[0] == GPCMD_READ_10 || pc->c[0] == GPCMD_WRITE_10 ||
-	    rq->cmd_type == REQ_TYPE_BLOCK_PC)
+	    (req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 
@@ -254,8 +254,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			goto out_end;
 	}
 
-	switch (rq->cmd_type) {
-	case REQ_TYPE_FS:
+	switch (req_op(rq)) {
+	default:
 		if (((long)blk_rq_pos(rq) % floppy->bs_factor) ||
 		    (blk_rq_sectors(rq) % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
@@ -265,11 +265,13 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
 		break;
-	case REQ_TYPE_BLOCK_PC:
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
 		break;
-	case REQ_TYPE_DRV_PRIV:
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_MISC:
 		case ATA_PRIV_SENSE:
@@ -278,9 +280,6 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		default:
 			BUG();
 		}
-		break;
-	default:
-		BUG();
 	}
 
 	ide_prep_sense(drive, rq);
@@ -292,7 +291,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 
 	cmd.rq = rq;
 
-	if (rq->cmd_type == REQ_TYPE_FS || blk_rq_bytes(rq)) {
+	if (!blk_rq_is_passthrough(rq) || blk_rq_bytes(rq)) {
 		ide_init_sg_cmd(&cmd, blk_rq_bytes(rq));
 		ide_map_sg(drive, &cmd);
 	}
@@ -302,7 +301,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	return ide_floppy_issue_pc(drive, &cmd, pc);
 out_end:
 	drive->failed_pc = NULL;
-	if (rq->cmd_type != REQ_TYPE_FS && rq->errors == 0)
+	if (blk_rq_is_passthrough(rq) && rq->errors == 0)
 		rq->errors = -EIO;
 	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 	return ide_stopped;

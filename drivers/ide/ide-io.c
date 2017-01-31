@@ -145,7 +145,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
-		else if (rq->cmd_type != REQ_TYPE_FS && rq->errors == 0)
+		else if (blk_rq_is_passthrough(rq) && rq->errors == 0)
 			rq->errors = -EIO;
 	}
 

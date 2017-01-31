@@ -219,11 +219,12 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 req_flags_t rq_flags, int *resid)
 {
 	struct request *req;
-	int write = (data_direction == DMA_TO_DEVICE);
 	struct scsi_request *rq;
 	int ret = DRIVER_ERROR << 24;
 
-	req = blk_get_request(sdev->request_queue, write, __GFP_RECLAIM);
+	req = blk_get_request(sdev->request_queue,
+			data_direction == DMA_TO_DEVICE ?
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, __GFP_RECLAIM);
 	if (IS_ERR(req))
 		return ret;
 	rq = scsi_req(req);
@@ -839,8 +840,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		}
 	} else if (blk_rq_bytes(req) == 0 && result && !sense_deferred) {
 		/*
-		 * Certain non BLOCK_PC requests are commands that don't
-		 * actually transfer anything (FLUSH), so cannot use
+		 * Flush commands do not transfers any data, and thus cannot use
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
 		 * This sets the error explicitly for the problem case.
 		 */
@@ -859,8 +859,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		blk_rq_sectors(req), good_bytes));
 
 	/*
-	 * Recovered errors need reporting, but they're always treated
-	 * as success, so fiddle the result code here.  For BLOCK_PC
+	 * Recovered errors need reporting, but they're always treated as
+	 * success, so fiddle the result code here.  For passthrough requests
 	 * we already took a copy of the original into rq->errors which
 	 * is what gets returned to the user
 	 */
@@ -874,7 +874,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		else if (!(req->rq_flags & RQF_QUIET))
 			scsi_print_sense(cmd);
 		result = 0;
-		/* BLOCK_PC may have set error */
+		/* for passthrough error may be set */
 		error = 0;
 	}
 
@@ -1179,12 +1179,12 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(&dev->list_lock, flags);
 }
 
-static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
+static int scsi_setup_scsi_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
 	/*
-	 * BLOCK_PC requests may transfer data, in which case they must
+	 * Passthrough requests may transfer data, in which case they must
 	 * a bio attached to them.  Or they might contain a SCSI command
 	 * that does not transfer data, in which case they may optionally
 	 * submit a request without an attached bio.
@@ -1207,7 +1207,7 @@ static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 }
 
 /*
- * Setup a REQ_TYPE_FS command.  These are simple request from filesystems
+ * Setup a normal block command.  These are simple request from filesystems
  * that still need to be translated to SCSI CDBs from the ULD.
  */
 static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
@@ -1236,14 +1236,10 @@ static int scsi_setup_cmnd(struct scsi_device *sdev, struct request *req)
 	else
 		cmd->sc_data_direction = DMA_FROM_DEVICE;
 
-	switch (req->cmd_type) {
-	case REQ_TYPE_FS:
+	if (blk_rq_is_scsi(req))
+		return scsi_setup_scsi_cmnd(sdev, req);
+	else
 		return scsi_setup_fs_cmnd(sdev, req);
-	case REQ_TYPE_BLOCK_PC:
-		return scsi_setup_blk_pc_cmnd(sdev, req);
-	default:
-		return BLKPREP_KILL;
-	}
 }
 
 static int

@@ -162,6 +162,13 @@ enum req_opf {
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 8,
 
+	/* SCSI passthrough using struct scsi_request */
+	REQ_OP_SCSI_IN		= 32,
+	REQ_OP_SCSI_OUT		= 33,
+	/* Driver private requests */
+	REQ_OP_DRV_IN		= 34,
+	REQ_OP_DRV_OUT		= 35,
+
 	REQ_OP_LAST,
 };
 

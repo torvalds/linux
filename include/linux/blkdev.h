@@ -71,15 +71,6 @@ struct request_list {
 };
 
 /*
- * request command types
- */
-enum rq_cmd_type_bits {
-	REQ_TYPE_FS		= 1,	/* fs request */
-	REQ_TYPE_BLOCK_PC,		/* scsi command */
-	REQ_TYPE_DRV_PRIV,		/* driver defined types from here */
-};
-
-/*
  * request flags */
 typedef __u32 __bitwise req_flags_t;
 
@@ -145,7 +136,6 @@ struct request {
 	struct blk_mq_ctx *mq_ctx;
 
 	int cpu;
-	unsigned cmd_type;
 	unsigned int cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
 	unsigned long atomic_flags;
@@ -242,9 +232,19 @@ struct request {
 	struct request *next_rq;
 };
 
+static inline bool blk_rq_is_scsi(struct request *rq)
+{
+	return req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT;
+}
+
+static inline bool blk_rq_is_private(struct request *rq)
+{
+	return req_op(rq) == REQ_OP_DRV_IN || req_op(rq) == REQ_OP_DRV_OUT;
+}
+
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {
-	return rq->cmd_type != REQ_TYPE_FS;
+	return blk_rq_is_scsi(rq) || blk_rq_is_private(rq);
 }
 
 static inline unsigned short req_get_ioprio(struct request *req)

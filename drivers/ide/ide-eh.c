@@ -123,7 +123,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 		return ide_stopped;
 
 	/* retry only "normal" I/O: */
-	if (rq->cmd_type != REQ_TYPE_FS) {
+	if (blk_rq_is_passthrough(rq)) {
 		if (ata_taskfile_request(rq)) {
 			struct ide_cmd *cmd = rq->special;
 

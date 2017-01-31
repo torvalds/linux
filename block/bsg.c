@@ -177,7 +177,7 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
  * Check if sg_io_v4 from user is allowed and valid
  */
 static int
-bsg_validate_sgv4_hdr(struct sg_io_v4 *hdr, int *rw)
+bsg_validate_sgv4_hdr(struct sg_io_v4 *hdr, int *op)
 {
 	int ret = 0;
 
@@ -198,7 +198,7 @@ bsg_validate_sgv4_hdr(struct sg_io_v4 *hdr, int *rw)
 		ret = -EINVAL;
 	}
 
-	*rw = hdr->dout_xfer_len ? WRITE : READ;
+	*op = hdr->dout_xfer_len ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN;
 	return ret;
 }
 
@@ -210,8 +210,8 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm)
 {
 	struct request_queue *q = bd->queue;
 	struct request *rq, *next_rq = NULL;
-	int ret, rw;
-	unsigned int dxfer_len;
+	int ret;
+	unsigned int op, dxfer_len;
 	void __user *dxferp = NULL;
 	struct bsg_class_device *bcd = &q->bsg_dev;
 
@@ -226,14 +226,14 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm)
 		hdr->dout_xfer_len, (unsigned long long) hdr->din_xferp,
 		hdr->din_xfer_len);
 
-	ret = bsg_validate_sgv4_hdr(hdr, &rw);
+	ret = bsg_validate_sgv4_hdr(hdr, &op);
 	if (ret)
 		return ERR_PTR(ret);
 
 	/*
 	 * map scatter-gather elements separately and string them to request
 	 */
-	rq = blk_get_request(q, rw, GFP_KERNEL);
+	rq = blk_get_request(q, op, GFP_KERNEL);
 	if (IS_ERR(rq))
 		return rq;
 	scsi_req_init(rq);
@@ -242,20 +242,19 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr, fmode_t has_write_perm)
 	if (ret)
 		goto out;
 
-	if (rw == WRITE && hdr->din_xfer_len) {
+	if (op == REQ_OP_SCSI_OUT && hdr->din_xfer_len) {
 		if (!test_bit(QUEUE_FLAG_BIDI, &q->queue_flags)) {
 			ret = -EOPNOTSUPP;
 			goto out;
 		}
 
-		next_rq = blk_get_request(q, READ, GFP_KERNEL);
+		next_rq = blk_get_request(q, REQ_OP_SCSI_IN, GFP_KERNEL);
 		if (IS_ERR(next_rq)) {
 			ret = PTR_ERR(next_rq);
 			next_rq = NULL;
 			goto out;
 		}
 		rq->next_rq = next_rq;
-		next_rq->cmd_type = rq->cmd_type;
 
 		dxferp = (void __user *)(unsigned long)hdr->din_xferp;
 		ret =  blk_rq_map_user(q, next_rq, NULL, dxferp,

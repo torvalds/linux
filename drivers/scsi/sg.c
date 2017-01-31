@@ -1698,7 +1698,8 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	 * With scsi-mq disabled, blk_get_request() with GFP_KERNEL usually
 	 * does not sleep except under memory pressure.
 	 */
-	rq = blk_get_request(q, rw, GFP_KERNEL);
+	rq = blk_get_request(q, hp->dxfer_direction == SG_DXFER_TO_DEV ?
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, GFP_KERNEL);
 	if (IS_ERR(rq)) {
 		kfree(long_cmdp);
 		return PTR_ERR(rq);

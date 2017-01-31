@@ -63,31 +63,27 @@ static inline struct ide_request *ide_req(struct request *rq)
 
 static inline bool ata_misc_request(struct request *rq)
 {
-	return rq->cmd_type == REQ_TYPE_DRV_PRIV &&
-               ide_req(rq)->type == ATA_PRIV_MISC;
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_MISC;
 }
 
 static inline bool ata_taskfile_request(struct request *rq)
 {
-	return rq->cmd_type == REQ_TYPE_DRV_PRIV &&
-               ide_req(rq)->type == ATA_PRIV_TASKFILE;
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_TASKFILE;
 }
 
 static inline bool ata_pc_request(struct request *rq)
 {
-	return rq->cmd_type == REQ_TYPE_DRV_PRIV &&
-               ide_req(rq)->type == ATA_PRIV_PC;
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_PC;
 }
 
 static inline bool ata_sense_request(struct request *rq)
 {
-	return rq->cmd_type == REQ_TYPE_DRV_PRIV &&
-               ide_req(rq)->type == ATA_PRIV_SENSE;
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_SENSE;
 }
 
 static inline bool ata_pm_request(struct request *rq)
 {
-	return rq->cmd_type == REQ_TYPE_DRV_PRIV &&
+	return blk_rq_is_private(rq) &&
 		(ide_req(rq)->type == ATA_PRIV_PM_SUSPEND ||
 		 ide_req(rq)->type == ATA_PRIV_PM_RESUME);
 }

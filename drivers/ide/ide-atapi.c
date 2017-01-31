@@ -92,9 +92,8 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	struct request *rq;
 	int error;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
 	scsi_req_init(rq);
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = (char *)pc;
 
@@ -212,7 +211,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	}
 
 	sense_rq->rq_disk = rq->rq_disk;
-	sense_rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	sense_rq->cmd_flags = REQ_OP_DRV_IN;
 	ide_req(sense_rq)->type = ATA_PRIV_SENSE;
 	sense_rq->rq_flags |= RQF_PREEMPT;
 
@@ -312,19 +311,21 @@ EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
-	switch (rq->cmd_type) {
-	case REQ_TYPE_FS:
+	switch (req_op(rq)) {
+	default:
 		return 32768;
-	case REQ_TYPE_BLOCK_PC:
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 		return blk_rq_bytes(rq);
-	case REQ_TYPE_DRV_PRIV:
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_PC:
 		case ATA_PRIV_SENSE:
 			return blk_rq_bytes(rq);
+		default:
+			return 0;
 		}
-	default:
-		return 0;
 	}
 }
 EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
@@ -491,7 +492,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			error = 0;
 		} else {
 
-			if (rq->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
+			if (blk_rq_is_passthrough(rq) && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}

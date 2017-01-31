@@ -175,11 +175,12 @@ static inline void virtblk_request_done(struct request *req)
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 	int error = virtblk_result(vbr);
 
-	switch (req->cmd_type) {
-	case REQ_TYPE_BLOCK_PC:
+	switch (req_op(req)) {
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
 		virtblk_scsi_reques_done(req);
 		break;
-	case REQ_TYPE_DRV_PRIV:
+	case REQ_OP_DRV_IN:
 		req->errors = (error != 0);
 		break;
 	}
@@ -226,35 +227,34 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int qid = hctx->queue_num;
 	int err;
 	bool notify = false;
+	u32 type;
 
 	BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
-	if (req_op(req) == REQ_OP_FLUSH) {
-		vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_FLUSH);
-		vbr->out_hdr.sector = 0;
-		vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
-	} else {
-		switch (req->cmd_type) {
-		case REQ_TYPE_FS:
-			vbr->out_hdr.type = 0;
-			vbr->out_hdr.sector = cpu_to_virtio64(vblk->vdev, blk_rq_pos(req));
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
-			break;
-		case REQ_TYPE_BLOCK_PC:
-			vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_SCSI_CMD);
-			vbr->out_hdr.sector = 0;
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
-			break;
-		case REQ_TYPE_DRV_PRIV:
-			vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, VIRTIO_BLK_T_GET_ID);
-			vbr->out_hdr.sector = 0;
-			vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
-			break;
-		default:
-			/* We don't put anything else in the queue. */
-			BUG();
-		}
+	switch (req_op(req)) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
+		type = 0;
+		break;
+	case REQ_OP_FLUSH:
+		type = VIRTIO_BLK_T_FLUSH;
+		break;
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
+		type = VIRTIO_BLK_T_SCSI_CMD;
+		break;
+	case REQ_OP_DRV_IN:
+		type = VIRTIO_BLK_T_GET_ID;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return BLK_MQ_RQ_QUEUE_ERROR;
 	}
+
+	vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, type);
+	vbr->out_hdr.sector = type ?
+		0 : cpu_to_virtio64(vblk->vdev, blk_rq_pos(req));
+	vbr->out_hdr.ioprio = cpu_to_virtio32(vblk->vdev, req_get_ioprio(req));
 
 	blk_mq_start_request(req);
 
@@ -267,7 +267,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	spin_lock_irqsave(&vblk->vqs[qid].lock, flags);
-	if (req->cmd_type == REQ_TYPE_BLOCK_PC)
+	if (req_op(req) == REQ_OP_SCSI_IN || req_op(req) == REQ_OP_SCSI_OUT)
 		err = virtblk_add_req_scsi(vblk->vqs[qid].vq, vbr, vbr->sg, num);
 	else
 		err = virtblk_add_req(vblk->vqs[qid].vq, vbr, vbr->sg, num);
@@ -300,10 +300,9 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	struct request *req;
 	int err;
 
-	req = blk_get_request(q, READ, GFP_KERNEL);
+	req = blk_get_request(q, REQ_OP_DRV_IN, GFP_KERNEL);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->cmd_type = REQ_TYPE_DRV_PRIV;
 
 	err = blk_rq_map_kern(q, req, id_str, VIRTIO_BLK_ID_BYTES, GFP_KERNEL);
 	if (err)

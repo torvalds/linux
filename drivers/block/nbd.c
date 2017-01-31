@@ -271,17 +271,22 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	u32 type;
 	u32 tag = blk_mq_unique_tag(req);
 
-	if (req->cmd_type != REQ_TYPE_FS)
-		return -EIO;
-
-	if (req_op(req) == REQ_OP_DISCARD)
+	switch (req_op(req)) {
+	case REQ_OP_DISCARD:
 		type = NBD_CMD_TRIM;
-	else if (req_op(req) == REQ_OP_FLUSH)
+		break;
+	case REQ_OP_FLUSH:
 		type = NBD_CMD_FLUSH;
-	else if (rq_data_dir(req) == WRITE)
+		break;
+	case REQ_OP_WRITE:
 		type = NBD_CMD_WRITE;
-	else
+		break;
+	case REQ_OP_READ:
 		type = NBD_CMD_READ;
+		break;
+	default:
+		return -EIO;
+	}
 
 	if (rq_data_dir(req) == WRITE &&
 	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
