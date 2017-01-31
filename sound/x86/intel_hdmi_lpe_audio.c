@@ -463,6 +463,22 @@ static void notify_audio_lpe(void *audio_ptr)
 
 	} else if (eld != NULL) {
 
+		switch (eld->pipe_id) {
+		case 0:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
+			break;
+		case 1:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_B;
+			break;
+		case 2:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
+			break;
+		default:
+			dev_dbg(&hlpe_pdev->dev, "Invalid pipe %d\n",
+				eld->pipe_id);
+			break;
+		}
+
 		hdmi_set_eld(eld->eld_data);
 
 		mid_hdmi_audio_signal_event(HAD_EVENT_HOT_PLUG);
@@ -560,15 +576,15 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->mmio_start = mmio_start;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
 
-	if (pci_dev_present(cherryview_ids)) {
+	if (pci_dev_present(cherryview_ids))
 		dev_dbg(&hlpe_pdev->dev, "%s: Cherrytrail LPE - Detected\n",
 				__func__);
-		ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
-	} else {
+	else
 		dev_dbg(&hlpe_pdev->dev, "%s: Baytrail LPE - Assume\n",
 				__func__);
-		ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
-	}
+
+	/* assume pipe A as default */
+	ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
 
 	pdata = pdev->dev.platform_data;
 
