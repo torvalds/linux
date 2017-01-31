@@ -1036,5 +1036,5 @@ int tilcdc_crtc_create(struct drm_device *dev)
 
 fail:
 	tilcdc_crtc_destroy(crtc);
-	return -ENOMEM;
+	return ret;
 }
