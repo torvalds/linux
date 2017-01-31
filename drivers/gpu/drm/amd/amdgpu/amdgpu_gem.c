@@ -471,12 +471,15 @@ out:
 
 static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
 {
-	unsigned domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-
 	/* if anything is swapped out don't swap it in here,
 	   just abort and wait for the next CS */
+	if (!amdgpu_bo_gpu_accessible(bo))
+		return -ERESTARTSYS;
 
-	return domain == AMDGPU_GEM_DOMAIN_CPU ? -ERESTARTSYS : 0;
+	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		return -ERESTARTSYS;
+
+	return 0;
 }
 
 /**
@@ -496,7 +499,6 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	struct amdgpu_bo_list_entry vm_pd;
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
-	unsigned domain;
 	int r;
 
 	INIT_LIST_HEAD(&list);
@@ -514,12 +516,18 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		goto error_print;
 
 	list_for_each_entry(entry, &list, head) {
-		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
+		struct amdgpu_bo *bo =
+			container_of(entry->bo, struct amdgpu_bo, tbo);
+
 		/* if anything is swapped out don't swap it in here,
 		   just abort and wait for the next CS */
-		if (domain == AMDGPU_GEM_DOMAIN_CPU)
+		if (!amdgpu_bo_gpu_accessible(bo))
+			goto error_unreserve;
+
+		if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
 			goto error_unreserve;
 	}
+
 	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
 				      NULL);
 	if (r)

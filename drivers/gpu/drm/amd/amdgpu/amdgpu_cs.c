@@ -75,10 +75,10 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		*out_ring = &adev->uvd.ring;
 		break;
 	case AMDGPU_HW_IP_VCE:
-		if (ring < 2){
+		if (ring < adev->vce.num_rings){
 			*out_ring = &adev->vce.ring[ring];
 		} else {
-			DRM_ERROR("only two VCE rings are supported\n");
+			DRM_ERROR("only %d VCE rings are supported\n", adev->vce.num_rings);
 			return -EINVAL;
 		}
 		break;
@@ -770,6 +770,20 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 	r = amdgpu_vm_clear_freed(adev, vm);
 	if (r)
 		return r;
+
+	if (amdgpu_sriov_vf(adev)) {
+		struct dma_fence *f;
+		bo_va = vm->csa_bo_va;
+		BUG_ON(!bo_va);
+		r = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (r)
+			return r;
+
+		f = bo_va->last_pt_update;
+		r = amdgpu_sync_fence(adev, &p->job->sync, f);
+		if (r)
+			return r;
+	}
 
 	if (p->bo_list) {
 		for (i = 0; i < p->bo_list->num_entries; i++) {

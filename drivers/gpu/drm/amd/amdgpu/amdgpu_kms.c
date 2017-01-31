@@ -60,6 +60,9 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		goto done_free;
 
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
+
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
@@ -137,6 +140,9 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put_autosuspend(dev->dev);
 	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, true);
 
 out:
 	if (r) {
@@ -569,6 +575,27 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			return -EINVAL;
 		}
 	}
+	case AMDGPU_INFO_NUM_HANDLES: {
+		struct drm_amdgpu_info_num_handles handle;
+
+		switch (info->query_hw_ip.type) {
+		case AMDGPU_HW_IP_UVD:
+			/* Starting Polaris, we support unlimited UVD handles */
+			if (adev->asic_type < CHIP_POLARIS10) {
+				handle.uvd_max_handles = adev->uvd.max_handles;
+				handle.uvd_used_handles = amdgpu_uvd_used_handles(adev);
+
+				return copy_to_user(out, &handle,
+					min((size_t)size, sizeof(handle))) ? -EFAULT : 0;
+			} else {
+				return -ENODATA;
+			}
+
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
@@ -628,6 +655,12 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto out_suspend;
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		r = amdgpu_map_static_csa(adev, &fpriv->vm);
+		if (r)
+			goto out_suspend;
+	}
+
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init(&fpriv->bo_list_handles);
 
@@ -665,6 +698,14 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_uvd_free_handles(adev, file_priv);
 	amdgpu_vce_free_handles(adev, file_priv);
+
+	if (amdgpu_sriov_vf(adev)) {
+		/* TODO: how to handle reserve failure */
+		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, false));
+		amdgpu_vm_bo_rmv(adev, fpriv->vm.csa_bo_va);
+		fpriv->vm.csa_bo_va = NULL;
+		amdgpu_bo_unreserve(adev->virt.csa_obj);
+	}
 
 	amdgpu_vm_fini(adev, &fpriv->vm);
 

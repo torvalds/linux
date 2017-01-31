@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "cgs_common.h"
-#include "pp_debug.h"
 #include "ppevvmath.h"
 
 #define MEM_ID_MASK           0xff000000
@@ -145,10 +145,10 @@ int atomctrl_initialize_mc_reg_table(
 				GetIndexIntoMasterTable(DATA, VRAM_Info), &size, &frev, &crev);
 
 	if (module_index >= vram_info->ucNumOfVRAMModule) {
-		printk(KERN_ERR "[ powerplay ] Invalid VramInfo table.");
+		pr_err("Invalid VramInfo table.");
 		result = -1;
 	} else if (vram_info->sHeader.ucTableFormatRevision < 2) {
-		printk(KERN_ERR "[ powerplay ] Invalid VramInfo table.");
+		pr_err("Invalid VramInfo table.");
 		result = -1;
 	}
 
@@ -688,7 +688,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM7), 1000);
 		break;
 	default:
-		printk(KERN_ERR "DPM Level not supported\n");
+		pr_err("DPM Level not supported\n");
 		fPowerDPMx = Convert_ULONG_ToFraction(1);
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM0), 1000);
 	}
