@@ -210,7 +210,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 {
 	/*
-	 * For REQ_TYPE_ATA_SENSE, "rq->special" points to the original
+	 * For ATA_PRIV_SENSE, "rq->special" points to the original
 	 * failed request.  Also, the sense data should be read
 	 * directly from rq which might be different from the original
 	 * sense buffer if it got copied during mapping.
@@ -282,7 +282,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 				  "stat 0x%x",
 				  rq->cmd[0], rq->cmd_type, err, stat);
 
-	if (rq->cmd_type == REQ_TYPE_ATA_SENSE) {
+	if (ata_sense_request(rq)) {
 		/*
 		 * We got an error trying to get sense info from the drive
 		 * (probably while trying to recover from a former error).
@@ -438,7 +438,8 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		rq = blk_get_request(drive->queue, write, __GFP_RECLAIM);
 		scsi_req_init(rq);
 		memcpy(scsi_req(rq)->cmd, cmd, BLK_MAX_CDB);
-		rq->cmd_type = REQ_TYPE_ATA_PC;
+		rq->cmd_type = REQ_TYPE_DRV_PRIV;
+		ide_req(rq)->type = ATA_PRIV_PC;
 		rq->rq_flags |= rq_flags;
 		rq->timeout = timeout;
 		if (buffer) {
@@ -520,7 +521,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, thislen, uptodate = 0;
 	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc = 0;
-	int sense = (rq->cmd_type == REQ_TYPE_ATA_SENSE);
+	int sense = ata_sense_request(rq);
 	unsigned int timeout;
 	u16 len;
 	u8 ireason, stat;
@@ -785,18 +786,22 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		if (cdrom_start_rw(drive, rq) == ide_stopped)
 			goto out_end;
 		break;
-	case REQ_TYPE_ATA_SENSE:
 	case REQ_TYPE_BLOCK_PC:
-	case REQ_TYPE_ATA_PC:
+	handle_pc:
 		if (!rq->timeout)
 			rq->timeout = ATAPI_WAIT_PC;
-
 		cdrom_do_block_pc(drive, rq);
 		break;
 	case REQ_TYPE_DRV_PRIV:
-		/* right now this can only be a reset... */
-		uptodate = 1;
-		goto out_end;
+		switch (ide_req(rq)->type) {
+		case ATA_PRIV_MISC:
+			/* right now this can only be a reset... */
+			uptodate = 1;
+			goto out_end;
+		case ATA_PRIV_SENSE:
+		case ATA_PRIV_PC:
+			goto handle_pc;
+		}
 	default:
 		BUG();
 	}

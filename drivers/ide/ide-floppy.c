@@ -97,7 +97,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 			       "Aborting request!\n");
 	}
 
-	if (rq->cmd_type == REQ_TYPE_DRV_PRIV)
+	if (ata_misc_request(rq))
 		rq->errors = uptodate ? 0 : IDE_DRV_ERROR_GENERAL;
 
 	return uptodate;
@@ -246,7 +246,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		} else
 			printk(KERN_ERR PFX "%s: I/O error\n", drive->name);
 
-		if (rq->cmd_type == REQ_TYPE_DRV_PRIV) {
+		if (ata_misc_request(rq)) {
 			rq->errors = 0;
 			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 			return ide_stopped;
@@ -265,13 +265,19 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
 		break;
-	case REQ_TYPE_DRV_PRIV:
-	case REQ_TYPE_ATA_SENSE:
-		pc = (struct ide_atapi_pc *)rq->special;
-		break;
 	case REQ_TYPE_BLOCK_PC:
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
+		break;
+	case REQ_TYPE_DRV_PRIV:
+		switch (ide_req(rq)->type) {
+		case ATA_PRIV_MISC:
+		case ATA_PRIV_SENSE:
+			pc = (struct ide_atapi_pc *)rq->special;
+			break;
+		default:
+			BUG();
+		}
 		break;
 	default:
 		BUG();

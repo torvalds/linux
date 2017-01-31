@@ -432,7 +432,8 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 
 	rq = blk_get_request(drive->queue, rw, __GFP_RECLAIM);
 	scsi_req_init(rq);
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	/*
 	 * (ks) We transfer currently only whole sectors.

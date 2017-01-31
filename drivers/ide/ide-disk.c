@@ -453,7 +453,8 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	cmd->tf_flags = IDE_TFLAG_DYN;
 	cmd->protocol = ATA_PROT_NODATA;
 
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 	rq->special = cmd;
 	cmd->rq = rq;
 
@@ -479,7 +480,8 @@ static int set_multcount(ide_drive_t *drive, int arg)
 
 	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
 	scsi_req_init(rq);
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	drive->mult_req = arg;
 	drive->special_flags |= IDE_SFLAG_SET_MULTMODE;

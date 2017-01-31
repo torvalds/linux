@@ -168,6 +168,7 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 	rq = blk_get_request(q, READ, __GFP_RECLAIM);
 	scsi_req_init(rq);
 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	scsi_req(rq)->cmd_len = 5;
 	scsi_req(rq)->cmd[0] = REQ_DEVSET_EXEC;
 	*(int *)&scsi_req(rq)->cmd[1] = arg;
