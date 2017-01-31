@@ -43,6 +43,7 @@ int __init efi_memattr_init(void)
 
 	tbl_size = sizeof(*tbl) + tbl->num_entries * tbl->desc_size;
 	memblock_reserve(efi.mem_attr_table, tbl_size);
+	set_bit(EFI_MEM_ATTR, &efi.flags);
 
 unmap:
 	early_memunmap(tbl, sizeof(*tbl));
