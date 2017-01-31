@@ -182,6 +182,10 @@ struct hva_enc;
  * @priv:            private codec data for this instance, allocated
  *                   by encoder @open time
  * @hw_err:          true if hardware error detected
+ * @encoded_frames:  number of encoded frames
+ * @sys_errors:      number of system errors (memory, resource, pm...)
+ * @encode_errors:   number of encoding errors (hw/driver errors)
+ * @frame_errors:    number of frame errors (format, size, header...)
  */
 struct hva_ctx {
 	struct hva_dev		        *hva_dev;
@@ -207,6 +211,10 @@ struct hva_ctx {
 	struct hva_enc			*enc;
 	void				*priv;
 	bool				hw_err;
+	u32				encoded_frames;
+	u32				sys_errors;
+	u32				encode_errors;
+	u32				frame_errors;
 };
 
 #define HVA_FLAG_STREAMINFO	0x0001

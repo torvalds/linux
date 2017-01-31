@@ -470,6 +470,7 @@ int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
 
 	if (pm_runtime_get_sync(dev) < 0) {
 		dev_err(dev, "%s     failed to get pm_runtime\n", ctx->name);
+		ctx->sys_errors++;
 		ret = -EFAULT;
 		goto out;
 	}
@@ -481,6 +482,7 @@ int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
 		break;
 	default:
 		dev_dbg(dev, "%s     unknown command 0x%x\n", ctx->name, cmd);
+		ctx->encode_errors++;
 		ret = -EFAULT;
 		goto out;
 	}
@@ -511,12 +513,15 @@ int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
 					 msecs_to_jiffies(2000))) {
 		dev_err(dev, "%s     %s: time out on completion\n", ctx->name,
 			__func__);
+		ctx->encode_errors++;
 		ret = -EFAULT;
 		goto out;
 	}
 
 	/* get encoding status */
 	ret = ctx->hw_err ? -EFAULT : 0;
+
+	ctx->encode_errors += ctx->hw_err ? 1 : 0;
 
 out:
 	disable_irq(hva->irq_its);
