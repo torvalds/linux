@@ -247,7 +247,7 @@ static int st_rproc_probe(struct platform_device *pdev)
 	enabled = st_rproc_state(pdev);
 	if (enabled < 0) {
 		ret = enabled;
-		goto free_rproc;
+		goto free_clk;
 	}
 
 	if (enabled) {
@@ -259,10 +259,12 @@ static int st_rproc_probe(struct platform_device *pdev)
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto free_rproc;
+		goto free_clk;
 
 	return 0;
 
+free_clk:
+	clk_unprepare(ddata->clk);
 free_rproc:
 	rproc_free(rproc);
 	return ret;
