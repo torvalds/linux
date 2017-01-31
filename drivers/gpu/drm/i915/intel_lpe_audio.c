@@ -337,6 +337,7 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 {
 	unsigned long irq_flags;
 	struct intel_hdmi_lpe_audio_pdata *pdata = NULL;
+	u32 audio_enable;
 
 	if (!HAS_LPE_AUDIO(dev_priv))
 		return;
@@ -345,6 +346,8 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 		&(dev_priv->lpe_audio.platdev->dev));
 
 	spin_lock_irqsave(&pdata->lpe_audio_slock, irq_flags);
+
+	audio_enable = I915_READ(VLV_AUD_PORT_EN_DBG(port));
 
 	if (eld != NULL) {
 		memcpy(pdata->eld.eld_data, eld,
@@ -357,11 +360,20 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 			pdata->tmds_clock_speed = tmds_clk_speed;
 		if (link_rate)
 			pdata->link_rate = link_rate;
+
+		/* Unmute the amp for both DP and HDMI */
+		I915_WRITE(VLV_AUD_PORT_EN_DBG(port),
+			   audio_enable & ~VLV_AMP_MUTE);
+
 	} else {
 		memset(pdata->eld.eld_data, 0,
 			HDMI_MAX_ELD_BYTES);
 		pdata->hdmi_connected = false;
 		pdata->dp_output = false;
+
+		/* Mute the amp for both DP and HDMI */
+		I915_WRITE(VLV_AUD_PORT_EN_DBG(port),
+			   audio_enable | VLV_AMP_MUTE);
 	}
 
 	if (pdata->notify_audio_lpe)
