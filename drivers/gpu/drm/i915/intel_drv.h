@@ -377,6 +377,7 @@ struct intel_atomic_state {
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
+	struct i915_vma *vma;
 
 	struct {
 		u32 offset;
@@ -1046,6 +1047,7 @@ struct intel_flip_work {
 	struct work_struct mmio_work;
 
 	struct drm_crtc *crtc;
+	struct i915_vma *old_vma;
 	struct drm_framebuffer *old_fb;
 	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
@@ -1273,7 +1275,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct drm_modeset_acquire_ctx *ctx);
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation);
-void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation);
+void intel_unpin_fb_vma(struct i915_vma *vma);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
@@ -1362,7 +1364,10 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
-u32 intel_fb_gtt_offset(struct drm_framebuffer *fb, unsigned int rotation);
+static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
+{
+	return i915_ggtt_offset(state->vma);
+}
 
 u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
