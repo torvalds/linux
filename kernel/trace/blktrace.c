@@ -433,9 +433,9 @@ static void blk_trace_setup_lba(struct blk_trace *bt,
 /*
  * Setup everything required to start tracing
  */
-int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
-		       struct block_device *bdev,
-		       struct blk_user_trace_setup *buts)
+static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
+			      struct block_device *bdev,
+			      struct blk_user_trace_setup *buts)
 {
 	struct blk_trace *bt = NULL;
 	struct dentry *dir = NULL;
