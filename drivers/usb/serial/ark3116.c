@@ -187,10 +187,8 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 	if (priv->irda)
 		ark3116_write_reg(serial, 0x9, 0);
 
-	dev_info(&serial->dev->dev,
-		"%s using %s mode\n",
-		KBUILD_MODNAME,
-		priv->irda ? "IrDA" : "RS232");
+	dev_info(&port->dev, "using %s mode\n", priv->irda ? "IrDA" : "RS232");
+
 	return 0;
 }
 
@@ -326,9 +324,8 @@ static void ark3116_set_termios(struct tty_struct *tty,
 
 	/* check for software flow control */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
-		dev_warn(&serial->dev->dev,
-			 "%s: don't know how to do software flow control\n",
-			 KBUILD_MODNAME);
+		dev_warn(&port->dev,
+				"software flow control not implemented\n");
 	}
 
 	/* Don't rewrite B0 */
@@ -616,9 +613,8 @@ static void ark3116_read_int_callback(struct urb *urb)
 
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		dev_err(&urb->dev->dev,
-			"%s - Error %d submitting interrupt urb\n",
-			__func__, result);
+		dev_err(&port->dev, "failed to resubmit interrupt urb: %d\n",
+			result);
 }
 
 
