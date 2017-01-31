@@ -76,7 +76,6 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	}
 	s = to_sample(*a);
 
-	ASSERT_RTNL();
 	s->tcf_action = parm->action;
 	s->rate = nla_get_u32(tb[TCA_SAMPLE_RATE]);
 	s->psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
