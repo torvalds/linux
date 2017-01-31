@@ -29,7 +29,6 @@ struct sched_param {
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <linux/cputime.h>
 
 #include <linux/smp.h>
 #include <linux/sem.h>
@@ -610,13 +609,6 @@ static inline void prev_cputime_init(struct prev_cputime *prev)
 struct task_cputime {
 	u64 utime;
 	u64 stime;
-	unsigned long long sum_exec_runtime;
-};
-
-/* Temporary type to ease cputime_t to nsecs conversion */
-struct task_cputime_t {
-	cputime_t utime;
-	cputime_t stime;
 	unsigned long long sum_exec_runtime;
 };
 
@@ -2291,27 +2283,6 @@ static inline void task_cputime_scaled(struct task_struct *t,
 }
 #endif
 
-static inline void task_cputime_t(struct task_struct *t,
-				  cputime_t *utime, cputime_t *stime)
-{
-	u64 ut, st;
-
-	task_cputime(t, &ut, &st);
-	*utime = nsecs_to_cputime(ut);
-	*stime = nsecs_to_cputime(st);
-}
-
-static inline void task_cputime_t_scaled(struct task_struct *t,
-					 cputime_t *utimescaled,
-					 cputime_t *stimescaled)
-{
-	u64 ut, st;
-
-	task_cputime_scaled(t, &ut, &st);
-	*utimescaled = nsecs_to_cputime(ut);
-	*stimescaled = nsecs_to_cputime(st);
-}
-
 extern void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
 extern void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
 
@@ -3526,17 +3497,6 @@ static __always_inline bool need_resched(void)
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
-
-static inline void thread_group_cputime_t(struct task_struct *tsk,
-					  struct task_cputime_t *cputime)
-{
-	struct task_cputime times;
-
-	thread_group_cputime(tsk, &times);
-	cputime->utime = nsecs_to_cputime(times.utime);
-	cputime->stime = nsecs_to_cputime(times.stime);
-	cputime->sum_exec_runtime = times.sum_exec_runtime;
-}
 
 /*
  * Reevaluate whether the task has signals pending delivery.
