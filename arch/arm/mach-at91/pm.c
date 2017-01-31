@@ -10,28 +10,17 @@
  * (at your option) any later version.
  */
 
-#include <linux/gpio.h>
-#include <linux/suspend.h>
-#include <linux/sched.h>
-#include <linux/proc_fs.h>
 #include <linux/genalloc.h>
-#include <linux/interrupt.h>
-#include <linux/sysfs.h>
-#include <linux/module.h>
+#include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_address.h>
-#include <linux/platform_device.h>
-#include <linux/platform_data/atmel.h>
-#include <linux/io.h>
+#include <linux/suspend.h>
+
 #include <linux/clk/at91_pmc.h>
 
-#include <asm/irq.h>
-#include <linux/atomic.h>
-#include <asm/mach/time.h>
-#include <asm/mach/irq.h>
-#include <asm/fncpy.h>
 #include <asm/cacheflush.h>
+#include <asm/fncpy.h>
 #include <asm/system_misc.h>
 
 #include "generic.h"
