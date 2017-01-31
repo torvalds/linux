@@ -677,7 +677,7 @@ static int cpsw_get_usage_count(struct cpsw_common *cpsw)
 	u32 usage_count = 0;
 
 	for (i = 0; i < cpsw->data.slaves; i++)
-		if (netif_running(cpsw->slaves[i].ndev))
+		if (cpsw->slaves[i].ndev && netif_running(cpsw->slaves[i].ndev))
 			usage_count++;
 
 	return usage_count;
