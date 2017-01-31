@@ -318,6 +318,7 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 int nvme_nvm_register_sysfs(struct nvme_ns *ns);
 void nvme_nvm_unregister_sysfs(struct nvme_ns *ns);
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
 #else
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 				    int node)
@@ -334,6 +335,11 @@ static inline void nvme_nvm_unregister_sysfs(struct nvme_ns *ns) {};
 static inline int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
 	return 0;
+}
+static inline int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd,
+							unsigned long arg)
+{
+	return -ENOTTY;
 }
 #endif /* CONFIG_NVM */
 
