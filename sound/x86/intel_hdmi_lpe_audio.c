@@ -48,6 +48,8 @@ struct hdmi_lpe_audio_ctx {
 	struct snd_intel_had_interface *had_interface;
 	void *had_pvt_data;
 	int tmds_clock_speed;
+	bool dp_output;
+	int link_rate;
 	unsigned int had_config_offset;
 	int hdmi_audio_interrupt_mask;
 	struct work_struct hdmi_audio_wq;
@@ -187,6 +189,15 @@ static int hdmi_audio_write(u32 reg, u32 val)
 
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__, reg, val);
 
+	if (ctx->dp_output) {
+		if ((reg == AUDIO_HDMI_CONFIG_A) ||
+		    (reg == AUDIO_HDMI_CONFIG_B) ||
+		    (reg == AUDIO_HDMI_CONFIG_C)) {
+			if (val & AUD_CONFIG_VALID_BIT)
+				val = val | AUD_CONFIG_DP_MODE |
+					AUD_CONFIG_BLOCK_BIT;
+		}
+	}
 	iowrite32(val, (ctx->mmio_start+reg));
 
 	return 0;
@@ -220,6 +231,16 @@ static int hdmi_audio_rmw(u32 reg, u32 val, u32 mask)
 	val_tmp = (val & mask) |
 			((ioread32(ctx->mmio_start + reg)) & ~mask);
 
+	if (ctx->dp_output) {
+		if ((reg == AUDIO_HDMI_CONFIG_A) ||
+		    (reg == AUDIO_HDMI_CONFIG_B) ||
+		    (reg == AUDIO_HDMI_CONFIG_C)) {
+			if (val_tmp & AUD_CONFIG_VALID_BIT)
+				val_tmp = val_tmp | AUD_CONFIG_DP_MODE |
+					AUD_CONFIG_BLOCK_BIT;
+		}
+	}
+
 	iowrite32(val_tmp, (ctx->mmio_start+reg));
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__,
 				reg, val_tmp);
@@ -249,7 +270,18 @@ static int hdmi_audio_get_caps(enum had_caps_list get_element,
 		/* ToDo: Verify if sampling freq logic is correct */
 		*(u32 *)capabilities = ctx->tmds_clock_speed;
 		dev_dbg(&hlpe_pdev->dev, "%s: tmds_clock_speed = 0x%x\n",
-				__func__, ctx->tmds_clock_speed);
+			__func__, ctx->tmds_clock_speed);
+		break;
+	case HAD_GET_LINK_RATE:
+		/* ToDo: Verify if sampling freq logic is correct */
+		*(u32 *)capabilities = ctx->link_rate;
+		dev_dbg(&hlpe_pdev->dev, "%s: link rate = 0x%x\n",
+			__func__, ctx->link_rate);
+		break;
+	case HAD_GET_DP_OUTPUT:
+		*(u32 *)capabilities = ctx->dp_output;
+		dev_dbg(&hlpe_pdev->dev, "%s: dp_output = %d\n",
+			__func__, ctx->dp_output);
 		break;
 	default:
 		break;
@@ -442,6 +474,8 @@ static void notify_audio_lpe(void *audio_ptr)
 
 		if (pdata->tmds_clock_speed) {
 			ctx->tmds_clock_speed = pdata->tmds_clock_speed;
+			ctx->dp_output = pdata->dp_output;
+			ctx->link_rate = pdata->link_rate;
 			mid_hdmi_audio_signal_event(HAD_EVENT_MODE_CHANGING);
 		}
 	} else
