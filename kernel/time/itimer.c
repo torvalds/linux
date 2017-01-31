@@ -53,7 +53,7 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 	cval = it->expires;
 	cinterval = it->incr;
 	if (cval) {
-		struct task_cputime cputime;
+		struct task_cputime_t cputime;
 		cputime_t t;
 
 		thread_group_cputimer(tsk, &cputime);

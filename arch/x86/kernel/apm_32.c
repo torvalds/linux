@@ -913,7 +913,7 @@ static int apm_cpu_idle(struct cpuidle_device *dev,
 	unsigned int bucket;
 
 recalc:
-	task_cputime(current, &utime, &stime);
+	task_cputime_t(current, &utime, &stime);
 	if (jiffies_since_last_check > IDLE_CALC_LIMIT) {
 		use_apm_idle = 0;
 	} else if (jiffies_since_last_check > idle_period) {

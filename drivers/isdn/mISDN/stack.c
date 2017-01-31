@@ -306,7 +306,7 @@ mISDNStackd(void *data)
 	       "msg %d sleep %d stopped\n",
 	       dev_name(&st->dev->dev), st->msg_cnt, st->sleep_cnt,
 	       st->stopped_cnt);
-	task_cputime(st->thread, &utime, &stime);
+	task_cputime_t(st->thread, &utime, &stime);
 	printk(KERN_DEBUG
 	       "mISDNStackd daemon for %s utime(%ld) stime(%ld)\n",
 	       dev_name(&st->dev->dev), utime, stime);

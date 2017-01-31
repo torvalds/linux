@@ -115,7 +115,7 @@ static void bump_cpu_timer(struct k_itimer *timer,
  * Checks @cputime to see if all fields are zero.  Returns true if all fields
  * are zero, false if any field is nonzero.
  */
-static inline int task_cputime_zero(const struct task_cputime *cputime)
+static inline int task_cputime_zero(const struct task_cputime_t *cputime)
 {
 	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
 		return 1;
@@ -126,7 +126,7 @@ static inline unsigned long long prof_ticks(struct task_struct *p)
 {
 	cputime_t utime, stime;
 
-	task_cputime(p, &utime, &stime);
+	task_cputime_t(p, &utime, &stime);
 
 	return cputime_to_expires(utime + stime);
 }
@@ -134,7 +134,7 @@ static inline unsigned long long virt_ticks(struct task_struct *p)
 {
 	cputime_t utime, stime;
 
-	task_cputime(p, &utime, &stime);
+	task_cputime_t(p, &utime, &stime);
 
 	return cputime_to_expires(utime);
 }
@@ -210,7 +210,7 @@ retry:
 	}
 }
 
-static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct task_cputime *sum)
+static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct task_cputime_t *sum)
 {
 	__update_gt_cputime(&cputime_atomic->utime, sum->utime);
 	__update_gt_cputime(&cputime_atomic->stime, sum->stime);
@@ -218,7 +218,7 @@ static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct
 }
 
 /* Sample task_cputime_atomic values in "atomic_timers", store results in "times". */
-static inline void sample_cputime_atomic(struct task_cputime *times,
+static inline void sample_cputime_atomic(struct task_cputime_t *times,
 					 struct task_cputime_atomic *atomic_times)
 {
 	times->utime = atomic64_read(&atomic_times->utime);
@@ -226,10 +226,10 @@ static inline void sample_cputime_atomic(struct task_cputime *times,
 	times->sum_exec_runtime = atomic64_read(&atomic_times->sum_exec_runtime);
 }
 
-void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
+void thread_group_cputimer(struct task_struct *tsk, struct task_cputime_t *times)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-	struct task_cputime sum;
+	struct task_cputime_t sum;
 
 	/* Check if cputimer isn't running. This is accessed without locking. */
 	if (!READ_ONCE(cputimer->running)) {
@@ -238,7 +238,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * values through the TIMER_ABSTIME flag, therefore we have
 		 * to synchronize the timer to the clock every time we start it.
 		 */
-		thread_group_cputime(tsk, &sum);
+		thread_group_cputime_t(tsk, &sum);
 		update_gt_cputime(&cputimer->cputime_atomic, &sum);
 
 		/*
@@ -262,21 +262,21 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 				  struct task_struct *p,
 				  unsigned long long *sample)
 {
-	struct task_cputime cputime;
+	struct task_cputime_t cputime;
 
 	switch (CPUCLOCK_WHICH(which_clock)) {
 	default:
 		return -EINVAL;
 	case CPUCLOCK_PROF:
-		thread_group_cputime(p, &cputime);
+		thread_group_cputime_t(p, &cputime);
 		*sample = cputime_to_expires(cputime.utime + cputime.stime);
 		break;
 	case CPUCLOCK_VIRT:
-		thread_group_cputime(p, &cputime);
+		thread_group_cputime_t(p, &cputime);
 		*sample = cputime_to_expires(cputime.utime);
 		break;
 	case CPUCLOCK_SCHED:
-		thread_group_cputime(p, &cputime);
+		thread_group_cputime_t(p, &cputime);
 		*sample = cputime.sum_exec_runtime;
 		break;
 	}
@@ -466,7 +466,7 @@ static void arm_timer(struct k_itimer *timer)
 {
 	struct task_struct *p = timer->it.cpu.task;
 	struct list_head *head, *listpos;
-	struct task_cputime *cputime_expires;
+	struct task_cputime_t *cputime_expires;
 	struct cpu_timer_list *const nt = &timer->it.cpu;
 	struct cpu_timer_list *next;
 
@@ -562,7 +562,7 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 				  struct task_struct *p,
 				  unsigned long long *sample)
 {
-	struct task_cputime cputime;
+	struct task_cputime_t cputime;
 
 	thread_group_cputimer(p, &cputime);
 	switch (CPUCLOCK_WHICH(which_clock)) {
@@ -761,7 +761,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 		/*
 		 * Protect against sighand release/switch in exit/exec and
 		 * also make timer sampling safe if it ends up calling
-		 * thread_group_cputime().
+		 * thread_group_cputime_t().
 		 */
 		sighand = lock_task_sighand(p, &flags);
 		if (unlikely(sighand == NULL)) {
@@ -826,7 +826,7 @@ static void check_thread_timers(struct task_struct *tsk,
 {
 	struct list_head *timers = tsk->cpu_timers;
 	struct signal_struct *const sig = tsk->signal;
-	struct task_cputime *tsk_expires = &tsk->cputime_expires;
+	struct task_cputime_t *tsk_expires = &tsk->cputime_expires;
 	unsigned long long expires;
 	unsigned long soft;
 
@@ -934,7 +934,7 @@ static void check_process_timers(struct task_struct *tsk,
 	unsigned long long utime, ptime, virt_expires, prof_expires;
 	unsigned long long sum_sched_runtime, sched_expires;
 	struct list_head *timers = sig->cpu_timers;
-	struct task_cputime cputime;
+	struct task_cputime_t cputime;
 	unsigned long soft;
 
 	/*
@@ -1037,7 +1037,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	} else {
 		/*
 		 * Protect arm_timer() and timer sampling in case of call to
-		 * thread_group_cputime().
+		 * thread_group_cputime_t().
 		 */
 		sighand = lock_task_sighand(p, &flags);
 		if (unlikely(sighand == NULL)) {
@@ -1080,8 +1080,8 @@ out:
  * Returns true if any field of the former is greater than the corresponding
  * field of the latter if the latter field is set.  Otherwise returns false.
  */
-static inline int task_cputime_expired(const struct task_cputime *sample,
-					const struct task_cputime *expires)
+static inline int task_cputime_expired(const struct task_cputime_t *sample,
+					const struct task_cputime_t *expires)
 {
 	if (expires->utime && sample->utime >= expires->utime)
 		return 1;
@@ -1108,9 +1108,9 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	struct signal_struct *sig;
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
-		struct task_cputime task_sample;
+		struct task_cputime_t task_sample;
 
-		task_cputime(tsk, &task_sample.utime, &task_sample.stime);
+		task_cputime_t(tsk, &task_sample.utime, &task_sample.stime);
 		task_sample.sum_exec_runtime = tsk->se.sum_exec_runtime;
 		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
 			return 1;
@@ -1133,7 +1133,7 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	 */
 	if (READ_ONCE(sig->cputimer.running) &&
 	    !READ_ONCE(sig->cputimer.checking_timer)) {
-		struct task_cputime group_sample;
+		struct task_cputime_t group_sample;
 
 		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
 

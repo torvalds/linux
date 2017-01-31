@@ -559,7 +559,7 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
-	task_cputime(current, &utime, &stime);
+	task_cputime_t(current, &utime, &stime);
 	pacct->ac_utime += utime;
 	pacct->ac_stime += stime;
 	pacct->ac_minflt += current->min_flt;

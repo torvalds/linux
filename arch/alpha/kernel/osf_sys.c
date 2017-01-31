@@ -1154,7 +1154,7 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 	memset(&r, 0, sizeof(r));
 	switch (who) {
 	case RUSAGE_SELF:
-		task_cputime(current, &utime, &stime);
+		task_cputime_t(current, &utime, &stime);
 		utime_jiffies = cputime_to_jiffies(utime);
 		stime_jiffies = cputime_to_jiffies(stime);
 		jiffies_to_timeval32(utime_jiffies, &r.ru_utime);
