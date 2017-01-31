@@ -67,7 +67,7 @@ void vtime_flush(struct task_struct *tsk)
 	cputime_t delta;
 
 	if (ti->utime)
-		account_user_time(tsk, cycle_to_cputime(ti->utime));
+		account_user_time(tsk, cputime_to_nsecs(cycle_to_cputime(ti->utime)));
 
 	if (ti->gtime)
 		account_guest_time(tsk, cycle_to_cputime(ti->gtime));

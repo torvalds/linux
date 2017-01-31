@@ -78,7 +78,7 @@ static inline unsigned int kstat_cpu_irqs_sum(unsigned int cpu)
 	return kstat_cpu(cpu).irqs_sum;
 }
 
-extern void account_user_time(struct task_struct *, cputime_t);
+extern void account_user_time(struct task_struct *, u64);
 extern void account_guest_time(struct task_struct *, cputime_t);
 extern void account_system_time(struct task_struct *, int, cputime_t);
 extern void account_system_index_time(struct task_struct *, cputime_t,

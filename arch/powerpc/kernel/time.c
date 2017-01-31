@@ -393,7 +393,7 @@ void vtime_flush(struct task_struct *tsk)
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
 	if (acct->utime)
-		account_user_time(tsk, acct->utime);
+		account_user_time(tsk, cputime_to_nsecs(acct->utime));
 
 	if (acct->utime_scaled)
 		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
