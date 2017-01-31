@@ -890,8 +890,6 @@ static inline void stop_process_timers(struct signal_struct *sig)
 	tick_dep_clear_signal(sig, TICK_DEP_BIT_POSIX_TIMER);
 }
 
-static u32 onecputick;
-
 static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 			     unsigned long long *expires,
 			     unsigned long long cur_time, int signo)
@@ -903,9 +901,9 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 		if (it->incr) {
 			it->expires += it->incr;
 			it->error += it->incr_error;
-			if (it->error >= onecputick) {
+			if (it->error >= TICK_NSEC) {
 				it->expires -= cputime_one_jiffy;
-				it->error -= onecputick;
+				it->error -= TICK_NSEC;
 			}
 		} else {
 			it->expires = 0;
@@ -1476,14 +1474,9 @@ static __init int init_posix_cpu_timers(void)
 		.clock_get	= thread_cpu_clock_get,
 		.timer_create	= thread_cpu_timer_create,
 	};
-	struct timespec ts;
 
 	posix_timers_register_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
 	posix_timers_register_clock(CLOCK_THREAD_CPUTIME_ID, &thread);
-
-	cputime_to_timespec(cputime_one_jiffy, &ts);
-	onecputick = ts.tv_nsec;
-	WARN_ON(ts.tv_sec != 0);
 
 	return 0;
 }
