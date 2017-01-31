@@ -153,6 +153,32 @@ bad:
         return -EINVAL;
 }
 
+static void crush_finalize(struct crush_map *c)
+{
+	__s32 b;
+
+	/* Space for the array of pointers to per-bucket workspace */
+	c->working_size = sizeof(struct crush_work) +
+	    c->max_buckets * sizeof(struct crush_work_bucket *);
+
+	for (b = 0; b < c->max_buckets; b++) {
+		if (!c->buckets[b])
+			continue;
+
+		switch (c->buckets[b]->alg) {
+		default:
+			/*
+			 * The base case, permutation variables and
+			 * the pointer to the permutation array.
+			 */
+			c->working_size += sizeof(struct crush_work_bucket);
+			break;
+		}
+		/* Every bucket has a permutation array. */
+		c->working_size += c->buckets[b]->size * sizeof(__u32);
+	}
+}
+
 static struct crush_map *crush_decode(void *pbyval, void *end)
 {
 	struct crush_map *c;
@@ -246,10 +272,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		b->items = kcalloc(b->size, sizeof(__s32), GFP_NOFS);
 		if (b->items == NULL)
 			goto badmem;
-		b->perm = kcalloc(b->size, sizeof(u32), GFP_NOFS);
-		if (b->perm == NULL)
-			goto badmem;
-		b->perm_n = 0;
 
 		ceph_decode_need(p, end, b->size*sizeof(u32), bad);
 		for (j = 0; j < b->size; j++)
@@ -367,6 +389,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	c->chooseleaf_stable = ceph_decode_8(p);
 	dout("crush decode tunable chooseleaf_stable = %d\n",
 	     c->chooseleaf_stable);
+
+	crush_finalize(c);
 
 done:
 	dout("crush_decode success\n");
@@ -753,6 +777,7 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 	kfree(map->osd_weight);
 	kfree(map->osd_addr);
 	kfree(map->osd_primary_affinity);
+	kfree(map->crush_workspace);
 	kfree(map);
 }
 
@@ -810,12 +835,23 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 
 static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 {
+	void *workspace;
+
 	if (IS_ERR(crush))
 		return PTR_ERR(crush);
 
+	workspace = kmalloc(crush->working_size, GFP_NOIO);
+	if (!workspace) {
+		crush_destroy(crush);
+		return -ENOMEM;
+	}
+	crush_init_workspace(crush, workspace);
+
 	if (map->crush)
 		crush_destroy(map->crush);
+	kfree(map->crush_workspace);
 	map->crush = crush;
+	map->crush_workspace = workspace;
 	return 0;
 }
 
@@ -1940,7 +1976,8 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	mutex_lock(&map->crush_scratch_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
-			  weight, weight_max, map->crush_scratch_ary);
+			  weight, weight_max, map->crush_workspace,
+			  map->crush_scratch_ary);
 	mutex_unlock(&map->crush_scratch_mutex);
 
 	return r;

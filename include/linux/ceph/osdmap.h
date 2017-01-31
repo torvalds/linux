@@ -175,6 +175,7 @@ struct ceph_osdmap {
 
 	struct mutex crush_scratch_mutex;
 	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
+	void *crush_workspace;
 };
 
 static inline bool ceph_osd_exists(struct ceph_osdmap *map, int osd)
