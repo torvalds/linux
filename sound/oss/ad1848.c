@@ -121,11 +121,6 @@ static bool deskpro_xl;
 static bool deskpro_m;
 static bool soundpro;
 
-static volatile signed char irq2dev[17] = {
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1
-};
-
 #ifndef EXCLUDE_TIMERS
 static int timer_installed = -1;
 #endif
@@ -2060,7 +2055,7 @@ int ad1848_init (char *name, struct resource *ports, int irq, int dma_playback,
 		else
 			devc->irq_ok = 1;	/* Couldn't test. assume it's OK */
 	} else if (irq < 0)
-		irq2dev[-irq] = devc->dev_no = my_dev;
+		devc->dev_no = my_dev;
 
 #ifndef EXCLUDE_TIMERS
 	if ((capabilities[devc->model].flags & CAP_F_TIMER) &&
