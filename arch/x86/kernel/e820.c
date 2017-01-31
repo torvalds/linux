@@ -411,7 +411,7 @@ __e820__range_update(struct e820_table *table, u64 start, u64 size, enum e820_ty
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	pr_debug("e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
+	printk(KERN_DEBUG "e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
 	e820_print_type(old_type);
 	pr_cont(" ==> ");
 	e820_print_type(new_type);
@@ -487,7 +487,7 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	pr_debug("e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
+	printk(KERN_DEBUG "e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
 	if (check_type)
 		e820_print_type(old_type);
 	pr_cont("\n");
@@ -1121,7 +1121,7 @@ void __init e820__reserve_resources_late(void)
 		if (start >= end)
 			continue;
 
-		pr_debug("e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
+		printk(KERN_DEBUG "e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
 		reserve_region_with_split(&iomem_resource, start, end, "RAM buffer");
 	}
 }
