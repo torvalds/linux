@@ -81,6 +81,7 @@ config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
 	select CLKSRC_OF
+	select CLKSRC_MMIO
 	help
 	  Enables the support for the rockchip timer driver.
 
