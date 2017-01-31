@@ -175,8 +175,11 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 				md.phys_addr + size - 1,
 				efi_md_typeattr_format(buf, sizeof(buf), &md));
 
-		if (valid)
+		if (valid) {
 			ret = fn(mm, &md);
+			if (ret)
+				pr_err("Error updating mappings, skipping subsequent md's\n");
+		}
 	}
 	memunmap(tbl);
 	return ret;
