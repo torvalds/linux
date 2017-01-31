@@ -301,6 +301,17 @@ config VIDEO_STI_HVA
 	  To compile this driver as a module, choose M here:
 	  the module will be called st-hva.
 
+config VIDEO_STI_HVA_DEBUGFS
+	bool "Export STMicroelectronics HVA internals in debugfs"
+	depends on VIDEO_STI_HVA
+	depends on DEBUG_FS
+	help
+	  Select this to see information about the internal state and the last
+          operation of STMicroelectronics HVA multi-format video encoder in
+          debugfs.
+
+          Choose N unless you know you need this.
+
 config VIDEO_SH_VEU
 	tristate "SuperH VEU mem2mem video processing driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA

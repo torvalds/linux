@@ -9,6 +9,9 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#include <linux/seq_file.h>
+#endif
 
 #include "hva.h"
 #include "hva-hw.h"
@@ -541,3 +544,43 @@ out:
 
 	return ret;
 }
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#define DUMP(reg) seq_printf(s, "%-30s: 0x%08X\n",\
+			     #reg, readl_relaxed(hva->regs + reg))
+
+void hva_hw_dump_regs(struct hva_dev *hva, struct seq_file *s)
+{
+	struct device *dev = hva_to_dev(hva);
+
+	mutex_lock(&hva->protect_mutex);
+
+	if (pm_runtime_get_sync(dev) < 0) {
+		seq_puts(s, "Cannot wake up IP\n");
+		mutex_unlock(&hva->protect_mutex);
+		return;
+	}
+
+	seq_printf(s, "Registers:\nReg @ = 0x%p\n", hva->regs);
+
+	DUMP(HVA_HIF_REG_RST);
+	DUMP(HVA_HIF_REG_RST_ACK);
+	DUMP(HVA_HIF_REG_MIF_CFG);
+	DUMP(HVA_HIF_REG_HEC_MIF_CFG);
+	DUMP(HVA_HIF_REG_CFL);
+	DUMP(HVA_HIF_REG_SFL);
+	DUMP(HVA_HIF_REG_LMI_ERR);
+	DUMP(HVA_HIF_REG_EMI_ERR);
+	DUMP(HVA_HIF_REG_HEC_MIF_ERR);
+	DUMP(HVA_HIF_REG_HEC_STS);
+	DUMP(HVA_HIF_REG_HVC_STS);
+	DUMP(HVA_HIF_REG_HJE_STS);
+	DUMP(HVA_HIF_REG_CNT);
+	DUMP(HVA_HIF_REG_HEC_CHKSYN_DIS);
+	DUMP(HVA_HIF_REG_CLK_GATING);
+	DUMP(HVA_HIF_REG_VERSION);
+
+	pm_runtime_put_autosuspend(dev);
+	mutex_unlock(&hva->protect_mutex);
+}
+#endif
