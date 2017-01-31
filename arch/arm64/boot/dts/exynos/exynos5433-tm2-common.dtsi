@@ -217,6 +217,18 @@
 	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
 };
 
+&cmu_disp {
+	assigned-clocks = <&cmu_mif CLK_MOUT_SCLK_DECON_TV_ECLK_A>,
+			  <&cmu_mif CLK_DIV_SCLK_DECON_TV_ECLK>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK>;
+	assigned-clock-parents = <&cmu_mif CLK_MOUT_BUS_PLL_DIV2>,
+				 <0>,
+				 <&cmu_mif CLK_SCLK_DECON_TV_ECLK_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>;
+	assigned-clock-rates = <0>, <400000000>;
+};
+
 &cmu_fsys {
 	assigned-clocks = <&cmu_top CLK_MOUT_SCLK_USBDRD30>,
 		<&cmu_top CLK_MOUT_SCLK_USBHOST30>,
@@ -420,6 +432,10 @@
 				regulator-name = "VDD18_MIPI2L_1.8V_AP";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
 			};
 
 			ldo8_reg: LDO8 {
