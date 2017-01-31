@@ -808,6 +808,17 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	return 0;
 }
 
+static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
+{
+	if (IS_ERR(crush))
+		return PTR_ERR(crush);
+
+	if (map->crush)
+		crush_destroy(map->crush);
+	map->crush = crush;
+	return 0;
+}
+
 #define OSDMAP_WRAPPER_COMPAT_VER	7
 #define OSDMAP_CLIENT_DATA_COMPAT_VER	1
 
@@ -1214,13 +1225,9 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	/* crush */
 	ceph_decode_32_safe(p, end, len, e_inval);
-	map->crush = crush_decode(*p, min(*p + len, end));
-	if (IS_ERR(map->crush)) {
-		err = PTR_ERR(map->crush);
-		map->crush = NULL;
+	err = osdmap_set_crush(map, crush_decode(*p, min(*p + len, end)));
+	if (err)
 		goto bad;
-	}
-	*p += len;
 
 	/* ignore the rest */
 	*p = end;
@@ -1375,7 +1382,6 @@ e_inval:
 struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					     struct ceph_osdmap *map)
 {
-	struct crush_map *newcrush = NULL;
 	struct ceph_fsid fsid;
 	u32 epoch = 0;
 	struct ceph_timespec modified;
@@ -1414,12 +1420,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	/* new crush? */
 	ceph_decode_32_safe(p, end, len, e_inval);
 	if (len > 0) {
-		newcrush = crush_decode(*p, min(*p+len, end));
-		if (IS_ERR(newcrush)) {
-			err = PTR_ERR(newcrush);
-			newcrush = NULL;
+		err = osdmap_set_crush(map,
+				       crush_decode(*p, min(*p + len, end)));
+		if (err)
 			goto bad;
-		}
 		*p += len;
 	}
 
@@ -1439,12 +1443,6 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 
 	map->epoch++;
 	map->modified = modified;
-	if (newcrush) {
-		if (map->crush)
-			crush_destroy(map->crush);
-		map->crush = newcrush;
-		newcrush = NULL;
-	}
 
 	/* new_pools */
 	err = decode_new_pools(p, end, map);
@@ -1505,8 +1503,6 @@ bad:
 	print_hex_dump(KERN_DEBUG, "osdmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
-	if (newcrush)
-		crush_destroy(newcrush);
 	return ERR_PTR(err);
 }
 
