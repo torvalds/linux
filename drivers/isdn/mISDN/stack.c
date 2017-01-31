@@ -203,7 +203,7 @@ mISDNStackd(void *data)
 {
 	struct mISDNstack *st = data;
 #ifdef MISDN_MSG_STATS
-	cputime_t utime, stime;
+	u64 utime, stime;
 #endif
 	int err = 0;
 
@@ -306,9 +306,9 @@ mISDNStackd(void *data)
 	       "msg %d sleep %d stopped\n",
 	       dev_name(&st->dev->dev), st->msg_cnt, st->sleep_cnt,
 	       st->stopped_cnt);
-	task_cputime_t(st->thread, &utime, &stime);
+	task_cputime(st->thread, &utime, &stime);
 	printk(KERN_DEBUG
-	       "mISDNStackd daemon for %s utime(%ld) stime(%ld)\n",
+	       "mISDNStackd daemon for %s utime(%llu) stime(%llu)\n",
 	       dev_name(&st->dev->dev), utime, stime);
 	printk(KERN_DEBUG
 	       "mISDNStackd daemon for %s nvcsw(%ld) nivcsw(%ld)\n",
