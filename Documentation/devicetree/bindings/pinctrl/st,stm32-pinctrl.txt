@@ -8,8 +8,9 @@ controllers onto these pads.
 Pin controller node:
 Required properies:
  - compatible: value should be one of the following:
-   (a) "st,stm32f429-pinctrl"
-   (b) "st,stm32f746-pinctrl"
+   "st,stm32f429-pinctrl"
+   "st,stm32f746-pinctrl"
+   "st,stm32h743-pinctrl"
  - #address-cells: The value of this property must be 1
  - #size-cells	: The value of this property must be 1
  - ranges	: defines mapping between pin controller node (parent) to
