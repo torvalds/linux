@@ -4,8 +4,4 @@
 #include <linux/time.h>
 #include <linux/jiffies.h>
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-# include <asm-generic/cputime_nsecs.h>
-#endif
-
 #endif
