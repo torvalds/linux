@@ -961,12 +961,12 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 	struct snd_intelhad *intelhaddata;
 	struct snd_pcm_runtime *runtime;
 	struct had_stream_pvt *stream;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	int retval;
 
 	pr_debug("snd_intelhad_open called\n");
 	intelhaddata = snd_pcm_substream_chip(substream);
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	runtime = substream->runtime;
 	intelhaddata->underrun_count = 0;
 
@@ -1180,13 +1180,13 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 	unsigned long flag_irq;
 	struct snd_intelhad *intelhaddata;
 	struct had_stream_pvt *stream;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 
 	pr_debug("snd_intelhad_pcm_trigger called\n");
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	stream = substream->runtime->private_data;
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1262,13 +1262,13 @@ static int snd_intelhad_pcm_prepare(struct snd_pcm_substream *substream)
 	u32 link_rate = 0;
 	struct snd_intelhad *intelhaddata;
 	struct snd_pcm_runtime *runtime;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 
 	pr_debug("snd_intelhad_pcm_prepare called\n");
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 
 	if (had_get_hwstate(intelhaddata)) {
 		pr_err("%s: HDMI cable plugged-out\n", __func__);
@@ -1480,31 +1480,6 @@ struct snd_pcm_ops snd_intelhad_playback_ops = {
 };
 
 /**
- * snd_intelhad_create - to crete alsa card instance
- *
- * @intelhaddata: pointer to internal context
- * @card: pointer to card
- *
- * This function is called when the hdmi cable is plugged in
- */
-static int snd_intelhad_create(
-		struct snd_intelhad *intelhaddata,
-		struct snd_card *card)
-{
-	int retval;
-	static struct snd_device_ops ops = {
-	};
-
-	pr_debug("snd_intelhad_create called\n");
-
-	if (!intelhaddata)
-		return -EINVAL;
-
-	/* ALSA api to register the device */
-	retval = snd_device_new(card, SNDRV_DEV_LOWLEVEL, intelhaddata, &ops);
-	return retval;
-}
-/**
  * snd_intelhad_pcm_free - to free the memory allocated
  *
  * @pcm: pointer to pcm instance
@@ -1596,36 +1571,24 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	struct snd_pcm *pcm;
 	struct snd_card *card;
 	struct snd_intelhad *intelhaddata;
-	struct had_pvt_data *had_stream;
 
 	pr_debug("Enter %s\n", __func__);
 
-	/* allocate memory for saving internal context and working */
-	intelhaddata = kzalloc(sizeof(*intelhaddata), GFP_KERNEL);
-	if (!intelhaddata)
-		return -ENOMEM;
+	/* create a card instance with ALSA framework */
+	retval = snd_card_new(&devptr->dev, hdmi_card_index, hdmi_card_id,
+			      THIS_MODULE, sizeof(*intelhaddata), &card);
+	if (retval)
+		return retval;
 
-	had_stream = kzalloc(sizeof(*had_stream), GFP_KERNEL);
-	if (!had_stream) {
-		retval = -ENOMEM;
-		goto free_haddata;
-	}
-
+	intelhaddata = card->private_data;
 	spin_lock_init(&intelhaddata->had_spinlock);
 	intelhaddata->drv_status = HAD_DRV_DISCONNECTED;
 	pr_debug("%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
 			__func__, __LINE__);
 
-	/* create a card instance with ALSA framework */
-	retval = snd_card_new(&devptr->dev, hdmi_card_index, hdmi_card_id,
-				THIS_MODULE, 0, &card);
-
-	if (retval)
-		goto free_hadstream;
 	intelhaddata->card = card;
 	intelhaddata->card_id = hdmi_card_id;
 	intelhaddata->card_index = card->number;
-	intelhaddata->private_data = had_stream;
 	intelhaddata->flag_underrun = 0;
 	intelhaddata->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	strncpy(card->driver, INTEL_HAD, strlen(INTEL_HAD));
@@ -1654,12 +1617,6 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	if (retval)
 		goto err;
 
-	/* internal function call to register device with ALSA */
-	retval = snd_intelhad_create(intelhaddata, card);
-	if (retval)
-		goto err;
-
-	card->private_data = &intelhaddata;
 	retval = snd_card_register(card);
 	if (retval)
 		goto err;
@@ -1688,15 +1645,9 @@ int hdmi_audio_probe(struct platform_device *devptr,
 	*had_ret = intelhaddata;
 
 	return 0;
+
 err:
 	snd_card_free(card);
-free_hadstream:
-	kfree(had_stream);
-	pm_runtime_disable(intelhaddata->dev);
-	intelhaddata->dev = NULL;
-free_haddata:
-	kfree(intelhaddata);
-	intelhaddata = NULL;
 	pr_err("Error returned from %s api %#x\n", __func__, retval);
 	return retval;
 }
@@ -1724,8 +1675,6 @@ int hdmi_audio_remove(struct snd_intelhad *intelhaddata)
 		had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO, NULL);
 	}
 	snd_card_free(intelhaddata->card);
-	kfree(intelhaddata->private_data);
-	kfree(intelhaddata);
 	return 0;
 }
 

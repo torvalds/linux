@@ -45,13 +45,13 @@
 int hdmi_audio_query(void *haddata, struct hdmi_audio_event event)
 {
 	struct snd_pcm_substream *substream = NULL;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 	struct snd_intelhad *intelhaddata = (struct snd_intelhad *)haddata;
 
 	if (intelhaddata->stream_info.had_substream)
 		substream = intelhaddata->stream_info.had_substream;
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	switch (event.type) {
 	case HAD_EVENT_QUERY_IS_AUDIO_BUSY:
 		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
@@ -98,14 +98,14 @@ int hdmi_audio_query(void *haddata, struct hdmi_audio_event event)
 int hdmi_audio_suspend(void *haddata)
 {
 	int caps, retval = 0;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 	struct snd_pcm_substream *substream;
 	struct snd_intelhad *intelhaddata = (struct snd_intelhad *)haddata;
 
 	pr_debug("Enter:%s\n", __func__);
 
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	substream = intelhaddata->stream_info.had_substream;
 
 	if (intelhaddata->dev->power.runtime_status != RPM_SUSPENDED) {
@@ -199,10 +199,10 @@ static inline int had_chk_intrmiss(struct snd_intelhad *intelhaddata,
 	int i, intr_count = 0;
 	enum intel_had_aud_buf_type buff_done;
 	u32 buf_size, buf_addr;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 
 	buff_done = buf_id;
 
@@ -244,12 +244,12 @@ int had_process_buffer_done(struct snd_intelhad *intelhaddata)
 	enum intel_had_aud_buf_type buff_done;
 	struct pcm_stream_info *stream;
 	u32 buf_size;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	int intr_count;
 	enum had_status_stream		stream_type;
 	unsigned long flag_irqs;
 
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	stream = &intelhaddata->stream_info;
 	intr_count = 1;
 
@@ -331,12 +331,12 @@ int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
 	struct pcm_stream_info *stream;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	enum had_status_stream stream_type;
 	unsigned long flag_irqs;
 	int drv_status;
 
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	stream = &intelhaddata->stream_info;
 
 	spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
@@ -372,13 +372,13 @@ int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 
 	pr_debug("Enter:%s\n", __func__);
 
 	substream = intelhaddata->stream_info.had_substream;
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 
 	spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
 	if (intelhaddata->drv_status == HAD_DRV_CONNECTED) {
@@ -413,12 +413,12 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	int caps, retval = 0;
 	enum intel_had_aud_buf_type buf_id;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 
 	pr_debug("Enter:%s\n", __func__);
 
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 	buf_id = intelhaddata->curr_buf;
 
 	spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
@@ -476,11 +476,11 @@ int had_event_handler(enum had_event_type event_type, void *data)
 	struct snd_intelhad *intelhaddata = data;
 	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
-	struct had_pvt_data *had_stream;
+	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 
 	buf_id = intelhaddata->curr_buf;
-	had_stream = intelhaddata->private_data;
+	had_stream = &intelhaddata->stream_data;
 
 	/* Switching to a function can drop atomicity even in INTR context.
 	 * Thus, a big lock is acquired to maintain atomicity.

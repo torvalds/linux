@@ -95,7 +95,7 @@ struct had_stream_pvt {
 	ssize_t				dbg_cum_bytes;
 };
 
-struct had_pvt_data {
+struct had_stream_data {
 	enum had_status_stream		stream_type;
 };
 
@@ -133,7 +133,7 @@ struct snd_intelhad {
 	int		valid_buf_cnt;
 	unsigned int	aes_bits;
 	int flag_underrun;
-	struct had_pvt_data *private_data;
+	struct had_stream_data stream_data;
 	spinlock_t had_spinlock;
 	enum		intel_had_aud_buf_type buff_done;
 	struct device *dev;
