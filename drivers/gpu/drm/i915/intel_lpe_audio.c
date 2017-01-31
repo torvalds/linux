@@ -332,7 +332,8 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * Notify lpe audio driver of eld change.
  */
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			void *eld, int port, int tmds_clk_speed)
+			    void *eld, int port, int tmds_clk_speed,
+			    bool dp_output, int link_rate)
 {
 	unsigned long irq_flags;
 	struct intel_hdmi_lpe_audio_pdata *pdata = NULL;
@@ -351,12 +352,16 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 		pdata->eld.port_id = port;
 		pdata->hdmi_connected = true;
 
+		pdata->dp_output = dp_output;
 		if (tmds_clk_speed)
 			pdata->tmds_clock_speed = tmds_clk_speed;
+		if (link_rate)
+			pdata->link_rate = link_rate;
 	} else {
 		memset(pdata->eld.eld_data, 0,
 			HDMI_MAX_ELD_BYTES);
 		pdata->hdmi_connected = false;
+		pdata->dp_output = false;
 	}
 
 	if (pdata->notify_audio_lpe)
