@@ -154,35 +154,4 @@ struct snd_intelhad {
 	struct work_struct hdmi_audio_wq;
 };
 
-int hdmi_lpe_audio_suspend(struct platform_device *pdev, pm_message_t state);
-int hdmi_lpe_audio_resume(struct platform_device *pdev);
-extern struct snd_pcm_ops snd_intelhad_playback_ops;
-
-int had_process_buffer_done(struct snd_intelhad *intelhaddata);
-int had_process_buffer_underrun(struct snd_intelhad *intelhaddata);
-int had_process_hot_plug(struct snd_intelhad *intelhaddata);
-int had_process_hot_unplug(struct snd_intelhad *intelhaddata);
-
-int snd_intelhad_init_audio_ctrl(struct snd_pcm_substream *substream,
-					struct snd_intelhad *intelhaddata,
-					int flag_silence);
-int snd_intelhad_prog_buffer(struct snd_intelhad *intelhaddata,
-					int start, int end);
-int snd_intelhad_invd_buffer(int start, int end);
-int snd_intelhad_read_len(struct snd_intelhad *intelhaddata);
-void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata);
-
-void snd_intelhad_enable_audio_int(struct snd_intelhad *ctx, bool enable);
-void snd_intelhad_enable_audio(struct snd_intelhad *ctx, bool enable);
-void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata);
-
-/* Register access functions */
-int had_get_hwstate(struct snd_intelhad *intelhaddata);
-int had_read_register(struct snd_intelhad *intelhaddata,
-		      u32 reg_addr, u32 *data);
-int had_write_register(struct snd_intelhad *intelhaddata,
-		       u32 reg_addr, u32 data);
-int had_read_modify(struct snd_intelhad *intelhaddata,
-		    u32 reg_addr, u32 data, u32 mask);
-
 #endif /* _INTEL_HDMI_AUDIO_ */
