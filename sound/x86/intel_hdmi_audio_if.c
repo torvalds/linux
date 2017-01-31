@@ -33,21 +33,20 @@
 #include "intel_hdmi_audio.h"
 #include "intel_hdmi_lpe_audio.h"
 
-/**
- * hdmi_audio_suspend - power management suspend function
+/*
+ * hdmi_lpe_audio_suspend - power management suspend function
  *
- *@haddata: pointer to HAD private data
+ * @pdev: platform device
  *
  * This function is called by client driver to suspend the
  * hdmi audio.
  */
-int hdmi_audio_suspend(void *haddata)
+int hdmi_lpe_audio_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	int caps, retval = 0;
 	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
 	struct snd_pcm_substream *substream;
-	struct snd_intelhad *intelhaddata = (struct snd_intelhad *)haddata;
+	struct snd_intelhad *intelhaddata = platform_get_drvdata(pdev);
 
 	pr_debug("Enter:%s\n", __func__);
 
@@ -64,13 +63,13 @@ int hdmi_audio_suspend(void *haddata)
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
 		pr_debug("had not connected\n");
-		return retval;
+		return 0;
 	}
 
 	if (intelhaddata->drv_status == HAD_DRV_SUSPENDED) {
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
 		pr_debug("had already suspended\n");
-		return retval;
+		return 0;
 	}
 
 	intelhaddata->drv_status = HAD_DRV_SUSPENDED;
@@ -78,29 +77,22 @@ int hdmi_audio_suspend(void *haddata)
 			__func__, __LINE__);
 
 	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-	/*
-	 * ToDo: Need to disable UNDERRUN interrupts as well
-	 *  caps = HDMI_AUDIO_UNDERRUN | HDMI_AUDIO_BUFFER_DONE;
-	 */
-	caps = HDMI_AUDIO_BUFFER_DONE;
-	had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO_INT, &caps);
-	had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO, NULL);
+	snd_intelhad_enable_audio_int(intelhaddata, false);
 	pr_debug("Exit:%s", __func__);
-	return retval;
+	return 0;
 }
 
-/**
- * hdmi_audio_resume - power management resume function
+/*
+ * hdmi_lpe_audio_resume - power management resume function
  *
- *@haddata: pointer to HAD private data
+ *@pdev: platform device
  *
  * This function is called by client driver to resume the
  * hdmi audio.
  */
-int hdmi_audio_resume(void *haddata)
+int hdmi_lpe_audio_resume(struct platform_device *pdev)
 {
-	int caps, retval = 0;
-	struct snd_intelhad *intelhaddata = (struct snd_intelhad *)haddata;
+	struct snd_intelhad *intelhaddata = platform_get_drvdata(pdev);
 	unsigned long flag_irqs;
 
 	pr_debug("Enter:%s\n", __func__);
@@ -128,15 +120,9 @@ int hdmi_audio_resume(void *haddata)
 	pr_debug("%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
 			__func__, __LINE__);
 	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-	/*
-	 * ToDo: Need to enable UNDERRUN interrupts as well
-	 * caps = HDMI_AUDIO_UNDERRUN | HDMI_AUDIO_BUFFER_DONE;
-	 */
-	caps = HDMI_AUDIO_BUFFER_DONE;
-	retval = had_set_caps(intelhaddata, HAD_SET_ENABLE_AUDIO_INT, &caps);
-	retval = had_set_caps(intelhaddata, HAD_SET_ENABLE_AUDIO, NULL);
+	snd_intelhad_enable_audio_int(intelhaddata, true);
 	pr_debug("Exit:%s", __func__);
-	return retval;
+	return 0;
 }
 
 static inline int had_chk_intrmiss(struct snd_intelhad *intelhaddata,
@@ -357,7 +343,6 @@ int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 
 int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
-	int caps, retval = 0;
 	enum intel_had_aud_buf_type buf_id;
 	struct had_stream_data *had_stream;
 	unsigned long flag_irqs;
@@ -372,17 +357,12 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
 		pr_debug("Device already disconnected\n");
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-		return retval;
+		return 0;
 
 	} else {
 		/* Disable Audio */
-		caps = HDMI_AUDIO_BUFFER_DONE;
-		retval = had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO_INT,
-				      &caps);
-		retval = had_set_caps(intelhaddata, HAD_SET_DISABLE_AUDIO,
-				      NULL);
-		snd_intelhad_enable_audio(
-			intelhaddata->stream_info.had_substream, 0);
+		snd_intelhad_enable_audio_int(intelhaddata, false);
+		snd_intelhad_enable_audio(intelhaddata, false);
 	}
 
 	intelhaddata->drv_status = HAD_DRV_DISCONNECTED;
@@ -405,74 +385,6 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	intelhaddata->audio_reg_base = NULL;
 	pr_debug("%s: unlocked -> returned\n", __func__);
 
-	return retval;
+	return 0;
 }
 
-/**
- * had_event_handler - Call back function to handle events
- *
- * @event_type: Event type to handle
- * @data: data related to the event_type
- *
- * This function is invoked to handle HDMI events from client driver.
- */
-int had_event_handler(enum had_event_type event_type, void *data)
-{
-	int retval = 0;
-	struct snd_intelhad *intelhaddata = data;
-	enum intel_had_aud_buf_type buf_id;
-	struct snd_pcm_substream *substream;
-	struct had_stream_data *had_stream;
-	unsigned long flag_irqs;
-
-	buf_id = intelhaddata->curr_buf;
-	had_stream = &intelhaddata->stream_data;
-
-	/* Switching to a function can drop atomicity even in INTR context.
-	 * Thus, a big lock is acquired to maintain atomicity.
-	 * This can be optimized later.
-	 * Currently, only buffer_done/_underrun executes in INTR context.
-	 * Also, locking is implemented separately to avoid real contention
-	 * of data(struct intelhaddata) between IRQ/SOFT_IRQ/PROCESS context.
-	 */
-	substream = intelhaddata->stream_info.had_substream;
-	switch (event_type) {
-	case HAD_EVENT_AUDIO_BUFFER_DONE:
-		retval = had_process_buffer_done(intelhaddata);
-	break;
-
-	case HAD_EVENT_AUDIO_BUFFER_UNDERRUN:
-		retval = had_process_buffer_underrun(intelhaddata);
-	break;
-
-	case HAD_EVENT_HOT_PLUG:
-		retval = had_process_hot_plug(intelhaddata);
-	break;
-
-	case HAD_EVENT_HOT_UNPLUG:
-		retval = had_process_hot_unplug(intelhaddata);
-	break;
-
-	case HAD_EVENT_MODE_CHANGING:
-		pr_debug(" called _event_handler with _MODE_CHANGE event\n");
-		/* Process only if stream is active & cable Plugged-in */
-		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
-		if (intelhaddata->drv_status >= HAD_DRV_DISCONNECTED) {
-			spin_unlock_irqrestore(&intelhaddata->had_spinlock,
-					flag_irqs);
-			break;
-		}
-		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
-		if ((had_stream->stream_type == HAD_RUNNING_STREAM)
-				&& substream)
-			retval = hdmi_audio_mode_change(substream);
-	break;
-
-	default:
-		pr_debug("error un-handled event !!\n");
-		retval = -EINVAL;
-	break;
-
-	}
-	return retval;
-}

@@ -27,11 +27,10 @@
 #include <sound/initval.h>
 #include <linux/version.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 #include <sound/asoundef.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
-
-struct platform_device;
 
 #define AUD_CONFIG_VALID_BIT			(1<<9)
 #define AUD_CONFIG_DP_MODE			(1<<15)
@@ -635,25 +634,5 @@ enum had_event_type {
 	HAD_EVENT_QUERY_IS_AUDIO_BUSY,
 	HAD_EVENT_QUERY_IS_AUDIO_SUSPENDED,
 };
-
-/*
- * HDMI Display Controller Audio Interface
- *
- */
-struct hdmi_audio_event {
-	int type;
-};
-
-int mid_hdmi_audio_read(struct platform_device *pdev, u32 reg, u32 *val);
-int mid_hdmi_audio_write(struct platform_device *pdev, u32 reg, u32 val);
-int mid_hdmi_audio_rmw(struct platform_device *pdev,
-		       u32 reg, u32 val, u32 mask);
-
-int mid_hdmi_audio_get_caps(struct platform_device *pdev,
-			    enum had_caps_list get_element,
-			    void *capabilities);
-int mid_hdmi_audio_set_caps(struct platform_device *pdev,
-			    enum had_caps_list set_element,
-			    void *capabilties);
 
 #endif

@@ -108,7 +108,7 @@ struct had_stream_data {
  * @drv_status: driver status
  * @buf_info: ring buffer info
  * @stream_info: stream information
- * @eeld: holds EELD info
+ * @eld: holds ELD info
  * @curr_buf: pointer to hold current active ring buf
  * @valid_buf_cnt: ring buffer count for stream
  * @had_spinlock: driver lock
@@ -127,7 +127,7 @@ struct snd_intelhad {
 	enum had_drv_status	drv_status;
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
-	union otm_hdmi_eld_t	eeld;
+	union otm_hdmi_eld_t	eld;
 	bool dp_output;
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;
@@ -142,14 +142,26 @@ struct snd_intelhad {
 	unsigned int	*audio_reg_base;
 	unsigned int	audio_cfg_offset;
 	int underrun_count;
+	enum hdmi_connector_status state;
+	int tmds_clock_speed;
+	int link_rate;
+
+	/* internal stuff */
+	int irq;
+	void __iomem *mmio_start;
+	unsigned int had_config_offset;
+	int hdmi_audio_interrupt_mask;
+	struct work_struct hdmi_audio_wq;
 };
 
-int had_event_handler(enum had_event_type event_type, void *data);
-
-int hdmi_audio_suspend(void *drv_data);
-int hdmi_audio_resume(void *drv_data);
-int hdmi_audio_mode_change(struct snd_pcm_substream *substream);
+int hdmi_lpe_audio_suspend(struct platform_device *pdev, pm_message_t state);
+int hdmi_lpe_audio_resume(struct platform_device *pdev);
 extern struct snd_pcm_ops snd_intelhad_playback_ops;
+
+int had_process_buffer_done(struct snd_intelhad *intelhaddata);
+int had_process_buffer_underrun(struct snd_intelhad *intelhaddata);
+int had_process_hot_plug(struct snd_intelhad *intelhaddata);
+int had_process_hot_unplug(struct snd_intelhad *intelhaddata);
 
 int snd_intelhad_init_audio_ctrl(struct snd_pcm_substream *substream,
 					struct snd_intelhad *intelhaddata,
@@ -160,24 +172,17 @@ int snd_intelhad_invd_buffer(int start, int end);
 int snd_intelhad_read_len(struct snd_intelhad *intelhaddata);
 void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata);
 
-void snd_intelhad_enable_audio(struct snd_pcm_substream *substream, u8 enable);
+void snd_intelhad_enable_audio_int(struct snd_intelhad *ctx, bool enable);
+void snd_intelhad_enable_audio(struct snd_intelhad *ctx, bool enable);
 void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata);
 
 /* Register access functions */
 int had_get_hwstate(struct snd_intelhad *intelhaddata);
-int had_get_caps(struct snd_intelhad *intelhaddata,
-		 enum had_caps_list query_element, void *capabilties);
-int had_set_caps(struct snd_intelhad *intelhaddata,
-		 enum had_caps_list set_element, void *capabilties);
 int had_read_register(struct snd_intelhad *intelhaddata,
 		      u32 reg_addr, u32 *data);
 int had_write_register(struct snd_intelhad *intelhaddata,
 		       u32 reg_addr, u32 data);
 int had_read_modify(struct snd_intelhad *intelhaddata,
 		    u32 reg_addr, u32 data, u32 mask);
-
-int hdmi_audio_probe(struct platform_device *devptr,
-		     struct snd_intelhad **had_ret);
-int hdmi_audio_remove(struct snd_intelhad *intelhaddata);
 
 #endif /* _INTEL_HDMI_AUDIO_ */
