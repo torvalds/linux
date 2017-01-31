@@ -185,7 +185,7 @@ struct acr_r352_func {
 						  enum nvkm_secboot_falcon);
 	int (*ls_fill_headers)(struct acr_r352 *, struct list_head *);
 	int (*ls_write_wpr)(struct acr_r352 *, struct list_head *,
-			    struct nvkm_gpuobj *, u32);
+			    struct nvkm_gpuobj *, u64);
 
 	const struct acr_r352_ls_func *ls_func[NVKM_SECBOOT_FALCON_END];
 };
@@ -245,6 +245,6 @@ struct ls_ucode_img *acr_r352_ls_ucode_img_load(const struct acr_r352 *,
 						enum nvkm_secboot_falcon);
 int acr_r352_ls_fill_headers(struct acr_r352 *, struct list_head *);
 int acr_r352_ls_write_wpr(struct acr_r352 *, struct list_head *,
-			  struct nvkm_gpuobj *, u32);
+			  struct nvkm_gpuobj *, u64);
 
 #endif

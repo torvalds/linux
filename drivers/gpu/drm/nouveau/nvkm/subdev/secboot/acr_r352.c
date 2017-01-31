@@ -341,7 +341,7 @@ acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
  */
 int
 acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
-		      struct nvkm_gpuobj *wpr_blob, u32 wpr_addr)
+		      struct nvkm_gpuobj *wpr_blob, u64 wpr_addr)
 {
 	struct ls_ucode_img *_img;
 	u32 pos = 0;
