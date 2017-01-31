@@ -1480,7 +1480,7 @@ speed-of-light delays if nothing else.
 
 <p>
 Furthermore, uncertainty about external state is inherent in many cases.
-For example, a pair of veternarians might use heartbeat to determine
+For example, a pair of veterinarians might use heartbeat to determine
 whether or not a given cat was alive.
 But how long should they wait after the last heartbeat to decide that
 the cat is in fact dead?
@@ -1489,9 +1489,9 @@ mean that a relaxed cat would be considered to cycle between death
 and life more than 100 times per minute.
 Moreover, just as with human beings, a cat's heart might stop for
 some period of time, so the exact wait period is a judgment call.
-One of our pair of veternarians might wait 30 seconds before pronouncing
+One of our pair of veterinarians might wait 30 seconds before pronouncing
 the cat dead, while the other might insist on waiting a full minute.
-The two veternarians would then disagree on the state of the cat during
+The two veterinarians would then disagree on the state of the cat during
 the final 30 seconds of the minute following the last heartbeat.
 
 <p>
@@ -1945,7 +1945,7 @@ guard against mishaps and misuse:
 <ol>
 <li>	It is all too easy to forget to use <tt>rcu_read_lock()</tt>
 	everywhere that it is needed, so kernels built with
-	<tt>CONFIG_PROVE_RCU=y</tt> will spat if
+	<tt>CONFIG_PROVE_RCU=y</tt> will splat if
 	<tt>rcu_dereference()</tt> is used outside of an
 	RCU read-side critical section.
 	Update-side code can use <tt>rcu_dereference_protected()</tt>,
@@ -2421,7 +2421,7 @@ However, there are some restrictions on the code placed within
 <li>	Blocking is prohibited.
 	In practice, this is not a serious restriction given that idle
 	tasks are prohibited from blocking to begin with.
-<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permited, they cannot
+<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permitted, they cannot
 	nest indefinitely deeply.
 	However, given that they can be nested on the order of a million
 	deep, even on 32-bit systems, this should not be a serious
@@ -2885,7 +2885,7 @@ APIs for defining and initializing <tt>srcu_struct</tt> structures.
 <h3><a name="Tasks RCU">Tasks RCU</a></h3>
 
 <p>
-Some forms of tracing use &ldquo;tramopolines&rdquo; to handle the
+Some forms of tracing use &ldquo;trampolines&rdquo; to handle the
 binary rewriting required to install different types of probes.
 It would be good to be able to free old trampolines, which sounds
 like a job for some form of RCU.

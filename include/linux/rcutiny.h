@@ -27,6 +27,12 @@
 
 #include <linux/cache.h>
 
+struct rcu_dynticks;
+static inline int rcu_dynticks_snap(struct rcu_dynticks *rdtp)
+{
+	return 0;
+}
+
 static inline unsigned long get_state_synchronize_rcu(void)
 {
 	return 0;

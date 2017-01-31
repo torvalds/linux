@@ -41,8 +41,6 @@
 
 /* Forward declarations for tiny_plugin.h. */
 struct rcu_ctrlblk;
-static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp);
-static void rcu_process_callbacks(struct softirq_action *unused);
 static void __call_rcu(struct rcu_head *head,
 		       rcu_callback_t func,
 		       struct rcu_ctrlblk *rcp);
