@@ -314,7 +314,7 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (!file->f_op->fallocate)
 		return -EOPNOTSUPP;
 
-	sb_start_write(inode->i_sb);
+	file_start_write(file);
 	ret = file->f_op->fallocate(file, mode, offset, len);
 
 	/*
@@ -327,7 +327,7 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (ret == 0)
 		fsnotify_modify(file);
 
-	sb_end_write(inode->i_sb);
+	file_end_write(file);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vfs_fallocate);
