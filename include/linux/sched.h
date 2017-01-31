@@ -568,10 +568,8 @@ struct pacct_struct {
 };
 
 struct cpu_itimer {
-	cputime_t expires;
-	cputime_t incr;
-	u32 error;
-	u32 incr_error;
+	u64 expires;
+	u64 incr;
 };
 
 /**

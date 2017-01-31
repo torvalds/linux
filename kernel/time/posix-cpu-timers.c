@@ -20,10 +20,10 @@
  */
 void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
-	cputime_t cputime = secs_to_cputime(rlim_new);
+	u64 nsecs = rlim_new * NSEC_PER_SEC;
 
 	spin_lock_irq(&task->sighand->siglock);
-	set_process_cpu_timer(task, CPUCLOCK_PROF, &cputime, NULL);
+	set_process_cpu_timer(task, CPUCLOCK_PROF, &nsecs, NULL);
 	spin_unlock_irq(&task->sighand->siglock);
 }
 
@@ -860,17 +860,11 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 	if (!it->expires)
 		return;
 
-	if (cur_time >= cputime_to_nsecs(it->expires)) {
-		if (it->incr) {
+	if (cur_time >= it->expires) {
+		if (it->incr)
 			it->expires += it->incr;
-			it->error += it->incr_error;
-			if (it->error >= TICK_NSEC) {
-				it->expires -= cputime_one_jiffy;
-				it->error -= TICK_NSEC;
-			}
-		} else {
+		else
 			it->expires = 0;
-		}
 
 		trace_itimer_expire(signo == SIGPROF ?
 				    ITIMER_PROF : ITIMER_VIRTUAL,
@@ -878,9 +872,8 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 
-	if (it->expires && (!*expires || cputime_to_nsecs(it->expires) < *expires)) {
-		*expires = cputime_to_nsecs(it->expires);
-	}
+	if (it->expires && (!*expires || it->expires < *expires))
+		*expires = it->expires;
 }
 
 /*
@@ -1174,9 +1167,9 @@ void run_posix_cpu_timers(struct task_struct *tsk)
  * The tsk->sighand->siglock must be held by the caller.
  */
 void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
-			   cputime_t *newval, cputime_t *oldval)
+			   u64 *newval, u64 *oldval)
 {
-	u64 now, new;
+	u64 now;
 
 	WARN_ON_ONCE(clock_idx == CPUCLOCK_SCHED);
 	cpu_timer_sample_group(clock_idx, tsk, &now);
@@ -1188,20 +1181,18 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		 * it to be absolute.
 		 */
 		if (*oldval) {
-			if (cputime_to_nsecs(*oldval) <= now) {
+			if (*oldval <= now) {
 				/* Just about to fire. */
-				*oldval = cputime_one_jiffy;
+				*oldval = TICK_NSEC;
 			} else {
-				*oldval -= nsecs_to_cputime(now);
+				*oldval -= now;
 			}
 		}
 
 		if (!*newval)
 			return;
-		*newval += nsecs_to_cputime(now);
+		*newval += now;
 	}
-
-	new = cputime_to_nsecs(*newval);
 
 	/*
 	 * Update expiration cache if we are the earliest timer, or eventually
@@ -1209,12 +1200,12 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	 */
 	switch (clock_idx) {
 	case CPUCLOCK_PROF:
-		if (expires_gt(tsk->signal->cputime_expires.prof_exp, new))
-			tsk->signal->cputime_expires.prof_exp = new;
+		if (expires_gt(tsk->signal->cputime_expires.prof_exp, *newval))
+			tsk->signal->cputime_expires.prof_exp = *newval;
 		break;
 	case CPUCLOCK_VIRT:
-		if (expires_gt(tsk->signal->cputime_expires.virt_exp, new))
-			tsk->signal->cputime_expires.virt_exp = new;
+		if (expires_gt(tsk->signal->cputime_expires.virt_exp, *newval))
+			tsk->signal->cputime_expires.virt_exp = *newval;
 		break;
 	}
 
