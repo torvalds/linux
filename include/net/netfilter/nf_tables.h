@@ -14,27 +14,43 @@
 
 struct nft_pktinfo {
 	struct sk_buff			*skb;
-	struct net			*net;
-	const struct net_device		*in;
-	const struct net_device		*out;
-	u8				pf;
-	u8				hook;
 	bool				tprot_set;
 	u8				tprot;
 	/* for x_tables compatibility */
 	struct xt_action_param		xt;
 };
 
+static inline struct net *nft_net(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.state->net;
+}
+
+static inline unsigned int nft_hook(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.state->hook;
+}
+
+static inline u8 nft_pf(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.state->pf;
+}
+
+static inline const struct net_device *nft_in(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.state->in;
+}
+
+static inline const struct net_device *nft_out(const struct nft_pktinfo *pkt)
+{
+	return pkt->xt.state->out;
+}
+
 static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 				   struct sk_buff *skb,
 				   const struct nf_hook_state *state)
 {
 	pkt->skb = skb;
-	pkt->net = pkt->xt.net = state->net;
-	pkt->in = pkt->xt.in = state->in;
-	pkt->out = pkt->xt.out = state->out;
-	pkt->hook = pkt->xt.hooknum = state->hook;
-	pkt->pf = pkt->xt.family = state->pf;
+	pkt->xt.state = state;
 }
 
 static inline void nft_set_pktinfo_proto_unspec(struct nft_pktinfo *pkt,
@@ -191,9 +207,9 @@ struct nft_set_iter {
 	unsigned int	skip;
 	int		err;
 	int		(*fn)(const struct nft_ctx *ctx,
-			      const struct nft_set *set,
+			      struct nft_set *set,
 			      const struct nft_set_iter *iter,
-			      const struct nft_set_elem *elem);
+			      struct nft_set_elem *elem);
 };
 
 /**
@@ -243,7 +259,8 @@ struct nft_expr;
  *	@lookup: look up an element within the set
  *	@insert: insert new element into set
  *	@activate: activate new element in the next generation
- *	@deactivate: deactivate element in the next generation
+ *	@deactivate: lookup for element and deactivate it in the next generation
+ *	@deactivate_one: deactivate element in the next generation
  *	@remove: remove element from set
  *	@walk: iterate over all set elemeennts
  *	@privsize: function to return size of set private data
@@ -278,10 +295,13 @@ struct nft_set_ops {
 	void *				(*deactivate)(const struct net *net,
 						      const struct nft_set *set,
 						      const struct nft_set_elem *elem);
+	bool				(*deactivate_one)(const struct net *net,
+							  const struct nft_set *set,
+							  void *priv);
 	void				(*remove)(const struct nft_set *set,
 						  const struct nft_set_elem *elem);
 	void				(*walk)(const struct nft_ctx *ctx,
-						const struct nft_set *set,
+						struct nft_set *set,
 						struct nft_set_iter *iter);
 
 	unsigned int			(*privsize)(const struct nlattr * const nla[]);
@@ -310,6 +330,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@name: name of the set
  * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
  * 	@dtype: data type (verdict or numeric type defined by userspace)
+ * 	@objtype: object type (see NFT_OBJECT_* definitions)
  * 	@size: maximum set size
  * 	@nelems: number of elements
  * 	@ndeact: number of deactivated elements queued for removal
@@ -331,6 +352,7 @@ struct nft_set {
 	char				name[NFT_SET_MAXNAMELEN];
 	u32				ktype;
 	u32				dtype;
+	u32				objtype;
 	u32				size;
 	atomic_t			nelems;
 	u32				ndeact;
@@ -400,6 +422,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@NFT_SET_EXT_EXPIRATION: element expiration time
  *	@NFT_SET_EXT_USERDATA: user data associated with the element
  *	@NFT_SET_EXT_EXPR: expression assiociated with the element
+ *	@NFT_SET_EXT_OBJREF: stateful object reference associated with element
  *	@NFT_SET_EXT_NUM: number of extension types
  */
 enum nft_set_extensions {
@@ -410,6 +433,7 @@ enum nft_set_extensions {
 	NFT_SET_EXT_EXPIRATION,
 	NFT_SET_EXT_USERDATA,
 	NFT_SET_EXT_EXPR,
+	NFT_SET_EXT_OBJREF,
 	NFT_SET_EXT_NUM
 };
 
@@ -536,6 +560,11 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 						   void *elem)
 {
 	return elem + set->ops->elemsize;
+}
+
+static inline struct nft_object **nft_set_ext_obj(const struct nft_set_ext *ext)
+{
+	return nft_set_ext(ext, NFT_SET_EXT_OBJREF);
 }
 
 void *nft_set_elem_init(const struct nft_set *set,
@@ -859,6 +888,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@list: used internally
  *	@chains: chains in the table
  *	@sets: sets in the table
+ *	@objects: stateful objects in the table
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
@@ -869,6 +899,7 @@ struct nft_table {
 	struct list_head		list;
 	struct list_head		chains;
 	struct list_head		sets;
+	struct list_head		objects;
 	u64				hgenerator;
 	u32				use;
 	u16				flags:14,
@@ -919,6 +950,80 @@ int nft_verdict_dump(struct sk_buff *skb, int type,
 		     const struct nft_verdict *v);
 
 /**
+ *	struct nft_object - nf_tables stateful object
+ *
+ *	@list: table stateful object list node
+ *	@table: table this object belongs to
+ *	@type: pointer to object type
+ *	@data: pointer to object data
+ *	@name: name of this stateful object
+ *	@genmask: generation mask
+ *	@use: number of references to this stateful object
+ * 	@data: object data, layout depends on type
+ */
+struct nft_object {
+	struct list_head		list;
+	char				name[NFT_OBJ_MAXNAMELEN];
+	struct nft_table		*table;
+	u32				genmask:2,
+					use:30;
+	/* runtime data below here */
+	const struct nft_object_type	*type ____cacheline_aligned;
+	unsigned char			data[]
+		__attribute__((aligned(__alignof__(u64))));
+};
+
+static inline void *nft_obj_data(const struct nft_object *obj)
+{
+	return (void *)obj->data;
+}
+
+#define nft_expr_obj(expr)	*((struct nft_object **)nft_expr_priv(expr))
+
+struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
+					const struct nlattr *nla, u32 objtype,
+					u8 genmask);
+
+int nft_obj_notify(struct net *net, struct nft_table *table,
+		   struct nft_object *obj, u32 portid, u32 seq,
+		   int event, int family, int report, gfp_t gfp);
+
+/**
+ *	struct nft_object_type - stateful object type
+ *
+ *	@eval: stateful object evaluation function
+ *	@list: list node in list of object types
+ *	@type: stateful object numeric type
+ *	@size: stateful object size
+ *	@owner: module owner
+ *	@maxattr: maximum netlink attribute
+ *	@policy: netlink attribute policy
+ *	@init: initialize object from netlink attributes
+ *	@destroy: release existing stateful object
+ *	@dump: netlink dump stateful object
+ */
+struct nft_object_type {
+	void				(*eval)(struct nft_object *obj,
+						struct nft_regs *regs,
+						const struct nft_pktinfo *pkt);
+	struct list_head		list;
+	u32				type;
+	unsigned int			size;
+	unsigned int			maxattr;
+	struct module			*owner;
+	const struct nla_policy		*policy;
+	int				(*init)(const struct nlattr * const tb[],
+						struct nft_object *obj);
+	void				(*destroy)(struct nft_object *obj);
+	int				(*dump)(struct sk_buff *skb,
+						struct nft_object *obj,
+						bool reset);
+};
+
+int nft_register_obj(struct nft_object_type *obj_type);
+void nft_unregister_obj(struct nft_object_type *obj_type);
+
+/**
  *	struct nft_traceinfo - nft tracing information and state
  *
  *	@pkt: pktinfo currently processed
@@ -964,6 +1069,9 @@ void nft_trace_notify(struct nft_traceinfo *info);
 
 #define MODULE_ALIAS_NFT_SET() \
 	MODULE_ALIAS("nft-set")
+
+#define MODULE_ALIAS_NFT_OBJ(type) \
+	MODULE_ALIAS("nft-obj-" __stringify(type))
 
 /*
  * The gencursor defines two generations, the currently active and the
@@ -1140,5 +1248,12 @@ struct nft_trans_elem {
 	(((struct nft_trans_elem *)trans->data)->set)
 #define nft_trans_elem(trans)	\
 	(((struct nft_trans_elem *)trans->data)->elem)
+
+struct nft_trans_obj {
+	struct nft_object		*obj;
+};
+
+#define nft_trans_obj(trans)	\
+	(((struct nft_trans_obj *)trans->data)->obj)
 
 #endif /* _NET_NF_TABLES_H */

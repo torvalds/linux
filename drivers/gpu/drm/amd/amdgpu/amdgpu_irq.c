@@ -424,15 +424,6 @@ int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 	return 0;
 }
 
-bool amdgpu_irq_get_delayed(struct amdgpu_device *adev,
-			struct amdgpu_irq_src *src,
-			unsigned type)
-{
-	if ((type >= src->num_types) || !src->enabled_types)
-		return false;
-	return atomic_inc_return(&src->enabled_types[type]) == 1;
-}
-
 /**
  * amdgpu_irq_put - disable interrupt
  *

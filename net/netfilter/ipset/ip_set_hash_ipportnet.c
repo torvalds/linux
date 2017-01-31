@@ -138,7 +138,7 @@ hash_ipportnet4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		     const struct xt_action_param *par,
 		     enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ipportnet *h = set->data;
+	const struct hash_ipportnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem e = {
 		.cidr = INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
@@ -163,7 +163,7 @@ static int
 hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		     enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_ipportnet *h = set->data;
+	const struct hash_ipportnet4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem e = { .cidr = HOST_MASK - 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
@@ -370,7 +370,7 @@ nla_put_failure:
 }
 
 static inline void
-hash_ipportnet6_data_next(struct hash_ipportnet4_elem *next,
+hash_ipportnet6_data_next(struct hash_ipportnet6_elem *next,
 			  const struct hash_ipportnet6_elem *d)
 {
 	next->port = d->port;
@@ -389,7 +389,7 @@ hash_ipportnet6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		     const struct xt_action_param *par,
 		     enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ipportnet *h = set->data;
+	const struct hash_ipportnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet6_elem e = {
 		.cidr = INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
@@ -414,7 +414,7 @@ static int
 hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 		     enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_ipportnet *h = set->data;
+	const struct hash_ipportnet6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet6_elem e = { .cidr = HOST_MASK - 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);

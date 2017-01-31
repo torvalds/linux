@@ -10,9 +10,10 @@
 
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/spinlock.h>
+#include <soc/arc/mcip.h>
 #include <asm/irqflags-arcv2.h>
-#include <asm/mcip.h>
 #include <asm/setup.h>
 
 static DEFINE_RAW_SPINLOCK(mcip_lock);
@@ -92,11 +93,10 @@ static void mcip_probe_n_setup(void)
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
 	sprintf(smp_cpuinfo_buf,
-		"Extn [SMP]\t: ARConnect (v%d): %d cores with %s%s%s%s%s\n",
+		"Extn [SMP]\t: ARConnect (v%d): %d cores with %s%s%s%s\n",
 		mp.ver, mp.num_cores,
 		IS_AVAIL1(mp.ipi, "IPI "),
 		IS_AVAIL1(mp.idu, "IDU "),
-		IS_AVAIL1(mp.llm, "LLM "),
 		IS_AVAIL1(mp.dbg, "DEBUG "),
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
@@ -174,7 +174,6 @@ static void idu_irq_unmask(struct irq_data *data)
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 }
 
-#ifdef CONFIG_SMP
 static int
 idu_irq_set_affinity(struct irq_data *data, const struct cpumask *cpumask,
 		     bool force)
@@ -204,12 +203,27 @@ idu_irq_set_affinity(struct irq_data *data, const struct cpumask *cpumask,
 
 	return IRQ_SET_MASK_OK;
 }
-#endif
+
+static void idu_irq_enable(struct irq_data *data)
+{
+	/*
+	 * By default send all common interrupts to all available online CPUs.
+	 * The affinity of common interrupts in IDU must be set manually since
+	 * in some cases the kernel will not call irq_set_affinity() by itself:
+	 *   1. When the kernel is not configured with support of SMP.
+	 *   2. When the kernel is configured with support of SMP but upper
+	 *      interrupt controllers does not support setting of the affinity
+	 *      and cannot propagate it to IDU.
+	 */
+	idu_irq_set_affinity(data, cpu_online_mask, false);
+	idu_irq_unmask(data);
+}
 
 static struct irq_chip idu_irq_chip = {
 	.name			= "MCIP IDU Intc",
 	.irq_mask		= idu_irq_mask,
 	.irq_unmask		= idu_irq_unmask,
+	.irq_enable		= idu_irq_enable,
 #ifdef CONFIG_SMP
 	.irq_set_affinity       = idu_irq_set_affinity,
 #endif
@@ -221,10 +235,13 @@ static irq_hw_number_t idu_first_hwirq;
 static void idu_cascade_isr(struct irq_desc *desc)
 {
 	struct irq_domain *idu_domain = irq_desc_get_handler_data(desc);
+	struct irq_chip *core_chip = irq_desc_get_chip(desc);
 	irq_hw_number_t core_hwirq = irqd_to_hwirq(irq_desc_get_irq_data(desc));
 	irq_hw_number_t idu_hwirq = core_hwirq - idu_first_hwirq;
 
+	chained_irq_enter(core_chip, desc);
 	generic_handle_irq(irq_find_mapping(idu_domain, idu_hwirq));
+	chained_irq_exit(core_chip, desc);
 }
 
 static int idu_irq_map(struct irq_domain *d, unsigned int virq, irq_hw_number_t hwirq)
@@ -239,35 +256,13 @@ static int idu_irq_xlate(struct irq_domain *d, struct device_node *n,
 			 const u32 *intspec, unsigned int intsize,
 			 irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
-	irq_hw_number_t hwirq = *out_hwirq = intspec[0];
-	int distri = intspec[1];
-	unsigned long flags;
-
+	/*
+	 * Ignore value of interrupt distribution mode for common interrupts in
+	 * IDU which resides in intspec[1] since setting an affinity using value
+	 * from Device Tree is deprecated in ARC.
+	 */
+	*out_hwirq = intspec[0];
 	*out_type = IRQ_TYPE_NONE;
-
-	/* XXX: validate distribution scheme again online cpu mask */
-	if (distri == 0) {
-		/* 0 - Round Robin to all cpus, otherwise 1 bit per core */
-		raw_spin_lock_irqsave(&mcip_lock, flags);
-		idu_set_dest(hwirq, BIT(num_online_cpus()) - 1);
-		idu_set_mode(hwirq, IDU_M_TRIG_LEVEL, IDU_M_DISTRI_RR);
-		raw_spin_unlock_irqrestore(&mcip_lock, flags);
-	} else {
-		/*
-		 * DEST based distribution for Level Triggered intr can only
-		 * have 1 CPU, so generalize it to always contain 1 cpu
-		 */
-		int cpu = ffs(distri);
-
-		if (cpu != fls(distri))
-			pr_warn("IDU irq %lx distri mode set to cpu %x\n",
-				hwirq, cpu);
-
-		raw_spin_lock_irqsave(&mcip_lock, flags);
-		idu_set_dest(hwirq, cpu);
-		idu_set_mode(hwirq, IDU_M_TRIG_LEVEL, IDU_M_DISTRI_DEST);
-		raw_spin_unlock_irqrestore(&mcip_lock, flags);
-	}
 
 	return 0;
 }

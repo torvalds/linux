@@ -989,7 +989,8 @@ static void set_cache_mode(struct cache *cache, enum cache_metadata_mode new_mod
 	enum cache_metadata_mode old_mode = get_cache_mode(cache);
 
 	if (dm_cache_metadata_needs_check(cache->cmd, &needs_check)) {
-		DMERR("unable to read needs_check flag, setting failure mode");
+		DMERR("%s: unable to read needs_check flag, setting failure mode.",
+		      cache_device_name(cache));
 		new_mode = CM_FAIL;
 	}
 

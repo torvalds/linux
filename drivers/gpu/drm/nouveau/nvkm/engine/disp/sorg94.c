@@ -45,14 +45,6 @@ static const struct nvkm_output_func
 g94_sor_output_func = {
 };
 
-int
-g94_sor_output_new(struct nvkm_disp *disp, int index,
-		   struct dcb_output *dcbE, struct nvkm_output **poutp)
-{
-	return nvkm_output_new_(&g94_sor_output_func, disp,
-				index, dcbE, poutp);
-}
-
 /*******************************************************************************
  * DisplayPort
  ******************************************************************************/

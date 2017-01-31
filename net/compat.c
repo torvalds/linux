@@ -28,7 +28,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/compat.h>
 
 int get_compat_msghdr(struct msghdr *kmsg,

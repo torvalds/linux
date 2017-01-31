@@ -37,6 +37,7 @@
 #include "fs_core.h"
 #include "fs_cmd.h"
 #include "mlx5_core.h"
+#include "eswitch.h"
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 			    struct mlx5_flow_table *ft)
@@ -61,8 +62,9 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 			       enum fs_flow_table_op_mod op_mod,
 			       enum fs_flow_table_type type, unsigned int level,
 			       unsigned int log_size, struct mlx5_flow_table
-			       *next_ft, unsigned int *table_id)
+			       *next_ft, unsigned int *table_id, u32 flags)
 {
+	int en_encap_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN);
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)]   = {0};
 	int err;
@@ -77,6 +79,9 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 		MLX5_SET(create_flow_table_in, in, vport_number, vport);
 		MLX5_SET(create_flow_table_in, in, other_vport, 1);
 	}
+
+	MLX5_SET(create_flow_table_in, in, decap_en, en_encap_decap);
+	MLX5_SET(create_flow_table_in, in, encap_en, en_encap_decap);
 
 	switch (op_mod) {
 	case FS_FT_OP_MOD_NORMAL:
@@ -243,6 +248,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
 	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->flow_tag);
 	MLX5_SET(flow_context, in_flow_context, action, fte->action);
+	MLX5_SET(flow_context, in_flow_context, encap_id, fte->encap_id);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, &fte->val, MLX5_ST_SZ_BYTES(fte_match_param));
@@ -453,26 +459,31 @@ void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 	*bytes = MLX5_GET64(traffic_counter, stats, octets);
 }
 
-#define MAX_ENCAP_SIZE (128)
-
-int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
-			 int header_type,
-			 size_t size,
-			 void *encap_header,
-			 u32 *encap_id)
+int mlx5_encap_alloc(struct mlx5_core_dev *dev,
+		     int header_type,
+		     size_t size,
+		     void *encap_header,
+		     u32 *encap_id)
 {
+	int max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
 	u32 out[MLX5_ST_SZ_DW(alloc_encap_header_out)];
-	u32 in[MLX5_ST_SZ_DW(alloc_encap_header_in) +
-	      (MAX_ENCAP_SIZE / sizeof(u32))];
-	void *encap_header_in = MLX5_ADDR_OF(alloc_encap_header_in, in,
-					     encap_header);
-	void *header = MLX5_ADDR_OF(encap_header_in, encap_header_in,
-				    encap_header);
-	int inlen = header - (void *)in  + size;
+	void *encap_header_in;
+	void *header;
+	int inlen;
 	int err;
+	u32 *in;
 
-	if (size > MAX_ENCAP_SIZE)
+	if (size > MLX5_CAP_ESW(dev, max_encap_header_size))
 		return -EINVAL;
+
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + max_encap_size,
+		     GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	encap_header_in = MLX5_ADDR_OF(alloc_encap_header_in, in, encap_header);
+	header = MLX5_ADDR_OF(encap_header_in, encap_header_in, encap_header);
+	inlen = header - (void *)in  + size;
 
 	memset(in, 0, inlen);
 	MLX5_SET(alloc_encap_header_in, in, opcode,
@@ -485,10 +496,11 @@ int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 
 	*encap_id = MLX5_GET(alloc_encap_header_out, out, encap_id);
+	kfree(in);
 	return err;
 }
 
-void mlx5_cmd_dealloc_encap(struct mlx5_core_dev *dev, u32 encap_id)
+void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_encap_header_in)];
 	u32 out[MLX5_ST_SZ_DW(dealloc_encap_header_out)];

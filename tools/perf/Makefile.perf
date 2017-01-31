@@ -86,6 +86,12 @@ include ../scripts/utilities.mak
 #
 # Define FEATURES_DUMP to provide features detection dump file
 # and bypass the feature detection
+#
+# Define NO_JVMTI if you do not want jvmti agent built
+#
+# Define LIBCLANGLLVM if you DO want builtin clang and llvm support.
+# When selected, pass LLVM_CONFIG=/path/to/llvm-config to `make' if
+# llvm-config is not in $PATH.
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -94,7 +100,7 @@ LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
 
 ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
@@ -122,10 +128,6 @@ endif
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
-$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
-	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
-	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
-
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
 # environment or command line. This is necessary for CC and AR
@@ -141,6 +143,7 @@ endef
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
+$(call allow-override,CXX,$(CROSS_COMPILE)g++)
 
 LD += $(EXTRA_LDFLAGS)
 
@@ -149,6 +152,7 @@ HOSTLD  ?= ld
 HOSTAR  ?= ar
 
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
+LLVM_CONFIG ?= llvm-config
 
 RM      = rm -f
 LN      = ln -f
@@ -160,22 +164,52 @@ BISON   = bison
 STRIP   = strip
 AWK     = awk
 
-LIB_DIR		= $(srctree)/tools/lib/api/
-TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
-BPF_DIR		= $(srctree)/tools/lib/bpf/
-SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
-
 # include Makefile.config by default and rule out
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc
+NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc install-man install-html install-info install-pdf doc man html info pdf
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
   config := 0
 endif
 endif
+
+# The fixdep build - we force fixdep tool to be built as
+# the first target in the separate make session not to be
+# disturbed by any parallel make jobs. Once fixdep is done
+# we issue the requested build with FIXDEP=1 variable.
+#
+# The fixdep build is disabled for $(NON_CONFIG_TARGETS)
+# targets, because it's not necessary.
+
+ifdef FIXDEP
+  force_fixdep := 0
+else
+  force_fixdep := $(config)
+endif
+
+export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
+export HOSTCC HOSTLD HOSTAR
+
+include $(srctree)/tools/build/Makefile.include
+
+ifeq ($(force_fixdep),1)
+goals := $(filter-out all sub-make, $(MAKECMDGOALS))
+
+$(goals) all: sub-make
+
+sub-make: fixdep
+	@./check-headers.sh
+	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
+
+else # force_fixdep
+
+LIB_DIR         = $(srctree)/tools/lib/api/
+TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR         = $(srctree)/tools/lib/bpf/
+SUBCMD_DIR      = $(srctree)/tools/lib/subcmd/
 
 # Set FEATURE_TESTS to 'all' so all possible feature checkers are executed.
 # Without this setting the output feature dump file misses some features, for
@@ -260,17 +294,6 @@ python-clean := $(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT
 PYTHON_EXT_SRCS := $(shell grep -v ^\# util/python-ext-sources)
 PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBAPI)
 
-$(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
-	$(QUIET_GEN)LDSHARED="$(CC) -pthread -shared" \
-        CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS)' \
-	  $(PYTHON_WORD) util/setup.py \
-	  --quiet build_ext; \
-	mkdir -p $(OUTPUT)python && \
-	cp $(PYTHON_EXTBUILD_LIB)perf.so $(OUTPUT)python/
-#
-# No Perl scripts right now:
-#
-
 SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
 
 PROGRAMS += $(OUTPUT)perf
@@ -281,6 +304,12 @@ endif
 
 ifndef NO_PERF_READ_VDSOX32
 PROGRAMS += $(OUTPUT)perf-read-vdsox32
+endif
+
+LIBJVMTI = libperf-jvmti.so
+
+ifndef NO_JVMTI
+PROGRAMS += $(OUTPUT)$(LIBJVMTI)
 endif
 
 # what 'all' will build and 'install' will install, in perfexecdir
@@ -317,11 +346,6 @@ endif
 ifndef NO_GTK2
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
   GTK_IN := $(OUTPUT)gtk-in.o
-
-install-gtk: $(OUTPUT)libperf-gtk.so
-	$(call QUIET_INSTALL, 'GTK UI') \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
-		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
 endif
 
 ifdef ASCIIDOC8
@@ -330,6 +354,21 @@ endif
 
 LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
 
+ifeq ($(USE_CLANG), 1)
+  CLANGLIBS_LIST = AST Basic CodeGen Driver Frontend Lex Tooling Edit Sema Analysis Parse Serialization
+  LIBCLANG = $(foreach l,$(CLANGLIBS_LIST),$(wildcard $(shell $(LLVM_CONFIG) --libdir)/libclang$(l).a))
+  LIBS += -Wl,--start-group $(LIBCLANG) -Wl,--end-group
+endif
+
+ifeq ($(USE_LLVM), 1)
+  LIBLLVM = $(shell $(LLVM_CONFIG) --libs all) $(shell $(LLVM_CONFIG) --system-libs)
+  LIBS += -L$(shell $(LLVM_CONFIG) --libdir) $(LIBLLVM)
+endif
+
+ifeq ($(USE_CXX), 1)
+  LIBS += -lstdc++
+endif
+
 export INSTALL SHELL_PATH
 
 ### Build rules
@@ -337,6 +376,14 @@ export INSTALL SHELL_PATH
 SHELL = $(SHELL_PATH)
 
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
+
+$(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
+	$(QUIET_GEN)LDSHARED="$(CC) -pthread -shared" \
+        CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS)' \
+	  $(PYTHON_WORD) util/setup.py \
+	  --quiet build_ext; \
+	mkdir -p $(OUTPUT)python && \
+	cp $(PYTHON_EXTBUILD_LIB)perf.so $(OUTPUT)python/
 
 please_set_SHELL_PATH_to_a_more_modern_shell:
 	$(Q)$$(:)
@@ -348,10 +395,6 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 
 PERF_IN := $(OUTPUT)perf-in.o
 
-export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
-export HOSTCC HOSTLD HOSTAR
-include $(srctree)/tools/build/Makefile.include
-
 JEVENTS       := $(OUTPUT)pmu-events/jevents
 JEVENTS_IN    := $(OUTPUT)pmu-events/jevents-in.o
 
@@ -362,99 +405,6 @@ export JEVENTS
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): prepare FORCE
-	@(test -f ../../include/uapi/linux/perf_event.h && ( \
-        (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
-        || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/linux/hash.h && ( \
-        (diff -B ../include/linux/hash.h ../../include/linux/hash.h >/dev/null) \
-        || echo "Warning: tools/include/linux/hash.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
-        (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
-        || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/disabled-features.h && ( \
-        (diff -B ../arch/x86/include/asm/disabled-features.h ../../arch/x86/include/asm/disabled-features.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/disabled-features.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/required-features.h && ( \
-        (diff -B ../arch/x86/include/asm/required-features.h ../../arch/x86/include/asm/required-features.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/required-features.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/asm/cpufeatures.h && ( \
-        (diff -B ../arch/x86/include/asm/cpufeatures.h ../../arch/x86/include/asm/cpufeatures.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/asm/cpufeatures.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/lib/memcpy_64.S && ( \
-        (diff -B ../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memcpy_64.S >/dev/null) \
-        || echo "Warning: tools/arch/x86/lib/memcpy_64.S differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/lib/memset_64.S && ( \
-        (diff -B ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
-        || echo "Warning: tools/arch/x86/lib/memset_64.S differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/arm/include/uapi/asm/perf_regs.h ../../arch/arm/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/arm/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm64/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/arm64/include/uapi/asm/perf_regs.h ../../arch/arm64/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/arm64/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/powerpc/include/uapi/asm/perf_regs.h ../../arch/powerpc/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/powerpc/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/perf_regs.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/perf_regs.h ../../arch/x86/include/uapi/asm/perf_regs.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/kvm.h ../../arch/x86/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/kvm_perf.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/kvm_perf.h ../../arch/x86/include/uapi/asm/kvm_perf.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/kvm_perf.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/svm.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/svm.h ../../arch/x86/include/uapi/asm/svm.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/svm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/x86/include/uapi/asm/vmx.h && ( \
-        (diff -B ../arch/x86/include/uapi/asm/vmx.h ../../arch/x86/include/uapi/asm/vmx.h >/dev/null) \
-        || echo "Warning: tools/arch/x86/include/uapi/asm/vmx.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/powerpc/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/powerpc/include/uapi/asm/kvm.h ../../arch/powerpc/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/powerpc/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/kvm.h ../../arch/s390/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/kvm_perf.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/kvm_perf.h ../../arch/s390/include/uapi/asm/kvm_perf.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/kvm_perf.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/s390/include/uapi/asm/sie.h && ( \
-        (diff -B ../arch/s390/include/uapi/asm/sie.h ../../arch/s390/include/uapi/asm/sie.h >/dev/null) \
-        || echo "Warning: tools/arch/s390/include/uapi/asm/sie.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/arm/include/uapi/asm/kvm.h ../../arch/arm/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/arm/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../arch/arm64/include/uapi/asm/kvm.h && ( \
-        (diff -B ../arch/arm64/include/uapi/asm/kvm.h ../../arch/arm64/include/uapi/asm/kvm.h >/dev/null) \
-        || echo "Warning: tools/arch/arm64/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/arch_hweight.h && ( \
-        (diff -B ../include/asm-generic/bitops/arch_hweight.h ../../include/asm-generic/bitops/arch_hweight.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/arch_hweight.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/const_hweight.h && ( \
-        (diff -B ../include/asm-generic/bitops/const_hweight.h ../../include/asm-generic/bitops/const_hweight.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/const_hweight.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/__fls.h && ( \
-        (diff -B ../include/asm-generic/bitops/__fls.h ../../include/asm-generic/bitops/__fls.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/__fls.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/fls.h && ( \
-        (diff -B ../include/asm-generic/bitops/fls.h ../../include/asm-generic/bitops/fls.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/fls.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
-        (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
-        || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/linux/coresight-pmu.h && ( \
-	(diff -B ../include/linux/coresight-pmu.h ../../include/linux/coresight-pmu.h >/dev/null) \
-	|| echo "Warning: tools/include/linux/coresight-pmu.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
-	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
-	@(test -f ../../include/uapi/linux/mman.h && ( \
-	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
-	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(JEVENTS_IN): FORCE
@@ -470,7 +420,7 @@ $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(PMU_EVENTS_IN) $(LIBTRACEEVENT_DYNAMIC_L
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
 		$(PERF_IN) $(PMU_EVENTS_IN) $(LIBS) -o $@
 
-$(GTK_IN): fixdep FORCE
+$(GTK_IN): FORCE
 	$(Q)$(MAKE) $(build)=gtk
 
 $(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
@@ -483,6 +433,10 @@ $(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
 
 $(SCRIPTS) : % : %.sh
 	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
+
+$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
+	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
 # These can record PERF_VERSION
 perf.spec $(SCRIPTS) \
@@ -515,7 +469,7 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep archheaders
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -551,11 +505,21 @@ $(OUTPUT)perf-read-vdsox32: perf-read-vdso.c util/find-vdso-map.c
 	$(QUIET_CC)$(CC) -mx32 $(filter -static,$(LDFLAGS)) -Wall -Werror -o $@ perf-read-vdso.c
 endif
 
+ifndef NO_JVMTI
+LIBJVMTI_IN := $(OUTPUT)jvmti/jvmti-in.o
+
+$(LIBJVMTI_IN): FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=jvmti obj=jvmti
+
+$(OUTPUT)$(LIBJVMTI): $(LIBJVMTI_IN)
+	$(QUIET_LINK)$(CC) -shared -Wl,-soname -Wl,$(LIBJVMTI) -o $@ $< -lelf -lrt
+endif
+
 $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
-$(LIBPERF_IN): prepare fixdep FORCE
+$(LIBPERF_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
@@ -563,10 +527,10 @@ $(LIB_FILE): $(LIBPERF_IN)
 
 LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
 
-$(LIBTRACEEVENT): fixdep FORCE
+$(LIBTRACEEVENT): FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a
 
-libtraceevent_plugins: fixdep FORCE
+libtraceevent_plugins: FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) plugins
 
 $(LIBTRACEEVENT_DYNAMIC_LIST): libtraceevent_plugins
@@ -579,21 +543,21 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: libtraceevent_plugins
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
-$(LIBAPI): fixdep FORCE
+$(LIBAPI): FORCE
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
 $(LIBAPI)-clean:
 	$(call QUIET_CLEAN, libapi)
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
-$(LIBBPF): fixdep FORCE
+$(LIBBPF): FORCE
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
 
-$(LIBSUBCMD): fixdep FORCE
+$(LIBSUBCMD): FORCE
 	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) $(OUTPUT)libsubcmd.a
 
 $(LIBSUBCMD)-clean:
@@ -673,7 +637,14 @@ check: $(OUTPUT)common-cmds.h
 
 ### Installation rules
 
+ifndef NO_GTK2
+install-gtk: $(OUTPUT)libperf-gtk.so
+	$(call QUIET_INSTALL, 'GTK UI') \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
+		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
+else
 install-gtk:
+endif
 
 install-tools: all install-gtk
 	$(call QUIET_INSTALL, binaries) \
@@ -687,6 +658,10 @@ endif
 ifndef NO_PERF_READ_VDSOX32
 	$(call QUIET_INSTALL, perf-read-vdsox32) \
 		$(INSTALL) $(OUTPUT)perf-read-vdsox32 '$(DESTDIR_SQ)$(bindir_SQ)';
+endif
+ifndef NO_JVMTI
+	$(call QUIET_INSTALL, $(LIBJVMTI)) \
+		$(INSTALL) $(OUTPUT)$(LIBJVMTI) '$(DESTDIR_SQ)$(libdir_SQ)';
 endif
 	$(call QUIET_INSTALL, libexec) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
@@ -729,9 +704,9 @@ install-tests: all install-gtk
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
 		$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
 
-install-bin: install-tools install-tests
+install-bin: install-tools install-tests install-traceevent-plugins
 
-install: install-bin try-install-man install-traceevent-plugins
+install: install-bin try-install-man
 
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'
@@ -754,7 +729,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
-	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)pmu-events/jevents
+	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)pmu-events/jevents $(OUTPUT)$(LIBJVMTI).so
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c $(OUTPUT)fixdep \
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
@@ -790,3 +765,4 @@ FORCE:
 .PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
 .PHONY: libtraceevent_plugins archheaders
 
+endif # force_fixdep

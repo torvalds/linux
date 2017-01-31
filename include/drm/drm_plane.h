@@ -28,15 +28,11 @@
 #include <drm/drm_mode_object.h>
 
 struct drm_crtc;
+struct drm_printer;
 
 /**
  * struct drm_plane_state - mutable plane state
  * @plane: backpointer to the plane
- * @crtc: currently bound CRTC, NULL if disabled
- * @fb: currently bound framebuffer
- * @fence: optional fence to wait for before scanning out @fb
- * @crtc_x: left position of visible portion of plane on crtc
- * @crtc_y: upper position of visible portion of plane on crtc
  * @crtc_w: width of visible portion of plane on crtc
  * @crtc_h: height of visible portion of plane on crtc
  * @src_x: left position of visible portion of plane within
@@ -57,18 +53,51 @@ struct drm_crtc;
  *	it can be trusted.
  * @src: clipped source coordinates of the plane (in 16.16)
  * @dst: clipped destination coordinates of the plane
- * @visible: visibility of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
 	struct drm_plane *plane;
 
-	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
-	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
-	struct fence *fence;
+	/**
+	 * @crtc:
+	 *
+	 * Currently bound CRTC, NULL if disabled. Do not this write directly,
+	 * use drm_atomic_set_crtc_for_plane()
+	 */
+	struct drm_crtc *crtc;
 
-	/* Signed dest location allows it to be partially off screen */
-	int32_t crtc_x, crtc_y;
+	/**
+	 * @fb:
+	 *
+	 * Currently bound framebuffer. Do not write this directly, use
+	 * drm_atomic_set_fb_for_plane()
+	 */
+	struct drm_framebuffer *fb;
+
+	/**
+	 * @fence:
+	 *
+	 * Optional fence to wait for before scanning out @fb. Do not write this
+	 * directly, use drm_atomic_set_fence_for_plane()
+	 */
+	struct dma_fence *fence;
+
+	/**
+	 * @crtc_x:
+	 *
+	 * Left position of visible portion of plane on crtc, signed dest
+	 * location allows it to be partially off screen.
+	 */
+
+	int32_t crtc_x;
+	/**
+	 * @crtc_y:
+	 *
+	 * Upper position of visible portion of plane on crtc, signed dest
+	 * location allows it to be partially off screen.
+	 */
+	int32_t crtc_y;
+
 	uint32_t crtc_w, crtc_h;
 
 	/* Source values are 16.16 fixed point */
@@ -85,15 +114,40 @@ struct drm_plane_state {
 	/* Clipped coordinates */
 	struct drm_rect src, dst;
 
-	/*
-	 * Is the plane actually visible? Can be false even
-	 * if fb!=NULL and crtc!=NULL, due to clipping.
+	/**
+	 * @visible:
+	 *
+	 * Visibility of the plane. This can be false even if fb!=NULL and
+	 * crtc!=NULL, due to clipping.
 	 */
 	bool visible;
 
 	struct drm_atomic_state *state;
 };
 
+static inline struct drm_rect
+drm_plane_state_src(const struct drm_plane_state *state)
+{
+	struct drm_rect src = {
+		.x1 = state->src_x,
+		.y1 = state->src_y,
+		.x2 = state->src_x + state->src_w,
+		.y2 = state->src_y + state->src_h,
+	};
+	return src;
+}
+
+static inline struct drm_rect
+drm_plane_state_dest(const struct drm_plane_state *state)
+{
+	struct drm_rect dest = {
+		.x1 = state->crtc_x,
+		.y1 = state->crtc_y,
+		.x2 = state->crtc_x + state->crtc_w,
+		.y2 = state->crtc_y + state->crtc_h,
+	};
+	return dest;
+}
 
 /**
  * struct drm_plane_funcs - driver plane control functions
@@ -323,6 +377,18 @@ struct drm_plane_funcs {
 	 * before data structures are torndown.
 	 */
 	void (*early_unregister)(struct drm_plane *plane);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_plane_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_plane_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_plane_state *state);
 };
 
 /**
@@ -392,6 +458,7 @@ enum drm_plane_type {
  * @type: type of plane (overlay, primary, cursor)
  * @state: current atomic state for this plane
  * @zpos_property: zpos property for this plane
+ * @rotation_property: rotation property for this plane
  * @helper_private: mid-layer private data
  */
 struct drm_plane {
@@ -438,6 +505,7 @@ struct drm_plane {
 	struct drm_plane_state *state;
 
 	struct drm_property *zpos_property;
+	struct drm_property *rotation_property;
 };
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
@@ -445,7 +513,7 @@ struct drm_plane {
 extern __printf(8, 9)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
-			     unsigned long possible_crtcs,
+			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats,
 			     unsigned int format_count,
@@ -453,7 +521,7 @@ int drm_universal_plane_init(struct drm_device *dev,
 			     const char *name, ...);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
-			  unsigned long possible_crtcs,
+			  uint32_t possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);

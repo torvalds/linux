@@ -227,8 +227,7 @@ struct wbcir_data {
 
 static enum wbcir_protocol protocol = IR_PROTOCOL_RC6;
 module_param(protocol, uint, 0444);
-MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command "
-		 "(0 = RC5, 1 = NEC, 2 = RC6A, default)");
+MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command (0 = RC5, 1 = NEC, 2 = RC6A, default)");
 
 static bool invert; /* default = 0 */
 module_param(invert, bool, 0444);
@@ -244,8 +243,7 @@ MODULE_PARM_DESC(wake_sc, "Scancode of the power-on IR command");
 
 static unsigned int wake_rc6mode = 6;
 module_param(wake_rc6mode, uint, 0644);
-MODULE_PARM_DESC(wake_rc6mode, "RC6 mode for the power-on command "
-		 "(0 = 0, 6 = 6A, default)");
+MODULE_PARM_DESC(wake_rc6mode, "RC6 mode for the power-on command (0 = 0, 6 = 6A, default)");
 
 
 
@@ -660,7 +658,7 @@ wbcir_tx(struct rc_dev *dev, unsigned *b, unsigned count)
 	unsigned i;
 	unsigned long flags;
 
-	buf = kmalloc(count * sizeof(*b), GFP_KERNEL);
+	buf = kmalloc_array(count, sizeof(*b), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1050,8 +1048,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_free_data;
 	}
 
-	dev_dbg(&device->dev, "Found device "
-		"(w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
+	dev_dbg(&device->dev, "Found device (w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
 		data->wbase, data->ebase, data->sbase, data->irq);
 
 	data->led.name = "cir::activity";
@@ -1188,7 +1185,7 @@ static const struct pnp_device_id wbcir_ids[] = {
 MODULE_DEVICE_TABLE(pnp, wbcir_ids);
 
 static struct pnp_driver wbcir_driver = {
-	.name     = WBCIR_NAME,
+	.name     = DRVNAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
 	.remove   = wbcir_remove,

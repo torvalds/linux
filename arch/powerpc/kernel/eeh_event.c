@@ -75,11 +75,11 @@ static int eeh_event_handler(void * dummy)
 		if (pe) {
 			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
 			if (pe->type & EEH_PE_PHB)
-				pr_info("EEH: Detected error on PHB#%d\n",
+				pr_info("EEH: Detected error on PHB#%x\n",
 					 pe->phb->global_number);
 			else
 				pr_info("EEH: Detected PCI bus error on "
-					"PHB#%d-PE#%x\n",
+					"PHB#%x-PE#%x\n",
 					pe->phb->global_number, pe->addr);
 			eeh_handle_event(pe);
 			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);

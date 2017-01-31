@@ -194,6 +194,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 void rsi_mac80211_detach(struct rsi_hw *adapter)
 {
 	struct ieee80211_hw *hw = adapter->hw;
+	enum nl80211_band band;
 
 	if (hw) {
 		ieee80211_stop_queues(hw);
@@ -201,7 +202,17 @@ void rsi_mac80211_detach(struct rsi_hw *adapter)
 		ieee80211_free_hw(hw);
 	}
 
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+					&adapter->sbands[band];
+
+		kfree(sband->channels);
+	}
+
+#ifdef CONFIG_RSI_DEBUGFS
 	rsi_remove_dbgfs(adapter);
+	kfree(adapter->dfsentry);
+#endif
 }
 EXPORT_SYMBOL_GPL(rsi_mac80211_detach);
 
@@ -264,6 +275,8 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 	common->iface_down = false;
 	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+
 	return 0;
 }
 
@@ -304,7 +317,9 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 		if (!adapter->sc_nvifs) {
 			++adapter->sc_nvifs;
 			adapter->vifs[0] = vif;
-			ret = rsi_set_vap_capabilities(common, STA_OPMODE);
+			ret = rsi_set_vap_capabilities(common,
+						       STA_OPMODE,
+						       VAP_ADD);
 		}
 		break;
 	default:
@@ -332,8 +347,10 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 
 	mutex_lock(&common->mutex);
-	if (vif->type == NL80211_IFTYPE_STATION)
+	if (vif->type == NL80211_IFTYPE_STATION) {
 		adapter->sc_nvifs--;
+		rsi_set_vap_capabilities(common, STA_OPMODE, VAP_DELETE);
+	}
 
 	if (!memcmp(adapter->vifs[0], vif, sizeof(struct ieee80211_vif)))
 		adapter->vifs[0] = NULL;
@@ -373,7 +390,7 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 
 	status = rsi_band_check(common);
 	if (!status)
-		status = rsi_set_channel(adapter->priv, channel);
+		status = rsi_set_channel(adapter->priv, curchan);
 
 	if (bss->assoc) {
 		if (common->hw_data_qs_blocked &&
@@ -391,6 +408,34 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 	}
 
 	return status;
+}
+
+/**
+ * rsi_config_power() - This function configures tx power to device
+ * @hw: Pointer to the ieee80211_hw structure.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+static int rsi_config_power(struct ieee80211_hw *hw)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (adapter->sc_nvifs <= 0) {
+		rsi_dbg(ERR_ZONE, "%s: No virtual interface found\n", __func__);
+		return -EINVAL;
+	}
+
+	rsi_dbg(INFO_ZONE,
+		"%s: Set tx power: %d dBM\n", __func__, conf->power_level);
+
+	if (conf->power_level == common->tx_power)
+		return 0;
+
+	common->tx_power = conf->power_level;
+
+	return rsi_send_radio_params_update(common);
 }
 
 /**
@@ -413,6 +458,12 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		status = rsi_channel_change(hw);
+
+	/* tx power */
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		rsi_dbg(INFO_ZONE, "%s: Configuring Power\n", __func__);
+		status = rsi_config_power(hw);
+	}
 
 	mutex_unlock(&common->mutex);
 
@@ -456,11 +507,19 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	u16 rx_filter_word = 0;
 
 	mutex_lock(&common->mutex);
 	if (changed & BSS_CHANGED_ASSOC) {
 		rsi_dbg(INFO_ZONE, "%s: Changed Association status: %d\n",
 			__func__, bss_conf->assoc);
+		if (bss_conf->assoc) {
+			/* Send the RX filter frame */
+			rx_filter_word = (ALLOW_DATA_ASSOC_PEER |
+					  ALLOW_CTRL_ASSOC_PEER |
+					  ALLOW_MGMT_ASSOC_PEER);
+			rsi_send_rx_filter_frame(common, rx_filter_word);
+		}
 		rsi_inform_bss_status(common,
 				      bss_conf->assoc,
 				      bss_conf->bssid,
@@ -998,6 +1057,7 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 
 	mutex_lock(&common->mutex);
+
 	/* Resetting all the fields to default values */
 	common->bitrate_mask[NL80211_BAND_2GHZ] = 0;
 	common->bitrate_mask[NL80211_BAND_5GHZ] = 0;
@@ -1007,9 +1067,114 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	common->vif_info[0].seq_start = 0;
 	common->secinfo.ptk_cipher = 0;
 	common->secinfo.gtk_cipher = 0;
-	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+	
+	mutex_unlock(&common->mutex);
+	
 	return 0;
+}
+
+/**
+ * rsi_mac80211_set_antenna() - This function is used to configure
+ *				tx and rx antennas.
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ *
+ * Return: 0 on success, Negative error code on failure.
+ */
+static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
+				    u32 tx_ant, u32 rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	u8 antenna = 0;
+
+	if (tx_ant > 1 || rx_ant > 1) {
+		rsi_dbg(ERR_ZONE,
+			"Invalid antenna selection (tx: %d, rx:%d)\n",
+			tx_ant, rx_ant);
+		rsi_dbg(ERR_ZONE,
+			"Use 0 for int_ant, 1 for ext_ant\n");
+		return -EINVAL; 
+	}
+
+	rsi_dbg(INFO_ZONE, "%s: Antenna map Tx %x Rx %d\n",
+			__func__, tx_ant, rx_ant);
+
+	mutex_lock(&common->mutex);
+
+	antenna = tx_ant ? ANTENNA_SEL_UFL : ANTENNA_SEL_INT;
+	if (common->ant_in_use != antenna)
+		if (rsi_set_antenna(common, antenna))
+			goto fail_set_antenna;
+
+	rsi_dbg(INFO_ZONE, "(%s) Antenna path configured successfully\n",
+		tx_ant ? "UFL" : "INT");
+
+	common->ant_in_use = antenna;
+	
+	mutex_unlock(&common->mutex);
+	
+	return 0;
+
+fail_set_antenna:
+	rsi_dbg(ERR_ZONE, "%s: Failed.\n", __func__);
+	mutex_unlock(&common->mutex);
+	return -EINVAL;
+}
+
+/**
+ * rsi_mac80211_get_antenna() - This function is used to configure 
+ * 				tx and rx antennas.
+ *
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ * 
+ * Return: 0 on success, -1 on failure.
+ */
+static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
+				    u32 *tx_ant, u32 *rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	mutex_lock(&common->mutex);
+
+	*tx_ant = (common->ant_in_use == ANTENNA_SEL_UFL) ? 1 : 0;
+	*rx_ant = 0;
+
+	mutex_unlock(&common->mutex);
+	
+	return 0;	
+}
+
+static void rsi_reg_notify(struct wiphy *wiphy,
+			   struct regulatory_request *request)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct rsi_hw * adapter = hw->priv; 
+	int i;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+		if (ch->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		if (ch->flags & IEEE80211_CHAN_RADAR)
+			ch->flags |= IEEE80211_CHAN_NO_IR;
+	}
+	
+	rsi_dbg(INFO_ZONE,
+		"country = %s dfs_region = %d\n",
+		request->alpha2, request->dfs_region);
+	adapter->dfs_region = request->dfs_region;
 }
 
 static struct ieee80211_ops mac80211_ops = {
@@ -1028,6 +1193,8 @@ static struct ieee80211_ops mac80211_ops = {
 	.ampdu_action = rsi_mac80211_ampdu_action,
 	.sta_add = rsi_mac80211_sta_add,
 	.sta_remove = rsi_mac80211_sta_remove,
+	.set_antenna = rsi_mac80211_set_antenna,
+	.get_antenna = rsi_mac80211_get_antenna,
 };
 
 /**
@@ -1091,6 +1258,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 		&adapter->sbands[NL80211_BAND_2GHZ];
 	wiphy->bands[NL80211_BAND_5GHZ] =
 		&adapter->sbands[NL80211_BAND_5GHZ];
+
+	wiphy->reg_notifier = rsi_reg_notify;
 
 	status = ieee80211_register_hw(hw);
 	if (status)

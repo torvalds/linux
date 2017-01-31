@@ -23,6 +23,8 @@
 #include "ddk750.h"
 #include "sm750_accel.h"
 
+void __iomem *mmio750;
+
 int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
 	int ret;
@@ -34,7 +36,8 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 
 	pr_info("mmio phyAddr = %lx\n", sm750_dev->vidreg_start);
 
-	/* reserve the vidreg space of smi adaptor
+	/*
+	 * reserve the vidreg space of smi adaptor
 	 * if you do this, you need to add release region code
 	 * in lynxfb_remove, or memory will not be mapped again
 	 * successfully
@@ -59,15 +62,17 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	sm750_dev->accel.dprBase = sm750_dev->pvReg + DE_BASE_ADDR_TYPE1;
 	sm750_dev->accel.dpPortBase = sm750_dev->pvReg + DE_PORT_ADDR_TYPE1;
 
-	ddk750_set_mmio(sm750_dev->pvReg, sm750_dev->devid, sm750_dev->revid);
+	mmio750 = sm750_dev->pvReg;
+	sm750_set_chip_type(sm750_dev->devid, sm750_dev->revid);
 
 	sm750_dev->vidmem_start = pci_resource_start(pdev, 0);
-	/* don't use pdev_resource[x].end - resource[x].start to
+	/*
+	 * don't use pdev_resource[x].end - resource[x].start to
 	 * calculate the resource size, it's only the maximum available
 	 * size but not the actual size, using
-	 * @ddk750_getVMSize function can be safe.
+	 * @ddk750_get_vm_size function can be safe.
 	 */
-	sm750_dev->vidmem_size = ddk750_getVMSize();
+	sm750_dev->vidmem_size = ddk750_get_vm_size();
 	pr_info("video memory phyAddr = %lx, size = %u bytes\n",
 		sm750_dev->vidmem_start, sm750_dev->vidmem_size);
 
@@ -100,7 +105,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (parm->master_clk == 0)
 		parm->master_clk = parm->chip_clk / 3;
 
-	ddk750_initHw((initchip_param_t *)&sm750_dev->initParm);
+	ddk750_init_hw((struct initchip_param *)&sm750_dev->initParm);
 	/* for sm718, open pci burst */
 	if (sm750_dev->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
@@ -141,7 +146,8 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		}
 		POKE32(PANEL_DISPLAY_CTRL, val);
 	} else {
-		/* for 750LE, no DVI chip initialization
+		/*
+		 * for 750LE, no DVI chip initialization
 		 * makes Monitor no signal
 		 *
 		 * Set up GPIO for software I2C to program DVI chip in the
@@ -149,13 +155,15 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 		 */
 		sm750_sw_i2c_init(0, 1);
 
-		/* Customer may NOT use CH7301 DVI chip, which has to be
+		/*
+		 * Customer may NOT use CH7301 DVI chip, which has to be
 		 * initialized differently.
 		 */
 		if (sm750_sw_i2c_read_reg(0xec, 0x4a) == 0x95) {
-		/* The following register values for CH7301 are from
-		 * Chrontel app note and our experiment.
-		 */
+			/*
+			 * The following register values for CH7301 are from
+			 * Chrontel app note and our experiment.
+			 */
 			pr_info("yes,CH7301 DVI chip found\n");
 			sm750_sw_i2c_write_reg(0xec, 0x1d, 0x16);
 			sm750_sw_i2c_write_reg(0xec, 0x21, 0x9);
@@ -267,7 +275,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 			fmt = 2;
 			break;
 		}
-		hw_set2dformat(&sm750_dev->accel, fmt);
+		sm750_hw_set2dformat(&sm750_dev->accel, fmt);
 	}
 
 	/* set timing */
@@ -308,7 +316,8 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		       crtc->oScreen & PANEL_FB_ADDRESS_ADDRESS_MASK);
 
 		reg = var->xres * (var->bits_per_pixel >> 3);
-		/* crtc->channel is not equal to par->index on numeric,
+		/*
+		 * crtc->channel is not equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad);
@@ -342,7 +351,8 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 		/* not implemented now */
 		POKE32(CRT_FB_ADDRESS, crtc->oScreen);
 		reg = var->xres * (var->bits_per_pixel >> 3);
-		/* crtc->channel is not equal to par->index on numeric,
+		/*
+		 * crtc->channel is not equal to par->index on numeric,
 		 * be aware of that
 		 */
 		reg = ALIGN(reg, crtc->line_pad) << CRT_FB_WIDTH_WIDTH_SHIFT;
@@ -469,7 +479,7 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 {
 	u32 reg;
 
-	enable2DEngine(1);
+	sm750_enable_2d_engine(1);
 
 	if (sm750_get_chip_type() == SM750LE) {
 		reg = PEEK32(DE_STATE1);

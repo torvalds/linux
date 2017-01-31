@@ -52,7 +52,7 @@
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>

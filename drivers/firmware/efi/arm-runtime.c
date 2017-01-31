@@ -39,7 +39,7 @@ static struct mm_struct efi_mm = {
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 };
 
-#ifdef CONFIG_ARM64_PTDUMP
+#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
 #include <asm/ptdump.h>
 
 static struct ptdump_info efi_ptdump_info = {
@@ -53,7 +53,7 @@ static struct ptdump_info efi_ptdump_info = {
 
 static int __init ptdump_init(void)
 {
-	return ptdump_register(&efi_ptdump_info, "efi_page_tables");
+	return ptdump_debugfs_register(&efi_ptdump_info, "efi_page_tables");
 }
 device_initcall(ptdump_init);
 

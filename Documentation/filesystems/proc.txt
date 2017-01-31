@@ -191,6 +191,7 @@ read the file /proc/PID/status:
   CapPrm: 0000000000000000
   CapEff: 0000000000000000
   CapBnd: ffffffffffffffff
+  NoNewPrivs:     0
   Seccomp:        0
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
@@ -211,10 +212,11 @@ asynchronous manner and the value may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the status files (as of 4.1)
+Table 1-2: Contents of the status files (as of 4.8)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
+ Umask                       file mode creation mask
  State                       state (R is running, S is sleeping, D is sleeping
                              in an uninterruptible wait, Z is zombie,
 			     T is traced or stopped)
@@ -225,7 +227,6 @@ Table 1-2: Contents of the status files (as of 4.1)
  TracerPid                   PID of process tracing this process (0 if not)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
- Umask                       file mode creation mask
  FDSize                      number of file descriptor slots currently allocated
  Groups                      supplementary group list
  NStgid                      descendant namespace thread group ID hierarchy
@@ -235,6 +236,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  VmPeak                      peak virtual memory size
  VmSize                      total program size
  VmLck                       locked memory size
+ VmPin                       pinned memory size
  VmHWM                       peak resident set size ("high water mark")
  VmRSS                       size of memory portions. It contains the three
                              following parts (VmRSS = RssAnon + RssFile + RssShmem)
@@ -262,6 +264,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
  CapBnd                      bitmap of capabilities bounding set
+ NoNewPrivs                  no_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
  Seccomp                     seccomp mode, like prctl(PR_GET_SECCOMP, ...)
  Cpus_allowed                mask of CPUs on which this process may run
  Cpus_allowed_list           Same as previous, but in "list format"
@@ -1305,7 +1308,16 @@ second).  The meanings of the columns are as follows, from left to right:
 - nice: niced processes executing in user mode
 - system: processes executing in kernel mode
 - idle: twiddling thumbs
-- iowait: waiting for I/O to complete
+- iowait: In a word, iowait stands for waiting for I/O to complete. But there
+  are several problems:
+  1. Cpu will not wait for I/O to complete, iowait is the time that a task is
+     waiting for I/O to complete. When cpu goes into idle state for
+     outstanding task io, another task will be scheduled on this CPU.
+  2. In a multi-core CPU, the task waiting for I/O to complete is not running
+     on any CPU, so the iowait of each CPU is difficult to calculate.
+  3. The value of iowait field in /proc/stat will decrease in certain
+     conditions.
+  So, the iowait is not reliable by reading from /proc/stat.
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait

@@ -204,6 +204,7 @@ EOF
 
 ## init lots of data
 
+
 my $errors = 0;
 my $warnings = 0;
 my $anon_struct_union = 0;
@@ -211,7 +212,7 @@ my $anon_struct_union = 0;
 # match expressions used to find embedded type information
 my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
-my $type_param = '\@(\w+)';
+my $type_param = '\@(\w+(\.\.\.)?)';
 my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
 my $type_struct = '\&((struct\s*)*[_\w]+)';
 my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
@@ -420,6 +421,7 @@ my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
 my $doc_inline_sect = '\s*\*\s*(@[\w\s]+):(.*)';
 my $doc_inline_end = '^\s*\*/\s*$';
+my $doc_inline_oneline = '^\s*/\*\*\s*(@[\w\s]+):\s*(.*)\s*\*/\s*$';
 my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
 
 my %parameterdescs;
@@ -2353,7 +2355,10 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    $param = "...";
+	    if (!$param =~ /\w\.\.\.$/) {
+	      # handles unnamed variable parameters
+	      $param = "...";
+	    }
 	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
 		$parameterdescs{$param} = "variable arguments";
 	    }
@@ -3020,7 +3025,16 @@ sub process_file($) {
 		}
 	    }
 	} elsif ($state == STATE_PROTO) {	# scanning for function '{' (end of prototype)
-	    if (/$doc_inline_start/) {
+	    if (/$doc_inline_oneline/) {
+		$section = $1;
+		$contents = $2;
+		if ($contents ne "") {
+		    $contents .= "\n";
+		    dump_section($file, $section, xml_escape($contents));
+		    $section = $section_default;
+		    $contents = "";
+		}
+	    } elsif (/$doc_inline_start/) {
 		$state = STATE_INLINE;
 		$inline_doc_state = STATE_INLINE_NAME;
 	    } elsif ($decl_type eq 'function') {

@@ -26,7 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <asm/cputype.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>

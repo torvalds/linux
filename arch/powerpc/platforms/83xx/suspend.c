@@ -441,8 +441,4 @@ static struct platform_driver pmc_driver = {
 	.remove = pmc_remove
 };
 
-static int pmc_init(void)
-{
-	return platform_driver_register(&pmc_driver);
-}
-device_initcall(pmc_init);
+builtin_platform_driver(pmc_driver);

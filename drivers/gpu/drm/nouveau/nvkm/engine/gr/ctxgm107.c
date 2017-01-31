@@ -933,7 +933,7 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 	}
 }
 
-void
+static void
 gm107_grctx_generate_tpcid(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

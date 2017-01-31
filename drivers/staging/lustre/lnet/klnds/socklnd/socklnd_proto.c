@@ -194,7 +194,10 @@ ksocknal_queue_tx_zcack_v3(struct ksock_conn *conn,
 	}
 
 	if (!tx->tx_msg.ksm_zc_cookies[0]) {
-		/* NOOP tx has only one ZC-ACK cookie, can carry at least one more */
+		/*
+		 * NOOP tx has only one ZC-ACK cookie,
+		 * can carry at least one more
+		 */
 		if (tx->tx_msg.ksm_zc_cookies[1] > cookie) {
 			tx->tx_msg.ksm_zc_cookies[0] = tx->tx_msg.ksm_zc_cookies[1];
 			tx->tx_msg.ksm_zc_cookies[1] = cookie;
@@ -203,7 +206,10 @@ ksocknal_queue_tx_zcack_v3(struct ksock_conn *conn,
 		}
 
 		if (tx->tx_msg.ksm_zc_cookies[0] - tx->tx_msg.ksm_zc_cookies[1] > 2) {
-			/* not likely to carry more ACKs, skip it to simplify logic */
+			/*
+			 * not likely to carry more ACKs, skip it
+			 * to simplify logic
+			 */
 			ksocknal_next_tx_carrier(conn);
 		}
 
@@ -237,7 +243,10 @@ ksocknal_queue_tx_zcack_v3(struct ksock_conn *conn,
 		}
 
 	} else {
-		/* ksm_zc_cookies[0] < ksm_zc_cookies[1], it is range of cookies */
+		/*
+		 * ksm_zc_cookies[0] < ksm_zc_cookies[1],
+		 * it is range of cookies
+		 */
 		if (cookie >= tx->tx_msg.ksm_zc_cookies[0] &&
 		    cookie <= tx->tx_msg.ksm_zc_cookies[1]) {
 			CWARN("%s: duplicated ZC cookie: %llu\n",
@@ -425,7 +434,8 @@ ksocknal_handle_zcack(struct ksock_conn *conn, __u64 cookie1, __u64 cookie2)
 				 tx_zc_list) {
 		__u64 c = tx->tx_msg.ksm_zc_cookies[0];
 
-		if (c == cookie1 || c == cookie2 || (cookie1 < c && c < cookie2)) {
+		if (c == cookie1 || c == cookie2 ||
+		    (cookie1 < c && c < cookie2)) {
 			tx->tx_msg.ksm_zc_cookies[0] = 0;
 			list_del(&tx->tx_zc_list);
 			list_add(&tx->tx_zc_list, &zlist);
@@ -639,7 +649,8 @@ out:
 }
 
 static int
-ksocknal_recv_hello_v2(struct ksock_conn *conn, ksock_hello_msg_t *hello, int timeout)
+ksocknal_recv_hello_v2(struct ksock_conn *conn, ksock_hello_msg_t *hello,
+		       int timeout)
 {
 	struct socket *sock = conn->ksnc_sock;
 	int rc;
@@ -737,7 +748,10 @@ ksocknal_pack_msg_v2(struct ksock_tx *tx)
 		tx->tx_nob = offsetof(ksock_msg_t,  ksm_u.lnetmsg.ksnm_hdr);
 		tx->tx_resid = offsetof(ksock_msg_t,  ksm_u.lnetmsg.ksnm_hdr);
 	}
-	/* Don't checksum before start sending, because packet can be piggybacked with ACK */
+	/*
+	 * Don't checksum before start sending, because packet can be
+	 * piggybacked with ACK
+	 */
 }
 
 static void

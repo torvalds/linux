@@ -422,7 +422,7 @@ static int __init xtensa_pmu_init(void)
 	int irq = irq_create_mapping(NULL, XCHAL_PROFILING_INTERRUPT);
 
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_XTENSA_STARTING,
-				"AP_PERF_XTENSA_STARTING", xtensa_pmu_setup,
+				"perf/xtensa:starting", xtensa_pmu_setup,
 				NULL);
 	if (ret) {
 		pr_err("xtensa_pmu: failed to register CPU-hotplug.\n");

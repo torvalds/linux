@@ -41,11 +41,6 @@ static inline void set_debugreg(unsigned long val, int reg)
 	PVOP_VCALL2(pv_cpu_ops.set_debugreg, reg, val);
 }
 
-static inline void clts(void)
-{
-	PVOP_VCALL0(pv_cpu_ops.clts);
-}
-
 static inline unsigned long read_cr0(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr0);
@@ -676,6 +671,11 @@ static __always_inline void pv_wait(u8 *ptr, u8 val)
 static __always_inline void pv_kick(int cpu)
 {
 	PVOP_VCALL1(pv_lock_ops.kick, cpu);
+}
+
+static __always_inline bool pv_vcpu_is_preempted(int cpu)
+{
+	return PVOP_CALLEE1(bool, pv_lock_ops.vcpu_is_preempted, cpu);
 }
 
 #endif /* SMP && PARAVIRT_SPINLOCKS */

@@ -2035,18 +2035,14 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	taskout = req_task->out_size;
 	taskin = req_task->in_size;
 	/* 130560 = 512 * 0xFF*/
-	if (taskin > 130560 || taskout > 130560) {
-		err = -EINVAL;
-		goto abort;
-	}
+	if (taskin > 130560 || taskout > 130560)
+		return -EINVAL;
 
 	if (taskout) {
 		outbuf = memdup_user(buf + outtotal, taskout);
-		if (IS_ERR(outbuf)) {
-			err = PTR_ERR(outbuf);
-			outbuf = NULL;
-			goto abort;
-		}
+		if (IS_ERR(outbuf))
+			return PTR_ERR(outbuf);
+
 		outbuf_dma = pci_map_single(dd->pdev,
 					 outbuf,
 					 taskout,
@@ -3937,8 +3933,10 @@ static int mtip_block_initialize(struct driver_data *dd)
 
 	/* Generate the disk name, implemented same as in sd.c */
 	do {
-		if (!ida_pre_get(&rssd_index_ida, GFP_KERNEL))
+		if (!ida_pre_get(&rssd_index_ida, GFP_KERNEL)) {
+			rv = -ENOMEM;
 			goto ida_get_error;
+		}
 
 		spin_lock(&rssd_index_lock);
 		rv = ida_get_new(&rssd_index_ida, &index);

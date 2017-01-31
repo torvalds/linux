@@ -125,12 +125,13 @@ struct nfit_test_dcr {
 	(((node & 0xfff) << 16) | ((socket & 0xf) << 12) \
 	 | ((imc & 0xf) << 8) | ((chan & 0xf) << 4) | (dimm & 0xf))
 
-static u32 handle[NUM_DCR] = {
+static u32 handle[] = {
 	[0] = NFIT_DIMM_HANDLE(0, 0, 0, 0, 0),
 	[1] = NFIT_DIMM_HANDLE(0, 0, 0, 0, 1),
 	[2] = NFIT_DIMM_HANDLE(0, 0, 1, 0, 0),
 	[3] = NFIT_DIMM_HANDLE(0, 0, 1, 0, 1),
 	[4] = NFIT_DIMM_HANDLE(0, 1, 0, 0, 0),
+	[5] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 0),
 };
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
@@ -142,6 +143,7 @@ struct nfit_test {
 	void *nfit_buf;
 	dma_addr_t nfit_dma;
 	size_t nfit_size;
+	int dcr_idx;
 	int num_dcr;
 	int num_pm;
 	void **dimm;
@@ -426,11 +428,11 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			break;
 		case ND_CMD_GET_CONFIG_DATA:
 			rc = nfit_test_cmd_get_config_data(buf, buf_len,
-				t->label[i]);
+				t->label[i - t->dcr_idx]);
 			break;
 		case ND_CMD_SET_CONFIG_DATA:
 			rc = nfit_test_cmd_set_config_data(buf, buf_len,
-				t->label[i]);
+				t->label[i - t->dcr_idx]);
 			break;
 		case ND_CMD_SMART:
 			rc = nfit_test_cmd_smart(buf, buf_len);
@@ -682,7 +684,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (!t->spa_set[2])
 		return -ENOMEM;
 
-	for (i = 0; i < NUM_DCR; i++) {
+	for (i = 0; i < t->num_dcr; i++) {
 		t->dimm[i] = test_alloc(t, DIMM_SIZE, &t->dimm_dma[i]);
 		if (!t->dimm[i])
 			return -ENOMEM;
@@ -699,7 +701,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 	}
 
-	for (i = 0; i < NUM_DCR; i++) {
+	for (i = 0; i < t->num_dcr; i++) {
 		t->dcr[i] = test_alloc(t, LABEL_SIZE, &t->dcr_dma[i]);
 		if (!t->dcr[i])
 			return -ENOMEM;
@@ -728,6 +730,7 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * 2
 		+ sizeof(struct acpi_nfit_memory_map)
 		+ offsetof(struct acpi_nfit_control_region, window_size);
+	int i;
 
 	t->nfit_buf = test_alloc(t, nfit_size, &t->nfit_dma);
 	if (!t->nfit_buf)
@@ -737,6 +740,13 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	t->spa_set[0] = test_alloc(t, SPA2_SIZE, &t->spa_set_dma[0]);
 	if (!t->spa_set[0])
 		return -ENOMEM;
+
+	for (i = 0; i < t->num_dcr; i++) {
+		t->label[i] = test_alloc(t, LABEL_SIZE, &t->label_dma[i]);
+		if (!t->label[i])
+			return -ENOMEM;
+		sprintf(t->label[i], "label%d", i);
+	}
 
 	t->spa_set[1] = test_alloc(t, SPA_VCD_SIZE, &t->spa_set_dma[1]);
 	if (!t->spa_set[1])
@@ -1450,7 +1460,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	memdev = nfit_buf + offset;
 	memdev->header.type = ACPI_NFIT_TYPE_MEMORY_MAP;
 	memdev->header.length = sizeof(*memdev);
-	memdev->device_handle = 0;
+	memdev->device_handle = handle[5];
 	memdev->physical_id = 0;
 	memdev->region_id = 0;
 	memdev->range_index = 0+1;
@@ -1472,7 +1482,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 			window_size);
 	dcr->region_index = 0+1;
 	dcr_common_init(dcr);
-	dcr->serial_number = ~0;
+	dcr->serial_number = ~handle[5];
 	dcr->code = NFIT_FIC_BYTE;
 	dcr->windows = 0;
 
@@ -1483,6 +1493,9 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -1886,12 +1899,15 @@ static __init int nfit_test_init(void)
 		switch (i) {
 		case 0:
 			nfit_test->num_pm = NUM_PM;
+			nfit_test->dcr_idx = 0;
 			nfit_test->num_dcr = NUM_DCR;
 			nfit_test->alloc = nfit_test0_alloc;
 			nfit_test->setup = nfit_test0_setup;
 			break;
 		case 1:
 			nfit_test->num_pm = 1;
+			nfit_test->dcr_idx = NUM_DCR;
+			nfit_test->num_dcr = 1;
 			nfit_test->alloc = nfit_test1_alloc;
 			nfit_test->setup = nfit_test1_setup;
 			break;

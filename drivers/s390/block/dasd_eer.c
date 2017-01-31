@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/ebcdic.h>
 
@@ -454,20 +454,30 @@ static void dasd_eer_snss_cb(struct dasd_ccw_req *cqr, void *data)
  */
 int dasd_eer_enable(struct dasd_device *device)
 {
-	struct dasd_ccw_req *cqr;
+	struct dasd_ccw_req *cqr = NULL;
 	unsigned long flags;
 	struct ccw1 *ccw;
+	int rc = 0;
 
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	if (device->eer_cqr)
-		return 0;
+		goto out;
+	else if (!device->discipline ||
+		 strcmp(device->discipline->name, "ECKD"))
+		rc = -EMEDIUMTYPE;
+	else if (test_bit(DASD_FLAG_OFFLINE, &device->flags))
+		rc = -EBUSY;
 
-	if (!device->discipline || strcmp(device->discipline->name, "ECKD"))
-		return -EPERM;	/* FIXME: -EMEDIUMTYPE ? */
+	if (rc)
+		goto out;
 
 	cqr = dasd_kmalloc_request(DASD_ECKD_MAGIC, 1 /* SNSS */,
 				   SNSS_DATA_SIZE, device);
-	if (IS_ERR(cqr))
-		return -ENOMEM;
+	if (IS_ERR(cqr)) {
+		rc = -ENOMEM;
+		cqr = NULL;
+		goto out;
+	}
 
 	cqr->startdev = device;
 	cqr->retries = 255;
@@ -485,15 +495,18 @@ int dasd_eer_enable(struct dasd_device *device)
 	cqr->status = DASD_CQR_FILLED;
 	cqr->callback = dasd_eer_snss_cb;
 
-	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	if (!device->eer_cqr) {
 		device->eer_cqr = cqr;
 		cqr = NULL;
 	}
+
+out:
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+
 	if (cqr)
 		dasd_kfree_request(cqr, device);
-	return 0;
+
+	return rc;
 }
 
 /*

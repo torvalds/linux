@@ -778,10 +778,10 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	imx_pinctrl_desc->name = dev_name(&pdev->dev);
 	imx_pinctrl_desc->pins = info->pins;
 	imx_pinctrl_desc->npins = info->npins;
-	imx_pinctrl_desc->pctlops = &imx_pctrl_ops,
-	imx_pinctrl_desc->pmxops = &imx_pmx_ops,
-	imx_pinctrl_desc->confops = &imx_pinconf_ops,
-	imx_pinctrl_desc->owner = THIS_MODULE,
+	imx_pinctrl_desc->pctlops = &imx_pctrl_ops;
+	imx_pinctrl_desc->pmxops = &imx_pmx_ops;
+	imx_pinctrl_desc->confops = &imx_pinconf_ops;
+	imx_pinctrl_desc->owner = THIS_MODULE;
 
 	ret = imx_pinctrl_probe_dt(pdev, info);
 	if (ret) {

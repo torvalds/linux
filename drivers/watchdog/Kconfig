@@ -72,16 +72,16 @@ config SOFT_WATCHDOG
 	  module will be called softdog.
 
 config DA9052_WATCHDOG
-        tristate "Dialog DA9052 Watchdog"
-        depends on PMIC_DA9052
-        select WATCHDOG_CORE
-        help
-          Support for the watchdog in the DA9052 PMIC. Watchdog trigger
-          cause system reset.
+	tristate "Dialog DA9052 Watchdog"
+	depends on PMIC_DA9052
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog in the DA9052 PMIC. Watchdog trigger
+	  cause system reset.
 
-          Say Y here to include support for the DA9052 watchdog.
-          Alternatively say M to compile the driver as a module,
-          which will be called da9052_wdt.
+	  Say Y here to include support for the DA9052 watchdog.
+	  Alternatively say M to compile the driver as a module,
+	  which will be called da9052_wdt.
 
 config DA9055_WATCHDOG
 	tristate "Dialog Semiconductor DA9055 Watchdog"
@@ -104,11 +104,11 @@ config DA9063_WATCHDOG
 	  This driver can be built as a module. The module name is da9063_wdt.
 
 config DA9062_WATCHDOG
-	tristate "Dialog DA9062 Watchdog"
+	tristate "Dialog DA9062/61 Watchdog"
 	depends on MFD_DA9062
 	select WATCHDOG_CORE
 	help
-	  Support for the watchdog in the DA9062 PMIC.
+	  Support for the watchdog in the DA9062 and DA9061 PMICs.
 
 	  This driver can be built as a module. The module name is da9062_wdt.
 
@@ -1008,8 +1008,8 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8702,
-	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
+	  This is the driver for the hardware watchdog on the ITE IT8620,
+	  IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
 	  Super I/O chips.
 
 	  If the driver does not work, then make sure that the game port in
@@ -1514,6 +1514,13 @@ config LANTIQ_WDT
 	help
 	  Hardware driver for the Lantiq SoC Watchdog Timer.
 
+config LOONGSON1_WDT
+	tristate "Loongson1 SoC hardware watchdog"
+	depends on MACH_LOONGSON32
+	select WATCHDOG_CORE
+	help
+	  Hardware driver for the Loongson1 SoC Watchdog Timer.
+
 config RALINK_WDT
 	tristate "Ralink SoC watchdog"
 	select WATCHDOG_CORE
@@ -1624,16 +1631,16 @@ config BOOKE_WDT_DEFAULT_TIMEOUT
 	  The value can be overridden by the wdt_period command-line parameter.
 
 config MEN_A21_WDT
-       tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
-       select WATCHDOG_CORE
-       depends on GPIOLIB || COMPILE_TEST
-       help
-        Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
+	tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
+	select WATCHDOG_CORE
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
 
-	The driver can also be built as a module. If so, the module will be
-	called mena21_wdt.
+	  The driver can also be built as a module. If so, the module will be
+	  called mena21_wdt.
 
-	If unsure select N here.
+	  If unsure select N here.
 
 # PPC64 Architecture
 

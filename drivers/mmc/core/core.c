@@ -306,16 +306,16 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		mrq->sbc->mrq = mrq;
 	}
 	if (mrq->data) {
-		BUG_ON(mrq->data->blksz > host->max_blk_size);
-		BUG_ON(mrq->data->blocks > host->max_blk_count);
-		BUG_ON(mrq->data->blocks * mrq->data->blksz >
-			host->max_req_size);
-
+		if (mrq->data->blksz > host->max_blk_size ||
+		    mrq->data->blocks > host->max_blk_count ||
+		    mrq->data->blocks * mrq->data->blksz > host->max_req_size)
+			return -EINVAL;
 #ifdef CONFIG_MMC_DEBUG
 		sz = 0;
 		for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i)
 			sz += sg->length;
-		BUG_ON(sz != mrq->data->blocks * mrq->data->blksz);
+		if (sz != mrq->data->blocks * mrq->data->blksz)
+			return -EINVAL;
 #endif
 
 		mrq->cmd->data = mrq->data;
@@ -349,8 +349,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	int timeout;
 	bool use_busy_signal;
 
-	BUG_ON(!card);
-
 	if (!card->ext_csd.man_bkops_en || mmc_card_doing_bkops(card))
 		return;
 
@@ -380,7 +378,7 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	mmc_retune_hold(card->host);
 
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_BKOPS_START, 1, timeout,
+			EXT_CSD_BKOPS_START, 1, timeout, 0,
 			use_busy_signal, true, false);
 	if (err) {
 		pr_warn("%s: Error %d starting bkops\n",
@@ -497,32 +495,27 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
  *
  * Returns enum mmc_blk_status after checking errors.
  */
-static int mmc_wait_for_data_req_done(struct mmc_host *host,
-				      struct mmc_request *mrq,
-				      struct mmc_async_req *next_req)
+static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
+						      struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
 	struct mmc_context_info *context_info = &host->context_info;
-	int err;
-	unsigned long flags;
+	enum mmc_blk_status status;
 
 	while (1) {
 		wait_event_interruptible(context_info->wait,
 				(context_info->is_done_rcv ||
 				 context_info->is_new_req));
-		spin_lock_irqsave(&context_info->lock, flags);
-		context_info->is_waiting_last_req = false;
-		spin_unlock_irqrestore(&context_info->lock, flags);
+
 		if (context_info->is_done_rcv) {
 			context_info->is_done_rcv = false;
-			context_info->is_new_req = false;
 			cmd = mrq->cmd;
 
 			if (!cmd->error || !cmd->retries ||
 			    mmc_card_removed(host->card)) {
-				err = host->areq->err_check(host->card,
-							    host->areq);
-				break; /* return err */
+				status = host->areq->err_check(host->card,
+							       host->areq);
+				break; /* return status */
 			} else {
 				mmc_retune_recheck(host);
 				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
@@ -533,14 +526,12 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 				__mmc_start_request(host, mrq);
 				continue; /* wait for done/new event again */
 			}
-		} else if (context_info->is_new_req) {
-			context_info->is_new_req = false;
-			if (!next_req)
-				return MMC_BLK_NEW_REQUEST;
 		}
+
+		return MMC_BLK_NEW_REQUEST;
 	}
 	mmc_retune_release(host);
-	return err;
+	return status;
 }
 
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq)
@@ -611,18 +602,15 @@ EXPORT_SYMBOL(mmc_is_req_done);
  *	mmc_pre_req - Prepare for a new request
  *	@host: MMC host to prepare command
  *	@mrq: MMC request to prepare for
- *	@is_first_req: true if there is no previous started request
- *                     that may run in parellel to this call, otherwise false
  *
  *	mmc_pre_req() is called in prior to mmc_start_req() to let
  *	host prepare for the new request. Preparation of a request may be
  *	performed while another request is running on the host.
  */
-static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
-		 bool is_first_req)
+static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	if (host->ops->pre_req)
-		host->ops->pre_req(host, mrq, is_first_req);
+		host->ops->pre_req(host, mrq);
 }
 
 /**
@@ -658,21 +646,22 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
  *	is returned without waiting. NULL is not an error condition.
  */
 struct mmc_async_req *mmc_start_req(struct mmc_host *host,
-				    struct mmc_async_req *areq, int *error)
+				    struct mmc_async_req *areq,
+				    enum mmc_blk_status *ret_stat)
 {
-	int err = 0;
+	enum mmc_blk_status status = MMC_BLK_SUCCESS;
 	int start_err = 0;
 	struct mmc_async_req *data = host->areq;
 
 	/* Prepare a new request */
 	if (areq)
-		mmc_pre_req(host, areq->mrq, !host->areq);
+		mmc_pre_req(host, areq->mrq);
 
 	if (host->areq) {
-		err = mmc_wait_for_data_req_done(host, host->areq->mrq,	areq);
-		if (err == MMC_BLK_NEW_REQUEST) {
-			if (error)
-				*error = err;
+		status = mmc_wait_for_data_req_done(host, host->areq->mrq);
+		if (status == MMC_BLK_NEW_REQUEST) {
+			if (ret_stat)
+				*ret_stat = status;
 			/*
 			 * The previous request was not completed,
 			 * nothing to return
@@ -695,27 +684,27 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 
 			/* prepare the request again */
 			if (areq)
-				mmc_pre_req(host, areq->mrq, !host->areq);
+				mmc_pre_req(host, areq->mrq);
 		}
 	}
 
-	if (!err && areq)
+	if (status == MMC_BLK_SUCCESS && areq)
 		start_err = __mmc_start_data_req(host, areq->mrq);
 
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
 
 	 /* Cancel a prepared request if it was not started. */
-	if ((err || start_err) && areq)
+	if ((status != MMC_BLK_SUCCESS || start_err) && areq)
 		mmc_post_req(host, areq->mrq, -EINVAL);
 
-	if (err)
+	if (status != MMC_BLK_SUCCESS)
 		host->areq = NULL;
 	else
 		host->areq = areq;
 
-	if (error)
-		*error = err;
+	if (ret_stat)
+		*ret_stat = status;
 	return data;
 }
 EXPORT_SYMBOL(mmc_start_req);
@@ -753,8 +742,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	int err;
 	u32 status;
 	unsigned long prg_wait;
-
-	BUG_ON(!card);
 
 	if (!card->ext_csd.hpi_en) {
 		pr_info("%s: HPI enable bit unset\n", mmc_hostname(card->host));
@@ -850,7 +837,6 @@ int mmc_stop_bkops(struct mmc_card *card)
 {
 	int err = 0;
 
-	BUG_ON(!card);
 	err = mmc_interrupt_hpi(card);
 
 	/*
@@ -1666,8 +1652,6 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	int err = 0;
 	u32 clock;
 
-	BUG_ON(!host);
-
 	/*
 	 * Send CMD11 only if the request is to switch the card to
 	 * 1.8V signalling.
@@ -1884,9 +1868,7 @@ void mmc_power_cycle(struct mmc_host *host, u32 ocr)
  */
 static void __mmc_release_bus(struct mmc_host *host)
 {
-	BUG_ON(!host);
-	BUG_ON(host->bus_refs);
-	BUG_ON(!host->bus_dead);
+	WARN_ON(!host->bus_dead);
 
 	host->bus_ops = NULL;
 }
@@ -1926,15 +1908,12 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 {
 	unsigned long flags;
 
-	BUG_ON(!host);
-	BUG_ON(!ops);
-
 	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	BUG_ON(host->bus_ops);
-	BUG_ON(host->bus_refs);
+	WARN_ON(host->bus_ops);
+	WARN_ON(host->bus_refs);
 
 	host->bus_ops = ops;
 	host->bus_refs = 1;
@@ -1949,8 +1928,6 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 void mmc_detach_bus(struct mmc_host *host)
 {
 	unsigned long flags;
-
-	BUG_ON(!host);
 
 	WARN_ON(!host->claimed);
 	WARN_ON(!host->bus_ops);
@@ -2824,12 +2801,11 @@ void mmc_start_host(struct mmc_host *host)
 	host->rescan_disable = 0;
 	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
-	mmc_claim_host(host);
-	if (host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)
-		mmc_power_off(host);
-	else
+	if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
+		mmc_claim_host(host);
 		mmc_power_up(host, host->ocr_avail);
-	mmc_release_host(host);
+		mmc_release_host(host);
+	}
 
 	mmc_gpiod_request_cd_irq(host);
 	_mmc_detect_change(host, 0, false);
@@ -2864,8 +2840,6 @@ void mmc_stop_host(struct mmc_host *host)
 		return;
 	}
 	mmc_bus_put(host);
-
-	BUG_ON(host->card);
 
 	mmc_claim_host(host);
 	mmc_power_off(host);
@@ -3019,7 +2993,6 @@ void mmc_unregister_pm_notifier(struct mmc_host *host)
  */
 void mmc_init_context_info(struct mmc_host *host)
 {
-	spin_lock_init(&host->context_info.lock);
 	host->context_info.is_new_req = false;
 	host->context_info.is_done_rcv = false;
 	host->context_info.is_waiting_last_req = false;

@@ -75,7 +75,7 @@ int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powerup_uvd(struct pp_hwmgr *hwmgr)
+static int smu7_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr)) {
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -91,7 +91,7 @@ int smu7_powerup_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powerdown_vce(struct pp_hwmgr *hwmgr)
+static int smu7_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -99,7 +99,7 @@ int smu7_powerdown_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powerup_vce(struct pp_hwmgr *hwmgr)
+static int smu7_powerup_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -107,7 +107,7 @@ int smu7_powerup_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powerdown_samu(struct pp_hwmgr *hwmgr)
+static int smu7_powerdown_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -116,7 +116,7 @@ int smu7_powerdown_samu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powerup_samu(struct pp_hwmgr *hwmgr)
+static int smu7_powerup_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -150,14 +150,20 @@ int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
 				AMD_CG_STATE_GATE);
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_PG_STATE_GATE);
 		smu7_update_uvd_dpm(hwmgr, true);
 		smu7_powerdown_uvd(hwmgr);
 	} else {
 		smu7_powerup_uvd(hwmgr);
-		smu7_update_uvd_dpm(hwmgr, false);
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_CG_STATE_UNGATE);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
 				AMD_CG_STATE_UNGATE);
+		smu7_update_uvd_dpm(hwmgr, false);
 	}
 
 	return 0;

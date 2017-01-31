@@ -248,8 +248,8 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 	cb_pcidda_serial_out(dev, value, num_caldac_bits);
 
 /*
-* latch stream into appropriate caldac deselect reference dac
-*/
+ * latch stream into appropriate caldac deselect reference dac
+ */
 	cal2_bits = DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	/*  deactivate caldacs (one caldac for every two channels) */
 	for (i = 0; i < max_num_caldacs; i++)

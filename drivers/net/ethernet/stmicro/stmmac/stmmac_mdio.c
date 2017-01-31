@@ -42,13 +42,6 @@
 #define MII_GMAC4_WRITE			(1 << MII_GMAC4_GOC_SHIFT)
 #define MII_GMAC4_READ			(3 << MII_GMAC4_GOC_SHIFT)
 
-#define MII_PHY_ADDR_GMAC4_SHIFT	21
-#define MII_PHY_ADDR_GMAC4_MASK		GENMASK(25, 21)
-#define MII_PHY_REG_GMAC4_SHIFT		16
-#define MII_PHY_REG_GMAC4_MASK		GENMASK(20, 16)
-#define MII_CSR_CLK_GMAC4_SHIFT		8
-#define MII_CSR_CLK_GMAC4_MASK		GENMASK(11, 8)
-
 static int stmmac_mdio_busy_wait(void __iomem *ioaddr, unsigned int mii_addr)
 {
 	unsigned long curr;
@@ -68,8 +61,8 @@ static int stmmac_mdio_busy_wait(void __iomem *ioaddr, unsigned int mii_addr)
 /**
  * stmmac_mdio_read
  * @bus: points to the mii_bus structure
- * @phyaddr: MII addr reg bits 15-11
- * @phyreg: MII addr reg bits 10-6
+ * @phyaddr: MII addr
+ * @phyreg: MII reg
  * Description: it reads data from the MII register from within the phy device.
  * For the 7111 GMAC, we must set the bit 0 in the MII address register while
  * accessing the PHY registers.
@@ -83,14 +76,20 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	unsigned int mii_data = priv->hw->mii.data;
 
 	int data;
-	u16 regValue = (((phyaddr << 11) & (0x0000F800)) |
-			((phyreg << 6) & (0x000007C0)));
-	regValue |= MII_BUSY | ((priv->clk_csr & 0xF) << 2);
+	u32 value = MII_BUSY;
+
+	value |= (phyaddr << priv->hw->mii.addr_shift)
+		& priv->hw->mii.addr_mask;
+	value |= (phyreg << priv->hw->mii.reg_shift) & priv->hw->mii.reg_mask;
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
+	if (priv->plat->has_gmac4)
+		value |= MII_GMAC4_READ;
 
 	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
 		return -EBUSY;
 
-	writel(regValue, priv->ioaddr + mii_address);
+	writel(value, priv->ioaddr + mii_address);
 
 	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
 		return -EBUSY;
@@ -104,8 +103,8 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 /**
  * stmmac_mdio_write
  * @bus: points to the mii_bus structure
- * @phyaddr: MII addr reg bits 15-11
- * @phyreg: MII addr reg bits 10-6
+ * @phyaddr: MII addr
+ * @phyreg: MII reg
  * @phydata: phy data
  * Description: it writes the data into the MII register from within the device.
  */
@@ -117,85 +116,18 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	unsigned int mii_address = priv->hw->mii.addr;
 	unsigned int mii_data = priv->hw->mii.data;
 
-	u16 value =
-	    (((phyaddr << 11) & (0x0000F800)) | ((phyreg << 6) & (0x000007C0)))
-	    | MII_WRITE;
+	u32 value = MII_BUSY;
 
-	value |= MII_BUSY | ((priv->clk_csr & 0xF) << 2);
+	value |= (phyaddr << priv->hw->mii.addr_shift)
+		& priv->hw->mii.addr_mask;
+	value |= (phyreg << priv->hw->mii.reg_shift) & priv->hw->mii.reg_mask;
 
-	/* Wait until any existing MII operation is complete */
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
-		return -EBUSY;
-
-	/* Set the MII address register to write */
-	writel(phydata, priv->ioaddr + mii_data);
-	writel(value, priv->ioaddr + mii_address);
-
-	/* Wait until any existing MII operation is complete */
-	return stmmac_mdio_busy_wait(priv->ioaddr, mii_address);
-}
-
-/**
- * stmmac_mdio_read_gmac4
- * @bus: points to the mii_bus structure
- * @phyaddr: MII addr reg bits 25-21
- * @phyreg: MII addr reg bits 20-16
- * Description: it reads data from the MII register of GMAC4 from within
- * the phy device.
- */
-static int stmmac_mdio_read_gmac4(struct mii_bus *bus, int phyaddr, int phyreg)
-{
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned int mii_address = priv->hw->mii.addr;
-	unsigned int mii_data = priv->hw->mii.data;
-	int data;
-	u32 value = (((phyaddr << MII_PHY_ADDR_GMAC4_SHIFT) &
-		     (MII_PHY_ADDR_GMAC4_MASK)) |
-		     ((phyreg << MII_PHY_REG_GMAC4_SHIFT) &
-		     (MII_PHY_REG_GMAC4_MASK))) | MII_GMAC4_READ;
-
-	value |= MII_BUSY | ((priv->clk_csr & MII_CSR_CLK_GMAC4_MASK)
-		 << MII_CSR_CLK_GMAC4_SHIFT);
-
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
-		return -EBUSY;
-
-	writel(value, priv->ioaddr + mii_address);
-
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
-		return -EBUSY;
-
-	/* Read the data from the MII data register */
-	data = (int)readl(priv->ioaddr + mii_data);
-
-	return data;
-}
-
-/**
- * stmmac_mdio_write_gmac4
- * @bus: points to the mii_bus structure
- * @phyaddr: MII addr reg bits 25-21
- * @phyreg: MII addr reg bits 20-16
- * @phydata: phy data
- * Description: it writes the data into the MII register of GMAC4 from within
- * the device.
- */
-static int stmmac_mdio_write_gmac4(struct mii_bus *bus, int phyaddr, int phyreg,
-				   u16 phydata)
-{
-	struct net_device *ndev = bus->priv;
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	unsigned int mii_address = priv->hw->mii.addr;
-	unsigned int mii_data = priv->hw->mii.data;
-
-	u32 value = (((phyaddr << MII_PHY_ADDR_GMAC4_SHIFT) &
-		     (MII_PHY_ADDR_GMAC4_MASK)) |
-		     ((phyreg << MII_PHY_REG_GMAC4_SHIFT) &
-		     (MII_PHY_REG_GMAC4_MASK))) | MII_GMAC4_WRITE;
-
-	value |= MII_BUSY | ((priv->clk_csr & MII_CSR_CLK_GMAC4_MASK)
-		 << MII_CSR_CLK_GMAC4_SHIFT);
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
+	if (priv->plat->has_gmac4)
+		value |= MII_GMAC4_WRITE;
+	else
+		value |= MII_WRITE;
 
 	/* Wait until any existing MII operation is complete */
 	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
@@ -260,7 +192,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 #endif
 
 	if (data->phy_reset) {
-		pr_debug("stmmac_mdio_reset: calling phy_reset\n");
+		netdev_dbg(ndev, "stmmac_mdio_reset: calling phy_reset\n");
 		data->phy_reset(priv->plat->bsp_priv);
 	}
 
@@ -305,13 +237,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 #endif
 
 	new_bus->name = "stmmac";
-	if (priv->plat->has_gmac4) {
-		new_bus->read = &stmmac_mdio_read_gmac4;
-		new_bus->write = &stmmac_mdio_write_gmac4;
-	} else {
-		new_bus->read = &stmmac_mdio_read;
-		new_bus->write = &stmmac_mdio_write;
-	}
+	new_bus->read = &stmmac_mdio_read;
+	new_bus->write = &stmmac_mdio_write;
 
 	new_bus->reset = &stmmac_mdio_reset;
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
@@ -325,7 +252,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	else
 		err = mdiobus_register(new_bus);
 	if (err != 0) {
-		pr_err("%s: Cannot register as MDIO bus\n", new_bus->name);
+		netdev_err(ndev, "Cannot register the MDIO bus\n");
 		goto bus_register_fail;
 	}
 
@@ -372,16 +299,16 @@ int stmmac_mdio_register(struct net_device *ndev)
 				irq_str = irq_num;
 				break;
 			}
-			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
-				ndev->name, phydev->phy_id, addr,
-				irq_str, phydev_name(phydev),
-				act ? " active" : "");
+			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
+				    phydev->phy_id, addr,
+				    irq_str, phydev_name(phydev),
+				    act ? " active" : "");
 			found = 1;
 		}
 	}
 
 	if (!found && !mdio_node) {
-		pr_warn("%s: No PHY found\n", ndev->name);
+		netdev_warn(ndev, "No PHY found\n");
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);
 		return -ENODEV;

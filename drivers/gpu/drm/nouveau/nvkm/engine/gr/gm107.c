@@ -308,7 +308,7 @@ gm107_gr_init_bios(struct gf100_gr *gr)
 	}
 }
 
-int
+static int
 gm107_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

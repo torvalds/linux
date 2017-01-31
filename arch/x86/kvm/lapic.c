@@ -1106,7 +1106,7 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 	now = ktime_get();
 	remaining = ktime_sub(apic->lapic_timer.target_expiration, now);
 	if (ktime_to_ns(remaining) < 0)
-		remaining = ktime_set(0, 0);
+		remaining = 0;
 
 	ns = mod_64(ktime_to_ns(remaining), apic->lapic_timer.period);
 	tmcct = div64_u64(ns,
@@ -1806,13 +1806,16 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	u64 old_value = vcpu->arch.apic_base;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (!apic) {
+	if (!apic)
 		value |= MSR_IA32_APICBASE_BSP;
-		vcpu->arch.apic_base = value;
-		return;
-	}
 
 	vcpu->arch.apic_base = value;
+
+	if ((old_value ^ value) & MSR_IA32_APICBASE_ENABLE)
+		kvm_update_cpuid(vcpu);
+
+	if (!apic)
+		return;
 
 	/* update jump label if enable bit changes */
 	if ((old_value ^ value) & MSR_IA32_APICBASE_ENABLE) {
@@ -2054,7 +2057,7 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 			apic->lapic_timer.tscdeadline = 0;
 		if (apic_lvtt_oneshot(apic)) {
 			apic->lapic_timer.tscdeadline = 0;
-			apic->lapic_timer.target_expiration = ktime_set(0, 0);
+			apic->lapic_timer.target_expiration = 0;
 		}
 		atomic_set(&apic->lapic_timer.pending, 0);
 	}
@@ -2422,4 +2425,10 @@ void kvm_lapic_init(void)
 	/* do not patch jump label more than once per second */
 	jump_label_rate_limit(&apic_hw_disabled, HZ);
 	jump_label_rate_limit(&apic_sw_disabled, HZ);
+}
+
+void kvm_lapic_exit(void)
+{
+	static_key_deferred_flush(&apic_hw_disabled);
+	static_key_deferred_flush(&apic_sw_disabled);
 }

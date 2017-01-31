@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/usb.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "usb_mon.h"
 

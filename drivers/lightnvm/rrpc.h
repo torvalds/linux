@@ -48,14 +48,15 @@ struct rrpc_inflight_rq {
 
 struct rrpc_rq {
 	struct rrpc_inflight_rq inflight_rq;
-	struct rrpc_addr *addr;
 	unsigned long flags;
 };
 
 struct rrpc_block {
-	struct nvm_block *parent;
+	int id;				/* id inside of LUN */
 	struct rrpc_lun *rlun;
-	struct list_head prio;
+
+	struct list_head prio;		/* LUN CG list */
+	struct list_head list;		/* LUN free, used, bb list */
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -65,20 +66,37 @@ struct rrpc_block {
 	/* number of pages that are invalid, wrt host page size */
 	unsigned int nr_invalid_pages;
 
+	int state;
+
 	spinlock_t lock;
 	atomic_t data_cmnt_size; /* data pages committed to stable storage */
 };
 
 struct rrpc_lun {
 	struct rrpc *rrpc;
-	struct nvm_lun *parent;
+
+	int id;
+	struct ppa_addr bppa;
+
 	struct rrpc_block *cur, *gc_cur;
 	struct rrpc_block *blocks;	/* Reference to block allocation */
 
 	struct list_head prio_list;	/* Blocks that may be GC'ed */
 	struct list_head wblk_list;	/* Queued blocks to be written to */
 
+	/* lun block lists */
+	struct list_head used_list;	/* In-use blocks */
+	struct list_head free_list;	/* Not used blocks i.e. released
+					 * and ready for use
+					 */
+	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
+					 * free_list and used_list
+					 */
+	unsigned int nr_free_blocks;	/* Number of unused blocks */
+
 	struct work_struct ws_gc;
+
+	int reserved_blocks;
 
 	spinlock_t lock;
 };
@@ -87,19 +105,16 @@ struct rrpc {
 	/* instance must be kept in top to resolve rrpc in unprep */
 	struct nvm_tgt_instance instance;
 
-	struct nvm_dev *dev;
+	struct nvm_tgt_dev *dev;
 	struct gendisk *disk;
 
 	sector_t soffset; /* logical sector offset */
-	u64 poffset; /* physical page offset */
-	int lun_offset;
 
 	int nr_luns;
 	struct rrpc_lun *luns;
 
 	/* calculated values */
 	unsigned long long nr_sects;
-	unsigned long total_blocks;
 
 	/* Write strategy variables. Move these into each for structure for each
 	 * strategy
@@ -150,13 +165,37 @@ struct rrpc_rev_addr {
 	u64 addr;
 };
 
-static inline struct rrpc_block *rrpc_get_rblk(struct rrpc_lun *rlun,
-								int blk_id)
+static inline struct ppa_addr rrpc_linear_to_generic_addr(struct nvm_geo *geo,
+							  struct ppa_addr r)
 {
-	struct rrpc *rrpc = rlun->rrpc;
-	int lun_blk = blk_id % rrpc->dev->blks_per_lun;
+	struct ppa_addr l;
+	int secs, pgs;
+	sector_t ppa = r.ppa;
 
-	return &rlun->blocks[lun_blk];
+	l.ppa = 0;
+
+	div_u64_rem(ppa, geo->sec_per_pg, &secs);
+	l.g.sec = secs;
+
+	sector_div(ppa, geo->sec_per_pg);
+	div_u64_rem(ppa, geo->pgs_per_blk, &pgs);
+	l.g.pg = pgs;
+
+	return l;
+}
+
+static inline struct ppa_addr rrpc_recov_addr(struct nvm_tgt_dev *dev, u64 pba)
+{
+	return linear_to_generic_addr(&dev->geo, pba);
+}
+
+static inline u64 rrpc_blk_to_ppa(struct rrpc *rrpc, struct rrpc_block *rblk)
+{
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct rrpc_lun *rlun = rblk->rlun;
+
+	return (rlun->id * geo->sec_per_lun) + (rblk->id * geo->sec_per_blk);
 }
 
 static inline sector_t rrpc_get_laddr(struct bio *bio)

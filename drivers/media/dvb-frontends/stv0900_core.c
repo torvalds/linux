@@ -1875,7 +1875,7 @@ static int stv0900_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_frontend_ops stv0900_ops = {
+static const struct dvb_frontend_ops stv0900_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STV0900 frontend",

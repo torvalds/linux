@@ -39,7 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -1868,8 +1868,7 @@ static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
 	}
 	dec_nsec = (vcpu->arch.dec_expires - now) * NSEC_PER_SEC
 		   / tb_ticks_per_sec;
-	hrtimer_start(&vcpu->arch.dec_timer, ktime_set(0, dec_nsec),
-		      HRTIMER_MODE_REL);
+	hrtimer_start(&vcpu->arch.dec_timer, dec_nsec, HRTIMER_MODE_REL);
 	vcpu->arch.timer_running = 1;
 }
 
@@ -2298,12 +2297,12 @@ static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
  * enter the guest. Only do this if it is the primary thread of the
  * core (not if a subcore) that is entering the guest.
  */
-static inline void kvmppc_clear_host_core(int cpu)
+static inline int kvmppc_clear_host_core(unsigned int cpu)
 {
 	int core;
 
 	if (!kvmppc_host_rm_ops_hv || cpu_thread_in_core(cpu))
-		return;
+		return 0;
 	/*
 	 * Memory barrier can be omitted here as we will do a smp_wmb()
 	 * later in kvmppc_start_thread and we need ensure that state is
@@ -2311,6 +2310,7 @@ static inline void kvmppc_clear_host_core(int cpu)
 	 */
 	core = cpu >> threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[core].rm_state.in_host = 0;
+	return 0;
 }
 
 /*
@@ -2318,12 +2318,12 @@ static inline void kvmppc_clear_host_core(int cpu)
  * Only need to do this if it is the primary thread of the core that is
  * exiting.
  */
-static inline void kvmppc_set_host_core(int cpu)
+static inline int kvmppc_set_host_core(unsigned int cpu)
 {
 	int core;
 
 	if (!kvmppc_host_rm_ops_hv || cpu_thread_in_core(cpu))
-		return;
+		return 0;
 
 	/*
 	 * Memory barrier can be omitted here because we do a spin_unlock
@@ -2331,6 +2331,7 @@ static inline void kvmppc_set_host_core(int cpu)
 	 */
 	core = cpu >> threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[core].rm_state.in_host = 1;
+	return 0;
 }
 
 /*
@@ -3174,36 +3175,6 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 }
 
 #ifdef CONFIG_KVM_XICS
-static int kvmppc_cpu_notify(struct notifier_block *self, unsigned long action,
-			void *hcpu)
-{
-	unsigned long cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		kvmppc_set_host_core(cpu);
-		break;
-
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		kvmppc_clear_host_core(cpu);
-		break;
-#endif
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block kvmppc_cpu_notifier = {
-	    .notifier_call = kvmppc_cpu_notify,
-};
-
 /*
  * Allocate a per-core structure for managing state about which cores are
  * running in the host versus the guest and for exchanging data between
@@ -3265,15 +3236,17 @@ void kvmppc_alloc_host_rm_ops(void)
 		return;
 	}
 
-	register_cpu_notifier(&kvmppc_cpu_notifier);
-
+	cpuhp_setup_state_nocalls(CPUHP_KVM_PPC_BOOK3S_PREPARE,
+				  "ppc/kvm_book3s:prepare",
+				  kvmppc_set_host_core,
+				  kvmppc_clear_host_core);
 	put_online_cpus();
 }
 
 void kvmppc_free_host_rm_ops(void)
 {
 	if (kvmppc_host_rm_ops_hv) {
-		unregister_cpu_notifier(&kvmppc_cpu_notifier);
+		cpuhp_remove_state_nocalls(CPUHP_KVM_PPC_BOOK3S_PREPARE);
 		kfree(kvmppc_host_rm_ops_hv->rm_core);
 		kfree(kvmppc_host_rm_ops_hv);
 		kvmppc_host_rm_ops_hv = NULL;

@@ -366,8 +366,7 @@ bool dispc_div_calc(unsigned long dispc,
 		unsigned long pck_min, unsigned long pck_max,
 		dispc_div_calc_func func, void *data);
 
-bool dispc_mgr_timings_ok(enum omap_channel channel,
-		const struct omap_video_timings *timings);
+bool dispc_mgr_timings_ok(enum omap_channel channel, const struct videomode *vm);
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
 
@@ -390,7 +389,7 @@ void dispc_wb_enable(bool enable);
 bool dispc_wb_is_enabled(void);
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		bool mem_to_mem, const struct omap_video_timings *timings);
+		bool mem_to_mem, const struct videomode *vm);
 
 /* VENC */
 int venc_init_platform_driver(void) __init;

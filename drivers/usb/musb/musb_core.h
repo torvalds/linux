@@ -216,6 +216,7 @@ struct musb_platform_ops {
 	void	(*pre_root_reset_end)(struct musb *musb);
 	void	(*post_root_reset_end)(struct musb *musb);
 	int	(*phy_callback)(enum musb_vbus_id_status status);
+	void	(*clear_ep_rxintr)(struct musb *musb, int epnum);
 };
 
 /*
@@ -625,5 +626,17 @@ static inline void musb_platform_post_root_reset_end(struct musb *musb)
 	if (musb->ops->post_root_reset_end)
 		musb->ops->post_root_reset_end(musb);
 }
+
+static inline void musb_platform_clear_ep_rxintr(struct musb *musb, int epnum)
+{
+	if (musb->ops->clear_ep_rxintr)
+		musb->ops->clear_ep_rxintr(musb, epnum);
+}
+
+/*
+ * gets the "dr_mode" property from DT and converts it into musb_mode
+ * if the property is not found or not recognized returns MUSB_OTG
+ */
+extern enum musb_mode musb_get_mode(struct device *dev);
 
 #endif	/* __MUSB_CORE_H__ */

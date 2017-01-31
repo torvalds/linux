@@ -16,18 +16,15 @@
 
 #include <asm/stacktrace.h>
 
-void stack_type_str(enum stack_type type, const char **begin, const char **end)
+const char *stack_type_name(enum stack_type type)
 {
-	switch (type) {
-	case STACK_TYPE_IRQ:
-	case STACK_TYPE_SOFTIRQ:
-		*begin = "IRQ";
-		*end   = "EOI";
-		break;
-	default:
-		*begin = NULL;
-		*end   = NULL;
-	}
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type == STACK_TYPE_SOFTIRQ)
+		return "SOFTIRQ";
+
+	return NULL;
 }
 
 static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
@@ -109,8 +106,10 @@ recursion_check:
 	 * just break out and report an unknown stack type.
 	 */
 	if (visit_mask) {
-		if (*visit_mask & (1UL << info->type))
+		if (*visit_mask & (1UL << info->type)) {
+			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
 			goto unknown;
+		}
 		*visit_mask |= 1UL << info->type;
 	}
 
@@ -120,36 +119,6 @@ unknown:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
 }
-
-void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			unsigned long *sp, char *log_lvl)
-{
-	unsigned long *stack;
-	int i;
-
-	if (!try_get_task_stack(task))
-		return;
-
-	sp = sp ? : get_stack_pointer(task, regs);
-
-	stack = sp;
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(stack))
-			break;
-		if ((i % STACKSLOTS_PER_LINE) == 0) {
-			if (i != 0)
-				pr_cont("\n");
-			printk("%s %08lx", log_lvl, *stack++);
-		} else
-			pr_cont(" %08lx", *stack++);
-		touch_nmi_watchdog();
-	}
-	pr_cont("\n");
-	show_trace_log_lvl(task, regs, sp, log_lvl);
-
-	put_task_stack(task);
-}
-
 
 void show_regs(struct pt_regs *regs)
 {
@@ -168,8 +137,7 @@ void show_regs(struct pt_regs *regs)
 		unsigned char c;
 		u8 *ip;
 
-		pr_emerg("Stack:\n");
-		show_stack_log_lvl(current, regs, NULL, KERN_EMERG);
+		show_trace_log_lvl(current, regs, NULL, KERN_EMERG);
 
 		pr_emerg("Code:");
 

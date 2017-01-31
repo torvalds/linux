@@ -54,7 +54,7 @@ static __always_inline void
 rspin_until_writer_unlock(struct qrwlock *lock, u32 cnts)
 {
 	while ((cnts & _QW_WMASK) == _QW_LOCKED) {
-		cpu_relax_lowlatency();
+		cpu_relax();
 		cnts = atomic_read_acquire(&lock->cnts);
 	}
 }
@@ -130,7 +130,7 @@ void queued_write_lock_slowpath(struct qrwlock *lock)
 		   (cmpxchg_relaxed(&l->wmode, 0, _QW_WAITING) == 0))
 			break;
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 	}
 
 	/* When no more readers, set the locked flag */
@@ -141,7 +141,7 @@ void queued_write_lock_slowpath(struct qrwlock *lock)
 					    _QW_LOCKED) == _QW_WAITING))
 			break;
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 	}
 unlock:
 	arch_spin_unlock(&lock->wait_lock);

@@ -78,17 +78,15 @@ struct nvt_chip {
 };
 
 struct nvt_dev {
-	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
 
-	spinlock_t nvt_lock;
+	spinlock_t lock;
 
 	/* for rx */
 	u8 buf[RX_BUF_LEN];
 	unsigned int pkts;
 
 	struct {
-		spinlock_t lock;
 		u8 buf[TX_BUF_LEN];
 		unsigned int buf_count;
 		unsigned int cur_buf_num;

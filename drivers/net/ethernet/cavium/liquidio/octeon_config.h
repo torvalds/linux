@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file  octeon_config.h
  *  \brief Host Driver: Configuration data structures for the host driver.
  */
@@ -65,9 +60,15 @@
 #define   DEFAULT_NUM_NIC_PORTS_68XX_210NV  2
 
 /* CN23xx  IQ configuration macros */
+#define   CN23XX_MAX_VFS_PER_PF_PASS_1_0 8
+#define   CN23XX_MAX_VFS_PER_PF_PASS_1_1 31
+#define   CN23XX_MAX_VFS_PER_PF          63
+#define   CN23XX_MAX_RINGS_PER_VF        8
+
 #define   CN23XX_MAX_RINGS_PER_PF_PASS_1_0 12
 #define   CN23XX_MAX_RINGS_PER_PF_PASS_1_1 32
 #define   CN23XX_MAX_RINGS_PER_PF          64
+#define   CN23XX_MAX_RINGS_PER_VF          8
 
 #define   CN23XX_MAX_INPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
 #define   CN23XX_MAX_IQ_DESCRIPTORS	2048
@@ -466,4 +467,7 @@ struct octeon_config {
 
 #define MAX_POSSIBLE_OCTEON_INSTR_QUEUES	CN23XX_MAX_INPUT_QUEUES
 #define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES	CN23XX_MAX_OUTPUT_QUEUES
+
+#define MAX_POSSIBLE_VFS			64
+
 #endif /* __OCTEON_CONFIG_H__  */

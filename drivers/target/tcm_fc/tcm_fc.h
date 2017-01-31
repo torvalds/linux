@@ -17,6 +17,9 @@
 #ifndef __TCM_FC_H__
 #define __TCM_FC_H__
 
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
 #define FT_VERSION "0.4"
 
 #define FT_NAMELEN 32		/* length of ASCII WWPNs including pad */

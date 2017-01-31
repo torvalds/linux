@@ -103,7 +103,8 @@ struct sasem_context {
 
 	struct tx_t {
 		unsigned char data_buf[SASEM_DATA_BUF_SZ]; /* user data
-							    * buffer */
+							    * buffer
+							    */
 		struct completion finished;  /* wait for write to finish  */
 		atomic_t busy;		     /* write in progress */
 		int status;		     /* status of tx completion */
@@ -295,7 +296,8 @@ static int vfd_close(struct inode *inode, struct file *file)
 		if (!context->dev_present && !context->ir_isopen) {
 			/* Device disconnected before close and IR port is
 			 * not open. If IR port is open, context will be
-			 * deleted by ir_close. */
+			 * deleted by ir_close.
+			 */
 			mutex_unlock(&context->ctx_lock);
 			delete_context(context);
 			return retval;
@@ -384,9 +386,8 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 
 	data_buf = memdup_user(buf, n_bytes);
 	if (IS_ERR(data_buf)) {
-		retval = PTR_ERR(data_buf);
-		data_buf = NULL;
-		goto exit;
+		mutex_unlock(&context->ctx_lock);
+		return PTR_ERR(data_buf);
 	}
 
 	memcpy(context->tx.data_buf, data_buf, n_bytes);
@@ -397,7 +398,8 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 
 	/* Nine 8 byte packets to be sent */
 	/* NOTE: "\x07\x01\0\0\0\0\0\0" or "\x0c\0\0\0\0\0\0\0"
-	 *       will clear the VFD */
+	 *       will clear the VFD
+	 */
 	for (i = 0; i < 9; i++) {
 		switch (i) {
 		case 0:

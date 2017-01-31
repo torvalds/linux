@@ -425,10 +425,10 @@ struct uart_8250_port *serial8250_get_port(int line)
 EXPORT_SYMBOL_GPL(serial8250_get_port);
 
 static void (*serial8250_isa_config)(int port, struct uart_port *up,
-	unsigned short *capabilities);
+	u32 *capabilities);
 
 void serial8250_set_isa_configurator(
-	void (*v)(int port, struct uart_port *up, unsigned short *capabilities))
+	void (*v)(int port, struct uart_port *up, u32 *capabilities))
 {
 	serial8250_isa_config = v;
 }
@@ -675,7 +675,7 @@ static struct console univ8250_console = {
 	.device		= uart_console_device,
 	.setup		= univ8250_console_setup,
 	.match		= univ8250_console_match,
-	.flags		= CON_PRINTBUFFER | CON_ANYTIME | CON_CONSDEV,
+	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
 	.index		= -1,
 	.data		= &serial8250_reg,
 };
@@ -830,6 +830,7 @@ static int serial8250_probe(struct platform_device *dev)
 		uart.port.handle_irq	= p->handle_irq;
 		uart.port.handle_break	= p->handle_break;
 		uart.port.set_termios	= p->set_termios;
+		uart.port.set_ldisc	= p->set_ldisc;
 		uart.port.get_mctrl	= p->get_mctrl;
 		uart.port.pm		= p->pm;
 		uart.port.dev		= &dev->dev;
@@ -1023,6 +1024,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		/*  Possibly override set_termios call */
 		if (up->port.set_termios)
 			uart->port.set_termios = up->port.set_termios;
+		if (up->port.set_ldisc)
+			uart->port.set_ldisc = up->port.set_ldisc;
 		if (up->port.get_mctrl)
 			uart->port.get_mctrl = up->port.get_mctrl;
 		if (up->port.set_mctrl)

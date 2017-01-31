@@ -26,7 +26,7 @@
 #include <asm/processor.h>
 #include <asm/ptrace_offsets.h>
 #include <asm/rse.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unwind.h>
 #ifdef CONFIG_PERFMON
 #include <asm/perfmon.h>
@@ -1159,7 +1159,7 @@ arch_ptrace (struct task_struct *child, long request,
 	case PTRACE_PEEKTEXT:
 	case PTRACE_PEEKDATA:
 		/* read word at location addr */
-		if (access_process_vm(child, addr, &data, sizeof(data),
+		if (ptrace_access_vm(child, addr, &data, sizeof(data),
 				FOLL_FORCE)
 		    != sizeof(data))
 			return -EIO;

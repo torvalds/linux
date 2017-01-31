@@ -15,7 +15,7 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <keys/user-type.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 static int logon_vet_description(const char *desc);

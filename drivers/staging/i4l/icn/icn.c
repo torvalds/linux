@@ -411,8 +411,7 @@ typedef struct icn_stat {
 	int action;
 } icn_stat;
 /* *INDENT-OFF* */
-static icn_stat icn_stat_table[] =
-{
+static icn_stat icn_stat_table[] = {
 	{"BCON_",          ISDN_STAT_BCONN, 1},	/* B-Channel connected        */
 	{"BDIS_",          ISDN_STAT_BHUP,  2},	/* B-Channel disconnected     */
 	/*

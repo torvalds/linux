@@ -94,14 +94,12 @@ disable_regulators:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(qcom_iris_enable);
 
 void qcom_iris_disable(struct qcom_iris *iris)
 {
 	clk_disable_unprepare(iris->xo_clk);
 	regulator_bulk_disable(iris->num_vregs, iris->vregs);
 }
-EXPORT_SYMBOL_GPL(qcom_iris_disable);
 
 static int qcom_iris_probe(struct platform_device *pdev)
 {
@@ -173,8 +171,9 @@ static const struct of_device_id iris_of_match[] = {
 	{ .compatible = "qcom,wcn3680", .data = &wcn3680_data },
 	{}
 };
+MODULE_DEVICE_TABLE(of, iris_of_match);
 
-static struct platform_driver wcnss_driver = {
+struct platform_driver qcom_iris_driver = {
 	.probe = qcom_iris_probe,
 	.remove = qcom_iris_remove,
 	.driver = {
@@ -182,7 +181,3 @@ static struct platform_driver wcnss_driver = {
 		.of_match_table = iris_of_match,
 	},
 };
-
-module_platform_driver(wcnss_driver);
-MODULE_DESCRIPTION("Qualcomm Wireless Subsystem Iris driver");
-MODULE_LICENSE("GPL v2");

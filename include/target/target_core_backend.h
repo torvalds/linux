@@ -1,7 +1,13 @@
 #ifndef TARGET_CORE_BACKEND_H
 #define TARGET_CORE_BACKEND_H
 
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
 #define TRANSPORT_FLAG_PASSTHROUGH		1
+
+struct request_queue;
+struct scatterlist;
 
 struct target_backend_ops {
 	char name[16];

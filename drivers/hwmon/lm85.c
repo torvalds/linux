@@ -136,7 +136,8 @@ static const int lm85_scaling[] = {  /* .001 Volts */
 #define SCALE(val, from, to)	(((val) * (to) + ((from) / 2)) / (from))
 
 #define INS_TO_REG(n, val)	\
-		clamp_val(SCALE(val, lm85_scaling[n], 192), 0, 255)
+		SCALE(clamp_val(val, 0, 255 * lm85_scaling[n] / 192), \
+		      lm85_scaling[n], 192)
 
 #define INSEXT_FROM_REG(n, val, ext)	\
 		SCALE(((val) << 4) + (ext), 192 << 4, lm85_scaling[n])

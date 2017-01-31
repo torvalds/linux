@@ -92,6 +92,8 @@ struct qed_mcp_function_info {
 
 #define QED_MCP_VLAN_UNSET              (0xffff)
 	u16				ovlan;
+
+	u16				mtu;
 };
 
 struct qed_mcp_nvm_common {
@@ -145,6 +147,30 @@ union qed_mcp_protocol_stats {
 	struct qed_mcp_fcoe_stats fcoe_stats;
 	struct qed_mcp_iscsi_stats iscsi_stats;
 	struct qed_mcp_rdma_stats rdma_stats;
+};
+
+enum qed_ov_eswitch {
+	QED_OV_ESWITCH_NONE,
+	QED_OV_ESWITCH_VEB,
+	QED_OV_ESWITCH_VEPA
+};
+
+enum qed_ov_client {
+	QED_OV_CLIENT_DRV,
+	QED_OV_CLIENT_USER,
+	QED_OV_CLIENT_VENDOR_SPEC
+};
+
+enum qed_ov_driver_state {
+	QED_OV_DRIVER_STATE_NOT_LOADED,
+	QED_OV_DRIVER_STATE_DISABLED,
+	QED_OV_DRIVER_STATE_ACTIVE
+};
+
+enum qed_ov_wol {
+	QED_OV_WOL_DEFAULT,
+	QED_OV_WOL_DISABLED,
+	QED_OV_WOL_ENABLED
 };
 
 /**
@@ -278,6 +304,69 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_mcp_drv_version *p_ver);
 
 /**
+ * @brief Notify MFW about the change in base device properties
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param client - qed client type
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     enum qed_ov_client client);
+
+/**
+ * @brief Notify MFW about the driver state
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param drv_state - Driver state
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_driver_state(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum qed_ov_driver_state drv_state);
+
+/**
+ * @brief Send MTU size to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mtu - MTU size
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u16 mtu);
+
+/**
+ * @brief Send MAC address to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mac - MAC address
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *mac);
+
+/**
+ * @brief Send WOL mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param wol - WOL mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_ov_wol wol);
+
+/**
  * @brief Set LED status
  *
  *  @param p_hwfn
@@ -289,6 +378,18 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    enum qed_led_mode mode);
+
+/**
+ * @brief Read from nvm
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *  @param p_buf - nvm read buffer
+ *  @param len - buffer len
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
 
 /**
  * @brief Bist register test
@@ -311,6 +412,35 @@ int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn,
  */
 int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt);
+
+/**
+ * @brief Bist nvm test - get number of images
+ *
+ *  @param p_hwfn       - hw function
+ *  @param p_ptt        - PTT required for register access
+ *  @param num_images   - number of images if operation was
+ *			  successful. 0 if not.
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *num_images);
+
+/**
+ * @brief Bist nvm test - get image attributes by index
+ *
+ *  @param p_hwfn      - hw function
+ *  @param p_ptt       - PTT required for register access
+ *  @param p_image_att - Attributes of image
+ *  @param image_index - Index of image to get information for
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct bist_nvm_image_att *p_image_att,
+					u32 image_index);
 
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
@@ -546,4 +676,32 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u32 mask_parities);
 
+/**
+ * @brief Send eswitch mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param eswitch - eswitch mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      enum qed_ov_eswitch eswitch);
+
+/**
+ * @brief - Gets the MFW allocation info for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_resc_info - descriptor of requested resource
+ *  @param p_mcp_resp
+ *  @param p_mcp_param
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  struct resource_info *p_resc_info,
+			  u32 *p_mcp_resp, u32 *p_mcp_param);
 #endif

@@ -30,6 +30,7 @@
 #include <linux/remoteproc.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
+#include <linux/rpmsg/qcom_smd.h>
 
 #include "qcom_mdt_loader.h"
 #include "remoteproc_internal.h"
@@ -94,6 +95,10 @@ struct qcom_wcnss {
 	phys_addr_t mem_reloc;
 	void *mem_region;
 	size_t mem_size;
+
+	struct device_node *smd_node;
+	struct qcom_smd_edge *smd_edge;
+	struct rproc_subdev smd_subdev;
 };
 
 static const struct wcnss_data riva_data = {
@@ -143,7 +148,6 @@ void qcom_wcnss_assign_iris(struct qcom_wcnss *wcnss,
 
 	mutex_unlock(&wcnss->iris_lock);
 }
-EXPORT_SYMBOL_GPL(qcom_wcnss_assign_iris);
 
 static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 {
@@ -396,6 +400,23 @@ static irqreturn_t wcnss_stop_ack_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int wcnss_smd_probe(struct rproc_subdev *subdev)
+{
+	struct qcom_wcnss *wcnss = container_of(subdev, struct qcom_wcnss, smd_subdev);
+
+	wcnss->smd_edge = qcom_smd_register_edge(wcnss->dev, wcnss->smd_node);
+
+	return IS_ERR(wcnss->smd_edge) ? PTR_ERR(wcnss->smd_edge) : 0;
+}
+
+static void wcnss_smd_remove(struct rproc_subdev *subdev)
+{
+	struct qcom_wcnss *wcnss = container_of(subdev, struct qcom_wcnss, smd_subdev);
+
+	qcom_smd_unregister_edge(wcnss->smd_edge);
+	wcnss->smd_edge = NULL;
+}
+
 static int wcnss_init_regulators(struct qcom_wcnss *wcnss,
 				 const struct wcnss_vreg_info *info,
 				 int num_vregs)
@@ -578,6 +599,10 @@ static int wcnss_probe(struct platform_device *pdev)
 		}
 	}
 
+	wcnss->smd_node = of_get_child_by_name(pdev->dev.of_node, "smd-edge");
+	if (wcnss->smd_node)
+		rproc_add_subdev(rproc, &wcnss->smd_subdev, wcnss_smd_probe, wcnss_smd_remove);
+
 	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
@@ -596,6 +621,7 @@ static int wcnss_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 
+	of_node_put(wcnss->smd_node);
 	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 	rproc_free(wcnss->rproc);
@@ -609,6 +635,7 @@ static const struct of_device_id wcnss_of_match[] = {
 	{ .compatible = "qcom,pronto-v2-pil", &pronto_v2_data },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, wcnss_of_match);
 
 static struct platform_driver wcnss_driver = {
 	.probe = wcnss_probe,
@@ -619,6 +646,28 @@ static struct platform_driver wcnss_driver = {
 	},
 };
 
-module_platform_driver(wcnss_driver);
+static int __init wcnss_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&wcnss_driver);
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&qcom_iris_driver);
+	if (ret)
+		platform_driver_unregister(&wcnss_driver);
+
+	return ret;
+}
+module_init(wcnss_init);
+
+static void __exit wcnss_exit(void)
+{
+	platform_driver_unregister(&qcom_iris_driver);
+	platform_driver_unregister(&wcnss_driver);
+}
+module_exit(wcnss_exit);
+
 MODULE_DESCRIPTION("Qualcomm Peripherial Image Loader for Wireless Subsystem");
 MODULE_LICENSE("GPL v2");

@@ -193,7 +193,6 @@ int perf_callchain_config(const char *var, const char *value)
 
 	if (!strcmp(var, "record-mode"))
 		return parse_callchain_record_opt(value, &callchain_param);
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 	if (!strcmp(var, "dump-size")) {
 		unsigned long size = 0;
 		int ret;
@@ -203,7 +202,6 @@ int perf_callchain_config(const char *var, const char *value)
 
 		return ret;
 	}
-#endif
 	if (!strcmp(var, "print-type"))
 		return parse_callchain_mode(value);
 	if (!strcmp(var, "order"))
@@ -440,6 +438,21 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call->ip = cursor_node->ip;
 		call->ms.sym = cursor_node->sym;
 		call->ms.map = cursor_node->map;
+
+		if (cursor_node->branch) {
+			call->branch_count = 1;
+
+			if (cursor_node->branch_flags.predicted)
+				call->predicted_count = 1;
+
+			if (cursor_node->branch_flags.abort)
+				call->abort_count = 1;
+
+			call->cycles_count = cursor_node->branch_flags.cycles;
+			call->iter_count = cursor_node->nr_loop_iter;
+			call->samples_count = cursor_node->samples;
+		}
+
 		list_add_tail(&call->list, &node->val);
 
 		callchain_cursor_advance(cursor);
@@ -499,8 +512,23 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		right = node->ip;
 	}
 
-	if (left == right)
+	if (left == right) {
+		if (node->branch) {
+			cnode->branch_count++;
+
+			if (node->branch_flags.predicted)
+				cnode->predicted_count++;
+
+			if (node->branch_flags.abort)
+				cnode->abort_count++;
+
+			cnode->cycles_count += node->branch_flags.cycles;
+			cnode->iter_count += node->nr_loop_iter;
+			cnode->samples_count += node->samples;
+		}
+
 		return MATCH_EQ;
+	}
 
 	return left > right ? MATCH_GT : MATCH_LT;
 }
@@ -730,7 +758,8 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
 		callchain_cursor_append(cursor, list->ip,
-					list->ms.map, list->ms.sym);
+					list->ms.map, list->ms.sym,
+					false, NULL, 0, 0);
 		list_del(&list->list);
 		free(list);
 	}
@@ -767,7 +796,9 @@ int callchain_merge(struct callchain_cursor *cursor,
 }
 
 int callchain_cursor_append(struct callchain_cursor *cursor,
-			    u64 ip, struct map *map, struct symbol *sym)
+			    u64 ip, struct map *map, struct symbol *sym,
+			    bool branch, struct branch_flags *flags,
+			    int nr_loop_iter, int samples)
 {
 	struct callchain_cursor_node *node = *cursor->last;
 
@@ -782,6 +813,13 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	node->ip = ip;
 	node->map = map;
 	node->sym = sym;
+	node->branch = branch;
+	node->nr_loop_iter = nr_loop_iter;
+	node->samples = samples;
+
+	if (flags)
+		memcpy(&node->branch_flags, flags,
+			sizeof(struct branch_flags));
 
 	cursor->nr++;
 
@@ -939,6 +977,163 @@ int callchain_node__fprintf_value(struct callchain_node *node,
 	return 0;
 }
 
+static void callchain_counts_value(struct callchain_node *node,
+				   u64 *branch_count, u64 *predicted_count,
+				   u64 *abort_count, u64 *cycles_count)
+{
+	struct callchain_list *clist;
+
+	list_for_each_entry(clist, &node->val, list) {
+		if (branch_count)
+			*branch_count += clist->branch_count;
+
+		if (predicted_count)
+			*predicted_count += clist->predicted_count;
+
+		if (abort_count)
+			*abort_count += clist->abort_count;
+
+		if (cycles_count)
+			*cycles_count += clist->cycles_count;
+	}
+}
+
+static int callchain_node_branch_counts_cumul(struct callchain_node *node,
+					      u64 *branch_count,
+					      u64 *predicted_count,
+					      u64 *abort_count,
+					      u64 *cycles_count)
+{
+	struct callchain_node *child;
+	struct rb_node *n;
+
+	n = rb_first(&node->rb_root_in);
+	while (n) {
+		child = rb_entry(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+
+		callchain_node_branch_counts_cumul(child, branch_count,
+						   predicted_count,
+						   abort_count,
+						   cycles_count);
+
+		callchain_counts_value(child, branch_count,
+				       predicted_count, abort_count,
+				       cycles_count);
+	}
+
+	return 0;
+}
+
+int callchain_branch_counts(struct callchain_root *root,
+			    u64 *branch_count, u64 *predicted_count,
+			    u64 *abort_count, u64 *cycles_count)
+{
+	if (branch_count)
+		*branch_count = 0;
+
+	if (predicted_count)
+		*predicted_count = 0;
+
+	if (abort_count)
+		*abort_count = 0;
+
+	if (cycles_count)
+		*cycles_count = 0;
+
+	return callchain_node_branch_counts_cumul(&root->node,
+						  branch_count,
+						  predicted_count,
+						  abort_count,
+						  cycles_count);
+}
+
+static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
+				   u64 branch_count, u64 predicted_count,
+				   u64 abort_count, u64 cycles_count,
+				   u64 iter_count, u64 samples_count)
+{
+	double predicted_percent = 0.0;
+	const char *null_str = "";
+	char iter_str[32];
+	char *str;
+	u64 cycles = 0;
+
+	if (branch_count == 0) {
+		if (fp)
+			return fprintf(fp, " (calltrace)");
+
+		return scnprintf(bf, bfsize, " (calltrace)");
+	}
+
+	if (iter_count && samples_count) {
+		scnprintf(iter_str, sizeof(iter_str),
+			 ", iterations:%" PRId64 "",
+			 iter_count / samples_count);
+		str = iter_str;
+	} else
+		str = (char *)null_str;
+
+	predicted_percent = predicted_count * 100.0 / branch_count;
+	cycles = cycles_count / branch_count;
+
+	if ((predicted_percent >= 100.0) && (abort_count == 0)) {
+		if (fp)
+			return fprintf(fp, " (cycles:%" PRId64 "%s)",
+				       cycles, str);
+
+		return scnprintf(bf, bfsize, " (cycles:%" PRId64 "%s)",
+				 cycles, str);
+	}
+
+	if ((predicted_percent < 100.0) && (abort_count == 0)) {
+		if (fp)
+			return fprintf(fp,
+				" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
+				predicted_percent, cycles, str);
+
+		return scnprintf(bf, bfsize,
+			" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
+			predicted_percent, cycles, str);
+	}
+
+	if (fp)
+		return fprintf(fp,
+		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
+			predicted_percent, abort_count, cycles, str);
+
+	return scnprintf(bf, bfsize,
+		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
+		predicted_percent, abort_count, cycles, str);
+}
+
+int callchain_list_counts__printf_value(struct callchain_node *node,
+					struct callchain_list *clist,
+					FILE *fp, char *bf, int bfsize)
+{
+	u64 branch_count, predicted_count;
+	u64 abort_count, cycles_count;
+	u64 iter_count = 0, samples_count = 0;
+
+	branch_count = clist->branch_count;
+	predicted_count = clist->predicted_count;
+	abort_count = clist->abort_count;
+	cycles_count = clist->cycles_count;
+
+	if (node) {
+		struct callchain_list *call;
+
+		list_for_each_entry(call, &node->val, list) {
+			iter_count += call->iter_count;
+			samples_count += call->samples_count;
+		}
+	}
+
+	return callchain_counts_printf(fp, bf, bfsize, branch_count,
+				       predicted_count, abort_count,
+				       cycles_count, iter_count, samples_count);
+}
+
 static void free_callchain_node(struct callchain_node *node)
 {
 	struct callchain_list *list, *tmp;
@@ -1038,4 +1233,31 @@ out:
 		free(chain);
 	}
 	return -ENOMEM;
+}
+
+int callchain_cursor__copy(struct callchain_cursor *dst,
+			   struct callchain_cursor *src)
+{
+	int rc = 0;
+
+	callchain_cursor_reset(dst);
+	callchain_cursor_commit(src);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+
+		node = callchain_cursor_current(src);
+		if (node == NULL)
+			break;
+
+		rc = callchain_cursor_append(dst, node->ip, node->map, node->sym,
+					     node->branch, &node->branch_flags,
+					     node->nr_loop_iter, node->samples);
+		if (rc)
+			break;
+
+		callchain_cursor_advance(src);
+	}
+
+	return rc;
 }

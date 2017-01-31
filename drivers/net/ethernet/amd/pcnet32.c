@@ -677,7 +677,8 @@ static void pcnet32_poll_controller(struct net_device *dev)
 }
 #endif
 
-static int pcnet32_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int pcnet32_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
@@ -685,14 +686,15 @@ static int pcnet32_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (lp->mii) {
 		spin_lock_irqsave(&lp->lock, flags);
-		mii_ethtool_gset(&lp->mii_if, cmd);
+		mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
 		spin_unlock_irqrestore(&lp->lock, flags);
 		r = 0;
 	}
 	return r;
 }
 
-static int pcnet32_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int pcnet32_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
@@ -700,7 +702,7 @@ static int pcnet32_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (lp->mii) {
 		spin_lock_irqsave(&lp->lock, flags);
-		r = mii_ethtool_sset(&lp->mii_if, cmd);
+		r = mii_ethtool_set_link_ksettings(&lp->mii_if, cmd);
 		spin_unlock_irqrestore(&lp->lock, flags);
 	}
 	return r;
@@ -1440,8 +1442,6 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 }
 
 static const struct ethtool_ops pcnet32_ethtool_ops = {
-	.get_settings		= pcnet32_get_settings,
-	.set_settings		= pcnet32_set_settings,
 	.get_drvinfo		= pcnet32_get_drvinfo,
 	.get_msglevel		= pcnet32_get_msglevel,
 	.set_msglevel		= pcnet32_set_msglevel,
@@ -1455,6 +1455,8 @@ static const struct ethtool_ops pcnet32_ethtool_ops = {
 	.get_regs_len		= pcnet32_get_regs_len,
 	.get_regs		= pcnet32_get_regs,
 	.get_sset_count		= pcnet32_get_sset_count,
+	.get_link_ksettings	= pcnet32_get_link_ksettings,
+	.set_link_ksettings	= pcnet32_set_link_ksettings,
 };
 
 /* only probes for non-PCI devices, the rest are handled by
@@ -1527,7 +1529,6 @@ static const struct net_device_ops pcnet32_netdev_ops = {
 	.ndo_get_stats		= pcnet32_get_stats,
 	.ndo_set_rx_mode	= pcnet32_set_multicast_list,
 	.ndo_do_ioctl		= pcnet32_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

@@ -873,7 +873,7 @@ static int adf7242_rx(struct adf7242_local *lp)
 	return 0;
 }
 
-static struct ieee802154_ops adf7242_ops = {
+static const struct ieee802154_ops adf7242_ops = {
 	.owner = THIS_MODULE,
 	.xmit_sync = adf7242_xmit,
 	.ed = adf7242_ed,

@@ -24,7 +24,9 @@ Profiling data will only become accessible once debugfs has been mounted::
 
         mount -t debugfs none /sys/kernel/debug
 
-The following program demonstrates kcov usage from within a test program::
+The following program demonstrates kcov usage from within a test program:
+
+.. code-block:: c
 
     #include <stdio.h>
     #include <stddef.h>

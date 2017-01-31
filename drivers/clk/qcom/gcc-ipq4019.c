@@ -185,8 +185,7 @@ static struct clk_branch gcc_audio_pwm_clk = {
 };
 
 static const struct freq_tbl ftbl_gcc_blsp1_qup1_2_i2c_apps_clk[] = {
-	F(19200000, P_XO, 1, 2, 5),
-	F(24000000, P_XO, 1, 1, 2),
+	F(19050000, P_FEPLL200, 10.5, 1, 1),
 	{ }
 };
 

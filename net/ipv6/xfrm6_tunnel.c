@@ -44,7 +44,7 @@ struct xfrm6_tunnel_net {
 	u32 spi;
 };
 
-static int xfrm6_tunnel_net_id __read_mostly;
+static unsigned int xfrm6_tunnel_net_id __read_mostly;
 static inline struct xfrm6_tunnel_net *xfrm6_tunnel_pernet(struct net *net)
 {
 	return net_generic(net, xfrm6_tunnel_net_id);

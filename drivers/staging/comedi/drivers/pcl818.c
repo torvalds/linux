@@ -771,9 +771,9 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 		     s->async->scans_done < cmd->stop_arg)) {
 			if (!devpriv->ai_cmd_canceled) {
 				/*
-				* Wait for running dma transfer to end,
-				* do cleanup in interrupt.
-				*/
+				 * Wait for running dma transfer to end,
+				 * do cleanup in interrupt.
+				 */
 				devpriv->ai_cmd_canceled = 1;
 				return 0;
 			}

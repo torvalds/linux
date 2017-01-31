@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/switch_to.h>
 #include "entry.h"
@@ -461,7 +461,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(task_thread_info(child)->last_break,
+		put_user(child->thread.last_break,
 			 (unsigned long __user *) data);
 		return 0;
 	case PTRACE_ENABLE_TE:
@@ -811,7 +811,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(task_thread_info(child)->last_break,
+		put_user(child->thread.last_break,
 			 (unsigned int __user *) data);
 		return 0;
 	}
@@ -963,6 +963,11 @@ static int s390_fpregs_set(struct task_struct *target,
 	if (target == current)
 		save_fpu_regs();
 
+	if (MACHINE_HAS_VX)
+		convert_vx_to_fp(fprs, target->thread.fpu.vxrs);
+	else
+		memcpy(&fprs, target->thread.fpu.fprs, sizeof(fprs));
+
 	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
 		u32 ufpc[2] = { target->thread.fpu.fpc, 0 };
@@ -997,10 +1002,10 @@ static int s390_last_break_get(struct task_struct *target,
 	if (count > 0) {
 		if (kbuf) {
 			unsigned long *k = kbuf;
-			*k = task_thread_info(target)->last_break;
+			*k = target->thread.last_break;
 		} else {
 			unsigned long  __user *u = ubuf;
-			if (__put_user(task_thread_info(target)->last_break, u))
+			if (__put_user(target->thread.last_break, u))
 				return -EFAULT;
 		}
 	}
@@ -1067,6 +1072,9 @@ static int s390_vxrs_low_set(struct task_struct *target,
 	if (target == current)
 		save_fpu_regs();
 
+	for (i = 0; i < __NUM_VXRS_LOW; i++)
+		vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
+
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 	if (rc == 0)
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
@@ -1113,7 +1121,7 @@ static int s390_system_call_get(struct task_struct *target,
 				unsigned int pos, unsigned int count,
 				void *kbuf, void __user *ubuf)
 {
-	unsigned int *data = &task_thread_info(target)->system_call;
+	unsigned int *data = &target->thread.system_call;
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   data, 0, sizeof(unsigned int));
 }
@@ -1123,7 +1131,7 @@ static int s390_system_call_set(struct task_struct *target,
 				unsigned int pos, unsigned int count,
 				const void *kbuf, const void __user *ubuf)
 {
-	unsigned int *data = &task_thread_info(target)->system_call;
+	unsigned int *data = &target->thread.system_call;
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  data, 0, sizeof(unsigned int));
 }
@@ -1327,7 +1335,7 @@ static int s390_compat_last_break_get(struct task_struct *target,
 	compat_ulong_t last_break;
 
 	if (count > 0) {
-		last_break = task_thread_info(target)->last_break;
+		last_break = target->thread.last_break;
 		if (kbuf) {
 			unsigned long *k = kbuf;
 			*k = last_break;

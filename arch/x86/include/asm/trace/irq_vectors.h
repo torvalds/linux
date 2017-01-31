@@ -6,7 +6,7 @@
 
 #include <linux/tracepoint.h>
 
-extern void trace_irq_vector_regfunc(void);
+extern int trace_irq_vector_regfunc(void);
 extern void trace_irq_vector_unregfunc(void);
 
 DECLARE_EVENT_CLASS(x86_irq_vector,

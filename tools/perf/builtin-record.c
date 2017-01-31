@@ -37,6 +37,7 @@
 #include "util/llvm-utils.h"
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
+#include "util/perf-hooks.h"
 #include "asm/bug.h"
 
 #include <unistd.h>
@@ -204,6 +205,12 @@ static void sig_handler(int sig)
 		signr = sig;
 
 	done = 1;
+}
+
+static void sigsegv_handler(int sig)
+{
+	perf_hooks__recover();
+	sighandler_dump_stack(sig);
 }
 
 static void record__sig_exit(void)
@@ -833,6 +840,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
+	signal(SIGSEGV, sigsegv_handler);
 
 	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output) {
 		signal(SIGUSR2, snapshot_sig_handler);
@@ -970,6 +978,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
+	perf_hooks__invoke_record_start();
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
@@ -1113,6 +1122,8 @@ out_child:
 			}
 		}
 	}
+
+	perf_hooks__invoke_record_end();
 
 	if (!err && !quiet) {
 		char samples[128];
@@ -1394,7 +1405,7 @@ static bool dry_run;
  * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
-struct option __record_options[] = {
+static struct option __record_options[] = {
 	OPT_CALLBACK('e', "event", &record.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
@@ -1625,7 +1636,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --signal-trigger --no-no-buildid \
+		 *  perf record --switch-output --no-no-buildid \
 		 *              --no-no-buildid-cache
 		 *
 		 * Following code equals to:
@@ -1675,6 +1686,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		err = -saved_errno;
 		goto out;
 	}
+
+	/* Enable ignoring missing threads when -u option is defined. */
+	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX;
 
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)

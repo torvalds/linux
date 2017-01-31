@@ -354,8 +354,8 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	/* header size in 32-bit words LRH+BTH+DETH = (8+12+8)/4. */
 	qp->s_hdrwords = 7;
-	qp->s_cur_size = wqe->length;
-	qp->s_cur_sge = &qp->s_sge;
+	ps->s_txreq->s_cur_size = wqe->length;
+	ps->s_txreq->ss = &qp->s_sge;
 	qp->s_srate = ah_attr->static_rate;
 	qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	qp->s_wqe = wqe;

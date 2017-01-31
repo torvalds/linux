@@ -282,7 +282,7 @@
 #include <linux/blkdev.h>
 #include <linux/times.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* used to tell the module to turn on full debugging messages */
 static bool debug;

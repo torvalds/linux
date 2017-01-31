@@ -8,7 +8,7 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <uapi/linux/poll.h>
 
 extern struct ctl_table epoll_table[]; /* for sysctl */

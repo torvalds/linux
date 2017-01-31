@@ -218,7 +218,7 @@ static int slic_ds26522_probe(struct spi_device *spi)
 
 	ret = slic_ds26522_init_configure(spi);
 	if (ret == 0)
-		pr_info("DS26522 cs%d configurated\n", spi->chip_select);
+		pr_info("DS26522 cs%d configured\n", spi->chip_select);
 
 	return ret;
 }

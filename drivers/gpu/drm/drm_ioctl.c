@@ -229,6 +229,22 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 	struct drm_crtc *crtc;
 
 	req->value = 0;
+
+	/* Only some caps make sense with UMS/render-only drivers. */
+	switch (req->capability) {
+	case DRM_CAP_TIMESTAMP_MONOTONIC:
+		req->value = drm_timestamp_monotonic;
+		return 0;
+	case DRM_CAP_PRIME:
+		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
+		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
+		return 0;
+	}
+
+	/* Other caps only work with KMS drivers */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENOTSUPP;
+
 	switch (req->capability) {
 	case DRM_CAP_DUMB_BUFFER:
 		if (dev->driver->dumb_create)
@@ -243,23 +259,14 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 	case DRM_CAP_DUMB_PREFER_SHADOW:
 		req->value = dev->mode_config.prefer_shadow;
 		break;
-	case DRM_CAP_PRIME:
-		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
-		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
-		break;
-	case DRM_CAP_TIMESTAMP_MONOTONIC:
-		req->value = drm_timestamp_monotonic;
-		break;
 	case DRM_CAP_ASYNC_PAGE_FLIP:
 		req->value = dev->mode_config.async_page_flip;
 		break;
 	case DRM_CAP_PAGE_FLIP_TARGET:
-		if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-			req->value = 1;
-			drm_for_each_crtc(crtc, dev) {
-				if (!crtc->funcs->page_flip_target)
-					req->value = 0;
-			}
+		req->value = 1;
+		drm_for_each_crtc(crtc, dev) {
+			if (!crtc->funcs->page_flip_target)
+				req->value = 0;
 		}
 		break;
 	case DRM_CAP_CURSOR_WIDTH:

@@ -63,7 +63,7 @@
 #include <net/addrconf.h>
 #include <net/bonding.h>
 #include <net/addrconf.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 
 #include "cxgb4.h"
@@ -134,24 +134,6 @@ MODULE_FIRMWARE(FW5_FNAME);
 MODULE_FIRMWARE(FW6_FNAME);
 
 /*
- * Normally we're willing to become the firmware's Master PF but will be happy
- * if another PF has already become the Master and initialized the adapter.
- * Setting "force_init" will cause this driver to forcibly establish itself as
- * the Master PF and initialize the adapter.
- */
-static uint force_init;
-
-module_param(force_init, uint, 0644);
-MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter,"
-		 "deprecated parameter");
-
-static int dflt_msg_enable = DFLT_MSG_ENABLE;
-
-module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap, "
-		 "deprecated parameter");
-
-/*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X, MSI, legacy INTx interrupts.  This parameter determines which
  * of these schemes the driver may consider as follows:
@@ -178,16 +160,6 @@ MODULE_PARM_DESC(msi, "whether to use INTx (0), MSI (1) or MSI-X (2)");
  * PCI-E Bus transfers enough to measurably affect performance.
  */
 static int rx_dma_offset = 2;
-
-#ifdef CONFIG_PCI_IOV
-/* Configure the number of PCI-E Virtual Function which are to be instantiated
- * on SR-IOV Capable Physical Functions.
- */
-static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
-
-module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3, deprecated parameter - please use the pci sysfs interface.");
-#endif
 
 /* TX Queue select used to determine what algorithm to use for selecting TX
  * queue. Select between the kernel provided function (select_queue=0) or user
@@ -530,15 +502,15 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 
 		txq = q->adap->sge.egr_map[qid - q->adap->sge.egr_start];
 		txq->restarts++;
-		if ((u8 *)txq < (u8 *)q->adap->sge.ofldtxq) {
+		if (txq->q_type == CXGB4_TXQ_ETH) {
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
 			netif_tx_wake_queue(eq->txq);
 		} else {
-			struct sge_ofld_txq *oq;
+			struct sge_uld_txq *oq;
 
-			oq = container_of(txq, struct sge_ofld_txq, q);
+			oq = container_of(txq, struct sge_uld_txq, q);
 			tasklet_schedule(&oq->qresume_tsk);
 		}
 	} else if (opcode == CPL_FW6_MSG || opcode == CPL_FW4_MSG) {
@@ -883,15 +855,6 @@ static int setup_sge_queues(struct adapter *adap)
 			if (err)
 				goto freeout;
 		}
-	}
-
-	j = s->ofldqsets / adap->params.nports; /* iscsi queues per channel */
-	for_each_ofldtxq(s, i) {
-		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
-					    adap->port[i / j],
-					    s->fw_evtq.cntxt_id);
-		if (err)
-			goto freeout;
 	}
 
 	for_each_port(adap, i) {
@@ -1922,8 +1885,18 @@ static void disable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		disable_txq_db(&adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				disable_txq_db(&txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		disable_txq_db(&adap->sge.ctrlq[i].q);
 }
@@ -1934,8 +1907,18 @@ static void enable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				enable_txq_db(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
 }
@@ -2006,8 +1989,17 @@ static void recover_all_queues(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				sync_txq_pidx(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
 }
@@ -2502,8 +2494,6 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 	int ret;
 	struct port_info *pi = netdev_priv(dev);
 
-	if (new_mtu < 81 || new_mtu > MAX_MTU)         /* accommodate SACK */
-		return -EINVAL;
 	ret = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, new_mtu, -1,
 			    -1, -1, -1, true);
 	if (!ret)
@@ -3993,7 +3983,7 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int i, n10g = 0, qidx = 0;
+	int i = 0, n10g = 0, qidx = 0;
 #ifndef CONFIG_CHELSIO_T4_DCB
 	int q10g = 0;
 #endif
@@ -4008,8 +3998,7 @@ static void cfg_queues(struct adapter *adap)
 		adap->params.crypto = 0;
 	}
 
-	for_each_port(adap, i)
-		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+	n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
@@ -4076,9 +4065,6 @@ static void cfg_queues(struct adapter *adap)
 
 	for (i = 0; i < ARRAY_SIZE(s->ctrlq); i++)
 		s->ctrlq[i].q.size = 512;
-
-	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++)
-		s->ofldtxq[i].q.size = 1024;
 
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
 	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
@@ -4715,7 +4701,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
-	adapter->msg_enable = dflt_msg_enable;
+	adapter->msg_enable = DFLT_MSG_ENABLE;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
 	spin_lock_init(&adapter->stats_lock);
@@ -4802,6 +4788,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
+
+		/* MTU range: 81 - 9600 */
+		netdev->min_mtu = 81;
+		netdev->max_mtu = MAX_MTU;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
 #ifdef CONFIG_CHELSIO_T4_DCB
@@ -4971,17 +4961,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 sriov:
 #ifdef CONFIG_PCI_IOV
-	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0) {
-		dev_warn(&pdev->dev,
-			 "Enabling SR-IOV VFs using the num_vf module "
-			 "parameter is deprecated - please use the pci sysfs "
-			 "interface instead.\n");
-		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
-			dev_info(&pdev->dev,
-				 "instantiated %u virtual functions\n",
-				 num_vf[func]);
-	}
-
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;

@@ -380,8 +380,8 @@ static int socfpga_dwmac_resume(struct device *dev)
 	 * control register 0, and can be modified by the phy driver
 	 * framework.
 	 */
-	if (priv->phydev)
-		phy_resume(priv->phydev);
+	if (ndev->phydev)
+		phy_resume(ndev->phydev);
 
 	return stmmac_resume(dev);
 }

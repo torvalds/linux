@@ -537,6 +537,69 @@ free_handle:
 	efi_call_early(free_pool, pci_handle);
 }
 
+static void retrieve_apple_device_properties(struct boot_params *boot_params)
+{
+	efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
+	struct setup_data *data, *new;
+	efi_status_t status;
+	u32 size = 0;
+	void *p;
+
+	status = efi_call_early(locate_protocol, &guid, NULL, &p);
+	if (status != EFI_SUCCESS)
+		return;
+
+	if (efi_table_attr(apple_properties_protocol, version, p) != 0x10000) {
+		efi_printk(sys_table, "Unsupported properties proto version\n");
+		return;
+	}
+
+	efi_call_proto(apple_properties_protocol, get_all, p, NULL, &size);
+	if (!size)
+		return;
+
+	do {
+		status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+					size + sizeof(struct setup_data), &new);
+		if (status != EFI_SUCCESS) {
+			efi_printk(sys_table,
+					"Failed to alloc mem for properties\n");
+			return;
+		}
+
+		status = efi_call_proto(apple_properties_protocol, get_all, p,
+					new->data, &size);
+
+		if (status == EFI_BUFFER_TOO_SMALL)
+			efi_call_early(free_pool, new);
+	} while (status == EFI_BUFFER_TOO_SMALL);
+
+	new->type = SETUP_APPLE_PROPERTIES;
+	new->len  = size;
+	new->next = 0;
+
+	data = (struct setup_data *)(unsigned long)boot_params->hdr.setup_data;
+	if (!data)
+		boot_params->hdr.setup_data = (unsigned long)new;
+	else {
+		while (data->next)
+			data = (struct setup_data *)(unsigned long)data->next;
+		data->next = (unsigned long)new;
+	}
+}
+
+static void setup_quirks(struct boot_params *boot_params)
+{
+	efi_char16_t const apple[] = { 'A', 'p', 'p', 'l', 'e', 0 };
+	efi_char16_t *fw_vendor = (efi_char16_t *)(unsigned long)
+		efi_table_attr(efi_system_table, fw_vendor, sys_table);
+
+	if (!memcmp(fw_vendor, apple, sizeof(apple))) {
+		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))
+			retrieve_apple_device_properties(boot_params);
+	}
+}
+
 static efi_status_t
 setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
@@ -1097,6 +1160,8 @@ struct boot_params *efi_main(struct efi_config *c,
 	setup_graphics(boot_params);
 
 	setup_efi_pci(boot_params);
+
+	setup_quirks(boot_params);
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				sizeof(*gdt), (void **)&gdt);

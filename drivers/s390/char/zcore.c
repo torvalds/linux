@@ -7,6 +7,7 @@
  *
  * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
+ * License: GPL
  */
 
 #define KMSG_COMPONENT "zdump"
@@ -16,14 +17,13 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/irqflags.h>
@@ -320,7 +320,7 @@ static int __init zcore_init(void)
 		goto fail;
 	}
 
-	pr_alert("DETECTED 'S390X (64 bit) OS'\n");
+	pr_alert("The dump process started for a 64-bit operating system\n");
 	rc = init_cpu_info();
 	if (rc)
 		goto fail;
@@ -364,22 +364,4 @@ fail:
 	diag308(DIAG308_REL_HSA, NULL);
 	return rc;
 }
-
-static void __exit zcore_exit(void)
-{
-	debug_unregister(zcore_dbf);
-	sclp_sdias_exit();
-	free_page((unsigned long) ipl_block);
-	debugfs_remove(zcore_hsa_file);
-	debugfs_remove(zcore_reipl_file);
-	debugfs_remove(zcore_memmap_file);
-	debugfs_remove(zcore_dir);
-	diag308(DIAG308_REL_HSA, NULL);
-}
-
-MODULE_AUTHOR("Copyright IBM Corp. 2003,2008");
-MODULE_DESCRIPTION("zcore module for zfcpdump support");
-MODULE_LICENSE("GPL");
-
 subsys_initcall(zcore_init);
-module_exit(zcore_exit);

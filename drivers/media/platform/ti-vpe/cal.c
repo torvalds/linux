@@ -483,11 +483,7 @@ static void cal_get_hwinfo(struct cal_dev *dev)
 
 static inline int cal_runtime_get(struct cal_dev *dev)
 {
-	int r;
-
-	r = pm_runtime_get_sync(&dev->pdev->dev);
-
-	return r;
+	return pm_runtime_get_sync(&dev->pdev->dev);
 }
 
 static inline void cal_runtime_put(struct cal_dev *dev)
@@ -1749,13 +1745,13 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 
 cleanup_exit:
-	if (!remote_ep)
+	if (remote_ep)
 		of_node_put(remote_ep);
-	if (!sensor_node)
+	if (sensor_node)
 		of_node_put(sensor_node);
-	if (!ep_node)
+	if (ep_node)
 		of_node_put(ep_node);
-	if (!port)
+	if (port)
 		of_node_put(port);
 
 	return ret;

@@ -20,7 +20,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/bfrom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")

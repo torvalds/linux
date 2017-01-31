@@ -18,6 +18,9 @@
 #ifndef __XFS_DIR2_H__
 #define __XFS_DIR2_H__
 
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+
 struct xfs_defer_ops;
 struct xfs_da_args;
 struct xfs_inode;
@@ -32,10 +35,9 @@ struct xfs_dir2_data_unused;
 extern struct xfs_name	xfs_name_dotdot;
 
 /*
- * directory filetype conversion tables.
+ * Convert inode mode to directory entry filetype
  */
-#define S_SHIFT 12
-extern const unsigned char xfs_mode_to_ftype[];
+extern unsigned char xfs_mode_to_ftype(int mode);
 
 /*
  * directory operations vector for encode/decode routines
@@ -157,6 +159,9 @@ extern int xfs_dir2_isleaf(struct xfs_da_args *args, int *r);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
+extern void xfs_dir2_data_freescan_int(struct xfs_da_geometry *geo,
+		const struct xfs_dir_ops *ops,
+		struct xfs_dir2_data_hdr *hdr, int *loghead);
 extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
 extern void xfs_dir2_data_log_entry(struct xfs_da_args *args,
@@ -176,6 +181,8 @@ extern void xfs_dir2_data_use_free(struct xfs_da_args *args,
 extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
 		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
 		struct xfs_dir2_data_unused *dup);
+
+extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
 
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;

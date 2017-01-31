@@ -39,6 +39,8 @@
 #include <linux/mlx4/cmd.h>
 #include <linux/gfp.h>
 #include <rdma/ib_pma.h>
+#include <linux/ip.h>
+#include <net/ipv6.h>
 
 #include <linux/mlx4/driver.h>
 #include "mlx4_ib.h"
@@ -480,6 +482,23 @@ static int find_slave_port_pkey_ix(struct mlx4_ib_dev *dev, int slave,
 	return -EINVAL;
 }
 
+static int get_gids_from_l3_hdr(struct ib_grh *grh, union ib_gid *sgid,
+				union ib_gid *dgid)
+{
+	int version = ib_get_rdma_header_version((const union rdma_network_hdr *)grh);
+	enum rdma_network_type net_type;
+
+	if (version == 4)
+		net_type = RDMA_NETWORK_IPV4;
+	else if (version == 6)
+		net_type = RDMA_NETWORK_IPV6;
+	else
+		return -EINVAL;
+
+	return ib_get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
+					 sgid, dgid);
+}
+
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type dest_qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad)
@@ -538,7 +557,10 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	memset(&attr, 0, sizeof attr);
 	attr.port_num = port;
 	if (is_eth) {
-		memcpy(&attr.grh.dgid.raw[0], &grh->dgid.raw[0], 16);
+		union ib_gid sgid;
+
+		if (get_gids_from_l3_hdr(grh, &sgid, &attr.grh.dgid))
+			return -EINVAL;
 		attr.ah_flags = IB_AH_GRH;
 	}
 	ah = ib_create_ah(tun_ctx->pd, &attr);
@@ -651,6 +673,11 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 		is_eth = 1;
 
 	if (is_eth) {
+		union ib_gid dgid;
+		union ib_gid sgid;
+
+		if (get_gids_from_l3_hdr(grh, &sgid, &dgid))
+			return -EINVAL;
 		if (!(wc->wc_flags & IB_WC_GRH)) {
 			mlx4_ib_warn(ibdev, "RoCE grh not present.\n");
 			return -EINVAL;
@@ -659,10 +686,10 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 			mlx4_ib_warn(ibdev, "RoCE mgmt class is not CM\n");
 			return -EINVAL;
 		}
-		err = mlx4_get_slave_from_roce_gid(dev->dev, port, grh->dgid.raw, &slave);
+		err = mlx4_get_slave_from_roce_gid(dev->dev, port, dgid.raw, &slave);
 		if (err && mlx4_is_mf_bonded(dev->dev)) {
 			other_port = (port == 1) ? 2 : 1;
-			err = mlx4_get_slave_from_roce_gid(dev->dev, other_port, grh->dgid.raw, &slave);
+			err = mlx4_get_slave_from_roce_gid(dev->dev, other_port, dgid.raw, &slave);
 			if (!err) {
 				port = other_port;
 				pr_debug("resolved slave %d from gid %pI6 wire port %d other %d\n",
@@ -702,10 +729,18 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 
 	/* If a grh is present, we demux according to it */
 	if (wc->wc_flags & IB_WC_GRH) {
-		slave = mlx4_ib_find_real_gid(ibdev, port, grh->dgid.global.interface_id);
-		if (slave < 0) {
-			mlx4_ib_warn(ibdev, "failed matching grh\n");
-			return -ENOENT;
+		if (grh->dgid.global.interface_id ==
+			cpu_to_be64(IB_SA_WELL_KNOWN_GUID) &&
+		    grh->dgid.global.subnet_prefix == cpu_to_be64(
+			atomic64_read(&dev->sriov.demux[port - 1].subnet_prefix))) {
+			slave = 0;
+		} else {
+			slave = mlx4_ib_find_real_gid(ibdev, port,
+						      grh->dgid.global.interface_id);
+			if (slave < 0) {
+				mlx4_ib_warn(ibdev, "failed matching grh\n");
+				return -ENOENT;
+			}
 		}
 	}
 	/* Class-specific handling */
@@ -1102,10 +1137,8 @@ static void handle_slaves_guid_change(struct mlx4_ib_dev *dev, u8 port_num,
 
 	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
-	if (!in_mad || !out_mad) {
-		mlx4_ib_warn(&dev->ib_dev, "failed to allocate memory for guid info mads\n");
+	if (!in_mad || !out_mad)
 		goto out;
-	}
 
 	guid_tbl_blk_num  *= 4;
 
@@ -1916,11 +1949,8 @@ static int alloc_pv_object(struct mlx4_ib_dev *dev, int slave, int port,
 
 	*ret_ctx = NULL;
 	ctx = kzalloc(sizeof (struct mlx4_ib_demux_pv_ctx), GFP_KERNEL);
-	if (!ctx) {
-		pr_err("failed allocating pv resource context "
-		       "for port %d, slave %d\n", port, slave);
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	ctx->ib_dev = &dev->ib_dev;
 	ctx->port = port;

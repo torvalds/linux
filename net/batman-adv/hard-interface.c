@@ -92,8 +92,8 @@ out:
  *
  * Return: result of rtnl_link_ops->get_link_net or @fallback_net
  */
-static const struct net *batadv_getlink_net(const struct net_device *netdev,
-					    const struct net *fallback_net)
+static struct net *batadv_getlink_net(const struct net_device *netdev,
+				      struct net *fallback_net)
 {
 	if (!netdev->rtnl_link_ops)
 		return fallback_net;
@@ -116,9 +116,9 @@ static const struct net *batadv_getlink_net(const struct net_device *netdev,
  * Return: true if the devices are each others parent, otherwise false
  */
 static bool batadv_mutual_parents(const struct net_device *dev1,
-				  const struct net *net1,
+				  struct net *net1,
 				  const struct net_device *dev2,
-				  const struct net *net2)
+				  struct net *net2)
 {
 	int dev1_parent_iflink = dev_get_iflink(dev1);
 	int dev2_parent_iflink = dev_get_iflink(dev2);
@@ -154,7 +154,7 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 {
 	struct net *net = dev_net(net_dev);
 	struct net_device *parent_dev;
-	const struct net *parent_net;
+	struct net *parent_net;
 	bool ret;
 
 	/* check if this is a batman-adv mesh interface */
@@ -202,13 +202,77 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 }
 
 /**
- * batadv_is_wifi_netdev - check if the given net_device struct is a wifi
- *  interface
+ * batadv_get_real_netdevice - check if the given netdev struct is a virtual
+ *  interface on top of another 'real' interface
+ * @netdev: the device to check
+ *
+ * Callers must hold the rtnl semaphore. You may want batadv_get_real_netdev()
+ * instead of this.
+ *
+ * Return: the 'real' net device or the original net device and NULL in case
+ *  of an error.
+ */
+static struct net_device *batadv_get_real_netdevice(struct net_device *netdev)
+{
+	struct batadv_hard_iface *hard_iface = NULL;
+	struct net_device *real_netdev = NULL;
+	struct net *real_net;
+	struct net *net;
+	int ifindex;
+
+	ASSERT_RTNL();
+
+	if (!netdev)
+		return NULL;
+
+	if (netdev->ifindex == dev_get_iflink(netdev)) {
+		dev_hold(netdev);
+		return netdev;
+	}
+
+	hard_iface = batadv_hardif_get_by_netdev(netdev);
+	if (!hard_iface || !hard_iface->soft_iface)
+		goto out;
+
+	net = dev_net(hard_iface->soft_iface);
+	ifindex = dev_get_iflink(netdev);
+	real_net = batadv_getlink_net(netdev, net);
+	real_netdev = dev_get_by_index(real_net, ifindex);
+
+out:
+	if (hard_iface)
+		batadv_hardif_put(hard_iface);
+	return real_netdev;
+}
+
+/**
+ * batadv_get_real_netdev - check if the given net_device struct is a virtual
+ *  interface on top of another 'real' interface
  * @net_device: the device to check
  *
- * Return: true if the net device is a 802.11 wireless device, false otherwise.
+ * Return: the 'real' net device or the original net device and NULL in case
+ *  of an error.
  */
-bool batadv_is_wifi_netdev(struct net_device *net_device)
+struct net_device *batadv_get_real_netdev(struct net_device *net_device)
+{
+	struct net_device *real_netdev;
+
+	rtnl_lock();
+	real_netdev = batadv_get_real_netdevice(net_device);
+	rtnl_unlock();
+
+	return real_netdev;
+}
+
+/**
+ * batadv_is_wext_netdev - check if the given net_device struct is a
+ *  wext wifi interface
+ * @net_device: the device to check
+ *
+ * Return: true if the net device is a wext wireless device, false
+ *  otherwise.
+ */
+static bool batadv_is_wext_netdev(struct net_device *net_device)
 {
 	if (!net_device)
 		return false;
@@ -221,11 +285,146 @@ bool batadv_is_wifi_netdev(struct net_device *net_device)
 		return true;
 #endif
 
+	return false;
+}
+
+/**
+ * batadv_is_cfg80211_netdev - check if the given net_device struct is a
+ *  cfg80211 wifi interface
+ * @net_device: the device to check
+ *
+ * Return: true if the net device is a cfg80211 wireless device, false
+ *  otherwise.
+ */
+static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
+{
+	if (!net_device)
+		return false;
+
 	/* cfg80211 drivers have to set ieee80211_ptr */
 	if (net_device->ieee80211_ptr)
 		return true;
 
 	return false;
+}
+
+/**
+ * batadv_wifi_flags_evaluate - calculate wifi flags for net_device
+ * @net_device: the device to check
+ *
+ * Return: batadv_hard_iface_wifi_flags flags of the device
+ */
+static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
+{
+	u32 wifi_flags = 0;
+	struct net_device *real_netdev;
+
+	if (batadv_is_wext_netdev(net_device))
+		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_DIRECT;
+
+	if (batadv_is_cfg80211_netdev(net_device))
+		wifi_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
+
+	real_netdev = batadv_get_real_netdevice(net_device);
+	if (!real_netdev)
+		return wifi_flags;
+
+	if (real_netdev == net_device)
+		goto out;
+
+	if (batadv_is_wext_netdev(real_netdev))
+		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_INDIRECT;
+
+	if (batadv_is_cfg80211_netdev(real_netdev))
+		wifi_flags |= BATADV_HARDIF_WIFI_CFG80211_INDIRECT;
+
+out:
+	dev_put(real_netdev);
+	return wifi_flags;
+}
+
+/**
+ * batadv_is_cfg80211_hardif - check if the given hardif is a cfg80211 wifi
+ *  interface
+ * @hard_iface: the device to check
+ *
+ * Return: true if the net device is a cfg80211 wireless device, false
+ *  otherwise.
+ */
+bool batadv_is_cfg80211_hardif(struct batadv_hard_iface *hard_iface)
+{
+	u32 allowed_flags = 0;
+
+	allowed_flags |= BATADV_HARDIF_WIFI_CFG80211_DIRECT;
+	allowed_flags |= BATADV_HARDIF_WIFI_CFG80211_INDIRECT;
+
+	return !!(hard_iface->wifi_flags & allowed_flags);
+}
+
+/**
+ * batadv_is_wifi_hardif - check if the given hardif is a wifi interface
+ * @hard_iface: the device to check
+ *
+ * Return: true if the net device is a 802.11 wireless device, false otherwise.
+ */
+bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface)
+{
+	if (!hard_iface)
+		return false;
+
+	return hard_iface->wifi_flags != 0;
+}
+
+/**
+ * batadv_hardif_no_broadcast - check whether (re)broadcast is necessary
+ * @if_outgoing: the outgoing interface checked and considered for (re)broadcast
+ * @orig_addr: the originator of this packet
+ * @orig_neigh: originator address of the forwarder we just got the packet from
+ *  (NULL if we originated)
+ *
+ * Checks whether a packet needs to be (re)broadcasted on the given interface.
+ *
+ * Return:
+ *	BATADV_HARDIF_BCAST_NORECIPIENT: No neighbor on interface
+ *	BATADV_HARDIF_BCAST_DUPFWD: Just one neighbor, but it is the forwarder
+ *	BATADV_HARDIF_BCAST_DUPORIG: Just one neighbor, but it is the originator
+ *	BATADV_HARDIF_BCAST_OK: Several neighbors, must broadcast
+ */
+int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
+			       u8 *orig_addr, u8 *orig_neigh)
+{
+	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct hlist_node *first;
+	int ret = BATADV_HARDIF_BCAST_OK;
+
+	rcu_read_lock();
+
+	/* 0 neighbors -> no (re)broadcast */
+	first = rcu_dereference(hlist_first_rcu(&if_outgoing->neigh_list));
+	if (!first) {
+		ret = BATADV_HARDIF_BCAST_NORECIPIENT;
+		goto out;
+	}
+
+	/* >1 neighbors -> (re)brodcast */
+	if (rcu_dereference(hlist_next_rcu(first)))
+		goto out;
+
+	hardif_neigh = hlist_entry(first, struct batadv_hardif_neigh_node,
+				   list);
+
+	/* 1 neighbor, is the originator -> no rebroadcast */
+	if (orig_addr && batadv_compare_eth(hardif_neigh->orig, orig_addr)) {
+		ret = BATADV_HARDIF_BCAST_DUPORIG;
+	/* 1 neighbor, is the one we received from -> no rebroadcast */
+	} else if (orig_neigh &&
+		   batadv_compare_eth(hardif_neigh->orig, orig_neigh)) {
+		ret = BATADV_HARDIF_BCAST_DUPFWD;
+	}
+
+out:
+	rcu_read_unlock();
+	return ret;
 }
 
 static struct batadv_hard_iface *
@@ -697,7 +896,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	kref_init(&hard_iface->refcount);
 
 	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
-	if (batadv_is_wifi_netdev(net_dev))
+	hard_iface->wifi_flags = batadv_wifi_flags_evaluate(net_dev);
+	if (batadv_is_wifi_hardif(hard_iface))
 		hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
 
 	batadv_v_hardif_init(hard_iface);
@@ -805,6 +1005,11 @@ static int batadv_hard_if_event(struct notifier_block *this,
 
 		if (hard_iface == primary_if)
 			batadv_primary_if_update_addr(bat_priv, NULL);
+		break;
+	case NETDEV_CHANGEUPPER:
+		hard_iface->wifi_flags = batadv_wifi_flags_evaluate(net_dev);
+		if (batadv_is_wifi_hardif(hard_iface))
+			hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
 		break;
 	default:
 		break;

@@ -31,6 +31,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "dce_v10_0.h"
 
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
@@ -330,33 +331,12 @@ static int dce_v10_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 static bool dce_v10_0_hpd_sense(struct amdgpu_device *adev,
 			       enum amdgpu_hpd_id hpd)
 {
-	int idx;
 	bool connected = false;
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		idx = 0;
-		break;
-	case AMDGPU_HPD_2:
-		idx = 1;
-		break;
-	case AMDGPU_HPD_3:
-		idx = 2;
-		break;
-	case AMDGPU_HPD_4:
-		idx = 3;
-		break;
-	case AMDGPU_HPD_5:
-		idx = 4;
-		break;
-	case AMDGPU_HPD_6:
-		idx = 5;
-		break;
-	default:
+	if (hpd >= adev->mode_info.num_hpd)
 		return connected;
-	}
 
-	if (RREG32(mmDC_HPD_INT_STATUS + hpd_offsets[idx]) &
+	if (RREG32(mmDC_HPD_INT_STATUS + hpd_offsets[hpd]) &
 	    DC_HPD_INT_STATUS__DC_HPD_SENSE_MASK)
 		connected = true;
 
@@ -376,37 +356,16 @@ static void dce_v10_0_hpd_set_polarity(struct amdgpu_device *adev,
 {
 	u32 tmp;
 	bool connected = dce_v10_0_hpd_sense(adev, hpd);
-	int idx;
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		idx = 0;
-		break;
-	case AMDGPU_HPD_2:
-		idx = 1;
-		break;
-	case AMDGPU_HPD_3:
-		idx = 2;
-		break;
-	case AMDGPU_HPD_4:
-		idx = 3;
-		break;
-	case AMDGPU_HPD_5:
-		idx = 4;
-		break;
-	case AMDGPU_HPD_6:
-		idx = 5;
-		break;
-	default:
+	if (hpd >= adev->mode_info.num_hpd)
 		return;
-	}
 
-	tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx]);
+	tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[hpd]);
 	if (connected)
 		tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_POLARITY, 0);
 	else
 		tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_POLARITY, 1);
-	WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx], tmp);
+	WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[hpd], tmp);
 }
 
 /**
@@ -422,33 +381,12 @@ static void dce_v10_0_hpd_init(struct amdgpu_device *adev)
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
 	u32 tmp;
-	int idx;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			idx = 0;
-			break;
-		case AMDGPU_HPD_2:
-			idx = 1;
-			break;
-		case AMDGPU_HPD_3:
-			idx = 2;
-			break;
-		case AMDGPU_HPD_4:
-			idx = 3;
-			break;
-		case AMDGPU_HPD_5:
-			idx = 4;
-			break;
-		case AMDGPU_HPD_6:
-			idx = 5;
-			break;
-		default:
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
 			continue;
-		}
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
@@ -457,24 +395,24 @@ static void dce_v10_0_hpd_init(struct amdgpu_device *adev)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
-			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx]);
+			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 			tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_EN, 0);
-			WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx], tmp);
+			WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 			continue;
 		}
 
-		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_CONTROL, DC_HPD_EN, 1);
-		WREG32(mmDC_HPD_CONTROL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
-		tmp = RREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_TOGGLE_FILT_CNTL,
 				    DC_HPD_CONNECT_INT_DELAY,
 				    AMDGPU_HPD_CONNECT_INT_DELAY_IN_MS);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_TOGGLE_FILT_CNTL,
 				    DC_HPD_DISCONNECT_INT_DELAY,
 				    AMDGPU_HPD_DISCONNECT_INT_DELAY_IN_MS);
-		WREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		dce_v10_0_hpd_set_polarity(adev, amdgpu_connector->hpd.hpd);
 		amdgpu_irq_get(adev, &adev->hpd_irq,
@@ -495,37 +433,16 @@ static void dce_v10_0_hpd_fini(struct amdgpu_device *adev)
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
 	u32 tmp;
-	int idx;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			idx = 0;
-			break;
-		case AMDGPU_HPD_2:
-			idx = 1;
-			break;
-		case AMDGPU_HPD_3:
-			idx = 2;
-			break;
-		case AMDGPU_HPD_4:
-			idx = 3;
-			break;
-		case AMDGPU_HPD_5:
-			idx = 4;
-			break;
-		case AMDGPU_HPD_6:
-			idx = 5;
-			break;
-		default:
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
 			continue;
-		}
 
-		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_CONTROL, DC_HPD_EN, 0);
-		WREG32(mmDC_HPD_CONTROL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		amdgpu_irq_put(adev, &adev->hpd_irq,
 			       amdgpu_connector->hpd.hpd);
@@ -2115,7 +2032,7 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 tmp, viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	char *format_name;
+	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -2227,9 +2144,8 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 		bypass_lut = true;
 		break;
 	default:
-		format_name = drm_get_format_name(target_fb->pixel_format);
-		DRM_ERROR("Unsupported screen format %s\n", format_name);
-		kfree(format_name);
+		DRM_ERROR("Unsupported screen format %s\n",
+		          drm_get_format_name(target_fb->pixel_format, &format_name));
 		return -EINVAL;
 	}
 
@@ -2577,6 +2493,9 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
 
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
+
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
@@ -2595,9 +2514,6 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
 	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
 	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
-
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
 
 	return 0;
 }
@@ -2661,12 +2577,11 @@ static int dce_v10_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	amdgpu_crtc->cursor_width = width;
-	amdgpu_crtc->cursor_height = height;
-
 	dce_v10_0_lock_cursor(crtc, true);
 
-	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	if (width != amdgpu_crtc->cursor_width ||
+	    height != amdgpu_crtc->cursor_height ||
+	    hot_x != amdgpu_crtc->cursor_hot_x ||
 	    hot_y != amdgpu_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -2675,6 +2590,8 @@ static int dce_v10_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		dce_v10_0_cursor_move_locked(crtc, x, y);
 
+		amdgpu_crtc->cursor_width = width;
+		amdgpu_crtc->cursor_height = height;
 		amdgpu_crtc->cursor_hot_x = hot_x;
 		amdgpu_crtc->cursor_hot_y = hot_y;
 	}
@@ -3548,7 +3465,7 @@ static int dce_v10_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs dce_v10_0_ip_funcs = {
+static const struct amd_ip_funcs dce_v10_0_ip_funcs = {
 	.name = "dce_v10_0",
 	.early_init = dce_v10_0_early_init,
 	.late_init = NULL,
@@ -3833,7 +3750,6 @@ static const struct amdgpu_display_funcs dce_v10_0_display_funcs = {
 	.bandwidth_update = &dce_v10_0_bandwidth_update,
 	.vblank_get_counter = &dce_v10_0_vblank_get_counter,
 	.vblank_wait = &dce_v10_0_vblank_wait,
-	.is_display_hung = &dce_v10_0_is_display_hung,
 	.backlight_set_level = &amdgpu_atombios_encoder_set_backlight_level,
 	.backlight_get_level = &amdgpu_atombios_encoder_get_backlight_level,
 	.hpd_sense = &dce_v10_0_hpd_sense,
@@ -3879,3 +3795,21 @@ static void dce_v10_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
 	adev->hpd_irq.funcs = &dce_v10_0_hpd_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version dce_v10_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 10,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &dce_v10_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v10_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 10,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &dce_v10_0_ip_funcs,
+};

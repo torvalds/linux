@@ -30,7 +30,7 @@ int gf119_disp_dmac_bind(struct nv50_disp_dmac *, struct nvkm_object *, u32);
 extern const struct nv50_disp_dmac_func gf119_disp_core_func;
 void gf119_disp_core_fini(struct nv50_disp_dmac *);
 
-extern const struct nv50_disp_dmac_func gp104_disp_dmac_func;
+extern const struct nv50_disp_dmac_func gp102_disp_dmac_func;
 
 struct nv50_disp_dmac_oclass {
 	int (*ctor)(const struct nv50_disp_dmac_func *,
@@ -95,7 +95,7 @@ extern const struct nv50_disp_dmac_oclass gm200_disp_core_oclass;
 
 extern const struct nv50_disp_dmac_oclass gp100_disp_core_oclass;
 
-extern const struct nv50_disp_dmac_oclass gp104_disp_core_oclass;
-extern const struct nv50_disp_dmac_oclass gp104_disp_base_oclass;
-extern const struct nv50_disp_dmac_oclass gp104_disp_ovly_oclass;
+extern const struct nv50_disp_dmac_oclass gp102_disp_core_oclass;
+extern const struct nv50_disp_dmac_oclass gp102_disp_base_oclass;
+extern const struct nv50_disp_dmac_oclass gp102_disp_ovly_oclass;
 #endif

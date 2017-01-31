@@ -41,6 +41,12 @@ enum qed_ll2_conn_type {
 	MAX_QED_LL2_RX_CONN_TYPE
 };
 
+enum qed_ll2_tx_dest {
+	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
+	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
+	QED_LL2_TX_DEST_MAX
+};
+
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
 	struct core_rx_bd_with_buff_len *rxq_bd;
@@ -106,15 +112,8 @@ struct qed_ll2_tx_queue {
 	bool b_completing_packet;
 };
 
-struct qed_ll2_info {
-	/* Lock protecting the state of LL2 */
-	struct mutex mutex;
+struct qed_ll2_conn {
 	enum qed_ll2_conn_type conn_type;
-	u32 cid;
-	u8 my_id;
-	u8 queue_id;
-	u8 tx_stats_id;
-	bool b_active;
 	u16 mtu;
 	u8 rx_drop_ttl0_flg;
 	u8 rx_vlan_removal_en;
@@ -122,10 +121,21 @@ struct qed_ll2_info {
 	enum core_tx_dest tx_dest;
 	enum core_error_handle ai_err_packet_too_big;
 	enum core_error_handle ai_err_no_buf;
+	u8 gsi_enable;
+};
+
+struct qed_ll2_info {
+	/* Lock protecting the state of LL2 */
+	struct mutex mutex;
+	struct qed_ll2_conn conn;
+	u32 cid;
+	u8 my_id;
+	u8 queue_id;
+	u8 tx_stats_id;
+	bool b_active;
 	u8 tx_stats_en;
 	struct qed_ll2_rx_queue rx_queue;
 	struct qed_ll2_tx_queue tx_queue;
-	u8 gsi_enable;
 };
 
 /**
@@ -143,7 +153,7 @@ struct qed_ll2_info {
  * @return 0 on success, failure otherwise
  */
 int qed_ll2_acquire_connection(struct qed_hwfn *p_hwfn,
-			       struct qed_ll2_info *p_params,
+			       struct qed_ll2_conn *p_params,
 			       u16 rx_num_desc,
 			       u16 tx_num_desc,
 			       u8 *p_connection_handle);
@@ -192,6 +202,8 @@ int qed_ll2_post_rx_buffer(struct qed_hwfn *p_hwfn,
  * @param l4_hdr_offset_w	L4 Header Offset from start of packet
  *				(in words). This is needed if both l4_csum
  *				and ipv6_ext are set
+ * @param e_tx_dest             indicates if the packet is to be transmitted via
+ *                              loopback or to the network
  * @param first_frag
  * @param first_frag_len
  * @param cookie
@@ -206,6 +218,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u16 vlan,
 			      u8 bd_flags,
 			      u16 l4_hdr_offset_w,
+			      enum qed_ll2_tx_dest e_tx_dest,
 			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
 			      dma_addr_t first_frag,
 			      u16 first_frag_len, void *cookie, u8 notify_fw);

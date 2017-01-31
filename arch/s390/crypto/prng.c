@@ -21,7 +21,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/timex.h>
 #include <asm/cpacf.h>
 
@@ -507,8 +507,10 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 		prng_data->prngws.byte_counter += n;
 		prng_data->prngws.reseed_counter += n;
 
-		if (copy_to_user(ubuf, prng_data->buf, chunk))
-			return -EFAULT;
+		if (copy_to_user(ubuf, prng_data->buf, chunk)) {
+			ret = -EFAULT;
+			break;
+		}
 
 		nbytes -= chunk;
 		ret += chunk;

@@ -36,6 +36,30 @@
 		reg = <0x0 0x40000000>; /* 1GB */
 	};
 
+	a10leds {
+		compatible = "gpio-leds";
+
+		a10sr_led0 {
+			label = "a10sr-led0";
+			gpios = <&a10sr_gpio 0 1>;
+		};
+
+		a10sr_led1 {
+			label = "a10sr-led1";
+			gpios = <&a10sr_gpio 1 1>;
+		};
+
+		a10sr_led2 {
+			label = "a10sr-led2";
+			gpios = <&a10sr_gpio 2 1>;
+		};
+
+		a10sr_led3 {
+			label = "a10sr-led3";
+			gpios = <&a10sr_gpio 3 1>;
+		};
+	};
+
 	soc {
 		clkmgr@ffd04000 {
 			clocks {
@@ -73,6 +97,31 @@
 	rxc-skew-ps = <1680>; /* 780ps */
 	max-frame-size = <3800>;
 	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	resource-manager@0 {
+		compatible = "altr,a10sr";
+		reg = <0>;
+		spi-max-frequency = <100000>;
+		/* low-level active IRQ at GPIO1_5 */
+		interrupt-parent = <&portb>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		a10sr_gpio: gpio-controller {
+			compatible = "altr,a10sr-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
 };
 
 &i2c1 {

@@ -436,6 +436,9 @@ struct bcm2835_clock_data {
 	const char *const *parents;
 	int num_mux_parents;
 
+	/* Bitmap encoding which parents accept rate change propagation. */
+	unsigned int set_rate_parent;
+
 	u32 ctl_reg;
 	u32 div_reg;
 
@@ -751,7 +754,9 @@ static void bcm2835_pll_divider_off(struct clk_hw *hw)
 	cprman_write(cprman, data->cm_reg,
 		     (cprman_read(cprman, data->cm_reg) &
 		      ~data->load_mask) | data->hold_mask);
-	cprman_write(cprman, data->a2w_reg, A2W_PLL_CHANNEL_DISABLE);
+	cprman_write(cprman, data->a2w_reg,
+		     cprman_read(cprman, data->a2w_reg) |
+		     A2W_PLL_CHANNEL_DISABLE);
 	spin_unlock(&cprman->regs_lock);
 }
 
@@ -1015,10 +1020,60 @@ bcm2835_clk_is_pllc(struct clk_hw *hw)
 	return strncmp(clk_hw_get_name(hw), "pllc", 4) == 0;
 }
 
+static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
+							int parent_idx,
+							unsigned long rate,
+							u32 *div,
+							unsigned long *prate)
+{
+	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
+	struct bcm2835_cprman *cprman = clock->cprman;
+	const struct bcm2835_clock_data *data = clock->data;
+	unsigned long best_rate = 0;
+	u32 curdiv, mindiv, maxdiv;
+	struct clk_hw *parent;
+
+	parent = clk_hw_get_parent_by_index(hw, parent_idx);
+
+	if (!(BIT(parent_idx) & data->set_rate_parent)) {
+		*prate = clk_hw_get_rate(parent);
+		*div = bcm2835_clock_choose_div(hw, rate, *prate, true);
+
+		return bcm2835_clock_rate_from_divisor(clock, *prate,
+						       *div);
+	}
+
+	if (data->frac_bits)
+		dev_warn(cprman->dev,
+			"frac bits are not used when propagating rate change");
+
+	/* clamp to min divider of 2 if we're dealing with a mash clock */
+	mindiv = data->is_mash_clock ? 2 : 1;
+	maxdiv = BIT(data->int_bits) - 1;
+
+	/* TODO: Be smart, and only test a subset of the available divisors. */
+	for (curdiv = mindiv; curdiv <= maxdiv; curdiv++) {
+		unsigned long tmp_rate;
+
+		tmp_rate = clk_hw_round_rate(parent, rate * curdiv);
+		tmp_rate /= curdiv;
+		if (curdiv == mindiv ||
+		    (tmp_rate > best_rate && tmp_rate <= rate))
+			best_rate = tmp_rate;
+
+		if (best_rate == rate)
+			break;
+	}
+
+	*div = curdiv << CM_DIV_FRAC_BITS;
+	*prate = curdiv * best_rate;
+
+	return best_rate;
+}
+
 static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 					struct clk_rate_request *req)
 {
-	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct clk_hw *parent, *best_parent = NULL;
 	bool current_parent_is_pllc;
 	unsigned long rate, best_rate = 0;
@@ -1046,9 +1101,8 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 		if (bcm2835_clk_is_pllc(parent) && !current_parent_is_pllc)
 			continue;
 
-		prate = clk_hw_get_rate(parent);
-		div = bcm2835_clock_choose_div(hw, req->rate, prate, true);
-		rate = bcm2835_clock_rate_from_divisor(clock, prate, div);
+		rate = bcm2835_clock_choose_div_and_prate(hw, i, req->rate,
+							  &div, &prate);
 		if (rate > best_rate && rate <= req->rate) {
 			best_parent = parent;
 			best_prate = prate;
@@ -1259,6 +1313,13 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	init.num_parents = data->num_mux_parents;
 	init.name = data->name;
 	init.flags = data->flags | CLK_IGNORE_UNUSED;
+
+	/*
+	 * Pass the CLK_SET_RATE_PARENT flag if we are allowed to propagate
+	 * rate changes on at least of the parents.
+	 */
+	if (data->set_rate_parent)
+		init.flags |= CLK_SET_RATE_PARENT;
 
 	if (data->is_vpu_clock) {
 		init.ops = &bcm2835_vpu_clock_clk_ops;
@@ -1596,7 +1657,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.a2w_reg = A2W_PLLH_AUX,
 		.load_mask = CM_PLLH_LOADAUX,
 		.hold_mask = 0,
-		.fixed_divider = 10),
+		.fixed_divider = 1),
 	[BCM2835_PLLH_PIX]	= REGISTER_PLL_DIV(
 		.name = "pllh_pix",
 		.source_pll = "pllh",
@@ -1800,7 +1861,12 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.ctl_reg = CM_VECCTL,
 		.div_reg = CM_VECDIV,
 		.int_bits = 4,
-		.frac_bits = 0),
+		.frac_bits = 0,
+		/*
+		 * Allow rate change propagation only on PLLH_AUX which is
+		 * assigned index 7 in the parent array.
+		 */
+		.set_rate_parent = BIT(7)),
 
 	/* dsi clocks */
 	[BCM2835_CLOCK_DSI0E]	= REGISTER_PER_CLK(

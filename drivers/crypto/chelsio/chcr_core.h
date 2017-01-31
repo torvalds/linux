@@ -52,13 +52,27 @@
 
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
+#define MAX_SALT                4
 
 struct uld_ctx;
 
+struct _key_ctx {
+	__be32 ctx_hdr;
+	u8 salt[MAX_SALT];
+	__be64 reserverd;
+	unsigned char key[0];
+};
+
+struct chcr_wr {
+	struct fw_crypto_lookaside_wr wreq;
+	struct ulp_txpkt ulptx;
+	struct ulptx_idata sc_imm;
+	struct cpl_tx_sec_pdu sec_cpl;
+	struct _key_ctx key_ctx;
+};
+
 struct chcr_dev {
-	/* Request submited to h/w and waiting for response. */
 	spinlock_t lock_chcr_dev;
-	struct crypto_queue pending_queue;
 	struct uld_ctx *u_ctx;
 	unsigned char tx_channel_id;
 };

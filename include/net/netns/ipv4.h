@@ -110,6 +110,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_orphan_retries;
 	int sysctl_tcp_fin_timeout;
 	unsigned int sysctl_tcp_notsent_lowat;
+	int sysctl_tcp_tw_reuse;
 
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
@@ -135,6 +136,9 @@ struct netns_ipv4 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int sysctl_fib_multipath_use_neigh;
 #endif
+
+	unsigned int	fib_seq;	/* protected by rtnl_mutex */
+
 	atomic_t	rt_genid;
 };
 #endif

@@ -22,7 +22,7 @@
 
 #define POWERNV_THRESHOLD_LATENCY_NS 200000
 
-struct cpuidle_driver powernv_idle_driver = {
+static struct cpuidle_driver powernv_idle_driver = {
 	.name             = "powernv_idle",
 	.owner            = THIS_MODULE,
 };

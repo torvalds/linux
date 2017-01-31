@@ -585,9 +585,28 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 		 u8 command, int size, union i2c_smbus_data *data)
 {
 	struct i2c_piix4_adapdata *adapdata = i2c_get_adapdata(adap);
+	unsigned short piix4_smba = adapdata->smba;
+	int retries = MAX_TIMEOUT;
+	int smbslvcnt;
 	u8 smba_en_lo;
 	u8 port;
 	int retval;
+
+	/* Request the SMBUS semaphore, avoid conflicts with the IMC */
+	smbslvcnt  = inb_p(SMBSLVCNT);
+	do {
+		outb_p(smbslvcnt | 0x10, SMBSLVCNT);
+
+		/* Check the semaphore status */
+		smbslvcnt  = inb_p(SMBSLVCNT);
+		if (smbslvcnt & 0x10)
+			break;
+
+		usleep_range(1000, 2000);
+	} while (--retries);
+	/* SMBus is still owned by the IMC, we give up */
+	if (!retries)
+		return -EBUSY;
 
 	mutex_lock(&piix4_mutex_sb800);
 
@@ -605,6 +624,9 @@ static s32 piix4_access_sb800(struct i2c_adapter *adap, u16 addr,
 	outb_p(smba_en_lo, SB800_PIIX4_SMB_IDX + 1);
 
 	mutex_unlock(&piix4_mutex_sb800);
+
+	/* Release the semaphore */
+	outb_p(smbslvcnt | 0x20, SMBSLVCNT);
 
 	return retval;
 }

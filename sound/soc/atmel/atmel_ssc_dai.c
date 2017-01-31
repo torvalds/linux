@@ -380,6 +380,7 @@ static void atmel_ssc_shutdown(struct snd_pcm_substream *substream,
 		ssc_writel(ssc_p->ssc->regs, CR, SSC_BIT(CR_SWRST));
 		/* Clear the SSC dividers */
 		ssc_p->cmr_div = ssc_p->tcmr_period = ssc_p->rcmr_period = 0;
+		ssc_p->forced_divider = 0;
 	}
 	spin_unlock_irq(&ssc_p->lock);
 
@@ -426,20 +427,45 @@ static int atmel_ssc_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 		else
 			if (div != ssc_p->cmr_div)
 				return -EBUSY;
+		ssc_p->forced_divider |= BIT(ATMEL_SSC_CMR_DIV);
 		break;
 
 	case ATMEL_SSC_TCMR_PERIOD:
 		ssc_p->tcmr_period = div;
+		ssc_p->forced_divider |= BIT(ATMEL_SSC_TCMR_PERIOD);
 		break;
 
 	case ATMEL_SSC_RCMR_PERIOD:
 		ssc_p->rcmr_period = div;
+		ssc_p->forced_divider |= BIT(ATMEL_SSC_RCMR_PERIOD);
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+/* Is the cpu-dai master of the frame clock? */
+static int atmel_ssc_cfs(struct atmel_ssc_info *ssc_p)
+{
+	switch (ssc_p->daifmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBS_CFS:
+		return 1;
+	}
+	return 0;
+}
+
+/* Is the cpu-dai master of the bit clock? */
+static int atmel_ssc_cbs(struct atmel_ssc_info *ssc_p)
+{
+	switch (ssc_p->daifmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBS_CFS:
+		return 1;
+	}
 	return 0;
 }
 
@@ -459,6 +485,9 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	u32 tfmr, rfmr, tcmr, rcmr;
 	int ret;
 	int fslen, fslen_ext;
+	u32 cmr_div;
+	u32 tcmr_period;
+	u32 rcmr_period;
 
 	/*
 	 * Currently, there is only one set of dma params for
@@ -469,6 +498,46 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		dir = 0;
 	else
 		dir = 1;
+
+	/*
+	 * If the cpu dai should provide BCLK, but noone has provided the
+	 * divider needed for that to work, fall back to something sensible.
+	 */
+	cmr_div = ssc_p->cmr_div;
+	if (!(ssc_p->forced_divider & BIT(ATMEL_SSC_CMR_DIV)) &&
+	    atmel_ssc_cbs(ssc_p)) {
+		int bclk_rate = snd_soc_params_to_bclk(params);
+
+		if (bclk_rate < 0) {
+			dev_err(dai->dev, "unable to calculate cmr_div: %d\n",
+				bclk_rate);
+			return bclk_rate;
+		}
+
+		cmr_div = DIV_ROUND_CLOSEST(ssc_p->mck_rate, 2 * bclk_rate);
+	}
+
+	/*
+	 * If the cpu dai should provide LRCLK, but noone has provided the
+	 * dividers needed for that to work, fall back to something sensible.
+	 */
+	tcmr_period = ssc_p->tcmr_period;
+	rcmr_period = ssc_p->rcmr_period;
+	if (atmel_ssc_cfs(ssc_p)) {
+		int frame_size = snd_soc_params_to_frame_size(params);
+
+		if (frame_size < 0) {
+			dev_err(dai->dev,
+				"unable to calculate tx/rx cmr_period: %d\n",
+				frame_size);
+			return frame_size;
+		}
+
+		if (!(ssc_p->forced_divider & BIT(ATMEL_SSC_TCMR_PERIOD)))
+			tcmr_period = frame_size / 2 - 1;
+		if (!(ssc_p->forced_divider & BIT(ATMEL_SSC_RCMR_PERIOD)))
+			rcmr_period = frame_size / 2 - 1;
+	}
 
 	dma_params = ssc_p->dma_params[dir];
 
@@ -524,7 +593,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		fslen_ext = (bits - 1) / 16;
 		fslen = (bits - 1) % 16;
 
-		rcmr =	  SSC_BF(RCMR_PERIOD, ssc_p->rcmr_period)
+		rcmr =	  SSC_BF(RCMR_PERIOD, rcmr_period)
 			| SSC_BF(RCMR_STTDLY, START_DELAY)
 			| SSC_BF(RCMR_START, SSC_START_FALLING_RF)
 			| SSC_BF(RCMR_CKI, SSC_CKI_RISING)
@@ -540,7 +609,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 			| SSC_BF(RFMR_LOOP, 0)
 			| SSC_BF(RFMR_DATLEN, (bits - 1));
 
-		tcmr =	  SSC_BF(TCMR_PERIOD, ssc_p->tcmr_period)
+		tcmr =	  SSC_BF(TCMR_PERIOD, tcmr_period)
 			| SSC_BF(TCMR_STTDLY, START_DELAY)
 			| SSC_BF(TCMR_START, SSC_START_FALLING_RF)
 			| SSC_BF(TCMR_CKI, SSC_CKI_FALLING)
@@ -606,7 +675,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		fslen_ext = (bits - 1) / 16;
 		fslen = (bits - 1) % 16;
 
-		rcmr =	  SSC_BF(RCMR_PERIOD, ssc_p->rcmr_period)
+		rcmr =	  SSC_BF(RCMR_PERIOD, rcmr_period)
 			| SSC_BF(RCMR_STTDLY, START_DELAY)
 			| SSC_BF(RCMR_START, SSC_START_FALLING_RF)
 			| SSC_BF(RCMR_CKI, SSC_CKI_RISING)
@@ -623,7 +692,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 			| SSC_BF(RFMR_LOOP, 0)
 			| SSC_BF(RFMR_DATLEN, (bits - 1));
 
-		tcmr =	  SSC_BF(TCMR_PERIOD, ssc_p->tcmr_period)
+		tcmr =	  SSC_BF(TCMR_PERIOD, tcmr_period)
 			| SSC_BF(TCMR_STTDLY, START_DELAY)
 			| SSC_BF(TCMR_START, SSC_START_FALLING_RF)
 			| SSC_BF(TCMR_CKI, SSC_CKI_FALLING)
@@ -650,7 +719,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		 * MCK divider, and the BCLK signal is output
 		 * on the SSC TK line.
 		 */
-		rcmr =	  SSC_BF(RCMR_PERIOD, ssc_p->rcmr_period)
+		rcmr =	  SSC_BF(RCMR_PERIOD, rcmr_period)
 			| SSC_BF(RCMR_STTDLY, 1)
 			| SSC_BF(RCMR_START, SSC_START_RISING_RF)
 			| SSC_BF(RCMR_CKI, SSC_CKI_RISING)
@@ -665,7 +734,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 			| SSC_BF(RFMR_LOOP, 0)
 			| SSC_BF(RFMR_DATLEN, (bits - 1));
 
-		tcmr =	  SSC_BF(TCMR_PERIOD, ssc_p->tcmr_period)
+		tcmr =	  SSC_BF(TCMR_PERIOD, tcmr_period)
 			| SSC_BF(TCMR_STTDLY, 1)
 			| SSC_BF(TCMR_START, SSC_START_RISING_RF)
 			| SSC_BF(TCMR_CKI, SSC_CKI_FALLING)
@@ -760,7 +829,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set SSC clock mode register */
-	ssc_writel(ssc_p->ssc->regs, CMR, ssc_p->cmr_div);
+	ssc_writel(ssc_p->ssc->regs, CMR, cmr_div);
 
 	/* set receive clock mode and format */
 	ssc_writel(ssc_p->ssc->regs, RCMR, rcmr);

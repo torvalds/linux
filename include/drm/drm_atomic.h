@@ -144,6 +144,7 @@ struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state;
 	struct drm_crtc_commit *commit;
+	s32 __user *out_fence_ptr;
 };
 
 struct __drm_connnectors_state {
@@ -153,6 +154,7 @@ struct __drm_connnectors_state {
 
 /**
  * struct drm_atomic_state - the global state object for atomic updates
+ * @ref: count of all references to this state (will not be freed until zero)
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
@@ -164,6 +166,8 @@ struct __drm_connnectors_state {
  * @acquire_ctx: acquire context for this atomic modeset state update
  */
 struct drm_atomic_state {
+	struct kref ref;
+
 	struct drm_device *dev;
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
@@ -193,7 +197,33 @@ static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
-void drm_atomic_state_free(struct drm_atomic_state *state);
+
+/**
+ * drm_atomic_state_get - acquire a reference to the atomic state
+ * @state: The atomic state
+ *
+ * Returns a new reference to the @state
+ */
+static inline struct drm_atomic_state *
+drm_atomic_state_get(struct drm_atomic_state *state)
+{
+	kref_get(&state->ref);
+	return state;
+}
+
+void __drm_atomic_state_free(struct kref *ref);
+
+/**
+ * drm_atomic_state_put - release a reference to the atomic state
+ * @state: The atomic state
+ *
+ * This releases a reference to @state which is freed after removing the
+ * final reference. No locking required and callable from any context.
+ */
+static inline void drm_atomic_state_put(struct drm_atomic_state *state)
+{
+	kref_put(&state->ref, __drm_atomic_state_free);
+}
 
 int  __must_check
 drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state);
@@ -316,6 +346,8 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 			      struct drm_crtc *crtc);
 void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 				 struct drm_framebuffer *fb);
+void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
+				    struct dma_fence *fence);
 int __must_check
 drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 				  struct drm_crtc *crtc);
@@ -334,6 +366,14 @@ drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
+
+void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
+
+#ifdef CONFIG_DEBUG_FS
+struct drm_minor;
+int drm_atomic_debugfs_init(struct drm_minor *minor);
+int drm_atomic_debugfs_cleanup(struct drm_minor *minor);
+#endif
 
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
@@ -365,11 +405,20 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
  *
  * To give drivers flexibility struct &drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
- * connectors_changed, mode_changed and active_change. This helper simply
+ * connectors_changed, mode_changed and active_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
+ *
+ * The atomic helper code sets these booleans, but drivers can and should
+ * change them appropriately to accurately represent whether a modeset is
+ * really needed. In general, drivers should avoid full modesets whenever
+ * possible.
+ *
+ * For example if the CRTC mode has changed, and the hardware is able to enact
+ * the requested mode change without going through a full modeset, the driver
+ * should clear mode_changed during its ->atomic_check.
  */
 static inline bool
-drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
+drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 {
 	return state->mode_changed || state->active_changed ||
 	       state->connectors_changed;

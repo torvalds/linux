@@ -234,9 +234,9 @@
 
 extern int dw_mci_probe(struct dw_mci *host);
 extern void dw_mci_remove(struct dw_mci *host);
-#ifdef CONFIG_PM_SLEEP
-extern int dw_mci_suspend(struct dw_mci *host);
-extern int dw_mci_resume(struct dw_mci *host);
+#ifdef CONFIG_PM
+extern int dw_mci_runtime_suspend(struct device *device);
+extern int dw_mci_runtime_resume(struct device *device);
 #endif
 
 /**
@@ -272,6 +272,7 @@ struct dw_mci_slot {
 #define DW_MMC_CARD_NEED_INIT	1
 #define DW_MMC_CARD_NO_LOW_PWR	2
 #define DW_MMC_CARD_NO_USE_HOLD 3
+#define DW_MMC_CARD_NEEDS_POLL	4
 	int			id;
 	int			sdio_id;
 };

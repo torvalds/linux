@@ -167,7 +167,7 @@ config GPIO_DWAPB
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
-	depends on ARM && OF_GPIO
+	depends on (ARCH_EMEV2 || COMPILE_TEST) && OF_GPIO
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
@@ -451,7 +451,7 @@ config GPIO_VR41XX
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on PCI
+	depends on (X86 || COMPILE_TEST) && PCI
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -520,6 +520,7 @@ config GPIO_ZYNQ
 
 config GPIO_ZX
 	bool "ZTE ZX GPIO support"
+	depends on ARCH_ZX || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO device on ZTE ZX SoCs.
@@ -603,7 +604,7 @@ config GPIO_IT87
 
 config GPIO_SCH
 	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
-	depends on PCI
+	depends on (X86 || COMPILE_TEST) && PCI
 	select MFD_CORE
 	select LPC_SCH
 	help
@@ -777,16 +778,13 @@ config GPIO_PCF857X
 	  platform-neutral GPIO calls.
 
 config GPIO_SX150X
-	bool "Semtech SX150x I2C GPIO expander"
-	depends on I2C=y
-	select GPIOLIB_IRQCHIP
+	bool "Semtech SX150x I2C GPIO expander (deprecated)"
+	depends on PINCTRL && I2C=y
+	select PINCTRL_SX150X
 	default n
 	help
-	  Say yes here to provide support for Semtech SX150-series I2C
-	  GPIO expanders. Compatible models include:
-
-	  8 bits:  sx1508q
-	  16 bits: sx1509q
+	  Say yes here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders. The GPIO driver was replaced by a Pinctrl version.
 
 config GPIO_TPIC2810
 	tristate "TPIC2810 8-Bit I2C GPO expander"
@@ -798,6 +796,7 @@ config GPIO_TPIC2810
 
 config GPIO_TS4900
 	tristate "Technologic Systems FPGA I2C GPIO"
+	depends on SOC_IMX6 || COMPILE_TEST
 	select REGMAP_I2C
 	help
 	  Say yes here to enabled the GPIO driver for Technologic's FPGA core.
@@ -814,6 +813,14 @@ config GPIO_ADP5520
 	  This option enables support for on-chip GPIO found
 	  on Analog Devices ADP5520 PMICs.
 
+config GPIO_ALTERA_A10SR
+	tristate "Altera Arria10 System Resource GPIO"
+	depends on MFD_ALTERA_A10SR
+	help
+	  Driver for Arria10 Development Kit GPIO expansion which
+	  includes reads of pushbuttons and DIP switches as well
+	  as writes to LEDs.
+
 config GPIO_ARIZONA
 	tristate "Wolfson Microelectronics Arizona class devices"
 	depends on MFD_ARIZONA
@@ -822,7 +829,7 @@ config GPIO_ARIZONA
 
 config GPIO_CRYSTAL_COVE
 	tristate "GPIO support for Crystal Cove PMIC"
-	depends on INTEL_SOC_PMIC
+	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC
 	select GPIOLIB_IRQCHIP
 	help
 	  Support for GPIO pins on Crystal Cove PMIC.
@@ -835,6 +842,7 @@ config GPIO_CRYSTAL_COVE
 
 config GPIO_CS5535
 	tristate "AMD CS5535/CS5536 GPIO support"
+	depends on X86 || MIPS || COMPILE_TEST
 	depends on MFD_CS5535
 	help
 	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
@@ -927,7 +935,7 @@ config GPIO_MAX77620
 
 config GPIO_MSIC
 	bool "Intel MSIC mixed signal gpio support"
-	depends on MFD_INTEL_MSIC
+	depends on (X86 || COMPILE_TEST) && MFD_INTEL_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
@@ -1028,7 +1036,7 @@ config GPIO_UCB1400
 
 config GPIO_WHISKEY_COVE
 	tristate "GPIO support for Whiskey Cove PMIC"
-	depends on INTEL_SOC_PMIC
+	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC
 	select GPIOLIB_IRQCHIP
 	help
 	  Support for GPIO pins on Whiskey Cove PMIC.
@@ -1067,6 +1075,7 @@ menu "PCI GPIO expanders"
 
 config GPIO_AMD8111
 	tristate "AMD 8111 GPIO driver"
+	depends on X86 || COMPILE_TEST
 	help
 	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
 
@@ -1108,6 +1117,7 @@ config GPIO_MERRIFIELD
 
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
+	depends on X86 || COMPILE_TEST
 	select GENERIC_IRQ_CHIP
 	help
 	  ML7213 is companion chip for Intel Atom E6xx series.

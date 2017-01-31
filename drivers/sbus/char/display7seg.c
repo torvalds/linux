@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>		/* put_/get_user			*/
+#include <linux/uaccess.h>		/* put_/get_user			*/
 #include <asm/io.h>
 
 #include <asm/display7seg.h>

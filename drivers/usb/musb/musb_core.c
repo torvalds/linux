@@ -100,6 +100,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb.h>
+#include <linux/usb/of.h>
 
 #include "musb_core.h"
 #include "musb_trace.h"
@@ -129,6 +130,24 @@ static inline struct musb *dev_to_musb(struct device *dev)
 {
 	return dev_get_drvdata(dev);
 }
+
+enum musb_mode musb_get_mode(struct device *dev)
+{
+	enum usb_dr_mode mode;
+
+	mode = usb_get_dr_mode(dev);
+	switch (mode) {
+	case USB_DR_MODE_HOST:
+		return MUSB_HOST;
+	case USB_DR_MODE_PERIPHERAL:
+		return MUSB_PERIPHERAL;
+	case USB_DR_MODE_OTG:
+	case USB_DR_MODE_UNKNOWN:
+	default:
+		return MUSB_OTG;
+	}
+}
+EXPORT_SYMBOL_GPL(musb_get_mode);
 
 /*-------------------------------------------------------------------------*/
 
@@ -569,10 +588,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		if (devctl & MUSB_DEVCTL_HM) {
 			switch (musb->xceiv->otg->state) {
 			case OTG_STATE_A_SUSPEND:
-				/* remote wakeup?  later, GetPortStatus
-				 * will stop RESUME signaling
-				 */
-
+				/* remote wakeup? */
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
 						| MUSB_PORT_STAT_RESUME;
@@ -2034,6 +2050,7 @@ struct musb_pending_work {
 	struct list_head node;
 };
 
+#ifdef CONFIG_PM
 /*
  * Called from musb_runtime_resume(), musb_resume(), and
  * musb_queue_resume_work(). Callers must take musb->lock.
@@ -2061,6 +2078,7 @@ static int musb_run_resume_work(struct musb *musb)
 
 	return error;
 }
+#endif
 
 /*
  * Called to run work if device is active or else queue the work to happen
@@ -2414,8 +2432,9 @@ fail2:
 	musb_platform_exit(musb);
 
 fail1:
-	dev_err(musb->controller,
-		"musb_init_controller failed with status %d\n", status);
+	if (status != -EPROBE_DEFER)
+		dev_err(musb->controller,
+			"%s failed with status %d\n", __func__, status);
 
 	musb_free(musb);
 

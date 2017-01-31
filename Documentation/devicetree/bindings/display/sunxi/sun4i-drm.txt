@@ -28,6 +28,8 @@ The TCON acts as a timing controller for RGB, LVDS and TV interfaces.
 Required properties:
  - compatible: value must be either:
    * allwinner,sun5i-a13-tcon
+   * allwinner,sun6i-a31-tcon
+   * allwinner,sun6i-a31s-tcon
    * allwinner,sun8i-a33-tcon
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
@@ -50,7 +52,7 @@ Required properties:
   second the block connected to the TCON channel 1 (usually the TV
   encoder)
 
-On the A13, there is one more clock required:
+On SoCs other than the A33, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
 DRC
@@ -64,6 +66,8 @@ adaptive backlight control.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun6i-a31-drc
+    * allwinner,sun6i-a31s-drc
     * allwinner,sun8i-a33-drc
   - reg: base address and size of the memory-mapped region.
   - interrupts: interrupt associated to this IP
@@ -87,6 +91,7 @@ system.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-backend
+    * allwinner,sun6i-a31-display-backend
     * allwinner,sun8i-a33-display-backend
   - reg: base address and size of the memory-mapped region.
   - clocks: phandles to the clocks feeding the frontend and backend
@@ -117,6 +122,7 @@ deinterlacing and color space conversion.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-frontend
+    * allwinner,sun6i-a31-display-frontend
     * allwinner,sun8i-a33-display-frontend
   - reg: base address and size of the memory-mapped region.
   - interrupts: interrupt associated to this IP
@@ -142,6 +148,8 @@ extra node.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-engine
+    * allwinner,sun6i-a31-display-engine
+    * allwinner,sun6i-a31s-display-engine
     * allwinner,sun8i-a33-display-engine
 
   - allwinner,pipelines: list of phandle to the display engine

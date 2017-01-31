@@ -65,16 +65,17 @@ static int ad5820_write(struct ad5820_device *coil, u16 data)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&coil->subdev);
 	struct i2c_msg msg;
+	__be16 be_data;
 	int r;
 
 	if (!client->adapter)
 		return -ENODEV;
 
-	data = cpu_to_be16(data);
+	be_data = cpu_to_be16(data);
 	msg.addr  = client->addr;
 	msg.flags = 0;
 	msg.len   = 2;
-	msg.buf   = (u8 *)&data;
+	msg.buf   = (u8 *)&be_data;
 
 	r = i2c_transfer(client->adapter, &msg, 1);
 	if (r < 0) {

@@ -3296,9 +3296,6 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 	struct bnad *bnad = netdev_priv(netdev);
 	u32 rx_count = 0, frame, new_frame;
 
-	if (new_mtu + ETH_HLEN < ETH_ZLEN || new_mtu > BNAD_JUMBO_MTU)
-		return -EINVAL;
-
 	mutex_lock(&bnad->conf_mutex);
 
 	mtu = netdev->mtu;
@@ -3464,6 +3461,10 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 
 	netdev->mem_start = bnad->mmio_start;
 	netdev->mem_end = bnad->mmio_start + bnad->mmio_len - 1;
+
+	/* MTU range: 46 - 9000 */
+	netdev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	netdev->max_mtu = BNAD_JUMBO_MTU;
 
 	netdev->netdev_ops = &bnad_netdev_ops;
 	bnad_set_ethtool_ops(netdev);

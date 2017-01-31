@@ -58,10 +58,9 @@ static inline unsigned long busy_loop_end_time(void)
 	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_busy_poll);
 }
 
-static inline bool sk_can_busy_loop(struct sock *sk)
+static inline bool sk_can_busy_loop(const struct sock *sk)
 {
-	return sk->sk_ll_usec && sk->sk_napi_id &&
-	       !need_resched() && !signal_pending(current);
+	return sk->sk_ll_usec && sk->sk_napi_id && !signal_pending(current);
 }
 
 
@@ -81,11 +80,6 @@ static inline void skb_mark_napi_id(struct sk_buff *skb,
 	skb->napi_id = napi->napi_id;
 }
 
-/* used in the protocol hanlder to propagate the napi_id to the socket */
-static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
-{
-	sk->sk_napi_id = skb->napi_id;
-}
 
 #else /* CONFIG_NET_RX_BUSY_POLL */
 static inline unsigned long net_busy_loop_on(void)
@@ -108,10 +102,6 @@ static inline void skb_mark_napi_id(struct sk_buff *skb,
 {
 }
 
-static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
-{
-}
-
 static inline bool busy_loop_timeout(unsigned long end_time)
 {
 	return true;
@@ -123,4 +113,23 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 }
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
+
+/* used in the protocol hanlder to propagate the napi_id to the socket */
+static inline void sk_mark_napi_id(struct sock *sk, const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	sk->sk_napi_id = skb->napi_id;
+#endif
+}
+
+/* variant used for unconnected sockets */
+static inline void sk_mark_napi_id_once(struct sock *sk,
+					const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (!sk->sk_napi_id)
+		sk->sk_napi_id = skb->napi_id;
+#endif
+}
+
 #endif /* _LINUX_NET_BUSY_POLL_H */

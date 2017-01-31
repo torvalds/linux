@@ -124,6 +124,15 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config TEGRA_HSP_MBOX
+	bool "Tegra HSP (Hardware Synchronization Primitives) Driver"
+	depends on ARCH_TEGRA_186_SOC
+	help
+	  The Tegra HSP driver is used for the interprocessor communication
+	  between different remote processors and host processors on Tegra186
+	  and later SoCs. Say Y here if you want to have this support.
+	  If unsure say N.
+
 config XGENE_SLIMPRO_MBOX
 	tristate "APM SoC X-Gene SLIMpro Mailbox Controller"
 	depends on ARCH_XGENE

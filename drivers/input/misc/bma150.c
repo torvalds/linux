@@ -538,8 +538,13 @@ static int bma150_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
+	/*
+	 * Note if the IIO CONFIG_BMA180 driver is enabled we want to fail
+	 * the probe for the bma180 as the iio driver is preferred.
+	 */
 	chip_id = i2c_smbus_read_byte_data(client, BMA150_CHIP_ID_REG);
-	if (chip_id != BMA150_CHIP_ID && chip_id != BMA180_CHIP_ID) {
+	if (chip_id != BMA150_CHIP_ID &&
+	    (IS_ENABLED(CONFIG_BMA180) || chip_id != BMA180_CHIP_ID)) {
 		dev_err(&client->dev, "BMA150 chip id error: %d\n", chip_id);
 		return -EINVAL;
 	}
@@ -643,7 +648,9 @@ static UNIVERSAL_DEV_PM_OPS(bma150_pm, bma150_suspend, bma150_resume, NULL);
 
 static const struct i2c_device_id bma150_id[] = {
 	{ "bma150", 0 },
+#if !IS_ENABLED(CONFIG_BMA180)
 	{ "bma180", 0 },
+#endif
 	{ "smb380", 0 },
 	{ "bma023", 0 },
 	{ }

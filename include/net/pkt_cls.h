@@ -171,6 +171,8 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -425,15 +427,13 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_should_offload(const struct net_device *dev,
-				     const struct tcf_proto *tp, u32 flags)
+static inline bool tc_can_offload(const struct net_device *dev,
+				  const struct tcf_proto *tp)
 {
 	const struct Qdisc *sch = tp->q;
 	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
 
 	if (!(dev->features & NETIF_F_HW_TC))
-		return false;
-	if (flags & TCA_CLS_FLAGS_SKIP_HW)
 		return false;
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
@@ -441,6 +441,19 @@ static inline bool tc_should_offload(const struct net_device *dev,
 		return cops->tcf_cl_offload(tp->classid);
 
 	return true;
+}
+
+static inline bool tc_skip_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
+}
+
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
+{
+	if (tc_skip_hw(flags))
+		return false;
+	return tc_can_offload(dev, tp);
 }
 
 static inline bool tc_skip_sw(u32 flags)

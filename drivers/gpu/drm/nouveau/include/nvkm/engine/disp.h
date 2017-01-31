@@ -33,5 +33,5 @@ int gk110_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gm107_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gm200_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gp100_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
-int gp104_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
+int gp102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 #endif

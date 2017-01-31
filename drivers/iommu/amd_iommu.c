@@ -373,6 +373,8 @@ static struct iommu_group *acpihid_device_group(struct device *dev)
 
 	if (!entry->group)
 		entry->group = generic_device_group(dev);
+	else
+		iommu_group_ref_get(entry->group);
 
 	return entry->group;
 }
@@ -1021,7 +1023,7 @@ again:
 	next_tail = (tail + sizeof(*cmd)) % CMD_BUFFER_SIZE;
 	left      = (head - next_tail) % CMD_BUFFER_SIZE;
 
-	if (left <= 2) {
+	if (left <= 0x20) {
 		struct iommu_cmd sync_cmd;
 		int ret;
 

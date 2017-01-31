@@ -38,6 +38,7 @@
 #include <linux/crc-itu-t.h>
 #include <linux/mpage.h>
 #include <linux/uio.h>
+#include <linux/bio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"

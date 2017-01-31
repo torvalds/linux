@@ -669,7 +669,7 @@ static struct event_constraint snbep_uncore_cbox_constraints[] = {
 	UNCORE_EVENT_CONSTRAINT(0x1c, 0xc),
 	UNCORE_EVENT_CONSTRAINT(0x1d, 0xc),
 	UNCORE_EVENT_CONSTRAINT(0x1e, 0xc),
-	EVENT_CONSTRAINT_OVERLAP(0x1f, 0xe, 0xff),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0xe),
 	UNCORE_EVENT_CONSTRAINT(0x21, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x23, 0x3),
 	UNCORE_EVENT_CONSTRAINT(0x31, 0x3),
@@ -2686,7 +2686,7 @@ static struct intel_uncore_type *hswep_msr_uncores[] = {
 
 void hswep_uncore_cpu_init(void)
 {
-	int pkg = topology_phys_to_logical_pkg(0);
+	int pkg = boot_cpu_data.logical_proc_id;
 
 	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;

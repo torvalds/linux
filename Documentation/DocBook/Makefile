@@ -9,13 +9,11 @@
 DOCBOOKS := z8530book.xml  \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    writing_usb_driver.xml networking.xml \
-	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
+	    kernel-api.xml filesystems.xml lsm.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    debugobjects.xml sh.xml regulator.xml \
-	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml w1.xml \
-	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
+	    sh.xml regulator.xml w1.xml \
+	    writing_musb_glue_layer.xml iio.xml
 
 ifeq ($(DOCBOOKS),)
 
@@ -264,6 +262,7 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.aux.xml, $(DOCBOOKS)) \
 	$(patsubst %.xml, %.xml.db,  $(DOCBOOKS)) \
 	$(patsubst %.xml, %.xml,     $(DOCBOOKS)) \
+	$(patsubst %.xml, .%.xml.cmd, $(DOCBOOKS)) \
 	$(index)
 
 clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man

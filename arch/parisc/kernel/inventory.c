@@ -216,9 +216,9 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	register_parisc_device(dev);	/* advertise device */
 
 #ifdef DEBUG_PAT
-	pdc_pat_cell_mod_maddr_block_t io_pdc_cell;
 	/* dump what we see so far... */
 	switch (PAT_GET_ENTITY(dev->mod_info)) {
+		pdc_pat_cell_mod_maddr_block_t io_pdc_cell;
 		unsigned long i;
 
 	case PAT_ENTITY_PROC:
@@ -259,9 +259,9 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 				pa_pdc_cell->mod[4 + i * 3]);	/* finish (ie end) */
 			printk(KERN_DEBUG 
 				"  IO_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n", 
-				i, io_pdc_cell->mod[2 + i * 3],	/* type */
-				io_pdc_cell->mod[3 + i * 3],	/* start */
-				io_pdc_cell->mod[4 + i * 3]);	/* finish (ie end) */
+				i, io_pdc_cell.mod[2 + i * 3],	/* type */
+				io_pdc_cell.mod[3 + i * 3],	/* start */
+				io_pdc_cell.mod[4 + i * 3]);	/* finish (ie end) */
 		}
 		printk(KERN_DEBUG "\n");
 		break;

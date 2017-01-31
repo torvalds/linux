@@ -529,6 +529,22 @@ void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w)
 }
 EXPORT_SYMBOL_GPL(ipu_csi_set_window);
 
+void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert)
+{
+	unsigned long flags;
+	u32 reg;
+
+	spin_lock_irqsave(&csi->lock, flags);
+
+	reg = ipu_csi_read(csi, CSI_OUT_FRM_CTRL);
+	reg &= ~(CSI_HORI_DOWNSIZE_EN | CSI_VERT_DOWNSIZE_EN);
+	reg |= (horiz ? CSI_HORI_DOWNSIZE_EN : 0) |
+	       (vert ? CSI_VERT_DOWNSIZE_EN : 0);
+	ipu_csi_write(csi, reg, CSI_OUT_FRM_CTRL);
+
+	spin_unlock_irqrestore(&csi->lock, flags);
+}
+
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,
 				u32 pix_clk)

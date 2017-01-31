@@ -90,7 +90,7 @@
 #define S5P_FIMV_E_H264_OPTIONS_V8		0xfb54
 
 /* MFCv8 Context buffer sizes */
-#define MFC_CTX_BUF_SIZE_V8		(30 * SZ_1K)	/*  30KB */
+#define MFC_CTX_BUF_SIZE_V8		(36 * SZ_1K)	/*  36KB */
 #define MFC_H264_DEC_CTX_BUF_SIZE_V8	(2 * SZ_1M)	/*  2MB */
 #define MFC_OTHER_DEC_CTX_BUF_SIZE_V8	(20 * SZ_1K)	/*  20KB */
 #define MFC_H264_ENC_CTX_BUF_SIZE_V8	(100 * SZ_1K)	/* 100KB */

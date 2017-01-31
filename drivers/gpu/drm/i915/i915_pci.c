@@ -288,7 +288,8 @@ static const struct intel_device_info intel_haswell_info = {
 #define BDW_FEATURES \
 	HSW_FEATURES, \
 	BDW_COLORS, \
-	.has_logical_ring_contexts = 1
+	.has_logical_ring_contexts = 1, \
+	.has_64bit_reloc = 1
 
 static const struct intel_device_info intel_broadwell_info = {
 	BDW_FEATURES,
@@ -308,6 +309,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.is_cherryview = 1,
+	.has_64bit_reloc = 1,
 	.has_psr = 1,
 	.has_runtime_pm = 1,
 	.has_resource_streamer = 1,
@@ -347,6 +349,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.num_pipes = 3,
+	.has_64bit_reloc = 1,
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.has_fbc = 1,
@@ -360,6 +363,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_hw_contexts = 1,
 	.has_logical_ring_contexts = 1,
 	.has_guc = 1,
+	.has_decoupled_mmio = 1,
 	.ddb_size = 512,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
@@ -436,9 +440,10 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
-	if (IS_PRELIMINARY_HW(intel_info) && !i915.preliminary_hw_support) {
-		DRM_INFO("This hardware requires preliminary hardware support.\n"
-			 "See CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT, and/or modparam preliminary_hw_support\n");
+	if (IS_ALPHA_SUPPORT(intel_info) && !i915.alpha_support) {
+		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
+			 "See CONFIG_DRM_I915_ALPHA_SUPPORT or i915.alpha_support module parameter\n"
+			 "to enable support in this kernel version, or check for kernel updates.\n");
 		return -ENODEV;
 	}
 

@@ -2,20 +2,47 @@
 # Makefile for the linux kernel.
 #
 
-KCOV_INSTRUMENT_early.o := n
-KCOV_INSTRUMENT_sclp.o := n
-KCOV_INSTRUMENT_als.o := n
-
 ifdef CONFIG_FUNCTION_TRACER
-# Don't trace early setup code and tracing code
-CFLAGS_REMOVE_early.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
+
+# Do not trace tracer code
+CFLAGS_REMOVE_ftrace.o	= $(CC_FLAGS_FTRACE)
+
+# Do not trace early setup code
+CFLAGS_REMOVE_als.o	= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_early.o	= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_sclp.o	= $(CC_FLAGS_FTRACE)
+
+endif
+
+GCOV_PROFILE_als.o	:= n
+GCOV_PROFILE_early.o	:= n
+GCOV_PROFILE_sclp.o	:= n
+
+KCOV_INSTRUMENT_als.o	:= n
+KCOV_INSTRUMENT_early.o	:= n
+KCOV_INSTRUMENT_sclp.o	:= n
+
+UBSAN_SANITIZE_als.o	:= n
+UBSAN_SANITIZE_early.o	:= n
+UBSAN_SANITIZE_sclp.o	:= n
+
+#
+# Use -march=z900 for sclp.c and als.c to be able to print an error
+# message if the kernel is started on a machine which is too old
+#
+ifneq ($(CC_FLAGS_MARCH),-march=z900)
+CFLAGS_REMOVE_als.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_als.o		+= -march=z900
+CFLAGS_REMOVE_sclp.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_sclp.o		+= -march=z900
+AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
+AFLAGS_head.o		+= -march=z900
 endif
 
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
-CFLAGS_smp.o	:= -Wno-nonnull
+CFLAGS_smp.o		:= -Wno-nonnull
 
 #
 # Disable tailcall optimizations for stack / callchain walking functions
@@ -30,27 +57,7 @@ CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
 #
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
-CFLAGS_sysinfo.o += -w
-
-#
-# Use -march=z900 for sclp.c and als.c to be able to print an error
-# message if the kernel is started on a machine which is too old
-#
-CFLAGS_REMOVE_sclp.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_als.o = $(CC_FLAGS_FTRACE)
-ifneq ($(CC_FLAGS_MARCH),-march=z900)
-CFLAGS_REMOVE_sclp.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_sclp.o		+= -march=z900
-CFLAGS_REMOVE_als.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_als.o		+= -march=z900
-AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
-AFLAGS_head.o		+= -march=z900
-endif
-GCOV_PROFILE_sclp.o := n
-GCOV_PROFILE_als.o := n
-UBSAN_SANITIZE_als.o := n
-UBSAN_SANITIZE_early.o := n
-UBSAN_SANITIZE_sclp.o := n
+CFLAGS_sysinfo.o	+= -w
 
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o

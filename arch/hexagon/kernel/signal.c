@@ -24,7 +24,7 @@
 #include <asm/registers.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/cacheflush.h>
 #include <asm/signal.h>

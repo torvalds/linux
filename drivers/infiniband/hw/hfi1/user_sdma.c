@@ -115,6 +115,7 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_HCRC_LOWER_MASK     0xff
 
 #define AHG_KDETH_INTR_SHIFT 12
+#define AHG_KDETH_SH_SHIFT   13
 
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
@@ -144,8 +145,9 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_OM_LARGE     64
 #define KDETH_OM_MAX_SIZE  (1 << ((KDETH_OM_LARGE / KDETH_OM_SMALL) + 1))
 
-/* Last packet in the request */
-#define TXREQ_FLAGS_REQ_LAST_PKT BIT(0)
+/* Tx request flag bits */
+#define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */
+#define TXREQ_FLAGS_REQ_DISABLE_SH BIT(1) /* Disable header suppression */
 
 /* SDMA request flag bits */
 #define SDMA_REQ_FOR_THREAD 1
@@ -943,8 +945,13 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		tx->busycount = 0;
 		INIT_LIST_HEAD(&tx->list);
 
+		/*
+		 * For the last packet set the ACK request
+		 * and disable header suppression.
+		 */
 		if (req->seqnum == req->info.npkts - 1)
-			tx->flags |= TXREQ_FLAGS_REQ_LAST_PKT;
+			tx->flags |= (TXREQ_FLAGS_REQ_ACK |
+				      TXREQ_FLAGS_REQ_DISABLE_SH);
 
 		/*
 		 * Calculate the payload size - this is min of the fragment
@@ -963,11 +970,22 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			}
 
 			datalen = compute_data_length(req, tx);
+
+			/*
+			 * Disable header suppression for the payload <= 8DWS.
+			 * If there is an uncorrectable error in the receive
+			 * data FIFO when the received payload size is less than
+			 * or equal to 8DWS then the RxDmaDataFifoRdUncErr is
+			 * not reported.There is set RHF.EccErr if the header
+			 * is not suppressed.
+			 */
 			if (!datalen) {
 				SDMA_DBG(req,
 					 "Request has data but pkt len is 0");
 				ret = -EFAULT;
 				goto free_tx;
+			} else if (datalen <= 32) {
+				tx->flags |= TXREQ_FLAGS_REQ_DISABLE_SH;
 			}
 		}
 
@@ -990,6 +1008,10 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 						LRH2PBC(lrhlen);
 					tx->hdr.pbc[0] = cpu_to_le16(pbclen);
 				}
+				ret = check_header_template(req, &tx->hdr,
+							    lrhlen, datalen);
+				if (ret)
+					goto free_tx;
 				ret = sdma_txinit_ahg(&tx->txreq,
 						      SDMA_TXREQ_F_AHG_COPY,
 						      sizeof(tx->hdr) + datalen,
@@ -1351,7 +1373,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 				req->seqnum));
 
 	/* Set ACK request on last packet */
-	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
+	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_ACK))
 		hdr->bth[2] |= cpu_to_be32(1UL << 31);
 
 	/* Set the new offset */
@@ -1384,8 +1406,8 @@ static int set_txreq_header(struct user_sdma_request *req,
 		/* Set KDETH.TID based on value for this TID */
 		KDETH_SET(hdr->kdeth.ver_tid_offset, TID,
 			  EXP_TID_GET(tidval, IDX));
-		/* Clear KDETH.SH only on the last packet */
-		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
+		/* Clear KDETH.SH when DISABLE_SH flag is set */
+		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_DISABLE_SH))
 			KDETH_SET(hdr->kdeth.ver_tid_offset, SH, 0);
 		/*
 		 * Set the KDETH.OFFSET and KDETH.OM based on size of
@@ -1429,7 +1451,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 	/* BTH.PSN and BTH.A */
 	val32 = (be32_to_cpu(hdr->bth[2]) + req->seqnum) &
 		(HFI1_CAP_IS_KSET(EXTENDED_PSN) ? 0x7fffffff : 0xffffff);
-	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT))
+	if (unlikely(tx->flags & TXREQ_FLAGS_REQ_ACK))
 		val32 |= 1UL << 31;
 	AHG_HEADER_SET(req->ahg, diff, 6, 0, 16, cpu_to_be16(val32 >> 16));
 	AHG_HEADER_SET(req->ahg, diff, 6, 16, 16, cpu_to_be16(val32 & 0xffff));
@@ -1468,19 +1490,23 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		AHG_HEADER_SET(req->ahg, diff, 7, 0, 16,
 			       ((!!(req->omfactor - KDETH_OM_SMALL)) << 15 |
 				((req->tidoffset / req->omfactor) & 0x7fff)));
-		/* KDETH.TIDCtrl, KDETH.TID */
+		/* KDETH.TIDCtrl, KDETH.TID, KDETH.Intr, KDETH.SH */
 		val = cpu_to_le16(((EXP_TID_GET(tidval, CTRL) & 0x3) << 10) |
-					(EXP_TID_GET(tidval, IDX) & 0x3ff));
-		/* Clear KDETH.SH on last packet */
-		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT)) {
-			val |= cpu_to_le16(KDETH_GET(hdr->kdeth.ver_tid_offset,
-						     INTR) <<
-					   AHG_KDETH_INTR_SHIFT);
-			val &= cpu_to_le16(~(1U << 13));
-			AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
+				   (EXP_TID_GET(tidval, IDX) & 0x3ff));
+
+		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_DISABLE_SH)) {
+			val |= cpu_to_le16((KDETH_GET(hdr->kdeth.ver_tid_offset,
+						      INTR) <<
+					    AHG_KDETH_INTR_SHIFT));
 		} else {
-			AHG_HEADER_SET(req->ahg, diff, 7, 16, 12, val);
+			val |= KDETH_GET(hdr->kdeth.ver_tid_offset, SH) ?
+			       cpu_to_le16(0x1 << AHG_KDETH_SH_SHIFT) :
+			       cpu_to_le16((KDETH_GET(hdr->kdeth.ver_tid_offset,
+						      INTR) <<
+					     AHG_KDETH_INTR_SHIFT));
 		}
+
+		AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
 	}
 
 	trace_hfi1_sdma_user_header_ahg(pq->dd, pq->ctxt, pq->subctxt,

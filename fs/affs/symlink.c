@@ -70,7 +70,6 @@ const struct address_space_operations affs_symlink_aops = {
 };
 
 const struct inode_operations affs_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.setattr	= affs_notify_change,
 };

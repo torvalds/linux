@@ -108,30 +108,24 @@
 #define IPAD_DATA 0x36363636
 #define OPAD_DATA 0x5c5c5c5c
 
-#define TRANSHDR_SIZE(alignedkctx_len)\
-	(sizeof(struct ulptx_idata) +\
-	 sizeof(struct ulp_txpkt) +\
-	 sizeof(struct fw_crypto_lookaside_wr) +\
-	 sizeof(struct cpl_tx_sec_pdu) +\
-	 (alignedkctx_len))
-#define CIPHER_TRANSHDR_SIZE(alignedkctx_len, sge_pairs) \
-	(TRANSHDR_SIZE(alignedkctx_len) + sge_pairs +\
+#define TRANSHDR_SIZE(kctx_len)\
+	(sizeof(struct chcr_wr) +\
+	 kctx_len)
+#define CIPHER_TRANSHDR_SIZE(kctx_len, sge_pairs) \
+	(TRANSHDR_SIZE((kctx_len)) + (sge_pairs) +\
 	 sizeof(struct cpl_rx_phys_dsgl))
-#define HASH_TRANSHDR_SIZE(alignedkctx_len)\
-	(TRANSHDR_SIZE(alignedkctx_len) + DUMMY_BYTES)
+#define HASH_TRANSHDR_SIZE(kctx_len)\
+	(TRANSHDR_SIZE(kctx_len) + DUMMY_BYTES)
 
-#define SEC_CPL_OFFSET (sizeof(struct fw_crypto_lookaside_wr) + \
-			sizeof(struct ulp_txpkt) + \
-			sizeof(struct ulptx_idata))
 
-#define FILL_SEC_CPL_OP_IVINSR(id, len, hldr, ofst)      \
+#define FILL_SEC_CPL_OP_IVINSR(id, len, ofst)      \
 	htonl( \
 	       CPL_TX_SEC_PDU_OPCODE_V(CPL_TX_SEC_PDU) | \
 	       CPL_TX_SEC_PDU_RXCHID_V((id)) | \
 	       CPL_TX_SEC_PDU_ACKFOLLOWS_V(0) | \
 	       CPL_TX_SEC_PDU_ULPTXLPBK_V(1) | \
 	       CPL_TX_SEC_PDU_CPLLEN_V((len)) | \
-	       CPL_TX_SEC_PDU_PLACEHOLDER_V((hldr)) | \
+	       CPL_TX_SEC_PDU_PLACEHOLDER_V(0) | \
 	       CPL_TX_SEC_PDU_IVINSRTOFST_V((ofst)))
 
 #define  FILL_SEC_CPL_CIPHERSTOP_HI(a_start, a_stop, c_start, c_stop_hi) \
@@ -148,7 +142,7 @@
 		CPL_TX_SEC_PDU_AUTHSTOP_V((a_stop)) | \
 		CPL_TX_SEC_PDU_AUTHINSERT_V((a_inst)))
 
-#define  FILL_SEC_CPL_SCMD0_SEQNO(ctrl, seq, cmode, amode, opad, size, nivs)  \
+#define  FILL_SEC_CPL_SCMD0_SEQNO(ctrl, seq, cmode, amode, opad, size)  \
 		htonl( \
 		SCMD_SEQ_NO_CTRL_V(0) | \
 		SCMD_STATUS_PRESENT_V(0) | \
@@ -159,7 +153,7 @@
 		SCMD_AUTH_MODE_V((amode)) | \
 		SCMD_HMAC_CTRL_V((opad)) | \
 		SCMD_IV_SIZE_V((size)) | \
-		SCMD_NUM_IVS_V((nivs)))
+		SCMD_NUM_IVS_V(0))
 
 #define FILL_SEC_CPL_IVGEN_HDRLEN(last, more, ctx_in, mac, ivdrop, len) htonl( \
 		SCMD_ENB_DBGID_V(0) | \
@@ -264,13 +258,15 @@ enum {
  * where they indicate the size of the integrity check value (ICV)
  */
 enum {
-	AES_CCM_ICV_4   = 4,
-	AES_CCM_ICV_6   = 6,
-	AES_CCM_ICV_8   = 8,
-	AES_CCM_ICV_10  = 10,
-	AES_CCM_ICV_12  = 12,
-	AES_CCM_ICV_14  = 14,
-	AES_CCM_ICV_16 = 16
+	ICV_4  = 4,
+	ICV_6  = 6,
+	ICV_8  = 8,
+	ICV_10 = 10,
+	ICV_12 = 12,
+	ICV_13 = 13,
+	ICV_14 = 14,
+	ICV_15 = 15,
+	ICV_16 = 16
 };
 
 struct hash_op_params {
@@ -394,7 +390,7 @@ static const u8 aes_sbox[256] = {
 	187, 22
 };
 
-static u32 aes_ks_subword(const u32 w)
+static inline u32 aes_ks_subword(const u32 w)
 {
 	u8 bytes[4];
 
@@ -411,62 +407,5 @@ static u32 round_constant[11] = {
 	0x10000000, 0x20000000, 0x40000000, 0x80000000,
 	0x1B000000, 0x36000000, 0x6C000000
 };
-
-/* dec_key - OUTPUT - Reverse round key
- * key - INPUT - key
- * keylength - INPUT - length of the key in number of bits
- */
-static inline void get_aes_decrypt_key(unsigned char *dec_key,
-				       const unsigned char *key,
-				       unsigned int keylength)
-{
-	u32 temp;
-	u32 w_ring[MAX_NK];
-	int i, j, k;
-	u8  nr, nk;
-
-	switch (keylength) {
-	case AES_KEYLENGTH_128BIT:
-		nk = KEYLENGTH_4BYTES;
-		nr = NUMBER_OF_ROUNDS_10;
-		break;
-
-	case AES_KEYLENGTH_192BIT:
-		nk = KEYLENGTH_6BYTES;
-		nr = NUMBER_OF_ROUNDS_12;
-		break;
-	case AES_KEYLENGTH_256BIT:
-		nk = KEYLENGTH_8BYTES;
-		nr = NUMBER_OF_ROUNDS_14;
-		break;
-	default:
-		return;
-	}
-	for (i = 0; i < nk; i++ )
-		w_ring[i] = be32_to_cpu(*(u32 *)&key[4 * i]);
-
-	i = 0;
-	temp = w_ring[nk - 1];
-	while(i + nk < (nr + 1) * 4) {
-		if(!(i % nk)) {
-			/* RotWord(temp) */
-			temp = (temp << 8) | (temp >> 24);
-			temp = aes_ks_subword(temp);
-			temp ^= round_constant[i / nk];
-		}
-		else if (nk == 8 && (i % 4 == 0))
-			temp = aes_ks_subword(temp);
-		w_ring[i % nk] ^= temp;
-		temp = w_ring[i % nk];
-		i++;
-	}
-	i--;
-	for (k = 0, j = i % nk; k < nk; k++) {
-		*((u32 *)dec_key + k) = htonl(w_ring[j]);
-		j--;
-		if(j < 0)
-			j += nk;
-	}
-}
 
 #endif /* __CHCR_ALGO_H__ */

@@ -159,6 +159,13 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 	if (xen_domain())
 		return true;
 
+	/*
+	 * On ARM-based machines, the DMA ops will do the right thing,
+	 * so always use them with legacy devices.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) || IS_ENABLED(CONFIG_ARM64))
+		return !virtio_has_feature(vdev, VIRTIO_F_VERSION_1);
+
 	return false;
 }
 
@@ -420,7 +427,7 @@ unmap_release:
 		if (i == err_idx)
 			break;
 		vring_unmap_one(vq, &desc[i]);
-		i = vq->vring.desc[i].next;
+		i = virtio16_to_cpu(_vq->vdev, vq->vring.desc[i].next);
 	}
 
 	vq->vq.num_free += total_sg;
@@ -601,7 +608,7 @@ EXPORT_SYMBOL_GPL(virtqueue_kick);
 static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 {
 	unsigned int i, j;
-	u16 nextflag = cpu_to_virtio16(vq->vq.vdev, VRING_DESC_F_NEXT);
+	__virtio16 nextflag = cpu_to_virtio16(vq->vq.vdev, VRING_DESC_F_NEXT);
 
 	/* Clear data ptr. */
 	vq->desc_state[head].data = NULL;
@@ -649,7 +656,7 @@ static inline bool more_used(const struct vring_virtqueue *vq)
  * @vq: the struct virtqueue we're talking about.
  * @len: the length written into the buffer
  *
- * If the driver wrote data into the buffer, @len will be set to the
+ * If the device wrote data into the buffer, @len will be set to the
  * amount written.  This means you don't need to clear the buffer
  * beforehand to ensure there's no data leakage in the case of short
  * writes.

@@ -32,6 +32,9 @@
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_tcon.h"
 
+static int legacyfb_depth = 24;
+module_param(legacyfb_depth, int, 0444);
+
 static bool fsl_dcu_drm_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	if (reg == DCU_INT_STATUS || reg == DCU_UPDATE_MODE)
@@ -85,7 +88,18 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	dev->irq_enabled = true;
 
-	fsl_dcu_fbdev_init(dev);
+	if (legacyfb_depth != 16 && legacyfb_depth != 24 &&
+	    legacyfb_depth != 32) {
+		dev_warn(dev->dev,
+			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
+		legacyfb_depth = 24;
+	}
+	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1, 1);
+	if (IS_ERR(fsl_dev->fbdev)) {
+		ret = PTR_ERR(fsl_dev->fbdev);
+		fsl_dev->fbdev = NULL;
+		goto done;
+	}
 
 	return 0;
 done:
@@ -106,6 +120,7 @@ static int fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
+	drm_crtc_force_disable_all(dev);
 	drm_kms_helper_poll_fini(dev);
 
 	if (fsl_dev->fbdev)
@@ -176,9 +191,7 @@ static const struct file_operations fsl_dcu_drm_fops = {
 	.open		= drm_open,
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl	= drm_compat_ioctl,
-#endif
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,
@@ -334,11 +347,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->soc = id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "could not get memory IO resource\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
@@ -348,7 +356,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->irq = platform_get_irq(pdev, 0);
 	if (fsl_dev->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		return -ENXIO;
+		return fsl_dev->irq;
 	}
 
 	fsl_dev->regmap = devm_regmap_init_mmio(dev, base,
@@ -426,9 +434,9 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
+	drm_put_dev(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
-	drm_put_dev(fsl_dev->drm);
 
 	return 0;
 }

@@ -31,7 +31,7 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/kallsyms.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/segment.h>
 #include <asm/io.h>

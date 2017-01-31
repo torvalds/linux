@@ -416,11 +416,8 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 			   "(status=%d, wrid=%d vend_err %x)\n",
 			   wc->status, wr_id, wc->vendor_err);
 		qp_work = kzalloc(sizeof(*qp_work), GFP_ATOMIC);
-		if (!qp_work) {
-			ipoib_warn(priv, "%s Failed alloc ipoib_qp_state_validate for qp: 0x%x\n",
-				   __func__, priv->qp->qp_num);
+		if (!qp_work)
 			return;
-		}
 
 		INIT_WORK(&qp_work->work, ipoib_qp_state_validate_work);
 		qp_work->priv = priv;

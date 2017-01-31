@@ -185,6 +185,27 @@ struct rvt_driver_provided {
 	 * check_support() for details.
 	 */
 
+	/* hot path calldowns in a single cacheline */
+
+	/*
+	 * Give the driver a notice that there is send work to do. It is up to
+	 * the driver to generally push the packets out, this just queues the
+	 * work with the driver. There are two variants here. The no_lock
+	 * version requires the s_lock not to be held. The other assumes the
+	 * s_lock is held.
+	 */
+	void (*schedule_send)(struct rvt_qp *qp);
+	void (*schedule_send_no_lock)(struct rvt_qp *qp);
+
+	/* Driver specific work request checking */
+	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
+
+	/*
+	 * Sometimes rdmavt needs to kick the driver's send progress. That is
+	 * done by this call back.
+	 */
+	void (*do_send)(struct rvt_qp *qp);
+
 	/* Passed to ib core registration. Callback to create syfs files */
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
 
@@ -221,22 +242,6 @@ struct rvt_driver_provided {
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
-
-	/*
-	 * Give the driver a notice that there is send work to do. It is up to
-	 * the driver to generally push the packets out, this just queues the
-	 * work with the driver. There are two variants here. The no_lock
-	 * version requires the s_lock not to be held. The other assumes the
-	 * s_lock is held.
-	 */
-	void (*schedule_send)(struct rvt_qp *qp);
-	void (*schedule_send_no_lock)(struct rvt_qp *qp);
-
-	/*
-	 * Sometimes rdmavt needs to kick the driver's send progress. That is
-	 * done by this call back.
-	 */
-	void (*do_send)(struct rvt_qp *qp);
 
 	/*
 	 * Get a path mtu from the driver based on qp attributes.
@@ -324,9 +329,6 @@ struct rvt_driver_provided {
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
-	/* Driver specific work request checking */
-	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
-
 	/* Notify driver a mad agent has been created */
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
@@ -355,11 +357,11 @@ struct rvt_dev_info {
 	/* post send table */
 	const struct rvt_operation_params *post_parms;
 
-	struct rvt_mregion __rcu *dma_mr;
-	struct rvt_lkey_table lkey_table;
-
 	/* Driver specific helper functions */
 	struct rvt_driver_provided driver_f;
+
+	struct rvt_mregion __rcu *dma_mr;
+	struct rvt_lkey_table lkey_table;
 
 	/* Internal use */
 	int n_pds_allocated;

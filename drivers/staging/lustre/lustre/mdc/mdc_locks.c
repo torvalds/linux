@@ -38,10 +38,12 @@
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"	/* fid_res_name_eq() */
+#include "../include/lustre_fid.h"
 #include "../include/lustre_mdc.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre_req_layout.h"
+#include "../include/lustre_swab.h"
+
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {
@@ -131,7 +133,8 @@ int mdc_set_lock_data(struct obd_export *exp, const struct lustre_handle *lockh,
 
 enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
 			      const struct lu_fid *fid, enum ldlm_type type,
-			      ldlm_policy_data_t *policy, enum ldlm_mode mode,
+			      union ldlm_policy_data *policy,
+			      enum ldlm_mode mode,
 			      struct lustre_handle *lockh)
 {
 	struct ldlm_res_id res_id;
@@ -147,7 +150,7 @@ enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
 
 int mdc_cancel_unused(struct obd_export *exp,
 		      const struct lu_fid *fid,
-		      ldlm_policy_data_t *policy,
+		      union ldlm_policy_data *policy,
 		      enum ldlm_mode mode,
 		      enum ldlm_cancel_flags flags,
 		      void *opaque)
@@ -386,8 +389,6 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     obddev->u.cli.cl_default_mds_easize);
-	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-			     obddev->u.cli.cl_default_mds_cookiesize);
 	ptlrpc_request_set_replen(req);
 	return req;
 }
@@ -688,20 +689,20 @@ static int mdc_finish_enqueue(struct obd_export *exp,
  * we don't know in advance the file type.
  */
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
-		const ldlm_policy_data_t *policy,
+		const union ldlm_policy_data *policy,
 		struct lookup_intent *it, struct md_op_data *op_data,
 		struct lustre_handle *lockh, u64 extra_lock_flags)
 {
-	static const ldlm_policy_data_t lookup_policy = {
+	static const union ldlm_policy_data lookup_policy = {
 		.l_inodebits = { MDS_INODELOCK_LOOKUP }
 	};
-	static const ldlm_policy_data_t update_policy = {
+	static const union ldlm_policy_data update_policy = {
 		.l_inodebits = { MDS_INODELOCK_UPDATE }
 	};
-	static const ldlm_policy_data_t layout_policy = {
+	static const union ldlm_policy_data layout_policy = {
 		.l_inodebits = { MDS_INODELOCK_LAYOUT }
 	};
-	static const ldlm_policy_data_t getxattr_policy = {
+	static const union ldlm_policy_data getxattr_policy = {
 		.l_inodebits = { MDS_INODELOCK_XATTR }
 	};
 	struct obd_device *obddev = class_exp2obd(exp);
@@ -762,27 +763,22 @@ resend:
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	if (req && it && it->it_op & IT_CREAT)
-		/* ask ptlrpc not to resend on EINPROGRESS since we have our own
-		 * retry logic
-		 */
-		req->rq_no_retry_einprogress = 1;
-
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
 		req->rq_sent = ktime_get_real_seconds() + resends;
 	}
 
-	/* It is important to obtain rpc_lock first (if applicable), so that
-	 * threads that are serialised with rpc_lock are not polluting our
-	 * rpcs in flight counter. We do not do flock request limiting, though
+	/* It is important to obtain modify RPC slot first (if applicable), so
+	 * that threads that are waiting for a modify RPC slot are not polluting
+	 * our rpcs in flight counter.
+	 * We do not do flock request limiting, though
 	 */
 	if (it) {
-		mdc_get_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+		mdc_get_mod_rpc_slot(req, it);
 		rc = obd_get_request_slot(&obddev->u.cli);
 		if (rc != 0) {
-			mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+			mdc_put_mod_rpc_slot(req, it);
 			mdc_clear_replay_flag(req, 0);
 			ptlrpc_req_finished(req);
 			return rc;
@@ -809,7 +805,7 @@ resend:
 	}
 
 	obd_put_request_slot(&obddev->u.cli);
-	mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+	mdc_put_mod_rpc_slot(req, it);
 
 	if (rc < 0) {
 		CDEBUG(D_INFO, "%s: ldlm_cli_enqueue failed: rc = %d\n",
@@ -825,11 +821,12 @@ resend:
 	lockrep->lock_policy_res2 =
 		ptlrpc_status_ntoh(lockrep->lock_policy_res2);
 
-	/* Retry the create infinitely when we get -EINPROGRESS from
-	 * server. This is required by the new quota design.
+	/*
+	 * Retry infinitely when the server returns -EINPROGRESS for the
+	 * intent operation, when server returns -EINPROGRESS for acquiring
+	 * intent lock, we'll retry in after_reply().
 	 */
-	if (it->it_op & IT_CREAT &&
-	    (int)lockrep->lock_policy_res2 == -EINPROGRESS) {
+	if (it->it_op && (int)lockrep->lock_policy_res2 == -EINPROGRESS) {
 		mdc_clear_replay_flag(req, rc);
 		ptlrpc_req_finished(req);
 		resends++;
@@ -931,7 +928,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	 */
 	lock = ldlm_handle2lock(lockh);
 	if (lock) {
-		ldlm_policy_data_t policy = lock->l_policy_data;
+		union ldlm_policy_data policy = lock->l_policy_data;
 
 		LDLM_DEBUG(lock, "matching against this");
 
@@ -967,7 +964,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	 */
 	struct ldlm_res_id res_id;
 	struct lustre_handle lockh;
-	ldlm_policy_data_t policy;
+	union ldlm_policy_data policy;
 	enum ldlm_mode mode;
 
 	if (it->it_lock_handle) {
@@ -1169,10 +1166,9 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	 *     for statahead currently. Consider CMD in future, such two bits
 	 *     maybe managed by different MDS, should be adjusted then.
 	 */
-	ldlm_policy_data_t       policy = {
-					.l_inodebits = { MDS_INODELOCK_LOOKUP |
-							 MDS_INODELOCK_UPDATE }
-				 };
+	union ldlm_policy_data policy = {
+		.l_inodebits = { MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE }
+	};
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 

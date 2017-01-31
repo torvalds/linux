@@ -140,6 +140,7 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
+	bool			m_inotbt_nores; /* no per-AG finobt resv. */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
 	int			m_ialloc_min_blks;/* min blocks in sparse inode
@@ -393,8 +394,8 @@ typedef struct xfs_perag {
 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 
 	/* buffer cache index */
-	spinlock_t	pag_buf_lock;	/* lock for pag_buf_tree */
-	struct rb_root	pag_buf_tree;	/* ordered tree of active buffers */
+	spinlock_t	pag_buf_lock;	/* lock for pag_buf_hash */
+	struct rhashtable pag_buf_hash;
 
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
@@ -423,6 +424,9 @@ xfs_perag_resv(
 		return NULL;
 	}
 }
+
+int xfs_buf_hash_init(xfs_perag_t *pag);
+void xfs_buf_hash_destroy(xfs_perag_t *pag);
 
 extern void	xfs_uuid_table_free(void);
 extern int	xfs_log_sbcount(xfs_mount_t *);

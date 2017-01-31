@@ -212,7 +212,7 @@ static int meson_pmx_request_gpio(struct pinctrl_dev *pcdev,
 {
 	struct meson_pinctrl *pc = pinctrl_dev_get_drvdata(pcdev);
 
-	meson_pmx_disable_other_groups(pc, range->pin_base + offset, -1);
+	meson_pmx_disable_other_groups(pc, offset, -1);
 
 	return 0;
 }
@@ -523,6 +523,14 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 	{
 		.compatible = "amlogic,meson-gxbb-aobus-pinctrl",
 		.data = &meson_gxbb_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxl-periphs-pinctrl",
+		.data = &meson_gxl_periphs_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxl-aobus-pinctrl",
+		.data = &meson_gxl_aobus_pinctrl_data,
 	},
 	{ },
 };

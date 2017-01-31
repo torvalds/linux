@@ -123,6 +123,11 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+static inline unsigned int xgbe_get_max_frame(struct xgbe_prv_data *pdata)
+{
+	return pdata->netdev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+}
+
 static unsigned int xgbe_usec_to_riwt(struct xgbe_prv_data *pdata,
 				      unsigned int usec)
 {
@@ -491,6 +496,27 @@ static void xgbe_config_rss(struct xgbe_prv_data *pdata)
 			   "error configuring RSS, RSS disabled\n");
 }
 
+static bool xgbe_is_pfc_queue(struct xgbe_prv_data *pdata,
+			      unsigned int queue)
+{
+	unsigned int prio, tc;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		/* Does this queue handle the priority? */
+		if (pdata->prio2q_map[prio] != queue)
+			continue;
+
+		/* Get the Traffic Class for this priority */
+		tc = pdata->ets->prio_tc[prio];
+
+		/* Check if PFC is enabled for this traffic class */
+		if (pdata->pfc->pfc_en & (1 << tc))
+			return true;
+	}
+
+	return false;
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -528,27 +554,14 @@ static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->rx_q_count; i++) {
 		unsigned int ehfc = 0;
 
-		if (pfc && ets) {
-			unsigned int prio;
-
-			for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
-				unsigned int tc;
-
-				/* Does this queue handle the priority? */
-				if (pdata->prio2q_map[prio] != i)
-					continue;
-
-				/* Get the Traffic Class for this priority */
-				tc = ets->prio_tc[prio];
-
-				/* Check if flow control should be enabled */
-				if (pfc->pfc_en & (1 << tc)) {
+		if (pdata->rx_rfd[i]) {
+			/* Flow control thresholds are established */
+			if (pfc && ets) {
+				if (xgbe_is_pfc_queue(pdata, i))
 					ehfc = 1;
-					break;
-				}
+			} else {
+				ehfc = 1;
 			}
-		} else {
-			ehfc = 1;
 		}
 
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, ehfc);
@@ -633,6 +646,11 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 	unsigned int dma_ch_isr, dma_ch_ier;
 	unsigned int i;
 
+	/* Set the interrupt mode if supported */
+	if (pdata->channel_irq_mode)
+		XGMAC_IOWRITE_BITS(pdata, DMA_MR, INTM,
+				   pdata->channel_irq_mode);
+
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
 		/* Clear all the interrupts which are set */
@@ -654,19 +672,21 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		if (channel->tx_ring) {
 			/* Enable the following Tx interrupts
 			 *   TIE  - Transmit Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
 		}
 		if (channel->rx_ring) {
 			/* Enable following Rx interrupts
 			 *   RBUE - Receive Buffer Unavailable Enable
 			 *   RIE  - Receive Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
 			XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
 		}
 
@@ -702,34 +722,90 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	/* Enable all counter interrupts */
 	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xffffffff);
 	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
+
+	/* Enable MDIO single command completion interrupt */
+	XGMAC_IOWRITE_BITS(pdata, MAC_MDIOIER, SNGLCOMPIE, 1);
 }
 
-static int xgbe_set_gmii_speed(struct xgbe_prv_data *pdata)
+static void xgbe_enable_ecc_interrupts(struct xgbe_prv_data *pdata)
 {
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x3)
-		return 0;
+	unsigned int ecc_isr, ecc_ier = 0;
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x3);
+	if (!pdata->vdata->ecc_support)
+		return;
 
-	return 0;
+	/* Clear all the interrupts which are set */
+	ecc_isr = XP_IOREAD(pdata, XP_ECC_ISR);
+	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
+
+	/* Enable ECC interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 1);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
 }
 
-static int xgbe_set_gmii_2500_speed(struct xgbe_prv_data *pdata)
+static void xgbe_disable_ecc_ded(struct xgbe_prv_data *pdata)
 {
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x2)
-		return 0;
+	unsigned int ecc_ier;
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x2);
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
 
-	return 0;
+	/* Disable ECC DED interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 0);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
 }
 
-static int xgbe_set_xgmii_speed(struct xgbe_prv_data *pdata)
+static void xgbe_disable_ecc_sec(struct xgbe_prv_data *pdata,
+				 enum xgbe_ecc_sec sec)
 {
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0)
-		return 0;
+	unsigned int ecc_ier;
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0);
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
+
+	/* Disable ECC SEC interrupt */
+	switch (sec) {
+	case XGBE_ECC_SEC_TX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_RX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_DESC:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 0);
+		break;
+	}
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
+static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
+{
+	unsigned int ss;
+
+	switch (speed) {
+	case SPEED_1000:
+		ss = 0x03;
+		break;
+	case SPEED_2500:
+		ss = 0x02;
+		break;
+	case SPEED_10000:
+		ss = 0x00;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) != ss)
+		XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, ss);
 
 	return 0;
 }
@@ -1019,8 +1095,101 @@ static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
-static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
-			      int mmd_reg)
+static int xgbe_clr_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 15)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg &= ~(1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
+static int xgbe_set_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 15)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg |= (1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
+static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
+				 int mmd_reg)
+{
+	unsigned long flags;
+	unsigned int mmd_address, index, offset;
+	int mmd_data;
+
+	if (mmd_reg & MII_ADDR_C45)
+		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	else
+		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
+
+	/* The PCS registers are accessed using mmio. The underlying
+	 * management interface uses indirect addressing to access the MMD
+	 * register sets. This requires accessing of the PCS register in two
+	 * phases, an address phase and a data phase.
+	 *
+	 * The mmio interface is based on 16-bit offsets and values. All
+	 * register offsets must therefore be adjusted by left shifting the
+	 * offset 1 bit and reading 16 bits of data.
+	 */
+	mmd_address <<= 1;
+	index = mmd_address & ~pdata->xpcs_window_mask;
+	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
+
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
+	mmd_data = XPCS16_IOREAD(pdata, offset);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+
+	return mmd_data;
+}
+
+static void xgbe_write_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
+				   int mmd_reg, int mmd_data)
+{
+	unsigned long flags;
+	unsigned int mmd_address, index, offset;
+
+	if (mmd_reg & MII_ADDR_C45)
+		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	else
+		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
+
+	/* The PCS registers are accessed using mmio. The underlying
+	 * management interface uses indirect addressing to access the MMD
+	 * register sets. This requires accessing of the PCS register in two
+	 * phases, an address phase and a data phase.
+	 *
+	 * The mmio interface is based on 16-bit offsets and values. All
+	 * register offsets must therefore be adjusted by left shifting the
+	 * offset 1 bit and writing 16 bits of data.
+	 */
+	mmd_address <<= 1;
+	index = mmd_address & ~pdata->xpcs_window_mask;
+	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
+
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
+	XPCS16_IOWRITE(pdata, offset, mmd_data);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+}
+
+static int xgbe_read_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
+				 int mmd_reg)
 {
 	unsigned long flags;
 	unsigned int mmd_address;
@@ -1041,15 +1210,15 @@ static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 * offset 2 bits and reading 32 bits of data.
 	 */
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
-	mmd_data = XPCS_IOREAD(pdata, (mmd_address & 0xff) << 2);
+	XPCS32_IOWRITE(pdata, PCS_V1_WINDOW_SELECT, mmd_address >> 8);
+	mmd_data = XPCS32_IOREAD(pdata, (mmd_address & 0xff) << 2);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 
 	return mmd_data;
 }
 
-static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
-				int mmd_reg, int mmd_data)
+static void xgbe_write_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
+				   int mmd_reg, int mmd_data)
 {
 	unsigned int mmd_address;
 	unsigned long flags;
@@ -1066,12 +1235,111 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 *
 	 * The mmio interface is based on 32-bit offsets and values. All
 	 * register offsets must therefore be adjusted by left shifting the
-	 * offset 2 bits and reading 32 bits of data.
+	 * offset 2 bits and writing 32 bits of data.
 	 */
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
-	XPCS_IOWRITE(pdata, (mmd_address & 0xff) << 2, mmd_data);
+	XPCS32_IOWRITE(pdata, PCS_V1_WINDOW_SELECT, mmd_address >> 8);
+	XPCS32_IOWRITE(pdata, (mmd_address & 0xff) << 2, mmd_data);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+}
+
+static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
+			      int mmd_reg)
+{
+	switch (pdata->vdata->xpcs_access) {
+	case XGBE_XPCS_ACCESS_V1:
+		return xgbe_read_mmd_regs_v1(pdata, prtad, mmd_reg);
+
+	case XGBE_XPCS_ACCESS_V2:
+	default:
+		return xgbe_read_mmd_regs_v2(pdata, prtad, mmd_reg);
+	}
+}
+
+static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
+				int mmd_reg, int mmd_data)
+{
+	switch (pdata->vdata->xpcs_access) {
+	case XGBE_XPCS_ACCESS_V1:
+		return xgbe_write_mmd_regs_v1(pdata, prtad, mmd_reg, mmd_data);
+
+	case XGBE_XPCS_ACCESS_V2:
+	default:
+		return xgbe_write_mmd_regs_v2(pdata, prtad, mmd_reg, mmd_data);
+	}
+}
+
+static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				   int reg, u16 val)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, DATA, val);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 1);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio write operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				  int reg)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 3);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio read operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return XGMAC_IOREAD_BITS(pdata, MAC_MDIOSCCDR, DATA);
+}
+
+static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
+				 enum xgbe_mdio_mode mode)
+{
+	unsigned int reg_val = 0;
+
+	switch (mode) {
+	case XGBE_MDIO_MODE_CL22:
+		if (port > XGMAC_MAX_C22_PORT)
+			return -EINVAL;
+		reg_val |= (1 << port);
+		break;
+	case XGBE_MDIO_MODE_CL45:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	XGMAC_IOWRITE(pdata, MAC_MDIOCL22R, reg_val);
+
+	return 0;
 }
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
@@ -1264,14 +1532,21 @@ static u64 xgbe_get_tstamp_time(struct xgbe_prv_data *pdata)
 
 static u64 xgbe_get_tx_tstamp(struct xgbe_prv_data *pdata)
 {
-	unsigned int tx_snr;
+	unsigned int tx_snr, tx_ssr;
 	u64 nsec;
 
-	tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	if (pdata->vdata->tx_tstamp_workaround) {
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	} else {
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	}
+
 	if (XGMAC_GET_BITS(tx_snr, MAC_TXSNR, TXTSSTSMIS))
 		return 0;
 
-	nsec = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	nsec = tx_ssr;
 	nsec *= NSEC_PER_SEC;
 	nsec += tx_snr;
 
@@ -1325,106 +1600,6 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 			 ktime_to_ns(ktime_get_real()));
 
 	return 0;
-}
-
-static void xgbe_config_tc(struct xgbe_prv_data *pdata)
-{
-	unsigned int offset, queue, prio;
-	u8 i;
-
-	netdev_reset_tc(pdata->netdev);
-	if (!pdata->num_tcs)
-		return;
-
-	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
-
-	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
-		while ((queue < pdata->tx_q_count) &&
-		       (pdata->q2tc_map[queue] == i))
-			queue++;
-
-		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
-			  i, offset, queue - 1);
-		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
-		offset = queue;
-	}
-
-	if (!pdata->ets)
-		return;
-
-	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
-		netdev_set_prio_tc_map(pdata->netdev, prio,
-				       pdata->ets->prio_tc[prio]);
-}
-
-static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
-{
-	struct ieee_ets *ets = pdata->ets;
-	unsigned int total_weight, min_weight, weight;
-	unsigned int mask, reg, reg_val;
-	unsigned int i, prio;
-
-	if (!ets)
-		return;
-
-	/* Set Tx to deficit weighted round robin scheduling algorithm (when
-	 * traffic class is using ETS algorithm)
-	 */
-	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_DWRR);
-
-	/* Set Traffic Class algorithms */
-	total_weight = pdata->netdev->mtu * pdata->hw_feat.tc_cnt;
-	min_weight = total_weight / 100;
-	if (!min_weight)
-		min_weight = 1;
-
-	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
-		/* Map the priorities to the traffic class */
-		mask = 0;
-		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
-			if (ets->prio_tc[prio] == i)
-				mask |= (1 << prio);
-		}
-		mask &= 0xff;
-
-		netif_dbg(pdata, drv, pdata->netdev, "TC%u PRIO mask=%#x\n",
-			  i, mask);
-		reg = MTL_TCPM0R + (MTL_TCPM_INC * (i / MTL_TCPM_TC_PER_REG));
-		reg_val = XGMAC_IOREAD(pdata, reg);
-
-		reg_val &= ~(0xff << ((i % MTL_TCPM_TC_PER_REG) << 3));
-		reg_val |= (mask << ((i % MTL_TCPM_TC_PER_REG) << 3));
-
-		XGMAC_IOWRITE(pdata, reg, reg_val);
-
-		/* Set the traffic class algorithm */
-		switch (ets->tc_tsa[i]) {
-		case IEEE_8021QAZ_TSA_STRICT:
-			netif_dbg(pdata, drv, pdata->netdev,
-				  "TC%u using SP\n", i);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
-					       MTL_TSA_SP);
-			break;
-		case IEEE_8021QAZ_TSA_ETS:
-			weight = total_weight * ets->tc_tx_bw[i] / 100;
-			weight = clamp(weight, min_weight, total_weight);
-
-			netif_dbg(pdata, drv, pdata->netdev,
-				  "TC%u using DWRR (weight %u)\n", i, weight);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
-					       MTL_TSA_ETS);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW,
-					       weight);
-			break;
-		}
-	}
-
-	xgbe_config_tc(pdata);
-}
-
-static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
-{
-	xgbe_config_flow_control(pdata);
 }
 
 static void xgbe_tx_start_xmit(struct xgbe_channel *channel,
@@ -1901,7 +2076,7 @@ static int xgbe_disable_int(struct xgbe_channel *channel,
 	return 0;
 }
 
-static int xgbe_exit(struct xgbe_prv_data *pdata)
+static int __xgbe_exit(struct xgbe_prv_data *pdata)
 {
 	unsigned int count = 2000;
 
@@ -1921,6 +2096,20 @@ static int xgbe_exit(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_exit\n");
 
 	return 0;
+}
+
+static int xgbe_exit(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
+	/* To guard against possible incorrectly generated interrupts,
+	 * issue the software reset twice.
+	 */
+	ret = __xgbe_exit(pdata);
+	if (ret)
+		return ret;
+
+	return __xgbe_exit(pdata);
 }
 
 static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
@@ -2000,61 +2189,331 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, RAA, MTL_RAA_SP);
 }
 
-static unsigned int xgbe_calculate_per_queue_fifo(unsigned int fifo_size,
-						  unsigned int queue_count)
+static void xgbe_queue_flow_control_threshold(struct xgbe_prv_data *pdata,
+					      unsigned int queue,
+					      unsigned int q_fifo_size)
+{
+	unsigned int frame_fifo_size;
+	unsigned int rfa, rfd;
+
+	frame_fifo_size = XGMAC_FLOW_CONTROL_ALIGN(xgbe_get_max_frame(pdata));
+
+	if (pdata->pfcq[queue] && (q_fifo_size > pdata->pfc_rfa)) {
+		/* PFC is active for this queue */
+		rfa = pdata->pfc_rfa;
+		rfd = rfa + frame_fifo_size;
+		if (rfd > XGMAC_FLOW_CONTROL_MAX)
+			rfd = XGMAC_FLOW_CONTROL_MAX;
+		if (rfa >= XGMAC_FLOW_CONTROL_MAX)
+			rfa = XGMAC_FLOW_CONTROL_MAX - XGMAC_FLOW_CONTROL_UNIT;
+	} else {
+		/* This path deals with just maximum frame sizes which are
+		 * limited to a jumbo frame of 9,000 (plus headers, etc.)
+		 * so we can never exceed the maximum allowable RFA/RFD
+		 * values.
+		 */
+		if (q_fifo_size <= 2048) {
+			/* rx_rfd to zero to signal no flow control */
+			pdata->rx_rfa[queue] = 0;
+			pdata->rx_rfd[queue] = 0;
+			return;
+		}
+
+		if (q_fifo_size <= 4096) {
+			/* Between 2048 and 4096 */
+			pdata->rx_rfa[queue] = 0;	/* Full - 1024 bytes */
+			pdata->rx_rfd[queue] = 1;	/* Full - 1536 bytes */
+			return;
+		}
+
+		if (q_fifo_size <= frame_fifo_size) {
+			/* Between 4096 and max-frame */
+			pdata->rx_rfa[queue] = 2;	/* Full - 2048 bytes */
+			pdata->rx_rfd[queue] = 5;	/* Full - 3584 bytes */
+			return;
+		}
+
+		if (q_fifo_size <= (frame_fifo_size * 3)) {
+			/* Between max-frame and 3 max-frames,
+			 * trigger if we get just over a frame of data and
+			 * resume when we have just under half a frame left.
+			 */
+			rfa = q_fifo_size - frame_fifo_size;
+			rfd = rfa + (frame_fifo_size / 2);
+		} else {
+			/* Above 3 max-frames - trigger when just over
+			 * 2 frames of space available
+			 */
+			rfa = frame_fifo_size * 2;
+			rfa += XGMAC_FLOW_CONTROL_UNIT;
+			rfd = rfa + frame_fifo_size;
+		}
+	}
+
+	pdata->rx_rfa[queue] = XGMAC_FLOW_CONTROL_VALUE(rfa);
+	pdata->rx_rfd[queue] = XGMAC_FLOW_CONTROL_VALUE(rfd);
+}
+
+static void xgbe_calculate_flow_control_threshold(struct xgbe_prv_data *pdata,
+						  unsigned int *fifo)
+{
+	unsigned int q_fifo_size;
+	unsigned int i;
+
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		q_fifo_size = (fifo[i] + 1) * XGMAC_FIFO_UNIT;
+
+		xgbe_queue_flow_control_threshold(pdata, i, q_fifo_size);
+	}
+}
+
+static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
+{
+	unsigned int i;
+
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFA,
+				       pdata->rx_rfa[i]);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFD,
+				       pdata->rx_rfd[i]);
+	}
+}
+
+static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
+{
+	/* The configured value may not be the actual amount of fifo RAM */
+	return min_t(unsigned int, pdata->tx_max_fifo_size,
+		     pdata->hw_feat.tx_fifo_size);
+}
+
+static unsigned int xgbe_get_rx_fifo_size(struct xgbe_prv_data *pdata)
+{
+	/* The configured value may not be the actual amount of fifo RAM */
+	return min_t(unsigned int, pdata->rx_max_fifo_size,
+		     pdata->hw_feat.rx_fifo_size);
+}
+
+static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
+				      unsigned int queue_count,
+				      unsigned int *fifo)
 {
 	unsigned int q_fifo_size;
 	unsigned int p_fifo;
+	unsigned int i;
 
-	/* Calculate the configured fifo size */
-	q_fifo_size = 1 << (fifo_size + 7);
+	q_fifo_size = fifo_size / queue_count;
 
-	/* The configured value may not be the actual amount of fifo RAM */
-	q_fifo_size = min_t(unsigned int, XGBE_FIFO_MAX, q_fifo_size);
-
-	q_fifo_size = q_fifo_size / queue_count;
-
-	/* Each increment in the queue fifo size represents 256 bytes of
-	 * fifo, with 0 representing 256 bytes. Distribute the fifo equally
-	 * between the queues.
+	/* Calculate the fifo setting by dividing the queue's fifo size
+	 * by the fifo allocation increment (with 0 representing the
+	 * base allocation increment so decrement the result by 1).
 	 */
-	p_fifo = q_fifo_size / 256;
+	p_fifo = q_fifo_size / XGMAC_FIFO_UNIT;
 	if (p_fifo)
 		p_fifo--;
 
-	return p_fifo;
+	/* Distribute the fifo equally amongst the queues */
+	for (i = 0; i < queue_count; i++)
+		fifo[i] = p_fifo;
+}
+
+static unsigned int xgbe_set_nonprio_fifos(unsigned int fifo_size,
+					   unsigned int queue_count,
+					   unsigned int *fifo)
+{
+	unsigned int i;
+
+	BUILD_BUG_ON_NOT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
+
+	if (queue_count <= IEEE_8021QAZ_MAX_TCS)
+		return fifo_size;
+
+	/* Rx queues 9 and up are for specialized packets,
+	 * such as PTP or DCB control packets, etc. and
+	 * don't require a large fifo
+	 */
+	for (i = IEEE_8021QAZ_MAX_TCS; i < queue_count; i++) {
+		fifo[i] = (XGMAC_FIFO_MIN_ALLOC / XGMAC_FIFO_UNIT) - 1;
+		fifo_size -= XGMAC_FIFO_MIN_ALLOC;
+	}
+
+	return fifo_size;
+}
+
+static unsigned int xgbe_get_pfc_delay(struct xgbe_prv_data *pdata)
+{
+	unsigned int delay;
+
+	/* If a delay has been provided, use that */
+	if (pdata->pfc->delay)
+		return pdata->pfc->delay / 8;
+
+	/* Allow for two maximum size frames */
+	delay = xgbe_get_max_frame(pdata);
+	delay += XGMAC_ETH_PREAMBLE;
+	delay *= 2;
+
+	/* Allow for PFC frame */
+	delay += XGMAC_PFC_DATA_LEN;
+	delay += ETH_HLEN + ETH_FCS_LEN;
+	delay += XGMAC_ETH_PREAMBLE;
+
+	/* Allow for miscellaneous delays (LPI exit, cable, etc.) */
+	delay += XGMAC_PFC_DELAYS;
+
+	return delay;
+}
+
+static unsigned int xgbe_get_pfc_queues(struct xgbe_prv_data *pdata)
+{
+	unsigned int count, prio_queues;
+	unsigned int i;
+
+	if (!pdata->pfc->pfc_en)
+		return 0;
+
+	count = 0;
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+	for (i = 0; i < prio_queues; i++) {
+		if (!xgbe_is_pfc_queue(pdata, i))
+			continue;
+
+		pdata->pfcq[i] = 1;
+		count++;
+	}
+
+	return count;
+}
+
+static void xgbe_calculate_dcb_fifo(struct xgbe_prv_data *pdata,
+				    unsigned int fifo_size,
+				    unsigned int *fifo)
+{
+	unsigned int q_fifo_size, rem_fifo, addn_fifo;
+	unsigned int prio_queues;
+	unsigned int pfc_count;
+	unsigned int i;
+
+	q_fifo_size = XGMAC_FIFO_ALIGN(xgbe_get_max_frame(pdata));
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+	pfc_count = xgbe_get_pfc_queues(pdata);
+
+	if (!pfc_count || ((q_fifo_size * prio_queues) > fifo_size)) {
+		/* No traffic classes with PFC enabled or can't do lossless */
+		xgbe_calculate_equal_fifo(fifo_size, prio_queues, fifo);
+		return;
+	}
+
+	/* Calculate how much fifo we have to play with */
+	rem_fifo = fifo_size - (q_fifo_size * prio_queues);
+
+	/* Calculate how much more than base fifo PFC needs, which also
+	 * becomes the threshold activation point (RFA)
+	 */
+	pdata->pfc_rfa = xgbe_get_pfc_delay(pdata);
+	pdata->pfc_rfa = XGMAC_FLOW_CONTROL_ALIGN(pdata->pfc_rfa);
+
+	if (pdata->pfc_rfa > q_fifo_size) {
+		addn_fifo = pdata->pfc_rfa - q_fifo_size;
+		addn_fifo = XGMAC_FIFO_ALIGN(addn_fifo);
+	} else {
+		addn_fifo = 0;
+	}
+
+	/* Calculate DCB fifo settings:
+	 *   - distribute remaining fifo between the VLAN priority
+	 *     queues based on traffic class PFC enablement and overall
+	 *     priority (0 is lowest priority, so start at highest)
+	 */
+	i = prio_queues;
+	while (i > 0) {
+		i--;
+
+		fifo[i] = (q_fifo_size / XGMAC_FIFO_UNIT) - 1;
+
+		if (!pdata->pfcq[i] || !addn_fifo)
+			continue;
+
+		if (addn_fifo > rem_fifo) {
+			netdev_warn(pdata->netdev,
+				    "RXq%u cannot set needed fifo size\n", i);
+			if (!rem_fifo)
+				continue;
+
+			addn_fifo = rem_fifo;
+		}
+
+		fifo[i] += (addn_fifo / XGMAC_FIFO_UNIT);
+		rem_fifo -= addn_fifo;
+	}
+
+	if (rem_fifo) {
+		unsigned int inc_fifo = rem_fifo / prio_queues;
+
+		/* Distribute remaining fifo across queues */
+		for (i = 0; i < prio_queues; i++)
+			fifo[i] += (inc_fifo / XGMAC_FIFO_UNIT);
+	}
 }
 
 static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
+	unsigned int fifo[XGBE_MAX_QUEUES];
 	unsigned int i;
 
-	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.tx_fifo_size,
-						  pdata->tx_q_count);
+	fifo_size = xgbe_get_tx_fifo_size(pdata);
+
+	xgbe_calculate_equal_fifo(fifo_size, pdata->tx_q_count, fifo);
 
 	for (i = 0; i < pdata->tx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo_size);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo[i]);
 
 	netif_info(pdata, drv, pdata->netdev,
 		   "%d Tx hardware queues, %d byte fifo per queue\n",
-		   pdata->tx_q_count, ((fifo_size + 1) * 256));
+		   pdata->tx_q_count, ((fifo[0] + 1) * XGMAC_FIFO_UNIT));
 }
 
 static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
+	unsigned int fifo[XGBE_MAX_QUEUES];
+	unsigned int prio_queues;
 	unsigned int i;
 
-	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.rx_fifo_size,
-						  pdata->rx_q_count);
+	/* Clear any DCB related fifo/queue information */
+	memset(pdata->pfcq, 0, sizeof(pdata->pfcq));
+	pdata->pfc_rfa = 0;
+
+	fifo_size = xgbe_get_rx_fifo_size(pdata);
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+
+	/* Assign a minimum fifo to the non-VLAN priority queues */
+	fifo_size = xgbe_set_nonprio_fifos(fifo_size, pdata->rx_q_count, fifo);
+
+	if (pdata->pfc && pdata->ets)
+		xgbe_calculate_dcb_fifo(pdata, fifo_size, fifo);
+	else
+		xgbe_calculate_equal_fifo(fifo_size, prio_queues, fifo);
 
 	for (i = 0; i < pdata->rx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo_size);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo[i]);
 
-	netif_info(pdata, drv, pdata->netdev,
-		   "%d Rx hardware queues, %d byte fifo per queue\n",
-		   pdata->rx_q_count, ((fifo_size + 1) * 256));
+	xgbe_calculate_flow_control_threshold(pdata, fifo);
+	xgbe_config_flow_control_threshold(pdata);
+
+	if (pdata->pfc && pdata->ets && pdata->pfc->pfc_en) {
+		netif_info(pdata, drv, pdata->netdev,
+			   "%u Rx hardware queues\n", pdata->rx_q_count);
+		for (i = 0; i < pdata->rx_q_count; i++)
+			netif_info(pdata, drv, pdata->netdev,
+				   "RxQ%u, %u byte fifo queue\n", i,
+				   ((fifo[i] + 1) * XGMAC_FIFO_UNIT));
+	} else {
+		netif_info(pdata, drv, pdata->netdev,
+			   "%u Rx hardware queues, %u byte fifo per queue\n",
+			   pdata->rx_q_count,
+			   ((fifo[0] + 1) * XGMAC_FIFO_UNIT));
+	}
 }
 
 static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
@@ -2090,8 +2549,7 @@ static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 	}
 
 	/* Map the 8 VLAN priority values to available MTL Rx queues */
-	prio_queues = min_t(unsigned int, IEEE_8021QAZ_MAX_TCS,
-			    pdata->rx_q_count);
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
 	ppq = IEEE_8021QAZ_MAX_TCS / prio_queues;
 	ppq_extra = IEEE_8021QAZ_MAX_TCS % prio_queues;
 
@@ -2139,16 +2597,120 @@ static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 	}
 }
 
-static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
+static void xgbe_config_tc(struct xgbe_prv_data *pdata)
 {
-	unsigned int i;
+	unsigned int offset, queue, prio;
+	u8 i;
 
-	for (i = 0; i < pdata->rx_q_count; i++) {
-		/* Activate flow control when less than 4k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFA, 2);
+	netdev_reset_tc(pdata->netdev);
+	if (!pdata->num_tcs)
+		return;
 
-		/* De-activate flow control when more than 6k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFD, 4);
+	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
+
+	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
+		while ((queue < pdata->tx_q_count) &&
+		       (pdata->q2tc_map[queue] == i))
+			queue++;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
+			  i, offset, queue - 1);
+		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
+		offset = queue;
+	}
+
+	if (!pdata->ets)
+		return;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		netdev_set_prio_tc_map(pdata->netdev, prio,
+				       pdata->ets->prio_tc[prio]);
+}
+
+static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
+{
+	struct ieee_ets *ets = pdata->ets;
+	unsigned int total_weight, min_weight, weight;
+	unsigned int mask, reg, reg_val;
+	unsigned int i, prio;
+
+	if (!ets)
+		return;
+
+	/* Set Tx to deficit weighted round robin scheduling algorithm (when
+	 * traffic class is using ETS algorithm)
+	 */
+	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_DWRR);
+
+	/* Set Traffic Class algorithms */
+	total_weight = pdata->netdev->mtu * pdata->hw_feat.tc_cnt;
+	min_weight = total_weight / 100;
+	if (!min_weight)
+		min_weight = 1;
+
+	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		/* Map the priorities to the traffic class */
+		mask = 0;
+		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+			if (ets->prio_tc[prio] == i)
+				mask |= (1 << prio);
+		}
+		mask &= 0xff;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u PRIO mask=%#x\n",
+			  i, mask);
+		reg = MTL_TCPM0R + (MTL_TCPM_INC * (i / MTL_TCPM_TC_PER_REG));
+		reg_val = XGMAC_IOREAD(pdata, reg);
+
+		reg_val &= ~(0xff << ((i % MTL_TCPM_TC_PER_REG) << 3));
+		reg_val |= (mask << ((i % MTL_TCPM_TC_PER_REG) << 3));
+
+		XGMAC_IOWRITE(pdata, reg, reg_val);
+
+		/* Set the traffic class algorithm */
+		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_STRICT:
+			netif_dbg(pdata, drv, pdata->netdev,
+				  "TC%u using SP\n", i);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_SP);
+			break;
+		case IEEE_8021QAZ_TSA_ETS:
+			weight = total_weight * ets->tc_tx_bw[i] / 100;
+			weight = clamp(weight, min_weight, total_weight);
+
+			netif_dbg(pdata, drv, pdata->netdev,
+				  "TC%u using DWRR (weight %u)\n", i, weight);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_ETS);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW,
+					       weight);
+			break;
+		}
+	}
+
+	xgbe_config_tc(pdata);
+}
+
+static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
+{
+	if (!test_bit(XGBE_DOWN, &pdata->dev_state)) {
+		/* Just stop the Tx queues while Rx fifo is changed */
+		netif_tx_stop_all_queues(pdata->netdev);
+
+		/* Suspend Rx so that fifo's can be adjusted */
+		pdata->hw_if.disable_rx(pdata);
+	}
+
+	xgbe_config_rx_fifo_size(pdata);
+	xgbe_config_flow_control(pdata);
+
+	if (!test_bit(XGBE_DOWN, &pdata->dev_state)) {
+		/* Resume Rx */
+		pdata->hw_if.enable_rx(pdata);
+
+		/* Resume Tx queues */
+		netif_tx_start_all_queues(pdata->netdev);
 	}
 }
 
@@ -2175,19 +2737,7 @@ static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_mac_speed(struct xgbe_prv_data *pdata)
 {
-	switch (pdata->phy_speed) {
-	case SPEED_10000:
-		xgbe_set_xgmii_speed(pdata);
-		break;
-
-	case SPEED_2500:
-		xgbe_set_gmii_2500_speed(pdata);
-		break;
-
-	case SPEED_1000:
-		xgbe_set_gmii_speed(pdata);
-		break;
-	}
+	xgbe_set_speed(pdata, pdata->phy_speed);
 }
 
 static void xgbe_config_checksum_offload(struct xgbe_prv_data *pdata)
@@ -2223,17 +2773,33 @@ static u64 xgbe_mmc_read(struct xgbe_prv_data *pdata, unsigned int reg_lo)
 	bool read_hi;
 	u64 val;
 
-	switch (reg_lo) {
-	/* These registers are always 64 bit */
-	case MMC_TXOCTETCOUNT_GB_LO:
-	case MMC_TXOCTETCOUNT_G_LO:
-	case MMC_RXOCTETCOUNT_GB_LO:
-	case MMC_RXOCTETCOUNT_G_LO:
-		read_hi = true;
-		break;
+	if (pdata->vdata->mmc_64bit) {
+		switch (reg_lo) {
+		/* These registers are always 32 bit */
+		case MMC_RXRUNTERROR:
+		case MMC_RXJABBERERROR:
+		case MMC_RXUNDERSIZE_G:
+		case MMC_RXOVERSIZE_G:
+		case MMC_RXWATCHDOGERROR:
+			read_hi = false;
+			break;
 
-	default:
-		read_hi = false;
+		default:
+			read_hi = true;
+		}
+	} else {
+		switch (reg_lo) {
+		/* These registers are always 64 bit */
+		case MMC_TXOCTETCOUNT_GB_LO:
+		case MMC_TXOCTETCOUNT_G_LO:
+		case MMC_RXOCTETCOUNT_GB_LO:
+		case MMC_RXOCTETCOUNT_G_LO:
+			read_hi = true;
+			break;
+
+		default:
+			read_hi = false;
+		}
 	}
 
 	val = XGMAC_IOREAD(pdata, reg_lo);
@@ -2563,20 +3129,48 @@ static void xgbe_config_mmc(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MMC_CR, CR, 1);
 }
 
+static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
+				     unsigned int queue)
+{
+	unsigned int tx_status;
+	unsigned long tx_timeout;
+
+	/* The Tx engine cannot be stopped if it is actively processing
+	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
+	 * wait forever though...
+	 */
+	tx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
+	while (time_before(jiffies, tx_timeout)) {
+		tx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_TQDR);
+		if ((XGMAC_GET_BITS(tx_status, MTL_Q_TQDR, TRCSTS) != 1) &&
+		    (XGMAC_GET_BITS(tx_status, MTL_Q_TQDR, TXQSTS) == 0))
+			break;
+
+		usleep_range(500, 1000);
+	}
+
+	if (!time_before(jiffies, tx_timeout))
+		netdev_info(pdata->netdev,
+			    "timed out waiting for Tx queue %u to empty\n",
+			    queue);
+}
+
 static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
-				 struct xgbe_channel *channel)
+				 unsigned int queue)
 {
 	unsigned int tx_dsr, tx_pos, tx_qidx;
 	unsigned int tx_status;
 	unsigned long tx_timeout;
 
+	if (XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER) > 0x20)
+		return xgbe_txq_prepare_tx_stop(pdata, queue);
+
 	/* Calculate the status register to read and the position within */
-	if (channel->queue_index < DMA_DSRX_FIRST_QUEUE) {
+	if (queue < DMA_DSRX_FIRST_QUEUE) {
 		tx_dsr = DMA_DSR0;
-		tx_pos = (channel->queue_index * DMA_DSR_Q_WIDTH) +
-			 DMA_DSR0_TPS_START;
+		tx_pos = (queue * DMA_DSR_Q_WIDTH) + DMA_DSR0_TPS_START;
 	} else {
-		tx_qidx = channel->queue_index - DMA_DSRX_FIRST_QUEUE;
+		tx_qidx = queue - DMA_DSRX_FIRST_QUEUE;
 
 		tx_dsr = DMA_DSR1 + ((tx_qidx / DMA_DSRX_QPR) * DMA_DSRX_INC);
 		tx_pos = ((tx_qidx % DMA_DSRX_QPR) * DMA_DSR_Q_WIDTH) +
@@ -2601,7 +3195,7 @@ static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	if (!time_before(jiffies, tx_timeout))
 		netdev_info(pdata->netdev,
 			    "timed out waiting for Tx DMA channel %u to stop\n",
-			    channel->queue_index);
+			    queue);
 }
 
 static void xgbe_enable_tx(struct xgbe_prv_data *pdata)
@@ -2633,13 +3227,8 @@ static void xgbe_disable_tx(struct xgbe_prv_data *pdata)
 	unsigned int i;
 
 	/* Prepare for Tx DMA channel stop */
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (!channel->tx_ring)
-			break;
-
-		xgbe_prepare_tx_stop(pdata, channel);
-	}
+	for (i = 0; i < pdata->tx_q_count; i++)
+		xgbe_prepare_tx_stop(pdata, i);
 
 	/* Disable MAC Tx */
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
@@ -2763,13 +3352,8 @@ static void xgbe_powerdown_tx(struct xgbe_prv_data *pdata)
 	unsigned int i;
 
 	/* Prepare for Tx DMA channel stop */
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (!channel->tx_ring)
-			break;
-
-		xgbe_prepare_tx_stop(pdata, channel);
-	}
+	for (i = 0; i < pdata->tx_q_count; i++)
+		xgbe_prepare_tx_stop(pdata, i);
 
 	/* Disable MAC Tx */
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
@@ -2823,8 +3407,10 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 
 	/* Flush Tx queues */
 	ret = xgbe_flush_tx_queues(pdata);
-	if (ret)
+	if (ret) {
+		netdev_err(pdata->netdev, "error flushing TX queues\n");
 		return ret;
+	}
 
 	/*
 	 * Initialize DMA related features
@@ -2856,12 +3442,10 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_rx_threshold(pdata, pdata->rx_threshold);
 	xgbe_config_tx_fifo_size(pdata);
 	xgbe_config_rx_fifo_size(pdata);
-	xgbe_config_flow_control_threshold(pdata);
 	/*TODO: Error Packet and undersized good Packet forwarding enable
 		(FEP and FUP)
 	 */
 	xgbe_config_dcb_tc(pdata);
-	xgbe_config_dcb_pfc(pdata);
 	xgbe_enable_mtl_interrupts(pdata);
 
 	/*
@@ -2876,6 +3460,11 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_vlan_support(pdata);
 	xgbe_config_mmc(pdata);
 	xgbe_enable_mac_interrupts(pdata);
+
+	/*
+	 * Initialize ECC related features
+	 */
+	xgbe_enable_ecc_interrupts(pdata);
 
 	DBGPR("<--xgbe_init\n");
 
@@ -2903,9 +3492,14 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->read_mmd_regs = xgbe_read_mmd_regs;
 	hw_if->write_mmd_regs = xgbe_write_mmd_regs;
 
-	hw_if->set_gmii_speed = xgbe_set_gmii_speed;
-	hw_if->set_gmii_2500_speed = xgbe_set_gmii_2500_speed;
-	hw_if->set_xgmii_speed = xgbe_set_xgmii_speed;
+	hw_if->set_speed = xgbe_set_speed;
+
+	hw_if->set_ext_mii_mode = xgbe_set_ext_mii_mode;
+	hw_if->read_ext_mii_regs = xgbe_read_ext_mii_regs;
+	hw_if->write_ext_mii_regs = xgbe_write_ext_mii_regs;
+
+	hw_if->set_gpio = xgbe_set_gpio;
+	hw_if->clr_gpio = xgbe_clr_gpio;
 
 	hw_if->enable_tx = xgbe_enable_tx;
 	hw_if->disable_tx = xgbe_disable_tx;
@@ -2983,6 +3577,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->disable_rss = xgbe_disable_rss;
 	hw_if->set_rss_hash_key = xgbe_set_rss_hash_key;
 	hw_if->set_rss_lookup_table = xgbe_set_rss_lookup_table;
+
+	/* For ECC */
+	hw_if->disable_ecc_ded = xgbe_disable_ecc_ded;
+	hw_if->disable_ecc_sec = xgbe_disable_ecc_sec;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

@@ -56,7 +56,7 @@ static int metag_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static cycle_t metag_clocksource_read(struct clocksource *cs)
+static u64 metag_clocksource_read(struct clocksource *cs)
 {
 	return __core_reg_get(TXTIMER);
 }
@@ -154,6 +154,6 @@ int __init metag_generic_timer_init(void)
 
 	/* Hook cpu boot to configure the CPU's timers */
 	return cpuhp_setup_state(CPUHP_AP_METAG_TIMER_STARTING,
-				 "AP_METAG_TIMER_STARTING",
+				 "clockevents/metag:starting",
 				 arch_timer_starting_cpu, NULL);
 }

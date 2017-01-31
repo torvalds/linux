@@ -166,6 +166,7 @@ struct qed_iscsi_pf_params {
 	u32 max_cwnd;
 	u16 cq_num_entries;
 	u16 cmdq_num_entries;
+	u32 two_msl_timer;
 	u16 dup_ack_threshold;
 	u16 tx_sws_timer;
 	u16 min_rto;
@@ -267,11 +268,15 @@ struct qed_dev_info {
 	u8		mf_mode;
 	bool		tx_switching;
 	bool		rdma_supported;
+	u16		mtu;
+
+	bool wol_support;
 };
 
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
 	QED_SB_TYPE_CNQ,
+	QED_SB_TYPE_STORAGE,
 };
 
 enum qed_protocol {
@@ -401,6 +406,15 @@ struct qed_selftest_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*selftest_clock)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_nvram - Perform nvram test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_nvram) (struct qed_dev *cdev);
 };
 
 struct qed_common_ops {
@@ -554,6 +568,41 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief update_drv_state - API to inform the change in the driver state.
+ *
+ * @param cdev
+ * @param active
+ *
+ */
+	int (*update_drv_state)(struct qed_dev *cdev, bool active);
+
+/**
+ * @brief update_mac - API to inform the change in the mac address
+ *
+ * @param cdev
+ * @param mac
+ *
+ */
+	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
+
+/**
+ * @brief update_mtu - API to inform the change in the mtu
+ *
+ * @param cdev
+ * @param mtu
+ *
+ */
+	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
+
+/**
+ * @brief update_wol - update of changes in the WoL configuration
+ *
+ * @param cdev
+ * @param enabled - true iff WoL should be enabled.
+ */
+	int (*update_wol) (struct qed_dev *cdev, bool enabled);
 };
 
 #define MASK_FIELD(_name, _value) \

@@ -43,6 +43,8 @@
 #define GAIN_AUGMENT 22500
 #define SIDETONE_BASE 207000
 
+/* the maximum frequency of CLK_ADC and CLK_DAC */
+#define CLK_DA_AD_MAX 6144000
 
 static int nau8825_configure_sysclk(struct nau8825 *nau8825,
 		int clk_id, unsigned int freq);
@@ -93,6 +95,27 @@ static const struct nau8825_fll_attr fll_pre_scalar[] = {
 	{ 2, 0x1 },
 	{ 4, 0x2 },
 	{ 8, 0x3 },
+};
+
+/* over sampling rate */
+struct nau8825_osr_attr {
+	unsigned int osr;
+	unsigned int clk_src;
+};
+
+static const struct nau8825_osr_attr osr_dac_sel[] = {
+	{ 64, 2 },	/* OSR 64, SRC 1/4 */
+	{ 256, 0 },	/* OSR 256, SRC 1 */
+	{ 128, 1 },	/* OSR 128, SRC 1/2 */
+	{ 0, 0 },
+	{ 32, 3 },	/* OSR 32, SRC 1/8 */
+};
+
+static const struct nau8825_osr_attr osr_adc_sel[] = {
+	{ 32, 3 },	/* OSR 32, SRC 1/8 */
+	{ 64, 2 },	/* OSR 64, SRC 1/4 */
+	{ 128, 1 },	/* OSR 128, SRC 1/2 */
+	{ 256, 0 },	/* OSR 256, SRC 1 */
 };
 
 static const struct reg_default nau8825_reg_defaults[] = {
@@ -538,9 +561,9 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 	nau8825_xtalk_backup(nau8825);
 	/* Config IIS as master to output signal by codec */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
-		NAU8825_I2S_MS_MASK | NAU8825_I2S_DRV_MASK |
+		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_MASTER |
-		(0x2 << NAU8825_I2S_DRV_SFT) | 0x1);
+		(0x2 << NAU8825_I2S_LRC_DIV_SFT) | 0x1);
 	/* Ramp up headphone volume to 0dB to get better performance and
 	 * avoid pop noise in headphone.
 	 */
@@ -634,7 +657,7 @@ static void nau8825_xtalk_clean(struct nau8825 *nau8825)
 		NAU8825_IRQ_RMS_EN, NAU8825_IRQ_RMS_EN);
 	/* Recover default value for IIS */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
-		NAU8825_I2S_MS_MASK | NAU8825_I2S_DRV_MASK |
+		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_SLAVE);
 	/* Restore value of specific register for cross talk */
 	nau8825_xtalk_restore(nau8825);
@@ -1179,15 +1202,64 @@ static const struct snd_soc_dapm_route nau8825_dapm_routes[] = {
 	{"HPOR", NULL, "Class G"},
 };
 
+static int nau8825_clock_check(struct nau8825 *nau8825,
+	int stream, int rate, int osr)
+{
+	int osrate;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (osr >= ARRAY_SIZE(osr_dac_sel))
+			return -EINVAL;
+		osrate = osr_dac_sel[osr].osr;
+	} else {
+		if (osr >= ARRAY_SIZE(osr_adc_sel))
+			return -EINVAL;
+		osrate = osr_adc_sel[osr].osr;
+	}
+
+	if (!osrate || rate * osr > CLK_DA_AD_MAX) {
+		dev_err(nau8825->dev, "exceed the maximum frequency of CLK_ADC or CLK_DAC\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nau8825_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0;
+	unsigned int val_len = 0, osr;
 
-	nau8825_sema_acquire(nau8825, 2 * HZ);
+	nau8825_sema_acquire(nau8825, 3 * HZ);
+
+	/* CLK_DAC or CLK_ADC = OSR * FS
+	 * DAC or ADC clock frequency is defined as Over Sampling Rate (OSR)
+	 * multiplied by the audio sample rate (Fs). Note that the OSR and Fs
+	 * values must be selected such that the maximum frequency is less
+	 * than 6.144 MHz.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8825->regmap, NAU8825_REG_DAC_CTRL1, &osr);
+		osr &= NAU8825_DAC_OVERSAMPLE_MASK;
+		if (nau8825_clock_check(nau8825, substream->stream,
+			params_rate(params), osr))
+			return -EINVAL;
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
+			NAU8825_CLK_DAC_SRC_MASK,
+			osr_dac_sel[osr].clk_src << NAU8825_CLK_DAC_SRC_SFT);
+	} else {
+		regmap_read(nau8825->regmap, NAU8825_REG_ADC_RATE, &osr);
+		osr &= NAU8825_ADC_SYNC_DOWN_MASK;
+		if (nau8825_clock_check(nau8825, substream->stream,
+			params_rate(params), osr))
+			return -EINVAL;
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
+			NAU8825_CLK_ADC_SRC_MASK,
+			osr_adc_sel[osr].clk_src << NAU8825_CLK_ADC_SRC_SFT);
+	}
 
 	switch (params_width(params)) {
 	case 16:
@@ -1221,7 +1293,7 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
-	nau8825_sema_acquire(nau8825, 2 * HZ);
+	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1774,9 +1846,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	 * (audible hiss). Set it to something better.
 	 */
 	regmap_update_bits(regmap, NAU8825_REG_ADC_RATE,
-		NAU8825_ADC_SYNC_DOWN_MASK, NAU8825_ADC_SYNC_DOWN_128);
+		NAU8825_ADC_SYNC_DOWN_MASK | NAU8825_ADC_SINC4_EN,
+		NAU8825_ADC_SYNC_DOWN_64);
 	regmap_update_bits(regmap, NAU8825_REG_DAC_CTRL1,
-		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_128);
+		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_64);
 	/* Disable DACR/L power */
 	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
 		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
@@ -1811,6 +1884,9 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_L);
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_DACR_CTRL,
 		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_R);
+	/* Disable short Frame Sync detection logic */
+	regmap_update_bits(regmap, NAU8825_REG_LEFT_TIME_SLOT,
+		NAU8825_DIS_FS_SHORT_DET, NAU8825_DIS_FS_SHORT_DET);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
@@ -1919,8 +1995,10 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 		NAU8825_CLK_SRC_MASK | NAU8825_CLK_MCLK_SRC_MASK,
 		NAU8825_CLK_SRC_MCLK | fll_param->mclk_src);
+	/* Make DSP operate at high speed for better performance. */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL1,
-			NAU8825_FLL_RATIO_MASK, fll_param->ratio);
+		NAU8825_FLL_RATIO_MASK | NAU8825_ICTRL_LATCH_MASK,
+		fll_param->ratio | (0x6 << NAU8825_ICTRL_LATCH_SFT));
 	/* FLL 16-bit fractional input */
 	regmap_write(nau8825->regmap, NAU8825_REG_FLL2, fll_param->fll_frac);
 	/* FLL 10-bit integer input */
@@ -1928,7 +2006,8 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 			NAU8825_FLL_INTEGER_MASK, fll_param->fll_int);
 	/* FLL pre-scaler */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL4,
-			NAU8825_FLL_REF_DIV_MASK, fll_param->clk_ref_div);
+			NAU8825_FLL_REF_DIV_MASK,
+			fll_param->clk_ref_div << NAU8825_FLL_REF_DIV_SFT);
 	/* select divided VCO input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 		NAU8825_FLL_CLK_SW_MASK, NAU8825_FLL_CLK_SW_REF);
@@ -1936,19 +2015,22 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap,
 		NAU8825_REG_FLL6, NAU8825_DCO_EN, 0);
 	if (fll_param->fll_frac) {
+		/* set FLL loop filter enable and cutoff frequency at 500Khz */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_MASK,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_FILTER);
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
-			NAU8825_SDM_EN, NAU8825_SDM_EN);
+			NAU8825_SDM_EN | NAU8825_CUTOFF500,
+			NAU8825_SDM_EN | NAU8825_CUTOFF500);
 	} else {
+		/* disable FLL loop filter and cutoff frequency */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_MASK, NAU8825_FLL_FTR_SW_ACCU);
-		regmap_update_bits(nau8825->regmap,
-			NAU8825_REG_FLL6, NAU8825_SDM_EN, 0);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
+			NAU8825_SDM_EN | NAU8825_CUTOFF500, 0);
 	}
 }
 
@@ -2014,6 +2096,9 @@ static void nau8825_configure_mclk_as_sysclk(struct regmap *regmap)
 		NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_MCLK);
 	regmap_update_bits(regmap, NAU8825_REG_FLL6,
 		NAU8825_DCO_EN, 0);
+	/* Make DSP operate as default setting for power saving. */
+	regmap_update_bits(regmap, NAU8825_REG_FLL1,
+		NAU8825_ICTRL_LATCH_MASK, 0);
 }
 
 static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
@@ -2038,7 +2123,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
 		nau8825_configure_mclk_as_sysclk(regmap);
 		/* MCLK not changed by clock tree */
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
@@ -2057,10 +2142,13 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 				NAU8825_DCO_EN, NAU8825_DCO_EN);
 			regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 				NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_VCO);
-			/* Decrease the VCO frequency for power saving */
+			/* Decrease the VCO frequency and make DSP operate
+			 * as default setting for power saving.
+			 */
 			regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 				NAU8825_CLK_MCLK_SRC_MASK, 0xf);
 			regmap_update_bits(regmap, NAU8825_REG_FLL1,
+				NAU8825_ICTRL_LATCH_MASK |
 				NAU8825_FLL_RATIO_MASK, 0x10);
 			regmap_update_bits(regmap, NAU8825_REG_FLL6,
 				NAU8825_SDM_EN, NAU8825_SDM_EN);
@@ -2083,9 +2171,14 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
+		/* Higher FLL reference input frequency can only set lower
+		 * gain error, such as 0000 for input reference from MCLK
+		 * 12.288Mhz.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_MCLK);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_MCLK | 0);
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 
@@ -2100,9 +2193,17 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
+		/* If FLL reference input is from low frequency source,
+		 * higher error gain can apply such as 0xf which has
+		 * the most sensitive gain error correction threshold,
+		 * Therefore, FLL has the most accurate DCO to
+		 * target frequency.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_BLK);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_BLK |
+			(0xf << NAU8825_GAIN_ERR_SFT));
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 
@@ -2118,9 +2219,17 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
+		/* If FLL reference input is from low frequency source,
+		 * higher error gain can apply such as 0xf which has
+		 * the most sensitive gain error correction threshold,
+		 * Therefore, FLL has the most accurate DCO to
+		 * target frequency.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_FS);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_FS |
+			(0xf << NAU8825_GAIN_ERR_SFT));
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 

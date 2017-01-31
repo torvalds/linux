@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, NVIDIA Corporation.
+ * Copyright (c) 2012-2015, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -120,6 +120,7 @@ struct host1x {
 
 	struct host1x_syncpt *nop_sp;
 
+	struct mutex syncpt_mutex;
 	struct mutex chlist_mutex;
 	struct host1x_channel chlist;
 	unsigned long allocated_channels;

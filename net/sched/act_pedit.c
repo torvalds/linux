@@ -25,7 +25,7 @@
 
 #define PEDIT_TAB_MASK	15
 
-static int pedit_net_id;
+static unsigned int pedit_net_id;
 static struct tc_action_ops act_pedit_ops;
 
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {

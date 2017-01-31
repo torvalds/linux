@@ -138,7 +138,7 @@ config HID_ASUS
 	tristate "Asus"
 	depends on I2C_HID
 	---help---
-	Support for Asus notebook built-in keyboard via i2c.
+	Support for Asus notebook built-in keyboard and touchpad via i2c.
 
 	Supported devices:
 	- EeeBook X205TA
@@ -214,7 +214,7 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && I2C && GPIOLIB && GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
 	This is a HID device driver which registers as an i2c adapter
@@ -511,6 +511,14 @@ config HID_MAGICMOUSE
 
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
+
+config HID_MAYFLASH
+	tristate "Mayflash game controller adapter force feedback"
+	depends on HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have HJZ Mayflash PS3 game controller adapters
+	and want to enable force feedback support.
 
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
@@ -860,6 +868,13 @@ config THRUSTMASTER_FF
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or 3,
 	  a THRUSTMASTER Dual Trigger 3-in-1 or a THRUSTMASTER Ferrari GT
 	  Rumble Force or Force Feedback Wheel.
+
+config HID_UDRAW_PS3
+	tristate "THQ PS3 uDraw tablet"
+	depends on HID
+	---help---
+	  Say Y here if you want to use the THQ uDraw gaming tablet for
+	  the PS3.
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"

@@ -65,8 +65,7 @@ static int vvp_object_print(const struct lu_env *env, void *cookie,
 	struct inode	 *inode = obj->vob_inode;
 	struct ll_inode_info *lli;
 
-	(*p)(env, cookie, "(%s %d %d) inode: %p ",
-	     list_empty(&obj->vob_pending_list) ? "-" : "+",
+	(*p)(env, cookie, "(%d %d) inode: %p ",
 	     atomic_read(&obj->vob_transient_pages),
 	     atomic_read(&obj->vob_mmap_cnt), inode);
 	if (inode) {
@@ -133,7 +132,7 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 		CDEBUG(D_VFSTRACE, DFID ": losing layout lock\n",
 		       PFID(&lli->lli_fid));
 
-		ll_layout_version_set(lli, LL_LAYOUT_GEN_NONE);
+		ll_layout_version_set(lli, CL_LAYOUT_GEN_NONE);
 
 		/* Clean up page mmap for this inode.
 		 * The reason for us to do this is that if the page has
@@ -146,27 +145,8 @@ static int vvp_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 */
 		unmap_mapping_range(conf->coc_inode->i_mapping,
 				    0, OBD_OBJECT_EOF, 0);
-
-		return 0;
 	}
 
-	if (conf->coc_opc != OBJECT_CONF_SET)
-		return 0;
-
-	if (conf->u.coc_md && conf->u.coc_md->lsm) {
-		CDEBUG(D_VFSTRACE, DFID ": layout version change: %u -> %u\n",
-		       PFID(&lli->lli_fid), lli->lli_layout_gen,
-		       conf->u.coc_md->lsm->lsm_layout_gen);
-
-		lli->lli_has_smd = lsm_has_objects(conf->u.coc_md->lsm);
-		ll_layout_version_set(lli, conf->u.coc_md->lsm->lsm_layout_gen);
-	} else {
-		CDEBUG(D_VFSTRACE, DFID ": layout nuked: %u.\n",
-		       PFID(&lli->lli_fid), lli->lli_layout_gen);
-
-		lli->lli_has_smd = false;
-		ll_layout_version_set(lli, LL_LAYOUT_GEN_EMPTY);
-	}
 	return 0;
 }
 
@@ -204,6 +184,26 @@ static int vvp_object_glimpse(const struct lu_env *env,
 	return 0;
 }
 
+static void vvp_req_attr_set(const struct lu_env *env, struct cl_object *obj,
+			     struct cl_req_attr *attr)
+{
+	u64 valid_flags = OBD_MD_FLTYPE;
+	struct inode *inode;
+	struct obdo *oa;
+
+	oa = attr->cra_oa;
+	inode = vvp_object_inode(obj);
+
+	if (attr->cra_type == CRT_WRITE)
+		valid_flags |= OBD_MD_FLMTIME | OBD_MD_FLCTIME |
+			       OBD_MD_FLUID | OBD_MD_FLGID;
+	obdo_from_inode(oa, inode, valid_flags & attr->cra_flags);
+	obdo_set_parent_fid(oa, &ll_i2info(inode)->lli_fid);
+	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_INVALID_PFID))
+		oa->o_parent_oid++;
+	memcpy(attr->cra_jobid, ll_i2info(inode)->lli_jobid, LUSTRE_JOBID_SIZE);
+}
+
 static const struct cl_object_operations vvp_ops = {
 	.coo_page_init = vvp_page_init,
 	.coo_lock_init = vvp_lock_init,
@@ -212,7 +212,8 @@ static const struct cl_object_operations vvp_ops = {
 	.coo_attr_update = vvp_attr_update,
 	.coo_conf_set  = vvp_conf_set,
 	.coo_prune     = vvp_prune,
-	.coo_glimpse   = vvp_object_glimpse
+	.coo_glimpse		= vvp_object_glimpse,
+	.coo_req_attr_set	= vvp_req_attr_set
 };
 
 static int vvp_object_init0(const struct lu_env *env,
@@ -240,7 +241,6 @@ static int vvp_object_init(const struct lu_env *env, struct lu_object *obj,
 		const struct cl_object_conf *cconf;
 
 		cconf = lu2cl_conf(conf);
-		INIT_LIST_HEAD(&vob->vob_pending_list);
 		lu_object_add(obj, below);
 		result = vvp_object_init0(env, vob, cconf);
 	} else {

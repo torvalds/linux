@@ -37,6 +37,8 @@ static void linux_wlan_tx_complete(void *priv, int status);
 static int  mac_init_fn(struct net_device *ndev);
 static struct net_device_stats *mac_stats(struct net_device *dev);
 static int  mac_ioctl(struct net_device *ndev, struct ifreq *req, int cmd);
+static int wilc_mac_open(struct net_device *ndev);
+static int wilc_mac_close(struct net_device *ndev);
 static void wilc_set_multicast_list(struct net_device *dev);
 
 bool wilc_enable_ps = true;
@@ -218,17 +220,6 @@ static void deinit_irq(struct net_device *dev)
 	}
 }
 
-int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
-{
-	/* FIXME: replace with mutex_lock or wait_for_completion */
-	int error = -1;
-
-	if (vp)
-		error = down_timeout(vp,
-				     msecs_to_jiffies(timeout));
-	return error;
-}
-
 void wilc_mac_indicate(struct wilc *wilc, int flag)
 {
 	int status;
@@ -269,23 +260,12 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 
 int wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 {
-	int i = 0;
-	int ret = -1;
-	struct wilc_vif *vif;
-	struct wilc *wilc;
+	struct wilc_vif *vif = netdev_priv(wilc_netdev);
 
-	vif = netdev_priv(wilc_netdev);
-	wilc = vif->wilc;
+	memcpy(vif->bssid, bssid, 6);
+	vif->mode = mode;
 
-	for (i = 0; i < wilc->vif_num; i++)
-		if (wilc->vif[i]->ndev == wilc_netdev) {
-			memcpy(wilc->vif[i]->bssid, bssid, 6);
-			wilc->vif[i]->mode = mode;
-			ret = 0;
-			break;
-		}
-
-	return ret;
+	return 0;
 }
 
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
@@ -847,7 +827,7 @@ static int mac_init_fn(struct net_device *ndev)
 	return 0;
 }
 
-int wilc_mac_open(struct net_device *ndev)
+static int wilc_mac_open(struct net_device *ndev)
 {
 	struct wilc_vif *vif;
 
@@ -1038,7 +1018,7 @@ int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 }
 
-int wilc_mac_close(struct net_device *ndev)
+static int wilc_mac_close(struct net_device *ndev)
 {
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
@@ -1212,15 +1192,10 @@ void WILC_WFI_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 
 void wilc_netdev_cleanup(struct wilc *wilc)
 {
-	int i = 0;
-	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
+	int i;
 
-	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
+	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev))
 		unregister_inetaddr_notifier(&g_dev_notifier);
-
-		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
-			vif[i] = netdev_priv(wilc->vif[i]->ndev);
-	}
 
 	if (wilc && wilc->firmware) {
 		release_firmware(wilc->firmware);
@@ -1230,7 +1205,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	if (wilc && (wilc->vif[0]->ndev || wilc->vif[1]->ndev)) {
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			if (wilc->vif[i]->ndev)
-				if (vif[i]->mac_opened)
+				if (wilc->vif[i]->mac_opened)
 					wilc_mac_close(wilc->vif[i]->ndev);
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
@@ -1278,9 +1253,9 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 
 		vif->idx = wl->vif_num;
 		vif->wilc = *wilc;
+		vif->ndev = ndev;
 		wl->vif[i] = vif;
-		wl->vif[wl->vif_num]->ndev = ndev;
-		wl->vif_num++;
+		wl->vif_num = i;
 		ndev->netdev_ops = &wilc_netdev_ops;
 
 		{

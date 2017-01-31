@@ -63,7 +63,7 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 	return retval;
 }
 
-int vfs_statfs(struct path *path, struct kstatfs *buf)
+int vfs_statfs(const struct path *path, struct kstatfs *buf)
 {
 	int error;
 

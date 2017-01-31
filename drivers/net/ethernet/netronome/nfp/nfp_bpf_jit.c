@@ -1126,7 +1126,7 @@ static int data_ind_ld4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 				     meta->insn.src_reg * 2, true, 4);
 }
 
-static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.off == offsetof(struct sk_buff, len))
 		emit_alu(nfp_prog, reg_both(meta->insn.dst_reg * 2),
@@ -1134,17 +1134,59 @@ static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	else
 		return -ENOTSUPP;
 
-	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+	return 0;
+}
+
+static int mem_ldx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u32 dst = reg_both(meta->insn.dst_reg * 2);
+
+	if (meta->insn.off != offsetof(struct xdp_md, data) &&
+	    meta->insn.off != offsetof(struct xdp_md, data_end))
+		return -ENOTSUPP;
+
+	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, NFP_BPF_ABI_PKT);
+
+	if (meta->insn.off == offsetof(struct xdp_md, data))
+		return 0;
+
+	emit_alu(nfp_prog, dst,	dst, ALU_OP_ADD, NFP_BPF_ABI_LEN);
 
 	return 0;
 }
 
-static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int mem_ldx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	int ret;
+
+	if (nfp_prog->act == NN_ACT_XDP)
+		ret = mem_ldx4_xdp(nfp_prog, meta);
+	else
+		ret = mem_ldx4_skb(nfp_prog, meta);
+
+	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+
+	return ret;
+}
+
+static int mem_stx4_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	if (meta->insn.off == offsetof(struct sk_buff, mark))
 		return wrp_set_mark(nfp_prog, meta->insn.src_reg * 2);
 
 	return -ENOTSUPP;
+}
+
+static int mem_stx4_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return -ENOTSUPP;
+}
+
+static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	if (nfp_prog->act == NN_ACT_XDP)
+		return mem_stx4_xdp(nfp_prog, meta);
+	return mem_stx4_skb(nfp_prog, meta);
 }
 
 static int jump(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -1530,6 +1572,47 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
 }
 
+static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
+{
+	/* XDP return codes:
+	 *   0 aborted  0x82 -> drop,  count as stat3
+	 *   1    drop  0x22 -> drop,  count as stat1
+	 *   2    pass  0x11 -> pass,  count as stat0
+	 *   3      tx  0x44 -> redir, count as stat2
+	 *   * unknown  0x82 -> drop,  count as stat3
+	 */
+	/* Target for aborts */
+	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
+
+	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+
+	emit_alu(nfp_prog, reg_a(0),
+		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
+
+	/* Target for normal exits */
+	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
+
+	/* if R0 > 3 jump to abort */
+	emit_alu(nfp_prog, reg_none(), reg_imm(3), ALU_OP_SUB, reg_b(0));
+	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
+
+	wrp_immed(nfp_prog, reg_b(2), 0x44112282);
+
+	emit_shf(nfp_prog, reg_a(1),
+		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 3);
+
+	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_shf(nfp_prog, reg_b(2),
+		 reg_imm(0xff), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
+
+	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+
+	emit_alu(nfp_prog, reg_a(0),
+		 reg_none(), ALU_OP_NONE, NFP_BPF_ABI_FLAGS);
+	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
+}
+
 static void nfp_outro(struct nfp_prog *nfp_prog)
 {
 	switch (nfp_prog->act) {
@@ -1539,6 +1622,9 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 	case NN_ACT_TC_DROP:
 	case NN_ACT_TC_REDIR:
 		nfp_outro_tc_legacy(nfp_prog);
+		break;
+	case NN_ACT_XDP:
+		nfp_outro_xdp(nfp_prog);
 		break;
 	}
 }

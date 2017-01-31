@@ -244,8 +244,10 @@ void __init efi_init(void)
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
 	      efi.memmap.desc_version);
 
-	if (uefi_init() < 0)
+	if (uefi_init() < 0) {
+		efi_memmap_unmap();
 		return;
+	}
 
 	reserve_regions();
 	efi_memattr_init();

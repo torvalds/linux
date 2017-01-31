@@ -50,25 +50,6 @@ enum clt_nesting_level {
 };
 
 /**
- * Counters used to check correctness of cl_lock interface usage.
- */
-struct cl_thread_counters {
-	/**
-	 * Number of outstanding calls to cl_lock_mutex_get() made by the
-	 * current thread. For debugging.
-	 */
-	int	   ctc_nr_locks_locked;
-	/** List of locked locks. */
-	struct lu_ref ctc_locks_locked;
-	/** Number of outstanding holds on locks. */
-	int	   ctc_nr_held;
-	/** Number of outstanding uses on locks. */
-	int	   ctc_nr_used;
-	/** Number of held extent locks. */
-	int	   ctc_nr_locks_acquired;
-};
-
-/**
  * Thread local state internal for generic cl-code.
  */
 struct cl_thread_info {
@@ -83,10 +64,6 @@ struct cl_thread_info {
 	 */
 	struct cl_lock_descr clt_descr;
 	struct cl_page_list  clt_list;
-	/**
-	 * Counters for every level of lock nesting.
-	 */
-	struct cl_thread_counters clt_counters[CNL_NR];
 	/** @} debugging */
 
 	/*

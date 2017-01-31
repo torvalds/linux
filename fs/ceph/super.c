@@ -137,6 +137,8 @@ enum {
 	Opt_nofscache,
 	Opt_poolperm,
 	Opt_nopoolperm,
+	Opt_require_active_mds,
+	Opt_norequire_active_mds,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	Opt_acl,
 #endif
@@ -171,6 +173,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_nofscache, "nofsc"},
 	{Opt_poolperm, "poolperm"},
 	{Opt_nopoolperm, "nopoolperm"},
+	{Opt_require_active_mds, "require_active_mds"},
+	{Opt_norequire_active_mds, "norequire_active_mds"},
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	{Opt_acl, "acl"},
 #endif
@@ -286,6 +290,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_nopoolperm:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOPOOLPERM;
+		break;
+	case Opt_require_active_mds:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_MOUNTWAIT;
+		break;
+	case Opt_norequire_active_mds:
+		fsopt->flags |= CEPH_MOUNT_OPT_MOUNTWAIT;
 		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
@@ -795,7 +805,6 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 			root = ERR_PTR(-ENOMEM);
 			goto out;
 		}
-		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
@@ -879,6 +888,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 	fsc->sb = s;
 
 	s->s_op = &ceph_super_ops;
+	s->s_d_op = &ceph_dentry_ops;
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1000;  /* 1000 ns == 1 us */

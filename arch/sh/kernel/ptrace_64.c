@@ -32,7 +32,7 @@
 #include <linux/elf.h>
 #include <linux/regset.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
