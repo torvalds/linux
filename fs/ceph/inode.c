@@ -1120,40 +1120,6 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	dout("fill_trace %p is_dentry %d is_target %d\n", req,
 	     rinfo->head->is_dentry, rinfo->head->is_target);
 
-#if 0
-	/*
-	 * Debugging hook:
-	 *
-	 * If we resend completed ops to a recovering mds, we get no
-	 * trace.  Since that is very rare, pretend this is the case
-	 * to ensure the 'no trace' handlers in the callers behave.
-	 *
-	 * Fill in inodes unconditionally to avoid breaking cap
-	 * invariants.
-	 */
-	if (rinfo->head->op & CEPH_MDS_OP_WRITE) {
-		pr_info("fill_trace faking empty trace on %lld %s\n",
-			req->r_tid, ceph_mds_op_name(rinfo->head->op));
-		if (rinfo->head->is_dentry) {
-			rinfo->head->is_dentry = 0;
-			err = fill_inode(req->r_locked_dir,
-					 &rinfo->diri, rinfo->dirfrag,
-					 session, req->r_request_started, -1);
-		}
-		if (rinfo->head->is_target) {
-			rinfo->head->is_target = 0;
-			ininfo = rinfo->targeti.in;
-			vino.ino = le64_to_cpu(ininfo->ino);
-			vino.snap = le64_to_cpu(ininfo->snapid);
-			in = ceph_get_inode(sb, vino);
-			err = fill_inode(in, &rinfo->targeti, NULL,
-					 session, req->r_request_started,
-					 req->r_fmode);
-			iput(in);
-		}
-	}
-#endif
-
 	if (!rinfo->head->is_target && !rinfo->head->is_dentry) {
 		dout("fill_trace reply is empty!\n");
 		if (rinfo->head->result == 0 && req->r_locked_dir)
