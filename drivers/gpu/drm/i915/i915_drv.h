@@ -3401,7 +3401,7 @@ int  intel_lpe_audio_init(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv);
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    void *eld, int port, int tmds_clk_speed,
+			    void *eld, int port, int pipe, int tmds_clk_speed,
 			    bool dp_output, int link_rate);
 
 /* intel_i2c.c */
