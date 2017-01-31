@@ -563,7 +563,7 @@ struct pacct_struct {
 	int			ac_flag;
 	long			ac_exitcode;
 	unsigned long		ac_mem;
-	cputime_t		ac_utime, ac_stime;
+	u64			ac_utime, ac_stime;
 	unsigned long		ac_minflt, ac_majflt;
 };
 
