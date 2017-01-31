@@ -32,7 +32,7 @@ struct bcr_irq_arcv2 {
  */
 void arc_init_IRQ(void)
 {
-	unsigned int tmp, irq_prio;
+	unsigned int tmp, irq_prio, i;
 	struct bcr_irq_arcv2 irq_bcr;
 
 	struct aux_irq_ctrl {
@@ -70,6 +70,16 @@ void arc_init_IRQ(void)
 	pr_info("archs-intc\t: %d priority levels (default %d)%s\n",
 		irq_prio + 1, ARCV2_IRQ_DEF_PRIO,
 		irq_bcr.firq ? " FIRQ (not used)":"");
+
+	/*
+	 * Set a default priority for all available interrupts to prevent
+	 * switching of register banks if Fast IRQ and multiple register banks
+	 * are supported by CPU.
+	 */
+	for (i = NR_EXCEPTIONS; i < irq_bcr.irqs + NR_EXCEPTIONS; i++) {
+		write_aux_reg(AUX_IRQ_SELECT, i);
+		write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
+	}
 
 	/* setup status32, don't enable intr yet as kernel doesn't want */
 	tmp = read_aux_reg(ARC_REG_STATUS32);
