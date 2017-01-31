@@ -152,20 +152,11 @@ EXPORT_SYMBOL_GPL(ppc_tb_freq);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
- * Factors for converting from cputime_t (timebase ticks) to
- * jiffies, microseconds, seconds, and clock_t (1/USER_HZ seconds).
- * These are all stored as 0.64 fixed-point binary fractions.
+ * Factor for converting from cputime_t (timebase ticks) to
+ * microseconds. This is stored as 0.64 fixed-point binary fraction.
  */
-u64 __cputime_jiffies_factor;
-EXPORT_SYMBOL(__cputime_jiffies_factor);
 u64 __cputime_usec_factor;
 EXPORT_SYMBOL(__cputime_usec_factor);
-u64 __cputime_sec_factor;
-EXPORT_SYMBOL(__cputime_sec_factor);
-u64 __cputime_clockt_factor;
-EXPORT_SYMBOL(__cputime_clockt_factor);
-
-cputime_t cputime_one_jiffy;
 
 #ifdef CONFIG_PPC_SPLPAR
 void (*dtl_consumer)(struct dtl_entry *, u64);
@@ -181,14 +172,8 @@ static void calc_cputime_factors(void)
 {
 	struct div_result res;
 
-	div128_by_32(HZ, 0, tb_ticks_per_sec, &res);
-	__cputime_jiffies_factor = res.result_low;
 	div128_by_32(1000000, 0, tb_ticks_per_sec, &res);
 	__cputime_usec_factor = res.result_low;
-	div128_by_32(1, 0, tb_ticks_per_sec, &res);
-	__cputime_sec_factor = res.result_low;
-	div128_by_32(USER_HZ, 0, tb_ticks_per_sec, &res);
-	__cputime_clockt_factor = res.result_low;
 }
 
 /*
@@ -1053,7 +1038,6 @@ void __init time_init(void)
 	tb_ticks_per_sec = ppc_tb_freq;
 	tb_ticks_per_usec = ppc_tb_freq / 1000000;
 	calc_cputime_factors();
-	setup_cputime_one_jiffy();
 
 	/*
 	 * Compute scale factor for sched_clock.
