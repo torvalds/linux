@@ -193,7 +193,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 						&val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return val;
+		return ret;
 	}
 
 	regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG1(layer),
