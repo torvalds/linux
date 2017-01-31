@@ -605,33 +605,6 @@ static void nvm_tgt_generic_to_addr_mode(struct nvm_tgt_dev *tgt_dev,
 	}
 }
 
-int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
-								int type)
-{
-	struct nvm_rq rqd;
-	int ret;
-
-	if (nr_ppas > dev->ops->max_phys_sect) {
-		pr_err("nvm: unable to update all sysblocks atomically\n");
-		return -EINVAL;
-	}
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
-	nvm_generic_to_addr_mode(dev, &rqd);
-
-	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(dev, &rqd);
-	if (ret) {
-		pr_err("nvm: sysblk failed bb mark\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(nvm_set_bb_tbl);
-
 int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 		       int nr_ppas, int type)
 {
@@ -919,20 +892,15 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 }
 EXPORT_SYMBOL(nvm_bb_tbl_fold);
 
-int nvm_get_bb_tbl(struct nvm_dev *dev, struct ppa_addr ppa, u8 *blks)
-{
-	ppa = generic_to_dev_addr(dev, ppa);
-
-	return dev->ops->get_bb_tbl(dev, ppa, blks);
-}
-EXPORT_SYMBOL(nvm_get_bb_tbl);
-
 int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
 		       u8 *blks)
 {
-	ppa = nvm_trans_ppa(tgt_dev, ppa, TRANS_TGT_TO_DEV);
+	struct nvm_dev *dev = tgt_dev->parent;
 
-	return nvm_get_bb_tbl(tgt_dev->parent, ppa, blks);
+	ppa = nvm_trans_ppa(tgt_dev, ppa, TRANS_TGT_TO_DEV);
+	ppa = generic_to_dev_addr(dev, ppa);
+
+	return dev->ops->get_bb_tbl(dev, ppa, blks);
 }
 EXPORT_SYMBOL(nvm_get_tgt_bb_tbl);
 

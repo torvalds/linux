@@ -473,7 +473,6 @@ extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
 
-extern int nvm_set_bb_tbl(struct nvm_dev *, struct ppa_addr *, int, int);
 extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
@@ -490,7 +489,6 @@ extern int nvm_get_area(struct nvm_tgt_dev *, sector_t *, sector_t);
 extern void nvm_put_area(struct nvm_tgt_dev *, sector_t);
 extern void nvm_end_io(struct nvm_rq *, int);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
-extern int nvm_get_bb_tbl(struct nvm_dev *, struct ppa_addr, u8 *);
 extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
 
 extern int nvm_dev_factory(struct nvm_dev *, int flags);
