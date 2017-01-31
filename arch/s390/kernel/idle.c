@@ -84,7 +84,7 @@ static ssize_t show_idle_time(struct device *dev,
 }
 DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
-cputime64_t arch_cpu_idle_time(int cpu)
+u64 arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
 	unsigned long long now, idle_enter, idle_exit;
@@ -96,7 +96,8 @@ cputime64_t arch_cpu_idle_time(int cpu)
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
 	} while (read_seqcount_retry(&idle->seqcount, seq));
-	return idle_enter ? ((idle_exit ?: now) - idle_enter) : 0;
+
+	return cputime_to_nsecs(idle_enter ? ((idle_exit ?: now) - idle_enter) : 0);
 }
 
 void arch_cpu_idle_enter(void)

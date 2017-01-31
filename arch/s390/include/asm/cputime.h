@@ -141,7 +141,7 @@ static inline clock_t cputime64_to_clock_t(cputime64_t cputime)
 	return clock;
 }
 
-cputime64_t arch_cpu_idle_time(int cpu);
+u64 arch_cpu_idle_time(int cpu);
 
 #define arch_idle_time(cpu) arch_cpu_idle_time(cpu)
 
