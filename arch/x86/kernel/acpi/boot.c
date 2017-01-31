@@ -35,6 +35,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/efi-bgrt.h>
 
 #include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
@@ -1557,6 +1558,12 @@ int __init early_acpi_boot_init(void)
 	return 0;
 }
 
+static int __init acpi_parse_bgrt(struct acpi_table_header *table)
+{
+	efi_bgrt_init(table);
+	return 0;
+}
+
 int __init acpi_boot_init(void)
 {
 	/* those are executed after early-quirks are executed */
@@ -1581,6 +1588,8 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_SIG_HPET, acpi_parse_hpet);
+	if (IS_ENABLED(CONFIG_ACPI_BGRT))
+		acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 
 	if (!acpi_noirq)
 		x86_init.pci.init = pci_acpi_init;
