@@ -18,6 +18,7 @@
 static const struct drm_info_list vc4_debugfs_list[] = {
 	{"bo_stats", vc4_bo_stats_debugfs, 0},
 	{"dpi_regs", vc4_dpi_debugfs_regs, 0},
+	{"dsi1_regs", vc4_dsi_debugfs_regs, 0, (void *)(uintptr_t)1},
 	{"hdmi_regs", vc4_hdmi_debugfs_regs, 0},
 	{"vec_regs", vc4_vec_debugfs_regs, 0},
 	{"hvs_regs", vc4_hvs_debugfs_regs, 0},
