@@ -75,9 +75,9 @@ static cputime_t irqtime_account_update(u64 irqtime, int idx, cputime_t maxtime)
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 	cputime_t irq_cputime;
 
-	irq_cputime = nsecs_to_cputime64(irqtime) - cpustat[idx];
+	irq_cputime = nsecs_to_cputime64(irqtime - cpustat[idx]);
 	irq_cputime = min(irq_cputime, maxtime);
-	cpustat[idx] += irq_cputime;
+	cpustat[idx] += cputime_to_nsecs(irq_cputime);
 
 	return irq_cputime;
 }
@@ -140,7 +140,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
 	index = (task_nice(p) > 0) ? CPUTIME_NICE : CPUTIME_USER;
 
 	/* Add user time to cpustat. */
-	task_group_account_field(p, index, (__force u64) cputime);
+	task_group_account_field(p, index, cputime_to_nsecs(cputime));
 
 	/* Account for user time used */
 	acct_account_cputime(p);
@@ -162,11 +162,11 @@ void account_guest_time(struct task_struct *p, cputime_t cputime)
 
 	/* Add guest time to cpustat. */
 	if (task_nice(p) > 0) {
-		cpustat[CPUTIME_NICE] += (__force u64) cputime;
-		cpustat[CPUTIME_GUEST_NICE] += (__force u64) cputime;
+		cpustat[CPUTIME_NICE] += cputime_to_nsecs(cputime);
+		cpustat[CPUTIME_GUEST_NICE] += cputime_to_nsecs(cputime);
 	} else {
-		cpustat[CPUTIME_USER] += (__force u64) cputime;
-		cpustat[CPUTIME_GUEST] += (__force u64) cputime;
+		cpustat[CPUTIME_USER] += cputime_to_nsecs(cputime);
+		cpustat[CPUTIME_GUEST] += cputime_to_nsecs(cputime);
 	}
 }
 
@@ -184,7 +184,7 @@ void account_system_index_time(struct task_struct *p,
 	account_group_system_time(p, cputime);
 
 	/* Add system time to cpustat. */
-	task_group_account_field(p, index, (__force u64) cputime);
+	task_group_account_field(p, index, cputime_to_nsecs(cputime));
 
 	/* Account for system time used */
 	acct_account_cputime(p);
@@ -224,7 +224,7 @@ void account_steal_time(cputime_t cputime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 
-	cpustat[CPUTIME_STEAL] += (__force u64) cputime;
+	cpustat[CPUTIME_STEAL] += cputime_to_nsecs(cputime);
 }
 
 /*
@@ -237,9 +237,9 @@ void account_idle_time(cputime_t cputime)
 	struct rq *rq = this_rq();
 
 	if (atomic_read(&rq->nr_iowait) > 0)
-		cpustat[CPUTIME_IOWAIT] += (__force u64) cputime;
+		cpustat[CPUTIME_IOWAIT] += cputime_to_nsecs(cputime);
 	else
-		cpustat[CPUTIME_IDLE] += (__force u64) cputime;
+		cpustat[CPUTIME_IDLE] += cputime_to_nsecs(cputime);
 }
 
 /*

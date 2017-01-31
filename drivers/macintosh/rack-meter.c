@@ -91,7 +91,7 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
 	if (rackmeter_ignore_nice)
 		retval += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
 
-	return retval;
+	return nsecs_to_cputime64(retval);
 }
 
 static void rackmeter_setup_i2s(struct rackmeter *rm)
