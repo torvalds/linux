@@ -248,50 +248,48 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 {
 	struct nvme_nvm_id_group *src;
 	struct nvm_id_group *dst;
-	int i, end;
 
-	end = min_t(u32, 4, nvm_id->cgrps);
+	if (nvme_nvm_id->cgrps != 1)
+		return -EINVAL;
 
-	for (i = 0; i < end; i++) {
-		src = &nvme_nvm_id->groups[i];
-		dst = &nvm_id->groups[i];
+	src = &nvme_nvm_id->groups[0];
+	dst = &nvm_id->grp;
 
-		dst->mtype = src->mtype;
-		dst->fmtype = src->fmtype;
-		dst->num_ch = src->num_ch;
-		dst->num_lun = src->num_lun;
-		dst->num_pln = src->num_pln;
+	dst->mtype = src->mtype;
+	dst->fmtype = src->fmtype;
+	dst->num_ch = src->num_ch;
+	dst->num_lun = src->num_lun;
+	dst->num_pln = src->num_pln;
 
-		dst->num_pg = le16_to_cpu(src->num_pg);
-		dst->num_blk = le16_to_cpu(src->num_blk);
-		dst->fpg_sz = le16_to_cpu(src->fpg_sz);
-		dst->csecs = le16_to_cpu(src->csecs);
-		dst->sos = le16_to_cpu(src->sos);
+	dst->num_pg = le16_to_cpu(src->num_pg);
+	dst->num_blk = le16_to_cpu(src->num_blk);
+	dst->fpg_sz = le16_to_cpu(src->fpg_sz);
+	dst->csecs = le16_to_cpu(src->csecs);
+	dst->sos = le16_to_cpu(src->sos);
 
-		dst->trdt = le32_to_cpu(src->trdt);
-		dst->trdm = le32_to_cpu(src->trdm);
-		dst->tprt = le32_to_cpu(src->tprt);
-		dst->tprm = le32_to_cpu(src->tprm);
-		dst->tbet = le32_to_cpu(src->tbet);
-		dst->tbem = le32_to_cpu(src->tbem);
-		dst->mpos = le32_to_cpu(src->mpos);
-		dst->mccap = le32_to_cpu(src->mccap);
+	dst->trdt = le32_to_cpu(src->trdt);
+	dst->trdm = le32_to_cpu(src->trdm);
+	dst->tprt = le32_to_cpu(src->tprt);
+	dst->tprm = le32_to_cpu(src->tprm);
+	dst->tbet = le32_to_cpu(src->tbet);
+	dst->tbem = le32_to_cpu(src->tbem);
+	dst->mpos = le32_to_cpu(src->mpos);
+	dst->mccap = le32_to_cpu(src->mccap);
 
-		dst->cpar = le16_to_cpu(src->cpar);
+	dst->cpar = le16_to_cpu(src->cpar);
 
-		if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
-			memcpy(dst->lptbl.id, src->lptbl.id, 8);
-			dst->lptbl.mlc.num_pairs =
-					le16_to_cpu(src->lptbl.mlc.num_pairs);
+	if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
+		memcpy(dst->lptbl.id, src->lptbl.id, 8);
+		dst->lptbl.mlc.num_pairs =
+				le16_to_cpu(src->lptbl.mlc.num_pairs);
 
-			if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
-				pr_err("nvm: number of MLC pairs not supported\n");
-				return -EINVAL;
-			}
-
-			memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
-						dst->lptbl.mlc.num_pairs);
+		if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
+			pr_err("nvm: number of MLC pairs not supported\n");
+			return -EINVAL;
 		}
+
+		memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
+					dst->lptbl.mlc.num_pairs);
 	}
 
 	return 0;
@@ -321,7 +319,6 @@ static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 
 	nvm_id->ver_id = nvme_nvm_id->ver_id;
 	nvm_id->vmnt = nvme_nvm_id->vmnt;
-	nvm_id->cgrps = nvme_nvm_id->cgrps;
 	nvm_id->cap = le32_to_cpu(nvme_nvm_id->cap);
 	nvm_id->dom = le32_to_cpu(nvme_nvm_id->dom);
 	memcpy(&nvm_id->ppaf, &nvme_nvm_id->ppaf,
@@ -622,7 +619,7 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 		return 0;
 
 	id = &ndev->identity;
-	grp = &id->groups[0];
+	grp = &id->grp;
 	attr = &dattr->attr;
 
 	if (strcmp(attr->name, "version") == 0) {

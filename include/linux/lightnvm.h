@@ -200,11 +200,10 @@ struct nvm_addr_format {
 struct nvm_id {
 	u8	ver_id;
 	u8	vmnt;
-	u8	cgrps;
 	u32	cap;
 	u32	dom;
 	struct nvm_addr_format ppaf;
-	struct nvm_id_group groups[4];
+	struct nvm_id_group grp;
 } __packed;
 
 struct nvm_target {

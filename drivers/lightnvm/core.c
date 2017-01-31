@@ -884,7 +884,7 @@ static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
-	struct nvm_id_group *grp = &id->groups[0];
+	struct nvm_id_group *grp = &id->grp;
 	struct nvm_geo *geo = &dev->geo;
 	int ret;
 
@@ -988,17 +988,11 @@ static int nvm_init(struct nvm_dev *dev)
 		goto err;
 	}
 
-	pr_debug("nvm: ver:%x nvm_vendor:%x groups:%u\n",
-			dev->identity.ver_id, dev->identity.vmnt,
-							dev->identity.cgrps);
+	pr_debug("nvm: ver:%x nvm_vendor:%x\n",
+			dev->identity.ver_id, dev->identity.vmnt);
 
 	if (dev->identity.ver_id != 1) {
 		pr_err("nvm: device not supported by kernel.");
-		goto err;
-	}
-
-	if (dev->identity.cgrps != 1) {
-		pr_err("nvm: only one group configuration supported.");
 		goto err;
 	}
 
