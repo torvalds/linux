@@ -1122,13 +1122,13 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 
 	if (!rinfo->head->is_target && !rinfo->head->is_dentry) {
 		dout("fill_trace reply is empty!\n");
-		if (rinfo->head->result == 0 && req->r_locked_dir)
+		if (rinfo->head->result == 0 && req->r_parent)
 			ceph_invalidate_dir_request(req);
 		return 0;
 	}
 
 	if (rinfo->head->is_dentry) {
-		struct inode *dir = req->r_locked_dir;
+		struct inode *dir = req->r_parent;
 
 		if (dir) {
 			err = fill_inode(dir, NULL,
@@ -1213,8 +1213,9 @@ retry_lookup:
 	 * ignore null lease/binding on snapdir ENOENT, or else we
 	 * will have trouble splicing in the virtual snapdir later
 	 */
-	if (rinfo->head->is_dentry && req->r_locked_dir &&
-	    !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
+	if (rinfo->head->is_dentry &&
+            !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
+	    test_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags) &&
 	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
 					       fsc->mount_options->snapdir_name,
 					       req->r_dentry->d_name.len))) {
@@ -1223,7 +1224,7 @@ retry_lookup:
 		 * mknod symlink mkdir  : null -> new inode
 		 * unlink               : linked -> null
 		 */
-		struct inode *dir = req->r_locked_dir;
+		struct inode *dir = req->r_parent;
 		struct dentry *dn = req->r_dentry;
 		bool have_dir_cap, have_lease;
 
@@ -1321,7 +1322,7 @@ retry_lookup:
 		    req->r_op == CEPH_MDS_OP_MKSNAP) &&
 		   !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 		struct dentry *dn = req->r_dentry;
-		struct inode *dir = req->r_locked_dir;
+		struct inode *dir = req->r_parent;
 
 		/* fill out a snapdir LOOKUPSNAP dentry */
 		BUG_ON(!dn);

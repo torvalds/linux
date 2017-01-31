@@ -547,8 +547,8 @@ void ceph_mdsc_release_request(struct kref *kref)
 		ceph_put_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
 		iput(req->r_inode);
 	}
-	if (req->r_locked_dir)
-		ceph_put_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
+	if (req->r_parent)
+		ceph_put_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
 	iput(req->r_target_inode);
 	if (req->r_dentry)
 		dput(req->r_dentry);
@@ -735,7 +735,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 
 		rcu_read_lock();
 		parent = req->r_dentry->d_parent;
-		dir = req->r_locked_dir ? : d_inode_rcu(parent);
+		dir = req->r_parent ? : d_inode_rcu(parent);
 
 		if (!dir || dir->i_sb != mdsc->fsc->sb) {
 			/*  not this fs or parent went negative */
@@ -1894,7 +1894,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	int ret;
 
 	ret = set_request_path_attr(req->r_inode, req->r_dentry,
-			      req->r_locked_dir, req->r_path1, req->r_ino1.ino,
+			      req->r_parent, req->r_path1, req->r_ino1.ino,
 			      &path1, &pathlen1, &ino1, &freepath1);
 	if (ret < 0) {
 		msg = ERR_PTR(ret);
@@ -1956,7 +1956,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		      mds, req->r_inode_drop, req->r_inode_unless, 0);
 	if (req->r_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_dentry,
-				req->r_locked_dir, mds, req->r_dentry_drop,
+				req->r_parent, mds, req->r_dentry_drop,
 				req->r_dentry_unless);
 	if (req->r_old_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_old_dentry,
@@ -2095,14 +2095,14 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	rhead->oldest_client_tid = cpu_to_le64(__get_oldest_tid(mdsc));
 	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 		flags |= CEPH_MDS_FLAG_REPLAY;
-	if (req->r_locked_dir)
+	if (req->r_parent)
 		flags |= CEPH_MDS_FLAG_WANT_DENTRY;
 	rhead->flags = cpu_to_le32(flags);
 	rhead->num_fwd = req->r_num_fwd;
 	rhead->num_retry = req->r_attempts - 1;
 	rhead->ino = 0;
 
-	dout(" r_locked_dir = %p\n", req->r_locked_dir);
+	dout(" r_parent = %p\n", req->r_parent);
 	return 0;
 }
 
@@ -2282,11 +2282,11 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 
 	dout("do_request on %p\n", req);
 
-	/* take CAP_PIN refs for r_inode, r_locked_dir, r_old_dentry */
+	/* take CAP_PIN refs for r_inode, r_parent, r_old_dentry */
 	if (req->r_inode)
 		ceph_get_cap_refs(ceph_inode(req->r_inode), CEPH_CAP_PIN);
-	if (req->r_locked_dir)
-		ceph_get_cap_refs(ceph_inode(req->r_locked_dir), CEPH_CAP_PIN);
+	if (req->r_parent)
+		ceph_get_cap_refs(ceph_inode(req->r_parent), CEPH_CAP_PIN);
 	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
@@ -2336,7 +2336,7 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		set_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags);
 		mutex_unlock(&req->r_fill_mutex);
 
-		if (req->r_locked_dir &&
+		if (req->r_parent &&
 		    (req->r_op & CEPH_MDS_OP_WRITE))
 			ceph_invalidate_dir_request(req);
 	} else {
@@ -2355,7 +2355,7 @@ out:
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 {
-	struct inode *inode = req->r_locked_dir;
+	struct inode *inode = req->r_parent;
 
 	dout("invalidate_dir_request %p (complete, lease(s))\n", inode);
 

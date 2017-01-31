@@ -379,7 +379,8 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
                mask |= CEPH_CAP_XATTR_SHARED;
        req->r_args.open.mask = cpu_to_le32(mask);
 
-	req->r_locked_dir = dir;           /* caller holds dir->i_mutex */
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
