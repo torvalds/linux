@@ -1342,21 +1342,21 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 	prstatus->pr_pgrp = task_pgrp_vnr(p);
 	prstatus->pr_sid = task_session_vnr(p);
 	if (thread_group_leader(p)) {
-		struct task_cputime_t cputime;
+		struct task_cputime cputime;
 
 		/*
 		 * This is the record for the group leader.  It shows the
 		 * group-wide total, not its individual thread total.
 		 */
-		thread_group_cputime_t(p, &cputime);
-		cputime_to_timeval(cputime.utime, &prstatus->pr_utime);
-		cputime_to_timeval(cputime.stime, &prstatus->pr_stime);
+		thread_group_cputime(p, &cputime);
+		prstatus->pr_utime = ns_to_timeval(cputime.utime);
+		prstatus->pr_stime = ns_to_timeval(cputime.stime);
 	} else {
-		cputime_t utime, stime;
+		u64 utime, stime;
 
-		task_cputime_t(p, &utime, &stime);
-		cputime_to_timeval(utime, &prstatus->pr_utime);
-		cputime_to_timeval(stime, &prstatus->pr_stime);
+		task_cputime(p, &utime, &stime);
+		prstatus->pr_utime = ns_to_timeval(utime);
+		prstatus->pr_stime = ns_to_timeval(stime);
 	}
 	prstatus->pr_cutime = ns_to_timeval(p->signal->cutime);
 	prstatus->pr_cstime = ns_to_timeval(p->signal->cstime);
