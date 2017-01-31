@@ -484,7 +484,8 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	struct nvm_rq *rqd = rq->end_io_data;
 
 	rqd->ppa_status = nvme_req(rq)->result.u64;
-	nvm_end_io(rqd, error);
+	rqd->error = error;
+	nvm_end_io(rqd);
 
 	kfree(nvme_req(rq)->cmd);
 	blk_mq_free_request(rq);

@@ -420,7 +420,8 @@ static void null_lnvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	nvm_end_io(rqd, error);
+	rqd->error = error;
+	nvm_end_io(rqd);
 
 	blk_put_request(rq);
 }

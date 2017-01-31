@@ -213,10 +213,6 @@ struct nvm_target {
 	struct gendisk *disk;
 };
 
-struct nvm_tgt_instance {
-	struct nvm_tgt_type *tt;
-};
-
 #define ADDR_EMPTY (~0ULL)
 
 #define NVM_VERSION_MAJOR 1
@@ -227,7 +223,6 @@ struct nvm_rq;
 typedef void (nvm_end_io_fn)(struct nvm_rq *);
 
 struct nvm_rq {
-	struct nvm_tgt_instance *ins;
 	struct nvm_tgt_dev *dev;
 
 	struct bio *bio;
@@ -251,6 +246,8 @@ struct nvm_rq {
 
 	u64 ppa_status; /* ppa media status */
 	int error;
+
+	void *private;
 };
 
 static inline struct nvm_rq *nvm_rq_from_pdu(void *pdu)
@@ -450,7 +447,6 @@ struct nvm_tgt_type {
 	/* target entry points */
 	nvm_tgt_make_rq_fn *make_rq;
 	nvm_tgt_capacity_fn *capacity;
-	nvm_end_io_fn *end_io;
 
 	/* module-specific init/teardown */
 	nvm_tgt_init_fn *init;
@@ -484,7 +480,7 @@ extern int nvm_get_l2p_tbl(struct nvm_tgt_dev *, u64, u32, nvm_l2p_update_fn *,
 			   void *);
 extern int nvm_get_area(struct nvm_tgt_dev *, sector_t *, sector_t);
 extern void nvm_put_area(struct nvm_tgt_dev *, sector_t);
-extern void nvm_end_io(struct nvm_rq *, int);
+extern void nvm_end_io(struct nvm_rq *);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
 extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
 
