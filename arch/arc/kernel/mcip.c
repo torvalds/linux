@@ -230,14 +230,12 @@ static struct irq_chip idu_irq_chip = {
 
 };
 
-static irq_hw_number_t idu_first_hwirq;
-
 static void idu_cascade_isr(struct irq_desc *desc)
 {
 	struct irq_domain *idu_domain = irq_desc_get_handler_data(desc);
 	struct irq_chip *core_chip = irq_desc_get_chip(desc);
 	irq_hw_number_t core_hwirq = irqd_to_hwirq(irq_desc_get_irq_data(desc));
-	irq_hw_number_t idu_hwirq = core_hwirq - idu_first_hwirq;
+	irq_hw_number_t idu_hwirq = core_hwirq - FIRST_EXT_IRQ;
 
 	chained_irq_enter(core_chip, desc);
 	generic_handle_irq(irq_find_mapping(idu_domain, idu_hwirq));
@@ -283,17 +281,20 @@ static int __init
 idu_of_init(struct device_node *intc, struct device_node *parent)
 {
 	struct irq_domain *domain;
-	/* Read IDU BCR to confirm nr_irqs */
-	int nr_irqs = of_irq_count(intc);
+	int nr_irqs;
 	int i, virq;
 	struct mcip_bcr mp;
+	struct mcip_idu_bcr idu_bcr;
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
 	if (!mp.idu)
 		panic("IDU not detected, but DeviceTree using it");
 
-	pr_info("MCIP: IDU referenced from Devicetree %d irqs\n", nr_irqs);
+	READ_BCR(ARC_REG_MCIP_IDU_BCR, idu_bcr);
+	nr_irqs = mcip_idu_bcr_to_nr_irqs(idu_bcr);
+
+	pr_info("MCIP: IDU supports %u common irqs\n", nr_irqs);
 
 	domain = irq_domain_add_linear(intc, nr_irqs, &idu_irq_ops, NULL);
 
@@ -306,10 +307,8 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 		 * however we need it to get the parent virq and set IDU handler
 		 * as first level isr
 		 */
-		virq = irq_of_parse_and_map(intc, i);
-		if (!i)
-			idu_first_hwirq = irqd_to_hwirq(irq_get_irq_data(virq));
-
+		virq = irq_create_mapping(NULL, i + FIRST_EXT_IRQ);
+		BUG_ON(!virq);
 		irq_set_chained_handler_and_data(virq, idu_cascade_isr, domain);
 	}
 
