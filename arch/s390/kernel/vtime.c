@@ -6,13 +6,13 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/cputime.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/timex.h>
 #include <linux/types.h>
 #include <linux/time.h>
 
-#include <asm/cputime.h>
 #include <asm/vtimer.h>
 #include <asm/vtime.h>
 #include <asm/cpu_mf.h>
@@ -115,7 +115,7 @@ static void account_system_index_scaled(struct task_struct *p,
 					enum cpu_usage_stat index)
 {
 	p->stimescaled += cputime_to_nsecs(scaled);
-	account_system_index_time(p, cputime, index);
+	account_system_index_time(p, cputime_to_nsecs(cputime), index);
 }
 
 /*
@@ -171,7 +171,7 @@ static int do_account_vtime(struct task_struct *tsk)
 	}
 
 	if (guest) {
-		account_guest_time(tsk, guest);
+		account_guest_time(tsk, cputime_to_nsecs(guest));
 		tsk->utimescaled += cputime_to_nsecs(scale_vtime(guest));
 	}
 

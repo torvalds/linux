@@ -57,6 +57,7 @@
 #include <linux/clk-provider.h>
 #include <linux/suspend.h>
 #include <linux/rtc.h>
+#include <linux/cputime.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>
@@ -72,7 +73,6 @@
 #include <asm/smp.h>
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
-#include <asm/cputime.h>
 #include <asm/asm-prototypes.h>
 
 /* powerpc clocksource/clockevent code */
@@ -399,7 +399,7 @@ void vtime_flush(struct task_struct *tsk)
 		tsk->utimescaled += cputime_to_nsecs(acct->utime_scaled);
 
 	if (acct->gtime)
-		account_guest_time(tsk, acct->gtime);
+		account_guest_time(tsk, cputime_to_nsecs(acct->gtime));
 
 	if (acct->steal_time)
 		account_steal_time(cputime_to_nsecs(acct->steal_time));
@@ -408,16 +408,17 @@ void vtime_flush(struct task_struct *tsk)
 		account_idle_time(cputime_to_nsecs(acct->idle_time));
 
 	if (acct->stime)
-		account_system_index_time(tsk, acct->stime, CPUTIME_SYSTEM);
-
+		account_system_index_time(tsk, cputime_to_nsecs(acct->stime),
+					  CPUTIME_SYSTEM);
 	if (acct->stime_scaled)
 		tsk->stimescaled += cputime_to_nsecs(acct->stime_scaled);
 
 	if (acct->hardirq_time)
-		account_system_index_time(tsk, acct->hardirq_time, CPUTIME_IRQ);
-
+		account_system_index_time(tsk, cputime_to_nsecs(acct->hardirq_time),
+					  CPUTIME_IRQ);
 	if (acct->softirq_time)
-		account_system_index_time(tsk, acct->softirq_time, CPUTIME_SOFTIRQ);
+		account_system_index_time(tsk, cputime_to_nsecs(acct->softirq_time),
+					  CPUTIME_SOFTIRQ);
 
 	acct->utime = 0;
 	acct->utime_scaled = 0;
