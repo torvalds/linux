@@ -173,8 +173,7 @@ struct ceph_osdmap {
 	 * the list of osds that store+replicate them. */
 	struct crush_map *crush;
 
-	struct mutex crush_scratch_mutex;
-	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
+	struct mutex crush_workspace_mutex;
 	void *crush_workspace;
 };
 

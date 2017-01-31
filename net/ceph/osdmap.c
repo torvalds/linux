@@ -743,7 +743,7 @@ struct ceph_osdmap *ceph_osdmap_alloc(void)
 	map->pool_max = -1;
 	map->pg_temp = RB_ROOT;
 	map->primary_temp = RB_ROOT;
-	mutex_init(&map->crush_scratch_mutex);
+	mutex_init(&map->crush_workspace_mutex);
 
 	return map;
 }
@@ -836,11 +836,14 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 {
 	void *workspace;
+	size_t work_size;
 
 	if (IS_ERR(crush))
 		return PTR_ERR(crush);
 
-	workspace = kmalloc(crush->working_size, GFP_NOIO);
+	work_size = crush_work_size(crush, CEPH_PG_MAX_SIZE);
+	dout("%s work_size %zu bytes\n", __func__, work_size);
+	workspace = kmalloc(work_size, GFP_NOIO);
 	if (!workspace) {
 		crush_destroy(crush);
 		return -ENOMEM;
@@ -1974,11 +1977,10 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	BUG_ON(result_max > CEPH_PG_MAX_SIZE);
 
-	mutex_lock(&map->crush_scratch_mutex);
+	mutex_lock(&map->crush_workspace_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
-			  weight, weight_max, map->crush_workspace,
-			  map->crush_scratch_ary);
-	mutex_unlock(&map->crush_scratch_mutex);
+			  weight, weight_max, map->crush_workspace);
+	mutex_unlock(&map->crush_workspace_mutex);
 
 	return r;
 }

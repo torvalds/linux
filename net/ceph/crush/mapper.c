@@ -855,23 +855,22 @@ void crush_init_workspace(const struct crush_map *map, void *v)
  * @result_max: maximum result size
  * @weight: weight vector (for map leaves)
  * @weight_max: size of weight vector
- * @cwin: pointer to at least map->working_size bytes of memory
- * @scratch: scratch vector for private use; must be >= 3 * result_max
+ * @cwin: pointer to at least crush_work_size() bytes of memory
  */
 int crush_do_rule(const struct crush_map *map,
 		  int ruleno, int x, int *result, int result_max,
 		  const __u32 *weight, int weight_max,
-		  void *cwin, int *scratch)
+		  void *cwin)
 {
 	int result_len;
 	struct crush_work *cw = cwin;
-	int *a = scratch;
-	int *b = scratch + result_max;
-	int *c = scratch + result_max*2;
+	int *a = cwin + map->working_size;
+	int *b = a + result_max;
+	int *c = b + result_max;
+	int *w = a;
+	int *o = b;
 	int recurse_to_leaf;
-	int *w;
 	int wsize = 0;
-	int *o;
 	int osize;
 	int *tmp;
 	const struct crush_rule *rule;
@@ -902,8 +901,6 @@ int crush_do_rule(const struct crush_map *map,
 
 	rule = map->rules[ruleno];
 	result_len = 0;
-	w = a;
-	o = b;
 
 	for (step = 0; step < rule->len; step++) {
 		int firstn = 0;
