@@ -239,6 +239,7 @@ void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
 	kvmppc_set_dsisr(vcpu, flags);
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
 }
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);	/* used by kvm_hv */
 
 void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
 {

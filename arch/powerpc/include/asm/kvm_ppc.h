@@ -291,6 +291,8 @@ struct kvmppc_ops {
 				       struct irq_bypass_producer *);
 	void (*irq_bypass_del_producer)(struct irq_bypass_consumer *,
 					struct irq_bypass_producer *);
+	int (*configure_mmu)(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg);
+	int (*get_rmmu_info)(struct kvm *kvm, struct kvm_ppc_rmmu_info *info);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;

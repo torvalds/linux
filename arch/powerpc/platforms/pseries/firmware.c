@@ -126,7 +126,7 @@ static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
 		index = OV5_INDX(vec5_fw_features_table[i].feature);
 		feat = OV5_FEAT(vec5_fw_features_table[i].feature);
 
-		if (vec5[index] & feat)
+		if (index < len && (vec5[index] & feat))
 			powerpc_firmware_features |=
 				vec5_fw_features_table[i].val;
 	}
