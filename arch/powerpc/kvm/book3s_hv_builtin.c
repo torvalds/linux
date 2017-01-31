@@ -29,6 +29,11 @@
 #include <asm/opal.h>
 #include <asm/smp.h>
 
+static bool in_realmode(void)
+{
+	return !(mfmsr() & MSR_IR);
+}
+
 #define KVM_CMA_CHUNK_ORDER	18
 
 /*
@@ -52,19 +57,19 @@ static int __init early_parse_kvm_cma_resv(char *p)
 }
 early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
-struct page *kvm_alloc_hpt(unsigned long nr_pages)
+struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
 {
 	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES));
 }
-EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
+EXPORT_SYMBOL_GPL(kvm_alloc_hpt_cma);
 
-void kvm_release_hpt(struct page *page, unsigned long nr_pages)
+void kvm_free_hpt_cma(struct page *page, unsigned long nr_pages)
 {
 	cma_release(kvm_cma, page, nr_pages);
 }
-EXPORT_SYMBOL_GPL(kvm_release_hpt);
+EXPORT_SYMBOL_GPL(kvm_free_hpt_cma);
 
 /**
  * kvm_cma_reserve() - reserve area for kvm hash pagetable
@@ -200,7 +205,6 @@ static inline void rm_writeb(unsigned long paddr, u8 val)
 
 /*
  * Send an interrupt or message to another CPU.
- * This can only be called in real mode.
  * The caller needs to include any barrier needed to order writes
  * to memory vs. the IPI/message.
  */
@@ -226,7 +230,9 @@ void kvmhv_rm_send_ipi(int cpu)
 
 	/* Else poke the target with an IPI */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
-	if (xics_phys)
+	if (!in_realmode())
+		opal_int_set_mfrr(get_hard_smp_processor_id(cpu), IPI_PRIORITY);
+	else if (xics_phys)
 		rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
 	else
 		opal_rm_int_set_mfrr(get_hard_smp_processor_id(cpu),
@@ -412,14 +418,15 @@ static long kvmppc_read_one_intr(bool *again)
 
 	/* Now read the interrupt from the ICP */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
-	if (!xics_phys) {
-		/* Use OPAL to read the XIRR */
+	rc = 0;
+	if (!in_realmode())
+		rc = opal_int_get_xirr(&xirr, false);
+	else if (!xics_phys)
 		rc = opal_rm_int_get_xirr(&xirr, false);
-		if (rc < 0)
-			return 1;
-	} else {
+	else
 		xirr = _lwzcix(xics_phys + XICS_XIRR);
-	}
+	if (rc < 0)
+		return 1;
 
 	/*
 	 * Save XIRR for later. Since we get control in reverse endian
@@ -445,15 +452,19 @@ static long kvmppc_read_one_intr(bool *again)
 	 * If it is an IPI, clear the MFRR and EOI it.
 	 */
 	if (xisr == XICS_IPI) {
-		if (xics_phys) {
+		rc = 0;
+		if (!in_realmode()) {
+			opal_int_set_mfrr(hard_smp_processor_id(), 0xff);
+			rc = opal_int_eoi(h_xirr);
+		} else if (xics_phys) {
 			_stbcix(xics_phys + XICS_MFRR, 0xff);
 			_stwcix(xics_phys + XICS_XIRR, xirr);
 		} else {
 			opal_rm_int_set_mfrr(hard_smp_processor_id(), 0xff);
 			rc = opal_rm_int_eoi(h_xirr);
-			/* If rc > 0, there is another interrupt pending */
-			*again = rc > 0;
 		}
+		/* If rc > 0, there is another interrupt pending */
+		*again = rc > 0;
 
 		/*
 		 * Need to ensure side effects of above stores
@@ -471,7 +482,10 @@ static long kvmppc_read_one_intr(bool *again)
 			/* We raced with the host,
 			 * we need to resend that IPI, bummer
 			 */
-			if (xics_phys)
+			if (!in_realmode())
+				opal_int_set_mfrr(hard_smp_processor_id(),
+						  IPI_PRIORITY);
+			else if (xics_phys)
 				_stbcix(xics_phys + XICS_MFRR, IPI_PRIORITY);
 			else
 				opal_rm_int_set_mfrr(hard_smp_processor_id(),

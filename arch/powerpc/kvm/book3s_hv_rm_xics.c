@@ -62,11 +62,9 @@ static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu)
 	hcpu = hcore << threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[hcore].rm_data = vcpu;
 	smp_muxed_ipi_set_message(hcpu, PPC_MSG_RM_HOST_ACTION);
-	if (paca[hcpu].kvm_hstate.xics_phys)
-		icp_native_cause_ipi_rm(hcpu);
-	else
-		opal_rm_int_set_mfrr(get_hard_smp_processor_id(hcpu),
-				     IPI_PRIORITY);
+	kvmppc_set_host_ipi(hcpu, 1);
+	smp_mb();
+	kvmhv_rm_send_ipi(hcpu);
 }
 #else
 static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
@@ -746,7 +744,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 *
 	 * Note: If EOI is incorrectly used by SW to lower the CPPR
 	 * value (ie more favored), we do not check for rejection of
-	 * a pending interrupt, this is a SW error and PAPR sepcifies
+	 * a pending interrupt, this is a SW error and PAPR specifies
 	 * that we don't have to deal with it.
 	 *
 	 * The sending of an EOI to the ICS is handled after the
