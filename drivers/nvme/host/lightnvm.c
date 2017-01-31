@@ -26,6 +26,8 @@
 #include <linux/bitops.h>
 #include <linux/lightnvm.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/sysctl.h>
+#include <uapi/linux/lightnvm.h>
 
 enum nvme_nvm_admin_opcode {
 	nvme_nvm_admin_identity		= 0xe2,
@@ -582,6 +584,224 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 
 	.max_phys_sect		= 64,
 };
+
+static void nvme_nvm_end_user_vio(struct request *rq, int error)
+{
+	struct completion *waiting = rq->end_io_data;
+
+	complete(waiting);
+}
+
+static int nvme_nvm_submit_user_cmd(struct request_queue *q,
+				struct nvme_ns *ns,
+				struct nvme_nvm_command *vcmd,
+				void __user *ubuf, unsigned int bufflen,
+				void __user *meta_buf, unsigned int meta_len,
+				void __user *ppa_buf, unsigned int ppa_len,
+				u32 *result, u64 *status, unsigned int timeout)
+{
+	bool write = nvme_is_write((struct nvme_command *)vcmd);
+	struct nvm_dev *dev = ns->ndev;
+	struct gendisk *disk = ns->disk;
+	struct request *rq;
+	struct bio *bio = NULL;
+	__le64 *ppa_list = NULL;
+	dma_addr_t ppa_dma;
+	__le64 *metadata = NULL;
+	dma_addr_t metadata_dma;
+	DECLARE_COMPLETION_ONSTACK(wait);
+	int ret;
+
+	rq = nvme_alloc_request(q, (struct nvme_command *)vcmd, 0,
+			NVME_QID_ANY);
+	if (IS_ERR(rq)) {
+		ret = -ENOMEM;
+		goto err_cmd;
+	}
+
+	rq->timeout = timeout ? timeout : ADMIN_TIMEOUT;
+
+	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
+	rq->end_io_data = &wait;
+
+	if (ppa_buf && ppa_len) {
+		ppa_list = dma_pool_alloc(dev->dma_pool, GFP_KERNEL, &ppa_dma);
+		if (!ppa_list) {
+			ret = -ENOMEM;
+			goto err_rq;
+		}
+		if (copy_from_user(ppa_list, (void __user *)ppa_buf,
+						sizeof(u64) * (ppa_len + 1))) {
+			ret = -EFAULT;
+			goto err_ppa;
+		}
+		vcmd->ph_rw.spba = cpu_to_le64(ppa_dma);
+	} else {
+		vcmd->ph_rw.spba = cpu_to_le64((uintptr_t)ppa_buf);
+	}
+
+	if (ubuf && bufflen) {
+		ret = blk_rq_map_user(q, rq, NULL, ubuf, bufflen, GFP_KERNEL);
+		if (ret)
+			goto err_ppa;
+		bio = rq->bio;
+
+		if (meta_buf && meta_len) {
+			metadata = dma_pool_alloc(dev->dma_pool, GFP_KERNEL,
+								&metadata_dma);
+			if (!metadata) {
+				ret = -ENOMEM;
+				goto err_map;
+			}
+
+			if (write) {
+				if (copy_from_user(metadata,
+						(void __user *)meta_buf,
+						meta_len)) {
+					ret = -EFAULT;
+					goto err_meta;
+				}
+			}
+			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
+		}
+
+		if (!disk)
+			goto submit;
+
+		bio->bi_bdev = bdget_disk(disk, 0);
+		if (!bio->bi_bdev) {
+			ret = -ENODEV;
+			goto err_meta;
+		}
+	}
+
+submit:
+	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_user_vio);
+
+	wait_for_completion_io(&wait);
+
+	ret = nvme_error_status(rq->errors);
+	if (result)
+		*result = rq->errors & 0x7ff;
+	if (status)
+		*status = le64_to_cpu(nvme_req(rq)->result.u64);
+
+	if (metadata && !ret && !write) {
+		if (copy_to_user(meta_buf, (void *)metadata, meta_len))
+			ret = -EFAULT;
+	}
+err_meta:
+	if (meta_buf && meta_len)
+		dma_pool_free(dev->dma_pool, metadata, metadata_dma);
+err_map:
+	if (bio) {
+		if (disk && bio->bi_bdev)
+			bdput(bio->bi_bdev);
+		blk_rq_unmap_user(bio);
+	}
+err_ppa:
+	if (ppa_buf && ppa_len)
+		dma_pool_free(dev->dma_pool, ppa_list, ppa_dma);
+err_rq:
+	blk_mq_free_request(rq);
+err_cmd:
+	return ret;
+}
+
+static int nvme_nvm_submit_vio(struct nvme_ns *ns,
+					struct nvm_user_vio __user *uvio)
+{
+	struct nvm_user_vio vio;
+	struct nvme_nvm_command c;
+	unsigned int length;
+	int ret;
+
+	if (copy_from_user(&vio, uvio, sizeof(vio)))
+		return -EFAULT;
+	if (vio.flags)
+		return -EINVAL;
+
+	memset(&c, 0, sizeof(c));
+	c.ph_rw.opcode = vio.opcode;
+	c.ph_rw.nsid = cpu_to_le32(ns->ns_id);
+	c.ph_rw.control = cpu_to_le16(vio.control);
+	c.ph_rw.length = cpu_to_le16(vio.nppas);
+
+	length = (vio.nppas + 1) << ns->lba_shift;
+
+	ret = nvme_nvm_submit_user_cmd(ns->queue, ns, &c,
+			(void __user *)(uintptr_t)vio.addr, length,
+			(void __user *)(uintptr_t)vio.metadata,
+							vio.metadata_len,
+			(void __user *)(uintptr_t)vio.ppa_list, vio.nppas,
+			&vio.result, &vio.status, 0);
+
+	if (ret && copy_to_user(uvio, &vio, sizeof(vio)))
+		return -EFAULT;
+
+	return ret;
+}
+
+static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
+					struct nvm_passthru_vio __user *uvcmd)
+{
+	struct nvm_passthru_vio vcmd;
+	struct nvme_nvm_command c;
+	struct request_queue *q;
+	unsigned int timeout = 0;
+	int ret;
+
+	if (copy_from_user(&vcmd, uvcmd, sizeof(vcmd)))
+		return -EFAULT;
+	if ((vcmd.opcode != 0xF2) && (!capable(CAP_SYS_ADMIN)))
+		return -EACCES;
+	if (vcmd.flags)
+		return -EINVAL;
+
+	memset(&c, 0, sizeof(c));
+	c.common.opcode = vcmd.opcode;
+	c.common.nsid = cpu_to_le32(ns->ns_id);
+	c.common.cdw2[0] = cpu_to_le32(vcmd.cdw2);
+	c.common.cdw2[1] = cpu_to_le32(vcmd.cdw3);
+	/* cdw11-12 */
+	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
+	c.ph_rw.control  = cpu_to_le32(vcmd.control);
+	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
+	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
+	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
+
+	if (vcmd.timeout_ms)
+		timeout = msecs_to_jiffies(vcmd.timeout_ms);
+
+	q = admin ? ns->ctrl->admin_q : ns->queue;
+
+	ret = nvme_nvm_submit_user_cmd(q, ns,
+			(struct nvme_nvm_command *)&c,
+			(void __user *)(uintptr_t)vcmd.addr, vcmd.data_len,
+			(void __user *)(uintptr_t)vcmd.metadata,
+							vcmd.metadata_len,
+			(void __user *)(uintptr_t)vcmd.ppa_list, vcmd.nppas,
+			&vcmd.result, &vcmd.status, timeout);
+
+	if (ret && copy_to_user(uvcmd, &vcmd, sizeof(vcmd)))
+		return -EFAULT;
+
+	return ret;
+}
+
+int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case NVME_NVM_IOCTL_ADMIN_VIO:
+		return nvme_nvm_user_vcmd(ns, 1, (void __user *)arg);
+	case NVME_NVM_IOCTL_IO_VIO:
+		return nvme_nvm_user_vcmd(ns, 0, (void __user *)arg);
+	case NVME_NVM_IOCTL_SUBMIT_VIO:
+		return nvme_nvm_submit_vio(ns, (void __user *)arg);
+	default:
+		return -ENOTTY;
+	}
+}
 
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
