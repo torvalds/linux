@@ -1630,7 +1630,11 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 			__func__, iq_no);
 	}
 
-	if ((work_done < budget) && (tx_done)) {
+	/* force enable interrupt if reg cnts are high to avoid wraparound */
+	if ((work_done < budget && tx_done) ||
+	    (iq->pkt_in_done >= MAX_REG_CNT) ||
+	    (droq->pkt_count >= MAX_REG_CNT)) {
+		tx_done = 1;
 		napi_complete_done(napi, work_done);
 		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
 					     POLL_EVENT_ENABLE_INTR, 0);

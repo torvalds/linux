@@ -99,6 +99,7 @@ enum octeon_tag_type {
 #define CVM_DRV_APP_END             (CVM_DRV_INVALID_APP - 1)
 
 #define BYTES_PER_DHLEN_UNIT        8
+#define MAX_REG_CNT                 2000000U
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
