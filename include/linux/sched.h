@@ -774,8 +774,8 @@ struct signal_struct {
 	 */
 	seqlock_t stats_lock;
 	cputime_t utime, stime, cutime, cstime;
-	cputime_t gtime;
-	cputime_t cgtime;
+	u64 gtime;
+	u64 cgtime;
 	struct prev_cputime prev_cputime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
@@ -1658,7 +1658,7 @@ struct task_struct {
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 	cputime_t utimescaled, stimescaled;
 #endif
-	cputime_t gtime;
+	u64 gtime;
 	struct prev_cputime prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 	seqcount_t vtime_seqcount;
@@ -2254,7 +2254,7 @@ struct task_struct *try_get_task_struct(struct task_struct **ptask);
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void task_cputime(struct task_struct *t,
 			 cputime_t *utime, cputime_t *stime);
-extern cputime_t task_gtime(struct task_struct *t);
+extern u64 task_gtime(struct task_struct *t);
 #else
 static inline void task_cputime(struct task_struct *t,
 				cputime_t *utime, cputime_t *stime)
@@ -2263,7 +2263,7 @@ static inline void task_cputime(struct task_struct *t,
 	*stime = t->stime;
 }
 
-static inline cputime_t task_gtime(struct task_struct *t)
+static inline u64 task_gtime(struct task_struct *t)
 {
 	return t->gtime;
 }
