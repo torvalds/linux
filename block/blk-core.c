@@ -2506,10 +2506,10 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	 * TODO: tj: This is too subtle.  It would be better to let
 	 * low level drivers do what they see fit.
 	 */
-	if (req->cmd_type == REQ_TYPE_FS)
+	if (!blk_rq_is_passthrough(req))
 		req->errors = 0;
 
-	if (error && req->cmd_type == REQ_TYPE_FS &&
+	if (error && !blk_rq_is_passthrough(req) &&
 	    !(req->rq_flags & RQF_QUIET)) {
 		char *error_type;
 
@@ -2581,7 +2581,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	req->__data_len -= total_bytes;
 
 	/* update sector only for requests with clear definition of sector */
-	if (req->cmd_type == REQ_TYPE_FS)
+	if (!blk_rq_is_passthrough(req))
 		req->__sector += total_bytes >> 9;
 
 	/* mixed attributes always follow the first bio */
@@ -2659,7 +2659,7 @@ void blk_finish_request(struct request *req, int error)
 
 	BUG_ON(blk_queued_rq(req));
 
-	if (unlikely(laptop_mode) && req->cmd_type == REQ_TYPE_FS)
+	if (unlikely(laptop_mode) && !blk_rq_is_passthrough(req))
 		laptop_io_completion(&req->q->backing_dev_info);
 
 	blk_delete_timer(req);

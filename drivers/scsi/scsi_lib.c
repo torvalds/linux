@@ -582,7 +582,7 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 
 static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 {
-	if (cmd->request->cmd_type == REQ_TYPE_FS) {
+	if (!blk_rq_is_passthrough(cmd->request)) {
 		struct scsi_driver *drv = scsi_cmd_to_driver(cmd);
 
 		if (drv->uninit_command)
@@ -806,7 +806,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
 
-	if (req->cmd_type == REQ_TYPE_BLOCK_PC) { /* SG_IO ioctl from block level */
+	if (blk_rq_is_passthrough(req)) {
 		if (result) {
 			if (sense_valid) {
 				/*
@@ -847,7 +847,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		error = __scsi_error_from_host_byte(cmd, result);
 	}
 
-	/* no bidi support for !REQ_TYPE_BLOCK_PC yet */
+	/* no bidi support for !blk_rq_is_passthrough yet */
 	BUG_ON(blk_bidi_rq(req));
 
 	/*

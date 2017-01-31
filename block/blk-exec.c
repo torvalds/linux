@@ -51,7 +51,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	int where = at_head ? ELEVATOR_INSERT_FRONT : ELEVATOR_INSERT_BACK;
 
 	WARN_ON(irqs_disabled());
-	WARN_ON(rq->cmd_type == REQ_TYPE_FS);
+	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	rq->rq_disk = bd_disk;
 	rq->end_io = done;

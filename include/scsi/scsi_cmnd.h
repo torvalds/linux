@@ -151,7 +151,7 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 	return cmd + 1;
 }
 
-/* make sure not to use it with REQ_TYPE_BLOCK_PC commands */
+/* make sure not to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;

@@ -398,7 +398,7 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	if (blk_mq_sched_bypass_insert(hctx, rq))
 		return;
 
-	if (at_head || rq->cmd_type != REQ_TYPE_FS) {
+	if (at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &dd->dispatch);
 		else
