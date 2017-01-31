@@ -217,6 +217,7 @@ struct mlx5e_cq_moder {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
+	u16 rq_headroom;
 	u8  mpwqe_log_stride_sz;
 	u8  mpwqe_log_num_strides;
 	u8  log_rq_size;
