@@ -139,7 +139,7 @@ struct hisi_pcie {
 	struct pcie_port pp;		/* pp.dbi_base is DT rc_dbi */
 	struct regmap *subctrl;
 	u32 port_id;
-	struct pcie_soc_ops *soc_ops;
+	const struct pcie_soc_ops *soc_ops;
 };
 
 /* HipXX PCIe host only supports 32-bit config access */
@@ -259,7 +259,6 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct hisi_pcie *hisi_pcie;
 	struct pcie_port *pp;
-	const struct of_device_id *match;
 	struct resource *reg;
 	struct device_driver *driver;
 	int ret;
@@ -272,11 +271,10 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	pp->dev = dev;
 	driver = dev->driver;
 
-	match = of_match_device(driver->of_match_table, dev);
-	hisi_pcie->soc_ops = (struct pcie_soc_ops *) match->data;
+	hisi_pcie->soc_ops = of_device_get_match_data(dev);
 
 	hisi_pcie->subctrl =
-	syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
+	    syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
 	if (IS_ERR(hisi_pcie->subctrl)) {
 		dev_err(dev, "cannot get subctrl base\n");
 		return PTR_ERR(hisi_pcie->subctrl);
