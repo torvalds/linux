@@ -464,7 +464,7 @@ int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flag_irqs);
 		pr_debug("%s: unlock -> sending pcm_stop -> lock\n", __func__);
 		snd_pcm_stop(intelhaddata->stream_info.had_substream,
-				SNDRV_PCM_STATE_DISCONNECTED);
+				SNDRV_PCM_STATE_SETUP);
 		spin_lock_irqsave(&intelhaddata->had_spinlock, flag_irqs);
 	}
 
