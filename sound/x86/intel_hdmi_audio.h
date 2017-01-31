@@ -69,7 +69,7 @@
 #define LAYOUT0			0
 #define LAYOUT1			1
 #define SWAP_LFE_CENTER		0x00fac4c8
-#define AUD_CONFIG_CH_MASK_V2	0x70
+#define AUD_CONFIG_CH_MASK	0x70
 
 struct pcm_stream_info {
 	int		str_id;

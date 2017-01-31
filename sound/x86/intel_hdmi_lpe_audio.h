@@ -277,7 +277,7 @@ enum hdmi_ctrl_reg_offset_common {
 	AUDIO_HDMI_CONFIG_C = 0x900,
 };
 /* HDMI controller register offsets */
-enum hdmi_ctrl_reg_offset_v1 {
+enum hdmi_ctrl_reg_offset {
 	AUD_CONFIG		= 0x0,
 	AUD_CH_STATUS_0		= 0x08,
 	AUD_CH_STATUS_1		= 0x0C,
@@ -295,18 +295,8 @@ enum hdmi_ctrl_reg_offset_v1 {
 	AUD_BUF_D_ADDR		= 0x58,
 	AUD_BUF_D_LENGTH	= 0x5c,
 	AUD_CNTL_ST		= 0x60,
-	AUD_HDMI_STATUS		= 0x68,
-	AUD_HDMIW_INFOFR	= 0x114,
-};
-
-/*
- * Delta changes in HDMI controller register offsets
- * compare to v1 version
- */
-
-enum hdmi_ctrl_reg_offset_v2 {
-	AUD_HDMI_STATUS_v2	= 0x64,
-	AUD_HDMIW_INFOFR_v2	= 0x68,
+	AUD_HDMI_STATUS		= 0x64, /* v2 */
+	AUD_HDMIW_INFOFR	= 0x68, /* v2 */
 };
 
 /*
@@ -374,7 +364,7 @@ union aud_cfg {
 		u32 bogus_sample:1;
 		u32 dp_modei:1;
 		u32 rsvd:16;
-	} cfg_regx_v2;
+	} cfg_regx;
 	u32 cfg_regval;
 };
 
@@ -430,7 +420,7 @@ union aud_hdmi_cts {
 		u32 cts_val:24;
 		u32 en_cts_prog:1;
 		u32 rsvd:7;
-	} cts_regx_v2;
+	} cts_regx;
 	u32 cts_regval;
 };
 
@@ -446,7 +436,7 @@ union aud_hdmi_n_enable {
 		u32 n_val:24;
 		u32 en_n_prog:1;
 		u32 rsvd:7;
-	} n_regx_v2;
+	} n_regx;
 	u32 n_regval;
 };
 
@@ -464,7 +454,7 @@ union aud_buf_config {
 		u32 rsvd0:5;
 		u32 aud_delay:8;
 		u32 rsvd1:8;
-	} buf_cfg_regx_v2;
+	} buf_cfg_regx;
 	u32 buf_cfgval;
 };
 
