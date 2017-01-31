@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -638,6 +640,7 @@ struct iwl_mvm_tcm {
 		u32 elapsed; /* milliseconds for this TCM period */
 		u32 airtime[NUM_MAC_INDEX_DRIVER];
 		enum iwl_mvm_traffic_load load[NUM_MAC_INDEX_DRIVER];
+		enum iwl_mvm_traffic_load band_load[NUM_NL80211_BANDS];
 		enum iwl_mvm_traffic_load global_load;
 		bool low_latency[NUM_MAC_INDEX_DRIVER];
 		bool change[NUM_MAC_INDEX_DRIVER];
@@ -879,7 +882,10 @@ struct iwl_mvm {
 	unsigned int scan_status;
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
+	/* For CDB this is low band scan type, for non-CDB - type. */
 	enum iwl_mvm_scan_type scan_type;
+	enum iwl_mvm_scan_type hb_scan_type;
+
 	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
 	struct delayed_work scan_timeout_dwork;
 
@@ -1828,6 +1834,8 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      enum iwl_mvm_low_latency_cause cause);
 /* get SystemLowLatencyMode - only needed for beacon threshold? */
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
+bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band);
+
 /* get VMACLowLatencyMode */
 static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 {

@@ -1074,23 +1074,48 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_power_update_mac(mvm);
 }
 
+struct iwl_mvm_low_latency_iter {
+	bool result;
+	bool result_per_band[NUM_NL80211_BANDS];
+};
+
 static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 {
-	bool *result = _data;
+	struct iwl_mvm_low_latency_iter *result = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	enum nl80211_band band;
 
-	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(vif)))
-		*result = true;
+	if (iwl_mvm_vif_low_latency(mvmvif)) {
+		result->result = true;
+
+		if (!mvmvif->phy_ctxt)
+			return;
+
+		band = mvmvif->phy_ctxt->channel->band;
+		result->result_per_band[band] = true;
+	}
 }
 
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 {
-	bool result = false;
+	struct iwl_mvm_low_latency_iter data = {};
 
 	ieee80211_iterate_active_interfaces_atomic(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_ll_iter, &result);
+			iwl_mvm_ll_iter, &data);
 
-	return result;
+	return data.result;
+}
+
+bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band)
+{
+	struct iwl_mvm_low_latency_iter data = {};
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_ll_iter, &data);
+
+	return data.result_per_band[band];
 }
 
 struct iwl_bss_iter_data {
@@ -1599,6 +1624,18 @@ static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
 		iwl_mvm_uapsd_agg_disconnect_iter, &mac);
 }
 
+static void iwl_mvm_tcm_iterator(void *_data, u8 *mac,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 *band = _data;
+
+	if (!mvmvif->phy_ctxt)
+		return;
+
+	band[mvmvif->id] = mvmvif->phy_ctxt->channel->band;
+}
+
 static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 					    unsigned long ts,
 					    bool handle_uapsd)
@@ -1607,9 +1644,11 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	unsigned int uapsd_elapsed =
 		jiffies_to_msecs(ts - mvm->tcm.uapsd_nonagg_ts);
 	u32 total_airtime = 0;
-	int ac, mac;
+	u32 band_airtime[NUM_NL80211_BANDS] = {0};
+	u32 band[NUM_MAC_INDEX_DRIVER] = {0};
+	int ac, mac, i;
 	bool low_latency = false;
-	enum iwl_mvm_traffic_load load;
+	enum iwl_mvm_traffic_load load, band_load;
 	bool handle_ll = time_after(ts, mvm->tcm.ll_ts + MVM_LL_PERIOD);
 
 	if (handle_ll)
@@ -1619,12 +1658,18 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 
 	mvm->tcm.result.elapsed = elapsed;
 
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_tcm_iterator,
+						   &band);
+
 	for (mac = 0; mac < NUM_MAC_INDEX_DRIVER; mac++) {
 		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
 		u32 vo_vi_pkts = 0;
 		u32 airtime = mdata->rx.airtime + mdata->tx.airtime;
 
 		total_airtime += airtime;
+		band_airtime[band[mac]] += airtime;
 
 		load = iwl_mvm_tcm_load(mvm, airtime, elapsed);
 		mvm->tcm.result.change[mac] = load != mvm->tcm.result.load[mac];
@@ -1661,6 +1706,11 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	load = iwl_mvm_tcm_load(mvm, total_airtime, elapsed);
 	mvm->tcm.result.global_change = load != mvm->tcm.result.global_load;
 	mvm->tcm.result.global_load = load;
+
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+		band_load = iwl_mvm_tcm_load(mvm, band_airtime[i], elapsed);
+		mvm->tcm.result.band_load[i] = band_load;
+	}
 
 	/*
 	 * If the current load isn't low we need to force re-evaluation
