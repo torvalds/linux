@@ -177,6 +177,17 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 		else if ((clk_rate >= CSR_F_250M) && (clk_rate < CSR_F_300M))
 			priv->clk_csr = STMMAC_CSR_250_300M;
 	}
+
+	if (priv->plat->has_sun8i) {
+		if (clk_rate > 160000000)
+			priv->clk_csr = 0x03;
+		else if (clk_rate > 80000000)
+			priv->clk_csr = 0x02;
+		else if (clk_rate > 40000000)
+			priv->clk_csr = 0x01;
+		else
+			priv->clk_csr = 0;
+	}
 }
 
 static void print_pkt(unsigned char *buf, int len)
@@ -697,6 +708,10 @@ static void stmmac_adjust_link(struct net_device *dev)
 	if (phydev->link) {
 		u32 ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 
+		/* disable loopback */
+		if (priv->plat->has_sun8i)
+			ctrl &= ~BIT(1);
+
 		/* Now we make sure that we can be in full duplex mode.
 		 * If not, we operate in half-duplex mode. */
 		if (phydev->duplex != priv->oldduplex) {
@@ -714,6 +729,8 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 		if (phydev->speed != priv->speed) {
 			new_state = 1;
+			if (priv->plat->has_sun8i)
+				ctrl &= ~GENMASK(3, 2);
 			switch (phydev->speed) {
 			case 1000:
 				if (priv->plat->has_gmac ||
@@ -725,6 +742,8 @@ static void stmmac_adjust_link(struct net_device *dev)
 				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
 					ctrl |= priv->hw->link.speed;
+				} else if (priv->plat->has_sun8i) {
+					ctrl |= 3 << 2;
 				} else {
 					ctrl &= ~priv->hw->link.port;
 				}
@@ -734,6 +753,8 @@ static void stmmac_adjust_link(struct net_device *dev)
 				    priv->plat->has_gmac4) {
 					ctrl |= priv->hw->link.port;
 					ctrl &= ~(priv->hw->link.speed);
+				} else if (priv->plat->has_sun8i) {
+					ctrl |= 2 << 2;
 				} else {
 					ctrl &= ~priv->hw->link.port;
 				}
@@ -1710,7 +1731,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* Enable the MAC Rx/Tx */
 	if (priv->synopsys_id >= DWMAC_CORE_4_00)
 		stmmac_dwmac4_set_mac(priv->ioaddr, true);
-	else
+	else if (!priv->plat->has_sun8i)
 		stmmac_set_mac(priv->ioaddr, true);
 
 	/* Set the HW DMA mode and the COE */
@@ -3141,6 +3162,10 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		return -ENOMEM;
 
 	priv->hw = mac;
+
+	/* dwmac-sun8i only work in chain mode */
+	if (priv->plat->has_sun8i)
+		chain_mode = 1;
 
 	/* To use the chained or ring mode */
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {

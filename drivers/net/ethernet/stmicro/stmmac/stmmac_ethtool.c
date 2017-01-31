@@ -450,6 +450,9 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 		for (i = 0; i < 22; i++)
 			reg_space[i + 55] =
 			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
+	} else if (priv->plat->has_sun8i) {
+		for (i = 0; i < 0xC8 / 4; i++)
+			reg_space[i] = readl(priv->ioaddr + i * 4);
 	} else {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
