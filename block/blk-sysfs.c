@@ -824,6 +824,9 @@ static void blk_release_queue(struct kobject *kobj)
 
 	blk_trace_shutdown(q);
 
+	if (q->mq_ops)
+		blk_mq_debugfs_unregister(q);
+
 	if (q->bio_split)
 		bioset_free(q->bio_split);
 
