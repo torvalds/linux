@@ -1109,7 +1109,7 @@ static int et8ek8_g_priv_mem(struct v4l2_subdev *subdev)
 			if (!(status & 0x08))
 				break;
 			usleep_range(1000, 2000);
-		};
+		}
 
 		if (i == 1000)
 			return -EIO;
