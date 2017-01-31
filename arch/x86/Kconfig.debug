@@ -120,14 +120,6 @@ config DEBUG_SET_MODULE_RONX
 	  against certain classes of kernel exploits.
 	  If in doubt, say "N".
 
-config DEBUG_NX_TEST
-	tristate "Testcase for the NX non-executable stack feature"
-	depends on DEBUG_KERNEL && m
-	---help---
-	  This option enables a testcase for the CPU NX capability
-	  and the software setup of this feature.
-	  If in doubt, say "N"
-
 config DOUBLEFAULT
 	default y
 	bool "Enable doublefault exception handler" if EXPERT
