@@ -271,6 +271,9 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	u32 type;
 	u32 tag = blk_mq_unique_tag(req);
 
+	if (req->cmd_type != REQ_TYPE_FS)
+		return -EIO;
+
 	if (req_op(req) == REQ_OP_DISCARD)
 		type = NBD_CMD_TRIM;
 	else if (req_op(req) == REQ_OP_FLUSH)
@@ -279,6 +282,13 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 		type = NBD_CMD_WRITE;
 	else
 		type = NBD_CMD_READ;
+
+	if (rq_data_dir(req) == WRITE &&
+	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Write on read-only\n");
+		return -EIO;
+	}
 
 	memset(&request, 0, sizeof(request));
 	request.magic = htonl(NBD_REQUEST_MAGIC);
@@ -500,17 +510,6 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	if (test_bit(NBD_DISCONNECTED, &nbd->runtime_flags)) {
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
 				    "Attempted send on closed socket\n");
-		goto error_out;
-	}
-
-	if (req->cmd_type != REQ_TYPE_FS)
-		goto error_out;
-
-	if (req->cmd_type == REQ_TYPE_FS &&
-	    rq_data_dir(req) == WRITE &&
-	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
-		dev_err_ratelimited(disk_to_dev(nbd->disk),
-				    "Write on read-only\n");
 		goto error_out;
 	}
 
