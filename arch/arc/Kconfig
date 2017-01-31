@@ -412,17 +412,6 @@ config ARC_HAS_DIV_REM
 	bool "Insn: div, divu, rem, remu"
 	default y
 
-config ARC_NUMBER_OF_INTERRUPTS
-	int "Number of interrupts"
-	range 8 240
-	default 32
-	help
-	  This defines the number of interrupts on the ARCv2HS core.
-	  It affects the size of vector table.
-	  The initial 8 IRQs are fixed (Timer, ICI etc) and although configurable
-	  in hardware, it keep things simple for Linux to assume they are always
-	  present.
-
 endif	# ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"

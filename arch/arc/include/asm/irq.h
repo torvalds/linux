@@ -9,7 +9,13 @@
 #ifndef __ASM_ARC_IRQ_H
 #define __ASM_ARC_IRQ_H
 
-#define NR_IRQS		128 /* allow some CPU external IRQ handling */
+/*
+ * ARCv2 can support 240 interrupts in the core interrupts controllers and
+ * 128 interrupts in IDU. Thus 512 virtual IRQs must be enough for most
+ * configurations of boards.
+ * This doesnt affect ARCompact, but we change it to same value
+ */
+#define NR_IRQS		512
 
 /* Platform Independent IRQs */
 #ifdef CONFIG_ISA_ARCV2
