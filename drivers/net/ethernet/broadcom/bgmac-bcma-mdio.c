@@ -132,6 +132,10 @@ static void bcma_mdio_phy_init(struct bgmac *bgmac)
 	struct bcma_chipinfo *ci = &bgmac->bcma.core->bus->chipinfo;
 	u8 i;
 
+	/* For some legacy hardware we do chipset-based PHY initialization here
+	 * without even detecting PHY ID. It's hacky and should be cleaned as
+	 * soon as someone can test it.
+	 */
 	if (ci->id == BCMA_CHIP_ID_BCM5356) {
 		for (i = 0; i < 5; i++) {
 			bcma_mdio_phy_write(bgmac, i, 0x1f, 0x008b);
@@ -140,6 +144,7 @@ static void bcma_mdio_phy_init(struct bgmac *bgmac)
 			bcma_mdio_phy_write(bgmac, i, 0x12, 0x2aaa);
 			bcma_mdio_phy_write(bgmac, i, 0x1f, 0x000b);
 		}
+		return;
 	}
 	if ((ci->id == BCMA_CHIP_ID_BCM5357 && ci->pkg != 10) ||
 	    (ci->id == BCMA_CHIP_ID_BCM4749 && ci->pkg != 10) ||
@@ -161,7 +166,12 @@ static void bcma_mdio_phy_init(struct bgmac *bgmac)
 			bcma_mdio_phy_write(bgmac, i, 0x17, 0x9273);
 			bcma_mdio_phy_write(bgmac, i, 0x1f, 0x000b);
 		}
+		return;
 	}
+
+	/* For all other hw do initialization using PHY subsystem. */
+	if (bgmac->net_dev && bgmac->net_dev->phydev)
+		phy_init_hw(bgmac->net_dev->phydev);
 }
 
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipphyreset */
