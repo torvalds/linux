@@ -26,6 +26,7 @@
 
 static void __iomem *cpubiuctrl_base;
 static bool mcp_wr_pairing_en;
+static unsigned int cpu_credit_reg_offset = CPU_CREDIT_REG_OFFSET;
 
 static int __init mcp_write_pairing_set(void)
 {
@@ -34,15 +35,15 @@ static int __init mcp_write_pairing_set(void)
 	if (!cpubiuctrl_base)
 		return -1;
 
-	creds = readl_relaxed(cpubiuctrl_base + CPU_CREDIT_REG_OFFSET);
+	creds = readl_relaxed(cpubiuctrl_base + cpu_credit_reg_offset);
 	if (mcp_wr_pairing_en) {
 		pr_info("MCP: Enabling write pairing\n");
 		writel_relaxed(creds | CPU_CREDIT_REG_MCPx_WR_PAIRING_EN_MASK,
-			     cpubiuctrl_base + CPU_CREDIT_REG_OFFSET);
+			     cpubiuctrl_base + cpu_credit_reg_offset);
 	} else if (creds & CPU_CREDIT_REG_MCPx_WR_PAIRING_EN_MASK) {
 		pr_info("MCP: Disabling write pairing\n");
 		writel_relaxed(creds & ~CPU_CREDIT_REG_MCPx_WR_PAIRING_EN_MASK,
-				cpubiuctrl_base + CPU_CREDIT_REG_OFFSET);
+				cpubiuctrl_base + cpu_credit_reg_offset);
 	} else {
 		pr_info("MCP: Write pairing already disabled\n");
 	}
@@ -81,7 +82,7 @@ static int brcmstb_cpu_credit_reg_suspend(void)
 {
 	if (cpubiuctrl_base)
 		cpu_credit_reg_dump =
-			readl_relaxed(cpubiuctrl_base + CPU_CREDIT_REG_OFFSET);
+			readl_relaxed(cpubiuctrl_base + cpu_credit_reg_offset);
 	return 0;
 }
 
@@ -89,7 +90,7 @@ static void brcmstb_cpu_credit_reg_resume(void)
 {
 	if (cpubiuctrl_base)
 		writel_relaxed(cpu_credit_reg_dump,
-				cpubiuctrl_base + CPU_CREDIT_REG_OFFSET);
+				cpubiuctrl_base + cpu_credit_reg_offset);
 }
 
 static struct syscore_ops brcmstb_cpu_credit_syscore_ops = {
