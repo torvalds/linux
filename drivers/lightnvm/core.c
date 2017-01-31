@@ -303,7 +303,7 @@ err_init:
 err_queue:
 	blk_cleanup_queue(tqueue);
 err_dev:
-	kfree(tgt_dev);
+	nvm_remove_tgt_dev(tgt_dev);
 err_t:
 	kfree(t);
 err_reserve:
