@@ -19,6 +19,7 @@
 #include <linux/debugfs.h>
 
 #include <linux/blk-mq.h>
+#include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
 
@@ -27,8 +28,6 @@ struct blk_mq_debugfs_attr {
 	umode_t mode;
 	const struct file_operations *fops;
 };
-
-static struct dentry *block_debugfs_root;
 
 static int blk_mq_debugfs_seq_open(struct inode *inode, struct file *file,
 				   const struct seq_operations *ops)
@@ -665,10 +664,10 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 
 int blk_mq_debugfs_register(struct request_queue *q, const char *name)
 {
-	if (!block_debugfs_root)
+	if (!blk_debugfs_root)
 		return -ENOENT;
 
-	q->debugfs_dir = debugfs_create_dir(name, block_debugfs_root);
+	q->debugfs_dir = debugfs_create_dir(name, blk_debugfs_root);
 	if (!q->debugfs_dir)
 		goto err;
 
@@ -770,9 +769,4 @@ void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
 {
 	debugfs_remove_recursive(q->mq_debugfs_dir);
 	q->mq_debugfs_dir = NULL;
-}
-
-void blk_mq_debugfs_init(void)
-{
-	block_debugfs_root = debugfs_create_dir("block", NULL);
 }

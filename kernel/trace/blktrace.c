@@ -28,6 +28,8 @@
 #include <linux/uaccess.h>
 #include <linux/list.h>
 
+#include "../../block/blk.h"
+
 #include <trace/events/block.h>
 
 #include "trace_output.h"
@@ -292,9 +294,6 @@ record_it:
 	local_irq_restore(flags);
 }
 
-static struct dentry *blk_tree_root;
-static DEFINE_MUTEX(blk_tree_mutex);
-
 static void blk_trace_free(struct blk_trace *bt)
 {
 	debugfs_remove(bt->msg_file);
@@ -468,17 +467,10 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 
 	ret = -ENOENT;
 
-	mutex_lock(&blk_tree_mutex);
-	if (!blk_tree_root) {
-		blk_tree_root = debugfs_create_dir("block", NULL);
-		if (!blk_tree_root) {
-			mutex_unlock(&blk_tree_mutex);
-			goto err;
-		}
-	}
-	mutex_unlock(&blk_tree_mutex);
+	if (!blk_debugfs_root)
+		goto err;
 
-	dir = debugfs_create_dir(buts->name, blk_tree_root);
+	dir = debugfs_create_dir(buts->name, blk_debugfs_root);
 
 	if (!dir)
 		goto err;
