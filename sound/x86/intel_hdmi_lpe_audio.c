@@ -422,16 +422,14 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 			NULL);
 	if (ret < 0) {
 		dev_err(&hlpe_pdev->dev, "request_irq failed\n");
-		iounmap(mmio_start);
-		return -ENODEV;
+		goto error_irq;
 	}
 
 	/* alloc and save context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL) {
-		free_irq(irq, NULL);
-		iounmap(mmio_start);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_ctx;
 	}
 
 	ctx->irq = irq;
@@ -454,15 +452,16 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	if (pdata == NULL) {
 		dev_err(&hlpe_pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
-		kfree(ctx);
-		free_irq(irq, NULL);
-		iounmap(mmio_start);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error_probe;
 	}
 
 	platform_set_drvdata(pdev, ctx);
 
 	ret = hdmi_audio_probe(pdev, &ctx->had);
+	if (ret < 0)
+		goto error_probe;
+
 	dev_dbg(&hlpe_pdev->dev, "hdmi lpe audio: setting pin eld notify callback\n");
 
 	/* The Audio driver is loading now and we need to notify
@@ -482,6 +481,14 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	}
 	spin_unlock_irqrestore(&pdata->lpe_audio_slock, flag_irq);
 
+	return ret;
+
+ error_probe:
+	kfree(ctx);
+ error_ctx:
+	free_irq(irq, NULL);
+ error_irq:
+	iounmap(mmio_start);
 	return ret;
 }
 
