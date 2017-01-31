@@ -151,7 +151,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	struct resource *regs;
 	const u8 *mac_addr;
 
-	bgmac = devm_kzalloc(&pdev->dev, sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&pdev->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
