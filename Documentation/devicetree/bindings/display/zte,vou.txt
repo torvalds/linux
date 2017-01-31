@@ -49,6 +49,15 @@ Required properties:
 	"osc_clk"
 	"xclk"
 
+* TV Encoder output device
+
+Required properties:
+ - compatible: should be "zte,zx296718-tvenc"
+ - reg: Physical base address and length of the TVENC device IO region
+ - zte,tvenc-power-control: the phandle to SYSCTRL block followed by two
+   integer cells.  The first cell is the offset of SYSCTRL register used
+   to control TV Encoder DAC power, and the second cell is the bit mask.
+
 Example:
 
 vou: vou@1440000 {
@@ -80,5 +89,11 @@ vou: vou@1440000 {
 			 <&topcrm HDMI_OSC_CLK>,
 			 <&topcrm HDMI_XCLK>;
 		clock-names = "osc_cec", "osc_clk", "xclk";
+	};
+
+	tvenc: tvenc@2000 {
+		compatible = "zte,zx296718-tvenc";
+		reg = <0x2000 0x1000>;
+		zte,tvenc-power-control = <&sysctrl 0x170 0x10>;
 	};
 };
