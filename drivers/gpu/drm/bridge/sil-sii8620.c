@@ -974,12 +974,8 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 		);
 		break;
 	case CM_MHL3:
-		sii8620_write_seq_static(ctx,
-			REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE,
-			REG_COC_CTL0, 0x40,
-			REG_MHL_COC_CTL1, 0x07
-		);
-		break;
+		sii8620_write(ctx, REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE);
+		return;
 	case CM_DISCONNECTED:
 		break;
 	default:
