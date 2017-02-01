@@ -290,7 +290,7 @@ int of_node_to_nid(struct device_node *device)
 
 	return nid;
 }
-EXPORT_SYMBOL_GPL(of_node_to_nid);
+EXPORT_SYMBOL(of_node_to_nid);
 
 static int __init find_min_common_depth(void)
 {
