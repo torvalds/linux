@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <asm/div64.h>
-#include <asm/hardware/icst.h>
+#include "icst.h"
 
 /*
  * Divisors for each OD setting.
