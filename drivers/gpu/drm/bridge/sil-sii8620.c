@@ -1676,6 +1676,25 @@ static void sii8620_got_ecbus_speed(struct sii8620 *ctx, int ret)
 	sii8620_mt_set_cont(ctx, sii8620_ecbus_up);
 }
 
+static void sii8620_mhl_burst_emsc_support_set(struct mhl_burst_emsc_support *d,
+	enum mhl_burst_id id)
+{
+	sii8620_mhl_burst_hdr_set(&d->hdr, MHL_BURST_ID_EMSC_SUPPORT);
+	d->num_entries = 1;
+	d->burst_id[0] = cpu_to_be16(id);
+}
+
+static void sii8620_send_features(struct sii8620 *ctx)
+{
+	u8 buf[16];
+
+	sii8620_write(ctx, REG_MDT_XMIT_CTRL, BIT_MDT_XMIT_CTRL_EN
+		| BIT_MDT_XMIT_CTRL_FIXED_BURST_LEN);
+	sii8620_mhl_burst_emsc_support_set((void *)buf,
+		MHL_BURST_ID_HID_PAYLOAD);
+	sii8620_write_buf(ctx, REG_MDT_XMIT_WRITE_PORT, buf, ARRAY_SIZE(buf));
+}
+
 static void sii8620_msc_mr_set_int(struct sii8620 *ctx)
 {
 	u8 ints[MHL_INT_SIZE];
@@ -1696,10 +1715,10 @@ static void sii8620_msc_mr_set_int(struct sii8620 *ctx)
 			break;
 		}
 	}
-	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_REQ) {
-		sii8620_mt_set_int(ctx, MHL_INT_REG(RCHANGE),
-				   MHL_INT_RC_FEAT_COMPLETE);
-	}
+	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_REQ)
+		sii8620_send_features(ctx);
+	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_COMPLETE)
+		sii8620_edid_read(ctx, 0);
 }
 
 static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
