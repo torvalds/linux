@@ -341,6 +341,7 @@ static void __vlan_flush(struct net_bridge_vlan_group *vg)
 }
 
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
+			       const struct net_bridge_port *p,
 			       struct net_bridge_vlan_group *vg,
 			       struct sk_buff *skb)
 {
@@ -381,6 +382,12 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 
 	if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
 		skb->vlan_tci = 0;
+
+	if (p && (p->flags & BR_VLAN_TUNNEL) &&
+	    br_handle_egress_vlan_tunnel(skb, v)) {
+		kfree_skb(skb);
+		return NULL;
+	}
 out:
 	return skb;
 }

@@ -40,6 +40,11 @@ int nbp_vlan_tunnel_info_add(struct net_bridge_port *port, u16 vid, u32 tun_id);
 void nbp_vlan_tunnel_info_flush(struct net_bridge_port *port);
 void vlan_tunnel_info_del(struct net_bridge_vlan_group *vg,
 			  struct net_bridge_vlan *vlan);
+int br_handle_ingress_vlan_tunnel(struct sk_buff *skb,
+				  struct net_bridge_port *p,
+				  struct net_bridge_vlan_group *vg);
+int br_handle_egress_vlan_tunnel(struct sk_buff *skb,
+				 struct net_bridge_vlan *vlan);
 #else
 static inline int vlan_tunnel_init(struct net_bridge_vlan_group *vg)
 {
@@ -67,6 +72,12 @@ static inline void vlan_tunnel_info_del(struct net_bridge_vlan_group *vg,
 {
 }
 
+static inline int br_handle_ingress_vlan_tunnel(struct sk_buff *skb,
+						struct net_bridge_port *p,
+						struct net_bridge_vlan_group *vg)
+{
+	return 0;
+}
 #endif
 
 #endif

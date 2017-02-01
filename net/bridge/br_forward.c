@@ -80,7 +80,7 @@ static void __br_forward(const struct net_bridge_port *to,
 	int br_hook;
 
 	vg = nbp_vlan_group_rcu(to);
-	skb = br_handle_vlan(to->br, vg, skb);
+	skb = br_handle_vlan(to->br, to, vg, skb);
 	if (!skb)
 		return;
 
