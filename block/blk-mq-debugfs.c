@@ -89,12 +89,13 @@ static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	struct request *rq = list_entry_rq(v);
 
 	seq_printf(m, "%p {.cmd_flags=0x%x, .rq_flags=0x%x, .tag=%d, .internal_tag=%d}\n",
-		   rq, rq->cmd_flags, (unsigned int)rq->rq_flags,
+		   rq, rq->cmd_flags, (__force unsigned int)rq->rq_flags,
 		   rq->tag, rq->internal_tag);
 	return 0;
 }
 
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
+	__acquires(&hctx->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
@@ -110,6 +111,7 @@ static void *hctx_dispatch_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void hctx_dispatch_stop(struct seq_file *m, void *v)
+	__releases(&hctx->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
@@ -176,13 +178,17 @@ static int hctx_tags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->tags)
 		blk_mq_debugfs_tags_show(m, hctx->tags);
 	mutex_unlock(&q->sysfs_lock);
 
-	return 0;
+out:
+	return res;
 }
 
 static int hctx_tags_open(struct inode *inode, struct file *file)
@@ -201,12 +207,17 @@ static int hctx_tags_bitmap_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->tags)
 		sbitmap_bitmap_show(&hctx->tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
-	return 0;
+
+out:
+	return res;
 }
 
 static int hctx_tags_bitmap_open(struct inode *inode, struct file *file)
@@ -225,13 +236,17 @@ static int hctx_sched_tags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->sched_tags)
 		blk_mq_debugfs_tags_show(m, hctx->sched_tags);
 	mutex_unlock(&q->sysfs_lock);
 
-	return 0;
+out:
+	return res;
 }
 
 static int hctx_sched_tags_open(struct inode *inode, struct file *file)
@@ -250,12 +265,17 @@ static int hctx_sched_tags_bitmap_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->sched_tags)
 		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
-	return 0;
+
+out:
+	return res;
 }
 
 static int hctx_sched_tags_bitmap_open(struct inode *inode, struct file *file)
@@ -482,6 +502,7 @@ static const struct file_operations hctx_active_fops = {
 };
 
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
+	__acquires(&ctx->lock)
 {
 	struct blk_mq_ctx *ctx = m->private;
 
@@ -497,6 +518,7 @@ static void *ctx_rq_list_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void ctx_rq_list_stop(struct seq_file *m, void *v)
+	__releases(&ctx->lock)
 {
 	struct blk_mq_ctx *ctx = m->private;
 
@@ -630,6 +652,7 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"queued", 0600, &hctx_queued_fops},
 	{"run", 0600, &hctx_run_fops},
 	{"active", 0400, &hctx_active_fops},
+	{},
 };
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
@@ -637,6 +660,7 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{"dispatched", 0600, &ctx_dispatched_fops},
 	{"merged", 0600, &ctx_merged_fops},
 	{"completed", 0600, &ctx_completed_fops},
+	{},
 };
 
 int blk_mq_debugfs_register(struct request_queue *q, const char *name)
@@ -665,27 +689,31 @@ void blk_mq_debugfs_unregister(struct request_queue *q)
 	q->debugfs_dir = NULL;
 }
 
+static bool debugfs_create_files(struct dentry *parent, void *data,
+				const struct blk_mq_debugfs_attr *attr)
+{
+	for (; attr->name; attr++) {
+		if (!debugfs_create_file(attr->name, attr->mode, parent,
+					 data, attr->fops))
+			return false;
+	}
+	return true;
+}
+
 static int blk_mq_debugfs_register_ctx(struct request_queue *q,
 				       struct blk_mq_ctx *ctx,
 				       struct dentry *hctx_dir)
 {
 	struct dentry *ctx_dir;
 	char name[20];
-	int i;
 
 	snprintf(name, sizeof(name), "cpu%u", ctx->cpu);
 	ctx_dir = debugfs_create_dir(name, hctx_dir);
 	if (!ctx_dir)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(blk_mq_debugfs_ctx_attrs); i++) {
-		const struct blk_mq_debugfs_attr *attr;
-
-		attr = &blk_mq_debugfs_ctx_attrs[i];
-		if (!debugfs_create_file(attr->name, attr->mode, ctx_dir, ctx,
-					 attr->fops))
-			return -ENOMEM;
-	}
+	if (!debugfs_create_files(ctx_dir, ctx, blk_mq_debugfs_ctx_attrs))
+		return -ENOMEM;
 
 	return 0;
 }
@@ -703,14 +731,8 @@ static int blk_mq_debugfs_register_hctx(struct request_queue *q,
 	if (!hctx_dir)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(blk_mq_debugfs_hctx_attrs); i++) {
-		const struct blk_mq_debugfs_attr *attr;
-
-		attr = &blk_mq_debugfs_hctx_attrs[i];
-		if (!debugfs_create_file(attr->name, attr->mode, hctx_dir, hctx,
-					 attr->fops))
-			return -ENOMEM;
-	}
+	if (!debugfs_create_files(hctx_dir, hctx, blk_mq_debugfs_hctx_attrs))
+		return -ENOMEM;
 
 	hctx_for_each_ctx(hctx, ctx, i) {
 		if (blk_mq_debugfs_register_ctx(q, ctx, hctx_dir))
