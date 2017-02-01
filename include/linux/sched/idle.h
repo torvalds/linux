@@ -17,10 +17,6 @@ extern void wake_up_if_idle(int cpu);
  * polling state.
  */
 #ifdef TIF_POLLING_NRFLAG
-static inline int tsk_is_polling(struct task_struct *p)
-{
-	return test_tsk_thread_flag(p, TIF_POLLING_NRFLAG);
-}
 
 static inline void __current_set_polling(void)
 {
@@ -59,7 +55,6 @@ static inline bool __must_check current_clr_polling_and_test(void)
 }
 
 #else
-static inline int tsk_is_polling(struct task_struct *p) { return 0; }
 static inline void __current_set_polling(void) { }
 static inline void __current_clr_polling(void) { }
 
