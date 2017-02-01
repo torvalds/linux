@@ -197,8 +197,8 @@ struct fsnotify_group {
 /*
  * Inode / vfsmount point to this structure which tracks all marks attached to
  * the inode / vfsmount. The reference to inode / vfsmount is held by this
- * structure whenever the list is non-empty. The structure is freed only when
- * inode / vfsmount gets freed.
+ * structure. We destroy this structure when there are no more marks attached
+ * to it. The structure is protected by fsnotify_mark_srcu.
  */
 struct fsnotify_mark_connector {
 	spinlock_t lock;
@@ -209,7 +209,11 @@ struct fsnotify_mark_connector {
 		struct inode *inode;
 		struct vfsmount *mnt;
 	};
-	struct hlist_head list;
+	union {
+		struct hlist_head list;
+		/* Used listing heads to free after srcu period expires */
+		struct fsnotify_mark_connector *destroy_next;
+	};
 };
 
 /*
@@ -361,7 +365,6 @@ extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the marks attached to given object type */
 extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
-extern void fsnotify_connector_free(struct fsnotify_mark_connector **connp);
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_unmount_inodes(struct super_block *sb);

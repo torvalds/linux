@@ -89,9 +89,13 @@ struct kmem_cache *fsnotify_mark_connector_cachep;
 
 static DEFINE_SPINLOCK(destroy_lock);
 static LIST_HEAD(destroy_list);
+static struct fsnotify_mark_connector *connector_destroy_list;
 
 static void fsnotify_mark_destroy_workfn(struct work_struct *work);
 static DECLARE_DELAYED_WORK(reaper_work, fsnotify_mark_destroy_workfn);
+
+static void fsnotify_connector_destroy_workfn(struct work_struct *work);
+static DECLARE_WORK(connector_reaper_work, fsnotify_connector_destroy_workfn);
 
 void fsnotify_get_mark(struct fsnotify_mark *mark)
 {
@@ -139,21 +143,72 @@ void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 		__fsnotify_update_child_dentry_flags(conn->inode);
 }
 
+/* Free all connectors queued for freeing once SRCU period ends */
+static void fsnotify_connector_destroy_workfn(struct work_struct *work)
+{
+	struct fsnotify_mark_connector *conn, *free;
+
+	spin_lock(&destroy_lock);
+	conn = connector_destroy_list;
+	connector_destroy_list = NULL;
+	spin_unlock(&destroy_lock);
+
+	synchronize_srcu(&fsnotify_mark_srcu);
+	while (conn) {
+		free = conn;
+		conn = conn->destroy_next;
+		kmem_cache_free(fsnotify_mark_connector_cachep, free);
+	}
+}
+
+
+static struct inode *fsnotify_detach_connector_from_object(
+					struct fsnotify_mark_connector *conn)
+{
+	struct inode *inode = NULL;
+
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE) {
+		inode = conn->inode;
+		rcu_assign_pointer(inode->i_fsnotify_marks, NULL);
+		inode->i_fsnotify_mask = 0;
+		conn->inode = NULL;
+		conn->flags &= ~FSNOTIFY_OBJ_TYPE_INODE;
+	} else if (conn->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
+		rcu_assign_pointer(real_mount(conn->mnt)->mnt_fsnotify_marks,
+				   NULL);
+		real_mount(conn->mnt)->mnt_fsnotify_mask = 0;
+		conn->mnt = NULL;
+		conn->flags &= ~FSNOTIFY_OBJ_TYPE_VFSMOUNT;
+	}
+
+	return inode;
+}
+
 static struct inode *fsnotify_detach_from_object(struct fsnotify_mark *mark)
 {
 	struct fsnotify_mark_connector *conn;
 	struct inode *inode = NULL;
+	bool free_conn = false;
 
 	conn = mark->connector;
 	spin_lock(&conn->lock);
 	hlist_del_init_rcu(&mark->obj_list);
 	if (hlist_empty(&conn->list)) {
-		if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
-			inode = conn->inode;
+		inode = fsnotify_detach_connector_from_object(conn);
+		free_conn = true;
+	} else {
+		__fsnotify_recalc_mask(conn);
 	}
-	__fsnotify_recalc_mask(conn);
 	mark->connector = NULL;
 	spin_unlock(&conn->lock);
+
+	if (free_conn) {
+		spin_lock(&destroy_lock);
+		conn->destroy_next = connector_destroy_list;
+		connector_destroy_list = conn;
+		spin_unlock(&destroy_lock);
+		queue_work(system_unbound_wq, &connector_reaper_work);
+	}
 
 	return inode;
 }
@@ -259,14 +314,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	fsnotify_free_mark(mark);
 }
 
-void fsnotify_connector_free(struct fsnotify_mark_connector **connp)
-{
-	if (*connp) {
-		kmem_cache_free(fsnotify_mark_connector_cachep, *connp);
-		*connp = NULL;
-	}
-}
-
 void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
 {
 	assert_spin_locked(&mark->lock);
@@ -318,9 +365,9 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 }
 
 static int fsnotify_attach_connector_to_object(
-					struct fsnotify_mark_connector **connp,
-					struct inode *inode,
-					struct vfsmount *mnt)
+				struct fsnotify_mark_connector __rcu **connp,
+				struct inode *inode,
+				struct vfsmount *mnt)
 {
 	struct fsnotify_mark_connector *conn;
 
@@ -331,7 +378,7 @@ static int fsnotify_attach_connector_to_object(
 	INIT_HLIST_HEAD(&conn->list);
 	if (inode) {
 		conn->flags = FSNOTIFY_OBJ_TYPE_INODE;
-		conn->inode = inode;
+		conn->inode = igrab(inode);
 	} else {
 		conn->flags = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
 		conn->mnt = mnt;
@@ -342,10 +389,40 @@ static int fsnotify_attach_connector_to_object(
 	 */
 	if (cmpxchg(connp, NULL, conn)) {
 		/* Someone else created list structure for us */
+		if (inode)
+			iput(inode);
 		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
 	}
 
 	return 0;
+}
+
+/*
+ * Get mark connector, make sure it is alive and return with its lock held.
+ * This is for users that get connector pointer from inode or mount. Users that
+ * hold reference to a mark on the list may directly lock connector->lock as
+ * they are sure list cannot go away under them.
+ */
+static struct fsnotify_mark_connector *fsnotify_grab_connector(
+				struct fsnotify_mark_connector __rcu **connp)
+{
+	struct fsnotify_mark_connector *conn;
+	int idx;
+
+	idx = srcu_read_lock(&fsnotify_mark_srcu);
+	conn = srcu_dereference(*connp, &fsnotify_mark_srcu);
+	if (!conn)
+		goto out;
+	spin_lock(&conn->lock);
+	if (!(conn->flags & (FSNOTIFY_OBJ_TYPE_INODE |
+			     FSNOTIFY_OBJ_TYPE_VFSMOUNT))) {
+		spin_unlock(&conn->lock);
+		srcu_read_unlock(&fsnotify_mark_srcu, idx);
+		return NULL;
+	}
+out:
+	srcu_read_unlock(&fsnotify_mark_srcu, idx);
+	return conn;
 }
 
 /*
@@ -360,7 +437,7 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
-	struct fsnotify_mark_connector **connp;
+	struct fsnotify_mark_connector __rcu **connp;
 	int cmp;
 	int err = 0;
 
@@ -370,21 +447,20 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
 		connp = &inode->i_fsnotify_marks;
 	else
 		connp = &real_mount(mnt)->mnt_fsnotify_marks;
-
-	if (!*connp) {
+restart:
+	spin_lock(&mark->lock);
+	conn = fsnotify_grab_connector(connp);
+	if (!conn) {
+		spin_unlock(&mark->lock);
 		err = fsnotify_attach_connector_to_object(connp, inode, mnt);
 		if (err)
 			return err;
+		goto restart;
 	}
-	spin_lock(&mark->lock);
-	conn = *connp;
-	spin_lock(&conn->lock);
 
 	/* is mark the first mark? */
 	if (hlist_empty(&conn->list)) {
 		hlist_add_head_rcu(&mark->obj_list, &conn->list);
-		if (inode)
-			igrab(inode);
 		goto added;
 	}
 
@@ -486,15 +562,17 @@ int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
  * Given a list of marks, find the mark associated with given group. If found
  * take a reference to that mark and return it, else return NULL.
  */
-struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_mark_connector *conn,
-					 struct fsnotify_group *group)
+struct fsnotify_mark *fsnotify_find_mark(
+				struct fsnotify_mark_connector __rcu **connp,
+				struct fsnotify_group *group)
 {
+	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark;
 
+	conn = fsnotify_grab_connector(connp);
 	if (!conn)
 		return NULL;
 
-	spin_lock(&conn->lock);
 	hlist_for_each_entry(mark, &conn->list, obj_list) {
 		if (mark->group == group) {
 			fsnotify_get_mark(mark);
@@ -572,26 +650,20 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 	}
 }
 
-void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn)
+/* Destroy all marks attached to inode / vfsmount */
+void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp)
 {
+	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark;
 
-	if (!conn)
-		return;
-
-	while (1) {
+	while ((conn = fsnotify_grab_connector(connp))) {
 		/*
 		 * We have to be careful since we can race with e.g.
-		 * fsnotify_clear_marks_by_group() and once we drop 'lock',
-		 * mark can get removed from the obj_list and destroyed. But
-		 * we are holding mark reference so mark cannot be freed and
-		 * calling fsnotify_destroy_mark() more than once is fine.
+		 * fsnotify_clear_marks_by_group() and once we drop the list
+		 * lock, mark can get removed from the obj_list and destroyed.
+		 * But we are holding mark reference so mark cannot be freed
+		 * and calling fsnotify_destroy_mark() more than once is fine.
 		 */
-		spin_lock(&conn->lock);
-		if (hlist_empty(&conn->list)) {
-			spin_unlock(&conn->lock);
-			break;
-		}
 		mark = hlist_entry(conn->list.first, struct fsnotify_mark,
 				   obj_list);
 		fsnotify_get_mark(mark);

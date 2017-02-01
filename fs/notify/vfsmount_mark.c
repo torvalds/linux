@@ -48,5 +48,5 @@ struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group,
 {
 	struct mount *m = real_mount(mnt);
 
-	return fsnotify_find_mark(m->mnt_fsnotify_marks, group);
+	return fsnotify_find_mark(&m->mnt_fsnotify_marks, group);
 }

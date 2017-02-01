@@ -20,19 +20,19 @@ extern int fsnotify_compare_groups(struct fsnotify_group *a,
 
 /* Find mark belonging to given group in the list of marks */
 extern struct fsnotify_mark *fsnotify_find_mark(
-					struct fsnotify_mark_connector *conn,
-					struct fsnotify_group *group);
+				struct fsnotify_mark_connector __rcu **connp,
+				struct fsnotify_group *group);
 /* Destroy all marks connected via given connector */
-extern void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn);
+extern void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp);
 /* run the list of all marks associated with inode and destroy them */
 static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
-	fsnotify_destroy_marks(inode->i_fsnotify_marks);
+	fsnotify_destroy_marks(&inode->i_fsnotify_marks);
 }
 /* run the list of all marks associated with vfsmount and destroy them */
 static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
-	fsnotify_destroy_marks(real_mount(mnt)->mnt_fsnotify_marks);
+	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
 }
 /* prepare for freeing all marks associated with given group */
 extern void fsnotify_detach_group_marks(struct fsnotify_group *group);

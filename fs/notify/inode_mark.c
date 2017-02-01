@@ -50,7 +50,7 @@ void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
 struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 					       struct inode *inode)
 {
-	return fsnotify_find_mark(inode->i_fsnotify_marks, group);
+	return fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 }
 
 /**

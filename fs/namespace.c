@@ -1108,9 +1108,6 @@ static void cleanup_mnt(struct mount *mnt)
 	if (unlikely(mnt->mnt_pins.first))
 		mnt_pin_kill(mnt);
 	fsnotify_vfsmount_delete(&mnt->mnt);
-#ifdef CONFIG_FSNOTIFY
-	fsnotify_connector_free(&mnt->mnt_fsnotify_marks);
-#endif
 	dput(mnt->mnt.mnt_root);
 	deactivate_super(mnt->mnt.mnt_sb);
 	mnt_free_id(mnt);
