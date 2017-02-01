@@ -95,6 +95,7 @@ static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 }
 
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
+	__acquires(&hctx->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
@@ -110,6 +111,7 @@ static void *hctx_dispatch_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void hctx_dispatch_stop(struct seq_file *m, void *v)
+	__releases(&hctx->lock)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
@@ -482,6 +484,7 @@ static const struct file_operations hctx_active_fops = {
 };
 
 static void *ctx_rq_list_start(struct seq_file *m, loff_t *pos)
+	__acquires(&ctx->lock)
 {
 	struct blk_mq_ctx *ctx = m->private;
 
@@ -497,6 +500,7 @@ static void *ctx_rq_list_next(struct seq_file *m, void *v, loff_t *pos)
 }
 
 static void ctx_rq_list_stop(struct seq_file *m, void *v)
+	__releases(&ctx->lock)
 {
 	struct blk_mq_ctx *ctx = m->private;
 
