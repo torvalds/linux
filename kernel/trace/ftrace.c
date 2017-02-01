@@ -1185,6 +1185,15 @@ struct ftrace_page {
 static struct ftrace_page	*ftrace_pages_start;
 static struct ftrace_page	*ftrace_pages;
 
+static __always_inline unsigned long
+ftrace_hash_key(struct ftrace_hash *hash, unsigned long ip)
+{
+	if (hash->size_bits > 0)
+		return hash_long(ip, hash->size_bits);
+
+	return 0;
+}
+
 struct ftrace_func_entry *
 ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 {
@@ -1195,11 +1204,7 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 	if (ftrace_hash_empty(hash))
 		return NULL;
 
-	if (hash->size_bits > 0)
-		key = hash_long(ip, hash->size_bits);
-	else
-		key = 0;
-
+	key = ftrace_hash_key(hash, ip);
 	hhd = &hash->buckets[key];
 
 	hlist_for_each_entry_rcu_notrace(entry, hhd, hlist) {
@@ -1215,11 +1220,7 @@ static void __add_hash_entry(struct ftrace_hash *hash,
 	struct hlist_head *hhd;
 	unsigned long key;
 
-	if (hash->size_bits)
-		key = hash_long(entry->ip, hash->size_bits);
-	else
-		key = 0;
-
+	key = ftrace_hash_key(hash, entry->ip);
 	hhd = &hash->buckets[key];
 	hlist_add_head(&entry->hlist, hhd);
 	hash->count++;
