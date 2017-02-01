@@ -746,6 +746,9 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	u16 nlflags = NLM_F_EXCL;
 	int err;
 
+	if (info->nlh && (info->nlh->nlmsg_flags & NLM_F_APPEND))
+		nlflags |= NLM_F_APPEND;
+
 	ins = &fn->leaf;
 
 	for (iter = fn->leaf; iter; iter = iter->dst.rt6_next) {
