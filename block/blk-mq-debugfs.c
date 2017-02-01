@@ -178,13 +178,17 @@ static int hctx_tags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->tags)
 		blk_mq_debugfs_tags_show(m, hctx->tags);
 	mutex_unlock(&q->sysfs_lock);
 
-	return 0;
+out:
+	return res;
 }
 
 static int hctx_tags_open(struct inode *inode, struct file *file)
@@ -203,12 +207,17 @@ static int hctx_tags_bitmap_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->tags)
 		sbitmap_bitmap_show(&hctx->tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
-	return 0;
+
+out:
+	return res;
 }
 
 static int hctx_tags_bitmap_open(struct inode *inode, struct file *file)
@@ -227,13 +236,17 @@ static int hctx_sched_tags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->sched_tags)
 		blk_mq_debugfs_tags_show(m, hctx->sched_tags);
 	mutex_unlock(&q->sysfs_lock);
 
-	return 0;
+out:
+	return res;
 }
 
 static int hctx_sched_tags_open(struct inode *inode, struct file *file)
@@ -252,12 +265,17 @@ static int hctx_sched_tags_bitmap_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct request_queue *q = hctx->queue;
+	int res;
 
-	mutex_lock(&q->sysfs_lock);
+	res = mutex_lock_interruptible(&q->sysfs_lock);
+	if (res)
+		goto out;
 	if (hctx->sched_tags)
 		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
-	return 0;
+
+out:
+	return res;
 }
 
 static int hctx_sched_tags_bitmap_open(struct inode *inode, struct file *file)
