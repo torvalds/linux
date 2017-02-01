@@ -1561,11 +1561,13 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 	mmc_queue_bounce_pre(mqrq);
 }
 
-static int mmc_blk_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
-			   struct mmc_blk_request *brq, struct request *req,
-			   int ret)
+static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
+			       struct mmc_blk_request *brq, struct request *req,
+			       bool old_req_pending)
 {
 	struct mmc_queue_req *mq_rq;
+	bool req_pending;
+
 	mq_rq = container_of(brq, struct mmc_queue_req, brq);
 
 	/*
@@ -1581,24 +1583,21 @@ static int mmc_blk_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 		int err;
 
 		err = mmc_sd_num_wr_blocks(card, &blocks);
-		if (!err) {
-			ret = blk_end_request(req, 0, blocks << 9);
-		}
+		if (err)
+			req_pending = old_req_pending;
+		else
+			req_pending = blk_end_request(req, 0, blocks << 9);
 	} else {
-		ret = blk_end_request(req, 0, brq->data.bytes_xfered);
+		req_pending = blk_end_request(req, 0, brq->data.bytes_xfered);
 	}
-	return ret;
+	return req_pending;
 }
 
 static void mmc_blk_rw_cmd_abort(struct mmc_card *card, struct request *req)
 {
-	int ret = 1;
-
 	if (mmc_card_removed(card))
 		req->rq_flags |= RQF_QUIET;
-	while (ret)
-		ret = blk_end_request(req, -EIO,
-				      blk_rq_cur_bytes(req));
+	while (blk_end_request(req, -EIO, blk_rq_cur_bytes(req)));
 }
 
 /**
@@ -1629,12 +1628,13 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq;
-	int ret = 1, disable_multi = 0, retry = 0, type, retune_retry_done = 0;
+	int disable_multi = 0, retry = 0, type, retune_retry_done = 0;
 	enum mmc_blk_status status;
 	struct mmc_queue_req *mq_rq;
 	struct request *old_req;
 	struct mmc_async_req *new_areq;
 	struct mmc_async_req *old_areq;
+	bool req_pending = true;
 
 	if (!new_req && !mq->mqrq_prev->req)
 		return;
@@ -1688,15 +1688,14 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			 */
 			mmc_blk_reset_success(md, type);
 
-			ret = blk_end_request(old_req, 0,
-					brq->data.bytes_xfered);
-
+			req_pending = blk_end_request(old_req, 0,
+						      brq->data.bytes_xfered);
 			/*
 			 * If the blk_end_request function returns non-zero even
 			 * though all data has been transferred and no errors
 			 * were returned by the host controller, it's a bug.
 			 */
-			if (status == MMC_BLK_SUCCESS && ret) {
+			if (status == MMC_BLK_SUCCESS && req_pending) {
 				pr_err("%s BUG rq_tot %d d_xfer %d\n",
 				       __func__, blk_rq_bytes(old_req),
 				       brq->data.bytes_xfered);
@@ -1705,13 +1704,13 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			}
 			break;
 		case MMC_BLK_CMD_ERR:
-			ret = mmc_blk_cmd_err(md, card, brq, old_req, ret);
+			req_pending = mmc_blk_rw_cmd_err(md, card, brq, old_req, req_pending);
 			if (mmc_blk_reset(md, card->host, type)) {
 				mmc_blk_rw_cmd_abort(card, old_req);
 				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
-			if (!ret) {
+			if (!req_pending) {
 				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
@@ -1753,9 +1752,9 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			 * time, so we only reach here after trying to
 			 * read a single sector.
 			 */
-			ret = blk_end_request(old_req, -EIO,
-						brq->data.blksz);
-			if (!ret) {
+			req_pending = blk_end_request(old_req, -EIO,
+						      brq->data.blksz);
+			if (!req_pending) {
 				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
@@ -1772,7 +1771,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			return;
 		}
 
-		if (ret) {
+		if (req_pending) {
 			/*
 			 * In case of a incomplete request
 			 * prepare it again and resend.
@@ -1783,7 +1782,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 					&mq_rq->areq, NULL);
 			mq_rq->brq.retune_retry_done = retune_retry_done;
 		}
-	} while (ret);
+	} while (req_pending);
 }
 
 void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
