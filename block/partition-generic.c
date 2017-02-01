@@ -434,7 +434,7 @@ static bool part_zone_aligned(struct gendisk *disk,
 			      struct block_device *bdev,
 			      sector_t from, sector_t size)
 {
-	unsigned int zone_size = bdev_zone_size(bdev);
+	unsigned int zone_sectors = bdev_zone_sectors(bdev);
 
 	/*
 	 * If this function is called, then the disk is a zoned block device
@@ -446,7 +446,7 @@ static bool part_zone_aligned(struct gendisk *disk,
 	 * regular block devices (no zone operation) and their zone size will
 	 * be reported as 0. Allow this case.
 	 */
-	if (!zone_size)
+	if (!zone_sectors)
 		return true;
 
 	/*
@@ -455,24 +455,24 @@ static bool part_zone_aligned(struct gendisk *disk,
 	 * use it. Check the zone size too: it should be a power of 2 number
 	 * of sectors.
 	 */
-	if (WARN_ON_ONCE(!is_power_of_2(zone_size))) {
+	if (WARN_ON_ONCE(!is_power_of_2(zone_sectors))) {
 		u32 rem;
 
-		div_u64_rem(from, zone_size, &rem);
+		div_u64_rem(from, zone_sectors, &rem);
 		if (rem)
 			return false;
 		if ((from + size) < get_capacity(disk)) {
-			div_u64_rem(size, zone_size, &rem);
+			div_u64_rem(size, zone_sectors, &rem);
 			if (rem)
 				return false;
 		}
 
 	} else {
 
-		if (from & (zone_size - 1))
+		if (from & (zone_sectors - 1))
 			return false;
 		if ((from + size) < get_capacity(disk) &&
-		    (size & (zone_size - 1)))
+		    (size & (zone_sectors - 1)))
 			return false;
 
 	}

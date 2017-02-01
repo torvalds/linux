@@ -852,23 +852,18 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 
 	ACPI_FUNCTION_TRACE(tb_install_and_load_table);
 
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-
 	/* Install the table and load it into the namespace */
 
 	status = acpi_tb_install_standard_table(address, flags, TRUE,
 						override, &i);
 	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
+		goto exit;
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	status = acpi_tb_load_table(i, acpi_gbl_root_node);
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
-unlock_and_exit:
+exit:
 	*table_index = i;
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
 

@@ -928,7 +928,8 @@ static struct nft_chain *nf_tables_chain_lookup(const struct nft_table *table,
 }
 
 static const struct nla_policy nft_chain_policy[NFTA_CHAIN_MAX + 1] = {
-	[NFTA_CHAIN_TABLE]	= { .type = NLA_STRING },
+	[NFTA_CHAIN_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_CHAIN_HANDLE]	= { .type = NLA_U64 },
 	[NFTA_CHAIN_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
@@ -1854,7 +1855,8 @@ static struct nft_rule *nf_tables_rule_lookup(const struct nft_chain *chain,
 }
 
 static const struct nla_policy nft_rule_policy[NFTA_RULE_MAX + 1] = {
-	[NFTA_RULE_TABLE]	= { .type = NLA_STRING },
+	[NFTA_RULE_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_RULE_CHAIN]	= { .type = NLA_STRING,
 				    .len = NFT_CHAIN_MAXNAMELEN - 1 },
 	[NFTA_RULE_HANDLE]	= { .type = NLA_U64 },
@@ -2443,7 +2445,8 @@ nft_select_set_ops(const struct nlattr * const nla[],
 }
 
 static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
-	[NFTA_SET_TABLE]		= { .type = NLA_STRING },
+	[NFTA_SET_TABLE]		= { .type = NLA_STRING,
+					    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_SET_NAME]			= { .type = NLA_STRING,
 					    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_SET_FLAGS]		= { .type = NLA_U32 },
@@ -3084,9 +3087,9 @@ static int nf_tables_delset(struct net *net, struct sock *nlsk,
 }
 
 static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
-					const struct nft_set *set,
+					struct nft_set *set,
 					const struct nft_set_iter *iter,
-					const struct nft_set_elem *elem)
+					struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	enum nft_registers dreg;
@@ -3192,8 +3195,10 @@ static const struct nla_policy nft_set_elem_policy[NFTA_SET_ELEM_MAX + 1] = {
 };
 
 static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX + 1] = {
-	[NFTA_SET_ELEM_LIST_TABLE]	= { .type = NLA_STRING },
-	[NFTA_SET_ELEM_LIST_SET]	= { .type = NLA_STRING },
+	[NFTA_SET_ELEM_LIST_TABLE]	= { .type = NLA_STRING,
+					    .len = NFT_TABLE_MAXNAMELEN - 1 },
+	[NFTA_SET_ELEM_LIST_SET]	= { .type = NLA_STRING,
+					    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_SET_ELEM_LIST_ELEMENTS]	= { .type = NLA_NESTED },
 	[NFTA_SET_ELEM_LIST_SET_ID]	= { .type = NLA_U32 },
 };
@@ -3303,9 +3308,9 @@ struct nft_set_dump_args {
 };
 
 static int nf_tables_dump_setelem(const struct nft_ctx *ctx,
-				  const struct nft_set *set,
+				  struct nft_set *set,
 				  const struct nft_set_iter *iter,
-				  const struct nft_set_elem *elem)
+				  struct nft_set_elem *elem)
 {
 	struct nft_set_dump_args *args;
 
@@ -3317,7 +3322,7 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	u8 genmask = nft_genmask_cur(net);
-	const struct nft_set *set;
+	struct nft_set *set;
 	struct nft_set_dump_args args;
 	struct nft_ctx ctx;
 	struct nlattr *nla[NFTA_SET_ELEM_LIST_MAX + 1];
@@ -3740,10 +3745,18 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err5;
 	}
 
+	if (set->size &&
+	    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact)) {
+		err = -ENFILE;
+		goto err6;
+	}
+
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
 
+err6:
+	set->ops->remove(set, &elem);
 err5:
 	kfree(trans);
 err4:
@@ -3790,15 +3803,9 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 		return -EBUSY;
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
-		if (set->size &&
-		    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact))
-			return -ENFILE;
-
 		err = nft_add_set_elem(&ctx, set, attr, nlh->nlmsg_flags);
-		if (err < 0) {
-			atomic_dec(&set->nelems);
+		if (err < 0)
 			break;
-		}
 	}
 	return err;
 }
@@ -3883,9 +3890,9 @@ err1:
 }
 
 static int nft_flush_set(const struct nft_ctx *ctx,
-			 const struct nft_set *set,
+			 struct nft_set *set,
 			 const struct nft_set_iter *iter,
-			 const struct nft_set_elem *elem)
+			 struct nft_set_elem *elem)
 {
 	struct nft_trans *trans;
 	int err;
@@ -3899,9 +3906,10 @@ static int nft_flush_set(const struct nft_ctx *ctx,
 		err = -ENOENT;
 		goto err1;
 	}
+	set->ndeact++;
 
-	nft_trans_elem_set(trans) = (struct nft_set *)set;
-	nft_trans_elem(trans) = *((struct nft_set_elem *)elem);
+	nft_trans_elem_set(trans) = set;
+	nft_trans_elem(trans) = *elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 
 	return 0;
@@ -4032,8 +4040,10 @@ struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
 EXPORT_SYMBOL_GPL(nf_tables_obj_lookup);
 
 static const struct nla_policy nft_obj_policy[NFTA_OBJ_MAX + 1] = {
-	[NFTA_OBJ_TABLE]	= { .type = NLA_STRING },
-	[NFTA_OBJ_NAME]		= { .type = NLA_STRING },
+	[NFTA_OBJ_TABLE]	= { .type = NLA_STRING,
+				    .len = NFT_TABLE_MAXNAMELEN - 1 },
+	[NFTA_OBJ_NAME]		= { .type = NLA_STRING,
+				    .len = NFT_OBJ_MAXNAMELEN - 1 },
 	[NFTA_OBJ_TYPE]		= { .type = NLA_U32 },
 	[NFTA_OBJ_DATA]		= { .type = NLA_NESTED },
 };
@@ -4262,10 +4272,11 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 				if (idx > s_idx)
 					memset(&cb->args[1], 0,
 					       sizeof(cb->args) - sizeof(cb->args[0]));
-				if (filter->table[0] &&
+				if (filter && filter->table[0] &&
 				    strcmp(filter->table, table->name))
 					goto cont;
-				if (filter->type != NFT_OBJECT_UNSPEC &&
+				if (filter &&
+				    filter->type != NFT_OBJECT_UNSPEC &&
 				    obj->type->type != filter->type)
 					goto cont;
 
@@ -5009,9 +5020,9 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 				 const struct nft_chain *chain);
 
 static int nf_tables_loop_check_setelem(const struct nft_ctx *ctx,
-					const struct nft_set *set,
+					struct nft_set *set,
 					const struct nft_set_iter *iter,
-					const struct nft_set_elem *elem)
+					struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	const struct nft_data *data;
@@ -5035,7 +5046,7 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 {
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
-	const struct nft_set *set;
+	struct nft_set *set;
 	struct nft_set_binding *binding;
 	struct nft_set_iter iter;
 

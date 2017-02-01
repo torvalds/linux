@@ -1151,7 +1151,7 @@ static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
 
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
 	mmd_data = XPCS16_IOREAD(pdata, offset);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 
@@ -1183,7 +1183,7 @@ static void xgbe_write_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
 
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
 	XPCS16_IOWRITE(pdata, offset, mmd_data);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 }
@@ -3407,8 +3407,10 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 
 	/* Flush Tx queues */
 	ret = xgbe_flush_tx_queues(pdata);
-	if (ret)
+	if (ret) {
+		netdev_err(pdata->netdev, "error flushing TX queues\n");
 		return ret;
+	}
 
 	/*
 	 * Initialize DMA related features

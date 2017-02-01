@@ -352,6 +352,20 @@ static inline int ib_mtu_enum_to_int(enum ib_mtu mtu)
 	}
 }
 
+static inline enum ib_mtu ib_mtu_int_to_enum(int mtu)
+{
+	if (mtu >= 4096)
+		return IB_MTU_4096;
+	else if (mtu >= 2048)
+		return IB_MTU_2048;
+	else if (mtu >= 1024)
+		return IB_MTU_1024;
+	else if (mtu >= 512)
+		return IB_MTU_512;
+	else
+		return IB_MTU_256;
+}
+
 enum ib_port_state {
 	IB_PORT_NOP		= 0,
 	IB_PORT_DOWN		= 1,

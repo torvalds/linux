@@ -331,7 +331,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	struct blk_plug plug;
 	struct blkdev_dio *dio;
 	struct bio *bio;
-	bool is_read = (iov_iter_rw(iter) == READ);
+	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
 	int ret;
@@ -344,7 +344,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	bio_get(bio); /* extra ref for the completion handler */
 
 	dio = container_of(bio, struct blkdev_dio, bio);
-	dio->is_sync = is_sync_kiocb(iocb);
+	dio->is_sync = is_sync = is_sync_kiocb(iocb);
 	if (dio->is_sync)
 		dio->waiter = current;
 	else
@@ -398,7 +398,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	}
 	blk_finish_plug(&plug);
 
-	if (!dio->is_sync)
+	if (!is_sync)
 		return -EIOCBQUEUED;
 
 	for (;;) {

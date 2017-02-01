@@ -1270,6 +1270,10 @@ static int tce_iommu_attach_group(void *iommu_data,
 	/* pr_debug("tce_vfio: Attaching group #%u to iommu %p\n",
 			iommu_group_id(iommu_group), iommu_group); */
 	table_group = iommu_group_get_iommudata(iommu_group);
+	if (!table_group) {
+		ret = -ENODEV;
+		goto unlock_exit;
+	}
 
 	if (tce_groups_attached(container) && (!table_group->ops ||
 			!table_group->ops->take_ownership ||

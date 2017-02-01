@@ -775,7 +775,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	init_completion(&host->comp_controller);
 
 	host->irq = platform_get_irq(pdev, 0);
-	if ((host->irq < 0) || (host->irq >= NR_IRQS)) {
+	if (host->irq < 0) {
 		dev_err(&pdev->dev, "failed to get platform irq\n");
 		res = -EINVAL;
 		goto err_exit3;

@@ -1976,7 +1976,7 @@ static int packet_rcv_vnet(struct msghdr *msg, const struct sk_buff *skb,
 		return -EINVAL;
 	*len -= sizeof(vnet_hdr);
 
-	if (virtio_net_hdr_from_skb(skb, &vnet_hdr, vio_le()))
+	if (virtio_net_hdr_from_skb(skb, &vnet_hdr, vio_le(), true))
 		return -EINVAL;
 
 	return memcpy_to_msg(msg, (void *)&vnet_hdr, sizeof(vnet_hdr));
@@ -2237,7 +2237,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (po->has_vnet_hdr) {
 		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
 					    sizeof(struct virtio_net_hdr),
-					    vio_le())) {
+					    vio_le(), true)) {
 			spin_lock(&sk->sk_receive_queue.lock);
 			goto drop_n_account;
 		}

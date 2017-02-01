@@ -781,20 +781,6 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int br_dev_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
-{
-	struct net_bridge *br = netdev_priv(dev);
-
-	if (tb[IFLA_ADDRESS]) {
-		spin_lock_bh(&br->lock);
-		br_stp_change_bridge_id(br, nla_data(tb[IFLA_ADDRESS]));
-		spin_unlock_bh(&br->lock);
-	}
-
-	return register_netdevice(dev);
-}
-
 static int br_port_slave_changelink(struct net_device *brdev,
 				    struct net_device *dev,
 				    struct nlattr *tb[],
@@ -1113,6 +1099,25 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 #endif
 
 	return 0;
+}
+
+static int br_dev_newlink(struct net *src_net, struct net_device *dev,
+			  struct nlattr *tb[], struct nlattr *data[])
+{
+	struct net_bridge *br = netdev_priv(dev);
+	int err;
+
+	if (tb[IFLA_ADDRESS]) {
+		spin_lock_bh(&br->lock);
+		br_stp_change_bridge_id(br, nla_data(tb[IFLA_ADDRESS]));
+		spin_unlock_bh(&br->lock);
+	}
+
+	err = br_changelink(dev, tb, data);
+	if (err)
+		return err;
+
+	return register_netdevice(dev);
 }
 
 static size_t br_get_size(const struct net_device *brdev)

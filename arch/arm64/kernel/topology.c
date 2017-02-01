@@ -11,6 +11,7 @@
  * for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -209,7 +210,12 @@ static struct notifier_block init_cpu_capacity_notifier = {
 
 static int __init register_cpufreq_notifier(void)
 {
-	if (cap_parsing_failed)
+	/*
+	 * on ACPI-based systems we need to use the default cpu capacity
+	 * until we have the necessary code to parse the cpu capacity, so
+	 * skip registering cpufreq notifier.
+	 */
+	if (!acpi_disabled || cap_parsing_failed)
 		return -EINVAL;
 
 	if (!alloc_cpumask_var(&cpus_to_visit, GFP_KERNEL)) {

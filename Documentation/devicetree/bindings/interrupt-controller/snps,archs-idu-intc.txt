@@ -15,6 +15,9 @@ Properties:
   Second cell specifies the irq distribution mode to cores
      0=Round Robin; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
 
+  The second cell in interrupts property is deprecated and may be ignored by
+  the kernel.
+
   intc accessed via the special ARC AUX register interface, hence "reg" property
   is not specified.
 

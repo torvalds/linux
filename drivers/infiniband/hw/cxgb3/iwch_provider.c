@@ -1135,16 +1135,7 @@ static int iwch_query_port(struct ib_device *ibdev,
 
 	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	if (netdev->mtu >= 4096)
-		props->active_mtu = IB_MTU_4096;
-	else if (netdev->mtu >= 2048)
-		props->active_mtu = IB_MTU_2048;
-	else if (netdev->mtu >= 1024)
-		props->active_mtu = IB_MTU_1024;
-	else if (netdev->mtu >= 512)
-		props->active_mtu = IB_MTU_512;
-	else
-		props->active_mtu = IB_MTU_256;
+	props->active_mtu = ib_mtu_int_to_enum(netdev->mtu);
 
 	if (!netif_carrier_ok(netdev))
 		props->state = IB_PORT_DOWN;

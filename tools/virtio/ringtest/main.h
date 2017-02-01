@@ -26,6 +26,16 @@ static inline void wait_cycles(unsigned long long cycles)
 #define VMEXIT_CYCLES 500
 #define VMENTRY_CYCLES 500
 
+#elif defined(__s390x__)
+static inline void wait_cycles(unsigned long long cycles)
+{
+	asm volatile("0: brctg %0,0b" : : "d" (cycles));
+}
+
+/* tweak me */
+#define VMEXIT_CYCLES 200
+#define VMENTRY_CYCLES 200
+
 #else
 static inline void wait_cycles(unsigned long long cycles)
 {
@@ -81,6 +91,8 @@ extern unsigned ring_size;
 /* Is there a portable way to do this? */
 #if defined(__x86_64__) || defined(__i386__)
 #define cpu_relax() asm ("rep; nop" ::: "memory")
+#elif defined(__s390x__)
+#define cpu_relax() barrier()
 #else
 #define cpu_relax() assert(0)
 #endif

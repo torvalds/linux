@@ -47,8 +47,9 @@ struct lmac {
 struct bgx {
 	u8			bgx_id;
 	struct	lmac		lmac[MAX_LMAC_PER_BGX];
-	int			lmac_count;
+	u8			lmac_count;
 	u8			max_lmac;
+	u8                      acpi_lmac_idx;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
 	bool                    is_dlm;
@@ -1143,13 +1144,13 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 	if (acpi_bus_get_device(handle, &adev))
 		goto out;
 
-	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->lmac_count].mac);
+	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->acpi_lmac_idx].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->lmac_count].netdev, dev);
+	SET_NETDEV_DEV(&bgx->lmac[bgx->acpi_lmac_idx].netdev, dev);
 
-	bgx->lmac[bgx->lmac_count].lmacid = bgx->lmac_count;
+	bgx->lmac[bgx->acpi_lmac_idx].lmacid = bgx->acpi_lmac_idx;
+	bgx->acpi_lmac_idx++; /* move to next LMAC */
 out:
-	bgx->lmac_count++;
 	return AE_OK;
 }
 

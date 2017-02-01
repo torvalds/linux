@@ -3835,10 +3835,7 @@ cache_acl:
 		break;
 	case S_IFDIR:
 		inode->i_fop = &btrfs_dir_file_operations;
-		if (root == fs_info->tree_root)
-			inode->i_op = &btrfs_dir_ro_inode_operations;
-		else
-			inode->i_op = &btrfs_dir_inode_operations;
+		inode->i_op = &btrfs_dir_inode_operations;
 		break;
 	case S_IFLNK:
 		inode->i_op = &btrfs_symlink_inode_operations;
@@ -4505,8 +4502,19 @@ search_again:
 		if (found_type > min_type) {
 			del_item = 1;
 		} else {
-			if (item_end < new_size)
+			if (item_end < new_size) {
+				/*
+				 * With NO_HOLES mode, for the following mapping
+				 *
+				 * [0-4k][hole][8k-12k]
+				 *
+				 * if truncating isize down to 6k, it ends up
+				 * isize being 8k.
+				 */
+				if (btrfs_fs_incompat(root->fs_info, NO_HOLES))
+					last_size = new_size;
 				break;
+			}
 			if (found_key.offset >= new_size)
 				del_item = 1;
 			else
@@ -5710,6 +5718,7 @@ static struct inode *new_simple_dir(struct super_block *s,
 
 	inode->i_ino = BTRFS_EMPTY_SUBVOL_DIR_OBJECTID;
 	inode->i_op = &btrfs_dir_ro_inode_operations;
+	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &simple_dir_operations;
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
 	inode->i_mtime = current_time(inode);
@@ -7215,7 +7224,6 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 	struct extent_map *em = NULL;
 	int ret;
 
-	down_read(&BTRFS_I(inode)->dio_sem);
 	if (type != BTRFS_ORDERED_NOCOW) {
 		em = create_pinned_em(inode, start, len, orig_start,
 				      block_start, block_len, orig_block_len,
@@ -7234,7 +7242,6 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 		em = ERR_PTR(ret);
 	}
  out:
-	up_read(&BTRFS_I(inode)->dio_sem);
 
 	return em;
 }
@@ -8692,6 +8699,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		dio_data.unsubmitted_oe_range_start = (u64)offset;
 		dio_data.unsubmitted_oe_range_end = (u64)offset;
 		current->journal_info = &dio_data;
+		down_read(&BTRFS_I(inode)->dio_sem);
 	} else if (test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
 				     &BTRFS_I(inode)->runtime_flags)) {
 		inode_dio_end(inode);
@@ -8704,6 +8712,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 				   iter, btrfs_get_blocks_direct, NULL,
 				   btrfs_submit_direct, flags);
 	if (iov_iter_rw(iter) == WRITE) {
+		up_read(&BTRFS_I(inode)->dio_sem);
 		current->journal_info = NULL;
 		if (ret < 0 && ret != -EIOCBQUEUED) {
 			if (dio_data.reserve)
@@ -9212,6 +9221,7 @@ static int btrfs_truncate(struct inode *inode)
 			break;
 		}
 
+		btrfs_block_rsv_release(fs_info, rsv, -1);
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
 					      rsv, min_size, 0);
 		BUG_ON(ret);	/* shouldn't happen */
@@ -10579,8 +10589,6 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 static const struct inode_operations btrfs_dir_ro_inode_operations = {
 	.lookup		= btrfs_lookup,
 	.permission	= btrfs_permission,
-	.get_acl	= btrfs_get_acl,
-	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
 };
 

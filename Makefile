@@ -1,8 +1,8 @@
 VERSION = 4
 PATCHLEVEL = 10
 SUBLEVEL = 0
-EXTRAVERSION = -rc3
-NAME = Roaring Lionus
+EXTRAVERSION = -rc6
+NAME = Fearless Coyote
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

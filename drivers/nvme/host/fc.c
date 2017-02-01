@@ -1654,23 +1654,22 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 		struct nvme_fc_fcp_op *op)
 {
 	struct nvmefc_fcp_req *freq = &op->fcp_req;
-	u32 map_len = nvme_map_len(rq);
 	enum dma_data_direction dir;
 	int ret;
 
 	freq->sg_cnt = 0;
 
-	if (!map_len)
+	if (!blk_rq_payload_bytes(rq))
 		return 0;
 
 	freq->sg_table.sgl = freq->first_sgl;
-	ret = sg_alloc_table_chained(&freq->sg_table, rq->nr_phys_segments,
-			freq->sg_table.sgl);
+	ret = sg_alloc_table_chained(&freq->sg_table,
+			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl);
 	if (ret)
 		return -ENOMEM;
 
 	op->nents = blk_rq_map_sg(rq->q, rq, freq->sg_table.sgl);
-	WARN_ON(op->nents > rq->nr_phys_segments);
+	WARN_ON(op->nents > blk_rq_nr_phys_segments(rq));
 	dir = (rq_data_dir(rq) == WRITE) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	freq->sg_cnt = fc_dma_map_sg(ctrl->lport->dev, freq->sg_table.sgl,
 				op->nents, dir);
@@ -1854,7 +1853,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret)
 		return ret;
 
-	data_len = nvme_map_len(rq);
+	data_len = blk_rq_payload_bytes(rq);
 	if (data_len)
 		io_dir = ((rq_data_dir(rq) == WRITE) ?
 					NVMEFC_FCP_WRITE : NVMEFC_FCP_READ);
