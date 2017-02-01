@@ -81,23 +81,14 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 
 // Routine to send a message across a service
 
-static ssize_t
-bcm2835_vchi_msg_queue_callback(void *context, void *dest,
-				size_t offset, size_t maxsize)
-{
-	memcpy(dest, context + offset, maxsize);
-	return maxsize;
-}
-
 static int
 bcm2835_vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 		       void *data,
 		       unsigned int size)
 {
-	return vchi_msg_queue(handle,
-			      bcm2835_vchi_msg_queue_callback,
-			      data,
-			      size);
+	return vchi_queue_kernel_message(handle,
+					 data,
+					 size);
 }
 
 static const u32 BCM2835_AUDIO_WRITE_COOKIE1 = ('B' << 24 | 'C' << 16 ||
