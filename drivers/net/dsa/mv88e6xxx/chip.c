@@ -2930,6 +2930,14 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 	err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
 	mutex_unlock(&chip->reg_lock);
 
+	if (reg == MII_PHYSID2) {
+		/* Some internal PHYS don't have a model number.  Use
+		 * the mv88e6390 family model number instead.
+		 */
+		if (!(val & 0x3f0))
+			val |= PORT_SWITCH_ID_PROD_NUM_6390;
+	}
+
 	return err ? err : val;
 }
 
