@@ -241,12 +241,27 @@ static void at91_ddr_standby(void)
 	/* Those two values allow us to delay self-refresh activation
 	 * to the maximum. */
 	u32 lpr0, lpr1 = 0;
+	u32 mdr, saved_mdr0, saved_mdr1 = 0;
 	u32 saved_lpr0, saved_lpr1 = 0;
+
+	/* LPDDR1 --> force DDR2 mode during self-refresh */
+	saved_mdr0 = at91_ramc_read(0, AT91_DDRSDRC_MDR);
+	if ((saved_mdr0 & AT91_DDRSDRC_MD) == AT91_DDRSDRC_MD_LOW_POWER_DDR) {
+		mdr = saved_mdr0 & ~AT91_DDRSDRC_MD;
+		mdr |= AT91_DDRSDRC_MD_DDR2;
+		at91_ramc_write(0, AT91_DDRSDRC_MDR, mdr);
+	}
 
 	if (pm_data.ramc[1]) {
 		saved_lpr1 = at91_ramc_read(1, AT91_DDRSDRC_LPR);
 		lpr1 = saved_lpr1 & ~AT91_DDRSDRC_LPCB;
 		lpr1 |= AT91_DDRSDRC_LPCB_SELF_REFRESH;
+		saved_mdr1 = at91_ramc_read(1, AT91_DDRSDRC_MDR);
+		if ((saved_mdr1 & AT91_DDRSDRC_MD) == AT91_DDRSDRC_MD_LOW_POWER_DDR) {
+			mdr = saved_mdr1 & ~AT91_DDRSDRC_MD;
+			mdr |= AT91_DDRSDRC_MD_DDR2;
+			at91_ramc_write(1, AT91_DDRSDRC_MDR, mdr);
+		}
 	}
 
 	saved_lpr0 = at91_ramc_read(0, AT91_DDRSDRC_LPR);
@@ -260,9 +275,12 @@ static void at91_ddr_standby(void)
 
 	cpu_do_idle();
 
+	at91_ramc_write(0, AT91_DDRSDRC_MDR, saved_mdr0);
 	at91_ramc_write(0, AT91_DDRSDRC_LPR, saved_lpr0);
-	if (pm_data.ramc[1])
+	if (pm_data.ramc[1]) {
+		at91_ramc_write(0, AT91_DDRSDRC_MDR, saved_mdr1);
 		at91_ramc_write(1, AT91_DDRSDRC_LPR, saved_lpr1);
+	}
 }
 
 static void sama5d3_ddr_standby(void)
