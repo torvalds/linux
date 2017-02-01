@@ -341,4 +341,36 @@ struct mhl_burst_audio_descr {
 	u8 short_desc[9];
 } __packed;
 
+/*
+ * MHL3 infoframe related definitions
+ */
+
+#define MHL3_IEEE_OUI		0x7ca61d
+#define MHL3_INFOFRAME_SIZE	15
+
+enum mhl3_video_format {
+	MHL3_VIDEO_FORMAT_NONE,
+	MHL3_VIDEO_FORMAT_3D,
+	MHL3_VIDEO_FORMAT_MULTI_VIEW,
+	MHL3_VIDEO_FORMAT_DUAL_3D
+};
+
+enum mhl3_3d_format_type {
+	MHL3_3D_FORMAT_TYPE_FS, /* frame sequential */
+	MHL3_3D_FORMAT_TYPE_TB, /* top-bottom */
+	MHL3_3D_FORMAT_TYPE_LR, /* left-right */
+	MHL3_3D_FORMAT_TYPE_FS_TB, /* frame sequential, top-bottom */
+	MHL3_3D_FORMAT_TYPE_FS_LR, /* frame sequential, left-right */
+	MHL3_3D_FORMAT_TYPE_TB_LR /* top-bottom, left-right */
+};
+
+struct mhl3_infoframe {
+	unsigned char version;
+	enum mhl3_video_format video_format;
+	enum mhl3_3d_format_type format_type;
+	bool sep_audio;
+	int hev_format;
+	int av_delay;
+};
+
 #endif /* __MHL_H__ */
