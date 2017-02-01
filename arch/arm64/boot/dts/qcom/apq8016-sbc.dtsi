@@ -35,6 +35,17 @@
 		stdout-path = "serial0";
 	};
 
+	reserved-memory {
+		ramoops@bff00000{
+			compatible = "ramoops";
+			reg = <0x0 0xbff00000 0x0 0x100000>;
+
+			record-size = <0x20000>;
+			console-size = <0x20000>;
+			ftrace-size = <0x20000>;
+		};
+	};
+
 	soc {
 		dma@7884000 {
 			status = "okay";
