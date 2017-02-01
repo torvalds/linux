@@ -1019,8 +1019,6 @@ static int snd_intelhad_close(struct snd_pcm_substream *substream)
 	intelhaddata = snd_pcm_substream_chip(substream);
 
 	intelhaddata->stream_info.buffer_rendered = 0;
-	intelhaddata->stream_info.buffer_ptr = 0;
-	intelhaddata->stream_info.str_id = 0;
 	intelhaddata->stream_info.had_substream = NULL;
 
 	/* Check if following drv_status modification is required - VA */
@@ -1132,7 +1130,6 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		spin_lock(&intelhaddata->had_spinlock);
-		intelhaddata->stream_info.str_id = 0;
 		intelhaddata->curr_buf = 0;
 
 		/* Stop reporting BUFFER_DONE/UNDERRUN to above layers */
@@ -1188,19 +1185,8 @@ static int snd_intelhad_pcm_prepare(struct snd_pcm_substream *substream)
 	dev_dbg(intelhaddata->dev, "rate=%d\n", runtime->rate);
 	dev_dbg(intelhaddata->dev, "channels=%d\n", runtime->channels);
 
-	if (intelhaddata->stream_info.str_id) {
-		dev_dbg(intelhaddata->dev,
-			"_prepare is called for existing str_id#%d\n",
-					intelhaddata->stream_info.str_id);
-		retval = snd_intelhad_pcm_trigger(substream,
-						SNDRV_PCM_TRIGGER_STOP);
-		return retval;
-	}
-
 	intelhaddata->stream_info.had_substream = substream;
-	intelhaddata->stream_info.buffer_ptr = 0;
 	intelhaddata->stream_info.buffer_rendered = 0;
-	intelhaddata->stream_info.sfreq = substream->runtime->rate;
 
 	/* Get N value in KHz */
 	disp_samp_freq = intelhaddata->tmds_clock_speed;
@@ -1292,10 +1278,7 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 			intelhaddata->stream_info.ring_buf_size,
 			&(bytes_rendered));
 
-	intelhaddata->stream_info.buffer_ptr = bytes_to_frames(
-						substream->runtime,
-						bytes_rendered + t);
-	return intelhaddata->stream_info.buffer_ptr;
+	return bytes_to_frames(substream->runtime, bytes_rendered + t);
 }
 
 /*
