@@ -763,7 +763,7 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 	return 0;
 }
 
-static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
+static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 {
 	int err;
 	u32 result;
@@ -781,9 +781,9 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err)
-		return (u32)-1;
+		return err;
 	if (!mmc_host_is_spi(card->host) && !(cmd.resp[0] & R1_APP_CMD))
-		return (u32)-1;
+		return -EIO;
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
@@ -803,7 +803,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 
 	blocks = kmalloc(4, GFP_KERNEL);
 	if (!blocks)
-		return (u32)-1;
+		return -ENOMEM;
 
 	sg_init_one(&sg, blocks, 4);
 
@@ -813,9 +813,11 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	kfree(blocks);
 
 	if (cmd.error || data.error)
-		result = (u32)-1;
+		return -EIO;
 
-	return result;
+	*written_blocks = result;
+
+	return 0;
 }
 
 static int get_card_status(struct mmc_card *card, u32 *status, int retries)
@@ -1576,9 +1578,10 @@ static int mmc_blk_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 	 */
 	if (mmc_card_sd(card)) {
 		u32 blocks;
+		int err;
 
-		blocks = mmc_sd_num_wr_blocks(card);
-		if (blocks != (u32)-1) {
+		err = mmc_sd_num_wr_blocks(card, &blocks);
+		if (!err) {
 			ret = blk_end_request(req, 0, blocks << 9);
 		}
 	} else {
