@@ -123,7 +123,6 @@ struct snd_intelhad {
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;
 	unsigned int	aes_bits;
-	bool flag_underrun;
 	struct had_stream_data stream_data;
 	spinlock_t had_spinlock;
 	enum		intel_had_aud_buf_type buff_done;

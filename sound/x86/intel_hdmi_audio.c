@@ -1297,11 +1297,6 @@ static snd_pcm_uframes_t snd_intelhad_pcm_pointer(
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED)
 		return SNDRV_PCM_POS_XRUN;
 
-	if (intelhaddata->flag_underrun) {
-		intelhaddata->flag_underrun = false;
-		return SNDRV_PCM_POS_XRUN;
-	}
-
 	/* Use a hw register to calculate sub-period position reports.
 	 * This makes PulseAudio happier.
 	 */
@@ -1642,8 +1637,7 @@ static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 
 	if (stream_type == HAD_RUNNING_STREAM) {
 		/* Report UNDERRUN error to above layers */
-		intelhaddata->flag_underrun = true;
-		had_period_elapsed(stream->had_substream);
+		snd_pcm_stop_xrun(stream->had_substream);
 	}
 
 	return 0;
@@ -1965,7 +1959,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->drv_status = HAD_DRV_DISCONNECTED;
 	ctx->dev = &pdev->dev;
 	ctx->card = card;
-	ctx->flag_underrun = false;
 	ctx->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	strcpy(card->driver, INTEL_HAD);
 	strcpy(card->shortname, INTEL_HAD);
