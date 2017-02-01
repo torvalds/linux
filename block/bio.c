@@ -1403,7 +1403,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	bio_set_flag(bio, BIO_USER_MAPPED);
 
 	/*
-	 * subtle -- if __bio_map_user() ended up bouncing a bio,
+	 * subtle -- if bio_map_user_iov() ended up bouncing a bio,
 	 * it would normally disappear when its bi_end_io is run.
 	 * however, we need it for the unmap, so grab an extra
 	 * reference to it
@@ -1445,8 +1445,8 @@ static void __bio_unmap_user(struct bio *bio)
  *	bio_unmap_user	-	unmap a bio
  *	@bio:		the bio being unmapped
  *
- *	Unmap a bio previously mapped by bio_map_user(). Must be called with
- *	a process context.
+ *	Unmap a bio previously mapped by bio_map_user_iov(). Must be called from
+ *	process context.
  *
  *	bio_unmap_user() may sleep.
  */
