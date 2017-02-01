@@ -75,7 +75,7 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 		return __ath9k_hw_ar9287_fill_eeprom(ah);
 }
 
-#if defined(CONFIG_ATH9K_DEBUGFS) || defined(CONFIG_ATH9K_HTC_DEBUGFS)
+#ifdef CONFIG_ATH9K_COMMON_DEBUG
 static u32 ar9287_dump_modal_eeprom(char *buf, u32 len, u32 size,
 				    struct modal_eep_ar9287_header *modal_hdr)
 {

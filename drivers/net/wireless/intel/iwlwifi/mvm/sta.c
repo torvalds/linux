@@ -454,13 +454,6 @@ static int iwl_mvm_remove_sta_queue_marking(struct iwl_mvm *mvm, int queue)
 
 	rcu_read_unlock();
 
-	spin_lock_bh(&mvm->queue_info_lock);
-	/* Unmap MAC queues and TIDs from this queue */
-	mvm->queue_info[queue].hw_queue_to_mac80211 = 0;
-	mvm->queue_info[queue].hw_queue_refcount = 0;
-	mvm->queue_info[queue].tid_bitmap = 0;
-	spin_unlock_bh(&mvm->queue_info_lock);
-
 	return disable_agg_tids;
 }
 
@@ -755,28 +748,22 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	 * first
 	 */
 	if (using_inactive_queue) {
-		struct iwl_scd_txq_cfg_cmd cmd = {
-			.scd_queue = queue,
-			.action = SCD_CFG_DISABLE_QUEUE,
-		};
-		u8 txq_curr_ac;
-
-		disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
+		u8 txq_curr_ac, sta_id;
 
 		spin_lock_bh(&mvm->queue_info_lock);
 		txq_curr_ac = mvm->queue_info[queue].mac80211_ac;
-		cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
-		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[txq_curr_ac];
-		cmd.tid = mvm->queue_info[queue].txq_tid;
+		sta_id = mvm->queue_info[queue].ra_sta_id;
 		spin_unlock_bh(&mvm->queue_info_lock);
 
+		disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
 		/* Disable the queue */
 		if (disable_agg_tids)
 			iwl_mvm_invalidate_sta_queue(mvm, queue,
 						     disable_agg_tids, false);
-		iwl_trans_txq_disable(mvm->trans, queue, false);
-		ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd),
-					   &cmd);
+
+		ret = iwl_mvm_disable_txq(mvm, queue,
+					  mvmsta->vif->hw_queue[txq_curr_ac],
+					  tid, 0);
 		if (ret) {
 			IWL_ERR(mvm,
 				"Failed to free inactive queue %d (ret=%d)\n",
@@ -791,7 +778,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		}
 
 		/* If TXQ is allocated to another STA, update removal in FW */
-		if (cmd.sta_id != mvmsta->sta_id)
+		if (sta_id != mvmsta->sta_id)
 			iwl_mvm_invalidate_sta_queue(mvm, queue, 0, true);
 	}
 
@@ -868,7 +855,6 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 		.scd_queue = queue,
 		.action = SCD_CFG_UPDATE_QUEUE_TID,
 	};
-	s8 sta_id;
 	int tid;
 	unsigned long tid_bitmap;
 	int ret;
@@ -876,7 +862,6 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 	lockdep_assert_held(&mvm->mutex);
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	sta_id = mvm->queue_info[queue].ra_sta_id;
 	tid_bitmap = mvm->queue_info[queue].tid_bitmap;
 	spin_unlock_bh(&mvm->queue_info_lock);
 

@@ -10607,7 +10607,7 @@ F:	drivers/net/wireless/realtek/rtlwifi/
 F:	drivers/net/wireless/realtek/rtlwifi/rtl8192ce/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
-M:	Jes Sorensen <Jes.Sorensen@redhat.com>
+M:	Jes Sorensen <Jes.Sorensen@gmail.com>
 L:	linux-wireless@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8xxxu-devel
 S:	Maintained

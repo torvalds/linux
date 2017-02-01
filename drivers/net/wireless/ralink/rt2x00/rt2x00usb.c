@@ -517,7 +517,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue, bool drop)
 		 * Wait for a little while to give the driver
 		 * the oppurtunity to recover itself.
 		 */
-		msleep(10);
+		msleep(50);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_flush_queue);

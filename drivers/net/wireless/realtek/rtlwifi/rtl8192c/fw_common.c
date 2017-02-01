@@ -27,6 +27,7 @@
 #include "../pci.h"
 #include "../base.h"
 #include "../core.h"
+#include "../efuse.h"
 #include "../rtl8192ce/reg.h"
 #include "../rtl8192ce/def.h"
 #include "fw_common.h"
@@ -68,63 +69,6 @@ static void _rtl92c_enable_fw_download(struct ieee80211_hw *hw, bool enable)
 	}
 }
 
-static void _rtl92c_fw_block_write(struct ieee80211_hw *hw,
-				   const u8 *buffer, u32 size)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 blocksize = sizeof(u32);
-	u8 *bufferptr = (u8 *)buffer;
-	u32 *pu4byteptr = (u32 *)buffer;
-	u32 i, offset, blockcount, remainsize;
-
-	blockcount = size / blocksize;
-	remainsize = size % blocksize;
-
-	for (i = 0; i < blockcount; i++) {
-		offset = i * blocksize;
-		rtl_write_dword(rtlpriv, (FW_8192C_START_ADDRESS + offset),
-				*(pu4byteptr + i));
-	}
-
-	if (remainsize) {
-		offset = blockcount * blocksize;
-		bufferptr += offset;
-		for (i = 0; i < remainsize; i++) {
-			rtl_write_byte(rtlpriv, (FW_8192C_START_ADDRESS +
-						 offset + i), *(bufferptr + i));
-		}
-	}
-}
-
-static void _rtl92c_fw_page_write(struct ieee80211_hw *hw,
-				  u32 page, const u8 *buffer, u32 size)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 value8;
-	u8 u8page = (u8) (page & 0x07);
-
-	value8 = (rtl_read_byte(rtlpriv, REG_MCUFWDL + 2) & 0xF8) | u8page;
-
-	rtl_write_byte(rtlpriv, (REG_MCUFWDL + 2), value8);
-	_rtl92c_fw_block_write(hw, buffer, size);
-}
-
-static void _rtl92c_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
-{
-	u32 fwlen = *pfwlen;
-	u8 remain = (u8) (fwlen % 4);
-
-	remain = (remain == 0) ? 0 : (4 - remain);
-
-	while (remain > 0) {
-		pfwbuf[fwlen] = 0;
-		fwlen++;
-		remain--;
-	}
-
-	*pfwlen = fwlen;
-}
-
 static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 			     enum version_8192c version, u8 *buffer, u32 size)
 {
@@ -140,7 +84,7 @@ static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 		u32 page, offset;
 
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
-			_rtl92c_fill_dummy(bufferptr, &size);
+			rtl_fill_dummy(bufferptr, &size);
 
 		pageNums = size / FW_8192C_PAGE_SIZE;
 		remainsize = size % FW_8192C_PAGE_SIZE;
@@ -150,18 +94,18 @@ static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 
 		for (page = 0; page < pageNums; page++) {
 			offset = page * FW_8192C_PAGE_SIZE;
-			_rtl92c_fw_page_write(hw, page, (bufferptr + offset),
-					      FW_8192C_PAGE_SIZE);
+			rtl_fw_page_write(hw, page, (bufferptr + offset),
+					  FW_8192C_PAGE_SIZE);
 		}
 
 		if (remainsize) {
 			offset = pageNums * FW_8192C_PAGE_SIZE;
 			page = pageNums;
-			_rtl92c_fw_page_write(hw, page, (bufferptr + offset),
-					      remainsize);
+			rtl_fw_page_write(hw, page, (bufferptr + offset),
+					  remainsize);
 		}
 	} else {
-		_rtl92c_fw_block_write(hw, buffer, size);
+		rtl_fw_block_write(hw, buffer, size);
 	}
 }
 

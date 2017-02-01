@@ -805,7 +805,7 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 		(*first_ucode_section)++;
 	}
 
-	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+	for (i = *first_ucode_section; i < image->num_sec; i++) {
 		last_read_idx = i;
 
 		/*
@@ -868,19 +868,15 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 				      int cpu,
 				      int *first_ucode_section)
 {
-	int shift_param;
 	int i, ret = 0;
 	u32 last_read_idx = 0;
 
-	if (cpu == 1) {
-		shift_param = 0;
+	if (cpu == 1)
 		*first_ucode_section = 0;
-	} else {
-		shift_param = 16;
+	else
 		(*first_ucode_section)++;
-	}
 
-	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+	for (i = *first_ucode_section; i < image->num_sec; i++) {
 		last_read_idx = i;
 
 		/*
@@ -1066,6 +1062,20 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 					       &first_ucode_section);
 }
 
+static bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans)
+{
+	bool hw_rfkill = iwl_is_rfkill_set(trans);
+
+	if (hw_rfkill)
+		set_bit(STATUS_RFKILL, &trans->status);
+	else
+		clear_bit(STATUS_RFKILL, &trans->status);
+
+	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+
+	return hw_rfkill;
+}
+
 static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1208,12 +1218,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	mutex_lock(&trans_pcie->mutex);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
-	else
-		clear_bit(STATUS_RFKILL, &trans->status);
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	hw_rfkill = iwl_trans_check_hw_rf_kill(trans);
 	if (hw_rfkill && !run_in_rfkill) {
 		ret = -ERFKILL;
 		goto out;
@@ -1261,13 +1266,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		ret = iwl_pcie_load_given_ucode(trans, fw);
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
-	else
-		clear_bit(STATUS_RFKILL, &trans->status);
-
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	hw_rfkill = iwl_trans_check_hw_rf_kill(trans);
 	if (hw_rfkill && !run_in_rfkill)
 		ret = -ERFKILL;
 
@@ -1659,7 +1658,6 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill;
 	int err;
 
 	lockdep_assert_held(&trans_pcie->mutex);
@@ -1683,13 +1681,8 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 	/* Set is_down to false here so that...*/
 	trans_pcie->is_down = false;
 
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
-	else
-		clear_bit(STATUS_RFKILL, &trans->status);
-	/* ... rfkill can call stop_device and set it false if needed */
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	/* ...rfkill can call stop_device and set it false if needed */
+	iwl_trans_check_hw_rf_kill(trans);
 
 	/* Make sure we sync here, because we'll need full access later */
 	if (low_power)

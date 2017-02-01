@@ -2083,65 +2083,6 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(rtl_recognize_peer);
 
-/*********************************************************
- *
- * sysfs functions
- *
- *********************************************************/
-static ssize_t rtl_show_debug_level(struct device *d,
-				    struct device_attribute *attr, char *buf)
-{
-	struct ieee80211_hw *hw = dev_get_drvdata(d);
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return sprintf(buf, "0x%08X\n", rtlpriv->dbg.global_debuglevel);
-}
-
-static ssize_t rtl_store_debug_level(struct device *d,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct ieee80211_hw *hw = dev_get_drvdata(d);
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-			 "%s is not in hex or decimal form.\n", buf);
-	} else {
-		rtlpriv->dbg.global_debuglevel = val;
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-			 "debuglevel:%x\n",
-			 rtlpriv->dbg.global_debuglevel);
-	}
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
-		   rtl_show_debug_level, rtl_store_debug_level);
-
-static struct attribute *rtl_sysfs_entries[] = {
-
-	&dev_attr_debug_level.attr,
-
-	NULL
-};
-
-/*
- * "name" is folder name witch will be
- * put in device directory like :
- * sys/devices/pci0000:00/0000:00:1c.4/
- * 0000:06:00.0/rtl_sysfs
- */
-struct attribute_group rtl_attribute_group = {
-	.name = "rtlsysfs",
-	.attrs = rtl_sysfs_entries,
-};
-EXPORT_SYMBOL_GPL(rtl_attribute_group);
-
 MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");
 MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.FInger@lwfinger.net>");

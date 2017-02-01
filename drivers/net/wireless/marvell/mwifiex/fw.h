@@ -550,6 +550,7 @@ enum mwifiex_channel_flags {
 #define EVENT_TX_DATA_PAUSE             0x00000055
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_RXBA_SYNC                 0x00000059
+#define EVENT_UNKNOWN_DEBUG             0x00000063
 #define EVENT_BG_SCAN_STOPPED           0x00000065
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_MULTI_CHAN_INFO           0x0000006a

@@ -39,6 +39,7 @@
 #include <linux/hrtimer.h>
 #include <linux/average.h>
 #include <linux/usb.h>
+#include <linux/clk.h>
 
 #include <net/mac80211.h>
 
@@ -169,6 +170,7 @@ struct rt2x00_chip {
 #define RT3572		0x3572
 #define RT3593		0x3593
 #define RT3883		0x3883	/* WSOC */
+#define RT5350		0x5350  /* WSOC 2.4GHz */
 #define RT5390		0x5390  /* 2.4GHz */
 #define RT5392		0x5392  /* 2.4GHz */
 #define RT5592		0x5592
@@ -716,6 +718,8 @@ enum rt2x00_capability_flags {
 	CAPABILITY_DOUBLE_ANTENNA,
 	CAPABILITY_BT_COEXIST,
 	CAPABILITY_VCO_RECALIBRATION,
+	CAPABILITY_INTERNAL_PA_TX0,
+	CAPABILITY_INTERNAL_PA_TX1,
 };
 
 /*
@@ -1009,6 +1013,9 @@ struct rt2x00_dev {
 	unsigned int extra_tx_headroom;
 
 	struct usb_anchor *anchor;
+
+	/* Clock for System On Chip devices. */
+	struct clk *clk;
 };
 
 struct rt2x00_bar_list_entry {

@@ -463,6 +463,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
 	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC |
 		IEEE80211_RADIOTAP_VHT_KNOWN_BEAMFORMED;
+
+	hw->radiotap_timestamp.units_pos =
+		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US |
+		IEEE80211_RADIOTAP_TIMESTAMP_SPOS_PLCP_SIG_ACQ;
+	/* this is the case for CCK frames, it's better (only 8) for OFDM */
+	hw->radiotap_timestamp.accuracy = 22;
+
 	hw->rate_control_algorithm = "iwl-mvm-rs";
 	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
 	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
@@ -670,7 +677,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 
-	if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	if (mvm->fw->img[IWL_UCODE_WOWLAN].num_sec &&
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {

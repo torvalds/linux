@@ -621,12 +621,10 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	};
 	int expected_size = iwl_mvm_has_new_rx_api(mvm) ? sizeof(*stats) :
 			    sizeof(struct iwl_notif_statistics_v10);
-	u32 temperature;
 
 	if (iwl_rx_packet_payload_len(pkt) != expected_size)
 		goto invalid;
 
-	temperature = le32_to_cpu(stats->general.radio_temperature);
 	data.mac_id = stats->rx.general.mac_id;
 	data.beacon_filter_average_energy =
 		stats->general.beacon_filter_average_energy;

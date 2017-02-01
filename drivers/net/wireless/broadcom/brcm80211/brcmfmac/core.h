@@ -216,7 +216,6 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success);
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on);
-void brcmf_c_set_joinpref_default(struct brcmf_if *ifp);
 int __init brcmf_core_init(void);
 void __exit brcmf_core_exit(void);
 

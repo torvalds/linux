@@ -2075,7 +2075,7 @@ struct iwl_mu_group_mgmt_notif {
  * @system_time: system time on air rise
  * @tsf: TSF on air rise
  * @beacon_timestamp: beacon on air rise
- * @phy_flags: general phy flags: band, modulation, etc.
+ * @band: band, matches &RX_RES_PHY_FLAGS_BAND_24 definition
  * @channel: channel this beacon was received on
  * @rates: rate in ucode internal format
  * @byte_count: frame's byte count
@@ -2084,12 +2084,12 @@ struct iwl_stored_beacon_notif {
 	__le32 system_time;
 	__le64 tsf;
 	__le32 beacon_timestamp;
-	__le16 phy_flags;
+	__le16 band;
 	__le16 channel;
 	__le32 rates;
 	__le32 byte_count;
 	u8 data[MAX_STORED_BEACON_SIZE];
-} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_1 */
+} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_2 */
 
 #define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
 

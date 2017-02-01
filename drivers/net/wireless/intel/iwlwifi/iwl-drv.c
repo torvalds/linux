@@ -166,8 +166,9 @@ static void iwl_free_fw_desc(struct iwl_drv *drv, struct fw_desc *desc)
 static void iwl_free_fw_img(struct iwl_drv *drv, struct fw_img *img)
 {
 	int i;
-	for (i = 0; i < IWL_UCODE_SECTION_MAX; i++)
+	for (i = 0; i < img->num_sec; i++)
 		iwl_free_fw_desc(drv, &img->sec[i]);
+	kfree(img->sec);
 }
 
 static void iwl_dealloc_ucode(struct iwl_drv *drv)
@@ -179,8 +180,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 		kfree(drv->fw.dbg_conf_tlv[i]);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
 		kfree(drv->fw.dbg_trigger_tlv[i]);
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++)
-		kfree(drv->fw.dbg_mem_tlv[i]);
+	kfree(drv->fw.dbg_mem_tlv);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -241,7 +241,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 }
 
 struct fw_img_parsing {
-	struct fw_sec sec[IWL_UCODE_SECTION_MAX];
+	struct fw_sec *sec;
 	int sec_counter;
 };
 
@@ -276,7 +276,8 @@ struct iwl_firmware_pieces {
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
-	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv[FW_DBG_MEM_MAX];
+	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv;
+	size_t n_dbg_mem_tlv;
 };
 
 /*
@@ -290,11 +291,33 @@ static struct fw_sec *get_sec(struct iwl_firmware_pieces *pieces,
 	return &pieces->img[type].sec[sec];
 }
 
+static void alloc_sec_data(struct iwl_firmware_pieces *pieces,
+			   enum iwl_ucode_type type,
+			   int sec)
+{
+	struct fw_img_parsing *img = &pieces->img[type];
+	struct fw_sec *sec_memory;
+	int size = sec + 1;
+	size_t alloc_size = sizeof(*img->sec) * size;
+
+	if (img->sec && img->sec_counter >= size)
+		return;
+
+	sec_memory = krealloc(img->sec, alloc_size, GFP_KERNEL);
+	if (!sec_memory)
+		return;
+
+	img->sec = sec_memory;
+	img->sec_counter = size;
+}
+
 static void set_sec_data(struct iwl_firmware_pieces *pieces,
 			 enum iwl_ucode_type type,
 			 int sec,
 			 const void *data)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].data = data;
 }
 
@@ -303,6 +326,8 @@ static void set_sec_size(struct iwl_firmware_pieces *pieces,
 			 int sec,
 			 size_t size)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].size = size;
 }
 
@@ -318,6 +343,8 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 			   int sec,
 			   u32 offset)
 {
+	alloc_sec_data(pieces, type, sec);
+
 	pieces->img[type].sec[sec].offset = offset;
 }
 
@@ -383,6 +410,7 @@ static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
 	struct fw_img_parsing *img;
 	struct fw_sec *sec;
 	struct fw_sec_parsing *sec_parse;
+	size_t alloc_size;
 
 	if (WARN_ON(!pieces || !data || type >= IWL_UCODE_TYPE_MAX))
 		return -1;
@@ -390,6 +418,13 @@ static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
 	sec_parse = (struct fw_sec_parsing *)data;
 
 	img = &pieces->img[type];
+
+	alloc_size = sizeof(*img->sec) * (img->sec_counter + 1);
+	sec = krealloc(img->sec, alloc_size, GFP_KERNEL);
+	if (!sec)
+		return -ENOMEM;
+	img->sec = sec;
+
 	sec = &img->sec[img->sec_counter];
 
 	sec->offset = le32_to_cpu(sec_parse->offset);
@@ -1009,31 +1044,37 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
 				(void *)tlv_data;
 			u32 type;
+			size_t size;
+			struct iwl_fw_dbg_mem_seg_tlv *n;
 
 			if (tlv_len != (sizeof(*dbg_mem)))
 				goto invalid_tlv_len;
 
 			type = le32_to_cpu(dbg_mem->data_type);
-			drv->fw.dbg_dynamic_mem = true;
-
-			if (type >= ARRAY_SIZE(drv->fw.dbg_mem_tlv)) {
-				IWL_ERR(drv,
-					"Skip unknown dbg mem segment: %u\n",
-					dbg_mem->data_type);
-				break;
-			}
-
-			if (pieces->dbg_mem_tlv[type]) {
-				IWL_ERR(drv,
-					"Ignore duplicate mem segment: %u\n",
-					dbg_mem->data_type);
-				break;
-			}
 
 			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
 				       dbg_mem->data_type);
 
-			pieces->dbg_mem_tlv[type] = dbg_mem;
+			switch (type & FW_DBG_MEM_TYPE_MASK) {
+			case FW_DBG_MEM_TYPE_REGULAR:
+			case FW_DBG_MEM_TYPE_PRPH:
+				/* we know how to handle these */
+				break;
+			default:
+				IWL_ERR(drv,
+					"Found debug memory segment with invalid type: 0x%x\n",
+					type);
+				return -EINVAL;
+			}
+
+			size = sizeof(*pieces->dbg_mem_tlv) *
+			       (pieces->n_dbg_mem_tlv + 1);
+			n = krealloc(pieces->dbg_mem_tlv, size, GFP_KERNEL);
+			if (!n)
+				return -ENOMEM;
+			pieces->dbg_mem_tlv = n;
+			pieces->dbg_mem_tlv[pieces->n_dbg_mem_tlv] = *dbg_mem;
+			pieces->n_dbg_mem_tlv++;
 			break;
 			}
 		default:
@@ -1083,12 +1124,18 @@ static int iwl_alloc_ucode(struct iwl_drv *drv,
 			   enum iwl_ucode_type type)
 {
 	int i;
-	for (i = 0;
-	     i < IWL_UCODE_SECTION_MAX && get_sec_size(pieces, type, i);
-	     i++)
-		if (iwl_alloc_fw_desc(drv, &(drv->fw.img[type].sec[i]),
-				      get_sec(pieces, type, i)))
+	struct fw_desc *sec;
+
+	sec = kcalloc(pieces->img[type].sec_counter, sizeof(*sec), GFP_KERNEL);
+	if (!sec)
+		return -ENOMEM;
+	drv->fw.img[type].sec = sec;
+	drv->fw.img[type].num_sec = pieces->img[type].sec_counter;
+
+	for (i = 0; i < pieces->img[type].sec_counter; i++)
+		if (iwl_alloc_fw_desc(drv, &sec[i], get_sec(pieces, type, i)))
 			return -ENOMEM;
+
 	return 0;
 }
 
@@ -1345,18 +1392,11 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++) {
-		if (pieces->dbg_mem_tlv[i]) {
-			drv->fw.dbg_mem_tlv[i] =
-				kmemdup(pieces->dbg_mem_tlv[i],
-					sizeof(*drv->fw.dbg_mem_tlv[i]),
-					GFP_KERNEL);
-			if (!drv->fw.dbg_mem_tlv[i])
-				goto out_free_fw;
-		}
-	}
-
 	/* Now that we can no longer fail, copy information */
+
+	drv->fw.dbg_mem_tlv = pieces->dbg_mem_tlv;
+	pieces->dbg_mem_tlv = NULL;
+	drv->fw.n_dbg_mem_tlv = pieces->n_dbg_mem_tlv;
 
 	/*
 	 * The (size - 16) / 12 formula is based on the information recorded
@@ -1441,25 +1481,27 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				op->name, err);
 #endif
 	}
-	kfree(pieces);
-	return;
+	goto free;
 
  try_again:
 	/* try next, if any */
 	release_firmware(ucode_raw);
 	if (iwl_request_firmware(drv, false))
 		goto out_unbind;
-	kfree(pieces);
-	return;
+	goto free;
 
  out_free_fw:
 	IWL_ERR(drv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(drv);
 	release_firmware(ucode_raw);
  out_unbind:
-	kfree(pieces);
 	complete(&drv->request_firmware_complete);
 	device_release_driver(drv->trans->dev);
+ free:
+	for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
+		kfree(pieces->img[i].sec);
+	kfree(pieces->dbg_mem_tlv);
+	kfree(pieces);
 }
 
 struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,

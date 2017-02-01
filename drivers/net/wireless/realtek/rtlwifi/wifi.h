@@ -2221,11 +2221,13 @@ struct rtl_intf_ops {
 };
 
 struct rtl_mod_params {
+	/* default: 0,0 */
+	u64 debug_mask;
 	/* default: 0 = using hardware encryption */
 	bool sw_crypto;
 
 	/* default: 0 = DBG_EMERG (0)*/
-	int debug;
+	int debug_level;
 
 	/* default: 1 = using no linked power save */
 	bool inactiveps;
@@ -2343,16 +2345,6 @@ struct rtl_works {
 
 	struct work_struct lps_change_work;
 	struct work_struct fill_h2c_cmd;
-};
-
-struct rtl_debug {
-	u32 dbgp_type[DBGP_TYPE_MAX];
-	int global_debuglevel;
-	u64 global_debugcomponents;
-
-	/* add for proc debug */
-	struct proc_dir_entry *proc_dir;
-	char proc_name[20];
 };
 
 #define MIMO_PS_STATIC			0
@@ -2583,7 +2575,6 @@ struct rtl_priv {
 	/* sta entry list for ap adhoc or mesh */
 	struct list_head entry_list;
 
-	struct rtl_debug dbg;
 	int max_fw_size;
 
 	/*
@@ -2713,22 +2704,13 @@ enum bt_radio_shared {
 	(le32_to_cpu(_val))
 
 /* Read data from memory */
-#define READEF1BYTE(_ptr)	\
+#define READEF1BYTE(_ptr)      \
 	EF1BYTE(*((u8 *)(_ptr)))
 /* Read le16 data from memory and convert to host ordering */
-#define READEF2BYTE(_ptr)	\
+#define READEF2BYTE(_ptr)      \
 	EF2BYTE(*(_ptr))
-#define READEF4BYTE(_ptr)	\
+#define READEF4BYTE(_ptr)      \
 	EF4BYTE(*(_ptr))
-
-/* Write data to memory */
-#define WRITEEF1BYTE(_ptr, _val)	\
-	(*((u8 *)(_ptr))) = EF1BYTE(_val)
-/* Write le16 data to memory in host ordering */
-#define WRITEEF2BYTE(_ptr, _val)	\
-	(*((u16 *)(_ptr))) = EF2BYTE(_val)
-#define WRITEEF4BYTE(_ptr, _val)	\
-	(*((u32 *)(_ptr))) = EF2BYTE(_val)
 
 /* Create a bit mask
  * Examples:
@@ -2810,14 +2792,14 @@ value to host byte ordering.*/
  * Set subfield of little-endian 4-byte value to specified value.
  */
 #define SET_BITS_TO_LE_4BYTE(__pstart, __bitoffset, __bitlen, __val) \
-	*((u32 *)(__pstart)) = \
-	( \
+	*((__le32 *)(__pstart)) = \
+	cpu_to_le32( \
 		LE_BITS_CLEARED_TO_4BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u32)__val) & BIT_LEN_MASK_32(__bitlen)) << (__bitoffset)) \
 	);
 #define SET_BITS_TO_LE_2BYTE(__pstart, __bitoffset, __bitlen, __val) \
-	*((u16 *)(__pstart)) = \
-	( \
+	*((__le16 *)(__pstart)) = \
+	cpu_to_le16( \
 		LE_BITS_CLEARED_TO_2BYTE(__pstart, __bitoffset, __bitlen) | \
 		((((u16)__val) & BIT_LEN_MASK_16(__bitlen)) << (__bitoffset)) \
 	);
