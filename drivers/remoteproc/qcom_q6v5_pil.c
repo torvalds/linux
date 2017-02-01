@@ -107,8 +107,8 @@ struct qcom_mss_reg_res {
 
 struct rproc_hexagon_res {
 	const char *hexagon_mba_image;
-	struct qcom_mss_reg_res proxy_supply[4];
-	struct qcom_mss_reg_res active_supply[2];
+	struct qcom_mss_reg_res *proxy_supply;
+	struct qcom_mss_reg_res *active_supply;
 	char **proxy_clk_names;
 	char **active_clk_names;
 };
