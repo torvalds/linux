@@ -378,14 +378,6 @@ static int inline_receive(struct vchiq_mmal_instance *instance,
 	return 0;
 }
 
-static ssize_t mmal_memcpy_wrapper(void *src, void *dst,
-				   size_t offset, size_t size)
-{
-	memcpy(dst + offset, src + offset, size);
-
-	return size;
-}
-
 /* queue the buffer availability with MMAL_MSG_TYPE_BUFFER_FROM_HOST */
 static int
 buffer_from_host(struct vchiq_mmal_instance *instance,
@@ -450,9 +442,10 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	vchi_service_use(instance->handle);
 
-	ret = vchi_msg_queue(instance->handle, mmal_memcpy_wrapper, &m,
-			     sizeof(struct mmal_msg_header) +
-			     sizeof(m.u.buffer_from_host));
+	ret = vchi_queue_kernel_message(instance->handle,
+					&m,
+					sizeof(struct mmal_msg_header) +
+					sizeof(m.u.buffer_from_host));
 
 	if (ret != 0) {
 		release_msg_context(msg_context);
@@ -736,10 +729,10 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 
 	vchi_service_use(instance->handle);
 
-	ret = vchi_msg_queue(instance->handle,
-			     mmal_memcpy_wrapper,
-			     msg,
-			     sizeof(struct mmal_msg_header) + payload_len);
+	ret = vchi_queue_kernel_message(instance->handle,
+					msg,
+					sizeof(struct mmal_msg_header) +
+					payload_len);
 
 	vchi_service_release(instance->handle);
 
