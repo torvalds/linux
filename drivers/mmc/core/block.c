@@ -1297,7 +1297,7 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 					     struct mmc_async_req *areq)
 {
 	struct mmc_queue_req *mq_mrq = container_of(areq, struct mmc_queue_req,
-						    mmc_active);
+						    areq);
 	struct mmc_blk_request *brq = &mq_mrq->brq;
 	struct request *req = mq_mrq->req;
 	int need_retune = card->host->need_retune;
@@ -1553,8 +1553,8 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		brq->data.sg_len = i;
 	}
 
-	mqrq->mmc_active.mrq = &brq->mrq;
-	mqrq->mmc_active.err_check = mmc_blk_err_check;
+	mqrq->areq.mrq = &brq->mrq;
+	mqrq->areq.err_check = mmc_blk_err_check;
 
 	mmc_queue_bounce_pre(mqrq);
 }
@@ -1618,7 +1618,7 @@ static void mmc_blk_rw_try_restart(struct mmc_queue *mq, struct request *req)
 	}
 	/* Else proceed and try to restart the current async request */
 	mmc_blk_rw_rq_prep(mq->mqrq_cur, mq->card, 0, mq);
-	mmc_start_areq(mq->card->host, &mq->mqrq_cur->mmc_active, NULL);
+	mmc_start_areq(mq->card->host, &mq->mqrq_cur->areq, NULL);
 }
 
 static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
@@ -1651,7 +1651,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			}
 
 			mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
-			new_areq = &mq->mqrq_cur->mmc_active;
+			new_areq = &mq->mqrq_cur->areq;
 		} else
 			new_areq = NULL;
 
@@ -1671,7 +1671,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		 * An asynchronous request has been completed and we proceed
 		 * to handle the result of it.
 		 */
-		mq_rq =	container_of(old_areq, struct mmc_queue_req, mmc_active);
+		mq_rq =	container_of(old_areq, struct mmc_queue_req, areq);
 		brq = &mq_rq->brq;
 		old_req = mq_rq->req;
 		type = rq_data_dir(old_req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
@@ -1777,7 +1777,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			mmc_blk_rw_rq_prep(mq_rq, card,
 					disable_multi, mq);
 			mmc_start_areq(card->host,
-					&mq_rq->mmc_active, NULL);
+					&mq_rq->areq, NULL);
 			mq_rq->brq.retune_retry_done = retune_retry_done;
 		}
 	} while (ret);
