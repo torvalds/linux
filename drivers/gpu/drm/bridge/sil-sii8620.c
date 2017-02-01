@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/unaligned.h>
+
 #include <drm/bridge/mhl.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -28,7 +30,8 @@
 
 #include "sil-sii8620.h"
 
-#define VAL_RX_HDMI_CTRL2_DEFVAL	VAL_RX_HDMI_CTRL2_IDLE_CNT(3)
+#define SII8620_BURST_BUF_LEN 288
+#define VAL_RX_HDMI_CTRL2_DEFVAL VAL_RX_HDMI_CTRL2_IDLE_CNT(3)
 
 enum sii8620_mode {
 	CM_DISCONNECTED,
@@ -71,6 +74,15 @@ struct sii8620 {
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
 	struct list_head mt_queue;
+	struct {
+		int r_size;
+		int r_count;
+		int rx_ack;
+		int rx_count;
+		u8 rx_buf[32];
+		int tx_count;
+		u8 tx_buf[32];
+	} burst;
 };
 
 struct sii8620_mt_msg;
@@ -509,6 +521,134 @@ static void sii8620_mt_read_devcap_reg(struct sii8620 *ctx, u8 reg)
 static inline void sii8620_mt_read_xdevcap_reg(struct sii8620 *ctx, u8 reg)
 {
 	sii8620_mt_read_devcap_reg(ctx, reg | 0x80);
+}
+
+static void *sii8620_burst_get_tx_buf(struct sii8620 *ctx, int len)
+{
+	u8 *buf = &ctx->burst.tx_buf[ctx->burst.tx_count];
+	int size = len + 2;
+
+	if (ctx->burst.tx_count + size > ARRAY_SIZE(ctx->burst.tx_buf)) {
+		dev_err(ctx->dev, "TX-BLK buffer exhausted\n");
+		ctx->error = -EINVAL;
+		return NULL;
+	}
+
+	ctx->burst.tx_count += size;
+	buf[1] = len;
+
+	return buf + 2;
+}
+
+static u8 *sii8620_burst_get_rx_buf(struct sii8620 *ctx, int len)
+{
+	u8 *buf = &ctx->burst.rx_buf[ctx->burst.rx_count];
+	int size = len + 1;
+
+	if (ctx->burst.tx_count + size > ARRAY_SIZE(ctx->burst.tx_buf)) {
+		dev_err(ctx->dev, "RX-BLK buffer exhausted\n");
+		ctx->error = -EINVAL;
+		return NULL;
+	}
+
+	ctx->burst.rx_count += size;
+	buf[0] = len;
+
+	return buf + 1;
+}
+
+static void sii8620_burst_send(struct sii8620 *ctx)
+{
+	int tx_left = ctx->burst.tx_count;
+	u8 *d = ctx->burst.tx_buf;
+
+	while (tx_left > 0) {
+		int len = d[1] + 2;
+
+		if (ctx->burst.r_count + len > ctx->burst.r_size)
+			break;
+		d[0] = min(ctx->burst.rx_ack, 255);
+		ctx->burst.rx_ack -= d[0];
+		sii8620_write_buf(ctx, REG_EMSC_XMIT_WRITE_PORT, d, len);
+		ctx->burst.r_count += len;
+		tx_left -= len;
+		d += len;
+	}
+
+	ctx->burst.tx_count = tx_left;
+
+	while (ctx->burst.rx_ack > 0) {
+		u8 b[2] = { min(ctx->burst.rx_ack, 255), 0 };
+
+		if (ctx->burst.r_count + 2 > ctx->burst.r_size)
+			break;
+		ctx->burst.rx_ack -= b[0];
+		sii8620_write_buf(ctx, REG_EMSC_XMIT_WRITE_PORT, b, 2);
+		ctx->burst.r_count += 2;
+	}
+}
+
+static void sii8620_burst_receive(struct sii8620 *ctx)
+{
+	u8 buf[3], *d;
+	int count;
+
+	sii8620_read_buf(ctx, REG_EMSCRFIFOBCNTL, buf, 2);
+	count = get_unaligned_le16(buf);
+	while (count > 0) {
+		int len = min(count, 3);
+
+		sii8620_read_buf(ctx, REG_EMSC_RCV_READ_PORT, buf, len);
+		count -= len;
+		ctx->burst.rx_ack += len - 1;
+		ctx->burst.r_count -= buf[1];
+		if (ctx->burst.r_count < 0)
+			ctx->burst.r_count = 0;
+
+		if (len < 3 || !buf[2])
+			continue;
+
+		len = buf[2];
+		d = sii8620_burst_get_rx_buf(ctx, len);
+		if (!d)
+			continue;
+		sii8620_read_buf(ctx, REG_EMSC_RCV_READ_PORT, d, len);
+		count -= len;
+		ctx->burst.rx_ack += len;
+	}
+}
+
+static void sii8620_burst_tx_rbuf_info(struct sii8620 *ctx, int size)
+{
+	struct mhl_burst_blk_rcv_buffer_info *d =
+		sii8620_burst_get_tx_buf(ctx, sizeof(*d));
+	if (!d)
+		return;
+
+	d->id = cpu_to_be16(MHL_BURST_ID_BLK_RCV_BUFFER_INFO);
+	d->size = cpu_to_le16(size);
+}
+
+static void sii8620_burst_rx_all(struct sii8620 *ctx)
+{
+	u8 *d = ctx->burst.rx_buf;
+	int count = ctx->burst.rx_count;
+
+	while (count-- > 0) {
+		int len = *d++;
+		int id = get_unaligned_be16(&d[0]);
+
+		switch (id) {
+		case MHL_BURST_ID_BLK_RCV_BUFFER_INFO:
+			ctx->burst.r_size = get_unaligned_le16(&d[2]);
+			break;
+		default:
+			break;
+		}
+		count -= len;
+		d += len;
+	}
+	ctx->burst.rx_count = 0;
 }
 
 static void sii8620_fetch_edid(struct sii8620 *ctx)
@@ -1417,6 +1557,19 @@ static void sii8620_irq_coc(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_COC_INTR);
 
+	if (stat & BIT_COC_CALIBRATION_DONE) {
+		u8 cstat = sii8620_readb(ctx, REG_COC_STAT_0);
+
+		cstat &= BIT_COC_STAT_0_PLL_LOCKED | MSK_COC_STAT_0_FSM_STATE;
+		if (cstat == (BIT_COC_STAT_0_PLL_LOCKED | 0x02)) {
+			sii8620_write_seq_static(ctx,
+				REG_COC_CTLB, 0,
+				REG_TRXINTMH, BIT_TDM_INTR_SYNC_DATA
+					      | BIT_TDM_INTR_SYNC_WAIT
+			);
+		}
+	}
+
 	sii8620_write(ctx, REG_COC_INTR, stat);
 }
 
@@ -1507,6 +1660,41 @@ static void sii8620_irq_infr(struct sii8620 *ctx)
 		sii8620_start_video(ctx);
 }
 
+static void sii8620_irq_tdm(struct sii8620 *ctx)
+{
+	u8 stat = sii8620_readb(ctx, REG_TRXINTH);
+	u8 tdm = sii8620_readb(ctx, REG_TRXSTA2);
+
+	if ((tdm & MSK_TDM_SYNCHRONIZED) == VAL_TDM_SYNCHRONIZED) {
+		ctx->mode = CM_ECBUS_S;
+		ctx->burst.rx_ack = 0;
+		ctx->burst.r_size = SII8620_BURST_BUF_LEN;
+		sii8620_burst_tx_rbuf_info(ctx, SII8620_BURST_BUF_LEN);
+		sii8620_mt_read_devcap(ctx, true);
+	} else {
+		sii8620_write_seq_static(ctx,
+			REG_MHL_PLL_CTL2, 0,
+			REG_MHL_PLL_CTL2, BIT_MHL_PLL_CTL2_CLKDETECT_EN
+		);
+	}
+
+	sii8620_write(ctx, REG_TRXINTH, stat);
+}
+
+static void sii8620_irq_block(struct sii8620 *ctx)
+{
+	u8 stat = sii8620_readb(ctx, REG_EMSCINTR);
+
+	if (stat & BIT_EMSCINTR_SPI_DVLD) {
+		u8 bstat = sii8620_readb(ctx, REG_SPIBURSTSTAT);
+
+		if (bstat & BIT_SPIBURSTSTAT_EMSC_NORMAL_MODE)
+			sii8620_burst_receive(ctx);
+	}
+
+	sii8620_write(ctx, REG_EMSCINTR, stat);
+}
+
 /* endian agnostic, non-volatile version of test_bit */
 static bool sii8620_test_bit(unsigned int nr, const u8 *addr)
 {
@@ -1522,8 +1710,10 @@ static irqreturn_t sii8620_irq_thread(int irq, void *data)
 		{ BIT_FAST_INTR_STAT_DISC, sii8620_irq_disc },
 		{ BIT_FAST_INTR_STAT_G2WB, sii8620_irq_g2wb },
 		{ BIT_FAST_INTR_STAT_COC, sii8620_irq_coc },
+		{ BIT_FAST_INTR_STAT_TDM, sii8620_irq_tdm },
 		{ BIT_FAST_INTR_STAT_MSC, sii8620_irq_msc },
 		{ BIT_FAST_INTR_STAT_MERR, sii8620_irq_merr },
+		{ BIT_FAST_INTR_STAT_BLOCK, sii8620_irq_block },
 		{ BIT_FAST_INTR_STAT_EDID, sii8620_irq_edid },
 		{ BIT_FAST_INTR_STAT_SCDT, sii8620_irq_scdt },
 		{ BIT_FAST_INTR_STAT_INFR, sii8620_irq_infr },
@@ -1539,7 +1729,9 @@ static irqreturn_t sii8620_irq_thread(int irq, void *data)
 		if (sii8620_test_bit(irq_vec[i].bit, stats))
 			irq_vec[i].handler(ctx);
 
+	sii8620_burst_rx_all(ctx);
 	sii8620_mt_work(ctx);
+	sii8620_burst_send(ctx);
 
 	ret = sii8620_clear_error(ctx);
 	if (ret) {

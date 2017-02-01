@@ -403,12 +403,16 @@
 
 /* TDM RX Status 2nd, default value: 0x00 */
 #define REG_TRXSTA2				0x015c
+#define MSK_TDM_SYNCHRONIZED			0xc0
+#define VAL_TDM_SYNCHRONIZED			0x80
 
 /* TDM RX INT Low, default value: 0x00 */
 #define REG_TRXINTL				0x0163
 
 /* TDM RX INT High, default value: 0x00 */
 #define REG_TRXINTH				0x0164
+#define BIT_TDM_INTR_SYNC_DATA			BIT(0)
+#define BIT_TDM_INTR_SYNC_WAIT			BIT(1)
 
 /* TDM RX INTMASK High, default value: 0x00 */
 #define REG_TRXINTMH				0x0166
