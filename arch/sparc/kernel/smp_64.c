@@ -1443,6 +1443,7 @@ void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
 
 static void stop_this_cpu(void *dummy)
 {
+	set_cpu_online(smp_processor_id(), false);
 	prom_stopself();
 }
 
@@ -1454,6 +1455,8 @@ void smp_send_stop(void)
 		for_each_online_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;
+
+			set_cpu_online(cpu, false);
 #ifdef CONFIG_SUN_LDOMS
 			if (ldom_domaining_enabled) {
 				unsigned long hv_err;
