@@ -177,12 +177,19 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 {
 	int ret;
 	unsigned long clk_rate;
-	u8 tx_dly_val;
+	u8 tx_dly_val = 0;
 
 	switch (dwmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
+		/* TX clock delay in ns = "8ns / 4 * tx_dly_val" (where
+		 * 8ns are exactly one cycle of the 125MHz RGMII TX clock):
+		 * 0ns = 0x0, 2ns = 0x1, 4ns = 0x2, 6ns = 0x3
+		 */
+		tx_dly_val = dwmac->tx_delay_ns >> 1;
+		/* fall through */
+
+	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		/* Generate a 25MHz clock for the PHY */
 		clk_rate = 25 * 1000 * 1000;
@@ -195,11 +202,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
 					PRG_ETH0_INVERTED_RMII_CLK, 0);
 
-		/* TX clock delay in ns = "8ns / 4 * tx_dly_val" (where
-		 * 8ns are exactly one cycle of the 125MHz RGMII TX clock):
-		 * 0ns = 0x0, 2ns = 0x1, 4ns = 0x2, 6ns = 0x3
-		 */
-		tx_dly_val = dwmac->tx_delay_ns >> 1;
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_TXDLY_MASK,
 					tx_dly_val << PRG_ETH0_TXDLY_SHIFT);
 		break;
