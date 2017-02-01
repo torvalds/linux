@@ -580,6 +580,12 @@ config HID_MULTITOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
 
+config HID_NTI
+	tristate "NTI keyboard adapters"
+	---help---
+	Support for the "extra" Sun keyboard keys on keyboards attached
+	through Network Technologies USB-SUN keyboard adapters.
+
 config HID_NTRIG
 	tristate "N-Trig touch screen"
 	depends on USB_HID
