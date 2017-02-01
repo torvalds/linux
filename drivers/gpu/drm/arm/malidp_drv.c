@@ -34,6 +34,51 @@
 
 #define MALIDP_CONF_VALID_TIMEOUT	250
 
+static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
+				     u32 data[MALIDP_COEFFTAB_NUM_COEFFS])
+{
+	int i;
+	/* Update all channels with a single gamma curve. */
+	const u32 gamma_write_mask = GENMASK(18, 16);
+	/*
+	 * Always write an entire table, so the address field in
+	 * DE_COEFFTAB_ADDR is 0 and we can use the gamma_write_mask bitmask
+	 * directly.
+	 */
+	malidp_hw_write(hwdev, gamma_write_mask,
+			hwdev->map.coeffs_base + MALIDP_COEF_TABLE_ADDR);
+	for (i = 0; i < MALIDP_COEFFTAB_NUM_COEFFS; ++i)
+		malidp_hw_write(hwdev, data[i],
+				hwdev->map.coeffs_base +
+				MALIDP_COEF_TABLE_DATA);
+}
+
+static void malidp_atomic_commit_update_gamma(struct drm_crtc *crtc,
+					      struct drm_crtc_state *old_state)
+{
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
+
+	if (!crtc->state->color_mgmt_changed)
+		return;
+
+	if (!crtc->state->gamma_lut) {
+		malidp_hw_clearbits(hwdev,
+				    MALIDP_DISP_FUNC_GAMMA,
+				    MALIDP_DE_DISPLAY_FUNC);
+	} else {
+		struct malidp_crtc_state *mc =
+			to_malidp_crtc_state(crtc->state);
+
+		if (!old_state->gamma_lut || (crtc->state->gamma_lut->base.id !=
+					      old_state->gamma_lut->base.id))
+			malidp_write_gamma_table(hwdev, mc->gamma_coeffs);
+
+		malidp_hw_setbits(hwdev, MALIDP_DISP_FUNC_GAMMA,
+				  MALIDP_DE_DISPLAY_FUNC);
+	}
+}
+
 /*
  * set the "config valid" bit and wait until the hardware acts on it
  */
@@ -92,10 +137,16 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *drm = state->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
 
 	pm_runtime_get_sync(drm->dev);
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
+
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i)
+		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
 
 	drm_atomic_helper_commit_planes(drm, state, 0);
 

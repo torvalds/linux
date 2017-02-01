@@ -415,6 +415,7 @@ static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 	[MALIDP_500] = {
 		.map = {
+			.coeffs_base = MALIDP500_COEFFS_BASE,
 			.se_base = MALIDP500_SE_BASE,
 			.dc_base = MALIDP500_DC_BASE,
 			.out_depth_base = MALIDP500_OUTPUT_DEPTH,
@@ -451,6 +452,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 	},
 	[MALIDP_550] = {
 		.map = {
+			.coeffs_base = MALIDP550_COEFFS_BASE,
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
@@ -485,6 +487,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 	},
 	[MALIDP_650] = {
 		.map = {
+			.coeffs_base = MALIDP550_COEFFS_BASE,
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,

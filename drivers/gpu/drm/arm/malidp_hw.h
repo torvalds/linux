@@ -67,6 +67,8 @@ struct malidp_layer {
 struct malidp_hw_regmap {
 	/* address offset of the DE register bank */
 	/* is always 0x0000 */
+	/* address offset of the DE coefficients registers */
+	const u16 coeffs_base;
 	/* address offset of the SE registers bank */
 	const u16 se_base;
 	/* address offset of the DC registers bank */
@@ -256,5 +258,9 @@ static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
 #define MALIDP_BGND_COLOR_R		0x000
 #define MALIDP_BGND_COLOR_G		0x000
 #define MALIDP_BGND_COLOR_B		0x000
+
+#define MALIDP_COEFFTAB_NUM_COEFFS	64
+
+#define MALIDP_GAMMA_LUT_SIZE		4096
 
 #endif  /* __MALIDP_HW_H__ */

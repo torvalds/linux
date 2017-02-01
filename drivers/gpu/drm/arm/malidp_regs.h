@@ -63,6 +63,7 @@
 
 /* bit masks that are common between products */
 #define   MALIDP_CFG_VALID		(1 << 0)
+#define   MALIDP_DISP_FUNC_GAMMA	(1 << 0)
 #define   MALIDP_DISP_FUNC_ILACED	(1 << 8)
 
 /* register offsets for IRQ management */
@@ -99,6 +100,11 @@
 
 #define MALIDP_PRODUCT_ID(__core_id) ((u32)(__core_id) >> 16)
 
+/* register offsets relative to MALIDP5x0_COEFFS_BASE */
+#define MALIDP_COLOR_ADJ_COEF		0x00000
+#define MALIDP_COEF_TABLE_ADDR		0x00030
+#define MALIDP_COEF_TABLE_DATA		0x00034
+
 /* register offsets and bits specific to DP500 */
 #define MALIDP500_ADDR_SPACE_SIZE	0x01000
 #define MALIDP500_DC_BASE		0x00000
@@ -120,6 +126,18 @@
 #define MALIDP500_COLOR_ADJ_COEF	0x00078
 #define MALIDP500_COEF_TABLE_ADDR	0x000a8
 #define MALIDP500_COEF_TABLE_DATA	0x000ac
+
+/*
+ * The YUV2RGB coefficients on the DP500 are not in the video layer's register
+ * block. They belong in a separate block above the layer's registers, hence
+ * the negative offset.
+ */
+#define MALIDP500_LV_YUV2RGB		((s16)(-0xB8))
+/*
+ * To match DP550/650, the start of the coeffs registers is
+ * at COLORADJ_COEFF0 instead of at YUV_RGB_COEF1.
+ */
+#define MALIDP500_COEFFS_BASE		0x00078
 #define MALIDP500_DE_LV_BASE		0x00100
 #define MALIDP500_DE_LV_PTR_BASE	0x00124
 #define MALIDP500_DE_LG1_BASE		0x00200
@@ -145,9 +163,7 @@
 #define MALIDP550_DE_DISP_SIDEBAND	0x00040
 #define MALIDP550_DE_BGND_COLOR		0x00044
 #define MALIDP550_DE_OUTPUT_DEPTH	0x0004c
-#define MALIDP550_DE_COLOR_COEF		0x00050
-#define MALIDP550_DE_COEF_TABLE_ADDR	0x00080
-#define MALIDP550_DE_COEF_TABLE_DATA	0x00084
+#define MALIDP550_COEFFS_BASE		0x00050
 #define MALIDP550_DE_LV1_BASE		0x00100
 #define MALIDP550_DE_LV1_PTR_BASE	0x00124
 #define MALIDP550_DE_LV2_BASE		0x00200
