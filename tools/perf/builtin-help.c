@@ -447,11 +447,13 @@ int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	const char *alias;
-	int rc = 0;
+	int rc;
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
-	perf_config(perf_help_config, &help_format);
+	rc = perf_config(perf_help_config, &help_format);
+	if (rc)
+		return rc;
 
 	argc = parse_options_subcommand(argc, argv, builtin_help_options,
 			builtin_help_subcommands, builtin_help_usage, 0);

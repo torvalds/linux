@@ -85,7 +85,7 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
-int rm_rf(char *path)
+int rm_rf(const char *path)
 {
 	DIR *dir;
 	int ret = 0;

@@ -4,6 +4,7 @@
  * Copyright (C) 2013-2015 Alexei Starovoitov <ast@kernel.org>
  * Copyright (C) 2015 Wang Nan <wangnan0@huawei.com>
  * Copyright (C) 2015 Huawei Inc.
+ * Copyright (C) 2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <libgen.h>
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
@@ -32,6 +34,10 @@
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/list.h>
+#include <linux/limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/vfs.h>
 #include <libelf.h>
 #include <gelf.h>
 
@@ -40,6 +46,10 @@
 
 #ifndef EM_BPF
 #define EM_BPF 247
+#endif
+
+#ifndef BPF_FS_MAGIC
+#define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
@@ -1235,6 +1245,191 @@ out:
 	bpf_object__unload(obj);
 	pr_warning("failed to load object '%s'\n", obj->path);
 	return err;
+}
+
+static int check_path(const char *path)
+{
+	struct statfs st_fs;
+	char *dname, *dir;
+	int err = 0;
+
+	if (path == NULL)
+		return -EINVAL;
+
+	dname = strdup(path);
+	if (dname == NULL)
+		return -ENOMEM;
+
+	dir = dirname(dname);
+	if (statfs(dir, &st_fs)) {
+		pr_warning("failed to statfs %s: %s\n", dir, strerror(errno));
+		err = -errno;
+	}
+	free(dname);
+
+	if (!err && st_fs.f_type != BPF_FS_MAGIC) {
+		pr_warning("specified path %s is not on BPF FS\n", path);
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
+int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
+			      int instance)
+{
+	int err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (prog == NULL) {
+		pr_warning("invalid program pointer\n");
+		return -EINVAL;
+	}
+
+	if (instance < 0 || instance >= prog->instances.nr) {
+		pr_warning("invalid prog instance %d of prog %s (max %d)\n",
+			   instance, prog->section_name, prog->instances.nr);
+		return -EINVAL;
+	}
+
+	if (bpf_obj_pin(prog->instances.fds[instance], path)) {
+		pr_warning("failed to pin program: %s\n", strerror(errno));
+		return -errno;
+	}
+	pr_debug("pinned program '%s'\n", path);
+
+	return 0;
+}
+
+static int make_dir(const char *path)
+{
+	int err = 0;
+
+	if (mkdir(path, 0700) && errno != EEXIST)
+		err = -errno;
+
+	if (err)
+		pr_warning("failed to mkdir %s: %s\n", path, strerror(-err));
+	return err;
+}
+
+int bpf_program__pin(struct bpf_program *prog, const char *path)
+{
+	int i, err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (prog == NULL) {
+		pr_warning("invalid program pointer\n");
+		return -EINVAL;
+	}
+
+	if (prog->instances.nr <= 0) {
+		pr_warning("no instances of prog %s to pin\n",
+			   prog->section_name);
+		return -EINVAL;
+	}
+
+	err = make_dir(path);
+	if (err)
+		return err;
+
+	for (i = 0; i < prog->instances.nr; i++) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%d", path, i);
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_program__pin_instance(prog, buf, i);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int bpf_map__pin(struct bpf_map *map, const char *path)
+{
+	int err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (map == NULL) {
+		pr_warning("invalid map pointer\n");
+		return -EINVAL;
+	}
+
+	if (bpf_obj_pin(map->fd, path)) {
+		pr_warning("failed to pin map: %s\n", strerror(errno));
+		return -errno;
+	}
+
+	pr_debug("pinned map '%s'\n", path);
+	return 0;
+}
+
+int bpf_object__pin(struct bpf_object *obj, const char *path)
+{
+	struct bpf_program *prog;
+	struct bpf_map *map;
+	int err;
+
+	if (!obj)
+		return -ENOENT;
+
+	if (!obj->loaded) {
+		pr_warning("object not yet loaded; load it first\n");
+		return -ENOENT;
+	}
+
+	err = make_dir(path);
+	if (err)
+		return err;
+
+	bpf_map__for_each(map, obj) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%s", path,
+			       bpf_map__name(map));
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_map__pin(map, buf);
+		if (err)
+			return err;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%s", path,
+			       prog->section_name);
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_program__pin(prog, buf);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 void bpf_object__close(struct bpf_object *obj)

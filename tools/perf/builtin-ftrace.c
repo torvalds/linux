@@ -17,6 +17,7 @@
 #include "evlist.h"
 #include "target.h"
 #include "thread_map.h"
+#include "util/config.h"
 
 
 #define DEFAULT_TRACER  "function_graph"
@@ -198,11 +199,31 @@ out:
 	return done ? 0 : -1;
 }
 
+static int perf_ftrace_config(const char *var, const char *value, void *cb)
+{
+	struct perf_ftrace *ftrace = cb;
+
+	if (prefixcmp(var, "ftrace."))
+		return 0;
+
+	if (strcmp(var, "ftrace.tracer"))
+		return -1;
+
+	if (!strcmp(value, "function_graph") ||
+	    !strcmp(value, "function")) {
+		ftrace->tracer = value;
+		return 0;
+	}
+
+	pr_err("Please select \"function_graph\" (default) or \"function\"\n");
+	return -1;
+}
+
 int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int ret;
 	struct perf_ftrace ftrace = {
-		.tracer = "function_graph",
+		.tracer = DEFAULT_TRACER,
 		.target = { .uid = UINT_MAX, },
 	};
 	const char * const ftrace_usage[] = {
@@ -218,6 +239,10 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 
+	ret = perf_config(perf_ftrace_config, &ftrace);
+	if (ret < 0)
+		return -1;
+
 	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
@@ -230,9 +255,6 @@ int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
 	ret = perf_evlist__create_maps(ftrace.evlist, &ftrace.target);
 	if (ret < 0)
 		goto out_delete_evlist;
-
-	if (ftrace.tracer == NULL)
-		ftrace.tracer = DEFAULT_TRACER;
 
 	ret = __cmd_ftrace(&ftrace, argc, argv);
 

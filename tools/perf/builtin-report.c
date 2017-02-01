@@ -847,7 +847,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (ret < 0)
 		return ret;
 
-	perf_config(report__config, &report);
+	ret = perf_config(report__config, &report);
+	if (ret)
+		return ret;
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 	if (argc) {

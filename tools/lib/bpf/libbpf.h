@@ -65,6 +65,7 @@ struct bpf_object *bpf_object__open(const char *path);
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 					   size_t obj_buf_sz,
 					   const char *name);
+int bpf_object__pin(struct bpf_object *object, const char *path);
 void bpf_object__close(struct bpf_object *object);
 
 /* Load/unload object into/from kernel */
@@ -106,6 +107,9 @@ void *bpf_program__priv(struct bpf_program *prog);
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__fd(struct bpf_program *prog);
+int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
+			      int instance);
+int bpf_program__pin(struct bpf_program *prog, const char *path);
 
 struct bpf_insn;
 
@@ -233,6 +237,7 @@ typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,
 		      bpf_map_clear_priv_t clear_priv);
 void *bpf_map__priv(struct bpf_map *map);
+int bpf_map__pin(struct bpf_map *map, const char *path);
 
 long libbpf_get_error(const void *ptr);
 
