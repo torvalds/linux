@@ -647,6 +647,9 @@ ssize_t lirc_dev_fop_read(struct file *file,
 		return -ENODEV;
 	}
 
+	if (!LIRC_CAN_REC(ir->d.features))
+		return -EINVAL;
+
 	dev_dbg(ir->d.dev, LOGHEAD "read called\n", ir->d.name, ir->d.minor);
 
 	buf = kzalloc(ir->chunk_size, GFP_KERNEL);
