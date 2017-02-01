@@ -145,7 +145,6 @@ static struct drm_driver vc4_drm_driver = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = vc4_debugfs_init,
-	.debugfs_cleanup = vc4_debugfs_cleanup,
 #endif
 
 	.gem_create_object = vc4_create_object,

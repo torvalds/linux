@@ -1732,7 +1732,9 @@ found:
 		 * VESA DisplayPort Ver.1.2a - 5.1.1.1 Video Colorimetry
 		 */
 		pipe_config->limited_color_range =
-			bpp != 18 && drm_match_cea_mode(adjusted_mode) > 1;
+			bpp != 18 &&
+			drm_default_rgb_quant_range(adjusted_mode) ==
+			HDMI_QUANTIZATION_RANGE_LIMITED;
 	} else {
 		pipe_config->limited_color_range =
 			intel_dp->limited_color_range;

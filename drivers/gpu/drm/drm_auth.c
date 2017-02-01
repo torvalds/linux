@@ -40,8 +40,8 @@
  * least once successfully became the device master (either through the
  * SET_MASTER IOCTL, or implicitly through opening the primary device node when
  * no one else is the current master that time) there exists one &drm_master.
- * This is noted in the is_master member of &drm_file. All other clients have
- * just a pointer to the &drm_master they are associated with.
+ * This is noted in &drm_file.is_master. All other clients have just a pointer
+ * to the &drm_master they are associated with.
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or

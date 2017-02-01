@@ -1389,8 +1389,12 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			continue;
 
 		/* log dropped samples number */
-		if (error[bit])
+		if (error[bit]) {
 			perf_log_lost_samples(event, error[bit]);
+
+			if (perf_event_account_interrupt(event))
+				x86_pmu_stop(event, 0);
+		}
 
 		if (counts[bit]) {
 			__intel_pmu_pebs_event(event, iregs, base,

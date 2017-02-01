@@ -39,9 +39,9 @@
  *
  * This helper library has two parts. The first part has support to implement
  * primary plane support on top of the normal CRTC configuration interface.
- * Since the legacy ->set_config interface ties the primary plane together with
- * the CRTC state this does not allow userspace to disable the primary plane
- * itself.  To avoid too much duplicated code use
+ * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
+ * plane together with the CRTC state this does not allow userspace to disable
+ * the primary plane itself.  To avoid too much duplicated code use
  * drm_plane_helper_check_update() which can be used to enforce the same
  * restrictions as primary planes had thus. The default primary plane only
  * expose XRBG8888 and ARGB8888 as valid pixel formats for the attached
@@ -384,7 +384,8 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * is called in response to a userspace SetPlane operation on the plane with a
  * NULL framebuffer parameter.  It unconditionally fails the disable call with
  * -EINVAL the only way to disable the primary plane without driver support is
- * to disable the entier CRTC. Which does not match the plane ->disable hook.
+ * to disable the entire CRTC. Which does not match the plane
+ * &drm_plane_funcs.disable_plane hook.
  *
  * Note that some hardware may be able to disable the primary plane without
  * disabling the whole CRTC.  Drivers for such hardware should provide their

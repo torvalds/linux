@@ -731,11 +731,6 @@ int drm_noop(struct drm_device *dev, void *data,
 int drm_invalid_op(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv);
 
-/* Cache management (drm_cache.c) */
-void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
-void drm_clflush_sg(struct sg_table *st);
-void drm_clflush_virt_range(void *addr, unsigned long length);
-
 /*
  * These are exported to drivers so that they can implement fencing using
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
@@ -794,21 +789,6 @@ extern void drm_sysfs_hotplug_event(struct drm_device *dev);
 
 
 /*@}*/
-
-/* PCI section */
-static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
-{
-	if (dev->driver->device_is_agp != NULL) {
-		int err = (*dev->driver->device_is_agp) (dev);
-
-		if (err != 2) {
-			return err;
-		}
-	}
-
-	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
-}
-void drm_pci_agp_destroy(struct drm_device *dev);
 
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);

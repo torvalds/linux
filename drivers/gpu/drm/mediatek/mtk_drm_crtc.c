@@ -170,8 +170,8 @@ static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct mtk_drm_private *priv = drm->dev_private;
-	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
 	mtk_ddp_comp_enable_vblank(ovl, &mtk_crtc->base);
@@ -181,8 +181,8 @@ int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
 
 void mtk_drm_crtc_disable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct mtk_drm_private *priv = drm->dev_private;
-	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
 	mtk_ddp_comp_disable_vblank(ovl);
@@ -588,7 +588,6 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		goto unprepare;
 	drm_mode_crtc_set_gamma_size(&mtk_crtc->base, MTK_LUT_SIZE);
 	drm_crtc_enable_color_mgmt(&mtk_crtc->base, 0, false, MTK_LUT_SIZE);
-	priv->crtc[pipe] = &mtk_crtc->base;
 	priv->num_pipes++;
 
 	return 0;

@@ -63,7 +63,7 @@ struct drm_gem_object {
 	 * drops to 0 any global names (e.g. the id in the flink namespace) will
 	 * be cleared.
 	 *
-	 * Protected by dev->object_name_lock.
+	 * Protected by &drm_device.object_name_lock.
 	 */
 	unsigned handle_count;
 
@@ -106,8 +106,8 @@ struct drm_gem_object {
 	 * @name:
 	 *
 	 * Global name for this object, starts at 1. 0 means unnamed.
-	 * Access is covered by dev->object_name_lock. This is used by the GEM_FLINK
-	 * and GEM_OPEN ioctls.
+	 * Access is covered by &drm_device.object_name_lock. This is used by
+	 * the GEM_FLINK and GEM_OPEN ioctls.
 	 */
 	int name;
 
@@ -150,7 +150,7 @@ struct drm_gem_object {
 	 * through importing or exporting). We break the resulting reference
 	 * loop when the last gem handle for this object is released.
 	 *
-	 * Protected by obj->object_name_lock.
+	 * Protected by &drm_device.object_name_lock.
 	 */
 	struct dma_buf *dma_buf;
 
@@ -163,7 +163,7 @@ struct drm_gem_object {
 	 * attachment point for the device. This is invariant over the lifetime
 	 * of a gem object.
 	 *
-	 * The driver's ->gem_free_object callback is responsible for cleaning
+	 * The &drm_driver.gem_free_object callback is responsible for cleaning
 	 * up the dma_buf attachment and references acquired at import time.
 	 *
 	 * Note that the drm gem/prime core does not depend upon drivers setting
@@ -204,7 +204,7 @@ drm_gem_object_reference(struct drm_gem_object *obj)
  * @obj: GEM buffer object
  *
  * This function is meant to be used by drivers which are not encumbered with
- * dev->struct_mutex legacy locking and which are using the
+ * &drm_device.struct_mutex legacy locking and which are using the
  * gem_free_object_unlocked callback. It avoids all the locking checks and
  * locking overhead of drm_gem_object_unreference() and
  * drm_gem_object_unreference_unlocked().
@@ -212,8 +212,8 @@ drm_gem_object_reference(struct drm_gem_object *obj)
  * Drivers should never call this directly in their code. Instead they should
  * wrap it up into a ``driver_gem_object_unreference(struct driver_gem_object
  * *obj)`` wrapper function, and use that. Shared code should never call this, to
- * avoid breaking drivers by accident which still depend upon dev->struct_mutex
- * locking.
+ * avoid breaking drivers by accident which still depend upon
+ * &drm_device.struct_mutex locking.
  */
 static inline void
 __drm_gem_object_unreference(struct drm_gem_object *obj)

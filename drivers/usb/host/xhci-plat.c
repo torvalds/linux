@@ -165,7 +165,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Try to set 64-bit DMA first */
-	if (WARN_ON(!pdev->dev.dma_mask))
+	if (!pdev->dev.dma_mask)
 		/* Platform did not initialize dma_mask */
 		ret = dma_coerce_mask_and_coherent(&pdev->dev,
 						   DMA_BIT_MASK(64));

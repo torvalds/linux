@@ -1730,7 +1730,7 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 	u8 checksum = CHECKSUM_NONE;
 	u32 opts2, opts3;
 
-	if (tp->version == RTL_VER_01 || tp->version == RTL_VER_02)
+	if (!(tp->netdev->features & NETIF_F_RXCSUM))
 		goto return_result;
 
 	opts2 = le32_to_cpu(rx_desc->opts2);
@@ -3576,39 +3576,87 @@ static bool delay_autosuspend(struct r8152 *tp)
 		return false;
 }
 
-static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
+static int rtl8152_rumtime_suspend(struct r8152 *tp)
 {
-	struct r8152 *tp = usb_get_intfdata(intf);
 	struct net_device *netdev = tp->netdev;
 	int ret = 0;
 
-	mutex_lock(&tp->control);
+	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
+		u32 rcr = 0;
 
-	if (PMSG_IS_AUTO(message)) {
-		if (netif_running(netdev) && delay_autosuspend(tp)) {
+		if (delay_autosuspend(tp)) {
 			ret = -EBUSY;
 			goto out1;
 		}
 
-		set_bit(SELECTIVE_SUSPEND, &tp->flags);
-	} else {
-		netif_device_detach(netdev);
+		if (netif_carrier_ok(netdev)) {
+			u32 ocp_data;
+
+			rcr = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
+			ocp_data = rcr & ~RCR_ACPT_ALL;
+			ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
+			rxdy_gated_en(tp, true);
+			ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA,
+						 PLA_OOB_CTRL);
+			if (!(ocp_data & RXFIFO_EMPTY)) {
+				rxdy_gated_en(tp, false);
+				ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, rcr);
+				ret = -EBUSY;
+				goto out1;
+			}
+		}
+
+		clear_bit(WORK_ENABLE, &tp->flags);
+		usb_kill_urb(tp->intr_urb);
+
+		tp->rtl_ops.autosuspend_en(tp, true);
+
+		if (netif_carrier_ok(netdev)) {
+			napi_disable(&tp->napi);
+			rtl_stop_rx(tp);
+			rxdy_gated_en(tp, false);
+			ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, rcr);
+			napi_enable(&tp->napi);
+		}
 	}
+
+	set_bit(SELECTIVE_SUSPEND, &tp->flags);
+
+out1:
+	return ret;
+}
+
+static int rtl8152_system_suspend(struct r8152 *tp)
+{
+	struct net_device *netdev = tp->netdev;
+	int ret = 0;
+
+	netif_device_detach(netdev);
 
 	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		napi_disable(&tp->napi);
-		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-			rtl_stop_rx(tp);
-			tp->rtl_ops.autosuspend_en(tp, true);
-		} else {
-			cancel_delayed_work_sync(&tp->schedule);
-			tp->rtl_ops.down(tp);
-		}
+		cancel_delayed_work_sync(&tp->schedule);
+		tp->rtl_ops.down(tp);
 		napi_enable(&tp->napi);
 	}
-out1:
+
+	return ret;
+}
+
+static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct r8152 *tp = usb_get_intfdata(intf);
+	int ret;
+
+	mutex_lock(&tp->control);
+
+	if (PMSG_IS_AUTO(message))
+		ret = rtl8152_rumtime_suspend(tp);
+	else
+		ret = rtl8152_system_suspend(tp);
+
 	mutex_unlock(&tp->control);
 
 	return ret;
@@ -4307,6 +4355,11 @@ static int rtl8152_probe(struct usb_interface *intf,
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 				NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
 				NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+
+	if (tp->version == RTL_VER_01) {
+		netdev->features &= ~NETIF_F_RXCSUM;
+		netdev->hw_features &= ~NETIF_F_RXCSUM;
+	}
 
 	netdev->ethtool_ops = &ops;
 	netif_set_gso_max_size(netdev, RTL_LIMITED_TSO_SIZE);

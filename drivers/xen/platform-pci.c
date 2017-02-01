@@ -42,6 +42,7 @@
 static unsigned long platform_mmio;
 static unsigned long platform_mmio_alloc;
 static unsigned long platform_mmiolen;
+static uint64_t callback_via;
 
 static unsigned long alloc_xen_mmio(unsigned long len)
 {
@@ -52,6 +53,51 @@ static unsigned long alloc_xen_mmio(unsigned long len)
 	BUG_ON(platform_mmio_alloc > platform_mmiolen);
 
 	return addr;
+}
+
+static uint64_t get_callback_via(struct pci_dev *pdev)
+{
+	u8 pin;
+	int irq;
+
+	irq = pdev->irq;
+	if (irq < 16)
+		return irq; /* ISA IRQ */
+
+	pin = pdev->pin;
+
+	/* We don't know the GSI. Specify the PCI INTx line instead. */
+	return ((uint64_t)0x01 << HVM_CALLBACK_VIA_TYPE_SHIFT) | /* PCI INTx identifier */
+		((uint64_t)pci_domain_nr(pdev->bus) << 32) |
+		((uint64_t)pdev->bus->number << 16) |
+		((uint64_t)(pdev->devfn & 0xff) << 8) |
+		((uint64_t)(pin - 1) & 3);
+}
+
+static irqreturn_t do_hvm_evtchn_intr(int irq, void *dev_id)
+{
+	xen_hvm_evtchn_do_upcall();
+	return IRQ_HANDLED;
+}
+
+static int xen_allocate_irq(struct pci_dev *pdev)
+{
+	return request_irq(pdev->irq, do_hvm_evtchn_intr,
+			IRQF_NOBALANCING | IRQF_TRIGGER_RISING,
+			"xen-platform-pci", pdev);
+}
+
+static int platform_pci_resume(struct pci_dev *pdev)
+{
+	int err;
+	if (!xen_pv_domain())
+		return 0;
+	err = xen_set_callback_via(callback_via);
+	if (err) {
+		dev_err(&pdev->dev, "platform_pci_resume failure!\n");
+		return err;
+	}
+	return 0;
 }
 
 static int platform_pci_probe(struct pci_dev *pdev,
@@ -92,6 +138,28 @@ static int platform_pci_probe(struct pci_dev *pdev,
 	platform_mmio = mmio_addr;
 	platform_mmiolen = mmio_len;
 
+	/* 
+	 * Xen HVM guests always use the vector callback mechanism.
+	 * L1 Dom0 in a nested Xen environment is a PV guest inside in an
+	 * HVM environment. It needs the platform-pci driver to get
+	 * notifications from L0 Xen, but it cannot use the vector callback
+	 * as it is not exported by L1 Xen.
+	 */
+	if (xen_pv_domain()) {
+		ret = xen_allocate_irq(pdev);
+		if (ret) {
+			dev_warn(&pdev->dev, "request_irq failed err=%d\n", ret);
+			goto out;
+		}
+		callback_via = get_callback_via(pdev);
+		ret = xen_set_callback_via(callback_via);
+		if (ret) {
+			dev_warn(&pdev->dev, "Unable to set the evtchn callback "
+					 "err=%d\n", ret);
+			goto out;
+		}
+	}
+
 	max_nr_gframes = gnttab_max_grant_frames();
 	grant_frames = alloc_xen_mmio(PAGE_SIZE * max_nr_gframes);
 	ret = gnttab_setup_auto_xlat_frames(grant_frames);
@@ -123,6 +191,9 @@ static struct pci_driver platform_driver = {
 	.name =           DRV_NAME,
 	.probe =          platform_pci_probe,
 	.id_table =       platform_pci_tbl,
+#ifdef CONFIG_PM
+	.resume_early =   platform_pci_resume,
+#endif
 };
 
 builtin_pci_driver(platform_driver);

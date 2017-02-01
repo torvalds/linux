@@ -453,8 +453,8 @@ int rpmsg_register_device(struct rpmsg_device *rpdev)
 	struct device *dev = &rpdev->dev;
 	int ret;
 
-	dev_set_name(&rpdev->dev, "%s:%s",
-		     dev_name(dev->parent), rpdev->id.name);
+	dev_set_name(&rpdev->dev, "%s.%s.%d.%d", dev_name(dev->parent),
+		     rpdev->id.name, rpdev->src, rpdev->dst);
 
 	rpdev->dev.bus = &rpmsg_bus;
 	rpdev->dev.release = rpmsg_release_device;

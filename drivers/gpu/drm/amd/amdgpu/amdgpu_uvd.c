@@ -65,6 +65,7 @@
 #define FIRMWARE_STONEY		"amdgpu/stoney_uvd.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_uvd.bin"
 #define FIRMWARE_POLARIS11	"amdgpu/polaris11_uvd.bin"
+#define FIRMWARE_POLARIS12	"amdgpu/polaris12_uvd.bin"
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context
@@ -98,6 +99,7 @@ MODULE_FIRMWARE(FIRMWARE_FIJI);
 MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
+MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
@@ -148,6 +150,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
+		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
 		break;
 	default:
 		return -EINVAL;
@@ -971,7 +976,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 		job->fence = dma_fence_get(f);
 		if (r)
 			goto err_free;
@@ -1172,4 +1177,29 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 error:
 	return r;
+}
+
+/**
+ * amdgpu_uvd_used_handles - returns used UVD handles
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns the number of UVD handles in use
+ */
+uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
+{
+	unsigned i;
+	uint32_t used_handles = 0;
+
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
+		/*
+		 * Handles can be freed in any order, and not
+		 * necessarily linear. So we need to count
+		 * all non-zero handles.
+		 */
+		if (atomic_read(&adev->uvd.handles[i]))
+			used_handles++;
+	}
+
+	return used_handles;
 }

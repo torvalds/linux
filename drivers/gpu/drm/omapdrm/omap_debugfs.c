@@ -123,13 +123,4 @@ int omap_debugfs_init(struct drm_minor *minor)
 	return ret;
 }
 
-void omap_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(omap_debugfs_list,
-			ARRAY_SIZE(omap_debugfs_list), minor);
-	if (dmm_is_available())
-		drm_debugfs_remove_files(omap_dmm_debugfs_list,
-				ARRAY_SIZE(omap_dmm_debugfs_list), minor);
-}
-
 #endif

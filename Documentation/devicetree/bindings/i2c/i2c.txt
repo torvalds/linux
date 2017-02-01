@@ -62,6 +62,9 @@ wants to support one of the below features, it should adapt the bindings below.
 	"irq" and "wakeup" names are recognized by I2C core, other names are
 	left to individual drivers.
 
+- host-notify
+	device uses SMBus host notify protocol instead of interrupt line.
+
 - multi-master
 	states that there is another master active on this bus. The OS can use
 	this information to adapt power management to keep the arbitration awake
@@ -80,6 +83,11 @@ wants to support one of the below features, it should adapt the bindings below.
 Binding may contain optional "interrupts" property, describing interrupts
 used by the device. I2C core will assign "irq" interrupt (or the very first
 interrupt if not using interrupt names) as primary interrupt for the slave.
+
+Alternatively, devices supporting SMbus Host Notify, and connected to
+adapters that support this feature, may use "host-notify" property. I2C
+core will create a virtual interrupt for Host Notify and assign it as
+primary interrupt for the slave.
 
 Also, if device is marked as a wakeup source, I2C core will set up "wakeup"
 interrupt for the device. If "wakeup" interrupt name is not present in the

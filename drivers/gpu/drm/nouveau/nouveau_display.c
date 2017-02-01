@@ -58,27 +58,30 @@ int
 nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
-			nvif_notify_get(&nv_crtc->vblank);
-			return 0;
-		}
-	}
-	return -EINVAL;
+	struct nouveau_crtc *nv_crtc;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+	if (!crtc)
+		return -EINVAL;
+
+	nv_crtc = nouveau_crtc(crtc);
+	nvif_notify_get(&nv_crtc->vblank);
+
+	return 0;
 }
 
 void
 nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
-			nvif_notify_put(&nv_crtc->vblank);
-			return;
-		}
-	}
+	struct nouveau_crtc *nv_crtc;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+	if (!crtc)
+		return;
+
+	nv_crtc = nouveau_crtc(crtc);
+	nvif_notify_put(&nv_crtc->vblank);
 }
 
 static inline int

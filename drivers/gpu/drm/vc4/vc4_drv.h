@@ -16,7 +16,6 @@ struct vc4_dev {
 
 	struct vc4_hdmi *hdmi;
 	struct vc4_hvs *hvs;
-	struct vc4_crtc *crtc[3];
 	struct vc4_v3d *v3d;
 	struct vc4_dpi *dpi;
 	struct vc4_vec *vec;
@@ -458,7 +457,6 @@ int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
-void vc4_debugfs_cleanup(struct drm_minor *minor);
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);

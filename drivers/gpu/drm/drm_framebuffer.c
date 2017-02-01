@@ -58,8 +58,8 @@
  * fbdev framebuffer when the struct &struct drm_framebuffer is embedded into
  * the fbdev helper struct) drivers can manually clean up a framebuffer at
  * module unload time with drm_framebuffer_unregister_private(). But doing this
- * is not recommended, and it's better to have a normal free-standing struct
- * &drm_framebuffer.
+ * is not recommended, and it's better to have a normal free-standing &struct
+ * drm_framebuffer.
  */
 
 int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
@@ -470,7 +470,7 @@ int drm_mode_getfb(struct drm_device *dev,
  * usb display-link, mipi manual update panels or edp panel self refresh modes.
  *
  * Modesetting drivers which always update the frontbuffer do not need to
- * implement the corresponding ->dirty framebuffer callback.
+ * implement the corresponding &drm_framebuffer_funcs.dirty callback.
  *
  * Called by the user via ioctl.
  *
@@ -709,10 +709,10 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  * @fb: framebuffer to remove
  *
  * Cleanup framebuffer. This function is intended to be used from the drivers
- * ->destroy callback. It can also be used to clean up driver private
- * framebuffers embedded into a larger structure.
+ * &drm_framebuffer_funcs.destroy callback. It can also be used to clean up
+ * driver private framebuffers embedded into a larger structure.
  *
- * Note that this function does not remove the fb from active usuage - if it is
+ * Note that this function does not remove the fb from active usage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on
  * the id and get back -EINVAL. Obviously no concern at driver unload time.
  *

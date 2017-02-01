@@ -1,6 +1,6 @@
 config QEDI
 	tristate "QLogic QEDI 25/40/100Gb iSCSI Initiator Driver Support"
-	depends on PCI && SCSI
+	depends on PCI && SCSI && UIO
 	depends on QED
 	select SCSI_ISCSI_ATTRS
 	select QED_LL2

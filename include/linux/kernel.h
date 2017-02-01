@@ -514,8 +514,8 @@ extern enum system_states {
 #define TAINT_FLAGS_COUNT		16
 
 struct taint_flag {
-	char true;	/* character printed when tainted */
-	char false;	/* character printed when not tainted */
+	char c_true;	/* character printed when tainted */
+	char c_false;	/* character printed when not tainted */
 	bool module;	/* also show as a per-module taint flag */
 };
 

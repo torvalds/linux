@@ -580,7 +580,7 @@ EXPORT_SYMBOL(drm_poll);
  * kmalloc and @p must be the first member element.
  *
  * This is the locked version of drm_event_reserve_init() for callers which
- * already hold dev->event_lock.
+ * already hold &drm_device.event_lock.
  *
  * RETURNS:
  *
@@ -621,7 +621,7 @@ EXPORT_SYMBOL(drm_event_reserve_init_locked);
  * If callers embedded @p into a larger structure it must be allocated with
  * kmalloc and @p must be the first member element.
  *
- * Callers which already hold dev->event_lock should use
+ * Callers which already hold &drm_device.event_lock should use
  * drm_event_reserve_init_locked() instead.
  *
  * RETURNS:
@@ -677,7 +677,7 @@ EXPORT_SYMBOL(drm_event_cancel_free);
  *
  * This function sends the event @e, initialized with drm_event_reserve_init(),
  * to its associated userspace DRM file. Callers must already hold
- * dev->event_lock, see drm_send_event() for the unlocked version.
+ * &drm_device.event_lock, see drm_send_event() for the unlocked version.
  *
  * Note that the core will take care of unlinking and disarming events when the
  * corresponding DRM file is closed. Drivers need not worry about whether the
@@ -717,8 +717,9 @@ EXPORT_SYMBOL(drm_send_event_locked);
  * @e: DRM event to deliver
  *
  * This function sends the event @e, initialized with drm_event_reserve_init(),
- * to its associated userspace DRM file. This function acquires dev->event_lock,
- * see drm_send_event_locked() for callers which already hold this lock.
+ * to its associated userspace DRM file. This function acquires
+ * &drm_device.event_lock, see drm_send_event_locked() for callers which already
+ * hold this lock.
  *
  * Note that the core will take care of unlinking and disarming events when the
  * corresponding DRM file is closed. Drivers need not worry about whether the

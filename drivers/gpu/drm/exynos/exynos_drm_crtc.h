@@ -40,8 +40,4 @@ int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
  */
 void exynos_drm_crtc_te_handler(struct drm_crtc *crtc);
 
-/* This function cancels a page flip request. */
-void exynos_drm_crtc_cancel_page_flip(struct drm_crtc *crtc,
-					struct drm_file *file);
-
 #endif

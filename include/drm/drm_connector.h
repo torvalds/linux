@@ -331,15 +331,15 @@ struct drm_connector_funcs {
 	 *
 	 * Entry point for output detection and basic mode validation. The
 	 * driver should reprobe the output if needed (e.g. when hotplug
-	 * handling is unreliable), add all detected modes to connector->modes
+	 * handling is unreliable), add all detected modes to &drm_connector.modes
 	 * and filter out any the device can't support in any configuration. It
 	 * also needs to filter out any modes wider or higher than the
 	 * parameters max_width and max_height indicate.
 	 *
 	 * The drivers must also prune any modes no longer valid from
-	 * connector->modes. Furthermore it must update connector->status and
-	 * connector->edid.  If no EDID has been received for this output
-	 * connector->edid must be NULL.
+	 * &drm_connector.modes. Furthermore it must update
+	 * &drm_connector.status and &drm_connector.edid.  If no EDID has been
+	 * received for this output connector->edid must be NULL.
 	 *
 	 * Drivers using the probe helpers should use
 	 * drm_helper_probe_single_connector_modes() or
@@ -348,7 +348,7 @@ struct drm_connector_funcs {
 	 *
 	 * RETURNS:
 	 *
-	 * The number of modes detected and filled into connector->modes.
+	 * The number of modes detected and filled into &drm_connector.modes.
 	 */
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 
@@ -381,7 +381,7 @@ struct drm_connector_funcs {
 	 * core drm connector interfaces. Everything added from this callback
 	 * should be unregistered in the early_unregister callback.
 	 *
-	 * This is called while holding drm_connector->mutex.
+	 * This is called while holding &drm_connector.mutex.
 	 *
 	 * Returns:
 	 *
@@ -398,7 +398,7 @@ struct drm_connector_funcs {
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
 	 *
-	 * This is called while holding drm_connector->mutex.
+	 * This is called while holding &drm_connector.mutex.
 	 */
 	void (*early_unregister)(struct drm_connector *connector);
 
@@ -418,9 +418,9 @@ struct drm_connector_funcs {
 	 * Duplicate the current atomic state for this connector and return it.
 	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
-	 * driver by calling ->atomic_commit() from struct
-	 * &drm_mode_config_funcs) will be cleaned up by calling the
-	 * @atomic_destroy_state hook in this structure.
+	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
+	 * cleaned up by calling the @atomic_destroy_state hook in this
+	 * structure.
 	 *
 	 * Atomic drivers which don't subclass &struct drm_connector_state should use
 	 * drm_atomic_helper_connector_duplicate_state(). Drivers that subclass the
@@ -428,7 +428,7 @@ struct drm_connector_funcs {
 	 * __drm_atomic_helper_connector_duplicate_state() to make sure shared state is
 	 * duplicated in a consistent fashion across drivers.
 	 *
-	 * It is an error to call this hook before connector->state has been
+	 * It is an error to call this hook before &drm_connector.state has been
 	 * initialized correctly.
 	 *
 	 * NOTE:
@@ -609,8 +609,8 @@ struct drm_connector {
 
 	/**
 	 * @mutex: Lock for general connector state, but currently only protects
-	 * @registered. Most of the connector state is still protected by the
-	 * mutex in &drm_mode_config.
+	 * @registered. Most of the connector state is still protected by
+	 * &drm_mode_config.mutex.
 	 */
 	struct mutex mutex;
 
@@ -636,22 +636,22 @@ struct drm_connector {
 	/**
 	 * @modes:
 	 * Modes available on this connector (from fill_modes() + user).
-	 * Protected by dev->mode_config.mutex.
+	 * Protected by &drm_mode_config.mutex.
 	 */
-	struct list_head modes; /* list of modes on this connector */
+	struct list_head modes;
 
 	/**
 	 * @status:
 	 * One of the drm_connector_status enums (connected, not, or unknown).
-	 * Protected by dev->mode_config.mutex.
+	 * Protected by &drm_mode_config.mutex.
 	 */
 	enum drm_connector_status status;
 
 	/**
 	 * @probed_modes:
 	 * These are modes added by probing with DDC or the BIOS, before
-	 * filtering is applied. Used by the probe helpers.Protected by
-	 * dev->mode_config.mutex.
+	 * filtering is applied. Used by the probe helpers. Protected by
+	 * &drm_mode_config.mutex.
 	 */
 	struct list_head probed_modes;
 
@@ -659,10 +659,10 @@ struct drm_connector {
 	 * @display_info: Display information is filled from EDID information
 	 * when a display is detected. For non hot-pluggable displays such as
 	 * flat panels in embedded systems, the driver should initialize the
-	 * display_info.width_mm and display_info.height_mm fields with the
-	 * physical size of the display.
+	 * &drm_display_info.width_mm and &drm_display_info.height_mm fields
+	 * with the physical size of the display.
 	 *
-	 * Protected by dev->mode_config.mutex.
+	 * Protected by &drm_mode_config.mutex.
 	 */
 	struct drm_display_info display_info;
 	const struct drm_connector_funcs *funcs;

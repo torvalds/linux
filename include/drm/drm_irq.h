@@ -67,7 +67,7 @@ struct drm_vblank_crtc {
 	 * @disable_timer: Disable timer for the delayed vblank disabling
 	 * hysteresis logic. Vblank disabling is controlled through the
 	 * drm_vblank_offdelay module option and the setting of the
-	 * max_vblank_count value in the &drm_device structure.
+	 * &drm_device.max_vblank_count value.
 	 */
 	struct timer_list disable_timer;
 
@@ -92,7 +92,7 @@ struct drm_vblank_crtc {
 	 */
 	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
 	/**
-	 * @last: Protected by dev->vbl_lock, used for wraparound handling.
+	 * @last: Protected by &drm_device.vbl_lock, used for wraparound handling.
 	 */
 	u32 last;
 	/**

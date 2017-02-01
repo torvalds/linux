@@ -66,11 +66,11 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
- * drm_fb_helper_restore_fbdev_mode_unlocked() from their ->lastclose callback.
- * They should also notify the fb helper code from updates to the output
- * configuration by calling drm_fb_helper_hotplug_event(). For easier
+ * drm_fb_helper_restore_fbdev_mode_unlocked() from their &drm_driver.lastclose
+ * callback.  They should also notify the fb helper code from updates to the
+ * output configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
- * code provides a ->output_poll_changed callback.
+ * code provides a &drm_mode_config_funcs.output_poll_changed callback.
  *
  * All other functions exported by the fb helper library can be used to
  * implement the fbdev driver interface by the driver.
@@ -79,7 +79,7 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * hotplug detection using the fbdev helpers. The drm_fb_helper_prepare()
  * helper must be called first to initialize the minimum required to make
  * hotplug detection work. Drivers also need to make sure to properly set up
- * the dev->mode_config.funcs member. After calling drm_kms_helper_poll_init()
+ * the &drm_mode_config.funcs member. After calling drm_kms_helper_poll_init()
  * it is safe to enable interrupts and start processing hotplug events. At the
  * same time, drivers should initialize all modeset objects such as CRTCs,
  * encoders and connectors. To finish up the fbdev helper initialization, the
@@ -88,9 +88,9 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * should call drm_fb_helper_single_add_all_connectors() followed by
  * drm_fb_helper_initial_config().
  *
- * If &drm_framebuffer_funcs ->dirty is set, the
+ * If &drm_framebuffer_funcs.dirty is set, the
  * drm_fb_helper_{cfb,sys}_{write,fillrect,copyarea,imageblit} functions will
- * accumulate changes and schedule &drm_fb_helper ->dirty_work to run right
+ * accumulate changes and schedule &drm_fb_helper.dirty_work to run right
  * away. This worker then calls the dirty() function ensuring that it will
  * always run in process context since the fb_*() function could be running in
  * atomic context. If drm_fb_helper_deferred_io() is used as the deferred_io
@@ -247,7 +247,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 }
 
 /**
- * drm_fb_helper_debug_enter - implementation for ->fb_debug_enter
+ * drm_fb_helper_debug_enter - implementation for &fb_ops.fb_debug_enter
  * @info: fbdev registered by the helper
  */
 int drm_fb_helper_debug_enter(struct fb_info *info)
@@ -296,7 +296,7 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 }
 
 /**
- * drm_fb_helper_debug_leave - implementation for ->fb_debug_leave
+ * drm_fb_helper_debug_leave - implementation for &fb_ops.fb_debug_leave
  * @info: fbdev registered by the helper
  */
 int drm_fb_helper_debug_leave(struct fb_info *info)
@@ -445,7 +445,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
  * @fb_helper: fbcon to restore
  *
- * This should be called from driver's drm ->lastclose callback
+ * This should be called from driver's drm &drm_driver.lastclose callback
  * when implementing an fbcon on top of kms using this helper. This ensures that
  * the user isn't greeted with a black screen when e.g. X dies.
  *
@@ -585,7 +585,7 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 }
 
 /**
- * drm_fb_helper_blank - implementation for ->fb_blank
+ * drm_fb_helper_blank - implementation for &fb_ops.fb_blank
  * @blank: desired blanking state
  * @info: fbdev registered by the helper
  */
@@ -912,7 +912,7 @@ static void drm_fb_helper_dirty(struct fb_info *info, u32 x, u32 y,
  * @info: fb_info struct pointer
  * @pagelist: list of dirty mmap framebuffer pages
  *
- * This function is used as the &fb_deferred_io ->deferred_io
+ * This function is used as the &fb_deferred_io.deferred_io
  * callback function for flushing the fbdev mmap writes.
  */
 void drm_fb_helper_deferred_io(struct fb_info *info,
@@ -1103,7 +1103,7 @@ EXPORT_SYMBOL(drm_fb_helper_set_suspend);
  * due to all the printk activity.
  *
  * This function can be called multiple times with the same state since
- * &fb_info->state is checked to see if fbdev is running or not before locking.
+ * &fb_info.state is checked to see if fbdev is running or not before locking.
  *
  * Use drm_fb_helper_set_suspend() if you need to take the lock yourself.
  */
@@ -1181,7 +1181,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 }
 
 /**
- * drm_fb_helper_setcmap - implementation for ->fb_setcmap
+ * drm_fb_helper_setcmap - implementation for &fb_ops.fb_setcmap
  * @cmap: cmap to set
  * @info: fbdev registered by the helper
  */
@@ -1238,7 +1238,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
 /**
- * drm_fb_helper_check_var - implementation for ->fb_check_var
+ * drm_fb_helper_check_var - implementation for &fb_ops.fb_check_var
  * @var: screeninfo to check
  * @info: fbdev registered by the helper
  */
@@ -1338,7 +1338,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 EXPORT_SYMBOL(drm_fb_helper_check_var);
 
 /**
- * drm_fb_helper_set_par - implementation for ->fb_set_par
+ * drm_fb_helper_set_par - implementation for &fb_ops.fb_set_par
  * @info: fbdev registered by the helper
  *
  * This will let fbcon do the mode init and is called at initialization time by
@@ -1422,7 +1422,7 @@ backoff:
 }
 
 /**
- * drm_fb_helper_pan_display - implementation for ->fb_pan_display
+ * drm_fb_helper_pan_display - implementation for &fb_ops.fb_pan_display
  * @var: updated screen information
  * @info: fbdev registered by the helper
  */
@@ -1607,7 +1607,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
  * additional constraints need to set up their own limits.
  *
  * Drivers should call this (or their equivalent setup code) from their
- * ->fb_probe callback.
+ * &drm_fb_helper_funcs.fb_probe callback.
  */
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth)
@@ -1636,11 +1636,11 @@ EXPORT_SYMBOL(drm_fb_helper_fill_fix);
  * @fb_height: desired fb height
  *
  * Sets up the variable fbdev metainformation from the given fb helper instance
- * and the drm framebuffer allocated in fb_helper->fb.
+ * and the drm framebuffer allocated in &drm_fb_helper.fb.
  *
  * Drivers should call this (or their equivalent setup code) from their
- * ->fb_probe callback after having allocated the fbdev backing
- * storage framebuffer.
+ * &drm_fb_helper_funcs.fb_probe callback after having allocated the fbdev
+ * backing storage framebuffer.
  */
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
@@ -2207,9 +2207,9 @@ out:
  * Note that this also registers the fbdev and so allows userspace to call into
  * the driver through the fbdev interfaces.
  *
- * This function will call down into the ->fb_probe callback to let
- * the driver allocate and initialize the fbdev info structure and the drm
- * framebuffer used to back the fbdev. drm_fb_helper_fill_var() and
+ * This function will call down into the &drm_fb_helper_funcs.fb_probe callback
+ * to let the driver allocate and initialize the fbdev info structure and the
+ * drm framebuffer used to back the fbdev. drm_fb_helper_fill_var() and
  * drm_fb_helper_fill_fix() are provided as helpers to setup simple default
  * values for the fbdev info structure.
  *

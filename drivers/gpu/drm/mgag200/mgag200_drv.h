@@ -180,6 +180,7 @@ enum mga_type {
 	G200_WB,
 	G200_EV,
 	G200_EH,
+	G200_EH3,
 	G200_ER,
 	G200_EW3,
 };

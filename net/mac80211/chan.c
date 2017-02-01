@@ -231,9 +231,6 @@ ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata)
 		    !(sta->sdata->bss && sta->sdata->bss == sdata->bss))
 			continue;
 
-		if (!sta->uploaded || !test_sta_flag(sta, WLAN_STA_ASSOC))
-			continue;
-
 		max_bw = max(max_bw, ieee80211_get_sta_bw(&sta->sta));
 	}
 	rcu_read_unlock();

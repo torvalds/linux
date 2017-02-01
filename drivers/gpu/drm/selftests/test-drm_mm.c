@@ -1274,13 +1274,19 @@ static bool evict_everything(struct drm_mm *mm,
 		if (drm_mm_scan_add_block(&scan, &e->node))
 			break;
 	}
+
+	err = 0;
 	list_for_each_entry(e, &evict_list, link) {
 		if (!drm_mm_scan_remove_block(&scan, &e->node)) {
-			pr_err("Node %lld not marked for eviction!\n",
-			       e->node.start);
-			list_del(&e->link);
+			if (!err) {
+				pr_err("Node %lld not marked for eviction!\n",
+				       e->node.start);
+				err = -EINVAL;
+			}
 		}
 	}
+	if (err)
+		return false;
 
 	list_for_each_entry(e, &evict_list, link)
 		drm_mm_remove_node(&e->node);

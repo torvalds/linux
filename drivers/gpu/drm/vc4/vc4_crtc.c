@@ -156,7 +156,8 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			    const struct drm_display_mode *mode)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 val;
 	int fifo_lines;
 	int vblank_lines;
@@ -272,9 +273,7 @@ int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 				  int *max_error, struct timeval *vblank_time,
 				  unsigned flags)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
-	struct drm_crtc *crtc = &vc4_crtc->base;
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct drm_crtc_state *state = crtc->state;
 
 	/* Helper routine in DRM core does all the work: */
@@ -652,8 +651,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
 
@@ -662,8 +661,8 @@ int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
 
 void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
 }
@@ -937,7 +936,6 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_crtc *vc4_crtc;
 	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
@@ -975,7 +973,6 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 	primary_plane->crtc = crtc;
-	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 

@@ -473,8 +473,7 @@ drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_cma_destroy:
-	drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
-	drm_fb_cma_destroy(&fbdev_cma->fb->fb);
+	drm_framebuffer_remove(&fbdev_cma->fb->fb);
 err_fb_info_destroy:
 	drm_fb_helper_release_fbi(helper);
 err_gem_free_object:
@@ -574,10 +573,8 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 		drm_fbdev_cma_defio_fini(fbdev_cma->fb_helper.fbdev);
 	drm_fb_helper_release_fbi(&fbdev_cma->fb_helper);
 
-	if (fbdev_cma->fb) {
-		drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
-		drm_fb_cma_destroy(&fbdev_cma->fb->fb);
-	}
+	if (fbdev_cma->fb)
+		drm_framebuffer_remove(&fbdev_cma->fb->fb);
 
 	drm_fb_helper_fini(&fbdev_cma->fb_helper);
 	kfree(fbdev_cma);
@@ -625,3 +622,21 @@ void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, int state)
 		drm_fb_helper_set_suspend(&fbdev_cma->fb_helper, state);
 }
 EXPORT_SYMBOL(drm_fbdev_cma_set_suspend);
+
+/**
+ * drm_fbdev_cma_set_suspend_unlocked - wrapper around
+ *                                      drm_fb_helper_set_suspend_unlocked
+ * @fbdev_cma: The drm_fbdev_cma struct, may be NULL
+ * @state: desired state, zero to resume, non-zero to suspend
+ *
+ * Calls drm_fb_helper_set_suspend, which is a wrapper around
+ * fb_set_suspend implemented by fbdev core.
+ */
+void drm_fbdev_cma_set_suspend_unlocked(struct drm_fbdev_cma *fbdev_cma,
+					int state)
+{
+	if (fbdev_cma)
+		drm_fb_helper_set_suspend_unlocked(&fbdev_cma->fb_helper,
+						   state);
+}
+EXPORT_SYMBOL(drm_fbdev_cma_set_suspend_unlocked);

@@ -221,7 +221,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
 	if (ret) {
 		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		return ret;
+		goto err_debugfs;
 	}
 
 	ret = device_add(minor->kdev);
@@ -309,7 +309,7 @@ void drm_minor_release(struct drm_minor *minor)
  * userspace the device instance can be published using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
- * bus-specific helpers and the ->load() callback. But due to
+ * bus-specific helpers and the &drm_driver.load callback. But due to
  * backwards-compatibility needs the device instance have to be published too
  * early, which requires unpretty global locking to make safe and is therefore
  * only support for existing drivers not yet converted to the new scheme.
@@ -598,6 +598,8 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
+	drm_vblank_cleanup(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_destroy(dev);
 
@@ -718,9 +720,9 @@ static void remove_compat_control_link(struct drm_device *dev)
  * Never call this twice on any device!
  *
  * NOTE: To ensure backward compatibility with existing drivers method this
- * function calls the ->load() method after registering the device nodes,
- * creating race conditions. Usage of the ->load() methods is therefore
- * deprecated, drivers must perform all initialization before calling
+ * function calls the &drm_driver.load method after registering the device
+ * nodes, creating race conditions. Usage of the &drm_driver.load methods is
+ * therefore deprecated, drivers must perform all initialization before calling
  * drm_dev_register().
  *
  * RETURNS:
@@ -804,8 +806,6 @@ void drm_dev_unregister(struct drm_device *dev)
 
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
-
-	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);

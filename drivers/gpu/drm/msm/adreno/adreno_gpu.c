@@ -213,7 +213,14 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 void adreno_flush(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t wptr = get_wptr(gpu->rb);
+	uint32_t wptr;
+
+	/*
+	 * Mask wptr value that we calculate to fit in the HW range. This is
+	 * to account for the possibility that the last command fit exactly into
+	 * the ringbuffer and rb->next hasn't wrapped to zero yet
+	 */
+	wptr = get_wptr(gpu->rb) & ((gpu->rb->size / 4) - 1);
 
 	/* ensure writes to ringbuffer have hit system memory: */
 	mb();
@@ -338,7 +345,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct msm_mmu *mmu;
 	int ret;
 
 	adreno_gpu->funcs = funcs;
@@ -378,8 +384,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	mmu = gpu->aspace->mmu;
-	if (mmu) {
+	if (gpu->aspace && gpu->aspace->mmu) {
+		struct msm_mmu *mmu = gpu->aspace->mmu;
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret)

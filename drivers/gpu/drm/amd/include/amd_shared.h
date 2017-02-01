@@ -23,7 +23,7 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Supported ASIC types
@@ -46,6 +46,7 @@ enum amd_asic_type {
 	CHIP_STONEY,
 	CHIP_POLARIS10,
 	CHIP_POLARIS11,
+	CHIP_POLARIS12,
 	CHIP_LAST,
 };
 
@@ -77,6 +78,18 @@ enum amd_ip_block_type {
 enum amd_clockgating_state {
 	AMD_CG_STATE_GATE = 0,
 	AMD_CG_STATE_UNGATE,
+};
+
+enum amd_dpm_forced_level {
+	AMD_DPM_FORCED_LEVEL_AUTO = 0x1,
+	AMD_DPM_FORCED_LEVEL_MANUAL = 0x2,
+	AMD_DPM_FORCED_LEVEL_LOW = 0x4,
+	AMD_DPM_FORCED_LEVEL_HIGH = 0x8,
+	AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD = 0x10,
+	AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK = 0x20,
+	AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK = 0x40,
+	AMD_DPM_FORCED_LEVEL_PROFILE_PEAK = 0x80,
+	AMD_DPM_FORCED_LEVEL_PROFILE_EXIT = 0x100,
 };
 
 enum amd_powergating_state {
@@ -205,6 +218,8 @@ struct amd_ip_funcs {
 	/* enable/disable pg for the IP block */
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
+	/* get current clockgating status */
+	void (*get_clockgating_state)(void *handle, u32 *flags);
 };
 
 #endif /* __AMD_SHARED_H__ */

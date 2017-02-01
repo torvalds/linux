@@ -215,6 +215,8 @@ struct ttm_buffer_object {
 
 	struct drm_vma_offset_node vma_node;
 
+	unsigned priority;
+
 	/**
 	 * Special members that are protected by the reserve lock
 	 * and the bo::lock when written to. Can be read with

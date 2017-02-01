@@ -1193,6 +1193,17 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	if (!node)
 		return -ENOMEM;
 
+	/*
+	 * To avoid an integer overflow for the later size computations, we
+	 * enforce a maximum number of submitted commands here. This limit is
+	 * sufficient for all conceivable usage cases of the G2D.
+	 */
+	if (req->cmd_nr > G2D_CMDLIST_DATA_NUM ||
+	    req->cmd_buf_nr > G2D_CMDLIST_DATA_NUM) {
+		dev_err(dev, "number of submitted G2D commands exceeds limit\n");
+		return -EINVAL;
+	}
+
 	node->event = NULL;
 
 	if (req->event_type != G2D_EVENT_NOT) {
@@ -1250,7 +1261,11 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF;
 	}
 
-	/* Check size of cmdlist: last 2 is about G2D_BITBLT_START */
+	/*
+	 * Check the size of cmdlist. The 2 that is added last comes from
+	 * the implicit G2D_BITBLT_START that is appended once we have
+	 * checked all the submitted commands.
+	 */
 	size = cmdlist->last + req->cmd_nr * 2 + req->cmd_buf_nr * 2 + 2;
 	if (size > G2D_CMDLIST_DATA_NUM) {
 		dev_err(dev, "cmdlist size is too big\n");

@@ -174,10 +174,8 @@ fail_unlock:
 fail:
 
 	if (ret) {
-		if (fb) {
-			drm_framebuffer_unregister_private(fb);
+		if (fb)
 			drm_framebuffer_remove(fb);
-		}
 	}
 
 	return ret;
@@ -247,7 +245,6 @@ void msm_fbdev_free(struct drm_device *dev)
 	/* this will free the backing object */
 	if (fbdev->fb) {
 		msm_gem_put_vaddr(fbdev->bo);
-		drm_framebuffer_unregister_private(fbdev->fb);
 		drm_framebuffer_remove(fbdev->fb);
 	}
 
