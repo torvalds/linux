@@ -1644,7 +1644,7 @@ static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 }
 
 /* process hot plug, called from wq with mutex locked */
-static int had_process_hot_plug(struct snd_intelhad *intelhaddata)
+static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
@@ -1657,8 +1657,9 @@ static int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 	if (intelhaddata->drv_status == HAD_DRV_CONNECTED) {
 		dev_dbg(intelhaddata->dev, "Device already connected\n");
 		spin_unlock_irq(&intelhaddata->had_spinlock);
-		return 0;
+		return;
 	}
+
 	buf_id = intelhaddata->curr_buf;
 	intelhaddata->buff_done = buf_id;
 	intelhaddata->drv_status = HAD_DRV_CONNECTED;
@@ -1679,12 +1680,10 @@ static int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 	}
 
 	had_build_channel_allocation_map(intelhaddata);
-
-	return 0;
 }
 
 /* process hot unplug, called from wq with mutex locked */
-static int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
+static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
 	struct had_stream_data *had_stream;
@@ -1697,13 +1696,13 @@ static int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
 		dev_dbg(intelhaddata->dev, "Device already disconnected\n");
 		spin_unlock_irq(&intelhaddata->had_spinlock);
-		return 0;
+		return;
 
-	} else {
-		/* Disable Audio */
-		snd_intelhad_enable_audio_int(intelhaddata, false);
-		snd_intelhad_enable_audio(intelhaddata, false);
 	}
+
+	/* Disable Audio */
+	snd_intelhad_enable_audio_int(intelhaddata, false);
+	snd_intelhad_enable_audio(intelhaddata, false);
 
 	intelhaddata->drv_status = HAD_DRV_DISCONNECTED;
 	dev_dbg(intelhaddata->dev,
@@ -1722,8 +1721,6 @@ static int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 	kfree(intelhaddata->chmap->chmap);
 	intelhaddata->chmap->chmap = NULL;
-
-	return 0;
 }
 
 /* PCM operations structure and the calls back for the same */
@@ -1847,17 +1844,12 @@ static void had_audio_wq(struct work_struct *work)
 	if (!pdata->hdmi_connected) {
 		dev_dbg(ctx->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
-
-		if (ctx->state != hdmi_connector_status_connected) {
-			dev_dbg(ctx->dev, "%s: Already Unplugged!\n",
-				__func__);
-		} else {
-			ctx->state = hdmi_connector_status_disconnected;
-			had_process_hot_unplug(ctx);
-		}
-
+		had_process_hot_unplug(ctx);
 	} else {
 		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
+
+		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
+			__func__, eld->port_id,	pdata->tmds_clock_speed);
 
 		switch (eld->pipe_id) {
 		case 0:
@@ -1877,22 +1869,15 @@ static void had_audio_wq(struct work_struct *work)
 
 		memcpy(&ctx->eld, eld->eld_data, sizeof(ctx->eld));
 
+		ctx->dp_output = pdata->dp_output;
+		ctx->tmds_clock_speed = pdata->tmds_clock_speed;
+		ctx->link_rate = pdata->link_rate;
+
 		had_process_hot_plug(ctx);
 
-		ctx->state = hdmi_connector_status_connected;
-
-		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
-			__func__, eld->port_id,	pdata->tmds_clock_speed);
-
-		if (pdata->tmds_clock_speed) {
-			ctx->tmds_clock_speed = pdata->tmds_clock_speed;
-			ctx->dp_output = pdata->dp_output;
-			ctx->link_rate = pdata->link_rate;
-
-			/* Process mode change if stream is active */
-			if (ctx->stream_data.stream_type == HAD_RUNNING_STREAM)
-				hdmi_audio_mode_change(ctx);
-		}
+		/* Process mode change if stream is active */
+		if (ctx->stream_data.stream_type == HAD_RUNNING_STREAM)
+			hdmi_audio_mode_change(ctx);
 	}
 	mutex_unlock(&ctx->mutex);
 }
@@ -1966,7 +1951,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->irq = -1;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
 	INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
-	ctx->state = hdmi_connector_status_disconnected;
 
 	card->private_free = hdmi_lpe_audio_free;
 

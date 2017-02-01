@@ -129,7 +129,6 @@ struct snd_intelhad {
 	struct device *dev;
 	struct snd_pcm_chmap *chmap;
 	int underrun_count;
-	enum hdmi_connector_status state;
 	int tmds_clock_speed;
 	int link_rate;
 
@@ -138,7 +137,7 @@ struct snd_intelhad {
 	void __iomem *mmio_start;
 	unsigned int had_config_offset;
 	struct work_struct hdmi_audio_wq;
-	struct mutex mutex; /* for protecting chmap, state and eld */
+	struct mutex mutex; /* for protecting chmap and eld */
 };
 
 #endif /* _INTEL_HDMI_AUDIO_ */

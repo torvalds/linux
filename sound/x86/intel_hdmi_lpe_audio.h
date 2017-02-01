@@ -591,12 +591,6 @@ union aud_info_frame3 {
 	u32 fr3_val;
 };
 
-enum hdmi_connector_status {
-	hdmi_connector_status_connected = 1,
-	hdmi_connector_status_disconnected = 2,
-	hdmi_connector_status_unknown = 3,
-};
-
 #define HDMI_AUDIO_UNDERRUN     (1UL<<31)
 #define HDMI_AUDIO_BUFFER_DONE  (1UL<<29)
 
