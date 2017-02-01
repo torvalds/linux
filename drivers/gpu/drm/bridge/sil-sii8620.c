@@ -892,11 +892,10 @@ static void sii8620_hw_reset(struct sii8620 *ctx)
 
 static void sii8620_cbus_reset(struct sii8620 *ctx)
 {
-	sii8620_write_seq_static(ctx,
-		REG_PWD_SRST, BIT_PWD_SRST_CBUS_RST
-			| BIT_PWD_SRST_CBUS_RST_SW_EN,
-		REG_PWD_SRST, BIT_PWD_SRST_CBUS_RST_SW_EN
-	);
+	sii8620_write(ctx, REG_PWD_SRST, BIT_PWD_SRST_CBUS_RST
+		      | BIT_PWD_SRST_CBUS_RST_SW_EN);
+	usleep_range(10000, 20000);
+	sii8620_write(ctx, REG_PWD_SRST, BIT_PWD_SRST_CBUS_RST_SW_EN);
 }
 
 static void sii8620_set_auto_zone(struct sii8620 *ctx)
