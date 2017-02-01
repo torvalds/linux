@@ -342,6 +342,18 @@
 			status = "disabled";
 		};
 
+		i2c1: i2c@40005400 {
+			compatible = "st,stm32f4-i2c";
+			reg = <0x40005400 0x400>;
+			interrupts = <31>,
+				     <32>;
+			resets = <&rcc STM32F4_APB1_RESET(I2C1)>;
+			clocks = <&rcc 0 STM32F4_APB1_CLOCK(I2C1)>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		usart7: serial@40007800 {
 			compatible = "st,stm32-usart", "st,stm32-uart";
 			reg = <0x40007800 0x400>;
@@ -712,6 +724,16 @@
 				pins {
 					pinmux = <STM32F429_PB4_FUNC_TIM3_CH1>,
 						 <STM32F429_PB5_FUNC_TIM3_CH2>;
+				};
+			};
+
+			i2c1_pins: i2c1@0 {
+				pins {
+					pinmux = <STM32F429_PB9_FUNC_I2C1_SDA>,
+						 <STM32F429_PB6_FUNC_I2C1_SCL>;
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <3>;
 				};
 			};
 		};
