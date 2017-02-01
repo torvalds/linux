@@ -298,9 +298,10 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 					buff->page, 0,
 					AQ_CFG_RX_FRAME_MAX, DMA_FROM_DEVICE);
 
-		err = dma_mapping_error(aq_nic_get_dev(self->aq_nic), buff->pa);
-		if (err < 0)
+		if (dma_mapping_error(aq_nic_get_dev(self->aq_nic), buff->pa)) {
+			err = -ENOMEM;
 			goto err_exit;
+		}
 
 		buff = NULL;
 	}
