@@ -423,6 +423,10 @@ enum dwc2_ep0_state {
  *			needed.
  *			0 - No (default)
  *			1 - Yes
+ * @activate_stm_fs_transceiver: Activate internal transceiver using GGPIO
+ *			register.
+ *			0 - Deactivate the transceiver (default)
+ *			1 - Activate the transceiver
  * @g_dma:              Enables gadget dma usage (default: autodetect).
  * @g_dma_desc:         Enables gadget descriptor DMA (default: autodetect).
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
@@ -477,6 +481,7 @@ struct dwc2_core_params {
 	bool uframe_sched;
 	bool external_id_pin_ctl;
 	bool hibernation;
+	bool activate_stm_fs_transceiver;
 	u16 max_packet_count;
 	u32 max_transfer_size;
 	u32 ahbcfg;
