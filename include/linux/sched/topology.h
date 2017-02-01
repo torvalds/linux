@@ -3,4 +3,6 @@
 
 #include <linux/sched.h>
 
+#include <linux/sched/idle.h>
+
 #endif /* _LINUX_SCHED_TOPOLOGY_H */
