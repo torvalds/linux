@@ -205,12 +205,6 @@ static struct platform_device at91_cpuidle_device = {
 	.name = "cpuidle-at91",
 };
 
-static void at91_pm_set_standby(void (*at91_standby)(void))
-{
-	if (at91_standby)
-		at91_cpuidle_device.dev.platform_data = at91_standby;
-}
-
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will
  * terminate self-refresh automatically on the next SDRAM access.
@@ -354,7 +348,7 @@ static __init void at91_dt_ramc(void)
 	struct device_node *np;
 	const struct of_device_id *of_id;
 	int idx = 0;
-	const void *standby = NULL;
+	void *standby = NULL;
 	const struct ramc_info *ramc;
 
 	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
@@ -378,7 +372,7 @@ static __init void at91_dt_ramc(void)
 		return;
 	}
 
-	at91_pm_set_standby(standby);
+	at91_cpuidle_device.dev.platform_data = standby;
 }
 
 static void at91rm9200_idle(void)
