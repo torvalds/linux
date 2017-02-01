@@ -78,12 +78,15 @@ struct sii8620_mt_msg;
 typedef void (*sii8620_mt_msg_cb)(struct sii8620 *ctx,
 				  struct sii8620_mt_msg *msg);
 
+typedef void (*sii8620_cb)(struct sii8620 *ctx, int ret);
+
 struct sii8620_mt_msg {
 	struct list_head node;
 	u8 reg[4];
 	u8 ret;
 	sii8620_mt_msg_cb send;
 	sii8620_mt_msg_cb recv;
+	sii8620_cb continuation;
 };
 
 static const u8 sii8620_i2c_page[] = {
@@ -258,6 +261,8 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 				       node);
 		if (msg->recv)
 			msg->recv(ctx, msg);
+		if (msg->continuation)
+			msg->continuation(ctx, msg->ret);
 		list_del(&msg->node);
 		kfree(msg);
 	}
@@ -308,6 +313,21 @@ static struct sii8620_mt_msg *sii8620_mt_msg_new(struct sii8620 *ctx)
 		list_add_tail(&msg->node, &ctx->mt_queue);
 
 	return msg;
+}
+
+static void sii8620_mt_set_cont(struct sii8620 *ctx, sii8620_cb cont)
+{
+	struct sii8620_mt_msg *msg;
+
+	if (ctx->error)
+		return;
+
+	if (list_empty(&ctx->mt_queue)) {
+		ctx->error = -EINVAL;
+		return;
+	}
+	msg = list_last_entry(&ctx->mt_queue, struct sii8620_mt_msg, node);
+	msg->continuation = cont;
 }
 
 static void sii8620_mt_msc_cmd(struct sii8620 *ctx, u8 cmd, u8 arg1, u8 arg2)
