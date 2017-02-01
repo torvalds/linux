@@ -193,9 +193,6 @@ void kvm_timer_update_run(struct kvm_vcpu *vcpu)
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 	struct kvm_sync_regs *regs = &vcpu->run->s.regs;
 
-	if (likely(irqchip_in_kernel(vcpu->kvm)))
-		return;
-
 	/* Populate the device bitmap with the timer states */
 	regs->device_irq_level &= ~(KVM_ARM_DEV_EL1_VTIMER |
 				    KVM_ARM_DEV_EL1_PTIMER);

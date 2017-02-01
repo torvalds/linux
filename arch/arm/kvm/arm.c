@@ -635,11 +635,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		/*
 		 * If we have a singal pending, or need to notify a userspace
-		 * irqchip about timer level changes, then we exit (and update
-		 * the timer level state in kvm_timer_update_run below).
+		 * irqchip about timer or PMU level changes, then we exit (and
+		 * update the timer level state in kvm_timer_update_run
+		 * below).
 		 */
 		if (signal_pending(current) ||
-		    kvm_timer_should_notify_user(vcpu)) {
+		    kvm_timer_should_notify_user(vcpu) ||
+		    kvm_pmu_should_notify_user(vcpu)) {
 			ret = -EINTR;
 			run->exit_reason = KVM_EXIT_INTR;
 		}
@@ -712,7 +714,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 
 	/* Tell userspace about in-kernel device output levels */
-	kvm_timer_update_run(vcpu);
+	if (unlikely(!irqchip_in_kernel(vcpu->kvm))) {
+		kvm_timer_update_run(vcpu);
+		kvm_pmu_update_run(vcpu);
+	}
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
