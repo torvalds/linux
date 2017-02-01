@@ -1475,6 +1475,10 @@ static void sii8620_msc_mr_set_int(struct sii8620 *ctx)
 			break;
 		}
 	}
+	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_FEAT_REQ) {
+		sii8620_mt_set_int(ctx, MHL_INT_REG(RCHANGE),
+				   MHL_INT_RC_FEAT_COMPLETE);
+	}
 }
 
 static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
