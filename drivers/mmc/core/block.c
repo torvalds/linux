@@ -1609,8 +1609,8 @@ static void mmc_blk_rw_start_new(struct mmc_queue *mq, struct mmc_card *card,
 		blk_end_request_all(req, -EIO);
 	} else {
 		mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
-		mmc_start_req(card->host,
-			      &mq->mqrq_cur->mmc_active, NULL);
+		mmc_start_areq(card->host,
+			       &mq->mqrq_cur->mmc_active, NULL);
 	}
 }
 
@@ -1648,7 +1648,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		} else
 			new_areq = NULL;
 
-		old_areq = mmc_start_req(card->host, new_areq, &status);
+		old_areq = mmc_start_areq(card->host, new_areq, &status);
 		if (!old_areq) {
 			/*
 			 * We have just put the first request into the pipeline
@@ -1769,7 +1769,7 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			 */
 			mmc_blk_rw_rq_prep(mq_rq, card,
 					disable_multi, mq);
-			mmc_start_req(card->host,
+			mmc_start_areq(card->host,
 					&mq_rq->mmc_active, NULL);
 			mq_rq->brq.retune_retry_done = retune_retry_done;
 		}

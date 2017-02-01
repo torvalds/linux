@@ -853,7 +853,7 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 	for (i = 0; i < count; i++) {
 		mmc_test_prepare_mrq(test, cur_areq->mrq, sg, sg_len, dev_addr,
 				     blocks, blksz, write);
-		done_areq = mmc_start_req(test->card->host, cur_areq, &status);
+		done_areq = mmc_start_areq(test->card->host, cur_areq, &status);
 
 		if (status != MMC_BLK_SUCCESS || (!done_areq && i > 0)) {
 			ret = RESULT_FAIL;
@@ -872,7 +872,7 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 		dev_addr += blocks;
 	}
 
-	done_areq = mmc_start_req(test->card->host, NULL, &status);
+	done_areq = mmc_start_areq(test->card->host, NULL, &status);
 	if (status != MMC_BLK_SUCCESS)
 		ret = RESULT_FAIL;
 
@@ -2402,7 +2402,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Start ongoing data request */
 	if (use_areq) {
-		mmc_start_req(host, &test_areq.areq, &blkstat);
+		mmc_start_areq(host, &test_areq.areq, &blkstat);
 		if (blkstat != MMC_BLK_SUCCESS) {
 			ret = RESULT_FAIL;
 			goto out_free;
@@ -2440,7 +2440,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Wait for data request to complete */
 	if (use_areq) {
-		mmc_start_req(host, NULL, &blkstat);
+		mmc_start_areq(host, NULL, &blkstat);
 		if (blkstat != MMC_BLK_SUCCESS)
 			ret = RESULT_FAIL;
 	} else {

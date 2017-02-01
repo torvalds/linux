@@ -631,10 +631,10 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 }
 
 /**
- *	mmc_start_req - start a non-blocking request
+ *	mmc_start_areq - start an asynchronous request
  *	@host: MMC host to start command
- *	@areq: async request to start
- *	@error: out parameter returns 0 for success, otherwise non zero
+ *	@areq: asynchronous request to start
+ *	@ret_stat: out parameter for status
  *
  *	Start a new MMC custom command request for a host.
  *	If there is on ongoing async request wait for completion
@@ -646,9 +646,9 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
  *	return the completed request. If there is no ongoing request, NULL
  *	is returned without waiting. NULL is not an error condition.
  */
-struct mmc_async_req *mmc_start_req(struct mmc_host *host,
-				    struct mmc_async_req *areq,
-				    enum mmc_blk_status *ret_stat)
+struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
+				     struct mmc_async_req *areq,
+				     enum mmc_blk_status *ret_stat)
 {
 	enum mmc_blk_status status = MMC_BLK_SUCCESS;
 	int start_err = 0;
@@ -699,7 +699,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		*ret_stat = status;
 	return data;
 }
-EXPORT_SYMBOL(mmc_start_req);
+EXPORT_SYMBOL(mmc_start_areq);
 
 /**
  *	mmc_wait_for_req - start a request and wait for completion
