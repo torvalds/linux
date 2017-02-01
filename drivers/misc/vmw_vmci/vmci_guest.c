@@ -54,10 +54,7 @@ struct vmci_guest_device {
 	struct device *dev;	/* PCI device we are attached to */
 	void __iomem *iobase;
 
-	unsigned int irq;
-	unsigned int intr_type;
 	bool exclusive_vectors;
-	struct msix_entry msix_entries[VMCI_MAX_INTRS];
 
 	struct tasklet_struct datagram_tasklet;
 	struct tasklet_struct bm_tasklet;
@@ -369,30 +366,6 @@ static void vmci_process_bitmap(unsigned long data)
 }
 
 /*
- * Enable MSI-X.  Try exclusive vectors first, then shared vectors.
- */
-static int vmci_enable_msix(struct pci_dev *pdev,
-			    struct vmci_guest_device *vmci_dev)
-{
-	int i;
-	int result;
-
-	for (i = 0; i < VMCI_MAX_INTRS; ++i) {
-		vmci_dev->msix_entries[i].entry = i;
-		vmci_dev->msix_entries[i].vector = i;
-	}
-
-	result = pci_enable_msix_exact(pdev,
-				       vmci_dev->msix_entries, VMCI_MAX_INTRS);
-	if (result == 0)
-		vmci_dev->exclusive_vectors = true;
-	else if (result == -ENOSPC)
-		result = pci_enable_msix_exact(pdev, vmci_dev->msix_entries, 1);
-
-	return result;
-}
-
-/*
  * Interrupt handler for legacy or MSI interrupt, or for first MSI-X
  * interrupt (vector VMCI_INTR_DATAGRAM).
  */
@@ -406,7 +379,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 	 * Otherwise we must read the ICR to determine what to do.
 	 */
 
-	if (dev->intr_type == VMCI_INTR_TYPE_MSIX && dev->exclusive_vectors) {
+	if (dev->exclusive_vectors) {
 		tasklet_schedule(&dev->datagram_tasklet);
 	} else {
 		unsigned int icr;
@@ -491,7 +464,6 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	}
 
 	vmci_dev->dev = &pdev->dev;
-	vmci_dev->intr_type = VMCI_INTR_TYPE_INTX;
 	vmci_dev->exclusive_vectors = false;
 	vmci_dev->iobase = iobase;
 
@@ -592,26 +564,26 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
 	 * legacy interrupts.
 	 */
-	if (!vmci_disable_msix && !vmci_enable_msix(pdev, vmci_dev)) {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_MSIX;
-		vmci_dev->irq = vmci_dev->msix_entries[0].vector;
-	} else if (!vmci_disable_msi && !pci_enable_msi(pdev)) {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_MSI;
-		vmci_dev->irq = pdev->irq;
+	error = pci_alloc_irq_vectors(pdev, VMCI_MAX_INTRS, VMCI_MAX_INTRS,
+			PCI_IRQ_MSIX);
+	if (error) {
+		error = pci_alloc_irq_vectors(pdev, 1, 1,
+				PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (error)
+			goto err_remove_bitmap;
 	} else {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_INTX;
-		vmci_dev->irq = pdev->irq;
+		vmci_dev->exclusive_vectors = true;
 	}
 
 	/*
 	 * Request IRQ for legacy or MSI interrupts, or for first
 	 * MSI-X vector.
 	 */
-	error = request_irq(vmci_dev->irq, vmci_interrupt, IRQF_SHARED,
-			    KBUILD_MODNAME, vmci_dev);
+	error = request_irq(pci_irq_vector(pdev, 0), vmci_interrupt,
+			    IRQF_SHARED, KBUILD_MODNAME, vmci_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Irq %u in use: %d\n",
-			vmci_dev->irq, error);
+			pci_irq_vector(pdev, 0), error);
 		goto err_disable_msi;
 	}
 
@@ -622,13 +594,13 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * between the vectors.
 	 */
 	if (vmci_dev->exclusive_vectors) {
-		error = request_irq(vmci_dev->msix_entries[1].vector,
+		error = request_irq(pci_irq_vector(pdev, 1),
 				    vmci_interrupt_bm, 0, KBUILD_MODNAME,
 				    vmci_dev);
 		if (error) {
 			dev_err(&pdev->dev,
 				"Failed to allocate irq %u: %d\n",
-				vmci_dev->msix_entries[1].vector, error);
+				pci_irq_vector(pdev, 1), error);
 			goto err_free_irq;
 		}
 	}
@@ -651,15 +623,12 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	return 0;
 
 err_free_irq:
-	free_irq(vmci_dev->irq, vmci_dev);
+	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);
 
 err_disable_msi:
-	if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSIX)
-		pci_disable_msix(pdev);
-	else if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSI)
-		pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 
 	vmci_err = vmci_event_unsubscribe(ctx_update_sub_id);
 	if (vmci_err < VMCI_SUCCESS)
@@ -719,14 +688,10 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	 * MSI-X, we might have multiple vectors, each with their own
 	 * IRQ, which we must free too.
 	 */
-	free_irq(vmci_dev->irq, vmci_dev);
-	if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSIX) {
-		if (vmci_dev->exclusive_vectors)
-			free_irq(vmci_dev->msix_entries[1].vector, vmci_dev);
-		pci_disable_msix(pdev);
-	} else if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSI) {
-		pci_disable_msi(pdev);
-	}
+	if (vmci_dev->exclusive_vectors)
+		free_irq(pci_irq_vector(pdev, 1), vmci_dev);
+	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
+	pci_free_irq_vectors(pdev);
 
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);
