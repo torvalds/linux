@@ -201,6 +201,7 @@ struct fsnotify_group {
  * inode / vfsmount gets freed.
  */
 struct fsnotify_mark_connector {
+	spinlock_t lock;
 #define FSNOTIFY_OBJ_TYPE_INODE		0x01
 #define FSNOTIFY_OBJ_TYPE_VFSMOUNT	0x02
 	unsigned int flags;	/* Type of object [lock] */
@@ -240,7 +241,7 @@ struct fsnotify_mark {
 	struct list_head g_list;
 	/* Protects inode / mnt pointers, flags, masks */
 	spinlock_t lock;
-	/* List of marks for inode / vfsmount [obj_lock] */
+	/* List of marks for inode / vfsmount [connector->lock] */
 	struct hlist_node obj_list;
 	/* Head of list of marks for an object [mark->lock, group->mark_mutex] */
 	struct fsnotify_mark_connector *connector;
