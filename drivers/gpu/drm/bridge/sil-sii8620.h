@@ -841,6 +841,8 @@
 #define MSK_MHL_DP_CTL7_DT_DRV_VBIAS_CASCTL	0xf0
 #define MSK_MHL_DP_CTL7_DT_DRV_IREF_CTL		0x0f
 
+#define REG_MHL_DP_CTL8				0x0352
+
 /* Tx Zone Ctl1, default value: 0x00 */
 #define REG_TX_ZONE_CTL1			0x0361
 #define VAL_TX_ZONE_CTL1_TX_ZONE_CTRL_MODE	0x08
@@ -1088,6 +1090,9 @@
 
 /* CoC Status, default value: 0x00 */
 #define REG_COC_STAT_0				0x0700
+#define BIT_COC_STAT_0_PLL_LOCKED		BIT(7)
+#define MSK_COC_STAT_0_FSM_STATE		0x0f
+
 #define REG_COC_STAT_1				0x0701
 #define REG_COC_STAT_2				0x0702
 #define REG_COC_STAT_3				0x0703

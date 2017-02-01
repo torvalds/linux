@@ -104,6 +104,7 @@ static void sii8620_fetch_edid(struct sii8620 *ctx);
 static void sii8620_set_upstream_edid(struct sii8620 *ctx);
 static void sii8620_enable_hpd(struct sii8620 *ctx);
 static void sii8620_mhl_disconnected(struct sii8620 *ctx);
+static void sii8620_disconnect(struct sii8620 *ctx);
 
 static int sii8620_clear_error(struct sii8620 *ctx)
 {
@@ -1016,12 +1017,43 @@ static void sii8620_mhl_init(struct sii8620 *ctx)
 	sii8620_mt_set_int(ctx, MHL_INT_REG(RCHANGE), MHL_INT_RC_DCAP_CHG);
 }
 
+static void sii8620_emsc_enable(struct sii8620 *ctx)
+{
+	u8 reg;
+
+	sii8620_setbits(ctx, REG_GENCTL, BIT_GENCTL_EMSC_EN
+					 | BIT_GENCTL_CLR_EMSC_RFIFO
+					 | BIT_GENCTL_CLR_EMSC_XFIFO, ~0);
+	sii8620_setbits(ctx, REG_GENCTL, BIT_GENCTL_CLR_EMSC_RFIFO
+					 | BIT_GENCTL_CLR_EMSC_XFIFO, 0);
+	sii8620_setbits(ctx, REG_COMMECNT, BIT_COMMECNT_I2C_TO_EMSC_EN, ~0);
+	reg = sii8620_readb(ctx, REG_EMSCINTR);
+	sii8620_write(ctx, REG_EMSCINTR, reg);
+	sii8620_write(ctx, REG_EMSCINTRMASK, BIT_EMSCINTR_SPI_DVLD);
+}
+
+static int sii8620_wait_for_fsm_state(struct sii8620 *ctx, u8 state)
+{
+	int i;
+
+	for (i = 0; i < 10; ++i) {
+		u8 s = sii8620_readb(ctx, REG_COC_STAT_0);
+
+		if ((s & MSK_COC_STAT_0_FSM_STATE) == state)
+			return 0;
+		if (!(s & BIT_COC_STAT_0_PLL_LOCKED))
+			return -EBUSY;
+		usleep_range(4000, 6000);
+	}
+	return -ETIMEDOUT;
+}
+
 static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 {
+	int ret;
+
 	if (ctx->mode == mode)
 		return;
-
-	ctx->mode = mode;
 
 	switch (mode) {
 	case CM_MHL1:
@@ -1032,11 +1064,46 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 				| BIT_DPD_OSC_EN,
 			REG_COC_INTR_MASK, 0
 		);
+		ctx->mode = mode;
 		break;
 	case CM_MHL3:
 		sii8620_write(ctx, REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE);
+		ctx->mode = mode;
+		return;
+	case CM_ECBUS_S:
+		sii8620_emsc_enable(ctx);
+		sii8620_write_seq_static(ctx,
+			REG_TTXSPINUMS, 4,
+			REG_TRXSPINUMS, 4,
+			REG_TTXHSICNUMS, 0x14,
+			REG_TRXHSICNUMS, 0x14,
+			REG_TTXTOTNUMS, 0x18,
+			REG_TRXTOTNUMS, 0x18,
+			REG_PWD_SRST, BIT_PWD_SRST_COC_DOC_RST
+				      | BIT_PWD_SRST_CBUS_RST_SW_EN,
+			REG_MHL_COC_CTL1, 0xbd,
+			REG_PWD_SRST, BIT_PWD_SRST_CBUS_RST_SW_EN,
+			REG_COC_CTLB, 0x01,
+			REG_COC_CTL0, 0x5c,
+			REG_COC_CTL14, 0x03,
+			REG_COC_CTL15, 0x80,
+			REG_MHL_DP_CTL6, BIT_MHL_DP_CTL6_DP_TAP1_SGN
+					 | BIT_MHL_DP_CTL6_DP_TAP1_EN
+					 | BIT_MHL_DP_CTL6_DT_PREDRV_FEEDCAP_EN,
+			REG_MHL_DP_CTL8, 0x03
+		);
+		ret = sii8620_wait_for_fsm_state(ctx, 0x03);
+		sii8620_write_seq_static(ctx,
+			REG_COC_CTL14, 0x00,
+			REG_COC_CTL15, 0x80
+		);
+		if (!ret)
+			sii8620_write(ctx, REG_CBUS3_CNVT, 0x85);
+		else
+			sii8620_disconnect(ctx);
 		return;
 	case CM_DISCONNECTED:
+		ctx->mode = mode;
 		break;
 	default:
 		dev_err(ctx->dev, "%s mode %d not supported\n", __func__, mode);
@@ -1229,12 +1296,45 @@ static void sii8620_msc_mr_write_stat(struct sii8620 *ctx)
 		sii8620_status_changed_path(ctx);
 }
 
+static void sii8620_ecbus_up(struct sii8620 *ctx, int ret)
+{
+	if (ret < 0)
+		return;
+
+	sii8620_set_mode(ctx, CM_ECBUS_S);
+}
+
+static void sii8620_got_ecbus_speed(struct sii8620 *ctx, int ret)
+{
+	if (ret < 0)
+		return;
+
+	sii8620_mt_write_stat(ctx, MHL_XDS_REG(CURR_ECBUS_MODE),
+			      MHL_XDS_ECBUS_S | MHL_XDS_SLOT_MODE_8BIT);
+	sii8620_mt_rap(ctx, MHL_RAP_CBUS_MODE_UP);
+	sii8620_mt_set_cont(ctx, sii8620_ecbus_up);
+}
+
 static void sii8620_msc_mr_set_int(struct sii8620 *ctx)
 {
 	u8 ints[MHL_INT_SIZE];
 
 	sii8620_read_buf(ctx, REG_MHL_INT_0, ints, MHL_INT_SIZE);
 	sii8620_write_buf(ctx, REG_MHL_INT_0, ints, MHL_INT_SIZE);
+
+	if (ints[MHL_INT_RCHANGE] & MHL_INT_RC_DCAP_CHG) {
+		switch (ctx->mode) {
+		case CM_MHL3:
+			sii8620_mt_read_xdevcap_reg(ctx, MHL_XDC_ECBUS_SPEEDS);
+			sii8620_mt_set_cont(ctx, sii8620_got_ecbus_speed);
+			break;
+		case CM_ECBUS_S:
+			sii8620_mt_read_devcap(ctx, true);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static struct sii8620_mt_msg *sii8620_msc_msg_first(struct sii8620 *ctx)
