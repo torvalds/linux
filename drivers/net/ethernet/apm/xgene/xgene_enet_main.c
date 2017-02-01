@@ -1964,6 +1964,30 @@ static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)
 	}
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_enet_acpi_match[] = {
+	{ "APMC0D05", XGENE_ENET1},
+	{ "APMC0D30", XGENE_ENET1},
+	{ "APMC0D31", XGENE_ENET1},
+	{ "APMC0D3F", XGENE_ENET1},
+	{ "APMC0D26", XGENE_ENET2},
+	{ "APMC0D25", XGENE_ENET2},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
+#endif
+
+static const struct of_device_id xgene_enet_of_match[] = {
+	{.compatible = "apm,xgene-enet",    .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene1-sgenet", .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene1-xgenet", .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene2-sgenet", .data = (void *)XGENE_ENET2},
+	{.compatible = "apm,xgene2-xgenet", .data = (void *)XGENE_ENET2},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, xgene_enet_of_match);
+
 static int xgene_enet_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
@@ -2109,32 +2133,6 @@ static void xgene_enet_shutdown(struct platform_device *pdev)
 
 	xgene_enet_remove(pdev);
 }
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xgene_enet_acpi_match[] = {
-	{ "APMC0D05", XGENE_ENET1},
-	{ "APMC0D30", XGENE_ENET1},
-	{ "APMC0D31", XGENE_ENET1},
-	{ "APMC0D3F", XGENE_ENET1},
-	{ "APMC0D26", XGENE_ENET2},
-	{ "APMC0D25", XGENE_ENET2},
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
-#endif
-
-#ifdef CONFIG_OF
-static const struct of_device_id xgene_enet_of_match[] = {
-	{.compatible = "apm,xgene-enet",    .data = (void *)XGENE_ENET1},
-	{.compatible = "apm,xgene1-sgenet", .data = (void *)XGENE_ENET1},
-	{.compatible = "apm,xgene1-xgenet", .data = (void *)XGENE_ENET1},
-	{.compatible = "apm,xgene2-sgenet", .data = (void *)XGENE_ENET2},
-	{.compatible = "apm,xgene2-xgenet", .data = (void *)XGENE_ENET2},
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, xgene_enet_of_match);
-#endif
 
 static struct platform_driver xgene_enet_driver = {
 	.driver = {

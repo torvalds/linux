@@ -311,6 +311,30 @@ static acpi_status acpi_register_phy(acpi_handle handle, u32 lvl,
 }
 #endif
 
+static const struct of_device_id xgene_mdio_of_match[] = {
+	{
+		.compatible = "apm,xgene-mdio-rgmii",
+		.data = (void *)XGENE_MDIO_RGMII
+	},
+	{
+		.compatible = "apm,xgene-mdio-xfi",
+		.data = (void *)XGENE_MDIO_XFI
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, xgene_mdio_of_match);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_mdio_acpi_match[] = {
+	{ "APMC0D65", XGENE_MDIO_RGMII },
+	{ "APMC0D66", XGENE_MDIO_XFI },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(acpi, xgene_mdio_acpi_match);
+#endif
+
+
 static int xgene_mdio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -429,32 +453,6 @@ static int xgene_mdio_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id xgene_mdio_of_match[] = {
-	{
-		.compatible = "apm,xgene-mdio-rgmii",
-		.data = (void *)XGENE_MDIO_RGMII
-	},
-	{
-		.compatible = "apm,xgene-mdio-xfi",
-		.data = (void *)XGENE_MDIO_XFI
-	},
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, xgene_mdio_of_match);
-#endif
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xgene_mdio_acpi_match[] = {
-	{ "APMC0D65", XGENE_MDIO_RGMII },
-	{ "APMC0D66", XGENE_MDIO_XFI },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(acpi, xgene_mdio_acpi_match);
-#endif
 
 static struct platform_driver xgene_mdio_driver = {
 	.driver = {
