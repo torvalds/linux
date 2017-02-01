@@ -91,18 +91,6 @@ static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
 
 static struct visorchannel *controlvm_channel;
-
-/* Manages the request payload in the controlvm channel */
-struct visor_controlvm_payload_info {
-	u8 *ptr;		/* pointer to base address of payload pool */
-	u64 offset;		/*
-				 * offset from beginning of controlvm
-				 * channel to beginning of payload * pool
-				 */
-	u32 bytes;		/* number of bytes in payload pool */
-};
-
-static struct visor_controlvm_payload_info controlvm_payload_info;
 static unsigned long controlvm_payload_bytes_buffered;
 
 /*
@@ -999,82 +987,6 @@ err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
 		device_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
-}
-
-/**
- * initialize_controlvm_payload_info() - init controlvm_payload_info struct
- * @phys_addr: the physical address of controlvm channel
- * @offset:    the offset to payload
- * @bytes:     the size of the payload in bytes
- * @info:      the returning valid struct
- *
- * When provided with the physical address of the controlvm channel
- * (phys_addr), the offset to the payload area we need to manage
- * (offset), and the size of this payload area (bytes), fills in the
- * controlvm_payload_info struct.
- *
- * Return: CONTROLVM_RESP_SUCCESS for success or a negative for failure
- */
-static int
-initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
-				  struct visor_controlvm_payload_info *info)
-{
-	u8 *payload = NULL;
-
-	if (!info)
-		return -CONTROLVM_RESP_PAYLOAD_INVALID;
-
-	if ((offset == 0) || (bytes == 0))
-		return -CONTROLVM_RESP_PAYLOAD_INVALID;
-
-	payload = memremap(phys_addr + offset, bytes, MEMREMAP_WB);
-	if (!payload)
-		return -CONTROLVM_RESP_IOREMAP_FAILED;
-
-	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
-	info->offset = offset;
-	info->bytes = bytes;
-	info->ptr = payload;
-
-	return CONTROLVM_RESP_SUCCESS;
-}
-
-static void
-destroy_controlvm_payload_info(struct visor_controlvm_payload_info *info)
-{
-	if (info->ptr) {
-		memunmap(info->ptr);
-		info->ptr = NULL;
-	}
-	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
-}
-
-static void
-initialize_controlvm_payload(void)
-{
-	u64 phys_addr = visorchannel_get_physaddr(controlvm_channel);
-	u64 payload_offset = 0;
-	u32 payload_bytes = 0;
-
-	if (visorchannel_read(controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
-				       request_payload_offset),
-			      &payload_offset, sizeof(payload_offset)) < 0) {
-		POSTCODE_LINUX(CONTROLVM_INIT_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
-		return;
-	}
-	if (visorchannel_read(controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
-				       request_payload_bytes),
-			      &payload_bytes, sizeof(payload_bytes)) < 0) {
-		POSTCODE_LINUX(CONTROLVM_INIT_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
-		return;
-	}
-	initialize_controlvm_payload_info(phys_addr,
-					  payload_offset, payload_bytes,
-					  &controlvm_payload_info);
 }
 
 /*
@@ -2056,17 +1968,14 @@ visorchipset_init(struct acpi_device *acpi_device)
 	if (!controlvm_channel)
 		goto error;
 
-	if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
-		    visorchannel_get_header(controlvm_channel))) {
-		initialize_controlvm_payload();
-	} else {
+	if (!SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
+				visorchannel_get_header(controlvm_channel)))
 		goto error_destroy_channel;
-	}
 
 	major_dev = MKDEV(visorchipset_major, 0);
 	err = visorchipset_file_init(major_dev, &controlvm_channel);
 	if (err < 0)
-		goto error_destroy_payload;
+		goto error_destroy_channel;
 
 	/* if booting in a crash kernel */
 	if (is_kdump_kernel())
@@ -2102,9 +2011,6 @@ error_cancel_work:
 	cancel_delayed_work_sync(&periodic_controlvm_work);
 	visorchipset_file_cleanup(major_dev);
 
-error_destroy_payload:
-	destroy_controlvm_payload_info(&controlvm_payload_info);
-
 error_destroy_channel:
 	visorchannel_destroy(controlvm_channel);
 
@@ -2121,7 +2027,6 @@ visorchipset_exit(struct acpi_device *acpi_device)
 	visorbus_exit();
 
 	cancel_delayed_work_sync(&periodic_controlvm_work);
-	destroy_controlvm_payload_info(&controlvm_payload_info);
 
 	visorchannel_destroy(controlvm_channel);
 
