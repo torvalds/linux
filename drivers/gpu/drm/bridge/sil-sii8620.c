@@ -402,7 +402,7 @@ static void sii8620_update_array(u8 *dst, u8 *src, int count)
 	}
 }
 
-static void sii8620_mr_devcap(struct sii8620 *ctx)
+static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
 {
 	static const char * const sink_str[] = {
 		[SINK_NONE] = "NONE",
@@ -410,23 +410,10 @@ static void sii8620_mr_devcap(struct sii8620 *ctx)
 		[SINK_DVI] = "DVI"
 	};
 
-	u8 dcap[MHL_DCAP_SIZE];
 	char sink_name[20];
 	struct device *dev = ctx->dev;
 
-	sii8620_read_buf(ctx, REG_EDID_FIFO_RD_DATA, dcap, MHL_DCAP_SIZE);
-	if (ctx->error < 0)
-		return;
-
-	dev_info(dev, "dcap: %*ph\n", MHL_DCAP_SIZE, dcap);
-	dev_info(dev, "detected dongle MHL %d.%d, ChipID %02x%02x:%02x%02x\n",
-		 dcap[MHL_DCAP_MHL_VERSION] / 16,
-		 dcap[MHL_DCAP_MHL_VERSION] % 16, dcap[MHL_DCAP_ADOPTER_ID_H],
-		 dcap[MHL_DCAP_ADOPTER_ID_L], dcap[MHL_DCAP_DEVICE_ID_H],
-		 dcap[MHL_DCAP_DEVICE_ID_L]);
-	sii8620_update_array(ctx->devcap, dcap, MHL_DCAP_SIZE);
-
-	if (!(dcap[MHL_DCAP_CAT] & MHL_DCAP_CAT_SINK))
+	if (ret < 0)
 		return;
 
 	sii8620_fetch_edid(ctx);
@@ -447,6 +434,23 @@ static void sii8620_mr_devcap(struct sii8620 *ctx)
 		 sink_str[ctx->sink_type], sink_name);
 	sii8620_set_upstream_edid(ctx);
 	sii8620_enable_hpd(ctx);
+}
+
+static void sii8620_mr_devcap(struct sii8620 *ctx)
+{
+	u8 dcap[MHL_DCAP_SIZE];
+	struct device *dev = ctx->dev;
+
+	sii8620_read_buf(ctx, REG_EDID_FIFO_RD_DATA, dcap, MHL_DCAP_SIZE);
+	if (ctx->error < 0)
+		return;
+
+	dev_info(dev, "detected dongle MHL %d.%d, ChipID %02x%02x:%02x%02x\n",
+		 dcap[MHL_DCAP_MHL_VERSION] / 16,
+		 dcap[MHL_DCAP_MHL_VERSION] % 16,
+		 dcap[MHL_DCAP_ADOPTER_ID_H], dcap[MHL_DCAP_ADOPTER_ID_L],
+		 dcap[MHL_DCAP_DEVICE_ID_H], dcap[MHL_DCAP_DEVICE_ID_L]);
+	sii8620_update_array(ctx->devcap, dcap, MHL_DCAP_SIZE);
 }
 
 static void sii8620_mr_xdevcap(struct sii8620 *ctx)
@@ -1409,6 +1413,7 @@ static void sii8620_status_changed_path(struct sii8620 *ctx)
 				      | MHL_DST_LM_PATH_ENABLED);
 		if (!sii8620_is_mhl3(ctx))
 			sii8620_mt_read_devcap(ctx, false);
+		sii8620_mt_set_cont(ctx, sii8620_sink_detected);
 	} else {
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
 				      MHL_DST_LM_CLK_MODE_NORMAL);
