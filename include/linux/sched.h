@@ -1003,8 +1003,6 @@ extern void wake_q_add(struct wake_q_head *head,
 		       struct task_struct *task);
 extern void wake_up_q(struct wake_q_head *head);
 
-extern void wake_up_if_idle(int cpu);
-
 struct io_context;			/* See blkdev.h */
 
 

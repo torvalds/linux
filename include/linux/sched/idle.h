@@ -10,4 +10,6 @@ enum cpu_idle_type {
 	CPU_MAX_IDLE_TYPES
 };
 
+extern void wake_up_if_idle(int cpu);
+
 #endif /* _LINUX_SCHED_IDLE_H */
