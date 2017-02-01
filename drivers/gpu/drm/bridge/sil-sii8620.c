@@ -32,6 +32,8 @@
 
 #define SII8620_BURST_BUF_LEN 288
 #define VAL_RX_HDMI_CTRL2_DEFVAL VAL_RX_HDMI_CTRL2_IDLE_CNT(3)
+#define MHL1_MAX_LCLK 225000
+#define MHL3_MAX_LCLK 600000
 
 enum sii8620_mode {
 	CM_DISCONNECTED,
@@ -62,6 +64,9 @@ struct sii8620 {
 	struct regulator_bulk_data supplies[2];
 	struct mutex lock; /* context lock, protects fields below */
 	int error;
+	int pixel_clock;
+	unsigned int use_packed_pixel:1;
+	int video_code;
 	enum sii8620_mode mode;
 	enum sii8620_sink_type sink_type;
 	u8 cbus_status;
@@ -69,7 +74,7 @@ struct sii8620 {
 	u8 xstat[MHL_XDS_SIZE];
 	u8 devcap[MHL_DCAP_SIZE];
 	u8 xdevcap[MHL_XDC_SIZE];
-	u8 avif[19];
+	u8 avif[HDMI_INFOFRAME_SIZE(AVI)];
 	struct edid *edid;
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
@@ -686,6 +691,40 @@ static void sii8620_burst_tx_rbuf_info(struct sii8620 *ctx, int size)
 	d->size = cpu_to_le16(size);
 }
 
+static u8 sii8620_checksum(void *ptr, int size)
+{
+	u8 *d = ptr, sum = 0;
+
+	while (size--)
+		sum += *d++;
+
+	return sum;
+}
+
+static void sii8620_mhl_burst_hdr_set(struct mhl3_burst_header *h,
+	enum mhl_burst_id id)
+{
+	h->id = cpu_to_be16(id);
+	h->total_entries = 1;
+	h->sequence_index = 1;
+}
+
+static void sii8620_burst_tx_bits_per_pixel_fmt(struct sii8620 *ctx, u8 fmt)
+{
+	struct mhl_burst_bits_per_pixel_fmt *d;
+	const int size = sizeof(*d) + sizeof(d->desc[0]);
+
+	d = sii8620_burst_get_tx_buf(ctx, size);
+	if (!d)
+		return;
+
+	sii8620_mhl_burst_hdr_set(&d->hdr, MHL_BURST_ID_BITS_PER_PIXEL_FMT);
+	d->num_entries = 1;
+	d->desc[0].stream_id = 0;
+	d->desc[0].pixel_format = fmt;
+	d->hdr.checksum -= sii8620_checksum(d, size);
+}
+
 static void sii8620_burst_rx_all(struct sii8620 *ctx)
 {
 	u8 *d = ctx->burst.rx_buf;
@@ -950,32 +989,193 @@ static void sii8620_stop_video(struct sii8620 *ctx)
 	sii8620_write(ctx, REG_TPI_SC, val);
 }
 
+static void sii8620_set_format(struct sii8620 *ctx)
+{
+	u8 out_fmt;
+
+	if (sii8620_is_mhl3(ctx)) {
+		sii8620_setbits(ctx, REG_M3_P0CTRL,
+				BIT_M3_P0CTRL_MHL3_P0_PIXEL_MODE_PACKED,
+				ctx->use_packed_pixel ? ~0 : 0);
+	} else {
+		if (ctx->use_packed_pixel)
+			sii8620_write_seq_static(ctx,
+				REG_VID_MODE, BIT_VID_MODE_M1080P,
+				REG_MHL_TOP_CTL, BIT_MHL_TOP_CTL_MHL_PP_SEL | 1,
+				REG_MHLTX_CTL6, 0x60
+			);
+		else
+			sii8620_write_seq_static(ctx,
+				REG_VID_MODE, 0,
+				REG_MHL_TOP_CTL, 1,
+				REG_MHLTX_CTL6, 0xa0
+			);
+	}
+
+	if (ctx->use_packed_pixel)
+		out_fmt = VAL_TPI_FORMAT(YCBCR422, FULL) |
+			BIT_TPI_OUTPUT_CSCMODE709;
+	else
+		out_fmt = VAL_TPI_FORMAT(RGB, FULL);
+
+	sii8620_write_seq(ctx,
+		REG_TPI_INPUT, VAL_TPI_FORMAT(RGB, FULL),
+		REG_TPI_OUTPUT, out_fmt,
+	);
+}
+
+static int mhl3_infoframe_init(struct mhl3_infoframe *frame)
+{
+	memset(frame, 0, sizeof(*frame));
+
+	frame->version = 3;
+	frame->hev_format = -1;
+	return 0;
+}
+
+static ssize_t mhl3_infoframe_pack(struct mhl3_infoframe *frame,
+		 void *buffer, size_t size)
+{
+	const int frm_len = HDMI_INFOFRAME_HEADER_SIZE + MHL3_INFOFRAME_SIZE;
+	u8 *ptr = buffer;
+
+	if (size < frm_len)
+		return -ENOSPC;
+
+	memset(buffer, 0, size);
+	ptr[0] = HDMI_INFOFRAME_TYPE_VENDOR;
+	ptr[1] = frame->version;
+	ptr[2] = MHL3_INFOFRAME_SIZE;
+	ptr[4] = MHL3_IEEE_OUI & 0xff;
+	ptr[5] = (MHL3_IEEE_OUI >> 8) & 0xff;
+	ptr[6] = (MHL3_IEEE_OUI >> 16) & 0xff;
+	ptr[7] = frame->video_format & 0x3;
+	ptr[7] |= (frame->format_type & 0x7) << 2;
+	ptr[7] |= frame->sep_audio ? BIT(5) : 0;
+	if (frame->hev_format >= 0) {
+		ptr[9] = 1;
+		ptr[10] = (frame->hev_format >> 8) & 0xff;
+		ptr[11] = frame->hev_format & 0xff;
+	}
+	if (frame->av_delay) {
+		bool sign = frame->av_delay < 0;
+		int delay = sign ? -frame->av_delay : frame->av_delay;
+
+		ptr[12] = (delay >> 16) & 0xf;
+		if (sign)
+			ptr[12] |= BIT(4);
+		ptr[13] = (delay >> 8) & 0xff;
+		ptr[14] = delay & 0xff;
+	}
+	ptr[3] -= sii8620_checksum(buffer, frm_len);
+	return frm_len;
+}
+
+static void sii8620_set_infoframes(struct sii8620 *ctx)
+{
+	struct mhl3_infoframe mhl_frm;
+	union hdmi_infoframe frm;
+	u8 buf[31];
+	int ret;
+
+	if (!sii8620_is_mhl3(ctx) || !ctx->use_packed_pixel) {
+		sii8620_write(ctx, REG_TPI_SC,
+			BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI);
+		sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, ctx->avif + 3,
+			ARRAY_SIZE(ctx->avif) - 3);
+		sii8620_write(ctx, REG_PKT_FILTER_0,
+			BIT_PKT_FILTER_0_DROP_CEA_GAMUT_PKT |
+			BIT_PKT_FILTER_0_DROP_MPEG_PKT |
+			BIT_PKT_FILTER_0_DROP_GCP_PKT,
+			BIT_PKT_FILTER_1_DROP_GEN_PKT);
+		return;
+	}
+
+	ret = hdmi_avi_infoframe_init(&frm.avi);
+	frm.avi.colorspace = HDMI_COLORSPACE_YUV422;
+	frm.avi.active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
+	frm.avi.picture_aspect = HDMI_PICTURE_ASPECT_16_9;
+	frm.avi.colorimetry = HDMI_COLORIMETRY_ITU_709;
+	frm.avi.video_code = ctx->video_code;
+	if (!ret)
+		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, ARRAY_SIZE(buf));
+	if (ret > 0)
+		sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, buf + 3, ret - 3);
+	sii8620_write(ctx, REG_PKT_FILTER_0,
+		BIT_PKT_FILTER_0_DROP_CEA_GAMUT_PKT |
+		BIT_PKT_FILTER_0_DROP_MPEG_PKT |
+		BIT_PKT_FILTER_0_DROP_AVI_PKT |
+		BIT_PKT_FILTER_0_DROP_GCP_PKT,
+		BIT_PKT_FILTER_1_VSI_OVERRIDE_DIS |
+		BIT_PKT_FILTER_1_DROP_GEN_PKT |
+		BIT_PKT_FILTER_1_DROP_VSIF_PKT);
+
+	sii8620_write(ctx, REG_TPI_INFO_FSEL, BIT_TPI_INFO_FSEL_EN
+		| BIT_TPI_INFO_FSEL_RPT | VAL_TPI_INFO_FSEL_VSI);
+	ret = mhl3_infoframe_init(&mhl_frm);
+	if (!ret)
+		ret = mhl3_infoframe_pack(&mhl_frm, buf, ARRAY_SIZE(buf));
+	sii8620_write_buf(ctx, REG_TPI_INFO_B0, buf, ret);
+}
+
 static void sii8620_start_hdmi(struct sii8620 *ctx)
 {
 	sii8620_write_seq_static(ctx,
 		REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL
 			| BIT_RX_HDMI_CTRL2_USE_AV_MUTE,
 		REG_VID_OVRRD, BIT_VID_OVRRD_PP_AUTO_DISABLE
-			| BIT_VID_OVRRD_M1080P_OVRRD,
-		REG_VID_MODE, 0,
-		REG_MHL_TOP_CTL, 0x1,
-		REG_MHLTX_CTL6, 0xa0,
-		REG_TPI_INPUT, VAL_TPI_FORMAT(RGB, FULL),
-		REG_TPI_OUTPUT, VAL_TPI_FORMAT(RGB, FULL),
-	);
+			| BIT_VID_OVRRD_M1080P_OVRRD);
+	sii8620_set_format(ctx);
 
-	sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
-			      MHL_DST_LM_CLK_MODE_NORMAL |
-			      MHL_DST_LM_PATH_ENABLED);
+	if (!sii8620_is_mhl3(ctx)) {
+		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
+			MHL_DST_LM_CLK_MODE_NORMAL | MHL_DST_LM_PATH_ENABLED);
+		sii8620_set_auto_zone(ctx);
+	} else {
+		static const struct {
+			int max_clk;
+			u8 zone;
+			u8 link_rate;
+			u8 rrp_decode;
+		} clk_spec[] = {
+			{ 150000, VAL_TX_ZONE_CTL3_TX_ZONE_1_5GBPS,
+			  MHL_XDS_LINK_RATE_1_5_GBPS, 0x38 },
+			{ 300000, VAL_TX_ZONE_CTL3_TX_ZONE_3GBPS,
+			  MHL_XDS_LINK_RATE_3_0_GBPS, 0x40 },
+			{ 600000, VAL_TX_ZONE_CTL3_TX_ZONE_6GBPS,
+			  MHL_XDS_LINK_RATE_6_0_GBPS, 0x40 },
+		};
+		u8 p0_ctrl = BIT_M3_P0CTRL_MHL3_P0_PORT_EN;
+		int clk = ctx->pixel_clock * (ctx->use_packed_pixel ? 2 : 3);
+		int i;
 
-	sii8620_set_auto_zone(ctx);
+		for (i = 0; i < ARRAY_SIZE(clk_spec); ++i)
+			if (clk < clk_spec[i].max_clk)
+				break;
 
-	sii8620_write(ctx, REG_TPI_SC, BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI);
+		if (100 * clk >= 98 * clk_spec[i].max_clk)
+			p0_ctrl |= BIT_M3_P0CTRL_MHL3_P0_UNLIMIT_EN;
 
-	sii8620_write_buf(ctx, REG_TPI_AVI_CHSUM, ctx->avif,
-			  ARRAY_SIZE(ctx->avif));
+		sii8620_burst_tx_bits_per_pixel_fmt(ctx, ctx->use_packed_pixel);
+		sii8620_burst_send(ctx);
+		sii8620_write_seq(ctx,
+			REG_MHL_DP_CTL0, 0xf0,
+			REG_MHL3_TX_ZONE_CTL, clk_spec[i].zone);
+		sii8620_setbits(ctx, REG_M3_P0CTRL,
+			BIT_M3_P0CTRL_MHL3_P0_PORT_EN
+			| BIT_M3_P0CTRL_MHL3_P0_UNLIMIT_EN, p0_ctrl);
+		sii8620_setbits(ctx, REG_M3_POSTM, MSK_M3_POSTM_RRP_DECODE,
+			clk_spec[i].rrp_decode);
+		sii8620_write_seq_static(ctx,
+			REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE
+				| BIT_M3_CTRL_H2M_SWRST,
+			REG_M3_CTRL, VAL_M3_CTRL_MHL3_VALUE
+		);
+		sii8620_mt_write_stat(ctx, MHL_XDS_REG(AVLINK_MODE_CONTROL),
+			clk_spec[i].link_rate);
+	}
 
-	sii8620_write(ctx, REG_PKT_FILTER_0, 0xa1, 0x2);
+	sii8620_set_infoframes(ctx);
 }
 
 static void sii8620_start_video(struct sii8620 *ctx)
@@ -1835,22 +2035,44 @@ static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
-	bool ret = false;
-	int max_clock = 74250;
+	int max_lclk;
+	bool ret = true;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
 
 	mutex_lock(&ctx->lock);
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		goto out;
+	max_lclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK : MHL1_MAX_LCLK;
+	if (max_lclk > 3 * adjusted_mode->clock) {
+		ctx->use_packed_pixel = 0;
+		goto end;
+	}
+	if ((ctx->devcap[MHL_DCAP_VID_LINK_MODE] & MHL_DCAP_VID_LINK_PPIXEL) &&
+	    max_lclk > 2 * adjusted_mode->clock) {
+		ctx->use_packed_pixel = 1;
+		goto end;
+	}
+	ret = false;
+end:
+	if (ret) {
+		u8 vic = drm_match_cea_mode(adjusted_mode);
 
-	if (ctx->devcap[MHL_DCAP_VID_LINK_MODE] & MHL_DCAP_VID_LINK_PPIXEL)
-		max_clock = 300000;
+		if (!vic) {
+			union hdmi_infoframe frm;
+			u8 mhl_vic[] = { 0, 95, 94, 93, 98 };
 
-	ret = mode->clock <= max_clock;
-
-out:
+			drm_hdmi_vendor_infoframe_from_display_mode(
+				&frm.vendor.hdmi, adjusted_mode);
+			vic = frm.vendor.hdmi.vic;
+			if (vic >= ARRAY_SIZE(mhl_vic))
+				vic = 0;
+			vic = mhl_vic[vic];
+		}
+		ctx->video_code = vic;
+		ctx->pixel_clock = adjusted_mode->clock;
+	}
 	mutex_unlock(&ctx->lock);
-
 	return ret;
 }
 

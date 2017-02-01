@@ -1084,10 +1084,17 @@
 
 /* TPI Info Frame Select, default value: 0x00 */
 #define REG_TPI_INFO_FSEL			0x06bf
-#define BIT_TPI_INFO_FSEL_TPI_INFO_EN		BIT(7)
-#define BIT_TPI_INFO_FSEL_TPI_INFO_RPT		BIT(6)
-#define BIT_TPI_INFO_FSEL_TPI_INFO_READ_FLAG	BIT(5)
-#define MSK_TPI_INFO_FSEL_TPI_INFO_SEL		0x07
+#define BIT_TPI_INFO_FSEL_EN			BIT(7)
+#define BIT_TPI_INFO_FSEL_RPT			BIT(6)
+#define BIT_TPI_INFO_FSEL_READ_FLAG		BIT(5)
+#define MSK_TPI_INFO_FSEL_PKT			0x07
+#define VAL_TPI_INFO_FSEL_AVI			0x00
+#define VAL_TPI_INFO_FSEL_SPD			0x01
+#define VAL_TPI_INFO_FSEL_AUD			0x02
+#define VAL_TPI_INFO_FSEL_MPG			0x03
+#define VAL_TPI_INFO_FSEL_GEN			0x04
+#define VAL_TPI_INFO_FSEL_GEN2			0x05
+#define VAL_TPI_INFO_FSEL_VSI			0x06
 
 /* TPI Info Byte #0, default value: 0x00 */
 #define REG_TPI_INFO_B0				0x06c0
