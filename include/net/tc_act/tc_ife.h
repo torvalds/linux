@@ -6,7 +6,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
 
-#define IFE_METAHDRLEN 2
 struct tcf_ife_info {
 	struct tc_action common;
 	u8 eth_dst[ETH_ALEN];
