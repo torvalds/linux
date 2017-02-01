@@ -856,9 +856,6 @@ bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
 		.flags = wait ? 0 : BLK_MQ_REQ_NOWAIT,
 	};
 
-	if (blk_mq_hctx_stopped(data.hctx))
-		return false;
-
 	if (rq->tag != -1) {
 done:
 		if (hctx)
