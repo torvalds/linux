@@ -217,7 +217,6 @@ struct fnic {
 	struct fcoe_ctlr ctlr;		/* FIP FCoE controller structure */
 	struct vnic_dev_bar bar0;
 
-	struct msix_entry msix_entry[FNIC_MSIX_INTR_MAX];
 	struct fnic_msix_entry msix[FNIC_MSIX_INTR_MAX];
 
 	struct vnic_stats *stats;
