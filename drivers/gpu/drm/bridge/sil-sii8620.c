@@ -289,9 +289,59 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 		msg->send(ctx, msg);
 }
 
+static void sii8620_enable_gen2_write_burst(struct sii8620 *ctx)
+{
+	u8 ctrl = BIT_MDT_RCV_CTRL_MDT_RCV_EN;
+
+	if (ctx->gen2_write_burst)
+		return;
+
+	if (ctx->mode >= CM_MHL1)
+		ctrl |= BIT_MDT_RCV_CTRL_MDT_DELAY_RCV_EN;
+
+	sii8620_write_seq(ctx,
+		REG_MDT_RCV_TIMEOUT, 100,
+		REG_MDT_RCV_CTRL, ctrl
+	);
+	ctx->gen2_write_burst = 1;
+}
+
+static void sii8620_disable_gen2_write_burst(struct sii8620 *ctx)
+{
+	if (!ctx->gen2_write_burst)
+		return;
+
+	sii8620_write_seq_static(ctx,
+		REG_MDT_XMIT_CTRL, 0,
+		REG_MDT_RCV_CTRL, 0
+	);
+	ctx->gen2_write_burst = 0;
+}
+
+static void sii8620_start_gen2_write_burst(struct sii8620 *ctx)
+{
+	sii8620_write_seq_static(ctx,
+		REG_MDT_INT_1_MASK, BIT_MDT_RCV_TIMEOUT
+			| BIT_MDT_RCV_SM_ABORT_PKT_RCVD | BIT_MDT_RCV_SM_ERROR
+			| BIT_MDT_XMIT_TIMEOUT | BIT_MDT_XMIT_SM_ABORT_PKT_RCVD
+			| BIT_MDT_XMIT_SM_ERROR,
+		REG_MDT_INT_0_MASK, BIT_MDT_XFIFO_EMPTY
+			| BIT_MDT_IDLE_AFTER_HAWB_DISABLE
+			| BIT_MDT_RFIFO_DATA_RDY
+	);
+	sii8620_enable_gen2_write_burst(ctx);
+}
+
 static void sii8620_mt_msc_cmd_send(struct sii8620 *ctx,
 				    struct sii8620_mt_msg *msg)
 {
+	if (msg->reg[0] == MHL_SET_INT &&
+	    msg->reg[1] == MHL_INT_REG(RCHANGE) &&
+	    msg->reg[2] == MHL_INT_RC_FEAT_REQ)
+		sii8620_enable_gen2_write_burst(ctx);
+	else
+		sii8620_disable_gen2_write_burst(ctx);
+
 	switch (msg->reg[0]) {
 	case MHL_WRITE_STAT:
 	case MHL_SET_INT:
@@ -955,44 +1005,6 @@ static void sii8620_enable_hpd(struct sii8620 *ctx)
 		REG_HPD_CTRL, BIT_HPD_CTRL_HPD_OUT_OVR_EN
 			| BIT_HPD_CTRL_HPD_HIGH,
 	);
-}
-
-static void sii8620_enable_gen2_write_burst(struct sii8620 *ctx)
-{
-	if (ctx->gen2_write_burst)
-		return;
-
-	sii8620_write_seq_static(ctx,
-		REG_MDT_RCV_TIMEOUT, 100,
-		REG_MDT_RCV_CTRL, BIT_MDT_RCV_CTRL_MDT_RCV_EN
-	);
-	ctx->gen2_write_burst = 1;
-}
-
-static void sii8620_disable_gen2_write_burst(struct sii8620 *ctx)
-{
-	if (!ctx->gen2_write_burst)
-		return;
-
-	sii8620_write_seq_static(ctx,
-		REG_MDT_XMIT_CTRL, 0,
-		REG_MDT_RCV_CTRL, 0
-	);
-	ctx->gen2_write_burst = 0;
-}
-
-static void sii8620_start_gen2_write_burst(struct sii8620 *ctx)
-{
-	sii8620_write_seq_static(ctx,
-		REG_MDT_INT_1_MASK, BIT_MDT_RCV_TIMEOUT
-			| BIT_MDT_RCV_SM_ABORT_PKT_RCVD | BIT_MDT_RCV_SM_ERROR
-			| BIT_MDT_XMIT_TIMEOUT | BIT_MDT_XMIT_SM_ABORT_PKT_RCVD
-			| BIT_MDT_XMIT_SM_ERROR,
-		REG_MDT_INT_0_MASK, BIT_MDT_XFIFO_EMPTY
-			| BIT_MDT_IDLE_AFTER_HAWB_DISABLE
-			| BIT_MDT_RFIFO_DATA_RDY
-	);
-	sii8620_enable_gen2_write_burst(ctx);
 }
 
 static void sii8620_mhl_discover(struct sii8620 *ctx)
