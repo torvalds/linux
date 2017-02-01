@@ -14,7 +14,15 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
-#define NR_CPU_IRQS	32	/* number of irq lines coming in */
+#define NR_EXCEPTIONS	16
+
+struct bcr_irq_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
+#else
+	unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
+#endif
+};
 
 /*
  * Early Hardware specific Interrupt setup
@@ -25,14 +33,7 @@
 void arc_init_IRQ(void)
 {
 	unsigned int tmp, irq_prio;
-
-	struct irq_build {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
-#else
-		unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
-#endif
-	} irq_bcr;
+	struct bcr_irq_arcv2 irq_bcr;
 
 	struct aux_irq_ctrl {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -117,7 +118,7 @@ static int arcv2_irq_map(struct irq_domain *d, unsigned int irq,
 	 * core intc IRQs [16, 23]:
 	 * Statically assigned always private-per-core (Timers, WDT, IPI, PCT)
 	 */
-	if (hw < 24) {
+	if (hw < FIRST_EXT_IRQ) {
 		/*
 		 * A subsequent request_percpu_irq() fails if percpu_devid is
 		 * not set. That in turns sets NOAUTOEN, meaning each core needs
@@ -142,11 +143,16 @@ static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
 	struct irq_domain *root_domain;
+	struct bcr_irq_arcv2 irq_bcr;
+	unsigned int nr_cpu_irqs;
+
+	READ_BCR(ARC_REG_IRQ_BCR, irq_bcr);
+	nr_cpu_irqs = irq_bcr.irqs + NR_EXCEPTIONS;
 
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS, &arcv2_irq_ops, NULL);
+	root_domain = irq_domain_add_linear(intc, nr_cpu_irqs, &arcv2_irq_ops, NULL);
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 
