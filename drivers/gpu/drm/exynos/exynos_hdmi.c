@@ -35,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
@@ -133,6 +134,7 @@ struct hdmi_context {
 	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
 	struct regulator		*reg_hdmi_en;
 	struct exynos_drm_clk		phy_clk;
+	struct drm_bridge		*bridge;
 };
 
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
@@ -922,7 +924,15 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
-	return 0;
+	if (hdata->bridge) {
+		encoder->bridge = hdata->bridge;
+		hdata->bridge->encoder = encoder;
+		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
+		if (ret)
+			DRM_ERROR("Failed to attach bridge\n");
+	}
+
+	return ret;
 }
 
 static bool hdmi_mode_fixup(struct drm_encoder *encoder,
@@ -1591,6 +1601,31 @@ static void hdmiphy_clk_enable(struct exynos_drm_clk *clk, bool enable)
 		hdmiphy_disable(hdata);
 }
 
+static int hdmi_bridge_init(struct hdmi_context *hdata)
+{
+	struct device *dev = hdata->dev;
+	struct device_node *ep, *np;
+
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
+	if (!ep)
+		return 0;
+
+	np = of_graph_get_remote_port_parent(ep);
+	of_node_put(ep);
+	if (!np) {
+		DRM_ERROR("failed to get remote port parent");
+		return -EINVAL;
+	}
+
+	hdata->bridge = of_drm_find_bridge(np);
+	of_node_put(np);
+
+	if (!hdata->bridge)
+		return -EPROBE_DEFER;
+
+	return 0;
+}
+
 static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
@@ -1630,17 +1665,18 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	hdata->reg_hdmi_en = devm_regulator_get_optional(dev, "hdmi-en");
 
-	if (PTR_ERR(hdata->reg_hdmi_en) == -ENODEV)
-		return 0;
+	if (PTR_ERR(hdata->reg_hdmi_en) != -ENODEV) {
+		if (IS_ERR(hdata->reg_hdmi_en))
+			return PTR_ERR(hdata->reg_hdmi_en);
 
-	if (IS_ERR(hdata->reg_hdmi_en))
-		return PTR_ERR(hdata->reg_hdmi_en);
+		ret = regulator_enable(hdata->reg_hdmi_en);
+		if (ret) {
+			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			return ret;
+		}
+	}
 
-	ret = regulator_enable(hdata->reg_hdmi_en);
-	if (ret)
-		DRM_ERROR("failed to enable hdmi-en regulator\n");
-
-	return ret;
+	return hdmi_bridge_init(hdata);
 }
 
 static struct of_device_id hdmi_match_types[] = {
