@@ -220,6 +220,7 @@ struct wcn36xx {
 	int			scan_freq;
 	int			scan_band;
 	struct mutex		scan_lock;
+	bool			scan_aborted;
 
 	/* DXE channels */
 	struct wcn36xx_dxe_ch	dxe_tx_l_ch;	/* TX low */

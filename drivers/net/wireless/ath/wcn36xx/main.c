@@ -574,6 +574,7 @@ static void wcn36xx_hw_scan_worker(struct work_struct *work)
 	struct cfg80211_scan_request *req = wcn->scan_req;
 	u8 channels[WCN36XX_HAL_PNO_MAX_NETW_CHANNELS_EX];
 	struct cfg80211_scan_info scan_info = {};
+	bool aborted = false;
 	int i;
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac80211 scan %d channels worker\n", req->n_channels);
@@ -585,6 +586,13 @@ static void wcn36xx_hw_scan_worker(struct work_struct *work)
 
 	wcn36xx_smd_init_scan(wcn, HAL_SYS_MODE_SCAN);
 	for (i = 0; i < req->n_channels; i++) {
+		mutex_lock(&wcn->scan_lock);
+		aborted = wcn->scan_aborted;
+		mutex_unlock(&wcn->scan_lock);
+
+		if (aborted)
+			break;
+
 		wcn->scan_freq = req->channels[i]->center_freq;
 		wcn->scan_band = req->channels[i]->band;
 
@@ -596,7 +604,7 @@ static void wcn36xx_hw_scan_worker(struct work_struct *work)
 	}
 	wcn36xx_smd_finish_scan(wcn, HAL_SYS_MODE_SCAN);
 
-	scan_info.aborted = false;
+	scan_info.aborted = aborted;
 	ieee80211_scan_completed(wcn->hw, &scan_info);
 
 	mutex_lock(&wcn->scan_lock);
@@ -615,12 +623,26 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 		mutex_unlock(&wcn->scan_lock);
 		return -EBUSY;
 	}
+
+	wcn->scan_aborted = false;
 	wcn->scan_req = &hw_req->req;
 	mutex_unlock(&wcn->scan_lock);
 
 	schedule_work(&wcn->scan_work);
 
 	return 0;
+}
+
+static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	struct wcn36xx *wcn = hw->priv;
+
+	mutex_lock(&wcn->scan_lock);
+	wcn->scan_aborted = true;
+	mutex_unlock(&wcn->scan_lock);
+
+	cancel_work_sync(&wcn->scan_work);
 }
 
 static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
@@ -1034,6 +1056,7 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.tx			= wcn36xx_tx,
 	.set_key		= wcn36xx_set_key,
 	.hw_scan		= wcn36xx_hw_scan,
+	.cancel_hw_scan		= wcn36xx_cancel_hw_scan,
 	.bss_info_changed	= wcn36xx_bss_info_changed,
 	.set_rts_threshold	= wcn36xx_set_rts_threshold,
 	.sta_add		= wcn36xx_sta_add,
