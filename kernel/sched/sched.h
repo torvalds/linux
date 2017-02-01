@@ -1069,7 +1069,7 @@ static inline void sched_ttwu_pending(void) { }
 #endif /* CONFIG_SMP */
 
 #include "stats.h"
-#include "auto_group.h"
+#include "autogroup.h"
 
 #ifdef CONFIG_CGROUP_SCHED
 
