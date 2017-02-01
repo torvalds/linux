@@ -459,7 +459,7 @@ extern struct list_head sdcardfs_super_list;
 extern appid_t get_appid(const char *app_name);
 extern appid_t get_ext_gid(const char *app_name);
 extern appid_t is_excluded(const char *app_name, userid_t userid);
-extern int check_caller_access_to_name(struct inode *parent_node, const char* name);
+extern int check_caller_access_to_name(struct inode *parent_node, const struct qstr* name);
 extern int open_flags_to_access_mode(int open_flags);
 extern int packagelist_init(void);
 extern void packagelist_exit(void);
@@ -477,7 +477,7 @@ struct limit_search {
 extern void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 			uid_t uid, bool under_android, struct inode *top);
 extern void get_derived_permission(struct dentry *parent, struct dentry *dentry);
-extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, const char *name);
+extern void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, const struct qstr *name);
 extern void drop_recursive(struct dentry *parent);
 extern void fixup_top_recursive(struct dentry *parent);
 extern void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit);
@@ -605,4 +605,17 @@ static inline void sdcardfs_copy_and_fix_attrs(struct inode *dest, const struct 
 	dest->i_flags = src->i_flags;
 	set_nlink(dest, src->i_nlink);
 }
+
+static inline bool str_case_eq(const char *s1, const char *s2)
+{
+	return !strcasecmp(s1, s2);
+}
+
+static inline bool qstr_case_eq(const struct qstr *q1, const struct qstr *q2)
+{
+	return q1->len == q2->len && str_case_eq(q1->name, q2->name);
+}
+
+#define QSTR_LITERAL(string) QSTR_INIT(string, sizeof(string)-1)
+
 #endif	/* not _SDCARDFS_H_ */
