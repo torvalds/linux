@@ -380,6 +380,9 @@ struct arm_smmu_device {
 	unsigned int			*irqs;
 
 	u32				cavium_id_base; /* Specific to Cavium */
+
+	/* IOMMU core code handle */
+	struct iommu_device		iommu;
 };
 
 enum arm_smmu_context_fmt {
@@ -1444,6 +1447,8 @@ static int arm_smmu_add_device(struct device *dev)
 	if (ret)
 		goto out_free;
 
+	iommu_device_link(&smmu->iommu, dev);
+
 	return 0;
 
 out_free:
@@ -1456,10 +1461,17 @@ out_free:
 static void arm_smmu_remove_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct arm_smmu_master_cfg *cfg;
+	struct arm_smmu_device *smmu;
+
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
 
+	cfg  = fwspec->iommu_priv;
+	smmu = cfg->smmu;
+
+	iommu_device_unlink(&smmu->iommu, dev);
 	arm_smmu_master_free_smes(fwspec);
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
@@ -2011,6 +2023,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	resource_size_t ioaddr;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
@@ -2031,6 +2044,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ioaddr = res->start;
 	smmu->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
@@ -2089,6 +2103,22 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 				i, smmu->irqs[i]);
 			return err;
 		}
+	}
+
+	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
+				     "smmu.%pa", &ioaddr);
+	if (err) {
+		dev_err(dev, "Failed to register iommu in sysfs\n");
+		return err;
+	}
+
+	iommu_device_set_ops(&smmu->iommu, &arm_smmu_ops);
+	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
+
+	err = iommu_device_register(&smmu->iommu);
+	if (err) {
+		dev_err(dev, "Failed to register iommu\n");
+		return err;
 	}
 
 	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
