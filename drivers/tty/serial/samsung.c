@@ -1916,6 +1916,7 @@ static int s3c24xx_serial_resume(struct device *dev)
 static int s3c24xx_serial_resume_noirq(struct device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
 		/* restore IRQ mask */
@@ -1925,7 +1926,9 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
 			if (rx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
+			clk_prepare_enable(ourport->clk);
 			wr_regl(port, S3C64XX_UINTM, uintm);
+			clk_disable_unprepare(ourport->clk);
 		}
 	}
 
