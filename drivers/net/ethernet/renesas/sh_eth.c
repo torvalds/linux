@@ -1605,6 +1605,8 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 	sh_eth_write(ndev, felic_stat, ECSR);	/* clear int */
 	if (felic_stat & ECSR_ICD)
 		ndev->stats.tx_carrier_errors++;
+	if (felic_stat & ECSR_MPD)
+		pm_wakeup_event(&mdp->pdev->dev, 0);
 	if (felic_stat & ECSR_LCHNG) {
 		/* Link Changed */
 		if (mdp->cd->no_psr || mdp->no_ether_link)
@@ -1624,8 +1626,6 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 			sh_eth_rcv_snd_enable(ndev);
 		}
 	}
-	if (felic_stat & ECSR_MPD)
-		pm_wakeup_event(&mdp->pdev->dev, 0);
 }
 
 /* error control function */
@@ -3271,7 +3271,7 @@ static int sh_eth_wol_setup(struct net_device *ndev)
 	sh_eth_write(ndev, EESIPR_ECIIP, EESIPR);
 
 	/* Enable MagicPacket */
-	sh_eth_modify(ndev, ECMR, 0, ECMR_MPDE);
+	sh_eth_modify(ndev, ECMR, ECMR_MPDE, ECMR_MPDE);
 
 	/* Increased clock usage so device won't be suspended */
 	clk_enable(mdp->clk);
