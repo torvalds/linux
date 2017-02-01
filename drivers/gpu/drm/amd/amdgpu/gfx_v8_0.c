@@ -4984,6 +4984,7 @@ static int gfx_v8_0_mqd_commit(struct amdgpu_ring *ring)
 
 static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 {
+	int r = 0;
 	struct amdgpu_device *adev = ring->adev;
 	struct vi_mqd *mqd = ring->mqd_ptr;
 	int mqd_idx = AMDGPU_MAX_COMPUTE_RINGS;
@@ -5000,7 +5001,11 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		amdgpu_ring_clear_ring(ring);
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		gfx_v8_0_deactivate_hqd(adev, 1);
+		r = gfx_v8_0_deactivate_hqd(adev, 1);
+		if (r) {
+			dev_err(adev->dev, "failed to deactivate ring %s\n", ring->name);
+			goto out_unlock;
+		}
 		gfx_v8_0_mqd_commit(ring);
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
@@ -5008,7 +5013,11 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 		gfx_v8_0_mqd_init(ring);
-		gfx_v8_0_deactivate_hqd(adev, 1);
+		r = gfx_v8_0_deactivate_hqd(adev, 1);
+		if (r) {
+			dev_err(adev->dev, "failed to deactivate ring %s\n", ring->name);
+			goto out_unlock;
+		}
 		gfx_v8_0_mqd_commit(ring);
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
@@ -5017,7 +5026,12 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(*mqd));
 	}
 
-	return 0;
+	return r;
+
+out_unlock:
+	vi_srbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+	return r;
 }
 
 static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
