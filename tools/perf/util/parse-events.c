@@ -254,8 +254,7 @@ struct tracepoint_path *tracepoint_name_to_path(const char *name)
 	if (path->system == NULL || path->name == NULL) {
 		zfree(&path->system);
 		zfree(&path->name);
-		free(path);
-		path = NULL;
+		zfree(&path);
 	}
 
 	return path;
@@ -1482,8 +1481,7 @@ static void perf_pmu__parse_cleanup(void)
 			p = perf_pmu_events_list + i;
 			free(p->symbol);
 		}
-		free(perf_pmu_events_list);
-		perf_pmu_events_list = NULL;
+		zfree(&perf_pmu_events_list);
 		perf_pmu_events_list_num = 0;
 	}
 }
