@@ -1412,7 +1412,8 @@ static void sii8620_status_changed_path(struct sii8620 *ctx)
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
 				      MHL_DST_LM_CLK_MODE_NORMAL
 				      | MHL_DST_LM_PATH_ENABLED);
-		sii8620_mt_read_devcap(ctx, false);
+		if (!sii8620_is_mhl3(ctx))
+			sii8620_mt_read_devcap(ctx, false);
 	} else {
 		sii8620_mt_write_stat(ctx, MHL_DST_REG(LINK_MODE),
 				      MHL_DST_LM_CLK_MODE_NORMAL);
@@ -1664,6 +1665,14 @@ static void sii8620_irq_infr(struct sii8620 *ctx)
 		sii8620_start_video(ctx);
 }
 
+static void sii8620_got_xdevcap(struct sii8620 *ctx, int ret)
+{
+	if (ret < 0)
+		return;
+
+	sii8620_mt_read_devcap(ctx, false);
+}
+
 static void sii8620_irq_tdm(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_TRXINTH);
@@ -1675,6 +1684,7 @@ static void sii8620_irq_tdm(struct sii8620 *ctx)
 		ctx->burst.r_size = SII8620_BURST_BUF_LEN;
 		sii8620_burst_tx_rbuf_info(ctx, SII8620_BURST_BUF_LEN);
 		sii8620_mt_read_devcap(ctx, true);
+		sii8620_mt_set_cont(ctx, sii8620_got_xdevcap);
 	} else {
 		sii8620_write_seq_static(ctx,
 			REG_MHL_PLL_CTL2, 0,
