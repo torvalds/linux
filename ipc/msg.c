@@ -31,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/security.h>
 #include <linux/sched.h>
+#include <linux/sched/wake_q.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
 #include <linux/seq_file.h>
