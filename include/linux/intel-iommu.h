@@ -440,7 +440,6 @@ struct intel_iommu {
 	struct irq_domain *ir_domain;
 	struct irq_domain *ir_msi_domain;
 #endif
-	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	struct iommu_device iommu;  /* IOMMU core code handle */
 	int		node;
 	u32		flags;      /* Software defined flags */

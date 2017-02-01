@@ -209,14 +209,21 @@ struct iommu_ops {
  *			 instance
  * @list: Used by the iommu-core to keep a list of registered iommus
  * @ops: iommu-ops for talking to this iommu
+ * @dev: struct device for sysfs handling
  */
 struct iommu_device {
 	struct list_head list;
 	const struct iommu_ops *ops;
+	struct device dev;
 };
 
 int  iommu_device_register(struct iommu_device *iommu);
 void iommu_device_unregister(struct iommu_device *iommu);
+int  iommu_device_sysfs_add(struct iommu_device *iommu,
+			    struct device *parent,
+			    const struct attribute_group **groups,
+			    const char *fmt, ...) __printf(4, 5);
+void iommu_device_sysfs_remove(struct iommu_device *iommu);
 
 static inline void iommu_device_set_ops(struct iommu_device *iommu,
 					const struct iommu_ops *ops)
@@ -287,10 +294,6 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
-struct device *iommu_device_create(struct device *parent, void *drvdata,
-				   const struct attribute_group **groups,
-				   const char *fmt, ...) __printf(4, 5);
-void iommu_device_destroy(struct device *dev);
 int iommu_device_link(struct device *dev, struct device *link);
 void iommu_device_unlink(struct device *dev, struct device *link);
 
@@ -567,18 +570,6 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 	return -EINVAL;
 }
 
-static inline struct device *iommu_device_create(struct device *parent,
-					void *drvdata,
-					const struct attribute_group **groups,
-					const char *fmt, ...)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-static inline void iommu_device_destroy(struct device *dev)
-{
-}
-
 static inline int  iommu_device_register(struct iommu_device *iommu)
 {
 	return -ENODEV;
@@ -590,6 +581,18 @@ static inline void iommu_device_set_ops(struct iommu_device *iommu,
 }
 
 static inline void iommu_device_unregister(struct iommu_device *iommu)
+{
+}
+
+static inline int  iommu_device_sysfs_add(struct iommu_device *iommu,
+					  struct device *parent,
+					  const struct attribute_group **groups,
+					  const char *fmt, ...)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_device_sysfs_remove(struct iommu_device *iommu)
 {
 }
 

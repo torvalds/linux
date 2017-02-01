@@ -535,9 +535,6 @@ struct amd_iommu {
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
 
-	/* IOMMU sysfs device */
-	struct device *iommu_dev;
-
 	/* Handle for IOMMU core code */
 	struct iommu_device iommu;
 

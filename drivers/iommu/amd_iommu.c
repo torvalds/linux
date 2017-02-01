@@ -445,6 +445,7 @@ static void init_iommu_group(struct device *dev)
 static int iommu_init_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
+	struct amd_iommu *iommu;
 	int devid;
 
 	if (dev->archdata.iommu)
@@ -453,6 +454,8 @@ static int iommu_init_device(struct device *dev)
 	devid = get_device_id(dev);
 	if (devid < 0)
 		return devid;
+
+	iommu = amd_iommu_rlookup_table[devid];
 
 	dev_data = find_dev_data(devid);
 	if (!dev_data)
@@ -469,8 +472,7 @@ static int iommu_init_device(struct device *dev)
 
 	dev->archdata.iommu = dev_data;
 
-	iommu_device_link(amd_iommu_rlookup_table[dev_data->devid]->iommu_dev,
-			  dev);
+	iommu_device_link(&iommu->iommu.dev, dev);
 
 	return 0;
 }
@@ -495,12 +497,15 @@ static void iommu_ignore_device(struct device *dev)
 
 static void iommu_uninit_device(struct device *dev)
 {
-	int devid;
 	struct iommu_dev_data *dev_data;
+	struct amd_iommu *iommu;
+	int devid;
 
 	devid = get_device_id(dev);
 	if (devid < 0)
 		return;
+
+	iommu = amd_iommu_rlookup_table[devid];
 
 	dev_data = search_dev_data(devid);
 	if (!dev_data)
@@ -509,8 +514,7 @@ static void iommu_uninit_device(struct device *dev)
 	if (dev_data->domain)
 		detach_device(dev);
 
-	iommu_device_unlink(amd_iommu_rlookup_table[dev_data->devid]->iommu_dev,
-			    dev);
+	iommu_device_unlink(&iommu->iommu.dev, dev);
 
 	iommu_group_remove_device(dev);
 

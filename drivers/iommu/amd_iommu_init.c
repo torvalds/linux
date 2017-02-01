@@ -1637,10 +1637,8 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	amd_iommu_erratum_746_workaround(iommu);
 	amd_iommu_ats_write_check_workaround(iommu);
 
-	iommu->iommu_dev = iommu_device_create(&iommu->dev->dev, iommu,
-					       amd_iommu_groups, "ivhd%d",
-					       iommu->index);
-
+	iommu_device_sysfs_add(&iommu->iommu, &iommu->dev->dev,
+			       amd_iommu_groups, "ivhd%d", iommu->index);
 	iommu_device_set_ops(&iommu->iommu, &amd_iommu_ops);
 	iommu_device_register(&iommu->iommu);
 
