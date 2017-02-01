@@ -175,7 +175,8 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level)
 	timer->irq.level = new_level;
 	trace_kvm_timer_update_irq(vcpu->vcpu_id, timer->irq.irq,
 				   timer->irq.level);
-	ret = kvm_vgic_inject_mapped_irq(vcpu->kvm, vcpu->vcpu_id,
+
+	ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
 					 timer->irq.irq,
 					 timer->irq.level);
 	WARN_ON(ret);
