@@ -51,7 +51,7 @@ MODULE_PARM_DESC(id,
 /*
  * ELD SA bits in the CEA Speaker Allocation data block
  */
-static int eld_speaker_allocation_bits[] = {
+static const int eld_speaker_allocation_bits[] = {
 	[0] = FL | FR,
 	[1] = LFE,
 	[2] = FC,
@@ -114,7 +114,7 @@ static struct cea_channel_speaker_allocation channel_allocations[] = {
 { .ca_index = 0x1f,  .speakers = { FRC,  FLC,  RR,  RL,  FC,  LFE,  FR,  FL } },
 };
 
-static struct channel_map_table map_tables[] = {
+static const struct channel_map_table map_tables[] = {
 	{ SNDRV_CHMAP_FL,       0x00,   FL },
 	{ SNDRV_CHMAP_FR,       0x01,   FR },
 	{ SNDRV_CHMAP_RL,       0x04,   RL },
@@ -455,7 +455,7 @@ static int snd_intelhad_channel_allocation(struct snd_intelhad *intelhaddata,
 /* from speaker bit mask to ALSA API channel position */
 static int spk_to_chmap(int spk)
 {
-	struct channel_map_table *t = map_tables;
+	const struct channel_map_table *t = map_tables;
 
 	for (; t->map; t++) {
 		if (t->spk_mask == spk)
