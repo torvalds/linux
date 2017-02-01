@@ -1300,19 +1300,23 @@ static void set_avi_info_frame(
 	info_frame.avi_info_packet.info_packet_hdmi.bits.S0_S1 = scan_type;
 
 	/* C0, C1 : Colorimetry */
-	if (color_space == COLOR_SPACE_YCBCR709)
+	if (color_space == COLOR_SPACE_YCBCR709 ||
+			color_space == COLOR_SPACE_YCBCR709_LIMITED)
 		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
 				COLORIMETRY_ITU709;
-	else if (color_space == COLOR_SPACE_YCBCR601)
+	else if (color_space == COLOR_SPACE_YCBCR601 ||
+			color_space == COLOR_SPACE_YCBCR601_LIMITED)
 		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
 				COLORIMETRY_ITU601;
-	else
+	else {
+		if (stream->public.timing.pixel_encoding != PIXEL_ENCODING_RGB)
+			BREAK_TO_DEBUGGER();
 		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
 				COLORIMETRY_NO_DATA;
-
+	}
 	if (color_space == COLOR_SPACE_2020_RGB_FULLRANGE ||
-		color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE ||
-		color_space == COLOR_SPACE_2020_YCBCR) {
+			color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE ||
+			color_space == COLOR_SPACE_2020_YCBCR) {
 		info_frame.avi_info_packet.info_packet_hdmi.bits.EC0_EC2 =
 				COLORIMETRYEX_BT2020RGBYCBCR;
 		info_frame.avi_info_packet.info_packet_hdmi.bits.C0_C1 =
