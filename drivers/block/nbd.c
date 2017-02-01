@@ -91,6 +91,7 @@ static struct dentry *nbd_dbg_dir;
 static unsigned int nbds_max = 16;
 static struct nbd_device *nbd_dev;
 static int max_part;
+static struct workqueue_struct *recv_workqueue;
 
 static inline struct device *nbd_to_dev(struct nbd_device *nbd)
 {
@@ -781,7 +782,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			INIT_WORK(&args[i].work, recv_work);
 			args[i].nbd = nbd;
 			args[i].index = i;
-			queue_work(system_long_wq, &args[i].work);
+			queue_work(recv_workqueue, &args[i].work);
 		}
 		wait_event_interruptible(nbd->recv_wq,
 					 atomic_read(&nbd->recv_threads) == 0);
@@ -1030,10 +1031,16 @@ static int __init nbd_init(void)
 
 	if (nbds_max > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
+	recv_workqueue = alloc_workqueue("knbd-recv",
+					 WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	if (!recv_workqueue)
+		return -ENOMEM;
 
 	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
-	if (!nbd_dev)
+	if (!nbd_dev) {
+		destroy_workqueue(recv_workqueue);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < nbds_max; i++) {
 		struct request_queue *q;
@@ -1113,6 +1120,7 @@ out:
 		put_disk(nbd_dev[i].disk);
 	}
 	kfree(nbd_dev);
+	destroy_workqueue(recv_workqueue);
 	return err;
 }
 
@@ -1132,6 +1140,7 @@ static void __exit nbd_cleanup(void)
 			put_disk(disk);
 		}
 	}
+	destroy_workqueue(recv_workqueue);
 	unregister_blkdev(NBD_MAJOR, "nbd");
 	kfree(nbd_dev);
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
