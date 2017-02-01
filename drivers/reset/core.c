@@ -392,7 +392,7 @@ EXPORT_SYMBOL_GPL(__of_reset_control_get);
 
 void reset_control_put(struct reset_control *rstc)
 {
-	if (IS_ERR(rstc))
+	if (IS_ERR_OR_NULL(rstc))
 		return;
 
 	mutex_lock(&reset_list_mutex);
