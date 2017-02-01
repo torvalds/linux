@@ -734,16 +734,6 @@ void iommu_dma_unmap_resource(struct device *dev, dma_addr_t handle,
 	__iommu_dma_unmap(iommu_get_domain_for_dev(dev), handle);
 }
 
-int iommu_dma_supported(struct device *dev, u64 mask)
-{
-	/*
-	 * 'Special' IOMMUs which don't have the same addressing capability
-	 * as the CPU will have to wait until we have some way to query that
-	 * before they'll be able to use this framework.
-	 */
-	return 1;
-}
-
 int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == DMA_ERROR_CODE;
