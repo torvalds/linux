@@ -89,7 +89,7 @@
 #define IXR_D_P_DONE_MASK		BIT(12)
  /* FPGA programmed */
 #define IXR_PCFG_DONE_MASK		BIT(2)
-#define IXR_ERROR_FLAGS_MASK		0x00F0F860
+#define IXR_ERROR_FLAGS_MASK		0x00F0C860
 #define IXR_ALL_MASK			0xF8F7F87F
 
 /* Miscellaneous constant values */
@@ -143,23 +143,10 @@ static inline u32 zynq_fpga_read(const struct zynq_fpga_priv *priv,
 	readl_poll_timeout(priv->io_base + addr, val, cond, sleep_us, \
 			   timeout_us)
 
-static void zynq_fpga_mask_irqs(struct zynq_fpga_priv *priv)
+/* Cause the specified irq mask bits to generate IRQs */
+static inline void zynq_fpga_set_irq(struct zynq_fpga_priv *priv, u32 enable)
 {
-	u32 intr_mask;
-
-	intr_mask = zynq_fpga_read(priv, INT_MASK_OFFSET);
-	zynq_fpga_write(priv, INT_MASK_OFFSET,
-			intr_mask | IXR_DMA_DONE_MASK | IXR_ERROR_FLAGS_MASK);
-}
-
-static void zynq_fpga_unmask_irqs(struct zynq_fpga_priv *priv)
-{
-	u32 intr_mask;
-
-	intr_mask = zynq_fpga_read(priv, INT_MASK_OFFSET);
-	zynq_fpga_write(priv, INT_MASK_OFFSET,
-			intr_mask
-			& ~(IXR_D_P_DONE_MASK | IXR_ERROR_FLAGS_MASK));
+	zynq_fpga_write(priv, INT_MASK_OFFSET, ~enable);
 }
 
 static irqreturn_t zynq_fpga_isr(int irq, void *data)
@@ -167,7 +154,7 @@ static irqreturn_t zynq_fpga_isr(int irq, void *data)
 	struct zynq_fpga_priv *priv = data;
 
 	/* disable DMA and error IRQs */
-	zynq_fpga_mask_irqs(priv);
+	zynq_fpga_set_irq(priv, 0);
 
 	complete(&priv->dma_done);
 
@@ -285,6 +272,7 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 			       const char *buf, size_t count)
 {
 	struct zynq_fpga_priv *priv;
+	const char *why;
 	int err;
 	char *kbuf;
 	size_t in_count;
@@ -312,7 +300,7 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	reinit_completion(&priv->dma_done);
 
 	/* enable DMA and error IRQs */
-	zynq_fpga_unmask_irqs(priv);
+	zynq_fpga_set_irq(priv, IXR_D_P_DONE_MASK | IXR_ERROR_FLAGS_MASK);
 
 	/* the +1 in the src addr is used to hold off on DMA_DONE IRQ
 	 * until both AXI and PCAP are done ...
@@ -331,11 +319,33 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	intr_status = zynq_fpga_read(priv, INT_STS_OFFSET);
 	zynq_fpga_write(priv, INT_STS_OFFSET, intr_status);
 
-	if (!((intr_status & IXR_D_P_DONE_MASK) == IXR_D_P_DONE_MASK)) {
-		dev_err(&mgr->dev, "Error configuring FPGA\n");
-		err = -EFAULT;
+	if (intr_status & IXR_ERROR_FLAGS_MASK) {
+		why = "DMA reported error";
+		err = -EIO;
+		goto out_report;
 	}
 
+	if (!((intr_status & IXR_D_P_DONE_MASK) == IXR_D_P_DONE_MASK)) {
+		why = "DMA did not complete";
+		err = -EIO;
+		goto out_report;
+	}
+
+	err = 0;
+	goto out_clk;
+
+out_report:
+	dev_err(&mgr->dev,
+		"%s: INT_STS:0x%x CTRL:0x%x LOCK:0x%x INT_MASK:0x%x STATUS:0x%x MCTRL:0x%x\n",
+		why,
+		intr_status,
+		zynq_fpga_read(priv, CTRL_OFFSET),
+		zynq_fpga_read(priv, LOCK_OFFSET),
+		zynq_fpga_read(priv, INT_MASK_OFFSET),
+		zynq_fpga_read(priv, STATUS_OFFSET),
+		zynq_fpga_read(priv, MCTRL_OFFSET));
+
+out_clk:
 	clk_disable(priv->clk);
 
 out_free:
@@ -452,7 +462,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	/* unlock the device */
 	zynq_fpga_write(priv, UNLOCK_OFFSET, UNLOCK_MASK);
 
-	zynq_fpga_write(priv, INT_MASK_OFFSET, 0xFFFFFFFF);
+	zynq_fpga_set_irq(priv, 0);
 	zynq_fpga_write(priv, INT_STS_OFFSET, IXR_ALL_MASK);
 	err = devm_request_irq(dev, priv->irq, zynq_fpga_isr, 0, dev_name(dev),
 			       priv);
