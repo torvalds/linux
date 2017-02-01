@@ -153,7 +153,7 @@ static int quad8_write_raw(struct iio_dev *indio_dev,
 		ior_cfg = val | priv->preset_enable[chan->channel] << 1;
 
 		/* Load I/O control configuration */
-		outb(0x40 | ior_cfg, base_offset);
+		outb(0x40 | ior_cfg, base_offset + 1);
 
 		return 0;
 	case IIO_CHAN_INFO_SCALE:
@@ -233,7 +233,7 @@ static ssize_t quad8_read_set_to_preset_on_index(struct iio_dev *indio_dev,
 	const struct quad8_iio *const priv = iio_priv(indio_dev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
-		priv->preset_enable[chan->channel]);
+		!priv->preset_enable[chan->channel]);
 }
 
 static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
@@ -241,7 +241,7 @@ static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
 	size_t len)
 {
 	struct quad8_iio *const priv = iio_priv(indio_dev);
-	const int base_offset = priv->base + 2 * chan->channel;
+	const int base_offset = priv->base + 2 * chan->channel + 1;
 	bool preset_enable;
 	int ret;
 	unsigned int ior_cfg;
@@ -249,6 +249,9 @@ static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
 	ret = kstrtobool(buf, &preset_enable);
 	if (ret)
 		return ret;
+
+	/* Preset enable is active low in Input/Output Control register */
+	preset_enable = !preset_enable;
 
 	priv->preset_enable[chan->channel] = preset_enable;
 
@@ -362,7 +365,7 @@ static int quad8_set_synchronous_mode(struct iio_dev *indio_dev,
 	priv->synchronous_mode[chan->channel] = synchronous_mode;
 
 	/* Load Index Control configuration to Index Control Register */
-	outb(0x40 | idr_cfg, base_offset);
+	outb(0x60 | idr_cfg, base_offset);
 
 	return 0;
 }
@@ -444,7 +447,7 @@ static int quad8_set_index_polarity(struct iio_dev *indio_dev,
 	priv->index_polarity[chan->channel] = index_polarity;
 
 	/* Load Index Control configuration to Index Control Register */
-	outb(0x40 | idr_cfg, base_offset);
+	outb(0x60 | idr_cfg, base_offset);
 
 	return 0;
 }

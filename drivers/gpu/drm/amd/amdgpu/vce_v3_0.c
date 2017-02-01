@@ -320,11 +320,12 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	/* Fiji, Stoney, Polaris10, Polaris11 are single pipe */
+	/* Fiji, Stoney, Polaris10, Polaris11, Polaris12 are single pipe */
 	if ((adev->asic_type == CHIP_FIJI) ||
 	    (adev->asic_type == CHIP_STONEY) ||
 	    (adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11))
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12))
 		return AMDGPU_VCE_HARVEST_VCE1;
 
 	/* Tonga and CZ are dual or single pipe */

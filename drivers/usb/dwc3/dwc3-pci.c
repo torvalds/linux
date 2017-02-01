@@ -38,6 +38,7 @@
 #define PCI_DEVICE_ID_INTEL_BXT_M		0x1aaa
 #define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 #define PCI_DEVICE_ID_INTEL_KBP			0xa2b0
+#define PCI_DEVICE_ID_INTEL_GLK			0x31aa
 
 #define PCI_INTEL_BXT_DSM_UUID		"732b85d5-b7a7-4a1b-9ba0-4bbd00ffd511"
 #define PCI_INTEL_BXT_FUNC_PMU_PWR	4
@@ -73,16 +74,6 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 {
 	struct platform_device		*dwc3 = dwc->dwc3;
 	struct pci_dev			*pdev = dwc->pci;
-	int				ret;
-
-	struct property_entry sysdev_property[] = {
-		PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
-		{ },
-	};
-
-	ret = platform_device_add_properties(dwc3, sysdev_property);
-	if (ret)
-		return ret;
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
@@ -105,6 +96,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			PROPERTY_ENTRY_BOOL("snps,disable_scramble_quirk"),
 			PROPERTY_ENTRY_BOOL("snps,dis_u3_susphy_quirk"),
 			PROPERTY_ENTRY_BOOL("snps,dis_u2_susphy_quirk"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ },
 		};
 
@@ -115,7 +107,8 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		int ret;
 
 		struct property_entry properties[] = {
-			PROPERTY_ENTRY_STRING("dr-mode", "peripheral"),
+			PROPERTY_ENTRY_STRING("dr_mode", "peripheral"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ }
 		};
 
@@ -167,6 +160,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			PROPERTY_ENTRY_BOOL("snps,usb3_lpm_capable"),
 			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
 			PROPERTY_ENTRY_BOOL("snps,dis_enblslpm_quirk"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ },
 		};
 
@@ -274,6 +268,7 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BXT_M), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_APL), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBP), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_GLK), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_NL_USB), },
 	{  }	/* Terminating Entry */
 };

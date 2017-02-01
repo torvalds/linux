@@ -76,4 +76,5 @@ void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
+void kvm_timer_init_vhe(void);
 #endif

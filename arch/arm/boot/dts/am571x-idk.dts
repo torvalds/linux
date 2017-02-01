@@ -62,11 +62,6 @@
 			linux,default-trigger = "mmc0";
 		};
 	};
-
-	extcon_usb2: extcon_usb2 {
-	     compatible = "linux,extcon-usb-gpio";
-	     id-gpio = <&gpio5 7 GPIO_ACTIVE_HIGH>;
-	};
 };
 
 &mmc1 {
@@ -78,4 +73,9 @@
 
 &omap_dwc3_2 {
 	extcon = <&extcon_usb2>;
+};
+
+&extcon_usb2 {
+	id-gpio = <&gpio5 7 GPIO_ACTIVE_HIGH>;
+	vbus-gpio = <&gpio7 22 GPIO_ACTIVE_HIGH>;
 };

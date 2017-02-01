@@ -799,6 +799,8 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 
 	if (test_bit(XPT_CLOSE, &xprt->xpt_flags)) {
 		dprintk("svc_recv: found XPT_CLOSE\n");
+		if (test_and_clear_bit(XPT_KILL_TEMP, &xprt->xpt_flags))
+			xprt->xpt_ops->xpo_kill_temp_xprt(xprt);
 		svc_delete_xprt(xprt);
 		/* Leave XPT_BUSY set on the dead xprt: */
 		goto out;
@@ -1020,9 +1022,11 @@ void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 		le = to_be_closed.next;
 		list_del_init(le);
 		xprt = list_entry(le, struct svc_xprt, xpt_list);
-		dprintk("svc_age_temp_xprts_now: closing %p\n", xprt);
-		xprt->xpt_ops->xpo_kill_temp_xprt(xprt);
-		svc_close_xprt(xprt);
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		set_bit(XPT_KILL_TEMP, &xprt->xpt_flags);
+		dprintk("svc_age_temp_xprts_now: queuing xprt %p for closing\n",
+				xprt);
+		svc_xprt_enqueue(xprt);
 	}
 }
 EXPORT_SYMBOL_GPL(svc_age_temp_xprts_now);

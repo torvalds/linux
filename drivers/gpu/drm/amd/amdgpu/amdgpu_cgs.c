@@ -840,6 +840,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				else if (type == CGS_UCODE_ID_SMU_SK)
 					strcpy(fw_name, "amdgpu/polaris10_smc_sk.bin");
 				break;
+			case CHIP_POLARIS12:
+				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
+				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
 				return -EINVAL;

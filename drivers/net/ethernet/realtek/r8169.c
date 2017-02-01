@@ -696,7 +696,7 @@ enum rtl_tx_desc_bit_1 {
 enum rtl_rx_desc_bit {
 	/* Rx private */
 	PID1		= (1 << 18), /* Protocol ID bit 1/2 */
-	PID0		= (1 << 17), /* Protocol ID bit 2/2 */
+	PID0		= (1 << 17), /* Protocol ID bit 0/2 */
 
 #define RxProtoUDP	(PID1)
 #define RxProtoTCP	(PID0)

@@ -1998,6 +1998,8 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 	INIT_LIST_HEAD(&gtt->oos_page_list_head);
 	INIT_LIST_HEAD(&gtt->post_shadow_list_head);
 
+	intel_vgpu_reset_ggtt(vgpu);
+
 	ggtt_mm = intel_vgpu_create_mm(vgpu, INTEL_GVT_MM_GGTT,
 			NULL, 1, 0);
 	if (IS_ERR(ggtt_mm)) {
@@ -2206,6 +2208,7 @@ int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 int intel_gvt_init_gtt(struct intel_gvt *gvt)
 {
 	int ret;
+	void *page_addr;
 
 	gvt_dbg_core("init gtt\n");
 
@@ -2216,6 +2219,23 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		gvt->gtt.mm_free_page_table = gen8_mm_free_page_table;
 	} else {
 		return -ENODEV;
+	}
+
+	gvt->gtt.scratch_ggtt_page =
+		alloc_page(GFP_KERNEL | GFP_ATOMIC | __GFP_ZERO);
+	if (!gvt->gtt.scratch_ggtt_page) {
+		gvt_err("fail to allocate scratch ggtt page\n");
+		return -ENOMEM;
+	}
+
+	page_addr = page_address(gvt->gtt.scratch_ggtt_page);
+
+	gvt->gtt.scratch_ggtt_mfn =
+		intel_gvt_hypervisor_virt_to_mfn(page_addr);
+	if (gvt->gtt.scratch_ggtt_mfn == INTEL_GVT_INVALID_ADDR) {
+		gvt_err("fail to translate scratch ggtt page\n");
+		__free_page(gvt->gtt.scratch_ggtt_page);
+		return -EFAULT;
 	}
 
 	if (enable_out_of_sync) {
@@ -2239,6 +2259,41 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
  */
 void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 {
+	__free_page(gvt->gtt.scratch_ggtt_page);
+
 	if (enable_out_of_sync)
 		clean_spt_oos(gvt);
+}
+
+/**
+ * intel_vgpu_reset_ggtt - reset the GGTT entry
+ * @vgpu: a vGPU
+ *
+ * This function is called at the vGPU create stage
+ * to reset all the GGTT entries.
+ *
+ */
+void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
+	u32 index;
+	u32 offset;
+	u32 num_entries;
+	struct intel_gvt_gtt_entry e;
+
+	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
+	e.type = GTT_TYPE_GGTT_PTE;
+	ops->set_pfn(&e, gvt->gtt.scratch_ggtt_mfn);
+	e.val64 |= _PAGE_PRESENT;
+
+	index = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
+	num_entries = vgpu_aperture_sz(vgpu) >> PAGE_SHIFT;
+	for (offset = 0; offset < num_entries; offset++)
+		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
+
+	index = vgpu_hidden_gmadr_base(vgpu) >> PAGE_SHIFT;
+	num_entries = vgpu_hidden_sz(vgpu) >> PAGE_SHIFT;
+	for (offset = 0; offset < num_entries; offset++)
+		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
 }

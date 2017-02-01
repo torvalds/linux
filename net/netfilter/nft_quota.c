@@ -110,30 +110,32 @@ static int nft_quota_obj_init(const struct nlattr * const tb[],
 static int nft_quota_do_dump(struct sk_buff *skb, struct nft_quota *priv,
 			     bool reset)
 {
+	u64 consumed, consumed_cap;
 	u32 flags = priv->flags;
-	u64 consumed;
-
-	if (reset) {
-		consumed = atomic64_xchg(&priv->consumed, 0);
-		if (test_and_clear_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags))
-			flags |= NFT_QUOTA_F_DEPLETED;
-	} else {
-		consumed = atomic64_read(&priv->consumed);
-	}
 
 	/* Since we inconditionally increment consumed quota for each packet
 	 * that we see, don't go over the quota boundary in what we send to
 	 * userspace.
 	 */
-	if (consumed > priv->quota)
-		consumed = priv->quota;
+	consumed = atomic64_read(&priv->consumed);
+	if (consumed >= priv->quota) {
+		consumed_cap = priv->quota;
+		flags |= NFT_QUOTA_F_DEPLETED;
+	} else {
+		consumed_cap = consumed;
+	}
 
 	if (nla_put_be64(skb, NFTA_QUOTA_BYTES, cpu_to_be64(priv->quota),
 			 NFTA_QUOTA_PAD) ||
-	    nla_put_be64(skb, NFTA_QUOTA_CONSUMED, cpu_to_be64(consumed),
+	    nla_put_be64(skb, NFTA_QUOTA_CONSUMED, cpu_to_be64(consumed_cap),
 			 NFTA_QUOTA_PAD) ||
 	    nla_put_be32(skb, NFTA_QUOTA_FLAGS, htonl(flags)))
 		goto nla_put_failure;
+
+	if (reset) {
+		atomic64_sub(consumed, &priv->consumed);
+		clear_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags);
+	}
 	return 0;
 
 nla_put_failure:

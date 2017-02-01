@@ -36,12 +36,13 @@
 #ifdef CONFIG_HUGETLB_PAGE
 static inline int hash__hugepd_ok(hugepd_t hpd)
 {
+	unsigned long hpdval = hpd_val(hpd);
 	/*
 	 * if it is not a pte and have hugepd shift mask
 	 * set, then it is a hugepd directory pointer
 	 */
-	if (!(hpd.pd & _PAGE_PTE) &&
-	    ((hpd.pd & HUGEPD_SHIFT_MASK) != 0))
+	if (!(hpdval & _PAGE_PTE) &&
+	    ((hpdval & HUGEPD_SHIFT_MASK) != 0))
 		return true;
 	return false;
 }
