@@ -538,6 +538,9 @@ struct amd_iommu {
 	/* IOMMU sysfs device */
 	struct device *iommu_dev;
 
+	/* Handle for IOMMU core code */
+	struct iommu_device iommu;
+
 	/*
 	 * We can't rely on the BIOS to restore all values on reinit, so we
 	 * need to stash them

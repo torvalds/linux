@@ -74,6 +74,8 @@ static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
 
+extern const struct iommu_ops intel_iommu_ops;
+
 static void dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
 	/*
@@ -1084,6 +1086,12 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 			err = PTR_ERR(iommu->iommu_dev);
 			goto err_unmap;
 		}
+
+		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
+
+		err = iommu_device_register(&iommu->iommu);
+		if (err)
+			goto err_unmap;
 	}
 
 	drhd->iommu = iommu;
@@ -1102,6 +1110,7 @@ error:
 static void free_iommu(struct intel_iommu *iommu)
 {
 	iommu_device_destroy(iommu->iommu_dev);
+	iommu_device_unregister(&iommu->iommu);
 
 	if (iommu->irq) {
 		if (iommu->pr_irq) {
