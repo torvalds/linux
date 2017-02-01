@@ -1696,10 +1696,15 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			break;
 		case MMC_BLK_CMD_ERR:
 			ret = mmc_blk_cmd_err(md, card, brq, req, ret);
-			if (mmc_blk_reset(md, card->host, type))
-				goto cmd_abort;
-			if (!ret)
-				goto start_new_req;
+			if (mmc_blk_reset(md, card->host, type)) {
+				mmc_blk_rw_cmd_abort(card, req);
+				mmc_blk_rw_start_new(mq, card, rqc);
+				return;
+			}
+			if (!ret) {
+				mmc_blk_rw_start_new(mq, card, rqc);
+				return;
+			}
 			break;
 		case MMC_BLK_RETRY:
 			retune_retry_done = brq->retune_retry_done;
@@ -1709,15 +1714,20 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		case MMC_BLK_ABORT:
 			if (!mmc_blk_reset(md, card->host, type))
 				break;
-			goto cmd_abort;
+			mmc_blk_rw_cmd_abort(card, req);
+			mmc_blk_rw_start_new(mq, card, rqc);
+			return;
 		case MMC_BLK_DATA_ERR: {
 			int err;
 
 			err = mmc_blk_reset(md, card->host, type);
 			if (!err)
 				break;
-			if (err == -ENODEV)
-				goto cmd_abort;
+			if (err == -ENODEV) {
+				mmc_blk_rw_cmd_abort(card, req);
+				mmc_blk_rw_start_new(mq, card, rqc);
+				return;
+			}
 			/* Fall through */
 		}
 		case MMC_BLK_ECC_ERR:
@@ -1735,15 +1745,21 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			 */
 			ret = blk_end_request(req, -EIO,
 						brq->data.blksz);
-			if (!ret)
-				goto start_new_req;
+			if (!ret) {
+				mmc_blk_rw_start_new(mq, card, rqc);
+				return;
+			}
 			break;
 		case MMC_BLK_NOMEDIUM:
-			goto cmd_abort;
+			mmc_blk_rw_cmd_abort(card, req);
+			mmc_blk_rw_start_new(mq, card, rqc);
+			return;
 		default:
 			pr_err("%s: Unhandled return value (%d)",
 					req->rq_disk->disk_name, status);
-			goto cmd_abort;
+			mmc_blk_rw_cmd_abort(card, req);
+			mmc_blk_rw_start_new(mq, card, rqc);
+			return;
 		}
 
 		if (ret) {
@@ -1758,14 +1774,6 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			mq_rq->brq.retune_retry_done = retune_retry_done;
 		}
 	} while (ret);
-
-	return;
-
- cmd_abort:
-	mmc_blk_rw_cmd_abort(card, req);
-
- start_new_req:
-	mmc_blk_rw_start_new(mq, card, rqc);
 }
 
 void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
