@@ -1802,7 +1802,7 @@ static int visornic_probe(struct visor_device *dev)
 
 	/* TODO: Setup Interrupt information */
 	/* Let's start our threads to get responses */
-	netif_napi_add(netdev, &devdata->napi, visornic_poll, 64);
+	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
 
 	setup_timer(&devdata->irq_poll_timer, poll_for_irq,
 		    (unsigned long)devdata);
@@ -1831,9 +1831,6 @@ static int visornic_probe(struct visor_device *dev)
 			__func__, err);
 		goto cleanup_napi_add;
 	}
-
-	/* Let's start our threads to get responses */
-	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
 
 	/* Note: Interrupts have to be enable before the while
 	 * loop below because the napi routine is responsible for
