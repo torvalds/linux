@@ -453,10 +453,6 @@ static void sii8620_mr_xdevcap(struct sii8620 *ctx)
 {
 	sii8620_read_buf(ctx, REG_EDID_FIFO_RD_DATA, ctx->xdevcap,
 			 MHL_XDC_SIZE);
-
-	sii8620_mt_write_stat(ctx, MHL_XDS_REG(CURR_ECBUS_MODE),
-			      MHL_XDS_ECBUS_S | MHL_XDS_SLOT_MODE_8BIT);
-	sii8620_mt_rap(ctx, MHL_RAP_CBUS_MODE_UP);
 }
 
 static void sii8620_mt_read_devcap_recv(struct sii8620 *ctx,
