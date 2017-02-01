@@ -1839,7 +1839,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 /**
  * gmc_v7_0_init_compute_vmid - gart enable
  *
- * @rdev: amdgpu_device pointer
+ * @adev: amdgpu_device pointer
  *
  * Initialize compute vmid sh_mem registers
  *
