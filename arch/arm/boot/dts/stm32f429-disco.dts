@@ -88,6 +88,14 @@
 			gpios = <&gpioa 0 0>;
 		};
 	};
+
+	/* This turns on vbus for otg for host mode (dwc2) */
+	vcc5v_otg: vcc5v-otg-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpioc 4 0>;
+		regulator-name = "vcc5_host1";
+		regulator-always-on;
+	};
 };
 
 &clk_hse {
@@ -102,6 +110,14 @@
 
 &usart1 {
 	pinctrl-0 = <&usart1_pins_a>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usbotg_hs {
+	compatible = "st,stm32f4x9-fsotg";
+	dr_mode = "host";
+	pinctrl-0 = <&usbotg_fs_pins_b>;
 	pinctrl-names = "default";
 	status = "okay";
 };
