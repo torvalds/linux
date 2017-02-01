@@ -224,21 +224,6 @@ union otm_hdmi_eld_t {
 };
 
 /**
- * enum had_status - Audio stream states
- *
- * @STREAM_INIT: Stream initialized
- * @STREAM_RUNNING: Stream running
- * @STREAM_PAUSED: Stream paused
- * @STREAM_DROPPED: Stream dropped
- */
-enum had_stream_status {
-	STREAM_INIT = 0,
-	STREAM_RUNNING = 1,
-	STREAM_PAUSED = 2,
-	STREAM_DROPPED = 3
-};
-
-/**
  * enum had_status_stream - HAD stream states
  */
 enum had_status_stream {

@@ -86,12 +86,6 @@ struct ring_buf_info {
 	u8	is_valid;
 };
 
-struct had_stream_pvt {
-	enum had_stream_status		stream_status;
-	int				stream_ops;
-	ssize_t				dbg_cum_bytes;
-};
-
 struct had_stream_data {
 	enum had_status_stream		stream_type;
 };

@@ -953,7 +953,6 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 {
 	struct snd_intelhad *intelhaddata;
 	struct snd_pcm_runtime *runtime;
-	struct had_stream_pvt *stream;
 	struct had_stream_data *had_stream;
 	int retval;
 
@@ -968,31 +967,16 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 		dev_dbg(intelhaddata->dev, "%s: HDMI cable plugged-out\n",
 			__func__);
 		retval = -ENODEV;
-		goto exit_put_handle;
-	}
-
-	/* Check, if device already in use */
-	if (runtime->private_data) {
-		dev_dbg(intelhaddata->dev, "Device already in use\n");
-		retval = -EBUSY;
-		goto exit_put_handle;
+		goto error;
 	}
 
 	/* set the runtime hw parameter with local snd_pcm_hardware struct */
 	runtime->hw = snd_intel_hadstream;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
-	if (!stream) {
-		retval = -ENOMEM;
-		goto exit_put_handle;
-	}
-	stream->stream_status = STREAM_INIT;
-	runtime->private_data = stream;
-
 	retval = snd_pcm_hw_constraint_integer(runtime,
 			 SNDRV_PCM_HW_PARAM_PERIODS);
 	if (retval < 0)
-		goto exit_err;
+		goto error;
 
 	/* Make sure, that the period size is always aligned
 	 * 64byte boundary
@@ -1002,15 +986,12 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 	if (retval < 0) {
 		dev_dbg(intelhaddata->dev, "%s:step_size=64 failed,err=%d\n",
 			__func__, retval);
-		goto exit_err;
+		goto error;
 	}
 
 	return retval;
-exit_err:
-	kfree(stream);
-exit_put_handle:
+ error:
 	pm_runtime_put(intelhaddata->dev);
-	runtime->private_data = NULL;
 	return retval;
 }
 
@@ -1020,15 +1001,7 @@ exit_put_handle:
  */
 static void had_period_elapsed(struct snd_pcm_substream *substream)
 {
-	struct had_stream_pvt *stream;
-
 	if (!substream || !substream->runtime)
-		return;
-	stream = substream->runtime->private_data;
-	if (!stream)
-		return;
-
-	if (stream->stream_status != STREAM_RUNNING)
 		return;
 	snd_pcm_period_elapsed(substream);
 }
@@ -1042,13 +1015,8 @@ static void had_period_elapsed(struct snd_pcm_substream *substream)
 static int snd_intelhad_close(struct snd_pcm_substream *substream)
 {
 	struct snd_intelhad *intelhaddata;
-	struct snd_pcm_runtime *runtime;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
-	runtime = substream->runtime;
-
-	if (WARN_ON(!runtime->private_data))
-		return 0;
 
 	intelhaddata->stream_info.buffer_rendered = 0;
 	intelhaddata->stream_info.buffer_ptr = 0;
@@ -1062,8 +1030,6 @@ static int snd_intelhad_close(struct snd_pcm_substream *substream)
 			"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
 			__func__, __LINE__);
 	}
-	kfree(runtime->private_data);
-	runtime->private_data = NULL;
 	pm_runtime_put(intelhaddata->dev);
 	return 0;
 }
@@ -1142,11 +1108,9 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	int retval = 0;
 	struct snd_intelhad *intelhaddata;
-	struct had_stream_pvt *stream;
 	struct had_stream_data *had_stream;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
-	stream = substream->runtime->private_data;
 	had_stream = &intelhaddata->stream_data;
 
 	switch (cmd) {
@@ -1158,7 +1122,6 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 			retval = -ENODEV;
 			break;
 		}
-		stream->stream_status = STREAM_RUNNING;
 
 		had_stream->stream_type = HAD_RUNNING_STREAM;
 
@@ -1182,7 +1145,6 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 		/* Reset buffer pointers */
 		snd_intelhad_reset_audio(intelhaddata, 1);
 		snd_intelhad_reset_audio(intelhaddata, 0);
-		stream->stream_status = STREAM_DROPPED;
 		snd_intelhad_enable_audio_int(intelhaddata, false);
 		break;
 
