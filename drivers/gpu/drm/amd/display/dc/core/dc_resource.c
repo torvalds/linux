@@ -358,10 +358,12 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 		dal_pixel_format = PIXEL_FORMAT_FP16;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
-		dal_pixel_format = PIXEL_FORMAT_420BPP12;
-		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
 		dal_pixel_format = PIXEL_FORMAT_420BPP12;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		dal_pixel_format = PIXEL_FORMAT_420BPP15;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	default:

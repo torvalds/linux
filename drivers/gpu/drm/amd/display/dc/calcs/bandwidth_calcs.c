@@ -2534,6 +2534,8 @@ static void populate_initial_data(
 		case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 		case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 		case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+		case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+		case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
 			data->bytes_per_pixel[num_displays + 4] = 4;
 			break;
 		case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
@@ -2621,6 +2623,7 @@ static void populate_initial_data(
 			}
 			switch (pipe[i].surface->public.format) {
 			case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+			case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
 			case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
 			case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
 				data->bytes_per_pixel[num_displays + 4] = 2;
@@ -2630,6 +2633,8 @@ static void populate_initial_data(
 			case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 			case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 			case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+			case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+			case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
 				data->bytes_per_pixel[num_displays + 4] = 4;
 				break;
 			case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
