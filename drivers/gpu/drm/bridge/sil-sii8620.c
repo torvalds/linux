@@ -1605,12 +1605,31 @@ static void sii8620_irq_disc(struct sii8620 *ctx)
 	sii8620_write(ctx, REG_CBUS_DISC_INTR0, stat);
 }
 
+static void sii8620_read_burst(struct sii8620 *ctx)
+{
+	u8 buf[17];
+
+	sii8620_read_buf(ctx, REG_MDT_RCV_READ_PORT, buf, ARRAY_SIZE(buf));
+	sii8620_write(ctx, REG_MDT_RCV_CTRL, BIT_MDT_RCV_CTRL_MDT_RCV_EN |
+		      BIT_MDT_RCV_CTRL_MDT_DELAY_RCV_EN |
+		      BIT_MDT_RCV_CTRL_MDT_RFIFO_CLR_CUR);
+	sii8620_readb(ctx, REG_MDT_RFIFO_STAT);
+}
+
 static void sii8620_irq_g2wb(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_MDT_INT_0);
 
 	if (stat & BIT_MDT_IDLE_AFTER_HAWB_DISABLE)
-		dev_dbg(ctx->dev, "HAWB idle\n");
+		if (sii8620_is_mhl3(ctx))
+			sii8620_mt_set_int(ctx, MHL_INT_REG(RCHANGE),
+				MHL_INT_RC_FEAT_COMPLETE);
+
+	if (stat & BIT_MDT_RFIFO_DATA_RDY)
+		sii8620_read_burst(ctx);
+
+	if (stat & BIT_MDT_XFIFO_EMPTY)
+		sii8620_write(ctx, REG_MDT_XMIT_CTRL, 0);
 
 	sii8620_write(ctx, REG_MDT_INT_0, stat);
 }
