@@ -438,9 +438,16 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	ret = regulator_bulk_get(&pdev->dev,
 			ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
-	if (ret)
+	if (ret) {
+		/*
+		 * Retry on deferrals, else just report the error
+		 * and try to continue.
+		 */
+		if (ret == -EPROBE_DEFER)
+			return ret;
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+	}
 
 	/* Request optional RESET GPIO */
 	pdata->reset_gpiod = devm_gpiod_get_optional(&pdev->dev,

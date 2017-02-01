@@ -199,9 +199,9 @@ xfs_defer_intake_work(
 	struct xfs_defer_pending	*dfp;
 
 	list_for_each_entry(dfp, &dop->dop_intake, dfp_list) {
-		trace_xfs_defer_intake_work(tp->t_mountp, dfp);
 		dfp->dfp_intent = dfp->dfp_type->create_intent(tp,
 				dfp->dfp_count);
+		trace_xfs_defer_intake_work(tp->t_mountp, dfp);
 		list_sort(tp->t_mountp, &dfp->dfp_work,
 				dfp->dfp_type->diff_items);
 		list_for_each(li, &dfp->dfp_work)
@@ -221,21 +221,14 @@ xfs_defer_trans_abort(
 	struct xfs_defer_pending	*dfp;
 
 	trace_xfs_defer_trans_abort(tp->t_mountp, dop);
-	/*
-	 * If the transaction was committed, drop the intent reference
-	 * since we're bailing out of here. The other reference is
-	 * dropped when the intent hits the AIL.  If the transaction
-	 * was not committed, the intent is freed by the intent item
-	 * unlock handler on abort.
-	 */
-	if (!dop->dop_committed)
-		return;
 
-	/* Abort intent items. */
+	/* Abort intent items that don't have a done item. */
 	list_for_each_entry(dfp, &dop->dop_pending, dfp_list) {
 		trace_xfs_defer_pending_abort(tp->t_mountp, dfp);
-		if (!dfp->dfp_done)
+		if (dfp->dfp_intent && !dfp->dfp_done) {
 			dfp->dfp_type->abort_intent(dfp->dfp_intent);
+			dfp->dfp_intent = NULL;
+		}
 	}
 
 	/* Shut down FS. */

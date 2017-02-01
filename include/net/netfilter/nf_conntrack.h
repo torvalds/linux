@@ -100,6 +100,9 @@ struct nf_conn {
 
 	possible_net_t ct_net;
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+	struct rhlist_head nat_bysource;
+#endif
 	/* all members below initialized via memset */
 	u8 __nfct_init_offset[0];
 
@@ -117,9 +120,6 @@ struct nf_conn {
 	/* Extensions */
 	struct nf_ct_ext *ext;
 
-#if IS_ENABLED(CONFIG_NF_NAT)
-	struct rhash_head	nat_bysource;
-#endif
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
 };

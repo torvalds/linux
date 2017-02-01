@@ -55,8 +55,10 @@ enum xgene_enet_rm {
 #define PREFETCH_BUF_EN		BIT(21)
 #define CSR_RING_ID_BUF		0x000c
 #define CSR_PBM_COAL		0x0014
+#define CSR_PBM_CTICK0		0x0018
 #define CSR_PBM_CTICK1		0x001c
 #define CSR_PBM_CTICK2		0x0020
+#define CSR_PBM_CTICK3		0x0024
 #define CSR_THRESHOLD0_SET1	0x0030
 #define CSR_THRESHOLD1_SET1	0x0034
 #define CSR_RING_NE_INT_MODE	0x017c

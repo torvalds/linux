@@ -404,7 +404,7 @@ int __genl_register_family(struct genl_family *family)
 
 	err = genl_validate_assign_mc_groups(family);
 	if (err)
-		goto errout_locked;
+		goto errout_free;
 
 	list_add_tail(&family->family_list, genl_family_chain(family->id));
 	genl_unlock_all();
@@ -417,6 +417,8 @@ int __genl_register_family(struct genl_family *family)
 
 	return 0;
 
+errout_free:
+	kfree(family->attrbuf);
 errout_locked:
 	genl_unlock_all();
 errout:

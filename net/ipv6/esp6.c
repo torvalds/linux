@@ -418,7 +418,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		esph = (void *)skb_push(skb, 4);
 		*seqhi = esph->spi;
 		esph->spi = esph->seq_no;
-		esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.input.hi);
+		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
 		aead_request_set_callback(req, 0, esp_input_done_esn, skb);
 	}
 

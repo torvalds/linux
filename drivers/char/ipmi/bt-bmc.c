@@ -484,7 +484,7 @@ static int bt_bmc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id bt_bmc_match[] = {
-	{ .compatible = "aspeed,ast2400-bt-bmc" },
+	{ .compatible = "aspeed,ast2400-ibt-bmc" },
 	{ },
 };
 
@@ -502,4 +502,4 @@ module_platform_driver(bt_bmc_driver);
 MODULE_DEVICE_TABLE(of, bt_bmc_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alistair Popple <alistair@popple.id.au>");
-MODULE_DESCRIPTION("Linux device interface to the BT interface");
+MODULE_DESCRIPTION("Linux device interface to the IPMI BT interface");

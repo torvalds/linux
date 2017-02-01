@@ -1246,13 +1246,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	if (zerocopy)
 		err = zerocopy_sg_from_iter(skb, from);
-	else {
+	else
 		err = skb_copy_datagram_from_iter(skb, 0, from, len);
-		if (!err && msg_control) {
-			struct ubuf_info *uarg = msg_control;
-			uarg->callback(uarg, false);
-		}
-	}
 
 	if (err) {
 		this_cpu_inc(tun->pcpu_stats->rx_dropped);
@@ -1298,6 +1293,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		skb_shinfo(skb)->destructor_arg = msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+	} else if (msg_control) {
+		struct ubuf_info *uarg = msg_control;
+		uarg->callback(uarg, false);
 	}
 
 	skb_reset_network_header(skb);

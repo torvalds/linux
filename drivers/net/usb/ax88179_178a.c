@@ -1656,6 +1656,19 @@ static const struct driver_info ax88178a_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info cypress_GX3_info = {
+	.description = "Cypress GX3 SuperSpeed to Gigabit Ethernet Controller",
+	.bind = ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset = ax88179_reset,
+	.stop = ax88179_stop,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct driver_info dlink_dub1312_info = {
 	.description = "D-Link DUB-1312 USB 3.0 to Gigabit Ethernet Adapter",
 	.bind = ax88179_bind,
@@ -1717,6 +1730,10 @@ static const struct usb_device_id products[] = {
 	/* ASIX AX88178A 10/100/1000 */
 	USB_DEVICE(0x0b95, 0x178a),
 	.driver_info = (unsigned long)&ax88178a_info,
+}, {
+	/* Cypress GX3 SuperSpeed to Gigabit Ethernet Bridge Controller */
+	USB_DEVICE(0x04b4, 0x3610),
+	.driver_info = (unsigned long)&cypress_GX3_info,
 }, {
 	/* D-Link DUB-1312 USB 3.0 to Gigabit Ethernet Adapter */
 	USB_DEVICE(0x2001, 0x4a00),

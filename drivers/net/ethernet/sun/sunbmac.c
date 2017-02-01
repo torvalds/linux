@@ -623,6 +623,7 @@ static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 	void __iomem *gregs        = bp->gregs;
 	void __iomem *cregs        = bp->creg;
 	void __iomem *bregs        = bp->bregs;
+	__u32 bblk_dvma = (__u32)bp->bblock_dvma;
 	unsigned char *e = &bp->dev->dev_addr[0];
 
 	/* Latch current counters into statistics. */
@@ -671,9 +672,9 @@ static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 		    bregs + BMAC_XIFCFG);
 
 	/* Tell the QEC where the ring descriptors are. */
-	sbus_writel(bp->bblock_dvma + bib_offset(be_rxd, 0),
+	sbus_writel(bblk_dvma + bib_offset(be_rxd, 0),
 		    cregs + CREG_RXDS);
-	sbus_writel(bp->bblock_dvma + bib_offset(be_txd, 0),
+	sbus_writel(bblk_dvma + bib_offset(be_txd, 0),
 		    cregs + CREG_TXDS);
 
 	/* Setup the FIFO pointers into QEC local memory. */

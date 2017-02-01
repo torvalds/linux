@@ -14,7 +14,7 @@
   * are obviously wrong for any sort of memory access.
   */
 #define BPF_REGISTER_MAX_RANGE (1024 * 1024 * 1024)
-#define BPF_REGISTER_MIN_RANGE -(1024 * 1024 * 1024)
+#define BPF_REGISTER_MIN_RANGE -1
 
 struct bpf_reg_state {
 	enum bpf_reg_type type;
@@ -22,7 +22,8 @@ struct bpf_reg_state {
 	 * Used to determine if any memory access using this register will
 	 * result in a bad access.
 	 */
-	u64 min_value, max_value;
+	s64 min_value;
+	u64 max_value;
 	union {
 		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
 		s64 imm;

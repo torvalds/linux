@@ -459,6 +459,7 @@ struct amdgpu_bo {
 	u64				metadata_flags;
 	void				*metadata;
 	u32				metadata_size;
+	unsigned			prime_shared_count;
 	/* list of all virtual address to which this bo
 	 * is associated to
 	 */
@@ -2471,6 +2472,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv);
+int amdgpu_suspend(struct amdgpu_device *adev);
 int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon);
 int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon);
 u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe);

@@ -36,11 +36,11 @@ struct nicvf_stat {
 
 static const struct nicvf_stat nicvf_hw_stats[] = {
 	NICVF_HW_STAT(rx_bytes),
+	NICVF_HW_STAT(rx_frames),
 	NICVF_HW_STAT(rx_ucast_frames),
 	NICVF_HW_STAT(rx_bcast_frames),
 	NICVF_HW_STAT(rx_mcast_frames),
-	NICVF_HW_STAT(rx_fcs_errors),
-	NICVF_HW_STAT(rx_l2_errors),
+	NICVF_HW_STAT(rx_drops),
 	NICVF_HW_STAT(rx_drop_red),
 	NICVF_HW_STAT(rx_drop_red_bytes),
 	NICVF_HW_STAT(rx_drop_overrun),
@@ -49,50 +49,59 @@ static const struct nicvf_stat nicvf_hw_stats[] = {
 	NICVF_HW_STAT(rx_drop_mcast),
 	NICVF_HW_STAT(rx_drop_l3_bcast),
 	NICVF_HW_STAT(rx_drop_l3_mcast),
-	NICVF_HW_STAT(rx_bgx_truncated_pkts),
-	NICVF_HW_STAT(rx_jabber_errs),
-	NICVF_HW_STAT(rx_fcs_errs),
-	NICVF_HW_STAT(rx_bgx_errs),
-	NICVF_HW_STAT(rx_prel2_errs),
-	NICVF_HW_STAT(rx_l2_hdr_malformed),
-	NICVF_HW_STAT(rx_oversize),
-	NICVF_HW_STAT(rx_undersize),
-	NICVF_HW_STAT(rx_l2_len_mismatch),
-	NICVF_HW_STAT(rx_l2_pclp),
-	NICVF_HW_STAT(rx_ip_ver_errs),
-	NICVF_HW_STAT(rx_ip_csum_errs),
-	NICVF_HW_STAT(rx_ip_hdr_malformed),
-	NICVF_HW_STAT(rx_ip_payload_malformed),
-	NICVF_HW_STAT(rx_ip_ttl_errs),
-	NICVF_HW_STAT(rx_l3_pclp),
-	NICVF_HW_STAT(rx_l4_malformed),
-	NICVF_HW_STAT(rx_l4_csum_errs),
-	NICVF_HW_STAT(rx_udp_len_errs),
-	NICVF_HW_STAT(rx_l4_port_errs),
-	NICVF_HW_STAT(rx_tcp_flag_errs),
-	NICVF_HW_STAT(rx_tcp_offset_errs),
-	NICVF_HW_STAT(rx_l4_pclp),
-	NICVF_HW_STAT(rx_truncated_pkts),
-	NICVF_HW_STAT(tx_bytes_ok),
-	NICVF_HW_STAT(tx_ucast_frames_ok),
-	NICVF_HW_STAT(tx_bcast_frames_ok),
-	NICVF_HW_STAT(tx_mcast_frames_ok),
+	NICVF_HW_STAT(rx_fcs_errors),
+	NICVF_HW_STAT(rx_l2_errors),
+	NICVF_HW_STAT(tx_bytes),
+	NICVF_HW_STAT(tx_frames),
+	NICVF_HW_STAT(tx_ucast_frames),
+	NICVF_HW_STAT(tx_bcast_frames),
+	NICVF_HW_STAT(tx_mcast_frames),
+	NICVF_HW_STAT(tx_drops),
 };
 
 static const struct nicvf_stat nicvf_drv_stats[] = {
-	NICVF_DRV_STAT(rx_frames_ok),
-	NICVF_DRV_STAT(rx_frames_64),
-	NICVF_DRV_STAT(rx_frames_127),
-	NICVF_DRV_STAT(rx_frames_255),
-	NICVF_DRV_STAT(rx_frames_511),
-	NICVF_DRV_STAT(rx_frames_1023),
-	NICVF_DRV_STAT(rx_frames_1518),
-	NICVF_DRV_STAT(rx_frames_jumbo),
-	NICVF_DRV_STAT(rx_drops),
+	NICVF_DRV_STAT(rx_bgx_truncated_pkts),
+	NICVF_DRV_STAT(rx_jabber_errs),
+	NICVF_DRV_STAT(rx_fcs_errs),
+	NICVF_DRV_STAT(rx_bgx_errs),
+	NICVF_DRV_STAT(rx_prel2_errs),
+	NICVF_DRV_STAT(rx_l2_hdr_malformed),
+	NICVF_DRV_STAT(rx_oversize),
+	NICVF_DRV_STAT(rx_undersize),
+	NICVF_DRV_STAT(rx_l2_len_mismatch),
+	NICVF_DRV_STAT(rx_l2_pclp),
+	NICVF_DRV_STAT(rx_ip_ver_errs),
+	NICVF_DRV_STAT(rx_ip_csum_errs),
+	NICVF_DRV_STAT(rx_ip_hdr_malformed),
+	NICVF_DRV_STAT(rx_ip_payload_malformed),
+	NICVF_DRV_STAT(rx_ip_ttl_errs),
+	NICVF_DRV_STAT(rx_l3_pclp),
+	NICVF_DRV_STAT(rx_l4_malformed),
+	NICVF_DRV_STAT(rx_l4_csum_errs),
+	NICVF_DRV_STAT(rx_udp_len_errs),
+	NICVF_DRV_STAT(rx_l4_port_errs),
+	NICVF_DRV_STAT(rx_tcp_flag_errs),
+	NICVF_DRV_STAT(rx_tcp_offset_errs),
+	NICVF_DRV_STAT(rx_l4_pclp),
+	NICVF_DRV_STAT(rx_truncated_pkts),
+
+	NICVF_DRV_STAT(tx_desc_fault),
+	NICVF_DRV_STAT(tx_hdr_cons_err),
+	NICVF_DRV_STAT(tx_subdesc_err),
+	NICVF_DRV_STAT(tx_max_size_exceeded),
+	NICVF_DRV_STAT(tx_imm_size_oflow),
+	NICVF_DRV_STAT(tx_data_seq_err),
+	NICVF_DRV_STAT(tx_mem_seq_err),
+	NICVF_DRV_STAT(tx_lock_viol),
+	NICVF_DRV_STAT(tx_data_fault),
+	NICVF_DRV_STAT(tx_tstmp_conflict),
+	NICVF_DRV_STAT(tx_tstmp_timeout),
+	NICVF_DRV_STAT(tx_mem_fault),
+	NICVF_DRV_STAT(tx_csum_overlap),
+	NICVF_DRV_STAT(tx_csum_overflow),
+
 	NICVF_DRV_STAT(rcv_buffer_alloc_failures),
-	NICVF_DRV_STAT(tx_frames_ok),
 	NICVF_DRV_STAT(tx_tso),
-	NICVF_DRV_STAT(tx_drops),
 	NICVF_DRV_STAT(tx_timeout),
 	NICVF_DRV_STAT(txq_stop),
 	NICVF_DRV_STAT(txq_wake),
@@ -278,8 +287,8 @@ static void nicvf_get_ethtool_stats(struct net_device *netdev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct nicvf *nic = netdev_priv(netdev);
-	int stat;
-	int sqs;
+	int stat, tmp_stats;
+	int sqs, cpu;
 
 	nicvf_update_stats(nic);
 
@@ -289,9 +298,13 @@ static void nicvf_get_ethtool_stats(struct net_device *netdev,
 	for (stat = 0; stat < nicvf_n_hw_stats; stat++)
 		*(data++) = ((u64 *)&nic->hw_stats)
 				[nicvf_hw_stats[stat].index];
-	for (stat = 0; stat < nicvf_n_drv_stats; stat++)
-		*(data++) = ((u64 *)&nic->drv_stats)
-				[nicvf_drv_stats[stat].index];
+	for (stat = 0; stat < nicvf_n_drv_stats; stat++) {
+		tmp_stats = 0;
+		for_each_possible_cpu(cpu)
+			tmp_stats += ((u64 *)per_cpu_ptr(nic->drv_stats, cpu))
+				     [nicvf_drv_stats[stat].index];
+		*(data++) = tmp_stats;
+	}
 
 	nicvf_get_qset_stats(nic, stats, &data);
 

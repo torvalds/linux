@@ -506,7 +506,7 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	 * executing.
 	 */
 
-	if (!vhost_vsock_get(vsk->local_addr.svm_cid)) {
+	if (!vhost_vsock_get(vsk->remote_addr.svm_cid)) {
 		sock_set_flag(sk, SOCK_DONE);
 		vsk->peer_shutdown = SHUTDOWN_MASK;
 		sk->sk_state = SS_UNCONNECTED;

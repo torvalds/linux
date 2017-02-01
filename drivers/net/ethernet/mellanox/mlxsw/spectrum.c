@@ -231,7 +231,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 
 	span_entry->used = true;
 	span_entry->id = index;
-	span_entry->ref_count = 0;
+	span_entry->ref_count = 1;
 	span_entry->local_port = local_port;
 	return span_entry;
 }
@@ -270,6 +270,7 @@ static struct mlxsw_sp_span_entry
 
 	span_entry = mlxsw_sp_span_entry_find(port);
 	if (span_entry) {
+		/* Already exists, just take a reference */
 		span_entry->ref_count++;
 		return span_entry;
 	}
@@ -280,6 +281,7 @@ static struct mlxsw_sp_span_entry
 static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_span_entry *span_entry)
 {
+	WARN_ON(!span_entry->ref_count);
 	if (--span_entry->ref_count == 0)
 		mlxsw_sp_span_entry_destroy(mlxsw_sp, span_entry);
 	return 0;

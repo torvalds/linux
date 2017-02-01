@@ -962,9 +962,10 @@ static void b53_vlan_add(struct dsa_switch *ds, int port,
 
 		vl->members |= BIT(port) | BIT(cpu_port);
 		if (untagged)
-			vl->untag |= BIT(port) | BIT(cpu_port);
+			vl->untag |= BIT(port);
 		else
-			vl->untag &= ~(BIT(port) | BIT(cpu_port));
+			vl->untag &= ~BIT(port);
+		vl->untag &= ~BIT(cpu_port);
 
 		b53_set_vlan_entry(dev, vid, vl);
 		b53_fast_age_vlan(dev, vid);
@@ -972,8 +973,6 @@ static void b53_vlan_add(struct dsa_switch *ds, int port,
 
 	if (pvid) {
 		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port),
-			    vlan->vid_end);
-		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(cpu_port),
 			    vlan->vid_end);
 		b53_fast_age_vlan(dev, vid);
 	}
@@ -984,7 +983,6 @@ static int b53_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
-	unsigned int cpu_port = dev->cpu_port;
 	struct b53_vlan *vl;
 	u16 vid;
 	u16 pvid;
@@ -997,8 +995,6 @@ static int b53_vlan_del(struct dsa_switch *ds, int port,
 		b53_get_vlan_entry(dev, vid, vl);
 
 		vl->members &= ~BIT(port);
-		if ((vl->members & BIT(cpu_port)) == BIT(cpu_port))
-			vl->members = 0;
 
 		if (pvid == vid) {
 			if (is5325(dev) || is5365(dev))
@@ -1007,18 +1003,14 @@ static int b53_vlan_del(struct dsa_switch *ds, int port,
 				pvid = 0;
 		}
 
-		if (untagged) {
+		if (untagged)
 			vl->untag &= ~(BIT(port));
-			if ((vl->untag & BIT(cpu_port)) == BIT(cpu_port))
-				vl->untag = 0;
-		}
 
 		b53_set_vlan_entry(dev, vid, vl);
 		b53_fast_age_vlan(dev, vid);
 	}
 
 	b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), pvid);
-	b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(cpu_port), pvid);
 	b53_fast_age_vlan(dev, pvid);
 
 	return 0;

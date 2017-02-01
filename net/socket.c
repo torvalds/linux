@@ -341,8 +341,23 @@ static const struct xattr_handler sockfs_xattr_handler = {
 	.get = sockfs_xattr_get,
 };
 
+static int sockfs_security_xattr_set(const struct xattr_handler *handler,
+				     struct dentry *dentry, struct inode *inode,
+				     const char *suffix, const void *value,
+				     size_t size, int flags)
+{
+	/* Handled by LSM. */
+	return -EAGAIN;
+}
+
+static const struct xattr_handler sockfs_security_xattr_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.set = sockfs_security_xattr_set,
+};
+
 static const struct xattr_handler *sockfs_xattr_handlers[] = {
 	&sockfs_xattr_handler,
+	&sockfs_security_xattr_handler,
 	NULL
 };
 
@@ -2038,6 +2053,8 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		if (err)
 			break;
 		++datagrams;
+		if (msg_data_left(&msg_sys))
+			break;
 		cond_resched();
 	}
 

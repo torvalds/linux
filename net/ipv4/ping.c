@@ -657,6 +657,10 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
 
+	/* Must have at least a full ICMP header. */
+	if (len < icmph_len)
+		return -EINVAL;
+
 	/*
 	 *	Check the flags.
 	 */
@@ -994,7 +998,7 @@ struct proto ping_prot = {
 	.init =		ping_init_sock,
 	.close =	ping_close,
 	.connect =	ip4_datagram_connect,
-	.disconnect =	udp_disconnect,
+	.disconnect =	__udp_disconnect,
 	.setsockopt =	ip_setsockopt,
 	.getsockopt =	ip_getsockopt,
 	.sendmsg =	ping_v4_sendmsg,

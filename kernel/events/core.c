@@ -902,7 +902,15 @@ list_update_cgroup_event(struct perf_event *event,
 	 * this will always be called from the right CPU.
 	 */
 	cpuctx = __get_cpu_context(ctx);
-	cpuctx->cgrp = add ? event->cgrp : NULL;
+
+	/*
+	 * cpuctx->cgrp is NULL until a cgroup event is sched in or
+	 * ctx->nr_cgroup == 0 .
+	 */
+	if (add && perf_cgroup_from_task(current, ctx) == event->cgrp)
+		cpuctx->cgrp = event->cgrp;
+	else if (!add)
+		cpuctx->cgrp = NULL;
 }
 
 #else /* !CONFIG_CGROUP_PERF */
@@ -8018,6 +8026,7 @@ restart:
  * if <size> is not specified, the range is treated as a single address.
  */
 enum {
+	IF_ACT_NONE = -1,
 	IF_ACT_FILTER,
 	IF_ACT_START,
 	IF_ACT_STOP,
@@ -8041,6 +8050,7 @@ static const match_table_t if_tokens = {
 	{ IF_SRC_KERNEL,	"%u/%u" },
 	{ IF_SRC_FILEADDR,	"%u@%s" },
 	{ IF_SRC_KERNELADDR,	"%u" },
+	{ IF_ACT_NONE,		NULL },
 };
 
 /*

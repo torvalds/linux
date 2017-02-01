@@ -748,10 +748,7 @@ static int pp_release(struct inode *inode, struct file *file)
 	}
 
 	if (pp->pdev) {
-		const char *name = pp->pdev->name;
-
 		parport_unregister_device(pp->pdev);
-		kfree(name);
 		pp->pdev = NULL;
 		pr_debug(CHRDEV "%x: unregistered pardevice\n", minor);
 	}

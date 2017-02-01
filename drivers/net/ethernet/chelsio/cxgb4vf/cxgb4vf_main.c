@@ -2969,6 +2969,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
 		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
+		netdev->dev_port = pi->port_id;
 
 		/*
 		 * Initialize the hardware/software state for the port.

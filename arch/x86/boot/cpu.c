@@ -87,6 +87,12 @@ int validate_cpu(void)
 		return -1;
 	}
 
+	if (CONFIG_X86_MINIMUM_CPU_FAMILY <= 4 && !IS_ENABLED(CONFIG_M486) &&
+	    !has_eflag(X86_EFLAGS_ID)) {
+		printf("This kernel requires a CPU with the CPUID instruction.  Build with CONFIG_M486=y to run on this CPU.\n");
+		return -1;
+	}
+
 	if (err_flags) {
 		puts("This kernel requires the following features "
 		     "not present on the CPU:\n");

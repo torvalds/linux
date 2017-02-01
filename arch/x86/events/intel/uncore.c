@@ -319,9 +319,9 @@ static struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type,
  */
 static int uncore_pmu_event_init(struct perf_event *event);
 
-static bool is_uncore_event(struct perf_event *event)
+static bool is_box_event(struct intel_uncore_box *box, struct perf_event *event)
 {
-	return event->pmu->event_init == uncore_pmu_event_init;
+	return &box->pmu->pmu == event->pmu;
 }
 
 static int
@@ -340,7 +340,7 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
 
 	n = box->n_events;
 
-	if (is_uncore_event(leader)) {
+	if (is_box_event(box, leader)) {
 		box->event_list[n] = leader;
 		n++;
 	}
@@ -349,7 +349,7 @@ uncore_collect_events(struct intel_uncore_box *box, struct perf_event *leader,
 		return n;
 
 	list_for_each_entry(event, &leader->sibling_list, group_entry) {
-		if (!is_uncore_event(event) ||
+		if (!is_box_event(box, event) ||
 		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 

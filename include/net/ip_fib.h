@@ -243,6 +243,7 @@ int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
 int fib_table_flush(struct net *net, struct fib_table *table);
 struct fib_table *fib_trie_unmerge(struct fib_table *main_tb);
+void fib_table_flush_external(struct fib_table *table);
 void fib_free_table(struct fib_table *tb);
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES

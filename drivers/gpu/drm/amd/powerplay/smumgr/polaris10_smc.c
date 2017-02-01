@@ -2214,6 +2214,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t tmp;
 	int result;
 	bool error = false;
@@ -2233,8 +2234,10 @@ int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 			offsetof(SMU74_Firmware_Header, SoftRegisters),
 			&tmp, SMC_RAM_END);
 
-	if (!result)
+	if (!result) {
+		data->soft_regs_start = tmp;
 		smu_data->smu7_data.soft_regs_start = tmp;
+	}
 
 	error |= (0 != result);
 

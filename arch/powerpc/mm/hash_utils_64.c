@@ -193,8 +193,12 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		/*
 		 * Kernel read only mapped with ppp bits 0b110
 		 */
-		if (!(pteflags & _PAGE_WRITE))
-			rflags |= (HPTE_R_PP0 | 0x2);
+		if (!(pteflags & _PAGE_WRITE)) {
+			if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+				rflags |= (HPTE_R_PP0 | 0x2);
+			else
+				rflags |= 0x3;
+		}
 	} else {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;
@@ -1029,6 +1033,10 @@ void hash__early_init_mmu_secondary(void)
 {
 	/* Initialize hash table for that CPU */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+
+		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			update_hid_for_hash();
+
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
 			mtspr(SPRN_SDR1, _SDR1);
 		else

@@ -416,15 +416,6 @@ static int spdif_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	dev_set_drvdata(&pdev->dev, spdif);
-
-	ret = devm_snd_soc_register_component(&pdev->dev,
-			&samsung_spdif_component, &samsung_spdif_dai, 1);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "fail to register dai\n");
-		goto err4;
-	}
-
 	spdif_stereo_out.addr_width = 2;
 	spdif_stereo_out.addr = mem_res->start + DATA_OUTBUF;
 	filter = NULL;
@@ -432,13 +423,21 @@ static int spdif_probe(struct platform_device *pdev)
 		spdif_stereo_out.filter_data = spdif_pdata->dma_playback;
 		filter = spdif_pdata->dma_filter;
 	}
-
 	spdif->dma_playback = &spdif_stereo_out;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
 						 NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err4;
+	}
+
+	dev_set_drvdata(&pdev->dev, spdif);
+
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&samsung_spdif_component, &samsung_spdif_dai, 1);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "fail to register dai\n");
 		goto err4;
 	}
 

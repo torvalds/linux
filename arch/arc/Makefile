@@ -50,6 +50,9 @@ atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
 
 cflags-$(atleast_gcc44)			+= -fsection-anchors
 
+cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
+cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
+
 ifdef CONFIG_ISA_ARCV2
 
 ifndef CONFIG_ARC_HAS_LL64
@@ -68,7 +71,9 @@ cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables $(cfi)
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
 # Note: No need to add to cflags-y as that happens anyways
-ARCH_CFLAGS += -O3
+#
+# Disable the false maybe-uninitialized warings gcc spits out at -O3
+ARCH_CFLAGS += -O3 $(call cc-disable-warning,maybe-uninitialized,)
 endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it

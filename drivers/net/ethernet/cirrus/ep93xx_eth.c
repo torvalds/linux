@@ -468,6 +468,9 @@ static void ep93xx_free_buffers(struct ep93xx_priv *ep)
 	struct device *dev = ep->dev->dev.parent;
 	int i;
 
+	if (!ep->descs)
+		return;
+
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		dma_addr_t d;
 
@@ -490,6 +493,7 @@ static void ep93xx_free_buffers(struct ep93xx_priv *ep)
 
 	dma_free_coherent(dev, sizeof(struct ep93xx_descs), ep->descs,
 							ep->descs_dma_addr);
+	ep->descs = NULL;
 }
 
 static int ep93xx_alloc_buffers(struct ep93xx_priv *ep)

@@ -536,8 +536,10 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 
 		hwdev->groups = devm_kcalloc(dev, ngroups, sizeof(*groups),
 					     GFP_KERNEL);
-		if (!hwdev->groups)
-			return ERR_PTR(-ENOMEM);
+		if (!hwdev->groups) {
+			err = -ENOMEM;
+			goto free_hwmon;
+		}
 
 		attrs = __hwmon_create_attrs(dev, drvdata, chip);
 		if (IS_ERR(attrs)) {

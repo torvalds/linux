@@ -760,8 +760,12 @@ int dma_supported(struct device *dev, u64 device_mask)
 	struct iommu *iommu = dev->archdata.iommu;
 	u64 dma_addr_mask = iommu->dma_addr_mask;
 
-	if (device_mask >= (1UL << 32UL))
-		return 0;
+	if (device_mask > DMA_BIT_MASK(32)) {
+		if (iommu->atu)
+			dma_addr_mask = iommu->atu->dma_addr_mask;
+		else
+			return 0;
+	}
 
 	if ((device_mask & dma_addr_mask) == dma_addr_mask)
 		return 1;

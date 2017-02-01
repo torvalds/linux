@@ -1088,7 +1088,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 		desc[1] = tf->command; /* status */
 		desc[2] = tf->device;
 		desc[3] = tf->nsect;
-		desc[0] = 0;
+		desc[7] = 0;
 		if (tf->flags & ATA_TFLAG_LBA48)  {
 			desc[8] |= 0x80;
 			if (tf->hob_nsect)
@@ -1159,6 +1159,7 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
+	sdev->no_write_same = 1;
 
 	/* Schedule policy is determined by ->qc_defer() callback and
 	 * it needs to see every deferred qc.  Set dev_blocked to 1 to

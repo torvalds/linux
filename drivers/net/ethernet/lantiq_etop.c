@@ -704,6 +704,7 @@ ltq_etop_probe(struct platform_device *pdev)
 	priv->pldata = dev_get_platdata(&pdev->dev);
 	priv->netdev = dev;
 	spin_lock_init(&priv->lock);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))

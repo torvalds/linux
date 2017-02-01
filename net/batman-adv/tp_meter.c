@@ -837,6 +837,7 @@ static int batadv_tp_send(void *arg)
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (unlikely(!primary_if)) {
 		err = BATADV_TP_REASON_DST_UNREACHABLE;
+		tp_vars->reason = err;
 		goto out;
 	}
 

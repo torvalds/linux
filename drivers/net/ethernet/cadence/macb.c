@@ -975,6 +975,7 @@ static inline void macb_init_rx_ring(struct macb *bp)
 		addr += bp->rx_buffer_size;
 	}
 	bp->rx_ring[RX_RING_SIZE - 1].addr |= MACB_BIT(RX_WRAP);
+	bp->rx_tail = 0;
 }
 
 static int macb_rx(struct macb *bp, int budget)
@@ -1156,6 +1157,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		if (status & MACB_BIT(RXUBR)) {
 			ctrl = macb_readl(bp, NCR);
 			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
+			wmb();
 			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
 
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
@@ -1616,8 +1618,6 @@ static void macb_init_rings(struct macb *bp)
 	bp->queues[0].tx_head = 0;
 	bp->queues[0].tx_tail = 0;
 	bp->queues[0].tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
-
-	bp->rx_tail = 0;
 }
 
 static void macb_reset_hw(struct macb *bp)
@@ -2673,6 +2673,12 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lp->skb_length = skb->len;
 		lp->skb_physaddr = dma_map_single(NULL, skb->data, skb->len,
 							DMA_TO_DEVICE);
+		if (dma_mapping_error(NULL, lp->skb_physaddr)) {
+			dev_kfree_skb_any(skb);
+			dev->stats.tx_dropped++;
+			netdev_err(dev, "%s: DMA mapping error\n", __func__);
+			return NETDEV_TX_OK;
+		}
 
 		/* Set address of the data in the Transmit Address register */
 		macb_writel(lp, TAR, lp->skb_physaddr);
@@ -2764,6 +2770,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	if (intstatus & MACB_BIT(RXUBR)) {
 		ctl = macb_readl(lp, NCR);
 		macb_writel(lp, NCR, ctl & ~MACB_BIT(RE));
+		wmb();
 		macb_writel(lp, NCR, ctl | MACB_BIT(RE));
 	}
 

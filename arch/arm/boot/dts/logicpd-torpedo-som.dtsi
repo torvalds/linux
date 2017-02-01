@@ -13,9 +13,9 @@
 		};
 	};
 
-	memory@0 {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0 0>;
+		reg = <0x80000000 0>;
 	};
 
 	leds {

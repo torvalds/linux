@@ -86,7 +86,6 @@
 
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
-EXPORT_SYMBOL(sysctl_tcp_low_latency);
 
 #ifdef CONFIG_TCP_MD5SIG
 static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
@@ -1565,6 +1564,21 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tcp_add_backlog);
 
+int tcp_filter(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcphdr *th = (struct tcphdr *)skb->data;
+	unsigned int eaten = skb->len;
+	int err;
+
+	err = sk_filter_trim_cap(sk, skb, th->doff * 4);
+	if (!err) {
+		eaten -= skb->len;
+		TCP_SKB_CB(skb)->end_seq -= eaten;
+	}
+	return err;
+}
+EXPORT_SYMBOL(tcp_filter);
+
 /*
  *	From tcp_input.c
  */
@@ -1677,8 +1691,10 @@ process:
 
 	nf_reset(skb);
 
-	if (sk_filter(sk, skb))
+	if (tcp_filter(sk, skb))
 		goto discard_and_relse;
+	th = (const struct tcphdr *)skb->data;
+	iph = ip_hdr(skb);
 
 	skb->dev = NULL;
 
@@ -1887,7 +1903,6 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct inet_listen_hashbucket *ilb;
-	struct inet_connection_sock *icsk;
 	struct sock *sk = cur;
 
 	if (!sk) {
@@ -1909,7 +1924,6 @@ get_sk:
 			continue;
 		if (sk->sk_family == st->family)
 			return sk;
-		icsk = inet_csk(sk);
 	}
 	spin_unlock_bh(&ilb->lock);
 	st->offset = 0;

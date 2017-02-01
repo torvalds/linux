@@ -293,24 +293,4 @@ void qed_ll2_setup(struct qed_hwfn *p_hwfn,
  */
 void qed_ll2_free(struct qed_hwfn *p_hwfn,
 		  struct qed_ll2_info *p_ll2_connections);
-void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
-				     u8 connection_handle,
-				     void *cookie,
-				     dma_addr_t rx_buf_addr,
-				     u16 data_length,
-				     u8 data_length_error,
-				     u16 parse_flags,
-				     u16 vlan,
-				     u32 src_mac_addr_hi,
-				     u16 src_mac_addr_lo, bool b_last_packet);
-void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-				     u8 connection_handle,
-				     void *cookie,
-				     dma_addr_t first_frag_addr,
-				     bool b_last_fragment, bool b_last_packet);
-void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
-				    u8 connection_handle,
-				    void *cookie,
-				    dma_addr_t first_frag_addr,
-				    bool b_last_fragment, bool b_last_packet);
 #endif

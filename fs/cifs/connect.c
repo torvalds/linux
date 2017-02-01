@@ -412,6 +412,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
 
+	if (server->tcpStatus == CifsNeedNegotiate)
+		mod_delayed_work(cifsiod_wq, &server->echo, 0);
+
 	return rc;
 }
 
@@ -421,17 +424,25 @@ cifs_echo_request(struct work_struct *work)
 	int rc;
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, echo.work);
-	unsigned long echo_interval = server->echo_interval;
+	unsigned long echo_interval;
 
 	/*
-	 * We cannot send an echo if it is disabled or until the
-	 * NEGOTIATE_PROTOCOL request is done, which is indicated by
-	 * server->ops->need_neg() == true. Also, no need to ping if
-	 * we got a response recently.
+	 * If we need to renegotiate, set echo interval to zero to
+	 * immediately call echo service where we can renegotiate.
+	 */
+	if (server->tcpStatus == CifsNeedNegotiate)
+		echo_interval = 0;
+	else
+		echo_interval = server->echo_interval;
+
+	/*
+	 * We cannot send an echo if it is disabled.
+	 * Also, no need to ping if we got a response recently.
 	 */
 
 	if (server->tcpStatus == CifsNeedReconnect ||
-	    server->tcpStatus == CifsExiting || server->tcpStatus == CifsNew ||
+	    server->tcpStatus == CifsExiting ||
+	    server->tcpStatus == CifsNew ||
 	    (server->ops->can_echo && !server->ops->can_echo(server)) ||
 	    time_before(jiffies, server->lstrp + echo_interval - HZ))
 		goto requeue_echo;
@@ -442,7 +453,7 @@ cifs_echo_request(struct work_struct *work)
 			 server->hostname);
 
 requeue_echo:
-	queue_delayed_work(cifsiod_wq, &server->echo, echo_interval);
+	queue_delayed_work(cifsiod_wq, &server->echo, server->echo_interval);
 }
 
 static bool

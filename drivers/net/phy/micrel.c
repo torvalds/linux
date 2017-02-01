@@ -318,12 +318,12 @@ static int ksz8041_config_init(struct phy_device *phydev)
 	/* Limit supported and advertised modes in fiber mode */
 	if (of_property_read_bool(of_node, "micrel,fiber-mode")) {
 		phydev->dev_flags |= MICREL_PHY_FXEN;
-		phydev->supported &= SUPPORTED_FIBRE |
-				     SUPPORTED_100baseT_Full |
+		phydev->supported &= SUPPORTED_100baseT_Full |
 				     SUPPORTED_100baseT_Half;
-		phydev->advertising &= ADVERTISED_FIBRE |
-				       ADVERTISED_100baseT_Full |
+		phydev->supported |= SUPPORTED_FIBRE;
+		phydev->advertising &= ADVERTISED_100baseT_Full |
 				       ADVERTISED_100baseT_Half;
+		phydev->advertising |= ADVERTISED_FIBRE;
 		phydev->autoneg = AUTONEG_DISABLE;
 	}
 

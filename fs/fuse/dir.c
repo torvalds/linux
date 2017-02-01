@@ -286,6 +286,11 @@ const struct dentry_operations fuse_dentry_operations = {
 	.d_release	= fuse_dentry_release,
 };
 
+const struct dentry_operations fuse_root_dentry_operations = {
+	.d_init		= fuse_dentry_init,
+	.d_release	= fuse_dentry_release,
+};
+
 int fuse_valid_type(int m)
 {
 	return S_ISREG(m) || S_ISDIR(m) || S_ISLNK(m) || S_ISCHR(m) ||
@@ -1734,8 +1739,6 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 		 * This should be done on write(), truncate() and chown().
 		 */
 		if (!fc->handle_killpriv) {
-			int kill;
-
 			/*
 			 * ia_mode calculation may have used stale i_mode.
 			 * Refresh and recalculate.
@@ -1745,12 +1748,11 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 				return ret;
 
 			attr->ia_mode = inode->i_mode;
-			kill = should_remove_suid(entry);
-			if (kill & ATTR_KILL_SUID) {
+			if (inode->i_mode & S_ISUID) {
 				attr->ia_valid |= ATTR_MODE;
 				attr->ia_mode &= ~S_ISUID;
 			}
-			if (kill & ATTR_KILL_SGID) {
+			if ((inode->i_mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
 				attr->ia_valid |= ATTR_MODE;
 				attr->ia_mode &= ~S_ISGID;
 			}

@@ -2077,8 +2077,6 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			name = of_get_property(of_aliases, "stdout", NULL);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
-		if (of_stdout)
-			console_set_by_of();
 	}
 
 	if (!of_aliases)

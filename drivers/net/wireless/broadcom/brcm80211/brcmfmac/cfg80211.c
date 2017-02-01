@@ -4516,7 +4516,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	/* store current 11d setting */
 	if (brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_REGULATORY,
 				  &ifp->vif->is_11d)) {
-		supports_11d = false;
+		is_11d = supports_11d = false;
 	} else {
 		country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
 					      settings->beacon.tail_len,

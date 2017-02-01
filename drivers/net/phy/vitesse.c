@@ -62,6 +62,10 @@
 /* Vitesse Extended Page Access Register */
 #define MII_VSC82X4_EXT_PAGE_ACCESS	0x1f
 
+/* Vitesse VSC8601 Extended PHY Control Register 1 */
+#define MII_VSC8601_EPHY_CTL		0x17
+#define MII_VSC8601_EPHY_CTL_RGMII_SKEW	(1 << 8)
+
 #define PHY_ID_VSC8234			0x000fc620
 #define PHY_ID_VSC8244			0x000fc6c0
 #define PHY_ID_VSC8514			0x00070670
@@ -109,6 +113,34 @@ static int vsc824x_config_init(struct phy_device *phydev)
 		err = vsc824x_add_skew(phydev);
 
 	return err;
+}
+
+/* This adds a skew for both TX and RX clocks, so the skew should only be
+ * applied to "rgmii-id" interfaces. It may not work as expected
+ * on "rgmii-txid", "rgmii-rxid" or "rgmii" interfaces. */
+static int vsc8601_add_skew(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_VSC8601_EPHY_CTL);
+	if (ret < 0)
+		return ret;
+
+	ret |= MII_VSC8601_EPHY_CTL_RGMII_SKEW;
+	return phy_write(phydev, MII_VSC8601_EPHY_CTL, ret);
+}
+
+static int vsc8601_config_init(struct phy_device *phydev)
+{
+	int ret = 0;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+		ret = vsc8601_add_skew(phydev);
+
+	if (ret < 0)
+		return ret;
+
+	return genphy_config_init(phydev);
 }
 
 static int vsc824x_ack_interrupt(struct phy_device *phydev)
@@ -275,7 +307,7 @@ static struct phy_driver vsc82xx_driver[] = {
 	.phy_id_mask    = 0x000ffff0,
 	.features       = PHY_GBIT_FEATURES,
 	.flags          = PHY_HAS_INTERRUPT,
-	.config_init    = &genphy_config_init,
+	.config_init    = &vsc8601_config_init,
 	.config_aneg    = &genphy_config_aneg,
 	.read_status    = &genphy_read_status,
 	.ack_interrupt  = &vsc824x_ack_interrupt,

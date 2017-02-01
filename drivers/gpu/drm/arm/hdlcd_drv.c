@@ -375,7 +375,6 @@ static int hdlcd_drm_bind(struct device *dev)
 
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
-	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
 err_vblank:
 	pm_runtime_disable(drm->dev);
@@ -387,6 +386,7 @@ err_unload:
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
 err_free:
+	drm_mode_config_cleanup(drm);
 	dev_set_drvdata(dev, NULL);
 	drm_dev_unref(drm);
 

@@ -4057,7 +4057,7 @@ static void cfg_queues(struct adapter *adap)
 		 * capped by the number of available cores.
 		 */
 		if (n10g) {
-			i = num_online_cpus();
+			i = min_t(int, MAX_OFLD_QSETS, num_online_cpus());
 			s->ofldqsets = roundup(i, adap->params.nports);
 		} else {
 			s->ofldqsets = adap->params.nports;
@@ -4931,6 +4931,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	for_each_port(adapter, i) {
 		pi = adap2pinfo(adapter, i);
+		adapter->port[i]->dev_port = pi->lport;
 		netif_set_real_num_tx_queues(adapter->port[i], pi->nqsets);
 		netif_set_real_num_rx_queues(adapter->port[i], pi->nqsets);
 

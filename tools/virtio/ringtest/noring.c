@@ -24,8 +24,9 @@ void *get_buf(unsigned *lenp, void **bufp)
 	return "Buffer";
 }
 
-void poll_used(void)
+bool used_empty()
 {
+	return false;
 }
 
 void disable_call()
@@ -54,8 +55,9 @@ bool enable_kick()
 	assert(0);
 }
 
-void poll_avail(void)
+bool avail_empty()
 {
+	return false;
 }
 
 bool use_buf(unsigned *lenp, void **bufp)

@@ -19,9 +19,7 @@ vpath %.c \
 	./\
 	../../common\
 	../../os_specific/service_layers
-CFLAGS += -DACPI_DUMP_APP -I.\
-	-I../../../../../drivers/acpi/acpica\
-	-I../../../../../include
+CFLAGS += -DACPI_DUMP_APP -I.
 TOOL_OBJS = \
 	apdump.o\
 	apfiles.o\
@@ -49,7 +47,9 @@ TOOL_OBJS = \
 
 include ../../Makefile.rules
 
-install-man: ../../man/acpidump.8
-	$(INSTALL_DATA) -D $< $(DESTDIR)${mandir}/man8/acpidump.8
+install-man: $(srctree)/man/acpidump.8
+	$(ECHO) "  INST    " acpidump.8
+	$(QUIET) $(INSTALL_DATA) -D $< $(DESTDIR)$(mandir)/man8/acpidump.8
 uninstall-man:
-	- rm -f $(DESTDIR)${mandir}/man8/acpidump.8
+	$(ECHO) "  UNINST  " acpidump.8
+	$(QUIET) rm -f $(DESTDIR)$(mandir)/man8/acpidump.8

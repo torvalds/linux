@@ -7060,7 +7060,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	BT_DBG("%pMR -> %pMR (type %u) psm 0x%2.2x", &chan->src, dst,
 	       dst_type, __le16_to_cpu(psm));
 
-	hdev = hci_get_route(dst, &chan->src);
+	hdev = hci_get_route(dst, &chan->src, chan->src_type);
 	if (!hdev)
 		return -EHOSTUNREACH;
 

@@ -851,6 +851,8 @@ static int stmpe_reset(struct stmpe *stmpe)
 	if (ret < 0)
 		return ret;
 
+	msleep(10);
+
 	timeout = jiffies + msecs_to_jiffies(100);
 	while (time_before(jiffies, timeout)) {
 		ret = __stmpe_reg_read(stmpe, stmpe->regs[STMPE_IDX_SYS_CTRL]);
