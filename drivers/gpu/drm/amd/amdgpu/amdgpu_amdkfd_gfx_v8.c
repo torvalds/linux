@@ -28,6 +28,7 @@
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_ucode.h"
+#include "gfx_v8_0.h"
 #include "gca/gfx_8_0_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_enum.h"
@@ -251,53 +252,11 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	m = get_mqd(mqd);
 
 	valid_wptr = copy_from_user(&shadow_wptr, wptr, sizeof(shadow_wptr));
-	acquire_queue(kgd, pipe_id, queue_id);
-
-	WREG32(mmCP_MQD_CONTROL, m->cp_mqd_control);
-	WREG32(mmCP_MQD_BASE_ADDR, m->cp_mqd_base_addr_lo);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, m->cp_mqd_base_addr_hi);
-
-	WREG32(mmCP_HQD_VMID, m->cp_hqd_vmid);
-	WREG32(mmCP_HQD_PERSISTENT_STATE, m->cp_hqd_persistent_state);
-	WREG32(mmCP_HQD_PIPE_PRIORITY, m->cp_hqd_pipe_priority);
-	WREG32(mmCP_HQD_QUEUE_PRIORITY, m->cp_hqd_queue_priority);
-	WREG32(mmCP_HQD_QUANTUM, m->cp_hqd_quantum);
-	WREG32(mmCP_HQD_PQ_BASE, m->cp_hqd_pq_base_lo);
-	WREG32(mmCP_HQD_PQ_BASE_HI, m->cp_hqd_pq_base_hi);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, m->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
-			m->cp_hqd_pq_rptr_report_addr_hi);
-
 	if (valid_wptr > 0)
-		WREG32(mmCP_HQD_PQ_WPTR, shadow_wptr);
+		m->cp_hqd_pq_wptr = shadow_wptr;
 
-	WREG32(mmCP_HQD_PQ_CONTROL, m->cp_hqd_pq_control);
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, m->cp_hqd_pq_doorbell_control);
-
-	WREG32(mmCP_HQD_EOP_BASE_ADDR, m->cp_hqd_eop_base_addr_lo);
-	WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, m->cp_hqd_eop_base_addr_hi);
-	WREG32(mmCP_HQD_EOP_CONTROL, m->cp_hqd_eop_control);
-	WREG32(mmCP_HQD_EOP_RPTR, m->cp_hqd_eop_rptr);
-	WREG32(mmCP_HQD_EOP_WPTR, m->cp_hqd_eop_wptr);
-	WREG32(mmCP_HQD_EOP_EVENTS, m->cp_hqd_eop_done_events);
-
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_LO, m->cp_hqd_ctx_save_base_addr_lo);
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_HI, m->cp_hqd_ctx_save_base_addr_hi);
-	WREG32(mmCP_HQD_CTX_SAVE_CONTROL, m->cp_hqd_ctx_save_control);
-	WREG32(mmCP_HQD_CNTL_STACK_OFFSET, m->cp_hqd_cntl_stack_offset);
-	WREG32(mmCP_HQD_CNTL_STACK_SIZE, m->cp_hqd_cntl_stack_size);
-	WREG32(mmCP_HQD_WG_STATE_OFFSET, m->cp_hqd_wg_state_offset);
-	WREG32(mmCP_HQD_CTX_SAVE_SIZE, m->cp_hqd_ctx_save_size);
-
-	WREG32(mmCP_HQD_IB_CONTROL, m->cp_hqd_ib_control);
-
-	WREG32(mmCP_HQD_DEQUEUE_REQUEST, m->cp_hqd_dequeue_request);
-	WREG32(mmCP_HQD_ERROR, m->cp_hqd_error);
-	WREG32(mmCP_HQD_EOP_WPTR_MEM, m->cp_hqd_eop_wptr_mem);
-	WREG32(mmCP_HQD_EOP_DONES, m->cp_hqd_eop_dones);
-
-	WREG32(mmCP_HQD_ACTIVE, m->cp_hqd_active);
-
+	acquire_queue(kgd, pipe_id, queue_id);
+	gfx_v8_0_mqd_commit(adev, mqd);
 	release_queue(kgd);
 
 	return 0;

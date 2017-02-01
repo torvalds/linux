@@ -4913,17 +4913,32 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 	tmp = REG_SET_FIELD(tmp, CP_HQD_CTX_SAVE_CONTROL, MTYPE, 3);
 	mqd->cp_hqd_ctx_save_control = tmp;
 
+	/* defaults */
+	mqd->cp_hqd_eop_rptr = RREG32(mmCP_HQD_EOP_RPTR);
+	mqd->cp_hqd_eop_wptr = RREG32(mmCP_HQD_EOP_WPTR);
+	mqd->cp_hqd_pipe_priority = RREG32(mmCP_HQD_PIPE_PRIORITY);
+	mqd->cp_hqd_queue_priority = RREG32(mmCP_HQD_QUEUE_PRIORITY);
+	mqd->cp_hqd_quantum = RREG32(mmCP_HQD_QUANTUM);
+	mqd->cp_hqd_ctx_save_base_addr_lo = RREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_LO);
+	mqd->cp_hqd_ctx_save_base_addr_hi = RREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_HI);
+	mqd->cp_hqd_cntl_stack_offset = RREG32(mmCP_HQD_CNTL_STACK_OFFSET);
+	mqd->cp_hqd_cntl_stack_size = RREG32(mmCP_HQD_CNTL_STACK_SIZE);
+	mqd->cp_hqd_wg_state_offset = RREG32(mmCP_HQD_WG_STATE_OFFSET);
+	mqd->cp_hqd_ctx_save_size = RREG32(mmCP_HQD_CTX_SAVE_SIZE);
+	mqd->cp_hqd_eop_done_events = RREG32(mmCP_HQD_EOP_EVENTS);
+	mqd->cp_hqd_error = RREG32(mmCP_HQD_ERROR);
+	mqd->cp_hqd_eop_wptr_mem = RREG32(mmCP_HQD_EOP_WPTR_MEM);
+	mqd->cp_hqd_eop_dones = RREG32(mmCP_HQD_EOP_DONES);
+
 	/* activate the queue */
 	mqd->cp_hqd_active = 1;
 
 	return 0;
 }
 
-static int gfx_v8_0_mqd_commit(struct amdgpu_ring *ring)
+int gfx_v8_0_mqd_commit(struct amdgpu_device *adev,
+			struct vi_mqd *mqd)
 {
-	struct amdgpu_device *adev = ring->adev;
-	struct vi_mqd *mqd = ring->mqd_ptr;
-
 	/* disable wptr polling */
 	WREG32_FIELD(CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
@@ -4970,6 +4985,28 @@ static int gfx_v8_0_mqd_commit(struct amdgpu_ring *ring)
 
 	/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
 	WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
+	WREG32(mmCP_HQD_EOP_RPTR, mqd->cp_hqd_eop_rptr);
+	WREG32(mmCP_HQD_EOP_WPTR, mqd->cp_hqd_eop_wptr);
+
+	/* set the HQD priority */
+	WREG32(mmCP_HQD_PIPE_PRIORITY, mqd->cp_hqd_pipe_priority);
+	WREG32(mmCP_HQD_QUEUE_PRIORITY, mqd->cp_hqd_queue_priority);
+	WREG32(mmCP_HQD_QUANTUM, mqd->cp_hqd_quantum);
+
+	/* set cwsr save area */
+	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_LO, mqd->cp_hqd_ctx_save_base_addr_lo);
+	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_HI, mqd->cp_hqd_ctx_save_base_addr_hi);
+	WREG32(mmCP_HQD_CTX_SAVE_CONTROL, mqd->cp_hqd_ctx_save_control);
+	WREG32(mmCP_HQD_CNTL_STACK_OFFSET, mqd->cp_hqd_cntl_stack_offset);
+	WREG32(mmCP_HQD_CNTL_STACK_SIZE, mqd->cp_hqd_cntl_stack_size);
+	WREG32(mmCP_HQD_WG_STATE_OFFSET, mqd->cp_hqd_wg_state_offset);
+	WREG32(mmCP_HQD_CTX_SAVE_SIZE, mqd->cp_hqd_ctx_save_size);
+
+	WREG32(mmCP_HQD_IB_CONTROL, mqd->cp_hqd_ib_control);
+	WREG32(mmCP_HQD_EOP_EVENTS, mqd->cp_hqd_eop_done_events);
+	WREG32(mmCP_HQD_ERROR, mqd->cp_hqd_error);
+	WREG32(mmCP_HQD_EOP_WPTR_MEM, mqd->cp_hqd_eop_wptr_mem);
+	WREG32(mmCP_HQD_EOP_DONES, mqd->cp_hqd_eop_dones);
 
 	/* set the vmid for the queue */
 	WREG32(mmCP_HQD_VMID, mqd->cp_hqd_vmid);
@@ -5006,7 +5043,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 			dev_err(adev->dev, "failed to deactivate ring %s\n", ring->name);
 			goto out_unlock;
 		}
-		gfx_v8_0_mqd_commit(ring);
+		gfx_v8_0_mqd_commit(adev, mqd);
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 	} else {
@@ -5018,7 +5055,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 			dev_err(adev->dev, "failed to deactivate ring %s\n", ring->name);
 			goto out_unlock;
 		}
-		gfx_v8_0_mqd_commit(ring);
+		gfx_v8_0_mqd_commit(adev, mqd);
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 

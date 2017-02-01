@@ -29,6 +29,7 @@
 #include "cikd.h"
 #include "cik_sdma.h"
 #include "amdgpu_ucode.h"
+#include "gfx_v7_0.h"
 #include "gca/gfx_7_2_d.h"
 #include "gca/gfx_7_2_enum.h"
 #include "gca/gfx_7_2_sh_mask.h"
@@ -309,55 +310,11 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	m = get_mqd(mqd);
 
 	is_wptr_shadow_valid = !get_user(wptr_shadow, wptr);
+	if (is_wptr_shadow_valid)
+		m->cp_hqd_pq_wptr = wptr_shadow;
 
 	acquire_queue(kgd, pipe_id, queue_id);
-	WREG32(mmCP_MQD_BASE_ADDR, m->cp_mqd_base_addr_lo);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, m->cp_mqd_base_addr_hi);
-	WREG32(mmCP_MQD_CONTROL, m->cp_mqd_control);
-
-	WREG32(mmCP_HQD_PQ_BASE, m->cp_hqd_pq_base_lo);
-	WREG32(mmCP_HQD_PQ_BASE_HI, m->cp_hqd_pq_base_hi);
-	WREG32(mmCP_HQD_PQ_CONTROL, m->cp_hqd_pq_control);
-
-	WREG32(mmCP_HQD_IB_CONTROL, m->cp_hqd_ib_control);
-	WREG32(mmCP_HQD_IB_BASE_ADDR, m->cp_hqd_ib_base_addr_lo);
-	WREG32(mmCP_HQD_IB_BASE_ADDR_HI, m->cp_hqd_ib_base_addr_hi);
-
-	WREG32(mmCP_HQD_IB_RPTR, m->cp_hqd_ib_rptr);
-
-	WREG32(mmCP_HQD_PERSISTENT_STATE, m->cp_hqd_persistent_state);
-	WREG32(mmCP_HQD_SEMA_CMD, m->cp_hqd_sema_cmd);
-	WREG32(mmCP_HQD_MSG_TYPE, m->cp_hqd_msg_type);
-
-	WREG32(mmCP_HQD_ATOMIC0_PREOP_LO, m->cp_hqd_atomic0_preop_lo);
-	WREG32(mmCP_HQD_ATOMIC0_PREOP_HI, m->cp_hqd_atomic0_preop_hi);
-	WREG32(mmCP_HQD_ATOMIC1_PREOP_LO, m->cp_hqd_atomic1_preop_lo);
-	WREG32(mmCP_HQD_ATOMIC1_PREOP_HI, m->cp_hqd_atomic1_preop_hi);
-
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, m->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
-			m->cp_hqd_pq_rptr_report_addr_hi);
-
-	WREG32(mmCP_HQD_PQ_RPTR, m->cp_hqd_pq_rptr);
-
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, m->cp_hqd_pq_wptr_poll_addr_lo);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, m->cp_hqd_pq_wptr_poll_addr_hi);
-
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, m->cp_hqd_pq_doorbell_control);
-
-	WREG32(mmCP_HQD_VMID, m->cp_hqd_vmid);
-
-	WREG32(mmCP_HQD_QUANTUM, m->cp_hqd_quantum);
-
-	WREG32(mmCP_HQD_PIPE_PRIORITY, m->cp_hqd_pipe_priority);
-	WREG32(mmCP_HQD_QUEUE_PRIORITY, m->cp_hqd_queue_priority);
-
-	WREG32(mmCP_HQD_IQ_RPTR, m->cp_hqd_iq_rptr);
-
-	if (is_wptr_shadow_valid)
-		WREG32(mmCP_HQD_PQ_WPTR, wptr_shadow);
-
-	WREG32(mmCP_HQD_ACTIVE, m->cp_hqd_active);
+	gfx_v7_0_mqd_commit(adev, m);
 	release_queue(kgd);
 
 	return 0;
