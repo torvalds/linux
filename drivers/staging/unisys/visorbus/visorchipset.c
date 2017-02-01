@@ -114,60 +114,6 @@ static unsigned long controlvm_payload_bytes_buffered;
 static struct controlvm_message controlvm_pending_msg;
 static bool controlvm_pending_msg_valid;
 
-/*
- * This describes a buffer and its current state of transfer (e.g., how many
- * bytes have already been supplied as putfile data, and how many bytes are
- * remaining) for a putfile_request.
- */
-struct putfile_active_buffer {
-	/* a payload from a controlvm message, containing a file data buffer */
-	struct parser_context *parser_ctx;
-	/* points within data area of parser_ctx to next byte of data */
-	size_t bytes_remaining;
-};
-
-#define PUTFILE_REQUEST_SIG 0x0906101302281211
-/*
- * This identifies a single remote --> local CONTROLVM_TRANSMIT_FILE
- * conversation. Structs of this type are dynamically linked into
- * <Putfile_request_list>.
- */
-struct putfile_request {
-	u64 sig;		/* PUTFILE_REQUEST_SIG */
-
-	/* header from original TransmitFile request */
-	struct controlvm_message_header controlvm_header;
-
-	/* link to next struct putfile_request */
-	struct list_head next_putfile_request;
-
-	/*
-	 * head of putfile_buffer_entry list, which describes the data to be
-	 * supplied as putfile data;
-	 * - this list is added to when controlvm messages come in that supply
-	 * file data
-	 * - this list is removed from via the hotplug program that is actually
-	 * consuming these buffers to write as file data
-	 */
-	struct list_head input_buffer_list;
-	spinlock_t req_list_lock;	/* lock for input_buffer_list */
-
-	/* waiters for input_buffer_list to go non-empty */
-	wait_queue_head_t input_buffer_wq;
-
-	/* data not yet read within current putfile_buffer_entry */
-	struct putfile_active_buffer active_buf;
-
-	/*
-	 * <0 = failed, 0 = in-progress, >0 = successful;
-	 * note that this must be set with req_list_lock, and if you set <0,
-	 * it is your responsibility to also free up all of the other objects
-	 * in this struct (like input_buffer_list, active_buf.parser_ctx)
-	 * before releasing the lock
-	 */
-	int completion_status;
-};
-
 struct parahotplug_request {
 	struct list_head list;
 	int id;
