@@ -568,9 +568,9 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       &mask->icmp.type,
 			       TCA_FLOWER_KEY_ICMPV6_TYPE_MASK,
 			       sizeof(key->icmp.type));
-		fl_set_key_val(tb, &key->icmp.code, TCA_FLOWER_KEY_ICMPV4_CODE,
+		fl_set_key_val(tb, &key->icmp.code, TCA_FLOWER_KEY_ICMPV6_CODE,
 			       &mask->icmp.code,
-			       TCA_FLOWER_KEY_ICMPV4_CODE_MASK,
+			       TCA_FLOWER_KEY_ICMPV6_CODE_MASK,
 			       sizeof(key->icmp.code));
 	}
 
