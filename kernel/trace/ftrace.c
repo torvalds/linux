@@ -1194,15 +1194,13 @@ ftrace_hash_key(struct ftrace_hash *hash, unsigned long ip)
 	return 0;
 }
 
-struct ftrace_func_entry *
-ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
+/* Only use this function if ftrace_hash_empty() has already been tested */
+static __always_inline struct ftrace_func_entry *
+__ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 {
 	unsigned long key;
 	struct ftrace_func_entry *entry;
 	struct hlist_head *hhd;
-
-	if (ftrace_hash_empty(hash))
-		return NULL;
 
 	key = ftrace_hash_key(hash, ip);
 	hhd = &hash->buckets[key];
@@ -1212,6 +1210,25 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 			return entry;
 	}
 	return NULL;
+}
+
+/**
+ * ftrace_lookup_ip - Test to see if an ip exists in an ftrace_hash
+ * @hash: The hash to look at
+ * @ip: The instruction pointer to test
+ *
+ * Search a given @hash to see if a given instruction pointer (@ip)
+ * exists in it.
+ *
+ * Returns the entry that holds the @ip if found. NULL otherwise.
+ */
+struct ftrace_func_entry *
+ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
+{
+	if (ftrace_hash_empty(hash))
+		return NULL;
+
+	return __ftrace_lookup_ip(hash, ip);
 }
 
 static void __add_hash_entry(struct ftrace_hash *hash,
@@ -1463,9 +1480,9 @@ static bool hash_contains_ip(unsigned long ip,
 	 * notrace hash is considered not in the notrace hash.
 	 */
 	return (ftrace_hash_empty(hash->filter_hash) ||
-		ftrace_lookup_ip(hash->filter_hash, ip)) &&
+		__ftrace_lookup_ip(hash->filter_hash, ip)) &&
 		(ftrace_hash_empty(hash->notrace_hash) ||
-		 !ftrace_lookup_ip(hash->notrace_hash, ip));
+		 !__ftrace_lookup_ip(hash->notrace_hash, ip));
 }
 
 /*
@@ -2877,7 +2894,7 @@ ops_references_rec(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 
 	/* The function must be in the filter */
 	if (!ftrace_hash_empty(ops->func_hash->filter_hash) &&
-	    !ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip))
+	    !__ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip))
 		return 0;
 
 	/* If in notrace hash, we ignore it too */
