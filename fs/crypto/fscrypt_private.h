@@ -86,7 +86,7 @@ struct fscrypt_completion_result {
 
 #define DECLARE_FS_COMPLETION_RESULT(ecr) \
 	struct fscrypt_completion_result ecr = { \
-		COMPLETION_INITIALIZER((ecr).completion), 0 }
+		COMPLETION_INITIALIZER_ONSTACK((ecr).completion), 0 }
 
 
 /* crypto.c */
