@@ -121,7 +121,7 @@
 	usbotg_hs_phy: usbphy {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
-		clocks = <&rcc 0 30>;
+		clocks = <&rcc 0 STM32F4_AHB1_CLOCK(OTGHSULPI)>;
 		clock-names = "main_clk";
 	};
 };
