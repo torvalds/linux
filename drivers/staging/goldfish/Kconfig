@@ -7,6 +7,8 @@ config GOLDFISH_AUDIO
 config GOLDFISH_SYNC
     tristate "Goldfish AVD Sync Driver"
     depends on GOLDFISH
+    depends on SW_SYNC
+    depends on SYNC_FILE
 	---help---
 	  Emulated sync fences for the Goldfish Android Virtual Device
 

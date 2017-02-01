@@ -30,10 +30,13 @@
 #include <linux/acpi.h>
 
 #include <linux/string.h>
-#include <linux/syscalls.h>
 
-#include "sw_sync.h"
-#include "sync.h"
+#include <linux/fs.h>
+#include <linux/syscalls.h>
+#include <linux/sync_file.h>
+#include <linux/fence.h>
+
+#include "goldfish_sync_timeline_fence.h"
 
 #define ERR(...) printk(KERN_ERR __VA_ARGS__);
 
@@ -45,13 +48,13 @@
 
 /* The Goldfish sync driver is designed to provide a interface
  * between the underlying host's sync device and the kernel's
- * sw_sync.
+ * fence sync framework..
  * The purpose of the device/driver is to enable lightweight
  * creation and signaling of timelines and fences
  * in order to synchronize the guest with host-side graphics events.
  *
  * Each time the interrupt trips, the driver
- * may perform a sw_sync operation.
+ * may perform a sync operation.
  */
 
 /* The operations are: */
@@ -158,7 +161,7 @@ struct goldfish_sync_state {
 static struct goldfish_sync_state global_sync_state[1];
 
 struct goldfish_sync_timeline_obj {
-	struct sw_sync_timeline *sw_sync_tl;
+	struct goldfish_sync_timeline *sync_tl;
 	uint32_t current_time;
 	/* We need to be careful about when we deallocate
 	 * this |goldfish_sync_timeline_obj| struct.
@@ -166,10 +169,10 @@ struct goldfish_sync_timeline_obj {
 	 * consider the triggered host-side wait that may
 	 * still be in flight when the guest close()'s a
 	 * goldfish_sync device's sync context fd (and
-	 * destroys the |sw_sync_tl| field above).
+	 * destroys the |sync_tl| field above).
 	 * The host-side wait may raise IRQ
 	 * and tell the kernel to increment the timeline _after_
-	 * the |sw_sync_tl| has already been set to null.
+	 * the |sync_tl| has already been set to null.
 	 *
 	 * From observations on OpenGL apps and CTS tests, this
 	 * happens at some very low probability upon context
@@ -177,8 +180,8 @@ struct goldfish_sync_timeline_obj {
 	 * and it needs to be handled properly. Otherwise,
 	 * if we clean up the surrounding |goldfish_sync_timeline_obj|
 	 * too early, any |handle| field of any host->guest command
-	 * might not even point to a null |sw_sync_tl| field,
-	 * but to garbage memory or even a reclaimed |sw_sync_tl|.
+	 * might not even point to a null |sync_tl| field,
+	 * but to garbage memory or even a reclaimed |sync_tl|.
 	 * If we do not count such "pending waits" and kfree the object
 	 * immediately upon |goldfish_sync_timeline_destroy|,
 	 * we might get mysterous RCU stalls after running a long
@@ -220,14 +223,14 @@ struct goldfish_sync_timeline_obj {
 };
 
 /* We will call |delete_timeline_obj| when the last reference count
- * of the kref is decremented. This deletes the sw_sync
+ * of the kref is decremented. This deletes the sync
  * timeline object along with the wrapper itself. */
 static void delete_timeline_obj(struct kref* kref) {
 	struct goldfish_sync_timeline_obj* obj =
 		container_of(kref, struct goldfish_sync_timeline_obj, kref);
 
-	sync_timeline_destroy(&obj->sw_sync_tl->obj);
-	obj->sw_sync_tl = NULL;
+	goldfish_sync_timeline_put_internal(obj->sync_tl);
+	obj->sync_tl = NULL;
 	kfree(obj);
 }
 
@@ -245,21 +248,21 @@ goldfish_sync_timeline_create(void)
 {
 
 	char timeline_name[256];
-	struct sw_sync_timeline *res_sync_tl = NULL;
+	struct goldfish_sync_timeline *res_sync_tl = NULL;
 	struct goldfish_sync_timeline_obj *res;
 
 	DTRACE();
 
 	gensym(timeline_name);
 
-	res_sync_tl = sw_sync_timeline_create(timeline_name);
+	res_sync_tl = goldfish_sync_timeline_create_internal(timeline_name);
 	if (!res_sync_tl) {
-		ERR("Failed to create sw_sync timeline.");
+		ERR("Failed to create goldfish_sw_sync timeline.");
 		return NULL;
 	}
 
 	res = kzalloc(sizeof(struct goldfish_sync_timeline_obj), GFP_KERNEL);
-	res->sw_sync_tl = res_sync_tl;
+	res->sync_tl = res_sync_tl;
 	res->current_time = 0;
 	kref_init(&res->kref);
 
@@ -277,19 +280,20 @@ goldfish_sync_fence_create(struct goldfish_sync_timeline_obj *obj,
 	int fd;
 	char fence_name[256];
 	struct sync_pt *syncpt = NULL;
-	struct sync_fence *sync_obj = NULL;
-	struct sw_sync_timeline *tl;
+	struct sync_file *sync_file_obj = NULL;
+	struct goldfish_sync_timeline *tl;
 
 	DTRACE();
 
 	if (!obj) return -1;
 
-	tl = obj->sw_sync_tl;
+	tl = obj->sync_tl;
 
-	syncpt = sw_sync_pt_create(tl, val);
+	syncpt = goldfish_sync_pt_create_internal(
+				tl, sizeof(struct sync_pt) + 4, val);
 	if (!syncpt) {
 		ERR("could not create sync point! "
-			"sync_timeline=0x%p val=%d",
+			"goldfish_sync_timeline=0x%p val=%d",
 			   tl, val);
 		return -1;
 	}
@@ -303,24 +307,26 @@ goldfish_sync_fence_create(struct goldfish_sync_timeline_obj *obj,
 
 	gensym(fence_name);
 
-	sync_obj = sync_fence_create(fence_name, syncpt);
-	if (!sync_obj) {
+	sync_file_obj = sync_file_create(&syncpt->base);
+	if (!sync_file_obj) {
 		ERR("could not create sync fence! "
-			"sync_timeline=0x%p val=%d sync_pt=0x%p",
+			"goldfish_sync_timeline=0x%p val=%d sync_pt=0x%p",
 			   tl, val, syncpt);
 		goto err_cleanup_fd_pt;
 	}
 
-	DPRINT("installing sync fence into fd %d sync_obj=0x%p", fd, sync_obj);
-	sync_fence_install(sync_obj, fd);
+	DPRINT("installing sync fence into fd %d sync_file_obj=0x%p",
+			fd, sync_file_obj);
+	fd_install(fd, sync_file_obj->file);
 	kref_get(&obj->kref);
 
 	return fd;
 
 err_cleanup_fd_pt:
+	fput(sync_file_obj->file);
 	put_unused_fd(fd);
 err_cleanup_pt:
-	sync_pt_free(syncpt);
+	fence_put(&syncpt->base);
 	return -1;
 }
 
@@ -335,7 +341,7 @@ goldfish_sync_timeline_inc(struct goldfish_sync_timeline_obj *obj, uint32_t inc)
 	if (!obj) return;
 
 	DPRINT("timeline_obj=0x%p", obj);
-	sw_sync_timeline_inc(obj->sw_sync_tl, inc);
+	goldfish_sync_timeline_signal_internal(obj->sync_tl, inc);
 	DPRINT("incremented timeline. increment max_time");
 	obj->current_time += inc;
 
@@ -847,7 +853,8 @@ int goldfish_sync_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	sync_state->reg_base = devm_ioremap(&pdev->dev, ioresource->start, PAGE_SIZE);
+	sync_state->reg_base =
+		devm_ioremap(&pdev->dev, ioresource->start, PAGE_SIZE);
 	if (sync_state->reg_base == NULL) {
 		ERR("Could not ioremap");
 		return -ENOMEM;
@@ -880,9 +887,11 @@ int goldfish_sync_probe(struct platform_device *pdev)
 		struct goldfish_sync_hostcmd *batch_addr_hostcmd;
 		struct goldfish_sync_guestcmd *batch_addr_guestcmd;
 
-		batch_addr_hostcmd = devm_kzalloc(&pdev->dev, sizeof(struct goldfish_sync_hostcmd),
+		batch_addr_hostcmd =
+			devm_kzalloc(&pdev->dev, sizeof(struct goldfish_sync_hostcmd),
 				GFP_KERNEL);
-		batch_addr_guestcmd = devm_kzalloc(&pdev->dev, sizeof(struct goldfish_sync_guestcmd),
+		batch_addr_guestcmd =
+			devm_kzalloc(&pdev->dev, sizeof(struct goldfish_sync_guestcmd),
 				GFP_KERNEL);
 
 		if (!setup_verify_batch_cmd_addr(sync_state,
@@ -952,36 +961,3 @@ MODULE_AUTHOR("Google, Inc.");
 MODULE_DESCRIPTION("Android QEMU Sync Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
-
-/* This function is only to run a basic test of sync framework.
- * It creates a timeline and fence object whose signal point is at 1.
- * The timeline is incremented, and we use the sync framework's
- * sync_fence_wait on that fence object. If everything works out,
- * we should not hang in the wait and return immediately.
- * There is no way to explicitly run this test yet, but it
- * can be used by inserting it at the end of goldfish_sync_probe.
- */
-void test_kernel_sync(void)
-{
-	struct goldfish_sync_timeline_obj *test_timeline;
-	int test_fence_fd;
-
-	DTRACE();
-
-	DPRINT("test sw_sync");
-
-	test_timeline = goldfish_sync_timeline_create();
-	DPRINT("sw_sync_timeline_create -> 0x%p", test_timeline);
-
-	test_fence_fd = goldfish_sync_fence_create(test_timeline, 1);
-	DPRINT("sync_fence_create -> %d", test_fence_fd);
-
-	DPRINT("incrementing test timeline");
-	goldfish_sync_timeline_inc(test_timeline, 1);
-
-	DPRINT("test waiting (should NOT hang)");
-	sync_fence_wait(
-			sync_fence_fdget(test_fence_fd), -1);
-
-	DPRINT("test waiting (afterward)");
-}
