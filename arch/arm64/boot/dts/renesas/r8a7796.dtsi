@@ -483,7 +483,7 @@
 					  "ch24";
 			clocks = <&cpg CPG_MOD 812>;
 			power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
-			phy-mode = "rgmii-id";
+			phy-mode = "rgmii-txid";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
