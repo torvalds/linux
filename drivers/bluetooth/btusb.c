@@ -2347,6 +2347,50 @@ static int btusb_shutdown_intel(struct hci_dev *hdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/* Configure an out-of-band gpio as wake-up pin, if specified in device tree */
+static int marvell_config_oob_wake(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	struct btusb_data *data = hci_get_drvdata(hdev);
+	struct device *dev = &data->udev->dev;
+	u16 pin, gap, opcode;
+	int ret;
+	u8 cmd[5];
+
+	/* Move on if no wakeup pin specified */
+	if (of_property_read_u16(dev->of_node, "marvell,wakeup-pin", &pin) ||
+	    of_property_read_u16(dev->of_node, "marvell,wakeup-gap-ms", &gap))
+		return 0;
+
+	/* Vendor specific command to configure a GPIO as wake-up pin */
+	opcode = hci_opcode_pack(0x3F, 0x59);
+	cmd[0] = opcode & 0xFF;
+	cmd[1] = opcode >> 8;
+	cmd[2] = 2; /* length of parameters that follow */
+	cmd[3] = pin;
+	cmd[4] = gap; /* time in ms, for which wakeup pin should be asserted */
+
+	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hdev, "%s: No memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
+
+	ret = btusb_send_frame(hdev, skb);
+	if (ret) {
+		bt_dev_err(hdev, "%s: configuration failed\n", __func__);
+		kfree_skb(skb);
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
 static int btusb_set_bdaddr_marvell(struct hci_dev *hdev,
 				    const bdaddr_t *bdaddr)
 {
@@ -2922,6 +2966,13 @@ static int btusb_probe(struct usb_interface *intf,
 	err = btusb_config_oob_wake(hdev);
 	if (err)
 		goto out_free_dev;
+
+	/* Marvell devices may need a specific chip configuration */
+	if (id->driver_info & BTUSB_MARVELL && data->oob_wake_irq) {
+		err = marvell_config_oob_wake(hdev);
+		if (err)
+			goto out_free_dev;
+	}
 #endif
 	if (id->driver_info & BTUSB_CW6622)
 		set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks);

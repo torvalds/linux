@@ -10,6 +10,9 @@ Required properties:
 
 		  "usb1286,204e" (Marvell 8997)
 
+Also, vendors that use btusb may have device additional properties, e.g:
+Documentation/devicetree/bindings/net/marvell-bt-8xxx.txt
+
 Optional properties:
 
   - interrupt-parent: phandle of the parent interrupt controller
