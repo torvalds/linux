@@ -272,11 +272,11 @@ static void sii8620_mt_work(struct sii8620 *ctx)
 		ctx->mt_state = MT_STATE_READY;
 		msg = list_first_entry(&ctx->mt_queue, struct sii8620_mt_msg,
 				       node);
+		list_del(&msg->node);
 		if (msg->recv)
 			msg->recv(ctx, msg);
 		if (msg->continuation)
 			msg->continuation(ctx, msg->ret);
-		list_del(&msg->node);
 		kfree(msg);
 	}
 
