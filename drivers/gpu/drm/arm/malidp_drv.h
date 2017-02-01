@@ -48,6 +48,12 @@ struct malidp_plane_state {
 #define to_malidp_plane(x) container_of(x, struct malidp_plane, base)
 #define to_malidp_plane_state(x) container_of(x, struct malidp_plane_state, base)
 
+struct malidp_crtc_state {
+	struct drm_crtc_state base;
+};
+
+#define to_malidp_crtc_state(x) container_of(x, struct malidp_crtc_state, base)
+
 int malidp_de_planes_init(struct drm_device *drm);
 void malidp_de_planes_destroy(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);

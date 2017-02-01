@@ -178,6 +178,52 @@ static const struct drm_crtc_helper_funcs malidp_crtc_helper_funcs = {
 	.atomic_check = malidp_crtc_atomic_check,
 };
 
+static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct malidp_crtc_state *state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+
+	return &state->base;
+}
+
+static void malidp_crtc_reset(struct drm_crtc *crtc)
+{
+	struct malidp_crtc_state *state = NULL;
+
+	if (crtc->state) {
+		state = to_malidp_crtc_state(crtc->state);
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+	}
+
+	kfree(state);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		crtc->state = &state->base;
+		crtc->state->crtc = crtc;
+	}
+}
+
+static void malidp_crtc_destroy_state(struct drm_crtc *crtc,
+				      struct drm_crtc_state *state)
+{
+	struct malidp_crtc_state *mali_state = NULL;
+
+	if (state) {
+		mali_state = to_malidp_crtc_state(state);
+		__drm_atomic_helper_crtc_destroy_state(state);
+	}
+
+	kfree(mali_state);
+}
+
 static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
@@ -201,9 +247,9 @@ static const struct drm_crtc_funcs malidp_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.reset = malidp_crtc_reset,
+	.atomic_duplicate_state = malidp_crtc_duplicate_state,
+	.atomic_destroy_state = malidp_crtc_destroy_state,
 	.enable_vblank = malidp_crtc_enable_vblank,
 	.disable_vblank = malidp_crtc_disable_vblank,
 };
