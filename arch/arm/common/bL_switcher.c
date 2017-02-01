@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/interrupt.h>
 #include <linux/cpu_pm.h>
 #include <linux/cpu.h>

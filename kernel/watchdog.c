@@ -19,6 +19,7 @@
 #include <linux/sysctl.h>
 #include <linux/smpboot.h>
 #include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/tick.h>
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>

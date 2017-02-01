@@ -49,6 +49,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/wait.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <linux/stop_machine.h>
