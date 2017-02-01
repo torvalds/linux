@@ -262,7 +262,6 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	int jack_type;
 	struct snd_soc_codec *codec = runtime->codec;
 	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 
 	if ((cht_rt5645_quirk & CHT_RT5645_SSP2_AIF2) ||
