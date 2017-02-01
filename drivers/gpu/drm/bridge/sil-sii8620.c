@@ -1615,17 +1615,6 @@ static void sii8620_scdt_high(struct sii8620 *ctx)
 	);
 }
 
-static void sii8620_scdt_low(struct sii8620 *ctx)
-{
-	sii8620_write(ctx, REG_TMDS_CSTAT_P3,
-		      BIT_TMDS_CSTAT_P3_SCDT_CLR_AVI_DIS |
-		      BIT_TMDS_CSTAT_P3_CLR_AVI);
-
-	sii8620_stop_video(ctx);
-
-	sii8620_write(ctx, REG_INTR8_MASK, 0);
-}
-
 static void sii8620_irq_scdt(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_INTR5);
@@ -1635,8 +1624,6 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 
 		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
 			sii8620_scdt_high(ctx);
-		else
-			sii8620_scdt_low(ctx);
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
