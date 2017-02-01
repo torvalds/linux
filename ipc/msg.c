@@ -30,7 +30,6 @@
 #include <linux/proc_fs.h>
 #include <linux/list.h>
 #include <linux/security.h>
-#include <linux/sched.h>
 #include <linux/sched/wake_q.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
