@@ -224,42 +224,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	fsnotify_free_mark(mark);
 }
 
-void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
-			    spinlock_t *lock)
-{
-	struct fsnotify_mark *mark;
-
-	if (!conn)
-		return;
-
-	while (1) {
-		/*
-		 * We have to be careful since we can race with e.g.
-		 * fsnotify_clear_marks_by_group() and once we drop 'lock',
-		 * mark can get removed from the obj_list and destroyed. But
-		 * we are holding mark reference so mark cannot be freed and
-		 * calling fsnotify_destroy_mark() more than once is fine.
-		 */
-		spin_lock(lock);
-		if (hlist_empty(&conn->list)) {
-			spin_unlock(lock);
-			break;
-		}
-		mark = hlist_entry(conn->list.first, struct fsnotify_mark,
-				   obj_list);
-		/*
-		 * We don't update i_fsnotify_mask / mnt_fsnotify_mask here
-		 * since inode / mount is going away anyway. So just remove
-		 * mark from the list.
-		 */
-		hlist_del_init_rcu(&mark->obj_list);
-		fsnotify_get_mark(mark);
-		spin_unlock(lock);
-		fsnotify_destroy_mark(mark, mark->group);
-		fsnotify_put_mark(mark);
-	}
-}
-
 void fsnotify_connector_free(struct fsnotify_mark_connector **connp)
 {
 	if (*connp) {
@@ -576,6 +540,42 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 		fsnotify_detach_mark(mark);
 		mutex_unlock(&group->mark_mutex);
 		__fsnotify_free_mark(mark);
+		fsnotify_put_mark(mark);
+	}
+}
+
+void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
+			    spinlock_t *lock)
+{
+	struct fsnotify_mark *mark;
+
+	if (!conn)
+		return;
+
+	while (1) {
+		/*
+		 * We have to be careful since we can race with e.g.
+		 * fsnotify_clear_marks_by_group() and once we drop 'lock',
+		 * mark can get removed from the obj_list and destroyed. But
+		 * we are holding mark reference so mark cannot be freed and
+		 * calling fsnotify_destroy_mark() more than once is fine.
+		 */
+		spin_lock(lock);
+		if (hlist_empty(&conn->list)) {
+			spin_unlock(lock);
+			break;
+		}
+		mark = hlist_entry(conn->list.first, struct fsnotify_mark,
+				   obj_list);
+		/*
+		 * We don't update i_fsnotify_mask / mnt_fsnotify_mask here
+		 * since inode / mount is going away anyway. So just remove
+		 * mark from the list.
+		 */
+		hlist_del_init_rcu(&mark->obj_list);
+		fsnotify_get_mark(mark);
+		spin_unlock(lock);
+		fsnotify_destroy_mark(mark, mark->group);
 		fsnotify_put_mark(mark);
 	}
 }
