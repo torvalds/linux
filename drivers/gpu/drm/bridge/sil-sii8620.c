@@ -880,12 +880,11 @@ static void sii8620_stop_video(struct sii8620 *ctx)
 			| BIT_TPI_SC_TPI_AV_MUTE;
 		break;
 	case SINK_HDMI:
+	default:
 		val = BIT_TPI_SC_REG_TMDS_OE_POWER_DOWN
 			| BIT_TPI_SC_TPI_AV_MUTE
 			| BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI;
 		break;
-	default:
-		return;
 	}
 
 	sii8620_write(ctx, REG_TPI_SC, val);
