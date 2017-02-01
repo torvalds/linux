@@ -156,13 +156,18 @@ static void idu_set_mode(unsigned int cmn_irq, unsigned int lvl,
 	__mcip_cmd_data(CMD_IDU_SET_MODE, cmn_irq, data.word);
 }
 
-static void idu_irq_mask(struct irq_data *data)
+static void idu_irq_mask_raw(irq_hw_number_t hwirq)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&mcip_lock, flags);
-	__mcip_cmd_data(CMD_IDU_SET_MASK, data->hwirq, 1);
+	__mcip_cmd_data(CMD_IDU_SET_MASK, hwirq, 1);
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
+}
+
+static void idu_irq_mask(struct irq_data *data)
+{
+	idu_irq_mask_raw(data->hwirq);
 }
 
 static void idu_irq_unmask(struct irq_data *data)
@@ -301,6 +306,9 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 	/* Parent interrupts (core-intc) are already mapped */
 
 	for (i = 0; i < nr_irqs; i++) {
+		/* Mask all common interrupts by default */
+		idu_irq_mask_raw(i);
+
 		/*
 		 * Return parent uplink IRQs (towards core intc) 24,25,.....
 		 * this step has been done before already
