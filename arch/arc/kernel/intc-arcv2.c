@@ -14,6 +14,8 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
+
 /*
  * Early Hardware specific Interrupt setup
  * -Called very early (start_kernel -> setup_arch -> setup_processor)

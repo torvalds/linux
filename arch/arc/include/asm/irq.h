@@ -9,7 +9,6 @@
 #ifndef __ASM_ARC_IRQ_H
 #define __ASM_ARC_IRQ_H
 
-#define NR_CPU_IRQS	32  /* number of interrupt lines of ARC770 CPU */
 #define NR_IRQS		128 /* allow some CPU external IRQ handling */
 
 /* Platform Independent IRQs */
