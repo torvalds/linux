@@ -644,13 +644,15 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 
 	erase_request(&mdsc->request_tree, req);
 
-	if (req->r_unsafe_dir && req->r_got_unsafe) {
+	if (req->r_unsafe_dir  &&
+	    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_dir_item);
 		spin_unlock(&ci->i_unsafe_lock);
 	}
-	if (req->r_target_inode && req->r_got_unsafe) {
+	if (req->r_target_inode &&
+	    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
 		spin_lock(&ci->i_unsafe_lock);
 		list_del_init(&req->r_unsafe_target_item);
@@ -705,7 +707,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	int mode = req->r_direct_mode;
 	int mds = -1;
 	u32 hash = req->r_direct_hash;
-	bool is_hash = req->r_direct_is_hash;
+	bool is_hash = test_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
 
 	/*
 	 * is there a specific mds we should try?  ignore hint if we have
@@ -2042,7 +2044,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	dout("prepare_send_request %p tid %lld %s (attempt %d)\n", req,
 	     req->r_tid, ceph_mds_op_name(req->r_op), req->r_attempts);
 
-	if (req->r_got_unsafe) {
+	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		void *p;
 		/*
 		 * Replay.  Do not regenerate message (and rebuild
@@ -2091,7 +2093,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 
 	rhead = msg->front.iov_base;
 	rhead->oldest_client_tid = cpu_to_le64(__get_oldest_tid(mdsc));
-	if (req->r_got_unsafe)
+	if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 		flags |= CEPH_MDS_FLAG_REPLAY;
 	if (req->r_locked_dir)
 		flags |= CEPH_MDS_FLAG_WANT_DENTRY;
@@ -2114,8 +2116,8 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	int mds = -1;
 	int err = 0;
 
-	if (req->r_err || req->r_got_result) {
-		if (req->r_aborted)
+	if (req->r_err || test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags)) {
+		if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags))
 			__unregister_request(mdsc, req);
 		goto out;
 	}
@@ -2245,7 +2247,7 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 	while (p) {
 		req = rb_entry(p, struct ceph_mds_request, r_node);
 		p = rb_next(p);
-		if (req->r_got_unsafe)
+		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 			continue;
 		if (req->r_attempts > 0)
 			continue; /* only new requests */
@@ -2319,7 +2321,7 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	mutex_lock(&mdsc->mutex);
 
 	/* only abort if we didn't race with a real reply */
-	if (req->r_got_result) {
+	if (test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags)) {
 		err = le32_to_cpu(req->r_reply_info.head->result);
 	} else if (err < 0) {
 		dout("aborted request %lld with %d\n", req->r_tid, err);
@@ -2331,7 +2333,7 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		 */
 		mutex_lock(&req->r_fill_mutex);
 		req->r_err = err;
-		req->r_aborted = true;
+		set_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags);
 		mutex_unlock(&req->r_fill_mutex);
 
 		if (req->r_locked_dir &&
@@ -2409,14 +2411,14 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	}
 
 	/* dup? */
-	if ((req->r_got_unsafe && !head->safe) ||
-	    (req->r_got_safe && head->safe)) {
+	if ((test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags) && !head->safe) ||
+	    (test_bit(CEPH_MDS_R_GOT_SAFE, &req->r_req_flags) && head->safe)) {
 		pr_warn("got a dup %s reply on %llu from mds%d\n",
 			   head->safe ? "safe" : "unsafe", tid, mds);
 		mutex_unlock(&mdsc->mutex);
 		goto out;
 	}
-	if (req->r_got_safe) {
+	if (test_bit(CEPH_MDS_R_GOT_SAFE, &req->r_req_flags)) {
 		pr_warn("got unsafe after safe on %llu from mds%d\n",
 			   tid, mds);
 		mutex_unlock(&mdsc->mutex);
@@ -2455,10 +2457,10 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 
 	if (head->safe) {
-		req->r_got_safe = true;
+		set_bit(CEPH_MDS_R_GOT_SAFE, &req->r_req_flags);
 		__unregister_request(mdsc, req);
 
-		if (req->r_got_unsafe) {
+		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 			/*
 			 * We already handled the unsafe response, now do the
 			 * cleanup.  No need to examine the response; the MDS
@@ -2476,7 +2478,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			goto out;
 		}
 	} else {
-		req->r_got_unsafe = true;
+		set_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags);
 		list_add_tail(&req->r_unsafe_item, &req->r_session->s_unsafe);
 		if (req->r_unsafe_dir) {
 			struct ceph_inode_info *ci =
@@ -2530,7 +2532,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	if (realm)
 		ceph_put_snap_realm(mdsc, realm);
 
-	if (err == 0 && req->r_got_unsafe && req->r_target_inode) {
+	if (err == 0 && req->r_target_inode &&
+	    test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags)) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_target_inode);
 		spin_lock(&ci->i_unsafe_lock);
 		list_add_tail(&req->r_unsafe_target_item, &ci->i_unsafe_iops);
@@ -2538,12 +2541,12 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	}
 out_err:
 	mutex_lock(&mdsc->mutex);
-	if (!req->r_aborted) {
+	if (!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 		if (err) {
 			req->r_err = err;
 		} else {
 			req->r_reply =  ceph_msg_get(msg);
-			req->r_got_result = true;
+			set_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags);
 		}
 	} else {
 		dout("reply arrived after request %lld was aborted\n", tid);
@@ -2587,7 +2590,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		goto out;  /* dup reply? */
 	}
 
-	if (req->r_aborted) {
+	if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 		dout("forward tid %llu aborted, unregistering\n", tid);
 		__unregister_request(mdsc, req);
 	} else if (fwd_seq <= req->r_num_fwd) {
@@ -2597,7 +2600,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		/* resend. forward race not possible; mds would drop */
 		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
 		BUG_ON(req->r_err);
-		BUG_ON(req->r_got_result);
+		BUG_ON(test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags));
 		req->r_attempts = 0;
 		req->r_num_fwd = fwd_seq;
 		req->r_resend_mds = next_mds;
@@ -2762,7 +2765,7 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 	while (p) {
 		req = rb_entry(p, struct ceph_mds_request, r_node);
 		p = rb_next(p);
-		if (req->r_got_unsafe)
+		if (test_bit(CEPH_MDS_R_GOT_UNSAFE, &req->r_req_flags))
 			continue;
 		if (req->r_attempts == 0)
 			continue; /* only old requests */
