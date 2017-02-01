@@ -2340,7 +2340,7 @@ static int __init pl011_console_match(struct console *co, char *name, int idx,
 	resource_size_t addr;
 	int i;
 
-	if (strcmp(name, "pl011") != 0)
+	if (strcmp(name, "pl011") != 0 || strcmp(name, "ttyAMA") != 0)
 		return -ENODEV;
 
 	if (uart_parse_earlycon(options, &iotype, &addr, &options))
