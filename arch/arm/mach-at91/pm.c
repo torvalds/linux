@@ -222,20 +222,15 @@ static void at91_pm_set_standby(void (*at91_standby)(void))
  */
 static void at91rm9200_standby(void)
 {
-	u32 lpr = at91_ramc_read(0, AT91_MC_SDRAMC_LPR);
-
 	asm volatile(
 		"b    1f\n\t"
 		".align    5\n\t"
 		"1:  mcr    p15, 0, %0, c7, c10, 4\n\t"
-		"    str    %0, [%1, %2]\n\t"
-		"    str    %3, [%1, %4]\n\t"
+		"    str    %2, [%1, %3]\n\t"
 		"    mcr    p15, 0, %0, c7, c0, 4\n\t"
-		"    str    %5, [%1, %2]"
 		:
-		: "r" (0), "r" (pm_data.ramc[0]), "r" (AT91_MC_SDRAMC_LPR),
-		  "r" (1), "r" (AT91_MC_SDRAMC_SRR),
-		  "r" (lpr));
+		: "r" (0), "r" (pm_data.ramc[0]),
+		  "r" (1), "r" (AT91_MC_SDRAMC_SRR));
 }
 
 /* We manage both DDRAM/SDRAM controllers, we need more than one value to
