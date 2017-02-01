@@ -3271,7 +3271,7 @@ static int sh_eth_wol_setup(struct net_device *ndev)
 	sh_eth_write(ndev, EESIPR_ECIIP, EESIPR);
 
 	/* Enable MagicPacket */
-	sh_eth_modify(ndev, ECMR, 0, ECMR_MPDE);
+	sh_eth_modify(ndev, ECMR, ECMR_MPDE, ECMR_MPDE);
 
 	/* Increased clock usage so device won't be suspended */
 	clk_enable(mdp->clk);
