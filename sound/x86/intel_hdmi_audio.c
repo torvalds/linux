@@ -1453,7 +1453,7 @@ static int hdmi_lpe_audio_suspend(struct platform_device *pdev,
 	had_stream = &intelhaddata->stream_data;
 	substream = intelhaddata->stream_info.had_substream;
 
-	if (intelhaddata->dev->power.runtime_status != RPM_SUSPENDED) {
+	if (!pm_runtime_status_suspended(intelhaddata->dev)) {
 		dev_err(intelhaddata->dev, "audio stream is active\n");
 		return -EAGAIN;
 	}
