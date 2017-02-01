@@ -58,6 +58,7 @@
 #include <linux/percpu.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/static_key.h>
 #include <linux/workqueue.h>
 #include <linux/compiler.h>

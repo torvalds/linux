@@ -25,6 +25,7 @@
 #define _LINUX_NET_BUSY_POLL_H
 
 #include <linux/netdevice.h>
+#include <linux/sched/clock.h>
 #include <net/ip.h>
 
 #ifdef CONFIG_NET_RX_BUSY_POLL

@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/threads.h>

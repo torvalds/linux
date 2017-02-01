@@ -32,6 +32,7 @@
 #include <linux/prefetch.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/clock.h>
 #include <trace/events/bcache.h>
 
 /*
