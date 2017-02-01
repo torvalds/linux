@@ -139,6 +139,7 @@ struct snd_intelhad {
 	void __iomem *mmio_start;
 	unsigned int had_config_offset;
 	struct work_struct hdmi_audio_wq;
+	struct mutex mutex; /* for protecting chmap, state and eld */
 };
 
 #endif /* _INTEL_HDMI_AUDIO_ */

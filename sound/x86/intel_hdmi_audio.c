@@ -555,11 +555,17 @@ static int had_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED)
 		return -ENODEV;
-	if (!intelhaddata->chmap->chmap)
+
+	mutex_lock(&intelhaddata->mutex);
+	if (!intelhaddata->chmap->chmap) {
+		mutex_unlock(&intelhaddata->mutex);
 		return -ENODATA;
+	}
+
 	chmap = intelhaddata->chmap->chmap;
 	for (i = 0; i < chmap->channels; i++)
 		ucontrol->value.integer.value[i] = chmap->map[i];
+	mutex_unlock(&intelhaddata->mutex);
 
 	return 0;
 }
@@ -1352,6 +1358,7 @@ static int snd_intelhad_pcm_mmap(struct snd_pcm_substream *substream,
 			vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
+/* process mode change of the running stream; called in mutex */
 static int hdmi_audio_mode_change(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
@@ -1642,7 +1649,7 @@ static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 	return 0;
 }
 
-/* process hot plug, called from wq */
+/* process hot plug, called from wq with mutex locked */
 static int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
@@ -1682,7 +1689,7 @@ static int had_process_hot_plug(struct snd_intelhad *intelhaddata)
 	return 0;
 }
 
-/* process hot unplug, called from wq */
+/* process hot unplug, called from wq with mutex locked */
 static int had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
 	enum intel_had_aud_buf_type buf_id;
@@ -1751,12 +1758,14 @@ static int had_iec958_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
 
+	mutex_lock(&intelhaddata->mutex);
 	ucontrol->value.iec958.status[0] = (intelhaddata->aes_bits >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (intelhaddata->aes_bits >> 8) & 0xff;
 	ucontrol->value.iec958.status[2] =
 					(intelhaddata->aes_bits >> 16) & 0xff;
 	ucontrol->value.iec958.status[3] =
 					(intelhaddata->aes_bits >> 24) & 0xff;
+	mutex_unlock(&intelhaddata->mutex);
 	return 0;
 }
 
@@ -1775,16 +1784,19 @@ static int had_iec958_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned int val;
 	struct snd_intelhad *intelhaddata = snd_kcontrol_chip(kcontrol);
+	int changed = 0;
 
 	val = (ucontrol->value.iec958.status[0] << 0) |
 		(ucontrol->value.iec958.status[1] << 8) |
 		(ucontrol->value.iec958.status[2] << 16) |
 		(ucontrol->value.iec958.status[3] << 24);
+	mutex_lock(&intelhaddata->mutex);
 	if (intelhaddata->aes_bits != val) {
 		intelhaddata->aes_bits = val;
-		return 1;
+		changed = 1;
 	}
-	return 1;
+	mutex_unlock(&intelhaddata->mutex);
+	return changed;
 }
 
 static struct snd_kcontrol_new had_control_iec958_mask = {
@@ -1837,6 +1849,7 @@ static void had_audio_wq(struct work_struct *work)
 		container_of(work, struct snd_intelhad, hdmi_audio_wq);
 	struct intel_hdmi_lpe_audio_pdata *pdata = ctx->dev->platform_data;
 
+	mutex_lock(&ctx->mutex);
 	if (!pdata->hdmi_connected) {
 		dev_dbg(ctx->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
@@ -1844,11 +1857,10 @@ static void had_audio_wq(struct work_struct *work)
 		if (ctx->state != hdmi_connector_status_connected) {
 			dev_dbg(ctx->dev, "%s: Already Unplugged!\n",
 				__func__);
-			return;
+		} else {
+			ctx->state = hdmi_connector_status_disconnected;
+			had_process_hot_unplug(ctx);
 		}
-
-		ctx->state = hdmi_connector_status_disconnected;
-		had_process_hot_unplug(ctx);
 
 	} else {
 		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
@@ -1888,6 +1900,7 @@ static void had_audio_wq(struct work_struct *work)
 				hdmi_audio_mode_change(ctx);
 		}
 	}
+	mutex_unlock(&ctx->mutex);
 }
 
 /* release resources */
@@ -1948,6 +1961,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	ctx = card->private_data;
 	spin_lock_init(&ctx->had_spinlock);
+	mutex_init(&ctx->mutex);
 	ctx->drv_status = HAD_DRV_DISCONNECTED;
 	ctx->dev = &pdev->dev;
 	ctx->card = card;
