@@ -95,31 +95,31 @@ void iommu_device_sysfs_remove(struct iommu_device *iommu)
  * directory of the IOMMU device in sysfs and an "iommu" link will be
  * created under the linked device, pointing back at the IOMMU device.
  */
-int iommu_device_link(struct device *dev, struct device *link)
+int iommu_device_link(struct iommu_device *iommu, struct device *link)
 {
 	int ret;
 
-	if (!dev || IS_ERR(dev))
+	if (!iommu || IS_ERR(iommu))
 		return -ENODEV;
 
-	ret = sysfs_add_link_to_group(&dev->kobj, "devices",
+	ret = sysfs_add_link_to_group(&iommu->dev.kobj, "devices",
 				      &link->kobj, dev_name(link));
 	if (ret)
 		return ret;
 
-	ret = sysfs_create_link_nowarn(&link->kobj, &dev->kobj, "iommu");
+	ret = sysfs_create_link_nowarn(&link->kobj, &iommu->dev.kobj, "iommu");
 	if (ret)
-		sysfs_remove_link_from_group(&dev->kobj, "devices",
+		sysfs_remove_link_from_group(&iommu->dev.kobj, "devices",
 					     dev_name(link));
 
 	return ret;
 }
 
-void iommu_device_unlink(struct device *dev, struct device *link)
+void iommu_device_unlink(struct iommu_device *iommu, struct device *link)
 {
-	if (!dev || IS_ERR(dev))
+	if (!iommu || IS_ERR(iommu))
 		return;
 
 	sysfs_remove_link(&link->kobj, "iommu");
-	sysfs_remove_link_from_group(&dev->kobj, "devices", dev_name(link));
+	sysfs_remove_link_from_group(&iommu->dev.kobj, "devices", dev_name(link));
 }

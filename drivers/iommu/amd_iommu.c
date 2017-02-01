@@ -472,7 +472,7 @@ static int iommu_init_device(struct device *dev)
 
 	dev->archdata.iommu = dev_data;
 
-	iommu_device_link(&iommu->iommu.dev, dev);
+	iommu_device_link(&iommu->iommu, dev);
 
 	return 0;
 }
@@ -514,7 +514,7 @@ static void iommu_uninit_device(struct device *dev)
 	if (dev_data->domain)
 		detach_device(dev);
 
-	iommu_device_unlink(&iommu->iommu.dev, dev);
+	iommu_device_unlink(&iommu->iommu, dev);
 
 	iommu_group_remove_device(dev);
 

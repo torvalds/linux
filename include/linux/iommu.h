@@ -224,6 +224,8 @@ int  iommu_device_sysfs_add(struct iommu_device *iommu,
 			    const struct attribute_group **groups,
 			    const char *fmt, ...) __printf(4, 5);
 void iommu_device_sysfs_remove(struct iommu_device *iommu);
+int  iommu_device_link(struct iommu_device   *iommu, struct device *link);
+void iommu_device_unlink(struct iommu_device *iommu, struct device *link);
 
 static inline void iommu_device_set_ops(struct iommu_device *iommu,
 					const struct iommu_ops *ops)
@@ -294,8 +296,6 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
-int iommu_device_link(struct device *dev, struct device *link);
-void iommu_device_unlink(struct device *dev, struct device *link);
 
 /* Window handling function prototypes */
 extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
