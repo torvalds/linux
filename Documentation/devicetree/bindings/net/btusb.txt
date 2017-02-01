@@ -1,0 +1,40 @@
+Generic Bluetooth controller over USB (btusb driver)
+---------------------------------------------------
+
+Required properties:
+
+  - compatible : should comply with the format "usbVID,PID" specified in
+		 Documentation/devicetree/bindings/usb/usb-device.txt
+		 At the time of writing, the only OF supported devices
+		 (more may be added later) are:
+
+		  "usb1286,204e" (Marvell 8997)
+
+Optional properties:
+
+  - interrupt-parent: phandle of the parent interrupt controller
+  - interrupt-names: (see below)
+  - interrupts : The interrupt specified by the name "wakeup" is the interrupt
+		 that shall be used for out-of-band wake-on-bt. Driver will
+		 request this interrupt for wakeup. During system suspend, the
+		 irq will be enabled so that the bluetooth chip can wakeup host
+		 platform out of band. During system resume, the irq will be
+		 disabled to make sure unnecessary interrupt is not received.
+
+Example:
+
+Following example uses irq pin number 3 of gpio0 for out of band wake-on-bt:
+
+&usb_host1_ehci {
+    status = "okay";
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    mvl_bt1: bt@1 {
+	compatible = "usb1286,204e";
+	reg = <1>;
+	interrupt-parent = <&gpio0>;
+	interrupt-name = "wakeup";
+	interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+    };
+};
