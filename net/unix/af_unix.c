@@ -117,6 +117,7 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 #include <linux/freezer.h>
+#include <linux/file.h>
 
 struct hlist_head unix_socket_table[2 * UNIX_HASH_SIZE];
 EXPORT_SYMBOL_GPL(unix_socket_table);
@@ -2592,6 +2593,43 @@ long unix_outq_len(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(unix_outq_len);
 
+static int unix_open_file(struct sock *sk)
+{
+	struct path path;
+	struct file *f;
+	int fd;
+
+	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	unix_state_lock(sk);
+	path = unix_sk(sk)->path;
+	if (!path.dentry) {
+		unix_state_unlock(sk);
+		return -ENOENT;
+	}
+
+	path_get(&path);
+	unix_state_unlock(sk);
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0)
+		goto out;
+
+	f = dentry_open(&path, O_PATH, current_cred());
+	if (IS_ERR(f)) {
+		put_unused_fd(fd);
+		fd = PTR_ERR(f);
+		goto out;
+	}
+
+	fd_install(fd, f);
+out:
+	path_put(&path);
+
+	return fd;
+}
+
 static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
@@ -2609,6 +2647,9 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			err = amount;
 		else
 			err = put_user(amount, (int __user *)arg);
+		break;
+	case SIOCUNIXFILE:
+		err = unix_open_file(sk);
 		break;
 	default:
 		err = -ENOIOCTLCMD;
