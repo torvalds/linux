@@ -213,6 +213,8 @@ struct xfrm_state {
 	/* Last used time */
 	unsigned long		lastused;
 
+	struct page_frag xfrag;
+
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	const struct xfrm_type	*type;
@@ -343,7 +345,7 @@ struct xfrm_state_afinfo {
 int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
 int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
 struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
-void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
+struct xfrm_state_afinfo *xfrm_state_afinfo_get_rcu(unsigned int family);
 
 struct xfrm_input_afinfo {
 	unsigned int		family;
