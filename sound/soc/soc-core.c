@@ -4020,8 +4020,6 @@ static void __exit snd_soc_exit(void)
 	snd_soc_util_exit();
 	snd_soc_debugfs_exit();
 
-#ifdef CONFIG_DEBUG_FS
-#endif
 	platform_driver_unregister(&soc_driver);
 }
 module_exit(snd_soc_exit);
