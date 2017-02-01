@@ -18,8 +18,6 @@
 #define _LINUX_DELAYACCT_H
 
 #include <uapi/linux/taskstats.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
 
 /*
  * Per-task flags relevant to delay accounting
