@@ -489,12 +489,50 @@ static void sii8620_sink_detected(struct sii8620 *ctx, int ret)
 		 sink_str[ctx->sink_type], sink_name);
 }
 
+static void sii8620_hsic_init(struct sii8620 *ctx)
+{
+	if (!sii8620_is_mhl3(ctx))
+		return;
+
+	sii8620_write(ctx, REG_FCGC,
+		BIT_FCGC_HSIC_HOSTMODE | BIT_FCGC_HSIC_ENABLE);
+	sii8620_setbits(ctx, REG_HRXCTRL3,
+		BIT_HRXCTRL3_HRX_STAY_RESET | BIT_HRXCTRL3_STATUS_EN, ~0);
+	sii8620_setbits(ctx, REG_TTXNUMB, MSK_TTXNUMB_TTX_NUMBPS, 4);
+	sii8620_setbits(ctx, REG_TRXCTRL, BIT_TRXCTRL_TRX_FROM_SE_COC, ~0);
+	sii8620_setbits(ctx, REG_HTXCTRL, BIT_HTXCTRL_HTX_DRVCONN1, 0);
+	sii8620_setbits(ctx, REG_KEEPER, MSK_KEEPER_MODE, VAL_KEEPER_MODE_HOST);
+	sii8620_write_seq_static(ctx,
+		REG_TDMLLCTL, 0,
+		REG_UTSRST, BIT_UTSRST_HRX_SRST | BIT_UTSRST_HTX_SRST |
+			BIT_UTSRST_KEEPER_SRST | BIT_UTSRST_FC_SRST,
+		REG_UTSRST, BIT_UTSRST_HRX_SRST | BIT_UTSRST_HTX_SRST,
+		REG_HRXINTL, 0xff,
+		REG_HRXINTH, 0xff,
+		REG_TTXINTL, 0xff,
+		REG_TTXINTH, 0xff,
+		REG_TRXINTL, 0xff,
+		REG_TRXINTH, 0xff,
+		REG_HTXINTL, 0xff,
+		REG_HTXINTH, 0xff,
+		REG_FCINTR0, 0xff,
+		REG_FCINTR1, 0xff,
+		REG_FCINTR2, 0xff,
+		REG_FCINTR3, 0xff,
+		REG_FCINTR4, 0xff,
+		REG_FCINTR5, 0xff,
+		REG_FCINTR6, 0xff,
+		REG_FCINTR7, 0xff
+	);
+}
+
 static void sii8620_edid_read(struct sii8620 *ctx, int ret)
 {
 	if (ret < 0)
 		return;
 
 	sii8620_set_upstream_edid(ctx);
+	sii8620_hsic_init(ctx);
 	sii8620_enable_hpd(ctx);
 }
 

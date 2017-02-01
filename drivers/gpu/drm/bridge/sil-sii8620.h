@@ -353,7 +353,7 @@
 #define REG_TTXNUMB				0x0116
 #define MSK_TTXNUMB_TTX_AFFCTRL_3_0		0xf0
 #define BIT_TTXNUMB_TTX_COM1_AT_SYNC_WAIT	BIT(3)
-#define MSK_TTXNUMB_TTX_NUMBPS_2_0		0x07
+#define MSK_TTXNUMB_TTX_NUMBPS			0x07
 
 /* TDM TX NUMSPISYM, default value: 0x04 */
 #define REG_TTXSPINUMS				0x0117
@@ -433,12 +433,14 @@
 
 /* HSIC Keeper, default value: 0x00 */
 #define REG_KEEPER				0x0181
-#define MSK_KEEPER_KEEPER_MODE_1_0		0x03
+#define MSK_KEEPER_MODE				0x03
+#define VAL_KEEPER_MODE_HOST			0
+#define VAL_KEEPER_MODE_DEVICE			2
 
 /* HSIC Flow Control General, default value: 0x02 */
 #define REG_FCGC				0x0183
-#define BIT_FCGC_HSIC_FC_HOSTMODE		BIT(1)
-#define BIT_FCGC_HSIC_FC_ENABLE			BIT(0)
+#define BIT_FCGC_HSIC_HOSTMODE			BIT(1)
+#define BIT_FCGC_HSIC_ENABLE			BIT(0)
 
 /* HSIC Flow Control CTR13, default value: 0xfc */
 #define REG_FCCTR13				0x0191
