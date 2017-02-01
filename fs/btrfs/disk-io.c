@@ -3261,7 +3261,6 @@ fail_fsdev_sysfs:
 
 fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
-	btrfs_free_block_groups(fs_info);
 
 fail_tree_roots:
 	free_root_pointers(fs_info, 1);
@@ -3269,6 +3268,7 @@ fail_tree_roots:
 
 fail_sb_buffer:
 	btrfs_stop_all_workers(fs_info);
+	btrfs_free_block_groups(fs_info);
 fail_alloc:
 fail_iput:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
@@ -3977,14 +3977,14 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	btrfs_put_block_group_cache(fs_info);
 
-	btrfs_free_block_groups(fs_info);
-
 	/*
 	 * we must make sure there is not any read request to
 	 * submit after we stopping all workers.
 	 */
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	btrfs_stop_all_workers(fs_info);
+
+	btrfs_free_block_groups(fs_info);
 
 	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	free_root_pointers(fs_info, 1);
