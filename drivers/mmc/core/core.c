@@ -631,6 +631,37 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 }
 
 /**
+ * mmc_finalize_areq() - finalize an asynchronous request
+ * @host: MMC host to finalize any ongoing request on
+ *
+ * Returns the status of the ongoing asynchronous request, but
+ * MMC_BLK_SUCCESS if no request was going on.
+ */
+static enum mmc_blk_status mmc_finalize_areq(struct mmc_host *host)
+{
+	enum mmc_blk_status status;
+
+	if (!host->areq)
+		return MMC_BLK_SUCCESS;
+
+	status = mmc_wait_for_data_req_done(host, host->areq->mrq);
+	if (status == MMC_BLK_NEW_REQUEST)
+		return status;
+
+	/*
+	 * Check BKOPS urgency for each R1 response
+	 */
+	if (host->card && mmc_card_mmc(host->card) &&
+	    ((mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1) ||
+	     (mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1B)) &&
+	    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT)) {
+		mmc_start_bkops(host->card, true);
+	}
+
+	return status;
+}
+
+/**
  *	mmc_start_areq - start an asynchronous request
  *	@host: MMC host to start command
  *	@areq: asynchronous request to start
@@ -650,7 +681,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 				     struct mmc_async_req *areq,
 				     enum mmc_blk_status *ret_stat)
 {
-	enum mmc_blk_status status = MMC_BLK_SUCCESS;
+	enum mmc_blk_status status;
 	int start_err = 0;
 	struct mmc_async_req *data = host->areq;
 
@@ -658,35 +689,25 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 	if (areq)
 		mmc_pre_req(host, areq->mrq);
 
-	if (host->areq) {
-		status = mmc_wait_for_data_req_done(host, host->areq->mrq);
-		if (status == MMC_BLK_NEW_REQUEST) {
-			if (ret_stat)
-				*ret_stat = status;
-			/*
-			 * The previous request was not completed,
-			 * nothing to return
-			 */
-			return NULL;
-		}
-		/*
-		 * Check BKOPS urgency for each R1 response
-		 */
-		if (host->card && mmc_card_mmc(host->card) &&
-		    ((mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1) ||
-		     (mmc_resp_type(host->areq->mrq->cmd) == MMC_RSP_R1B)) &&
-		    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT)) {
-			mmc_start_bkops(host->card, true);
-		}
+	/* Finalize previous request */
+	status = mmc_finalize_areq(host);
+
+	/* The previous request is still going on... */
+	if (status == MMC_BLK_NEW_REQUEST) {
+		if (ret_stat)
+			*ret_stat = status;
+		return NULL;
 	}
 
+	/* Fine so far, start the new request! */
 	if (status == MMC_BLK_SUCCESS && areq)
 		start_err = __mmc_start_data_req(host, areq->mrq);
 
+	/* Postprocess the old request at this point */
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
 
-	 /* Cancel a prepared request if it was not started. */
+	/* Cancel a prepared request if it was not started. */
 	if ((status != MMC_BLK_SUCCESS || start_err) && areq)
 		mmc_post_req(host, areq->mrq, -EINVAL);
 
