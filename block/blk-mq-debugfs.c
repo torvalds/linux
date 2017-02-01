@@ -89,7 +89,7 @@ static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	struct request *rq = list_entry_rq(v);
 
 	seq_printf(m, "%p {.cmd_flags=0x%x, .rq_flags=0x%x, .tag=%d, .internal_tag=%d}\n",
-		   rq, rq->cmd_flags, (unsigned int)rq->rq_flags,
+		   rq, rq->cmd_flags, (__force unsigned int)rq->rq_flags,
 		   rq->tag, rq->internal_tag);
 	return 0;
 }
