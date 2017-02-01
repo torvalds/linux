@@ -399,6 +399,10 @@ parser_name_get(struct parser_context *ctx)
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+
+	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
+		return NULL;
+
 	ctx->curr = ctx->data + phdr->name_offset;
 	ctx->bytes_remaining = phdr->name_length;
 	return parser_string_get(ctx);
