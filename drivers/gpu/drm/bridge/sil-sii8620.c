@@ -1287,10 +1287,12 @@ static void sii8620_disconnect(struct sii8620 *ctx)
 {
 	sii8620_disable_gen2_write_burst(ctx);
 	sii8620_stop_video(ctx);
-	msleep(50);
+	msleep(100);
 	sii8620_cbus_reset(ctx);
 	sii8620_set_mode(ctx, CM_DISCONNECTED);
 	sii8620_write_seq_static(ctx,
+		REG_TX_ZONE_CTL1, 0,
+		REG_MHL_PLL_CTL0, 0x07,
 		REG_COC_CTL0, 0x40,
 		REG_CBUS3_CNVT, 0x84,
 		REG_COC_CTL14, 0x00,
