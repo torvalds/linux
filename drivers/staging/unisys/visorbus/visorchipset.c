@@ -1435,22 +1435,33 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	}
 }
 
-/**
- * visorchipset_chipset_ready() - sends chipset_ready action
+/*
+ * chipset_ready_uevent() - sends chipset_ready action
  *
  * Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
  *
- * Return: CONTROLVM_RESP_SUCCESS
+ * Return: 0 on success, negative on failure
  */
 static int
-visorchipset_chipset_ready(void)
+chipset_ready_uevent(struct controlvm_message_header *msg_hdr)
 {
 	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
-	return CONTROLVM_RESP_SUCCESS;
+
+	if (msg_hdr->flags.response_expected)
+		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
+
+	return 0;
 }
 
+/*
+ * chipset_selftest_uevent() - sends chipset_selftest action
+ *
+ * Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
+ *
+ * Return: 0 on success, negative on failure
+ */
 static int
-visorchipset_chipset_selftest(void)
+chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 {
 	char env_selftest[20];
 	char *envp[] = { env_selftest, NULL };
@@ -1458,54 +1469,29 @@ visorchipset_chipset_selftest(void)
 	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
 	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
-	return CONTROLVM_RESP_SUCCESS;
+
+	if (msg_hdr->flags.response_expected)
+		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
+
+	return 0;
 }
 
-/**
- * visorchipset_chipset_notready() - sends chipset_notready action
+/*
+ * chipset_notready_uevent() - sends chipset_notready action
  *
  * Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
  *
- * Return: CONTROLVM_RESP_SUCCESS
+ * Return: 0 on success, negative on failure
  */
 static int
-visorchipset_chipset_notready(void)
+chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 {
 	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
-	return CONTROLVM_RESP_SUCCESS;
-}
 
-static void
-chipset_ready(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_ready();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
 	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
-}
+		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
 
-static void
-chipset_selftest(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_selftest();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
-	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
-}
-
-static void
-chipset_notready(struct controlvm_message_header *msg_hdr)
-{
-	int rc = visorchipset_chipset_notready();
-
-	if (rc != CONTROLVM_RESP_SUCCESS)
-		rc = -rc;
-	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, rc);
+	return 0;
 }
 
 static inline unsigned int
@@ -1967,13 +1953,13 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
 		break;
 	case CONTROLVM_CHIPSET_READY:
-		chipset_ready(&inmsg.hdr);
+		chipset_ready_uevent(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_SELFTEST:
-		chipset_selftest(&inmsg.hdr);
+		chipset_selftest_uevent(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_STOP:
-		chipset_notready(&inmsg.hdr);
+		chipset_notready_uevent(&inmsg.hdr);
 		break;
 	default:
 		if (inmsg.hdr.flags.response_expected)
