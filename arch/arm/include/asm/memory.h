@@ -83,7 +83,14 @@
 #define IOREMAP_MAX_ORDER	24
 #endif
 
+#define VECTORS_BASE		UL(0xffff0000)
+
 #else /* CONFIG_MMU */
+
+#ifndef __ASSEMBLY__
+extern unsigned long vectors_base;
+#define VECTORS_BASE		vectors_base
+#endif
 
 /*
  * The limitation of user task size can grow up to the end of free ram region.
@@ -110,8 +117,6 @@
 #define XIP_VIRT_ADDR(physaddr)  (physaddr)
 
 #endif /* !CONFIG_MMU */
-
-#define VECTORS_BASE		UL(0xffff0000)
 
 #ifdef CONFIG_XIP_KERNEL
 #define KERNEL_START		_sdata
