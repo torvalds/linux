@@ -27,6 +27,7 @@
 #include "amdgpu_gfx.h"
 #include "cikd.h"
 #include "cik.h"
+#include "cik_structs.h"
 #include "atom.h"
 #include "amdgpu_ucode.h"
 #include "clearstate_ci.h"
@@ -2916,34 +2917,6 @@ struct hqd_registers
 	u32 cp_mqd_control;
 };
 
-struct bonaire_mqd
-{
-	u32 header;
-	u32 dispatch_initiator;
-	u32 dimensions[3];
-	u32 start_idx[3];
-	u32 num_threads[3];
-	u32 pipeline_stat_enable;
-	u32 perf_counter_enable;
-	u32 pgm[2];
-	u32 tba[2];
-	u32 tma[2];
-	u32 pgm_rsrc[2];
-	u32 vmid;
-	u32 resource_limits;
-	u32 static_thread_mgmt01[2];
-	u32 tmp_ring_size;
-	u32 static_thread_mgmt23[2];
-	u32 restart[3];
-	u32 thread_trace_enable;
-	u32 reserved1;
-	u32 user_data[16];
-	u32 vgtcs_invoke_count[2];
-	struct hqd_registers queue_state;
-	u32 dequeue_cntr;
-	u32 interrupt_queue[64];
-};
-
 static void gfx_v7_0_compute_pipe_init(struct amdgpu_device *adev, int me, int pipe)
 {
 	u64 eop_gpu_addr;
@@ -2997,7 +2970,7 @@ static int gfx_v7_0_mqd_deactivate(struct amdgpu_device *adev)
 }
 
 static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
-			     struct bonaire_mqd *mqd,
+			     struct cik_mqd *mqd,
 			     uint64_t mqd_gpu_addr,
 			     struct amdgpu_ring *ring)
 {
@@ -3005,101 +2978,101 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 	u64 wb_gpu_addr;
 
 	/* init the mqd struct */
-	memset(mqd, 0, sizeof(struct bonaire_mqd));
+	memset(mqd, 0, sizeof(struct cik_mqd));
 
 	mqd->header = 0xC0310800;
-	mqd->static_thread_mgmt01[0] = 0xffffffff;
-	mqd->static_thread_mgmt01[1] = 0xffffffff;
-	mqd->static_thread_mgmt23[0] = 0xffffffff;
-	mqd->static_thread_mgmt23[1] = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se0 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se1 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se2 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se3 = 0xffffffff;
 
 	/* enable doorbell? */
-	mqd->queue_state.cp_hqd_pq_doorbell_control =
+	mqd->cp_hqd_pq_doorbell_control =
 		RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
 	if (ring->use_doorbell)
-		mqd->queue_state.cp_hqd_pq_doorbell_control |= CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN_MASK;
+		mqd->cp_hqd_pq_doorbell_control |= CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN_MASK;
 	else
-		mqd->queue_state.cp_hqd_pq_doorbell_control &= ~CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN_MASK;
+		mqd->cp_hqd_pq_doorbell_control &= ~CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN_MASK;
 
 	/* set the pointer to the MQD */
-	mqd->queue_state.cp_mqd_base_addr = mqd_gpu_addr & 0xfffffffc;
-	mqd->queue_state.cp_mqd_base_addr_hi = upper_32_bits(mqd_gpu_addr);
+	mqd->cp_mqd_base_addr_lo = mqd_gpu_addr & 0xfffffffc;
+	mqd->cp_mqd_base_addr_hi = upper_32_bits(mqd_gpu_addr);
 
 	/* set MQD vmid to 0 */
-	mqd->queue_state.cp_mqd_control = RREG32(mmCP_MQD_CONTROL);
-	mqd->queue_state.cp_mqd_control &= ~CP_MQD_CONTROL__VMID_MASK;
+	mqd->cp_mqd_control = RREG32(mmCP_MQD_CONTROL);
+	mqd->cp_mqd_control &= ~CP_MQD_CONTROL__VMID_MASK;
 
 	/* set the pointer to the HQD, this is similar CP_RB0_BASE/_HI */
 	hqd_gpu_addr = ring->gpu_addr >> 8;
-	mqd->queue_state.cp_hqd_pq_base = hqd_gpu_addr;
-	mqd->queue_state.cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
+	mqd->cp_hqd_pq_base_lo = hqd_gpu_addr;
+	mqd->cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
 
 	/* set up the HQD, this is similar to CP_RB0_CNTL */
-	mqd->queue_state.cp_hqd_pq_control = RREG32(mmCP_HQD_PQ_CONTROL);
-	mqd->queue_state.cp_hqd_pq_control &=
+	mqd->cp_hqd_pq_control = RREG32(mmCP_HQD_PQ_CONTROL);
+	mqd->cp_hqd_pq_control &=
 		~(CP_HQD_PQ_CONTROL__QUEUE_SIZE_MASK |
 				CP_HQD_PQ_CONTROL__RPTR_BLOCK_SIZE_MASK);
 
-	mqd->queue_state.cp_hqd_pq_control |=
+	mqd->cp_hqd_pq_control |=
 		order_base_2(ring->ring_size / 8);
-	mqd->queue_state.cp_hqd_pq_control |=
+	mqd->cp_hqd_pq_control |=
 		(order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8);
 #ifdef __BIG_ENDIAN
-	mqd->queue_state.cp_hqd_pq_control |=
+	mqd->cp_hqd_pq_control |=
 		2 << CP_HQD_PQ_CONTROL__ENDIAN_SWAP__SHIFT;
 #endif
-	mqd->queue_state.cp_hqd_pq_control &=
+	mqd->cp_hqd_pq_control &=
 		~(CP_HQD_PQ_CONTROL__UNORD_DISPATCH_MASK |
 				CP_HQD_PQ_CONTROL__ROQ_PQ_IB_FLIP_MASK |
 				CP_HQD_PQ_CONTROL__PQ_VOLATILE_MASK);
-	mqd->queue_state.cp_hqd_pq_control |=
+	mqd->cp_hqd_pq_control |=
 		CP_HQD_PQ_CONTROL__PRIV_STATE_MASK |
 		CP_HQD_PQ_CONTROL__KMD_QUEUE_MASK; /* assuming kernel queue control */
 
 	/* only used if CP_PQ_WPTR_POLL_CNTL.CP_PQ_WPTR_POLL_CNTL__EN_MASK=1 */
 	wb_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-	mqd->queue_state.cp_hqd_pq_wptr_poll_addr = wb_gpu_addr & 0xfffffffc;
-	mqd->queue_state.cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
+	mqd->cp_hqd_pq_wptr_poll_addr_lo = wb_gpu_addr & 0xfffffffc;
+	mqd->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
 
 	/* set the wb address wether it's enabled or not */
 	wb_gpu_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
-	mqd->queue_state.cp_hqd_pq_rptr_report_addr = wb_gpu_addr & 0xfffffffc;
-	mqd->queue_state.cp_hqd_pq_rptr_report_addr_hi =
+	mqd->cp_hqd_pq_rptr_report_addr_lo = wb_gpu_addr & 0xfffffffc;
+	mqd->cp_hqd_pq_rptr_report_addr_hi =
 		upper_32_bits(wb_gpu_addr) & 0xffff;
 
 	/* enable the doorbell if requested */
 	if (ring->use_doorbell) {
-		mqd->queue_state.cp_hqd_pq_doorbell_control =
+		mqd->cp_hqd_pq_doorbell_control =
 			RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
-		mqd->queue_state.cp_hqd_pq_doorbell_control &=
+		mqd->cp_hqd_pq_doorbell_control &=
 			~CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET_MASK;
-		mqd->queue_state.cp_hqd_pq_doorbell_control |=
+		mqd->cp_hqd_pq_doorbell_control |=
 			(ring->doorbell_index <<
 			 CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT);
-		mqd->queue_state.cp_hqd_pq_doorbell_control |=
+		mqd->cp_hqd_pq_doorbell_control |=
 			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN_MASK;
-		mqd->queue_state.cp_hqd_pq_doorbell_control &=
+		mqd->cp_hqd_pq_doorbell_control &=
 			~(CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_SOURCE_MASK |
 					CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_HIT_MASK);
 
 	} else {
-		mqd->queue_state.cp_hqd_pq_doorbell_control = 0;
+		mqd->cp_hqd_pq_doorbell_control = 0;
 	}
 
 	/* read and write pointers, similar to CP_RB0_WPTR/_RPTR */
 	ring->wptr = 0;
-	mqd->queue_state.cp_hqd_pq_wptr = lower_32_bits(ring->wptr);
-	mqd->queue_state.cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
+	mqd->cp_hqd_pq_wptr = lower_32_bits(ring->wptr);
+	mqd->cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
 
 	/* set the vmid for the queue */
-	mqd->queue_state.cp_hqd_vmid = 0;
+	mqd->cp_hqd_vmid = 0;
 
 	/* activate the queue */
-	mqd->queue_state.cp_hqd_active = 1;
+	mqd->cp_hqd_active = 1;
 }
 
 static int gfx_v7_0_mqd_commit(struct amdgpu_device *adev,
-			       struct bonaire_mqd *mqd)
+			       struct cik_mqd *mqd)
 {
 	u32 tmp;
 
@@ -3109,22 +3082,22 @@ static int gfx_v7_0_mqd_commit(struct amdgpu_device *adev,
 	WREG32(mmCP_PQ_WPTR_POLL_CNTL, tmp);
 
 	/* program MQD field to HW */
-	WREG32(mmCP_MQD_BASE_ADDR, mqd->queue_state.cp_mqd_base_addr);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, mqd->queue_state.cp_mqd_base_addr_hi);
-	WREG32(mmCP_MQD_CONTROL, mqd->queue_state.cp_mqd_control);
-	WREG32(mmCP_HQD_PQ_BASE, mqd->queue_state.cp_hqd_pq_base);
-	WREG32(mmCP_HQD_PQ_BASE_HI, mqd->queue_state.cp_hqd_pq_base_hi);
-	WREG32(mmCP_HQD_PQ_CONTROL, mqd->queue_state.cp_hqd_pq_control);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->queue_state.cp_hqd_pq_wptr_poll_addr);
-	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, mqd->queue_state.cp_hqd_pq_wptr_poll_addr_hi);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, mqd->queue_state.cp_hqd_pq_rptr_report_addr);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI, mqd->queue_state.cp_hqd_pq_rptr_report_addr_hi);
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->queue_state.cp_hqd_pq_doorbell_control);
-	WREG32(mmCP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
-	WREG32(mmCP_HQD_VMID, mqd->queue_state.cp_hqd_vmid);
+	WREG32(mmCP_MQD_BASE_ADDR, mqd->cp_mqd_base_addr_lo);
+	WREG32(mmCP_MQD_BASE_ADDR_HI, mqd->cp_mqd_base_addr_hi);
+	WREG32(mmCP_MQD_CONTROL, mqd->cp_mqd_control);
+	WREG32(mmCP_HQD_PQ_BASE, mqd->cp_hqd_pq_base_lo);
+	WREG32(mmCP_HQD_PQ_BASE_HI, mqd->cp_hqd_pq_base_hi);
+	WREG32(mmCP_HQD_PQ_CONTROL, mqd->cp_hqd_pq_control);
+	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
+	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, mqd->cp_hqd_pq_wptr_poll_addr_hi);
+	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, mqd->cp_hqd_pq_rptr_report_addr_lo);
+	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI, mqd->cp_hqd_pq_rptr_report_addr_hi);
+	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->cp_hqd_pq_doorbell_control);
+	WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
+	WREG32(mmCP_HQD_VMID, mqd->cp_hqd_vmid);
 
 	/* activate the HQD */
-	WREG32(mmCP_HQD_ACTIVE, mqd->queue_state.cp_hqd_active);
+	WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
 
 	return 0;
 }
@@ -3133,12 +3106,12 @@ static int gfx_v7_0_compute_queue_init(struct amdgpu_device *adev, int ring_id)
 {
 	int r;
 	u64 mqd_gpu_addr;
-	struct bonaire_mqd *mqd;
+	struct cik_mqd *mqd;
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[ring_id];
 
 	if (ring->mqd_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				sizeof(struct bonaire_mqd),
+				sizeof(struct cik_mqd),
 				PAGE_SIZE, true,
 				AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				&ring->mqd_obj);
