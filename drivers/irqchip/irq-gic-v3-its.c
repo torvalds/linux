@@ -1691,7 +1691,8 @@ static int __init its_probe_one(struct resource *res,
 	its->ite_size = ((gic_read_typer(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
 	its->numa_node = numa_node;
 
-	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
+	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(ITS_CMD_QUEUE_SZ));
 	if (!its->cmd_base) {
 		err = -ENOMEM;
 		goto out_free_its;
@@ -1749,7 +1750,7 @@ static int __init its_probe_one(struct resource *res,
 out_free_tables:
 	its_free_tables(its);
 out_free_cmd:
-	kfree(its->cmd_base);
+	free_pages((unsigned long)its->cmd_base, get_order(ITS_CMD_QUEUE_SZ));
 out_free_its:
 	kfree(its);
 out_unmap:
