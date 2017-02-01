@@ -161,6 +161,19 @@ static irqreturn_t zynq_fpga_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Sanity check the proposed bitstream. It must start with the sync word in
+ * the correct byte order, and be dword aligned. The input is a Xilinx .bin
+ * file with every 32 bit quantity swapped.
+ */
+static bool zynq_fpga_has_sync(const u8 *buf, size_t count)
+{
+	for (; count >= 4; buf += 4, count -= 4)
+		if (buf[0] == 0x66 && buf[1] == 0x55 && buf[2] == 0x99 &&
+		    buf[3] == 0xaa)
+			return true;
+	return false;
+}
+
 static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 				    struct fpga_image_info *info,
 				    const char *buf, size_t count)
@@ -177,6 +190,13 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	/* don't globally reset PL if we're doing partial reconfig */
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
+		if (!zynq_fpga_has_sync(buf, count)) {
+			dev_err(&mgr->dev,
+				"Invalid bitstream, could not find a sync word. Bitstream must be a byte swapped .bin file\n");
+			err = -EINVAL;
+			goto out_err;
+		}
+
 		/* assert AXI interface resets */
 		regmap_write(priv->slcr, SLCR_FPGA_RST_CTRL_OFFSET,
 			     FPGA_RST_ALL_MASK);
@@ -410,6 +430,7 @@ static enum fpga_mgr_states zynq_fpga_ops_state(struct fpga_manager *mgr)
 }
 
 static const struct fpga_manager_ops zynq_fpga_ops = {
+	.initial_header_size = 128,
 	.state = zynq_fpga_ops_state,
 	.write_init = zynq_fpga_ops_write_init,
 	.write = zynq_fpga_ops_write,
