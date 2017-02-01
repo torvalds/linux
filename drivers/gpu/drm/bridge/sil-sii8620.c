@@ -286,6 +286,12 @@ static void sii8620_mt_msc_cmd_send(struct sii8620 *ctx,
 		sii8620_write(ctx, REG_MSC_COMMAND_START,
 			      BIT_MSC_COMMAND_START_MSC_MSG);
 		break;
+	case MHL_READ_DEVCAP_REG:
+	case MHL_READ_XDEVCAP_REG:
+		sii8620_write(ctx, REG_MSC_CMD_OR_OFFSET, msg->reg[1]);
+		sii8620_write(ctx, REG_MSC_COMMAND_START,
+			      BIT_MSC_COMMAND_START_READ_DEVCAP);
+		break;
 	default:
 		dev_err(ctx->dev, "%s: command %#x not supported\n", __func__,
 			msg->reg[0]);
@@ -453,6 +459,35 @@ static void sii8620_mt_read_devcap(struct sii8620 *ctx, bool xdevcap)
 	msg->reg[0] = xdevcap ? MHL_READ_XDEVCAP : MHL_READ_DEVCAP;
 	msg->send = sii8620_mt_read_devcap_send;
 	msg->recv = sii8620_mt_read_devcap_recv;
+}
+
+static void sii8620_mt_read_devcap_reg_recv(struct sii8620 *ctx,
+		struct sii8620_mt_msg *msg)
+{
+	u8 reg = msg->reg[0] & 0x7f;
+
+	if (msg->reg[0] & 0x80)
+		ctx->xdevcap[reg] = msg->ret;
+	else
+		ctx->devcap[reg] = msg->ret;
+}
+
+static void sii8620_mt_read_devcap_reg(struct sii8620 *ctx, u8 reg)
+{
+	struct sii8620_mt_msg *msg = sii8620_mt_msg_new(ctx);
+
+	if (!msg)
+		return;
+
+	msg->reg[0] = (reg & 0x80) ? MHL_READ_XDEVCAP_REG : MHL_READ_DEVCAP_REG;
+	msg->reg[1] = reg;
+	msg->send = sii8620_mt_msc_cmd_send;
+	msg->recv = sii8620_mt_read_devcap_reg_recv;
+}
+
+static inline void sii8620_mt_read_xdevcap_reg(struct sii8620 *ctx, u8 reg)
+{
+	sii8620_mt_read_devcap_reg(ctx, reg | 0x80);
 }
 
 static void sii8620_fetch_edid(struct sii8620 *ctx)
