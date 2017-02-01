@@ -227,6 +227,11 @@ static void sii8620_setbits(struct sii8620 *ctx, u16 addr, u8 mask, u8 val)
 	sii8620_write(ctx, addr, val);
 }
 
+static inline bool sii8620_is_mhl3(struct sii8620 *ctx)
+{
+	return ctx->mode >= CM_MHL3;
+}
+
 static void sii8620_mt_cleanup(struct sii8620 *ctx)
 {
 	struct sii8620_mt_msg *msg, *n;
@@ -724,7 +729,7 @@ static void sii8620_start_hdmi(struct sii8620 *ctx)
 
 static void sii8620_start_video(struct sii8620 *ctx)
 {
-	if (ctx->mode < CM_MHL3)
+	if (!sii8620_is_mhl3(ctx))
 		sii8620_stop_video(ctx);
 
 	switch (ctx->sink_type) {
@@ -838,7 +843,7 @@ static void sii8620_mhl_discover(struct sii8620 *ctx)
 
 static void sii8620_peer_specific_init(struct sii8620 *ctx)
 {
-	if (ctx->mode == CM_MHL3)
+	if (sii8620_is_mhl3(ctx))
 		sii8620_write_seq_static(ctx,
 			REG_SYS_CTRL1, BIT_SYS_CTRL1_BLOCK_DDC_BY_HPD,
 			REG_EMSCINTRMASK1,
