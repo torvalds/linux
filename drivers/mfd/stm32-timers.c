@@ -61,6 +61,13 @@ static int stm32_timers_probe(struct platform_device *pdev)
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 }
 
+static int stm32_timers_remove(struct platform_device *pdev)
+{
+	of_platform_depopulate(&pdev->dev);
+
+	return 0;
+}
+
 static const struct of_device_id stm32_timers_of_match[] = {
 	{ .compatible = "st,stm32-timers", },
 	{ /* end node */ },
@@ -69,6 +76,7 @@ MODULE_DEVICE_TABLE(of, stm32_timers_of_match);
 
 static struct platform_driver stm32_timers_driver = {
 	.probe = stm32_timers_probe,
+	.remove = stm32_timers_remove,
 	.driver	= {
 		.name = "stm32-timers",
 		.of_match_table = stm32_timers_of_match,
