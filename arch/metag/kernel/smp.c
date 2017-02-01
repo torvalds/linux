@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/interrupt.h>

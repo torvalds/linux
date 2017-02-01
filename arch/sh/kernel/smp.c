@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
 #include <linux/atomic.h>
 #include <linux/clockchips.h>

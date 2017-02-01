@@ -32,7 +32,7 @@
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>

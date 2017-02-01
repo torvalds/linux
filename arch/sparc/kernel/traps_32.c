@@ -9,7 +9,7 @@
  * I hate traps on the sparc, grrr...
  */
 
-#include <linux/sched.h>  /* for jiffies */
+#include <linux/sched/mm.h>
 #include <linux/sched/debug.h>
 #include <linux/mm_types.h>
 #include <linux/kernel.h>

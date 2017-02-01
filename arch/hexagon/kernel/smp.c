@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>

@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/reboot.h>
