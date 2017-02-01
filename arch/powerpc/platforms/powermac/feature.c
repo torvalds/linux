@@ -2641,7 +2641,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	phys_addr_t		addr;
 	u64			size;
 
-	for (node = NULL; (node = of_find_node_by_name(node, name)) != NULL;) {
+	for_each_node_by_name(node, name) {
 		if (!compat)
 			break;
 		if (of_device_is_compatible(node, compat))

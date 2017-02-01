@@ -315,8 +315,7 @@ static int __init setup_iic(void)
 	struct cbe_iic_regs __iomem *node_iic;
 	const u32 *np;
 
-	for (dn = NULL;
-	     (dn = of_find_node_by_name(dn,"interrupt-controller")) != NULL;) {
+	for_each_node_by_name(dn, "interrupt-controller") {
 		if (!of_device_is_compatible(dn,
 				     "IBM,CBEA-Internal-Interrupt-Controller"))
 			continue;
