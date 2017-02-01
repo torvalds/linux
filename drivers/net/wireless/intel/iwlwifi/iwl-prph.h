@@ -294,9 +294,6 @@
 
 /*********************** END TX SCHEDULER *************************************/
 
-/* tcp checksum offload */
-#define RX_EN_CSUM		(0x00a00d88)
-
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)
 #define OSC_CLK_FORCE_CONTROL		(0x8)
