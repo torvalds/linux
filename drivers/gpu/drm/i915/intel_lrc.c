@@ -508,9 +508,15 @@ bool intel_execlists_idle(struct drm_i915_private *dev_priv)
 	if (!i915.enable_execlists)
 		return true;
 
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, dev_priv, id) {
+		/* Interrupt/tasklet pending? */
+		if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
+			return false;
+
+		/* Both ports drained, no more ELSP submission? */
 		if (!execlists_elsp_idle(engine))
 			return false;
+	}
 
 	return true;
 }
