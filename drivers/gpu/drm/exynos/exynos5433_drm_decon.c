@@ -13,9 +13,11 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 
 #include <video/exynos5433_decon.h>
 
@@ -24,6 +26,9 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
+
+#define DSD_CFG_MUX 0x1004
+#define DSD_CFG_MUX_TE_UNMASK_GLOBAL BIT(13)
 
 #define WINDOWS_NR	3
 #define MIN_FB_WIDTH_FOR_16WORD_BURST	128
@@ -57,6 +62,7 @@ struct decon_context {
 	struct exynos_drm_plane		planes[WINDOWS_NR];
 	struct exynos_drm_plane_config	configs[WINDOWS_NR];
 	void __iomem			*addr;
+	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	int				pipe;
 	unsigned long			flags;
@@ -118,12 +124,22 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 
 static void decon_setup_trigger(struct decon_context *ctx)
 {
-	u32 val = !(ctx->out_type & I80_HW_TRG)
-		? TRIGCON_TRIGEN_PER_F | TRIGCON_TRIGEN_F |
-		  TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN
-		: TRIGCON_TRIGEN_PER_F | TRIGCON_TRIGEN_F |
-		  TRIGCON_HWTRIGMASK | TRIGCON_HWTRIGEN;
-	writel(val, ctx->addr + DECON_TRIGCON);
+	if (!(ctx->out_type & (IFTYPE_I80 | I80_HW_TRG)))
+		return;
+
+	if (!(ctx->out_type & I80_HW_TRG)) {
+		writel(TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN
+		       | TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN,
+		       ctx->addr + DECON_TRIGCON);
+		return;
+	}
+
+	writel(TRIGCON_TRIGEN_PER_F | TRIGCON_TRIGEN_F | TRIGCON_HWTRIGMASK
+	       | TRIGCON_HWTRIGEN, ctx->addr + DECON_TRIGCON);
+
+	if (regmap_update_bits(ctx->sysreg, DSD_CFG_MUX,
+			       DSD_CFG_MUX_TE_UNMASK_GLOBAL, ~0))
+		DRM_ERROR("Cannot update sysreg.\n");
 }
 
 static void decon_commit(struct exynos_drm_crtc *crtc)
@@ -142,8 +158,7 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 		m->crtc_vsync_end = m->crtc_vsync_start + 1;
 	}
 
-	if (ctx->out_type & (IFTYPE_I80 | I80_HW_TRG))
-		decon_setup_trigger(ctx);
+	decon_setup_trigger(ctx);
 
 	/* lcd on and use command if */
 	val = VIDOUT_LCD_ON;
@@ -635,6 +650,15 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->first_win = 1;
 	} else if (of_get_child_by_name(dev->of_node, "i80-if-timings")) {
 		ctx->out_type |= IFTYPE_I80;
+	}
+
+	if (ctx->out_type | I80_HW_TRG) {
+		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+							"samsung,disp-sysreg");
+		if (IS_ERR(ctx->sysreg)) {
+			dev_err(dev, "failed to get system register\n");
+			return PTR_ERR(ctx->sysreg);
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
