@@ -70,6 +70,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->inline_xattr = atomic_read(&sbi->inline_xattr);
 	si->inline_inode = atomic_read(&sbi->inline_inode);
 	si->inline_dir = atomic_read(&sbi->inline_dir);
+	si->append = sbi->im[APPEND_INO].ino_num;
+	si->update = sbi->im[UPDATE_INO].ino_num;
 	si->orphans = sbi->im[ORPHAN_INO].ino_num;
 	si->utilization = utilization(sbi);
 
@@ -264,8 +266,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->inline_inode);
 		seq_printf(s, "  - Inline_dentry Inode: %u\n",
 			   si->inline_dir);
-		seq_printf(s, "  - Orphan Inode: %u\n",
-			   si->orphans);
+		seq_printf(s, "  - Orphan/Append/Update Inode: %u, %u, %u\n",
+			   si->orphans, si->append, si->update);
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
 			   si->main_area_zones);
