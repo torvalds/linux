@@ -505,19 +505,7 @@ void __init at91rm9200_pm_init(void)
 	at91_pm_init(at91rm9200_idle);
 }
 
-void __init at91sam9260_pm_init(void)
-{
-	at91_dt_ramc();
-	at91_pm_init(at91sam9_idle);
-}
-
-void __init at91sam9g45_pm_init(void)
-{
-	at91_dt_ramc();
-	at91_pm_init(at91sam9_idle);
-}
-
-void __init at91sam9x5_pm_init(void)
+void __init at91sam9_pm_init(void)
 {
 	at91_dt_ramc();
 	at91_pm_init(at91sam9_idle);

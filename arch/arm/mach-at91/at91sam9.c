@@ -52,7 +52,7 @@ static const struct at91_soc at91sam9_socs[] = {
 	{ /* sentinel */ },
 };
 
-static void __init at91sam9_common_init(void)
+static void __init at91sam9_init(void)
 {
 	struct soc_device *soc;
 	struct device *soc_dev = NULL;
@@ -62,12 +62,8 @@ static void __init at91sam9_common_init(void)
 		soc_dev = soc_device_to_device(soc);
 
 	of_platform_default_populate(NULL, NULL, soc_dev);
-}
 
-static void __init at91sam9_dt_device_init(void)
-{
-	at91sam9_common_init();
-	at91sam9260_pm_init();
+	at91sam9_pm_init();
 }
 
 static const char *const at91_dt_board_compat[] __initconst = {
@@ -77,41 +73,6 @@ static const char *const at91_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM9")
 	/* Maintainer: Atmel */
-	.init_machine	= at91sam9_dt_device_init,
+	.init_machine	= at91sam9_init,
 	.dt_compat	= at91_dt_board_compat,
-MACHINE_END
-
-static void __init at91sam9g45_dt_device_init(void)
-{
-	at91sam9_common_init();
-	at91sam9g45_pm_init();
-}
-
-static const char *const at91sam9g45_board_compat[] __initconst = {
-	"atmel,at91sam9g45",
-	NULL
-};
-
-DT_MACHINE_START(at91sam9g45_dt, "Atmel AT91SAM9G45")
-	/* Maintainer: Atmel */
-	.init_machine	= at91sam9g45_dt_device_init,
-	.dt_compat	= at91sam9g45_board_compat,
-MACHINE_END
-
-static void __init at91sam9x5_dt_device_init(void)
-{
-	at91sam9_common_init();
-	at91sam9x5_pm_init();
-}
-
-static const char *const at91sam9x5_board_compat[] __initconst = {
-	"atmel,at91sam9x5",
-	"atmel,at91sam9n12",
-	NULL
-};
-
-DT_MACHINE_START(at91sam9x5_dt, "Atmel AT91SAM9")
-	/* Maintainer: Atmel */
-	.init_machine	= at91sam9x5_dt_device_init,
-	.dt_compat	= at91sam9x5_board_compat,
 MACHINE_END
