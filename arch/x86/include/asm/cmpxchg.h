@@ -153,6 +153,75 @@ extern void __add_wrong_size(void)
 #define cmpxchg_local(ptr, old, new)					\
 	__cmpxchg_local(ptr, old, new, sizeof(*(ptr)))
 
+
+#define __raw_try_cmpxchg(_ptr, _pold, _new, size, lock)		\
+({									\
+	bool success;							\
+	__typeof__(_ptr) _old = (_pold);				\
+	__typeof__(*(_ptr)) __old = *_old;				\
+	__typeof__(*(_ptr)) __new = (_new);				\
+	switch (size) {							\
+	case __X86_CASE_B:						\
+	{								\
+		volatile u8 *__ptr = (volatile u8 *)(_ptr);		\
+		asm volatile(lock "cmpxchgb %[new], %[ptr]"		\
+			     CC_SET(z)					\
+			     : CC_OUT(z) (success),			\
+			       [ptr] "+m" (*__ptr),			\
+			       [old] "+a" (__old)			\
+			     : [new] "q" (__new)			\
+			     : "memory");				\
+		break;							\
+	}								\
+	case __X86_CASE_W:						\
+	{								\
+		volatile u16 *__ptr = (volatile u16 *)(_ptr);		\
+		asm volatile(lock "cmpxchgw %[new], %[ptr]"		\
+			     CC_SET(z)					\
+			     : CC_OUT(z) (success),			\
+			       [ptr] "+m" (*__ptr),			\
+			       [old] "+a" (__old)			\
+			     : [new] "r" (__new)			\
+			     : "memory");				\
+		break;							\
+	}								\
+	case __X86_CASE_L:						\
+	{								\
+		volatile u32 *__ptr = (volatile u32 *)(_ptr);		\
+		asm volatile(lock "cmpxchgl %[new], %[ptr]"		\
+			     CC_SET(z)					\
+			     : CC_OUT(z) (success),			\
+			       [ptr] "+m" (*__ptr),			\
+			       [old] "+a" (__old)			\
+			     : [new] "r" (__new)			\
+			     : "memory");				\
+		break;							\
+	}								\
+	case __X86_CASE_Q:						\
+	{								\
+		volatile u64 *__ptr = (volatile u64 *)(_ptr);		\
+		asm volatile(lock "cmpxchgq %[new], %[ptr]"		\
+			     CC_SET(z)					\
+			     : CC_OUT(z) (success),			\
+			       [ptr] "+m" (*__ptr),			\
+			       [old] "+a" (__old)			\
+			     : [new] "r" (__new)			\
+			     : "memory");				\
+		break;							\
+	}								\
+	default:							\
+		__cmpxchg_wrong_size();					\
+	}								\
+	*_old = __old;							\
+	success;							\
+})
+
+#define __try_cmpxchg(ptr, pold, new, size)				\
+	__raw_try_cmpxchg((ptr), (pold), (new), (size), LOCK_PREFIX)
+
+#define try_cmpxchg(ptr, pold, new)					\
+	__try_cmpxchg((ptr), (pold), (new), sizeof(*(ptr)))
+
 /*
  * xadd() adds "inc" to "*ptr" and atomically returns the previous
  * value of "*ptr".
