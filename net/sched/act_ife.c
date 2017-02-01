@@ -48,7 +48,8 @@ static const struct nla_policy ife_policy[TCA_IFE_MAX + 1] = {
 
 /* Caller takes care of presenting data in network order
 */
-int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
+static int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen,
+			       const void *dval)
 {
 	u32 *tlv = (u32 *)(skbdata);
 	u16 totlen = nla_total_size(dlen);	/*alignment + hdr */
@@ -61,7 +62,6 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 
 	return totlen;
 }
-EXPORT_SYMBOL_GPL(ife_tlv_meta_encode);
 
 int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi)
 {
