@@ -241,13 +241,6 @@ enum amdgpu_pcie_gen {
 	AMDGPU_PCIE_GEN_INVALID = 0xffff
 };
 
-enum amdgpu_dpm_forced_level {
-	AMDGPU_DPM_FORCED_LEVEL_AUTO = 0,
-	AMDGPU_DPM_FORCED_LEVEL_LOW = 1,
-	AMDGPU_DPM_FORCED_LEVEL_HIGH = 2,
-	AMDGPU_DPM_FORCED_LEVEL_MANUAL = 3,
-};
-
 struct amdgpu_dpm_funcs {
 	int (*get_temperature)(struct amdgpu_device *adev);
 	int (*pre_set_power_state)(struct amdgpu_device *adev);
@@ -258,7 +251,7 @@ struct amdgpu_dpm_funcs {
 	u32 (*get_mclk)(struct amdgpu_device *adev, bool low);
 	void (*print_power_state)(struct amdgpu_device *adev, struct amdgpu_ps *ps);
 	void (*debugfs_print_current_performance_level)(struct amdgpu_device *adev, struct seq_file *m);
-	int (*force_performance_level)(struct amdgpu_device *adev, enum amdgpu_dpm_forced_level level);
+	int (*force_performance_level)(struct amdgpu_device *adev, enum amd_dpm_forced_level level);
 	bool (*vblank_too_short)(struct amdgpu_device *adev);
 	void (*powergate_uvd)(struct amdgpu_device *adev, bool gate);
 	void (*powergate_vce)(struct amdgpu_device *adev, bool gate);
@@ -353,9 +346,6 @@ struct amdgpu_dpm_funcs {
 #define amdgpu_dpm_get_current_power_state(adev) \
 	(adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle)
 
-#define amdgpu_dpm_get_performance_level(adev) \
-	(adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle)
-
 #define amdgpu_dpm_get_pp_num_states(adev, data) \
 	(adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data)
 
@@ -392,6 +382,11 @@ struct amdgpu_dpm_funcs {
 	((adev)->pp_enabled ?						\
 	 (adev)->powerplay.pp_funcs->get_vce_clock_state((adev)->powerplay.pp_handle, (i)) : \
 	 (adev)->pm.funcs->get_vce_clock_state((adev), (i)))
+
+#define amdgpu_dpm_get_performance_level(adev) \
+	((adev)->pp_enabled ?						\
+	(adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle) : \
+	(adev)->pm.dpm.forced_level)
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
@@ -440,7 +435,7 @@ struct amdgpu_dpm {
 	/* thermal handling */
 	struct amdgpu_dpm_thermal thermal;
 	/* forced levels */
-	enum amdgpu_dpm_forced_level forced_level;
+	enum amd_dpm_forced_level forced_level;
 };
 
 struct amdgpu_pm {

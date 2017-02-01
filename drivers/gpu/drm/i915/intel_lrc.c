@@ -811,12 +811,6 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 
 	ce->state->obj->mm.dirty = true;
 
-	/* Invalidate GuC TLB. */
-	if (i915.enable_guc_submission) {
-		struct drm_i915_private *dev_priv = ctx->i915;
-		I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
-	}
-
 	i915_gem_context_get(ctx);
 	return 0;
 
@@ -970,17 +964,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 						uint32_t *batch,
 						uint32_t index)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
-
-	/*
-	 * WaDisableLSQCROPERFforOCL:kbl
-	 * This WA is implemented in skl_init_clock_gating() but since
-	 * this batch updates GEN8_L3SQCREG4 with default value we need to
-	 * set this bit here to retain the WA during flush.
-	 */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
-		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
 
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
@@ -1241,7 +1225,7 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1927,7 +1911,7 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_render;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_render_sz;
 
-	ret = intel_engine_create_scratch(engine, 4096);
+	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
 	if (ret)
 		return ret;
 
@@ -2103,19 +2087,12 @@ static void execlists_init_reg_state(u32 *reg_state,
 	ASSIGN_CTX_REG(reg_state, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0),
 		       0);
 
-	if (USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
+	if (ppgtt && USES_FULL_48BIT_PPGTT(ppgtt->base.dev)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.
 		 */
 		ASSIGN_CTX_PML4(ppgtt, reg_state);
-	} else {
-		/* 32b PPGTT
-		 * PDP*_DESCRIPTOR contains the base address of space supported.
-		 * With dynamic page allocation, PDPs may not be allocated at
-		 * this point. Point the unallocated PDPs to the scratch page
-		 */
-		execlists_update_context_pdps(ppgtt, reg_state);
 	}
 
 	if (engine->id == RCS) {
@@ -2209,7 +2186,8 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	WARN_ON(ce->state);
 
-	context_size = round_up(intel_lr_context_size(engine), 4096);
+	context_size = round_up(intel_lr_context_size(engine),
+				I915_GTT_PAGE_SIZE);
 
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;
@@ -2220,7 +2198,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
-	vma = i915_vma_create(ctx_obj, &ctx->i915->ggtt.base, NULL);
+	vma = i915_vma_instance(ctx_obj, &ctx->i915->ggtt.base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto error_deref_obj;

@@ -497,34 +497,70 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 	bool pll_locked = false;
 
 	m = n = p = 0;
-	vcomax = 800000;
-	vcomin = 400000;
-	pllreffreq = 33333;
 
-	delta = 0xffffffff;
+	if (mdev->type == G200_EH3) {
+		vcomax = 3000000;
+		vcomin = 1500000;
+		pllreffreq = 25000;
 
-	for (testp = 16; testp > 0; testp >>= 1) {
-		if (clock * testp > vcomax)
-			continue;
-		if (clock * testp < vcomin)
-			continue;
+		delta = 0xffffffff;
 
-		for (testm = 1; testm < 33; testm++) {
-			for (testn = 17; testn < 257; testn++) {
-				computed = (pllreffreq * testn) /
-					(testm * testp);
+		testp = 0;
+
+		for (testm = 150; testm >= 6; testm--) {
+			if (clock * testm > vcomax)
+				continue;
+			if (clock * testm < vcomin)
+				continue;
+			for (testn = 120; testn >= 60; testn--) {
+				computed = (pllreffreq * testn) / testm;
 				if (computed > clock)
 					tmpdelta = computed - clock;
 				else
 					tmpdelta = clock - computed;
 				if (tmpdelta < delta) {
 					delta = tmpdelta;
-					n = testn - 1;
-					m = (testm - 1);
-					p = testp - 1;
+					n = testn;
+					m = testm;
+					p = testp;
 				}
-				if ((clock * testp) >= 600000)
-					p |= 0x80;
+				if (delta == 0)
+					break;
+			}
+			if (delta == 0)
+				break;
+		}
+	} else {
+
+		vcomax = 800000;
+		vcomin = 400000;
+		pllreffreq = 33333;
+
+		delta = 0xffffffff;
+
+		for (testp = 16; testp > 0; testp >>= 1) {
+			if (clock * testp > vcomax)
+				continue;
+			if (clock * testp < vcomin)
+				continue;
+
+			for (testm = 1; testm < 33; testm++) {
+				for (testn = 17; testn < 257; testn++) {
+					computed = (pllreffreq * testn) /
+						(testm * testp);
+					if (computed > clock)
+						tmpdelta = computed - clock;
+					else
+						tmpdelta = clock - computed;
+					if (tmpdelta < delta) {
+						delta = tmpdelta;
+						n = testn - 1;
+						m = (testm - 1);
+						p = testp - 1;
+					}
+					if ((clock * testp) >= 600000)
+						p |= 0x80;
+				}
 			}
 		}
 	}
@@ -674,6 +710,7 @@ static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
 		return mga_g200ev_set_plls(mdev, clock);
 		break;
 	case G200_EH:
+	case G200_EH3:
 		return mga_g200eh_set_plls(mdev, clock);
 		break;
 	case G200_ER:
@@ -933,6 +970,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		option2 = 0x0000b000;
 		break;
 	case G200_EH:
+	case G200_EH3:
 		dacvalue[MGA1064_MISC_CTL] = MGA1064_MISC_CTL_VGA8 |
 					     MGA1064_MISC_CTL_DAC_RAM_CS;
 		option = 0x00000120;
@@ -979,7 +1017,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		if ((mdev->type == G200_EV ||
 		    mdev->type == G200_WB ||
 		    mdev->type == G200_EH ||
-		    mdev->type == G200_EW3) &&
+		    mdev->type == G200_EW3 ||
+		    mdev->type == G200_EH3) &&
 		    (i >= 0x44) && (i <= 0x4e))
 			continue;
 

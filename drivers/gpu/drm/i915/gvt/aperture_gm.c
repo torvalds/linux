@@ -37,58 +37,38 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
-#define MB_TO_BYTES(mb) ((mb) << 20ULL)
-#define BYTES_TO_MB(b) ((b) >> 20ULL)
-
-#define HOST_LOW_GM_SIZE MB_TO_BYTES(128)
-#define HOST_HIGH_GM_SIZE MB_TO_BYTES(384)
-#define HOST_FENCE 4
-
 static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	u32 alloc_flag, search_flag;
+	unsigned int flags;
 	u64 start, end, size;
 	struct drm_mm_node *node;
-	int retried = 0;
 	int ret;
 
 	if (high_gm) {
-		search_flag = DRM_MM_SEARCH_BELOW;
-		alloc_flag = DRM_MM_CREATE_TOP;
 		node = &vgpu->gm.high_gm_node;
 		size = vgpu_hidden_sz(vgpu);
 		start = gvt_hidden_gmadr_base(gvt);
 		end = gvt_hidden_gmadr_end(gvt);
+		flags = PIN_HIGH;
 	} else {
-		search_flag = DRM_MM_SEARCH_DEFAULT;
-		alloc_flag = DRM_MM_CREATE_DEFAULT;
 		node = &vgpu->gm.low_gm_node;
 		size = vgpu_aperture_sz(vgpu);
 		start = gvt_aperture_gmadr_base(gvt);
 		end = gvt_aperture_gmadr_end(gvt);
+		flags = PIN_MAPPABLE;
 	}
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-search_again:
-	ret = drm_mm_insert_node_in_range_generic(&dev_priv->ggtt.base.mm,
-						  node, size, 4096,
-						  I915_COLOR_UNEVICTABLE,
-						  start, end, search_flag,
-						  alloc_flag);
-	if (ret) {
-		ret = i915_gem_evict_something(&dev_priv->ggtt.base,
-					       size, 4096,
-					       I915_COLOR_UNEVICTABLE,
-					       start, end, 0);
-		if (ret == 0 && ++retried < 3)
-			goto search_again;
-
-		gvt_err("fail to alloc %s gm space from host, retried %d\n",
-				high_gm ? "high" : "low", retried);
-	}
+	ret = i915_gem_gtt_insert(&dev_priv->ggtt.base, node,
+				  size, 4096, I915_COLOR_UNEVICTABLE,
+				  start, end, flags);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+	if (ret)
+		gvt_err("fail to alloc %s gm space from host\n",
+			high_gm ? "high" : "low");
+
 	return ret;
 }
 
@@ -168,6 +148,14 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	POSTING_READ(fence_reg_lo);
 }
 
+static void _clear_vgpu_fence(struct intel_vgpu *vgpu)
+{
+	int i;
+
+	for (i = 0; i < vgpu_fence_sz(vgpu); i++)
+		intel_vgpu_write_fence(vgpu, i, 0);
+}
+
 static void free_vgpu_fence(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
@@ -181,9 +169,9 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	_clear_vgpu_fence(vgpu);
 	for (i = 0; i < vgpu_fence_sz(vgpu); i++) {
 		reg = vgpu->fence.regs[i];
-		intel_vgpu_write_fence(vgpu, i, 0);
 		list_add_tail(&reg->link,
 			      &dev_priv->mm.fence_list);
 	}
@@ -211,12 +199,13 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 			continue;
 		list_del(pos);
 		vgpu->fence.regs[i] = reg;
-		intel_vgpu_write_fence(vgpu, i, 0);
 		if (++i == vgpu_fence_sz(vgpu))
 			break;
 	}
 	if (i != vgpu_fence_sz(vgpu))
 		goto out_free_fence;
+
+	_clear_vgpu_fence(vgpu);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	intel_runtime_pm_put(dev_priv);
@@ -314,6 +303,22 @@ void intel_vgpu_free_resource(struct intel_vgpu *vgpu)
 	free_vgpu_gm(vgpu);
 	free_vgpu_fence(vgpu);
 	free_resource(vgpu);
+}
+
+/**
+ * intel_vgpu_reset_resource - reset resource state owned by a vGPU
+ * @vgpu: a vGPU
+ *
+ * This function is used to reset resource state owned by a vGPU.
+ *
+ */
+void intel_vgpu_reset_resource(struct intel_vgpu *vgpu)
+{
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+
+	intel_runtime_pm_get(dev_priv);
+	_clear_vgpu_fence(vgpu);
+	intel_runtime_pm_put(dev_priv);
 }
 
 /**

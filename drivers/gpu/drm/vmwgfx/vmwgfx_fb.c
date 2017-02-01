@@ -482,8 +482,7 @@ static int vmw_fb_kms_framebuffer(struct fb_info *info)
 	mode_cmd.height = var->yres;
 	mode_cmd.pitches[0] = ((var->bits_per_pixel + 7) / 8) * mode_cmd.width;
 	mode_cmd.pixel_format =
-		drm_mode_legacy_fb_format(var->bits_per_pixel,
-			((var->bits_per_pixel + 7) / 8) * mode_cmd.width);
+		drm_mode_legacy_fb_format(var->bits_per_pixel, depth);
 
 	cur_fb = par->set_fb;
 	if (cur_fb && cur_fb->width == mode_cmd.width &&

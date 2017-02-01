@@ -60,6 +60,8 @@ MODULE_FIRMWARE("amdgpu/polaris10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_sdma1.bin");
 
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -206,6 +208,7 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris11_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -277,6 +280,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS10:
 		chip_name = "polaris10";
+		break;
+	case CHIP_POLARIS12:
+		chip_name = "polaris12";
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
@@ -904,7 +910,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ib.ptr[7] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
 	ib.length_dw = 8;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -1527,6 +1533,22 @@ static int sdma_v3_0_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void sdma_v3_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	/* AMD_CG_SUPPORT_SDMA_MGCG */
+	data = RREG32(mmSDMA0_CLK_CTRL + sdma_offsets[0]);
+	if (!(data & SDMA0_CLK_CTRL__SOFT_OVERRIDE0_MASK))
+		*flags |= AMD_CG_SUPPORT_SDMA_MGCG;
+
+	/* AMD_CG_SUPPORT_SDMA_LS */
+	data = RREG32(mmSDMA0_POWER_CNTL + sdma_offsets[0]);
+	if (data & SDMA0_POWER_CNTL__MEM_POWER_OVERRIDE_MASK)
+		*flags |= AMD_CG_SUPPORT_SDMA_LS;
+}
+
 static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.name = "sdma_v3_0",
 	.early_init = sdma_v3_0_early_init,
@@ -1545,6 +1567,7 @@ static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.soft_reset = sdma_v3_0_soft_reset,
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,
+	.get_clockgating_state = sdma_v3_0_get_clockgating_state,
 };
 
 static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {

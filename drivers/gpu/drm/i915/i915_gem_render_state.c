@@ -187,20 +187,20 @@ int i915_gem_render_state_init(struct intel_engine_cs *engine)
 	if (!rodata)
 		return 0;
 
-	if (rodata->batch_items * 4 > 4096)
+	if (rodata->batch_items * 4 > PAGE_SIZE)
 		return -EINVAL;
 
 	so = kmalloc(sizeof(*so), GFP_KERNEL);
 	if (!so)
 		return -ENOMEM;
 
-	obj = i915_gem_object_create_internal(engine->i915, 4096);
+	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto err_free;
 	}
 
-	so->vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	so->vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
 	if (IS_ERR(so->vma)) {
 		ret = PTR_ERR(so->vma);
 		goto err_obj;

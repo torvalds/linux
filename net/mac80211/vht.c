@@ -527,8 +527,10 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode, band);
 
-	if (changed > 0)
+	if (changed > 0) {
+		ieee80211_recalc_min_chandef(sdata);
 		rate_control_rate_update(local, sband, sta, changed);
+	}
 }
 
 void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,

@@ -65,9 +65,18 @@ void sti_plane_update_fps(struct sti_plane *plane,
 
 	fps->last_timestamp = now;
 	fps->last_frame_counter = fps->curr_frame_counter;
-	fpks = (num_frames * 1000000) / ms_since_last;
-	snprintf(plane->fps_info.fps_str, FPS_LENGTH, "%-6s @ %d.%.3d fps",
-		 sti_plane_to_str(plane), fpks / 1000, fpks % 1000);
+
+	if (plane->drm_plane.fb) {
+		fpks = (num_frames * 1000000) / ms_since_last;
+		snprintf(plane->fps_info.fps_str, FPS_LENGTH,
+			 "%-8s %4dx%-4d %.4s @ %3d.%-3.3d fps (%s)",
+			 plane->drm_plane.name,
+			 plane->drm_plane.fb->width,
+			 plane->drm_plane.fb->height,
+			 (char *)&plane->drm_plane.fb->format->format,
+			 fpks / 1000, fpks % 1000,
+			 sti_plane_to_str(plane));
+	}
 
 	if (fps->curr_field_counter) {
 		/* Compute number of field updates */
@@ -75,7 +84,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 		fps->last_field_counter = fps->curr_field_counter;
 		fipks = (num_fields * 1000000) / ms_since_last;
 		snprintf(plane->fps_info.fips_str,
-			 FPS_LENGTH, " - %d.%.3d field/sec",
+			 FPS_LENGTH, " - %3d.%-3.3d field/sec",
 			 fipks / 1000, fipks % 1000);
 	} else {
 		plane->fps_info.fips_str[0] = '\0';

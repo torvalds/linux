@@ -1800,7 +1800,7 @@ static ssize_t tcm_qla2xxx_wwn_version_show(struct config_item *item,
 {
 	return sprintf(page,
 	    "TCM QLOGIC QLA2XXX NPIV capable fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", TCM_QLA2XXX_VERSION, utsname()->sysname,
+	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
 	    utsname()->machine);
 }
 
@@ -1906,7 +1906,7 @@ static int tcm_qla2xxx_register_configfs(void)
 	int ret;
 
 	pr_debug("TCM QLOGIC QLA2XXX fabric module %s on %s/%s on "
-	    UTS_RELEASE"\n", TCM_QLA2XXX_VERSION, utsname()->sysname,
+	    UTS_RELEASE"\n", QLA2XXX_VERSION, utsname()->sysname,
 	    utsname()->machine);
 
 	ret = target_register_template(&tcm_qla2xxx_ops);

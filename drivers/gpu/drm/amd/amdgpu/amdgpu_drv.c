@@ -90,7 +90,6 @@ int amdgpu_vram_page_split = 1024;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_powerplay = -1;
 int amdgpu_no_evict = 0;
 int amdgpu_direct_gma_size = 0;
 unsigned amdgpu_pcie_gen_cap = 0;
@@ -178,9 +177,6 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
-
-MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
-module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
@@ -418,6 +414,13 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x67CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	/* Polaris12 */
+	{0x1002, 0x6980, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6981, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6985, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6986, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6987, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x699F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 
 	{0, 0, 0}
 };

@@ -1977,7 +1977,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 		}
 
 		rcu_read_lock();
-		sem_lock(sma, sops, nsops);
+		locknum = sem_lock(sma, sops, nsops);
 
 		if (!ipc_valid_object(&sma->sem_perm))
 			goto out_unlock_free;

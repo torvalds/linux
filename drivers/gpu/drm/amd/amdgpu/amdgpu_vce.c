@@ -52,6 +52,7 @@
 #define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_vce.bin"
 #define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
+#define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -66,6 +67,7 @@ MODULE_FIRMWARE(FIRMWARE_FIJI);
 MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
+MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -120,6 +122,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
+		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
 		break;
 
 	default:
@@ -450,7 +455,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 	job->fence = dma_fence_get(f);
 	if (r)
 		goto err;
@@ -513,7 +518,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 		job->fence = dma_fence_get(f);
 		if (r)
 			goto err;

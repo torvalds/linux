@@ -622,6 +622,8 @@ typedef int (*cgs_query_system_info)(struct cgs_device *cgs_device,
 
 typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
 
+typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_gpu_mem_info_t gpu_mem_info;
@@ -674,6 +676,7 @@ struct cgs_ops {
 	/* get system info */
 	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
+	cgs_enter_safe_mode enter_safe_mode;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -779,4 +782,8 @@ struct cgs_device
 
 #define cgs_is_virtualization_enabled(cgs_device) \
 		CGS_CALL(is_virtualization_enabled, cgs_device)
+
+#define cgs_enter_safe_mode(cgs_device, en) \
+		CGS_CALL(enter_safe_mode, cgs_device, en)
+
 #endif /* _CGS_COMMON_H */

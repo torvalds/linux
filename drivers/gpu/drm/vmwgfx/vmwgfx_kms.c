@@ -757,7 +757,7 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 				   struct vmw_surface **srf_out)
 {
 	uint32_t format;
-	struct drm_vmw_size content_base_size;
+	struct drm_vmw_size content_base_size = {0};
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
 	struct drm_format_name_buf format_name;
@@ -1671,7 +1671,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 		 *	1. Bounding box (assuming 32bpp) must be < prim_bb_mem
 		 *      2. Total pixels (assuming 32bpp) must be < prim_bb_mem
 		 */
-		u64 bb_mem    = bounding_box.w * bounding_box.h * 4;
+		u64 bb_mem    = (u64) bounding_box.w * bounding_box.h * 4;
 		u64 pixel_mem = total_pixels * 4;
 
 		if (bb_mem > dev_priv->prim_bb_mem) {

@@ -26,7 +26,7 @@
 
 #include "intel_ringbuffer.h"
 
-#define GEN8_LR_CONTEXT_ALIGN 4096
+#define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
 /* Execlists regs */
 #define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)

@@ -110,6 +110,7 @@ static inline bool kvm_hv_vapic_assist_page_enabled(struct kvm_vcpu *vcpu)
 
 int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
 void kvm_lapic_init(void);
+void kvm_lapic_exit(void);
 
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)

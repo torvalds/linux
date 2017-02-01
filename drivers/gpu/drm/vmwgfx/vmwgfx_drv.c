@@ -1293,7 +1293,7 @@ static void __vmw_svga_enable(struct vmw_private *dev_priv)
  */
 void vmw_svga_enable(struct vmw_private *dev_priv)
 {
-	ttm_read_lock(&dev_priv->reservation_sem, false);
+	(void) ttm_read_lock(&dev_priv->reservation_sem, false);
 	__vmw_svga_enable(dev_priv);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 }

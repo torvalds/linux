@@ -93,29 +93,35 @@ struct i915_guc_client {
 	uint64_t submissions[I915_NUM_ENGINES];
 };
 
-enum intel_guc_fw_status {
-	GUC_FIRMWARE_FAIL = -1,
-	GUC_FIRMWARE_NONE = 0,
-	GUC_FIRMWARE_PENDING,
-	GUC_FIRMWARE_SUCCESS
+enum intel_uc_fw_status {
+	INTEL_UC_FIRMWARE_FAIL = -1,
+	INTEL_UC_FIRMWARE_NONE = 0,
+	INTEL_UC_FIRMWARE_PENDING,
+	INTEL_UC_FIRMWARE_SUCCESS
+};
+
+enum intel_uc_fw_type {
+	INTEL_UC_FW_TYPE_GUC,
+	INTEL_UC_FW_TYPE_HUC
 };
 
 /*
  * This structure encapsulates all the data needed during the process
  * of fetching, caching, and loading the firmware image into the GuC.
  */
-struct intel_guc_fw {
-	const char *			guc_fw_path;
-	size_t				guc_fw_size;
-	struct drm_i915_gem_object *	guc_fw_obj;
-	enum intel_guc_fw_status	guc_fw_fetch_status;
-	enum intel_guc_fw_status	guc_fw_load_status;
+struct intel_uc_fw {
+	const char *path;
+	size_t size;
+	struct drm_i915_gem_object *obj;
+	enum intel_uc_fw_status fetch_status;
+	enum intel_uc_fw_status load_status;
 
-	uint16_t			guc_fw_major_wanted;
-	uint16_t			guc_fw_minor_wanted;
-	uint16_t			guc_fw_major_found;
-	uint16_t			guc_fw_minor_found;
+	uint16_t major_ver_wanted;
+	uint16_t minor_ver_wanted;
+	uint16_t major_ver_found;
+	uint16_t minor_ver_found;
 
+	enum intel_uc_fw_type fw;
 	uint32_t header_size;
 	uint32_t header_offset;
 	uint32_t rsa_size;
@@ -141,7 +147,7 @@ struct intel_guc_log {
 };
 
 struct intel_guc {
-	struct intel_guc_fw guc_fw;
+	struct intel_uc_fw fw;
 	struct intel_guc_log log;
 
 	/* intel_guc_recv interrupt related state */
@@ -170,21 +176,28 @@ struct intel_guc {
 	struct mutex send_mutex;
 };
 
+struct intel_huc {
+	/* Generic uC firmware management */
+	struct intel_uc_fw fw;
+
+	/* HuC-specific additions */
+};
+
 /* intel_uc.c */
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
-int intel_guc_log_flush_complete(struct intel_guc *guc);
-int intel_guc_log_flush(struct intel_guc *guc);
-int intel_guc_log_control(struct intel_guc *guc, u32 control_val);
 
 /* intel_guc_loader.c */
 extern void intel_guc_init(struct drm_i915_private *dev_priv);
 extern int intel_guc_setup(struct drm_i915_private *dev_priv);
 extern void intel_guc_fini(struct drm_i915_private *dev_priv);
-extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
+extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
 extern int intel_guc_resume(struct drm_i915_private *dev_priv);
+void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
+	struct intel_uc_fw *uc_fw);
+u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);
@@ -193,10 +206,12 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *rq);
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request);
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
-void i915_guc_capture_logs(struct drm_i915_private *dev_priv);
-void i915_guc_flush_logs(struct drm_i915_private *dev_priv);
-void i915_guc_register(struct drm_i915_private *dev_priv);
-void i915_guc_unregister(struct drm_i915_private *dev_priv);
+struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
+
+/* intel_guc_log.c */
+void intel_guc_log_create(struct intel_guc *guc);
+void i915_guc_log_register(struct drm_i915_private *dev_priv);
+void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
 int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
 
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)
@@ -206,5 +221,11 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
 	return offset;
 }
+
+/* intel_huc.c */
+void intel_huc_init(struct drm_i915_private *dev_priv);
+void intel_huc_fini(struct drm_i915_private  *dev_priv);
+int intel_huc_load(struct drm_i915_private *dev_priv);
+void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

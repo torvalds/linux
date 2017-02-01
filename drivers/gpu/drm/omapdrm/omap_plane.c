@@ -43,8 +43,6 @@ struct omap_plane {
 
 	uint32_t nformats;
 	uint32_t formats[32];
-
-	struct omap_drm_irq error_irq;
 };
 
 struct omap_plane_state {
@@ -204,8 +202,6 @@ static void omap_plane_destroy(struct drm_plane *plane)
 
 	DBG("%s", omap_plane->name);
 
-	omap_irq_unregister(plane->dev, &omap_plane->error_irq);
-
 	drm_plane_cleanup(plane);
 
 	kfree(omap_plane);
@@ -332,26 +328,11 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.atomic_get_property = omap_plane_atomic_get_property,
 };
 
-static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
-{
-	struct omap_plane *omap_plane =
-			container_of(irq, struct omap_plane, error_irq);
-	DRM_ERROR_RATELIMITED("%s: errors: %08x\n", omap_plane->name,
-		irqstatus);
-}
-
 static const char *plane_names[] = {
 	[OMAP_DSS_GFX] = "gfx",
 	[OMAP_DSS_VIDEO1] = "vid1",
 	[OMAP_DSS_VIDEO2] = "vid2",
 	[OMAP_DSS_VIDEO3] = "vid3",
-};
-
-static const uint32_t error_irqs[] = {
-	[OMAP_DSS_GFX] = DISPC_IRQ_GFX_FIFO_UNDERFLOW,
-	[OMAP_DSS_VIDEO1] = DISPC_IRQ_VID1_FIFO_UNDERFLOW,
-	[OMAP_DSS_VIDEO2] = DISPC_IRQ_VID2_FIFO_UNDERFLOW,
-	[OMAP_DSS_VIDEO3] = DISPC_IRQ_VID3_FIFO_UNDERFLOW,
 };
 
 /* initialize plane */
@@ -377,10 +358,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	plane = &omap_plane->base;
 
-	omap_plane->error_irq.irqmask = error_irqs[id];
-	omap_plane->error_irq.irq = omap_plane_error_irq;
-	omap_irq_register(dev, &omap_plane->error_irq);
-
 	ret = drm_universal_plane_init(dev, plane, possible_crtcs,
 				       &omap_plane_funcs, omap_plane->formats,
 				       omap_plane->nformats, type, NULL);
@@ -394,7 +371,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	return plane;
 
 error:
-	omap_irq_unregister(plane->dev, &omap_plane->error_irq);
 	kfree(omap_plane);
 	return NULL;
 }

@@ -97,7 +97,7 @@
  * part. It should be safe to decrease this, but it's more future proof as is.
  */
 #define GEN6_CONTEXT_ALIGN (64<<10)
-#define GEN7_CONTEXT_ALIGN 4096
+#define GEN7_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
 static size_t get_context_alignment(struct drm_i915_private *dev_priv)
 {
@@ -205,27 +205,6 @@ alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
 	return obj;
 }
 
-static void i915_ppgtt_close(struct i915_address_space *vm)
-{
-	struct list_head *phases[] = {
-		&vm->active_list,
-		&vm->inactive_list,
-		&vm->unbound_list,
-		NULL,
-	}, **phase;
-
-	GEM_BUG_ON(vm->closed);
-	vm->closed = true;
-
-	for (phase = phases; *phase; phase++) {
-		struct i915_vma *vma, *vn;
-
-		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			if (!i915_vma_is_closed(vma))
-				i915_vma_close(vma);
-	}
-}
-
 static void context_close(struct i915_gem_context *ctx)
 {
 	i915_gem_context_set_closed(ctx);
@@ -290,7 +269,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 			goto err_out;
 		}
 
-		vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
 		if (IS_ERR(vma)) {
 			i915_gem_object_put(obj);
 			ret = PTR_ERR(vma);
@@ -341,7 +320,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	if (HAS_GUC(dev_priv) && i915.enable_guc_loading)
 		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
 	else
-		ctx->ggtt_offset_bias = 4096;
+		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
 
 	return ctx;
 
@@ -456,7 +435,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 		dev_priv->hw_context_size = 0;
 	} else if (HAS_HW_CONTEXTS(dev_priv)) {
 		dev_priv->hw_context_size =
-			round_up(get_context_size(dev_priv), 4096);
+			round_up(get_context_size(dev_priv),
+				 I915_GTT_PAGE_SIZE);
 		if (dev_priv->hw_context_size > (1<<20)) {
 			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
 					 dev_priv->hw_context_size);
@@ -897,6 +877,26 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	return do_rcs_switch(req);
 }
 
+static bool engine_has_kernel_context(struct intel_engine_cs *engine)
+{
+	struct i915_gem_timeline *timeline;
+
+	list_for_each_entry(timeline, &engine->i915->gt.timelines, link) {
+		struct intel_timeline *tl;
+
+		if (timeline == &engine->i915->gt.global_timeline)
+			continue;
+
+		tl = &timeline->engine[engine->id];
+		if (i915_gem_active_peek(&tl->last_request,
+					 &engine->i915->drm.struct_mutex))
+			return false;
+	}
+
+	return (!engine->last_retired_context ||
+		i915_gem_context_is_kernel(engine->last_retired_context));
+}
+
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -905,9 +905,14 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	i915_gem_retire_requests(dev_priv);
+
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *req;
 		int ret;
+
+		if (engine_has_kernel_context(engine))
+			continue;
 
 		req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
 		if (IS_ERR(req))
