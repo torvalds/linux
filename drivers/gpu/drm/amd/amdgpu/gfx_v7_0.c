@@ -49,7 +49,6 @@
 #include "oss/oss_2_0_sh_mask.h"
 
 #define GFX7_NUM_GFX_RINGS     1
-#define GFX7_NUM_COMPUTE_RINGS 8
 #define GFX7_MEC_HPD_SIZE      2048
 
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -2823,18 +2822,45 @@ static void gfx_v7_0_mec_fini(struct amdgpu_device *adev)
 	}
 }
 
+static void gfx_v7_0_compute_queue_acquire(struct amdgpu_device *adev)
+{
+	int i, queue, pipe, mec;
+
+	/* policy for amdgpu compute queue ownership */
+	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+		queue = i % adev->gfx.mec.num_queue_per_pipe;
+		pipe = (i / adev->gfx.mec.num_queue_per_pipe)
+			% adev->gfx.mec.num_pipe_per_mec;
+		mec = (i / adev->gfx.mec.num_queue_per_pipe)
+			/ adev->gfx.mec.num_pipe_per_mec;
+
+		/* we've run out of HW */
+		if (mec >= adev->gfx.mec.num_mec)
+			break;
+
+		/* policy: amdgpu owns all queues in the first pipe */
+		if (mec == 0 && pipe == 0)
+			set_bit(i, adev->gfx.mec.queue_bitmap);
+	}
+
+	/* update the number of active compute rings */
+	adev->gfx.num_compute_rings =
+		bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
+
+	/* If you hit this case and edited the policy, you probably just
+	 * need to increase AMDGPU_MAX_COMPUTE_RINGS */
+	if (WARN_ON(adev->gfx.num_compute_rings > AMDGPU_MAX_COMPUTE_RINGS))
+		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
+}
+
 static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
 	u32 *hpd;
 	size_t mec_hpd_size;
 
-	/*
-	 * KV:    2 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 64 Queues total
-	 * CI/KB: 1 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 32 Queues total
-	 * Nonetheless, we assign only 1 pipe because all other pipes will
-	 * be handled by KFD
-	 */
+	bitmap_zero(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
+
 	switch (adev->asic_type) {
 	case CHIP_KAVERI:
 		adev->gfx.mec.num_mec = 2;
@@ -2850,6 +2876,10 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
+	/* take ownership of the relevant compute queues */
+	gfx_v7_0_compute_queue_acquire(adev);
+
+	/* allocate space for ALL pipes (even the ones we don't own) */
 	mec_hpd_size = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec
 		* GFX7_MEC_HPD_SIZE * 2;
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
@@ -4530,7 +4560,7 @@ static int gfx_v7_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX7_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = GFX7_NUM_COMPUTE_RINGS;
+	adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 	adev->gfx.funcs = &gfx_v7_0_gfx_funcs;
 	adev->gfx.rlc.funcs = &gfx_v7_0_rlc_funcs;
 	gfx_v7_0_set_ring_funcs(adev);
@@ -4726,7 +4756,7 @@ static int gfx_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i, r;
+	int i, r, ring_id;
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
@@ -4777,28 +4807,38 @@ static int gfx_v7_0_sw_init(void *handle)
 	}
 
 	/* set up the compute queues */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+	for (i = 0, ring_id = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; i++) {
 		unsigned irq_type;
 
-		/* max 32 queues per MEC */
-		if ((i >= 32) || (i >= AMDGPU_MAX_COMPUTE_RINGS)) {
-			DRM_ERROR("Too many (%d) compute rings!\n", i);
-			break;
-		}
-		ring = &adev->gfx.compute_ring[i];
+		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		ring = &adev->gfx.compute_ring[ring_id];
+
+		/* mec0 is me1 */
+		ring->me = ((i / adev->gfx.mec.num_queue_per_pipe)
+				/ adev->gfx.mec.num_pipe_per_mec)
+				+ 1;
+		ring->pipe = (i / adev->gfx.mec.num_queue_per_pipe)
+				% adev->gfx.mec.num_pipe_per_mec;
+		ring->queue = i % adev->gfx.mec.num_queue_per_pipe;
+
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
-		ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + i;
-		ring->me = 1; /* first MEC */
-		ring->pipe = i / 8;
-		ring->queue = i % 8;
+		ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
 		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
-		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
+
+		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
+			+ ((ring->me - 1) * adev->gfx.mec.num_pipe_per_mec)
+			+ ring->pipe;
+
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq, irq_type);
 		if (r)
 			return r;
+
+		ring_id++;
 	}
 
 	/* reserve GDS, GWS and OA resource for gfx */

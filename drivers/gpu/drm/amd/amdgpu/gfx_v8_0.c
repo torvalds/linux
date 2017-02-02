@@ -52,7 +52,6 @@
 #include "smu/smu_7_1_3_d.h"
 
 #define GFX8_NUM_GFX_RINGS     1
-#define GFX8_NUM_COMPUTE_RINGS 8
 #define GFX8_MEC_HPD_SIZE 2048
 
 #define TOPAZ_GB_ADDR_CONFIG_GOLDEN 0x22010001
@@ -1422,11 +1421,44 @@ static void gfx_v8_0_kiq_free_ring(struct amdgpu_ring *ring,
 	amdgpu_ring_fini(ring);
 }
 
+static void gfx_v8_0_compute_queue_acquire(struct amdgpu_device *adev)
+{
+	int i, queue, pipe, mec;
+
+	/* policy for amdgpu compute queue ownership */
+	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+		queue = i % adev->gfx.mec.num_queue_per_pipe;
+		pipe = (i / adev->gfx.mec.num_queue_per_pipe)
+			% adev->gfx.mec.num_pipe_per_mec;
+		mec = (i / adev->gfx.mec.num_queue_per_pipe)
+			/ adev->gfx.mec.num_pipe_per_mec;
+
+		/* we've run out of HW */
+		if (mec >= adev->gfx.mec.num_mec)
+			break;
+
+		/* policy: amdgpu owns all queues in the first pipe */
+		if (mec == 0 && pipe == 0)
+			set_bit(i, adev->gfx.mec.queue_bitmap);
+	}
+
+	/* update the number of active compute rings */
+	adev->gfx.num_compute_rings =
+		bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
+
+	/* If you hit this case and edited the policy, you probably just
+	 * need to increase AMDGPU_MAX_COMPUTE_RINGS */
+	if (WARN_ON(adev->gfx.num_compute_rings > AMDGPU_MAX_COMPUTE_RINGS))
+		adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
+}
+
 static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
 	u32 *hpd;
 	size_t mec_hpd_size;
+
+	bitmap_zero(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
@@ -1447,8 +1479,10 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
-	/* only 1 pipe of the first MEC is owned by amdgpu */
-	mec_hpd_size = 1 * 1 * adev->gfx.mec.num_queue_per_pipe * GFX8_MEC_HPD_SIZE;
+	/* take ownership of the relevant compute queues */
+	gfx_v8_0_compute_queue_acquire(adev);
+
+	mec_hpd_size = adev->gfx.num_compute_rings * GFX8_MEC_HPD_SIZE;
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
@@ -2107,7 +2141,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 
 static int gfx_v8_0_sw_init(void *handle)
 {
-	int i, r;
+	int i, r, ring_id;
 	struct amdgpu_ring *ring;
 	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -2174,29 +2208,42 @@ static int gfx_v8_0_sw_init(void *handle)
 	}
 
 	/* set up the compute queues */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+	for (i = 0, ring_id = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; i++) {
 		unsigned irq_type;
 
-		/* max 32 queues per MEC */
-		if ((i >= 32) || (i >= AMDGPU_MAX_COMPUTE_RINGS)) {
-			DRM_ERROR("Too many (%d) compute rings!\n", i);
+		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		if (WARN_ON(ring_id >= AMDGPU_MAX_COMPUTE_RINGS))
 			break;
-		}
-		ring = &adev->gfx.compute_ring[i];
+
+		ring = &adev->gfx.compute_ring[ring_id];
+
+		/* mec0 is me1 */
+		ring->me = ((i / adev->gfx.mec.num_queue_per_pipe)
+				/ adev->gfx.mec.num_pipe_per_mec)
+				+ 1;
+		ring->pipe = (i / adev->gfx.mec.num_queue_per_pipe)
+				% adev->gfx.mec.num_pipe_per_mec;
+		ring->queue = i % adev->gfx.mec.num_queue_per_pipe;
+
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
-		ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + i;
-		ring->me = 1; /* first MEC */
-		ring->pipe = i / 8;
-		ring->queue = i % 8;
-		ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * GFX8_MEC_HPD_SIZE);
+		ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (ring_id * GFX8_MEC_HPD_SIZE);
+		ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
 		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
-		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
+
+		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
+			+ ((ring->me - 1) * adev->gfx.mec.num_pipe_per_mec)
+			+ ring->pipe;
+
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     irq_type);
 		if (r)
 			return r;
+
+		ring_id++;
 	}
 
 	r = gfx_v8_0_kiq_init(adev);
@@ -5678,7 +5725,7 @@ static int gfx_v8_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = GFX8_NUM_COMPUTE_RINGS;
+	adev->gfx.num_compute_rings = AMDGPU_MAX_COMPUTE_RINGS;
 	adev->gfx.funcs = &gfx_v8_0_gfx_funcs;
 	gfx_v8_0_set_ring_funcs(adev);
 	gfx_v8_0_set_irq_funcs(adev);

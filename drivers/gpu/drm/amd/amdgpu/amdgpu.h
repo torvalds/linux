@@ -46,6 +46,8 @@
 #include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
 
+#include <kgd_kfd_interface.h>
+
 #include "amd_shared.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_ih.h"
@@ -897,6 +899,8 @@ struct amdgpu_rlc {
 	u32 *register_restore;
 };
 
+#define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
+
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
@@ -906,6 +910,9 @@ struct amdgpu_mec {
 	u32 num_pipe_per_mec;
 	u32 num_queue_per_pipe;
 	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS + 1];
+
+	/* These are the resources for which amdgpu takes ownership */
+	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
 
 struct amdgpu_kiq {

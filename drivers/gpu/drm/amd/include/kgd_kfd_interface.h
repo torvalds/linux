@@ -33,6 +33,7 @@
 struct pci_dev;
 
 #define KFD_INTERFACE_VERSION 1
+#define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
 struct kgd_dev;
