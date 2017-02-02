@@ -47,20 +47,16 @@
 
 __printf(2, 3)
 void __brcmf_err(const char *func, const char *fmt, ...);
-#ifndef CONFIG_BRCM_TRACING
-/* Macro for error messages. net_ratelimit() is used when driver
- * debugging is not selected. When debugging the driver error
- * messages are as important as other tracing or even more so.
+/* Macro for error messages. When debugging / tracing the driver all error
+ * messages are important to us.
  */
 #define brcmf_err(fmt, ...)						\
 	do {								\
-		if (IS_ENABLED(CONFIG_BRCMDBG) || net_ratelimit())	\
+		if (IS_ENABLED(CONFIG_BRCMDBG) ||			\
+		    IS_ENABLED(CONFIG_BRCM_TRACING) ||			\
+		    net_ratelimit())					\
 			__brcmf_err(__func__, fmt, ##__VA_ARGS__);	\
 	} while (0)
-#else
-#define brcmf_err(fmt, ...) \
-	__brcmf_err(__func__, fmt, ##__VA_ARGS__)
-#endif
 
 #if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
 __printf(3, 4)
