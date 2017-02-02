@@ -5,6 +5,7 @@
 #include <linux/sort.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delayacct.h>
