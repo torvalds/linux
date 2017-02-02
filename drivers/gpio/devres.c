@@ -123,7 +123,8 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL(devm_gpiod_get_index);
 
 /**
- * devm_get_gpiod_from_child - get a GPIO descriptor from a device's child node
+ * devm_fwnode_get_gpiod_from_child - get a GPIO descriptor from a device's
+ *				      child node
  * @dev:	GPIO consumer
  * @con_id:	function within the GPIO consumer
  * @child:	firmware node (child of @dev)
@@ -135,11 +136,11 @@ EXPORT_SYMBOL(devm_gpiod_get_index);
  * On successfull request the GPIO pin is configured in accordance with
  * provided @flags.
  */
-struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
-					    const char *con_id,
-					    struct fwnode_handle *child,
-					    enum gpiod_flags flags,
-					    const char *label)
+struct gpio_desc *devm_fwnode_get_gpiod_from_child(struct device *dev,
+						   const char *con_id,
+						   struct fwnode_handle *child,
+						   enum gpiod_flags flags,
+						   const char *label)
 {
 	static const char * const suffixes[] = { "gpios", "gpio" };
 	char prop_name[32]; /* 32 is max size of property name */
@@ -174,7 +175,7 @@ struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL(devm_get_gpiod_from_child);
+EXPORT_SYMBOL(devm_fwnode_get_gpiod_from_child);
 
 /**
  * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
