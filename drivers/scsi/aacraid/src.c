@@ -497,10 +497,35 @@ static int aac_src_deliver_message(struct fib *fib)
 			vector_no = fib->vector_no;
 
 		if (native_hba) {
-			((struct aac_hba_cmd_req *)fib->hw_fib_va)->reply_qid
-				= vector_no;
-			((struct aac_hba_cmd_req *)fib->hw_fib_va)->request_id
-				+= (vector_no << 16);
+			if (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA_TMF) {
+				struct aac_hba_tm_req *tm_req;
+
+				tm_req = (struct aac_hba_tm_req *)
+						fib->hw_fib_va;
+				if (tm_req->iu_type ==
+					HBA_IU_TYPE_SCSI_TM_REQ) {
+					((struct aac_hba_tm_req *)
+						fib->hw_fib_va)->reply_qid
+							= vector_no;
+					((struct aac_hba_tm_req *)
+						fib->hw_fib_va)->request_id
+							+= (vector_no << 16);
+				} else {
+					((struct aac_hba_reset_req *)
+						fib->hw_fib_va)->reply_qid
+							= vector_no;
+					((struct aac_hba_reset_req *)
+						fib->hw_fib_va)->request_id
+							+= (vector_no << 16);
+				}
+			} else {
+				((struct aac_hba_cmd_req *)
+					fib->hw_fib_va)->reply_qid
+						= vector_no;
+				((struct aac_hba_cmd_req *)
+					fib->hw_fib_va)->request_id
+						+= (vector_no << 16);
+			}
 		} else {
 			fib->hw_fib_va->header.Handle += (vector_no << 16);
 		}

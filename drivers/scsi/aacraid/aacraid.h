@@ -206,6 +206,53 @@ struct aac_hba_cmd_req {
 	 */
 };
 
+/* Task Management Functions (TMF) */
+#define HBA_TMF_ABORT_TASK	0x01
+#define HBA_TMF_LUN_RESET	0x08
+
+struct aac_hba_tm_req {
+	u8	iu_type;	/* HBA information unit type */
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	tmf;		/* Task management function */
+	u8	reserved1;
+
+	__le32	it_nexus;	/* Device handle for the command */
+
+	u8	lun[8];		/* SCSI LUN */
+
+	/* Used to hold sender context. */
+	__le32	request_id;	/* Sender context */
+	__le32	reserved2;
+
+	/* Request identifier of managed task */
+	__le32	managed_request_id;	/* Sender context being managed */
+	__le32	reserved3;
+
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+};
+
+struct aac_hba_reset_req {
+	u8	iu_type;	/* HBA information unit type */
+	/* 0 - reset specified device, 1 - reset all devices */
+	u8	reset_type;
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	reserved1;
+
+	__le32	it_nexus;	/* Device handle for the command */
+	__le32	request_id;	/* Sender context */
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+};
+
 struct aac_hba_resp {
 	u8	iu_type;		/* HBA information unit type */
 	u8	reserved1[3];
@@ -223,6 +270,7 @@ struct aac_hba_resp {
 struct aac_native_hba {
 	union {
 		struct aac_hba_cmd_req cmd;
+		struct aac_hba_tm_req tmr;
 		u8 cmd_bytes[AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE];
 	} cmd;
 	union {
