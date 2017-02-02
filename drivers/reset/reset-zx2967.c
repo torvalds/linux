@@ -8,7 +8,6 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -89,7 +88,6 @@ static const struct of_device_id zx2967_reset_dt_ids[] = {
 	 { .compatible = "zte,zx296718-reset", },
 	 {},
 };
-MODULE_DEVICE_TABLE(of, zx2967_reset_dt_ids);
 
 static struct platform_driver zx2967_reset_driver = {
 	.probe	= zx2967_reset_probe,
@@ -98,9 +96,4 @@ static struct platform_driver zx2967_reset_driver = {
 		.of_match_table	= zx2967_reset_dt_ids,
 	},
 };
-
 builtin_platform_driver(zx2967_reset_driver);
-
-MODULE_AUTHOR("Baoyou Xie <baoyou.xie@linaro.org>");
-MODULE_DESCRIPTION("ZTE zx2967 Reset Controller Driver");
-MODULE_LICENSE("GPL");
