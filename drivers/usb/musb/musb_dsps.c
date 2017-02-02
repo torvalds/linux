@@ -695,7 +695,8 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	resources[1] = *res;
 
 	/* allocate the child platform device */
-	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
+	musb = platform_device_alloc("musb-hdrc",
+			(resources[0].start & 0xFFF) == 0x400 ? 0 : 1);
 	if (!musb) {
 		dev_err(dev, "failed to allocate musb device\n");
 		return -ENOMEM;
