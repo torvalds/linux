@@ -4,12 +4,12 @@
  * Copyright (C) 2014-2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  * Copyright (C) 2016 Mylene Josserand <mylene.josserand@free-electrons.com>
  *
-g * This file is licensed under the terms of the GNU General Public
+ * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -738,7 +738,6 @@ static const struct of_device_id sun5i_pinctrl_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, sun5i_pinctrl_match);
 
 static struct platform_driver sun5i_pinctrl_driver = {
 	.probe	= sun5i_pinctrl_probe,
@@ -747,8 +746,4 @@ static struct platform_driver sun5i_pinctrl_driver = {
 		.of_match_table	= sun5i_pinctrl_match,
 	},
 };
-module_platform_driver(sun5i_pinctrl_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner sun5i pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun5i_pinctrl_driver);
