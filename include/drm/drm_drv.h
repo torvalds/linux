@@ -102,6 +102,17 @@ struct drm_driver {
 	 *
 	 */
 	void (*unload) (struct drm_device *);
+
+	/**
+	 * @release:
+	 *
+	 * Optional callback for destroying device data after the final
+	 * reference is released, i.e. the device is being destroyed. Drivers
+	 * using this callback are responsible for calling drm_dev_fini()
+	 * to finalize the device and then freeing the struct themselves.
+	 */
+	void (*release) (struct drm_device *);
+
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -437,6 +448,8 @@ extern unsigned int drm_debug;
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,
 		 struct device *parent);
+void drm_dev_fini(struct drm_device *dev);
+
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
