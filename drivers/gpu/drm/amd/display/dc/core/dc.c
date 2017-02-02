@@ -925,7 +925,7 @@ void pplib_apply_display_requirements(
 	/* TODO: dce11.2*/
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
 
-	pp_display_cfg->disp_clk_khz = context->bw_results.dispclk_khz;
+	pp_display_cfg->disp_clk_khz = context->dispclk_khz;
 
 	fill_display_configs(context, pp_display_cfg);
 
@@ -1065,8 +1065,7 @@ bool dc_pre_update_surfaces_to_stream(
 {
 	int i, j;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int prev_disp_clk = core_dc->current_context->bw_results.dispclk_khz;
-	int new_disp_clk;
+	int prev_disp_clk = core_dc->current_context->dispclk_khz;
 	struct dc_stream_status *stream_status = NULL;
 	struct validate_context *context;
 	struct validate_context *temp_context;
@@ -1152,17 +1151,16 @@ bool dc_pre_update_surfaces_to_stream(
 			ret = false;
 			goto unexpected_fail;
 		}
-	new_disp_clk = context->bw_results.dispclk_khz;
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)
-			&& prev_disp_clk < new_disp_clk) {
+			&& prev_disp_clk < context->dispclk_khz) {
 		pplib_apply_display_requirements(core_dc, context,
 						&context->pp_display_cfg);
 		context->res_ctx.pool->display_clock->funcs->set_clock(
 				context->res_ctx.pool->display_clock,
-				new_disp_clk * 115 / 100);
-		core_dc->current_context->bw_results.dispclk_khz = new_disp_clk;
-		core_dc->current_context->dispclk_khz = new_disp_clk;
+				context->dispclk_khz * 115 / 100);
+		core_dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
+		core_dc->current_context->dispclk_khz = context->dispclk_khz;
 	}
 
 	for (i = 0; i < new_surface_count; i++)

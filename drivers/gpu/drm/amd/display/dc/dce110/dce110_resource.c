@@ -926,6 +926,7 @@ enum dc_status dce110_validate_bandwidth(
 		result =  DC_FAIL_BANDWIDTH_VALIDATE;
 	else
 		result =  DC_OK;
+	context->dispclk_khz = context->bw_results.dispclk_khz;
 
 	if (result == DC_FAIL_BANDWIDTH_VALIDATE)
 		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,

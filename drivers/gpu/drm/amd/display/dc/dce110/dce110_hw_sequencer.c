@@ -1651,7 +1651,7 @@ static void apply_min_clocks(
 	/* get the required state based on state dependent clocks:
 	 * display clock and pixel clock
 	 */
-	req_clocks.display_clk_khz = context->bw_results.dispclk_khz;
+	req_clocks.display_clk_khz = context->dispclk_khz;
 
 	req_clocks.pixel_clk_khz = get_max_pixel_clock_for_all_paths(
 			dc, context, true);
@@ -1776,11 +1776,11 @@ enum dc_status dce110_apply_ctx_to_hw(
 	/*TODO: when pplib works*/
 	apply_min_clocks(dc, context, &clocks_state, true);
 
-	if (context->bw_results.dispclk_khz
-			> dc->current_context->bw_results.dispclk_khz)
+	if (context->dispclk_khz
+			> dc->current_context->dispclk_khz)
 		context->res_ctx.pool->display_clock->funcs->set_clock(
 				context->res_ctx.pool->display_clock,
-				context->bw_results.dispclk_khz * 115 / 100);
+				context->dispclk_khz * 115 / 100);
 
 	for (i = 0; i < context->res_ctx.pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =
@@ -2289,7 +2289,7 @@ static void dce110_set_bandwidth(struct core_dc *dc)
 
 	dc->current_context->res_ctx.pool->display_clock->funcs->set_clock(
 			dc->current_context->res_ctx.pool->display_clock,
-			dc->current_context->bw_results.dispclk_khz * 115 / 100);
+			dc->current_context->dispclk_khz * 115 / 100);
 }
 
 static void dce110_program_front_end_for_pipe(
