@@ -289,7 +289,8 @@ void blk_mq_sched_request_inserted(struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_request_inserted);
 
-bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
+				       struct request *rq)
 {
 	if (rq->tag == -1) {
 		rq->rq_flags |= RQF_SORTED;
@@ -305,7 +306,6 @@ bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	spin_unlock(&hctx->lock);
 	return true;
 }
-EXPORT_SYMBOL_GPL(blk_mq_sched_bypass_insert);
 
 static void blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
@@ -363,6 +363,9 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		return;
 	}
 
+	if (e && blk_mq_sched_bypass_insert(hctx, rq))
+		goto run;
+
 	if (e && e->type->ops.mq.insert_requests) {
 		LIST_HEAD(list);
 
@@ -374,6 +377,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		spin_unlock(&ctx->lock);
 	}
 
+run:
 	if (run_queue)
 		blk_mq_run_hw_queue(hctx, async);
 }
@@ -384,6 +388,23 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 {
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
 	struct elevator_queue *e = hctx->queue->elevator;
+
+	if (e) {
+		struct request *rq, *next;
+
+		/*
+		 * We bypass requests that already have a driver tag assigned,
+		 * which should only be flushes. Flushes are only ever inserted
+		 * as single requests, so we shouldn't ever hit the
+		 * WARN_ON_ONCE() below (but let's handle it just in case).
+		 */
+		list_for_each_entry_safe(rq, next, list, queuelist) {
+			if (WARN_ON_ONCE(rq->tag != -1)) {
+				list_del_init(&rq->queuelist);
+				blk_mq_sched_bypass_insert(hctx, rq);
+			}
+		}
+	}
 
 	if (e && e->type->ops.mq.insert_requests)
 		e->type->ops.mq.insert_requests(hctx, list, false);
