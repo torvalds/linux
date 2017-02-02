@@ -72,9 +72,10 @@
 #define AUD_CONFIG_CH_MASK	0x70
 
 struct pcm_stream_info {
-	struct snd_pcm_substream	*had_substream;
+	struct snd_pcm_substream *substream;
 	u64		buffer_rendered;
 	u32		ring_buf_size;
+	int substream_refcount;
 };
 
 struct ring_buf_info {
