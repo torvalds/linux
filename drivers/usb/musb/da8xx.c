@@ -125,7 +125,6 @@ static void da8xx_musb_disable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_CLEAR_REG,
 		    DA8XX_INTR_USB_MASK |
 		    DA8XX_INTR_TX_MASK | DA8XX_INTR_RX_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 }
 
