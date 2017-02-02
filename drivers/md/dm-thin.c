@@ -2711,7 +2711,7 @@ static int pool_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
 		return 1;
 
 	q = bdev_get_queue(pt->data_dev->bdev);
-	return bdi_congested(&q->backing_dev_info, bdi_bits);
+	return bdi_congested(q->backing_dev_info, bdi_bits);
 }
 
 static void requeue_bios(struct pool *pool)
