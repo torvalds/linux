@@ -386,6 +386,7 @@ xfs_dinode_verify(
 	struct xfs_inode	*ip,
 	struct xfs_dinode	*dip)
 {
+	uint16_t		mode;
 	uint16_t		flags;
 	uint64_t		flags2;
 
@@ -396,8 +397,10 @@ xfs_dinode_verify(
 	if (be64_to_cpu(dip->di_size) & (1ULL << 63))
 		return false;
 
-	/* No zero-length symlinks. */
-	if (S_ISLNK(be16_to_cpu(dip->di_mode)) && dip->di_size == 0)
+	mode = be16_to_cpu(dip->di_mode);
+
+	/* No zero-length symlinks/dirs. */
+	if ((S_ISLNK(mode) || S_ISDIR(mode)) && dip->di_size == 0)
 		return false;
 
 	/* only version 3 or greater inodes are extensively verified here */
