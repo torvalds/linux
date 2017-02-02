@@ -81,6 +81,27 @@ enum {
 
 #define AAC_DEBUG_INSTRUMENT_AIF_DELETE
 
+#define AAC_MAX_NATIVE_TARGETS		1024
+/* Thor: 5 phys. buses: #0: empty, 1-4: 256 targets each */
+#define AAC_MAX_BUSES			5
+#define AAC_MAX_TARGETS		256
+#define AAC_MAX_NATIVE_SIZE		2048
+
+#define CISS_REPORT_PHYSICAL_LUNS	0xc3
+
+struct aac_ciss_phys_luns_resp {
+	u8	list_length[4];		/* LUN list length (N-7, big endian) */
+	u8	resp_flag;		/* extended response_flag */
+	u8	reserved[3];
+	struct _ciss_lun {
+		u8	tid[3];		/* Target ID */
+		u8	bus;		/* Bus, flag (bits 6,7) */
+		u8	level3[2];
+		u8	level2[2];
+		u8	node_ident[16];	/* phys. node identifier */
+	} lun[1];			/* List of phys. devices */
+};
+
 /*
  * Interrupts
  */
@@ -993,6 +1014,20 @@ struct fib {
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
 };
 
+#define AAC_DEVTYPE_RAID_MEMBER	1
+#define AAC_DEVTYPE_ARC_RAW		2
+#define AAC_DEVTYPE_NATIVE_RAW		3
+#define AAC_EXPOSE_DISK		0
+#define AAC_HIDE_DISK			3
+
+struct aac_hba_map_info {
+	__le32	rmw_nexus;		/* nexus for native HBA devices */
+	u8		devtype;	/* device type */
+	u8		reset_state;	/* 0 - no reset, 1..x - */
+					/* after xth TM LUN reset */
+	u8		expose;		/*checks if to expose or not*/
+};
+
 /*
  *	Adapter Information Block
  *
@@ -1056,7 +1091,28 @@ struct aac_supplement_adapter_info
 	/* StructExpansion == 1 */
 	__le32	FeatureBits3;
 	__le32	SupportedPerformanceModes;
-	__le32	ReservedForFutureGrowth[80];
+	u8	HostBusType;		/* uses HOST_BUS_TYPE_xxx defines */
+	u8	HostBusWidth;		/* actual width in bits or links */
+	u16	HostBusSpeed;		/* actual bus speed/link rate in MHz */
+	u8	MaxRRCDrives;		/* max. number of ITP-RRC drives/pool */
+	u8	MaxDiskXtasks;		/* max. possible num of DiskX Tasks */
+
+	u8	CpldVerLoaded;
+	u8	CpldVerInFlash;
+
+	__le64	MaxRRCCapacity;
+	__le32	CompiledMaxHistLogLevel;
+	u8	CustomBoardName[12];
+	u16	SupportedCntlrMode;	/* identify supported controller mode */
+	u16	ReservedForFuture16;
+	__le32	SupportedOptions3;	/* reserved for future options */
+
+	__le16	VirtDeviceBus;		/* virt. SCSI device for Thor */
+	__le16	VirtDeviceTarget;
+	__le16	VirtDeviceLUN;
+	__le16	Unused;
+	__le32	ReservedForFutureGrowth[68];
+
 };
 #define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
 #define AAC_FEATURE_JBOD	cpu_to_le32(0x08000000)
@@ -1287,6 +1343,7 @@ struct aac_dev
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
+	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
 };
@@ -2171,6 +2228,7 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
+int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);

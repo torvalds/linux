@@ -1509,11 +1509,141 @@ static int aac_scsi_32_64(struct fib * fib, struct scsi_cmnd * cmd)
 	return aac_scsi_32(fib, cmd);
 }
 
+/**
+ *	aac_update hba_map()-	update current hba map with data from FW
+ *	@dev:	aac_dev structure
+ *	@phys_luns: FW information from report phys luns
+ *
+ *	Update our hba map with the information gathered from the FW
+ */
+void aac_update_hba_map(struct aac_dev *dev,
+		struct aac_ciss_phys_luns_resp *phys_luns)
+{
+	/* ok and extended reporting */
+	u32 lun_count, nexus;
+	u32 i, bus, target;
+	u8 expose_flag, attribs;
+	u8 devtype;
+
+	lun_count = ((phys_luns->list_length[0] << 24)
+			+ (phys_luns->list_length[1] << 16)
+			+ (phys_luns->list_length[2] << 8)
+			+ (phys_luns->list_length[3])) / 24;
+
+	for (i = 0; i < lun_count; ++i) {
+
+		bus = phys_luns->lun[i].level2[1] & 0x3f;
+		target = phys_luns->lun[i].level2[0];
+		expose_flag = phys_luns->lun[i].bus >> 6;
+		attribs = phys_luns->lun[i].node_ident[9];
+		nexus = *((u32 *) &phys_luns->lun[i].node_ident[12]);
+
+		if (bus >= AAC_MAX_BUSES || target >= AAC_MAX_TARGETS)
+			continue;
+
+		dev->hba_map[bus][target].expose = expose_flag;
+
+		if (expose_flag != 0) {
+			devtype = AAC_DEVTYPE_RAID_MEMBER;
+			goto update_devtype;
+		}
+
+		if (nexus != 0 && (attribs & 8)) {
+			devtype = AAC_DEVTYPE_NATIVE_RAW;
+			dev->hba_map[bus][target].rmw_nexus =
+					nexus;
+		} else
+			devtype = AAC_DEVTYPE_ARC_RAW;
+
+		if (devtype != AAC_DEVTYPE_NATIVE_RAW)
+			goto update_devtype;
+
+update_devtype:
+		dev->hba_map[bus][target].devtype = devtype;
+	}
+}
+
+/**
+ *	aac_report_phys_luns()	Process topology change
+ *	@dev:		aac_dev structure
+ *	@fibptr:	fib pointer
+ *
+ *	Execute a CISS REPORT PHYS LUNS and process the results into
+ *	the current hba_map.
+ */
+int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr)
+{
+	int fibsize, datasize;
+	struct aac_ciss_phys_luns_resp *phys_luns;
+	struct aac_srb *srbcmd;
+	struct sgmap64 *sg64;
+	dma_addr_t addr;
+	u32 vbus, vid;
+	u32 rcode = 0;
+
+	/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
+	fibsize = sizeof(struct aac_srb) - sizeof(struct sgentry)
+			+ sizeof(struct sgentry64);
+	datasize = sizeof(struct aac_ciss_phys_luns_resp)
+			+ (AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
+
+	phys_luns = (struct aac_ciss_phys_luns_resp *) pci_alloc_consistent(
+			dev->pdev, datasize, &addr);
+
+	if (phys_luns == NULL) {
+		rcode = -ENOMEM;
+		goto err_out;
+	}
+
+	vbus = (u32) le16_to_cpu(
+			dev->supplement_adapter_info.VirtDeviceBus);
+	vid = (u32) le16_to_cpu(
+			dev->supplement_adapter_info.VirtDeviceTarget);
+
+	aac_fib_init(fibptr);
+
+	srbcmd = (struct aac_srb *) fib_data(fibptr);
+	srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi);
+	srbcmd->channel = cpu_to_le32(vbus);
+	srbcmd->id = cpu_to_le32(vid);
+	srbcmd->lun = 0;
+	srbcmd->flags = cpu_to_le32(SRB_DataIn);
+	srbcmd->timeout = cpu_to_le32(10);
+	srbcmd->retry_limit = 0;
+	srbcmd->cdb_size = cpu_to_le32(12);
+	srbcmd->count = cpu_to_le32(datasize);
+
+	memset(srbcmd->cdb, 0, sizeof(srbcmd->cdb));
+	srbcmd->cdb[0] = CISS_REPORT_PHYSICAL_LUNS;
+	srbcmd->cdb[1] = 2; /* extended reporting */
+	srbcmd->cdb[8] = (u8)(datasize >> 8);
+	srbcmd->cdb[9] = (u8)(datasize);
+
+	sg64 = (struct sgmap64 *) &srbcmd->sg;
+	sg64->count = cpu_to_le32(1);
+	sg64->sg[0].addr[1] = cpu_to_le32(upper_32_bits(addr));
+	sg64->sg[0].addr[0] = cpu_to_le32(lower_32_bits(addr));
+	sg64->sg[0].count = cpu_to_le32(datasize);
+
+	rcode = aac_fib_send(ScsiPortCommand64, fibptr, fibsize,
+			FsaNormal, 1, 1, NULL, NULL);
+
+	/* analyse data */
+	if (rcode >= 0 && phys_luns->resp_flag == 2) {
+		/* ok and extended reporting */
+		aac_update_hba_map(dev, phys_luns);
+	}
+
+	pci_free_consistent(dev->pdev, datasize, (void *) phys_luns, addr);
+err_out:
+	return rcode;
+}
+
 int aac_get_adapter_info(struct aac_dev* dev)
 {
 	struct fib* fibptr;
 	int rcode;
-	u32 tmp;
+	u32 tmp, bus, target;
 	struct aac_adapter_info *info;
 	struct aac_bus_info *command;
 	struct aac_bus_info_response *bus_info;
@@ -1544,6 +1674,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 	memcpy(&dev->adapter_info, info, sizeof(*info));
 
+	dev->supplement_adapter_info.VirtDeviceBus = 0xffff;
 	if (dev->adapter_info.options & AAC_OPT_SUPPLEMENT_ADAPTER_INFO) {
 		struct aac_supplement_adapter_info * sinfo;
 
@@ -1571,6 +1702,11 @@ int aac_get_adapter_info(struct aac_dev* dev)
 
 	}
 
+	/* reset all previous mapped devices (i.e. for init. after IOP_RESET) */
+	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
+		for (target = 0; target < AAC_MAX_TARGETS; target++)
+			dev->hba_map[bus][target].devtype = 0;
+	}
 
 	/*
 	 * GetBusInfo
@@ -1601,6 +1737,12 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (rcode >= 0 && le32_to_cpu(bus_info->Status) == ST_OK) {
 		dev->maximum_num_physicals = le32_to_cpu(bus_info->TargetsPerBus);
 		dev->maximum_num_channels = le32_to_cpu(bus_info->BusCount);
+	}
+
+	if (!dev->sync_mode && dev->sa_firmware &&
+			dev->supplement_adapter_info.VirtDeviceBus != 0xffff) {
+		/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
+		rcode = aac_report_phys_luns(dev, fibptr);
 	}
 
 	if (!dev->in_reset) {
