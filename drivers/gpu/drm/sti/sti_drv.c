@@ -58,7 +58,9 @@ static int sti_drm_fps_set(void *data, u64 val)
 	list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
 		struct sti_plane *plane = to_sti_plane(p);
 
+		memset(&plane->fps_info, 0, sizeof(plane->fps_info));
 		plane->fps_info.output = (val >> i) & 1;
+
 		i++;
 	}
 
