@@ -255,6 +255,7 @@ static void sti_cleanup(struct drm_device *ddev)
 
 	drm_kms_helper_poll_fini(ddev);
 	drm_vblank_cleanup(ddev);
+	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
 	ddev->dev_private = NULL;
 }
