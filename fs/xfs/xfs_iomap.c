@@ -685,7 +685,7 @@ xfs_iomap_write_allocate(
 	int		nres;
 
 	if (whichfork == XFS_COW_FORK)
-		flags |= XFS_BMAPI_COWFORK;
+		flags |= XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
 
 	/*
 	 * Make sure that the dquots are there.
