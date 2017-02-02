@@ -263,7 +263,7 @@ static int __commit_inmem_pages(struct inode *inode,
 		.op_flags = REQ_SYNC | REQ_PRIO,
 		.encrypted_page = NULL,
 	};
-	bool submit_bio = false;
+	pgoff_t last_idx = ULONG_MAX;
 	int err = 0;
 
 	list_for_each_entry_safe(cur, tmp, &fi->inmem_pages, list) {
@@ -289,15 +289,15 @@ static int __commit_inmem_pages(struct inode *inode,
 
 			/* record old blkaddr for revoking */
 			cur->old_addr = fio.old_blkaddr;
-
-			submit_bio = true;
+			last_idx = page->index;
 		}
 		unlock_page(page);
 		list_move_tail(&cur->list, revoke_list);
 	}
 
-	if (submit_bio)
-		f2fs_submit_merged_bio_cond(sbi, inode, NULL, 0, DATA, WRITE);
+	if (last_idx != ULONG_MAX)
+		f2fs_submit_merged_bio_cond(sbi, inode, 0, last_idx,
+							DATA, WRITE);
 
 	if (!err)
 		__revoke_inmem_pages(inode, revoke_list, false, false);
@@ -1932,7 +1932,8 @@ void f2fs_wait_on_page_writeback(struct page *page,
 	if (PageWriteback(page)) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
-		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, type, WRITE);
+		f2fs_submit_merged_bio_cond(sbi, page->mapping->host,
+						0, page->index, type, WRITE);
 		if (ordered)
 			wait_on_page_writeback(page);
 		else

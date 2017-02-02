@@ -2233,8 +2233,8 @@ void destroy_checkpoint_caches(void);
 void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi, enum page_type type,
 			int rw);
 void f2fs_submit_merged_bio_cond(struct f2fs_sb_info *sbi,
-				struct inode *inode, struct page *page,
-				nid_t ino, enum page_type type, int rw);
+				struct inode *inode, nid_t ino, pgoff_t idx,
+				enum page_type type, int rw);
 void f2fs_flush_merged_bios(struct f2fs_sb_info *sbi);
 int f2fs_submit_page_bio(struct f2fs_io_info *fio);
 int f2fs_submit_page_mbio(struct f2fs_io_info *fio);
