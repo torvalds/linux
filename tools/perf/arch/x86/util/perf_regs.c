@@ -48,10 +48,42 @@ static const struct sdt_name_reg sdt_reg_renamings[] = {
 	SDT_NAME_REG(rdx, dx),
 	SDT_NAME_REG(esi, si),
 	SDT_NAME_REG(rsi, si),
+	SDT_NAME_REG(sil, si),
 	SDT_NAME_REG(edi, di),
 	SDT_NAME_REG(rdi, di),
+	SDT_NAME_REG(dil, di),
 	SDT_NAME_REG(ebp, bp),
 	SDT_NAME_REG(rbp, bp),
+	SDT_NAME_REG(bpl, bp),
+	SDT_NAME_REG(rsp, sp),
+	SDT_NAME_REG(esp, sp),
+	SDT_NAME_REG(spl, sp),
+
+	/* rNN registers */
+	SDT_NAME_REG(r8b,  r8),
+	SDT_NAME_REG(r8w,  r8),
+	SDT_NAME_REG(r8d,  r8),
+	SDT_NAME_REG(r9b,  r9),
+	SDT_NAME_REG(r9w,  r9),
+	SDT_NAME_REG(r9d,  r9),
+	SDT_NAME_REG(r10b, r10),
+	SDT_NAME_REG(r10w, r10),
+	SDT_NAME_REG(r10d, r10),
+	SDT_NAME_REG(r11b, r11),
+	SDT_NAME_REG(r11w, r11),
+	SDT_NAME_REG(r11d, r11),
+	SDT_NAME_REG(r12b, r12),
+	SDT_NAME_REG(r12w, r12),
+	SDT_NAME_REG(r12d, r12),
+	SDT_NAME_REG(r13b, r13),
+	SDT_NAME_REG(r13w, r13),
+	SDT_NAME_REG(r13d, r13),
+	SDT_NAME_REG(r14b, r14),
+	SDT_NAME_REG(r14w, r14),
+	SDT_NAME_REG(r14d, r14),
+	SDT_NAME_REG(r15b, r15),
+	SDT_NAME_REG(r15w, r15),
+	SDT_NAME_REG(r15d, r15),
 	SDT_NAME_REG_END,
 };
 
@@ -88,18 +120,6 @@ int sdt_rename_register(char **pdesc, char *old_name)
 
 	/* Copy the chars after the register name (if need be) */
 	offset = prefix_len + sdt_len;
-	if (offset < old_desc_len) {
-		/*
-		 * The orginal register name can be suffixed by 'b',
-		 * 'w' or 'd' to indicate its size; so, we need to
-		 * skip this char if we met one.
-		 */
-		char sfx = old_desc[offset];
-
-		if (sfx == 'b' || sfx == 'w'  || sfx == 'd')
-			offset++;
-	}
-
 	if (offset < old_desc_len)
 		memcpy(new_desc + prefix_len + uprobe_len,
 			old_desc + offset, old_desc_len - offset);
