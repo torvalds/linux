@@ -118,6 +118,7 @@ struct dsps_glue {
 	struct device *dev;
 	struct platform_device *musb;	/* child musb pdev */
 	const struct dsps_musb_wrapper *wrp; /* wrapper register offsets */
+	int vbus_irq;			/* optional vbus irq */
 	struct timer_list timer;	/* otg_workaround timer */
 	unsigned long last_timer;    /* last timer data for each instance */
 	bool sw_babble_enabled;
@@ -145,6 +146,29 @@ static const struct debugfs_reg32 dsps_musb_regs[] = {
 	{ "mode",		0xe8 },
 };
 
+static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
+{
+	int wait;
+
+	if (wait_ms < 0)
+		wait = msecs_to_jiffies(glue->wrp->poll_timeout);
+	else
+		wait = msecs_to_jiffies(wait_ms);
+
+	mod_timer(&glue->timer, jiffies + wait);
+}
+
+/*
+ * If no vbus irq from the PMIC is configured, we need to poll VBUS status.
+ */
+static void dsps_mod_timer_optional(struct dsps_glue *glue)
+{
+	if (glue->vbus_irq)
+		return;
+
+	dsps_mod_timer(glue, -1);
+}
+
 /**
  * dsps_musb_enable - enable interrupts
  */
@@ -167,8 +191,7 @@ static void dsps_musb_enable(struct musb *musb)
 	/* start polling for ID change in dual-role idle mode */
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
 			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		mod_timer(&glue->timer, jiffies +
-				msecs_to_jiffies(wrp->poll_timeout));
+		dsps_mod_timer(glue, -1);
 }
 
 /**
@@ -198,6 +221,9 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	u8 devctl;
 	int skip_session = 0;
 
+	if (glue->vbus_irq)
+		del_timer(&glue->timer);
+
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
 	 * status change events (from the transceiver) otherwise.
@@ -208,8 +234,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_VRISE:
-		mod_timer(&glue->timer, jiffies +
-				msecs_to_jiffies(wrp->poll_timeout));
+		dsps_mod_timer_optional(glue);
 		break;
 	case OTG_STATE_A_WAIT_BCON:
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
@@ -218,17 +243,19 @@ static int dsps_check_status(struct musb *musb, void *unused)
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
-		if (devctl & MUSB_DEVCTL_BDEVICE) {
-			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
-			MUSB_DEV_MODE(musb);
-		} else {
-			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
-			MUSB_HST_MODE(musb);
+		if (!glue->vbus_irq) {
+			if (devctl & MUSB_DEVCTL_BDEVICE) {
+				musb->xceiv->otg->state = OTG_STATE_B_IDLE;
+				MUSB_DEV_MODE(musb);
+			} else {
+				musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+				MUSB_HST_MODE(musb);
+			}
+			if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
+				musb_writeb(mregs, MUSB_DEVCTL,
+					    MUSB_DEVCTL_SESSION);
 		}
-		if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
-			musb_writeb(mregs, MUSB_DEVCTL, MUSB_DEVCTL_SESSION);
-		mod_timer(&glue->timer, jiffies +
-				msecs_to_jiffies(wrp->poll_timeout));
+		dsps_mod_timer_optional(glue);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
@@ -331,15 +358,13 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
-			mod_timer(&glue->timer, jiffies +
-					msecs_to_jiffies(wrp->poll_timeout));
+			dsps_mod_timer_optional(glue);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			mod_timer(&glue->timer, jiffies +
-				  msecs_to_jiffies(wrp->poll_timeout));
+			dsps_mod_timer_optional(glue);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -363,8 +388,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_B_IDLE:
 	case OTG_STATE_A_WAIT_BCON:
-		mod_timer(&glue->timer, jiffies +
-				msecs_to_jiffies(wrp->poll_timeout));
+		dsps_mod_timer_optional(glue);
 		break;
 	default:
 		break;
@@ -468,8 +492,7 @@ static int dsps_musb_init(struct musb *musb)
 		musb_writeb(musb->mregs, MUSB_BABBLE_CTL, val);
 	}
 
-	mod_timer(&glue->timer, jiffies +
-		  msecs_to_jiffies(glue->wrp->poll_timeout));
+	dsps_mod_timer(glue, -1);
 
 	return dsps_musb_dbg_init(musb, glue);
 }
@@ -765,6 +788,47 @@ err:
 	return ret;
 }
 
+static irqreturn_t dsps_vbus_threaded_irq(int irq, void *priv)
+{
+	struct dsps_glue *glue = priv;
+	struct musb *musb = platform_get_drvdata(glue->musb);
+
+	if (!musb)
+		return IRQ_NONE;
+
+	dev_dbg(glue->dev, "VBUS interrupt\n");
+	dsps_mod_timer(glue, 0);
+
+	return IRQ_HANDLED;
+}
+
+static int dsps_setup_optional_vbus_irq(struct platform_device *pdev,
+					struct dsps_glue *glue)
+{
+	int error;
+
+	glue->vbus_irq = platform_get_irq_byname(pdev, "vbus");
+	if (glue->vbus_irq == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (glue->vbus_irq <= 0) {
+		glue->vbus_irq = 0;
+		return 0;
+	}
+
+	error = devm_request_threaded_irq(glue->dev, glue->vbus_irq,
+					  NULL, dsps_vbus_threaded_irq,
+					  IRQF_ONESHOT,
+					  "vbus", glue);
+	if (error) {
+		glue->vbus_irq = 0;
+		return error;
+	}
+	dev_dbg(glue->dev, "VBUS irq %i configured\n", glue->vbus_irq);
+
+	return 0;
+}
+
 static int dsps_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -792,6 +856,12 @@ static int dsps_probe(struct platform_device *pdev)
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
+
+	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL) {
+		ret = dsps_setup_optional_vbus_irq(pdev, glue);
+		if (ret)
+			return ret;
+	}
 
 	platform_set_drvdata(pdev, glue);
 	pm_runtime_enable(&pdev->dev);
@@ -903,8 +973,7 @@ static int dsps_resume(struct device *dev)
 	musb_writel(mbase, wrp->rx_mode, glue->context.rx_mode);
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
 	    musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		mod_timer(&glue->timer, jiffies +
-				msecs_to_jiffies(wrp->poll_timeout));
+		dsps_mod_timer(glue, -1);
 
 	return 0;
 }
