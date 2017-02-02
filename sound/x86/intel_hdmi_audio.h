@@ -37,6 +37,7 @@
 #include <sound/asoundef.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
+#include <drm/drm_edid.h>
 #include "intel_hdmi_lpe_audio.h"
 
 #define PCM_INDEX		0
@@ -107,7 +108,7 @@ struct snd_intelhad {
 	enum had_drv_status	drv_status;
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
-	union otm_hdmi_eld_t	eld;
+	unsigned char	eld[HDMI_MAX_ELD_BYTES];
 	bool dp_output;
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;

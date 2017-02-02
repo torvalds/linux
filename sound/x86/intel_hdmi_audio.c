@@ -451,7 +451,7 @@ static int snd_intelhad_channel_allocation(struct snd_intelhad *intelhaddata,
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
-		if (intelhaddata->eld.speaker_allocation_block & (1 << i))
+		if (intelhaddata->eld[DRM_ELD_SPEAKER] & (1 << i))
 			spk_mask |= eld_speaker_allocation_bits[i];
 	}
 
@@ -496,8 +496,8 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 		return;
 	}
 
-	dev_dbg(intelhaddata->dev, "eld.speaker_allocation_block = %x\n",
-			intelhaddata->eld.speaker_allocation_block);
+	dev_dbg(intelhaddata->dev, "eld speaker = %x\n",
+		intelhaddata->eld[DRM_ELD_SPEAKER]);
 
 	/* WA: Fix the max channel supported to 8 */
 
@@ -508,14 +508,14 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 	 */
 
 	/* if 0x2F < eld < 0x4F fall back to 0x2f, else fall back to 0x4F */
-	eld_high = intelhaddata->eld.speaker_allocation_block & eld_high_mask;
+	eld_high = intelhaddata->eld[DRM_ELD_SPEAKER] & eld_high_mask;
 	if ((eld_high & (eld_high-1)) && (eld_high > 0x1F)) {
 		/* eld_high & (eld_high-1): if more than 1 bit set */
 		/* 0x1F: 7 channels */
 		for (i = 1; i < 4; i++) {
 			high_msb = eld_high & (0x80 >> i);
 			if (high_msb) {
-				intelhaddata->eld.speaker_allocation_block &=
+				intelhaddata->eld[DRM_ELD_SPEAKER] &=
 					high_msb | 0xF;
 				break;
 			}
@@ -523,7 +523,7 @@ static void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
-		if (intelhaddata->eld.speaker_allocation_block & (1 << i))
+		if (intelhaddata->eld[DRM_ELD_SPEAKER] & (1 << i))
 			spk_mask |= eld_speaker_allocation_bits[i];
 	}
 
@@ -1743,7 +1743,7 @@ static void had_audio_wq(struct work_struct *work)
 			break;
 		}
 
-		memcpy(&ctx->eld, eld->eld_data, sizeof(ctx->eld));
+		memcpy(ctx->eld, eld->eld_data, sizeof(ctx->eld));
 
 		ctx->dp_output = pdata->dp_output;
 		ctx->tmds_clock_speed = pdata->tmds_clock_speed;
