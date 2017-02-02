@@ -626,20 +626,20 @@ static void snd_intelhad_prog_dip(struct snd_pcm_substream *substream,
 	u8 checksum = 0;
 	u32 info_frame;
 	int channels;
+	int ca;
 
 	channels = substream->runtime->channels;
 
 	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.regval);
 
+	ca = snd_intelhad_channel_allocation(intelhaddata, channels);
 	if (intelhaddata->dp_output) {
 		info_frame = DP_INFO_FRAME_WORD1;
-		frame2.regval = 1;
+		frame2.regval = (substream->runtime->channels - 1) | (ca << 24);
 	} else {
 		info_frame = HDMI_INFO_FRAME_WORD1;
 		frame2.regx.chnl_cnt = substream->runtime->channels - 1;
-
-		frame3.regx.chnl_alloc = snd_intelhad_channel_allocation(
-			intelhaddata, channels);
+		frame3.regx.chnl_alloc = ca;
 
 		/* Calculte the byte wide checksum for all valid DIP words */
 		for (i = 0; i < BYTES_PER_WORD; i++)
