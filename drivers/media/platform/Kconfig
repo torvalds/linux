@@ -337,6 +337,7 @@ config VIDEO_STI_DELTA_DRIVER
 	default n
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
+	select RPMSG
 
 endif # VIDEO_STI_DELTA
 

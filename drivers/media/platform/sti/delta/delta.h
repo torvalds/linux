@@ -7,6 +7,7 @@
 #ifndef DELTA_H
 #define DELTA_H
 
+#include <linux/rpmsg.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 
@@ -199,6 +200,19 @@ struct delta_buf {
 	unsigned long attrs;
 };
 
+struct delta_ipc_ctx {
+	int cb_err;
+	u32 copro_hdl;
+	struct completion done;
+	struct delta_buf ipc_buf_struct;
+	struct delta_buf *ipc_buf;
+};
+
+struct delta_ipc_param {
+	u32 size;
+	void *data;
+};
+
 struct delta_ctx;
 
 /*
@@ -368,6 +382,7 @@ struct delta_dev;
  * @fh:			V4L2 file handle
  * @dev:		device context
  * @dec:		selected decoder context for this instance
+ * @ipc_ctx:		context of IPC communication with firmware
  * @state:		instance state
  * @frame_num:		frame number
  * @au_num:		access unit number
@@ -399,6 +414,8 @@ struct delta_ctx {
 	struct v4l2_fh fh;
 	struct delta_dev *dev;
 	const struct delta_dec *dec;
+	struct delta_ipc_ctx ipc_ctx;
+
 	enum delta_state state;
 	u32 frame_num;
 	u32 au_num;
@@ -447,6 +464,8 @@ struct delta_ctx {
  * @nb_of_streamformats:number of supported compressed video formats
  * @instance_id:	rolling counter identifying an instance (debug purpose)
  * @work_queue:		decoding job work queue
+ * @rpmsg_driver:	rpmsg IPC driver
+ * @rpmsg_device:	rpmsg IPC device
  */
 struct delta_dev {
 	struct v4l2_device v4l2_dev;
@@ -466,6 +485,8 @@ struct delta_dev {
 	u32 nb_of_streamformats;
 	u8 instance_id;
 	struct workqueue_struct *work_queue;
+	struct rpmsg_driver rpmsg_driver;
+	struct rpmsg_device *rpmsg_device;
 };
 
 static inline char *frame_type_str(u32 flags)
