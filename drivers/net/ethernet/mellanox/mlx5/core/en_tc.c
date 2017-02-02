@@ -1211,12 +1211,12 @@ static void gen_vxlan_header_ipv6(struct net_device *out_dev,
 
 static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 					  struct net_device *mirred_dev,
-					  struct mlx5e_encap_entry *e,
-					  struct net_device **out_dev)
+					  struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	int ipv4_encap_size = ETH_HLEN + sizeof(struct iphdr) + VXLAN_HLEN;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
+	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
 	char *encap_header;
@@ -1245,7 +1245,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	fl4.daddr = tun_key->u.ipv4.dst;
 	fl4.saddr = tun_key->u.ipv4.src;
 
-	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, out_dev,
+	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
 				      &fl4, &n, &ttl);
 	if (err)
 		goto out;
@@ -1257,13 +1257,13 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	}
 
 	e->n = n;
-	e->out_dev = *out_dev;
+	e->out_dev = out_dev;
 
-	neigh_ha_snapshot(e->h_dest, n, *out_dev);
+	neigh_ha_snapshot(e->h_dest, n, out_dev);
 
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
-		gen_vxlan_header_ipv4(*out_dev, encap_header,
+		gen_vxlan_header_ipv4(out_dev, encap_header,
 				      ipv4_encap_size, e->h_dest, ttl,
 				      fl4.daddr,
 				      fl4.saddr, tun_key->tp_dst,
@@ -1285,12 +1285,12 @@ out:
 
 static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 					  struct net_device *mirred_dev,
-					  struct mlx5e_encap_entry *e,
-					  struct net_device **out_dev)
+					  struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	int ipv6_encap_size = ETH_HLEN + sizeof(struct ipv6hdr) + VXLAN_HLEN;
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
+	struct net_device *out_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
 	char *encap_header;
@@ -1320,7 +1320,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	fl6.daddr = tun_key->u.ipv6.dst;
 	fl6.saddr = tun_key->u.ipv6.src;
 
-	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, out_dev,
+	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
 				      &fl6, &n, &ttl);
 	if (err)
 		goto out;
@@ -1332,13 +1332,13 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	}
 
 	e->n = n;
-	e->out_dev = *out_dev;
+	e->out_dev = out_dev;
 
-	neigh_ha_snapshot(e->h_dest, n, *out_dev);
+	neigh_ha_snapshot(e->h_dest, n, out_dev);
 
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
-		gen_vxlan_header_ipv6(*out_dev, encap_header,
+		gen_vxlan_header_ipv6(out_dev, encap_header,
 				      ipv6_encap_size, e->h_dest, ttl,
 				      &fl6.daddr,
 				      &fl6.saddr, tun_key->tp_dst,
@@ -1371,7 +1371,6 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct ip_tunnel_key *key = &tun_info->key;
 	struct mlx5e_encap_entry *e;
-	struct net_device *out_dev;
 	int tunnel_type, err = 0;
 	uintptr_t hash_key;
 	bool found = false;
@@ -1419,9 +1418,9 @@ vxlan_encap_offload_err:
 	INIT_LIST_HEAD(&e->flows);
 
 	if (family == AF_INET)
-		err = mlx5e_create_encap_header_ipv4(priv, mirred_dev, e, &out_dev);
+		err = mlx5e_create_encap_header_ipv4(priv, mirred_dev, e);
 	else if (family == AF_INET6)
-		err = mlx5e_create_encap_header_ipv6(priv, mirred_dev, e, &out_dev);
+		err = mlx5e_create_encap_header_ipv6(priv, mirred_dev, e);
 
 	if (err)
 		goto out_err;
