@@ -457,7 +457,7 @@ static inline u8 get_vbus_power(struct device *dev)
 }
 
 static const struct musb_platform_ops da8xx_ops = {
-	.quirks		= MUSB_INDEXED_EP,
+	.quirks		= MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
