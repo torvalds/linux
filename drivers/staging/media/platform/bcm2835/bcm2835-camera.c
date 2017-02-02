@@ -50,7 +50,7 @@ MODULE_AUTHOR("Vincent Sanders");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(BM2835_MMAL_VERSION);
 
-int bcm2835_v4l2_debug;
+static int bcm2835_v4l2_debug;
 module_param_named(debug, bcm2835_v4l2_debug, int, 0644);
 MODULE_PARM_DESC(bcm2835_v4l2_debug, "Debug level 0-2");
 
@@ -1312,7 +1312,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return ret;
 }
 
-int vidioc_enum_framesizes(struct file *file, void *fh,
+static int vidioc_enum_framesizes(struct file *file, void *fh,
 			   struct v4l2_frmsizeenum *fsize)
 {
 	struct bm2835_mmal_dev *dev = video_drvdata(file);
@@ -1842,7 +1842,7 @@ static int __init bm2835_mmal_init_device(struct bm2835_mmal_dev *dev,
 	return 0;
 }
 
-void bcm2835_cleanup_instance(struct bm2835_mmal_dev *dev)
+static void bcm2835_cleanup_instance(struct bm2835_mmal_dev *dev)
 {
 	if (!dev)
 		return;
