@@ -1011,7 +1011,22 @@ static int aac_get_pci_info(struct aac_dev* dev, void __user *arg)
 	}
 	return 0;
 }
+struct aac_reset_iop {
+	u8	reset_type;
+};
 
+static int aac_send_reset_adapter(struct aac_dev *dev, void __user *arg)
+{
+	struct aac_reset_iop reset;
+	int retval;
+
+	if (copy_from_user((void *)&reset, arg, sizeof(struct aac_reset_iop)))
+		return -EFAULT;
+
+	retval = aac_reset_adapter(dev, 0, reset.reset_type);
+	return retval;
+
+}
 
 int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 {
@@ -1055,6 +1070,10 @@ int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 	case FSACTL_GET_PCI_INFO:
 		status = aac_get_pci_info(dev,arg);
 		break;
+	case FSACTL_RESET_IOP:
+		status = aac_send_reset_adapter(dev, arg);
+		break;
+
 	default:
 		status = -ENOTTY;
 		break;
