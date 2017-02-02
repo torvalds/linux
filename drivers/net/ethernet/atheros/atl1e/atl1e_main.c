@@ -1472,7 +1472,7 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 					   prrs->vtag);
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 			}
-			netif_receive_skb(skb);
+			napi_gro_receive(&adapter->napi, skb);
 
 skip_pkt:
 	/* skip current packet whether it's ok or not. */
