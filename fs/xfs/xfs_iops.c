@@ -103,7 +103,7 @@ xfs_dentry_to_name(
 {
 	namep->name = dentry->d_name.name;
 	namep->len = dentry->d_name.len;
-	namep->type = xfs_mode_to_ftype[(mode & S_IFMT) >> S_SHIFT];
+	namep->type = xfs_mode_to_ftype(mode);
 }
 
 STATIC void

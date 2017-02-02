@@ -35,10 +35,9 @@ struct xfs_dir2_data_unused;
 extern struct xfs_name	xfs_name_dotdot;
 
 /*
- * directory filetype conversion tables.
+ * Convert inode mode to directory entry filetype
  */
-#define S_SHIFT 12
-extern const unsigned char xfs_mode_to_ftype[];
+extern const unsigned char xfs_mode_to_ftype(int mode);
 
 /*
  * directory operations vector for encode/decode routines
