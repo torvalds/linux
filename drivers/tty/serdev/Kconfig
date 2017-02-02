@@ -1,0 +1,8 @@
+#
+# Serial bus device driver configuration
+#
+menuconfig SERIAL_DEV_BUS
+	tristate "Serial device bus"
+	help
+	  Core support for devices connected via a serial port.
+
