@@ -1181,7 +1181,7 @@ static int mvebu_pcie_powerup(struct mvebu_pcie_port *port)
 		return ret;
 
 	if (port->reset_gpio) {
-		u32 reset_udelay = 20000;
+		u32 reset_udelay = PCI_PM_D3COLD_WAIT * 1000;
 
 		of_property_read_u32(port->dn, "reset-delay-us",
 				     &reset_udelay);
