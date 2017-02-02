@@ -387,7 +387,7 @@ static int opal_lpc_init_debugfs(void)
 machine_device_initcall(powernv, opal_lpc_init_debugfs);
 #endif  /* CONFIG_DEBUG_FS */
 
-void opal_lpc_init(void)
+void __init opal_lpc_init(void)
 {
 	struct device_node *np;
 
