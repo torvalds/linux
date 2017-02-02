@@ -168,7 +168,7 @@ static int blank(struct fbtft_par *par, bool on)
 }
 
 /* Gamma is used to control Contrast */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	/* apply mask */
 	curves[0] &= 0xFF;

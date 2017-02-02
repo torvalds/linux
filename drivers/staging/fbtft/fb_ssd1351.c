@@ -117,7 +117,7 @@ static int set_var(struct fbtft_par *par)
  *		Setting of GS63 has to be > Setting of GS62 +1
  *
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];
 	int i, acc = 0;

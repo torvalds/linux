@@ -121,7 +121,7 @@ static int set_var(struct fbtft_par *par)
  *  Negative: Par1 Par2 [...] Par15
  */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 

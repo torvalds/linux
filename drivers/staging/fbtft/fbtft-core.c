@@ -661,7 +661,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	int vmem_size, i;
 	s16 *init_sequence = display->init_sequence;
 	char *gamma = display->gamma;
-	unsigned long *gamma_curves = NULL;
+	u32 *gamma_curves = NULL;
 
 	/* sanity check */
 	if (display->gamma_num * display->gamma_len >
