@@ -271,7 +271,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		atomic_set(&fclones->fclone_ref, 1);
 
 		fclones->skb2.fclone = SKB_FCLONE_CLONE;
-		fclones->skb2.pfmemalloc = pfmemalloc;
 	}
 out:
 	return skb;
