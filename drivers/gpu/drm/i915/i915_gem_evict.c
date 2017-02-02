@@ -109,6 +109,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	}, **phase;
 	struct i915_vma *vma, *next;
 	struct drm_mm_node *node;
+	enum drm_mm_insert_mode mode;
 	int ret;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
@@ -127,10 +128,14 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	 * On each list, the oldest objects lie at the HEAD with the freshest
 	 * object on the TAIL.
 	 */
+	mode = DRM_MM_INSERT_BEST;
+	if (flags & PIN_HIGH)
+		mode = DRM_MM_INSERT_HIGH;
+	if (flags & PIN_MAPPABLE)
+		mode = DRM_MM_INSERT_LOW;
 	drm_mm_scan_init_with_range(&scan, &vm->mm,
 				    min_size, alignment, cache_level,
-				    start, end,
-				    flags & PIN_HIGH ? DRM_MM_CREATE_TOP : 0);
+				    start, end, mode);
 
 	/* Retire before we search the active list. Although we have
 	 * reasonable accuracy in our retirement lists, we may have

@@ -128,8 +128,8 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	if (!bo->mm)
 		return -ENOMEM;
 
-	err = drm_mm_insert_node_generic(&tegra->mm, bo->mm, bo->gem.size,
-					 PAGE_SIZE, 0, 0, 0);
+	err = drm_mm_insert_node_generic(&tegra->mm,
+					 bo->mm, bo->gem.size, PAGE_SIZE, 0, 0);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "out of I/O virtual memory: %zd\n",
 			err);

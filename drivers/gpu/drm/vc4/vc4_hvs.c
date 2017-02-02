@@ -141,8 +141,7 @@ static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
 	int ret, i;
 	u32 __iomem *dst_kernel;
 
-	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS, 1,
-				 0);
+	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
 	if (ret) {
 		DRM_ERROR("Failed to allocate space for filter kernel: %d\n",
 			  ret);

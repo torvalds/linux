@@ -22,23 +22,24 @@ static unsigned int max_iterations = 8192;
 static unsigned int max_prime = 128;
 
 enum {
-	DEFAULT,
-	TOPDOWN,
 	BEST,
+	BOTTOMUP,
+	TOPDOWN,
+	EVICT,
 };
 
 static const struct insert_mode {
 	const char *name;
-	unsigned int search_flags;
-	unsigned int create_flags;
+	enum drm_mm_insert_mode mode;
 } insert_modes[] = {
-	[DEFAULT] = { "default", DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT },
-	[TOPDOWN] = { "top-down", DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP },
-	[BEST] = { "best", DRM_MM_SEARCH_BEST, DRM_MM_CREATE_DEFAULT },
+	[BEST] = { "best", DRM_MM_INSERT_BEST },
+	[BOTTOMUP] = { "bottom-up", DRM_MM_INSERT_LOW },
+	[TOPDOWN] = { "top-down", DRM_MM_INSERT_HIGH },
+	[EVICT] = { "evict", DRM_MM_INSERT_EVICT },
 	{}
 }, evict_modes[] = {
-	{ "default", DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT },
-	{ "top-down", DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP },
+	{ "bottom-up", DRM_MM_INSERT_LOW },
+	{ "top-down", DRM_MM_INSERT_HIGH },
 	{}
 };
 
@@ -526,8 +527,7 @@ static bool expect_insert(struct drm_mm *mm, struct drm_mm_node *node,
 
 	err = drm_mm_insert_node_generic(mm, node,
 					 size, alignment, color,
-					 mode->search_flags,
-					 mode->create_flags);
+					 mode->mode);
 	if (err) {
 		pr_err("insert (size=%llu, alignment=%llu, color=%lu, mode=%s) failed with err=%d\n",
 		       size, alignment, color, mode->name, err);
@@ -547,7 +547,7 @@ static bool expect_insert_fail(struct drm_mm *mm, u64 size)
 	struct drm_mm_node tmp = {};
 	int err;
 
-	err = drm_mm_insert_node(mm, &tmp, size, 0, DRM_MM_SEARCH_DEFAULT);
+	err = drm_mm_insert_node(mm, &tmp, size);
 	if (likely(err == -ENOSPC))
 		return true;
 
@@ -753,11 +753,10 @@ static bool expect_insert_in_range(struct drm_mm *mm, struct drm_mm_node *node,
 {
 	int err;
 
-	err = drm_mm_insert_node_in_range_generic(mm, node,
-						  size, alignment, color,
-						  range_start, range_end,
-						  mode->search_flags,
-						  mode->create_flags);
+	err = drm_mm_insert_node_in_range(mm, node,
+					  size, alignment, color,
+					  range_start, range_end,
+					  mode->mode);
 	if (err) {
 		pr_err("insert (size=%llu, alignment=%llu, color=%lu, mode=%s) nto range [%llx, %llx] failed with err=%d\n",
 		       size, alignment, color, mode->name,
@@ -781,11 +780,10 @@ static bool expect_insert_in_range_fail(struct drm_mm *mm,
 	struct drm_mm_node tmp = {};
 	int err;
 
-	err = drm_mm_insert_node_in_range_generic(mm, &tmp,
-						  size, 0, 0,
-						  range_start, range_end,
-						  DRM_MM_SEARCH_DEFAULT,
-						  DRM_MM_CREATE_DEFAULT);
+	err = drm_mm_insert_node_in_range(mm, &tmp,
+					  size, 0, 0,
+					  range_start, range_end,
+					  0);
 	if (likely(err == -ENOSPC))
 		return true;
 
@@ -1324,7 +1322,7 @@ static int evict_something(struct drm_mm *mm,
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, 0,
 				    range_start, range_end,
-				    mode->create_flags);
+				    mode->mode);
 	if (!evict_nodes(&scan,
 			 nodes, order, count, false,
 			 &evict_list))
@@ -1332,8 +1330,7 @@ static int evict_something(struct drm_mm *mm,
 
 	memset(&tmp, 0, sizeof(tmp));
 	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, 0,
-					 mode->search_flags,
-					 mode->create_flags);
+					 DRM_MM_INSERT_EVICT);
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d\n",
 		       size, alignment);
@@ -1408,8 +1405,7 @@ static int igt_evict(void *ignored)
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, size);
 	for (n = 0; n < size; n++) {
-		err = drm_mm_insert_node(&mm, &nodes[n].node, 1, 0,
-					 DRM_MM_SEARCH_DEFAULT);
+		err = drm_mm_insert_node(&mm, &nodes[n].node, 1);
 		if (err) {
 			pr_err("insert failed, step %d\n", n);
 			ret = err;
@@ -1517,8 +1513,7 @@ static int igt_evict_range(void *ignored)
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, size);
 	for (n = 0; n < size; n++) {
-		err = drm_mm_insert_node(&mm, &nodes[n].node, 1, 0,
-					 DRM_MM_SEARCH_DEFAULT);
+		err = drm_mm_insert_node(&mm, &nodes[n].node, 1);
 		if (err) {
 			pr_err("insert failed, step %d\n", n);
 			ret = err;
@@ -1904,7 +1899,7 @@ static int evict_color(struct drm_mm *mm,
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, color,
 				    range_start, range_end,
-				    mode->create_flags);
+				    mode->mode);
 	if (!evict_nodes(&scan,
 			 nodes, order, count, true,
 			 &evict_list))
@@ -1912,8 +1907,7 @@ static int evict_color(struct drm_mm *mm,
 
 	memset(&tmp, 0, sizeof(tmp));
 	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, color,
-					 mode->search_flags,
-					 mode->create_flags);
+					 DRM_MM_INSERT_EVICT);
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d, color=%lu, err=%d\n",
 		       size, alignment, color, err);

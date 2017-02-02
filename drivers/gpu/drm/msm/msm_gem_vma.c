@@ -45,8 +45,7 @@ msm_gem_map_vma(struct msm_gem_address_space *aspace,
 	if (WARN_ON(drm_mm_node_allocated(&vma->node)))
 		return 0;
 
-	ret = drm_mm_insert_node(&aspace->mm, &vma->node, npages,
-			0, DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node(&aspace->mm, &vma->node, npages);
 	if (ret)
 		return ret;
 

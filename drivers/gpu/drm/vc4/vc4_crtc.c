@@ -593,7 +593,7 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
 	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
-				 dlist_count, 1, 0);
+				 dlist_count);
 	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
 	if (ret)
 		return ret;
