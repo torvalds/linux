@@ -255,23 +255,8 @@ static int idu_irq_map(struct irq_domain *d, unsigned int virq, irq_hw_number_t 
 	return 0;
 }
 
-static int idu_irq_xlate(struct irq_domain *d, struct device_node *n,
-			 const u32 *intspec, unsigned int intsize,
-			 irq_hw_number_t *out_hwirq, unsigned int *out_type)
-{
-	/*
-	 * Ignore value of interrupt distribution mode for common interrupts in
-	 * IDU which resides in intspec[1] since setting an affinity using value
-	 * from Device Tree is deprecated in ARC.
-	 */
-	*out_hwirq = intspec[0];
-	*out_type = IRQ_TYPE_NONE;
-
-	return 0;
-}
-
 static const struct irq_domain_ops idu_irq_ops = {
-	.xlate	= idu_irq_xlate,
+	.xlate	= irq_domain_xlate_onecell,
 	.map	= idu_irq_map,
 };
 
