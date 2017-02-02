@@ -2872,8 +2872,6 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 		return error;
 	}
 
-	INIT_DELAYED_WORK(&sc->tx_complete_work, ath_tx_complete_poll_work);
-
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		error = ath_tx_edma_init(sc);
 
