@@ -88,6 +88,9 @@ enum {
 #define AAC_MAX_NATIVE_SIZE		2048
 
 #define CISS_REPORT_PHYSICAL_LUNS	0xc3
+#define WRITE_HOST_WELLNESS		0xa5
+#define BMIC_IN			0x26
+#define BMIC_OUT			0x27
 
 struct aac_ciss_phys_luns_resp {
 	u8	list_length[4];		/* LUN list length (N-7, big endian) */
