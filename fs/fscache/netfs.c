@@ -48,6 +48,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	cookie->flags		= 1 << FSCACHE_COOKIE_ENABLED;
 
 	spin_lock_init(&cookie->lock);
+	spin_lock_init(&cookie->stores_lock);
 	INIT_HLIST_HEAD(&cookie->backing_objects);
 
 	/* check the netfs type is not already present */

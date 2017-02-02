@@ -5291,6 +5291,11 @@ int md_run(struct mddev *mddev)
 	if (start_readonly && mddev->ro == 0)
 		mddev->ro = 2; /* read-only, but switch on first write */
 
+	/*
+	 * NOTE: some pers->run(), for example r5l_recovery_log(), wakes
+	 * up mddev->thread. It is important to initialize critical
+	 * resources for mddev->thread BEFORE calling pers->run().
+	 */
 	err = pers->run(mddev);
 	if (err)
 		pr_warn("md: pers->run() failed ...\n");

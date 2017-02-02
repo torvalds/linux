@@ -843,8 +843,10 @@ static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
 		return;
 
 	IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
-	thermal_zone_device_unregister(mvm->tz_device.tzone);
-	mvm->tz_device.tzone = NULL;
+	if (mvm->tz_device.tzone) {
+		thermal_zone_device_unregister(mvm->tz_device.tzone);
+		mvm->tz_device.tzone = NULL;
+	}
 }
 
 static void iwl_mvm_cooling_device_unregister(struct iwl_mvm *mvm)
@@ -853,8 +855,10 @@ static void iwl_mvm_cooling_device_unregister(struct iwl_mvm *mvm)
 		return;
 
 	IWL_DEBUG_TEMP(mvm, "Cooling device unregister\n");
-	thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
-	mvm->cooling_dev.cdev = NULL;
+	if (mvm->cooling_dev.cdev) {
+		thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
+		mvm->cooling_dev.cdev = NULL;
+	}
 }
 #endif /* CONFIG_THERMAL */
 

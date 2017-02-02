@@ -831,7 +831,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		return 0;
 	}
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 
