@@ -652,31 +652,39 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 			       unsigned long state, u32 *power)
 {
 	unsigned int freq, num_cpus;
-	cpumask_t cpumask;
+	cpumask_var_t cpumask;
 	u32 static_power, dynamic_power;
 	int ret;
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 
-	cpumask_and(&cpumask, &cpufreq_device->allowed_cpus, cpu_online_mask);
-	num_cpus = cpumask_weight(&cpumask);
+	if (!alloc_cpumask_var(&cpumask, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpumask_and(cpumask, &cpufreq_device->allowed_cpus, cpu_online_mask);
+	num_cpus = cpumask_weight(cpumask);
 
 	/* None of our cpus are online, so no power */
 	if (num_cpus == 0) {
 		*power = 0;
-		return 0;
+		ret = 0;
+		goto out;
 	}
 
 	freq = cpufreq_device->freq_table[state];
-	if (!freq)
-		return -EINVAL;
+	if (!freq) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	dynamic_power = cpu_freq_to_power(cpufreq_device, freq) * num_cpus;
 	ret = get_static_power(cpufreq_device, tz, freq, &static_power);
 	if (ret)
-		return ret;
+		goto out;
 
 	*power = static_power + dynamic_power;
-	return 0;
+out:
+	free_cpumask_var(cpumask);
+	return ret;
 }
 
 /**
@@ -802,16 +810,20 @@ __cpufreq_cooling_register(struct device_node *np,
 	struct cpufreq_cooling_device *cpufreq_dev;
 	char dev_name[THERMAL_NAME_LENGTH];
 	struct cpufreq_frequency_table *pos, *table;
-	struct cpumask temp_mask;
+	cpumask_var_t temp_mask;
 	unsigned int freq, i, num_cpus;
 	int ret;
 	struct thermal_cooling_device_ops *cooling_ops;
 
-	cpumask_and(&temp_mask, clip_cpus, cpu_online_mask);
-	policy = cpufreq_cpu_get(cpumask_first(&temp_mask));
+	if (!alloc_cpumask_var(&temp_mask, GFP_KERNEL))
+		return ERR_PTR(-ENOMEM);
+
+	cpumask_and(temp_mask, clip_cpus, cpu_online_mask);
+	policy = cpufreq_cpu_get(cpumask_first(temp_mask));
 	if (!policy) {
 		pr_debug("%s: CPUFreq policy not found\n", __func__);
-		return ERR_PTR(-EPROBE_DEFER);
+		cool_dev = ERR_PTR(-EPROBE_DEFER);
+		goto free_cpumask;
 	}
 
 	table = policy->freq_table;
@@ -931,7 +943,8 @@ free_cdev:
 	kfree(cpufreq_dev);
 put_policy:
 	cpufreq_cpu_put(policy);
-
+free_cpumask:
+	free_cpumask_var(temp_mask);
 	return cool_dev;
 }
 
