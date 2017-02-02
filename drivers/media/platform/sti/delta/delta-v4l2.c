@@ -17,6 +17,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "delta.h"
+#include "delta-debug.h"
 #include "delta-ipc.h"
 
 #define DELTA_NAME	"st-delta"
@@ -443,11 +444,13 @@ static int delta_g_fmt_stream(struct file *file, void *fh,
 	struct delta_dev *delta = ctx->dev;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct delta_streaminfo *streaminfo = &ctx->streaminfo;
+	unsigned char str[100] = "";
 
 	if (!(ctx->flags & DELTA_FLAG_STREAMINFO))
 		dev_dbg(delta->dev,
-			"%s V4L2 GET_FMT (OUTPUT): no stream information available, using default\n",
-			ctx->name);
+			"%s V4L2 GET_FMT (OUTPUT): no stream information available, default to %s\n",
+			ctx->name,
+			delta_streaminfo_str(streaminfo, str, sizeof(str)));
 
 	pix->pixelformat = streaminfo->streamformat;
 	pix->width = streaminfo->width;
@@ -470,11 +473,13 @@ static int delta_g_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct delta_frameinfo *frameinfo = &ctx->frameinfo;
 	struct delta_streaminfo *streaminfo = &ctx->streaminfo;
+	unsigned char str[100] = "";
 
 	if (!(ctx->flags & DELTA_FLAG_FRAMEINFO))
 		dev_dbg(delta->dev,
-			"%s V4L2 GET_FMT (CAPTURE): no frame information available, using default\n",
-			ctx->name);
+			"%s V4L2 GET_FMT (CAPTURE): no frame information available, default to %s\n",
+			ctx->name,
+			delta_frameinfo_str(frameinfo, str, sizeof(str)));
 
 	pix->pixelformat = frameinfo->pixelformat;
 	pix->width = frameinfo->aligned_width;
@@ -657,6 +662,7 @@ static int delta_s_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 	const struct delta_dec *dec = ctx->dec;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct delta_frameinfo frameinfo;
+	unsigned char str[100] = "";
 	struct vb2_queue *vq;
 	int ret;
 
@@ -709,6 +715,10 @@ static int delta_s_fmt_frame(struct file *file, void *fh, struct v4l2_format *f)
 
 	ctx->flags |= DELTA_FLAG_FRAMEINFO;
 	ctx->frameinfo = frameinfo;
+	dev_dbg(delta->dev,
+		"%s V4L2 SET_FMT (CAPTURE): frameinfo updated to %s\n",
+		ctx->name,
+		delta_frameinfo_str(&frameinfo, str, sizeof(str)));
 
 	pix->pixelformat = frameinfo.pixelformat;
 	pix->width = frameinfo.aligned_width;
@@ -1320,6 +1330,8 @@ static int delta_vb2_au_start_streaming(struct vb2_queue *q,
 	struct vb2_v4l2_buffer *vbuf = NULL;
 	struct delta_streaminfo *streaminfo = &ctx->streaminfo;
 	struct delta_frameinfo *frameinfo = &ctx->frameinfo;
+	unsigned char str1[100] = "";
+	unsigned char str2[100] = "";
 
 	if ((ctx->state != DELTA_STATE_WF_FORMAT) &&
 	    (ctx->state != DELTA_STATE_WF_STREAMINFO))
@@ -1380,6 +1392,10 @@ static int delta_vb2_au_start_streaming(struct vb2_queue *q,
 	ctx->flags |= DELTA_FLAG_FRAMEINFO;
 
 	ctx->state = DELTA_STATE_READY;
+
+	dev_dbg(delta->dev, "%s %s => %s\n", ctx->name,
+		delta_streaminfo_str(streaminfo, str1, sizeof(str1)),
+		delta_frameinfo_str(frameinfo, str2, sizeof(str2)));
 
 	delta_au_done(ctx, au, ret);
 	return 0;
@@ -1707,6 +1723,12 @@ static int delta_release(struct file *file)
 
 	/* close decoder */
 	call_dec_op(dec, close, ctx);
+
+	/*
+	 * trace a summary of instance
+	 * before closing (debug purpose)
+	 */
+	delta_trace_summary(ctx);
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
