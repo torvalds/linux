@@ -3533,6 +3533,44 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 	return 1;
 }
 
+static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+{
+	struct task_struct *curr = current;
+	struct held_lock *hlock;
+	unsigned int depth;
+	int i;
+
+	depth = curr->lockdep_depth;
+	/*
+	 * This function is about (re)setting the class of a held lock,
+	 * yet we're not actually holding any locks. Naughty user!
+	 */
+	if (DEBUG_LOCKS_WARN_ON(!depth))
+		return 0;
+
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
+
+	curr->lockdep_depth = i;
+	curr->curr_chain_key = hlock->prev_chain_key;
+
+	WARN(hlock->read, "downgrading a read lock");
+	hlock->read = 1;
+	hlock->acquire_ip = ip;
+
+	if (reacquire_held_locks(curr, depth, i))
+		return 0;
+
+	/*
+	 * I took it apart and put it back together again, except now I have
+	 * these 'spare' parts.. where shall I put them.
+	 */
+	if (DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth))
+		return 0;
+	return 1;
+}
+
 /*
  * Remove the lock to the list of currently held locks - this gets
  * called on mutex_unlock()/spin_unlock*() (or on a failed
@@ -3758,6 +3796,23 @@ void lock_set_class(struct lockdep_map *lock, const char *name,
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(lock_set_class);
+
+void lock_downgrade(struct lockdep_map *lock, unsigned long ip)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	current->lockdep_recursion = 1;
+	check_flags(flags);
+	if (__lock_downgrade(lock, ip))
+		check_chain_key(current);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_downgrade);
 
 /*
  * We are not always called with irqs disabled - do that here,
