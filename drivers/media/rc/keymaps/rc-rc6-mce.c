@@ -86,6 +86,7 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f045e, KEY_BLUE },
 
 	{ 0x800f0465, KEY_POWER2 },	/* TV Power */
+	{ 0x800f0469, KEY_MESSENGER },
 	{ 0x800f046e, KEY_PLAYPAUSE },
 	{ 0x800f046f, KEY_PLAYER },	/* Start media application (NEW) */
 
