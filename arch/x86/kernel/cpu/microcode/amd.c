@@ -384,8 +384,9 @@ void load_ucode_amd_ap(unsigned int family)
 reget:
 		if (!get_builtin_microcode(&cp, family)) {
 #ifdef CONFIG_BLK_DEV_INITRD
-			cp = find_cpio_data(ucode_path, (void *)initrd_start,
-					    initrd_end - initrd_start, NULL);
+			if (!initrd_gone)
+				cp = find_cpio_data(ucode_path, (void *)initrd_start,
+						    initrd_end - initrd_start, NULL);
 #endif
 			if (!(cp.data && cp.size)) {
 				/*
