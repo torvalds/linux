@@ -98,6 +98,12 @@ static void		rt6_do_redirect(struct dst_entry *dst, struct sock *sk,
 					struct sk_buff *skb);
 static void		rt6_dst_from_metrics_check(struct rt6_info *rt);
 static int rt6_score_route(struct rt6_info *rt, int oif, int strict);
+static size_t rt6_nlmsg_size(struct rt6_info *rt);
+static int rt6_fill_node(struct net *net,
+			 struct sk_buff *skb, struct rt6_info *rt,
+			 struct in6_addr *dst, struct in6_addr *src,
+			 int iif, int type, u32 portid, u32 seq,
+			 unsigned int flags);
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
 static struct rt6_info *rt6_add_route_info(struct net *net,
@@ -2146,6 +2152,7 @@ int ip6_del_rt(struct rt6_info *rt)
 static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 {
 	struct nl_info *info = &cfg->fc_nlinfo;
+	struct sk_buff *skb = NULL;
 	struct fib6_table *table;
 	int err;
 
@@ -2154,6 +2161,20 @@ static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 
 	if (rt->rt6i_nsiblings && cfg->fc_delete_all_nh) {
 		struct rt6_info *sibling, *next_sibling;
+
+		/* prefer to send a single notification with all hops */
+		skb = nlmsg_new(rt6_nlmsg_size(rt), gfp_any());
+		if (skb) {
+			u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
+
+			if (rt6_fill_node(info->nl_net, skb, rt,
+					  NULL, NULL, 0, RTM_DELROUTE,
+					  info->portid, seq, 0) < 0) {
+				kfree_skb(skb);
+				skb = NULL;
+			} else
+				info->skip_notify = 1;
+		}
 
 		list_for_each_entry_safe(sibling, next_sibling,
 					 &rt->rt6i_siblings,
@@ -2168,6 +2189,11 @@ static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 out:
 	write_unlock_bh(&table->tb6_lock);
 	ip6_rt_put(rt);
+
+	if (skb) {
+		rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV6_ROUTE,
+			    info->nlh, gfp_any());
+	}
 	return err;
 }
 
