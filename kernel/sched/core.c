@@ -5557,7 +5557,7 @@ static void migrate_tasks(struct rq *dead_rq)
 {
 	struct rq *rq = dead_rq;
 	struct task_struct *next, *stop = rq->stop;
-	struct rq_flags rf, old_rf;
+	struct rq_flags rf;
 	int dest_cpu;
 
 	/*
@@ -5576,7 +5576,9 @@ static void migrate_tasks(struct rq *dead_rq)
 	 * class method both need to have an up-to-date
 	 * value of rq->clock[_task]
 	 */
+	rq_pin_lock(rq, &rf);
 	update_rq_clock(rq);
+	rq_unpin_lock(rq, &rf);
 
 	for (;;) {
 		/*
@@ -5589,7 +5591,7 @@ static void migrate_tasks(struct rq *dead_rq)
 		/*
 		 * pick_next_task() assumes pinned rq->lock:
 		 */
-		rq_pin_lock(rq, &rf);
+		rq_repin_lock(rq, &rf);
 		next = pick_next_task(rq, &fake_task, &rf);
 		BUG_ON(!next);
 		next->sched_class->put_prev_task(rq, next);
@@ -5618,13 +5620,6 @@ static void migrate_tasks(struct rq *dead_rq)
 			continue;
 		}
 
-		/*
-		 * __migrate_task() may return with a different
-		 * rq->lock held and a new cookie in 'rf', but we need
-		 * to preserve rf::clock_update_flags for 'dead_rq'.
-		 */
-		old_rf = rf;
-
 		/* Find suitable destination for @next, with force if needed. */
 		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
 
@@ -5633,7 +5628,6 @@ static void migrate_tasks(struct rq *dead_rq)
 			raw_spin_unlock(&rq->lock);
 			rq = dead_rq;
 			raw_spin_lock(&rq->lock);
-			rf = old_rf;
 		}
 		raw_spin_unlock(&next->pi_lock);
 	}
