@@ -31,6 +31,10 @@
 #include <sound/control.h>
 #include <sound/pcm.h>
 
+#define AUD_CONFIG_VALID_BIT			(1<<9)
+#define AUD_CONFIG_DP_MODE			(1<<15)
+#define AUD_CONFIG_BLOCK_BIT			(1<<7)
+
 #define HMDI_LPE_AUDIO_DRIVER_NAME		"intel-hdmi-lpe-audio"
 #define HAD_MAX_DEVICES		1
 #define HAD_MIN_CHANNEL		2
@@ -67,6 +71,29 @@
 #define HAD_MAX_HW_BUFS		0x04
 #define HAD_MAX_DIP_WORDS		16
 #define INTEL_HAD		"IntelHdmiLpeAudio"
+
+/* DP Link Rates */
+#define DP_2_7_GHZ			270000
+#define DP_1_62_GHZ			162000
+
+/* Maud Values */
+#define AUD_SAMPLE_RATE_32_DP_2_7_MAUD_VAL		1988
+#define AUD_SAMPLE_RATE_44_1_DP_2_7_MAUD_VAL		2740
+#define AUD_SAMPLE_RATE_48_DP_2_7_MAUD_VAL		2982
+#define AUD_SAMPLE_RATE_88_2_DP_2_7_MAUD_VAL		5480
+#define AUD_SAMPLE_RATE_96_DP_2_7_MAUD_VAL		5965
+#define AUD_SAMPLE_RATE_176_4_DP_2_7_MAUD_VAL		10961
+#define HAD_MAX_RATE_DP_2_7_MAUD_VAL			11930
+#define AUD_SAMPLE_RATE_32_DP_1_62_MAUD_VAL		3314
+#define AUD_SAMPLE_RATE_44_1_DP_1_62_MAUD_VAL		4567
+#define AUD_SAMPLE_RATE_48_DP_1_62_MAUD_VAL		4971
+#define AUD_SAMPLE_RATE_88_2_DP_1_62_MAUD_VAL		9134
+#define AUD_SAMPLE_RATE_96_DP_1_62_MAUD_VAL		9942
+#define AUD_SAMPLE_RATE_176_4_DP_1_62_MAUD_VAL		18268
+#define HAD_MAX_RATE_DP_1_62_MAUD_VAL			19884
+
+/* Naud Value */
+#define DP_NAUD_VAL					32768
 
 /* _AUD_CONFIG register MASK */
 #define AUD_CONFIG_MASK_UNDERRUN	0xC0000000
@@ -618,6 +645,8 @@ enum hdmi_connector_status {
 enum had_caps_list {
 	HAD_GET_ELD = 1,
 	HAD_GET_DISPLAY_RATE,
+	HAD_GET_DP_OUTPUT,
+	HAD_GET_LINK_RATE,
 	HAD_SET_ENABLE_AUDIO,
 	HAD_SET_DISABLE_AUDIO,
 	HAD_SET_ENABLE_AUDIO_INT,

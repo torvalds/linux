@@ -27,10 +27,13 @@
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 
+struct platform_device;
+
 #define HDMI_MAX_ELD_BYTES	128
 
 struct intel_hdmi_lpe_audio_eld {
 	int port_id;
+	int pipe_id;
 	unsigned char eld_data[HDMI_MAX_ELD_BYTES];
 };
 
@@ -38,8 +41,10 @@ struct intel_hdmi_lpe_audio_pdata {
 	bool notify_pending;
 	int tmds_clock_speed;
 	bool hdmi_connected;
+	bool dp_output;
+	int link_rate;
 	struct intel_hdmi_lpe_audio_eld eld;
-	void (*notify_audio_lpe)(void *audio_ptr);
+	void (*notify_audio_lpe)(struct platform_device *pdev);
 	spinlock_t lpe_audio_slock;
 };
 
