@@ -201,8 +201,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper,
-			priv->num_crtcs, priv->num_connectors);
+	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
 	if (ret) {
 		dev_err(dev->dev, "could not init fbdev: ret=%d\n", ret);
 		goto fail;

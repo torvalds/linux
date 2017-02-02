@@ -218,7 +218,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	drm_kms_helper_poll_init(drm);
 
-	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 	if (IS_ERR(mxsfb->fbdev)) {
 		mxsfb->fbdev = NULL;

@@ -387,7 +387,6 @@ int virtio_gpu_fbdev_init(struct virtio_gpu_device *vgdev)
 	drm_fb_helper_prepare(vgdev->ddev, &vgfbdev->helper,
 			      &virtio_gpu_fb_helper_funcs);
 	ret = drm_fb_helper_init(vgdev->ddev, &vgfbdev->helper,
-				 vgdev->num_scanouts,
 				 VIRTIO_GPUFB_CONN_LIMIT);
 	if (ret) {
 		kfree(vgfbdev);

@@ -489,15 +489,14 @@ static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
  * drm_fbdev_cma_init_with_funcs() - Allocate and initializes a drm_fbdev_cma struct
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device
- * @num_crtc: Number of CRTCs
  * @max_conn_count: Maximum number of connectors
  * @funcs: fb helper functions, in particular a custom dirty() callback
  *
  * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
  */
 struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
-	unsigned int preferred_bpp, unsigned int num_crtc,
-	unsigned int max_conn_count, const struct drm_framebuffer_funcs *funcs)
+	unsigned int preferred_bpp, unsigned int max_conn_count,
+	const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fbdev_cma *fbdev_cma;
 	struct drm_fb_helper *helper;
@@ -514,7 +513,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
 
 	drm_fb_helper_prepare(dev, helper, &drm_fb_cma_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, num_crtc, max_conn_count);
+	ret = drm_fb_helper_init(dev, helper, max_conn_count);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to initialize drm fb helper.\n");
 		goto err_free;
@@ -554,11 +553,11 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_init_with_funcs);
  * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
  */
 struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
-	unsigned int preferred_bpp, unsigned int num_crtc,
-	unsigned int max_conn_count)
+	unsigned int preferred_bpp, unsigned int max_conn_count)
 {
-	return drm_fbdev_cma_init_with_funcs(dev, preferred_bpp, num_crtc,
-				max_conn_count, &drm_fb_cma_funcs);
+	return drm_fbdev_cma_init_with_funcs(dev, preferred_bpp,
+					     max_conn_count,
+					     &drm_fb_cma_funcs);
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_init);
 

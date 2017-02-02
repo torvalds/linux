@@ -94,7 +94,7 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
 		legacyfb_depth = 24;
 	}
-	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1, 1);
+	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1);
 	if (IS_ERR(fsl_dev->fbdev)) {
 		ret = PTR_ERR(fsl_dev->fbdev);
 		fsl_dev->fbdev = NULL;

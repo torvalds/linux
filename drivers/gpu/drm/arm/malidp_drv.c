@@ -457,7 +457,7 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	malidp->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	malidp->fbdev = drm_fbdev_cma_init(drm, 32,
 					   drm->mode_config.num_connector);
 
 	if (IS_ERR(malidp->fbdev)) {

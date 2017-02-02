@@ -360,7 +360,7 @@ static int sti_bind(struct device *dev)
 
 	private = ddev->dev_private;
 	if (ddev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(ddev, 32, ddev->mode_config.num_crtc,
+		fbdev = drm_fbdev_cma_init(ddev, 32,
 					   ddev->mode_config.num_connector);
 		if (IS_ERR(fbdev)) {
 			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");

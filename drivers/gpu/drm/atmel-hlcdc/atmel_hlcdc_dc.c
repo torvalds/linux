@@ -647,7 +647,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 	platform_set_drvdata(pdev, dev);
 
 	dc->fbdev = drm_fbdev_cma_init(dev, 24,
-			dev->mode_config.num_crtc,
 			dev->mode_config.num_connector);
 	if (IS_ERR(dc->fbdev))
 		dc->fbdev = NULL;

@@ -286,7 +286,7 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
-				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
+				 MGAG200FB_CONN_LIMIT);
 	if (ret)
 		goto err_fb_helper;
 

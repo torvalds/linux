@@ -279,7 +279,6 @@ static int meson_drv_probe(struct platform_device *pdev)
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 
 	priv->fbdev = drm_fbdev_cma_init(drm, 32,
-					 drm->mode_config.num_crtc,
 					 drm->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);

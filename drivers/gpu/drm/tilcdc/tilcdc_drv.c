@@ -403,8 +403,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	drm_mode_config_reset(ddev);
 
 	priv->fbdev = drm_fbdev_cma_init(ddev, bpp,
-			ddev->mode_config.num_crtc,
-			ddev->mode_config.num_connector);
+					 ddev->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
 		goto init_failed;

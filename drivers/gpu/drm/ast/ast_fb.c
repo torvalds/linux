@@ -315,8 +315,7 @@ int ast_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &afbdev->helper, &ast_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &afbdev->helper,
-				 1, 1);
+	ret = drm_fb_helper_init(dev, &afbdev->helper, 1);
 	if (ret)
 		goto free;
 

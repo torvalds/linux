@@ -59,8 +59,7 @@ static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
 		drm_fbdev_cma_hotplug_event(priv->fbdev);
 	} else {
 		priv->fbdev = drm_fbdev_cma_init(dev, 32,
-				dev->mode_config.num_crtc,
-				dev->mode_config.num_connector);
+						 dev->mode_config.num_connector);
 		if (IS_ERR(priv->fbdev))
 			priv->fbdev = NULL;
 	}

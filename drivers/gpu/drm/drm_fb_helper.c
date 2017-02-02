@@ -712,7 +712,6 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  * drm_fb_helper_init - initialize a drm_fb_helper structure
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
- * @crtc_count: maximum number of crtcs to support in this fbdev emulation
  * @max_conn_count: max connector count
  *
  * This allocates the structures for the fbdev helper with the given limits.
@@ -727,9 +726,10 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  */
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper,
-		       int crtc_count, int max_conn_count)
+		       int max_conn_count)
 {
 	struct drm_crtc *crtc;
+	struct drm_mode_config *config = &dev->mode_config;
 	int i;
 
 	if (!drm_fbdev_emulation)
@@ -738,11 +738,11 @@ int drm_fb_helper_init(struct drm_device *dev,
 	if (!max_conn_count)
 		return -EINVAL;
 
-	fb_helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
+	fb_helper->crtc_info = kcalloc(config->num_crtc, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
 	if (!fb_helper->crtc_info)
 		return -ENOMEM;
 
-	fb_helper->crtc_count = crtc_count;
+	fb_helper->crtc_count = config->num_crtc;
 	fb_helper->connector_info = kcalloc(dev->mode_config.num_connector, sizeof(struct drm_fb_helper_connector *), GFP_KERNEL);
 	if (!fb_helper->connector_info) {
 		kfree(fb_helper->crtc_info);
@@ -751,7 +751,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 	fb_helper->connector_info_alloc_count = dev->mode_config.num_connector;
 	fb_helper->connector_count = 0;
 
-	for (i = 0; i < crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++) {
 		fb_helper->crtc_info[i].mode_set.connectors =
 			kcalloc(max_conn_count,
 				sizeof(struct drm_connector *),

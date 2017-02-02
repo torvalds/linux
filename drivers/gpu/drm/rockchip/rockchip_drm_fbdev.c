@@ -129,19 +129,16 @@ int rockchip_drm_fbdev_init(struct drm_device *dev)
 {
 	struct rockchip_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
-	unsigned int num_crtc;
 	int ret;
 
 	if (!dev->mode_config.num_crtc || !dev->mode_config.num_connector)
 		return -EINVAL;
 
-	num_crtc = dev->mode_config.num_crtc;
-
 	helper = &private->fbdev_helper;
 
 	drm_fb_helper_prepare(dev, helper, &rockchip_drm_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, num_crtc, ROCKCHIP_MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper, ROCKCHIP_MAX_CONNECTOR);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to initialize drm fb helper - %d.\n",
 			ret);

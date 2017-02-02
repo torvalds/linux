@@ -564,7 +564,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
-				 dev_priv->ops->crtcs, INTELFB_CONN_LIMIT);
+				 INTELFB_CONN_LIMIT);
 	if (ret)
 		goto free;
 

@@ -309,7 +309,7 @@ static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 	struct drm_device *drm = fbdev->base.dev;
 	int err;
 
-	err = drm_fb_helper_init(drm, &fbdev->base, num_crtc, max_connectors);
+	err = drm_fb_helper_init(drm, &fbdev->base, max_connectors);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize DRM FB helper: %d\n",
 			err);
