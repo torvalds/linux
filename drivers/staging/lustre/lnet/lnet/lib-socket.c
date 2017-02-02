@@ -97,7 +97,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 		return -EINVAL;
 	}
 
-	CLASSERT(sizeof(ifr.ifr_name) >= IFNAMSIZ);
+	BUILD_BUG_ON(sizeof(ifr.ifr_name) < IFNAMSIZ);
 
 	if (strlen(name) > sizeof(ifr.ifr_name) - 1)
 		return -E2BIG;

@@ -3070,7 +3070,7 @@ void ptlrpc_init_xid(void)
 	}
 
 	/* Always need to be aligned to a power-of-two for multi-bulk BRW */
-	CLASSERT(((PTLRPC_BULK_OPS_COUNT - 1) & PTLRPC_BULK_OPS_COUNT) == 0);
+	BUILD_BUG_ON(((PTLRPC_BULK_OPS_COUNT - 1) & PTLRPC_BULK_OPS_COUNT) != 0);
 	ptlrpc_last_xid &= PTLRPC_BULK_OPS_MASK;
 }
 
@@ -3256,7 +3256,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
 
-	CLASSERT(sizeof(*args) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*args) > sizeof(req->rq_async_args));
 	args = ptlrpc_req_async_args(req);
 	args->cb = cb;
 	args->cbdata = cbdata;

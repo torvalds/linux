@@ -1120,7 +1120,7 @@ struct lu_context_key {
 	{							 \
 		type *value;				      \
 								  \
-		CLASSERT(PAGE_SIZE >= sizeof(*value));        \
+		BUILD_BUG_ON(PAGE_SIZE < sizeof(*value));        \
 								  \
 		value = kzalloc(sizeof(*value), GFP_NOFS);	\
 		if (!value)				\

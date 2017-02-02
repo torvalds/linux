@@ -1196,7 +1196,7 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 		return rc;
 	}
 
-	CLASSERT(sizeof(*ga) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*ga) > sizeof(req->rq_async_args));
 	ga = ptlrpc_req_async_args(req);
 	ga->ga_exp = exp;
 	ga->ga_minfo = minfo;

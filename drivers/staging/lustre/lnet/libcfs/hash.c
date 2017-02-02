@@ -1000,7 +1000,7 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	struct cfs_hash *hs;
 	int len;
 
-	CLASSERT(CFS_HASH_THETA_BITS < 15);
+	BUILD_BUG_ON(CFS_HASH_THETA_BITS >= 15);
 
 	LASSERT(name);
 	LASSERT(ops->hs_key);

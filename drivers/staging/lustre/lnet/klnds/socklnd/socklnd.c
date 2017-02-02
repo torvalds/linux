@@ -2904,8 +2904,8 @@ static int __init ksocklnd_init(void)
 	int rc;
 
 	/* check ksnr_connected/connecting field large enough */
-	CLASSERT(SOCKLND_CONN_NTYPES <= 4);
-	CLASSERT(SOCKLND_CONN_ACK == SOCKLND_CONN_BULK_IN);
+	BUILD_BUG_ON(SOCKLND_CONN_NTYPES > 4);
+	BUILD_BUG_ON(SOCKLND_CONN_ACK != SOCKLND_CONN_BULK_IN);
 
 	/* initialize the_ksocklnd */
 	the_ksocklnd.lnd_type     = SOCKLND;

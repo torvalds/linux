@@ -2311,7 +2311,7 @@ struct cl_io *cl_io_top(struct cl_io *io);
 do {									\
 	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	BUILD_BUG_ON(offsetof(typeof(*__foo_io), base) != 0);		\
 	memset(&__foo_io->base + 1, 0,					\
 	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)

@@ -295,7 +295,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 	if (opcode == MDS_REINT) {
 		struct mdt_rec_setxattr *rec;
 
-		CLASSERT(sizeof(struct mdt_rec_setxattr) ==
+		BUILD_BUG_ON(sizeof(struct mdt_rec_setxattr) !=
 			 sizeof(struct mdt_rec_reint));
 		rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 		rec->sx_opcode = REINT_SETXATTR;

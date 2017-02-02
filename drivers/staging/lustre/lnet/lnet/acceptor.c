@@ -149,7 +149,7 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	int port;
 	int fatal;
 
-	CLASSERT(sizeof(cr) <= 16);	    /* not too big to be on the stack */
+	BUILD_BUG_ON(sizeof(cr) > 16);	    /* too big to be on the stack */
 
 	for (port = LNET_ACCEPTOR_MAX_RESERVED_PORT;
 	     port >= LNET_ACCEPTOR_MIN_RESERVED_PORT;
@@ -164,7 +164,7 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 			continue;
 		}
 
-		CLASSERT(LNET_PROTO_ACCEPTOR_VERSION == 1);
+		BUILD_BUG_ON(LNET_PROTO_ACCEPTOR_VERSION != 1);
 
 		cr.acr_magic   = LNET_PROTO_ACCEPTOR_MAGIC;
 		cr.acr_version = LNET_PROTO_ACCEPTOR_VERSION;
