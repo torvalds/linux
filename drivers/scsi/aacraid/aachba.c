@@ -1516,6 +1516,77 @@ static int aac_scsi_32_64(struct fib * fib, struct scsi_cmnd * cmd)
 	return aac_scsi_32(fib, cmd);
 }
 
+int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target)
+{
+	struct fib *fibptr;
+	struct aac_srb *srbcmd;
+	struct sgmap64 *sg64;
+	struct aac_ciss_identify_pd *identify_resp;
+	dma_addr_t addr;
+	u32 vbus, vid;
+	u16 fibsize, datasize;
+	int rcode = -ENOMEM;
+
+	fibptr = aac_fib_alloc(dev);
+	if (!fibptr)
+		goto out;
+
+	fibsize = sizeof(struct aac_srb) -
+			sizeof(struct sgentry) + sizeof(struct sgentry64);
+	datasize = sizeof(struct aac_ciss_identify_pd);
+
+	identify_resp =  pci_alloc_consistent(dev->pdev, datasize, &addr);
+
+	if (!identify_resp)
+		goto fib_free_ptr;
+
+	vbus = (u32)le16_to_cpu(dev->supplement_adapter_info.VirtDeviceBus);
+	vid = (u32)le16_to_cpu(dev->supplement_adapter_info.VirtDeviceTarget);
+
+	aac_fib_init(fibptr);
+
+	srbcmd = (struct aac_srb *) fib_data(fibptr);
+	srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi);
+	srbcmd->channel  = cpu_to_le32(vbus);
+	srbcmd->id       = cpu_to_le32(vid);
+	srbcmd->lun      = 0;
+	srbcmd->flags    = cpu_to_le32(SRB_DataIn);
+	srbcmd->timeout  = cpu_to_le32(10);
+	srbcmd->retry_limit = 0;
+	srbcmd->cdb_size = cpu_to_le32(12);
+	srbcmd->count = cpu_to_le32(datasize);
+
+	memset(srbcmd->cdb, 0, sizeof(srbcmd->cdb));
+	srbcmd->cdb[0] = 0x26;
+	srbcmd->cdb[2] = (u8)((AAC_MAX_LUN + target) & 0x00FF);
+	srbcmd->cdb[6] = CISS_IDENTIFY_PHYSICAL_DEVICE;
+
+	sg64 = (struct sgmap64 *)&srbcmd->sg;
+	sg64->count = cpu_to_le32(1);
+	sg64->sg[0].addr[1] = cpu_to_le32((u32)(((addr) >> 16) >> 16));
+	sg64->sg[0].addr[0] = cpu_to_le32((u32)(addr & 0xffffffff));
+	sg64->sg[0].count = cpu_to_le32(datasize);
+
+	rcode = aac_fib_send(ScsiPortCommand64,
+		fibptr, fibsize, FsaNormal, 1, 1, NULL, NULL);
+
+	if (identify_resp->current_queue_depth_limit <= 0 ||
+		identify_resp->current_queue_depth_limit > 32)
+		dev->hba_map[bus][target].qd_limit = 32;
+	else
+		dev->hba_map[bus][target].qd_limit =
+			identify_resp->current_queue_depth_limit;
+
+	pci_free_consistent(dev->pdev, datasize, (void *)identify_resp, addr);
+
+	aac_fib_complete(fibptr);
+
+fib_free_ptr:
+	aac_fib_free(fibptr);
+out:
+	return rcode;
+}
+
 /**
  *	aac_update hba_map()-	update current hba map with data from FW
  *	@dev:	aac_dev structure
@@ -1564,6 +1635,9 @@ void aac_update_hba_map(struct aac_dev *dev,
 
 		if (devtype != AAC_DEVTYPE_NATIVE_RAW)
 			goto update_devtype;
+
+		if (aac_issue_bmic_identify(dev, bus, target) < 0)
+			dev->hba_map[bus][target].qd_limit = 32;
 
 update_devtype:
 		dev->hba_map[bus][target].devtype = devtype;
@@ -1711,8 +1785,10 @@ int aac_get_adapter_info(struct aac_dev* dev)
 
 	/* reset all previous mapped devices (i.e. for init. after IOP_RESET) */
 	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
-		for (target = 0; target < AAC_MAX_TARGETS; target++)
+		for (target = 0; target < AAC_MAX_TARGETS; target++) {
 			dev->hba_map[bus][target].devtype = 0;
+			dev->hba_map[bus][target].qd_limit = 0;
+		}
 	}
 
 	/*

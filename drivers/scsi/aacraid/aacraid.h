@@ -74,7 +74,7 @@ enum {
 #define AAC_NUM_IO_FIB		(1024 - AAC_NUM_MGT_FIB)
 #define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
-#define AAC_MAX_LUN		(8)
+#define AAC_MAX_LUN		(256)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
 #define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
@@ -89,6 +89,7 @@ enum {
 
 #define CISS_REPORT_PHYSICAL_LUNS	0xc3
 #define WRITE_HOST_WELLNESS		0xa5
+#define CISS_IDENTIFY_PHYSICAL_DEVICE	0x15
 #define BMIC_IN			0x26
 #define BMIC_OUT			0x27
 
@@ -109,6 +110,82 @@ struct aac_ciss_phys_luns_resp {
  * Interrupts
  */
 #define AAC_MAX_HRRQ		64
+
+struct aac_ciss_identify_pd {
+	u8 scsi_bus;			/* SCSI Bus number on controller */
+	u8 scsi_id;			/* SCSI ID on this bus */
+	u16 block_size;			/* sector size in bytes */
+	u32 total_blocks;		/* number for sectors on drive */
+	u32 reserved_blocks;		/* controller reserved (RIS) */
+	u8 model[40];			/* Physical Drive Model */
+	u8 serial_number[40];		/* Drive Serial Number */
+	u8 firmware_revision[8];	/* drive firmware revision */
+	u8 scsi_inquiry_bits;		/* inquiry byte 7 bits */
+	u8 compaq_drive_stamp;		/* 0 means drive not stamped */
+	u8 last_failure_reason;
+
+	u8  flags;
+	u8  more_flags;
+	u8  scsi_lun;			/* SCSI LUN for phys drive */
+	u8  yet_more_flags;
+	u8  even_more_flags;
+	u32 spi_speed_rules;		/* SPI Speed :Ultra disable diagnose */
+	u8  phys_connector[2];		/* connector number on controller */
+	u8  phys_box_on_bus;		/* phys enclosure this drive resides */
+	u8  phys_bay_in_box;		/* phys drv bay this drive resides */
+	u32 rpm;			/* Drive rotational speed in rpm */
+	u8  device_type;		/* type of drive */
+	u8  sata_version;		/* only valid when drive_type is SATA */
+	u64 big_total_block_count;
+	u64 ris_starting_lba;
+	u32 ris_size;
+	u8  wwid[20];
+	u8  controller_phy_map[32];
+	u16 phy_count;
+	u8  phy_connected_dev_type[256];
+	u8  phy_to_drive_bay_num[256];
+	u16 phy_to_attached_dev_index[256];
+	u8  box_index;
+	u8  spitfire_support;
+	u16 extra_physical_drive_flags;
+	u8  negotiated_link_rate[256];
+	u8  phy_to_phy_map[256];
+	u8  redundant_path_present_map;
+	u8  redundant_path_failure_map;
+	u8  active_path_number;
+	u16 alternate_paths_phys_connector[8];
+	u8  alternate_paths_phys_box_on_port[8];
+	u8  multi_lun_device_lun_count;
+	u8  minimum_good_fw_revision[8];
+	u8  unique_inquiry_bytes[20];
+	u8  current_temperature_degreesC;
+	u8  temperature_threshold_degreesC;
+	u8  max_temperature_degreesC;
+	u8  logical_blocks_per_phys_block_exp;	/* phyblocksize = 512 * 2^exp */
+	u16 current_queue_depth_limit;
+	u8  switch_name[10];
+	u16 switch_port;
+	u8  alternate_paths_switch_name[40];
+	u8  alternate_paths_switch_port[8];
+	u16 power_on_hours;		/* valid only if gas gauge supported */
+	u16 percent_endurance_used;	/* valid only if gas gauge supported. */
+	u8  drive_authentication;
+	u8  smart_carrier_authentication;
+	u8  smart_carrier_app_fw_version;
+	u8  smart_carrier_bootloader_fw_version;
+	u8  SanitizeSecureEraseSupport;
+	u8  DriveKeyFlags;
+	u8  encryption_key_name[64];
+	u32 misc_drive_flags;
+	u16 dek_index;
+	u16 drive_encryption_flags;
+	u8  sanitize_maximum_time[6];
+	u8  connector_info_mode;
+	u8  connector_info_number[4];
+	u8  long_connector_name[64];
+	u8  device_unique_identifier[16];
+	u8  padto_2K[17];
+} __packed;
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -1032,6 +1109,7 @@ struct aac_hba_map_info {
 	u8		devtype;	/* device type */
 	u8		reset_state;	/* 0 - no reset, 1..x - */
 					/* after xth TM LUN reset */
+	u16		qd_limit;
 	u8		expose;		/*checks if to expose or not*/
 };
 
@@ -2240,6 +2318,7 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr);
+int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
