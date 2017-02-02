@@ -15,6 +15,4 @@ void sha_transform(__u32 *digest, const char *data, __u32 *W);
 
 void md5_transform(__u32 *hash, __u32 const *in);
 
-__u32 half_md4_transform(__u32 buf[4], __u32 const in[8]);
-
 #endif
