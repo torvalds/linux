@@ -1130,6 +1130,7 @@ struct aac_bus_info_response {
 #define AAC_OPT_SUPPLEMENT_ADAPTER_INFO	cpu_to_le32(1<<16)
 #define AAC_OPT_NEW_COMM		cpu_to_le32(1<<17)
 #define AAC_OPT_NEW_COMM_64		cpu_to_le32(1<<18)
+#define AAC_OPT_EXTENDED		cpu_to_le32(1<<23)
 #define AAC_OPT_NEW_COMM_TYPE1		cpu_to_le32(1<<28)
 #define AAC_OPT_NEW_COMM_TYPE2		cpu_to_le32(1<<29)
 #define AAC_OPT_NEW_COMM_TYPE3		cpu_to_le32(1<<30)
@@ -1140,6 +1141,8 @@ struct aac_bus_info_response {
 #define AAC_COMM_MESSAGE_TYPE1		3
 #define AAC_COMM_MESSAGE_TYPE2		4
 #define AAC_COMM_MESSAGE_TYPE3		5
+
+#define AAC_EXTOPT_SA_FIRMWARE		cpu_to_le32(1<<1)
 
 /* MSIX context */
 struct aac_msix_ctx {
@@ -1272,6 +1275,7 @@ struct aac_dev
 	u8			printf_enabled;
 	u8			in_reset;
 	u8			msi;
+	u8			sa_firmware;
 	int			management_fib_count;
 	spinlock_t		manage_lock;
 	spinlock_t		sync_lock;

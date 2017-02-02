@@ -75,14 +75,22 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 
 	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) ||
 		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) ||
-		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE3))
+		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 &&
+		!dev->sa_firmware)) {
 		host_rrq_size =
 			(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB)
 				* sizeof(u32);
-	else
+		aac_init_size = sizeof(union aac_init);
+	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 &&
+		dev->sa_firmware) {
+		host_rrq_size = (dev->scsi_host_ptr->can_queue
+			+ AAC_NUM_MGT_FIB) * sizeof(u32)  * AAC_MAX_MSIX;
+		aac_init_size = sizeof(union aac_init) +
+			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq);
+	} else {
 		host_rrq_size = 0;
-
-	aac_init_size = sizeof(union aac_init);
+		aac_init_size = sizeof(union aac_init);
+	}
 	size = fibsize + aac_init_size + commsize + commalign +
 			printfbufsiz + host_rrq_size;
 
@@ -466,9 +474,13 @@ void aac_define_int_mode(struct aac_dev *dev)
 		if (dev->max_msix > msi_count)
 			dev->max_msix = msi_count;
 	}
-	dev->vector_cap =
-		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) /
-		msi_count;
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3 && dev->sa_firmware)
+		dev->vector_cap = dev->scsi_host_ptr->can_queue +
+				AAC_NUM_MGT_FIB;
+	else
+		dev->vector_cap = (dev->scsi_host_ptr->can_queue +
+				AAC_NUM_MGT_FIB) / msi_count;
+
 }
 struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 {
@@ -527,6 +539,12 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 				dev->sync_mode = 1;
 			}
 		}
+		if ((status[1] & le32_to_cpu(AAC_OPT_EXTENDED)) &&
+			(status[4] & le32_to_cpu(AAC_EXTOPT_SA_FIRMWARE)))
+			dev->sa_firmware = 1;
+		else
+			dev->sa_firmware = 0;
+
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
 		    (status[2] > dev->base_size)) {
 			aac_adapter_ioremap(dev, 0);
@@ -563,60 +581,24 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		dev->sg_tablesize = status[2] & 0xFFFF;
 		if (dev->pdev->device == PMC_DEVICE_S7 ||
 		    dev->pdev->device == PMC_DEVICE_S8 ||
-		    dev->pdev->device == PMC_DEVICE_S9)
-			host->can_queue = ((status[3] >> 16) ? (status[3] >> 16) :
-				(status[3] & 0xFFFF)) - AAC_NUM_MGT_FIB;
-		else
-			host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
+		    dev->pdev->device == PMC_DEVICE_S9) {
+			if (host->can_queue > (status[3] >> 16) -
+					AAC_NUM_MGT_FIB)
+				host->can_queue = (status[3] >> 16) -
+					AAC_NUM_MGT_FIB;
+		} else if (host->can_queue > (status[3] & 0xFFFF) -
+				AAC_NUM_MGT_FIB)
+			host->can_queue = (status[3] & 0xFFFF) -
+				AAC_NUM_MGT_FIB;
+
 		dev->max_num_aif = status[4] & 0xFFFF;
-		/*
-		 *	NOTE:
-		 *	All these overrides are based on a fixed internal
-		 *	knowledge and understanding of existing adapters,
-		 *	acbsize should be set with caution.
-		 */
-		if (acbsize == 512) {
-			host->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
-			dev->max_fib_size = 512;
-			dev->sg_tablesize = host->sg_tablesize
-			  = (512 - sizeof(struct aac_fibhdr)
-			    - sizeof(struct aac_write) + sizeof(struct sgentry))
-			     / sizeof(struct sgentry);
-			host->can_queue = AAC_NUM_IO_FIB;
-		} else if (acbsize == 2048) {
-			host->max_sectors = 512;
-			dev->max_fib_size = 2048;
-			host->sg_tablesize = 65;
-			dev->sg_tablesize = 81;
-			host->can_queue = 512 - AAC_NUM_MGT_FIB;
-		} else if (acbsize == 4096) {
-			host->max_sectors = 1024;
-			dev->max_fib_size = 4096;
-			host->sg_tablesize = 129;
-			dev->sg_tablesize = 166;
-			host->can_queue = 256 - AAC_NUM_MGT_FIB;
-		} else if (acbsize == 8192) {
-			host->max_sectors = 2048;
-			dev->max_fib_size = 8192;
-			host->sg_tablesize = 257;
-			dev->sg_tablesize = 337;
-			host->can_queue = 128 - AAC_NUM_MGT_FIB;
-		} else if (acbsize > 0) {
-			printk("Illegal acbsize=%d ignored\n", acbsize);
-		}
 	}
-	{
-
-		if (numacb > 0) {
-			if (numacb < host->can_queue)
-				host->can_queue = numacb;
-			else
-				printk("numacb=%d ignored\n", numacb);
-		}
+	if (numacb > 0) {
+		if (numacb < host->can_queue)
+			host->can_queue = numacb;
+		else
+			pr_warn("numacb=%d ignored\n", numacb);
 	}
-
-	if (host->can_queue > AAC_NUM_IO_FIB)
-		host->can_queue = AAC_NUM_IO_FIB;
 
 	if (dev->pdev->device == PMC_DEVICE_S6 ||
 	    dev->pdev->device == PMC_DEVICE_S7 ||
