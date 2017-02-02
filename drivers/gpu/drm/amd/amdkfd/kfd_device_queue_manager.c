@@ -472,54 +472,9 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 int init_pipelines(struct device_queue_manager *dqm,
 			unsigned int pipes_num, unsigned int first_pipe)
 {
-	void *hpdptr;
-	struct mqd_manager *mqd;
-	unsigned int i, err, inx;
-	uint64_t pipe_hpd_addr;
-
 	BUG_ON(!dqm || !dqm->dev);
 
 	pr_debug("kfd: In func %s\n", __func__);
-
-	/*
-	 * Allocate memory for the HPDs. This is hardware-owned per-pipe data.
-	 * The driver never accesses this memory after zeroing it.
-	 * It doesn't even have to be saved/restored on suspend/resume
-	 * because it contains no data when there are no active queues.
-	 */
-
-	err = kfd_gtt_sa_allocate(dqm->dev, CIK_HPD_EOP_BYTES * pipes_num,
-					&dqm->pipeline_mem);
-
-	if (err) {
-		pr_err("kfd: error allocate vidmem num pipes: %d\n",
-			pipes_num);
-		return -ENOMEM;
-	}
-
-	hpdptr = dqm->pipeline_mem->cpu_ptr;
-	dqm->pipelines_addr = dqm->pipeline_mem->gpu_addr;
-
-	memset(hpdptr, 0, CIK_HPD_EOP_BYTES * pipes_num);
-
-	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (mqd == NULL) {
-		kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < pipes_num; i++) {
-		inx = i + first_pipe;
-		/*
-		 * HPD buffer on GTT is allocated by amdkfd, no need to waste
-		 * space in GTT for pipelines we don't initialize
-		 */
-		pipe_hpd_addr = dqm->pipelines_addr + i * CIK_HPD_EOP_BYTES;
-		pr_debug("kfd: pipeline address %llX\n", pipe_hpd_addr);
-		/* = log2(bytes/4)-1 */
-		dqm->dev->kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
-				CIK_HPD_EOP_BYTES_LOG2 - 3, pipe_hpd_addr);
-	}
 
 	return 0;
 }

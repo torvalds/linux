@@ -244,18 +244,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
-	uint32_t mec = (++pipe_id / CIK_PIPE_PER_MEC) + 1;
-	uint32_t pipe = (pipe_id % CIK_PIPE_PER_MEC);
-
-	lock_srbm(kgd, mec, pipe, 0, 0);
-	WREG32(mmCP_HPD_EOP_BASE_ADDR, lower_32_bits(hpd_gpu_addr >> 8));
-	WREG32(mmCP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(hpd_gpu_addr >> 8));
-	WREG32(mmCP_HPD_EOP_VMID, 0);
-	WREG32(mmCP_HPD_EOP_CONTROL, hpd_size);
-	unlock_srbm(kgd);
-
+	/* amdgpu owns the per-pipe state */
 	return 0;
 }
 

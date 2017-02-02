@@ -865,20 +865,28 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 	const __le32 *fw_data;
 	unsigned fw_size;
 	u32 *fw;
+	size_t mec_hpd_size;
 
 	const struct gfx_firmware_header_v1_0 *mec_hdr;
 
-	/*
-	 * we assign only 1 pipe because all other pipes will
-	 * be handled by KFD
-	 */
-	adev->gfx.mec.num_mec = 1;
-	adev->gfx.mec.num_pipe = 1;
-	adev->gfx.mec.num_queue = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * 8;
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		adev->gfx.mec.num_mec = 2;
+		break;
+	default:
+		adev->gfx.mec.num_mec = 1;
+		break;
+	}
+
+	adev->gfx.mec.num_pipe_per_mec = 4;
+	adev->gfx.mec.num_queue_per_pipe = 8;
+
+	/* only 1 pipe of the first MEC is owned by amdgpu */
+	mec_hpd_size = 1 * 1 * adev->gfx.mec.num_queue_per_pipe * GFX9_MEC_HPD_SIZE;
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				     adev->gfx.mec.num_queue * GFX9_MEC_HPD_SIZE,
+				     mec_hpd_size,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);

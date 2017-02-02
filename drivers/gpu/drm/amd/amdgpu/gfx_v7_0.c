@@ -2827,6 +2827,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
 	u32 *hpd;
+	size_t mec_hpd_size;
 
 	/*
 	 * KV:    2 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 64 Queues total
@@ -2834,13 +2835,26 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	 * Nonetheless, we assign only 1 pipe because all other pipes will
 	 * be handled by KFD
 	 */
-	adev->gfx.mec.num_mec = 1;
-	adev->gfx.mec.num_pipe = 1;
-	adev->gfx.mec.num_queue = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * 8;
+	switch (adev->asic_type) {
+	case CHIP_KAVERI:
+		adev->gfx.mec.num_mec = 2;
+		break;
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+	default:
+		adev->gfx.mec.num_mec = 1;
+		break;
+	}
+	adev->gfx.mec.num_pipe_per_mec = 4;
+	adev->gfx.mec.num_queue_per_pipe = 8;
 
+	mec_hpd_size = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec
+		* GFX7_MEC_HPD_SIZE * 2;
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				     adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * GFX7_MEC_HPD_SIZE * 2,
+				     mec_hpd_size,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
@@ -2870,7 +2884,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	}
 
 	/* clear memory.  Not sure if this is required or not */
-	memset(hpd, 0, adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * GFX7_MEC_HPD_SIZE * 2);
+	memset(hpd, 0, mec_hpd_size);
 
 	amdgpu_bo_kunmap(adev->gfx.mec.hpd_eop_obj);
 	amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
@@ -2917,16 +2931,18 @@ struct hqd_registers
 	u32 cp_mqd_control;
 };
 
-static void gfx_v7_0_compute_pipe_init(struct amdgpu_device *adev, int me, int pipe)
+static void gfx_v7_0_compute_pipe_init(struct amdgpu_device *adev,
+				       int mec, int pipe)
 {
 	u64 eop_gpu_addr;
 	u32 tmp;
-	size_t eop_offset = me * pipe * GFX7_MEC_HPD_SIZE * 2;
+	size_t eop_offset = (mec * adev->gfx.mec.num_pipe_per_mec + pipe)
+			    * GFX7_MEC_HPD_SIZE * 2;
 
 	mutex_lock(&adev->srbm_mutex);
 	eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + eop_offset;
 
-	cik_srbm_select(adev, me, pipe, 0, 0);
+	cik_srbm_select(adev, mec + 1, pipe, 0, 0);
 
 	/* write the EOP addr */
 	WREG32(mmCP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
@@ -3208,9 +3224,9 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 	tmp |= (1 << 23);
 	WREG32(mmCP_CPF_DEBUG, tmp);
 
-	/* init the pipes */
+	/* init all pipes (even the ones we don't own) */
 	for (i = 0; i < adev->gfx.mec.num_mec; i++)
-		for (j = 0; j < adev->gfx.mec.num_pipe; j++)
+		for (j = 0; j < adev->gfx.mec.num_pipe_per_mec; j++)
 			gfx_v7_0_compute_pipe_init(adev, i, j);
 
 	/* init the queues */

@@ -902,9 +902,9 @@ struct amdgpu_mec {
 	u64			hpd_eop_gpu_addr;
 	struct amdgpu_bo	*mec_fw_obj;
 	u64			mec_fw_gpu_addr;
-	u32 num_pipe;
 	u32 num_mec;
-	u32 num_queue;
+	u32 num_pipe_per_mec;
+	u32 num_queue_per_pipe;
 	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS + 1];
 };
 
