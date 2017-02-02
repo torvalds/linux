@@ -1214,11 +1214,15 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
  */
 int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	const struct intel_device_info *match_info =
+		(struct intel_device_info *)ent->driver_data;
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	if (i915.nuclear_pageflip)
-		driver.driver_features |= DRIVER_ATOMIC;
+	/* Enable nuclear pageflip on ILK+, except vlv/chv */
+	if (!i915.nuclear_pageflip &&
+	    (match_info->gen < 5 || match_info->has_gmch_display))
+		driver.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = -ENOMEM;
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
@@ -2624,7 +2628,7 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
-	    DRIVER_RENDER | DRIVER_MODESET,
+	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
