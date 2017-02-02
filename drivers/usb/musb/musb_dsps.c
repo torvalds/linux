@@ -293,7 +293,7 @@ static void otg_timer(unsigned long _musb)
 	pm_runtime_put_autosuspend(dev);
 }
 
-void dsps_musb_clear_ep_rxintr(struct musb *musb, int epnum)
+static void dsps_musb_clear_ep_rxintr(struct musb *musb, int epnum)
 {
 	u32 epintr;
 	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
