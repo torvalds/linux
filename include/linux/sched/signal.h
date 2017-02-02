@@ -20,6 +20,22 @@ struct sighand_struct {
 };
 
 /*
+ * Per-process accounting stats:
+ */
+struct pacct_struct {
+	int			ac_flag;
+	long			ac_exitcode;
+	unsigned long		ac_mem;
+	u64			ac_utime, ac_stime;
+	unsigned long		ac_minflt, ac_majflt;
+};
+
+struct cpu_itimer {
+	u64 expires;
+	u64 incr;
+};
+
+/*
  * NOTE! "signal_struct" does not have its own
  * locking, because a shared signal_struct always
  * implies a shared sighand_struct, so locking

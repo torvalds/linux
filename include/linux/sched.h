@@ -326,19 +326,6 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 static inline void arch_pick_mmap_layout(struct mm_struct *mm) {}
 #endif
 
-struct pacct_struct {
-	int			ac_flag;
-	long			ac_exitcode;
-	unsigned long		ac_mem;
-	u64			ac_utime, ac_stime;
-	unsigned long		ac_minflt, ac_majflt;
-};
-
-struct cpu_itimer {
-	u64 expires;
-	u64 incr;
-};
-
 /**
  * struct prev_cputime - snaphsot of system and user cputime
  * @utime: time spent in user mode
