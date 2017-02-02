@@ -263,7 +263,7 @@ static void snd_intelhad_enable_audio(struct snd_pcm_substream *substream,
 				      struct snd_intelhad *intelhaddata,
 				      bool enable)
 {
-	union aud_cfg cfg_val = {.cfg_regval = 0};
+	union aud_cfg cfg_val = {.regval = 0};
 	u8 channels, data, mask;
 
 	/*
@@ -271,9 +271,9 @@ static void snd_intelhad_enable_audio(struct snd_pcm_substream *substream,
 	 * In this case just set channels to 2
 	 */
 	channels = substream ? substream->runtime->channels : 2;
-	cfg_val.cfg_regx.num_ch = channels - 2;
+	cfg_val.regx.num_ch = channels - 2;
 
-	data = cfg_val.cfg_regval;
+	data = cfg_val.regval;
 	if (enable)
 		data |= 1;
 	mask = AUD_CONFIG_CH_MASK | 1;
@@ -310,39 +310,39 @@ static void snd_intelhad_reset_audio(struct snd_intelhad *intelhaddata,
 static int had_prog_status_reg(struct snd_pcm_substream *substream,
 			struct snd_intelhad *intelhaddata)
 {
-	union aud_cfg cfg_val = {.cfg_regval = 0};
-	union aud_ch_status_0 ch_stat0 = {.status_0_regval = 0};
-	union aud_ch_status_1 ch_stat1 = {.status_1_regval = 0};
+	union aud_cfg cfg_val = {.regval = 0};
+	union aud_ch_status_0 ch_stat0 = {.regval = 0};
+	union aud_ch_status_1 ch_stat1 = {.regval = 0};
 	int format;
 
-	ch_stat0.status_0_regx.lpcm_id = (intelhaddata->aes_bits &
+	ch_stat0.regx.lpcm_id = (intelhaddata->aes_bits &
 					  IEC958_AES0_NONAUDIO) >> 1;
-	ch_stat0.status_0_regx.clk_acc = (intelhaddata->aes_bits &
+	ch_stat0.regx.clk_acc = (intelhaddata->aes_bits &
 					  IEC958_AES3_CON_CLOCK) >> 4;
-	cfg_val.cfg_regx.val_bit = ch_stat0.status_0_regx.lpcm_id;
+	cfg_val.regx.val_bit = ch_stat0.regx.lpcm_id;
 
 	switch (substream->runtime->rate) {
 	case AUD_SAMPLE_RATE_32:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_32KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_32KHZ;
 		break;
 
 	case AUD_SAMPLE_RATE_44_1:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_44KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_44KHZ;
 		break;
 	case AUD_SAMPLE_RATE_48:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_48KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_48KHZ;
 		break;
 	case AUD_SAMPLE_RATE_88_2:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_88KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_88KHZ;
 		break;
 	case AUD_SAMPLE_RATE_96:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_96KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_96KHZ;
 		break;
 	case AUD_SAMPLE_RATE_176_4:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_176KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_176KHZ;
 		break;
 	case AUD_SAMPLE_RATE_192:
-		ch_stat0.status_0_regx.samp_freq = CH_STATUS_MAP_192KHZ;
+		ch_stat0.regx.samp_freq = CH_STATUS_MAP_192KHZ;
 		break;
 
 	default:
@@ -351,23 +351,23 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	}
 
 	had_write_register(intelhaddata,
-			   AUD_CH_STATUS_0, ch_stat0.status_0_regval);
+			   AUD_CH_STATUS_0, ch_stat0.regval);
 
 	format = substream->runtime->format;
 
 	if (format == SNDRV_PCM_FORMAT_S16_LE) {
-		ch_stat1.status_1_regx.max_wrd_len = MAX_SMPL_WIDTH_20;
-		ch_stat1.status_1_regx.wrd_len = SMPL_WIDTH_16BITS;
+		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_20;
+		ch_stat1.regx.wrd_len = SMPL_WIDTH_16BITS;
 	} else if (format == SNDRV_PCM_FORMAT_S24_LE) {
-		ch_stat1.status_1_regx.max_wrd_len = MAX_SMPL_WIDTH_24;
-		ch_stat1.status_1_regx.wrd_len = SMPL_WIDTH_24BITS;
+		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_24;
+		ch_stat1.regx.wrd_len = SMPL_WIDTH_24BITS;
 	} else {
-		ch_stat1.status_1_regx.max_wrd_len = 0;
-		ch_stat1.status_1_regx.wrd_len = 0;
+		ch_stat1.regx.max_wrd_len = 0;
+		ch_stat1.regx.wrd_len = 0;
 	}
 
 	had_write_register(intelhaddata,
-			   AUD_CH_STATUS_1, ch_stat1.status_1_regval);
+			   AUD_CH_STATUS_1, ch_stat1.regval);
 	return 0;
 }
 
@@ -379,26 +379,26 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 static int snd_intelhad_audio_ctrl(struct snd_pcm_substream *substream,
 				   struct snd_intelhad *intelhaddata)
 {
-	union aud_cfg cfg_val = {.cfg_regval = 0};
-	union aud_buf_config buf_cfg = {.buf_cfgval = 0};
+	union aud_cfg cfg_val = {.regval = 0};
+	union aud_buf_config buf_cfg = {.regval = 0};
 	u8 channels;
 
 	had_prog_status_reg(substream, intelhaddata);
 
-	buf_cfg.buf_cfg_regx.audio_fifo_watermark = FIFO_THRESHOLD;
-	buf_cfg.buf_cfg_regx.dma_fifo_watermark = DMA_FIFO_THRESHOLD;
-	buf_cfg.buf_cfg_regx.aud_delay = 0;
-	had_write_register(intelhaddata, AUD_BUF_CONFIG, buf_cfg.buf_cfgval);
+	buf_cfg.regx.audio_fifo_watermark = FIFO_THRESHOLD;
+	buf_cfg.regx.dma_fifo_watermark = DMA_FIFO_THRESHOLD;
+	buf_cfg.regx.aud_delay = 0;
+	had_write_register(intelhaddata, AUD_BUF_CONFIG, buf_cfg.regval);
 
 	channels = substream->runtime->channels;
-	cfg_val.cfg_regx.num_ch = channels - 2;
+	cfg_val.regx.num_ch = channels - 2;
 	if (channels <= 2)
-		cfg_val.cfg_regx.layout = LAYOUT0;
+		cfg_val.regx.layout = LAYOUT0;
 	else
-		cfg_val.cfg_regx.layout = LAYOUT1;
+		cfg_val.regx.layout = LAYOUT1;
 
-	cfg_val.cfg_regx.val_bit = 1;
-	had_write_register(intelhaddata, AUD_CONFIG, cfg_val.cfg_regval);
+	cfg_val.regx.val_bit = 1;
+	had_write_register(intelhaddata, AUD_CONFIG, cfg_val.regval);
 	return 0;
 }
 
@@ -618,49 +618,49 @@ static void snd_intelhad_prog_dip(struct snd_pcm_substream *substream,
 				  struct snd_intelhad *intelhaddata)
 {
 	int i;
-	union aud_ctrl_st ctrl_state = {.ctrl_val = 0};
-	union aud_info_frame2 frame2 = {.fr2_val = 0};
-	union aud_info_frame3 frame3 = {.fr3_val = 0};
+	union aud_ctrl_st ctrl_state = {.regval = 0};
+	union aud_info_frame2 frame2 = {.regval = 0};
+	union aud_info_frame3 frame3 = {.regval = 0};
 	u8 checksum = 0;
 	u32 info_frame;
 	int channels;
 
 	channels = substream->runtime->channels;
 
-	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.ctrl_val);
+	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.regval);
 
 	if (intelhaddata->dp_output) {
 		info_frame = DP_INFO_FRAME_WORD1;
-		frame2.fr2_val = 1;
+		frame2.regval = 1;
 	} else {
 		info_frame = HDMI_INFO_FRAME_WORD1;
-		frame2.fr2_regx.chnl_cnt = substream->runtime->channels - 1;
+		frame2.regx.chnl_cnt = substream->runtime->channels - 1;
 
-		frame3.fr3_regx.chnl_alloc = snd_intelhad_channel_allocation(
+		frame3.regx.chnl_alloc = snd_intelhad_channel_allocation(
 			intelhaddata, channels);
 
 		/* Calculte the byte wide checksum for all valid DIP words */
 		for (i = 0; i < BYTES_PER_WORD; i++)
-			checksum += (info_frame >> i*BITS_PER_BYTE) & MASK_BYTE0;
+			checksum += (info_frame >> (i * 8)) & 0xff;
 		for (i = 0; i < BYTES_PER_WORD; i++)
-			checksum += (frame2.fr2_val >> i*BITS_PER_BYTE) & MASK_BYTE0;
+			checksum += (frame2.regval >> (i * 8)) & 0xff;
 		for (i = 0; i < BYTES_PER_WORD; i++)
-			checksum += (frame3.fr3_val >> i*BITS_PER_BYTE) & MASK_BYTE0;
+			checksum += (frame3.regval >> (i * 8)) & 0xff;
 
-		frame2.fr2_regx.chksum = -(checksum);
+		frame2.regx.chksum = -(checksum);
 	}
 
 	had_write_register(intelhaddata, AUD_HDMIW_INFOFR, info_frame);
-	had_write_register(intelhaddata, AUD_HDMIW_INFOFR, frame2.fr2_val);
-	had_write_register(intelhaddata, AUD_HDMIW_INFOFR, frame3.fr3_val);
+	had_write_register(intelhaddata, AUD_HDMIW_INFOFR, frame2.regval);
+	had_write_register(intelhaddata, AUD_HDMIW_INFOFR, frame3.regval);
 
 	/* program remaining DIP words with zero */
 	for (i = 0; i < HAD_MAX_DIP_WORDS-VALID_DIP_WORDS; i++)
 		had_write_register(intelhaddata, AUD_HDMIW_INFOFR, 0x0);
 
-	ctrl_state.ctrl_regx.dip_freq = 1;
-	ctrl_state.ctrl_regx.dip_en_sta = 1;
-	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.ctrl_val);
+	ctrl_state.regx.dip_freq = 1;
+	ctrl_state.regx.dip_en_sta = 1;
+	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.regval);
 }
 
 /*

@@ -199,13 +199,7 @@ struct channel_map_table {
 	int spk_mask;                   /* speaker position bit mask */
 };
 
-/**
- * union aud_cfg - Audio configuration
- *
- * @cfg_regx: individual register bits
- * @cfg_regval: full register value
- *
- */
+/* Audio configuration */
 union aud_cfg {
 	struct {
 		u32 aud_en:1;
@@ -222,17 +216,11 @@ union aud_cfg {
 		u32 bogus_sample:1;
 		u32 dp_modei:1;
 		u32 rsvd:16;
-	} cfg_regx;
-	u32 cfg_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ch_status_0 - Audio Channel Status 0 Attributes
- *
- * @status_0_regx:individual register bits
- * @status_0_regval:full register value
- *
- */
+/* Audio Channel Status 0 Attributes */
 union aud_ch_status_0 {
 	struct {
 		u32 ch_status:1;
@@ -246,65 +234,41 @@ union aud_ch_status_0 {
 		u32 samp_freq:4;
 		u32 clk_acc:2;
 		u32 rsvd:2;
-	} status_0_regx;
-	u32 status_0_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ch_status_1 - Audio Channel Status 1 Attributes
- *
- * @status_1_regx: individual register bits
- * @status_1_regval: full register value
- *
- */
+/* Audio Channel Status 1 Attributes */
 union aud_ch_status_1 {
 	struct {
 		u32 max_wrd_len:1;
 		u32 wrd_len:3;
 		u32 rsvd:28;
-		} status_1_regx;
-	u32 status_1_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_hdmi_cts - CTS register
- *
- * @cts_regx: individual register bits
- * @cts_regval: full register value
- *
- */
+/* CTS register */
 union aud_hdmi_cts {
 	struct {
 		u32 cts_val:24;
 		u32 en_cts_prog:1;
 		u32 rsvd:7;
-	} cts_regx;
-	u32 cts_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_hdmi_n_enable - N register
- *
- * @n_regx: individual register bits
- * @n_regval: full register value
- *
- */
+/* N register */
 union aud_hdmi_n_enable {
 	struct {
 		u32 n_val:24;
 		u32 en_n_prog:1;
 		u32 rsvd:7;
-	} n_regx;
-	u32 n_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_config -  Audio Buffer configurations
- *
- * @buf_cfg_regx: individual register bits
- * @buf_cfgval: full register value
- *
- */
+/* Audio Buffer configurations */
 union aud_buf_config {
 	struct {
 		u32 audio_fifo_watermark:8;
@@ -312,17 +276,11 @@ union aud_buf_config {
 		u32 rsvd0:5;
 		u32 aud_delay:8;
 		u32 rsvd1:8;
-	} buf_cfg_regx;
-	u32 buf_cfgval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_ch_swap - Audio Sample Swapping offset
- *
- * @buf_ch_swap_regx: individual register bits
- * @buf_ch_swap_val: full register value
- *
- */
+/* Audio Sample Swapping offset */
 union aud_buf_ch_swap {
 	struct {
 		u32 first_0:3;
@@ -334,49 +292,31 @@ union aud_buf_ch_swap {
 		u32 first_3:3;
 		u32 second_3:3;
 		u32 rsvd:8;
-	} buf_ch_swap_regx;
-	u32 buf_ch_swap_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_addr - Address for Audio Buffer
- *
- * @buf_addr_regx: individual register bits
- * @buf_addr_val: full register value
- *
- */
+/* Address for Audio Buffer */
 union aud_buf_addr {
 	struct {
 		u32 valid:1;
 		u32 intr_en:1;
 		u32 rsvd:4;
 		u32 addr:26;
-	} buf_addr_regx;
-	u32 buf_addr_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_len - Length of Audio Buffer
- *
- * @buf_len_regx: individual register bits
- * @buf_len_val: full register value
- *
- */
+/* Length of Audio Buffer */
 union aud_buf_len {
 	struct {
 		u32 buf_len:20;
 		u32 rsvd:12;
-	} buf_len_regx;
-	u32 buf_len_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ctrl_st - Audio Control State Register offset
- *
- * @ctrl_regx: individual register bits
- * @ctrl_val: full register value
- *
- */
+/* Audio Control State Register offset */
 union aud_ctrl_st {
 	struct {
 		u32 ram_addr:4;
@@ -389,34 +329,22 @@ union aud_ctrl_st {
 		u32 dip_idx:3;
 		u32 dip_en_sta:4;
 		u32 rsvd:7;
-	} ctrl_regx;
-	u32 ctrl_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame1 - Audio HDMI Widget Data Island Packet offset
- *
- * @fr1_regx: individual register bits
- * @fr1_val: full register value
- *
- */
+/* Audio HDMI Widget Data Island Packet offset */
 union aud_info_frame1 {
 	struct {
 		u32 pkt_type:8;
 		u32 ver_num:8;
 		u32 len:5;
 		u32 rsvd:11;
-	} fr1_regx;
-	u32 fr1_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame2 - DIP frame 2
- *
- * @fr2_regx: individual register bits
- * @fr2_val: full register value
- *
- */
+/* DIP frame 2 */
 union aud_info_frame2 {
 	struct {
 		u32 chksum:8;
@@ -427,17 +355,11 @@ union aud_info_frame2 {
 		u32 smpl_freq:3;
 		u32 rsvd1:3;
 		u32 format:8;
-	} fr2_regx;
-	u32 fr2_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame3 - DIP frame 3
- *
- * @fr3_regx: individual register bits
- * @fr3_val: full register value
- *
- */
+/* DIP frame 3 */
 union aud_info_frame3 {
 	struct {
 		u32 chnl_alloc:8;
@@ -445,8 +367,8 @@ union aud_info_frame3 {
 		u32 lsv:4;
 		u32 dm_inh:1;
 		u32 rsvd1:16;
-	} fr3_regx;
-	u32 fr3_val;
+	} regx;
+	u32 regval;
 };
 
 #define HDMI_AUDIO_UNDERRUN     (1UL<<31)
