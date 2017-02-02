@@ -286,43 +286,6 @@ extern int sched_cpu_dying(unsigned int cpu);
 
 extern void sched_show_task(struct task_struct *p);
 
-#ifdef CONFIG_LOCKUP_DETECTOR
-extern void touch_softlockup_watchdog_sched(void);
-extern void touch_softlockup_watchdog(void);
-extern void touch_softlockup_watchdog_sync(void);
-extern void touch_all_softlockup_watchdogs(void);
-extern int proc_dowatchdog_thresh(struct ctl_table *table, int write,
-				  void __user *buffer,
-				  size_t *lenp, loff_t *ppos);
-extern unsigned int  softlockup_panic;
-extern unsigned int  hardlockup_panic;
-void lockup_detector_init(void);
-#else
-static inline void touch_softlockup_watchdog_sched(void)
-{
-}
-static inline void touch_softlockup_watchdog(void)
-{
-}
-static inline void touch_softlockup_watchdog_sync(void)
-{
-}
-static inline void touch_all_softlockup_watchdogs(void)
-{
-}
-static inline void lockup_detector_init(void)
-{
-}
-#endif
-
-#ifdef CONFIG_DETECT_HUNG_TASK
-void reset_hung_task_detector(void);
-#else
-static inline void reset_hung_task_detector(void)
-{
-}
-#endif
-
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 
