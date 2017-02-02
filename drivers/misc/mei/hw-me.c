@@ -140,6 +140,19 @@ static inline void mei_hcsr_set(struct mei_device *dev, u32 reg)
 }
 
 /**
+ * mei_hcsr_set_hig - set host interrupt (set H_IG)
+ *
+ * @dev: the device structure
+ */
+static inline void mei_hcsr_set_hig(struct mei_device *dev)
+{
+	u32 hcsr;
+
+	hcsr = mei_hcsr_read(dev) | H_IG;
+	mei_hcsr_set(dev, hcsr);
+}
+
+/**
  * mei_me_d0i3c_read - Reads 32bit data from the D0I3C register
  *
  * @dev: the device structure
@@ -505,7 +518,6 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 	unsigned long rem;
 	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
-	u32 hcsr;
 	u32 dw_cnt;
 	int i;
 	int empty_slots;
@@ -532,8 +544,7 @@ static int mei_me_hbuf_write(struct mei_device *dev,
 		mei_me_hcbww_write(dev, reg);
 	}
 
-	hcsr = mei_hcsr_read(dev) | H_IG;
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set_hig(dev);
 	if (!mei_me_hw_is_ready(dev))
 		return -EIO;
 
@@ -580,7 +591,6 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 		    unsigned long buffer_length)
 {
 	u32 *reg_buf = (u32 *)buffer;
-	u32 hcsr;
 
 	for (; buffer_length >= sizeof(u32); buffer_length -= sizeof(u32))
 		*reg_buf++ = mei_me_mecbrw_read(dev);
@@ -591,8 +601,7 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 		memcpy(reg_buf, &reg, buffer_length);
 	}
 
-	hcsr = mei_hcsr_read(dev) | H_IG;
-	mei_hcsr_set(dev, hcsr);
+	mei_hcsr_set_hig(dev);
 	return 0;
 }
 
