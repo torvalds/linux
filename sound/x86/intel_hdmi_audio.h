@@ -76,16 +76,13 @@ struct pcm_stream_info {
 	u64		buffer_rendered;
 	u32		ring_buf_size;
 	int substream_refcount;
+	bool running;
 };
 
 struct ring_buf_info {
 	u32	buf_addr;
 	u32	buf_size;
 	u8	is_valid;
-};
-
-struct had_stream_data {
-	enum had_status_stream		stream_type;
 };
 
 /**
@@ -115,7 +112,6 @@ struct snd_intelhad {
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;
 	unsigned int	aes_bits;
-	struct had_stream_data stream_data;
 	spinlock_t had_spinlock;
 	enum		intel_had_aud_buf_type buff_done;
 	struct device *dev;

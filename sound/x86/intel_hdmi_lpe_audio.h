@@ -223,14 +223,6 @@ union otm_hdmi_eld_t {
 	} __packed;
 };
 
-/**
- * enum had_status_stream - HAD stream states
- */
-enum had_status_stream {
-	HAD_INIT = 0,
-	HAD_RUNNING_STREAM,
-};
-
 enum had_drv_status {
 	HAD_DRV_CONNECTED,
 	HAD_DRV_RUNNING,
