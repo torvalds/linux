@@ -37,8 +37,10 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/dns_resolver.h>
 #include <linux/err.h>
+
 #include <keys/dns_resolver-type.h>
 #include <keys/user-type.h>
 

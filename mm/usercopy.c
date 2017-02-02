@@ -16,6 +16,7 @@
 
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <asm/sections.h>
 
 enum {

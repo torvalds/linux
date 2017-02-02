@@ -7,6 +7,7 @@
  * the Free Software Foundation.
  */
 
+#include <uapi/linux/magic.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/xattr.h>

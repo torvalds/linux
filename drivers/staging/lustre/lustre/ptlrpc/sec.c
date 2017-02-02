@@ -38,6 +38,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include <linux/crypto.h>
+#include <linux/cred.h>
 #include <linux/key.h>
 
 #include "../include/obd.h"

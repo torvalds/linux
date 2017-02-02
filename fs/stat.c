@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/cred.h>
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 

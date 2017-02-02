@@ -13,6 +13,7 @@
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
 #include <linux/mm.h>
+#include <linux/cred.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/gfs2_ondisk.h>
