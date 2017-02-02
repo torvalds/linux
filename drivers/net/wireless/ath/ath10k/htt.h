@@ -1636,7 +1636,7 @@ struct ath10k_htt {
 		int size;
 
 		/* size - 1 */
-		unsigned size_mask;
+		unsigned int size_mask;
 
 		/* how many rx buffers to keep in the ring */
 		int fill_level;
@@ -1657,7 +1657,7 @@ struct ath10k_htt {
 
 		/* where HTT SW has processed bufs filled by rx MAC DMA */
 		struct {
-			unsigned msdu_payld;
+			unsigned int msdu_payld;
 		} sw_rd_idx;
 
 		/*
