@@ -1774,15 +1774,20 @@ static inline int uld_send(struct adapter *adap, struct sk_buff *skb,
 	struct sge_uld_txq *txq;
 	unsigned int idx = skb_txq(skb);
 
-	txq_info = adap->sge.uld_txq_info[tx_uld_type];
-	txq = &txq_info->uldtxq[idx];
-
 	if (unlikely(is_ctrl_pkt(skb))) {
 		/* Single ctrl queue is a requirement for LE workaround path */
 		if (adap->tids.nsftids)
 			idx = 0;
 		return ctrl_xmit(&adap->sge.ctrlq[idx], skb);
 	}
+
+	txq_info = adap->sge.uld_txq_info[tx_uld_type];
+	if (unlikely(!txq_info)) {
+		WARN_ON(true);
+		return NET_XMIT_DROP;
+	}
+
+	txq = &txq_info->uldtxq[idx];
 	return ofld_xmit(txq, skb);
 }
 
