@@ -710,6 +710,10 @@ xfs_dq_get_next_id(
 	/* Simple advance */
 	next_id = *id + 1;
 
+	/* If we'd wrap past the max ID, stop */
+	if (next_id < *id)
+		return -ENOENT;
+
 	/* If new ID is within the current chunk, advancing it sufficed */
 	if (next_id % mp->m_quotainfo->qi_dqperchunk) {
 		*id = next_id;
