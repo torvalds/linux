@@ -2659,7 +2659,8 @@ static int musb_suspend(struct device *dev)
 
 	musb_platform_disable(musb);
 	musb_disable_interrupts(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	if (!(musb->io.quirks & MUSB_PRESERVE_SESSION))
+		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	WARN_ON(!list_empty(&musb->pending_list));
 
 	spin_lock_irqsave(&musb->lock, flags);
