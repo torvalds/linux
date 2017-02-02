@@ -163,6 +163,13 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
+config REGULATOR_CPCAP
+	tristate "Motorola CPCAP regulator"
+	depends on MFD_CPCAP
+	help
+	  Say y here for CPCAP regulator found on some Motorola phones
+	  and tablets such as Droid 4.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
