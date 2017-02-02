@@ -895,6 +895,23 @@ config CRYPTO_AES
 
 	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
 
+config CRYPTO_AES_TI
+	tristate "Fixed time AES cipher"
+	select CRYPTO_ALGAPI
+	help
+	  This is a generic implementation of AES that attempts to eliminate
+	  data dependent latencies as much as possible without affecting
+	  performance too much. It is intended for use by the generic CCM
+	  and GCM drivers, and other CTR or CMAC/XCBC based modes that rely
+	  solely on encryption (although decryption is supported as well, but
+	  with a more dramatic performance hit)
+
+	  Instead of using 16 lookup tables of 1 KB each, (8 for encryption and
+	  8 for decryption), this implementation only uses just two S-boxes of
+	  256 bytes each, and attempts to eliminate data dependent latencies by
+	  prefetching the entire table into the cache at the start of each
+	  block.
+
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
 	depends on (X86 || UML_X86) && !64BIT
