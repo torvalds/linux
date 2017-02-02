@@ -1063,6 +1063,35 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	return bss_iter_data.vif;
 }
 
+struct iwl_sta_iter_data {
+	bool assoc;
+};
+
+static void iwl_mvm_sta_iface_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_sta_iter_data *data = _data;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (vif->bss_conf.assoc)
+		data->assoc = true;
+}
+
+bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm)
+{
+	struct iwl_sta_iter_data data = {
+		.assoc = false,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_sta_iface_iterator,
+						   &data);
+	return data.assoc;
+}
+
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    bool tdls, bool cmd_q)

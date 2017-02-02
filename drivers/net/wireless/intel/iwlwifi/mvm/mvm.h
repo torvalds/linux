@@ -1827,6 +1827,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     u32 size);
 void iwl_mvm_reorder_timer_expired(unsigned long data);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
+bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
 
