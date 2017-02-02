@@ -1144,7 +1144,9 @@ static int aac_read_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u3
 	long ret;
 
 	aac_fib_init(fib);
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 && !dev->sync_mode) {
+	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 ||
+		dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) &&
+		!dev->sync_mode) {
 		struct aac_raw_io2 *readcmd2;
 		readcmd2 = (struct aac_raw_io2 *) fib_data(fib);
 		memset(readcmd2, 0, sizeof(struct aac_raw_io2));
@@ -1270,7 +1272,9 @@ static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u
 	long ret;
 
 	aac_fib_init(fib);
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 && !dev->sync_mode) {
+	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 ||
+		dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) &&
+		!dev->sync_mode) {
 		struct aac_raw_io2 *writecmd2;
 		writecmd2 = (struct aac_raw_io2 *) fib_data(fib);
 		memset(writecmd2, 0, sizeof(struct aac_raw_io2));

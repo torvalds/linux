@@ -129,11 +129,14 @@ int aac_fib_setup(struct aac_dev * dev)
 	struct hw_fib *hw_fib;
 	dma_addr_t hw_fib_pa;
 	int i;
+	u32 max_cmds;
 
 	while (((i = fib_map_alloc(dev)) == -ENOMEM)
 	 && (dev->scsi_host_ptr->can_queue > (64 - AAC_NUM_MGT_FIB))) {
-		dev->init->MaxIoCommands = cpu_to_le32((dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) >> 1);
-		dev->scsi_host_ptr->can_queue = le32_to_cpu(dev->init->MaxIoCommands) - AAC_NUM_MGT_FIB;
+		max_cmds = (dev->scsi_host_ptr->can_queue+AAC_NUM_MGT_FIB) >> 1;
+		dev->scsi_host_ptr->can_queue = max_cmds - AAC_NUM_MGT_FIB;
+		if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE3)
+			dev->init->r7.max_io_commands = cpu_to_le32(max_cmds);
 	}
 	if (i<0)
 		return -ENOMEM;
@@ -761,7 +764,8 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	unsigned long qflags;
 
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
-	    dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+		dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 ||
+		dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
 		kfree(hw_fib);
 		return 0;
 	}
@@ -1817,7 +1821,8 @@ int aac_command_thread(void *data)
 				 * and pre-allocate a set of fibs outside the
 				 * lock.
 				 */
-				num = le32_to_cpu(dev->init->AdapterFibsSize)
+				num = le32_to_cpu(dev->init->
+							r7.adapter_fibs_size)
 				    / sizeof(struct hw_fib); /* some extra */
 				spin_lock_irqsave(&dev->fib_lock, flagv);
 				entry = dev->fib_list.next;

@@ -384,7 +384,7 @@ static void aac_src_notify_adapter(struct aac_dev *dev, u32 event)
 
 static void aac_src_start_adapter(struct aac_dev *dev)
 {
-	struct aac_init *init;
+	union aac_init *init;
 	int i;
 
 	 /* reset host_rrq_idx first */
@@ -395,11 +395,22 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 	dev->fibs_pushed_no = 0;
 
 	init = dev->init;
-	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
+		init->r8.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
+			(u32)(ulong)dev->init_pa,
+			(u32)((ulong)dev->init_pa>>32),
+			sizeof(struct _r8) +
+			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq),
+			0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+	} else {
+		init->r7.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		// We can only use a 32 bit address here
+		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
+			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
+			NULL, NULL, NULL, NULL, NULL);
+	}
 
-	/* We can only use a 32 bit address here */
-	src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
-	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -467,7 +478,8 @@ static int aac_src_deliver_message(struct fib *fib)
 
 	atomic_inc(&dev->rrq_outstanding[vector_no]);
 
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) ||
+		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)) {
 		/* Calculate the amount to the fibsize bits */
 		fibsize = (hdr_size + 127) / 128 - 1;
 		if (fibsize > (ALIGN32 - 1))
@@ -897,7 +909,8 @@ int aac_srcv_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
-	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE2)
+	if ((dev->comm_interface != AAC_COMM_MESSAGE_TYPE2) &&
+		(dev->comm_interface != AAC_COMM_MESSAGE_TYPE3))
 		goto error_iounmap;
 	if (dev->msi_enabled)
 		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
