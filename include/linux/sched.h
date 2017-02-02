@@ -22,7 +22,6 @@
 #include <linux/kcov.h>
 #include <linux/task_io_accounting.h>
 #include <linux/latencytop.h>
-#include <linux/gfp.h>
 #include <linux/topology.h>
 #include <linux/magic.h>
 
