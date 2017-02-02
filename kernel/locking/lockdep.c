@@ -3437,13 +3437,49 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 	return 0;
 }
 
+/* @depth must not be zero */
+static struct held_lock *find_held_lock(struct task_struct *curr,
+					struct lockdep_map *lock,
+					unsigned int depth, int *idx)
+{
+	struct held_lock *ret, *hlock, *prev_hlock;
+	int i;
+
+	i = depth - 1;
+	hlock = curr->held_locks + i;
+	ret = hlock;
+	if (match_held_lock(hlock, lock))
+		goto out;
+
+	ret = NULL;
+	for (i--, prev_hlock = hlock--;
+	     i >= 0;
+	     i--, prev_hlock = hlock--) {
+		/*
+		 * We must not cross into another context:
+		 */
+		if (prev_hlock->irq_context != hlock->irq_context) {
+			ret = NULL;
+			break;
+		}
+		if (match_held_lock(hlock, lock)) {
+			ret = hlock;
+			break;
+		}
+	}
+
+out:
+	*idx = i;
+	return ret;
+}
+
 static int
 __lock_set_class(struct lockdep_map *lock, const char *name,
 		 struct lock_class_key *key, unsigned int subclass,
 		 unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class *class;
 	unsigned int depth;
 	int i;
@@ -3456,21 +3492,10 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return 0;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
-	}
-	return print_unlock_imbalance_bug(curr, lock, ip);
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
 
-found_it:
 	lockdep_init_map(lock, name, key, 0);
 	class = register_lock_class(lock, subclass, 0);
 	hlock->class_idx = class - lock_classes + 1;
@@ -3508,7 +3533,7 @@ static int
 __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	unsigned int depth;
 	int i;
 
@@ -3527,21 +3552,10 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 	 * Check whether the lock exists in the current stack
 	 * of held locks:
 	 */
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
-	}
-	return print_unlock_imbalance_bug(curr, lock, ip);
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock)
+		return print_unlock_imbalance_bug(curr, lock, ip);
 
-found_it:
 	if (hlock->instance == lock)
 		lock_release_holdtime(hlock);
 
@@ -3903,7 +3917,7 @@ static void
 __lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
 	int i, contention_point, contending_point;
@@ -3916,22 +3930,12 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock) {
+		print_lock_contention_bug(curr, lock, ip);
+		return;
 	}
-	print_lock_contention_bug(curr, lock, ip);
-	return;
 
-found_it:
 	if (hlock->instance != lock)
 		return;
 
@@ -3955,7 +3959,7 @@ static void
 __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
-	struct held_lock *hlock, *prev_hlock;
+	struct held_lock *hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
 	u64 now, waittime = 0;
@@ -3969,22 +3973,12 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return;
 
-	prev_hlock = NULL;
-	for (i = depth-1; i >= 0; i--) {
-		hlock = curr->held_locks + i;
-		/*
-		 * We must not cross into another context:
-		 */
-		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
-			break;
-		if (match_held_lock(hlock, lock))
-			goto found_it;
-		prev_hlock = hlock;
+	hlock = find_held_lock(curr, lock, depth, &i);
+	if (!hlock) {
+		print_lock_contention_bug(curr, lock, _RET_IP_);
+		return;
 	}
-	print_lock_contention_bug(curr, lock, _RET_IP_);
-	return;
 
-found_it:
 	if (hlock->instance != lock)
 		return;
 
