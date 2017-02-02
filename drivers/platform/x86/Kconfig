@@ -1086,7 +1086,7 @@ config INTEL_TURBO_MAX_3
 
 config SILEAD_DMI
 	bool "Tablets with Silead touchscreens"
-	depends on ACPI && DMI && I2C && INPUT
+	depends on ACPI && DMI && I2C=y && INPUT
 	---help---
 	  Certain ACPI based tablets with Silead touchscreens do not have
 	  enough data in ACPI tables for the touchscreen driver to handle
