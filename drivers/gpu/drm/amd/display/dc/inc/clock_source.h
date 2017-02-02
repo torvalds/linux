@@ -94,7 +94,7 @@ struct pixel_clk_params {
 	enum dc_color_depth color_depth;
 	struct csdp_ref_clk_ds_params de_spread_params;
 /*> de-spread info, relevant only for on-the-fly tune-up pixel rate*/
-
+	enum dc_pixel_encoding pixel_encoding;
 	struct pixel_clk_flags flags;
 };
 

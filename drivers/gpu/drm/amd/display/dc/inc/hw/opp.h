@@ -86,6 +86,7 @@ struct bit_depth_reduction_params {
 	uint32_t r_seed_value;
 	uint32_t b_seed_value;
 	uint32_t g_seed_value;
+	enum dc_pixel_encoding pixel_encoding;
 };
 
 enum wide_gamut_regamma_mode {

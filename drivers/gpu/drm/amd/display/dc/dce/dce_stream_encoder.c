@@ -367,14 +367,20 @@ static void dce110_stream_encoder_hdmi_set_stream_attribute(
 			HDMI_DEEP_COLOR_ENABLE, 1);
 		break;
 	case COLOR_DEPTH_121212:
-		REG_UPDATE_2(HDMI_CONTROL,
-			HDMI_DEEP_COLOR_DEPTH, 2,
-			HDMI_DEEP_COLOR_ENABLE, 1);
+		if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+			REG_UPDATE_2(HDMI_CONTROL,
+					HDMI_DEEP_COLOR_DEPTH, 2,
+					HDMI_DEEP_COLOR_ENABLE, 0);
+		} else {
+			REG_UPDATE_2(HDMI_CONTROL,
+					HDMI_DEEP_COLOR_DEPTH, 2,
+					HDMI_DEEP_COLOR_ENABLE, 1);
+			}
 		break;
 	case COLOR_DEPTH_161616:
 		REG_UPDATE_2(HDMI_CONTROL,
-			HDMI_DEEP_COLOR_DEPTH, 3,
-			HDMI_DEEP_COLOR_ENABLE, 1);
+				HDMI_DEEP_COLOR_DEPTH, 3,
+				HDMI_DEEP_COLOR_ENABLE, 1);
 		break;
 	default:
 		break;

@@ -814,6 +814,9 @@ void dce110_resource_build_bit_depth_reduction_params(
 		fmt_bit_depth->flags.HIGHPASS_RANDOM = 1;
 		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
 		fmt_bit_depth->flags.TRUNCATE_DEPTH = 2;
+
+		fmt_bit_depth->pixel_encoding =
+				stream->public.timing.pixel_encoding;
 	}
 
 	return;

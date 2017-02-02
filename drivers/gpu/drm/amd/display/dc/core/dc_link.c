@@ -1267,6 +1267,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
 	struct core_link *link = stream->sink->link;
+	enum dc_color_depth display_color_depth;
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_write_scdc_data(
@@ -1277,10 +1278,14 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	memset(&stream->sink->link->public.cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
 
+	display_color_depth = stream->public.timing.display_color_depth;
+	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
+		display_color_depth = COLOR_DEPTH_888;
+
 	link->link_enc->funcs->enable_tmds_output(
 			link->link_enc,
 			pipe_ctx->clock_source->id,
-			stream->public.timing.display_color_depth,
+			display_color_depth,
 			pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A,
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK,
 			stream->phy_pix_clk);
