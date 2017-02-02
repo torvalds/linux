@@ -80,7 +80,7 @@ struct ring_buf_info {
  * struct snd_intelhad - intelhad driver structure
  *
  * @card: ptr to hold card details
- * @drv_status: driver status
+ * @connected: the monitor connection status
  * @buf_info: ring buffer info
  * @stream_info: stream information
  * @eld: holds ELD info
@@ -95,7 +95,7 @@ struct ring_buf_info {
  */
 struct snd_intelhad {
 	struct snd_card	*card;
-	enum had_drv_status	drv_status;
+	bool		connected;
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
 	unsigned char	eld[HDMI_MAX_ELD_BYTES];

@@ -82,14 +82,6 @@
 /* Naud Value */
 #define DP_NAUD_VAL					32768
 
-enum had_drv_status {
-	HAD_DRV_CONNECTED,
-	HAD_DRV_RUNNING,
-	HAD_DRV_DISCONNECTED,
-	HAD_DRV_SUSPENDED,
-	HAD_DRV_ERR,
-};
-
 /* enum intel_had_aud_buf_type - HDMI controller ring buffer types */
 enum intel_had_aud_buf_type {
 	HAD_BUF_TYPE_A = 0,
