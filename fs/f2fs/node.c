@@ -1374,7 +1374,8 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	up_read(&sbi->node_write);
 
 	if (wbc->for_reclaim) {
-		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, NODE, WRITE);
+		f2fs_submit_merged_bio_cond(sbi, page->mapping->host, 0,
+						page->index, NODE, WRITE);
 		submitted = NULL;
 	}
 
@@ -1404,12 +1405,12 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 			struct writeback_control *wbc, bool atomic)
 {
 	pgoff_t index, end;
+	pgoff_t last_idx = ULONG_MAX;
 	struct pagevec pvec;
 	int ret = 0;
 	struct page *last_page = NULL;
 	bool marked = false;
 	nid_t ino = inode->i_ino;
-	int nwritten = 0;
 
 	if (atomic) {
 		last_page = last_fsync_dnode(sbi, ino);
@@ -1488,7 +1489,7 @@ continue_unlock:
 				f2fs_put_page(last_page, 0);
 				break;
 			} else if (submitted) {
-				nwritten++;
+				last_idx = page->index;
 			}
 
 			if (page == last_page) {
@@ -1514,8 +1515,9 @@ continue_unlock:
 		goto retry;
 	}
 out:
-	if (nwritten)
-		f2fs_submit_merged_bio_cond(sbi, NULL, NULL, ino, NODE, WRITE);
+	if (last_idx != ULONG_MAX)
+		f2fs_submit_merged_bio_cond(sbi, NULL, ino, last_idx,
+							NODE, WRITE);
 	return ret ? -EIO: 0;
 }
 
