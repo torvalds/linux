@@ -29,6 +29,8 @@ enum {
 	SCPDR,				/* Serial Port Data Register */
 	SCDL,				/* BRG Frequency Division Register */
 	SCCKS,				/* BRG Clock Select Register */
+	HSRTRGR,			/* Rx FIFO Data Count Trigger Register */
+	HSTTRGR,			/* Tx FIFO Data Count Trigger Register */
 
 	SCIx_NR_REGS,
 };
@@ -99,6 +101,10 @@ enum {
 #define SCIF_BREAK_CLEAR	(u32)(~(SCIF_PER | SCIF_FER | SCIF_BRK))
 
 /* SCFCR (FIFO Control Register) */
+#define SCFCR_RTRG1	BIT(7)	/* Receive FIFO Data Count Trigger */
+#define SCFCR_RTRG0	BIT(6)
+#define SCFCR_TTRG1	BIT(5)	/* Transmit FIFO Data Count Trigger */
+#define SCFCR_TTRG0	BIT(4)
 #define SCFCR_MCE	BIT(3)	/* Modem Control Enable */
 #define SCFCR_TFRST	BIT(2)	/* Transmit FIFO Data Register Reset */
 #define SCFCR_RFRST	BIT(1)	/* Receive FIFO Data Register Reset */

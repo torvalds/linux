@@ -373,6 +373,8 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[HSSRR]		= { 0x40, 16 },
 			[SCDL]		= { 0x30, 16 },
 			[SCCKS]		= { 0x34, 16 },
+			[HSRTRGR]	= { 0x54, 16 },
+			[HSTTRGR]	= { 0x58, 16 },
 		},
 		.fifosize = 128,
 		.overrun_reg = SCLSR,
