@@ -390,6 +390,9 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
+	/* reset sync convert_rate */
+	src->sync.val = 0;
+
 	rsnd_mod_power_on(mod);
 
 	rsnd_src_activation(mod);
@@ -397,9 +400,6 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 	rsnd_src_set_convert_rate(io, mod);
 
 	rsnd_src_status_clear(mod);
-
-	/* reset sync convert_rate */
-	src->sync.val = 0;
 
 	return 0;
 }
