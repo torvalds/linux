@@ -329,8 +329,7 @@ static struct platform_driver meson_drm_platform_driver = {
 	.probe      = meson_drv_probe,
 	.remove     = meson_drv_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
-		.name   = DRIVER_NAME,
+		.name	= "meson-drm",
 		.of_match_table = dt_match,
 	},
 };
