@@ -1423,10 +1423,6 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 	if (ret)
 		return ret;
 
-	WARN(bitmap_weight(new_pdps, GEN8_PML4ES_PER_PML4) > 2,
-	     "The allocation has spanned more than 512GB. "
-	     "It is highly likely this is incorrect.");
-
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		WARN_ON(!pdp);
 
