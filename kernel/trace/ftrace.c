@@ -4842,6 +4842,12 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX))
 		return -ENOMEM;
 
+	/* Read mode uses seq functions */
+	if (file->f_mode & FMODE_READ) {
+		struct seq_file *m = file->private_data;
+		fgd = m->private;
+	}
+
 	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
 	if (read >= 0 && trace_parser_loaded((&parser))) {
