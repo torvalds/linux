@@ -238,4 +238,25 @@ static inline int serdev_device_write_room(struct serdev_device *sdev)
 
 #endif /* CONFIG_SERIAL_DEV_BUS */
 
+/*
+ * serdev hooks into TTY core
+ */
+struct tty_port;
+struct tty_driver;
+
+#ifdef CONFIG_SERIAL_DEV_CTRL_TTYPORT
+struct device *serdev_tty_port_register(struct tty_port *port,
+					struct device *parent,
+					struct tty_driver *drv, int idx);
+void serdev_tty_port_unregister(struct tty_port *port);
+#else
+static inline struct device *serdev_tty_port_register(struct tty_port *port,
+					   struct device *parent,
+					   struct tty_driver *drv, int idx)
+{
+	return ERR_PTR(-ENODEV);
+}
+static inline void serdev_tty_port_unregister(struct tty_port *port) {}
+#endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
+
 #endif /*_LINUX_SERDEV_H */
