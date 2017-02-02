@@ -248,6 +248,11 @@ static int lpe_audio_setup(struct drm_i915_private *dev_priv)
 		goto err_free_irq;
 	}
 
+	/* enable chicken bit; at least this is required for Dell Wyse 3040
+	 * with DP outputs (but only sometimes by some reason!)
+	 */
+	I915_WRITE(VLV_AUD_CHICKEN_BIT_REG, VLV_CHICKEN_BIT_DBG_ENABLE);
+
 	return 0;
 err_free_irq:
 	irq_free_desc(dev_priv->lpe_audio.irq);
