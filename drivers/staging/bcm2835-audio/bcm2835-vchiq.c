@@ -22,7 +22,7 @@
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
