@@ -44,7 +44,8 @@
 #define MAX_CAP_STREAMS		0
 #define HDMI_AUDIO_DRIVER	"hdmi-audio"
 
-#define INFO_FRAME_WORD1	0x000a0184
+#define HDMI_INFO_FRAME_WORD1	0x000a0184
+#define DP_INFO_FRAME_WORD1	0x00441b84
 #define FIFO_THRESHOLD		0xFE
 #define DMA_FIFO_THRESHOLD	0x7
 #define BYTES_PER_WORD		0x4
@@ -134,6 +135,7 @@ struct snd_intelhad {
 	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
 	union otm_hdmi_eld_t	eeld;
+	bool dp_output;
 	enum		intel_had_aud_buf_type curr_buf;
 	int		valid_buf_cnt;
 	unsigned int	aes_bits;
@@ -156,8 +158,8 @@ struct had_ops {
 	void (*reset_audio)(u8 reset);
 	int (*prog_n)(u32 aud_samp_freq, u32 *n_param,
 			struct snd_intelhad *intelhaddata);
-	void (*prog_cts)(u32 aud_samp_freq, u32 tmds, u32 n_param,
-			struct snd_intelhad *intelhaddata);
+	void (*prog_cts)(u32 aud_samp_freq, u32 tmds, u32 link_rate,
+			 u32 n_param, struct snd_intelhad *intelhaddata);
 	int (*audio_ctrl)(struct snd_pcm_substream *substream,
 				struct snd_intelhad *intelhaddata);
 	void (*prog_dip)(struct snd_pcm_substream *substream,

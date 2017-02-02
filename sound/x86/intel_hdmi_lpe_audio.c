@@ -48,6 +48,8 @@ struct hdmi_lpe_audio_ctx {
 	struct snd_intel_had_interface *had_interface;
 	void *had_pvt_data;
 	int tmds_clock_speed;
+	bool dp_output;
+	int link_rate;
 	unsigned int had_config_offset;
 	int hdmi_audio_interrupt_mask;
 	struct work_struct hdmi_audio_wq;
@@ -187,6 +189,15 @@ static int hdmi_audio_write(u32 reg, u32 val)
 
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__, reg, val);
 
+	if (ctx->dp_output) {
+		if ((reg == AUDIO_HDMI_CONFIG_A) ||
+		    (reg == AUDIO_HDMI_CONFIG_B) ||
+		    (reg == AUDIO_HDMI_CONFIG_C)) {
+			if (val & AUD_CONFIG_VALID_BIT)
+				val = val | AUD_CONFIG_DP_MODE |
+					AUD_CONFIG_BLOCK_BIT;
+		}
+	}
 	iowrite32(val, (ctx->mmio_start+reg));
 
 	return 0;
@@ -220,6 +231,16 @@ static int hdmi_audio_rmw(u32 reg, u32 val, u32 mask)
 	val_tmp = (val & mask) |
 			((ioread32(ctx->mmio_start + reg)) & ~mask);
 
+	if (ctx->dp_output) {
+		if ((reg == AUDIO_HDMI_CONFIG_A) ||
+		    (reg == AUDIO_HDMI_CONFIG_B) ||
+		    (reg == AUDIO_HDMI_CONFIG_C)) {
+			if (val_tmp & AUD_CONFIG_VALID_BIT)
+				val_tmp = val_tmp | AUD_CONFIG_DP_MODE |
+					AUD_CONFIG_BLOCK_BIT;
+		}
+	}
+
 	iowrite32(val_tmp, (ctx->mmio_start+reg));
 	dev_dbg(&hlpe_pdev->dev, "%s: reg[0x%x] = 0x%x\n", __func__,
 				reg, val_tmp);
@@ -249,7 +270,18 @@ static int hdmi_audio_get_caps(enum had_caps_list get_element,
 		/* ToDo: Verify if sampling freq logic is correct */
 		*(u32 *)capabilities = ctx->tmds_clock_speed;
 		dev_dbg(&hlpe_pdev->dev, "%s: tmds_clock_speed = 0x%x\n",
-				__func__, ctx->tmds_clock_speed);
+			__func__, ctx->tmds_clock_speed);
+		break;
+	case HAD_GET_LINK_RATE:
+		/* ToDo: Verify if sampling freq logic is correct */
+		*(u32 *)capabilities = ctx->link_rate;
+		dev_dbg(&hlpe_pdev->dev, "%s: link rate = 0x%x\n",
+			__func__, ctx->link_rate);
+		break;
+	case HAD_GET_DP_OUTPUT:
+		*(u32 *)capabilities = ctx->dp_output;
+		dev_dbg(&hlpe_pdev->dev, "%s: dp_output = %d\n",
+			__func__, ctx->dp_output);
 		break;
 	default:
 		break;
@@ -407,15 +439,14 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void notify_audio_lpe(void *audio_ptr)
+static void notify_audio_lpe(struct platform_device *pdev)
 {
-	struct hdmi_lpe_audio_ctx *ctx = get_hdmi_context();
-	struct intel_hdmi_lpe_audio_pdata *pdata = hlpe_pdev->dev.platform_data;
-	struct intel_hdmi_lpe_audio_eld *eld = audio_ptr;
+	struct hdmi_lpe_audio_ctx *ctx = platform_get_drvdata(pdev);
+	struct intel_hdmi_lpe_audio_pdata *pdata = pdev->dev.platform_data;
 
 	if (pdata->hdmi_connected != true) {
 
-		dev_dbg(&hlpe_pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
+		dev_dbg(&pdev->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
 
 		if (hlpe_state == hdmi_connector_status_connected) {
@@ -426,10 +457,27 @@ static void notify_audio_lpe(void *audio_ptr)
 			mid_hdmi_audio_signal_event(
 				HAD_EVENT_HOT_UNPLUG);
 		} else
-			dev_dbg(&hlpe_pdev->dev, "%s: Already Unplugged!\n",
+			dev_dbg(&pdev->dev, "%s: Already Unplugged!\n",
 				__func__);
 
-	} else if (eld != NULL) {
+	} else {
+		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
+
+		switch (eld->pipe_id) {
+		case 0:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
+			break;
+		case 1:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_B;
+			break;
+		case 2:
+			ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
+			break;
+		default:
+			dev_dbg(&pdev->dev, "Invalid pipe %d\n",
+				eld->pipe_id);
+			break;
+		}
 
 		hdmi_set_eld(eld->eld_data);
 
@@ -437,15 +485,16 @@ static void notify_audio_lpe(void *audio_ptr)
 
 		hlpe_state = hdmi_connector_status_connected;
 
-		dev_dbg(&hlpe_pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
+		dev_dbg(&pdev->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
 			__func__, eld->port_id,	pdata->tmds_clock_speed);
 
 		if (pdata->tmds_clock_speed) {
 			ctx->tmds_clock_speed = pdata->tmds_clock_speed;
+			ctx->dp_output = pdata->dp_output;
+			ctx->link_rate = pdata->link_rate;
 			mid_hdmi_audio_signal_event(HAD_EVENT_MODE_CHANGING);
 		}
-	} else
-		dev_dbg(&hlpe_pdev->dev, "%s: Event: NULL EDID!!\n", __func__);
+	}
 }
 
 /**
@@ -526,15 +575,15 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->mmio_start = mmio_start;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
 
-	if (pci_dev_present(cherryview_ids)) {
+	if (pci_dev_present(cherryview_ids))
 		dev_dbg(&hlpe_pdev->dev, "%s: Cherrytrail LPE - Detected\n",
 				__func__);
-		ctx->had_config_offset = AUDIO_HDMI_CONFIG_C;
-	} else {
+	else
 		dev_dbg(&hlpe_pdev->dev, "%s: Baytrail LPE - Assume\n",
 				__func__);
-		ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
-	}
+
+	/* assume pipe A as default */
+	ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
 
 	pdata = pdev->dev.platform_data;
 
@@ -556,7 +605,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	if (pdata->notify_pending) {
 
 		dev_dbg(&hlpe_pdev->dev, "%s: handle pending notification\n", __func__);
-		notify_audio_lpe(&pdata->eld);
+		notify_audio_lpe(pdev);
 		pdata->notify_pending = false;
 	}
 	spin_unlock_irqrestore(&pdata->lpe_audio_slock, flag_irq);
