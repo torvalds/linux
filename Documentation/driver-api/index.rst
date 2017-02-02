@@ -16,6 +16,7 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   pm/index
    device-io
    dma-buf
    device_link
