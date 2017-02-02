@@ -1242,32 +1242,6 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
 #define TNF_FAULT_LOCAL	0x08
 #define TNF_MIGRATE_FAIL 0x10
 
-static inline bool in_vfork(struct task_struct *tsk)
-{
-	bool ret;
-
-	/*
-	 * need RCU to access ->real_parent if CLONE_VM was used along with
-	 * CLONE_PARENT.
-	 *
-	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does not
-	 * imply CLONE_VM
-	 *
-	 * CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
-	 * ->real_parent is not necessarily the task doing vfork(), so in
-	 * theory we can't rely on task_lock() if we want to dereference it.
-	 *
-	 * And in this case we can't trust the real_parent->mm == tsk->mm
-	 * check, it can be false negative. But we do not care, if init or
-	 * another oom-unkillable task does this it should blame itself.
-	 */
-	rcu_read_lock();
-	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
-	rcu_read_unlock();
-
-	return ret;
-}
-
 #ifdef CONFIG_NUMA_BALANCING
 extern void task_numa_fault(int last_node, int node, int pages, int flags);
 extern pid_t task_numa_group_id(struct task_struct *p);
