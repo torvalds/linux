@@ -1422,21 +1422,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
 	cancel_work_sync(&rt2x00dev->sleep_work);
-#if IS_ENABLED(CONFIG_RT2X00_LIB_USB)
-	if (rt2x00_is_usb(rt2x00dev)) {
-		usb_kill_anchored_urbs(rt2x00dev->anchor);
-		hrtimer_cancel(&rt2x00dev->txstatus_timer);
-		cancel_work_sync(&rt2x00dev->rxdone_work);
-		cancel_work_sync(&rt2x00dev->txdone_work);
-	}
-#endif
-	if (rt2x00dev->workqueue)
-		destroy_workqueue(rt2x00dev->workqueue);
-
-	/*
-	 * Free the tx status fifo.
-	 */
-	kfifo_free(&rt2x00dev->txstatus_fifo);
 
 	/*
 	 * Kill the tx status tasklet.
@@ -1451,6 +1436,14 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Uninitialize device.
 	 */
 	rt2x00lib_uninitialize(rt2x00dev);
+
+	if (rt2x00dev->workqueue)
+		destroy_workqueue(rt2x00dev->workqueue);
+
+	/*
+	 * Free the tx status fifo.
+	 */
+	kfifo_free(&rt2x00dev->txstatus_fifo);
 
 	/*
 	 * Free extra components
