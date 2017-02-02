@@ -779,14 +779,15 @@ ENDPROC(aesbs_cbc_decrypt)
 
 	/*
 	 * aesbs_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
-	 *		     int rounds, int blocks, u8 ctr[], bool final)
+	 *		     int rounds, int blocks, u8 ctr[], u8 final[])
 	 */
 ENTRY(aesbs_ctr_encrypt)
 	mov		ip, sp
 	push		{r4-r10, lr}
 
 	ldm		ip, {r5-r7}		// load args 4-6
-	add		r5, r5, r7		// one extra block if final == 1
+	teq		r7, #0
+	addne		r5, r5, #1		// one extra block if final != 0
 
 	vld1.8		{q0}, [r6]		// load counter
 	vrev32.8	q1, q0
@@ -865,19 +866,20 @@ ENTRY(aesbs_ctr_encrypt)
 	veor		q2, q2, q14
 	vst1.8		{q2}, [r0]!
 	teq		r4, #0			// skip last block if 'final'
-	W(bne)		4f
+	W(bne)		5f
 3:	veor		q5, q5, q15
 	vst1.8		{q5}, [r0]!
 
-	next_ctr	q0
+4:	next_ctr	q0
 
 	subs		r5, r5, #8
 	bgt		99b
 
-	vmov		q5, q0
-
-4:	vst1.8		{q5}, [r6]
+	vst1.8		{q0}, [r6]
 	pop		{r4-r10, pc}
+
+5:	vst1.8		{q5}, [r4]
+	b		4b
 ENDPROC(aesbs_ctr_encrypt)
 
 	.macro		next_tweak, out, in, const, tmp
