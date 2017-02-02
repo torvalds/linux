@@ -799,7 +799,7 @@ static void blk_release_queue(struct kobject *kobj)
 		container_of(kobj, struct request_queue, kobj);
 
 	wbt_exit(q);
-	bdi_exit(q->backing_dev_info);
+	bdi_put(q->backing_dev_info);
 	blkcg_exit_queue(q);
 
 	if (q->elevator) {
