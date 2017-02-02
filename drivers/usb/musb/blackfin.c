@@ -581,8 +581,7 @@ static int bfin_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int bfin_suspend(struct device *dev)
+static int __maybe_unused bfin_suspend(struct device *dev)
 {
 	struct bfin_glue	*glue = dev_get_drvdata(dev);
 	struct musb		*musb = glue_to_musb(glue);
@@ -599,7 +598,7 @@ static int bfin_suspend(struct device *dev)
 	return 0;
 }
 
-static int bfin_resume(struct device *dev)
+static int __maybe_unused bfin_resume(struct device *dev)
 {
 	struct bfin_glue	*glue = dev_get_drvdata(dev);
 	struct musb		*musb = glue_to_musb(glue);
@@ -608,7 +607,6 @@ static int bfin_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(bfin_pm_ops, bfin_suspend, bfin_resume);
 
