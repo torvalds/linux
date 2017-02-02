@@ -221,8 +221,8 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	       VDCTRL2_SET_HSYNC_PERIOD(m->crtc_htotal),
 	       mxsfb->base + LCDC_VDCTRL2);
 
-	writel(SET_HOR_WAIT_CNT(m->crtc_hblank_end - m->crtc_hsync_end) |
-	       SET_VERT_WAIT_CNT(m->crtc_vblank_end - m->crtc_vsync_end),
+	writel(SET_HOR_WAIT_CNT(m->crtc_htotal - m->crtc_hsync_start) |
+	       SET_VERT_WAIT_CNT(m->crtc_vtotal - m->crtc_vsync_start),
 	       mxsfb->base + LCDC_VDCTRL3);
 
 	writel(SET_DOTCLK_H_VALID_DATA_CNT(m->hdisplay),
