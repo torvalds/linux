@@ -324,6 +324,46 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 	tsb_insert(tsb, tag, tte);
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
+static int __init setup_hugepagesz(char *string)
+{
+	unsigned long long hugepage_size;
+	unsigned int hugepage_shift;
+	unsigned short hv_pgsz_idx;
+	unsigned int hv_pgsz_mask;
+	int rc = 0;
+
+	hugepage_size = memparse(string, &string);
+	hugepage_shift = ilog2(hugepage_size);
+
+	switch (hugepage_shift) {
+	case HPAGE_256MB_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_256MB;
+		hv_pgsz_idx = HV_PGSZ_IDX_256MB;
+		break;
+	case HPAGE_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_4MB;
+		hv_pgsz_idx = HV_PGSZ_IDX_4MB;
+		break;
+	default:
+		hv_pgsz_mask = 0;
+	}
+
+	if ((hv_pgsz_mask & cpu_pgsz_mask) == 0U) {
+		pr_warn("hugepagesz=%llu not supported by MMU.\n",
+			hugepage_size);
+		goto out;
+	}
+
+	hugetlb_add_hstate(hugepage_shift - PAGE_SHIFT);
+	rc = 1;
+
+out:
+	return rc;
+}
+__setup("hugepagesz=", setup_hugepagesz);
+#endif	/* CONFIG_HUGETLB_PAGE */
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
@@ -347,7 +387,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	if ((mm->context.hugetlb_pte_count || mm->context.thp_pte_count) &&
-	    is_hugetlb_pte(pte)) {
+	    is_hugetlb_pmd(__pmd(pte_val(pte)))) {
 		/* We are fabricating 8MB pages using 4MB real hw pages.  */
 		pte_val(pte) |= (address & (1UL << REAL_HPAGE_SHIFT));
 		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
