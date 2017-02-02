@@ -965,7 +965,6 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
-	intelhaddata->underrun_count = 0;
 
 	pm_runtime_get_sync(intelhaddata->dev);
 
@@ -989,16 +988,19 @@ static int snd_intelhad_open(struct snd_pcm_substream *substream)
 	 */
 	retval = snd_pcm_hw_constraint_step(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64);
-	if (retval < 0) {
-		dev_dbg(intelhaddata->dev, "%s:step_size=64 failed,err=%d\n",
-			__func__, retval);
+	if (retval < 0)
 		goto error;
-	}
 
+	/* expose PCM substream */
 	spin_lock_irq(&intelhaddata->had_spinlock);
 	intelhaddata->stream_info.substream = substream;
 	intelhaddata->stream_info.substream_refcount++;
 	spin_unlock_irq(&intelhaddata->had_spinlock);
+
+	/* these are cleared in prepare callback, but just to be sure */
+	intelhaddata->curr_buf = 0;
+	intelhaddata->underrun_count = 0;
+	intelhaddata->stream_info.buffer_rendered = 0;
 
 	return retval;
  error:
@@ -1015,7 +1017,7 @@ static int snd_intelhad_close(struct snd_pcm_substream *substream)
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 
-	intelhaddata->stream_info.buffer_rendered = 0;
+	/* unreference and sync with the pending PCM accesses */
 	spin_lock_irq(&intelhaddata->had_spinlock);
 	intelhaddata->stream_info.substream = NULL;
 	intelhaddata->stream_info.substream_refcount--;
@@ -1026,13 +1028,6 @@ static int snd_intelhad_close(struct snd_pcm_substream *substream)
 	}
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
-	/* Check if following drv_status modification is required - VA */
-	if (intelhaddata->drv_status != HAD_DRV_DISCONNECTED) {
-		intelhaddata->drv_status = HAD_DRV_CONNECTED;
-		dev_dbg(intelhaddata->dev,
-			"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
-			__func__, __LINE__);
-	}
 	pm_runtime_put(intelhaddata->dev);
 	return 0;
 }
@@ -1046,9 +1041,6 @@ static int snd_intelhad_hw_params(struct snd_pcm_substream *substream,
 	struct snd_intelhad *intelhaddata;
 	unsigned long addr;
 	int pages, buf_size, retval;
-
-	if (!hw_params)
-		return -EINVAL;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 	buf_size = params_buffer_bytes(hw_params);
@@ -1124,7 +1116,6 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		spin_lock(&intelhaddata->had_spinlock);
-		intelhaddata->curr_buf = 0;
 
 		/* Stop reporting BUFFER_DONE/UNDERRUN to above layers */
 
@@ -1174,6 +1165,8 @@ static int snd_intelhad_pcm_prepare(struct snd_pcm_substream *substream)
 	dev_dbg(intelhaddata->dev, "rate=%d\n", runtime->rate);
 	dev_dbg(intelhaddata->dev, "channels=%d\n", runtime->channels);
 
+	intelhaddata->curr_buf = 0;
+	intelhaddata->underrun_count = 0;
 	intelhaddata->stream_info.buffer_rendered = 0;
 
 	/* Get N value in KHz */
@@ -1247,7 +1240,6 @@ snd_intelhad_pcm_pointer(struct snd_pcm_substream *substream)
 			dev_dbg(intelhaddata->dev,
 				"assume audio_codec_reset, underrun = %d - do xrun\n",
 				 intelhaddata->underrun_count);
-			intelhaddata->underrun_count = 0;
 			return SNDRV_PCM_POS_XRUN;
 		}
 	} else {
@@ -1276,6 +1268,21 @@ static int snd_intelhad_pcm_mmap(struct snd_pcm_substream *substream,
 			substream->dma_buffer.addr >> PAGE_SHIFT,
 			vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
+
+/*
+ * ALSA PCM ops
+ */
+static const struct snd_pcm_ops snd_intelhad_playback_ops = {
+	.open =		snd_intelhad_open,
+	.close =	snd_intelhad_close,
+	.ioctl =	snd_pcm_lib_ioctl,
+	.hw_params =	snd_intelhad_hw_params,
+	.hw_free =	snd_intelhad_hw_free,
+	.prepare =	snd_intelhad_pcm_prepare,
+	.trigger =	snd_intelhad_pcm_trigger,
+	.pointer =	snd_intelhad_pcm_pointer,
+	.mmap =	snd_intelhad_pcm_mmap,
+};
 
 /* process mode change of the running stream; called in mutex */
 static int hdmi_audio_mode_change(struct snd_intelhad *intelhaddata)
@@ -1564,18 +1571,9 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	intelhaddata->chmap->chmap = NULL;
 }
 
-/* PCM operations structure and the calls back for the same */
-static struct snd_pcm_ops snd_intelhad_playback_ops = {
-	.open =		snd_intelhad_open,
-	.close =	snd_intelhad_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	snd_intelhad_hw_params,
-	.hw_free =	snd_intelhad_hw_free,
-	.prepare =	snd_intelhad_pcm_prepare,
-	.trigger =	snd_intelhad_pcm_trigger,
-	.pointer =	snd_intelhad_pcm_pointer,
-	.mmap =	snd_intelhad_pcm_mmap,
-};
+/*
+ * ALSA iec958 and ELD controls
+ */
 
 static int had_iec958_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
@@ -1651,7 +1649,7 @@ static int had_ctl_eld_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new had_controls[] = {
+static const struct snd_kcontrol_new had_controls[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1676,7 +1674,9 @@ static struct snd_kcontrol_new had_controls[] = {
 	},
 };
 
-
+/*
+ * audio interrupt handler
+ */
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 {
 	struct snd_intelhad *ctx = dev_id;
@@ -1698,6 +1698,9 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*
+ * monitor plug/unplug notification from i915; just kick off the work
+ */
 static void notify_audio_lpe(struct platform_device *pdev)
 {
 	struct snd_intelhad *ctx = platform_get_drvdata(pdev);
@@ -1705,6 +1708,7 @@ static void notify_audio_lpe(struct platform_device *pdev)
 	schedule_work(&ctx->hdmi_audio_wq);
 }
 
+/* the work to handle monitor hot plug/unplug */
 static void had_audio_wq(struct work_struct *work)
 {
 	struct snd_intelhad *ctx =
