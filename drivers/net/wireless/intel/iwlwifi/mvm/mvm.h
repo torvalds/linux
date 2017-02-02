@@ -626,6 +626,7 @@ struct iwl_mvm_shared_mem_cfg {
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
  *	it is the time of last received sub-frame
  * @removed: prevent timer re-arming
+ * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  * @mvm: mvm pointer, needed for frame timer context
  */
@@ -641,6 +642,7 @@ struct iwl_mvm_reorder_buffer {
 	unsigned long reorder_time[IEEE80211_MAX_AMPDU_BUF];
 	struct timer_list reorder_timer;
 	bool removed;
+	bool valid;
 	spinlock_t lock;
 	struct iwl_mvm *mvm;
 } ____cacheline_aligned_in_smp;

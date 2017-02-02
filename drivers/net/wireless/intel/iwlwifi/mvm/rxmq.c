@@ -636,9 +636,13 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 
 	baid_data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN(!baid_data,
-		 "Received baid %d, but no data exists for this BAID\n", baid))
+	if (!baid_data) {
+		WARN(!(reorder & IWL_RX_MPDU_REORDER_BA_OLD_SN),
+		     "Received baid %d, but no data exists for this BAID\n",
+		     baid);
 		return false;
+	}
+
 	if (WARN(tid != baid_data->tid || mvm_sta->sta_id != baid_data->sta_id,
 		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
 		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->sta_id,
@@ -652,6 +656,14 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	buffer = &baid_data->reorder_buf[queue];
 
 	spin_lock_bh(&buffer->lock);
+
+	if (!buffer->valid) {
+		if (reorder & IWL_RX_MPDU_REORDER_BA_OLD_SN) {
+			spin_unlock_bh(&buffer->lock);
+			return false;
+		}
+		buffer->valid = true;
+	}
 
 	if (ieee80211_is_back_req(hdr->frame_control)) {
 		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
@@ -737,7 +749,8 @@ drop:
 	return true;
 }
 
-static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm, u8 baid)
+static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm,
+				    u32 reorder_data, u8 baid)
 {
 	unsigned long now = jiffies;
 	unsigned long timeout;
@@ -746,8 +759,10 @@ static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm, u8 baid)
 	rcu_read_lock();
 
 	data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN_ON(!data))
+	if (!data) {
+		WARN_ON(!(reorder_data & IWL_RX_MPDU_REORDER_BA_OLD_SN));
 		goto out;
+	}
 
 	if (!data->timeout)
 		goto out;
@@ -925,8 +940,11 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 				mac_addr[i] = hdr->addr3[ETH_ALEN - i - 1];
 			ether_addr_copy(hdr->addr3, mac_addr);
 		}
-		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
-			iwl_mvm_agg_rx_received(mvm, baid);
+		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID) {
+			u32 reorder_data = le32_to_cpu(desc->reorder_data);
+
+			iwl_mvm_agg_rx_received(mvm, reorder_data, baid);
+		}
 	}
 
 	/* Set up the HT phy flags */
