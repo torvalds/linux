@@ -97,8 +97,8 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 41066
-# define AAC_DRIVER_BRANCH "-ms"
+# define AAC_DRIVER_BUILD 50740
+# define AAC_DRIVER_BRANCH "-custom"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
