@@ -1730,6 +1730,137 @@ out:
 	return BlinkLED;
 }
 
+
+static void aac_resolve_luns(struct aac_dev *dev)
+{
+	int bus, target, channel;
+	struct scsi_device *sdev;
+	u8 devtype;
+	u8 new_devtype;
+
+	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
+		for (target = 0; target < AAC_MAX_TARGETS; target++) {
+
+			if (aac_phys_to_logical(bus) == ENCLOSURE_CHANNEL)
+				continue;
+
+			if (bus == CONTAINER_CHANNEL)
+				channel = CONTAINER_CHANNEL;
+			else
+				channel = aac_phys_to_logical(bus);
+
+			devtype = dev->hba_map[bus][target].devtype;
+			new_devtype = dev->hba_map[bus][target].new_devtype;
+
+			sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
+					target, 0);
+
+			if (!sdev && devtype)
+				scsi_add_device(dev->scsi_host_ptr, channel,
+						target, 0);
+			else if (sdev && new_devtype != devtype)
+				scsi_remove_device(sdev);
+			else if (sdev && new_devtype == devtype)
+				scsi_rescan_device(&sdev->sdev_gendev);
+
+			if (sdev)
+				scsi_device_put(sdev);
+
+			dev->hba_map[bus][target].devtype = new_devtype;
+		}
+	}
+}
+
+/**
+ *	aac_handle_sa_aif	Handle a message from the firmware
+ *	@dev: Which adapter this fib is from
+ *	@fibptr: Pointer to fibptr from adapter
+ *
+ *	This routine handles a driver notify fib from the adapter and
+ *	dispatches it to the appropriate routine for handling.
+ */
+static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
+{
+	int i, bus, target, container, rcode = 0;
+	u32 events = 0;
+	struct fib *fib;
+	struct scsi_device *sdev;
+
+	if (fibptr->hbacmd_size & SA_AIF_HOTPLUG)
+		events = SA_AIF_HOTPLUG;
+	else if (fibptr->hbacmd_size & SA_AIF_HARDWARE)
+		events = SA_AIF_HARDWARE;
+	else if (fibptr->hbacmd_size & SA_AIF_PDEV_CHANGE)
+		events = SA_AIF_PDEV_CHANGE;
+	else if (fibptr->hbacmd_size & SA_AIF_LDEV_CHANGE)
+		events = SA_AIF_LDEV_CHANGE;
+	else if (fibptr->hbacmd_size & SA_AIF_BPSTAT_CHANGE)
+		events = SA_AIF_BPSTAT_CHANGE;
+	else if (fibptr->hbacmd_size & SA_AIF_BPCFG_CHANGE)
+		events = SA_AIF_BPCFG_CHANGE;
+
+	switch (events) {
+	case SA_AIF_HOTPLUG:
+	case SA_AIF_HARDWARE:
+	case SA_AIF_PDEV_CHANGE:
+	case SA_AIF_LDEV_CHANGE:
+	case SA_AIF_BPCFG_CHANGE:
+
+		fib = aac_fib_alloc(dev);
+		if (!fib) {
+			pr_err("aac_handle_sa_aif: out of memory\n");
+			return;
+		}
+		for (bus = 0; bus < AAC_MAX_BUSES; bus++)
+			for (target = 0; target < AAC_MAX_TARGETS; target++)
+				dev->hba_map[bus][target].new_devtype = 0;
+
+		rcode = aac_report_phys_luns(dev, fib, AAC_RESCAN);
+
+		if (rcode != -ERESTARTSYS)
+			aac_fib_free(fib);
+
+		aac_resolve_luns(dev);
+
+		if (events == SA_AIF_LDEV_CHANGE ||
+		    events == SA_AIF_BPCFG_CHANGE) {
+			aac_get_containers(dev);
+			for (container = 0; container <
+			dev->maximum_num_containers; ++container) {
+				sdev = scsi_device_lookup(dev->scsi_host_ptr,
+						CONTAINER_CHANNEL,
+						container, 0);
+				if (dev->fsa_dev[container].valid && !sdev) {
+					scsi_add_device(dev->scsi_host_ptr,
+						CONTAINER_CHANNEL,
+						container, 0);
+				} else if (!dev->fsa_dev[container].valid &&
+					sdev) {
+					scsi_remove_device(sdev);
+					scsi_device_put(sdev);
+				} else if (sdev) {
+					scsi_rescan_device(&sdev->sdev_gendev);
+					scsi_device_put(sdev);
+				}
+			}
+		}
+		break;
+
+	case SA_AIF_BPSTAT_CHANGE:
+		/* currently do nothing */
+		break;
+	}
+
+	for (i = 1; i <= 10; ++i) {
+		events = src_readl(dev, MUnit.IDR);
+		if (events & (1<<23)) {
+			pr_warn(" AIF not cleared by firmware - %d/%d)\n",
+				i, 10);
+			ssleep(1);
+		}
+	}
+}
+
 static int get_fib_count(struct aac_dev *dev)
 {
 	unsigned int num = 0;
@@ -1913,6 +2044,12 @@ static void aac_process_events(struct aac_dev *dev)
 
 		fib = list_entry(entry, struct fib, fiblink);
 		hw_fib = fib->hw_fib_va;
+		if (dev->sa_firmware) {
+			/* Thor AIF */
+			aac_handle_sa_aif(dev, fib);
+			aac_fib_adapter_complete(fib, (u16)sizeof(u32));
+			continue;
+		}
 		/*
 		 *	We will process the FIB here or pass it to a
 		 *	worker thread that is TBD. We Really can't

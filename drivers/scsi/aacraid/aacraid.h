@@ -74,7 +74,7 @@ enum {
 #define AAC_NUM_IO_FIB		(1024 - AAC_NUM_MGT_FIB)
 #define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
-#define AAC_MAX_LUN		(256)
+#define AAC_MAX_LUN		256
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
 #define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
@@ -86,6 +86,14 @@ enum {
 #define AAC_MAX_BUSES			5
 #define AAC_MAX_TARGETS		256
 #define AAC_MAX_NATIVE_SIZE		2048
+
+/* Thor AIF events */
+#define SA_AIF_HOTPLUG			(1<<1)
+#define SA_AIF_HARDWARE		(1<<2)
+#define SA_AIF_PDEV_CHANGE		(1<<4)
+#define SA_AIF_LDEV_CHANGE		(1<<5)
+#define SA_AIF_BPSTAT_CHANGE		(1<<30)
+#define SA_AIF_BPCFG_CHANGE		(1<<31)
 
 #define CISS_REPORT_PHYSICAL_LUNS	0xc3
 #define WRITE_HOST_WELLNESS		0xa5
@@ -194,6 +202,7 @@ struct aac_ciss_identify_pd {
 #define CONTAINER_TO_CHANNEL(cont)	(CONTAINER_CHANNEL)
 #define CONTAINER_TO_ID(cont)		(cont)
 #define CONTAINER_TO_LUN(cont)		(0)
+#define ENCLOSURE_CHANNEL		(3)
 
 #define PMC_DEVICE_S6	0x28b
 #define PMC_DEVICE_S7	0x28c
@@ -1098,6 +1107,9 @@ struct fib {
 	u32			hbacmd_size;	/* cmd size for native */
 };
 
+#define AAC_INIT			0
+#define AAC_RESCAN			1
+
 #define AAC_DEVTYPE_RAID_MEMBER	1
 #define AAC_DEVTYPE_ARC_RAW		2
 #define AAC_DEVTYPE_NATIVE_RAW		3
@@ -1107,6 +1119,7 @@ struct fib {
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
 	u8		devtype;	/* device type */
+	u8		new_devtype;
 	u8		reset_state;	/* 0 - no reset, 1..x - */
 					/* after xth TM LUN reset */
 	u16		qd_limit;
@@ -2317,7 +2330,7 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
-int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr);
+int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan);
 int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
