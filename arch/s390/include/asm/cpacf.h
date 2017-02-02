@@ -26,6 +26,7 @@
 #define CPACF_PCC		0xb92c		/* MSA4 */
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
 #define CPACF_PPNO		0xb93c		/* MSA5 */
+#define CPACF_KMA		0xb929		/* MSA8 */
 
 /*
  * En/decryption modifier bits
