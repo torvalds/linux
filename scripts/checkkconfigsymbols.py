@@ -24,7 +24,7 @@ SYMBOL = r"(?:\w*[A-Z0-9]\w*){2,}"
 DEF = r"^\s*(?:menu){,1}config\s+(" + SYMBOL + r")\s*"
 EXPR = r"(?:" + OPERATORS + r"|\s|" + SYMBOL + r")+"
 DEFAULT = r"default\s+.*?(?:if\s.+){,1}"
-STMT = r"^\s*(?:if|select|depends\s+on|(?:" + DEFAULT + r"))\s+" + EXPR
+STMT = r"^\s*(?:if|select|imply|depends\s+on|(?:" + DEFAULT + r"))\s+" + EXPR
 SOURCE_SYMBOL = r"(?:\W|\b)+[D]{,1}CONFIG_(" + SYMBOL + r")"
 
 # regex objects
