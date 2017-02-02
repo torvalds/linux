@@ -994,7 +994,8 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
 	lgp->res.layoutp = &lgp->args.layout;
 
-
+	/* Don't confuse uninitialised result and success */
+	lgp->res.status = -NFS4ERR_DELAY;
 
 	lgp->args.minlength = PAGE_SIZE;
 	if (lgp->args.minlength > range->length)
