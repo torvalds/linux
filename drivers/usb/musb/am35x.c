@@ -121,7 +121,6 @@ static void am35x_musb_disable(struct musb *musb)
 	musb_writel(reg_base, CORE_INTR_MASK_CLEAR_REG, AM35X_INTR_USB_MASK);
 	musb_writel(reg_base, EP_INTR_MASK_CLEAR_REG,
 			 AM35X_TX_INTR_MASK | AM35X_RX_INTR_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, USB_END_OF_INTR_REG, 0);
 }
 
