@@ -648,7 +648,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 	}
 
 	/* Set gdp clock */
-	if (gdp->clk_pix) {
+	if (mode->clock && gdp->clk_pix) {
 		struct clk *clkp;
 		int rate = mode->clock * 1000;
 		int res;
