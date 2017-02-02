@@ -497,15 +497,14 @@ xfs_iread_extents(
 	 * We know that the size is valid (it's checked in iformat_btree)
 	 */
 	ifp->if_bytes = ifp->if_real_bytes = 0;
-	ifp->if_flags |= XFS_IFEXTENTS;
 	xfs_iext_add(ifp, 0, nextents);
 	error = xfs_bmap_read_extents(tp, ip, whichfork);
 	if (error) {
 		xfs_iext_destroy(ifp);
-		ifp->if_flags &= ~XFS_IFEXTENTS;
 		return error;
 	}
 	xfs_validate_extents(ifp, nextents, XFS_EXTFMT_INODE(ip));
+	ifp->if_flags |= XFS_IFEXTENTS;
 	return 0;
 }
 /*
