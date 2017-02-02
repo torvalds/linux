@@ -19,10 +19,14 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "sysdep.h"
-#include <stdio.h>
-#include "opcode/ppc.h"
-#include "opintl.h"
+#include <linux/stddef.h>
+#include <linux/kernel.h>
+#include <linux/bug.h>
+#include "nonstdio.h"
+#include "ppc.h"
+
+#define ATTRIBUTE_UNUSED
+#define _(x)	x
 
 /* This file holds the PowerPC opcode table.  The opcode table
    includes almost all of the extended instruction mnemonics.  This

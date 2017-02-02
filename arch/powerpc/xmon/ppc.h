@@ -21,8 +21,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #ifndef PPC_H
 #define PPC_H
 
-#include "bfd_stdint.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
