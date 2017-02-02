@@ -394,6 +394,19 @@ static bool mei_me_hw_is_ready(struct mei_device *dev)
 }
 
 /**
+ * mei_me_hw_is_resetting - check whether the me(hw) is in reset
+ *
+ * @dev: mei device
+ * Return: bool
+ */
+static bool mei_me_hw_is_resetting(struct mei_device *dev)
+{
+	u32 mecsr = mei_me_mecsr_read(dev);
+
+	return (mecsr & ME_RST_HRA) == ME_RST_HRA;
+}
+
+/**
  * mei_me_hw_ready_wait - wait until the me(hw) has turned ready
  *  or timeout is reached
  *
@@ -1218,6 +1231,9 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		schedule_work(&dev->reset_work);
 		goto end;
 	}
+
+	if (mei_me_hw_is_resetting(dev))
+		mei_hcsr_set_hig(dev);
 
 	mei_me_pg_intr(dev, me_intr_src(hcsr));
 
