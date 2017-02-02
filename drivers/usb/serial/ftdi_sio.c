@@ -2070,6 +2070,20 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		priv->prev_status = status;
 	}
 
+	/* save if the transmitter is empty or not */
+	if (packet[1] & FTDI_RS_TEMT)
+		priv->transmit_empty = 1;
+	else
+		priv->transmit_empty = 0;
+
+	len -= 2;
+	if (!len)
+		return 0;	/* status only */
+
+	/*
+	 * Break and error status must only be processed for packets with
+	 * data payload to avoid over-reporting.
+	 */
 	flag = TTY_NORMAL;
 	if (packet[1] & FTDI_RS_ERR_MASK) {
 		/* Break takes precedence over parity, which takes precedence
@@ -2092,15 +2106,6 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		}
 	}
 
-	/* save if the transmitter is empty or not */
-	if (packet[1] & FTDI_RS_TEMT)
-		priv->transmit_empty = 1;
-	else
-		priv->transmit_empty = 0;
-
-	len -= 2;
-	if (!len)
-		return 0;	/* status only */
 	port->icount.rx += len;
 	ch = packet + 2;
 
