@@ -149,7 +149,7 @@ extra_header_fields:
 	.quad	0				// SizeOfHeapReserve
 	.quad	0				// SizeOfHeapCommit
 	.long	0				// LoaderFlags
-	.long	0x6				// NumberOfRvaAndSizes
+	.long	(section_table - .) / 8		// NumberOfRvaAndSizes
 
 	.quad	0				// ExportTable
 	.quad	0				// ImportTable
@@ -157,6 +157,11 @@ extra_header_fields:
 	.quad	0				// ExceptionTable
 	.quad	0				// CertificationTable
 	.quad	0				// BaseRelocationTable
+
+#ifdef CONFIG_DEBUG_EFI
+	.long	efi_debug_table - _head		// DebugTable
+	.long	efi_debug_table_size
+#endif
 
 	// Section table
 section_table:
@@ -194,6 +199,46 @@ section_table:
 	.short	0		// NumberOfRelocations  (0 for executables)
 	.short	0		// NumberOfLineNumbers  (0 for executables)
 	.long	0xe0500020	// Characteristics (section flags)
+
+#ifdef CONFIG_DEBUG_EFI
+	/*
+	 * The debug table is referenced via its Relative Virtual Address (RVA),
+	 * which is only defined for those parts of the image that are covered
+	 * by a section declaration. Since this header is not covered by any
+	 * section, the debug table must be emitted elsewhere. So stick it in
+	 * the .init.rodata section instead.
+	 *
+	 * Note that the EFI debug entry itself may legally have a zero RVA,
+	 * which means we can simply put it right after the section headers.
+	 */
+	__INITRODATA
+
+	.align	2
+efi_debug_table:
+	// EFI_IMAGE_DEBUG_DIRECTORY_ENTRY
+	.long	0			// Characteristics
+	.long	0			// TimeDateStamp
+	.short	0			// MajorVersion
+	.short	0			// MinorVersion
+	.long	2			// Type == EFI_IMAGE_DEBUG_TYPE_CODEVIEW
+	.long	efi_debug_entry_size	// SizeOfData
+	.long	0			// RVA
+	.long	efi_debug_entry - _head	// FileOffset
+
+	.set	efi_debug_table_size, . - efi_debug_table
+	.previous
+
+efi_debug_entry:
+	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
+	.ascii	"NB10"			// Signature
+	.long	0			// Unknown
+	.long	0			// Unknown2
+	.long	0			// Unknown3
+
+	.asciz	VMLINUX_PATH
+
+	.set	efi_debug_entry_size, . - efi_debug_entry
+#endif
 
 	/*
 	 * EFI will load .text onwards at the 4k section alignment
