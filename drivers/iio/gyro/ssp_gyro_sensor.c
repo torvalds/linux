@@ -135,7 +135,7 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret < 0)
 		return ret;
 
@@ -145,21 +145,11 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ssp_gyro_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-
 static struct platform_driver ssp_gyro_driver = {
 	.driver = {
 		.name = SSP_GYROSCOPE_NAME,
 	},
 	.probe = ssp_gyro_probe,
-	.remove = ssp_gyro_remove,
 };
 
 module_platform_driver(ssp_gyro_driver);

@@ -76,16 +76,6 @@ struct stx104_gpio {
 	unsigned int out_state;
 };
 
-/**
- * struct stx104_dev - STX104 device private data structure
- * @indio_dev:	IIO device
- * @chip:	instance of the gpio_chip
- */
-struct stx104_dev {
-	struct iio_dev *indio_dev;
-	struct gpio_chip *chip;
-};
-
 static int stx104_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long mask)
 {
@@ -266,12 +256,38 @@ static void stx104_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	spin_unlock_irqrestore(&stx104gpio->lock, flags);
 }
 
+#define STX104_NGPIO 8
+static const char *stx104_names[STX104_NGPIO] = {
+	"DIN0", "DIN1", "DIN2", "DIN3", "DOUT0", "DOUT1", "DOUT2", "DOUT3"
+};
+
+static void stx104_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct stx104_gpio *const stx104gpio = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	/* verify masked GPIO are output */
+	if (!(*mask & 0xF0))
+		return;
+
+	*mask >>= 4;
+	*bits >>= 4;
+
+	spin_lock_irqsave(&stx104gpio->lock, flags);
+
+	stx104gpio->out_state &= ~*mask;
+	stx104gpio->out_state |= *mask & *bits;
+	outb(stx104gpio->out_state, stx104gpio->base);
+
+	spin_unlock_irqrestore(&stx104gpio->lock, flags);
+}
+
 static int stx104_probe(struct device *dev, unsigned int id)
 {
 	struct iio_dev *indio_dev;
 	struct stx104_iio *priv;
 	struct stx104_gpio *stx104gpio;
-	struct stx104_dev *stx104dev;
 	int err;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
@@ -280,10 +296,6 @@ static int stx104_probe(struct device *dev, unsigned int id)
 
 	stx104gpio = devm_kzalloc(dev, sizeof(*stx104gpio), GFP_KERNEL);
 	if (!stx104gpio)
-		return -ENOMEM;
-
-	stx104dev = devm_kzalloc(dev, sizeof(*stx104dev), GFP_KERNEL);
-	if (!stx104dev)
 		return -ENOMEM;
 
 	if (!devm_request_region(dev, base[id], STX104_EXTENT,
@@ -324,45 +336,26 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	stx104gpio->chip.parent = dev;
 	stx104gpio->chip.owner = THIS_MODULE;
 	stx104gpio->chip.base = -1;
-	stx104gpio->chip.ngpio = 8;
+	stx104gpio->chip.ngpio = STX104_NGPIO;
+	stx104gpio->chip.names = stx104_names;
 	stx104gpio->chip.get_direction = stx104_gpio_get_direction;
 	stx104gpio->chip.direction_input = stx104_gpio_direction_input;
 	stx104gpio->chip.direction_output = stx104_gpio_direction_output;
 	stx104gpio->chip.get = stx104_gpio_get;
 	stx104gpio->chip.set = stx104_gpio_set;
+	stx104gpio->chip.set_multiple = stx104_gpio_set_multiple;
 	stx104gpio->base = base[id] + 3;
 	stx104gpio->out_state = 0x0;
 
 	spin_lock_init(&stx104gpio->lock);
 
-	stx104dev->indio_dev = indio_dev;
-	stx104dev->chip = &stx104gpio->chip;
-	dev_set_drvdata(dev, stx104dev);
-
-	err = gpiochip_add_data(&stx104gpio->chip, stx104gpio);
+	err = devm_gpiochip_add_data(dev, &stx104gpio->chip, stx104gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
 	}
 
-	err = iio_device_register(indio_dev);
-	if (err) {
-		dev_err(dev, "IIO device registering failed (%d)\n", err);
-		gpiochip_remove(&stx104gpio->chip);
-		return err;
-	}
-
-	return 0;
-}
-
-static int stx104_remove(struct device *dev, unsigned int id)
-{
-	struct stx104_dev *const stx104dev = dev_get_drvdata(dev);
-
-	iio_device_unregister(stx104dev->indio_dev);
-	gpiochip_remove(stx104dev->chip);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static struct isa_driver stx104_driver = {
@@ -370,7 +363,6 @@ static struct isa_driver stx104_driver = {
 	.driver = {
 		.name = "stx104"
 	},
-	.remove = stx104_remove
 };
 
 module_isa_driver(stx104_driver, num_stx104);
