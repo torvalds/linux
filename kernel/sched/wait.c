@@ -5,7 +5,7 @@
  */
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
 #include <linux/hash.h>

@@ -23,7 +23,7 @@
 #undef DEBUG
 
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/loadavg.h>
 #include <linux/sched/rt.h>
 #include <linux/kernel.h>

@@ -43,6 +43,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/net.h>

@@ -32,7 +32,7 @@
 #include <linux/file.h>
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>

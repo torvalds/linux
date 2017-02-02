@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/sched/signal.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
