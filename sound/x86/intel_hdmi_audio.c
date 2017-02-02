@@ -132,10 +132,8 @@ static const struct channel_map_table map_tables[] = {
 /* hardware capability structure */
 static const struct snd_pcm_hardware had_pcm_hardware = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
-		SNDRV_PCM_INFO_DOUBLE |
-		SNDRV_PCM_INFO_MMAP|
-		SNDRV_PCM_INFO_MMAP_VALID |
-		SNDRV_PCM_INFO_BATCH),
+		SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = SNDRV_PCM_FMTBIT_S24,
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
