@@ -3010,7 +3010,7 @@ static void ip6_print_replace_route_err(struct list_head *rt6_nh_list)
 	struct rt6_nh *nh;
 
 	list_for_each_entry(nh, rt6_nh_list, next) {
-		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6 nexthop %pI6 ifi %d\n",
+		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6c nexthop %pI6c ifi %d\n",
 		        &nh->r_cfg.fc_dst, &nh->r_cfg.fc_gateway,
 		        nh->r_cfg.fc_ifindex);
 	}
