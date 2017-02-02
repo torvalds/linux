@@ -5,7 +5,6 @@
 
 menuconfig ARC_PLAT_EZNPS
 	bool "\"EZchip\" ARC dev platform"
-	select ARC_HAS_COH_CACHES if SMP
 	select CPU_BIG_ENDIAN
 	select CLKSRC_NPS
 	select EZNPS_GIC

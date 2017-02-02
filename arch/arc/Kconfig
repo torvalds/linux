@@ -180,15 +180,11 @@ config CPU_BIG_ENDIAN
 config SMP
 	bool "Symmetric Multi-Processing"
 	default n
-	select ARC_HAS_COH_CACHES if ISA_ARCV2
 	select ARC_MCIP if ISA_ARCV2
 	help
 	  This enables support for systems with more than one CPU.
 
 if SMP
-
-config ARC_HAS_COH_CACHES
-	def_bool n
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
@@ -219,8 +215,6 @@ config ARC_MCIP
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
 	default y
-	# if SMP, cache enabled ONLY if ARC implementation has cache coherency
-	depends on !SMP || ARC_HAS_COH_CACHES
 
 if ARC_CACHE
 
