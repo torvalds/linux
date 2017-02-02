@@ -604,24 +604,18 @@ static void target_remove_from_state_list(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
-static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists,
-				    bool write_pending)
+static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 {
 	unsigned long flags;
 
-	if (remove_from_lists) {
-		target_remove_from_state_list(cmd);
+	target_remove_from_state_list(cmd);
 
-		/*
-		 * Clear struct se_cmd->se_lun before the handoff to FE.
-		 */
-		cmd->se_lun = NULL;
-	}
+	/*
+	 * Clear struct se_cmd->se_lun before the handoff to FE.
+	 */
+	cmd->se_lun = NULL;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (write_pending)
-		cmd->t_state = TRANSPORT_WRITE_PENDING;
-
 	/*
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
@@ -635,31 +629,18 @@ static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists,
 		complete_all(&cmd->t_transport_stop_comp);
 		return 1;
 	}
-
 	cmd->transport_state &= ~CMD_T_ACTIVE;
-	if (remove_from_lists) {
-		/*
-		 * Some fabric modules like tcm_loop can release
-		 * their internally allocated I/O reference now and
-		 * struct se_cmd now.
-		 *
-		 * Fabric modules are expected to return '1' here if the
-		 * se_cmd being passed is released at this point,
-		 * or zero if not being released.
-		 */
-		if (cmd->se_tfo->check_stop_free != NULL) {
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			return cmd->se_tfo->check_stop_free(cmd);
-		}
-	}
-
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	return 0;
-}
 
-static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
-{
-	return transport_cmd_check_stop(cmd, true, false);
+	/*
+	 * Some fabric modules like tcm_loop can release their internally
+	 * allocated I/O reference and struct se_cmd now.
+	 *
+	 * Fabric modules are expected to return '1' here if the se_cmd being
+	 * passed is released at this point, or zero if not being released.
+	 */
+	return cmd->se_tfo->check_stop_free ? cmd->se_tfo->check_stop_free(cmd)
+		: 0;
 }
 
 static void transport_lun_remove_cmd(struct se_cmd *cmd)
@@ -2385,6 +2366,7 @@ EXPORT_SYMBOL(target_alloc_sgl);
 sense_reason_t
 transport_generic_new_cmd(struct se_cmd *cmd)
 {
+	unsigned long flags;
 	int ret = 0;
 	bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
@@ -2450,8 +2432,24 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 		target_execute_cmd(cmd);
 		return 0;
 	}
-	if (transport_cmd_check_stop(cmd, false, true))
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	cmd->t_state = TRANSPORT_WRITE_PENDING;
+	/*
+	 * Determine if frontend context caller is requesting the stopping of
+	 * this command for frontend exceptions.
+	 */
+	if (cmd->transport_state & CMD_T_STOP) {
+		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
+			 __func__, __LINE__, cmd->tag);
+
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+		complete_all(&cmd->t_transport_stop_comp);
 		return 0;
+	}
+	cmd->transport_state &= ~CMD_T_ACTIVE;
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	ret = cmd->se_tfo->write_pending(cmd);
 	if (ret == -EAGAIN || ret == -ENOMEM)
