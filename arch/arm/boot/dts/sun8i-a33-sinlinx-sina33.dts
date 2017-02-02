@@ -80,7 +80,15 @@
 	};
 };
 
+&codec {
+	status = "okay";
+};
+
 &de {
+	status = "okay";
+};
+
+&dai {
 	status = "okay";
 };
 
@@ -225,6 +233,10 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&sound {
+	status = "okay";
 };
 
 &tcon0 {
