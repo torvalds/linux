@@ -2046,6 +2046,11 @@ static void _lgopen_prepare_attached(struct nfs4_opendata *data,
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_hdr *lo;
 
+	/* Heuristic: don't send layoutget if we have cached data */
+	if (rng.iomode == IOMODE_READ &&
+	   (i_size_read(ino) == 0 || ino->i_mapping->nrpages != 0))
+		return;
+
 	lo = _pnfs_grab_empty_layout(ino, ctx);
 	if (!lo)
 		return;
