@@ -573,6 +573,34 @@ static int da8xx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int da8xx_suspend(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = phy_power_off(glue->phy);
+	if (ret)
+		return ret;
+	clk_disable_unprepare(glue->clk);
+
+	return 0;
+}
+
+static int da8xx_resume(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = clk_prepare_enable(glue->clk);
+	if (ret)
+		return ret;
+	return phy_power_on(glue->phy);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(da8xx_pm_ops, da8xx_suspend, da8xx_resume);
+
 #ifdef CONFIG_OF
 static const struct of_device_id da8xx_id_table[] = {
 	{
@@ -588,6 +616,7 @@ static struct platform_driver da8xx_driver = {
 	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
+		.pm = &da8xx_pm_ops,
 		.of_match_table = of_match_ptr(da8xx_id_table),
 	},
 };
