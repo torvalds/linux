@@ -52,9 +52,9 @@ struct mid_pb_ddata {
 	struct device *dev;
 	int irq;
 	struct input_dev *input;
+	unsigned short mirqlvl1_addr;
 	unsigned short pbstat_addr;
 	u8 pbstat_mask;
-	int (*ack)(struct mid_pb_ddata *ddata);
 	int (*setup)(struct mid_pb_ddata *ddata);
 };
 
@@ -74,14 +74,9 @@ static int mid_pbstat(struct mid_pb_ddata *ddata, int *value)
 	return 0;
 }
 
-static int mfld_ack(struct mid_pb_ddata *ddata)
+static int mid_irq_ack(struct mid_pb_ddata *ddata)
 {
-	return intel_msic_reg_update(INTEL_MSIC_IRQLVL1MSK, 0, MSIC_PWRBTNM);
-}
-
-static int mrfld_ack(struct mid_pb_ddata *ddata)
-{
-	return intel_scu_ipc_update_register(BCOVE_IRQLVL1MSK, 0, MSIC_PWRBTNM);
+	return intel_msic_reg_update(ddata->mirqlvl1_addr, 0, MSIC_PWRBTNM);
 }
 
 static int mrfld_setup(struct mid_pb_ddata *ddata)
@@ -109,20 +104,20 @@ static irqreturn_t mid_pb_isr(int irq, void *dev_id)
 		input_sync(input);
 	}
 
-	ddata->ack(ddata);
+	mid_irq_ack(ddata);
 	return IRQ_HANDLED;
 }
 
 static struct mid_pb_ddata mfld_ddata = {
+	.mirqlvl1_addr	= INTEL_MSIC_IRQLVL1MSK,
 	.pbstat_addr	= INTEL_MSIC_PBSTATUS,
 	.pbstat_mask	= MSIC_PB_LEVEL,
-	.ack	= mfld_ack,
 };
 
 static struct mid_pb_ddata mrfld_ddata = {
+	.mirqlvl1_addr	= BCOVE_IRQLVL1MSK,
 	.pbstat_addr	= BCOVE_PBSTATUS,
 	.pbstat_mask	= BCOVE_PB_LEVEL,
-	.ack	= mrfld_ack,
 	.setup	= mrfld_setup,
 };
 
@@ -202,7 +197,7 @@ static int mid_pb_probe(struct platform_device *pdev)
 	 * initialization. The race happens rarely. So we needn't worry
 	 * about it.
 	 */
-	error = ddata->ack(ddata);
+	error = mid_irq_ack(ddata);
 	if (error) {
 		dev_err(&pdev->dev,
 			"Unable to clear power button interrupt, error: %d\n",
