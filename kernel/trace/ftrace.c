@@ -4858,10 +4858,13 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		if (!new_hash)
 			ret = -ENOMEM;
 
-		if (fgd->type == GRAPH_FILTER_FUNCTION)
+		if (fgd->type == GRAPH_FILTER_FUNCTION) {
 			rcu_assign_pointer(ftrace_graph_hash, new_hash);
-		else
+			fgd->hash = ftrace_graph_hash;
+		} else {
 			rcu_assign_pointer(ftrace_graph_notrace_hash, new_hash);
+			fgd->hash = ftrace_graph_notrace_hash;
+		}
 
 		mutex_unlock(&graph_lock);
 
