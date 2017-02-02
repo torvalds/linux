@@ -346,7 +346,7 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 			(fib_callback)aac_aif_callback, fibctx);
 	} else {
 		struct fib *fib = &dev->fibs[index];
-		struct hw_fib * hwfib = fib->hw_fib_va;
+		int start_callback = 0;
 
 		/*
 		 *	Remove this fib from the Outstanding I/O queue.
@@ -364,60 +364,104 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 			return 0;
 		}
 
-		if (isFastResponse) {
-			/*
-			 *	Doctor the fib
-			 */
-			*(__le32 *)hwfib->data = cpu_to_le32(ST_OK);
-			hwfib->header.XferState |= cpu_to_le32(AdapterProcessed);
-			fib->flags |= FIB_CONTEXT_FLAG_FASTRESP;
-		}
-
 		FIB_COUNTER_INCREMENT(aac_config.FibRecved);
 
-		if (hwfib->header.Command == cpu_to_le16(NuFileSystem))
-		{
-			__le32 *pstatus = (__le32 *)hwfib->data;
-			if (*pstatus & cpu_to_le32(0xffff0000))
-				*pstatus = cpu_to_le32(ST_OK);
+		if (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) {
+
+			if (isFastResponse)
+				fib->flags |= FIB_CONTEXT_FLAG_FASTRESP;
+
+			if (fib->callback) {
+				start_callback = 1;
+			} else {
+				unsigned long flagv;
+				int complete = 0;
+
+				dprintk((KERN_INFO "event_wait up\n"));
+				spin_lock_irqsave(&fib->event_lock, flagv);
+				if (fib->done == 2) {
+					fib->done = 1;
+					complete = 1;
+				} else {
+					fib->done = 1;
+					up(&fib->event_wait);
+				}
+				spin_unlock_irqrestore(&fib->event_lock, flagv);
+
+				spin_lock_irqsave(&dev->manage_lock, mflags);
+				dev->management_fib_count--;
+				spin_unlock_irqrestore(&dev->manage_lock,
+					mflags);
+
+				FIB_COUNTER_INCREMENT(aac_config.NativeRecved);
+				if (complete)
+					aac_fib_complete(fib);
+			}
+		} else {
+			struct hw_fib *hwfib = fib->hw_fib_va;
+
+			if (isFastResponse) {
+				/* Doctor the fib */
+				*(__le32 *)hwfib->data = cpu_to_le32(ST_OK);
+				hwfib->header.XferState |=
+					cpu_to_le32(AdapterProcessed);
+				fib->flags |= FIB_CONTEXT_FLAG_FASTRESP;
+			}
+
+			if (hwfib->header.Command ==
+				cpu_to_le16(NuFileSystem)) {
+				__le32 *pstatus = (__le32 *)hwfib->data;
+
+				if (*pstatus & cpu_to_le32(0xffff0000))
+					*pstatus = cpu_to_le32(ST_OK);
+			}
+			if (hwfib->header.XferState &
+				cpu_to_le32(NoResponseExpected | Async)) {
+				if (hwfib->header.XferState & cpu_to_le32(
+					NoResponseExpected))
+					FIB_COUNTER_INCREMENT(
+						aac_config.NoResponseRecved);
+				else
+					FIB_COUNTER_INCREMENT(
+						aac_config.AsyncRecved);
+				start_callback = 1;
+			} else {
+				unsigned long flagv;
+				int complete = 0;
+
+				dprintk((KERN_INFO "event_wait up\n"));
+				spin_lock_irqsave(&fib->event_lock, flagv);
+				if (fib->done == 2) {
+					fib->done = 1;
+					complete = 1;
+				} else {
+					fib->done = 1;
+					up(&fib->event_wait);
+				}
+				spin_unlock_irqrestore(&fib->event_lock, flagv);
+
+				spin_lock_irqsave(&dev->manage_lock, mflags);
+				dev->management_fib_count--;
+				spin_unlock_irqrestore(&dev->manage_lock,
+					mflags);
+
+				FIB_COUNTER_INCREMENT(aac_config.NormalRecved);
+				if (complete)
+					aac_fib_complete(fib);
+			}
 		}
-		if (hwfib->header.XferState & cpu_to_le32(NoResponseExpected | Async)) 
-		{
-	        	if (hwfib->header.XferState & cpu_to_le32(NoResponseExpected))
-				FIB_COUNTER_INCREMENT(aac_config.NoResponseRecved);
-			else 
-				FIB_COUNTER_INCREMENT(aac_config.AsyncRecved);
+
+
+		if (start_callback) {
 			/*
-			 *	NOTE:  we cannot touch the fib after this
-			 *	    call, because it may have been deallocated.
+			 * NOTE:  we cannot touch the fib after this
+			 *  call, because it may have been deallocated.
 			 */
 			if (likely(fib->callback && fib->callback_data)) {
-				fib->flags &= FIB_CONTEXT_FLAG_FASTRESP;
 				fib->callback(fib->callback_data, fib);
-			} else
-				dev_info(&dev->pdev->dev,
-				"Invalid callback_fib[%d] (*%p)(%p)\n",
-				index, fib->callback, fib->callback_data);
-		} else {
-			unsigned long flagv;
-	  		dprintk((KERN_INFO "event_wait up\n"));
-			spin_lock_irqsave(&fib->event_lock, flagv);
-			if (!fib->done) {
-				fib->done = 1;
-				up(&fib->event_wait);
-			}
-			spin_unlock_irqrestore(&fib->event_lock, flagv);
-
-			spin_lock_irqsave(&dev->manage_lock, mflags);
-			dev->management_fib_count--;
-			spin_unlock_irqrestore(&dev->manage_lock, mflags);
-
-			FIB_COUNTER_INCREMENT(aac_config.NormalRecved);
-			if (fib->done == 2) {
-				spin_lock_irqsave(&fib->event_lock, flagv);
-				fib->done = 0;
-				spin_unlock_irqrestore(&fib->event_lock, flagv);
+			} else {
 				aac_fib_complete(fib);
+				aac_fib_free(fib);
 			}
 
 		}

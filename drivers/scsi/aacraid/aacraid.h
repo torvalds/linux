@@ -86,6 +86,7 @@ enum {
 #define AAC_MAX_BUSES			5
 #define AAC_MAX_TARGETS		256
 #define AAC_MAX_NATIVE_SIZE		2048
+#define FW_ERROR_BUFFER_SIZE		512
 
 /* Thor AIF events */
 #define SA_AIF_HOTPLUG			(1<<1)
@@ -94,6 +95,141 @@ enum {
 #define SA_AIF_LDEV_CHANGE		(1<<5)
 #define SA_AIF_BPSTAT_CHANGE		(1<<30)
 #define SA_AIF_BPCFG_CHANGE		(1<<31)
+
+#define HBA_MAX_SG_EMBEDDED		28
+#define HBA_MAX_SG_SEPARATE		90
+#define HBA_SENSE_DATA_LEN_MAX		32
+#define HBA_REQUEST_TAG_ERROR_FLAG	0x00000002
+#define HBA_SGL_FLAGS_EXT		0x80000000UL
+
+struct aac_hba_sgl {
+	u32		addr_lo; /* Lower 32-bits of SGL element address */
+	u32		addr_hi; /* Upper 32-bits of SGL element address */
+	u32		len;	/* Length of SGL element in bytes */
+	u32		flags;	/* SGL element flags */
+};
+
+enum {
+	HBA_IU_TYPE_SCSI_CMD_REQ		= 0x40,
+	HBA_IU_TYPE_SCSI_TM_REQ			= 0x41,
+	HBA_IU_TYPE_SATA_REQ			= 0x42,
+	HBA_IU_TYPE_RESP			= 0x60,
+	HBA_IU_TYPE_COALESCED_RESP		= 0x61,
+	HBA_IU_TYPE_INT_COALESCING_CFG_REQ	= 0x70
+};
+
+enum {
+	HBA_CMD_BYTE1_DATA_DIR_IN		= 0x1,
+	HBA_CMD_BYTE1_DATA_DIR_OUT		= 0x2,
+	HBA_CMD_BYTE1_DATA_TYPE_DDR		= 0x4,
+	HBA_CMD_BYTE1_CRYPTO_ENABLE		= 0x8
+};
+
+enum {
+	HBA_CMD_BYTE1_BITOFF_DATA_DIR_IN	= 0x0,
+	HBA_CMD_BYTE1_BITOFF_DATA_DIR_OUT,
+	HBA_CMD_BYTE1_BITOFF_DATA_TYPE_DDR,
+	HBA_CMD_BYTE1_BITOFF_CRYPTO_ENABLE
+};
+
+enum {
+	HBA_RESP_DATAPRES_NO_DATA		= 0x0,
+	HBA_RESP_DATAPRES_RESPONSE_DATA,
+	HBA_RESP_DATAPRES_SENSE_DATA
+};
+
+enum {
+	HBA_RESP_SVCRES_TASK_COMPLETE		= 0x0,
+	HBA_RESP_SVCRES_FAILURE,
+	HBA_RESP_SVCRES_TMF_COMPLETE,
+	HBA_RESP_SVCRES_TMF_SUCCEEDED,
+	HBA_RESP_SVCRES_TMF_REJECTED,
+	HBA_RESP_SVCRES_TMF_LUN_INVALID
+};
+
+enum {
+	HBA_RESP_STAT_IO_ERROR			= 0x1,
+	HBA_RESP_STAT_IO_ABORTED,
+	HBA_RESP_STAT_NO_PATH_TO_DEVICE,
+	HBA_RESP_STAT_INVALID_DEVICE,
+	HBA_RESP_STAT_HBAMODE_DISABLED		= 0xE,
+	HBA_RESP_STAT_UNDERRUN			= 0x51,
+	HBA_RESP_STAT_OVERRUN			= 0x75
+};
+
+struct aac_hba_cmd_req {
+	u8	iu_type;	/* HBA information unit type */
+	/*
+	 * byte1:
+	 * [1:0] DIR - 0=No data, 0x1 = IN, 0x2 = OUT
+	 * [2]   TYPE - 0=PCI, 1=DDR
+	 * [3]   CRYPTO_ENABLE - 0=Crypto disabled, 1=Crypto enabled
+	 */
+	u8	byte1;
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	reserved1;
+	__le32	it_nexus;	/* Device handle for the request */
+	__le32	request_id;	/* Sender context */
+	/* Lower 32-bits of tweak value for crypto enabled IOs */
+	__le32	tweak_value_lo;
+	u8	cdb[16];	/* SCSI CDB of the command */
+	u8	lun[8];		/* SCSI LUN of the command */
+
+	/* Total data length in bytes to be read/written (if any) */
+	__le32	data_length;
+
+	/* [2:0] Task Attribute, [6:3] Command Priority */
+	u8	attr_prio;
+
+	/* Number of SGL elements embedded in the HBA req */
+	u8	emb_data_desc_count;
+
+	__le16	dek_index;	/* DEK index for crypto enabled IOs */
+
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+
+	/* Upper 32-bits of tweak value for crypto enabled IOs */
+	__le32	tweak_value_hi;
+
+	struct aac_hba_sgl sge[HBA_MAX_SG_SEPARATE+2]; /* SG list space */
+
+	/*
+	 * structure must not exceed
+	 * AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE
+	 */
+};
+
+struct aac_hba_resp {
+	u8	iu_type;		/* HBA information unit type */
+	u8	reserved1[3];
+	__le32	request_identifier;	/* sender context */
+	__le32	reserved2;
+	u8	service_response;	/* SCSI service response */
+	u8	status;			/* SCSI status */
+	u8	datapres;	/* [1:0] - data present, [7:2] - reserved */
+	u8	sense_response_data_len;	/* Sense/response data length */
+	__le32	residual_count;		/* Residual data length in bytes */
+	/* Sense/response data */
+	u8	sense_response_buf[HBA_SENSE_DATA_LEN_MAX];
+};
+
+struct aac_native_hba {
+	union {
+		struct aac_hba_cmd_req cmd;
+		u8 cmd_bytes[AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE];
+	} cmd;
+	union {
+		struct aac_hba_resp err;
+		u8 resp_bytes[FW_ERROR_BUFFER_SIZE];
+	} resp;
+};
 
 #define CISS_REPORT_PHYSICAL_LUNS	0xc3
 #define WRITE_HOST_WELLNESS		0xa5
@@ -468,10 +604,10 @@ enum aac_queue_types {
 
 /* transport FIB header (PMC) */
 struct aac_fib_xporthdr {
-	u64	HostAddress;	/* FIB host address w/o xport header */
-	u32	Size;		/* FIB size excluding xport header */
-	u32	Handle;		/* driver handle to reference the FIB */
-	u64	Reserved[2];
+	__le64	HostAddress;	/* FIB host address w/o xport header */
+	__le32	Size;		/* FIB size excluding xport header */
+	__le32	Handle;		/* driver handle to reference the FIB */
+	__le64	Reserved[2];
 };
 
 #define		ALIGN32		32
@@ -978,17 +1114,20 @@ struct src_mu_registers {
 	__le32	IQ_L;		/*  c0h | Inbound Queue (Low address) */
 	__le32	IQ_H;		/*  c4h | Inbound Queue (High address) */
 	__le32	ODR_MSI;	/*  c8h | MSI register for sync./AIF */
+	__le32  reserved5;	/*  cch | Reserved */
+	__le32	IQN_L;		/*  d0h | Inbound (native cmd) low  */
+	__le32	IQN_H;		/*  d4h | Inbound (native cmd) high */
 };
 
 struct src_registers {
 	struct src_mu_registers MUnit;	/* 00h - cbh */
 	union {
 		struct {
-			__le32 reserved1[130789];	/* cch - 7fc5fh */
+			__le32 reserved1[130786];	/* d8h - 7fc5fh */
 			struct src_inbound IndexRegs;	/* 7fc60h */
 		} tupelo;
 		struct {
-			__le32 reserved1[973];		/* cch - fffh */
+			__le32 reserved1[970];		/* d8h - fffh */
 			struct src_inbound IndexRegs;	/* 1000h */
 		} denali;
 	} u;
@@ -1102,8 +1241,10 @@ struct fib {
 	struct list_head	fiblink;
 	void			*data;
 	u32			vector_no;
-	struct hw_fib		*hw_fib_va;		/* Actual shared object */
-	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
+	struct hw_fib		*hw_fib_va;	/* also used for native */
+	dma_addr_t		hw_fib_pa;	/* physical address of hw_fib*/
+	dma_addr_t		hw_sgl_pa;	/* extra sgl for native */
+	dma_addr_t		hw_error_pa;	/* error buffer for native */
 	u32			hbacmd_size;	/* cmd size for native */
 };
 
@@ -1285,6 +1426,7 @@ struct aac_bus_info_response {
 #define AAC_OPT_NEW_COMM		cpu_to_le32(1<<17)
 #define AAC_OPT_NEW_COMM_64		cpu_to_le32(1<<18)
 #define AAC_OPT_EXTENDED		cpu_to_le32(1<<23)
+#define AAC_OPT_NATIVE_HBA		cpu_to_le32(1<<25)
 #define AAC_OPT_NEW_COMM_TYPE1		cpu_to_le32(1<<28)
 #define AAC_OPT_NEW_COMM_TYPE2		cpu_to_le32(1<<29)
 #define AAC_OPT_NEW_COMM_TYPE3		cpu_to_le32(1<<30)
@@ -1322,8 +1464,8 @@ struct aac_dev
 	/*
 	 *	Map for 128 fib objects (64k)
 	 */
-	dma_addr_t		hw_fib_pa;
-	struct hw_fib		*hw_fib_va;
+	dma_addr_t		hw_fib_pa;	/* also used for native cmd */
+	struct hw_fib		*hw_fib_va;	/* also used for native cmd */
 	struct hw_fib		*aif_base_va;
 	/*
 	 *	Fib Headers
@@ -1498,6 +1640,8 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG			(0x00000002)
 #define FIB_CONTEXT_FLAG_WAIT			(0x00000004)
 #define FIB_CONTEXT_FLAG_FASTRESP		(0x00000008)
+#define FIB_CONTEXT_FLAG_NATIVE_HBA		(0x00000010)
+#define FIB_CONTEXT_FLAG_NATIVE_HBA_TMF	(0x00000020)
 
 /*
  *	Define the command values
@@ -2157,6 +2301,8 @@ struct aac_common
 #ifdef DBG
 	u32 FibsSent;
 	u32 FibRecved;
+	u32 NativeSent;
+	u32 NativeRecved;
 	u32 NoResponseSent;
 	u32 NoResponseRecved;
 	u32 AsyncSent;
@@ -2167,7 +2313,6 @@ struct aac_common
 };
 
 extern struct aac_common aac_config;
-
 
 /*
  *	The following macro is used when sending and receiving FIBs. It is
@@ -2295,9 +2440,10 @@ extern struct aac_common aac_config;
 
 /* PMC NEW COMM: Request the event data */
 #define		AifReqEvent		200
+#define		AifRawDeviceRemove	203	/* RAW device deleted */
+#define		AifNativeDeviceAdd	204	/* native HBA device added */
+#define		AifNativeDeviceRemove	205	/* native HBA device removed */
 
-/* RAW device deleted */
-#define		AifRawDeviceRemove	203
 
 /*
  *	Adapter Initiated FIB command structures. Start with the adapter
@@ -2342,9 +2488,12 @@ void aac_fib_free(struct fib * context);
 void aac_fib_init(struct fib * context);
 void aac_printf(struct aac_dev *dev, u32 val);
 int aac_fib_send(u16 command, struct fib * context, unsigned long size, int priority, int wait, int reply, fib_callback callback, void *ctxt);
+int aac_hba_send(u8 command, struct fib *context,
+		fib_callback callback, void *ctxt);
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry);
 void aac_consumer_free(struct aac_dev * dev, struct aac_queue * q, u32 qnum);
 int aac_fib_complete(struct fib * context);
+void aac_hba_callback(void *context, struct fib *fibptr);
 #define fib_data(fibctx) ((void *)(fibctx)->hw_fib_va->data)
 struct aac_dev *aac_init_adapter(struct aac_dev *dev);
 void aac_src_access_devreg(struct aac_dev *dev, int mode);

@@ -65,6 +65,11 @@ static int fib_map_alloc(struct aac_dev *dev)
 		dev->max_cmd_size = AAC_MAX_NATIVE_SIZE;
 	else
 		dev->max_cmd_size = dev->max_fib_size;
+	if (dev->max_fib_size < AAC_MAX_NATIVE_SIZE) {
+		dev->max_cmd_size = AAC_MAX_NATIVE_SIZE;
+	} else {
+		dev->max_cmd_size = dev->max_fib_size;
+	}
 
 	dprintk((KERN_INFO
 	  "allocate hardware fibs pci_alloc_consistent(%p, %d * (%d + %d), %p)\n",
@@ -153,7 +158,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		(hw_fib_pa - dev->hw_fib_pa));
 	dev->hw_fib_pa = hw_fib_pa;
 	memset(dev->hw_fib_va, 0,
-		(dev->max_fib_size + sizeof(struct aac_fib_xporthdr)) *
+		(dev->max_cmd_size + sizeof(struct aac_fib_xporthdr)) *
 		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB));
 
 	/* add Xport header */
@@ -179,8 +184,18 @@ int aac_fib_setup(struct aac_dev * dev)
 		sema_init(&fibptr->event_wait, 0);
 		spin_lock_init(&fibptr->event_lock);
 		hw_fib->header.XferState = cpu_to_le32(0xffffffff);
-		hw_fib->header.SenderSize = cpu_to_le16(dev->max_fib_size);
+		hw_fib->header.SenderSize =
+			cpu_to_le16(dev->max_fib_size);	/* ?? max_cmd_size */
 		fibptr->hw_fib_pa = hw_fib_pa;
+		fibptr->hw_sgl_pa = hw_fib_pa +
+			offsetof(struct aac_hba_cmd_req, sge[2]);
+		/*
+		 * one element is for the ptr to the separate sg list,
+		 * second element for 32 byte alignment
+		 */
+		fibptr->hw_error_pa = hw_fib_pa +
+			offsetof(struct aac_native_hba, resp.resp_bytes[0]);
+
 		hw_fib = (struct hw_fib *)((unsigned char *)hw_fib +
 			dev->max_cmd_size + sizeof(struct aac_fib_xporthdr));
 		hw_fib_pa = hw_fib_pa +
@@ -282,7 +297,8 @@ void aac_fib_free(struct fib *fibptr)
 	spin_lock_irqsave(&fibptr->dev->fib_lock, flags);
 	if (unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
 		aac_config.fib_timeouts++;
-	if (fibptr->hw_fib_va->header.XferState != 0) {
+	if (!(fibptr->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) &&
+		fibptr->hw_fib_va->header.XferState != 0) {
 		printk(KERN_WARNING "aac_fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n",
 			 (void*)fibptr,
 			 le32_to_cpu(fibptr->hw_fib_va->header.XferState));
@@ -510,8 +526,15 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	 *	Map the fib into 32bits by using the fib number
 	 */
 
-	hw_fib->header.SenderFibAddress = cpu_to_le32(((u32)(fibptr - dev->fibs)) << 2);
-	hw_fib->header.Handle = (u32)(fibptr - dev->fibs) + 1;
+	hw_fib->header.SenderFibAddress =
+		cpu_to_le32(((u32)(fibptr - dev->fibs)) << 2);
+
+	/* use the same shifted value for handle to be compatible
+	 * with the new native hba command handle
+	 */
+	hw_fib->header.Handle =
+		cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);
+
 	/*
 	 *	Set FIB state to indicate where it came from and if we want a
 	 *	response from the adapter. Also load the command from the
@@ -679,6 +702,82 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		return 0;
 }
 
+int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
+		void *callback_data)
+{
+	struct aac_dev *dev = fibptr->dev;
+	int wait;
+	unsigned long flags = 0;
+	unsigned long mflags = 0;
+
+	fibptr->flags = (FIB_CONTEXT_FLAG | FIB_CONTEXT_FLAG_NATIVE_HBA);
+	if (callback) {
+		wait = 0;
+		fibptr->callback = callback;
+		fibptr->callback_data = callback_data;
+	} else
+		wait = 1;
+
+
+	if (command == HBA_IU_TYPE_SCSI_CMD_REQ) {
+		struct aac_hba_cmd_req *hbacmd =
+			(struct aac_hba_cmd_req *)fibptr->hw_fib_va;
+
+		hbacmd->iu_type = command;
+		/* bit1 of request_id must be 0 */
+		hbacmd->request_id =
+			cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);
+	} else
+		return -EINVAL;
+
+
+	if (wait) {
+		spin_lock_irqsave(&dev->manage_lock, mflags);
+		if (dev->management_fib_count >= AAC_NUM_MGT_FIB) {
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+			return -EBUSY;
+		}
+		dev->management_fib_count++;
+		spin_unlock_irqrestore(&dev->manage_lock, mflags);
+		spin_lock_irqsave(&fibptr->event_lock, flags);
+	}
+
+	if (aac_adapter_deliver(fibptr) != 0) {
+		if (wait) {
+			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+			spin_lock_irqsave(&dev->manage_lock, mflags);
+			dev->management_fib_count--;
+			spin_unlock_irqrestore(&dev->manage_lock, mflags);
+		}
+		return -EBUSY;
+	}
+	FIB_COUNTER_INCREMENT(aac_config.NativeSent);
+
+	if (wait) {
+		spin_unlock_irqrestore(&fibptr->event_lock, flags);
+		/* Only set for first known interruptable command */
+		if (down_interruptible(&fibptr->event_wait)) {
+			fibptr->done = 2;
+			up(&fibptr->event_wait);
+		}
+		spin_lock_irqsave(&fibptr->event_lock, flags);
+		if ((fibptr->done == 0) || (fibptr->done == 2)) {
+			fibptr->done = 2; /* Tell interrupt we aborted */
+			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+			return -ERESTARTSYS;
+		}
+		spin_unlock_irqrestore(&fibptr->event_lock, flags);
+		WARN_ON(fibptr->done == 0);
+
+		if (unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
+			return -ETIMEDOUT;
+
+		return 0;
+	}
+
+	return -EINPROGRESS;
+}
+
 /**
  *	aac_consumer_get	-	get the top of the queue
  *	@dev: Adapter
@@ -837,11 +936,17 @@ int aac_fib_complete(struct fib *fibptr)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 
+	if (fibptr->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) {
+		fib_dealloc(fibptr);
+		return 0;
+	}
+
 	/*
-	 *	Check for a fib which has already been completed
+	 *	Check for a fib which has already been completed or with a
+	 *	status wait timeout
 	 */
 
-	if (hw_fib->header.XferState == 0)
+	if (hw_fib->header.XferState == 0 || fibptr->done == 2)
 		return 0;
 	/*
 	 *	If we plan to do anything check the structure type first.
@@ -994,20 +1099,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			lun = (container >> 16) & 0xFF;
 			container = (u32)-1;
 			channel = aac_phys_to_logical(channel);
-			device_config_needed =
-			  (((__le32 *)aifcmd->data)[0] ==
-			    cpu_to_le32(AifRawDeviceRemove)) ? DELETE : ADD;
-
-			if (device_config_needed == ADD) {
-				device = scsi_device_lookup(
-					dev->scsi_host_ptr,
-					channel, id, lun);
-				if (device) {
-					scsi_remove_device(device);
-					scsi_device_put(device);
-				}
-			}
+			device_config_needed = DELETE;
 			break;
+
 		/*
 		 *	Morph or Expand complete
 		 */

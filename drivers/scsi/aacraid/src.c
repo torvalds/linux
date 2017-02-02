@@ -457,6 +457,11 @@ static int aac_src_check_health(struct aac_dev *dev)
 	return 0;
 }
 
+static inline u32 aac_get_vector(struct aac_dev *dev)
+{
+	return atomic_inc_return(&dev->msix_counter)%dev->max_msix;
+}
+
 /**
  *	aac_src_deliver_message
  *	@fib: fib to issue
@@ -470,67 +475,100 @@ static int aac_src_deliver_message(struct fib *fib)
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+	int native_hba;
 #if !defined(writeq)
 	unsigned long flags;
 #endif
 
-	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 	u16 vector_no;
 
 	atomic_inc(&q->numpending);
 
-	if (dev->msi_enabled && fib->hw_fib_va->header.Command != AifRequest &&
-	    dev->max_msix > 1) {
-		vector_no = fib->vector_no;
-		fib->hw_fib_va->header.Handle += (vector_no << 16);
+	native_hba = (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) ? 1 : 0;
+
+
+	if (dev->msi_enabled && dev->max_msix > 1 &&
+		(native_hba || fib->hw_fib_va->header.Command != AifRequest)) {
+
+		if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)
+			&& dev->sa_firmware)
+			vector_no = aac_get_vector(dev);
+		else
+			vector_no = fib->vector_no;
+
+		if (native_hba) {
+			((struct aac_hba_cmd_req *)fib->hw_fib_va)->reply_qid
+				= vector_no;
+			((struct aac_hba_cmd_req *)fib->hw_fib_va)->request_id
+				+= (vector_no << 16);
+		} else {
+			fib->hw_fib_va->header.Handle += (vector_no << 16);
+		}
 	} else {
 		vector_no = 0;
 	}
 
 	atomic_inc(&dev->rrq_outstanding[vector_no]);
 
-	if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) ||
-		(dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)) {
-		/* Calculate the amount to the fibsize bits */
-		fibsize = (hdr_size + 127) / 128 - 1;
-		if (fibsize > (ALIGN32 - 1))
-			return -EMSGSIZE;
-		/* New FIB header, 32-bit */
+	if (native_hba) {
 		address = fib->hw_fib_pa;
-		fib->hw_fib_va->header.StructType = FIB_MAGIC2;
-		fib->hw_fib_va->header.SenderFibAddress = (u32)address;
-		fib->hw_fib_va->header.u.TimeStamp = 0;
-		BUG_ON(upper_32_bits(address) != 0L);
+		fibsize = (fib->hbacmd_size + 127) / 128 - 1;
+		if (fibsize > 31)
+			fibsize = 31;
 		address |= fibsize;
-	} else {
-		/* Calculate the amount to the fibsize bits */
-		fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
-		if (fibsize > (ALIGN32 - 1))
-			return -EMSGSIZE;
-
-		/* Fill XPORT header */
-		pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
-		pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.Handle);
-		pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
-		pFibX->Size = cpu_to_le32(hdr_size);
-
-		/*
-		 * The xport header has been 32-byte aligned for us so that fibsize
-		 * can be masked out of this address by hardware. -- BenC
-		 */
-		address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
-		if (address & (ALIGN32 - 1))
-			return -EINVAL;
-		address |= fibsize;
-	}
 #if defined(writeq)
-	src_writeq(dev, MUnit.IQ_L, (u64)address);
+		src_writeq(dev, MUnit.IQN_L, (u64)address);
 #else
-	spin_lock_irqsave(&fib->dev->iq_lock, flags);
-	src_writel(dev, MUnit.IQ_H, upper_32_bits(address) & 0xffffffff);
-	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
-	spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+		spin_lock_irqsave(&fib->dev->iq_lock, flags);
+		src_writel(dev, MUnit.IQN_H,
+			upper_32_bits(address) & 0xffffffff);
+		src_writel(dev, MUnit.IQN_L, address & 0xffffffff);
+		spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
 #endif
+	} else {
+		if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 ||
+			dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
+			/* Calculate the amount to the fibsize bits */
+			fibsize = (le16_to_cpu(fib->hw_fib_va->header.Size)
+				+ 127) / 128 - 1;
+			/* New FIB header, 32-bit */
+			address = fib->hw_fib_pa;
+			fib->hw_fib_va->header.StructType = FIB_MAGIC2;
+			fib->hw_fib_va->header.SenderFibAddress =
+				cpu_to_le32((u32)address);
+			fib->hw_fib_va->header.u.TimeStamp = 0;
+			WARN_ON(((u32)(((address) >> 16) >> 16)) != 0L);
+		} else {
+			/* Calculate the amount to the fibsize bits */
+			fibsize = (sizeof(struct aac_fib_xporthdr) +
+				le16_to_cpu(fib->hw_fib_va->header.Size)
+				+ 127) / 128 - 1;
+			/* Fill XPORT header */
+			pFibX = (struct aac_fib_xporthdr *)
+				((unsigned char *)fib->hw_fib_va -
+				sizeof(struct aac_fib_xporthdr));
+			pFibX->Handle = fib->hw_fib_va->header.Handle;
+			pFibX->HostAddress =
+				cpu_to_le64((u64)fib->hw_fib_pa);
+			pFibX->Size = cpu_to_le32(
+				le16_to_cpu(fib->hw_fib_va->header.Size));
+			address = fib->hw_fib_pa -
+				(u64)sizeof(struct aac_fib_xporthdr);
+		}
+		if (fibsize > 31)
+			fibsize = 31;
+		address |= fibsize;
+
+#if defined(writeq)
+		src_writeq(dev, MUnit.IQ_L, (u64)address);
+#else
+		spin_lock_irqsave(&fib->dev->iq_lock, flags);
+		src_writel(dev, MUnit.IQ_H,
+			upper_32_bits(address) & 0xffffffff);
+		src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
+		spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+#endif
+	}
 	return 0;
 }
 
