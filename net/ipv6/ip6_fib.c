@@ -318,6 +318,16 @@ static int fib6_dump_node(struct fib6_walker *w)
 			w->leaf = rt;
 			return 1;
 		}
+
+		/* Multipath routes are dumped in one route with the
+		 * RTA_MULTIPATH attribute. Jump 'rt' to point to the
+		 * last sibling of this route (no need to dump the
+		 * sibling routes again)
+		 */
+		if (rt->rt6i_nsiblings)
+			rt = list_last_entry(&rt->rt6i_siblings,
+					     struct rt6_info,
+					     rt6i_siblings);
 	}
 	w->leaf = NULL;
 	return 0;
