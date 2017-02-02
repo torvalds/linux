@@ -64,16 +64,8 @@
 
 struct pcm_stream_info {
 	struct snd_pcm_substream *substream;
-	u64		buffer_rendered;
-	u32		ring_buf_size;
 	int substream_refcount;
 	bool running;
-};
-
-struct ring_buf_info {
-	u32	buf_addr;
-	u32	buf_size;
-	u8	is_valid;
 };
 
 /*
@@ -81,7 +73,6 @@ struct ring_buf_info {
  *
  * @card: ptr to hold card details
  * @connected: the monitor connection status
- * @buf_info: ring buffer info
  * @stream_info: stream information
  * @eld: holds ELD info
  * @curr_buf: pointer to hold current active ring buf
@@ -91,25 +82,28 @@ struct ring_buf_info {
  * @buff_done: id of current buffer done intr
  * @dev: platoform device handle
  * @chmap: holds channel map info
- * @underrun_count: PCM stream underrun counter
  */
 struct snd_intelhad {
 	struct snd_card	*card;
 	bool		connected;
-	struct		ring_buf_info buf_info[HAD_NUM_OF_RING_BUFS];
 	struct		pcm_stream_info stream_info;
 	unsigned char	eld[HDMI_MAX_ELD_BYTES];
 	bool dp_output;
-	enum		intel_had_aud_buf_type curr_buf;
-	int		valid_buf_cnt;
 	unsigned int	aes_bits;
 	spinlock_t had_spinlock;
-	enum		intel_had_aud_buf_type buff_done;
 	struct device *dev;
 	struct snd_pcm_chmap *chmap;
-	int underrun_count;
 	int tmds_clock_speed;
 	int link_rate;
+
+	/* ring buffer (BD) position index */
+	unsigned int bd_head;
+	/* PCM buffer position indices */
+	unsigned int pcmbuf_head;	/* being processed */
+	unsigned int pcmbuf_filled;	/* to be filled */
+
+	unsigned int num_bds;		/* number of BDs */
+	unsigned int period_bytes;	/* PCM period size in bytes */
 
 	/* internal stuff */
 	int irq;
