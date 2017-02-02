@@ -1223,6 +1223,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	struct flowi4 fl4 = {};
 	char *encap_header;
 	int ttl, err;
+	u8 nud_state;
 
 	if (max_encap_size < ipv4_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
@@ -1252,7 +1253,12 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
-	if (!(n->nud_state & NUD_VALID)) {
+	read_lock_bh(&n->lock);
+	nud_state = n->nud_state;
+	ether_addr_copy(e->h_dest, n->ha);
+	read_unlock_bh(&n->lock);
+
+	if (!(nud_state & NUD_VALID)) {
 		pr_warn("%s: can't offload, neighbour to %pI4 invalid\n", __func__, &fl4.daddr);
 		err = -EOPNOTSUPP;
 		goto out;
@@ -1260,8 +1266,6 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 
 	e->n = n;
 	e->out_dev = out_dev;
-
-	neigh_ha_snapshot(e->h_dest, n, out_dev);
 
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
@@ -1297,6 +1301,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	struct flowi6 fl6 = {};
 	char *encap_header;
 	int err, ttl = 0;
+	u8 nud_state;
 
 	if (max_encap_size < ipv6_encap_size) {
 		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
@@ -1327,7 +1332,12 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
-	if (!(n->nud_state & NUD_VALID)) {
+	read_lock_bh(&n->lock);
+	nud_state = n->nud_state;
+	ether_addr_copy(e->h_dest, n->ha);
+	read_unlock_bh(&n->lock);
+
+	if (!(nud_state & NUD_VALID)) {
 		pr_warn("%s: can't offload, neighbour to %pI6 invalid\n", __func__, &fl6.daddr);
 		err = -EOPNOTSUPP;
 		goto out;
@@ -1335,8 +1345,6 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 
 	e->n = n;
 	e->out_dev = out_dev;
-
-	neigh_ha_snapshot(e->h_dest, n, out_dev);
 
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
