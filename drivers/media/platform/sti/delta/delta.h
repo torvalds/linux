@@ -27,11 +27,19 @@
  *@DELTA_STATE_READY:
  *	Decoding instance is ready to decode compressed access unit.
  *
+ *@DELTA_STATE_WF_EOS:
+ *	Decoding instance is waiting for EOS (End Of Stream) completion.
+ *
+ *@DELTA_STATE_EOS:
+ *	EOS (End Of Stream) is completed (signaled to user). Decoding instance
+ *	should then be closed.
  */
 enum delta_state {
 	DELTA_STATE_WF_FORMAT,
 	DELTA_STATE_WF_STREAMINFO,
 	DELTA_STATE_READY,
+	DELTA_STATE_WF_EOS,
+	DELTA_STATE_EOS
 };
 
 /*
@@ -237,6 +245,7 @@ struct delta_ctx;
  * @get_frame:		get the next decoded frame available, see below
  * @recycle:		recycle the given frame, see below
  * @flush:		(optional) flush decoder, see below
+ * @drain:		(optional) drain decoder, see below
  */
 struct delta_dec {
 	const char *name;
@@ -371,6 +380,18 @@ struct delta_dec {
 	 * decoding logic.
 	 */
 	int (*flush)(struct delta_ctx *ctx);
+
+	/*
+	 * drain() - drain decoder
+	 * @ctx:	(in) instance
+	 *
+	 * Optional.
+	 * Mark decoder pending frames (decoded but not yet output) as ready
+	 * so that they can be output to client at EOS (End Of Stream).
+	 * get_frame() is to be called in a loop right after drain() to
+	 * get all those pending frames.
+	 */
+	int (*drain)(struct delta_ctx *ctx);
 };
 
 struct delta_dev;
@@ -497,6 +518,8 @@ static inline char *frame_type_str(u32 flags)
 		return "P";
 	if (flags & V4L2_BUF_FLAG_BFRAME)
 		return "B";
+	if (flags & V4L2_BUF_FLAG_LAST)
+		return "EOS";
 	return "?";
 }
 
