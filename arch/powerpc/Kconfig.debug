@@ -115,6 +115,7 @@ config XMON_DEFAULT
 config XMON_DISASSEMBLY
 	bool "Include disassembly support in xmon"
 	depends on XMON
+	depends on BROKEN
 	default y
 	help
 	  Include support for disassembling in xmon. You probably want
