@@ -186,7 +186,6 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
 	del_timer_sync(&glue->timer);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 }
 
 /* Caller must take musb->lock */
