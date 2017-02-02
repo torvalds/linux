@@ -1388,9 +1388,6 @@ struct ixgbe_thermal_sensor_data {
 #define ATH_PHY_ID       0x03429050
 #define AQ_FW_REV        0x20
 
-/* PHY Types */
-#define IXGBE_M88E1145_E_PHY_ID  0x01410CD0
-
 /* Special PHY Init Routine */
 #define IXGBE_PHY_INIT_OFFSET_NL 0x002B
 #define IXGBE_PHY_INIT_END_NL    0xFFFF
