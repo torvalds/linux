@@ -224,7 +224,6 @@ extern unsigned long sclp_console_full;
 extern char sclp_early_sccb[PAGE_SIZE];
 
 void sclp_early_wait_irq(void);
-int sclp_early_cmd_sync(sclp_cmdw_t cmd, void *sccb);
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,

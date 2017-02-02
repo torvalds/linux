@@ -50,7 +50,7 @@ void sclp_early_wait_irq(void)
 	__ctl_load(cr0.val, 0, 0);
 }
 
-int sclp_early_cmd_sync(sclp_cmdw_t cmd, void *sccb)
+int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb)
 {
 	unsigned long flags;
 	int rc;
@@ -63,20 +63,6 @@ int sclp_early_cmd_sync(sclp_cmdw_t cmd, void *sccb)
 out:
 	raw_local_irq_restore(flags);
 	return rc;
-}
-
-int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb)
-{
-	int rc;
-
-	do {
-		rc = sclp_early_cmd_sync(cmd, sccb);
-	} while (rc == -EBUSY);
-	if (rc)
-		return -EIO;
-	if (((struct sccb_header *) sccb)->response_code != 0x0020)
-		return -EIO;
-	return 0;
 }
 
 struct write_sccb {
@@ -163,7 +149,11 @@ int sclp_early_set_event_mask(struct init_sccb *sccb,
 	sccb->mask_length = sizeof(sccb_mask_t);
 	sccb->receive_mask = receive_mask;
 	sccb->send_mask = send_mask;
-	return sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
+	if (sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_MASK, sccb))
+		return -EIO;
+	if (sccb->header.response_code != 0x20)
+		return -EIO;
+	return 0;
 }
 
 unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb)

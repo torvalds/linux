@@ -62,20 +62,16 @@ EXPORT_SYMBOL(sclp);
 
 static int __init sclp_early_read_info(struct read_info_sccb *sccb)
 {
-	int rc, i;
+	int i;
 	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
 				  SCLP_CMDW_READ_SCP_INFO};
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		do {
-			memset(sccb, 0, sizeof(*sccb));
-			sccb->header.length = sizeof(*sccb);
-			sccb->header.function_code = 0x80;
-			sccb->header.control_mask[2] = 0x80;
-			rc = sclp_early_cmd_sync(commands[i], sccb);
-		} while (rc == -EBUSY);
-
-		if (rc)
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->header.function_code = 0x80;
+		sccb->header.control_mask[2] = 0x80;
+		if (sclp_early_cmd(commands[i], sccb))
 			break;
 		if (sccb->header.response_code == 0x10)
 			return 0;
@@ -167,16 +163,11 @@ static int sclp_early_core_info_valid __initdata;
 
 static void __init sclp_early_init_core_info(struct read_cpu_info_sccb *sccb)
 {
-	int rc;
-
 	if (!SCLP_HAS_CPU_INFO)
 		return;
 	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);
-	do {
-		rc = sclp_early_cmd_sync(SCLP_CMDW_READ_CPU_INFO, sccb);
-	} while (rc == -EBUSY);
-	if (rc)
+	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb))
 		return;
 	if (sccb->header.response_code != 0x0010)
 		return;
@@ -204,6 +195,8 @@ static long __init sclp_early_hsa_size_init(struct sdias_sccb *sccb)
 	sccb->evbuf.dbs = 1;
 	if (sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_DATA, sccb))
 		return -EIO;
+	if (sccb->hdr.response_code != 0x20)
+		return -EIO;
 	if (sccb->evbuf.blk_cnt == 0)
 		return 0;
 	return (sccb->evbuf.blk_cnt - 1) * PAGE_SIZE;
@@ -214,6 +207,8 @@ static long __init sclp_early_hsa_copy_wait(struct sdias_sccb *sccb)
 	memset(sccb, 0, PAGE_SIZE);
 	sccb->hdr.length = PAGE_SIZE;
 	if (sclp_early_cmd(SCLP_CMDW_READ_EVENT_DATA, sccb))
+		return -EIO;
+	if ((sccb->hdr.response_code != 0x20) && (sccb->hdr.response_code != 0x220))
 		return -EIO;
 	if (sccb->evbuf.blk_cnt == 0)
 		return 0;
