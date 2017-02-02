@@ -20,6 +20,10 @@
 #include <linux/tick.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#endif
+
 #include "cpupri.h"
 #include "cpudeadline.h"
 #include "cpuacct.h"
