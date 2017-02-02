@@ -185,3 +185,13 @@
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
+
+&tps {
+	interrupt-parent = <&intc>;
+	interrupts = <7>; /* NNMI */
+
+	pwrbutton {
+		interrupts = <2>;
+		status = "okay";
+	};
+};
