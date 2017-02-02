@@ -11914,6 +11914,7 @@ F:	include/linux/swiotlb.h
 
 SWITCHDEV
 M:	Jiri Pirko <jiri@resnulli.us>
+M:	Ivan Vecera <ivecera@redhat.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	net/switchdev/
