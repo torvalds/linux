@@ -138,21 +138,18 @@ struct vt220_sccb {
 	} msg;
 } __packed;
 
-/* Output multi-line text (plus a newline) using SCLP VT220
- * interface.
- */
+/* Output multi-line text using SCLP VT220 interface. */
 static void sclp_early_print_vt220(const char *str, unsigned int len)
 {
 	struct vt220_sccb *sccb;
 
 	sccb = (struct vt220_sccb *) &sclp_early_sccb;
 	if (sizeof(*sccb) + len >= sizeof(sclp_early_sccb))
-		len = sizeof(sclp_early_sccb) - sizeof(*sccb) - 1;
+		len = sizeof(sclp_early_sccb) - sizeof(*sccb);
 	memset(sccb, 0, sizeof(*sccb));
 	memcpy(&sccb->msg.data, str, len);
-	sccb->msg.data[len] = '\n';
-	sccb->header.length = sizeof(*sccb) + len + 1;
-	sccb->msg.header.length = sizeof(sccb->msg) + len + 1;
+	sccb->header.length = sizeof(*sccb) + len;
+	sccb->msg.header.length = sizeof(sccb->msg) + len;
 	sccb->msg.header.type = EVTYP_VT220MSG;
 	sclp_early_cmd(SCLP_CMDW_WRITE_EVENT_DATA, sccb);
 }
@@ -196,8 +193,9 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	return rc;
 }
 
-/* Output one or more lines of text on the SCLP console (VT220 and /
- * or line-mode). All lines get terminated; no need for a trailing LF.
+/*
+ * Output one or more lines of text on the SCLP console (VT220 and /
+ * or line-mode).
  */
 void __sclp_early_printk(const char *str, unsigned int len)
 {
