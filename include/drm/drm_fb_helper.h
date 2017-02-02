@@ -307,7 +307,7 @@ static inline void drm_fb_helper_prepare(struct drm_device *dev,
 }
 
 static inline int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper, int crtc_count,
+		       struct drm_fb_helper *helper,
 		       int max_conn)
 {
 	return 0;
