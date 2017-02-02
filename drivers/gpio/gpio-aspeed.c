@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -259,10 +258,10 @@ static int aspeed_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	u32 val;
 
 	if (!have_input(gpio, offset))
-		return GPIOF_DIR_OUT;
+		return 0;
 
 	if (!have_output(gpio, offset))
-		return GPIOF_DIR_IN;
+		return 1;
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
