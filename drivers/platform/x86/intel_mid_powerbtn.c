@@ -76,16 +76,6 @@ static int mid_pbstat(struct mid_pb_ddata *ddata, int *value)
 
 static int mfld_ack(struct mid_pb_ddata *ddata)
 {
-	/*
-	 * SCU firmware might send power button interrupts to IA core before
-	 * kernel boots and doesn't get EOI from IA core. The first bit of
-	 * MSIC reg 0x21 is kept masked, and SCU firmware doesn't send new
-	 * power interrupt to Android kernel. Unmask the bit when probing
-	 * power button in kernel.
-	 * There is a very narrow race between irq handler and power button
-	 * initialization. The race happens rarely. So we needn't worry
-	 * about it.
-	 */
 	return intel_msic_reg_update(INTEL_MSIC_IRQLVL1MSK, 0, MSIC_PWRBTNM);
 }
 
@@ -202,6 +192,16 @@ static int mid_pb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
+	/*
+	 * SCU firmware might send power button interrupts to IA core before
+	 * kernel boots and doesn't get EOI from IA core. The first bit of
+	 * MSIC reg 0x21 is kept masked, and SCU firmware doesn't send new
+	 * power interrupt to Android kernel. Unmask the bit when probing
+	 * power button in kernel.
+	 * There is a very narrow race between irq handler and power button
+	 * initialization. The race happens rarely. So we needn't worry
+	 * about it.
+	 */
 	error = ddata->ack(ddata);
 	if (error) {
 		dev_err(&pdev->dev,
