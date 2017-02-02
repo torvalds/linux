@@ -878,7 +878,7 @@ struct adapter_ops
 	void (*adapter_enable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
-	int  (*adapter_restart)(struct aac_dev *dev, int bled);
+	int  (*adapter_restart)(struct aac_dev *dev, int bled, u8 reset_type);
 	void (*adapter_start)(struct aac_dev *dev);
 	/* Transport operations */
 	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
@@ -1657,8 +1657,8 @@ struct aac_dev
 #define aac_adapter_check_health(dev) \
 	(dev)->a_ops.adapter_check_health(dev)
 
-#define aac_adapter_restart(dev,bled) \
-	(dev)->a_ops.adapter_restart(dev,bled)
+#define aac_adapter_restart(dev, bled, reset_type) \
+	((dev)->a_ops.adapter_restart(dev, bled, reset_type))
 
 #define aac_adapter_start(dev) \
 	((dev)->a_ops.adapter_start(dev))
@@ -2333,6 +2333,13 @@ struct revision
 #define FSACTL_FORCE_DELETE_DISK		CTL_CODE(2120, METHOD_NEITHER)
 #define FSACTL_GET_CONTAINERS			2131
 #define FSACTL_SEND_LARGE_FIB			CTL_CODE(2138, METHOD_BUFFERED)
+/* flags defined for IOP & HW SOFT RESET */
+#define HW_IOP_RESET				0x01
+#define HW_SOFT_RESET				0x02
+#define IOP_HWSOFT_RESET			(HW_IOP_RESET | HW_SOFT_RESET)
+/* HW Soft Reset register offset */
+#define IBW_SWR_OFFSET				0x4000
+#define SOFT_RESET_TIME			60
 
 
 struct aac_common
@@ -2569,7 +2576,7 @@ unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev *dev, u32 Index,
 			int isAif, int isFastResponse,
 			struct hw_fib *aif_fib);
-int aac_reset_adapter(struct aac_dev * dev, int forced);
+int aac_reset_adapter(struct aac_dev *dev, int forced, u8 reset_type);
 int aac_check_health(struct aac_dev * dev);
 int aac_command_thread(void *data);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);

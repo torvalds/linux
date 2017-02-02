@@ -569,7 +569,7 @@ static ssize_t aac_show_unique_id(struct device *dev,
 		memcpy(sn, aac->fsa_dev[sdev_id(sdev)].identifier, sizeof(sn));
 
 	return snprintf(buf, 16 * 2 + 2,
-		"%02X%02X%02X%02X%02X%02X%02X%02X %02X%02X%02X%02X%02X%02X%02X%02X\n",
+		"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
 		sn[0], sn[1], sn[2], sn[3],
 		sn[4], sn[5], sn[6], sn[7],
 		sn[8], sn[9], sn[10], sn[11],
@@ -899,7 +899,7 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 			   !(aac->supplement_adapter_info.SupportedOptions2 &
 			    AAC_OPTION_IGNORE_RESET))) {
 			/* Bypass wait for command quiesce */
-			aac_reset_adapter(aac, 2);
+			aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET);
 		}
 		ret = SUCCESS;
 	}
@@ -1167,10 +1167,16 @@ static ssize_t aac_store_reset_adapter(struct device *device,
 				       const char *buf, size_t count)
 {
 	int retval = -EACCES;
+	int bled = 0;
+	struct aac_dev *aac;
+
 
 	if (!capable(CAP_SYS_ADMIN))
 		return retval;
-	retval = aac_reset_adapter((struct aac_dev*)class_to_shost(device)->hostdata, buf[0] == '!');
+
+	aac = (struct aac_dev *)class_to_shost(device)->hostdata;
+	bled = buf[0] == '!' ? 1:0;
+	retval = aac_reset_adapter(aac, bled, IOP_HWSOFT_RESET);
 	if (retval >= 0)
 		retval = count;
 	return retval;

@@ -4007,8 +4007,6 @@ static long aac_build_sghba(struct scsi_cmnd *scsicmd,
 	u32 cur_size;
 	struct aac_hba_sgl *sge;
 
-
-
 	nseg = scsi_dma_map(scsicmd);
 	if (nseg <= 0) {
 		byte_count = nseg;

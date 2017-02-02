@@ -656,43 +656,99 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 	return 0;
 }
 
-static int aac_src_restart_adapter(struct aac_dev *dev, int bled)
+static void aac_set_intx_mode(struct aac_dev *dev)
+{
+	if (dev->msi_enabled) {
+		aac_src_access_devreg(dev, AAC_ENABLE_INTX);
+		dev->msi_enabled = 0;
+		msleep(5000); /* Delay 5 seconds */
+	}
+}
+
+static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 {
 	u32 var, reset_mask;
 
-	if (bled >= 0) {
-		if (bled)
-			printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
-				dev->name, dev->id, bled);
-		dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
-		bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
-			0, 0, 0, 0, 0, 0, &var, &reset_mask, NULL, NULL, NULL);
-		if ((bled || (var != 0x00000001)) &&
-		    !dev->doorbell_mask)
-			return -EINVAL;
-		else if (dev->doorbell_mask) {
-			reset_mask = dev->doorbell_mask;
-			bled = 0;
-			var = 0x00000001;
-		}
+	bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
+				    0, 0, 0, 0, 0, 0, &var,
+				    &reset_mask, NULL, NULL, NULL);
 
-		if ((dev->pdev->device == PMC_DEVICE_S7 ||
-		    dev->pdev->device == PMC_DEVICE_S8 ||
-		    dev->pdev->device == PMC_DEVICE_S9) && dev->msi_enabled) {
-			aac_src_access_devreg(dev, AAC_ENABLE_INTX);
-			dev->msi_enabled = 0;
-			msleep(5000); /* Delay 5 seconds */
-		}
-
-		if (!bled && (dev->supplement_adapter_info.SupportedOptions2 &
-		    AAC_OPTION_DOORBELL_RESET)) {
-			src_writel(dev, MUnit.IDR, reset_mask);
-			ssleep(45);
-		} else {
-			src_writel(dev, MUnit.IDR, 0x100);
-			ssleep(45);
-		}
+	if ((bled || var != 0x00000001) && !dev->doorbell_mask)
+		bled = -EINVAL;
+	else if (dev->doorbell_mask) {
+		reset_mask = dev->doorbell_mask;
+		bled = 0;
+		var = 0x00000001;
 	}
+
+	aac_set_intx_mode(dev);
+
+	if (!bled && (dev->supplement_adapter_info.SupportedOptions2 &
+	    AAC_OPTION_DOORBELL_RESET)) {
+		src_writel(dev, MUnit.IDR, reset_mask);
+	} else {
+		src_writel(dev, MUnit.IDR, 0x100);
+	}
+	msleep(30000);
+}
+
+static void aac_send_hardware_soft_reset(struct aac_dev *dev)
+{
+	u_int32_t val;
+
+	val = readl(((char *)(dev->base) + IBW_SWR_OFFSET));
+	val |= 0x01;
+	writel(val, ((char *)(dev->base) + IBW_SWR_OFFSET));
+	msleep_interruptible(20000);
+}
+
+static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
+{
+	unsigned long status, start;
+
+	if (bled < 0)
+		goto invalid_out;
+
+	if (bled)
+		pr_err("%s%d: adapter kernel panic'd %x.\n",
+				dev->name, dev->id, bled);
+
+	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
+
+	switch (reset_type) {
+	case IOP_HWSOFT_RESET:
+		aac_send_iop_reset(dev, bled);
+		/*
+		 * Check to see if KERNEL_UP_AND_RUNNING
+		 * Wait for the adapter to be up and running.
+		 * If !KERNEL_UP_AND_RUNNING issue HW Soft Reset
+		 */
+		status = src_readl(dev, MUnit.OMR);
+		if (dev->sa_firmware
+		 && !(status & KERNEL_UP_AND_RUNNING)) {
+			start = jiffies;
+			do {
+				status = src_readl(dev, MUnit.OMR);
+				if (time_after(jiffies,
+				 start+HZ*SOFT_RESET_TIME)) {
+					aac_send_hardware_soft_reset(dev);
+					start = jiffies;
+				}
+			} while (!(status & KERNEL_UP_AND_RUNNING));
+		}
+		break;
+	case HW_SOFT_RESET:
+		if (dev->sa_firmware) {
+			aac_send_hardware_soft_reset(dev);
+			aac_set_intx_mode(dev);
+		}
+		break;
+	default:
+		aac_send_iop_reset(dev, bled);
+		break;
+	}
+
+invalid_out:
 
 	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
 		return -ENODEV;
@@ -748,14 +804,15 @@ int aac_src_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 	if ((aac_reset_devices || reset_devices) &&
-		!aac_src_restart_adapter(dev, 0))
+		!aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
 		++restart;
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = src_readl(dev, MUnit.OMR);
 	if (status & KERNEL_PANIC) {
-		if (aac_src_restart_adapter(dev, aac_src_check_health(dev)))
+		if (aac_src_restart_adapter(dev,
+			aac_src_check_health(dev), IOP_HWSOFT_RESET))
 			goto error_iounmap;
 		++restart;
 	}
@@ -796,7 +853,7 @@ int aac_src_init(struct aac_dev *dev)
 		    ? (startup_timeout - 60)
 		    : (startup_timeout / 2))))) {
 			if (likely(!aac_src_restart_adapter(dev,
-			    aac_src_check_health(dev))))
+				aac_src_check_health(dev), IOP_HWSOFT_RESET)))
 				start = jiffies;
 			++restart;
 		}
@@ -893,7 +950,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 	if ((aac_reset_devices || reset_devices) &&
-		!aac_src_restart_adapter(dev, 0))
+		!aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
 		++restart;
 	/*
 	 *	Check to see if flash update is running.
@@ -922,7 +979,8 @@ int aac_srcv_init(struct aac_dev *dev)
 	 */
 	status = src_readl(dev, MUnit.OMR);
 	if (status & KERNEL_PANIC) {
-		if (aac_src_restart_adapter(dev, aac_src_check_health(dev)))
+		if (aac_src_restart_adapter(dev,
+			aac_src_check_health(dev), IOP_HWSOFT_RESET))
 			goto error_iounmap;
 		++restart;
 	}
@@ -961,7 +1019,8 @@ int aac_srcv_init(struct aac_dev *dev)
 		  ((startup_timeout > 60)
 		    ? (startup_timeout - 60)
 		    : (startup_timeout / 2))))) {
-			if (likely(!aac_src_restart_adapter(dev, aac_src_check_health(dev))))
+			if (likely(!aac_src_restart_adapter(dev,
+				aac_src_check_health(dev), IOP_HWSOFT_RESET)))
 				start = jiffies;
 			++restart;
 		}
