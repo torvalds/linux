@@ -349,7 +349,6 @@ extern void io_schedule(void);
 void __noreturn do_task_dead(void);
 
 struct nsproxy;
-struct user_namespace;
 
 #ifdef CONFIG_MMU
 extern void arch_pick_mmap_layout(struct mm_struct *mm);
@@ -480,49 +479,6 @@ struct thread_group_cputimer {
 
 #include <linux/rwsem.h>
 struct autogroup;
-
-/*
- * Some day this will be a full-fledged user tracking system..
- */
-struct user_struct {
-	atomic_t __count;	/* reference count */
-	atomic_t processes;	/* How many processes does this user have? */
-	atomic_t sigpending;	/* How many pending signals does this user have? */
-#ifdef CONFIG_FANOTIFY
-	atomic_t fanotify_listeners;
-#endif
-#ifdef CONFIG_EPOLL
-	atomic_long_t epoll_watches; /* The number of file descriptors currently watched */
-#endif
-#ifdef CONFIG_POSIX_MQUEUE
-	/* protected by mq_lock	*/
-	unsigned long mq_bytes;	/* How many bytes can be allocated to mqueue? */
-#endif
-	unsigned long locked_shm; /* How many pages of mlocked shm ? */
-	unsigned long unix_inflight;	/* How many files in flight in unix sockets */
-	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
-
-#ifdef CONFIG_KEYS
-	struct key *uid_keyring;	/* UID specific keyring */
-	struct key *session_keyring;	/* UID's default session keyring */
-#endif
-
-	/* Hash table maintenance information */
-	struct hlist_node uidhash_node;
-	kuid_t uid;
-
-#if defined(CONFIG_PERF_EVENTS) || defined(CONFIG_BPF_SYSCALL)
-	atomic_long_t locked_vm;
-#endif
-};
-
-extern int uids_sysfs_init(void);
-
-extern struct user_struct *find_user(kuid_t);
-
-extern struct user_struct root_user;
-#define INIT_USER (&root_user)
-
 
 struct backing_dev_info;
 struct reclaim_state;
@@ -1907,15 +1863,6 @@ extern struct pid_namespace init_pid_ns;
 extern struct task_struct *find_task_by_vpid(pid_t nr);
 extern struct task_struct *find_task_by_pid_ns(pid_t nr,
 		struct pid_namespace *ns);
-
-/* per-UID process charging. */
-extern struct user_struct * alloc_uid(kuid_t);
-static inline struct user_struct *get_uid(struct user_struct *u)
-{
-	atomic_inc(&u->__count);
-	return u;
-}
-extern void free_uid(struct user_struct *);
 
 #include <asm/current.h>
 
