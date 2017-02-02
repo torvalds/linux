@@ -243,8 +243,8 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 	io->bio = NULL;
 }
 
-static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
-						struct page *page, nid_t ino)
+static bool __has_merged_page(struct f2fs_bio_info *io,
+				struct inode *inode, nid_t ino, pgoff_t idx)
 {
 	struct bio_vec *bvec;
 	struct page *target;
@@ -253,7 +253,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
 	if (!io->bio)
 		return false;
 
-	if (!inode && !page && !ino)
+	if (!inode && !ino)
 		return true;
 
 	bio_for_each_segment_all(bvec, io->bio, i) {
@@ -263,9 +263,10 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
 		else
 			target = fscrypt_control_page(bvec->bv_page);
 
+		if (idx != target->index)
+			continue;
+
 		if (inode && inode == target->mapping->host)
-			return true;
-		if (page && page == target)
 			return true;
 		if (ino && ino == ino_of_node(target))
 			return true;
@@ -275,22 +276,21 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
 }
 
 static bool has_merged_page(struct f2fs_sb_info *sbi, struct inode *inode,
-						struct page *page, nid_t ino,
-						enum page_type type)
+				nid_t ino, pgoff_t idx, enum page_type type)
 {
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
 	struct f2fs_bio_info *io = &sbi->write_io[btype];
 	bool ret;
 
 	down_read(&io->io_rwsem);
-	ret = __has_merged_page(io, inode, page, ino);
+	ret = __has_merged_page(io, inode, ino, idx);
 	up_read(&io->io_rwsem);
 	return ret;
 }
 
 static void __f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
-				struct inode *inode, struct page *page,
-				nid_t ino, enum page_type type, int rw)
+				struct inode *inode, nid_t ino, pgoff_t idx,
+				enum page_type type, int rw)
 {
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
 	struct f2fs_bio_info *io;
@@ -299,7 +299,7 @@ static void __f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
 
 	down_write(&io->io_rwsem);
 
-	if (!__has_merged_page(io, inode, page, ino))
+	if (!__has_merged_page(io, inode, ino, idx))
 		goto out;
 
 	/* change META to META_FLUSH in the checkpoint procedure */
@@ -318,15 +318,15 @@ out:
 void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi, enum page_type type,
 									int rw)
 {
-	__f2fs_submit_merged_bio(sbi, NULL, NULL, 0, type, rw);
+	__f2fs_submit_merged_bio(sbi, NULL, 0, 0, type, rw);
 }
 
 void f2fs_submit_merged_bio_cond(struct f2fs_sb_info *sbi,
-				struct inode *inode, struct page *page,
-				nid_t ino, enum page_type type, int rw)
+				struct inode *inode, nid_t ino, pgoff_t idx,
+				enum page_type type, int rw)
 {
-	if (has_merged_page(sbi, inode, page, ino, type))
-		__f2fs_submit_merged_bio(sbi, inode, page, ino, type, rw);
+	if (has_merged_page(sbi, inode, ino, idx, type))
+		__f2fs_submit_merged_bio(sbi, inode, ino, idx, type, rw);
 }
 
 void f2fs_flush_merged_bios(struct f2fs_sb_info *sbi)
@@ -1432,7 +1432,8 @@ out:
 		ClearPageUptodate(page);
 
 	if (wbc->for_reclaim) {
-		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, DATA, WRITE);
+		f2fs_submit_merged_bio_cond(sbi, inode, 0, page->index,
+						DATA, WRITE);
 		remove_dirty_inode(inode);
 		submitted = NULL;
 	}
@@ -1480,10 +1481,10 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	pgoff_t done_index;
+	pgoff_t last_idx = ULONG_MAX;
 	int cycled;
 	int range_whole = 0;
 	int tag;
-	int nwritten = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1569,7 +1570,7 @@ continue_unlock:
 				done = 1;
 				break;
 			} else if (submitted) {
-				nwritten++;
+				last_idx = page->index;
 			}
 
 			if (--wbc->nr_to_write <= 0 &&
@@ -1591,9 +1592,9 @@ continue_unlock:
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = done_index;
 
-	if (nwritten)
+	if (last_idx != ULONG_MAX)
 		f2fs_submit_merged_bio_cond(F2FS_M_SB(mapping), mapping->host,
-							NULL, 0, DATA, WRITE);
+						0, last_idx, DATA, WRITE);
 
 	return ret;
 }
