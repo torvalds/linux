@@ -407,7 +407,7 @@ struct aac_fibhdr {
 		__le32 SenderFibAddressHigh;/* upper 32bit of phys. FIB address */
 		__le32 TimeStamp;	/* otherwise timestamp for FW internal use */
 	} u;
-	u32 Handle;		/* FIB handle used for MSGU commnunication */
+	__le32 Handle;		/* FIB handle used for MSGU commnunication */
 	u32 Previous;		/* FW internal use */
 	u32 Next;		/* FW internal use */
 };
@@ -872,18 +872,20 @@ struct rkt_registers {
 #define src_inbound rx_inbound
 
 struct src_mu_registers {
-				/*	PCI*| Name */
-	__le32	reserved0[6];	/*	00h | Reserved */
-	__le32	IOAR[2];	/*	18h | IOA->host interrupt register */
-	__le32	IDR;		/*	20h | Inbound Doorbell Register */
-	__le32	IISR;		/*	24h | Inbound Int. Status Register */
-	__le32	reserved1[3];	/*	28h | Reserved */
-	__le32	OIMR;		/*	34h | Outbound Int. Mask Register */
-	__le32	reserved2[25];	/*	38h | Reserved */
-	__le32	ODR_R;		/*	9ch | Outbound Doorbell Read */
-	__le32	ODR_C;		/*	a0h | Outbound Doorbell Clear */
-	__le32	reserved3[6];	/*	a4h | Reserved */
-	__le32	OMR;		/*	bch | Outbound Message Register */
+				/*  PCI*| Name */
+	__le32	reserved0[6];	/*  00h | Reserved */
+	__le32	IOAR[2];	/*  18h | IOA->host interrupt register */
+	__le32	IDR;		/*  20h | Inbound Doorbell Register */
+	__le32	IISR;		/*  24h | Inbound Int. Status Register */
+	__le32	reserved1[3];	/*  28h | Reserved */
+	__le32	OIMR;		/*  34h | Outbound Int. Mask Register */
+	__le32	reserved2[25];  /*  38h | Reserved */
+	__le32	ODR_R;		/*  9ch | Outbound Doorbell Read */
+	__le32	ODR_C;		/*  a0h | Outbound Doorbell Clear */
+	__le32	reserved3[3];	/*  a4h | Reserved */
+	__le32	SCR0;		/*  b0h | Scratchpad 0 */
+	__le32	reserved4[2];	/*  b4h | Reserved */
+	__le32	OMR;		/*  bch | Outbound Message Register */
 	__le32	IQ_L;		/*  c0h | Inbound Queue (Low address) */
 	__le32	IQ_H;		/*  c4h | Inbound Queue (High address) */
 	__le32	ODR_MSI;	/*  c8h | MSI register for sync./AIF */
@@ -982,6 +984,7 @@ struct fsa_dev_info {
 	char		devname[8];
 	struct sense_data sense_data;
 	u32		block_size;
+	u8		identifier[16];
 };
 
 struct fib {
@@ -1012,6 +1015,7 @@ struct fib {
 	u32			vector_no;
 	struct hw_fib		*hw_fib_va;		/* Actual shared object */
 	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
+	u32			hbacmd_size;	/* cmd size for native */
 };
 
 #define AAC_DEVTYPE_RAID_MEMBER	1
@@ -1215,9 +1219,11 @@ struct aac_dev
 	/*
 	 *	negotiated FIB settings
 	 */
-	unsigned		max_fib_size;
-	unsigned		sg_tablesize;
-	unsigned		max_num_aif;
+	unsigned int		max_fib_size;
+	unsigned int		sg_tablesize;
+	unsigned int		max_num_aif;
+
+	unsigned int		max_cmd_size;	/* max_fib_size or MAX_NATIVE */
 
 	/*
 	 *	Map for 128 fib objects (64k)
@@ -1259,18 +1265,17 @@ struct aac_dev
 	 */
 	union aac_init		*init;
 	dma_addr_t		init_pa;	/* Holds physical address of the init struct */
-
-	u32			*host_rrq;	/* response queue
-						 * if AAC_COMM_MESSAGE_TYPE1 */
-
+	/* response queue (if AAC_COMM_MESSAGE_TYPE1) */
+	__le32			*host_rrq;
 	dma_addr_t		host_rrq_pa;	/* phys. address */
 	/* index into rrq buffer */
 	u32			host_rrq_idx[AAC_MAX_MSIX];
 	atomic_t		rrq_outstanding[AAC_MAX_MSIX];
 	u32			fibs_pushed_no;
 	struct pci_dev		*pdev;		/* Our PCI interface */
-	void *			printfbuf;	/* pointer to buffer used for printf's from the adapter */
-	void *			comm_addr;	/* Base address of Comm area */
+	/* pointer to buffer used for printf's from the adapter */
+	void			*printfbuf;
+	void			*comm_addr;	/* Base address of Comm area */
 	dma_addr_t		comm_phys;	/* Physical Address of Comm area */
 	size_t			comm_size;
 
@@ -1342,6 +1347,8 @@ struct aac_dev
 	u32			max_msix;	/* max. MSI-X vectors */
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
+	atomic_t		msix_counter;
+	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
@@ -2281,7 +2288,6 @@ int aac_rx_select_comm(struct aac_dev *dev, int comm);
 int aac_rx_deliver_producer(struct fib * fib);
 char * get_container_type(unsigned type);
 extern int numacb;
-extern int acbsize;
 extern char aac_driver_version[];
 extern int startup_timeout;
 extern int aif_timeout;

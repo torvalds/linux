@@ -122,7 +122,6 @@ unsigned int aac_response_normal(struct aac_queue * q)
 			 *	NOTE:  we cannot touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
-			fib->flags &= FIB_CONTEXT_FLAG_FASTRESP;
 			fib->callback(fib->callback_data, fib);
 		} else {
 			unsigned long flagv;
@@ -251,8 +250,9 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
 	BUG_ON(fibptr == NULL);
 	dev = fibptr->dev;
 
-	if (fibptr->hw_fib_va->header.XferState &
-	    cpu_to_le32(NoMoreAifDataAvailable)) {
+	if ((fibptr->hw_fib_va->header.XferState &
+	    cpu_to_le32(NoMoreAifDataAvailable)) ||
+		dev->sa_firmware) {
 		aac_fib_complete(fibptr);
 		aac_fib_free(fibptr);
 		return;
@@ -282,8 +282,8 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
  *	know there is a response on our normal priority queue. We will pull off
  *	all QE there are and wake up all the waiters before exiting.
  */
-unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
-			int isAif, int isFastResponse, struct hw_fib *aif_fib)
+unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
+	int isFastResponse, struct hw_fib *aif_fib)
 {
 	unsigned long mflags;
 	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
@@ -305,12 +305,14 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
 			kfree (fib);
 			return 1;
 		}
-		if (aif_fib != NULL) {
+		if (dev->sa_firmware) {
+			fib->hbacmd_size = index;	/* store event type */
+		} else if (aif_fib != NULL) {
 			memcpy(hw_fib, aif_fib, sizeof(struct hw_fib));
 		} else {
-			memcpy(hw_fib,
-				(struct hw_fib *)(((uintptr_t)(dev->regs.sa)) +
-				index), sizeof(struct hw_fib));
+			memcpy(hw_fib, (struct hw_fib *)
+				(((uintptr_t)(dev->regs.sa)) + index),
+				sizeof(struct hw_fib));
 		}
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;

@@ -329,7 +329,7 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 	}
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 	device = scsicmd->device;
-	if (unlikely(!device || !scsi_device_online(device))) {
+	if (unlikely(!device)) {
 		dprintk((KERN_WARNING "aac_valid_context: scsi device corrupt\n"));
 		aac_fib_complete(fibptr);
 		return 0;
@@ -475,16 +475,26 @@ int aac_get_containers(struct aac_dev *dev)
 
 	if (maximum_num_containers < MAXIMUM_NUM_CONTAINERS)
 		maximum_num_containers = MAXIMUM_NUM_CONTAINERS;
-	fsa_dev_ptr = kzalloc(sizeof(*fsa_dev_ptr) * maximum_num_containers,
-			GFP_KERNEL);
-	if (!fsa_dev_ptr)
-		return -ENOMEM;
+	if (dev->fsa_dev == NULL ||
+		dev->maximum_num_containers != maximum_num_containers) {
 
-	dev->fsa_dev = fsa_dev_ptr;
-	dev->maximum_num_containers = maximum_num_containers;
+		fsa_dev_ptr = dev->fsa_dev;
 
-	for (index = 0; index < dev->maximum_num_containers; ) {
-		fsa_dev_ptr[index].devname[0] = '\0';
+		dev->fsa_dev = kcalloc(maximum_num_containers,
+					sizeof(*fsa_dev_ptr), GFP_KERNEL);
+
+		kfree(fsa_dev_ptr);
+		fsa_dev_ptr = NULL;
+
+
+		if (!dev->fsa_dev)
+			return -ENOMEM;
+
+		dev->maximum_num_containers = maximum_num_containers;
+	}
+	for (index = 0; index < dev->maximum_num_containers; index++) {
+		dev->fsa_dev[index].devname[0] = '\0';
+		dev->fsa_dev[index].valid = 0;
 
 		status = aac_probe_container(dev, index);
 
@@ -492,12 +502,6 @@ int aac_get_containers(struct aac_dev *dev)
 			printk(KERN_WARNING "aac_get_containers: SendFIB failed.\n");
 			break;
 		}
-
-		/*
-		 *	If there are no more containers, then stop asking.
-		 */
-		if (++index >= status)
-			break;
 	}
 	return status;
 }

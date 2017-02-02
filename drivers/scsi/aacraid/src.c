@@ -135,8 +135,16 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 
 	if (mode & AAC_INT_MODE_AIF) {
 		/* handle AIF */
-		if (dev->aif_thread && dev->fsa_dev)
-			aac_intr_normal(dev, 0, 2, 0, NULL);
+		if (dev->sa_firmware) {
+			u32 events = src_readl(dev, MUnit.SCR0);
+
+			aac_intr_normal(dev, events, 1, 0, NULL);
+			writel(events, &dev->IndexRegs->Mailbox[0]);
+			src_writel(dev, MUnit.IDR, 1 << 23);
+		} else {
+			if (dev->aif_thread && dev->fsa_dev)
+				aac_intr_normal(dev, 0, 2, 0, NULL);
+		}
 		if (dev->msi_enabled)
 			aac_src_access_devreg(dev, AAC_CLEAR_AIF_BIT);
 		mode = 0;
@@ -148,17 +156,19 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
-			handle = (dev->host_rrq[index] & 0x7fffffff);
-			/* check fast response bit (30) */
+			handle = le32_to_cpu((dev->host_rrq[index])
+				& 0x7fffffff);
+			/* check fast response bits (30, 1) */
 			if (handle & 0x40000000)
 				isFastResponse = 1;
 			handle &= 0x0000ffff;
 			if (handle == 0)
 				break;
+			handle >>= 2;
 			if (dev->msi_enabled && dev->max_msix > 1)
 				atomic_dec(&dev->rrq_outstanding[vector_no]);
+			aac_intr_normal(dev, handle, 0, isFastResponse, NULL);
 			dev->host_rrq[index++] = 0;
-			aac_intr_normal(dev, handle-1, 0, isFastResponse, NULL);
 			if (index == (vector_no + 1) * dev->vector_cap)
 				index = vector_no * dev->vector_cap;
 			dev->host_rrq_idx[vector_no] = index;
@@ -392,6 +402,7 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 		dev->host_rrq_idx[i] = i * dev->vector_cap;
 		atomic_set(&dev->rrq_outstanding[i], 0);
 	}
+	atomic_set(&dev->msix_counter, 0);
 	dev->fibs_pushed_no = 0;
 
 	init = dev->init;
@@ -565,9 +576,18 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 		dev->base = dev->regs.src.bar0 = NULL;
 		return 0;
 	}
-	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
-	if (dev->base == NULL)
+
+	dev->regs.src.bar1 =
+	ioremap(pci_resource_start(dev->pdev, 2), AAC_MIN_SRCV_BAR1_SIZE);
+	dev->base = NULL;
+	if (dev->regs.src.bar1 == NULL)
 		return -1;
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
+	if (dev->base == NULL) {
+		iounmap(dev->regs.src.bar1);
+		dev->regs.src.bar1 = NULL;
+		return -1;
+	}
 	dev->IndexRegs = &((struct src_registers __iomem *)
 		dev->base)->u.denali.IndexRegs;
 	return 0;
@@ -918,9 +938,9 @@ int aac_srcv_init(struct aac_dev *dev)
 	if (aac_acquire_irq(dev))
 		goto error_iounmap;
 
-	dev->dbg_base = dev->base_start;
-	dev->dbg_base_mapped = dev->base;
-	dev->dbg_size = dev->base_size;
+	dev->dbg_base = pci_resource_start(dev->pdev, 2);
+	dev->dbg_base_mapped = dev->regs.src.bar1;
+	dev->dbg_size = AAC_MIN_SRCV_BAR1_SIZE;
 	dev->a_ops.adapter_enable_int = aac_src_enable_interrupt_message;
 
 	aac_adapter_enable_int(dev);

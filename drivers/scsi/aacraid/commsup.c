@@ -60,12 +60,17 @@
 
 static int fib_map_alloc(struct aac_dev *dev)
 {
+	if (dev->max_fib_size > AAC_MAX_NATIVE_SIZE)
+		dev->max_cmd_size = AAC_MAX_NATIVE_SIZE;
+	else
+		dev->max_cmd_size = dev->max_fib_size;
+
 	dprintk((KERN_INFO
 	  "allocate hardware fibs pci_alloc_consistent(%p, %d * (%d + %d), %p)\n",
-	  dev->pdev, dev->max_fib_size, dev->scsi_host_ptr->can_queue,
+	  dev->pdev, dev->max_cmd_size, dev->scsi_host_ptr->can_queue,
 	  AAC_NUM_MGT_FIB, &dev->hw_fib_pa));
 	dev->hw_fib_va = pci_alloc_consistent(dev->pdev,
-		(dev->max_fib_size + sizeof(struct aac_fib_xporthdr))
+		(dev->max_cmd_size + sizeof(struct aac_fib_xporthdr))
 		* (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB) + (ALIGN32 - 1),
 		&dev->hw_fib_pa);
 	if (dev->hw_fib_va == NULL)
@@ -83,9 +88,9 @@ static int fib_map_alloc(struct aac_dev *dev)
 
 void aac_fib_map_free(struct aac_dev *dev)
 {
-	if (dev->hw_fib_va && dev->max_fib_size) {
+	if (dev->hw_fib_va && dev->max_cmd_size) {
 		pci_free_consistent(dev->pdev,
-		(dev->max_fib_size *
+		(dev->max_cmd_size *
 		(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB)),
 		dev->hw_fib_va, dev->hw_fib_pa);
 	}
@@ -176,9 +181,9 @@ int aac_fib_setup(struct aac_dev * dev)
 		hw_fib->header.SenderSize = cpu_to_le16(dev->max_fib_size);
 		fibptr->hw_fib_pa = hw_fib_pa;
 		hw_fib = (struct hw_fib *)((unsigned char *)hw_fib +
-			dev->max_fib_size + sizeof(struct aac_fib_xporthdr));
+			dev->max_cmd_size + sizeof(struct aac_fib_xporthdr));
 		hw_fib_pa = hw_fib_pa +
-			dev->max_fib_size + sizeof(struct aac_fib_xporthdr);
+			dev->max_cmd_size + sizeof(struct aac_fib_xporthdr);
 	}
 
 	/*
