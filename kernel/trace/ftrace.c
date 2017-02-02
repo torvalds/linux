@@ -4561,6 +4561,8 @@ enum graph_filter_type {
 	GRAPH_FILTER_FUNCTION,
 };
 
+#define FTRACE_GRAPH_EMPTY	((void *)1)
+
 struct ftrace_graph_data {
 	struct ftrace_hash *hash;
 	struct ftrace_func_entry *entry;
@@ -4616,7 +4618,7 @@ static void *g_start(struct seq_file *m, loff_t *pos)
 
 	/* Nothing, tell g_show to print all functions are enabled */
 	if (ftrace_hash_empty(fgd->hash) && !*pos)
-		return (void *)1;
+		return FTRACE_GRAPH_EMPTY;
 
 	fgd->idx = 0;
 	fgd->entry = NULL;
@@ -4635,7 +4637,7 @@ static int g_show(struct seq_file *m, void *v)
 	if (!entry)
 		return 0;
 
-	if (entry == (void *)1) {
+	if (entry == FTRACE_GRAPH_EMPTY) {
 		struct ftrace_graph_data *fgd = m->private;
 
 		if (fgd->type == GRAPH_FILTER_FUNCTION)
