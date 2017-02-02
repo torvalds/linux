@@ -3162,34 +3162,6 @@ static inline void unlock_task_sighand(struct task_struct *tsk,
 	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
 }
 
-/**
- * threadgroup_change_begin - mark the beginning of changes to a threadgroup
- * @tsk: task causing the changes
- *
- * All operations which modify a threadgroup - a new thread joining the
- * group, death of a member thread (the assertion of PF_EXITING) and
- * exec(2) dethreading the process and replacing the leader - are wrapped
- * by threadgroup_change_{begin|end}().  This is to provide a place which
- * subsystems needing threadgroup stability can hook into for
- * synchronization.
- */
-static inline void threadgroup_change_begin(struct task_struct *tsk)
-{
-	might_sleep();
-	cgroup_threadgroup_change_begin(tsk);
-}
-
-/**
- * threadgroup_change_end - mark the end of changes to a threadgroup
- * @tsk: task causing the changes
- *
- * See threadgroup_change_begin().
- */
-static inline void threadgroup_change_end(struct task_struct *tsk)
-{
-	cgroup_threadgroup_change_end(tsk);
-}
-
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 
 static inline struct thread_info *task_thread_info(struct task_struct *task)

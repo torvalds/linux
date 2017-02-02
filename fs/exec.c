@@ -1088,7 +1088,7 @@ static int de_thread(struct task_struct *tsk)
 		struct task_struct *leader = tsk->group_leader;
 
 		for (;;) {
-			threadgroup_change_begin(tsk);
+			cgroup_threadgroup_change_begin(tsk);
 			write_lock_irq(&tasklist_lock);
 			/*
 			 * Do this under tasklist_lock to ensure that
@@ -1099,7 +1099,7 @@ static int de_thread(struct task_struct *tsk)
 				break;
 			__set_current_state(TASK_KILLABLE);
 			write_unlock_irq(&tasklist_lock);
-			threadgroup_change_end(tsk);
+			cgroup_threadgroup_change_end(tsk);
 			schedule();
 			if (unlikely(__fatal_signal_pending(tsk)))
 				goto killed;
@@ -1157,7 +1157,7 @@ static int de_thread(struct task_struct *tsk)
 		if (unlikely(leader->ptrace))
 			__wake_up_parent(leader, leader->parent);
 		write_unlock_irq(&tasklist_lock);
-		threadgroup_change_end(tsk);
+		cgroup_threadgroup_change_end(tsk);
 
 		release_task(leader);
 	}
