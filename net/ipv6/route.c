@@ -3023,13 +3023,37 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 	return 0;
 }
 
+static void ip6_route_mpath_notify(struct rt6_info *rt,
+				   struct rt6_info *rt_last,
+				   struct nl_info *info,
+				   __u16 nlflags)
+{
+	/* if this is an APPEND route, then rt points to the first route
+	 * inserted and rt_last points to last route inserted. Userspace
+	 * wants a consistent dump of the route which starts at the first
+	 * nexthop. Since sibling routes are always added at the end of
+	 * the list, find the first sibling of the last route appended
+	 */
+	if ((nlflags & NLM_F_APPEND) && rt_last && rt_last->rt6i_nsiblings) {
+		rt = list_first_entry(&rt_last->rt6i_siblings,
+				      struct rt6_info,
+				      rt6i_siblings);
+	}
+
+	if (rt)
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
+}
+
 static int ip6_route_multipath_add(struct fib6_config *cfg)
 {
+	struct rt6_info *rt_notif = NULL, *rt_last = NULL;
+	struct nl_info *info = &cfg->fc_nlinfo;
 	struct fib6_config r_cfg;
 	struct rtnexthop *rtnh;
 	struct rt6_info *rt;
 	struct rt6_nh *err_nh;
 	struct rt6_nh *nh, *nh_safe;
+	__u16 nlflags;
 	int remaining;
 	int attrlen;
 	int err = 1;
@@ -3037,6 +3061,10 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 	int replace = (cfg->fc_nlinfo.nlh &&
 		       (cfg->fc_nlinfo.nlh->nlmsg_flags & NLM_F_REPLACE));
 	LIST_HEAD(rt6_nh_list);
+
+	nlflags = replace ? NLM_F_REPLACE : NLM_F_CREATE;
+	if (info->nlh && info->nlh->nlmsg_flags & NLM_F_APPEND)
+		nlflags |= NLM_F_APPEND;
 
 	remaining = cfg->fc_mp_len;
 	rtnh = (struct rtnexthop *)cfg->fc_mp;
@@ -3080,9 +3108,20 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 		rtnh = rtnh_next(rtnh, &remaining);
 	}
 
+	/* for add and replace send one notification with all nexthops.
+	 * Skip the notification in fib6_add_rt2node and send one with
+	 * the full route when done
+	 */
+	info->skip_notify = 1;
+
 	err_nh = NULL;
 	list_for_each_entry(nh, &rt6_nh_list, next) {
-		err = __ip6_ins_rt(nh->rt6_info, &cfg->fc_nlinfo, &nh->mxc);
+		rt_last = nh->rt6_info;
+		err = __ip6_ins_rt(nh->rt6_info, info, &nh->mxc);
+		/* save reference to first route for notification */
+		if (!rt_notif && !err)
+			rt_notif = nh->rt6_info;
+
 		/* nh->rt6_info is used or freed at this point, reset to NULL*/
 		nh->rt6_info = NULL;
 		if (err) {
@@ -3104,9 +3143,18 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 		nhn++;
 	}
 
+	/* success ... tell user about new route */
+	ip6_route_mpath_notify(rt_notif, rt_last, info, nlflags);
 	goto cleanup;
 
 add_errout:
+	/* send notification for routes that were added so that
+	 * the delete notifications sent by ip6_route_del are
+	 * coherent
+	 */
+	if (rt_notif)
+		ip6_route_mpath_notify(rt_notif, rt_last, info, nlflags);
+
 	/* Delete routes that were already added */
 	list_for_each_entry(nh, &rt6_nh_list, next) {
 		if (err_nh == nh)
