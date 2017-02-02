@@ -155,8 +155,15 @@ struct drm_crtc_state {
 	 * Target vertical blank period when a page flip
 	 * should take effect.
 	 */
-
 	u32 target_vblank;
+
+	/**
+	 * @pageflip_flags:
+	 *
+	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.
+	 * Zero in any other case.
+	 */
+	u32 pageflip_flags;
 
 	/**
 	 * @event:

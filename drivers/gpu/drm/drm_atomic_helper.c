@@ -2718,7 +2718,8 @@ static int page_flip_common(
 				struct drm_atomic_state *state,
 				struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
-				struct drm_pending_vblank_event *event)
+				struct drm_pending_vblank_event *event,
+				uint32_t flags)
 {
 	struct drm_plane *plane = crtc->primary;
 	struct drm_plane_state *plane_state;
@@ -2730,11 +2731,11 @@ static int page_flip_common(
 		return PTR_ERR(crtc_state);
 
 	crtc_state->event = event;
+	crtc_state->pageflip_flags = flags;
 
 	plane_state = drm_atomic_get_plane_state(state, plane);
 	if (IS_ERR(plane_state))
 		return PTR_ERR(plane_state);
-
 
 	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
 	if (ret != 0)
@@ -2762,10 +2763,6 @@ static int page_flip_common(
  * Provides a default &drm_crtc_funcs.page_flip implementation
  * using the atomic driver interface.
  *
- * Note that for now so called async page flips (i.e. updates which are not
- * synchronized to vblank) are not supported, since the atomic interfaces have
- * no provisions for this yet.
- *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
  *
@@ -2781,9 +2778,6 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 	struct drm_atomic_state *state;
 	int ret = 0;
 
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return -EINVAL;
-
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
@@ -2791,7 +2785,7 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 
 retry:
-	ret = page_flip_common(state, crtc, fb, event);
+	ret = page_flip_common(state, crtc, fb, event, flags);
 	if (ret != 0)
 		goto fail;
 
@@ -2846,9 +2840,6 @@ int drm_atomic_helper_page_flip_target(
 	struct drm_crtc_state *crtc_state;
 	int ret = 0;
 
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return -EINVAL;
-
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
@@ -2856,7 +2847,7 @@ int drm_atomic_helper_page_flip_target(
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 
 retry:
-	ret = page_flip_common(state, crtc, fb, event);
+	ret = page_flip_common(state, crtc, fb, event, flags);
 	if (ret != 0)
 		goto fail;
 
@@ -3056,6 +3047,7 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	state->color_mgmt_changed = false;
 	state->zpos_changed = false;
 	state->event = NULL;
+	state->pageflip_flags = 0;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_duplicate_state);
 
