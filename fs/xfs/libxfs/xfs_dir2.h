@@ -37,7 +37,7 @@ extern struct xfs_name	xfs_name_dotdot;
 /*
  * Convert inode mode to directory entry filetype
  */
-extern const unsigned char xfs_mode_to_ftype(int mode);
+extern unsigned char xfs_mode_to_ftype(int mode);
 
 /*
  * directory operations vector for encode/decode routines

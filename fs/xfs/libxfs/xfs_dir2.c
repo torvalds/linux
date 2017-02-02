@@ -38,7 +38,7 @@ struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
 /*
  * Convert inode mode to directory entry filetype
  */
-const unsigned char xfs_mode_to_ftype(int mode)
+unsigned char xfs_mode_to_ftype(int mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFREG:
