@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
@@ -1825,8 +1826,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	struct resource *res_mmio;
 	int i, ret;
 
-	dev_dbg(&pdev->dev, "dma_mask: %p\n", pdev->dev.dma_mask);
-
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		dev_err(&pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
@@ -1907,6 +1906,11 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	/* setup the ops for playabck */
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			    &snd_intelhad_playback_ops);
+
+	/* only 32bit addressable */
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+
 	/* allocate dma pages for ALSA stream operations
 	 * memory allocated is based on size, not max value
 	 * thus using same argument for max & size
