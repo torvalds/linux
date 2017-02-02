@@ -360,15 +360,12 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	const struct tcp_sock *tp = tcp_sk(sk_listener);
-	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
 	int full_space = tcp_full_space(sk_listener);
-	int mss = dst_metric_advmss(dst);
 	u32 window_clamp;
 	__u8 rcv_wscale;
+	int mss;
 
-	if (user_mss && user_mss < mss)
-		mss = user_mss;
-
+	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
 	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
 	req->rsk_window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
