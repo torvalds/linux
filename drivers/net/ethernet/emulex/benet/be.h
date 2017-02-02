@@ -226,11 +226,6 @@ struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
 	u64 tx_reqs_prev;	/* Used to calculate TX pps */
 };
 
-enum {
-	NAPI_POLLING,
-	BUSY_POLLING
-};
-
 struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
