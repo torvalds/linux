@@ -3309,6 +3309,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * fwnode_get_named_gpiod - obtain a GPIO from firmware node
  * @fwnode:	handle of the firmware node
  * @propname:	name of the firmware property representing the GPIO
+ * @index:	index of the GPIO to obtain in the consumer
  * @dflags:	GPIO initialization flags
  *
  * This function can be used for drivers that get their configuration
@@ -3324,7 +3325,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  * In case of error an ERR_PTR() is returned.
  */
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
-					 const char *propname,
+					 const char *propname, int index,
 					 enum gpiod_flags dflags,
 					 const char *label)
 {
@@ -3340,8 +3341,8 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (is_of_node(fwnode)) {
 		enum of_gpio_flags flags;
 
-		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname, 0,
-						&flags);
+		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname,
+						index, &flags);
 		if (!IS_ERR(desc)) {
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
 			single_ended = flags & OF_GPIO_SINGLE_ENDED;
@@ -3349,7 +3350,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
 
-		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
+		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
 		if (!IS_ERR(desc))
 			active_low = info.polarity == GPIO_ACTIVE_LOW;
 	}
