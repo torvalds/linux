@@ -2111,14 +2111,22 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 	dprintk("%s: entered with status %i\n", __func__, lgp->res.status);
 	if (lgp->res.status) {
 		switch (lgp->res.status) {
-		case -NFS4ERR_DELAY:
-		case -NFS4ERR_GRACE:
-		case -NFS4ERR_LAYOUTTRYLATER:
-			break;
 		default:
-			/* FIXME - Any error not listed above permanently
-			 * halts lgopen attempts.
-			 */
+			break;
+		/*
+		 * Halt lgopen attempts if the server doesn't recognise
+		 * the "current stateid" value, the layout type, or the
+		 * layoutget operation as being valid.
+		 * Also if it complains about too many ops in the compound
+		 * or of the request/reply being too big.
+		 */
+		case -NFS4ERR_BAD_STATEID:
+		case -NFS4ERR_NOTSUPP:
+		case -NFS4ERR_REP_TOO_BIG:
+		case -NFS4ERR_REP_TOO_BIG_TO_CACHE:
+		case -NFS4ERR_REQ_TOO_BIG:
+		case -NFS4ERR_TOO_MANY_OPS:
+		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
 			srv->caps &= ~NFS_CAP_LGOPEN;
 		}
 		return;
