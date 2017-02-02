@@ -2104,44 +2104,6 @@ extern struct task_group root_task_group;
 extern int task_can_switch_user(struct user_struct *up,
 					struct task_struct *tsk);
 
-#ifdef CONFIG_TASK_XACCT
-static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
-{
-	tsk->ioac.rchar += amt;
-}
-
-static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
-{
-	tsk->ioac.wchar += amt;
-}
-
-static inline void inc_syscr(struct task_struct *tsk)
-{
-	tsk->ioac.syscr++;
-}
-
-static inline void inc_syscw(struct task_struct *tsk)
-{
-	tsk->ioac.syscw++;
-}
-#else
-static inline void add_rchar(struct task_struct *tsk, ssize_t amt)
-{
-}
-
-static inline void add_wchar(struct task_struct *tsk, ssize_t amt)
-{
-}
-
-static inline void inc_syscr(struct task_struct *tsk)
-{
-}
-
-static inline void inc_syscw(struct task_struct *tsk)
-{
-}
-#endif
-
 #ifndef TASK_SIZE_OF
 #define TASK_SIZE_OF(tsk)	TASK_SIZE
 #endif
