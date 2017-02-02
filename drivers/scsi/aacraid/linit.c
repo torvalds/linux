@@ -556,8 +556,39 @@ static struct device_attribute aac_raid_level_attr = {
 	.show = aac_show_raid_level
 };
 
+static ssize_t aac_show_unique_id(struct device *dev,
+	     struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct aac_dev *aac = (struct aac_dev *)(sdev->host->hostdata);
+	unsigned char sn[16];
+
+	memset(sn, 0, sizeof(sn));
+
+	if (sdev_channel(sdev) == CONTAINER_CHANNEL)
+		memcpy(sn, aac->fsa_dev[sdev_id(sdev)].identifier, sizeof(sn));
+
+	return snprintf(buf, 16 * 2 + 2,
+		"%02X%02X%02X%02X%02X%02X%02X%02X %02X%02X%02X%02X%02X%02X%02X%02X\n",
+		sn[0], sn[1], sn[2], sn[3],
+		sn[4], sn[5], sn[6], sn[7],
+		sn[8], sn[9], sn[10], sn[11],
+		sn[12], sn[13], sn[14], sn[15]);
+}
+
+static struct device_attribute aac_unique_id_attr = {
+	.attr = {
+		.name = "unique_id",
+		.mode = 0444,
+	},
+	.show = aac_show_unique_id
+};
+
+
+
 static struct device_attribute *aac_dev_attrs[] = {
 	&aac_raid_level_attr,
+	&aac_unique_id_attr,
 	NULL,
 };
 
