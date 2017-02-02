@@ -620,7 +620,7 @@ been thawed.  Generally speaking, the PM notifiers are suitable for performing
 actions that either require user space to be available, or at least won't
 interfere with user space.
 
-For details refer to :file:`Documentation/power/notifiers.txt`.
+For details refer to :doc:`notifiers`.
 
 
 Device Low-Power (suspend) States
