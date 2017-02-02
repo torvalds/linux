@@ -56,6 +56,7 @@ struct sched_param {
 #include <linux/llist.h>
 #include <linux/uidgid.h>
 #include <linux/gfp.h>
+#include <linux/topology.h>
 #include <linux/magic.h>
 #include <linux/cgroup-defs.h>
 

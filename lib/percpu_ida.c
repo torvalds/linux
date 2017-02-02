@@ -14,6 +14,7 @@
  * General Public License for more details.
  */
 
+#include <linux/mm.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
