@@ -65,7 +65,7 @@ struct pwl_result_data {
 };
 
 struct pwl_params {
-	struct gamma_curve arr_curve_points[16];
+	struct gamma_curve arr_curve_points[34];
 	struct curve_points arr_points[3];
 	struct pwl_result_data rgb_resulted[256 + 3];
 	uint32_t hw_points_num;
