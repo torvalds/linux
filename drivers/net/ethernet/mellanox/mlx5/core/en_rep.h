@@ -34,11 +34,41 @@
 #define __MLX5E_REP_H__
 
 #include <net/ip_tunnels.h>
+#include <linux/rhashtable.h>
 #include "eswitch.h"
 #include "en.h"
 
+struct mlx5e_neigh_update_table {
+	struct rhashtable       neigh_ht;
+	/* Save the neigh hash entries in a list in addition to the hash table
+	 * (neigh_ht). In order to iterate easily over the neigh entries.
+	 * Used for stats query.
+	 */
+	struct list_head	neigh_list;
+};
+
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
+	struct mlx5e_neigh_update_table neigh_update;
+};
+
+struct mlx5e_neigh {
+	struct net_device *dev;
+	union {
+		__be32	v4;
+		struct in6_addr v6;
+	} dst_ip;
+};
+
+struct mlx5e_neigh_hash_entry {
+	struct rhash_head rhash_node;
+	struct mlx5e_neigh m_neigh;
+
+	/* Save the neigh hash entry in a list on the representor in
+	 * addition to the hash table. In order to iterate easily over the
+	 * neighbour entries. Used for stats query.
+	 */
+	struct list_head neigh_list;
 };
 
 struct mlx5e_encap_entry {

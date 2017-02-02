@@ -224,6 +224,68 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 	mlx5_eswitch_sqs2vport_stop(esw, rep);
 }
 
+static const struct rhashtable_params mlx5e_neigh_ht_params = {
+	.head_offset = offsetof(struct mlx5e_neigh_hash_entry, rhash_node),
+	.key_offset = offsetof(struct mlx5e_neigh_hash_entry, m_neigh),
+	.key_len = sizeof(struct mlx5e_neigh),
+	.automatic_shrinking = true,
+};
+
+static int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
+{
+	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
+
+	INIT_LIST_HEAD(&neigh_update->neigh_list);
+	return rhashtable_init(&neigh_update->neigh_ht, &mlx5e_neigh_ht_params);
+}
+
+static void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv)
+{
+	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
+
+	rhashtable_destroy(&neigh_update->neigh_ht);
+}
+
+static int mlx5e_rep_neigh_entry_insert(struct mlx5e_priv *priv,
+					struct mlx5e_neigh_hash_entry *nhe)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	int err;
+
+	err = rhashtable_insert_fast(&rpriv->neigh_update.neigh_ht,
+				     &nhe->rhash_node,
+				     mlx5e_neigh_ht_params);
+	if (err)
+		return err;
+
+	list_add(&nhe->neigh_list, &rpriv->neigh_update.neigh_list);
+
+	return err;
+}
+
+static void mlx5e_rep_neigh_entry_remove(struct mlx5e_priv *priv,
+					 struct mlx5e_neigh_hash_entry *nhe)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
+	list_del(&nhe->neigh_list);
+
+	rhashtable_remove_fast(&rpriv->neigh_update.neigh_ht,
+			       &nhe->rhash_node,
+			       mlx5e_neigh_ht_params);
+}
+
+static struct mlx5e_neigh_hash_entry *
+mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
+			     struct mlx5e_neigh *m_neigh)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
+
+	return rhashtable_lookup_fast(&neigh_update->neigh_ht, m_neigh,
+				      mlx5e_neigh_ht_params);
+}
+
 static int mlx5e_rep_open(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -540,19 +602,33 @@ static struct mlx5e_profile mlx5e_rep_profile = {
 static int
 mlx5e_nic_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 {
-	struct net_device *netdev = rep->netdev;
-	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_priv *priv = netdev_priv(rep->netdev);
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return mlx5e_add_sqs_fwd_rules(priv);
+	int err;
+
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		err = mlx5e_add_sqs_fwd_rules(priv);
+		if (err)
+			return err;
+	}
+
+	err = mlx5e_rep_neigh_init(rpriv);
+	if (err)
+		goto err_remove_sqs;
+
 	return 0;
+
+err_remove_sqs:
+	mlx5e_remove_sqs_fwd_rules(priv);
+	return err;
 }
 
 static void
 mlx5e_nic_rep_unload(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 {
-	struct net_device *netdev = rep->netdev;
-	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_priv *priv = netdev_priv(rep->netdev);
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_remove_sqs_fwd_rules(priv);
@@ -560,6 +636,8 @@ mlx5e_nic_rep_unload(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 	/* clean (and re-init) existing uplink offloaded TC rules */
 	mlx5e_tc_cleanup(priv);
 	mlx5e_tc_init(priv);
+
+	mlx5e_rep_neigh_cleanup(rpriv);
 }
 
 static int
@@ -591,14 +669,24 @@ mlx5e_vport_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 		goto err_destroy_netdev;
 	}
 
-	err = register_netdev(netdev);
+	err = mlx5e_rep_neigh_init(rpriv);
 	if (err) {
-		pr_warn("Failed to register representor netdev for vport %d\n",
+		pr_warn("Failed to initialized neighbours handling for vport %d\n",
 			rep->vport);
 		goto err_detach_netdev;
 	}
 
+	err = register_netdev(netdev);
+	if (err) {
+		pr_warn("Failed to register representor netdev for vport %d\n",
+			rep->vport);
+		goto err_neigh_cleanup;
+	}
+
 	return 0;
+
+err_neigh_cleanup:
+	mlx5e_rep_neigh_cleanup(rpriv);
 
 err_detach_netdev:
 	mlx5e_detach_netdev(netdev_priv(netdev));
@@ -615,9 +703,12 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 {
 	struct net_device *netdev = rep->netdev;
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	void *ppriv = priv->ppriv;
 
-	unregister_netdev(netdev);
+	unregister_netdev(rep->netdev);
+
+	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
 	mlx5e_destroy_netdev(priv);
 	kfree(ppriv); /* mlx5e_rep_priv */
