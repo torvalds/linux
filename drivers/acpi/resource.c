@@ -43,6 +43,19 @@ static inline bool
 acpi_iospace_resource_valid(struct resource *res) { return true; }
 #endif
 
+#if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return ext_irq->resource_source.string_length == 0 &&
+	       ext_irq->producer_consumer == ACPI_CONSUMER;
+}
+#else
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return true;
+}
+#endif
+
 static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 {
 	u64 reslen = end - start + 1;
@@ -470,9 +483,12 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 			acpi_dev_irqresource_disabled(res, 0);
 			return false;
 		}
-		acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
+		if (is_gsi(ext_irq))
+			acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
 					 ext_irq->triggering, ext_irq->polarity,
 					 ext_irq->sharable, false);
+		else
+			acpi_dev_irqresource_disabled(res, 0);
 		break;
 	default:
 		res->flags = 0;
