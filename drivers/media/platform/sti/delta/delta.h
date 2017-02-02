@@ -191,6 +191,14 @@ struct delta_dts {
 	u64 val;
 };
 
+struct delta_buf {
+	u32 size;
+	void *vaddr;
+	dma_addr_t paddr;
+	const char *name;
+	unsigned long attrs;
+};
+
 struct delta_ctx;
 
 /*
