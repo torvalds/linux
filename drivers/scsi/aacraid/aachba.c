@@ -62,6 +62,7 @@
 #define SENCODE_END_OF_DATA			0x00
 #define SENCODE_BECOMING_READY			0x04
 #define SENCODE_INIT_CMD_REQUIRED		0x04
+#define SENCODE_UNRECOVERED_READ_ERROR		0x11
 #define SENCODE_PARAM_LIST_LENGTH_ERROR		0x1A
 #define SENCODE_INVALID_COMMAND			0x20
 #define SENCODE_LBA_OUT_OF_RANGE		0x21
@@ -1993,6 +1994,15 @@ static void io_callback(void *context, struct fib * fibptr)
 			SAM_STAT_CHECK_CONDITION;
 		set_sense(&dev->fsa_dev[cid].sense_data, NOT_READY,
 		  SENCODE_BECOMING_READY, ASENCODE_BECOMING_READY, 0, 0);
+		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
+		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
+			     SCSI_SENSE_BUFFERSIZE));
+		break;
+	case ST_MEDERR:
+		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
+			SAM_STAT_CHECK_CONDITION;
+		set_sense(&dev->fsa_dev[cid].sense_data, MEDIUM_ERROR,
+		  SENCODE_UNRECOVERED_READ_ERROR, ASENCODE_NO_SENSE, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));

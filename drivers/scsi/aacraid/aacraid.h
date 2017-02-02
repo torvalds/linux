@@ -1462,6 +1462,7 @@ struct aac_dev
 #define		ST_IO		5
 #define		ST_NXIO		6
 #define		ST_E2BIG	7
+#define		ST_MEDERR	8
 #define		ST_ACCES	13
 #define		ST_EXIST	17
 #define		ST_XDEV		18
