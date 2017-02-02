@@ -653,15 +653,15 @@ static u64 __raw_read_system_reg(u32 sys_id)
 	case SYS_ID_ISAR2_EL1:		return read_cpuid(ID_ISAR2_EL1);
 	case SYS_ID_ISAR3_EL1:		return read_cpuid(ID_ISAR3_EL1);
 	case SYS_ID_ISAR4_EL1:		return read_cpuid(ID_ISAR4_EL1);
-	case SYS_ID_ISAR5_EL1:		return read_cpuid(ID_ISAR4_EL1);
+	case SYS_ID_ISAR5_EL1:		return read_cpuid(ID_ISAR5_EL1);
 	case SYS_MVFR0_EL1:		return read_cpuid(MVFR0_EL1);
 	case SYS_MVFR1_EL1:		return read_cpuid(MVFR1_EL1);
 	case SYS_MVFR2_EL1:		return read_cpuid(MVFR2_EL1);
 
 	case SYS_ID_AA64PFR0_EL1:	return read_cpuid(ID_AA64PFR0_EL1);
-	case SYS_ID_AA64PFR1_EL1:	return read_cpuid(ID_AA64PFR0_EL1);
+	case SYS_ID_AA64PFR1_EL1:	return read_cpuid(ID_AA64PFR1_EL1);
 	case SYS_ID_AA64DFR0_EL1:	return read_cpuid(ID_AA64DFR0_EL1);
-	case SYS_ID_AA64DFR1_EL1:	return read_cpuid(ID_AA64DFR0_EL1);
+	case SYS_ID_AA64DFR1_EL1:	return read_cpuid(ID_AA64DFR1_EL1);
 	case SYS_ID_AA64MMFR0_EL1:	return read_cpuid(ID_AA64MMFR0_EL1);
 	case SYS_ID_AA64MMFR1_EL1:	return read_cpuid(ID_AA64MMFR1_EL1);
 	case SYS_ID_AA64MMFR2_EL1:	return read_cpuid(ID_AA64MMFR2_EL1);
