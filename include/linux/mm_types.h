@@ -546,6 +546,8 @@ struct mm_struct {
 	struct work_struct async_put_work;
 };
 
+extern struct mm_struct init_mm;
+
 static inline void mm_init_cpumask(struct mm_struct *mm)
 {
 #ifdef CONFIG_CPUMASK_OFFSTACK
