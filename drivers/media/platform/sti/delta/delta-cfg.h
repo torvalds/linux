@@ -57,5 +57,8 @@
 #define DELTA_HW_AUTOSUSPEND_DELAY_MS 5
 
 #define DELTA_MAX_DECODERS 10
+#ifdef CONFIG_VIDEO_STI_DELTA_MJPEG
+extern const struct delta_dec mjpegdec;
+#endif
 
 #endif /* DELTA_CFG_H */

@@ -331,10 +331,20 @@ config VIDEO_STI_DELTA
 
 if VIDEO_STI_DELTA
 
+config VIDEO_STI_DELTA_MJPEG
+	bool "STMicroelectronics DELTA MJPEG support"
+	default y
+	help
+		Enables DELTA MJPEG hardware support.
+
+		To compile this driver as a module, choose M here:
+		the module will be called st-delta.
+
 config VIDEO_STI_DELTA_DRIVER
 	tristate
 	depends on VIDEO_STI_DELTA
-	default n
+	depends on VIDEO_STI_DELTA_MJPEG
+	default VIDEO_STI_DELTA_MJPEG
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select RPMSG
