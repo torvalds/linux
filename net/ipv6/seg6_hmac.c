@@ -174,7 +174,7 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	 * hash function (RadioGatun) with up to 1216 bits
 	 */
 
-	/* saddr(16) + first_seg(1) + cleanup(1) + keyid(4) + seglist(16n) */
+	/* saddr(16) + first_seg(1) + flags(1) + keyid(4) + seglist(16n) */
 	plen = 16 + 1 + 1 + 4 + (hdr->first_segment + 1) * 16;
 
 	/* this limit allows for 14 segments */
@@ -186,7 +186,7 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	 *
 	 * 1. Source IPv6 address (128 bits)
 	 * 2. first_segment value (8 bits)
-	 * 3. cleanup flag (8 bits: highest bit is cleanup value, others are 0)
+	 * 3. Flags (8 bits)
 	 * 4. HMAC Key ID (32 bits)
 	 * 5. All segments in the segments list (n * 128 bits)
 	 */
@@ -202,8 +202,8 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	/* first_segment value */
 	*off++ = hdr->first_segment;
 
-	/* cleanup flag */
-	*off++ = !!(sr_has_cleanup(hdr)) << 7;
+	/* flags */
+	*off++ = hdr->flags;
 
 	/* HMAC Key ID */
 	memcpy(off, &hmackeyid, 4);
