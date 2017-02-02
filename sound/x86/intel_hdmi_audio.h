@@ -30,20 +30,11 @@
 #ifndef _INTEL_HDMI_AUDIO_H_
 #define _INTEL_HDMI_AUDIO_H_
 
-#include <linux/types.h>
-#include <sound/initval.h>
-#include <linux/version.h>
-#include <linux/pm_runtime.h>
-#include <sound/asoundef.h>
-#include <sound/control.h>
-#include <sound/pcm.h>
-#include <drm/drm_edid.h>
 #include "intel_hdmi_lpe_audio.h"
 
 #define PCM_INDEX		0
 #define MAX_PB_STREAMS		1
 #define MAX_CAP_STREAMS		0
-#define HDMI_AUDIO_DRIVER	"hdmi-audio"
 
 #define HDMI_INFO_FRAME_WORD1	0x000a0184
 #define DP_INFO_FRAME_WORD1	0x00441b84
@@ -85,7 +76,7 @@ struct ring_buf_info {
 	u8	is_valid;
 };
 
-/**
+/*
  * struct snd_intelhad - intelhad driver structure
  *
  * @card: ptr to hold card details

@@ -23,20 +23,6 @@
 #ifndef __INTEL_HDMI_LPE_AUDIO_H
 #define __INTEL_HDMI_LPE_AUDIO_H
 
-#include <linux/types.h>
-#include <sound/initval.h>
-#include <linux/version.h>
-#include <linux/pm_runtime.h>
-#include <linux/platform_device.h>
-#include <sound/asoundef.h>
-#include <sound/control.h>
-#include <sound/pcm.h>
-
-#define AUD_CONFIG_VALID_BIT			(1<<9)
-#define AUD_CONFIG_DP_MODE			(1<<15)
-#define AUD_CONFIG_BLOCK_BIT			(1<<7)
-
-#define HMDI_LPE_AUDIO_DRIVER_NAME		"intel-hdmi-lpe-audio"
 #define HAD_MAX_DEVICES		1
 #define HAD_MIN_CHANNEL		2
 #define HAD_MAX_CHANNEL		8
@@ -96,14 +82,6 @@
 /* Naud Value */
 #define DP_NAUD_VAL					32768
 
-/* _AUD_CONFIG register MASK */
-#define AUD_CONFIG_MASK_UNDERRUN	0xC0000000
-#define AUD_CONFIG_MASK_SRDBG		0x00000002
-#define AUD_CONFIG_MASK_FUNCRST		0x00000001
-
-#define MAX_CNT			0xFF
-#define HAD_SUSPEND_DELAY	1000
-
 enum had_drv_status {
 	HAD_DRV_CONNECTED,
 	HAD_DRV_RUNNING,
@@ -120,17 +98,10 @@ enum intel_had_aud_buf_type {
 	HAD_BUF_TYPE_D = 3,
 };
 
-enum num_aud_ch {
-	CH_STEREO = 0,
-	CH_THREE_FOUR = 1,
-	CH_FIVE_SIX = 2,
-	CH_SEVEN_EIGHT = 3
-};
-
 /* HDMI Controller register offsets - audio domain common */
 /* Base address for below regs = 0x65000 */
 enum hdmi_ctrl_reg_offset_common {
-	AUDIO_HDMI_CONFIG_A	= 0x000,
+	AUDIO_HDMI_CONFIG_A = 0x000,
 	AUDIO_HDMI_CONFIG_B = 0x800,
 	AUDIO_HDMI_CONFIG_C = 0x900,
 };
@@ -219,6 +190,10 @@ union aud_cfg {
 	} regx;
 	u32 regval;
 };
+
+#define AUD_CONFIG_BLOCK_BIT			(1 << 7)
+#define AUD_CONFIG_VALID_BIT			(1 << 9)
+#define AUD_CONFIG_DP_MODE			(1 << 15)
 
 /* Audio Channel Status 0 Attributes */
 union aud_ch_status_0 {
@@ -371,32 +346,13 @@ union aud_info_frame3 {
 	u32 regval;
 };
 
-#define HDMI_AUDIO_UNDERRUN     (1UL<<31)
-#define HDMI_AUDIO_BUFFER_DONE  (1UL<<29)
+/* AUD_HDMI_STATUS bits */
+#define HDMI_AUDIO_UNDERRUN		(1U << 31)
+#define HDMI_AUDIO_BUFFER_DONE		(1U << 29)
 
-
-#define PORT_ENABLE			(1 << 31)
-#define SDVO_AUDIO_ENABLE	(1 << 6)
-
-enum had_caps_list {
-	HAD_GET_ELD = 1,
-	HAD_GET_DISPLAY_RATE,
-	HAD_GET_DP_OUTPUT,
-	HAD_GET_LINK_RATE,
-	HAD_SET_ENABLE_AUDIO,
-	HAD_SET_DISABLE_AUDIO,
-	HAD_SET_ENABLE_AUDIO_INT,
-	HAD_SET_DISABLE_AUDIO_INT,
-};
-
-enum had_event_type {
-	HAD_EVENT_HOT_PLUG = 1,
-	HAD_EVENT_HOT_UNPLUG,
-	HAD_EVENT_MODE_CHANGING,
-	HAD_EVENT_AUDIO_BUFFER_DONE,
-	HAD_EVENT_AUDIO_BUFFER_UNDERRUN,
-	HAD_EVENT_QUERY_IS_AUDIO_BUSY,
-	HAD_EVENT_QUERY_IS_AUDIO_SUSPENDED,
-};
+/* AUD_HDMI_STATUS register mask */
+#define AUD_CONFIG_MASK_UNDERRUN	0xC0000000
+#define AUD_CONFIG_MASK_SRDBG		0x00000002
+#define AUD_CONFIG_MASK_FUNCRST		0x00000001
 
 #endif

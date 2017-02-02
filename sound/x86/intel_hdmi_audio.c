@@ -21,19 +21,21 @@
  * ALSA driver for Intel HDMI audio
  */
 
+#include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/acpi.h>
+#include <linux/pm_runtime.h>
 #include <asm/cacheflush.h>
-#include <sound/pcm.h>
 #include <sound/core.h>
+#include <sound/asoundef.h>
+#include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/control.h>
-#include <sound/initval.h>
+#include <drm/drm_edid.h>
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
 
@@ -928,6 +930,8 @@ static int snd_intelhad_prog_n(u32 aud_samp_freq, u32 *n_param,
 	*n_param = n_val;
 	return 0;
 }
+
+#define MAX_CNT			0xFF
 
 static void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata)
 {
