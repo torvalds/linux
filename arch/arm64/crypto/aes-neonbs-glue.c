@@ -34,7 +34,7 @@ asmlinkage void aesbs_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[],
 				  int rounds, int blocks, u8 iv[]);
 
 asmlinkage void aesbs_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[],
-				  int rounds, int blocks, u8 iv[], bool final);
+				  int rounds, int blocks, u8 iv[], u8 final[]);
 
 asmlinkage void aesbs_xts_encrypt(u8 out[], u8 const in[], u8 const rk[],
 				  int rounds, int blocks, u8 iv[]);
@@ -201,6 +201,7 @@ static int ctr_encrypt(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct aesbs_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
+	u8 buf[AES_BLOCK_SIZE];
 	int err;
 
 	err = skcipher_walk_virt(&walk, req, true);
@@ -208,12 +209,12 @@ static int ctr_encrypt(struct skcipher_request *req)
 	kernel_neon_begin();
 	while (walk.nbytes > 0) {
 		unsigned int blocks = walk.nbytes / AES_BLOCK_SIZE;
-		bool final = (walk.total % AES_BLOCK_SIZE) != 0;
+		u8 *final = (walk.total % AES_BLOCK_SIZE) ? buf : NULL;
 
 		if (walk.nbytes < walk.total) {
 			blocks = round_down(blocks,
 					    walk.stride / AES_BLOCK_SIZE);
-			final = false;
+			final = NULL;
 		}
 
 		aesbs_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
@@ -225,7 +226,7 @@ static int ctr_encrypt(struct skcipher_request *req)
 
 			if (dst != src)
 				memcpy(dst, src, walk.total % AES_BLOCK_SIZE);
-			crypto_xor(dst, walk.iv, walk.total % AES_BLOCK_SIZE);
+			crypto_xor(dst, final, walk.total % AES_BLOCK_SIZE);
 
 			err = skcipher_walk_done(&walk, 0);
 			break;
