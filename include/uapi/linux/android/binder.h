@@ -33,6 +33,7 @@ enum {
 	BINDER_TYPE_HANDLE	= B_PACK_CHARS('s', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_WEAK_HANDLE	= B_PACK_CHARS('w', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_FD		= B_PACK_CHARS('f', 'd', '*', B_TYPE_LARGE),
+	BINDER_TYPE_FDA		= B_PACK_CHARS('f', 'd', 'a', B_TYPE_LARGE),
 	BINDER_TYPE_PTR		= B_PACK_CHARS('p', 't', '*', B_TYPE_LARGE),
 };
 
@@ -127,6 +128,33 @@ struct binder_buffer_object {
 
 enum {
 	BINDER_BUFFER_FLAG_HAS_PARENT = 0x01,
+};
+
+/* struct binder_fd_array_object - object describing an array of fds in a buffer
+ * @hdr:		common header structure
+ * @num_fds:		number of file descriptors in the buffer
+ * @parent:		index in offset array to buffer holding the fd array
+ * @parent_offset:	start offset of fd array in the buffer
+ *
+ * A binder_fd_array object represents an array of file
+ * descriptors embedded in a binder_buffer_object. It is
+ * different from a regular binder_buffer_object because it
+ * describes a list of file descriptors to fix up, not an opaque
+ * blob of memory, and hence the kernel needs to treat it differently.
+ *
+ * An example of how this would be used is with Android's
+ * native_handle_t object, which is a struct with a list of integers
+ * and a list of file descriptors. The native_handle_t struct itself
+ * will be represented by a struct binder_buffer_objct, whereas the
+ * embedded list of file descriptors is represented by a
+ * struct binder_fd_array_object with that binder_buffer_object as
+ * a parent.
+ */
+struct binder_fd_array_object {
+	struct binder_object_header	hdr;
+	binder_size_t			num_fds;
+	binder_size_t			parent;
+	binder_size_t			parent_offset;
 };
 
 /*
