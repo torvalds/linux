@@ -2,6 +2,7 @@
 #define _LINUX_SCHED_MM_H
 
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/gfp.h>
 
 #endif /* _LINUX_SCHED_MM_H */

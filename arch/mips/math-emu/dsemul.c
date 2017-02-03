@@ -1,5 +1,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 
 #include <asm/branch.h>
 #include <asm/cacheflush.h>

@@ -15,6 +15,7 @@
 #include <linux/sched/autogroup.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
+#include <linux/mm_types.h>
 
 #include <asm/thread_info.h>
 

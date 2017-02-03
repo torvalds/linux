@@ -29,6 +29,7 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
+#include <linux/mm_types.h>
 
 #include <asm/time.h>    /*  timer_interrupt  */
 #include <asm/hexagon_vm.h>

@@ -11,7 +11,7 @@
  */
 
 #include <linux/proc_fs.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>

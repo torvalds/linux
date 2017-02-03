@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
+#include <linux/mm_types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

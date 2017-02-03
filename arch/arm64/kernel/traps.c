@@ -33,6 +33,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/syscalls.h>
+#include <linux/mm_types.h>
 
 #include <asm/atomic.h>
 #include <asm/bug.h>

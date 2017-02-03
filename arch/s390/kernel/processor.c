@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/mm_types.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/diag.h>

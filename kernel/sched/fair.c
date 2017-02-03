@@ -20,7 +20,7 @@
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
 
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/sched/topology.h>
 
 #include <linux/latencytop.h>

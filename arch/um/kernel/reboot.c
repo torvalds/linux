@@ -5,6 +5,7 @@
 
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
+#include <linux/sched/mm.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/oom.h>
