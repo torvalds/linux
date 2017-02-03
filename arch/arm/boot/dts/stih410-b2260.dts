@@ -66,6 +66,7 @@
 			pinctrl-0 = <&pinctrl_serial0_hw_flowctrl>;
 			pinctrl-1 = <&pinctrl_serial0>;
 			rts-gpios = <&pio17 3 GPIO_ACTIVE_LOW>;
+			uart-has-rtscts;
 			status = "okay";
 		};
 
