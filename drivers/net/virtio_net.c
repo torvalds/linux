@@ -398,52 +398,6 @@ static bool virtnet_xdp_xmit(struct virtnet_info *vi,
 	return true;
 }
 
-static u32 do_xdp_prog(struct virtnet_info *vi,
-		       struct receive_queue *rq,
-		       struct bpf_prog *xdp_prog,
-		       void *data, int len)
-{
-	int hdr_padded_len;
-	struct xdp_buff xdp;
-	void *buf;
-	unsigned int qp;
-	u32 act;
-
-	if (vi->mergeable_rx_bufs) {
-		hdr_padded_len = sizeof(struct virtio_net_hdr_mrg_rxbuf);
-		xdp.data = data + hdr_padded_len;
-		xdp.data_end = xdp.data + (len - vi->hdr_len);
-		buf = data;
-	} else { /* small buffers */
-		struct sk_buff *skb = data;
-
-		xdp.data = skb->data;
-		xdp.data_end = xdp.data + len;
-		buf = skb->data;
-	}
-
-	act = bpf_prog_run_xdp(xdp_prog, &xdp);
-	switch (act) {
-	case XDP_PASS:
-		return XDP_PASS;
-	case XDP_TX:
-		qp = vi->curr_queue_pairs -
-			vi->xdp_queue_pairs +
-			smp_processor_id();
-		xdp.data = buf;
-		if (unlikely(!virtnet_xdp_xmit(vi, rq, &vi->sq[qp], &xdp,
-					       data)))
-			trace_xdp_exception(vi->dev, xdp_prog, act);
-		return XDP_TX;
-	default:
-		bpf_warn_invalid_xdp_action(act);
-	case XDP_ABORTED:
-		trace_xdp_exception(vi->dev, xdp_prog, act);
-	case XDP_DROP:
-		return XDP_DROP;
-	}
-}
-
 static struct sk_buff *receive_small(struct net_device *dev,
 				     struct virtnet_info *vi,
 				     struct receive_queue *rq,
@@ -459,19 +413,34 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (xdp_prog) {
 		struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
+		struct xdp_buff xdp;
+		unsigned int qp;
 		u32 act;
 
 		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
 			goto err_xdp;
-		act = do_xdp_prog(vi, rq, xdp_prog, skb, len);
+
+		xdp.data = skb->data;
+		xdp.data_end = xdp.data + len;
+		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
 		switch (act) {
 		case XDP_PASS:
 			break;
 		case XDP_TX:
+			qp = vi->curr_queue_pairs -
+				vi->xdp_queue_pairs +
+				smp_processor_id();
+			if (unlikely(!virtnet_xdp_xmit(vi, rq, &vi->sq[qp],
+						       &xdp, skb)))
+				trace_xdp_exception(vi->dev, xdp_prog, act);
 			rcu_read_unlock();
 			goto xdp_xmit;
-		case XDP_DROP:
 		default:
+			bpf_warn_invalid_xdp_action(act);
+		case XDP_ABORTED:
+			trace_xdp_exception(vi->dev, xdp_prog, act);
+		case XDP_DROP:
 			goto err_xdp;
 		}
 	}
@@ -589,6 +558,9 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (xdp_prog) {
 		struct page *xdp_page;
+		struct xdp_buff xdp;
+		unsigned int qp;
+		void *data;
 		u32 act;
 
 		/* This happens when rx buffer size is underestimated */
@@ -611,8 +583,11 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		if (unlikely(hdr->hdr.gso_type))
 			goto err_xdp;
 
-		act = do_xdp_prog(vi, rq, xdp_prog,
-				  page_address(xdp_page) + offset, len);
+		data = page_address(xdp_page) + offset;
+		xdp.data = data + vi->hdr_len;
+		xdp.data_end = xdp.data + (len - vi->hdr_len);
+		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
 		switch (act) {
 		case XDP_PASS:
 			/* We can only create skb based on xdp_page. */
@@ -626,13 +601,22 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
+			qp = vi->curr_queue_pairs -
+				vi->xdp_queue_pairs +
+				smp_processor_id();
+			if (unlikely(!virtnet_xdp_xmit(vi, rq, &vi->sq[qp],
+						       &xdp, data)))
+				trace_xdp_exception(vi->dev, xdp_prog, act);
 			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
 			if (unlikely(xdp_page != page))
 				goto err_xdp;
 			rcu_read_unlock();
 			goto xdp_xmit;
-		case XDP_DROP:
 		default:
+			bpf_warn_invalid_xdp_action(act);
+		case XDP_ABORTED:
+			trace_xdp_exception(vi->dev, xdp_prog, act);
+		case XDP_DROP:
 			if (unlikely(xdp_page != page))
 				__free_pages(xdp_page, 0);
 			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
