@@ -157,8 +157,8 @@ enum rtl8192c_h2c_cmd {
 #define MAX_REGULATION_NUM		4
 #define MAX_RF_PATH_NUM			4
 #define MAX_RATE_SECTION_NUM		6
-#define MAX_2_4G_BANDWITH_NUM		4
-#define MAX_5G_BANDWITH_NUM		4
+#define MAX_2_4G_BANDWIDTH_NUM		4
+#define MAX_5G_BANDWIDTH_NUM		4
 #define	MAX_RF_PATH			4
 #define	MAX_CHNL_GROUP_24G		6
 #define	MAX_CHNL_GROUP_5G		14
@@ -1265,12 +1265,12 @@ struct rtl_phy {
 	u8 cur_bw40_txpwridx;
 
 	s8 txpwr_limit_2_4g[MAX_REGULATION_NUM]
-			   [MAX_2_4G_BANDWITH_NUM]
+			   [MAX_2_4G_BANDWIDTH_NUM]
 			   [MAX_RATE_SECTION_NUM]
 			   [CHANNEL_MAX_NUMBER_2G]
 			   [MAX_RF_PATH_NUM];
 	s8 txpwr_limit_5g[MAX_REGULATION_NUM]
-			 [MAX_5G_BANDWITH_NUM]
+			 [MAX_5G_BANDWIDTH_NUM]
 			 [MAX_RATE_SECTION_NUM]
 			 [CHANNEL_MAX_NUMBER_5G]
 			 [MAX_RF_PATH_NUM];
