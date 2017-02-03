@@ -336,7 +336,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 	struct device_node *child;
 	struct regulator *vref;
 	unsigned int reg;
-	unsigned int adcmode, childmode;
+	unsigned int adcmode = -1, childmode;
 	unsigned int sample_width;
 	unsigned int num_channels;
 	int ret, first = 1;
@@ -366,6 +366,8 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 			channels = rcar_gyroadc_iio_channels_3;
 			num_channels = ARRAY_SIZE(rcar_gyroadc_iio_channels_3);
 			break;
+		default:
+			return -EINVAL;
 		}
 
 		/*
