@@ -7268,7 +7268,7 @@ static void gfx_v8_0_ring_emit_ce_meta_init(struct amdgpu_ring *ring, uint64_t c
 	static union {
 		struct amdgpu_ce_ib_state regular;
 		struct amdgpu_ce_ib_state_chained_ib chained;
-	} ce_payload = {0};
+	} ce_payload = {};
 
 	if (ring->adev->virt.chained_ib_support) {
 		ce_payload_addr = csa_addr + offsetof(struct amdgpu_gfx_meta_data_chained_ib, ce_payload);
@@ -7295,7 +7295,7 @@ static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t c
 	static union {
 		struct amdgpu_de_ib_state regular;
 		struct amdgpu_de_ib_state_chained_ib chained;
-	} de_payload = {0};
+	} de_payload = {};
 
 	gds_addr = csa_addr + 4096;
 	if (ring->adev->virt.chained_ib_support) {
