@@ -1987,6 +1987,10 @@ config MODVERSIONS
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
 
+config MODULE_REL_CRCS
+	bool
+	depends on MODVERSIONS
+
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"
 	help
