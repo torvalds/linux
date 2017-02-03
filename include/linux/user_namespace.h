@@ -5,6 +5,7 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/sched.h>
+#include <linux/sysctl.h>
 #include <linux/err.h>
 
 #define UID_GID_MAP_MAX_EXTENTS 5
