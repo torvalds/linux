@@ -151,6 +151,18 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_PROTOCOL:
 		*dest = nf_ct_protonum(ct);
 		return;
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	case NFT_CT_ZONE: {
+		const struct nf_conntrack_zone *zone = nf_ct_zone(ct);
+
+		if (priv->dir < IP_CT_DIR_MAX)
+			*dest = nf_ct_zone_id(zone, priv->dir);
+		else
+			*dest = zone->id;
+
+		return;
+	}
+#endif
 	default:
 		break;
 	}
@@ -266,6 +278,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_CT_KEY]));
+	priv->dir = IP_CT_DIR_MAX;
 	switch (priv->key) {
 	case NFT_CT_DIRECTION:
 		if (tb[NFTA_CT_DIRECTION] != NULL)
@@ -333,11 +346,13 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	case NFT_CT_BYTES:
 	case NFT_CT_PKTS:
 	case NFT_CT_AVGPKT:
-		/* no direction? return sum of original + reply */
-		if (tb[NFTA_CT_DIRECTION] == NULL)
-			priv->dir = IP_CT_DIR_MAX;
 		len = sizeof(u64);
 		break;
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	case NFT_CT_ZONE:
+		len = sizeof(u16);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -465,6 +480,7 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	case NFT_CT_BYTES:
 	case NFT_CT_PKTS:
 	case NFT_CT_AVGPKT:
+	case NFT_CT_ZONE:
 		if (priv->dir < IP_CT_DIR_MAX &&
 		    nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
 			goto nla_put_failure;

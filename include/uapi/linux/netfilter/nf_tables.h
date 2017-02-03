@@ -870,6 +870,7 @@ enum nft_rt_attributes {
  * @NFT_CT_PKTS: conntrack packets
  * @NFT_CT_BYTES: conntrack bytes
  * @NFT_CT_AVGPKT: conntrack average bytes per packet
+ * @NFT_CT_ZONE: conntrack zone
  */
 enum nft_ct_keys {
 	NFT_CT_STATE,
@@ -889,6 +890,7 @@ enum nft_ct_keys {
 	NFT_CT_PKTS,
 	NFT_CT_BYTES,
 	NFT_CT_AVGPKT,
+	NFT_CT_ZONE,
 };
 
 /**
