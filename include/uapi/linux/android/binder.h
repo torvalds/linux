@@ -48,6 +48,14 @@ typedef __u64 binder_size_t;
 typedef __u64 binder_uintptr_t;
 #endif
 
+/**
+ * struct binder_object_header - header shared by all binder metadata objects.
+ * @type:	type of the object
+ */
+struct binder_object_header {
+	__u32        type;
+};
+
 /*
  * This is the flattened representation of a Binder object for transfer
  * between processes.  The 'offsets' supplied as part of a binder transaction
@@ -56,9 +64,8 @@ typedef __u64 binder_uintptr_t;
  * between processes.
  */
 struct flat_binder_object {
-	/* 8 bytes for large_flat_header. */
-	__u32		type;
-	__u32		flags;
+	struct binder_object_header	hdr;
+	__u32				flags;
 
 	/* 8 bytes of data. */
 	union {
@@ -70,6 +77,24 @@ struct flat_binder_object {
 	binder_uintptr_t	cookie;
 };
 
+/**
+ * struct binder_fd_object - describes a filedescriptor to be fixed up.
+ * @hdr:	common header structure
+ * @pad_flags:	padding to remain compatible with old userspace code
+ * @pad_binder:	padding to remain compatible with old userspace code
+ * @fd:		file descriptor
+ * @cookie:	opaque data, used by user-space
+ */
+struct binder_fd_object {
+	struct binder_object_header	hdr;
+	__u32				pad_flags;
+	union {
+		binder_uintptr_t	pad_binder;
+		__u32			fd;
+	};
+
+	binder_uintptr_t		cookie;
+};
 /*
  * On 64-bit platforms where user code may run in 32-bits the driver must
  * translate the buffer (and local binder) addresses appropriately.
