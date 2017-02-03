@@ -188,69 +188,20 @@ static void had_substream_put(struct snd_intelhad *intelhaddata)
 }
 
 /* Register access functions */
-static inline void
-mid_hdmi_audio_read(struct snd_intelhad *ctx, u32 reg, u32 *val)
+static void had_read_register(struct snd_intelhad *ctx, u32 reg, u32 *val)
 {
 	*val = ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
 }
 
-static inline void
-mid_hdmi_audio_write(struct snd_intelhad *ctx, u32 reg, u32 val)
+static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
 {
 	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
-}
-
-static int had_read_register(struct snd_intelhad *intelhaddata,
-			     u32 offset, u32 *data)
-{
-	if (!intelhaddata->connected)
-		return -ENODEV;
-
-	mid_hdmi_audio_read(intelhaddata, offset, data);
-	return 0;
-}
-
-static void fixup_dp_config(struct snd_intelhad *intelhaddata,
-			    u32 offset, u32 *data)
-{
-	if (intelhaddata->dp_output) {
-		if (offset == AUD_CONFIG && (*data & AUD_CONFIG_VALID_BIT))
-			*data |= AUD_CONFIG_DP_MODE | AUD_CONFIG_BLOCK_BIT;
-	}
-}
-
-static int had_write_register(struct snd_intelhad *intelhaddata,
-			      u32 offset, u32 data)
-{
-	if (!intelhaddata->connected)
-		return -ENODEV;
-
-	fixup_dp_config(intelhaddata, offset, &data);
-	mid_hdmi_audio_write(intelhaddata, offset, data);
-	return 0;
-}
-
-static int had_read_modify(struct snd_intelhad *intelhaddata, u32 offset,
-			   u32 data, u32 mask)
-{
-	u32 val_tmp;
-
-	if (!intelhaddata->connected)
-		return -ENODEV;
-
-	mid_hdmi_audio_read(intelhaddata, offset, &val_tmp);
-	val_tmp &= ~mask;
-	val_tmp |= (data & mask);
-
-	fixup_dp_config(intelhaddata, offset, &val_tmp);
-	mid_hdmi_audio_write(intelhaddata, offset, val_tmp);
-	return 0;
 }
 
 /*
  * enable / disable audio configuration
  *
- * The had_read_modify() function should not directly be used on VLV2 for
+ * The normal read/modify should not directly be used on VLV2 for
  * updating AUD_CONFIG register.
  * This is because:
  * Bit6 of AUD_CONFIG register is writeonly due to a silicon bug on VLV2
@@ -267,24 +218,25 @@ static void snd_intelhad_enable_audio(struct snd_pcm_substream *substream,
 				      bool enable)
 {
 	union aud_cfg cfg_val = {.regval = 0};
-	u8 channels, data, mask;
+	u8 channels;
+	u32 mask, val;
 
 	/*
 	 * If substream is NULL, there is no active stream.
 	 * In this case just set channels to 2
 	 */
 	channels = substream ? substream->runtime->channels : 2;
-	cfg_val.regx.num_ch = channels - 2;
+	dev_dbg(intelhaddata->dev, "enable %d, ch=%d\n", enable, channels);
 
-	data = cfg_val.regval;
+	cfg_val.regx.num_ch = channels - 2;
 	if (enable)
-		data |= 1;
+		cfg_val.regx.aud_en = 1;
 	mask = AUD_CONFIG_CH_MASK | 1;
 
-	dev_dbg(intelhaddata->dev, "%s : data = %x, mask =%x\n",
-		__func__, data, mask);
-
-	had_read_modify(intelhaddata, AUD_CONFIG, data, mask);
+	had_read_register(intelhaddata, AUD_CONFIG, &val);
+	val &= ~mask;
+	val |= cfg_val.regval;
+	had_write_register(intelhaddata, AUD_CONFIG, val);
 }
 
 /* enable / disable the audio interface */
@@ -293,10 +245,10 @@ static void snd_intelhad_enable_audio_int(struct snd_intelhad *ctx, bool enable)
 	u32 status_reg;
 
 	if (enable) {
-		mid_hdmi_audio_read(ctx, AUD_HDMI_STATUS, &status_reg);
+		had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
 		status_reg |= HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
-		mid_hdmi_audio_write(ctx, AUD_HDMI_STATUS, status_reg);
-		mid_hdmi_audio_read(ctx, AUD_HDMI_STATUS, &status_reg);
+		had_write_register(ctx, AUD_HDMI_STATUS, status_reg);
+		had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
 	}
 }
 
@@ -401,6 +353,13 @@ static int snd_intelhad_audio_ctrl(struct snd_pcm_substream *substream,
 		cfg_val.regx.layout = LAYOUT1;
 
 	cfg_val.regx.val_bit = 1;
+
+	/* fix up the DP bits */
+	if (intelhaddata->dp_output) {
+		cfg_val.regx.dp_modei = 1;
+		cfg_val.regx.set = 1;
+	}
+
 	had_write_register(intelhaddata, AUD_CONFIG, cfg_val.regval);
 	return 0;
 }
@@ -1684,15 +1643,15 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 	u32 audio_stat, audio_reg;
 
 	audio_reg = AUD_HDMI_STATUS;
-	mid_hdmi_audio_read(ctx, audio_reg, &audio_stat);
+	had_read_register(ctx, audio_reg, &audio_stat);
 
 	if (audio_stat & HDMI_AUDIO_UNDERRUN) {
-		mid_hdmi_audio_write(ctx, audio_reg, HDMI_AUDIO_UNDERRUN);
+		had_write_register(ctx, audio_reg, HDMI_AUDIO_UNDERRUN);
 		had_process_buffer_underrun(ctx);
 	}
 
 	if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
-		mid_hdmi_audio_write(ctx, audio_reg, HDMI_AUDIO_BUFFER_DONE);
+		had_write_register(ctx, audio_reg, HDMI_AUDIO_BUFFER_DONE);
 		had_process_buffer_done(ctx);
 	}
 
