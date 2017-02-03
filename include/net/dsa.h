@@ -268,6 +268,16 @@ struct switchdev_obj_port_fdb;
 struct switchdev_obj_port_mdb;
 struct switchdev_obj_port_vlan;
 
+#define DSA_NOTIFIER_BRIDGE_JOIN		1
+#define DSA_NOTIFIER_BRIDGE_LEAVE		2
+
+/* DSA_NOTIFIER_BRIDGE_* */
+struct dsa_notifier_bridge_info {
+	struct net_device *br;
+	int sw_index;
+	int port;
+};
+
 struct dsa_switch_ops {
 	/*
 	 * Probing and setup.

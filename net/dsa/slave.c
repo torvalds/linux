@@ -27,6 +27,17 @@
 
 static bool dsa_slave_dev_check(struct net_device *dev);
 
+static int dsa_slave_notify(struct net_device *dev, unsigned long e, void *v)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct raw_notifier_head *nh = &p->dp->ds->dst->nh;
+	int err;
+
+	err = raw_notifier_call_chain(nh, e, v);
+
+	return notifier_to_errno(err);
+}
+
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -562,39 +573,46 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 				      struct net_device *br)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	int ret = -EOPNOTSUPP;
+	struct dsa_notifier_bridge_info info = {
+		.sw_index = p->dp->ds->index,
+		.port = p->dp->index,
+		.br = br,
+	};
+	int err;
 
 	/* Here the port is already bridged. Reflect the current configuration
 	 * so that drivers can program their chips accordingly.
 	 */
 	p->dp->bridge_dev = br;
 
-	if (ds->ops->port_bridge_join)
-		ret = ds->ops->port_bridge_join(ds, p->dp->index, br);
+	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
-	if (ret && ret != -EOPNOTSUPP) {
+	if (err)
 		p->dp->bridge_dev = NULL;
-		return ret;
-	}
 
-	return 0;
+	return err;
 }
 
 static void dsa_slave_bridge_port_leave(struct net_device *dev,
 					struct net_device *br)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
+	struct dsa_notifier_bridge_info info = {
+		.sw_index = p->dp->ds->index,
+		.port = p->dp->index,
+		.br = br,
+	};
+	int err;
 
 	/* Here the port is already unbridged. Reflect the current configuration
 	 * so that drivers can program their chips accordingly.
 	 */
 	p->dp->bridge_dev = NULL;
 
-	if (ds->ops->port_bridge_leave)
-		ds->ops->port_bridge_leave(ds, p->dp->index, br);
+	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	if (err)
+		netdev_err(dev, "failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
