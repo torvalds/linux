@@ -1,7 +1,6 @@
 #ifndef _LINUX_KASAN_H
 #define _LINUX_KASAN_H
 
-#include <linux/sched.h>
 #include <linux/types.h>
 
 struct kmem_cache;
