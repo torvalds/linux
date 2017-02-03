@@ -136,6 +136,25 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 #endif /* CONFIG_SPU_BASE */
 
+#ifdef CONFIG_PPC64
+
+#define get_cache_geometry(level) \
+	(ppc64_caches.level.assoc << 16 | ppc64_caches.level.line_size)
+
+#define ARCH_DLINFO_CACHE_GEOMETRY					\
+	NEW_AUX_ENT(AT_L1I_CACHESIZE, ppc64_caches.l1i.size);		\
+	NEW_AUX_ENT(AT_L1I_CACHEGEOMETRY, get_cache_geometry(l1i));	\
+	NEW_AUX_ENT(AT_L1D_CACHESIZE, ppc64_caches.l1i.size);		\
+	NEW_AUX_ENT(AT_L1D_CACHEGEOMETRY, get_cache_geometry(l1i));	\
+	NEW_AUX_ENT(AT_L2_CACHESIZE, ppc64_caches.l2.size);		\
+	NEW_AUX_ENT(AT_L2_CACHEGEOMETRY, get_cache_geometry(l2));	\
+	NEW_AUX_ENT(AT_L3_CACHESIZE, ppc64_caches.l3.size);		\
+	NEW_AUX_ENT(AT_L3_CACHEGEOMETRY, get_cache_geometry(l3))
+
+#else
+#define ARCH_DLINFO_CACHE_GEOMETRY
+#endif
+
 /*
  * The requirements here are:
  * - keep the final alignment of sp (sp & 0xf)
@@ -156,6 +175,7 @@ do {									\
 	NEW_AUX_ENT(AT_ICACHEBSIZE, icache_bsize);			\
 	NEW_AUX_ENT(AT_UCACHEBSIZE, ucache_bsize);			\
 	VDSO_AUX_ENT(AT_SYSINFO_EHDR, current->mm->context.vdso_base);	\
+	ARCH_DLINFO_CACHE_GEOMETRY;					\
 } while (0)
 
 #endif /* _ASM_POWERPC_ELF_H */

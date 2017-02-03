@@ -38,6 +38,7 @@ struct ppc_cache_info {
 	u32 log_block_size;
 	u32 blocks_per_page;
 	u32 sets;
+	u32 assoc;
 };
 
 struct ppc64_caches {
