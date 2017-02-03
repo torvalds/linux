@@ -81,6 +81,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ REQ_SYNC | REQ_PRIO,	"(SP)" },			\
 		{ REQ_META, 		"(M)" },			\
 		{ REQ_META | REQ_PRIO,	"(MP)" },			\
+		{ REQ_SYNC | REQ_PREFLUSH , "(SF)" },			\
 		{ REQ_SYNC | REQ_META | REQ_PRIO, "(SMP)" },		\
 		{ REQ_PREFLUSH | REQ_META | REQ_PRIO, "(FMP)" },	\
 		{ 0, " \b" })
