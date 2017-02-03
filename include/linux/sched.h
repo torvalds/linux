@@ -33,24 +33,35 @@
 
 #include <asm/current.h>
 
+/* task_struct member predeclarations: */
+struct audit_context;
+struct autogroup;
+struct backing_dev_info;
+struct bio_list;
+struct blk_plug;
+struct cfs_rq;
+struct filename;
+struct fs_struct;
+struct futex_pi_state;
+struct io_context;
+struct mempolicy;
+struct nameidata;
+struct nsproxy;
+struct perf_event_context;
+struct pid_namespace;
+struct pipe_inode_info;
+struct rcu_node;
+struct reclaim_state;
+struct robust_list_head;
 struct sched_attr;
 struct sched_param;
-
-struct futex_pi_state;
-struct robust_list_head;
-struct bio_list;
-struct fs_struct;
-struct perf_event_context;
-struct blk_plug;
-struct filename;
-struct nameidata;
-
-struct signal_struct;
-struct sighand_struct;
-
 struct seq_file;
-struct cfs_rq;
+struct sighand_struct;
+struct signal_struct;
+struct task_delay_info;
 struct task_group;
+struct task_struct;
+struct uts_namespace;
 
 /*
  * Task state bitmask. NOTE! These bits are also
@@ -165,8 +176,6 @@ struct task_group;
 /* Task command name length */
 #define TASK_COMM_LEN 16
 
-struct task_struct;
-
 extern void sched_init(void);
 extern void sched_init_smp(void);
 
@@ -192,8 +201,6 @@ extern int __must_check io_schedule_prepare(void);
 extern void io_schedule_finish(int token);
 extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
-
-struct nsproxy;
 
 /**
  * struct prev_cputime - snaphsot of system and user cputime
@@ -297,10 +304,6 @@ struct thread_group_cputimer {
 };
 
 #include <linux/rwsem.h>
-struct autogroup;
-
-struct backing_dev_info;
-struct reclaim_state;
 
 #ifdef CONFIG_SCHED_INFO
 struct sched_info {
@@ -313,8 +316,6 @@ struct sched_info {
 			   last_queued;	/* when we were last queued to run */
 };
 #endif /* CONFIG_SCHED_INFO */
-
-struct task_delay_info;
 
 static inline int sched_info_on(void)
 {
@@ -342,19 +343,11 @@ void force_schedstat_enabled(void);
 # define SCHED_FIXEDPOINT_SHIFT	10
 # define SCHED_FIXEDPOINT_SCALE	(1L << SCHED_FIXEDPOINT_SHIFT)
 
-struct io_context;			/* See blkdev.h */
-
-
 #ifdef ARCH_HAS_PREFETCH_SWITCH_STACK
 extern void prefetch_stack(struct task_struct *t);
 #else
 static inline void prefetch_stack(struct task_struct *t) { }
 #endif
-
-struct audit_context;		/* See audit.c */
-struct mempolicy;
-struct pipe_inode_info;
-struct uts_namespace;
 
 struct load_weight {
 	unsigned long weight;
@@ -564,7 +557,6 @@ union rcu_special {
 	} b; /* Bits. */
 	u32 s; /* Set of bits. */
 };
-struct rcu_node;
 
 enum perf_event_task_context {
 	perf_invalid_context = -1,
@@ -1124,8 +1116,6 @@ static inline struct pid *task_session(struct task_struct *task)
 {
 	return task->group_leader->pids[PIDTYPE_SID].pid;
 }
-
-struct pid_namespace;
 
 /*
  * the helpers to get the task's different pids as they are seen
