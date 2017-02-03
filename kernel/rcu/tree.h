@@ -52,11 +52,7 @@
 #ifdef CONFIG_RCU_FANOUT_LEAF
 #define RCU_FANOUT_LEAF CONFIG_RCU_FANOUT_LEAF
 #else /* #ifdef CONFIG_RCU_FANOUT_LEAF */
-# ifdef CONFIG_64BIT
-# define RCU_FANOUT_LEAF 64
-# else
-# define RCU_FANOUT_LEAF 32
-# endif
+#define RCU_FANOUT_LEAF 16
 #endif /* #else #ifdef CONFIG_RCU_FANOUT_LEAF */
 
 #define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
