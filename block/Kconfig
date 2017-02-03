@@ -159,6 +159,13 @@ config BLK_DEBUG_FS
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
 
+config BLK_SED_OPAL
+	bool "Logic for interfacing with Opal enabled SEDs"
+	---help---
+	Builds Logic for interfacing with Opal enabled controllers.
+	Enabling this option enables users to setup/unlock/lock
+	Locking ranges for SED devices using the Opal protocol.
+
 menu "Partition Types"
 
 source "block/partitions/Kconfig"
