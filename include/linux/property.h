@@ -242,7 +242,7 @@ struct property_entry {
 }
 
 int device_add_properties(struct device *dev,
-			  struct property_entry *properties);
+			  const struct property_entry *properties);
 void device_remove_properties(struct device *dev);
 
 bool device_dma_supported(struct device *dev);
