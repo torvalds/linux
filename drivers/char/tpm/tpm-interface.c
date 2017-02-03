@@ -800,8 +800,8 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		memset(digest_list, 0, sizeof(digest_list));
 
-		for (i = 0; chip->active_banks[i] != TPM2_ALG_ERROR &&
-		     i < ARRAY_SIZE(chip->active_banks); i++) {
+		for (i = 0; i < ARRAY_SIZE(chip->active_banks) &&
+			    chip->active_banks[i] != TPM2_ALG_ERROR; i++) {
 			digest_list[i].alg_id = chip->active_banks[i];
 			memcpy(digest_list[i].digest, hash, TPM_DIGEST_SIZE);
 			count++;
