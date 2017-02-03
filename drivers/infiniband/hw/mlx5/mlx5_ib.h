@@ -153,7 +153,7 @@ struct mlx5_ib_flow_handler {
 	struct list_head		list;
 	struct ib_flow			ibflow;
 	struct mlx5_ib_flow_prio	*prio;
-	struct mlx5_flow_rule	*rule;
+	struct mlx5_flow_handle		*rule;
 };
 
 struct mlx5_ib_flow_db {
@@ -626,6 +626,8 @@ struct mlx5_ib_dev {
 	struct mlx5_ib_resources	devr;
 	struct mlx5_mr_cache		cache;
 	struct timer_list		delay_timer;
+	/* Prevents soft lock on massive reg MRs */
+	struct mutex			slow_path_mutex;
 	int				fill_delay;
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	struct ib_odp_caps	odp_caps;

@@ -1481,6 +1481,7 @@ static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
 static struct cxgb4_uld_info c4iw_uld_info = {
 	.name = DRV_NAME,
 	.nrxq = MAX_ULD_QSETS,
+	.ntxq = MAX_ULD_QSETS,
 	.rxq_size = 511,
 	.ciq = true,
 	.lro = false,

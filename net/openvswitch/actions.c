@@ -62,9 +62,11 @@ struct ovs_frag_data {
 	struct vport *vport;
 	struct ovs_skb_cb cb;
 	__be16 inner_protocol;
-	__u16 vlan_tci;
+	u16 network_offset;	/* valid only for MPLS */
+	u16 vlan_tci;
 	__be16 vlan_proto;
 	unsigned int l2_len;
+	u8 mac_proto;
 	u8 l2_data[MAX_L2_LEN];
 };
 
@@ -136,12 +138,12 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 
 static void invalidate_flow_key(struct sw_flow_key *key)
 {
-	key->eth.type = htons(0);
+	key->mac_proto |= SW_FLOW_KEY_INVALID;
 }
 
 static bool is_flow_key_valid(const struct sw_flow_key *key)
 {
-	return !!key->eth.type;
+	return !(key->mac_proto & SW_FLOW_KEY_INVALID);
 }
 
 static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
@@ -185,7 +187,8 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 
 	skb_postpush_rcsum(skb, new_mpls_lse, MPLS_HLEN);
 
-	update_ethertype(skb, eth_hdr(skb), mpls->mpls_ethertype);
+	if (ovs_key_mac_proto(key) == MAC_PROTO_ETHERNET)
+		update_ethertype(skb, eth_hdr(skb), mpls->mpls_ethertype);
 	skb->protocol = mpls->mpls_ethertype;
 
 	invalidate_flow_key(key);
@@ -195,7 +198,6 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 		    const __be16 ethertype)
 {
-	struct ethhdr *hdr;
 	int err;
 
 	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
@@ -211,11 +213,15 @@ static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb->mac_len);
 
-	/* mpls_hdr() is used to locate the ethertype field correctly in the
-	 * presence of VLAN tags.
-	 */
-	hdr = (struct ethhdr *)((void *)mpls_hdr(skb) - ETH_HLEN);
-	update_ethertype(skb, hdr, ethertype);
+	if (ovs_key_mac_proto(key) == MAC_PROTO_ETHERNET) {
+		struct ethhdr *hdr;
+
+		/* mpls_hdr() is used to locate the ethertype field correctly in the
+		 * presence of VLAN tags.
+		 */
+		hdr = (struct ethhdr *)((void *)mpls_hdr(skb) - ETH_HLEN);
+		update_ethertype(skb, hdr, ethertype);
+	}
 	if (eth_p_mpls(skb->protocol))
 		skb->protocol = ethertype;
 
@@ -308,6 +314,47 @@ static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
 
 	ether_addr_copy(flow_key->eth.src, eth_hdr(skb)->h_source);
 	ether_addr_copy(flow_key->eth.dst, eth_hdr(skb)->h_dest);
+	return 0;
+}
+
+/* pop_eth does not support VLAN packets as this action is never called
+ * for them.
+ */
+static int pop_eth(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	skb_pull_rcsum(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	/* safe right before invalidate_flow_key */
+	key->mac_proto = MAC_PROTO_NONE;
+	invalidate_flow_key(key);
+	return 0;
+}
+
+static int push_eth(struct sk_buff *skb, struct sw_flow_key *key,
+		    const struct ovs_action_push_eth *ethh)
+{
+	struct ethhdr *hdr;
+
+	/* Add the new Ethernet header */
+	if (skb_cow_head(skb, ETH_HLEN) < 0)
+		return -ENOMEM;
+
+	skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	hdr = eth_hdr(skb);
+	ether_addr_copy(hdr->h_source, ethh->addresses.eth_src);
+	ether_addr_copy(hdr->h_dest, ethh->addresses.eth_dst);
+	hdr->h_proto = skb->protocol;
+
+	skb_postpush_rcsum(skb, hdr, ETH_HLEN);
+
+	/* safe right before invalidate_flow_key */
+	key->mac_proto = MAC_PROTO_ETHERNET;
+	invalidate_flow_key(key);
 	return 0;
 }
 
@@ -666,7 +713,13 @@ static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *sk
 	skb_postpush_rcsum(skb, skb->data, data->l2_len);
 	skb_reset_mac_header(skb);
 
-	ovs_vport_send(vport, skb);
+	if (eth_p_mpls(skb->protocol)) {
+		skb->inner_network_header = skb->network_header;
+		skb_set_network_header(skb, data->network_offset);
+		skb_reset_mac_len(skb);
+	}
+
+	ovs_vport_send(vport, skb, data->mac_proto);
 	return 0;
 }
 
@@ -684,7 +737,8 @@ static struct dst_ops ovs_dst_ops = {
 /* prepare_frag() is called once per (larger-than-MTU) frame; its inverse is
  * ovs_vport_output(), which is called once per fragmented packet.
  */
-static void prepare_frag(struct vport *vport, struct sk_buff *skb)
+static void prepare_frag(struct vport *vport, struct sk_buff *skb,
+			 u16 orig_network_offset, u8 mac_proto)
 {
 	unsigned int hlen = skb_network_offset(skb);
 	struct ovs_frag_data *data;
@@ -694,8 +748,10 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 	data->vport = vport;
 	data->cb = *OVS_CB(skb);
 	data->inner_protocol = skb->inner_protocol;
+	data->network_offset = orig_network_offset;
 	data->vlan_tci = skb->vlan_tci;
 	data->vlan_proto = skb->vlan_proto;
+	data->mac_proto = mac_proto;
 	data->l2_len = hlen;
 	memcpy(&data->l2_data, skb->data, hlen);
 
@@ -704,18 +760,27 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb)
 }
 
 static void ovs_fragment(struct net *net, struct vport *vport,
-			 struct sk_buff *skb, u16 mru, __be16 ethertype)
+			 struct sk_buff *skb, u16 mru,
+			 struct sw_flow_key *key)
 {
+	u16 orig_network_offset = 0;
+
+	if (eth_p_mpls(skb->protocol)) {
+		orig_network_offset = skb_network_offset(skb);
+		skb->network_header = skb->inner_network_header;
+	}
+
 	if (skb_network_offset(skb) > MAX_L2_LEN) {
 		OVS_NLERR(1, "L2 header too long to fragment");
 		goto err;
 	}
 
-	if (ethertype == htons(ETH_P_IP)) {
+	if (key->eth.type == htons(ETH_P_IP)) {
 		struct dst_entry ovs_dst;
 		unsigned long orig_dst;
 
-		prepare_frag(vport, skb);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		dst_init(&ovs_dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
 		ovs_dst.dev = vport->dev;
@@ -726,7 +791,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
-	} else if (ethertype == htons(ETH_P_IPV6)) {
+	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		unsigned long orig_dst;
 		struct rt6_info ovs_rt;
@@ -735,7 +800,8 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 			goto err;
 		}
 
-		prepare_frag(vport, skb);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		memset(&ovs_rt, 0, sizeof(ovs_rt));
 		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
@@ -749,7 +815,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
-			  ovs_vport_name(vport), ntohs(ethertype), mru,
+			  ovs_vport_name(vport), ntohs(key->eth.type), mru,
 			  vport->dev->mtu);
 		goto err;
 	}
@@ -769,26 +835,19 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 		u32 cutlen = OVS_CB(skb)->cutlen;
 
 		if (unlikely(cutlen > 0)) {
-			if (skb->len - cutlen > ETH_HLEN)
+			if (skb->len - cutlen > ovs_mac_header_len(key))
 				pskb_trim(skb, skb->len - cutlen);
 			else
-				pskb_trim(skb, ETH_HLEN);
+				pskb_trim(skb, ovs_mac_header_len(key));
 		}
 
-		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
-			ovs_vport_send(vport, skb);
+		if (likely(!mru ||
+		           (skb->len <= mru + vport->dev->hard_header_len))) {
+			ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
 		} else if (mru <= vport->dev->mtu) {
 			struct net *net = read_pnet(&dp->net);
-			__be16 ethertype = key->eth.type;
 
-			if (!is_flow_key_valid(key)) {
-				if (eth_p_mpls(skb->protocol))
-					ethertype = skb->inner_protocol;
-				else
-					ethertype = vlan_get_protocol(skb);
-			}
-
-			ovs_fragment(net, vport, skb, mru, ethertype);
+			ovs_fragment(net, vport, skb, mru, key);
 		} else {
 			kfree_skb(skb);
 		}
@@ -1181,6 +1240,14 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			/* Hide stolen IP fragments from user space. */
 			if (err)
 				return err == -EINPROGRESS ? 0 : err;
+			break;
+
+		case OVS_ACTION_ATTR_PUSH_ETH:
+			err = push_eth(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_POP_ETH:
+			err = pop_eth(skb, key);
 			break;
 		}
 

@@ -12,6 +12,7 @@ DEF_NATIVE(pv_cpu_ops, clts, "clts");
 
 #if defined(CONFIG_PARAVIRT_SPINLOCKS)
 DEF_NATIVE(pv_lock_ops, queued_spin_unlock, "movb $0, (%eax)");
+DEF_NATIVE(pv_lock_ops, vcpu_is_preempted, "xor %eax, %eax");
 #endif
 
 unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len)
@@ -27,6 +28,7 @@ unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)
 }
 
 extern bool pv_is_native_spin_unlock(void);
+extern bool pv_is_native_vcpu_is_preempted(void);
 
 unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 		      unsigned long addr, unsigned len)
@@ -56,9 +58,19 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 				end   = end_pv_lock_ops_queued_spin_unlock;
 				goto patch_site;
 			}
+			goto patch_default;
+
+		case PARAVIRT_PATCH(pv_lock_ops.vcpu_is_preempted):
+			if (pv_is_native_vcpu_is_preempted()) {
+				start = start_pv_lock_ops_vcpu_is_preempted;
+				end   = end_pv_lock_ops_vcpu_is_preempted;
+				goto patch_site;
+			}
+			goto patch_default;
 #endif
 
 	default:
+patch_default:
 		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
 		break;
 

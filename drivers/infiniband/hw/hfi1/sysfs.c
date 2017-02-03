@@ -49,7 +49,6 @@
 #include "hfi.h"
 #include "mad.h"
 #include "trace.h"
-#include "affinity.h"
 
 /*
  * Start of per-port congestion control structures and support code
@@ -623,27 +622,6 @@ static ssize_t show_tempsense(struct device *device,
 	return ret;
 }
 
-static ssize_t show_sdma_affinity(struct device *device,
-				  struct device_attribute *attr, char *buf)
-{
-	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-
-	return hfi1_get_sdma_affinity(dd, buf);
-}
-
-static ssize_t store_sdma_affinity(struct device *device,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-
-	return hfi1_set_sdma_affinity(dd, buf, count);
-}
-
 /*
  * end of per-unit (or driver, in some cases, but replicated
  * per unit) functions
@@ -658,8 +636,6 @@ static DEVICE_ATTR(serial, S_IRUGO, show_serial, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(tempsense, S_IRUGO, show_tempsense, NULL);
 static DEVICE_ATTR(chip_reset, S_IWUSR, NULL, store_chip_reset);
-static DEVICE_ATTR(sdma_affinity, S_IWUSR | S_IRUGO, show_sdma_affinity,
-		   store_sdma_affinity);
 
 static struct device_attribute *hfi1_attributes[] = {
 	&dev_attr_hw_rev,
@@ -670,7 +646,6 @@ static struct device_attribute *hfi1_attributes[] = {
 	&dev_attr_boardversion,
 	&dev_attr_tempsense,
 	&dev_attr_chip_reset,
-	&dev_attr_sdma_affinity,
 };
 
 int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,

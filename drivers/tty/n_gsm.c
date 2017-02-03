@@ -2711,15 +2711,6 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	return;
 }
 
-static int gsm_change_mtu(struct net_device *net, int new_mtu)
-{
-	struct gsm_mux_net *mux_net = netdev_priv(net);
-	if ((new_mtu < 8) || (new_mtu > mux_net->dlci->gsm->mtu))
-		return -EINVAL;
-	net->mtu = new_mtu;
-	return 0;
-}
-
 static void gsm_mux_net_init(struct net_device *net)
 {
 	static const struct net_device_ops gsm_netdev_ops = {
@@ -2728,7 +2719,6 @@ static void gsm_mux_net_init(struct net_device *net)
 		.ndo_start_xmit		= gsm_mux_net_start_xmit,
 		.ndo_tx_timeout		= gsm_mux_net_tx_timeout,
 		.ndo_get_stats		= gsm_mux_net_get_stats,
-		.ndo_change_mtu		= gsm_change_mtu,
 	};
 
 	net->netdev_ops = &gsm_netdev_ops;
@@ -2787,6 +2777,8 @@ static int gsm_create_network(struct gsm_dlci *dlci, struct gsm_netconfig *nc)
 		return -ENOMEM;
 	}
 	net->mtu = dlci->gsm->mtu;
+	net->min_mtu = 8;
+	net->max_mtu = dlci->gsm->mtu;
 	mux_net = netdev_priv(net);
 	mux_net->dlci = dlci;
 	kref_init(&mux_net->ref);

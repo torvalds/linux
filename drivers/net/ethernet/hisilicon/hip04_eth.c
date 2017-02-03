@@ -769,7 +769,6 @@ static const struct net_device_ops hip04_netdev_ops = {
 	.ndo_set_mac_address	= hip04_set_mac_address,
 	.ndo_tx_timeout         = hip04_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int hip04_alloc_ring(struct net_device *ndev, struct device *d)
@@ -898,7 +897,6 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	INIT_WORK(&priv->tx_timeout_task, hip04_tx_timeout_task);
 
-	ether_setup(ndev);
 	ndev->netdev_ops = &hip04_netdev_ops;
 	ndev->ethtool_ops = &hip04_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;

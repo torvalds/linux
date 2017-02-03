@@ -26,13 +26,13 @@ static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
 	},
 };
 
-static struct l3mdev_ops ipvl_l3mdev_ops __read_mostly = {
+static const struct l3mdev_ops ipvl_l3mdev_ops = {
 	.l3mdev_l3_rcv = ipvlan_l3_rcv,
 };
 
 static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
-	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
+	ipvlan->dev->mtu = dev->mtu;
 }
 
 static int ipvlan_register_nf_hook(void)
@@ -128,7 +128,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	return 0;
 
 err:
-	kfree_rcu(port, rcu);
+	kfree(port);
 	return err;
 }
 
@@ -145,7 +145,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
 	__skb_queue_purge(&port->backlog);
-	kfree_rcu(port, rcu);
+	kfree(port);
 }
 
 #define IPVLAN_FEATURES \
@@ -497,6 +497,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	struct net_device *phy_dev;
 	int err;
 	u16 mode = IPVLAN_MODE_L3;
+	bool create = false;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -513,6 +514,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		err = ipvlan_port_create(phy_dev);
 		if (err < 0)
 			return err;
+		create = true;
 	}
 
 	if (data && data[IFLA_IPVLAN_MODE])
@@ -536,22 +538,29 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		return err;
+		goto destroy_ipvlan_port;
 
 	err = netdev_upper_dev_link(phy_dev, dev);
 	if (err) {
-		unregister_netdevice(dev);
-		return err;
+		goto unregister_netdev;
 	}
 	err = ipvlan_set_port_mode(port, mode);
 	if (err) {
-		unregister_netdevice(dev);
-		return err;
+		goto unlink_netdev;
 	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
+
+unlink_netdev:
+	netdev_upper_dev_unlink(phy_dev, dev);
+unregister_netdev:
+	unregister_netdevice(dev);
+destroy_ipvlan_port:
+	if (create)
+		ipvlan_port_destroy(phy_dev);
+	return err;
 }
 
 static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)

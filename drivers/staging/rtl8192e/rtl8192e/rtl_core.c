@@ -2545,7 +2545,6 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_set_rx_mode = _rtl92e_set_multicast,
 	.ndo_set_mac_address = _rtl92e_set_mac_adr,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_change_mtu = eth_change_mtu,
 	.ndo_start_xmit = rtllib_xmit,
 };
 

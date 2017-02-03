@@ -166,6 +166,7 @@ __list_set_del_rcu(struct rcu_head * rcu)
 static inline void
 list_set_del(struct ip_set *set, struct set_elem *e)
 {
+	set->elements--;
 	list_del_rcu(&e->list);
 	call_rcu(&e->rcu, __list_set_del_rcu);
 }
@@ -227,7 +228,7 @@ list_set_init_extensions(struct ip_set *set, const struct ip_set_ext *ext,
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(e, set), ext);
 	if (SET_WITH_COMMENT(set))
-		ip_set_init_comment(ext_comment(e, set), ext);
+		ip_set_init_comment(set, ext_comment(e, set), ext);
 	if (SET_WITH_SKBINFO(set))
 		ip_set_init_skbinfo(ext_skbinfo(e, set), ext);
 	/* Update timeout last */
@@ -309,6 +310,7 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		list_add_rcu(&e->list, &prev->list);
 	else
 		list_add_tail_rcu(&e->list, &map->members);
+	set->elements++;
 
 	return 0;
 }
@@ -419,6 +421,8 @@ list_set_flush(struct ip_set *set)
 
 	list_for_each_entry_safe(e, n, &map->members, list)
 		list_set_del(set, e);
+	set->elements = 0;
+	set->ext_size = 0;
 }
 
 static void
@@ -441,12 +445,12 @@ list_set_destroy(struct ip_set *set)
 	set->data = NULL;
 }
 
-static int
-list_set_head(struct ip_set *set, struct sk_buff *skb)
+/* Calculate the actual memory size of the set data */
+static size_t
+list_set_memsize(const struct list_set *map, size_t dsize)
 {
-	const struct list_set *map = set->data;
-	struct nlattr *nested;
 	struct set_elem *e;
+	size_t memsize;
 	u32 n = 0;
 
 	rcu_read_lock();
@@ -454,13 +458,25 @@ list_set_head(struct ip_set *set, struct sk_buff *skb)
 		n++;
 	rcu_read_unlock();
 
+	memsize = sizeof(*map) + n * dsize;
+
+	return memsize;
+}
+
+static int
+list_set_head(struct ip_set *set, struct sk_buff *skb)
+{
+	const struct list_set *map = set->data;
+	struct nlattr *nested;
+	size_t memsize = list_set_memsize(map, set->dsize) + set->ext_size;
+
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
 	if (nla_put_net32(skb, IPSET_ATTR_SIZE, htonl(map->size)) ||
 	    nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
-	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE,
-			  htonl(sizeof(*map) + n * set->dsize)))
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
+	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(set->elements)))
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
@@ -570,11 +586,8 @@ list_set_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 {
 	struct list_set *map = set->data;
 
-	init_timer(&map->gc);
-	map->gc.data = (unsigned long)set;
-	map->gc.function = gc;
-	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
-	add_timer(&map->gc);
+	setup_timer(&map->gc, gc, (unsigned long)set);
+	mod_timer(&map->gc, jiffies + IPSET_GC_PERIOD(set->timeout) * HZ);
 }
 
 /* Create list:set type of sets */

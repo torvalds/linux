@@ -1201,7 +1201,7 @@ static int create_proc_exports_entry(void)
 }
 #endif
 
-int nfsd_net_id;
+unsigned int nfsd_net_id;
 
 static __net_init int nfsd_init_net(struct net *net)
 {

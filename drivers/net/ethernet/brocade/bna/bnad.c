@@ -177,6 +177,7 @@ bnad_txcmpl_process(struct bnad *bnad, struct bna_tcb *tcb)
 		return 0;
 
 	hw_cons = *(tcb->hw_consumer_index);
+	rmb();
 	cons = tcb->consumer_index;
 	q_depth = tcb->q_depth;
 
@@ -3094,7 +3095,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	BNA_QE_INDX_INC(prod, q_depth);
 	tcb->producer_index = prod;
 
-	smp_mb();
+	wmb();
 
 	if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags)))
 		return NETDEV_TX_OK;
@@ -3102,7 +3103,6 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	skb_tx_timestamp(skb);
 
 	bna_txq_prod_indx_doorbell(tcb);
-	smp_mb();
 
 	return NETDEV_TX_OK;
 }
@@ -3296,9 +3296,6 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 	struct bnad *bnad = netdev_priv(netdev);
 	u32 rx_count = 0, frame, new_frame;
 
-	if (new_mtu + ETH_HLEN < ETH_ZLEN || new_mtu > BNAD_JUMBO_MTU)
-		return -EINVAL;
-
 	mutex_lock(&bnad->conf_mutex);
 
 	mtu = netdev->mtu;
@@ -3464,6 +3461,10 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 
 	netdev->mem_start = bnad->mmio_start;
 	netdev->mem_end = bnad->mmio_start + bnad->mmio_len - 1;
+
+	/* MTU range: 46 - 9000 */
+	netdev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	netdev->max_mtu = BNAD_JUMBO_MTU;
 
 	netdev->netdev_ops = &bnad_netdev_ops;
 	bnad_set_ethtool_ops(netdev);

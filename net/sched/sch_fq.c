@@ -245,7 +245,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 		skb_orphan(skb);
 	}
 
-	root = &q->fq_root[hash_32((u32)(long)sk, q->fq_trees_log)];
+	root = &q->fq_root[hash_ptr(sk, q->fq_trees_log)];
 
 	if (q->flows >= (2U << q->fq_trees_log) &&
 	    q->inactive_flows > q->flows/2)
@@ -599,7 +599,7 @@ static void fq_rehash(struct fq_sched_data *q,
 				kmem_cache_free(fq_flow_cachep, of);
 				continue;
 			}
-			nroot = &new_array[hash_32((u32)(long)of->sk, new_log)];
+			nroot = &new_array[hash_ptr(of->sk, new_log)];
 
 			np = &nroot->rb_node;
 			parent = NULL;

@@ -1,4 +1,5 @@
-TARGETS = breakpoints
+TARGETS =  bpf
+TARGETS += breakpoints
 TARGETS += capabilities
 TARGETS += cpu-hotplug
 TARGETS += efivarfs

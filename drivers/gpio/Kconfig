@@ -22,10 +22,6 @@ menuconfig GPIOLIB
 
 if GPIOLIB
 
-config GPIO_DEVRES
-	def_bool y
-	depends on HAS_IOMEM
-
 config OF_GPIO
 	def_bool y
 	depends on OF

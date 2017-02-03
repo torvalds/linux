@@ -63,9 +63,13 @@ cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 cpumask_t cpu_core_sib_map[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
+cpumask_t cpu_core_sib_cache_map[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS - 1] = CPU_MASK_NONE };
+
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
 EXPORT_SYMBOL(cpu_core_sib_map);
+EXPORT_SYMBOL(cpu_core_sib_cache_map);
 
 static cpumask_t smp_commenced_mask;
 
@@ -1265,6 +1269,10 @@ void smp_fill_in_sib_core_maps(void)
 		unsigned int j;
 
 		for_each_present_cpu(j)  {
+			if (cpu_data(i).max_cache_id ==
+			    cpu_data(j).max_cache_id)
+				cpumask_set_cpu(j, &cpu_core_sib_cache_map[i]);
+
 			if (cpu_data(i).sock_id == cpu_data(j).sock_id)
 				cpumask_set_cpu(j, &cpu_core_sib_map[i]);
 		}

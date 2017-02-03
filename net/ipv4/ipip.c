@@ -121,7 +121,7 @@ static bool log_ecn_error = true;
 module_param(log_ecn_error, bool, 0644);
 MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 
-static int ipip_net_id __read_mostly;
+static unsigned int ipip_net_id __read_mostly;
 
 static int ipip_tunnel_init(struct net_device *dev);
 static struct rtnl_link_ops ipip_link_ops __read_mostly;

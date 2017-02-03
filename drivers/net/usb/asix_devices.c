@@ -603,12 +603,12 @@ static void ax88772_suspend(struct usbnet *dev)
 	u16 medium;
 
 	/* Stop MAC operation */
-	medium = asix_read_medium_status(dev, 0);
+	medium = asix_read_medium_status(dev, 1);
 	medium &= ~AX_MEDIUM_RE;
-	asix_write_medium_mode(dev, medium, 0);
+	asix_write_medium_mode(dev, medium, 1);
 
 	netdev_dbg(dev->net, "ax88772_suspend: medium=0x%04x\n",
-		   asix_read_medium_status(dev, 0));
+		   asix_read_medium_status(dev, 1));
 
 	/* Preserve BMCR for restoring */
 	priv->presvd_phy_bmcr =
@@ -1026,9 +1026,6 @@ static int ax88178_change_mtu(struct net_device *net, int new_mtu)
 
 	netdev_dbg(dev->net, "ax88178_change_mtu() new_mtu=%d\n", new_mtu);
 
-	if (new_mtu <= 0 || ll_mtu > 16384)
-		return -EINVAL;
-
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
 
@@ -1081,6 +1078,7 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->netdev_ops = &ax88178_netdev_ops;
 	dev->net->ethtool_ops = &ax88178_ethtool_ops;
+	dev->net->max_mtu = 16384 - (dev->net->hard_header_len + 4);
 
 	/* Blink LEDS so users know driver saw dongle */
 	asix_sw_reset(dev, 0, 0);

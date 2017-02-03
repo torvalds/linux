@@ -15,6 +15,29 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_iov_if.h>
 
+struct qed_queue_start_common_params {
+	/* Should always be relative to entity sending this. */
+	u8 vport_id;
+	u16 queue_id;
+
+	/* Relative, but relevant only for PFs */
+	u8 stats_id;
+
+	/* These are always absolute */
+	u16 sb;
+	u8 sb_idx;
+};
+
+struct qed_rxq_start_ret_params {
+	void __iomem *p_prod;
+	void *p_handle;
+};
+
+struct qed_txq_start_ret_params {
+	void __iomem *p_doorbell;
+	void *p_handle;
+};
+
 struct qed_dev_eth_info {
 	struct qed_dev_info common;
 
@@ -22,7 +45,8 @@ struct qed_dev_eth_info {
 	u8	num_tc;
 
 	u8	port_mac[ETH_ALEN];
-	u8	num_vlan_filters;
+	u16	num_vlan_filters;
+	u16	num_mac_filters;
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
 	bool is_legacy;
@@ -53,18 +77,6 @@ struct qed_start_vport_params {
 	u8 vport_id;
 	u16 mtu;
 	bool clear_stats;
-};
-
-struct qed_stop_rxq_params {
-	u8 rss_id;
-	u8 rx_queue_id;
-	u8 vport_id;
-	bool eq_completion_only;
-};
-
-struct qed_stop_txq_params {
-	u8 rss_id;
-	u8 tx_queue_id;
 };
 
 enum qed_filter_rx_mode_type {
@@ -111,15 +123,6 @@ struct qed_filter_params {
 	union qed_filter_type_params filter;
 };
 
-struct qed_queue_start_common_params {
-	u8 rss_id;
-	u8 queue_id;
-	u8 vport_id;
-	u16 sb;
-	u16 sb_idx;
-	u16 vf_qid;
-};
-
 struct qed_tunn_params {
 	u16 vxlan_port;
 	u8 update_vxlan_port;
@@ -129,7 +132,7 @@ struct qed_tunn_params {
 
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
-	void (*force_mac) (void *dev, u8 *mac);
+	void (*force_mac) (void *dev, u8 *mac, bool forced);
 };
 
 #ifdef CONFIG_DCB
@@ -219,24 +222,24 @@ struct qed_eth_ops {
 			    struct qed_update_vport_params *params);
 
 	int (*q_rx_start)(struct qed_dev *cdev,
+			  u8 rss_num,
 			  struct qed_queue_start_common_params *params,
 			  u16 bd_max_bytes,
 			  dma_addr_t bd_chain_phys_addr,
 			  dma_addr_t cqe_pbl_addr,
 			  u16 cqe_pbl_size,
-			  void __iomem **pp_prod);
+			  struct qed_rxq_start_ret_params *ret_params);
 
-	int (*q_rx_stop)(struct qed_dev *cdev,
-			 struct qed_stop_rxq_params *params);
+	int (*q_rx_stop)(struct qed_dev *cdev, u8 rss_id, void *handle);
 
 	int (*q_tx_start)(struct qed_dev *cdev,
+			  u8 rss_num,
 			  struct qed_queue_start_common_params *params,
 			  dma_addr_t pbl_addr,
 			  u16 pbl_size,
-			  void __iomem **pp_doorbell);
+			  struct qed_txq_start_ret_params *ret_params);
 
-	int (*q_tx_stop)(struct qed_dev *cdev,
-			 struct qed_stop_txq_params *params);
+	int (*q_tx_stop)(struct qed_dev *cdev, u8 rss_id, void *handle);
 
 	int (*filter_config)(struct qed_dev *cdev,
 			     struct qed_filter_params *params);

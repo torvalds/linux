@@ -212,6 +212,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	__s32 value;
 	int ret = 0;
 
+	memset(buffer, 0, buffer_size);
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
 	if (!report || (field_index >= report->maxfield)) {
@@ -251,6 +252,9 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	int report_size;
 	int ret = 0;
+	u8 *val_ptr;
+	int buffer_index = 0;
+	int i;
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
@@ -271,7 +275,17 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 	ret = min(report_size, buffer_size);
-	memcpy(buffer, report->field[field_index]->value, ret);
+
+	val_ptr = (u8 *)report->field[field_index]->value;
+	for (i = 0; i < report->field[field_index]->report_count; ++i) {
+		if (buffer_index >= ret)
+			break;
+
+		memcpy(&((u8 *)buffer)[buffer_index], val_ptr,
+		       report->field[field_index]->report_size / 8);
+		val_ptr += sizeof(__s32);
+		buffer_index += (report->field[field_index]->report_size / 8);
+	}
 
 done_proc:
 	mutex_unlock(&data->mutex);

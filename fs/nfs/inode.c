@@ -2015,7 +2015,7 @@ static void nfsiod_stop(void)
 	destroy_workqueue(wq);
 }
 
-int nfs_net_id;
+unsigned int nfs_net_id;
 EXPORT_SYMBOL_GPL(nfs_net_id);
 
 static int nfs_net_init(struct net *net)

@@ -767,7 +767,14 @@ __SYSCALL(346, sys_preadv2, 6)
 #define __NR_pwritev2				347
 __SYSCALL(347, sys_pwritev2, 6)
 
-#define __NR_syscall_count			348
+#define __NR_pkey_mprotect			348
+__SYSCALL(348, sys_pkey_mprotect, 4)
+#define __NR_pkey_alloc				349
+__SYSCALL(349, sys_pkey_alloc, 2)
+#define __NR_pkey_free				350
+__SYSCALL(350, sys_pkey_free, 1)
+
+#define __NR_syscall_count			351
 
 /*
  * sysxtensa syscall handler

@@ -67,9 +67,4 @@ static struct platform_driver power_driver = {
 	},
 };
 
-static int __init power_init(void)
-{
-	return platform_driver_register(&power_driver);
-}
-
-device_initcall(power_init);
+builtin_platform_driver(power_driver);

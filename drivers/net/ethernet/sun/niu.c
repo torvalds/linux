@@ -6754,9 +6754,6 @@ static int niu_change_mtu(struct net_device *dev, int new_mtu)
 	struct niu *np = netdev_priv(dev);
 	int err, orig_jumbo, new_jumbo;
 
-	if (new_mtu < 68 || new_mtu > NIU_MAX_MTU)
-		return -EINVAL;
-
 	orig_jumbo = (dev->mtu > ETH_DATA_LEN);
 	new_jumbo = (new_mtu > ETH_DATA_LEN);
 
@@ -9822,6 +9819,10 @@ static int niu_pci_init_one(struct pci_dev *pdev,
 	pci_save_state(pdev);
 
 	dev->irq = pdev->irq;
+
+	/* MTU range: 68 - 9216 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = NIU_MAX_MTU;
 
 	niu_assign_netdev_ops(dev);
 

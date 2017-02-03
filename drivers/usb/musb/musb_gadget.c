@@ -1114,7 +1114,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			musb_ep->dma ? "dma, " : "",
 			musb_ep->packet_sz);
 
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 fail:
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -1158,7 +1158,7 @@ static int musb_gadget_disable(struct usb_ep *ep)
 	musb_ep->desc = NULL;
 	musb_ep->end_point.desc = NULL;
 
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 	spin_unlock_irqrestore(&(musb->lock), flags);
 
@@ -1222,13 +1222,22 @@ void musb_ep_restart(struct musb *musb, struct musb_request *req)
 		rxstate(musb, req);
 }
 
+static int musb_ep_restart_resume_work(struct musb *musb, void *data)
+{
+	struct musb_request *req = data;
+
+	musb_ep_restart(musb, req);
+
+	return 0;
+}
+
 static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 			gfp_t gfp_flags)
 {
 	struct musb_ep		*musb_ep;
 	struct musb_request	*request;
 	struct musb		*musb;
-	int			status = 0;
+	int			status;
 	unsigned long		lockflags;
 
 	if (!ep || !req)
@@ -1245,6 +1254,17 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	if (request->ep != musb_ep)
 		return -EINVAL;
 
+	status = pm_runtime_get(musb->controller);
+	if ((status != -EINPROGRESS) && status < 0) {
+		dev_err(musb->controller,
+			"pm runtime get failed in %s\n",
+			__func__);
+		pm_runtime_put_noidle(musb->controller);
+
+		return status;
+	}
+	status = 0;
+
 	trace_musb_req_enq(request);
 
 	/* request is mine now... */
@@ -1255,7 +1275,6 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 
 	map_dma_buffer(request, musb, musb_ep);
 
-	pm_runtime_get_sync(musb->controller);
 	spin_lock_irqsave(&musb->lock, lockflags);
 
 	/* don't queue if the ep is down */
@@ -1271,8 +1290,14 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	list_add_tail(&request->list, &musb_ep->req_list);
 
 	/* it this is the head of the queue, start i/o ... */
-	if (!musb_ep->busy && &request->list == musb_ep->req_list.next)
-		musb_ep_restart(musb, request);
+	if (!musb_ep->busy && &request->list == musb_ep->req_list.next) {
+		status = musb_queue_resume_work(musb,
+						musb_ep_restart_resume_work,
+						request);
+		if (status < 0)
+			dev_err(musb->controller, "%s resume work: %i\n",
+				__func__, status);
+	}
 
 unlock:
 	spin_unlock_irqrestore(&musb->lock, lockflags);
@@ -1969,7 +1994,7 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	 */
 
 	/* Force check of devctl register for PM runtime */
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);

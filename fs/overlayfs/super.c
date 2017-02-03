@@ -328,11 +328,11 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	if (!real)
 		goto bug;
 
+	/* Handle recursion */
+	real = d_real(real, inode, open_flags);
+
 	if (!inode || inode == d_inode(real))
 		return real;
-
-	/* Handle recursion */
-	return d_real(real, inode, open_flags);
 bug:
 	WARN(1, "ovl_d_real(%pd4, %s:%lu): real dentry not found\n", dentry,
 	     inode ? inode->i_sb->s_id : "NULL", inode ? inode->i_ino : 0);
@@ -1036,6 +1036,21 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 		goto out_acl_release;
 
 	posix_acl_release(acl);
+
+	/*
+	 * Check if sgid bit needs to be cleared (actual setacl operation will
+	 * be done with mounter's capabilities and so that won't do it for us).
+	 */
+	if (unlikely(inode->i_mode & S_ISGID) &&
+	    handler->flags == ACL_TYPE_ACCESS &&
+	    !in_group_p(inode->i_gid) &&
+	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
+		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
+
+		err = ovl_setattr(dentry, &iattr);
+		if (err)
+			return err;
+	}
 
 	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
 	if (!err)

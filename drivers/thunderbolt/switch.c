@@ -460,7 +460,7 @@ int tb_switch_resume(struct tb_switch *sw)
 		tb_sw_warn(sw, "uid read failed\n");
 		return err;
 	}
-	if (sw->uid != uid) {
+	if (sw != sw->tb->root_switch && sw->uid != uid) {
 		tb_sw_info(sw,
 			"changed while suspended (uid %#llx -> %#llx)\n",
 			sw->uid, uid);

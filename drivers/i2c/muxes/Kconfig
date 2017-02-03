@@ -63,6 +63,7 @@ config I2C_MUX_PINCTRL
 
 config I2C_MUX_REG
 	tristate "Register-based I2C multiplexer"
+	depends on HAS_IOMEM
 	help
 	  If you say yes to this option, support will be included for a
 	  register based I2C multiplexer. This driver provides access to

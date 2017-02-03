@@ -568,7 +568,6 @@ static const struct net_device_ops hamachi_netdev_ops = {
 	.ndo_start_xmit		= hamachi_start_xmit,
 	.ndo_get_stats		= hamachi_get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= hamachi_tx_timeout,

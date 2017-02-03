@@ -367,26 +367,6 @@ struct hfi1_packet {
 	u8 etype;
 };
 
-/*
- * Private data for snoop/capture support.
- */
-struct hfi1_snoop_data {
-	int mode_flag;
-	struct cdev cdev;
-	struct device *class_dev;
-	/* protect snoop data */
-	spinlock_t snoop_lock;
-	struct list_head queue;
-	wait_queue_head_t waitq;
-	void *filter_value;
-	int (*filter_callback)(void *hdr, void *data, void *value);
-	u64 dcc_cfg; /* saved value of DCC Cfg register */
-};
-
-/* snoop mode_flag values */
-#define HFI1_PORT_SNOOP_MODE     1U
-#define HFI1_PORT_CAPTURE_MODE   2U
-
 struct rvt_sge_state;
 
 /*
@@ -612,8 +592,6 @@ struct hfi1_pportdata {
 	/* host link state variables */
 	struct mutex hls_lock;
 	u32 host_link_state;
-
-	spinlock_t            sdma_alllock ____cacheline_aligned_in_smp;
 
 	u32 lstate;	/* logical link state */
 
@@ -1104,8 +1082,6 @@ struct hfi1_devdata {
 	char *portcntrnames;
 	size_t portcntrnameslen;
 
-	struct hfi1_snoop_data hfi1_snoop;
-
 	struct err_info_rcvport err_info_rcvport;
 	struct err_info_constraint err_info_rcv_constraint;
 	struct err_info_constraint err_info_xmit_constraint;
@@ -1141,8 +1117,8 @@ struct hfi1_devdata {
 	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
 
 	/*
-	 * Handlers for outgoing data so that snoop/capture does not
-	 * have to have its hooks in the send path
+	 * Capability to have different send engines simply by changing a
+	 * pointer value.
 	 */
 	send_routine process_pio_send;
 	send_routine process_dma_send;
@@ -1174,6 +1150,10 @@ struct hfi1_devdata {
 	spinlock_t aspm_lock;
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
+	/* Keeps track of user space clients */
+	atomic_t user_refcount;
+	/* Used to wait for outstanding user space clients before dev removal */
+	struct completion user_comp;
 
 	struct hfi1_affinity *affinity;
 	struct rhashtable sdma_rht;
@@ -1221,8 +1201,6 @@ struct hfi1_devdata *hfi1_lookup(int unit);
 extern u32 hfi1_cpulist_count;
 extern unsigned long *hfi1_cpulist;
 
-extern unsigned int snoop_drop_send;
-extern unsigned int snoop_force_capture;
 int hfi1_init(struct hfi1_devdata *, int);
 int hfi1_count_units(int *npresentp, int *nupp);
 int hfi1_count_active_units(void);
@@ -1557,13 +1535,6 @@ void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf);
 void reset_link_credits(struct hfi1_devdata *dd);
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu);
 
-int snoop_recv_handler(struct hfi1_packet *packet);
-int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-			   u64 pbc);
-int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-			   u64 pbc);
-void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
-			   u64 pbc, const void *from, size_t count);
 int set_buffer_control(struct hfi1_pportdata *ppd, struct buffer_control *bc);
 
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
@@ -1763,8 +1734,7 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
 int hfi1_pcie_init(struct pci_dev *, const struct pci_device_id *);
 void hfi1_pcie_cleanup(struct pci_dev *);
-int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *,
-		     const struct pci_device_id *);
+int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 void hfi1_pcie_flr(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *);
@@ -1799,8 +1769,6 @@ int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
 
-extern rhf_rcv_function_ptr snoop_rhf_rcv_functions[8];
-
 void update_sge(struct rvt_sge_state *ss, u32 length);
 
 /* global module parameter variables */
@@ -1827,9 +1795,6 @@ extern struct mutex hfi1_mutex;
 #define DRIVER_NAME		"hfi1"
 #define HFI1_USER_MINOR_BASE     0
 #define HFI1_TRACE_MINOR         127
-#define HFI1_DIAGPKT_MINOR       128
-#define HFI1_DIAG_MINOR_BASE     129
-#define HFI1_SNOOP_CAPTURE_BASE  200
 #define HFI1_NMINORS             255
 
 #define PCI_VENDOR_ID_INTEL 0x8086
@@ -1848,7 +1813,13 @@ extern struct mutex hfi1_mutex;
 static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 						  u16 ctxt_type)
 {
-	u64 base_sc_integrity =
+	u64 base_sc_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sc_integrity =
 	SEND_CTXT_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
@@ -1863,7 +1834,6 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
@@ -1872,18 +1842,23 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	else
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sc_integrity &
-		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sc_integrity |= SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sc_integrity;
 }
 
 static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 {
-	u64 base_sdma_integrity =
+	u64 base_sdma_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sdma_integrity =
 	SEND_DMA_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
-	| SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_IB_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_BAD_PKT_LEN_SMASK
@@ -1895,14 +1870,18 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sdma_integrity &
-		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	if (!HFI1_CAP_IS_KSET(STATIC_RATE_CTRL))
+		base_sdma_integrity |=
+		SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK;
+
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sdma_integrity |=
+			SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sdma_integrity;
 }
 

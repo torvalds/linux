@@ -544,15 +544,6 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	return 0;
 }
 
-/* shamelessly stolen from drivers/net/net_init.c */
-static int lec_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > 18190))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static void lec_set_multicast_list(struct net_device *dev)
 {
 	/*
@@ -565,7 +556,6 @@ static const struct net_device_ops lec_netdev_ops = {
 	.ndo_open		= lec_open,
 	.ndo_stop		= lec_close,
 	.ndo_start_xmit		= lec_start_xmit,
-	.ndo_change_mtu		= lec_change_mtu,
 	.ndo_tx_timeout		= lec_tx_timeout,
 	.ndo_set_rx_mode	= lec_set_multicast_list,
 };
@@ -742,6 +732,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		if (!dev_lec[i])
 			return -ENOMEM;
 		dev_lec[i]->netdev_ops = &lec_netdev_ops;
+		dev_lec[i]->max_mtu = 18190;
 		snprintf(dev_lec[i]->name, IFNAMSIZ, "lec%d", i);
 		if (register_netdev(dev_lec[i])) {
 			free_netdev(dev_lec[i]);

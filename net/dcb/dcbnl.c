@@ -1353,6 +1353,7 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 dcb_unlock:
 	spin_unlock_bh(&dcb_lock);
 nla_put_failure:
+	err = -EMSGSIZE;
 	return err;
 }
 

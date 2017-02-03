@@ -28,7 +28,6 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/bitops.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
@@ -4098,7 +4097,7 @@ static void show_serial_version(void)
 	       &serial_version[11]); /* "$Revision: x.yy" */
 }
 
-/* rs_init inits the driver at boot (using the module_init chain) */
+/* rs_init inits the driver at boot (using the initcall chain) */
 
 static const struct tty_operations rs_ops = {
 	.open = rs_open,
@@ -4247,5 +4246,4 @@ static int __init rs_init(void)
 }
 
 /* this makes sure that rs_init is called during kernel boot */
-
-module_init(rs_init);
+device_initcall(rs_init);

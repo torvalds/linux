@@ -76,6 +76,22 @@ do {	if (cpu_has_rw_llb) {						\
 } while (0)
 
 /*
+ * Check FCSR for any unmasked exceptions pending set with `ptrace',
+ * clear them and send a signal.
+ */
+#define __sanitize_fcr31(next)						\
+do {									\
+	unsigned long fcr31 = mask_fcr31_x(next->thread.fpu.fcr31);	\
+	void __user *pc;						\
+									\
+	if (unlikely(fcr31)) {						\
+		pc = (void __user *)task_pt_regs(next)->cp0_epc;	\
+		next->thread.fpu.fcr31 &= ~fcr31;			\
+		force_fcr31_sig(fcr31, pc, next);			\
+	}								\
+} while (0)
+
+/*
  * For newly created kernel threads switch_to() will return to
  * ret_from_kernel_thread, newly created user threads to ret_from_fork.
  * That is, everything following resume() will be skipped for new threads.
@@ -85,6 +101,8 @@ do {	if (cpu_has_rw_llb) {						\
 do {									\
 	__mips_mt_fpaff_switch_to(prev);				\
 	lose_fpu_inatomic(1, prev);					\
+	if (tsk_used_math(next))					\
+		__sanitize_fcr31(next);					\
 	if (cpu_has_dsp) {						\
 		__save_dsp(prev);					\
 		__restore_dsp(next);					\

@@ -28,6 +28,7 @@
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
+#include "util/parse-branch-options.h"
 
 static struct {
 	bool sample_id_all;
@@ -707,6 +708,14 @@ static void apply_config_terms(struct perf_evsel *evsel,
 			break;
 		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
 			callgraph_buf = term->val.callgraph;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_BRANCH:
+			if (term->val.branch && strcmp(term->val.branch, "no")) {
+				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+				parse_branch_str(term->val.branch,
+						 &attr->branch_sample_type);
+			} else
+				perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
 			break;
 		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
@@ -1472,7 +1481,7 @@ retry_sample_id:
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:
-			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx\n",
+			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
 
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
@@ -1481,10 +1490,12 @@ retry_open:
 								     group_fd, flags);
 			if (FD(evsel, cpu, thread) < 0) {
 				err = -errno;
-				pr_debug2("sys_perf_event_open failed, error %d\n",
+				pr_debug2("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
 			}
+
+			pr_debug2(" = %d\n", FD(evsel, cpu, thread));
 
 			if (evsel->bpf_fd >= 0) {
 				int evt_fd = FD(evsel, cpu, thread);

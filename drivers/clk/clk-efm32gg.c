@@ -82,6 +82,6 @@ static void __init efm32gg_cmu_init(struct device_node *np)
 	hws[clk_HFPERCLKDAC0] = clk_hw_register_gate(NULL, "HFPERCLK.DAC0",
 			"HFXO", 0, base + CMU_HFPERCLKEN0, 17, 0, NULL);
 
-	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &clk_data);
+	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
 }
 CLK_OF_DECLARE(efm32ggcmu, "efm32gg,cmu", efm32gg_cmu_init);

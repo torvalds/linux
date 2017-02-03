@@ -68,7 +68,7 @@ void vtime_account_user(struct task_struct *tsk)
 
 	if (ti->ac_utime) {
 		delta_utime = cycle_to_cputime(ti->ac_utime);
-		account_user_time(tsk, delta_utime, delta_utime);
+		account_user_time(tsk, delta_utime);
 		ti->ac_utime = 0;
 	}
 }
@@ -112,7 +112,7 @@ void vtime_account_system(struct task_struct *tsk)
 {
 	cputime_t delta = vtime_delta(tsk);
 
-	account_system_time(tsk, 0, delta, delta);
+	account_system_time(tsk, 0, delta);
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
 

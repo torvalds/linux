@@ -851,7 +851,7 @@ static void decode_mc6_mce(struct mce *m)
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_errors(struct mce *m)
 {
-	struct smca_hwid_mcatype *type;
+	struct smca_hwid *hwid;
 	unsigned int bank_type;
 	const char *ip_name;
 	u8 xec = XEC(m->status, xec_mask);
@@ -862,18 +862,18 @@ static void decode_smca_errors(struct mce *m)
 	if (boot_cpu_data.x86 >= 0x17 && m->bank == 4)
 		pr_emerg(HW_ERR "Bank 4 is reserved on Fam17h.\n");
 
-	type = smca_banks[m->bank].type;
-	if (!type)
+	hwid = smca_banks[m->bank].hwid;
+	if (!hwid)
 		return;
 
-	bank_type = type->bank_type;
-	ip_name = smca_bank_names[bank_type].long_name;
+	bank_type = hwid->bank_type;
+	ip_name = smca_get_long_name(bank_type);
 
 	pr_emerg(HW_ERR "%s Extended Error Code: %d\n", ip_name, xec);
 
 	/* Only print the decode of valid error codes */
 	if (xec < smca_mce_descs[bank_type].num_descs &&
-			(type->xec_bitmap & BIT_ULL(xec))) {
+			(hwid->xec_bitmap & BIT_ULL(xec))) {
 		pr_emerg(HW_ERR "%s Error: ", ip_name);
 		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}

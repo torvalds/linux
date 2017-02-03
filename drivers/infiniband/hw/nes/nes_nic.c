@@ -981,20 +981,16 @@ static int nes_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nes_vnic	*nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
-	int ret = 0;
 	u8 jumbomode = 0;
 	u32 nic_active;
 	u32 nic_active_bit;
 	u32 uc_all_active;
 	u32 mc_all_active;
 
-	if ((new_mtu < ETH_ZLEN) || (new_mtu > max_mtu))
-		return -EINVAL;
-
 	netdev->mtu = new_mtu;
 	nesvnic->max_frame_size	= new_mtu + VLAN_ETH_HLEN;
 
-	if (netdev->mtu	> 1500)	{
+	if (netdev->mtu	> ETH_DATA_LEN)	{
 		jumbomode=1;
 	}
 	nes_nic_init_timer_defaults(nesdev, jumbomode);
@@ -1020,7 +1016,7 @@ static int nes_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 	}
 
-	return ret;
+	return 0;
 }
 
 
@@ -1658,7 +1654,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 
 	netdev->watchdog_timeo = NES_TX_TIMEOUT;
 	netdev->irq = nesdev->pcidev->irq;
-	netdev->mtu = ETH_DATA_LEN;
+	netdev->max_mtu = NES_MAX_MTU;
 	netdev->hard_header_len = ETH_HLEN;
 	netdev->addr_len = ETH_ALEN;
 	netdev->type = ARPHRD_ETHER;

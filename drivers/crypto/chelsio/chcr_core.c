@@ -42,6 +42,7 @@ static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 static struct cxgb4_uld_info chcr_uld_info = {
 	.name = DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
+	.ntxq = MAX_ULD_QSETS,
 	.rxq_size = 1024,
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
@@ -126,7 +127,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 int chcr_send_wr(struct sk_buff *skb)
 {
-	return cxgb4_ofld_send(skb->dev, skb);
+	return cxgb4_crypto_send(skb->dev, skb);
 }
 
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld)

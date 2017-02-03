@@ -68,7 +68,6 @@ static const struct net_device_ops rr_netdev_ops = {
 	.ndo_stop		= rr_close,
 	.ndo_do_ioctl		= rr_ioctl,
 	.ndo_start_xmit		= rr_start_xmit,
-	.ndo_change_mtu		= hippi_change_mtu,
 	.ndo_set_mac_address	= hippi_mac_addr,
 };
 

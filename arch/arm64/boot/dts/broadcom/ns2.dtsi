@@ -191,6 +191,18 @@
 
 		#include "ns2-clock.dtsi"
 
+		enet: ethernet@61000000 {
+			compatible = "brcm,ns2-amac";
+			reg = <0x61000000 0x1000>,
+			      <0x61090000 0x1000>,
+			      <0x61030000 0x100>;
+			reg-names = "amac_base", "idm_base", "nicpm_base";
+			interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+			phy-handle = <&gphy0>;
+			phy-mode = "rgmii";
+			status = "disabled";
+		};
+
 		dma0: dma@61360000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x61360000 0x1000>;

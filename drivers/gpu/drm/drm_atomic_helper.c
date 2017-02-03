@@ -594,10 +594,6 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 

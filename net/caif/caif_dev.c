@@ -52,7 +52,7 @@ struct caif_net {
 	struct caif_device_entry_list caifdevs;
 };
 
-static int caif_net_id;
+static unsigned int caif_net_id;
 static int q_high = 50; /* Percent */
 
 struct cfcnfg *get_cfcnfg(struct net *net)

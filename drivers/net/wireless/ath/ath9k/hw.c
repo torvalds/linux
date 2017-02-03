@@ -2792,7 +2792,7 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		WARN_ON(1);
 	}
 
-	return val;
+	return !!val;
 }
 EXPORT_SYMBOL(ath9k_hw_gpio_get);
 

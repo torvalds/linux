@@ -126,7 +126,7 @@ static atomic_t    audit_lost = ATOMIC_INIT(0);
 
 /* The netlink socket. */
 static struct sock *audit_sock;
-static int audit_net_id;
+static unsigned int audit_net_id;
 
 /* Hash for inode-based rules */
 struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
@@ -1172,9 +1172,8 @@ static void __net_exit audit_net_exit(struct net *net)
 		audit_sock = NULL;
 	}
 
-	RCU_INIT_POINTER(aunet->nlsk, NULL);
-	synchronize_net();
 	netlink_kernel_release(sock);
+	aunet->nlsk = NULL;
 }
 
 static struct pernet_operations audit_net_ops __net_initdata = {
