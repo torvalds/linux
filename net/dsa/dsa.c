@@ -275,6 +275,10 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (ret < 0)
 		return ret;
 
+	ret = dsa_switch_register_notifier(ds);
+	if (ret)
+		return ret;
+
 	if (ops->set_addr) {
 		ret = ops->set_addr(ds, dst->master_netdev->dev_addr);
 		if (ret < 0)
@@ -400,6 +404,8 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 
 	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
+
+	dsa_switch_unregister_notifier(ds);
 }
 
 #ifdef CONFIG_PM_SLEEP

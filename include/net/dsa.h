@@ -13,6 +13,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/list.h>
+#include <linux/notifier.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
@@ -91,6 +92,9 @@ struct packet_type;
 
 struct dsa_switch_tree {
 	struct list_head	list;
+
+	/* Notifier chain for switch-wide events */
+	struct raw_notifier_head	nh;
 
 	/* Tree identifier */
 	u32 tree;
@@ -181,6 +185,9 @@ struct dsa_switch {
 	 */
 	struct dsa_switch_tree	*dst;
 	int			index;
+
+	/* Listener for switch fabric events */
+	struct notifier_block	nb;
 
 	/*
 	 * Give the switch driver somewhere to hang its private data
