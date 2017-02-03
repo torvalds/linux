@@ -148,7 +148,10 @@ struct sci_port {
 	struct timer_list		rx_timer;
 	unsigned int			rx_timeout;
 #endif
+	unsigned int			rx_frame;
 	int				rx_trigger;
+	struct timer_list		rx_fifo_timer;
+	int				rx_fifo_timeout;
 
 	bool has_rtscts;
 	bool autorts;
@@ -1034,6 +1037,24 @@ static int scif_set_rtrg(struct uart_port *port, int rx_trig)
 	return rx_trig;
 }
 
+static int scif_rtrg_enabled(struct uart_port *port)
+{
+	if (sci_getreg(port, HSRTRGR)->size)
+		return serial_port_in(port, HSRTRGR) != 0;
+	else
+		return (serial_port_in(port, SCFCR) &
+			(SCFCR_RTRG0 | SCFCR_RTRG1)) != 0;
+}
+
+static void rx_fifo_timer_fn(unsigned long arg)
+{
+	struct sci_port *s = (struct sci_port *)arg;
+	struct uart_port *port = &s->port;
+
+	dev_dbg(port->dev, "Rx timed out\n");
+	scif_set_rtrg(port, 1);
+}
+
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 static void sci_dma_tx_complete(void *arg)
 {
@@ -1473,10 +1494,10 @@ static inline void sci_free_dma(struct uart_port *port)
 
 static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 {
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	struct uart_port *port = ptr;
 	struct sci_port *s = to_sci_port(port);
 
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	if (s->chan_rx) {
 		u16 scr = serial_port_in(port, SCSCR);
 		u16 ssr = serial_port_in(port, SCxSR);
@@ -1500,6 +1521,14 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		return IRQ_HANDLED;
 	}
 #endif
+
+	if (s->rx_trigger > 1 && s->rx_fifo_timeout > 0) {
+		if (!scif_rtrg_enabled(port))
+			scif_set_rtrg(port, s->rx_trigger);
+
+		mod_timer(&s->rx_fifo_timer, jiffies + DIV_ROUND_UP(
+			  s->rx_frame * s->rx_fifo_timeout, 1000));
+	}
 
 	/* I think sci_receive_chars has to be called irrespective
 	 * of whether the I_IXOFF is set, otherwise, how is the interrupt
@@ -2084,14 +2113,21 @@ static void sci_reset(struct uart_port *port)
 		serial_port_out(port, SCLSR, status);
 	}
 
-	if (s->rx_trigger > 1)
-		scif_set_rtrg(port, s->rx_trigger);
+	if (s->rx_trigger > 1) {
+		if (s->rx_fifo_timeout) {
+			scif_set_rtrg(port, 1);
+			setup_timer(&s->rx_fifo_timer, rx_fifo_timer_fn,
+				    (unsigned long)s);
+		} else {
+			scif_set_rtrg(port, s->rx_trigger);
+		}
+	}
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
-	unsigned int baud, smr_val = SCSMR_ASYNC, scr_val = 0, i;
+	unsigned int baud, smr_val = SCSMR_ASYNC, scr_val = 0, i, bits;
 	unsigned int brr = 255, cks = 0, srr = 15, dl = 0, sccks = 0;
 	unsigned int brr1 = 255, cks1 = 0, srr1 = 15, dl1 = 0;
 	struct sci_port *s = to_sci_port(port);
@@ -2287,7 +2323,6 @@ done:
 		udelay(DIV_ROUND_UP(10 * 1000000, baud));
 	}
 
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
 	 * Calculate delay for 2 DMA buffers (4 FIFO).
 	 * See serial_core.c::uart_update_timeout().
@@ -2298,36 +2333,34 @@ done:
 	 * value obtained by this formula is too small. Therefore, if the value
 	 * is smaller than 20ms, use 20ms as the timeout value for DMA.
 	 */
-	if (s->chan_rx) {
-		unsigned int bits;
-
-		/* byte size and parity */
-		switch (termios->c_cflag & CSIZE) {
-		case CS5:
-			bits = 7;
-			break;
-		case CS6:
-			bits = 8;
-			break;
-		case CS7:
-			bits = 9;
-			break;
-		default:
-			bits = 10;
-			break;
-		}
-
-		if (termios->c_cflag & CSTOPB)
-			bits++;
-		if (termios->c_cflag & PARENB)
-			bits++;
-		s->rx_timeout = DIV_ROUND_UP((s->buf_len_rx * 2 * bits * HZ) /
-					     (baud / 10), 10);
-		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
-			s->rx_timeout * 1000 / HZ, port->timeout);
-		if (s->rx_timeout < msecs_to_jiffies(20))
-			s->rx_timeout = msecs_to_jiffies(20);
+	/* byte size and parity */
+	switch (termios->c_cflag & CSIZE) {
+	case CS5:
+		bits = 7;
+		break;
+	case CS6:
+		bits = 8;
+		break;
+	case CS7:
+		bits = 9;
+		break;
+	default:
+		bits = 10;
+		break;
 	}
+
+	if (termios->c_cflag & CSTOPB)
+		bits++;
+	if (termios->c_cflag & PARENB)
+		bits++;
+
+	s->rx_frame = (100 * bits * HZ) / (baud / 10);
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	s->rx_timeout = DIV_ROUND_UP(s->buf_len_rx * 2 * s->rx_frame, 1000);
+	dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
+		s->rx_timeout * 1000 / HZ, port->timeout);
+	if (s->rx_timeout < msecs_to_jiffies(20))
+		s->rx_timeout = msecs_to_jiffies(20);
 #endif
 
 	if ((termios->c_cflag & CREAD) != 0)
@@ -2641,6 +2674,8 @@ static int sci_init_single(struct platform_device *dev,
 		sci_port->rx_trigger = 1;
 		break;
 	}
+
+	sci_port->rx_fifo_timeout = 0;
 
 	/* SCIFA on sh7723 and sh7724 need a custom sampling rate that doesn't
 	 * match the SoC datasheet, this should be investigated. Let platform
