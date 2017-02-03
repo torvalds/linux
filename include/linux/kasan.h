@@ -30,16 +30,10 @@ static inline void *kasan_mem_to_shadow(const void *addr)
 }
 
 /* Enable reporting bugs after kasan_disable_current() */
-static inline void kasan_enable_current(void)
-{
-	current->kasan_depth++;
-}
+extern void kasan_enable_current(void);
 
 /* Disable reporting bugs for current task */
-static inline void kasan_disable_current(void)
-{
-	current->kasan_depth--;
-}
+extern void kasan_disable_current(void);
 
 void kasan_unpoison_shadow(const void *address, size_t size);
 
