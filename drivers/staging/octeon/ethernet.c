@@ -889,7 +889,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				fau -=
 				    cvmx_pko_get_num_queues(priv->port) *
 				    sizeof(u32);
-				schedule_delayed_work(&priv->port_periodic_work, HZ);
+				schedule_delayed_work(&priv->port_periodic_work,
+						      HZ);
 			}
 		}
 	}
