@@ -1138,10 +1138,11 @@ void xen_setup_vcpu_info_placement(void)
 		xen_vcpu_setup(cpu);
 	}
 
-	/* xen_vcpu_setup managed to place the vcpu_info within the
-	 * percpu area for all cpus, so make use of it. Note that for
-	 * PVH we want to use native IRQ mechanism. */
-	if (have_vcpu_info_placement && !xen_pvh_domain()) {
+	/*
+	 * xen_vcpu_setup managed to place the vcpu_info within the
+	 * percpu area for all cpus, so make use of it.
+	 */
+	if (have_vcpu_info_placement) {
 		pv_irq_ops.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
 		pv_irq_ops.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
@@ -1413,49 +1414,9 @@ static void __init xen_boot_params_init_edd(void)
  * Set up the GDT and segment registers for -fstack-protector.  Until
  * we do this, we have to be careful not to call any stack-protected
  * function, which is most of the kernel.
- *
- * Note, that it is __ref because the only caller of this after init
- * is PVH which is not going to use xen_load_gdt_boot or other
- * __init functions.
  */
-static void __ref xen_setup_gdt(int cpu)
+static void xen_setup_gdt(int cpu)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-#ifdef CONFIG_X86_64
-		unsigned long dummy;
-
-		load_percpu_segment(cpu); /* We need to access per-cpu area */
-		switch_to_new_gdt(cpu); /* GDT and GS set */
-
-		/* We are switching of the Xen provided GDT to our HVM mode
-		 * GDT. The new GDT has  __KERNEL_CS with CS.L = 1
-		 * and we are jumping to reload it.
-		 */
-		asm volatile ("pushq %0\n"
-			      "leaq 1f(%%rip),%0\n"
-			      "pushq %0\n"
-			      "lretq\n"
-			      "1:\n"
-			      : "=&r" (dummy) : "0" (__KERNEL_CS));
-
-		/*
-		 * While not needed, we also set the %es, %ds, and %fs
-		 * to zero. We don't care about %ss as it is NULL.
-		 * Strictly speaking this is not needed as Xen zeros those
-		 * out (and also MSR_FS_BASE, MSR_GS_BASE, MSR_KERNEL_GS_BASE)
-		 *
-		 * Linux zeros them in cpu_init() and in secondary_startup_64
-		 * (for BSP).
-		 */
-		loadsegment(es, 0);
-		loadsegment(ds, 0);
-		loadsegment(fs, 0);
-#else
-		/* PVH: TODO Implement. */
-		BUG();
-#endif
-		return; /* PVH does not need any PV GDT ops. */
-	}
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry_boot;
 	pv_cpu_ops.load_gdt = xen_load_gdt_boot;
 
@@ -1465,59 +1426,6 @@ static void __ref xen_setup_gdt(int cpu)
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry;
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
-
-#ifdef CONFIG_XEN_PVH
-/*
- * A PV guest starts with default flags that are not set for PVH, set them
- * here asap.
- */
-static void xen_pvh_set_cr_flags(int cpu)
-{
-
-	/* Some of these are setup in 'secondary_startup_64'. The others:
-	 * X86_CR0_TS, X86_CR0_PE, X86_CR0_ET are set by Xen for HVM guests
-	 * (which PVH shared codepaths), while X86_CR0_PG is for PVH. */
-	write_cr0(read_cr0() | X86_CR0_MP | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM);
-
-	if (!cpu)
-		return;
-	/*
-	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
-	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__init_cpu().
-	*/
-	if (boot_cpu_has(X86_FEATURE_PSE))
-		cr4_set_bits_and_update_boot(X86_CR4_PSE);
-
-	if (boot_cpu_has(X86_FEATURE_PGE))
-		cr4_set_bits_and_update_boot(X86_CR4_PGE);
-}
-
-/*
- * Note, that it is ref - because the only caller of this after init
- * is PVH which is not going to use xen_load_gdt_boot or other
- * __init functions.
- */
-void __ref xen_pvh_secondary_vcpu_init(int cpu)
-{
-	xen_setup_gdt(cpu);
-	xen_pvh_set_cr_flags(cpu);
-}
-
-static void __init xen_pvh_early_guest_init(void)
-{
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
-	BUG_ON(!xen_feature(XENFEAT_hvm_callback_vector));
-
-	xen_pvh_early_cpu_init(0, false);
-	xen_pvh_set_cr_flags(0);
-
-#ifdef CONFIG_X86_32
-	BUG(); /* PVH: Implement proper support. */
-#endif
-}
-#endif    /* CONFIG_XEN_PVH */
 
 static void __init xen_dom0_set_legacy_features(void)
 {
@@ -1555,24 +1463,17 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_domain_type = XEN_PV_DOMAIN;
 
 	xen_setup_features();
-#ifdef CONFIG_XEN_PVH
-	xen_pvh_early_guest_init();
-#endif
+
 	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
-	if (!xen_pvh_domain()) {
-		pv_cpu_ops = xen_cpu_ops;
+	pv_cpu_ops = xen_cpu_ops;
 
-		x86_platform.get_nmi_reason = xen_get_nmi_reason;
-	}
+	x86_platform.get_nmi_reason = xen_get_nmi_reason;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		x86_init.resources.memory_setup = xen_auto_xlated_memory_setup;
-	else
-		x86_init.resources.memory_setup = xen_memory_setup;
+	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
 
@@ -1665,18 +1566,15 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* set the limit of our address space */
 	xen_reserve_top();
 
-	/* PVH: runs at default kernel iopl of 0 */
-	if (!xen_pvh_domain()) {
-		/*
-		 * We used to do this in xen_arch_setup, but that is too late
-		 * on AMD were early_cpu_init (run before ->arch_setup()) calls
-		 * early_amd_init which pokes 0xcf8 port.
-		 */
-		set_iopl.iopl = 1;
-		rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-		if (rc != 0)
-			xen_raw_printk("physdev_op failed %d\n", rc);
-	}
+	/*
+	 * We used to do this in xen_arch_setup, but that is too late
+	 * on AMD were early_cpu_init (run before ->arch_setup()) calls
+	 * early_amd_init which pokes 0xcf8 port.
+	 */
+	set_iopl.iopl = 1;
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
+	if (rc != 0)
+		xen_raw_printk("physdev_op failed %d\n", rc);
 
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */
