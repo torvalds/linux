@@ -2019,6 +2019,36 @@ static inline void mlxsw_reg_ptar_unpack(char *payload, char *tcam_region_info)
 	mlxsw_reg_ptar_tcam_region_info_memcpy_from(payload, tcam_region_info);
 }
 
+/* PPBS - Policy-Engine Policy Based Switching Register
+ * ----------------------------------------------------
+ * This register retrieves and sets Policy Based Switching Table entries.
+ */
+#define MLXSW_REG_PPBS_ID 0x300C
+#define MLXSW_REG_PPBS_LEN 0x14
+
+MLXSW_REG_DEFINE(ppbs, MLXSW_REG_PPBS_ID, MLXSW_REG_PPBS_LEN);
+
+/* reg_ppbs_pbs_ptr
+ * Index into the PBS table.
+ * For Spectrum, the index points to the KVD Linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, ppbs, pbs_ptr, 0x08, 0, 24);
+
+/* reg_ppbs_system_port
+ * Unique port identifier for the final destination of the packet.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ppbs, system_port, 0x10, 0, 16);
+
+static inline void mlxsw_reg_ppbs_pack(char *payload, u32 pbs_ptr,
+				       u16 system_port)
+{
+	MLXSW_REG_ZERO(ppbs, payload);
+	mlxsw_reg_ppbs_pbs_ptr_set(payload, pbs_ptr);
+	mlxsw_reg_ppbs_system_port_set(payload, system_port);
+}
+
 /* PRCR - Policy-Engine Rules Copy Register
  * ----------------------------------------
  * This register is used for accessing rules within a TCAM region.
@@ -5875,6 +5905,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pacl),
 	MLXSW_REG(pagt),
 	MLXSW_REG(ptar),
+	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(qpcr),
