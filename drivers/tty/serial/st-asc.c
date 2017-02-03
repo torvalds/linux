@@ -513,6 +513,8 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
+	struct device_node *np = port->dev->of_node;
+	struct gpio_desc *gpiod;
 	unsigned int baud;
 	u32 ctrl_val;
 	tcflag_t cflag;
@@ -556,8 +558,31 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		ctrl_val |= ASC_CTL_PARITYODD;
 
 	/* hardware flow control */
-	if ((cflag & CRTSCTS))
+	if ((cflag & CRTSCTS)) {
 		ctrl_val |= ASC_CTL_CTSENABLE;
+
+		/* If flow-control selected, stop handling RTS manually */
+		if (ascport->rts) {
+			devm_gpiod_put(port->dev, ascport->rts);
+			ascport->rts = NULL;
+
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[DEFAULT]);
+		}
+	} else {
+		/* If flow-control disabled, it's safe to handle RTS manually */
+		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL]) {
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[NO_HW_FLOWCTRL]);
+
+			gpiod =	devm_get_gpiod_from_child(port->dev, "rts",
+							  &np->fwnode);
+			if (!IS_ERR(gpiod)) {
+				gpiod_direction_output(gpiod, 0);
+				ascport->rts = gpiod;
+			}
+		}
+	}
 
 	if ((baud < 19200) && !ascport->force_m1) {
 		asc_out(port, ASC_BAUDRATE, (port->uartclk / (16 * baud)));
