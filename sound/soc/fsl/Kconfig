@@ -244,7 +244,7 @@ config SND_SOC_IMX_WM8962
 
 config SND_SOC_IMX_ES8328
 	tristate "SoC Audio support for i.MX boards with the ES8328 codec"
-	depends on OF && (I2C || SPI)
+	depends on OF && (I2C || SPI) && SND_SOC_ES8328
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_IMX_PCM_DMA
