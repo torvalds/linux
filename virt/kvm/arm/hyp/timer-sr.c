@@ -25,11 +25,12 @@
 void __hyp_text __timer_save_state(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	u64 val;
 
 	if (timer->enabled) {
-		timer->cntv_ctl = read_sysreg_el0(cntv_ctl);
-		timer->cntv_cval = read_sysreg_el0(cntv_cval);
+		vtimer->cnt_ctl = read_sysreg_el0(cntv_ctl);
+		vtimer->cnt_cval = read_sysreg_el0(cntv_cval);
 	}
 
 	/* Disable the virtual timer */
@@ -54,6 +55,7 @@ void __hyp_text __timer_restore_state(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	u64 val;
 
 	/* Those bits are already configured at boot on VHE-system */
@@ -70,8 +72,8 @@ void __hyp_text __timer_restore_state(struct kvm_vcpu *vcpu)
 
 	if (timer->enabled) {
 		write_sysreg(kvm->arch.timer.cntvoff, cntvoff_el2);
-		write_sysreg_el0(timer->cntv_cval, cntv_cval);
+		write_sysreg_el0(vtimer->cnt_cval, cntv_cval);
 		isb();
-		write_sysreg_el0(timer->cntv_ctl, cntv_ctl);
+		write_sysreg_el0(vtimer->cnt_ctl, cntv_ctl);
 	}
 }

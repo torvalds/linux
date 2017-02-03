@@ -28,15 +28,20 @@ struct arch_timer_kvm {
 	u64			cntvoff;
 };
 
-struct arch_timer_cpu {
+struct arch_timer_context {
 	/* Registers: control register, timer value */
-	u32				cntv_ctl;	/* Saved/restored */
-	u64				cntv_cval;	/* Saved/restored */
+	u32				cnt_ctl;
+	u64				cnt_cval;
 
-	/*
-	 * Anything that is not used directly from assembly code goes
-	 * here.
-	 */
+	/* Timer IRQ */
+	struct kvm_irq_level		irq;
+
+	/* Active IRQ state caching */
+	bool				active_cleared_last;
+};
+
+struct arch_timer_cpu {
+	struct arch_timer_context	vtimer;
 
 	/* Background timer used when the guest is not running */
 	struct hrtimer			timer;
@@ -46,12 +51,6 @@ struct arch_timer_cpu {
 
 	/* Background timer active */
 	bool				armed;
-
-	/* Timer IRQ */
-	struct kvm_irq_level		irq;
-
-	/* Active IRQ state caching */
-	bool				active_cleared_last;
 
 	/* Is the timer enabled */
 	bool			enabled;
@@ -77,4 +76,6 @@ void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
 void kvm_timer_init_vhe(void);
+
+#define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #endif
