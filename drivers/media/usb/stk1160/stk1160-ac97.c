@@ -114,7 +114,7 @@ void stk1160_ac97_dump_regs(struct stk1160 *dev)
 }
 #endif
 
-int stk1160_has_audio(struct stk1160 *dev)
+static int stk1160_has_audio(struct stk1160 *dev)
 {
 	u8 value;
 
@@ -122,7 +122,7 @@ int stk1160_has_audio(struct stk1160 *dev)
 	return !(value & STK1160_POSV_L_ACDOUT);
 }
 
-int stk1160_has_ac97(struct stk1160 *dev)
+static int stk1160_has_ac97(struct stk1160 *dev)
 {
 	u8 value;
 
