@@ -278,7 +278,8 @@ sync_nodes:
 flush_out:
 	remove_ino_entry(sbi, ino, UPDATE_INO);
 	clear_inode_flag(inode, FI_UPDATE_WRITE);
-	ret = f2fs_issue_flush(sbi);
+	if (!atomic)
+		ret = f2fs_issue_flush(sbi);
 	f2fs_update_time(sbi, REQ_TIME);
 out:
 	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);

@@ -1318,7 +1318,7 @@ continue_unlock:
 	return last_page;
 }
 
-static int __write_node_page(struct page *page,
+static int __write_node_page(struct page *page, bool atomic,
 				struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
@@ -1362,6 +1362,9 @@ static int __write_node_page(struct page *page,
 		return 0;
 	}
 
+	if (atomic && !test_opt(sbi, NOBARRIER))
+		fio.op_flags |= REQ_PREFLUSH | REQ_FUA;
+
 	set_page_writeback(page);
 	fio.old_blkaddr = ni.blk_addr;
 	write_node_page(nid, &fio);
@@ -1387,7 +1390,7 @@ redirty_out:
 static int f2fs_write_node_page(struct page *page,
 				struct writeback_control *wbc)
 {
-	return __write_node_page(page, wbc);
+	return __write_node_page(page, false, wbc);
 }
 
 int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
@@ -1469,7 +1472,8 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			ret = __write_node_page(page, wbc);
+			ret = __write_node_page(page, atomic &&
+						page == last_page, wbc);
 			if (ret) {
 				unlock_page(page);
 				f2fs_put_page(last_page, 0);
