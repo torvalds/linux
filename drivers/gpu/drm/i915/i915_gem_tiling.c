@@ -158,6 +158,9 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 		if (stride > 8192)
 			return false;
 
+		if (!is_power_of_2(stride))
+			return false;
+
 		if (IS_GEN3(i915)) {
 			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 20)
 				return false;
@@ -176,12 +179,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	if (!stride || !IS_ALIGNED(stride, tile_width))
 		return false;
 
-	/* 965+ just needs multiples of tile width */
-	if (INTEL_GEN(i915) >= 4)
-		return true;
-
-	/* Pre-965 needs power of two tile widths */
-	return is_power_of_2(stride);
+	return true;
 }
 
 static bool i915_vma_fence_prepare(struct i915_vma *vma,
