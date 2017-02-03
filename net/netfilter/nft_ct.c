@@ -386,12 +386,24 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static void __nft_ct_set_destroy(const struct nft_ctx *ctx, struct nft_ct *priv)
+{
+	switch (priv->key) {
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS:
+		nf_connlabels_put(ctx->net);
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
 static int nft_ct_set_init(const struct nft_ctx *ctx,
 			   const struct nft_expr *expr,
 			   const struct nlattr * const tb[])
 {
 	struct nft_ct *priv = nft_expr_priv(expr);
-	bool label_got = false;
 	unsigned int len;
 	int err;
 
@@ -412,7 +424,6 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		err = nf_connlabels_get(ctx->net, (len * BITS_PER_BYTE) - 1);
 		if (err)
 			return err;
-		label_got = true;
 		break;
 #endif
 	default:
@@ -431,8 +442,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	return 0;
 
 err1:
-	if (label_got)
-		nf_connlabels_put(ctx->net);
+	__nft_ct_set_destroy(ctx, priv);
 	return err;
 }
 
@@ -447,16 +457,7 @@ static void nft_ct_set_destroy(const struct nft_ctx *ctx,
 {
 	struct nft_ct *priv = nft_expr_priv(expr);
 
-	switch (priv->key) {
-#ifdef CONFIG_NF_CONNTRACK_LABELS
-	case NFT_CT_LABELS:
-		nf_connlabels_put(ctx->net);
-		break;
-#endif
-	default:
-		break;
-	}
-
+	__nft_ct_set_destroy(ctx, priv);
 	nft_ct_netns_put(ctx->net, ctx->afi->family);
 }
 
