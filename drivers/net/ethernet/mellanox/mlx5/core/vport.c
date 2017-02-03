@@ -532,7 +532,7 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
 		return -EACCES;
 	if (!MLX5_CAP_ESW(mdev, nic_vport_node_guid_modify))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	in = mlx5_vzalloc(inlen);
 	if (!in)

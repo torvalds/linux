@@ -1728,7 +1728,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	if (cmd->cmdif_rev > CMD_IF_REV) {
 		dev_err(&dev->pdev->dev, "driver does not support command interface version. driver %d, firmware %d\n",
 			CMD_IF_REV, cmd->cmdif_rev);
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto err_free_page;
 	}
 
