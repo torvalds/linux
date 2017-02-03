@@ -589,9 +589,21 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 dac_mode = 0;
 	u8 adc_mode = 0;
 
-	/* set master/slave audio interface */
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBM_CFM)
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		/* Master serial port mode, with BCLK generated automatically */
+		snd_soc_update_bits(codec, ES8328_MASTERMODE,
+				    ES8328_MASTERMODE_MSC,
+				    ES8328_MASTERMODE_MSC);
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		/* Slave serial port mode */
+		snd_soc_update_bits(codec, ES8328_MASTERMODE,
+				    ES8328_MASTERMODE_MSC, 0);
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -619,10 +631,6 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			ES8328_DACCONTROL1_DACFORMAT_MASK, dac_mode);
 	snd_soc_update_bits(codec, ES8328_ADCCONTROL4,
 			ES8328_ADCCONTROL4_ADCFORMAT_MASK, adc_mode);
-
-	/* Master serial port mode, with BCLK generated automatically */
-	snd_soc_update_bits(codec, ES8328_MASTERMODE,
-			ES8328_MASTERMODE_MSC, ES8328_MASTERMODE_MSC);
 
 	return 0;
 }
