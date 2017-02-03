@@ -562,12 +562,21 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 	struct dsa_switch *ds = p->dp->ds;
 	int ret = -EOPNOTSUPP;
 
+	/* Here the port is already bridged. Reflect the current configuration
+	 * so that drivers can program their chips accordingly.
+	 */
 	p->dp->bridge_dev = br;
 
 	if (ds->ops->port_bridge_join)
 		ret = ds->ops->port_bridge_join(ds, p->dp->index, br);
 
-	return ret == -EOPNOTSUPP ? 0 : ret;
+	/* The bridging is rolled back on error */
+	if (ret && ret != -EOPNOTSUPP) {
+		p->dp->bridge_dev = NULL;
+		return ret;
+	}
+
+	return 0;
 }
 
 static void dsa_slave_bridge_port_leave(struct net_device *dev,
@@ -576,6 +585,9 @@ static void dsa_slave_bridge_port_leave(struct net_device *dev,
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;
 
+	/* Here the port is already unbridged. Reflect the current configuration
+	 * so that drivers can program their chips accordingly.
+	 */
 	p->dp->bridge_dev = NULL;
 
 	if (ds->ops->port_bridge_leave)
