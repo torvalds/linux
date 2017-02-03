@@ -4616,6 +4616,13 @@ static void *g_start(struct seq_file *m, loff_t *pos)
 
 	mutex_lock(&graph_lock);
 
+	if (fgd->type == GRAPH_FILTER_FUNCTION)
+		fgd->hash = rcu_dereference_protected(ftrace_graph_hash,
+					lockdep_is_held(&graph_lock));
+	else
+		fgd->hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
+					lockdep_is_held(&graph_lock));
+
 	/* Nothing, tell g_show to print all functions are enabled */
 	if (ftrace_hash_empty(fgd->hash) && !*pos)
 		return FTRACE_GRAPH_EMPTY;
@@ -4695,6 +4702,14 @@ __ftrace_graph_open(struct inode *inode, struct file *file,
 
 out:
 	fgd->new_hash = new_hash;
+
+	/*
+	 * All uses of fgd->hash must be taken with the graph_lock
+	 * held. The graph_lock is going to be released, so force
+	 * fgd->hash to be reinitialized when it is taken again.
+	 */
+	fgd->hash = NULL;
+
 	return ret;
 }
 
@@ -4713,7 +4728,8 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&graph_lock);
 
-	fgd->hash = ftrace_graph_hash;
+	fgd->hash = rcu_dereference_protected(ftrace_graph_hash,
+					lockdep_is_held(&graph_lock));
 	fgd->type = GRAPH_FILTER_FUNCTION;
 	fgd->seq_ops = &ftrace_graph_seq_ops;
 
@@ -4740,7 +4756,8 @@ ftrace_graph_notrace_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&graph_lock);
 
-	fgd->hash = ftrace_graph_notrace_hash;
+	fgd->hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
+					lockdep_is_held(&graph_lock));
 	fgd->type = GRAPH_FILTER_NOTRACE;
 	fgd->seq_ops = &ftrace_graph_seq_ops;
 
@@ -4859,17 +4876,18 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		ret = ftrace_graph_set_hash(fgd->new_hash,
 					    parser.buffer);
 
-		old_hash = fgd->hash;
 		new_hash = __ftrace_hash_move(fgd->new_hash);
 		if (!new_hash)
 			ret = -ENOMEM;
 
 		if (fgd->type == GRAPH_FILTER_FUNCTION) {
+			old_hash = rcu_dereference_protected(ftrace_graph_hash,
+					lockdep_is_held(&graph_lock));
 			rcu_assign_pointer(ftrace_graph_hash, new_hash);
-			fgd->hash = ftrace_graph_hash;
 		} else {
+			old_hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
+					lockdep_is_held(&graph_lock));
 			rcu_assign_pointer(ftrace_graph_notrace_hash, new_hash);
-			fgd->hash = ftrace_graph_notrace_hash;
 		}
 
 		mutex_unlock(&graph_lock);
