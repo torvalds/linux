@@ -1491,37 +1491,22 @@ static bool dsa_slave_dev_check(struct net_device *dev)
 	return dev->netdev_ops == &dsa_slave_netdev_ops;
 }
 
-static int dsa_slave_port_upper_event(struct net_device *dev,
-				      unsigned long event, void *ptr)
+static int dsa_slave_changeupper(struct net_device *dev,
+				 struct netdev_notifier_changeupper_info *info)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
-	struct net_device *upper = info->upper_dev;
-	int err = 0;
+	int err = NOTIFY_DONE;
 
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		if (netif_is_bridge_master(upper)) {
-			if (info->linking)
-				err = dsa_slave_bridge_port_join(dev, upper);
-			else
-				dsa_slave_bridge_port_leave(dev, upper);
+	if (netif_is_bridge_master(info->upper_dev)) {
+		if (info->linking) {
+			err = dsa_slave_bridge_port_join(dev, info->upper_dev);
+			err = notifier_from_errno(err);
+		} else {
+			dsa_slave_bridge_port_leave(dev, info->upper_dev);
+			err = NOTIFY_OK;
 		}
-
-		break;
 	}
 
-	return notifier_from_errno(err);
-}
-
-static int dsa_slave_port_event(struct net_device *dev, unsigned long event,
-				void *ptr)
-{
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		return dsa_slave_port_upper_event(dev, event, ptr);
-	}
-
-	return NOTIFY_DONE;
+	return err;
 }
 
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
@@ -1529,8 +1514,11 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (dsa_slave_dev_check(dev))
-		return dsa_slave_port_event(dev, event, ptr);
+	if (dev->netdev_ops != &dsa_slave_netdev_ops)
+		return NOTIFY_DONE;
+
+	if (event == NETDEV_CHANGEUPPER)
+		return dsa_slave_changeupper(dev, ptr);
 
 	return NOTIFY_DONE;
 }
