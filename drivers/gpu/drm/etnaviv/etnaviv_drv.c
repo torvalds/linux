@@ -18,11 +18,11 @@
 #include <linux/of_platform.h>
 #include <drm/drm_of.h>
 
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
-#include "etnaviv_gem.h"
 
 #ifdef CONFIG_DRM_ETNAVIV_REGISTER_LOGGING
 static bool reglog;
@@ -177,7 +177,8 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu, struct seq_file *m)
 	u32 i;
 
 	seq_printf(m, "virt %p - phys 0x%llx - free 0x%08x\n",
-			buf->vaddr, (u64)buf->paddr, size - buf->user_size);
+			buf->vaddr, (u64)etnaviv_cmdbuf_get_pa(buf),
+			size - buf->user_size);
 
 	for (i = 0; i < size / 4; i++) {
 		if (i && !(i % 4))
