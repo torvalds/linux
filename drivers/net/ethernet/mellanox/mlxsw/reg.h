@@ -1799,6 +1799,59 @@ static inline void mlxsw_reg_pacl_pack(char *payload, u16 acl_id,
 	mlxsw_reg_pacl_tcam_region_info_memcpy_to(payload, tcam_region_info);
 }
 
+/* PAGT - Policy-Engine ACL Group Table
+ * ------------------------------------
+ * This register is used for configuration of the ACL Group Table.
+ */
+#define MLXSW_REG_PAGT_ID 0x3005
+#define MLXSW_REG_PAGT_BASE_LEN 0x30
+#define MLXSW_REG_PAGT_ACL_LEN 4
+#define MLXSW_REG_PAGT_ACL_MAX_NUM 16
+#define MLXSW_REG_PAGT_LEN (MLXSW_REG_PAGT_BASE_LEN + \
+		MLXSW_REG_PAGT_ACL_MAX_NUM * MLXSW_REG_PAGT_ACL_LEN)
+
+MLXSW_REG_DEFINE(pagt, MLXSW_REG_PAGT_ID, MLXSW_REG_PAGT_LEN);
+
+/* reg_pagt_size
+ * Number of ACLs in the group.
+ * Size 0 invalidates a group.
+ * Range 0 .. cap_max_acl_group_size (hard coded to 16 for now)
+ * Total number of ACLs in all groups must be lower or equal
+ * to cap_max_acl_tot_groups
+ * Note: a group which is binded must not be invalidated
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pagt, size, 0x00, 0, 8);
+
+/* reg_pagt_acl_group_id
+ * An identifier (numbered from 0..cap_max_acl_groups-1) representing
+ * the ACL Group identifier (managed by software).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pagt, acl_group_id, 0x08, 0, 16);
+
+/* reg_pagt_acl_id
+ * ACL identifier
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pagt, acl_id, 0x30, 0, 16, 0x04, 0x00, false);
+
+static inline void mlxsw_reg_pagt_pack(char *payload, u16 acl_group_id)
+{
+	MLXSW_REG_ZERO(pagt, payload);
+	mlxsw_reg_pagt_acl_group_id_set(payload, acl_group_id);
+}
+
+static inline void mlxsw_reg_pagt_acl_id_pack(char *payload, int index,
+					      u16 acl_id)
+{
+	u8 size = mlxsw_reg_pagt_size_get(payload);
+
+	if (index >= size)
+		mlxsw_reg_pagt_size_set(payload, index + 1);
+	mlxsw_reg_pagt_acl_id_set(payload, index, acl_id);
+}
+
 /* QPCR - QoS Policer Configuration Register
  * -----------------------------------------
  * The QPCR register is used to create policers - that limit
@@ -5477,6 +5530,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(pacl),
+	MLXSW_REG(pagt),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
