@@ -4978,7 +4978,6 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 {
 	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
 	int (*napi_poll)(struct napi_struct *napi, int budget);
-	int (*busy_poll)(struct napi_struct *dev);
 	void *have_poll_lock = NULL;
 	struct napi_struct *napi;
 	int rc;
@@ -4993,17 +4992,10 @@ restart:
 	if (!napi)
 		goto out;
 
-	/* Note: ndo_busy_poll method is optional in linux-4.5 */
-	busy_poll = napi->dev->netdev_ops->ndo_busy_poll;
-
 	preempt_disable();
 	for (;;) {
 		rc = 0;
 		local_bh_disable();
-		if (busy_poll) {
-			rc = busy_poll(napi);
-			goto count;
-		}
 		if (!napi_poll) {
 			unsigned long val = READ_ONCE(napi->state);
 
@@ -6955,13 +6947,6 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 			   "Dropping partially supported GSO features since no GSO partial.\n");
 		features &= ~dev->gso_partial_features;
 	}
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	if (dev->netdev_ops->ndo_busy_poll)
-		features |= NETIF_F_BUSY_POLL;
-	else
-#endif
-		features &= ~NETIF_F_BUSY_POLL;
 
 	return features;
 }
