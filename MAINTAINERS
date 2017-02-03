@@ -13065,7 +13065,7 @@ F:	drivers/input/serio/userio.c
 F:	include/uapi/linux/userio.h
 
 VIRTIO CONSOLE DRIVER
-M:	Amit Shah <amit.shah@redhat.com>
+M:	Amit Shah <amit@kernel.org>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 F:	drivers/char/virtio_console.c
