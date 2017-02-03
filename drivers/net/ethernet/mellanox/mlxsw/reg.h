@@ -2125,6 +2125,40 @@ static inline void mlxsw_reg_prcr_pack(char *payload, enum mlxsw_reg_prcr_op op,
 						       dest_tcam_region_info);
 }
 
+/* PEFA - Policy-Engine Extended Flexible Action Register
+ * ------------------------------------------------------
+ * This register is used for accessing an extended flexible action entry
+ * in the central KVD Linear Database.
+ */
+#define MLXSW_REG_PEFA_ID 0x300F
+#define MLXSW_REG_PEFA_LEN 0xB0
+
+MLXSW_REG_DEFINE(pefa, MLXSW_REG_PEFA_ID, MLXSW_REG_PEFA_LEN);
+
+/* reg_pefa_index
+ * Index in the KVD Linear Centralized Database.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pefa, index, 0x00, 0, 24);
+
+#define MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN 0xA8
+
+/* reg_pefa_flex_action_set
+ * Action-set to perform when rule is matched.
+ * Must be zero padded if action set is shorter.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, pefa, flex_action_set, 0x08,
+	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
+
+static inline void mlxsw_reg_pefa_pack(char *payload, u32 index,
+				       const char *flex_action_set)
+{
+	MLXSW_REG_ZERO(pefa, payload);
+	mlxsw_reg_pefa_index_set(payload, index);
+	mlxsw_reg_pefa_flex_action_set_memcpy_to(payload, flex_action_set);
+}
+
 /* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
  * -----------------------------------------------------
  * This register is used for accessing rules within a TCAM region.
@@ -2203,14 +2237,12 @@ MLXSW_ITEM_BUF(reg, ptce2, flex_key_blocks, 0x20,
 MLXSW_ITEM_BUF(reg, ptce2, mask, 0x80,
 	       MLXSW_REG_PTCE2_FLEX_KEY_BLOCKS_LEN);
 
-#define MLXSW_REG_PTCE2_FLEX_ACTION_SET_LEN 0xA8
-
 /* reg_ptce2_flex_action_set
  * ACL action set.
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, ptce2, flex_action_set, 0xE0,
-	       MLXSW_REG_PTCE2_FLEX_ACTION_SET_LEN);
+	       MLXSW_REG_PXXX_FLEX_ACTION_SET_LEN);
 
 static inline void mlxsw_reg_ptce2_pack(char *payload, bool valid,
 					enum mlxsw_reg_ptce2_op op,
@@ -5907,6 +5939,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ptar),
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
+	MLXSW_REG(pefa),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
