@@ -187,6 +187,24 @@
 			#size-cells = <0>;
 		};
 
+		tve0: tv-encoder@01c0a000 {
+			compatible = "allwinner,sun4i-a10-tv-encoder";
+			reg = <0x01c0a000 0x1000>;
+			clocks = <&ccu CLK_AHB_TVE>;
+			resets = <&ccu RST_TVE>;
+			status = "disabled";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tve0_in_tcon0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&tcon0_out_tve0>;
+				};
+			};
+		};
+
 		emac: ethernet@01c0b000 {
 			compatible = "allwinner,sun4i-a10-emac";
 			reg = <0x01c0b000 0x1000>;
@@ -238,6 +256,11 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <1>;
+
+					tcon0_out_tve0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tve0_in_tcon0>;
+					};
 				};
 			};
 		};
