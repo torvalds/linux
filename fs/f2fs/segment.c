@@ -426,6 +426,9 @@ static int submit_flush_wait(struct f2fs_sb_info *sbi)
 	int ret = __submit_flush_wait(sbi->sb->s_bdev);
 	int i;
 
+	trace_f2fs_issue_flush(sbi->sb, test_opt(sbi, NOBARRIER),
+					test_opt(sbi, FLUSH_MERGE));
+
 	if (sbi->s_ndevs && !ret) {
 		for (i = 1; i < sbi->s_ndevs; i++) {
 			ret = __submit_flush_wait(FDEV(i).bdev);
@@ -470,9 +473,6 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 {
 	struct flush_cmd_control *fcc = SM_I(sbi)->fcc_info;
 	struct flush_cmd cmd;
-
-	trace_f2fs_issue_flush(sbi->sb, test_opt(sbi, NOBARRIER),
-					test_opt(sbi, FLUSH_MERGE));
 
 	if (test_opt(sbi, NOBARRIER))
 		return 0;
