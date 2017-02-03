@@ -160,14 +160,6 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 
 		if (!is_power_of_2(stride))
 			return false;
-
-		if (IS_GEN3(i915)) {
-			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 20)
-				return false;
-		} else {
-			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 19)
-				return false;
-		}
 	}
 
 	if (IS_GEN2(i915) ||
