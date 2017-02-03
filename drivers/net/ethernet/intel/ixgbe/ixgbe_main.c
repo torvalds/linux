@@ -3972,7 +3972,8 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
 			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
 
-		if (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN))
+		if ((max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)) ||
+		    (max_frame > IXGBE_MAX_FRAME_BUILD_SKB))
 			set_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state);
 #endif
 	}
