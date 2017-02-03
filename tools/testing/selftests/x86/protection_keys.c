@@ -192,7 +192,7 @@ void lots_o_noops_around_write(int *write_to_me)
 #define SYS_pkey_alloc	 381
 #define SYS_pkey_free	 382
 #define REG_IP_IDX REG_EIP
-#define si_pkey_offset 0x18
+#define si_pkey_offset 0x14
 #else
 #define SYS_mprotect_key 329
 #define SYS_pkey_alloc	 330
