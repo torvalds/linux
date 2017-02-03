@@ -2412,7 +2412,9 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
 		huc_fw->rsa_offset, huc_fw->rsa_size);
 
+	intel_runtime_pm_get(dev_priv);
 	seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -2444,6 +2446,8 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	seq_printf(m, "\tRSA: offset is %d; size = %d\n",
 		guc_fw->rsa_offset, guc_fw->rsa_size);
 
+	intel_runtime_pm_get(dev_priv);
+
 	tmp = I915_READ(GUC_STATUS);
 
 	seq_printf(m, "\nGuC status 0x%08x:\n", tmp);
@@ -2456,6 +2460,8 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	seq_puts(m, "\nScratch registers:\n");
 	for (i = 0; i < 16; i++)
 		seq_printf(m, "\t%2d: \t0x%x\n", i, I915_READ(SOFT_SCRATCH(i)));
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
