@@ -391,6 +391,7 @@ source "net/caif/Kconfig"
 source "net/ceph/Kconfig"
 source "net/nfc/Kconfig"
 source "net/psample/Kconfig"
+source "net/ife/Kconfig"
 
 config LWTUNNEL
 	bool "Network light weight tunnels"
