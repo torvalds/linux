@@ -340,14 +340,18 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 
 static bool virtnet_xdp_xmit(struct virtnet_info *vi,
 			     struct receive_queue *rq,
-			     struct send_queue *sq,
 			     struct xdp_buff *xdp,
 			     void *data)
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
 	unsigned int num_sg, len;
+	struct send_queue *sq;
+	unsigned int qp;
 	void *xdp_sent;
 	int err;
+
+	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
+	sq = &vi->sq[qp];
 
 	/* Free up any pending old buffers before queueing new ones. */
 	while ((xdp_sent = virtqueue_get_buf(sq->vq, &len)) != NULL) {
@@ -414,7 +418,6 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	if (xdp_prog) {
 		struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
 		struct xdp_buff xdp;
-		unsigned int qp;
 		u32 act;
 
 		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
@@ -428,11 +431,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		case XDP_PASS:
 			break;
 		case XDP_TX:
-			qp = vi->curr_queue_pairs -
-				vi->xdp_queue_pairs +
-				smp_processor_id();
-			if (unlikely(!virtnet_xdp_xmit(vi, rq, &vi->sq[qp],
-						       &xdp, skb)))
+			if (unlikely(!virtnet_xdp_xmit(vi, rq, &xdp, skb)))
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 			rcu_read_unlock();
 			goto xdp_xmit;
@@ -559,7 +558,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	if (xdp_prog) {
 		struct page *xdp_page;
 		struct xdp_buff xdp;
-		unsigned int qp;
 		void *data;
 		u32 act;
 
@@ -601,11 +599,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
-			qp = vi->curr_queue_pairs -
-				vi->xdp_queue_pairs +
-				smp_processor_id();
-			if (unlikely(!virtnet_xdp_xmit(vi, rq, &vi->sq[qp],
-						       &xdp, data)))
+			if (unlikely(!virtnet_xdp_xmit(vi, rq, &xdp, data)))
 				trace_xdp_exception(vi->dev, xdp_prog, act);
 			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
 			if (unlikely(xdp_page != page))
