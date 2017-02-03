@@ -771,16 +771,14 @@ static const struct drm_connector_helper_funcs vc4_dsi_connector_helper_funcs = 
 static struct drm_connector *vc4_dsi_connector_init(struct drm_device *dev,
 						    struct vc4_dsi *dsi)
 {
-	struct drm_connector *connector = NULL;
+	struct drm_connector *connector;
 	struct vc4_dsi_connector *dsi_connector;
-	int ret = 0;
 
 	dsi_connector = devm_kzalloc(dev->dev, sizeof(*dsi_connector),
 				     GFP_KERNEL);
-	if (!dsi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!dsi_connector)
+		return ERR_PTR(-ENOMEM);
+
 	connector = &dsi_connector->base;
 
 	dsi_connector->dsi = dsi;
@@ -796,12 +794,6 @@ static struct drm_connector *vc4_dsi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, dsi->encoder);
 
 	return connector;
-
-fail:
-	if (connector)
-		vc4_dsi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
