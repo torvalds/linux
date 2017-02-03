@@ -460,8 +460,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = ovs_ct_get_info(h);
+	nf_ct_set(skb, ct, ovs_ct_get_info(h));
 	return ct;
 }
 
@@ -722,11 +721,10 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		/* Associate skb with specified zone. */
 		if (tmpl) {
-			if (skb->nfct)
-				nf_conntrack_put(skb->nfct);
+			if (skb_nfct(skb))
+				nf_conntrack_put(skb_nfct(skb));
 			nf_conntrack_get(&tmpl->ct_general);
-			skb->nfct = &tmpl->ct_general;
-			skb->nfctinfo = IP_CT_NEW;
+			nf_ct_set(skb, tmpl, IP_CT_NEW);
 		}
 
 		err = nf_conntrack_in(net, info->family,
@@ -820,7 +818,7 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		if (err)
 			return err;
 
-		ct = (struct nf_conn *)skb->nfct;
+		ct = (struct nf_conn *)skb_nfct(skb);
 		if (ct)
 			nf_ct_deliver_cached_events(ct);
 	}

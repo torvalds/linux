@@ -129,6 +129,22 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		memcpy(dest, &count, sizeof(count));
 		return;
 	}
+	case NFT_CT_AVGPKT: {
+		const struct nf_conn_acct *acct = nf_conn_acct_find(ct);
+		u64 avgcnt = 0, bcnt = 0, pcnt = 0;
+
+		if (acct) {
+			pcnt = nft_ct_get_eval_counter(acct->counter,
+						       NFT_CT_PKTS, priv->dir);
+			bcnt = nft_ct_get_eval_counter(acct->counter,
+						       NFT_CT_BYTES, priv->dir);
+			if (pcnt != 0)
+				avgcnt = div64_u64(bcnt, pcnt);
+		}
+
+		memcpy(dest, &avgcnt, sizeof(avgcnt));
+		return;
+	}
 	case NFT_CT_L3PROTOCOL:
 		*dest = nf_ct_l3num(ct);
 		return;
@@ -316,6 +332,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 		break;
 	case NFT_CT_BYTES:
 	case NFT_CT_PKTS:
+	case NFT_CT_AVGPKT:
 		/* no direction? return sum of original + reply */
 		if (tb[NFTA_CT_DIRECTION] == NULL)
 			priv->dir = IP_CT_DIR_MAX;
@@ -346,7 +363,9 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	if (priv->key == NFT_CT_BYTES || priv->key == NFT_CT_PKTS)
+	if (priv->key == NFT_CT_BYTES ||
+	    priv->key == NFT_CT_PKTS  ||
+	    priv->key == NFT_CT_AVGPKT)
 		nf_ct_set_acct(ctx->net, true);
 
 	return 0;
@@ -445,6 +464,7 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		break;
 	case NFT_CT_BYTES:
 	case NFT_CT_PKTS:
+	case NFT_CT_AVGPKT:
 		if (priv->dir < IP_CT_DIR_MAX &&
 		    nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
 			goto nla_put_failure;
@@ -534,8 +554,7 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 
 	ct = nf_ct_untracked_get();
 	atomic_inc(&ct->ct_general.use);
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
+	nf_ct_set(skb, ct, IP_CT_NEW);
 }
 
 static struct nft_expr_type nft_notrack_type;

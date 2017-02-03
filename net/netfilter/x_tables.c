@@ -262,6 +262,60 @@ struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision)
 }
 EXPORT_SYMBOL_GPL(xt_request_find_target);
 
+
+static int xt_obj_to_user(u16 __user *psize, u16 size,
+			  void __user *pname, const char *name,
+			  u8 __user *prev, u8 rev)
+{
+	if (put_user(size, psize))
+		return -EFAULT;
+	if (copy_to_user(pname, name, strlen(name) + 1))
+		return -EFAULT;
+	if (put_user(rev, prev))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define XT_OBJ_TO_USER(U, K, TYPE, C_SIZE)				\
+	xt_obj_to_user(&U->u.TYPE##_size, C_SIZE ? : K->u.TYPE##_size,	\
+		       U->u.user.name, K->u.kernel.TYPE->name,		\
+		       &U->u.user.revision, K->u.kernel.TYPE->revision)
+
+int xt_data_to_user(void __user *dst, const void *src,
+		    int usersize, int size)
+{
+	usersize = usersize ? : size;
+	if (copy_to_user(dst, src, usersize))
+		return -EFAULT;
+	if (usersize != size && clear_user(dst + usersize, size - usersize))
+		return -EFAULT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_data_to_user);
+
+#define XT_DATA_TO_USER(U, K, TYPE, C_SIZE)				\
+	xt_data_to_user(U->data, K->data,				\
+			K->u.kernel.TYPE->usersize,			\
+			C_SIZE ? : K->u.kernel.TYPE->TYPE##size)
+
+int xt_match_to_user(const struct xt_entry_match *m,
+		     struct xt_entry_match __user *u)
+{
+	return XT_OBJ_TO_USER(u, m, match, 0) ||
+	       XT_DATA_TO_USER(u, m, match, 0);
+}
+EXPORT_SYMBOL_GPL(xt_match_to_user);
+
+int xt_target_to_user(const struct xt_entry_target *t,
+		      struct xt_entry_target __user *u)
+{
+	return XT_OBJ_TO_USER(u, t, target, 0) ||
+	       XT_DATA_TO_USER(u, t, target, 0);
+}
+EXPORT_SYMBOL_GPL(xt_target_to_user);
+
 static int match_revfn(u8 af, const char *name, u8 revision, int *bestp)
 {
 	const struct xt_match *m;
@@ -565,17 +619,14 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 	int off = xt_compat_match_offset(match);
 	u_int16_t msize = m->u.user.match_size - off;
 
-	if (copy_to_user(cm, m, sizeof(*cm)) ||
-	    put_user(msize, &cm->u.user.match_size) ||
-	    copy_to_user(cm->u.user.name, m->u.kernel.match->name,
-			 strlen(m->u.kernel.match->name) + 1))
+	if (XT_OBJ_TO_USER(cm, m, match, msize))
 		return -EFAULT;
 
 	if (match->compat_to_user) {
 		if (match->compat_to_user((void __user *)cm->data, m->data))
 			return -EFAULT;
 	} else {
-		if (copy_to_user(cm->data, m->data, msize - sizeof(*cm)))
+		if (XT_DATA_TO_USER(cm, m, match, msize - sizeof(*cm)))
 			return -EFAULT;
 	}
 
@@ -923,17 +974,14 @@ int xt_compat_target_to_user(const struct xt_entry_target *t,
 	int off = xt_compat_target_offset(target);
 	u_int16_t tsize = t->u.user.target_size - off;
 
-	if (copy_to_user(ct, t, sizeof(*ct)) ||
-	    put_user(tsize, &ct->u.user.target_size) ||
-	    copy_to_user(ct->u.user.name, t->u.kernel.target->name,
-			 strlen(t->u.kernel.target->name) + 1))
+	if (XT_OBJ_TO_USER(ct, t, target, tsize))
 		return -EFAULT;
 
 	if (target->compat_to_user) {
 		if (target->compat_to_user((void __user *)ct->data, t->data))
 			return -EFAULT;
 	} else {
-		if (copy_to_user(ct->data, t->data, tsize - sizeof(*ct)))
+		if (XT_DATA_TO_USER(ct, t, target, tsize - sizeof(*ct)))
 			return -EFAULT;
 	}
 

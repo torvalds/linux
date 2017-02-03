@@ -192,6 +192,8 @@ static struct xt_match limit_mt_reg __read_mostly = {
 	.compatsize       = sizeof(struct compat_xt_rateinfo),
 	.compat_from_user = limit_mt_compat_from_user,
 	.compat_to_user   = limit_mt_compat_to_user,
+#else
+	.usersize         = offsetof(struct xt_rateinfo, prev),
 #endif
 	.me               = THIS_MODULE,
 };
