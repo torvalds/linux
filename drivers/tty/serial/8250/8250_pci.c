@@ -2688,6 +2688,8 @@ enum pci_board_num_t {
 	pbn_b0_4_1152000_200,
 	pbn_b0_8_1152000_200,
 
+	pbn_b0_4_1250000,
+
 	pbn_b0_2_1843200,
 	pbn_b0_4_1843200,
 
@@ -2917,6 +2919,13 @@ static struct pciserial_board pci_boards[] = {
 		.num_ports	= 8,
 		.base_baud	= 1152000,
 		.uart_offset	= 0x200,
+	},
+
+	[pbn_b0_4_1250000] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 4,
+		.base_baud	= 1250000,
+		.uart_offset	= 8,
 	},
 
 	[pbn_b0_2_1843200] = {
@@ -5548,6 +5557,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{ PCI_DEVICE(0x1c29, 0x1104), .driver_data = pbn_fintek_4 },
 	{ PCI_DEVICE(0x1c29, 0x1108), .driver_data = pbn_fintek_8 },
 	{ PCI_DEVICE(0x1c29, 0x1112), .driver_data = pbn_fintek_12 },
+
+	/* MKS Tenta SCOM-080x serial cards */
+	{ PCI_DEVICE(0x1601, 0x0800), .driver_data = pbn_b0_4_1250000 },
+	{ PCI_DEVICE(0x1601, 0xa801), .driver_data = pbn_b0_4_1250000 },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
