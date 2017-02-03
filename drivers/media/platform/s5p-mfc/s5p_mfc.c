@@ -764,6 +764,7 @@ static int s5p_mfc_open(struct file *file)
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
+	init_waitqueue_head(&ctx->queue);
 	v4l2_fh_init(&ctx->fh, vdev);
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
@@ -899,7 +900,6 @@ static int s5p_mfc_open(struct file *file)
 		mfc_err("Failed to initialize videobuf2 queue(output)\n");
 		goto err_queue_init;
 	}
-	init_waitqueue_head(&ctx->queue);
 	mutex_unlock(&dev->mfc_mutex);
 	mfc_debug_leave();
 	return ret;
@@ -1218,6 +1218,13 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vb2_dma_contig_set_max_seg_size(dev->mem_dev_r, DMA_BIT_MASK(32));
 
 	mutex_init(&dev->mfc_mutex);
+	init_waitqueue_head(&dev->queue);
+	dev->hw_lock = 0;
+	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
+	atomic_set(&dev->watchdog_cnt, 0);
+	init_timer(&dev->watchdog_timer);
+	dev->watchdog_timer.data = (unsigned long)dev;
+	dev->watchdog_timer.function = s5p_mfc_watchdog;
 
 	ret = s5p_mfc_alloc_firmware(dev);
 	if (ret)
@@ -1226,7 +1233,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
 		goto err_v4l2_dev_reg;
-	init_waitqueue_head(&dev->queue);
 
 	/* decoder */
 	vfd = video_device_alloc();
@@ -1262,13 +1268,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->vfd_enc	= vfd;
 	video_set_drvdata(vfd, dev);
 	platform_set_drvdata(pdev, dev);
-
-	dev->hw_lock = 0;
-	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
-	atomic_set(&dev->watchdog_cnt, 0);
-	init_timer(&dev->watchdog_timer);
-	dev->watchdog_timer.data = (unsigned long)dev;
-	dev->watchdog_timer.function = s5p_mfc_watchdog;
 
 	/* Initialize HW ops and commands based on MFC version */
 	s5p_mfc_init_hw_ops(dev);
