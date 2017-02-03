@@ -1,8 +1,5 @@
 /*
- * Copyright 2015 Free Electrons
- * Copyright 2015 NextThing Co
- *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,45 +40,17 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun5i-a13.dtsi"
+#ifndef _DT_BINDINGS_RESET_SUN9I_A80_USB_H_
+#define _DT_BINDINGS_RESET_SUN9I_A80_USB_H_
 
-/ {
-	chosen {
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-	};
+#define RST_USB0_HCI	0
+#define RST_USB1_HCI	1
+#define RST_USB2_HCI	2
 
-	soc@01c00000 {
-		tve0: tv-encoder@01c0a000 {
-			compatible = "allwinner,sun4i-a10-tv-encoder";
-			reg = <0x01c0a000 0x1000>;
-			clocks = <&ccu CLK_AHB_TVE>;
-			resets = <&ccu RST_TVE>;
-			status = "disabled";
+#define RST_USB0_PHY	3
+#define RST_USB1_HSIC	4
+#define RST_USB1_PHY	5
+#define RST_USB2_HSIC	6
+#define RST_USB2_PHY	7
 
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&tcon0_out_tve0>;
-				};
-			};
-		};
-	};
-};
-
-&tcon0_out {
-	tcon0_out_tve0: endpoint@1 {
-		reg = <1>;
-		remote-endpoint = <&tve0_in_tcon0>;
-	};
-};
+#endif /* _DT_BINDINGS_RESET_SUN9I_A80_USB_H_ */

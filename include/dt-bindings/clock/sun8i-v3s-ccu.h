@@ -1,8 +1,8 @@
 /*
- * Copyright 2015 Free Electrons
- * Copyright 2015 NextThing Co
+ * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
  *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Based on sun8i-h3-ccu.h, which is:
+ * Copyright (C) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,45 +43,65 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun5i-a13.dtsi"
+#ifndef _DT_BINDINGS_CLK_SUN8I_V3S_H_
+#define _DT_BINDINGS_CLK_SUN8I_V3S_H_
 
-/ {
-	chosen {
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-	};
+#define CLK_CPU			14
 
-	soc@01c00000 {
-		tve0: tv-encoder@01c0a000 {
-			compatible = "allwinner,sun4i-a10-tv-encoder";
-			reg = <0x01c0a000 0x1000>;
-			clocks = <&ccu CLK_AHB_TVE>;
-			resets = <&ccu RST_TVE>;
-			status = "disabled";
+#define CLK_BUS_CE		20
+#define CLK_BUS_DMA		21
+#define CLK_BUS_MMC0		22
+#define CLK_BUS_MMC1		23
+#define CLK_BUS_MMC2		24
+#define CLK_BUS_DRAM		25
+#define CLK_BUS_EMAC		26
+#define CLK_BUS_HSTIMER		27
+#define CLK_BUS_SPI0		28
+#define CLK_BUS_OTG		29
+#define CLK_BUS_EHCI0		30
+#define CLK_BUS_OHCI0		31
+#define CLK_BUS_VE		32
+#define CLK_BUS_TCON0		33
+#define CLK_BUS_CSI		34
+#define CLK_BUS_DE		35
+#define CLK_BUS_CODEC		36
+#define CLK_BUS_PIO		37
+#define CLK_BUS_I2C0		38
+#define CLK_BUS_I2C1		39
+#define CLK_BUS_UART0		40
+#define CLK_BUS_UART1		41
+#define CLK_BUS_UART2		42
+#define CLK_BUS_EPHY		43
+#define CLK_BUS_DBG		44
 
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
+#define CLK_MMC0		45
+#define CLK_MMC0_SAMPLE		46
+#define CLK_MMC0_OUTPUT		47
+#define CLK_MMC1		48
+#define CLK_MMC1_SAMPLE		49
+#define CLK_MMC1_OUTPUT		50
+#define CLK_MMC2		51
+#define CLK_MMC2_SAMPLE		52
+#define CLK_MMC2_OUTPUT		53
+#define CLK_CE			54
+#define CLK_SPI0		55
+#define CLK_USB_PHY0		56
+#define CLK_USB_OHCI0		57
 
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&tcon0_out_tve0>;
-				};
-			};
-		};
-	};
-};
+#define CLK_DRAM_VE		59
+#define CLK_DRAM_CSI		60
+#define CLK_DRAM_EHCI		61
+#define CLK_DRAM_OHCI		62
+#define CLK_DE			63
+#define CLK_TCON0		64
+#define CLK_CSI_MISC		65
+#define CLK_CSI0_MCLK		66
+#define CLK_CSI1_SCLK		67
+#define CLK_CSI1_MCLK		68
+#define CLK_VE			69
+#define CLK_AC_DIG		70
+#define CLK_AVS			71
 
-&tcon0_out {
-	tcon0_out_tve0: endpoint@1 {
-		reg = <1>;
-		remote-endpoint = <&tve0_in_tcon0>;
-	};
-};
+#define CLK_MIPI_CSI		73
+
+#endif /* _DT_BINDINGS_CLK_SUN8I_V3S_H_ */

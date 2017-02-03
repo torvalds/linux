@@ -1,8 +1,5 @@
 /*
- * Copyright 2015 Free Electrons
- * Copyright 2015 NextThing Co
- *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,45 +40,41 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun5i-a13.dtsi"
+#ifndef _DT_BINDINGS_CLOCK_SUN9I_A80_DE_H_
+#define _DT_BINDINGS_CLOCK_SUN9I_A80_DE_H_
 
-/ {
-	chosen {
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-	};
+#define CLK_FE0			0
+#define CLK_FE1			1
+#define CLK_FE2			2
+#define CLK_IEP_DEU0		3
+#define CLK_IEP_DEU1		4
+#define CLK_BE0			5
+#define CLK_BE1			6
+#define CLK_BE2			7
+#define CLK_IEP_DRC0		8
+#define CLK_IEP_DRC1		9
+#define CLK_MERGE		10
 
-	soc@01c00000 {
-		tve0: tv-encoder@01c0a000 {
-			compatible = "allwinner,sun4i-a10-tv-encoder";
-			reg = <0x01c0a000 0x1000>;
-			clocks = <&ccu CLK_AHB_TVE>;
-			resets = <&ccu RST_TVE>;
-			status = "disabled";
+#define CLK_DRAM_FE0		11
+#define CLK_DRAM_FE1		12
+#define CLK_DRAM_FE2		13
+#define CLK_DRAM_DEU0		14
+#define CLK_DRAM_DEU1		15
+#define CLK_DRAM_BE0		16
+#define CLK_DRAM_BE1		17
+#define CLK_DRAM_BE2		18
+#define CLK_DRAM_DRC0		19
+#define CLK_DRAM_DRC1		20
 
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
+#define CLK_BUS_FE0		21
+#define CLK_BUS_FE1		22
+#define CLK_BUS_FE2		23
+#define CLK_BUS_DEU0		24
+#define CLK_BUS_DEU1		25
+#define CLK_BUS_BE0		26
+#define CLK_BUS_BE1		27
+#define CLK_BUS_BE2		28
+#define CLK_BUS_DRC0		29
+#define CLK_BUS_DRC1		30
 
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&tcon0_out_tve0>;
-				};
-			};
-		};
-	};
-};
-
-&tcon0_out {
-	tcon0_out_tve0: endpoint@1 {
-		reg = <1>;
-		remote-endpoint = <&tve0_in_tcon0>;
-	};
-};
+#endif /* _DT_BINDINGS_CLOCK_SUN9I_A80_DE_H_ */

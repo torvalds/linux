@@ -1,8 +1,8 @@
 /*
- * Copyright 2015 Free Electrons
- * Copyright 2015 NextThing Co
+ * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
  *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Based on sun8i-v3s-ccu.h, which is
+ * Copyright (C) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,45 +43,36 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun5i-a13.dtsi"
+#ifndef _DT_BINDINGS_RST_SUN8I_V3S_H_
+#define _DT_BINDINGS_RST_SUN8I_V3S_H_
 
-/ {
-	chosen {
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-	};
+#define RST_USB_PHY0		0
 
-	soc@01c00000 {
-		tve0: tv-encoder@01c0a000 {
-			compatible = "allwinner,sun4i-a10-tv-encoder";
-			reg = <0x01c0a000 0x1000>;
-			clocks = <&ccu CLK_AHB_TVE>;
-			resets = <&ccu RST_TVE>;
-			status = "disabled";
+#define RST_MBUS		1
 
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
+#define RST_BUS_CE		5
+#define RST_BUS_DMA		6
+#define RST_BUS_MMC0		7
+#define RST_BUS_MMC1		8
+#define RST_BUS_MMC2		9
+#define RST_BUS_DRAM		11
+#define RST_BUS_EMAC		12
+#define RST_BUS_HSTIMER		14
+#define RST_BUS_SPI0		15
+#define RST_BUS_OTG		17
+#define RST_BUS_EHCI0		18
+#define RST_BUS_OHCI0		22
+#define RST_BUS_VE		26
+#define RST_BUS_TCON0		27
+#define RST_BUS_CSI		30
+#define RST_BUS_DE		34
+#define RST_BUS_DBG		38
+#define RST_BUS_EPHY		39
+#define RST_BUS_CODEC		40
+#define RST_BUS_I2C0		46
+#define RST_BUS_I2C1		47
+#define RST_BUS_UART0		49
+#define RST_BUS_UART1		50
+#define RST_BUS_UART2		51
 
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&tcon0_out_tve0>;
-				};
-			};
-		};
-	};
-};
-
-&tcon0_out {
-	tcon0_out_tve0: endpoint@1 {
-		reg = <1>;
-		remote-endpoint = <&tve0_in_tcon0>;
-	};
-};
+#endif /* _DT_BINDINGS_RST_SUN8I_H3_H_ */

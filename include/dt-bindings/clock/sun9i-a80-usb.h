@@ -1,8 +1,5 @@
 /*
- * Copyright 2015 Free Electrons
- * Copyright 2015 NextThing Co
- *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,45 +40,20 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sun5i-a13.dtsi"
+#ifndef _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_
+#define _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_
 
-/ {
-	chosen {
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-	};
+#define CLK_BUS_HCI0	0
+#define CLK_USB_OHCI0	1
+#define CLK_BUS_HCI1	2
+#define CLK_BUS_HCI2	3
+#define CLK_USB_OHCI2	4
 
-	soc@01c00000 {
-		tve0: tv-encoder@01c0a000 {
-			compatible = "allwinner,sun4i-a10-tv-encoder";
-			reg = <0x01c0a000 0x1000>;
-			clocks = <&ccu CLK_AHB_TVE>;
-			resets = <&ccu RST_TVE>;
-			status = "disabled";
+#define CLK_USB0_PHY	5
+#define CLK_USB1_HSIC	6
+#define CLK_USB1_PHY	7
+#define CLK_USB2_HSIC	8
+#define CLK_USB2_PHY	9
+#define CLK_USB_HSIC	10
 
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				tve0_in_tcon0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&tcon0_out_tve0>;
-				};
-			};
-		};
-	};
-};
-
-&tcon0_out {
-	tcon0_out_tve0: endpoint@1 {
-		reg = <1>;
-		remote-endpoint = <&tve0_in_tcon0>;
-	};
-};
+#endif /* _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_ */
