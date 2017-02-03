@@ -621,6 +621,16 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	if (strncmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
 		is_crc = true;
 		crc = (unsigned int) sym->st_value;
+		if (sym->st_shndx != SHN_UNDEF && sym->st_shndx != SHN_ABS) {
+			unsigned int *crcp;
+
+			/* symbol points to the CRC in the ELF object */
+			crcp = (void *)info->hdr + sym->st_value +
+			       info->sechdrs[sym->st_shndx].sh_offset -
+			       (info->hdr->e_type != ET_REL ?
+				info->sechdrs[sym->st_shndx].sh_addr : 0);
+			crc = *crcp;
+		}
 		sym_update_crc(symname + strlen(CRC_PFX), mod, crc,
 				export);
 	}
