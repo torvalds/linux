@@ -173,7 +173,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	else
 		tile_width = 512;
 
-	if (!IS_ALIGNED(stride, tile_width))
+	if (!stride || !IS_ALIGNED(stride, tile_width))
 		return false;
 
 	/* 965+ just needs multiples of tile width */
