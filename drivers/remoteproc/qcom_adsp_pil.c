@@ -337,11 +337,6 @@ static int adsp_probe(struct platform_device *pdev)
 	if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	if (!qcom_scm_pas_supported(desc->pas_id)) {
-		dev_err(&pdev->dev, "PAS is not available for subsystem\n");
-		return -ENXIO;
-	}
-
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
 			    desc->firmware_name, sizeof(*adsp));
 	if (!rproc) {
