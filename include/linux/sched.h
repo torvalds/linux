@@ -196,15 +196,6 @@ extern void cpu_init (void);
 extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
-extern int sched_cpu_starting(unsigned int cpu);
-extern int sched_cpu_activate(unsigned int cpu);
-extern int sched_cpu_deactivate(unsigned int cpu);
-
-#ifdef CONFIG_HOTPLUG_CPU
-extern int sched_cpu_dying(unsigned int cpu);
-#else
-# define sched_cpu_dying	NULL
-#endif
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 extern signed long schedule_timeout(signed long timeout);
@@ -1496,12 +1487,6 @@ task_sched_runtime(struct task_struct *task);
 extern void sched_exec(void);
 #else
 #define sched_exec()   {}
-#endif
-
-#ifdef CONFIG_HOTPLUG_CPU
-extern void idle_task_exit(void);
-#else
-static inline void idle_task_exit(void) {}
 #endif
 
 extern int yield_to(struct task_struct *p, bool preempt);
