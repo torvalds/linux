@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
-#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/sched/hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
