@@ -788,6 +788,8 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode,
 		if (ns->ndev)
 			return nvme_nvm_ioctl(ns, cmd, arg);
 #endif
+		if (is_sed_ioctl(cmd))
+			return sed_ioctl(&ns->ctrl->opal_dev, cmd, arg);
 		return -ENOTTY;
 	}
 }
@@ -1054,6 +1056,29 @@ static const struct pr_ops nvme_pr_ops = {
 	.pr_preempt	= nvme_pr_preempt,
 	.pr_clear	= nvme_pr_clear,
 };
+
+#ifdef CONFIG_BLK_SED_OPAL
+int nvme_sec_submit(struct opal_dev *dev, u16 spsp, u8 secp,
+		    void *buffer, size_t len, bool send)
+{
+	struct nvme_command cmd;
+	struct nvme_ctrl *ctrl = NULL;
+
+	memset(&cmd, 0, sizeof(cmd));
+	if (send)
+		cmd.common.opcode = nvme_admin_security_send;
+	else
+		cmd.common.opcode = nvme_admin_security_recv;
+	ctrl = container_of(dev, struct nvme_ctrl, opal_dev);
+	cmd.common.nsid = 0;
+	cmd.common.cdw10[0] = cpu_to_le32(((u32)secp) << 24 | ((u32)spsp) << 8);
+	cmd.common.cdw10[1] = cpu_to_le32(len);
+
+	return __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, NULL, buffer, len,
+				      ADMIN_TIMEOUT, NVME_QID_ANY, 1, 0);
+}
+EXPORT_SYMBOL_GPL(nvme_sec_submit);
+#endif /* CONFIG_BLK_SED_OPAL */
 
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
