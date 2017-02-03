@@ -415,6 +415,7 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		struct shrink_control *sc, unsigned long nr_to_split)
 {
 	LIST_HEAD(list), *pos, *next;
+	LIST_HEAD(to_remove);
 	struct inode *inode;
 	struct shmem_inode_info *info;
 	struct page *page;
@@ -441,9 +442,8 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		/* Check if there's anything to gain */
 		if (round_up(inode->i_size, PAGE_SIZE) ==
 				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
-			list_del_init(&info->shrinklist);
+			list_move(&info->shrinklist, &to_remove);
 			removed++;
-			iput(inode);
 			goto next;
 		}
 
@@ -453,6 +453,13 @@ next:
 			break;
 	}
 	spin_unlock(&sbinfo->shrinklist_lock);
+
+	list_for_each_safe(pos, next, &to_remove) {
+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
+		inode = &info->vfs_inode;
+		list_del_init(&info->shrinklist);
+		iput(inode);
+	}
 
 	list_for_each_safe(pos, next, &list) {
 		int ret;
