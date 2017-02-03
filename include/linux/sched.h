@@ -16,7 +16,6 @@
 #include <linux/pid.h>
 #include <linux/seccomp.h>
 #include <linux/rculist.h>
-#include <linux/rtmutex.h>
 
 #include <linux/resource.h>
 #include <linux/hrtimer.h>
