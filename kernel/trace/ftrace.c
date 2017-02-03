@@ -4564,12 +4564,13 @@ enum graph_filter_type {
 #define FTRACE_GRAPH_EMPTY	((void *)1)
 
 struct ftrace_graph_data {
-	struct ftrace_hash *hash;
-	struct ftrace_func_entry *entry;
-	int idx;   /* for hash table iteration */
-	enum graph_filter_type type;
-	struct ftrace_hash *new_hash;
-	const struct seq_operations *seq_ops;
+	struct ftrace_hash		*hash;
+	struct ftrace_func_entry	*entry;
+	int				idx;   /* for hash table iteration */
+	enum graph_filter_type		type;
+	struct ftrace_hash		*new_hash;
+	const struct seq_operations	*seq_ops;
+	struct trace_parser		parser;
 };
 
 static void *
@@ -4676,6 +4677,9 @@ __ftrace_graph_open(struct inode *inode, struct file *file,
 	if (file->f_mode & FMODE_WRITE) {
 		const int size_bits = FTRACE_HASH_DEFAULT_BITS;
 
+		if (trace_parser_get_init(&fgd->parser, FTRACE_BUFF_MAX))
+			return -ENOMEM;
+
 		if (file->f_flags & O_TRUNC)
 			new_hash = alloc_ftrace_hash(size_bits);
 		else
@@ -4701,6 +4705,9 @@ __ftrace_graph_open(struct inode *inode, struct file *file,
 		file->private_data = fgd;
 
 out:
+	if (ret < 0 && file->f_mode & FMODE_WRITE)
+		trace_parser_put(&fgd->parser);
+
 	fgd->new_hash = new_hash;
 
 	/*
@@ -4773,6 +4780,9 @@ static int
 ftrace_graph_release(struct inode *inode, struct file *file)
 {
 	struct ftrace_graph_data *fgd;
+	struct ftrace_hash *old_hash, *new_hash;
+	struct trace_parser *parser;
+	int ret = 0;
 
 	if (file->f_mode & FMODE_READ) {
 		struct seq_file *m = file->private_data;
@@ -4783,10 +4793,50 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		fgd = file->private_data;
 	}
 
+
+	if (file->f_mode & FMODE_WRITE) {
+
+		parser = &fgd->parser;
+
+		if (trace_parser_loaded((parser))) {
+			parser->buffer[parser->idx] = 0;
+			ret = ftrace_graph_set_hash(fgd->new_hash,
+						    parser->buffer);
+		}
+
+		trace_parser_put(parser);
+
+		new_hash = __ftrace_hash_move(fgd->new_hash);
+		if (!new_hash) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		mutex_lock(&graph_lock);
+
+		if (fgd->type == GRAPH_FILTER_FUNCTION) {
+			old_hash = rcu_dereference_protected(ftrace_graph_hash,
+					lockdep_is_held(&graph_lock));
+			rcu_assign_pointer(ftrace_graph_hash, new_hash);
+		} else {
+			old_hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
+					lockdep_is_held(&graph_lock));
+			rcu_assign_pointer(ftrace_graph_notrace_hash, new_hash);
+		}
+
+		mutex_unlock(&graph_lock);
+
+		/* Wait till all users are no longer using the old hash */
+		synchronize_sched();
+
+		free_ftrace_hash(old_hash);
+	}
+
+ out:
 	kfree(fgd->new_hash);
 	kfree(fgd);
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -4848,16 +4898,12 @@ static ssize_t
 ftrace_graph_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
-	struct trace_parser parser;
 	ssize_t read, ret = 0;
 	struct ftrace_graph_data *fgd = file->private_data;
-	struct ftrace_hash *old_hash, *new_hash;
+	struct trace_parser *parser;
 
 	if (!cnt)
 		return 0;
-
-	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX))
-		return -ENOMEM;
 
 	/* Read mode uses seq functions */
 	if (file->f_mode & FMODE_READ) {
@@ -4865,43 +4911,20 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		fgd = m->private;
 	}
 
-	read = trace_get_user(&parser, ubuf, cnt, ppos);
+	parser = &fgd->parser;
 
-	if (read >= 0 && trace_parser_loaded((&parser))) {
-		parser.buffer[parser.idx] = 0;
+	read = trace_get_user(parser, ubuf, cnt, ppos);
 
-		mutex_lock(&graph_lock);
+	if (read >= 0 && trace_parser_loaded(parser) &&
+	    !trace_parser_cont(parser)) {
 
-		/* we allow only one expression at a time */
 		ret = ftrace_graph_set_hash(fgd->new_hash,
-					    parser.buffer);
-
-		new_hash = __ftrace_hash_move(fgd->new_hash);
-		if (!new_hash)
-			ret = -ENOMEM;
-
-		if (fgd->type == GRAPH_FILTER_FUNCTION) {
-			old_hash = rcu_dereference_protected(ftrace_graph_hash,
-					lockdep_is_held(&graph_lock));
-			rcu_assign_pointer(ftrace_graph_hash, new_hash);
-		} else {
-			old_hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
-					lockdep_is_held(&graph_lock));
-			rcu_assign_pointer(ftrace_graph_notrace_hash, new_hash);
-		}
-
-		mutex_unlock(&graph_lock);
-
-		/* Wait till all users are no longer using the old hash */
-		synchronize_sched();
-
-		free_ftrace_hash(old_hash);
+					    parser->buffer);
+		trace_parser_clear(parser);
 	}
 
 	if (!ret)
 		ret = read;
-
-	trace_parser_put(&parser);
 
 	return ret;
 }
