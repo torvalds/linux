@@ -1731,28 +1731,22 @@ out_failed:
 	return found;
 }
 
-void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
-				 u64 delalloc_end, struct page *locked_page,
-				 unsigned clear_bits,
-				 unsigned long page_ops)
+static void __process_pages_contig(struct address_space *mapping,
+				   struct page *locked_page,
+				   pgoff_t start_index, pgoff_t end_index,
+				   unsigned long page_ops)
 {
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
-	int ret;
+	unsigned long nr_pages = end_index - start_index + 1;
+	pgoff_t index = start_index;
 	struct page *pages[16];
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
-	unsigned long nr_pages = end_index - index + 1;
+	unsigned ret;
 	int i;
 
-	clear_extent_bit(tree, start, end, clear_bits, 1, 0, NULL, GFP_NOFS);
-	if (page_ops == 0)
-		return;
-
 	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
-		mapping_set_error(inode->i_mapping, -EIO);
+		mapping_set_error(mapping, -EIO);
 
 	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
+		ret = find_get_pages_contig(mapping, index,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
@@ -1780,6 +1774,19 @@ void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 		index += ret;
 		cond_resched();
 	}
+}
+
+void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+				 u64 delalloc_end, struct page *locked_page,
+				 unsigned clear_bits,
+				 unsigned long page_ops)
+{
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits, 1, 0,
+			 NULL, GFP_NOFS);
+
+	__process_pages_contig(inode->i_mapping, locked_page,
+			       start >> PAGE_SHIFT, end >> PAGE_SHIFT,
+			       page_ops);
 }
 
 /*
