@@ -5903,6 +5903,33 @@ out_vdd_off:
 	return false;
 }
 
+static void
+intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
+{
+	struct intel_encoder *encoder = &intel_dig_port->base;
+
+	/* Set up the hotplug pin. */
+	switch (intel_dig_port->port) {
+	case PORT_A:
+		encoder->hpd_pin = HPD_PORT_A;
+		break;
+	case PORT_B:
+		encoder->hpd_pin = HPD_PORT_B;
+		break;
+	case PORT_C:
+		encoder->hpd_pin = HPD_PORT_C;
+		break;
+	case PORT_D:
+		encoder->hpd_pin = HPD_PORT_D;
+		break;
+	case PORT_E:
+		encoder->hpd_pin = HPD_PORT_E;
+		break;
+	default:
+		MISSING_CASE(intel_dig_port->port);
+	}
+}
+
 bool
 intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			struct intel_connector *intel_connector)
@@ -5988,26 +6015,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 
-	/* Set up the hotplug pin. */
-	switch (port) {
-	case PORT_A:
-		intel_encoder->hpd_pin = HPD_PORT_A;
-		break;
-	case PORT_B:
-		intel_encoder->hpd_pin = HPD_PORT_B;
-		break;
-	case PORT_C:
-		intel_encoder->hpd_pin = HPD_PORT_C;
-		break;
-	case PORT_D:
-		intel_encoder->hpd_pin = HPD_PORT_D;
-		break;
-	case PORT_E:
-		intel_encoder->hpd_pin = HPD_PORT_E;
-		break;
-	default:
-		BUG();
-	}
+	intel_dp_init_connector_port_info(intel_dig_port);
 
 	/* init MST on ports that can support it */
 	if (HAS_DP_MST(dev_priv) && !is_edp(intel_dp) &&
