@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm64/crypto/aes-modes.S - chaining mode wrappers for AES
  *
- * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -525,3 +525,30 @@ AES_ENTRY(aes_xts_decrypt)
 	FRAME_POP
 	ret
 AES_ENDPROC(aes_xts_decrypt)
+
+	/*
+	 * aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+	 *		  int blocks, u8 dg[], int enc_before, int enc_after)
+	 */
+AES_ENTRY(aes_mac_update)
+	ld1		{v0.16b}, [x4]			/* get dg */
+	enc_prepare	w2, x1, x7
+	cbnz		w5, .Lmacenc
+
+.Lmacloop:
+	cbz		w3, .Lmacout
+	ld1		{v1.16b}, [x0], #16		/* get next pt block */
+	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
+
+	subs		w3, w3, #1
+	csinv		x5, x6, xzr, eq
+	cbz		w5, .Lmacout
+
+.Lmacenc:
+	encrypt_block	v0, w2, x1, x7, w8
+	b		.Lmacloop
+
+.Lmacout:
+	st1		{v0.16b}, [x4]			/* return dg */
+	ret
+AES_ENDPROC(aes_mac_update)
