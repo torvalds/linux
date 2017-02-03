@@ -1,9 +1,9 @@
 #ifndef _LINUX_MM_TYPES_H
 #define _LINUX_MM_TYPES_H
 
+#include <linux/mm_types_task.h>
+
 #include <linux/auxvec.h>
-#include <linux/types.h>
-#include <linux/threads.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
@@ -13,7 +13,7 @@
 #include <linux/uprobes.h>
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
-#include <asm/page.h>
+
 #include <asm/mmu.h>
 
 #ifndef AT_VECTOR_SIZE_ARCH
