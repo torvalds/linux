@@ -371,11 +371,15 @@ static bool dd_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
 {
 	struct request_queue *q = hctx->queue;
 	struct deadline_data *dd = q->elevator->elevator_data;
-	int ret;
+	struct request *free = NULL;
+	bool ret;
 
 	spin_lock(&dd->lock);
-	ret = blk_mq_sched_try_merge(q, bio);
+	ret = blk_mq_sched_try_merge(q, bio, &free);
 	spin_unlock(&dd->lock);
+
+	if (free)
+		blk_mq_free_request(free);
 
 	return ret;
 }
