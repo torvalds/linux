@@ -134,10 +134,6 @@ struct blk_plug;
 struct filename;
 struct nameidata;
 
-#define VMACACHE_BITS 2
-#define VMACACHE_SIZE (1U << VMACACHE_BITS)
-#define VMACACHE_MASK (VMACACHE_SIZE - 1)
-
 /*
  * These are the constant used to fake the fixed-point load-average
  * counting. Some notes:
@@ -1550,9 +1546,10 @@ struct task_struct {
 #endif
 
 	struct mm_struct *mm, *active_mm;
-	/* per-thread vma caching */
-	u32 vmacache_seqnum;
-	struct vm_area_struct *vmacache[VMACACHE_SIZE];
+
+	/* Per-thread vma caching: */
+	struct vmacache vmacache;
+
 #if defined(SPLIT_RSS_COUNTING)
 	struct task_rss_stat	rss_stat;
 #endif

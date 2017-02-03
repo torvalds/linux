@@ -360,6 +360,18 @@ struct vm_area_struct {
 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
 };
 
+/*
+ * The per task VMA cache array:
+ */
+#define VMACACHE_BITS 2
+#define VMACACHE_SIZE (1U << VMACACHE_BITS)
+#define VMACACHE_MASK (VMACACHE_SIZE - 1)
+
+struct vmacache {
+	u32 seqnum;
+	struct vm_area_struct *vmas[VMACACHE_SIZE];
+};
+
 struct core_thread {
 	struct task_struct *task;
 	struct core_thread *next;

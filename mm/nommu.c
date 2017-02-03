@@ -757,7 +757,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 	mm->map_count--;
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		/* if the vma is cached, invalidate the entire cache */
-		if (curr->vmacache[i] == vma) {
+		if (curr->vmacache.vmas[i] == vma) {
 			vmacache_invalidate(mm);
 			break;
 		}

@@ -232,9 +232,9 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 		int i;
 
 		for (i = 0; i < VMACACHE_SIZE; i++) {
-			if (!current->vmacache[i])
+			if (!current->vmacache.vmas[i])
 				continue;
-			flush_cache_range(current->vmacache[i],
+			flush_cache_range(current->vmacache.vmas[i],
 					  addr, addr + BREAK_INSTR_SIZE);
 		}
 	}
