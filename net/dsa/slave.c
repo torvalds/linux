@@ -1524,8 +1524,8 @@ static int dsa_slave_port_event(struct net_device *dev, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-int dsa_slave_netdevice_event(struct notifier_block *unused,
-			      unsigned long event, void *ptr)
+static int dsa_slave_netdevice_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
@@ -1533,4 +1533,22 @@ int dsa_slave_netdevice_event(struct notifier_block *unused,
 		return dsa_slave_port_event(dev, event, ptr);
 
 	return NOTIFY_DONE;
+}
+
+static struct notifier_block dsa_slave_nb __read_mostly = {
+	.notifier_call	= dsa_slave_netdevice_event,
+};
+
+int dsa_slave_register_notifier(void)
+{
+	return register_netdevice_notifier(&dsa_slave_nb);
+}
+
+void dsa_slave_unregister_notifier(void)
+{
+	int err;
+
+	err = unregister_netdevice_notifier(&dsa_slave_nb);
+	if (err)
+		pr_err("DSA: failed to unregister slave notifier (%d)\n", err);
 }
