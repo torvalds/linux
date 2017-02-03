@@ -1661,6 +1661,49 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.set_settings = virtnet_set_settings,
 };
 
+static void virtnet_freeze_down(struct virtio_device *vdev)
+{
+	struct virtnet_info *vi = vdev->priv;
+	int i;
+
+	/* Make sure no work handler is accessing the device */
+	flush_work(&vi->config_work);
+
+	netif_device_detach(vi->dev);
+	cancel_delayed_work_sync(&vi->refill);
+
+	if (netif_running(vi->dev)) {
+		for (i = 0; i < vi->max_queue_pairs; i++)
+			napi_disable(&vi->rq[i].napi);
+	}
+}
+
+static int init_vqs(struct virtnet_info *vi);
+
+static int virtnet_restore_up(struct virtio_device *vdev)
+{
+	struct virtnet_info *vi = vdev->priv;
+	int err, i;
+
+	err = init_vqs(vi);
+	if (err)
+		return err;
+
+	virtio_device_ready(vdev);
+
+	if (netif_running(vi->dev)) {
+		for (i = 0; i < vi->curr_queue_pairs; i++)
+			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
+				schedule_delayed_work(&vi->refill, 0);
+
+		for (i = 0; i < vi->max_queue_pairs; i++)
+			virtnet_napi_enable(&vi->rq[i]);
+	}
+
+	netif_device_attach(vi->dev);
+	return err;
+}
+
 static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 {
 	unsigned long int max_sz = PAGE_SIZE - sizeof(struct padded_vnet_hdr);
@@ -2353,21 +2396,9 @@ static void virtnet_remove(struct virtio_device *vdev)
 static int virtnet_freeze(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
-	int i;
 
 	virtnet_cpu_notif_remove(vi);
-
-	/* Make sure no work handler is accessing the device */
-	flush_work(&vi->config_work);
-
-	netif_device_detach(vi->dev);
-	cancel_delayed_work_sync(&vi->refill);
-
-	if (netif_running(vi->dev)) {
-		for (i = 0; i < vi->max_queue_pairs; i++)
-			napi_disable(&vi->rq[i].napi);
-	}
-
+	virtnet_freeze_down(vdev);
 	remove_vq_common(vi);
 
 	return 0;
@@ -2376,25 +2407,11 @@ static int virtnet_freeze(struct virtio_device *vdev)
 static int virtnet_restore(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
-	int err, i;
+	int err;
 
-	err = init_vqs(vi);
+	err = virtnet_restore_up(vdev);
 	if (err)
 		return err;
-
-	virtio_device_ready(vdev);
-
-	if (netif_running(vi->dev)) {
-		for (i = 0; i < vi->curr_queue_pairs; i++)
-			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
-				schedule_delayed_work(&vi->refill, 0);
-
-		for (i = 0; i < vi->max_queue_pairs; i++)
-			virtnet_napi_enable(&vi->rq[i]);
-	}
-
-	netif_device_attach(vi->dev);
-
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
 
 	err = virtnet_cpu_notif_add(vi);
