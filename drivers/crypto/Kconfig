@@ -587,4 +587,19 @@ source "drivers/crypto/chelsio/Kconfig"
 
 source "drivers/crypto/virtio/Kconfig"
 
+config CRYPTO_DEV_BCM_SPU
+	tristate "Broadcom symmetric crypto/hash acceleration support"
+	depends on ARCH_BCM_IPROC
+	depends on BCM_PDC_MBOX
+	default m
+	select CRYPTO_DES
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	help
+	  This driver provides support for Broadcom crypto acceleration using the
+	  Secure Processing Unit (SPU). The SPU driver registers ablkcipher,
+	  ahash, and aead algorithms with the kernel cryptographic API.
+
 endif # CRYPTO_HW
