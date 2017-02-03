@@ -8,7 +8,7 @@
 #include <linux/capability.h>
 #include <linux/mutex.h>
 #include <linux/plist.h>
-#include <linux/mm_types.h>
+#include <linux/mm_types_task.h>
 #include <asm/ptrace.h>
 
 #include <linux/sem.h>
