@@ -125,10 +125,8 @@ static struct fimd_driver_data exynos3_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x210,
 	.lcdblk_bypass_shift = 1,
-	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
-	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
