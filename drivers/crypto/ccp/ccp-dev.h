@@ -238,6 +238,7 @@ struct ccp_dma_chan {
 	struct ccp_device *ccp;
 
 	spinlock_t lock;
+	struct list_head created;
 	struct list_head pending;
 	struct list_head active;
 	struct list_head complete;
