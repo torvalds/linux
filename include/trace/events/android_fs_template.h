@@ -5,11 +5,10 @@
 
 DECLARE_EVENT_CLASS(android_fs_data_start_template,
 	TP_PROTO(struct inode *inode, loff_t offset, int bytes,
-		 pid_t pid, char *command),
-	TP_ARGS(inode, offset, bytes, pid, command),
+		 pid_t pid, char *pathname, char *command),
+	TP_ARGS(inode, offset, bytes, pid, pathname, command),
 	TP_STRUCT__entry(
-		__array(char, path, MAX_FILTER_STR_VAL);
-		__field(char *, pathname);
+		__string(pathbuf, pathname);
 		__field(loff_t,	offset);
 		__field(int,	bytes);
 		__field(loff_t,	i_size);
@@ -19,27 +18,7 @@ DECLARE_EVENT_CLASS(android_fs_data_start_template,
 	),
 	TP_fast_assign(
 		{
-			struct dentry *d;
-
-			/*
-			 * Grab a reference to the inode here because
-			 * d_obtain_alias() will either drop the inode
-			 * reference if it locates an existing dentry
-			 * or transfer the reference to the new dentry
-			 * created. In our case, the file is still open,
-			 * so the dentry is guaranteed to exist (connected),
-			 * so d_obtain_alias() drops the reference we
-			 * grabbed here.
-			 */
-			ihold(inode);
-			d = d_obtain_alias(inode);
-			if (!IS_ERR(d)) {
-				__entry->pathname = dentry_path(d,
-							__entry->path,
-							MAX_FILTER_STR_VAL);
-				dput(d);
-			} else
-				__entry->pathname = ERR_PTR(-EINVAL);
+			__assign_str(pathbuf, pathname);
 			__entry->offset		= offset;
 			__entry->bytes		= bytes;
 			__entry->i_size		= i_size_read(inode);
@@ -50,9 +29,8 @@ DECLARE_EVENT_CLASS(android_fs_data_start_template,
 	),
 	TP_printk("entry_name %s, offset %llu, bytes %d, cmdline %s,"
 		  " pid %d, i_size %llu, ino %lu",
-		  (IS_ERR(__entry->pathname) ? "ERROR" : __entry->pathname),
-		  __entry->offset, __entry->bytes, __get_str(cmdline),
-		  __entry->pid, __entry->i_size,
+		  __get_str(pathbuf), __entry->offset, __entry->bytes,
+		  __get_str(cmdline), __entry->pid, __entry->i_size,
 		  (unsigned long) __entry->ino)
 );
 
