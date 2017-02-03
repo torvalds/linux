@@ -42,7 +42,7 @@ nouveau_led(struct drm_device *dev)
 }
 
 /* nouveau_led.c */
-#if IS_ENABLED(CONFIG_LEDS_CLASS)
+#if IS_REACHABLE(CONFIG_LEDS_CLASS)
 int  nouveau_led_init(struct drm_device *dev);
 void nouveau_led_suspend(struct drm_device *dev);
 void nouveau_led_resume(struct drm_device *dev);
