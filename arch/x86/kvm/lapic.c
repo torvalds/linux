@@ -529,16 +529,14 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 
 static int pv_eoi_put_user(struct kvm_vcpu *vcpu, u8 val)
 {
-
-	return kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data, &val,
-				      sizeof(val));
+	return kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.pv_eoi.data, &val,
+					   sizeof(val));
 }
 
 static int pv_eoi_get_user(struct kvm_vcpu *vcpu, u8 *val)
 {
-
-	return kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data, val,
-				      sizeof(*val));
+	return kvm_vcpu_read_guest_cached(vcpu, &vcpu->arch.pv_eoi.data, val,
+					  sizeof(*val));
 }
 
 static inline bool pv_eoi_enabled(struct kvm_vcpu *vcpu)
@@ -2287,8 +2285,8 @@ void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)
 	if (!test_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention))
 		return;
 
-	if (kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.apic->vapic_cache, &data,
-				  sizeof(u32)))
+	if (kvm_vcpu_read_guest_cached(vcpu, &vcpu->arch.apic->vapic_cache, &data,
+				       sizeof(u32)))
 		return;
 
 	apic_set_tpr(vcpu->arch.apic, data & 0xff);
@@ -2340,14 +2338,14 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
 		max_isr = 0;
 	data = (tpr & 0xff) | ((max_isr & 0xf0) << 8) | (max_irr << 24);
 
-	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.apic->vapic_cache, &data,
-				sizeof(u32));
+	kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.apic->vapic_cache, &data,
+				    sizeof(u32));
 }
 
 int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr)
 {
 	if (vapic_addr) {
-		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
+		if (kvm_vcpu_gfn_to_hva_cache_init(vcpu,
 					&vcpu->arch.apic->vapic_cache,
 					vapic_addr, sizeof(u32)))
 			return -EINVAL;
@@ -2441,7 +2439,7 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
 	vcpu->arch.pv_eoi.msr_val = data;
 	if (!pv_eoi_enabled(vcpu))
 		return 0;
-	return kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.pv_eoi.data,
+	return kvm_vcpu_gfn_to_hva_cache_init(vcpu, &vcpu->arch.pv_eoi.data,
 					 addr, sizeof(u8));
 }
 

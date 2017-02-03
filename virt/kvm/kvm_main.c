@@ -1981,18 +1981,18 @@ static int __kvm_gfn_to_hva_cache_init(struct kvm_memslots *slots,
 	return 0;
 }
 
-int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+int kvm_vcpu_gfn_to_hva_cache_init(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
 			      gpa_t gpa, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
 	return __kvm_gfn_to_hva_cache_init(slots, ghc, gpa, len);
 }
-EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
+EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_hva_cache_init);
 
-int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-			   void *data, int offset, unsigned long len)
+int kvm_vcpu_write_guest_offset_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
+				       void *data, int offset, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
 	int r;
 	gpa_t gpa = ghc->gpa + offset;
 
@@ -2002,7 +2002,7 @@ int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
 
 	if (unlikely(!ghc->memslot))
-		return kvm_write_guest(kvm, gpa, data, len);
+		return kvm_vcpu_write_guest(vcpu, gpa, data, len);
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
@@ -2014,19 +2014,19 @@ int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_write_guest_offset_cached);
+EXPORT_SYMBOL_GPL(kvm_vcpu_write_guest_offset_cached);
 
-int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-			   void *data, unsigned long len)
+int kvm_vcpu_write_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
+			       void *data, unsigned long len)
 {
-	return kvm_write_guest_offset_cached(kvm, ghc, data, 0, len);
+	return kvm_vcpu_write_guest_offset_cached(vcpu, ghc, data, 0, len);
 }
-EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
+EXPORT_SYMBOL_GPL(kvm_vcpu_write_guest_cached);
 
-int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-			   void *data, unsigned long len)
+int kvm_vcpu_read_guest_cached(struct kvm_vcpu *vcpu, struct gfn_to_hva_cache *ghc,
+			       void *data, unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memslots *slots = kvm_vcpu_memslots(vcpu);
 	int r;
 
 	BUG_ON(len > ghc->len);
@@ -2035,7 +2035,7 @@ int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
 
 	if (unlikely(!ghc->memslot))
-		return kvm_read_guest(kvm, ghc->gpa, data, len);
+		return kvm_vcpu_read_guest(vcpu, ghc->gpa, data, len);
 
 	if (kvm_is_error_hva(ghc->hva))
 		return -EFAULT;
@@ -2046,7 +2046,7 @@ int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_read_guest_cached);
+EXPORT_SYMBOL_GPL(kvm_vcpu_read_guest_cached);
 
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 {
