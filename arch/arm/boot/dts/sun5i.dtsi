@@ -159,6 +159,19 @@
 			#dma-cells = <2>;
 		};
 
+		nfc: nand@01c03000 {
+			compatible = "allwinner,sun4i-a10-nand";
+			reg = <0x01c03000 0x1000>;
+			interrupts = <37>;
+			clocks = <&ccu CLK_AHB_NAND>, <&ccu CLK_NAND>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma SUN4I_DMA_DEDICATED 3>;
+			dma-names = "rxtx";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		spi0: spi@01c05000 {
 			compatible = "allwinner,sun4i-a10-spi";
 			reg = <0x01c05000 0x1000>;
@@ -406,6 +419,11 @@
 				function = "i2c2";
 			};
 
+			ir0_rx_pins_a: ir0@0 {
+				pins = "PB4";
+				function = "ir0";
+			};
+
 			lcd_rgb565_pins: lcd_rgb565@0 {
 				pins = "PD3", "PD4", "PD5", "PD6", "PD7",
 						 "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
@@ -445,6 +463,24 @@
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;
+			};
+
+			nand_pins_a: nand-base0@0 {
+				pins = "PC0", "PC1", "PC2",
+				       "PC5", "PC8", "PC9", "PC10",
+				       "PC11", "PC12", "PC13", "PC14",
+				       "PC15";
+				function = "nand0";
+			};
+
+			nand_cs0_pins_a: nand-cs@0 {
+				pins = "PC4";
+				function = "nand0";
+			};
+
+			nand_rb0_pins_a: nand-rb@0 {
+				pins = "PC6";
+				function = "nand0";
 			};
 
 			spi2_pins_a: spi2@0 {
@@ -503,6 +539,15 @@
 		wdt: watchdog@01c20c90 {
 			compatible = "allwinner,sun4i-a10-wdt";
 			reg = <0x01c20c90 0x10>;
+		};
+
+		ir0: ir@01c21800 {
+			compatible = "allwinner,sun4i-a10-ir";
+			clocks = <&ccu CLK_APB0_IR>, <&ccu CLK_IR>;
+			clock-names = "apb", "ir";
+			interrupts = <5>;
+			reg = <0x01c21800 0x40>;
+			status = "disabled";
 		};
 
 		lradc: lradc@01c22800 {
