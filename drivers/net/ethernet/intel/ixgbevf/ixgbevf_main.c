@@ -457,16 +457,6 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
 			   struct sk_buff *skb)
 {
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	skb_mark_napi_id(skb, &q_vector->napi);
-
-	if (ixgbevf_qv_busy_polling(q_vector)) {
-		netif_receive_skb(skb);
-		/* exit early if we busy polled */
-		return;
-	}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
@@ -1031,10 +1021,6 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 
 	if (budget <= 0)
 		return budget;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	if (!ixgbevf_qv_lock_napi(q_vector))
-		return budget;
-#endif
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
 	 * the budget to go below 1 because we'll exit polling
@@ -1051,10 +1037,6 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 		if (cleaned >= per_ring_budget)
 			clean_complete = false;
 	}
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	ixgbevf_qv_unlock_napi(q_vector);
-#endif
 
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
@@ -1089,40 +1071,6 @@ void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-/* must be called with local_bh_disable()d */
-static int ixgbevf_busy_poll_recv(struct napi_struct *napi)
-{
-	struct ixgbevf_q_vector *q_vector =
-			container_of(napi, struct ixgbevf_q_vector, napi);
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	struct ixgbevf_ring  *ring;
-	int found = 0;
-
-	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
-		return LL_FLUSH_FAILED;
-
-	if (!ixgbevf_qv_lock_poll(q_vector))
-		return LL_FLUSH_BUSY;
-
-	ixgbevf_for_each_ring(ring, q_vector->rx) {
-		found = ixgbevf_clean_rx_irq(q_vector, ring, 4);
-#ifdef BP_EXTENDED_STATS
-		if (found)
-			ring->stats.cleaned += found;
-		else
-			ring->stats.misses++;
-#endif
-		if (found)
-			break;
-	}
-
-	ixgbevf_qv_unlock_poll(q_vector);
-
-	return found;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * ixgbevf_configure_msix - Configure MSI-X hardware
@@ -1960,9 +1908,6 @@ static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		q_vector = adapter->q_vector[q_idx];
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		ixgbevf_qv_init_lock(adapter->q_vector[q_idx]);
-#endif
 		napi_enable(&q_vector->napi);
 	}
 }
@@ -1976,12 +1921,6 @@ static void ixgbevf_napi_disable_all(struct ixgbevf_adapter *adapter)
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		q_vector = adapter->q_vector[q_idx];
 		napi_disable(&q_vector->napi);
-#ifdef CONFIG_NET_RX_BUSY_POLL
-		while (!ixgbevf_qv_disable(adapter->q_vector[q_idx])) {
-			pr_info("QV %d locked\n", q_idx);
-			usleep_range(1000, 20000);
-		}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 	}
 }
 
@@ -3978,9 +3917,6 @@ static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= ixgbevf_busy_poll_recv,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbevf_netpoll,
 #endif
