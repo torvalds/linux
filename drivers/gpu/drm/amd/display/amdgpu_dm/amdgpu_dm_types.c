@@ -638,6 +638,10 @@ static void update_stream_scaling_settings(
 	struct rect src = { 0 }; /* viewport in composition space*/
 	struct rect dst = { 0 }; /* stream addressable area */
 
+	/* no mode. nothing to be done */
+	if (!mode)
+		return;
+
 	/* Full screen scaling by default */
 	src.width = mode->hdisplay;
 	src.height = mode->vdisplay;
