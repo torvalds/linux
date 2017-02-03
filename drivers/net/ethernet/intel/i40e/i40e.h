@@ -353,8 +353,12 @@ struct i40e_pf {
 #define I40E_FLAG_CLIENT_L2_CHANGE		BIT_ULL(56)
 #define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(57)
 
-	/* tracks features that get auto disabled by errors */
-	u64 auto_disable_flags;
+	/* Tracks features that are disabled due to hw limitations.
+	 * If a bit is set here, it means that the corresponding
+	 * bit in the 'flags' field is cleared i.e that feature
+	 * is disabled
+	 */
+	u64 hw_disabled_flags;
 
 #ifdef I40E_FCOE
 	struct i40e_fcoe fcoe;
