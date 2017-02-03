@@ -31,7 +31,7 @@
 
 #define CPUFREQ_ETERNAL			(-1)
 #define CPUFREQ_NAME_LEN		16
-/* Print length for names. Extra 1 space for accomodating '\n' in prints */
+/* Print length for names. Extra 1 space for accommodating '\n' in prints */
 #define CPUFREQ_NAME_PLEN		(CPUFREQ_NAME_LEN + 1)
 
 struct cpufreq_governor;
@@ -115,7 +115,7 @@ struct cpufreq_policy {
 	 *   guarantee that frequency can be changed on any CPU sharing the
 	 *   policy and that the change will affect all of the policy CPUs then.
 	 * - fast_switch_enabled is to be set by governors that support fast
-	 *   freqnency switching with the help of cpufreq_enable_fast_switch().
+	 *   frequency switching with the help of cpufreq_enable_fast_switch().
 	 */
 	bool			fast_switch_possible;
 	bool			fast_switch_enabled;
