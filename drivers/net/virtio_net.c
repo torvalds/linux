@@ -1305,7 +1305,7 @@ static void virtnet_ack_link_announce(struct virtnet_info *vi)
 	rtnl_unlock();
 }
 
-static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
+static int _virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 {
 	struct scatterlist sg;
 	struct net_device *dev = vi->dev;
@@ -1329,6 +1329,16 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 	}
 
 	return 0;
+}
+
+static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
+{
+	int err;
+
+	rtnl_lock();
+	err = _virtnet_set_queues(vi, queue_pairs);
+	rtnl_unlock();
+	return err;
 }
 
 static int virtnet_close(struct net_device *dev)
@@ -1583,7 +1593,7 @@ static int virtnet_set_channels(struct net_device *dev,
 		return -EINVAL;
 
 	get_online_cpus();
-	err = virtnet_set_queues(vi, queue_pairs);
+	err = _virtnet_set_queues(vi, queue_pairs);
 	if (!err) {
 		netif_set_real_num_tx_queues(dev, queue_pairs);
 		netif_set_real_num_rx_queues(dev, queue_pairs);
@@ -1715,7 +1725,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		return -ENOMEM;
 	}
 
-	err = virtnet_set_queues(vi, curr_qp + xdp_qp);
+	err = _virtnet_set_queues(vi, curr_qp + xdp_qp);
 	if (err) {
 		dev_warn(&dev->dev, "XDP Device queue allocation failure.\n");
 		return err;
@@ -1724,7 +1734,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	if (prog) {
 		prog = bpf_prog_add(prog, vi->max_queue_pairs - 1);
 		if (IS_ERR(prog)) {
-			virtnet_set_queues(vi, curr_qp);
+			_virtnet_set_queues(vi, curr_qp);
 			return PTR_ERR(prog);
 		}
 	}
@@ -1840,12 +1850,11 @@ static void virtnet_free_queues(struct virtnet_info *vi)
 	kfree(vi->sq);
 }
 
-static void free_receive_bufs(struct virtnet_info *vi)
+static void _free_receive_bufs(struct virtnet_info *vi)
 {
 	struct bpf_prog *old_prog;
 	int i;
 
-	rtnl_lock();
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		while (vi->rq[i].pages)
 			__free_pages(get_a_page(&vi->rq[i], GFP_KERNEL), 0);
@@ -1855,6 +1864,12 @@ static void free_receive_bufs(struct virtnet_info *vi)
 		if (old_prog)
 			bpf_prog_put(old_prog);
 	}
+}
+
+static void free_receive_bufs(struct virtnet_info *vi)
+{
+	rtnl_lock();
+	_free_receive_bufs(vi);
 	rtnl_unlock();
 }
 
@@ -2293,9 +2308,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 		goto free_unregister_netdev;
 	}
 
-	rtnl_lock();
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
-	rtnl_unlock();
 
 	/* Assume link up if device can't report link status,
 	   otherwise get link status from config. */
@@ -2404,9 +2417,7 @@ static int virtnet_restore(struct virtio_device *vdev)
 
 	netif_device_attach(vi->dev);
 
-	rtnl_lock();
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
-	rtnl_unlock();
 
 	err = virtnet_cpu_notif_add(vi);
 	if (err)
