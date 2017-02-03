@@ -53,6 +53,10 @@ static bool construct(struct sink *sink, const struct dc_sink_init_data *init_pa
 
 	struct core_link *core_link = DC_LINK_TO_LINK(init_params->link);
 
+	if (!core_link) {
+		return false;
+	}
+
 	sink->protected.public.sink_signal = init_params->sink_signal;
 	sink->protected.link = core_link;
 	sink->protected.ctx = core_link->ctx;
