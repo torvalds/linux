@@ -165,28 +165,10 @@ struct task_group;
 /* Task command name length */
 #define TASK_COMM_LEN 16
 
-#include <linux/spinlock.h>
-
-/*
- * This serializes "schedule()" and also protects
- * the run-queue from deletions/modifications (but
- * _adding_ to the beginning of the run-queue has
- * a separate lock).
- */
-extern rwlock_t tasklist_lock;
-extern spinlock_t mmlist_lock;
-
 struct task_struct;
-
-#ifdef CONFIG_PROVE_RCU
-extern int lockdep_tasklist_lock_is_held(void);
-#endif /* #ifdef CONFIG_PROVE_RCU */
 
 extern void sched_init(void);
 extern void sched_init_smp(void);
-extern asmlinkage void schedule_tail(struct task_struct *prev);
-extern void init_idle(struct task_struct *idle, int cpu);
-extern void init_idle_bootup_task(struct task_struct *idle);
 
 extern cpumask_var_t cpu_isolated_map;
 
@@ -210,8 +192,6 @@ extern int __must_check io_schedule_prepare(void);
 extern void io_schedule_finish(int token);
 extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
-
-void __noreturn do_task_dead(void);
 
 struct nsproxy;
 
@@ -1120,24 +1100,6 @@ struct task_struct {
  */
 };
 
-#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
-extern int arch_task_struct_size __read_mostly;
-#else
-# define arch_task_struct_size (sizeof(struct task_struct))
-#endif
-
-#ifdef CONFIG_VMAP_STACK
-static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
-{
-	return t->stack_vm_area;
-}
-#else
-static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
-{
-	return NULL;
-}
-#endif
-
 static inline struct pid *task_pid(struct task_struct *task)
 {
 	return task->pids[PIDTYPE_PID].pid;
@@ -1429,21 +1391,6 @@ TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
 TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
 TASK_PFA_SET(LMK_WAITING, lmk_waiting)
 
-static inline void rcu_copy_process(struct task_struct *p)
-{
-#ifdef CONFIG_PREEMPT_RCU
-	p->rcu_read_lock_nesting = 0;
-	p->rcu_read_unlock_special.s = 0;
-	p->rcu_blocked_node = NULL;
-	INIT_LIST_HEAD(&p->rcu_node_entry);
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
-#ifdef CONFIG_TASKS_RCU
-	p->rcu_tasks_holdout = false;
-	INIT_LIST_HEAD(&p->rcu_tasks_holdout_list);
-	p->rcu_tasks_idle_cpu = -1;
-#endif /* #ifdef CONFIG_TASKS_RCU */
-}
-
 static inline void tsk_restore_flags(struct task_struct *task,
 				unsigned long orig_flags, unsigned long flags)
 {
@@ -1572,44 +1519,10 @@ extern void wake_up_new_task(struct task_struct *tsk);
 #else
  static inline void kick_process(struct task_struct *tsk) { }
 #endif
-extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
-extern void sched_dead(struct task_struct *p);
-
-extern void proc_caches_init(void);
-
-extern void release_task(struct task_struct * p);
-
-#ifdef CONFIG_HAVE_COPY_THREAD_TLS
-extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, unsigned long);
-#else
-extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *);
-
-/* Architectures that haven't opted into copy_thread_tls get the tls argument
- * via pt_regs, so ignore the tls argument passed via C. */
-static inline int copy_thread_tls(
-		unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
-{
-	return copy_thread(clone_flags, sp, arg, p);
-}
-#endif
-extern void flush_thread(void);
-
-#ifdef CONFIG_HAVE_EXIT_THREAD
-extern void exit_thread(struct task_struct *tsk);
-#else
-static inline void exit_thread(struct task_struct *tsk)
-{
-}
-#endif
 
 extern void exit_files(struct task_struct *);
 
 extern void exit_itimers(struct signal_struct *);
-
-extern void do_group_exit(int);
 
 extern int do_execve(struct filename *,
 		     const char __user * const __user *,
@@ -1618,10 +1531,6 @@ extern int do_execveat(int, struct filename *,
 		       const char __user * const __user *,
 		       const char __user * const __user *,
 		       int);
-extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
-extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
-struct task_struct *fork_idle(int);
-extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
 static inline void set_task_comm(struct task_struct *tsk, const char *from)
