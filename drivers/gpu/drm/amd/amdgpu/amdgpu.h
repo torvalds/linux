@@ -1803,6 +1803,19 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 		return NULL;
 }
 
+static inline bool amdgpu_is_mec_queue_enabled(struct amdgpu_device *adev,
+						int mec, int pipe, int queue)
+{
+	int bit = 0;
+
+	bit += mec * adev->gfx.mec.num_pipe_per_mec
+		* adev->gfx.mec.num_queue_per_pipe;
+	bit += pipe * adev->gfx.mec.num_queue_per_pipe;
+	bit += queue;
+
+	return test_bit(bit, adev->gfx.mec.queue_bitmap);
+}
+
 /*
  * ASICs macro.
  */

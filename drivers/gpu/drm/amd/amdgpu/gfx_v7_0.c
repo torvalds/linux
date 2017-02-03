@@ -4752,11 +4752,42 @@ static void gfx_v7_0_gpu_early_init(struct amdgpu_device *adev)
 	adev->gfx.config.gb_addr_config = gb_addr_config;
 }
 
+static int gfx_v7_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
+					int mec, int pipe, int queue)
+{
+	int r;
+	unsigned irq_type;
+	struct amdgpu_ring *ring = &adev->gfx.compute_ring[ring_id];
+
+	/* mec0 is me1 */
+	ring->me = mec + 1;
+	ring->pipe = pipe;
+	ring->queue = queue;
+
+	ring->ring_obj = NULL;
+	ring->use_doorbell = true;
+	ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
+	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
+
+	irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
+		+ ((ring->me - 1) * adev->gfx.mec.num_pipe_per_mec)
+		+ ring->pipe;
+
+	/* type-2 packets are deprecated on MEC, use type-3 instead */
+	r = amdgpu_ring_init(adev, ring, 1024,
+			&adev->gfx.eop_irq, irq_type);
+	if (r)
+		return r;
+
+
+	return 0;
+}
+
 static int gfx_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i, r, ring_id;
+	int i, j, k, r, ring_id;
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
@@ -4806,39 +4837,23 @@ static int gfx_v7_0_sw_init(void *handle)
 			return r;
 	}
 
-	/* set up the compute queues */
-	for (i = 0, ring_id = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; i++) {
-		unsigned irq_type;
+	/* set up the compute queues - allocate horizontally across pipes */
+	ring_id = 0;
+	for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
+		for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
+			for (k = 0; k < adev->gfx.mec.num_pipe_per_mec; k++) {
+				if (!amdgpu_is_mec_queue_enabled(adev, i, k, j))
+					continue;
 
-		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
-			continue;
+				r = gfx_v7_0_compute_ring_init(adev,
+								ring_id,
+								i, k, j);
+				if (r)
+					return r;
 
-		ring = &adev->gfx.compute_ring[ring_id];
-
-		/* mec0 is me1 */
-		ring->me = ((i / adev->gfx.mec.num_queue_per_pipe)
-				/ adev->gfx.mec.num_pipe_per_mec)
-				+ 1;
-		ring->pipe = (i / adev->gfx.mec.num_queue_per_pipe)
-				% adev->gfx.mec.num_pipe_per_mec;
-		ring->queue = i % adev->gfx.mec.num_queue_per_pipe;
-
-		ring->ring_obj = NULL;
-		ring->use_doorbell = true;
-		ring->doorbell_index = AMDGPU_DOORBELL_MEC_RING0 + ring_id;
-		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
-
-		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
-			+ ((ring->me - 1) * adev->gfx.mec.num_pipe_per_mec)
-			+ ring->pipe;
-
-		/* type-2 packets are deprecated on MEC, use type-3 instead */
-		r = amdgpu_ring_init(adev, ring, 1024,
-				     &adev->gfx.eop_irq, irq_type);
-		if (r)
-			return r;
-
-		ring_id++;
+				ring_id++;
+			}
+		}
 	}
 
 	/* reserve GDS, GWS and OA resource for gfx */
