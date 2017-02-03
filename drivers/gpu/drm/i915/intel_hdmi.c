@@ -1868,14 +1868,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	switch (port) {
 	case PORT_B:
-		/*
-		 * On BXT A0/A1, sw needs to activate DDIA HPD logic and
-		 * interrupts to check the external panel connection.
-		 */
-		if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-			intel_encoder->hpd_pin = HPD_PORT_A;
-		else
-			intel_encoder->hpd_pin = HPD_PORT_B;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;

@@ -5995,8 +5995,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		break;
 	case PORT_B:
 		intel_encoder->hpd_pin = HPD_PORT_B;
-		if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-			intel_encoder->hpd_pin = HPD_PORT_A;
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
