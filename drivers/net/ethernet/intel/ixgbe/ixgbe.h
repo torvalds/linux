@@ -55,9 +55,6 @@
 
 #include <net/busy_poll.h>
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#define BP_EXTENDED_STATS
-#endif
 /* common prefix used by pr_<> macros */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -201,11 +198,6 @@ struct ixgbe_rx_buffer {
 struct ixgbe_queue_stats {
 	u64 packets;
 	u64 bytes;
-#ifdef BP_EXTENDED_STATS
-	u64 yields;
-	u64 misses;
-	u64 cleaned;
-#endif  /* BP_EXTENDED_STATS */
 };
 
 struct ixgbe_tx_queue_stats {
@@ -399,126 +391,9 @@ struct ixgbe_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	atomic_t state;
-#endif  /* CONFIG_NET_RX_BUSY_POLL */
-
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-enum ixgbe_qv_state_t {
-	IXGBE_QV_STATE_IDLE = 0,
-	IXGBE_QV_STATE_NAPI,
-	IXGBE_QV_STATE_POLL,
-	IXGBE_QV_STATE_DISABLE
-};
-
-static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
-{
-	/* reset state to idle */
-	atomic_set(&q_vector->state, IXGBE_QV_STATE_IDLE);
-}
-
-/* called from the device poll routine to get ownership of a q_vector */
-static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
-{
-	int rc = atomic_cmpxchg(&q_vector->state, IXGBE_QV_STATE_IDLE,
-				IXGBE_QV_STATE_NAPI);
-#ifdef BP_EXTENDED_STATS
-	if (rc != IXGBE_QV_STATE_IDLE)
-		q_vector->tx.ring->stats.yields++;
-#endif
-
-	return rc == IXGBE_QV_STATE_IDLE;
-}
-
-/* returns true is someone tried to get the qv while napi had it */
-static inline void ixgbe_qv_unlock_napi(struct ixgbe_q_vector *q_vector)
-{
-	WARN_ON(atomic_read(&q_vector->state) != IXGBE_QV_STATE_NAPI);
-
-	/* flush any outstanding Rx frames */
-	if (q_vector->napi.gro_list)
-		napi_gro_flush(&q_vector->napi, false);
-
-	/* reset state to idle */
-	atomic_set(&q_vector->state, IXGBE_QV_STATE_IDLE);
-}
-
-/* called from ixgbe_low_latency_poll() */
-static inline bool ixgbe_qv_lock_poll(struct ixgbe_q_vector *q_vector)
-{
-	int rc = atomic_cmpxchg(&q_vector->state, IXGBE_QV_STATE_IDLE,
-				IXGBE_QV_STATE_POLL);
-#ifdef BP_EXTENDED_STATS
-	if (rc != IXGBE_QV_STATE_IDLE)
-		q_vector->rx.ring->stats.yields++;
-#endif
-	return rc == IXGBE_QV_STATE_IDLE;
-}
-
-/* returns true if someone tried to get the qv while it was locked */
-static inline void ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
-{
-	WARN_ON(atomic_read(&q_vector->state) != IXGBE_QV_STATE_POLL);
-
-	/* reset state to idle */
-	atomic_set(&q_vector->state, IXGBE_QV_STATE_IDLE);
-}
-
-/* true if a socket is polling, even if it did not get the lock */
-static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
-{
-	return atomic_read(&q_vector->state) == IXGBE_QV_STATE_POLL;
-}
-
-/* false if QV is currently owned */
-static inline bool ixgbe_qv_disable(struct ixgbe_q_vector *q_vector)
-{
-	int rc = atomic_cmpxchg(&q_vector->state, IXGBE_QV_STATE_IDLE,
-				IXGBE_QV_STATE_DISABLE);
-
-	return rc == IXGBE_QV_STATE_IDLE;
-}
-
-#else /* CONFIG_NET_RX_BUSY_POLL */
-static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
-{
-}
-
-static inline bool ixgbe_qv_lock_napi(struct ixgbe_q_vector *q_vector)
-{
-	return true;
-}
-
-static inline bool ixgbe_qv_unlock_napi(struct ixgbe_q_vector *q_vector)
-{
-	return false;
-}
-
-static inline bool ixgbe_qv_lock_poll(struct ixgbe_q_vector *q_vector)
-{
-	return false;
-}
-
-static inline bool ixgbe_qv_unlock_poll(struct ixgbe_q_vector *q_vector)
-{
-	return false;
-}
-
-static inline bool ixgbe_qv_busy_polling(struct ixgbe_q_vector *q_vector)
-{
-	return false;
-}
-
-static inline bool ixgbe_qv_disable(struct ixgbe_q_vector *q_vector)
-{
-	return true;
-}
-
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #ifdef CONFIG_IXGBE_HWMON
 

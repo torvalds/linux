@@ -853,11 +853,6 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	/* initialize busy poll */
-	atomic_set(&q_vector->state, IXGBE_QV_STATE_DISABLE);
-
-#endif
 	/* tie q_vector and adapter together */
 	adapter->q_vector[v_idx] = q_vector;
 	q_vector->adapter = adapter;

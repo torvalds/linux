@@ -1720,11 +1720,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
-	skb_mark_napi_id(skb, &q_vector->napi);
-	if (ixgbe_qv_busy_polling(q_vector))
-		netif_receive_skb(skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
+	napi_gro_receive(&q_vector->napi, skb);
 }
 
 /**
@@ -2200,40 +2196,6 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 	return total_rx_packets;
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-/* must be called with local_bh_disable()d */
-static int ixgbe_low_latency_recv(struct napi_struct *napi)
-{
-	struct ixgbe_q_vector *q_vector =
-			container_of(napi, struct ixgbe_q_vector, napi);
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring  *ring;
-	int found = 0;
-
-	if (test_bit(__IXGBE_DOWN, &adapter->state))
-		return LL_FLUSH_FAILED;
-
-	if (!ixgbe_qv_lock_poll(q_vector))
-		return LL_FLUSH_BUSY;
-
-	ixgbe_for_each_ring(ring, q_vector->rx) {
-		found = ixgbe_clean_rx_irq(q_vector, ring, 4);
-#ifdef BP_EXTENDED_STATS
-		if (found)
-			ring->stats.cleaned += found;
-		else
-			ring->stats.misses++;
-#endif
-		if (found)
-			break;
-	}
-
-	ixgbe_qv_unlock_poll(q_vector);
-
-	return found;
-}
-#endif	/* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * ixgbe_configure_msix - Configure MSI-X hardware
@@ -2878,8 +2840,8 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* Exit if we are called by netpoll or busy polling is active */
-	if ((budget <= 0) || !ixgbe_qv_lock_napi(q_vector))
+	/* Exit if we are called by netpoll */
+	if (budget <= 0)
 		return budget;
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
@@ -2898,7 +2860,6 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	ixgbe_qv_unlock_napi(q_vector);
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
@@ -4581,23 +4542,16 @@ static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
 
-	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++) {
-		ixgbe_qv_init_lock(adapter->q_vector[q_idx]);
+	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++)
 		napi_enable(&adapter->q_vector[q_idx]->napi);
-	}
 }
 
 static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
 
-	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++) {
+	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++)
 		napi_disable(&adapter->q_vector[q_idx]->napi);
-		while (!ixgbe_qv_disable(adapter->q_vector[q_idx])) {
-			pr_info("QV %d locked\n", q_idx);
-			usleep_range(1000, 20000);
-		}
-	}
 }
 
 static void ixgbe_clear_udp_tunnel_port(struct ixgbe_adapter *adapter, u32 mask)
@@ -9351,9 +9305,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_setup_tc		= __ixgbe_setup_tc,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
-#endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= ixgbe_low_latency_recv,
 #endif
 #ifdef IXGBE_FCOE
 	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
