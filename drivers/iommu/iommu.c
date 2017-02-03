@@ -1869,13 +1869,14 @@ int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids)
 		fwspec = krealloc(dev->iommu_fwspec, size, GFP_KERNEL);
 		if (!fwspec)
 			return -ENOMEM;
+
+		dev->iommu_fwspec = fwspec;
 	}
 
 	for (i = 0; i < num_ids; i++)
 		fwspec->ids[fwspec->num_ids + i] = ids[i];
 
 	fwspec->num_ids += num_ids;
-	dev->iommu_fwspec = fwspec;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_fwspec_add_ids);
