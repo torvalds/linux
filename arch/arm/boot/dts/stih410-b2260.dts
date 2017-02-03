@@ -63,6 +63,7 @@
 		uart0: serial@9830000 {
 			label = "LS-UART0";
 			status = "okay";
+			rts-gpios = <&pio17 3 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Low speed expansion connector */
