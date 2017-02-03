@@ -73,11 +73,15 @@ static irqreturn_t dpc_irq(int irq, void *context)
 
 	if (status & PCI_EXP_DPC_STATUS_TRIGGER) {
 		u16 reason = (status >> 1) & 0x3;
+		u16 ext_reason = (status >> 5) & 0x3;
 
-		dev_warn(&dpc->dev->device, "DPC %s triggered, remove downstream devices\n",
+		dev_warn(&dpc->dev->device, "DPC %s detected, remove downstream devices\n",
 			 (reason == 0) ? "unmasked uncorrectable error" :
 			 (reason == 1) ? "ERR_NONFATAL" :
-			 (reason == 2) ? "ERR_FATAL" : "extended error");
+			 (reason == 2) ? "ERR_FATAL" :
+			 (ext_reason == 0) ? "RP PIO error" :
+			 (ext_reason == 1) ? "software trigger" :
+					     "reserved error");
 		schedule_work(&dpc->work);
 	}
 	return IRQ_HANDLED;
