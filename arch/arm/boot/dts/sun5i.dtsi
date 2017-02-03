@@ -77,6 +77,16 @@
 				 <&ccu CLK_TCON_CH0>, <&ccu CLK_DRAM_DE_BE>;
 			status = "disabled";
 		};
+
+		framebuffer@1 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-tve0";
+			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
+				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
@@ -118,6 +128,12 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x00000000 0xc000>;
+			};
+
+			emac_sram: sram-section@8000 {
+				compatible = "allwinner,sun4i-a10-sram-a3-a4";
+				reg = <0x8000 0x4000>;
+				status = "disabled";
 			};
 
 			sram_d: sram@00010000 {
@@ -166,6 +182,23 @@
 			dmas = <&dma SUN4I_DMA_DEDICATED 9>,
 			       <&dma SUN4I_DMA_DEDICATED 8>;
 			dma-names = "rx", "tx";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		emac: ethernet@01c0b000 {
+			compatible = "allwinner,sun4i-a10-emac";
+			reg = <0x01c0b000 0x1000>;
+			interrupts = <55>;
+			clocks = <&ccu CLK_AHB_EMAC>;
+			allwinner,sram = <&emac_sram 1>;
+			status = "disabled";
+		};
+
+		mdio: mdio@01c0b080 {
+			compatible = "allwinner,sun4i-a10-mdio";
+			reg = <0x01c0b080 0x14>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -326,6 +359,15 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			emac_pins_a: emac0@0 {
+				pins = "PD6", "PD7", "PD10",
+				       "PD11", "PD12", "PD13", "PD14",
+				       "PD15", "PD18", "PD19", "PD20",
+				       "PD21", "PD22", "PD23", "PD24",
+				       "PD25", "PD26", "PD27";
+				function = "emac";
+			};
+
 			i2c0_pins_a: i2c0@0 {
 				pins = "PB0", "PB1";
 				function = "i2c0";
@@ -472,6 +514,16 @@
 			#thermal-sensor-cells = <0>;
 		};
 
+		uart0: serial@01c28000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28000 0x400>;
+			interrupts = <1>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&ccu CLK_APB1_UART0>;
+			status = "disabled";
+		};
+
 		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
@@ -479,6 +531,16 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&ccu CLK_APB1_UART1>;
+			status = "disabled";
+		};
+
+		uart2: serial@01c28800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28800 0x400>;
+			interrupts = <3>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&ccu CLK_APB1_UART2>;
 			status = "disabled";
 		};
 

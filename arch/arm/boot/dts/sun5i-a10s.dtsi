@@ -70,70 +70,14 @@
 				 <&ccu CLK_DE_BE>, <&ccu CLK_HDMI>;
 			status = "disabled";
 		};
-
-		framebuffer@0 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0";
-			clocks = <&ccu CLK_AHB_LCD>, <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH0>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
-
-		framebuffer@1 {
-			compatible = "allwinner,simple-framebuffer",
-				     "simple-framebuffer";
-			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
-				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
-				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
-			status = "disabled";
-		};
 	};
 
 	soc@01c00000 {
-		emac: ethernet@01c0b000 {
-			compatible = "allwinner,sun4i-a10-emac";
-			reg = <0x01c0b000 0x1000>;
-			interrupts = <55>;
-			clocks = <&ccu CLK_AHB_EMAC>;
-			allwinner,sram = <&emac_sram 1>;
-			status = "disabled";
-		};
-
-		mdio: mdio@01c0b080 {
-			compatible = "allwinner,sun4i-a10-mdio";
-			reg = <0x01c0b080 0x14>;
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
 		pwm: pwm@01c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
 			clocks = <&ccu CLK_HOSC>;
 			#pwm-cells = <3>;
-			status = "disabled";
-		};
-
-		uart0: serial@01c28000 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x01c28000 0x400>;
-			interrupts = <1>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clocks = <&ccu CLK_APB1_UART0>;
-			status = "disabled";
-		};
-
-		uart2: serial@01c28800 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0x01c28800 0x400>;
-			interrupts = <3>;
-			reg-shift = <2>;
-			reg-io-width = <4>;
-			clocks = <&ccu CLK_APB1_UART2>;
 			status = "disabled";
 		};
 	};
@@ -165,15 +109,6 @@
 		function = "emac";
 	};
 
-	emac_pins_a: emac0@0 {
-		pins = "PD6", "PD7", "PD10",
-				"PD11", "PD12", "PD13", "PD14",
-				"PD15", "PD18", "PD19", "PD20",
-				"PD21", "PD22", "PD23", "PD24",
-				"PD25", "PD26", "PD27";
-		function = "emac";
-	};
-
 	mmc1_pins_a: mmc1@0 {
 		pins = "PG3", "PG4", "PG5",
 				 "PG6", "PG7", "PG8";
@@ -193,9 +128,4 @@
 };
 
 &sram_a {
-	emac_sram: sram-section@8000 {
-		compatible = "allwinner,sun4i-a10-sram-a3-a4";
-		reg = <0x8000 0x4000>;
-		status = "disabled";
-	};
 };
