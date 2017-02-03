@@ -26,7 +26,7 @@ obj-y += acctype_notify_change.o
 obj-y += acctype_permission.o acctype_readwrite.o
 obj-y += acctype_rename.o acctype_rmdir.o
 obj-y += acctype_sendsig.o acctype_setresuid.o acctype_sexec.o
-obj-y += acctype_symlink.o
+obj-y += acctype_symlink.o acctype_readlink.o
 obj-y += acctype_truncate.o acctype_unlink.o
 # arch-dependent files
 obj-y += acctype_ptrace.o 
