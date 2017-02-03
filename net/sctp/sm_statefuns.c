@@ -3867,6 +3867,9 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
+	if (!asoc->peer.prsctp_capable)
+		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
+
 	/* Make sure that the FORWARD_TSN chunk has valid length.  */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
@@ -3934,6 +3937,9 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn_fast(
 				SCTP_NULL());
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
+
+	if (!asoc->peer.prsctp_capable)
+		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the FORWARD_TSN chunk has a valid length.  */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
