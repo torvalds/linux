@@ -148,6 +148,7 @@ struct sci_port {
 	struct timer_list		rx_timer;
 	unsigned int			rx_timeout;
 #endif
+	int				rx_trigger;
 
 	bool has_rtscts;
 	bool autorts;
@@ -450,7 +451,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 			[SCFCR]		= { 0x18, 16 },
 			[SCFDR]		= { 0x1c, 16 },
 		},
-		.fifosize = 16,
+		.fifosize = 64,
 		.overrun_reg = SCxSR,
 		.overrun_mask = SCIFA_ORER,
 		.sampling_rate_mask = SCI_SR(16),
@@ -2062,6 +2063,7 @@ static void sci_reset(struct uart_port *port)
 {
 	const struct plat_sci_reg *reg;
 	unsigned int status;
+	struct sci_port *s = to_sci_port(port);
 
 	do {
 		status = serial_port_in(port, SCxSR);
@@ -2081,6 +2083,9 @@ static void sci_reset(struct uart_port *port)
 		status &= ~(SCLSR_TO | SCLSR_ORER);
 		serial_port_out(port, SCLSR, status);
 	}
+
+	if (s->rx_trigger > 1)
+		scif_set_rtrg(port, s->rx_trigger);
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -2614,6 +2619,28 @@ static int sci_init_single(struct platform_device *dev,
 	sci_port->params = sci_probe_regmap(p);
 	if (unlikely(sci_port->params == NULL))
 		return -EINVAL;
+
+	switch (p->type) {
+	case PORT_SCIFB:
+		sci_port->rx_trigger = 48;
+		break;
+	case PORT_HSCIF:
+		sci_port->rx_trigger = 64;
+		break;
+	case PORT_SCIFA:
+		sci_port->rx_trigger = 32;
+		break;
+	case PORT_SCIF:
+		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE)
+			/* RX triggering not implemented for this IP */
+			sci_port->rx_trigger = 1;
+		else
+			sci_port->rx_trigger = 8;
+		break;
+	default:
+		sci_port->rx_trigger = 1;
+		break;
+	}
 
 	/* SCIFA on sh7723 and sh7724 need a custom sampling rate that doesn't
 	 * match the SoC datasheet, this should be investigated. Let platform
