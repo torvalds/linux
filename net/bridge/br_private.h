@@ -91,6 +91,11 @@ struct br_vlan_stats {
 	struct u64_stats_sync syncp;
 };
 
+struct br_tunnel_info {
+	__be64			tunnel_id;
+	struct metadata_dst	*tunnel_dst;
+};
+
 /**
  * struct net_bridge_vlan - per-vlan entry
  *
@@ -113,6 +118,7 @@ struct br_vlan_stats {
  */
 struct net_bridge_vlan {
 	struct rhash_head		vnode;
+	struct rhash_head		tnode;
 	u16				vid;
 	u16				flags;
 	struct br_vlan_stats __percpu	*stats;
@@ -124,6 +130,9 @@ struct net_bridge_vlan {
 		atomic_t		refcnt;
 		struct net_bridge_vlan	*brvlan;
 	};
+
+	struct br_tunnel_info		tinfo;
+
 	struct list_head		vlist;
 
 	struct rcu_head			rcu;
@@ -145,6 +154,7 @@ struct net_bridge_vlan {
  */
 struct net_bridge_vlan_group {
 	struct rhashtable		vlan_hash;
+	struct rhashtable		tunnel_hash;
 	struct list_head		vlan_list;
 	u16				num_vlans;
 	u16				pvid;
@@ -765,6 +775,7 @@ bool br_allowed_egress(struct net_bridge_vlan_group *vg,
 		       const struct sk_buff *skb);
 bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid);
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
+			       const struct net_bridge_port *port,
 			       struct net_bridge_vlan_group *vg,
 			       struct sk_buff *skb);
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
@@ -864,6 +875,7 @@ static inline bool br_should_learn(struct net_bridge_port *p,
 }
 
 static inline struct sk_buff *br_handle_vlan(struct net_bridge *br,
+					     const struct net_bridge_port *port,
 					     struct net_bridge_vlan_group *vg,
 					     struct sk_buff *skb)
 {
