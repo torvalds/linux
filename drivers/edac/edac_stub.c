@@ -20,7 +20,7 @@
 int edac_report_status = EDAC_REPORTING_ENABLED;
 EXPORT_SYMBOL_GPL(edac_report_status);
 
-static int __init edac_report_setup(char *str)
+static int __init __maybe_unused edac_report_setup(char *str)
 {
 	if (!str)
 		return -EINVAL;
