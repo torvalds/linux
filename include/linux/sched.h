@@ -36,6 +36,7 @@ struct sched_param {
 #include <linux/signal.h>
 #include <linux/compiler.h>
 #include <linux/completion.h>
+#include <linux/signal_types.h>
 #include <linux/pid.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
