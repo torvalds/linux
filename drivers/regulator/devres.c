@@ -19,12 +19,6 @@
 
 #include "internal.h"
 
-enum {
-	NORMAL_GET,
-	EXCLUSIVE_GET,
-	OPTIONAL_GET,
-};
-
 static void devm_regulator_release(struct device *dev, void *res)
 {
 	regulator_put(*(struct regulator **)res);
@@ -39,20 +33,7 @@ static struct regulator *_devm_regulator_get(struct device *dev, const char *id,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	switch (get_type) {
-	case NORMAL_GET:
-		regulator = regulator_get(dev, id);
-		break;
-	case EXCLUSIVE_GET:
-		regulator = regulator_get_exclusive(dev, id);
-		break;
-	case OPTIONAL_GET:
-		regulator = regulator_get_optional(dev, id);
-		break;
-	default:
-		regulator = ERR_PTR(-EINVAL);
-	}
-
+	regulator = _regulator_get(dev, id, get_type);
 	if (!IS_ERR(regulator)) {
 		*ptr = regulator;
 		devres_add(dev, ptr);
