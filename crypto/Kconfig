@@ -263,6 +263,7 @@ comment "Authenticated Encryption with Associated Data"
 config CRYPTO_CCM
 	tristate "CCM support"
 	select CRYPTO_CTR
+	select CRYPTO_HASH
 	select CRYPTO_AEAD
 	help
 	  Support for Counter with CBC MAC. Required for IPsec.
