@@ -241,6 +241,11 @@ struct property_entry {
 	.name = _name_,				\
 }
 
+struct property_entry *
+property_entries_dup(const struct property_entry *properties);
+
+void property_entries_free(const struct property_entry *properties);
+
 int device_add_properties(struct device *dev,
 			  const struct property_entry *properties);
 void device_remove_properties(struct device *dev);
