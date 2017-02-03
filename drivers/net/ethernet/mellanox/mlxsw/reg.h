@@ -1,9 +1,9 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/reg.h
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2015-2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
- * Copyright (c) 2015-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1755,6 +1755,48 @@ static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
 		mlxsw_reg_spvmlr_rec_learn_enable_set(payload, i, learn_enable);
 		mlxsw_reg_spvmlr_rec_vid_set(payload, i, vid_begin + i);
 	}
+}
+
+/* PACL - Policy-Engine ACL Register
+ * ---------------------------------
+ * This register is used for configuration of the ACL.
+ */
+#define MLXSW_REG_PACL_ID 0x3004
+#define MLXSW_REG_PACL_LEN 0x70
+
+MLXSW_REG_DEFINE(pacl, MLXSW_REG_PACL_ID, MLXSW_REG_PACL_LEN);
+
+/* reg_pacl_v
+ * Valid. Setting the v bit makes the ACL valid. It should not be cleared
+ * while the ACL is bounded to either a port, VLAN or ACL rule.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pacl, v, 0x00, 24, 1);
+
+/* reg_pacl_acl_id
+ * An identifier representing the ACL (managed by software)
+ * Range 0 .. cap_max_acl_regions - 1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pacl, acl_id, 0x08, 0, 16);
+
+#define MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN 16
+
+/* reg_pacl_tcam_region_info
+ * Opaque object that represents a TCAM region.
+ * Obtained through PTAR register.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, pacl, tcam_region_info, 0x30,
+	       MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN);
+
+static inline void mlxsw_reg_pacl_pack(char *payload, u16 acl_id,
+				       bool valid, const char *tcam_region_info)
+{
+	MLXSW_REG_ZERO(pacl, payload);
+	mlxsw_reg_pacl_acl_id_set(payload, acl_id);
+	mlxsw_reg_pacl_v_set(payload, valid);
+	mlxsw_reg_pacl_tcam_region_info_memcpy_to(payload, tcam_region_info);
 }
 
 /* QPCR - QoS Policer Configuration Register
@@ -5434,6 +5476,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(svpe),
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
+	MLXSW_REG(pacl),
 	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
