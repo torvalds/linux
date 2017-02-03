@@ -23,19 +23,6 @@
 #ifndef __INTEL_HDMI_LPE_AUDIO_H
 #define __INTEL_HDMI_LPE_AUDIO_H
 
-#include <linux/types.h>
-#include <sound/initval.h>
-#include <linux/version.h>
-#include <linux/pm_runtime.h>
-#include <sound/asoundef.h>
-#include <sound/control.h>
-#include <sound/pcm.h>
-
-#define AUD_CONFIG_VALID_BIT			(1<<9)
-#define AUD_CONFIG_DP_MODE			(1<<15)
-#define AUD_CONFIG_BLOCK_BIT			(1<<7)
-
-#define HMDI_LPE_AUDIO_DRIVER_NAME		"intel-hdmi-lpe-audio"
 #define HAD_MAX_DEVICES		1
 #define HAD_MIN_CHANNEL		2
 #define HAD_MAX_CHANNEL		8
@@ -95,164 +82,6 @@
 /* Naud Value */
 #define DP_NAUD_VAL					32768
 
-/* _AUD_CONFIG register MASK */
-#define AUD_CONFIG_MASK_UNDERRUN	0xC0000000
-#define AUD_CONFIG_MASK_SRDBG		0x00000002
-#define AUD_CONFIG_MASK_FUNCRST		0x00000001
-
-#define MAX_CNT			0xFF
-#define HAD_SUSPEND_DELAY	1000
-
-#define OTM_HDMI_ELD_SIZE 128
-
-union otm_hdmi_eld_t {
-	unsigned char eld_data[OTM_HDMI_ELD_SIZE];
-	struct {
-		/* Byte[0] = ELD Version Number */
-		union {
-			unsigned char   byte0;
-			struct {
-				unsigned char reserved:3; /* Reserf */
-				unsigned char eld_ver:5; /* ELD Version Number */
-				/* 00000b - reserved
-				 * 00001b - first rev, obsoleted
-				 * 00010b - version 2, supporting CEA version
-				 *			861D or below
-				 * 00011b:11111b - reserved
-				 * for future
-				 */
-			};
-		};
-
-		/* Byte[1] = Vendor Version Field */
-		union {
-			unsigned char vendor_version;
-			struct {
-				unsigned char reserved1:3;
-				unsigned char veld_ver:5; /* Version number of the ELD
-						     * extension. This value is
-						     * provisioned and unique to
-						     * each vendor.
-						     */
-			};
-		};
-
-		/* Byte[2] = Baseline Length field */
-		unsigned char baseline_eld_length; /* Length of the Baseline structure
-					      *	divided by Four.
-					      */
-
-		/* Byte [3] = Reserved for future use */
-		unsigned char byte3;
-
-		/* Starting of the BaseLine EELD structure
-		 * Byte[4] = Monitor Name Length
-		 */
-		union {
-			unsigned char byte4;
-			struct {
-				unsigned char mnl:5;
-				unsigned char cea_edid_rev_id:3;
-			};
-		};
-
-		/* Byte[5] = Capabilities */
-		union {
-			unsigned char capabilities;
-			struct {
-				unsigned char hdcp:1; /* HDCP support */
-				unsigned char ai_support:1;   /* AI support */
-				unsigned char connection_type:2; /* Connection type
-							    * 00 - HDMI
-							    * 01 - DP
-							    * 10 -11  Reserved
-							    * for future
-							    * connection types
-							    */
-				unsigned char sadc:4; /* Indicates number of 3 bytes
-						 * Short Audio Descriptors.
-						 */
-			};
-		};
-
-		/* Byte[6] = Audio Synch Delay */
-		unsigned char audio_synch_delay; /* Amount of time reported by the
-					    * sink that the video trails audio
-					    * in milliseconds.
-					    */
-
-		/* Byte[7] = Speaker Allocation Block */
-		union {
-			unsigned char speaker_allocation_block;
-			struct {
-				unsigned char flr:1; /*Front Left and Right channels*/
-				unsigned char lfe:1; /*Low Frequency Effect channel*/
-				unsigned char fc:1;  /*Center transmission channel*/
-				unsigned char rlr:1; /*Rear Left and Right channels*/
-				unsigned char rc:1; /*Rear Center channel*/
-				unsigned char flrc:1; /*Front left and Right of Center
-						 *transmission channels
-						 */
-				unsigned char rlrc:1; /*Rear left and Right of Center
-						 *transmission channels
-						 */
-				unsigned char reserved3:1; /* Reserved */
-			};
-		};
-
-		/* Byte[8 - 15] - 8 Byte port identification value */
-		unsigned char port_id_value[8];
-
-		/* Byte[16 - 17] - 2 Byte Manufacturer ID */
-		unsigned char manufacturer_id[2];
-
-		/* Byte[18 - 19] - 2 Byte Product ID */
-		unsigned char product_id[2];
-
-		/* Byte [20-83] - 64 Bytes of BaseLine Data */
-		unsigned char mn_sand_sads[64]; /* This will include
-					   * - ASCII string of Monitor name
-					   * - List of 3 byte SADs
-					   * - Zero padding
-					   */
-
-		/* Vendor ELD Block should continue here!
-		 * No Vendor ELD block defined as of now.
-		 */
-	} __packed;
-};
-
-/**
- * enum had_status - Audio stream states
- *
- * @STREAM_INIT: Stream initialized
- * @STREAM_RUNNING: Stream running
- * @STREAM_PAUSED: Stream paused
- * @STREAM_DROPPED: Stream dropped
- */
-enum had_stream_status {
-	STREAM_INIT = 0,
-	STREAM_RUNNING = 1,
-	STREAM_PAUSED = 2,
-	STREAM_DROPPED = 3
-};
-
-/**
- * enum had_status_stream - HAD stream states
- */
-enum had_status_stream {
-	HAD_INIT = 0,
-	HAD_RUNNING_STREAM,
-};
-
-enum had_drv_status {
-	HAD_DRV_CONNECTED,
-	HAD_DRV_RUNNING,
-	HAD_DRV_DISCONNECTED,
-	HAD_DRV_SUSPENDED,
-	HAD_DRV_ERR,
-};
-
 /* enum intel_had_aud_buf_type - HDMI controller ring buffer types */
 enum intel_had_aud_buf_type {
 	HAD_BUF_TYPE_A = 0,
@@ -261,22 +90,15 @@ enum intel_had_aud_buf_type {
 	HAD_BUF_TYPE_D = 3,
 };
 
-enum num_aud_ch {
-	CH_STEREO = 0,
-	CH_THREE_FOUR = 1,
-	CH_FIVE_SIX = 2,
-	CH_SEVEN_EIGHT = 3
-};
-
 /* HDMI Controller register offsets - audio domain common */
 /* Base address for below regs = 0x65000 */
 enum hdmi_ctrl_reg_offset_common {
-	AUDIO_HDMI_CONFIG_A	= 0x000,
+	AUDIO_HDMI_CONFIG_A = 0x000,
 	AUDIO_HDMI_CONFIG_B = 0x800,
 	AUDIO_HDMI_CONFIG_C = 0x900,
 };
 /* HDMI controller register offsets */
-enum hdmi_ctrl_reg_offset_v1 {
+enum hdmi_ctrl_reg_offset {
 	AUD_CONFIG		= 0x0,
 	AUD_CH_STATUS_0		= 0x08,
 	AUD_CH_STATUS_1		= 0x0C,
@@ -294,18 +116,8 @@ enum hdmi_ctrl_reg_offset_v1 {
 	AUD_BUF_D_ADDR		= 0x58,
 	AUD_BUF_D_LENGTH	= 0x5c,
 	AUD_CNTL_ST		= 0x60,
-	AUD_HDMI_STATUS		= 0x68,
-	AUD_HDMIW_INFOFR	= 0x114,
-};
-
-/*
- * Delta changes in HDMI controller register offsets
- * compare to v1 version
- */
-
-enum hdmi_ctrl_reg_offset_v2 {
-	AUD_HDMI_STATUS_v2	= 0x64,
-	AUD_HDMIW_INFOFR_v2	= 0x68,
+	AUD_HDMI_STATUS		= 0x64, /* v2 */
+	AUD_HDMIW_INFOFR	= 0x68, /* v2 */
 };
 
 /*
@@ -350,27 +162,8 @@ struct channel_map_table {
 	int spk_mask;                   /* speaker position bit mask */
 };
 
-/**
- * union aud_cfg - Audio configuration
- *
- * @cfg_regx: individual register bits
- * @cfg_regval: full register value
- *
- */
+/* Audio configuration */
 union aud_cfg {
-	struct {
-		u32 aud_en:1;
-		u32 layout:1;
-		u32 fmt:2;
-		u32 num_ch:2;
-		u32 rsvd0:1;
-		u32 set:1;
-		u32 flat:1;
-		u32 val_bit:1;
-		u32 user_bit:1;
-		u32 underrun:1;
-		u32 rsvd1:20;
-	} cfg_regx;
 	struct {
 		u32 aud_en:1;
 		u32 layout:1;
@@ -386,17 +179,15 @@ union aud_cfg {
 		u32 bogus_sample:1;
 		u32 dp_modei:1;
 		u32 rsvd:16;
-	} cfg_regx_v2;
-	u32 cfg_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ch_status_0 - Audio Channel Status 0 Attributes
- *
- * @status_0_regx:individual register bits
- * @status_0_regval:full register value
- *
- */
+#define AUD_CONFIG_BLOCK_BIT			(1 << 7)
+#define AUD_CONFIG_VALID_BIT			(1 << 9)
+#define AUD_CONFIG_DP_MODE			(1 << 15)
+
+/* Audio Channel Status 0 Attributes */
 union aud_ch_status_0 {
 	struct {
 		u32 ch_status:1;
@@ -410,99 +201,53 @@ union aud_ch_status_0 {
 		u32 samp_freq:4;
 		u32 clk_acc:2;
 		u32 rsvd:2;
-	} status_0_regx;
-	u32 status_0_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ch_status_1 - Audio Channel Status 1 Attributes
- *
- * @status_1_regx: individual register bits
- * @status_1_regval: full register value
- *
- */
+/* Audio Channel Status 1 Attributes */
 union aud_ch_status_1 {
 	struct {
 		u32 max_wrd_len:1;
 		u32 wrd_len:3;
 		u32 rsvd:28;
-		} status_1_regx;
-	u32 status_1_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_hdmi_cts - CTS register
- *
- * @cts_regx: individual register bits
- * @cts_regval: full register value
- *
- */
+/* CTS register */
 union aud_hdmi_cts {
-	struct {
-		u32 cts_val:20;
-		u32 en_cts_prog:1;
-		u32 rsvd:11;
-	} cts_regx;
 	struct {
 		u32 cts_val:24;
 		u32 en_cts_prog:1;
 		u32 rsvd:7;
-	} cts_regx_v2;
-	u32 cts_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_hdmi_n_enable - N register
- *
- * @n_regx: individual register bits
- * @n_regval: full register value
- *
- */
+/* N register */
 union aud_hdmi_n_enable {
-	struct {
-		u32 n_val:20;
-		u32 en_n_prog:1;
-		u32 rsvd:11;
-	} n_regx;
 	struct {
 		u32 n_val:24;
 		u32 en_n_prog:1;
 		u32 rsvd:7;
-	} n_regx_v2;
-	u32 n_regval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_config -  Audio Buffer configurations
- *
- * @buf_cfg_regx: individual register bits
- * @buf_cfgval: full register value
- *
- */
+/* Audio Buffer configurations */
 union aud_buf_config {
-	struct {
-		u32 fifo_width:8;
-		u32 rsvd0:8;
-		u32 aud_delay:8;
-		u32 rsvd1:8;
-	} buf_cfg_regx;
 	struct {
 		u32 audio_fifo_watermark:8;
 		u32 dma_fifo_watermark:3;
 		u32 rsvd0:5;
 		u32 aud_delay:8;
 		u32 rsvd1:8;
-	} buf_cfg_regx_v2;
-	u32 buf_cfgval;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_ch_swap - Audio Sample Swapping offset
- *
- * @buf_ch_swap_regx: individual register bits
- * @buf_ch_swap_val: full register value
- *
- */
+/* Audio Sample Swapping offset */
 union aud_buf_ch_swap {
 	struct {
 		u32 first_0:3;
@@ -514,49 +259,31 @@ union aud_buf_ch_swap {
 		u32 first_3:3;
 		u32 second_3:3;
 		u32 rsvd:8;
-	} buf_ch_swap_regx;
-	u32 buf_ch_swap_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_addr - Address for Audio Buffer
- *
- * @buf_addr_regx: individual register bits
- * @buf_addr_val: full register value
- *
- */
+/* Address for Audio Buffer */
 union aud_buf_addr {
 	struct {
 		u32 valid:1;
 		u32 intr_en:1;
 		u32 rsvd:4;
 		u32 addr:26;
-	} buf_addr_regx;
-	u32 buf_addr_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_buf_len - Length of Audio Buffer
- *
- * @buf_len_regx: individual register bits
- * @buf_len_val: full register value
- *
- */
+/* Length of Audio Buffer */
 union aud_buf_len {
 	struct {
 		u32 buf_len:20;
 		u32 rsvd:12;
-	} buf_len_regx;
-	u32 buf_len_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_ctrl_st - Audio Control State Register offset
- *
- * @ctrl_regx: individual register bits
- * @ctrl_val: full register value
- *
- */
+/* Audio Control State Register offset */
 union aud_ctrl_st {
 	struct {
 		u32 ram_addr:4;
@@ -569,34 +296,22 @@ union aud_ctrl_st {
 		u32 dip_idx:3;
 		u32 dip_en_sta:4;
 		u32 rsvd:7;
-	} ctrl_regx;
-	u32 ctrl_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame1 - Audio HDMI Widget Data Island Packet offset
- *
- * @fr1_regx: individual register bits
- * @fr1_val: full register value
- *
- */
+/* Audio HDMI Widget Data Island Packet offset */
 union aud_info_frame1 {
 	struct {
 		u32 pkt_type:8;
 		u32 ver_num:8;
 		u32 len:5;
 		u32 rsvd:11;
-	} fr1_regx;
-	u32 fr1_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame2 - DIP frame 2
- *
- * @fr2_regx: individual register bits
- * @fr2_val: full register value
- *
- */
+/* DIP frame 2 */
 union aud_info_frame2 {
 	struct {
 		u32 chksum:8;
@@ -607,17 +322,11 @@ union aud_info_frame2 {
 		u32 smpl_freq:3;
 		u32 rsvd1:3;
 		u32 format:8;
-	} fr2_regx;
-	u32 fr2_val;
+	} regx;
+	u32 regval;
 };
 
-/**
- * union aud_info_frame3 - DIP frame 3
- *
- * @fr3_regx: individual register bits
- * @fr3_val: full register value
- *
- */
+/* DIP frame 3 */
 union aud_info_frame3 {
 	struct {
 		u32 chnl_alloc:8;
@@ -625,88 +334,17 @@ union aud_info_frame3 {
 		u32 lsv:4;
 		u32 dm_inh:1;
 		u32 rsvd1:16;
-	} fr3_regx;
-	u32 fr3_val;
+	} regx;
+	u32 regval;
 };
 
-enum hdmi_connector_status {
-	hdmi_connector_status_connected = 1,
-	hdmi_connector_status_disconnected = 2,
-	hdmi_connector_status_unknown = 3,
-};
+/* AUD_HDMI_STATUS bits */
+#define HDMI_AUDIO_UNDERRUN		(1U << 31)
+#define HDMI_AUDIO_BUFFER_DONE		(1U << 29)
 
-#define HDMI_AUDIO_UNDERRUN     (1UL<<31)
-#define HDMI_AUDIO_BUFFER_DONE  (1UL<<29)
-
-
-#define PORT_ENABLE			(1 << 31)
-#define SDVO_AUDIO_ENABLE	(1 << 6)
-
-enum had_caps_list {
-	HAD_GET_ELD = 1,
-	HAD_GET_DISPLAY_RATE,
-	HAD_GET_DP_OUTPUT,
-	HAD_GET_LINK_RATE,
-	HAD_SET_ENABLE_AUDIO,
-	HAD_SET_DISABLE_AUDIO,
-	HAD_SET_ENABLE_AUDIO_INT,
-	HAD_SET_DISABLE_AUDIO_INT,
-};
-
-enum had_event_type {
-	HAD_EVENT_HOT_PLUG = 1,
-	HAD_EVENT_HOT_UNPLUG,
-	HAD_EVENT_MODE_CHANGING,
-	HAD_EVENT_AUDIO_BUFFER_DONE,
-	HAD_EVENT_AUDIO_BUFFER_UNDERRUN,
-	HAD_EVENT_QUERY_IS_AUDIO_BUSY,
-	HAD_EVENT_QUERY_IS_AUDIO_SUSPENDED,
-};
-
-/*
- * HDMI Display Controller Audio Interface
- *
- */
-typedef int (*had_event_call_back) (enum had_event_type event_type,
-		void *ctxt_info);
-
-struct hdmi_audio_registers_ops {
-	int (*hdmi_audio_get_register_base)(u32 **reg_base,
-			u32 *config_offset);
-	int (*hdmi_audio_read_register)(u32 reg_addr, u32 *data);
-	int (*hdmi_audio_write_register)(u32 reg_addr, u32 data);
-	int (*hdmi_audio_read_modify)(u32 reg_addr, u32 data,
-			u32 mask);
-};
-
-struct hdmi_audio_query_set_ops {
-	int (*hdmi_audio_get_caps)(enum had_caps_list query_element,
-			void *capabilties);
-	int (*hdmi_audio_set_caps)(enum had_caps_list set_element,
-			void *capabilties);
-};
-
-struct hdmi_audio_event {
-	int type;
-};
-
-struct snd_intel_had_interface {
-	const char *name;
-	int (*query)(void *had_data, struct hdmi_audio_event event);
-	int (*suspend)(void *had_data, struct hdmi_audio_event event);
-	int (*resume)(void *had_data);
-};
-
-bool mid_hdmi_audio_is_busy(void *dev);
-bool mid_hdmi_audio_suspend(void *dev);
-void mid_hdmi_audio_resume(void *dev);
-void mid_hdmi_audio_signal_event(enum had_event_type event);
-int mid_hdmi_audio_setup(
-	had_event_call_back audio_callbacks,
-	struct hdmi_audio_registers_ops *reg_ops,
-	struct hdmi_audio_query_set_ops *query_ops);
-int mid_hdmi_audio_register(
-	struct snd_intel_had_interface *driver,
-	void *had_data);
+/* AUD_HDMI_STATUS register mask */
+#define AUD_CONFIG_MASK_UNDERRUN	0xC0000000
+#define AUD_CONFIG_MASK_SRDBG		0x00000002
+#define AUD_CONFIG_MASK_FUNCRST		0x00000001
 
 #endif
