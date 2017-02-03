@@ -1644,18 +1644,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	if (args->flags & I915_EXEC_FENCE_IN) {
 		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
-		if (!in_fence) {
-			ret = -EINVAL;
-			goto pre_mutex_err;
-		}
+		if (!in_fence)
+			return -EINVAL;
 	}
 
 	if (args->flags & I915_EXEC_FENCE_OUT) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 		if (out_fence_fd < 0) {
 			ret = out_fence_fd;
-			out_fence_fd = -1;
-			goto pre_mutex_err;
+			goto err_in_fence;
 		}
 	}
 
@@ -1878,6 +1875,7 @@ pre_mutex_err:
 	intel_runtime_pm_put(dev_priv);
 	if (out_fence_fd != -1)
 		put_unused_fd(out_fence_fd);
+err_in_fence:
 	dma_fence_put(in_fence);
 	return ret;
 }
