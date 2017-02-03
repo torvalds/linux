@@ -462,7 +462,7 @@ void pkey_disable_set(int pkey, int flags)
 	unsigned long syscall_flags = 0;
 	int ret;
 	int pkey_rights;
-	u32 orig_pkru;
+	u32 orig_pkru = rdpkru();
 
 	dprintf1("START->%s(%d, 0x%x)\n", __func__,
 		pkey, flags);
