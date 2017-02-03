@@ -718,7 +718,8 @@ static void pset_free_set(struct property_set *pset)
 static int pset_copy_entry(struct property_entry *dst,
 			   const struct property_entry *src)
 {
-	const char **d, **s;
+	const char * const *s;
+	char **d;
 	size_t i, nval;
 
 	dst->name = kstrdup(src->name, GFP_KERNEL);
@@ -731,12 +732,11 @@ static int pset_copy_entry(struct property_entry *dst,
 
 		if (src->is_string) {
 			nval = src->length / sizeof(const char *);
-			dst->pointer.str = kcalloc(nval, sizeof(const char *),
-						   GFP_KERNEL);
-			if (!dst->pointer.str)
+			d = kcalloc(nval, sizeof(const char *), GFP_KERNEL);
+			if (!d)
 				return -ENOMEM;
 
-			d = dst->pointer.str;
+			dst->pointer.raw_data = d;
 			s = src->pointer.str;
 			for (i = 0; i < nval; i++) {
 				d[i] = kstrdup(s[i], GFP_KERNEL);
