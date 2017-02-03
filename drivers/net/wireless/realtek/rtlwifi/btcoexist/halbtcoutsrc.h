@@ -116,18 +116,6 @@ extern u32 btc_dbg_type[];
 #define		WIFI_P2P_GO_CONNECTED			BIT3
 #define		WIFI_P2P_GC_CONNECTED			BIT4
 
-#define	btc_alg_dbg(dbgflag, fmt, ...)					\
-do {									\
-	if (unlikely(btc_dbg_type[BTC_MSG_ALGORITHM] & dbgflag))	\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
-} while (0)
-#define	btc_iface_dbg(dbgflag, fmt, ...)				\
-do {									\
-	if (unlikely(btc_dbg_type[BTC_MSG_INTERFACE] & dbgflag))	\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
-} while (0)
-
-
 #define	BTC_RSSI_HIGH(_rssi_)	\
 	((_rssi_ == BTC_RSSI_STATE_HIGH ||	\
 	  _rssi_ == BTC_RSSI_STATE_STAY_HIGH) ? true : false)

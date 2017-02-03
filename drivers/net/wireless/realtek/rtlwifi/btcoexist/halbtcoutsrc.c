@@ -141,8 +141,8 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 
 	if (rtlphy->current_channel != 0)
 		chnl = rtlphy->current_channel;
-	btc_alg_dbg(ALGO_TRACE,
-		    "static halbtc_get_wifi_central_chnl:%d\n", chnl);
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "static halbtc_get_wifi_central_chnl:%d\n", chnl);
 	return chnl;
 }
 
