@@ -1,9 +1,8 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/list.h>
 #include <linux/bug.h>
-#include <uapi/linux/signal.h>
+#include <linux/signal_types.h>
 
 struct task_struct;
 
