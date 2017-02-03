@@ -70,11 +70,28 @@ static unsigned int task_load(struct task_struct *p)
 	return p->ravg.demand;
 }
 
+static inline void fixup_cum_window_demand(struct rq *rq, s64 delta)
+{
+	rq->cum_window_demand += delta;
+	if (unlikely((s64)rq->cum_window_demand < 0))
+		rq->cum_window_demand = 0;
+}
+
 void
 walt_inc_cumulative_runnable_avg(struct rq *rq,
 				 struct task_struct *p)
 {
 	rq->cumulative_runnable_avg += p->ravg.demand;
+
+	/*
+	 * Add a task's contribution to the cumulative window demand when
+	 *
+	 * (1) task is enqueued with on_rq = 1 i.e migration,
+	 *     prio/cgroup/class change.
+	 * (2) task is waking for the first time in this window.
+	 */
+	if (p->on_rq || (p->last_sleep_ts < rq->window_start))
+		fixup_cum_window_demand(rq, p->ravg.demand);
 }
 
 void
@@ -83,6 +100,14 @@ walt_dec_cumulative_runnable_avg(struct rq *rq,
 {
 	rq->cumulative_runnable_avg -= p->ravg.demand;
 	BUG_ON((s64)rq->cumulative_runnable_avg < 0);
+
+	/*
+	 * on_rq will be 1 for sleeping tasks. So check if the task
+	 * is migrating or dequeuing in RUNNING state to change the
+	 * prio/cgroup/class.
+	 */
+	if (task_on_rq_migrating(p) || p->state == TASK_RUNNING)
+		fixup_cum_window_demand(rq, -(s64)p->ravg.demand);
 }
 
 static void
@@ -95,6 +120,8 @@ fixup_cumulative_runnable_avg(struct rq *rq,
 	if ((s64)rq->cumulative_runnable_avg < 0)
 		panic("cra less than zero: tld: %lld, task_load(p) = %u\n",
 			task_load_delta, task_load(p));
+
+	fixup_cum_window_demand(rq, task_load_delta);
 }
 
 u64 walt_ktime_clock(void)
@@ -180,6 +207,8 @@ update_window_start(struct rq *rq, u64 wallclock)
 
 	nr_windows = div64_u64(delta, walt_ravg_window);
 	rq->window_start += (u64)nr_windows * (u64)walt_ravg_window;
+
+	rq->cum_window_demand = rq->cumulative_runnable_avg;
 }
 
 /*
@@ -568,10 +597,20 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	 * A throttled deadline sched class task gets dequeued without
 	 * changing p->on_rq. Since the dequeue decrements hmp stats
 	 * avoid decrementing it here again.
+	 *
+	 * When window is rolled over, the cumulative window demand
+	 * is reset to the cumulative runnable average (contribution from
+	 * the tasks on the runqueue). If the current task is dequeued
+	 * already, it's demand is not included in the cumulative runnable
+	 * average. So add the task demand separately to cumulative window
+	 * demand.
 	 */
-	if (task_on_rq_queued(p) && (!task_has_dl_policy(p) ||
-						!p->dl.dl_throttled))
-		fixup_cumulative_runnable_avg(rq, p, demand);
+	if (!task_has_dl_policy(p) || !p->dl.dl_throttled) {
+		if (task_on_rq_queued(p))
+			fixup_cumulative_runnable_avg(rq, p, demand);
+		else if (rq->curr == p)
+			fixup_cum_window_demand(rq, demand);
+	}
 
 	p->ravg.demand = demand;
 
@@ -791,6 +830,17 @@ void walt_fixup_busy_time(struct task_struct *p, int new_cpu)
 			TASK_UPDATE, wallclock, 0);
 
 	walt_update_task_ravg(p, task_rq(p), TASK_MIGRATE, wallclock, 0);
+
+	/*
+	 * When a task is migrating during the wakeup, adjust
+	 * the task's contribution towards cumulative window
+	 * demand.
+	 */
+	if (p->state == TASK_WAKING &&
+	    p->last_sleep_ts >= src_rq->window_start) {
+		fixup_cum_window_demand(src_rq, -(s64)p->ravg.demand);
+		fixup_cum_window_demand(dest_rq, p->ravg.demand);
+	}
 
 	if (p->ravg.curr_window) {
 		src_rq->curr_runnable_sum -= p->ravg.curr_window;
