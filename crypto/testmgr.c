@@ -2514,6 +2514,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cbcmac(aes)",
+		.fips_allowed = 1,
+		.test = alg_test_hash,
+		.suite = {
+			.hash = __VECS(aes_cbcmac_tv_template)
+		}
+	}, {
 		.alg = "ccm(aes)",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
