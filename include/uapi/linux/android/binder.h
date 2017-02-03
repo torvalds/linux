@@ -33,6 +33,7 @@ enum {
 	BINDER_TYPE_HANDLE	= B_PACK_CHARS('s', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_WEAK_HANDLE	= B_PACK_CHARS('w', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_FD		= B_PACK_CHARS('f', 'd', '*', B_TYPE_LARGE),
+	BINDER_TYPE_PTR		= B_PACK_CHARS('p', 't', '*', B_TYPE_LARGE),
 };
 
 enum {
@@ -95,6 +96,39 @@ struct binder_fd_object {
 
 	binder_uintptr_t		cookie;
 };
+
+/* struct binder_buffer_object - object describing a userspace buffer
+ * @hdr:		common header structure
+ * @flags:		one or more BINDER_BUFFER_* flags
+ * @buffer:		address of the buffer
+ * @length:		length of the buffer
+ * @parent:		index in offset array pointing to parent buffer
+ * @parent_offset:	offset in @parent pointing to this buffer
+ *
+ * A binder_buffer object represents an object that the
+ * binder kernel driver can copy verbatim to the target
+ * address space. A buffer itself may be pointed to from
+ * within another buffer, meaning that the pointer inside
+ * that other buffer needs to be fixed up as well. This
+ * can be done by setting the BINDER_BUFFER_FLAG_HAS_PARENT
+ * flag in @flags, by setting @parent buffer to the index
+ * in the offset array pointing to the parent binder_buffer_object,
+ * and by setting @parent_offset to the offset in the parent buffer
+ * at which the pointer to this buffer is located.
+ */
+struct binder_buffer_object {
+	struct binder_object_header	hdr;
+	__u32				flags;
+	binder_uintptr_t		buffer;
+	binder_size_t			length;
+	binder_size_t			parent;
+	binder_size_t			parent_offset;
+};
+
+enum {
+	BINDER_BUFFER_FLAG_HAS_PARENT = 0x01,
+};
+
 /*
  * On 64-bit platforms where user code may run in 32-bits the driver must
  * translate the buffer (and local binder) addresses appropriately.
@@ -185,6 +219,11 @@ struct binder_transaction_data {
 		} ptr;
 		__u8	buf[8];
 	} data;
+};
+
+struct binder_transaction_data_sg {
+	struct binder_transaction_data transaction_data;
+	binder_size_t buffers_size;
 };
 
 struct binder_ptr_cookie {
@@ -370,6 +409,12 @@ enum binder_driver_command_protocol {
 	BC_DEAD_BINDER_DONE = _IOW('c', 16, binder_uintptr_t),
 	/*
 	 * void *: cookie
+	 */
+
+	BC_TRANSACTION_SG = _IOW('c', 17, struct binder_transaction_data_sg),
+	BC_REPLY_SG = _IOW('c', 18, struct binder_transaction_data_sg),
+	/*
+	 * binder_transaction_data_sg: the sent command.
 	 */
 };
 
