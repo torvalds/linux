@@ -1355,7 +1355,8 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
 
-	if (tc->type == TC_SETUP_MATCHALL) {
+	switch (tc->type) {
+	case TC_SETUP_MATCHALL:
 		switch (tc->cls_mall->command) {
 		case TC_CLSMATCHALL_REPLACE:
 			return mlxsw_sp_port_add_cls_matchall(mlxsw_sp_port,
@@ -1368,6 +1369,18 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 			return 0;
 		default:
 			return -EINVAL;
+		}
+	case TC_SETUP_CLSFLOWER:
+		switch (tc->cls_flower->command) {
+		case TC_CLSFLOWER_REPLACE:
+			return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress,
+						       proto, tc->cls_flower);
+		case TC_CLSFLOWER_DESTROY:
+			mlxsw_sp_flower_destroy(mlxsw_sp_port, ingress,
+						tc->cls_flower);
+			return 0;
+		default:
+			return -EOPNOTSUPP;
 		}
 	}
 
