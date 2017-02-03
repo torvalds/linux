@@ -1,5 +1,6 @@
 
 #include <linux/sched.h>
+#include <linux/sched/autogroup.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/topology.h>
 #include <linux/sched/rt.h>
