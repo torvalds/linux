@@ -95,13 +95,29 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
+	int i;
+	int last_valid_bit;
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-
-			.first_compute_pipe = 1,
-			.compute_pipe_count = 4 - 1,
+			.num_mec = adev->gfx.mec.num_mec,
+			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
+			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe
 		};
+
+		/* this is going to have a few of the MSBs set that we need to
+		 * clear */
+		bitmap_complement(gpu_resources.queue_bitmap,
+				  adev->gfx.mec.queue_bitmap,
+				  KGD_MAX_QUEUES);
+
+		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
+		 * nbits is not compile time constant */
+		last_valid_bit = adev->gfx.mec.num_mec
+				* adev->gfx.mec.num_pipe_per_mec
+				* adev->gfx.mec.num_queue_per_pipe;
+		for (i = last_valid_bit; i < KGD_MAX_QUEUES; ++i)
+			clear_bit(i, gpu_resources.queue_bitmap);
 
 		amdgpu_doorbell_get_kfd_info(adev,
 				&gpu_resources.doorbell_physical_address,

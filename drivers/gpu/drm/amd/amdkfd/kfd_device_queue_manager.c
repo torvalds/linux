@@ -63,21 +63,44 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-unsigned int get_first_pipe(struct device_queue_manager *dqm)
+static bool is_pipe_enabled(struct device_queue_manager *dqm, int mec, int pipe)
 {
-	BUG_ON(!dqm || !dqm->dev);
-	return dqm->dev->shared_resources.first_compute_pipe;
+	int i;
+	int pipe_offset = mec * dqm->dev->shared_resources.num_pipe_per_mec
+		+ pipe * dqm->dev->shared_resources.num_queue_per_pipe;
+
+	/* queue is available for KFD usage if bit is 1 */
+	for (i = 0; i <  dqm->dev->shared_resources.num_queue_per_pipe; ++i)
+		if (test_bit(pipe_offset + i,
+			      dqm->dev->shared_resources.queue_bitmap))
+			return true;
+	return false;
 }
 
-unsigned int get_pipes_num(struct device_queue_manager *dqm)
+unsigned int get_mec_num(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm || !dqm->dev);
-	return dqm->dev->shared_resources.compute_pipe_count;
+
+	return dqm->dev->shared_resources.num_mec;
 }
 
-static inline unsigned int get_pipes_num_cpsch(void)
+unsigned int get_queues_num(struct device_queue_manager *dqm)
 {
-	return PIPE_PER_ME_CP_SCHEDULING;
+	BUG_ON(!dqm || !dqm->dev);
+	return bitmap_weight(dqm->dev->shared_resources.queue_bitmap,
+				KGD_MAX_QUEUES);
+}
+
+unsigned int get_queues_per_pipe(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.num_queue_per_pipe;
+}
+
+unsigned int get_pipes_per_mec(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.num_pipe_per_mec;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -200,12 +223,16 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 
 	set = false;
 
-	for (pipe = dqm->next_pipe_to_allocate, i = 0; i < get_pipes_num(dqm);
-			pipe = ((pipe + 1) % get_pipes_num(dqm)), ++i) {
+	for (pipe = dqm->next_pipe_to_allocate, i = 0; i < get_pipes_per_mec(dqm);
+			pipe = ((pipe + 1) % get_pipes_per_mec(dqm)), ++i) {
+
+		if (!is_pipe_enabled(dqm, 0, pipe))
+			continue;
+
 		if (dqm->allocated_queues[pipe] != 0) {
 			bit = find_first_bit(
 				(unsigned long *)&dqm->allocated_queues[pipe],
-				QUEUES_PER_PIPE);
+				get_queues_per_pipe(dqm));
 
 			clear_bit(bit,
 				(unsigned long *)&dqm->allocated_queues[pipe]);
@@ -222,7 +249,7 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 	pr_debug("kfd: DQM %s hqd slot - pipe (%d) queue(%d)\n",
 				__func__, q->pipe, q->queue);
 	/* horizontal hqd allocation */
-	dqm->next_pipe_to_allocate = (pipe + 1) % get_pipes_num(dqm);
+	dqm->next_pipe_to_allocate = (pipe + 1) % get_pipes_per_mec(dqm);
 
 	return 0;
 }
@@ -469,36 +496,25 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 						vmid);
 }
 
-int init_pipelines(struct device_queue_manager *dqm,
-			unsigned int pipes_num, unsigned int first_pipe)
-{
-	BUG_ON(!dqm || !dqm->dev);
-
-	pr_debug("kfd: In func %s\n", __func__);
-
-	return 0;
-}
-
 static void init_interrupts(struct device_queue_manager *dqm)
 {
 	unsigned int i;
 
 	BUG_ON(dqm == NULL);
 
-	for (i = 0 ; i < get_pipes_num(dqm) ; i++)
-		dqm->dev->kfd2kgd->init_interrupts(dqm->dev->kgd,
-				i + get_first_pipe(dqm));
+	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++)
+		if (is_pipe_enabled(dqm, 0, i))
+			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->kgd, i);
 }
 
 static int init_scheduler(struct device_queue_manager *dqm)
 {
-	int retval;
+	int retval = 0;
 
 	BUG_ON(!dqm);
 
 	pr_debug("kfd: In %s\n", __func__);
 
-	retval = init_pipelines(dqm, get_pipes_num(dqm), get_first_pipe(dqm));
 	return retval;
 }
 
@@ -509,21 +525,21 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	BUG_ON(!dqm);
 
 	pr_debug("kfd: In func %s num of pipes: %d\n",
-			__func__, get_pipes_num(dqm));
+			__func__, get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
 	dqm->queue_count = dqm->next_pipe_to_allocate = 0;
 	dqm->sdma_queue_count = 0;
-	dqm->allocated_queues = kcalloc(get_pipes_num(dqm),
+	dqm->allocated_queues = kcalloc(get_pipes_per_mec(dqm),
 					sizeof(unsigned int), GFP_KERNEL);
 	if (!dqm->allocated_queues) {
 		mutex_destroy(&dqm->lock);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < get_pipes_num(dqm); i++)
-		dqm->allocated_queues[i] = (1 << QUEUES_PER_PIPE) - 1;
+	for (i = 0; i < get_pipes_per_mec(dqm); i++)
+		dqm->allocated_queues[i] = (1 << get_queues_per_pipe(dqm)) - 1;
 
 	dqm->vmid_bitmap = (1 << VMID_PER_DEVICE) - 1;
 	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
@@ -630,18 +646,38 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 
 static int set_sched_resources(struct device_queue_manager *dqm)
 {
+	int i, mec;
 	struct scheduling_resources res;
-	unsigned int queue_num, queue_mask;
 
 	BUG_ON(!dqm);
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	queue_num = get_pipes_num_cpsch() * QUEUES_PER_PIPE;
-	queue_mask = (1 << queue_num) - 1;
 	res.vmid_mask = (1 << VMID_PER_DEVICE) - 1;
 	res.vmid_mask <<= KFD_VMID_START_OFFSET;
-	res.queue_mask = queue_mask << (get_first_pipe(dqm) * QUEUES_PER_PIPE);
+
+	res.queue_mask = 0;
+	for (i = 0; i < KGD_MAX_QUEUES; ++i) {
+		mec = (i / dqm->dev->shared_resources.num_queue_per_pipe)
+			/ dqm->dev->shared_resources.num_pipe_per_mec;
+
+		if (!test_bit(i, dqm->dev->shared_resources.queue_bitmap))
+			continue;
+
+		/* only acquire queues from the first MEC */
+		if (mec > 0)
+			continue;
+
+		/* This situation may be hit in the future if a new HW
+		 * generation exposes more than 64 queues. If so, the
+		 * definition of res.queue_mask needs updating */
+		if (WARN_ON(i > (sizeof(res.queue_mask)*8))) {
+			pr_err("Invalid queue enabled by amdgpu: %d\n", i);
+			break;
+		}
+
+		res.queue_mask |= (1ull << i);
+	}
 	res.gws_mask = res.oac_mask = res.gds_heap_base =
 						res.gds_heap_size = 0;
 
@@ -660,7 +696,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	BUG_ON(!dqm);
 
 	pr_debug("kfd: In func %s num of pipes: %d\n",
-			__func__, get_pipes_num_cpsch());
+			__func__, get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
