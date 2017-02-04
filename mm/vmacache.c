@@ -2,6 +2,7 @@
  * Copyright (C) 2014 Davidlohr Bueso.
  */
 #include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/mm.h>
 #include <linux/vmacache.h>
 

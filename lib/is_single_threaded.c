@@ -10,6 +10,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/sched/mm.h>
 
 /*
