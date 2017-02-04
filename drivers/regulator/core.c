@@ -1455,12 +1455,14 @@ static struct regulator_dev *regulator_lookup_by_name(const char *name)
  * lookup could succeed in the future.
  *
  * If successful, returns a struct regulator_dev that corresponds to the name
- * @supply and with the embedded struct device refcount incremented by one,
- * or NULL on failure. The refcount must be dropped by calling put_device().
+ * @supply and with the embedded struct device refcount incremented by one.
+ * The refcount must be dropped by calling put_device().
+ * On failure one of the following ERR-PTR-encoded values is returned:
+ * -ENODEV if lookup fails permanently, -EPROBE_DEFER if lookup could succeed
+ * in the future.
  */
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
-						  const char *supply,
-						  int *ret)
+						  const char *supply)
 {
 	struct regulator_dev *r;
 	struct device_node *node;
@@ -1476,16 +1478,12 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 			r = of_find_regulator_by_node(node);
 			if (r)
 				return r;
-			*ret = -EPROBE_DEFER;
-			return NULL;
-		} else {
+
 			/*
-			 * If we couldn't even get the node then it's
-			 * not just that the device didn't register
-			 * yet, there's no node and we'll never
-			 * succeed.
+			 * We have a node, but there is no device.
+			 * assume it has not registered yet.
 			 */
-			*ret = -ENODEV;
+			return ERR_PTR(-EPROBE_DEFER);
 		}
 	}
 
@@ -1506,13 +1504,16 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 
 		if (strcmp(map->supply, supply) == 0 &&
 		    get_device(&map->regulator->dev)) {
-			mutex_unlock(&regulator_list_mutex);
-			return map->regulator;
+			r = map->regulator;
+			break;
 		}
 	}
 	mutex_unlock(&regulator_list_mutex);
 
-	return NULL;
+	if (r)
+		return r;
+
+	return ERR_PTR(-ENODEV);
 }
 
 static int regulator_resolve_supply(struct regulator_dev *rdev)
@@ -1529,8 +1530,10 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	if (rdev->supply)
 		return 0;
 
-	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
-	if (!r) {
+	r = regulator_dev_lookup(dev, rdev->supply_name);
+	if (IS_ERR(r)) {
+		ret = PTR_ERR(r);
+
 		if (ret == -ENODEV) {
 			/*
 			 * No supply was specified for this regulator and
@@ -1601,10 +1604,11 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 	if (dev)
 		devname = dev_name(dev);
 
-	rdev = regulator_dev_lookup(dev, id, &ret);
-	if (rdev)
+	rdev = regulator_dev_lookup(dev, id);
+	if (!IS_ERR(rdev))
 		goto found;
 
+	ret = PTR_ERR(rdev);
 	regulator = ERR_PTR(ret);
 
 	/*
