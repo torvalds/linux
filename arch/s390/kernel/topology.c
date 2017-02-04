@@ -458,7 +458,7 @@ void __init topology_init_early(void)
 	set_sched_topology(s390_topology);
 	if (!MACHINE_HAS_TOPOLOGY)
 		goto out;
-	tl_info = memblock_virt_alloc(sizeof(*tl_info), PAGE_SIZE);
+	tl_info = memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
 	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
