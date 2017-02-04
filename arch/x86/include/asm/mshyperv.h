@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/clocksource.h>
 #include <asm/hyperv.h>
 
 /*
@@ -168,6 +169,8 @@ void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs));
 void hv_remove_crash_handler(void);
 
 #if IS_ENABLED(CONFIG_HYPERV)
+extern struct clocksource *hyperv_cs;
+
 void hyperv_init(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);
