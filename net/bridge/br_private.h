@@ -212,11 +212,15 @@ struct net_bridge_mdb_htable
 	u32				ver;
 };
 
-struct net_bridge_port
-{
+struct net_bridge_port {
 	struct net_bridge		*br;
 	struct net_device		*dev;
 	struct list_head		list;
+
+	unsigned long			flags;
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	struct net_bridge_vlan_group	__rcu *vlgrp;
+#endif
 
 	/* STP */
 	u8				priority;
@@ -238,8 +242,6 @@ struct net_bridge_port
 	struct kobject			kobj;
 	struct rcu_head			rcu;
 
-	unsigned long 			flags;
-
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_own_query	ip4_own_query;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -258,9 +260,6 @@ struct net_bridge_port
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll			*np;
-#endif
-#ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
 #ifdef CONFIG_NET_SWITCHDEV
 	int				offload_fwd_mark;
@@ -283,14 +282,21 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
-struct net_bridge
-{
+struct net_bridge {
 	spinlock_t			lock;
+	spinlock_t			hash_lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
-
 	struct pcpu_sw_netstats		__percpu *stats;
-	spinlock_t			hash_lock;
+	/* These fields are accessed on each packet */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	u8				vlan_enabled;
+	u8				vlan_stats_enabled;
+	__be16				vlan_proto;
+	u16				default_pvid;
+	struct net_bridge_vlan_group	__rcu *vlgrp;
+#endif
+
 	struct hlist_head		hash[BR_HASH_SIZE];
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	union {
@@ -308,6 +314,9 @@ struct net_bridge
 	bridge_id			designated_root;
 	bridge_id			bridge_id;
 	u32				root_path_cost;
+	unsigned char			topology_change;
+	unsigned char			topology_change_detected;
+	u16				root_port;
 	unsigned long			max_age;
 	unsigned long			hello_time;
 	unsigned long			forward_delay;
@@ -319,16 +328,12 @@ struct net_bridge
 
 	u8				group_addr[ETH_ALEN];
 	bool				group_addr_set;
-	u16				root_port;
 
 	enum {
 		BR_NO_STP, 		/* no spanning tree */
 		BR_KERNEL_STP,		/* old STP in kernel */
 		BR_USER_STP,		/* new RSTP in userspace */
 	} stp_enabled;
-
-	unsigned char			topology_change;
-	unsigned char			topology_change_detected;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	unsigned char			multicast_router;
@@ -380,14 +385,6 @@ struct net_bridge
 
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
-#endif
-
-#ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	__rcu *vlgrp;
-	u8				vlan_enabled;
-	u8				vlan_stats_enabled;
-	__be16				vlan_proto;
-	u16				default_pvid;
 #endif
 };
 
