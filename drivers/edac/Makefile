@@ -6,7 +6,7 @@
 # GNU General Public License.
 #
 
-obj-$(CONFIG_EDAC)			:= edac_stub.o edac_core.o
+obj-$(CONFIG_EDAC)			:= edac_core.o
 
 edac_core-y	:= edac_mc.o edac_device.o edac_mc_sysfs.o
 edac_core-y	+= edac_module.o edac_device_sysfs.o wq.o
