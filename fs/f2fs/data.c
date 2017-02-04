@@ -1346,7 +1346,7 @@ out_writepage:
 	return err;
 }
 
-static int f2fs_write_data_page(struct page *page,
+static int __write_data_page(struct page *page,
 					struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
@@ -1448,6 +1448,12 @@ redirty_out:
 	return err;
 }
 
+static int f2fs_write_data_page(struct page *page,
+					struct writeback_control *wbc)
+{
+	return __write_data_page(page, wbc);
+}
+
 /*
  * This function was copied from write_cche_pages from mm/page-writeback.c.
  * The major change is making write step of cold data page separately from
@@ -1537,7 +1543,7 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			ret = mapping->a_ops->writepage(page, wbc);
+			ret = __write_data_page(page, wbc);
 			if (unlikely(ret)) {
 				/*
 				 * keep nr_to_write, since vfs uses this to
