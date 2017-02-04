@@ -33,6 +33,8 @@
 #include <linux/random.h>
 #include <linux/rcupdate.h>
 #include <linux/sched/clock.h>
+#include <linux/rculist.h>
+
 #include <trace/events/bcache.h>
 
 /*

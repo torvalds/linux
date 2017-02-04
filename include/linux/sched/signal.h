@@ -1,6 +1,7 @@
 #ifndef _LINUX_SCHED_SIGNAL_H
 #define _LINUX_SCHED_SIGNAL_H
 
+#include <linux/rculist.h>
 #include <linux/signal.h>
 #include <linux/cred.h>
 #include <linux/sched.h>
