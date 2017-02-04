@@ -168,6 +168,7 @@
 #define PORT_CONTROL_2_FORWARD_UNKNOWN	BIT(6)
 #define PORT_CONTROL_2_EGRESS_MONITOR	BIT(5)
 #define PORT_CONTROL_2_INGRESS_MONITOR	BIT(4)
+#define PORT_CONTROL_2_UPSTREAM_MASK	0x0f
 #define PORT_RATE_CONTROL	0x09
 #define PORT_RATE_CONTROL_2	0x0a
 #define PORT_ASSOC_VECTOR	0x0b
@@ -853,6 +854,12 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
 			      phy_interface_t mode);
+
+	/* Some devices have a per port register indicating what is
+	 * the upstream port this port should forward to.
+	 */
+	int (*port_set_upstream_port)(struct mv88e6xxx_chip *chip, int port,
+				      int upstream_port);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.

@@ -677,11 +677,6 @@ static int mv88e6xxx_phy_ppu_write(struct mv88e6xxx_chip *chip,
 	return err;
 }
 
-static bool mv88e6xxx_6095_family(struct mv88e6xxx_chip *chip)
-{
-	return chip->info->family == MV88E6XXX_FAMILY_6095;
-}
-
 static bool mv88e6xxx_6097_family(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->family == MV88E6XXX_FAMILY_6097;
@@ -690,11 +685,6 @@ static bool mv88e6xxx_6097_family(struct mv88e6xxx_chip *chip)
 static bool mv88e6xxx_6165_family(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->family == MV88E6XXX_FAMILY_6165;
-}
-
-static bool mv88e6xxx_6185_family(struct mv88e6xxx_chip *chip)
-{
-	return chip->info->family == MV88E6XXX_FAMILY_6185;
 }
 
 static bool mv88e6xxx_6320_family(struct mv88e6xxx_chip *chip)
@@ -2585,30 +2575,22 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * received packets as usual, disable ARP mirroring and don't send a
 	 * copy of all transmitted/received frames on this port to the CPU.
 	 */
+	err = mv88e6xxx_port_set_map_da(chip, port);
+	if (err)
+		return err;
+
 	reg = 0;
-	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
-	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
-	    mv88e6xxx_6095_family(chip) || mv88e6xxx_6320_family(chip) ||
-	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6341_family(chip))
-		reg = PORT_CONTROL_2_MAP_DA;
-
-	if (mv88e6xxx_6095_family(chip) || mv88e6xxx_6185_family(chip)) {
-		/* Set the upstream port this port should use */
-		reg |= dsa_upstream_port(ds);
-		/* enable forwarding of unknown multicast addresses to
-		 * the upstream port
-		 */
-		if (port == dsa_upstream_port(ds))
-			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
-	}
-
-	reg |= PORT_CONTROL_2_8021Q_DISABLED;
-
-	if (reg) {
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	if (chip->info->ops->port_set_upstream_port) {
+		err = chip->info->ops->port_set_upstream_port(
+			chip, port, dsa_upstream_port(ds));
 		if (err)
 			return err;
 	}
+
+	err = mv88e6xxx_port_set_8021q_mode(chip, port,
+					    PORT_CONTROL_2_8021Q_DISABLED);
+	if (err)
+		return err;
 
 	if (chip->info->ops->port_jumbo_config) {
 		err = chip->info->ops->port_jumbo_config(chip, port);
@@ -3144,7 +3126,8 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_egress_unknowns = mv88e6085_port_set_egress_unknowns,
+	.port_set_egress_unknowns = mv88e6095_port_set_egress_unknowns,
+	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 	.stats_get_sset_count = mv88e6095_stats_get_sset_count,
 	.stats_get_strings = mv88e6095_stats_get_strings,
@@ -3210,8 +3193,9 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.port_set_speed = mv88e6185_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_unknowns = mv88e6351_port_set_egress_unknowns,
+	.port_set_egress_unknowns = mv88e6095_port_set_egress_unknowns,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
+	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.port_jumbo_config = mv88e6165_port_jumbo_config,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
 	.port_pause_config = mv88e6097_port_pause_config,
@@ -3387,8 +3371,9 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_egress_unknowns = mv88e6085_port_set_egress_unknowns,
+	.port_set_egress_unknowns = mv88e6095_port_set_egress_unknowns,
 	.port_egress_rate_limiting = mv88e6095_port_egress_rate_limiting,
+	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 	.stats_get_sset_count = mv88e6095_stats_get_sset_count,
 	.stats_get_strings = mv88e6095_stats_get_strings,
