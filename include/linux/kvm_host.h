@@ -221,7 +221,6 @@ struct kvm_vcpu {
 	struct mutex mutex;
 	struct kvm_run *run;
 
-	int fpu_active;
 	int guest_fpu_loaded, guest_xcr0_loaded;
 	struct swait_queue_head wq;
 	struct pid *pid;

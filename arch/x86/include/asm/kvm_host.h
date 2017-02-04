@@ -55,7 +55,6 @@
 #define KVM_REQ_TRIPLE_FAULT      10
 #define KVM_REQ_MMU_SYNC          11
 #define KVM_REQ_CLOCK_UPDATE      12
-#define KVM_REQ_DEACTIVATE_FPU    13
 #define KVM_REQ_EVENT             14
 #define KVM_REQ_APF_HALT          15
 #define KVM_REQ_STEAL_UPDATE      16
@@ -936,8 +935,6 @@ struct kvm_x86_ops {
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 	u32 (*get_pkru)(struct kvm_vcpu *vcpu);
-	void (*fpu_activate)(struct kvm_vcpu *vcpu);
-	void (*fpu_deactivate)(struct kvm_vcpu *vcpu);
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu);
 
