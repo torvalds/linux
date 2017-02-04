@@ -2025,7 +2025,7 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 	skb_checksum_none_assert(skb);
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
-	netif_receive_skb(skb);
+	napi_gro_receive(&qdev->napi, skb);
 	lrg_buf_cb2->skb = NULL;
 
 	if (qdev->device_id == QL3022_DEVICE_ID)
@@ -2095,7 +2095,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	}
 	skb2->protocol = eth_type_trans(skb2, qdev->ndev);
 
-	netif_receive_skb(skb2);
+	napi_gro_receive(&qdev->napi, skb2);
 	ndev->stats.rx_packets++;
 	ndev->stats.rx_bytes += length;
 	lrg_buf_cb2->skb = NULL;
@@ -2105,8 +2105,7 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	ql_release_to_lrg_buf_free_list(qdev, lrg_buf_cb2);
 }
 
-static int ql_tx_rx_clean(struct ql3_adapter *qdev,
-			  int *tx_cleaned, int *rx_cleaned, int work_to_do)
+static int ql_tx_rx_clean(struct ql3_adapter *qdev, int budget)
 {
 	struct net_rsp_iocb *net_rsp;
 	struct net_device *ndev = qdev->ndev;
@@ -2114,7 +2113,7 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 
 	/* While there are entries in the completion queue. */
 	while ((le32_to_cpu(*(qdev->prsp_producer_index)) !=
-		qdev->rsp_consumer_index) && (work_done < work_to_do)) {
+		qdev->rsp_consumer_index) && (work_done < budget)) {
 
 		net_rsp = qdev->rsp_current;
 		rmb();
@@ -2130,21 +2129,20 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 		case OPCODE_OB_MAC_IOCB_FN2:
 			ql_process_mac_tx_intr(qdev, (struct ob_mac_iocb_rsp *)
 					       net_rsp);
-			(*tx_cleaned)++;
 			break;
 
 		case OPCODE_IB_MAC_IOCB:
 		case OPCODE_IB_3032_MAC_IOCB:
 			ql_process_mac_rx_intr(qdev, (struct ib_mac_iocb_rsp *)
 					       net_rsp);
-			(*rx_cleaned)++;
+			work_done++;
 			break;
 
 		case OPCODE_IB_IP_IOCB:
 		case OPCODE_IB_3032_IP_IOCB:
 			ql_process_macip_rx_intr(qdev, (struct ib_ip_iocb_rsp *)
 						 net_rsp);
-			(*rx_cleaned)++;
+			work_done++;
 			break;
 		default: {
 			u32 *tmp = (u32 *)net_rsp;
@@ -2169,7 +2167,6 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 			qdev->rsp_current++;
 		}
 
-		work_done = *tx_cleaned + *rx_cleaned;
 	}
 
 	return work_done;
@@ -2178,25 +2175,25 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 static int ql_poll(struct napi_struct *napi, int budget)
 {
 	struct ql3_adapter *qdev = container_of(napi, struct ql3_adapter, napi);
-	int rx_cleaned = 0, tx_cleaned = 0;
-	unsigned long hw_flags;
 	struct ql3xxx_port_registers __iomem *port_regs =
 		qdev->mem_map_registers;
+	int work_done;
 
-	ql_tx_rx_clean(qdev, &tx_cleaned, &rx_cleaned, budget);
+	work_done = ql_tx_rx_clean(qdev, budget);
 
-	if (tx_cleaned + rx_cleaned != budget) {
-		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
-		__napi_complete(napi);
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&qdev->hw_lock, flags);
 		ql_update_small_bufq_prod_index(qdev);
 		ql_update_lrg_bufq_prod_index(qdev);
 		writel(qdev->rsp_consumer_index,
 			    &port_regs->CommonRegs.rspQConsumerIndex);
-		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+		spin_unlock_irqrestore(&qdev->hw_lock, flags);
 
 		ql_enable_interrupts(qdev);
 	}
-	return tx_cleaned + rx_cleaned;
+	return work_done;
 }
 
 static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
