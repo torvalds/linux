@@ -465,13 +465,16 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (r > 0) {
 		/*
-		 * Target determined this ioctl is being issued against
-		 * a logical partition of the parent bdev; so extra
-		 * validation is needed.
+		 * Target determined this ioctl is being issued against a
+		 * subset of the parent bdev; require extra privileges.
 		 */
-		r = scsi_verify_blk_ioctl(NULL, cmd);
-		if (r)
+		if (!capable(CAP_SYS_RAWIO)) {
+			DMWARN_LIMIT(
+	"%s: sending ioctl %x to DM device without required privilege.",
+				current->comm, cmd);
+			r = -ENOIOCTLCMD;
 			goto out;
+		}
 	}
 
 	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
