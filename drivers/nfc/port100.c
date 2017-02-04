@@ -725,23 +725,33 @@ static int port100_submit_urb_for_ack(struct port100 *dev, gfp_t flags)
 
 static int port100_send_ack(struct port100 *dev)
 {
-	int rc;
+	int rc = 0;
 
 	mutex_lock(&dev->out_urb_lock);
 
-	init_completion(&dev->cmd_cancel_done);
-
-	usb_kill_urb(dev->out_urb);
-
-	dev->out_urb->transfer_buffer = ack_frame;
-	dev->out_urb->transfer_buffer_length = sizeof(ack_frame);
-	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
-
-	/* Set the cmd_cancel flag only if the URB has been successfully
-	 * submitted. It will be reset by the out URB completion callback
-	 * port100_send_complete().
+	/*
+	 * If prior cancel is in-flight (dev->cmd_cancel == true), we
+	 * can skip to send cancel. Then this will wait the prior
+	 * cancel, or merged into the next cancel rarely if next
+	 * cancel was started before waiting done. In any case, this
+	 * will be waked up soon or later.
 	 */
-	dev->cmd_cancel = !rc;
+	if (!dev->cmd_cancel) {
+		reinit_completion(&dev->cmd_cancel_done);
+
+		usb_kill_urb(dev->out_urb);
+
+		dev->out_urb->transfer_buffer = ack_frame;
+		dev->out_urb->transfer_buffer_length = sizeof(ack_frame);
+		rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
+
+		/*
+		 * Set the cmd_cancel flag only if the URB has been
+		 * successfully submitted. It will be reset by the out
+		 * URB completion callback port100_send_complete().
+		 */
+		dev->cmd_cancel = !rc;
+	}
 
 	mutex_unlock(&dev->out_urb_lock);
 
@@ -928,8 +938,8 @@ static void port100_send_complete(struct urb *urb)
 	struct port100 *dev = urb->context;
 
 	if (dev->cmd_cancel) {
+		complete_all(&dev->cmd_cancel_done);
 		dev->cmd_cancel = false;
-		complete(&dev->cmd_cancel_done);
 	}
 
 	switch (urb->status) {
@@ -1543,6 +1553,7 @@ static int port100_probe(struct usb_interface *interface,
 			    PORT100_COMM_RF_HEAD_MAX_LEN;
 	dev->skb_tailroom = PORT100_FRAME_TAIL_LEN;
 
+	init_completion(&dev->cmd_cancel_done);
 	INIT_WORK(&dev->cmd_complete_work, port100_wq_cmd_complete);
 
 	/* The first thing to do with the Port-100 is to set the command type
