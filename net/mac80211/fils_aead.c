@@ -272,7 +272,7 @@ int fils_encrypt_assoc_req(struct sk_buff *skb,
 	crypt_len = skb->data + skb->len - encr;
 	skb_put(skb, AES_BLOCK_SIZE);
 	return aes_siv_encrypt(assoc_data->fils_kek, assoc_data->fils_kek_len,
-			       encr, crypt_len, 1, addr, len, encr);
+			       encr, crypt_len, 5, addr, len, encr);
 }
 
 int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
