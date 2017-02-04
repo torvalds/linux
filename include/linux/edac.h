@@ -30,8 +30,8 @@ struct device;
 extern int edac_op_state;
 
 struct bus_type *edac_get_sysfs_subsys(void);
-int get_edac_report_status(void);
-void set_edac_report_status(int new);
+int edac_get_report_status(void);
+void edac_set_report_status(int new);
 
 enum {
 	EDAC_REPORTING_ENABLED,

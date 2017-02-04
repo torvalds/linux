@@ -57,20 +57,20 @@ static void const *edac_mc_owner;
 
 static struct bus_type mc_bus[EDAC_MAX_MCS];
 
-int get_edac_report_status(void)
+int edac_get_report_status(void)
 {
 	return edac_report;
 }
-EXPORT_SYMBOL_GPL(get_edac_report_status);
+EXPORT_SYMBOL_GPL(edac_get_report_status);
 
-void set_edac_report_status(int new)
+void edac_set_report_status(int new)
 {
 	if (new == EDAC_REPORTING_ENABLED ||
 	    new == EDAC_REPORTING_DISABLED ||
 	    new == EDAC_REPORTING_FORCE)
 		edac_report = new;
 }
-EXPORT_SYMBOL_GPL(set_edac_report_status);
+EXPORT_SYMBOL_GPL(edac_set_report_status);
 
 static int edac_report_set(const char *str, const struct kernel_param *kp)
 {
