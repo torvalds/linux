@@ -124,7 +124,7 @@ static int aes_siv_encrypt(const u8 *key, size_t key_len,
 
 	/* CTR */
 
-	tfm2 = crypto_alloc_skcipher("ctr(aes)", 0, 0);
+	tfm2 = crypto_alloc_skcipher("ctr(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm2)) {
 		kfree(tmp);
 		return PTR_ERR(tfm2);
@@ -183,7 +183,7 @@ static int aes_siv_decrypt(const u8 *key, size_t key_len,
 
 	/* CTR */
 
-	tfm2 = crypto_alloc_skcipher("ctr(aes)", 0, 0);
+	tfm2 = crypto_alloc_skcipher("ctr(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm2))
 		return PTR_ERR(tfm2);
 	/* K2 for CTR */
