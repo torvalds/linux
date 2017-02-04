@@ -594,6 +594,9 @@ struct ufs_hba {
 
 	bool wlun_dev_clr_ua;
 
+	/* Number of requests aborts */
+	int req_abort_count;
+
 	/* Number of lanes available (1 or 2) for Rx/Tx */
 	u32 lanes_per_direction;
 	struct ufs_pa_layer_attr pwr_info;
