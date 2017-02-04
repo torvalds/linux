@@ -1012,11 +1012,12 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 	/* Out of packets? */
 	if (received < budget) {
 		r = virtqueue_enable_cb_prepare(rq->vq);
-		napi_complete_done(napi, received);
-		if (unlikely(virtqueue_poll(rq->vq, r)) &&
-		    napi_schedule_prep(napi)) {
-			virtqueue_disable_cb(rq->vq);
-			__napi_schedule(napi);
+		if (napi_complete_done(napi, received)) {
+			if (unlikely(virtqueue_poll(rq->vq, r)) &&
+			    napi_schedule_prep(napi)) {
+				virtqueue_disable_cb(rq->vq);
+				__napi_schedule(napi);
+			}
 		}
 	}
 
