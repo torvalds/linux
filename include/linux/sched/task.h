@@ -8,6 +8,9 @@
 
 #include <linux/sched.h>
 
+struct task_struct;
+union thread_union;
+
 /*
  * This serializes "schedule()" and also protects
  * the run-queue from deletions/modifications (but
@@ -16,6 +19,9 @@
  */
 extern rwlock_t tasklist_lock;
 extern spinlock_t mmlist_lock;
+
+extern union thread_union init_thread_union;
+extern struct task_struct init_task;
 
 #ifdef CONFIG_PROVE_RCU
 extern int lockdep_tasklist_lock_is_held(void);
