@@ -2422,7 +2422,8 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
 		sattr->ia_valid |= ATTR_MTIME;
 
 	/* Except MODE, it seems harmless of setting twice. */
-	if ((attrset[1] & FATTR4_WORD1_MODE))
+	if (opendata->o_arg.createmode != NFS4_CREATE_EXCLUSIVE &&
+		attrset[1] & FATTR4_WORD1_MODE)
 		sattr->ia_valid &= ~ATTR_MODE;
 
 	if (attrset[2] & FATTR4_WORD2_SECURITY_LABEL)
