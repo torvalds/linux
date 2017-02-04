@@ -160,19 +160,21 @@ struct net_bridge_vlan_group {
 	u16				pvid;
 };
 
-struct net_bridge_fdb_entry
-{
+struct net_bridge_fdb_entry {
 	struct hlist_node		hlist;
 	struct net_bridge_port		*dst;
 
-	unsigned long			updated;
-	unsigned long			used;
 	mac_addr			addr;
 	__u16				vlan_id;
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
 					added_by_external_learn:1;
+
+	/* write-heavy members should not affect lookups */
+	unsigned long			updated ____cacheline_aligned_in_smp;
+	unsigned long			used;
+
 	struct rcu_head			rcu;
 };
 
