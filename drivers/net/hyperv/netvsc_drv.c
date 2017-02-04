@@ -1605,7 +1605,7 @@ static int netvsc_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	/* Avoid Vlan dev with same MAC registering as VF */
-	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(event_dev))
 		return NOTIFY_DONE;
 
 	/* Avoid Bonding master dev with same MAC registering as VF */

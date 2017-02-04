@@ -160,8 +160,7 @@ static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 
 static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 {
-	return dev->priv_flags & IFF_802_1Q_VLAN ?
-		vlan_dev_vlan_id(dev) : 0xffff;
+	return is_vlan_dev(dev) ? vlan_dev_vlan_id(dev) : 0xffff;
 }
 
 static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
@@ -326,8 +325,7 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 
 static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device *dev)
 {
-	return dev->priv_flags & IFF_802_1Q_VLAN ?
-		vlan_dev_real_dev(dev) : NULL;
+	return is_vlan_dev(dev) ? vlan_dev_real_dev(dev) : NULL;
 }
 
 #endif /* IB_ADDR_H */

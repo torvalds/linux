@@ -1805,7 +1805,7 @@ static void check_neigh_update(struct neighbour *neigh)
 	const struct device *parent;
 	const struct net_device *netdev = neigh->dev;
 
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		netdev = vlan_dev_real_dev(netdev);
 	parent = netdev->dev.parent;
 	if (parent && parent->driver == &cxgb4_driver.driver)
@@ -2111,7 +2111,7 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 #if IS_ENABLED(CONFIG_BONDING)
 	struct adapter *adap;
 #endif
-	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(event_dev))
 		event_dev = vlan_dev_real_dev(event_dev);
 #if IS_ENABLED(CONFIG_BONDING)
 	if (event_dev->flags & IFF_MASTER) {

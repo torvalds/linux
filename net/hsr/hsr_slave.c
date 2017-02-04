@@ -12,6 +12,7 @@
 #include "hsr_slave.h"
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 #include "hsr_main.h"
 #include "hsr_device.h"
 #include "hsr_forward.h"
@@ -81,7 +82,7 @@ static int hsr_check_dev_ok(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		netdev_info(dev, "HSR on top of VLAN is not yet supported in this driver.\n");
 		return -EINVAL;
 	}

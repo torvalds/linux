@@ -3264,7 +3264,7 @@ netxen_list_config_ip(struct netxen_adapter *adapter,
 		cur = kzalloc(sizeof(struct nx_ip_list), GFP_ATOMIC);
 		if (cur == NULL)
 			goto out;
-		if (dev->priv_flags & IFF_802_1Q_VLAN)
+		if (is_vlan_dev(dev))
 			dev = vlan_dev_real_dev(dev);
 		cur->master = !!netif_is_bond_master(dev);
 		cur->ip_addr = ifa->ifa_address;
@@ -3374,7 +3374,7 @@ static void netxen_config_master(struct net_device *dev, unsigned long event)
 	    !netif_is_bond_slave(dev)) {
 		netxen_config_indev_addr(adapter, master, event);
 		for_each_netdev_rcu(&init_net, slave)
-			if (slave->priv_flags & IFF_802_1Q_VLAN &&
+			if (is_vlan_dev(slave) &&
 			    vlan_dev_real_dev(slave) == master)
 				netxen_config_indev_addr(adapter, slave, event);
 	}
@@ -3400,7 +3400,7 @@ recheck:
 	if (dev == NULL)
 		goto done;
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		dev = vlan_dev_real_dev(dev);
 		goto recheck;
 	}
@@ -3445,7 +3445,7 @@ recheck:
 	if (dev == NULL)
 		goto done;
 
-	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(dev)) {
 		dev = vlan_dev_real_dev(dev);
 		goto recheck;
 	}

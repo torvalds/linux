@@ -2282,7 +2282,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	}
 
 	/* obtain physical netdev */
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		phys_dev = vlan_dev_real_dev(netdev);
 
 	/* verify if the physical device is a netxtreme2 device */
@@ -2320,7 +2320,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 		goto ifput_err;
 	}
 
-	if (netdev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(netdev)) {
 		vlan_id = vlan_dev_vlan_id(netdev);
 		interface->vlan_enabled = 1;
 	}
@@ -2538,7 +2538,7 @@ static bool bnx2fc_match(struct net_device *netdev)
 	struct net_device *phys_dev = netdev;
 
 	mutex_lock(&bnx2fc_dev_lock);
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		phys_dev = vlan_dev_real_dev(netdev);
 
 	if (bnx2fc_hba_lookup(phys_dev)) {
