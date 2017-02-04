@@ -259,7 +259,7 @@ static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 adj_flags)
 
 	/*
 	 * This check is safe since we are executing in the
-	 * interrupt context and time synch messages arre always
+	 * interrupt context and time synch messages are always
 	 * delivered on the same CPU.
 	 */
 	if (adj_flags & ICTIMESYNCFLAG_SYNC) {
