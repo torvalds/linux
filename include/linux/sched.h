@@ -14,7 +14,7 @@
 #include <linux/signal_types.h>
 #include <linux/pid.h>
 #include <linux/seccomp.h>
-#include <linux/rculist.h>
+#include <linux/rcupdate.h>
 
 #include <linux/resource.h>
 #include <linux/hrtimer.h>
