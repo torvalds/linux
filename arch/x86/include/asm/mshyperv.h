@@ -80,7 +80,7 @@ struct ms_hyperv_tsc_page {
  *
  */
 
-#define HV_LINUX_VENDOR_ID              0x8800
+#define HV_LINUX_VENDOR_ID              0x8100
 
 /*
  * Generate the guest ID based on the guideline described above.
@@ -91,7 +91,7 @@ static inline  __u64 generate_guest_id(__u64 d_info1, __u64 kernel_version,
 {
 	__u64 guest_id = 0;
 
-	guest_id = (((__u64)HV_LINUX_VENDOR_ID) << 56);
+	guest_id = (((__u64)HV_LINUX_VENDOR_ID) << 48);
 	guest_id |= (d_info1 << 48);
 	guest_id |= (kernel_version << 16);
 	guest_id |= d_info2;
