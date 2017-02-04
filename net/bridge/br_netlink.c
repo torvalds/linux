@@ -1250,7 +1250,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	if (nla_put_u64_64bit(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER, clockval,
 			      IFLA_BR_PAD))
 		return -EMSGSIZE;
-	clockval = br_timer_value(&br->gc_timer);
+	clockval = br_timer_value(&br->gc_work.timer);
 	if (nla_put_u64_64bit(skb, IFLA_BR_GC_TIMER, clockval, IFLA_BR_PAD))
 		return -EMSGSIZE;
 

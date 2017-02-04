@@ -154,7 +154,7 @@ static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 	if (f->added_by_external_learn)
 		fdb_del_external_learn(f);
 
-	hlist_del_rcu(&f->hlist);
+	hlist_del_init_rcu(&f->hlist);
 	fdb_notify(br, f, RTM_DELNEIGH);
 	call_rcu(&f->rcu, fdb_rcu_free);
 }
@@ -290,34 +290,43 @@ out:
 	spin_unlock_bh(&br->hash_lock);
 }
 
-void br_fdb_cleanup(unsigned long _data)
+void br_fdb_cleanup(struct work_struct *work)
 {
-	struct net_bridge *br = (struct net_bridge *)_data;
+	struct net_bridge *br = container_of(work, struct net_bridge,
+					     gc_work.work);
 	unsigned long delay = hold_time(br);
-	unsigned long next_timer = jiffies + br->ageing_time;
+	unsigned long work_delay = delay;
+	unsigned long now = jiffies;
 	int i;
 
-	spin_lock(&br->hash_lock);
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct net_bridge_fdb_entry *f;
 		struct hlist_node *n;
 
+		if (!br->hash[i].first)
+			continue;
+
+		spin_lock_bh(&br->hash_lock);
 		hlist_for_each_entry_safe(f, n, &br->hash[i], hlist) {
 			unsigned long this_timer;
+
 			if (f->is_static)
 				continue;
 			if (f->added_by_external_learn)
 				continue;
 			this_timer = f->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_after(this_timer, now))
+				work_delay = min(work_delay, this_timer - now);
+			else
 				fdb_delete(br, f);
-			else if (time_before(this_timer, next_timer))
-				next_timer = this_timer;
 		}
+		spin_unlock_bh(&br->hash_lock);
+		cond_resched();
 	}
-	spin_unlock(&br->hash_lock);
 
-	mod_timer(&br->gc_timer, round_jiffies_up(next_timer));
+	/* Cleanup minimum 10 milliseconds apart */
+	work_delay = max_t(unsigned long, work_delay, msecs_to_jiffies(10));
+	mod_delayed_work(system_long_wq, &br->gc_work, work_delay);
 }
 
 /* Completely flush all dynamic entries in forwarding database.*/
@@ -382,8 +391,6 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 				&br->hash[br_mac_hash(addr, vid)], hlist) {
 		if (ether_addr_equal(fdb->addr.addr, addr) &&
 		    fdb->vlan_id == vid) {
-			if (unlikely(has_expired(br, fdb)))
-				break;
 			return fdb;
 		}
 	}

@@ -379,7 +379,7 @@ struct net_bridge {
 	struct timer_list		hello_timer;
 	struct timer_list		tcn_timer;
 	struct timer_list		topology_change_timer;
-	struct timer_list		gc_timer;
+	struct delayed_work		gc_work;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
 
@@ -502,7 +502,7 @@ void br_fdb_find_delete_local(struct net_bridge *br,
 			      const unsigned char *addr, u16 vid);
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr);
 void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
-void br_fdb_cleanup(unsigned long arg);
+void br_fdb_cleanup(struct work_struct *work);
 void br_fdb_delete_by_port(struct net_bridge *br,
 			   const struct net_bridge_port *p, u16 vid, int do_all);
 struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
