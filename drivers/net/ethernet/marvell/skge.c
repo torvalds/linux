@@ -3201,7 +3201,7 @@ static void skge_tx_done(struct net_device *dev)
 	}
 }
 
-static int skge_poll(struct napi_struct *napi, int to_do)
+static int skge_poll(struct napi_struct *napi, int budget)
 {
 	struct skge_port *skge = container_of(napi, struct skge_port, napi);
 	struct net_device *dev = skge->netdev;
@@ -3214,7 +3214,7 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 
 	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
-	for (e = ring->to_clean; prefetch(e->next), work_done < to_do; e = e->next) {
+	for (e = ring->to_clean; prefetch(e->next), work_done < budget; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
 		struct sk_buff *skb;
 		u32 control;
@@ -3236,12 +3236,10 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 	wmb();
 	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR), CSR_START);
 
-	if (work_done < to_do) {
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		unsigned long flags;
 
-		napi_gro_flush(napi, false);
 		spin_lock_irqsave(&hw->hw_lock, flags);
-		__napi_complete(napi);
 		hw->intr_mask |= napimask[skge->port];
 		skge_write32(hw, B0_IMSK, hw->intr_mask);
 		skge_read32(hw, B0_IMSK);
