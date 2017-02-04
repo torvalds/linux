@@ -212,10 +212,7 @@ static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
 		return PTR_ERR(res->por_reset);
 
 	res->phy_reset = devm_reset_control_get(dev, "phy");
-	if (IS_ERR(res->phy_reset))
-		return PTR_ERR(res->phy_reset);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(res->phy_reset);
 }
 
 static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
@@ -244,10 +241,7 @@ static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
 		return PTR_ERR(res->slave_bus);
 
 	res->core = devm_reset_control_get(dev, "core");
-	if (IS_ERR(res->core))
-		return PTR_ERR(res->core);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(res->core);
 }
 
 static void qcom_pcie_deinit_v0(struct qcom_pcie *pcie)
@@ -478,10 +472,7 @@ static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
 		return PTR_ERR(res->slave_clk);
 
 	res->pipe_clk = devm_clk_get(dev, "pipe");
-	if (IS_ERR(res->pipe_clk))
-		return PTR_ERR(res->pipe_clk);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(res->pipe_clk);
 }
 
 static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
