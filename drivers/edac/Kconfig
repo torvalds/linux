@@ -13,23 +13,13 @@ menuconfig EDAC
 	tristate "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM && EDAC_SUPPORT && RAS
 	help
-	  EDAC is designed to report errors in the core system.
-	  These are low-level errors that are reported in the CPU or
-	  supporting chipset or other subsystems:
+	  EDAC is a subsystem along with hardware-specific drivers designed to
+	  report hardware errors. These are low-level errors that are reported
+	  in the CPU or supporting chipset or other subsystems:
 	  memory errors, cache errors, PCI errors, thermal throttling, etc..
 	  If unsure, select 'Y'.
 
-	  If this code is reporting problems on your system, please
-	  see the EDAC project web pages for more information at:
-
-	  <http://bluesmoke.sourceforge.net/>
-
-	  and:
-
-	  <http://buttersideup.com/edacwiki>
-
-	  There is also a mailing list for the EDAC project, which can
-	  be found via the sourceforge page.
+	  The mailing list for the EDAC project is linux-edac@vger.kernel.org.
 
 if EDAC
 
