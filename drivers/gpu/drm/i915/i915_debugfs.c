@@ -4653,6 +4653,81 @@ static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
 	return drm_add_fake_info_node(minor, ent, &i915_forcewake_fops);
 }
 
+static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
+{
+	struct drm_i915_private *dev_priv = m->private;
+	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+
+	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
+	seq_printf(m, "Detected: %s\n",
+		   yesno(delayed_work_pending(&hotplug->reenable_work)));
+
+	return 0;
+}
+
+static ssize_t i915_hpd_storm_ctl_write(struct file *file,
+					const char __user *ubuf, size_t len,
+					loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_i915_private *dev_priv = m->private;
+	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	unsigned int new_threshold;
+	int i;
+	char *newline;
+	char tmp[16];
+
+	if (len >= sizeof(tmp))
+		return -EINVAL;
+
+	if (copy_from_user(tmp, ubuf, len))
+		return -EFAULT;
+
+	tmp[len] = '\0';
+
+	/* Strip newline, if any */
+	newline = strchr(tmp, '\n');
+	if (newline)
+		*newline = '\0';
+
+	if (strcmp(tmp, "reset") == 0)
+		new_threshold = HPD_STORM_DEFAULT_THRESHOLD;
+	else if (kstrtouint(tmp, 10, &new_threshold) != 0)
+		return -EINVAL;
+
+	if (new_threshold > 0)
+		DRM_DEBUG_KMS("Setting HPD storm detection threshold to %d\n",
+			      new_threshold);
+	else
+		DRM_DEBUG_KMS("Disabling HPD storm detection\n");
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	hotplug->hpd_storm_threshold = new_threshold;
+	/* Reset the HPD storm stats so we don't accidentally trigger a storm */
+	for_each_hpd_pin(i)
+		hotplug->stats[i].count = 0;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/* Re-enable hpd immediately if we were in an irq storm */
+	flush_delayed_work(&dev_priv->hotplug.reenable_work);
+
+	return len;
+}
+
+static int i915_hpd_storm_ctl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, i915_hpd_storm_ctl_show, inode->i_private);
+}
+
+static const struct file_operations i915_hpd_storm_ctl_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_hpd_storm_ctl_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = i915_hpd_storm_ctl_write
+};
+
 static int i915_debugfs_create(struct dentry *root,
 			       struct drm_minor *minor,
 			       const char *name,
@@ -4746,7 +4821,8 @@ static const struct i915_debugfs_files {
 	{"i915_dp_test_data", &i915_displayport_test_data_fops},
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
-	{"i915_guc_log_control", &i915_guc_log_control_fops}
+	{"i915_guc_log_control", &i915_guc_log_control_fops},
+	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops}
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)

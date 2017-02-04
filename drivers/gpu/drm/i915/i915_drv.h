@@ -384,6 +384,8 @@ enum hpd_pin {
 #define for_each_hpd_pin(__pin) \
 	for ((__pin) = (HPD_NONE + 1); (__pin) < HPD_NUM_PINS; (__pin)++)
 
+#define HPD_STORM_DEFAULT_THRESHOLD 5
+
 struct i915_hotplug {
 	struct work_struct hotplug_work;
 
@@ -406,6 +408,8 @@ struct i915_hotplug {
 
 	struct work_struct poll_init_work;
 	bool poll_enabled;
+
+	unsigned int hpd_storm_threshold;
 
 	/*
 	 * if we get a HPD irq from DP and a HPD irq from non-DP

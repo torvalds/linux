@@ -100,7 +100,6 @@ bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port)
 }
 
 #define HPD_STORM_DETECT_PERIOD		1000
-#define HPD_STORM_THRESHOLD		5
 #define HPD_STORM_REENABLE_DELAY	(2 * 60 * 1000)
 
 /**
@@ -112,9 +111,13 @@ bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port)
  * storms. Only the pin specific stats and state are changed, the caller is
  * responsible for further action.
  *
- * @HPD_STORM_THRESHOLD irqs are allowed within @HPD_STORM_DETECT_PERIOD ms,
- * otherwise it's considered an irq storm, and the irq state is set to
- * @HPD_MARK_DISABLED.
+ * The number of irqs that are allowed within @HPD_STORM_DETECT_PERIOD is
+ * stored in @dev_priv->hotplug.hpd_storm_threshold which defaults to
+ * @HPD_STORM_DEFAULT_THRESHOLD. If this threshold is exceeded, it's
+ * considered an irq storm and the irq state is set to @HPD_MARK_DISABLED.
+ *
+ * The HPD threshold can be controlled through i915_hpd_storm_ctl in debugfs,
+ * and should only be adjusted for automated hotplug testing.
  *
  * Return true if an irq storm was detected on @pin.
  */
@@ -123,13 +126,15 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 {
 	unsigned long start = dev_priv->hotplug.stats[pin].last_jiffies;
 	unsigned long end = start + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD);
+	const int threshold = dev_priv->hotplug.hpd_storm_threshold;
 	bool storm = false;
 
 	if (!time_in_range(jiffies, start, end)) {
 		dev_priv->hotplug.stats[pin].last_jiffies = jiffies;
 		dev_priv->hotplug.stats[pin].count = 0;
 		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: 0\n", pin);
-	} else if (dev_priv->hotplug.stats[pin].count > HPD_STORM_THRESHOLD) {
+	} else if (dev_priv->hotplug.stats[pin].count > threshold &&
+		   threshold) {
 		dev_priv->hotplug.stats[pin].state = HPD_MARK_DISABLED;
 		DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", pin);
 		storm = true;
