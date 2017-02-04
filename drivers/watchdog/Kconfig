@@ -725,6 +725,16 @@ config ASPEED_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called aspeed_wdt.
 
+config ZX2967_WATCHDOG
+	tristate "ZTE zx2967 SoCs watchdog support"
+	depends on ARCH_ZX
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in ZTE zx2967 SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called zx2967_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
