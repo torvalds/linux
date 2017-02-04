@@ -992,29 +992,19 @@ static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
 		___force_wake_auto(dev_priv, fw_domains);
 }
 
-#define __gen6_read(x) \
+#define __gen_read(func, x) \
 static u##x \
-gen6_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
+func##_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
-	fw_engine = __gen6_reg_read_fw_domains(offset); \
+	fw_engine = __##func##_reg_read_fw_domains(offset); \
 	if (fw_engine) \
 		__force_wake_auto(dev_priv, fw_engine); \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	GEN6_READ_FOOTER; \
 }
-
-#define __fwtable_read(x) \
-static u##x \
-fwtable_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
-	enum forcewake_domains fw_engine; \
-	GEN6_READ_HEADER(x); \
-	fw_engine = __fwtable_reg_read_fw_domains(offset); \
-	if (fw_engine) \
-		__force_wake_auto(dev_priv, fw_engine); \
-	val = __raw_i915_read##x(dev_priv, reg); \
-	GEN6_READ_FOOTER; \
-}
+#define __gen6_read(x) __gen_read(gen6, x)
+#define __fwtable_read(x) __gen_read(fwtable, x)
 
 #define __gen9_decoupled_read(x) \
 static u##x \
@@ -1115,29 +1105,19 @@ gen6_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool 
 	GEN6_WRITE_FOOTER; \
 }
 
-#define __gen8_write(x) \
+#define __gen_write(func, x) \
 static void \
-gen8_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
+func##_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
-	fw_engine = __gen8_reg_write_fw_domains(offset); \
+	fw_engine = __##func##_reg_write_fw_domains(offset); \
 	if (fw_engine) \
 		__force_wake_auto(dev_priv, fw_engine); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
-
-#define __fwtable_write(x) \
-static void \
-fwtable_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
-	enum forcewake_domains fw_engine; \
-	GEN6_WRITE_HEADER; \
-	fw_engine = __fwtable_reg_write_fw_domains(offset); \
-	if (fw_engine) \
-		__force_wake_auto(dev_priv, fw_engine); \
-	__raw_i915_write##x(dev_priv, reg, val); \
-	GEN6_WRITE_FOOTER; \
-}
+#define __gen8_write(x) __gen_write(gen8, x)
+#define __fwtable_write(x) __gen_write(fwtable, x)
 
 #define __gen9_decoupled_write(x) \
 static void \
