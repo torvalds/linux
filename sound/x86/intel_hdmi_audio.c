@@ -252,10 +252,11 @@ static void snd_intelhad_enable_audio_int(struct snd_intelhad *ctx, bool enable)
 	}
 }
 
-static void snd_intelhad_reset_audio(struct snd_intelhad *intelhaddata,
-				     u8 reset)
+/* Reset buffer pointers */
+static void had_reset_audio(struct snd_intelhad *intelhaddata)
 {
-	had_write_register(intelhaddata, AUD_HDMI_STATUS, reset);
+	had_write_register(intelhaddata, AUD_HDMI_STATUS, 1);
+	had_write_register(intelhaddata, AUD_HDMI_STATUS, 0);
 }
 
 /*
@@ -893,8 +894,7 @@ static void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata)
 	/* Handle Underrun interrupt within Audio Unit */
 	had_write_register(intelhaddata, AUD_CONFIG, 0);
 	/* Reset buffer pointers */
-	had_write_register(intelhaddata, AUD_HDMI_STATUS, 1);
-	had_write_register(intelhaddata, AUD_HDMI_STATUS, 0);
+	had_reset_audio(intelhaddata);
 	/*
 	 * The interrupt status 'sticky' bits might not be cleared by
 	 * setting '1' to that bit once...
@@ -1085,8 +1085,7 @@ static int snd_intelhad_pcm_trigger(struct snd_pcm_substream *substream,
 		snd_intelhad_enable_audio_int(intelhaddata, false);
 		snd_intelhad_enable_audio(substream, intelhaddata, false);
 		/* Reset buffer pointers */
-		snd_intelhad_reset_audio(intelhaddata, 1);
-		snd_intelhad_reset_audio(intelhaddata, 0);
+		had_reset_audio(intelhaddata);
 		snd_intelhad_enable_audio_int(intelhaddata, false);
 		break;
 
