@@ -30,11 +30,11 @@
 		};
 	};
 
-	avic: avic-interrupt-controller@60000000 {
+	avic: interrupt-controller@68000000 {
 		compatible = "fsl,imx31-avic", "fsl,avic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		reg = <0x60000000 0x100000>;
+		reg = <0x68000000 0x100000>;
 	};
 
 	soc {
@@ -110,13 +110,6 @@
 				interrupts = <19>;
 				clocks = <&clks 25>;
 			};
-
-			clks: ccm@53f80000{
-				compatible = "fsl,imx31-ccm";
-				reg = <0x53f80000 0x4000>;
-				interrupts = <0 31 0x04 0 53 0x04>;
-				#clock-cells = <1>;
-			};
 		};
 
 		aips@53f00000 { /* AIPS2 */
@@ -125,6 +118,13 @@
 			#size-cells = <1>;
 			reg = <0x53f00000 0x100000>;
 			ranges;
+
+			clks: ccm@53f80000{
+				compatible = "fsl,imx31-ccm";
+				reg = <0x53f80000 0x4000>;
+				interrupts = <31>, <53>;
+				#clock-cells = <1>;
+			};
 
 			gpt: timer@53f90000 {
 				compatible = "fsl,imx31-gpt";

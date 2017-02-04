@@ -119,6 +119,7 @@ out:
 static void __exit
 cleanup_sunrpc(void)
 {
+	rpc_cleanup_clids();
 	rpcauth_remove_module();
 	cleanup_socket_xprt();
 	svc_cleanup_xprt_sock();

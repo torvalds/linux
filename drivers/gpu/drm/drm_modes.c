@@ -1401,6 +1401,13 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 		return NULL;
 
 	mode->type |= DRM_MODE_TYPE_USERDEF;
+	/* fix up 1368x768: GFT/CVT can't express 1366 width due to alignment */
+	if (cmd->xres == 1366 && mode->hdisplay == 1368) {
+		mode->hdisplay = 1366;
+		mode->hsync_start--;
+		mode->hsync_end--;
+		drm_mode_set_name(mode);
+	}
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	return mode;
 }
