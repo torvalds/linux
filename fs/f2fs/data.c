@@ -379,6 +379,9 @@ int f2fs_submit_page_mbio(struct f2fs_io_info *fio)
 
 	bio_page = fio->encrypted_page ? fio->encrypted_page : fio->page;
 
+	/* set submitted = 1 as a return value */
+	fio->submitted = 1;
+
 	if (!is_read)
 		inc_page_count(sbi, WB_DATA_TYPE(bio_page));
 
@@ -1346,8 +1349,8 @@ out_writepage:
 	return err;
 }
 
-static int __write_data_page(struct page *page,
-					struct writeback_control *wbc)
+static int __write_data_page(struct page *page, bool *submitted,
+				struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -1365,6 +1368,7 @@ static int __write_data_page(struct page *page,
 		.op_flags = wbc_to_write_flags(wbc),
 		.page = page,
 		.encrypted_page = NULL,
+		.submitted = false,
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1430,13 +1434,19 @@ out:
 	if (wbc->for_reclaim) {
 		f2fs_submit_merged_bio_cond(sbi, NULL, page, 0, DATA, WRITE);
 		remove_dirty_inode(inode);
+		submitted = NULL;
 	}
 
 	unlock_page(page);
 	f2fs_balance_fs(sbi, need_balance_fs);
 
-	if (unlikely(f2fs_cp_error(sbi)))
+	if (unlikely(f2fs_cp_error(sbi))) {
 		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		submitted = NULL;
+	}
+
+	if (submitted)
+		*submitted = fio.submitted;
 
 	return 0;
 
@@ -1451,7 +1461,7 @@ redirty_out:
 static int f2fs_write_data_page(struct page *page,
 					struct writeback_control *wbc)
 {
-	return __write_data_page(page, wbc);
+	return __write_data_page(page, NULL, wbc);
 }
 
 /*
@@ -1510,6 +1520,7 @@ retry:
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
+			bool submitted = false;
 
 			if (page->index > end) {
 				done = 1;
@@ -1543,7 +1554,7 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			ret = __write_data_page(page, wbc);
+			ret = __write_data_page(page, &submitted, wbc);
 			if (unlikely(ret)) {
 				/*
 				 * keep nr_to_write, since vfs uses this to
@@ -1557,7 +1568,7 @@ continue_unlock:
 				done_index = page->index + 1;
 				done = 1;
 				break;
-			} else {
+			} else if (submitted) {
 				nwritten++;
 			}
 
