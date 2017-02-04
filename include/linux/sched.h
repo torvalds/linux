@@ -1301,8 +1301,6 @@ static inline struct thread_info *task_thread_info(struct task_struct *task)
 # define task_thread_info(task)	((struct thread_info *)(task)->stack)
 #endif
 
-extern struct pid_namespace init_pid_ns;
-
 /*
  * find a task by one of its numerical ids
  *
