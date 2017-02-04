@@ -506,11 +506,6 @@ static struct kvm_memslots *kvm_alloc_memslots(void)
 	if (!slots)
 		return NULL;
 
-	/*
-	 * Init kvm generation close to the maximum to easily test the
-	 * code of handling generation number wrap-around.
-	 */
-	slots->generation = -150;
 	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
 		slots->id_to_index[i] = slots->memslots[i].id = i;
 
@@ -641,9 +636,16 @@ static struct kvm *kvm_create_vm(unsigned long type)
 
 	r = -ENOMEM;
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
-		kvm->memslots[i] = kvm_alloc_memslots();
-		if (!kvm->memslots[i])
+		struct kvm_memslots *slots = kvm_alloc_memslots();
+		if (!slots)
 			goto out_err_no_srcu;
+		/*
+		 * Generations must be different for each address space.
+		 * Init kvm generation close to the maximum to easily test the
+		 * code of handling generation number wrap-around.
+		 */
+		slots->generation = i * 2 - 150;
+		rcu_assign_pointer(kvm->memslots[i], slots);
 	}
 
 	if (init_srcu_struct(&kvm->srcu))
@@ -870,8 +872,14 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	 * Increment the new memslot generation a second time. This prevents
 	 * vm exits that race with memslot updates from caching a memslot
 	 * generation that will (potentially) be valid forever.
+	 *
+	 * Generations must be unique even across address spaces.  We do not need
+	 * a global counter for that, instead the generation space is evenly split
+	 * across address spaces.  For example, with two address spaces, address
+	 * space 0 will use generations 0, 4, 8, ... while * address space 1 will
+	 * use generations 2, 6, 10, 14, ...
 	 */
-	slots->generation++;
+	slots->generation += KVM_ADDRESS_SPACE_NUM * 2 - 1;
 
 	kvm_arch_memslots_updated(kvm, slots);
 
