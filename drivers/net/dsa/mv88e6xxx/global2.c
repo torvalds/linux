@@ -501,15 +501,65 @@ static int mv88e6xxx_g2_smi_phy_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
 	return mv88e6xxx_g2_smi_phy_wait(chip);
 }
 
-int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
-			      struct mii_bus *bus,
-			      int addr, int reg, u16 *val)
+static int mv88e6xxx_g2_smi_phy_write_addr(struct mv88e6xxx_chip *chip,
+					   int addr, int device, int reg,
+					   bool external)
 {
-	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA | (addr << 5) | reg;
-	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	int cmd = SMI_CMD_OP_45_WRITE_ADDR | (addr << 5) | device;
 	int err;
 
-	if (mdio_bus->external)
+	if (external)
+		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
+
+	err = mv88e6xxx_g2_smi_phy_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, reg);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+}
+
+int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip, int addr,
+				  int reg_c45, u16 *val, bool external)
+{
+	int device = (reg_c45 >> 16) & 0x1f;
+	int reg = reg_c45 & 0xffff;
+	int err;
+	u16 cmd;
+
+	err = mv88e6xxx_g2_smi_phy_write_addr(chip, addr, device, reg,
+					      external);
+	if (err)
+		return err;
+
+	cmd = GLOBAL2_SMI_PHY_CMD_OP_45_READ_DATA | (addr << 5) | device;
+
+	if (external)
+		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
+
+	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_SMI_PHY_DATA, val);
+	if (err)
+		return err;
+
+	err = *val;
+
+	return 0;
+}
+
+int mv88e6xxx_g2_smi_phy_read_c22(struct mv88e6xxx_chip *chip, int addr,
+				  int reg, u16 *val, bool external)
+{
+	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA | (addr << 5) | reg;
+	int err;
+
+	if (external)
 		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
 
 	err = mv88e6xxx_g2_smi_phy_wait(chip);
@@ -523,15 +573,55 @@ int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g2_read(chip, GLOBAL2_SMI_PHY_DATA, val);
 }
 
-int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
-			       struct mii_bus *bus,
-			       int addr, int reg, u16 val)
+int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
+			      struct mii_bus *bus,
+			      int addr, int reg, u16 *val)
+{
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	bool external = mdio_bus->external;
+
+	if (reg & MII_ADDR_C45)
+		return mv88e6xxx_g2_smi_phy_read_c45(chip, addr, reg, val,
+						     external);
+	return mv88e6xxx_g2_smi_phy_read_c22(chip, addr, reg, val, external);
+}
+
+int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip, int addr,
+				   int reg_c45, u16 val, bool external)
+{
+	int device = (reg_c45 >> 16) & 0x1f;
+	int reg = reg_c45 & 0xffff;
+	int err;
+	u16 cmd;
+
+	err = mv88e6xxx_g2_smi_phy_write_addr(chip, addr, device, reg,
+					      external);
+	if (err)
+		return err;
+
+	cmd = GLOBAL2_SMI_PHY_CMD_OP_45_WRITE_DATA | (addr << 5) | device;
+
+	if (external)
+		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
+
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_SMI_PHY_DATA, val);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int mv88e6xxx_g2_smi_phy_write_c22(struct mv88e6xxx_chip *chip, int addr,
+				   int reg, u16 val, bool external)
 {
 	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA | (addr << 5) | reg;
-	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
 	int err;
 
-	if (mdio_bus->external)
+	if (external)
 		cmd |= GLOBAL2_SMI_PHY_CMD_EXTERNAL;
 
 	err = mv88e6xxx_g2_smi_phy_wait(chip);
@@ -543,6 +633,20 @@ int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
 		return err;
 
 	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+}
+
+int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip,
+			       struct mii_bus *bus,
+			       int addr, int reg, u16 val)
+{
+	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
+	bool external = mdio_bus->external;
+
+	if (reg & MII_ADDR_C45)
+		return mv88e6xxx_g2_smi_phy_write_c45(chip, addr, reg, val,
+						      external);
+
+	return mv88e6xxx_g2_smi_phy_write_c22(chip, addr, reg, val, external);
 }
 
 static void mv88e6xxx_g2_irq_mask(struct irq_data *d)
