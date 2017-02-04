@@ -342,9 +342,9 @@ ad7192_show_scale_available(struct device *dev,
 
 static IIO_DEVICE_ATTR_NAMED(in_v_m_v_scale_available,
 			     in_voltage-voltage_scale_available,
-			     S_IRUGO, ad7192_show_scale_available, NULL, 0);
+			     0444, ad7192_show_scale_available, NULL, 0);
 
-static IIO_DEVICE_ATTR(in_voltage_scale_available, S_IRUGO,
+static IIO_DEVICE_ATTR(in_voltage_scale_available, 0444,
 		       ad7192_show_scale_available, NULL, 0);
 
 static ssize_t ad7192_show_ac_excitation(struct device *dev,
@@ -412,11 +412,11 @@ static ssize_t ad7192_set(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(bridge_switch_en, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(bridge_switch_en, 0644,
 		       ad7192_show_bridge_switch, ad7192_set,
 		       AD7192_REG_GPOCON);
 
-static IIO_DEVICE_ATTR(ac_excitation_en, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(ac_excitation_en, 0644,
 		       ad7192_show_ac_excitation, ad7192_set,
 		       AD7192_REG_MODE);
 
