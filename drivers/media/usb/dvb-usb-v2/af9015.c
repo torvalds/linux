@@ -36,7 +36,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 
 	state->buf[0] = req->cmd;
 	state->buf[1] = state->seq++;
-	state->buf[2] = req->i2c_addr;
+	state->buf[2] = req->i2c_addr << 1;
 	state->buf[3] = req->addr >> 8;
 	state->buf[4] = req->addr & 0xff;
 	state->buf[5] = req->mbox;
@@ -472,6 +472,8 @@ static int af9015_read_config(struct dvb_usb_device *d)
 	if (d->udev->speed == USB_SPEED_FULL)
 		state->dual_mode = 0;
 
+	state->af9013_config[0].i2c_addr = AF9015_I2C_DEMOD;
+
 	if (state->dual_mode) {
 		/* read 2nd demodulator I2C address */
 		req.addr = AF9015_EEPROM_DEMOD2_I2C;
@@ -479,7 +481,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 		if (ret)
 			goto error;
 
-		state->af9013_config[1].i2c_addr = val;
+		state->af9013_config[1].i2c_addr = val >> 1;
 	}
 
 	for (i = 0; i < state->dual_mode + 1; i++) {
@@ -871,12 +873,12 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 static struct mt2060_config af9015_mt2060_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.clock_out = 0,
 };
 
 static struct qt1010_config af9015_qt1010_config = {
-	.i2c_address = 0xc4,
+	.i2c_address = 0x62,
 };
 
 static struct tda18271_config af9015_tda18271_config = {
@@ -885,7 +887,7 @@ static struct tda18271_config af9015_tda18271_config = {
 };
 
 static struct mxl5005s_config af9015_mxl5003_config = {
-	.i2c_address     = 0xc6,
+	.i2c_address     = 0x63,
 	.if_freq         = IF_FREQ_4570000HZ,
 	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
 	.agc_mode        = MXL_SINGLE_AGC,
@@ -902,7 +904,7 @@ static struct mxl5005s_config af9015_mxl5003_config = {
 };
 
 static struct mxl5005s_config af9015_mxl5005_config = {
-	.i2c_address     = 0xc6,
+	.i2c_address     = 0x63,
 	.if_freq         = IF_FREQ_4570000HZ,
 	.xtal_freq       = CRYSTAL_FREQ_16000000HZ,
 	.agc_mode        = MXL_SINGLE_AGC,
@@ -919,12 +921,12 @@ static struct mxl5005s_config af9015_mxl5005_config = {
 };
 
 static struct mc44s803_config af9015_mc44s803_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.dig_out = 1,
 };
 
 static struct tda18218_config af9015_tda18218_config = {
-	.i2c_address = 0xc0,
+	.i2c_address = 0x60,
 	.i2c_wr_max = 21, /* max wr bytes AF9015 I2C adap can handle at once */
 };
 
@@ -955,7 +957,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe[0], 0xc0,
+		ret = dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 			&adap_to_d(adap)->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
@@ -976,7 +978,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe[0], 0xc0,
+		ret = dvb_attach(dvb_pll_attach, adap->fe[0], 0x60,
 			&adap_to_d(adap)->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
@@ -988,7 +990,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	case AF9013_TUNER_MXL5007T:
 		ret = dvb_attach(mxl5007t_attach, adap->fe[0],
 			&adap_to_d(adap)->i2c_adap,
-			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
+			0x60, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
