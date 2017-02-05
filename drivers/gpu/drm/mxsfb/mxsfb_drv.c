@@ -126,7 +126,7 @@ static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
 }
 
-struct drm_simple_display_pipe_funcs mxsfb_funcs = {
+static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.enable		= mxsfb_pipe_enable,
 	.disable	= mxsfb_pipe_disable,
 	.update		= mxsfb_pipe_update,
