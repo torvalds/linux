@@ -753,6 +753,14 @@ int set_callback_cred(void)
 	return 0;
 }
 
+void cleanup_callback_cred(void)
+{
+	if (callback_cred) {
+		put_rpccred(callback_cred);
+		callback_cred = NULL;
+	}
+}
+
 static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
 {
 	if (clp->cl_minorversion == 0) {
