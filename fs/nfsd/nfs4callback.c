@@ -303,6 +303,7 @@ static int decode_cb_compound4res(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, length + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
+	p += XDR_QUADLEN(length);
 	hdr->nops = be32_to_cpup(p);
 	return 0;
 out_overflow:
