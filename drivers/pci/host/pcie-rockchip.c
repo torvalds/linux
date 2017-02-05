@@ -1218,7 +1218,7 @@ static int rockchip_pcie_wait_l2(struct rockchip_pcie *rockchip)
 	return 0;
 }
 
-static int rockchip_pcie_suspend_noirq(struct device *dev)
+static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	int ret;
@@ -1245,7 +1245,7 @@ static int rockchip_pcie_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int rockchip_pcie_resume_noirq(struct device *dev)
+static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	int err;
