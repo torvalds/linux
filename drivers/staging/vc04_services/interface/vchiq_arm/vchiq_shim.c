@@ -39,8 +39,6 @@
 
 #include "vchiq_util.h"
 
-#include <stddef.h>
-
 #define vchiq_status_to_vchi(status) ((int32_t)status)
 
 typedef struct {
