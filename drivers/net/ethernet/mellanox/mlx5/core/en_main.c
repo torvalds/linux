@@ -2682,6 +2682,8 @@ int mlx5e_open(struct net_device *netdev)
 
 	mutex_lock(&priv->state_lock);
 	err = mlx5e_open_locked(netdev);
+	if (!err)
+		mlx5_set_port_admin_status(priv->mdev, MLX5_PORT_UP);
 	mutex_unlock(&priv->state_lock);
 
 	return err;
@@ -2716,6 +2718,7 @@ int mlx5e_close(struct net_device *netdev)
 		return -ENODEV;
 
 	mutex_lock(&priv->state_lock);
+	mlx5_set_port_admin_status(priv->mdev, MLX5_PORT_DOWN);
 	err = mlx5e_close_locked(netdev);
 	mutex_unlock(&priv->state_lock);
 
@@ -4186,6 +4189,10 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	u16 max_mtu;
 
 	mlx5e_init_l2_addr(priv);
+
+	/* Marking the link as currently not needed by the Driver */
+	if (!netif_running(netdev))
+		mlx5_set_port_admin_status(mdev, MLX5_PORT_DOWN);
 
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;
