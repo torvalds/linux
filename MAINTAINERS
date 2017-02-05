@@ -2980,6 +2980,13 @@ S:	Maintained
 F:	drivers/iio/light/cm*
 F:	Documentation/devicetree/bindings/i2c/trivial-admin-guide/devices.rst
 
+CAVIUM THUNDERX2 ARM64 SOC
+M:	Jayachandran C <jnair@caviumnetworks.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm64/boot/dts/cavium/thunder-99xx*
+F:	Documentation/devicetree/bindings/arm/cavium-thunder2.txt
+
 CAVIUM I2C DRIVER
 M:	Jan Glauber <jglauber@cavium.com>
 M:	David Daney <david.daney@cavium.com>
