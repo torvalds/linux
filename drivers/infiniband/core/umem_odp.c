@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
 #include <linux/export.h>

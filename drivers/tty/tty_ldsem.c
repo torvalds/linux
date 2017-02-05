@@ -33,6 +33,7 @@
 #include <linux/tty.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
