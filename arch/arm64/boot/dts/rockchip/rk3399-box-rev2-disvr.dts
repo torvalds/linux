@@ -165,6 +165,20 @@
 	extcon = <&fusb0>;
 	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
 	dp_defaultmode = <0>;
+	dp_edid_auto_support = <1>;
+	dp_edid_prop_value =
+	/*
+	* vid, pid, sn, xres, yres, vic, width, height, x_w,
+	* x_h, hwrotation, orientation, vsync, panel, scan
+	*/
+	<
+	/* rayken */
+	0x6252 0x0532 0x00000005 1440 2560 0x805 68 120 1152 2048 90 0 0 0 0
+	/* auo */
+	0x6252 0x0532 0x00000003 2160 1200 0x803 120 68 1728 1080 0 0 0 1 0
+	/* pico */
+	0x6252 0x8888 0x88888800 1440 2560 0x806 68 120 1152 2048 90 0 0 0 0
+	>;
 };
 
 &cdn_dp_sound {
@@ -174,6 +188,16 @@
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
+	hdmi_edid_auto_support = <1>;
+	hdmi_edid_prop_value =
+	/*
+	* vid, pid, sn, xres, yres, vic, width, height, x_w,
+	* x_h, hwrotation, orientation, vsync, panel, scan
+	*/
+	<
+	/* pico */
+	0x6252 0x8888 0x88888800 2160 1200 0x80f 120 68 2160 1200 90 180 0 0 0
+	>;
 };
 
 &hdmi_sound {
@@ -181,10 +205,14 @@
 };
 
 &vopb_rk_fb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
 	status = "okay";
 };
 
 &vopl_rk_fb {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
 	status = "okay";
 };
 
