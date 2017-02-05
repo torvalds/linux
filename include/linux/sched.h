@@ -176,15 +176,10 @@ struct uts_namespace;
 /* Task command name length */
 #define TASK_COMM_LEN 16
 
-extern void sched_init(void);
-extern void sched_init_smp(void);
-
 extern cpumask_var_t cpu_isolated_map;
 
 extern int runqueue_is_locked(int cpu);
 
-extern void cpu_init (void);
-extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
