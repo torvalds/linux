@@ -31,6 +31,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/mount.h>
+#include <linux/magic.h>
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
