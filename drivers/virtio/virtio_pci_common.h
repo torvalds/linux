@@ -66,16 +66,12 @@ struct virtio_pci_device {
 
 	/* MSI-X support */
 	int msix_enabled;
-	int intx_enabled;
 	cpumask_var_t *msix_affinity_masks;
 	/* Name strings for interrupts. This size should be enough,
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
-	/* Number of available vectors */
-	unsigned msix_vectors;
-	/* Vectors allocated, excluding per-vq vectors if any */
-	unsigned msix_used_vectors;
-
+	/* Total Number of MSI-X vectors (including per-VQ ones). */
+	int msix_vectors;
 	/* Map of per-VQ MSI-X vectors, may be NULL */
 	unsigned *msix_vector_map;
 
@@ -87,14 +83,6 @@ struct virtio_pci_device {
 	void (*del_vq)(struct virtqueue *vq);
 
 	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
-};
-
-/* Constants for MSI-X */
-/* Use first vector for configuration changes, second and the rest for
- * virtqueues Thus, we need at least 2 vectors for MSI. */
-enum {
-	VP_MSIX_CONFIG_VECTOR = 0,
-	VP_MSIX_VQ_VECTOR = 1,
 };
 
 /* Convert a generic virtio device to our structure */
