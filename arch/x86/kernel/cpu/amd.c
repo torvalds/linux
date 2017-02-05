@@ -319,6 +319,13 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		if (c->x86 == 0x15)
 			c->cu_id = ebx & 0xff;
 
+		if (c->x86 >= 0x17) {
+			c->cpu_core_id = ebx & 0xff;
+
+			if (smp_num_siblings > 1)
+				c->x86_max_cores /= smp_num_siblings;
+		}
+
 		/*
 		 * We may have multiple LLCs if L3 caches exist, so check if we
 		 * have an L3 cache by looking at the L3 cache CPUID leaf.
