@@ -219,6 +219,7 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/cputime.h>
 #include <linux/pm.h>
 #include <linux/capability.h>
 #include <linux/device.h>

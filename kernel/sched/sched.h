@@ -17,6 +17,7 @@
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sched/cputime.h>
 
 #include <linux/u64_stats_sync.h>
 #include <linux/kernel_stat.h>

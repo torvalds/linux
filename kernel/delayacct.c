@@ -15,6 +15,7 @@
 
 #include <linux/sched.h>
 #include <linux/sched/task.h>
+#include <linux/sched/cputime.h>
 #include <linux/slab.h>
 #include <linux/taskstats.h>
 #include <linux/time.h>

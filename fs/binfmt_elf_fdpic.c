@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sched/cputime.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/errno.h>

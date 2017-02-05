@@ -19,6 +19,7 @@
 #include <linux/mISDNif.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/sched/cputime.h>
 #include <linux/signal.h>
 
 #include "core.h"
