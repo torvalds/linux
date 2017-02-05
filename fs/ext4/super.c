@@ -793,6 +793,7 @@ static void ext4_put_super(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
+	int aborted = 0;
 	int i, err;
 
 	ext4_unregister_li_request(sb);
@@ -802,9 +803,10 @@ static void ext4_put_super(struct super_block *sb)
 	destroy_workqueue(sbi->rsv_conversion_wq);
 
 	if (sbi->s_journal) {
+		aborted = is_journal_aborted(sbi->s_journal);
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
-		if (err < 0)
+		if ((err < 0) && !aborted)
 			ext4_abort(sb, "Couldn't clean up the journal");
 	}
 
@@ -816,7 +818,7 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!(sb->s_flags & MS_RDONLY) && !aborted) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
