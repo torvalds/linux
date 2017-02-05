@@ -17,6 +17,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
+#include <linux/cpu.h>
 
 #include <asm/page.h>
 #include <asm/processor.h>

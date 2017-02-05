@@ -29,6 +29,7 @@
 #include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
