@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/atomic.h>
+#include <linux/cpumask.h>
 
 #include <asm/page.h>
 
@@ -59,6 +60,27 @@ struct page_frag {
 #else
 	__u16 offset;
 	__u16 size;
+#endif
+};
+
+/* Track pages that require TLB flushes */
+struct tlbflush_unmap_batch {
+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+	/*
+	 * Each bit set is a CPU that potentially has a TLB entry for one of
+	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
+	 */
+	struct cpumask cpumask;
+
+	/* True if any bit in cpumask is set */
+	bool flush_required;
+
+	/*
+	 * If true then the PTE was dirty when unmapped. The entry must be
+	 * flushed before IO is initiated or a stale TLB entry potentially
+	 * allows an update without redirtying the page.
+	 */
+	bool writable;
 #endif
 };
 
