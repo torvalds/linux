@@ -259,10 +259,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ippc");
 	ssusb->ippc_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ssusb->ippc_base)) {
-		dev_err(dev, "failed to map memory for ippc\n");
+	if (IS_ERR(ssusb->ippc_base))
 		return PTR_ERR(ssusb->ippc_base);
-	}
 
 	ssusb->dr_mode = usb_get_dr_mode(dev);
 	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN) {
