@@ -221,6 +221,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 	if (IS_ERR(mxsfb->fbdev)) {
+		ret = PTR_ERR(mxsfb->fbdev);
 		mxsfb->fbdev = NULL;
 		dev_err(drm->dev, "Failed to init FB CMA area\n");
 		goto err_cma;
