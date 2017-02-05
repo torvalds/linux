@@ -281,7 +281,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_pins_cts_rts_a>;
+		    <&uart3_cts_rts_pins_a>;
 	status = "okay";
 };
 

@@ -346,7 +346,7 @@
 				function = "uart3";
 			};
 
-			uart3_pins_cts_rts_a: uart3-cts-rts@0 {
+			uart3_cts_rts_pins_a: uart3-cts-rts@0 {
 				pins = "PG11", "PG12";
 				function = "uart3";
 			};
