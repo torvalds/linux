@@ -95,7 +95,7 @@
 
 &emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_b>;
+	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
 	status = "okay";
 };

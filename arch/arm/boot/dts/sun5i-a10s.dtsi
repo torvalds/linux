@@ -156,7 +156,7 @@
 		function = "uart2";
 	};
 
-	emac_pins_a: emac0@0 {
+	emac_pins_b: emac0@1 {
 		pins = "PA0", "PA1", "PA2",
 				"PA3", "PA4", "PA5", "PA6",
 				"PA7", "PA8", "PA9", "PA10",
@@ -165,7 +165,7 @@
 		function = "emac";
 	};
 
-	emac_pins_b: emac0@1 {
+	emac_pins_a: emac0@0 {
 		pins = "PD6", "PD7", "PD10",
 				"PD11", "PD12", "PD13", "PD14",
 				"PD15", "PD18", "PD19", "PD20",
