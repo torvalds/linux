@@ -939,6 +939,10 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 	u8 sink_count;
 
 	mutex_lock(&dp->lock);
+
+	if (dp->suspended)
+		goto out;
+
 	ret = cdn_dp_request_firmware(dp);
 	if (ret)
 		goto out;
@@ -1123,19 +1127,26 @@ static const struct component_ops cdn_dp_component_ops = {
 int cdn_dp_suspend(struct device *dev)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
+	int ret = 0;
 
+	mutex_lock(&dp->lock);
 	if (dp->active)
-		return cdn_dp_disable(dp);
+		ret = cdn_dp_disable(dp);
+	dp->suspended = true;
+	mutex_unlock(&dp->lock);
 
-	return 0;
+	return ret;
 }
 
 int cdn_dp_resume(struct device *dev)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
 
+	mutex_lock(&dp->lock);
+	dp->suspended = false;
 	if (dp->fw_loaded)
 		schedule_work(&dp->event_work);
+	mutex_unlock(&dp->lock);
 
 	return 0;
 }
