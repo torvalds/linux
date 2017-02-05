@@ -35,7 +35,7 @@
 	l.add	rd,rd,rs
 
 #define CLEAR_GPR(gpr)				\
-	l.or    gpr,r0,r0
+	l.movhi	gpr,0x0
 
 #define LOAD_SYMBOL_2_GPR(gpr,symbol)		\
 	l.movhi gpr,hi(symbol)			;\
@@ -443,6 +443,9 @@ _dispatch_do_ipage_fault:
 	__HEAD
 	.global _start
 _start:
+	/* Init r0 to zero as per spec */
+	CLEAR_GPR(r0)
+
 	/* save kernel parameters */
 	l.or	r25,r0,r3	/* pointer to fdt */
 
