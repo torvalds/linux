@@ -197,12 +197,12 @@
 		vcc4-supply = <&vcc_sys>;
 		vcc6-supply = <&vcc_sys>;
 		vcc7-supply = <&vcc_sys>;
-		vcc8-supply = <&vcc_18>;
+		vcc8-supply = <&vcc_io>;
 		vcc9-supply = <&vcc_io>;
 		vcc10-supply = <&vcc_io>;
 		vcc11-supply = <&vcc_sys>;
 		vcc12-supply = <&vcc_io>;
-		vddio-supply = <&vcc18_ldo1>;
+		vddio-supply = <&vcc_io>;
 
 		regulators {
 			vdd_cpu: DCDC_REG1 {
@@ -410,7 +410,7 @@
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "okay";
 	supports-sd;
-	vmmc-supply = <&vcc_sd>;
+	vmmc-supply = <&vcc33_sd>;
 	vqmmc-supply = <&vccio_sd>;
 };
 
