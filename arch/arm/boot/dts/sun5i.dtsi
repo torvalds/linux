@@ -331,6 +331,16 @@
 				function = "spi2";
 			};
 
+			uart2_pins_a: uart2@0 {
+				pins = "PD2", "PD3";
+				function = "uart2";
+			};
+
+			uart2_cts_rts_pins_a: uart2-cts-rts@0 {
+				pins = "PD4", "PD5";
+				function = "uart2";
+			};
+
 			uart3_pins_a: uart3@0 {
 				pins = "PG9", "PG10";
 				function = "uart3";

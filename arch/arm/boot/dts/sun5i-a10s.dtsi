@@ -151,7 +151,7 @@
 		function = "uart0";
 	};
 
-	uart2_pins_a: uart2@0 {
+	uart2_pins_b: uart2@1 {
 		pins = "PC18", "PC19";
 		function = "uart2";
 	};

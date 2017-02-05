@@ -257,7 +257,7 @@
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>;
+	pinctrl-0 = <&uart2_pins_b>;
 	status = "okay";
 };
 
