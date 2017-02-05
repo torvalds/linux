@@ -219,14 +219,6 @@ struct prev_cputime {
 #endif
 };
 
-static inline void prev_cputime_init(struct prev_cputime *prev)
-{
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	prev->utime = prev->stime = 0;
-	raw_spin_lock_init(&prev->lock);
-#endif
-}
-
 /**
  * struct task_cputime - collected CPU time counts
  * @utime:		time spent in user mode, in nanoseconds
@@ -247,40 +239,6 @@ struct task_cputime {
 #define virt_exp	utime
 #define prof_exp	stime
 #define sched_exp	sum_exec_runtime
-
-/*
- * This is the atomic variant of task_cputime, which can be used for
- * storing and updating task_cputime statistics without locking.
- */
-struct task_cputime_atomic {
-	atomic64_t utime;
-	atomic64_t stime;
-	atomic64_t sum_exec_runtime;
-};
-
-#define INIT_CPUTIME_ATOMIC \
-	(struct task_cputime_atomic) {				\
-		.utime = ATOMIC64_INIT(0),			\
-		.stime = ATOMIC64_INIT(0),			\
-		.sum_exec_runtime = ATOMIC64_INIT(0),		\
-	}
-
-/**
- * struct thread_group_cputimer - thread group interval timer counts
- * @cputime_atomic:	atomic thread group interval timers.
- * @running:		true when there are timers running and
- *			@cputime_atomic receives updates.
- * @checking_timer:	true when a thread in the group is in the
- *			process of checking for thread group timers.
- *
- * This structure contains the version of task_cputime, above, that is
- * used for thread group CPU timer calculations.
- */
-struct thread_group_cputimer {
-	struct task_cputime_atomic cputime_atomic;
-	bool running;
-	bool checking_timer;
-};
 
 #include <linux/rwsem.h>
 
@@ -1234,44 +1192,6 @@ static inline void put_task_struct(struct task_struct *t)
 struct task_struct *task_rcu_dereference(struct task_struct **ptask);
 struct task_struct *try_get_task_struct(struct task_struct **ptask);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-extern void task_cputime(struct task_struct *t,
-			 u64 *utime, u64 *stime);
-extern u64 task_gtime(struct task_struct *t);
-#else
-static inline void task_cputime(struct task_struct *t,
-				u64 *utime, u64 *stime)
-{
-	*utime = t->utime;
-	*stime = t->stime;
-}
-
-static inline u64 task_gtime(struct task_struct *t)
-{
-	return t->gtime;
-}
-#endif
-
-#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
-static inline void task_cputime_scaled(struct task_struct *t,
-				       u64 *utimescaled,
-				       u64 *stimescaled)
-{
-	*utimescaled = t->utimescaled;
-	*stimescaled = t->stimescaled;
-}
-#else
-static inline void task_cputime_scaled(struct task_struct *t,
-				       u64 *utimescaled,
-				       u64 *stimescaled)
-{
-	task_cputime(t, utimescaled, stimescaled);
-}
-#endif
-
-extern void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
-extern void thread_group_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st);
-
 /*
  * Per process flags
  */
@@ -1394,9 +1314,6 @@ static inline int set_cpus_allowed_ptr(struct task_struct *p,
 #ifndef cpu_relax_yield
 #define cpu_relax_yield() cpu_relax()
 #endif
-
-extern unsigned long long
-task_sched_runtime(struct task_struct *task);
 
 /* sched_exec is called by processes performing an exec */
 #ifdef CONFIG_SMP
@@ -1628,12 +1545,6 @@ static __always_inline bool need_resched(void)
 {
 	return unlikely(tif_need_resched());
 }
-
-/*
- * Thread group CPU time accounting.
- */
-void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
-void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
 
 /*
  * Wrappers for p->thread_info->cpu access. No-op on UP.
