@@ -901,7 +901,6 @@ static int a3700_spi_remove(struct platform_device *pdev)
 	struct a3700_spi *spi = spi_master_get_devdata(master);
 
 	clk_unprepare(spi->clk);
-	spi_master_put(master);
 
 	return 0;
 }
