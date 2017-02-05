@@ -823,8 +823,10 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
-	amdgpu_uvd_free_handles(adev, file_priv);
-	amdgpu_vce_free_handles(adev, file_priv);
+	if (adev->asic_type != CHIP_RAVEN) {
+		amdgpu_uvd_free_handles(adev, file_priv);
+		amdgpu_vce_free_handles(adev, file_priv);
+	}
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
