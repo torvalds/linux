@@ -519,7 +519,7 @@ static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 			/* Relinquish the SKB to the network layer */
 			skb_put(skb, pktlen);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_receive_skb(skb);
+			napi_gro_receive(&ksp->napi, skb);
 
 			/* Record stats */
 			ndev->stats.rx_packets++;
@@ -561,18 +561,17 @@ rx_finished:
 static int ks8695_poll(struct napi_struct *napi, int budget)
 {
 	struct ks8695_priv *ksp = container_of(napi, struct ks8695_priv, napi);
-	unsigned long  work_done;
-
 	unsigned long isr = readl(KS8695_IRQ_VA + KS8695_INTEN);
 	unsigned long mask_bit = 1 << ks8695_get_rx_enable_bit(ksp);
+	int work_done;
 
 	work_done = ks8695_rx(ksp, budget);
 
-	if (work_done < budget) {
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		unsigned long flags;
+
 		spin_lock_irqsave(&ksp->rx_lock, flags);
-		__napi_complete(napi);
-		/*enable rx interrupt*/
+		/* enable rx interrupt */
 		writel(isr | mask_bit, KS8695_IRQ_VA + KS8695_INTEN);
 		spin_unlock_irqrestore(&ksp->rx_lock, flags);
 	}

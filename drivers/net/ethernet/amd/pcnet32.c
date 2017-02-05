@@ -1350,13 +1350,8 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 		pcnet32_restart(dev, CSR0_START);
 		netif_wake_queue(dev);
 	}
-	spin_unlock_irqrestore(&lp->lock, flags);
 
-	if (work_done < budget) {
-		spin_lock_irqsave(&lp->lock, flags);
-
-		__napi_complete(napi);
-
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		/* clear interrupt masks */
 		val = lp->a->read_csr(ioaddr, CSR3);
 		val &= 0x00ff;
@@ -1364,9 +1359,9 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 
 		/* Set interrupt enable. */
 		lp->a->write_csr(ioaddr, CSR0, CSR0_INTEN);
-
-		spin_unlock_irqrestore(&lp->lock, flags);
 	}
+
+	spin_unlock_irqrestore(&lp->lock, flags);
 	return work_done;
 }
 
