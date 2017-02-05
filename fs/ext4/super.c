@@ -3748,7 +3748,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * root first: it may be modified in the journal!
 	 */
 	if (!test_opt(sb, NOLOAD) && ext4_has_feature_journal(sb)) {
-		if (ext4_load_journal(sb, es, journal_devnum))
+		err = ext4_load_journal(sb, es, journal_devnum);
+		if (err)
 			goto failed_mount3a;
 	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
 		   ext4_has_feature_journal_needs_recovery(sb)) {
