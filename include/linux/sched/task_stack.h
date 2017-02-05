@@ -108,4 +108,14 @@ static inline unsigned long stack_not_used(struct task_struct *p)
 #endif
 extern void set_task_stack_end_magic(struct task_struct *tsk);
 
+#ifndef __HAVE_ARCH_KSTACK_END
+static inline int kstack_end(void *addr)
+{
+	/* Reliable end of stack detection:
+	 * Some APM bios versions misalign the stack
+	 */
+	return !(((unsigned long)addr+sizeof(void*)-1) & (THREAD_SIZE-sizeof(void*)));
+}
+#endif
+
 #endif /* _LINUX_SCHED_TASK_STACK_H */

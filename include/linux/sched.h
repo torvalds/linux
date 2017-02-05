@@ -1360,16 +1360,6 @@ static inline struct thread_info *task_thread_info(struct task_struct *task)
 # define task_thread_info(task)	((struct thread_info *)(task)->stack)
 #endif
 
-#ifndef __HAVE_ARCH_KSTACK_END
-static inline int kstack_end(void *addr)
-{
-	/* Reliable end of stack detection:
-	 * Some APM bios versions misalign the stack
-	 */
-	return !(((unsigned long)addr+sizeof(void*)-1) & (THREAD_SIZE-sizeof(void*)));
-}
-#endif
-
 extern struct pid_namespace init_pid_ns;
 
 /*
