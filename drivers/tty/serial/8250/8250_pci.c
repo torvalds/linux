@@ -3695,7 +3695,7 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(pciserial_init_ports);
 
-void pciserial_detach_ports(struct serial_private *priv)
+static void pciserial_detach_ports(struct serial_private *priv)
 {
 	struct pci_serial_quirk *quirk;
 	int i;
