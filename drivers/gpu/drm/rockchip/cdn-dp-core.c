@@ -1021,7 +1021,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	struct cdn_dp_port *port;
 	struct drm_device *drm_dev = data;
 	int ret, i;
-	bool schedule_event = false;
 
 	ret = cdn_dp_parse_dt(dp);
 	if (ret < 0)
@@ -1083,15 +1082,11 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 				      "register EXTCON_DISP_DP notifier err\n");
 			goto err_free_connector;
 		}
-
-		if (extcon_get_state(port->extcon, EXTCON_DISP_DP))
-			schedule_event = true;
 	}
 
 	pm_runtime_enable(dev);
 
-	if (schedule_event)
-		schedule_work(&dp->event_work);
+	schedule_work(&dp->event_work);
 
 	return 0;
 
