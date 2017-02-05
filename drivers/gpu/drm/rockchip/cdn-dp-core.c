@@ -568,9 +568,7 @@ static void cdn_dp_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct cdn_dp_device *dp = encoder_to_dp(encoder);
 	struct drm_display_info *display_info = &dp->connector.display_info;
-	struct rockchip_crtc_state *state;
 	struct video_info *video = &dp->video_info;
-	int ret, val;
 
 	switch (display_info->bpc) {
 	case 10:
@@ -585,30 +583,8 @@ static void cdn_dp_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	video->color_fmt = PXL_RGB;
-
 	video->v_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
 	video->h_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NHSYNC);
-
-	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "Could not get vop id, %d", ret);
-		return;
-	}
-
-	DRM_DEV_DEBUG_KMS(dp->dev, "vop %s output to cdn-dp\n",
-			  (ret) ? "LIT" : "BIG");
-	state = to_rockchip_crtc_state(encoder->crtc->state);
-	if (ret) {
-		val = DP_SEL_VOP_LIT | (DP_SEL_VOP_LIT << 16);
-		state->output_mode = ROCKCHIP_OUT_MODE_P888;
-	} else {
-		val = DP_SEL_VOP_LIT << 16;
-		state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-	}
-
-	ret = cdn_dp_grf_write(dp, GRF_SOC_CON9, val);
-	if (ret)
-		return;
 
 	memcpy(&dp->mode, adjusted, sizeof(*mode));
 }
@@ -635,9 +611,32 @@ static bool cdn_dp_check_link_status(struct cdn_dp_device *dp)
 static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 {
 	struct cdn_dp_device *dp = encoder_to_dp(encoder);
-	int ret;
+	int ret, val;
+	struct rockchip_crtc_state *state;
+
+	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dp->dev, "Could not get vop id, %d", ret);
+		return;
+	}
+
+	DRM_DEV_DEBUG_KMS(dp->dev, "vop %s output to cdn-dp\n",
+			  (ret) ? "LIT" : "BIG");
+	state = to_rockchip_crtc_state(encoder->crtc->state);
+	if (ret) {
+		val = DP_SEL_VOP_LIT | (DP_SEL_VOP_LIT << 16);
+		state->output_mode = ROCKCHIP_OUT_MODE_P888;
+	} else {
+		val = DP_SEL_VOP_LIT << 16;
+		state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+	}
+
+	ret = cdn_dp_grf_write(dp, GRF_SOC_CON9, val);
+	if (ret)
+		return;
 
 	mutex_lock(&dp->lock);
+
 	ret = cdn_dp_enable(dp);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "Failed to enable encoder %d\n",
