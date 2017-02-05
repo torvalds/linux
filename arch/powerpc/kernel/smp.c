@@ -795,7 +795,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	 * se we pin us down to CPU 0 for a short while
 	 */
 	alloc_cpumask_var(&old_mask, GFP_NOWAIT);
-	cpumask_copy(old_mask, tsk_cpus_allowed(current));
+	cpumask_copy(old_mask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 	
 	if (smp_ops && smp_ops->setup_cpu)

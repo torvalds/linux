@@ -1995,9 +1995,6 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
 }
 #endif
 
-/* Future-safe accessor for struct task_struct's cpus_allowed. */
-#define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
-
 static inline int tsk_nr_cpus_allowed(struct task_struct *p)
 {
 	return p->nr_cpus_allowed;
