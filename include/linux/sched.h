@@ -1995,11 +1995,6 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
 }
 #endif
 
-static inline int tsk_nr_cpus_allowed(struct task_struct *p)
-{
-	return p->nr_cpus_allowed;
-}
-
 #define TNF_MIGRATED	0x01
 #define TNF_NO_GROUP	0x02
 #define TNF_SHARED	0x04
