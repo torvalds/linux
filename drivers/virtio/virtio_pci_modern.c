@@ -412,7 +412,7 @@ static void del_vq(struct virtqueue *vq)
 
 	vp_iowrite16(vq->index, &vp_dev->common->queue_select);
 
-	if (vp_dev->msix_enabled) {
+	if (vp_dev->pci_dev->msix_enabled) {
 		vp_iowrite16(VIRTIO_MSI_NO_VECTOR,
 			     &vp_dev->common->queue_msix_vector);
 		/* Flush the write out to device */

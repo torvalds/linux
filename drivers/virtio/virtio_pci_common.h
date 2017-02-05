@@ -64,8 +64,6 @@ struct virtio_pci_device {
 	/* the IO mapping for the PCI config space */
 	void __iomem *ioaddr;
 
-	/* MSI-X support */
-	int msix_enabled;
 	cpumask_var_t *msix_affinity_masks;
 	/* Name strings for interrupts. This size should be enough,
 	 * and I'm too lazy to allocate each name separately. */

@@ -125,7 +125,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 	vp_remove_vqs(vdev);
 
-	if (vp_dev->msix_enabled) {
+	if (vp_dev->pci_dev->msix_enabled) {
 		for (i = 0; i < vp_dev->msix_vectors; i++)
 			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
 
@@ -244,7 +244,6 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 			allocated_vectors++;
 	}
 
-	vp_dev->msix_enabled = 1;
 	return 0;
 
 out_remove_vqs:
@@ -340,7 +339,7 @@ int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	if (!vq->callback)
 		return -EINVAL;
 
-	if (vp_dev->msix_enabled) {
+	if (vp_dev->pci_dev->msix_enabled) {
 		int vec = vp_dev->msix_vector_map[vq->index];
 		struct cpumask *mask = vp_dev->msix_affinity_masks[vec];
 		unsigned int irq = pci_irq_vector(vp_dev->pci_dev, vec);
