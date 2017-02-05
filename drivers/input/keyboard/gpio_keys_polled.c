@@ -303,10 +303,10 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 				return -EINVAL;
 			}
 
-			bdata->gpiod = devm_get_gpiod_from_child(dev, NULL,
-								 child,
-								 GPIOD_IN,
-								 button->desc);
+			bdata->gpiod = devm_fwnode_get_gpiod_from_child(dev,
+								NULL, child,
+								GPIOD_IN,
+								button->desc);
 			if (IS_ERR(bdata->gpiod)) {
 				error = PTR_ERR(bdata->gpiod);
 				if (error != -EPROBE_DEFER)
