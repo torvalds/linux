@@ -190,6 +190,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
 };
 
 /* the PCI probing function */

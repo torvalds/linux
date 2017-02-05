@@ -361,6 +361,17 @@ int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
+const struct cpumask *vp_get_vq_affinity(struct virtio_device *vdev, int index)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	unsigned int *map = vp_dev->msix_vector_map;
+
+	if (!map || map[index] == VIRTIO_MSI_NO_VECTOR)
+		return NULL;
+
+	return pci_irq_get_affinity(vp_dev->pci_dev, map[index]);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {

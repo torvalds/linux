@@ -58,6 +58,7 @@ struct irq_affinity;
  *      This returns a pointer to the bus name a la pci_name from which
  *      the caller can then copy.
  * @set_vq_affinity: set the affinity for a virtqueue.
+ * @get_vq_affinity: get the affinity for a virtqueue (optional).
  */
 typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {
@@ -77,6 +78,8 @@ struct virtio_config_ops {
 	int (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
 	int (*set_vq_affinity)(struct virtqueue *vq, int cpu);
+	const struct cpumask *(*get_vq_affinity)(struct virtio_device *vdev,
+			int index);
 };
 
 /* If driver didn't advertise the feature, it will never appear. */
