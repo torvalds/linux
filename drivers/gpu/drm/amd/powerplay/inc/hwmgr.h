@@ -612,6 +612,17 @@ struct phm_ppt_v2_information {
 	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
+struct phm_ppt_v3_information {
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_sclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_mclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_socclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dcefclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_pixclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_dispclk;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_on_phyclk;
+};
+
+
 struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk;
 	struct phm_clock_voltage_dependency_table *vddci_dependency_on_mclk;
