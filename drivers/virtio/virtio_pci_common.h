@@ -31,17 +31,6 @@
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 
-struct virtio_pci_vq_info {
-	/* the actual virtqueue */
-	struct virtqueue *vq;
-
-	/* the list node for the virtqueues list */
-	struct list_head node;
-
-	/* MSI-X vector (or none) */
-	unsigned msix_vector;
-};
-
 /* Our device structure */
 struct virtio_pci_device {
 	struct virtio_device vdev;
@@ -75,13 +64,6 @@ struct virtio_pci_device {
 	/* the IO mapping for the PCI config space */
 	void __iomem *ioaddr;
 
-	/* a list of queues so we can dispatch IRQs */
-	spinlock_t lock;
-	struct list_head virtqueues;
-
-	/* array of all queues for house-keeping */
-	struct virtio_pci_vq_info **vqs;
-
 	/* MSI-X support */
 	int msix_enabled;
 	int intx_enabled;
@@ -94,16 +76,15 @@ struct virtio_pci_device {
 	/* Vectors allocated, excluding per-vq vectors if any */
 	unsigned msix_used_vectors;
 
-	/* Whether we have vector per vq */
-	bool per_vq_vectors;
+	/* Map of per-VQ MSI-X vectors, may be NULL */
+	unsigned *msix_vector_map;
 
 	struct virtqueue *(*setup_vq)(struct virtio_pci_device *vp_dev,
-				      struct virtio_pci_vq_info *info,
 				      unsigned idx,
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name,
 				      u16 msix_vec);
-	void (*del_vq)(struct virtio_pci_vq_info *info);
+	void (*del_vq)(struct virtqueue *vq);
 
 	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
 };
