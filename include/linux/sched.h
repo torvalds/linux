@@ -18,6 +18,7 @@ struct sched_param {
 #include <linux/types.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
+#include <linux/mutex.h>
 #include <linux/plist.h>
 #include <linux/rbtree.h>
 #include <linux/thread_info.h>
