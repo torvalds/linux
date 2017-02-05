@@ -167,8 +167,6 @@ static inline bool timespec_inject_offset_valid(const struct timespec *ts)
 extern u32 (*arch_gettimeoffset)(void);
 #endif
 
-extern void xtime_update(unsigned long ticks);
-
 struct itimerval;
 extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);

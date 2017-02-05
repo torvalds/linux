@@ -8,6 +8,10 @@
 void timekeeping_init(void);
 extern int timekeeping_suspended;
 
+/* Architecture timer tick functions: */
+extern void update_process_times(int user);
+extern void xtime_update(unsigned long ticks);
+
 /*
  * Get and set timeofday
  */
