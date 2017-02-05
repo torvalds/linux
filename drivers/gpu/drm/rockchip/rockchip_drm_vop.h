@@ -262,9 +262,8 @@ struct vop_data {
 	const struct vop_csc_table *csc_table;
 	unsigned int win_size;
 	uint32_t version;
-	struct vop_rect max_input_fb;
-	struct vop_rect max_output_fb;
-	struct vop_rect max_disably_output;
+	struct vop_rect max_input;
+	struct vop_rect max_output;
 	u64 feature;
 };
 

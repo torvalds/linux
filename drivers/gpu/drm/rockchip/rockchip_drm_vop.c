@@ -954,13 +954,13 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	vop = to_vop(crtc);
 	vop_data = vop->data;
 
-	if (drm_rect_width(src) >> 16 > vop_data->max_input_fb.width ||
-	    drm_rect_height(src) >> 16 > vop_data->max_input_fb.height) {
+	if (drm_rect_width(src) >> 16 > vop_data->max_input.width ||
+	    drm_rect_height(src) >> 16 > vop_data->max_input.height) {
 		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
 			  drm_rect_width(src) >> 16,
 			  drm_rect_height(src) >> 16,
-			  vop_data->max_input_fb.width,
-			  vop_data->max_input_fb.height);
+			  vop_data->max_input.width,
+			  vop_data->max_input.height);
 		return -EINVAL;
 	}
 
@@ -1410,9 +1410,9 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 	int request_clock = mode->clock;
 	int clock;
 
-	if (mode->hdisplay > vop_data->max_disably_output.width)
+	if (mode->hdisplay > vop_data->max_output.width)
 		return MODE_BAD_HVALUE;
-	if (mode->vdisplay > vop_data->max_disably_output.height)
+	if (mode->vdisplay > vop_data->max_output.height)
 		return MODE_BAD_VVALUE;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
@@ -1448,8 +1448,8 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	const struct vop_data *vop_data = vop->data;
 	int request_clock = mode->clock;
 
-	if (mode->hdisplay > vop_data->max_disably_output.width ||
-	    mode->vdisplay > vop_data->max_disably_output.height)
+	if (mode->hdisplay > vop_data->max_output.width ||
+	    mode->vdisplay > vop_data->max_output.height)
 		return false;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
