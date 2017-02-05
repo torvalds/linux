@@ -119,7 +119,7 @@ static int virtcrypto_find_vqs(struct virtio_crypto *vi)
 	}
 
 	ret = vi->vdev->config->find_vqs(vi->vdev, total_vqs, vqs, callbacks,
-					 names);
+					 names, NULL);
 	if (ret)
 		goto err_find;
 

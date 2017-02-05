@@ -143,13 +143,19 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 		struct virtqueue *vqs[], vq_callback_t *callbacks[],
-		const char * const names[])
+		const char * const names[], struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	const char *name = dev_name(&vp_dev->vdev.dev);
 	int i, err = -ENOMEM, allocated_vectors, nvectors;
+	unsigned flags = PCI_IRQ_MSIX;
 	bool shared = false;
 	u16 msix_vec;
+
+	if (desc) {
+		flags |= PCI_IRQ_AFFINITY;
+		desc->pre_vectors++; /* virtio config vector */
+	}
 
 	nvectors = 1;
 	for (i = 0; i < nvqs; i++)
@@ -157,8 +163,8 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 			nvectors++;
 
 	/* Try one vector per queue first. */
-	err = pci_alloc_irq_vectors(vp_dev->pci_dev, nvectors, nvectors,
-			PCI_IRQ_MSIX);
+	err = pci_alloc_irq_vectors_affinity(vp_dev->pci_dev, nvectors,
+			nvectors, flags, desc);
 	if (err < 0) {
 		/* Fallback to one vector for config, one shared for queues. */
 		shared = true;
@@ -308,13 +314,12 @@ out_remove_vqs:
 
 /* the config->find_vqs() implementation */
 int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
-		struct virtqueue *vqs[],
-		vq_callback_t *callbacks[],
-		const char * const names[])
+		struct virtqueue *vqs[], vq_callback_t *callbacks[],
+		const char * const names[], struct irq_affinity *desc)
 {
 	int err;
 
-	err = vp_find_vqs_msix(vdev, nvqs, vqs, callbacks, names);
+	err = vp_find_vqs_msix(vdev, nvqs, vqs, callbacks, names, desc);
 	if (!err)
 		return 0;
 	return vp_find_vqs_intx(vdev, nvqs, vqs, callbacks, names);

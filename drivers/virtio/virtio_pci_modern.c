@@ -384,13 +384,12 @@ err_map_notify:
 }
 
 static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
-			      struct virtqueue *vqs[],
-			      vq_callback_t *callbacks[],
-			      const char * const names[])
+		struct virtqueue *vqs[], vq_callback_t *callbacks[],
+		const char * const names[], struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
-	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names);
+	int rc = vp_find_vqs(vdev, nvqs, vqs, callbacks, names, desc);
 
 	if (rc)
 		return rc;
