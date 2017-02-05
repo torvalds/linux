@@ -1135,20 +1135,6 @@ static inline int is_global_init(struct task_struct *tsk)
 
 extern struct pid *cad_pid;
 
-extern void free_task(struct task_struct *tsk);
-#define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
-
-extern void __put_task_struct(struct task_struct *t);
-
-static inline void put_task_struct(struct task_struct *t)
-{
-	if (atomic_dec_and_test(&t->usage))
-		__put_task_struct(t);
-}
-
-struct task_struct *task_rcu_dereference(struct task_struct **ptask);
-struct task_struct *try_get_task_struct(struct task_struct **ptask);
-
 /*
  * Per process flags
  */
