@@ -935,6 +935,9 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 {
 	struct cdn_dp_device *dp = container_of(work, struct cdn_dp_device,
 						event_work);
+	struct drm_connector *connector = &dp->connector;
+	enum drm_connector_status old_status;
+
 	int ret;
 	u8 sink_count;
 
@@ -997,7 +1000,11 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 
 out:
 	mutex_unlock(&dp->lock);
-	drm_helper_hpd_irq_event(dp->drm_dev);
+
+	old_status = connector->status;
+	connector->status = connector->funcs->detect(connector, false);
+	if (old_status != connector->status)
+		drm_kms_helper_hotplug_event(dp->drm_dev);
 }
 
 static int cdn_dp_pd_event(struct notifier_block *nb,
