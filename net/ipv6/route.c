@@ -98,6 +98,12 @@ static void		rt6_do_redirect(struct dst_entry *dst, struct sock *sk,
 					struct sk_buff *skb);
 static void		rt6_dst_from_metrics_check(struct rt6_info *rt);
 static int rt6_score_route(struct rt6_info *rt, int oif, int strict);
+static size_t rt6_nlmsg_size(struct rt6_info *rt);
+static int rt6_fill_node(struct net *net,
+			 struct sk_buff *skb, struct rt6_info *rt,
+			 struct in6_addr *dst, struct in6_addr *src,
+			 int iif, int type, u32 portid, u32 seq,
+			 unsigned int flags);
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
 static struct rt6_info *rt6_add_route_info(struct net *net,
@@ -2143,6 +2149,54 @@ int ip6_del_rt(struct rt6_info *rt)
 	return __ip6_del_rt(rt, &info);
 }
 
+static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
+{
+	struct nl_info *info = &cfg->fc_nlinfo;
+	struct sk_buff *skb = NULL;
+	struct fib6_table *table;
+	int err;
+
+	table = rt->rt6i_table;
+	write_lock_bh(&table->tb6_lock);
+
+	if (rt->rt6i_nsiblings && cfg->fc_delete_all_nh) {
+		struct rt6_info *sibling, *next_sibling;
+
+		/* prefer to send a single notification with all hops */
+		skb = nlmsg_new(rt6_nlmsg_size(rt), gfp_any());
+		if (skb) {
+			u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
+
+			if (rt6_fill_node(info->nl_net, skb, rt,
+					  NULL, NULL, 0, RTM_DELROUTE,
+					  info->portid, seq, 0) < 0) {
+				kfree_skb(skb);
+				skb = NULL;
+			} else
+				info->skip_notify = 1;
+		}
+
+		list_for_each_entry_safe(sibling, next_sibling,
+					 &rt->rt6i_siblings,
+					 rt6i_siblings) {
+			err = fib6_del(sibling, info);
+			if (err)
+				goto out;
+		}
+	}
+
+	err = fib6_del(rt, info);
+out:
+	write_unlock_bh(&table->tb6_lock);
+	ip6_rt_put(rt);
+
+	if (skb) {
+		rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV6_ROUTE,
+			    info->nlh, gfp_any());
+	}
+	return err;
+}
+
 static int ip6_route_del(struct fib6_config *cfg)
 {
 	struct fib6_table *table;
@@ -2179,7 +2233,11 @@ static int ip6_route_del(struct fib6_config *cfg)
 			dst_hold(&rt->dst);
 			read_unlock_bh(&table->tb6_lock);
 
-			return __ip6_del_rt(rt, &cfg->fc_nlinfo);
+			/* if gateway was specified only delete the one hop */
+			if (cfg->fc_flags & RTF_GATEWAY)
+				return __ip6_del_rt(rt, &cfg->fc_nlinfo);
+
+			return __ip6_del_rt_siblings(rt, cfg);
 		}
 	}
 	read_unlock_bh(&table->tb6_lock);
@@ -2952,7 +3010,7 @@ static void ip6_print_replace_route_err(struct list_head *rt6_nh_list)
 	struct rt6_nh *nh;
 
 	list_for_each_entry(nh, rt6_nh_list, next) {
-		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6 nexthop %pI6 ifi %d\n",
+		pr_warn("IPV6: multipath route replace failed (check consistency of installed routes): %pI6c nexthop %pI6c ifi %d\n",
 		        &nh->r_cfg.fc_dst, &nh->r_cfg.fc_gateway,
 		        nh->r_cfg.fc_ifindex);
 	}
@@ -2991,13 +3049,37 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 	return 0;
 }
 
+static void ip6_route_mpath_notify(struct rt6_info *rt,
+				   struct rt6_info *rt_last,
+				   struct nl_info *info,
+				   __u16 nlflags)
+{
+	/* if this is an APPEND route, then rt points to the first route
+	 * inserted and rt_last points to last route inserted. Userspace
+	 * wants a consistent dump of the route which starts at the first
+	 * nexthop. Since sibling routes are always added at the end of
+	 * the list, find the first sibling of the last route appended
+	 */
+	if ((nlflags & NLM_F_APPEND) && rt_last && rt_last->rt6i_nsiblings) {
+		rt = list_first_entry(&rt_last->rt6i_siblings,
+				      struct rt6_info,
+				      rt6i_siblings);
+	}
+
+	if (rt)
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
+}
+
 static int ip6_route_multipath_add(struct fib6_config *cfg)
 {
+	struct rt6_info *rt_notif = NULL, *rt_last = NULL;
+	struct nl_info *info = &cfg->fc_nlinfo;
 	struct fib6_config r_cfg;
 	struct rtnexthop *rtnh;
 	struct rt6_info *rt;
 	struct rt6_nh *err_nh;
 	struct rt6_nh *nh, *nh_safe;
+	__u16 nlflags;
 	int remaining;
 	int attrlen;
 	int err = 1;
@@ -3005,6 +3087,10 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 	int replace = (cfg->fc_nlinfo.nlh &&
 		       (cfg->fc_nlinfo.nlh->nlmsg_flags & NLM_F_REPLACE));
 	LIST_HEAD(rt6_nh_list);
+
+	nlflags = replace ? NLM_F_REPLACE : NLM_F_CREATE;
+	if (info->nlh && info->nlh->nlmsg_flags & NLM_F_APPEND)
+		nlflags |= NLM_F_APPEND;
 
 	remaining = cfg->fc_mp_len;
 	rtnh = (struct rtnexthop *)cfg->fc_mp;
@@ -3048,9 +3134,20 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 		rtnh = rtnh_next(rtnh, &remaining);
 	}
 
+	/* for add and replace send one notification with all nexthops.
+	 * Skip the notification in fib6_add_rt2node and send one with
+	 * the full route when done
+	 */
+	info->skip_notify = 1;
+
 	err_nh = NULL;
 	list_for_each_entry(nh, &rt6_nh_list, next) {
-		err = __ip6_ins_rt(nh->rt6_info, &cfg->fc_nlinfo, &nh->mxc);
+		rt_last = nh->rt6_info;
+		err = __ip6_ins_rt(nh->rt6_info, info, &nh->mxc);
+		/* save reference to first route for notification */
+		if (!rt_notif && !err)
+			rt_notif = nh->rt6_info;
+
 		/* nh->rt6_info is used or freed at this point, reset to NULL*/
 		nh->rt6_info = NULL;
 		if (err) {
@@ -3072,9 +3169,18 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 		nhn++;
 	}
 
+	/* success ... tell user about new route */
+	ip6_route_mpath_notify(rt_notif, rt_last, info, nlflags);
 	goto cleanup;
 
 add_errout:
+	/* send notification for routes that were added so that
+	 * the delete notifications sent by ip6_route_del are
+	 * coherent
+	 */
+	if (rt_notif)
+		ip6_route_mpath_notify(rt_notif, rt_last, info, nlflags);
+
 	/* Delete routes that were already added */
 	list_for_each_entry(nh, &rt6_nh_list, next) {
 		if (err_nh == nh)
@@ -3142,8 +3248,10 @@ static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if (cfg.fc_mp)
 		return ip6_route_multipath_del(&cfg);
-	else
+	else {
+		cfg.fc_delete_all_nh = 1;
 		return ip6_route_del(&cfg);
+	}
 }
 
 static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
@@ -3161,8 +3269,20 @@ static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return ip6_route_add(&cfg);
 }
 
-static inline size_t rt6_nlmsg_size(struct rt6_info *rt)
+static size_t rt6_nlmsg_size(struct rt6_info *rt)
 {
+	int nexthop_len = 0;
+
+	if (rt->rt6i_nsiblings) {
+		nexthop_len = nla_total_size(0)	 /* RTA_MULTIPATH */
+			    + NLA_ALIGN(sizeof(struct rtnexthop))
+			    + nla_total_size(16) /* RTA_GATEWAY */
+			    + nla_total_size(4)  /* RTA_OIF */
+			    + lwtunnel_get_encap_size(rt->dst.lwtstate);
+
+		nexthop_len *= rt->rt6i_nsiblings;
+	}
+
 	return NLMSG_ALIGN(sizeof(struct rtmsg))
 	       + nla_total_size(16) /* RTA_SRC */
 	       + nla_total_size(16) /* RTA_DST */
@@ -3176,7 +3296,62 @@ static inline size_t rt6_nlmsg_size(struct rt6_info *rt)
 	       + nla_total_size(sizeof(struct rta_cacheinfo))
 	       + nla_total_size(TCP_CA_NAME_MAX) /* RTAX_CC_ALGO */
 	       + nla_total_size(1) /* RTA_PREF */
-	       + lwtunnel_get_encap_size(rt->dst.lwtstate);
+	       + lwtunnel_get_encap_size(rt->dst.lwtstate)
+	       + nexthop_len;
+}
+
+static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
+			    unsigned int *flags)
+{
+	if (!netif_running(rt->dst.dev) || !netif_carrier_ok(rt->dst.dev)) {
+		*flags |= RTNH_F_LINKDOWN;
+		if (rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
+			*flags |= RTNH_F_DEAD;
+	}
+
+	if (rt->rt6i_flags & RTF_GATEWAY) {
+		if (nla_put_in6_addr(skb, RTA_GATEWAY, &rt->rt6i_gateway) < 0)
+			goto nla_put_failure;
+	}
+
+	if (rt->dst.dev &&
+	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex))
+		goto nla_put_failure;
+
+	if (rt->dst.lwtstate &&
+	    lwtunnel_fill_encap(skb, rt->dst.lwtstate) < 0)
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int rt6_add_nexthop(struct sk_buff *skb, struct rt6_info *rt)
+{
+	struct rtnexthop *rtnh;
+	unsigned int flags = 0;
+
+	rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
+	if (!rtnh)
+		goto nla_put_failure;
+
+	rtnh->rtnh_hops = 0;
+	rtnh->rtnh_ifindex = rt->dst.dev ? rt->dst.dev->ifindex : 0;
+
+	if (rt6_nexthop_info(skb, rt, &flags) < 0)
+		goto nla_put_failure;
+
+	rtnh->rtnh_flags = flags;
+
+	/* length of rtnetlink header + attributes */
+	rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *)rtnh;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
 }
 
 static int rt6_fill_node(struct net *net,
@@ -3230,11 +3405,6 @@ static int rt6_fill_node(struct net *net,
 	else
 		rtm->rtm_type = RTN_UNICAST;
 	rtm->rtm_flags = 0;
-	if (!netif_running(rt->dst.dev) || !netif_carrier_ok(rt->dst.dev)) {
-		rtm->rtm_flags |= RTNH_F_LINKDOWN;
-		if (rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
-			rtm->rtm_flags |= RTNH_F_DEAD;
-	}
 	rtm->rtm_scope = RT_SCOPE_UNIVERSE;
 	rtm->rtm_protocol = rt->rt6i_protocol;
 	if (rt->rt6i_flags & RTF_DYNAMIC)
@@ -3298,16 +3468,34 @@ static int rt6_fill_node(struct net *net,
 	if (rtnetlink_put_metrics(skb, metrics) < 0)
 		goto nla_put_failure;
 
-	if (rt->rt6i_flags & RTF_GATEWAY) {
-		if (nla_put_in6_addr(skb, RTA_GATEWAY, &rt->rt6i_gateway) < 0)
-			goto nla_put_failure;
-	}
-
-	if (rt->dst.dev &&
-	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex))
-		goto nla_put_failure;
 	if (nla_put_u32(skb, RTA_PRIORITY, rt->rt6i_metric))
 		goto nla_put_failure;
+
+	/* For multipath routes, walk the siblings list and add
+	 * each as a nexthop within RTA_MULTIPATH.
+	 */
+	if (rt->rt6i_nsiblings) {
+		struct rt6_info *sibling, *next_sibling;
+		struct nlattr *mp;
+
+		mp = nla_nest_start(skb, RTA_MULTIPATH);
+		if (!mp)
+			goto nla_put_failure;
+
+		if (rt6_add_nexthop(skb, rt) < 0)
+			goto nla_put_failure;
+
+		list_for_each_entry_safe(sibling, next_sibling,
+					 &rt->rt6i_siblings, rt6i_siblings) {
+			if (rt6_add_nexthop(skb, sibling) < 0)
+				goto nla_put_failure;
+		}
+
+		nla_nest_end(skb, mp);
+	} else {
+		if (rt6_nexthop_info(skb, rt, &rtm->rtm_flags) < 0)
+			goto nla_put_failure;
+	}
 
 	expires = (rt->rt6i_flags & RTF_EXPIRES) ? rt->dst.expires - jiffies : 0;
 
@@ -3317,8 +3505,6 @@ static int rt6_fill_node(struct net *net,
 	if (nla_put_u8(skb, RTA_PREF, IPV6_EXTRACT_PREF(rt->rt6i_flags)))
 		goto nla_put_failure;
 
-	if (lwtunnel_fill_encap(skb, rt->dst.lwtstate) < 0)
-		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
 	return 0;
