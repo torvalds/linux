@@ -254,22 +254,6 @@ struct sched_info {
 };
 #endif /* CONFIG_SCHED_INFO */
 
-static inline int sched_info_on(void)
-{
-#ifdef CONFIG_SCHEDSTATS
-	return 1;
-#elif defined(CONFIG_TASK_DELAY_ACCT)
-	extern int delayacct_on;
-	return delayacct_on;
-#else
-	return 0;
-#endif
-}
-
-#ifdef CONFIG_SCHEDSTATS
-void force_schedstat_enabled(void);
-#endif
-
 /*
  * Integer metrics need fixed point arithmetic, e.g., sched/fair
  * has a few: load, load_avg, util_avg, freq, and capacity.
