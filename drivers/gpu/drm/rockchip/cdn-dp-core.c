@@ -1091,7 +1091,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->connected = false;
 	dp->active = false;
 
-	mutex_init(&dp->lock);
 	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
 
 	encoder = &dp->encoder;
@@ -1263,6 +1262,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
 
 	return component_add(dev, &cdn_dp_component_ops);
