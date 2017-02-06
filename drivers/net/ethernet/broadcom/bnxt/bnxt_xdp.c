@@ -19,6 +19,65 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
+static void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+			  dma_addr_t mapping, u32 len, u16 rx_prod)
+{
+	struct bnxt_sw_tx_bd *tx_buf;
+	struct tx_bd_ext *txbd1;
+	struct tx_bd *txbd;
+	u32 flags;
+	u16 prod;
+
+	prod = txr->tx_prod;
+	tx_buf = &txr->tx_buf_ring[prod];
+	tx_buf->rx_prod = rx_prod;
+
+	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+	flags = (len << TX_BD_LEN_SHIFT) | TX_BD_TYPE_LONG_TX_BD |
+		(2 << TX_BD_FLAGS_BD_CNT_SHIFT) | TX_BD_FLAGS_COAL_NOW |
+		TX_BD_FLAGS_PACKET_END | bnxt_lhint_arr[len >> 9];
+	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
+	txbd->tx_bd_opaque = prod;
+	txbd->tx_bd_haddr = cpu_to_le64(mapping);
+
+	prod = NEXT_TX(prod);
+	txbd1 = (struct tx_bd_ext *)
+		&txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+
+	txbd1->tx_bd_hsize_lflags = cpu_to_le32(0);
+	txbd1->tx_bd_mss = cpu_to_le32(0);
+	txbd1->tx_bd_cfa_action = cpu_to_le32(0);
+	txbd1->tx_bd_cfa_meta = cpu_to_le32(0);
+
+	prod = NEXT_TX(prod);
+	txr->tx_prod = prod;
+}
+
+void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
+{
+	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct bnxt_sw_tx_bd *tx_buf;
+	u16 tx_cons = txr->tx_cons;
+	u16 last_tx_cons = tx_cons;
+	u16 rx_prod;
+	int i;
+
+	for (i = 0; i < nr_pkts; i++) {
+		last_tx_cons = tx_cons;
+		tx_cons = NEXT_TX(tx_cons);
+		tx_cons = NEXT_TX(tx_cons);
+	}
+	txr->tx_cons = tx_cons;
+	if (bnxt_tx_avail(bp, txr) == bp->tx_ring_size) {
+		rx_prod = rxr->rx_prod;
+	} else {
+		tx_buf = &txr->tx_buf_ring[last_tx_cons];
+		rx_prod = tx_buf->rx_prod;
+	}
+	writel(DB_KEY_RX | rx_prod, rxr->rx_doorbell);
+}
+
 /* returns the following:
  * true    - packet consumed by XDP and new buffer is allocated.
  * false   - packet should be passed to the stack.
@@ -27,11 +86,13 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		 struct page *page, u8 **data_ptr, unsigned int *len, u8 *event)
 {
 	struct bpf_prog *xdp_prog = READ_ONCE(rxr->xdp_prog);
+	struct bnxt_tx_ring_info *txr;
 	struct bnxt_sw_rx_bd *rx_buf;
 	struct pci_dev *pdev;
 	struct xdp_buff xdp;
 	dma_addr_t mapping;
 	void *orig_data;
+	u32 tx_avail;
 	u32 offset;
 	u32 act;
 
@@ -39,6 +100,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		return false;
 
 	pdev = bp->pdev;
+	txr = rxr->bnapi->tx_ring;
 	rx_buf = &rxr->rx_buf_ring[cons];
 	offset = bp->rx_offset;
 
@@ -54,6 +116,13 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	act = bpf_prog_run_xdp(xdp_prog, &xdp);
 	rcu_read_unlock();
 
+	tx_avail = bnxt_tx_avail(bp, txr);
+	/* If the tx ring is not full, we must not update the rx producer yet
+	 * because we may still be transmitting on some BDs.
+	 */
+	if (tx_avail != bp->tx_ring_size)
+		*event &= ~BNXT_RX_EVENT;
+
 	if (orig_data != xdp.data) {
 		offset = xdp.data - xdp.data_hard_start;
 		*data_ptr = xdp.data_hard_start + offset;
@@ -63,6 +132,20 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	case XDP_PASS:
 		return false;
 
+	case XDP_TX:
+		if (tx_avail < 2) {
+			trace_xdp_exception(bp->dev, xdp_prog, act);
+			bnxt_reuse_rx_data(rxr, cons, page);
+			return true;
+		}
+
+		*event = BNXT_TX_EVENT;
+		dma_sync_single_for_device(&pdev->dev, mapping + offset, *len,
+					   bp->rx_dir);
+		bnxt_xmit_xdp(bp, txr, mapping + offset, *len,
+			      NEXT_RX(rxr->rx_prod));
+		bnxt_reuse_rx_data(rxr, cons, page);
+		return true;
 	default:
 		bpf_warn_invalid_xdp_action(act);
 		/* Fall thru */

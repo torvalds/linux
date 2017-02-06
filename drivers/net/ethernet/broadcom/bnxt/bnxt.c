@@ -212,16 +212,7 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 #define BNXT_CP_DB_IRQ_DIS(db)						\
 		writel(DB_CP_IRQ_DIS_FLAGS, db)
 
-static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
-{
-	/* Tell compiler to fetch tx indices from memory. */
-	barrier();
-
-	return bp->tx_ring_size -
-		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
-}
-
-static const u16 bnxt_lhint_arr[] = {
+const u16 bnxt_lhint_arr[] = {
 	TX_BD_FLAGS_LHINT_512_AND_SMALLER,
 	TX_BD_FLAGS_LHINT_512_TO_1023,
 	TX_BD_FLAGS_LHINT_1024_TO_2047,
@@ -613,9 +604,8 @@ static inline u8 *__bnxt_alloc_rx_data(struct bnxt *bp, dma_addr_t *mapping,
 	return data;
 }
 
-static inline int bnxt_alloc_rx_data(struct bnxt *bp,
-				     struct bnxt_rx_ring_info *rxr,
-				     u16 prod, gfp_t gfp)
+int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
+		       u16 prod, gfp_t gfp)
 {
 	struct rx_bd *rxbd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
 	struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[prod];
@@ -1764,6 +1754,18 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 
 		if (rx_pkts == budget)
 			break;
+	}
+
+	if (event & BNXT_TX_EVENT) {
+		struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+		void __iomem *db = txr->tx_doorbell;
+		u16 prod = txr->tx_prod;
+
+		/* Sync BD data before updating doorbell */
+		wmb();
+
+		writel(DB_KEY_TX | prod, db);
+		writel(DB_KEY_TX | prod, db);
 	}
 
 	cpr->cp_raw_cons = raw_cons;
@@ -3066,12 +3068,14 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			bp->tx_ring[i].bnapi = bp->bnapi[j];
 			bp->bnapi[j]->tx_ring = &bp->tx_ring[i];
 			bp->tx_ring_map[i] = bp->tx_nr_rings_xdp + i;
-			if (i >= bp->tx_nr_rings_xdp)
+			if (i >= bp->tx_nr_rings_xdp) {
 				bp->tx_ring[i].txq_index = i -
 					bp->tx_nr_rings_xdp;
-			else
+				bp->bnapi[j]->tx_int = bnxt_tx_int;
+			} else {
 				bp->bnapi[j]->flags |= BNXT_NAPI_FLAG_XDP;
-			bp->bnapi[j]->tx_int = bnxt_tx_int;
+				bp->bnapi[j]->tx_int = bnxt_tx_int_xdp;
+			}
 		}
 
 		rc = bnxt_alloc_stats(bp);
