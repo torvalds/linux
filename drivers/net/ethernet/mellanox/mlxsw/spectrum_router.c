@@ -1353,7 +1353,7 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be detructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
-	 * in neith_create() in case n is not found.
+	 * in neigh_create() in case n is not found.
 	 */
 	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, dev);
 	if (!n) {
