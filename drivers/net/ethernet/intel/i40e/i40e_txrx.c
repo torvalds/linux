@@ -284,23 +284,6 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	ip->saddr = fd_data->src_ip;
 	tcp->source = fd_data->src_port;
 
-	if (add) {
-		pf->fd_tcp_rule++;
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    I40E_DEBUG_FD & pf->hw.debug_mask)
-			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
-		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
-	} else {
-		pf->fd_tcp_rule = (pf->fd_tcp_rule > 0) ?
-				  (pf->fd_tcp_rule - 1) : 0;
-		if (pf->fd_tcp_rule == 0) {
-			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-			    I40E_DEBUG_FD & pf->hw.debug_mask)
-				dev_info(&pf->pdev->dev, "ATR re-enabled due to no sideband TCP/IPv4 rules\n");
-			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-		}
-	}
-
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
 	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
 	if (ret) {
@@ -318,6 +301,23 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 			dev_info(&pf->pdev->dev,
 				 "Filter deleted for PCTYPE %d loc = %d\n",
 				 fd_data->pctype, fd_data->fd_id);
+	}
+
+	if (add) {
+		pf->fd_tcp_rule++;
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    I40E_DEBUG_FD & pf->hw.debug_mask)
+			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
+		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
+	} else {
+		pf->fd_tcp_rule = (pf->fd_tcp_rule > 0) ?
+				  (pf->fd_tcp_rule - 1) : 0;
+		if (pf->fd_tcp_rule == 0) {
+			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+			    I40E_DEBUG_FD & pf->hw.debug_mask)
+				dev_info(&pf->pdev->dev, "ATR re-enabled due to no sideband TCP/IPv4 rules\n");
+			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		}
 	}
 
 	return 0;
