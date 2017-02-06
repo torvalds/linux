@@ -268,8 +268,7 @@ struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
 	idr_init(&afu->contexts_idr);
 	mutex_init(&afu->contexts_lock);
 	spin_lock_init(&afu->afu_cntl_lock);
-	init_rwsem(&afu->configured_rwsem);
-	down_write(&afu->configured_rwsem);
+	atomic_set(&afu->configured_state, -1);
 	afu->prefault_mode = CXL_PREFAULT_NONE;
 	afu->irqs_max = afu->adapter->user_irqs;
 
