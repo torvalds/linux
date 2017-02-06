@@ -847,13 +847,11 @@ static void mlxsw_sp_router_neighs_update_nh(struct mlxsw_sp *mlxsw_sp)
 	/* Take RTNL mutex here to prevent lists from changes */
 	rtnl_lock();
 	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
-			    nexthop_neighs_list_node) {
+			    nexthop_neighs_list_node)
 		/* If this neigh have nexthops, make the kernel think this neigh
 		 * is active regardless of the traffic.
 		 */
-		if (!list_empty(&neigh_entry->nexthop_list))
-			neigh_event_send(neigh_entry->key.n, NULL);
-	}
+		neigh_event_send(neigh_entry->key.n, NULL);
 	rtnl_unlock();
 }
 
@@ -897,11 +895,9 @@ static void mlxsw_sp_router_probe_unresolved_nexthops(struct work_struct *work)
 	 */
 	rtnl_lock();
 	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
-			    nexthop_neighs_list_node) {
-		if (!(neigh_entry->key.n->nud_state & NUD_VALID) &&
-		    !list_empty(&neigh_entry->nexthop_list))
+			    nexthop_neighs_list_node)
+		if (!(neigh_entry->key.n->nud_state & NUD_VALID))
 			neigh_event_send(neigh_entry->key.n, NULL);
-	}
 	rtnl_unlock();
 
 	mlxsw_core_schedule_dw(&mlxsw_sp->router.nexthop_probe_dw,
