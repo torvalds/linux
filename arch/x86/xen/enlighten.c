@@ -1672,6 +1672,16 @@ asmlinkage __visible void __init xen_start_kernel(void)
 }
 
 #ifdef CONFIG_XEN_PVH
+
+static void xen_pvh_arch_setup(void)
+{
+#ifdef CONFIG_ACPI
+	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
+	if (nr_ioapics == 0)
+		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
+#endif
+}
+
 static void __init init_pvh_bootparams(void)
 {
 	struct xen_memory_map memmap;
@@ -1752,6 +1762,8 @@ void __init xen_prepare_pvh(void)
 	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
 
 	init_pvh_bootparams();
+
+	x86_init.oem.arch_setup = xen_pvh_arch_setup;
 }
 #endif
 
