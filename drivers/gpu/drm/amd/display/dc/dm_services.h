@@ -103,7 +103,7 @@ static inline uint32_t dm_read_reg_func(
 	uint32_t value;
 
 	if (address == 0) {
-		DC_ERR("invalid register read. address = 0");
+		DC_ERR("invalid register read; address = 0\n");
 		return 0;
 	}
 

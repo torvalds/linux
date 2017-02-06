@@ -38,6 +38,14 @@
 #include "dce/dce_11_0_sh_mask.h"
 #include "dce/dce_11_0_enum.h"
 
+#ifndef DMU_MEM_PWR_CNTL__DMCU_IRAM_MEM_PWR_STATE__SHIFT
+#define DMU_MEM_PWR_CNTL__DMCU_IRAM_MEM_PWR_STATE__SHIFT 0xa
+#endif
+
+#ifndef DMU_MEM_PWR_CNTL__DMCU_IRAM_MEM_PWR_STATE_MASK
+#define DMU_MEM_PWR_CNTL__DMCU_IRAM_MEM_PWR_STATE_MASK 0x00000400L
+#endif
+
 #ifndef HPD0_DC_HPD_CONTROL__DC_HPD_EN_MASK
 #define HPD0_DC_HPD_CONTROL__DC_HPD_EN_MASK  0x10000000L
 #endif
@@ -1557,15 +1565,19 @@ static void get_dmcu_psr_state(struct link_encoder *enc, uint32_t *psr_state)
 
 	uint32_t count = 0;
 	uint32_t psrStateOffset = 0xf0;
-	uint32_t value;
+	uint32_t value = -1;
 
 	/* Enable write access to IRAM */
 	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 1);
 
-	do {
+	while (REG(DCI_MEM_PWR_STATUS) && value != 0 && count++ < 10) {
 		dm_delay_in_microseconds(ctx, 2);
 		REG_GET(DCI_MEM_PWR_STATUS, DMCU_IRAM_MEM_PWR_STATE, &value);
-	} while (value != 0 && count++ < 10);
+	}
+	while (REG(DMU_MEM_PWR_CNTL) && value != 0 && count++ < 10) {
+		dm_delay_in_microseconds(ctx, 2);
+		REG_GET(DMU_MEM_PWR_CNTL, DMCU_IRAM_MEM_PWR_STATE, &value);
+	}
 
 	/* Write address to IRAM_RD_ADDR in DMCU_IRAM_RD_CTRL */
 	REG_WRITE(DMCU_IRAM_RD_CTRL, psrStateOffset);
