@@ -149,6 +149,9 @@ static pte_t sun4v_hugepage_shift_to_tte(pte_t entry, unsigned int shift)
 	case HPAGE_SHIFT:
 		pte_val(entry) |= _PAGE_PMD_HUGE;
 		break;
+	case HPAGE_64K_SHIFT:
+		hugepage_size = _PAGE_SZ64K_4V;
+		break;
 	default:
 		WARN_ONCE(1, "unsupported hugepage shift=%u\n", shift);
 	}
@@ -185,6 +188,9 @@ static unsigned int sun4v_huge_tte_to_shift(pte_t entry)
 	case _PAGE_SZ4MB_4V:
 		shift = REAL_HPAGE_SHIFT;
 		break;
+	case _PAGE_SZ64K_4V:
+		shift = HPAGE_64K_SHIFT;
+		break;
 	default:
 		shift = PAGE_SHIFT;
 		break;
@@ -203,6 +209,9 @@ static unsigned int sun4u_huge_tte_to_shift(pte_t entry)
 		break;
 	case _PAGE_SZ4MB_4U:
 		shift = REAL_HPAGE_SHIFT;
+		break;
+	case _PAGE_SZ64K_4U:
+		shift = HPAGE_64K_SHIFT;
 		break;
 	default:
 		shift = PAGE_SHIFT;
@@ -241,12 +250,21 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 {
 	pgd_t *pgd;
 	pud_t *pud;
+	pmd_t *pmd;
 	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
-	if (pud)
-		pte = (pte_t *)pmd_alloc(mm, pud, addr);
+	if (pud) {
+		pmd = pmd_alloc(mm, pud, addr);
+		if (!pmd)
+			return NULL;
+
+		if (sz == PMD_SHIFT)
+			pte = (pte_t *)pmd;
+		else
+			pte = pte_alloc_map(mm, pmd, addr);
+	}
 
 	return pte;
 }
@@ -255,42 +273,52 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
+	pmd_t *pmd;
 	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	if (!pgd_none(*pgd)) {
 		pud = pud_offset(pgd, addr);
-		if (!pud_none(*pud))
-			pte = (pte_t *)pmd_offset(pud, addr);
+		if (!pud_none(*pud)) {
+			pmd = pmd_offset(pud, addr);
+			if (!pmd_none(*pmd)) {
+				if (is_hugetlb_pmd(*pmd))
+					pte = (pte_t *)pmd;
+				else
+					pte = pte_offset_map(pmd, addr);
+			}
+		}
 	}
+
 	return pte;
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry)
 {
-	unsigned int i, nptes, hugepage_shift;
+	unsigned int i, nptes, orig_shift, shift;
 	unsigned long size;
 	pte_t orig;
 
 	size = huge_tte_to_size(entry);
-	nptes = size >> PMD_SHIFT;
+	shift = size >= HPAGE_SIZE ? PMD_SHIFT : PAGE_SHIFT;
+	nptes = size >> shift;
 
 	if (!pte_present(*ptep) && pte_present(entry))
 		mm->context.hugetlb_pte_count += nptes;
 
 	addr &= ~(size - 1);
 	orig = *ptep;
-	hugepage_shift = pte_none(orig) ? PAGE_SIZE : huge_tte_to_shift(orig);
+	orig_shift = pte_none(orig) ? PAGE_SIZE : huge_tte_to_shift(orig);
 
 	for (i = 0; i < nptes; i++)
-		ptep[i] = __pte(pte_val(entry) + (i << PMD_SHIFT));
+		ptep[i] = __pte(pte_val(entry) + (i << shift));
 
-	maybe_tlb_batch_add(mm, addr, ptep, orig, 0, hugepage_shift);
+	maybe_tlb_batch_add(mm, addr, ptep, orig, 0, orig_shift);
 	/* An HPAGE_SIZE'ed page is composed of two REAL_HPAGE_SIZE'ed pages */
 	if (size == HPAGE_SIZE)
 		maybe_tlb_batch_add(mm, addr + REAL_HPAGE_SIZE, ptep, orig, 0,
-				    hugepage_shift);
+				    orig_shift);
 }
 
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
@@ -302,7 +330,11 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 
 	entry = *ptep;
 	size = huge_tte_to_size(entry);
-	nptes = size >> PMD_SHIFT;
+	if (size >= HPAGE_SIZE)
+		nptes = size >> PMD_SHIFT;
+	else
+		nptes = size >> PAGE_SHIFT;
+
 	hugepage_shift = pte_none(entry) ? PAGE_SIZE : huge_tte_to_shift(entry);
 
 	if (pte_present(entry))

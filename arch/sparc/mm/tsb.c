@@ -147,12 +147,13 @@ void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr,
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	if (hugepage_shift == PAGE_SHIFT) {
+	if (hugepage_shift < HPAGE_SHIFT) {
 		base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
 		nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 			base = __pa(base);
-		__flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
+		__flush_huge_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries,
+					   hugepage_shift);
 	}
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	else if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {

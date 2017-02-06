@@ -345,6 +345,10 @@ static int __init setup_hugepagesz(char *string)
 		hv_pgsz_mask = HV_PGSZ_MASK_4MB;
 		hv_pgsz_idx = HV_PGSZ_IDX_4MB;
 		break;
+	case HPAGE_64K_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_64K;
+		hv_pgsz_idx = HV_PGSZ_IDX_64K;
+		break;
 	default:
 		hv_pgsz_mask = 0;
 	}
