@@ -138,6 +138,9 @@ static void malidp_atomic_commit_se_config(struct drm_crtc *crtc,
 	val = malidp_hw_read(hwdev, se_control);
 	val |= MALIDP_SE_SCALING_EN | MALIDP_SE_ALPHA_EN;
 
+	val &= ~MALIDP_SE_ENH(MALIDP_SE_ENH_MASK);
+	val |= s->enhancer_enable ? MALIDP_SE_ENH(3) : 0;
+
 	val |= MALIDP_SE_RGBO_IF_EN;
 	malidp_hw_write(hwdev, val, se_control);
 

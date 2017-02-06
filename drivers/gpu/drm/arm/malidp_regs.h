@@ -109,6 +109,8 @@
 /* Scaling engine registers and masks. */
 #define   MALIDP_SE_SCALING_EN			(1 << 0)
 #define   MALIDP_SE_ALPHA_EN			(1 << 1)
+#define   MALIDP_SE_ENH_MASK			3
+#define   MALIDP_SE_ENH(x)			(((x) & MALIDP_SE_ENH_MASK) << 2)
 #define   MALIDP_SE_RGBO_IF_EN			(1 << 4)
 #define   MALIDP550_SE_CTL_SEL_MASK		7
 #define   MALIDP550_SE_CTL_VCSEL(x) \
@@ -139,6 +141,17 @@
 #define     MALIDP_SE_COEFFTAB_DATA_MASK	0x3fff
 #define     MALIDP_SE_SET_COEFFTAB_DATA(x) \
 		((x) & MALIDP_SE_COEFFTAB_DATA_MASK)
+/* Enhance coeffents reigster offset */
+#define MALIDP_SE_IMAGE_ENH			0x3C
+/* ENH_LIMITS offset 0x0 */
+#define     MALIDP_SE_ENH_LOW_LEVEL		24
+#define     MALIDP_SE_ENH_HIGH_LEVEL		63
+#define     MALIDP_SE_ENH_LIMIT_MASK		0xfff
+#define     MALIDP_SE_SET_ENH_LIMIT_LOW(x) \
+		((x) & MALIDP_SE_ENH_LIMIT_MASK)
+#define     MALIDP_SE_SET_ENH_LIMIT_HIGH(x) \
+		(((x) & MALIDP_SE_ENH_LIMIT_MASK) << 16)
+#define   MALIDP_SE_ENH_COEFF0			0x04
 
 /* register offsets and bits specific to DP500 */
 #define MALIDP500_ADDR_SPACE_SIZE	0x01000

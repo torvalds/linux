@@ -71,6 +71,7 @@ enum malidp_scaling_coeff_set {
 
 struct malidp_se_config {
 	u8 scale_enable : 1;
+	u8 enhancer_enable : 1;
 	u8 hcoeff : 3;
 	u8 vcoeff : 3;
 	u8 plane_src_id;
@@ -295,6 +296,25 @@ malidp_se_select_coeffs(u32 upscale_factor)
 #undef FP_0_50000
 #undef FP_0_66667
 #undef FP_1_00000
+
+static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
+{
+	static const s32 enhancer_coeffs[] = {
+		-8, -8, -8, -8, 128, -8, -8, -8, -8
+	};
+	u32 val = MALIDP_SE_SET_ENH_LIMIT_LOW(MALIDP_SE_ENH_LOW_LEVEL) |
+		  MALIDP_SE_SET_ENH_LIMIT_HIGH(MALIDP_SE_ENH_HIGH_LEVEL);
+	u32 image_enh = hwdev->map.se_base +
+			((hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
+			 0x10 : 0xC) + MALIDP_SE_IMAGE_ENH;
+	u32 enh_coeffs = image_enh + MALIDP_SE_ENH_COEFF0;
+	int i;
+
+	malidp_hw_write(hwdev, val, image_enh);
+	for (i = 0; i < ARRAY_SIZE(enhancer_coeffs); ++i)
+		malidp_hw_write(hwdev, enhancer_coeffs[i], enh_coeffs + i * 4);
+}
+
 /*
  * background color components are defined as 12bits values,
  * they will be shifted right when stored on hardware that

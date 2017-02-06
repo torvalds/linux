@@ -288,6 +288,9 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 		if (!(h_upscale_factor >> 16) || !(v_upscale_factor >> 16))
 			return -EINVAL;
 
+		s->enhancer_enable = ((h_upscale_factor >> 16) >= 2 ||
+				      (v_upscale_factor >> 16) >= 2);
+
 		s->input_w = pstate->src_w >> 16;
 		s->input_h = pstate->src_h >> 16;
 		s->output_w = pstate->crtc_w;
@@ -530,8 +533,10 @@ int malidp_crtc_init(struct drm_device *drm)
 
 	drm_crtc_helper_add(&malidp->crtc, &malidp_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&malidp->crtc, MALIDP_GAMMA_LUT_SIZE);
-	/* No inverse-gamma: it is per-plane */
+	/* No inverse-gamma: it is per-plane. */
 	drm_crtc_enable_color_mgmt(&malidp->crtc, 0, true, MALIDP_GAMMA_LUT_SIZE);
+
+	malidp_se_set_enh_coeffs(malidp->dev);
 
 	return 0;
 
