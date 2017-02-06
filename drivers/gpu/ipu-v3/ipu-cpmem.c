@@ -644,6 +644,7 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 {
 	struct v4l2_pix_format *pix = &image->pix;
 	int offset, u_offset, v_offset;
+	int ret = 0;
 
 	pr_debug("%s: resolution: %dx%d stride: %d\n",
 		 __func__, pix->width, pix->height,
@@ -720,13 +721,16 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 			image->rect.top * pix->bytesperline;
 		break;
 	default:
-		return -EINVAL;
+		/* This should not happen */
+		WARN_ON(1);
+		offset = 0;
+		ret = -EINVAL;
 	}
 
 	ipu_cpmem_set_buffer(ch, 0, image->phys0 + offset);
 	ipu_cpmem_set_buffer(ch, 1, image->phys1 + offset);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_image);
 
