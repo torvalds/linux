@@ -362,8 +362,10 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 		status = -EPERM;
 		goto err;
 	}
-done:
+
+	/* Remember currently programmed MAC */
 	ether_addr_copy(adapter->dev_mac, addr->sa_data);
+done:
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	dev_info(dev, "MAC address changed to %pM\n", addr->sa_data);
 	return 0;
@@ -3618,8 +3620,10 @@ static void be_disable_if_filters(struct be_adapter *adapter)
 {
 	/* Don't delete MAC on BE3 VFs without FILTMGMT privilege  */
 	if (!BEx_chip(adapter) || !be_virtfn(adapter) ||
-	    check_privilege(adapter, BE_PRIV_FILTMGMT))
+	    check_privilege(adapter, BE_PRIV_FILTMGMT)) {
 		be_dev_mac_del(adapter, adapter->pmac_id[0]);
+		eth_zero_addr(adapter->dev_mac);
+	}
 
 	be_clear_uc_list(adapter);
 	be_clear_mc_list(adapter);
@@ -3773,12 +3777,27 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	/* Don't add MAC on BE3 VFs without FILTMGMT privilege */
-	if (!BEx_chip(adapter) || !be_virtfn(adapter) ||
-	    check_privilege(adapter, BE_PRIV_FILTMGMT)) {
+	/* Normally this condition usually true as the ->dev_mac is zeroed.
+	 * But on BE3 VFs the initial MAC is pre-programmed by PF and
+	 * subsequent be_dev_mac_add() can fail (after fresh boot)
+	 */
+	if (!ether_addr_equal(adapter->dev_mac, adapter->netdev->dev_addr)) {
+		int old_pmac_id = -1;
+
+		/* Remember old programmed MAC if any - can happen on BE3 VF */
+		if (!is_zero_ether_addr(adapter->dev_mac))
+			old_pmac_id = adapter->pmac_id[0];
+
 		status = be_dev_mac_add(adapter, adapter->netdev->dev_addr);
 		if (status)
 			return status;
+
+		/* Delete the old programmed MAC as we successfully programmed
+		 * a new MAC
+		 */
+		if (old_pmac_id >= 0 && old_pmac_id != adapter->pmac_id[0])
+			be_dev_mac_del(adapter, old_pmac_id);
+
 		ether_addr_copy(adapter->dev_mac, adapter->netdev->dev_addr);
 	}
 
@@ -4552,6 +4571,10 @@ static int be_mac_setup(struct be_adapter *adapter)
 
 		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+		/* Initial MAC for BE3 VFs is already programmed by PF */
+		if (BEx_chip(adapter) && be_virtfn(adapter))
+			memcpy(adapter->dev_mac, mac, ETH_ALEN);
 	}
 
 	return 0;
