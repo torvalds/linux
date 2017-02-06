@@ -219,9 +219,9 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 	udp = (struct udphdr *)(raw_packet + IP_HEADER_OFFSET
 	      + sizeof(struct iphdr));
 
-	ip->daddr = fd_data->dst_ip[0];
+	ip->daddr = fd_data->dst_ip;
 	udp->dest = fd_data->dst_port;
-	ip->saddr = fd_data->src_ip[0];
+	ip->saddr = fd_data->src_ip;
 	udp->source = fd_data->src_port;
 
 	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
@@ -281,9 +281,9 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	tcp = (struct tcphdr *)(raw_packet + IP_HEADER_OFFSET
 	      + sizeof(struct iphdr));
 
-	ip->daddr = fd_data->dst_ip[0];
+	ip->daddr = fd_data->dst_ip;
 	tcp->dest = fd_data->dst_port;
-	ip->saddr = fd_data->src_ip[0];
+	ip->saddr = fd_data->src_ip;
 	tcp->source = fd_data->src_port;
 
 	if (add) {
@@ -359,8 +359,8 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 		memcpy(raw_packet, packet, I40E_IP_DUMMY_PACKET_LEN);
 		ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
 
-		ip->saddr = fd_data->src_ip[0];
-		ip->daddr = fd_data->dst_ip[0];
+		ip->saddr = fd_data->src_ip;
+		ip->daddr = fd_data->dst_ip;
 		ip->protocol = 0;
 
 		fd_data->pctype = i;

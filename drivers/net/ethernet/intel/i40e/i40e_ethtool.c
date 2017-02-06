@@ -2406,8 +2406,8 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	 */
 	fsp->h_u.tcp_ip4_spec.psrc = rule->dst_port;
 	fsp->h_u.tcp_ip4_spec.pdst = rule->src_port;
-	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip[0];
-	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip[0];
+	fsp->h_u.tcp_ip4_spec.ip4src = rule->dst_ip;
+	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
 
 	if (rule->dest_ctl == I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET)
 		fsp->ring_cookie = RX_CLS_FLOW_DISC;
@@ -2630,8 +2630,8 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 static bool i40e_match_fdir_input_set(struct i40e_fdir_filter *rule,
 				      struct i40e_fdir_filter *input)
 {
-	if ((rule->dst_ip[0] != input->dst_ip[0]) ||
-	    (rule->src_ip[0] != input->src_ip[0]) ||
+	if ((rule->dst_ip != input->dst_ip) ||
+	    (rule->src_ip != input->src_ip) ||
 	    (rule->dst_port != input->dst_port) ||
 	    (rule->src_port != input->src_port))
 		return false;
@@ -2807,8 +2807,8 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	 */
 	input->dst_port = fsp->h_u.tcp_ip4_spec.psrc;
 	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
-	input->dst_ip[0] = fsp->h_u.tcp_ip4_spec.ip4src;
-	input->src_ip[0] = fsp->h_u.tcp_ip4_spec.ip4dst;
+	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
+	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
 
 	if (ntohl(fsp->m_ext.data[1])) {
 		vf_id = ntohl(fsp->h_ext.data[1]);
