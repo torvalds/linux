@@ -231,7 +231,6 @@ struct recv_frame {
 	uint  len;
 	u8 *rx_data;
 	u8 *rx_tail;
-	u8 *rx_end;
 	struct sta_info *psta;
 	/* for A-MPDU Rx reordering buffer control */
 	struct recv_reorder_ctrl *preorder_ctrl;
@@ -282,7 +281,7 @@ static inline u8 *recvframe_put(struct recv_frame *precvframe, int sz)
 
 	precvframe->rx_tail += sz;
 
-	if (precvframe->rx_tail > precvframe->rx_end) {
+	if (precvframe->rx_tail > precvframe->pkt->end) {
 		precvframe->rx_tail -= sz;
 		return NULL;
 	}
