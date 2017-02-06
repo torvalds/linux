@@ -88,12 +88,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter,
 		goto _recv_indicatepkt_drop;
 	}
 
-	skb->data = precv_frame->rx_data;
-
-	skb_set_tail_pointer(skb, precv_frame->len);
-
-	skb->len = precv_frame->len;
-
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		struct sk_buff *pskb2 = NULL;
 		struct sta_info *psta = NULL;

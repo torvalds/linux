@@ -2053,8 +2053,8 @@ static u8 collect_bss_info(struct adapter *padapter,
 	u32	len;
 	u8 *p;
 	u16 val16, subtype;
-	u8 *pframe = precv_frame->rx_data;
-	u32	packet_len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	u32 packet_len = precv_frame->pkt->len;
 	u8 ie_offset;
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -2563,8 +2563,8 @@ static unsigned int OnProbeReq(struct adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex *cur = &(pmlmeinfo->network);
-	u8 *pframe = precv_frame->rx_data;
-	uint len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint len = precv_frame->pkt->len;
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		return _SUCCESS;
@@ -2611,8 +2611,8 @@ static unsigned int OnBeacon(struct adapter *padapter,
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct sta_priv	*pstapriv = &padapter->stapriv;
-	u8 *pframe = precv_frame->rx_data;
-	uint len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint len = precv_frame->pkt->len;
 	struct wlan_bssid_ex *pbss;
 	int ret = _SUCCESS;
 	struct wlan_bssid_ex *pnetwork = &(pmlmeinfo->network);
@@ -2708,8 +2708,8 @@ static unsigned int OnAuth(struct adapter *padapter,
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8 *pframe = precv_frame->rx_data;
-	uint len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint len = precv_frame->pkt->len;
 
 	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
@@ -2871,8 +2871,8 @@ static unsigned int OnAuthClient(struct adapter *padapter,
 	unsigned int	go2asoc = 0;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8 *pframe = precv_frame->rx_data;
-	uint pkt_len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint pkt_len = precv_frame->pkt->len;
 
 	DBG_88E("%s\n", __func__);
 
@@ -2959,8 +2959,8 @@ static unsigned int OnAssocReq(struct adapter *padapter,
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex *cur = &(pmlmeinfo->network);
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	u8 *pframe = precv_frame->rx_data;
-	uint pkt_len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint pkt_len = precv_frame->pkt->len;
 
 	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
@@ -3391,8 +3391,8 @@ static unsigned int OnAssocRsp(struct adapter *padapter,
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	/* struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network); */
-	u8 *pframe = precv_frame->rx_data;
-	uint pkt_len = precv_frame->len;
+	u8 *pframe = precv_frame->pkt->data;
+	uint pkt_len = precv_frame->pkt->len;
 
 	DBG_88E("%s\n", __func__);
 
@@ -3476,7 +3476,7 @@ static unsigned int OnDeAuth(struct adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	struct wlan_bssid_ex *pnetwork = &(pmlmeinfo->network);
 
 	/* check A3 */
@@ -3531,7 +3531,7 @@ static unsigned int OnDisassoc(struct adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	struct wlan_bssid_ex *pnetwork = &(pmlmeinfo->network);
 
 	/* check A3 */
@@ -3590,7 +3590,7 @@ static unsigned int on_action_spct(struct adapter *padapter,
 {
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 category;
 	u8 action;
@@ -3646,7 +3646,7 @@ static unsigned int OnAction_back(struct adapter *padapter,
 	unsigned short	tid, status, reason_code = 0;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	/* check RA matches or not */
 	if (memcmp(myid(&(padapter->eeprompriv)), GetAddr1Ptr(pframe),
@@ -3719,7 +3719,7 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 {
 	struct adapter *adapter = recv_frame->adapter;
 	struct mlme_ext_priv *mlmeext = &(adapter->mlmeextpriv);
-	u8 *frame = recv_frame->rx_data;
+	u8 *frame = recv_frame->pkt->data;
 	u16 seq_ctrl = ((recv_frame->attrib.seq_num&0xffff) << 4) |
 		(recv_frame->attrib.frag_num & 0xf);
 
@@ -3749,7 +3749,7 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 
 static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 {
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	u8 *frame_body;
 	u8 dialogToken = 0;
 
@@ -3765,7 +3765,7 @@ static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 static unsigned int on_action_public_vendor(struct recv_frame *precv_frame)
 {
 	unsigned int ret = _FAIL;
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 
 	if (!memcmp(frame_body + 2, P2P_OUI, 4))
@@ -3777,7 +3777,7 @@ static unsigned int on_action_public_vendor(struct recv_frame *precv_frame)
 static unsigned int on_action_public_default(struct recv_frame *precv_frame, u8 action)
 {
 	unsigned int ret = _FAIL;
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 token;
 
@@ -3796,7 +3796,7 @@ static unsigned int on_action_public(struct adapter *padapter,
 				     struct recv_frame *precv_frame)
 {
 	unsigned int ret = _FAIL;
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 category, action;
 
@@ -3867,7 +3867,7 @@ static unsigned int OnAction(struct adapter *padapter,
 	unsigned char	category;
 	struct action_handler *ptable;
 	unsigned char	*frame_body;
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
 
@@ -4123,7 +4123,7 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 static void _mgt_dispatcher(struct adapter *padapter, struct mlme_handler *ptable, struct recv_frame *precv_frame)
 {
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 
 	if (ptable->func) {
 		/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
@@ -4142,7 +4142,7 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 #endif /* CONFIG_88EU_AP_MODE */
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 *pframe = precv_frame->rx_data;
+	u8 *pframe = precv_frame->pkt->data;
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
