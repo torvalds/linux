@@ -61,6 +61,21 @@ drm_add_fake_info_node(struct drm_minor *minor,
 	return 0;
 }
 
+static __always_inline void seq_print_param(struct seq_file *m,
+					    const char *name,
+					    const char *type,
+					    const void *x)
+{
+	if (!__builtin_strcmp(type, "bool"))
+		seq_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+	else if (!__builtin_strcmp(type, "int"))
+		seq_printf(m, "i915.%s=%d\n", name, *(const int *)x);
+	else if (!__builtin_strcmp(type, "unsigned int"))
+		seq_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else
+		BUILD_BUG();
+}
+
 static int i915_capabilities(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -69,9 +84,16 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	seq_printf(m, "gen: %d\n", INTEL_GEN(dev_priv));
 	seq_printf(m, "platform: %s\n", intel_platform_name(info->platform));
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev_priv));
+
 #define PRINT_FLAG(x)  seq_printf(m, #x ": %s\n", yesno(info->x))
 	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
+
+	kernel_param_lock(THIS_MODULE);
+#define PRINT_PARAM(T, x) seq_print_param(m, #x, #T, &i915.x);
+	I915_PARAMS_FOR_EACH(PRINT_PARAM);
+#undef PRINT_PARAM
+	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
 }
