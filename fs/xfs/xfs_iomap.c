@@ -1026,17 +1026,7 @@ xfs_file_iomap_begin(
 		if (error)
 			goto out_unlock;
 
-		/*
-		 * We're here because we're trying to do a directio write to a
-		 * region that isn't aligned to a filesystem block.  If the
-		 * extent is shared, fall back to buffered mode to handle the
-		 * RMW.
-		 */
-		if (!(flags & IOMAP_REPORT) && shared) {
-			trace_xfs_reflink_bounce_dio_write(ip, &imap);
-			error = -EREMCHG;
-			goto out_unlock;
-		}
+		ASSERT((flags & IOMAP_REPORT) || !shared);
 	}
 
 	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
