@@ -133,7 +133,7 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 
 	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%x\n",
 		  vport, vlan, qos, set_flags);
@@ -353,7 +353,7 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -ENOMEM;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -962,7 +962,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -1079,7 +1079,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
@@ -1630,7 +1630,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (!MLX5_CAP_GEN(esw->dev, eswitch_flow_table) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
 		esw_warn(esw->dev, "E-Switch FDB is not supported, aborting ...\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (!MLX5_CAP_ESW_INGRESS_ACL(esw->dev, ft_support))
