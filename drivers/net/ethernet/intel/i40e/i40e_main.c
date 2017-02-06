@@ -3284,7 +3284,9 @@ static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
 		return;
 
 	/* Reset FDir counters as we're replaying all existing filters */
-	pf->fd_tcp_rule = 0;
+	pf->fd_tcp4_filter_cnt = 0;
+	pf->fd_udp4_filter_cnt = 0;
+	pf->fd_ip4_filter_cnt = 0;
 
 	hlist_for_each_entry_safe(filter, node,
 				  &pf->fdir_filter_list, fdir_node) {
@@ -5468,7 +5470,8 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 	/* replay FDIR SB filters */
 	if (vsi->type == I40E_VSI_FDIR) {
 		/* reset fd counters */
-		pf->fd_add_err = pf->fd_atr_cnt = 0;
+		pf->fd_add_err = 0;
+		pf->fd_atr_cnt = 0;
 		i40e_fdir_filter_restore(vsi);
 	}
 
@@ -5751,7 +5754,11 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 		hlist_del(&filter->fdir_node);
 		kfree(filter);
 	}
+
 	pf->fdir_pf_active_filters = 0;
+	pf->fd_tcp4_filter_cnt = 0;
+	pf->fd_udp4_filter_cnt = 0;
+	pf->fd_ip4_filter_cnt = 0;
 }
 
 /**
@@ -6156,7 +6163,7 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM * 2)) {
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (pf->fd_tcp_rule == 0)) {
+		    (pf->fd_tcp4_filter_cnt == 0)) {
 			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 			if (I40E_DEBUG_FD & pf->hw.debug_mask)
 				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
@@ -6228,7 +6235,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 	} else {
 		/* replay sideband filters */
 		i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
-		if (!disable_atr && !pf->fd_tcp_rule)
+		if (!disable_atr && !pf->fd_tcp4_filter_cnt)
 			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -8937,8 +8944,8 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 		pf->hw_disabled_flags &= ~I40E_FLAG_FD_SB_ENABLED;
 		/* reset fd counters */
-		pf->fd_add_err = pf->fd_atr_cnt = pf->fd_tcp_rule = 0;
-		pf->fdir_pf_active_filters = 0;
+		pf->fd_add_err = 0;
+		pf->fd_atr_cnt = 0;
 		/* if ATR was auto disabled it can be re-enabled. */
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED)) {

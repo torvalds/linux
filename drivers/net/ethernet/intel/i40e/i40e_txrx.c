@@ -243,6 +243,11 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 				 fd_data->pctype, fd_data->fd_id);
 	}
 
+	if (add)
+		pf->fd_udp4_filter_cnt++;
+	else
+		pf->fd_udp4_filter_cnt--;
+
 	return 0;
 }
 
@@ -304,15 +309,14 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	}
 
 	if (add) {
-		pf->fd_tcp_rule++;
+		pf->fd_tcp4_filter_cnt++;
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
 	} else {
-		pf->fd_tcp_rule = (pf->fd_tcp_rule > 0) ?
-				  (pf->fd_tcp_rule - 1) : 0;
-		if (pf->fd_tcp_rule == 0) {
+		pf->fd_tcp4_filter_cnt--;
+		if (pf->fd_tcp4_filter_cnt == 0) {
 			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 			    I40E_DEBUG_FD & pf->hw.debug_mask)
 				dev_info(&pf->pdev->dev, "ATR re-enabled due to no sideband TCP/IPv4 rules\n");
@@ -380,6 +384,11 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 					 fd_data->pctype, fd_data->fd_id);
 		}
 	}
+
+	if (add)
+		pf->fd_ip4_filter_cnt++;
+	else
+		pf->fd_ip4_filter_cnt--;
 
 	return 0;
 }

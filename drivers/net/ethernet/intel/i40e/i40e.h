@@ -286,7 +286,14 @@ struct i40e_pf {
 	u32 fd_flush_cnt;
 	u32 fd_add_err;
 	u32 fd_atr_cnt;
-	u32 fd_tcp_rule;
+
+	/* Book-keeping of side-band filter count per flow-type.
+	 * This is used to detect and handle input set changes for
+	 * respective flow-type.
+	 */
+	u16 fd_tcp4_filter_cnt;
+	u16 fd_udp4_filter_cnt;
+	u16 fd_ip4_filter_cnt;
 
 	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_udp_bitmap;
