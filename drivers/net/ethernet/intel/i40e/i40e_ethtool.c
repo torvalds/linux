@@ -2565,6 +2565,12 @@ no_input_set:
 		}
 	}
 
+	if (rule->flex_filter) {
+		userdef.flex_filter = true;
+		userdef.flex_word = be16_to_cpu(rule->flex_word);
+		userdef.flex_offset = rule->flex_offset;
+	}
+
 	i40e_fill_rx_flow_user_data(fsp, &userdef);
 
 	return 0;
@@ -2830,6 +2836,69 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 }
 
 /**
+ * i40e_prune_flex_pit_list - Cleanup unused entries in FLX_PIT table
+ * @pf: pointer to PF structure
+ *
+ * This function searches the list of filters and determines which FLX_PIT
+ * entries are still required. It will prune any entries which are no longer
+ * in use after the deletion.
+ **/
+static void i40e_prune_flex_pit_list(struct i40e_pf *pf)
+{
+	struct i40e_flex_pit *entry, *tmp;
+	struct i40e_fdir_filter *rule;
+
+	/* First, we'll check the l3 table */
+	list_for_each_entry_safe(entry, tmp, &pf->l3_flex_pit_list, list) {
+		bool found = false;
+
+		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_node) {
+			if (rule->flow_type != IP_USER_FLOW)
+				continue;
+			if (rule->flex_filter &&
+			    rule->flex_offset == entry->src_offset) {
+				found = true;
+				break;
+			}
+		}
+
+		/* If we didn't find the filter, then we can prune this entry
+		 * from the list.
+		 */
+		if (!found) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+
+	/* Followed by the L4 table */
+	list_for_each_entry_safe(entry, tmp, &pf->l4_flex_pit_list, list) {
+		bool found = false;
+
+		hlist_for_each_entry(rule, &pf->fdir_filter_list, fdir_node) {
+			/* Skip this filter if it's L3, since we already
+			 * checked those in the above loop
+			 */
+			if (rule->flow_type == IP_USER_FLOW)
+				continue;
+			if (rule->flex_filter &&
+			    rule->flex_offset == entry->src_offset) {
+				found = true;
+				break;
+			}
+		}
+
+		/* If we didn't find the filter, then we can prune this entry
+		 * from the list.
+		 */
+		if (!found) {
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+}
+
+/**
  * i40e_del_fdir_entry - Deletes a Flow Director filter entry
  * @vsi: Pointer to the targeted VSI
  * @cmd: The command to get or set Rx flow classification rules
@@ -2856,8 +2925,250 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 
 	ret = i40e_update_ethtool_fdir_entry(vsi, NULL, fsp->location, cmd);
 
+	i40e_prune_flex_pit_list(pf);
+
 	i40e_fdir_check_and_reenable(pf);
 	return ret;
+}
+
+/**
+ * i40e_unused_pit_index - Find an unused PIT index for given list
+ * @pf: the PF data structure
+ *
+ * Find the first unused flexible PIT index entry. We search both the L3 and
+ * L4 flexible PIT lists so that the returned index is unique and unused by
+ * either currently programmed L3 or L4 filters. We use a bit field as storage
+ * to track which indexes are already used.
+ **/
+static u8 i40e_unused_pit_index(struct i40e_pf *pf)
+{
+	unsigned long available_index = 0xFF;
+	struct i40e_flex_pit *entry;
+
+	/* We need to make sure that the new index isn't in use by either L3
+	 * or L4 filters so that IP_USER_FLOW filters can program both L3 and
+	 * L4 to use the same index.
+	 */
+
+	list_for_each_entry(entry, &pf->l4_flex_pit_list, list)
+		clear_bit(entry->pit_index, &available_index);
+
+	list_for_each_entry(entry, &pf->l3_flex_pit_list, list)
+		clear_bit(entry->pit_index, &available_index);
+
+	return find_first_bit(&available_index, 8);
+}
+
+/**
+ * i40e_find_flex_offset - Find an existing flex src_offset
+ * @flex_pit_list: L3 or L4 flex PIT list
+ * @src_offset: new src_offset to find
+ *
+ * Searches the flex_pit_list for an existing offset. If no offset is
+ * currently programmed, then this will return an ERR_PTR if there is no space
+ * to add a new offset, otherwise it returns NULL.
+ **/
+static
+struct i40e_flex_pit *i40e_find_flex_offset(struct list_head *flex_pit_list,
+					    u16 src_offset)
+{
+	struct i40e_flex_pit *entry;
+	int size = 0;
+
+	/* Search for the src_offset first. If we find a matching entry
+	 * already programmed, we can simply re-use it.
+	 */
+	list_for_each_entry(entry, flex_pit_list, list) {
+		size++;
+		if (entry->src_offset == src_offset)
+			return entry;
+	}
+
+	/* If we haven't found an entry yet, then the provided src offset has
+	 * not yet been programmed. We will program the src offset later on,
+	 * but we need to indicate whether there is enough space to do so
+	 * here. We'll make use of ERR_PTR for this purpose.
+	 */
+	if (size >= I40E_FLEX_PIT_TABLE_SIZE)
+		return ERR_PTR(-ENOSPC);
+
+	return NULL;
+}
+
+/**
+ * i40e_add_flex_offset - Add src_offset to flex PIT table list
+ * @flex_pit_list: L3 or L4 flex PIT list
+ * @src_offset: new src_offset to add
+ * @pit_index: the PIT index to program
+ *
+ * This function programs the new src_offset to the list. It is expected that
+ * i40e_find_flex_offset has already been tried and returned NULL, indicating
+ * that this offset is not programmed, and that the list has enough space to
+ * store another offset.
+ *
+ * Returns 0 on success, and negative value on error.
+ **/
+static int i40e_add_flex_offset(struct list_head *flex_pit_list,
+				u16 src_offset,
+				u8 pit_index)
+{
+	struct i40e_flex_pit *new_pit, *entry;
+
+	new_pit = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!new_pit)
+		return -ENOMEM;
+
+	new_pit->src_offset = src_offset;
+	new_pit->pit_index = pit_index;
+
+	/* We need to insert this item such that the list is sorted by
+	 * src_offset in ascending order.
+	 */
+	list_for_each_entry(entry, flex_pit_list, list) {
+		if (new_pit->src_offset < entry->src_offset) {
+			list_add_tail(&new_pit->list, &entry->list);
+			return 0;
+		}
+
+		/* If we found an entry with our offset already programmed we
+		 * can simply return here, after freeing the memory. However,
+		 * if the pit_index does not match we need to report an error.
+		 */
+		if (new_pit->src_offset == entry->src_offset) {
+			int err = 0;
+
+			/* If the PIT index is not the same we can't re-use
+			 * the entry, so we must report an error.
+			 */
+			if (new_pit->pit_index != entry->pit_index)
+				err = -EINVAL;
+
+			kfree(new_pit);
+			return err;
+		}
+	}
+
+	/* If we reached here, then we haven't yet added the item. This means
+	 * that we should add the item at the end of the list.
+	 */
+	list_add_tail(&new_pit->list, flex_pit_list);
+	return 0;
+}
+
+/**
+ * __i40e_reprogram_flex_pit - Re-program specific FLX_PIT table
+ * @pf: Pointer to the PF structure
+ * @flex_pit_list: list of flexible src offsets in use
+ * #flex_pit_start: index to first entry for this section of the table
+ *
+ * In order to handle flexible data, the hardware uses a table of values
+ * called the FLX_PIT table. This table is used to indicate which sections of
+ * the input correspond to what PIT index values. Unfortunately, hardware is
+ * very restrictive about programming this table. Entries must be ordered by
+ * src_offset in ascending order, without duplicates. Additionally, unused
+ * entries must be set to the unused index value, and must have valid size and
+ * length according to the src_offset ordering.
+ *
+ * This function will reprogram the FLX_PIT register from a book-keeping
+ * structure that we guarantee is already ordered correctly, and has no more
+ * than 3 entries.
+ *
+ * To make things easier, we only support flexible values of one word length,
+ * rather than allowing variable length flexible values.
+ **/
+static void __i40e_reprogram_flex_pit(struct i40e_pf *pf,
+				      struct list_head *flex_pit_list,
+				      int flex_pit_start)
+{
+	struct i40e_flex_pit *entry = NULL;
+	u16 last_offset = 0;
+	int i = 0, j = 0;
+
+	/* First, loop over the list of flex PIT entries, and reprogram the
+	 * registers.
+	 */
+	list_for_each_entry(entry, flex_pit_list, list) {
+		/* We have to be careful when programming values for the
+		 * largest SRC_OFFSET value. It is possible that adding
+		 * additional empty values at the end would overflow the space
+		 * for the SRC_OFFSET in the FLX_PIT register. To avoid this,
+		 * we check here and add the empty values prior to adding the
+		 * largest value.
+		 *
+		 * To determine this, we will use a loop from i+1 to 3, which
+		 * will determine whether the unused entries would have valid
+		 * SRC_OFFSET. Note that there cannot be extra entries past
+		 * this value, because the only valid values would have been
+		 * larger than I40E_MAX_FLEX_SRC_OFFSET, and thus would not
+		 * have been added to the list in the first place.
+		 */
+		for (j = i + 1; j < 3; j++) {
+			u16 offset = entry->src_offset + j;
+			int index = flex_pit_start + i;
+			u32 value = I40E_FLEX_PREP_VAL(I40E_FLEX_DEST_UNUSED,
+						       1,
+						       offset - 3);
+
+			if (offset > I40E_MAX_FLEX_SRC_OFFSET) {
+				i40e_write_rx_ctl(&pf->hw,
+						  I40E_PRTQF_FLX_PIT(index),
+						  value);
+				i++;
+			}
+		}
+
+		/* Now, we can program the actual value into the table */
+		i40e_write_rx_ctl(&pf->hw,
+				  I40E_PRTQF_FLX_PIT(flex_pit_start + i),
+				  I40E_FLEX_PREP_VAL(entry->pit_index + 50,
+						     1,
+						     entry->src_offset));
+		i++;
+	}
+
+	/* In order to program the last entries in the table, we need to
+	 * determine the valid offset. If the list is empty, we'll just start
+	 * with 0. Otherwise, we'll start with the last item offset and add 1.
+	 * This ensures that all entries have valid sizes. If we don't do this
+	 * correctly, the hardware will disable flexible field parsing.
+	 */
+	if (!list_empty(flex_pit_list))
+		last_offset = list_prev_entry(entry, list)->src_offset + 1;
+
+	for (; i < 3; i++, last_offset++) {
+		i40e_write_rx_ctl(&pf->hw,
+				  I40E_PRTQF_FLX_PIT(flex_pit_start + i),
+				  I40E_FLEX_PREP_VAL(I40E_FLEX_DEST_UNUSED,
+						     1,
+						     last_offset));
+	}
+}
+
+/**
+ * i40e_reprogram_flex_pit - Reprogram all FLX_PIT tables after input set change
+ * @pf: pointer to the PF structure
+ *
+ * This function reprograms both the L3 and L4 FLX_PIT tables. See the
+ * internal helper function for implementation details.
+ **/
+static void i40e_reprogram_flex_pit(struct i40e_pf *pf)
+{
+	__i40e_reprogram_flex_pit(pf, &pf->l3_flex_pit_list,
+				  I40E_FLEX_PIT_IDX_START_L3);
+
+	__i40e_reprogram_flex_pit(pf, &pf->l4_flex_pit_list,
+				  I40E_FLEX_PIT_IDX_START_L4);
+
+	/* We also need to program the L3 and L4 GLQF ORT register */
+	i40e_write_rx_ctl(&pf->hw,
+			  I40E_GLQF_ORT(I40E_L3_GLQF_ORT_IDX),
+			  I40E_ORT_PREP_VAL(I40E_FLEX_PIT_IDX_START_L3,
+					    3, 1));
+
+	i40e_write_rx_ctl(&pf->hw,
+			  I40E_GLQF_ORT(I40E_L4_GLQF_ORT_IDX),
+			  I40E_ORT_PREP_VAL(I40E_FLEX_PIT_IDX_START_L4,
+					    3, 1));
 }
 
 /**
@@ -2884,6 +3195,37 @@ static const char *i40e_flow_str(struct ethtool_rx_flow_spec *fsp)
 }
 
 /**
+ * i40e_pit_index_to_mask - Return the FLEX mask for a given PIT index
+ * @pit_index: PIT index to convert
+ *
+ * Returns the mask for a given PIT index. Will return 0 if the pit_index is
+ * of range.
+ **/
+static u64 i40e_pit_index_to_mask(int pit_index)
+{
+	switch (pit_index) {
+	case 0:
+		return I40E_FLEX_50_MASK;
+	case 1:
+		return I40E_FLEX_51_MASK;
+	case 2:
+		return I40E_FLEX_52_MASK;
+	case 3:
+		return I40E_FLEX_53_MASK;
+	case 4:
+		return I40E_FLEX_54_MASK;
+	case 5:
+		return I40E_FLEX_55_MASK;
+	case 6:
+		return I40E_FLEX_56_MASK;
+	case 7:
+		return I40E_FLEX_57_MASK;
+	default:
+		return 0;
+	}
+}
+
+/**
  * i40e_print_input_set - Show changes between two input sets
  * @vsi: the vsi being configured
  * @old: the old input set
@@ -2897,6 +3239,7 @@ static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
 {
 	struct i40e_pf *pf = vsi->back;
 	bool old_value, new_value;
+	int i;
 
 	old_value = !!(old & I40E_L3_SRC_MASK);
 	new_value = !!(new & I40E_L3_SRC_MASK);
@@ -2933,6 +3276,19 @@ static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
 			   old_value ? "ON" : "OFF",
 			   new_value ? "ON" : "OFF");
 
+	/* Show change of flexible filter entries */
+	for (i = 0; i < I40E_FLEX_INDEX_ENTRIES; i++) {
+		u64 flex_mask = i40e_pit_index_to_mask(i);
+
+		old_value = !!(old & flex_mask);
+		new_value = !!(new & flex_mask);
+		if (old_value != new_value)
+			netif_info(pf, drv, vsi->netdev, "FLEX index %d: %s -> %s\n",
+				   i,
+				   old_value ? "ON" : "OFF",
+				   new_value ? "ON" : "OFF");
+	}
+
 	netif_info(pf, drv, vsi->netdev, "  Current input set: %0llx\n",
 		   old);
 	netif_info(pf, drv, vsi->netdev, "Requested input set: %0llx\n",
@@ -2943,6 +3299,7 @@ static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
  * i40e_check_fdir_input_set - Check that a given rx_flow_spec mask is valid
  * @vsi: pointer to the targeted VSI
  * @fsp: pointer to Rx flow specification
+ * @userdef: userdefined data from flow specification
  *
  * Ensures that a given ethtool_rx_flow_spec has a valid mask. Some support
  * for partial matches exists with a few limitations. First, hardware only
@@ -2964,14 +3321,19 @@ static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
  * failure.
  **/
 static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
-				     struct ethtool_rx_flow_spec *fsp)
+				     struct ethtool_rx_flow_spec *fsp,
+				     struct i40e_rx_flow_userdef *userdef)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct ethtool_tcpip4_spec *tcp_ip4_spec;
 	struct ethtool_usrip4_spec *usr_ip4_spec;
 	u64 current_mask, new_mask;
+	bool new_flex_offset = false;
+	bool flex_l3 = false;
 	u16 *fdir_filter_count;
-	u16 index;
+	u16 index, src_offset = 0;
+	u8 pit_index = 0;
+	int err;
 
 	switch (fsp->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
@@ -2985,6 +3347,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	case IP_USER_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
 		fdir_filter_count = &pf->fd_ip4_filter_cnt;
+		flex_l3 = true;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -3076,11 +3439,11 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		if (usr_ip4_spec->tos)
 			return -EOPNOTSUPP;
 
-		/* IP version does not have a mask field. */
+		/* Filtering on IP version is not supported */
 		if (usr_ip4_spec->ip_ver)
 			return -EINVAL;
 
-		/* L4 protocol doesn't have a mask field. */
+		/* Filtering on L4 protocol is not supported */
 		if (usr_ip4_spec->proto)
 			return -EINVAL;
 
@@ -3089,15 +3452,107 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		return -EOPNOTSUPP;
 	}
 
-	/* If the input set doesn't need any changes then this filter is safe
-	 * to apply.
+	/* First, clear all flexible filter entries */
+	new_mask &= ~I40E_FLEX_INPUT_MASK;
+
+	/* If we have a flexible filter, try to add this offset to the correct
+	 * flexible filter PIT list. Once finished, we can update the mask.
+	 * If the src_offset changed, we will get a new mask value which will
+	 * trigger an input set change.
 	 */
-	if (new_mask == current_mask)
+	if (userdef->flex_filter) {
+		struct i40e_flex_pit *l3_flex_pit = NULL, *flex_pit = NULL;
+
+		/* Flexible offset must be even, since the flexible payload
+		 * must be aligned on 2-byte boundary.
+		 */
+		if (userdef->flex_offset & 0x1) {
+			dev_warn(&pf->pdev->dev,
+				 "Flexible data offset must be 2-byte aligned\n");
+			return -EINVAL;
+		}
+
+		src_offset = userdef->flex_offset >> 1;
+
+		/* FLX_PIT source offset value is only so large */
+		if (src_offset > I40E_MAX_FLEX_SRC_OFFSET) {
+			dev_warn(&pf->pdev->dev,
+				 "Flexible data must reside within first 64 bytes of the packet payload\n");
+			return -EINVAL;
+		}
+
+		/* See if this offset has already been programmed. If we get
+		 * an ERR_PTR, then the filter is not safe to add. Otherwise,
+		 * if we get a NULL pointer, this means we will need to add
+		 * the offset.
+		 */
+		flex_pit = i40e_find_flex_offset(&pf->l4_flex_pit_list,
+						 src_offset);
+		if (IS_ERR(flex_pit))
+			return PTR_ERR(flex_pit);
+
+		/* IP_USER_FLOW filters match both L4 (ICMP) and L3 (unknown)
+		 * packet types, and thus we need to program both L3 and L4
+		 * flexible values. These must have identical flexible index,
+		 * as otherwise we can't correctly program the input set. So
+		 * we'll find both an L3 and L4 index and make sure they are
+		 * the same.
+		 */
+		if (flex_l3) {
+			l3_flex_pit =
+				i40e_find_flex_offset(&pf->l3_flex_pit_list,
+						      src_offset);
+			if (IS_ERR(l3_flex_pit))
+				return PTR_ERR(l3_flex_pit);
+
+			if (flex_pit) {
+				/* If we already had a matching L4 entry, we
+				 * need to make sure that the L3 entry we
+				 * obtained uses the same index.
+				 */
+				if (l3_flex_pit) {
+					if (l3_flex_pit->pit_index !=
+					    flex_pit->pit_index) {
+						return -EINVAL;
+					}
+				} else {
+					new_flex_offset = true;
+				}
+			} else {
+				flex_pit = l3_flex_pit;
+			}
+		}
+
+		/* If we didn't find an existing flex offset, we need to
+		 * program a new one. However, we don't immediately program it
+		 * here because we will wait to program until after we check
+		 * that it is safe to change the input set.
+		 */
+		if (!flex_pit) {
+			new_flex_offset = true;
+			pit_index = i40e_unused_pit_index(pf);
+		} else {
+			pit_index = flex_pit->pit_index;
+		}
+
+		/* Update the mask with the new offset */
+		new_mask |= i40e_pit_index_to_mask(pit_index);
+	}
+
+	/* If the mask and flexible filter offsets for this filter match the
+	 * currently programmed values we don't need any input set change, so
+	 * this filter is safe to install.
+	 */
+	if (new_mask == current_mask && !new_flex_offset)
 		return 0;
 
 	netif_info(pf, drv, vsi->netdev, "Input set change requested for %s flows:\n",
 		   i40e_flow_str(fsp));
 	i40e_print_input_set(vsi, current_mask, new_mask);
+	if (new_flex_offset) {
+		netif_info(pf, drv, vsi->netdev, "FLEX index %d: Offset -> %d",
+			   pit_index, src_offset);
+	}
 
 	/* Hardware input sets are global across multiple ports, so even the
 	 * main port cannot change them when in MFP mode as this would impact
@@ -3125,6 +3580,24 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	}
 
 	i40e_write_fd_input_set(pf, index, new_mask);
+
+	/* Add the new offset and update table, if necessary */
+	if (new_flex_offset) {
+		err = i40e_add_flex_offset(&pf->l4_flex_pit_list, src_offset,
+					   pit_index);
+		if (err)
+			return err;
+
+		if (flex_l3) {
+			err = i40e_add_flex_offset(&pf->l3_flex_pit_list,
+						   src_offset,
+						   pit_index);
+			if (err)
+				return err;
+		}
+
+		i40e_reprogram_flex_pit(pf);
+	}
 
 	return 0;
 }
@@ -3171,15 +3644,11 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (i40e_parse_rx_flow_user_data(fsp, &userdef))
 		return -EINVAL;
 
-	/* Flexible filters not yet supported */
-	if (userdef.flex_filter)
-		return -EOPNOTSUPP;
-
 	/* Extended MAC field is not supported */
 	if (fsp->flow_type & FLOW_MAC_EXT)
 		return -EINVAL;
 
-	ret = i40e_check_fdir_input_set(vsi, fsp);
+	ret = i40e_check_fdir_input_set(vsi, fsp, &userdef);
 	if (ret)
 		return ret;
 
@@ -3238,6 +3707,12 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
 	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
 	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
+
+	if (userdef.flex_filter) {
+		input->flex_filter = true;
+		input->flex_word = cpu_to_be16(userdef.flex_word);
+		input->flex_offset = userdef.flex_offset;
+	}
 
 	ret = i40e_add_del_fdir(vsi, input, true);
 	if (ret)
