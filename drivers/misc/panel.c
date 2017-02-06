@@ -119,8 +119,6 @@
 #define PIN_SELECP		17
 #define PIN_NOT_SET		127
 
-#define LCD_FLAG_S		0x0001
-#define LCD_FLAG_ID		0x0002
 #define LCD_FLAG_B		0x0004	/* blink on */
 #define LCD_FLAG_C		0x0008	/* cursor on */
 #define LCD_FLAG_D		0x0010	/* display on */
