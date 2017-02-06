@@ -101,15 +101,7 @@ static inline struct timer8_priv *ced_to_priv(struct clock_event_device *ced)
 
 static void timer8_clock_event_start(struct timer8_priv *p, unsigned long delta)
 {
-	struct clock_event_device *ced = &p->ced;
-
 	timer8_start(p);
-
-	ced->shift = 32;
-	ced->mult = div_sc(p->rate, NSEC_PER_SEC, ced->shift);
-	ced->max_delta_ns = clockevent_delta2ns(0xffff, ced);
-	ced->min_delta_ns = clockevent_delta2ns(0x0001, ced);
-
 	timer8_set_next(p, delta);
 }
 
