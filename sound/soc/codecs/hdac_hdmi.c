@@ -82,6 +82,7 @@ struct hdac_hdmi_eld {
 struct hdac_hdmi_pin {
 	struct list_head head;
 	hda_nid_t nid;
+	bool mst_capable;
 	struct hdac_hdmi_port *ports;
 	int num_ports;
 	struct hdac_ext_device *edev;
@@ -1065,14 +1066,22 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin,
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm;
 	int size = 0;
+	int port_id = -1;
 
 	if (!hdmi)
 		return;
 
+	/*
+	 * In case of non MST pin, get_eld info API expectes port
+	 * to be -1.
+	 */
 	mutex_lock(&hdmi->pin_mutex);
 	port->eld.monitor_present = false;
 
-	size = snd_hdac_acomp_get_eld(&edev->hdac, pin->nid, -1,
+	if (pin->mst_capable)
+		port_id = port->id;
+
+	size = snd_hdac_acomp_get_eld(&edev->hdac, pin->nid, port_id,
 				&port->eld.monitor_present,
 				port->eld.eld_buffer,
 				ELD_MAX_SIZE);
@@ -1167,6 +1176,7 @@ static int hdac_hdmi_add_pin(struct hdac_ext_device *edev, hda_nid_t nid)
 		return -ENOMEM;
 
 	pin->nid = nid;
+	pin->mst_capable = false;
 	pin->edev = edev;
 	ret = hdac_hdmi_add_ports(hdmi, pin);
 	if (ret < 0)
@@ -1363,6 +1373,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 	struct hdac_hdmi_pin *pin = NULL;
 	struct hdac_hdmi_port *hport = NULL;
 	struct snd_soc_codec *codec = edev->scodec;
+	int i;
 
 	/* Don't know how this mapping is derived */
 	hda_nid_t pin_nid = port + 0x04;
@@ -1389,13 +1400,23 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 
 		/* In case of non MST pin, pipe is -1 */
 		if (pipe == -1) {
+			pin->mst_capable = false;
 			/* if not MST, default is port[0] */
 			hport = &pin->ports[0];
-			break;
+			goto out;
+		} else {
+			for (i = 0; i < pin->num_ports; i++) {
+				pin->mst_capable = true;
+				if (pin->ports[i].id == pipe) {
+					hport = &pin->ports[i];
+					goto out;
+				}
+			}
 		}
 	}
 
-	if (hport)
+out:
+	if (pin && hport)
 		hdac_hdmi_present_sense(pin, hport);
 }
 
