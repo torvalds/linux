@@ -76,6 +76,11 @@ Optional endpoint properties
   mode horizontal and vertical synchronization signals are provided to the
   slave device (data source) by the master device (data sink). In the master
   mode the data source device is also the source of the synchronization signals.
+- bus-type: data bus type. Possible values are:
+  0 - autodetect based on other properties (MIPI CSI-2 D-PHY, parallel or Bt656)
+  1 - MIPI CSI-2 C-PHY
+  2 - MIPI CSI1
+  3 - CCP2
 - bus-width: number of data lines actively used, valid for the parallel busses.
 - data-shift: on the parallel data busses, if bus-width is used to specify the
   number of data lines, data-shift can be used to specify which data lines are
