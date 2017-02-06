@@ -2621,24 +2621,6 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 }
 
 /**
- * i40e_match_fdir_input_set - Match a new filter against an existing one
- * @rule: The filter already added
- * @input: The new filter to comapre against
- *
- * Returns true if the two input set match
- **/
-static bool i40e_match_fdir_input_set(struct i40e_fdir_filter *rule,
-				      struct i40e_fdir_filter *input)
-{
-	if ((rule->dst_ip != input->dst_ip) ||
-	    (rule->src_ip != input->src_ip) ||
-	    (rule->dst_port != input->dst_port) ||
-	    (rule->src_port != input->src_port))
-		return false;
-	return true;
-}
-
-/**
  * i40e_update_ethtool_fdir_entry - Updates the fdir filter entry
  * @vsi: Pointer to the targeted VSI
  * @input: The filter to update or NULL to indicate deletion
@@ -2673,22 +2655,22 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 
 	/* if there is an old rule occupying our place remove it */
 	if (rule && (rule->fd_id == sw_idx)) {
-		if (input && !i40e_match_fdir_input_set(rule, input))
-			err = i40e_add_del_fdir(vsi, rule, false);
-		else if (!input)
-			err = i40e_add_del_fdir(vsi, rule, false);
+		/* Remove this rule, since we're either deleting it, or
+		 * replacing it.
+		 */
+		err = i40e_add_del_fdir(vsi, rule, false);
 		hlist_del(&rule->fdir_node);
 		kfree(rule);
 		pf->fdir_pf_active_filters--;
 	}
 
-	/* If no input this was a delete, err should be 0 if a rule was
-	 * successfully found and removed from the list else -EINVAL
+	/* If we weren't given an input, this is a delete, so just return the
+	 * error code indicating if there was an entry at the requested slot
 	 */
 	if (!input)
 		return err;
 
-	/* initialize node and set software index */
+	/* Otherwise, install the new rule as requested */
 	INIT_HLIST_NODE(&input->fdir_node);
 
 	/* add filter to the list */
