@@ -3653,7 +3653,7 @@ static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
  * Configures the properties for forwarding to CPU.
  */
 #define MLXSW_REG_HTGT_ID 0x7002
-#define MLXSW_REG_HTGT_LEN 0x100
+#define MLXSW_REG_HTGT_LEN 0x20
 
 MLXSW_REG_DEFINE(htgt, MLXSW_REG_HTGT_ID, MLXSW_REG_HTGT_LEN);
 
