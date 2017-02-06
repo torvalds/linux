@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -854,24 +853,12 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int dove_pinctrl_remove(struct platform_device *pdev)
-{
-	if (!IS_ERR(clk))
-		clk_disable_unprepare(clk);
-	return 0;
-}
-
 static struct platform_driver dove_pinctrl_driver = {
 	.driver = {
 		.name = "dove-pinctrl",
+		.suppress_bind_attrs = true,
 		.of_match_table = dove_pinctrl_of_match,
 	},
 	.probe = dove_pinctrl_probe,
-	.remove = dove_pinctrl_remove,
 };
-
-module_platform_driver(dove_pinctrl_driver);
-
-MODULE_AUTHOR("Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>");
-MODULE_DESCRIPTION("Marvell Dove pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(dove_pinctrl_driver);

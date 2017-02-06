@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -472,9 +471,4 @@ static struct platform_driver kirkwood_pinctrl_driver = {
 	},
 	.probe = kirkwood_pinctrl_probe,
 };
-
-module_platform_driver(kirkwood_pinctrl_driver);
-
-MODULE_AUTHOR("Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>");
-MODULE_DESCRIPTION("Marvell Kirkwood pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(kirkwood_pinctrl_driver);

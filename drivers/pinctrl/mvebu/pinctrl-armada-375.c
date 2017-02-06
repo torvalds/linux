@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -424,9 +423,4 @@ static struct platform_driver armada_375_pinctrl_driver = {
 	},
 	.probe = armada_375_pinctrl_probe,
 };
-
-module_platform_driver(armada_375_pinctrl_driver);
-
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell Armada 375 pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(armada_375_pinctrl_driver);

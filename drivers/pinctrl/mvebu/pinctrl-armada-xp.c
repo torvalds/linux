@@ -20,7 +20,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -650,9 +649,4 @@ static struct platform_driver armada_xp_pinctrl_driver = {
 	.suspend = armada_xp_pinctrl_suspend,
 	.resume = armada_xp_pinctrl_resume,
 };
-
-module_platform_driver(armada_xp_pinctrl_driver);
-
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell Armada XP pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(armada_xp_pinctrl_driver);
