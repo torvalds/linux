@@ -599,10 +599,6 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_router_neigh_construct(struct net_device *dev,
-				    struct neighbour *n);
-void mlxsw_sp_router_neigh_destroy(struct net_device *dev,
-				   struct neighbour *n);
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
 

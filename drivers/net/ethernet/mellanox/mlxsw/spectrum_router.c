@@ -613,9 +613,7 @@ struct mlxsw_sp_neigh_entry {
 	struct rhash_head ht_node;
 	struct mlxsw_sp_neigh_key key;
 	u16 rif;
-	bool offloaded;
-	struct delayed_work dw;
-	struct mlxsw_sp_port *mlxsw_sp_port;
+	bool connected;
 	unsigned char ha[ETH_ALEN];
 	struct list_head nexthop_list; /* list of nexthops using
 					* this neigh entry
@@ -628,6 +626,28 @@ static const struct rhashtable_params mlxsw_sp_neigh_ht_params = {
 	.head_offset = offsetof(struct mlxsw_sp_neigh_entry, ht_node),
 	.key_len = sizeof(struct mlxsw_sp_neigh_key),
 };
+
+static struct mlxsw_sp_neigh_entry *
+mlxsw_sp_neigh_entry_alloc(struct mlxsw_sp *mlxsw_sp, struct neighbour *n,
+			   u16 rif)
+{
+	struct mlxsw_sp_neigh_entry *neigh_entry;
+
+	neigh_entry = kzalloc(sizeof(*neigh_entry), GFP_KERNEL);
+	if (!neigh_entry)
+		return NULL;
+
+	neigh_entry->key.n = n;
+	neigh_entry->rif = rif;
+	INIT_LIST_HEAD(&neigh_entry->nexthop_list);
+
+	return neigh_entry;
+}
+
+static void mlxsw_sp_neigh_entry_free(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	kfree(neigh_entry);
+}
 
 static int
 mlxsw_sp_neigh_entry_insert(struct mlxsw_sp *mlxsw_sp,
@@ -647,27 +667,38 @@ mlxsw_sp_neigh_entry_remove(struct mlxsw_sp *mlxsw_sp,
 			       mlxsw_sp_neigh_ht_params);
 }
 
-static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work);
-
 static struct mlxsw_sp_neigh_entry *
-mlxsw_sp_neigh_entry_create(struct neighbour *n, u16 rif)
+mlxsw_sp_neigh_entry_create(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
+	struct mlxsw_sp_rif *r;
+	int err;
 
-	neigh_entry = kzalloc(sizeof(*neigh_entry), GFP_ATOMIC);
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, n->dev);
+	if (!r)
+		return ERR_PTR(-EINVAL);
+
+	neigh_entry = mlxsw_sp_neigh_entry_alloc(mlxsw_sp, n, r->rif);
 	if (!neigh_entry)
-		return NULL;
-	neigh_entry->key.n = n;
-	neigh_entry->rif = rif;
-	INIT_DELAYED_WORK(&neigh_entry->dw, mlxsw_sp_router_neigh_update_hw);
-	INIT_LIST_HEAD(&neigh_entry->nexthop_list);
+		return ERR_PTR(-ENOMEM);
+
+	err = mlxsw_sp_neigh_entry_insert(mlxsw_sp, neigh_entry);
+	if (err)
+		goto err_neigh_entry_insert;
+
 	return neigh_entry;
+
+err_neigh_entry_insert:
+	mlxsw_sp_neigh_entry_free(neigh_entry);
+	return ERR_PTR(err);
 }
 
 static void
-mlxsw_sp_neigh_entry_destroy(struct mlxsw_sp_neigh_entry *neigh_entry)
+mlxsw_sp_neigh_entry_destroy(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_neigh_entry *neigh_entry)
 {
-	kfree(neigh_entry);
+	mlxsw_sp_neigh_entry_remove(mlxsw_sp, neigh_entry);
+	mlxsw_sp_neigh_entry_free(neigh_entry);
 }
 
 static struct mlxsw_sp_neigh_entry *
@@ -678,56 +709,6 @@ mlxsw_sp_neigh_entry_lookup(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 	key.n = n;
 	return rhashtable_lookup_fast(&mlxsw_sp->router.neigh_ht,
 				      &key, mlxsw_sp_neigh_ht_params);
-}
-
-int mlxsw_sp_router_neigh_construct(struct net_device *dev,
-				    struct neighbour *n)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_neigh_entry *neigh_entry;
-	struct mlxsw_sp_rif *r;
-	int err;
-
-	if (n->tbl != &arp_tbl)
-		return 0;
-
-	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
-	if (neigh_entry)
-		return 0;
-
-	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, n->dev);
-	if (WARN_ON(!r))
-		return -EINVAL;
-
-	neigh_entry = mlxsw_sp_neigh_entry_create(n, r->rif);
-	if (!neigh_entry)
-		return -ENOMEM;
-	err = mlxsw_sp_neigh_entry_insert(mlxsw_sp, neigh_entry);
-	if (err)
-		goto err_neigh_entry_insert;
-	return 0;
-
-err_neigh_entry_insert:
-	mlxsw_sp_neigh_entry_destroy(neigh_entry);
-	return err;
-}
-
-void mlxsw_sp_router_neigh_destroy(struct net_device *dev,
-				   struct neighbour *n)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_neigh_entry *neigh_entry;
-
-	if (n->tbl != &arp_tbl)
-		return;
-
-	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
-	if (!neigh_entry)
-		return;
-	mlxsw_sp_neigh_entry_remove(mlxsw_sp, neigh_entry);
-	mlxsw_sp_neigh_entry_destroy(neigh_entry);
 }
 
 static void
@@ -866,13 +847,11 @@ static void mlxsw_sp_router_neighs_update_nh(struct mlxsw_sp *mlxsw_sp)
 	/* Take RTNL mutex here to prevent lists from changes */
 	rtnl_lock();
 	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
-			    nexthop_neighs_list_node) {
+			    nexthop_neighs_list_node)
 		/* If this neigh have nexthops, make the kernel think this neigh
 		 * is active regardless of the traffic.
 		 */
-		if (!list_empty(&neigh_entry->nexthop_list))
-			neigh_event_send(neigh_entry->key.n, NULL);
-	}
+		neigh_event_send(neigh_entry->key.n, NULL);
 	rtnl_unlock();
 }
 
@@ -916,11 +895,9 @@ static void mlxsw_sp_router_probe_unresolved_nexthops(struct work_struct *work)
 	 */
 	rtnl_lock();
 	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
-			    nexthop_neighs_list_node) {
-		if (!(neigh_entry->key.n->nud_state & NUD_VALID) &&
-		    !list_empty(&neigh_entry->nexthop_list))
+			    nexthop_neighs_list_node)
+		if (!neigh_entry->connected)
 			neigh_event_send(neigh_entry->key.n, NULL);
-	}
 	rtnl_unlock();
 
 	mlxsw_core_schedule_dw(&mlxsw_sp->router.nexthop_probe_dw,
@@ -932,79 +909,101 @@ mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_neigh_entry *neigh_entry,
 			      bool removing);
 
-static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work)
+static enum mlxsw_reg_rauht_op mlxsw_sp_rauht_op(bool adding)
 {
-	struct mlxsw_sp_neigh_entry *neigh_entry =
-		container_of(work, struct mlxsw_sp_neigh_entry, dw.work);
+	return adding ? MLXSW_REG_RAUHT_OP_WRITE_ADD :
+			MLXSW_REG_RAUHT_OP_WRITE_DELETE;
+}
+
+static void
+mlxsw_sp_router_neigh_entry_op4(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_neigh_entry *neigh_entry,
+				enum mlxsw_reg_rauht_op op)
+{
 	struct neighbour *n = neigh_entry->key.n;
-	struct mlxsw_sp_port *mlxsw_sp_port = neigh_entry->mlxsw_sp_port;
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u32 dip = ntohl(*((__be32 *) n->primary_key));
 	char rauht_pl[MLXSW_REG_RAUHT_LEN];
-	struct net_device *dev;
+
+	mlxsw_reg_rauht_pack4(rauht_pl, op, neigh_entry->rif, neigh_entry->ha,
+			      dip);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
+}
+
+static void
+mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_neigh_entry *neigh_entry,
+			    bool adding)
+{
+	if (!adding && !neigh_entry->connected)
+		return;
+	neigh_entry->connected = adding;
+	if (neigh_entry->key.n->tbl == &arp_tbl)
+		mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
+						mlxsw_sp_rauht_op(adding));
+	else
+		WARN_ON_ONCE(1);
+}
+
+struct mlxsw_sp_neigh_event_work {
+	struct work_struct work;
+	struct mlxsw_sp *mlxsw_sp;
+	struct neighbour *n;
+};
+
+static void mlxsw_sp_router_neigh_event_work(struct work_struct *work)
+{
+	struct mlxsw_sp_neigh_event_work *neigh_work =
+		container_of(work, struct mlxsw_sp_neigh_event_work, work);
+	struct mlxsw_sp *mlxsw_sp = neigh_work->mlxsw_sp;
+	struct mlxsw_sp_neigh_entry *neigh_entry;
+	struct neighbour *n = neigh_work->n;
+	unsigned char ha[ETH_ALEN];
 	bool entry_connected;
 	u8 nud_state, dead;
-	bool updating;
-	bool removing;
-	bool adding;
-	u32 dip;
-	int err;
 
+	/* If these parameters are changed after we release the lock,
+	 * then we are guaranteed to receive another event letting us
+	 * know about it.
+	 */
 	read_lock_bh(&n->lock);
-	dip = ntohl(*((__be32 *) n->primary_key));
-	memcpy(neigh_entry->ha, n->ha, sizeof(neigh_entry->ha));
+	memcpy(ha, n->ha, ETH_ALEN);
 	nud_state = n->nud_state;
 	dead = n->dead;
-	dev = n->dev;
 	read_unlock_bh(&n->lock);
 
+	rtnl_lock();
 	entry_connected = nud_state & NUD_VALID && !dead;
-	adding = (!neigh_entry->offloaded) && entry_connected;
-	updating = neigh_entry->offloaded && entry_connected;
-	removing = neigh_entry->offloaded && !entry_connected;
-
-	if (adding || updating) {
-		mlxsw_reg_rauht_pack4(rauht_pl, MLXSW_REG_RAUHT_OP_WRITE_ADD,
-				      neigh_entry->rif,
-				      neigh_entry->ha, dip);
-		err = mlxsw_reg_write(mlxsw_sp->core,
-				      MLXSW_REG(rauht), rauht_pl);
-		if (err) {
-			netdev_err(dev, "Could not add neigh %pI4h\n", &dip);
-			neigh_entry->offloaded = false;
-		} else {
-			neigh_entry->offloaded = true;
-		}
-		mlxsw_sp_nexthop_neigh_update(mlxsw_sp, neigh_entry, false);
-	} else if (removing) {
-		mlxsw_reg_rauht_pack4(rauht_pl, MLXSW_REG_RAUHT_OP_WRITE_DELETE,
-				      neigh_entry->rif,
-				      neigh_entry->ha, dip);
-		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht),
-				      rauht_pl);
-		if (err) {
-			netdev_err(dev, "Could not delete neigh %pI4h\n", &dip);
-			neigh_entry->offloaded = true;
-		} else {
-			neigh_entry->offloaded = false;
-		}
-		mlxsw_sp_nexthop_neigh_update(mlxsw_sp, neigh_entry, true);
+	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
+	if (!entry_connected && !neigh_entry)
+		goto out;
+	if (!neigh_entry) {
+		neigh_entry = mlxsw_sp_neigh_entry_create(mlxsw_sp, n);
+		if (IS_ERR(neigh_entry))
+			goto out;
 	}
 
+	memcpy(neigh_entry->ha, ha, ETH_ALEN);
+	mlxsw_sp_neigh_entry_update(mlxsw_sp, neigh_entry, entry_connected);
+	mlxsw_sp_nexthop_neigh_update(mlxsw_sp, neigh_entry, !entry_connected);
+
+	if (!neigh_entry->connected && list_empty(&neigh_entry->nexthop_list))
+		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
+
+out:
+	rtnl_unlock();
 	neigh_release(n);
-	mlxsw_sp_port_dev_put(mlxsw_sp_port);
+	kfree(neigh_work);
 }
 
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr)
 {
-	struct mlxsw_sp_neigh_entry *neigh_entry;
+	struct mlxsw_sp_neigh_event_work *neigh_work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long interval;
-	struct net_device *dev;
 	struct neigh_parms *p;
 	struct neighbour *n;
-	u32 dip;
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -1029,33 +1028,31 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		break;
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
-		dev = n->dev;
 
 		if (n->tbl != &arp_tbl)
 			return NOTIFY_DONE;
 
-		mlxsw_sp_port = mlxsw_sp_port_lower_dev_hold(dev);
+		mlxsw_sp_port = mlxsw_sp_port_lower_dev_hold(n->dev);
 		if (!mlxsw_sp_port)
 			return NOTIFY_DONE;
 
-		mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-		dip = ntohl(*((__be32 *) n->primary_key));
-		neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
-		if (WARN_ON(!neigh_entry)) {
+		neigh_work = kzalloc(sizeof(*neigh_work), GFP_ATOMIC);
+		if (!neigh_work) {
 			mlxsw_sp_port_dev_put(mlxsw_sp_port);
-			return NOTIFY_DONE;
+			return NOTIFY_BAD;
 		}
-		neigh_entry->mlxsw_sp_port = mlxsw_sp_port;
+
+		INIT_WORK(&neigh_work->work, mlxsw_sp_router_neigh_event_work);
+		neigh_work->mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+		neigh_work->n = n;
 
 		/* Take a reference to ensure the neighbour won't be
 		 * destructed until we drop the reference in delayed
 		 * work.
 		 */
 		neigh_clone(n);
-		if (!mlxsw_core_schedule_dw(&neigh_entry->dw, 0)) {
-			neigh_release(n);
-			mlxsw_sp_port_dev_put(mlxsw_sp_port);
-		}
+		mlxsw_core_schedule_work(&neigh_work->work);
+		mlxsw_sp_port_dev_put(mlxsw_sp_port);
 		break;
 	}
 
@@ -1336,14 +1333,11 @@ mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop *nh;
 
-	/* Take RTNL mutex here to prevent lists from changes */
-	rtnl_lock();
 	list_for_each_entry(nh, &neigh_entry->nexthop_list,
 			    neigh_list_node) {
 		__mlxsw_sp_nexthop_neigh_update(nh, removing);
 		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
 	}
-	rtnl_unlock();
 }
 
 static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
@@ -1359,7 +1353,7 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be detructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
-	 * in neith_create() in case n is not found.
+	 * in neigh_create() in case n is not found.
 	 */
 	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, dev);
 	if (!n) {
@@ -1370,8 +1364,11 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	}
 	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
 	if (!neigh_entry) {
-		neigh_release(n);
-		return -EINVAL;
+		neigh_entry = mlxsw_sp_neigh_entry_create(mlxsw_sp, n);
+		if (IS_ERR(neigh_entry)) {
+			neigh_release(n);
+			return -EINVAL;
+		}
 	}
 
 	/* If that is the first nexthop connected to that neigh, add to
@@ -1397,6 +1394,7 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
+	struct neighbour *n = neigh_entry->key.n;
 
 	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
@@ -1407,7 +1405,10 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 	if (list_empty(&nh->neigh_entry->nexthop_list))
 		list_del(&nh->neigh_entry->nexthop_neighs_list_node);
 
-	neigh_release(neigh_entry->key.n);
+	if (!neigh_entry->connected && list_empty(&neigh_entry->nexthop_list))
+		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
+
+	neigh_release(n);
 }
 
 static struct mlxsw_sp_nexthop_group *
@@ -1964,7 +1965,7 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 }
 
 struct mlxsw_sp_fib_event_work {
-	struct delayed_work dw;
+	struct work_struct work;
 	struct fib_entry_notifier_info fen_info;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long event;
@@ -1973,7 +1974,7 @@ struct mlxsw_sp_fib_event_work {
 static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_fib_event_work *fib_work =
-		container_of(work, struct mlxsw_sp_fib_event_work, dw.work);
+		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
 	int err;
 
@@ -2014,7 +2015,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	if (WARN_ON(!fib_work))
 		return NOTIFY_BAD;
 
-	INIT_DELAYED_WORK(&fib_work->dw, mlxsw_sp_router_fib_event_work);
+	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
 	fib_work->mlxsw_sp = mlxsw_sp;
 	fib_work->event = event;
 
@@ -2029,7 +2030,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		break;
 	}
 
-	mlxsw_core_schedule_odw(&fib_work->dw, 0);
+	mlxsw_core_schedule_work(&fib_work->work);
 
 	return NOTIFY_DONE;
 }
