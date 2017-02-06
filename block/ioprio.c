@@ -27,6 +27,7 @@
 #include <linux/blkdev.h>
 #include <linux/capability.h>
 #include <linux/sched/user.h>
+#include <linux/sched/task.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/pid_namespace.h>

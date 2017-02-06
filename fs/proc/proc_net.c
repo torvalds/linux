@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/mount.h>

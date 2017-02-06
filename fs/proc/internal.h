@@ -15,6 +15,7 @@
 #include <linux/atomic.h>
 #include <linux/binfmts.h>
 #include <linux/sched/coredump.h>
+#include <linux/sched/task.h>
 
 struct ctl_table_header;
 struct mempolicy;

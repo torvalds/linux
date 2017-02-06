@@ -45,6 +45,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/seq_file.h>
 #include <linux/security.h>
 #include <linux/slab.h>

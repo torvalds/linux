@@ -14,6 +14,7 @@
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/sched/task.h>
 
 #include "util.h"
 
