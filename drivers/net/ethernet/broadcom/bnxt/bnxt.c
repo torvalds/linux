@@ -607,6 +607,7 @@ static inline int bnxt_alloc_rx_data(struct bnxt *bp,
 		return -ENOMEM;
 
 	rx_buf->data = data;
+	rx_buf->data_ptr = data + BNXT_RX_OFFSET;
 	dma_unmap_addr_set(rx_buf, mapping, mapping);
 
 	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
@@ -615,7 +616,7 @@ static inline int bnxt_alloc_rx_data(struct bnxt *bp,
 }
 
 static void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons,
-			       u8 *data)
+			       void *data)
 {
 	u16 prod = rxr->rx_prod;
 	struct bnxt_sw_rx_bd *cons_rx_buf, *prod_rx_buf;
@@ -625,6 +626,7 @@ static void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons,
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 
 	prod_rx_buf->data = data;
+	prod_rx_buf->data_ptr = cons_rx_buf->data_ptr;
 
 	dma_unmap_addr_set(prod_rx_buf, mapping,
 			   dma_unmap_addr(cons_rx_buf, mapping));
@@ -755,11 +757,13 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_napi *bnapi, u16 cp_cons,
 
 static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 				   struct bnxt_rx_ring_info *rxr, u16 cons,
-				   u16 prod, u8 *data, dma_addr_t dma_addr,
-				   unsigned int len)
+				   void *data, u8 *data_ptr,
+				   dma_addr_t dma_addr,
+				   unsigned int offset_and_len)
 {
-	int err;
+	u16 prod = rxr->rx_prod;
 	struct sk_buff *skb;
+	int err;
 
 	err = bnxt_alloc_rx_data(bp, rxr, prod, GFP_ATOMIC);
 	if (unlikely(err)) {
@@ -776,7 +780,7 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 	}
 
 	skb_reserve(skb, BNXT_RX_OFFSET);
-	skb_put(skb, len);
+	skb_put(skb, offset_and_len & 0xffff);
 	return skb;
 }
 
@@ -878,7 +882,8 @@ static inline struct sk_buff *bnxt_copy_skb(struct bnxt_napi *bnapi, u8 *data,
 	dma_sync_single_for_cpu(&pdev->dev, mapping,
 				bp->rx_copy_thresh, PCI_DMA_FROMDEVICE);
 
-	memcpy(skb->data - BNXT_RX_OFFSET, data, len + BNXT_RX_OFFSET);
+	memcpy(skb->data - NET_IP_ALIGN, data - NET_IP_ALIGN,
+	       len + NET_IP_ALIGN);
 
 	dma_sync_single_for_device(&pdev->dev, mapping,
 				   bp->rx_copy_thresh,
@@ -951,6 +956,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	}
 
 	prod_rx_buf->data = tpa_info->data;
+	prod_rx_buf->data_ptr = tpa_info->data_ptr;
 
 	mapping = tpa_info->mapping;
 	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
@@ -960,6 +966,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	prod_bd->rx_bd_haddr = cpu_to_le64(mapping);
 
 	tpa_info->data = cons_rx_buf->data;
+	tpa_info->data_ptr = cons_rx_buf->data_ptr;
 	cons_rx_buf->data = NULL;
 	tpa_info->mapping = dma_unmap_addr(cons_rx_buf, mapping);
 
@@ -1192,12 +1199,13 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 	u8 agg_id = TPA_END_AGG_ID(tpa_end);
-	u8 *data, agg_bufs;
+	u8 *data_ptr, agg_bufs;
 	u16 cp_cons = RING_CMP(*raw_cons);
 	unsigned int len;
 	struct bnxt_tpa_info *tpa_info;
 	dma_addr_t mapping;
 	struct sk_buff *skb;
+	void *data;
 
 	if (unlikely(bnapi->in_reset)) {
 		int rc = bnxt_discard_rx(bp, bnapi, raw_cons, tpa_end);
@@ -1209,7 +1217,8 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 
 	tpa_info = &rxr->rx_tpa[agg_id];
 	data = tpa_info->data;
-	prefetch(data);
+	data_ptr = tpa_info->data_ptr;
+	prefetch(data_ptr);
 	len = tpa_info->len;
 	mapping = tpa_info->mapping;
 
@@ -1232,7 +1241,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	}
 
 	if (len <= bp->rx_copy_thresh) {
-		skb = bnxt_copy_skb(bnapi, data, len, mapping);
+		skb = bnxt_copy_skb(bnapi, data_ptr, len, mapping);
 		if (!skb) {
 			bnxt_abort_tpa(bp, bnapi, cp_cons, agg_bufs);
 			return NULL;
@@ -1248,6 +1257,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		}
 
 		tpa_info->data = new_data;
+		tpa_info->data_ptr = new_data + BNXT_RX_OFFSET;
 		tpa_info->mapping = new_mapping;
 
 		skb = build_skb(data, 0);
@@ -1316,9 +1326,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	u16 cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
 	struct bnxt_sw_rx_bd *rx_buf;
 	unsigned int len;
-	u8 *data, agg_bufs, cmp_type;
+	u8 *data_ptr, agg_bufs, cmp_type;
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
+	void *data;
 	int rc = 0;
 
 	rxcmp = (struct rx_cmp *)
@@ -1363,13 +1374,14 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	cons = rxcmp->rx_cmp_opaque;
 	rx_buf = &rxr->rx_buf_ring[cons];
 	data = rx_buf->data;
+	data_ptr = rx_buf->data_ptr;
 	if (unlikely(cons != rxr->rx_next_cons)) {
 		int rc1 = bnxt_discard_rx(bp, bnapi, raw_cons, rxcmp);
 
 		bnxt_sched_reset(bp, rxr);
 		return rc1;
 	}
-	prefetch(data);
+	prefetch(data_ptr);
 
 	agg_bufs = (le32_to_cpu(rxcmp->rx_cmp_misc_v1) & RX_CMP_AGG_BUFS) >>
 				RX_CMP_AGG_BUFS_SHIFT;
@@ -1396,14 +1408,15 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	dma_addr = dma_unmap_addr(rx_buf, mapping);
 
 	if (len <= bp->rx_copy_thresh) {
-		skb = bnxt_copy_skb(bnapi, data, len, dma_addr);
+		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
 		if (!skb) {
 			rc = -ENOMEM;
 			goto next_rx;
 		}
 	} else {
-		skb = bnxt_rx_skb(bp, rxr, cons, prod, data, dma_addr, len);
+		skb = bp->rx_skb_func(bp, rxr, cons, data, data_ptr, dma_addr,
+				      len);
 		if (!skb) {
 			rc = -ENOMEM;
 			goto next_rx;
@@ -1880,7 +1893,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 
 		for (j = 0; j < max_idx; j++) {
 			struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[j];
-			u8 *data = rx_buf->data;
+			void *data = rx_buf->data;
 
 			if (!data)
 				continue;
@@ -2326,6 +2339,7 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 					return -ENOMEM;
 
 				rxr->rx_tpa[i].data = data;
+				rxr->rx_tpa[i].data_ptr = data + BNXT_RX_OFFSET;
 				rxr->rx_tpa[i].mapping = mapping;
 			}
 		} else {
@@ -2548,6 +2562,12 @@ void bnxt_set_ring_params(struct bnxt *bp)
 	}
 	bp->cp_bit = bp->cp_nr_pages * CP_DESC_CNT;
 	bp->cp_ring_mask = bp->cp_bit - 1;
+}
+
+static int bnxt_set_rx_skb_mode(struct bnxt *bp)
+{
+	bp->rx_skb_func = bnxt_rx_skb;
+	return 0;
 }
 
 static void bnxt_free_vnic_attributes(struct bnxt *bp)
@@ -7299,6 +7319,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_hwrm_func_qcfg(bp);
 	bnxt_hwrm_port_led_qcaps(bp);
 
+	bnxt_set_rx_skb_mode(bp);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 	bnxt_set_max_func_irqs(bp, max_irqs);
