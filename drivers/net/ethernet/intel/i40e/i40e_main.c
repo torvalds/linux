@@ -5466,12 +5466,6 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_FDIR) {
 		/* reset fd counters */
 		pf->fd_add_err = pf->fd_atr_cnt = 0;
-		if (pf->fd_tcp_rule > 0) {
-			pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
-			if (I40E_DEBUG_FD & pf->hw.debug_mask)
-				dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 exist\n");
-			pf->fd_tcp_rule = 0;
-		}
 		i40e_fdir_filter_restore(vsi);
 	}
 
