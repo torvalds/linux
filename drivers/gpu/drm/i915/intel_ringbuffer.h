@@ -381,6 +381,7 @@ struct intel_engine_cs {
 	struct execlist_port {
 		struct drm_i915_gem_request *request;
 		unsigned int count;
+		GEM_BUG_ONLY_DECLARE(u32 context_id);
 	} execlist_port[2];
 	struct rb_root execlist_queue;
 	struct rb_node *execlist_first;

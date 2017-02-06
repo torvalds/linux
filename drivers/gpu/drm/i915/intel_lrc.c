@@ -351,6 +351,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		execlists_context_status_change(port[0].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
 	desc[0] = execlists_update_context(port[0].request);
+	GEM_BUG_ONLY(port[0].context_id = upper_32_bits(desc[0]));
 	port[0].count++;
 
 	if (port[1].request) {
@@ -358,6 +359,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		execlists_context_status_change(port[1].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
 		desc[1] = execlists_update_context(port[1].request);
+		GEM_BUG_ONLY(port[1].context_id = upper_32_bits(desc[1]));
 		port[1].count = 1;
 	} else {
 		desc[1] = 0;
@@ -560,13 +562,29 @@ static void intel_lrc_irq_handler(unsigned long data)
 			unsigned int idx = ++head % GEN8_CSB_ENTRIES;
 			unsigned int status = readl(buf + 2 * idx);
 
+			/* We are flying near dragons again.
+			 *
+			 * We hold a reference to the request in execlist_port[]
+			 * but no more than that. We are operating in softirq
+			 * context and so cannot hold any mutex or sleep. That
+			 * prevents us stopping the requests we are processing
+			 * in port[] from being retired simultaneously (the
+			 * breadcrumb will be complete before we see the
+			 * context-switch). As we only hold the reference to the
+			 * request, any pointer chasing underneath the request
+			 * is subject to a potential use-after-free. Thus we
+			 * store all of the bookkeeping within port[] as
+			 * required, and avoid using unguarded pointers beneath
+			 * request itself. The same applies to the atomic
+			 * status notifier.
+			 */
+
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
 			/* Check the context/desc id for this event matches */
-			GEM_BUG_ON(readl(buf + 2 * idx + 1) !=
-				   upper_32_bits(intel_lr_context_descriptor(port[0].request->ctx,
-									     engine)));
+			GEM_BUG_ONLY_ON(readl(buf + 2 * idx + 1) !=
+					port[0].context_id);
 
 			GEM_BUG_ON(port[0].count == 0);
 			if (--port[0].count == 0) {
