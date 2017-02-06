@@ -43,13 +43,12 @@ struct lwtunnel_encap_ops {
 	int (*get_encap_size)(struct lwtunnel_state *lwtstate);
 	int (*cmp_encap)(struct lwtunnel_state *a, struct lwtunnel_state *b);
 	int (*xmit)(struct sk_buff *skb);
+
+	struct module *owner;
 };
 
 #ifdef CONFIG_LWTUNNEL
-static inline void lwtstate_free(struct lwtunnel_state *lws)
-{
-	kfree(lws);
-}
+void lwtstate_free(struct lwtunnel_state *lws);
 
 static inline struct lwtunnel_state *
 lwtstate_get(struct lwtunnel_state *lws)
@@ -106,6 +105,8 @@ int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
 int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
+int lwtunnel_valid_encap_type(u16 encap_type);
+int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len);
 int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 			 struct nlattr *encap,
 			 unsigned int family, const void *cfg,
@@ -165,6 +166,15 @@ static inline int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 
 static inline int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 					 unsigned int num)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int lwtunnel_valid_encap_type(u16 encap_type)
+{
+	return -EOPNOTSUPP;
+}
+static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len)
 {
 	return -EOPNOTSUPP;
 }

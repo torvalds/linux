@@ -218,6 +218,7 @@ static const struct lwtunnel_encap_ops mpls_iptun_ops = {
 	.fill_encap = mpls_fill_encap_info,
 	.get_encap_size = mpls_encap_nlsize,
 	.cmp_encap = mpls_encap_cmp,
+	.owner = THIS_MODULE,
 };
 
 static int __init mpls_iptunnel_init(void)

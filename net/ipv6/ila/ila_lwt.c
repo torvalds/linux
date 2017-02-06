@@ -164,6 +164,7 @@ static const struct lwtunnel_encap_ops ila_encap_ops = {
 	.fill_encap = ila_fill_encap_info,
 	.get_encap_size = ila_encap_nlsize,
 	.cmp_encap = ila_encap_cmp,
+	.owner = THIS_MODULE,
 };
 
 int ila_lwt_init(void)

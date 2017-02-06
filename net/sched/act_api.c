@@ -903,8 +903,6 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 			goto err;
 		}
 		act->order = i;
-		if (event == RTM_GETACTION)
-			act->tcfa_refcnt++;
 		list_add_tail(&act->list, &actions);
 	}
 
@@ -917,7 +915,8 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 		return ret;
 	}
 err:
-	tcf_action_destroy(&actions, 0);
+	if (event != RTM_GETACTION)
+		tcf_action_destroy(&actions, 0);
 	return ret;
 }
 
