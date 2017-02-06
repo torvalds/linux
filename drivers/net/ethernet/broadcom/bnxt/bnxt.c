@@ -583,7 +583,7 @@ static inline u8 *__bnxt_alloc_rx_data(struct bnxt *bp, dma_addr_t *mapping,
 	if (!data)
 		return NULL;
 
-	*mapping = dma_map_single(&pdev->dev, data + BNXT_RX_DMA_OFFSET,
+	*mapping = dma_map_single(&pdev->dev, data + bp->rx_dma_offset,
 				  bp->rx_buf_use_size, bp->rx_dir);
 
 	if (dma_mapping_error(&pdev->dev, *mapping)) {
@@ -607,7 +607,7 @@ static inline int bnxt_alloc_rx_data(struct bnxt *bp,
 		return -ENOMEM;
 
 	rx_buf->data = data;
-	rx_buf->data_ptr = data + BNXT_RX_OFFSET;
+	rx_buf->data_ptr = data + bp->rx_offset;
 	rx_buf->mapping = mapping;
 
 	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
@@ -778,7 +778,7 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 		return NULL;
 	}
 
-	skb_reserve(skb, BNXT_RX_OFFSET);
+	skb_reserve(skb, bp->rx_offset);
 	skb_put(skb, offset_and_len & 0xffff);
 	return skb;
 }
@@ -1255,7 +1255,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		}
 
 		tpa_info->data = new_data;
-		tpa_info->data_ptr = new_data + BNXT_RX_OFFSET;
+		tpa_info->data_ptr = new_data + bp->rx_offset;
 		tpa_info->mapping = new_mapping;
 
 		skb = build_skb(data, 0);
@@ -1267,7 +1267,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 			bnxt_abort_tpa(bp, bnapi, cp_cons, agg_bufs);
 			return NULL;
 		}
-		skb_reserve(skb, BNXT_RX_OFFSET);
+		skb_reserve(skb, bp->rx_offset);
 		skb_put(skb, len);
 	}
 
@@ -2332,7 +2332,7 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 					return -ENOMEM;
 
 				rxr->rx_tpa[i].data = data;
-				rxr->rx_tpa[i].data_ptr = data + BNXT_RX_OFFSET;
+				rxr->rx_tpa[i].data_ptr = data + bp->rx_offset;
 				rxr->rx_tpa[i].mapping = mapping;
 			}
 		} else {
@@ -2347,6 +2347,9 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 static int bnxt_init_rx_rings(struct bnxt *bp)
 {
 	int i, rc = 0;
+
+	bp->rx_offset = BNXT_RX_OFFSET;
+	bp->rx_dma_offset = BNXT_RX_DMA_OFFSET;
 
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		rc = bnxt_init_one_rx_ring(bp, i);
