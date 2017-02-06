@@ -2332,6 +2332,102 @@ static int i40e_get_rss_hash_opts(struct i40e_pf *pf, struct ethtool_rxnfc *cmd)
 }
 
 /**
+ * i40e_check_mask - Check whether a mask field is set
+ * @mask: the full mask value
+ * @field; mask of the field to check
+ *
+ * If the given mask is fully set, return positive value. If the mask for the
+ * field is fully unset, return zero. Otherwise return a negative error code.
+ **/
+static int i40e_check_mask(u64 mask, u64 field)
+{
+	u64 value = mask & field;
+
+	if (value == field)
+		return 1;
+	else if (!value)
+		return 0;
+	else
+		return -1;
+}
+
+/**
+ * i40e_parse_rx_flow_user_data - Deconstruct user-defined data
+ * @fsp: pointer to rx flow specification
+ * @data: pointer to userdef data structure for storage
+ *
+ * Read the user-defined data and deconstruct the value into a structure. No
+ * other code should read the user-defined data, so as to ensure that every
+ * place consistently reads the value correctly.
+ *
+ * The user-defined field is a 64bit Big Endian format value, which we
+ * deconstruct by reading bits or bit fields from it. Single bit flags shall
+ * be defined starting from the highest bits, while small bit field values
+ * shall be defined starting from the lowest bits.
+ *
+ * Returns 0 if the data is valid, and non-zero if the userdef data is invalid
+ * and the filter should be rejected. The data structure will always be
+ * modified even if FLOW_EXT is not set.
+ *
+ **/
+static int i40e_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
+					struct i40e_rx_flow_userdef *data)
+{
+	u64 value, mask;
+	int valid;
+
+	/* Zero memory first so it's always consistent. */
+	memset(data, 0, sizeof(*data));
+
+	if (!(fsp->flow_type & FLOW_EXT))
+		return 0;
+
+	value = be64_to_cpu(*((__be64 *)fsp->h_ext.data));
+	mask = be64_to_cpu(*((__be64 *)fsp->m_ext.data));
+
+#define I40E_USERDEF_FLEX_WORD		GENMASK_ULL(15, 0)
+#define I40E_USERDEF_FLEX_OFFSET	GENMASK_ULL(31, 16)
+#define I40E_USERDEF_FLEX_FILTER	GENMASK_ULL(31, 0)
+
+	valid = i40e_check_mask(mask, I40E_USERDEF_FLEX_FILTER);
+	if (valid < 0) {
+		return -EINVAL;
+	} else if (valid) {
+		data->flex_word = value & I40E_USERDEF_FLEX_WORD;
+		data->flex_offset =
+			(value & I40E_USERDEF_FLEX_OFFSET) >> 16;
+		data->flex_filter = true;
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_fill_rx_flow_user_data - Fill in user-defined data field
+ * @fsp: pointer to rx_flow specification
+ *
+ * Reads the userdef data structure and properly fills in the user defined
+ * fields of the rx_flow_spec.
+ **/
+static void i40e_fill_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
+					struct i40e_rx_flow_userdef *data)
+{
+	u64 value = 0, mask = 0;
+
+	if (data->flex_filter) {
+		value |= data->flex_word;
+		value |= (u64)data->flex_offset << 16;
+		mask |= I40E_USERDEF_FLEX_FILTER;
+	}
+
+	if (value || mask)
+		fsp->flow_type |= FLOW_EXT;
+
+	*((__be64 *)fsp->h_ext.data) = cpu_to_be64(value);
+	*((__be64 *)fsp->m_ext.data) = cpu_to_be64(mask);
+}
+
+/**
  * i40e_get_ethtool_fdir_all - Populates the rule count of a command
  * @pf: Pointer to the physical function struct
  * @cmd: The command to get or set Rx flow classification rules
@@ -2382,6 +2478,7 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 {
 	struct ethtool_rx_flow_spec *fsp =
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct i40e_rx_flow_userdef userdef = {0};
 	struct i40e_fdir_filter *rule = NULL;
 	struct hlist_node *node2;
 	u64 input_set;
@@ -2467,6 +2564,8 @@ no_input_set:
 			fsp->ring_cookie |= ring_vf;
 		}
 	}
+
+	i40e_fill_rx_flow_user_data(fsp, &userdef);
 
 	return 0;
 }
@@ -3041,6 +3140,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 				 struct ethtool_rxnfc *cmd)
 {
+	struct i40e_rx_flow_userdef userdef;
 	struct ethtool_rx_flow_spec *fsp;
 	struct i40e_fdir_filter *input;
 	u16 dest_vsi = 0, q_index = 0;
@@ -3066,6 +3166,14 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		return -EBUSY;
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
+
+	/* Parse the user-defined field */
+	if (i40e_parse_rx_flow_user_data(fsp, &userdef))
+		return -EINVAL;
+
+	/* Flexible filters not yet supported */
+	if (userdef.flex_filter)
+		return -EOPNOTSUPP;
 
 	/* Extended MAC field is not supported */
 	if (fsp->flow_type & FLOW_MAC_EXT)
@@ -3120,7 +3228,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->cnt_index  = I40E_FD_SB_STAT_IDX(pf->hw.pf_id);
 	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
 	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
-	input->flow_type = fsp->flow_type;
+	input->flow_type = fsp->flow_type & ~FLOW_EXT;
 	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
 
 	/* Reverse the src and dest notion, since the HW expects them to be from

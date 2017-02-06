@@ -202,6 +202,15 @@ enum i40e_fd_stat_idx {
 #define I40E_FD_ATR_TUNNEL_STAT_IDX(pf_id) \
 			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR_TUNNEL)
 
+/* The following structure contains the data parsed from the user-defined
+ * field of the ethtool_rx_flow_spec structure.
+ */
+struct i40e_rx_flow_userdef {
+	bool flex_filter;
+	u16 flex_word;
+	u16 flex_offset;
+};
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
