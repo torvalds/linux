@@ -1917,7 +1917,7 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
  * Pin a set of guest PFNs and return their associated host PFNs for local
  * domain only.
  * @dev [in]     : device
- * @user_pfn [in]: array of user/guest PFNs to be unpinned.
+ * @user_pfn [in]: array of user/guest PFNs to be pinned.
  * @npage [in]   : count of elements in user_pfn array.  This count should not
  *		   be greater VFIO_PIN_PAGES_MAX_ENTRIES.
  * @prot [in]    : protection flags
