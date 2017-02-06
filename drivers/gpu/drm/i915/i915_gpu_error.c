@@ -546,6 +546,29 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 #undef PRINT_FLAG
 }
 
+static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
+					    const char *name,
+					    const char *type,
+					    const void *x)
+{
+	if (!__builtin_strcmp(type, "bool"))
+		err_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+	else if (!__builtin_strcmp(type, "int"))
+		err_printf(m, "i915.%s=%d\n", name, *(const int *)x);
+	else if (!__builtin_strcmp(type, "unsigned int"))
+		err_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else
+		BUILD_BUG();
+}
+
+static void err_print_params(struct drm_i915_error_state_buf *m,
+			     const struct i915_params *p)
+{
+#define PRINT(T, x) err_print_param(m, #x, #T, &p->x);
+	I915_PARAMS_FOR_EACH(PRINT);
+#undef PRINT
+}
+
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
@@ -568,7 +591,6 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		   error->boottime.tv_sec, error->boottime.tv_usec);
 	err_printf(m, "Uptime: %ld s %ld us\n",
 		   error->uptime.tv_sec, error->uptime.tv_usec);
-	err_print_capabilities(m, &error->device_info);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
@@ -588,6 +610,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "PCI Subsystem: %04x:%04x\n",
 		   pdev->subsystem_vendor,
 		   pdev->subsystem_device);
+
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev_priv)) {
@@ -729,6 +752,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	if (error->display)
 		intel_display_print_error_state(m, dev_priv, error->display);
+
+	err_print_capabilities(m, &error->device_info);
+	err_print_params(m, &error->params);
 
 out:
 	if (m->bytes == 0 && m->err)
@@ -1587,6 +1613,14 @@ static int capture(void *data)
 {
 	struct drm_i915_error_state *error = data;
 
+	do_gettimeofday(&error->time);
+	error->boottime = ktime_to_timeval(ktime_get_boottime());
+	error->uptime =
+		ktime_to_timeval(ktime_sub(ktime_get(),
+					   error->i915->gt.last_init_time));
+
+	error->params = i915;
+
 	i915_capture_gen_state(error->i915, error);
 	i915_capture_reg_state(error->i915, error);
 	i915_gem_record_fences(error->i915, error);
@@ -1594,12 +1628,6 @@ static int capture(void *data)
 	i915_capture_active_buffers(error->i915, error);
 	i915_capture_pinned_buffers(error->i915, error);
 	i915_gem_capture_guc_log_buffer(error->i915, error);
-
-	do_gettimeofday(&error->time);
-	error->boottime = ktime_to_timeval(ktime_get_boottime());
-	error->uptime =
-		ktime_to_timeval(ktime_sub(ktime_get(),
-					   error->i915->gt.last_init_time));
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);

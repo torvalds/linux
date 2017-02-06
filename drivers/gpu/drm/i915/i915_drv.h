@@ -904,6 +904,7 @@ struct drm_i915_error_state {
 	u32 reset_count;
 	u32 suspend_count;
 	struct intel_device_info device_info;
+	struct i915_params params;
 
 	/* Generic register state */
 	u32 eir;
