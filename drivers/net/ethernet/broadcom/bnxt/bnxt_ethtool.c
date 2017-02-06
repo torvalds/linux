@@ -387,10 +387,9 @@ static int bnxt_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channel)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	int max_rx_rings, max_tx_rings, tcs;
-	int req_tx_rings, rsv_tx_rings;
-	u32 rc = 0;
+	int req_tx_rings, req_rx_rings, tcs;
 	bool sh = false;
+	int rc = 0;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -410,32 +409,14 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (channel->combined_count)
 		sh = true;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-
 	tcs = netdev_get_num_tc(dev);
-	if (tcs > 1)
-		max_tx_rings /= tcs;
-
-	if (sh &&
-	    channel->combined_count > max_t(int, max_rx_rings, max_tx_rings))
-		return -ENOMEM;
-
-	if (!sh && (channel->rx_count > max_rx_rings ||
-		    channel->tx_count > max_tx_rings))
-		return -ENOMEM;
 
 	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
-	req_tx_rings = min_t(int, req_tx_rings, max_tx_rings);
-	if (tcs > 1)
-		req_tx_rings *= tcs;
-
-	rsv_tx_rings = req_tx_rings;
-	if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings))
-		return -ENOMEM;
-
-	if (rsv_tx_rings < req_tx_rings) {
-		netdev_warn(dev, "Unable to allocate the requested tx rings\n");
-		return -ENOMEM;
+	req_rx_rings = sh ? channel->combined_count : channel->rx_count;
+	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs);
+	if (rc) {
+		netdev_warn(dev, "Unable to allocate the requested rings\n");
+		return rc;
 	}
 
 	if (netif_running(dev)) {
@@ -454,10 +435,8 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	if (sh) {
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
-		bp->rx_nr_rings = min_t(int, channel->combined_count,
-					max_rx_rings);
-		bp->tx_nr_rings_per_tc = min_t(int, channel->combined_count,
-					       max_tx_rings);
+		bp->rx_nr_rings = channel->combined_count;
+		bp->tx_nr_rings_per_tc = channel->combined_count;
 	} else {
 		bp->flags &= ~BNXT_FLAG_SHARED_RINGS;
 		bp->rx_nr_rings = channel->rx_count;

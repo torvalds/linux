@@ -4212,7 +4212,7 @@ int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
 	return rc;
 }
 
-int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
+static int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
 {
 	struct hwrm_func_cfg_input req = {0};
 	int rc;
@@ -5005,19 +5005,12 @@ static void bnxt_setup_msix(struct bnxt *bp)
 
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1) {
-		bp->tx_nr_rings_per_tc = bp->tx_nr_rings / tcs;
-		if (bp->tx_nr_rings_per_tc == 0) {
-			netdev_reset_tc(dev);
-			bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
-		} else {
-			int i, off, count;
+		int i, off, count;
 
-			bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
-			for (i = 0; i < tcs; i++) {
-				count = bp->tx_nr_rings_per_tc;
-				off = i * count;
-				netdev_set_tc_queue(dev, i, count, off);
-			}
+		for (i = 0; i < tcs; i++) {
+			count = bp->tx_nr_rings_per_tc;
+			off = i * count;
+			netdev_set_tc_queue(dev, i, count, off);
 		}
 	}
 
@@ -6579,6 +6572,37 @@ static void bnxt_sp_task(struct work_struct *work)
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 }
 
+/* Under rtnl_lock */
+int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs)
+{
+	int max_rx, max_tx, tx_sets = 1;
+	int tx_rings_needed;
+	bool sh = true;
+	int rc;
+
+	if (!(bp->flags & BNXT_FLAG_SHARED_RINGS))
+		sh = false;
+
+	if (tcs)
+		tx_sets = tcs;
+
+	rc = bnxt_get_max_rings(bp, &max_rx, &max_tx, sh);
+	if (rc)
+		return rc;
+
+	if (max_rx < rx)
+		return -ENOMEM;
+
+	tx_rings_needed = tx * tx_sets;
+	if (max_tx < tx_rings_needed)
+		return -ENOMEM;
+
+	if (bnxt_hwrm_reserve_tx_rings(bp, &tx_rings_needed) ||
+	    tx_rings_needed < (tx * tx_sets))
+		return -ENOMEM;
+	return 0;
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -6741,6 +6765,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	bool sh = false;
+	int rc;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",
@@ -6754,19 +6779,10 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 		sh = true;
 
-	if (tc) {
-		int max_rx_rings, max_tx_rings, req_tx_rings, rsv_tx_rings, rc;
-
-		req_tx_rings = bp->tx_nr_rings_per_tc * tc;
-		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-		if (rc || req_tx_rings > max_tx_rings)
-			return -ENOMEM;
-
-		rsv_tx_rings = req_tx_rings;
-		if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings) ||
-		    rsv_tx_rings < req_tx_rings)
-			return -ENOMEM;
-	}
+	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc,
+				bp->rx_nr_rings, tc);
+	if (rc)
+		return rc;
 
 	/* Needs to close the device and do hw resource re-allocations */
 	if (netif_running(bp->dev))
