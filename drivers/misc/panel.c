@@ -56,6 +56,7 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/workqueue.h>
 #include <generated/utsrelease.h>
 
 #include <linux/io.h>
@@ -75,8 +76,8 @@
 /* a key repeats this times INPUT_POLL_TIME */
 #define KEYPAD_REP_DELAY	(2)
 
-/* keep the light on this times INPUT_POLL_TIME for each flash */
-#define FLASH_LIGHT_TEMPO	(200)
+/* keep the light on this many seconds for each flash */
+#define FLASH_LIGHT_TEMPO	(4)
 
 /* converts an r_str() input to an active high, bits string : 000BAOSE */
 #define PNL_PINPUT(a)		((((unsigned char)(a)) ^ 0x7F) >> 3)
@@ -252,7 +253,10 @@ static struct {
 	int hwidth;
 	int charset;
 	int proto;
-	int light_tempo;
+
+	struct delayed_work bl_work;
+	struct mutex bl_tempo_lock;	/* Protects access to bl_tempo */
+	bool bl_tempo;
 
 	/* TODO: use union here? */
 	struct {
@@ -657,8 +661,6 @@ static void lcd_get_bits(unsigned int port, int *val)
 	}
 }
 
-static void init_scan_timer(void);
-
 /* sets data port bits according to current signals values */
 static int set_data_bits(void)
 {
@@ -790,11 +792,8 @@ static void lcd_send_serial(int byte)
 }
 
 /* turn the backlight on or off */
-static void lcd_backlight(int on)
+static void __lcd_backlight(int on)
 {
-	if (lcd.pins.bl == PIN_NONE)
-		return;
-
 	/* The backlight is activated by setting the AUTOFEED line to +5V  */
 	spin_lock_irq(&pprt_lock);
 	if (on)
@@ -803,6 +802,44 @@ static void lcd_backlight(int on)
 		clear_bit(LCD_BIT_BL, bits);
 	panel_set_bits();
 	spin_unlock_irq(&pprt_lock);
+}
+
+static void lcd_backlight(int on)
+{
+	if (lcd.pins.bl == PIN_NONE)
+		return;
+
+	mutex_lock(&lcd.bl_tempo_lock);
+	if (!lcd.bl_tempo)
+		__lcd_backlight(on);
+	mutex_unlock(&lcd.bl_tempo_lock);
+}
+
+static void lcd_bl_off(struct work_struct *work)
+{
+	mutex_lock(&lcd.bl_tempo_lock);
+	if (lcd.bl_tempo) {
+		lcd.bl_tempo = false;
+		if (!(lcd.flags & LCD_FLAG_L))
+			__lcd_backlight(0);
+	}
+	mutex_unlock(&lcd.bl_tempo_lock);
+}
+
+/* turn the backlight on for a little while */
+static void lcd_poke(void)
+{
+	if (lcd.pins.bl == PIN_NONE)
+		return;
+
+	cancel_delayed_work_sync(&lcd.bl_work);
+
+	mutex_lock(&lcd.bl_tempo_lock);
+	if (!lcd.bl_tempo && !(lcd.flags & LCD_FLAG_L))
+		__lcd_backlight(1);
+	lcd.bl_tempo = true;
+	schedule_delayed_work(&lcd.bl_work, FLASH_LIGHT_TEMPO * HZ);
+	mutex_unlock(&lcd.bl_tempo_lock);
 }
 
 /* send a command to the LCD panel in serial mode */
@@ -1099,13 +1136,8 @@ static inline int handle_lcd_special_code(void)
 		processed = 1;
 		break;
 	case '*':
-		/* flash back light using the keypad timer */
-		if (scan_timer.function) {
-			if (lcd.light_tempo == 0 &&
-			    ((lcd.flags & LCD_FLAG_L) == 0))
-				lcd_backlight(1);
-			lcd.light_tempo = FLASH_LIGHT_TEMPO;
-		}
+		/* flash back light */
+		lcd_poke();
 		processed = 1;
 		break;
 	case 'f':	/* Small Font */
@@ -1275,16 +1307,8 @@ static inline int handle_lcd_special_code(void)
 						      ? LCD_CMD_TWO_LINES
 								      : 0));
 		/* check whether L flag was changed */
-		else if ((oldflags ^ lcd.flags) & (LCD_FLAG_L)) {
-			if (lcd.flags & (LCD_FLAG_L))
-				lcd_backlight(1);
-			else if (lcd.light_tempo == 0)
-				/*
-				 * switch off the light only when the tempo
-				 * lighting is gone
-				 */
-				lcd_backlight(0);
-		}
+		else if ((oldflags ^ lcd.flags) & (LCD_FLAG_L))
+			lcd_backlight(!!(lcd.flags & LCD_FLAG_L));
 	}
 
 	return processed;
@@ -1615,8 +1639,10 @@ static void lcd_init(void)
 	else
 		lcd_char_conv = NULL;
 
-	if (lcd.pins.bl != PIN_NONE)
-		init_scan_timer();
+	if (lcd.pins.bl != PIN_NONE) {
+		mutex_init(&lcd.bl_tempo_lock);
+		INIT_DELAYED_WORK(&lcd.bl_work, lcd_bl_off);
+	}
 
 	pin_to_bits(lcd.pins.e, lcd_bits[LCD_PORT_D][LCD_BIT_E],
 		    lcd_bits[LCD_PORT_C][LCD_BIT_E]);
@@ -1984,19 +2010,8 @@ static void panel_scan_timer(void)
 			panel_process_inputs();
 	}
 
-	if (lcd.enabled && lcd.initialized) {
-		if (keypressed) {
-			if (lcd.light_tempo == 0 &&
-			    ((lcd.flags & LCD_FLAG_L) == 0))
-				lcd_backlight(1);
-			lcd.light_tempo = FLASH_LIGHT_TEMPO;
-		} else if (lcd.light_tempo > 0) {
-			lcd.light_tempo--;
-			if (lcd.light_tempo == 0 &&
-			    ((lcd.flags & LCD_FLAG_L) == 0))
-				lcd_backlight(0);
-		}
-	}
+	if (keypressed && lcd.enabled && lcd.initialized)
+		lcd_poke();
 
 	mod_timer(&scan_timer, jiffies + INPUT_POLL_TIME);
 }
@@ -2265,6 +2280,10 @@ static void panel_detach(struct parport *port)
 	if (lcd.enabled) {
 		panel_lcd_print("\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
 		misc_deregister(&lcd_dev);
+		if (lcd.pins.bl != PIN_NONE) {
+			cancel_delayed_work_sync(&lcd.bl_work);
+			__lcd_backlight(0);
+		}
 		lcd.initialized = false;
 	}
 
