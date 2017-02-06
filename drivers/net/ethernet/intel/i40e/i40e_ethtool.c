@@ -2757,11 +2757,107 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 }
 
 /**
+ * i40e_flow_str - Converts a flow_type into a human readable string
+ * @flow_type: the flow type from a flow specification
+ *
+ * Currently only flow types we support are included here, and the string
+ * value attempts to match what ethtool would use to configure this flow type.
+ **/
+static const char *i40e_flow_str(struct ethtool_rx_flow_spec *fsp)
+{
+	switch (fsp->flow_type & ~FLOW_EXT) {
+	case TCP_V4_FLOW:
+		return "tcp4";
+	case UDP_V4_FLOW:
+		return "udp4";
+	case SCTP_V4_FLOW:
+		return "sctp4";
+	case IP_USER_FLOW:
+		return "ip4";
+	default:
+		return "unknown";
+	}
+}
+
+/**
+ * i40e_print_input_set - Show changes between two input sets
+ * @vsi: the vsi being configured
+ * @old: the old input set
+ * @new: the new input set
+ *
+ * Print the difference between old and new input sets by showing which series
+ * of words are toggled on or off. Only displays the bits we actually support
+ * changing.
+ **/
+static void i40e_print_input_set(struct i40e_vsi *vsi, u64 old, u64 new)
+{
+	struct i40e_pf *pf = vsi->back;
+	bool old_value, new_value;
+
+	old_value = !!(old & I40E_L3_SRC_MASK);
+	new_value = !!(new & I40E_L3_SRC_MASK);
+	if (old_value != new_value)
+		netif_info(pf, drv, vsi->netdev, "L3 source address: %s -> %s\n",
+			   old_value ? "ON" : "OFF",
+			   new_value ? "ON" : "OFF");
+
+	old_value = !!(old & I40E_L3_DST_MASK);
+	new_value = !!(new & I40E_L3_DST_MASK);
+	if (old_value != new_value)
+		netif_info(pf, drv, vsi->netdev, "L3 destination address: %s -> %s\n",
+			   old_value ? "ON" : "OFF",
+			   new_value ? "ON" : "OFF");
+
+	old_value = !!(old & I40E_L4_SRC_MASK);
+	new_value = !!(new & I40E_L4_SRC_MASK);
+	if (old_value != new_value)
+		netif_info(pf, drv, vsi->netdev, "L4 source port: %s -> %s\n",
+			   old_value ? "ON" : "OFF",
+			   new_value ? "ON" : "OFF");
+
+	old_value = !!(old & I40E_L4_DST_MASK);
+	new_value = !!(new & I40E_L4_DST_MASK);
+	if (old_value != new_value)
+		netif_info(pf, drv, vsi->netdev, "L4 destination port: %s -> %s\n",
+			   old_value ? "ON" : "OFF",
+			   new_value ? "ON" : "OFF");
+
+	old_value = !!(old & I40E_VERIFY_TAG_MASK);
+	new_value = !!(new & I40E_VERIFY_TAG_MASK);
+	if (old_value != new_value)
+		netif_info(pf, drv, vsi->netdev, "SCTP verification tag: %s -> %s\n",
+			   old_value ? "ON" : "OFF",
+			   new_value ? "ON" : "OFF");
+
+	netif_info(pf, drv, vsi->netdev, "  Current input set: %0llx\n",
+		   old);
+	netif_info(pf, drv, vsi->netdev, "Requested input set: %0llx\n",
+		   new);
+}
+
+/**
  * i40e_check_fdir_input_set - Check that a given rx_flow_spec mask is valid
  * @vsi: pointer to the targeted VSI
  * @fsp: pointer to Rx flow specification
  *
- * Ensures that a given ethtool_rx_flow_spec has a valid mask.
+ * Ensures that a given ethtool_rx_flow_spec has a valid mask. Some support
+ * for partial matches exists with a few limitations. First, hardware only
+ * supports masking by word boundary (2 bytes) and not per individual bit.
+ * Second, hardware is limited to using one mask for a flow type and cannot
+ * use a separate mask for each filter.
+ *
+ * To support these limitations, if we already have a configured filter for
+ * the specified type, this function enforces that new filters of the type
+ * match the configured input set. Otherwise, if we do not have a filter of
+ * the specified type, we allow the input set to be updated to match the
+ * desired filter.
+ *
+ * To help ensure that administrators understand why filters weren't displayed
+ * as supported, we print a diagnostic message displaying how the input set
+ * would change and warning to delete the preexisting filters if required.
+ *
+ * Returns 0 on successful input set match, and a negative return code on
+ * failure.
  **/
 static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 				     struct ethtool_rx_flow_spec *fsp)
@@ -2770,17 +2866,21 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	struct ethtool_tcpip4_spec *tcp_ip4_spec;
 	struct ethtool_usrip4_spec *usr_ip4_spec;
 	u64 current_mask, new_mask;
+	u16 *fdir_filter_count;
 	u16 index;
 
 	switch (fsp->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
+		fdir_filter_count = &pf->fd_tcp4_filter_cnt;
 		break;
 	case UDP_V4_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_UDP;
+		fdir_filter_count = &pf->fd_udp4_filter_cnt;
 		break;
 	case IP_USER_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		fdir_filter_count = &pf->fd_ip4_filter_cnt;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -2790,7 +2890,15 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	current_mask = i40e_read_fd_input_set(pf, index);
 	new_mask = current_mask;
 
-	/* Verify the provided mask is valid. */
+	/* Determine, if any, the required changes to the input set in order
+	 * to support the provided mask.
+	 *
+	 * Hardware only supports masking at word (2 byte) granularity and does
+	 * not support full bitwise masking. This implementation simplifies
+	 * even further and only supports fully enabled or fully disabled
+	 * masks for each field, even though we could split the ip4src and
+	 * ip4dst fields.
+	 */
 	switch (fsp->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
@@ -2877,8 +2985,42 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 		return -EOPNOTSUPP;
 	}
 
-	if (new_mask != current_mask)
+	/* If the input set doesn't need any changes then this filter is safe
+	 * to apply.
+	 */
+	if (new_mask == current_mask)
+		return 0;
+
+	netif_info(pf, drv, vsi->netdev, "Input set change requested for %s flows:\n",
+		   i40e_flow_str(fsp));
+	i40e_print_input_set(vsi, current_mask, new_mask);
+
+	/* Hardware input sets are global across multiple ports, so even the
+	 * main port cannot change them when in MFP mode as this would impact
+	 * any filters on the other ports.
+	 */
+	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		netif_err(pf, drv, vsi->netdev, "Cannot change Flow Director input sets while MFP is enabled\n");
 		return -EOPNOTSUPP;
+	}
+
+	/* This filter requires us to update the input set. However, hardware
+	 * only supports one input set per flow type, and does not support
+	 * separate masks for each filter. This means that we can only support
+	 * a single mask for all filters of a specific type.
+	 *
+	 * If we have preexisting filters, they obviously depend on the
+	 * current programmed input set. Display a diagnostic message in this
+	 * case explaining why the filter could not be accepted.
+	 */
+	if (*fdir_filter_count) {
+		netif_err(pf, drv, vsi->netdev, "Cannot change input set for %s flows until %d preexisting filters are removed\n",
+			  i40e_flow_str(fsp),
+			  *fdir_filter_count);
+		return -EOPNOTSUPP;
+	}
+
+	i40e_write_fd_input_set(pf, index, new_mask);
 
 	return 0;
 }
