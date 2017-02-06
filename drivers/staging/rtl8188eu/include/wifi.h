@@ -479,21 +479,6 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
 
-/**
- * struct rtw_ieee80211_bar - HT Block Ack Request
- *
- * This structure refers to "HT BlockAckReq" as
- * described in 802.11n draft section 7.2.1.7.1
- */
-struct rtw_ieee80211_bar {
-	unsigned short frame_control;
-	unsigned short duration;
-	unsigned char ra[6];
-	unsigned char ta[6];
-	unsigned short control;
-	unsigned short start_seq_num;
-} __packed;
-
 /* 802.11 BAR control masks */
 #define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
 #define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
