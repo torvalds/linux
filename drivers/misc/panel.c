@@ -2266,24 +2266,22 @@ static void panel_detach(struct parport *port)
 	if (scan_timer.function)
 		del_timer_sync(&scan_timer);
 
-	if (pprt) {
-		if (keypad.enabled) {
-			misc_deregister(&keypad_dev);
-			keypad_initialized = 0;
-		}
-
-		if (lcd.enabled) {
-			panel_lcd_print("\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
-			misc_deregister(&lcd_dev);
-			lcd.initialized = false;
-		}
-
-		/* TODO: free all input signals */
-		parport_release(pprt);
-		parport_unregister_device(pprt);
-		pprt = NULL;
-		unregister_reboot_notifier(&panel_notifier);
+	if (keypad.enabled) {
+		misc_deregister(&keypad_dev);
+		keypad_initialized = 0;
 	}
+
+	if (lcd.enabled) {
+		panel_lcd_print("\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+		misc_deregister(&lcd_dev);
+		lcd.initialized = false;
+	}
+
+	/* TODO: free all input signals */
+	parport_release(pprt);
+	parport_unregister_device(pprt);
+	pprt = NULL;
+	unregister_reboot_notifier(&panel_notifier);
 }
 
 static struct parport_driver panel_driver = {
