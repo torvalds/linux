@@ -107,7 +107,7 @@ static int __init setup_vcpu_hotplug_event(void)
 		.notifier_call = setup_cpu_watcher };
 
 #ifdef CONFIG_X86
-	if (!xen_pv_domain())
+	if (!xen_pv_domain() && !xen_pvh_domain())
 #else
 	if (!xen_domain())
 #endif
