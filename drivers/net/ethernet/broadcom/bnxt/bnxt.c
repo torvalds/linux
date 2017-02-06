@@ -1765,7 +1765,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 
 	if (tx_pkts)
-		bnxt_tx_int(bp, bnapi, tx_pkts);
+		bnapi->tx_int(bp, bnapi, tx_pkts);
 
 	if (event & BNXT_RX_EVENT) {
 		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
@@ -3048,6 +3048,9 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			if (i >= bp->tx_nr_rings_xdp)
 				bp->tx_ring[i].txq_index = i -
 					bp->tx_nr_rings_xdp;
+			else
+				bp->bnapi[j]->flags |= BNXT_NAPI_FLAG_XDP;
+			bp->bnapi[j]->tx_int = bnxt_tx_int;
 		}
 
 		rc = bnxt_alloc_stats(bp);
