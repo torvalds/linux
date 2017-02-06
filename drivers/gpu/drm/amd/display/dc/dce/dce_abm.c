@@ -94,7 +94,7 @@ static unsigned int get_current_backlight(struct dce_abm *abm_dce)
 	if (bl_period == 0)
 		bl_period = 0xFFFF;
 
-	current_backlight /= bl_period;
+	current_backlight = div_u64(current_backlight, bl_period);
 	current_backlight = (current_backlight + 1) >> 1;
 
 	current_backlight = (uint64_t)(current_backlight) * bl_period;
