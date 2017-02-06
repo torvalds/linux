@@ -63,8 +63,12 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
-int dsa_slave_netdevice_event(struct notifier_block *unused,
-			      unsigned long event, void *ptr);
+int dsa_slave_register_notifier(void);
+void dsa_slave_unregister_notifier(void);
+
+/* switch.c */
+int dsa_switch_register_notifier(struct dsa_switch *ds);
+void dsa_switch_unregister_notifier(struct dsa_switch *ds);
 
 /* tag_dsa.c */
 extern const struct dsa_device_ops dsa_netdev_ops;

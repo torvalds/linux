@@ -294,6 +294,10 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	if (err < 0)
 		return err;
 
+	err = dsa_switch_register_notifier(ds);
+	if (err)
+		return err;
+
 	if (ds->ops->set_addr) {
 		err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
 		if (err < 0)
@@ -364,6 +368,8 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 
 	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
+
+	dsa_switch_unregister_notifier(ds);
 }
 
 static int dsa_dst_apply(struct dsa_switch_tree *dst)

@@ -27,6 +27,17 @@
 
 static bool dsa_slave_dev_check(struct net_device *dev);
 
+static int dsa_slave_notify(struct net_device *dev, unsigned long e, void *v)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct raw_notifier_head *nh = &p->dp->ds->dst->nh;
+	int err;
+
+	err = raw_notifier_call_chain(nh, e, v);
+
+	return notifier_to_errno(err);
+}
+
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -74,9 +85,12 @@ static inline bool dsa_port_is_bridged(struct dsa_port *dp)
 	return !!dp->bridge_dev;
 }
 
-static void dsa_port_set_stp_state(struct dsa_switch *ds, int port, u8 state)
+static void dsa_slave_set_state(struct net_device *dev, u8 state)
 {
-	struct dsa_port *dp = &ds->ports[port];
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = p->dp;
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
 
 	if (ds->ops->port_stp_state_set)
 		ds->ops->port_stp_state_set(ds, port, state);
@@ -133,7 +147,7 @@ static int dsa_slave_open(struct net_device *dev)
 			goto clear_promisc;
 	}
 
-	dsa_port_set_stp_state(ds, p->dp->index, stp_state);
+	dsa_slave_set_state(dev, stp_state);
 
 	if (p->phy)
 		phy_start(p->phy);
@@ -175,7 +189,7 @@ static int dsa_slave_close(struct net_device *dev)
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, p->dp->index, p->phy);
 
-	dsa_port_set_stp_state(ds, p->dp->index, BR_STATE_DISABLED);
+	dsa_slave_set_state(dev, BR_STATE_DISABLED);
 
 	return 0;
 }
@@ -382,7 +396,7 @@ static int dsa_slave_stp_state_set(struct net_device *dev,
 	if (switchdev_trans_ph_prepare(trans))
 		return ds->ops->port_stp_state_set ? 0 : -EOPNOTSUPP;
 
-	dsa_port_set_stp_state(ds, p->dp->index, attr->u.stp_state);
+	dsa_slave_set_state(dev, attr->u.stp_state);
 
 	return 0;
 }
@@ -559,32 +573,51 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 				      struct net_device *br)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	int ret = -EOPNOTSUPP;
+	struct dsa_notifier_bridge_info info = {
+		.sw_index = p->dp->ds->index,
+		.port = p->dp->index,
+		.br = br,
+	};
+	int err;
 
+	/* Here the port is already bridged. Reflect the current configuration
+	 * so that drivers can program their chips accordingly.
+	 */
 	p->dp->bridge_dev = br;
 
-	if (ds->ops->port_bridge_join)
-		ret = ds->ops->port_bridge_join(ds, p->dp->index, br);
+	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
-	return ret == -EOPNOTSUPP ? 0 : ret;
+	/* The bridging is rolled back on error */
+	if (err)
+		p->dp->bridge_dev = NULL;
+
+	return err;
 }
 
 static void dsa_slave_bridge_port_leave(struct net_device *dev,
 					struct net_device *br)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
+	struct dsa_notifier_bridge_info info = {
+		.sw_index = p->dp->ds->index,
+		.port = p->dp->index,
+		.br = br,
+	};
+	int err;
 
+	/* Here the port is already unbridged. Reflect the current configuration
+	 * so that drivers can program their chips accordingly.
+	 */
 	p->dp->bridge_dev = NULL;
 
-	if (ds->ops->port_bridge_leave)
-		ds->ops->port_bridge_leave(ds, p->dp->index, br);
+	err = dsa_slave_notify(dev, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	if (err)
+		netdev_err(dev, "failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
-	dsa_port_set_stp_state(ds, p->dp->index, BR_STATE_FORWARDING);
+	dsa_slave_set_state(dev, BR_STATE_FORWARDING);
 }
 
 static int dsa_slave_port_attr_get(struct net_device *dev,
@@ -1491,46 +1524,52 @@ static bool dsa_slave_dev_check(struct net_device *dev)
 	return dev->netdev_ops == &dsa_slave_netdev_ops;
 }
 
-static int dsa_slave_port_upper_event(struct net_device *dev,
-				      unsigned long event, void *ptr)
+static int dsa_slave_changeupper(struct net_device *dev,
+				 struct netdev_notifier_changeupper_info *info)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
-	struct net_device *upper = info->upper_dev;
-	int err = 0;
+	int err = NOTIFY_DONE;
 
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		if (netif_is_bridge_master(upper)) {
-			if (info->linking)
-				err = dsa_slave_bridge_port_join(dev, upper);
-			else
-				dsa_slave_bridge_port_leave(dev, upper);
+	if (netif_is_bridge_master(info->upper_dev)) {
+		if (info->linking) {
+			err = dsa_slave_bridge_port_join(dev, info->upper_dev);
+			err = notifier_from_errno(err);
+		} else {
+			dsa_slave_bridge_port_leave(dev, info->upper_dev);
+			err = NOTIFY_OK;
 		}
-
-		break;
 	}
 
-	return notifier_from_errno(err);
+	return err;
 }
 
-static int dsa_slave_port_event(struct net_device *dev, unsigned long event,
-				void *ptr)
-{
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		return dsa_slave_port_upper_event(dev, event, ptr);
-	}
-
-	return NOTIFY_DONE;
-}
-
-int dsa_slave_netdevice_event(struct notifier_block *unused,
-			      unsigned long event, void *ptr)
+static int dsa_slave_netdevice_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (dsa_slave_dev_check(dev))
-		return dsa_slave_port_event(dev, event, ptr);
+	if (dev->netdev_ops != &dsa_slave_netdev_ops)
+		return NOTIFY_DONE;
+
+	if (event == NETDEV_CHANGEUPPER)
+		return dsa_slave_changeupper(dev, ptr);
 
 	return NOTIFY_DONE;
+}
+
+static struct notifier_block dsa_slave_nb __read_mostly = {
+	.notifier_call	= dsa_slave_netdevice_event,
+};
+
+int dsa_slave_register_notifier(void)
+{
+	return register_netdevice_notifier(&dsa_slave_nb);
+}
+
+void dsa_slave_unregister_notifier(void)
+{
+	int err;
+
+	err = unregister_netdevice_notifier(&dsa_slave_nb);
+	if (err)
+		pr_err("DSA: failed to unregister slave notifier (%d)\n", err);
 }
