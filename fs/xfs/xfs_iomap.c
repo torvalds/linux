@@ -162,7 +162,7 @@ xfs_iomap_write_direct(
 	xfs_fileoff_t	last_fsb;
 	xfs_filblks_t	count_fsb, resaligned;
 	xfs_fsblock_t	firstfsb;
-	xfs_extlen_t	extsz, temp;
+	xfs_extlen_t	extsz;
 	int		nimaps;
 	int		quota_flag;
 	int		rt;
@@ -203,14 +203,7 @@ xfs_iomap_write_direct(
 	}
 	count_fsb = last_fsb - offset_fsb;
 	ASSERT(count_fsb > 0);
-
-	resaligned = count_fsb;
-	if (unlikely(extsz)) {
-		if ((temp = do_mod(offset_fsb, extsz)))
-			resaligned += temp;
-		if ((temp = do_mod(resaligned, extsz)))
-			resaligned += extsz - temp;
-	}
+	resaligned = xfs_aligned_fsb_count(offset_fsb, count_fsb, extsz);
 
 	if (unlikely(rt)) {
 		resrtextents = qblocks = resaligned;
