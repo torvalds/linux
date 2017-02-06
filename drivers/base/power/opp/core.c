@@ -46,7 +46,7 @@ static struct opp_device *_find_opp_dev(const struct device *dev,
 	return NULL;
 }
 
-struct opp_table *_find_opp_table_unlocked(struct device *dev)
+static struct opp_table *_find_opp_table_unlocked(struct device *dev)
 {
 	struct opp_table *opp_table;
 
