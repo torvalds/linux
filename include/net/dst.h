@@ -477,6 +477,13 @@ static inline struct neighbour *dst_neigh_lookup_skb(const struct dst_entry *dst
 	return IS_ERR(n) ? NULL : n;
 }
 
+static inline void dst_confirm_neigh(const struct dst_entry *dst,
+				     const void *daddr)
+{
+	if (dst->ops->confirm_neigh)
+		dst->ops->confirm_neigh(dst, daddr);
+}
+
 static inline void dst_link_failure(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
