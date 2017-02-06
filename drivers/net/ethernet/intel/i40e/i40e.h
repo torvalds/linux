@@ -753,6 +753,24 @@ static inline u64 i40e_read_fd_input_set(struct i40e_pf *pf, u16 addr)
 	return val;
 }
 
+/**
+ * i40e_write_fd_input_set - writes value into flow director input set register
+ * @pf: pointer to the PF struct
+ * @addr: register addr
+ * @val: value to be written
+ *
+ * This function writes specified value to the register specified by 'addr'.
+ * This register is input set register based on flow-type.
+ **/
+static inline void i40e_write_fd_input_set(struct i40e_pf *pf,
+					   u16 addr, u64 val)
+{
+	i40e_write_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 1),
+			  (u32)(val >> 32));
+	i40e_write_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 0),
+			  (u32)(val & 0xFFFFFFFFULL));
+}
+
 /* needed by i40e_ethtool.c */
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);
