@@ -10,6 +10,7 @@
 #include <linux/delayacct.h>
 #include <linux/init_task.h>
 #include <linux/context_tracking.h>
+#include <linux/rcupdate_wait.h>
 
 #include <linux/blkdev.h>
 #include <linux/kprobes.h>

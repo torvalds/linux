@@ -49,6 +49,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/tick.h>
+#include <linux/rcupdate_wait.h>
 
 #define CREATE_TRACE_POINTS
 
