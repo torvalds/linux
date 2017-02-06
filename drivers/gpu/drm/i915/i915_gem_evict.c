@@ -253,6 +253,9 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	int ret = 0;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
+	GEM_BUG_ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
+	GEM_BUG_ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
+
 	trace_i915_gem_evict_node(vm, target, flags);
 
 	/* Retire before we search the active list. Although we have
@@ -268,9 +271,11 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		/* Expand search to cover neighbouring guard pages (or lack!) */
 		if (start > vm->start)
 			start -= I915_GTT_PAGE_SIZE;
-		if (end < vm->start + vm->total)
-			end += I915_GTT_PAGE_SIZE;
+
+		/* Always look at the page afterwards to avoid the end-of-GTT */
+		end += I915_GTT_PAGE_SIZE;
 	}
+	GEM_BUG_ON(start >= end);
 
 	drm_mm_for_each_node_in_range(node, &vm->mm, start, end) {
 		/* If we find any non-objects (!vma), we cannot evict them */
@@ -279,6 +284,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 			break;
 		}
 
+		GEM_BUG_ON(!node->allocated);
 		vma = container_of(node, typeof(*vma), node);
 
 		/* If we are using coloring to insert guard pages between

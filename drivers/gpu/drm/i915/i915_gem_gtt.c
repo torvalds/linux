@@ -2718,11 +2718,16 @@ static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 				  u64 *start,
 				  u64 *end)
 {
-	if (node->color != color)
+	if (node->allocated && node->color != color)
 		*start += I915_GTT_PAGE_SIZE;
 
+	/* Also leave a space between the unallocated reserved node after the
+	 * GTT and any objects within the GTT, i.e. we use the color adjustment
+	 * to insert a guard page to prevent prefetches crossing over the
+	 * GTT boundary.
+	 */
 	node = list_next_entry(node, node_list);
-	if (node->allocated && node->color != color)
+	if (node->color != color)
 		*end -= I915_GTT_PAGE_SIZE;
 }
 
@@ -3243,14 +3248,14 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 
 	INIT_LIST_HEAD(&dev_priv->vm_list);
 
-	/* Subtract the guard page before address space initialization to
-	 * shrink the range used by drm_mm.
+	/* Note that we use page colouring to enforce a guard page at the
+	 * end of the address space. This is required as the CS may prefetch
+	 * beyond the end of the batch buffer, across the page boundary,
+	 * and beyond the end of the GTT if we do not provide a guard.
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ggtt->base.total -= I915_GTT_PAGE_SIZE;
 	i915_address_space_init(&ggtt->base, dev_priv, "[global]");
-	ggtt->base.total += I915_GTT_PAGE_SIZE;
-	if (!HAS_LLC(dev_priv))
+	if (!HAS_LLC(dev_priv) && !USES_PPGTT(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
