@@ -997,6 +997,7 @@ struct bnxt {
 
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
+	enum dma_data_direction	rx_dir;
 	u32			rx_ring_size;
 	u32			rx_agg_ring_size;
 	u32			rx_copy_thresh;
