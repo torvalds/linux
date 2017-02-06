@@ -93,6 +93,7 @@ bool rmi_is_physical_driver(struct device_driver *);
 int rmi_register_physical_driver(void);
 void rmi_unregister_physical_driver(void);
 void rmi_free_function_list(struct rmi_device *rmi_dev);
+struct rmi_function *rmi_find_function(struct rmi_device *rmi_dev, u8 number);
 int rmi_enable_sensor(struct rmi_device *rmi_dev);
 int rmi_scan_pdt(struct rmi_device *rmi_dev, void *ctx,
 		 int (*callback)(struct rmi_device *rmi_dev, void *ctx,
@@ -104,7 +105,7 @@ int rmi_init_functions(struct rmi_driver_data *data);
 int rmi_initial_reset(struct rmi_device *rmi_dev, void *ctx,
 		      const struct pdt_entry *pdt);
 
-char *rmi_f01_get_product_ID(struct rmi_function *fn);
+const char *rmi_f01_get_product_ID(struct rmi_function *fn);
 
 #ifdef CONFIG_RMI4_F34
 int rmi_f34_create_sysfs(struct rmi_device *rmi_dev);

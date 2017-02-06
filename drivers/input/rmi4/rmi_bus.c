@@ -261,10 +261,10 @@ int __rmi_register_function_handler(struct rmi_function_handler *handler,
 	driver->probe = rmi_function_probe;
 	driver->remove = rmi_function_remove;
 
-	error = driver_register(&handler->driver);
+	error = driver_register(driver);
 	if (error) {
 		pr_err("driver_register() failed for %s, error: %d\n",
-			handler->driver.name, error);
+			driver->name, error);
 		return error;
 	}
 
