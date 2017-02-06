@@ -53,5 +53,5 @@ config XEN_DEBUG_FS
 
 config XEN_PVH
 	bool "Support for running as a PVH guest"
-	depends on X86_64 && XEN && XEN_PVHVM
+	depends on XEN && XEN_PVHVM && ACPI
 	def_bool n
