@@ -903,6 +903,13 @@ static void lcd_gotoxy(void)
 			 (lcd.hwidth - 1) : lcd.bwidth - 1));
 }
 
+static void lcd_home(void)
+{
+	lcd.addr.x = 0;
+	lcd.addr.y = 0;
+	lcd_gotoxy();
+}
+
 static void lcd_print(char c)
 {
 	if (lcd.addr.x < lcd.bwidth) {
@@ -921,9 +928,7 @@ static void lcd_clear_fast_s(void)
 {
 	int pos;
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 
 	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd.height * lcd.hwidth; pos++) {
@@ -935,9 +940,7 @@ static void lcd_clear_fast_s(void)
 	}
 	spin_unlock_irq(&pprt_lock);
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 }
 
 /* fills the display with spaces and resets X/Y */
@@ -945,9 +948,7 @@ static void lcd_clear_fast_p8(void)
 {
 	int pos;
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 
 	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd.height * lcd.hwidth; pos++) {
@@ -973,9 +974,7 @@ static void lcd_clear_fast_p8(void)
 	}
 	spin_unlock_irq(&pprt_lock);
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 }
 
 /* fills the display with spaces and resets X/Y */
@@ -983,9 +982,7 @@ static void lcd_clear_fast_tilcd(void)
 {
 	int pos;
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 
 	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd.height * lcd.hwidth; pos++) {
@@ -996,9 +993,7 @@ static void lcd_clear_fast_tilcd(void)
 
 	spin_unlock_irq(&pprt_lock);
 
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
-	lcd_gotoxy();
+	lcd_home();
 }
 
 /* clears the display and resets X/Y */
@@ -1373,9 +1368,7 @@ static void lcd_write_char(char c)
 			processed = 1;
 		} else if (!strcmp(lcd.esc_seq.buf, "[H")) {
 			/* cursor to home */
-			lcd.addr.x = 0;
-			lcd.addr.y = 0;
-			lcd_gotoxy();
+			lcd_home();
 			processed = 1;
 		}
 		/* codes starting with ^[[L */
@@ -1654,11 +1647,9 @@ static void lcd_init(void)
 #else
 	panel_lcd_print("\x1b[Lc\x1b[Lb\x1b[L*Linux-" UTS_RELEASE);
 #endif
-	lcd.addr.x = 0;
-	lcd.addr.y = 0;
 	/* clear the display on the next device opening */
 	lcd.must_clear = true;
-	lcd_gotoxy();
+	lcd_home();
 }
 
 /*
