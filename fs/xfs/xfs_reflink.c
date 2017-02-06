@@ -332,20 +332,19 @@ xfs_reflink_convert_cow_extent(
 	xfs_filblks_t			count_fsb,
 	struct xfs_defer_ops		*dfops)
 {
-	struct xfs_bmbt_irec		irec = *imap;
 	xfs_fsblock_t			first_block;
 	int				nimaps = 1;
 
 	if (imap->br_state == XFS_EXT_NORM)
 		return 0;
 
-	xfs_trim_extent(&irec, offset_fsb, count_fsb);
-	trace_xfs_reflink_convert_cow(ip, &irec);
-	if (irec.br_blockcount == 0)
+	xfs_trim_extent(imap, offset_fsb, count_fsb);
+	trace_xfs_reflink_convert_cow(ip, imap);
+	if (imap->br_blockcount == 0)
 		return 0;
-	return xfs_bmapi_write(NULL, ip, irec.br_startoff, irec.br_blockcount,
+	return xfs_bmapi_write(NULL, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_CONVERT, &first_block,
-			0, &irec, &nimaps, dfops);
+			0, imap, &nimaps, dfops);
 }
 
 /* Convert all of the unwritten CoW extents in a file's range to real ones. */
