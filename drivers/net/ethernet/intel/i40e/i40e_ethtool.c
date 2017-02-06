@@ -2458,8 +2458,13 @@ no_input_set:
 
 		vsi = i40e_find_vsi_from_id(pf, rule->dest_vsi);
 		if (vsi && vsi->type == I40E_VSI_SRIOV) {
-			fsp->h_ext.data[1] = htonl(vsi->vf_id);
-			fsp->m_ext.data[1] = htonl(0x1);
+			/* VFs are zero-indexed by the driver, but ethtool
+			 * expects them to be one-indexed, so add one here
+			 */
+			u64 ring_vf = vsi->vf_id + 1;
+
+			ring_vf <<= ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
+			fsp->ring_cookie |= ring_vf;
 		}
 	}
 
@@ -3038,9 +3043,10 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 {
 	struct ethtool_rx_flow_spec *fsp;
 	struct i40e_fdir_filter *input;
+	u16 dest_vsi = 0, q_index = 0;
 	struct i40e_pf *pf;
 	int ret = -EINVAL;
-	u16 vf_id;
+	u8 dest_ctl;
 
 	if (!vsi)
 		return -EINVAL;
@@ -3074,9 +3080,32 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		return -EINVAL;
 	}
 
-	if ((fsp->ring_cookie != RX_CLS_FLOW_DISC) &&
-	    (fsp->ring_cookie >= vsi->num_queue_pairs))
-		return -EINVAL;
+	/* ring_cookie is either the drop index, or is a mask of the queue
+	 * index and VF id we wish to target.
+	 */
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC) {
+		dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET;
+	} else {
+		u32 ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
+		u8 vf = ethtool_get_flow_spec_ring_vf(fsp->ring_cookie);
+
+		if (!vf) {
+			if (ring >= vsi->num_queue_pairs)
+				return -EINVAL;
+			dest_vsi = vsi->id;
+		} else {
+			/* VFs are zero-indexed, so we subtract one here */
+			vf--;
+
+			if (vf >= pf->num_alloc_vfs)
+				return -EINVAL;
+			if (ring >= pf->vf[vf].num_queue_pairs)
+				return -EINVAL;
+			dest_vsi = pf->vf[vf].lan_vsi_id;
+		}
+		dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
+		q_index = ring;
+	}
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
 
@@ -3084,19 +3113,13 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		return -ENOMEM;
 
 	input->fd_id = fsp->location;
-
-	if (fsp->ring_cookie == RX_CLS_FLOW_DISC)
-		input->dest_ctl = I40E_FILTER_PROGRAM_DESC_DEST_DROP_PACKET;
-	else
-		input->dest_ctl =
-			     I40E_FILTER_PROGRAM_DESC_DEST_DIRECT_PACKET_QINDEX;
-
-	input->q_index = fsp->ring_cookie;
-	input->flex_off = 0;
-	input->pctype = 0;
-	input->dest_vsi = vsi->id;
+	input->q_index = q_index;
+	input->dest_vsi = dest_vsi;
+	input->dest_ctl = dest_ctl;
 	input->fd_status = I40E_FILTER_PROGRAM_DESC_FD_STATUS_FD_ID;
 	input->cnt_index  = I40E_FD_SB_STAT_IDX(pf->hw.pf_id);
+	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
+	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
 	input->flow_type = fsp->flow_type;
 	input->ip4_proto = fsp->h_u.usr_ip4_spec.proto;
 
@@ -3107,23 +3130,6 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	input->src_port = fsp->h_u.tcp_ip4_spec.pdst;
 	input->dst_ip = fsp->h_u.tcp_ip4_spec.ip4src;
 	input->src_ip = fsp->h_u.tcp_ip4_spec.ip4dst;
-
-	if (ntohl(fsp->m_ext.data[1])) {
-		vf_id = ntohl(fsp->h_ext.data[1]);
-		if (vf_id >= pf->num_alloc_vfs) {
-			netif_info(pf, drv, vsi->netdev,
-				   "Invalid VF id %d\n", vf_id);
-			goto free_input;
-		}
-		/* Find vsi id from vf id and override dest vsi */
-		input->dest_vsi = pf->vf[vf_id].lan_vsi_id;
-		if (input->q_index >= pf->vf[vf_id].num_queue_pairs) {
-			netif_info(pf, drv, vsi->netdev,
-				   "Invalid queue id %d for VF %d\n",
-				   input->q_index, vf_id);
-			goto free_input;
-		}
-	}
 
 	ret = i40e_add_del_fdir(vsi, input, true);
 	if (ret)
