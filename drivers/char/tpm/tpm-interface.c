@@ -47,7 +47,7 @@
 static int tpm_suspend_pcr;
 module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
 MODULE_PARM_DESC(suspend_pcr,
-		 "PCR to use for dummy writes to faciltate flush on suspend.");
+		 "PCR to use for dummy writes to facilitate flush on suspend.");
 
 /*
  * Array with one entry per ordinal defining the maximum amount
