@@ -130,6 +130,47 @@ static u64 notrace fsl_a008585_read_cntvct_el0(void)
 }
 #endif
 
+#ifdef CONFIG_HISILICON_ERRATUM_161010101
+/*
+ * Verify whether the value of the second read is larger than the first by
+ * less than 32 is the only way to confirm the value is correct, so clear the
+ * lower 5 bits to check whether the difference is greater than 32 or not.
+ * Theoretically the erratum should not occur more than twice in succession
+ * when reading the system counter, but it is possible that some interrupts
+ * may lead to more than twice read errors, triggering the warning, so setting
+ * the number of retries far beyond the number of iterations the loop has been
+ * observed to take.
+ */
+#define __hisi_161010101_read_reg(reg) ({				\
+	u64 _old, _new;						\
+	int _retries = 50;					\
+								\
+	do {							\
+		_old = read_sysreg(reg);			\
+		_new = read_sysreg(reg);			\
+		_retries--;					\
+	} while (unlikely((_new - _old) >> 5) && _retries);	\
+								\
+	WARN_ON_ONCE(!_retries);				\
+	_new;							\
+})
+
+static u32 notrace hisi_161010101_read_cntp_tval_el0(void)
+{
+	return __hisi_161010101_read_reg(cntp_tval_el0);
+}
+
+static u32 notrace hisi_161010101_read_cntv_tval_el0(void)
+{
+	return __hisi_161010101_read_reg(cntv_tval_el0);
+}
+
+static u64 notrace hisi_161010101_read_cntvct_el0(void)
+{
+	return __hisi_161010101_read_reg(cntvct_el0);
+}
+#endif
+
 #ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
 const struct arch_timer_erratum_workaround *timer_unstable_counter_workaround = NULL;
 EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
@@ -144,6 +185,14 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.read_cntp_tval_el0 = fsl_a008585_read_cntp_tval_el0,
 		.read_cntv_tval_el0 = fsl_a008585_read_cntv_tval_el0,
 		.read_cntvct_el0 = fsl_a008585_read_cntvct_el0,
+	},
+#endif
+#ifdef CONFIG_HISILICON_ERRATUM_161010101
+	{
+		.id = "hisilicon,erratum-161010101",
+		.read_cntp_tval_el0 = hisi_161010101_read_cntp_tval_el0,
+		.read_cntv_tval_el0 = hisi_161010101_read_cntv_tval_el0,
+		.read_cntvct_el0 = hisi_161010101_read_cntvct_el0,
 	},
 #endif
 };
