@@ -511,6 +511,9 @@ struct rx_tpa_end_cmp_ext {
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
 
+#define BNXT_RX_EVENT	1
+#define BNXT_AGG_EVENT	2
+
 struct bnxt_sw_tx_bd {
 	struct sk_buff		*skb;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
