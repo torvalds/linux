@@ -832,8 +832,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		if (transport->state != SCTP_UNCONFIRMED)
 			transport->state = SCTP_INACTIVE;
 		else {
-			dst_release(transport->dst);
-			transport->dst = NULL;
+			sctp_transport_dst_release(transport);
 			ulp_notify = false;
 		}
 

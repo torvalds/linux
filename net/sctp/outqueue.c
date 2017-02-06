@@ -1654,7 +1654,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 
 		if (forward_progress) {
 			if (transport->dst)
-				dst_confirm(transport->dst);
+				sctp_transport_dst_confirm(transport);
 		}
 	}
 
