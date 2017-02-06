@@ -525,15 +525,17 @@ config SND_SOC_HDMI_CODEC
 	select HDMI
 
 config SND_SOC_ES8328
-	tristate "Everest Semi ES8328 CODEC"
+	tristate
 
 config SND_SOC_ES8328_I2C
-	depends on SND_SOC_ES8328
-	tristate "I2C support for Everest Semi ES8328 CODEC"
+	tristate "Everest Semi ES8328 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_ES8328
 
 config SND_SOC_ES8328_SPI
-	depends on SND_SOC_ES8328
-	tristate "SPI support for Everest Semi ES8328 CODEC"
+	tristate "Everest Semi ES8328 CODEC (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_ES8328
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
