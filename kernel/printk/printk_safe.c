@@ -110,17 +110,15 @@ again:
 	return add;
 }
 
-static void printk_safe_flush_line(const char *text, int len)
+static inline void printk_safe_flush_line(const char *text, int len)
 {
 	/*
-	 * The buffers are flushed in NMI only on panic.  The messages must
-	 * go only into the ring buffer at this stage.  Consoles will get
-	 * explicitly called later when a crashdump is not generated.
+	 * Avoid any console drivers calls from here, because we may be
+	 * in NMI or printk_safe context (when in panic). The messages
+	 * must go only into the ring buffer at this stage.  Consoles will
+	 * get explicitly called later when a crashdump is not generated.
 	 */
-	if (in_nmi())
-		printk_deferred("%.*s", len, text);
-	else
-		printk("%.*s", len, text);
+	printk_deferred("%.*s", len, text);
 }
 
 /* printk part of the temporary buffer line by line */
