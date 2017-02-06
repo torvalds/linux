@@ -92,7 +92,6 @@ static int gpio_mockup_add(struct device *dev,
 			   const char *name, int base, int ngpio)
 {
 	struct gpio_chip *gc = &chip->gc;
-	int ret;
 
 	gc->base = base;
 	gc->ngpio = ngpio;
@@ -107,21 +106,10 @@ static int gpio_mockup_add(struct device *dev,
 
 	chip->lines = devm_kzalloc(dev, sizeof(*chip->lines) * gc->ngpio,
 				   GFP_KERNEL);
-	if (!chip->lines) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!chip->lines)
+		return -ENOMEM;
 
-	ret = devm_gpiochip_add_data(dev, &chip->gc, chip);
-	if (ret)
-		goto err;
-
-	dev_info(dev, "gpio<%d..%d> add successful!", base, base + ngpio);
-	return 0;
-
-err:
-	dev_err(dev, "gpio<%d..%d> add failed!", base, base + ngpio);
-	return ret;
+	return devm_gpiochip_add_data(dev, &chip->gc, chip);
 }
 
 static int gpio_mockup_probe(struct platform_device *pdev)
@@ -164,15 +152,14 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 		}
 
 		if (ret) {
-			if (base < 0)
-				dev_err(dev, "gpio<%d..%d> add failed\n",
-					base, ngpio);
-			else
-				dev_err(dev, "gpio<%d..%d> add failed\n",
-					base, base + ngpio);
+			dev_err(dev, "gpio<%d..%d> add failed\n",
+				base, base < 0 ? ngpio : base + ngpio);
 
 			return ret;
 		}
+
+		dev_info(dev, "gpio<%d..%d> add successful!",
+			 base, base + ngpio);
 	}
 
 	return 0;
