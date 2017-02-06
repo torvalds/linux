@@ -501,17 +501,19 @@ static int xgpu_vi_set_mailbox_ack_irq(struct amdgpu_device *adev,
 
 static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 {
-	struct amdgpu_virt *virt = container_of(work,
-					struct amdgpu_virt, flr_work.work);
-	struct amdgpu_device *adev = container_of(virt,
-					struct amdgpu_device, virt);
-	int r = 0;
+	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
+	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
-	r = xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL);
-	if (r)
-		DRM_ERROR("failed to get flr cmpl msg from hypervior.\n");
+	/* wait until RCV_MSG become 3 */
+	if (!xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL))
+		adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	else {
+		pr_err("failed to recieve FLR_CMPL\n");
+		return;
+	}
 
-	/* TODO: need to restore gfx states */
+	/* Trigger recovery due to world switch failure */
+	amdgpu_sriov_gpu_reset(adev, false);
 }
 
 static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -534,15 +536,12 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 {
 	int r;
 
-	adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	/* see what event we get */
 	r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
-	/* do nothing for other msg */
-	if (r)
-		return 0;
 
-	/* TODO: need to save gfx states */
-	schedule_delayed_work(&adev->virt.flr_work,
-			      msecs_to_jiffies(VI_MAILBOX_RESET_TIME));
+	/* only handle FLR_NOTIFY now */
+	if (!r)
+		schedule_work(&adev->virt.flr_work);
 
 	return 0;
 }
@@ -595,14 +594,13 @@ int xgpu_vi_mailbox_get_irq(struct amdgpu_device *adev)
 		return r;
 	}
 
-	INIT_DELAYED_WORK(&adev->virt.flr_work, xgpu_vi_mailbox_flr_work);
+	INIT_WORK(&adev->virt.flr_work, xgpu_vi_mailbox_flr_work);
 
 	return 0;
 }
 
 void xgpu_vi_mailbox_put_irq(struct amdgpu_device *adev)
 {
-	cancel_delayed_work_sync(&adev->virt.flr_work);
 	amdgpu_irq_put(adev, &adev->virt.ack_irq, 0);
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }

@@ -50,7 +50,7 @@ struct amdgpu_virt {
 	struct mutex                    lock_reset;
 	struct amdgpu_irq_src		ack_irq;
 	struct amdgpu_irq_src		rcv_irq;
-	struct delayed_work		flr_work;
+	struct work_struct		flr_work;
 	const struct amdgpu_virt_ops	*ops;
 };
 
