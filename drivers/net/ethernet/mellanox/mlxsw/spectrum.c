@@ -390,6 +390,7 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 			dev_kfree_skb_any(skb_orig);
 			return NETDEV_TX_OK;
 		}
+		dev_consume_skb_any(skb_orig);
 	}
 
 	if (eth_skb_pad(skb)) {
