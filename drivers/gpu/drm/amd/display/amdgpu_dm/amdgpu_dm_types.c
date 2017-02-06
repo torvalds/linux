@@ -2602,6 +2602,65 @@ void amdgpu_dm_atomic_commit_tail(
 	/* Release old FB */
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
+
+
+static int dm_force_atomic_commit(struct drm_connector *connector)
+{
+	int ret = 0;
+	struct drm_device *ddev = connector->dev;
+	struct drm_atomic_state *state = drm_atomic_state_alloc(ddev);
+	struct amdgpu_crtc *disconnected_acrtc = to_amdgpu_crtc(connector->encoder->crtc);
+	struct drm_plane *plane = disconnected_acrtc->base.primary;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane_state *plane_state;
+
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = ddev->mode_config.acquire_ctx;
+
+	/* Construct an atomic state to restore previous display setting */
+
+	/*
+	 * Attach connectors to drm_atomic_state
+	 */
+	conn_state = drm_atomic_get_connector_state(state, connector);
+
+	ret = PTR_ERR_OR_ZERO(conn_state);
+	if (ret)
+		goto err;
+
+	/* Attach crtc to drm_atomic_state*/
+	crtc_state = drm_atomic_get_crtc_state(state, &disconnected_acrtc->base);
+
+	ret = PTR_ERR_OR_ZERO(crtc_state);
+	if (ret)
+		goto err;
+
+	/* force a restore */
+	crtc_state->mode_changed = true;
+
+	/* Attach plane to drm_atomic_state */
+	plane_state = drm_atomic_get_plane_state(state, plane);
+
+	ret = PTR_ERR_OR_ZERO(plane_state);
+	if (ret)
+		goto err;
+
+
+	/* Call commit internally with the state we just constructed */
+	ret = drm_atomic_commit(state);
+	if (!ret)
+		return 0;
+
+err:
+	DRM_ERROR("Restoring old state failed with %i\n", ret);
+	drm_atomic_state_put(state);
+
+	return ret;
+}
+
 /*
  * This functions handle all cases when set mode does not come upon hotplug.
  * This include when the same display is unplugged then plugged back into the
@@ -2609,15 +2668,8 @@ void amdgpu_dm_atomic_commit_tail(
  */
 void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct drm_crtc *crtc;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
 	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
 	struct amdgpu_crtc *disconnected_acrtc;
-	const struct dc_sink *sink;
-	const struct dc_stream *commit_streams[MAX_STREAMS];
-	const struct dc_stream *current_stream;
-	uint32_t commit_streams_count = 0;
 
 	if (!aconnector->dc_sink || !connector->state || !connector->encoder)
 		return;
@@ -2627,83 +2679,13 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 	if (!disconnected_acrtc || !disconnected_acrtc->stream)
 		return;
 
-	sink = disconnected_acrtc->stream->sink;
-
 	/*
 	 * If the previous sink is not released and different from the current,
 	 * we deduce we are in a state where we can not rely on usermode call
 	 * to turn on the display, so we do it here
 	 */
-	if (sink != aconnector->dc_sink) {
-		struct dm_connector_state *dm_state =
-				to_dm_connector_state(aconnector->base.state);
-
-		struct dc_stream *new_stream =
-			create_stream_for_sink(
-				aconnector,
-				&disconnected_acrtc->base.state->mode,
-				dm_state);
-
-		DRM_INFO("Headless hotplug, restoring connector state\n");
-		/*
-		 * we evade vblanks and pflips on crtc that
-		 * should be changed
-		 */
-		manage_dm_interrupts(adev, disconnected_acrtc, false);
-		/* this is the update mode case */
-
-		current_stream = disconnected_acrtc->stream;
-
-		disconnected_acrtc->stream = new_stream;
-		disconnected_acrtc->enabled = true;
-		disconnected_acrtc->hw_mode = disconnected_acrtc->base.state->mode;
-
-		commit_streams_count = 0;
-
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-
-			if (acrtc->stream) {
-				commit_streams[commit_streams_count] = acrtc->stream;
-				++commit_streams_count;
-			}
-		}
-
-		/* DC is optimized not to do anything if 'streams' didn't change. */
-		if (!dc_commit_streams(dc, commit_streams,
-				commit_streams_count)) {
-			DRM_INFO("Failed to restore connector state!\n");
-			dc_stream_release(disconnected_acrtc->stream);
-			disconnected_acrtc->stream = current_stream;
-			manage_dm_interrupts(adev, disconnected_acrtc, true);
-			return;
-		}
-
-		if (adev->dm.freesync_module) {
-			mod_freesync_remove_stream(adev->dm.freesync_module,
-				current_stream);
-
-			mod_freesync_add_stream(adev->dm.freesync_module,
-						new_stream, &aconnector->caps);
-		}
-
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-
-			if (acrtc->stream != NULL) {
-				acrtc->otg_inst =
-					dc_stream_get_status(acrtc->stream)->primary_otg_inst;
-			}
-		}
-
-		dc_stream_release(current_stream);
-
-		dm_dc_surface_commit(dc, &disconnected_acrtc->base);
-
-		manage_dm_interrupts(adev, disconnected_acrtc, true);
-		dm_crtc_cursor_reset(&disconnected_acrtc->base);
-
-	}
+	if (disconnected_acrtc->stream->sink != aconnector->dc_sink)
+		dm_force_atomic_commit(&aconnector->base);
 }
 
 static uint32_t add_val_sets_surface(
