@@ -1237,6 +1237,13 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 {
 	u32 addr, status, mc_client;
 
+	if (amdgpu_sriov_vf(adev)) {
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
+			entry->src_id, entry->src_data);
+		dev_err(adev->dev, " Can't decode VM fault info here on SRIOV VF\n");
+		return 0;
+	}
+
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
 	mc_client = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_MCCLIENT);
