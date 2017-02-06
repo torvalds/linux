@@ -3996,6 +3996,21 @@ Parameters: none
 Allow use of adapter-interruption suppression.
 Returns: 0 on success; -EBUSY if a VCPU has already been created.
 
+7.11 KVM_CAP_PPC_SMT
+
+Architectures: ppc
+Parameters: vsmt_mode, flags
+
+Enabling this capability on a VM provides userspace with a way to set
+the desired virtual SMT mode (i.e. the number of virtual CPUs per
+virtual core).  The virtual SMT mode, vsmt_mode, must be a power of 2
+between 1 and 8.  On POWER8, vsmt_mode must also be no greater than
+the number of threads per subcore for the host.  Currently flags must
+be 0.  A successful call to enable this capability will result in
+vsmt_mode being returned when the KVM_CAP_PPC_SMT capability is
+subsequently queried for the VM.  This capability is only supported by
+HV KVM, and can only be set before any VCPUs have been created.
+
 8. Other capabilities.
 ----------------------
 

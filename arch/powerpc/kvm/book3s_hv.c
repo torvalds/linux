@@ -1628,7 +1628,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	init_swait_queue_head(&vcore->wq);
 	vcore->preempt_tb = TB_NIL;
 	vcore->lpcr = kvm->arch.lpcr;
-	vcore->first_vcpuid = core * threads_per_vcore();
+	vcore->first_vcpuid = core * kvm->arch.smt_mode;
 	vcore->kvm = kvm;
 	INIT_LIST_HEAD(&vcore->preempt_list);
 
@@ -1787,13 +1787,9 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 						   unsigned int id)
 {
 	struct kvm_vcpu *vcpu;
-	int err = -EINVAL;
+	int err;
 	int core;
 	struct kvmppc_vcore *vcore;
-
-	core = id / threads_per_vcore();
-	if (core >= KVM_MAX_VCORES)
-		goto out;
 
 	err = -ENOMEM;
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
@@ -1842,11 +1838,17 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	init_waitqueue_head(&vcpu->arch.cpu_run);
 
 	mutex_lock(&kvm->lock);
-	vcore = kvm->arch.vcores[core];
-	if (!vcore) {
-		vcore = kvmppc_vcore_create(kvm, core);
-		kvm->arch.vcores[core] = vcore;
-		kvm->arch.online_vcores++;
+	vcore = NULL;
+	err = -EINVAL;
+	core = id / kvm->arch.smt_mode;
+	if (core < KVM_MAX_VCORES) {
+		vcore = kvm->arch.vcores[core];
+		if (!vcore) {
+			err = -ENOMEM;
+			vcore = kvmppc_vcore_create(kvm, core);
+			kvm->arch.vcores[core] = vcore;
+			kvm->arch.online_vcores++;
+		}
 	}
 	mutex_unlock(&kvm->lock);
 
@@ -1872,6 +1874,40 @@ free_vcpu:
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(err);
+}
+
+static int kvmhv_set_smt_mode(struct kvm *kvm, unsigned long smt_mode,
+			      unsigned long flags)
+{
+	int err;
+
+	if (flags)
+		return -EINVAL;
+	if (smt_mode > MAX_SMT_THREADS || !is_power_of_2(smt_mode))
+		return -EINVAL;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * On POWER8 (or POWER7), the threading mode is "strict",
+		 * so we pack smt_mode vcpus per vcore.
+		 */
+		if (smt_mode > threads_per_subcore)
+			return -EINVAL;
+	} else {
+		/*
+		 * On POWER9, the threading mode is "loose",
+		 * so each vcpu gets its own vcore.
+		 */
+		smt_mode = 1;
+	}
+	mutex_lock(&kvm->lock);
+	err = -EBUSY;
+	if (!kvm->arch.online_vcores) {
+		kvm->arch.smt_mode = smt_mode;
+		err = 0;
+	}
+	mutex_unlock(&kvm->lock);
+
+	return err;
 }
 
 static void unpin_vpa(struct kvm *kvm, struct kvmppc_vpa *vpa)
@@ -3554,6 +3590,18 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		kvm_hv_vm_activated();
 
 	/*
+	 * Initialize smt_mode depending on processor.
+	 * POWER8 and earlier have to use "strict" threading, where
+	 * all vCPUs in a vcore have to run on the same (sub)core,
+	 * whereas on POWER9 the threads can each run a different
+	 * guest.
+	 */
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm->arch.smt_mode = threads_per_subcore;
+	else
+		kvm->arch.smt_mode = 1;
+
+	/*
 	 * Create a debugfs directory for the VM
 	 */
 	snprintf(buf, sizeof(buf), "vm%d", current->pid);
@@ -3982,6 +4030,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 #endif
 	.configure_mmu = kvmhv_configure_mmu,
 	.get_rmmu_info = kvmhv_get_rmmu_info,
+	.set_smt_mode = kvmhv_set_smt_mode,
 };
 
 static int kvm_init_subcore_bitmap(void)

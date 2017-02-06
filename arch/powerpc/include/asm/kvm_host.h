@@ -267,6 +267,7 @@ struct kvm_resize_hpt;
 
 struct kvm_arch {
 	unsigned int lpid;
+	unsigned int smt_mode;		/* # vcpus per virtual core */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	unsigned int tlb_sets;
 	struct kvm_hpt_info hpt;

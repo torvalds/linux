@@ -554,7 +554,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
 		r = 0;
-		if (hv_enabled) {
+		if (kvm)
+			r = kvm->arch.smt_mode;
+		else if (hv_enabled) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300))
 				r = 1;
 			else
@@ -1710,6 +1712,15 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		else
 			clear_bit(hcall / 4, kvm->arch.enabled_hcalls);
 		r = 0;
+		break;
+	}
+	case KVM_CAP_PPC_SMT: {
+		unsigned long mode = cap->args[0];
+		unsigned long flags = cap->args[1];
+
+		r = -EINVAL;
+		if (kvm->arch.kvm_ops->set_smt_mode)
+			r = kvm->arch.kvm_ops->set_smt_mode(kvm, mode, flags);
 		break;
 	}
 #endif
