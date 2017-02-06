@@ -1994,10 +1994,6 @@ config RANDOMIZE_BASE
 	  theoretically possible, but the implementations are further
 	  limited due to memory layouts.
 
-	  If CONFIG_HIBERNATE is also enabled, KASLR is disabled at boot
-	  time. To enable it, boot with "kaslr" on the kernel command
-	  line (which will also disable hibernation).
-
 	  If unsure, say N.
 
 # Relocation on x86 needs some additional build support
