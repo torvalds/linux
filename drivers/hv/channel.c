@@ -643,8 +643,8 @@ void vmbus_close(struct vmbus_channel *channel)
 EXPORT_SYMBOL_GPL(vmbus_close);
 
 int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
-			   u32 bufferlen, u64 requestid,
-			   enum vmbus_packet_type type, u32 flags, bool kick_q)
+			 u32 bufferlen, u64 requestid,
+			 enum vmbus_packet_type type, u32 flags)
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen = sizeof(struct vmpacket_descriptor) + bufferlen;
@@ -693,7 +693,7 @@ int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
 			   enum vmbus_packet_type type, u32 flags)
 {
 	return vmbus_sendpacket_ctl(channel, buffer, bufferlen, requestid,
-				    type, flags, true);
+				    type, flags);
 }
 EXPORT_SYMBOL(vmbus_sendpacket);
 
@@ -705,11 +705,9 @@ EXPORT_SYMBOL(vmbus_sendpacket);
  * explicitly.
  */
 int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
-				     struct hv_page_buffer pagebuffers[],
-				     u32 pagecount, void *buffer, u32 bufferlen,
-				     u64 requestid,
-				     u32 flags,
-				     bool kick_q)
+				    struct hv_page_buffer pagebuffers[],
+				    u32 pagecount, void *buffer, u32 bufferlen,
+				    u64 requestid, u32 flags)
 {
 	int i;
 	struct vmbus_channel_packet_page_buffer desc;
@@ -769,9 +767,10 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 				     u64 requestid)
 {
 	u32 flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+
 	return vmbus_sendpacket_pagebuffer_ctl(channel, pagebuffers, pagecount,
-					       buffer, bufferlen, requestid,
-					       flags, true);
+					       buffer, bufferlen,
+					       requestid, flags);
 
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);

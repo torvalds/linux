@@ -1037,8 +1037,7 @@ extern int vmbus_sendpacket_ctl(struct vmbus_channel *channel,
 				  u32 bufferLen,
 				  u64 requestid,
 				  enum vmbus_packet_type type,
-				  u32 flags,
-				  bool kick_q);
+				  u32 flags);
 
 extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    struct hv_page_buffer pagebuffers[],
@@ -1053,8 +1052,7 @@ extern int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 					   void *buffer,
 					   u32 bufferlen,
 					   u64 requestid,
-					   u32 flags,
-					   bool kick_q);
+					   u32 flags);
 
 extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					struct hv_multipage_buffer *mpb,
