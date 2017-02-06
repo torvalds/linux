@@ -166,19 +166,21 @@ static int wacom_pl_irq(struct wacom_wac *wacom)
 		wacom->id[0] = STYLUS_DEVICE_ID;
 	}
 
-	pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
-	if (features->pressure_max > 255)
-		pressure = (pressure << 1) | ((data[4] >> 6) & 1);
-	pressure += (features->pressure_max + 1) / 2;
+	if (prox) {
+		pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
+		if (features->pressure_max > 255)
+			pressure = (pressure << 1) | ((data[4] >> 6) & 1);
+		pressure += (features->pressure_max + 1) / 2;
 
-	input_report_abs(input, ABS_X, data[3] | (data[2] << 7) | ((data[1] & 0x03) << 14));
-	input_report_abs(input, ABS_Y, data[6] | (data[5] << 7) | ((data[4] & 0x03) << 14));
-	input_report_abs(input, ABS_PRESSURE, pressure);
+		input_report_abs(input, ABS_X, data[3] | (data[2] << 7) | ((data[1] & 0x03) << 14));
+		input_report_abs(input, ABS_Y, data[6] | (data[5] << 7) | ((data[4] & 0x03) << 14));
+		input_report_abs(input, ABS_PRESSURE, pressure);
 
-	input_report_key(input, BTN_TOUCH, data[4] & 0x08);
-	input_report_key(input, BTN_STYLUS, data[4] & 0x10);
-	/* Only allow the stylus2 button to be reported for the pen tool. */
-	input_report_key(input, BTN_STYLUS2, (wacom->tool[0] == BTN_TOOL_PEN) && (data[4] & 0x20));
+		input_report_key(input, BTN_TOUCH, data[4] & 0x08);
+		input_report_key(input, BTN_STYLUS, data[4] & 0x10);
+		/* Only allow the stylus2 button to be reported for the pen tool. */
+		input_report_key(input, BTN_STYLUS2, (wacom->tool[0] == BTN_TOOL_PEN) && (data[4] & 0x20));
+	}
 
 	if (!prox)
 		wacom->id[0] = 0;
@@ -2186,6 +2188,16 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 		wacom_wac_finger_pre_report(hdev, report);
 
 	wacom_report_events(hdev, report);
+
+	/*
+	 * Non-input reports may be sent prior to the device being
+	 * completely initialized. Since only their events need
+	 * to be processed, exit after 'wacom_report_events' has
+	 * been called to prevent potential crashes in the report-
+	 * processing functions.
+	 */
+	if (report->type != HID_INPUT_REPORT)
+		return;
 
 	if (WACOM_PAD_FIELD(field)) {
 		wacom_wac_pad_battery_report(hdev, report);

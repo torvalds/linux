@@ -1469,7 +1469,6 @@ ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 {
-
 	lockdep_assert_held(&ctx->lock);
 
 	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
@@ -1624,6 +1623,8 @@ static void perf_group_attach(struct perf_event *event)
 {
 	struct perf_event *group_leader = event->group_leader, *pos;
 
+	lockdep_assert_held(&event->ctx->lock);
+
 	/*
 	 * We can have double attach due to group movement in perf_event_open.
 	 */
@@ -1696,6 +1697,8 @@ static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
 	struct list_head *list = NULL;
+
+	lockdep_assert_held(&event->ctx->lock);
 
 	/*
 	 * We can have double detach due to exit/hot-unplug + close.
@@ -1895,9 +1898,29 @@ __perf_remove_from_context(struct perf_event *event,
  */
 static void perf_remove_from_context(struct perf_event *event, unsigned long flags)
 {
-	lockdep_assert_held(&event->ctx->mutex);
+	struct perf_event_context *ctx = event->ctx;
+
+	lockdep_assert_held(&ctx->mutex);
 
 	event_function_call(event, __perf_remove_from_context, (void *)flags);
+
+	/*
+	 * The above event_function_call() can NO-OP when it hits
+	 * TASK_TOMBSTONE. In that case we must already have been detached
+	 * from the context (by perf_event_exit_event()) but the grouping
+	 * might still be in-tact.
+	 */
+	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
+	if ((flags & DETACH_GROUP) &&
+	    (event->attach_state & PERF_ATTACH_GROUP)) {
+		/*
+		 * Since in that case we cannot possibly be scheduled, simply
+		 * detach now.
+		 */
+		raw_spin_lock_irq(&ctx->lock);
+		perf_group_detach(event);
+		raw_spin_unlock_irq(&ctx->lock);
+	}
 }
 
 /*
@@ -6609,6 +6632,27 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 	char *buf = NULL;
 	char *name;
 
+	if (vma->vm_flags & VM_READ)
+		prot |= PROT_READ;
+	if (vma->vm_flags & VM_WRITE)
+		prot |= PROT_WRITE;
+	if (vma->vm_flags & VM_EXEC)
+		prot |= PROT_EXEC;
+
+	if (vma->vm_flags & VM_MAYSHARE)
+		flags = MAP_SHARED;
+	else
+		flags = MAP_PRIVATE;
+
+	if (vma->vm_flags & VM_DENYWRITE)
+		flags |= MAP_DENYWRITE;
+	if (vma->vm_flags & VM_MAYEXEC)
+		flags |= MAP_EXECUTABLE;
+	if (vma->vm_flags & VM_LOCKED)
+		flags |= MAP_LOCKED;
+	if (vma->vm_flags & VM_HUGETLB)
+		flags |= MAP_HUGETLB;
+
 	if (file) {
 		struct inode *inode;
 		dev_t dev;
@@ -6634,27 +6678,6 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 		gen = inode->i_generation;
 		maj = MAJOR(dev);
 		min = MINOR(dev);
-
-		if (vma->vm_flags & VM_READ)
-			prot |= PROT_READ;
-		if (vma->vm_flags & VM_WRITE)
-			prot |= PROT_WRITE;
-		if (vma->vm_flags & VM_EXEC)
-			prot |= PROT_EXEC;
-
-		if (vma->vm_flags & VM_MAYSHARE)
-			flags = MAP_SHARED;
-		else
-			flags = MAP_PRIVATE;
-
-		if (vma->vm_flags & VM_DENYWRITE)
-			flags |= MAP_DENYWRITE;
-		if (vma->vm_flags & VM_MAYEXEC)
-			flags |= MAP_EXECUTABLE;
-		if (vma->vm_flags & VM_LOCKED)
-			flags |= MAP_LOCKED;
-		if (vma->vm_flags & VM_HUGETLB)
-			flags |= MAP_HUGETLB;
 
 		goto got_name;
 	} else {

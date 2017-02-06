@@ -212,10 +212,11 @@ asynchronous manner and the value may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the status files (as of 4.1)
+Table 1-2: Contents of the status files (as of 4.8)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
+ Umask                       file mode creation mask
  State                       state (R is running, S is sleeping, D is sleeping
                              in an uninterruptible wait, Z is zombie,
 			     T is traced or stopped)
@@ -226,7 +227,6 @@ Table 1-2: Contents of the status files (as of 4.1)
  TracerPid                   PID of process tracing this process (0 if not)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
- Umask                       file mode creation mask
  FDSize                      number of file descriptor slots currently allocated
  Groups                      supplementary group list
  NStgid                      descendant namespace thread group ID hierarchy
@@ -236,6 +236,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  VmPeak                      peak virtual memory size
  VmSize                      total program size
  VmLck                       locked memory size
+ VmPin                       pinned memory size
  VmHWM                       peak resident set size ("high water mark")
  VmRSS                       size of memory portions. It contains the three
                              following parts (VmRSS = RssAnon + RssFile + RssShmem)

@@ -38,7 +38,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
-#include <linux/file.h>
 #include <linux/string.h>
 #include <linux/ratelimit.h>
 #include <linux/printk.h>
@@ -1083,7 +1082,8 @@ int nfs4_call_sync(struct rpc_clnt *clnt,
 	return nfs4_call_sync_sequence(clnt, server, msg, args, res);
 }
 
-static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
+static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo,
+		unsigned long timestamp)
 {
 	struct nfs_inode *nfsi = NFS_I(dir);
 
@@ -1099,6 +1099,7 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 				NFS_INO_INVALID_ACL;
 	}
 	dir->i_version = cinfo->after;
+	nfsi->read_cache_jiffies = timestamp;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
 	nfs_fscache_invalidate(dir);
 	spin_unlock(&dir->i_lock);
@@ -2391,11 +2392,13 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	nfs_fattr_map_and_free_names(server, &data->f_attr);
 
 	if (o_arg->open_flags & O_CREAT) {
-		update_changeattr(dir, &o_res->cinfo);
 		if (o_arg->open_flags & O_EXCL)
 			data->file_created = 1;
 		else if (o_res->cinfo.before != o_res->cinfo.after)
 			data->file_created = 1;
+		if (data->file_created || dir->i_version != o_res->cinfo.after)
+			update_changeattr(dir, &o_res->cinfo,
+					o_res->f_attr->time_start);
 	}
 	if ((o_res->rflags & NFS4_OPEN_RESULT_LOCKTYPE_POSIX) == 0)
 		server->caps &= ~NFS_CAP_POSIX_LOCK;
@@ -2697,7 +2700,8 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
 		sattr->ia_valid |= ATTR_MTIME;
 
 	/* Except MODE, it seems harmless of setting twice. */
-	if ((attrset[1] & FATTR4_WORD1_MODE))
+	if (opendata->o_arg.createmode != NFS4_CREATE_EXCLUSIVE &&
+		attrset[1] & FATTR4_WORD1_MODE)
 		sattr->ia_valid &= ~ATTR_MODE;
 
 	if (attrset[2] & FATTR4_WORD2_SECURITY_LABEL)
@@ -4073,11 +4077,12 @@ static int _nfs4_proc_remove(struct inode *dir, const struct qstr *name)
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
+	unsigned long timestamp = jiffies;
 	int status;
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 1);
 	if (status == 0)
-		update_changeattr(dir, &res.cinfo);
+		update_changeattr(dir, &res.cinfo, timestamp);
 	return status;
 }
 
@@ -4125,7 +4130,8 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (nfs4_async_handle_error(task, res->server, NULL,
 				    &data->timeout) == -EAGAIN)
 		return 0;
-	update_changeattr(dir, &res->cinfo);
+	if (task->tk_status == 0)
+		update_changeattr(dir, &res->cinfo, res->dir_attr->time_start);
 	return 1;
 }
 
@@ -4159,8 +4165,11 @@ static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 	if (nfs4_async_handle_error(task, res->server, NULL, &data->timeout) == -EAGAIN)
 		return 0;
 
-	update_changeattr(old_dir, &res->old_cinfo);
-	update_changeattr(new_dir, &res->new_cinfo);
+	if (task->tk_status == 0) {
+		update_changeattr(old_dir, &res->old_cinfo, res->old_fattr->time_start);
+		if (new_dir != old_dir)
+			update_changeattr(new_dir, &res->new_cinfo, res->new_fattr->time_start);
+	}
 	return 1;
 }
 
@@ -4197,7 +4206,7 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
-		update_changeattr(dir, &res.cinfo);
+		update_changeattr(dir, &res.cinfo, res.fattr->time_start);
 		status = nfs_post_op_update_inode(inode, res.fattr);
 		if (!status)
 			nfs_setsecurity(inode, res.fattr, res.label);
@@ -4272,7 +4281,8 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 	int status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &data->msg,
 				    &data->arg.seq_args, &data->res.seq_res, 1);
 	if (status == 0) {
-		update_changeattr(dir, &data->res.dir_cinfo);
+		update_changeattr(dir, &data->res.dir_cinfo,
+				data->res.fattr->time_start);
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr, data->res.label);
 	}
 	return status;
@@ -6127,7 +6137,6 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->server = server;
 	atomic_inc(&lsp->ls_count);
 	p->ctx = get_nfs_open_context(ctx);
-	get_file(fl->fl_file);
 	memcpy(&p->fl, fl, sizeof(p->fl));
 	return p;
 out_free_seqid:
@@ -6240,7 +6249,6 @@ static void nfs4_lock_release(void *calldata)
 		nfs_free_seqid(data->arg.lock_seqid);
 	nfs4_put_lock_state(data->lsp);
 	put_nfs_open_context(data->ctx);
-	fput(data->fl.fl_file);
 	kfree(data);
 	dprintk("%s: done!\n", __func__);
 }
@@ -8483,6 +8491,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		goto out;
 	}
 
+	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	err = nfs4_handle_exception(server, nfs4err, exception);
 	if (!status) {
 		if (exception->retry)

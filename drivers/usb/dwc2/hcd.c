@@ -4367,6 +4367,9 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	if (!HCD_HW_ACCESSIBLE(hcd))
 		goto unlock;
 
+	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL)
+		goto unlock;
+
 	if (!hsotg->params.hibernation)
 		goto skip_power_saving;
 
@@ -4489,8 +4492,8 @@ static void dwc2_dump_urb_info(struct usb_hcd *hcd, struct urb *urb,
 {
 #ifdef VERBOSE_DEBUG
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
-	char *pipetype;
-	char *speed;
+	char *pipetype = NULL;
+	char *speed = NULL;
 
 	dev_vdbg(hsotg->dev, "%s, urb %p\n", fn_name, urb);
 	dev_vdbg(hsotg->dev, "  Device address: %d\n",

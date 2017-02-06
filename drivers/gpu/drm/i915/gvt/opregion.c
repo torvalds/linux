@@ -36,9 +36,9 @@ static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 			vgpu->id))
 		return -EINVAL;
 
-	vgpu_opregion(vgpu)->va = (void *)__get_free_pages(GFP_ATOMIC |
-			GFP_DMA32 | __GFP_ZERO,
-			INTEL_GVT_OPREGION_PORDER);
+	vgpu_opregion(vgpu)->va = (void *)__get_free_pages(GFP_KERNEL |
+			__GFP_ZERO,
+			get_order(INTEL_GVT_OPREGION_SIZE));
 
 	if (!vgpu_opregion(vgpu)->va)
 		return -ENOMEM;
@@ -97,7 +97,7 @@ void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu)
 	if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_XEN) {
 		map_vgpu_opregion(vgpu, false);
 		free_pages((unsigned long)vgpu_opregion(vgpu)->va,
-				INTEL_GVT_OPREGION_PORDER);
+				get_order(INTEL_GVT_OPREGION_SIZE));
 
 		vgpu_opregion(vgpu)->va = NULL;
 	}

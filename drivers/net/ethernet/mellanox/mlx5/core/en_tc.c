@@ -663,23 +663,26 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   __be32 *saddr,
 				   int *out_ttl)
 {
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct rtable *rt;
 	struct neighbour *n = NULL;
 	int ttl;
 
 #if IS_ENABLED(CONFIG_INET)
+	int ret;
+
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
-	if (IS_ERR(rt))
-		return PTR_ERR(rt);
+	ret = PTR_ERR_OR_ZERO(rt);
+	if (ret)
+		return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
-
-	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev)) {
-		pr_warn("%s: can't offload, devices not on same HW e-switch\n", __func__);
-		ip_rt_put(rt);
-		return -EOPNOTSUPP;
-	}
+	/* if the egress device isn't on the same HW e-switch, we use the uplink */
+	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev))
+		*out_dev = mlx5_eswitch_get_uplink_netdev(esw);
+	else
+		*out_dev = rt->dst.dev;
 
 	ttl = ip4_dst_hoplimit(&rt->dst);
 	n = dst_neigh_lookup(&rt->dst, &fl4->daddr);
@@ -690,7 +693,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	*out_n = n;
 	*saddr = fl4->saddr;
 	*out_ttl = ttl;
-	*out_dev = rt->dst.dev;
 
 	return 0;
 }
@@ -741,8 +743,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	struct flowi4 fl4 = {};
 	char *encap_header;
 	int encap_size;
-	__be32 saddr = 0;
-	int ttl = 0;
+	__be32 saddr;
+	int ttl;
 	int err;
 
 	encap_header = kzalloc(max_encap_size, GFP_KERNEL);

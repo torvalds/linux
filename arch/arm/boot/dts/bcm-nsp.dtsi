@@ -160,7 +160,7 @@
 
 	axi {
 		compatible = "simple-bus";
-		ranges = <0x00000000 0x18000000 0x0011c40a>;
+		ranges = <0x00000000 0x18000000 0x0011c40c>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 

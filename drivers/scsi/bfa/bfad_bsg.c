@@ -3363,7 +3363,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	struct bfad_fcxp    *drv_fcxp;
 	struct bfa_fcs_lport_s *fcs_port;
 	struct bfa_fcs_rport_s *fcs_rport;
-	struct fc_bsg_request *bsg_request = bsg_request;
+	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	uint32_t command_type = bsg_request->msgcode;
 	unsigned long flags;
