@@ -77,6 +77,13 @@ extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 extern void free_task(struct task_struct *tsk);
 
+/* sched_exec is called by processes performing an exec */
+#ifdef CONFIG_SMP
+extern void sched_exec(void);
+#else
+#define sched_exec()   {}
+#endif
+
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
 extern void __put_task_struct(struct task_struct *t);
