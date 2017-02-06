@@ -776,6 +776,11 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 {
 	u32 hash;
 
+	/* @flowlabel may include more than a flow label, eg, the traffic class.
+	 * Here we want only the flow label value.
+	 */
+	flowlabel &= IPV6_FLOWLABEL_MASK;
+
 	if (flowlabel ||
 	    net->ipv6.sysctl.auto_flowlabels == IP6_AUTO_FLOW_LABEL_OFF ||
 	    (!autolabel &&
@@ -871,7 +876,7 @@ int ip6_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
  *	upper-layer output functions
  */
 int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
-	     struct ipv6_txoptions *opt, int tclass);
+	     __u32 mark, struct ipv6_txoptions *opt, int tclass);
 
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 

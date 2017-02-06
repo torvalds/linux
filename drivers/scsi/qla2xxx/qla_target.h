@@ -427,12 +427,32 @@ struct atio_from_isp {
 		struct {
 			uint8_t  entry_type;	/* Entry type. */
 			uint8_t  entry_count;	/* Entry count. */
-			uint8_t  data[58];
+			__le16	 attr_n_length;
+#define FCP_CMD_LENGTH_MASK 0x0fff
+#define FCP_CMD_LENGTH_MIN  0x38
+			uint8_t  data[56];
 			uint32_t signature;
 #define ATIO_PROCESSED 0xDEADDEAD		/* Signature */
 		} raw;
 	} u;
 } __packed;
+
+static inline int fcpcmd_is_corrupted(struct atio *atio)
+{
+	if (atio->entry_type == ATIO_TYPE7 &&
+	    (le16_to_cpu(atio->attr_n_length & FCP_CMD_LENGTH_MASK) <
+	    FCP_CMD_LENGTH_MIN))
+		return 1;
+	else
+		return 0;
+}
+
+/* adjust corrupted atio so we won't trip over the same entry again. */
+static inline void adjust_corrupted_atio(struct atio_from_isp *atio)
+{
+	atio->u.raw.attr_n_length = cpu_to_le16(FCP_CMD_LENGTH_MIN);
+	atio->u.isp24.fcp_cmnd.add_cdb_len = 0;
+}
 
 #define CTIO_TYPE7 0x12 /* Continue target I/O entry (for 24xx) */
 

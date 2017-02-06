@@ -302,8 +302,6 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	dist->ready = true;
 
 out:
-	if (ret)
-		kvm_vgic_destroy(kvm);
 	return ret;
 }
 

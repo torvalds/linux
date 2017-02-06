@@ -2440,7 +2440,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	p++;                /* to be backfilled later */
 
 	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		u32 *supp = nfsd_suppattrs[minorversion];
+		u32 supp[3];
+
+		memcpy(supp, nfsd_suppattrs[minorversion], sizeof(supp));
 
 		if (!IS_POSIXACL(dentry->d_inode))
 			supp[0] &= ~FATTR4_WORD0_ACL;

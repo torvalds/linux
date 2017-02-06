@@ -1314,7 +1314,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			(struct fcnvme_ls_disconnect_rqst *)iod->rqstbuf;
 	struct fcnvme_ls_disconnect_acc *acc =
 			(struct fcnvme_ls_disconnect_acc *)iod->rspbuf;
-	struct nvmet_fc_tgt_queue *queue;
+	struct nvmet_fc_tgt_queue *queue = NULL;
 	struct nvmet_fc_tgt_assoc *assoc;
 	int ret = 0;
 	bool del_assoc = false;
@@ -1348,7 +1348,18 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 		assoc = nvmet_fc_find_target_assoc(tgtport,
 				be64_to_cpu(rqst->associd.association_id));
 		iod->assoc = assoc;
-		if (!assoc)
+		if (assoc) {
+			if (rqst->discon_cmd.scope ==
+					FCNVME_DISCONN_CONNECTION) {
+				queue = nvmet_fc_find_target_queue(tgtport,
+						be64_to_cpu(
+							rqst->discon_cmd.id));
+				if (!queue) {
+					nvmet_fc_tgt_a_put(assoc);
+					ret = VERR_NO_CONN;
+				}
+			}
+		} else
 			ret = VERR_NO_ASSOC;
 	}
 
@@ -1373,21 +1384,18 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			FCNVME_LS_DISCONNECT);
 
 
-	if (rqst->discon_cmd.scope == FCNVME_DISCONN_CONNECTION) {
-		queue = nvmet_fc_find_target_queue(tgtport,
-					be64_to_cpu(rqst->discon_cmd.id));
-		if (queue) {
-			int qid = queue->qid;
+	/* are we to delete a Connection ID (queue) */
+	if (queue) {
+		int qid = queue->qid;
 
-			nvmet_fc_delete_target_queue(queue);
+		nvmet_fc_delete_target_queue(queue);
 
-			/* release the get taken by find_target_queue */
-			nvmet_fc_tgt_q_put(queue);
+		/* release the get taken by find_target_queue */
+		nvmet_fc_tgt_q_put(queue);
 
-			/* tear association down if io queue terminated */
-			if (!qid)
-				del_assoc = true;
-		}
+		/* tear association down if io queue terminated */
+		if (!qid)
+			del_assoc = true;
 	}
 
 	/* release get taken in nvmet_fc_find_target_assoc */
