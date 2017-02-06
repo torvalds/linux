@@ -617,7 +617,7 @@ dtb-$(CONFIG_ARCH_ORION5X) += \
 	orion5x-lacie-ethernet-disk-mini-v2.dtb \
 	orion5x-linkstation-lsgl.dtb \
 	orion5x-linkstation-lswtgl.dtb \
-	orion5x-lschl.dtb \
+	orion5x-linkstation-lschl.dtb \
 	orion5x-lswsgl.dtb \
 	orion5x-maxtor-shared-storage-2.dtb \
 	orion5x-netgear-wnr854t.dtb \
