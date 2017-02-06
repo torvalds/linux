@@ -2218,6 +2218,8 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 			memset(txr->tx_push, 0, sizeof(struct tx_push_bd));
 		}
 		ring->queue_id = bp->q_info[j].queue_id;
+		if (i < bp->tx_nr_rings_xdp)
+			continue;
 		if (i % bp->tx_nr_rings_per_tc == (bp->tx_nr_rings_per_tc - 1))
 			j++;
 	}
@@ -3042,8 +3044,10 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		for (i = 0; i < bp->tx_nr_rings; i++, j++) {
 			bp->tx_ring[i].bnapi = bp->bnapi[j];
 			bp->bnapi[j]->tx_ring = &bp->tx_ring[i];
-			bp->tx_ring_map[i] = i;
-			bp->tx_ring[i].txq_index = i;
+			bp->tx_ring_map[i] = bp->tx_nr_rings_xdp + i;
+			if (i >= bp->tx_nr_rings_xdp)
+				bp->tx_ring[i].txq_index = i -
+					bp->tx_nr_rings_xdp;
 		}
 
 		rc = bnxt_alloc_stats(bp);
@@ -4966,7 +4970,8 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 	int rc;
 	struct net_device *dev = bp->dev;
 
-	rc = netif_set_real_num_tx_queues(dev, bp->tx_nr_rings);
+	rc = netif_set_real_num_tx_queues(dev, bp->tx_nr_rings -
+					  bp->tx_nr_rings_xdp);
 	if (rc)
 		return rc;
 
@@ -6582,7 +6587,7 @@ static void bnxt_sp_task(struct work_struct *work)
 }
 
 /* Under rtnl_lock */
-int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs)
+int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp)
 {
 	int max_rx, max_tx, tx_sets = 1;
 	int tx_rings_needed;
@@ -6602,12 +6607,12 @@ int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs)
 	if (max_rx < rx)
 		return -ENOMEM;
 
-	tx_rings_needed = tx * tx_sets;
+	tx_rings_needed = tx * tx_sets + tx_xdp;
 	if (max_tx < tx_rings_needed)
 		return -ENOMEM;
 
 	if (bnxt_hwrm_reserve_tx_rings(bp, &tx_rings_needed) ||
-	    tx_rings_needed < (tx * tx_sets))
+	    tx_rings_needed < (tx * tx_sets + tx_xdp))
 		return -ENOMEM;
 	return 0;
 }
@@ -6788,8 +6793,8 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 		sh = true;
 
-	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc,
-				bp->rx_nr_rings, tc);
+	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
+				tc, bp->tx_nr_rings_xdp);
 	if (rc)
 		return rc;
 

@@ -389,6 +389,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int req_tx_rings, req_rx_rings, tcs;
 	bool sh = false;
+	int tx_xdp = 0;
 	int rc = 0;
 
 	if (channel->other_count)
@@ -413,7 +414,14 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
 	req_rx_rings = sh ? channel->combined_count : channel->rx_count;
-	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs);
+	if (bp->tx_nr_rings_xdp) {
+		if (!sh) {
+			netdev_err(dev, "Only combined mode supported when XDP is enabled.\n");
+			return -EINVAL;
+		}
+		tx_xdp = req_rx_rings;
+	}
+	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs, tx_xdp);
 	if (rc) {
 		netdev_warn(dev, "Unable to allocate the requested rings\n");
 		return rc;
@@ -442,10 +450,10 @@ static int bnxt_set_channels(struct net_device *dev,
 		bp->rx_nr_rings = channel->rx_count;
 		bp->tx_nr_rings_per_tc = channel->tx_count;
 	}
-
-	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings_xdp = tx_xdp;
+	bp->tx_nr_rings = bp->tx_nr_rings_per_tc + tx_xdp;
 	if (tcs > 1)
-		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
+		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
