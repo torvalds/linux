@@ -1477,7 +1477,6 @@ static void gfx_v8_0_kiq_fini(struct amdgpu_device *adev)
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 
 	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
-	kiq->eop_obj = NULL;
 }
 
 static int gfx_v8_0_kiq_init(struct amdgpu_device *adev)
