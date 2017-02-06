@@ -9,10 +9,6 @@
 #define SHIFT_TBL_SIZE 64
 #define MAX_DESC_LEN 72
 
-/* proc permissions */
-#define USER_R (S_IFREG | 0444)
-#define USER_W (S_IFREG | 0666)
-
 #define TOGGLE_0 .u.n = {NULL, 0, 0, 1, 0, 0, NULL }
 #define TOGGLE_1 .u.n = {NULL, 1, 0, 1, 0, 0, NULL }
 #define MAXVARLEN 15
