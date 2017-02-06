@@ -152,12 +152,9 @@ static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
 }
 
 #define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
-#define MLX5E_NUM_RQ_STATS(priv) \
-	(NUM_RQ_STATS * priv->params.num_channels * \
-	 test_bit(MLX5E_STATE_OPENED, &priv->state))
+#define MLX5E_NUM_RQ_STATS(priv) (NUM_RQ_STATS * (priv)->channels.num)
 #define MLX5E_NUM_SQ_STATS(priv) \
-	(NUM_SQ_STATS * priv->params.num_channels * priv->params.num_tc * \
-	 test_bit(MLX5E_STATE_OPENED, &priv->state))
+	(NUM_SQ_STATS * (priv)->channels.num * (priv)->params.num_tc)
 #define MLX5E_NUM_PFC_COUNTERS(priv) \
 	((mlx5e_query_global_pause_combined(priv) + hweight8(mlx5e_query_pfc_combined(priv))) * \
 	  NUM_PPORT_PER_PRIO_PFC_COUNTERS)
@@ -262,13 +259,13 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 		return;
 
 	/* per channel counters */
-	for (i = 0; i < priv->params.num_channels; i++)
+	for (i = 0; i < priv->channels.num; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
 				rq_stats_desc[j].format, i);
 
 	for (tc = 0; tc < priv->params.num_tc; tc++)
-		for (i = 0; i < priv->params.num_channels; i++)
+		for (i = 0; i < priv->channels.num; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					sq_stats_desc[j].format,
@@ -303,6 +300,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_channels *channels;
 	struct mlx5_priv *mlx5_priv;
 	int i, j, tc, prio, idx = 0;
 	unsigned long pfc_combined;
@@ -313,6 +311,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_update_stats(priv);
+	channels = &priv->channels;
 	mutex_unlock(&priv->state_lock);
 
 	for (i = 0; i < NUM_SW_COUNTERS; i++)
@@ -382,16 +381,16 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 		return;
 
 	/* per channel counters */
-	for (i = 0; i < priv->params.num_channels; i++)
+	for (i = 0; i < channels->num; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			data[idx++] =
-			       MLX5E_READ_CTR64_CPU(&priv->channel[i]->rq.stats,
+			       MLX5E_READ_CTR64_CPU(&channels->c[i]->rq.stats,
 						    rq_stats_desc, j);
 
 	for (tc = 0; tc < priv->params.num_tc; tc++)
-		for (i = 0; i < priv->params.num_channels; i++)
+		for (i = 0; i < channels->num; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
-				data[idx++] = MLX5E_READ_CTR64_CPU(&priv->channel[i]->sq[tc].stats,
+				data[idx++] = MLX5E_READ_CTR64_CPU(&channels->c[i]->sq[tc].stats,
 								   sq_stats_desc, j);
 }
 
@@ -628,7 +627,6 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_channel *c;
 	bool restart =
 		!!coal->use_adaptive_rx_coalesce != priv->params.rx_am_enabled;
 	bool was_opened;
@@ -654,9 +652,8 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 
 	if (!was_opened || restart)
 		goto out;
-
-	for (i = 0; i < priv->params.num_channels; ++i) {
-		c = priv->channel[i];
+	for (i = 0; i < priv->channels.num; ++i) {
+		struct mlx5e_channel *c = priv->channels.c[i];
 
 		for (tc = 0; tc < c->num_tc; tc++) {
 			mlx5_core_modify_cq_moderation(mdev,

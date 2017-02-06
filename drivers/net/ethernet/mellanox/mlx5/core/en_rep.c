@@ -102,14 +102,16 @@ static void mlx5e_rep_update_sw_counters(struct mlx5e_priv *priv)
 	int i, j;
 
 	memset(s, 0, sizeof(*s));
-	for (i = 0; i < priv->params.num_channels; i++) {
-		rq_stats = &priv->channel[i]->rq.stats;
+	for (i = 0; i < priv->channels.num; i++) {
+		struct mlx5e_channel *c = priv->channels.c[i];
+
+		rq_stats = &c->rq.stats;
 
 		s->rx_packets	+= rq_stats->packets;
 		s->rx_bytes	+= rq_stats->bytes;
 
 		for (j = 0; j < priv->params.num_tc; j++) {
-			sq_stats = &priv->channel[i]->sq[j].stats;
+			sq_stats = &c->sq[j].stats;
 
 			s->tx_packets		+= sq_stats->packets;
 			s->tx_bytes		+= sq_stats->bytes;
@@ -190,12 +192,12 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	int n, tc, err, num_sqs = 0;
 	u16 *sqs;
 
-	sqs = kcalloc(priv->params.num_channels * priv->params.num_tc, sizeof(u16), GFP_KERNEL);
+	sqs = kcalloc(priv->channels.num * priv->params.num_tc, sizeof(u16), GFP_KERNEL);
 	if (!sqs)
 		return -ENOMEM;
 
-	for (n = 0; n < priv->params.num_channels; n++) {
-		c = priv->channel[n];
+	for (n = 0; n < priv->channels.num; n++) {
+		c = priv->channels.c[n];
 		for (tc = 0; tc < c->num_tc; tc++)
 			sqs[num_sqs++] = c->sq[tc].sqn;
 	}
