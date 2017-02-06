@@ -31,6 +31,12 @@ to deliver its interrupts via SPIs.
   This also affects writes to the tval register, due to the implicit
   counter read.
 
+- hisilicon,erratum-161010101 : A boolean property. Indicates the
+  presence of Hisilicon erratum 161010101, which says that reading the
+  counters is unreliable in some cases, and reads may return a value 32
+  beyond the correct value. This also affects writes to the tval
+  registers, due to the implicit counter read.
+
 ** Optional properties:
 
 - arm,cpu-registers-not-fw-configured : Firmware does not initialize
