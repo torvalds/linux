@@ -720,6 +720,19 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 		offset = image->rect.left * 3 +
 			image->rect.top * pix->bytesperline;
 		break;
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
+		offset = image->rect.left + image->rect.top * pix->bytesperline;
+		break;
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
+		offset = image->rect.left * 2 +
+			 image->rect.top * pix->bytesperline;
+		break;
 	default:
 		/* This should not happen */
 		WARN_ON(1);
