@@ -33,6 +33,7 @@
 #include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/rtc.h>
+#include <linux/bpf.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/udp.h>
@@ -53,6 +54,7 @@
 #include "bnxt_sriov.h"
 #include "bnxt_ethtool.h"
 #include "bnxt_dcb.h"
+#include "bnxt_xdp.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -642,8 +644,7 @@ static inline int bnxt_alloc_rx_data(struct bnxt *bp,
 	return 0;
 }
 
-static void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons,
-			       void *data)
+void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons, void *data)
 {
 	u16 prod = rxr->rx_prod;
 	struct bnxt_sw_rx_bd *cons_rx_buf, *prod_rx_buf;
@@ -1480,6 +1481,11 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	len = le32_to_cpu(rxcmp->rx_cmp_len_flags_type) >> RX_CMP_LEN_SHIFT;
 	dma_addr = rx_buf->mapping;
 
+	if (bnxt_rx_xdp(bp, rxr, cons, data, &data_ptr, &len, event)) {
+		rc = 1;
+		goto next_rx;
+	}
+
 	if (len <= bp->rx_copy_thresh) {
 		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
@@ -1490,7 +1496,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	} else {
 		u32 payload;
 
-		payload = misc & RX_CMP_PAYLOAD_OFFSET;
+		if (rx_buf->data_ptr == data_ptr)
+			payload = misc & RX_CMP_PAYLOAD_OFFSET;
+		else
+			payload = 0;
 		skb = bp->rx_skb_func(bp, rxr, cons, data, data_ptr, dma_addr,
 				      payload | len);
 		if (!skb) {
@@ -2080,6 +2089,9 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring;
 
+		if (rxr->xdp_prog)
+			bpf_prog_put(rxr->xdp_prog);
+
 		kfree(rxr->rx_tpa);
 		rxr->rx_tpa = NULL;
 
@@ -2367,6 +2379,15 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	ring = &rxr->rx_ring_struct;
 	bnxt_init_rxbd_pages(ring, type);
 
+	if (BNXT_RX_PAGE_MODE(bp) && bp->xdp_prog) {
+		rxr->xdp_prog = bpf_prog_add(bp->xdp_prog, 1);
+		if (IS_ERR(rxr->xdp_prog)) {
+			int rc = PTR_ERR(rxr->xdp_prog);
+
+			rxr->xdp_prog = NULL;
+			return rc;
+		}
+	}
 	prod = rxr->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
 		if (bnxt_alloc_rx_data(bp, rxr, prod, GFP_KERNEL) != 0) {
@@ -2430,8 +2451,8 @@ static int bnxt_init_rx_rings(struct bnxt *bp)
 	int i, rc = 0;
 
 	if (BNXT_RX_PAGE_MODE(bp)) {
-		bp->rx_offset = NET_IP_ALIGN;
-		bp->rx_dma_offset = 0;
+		bp->rx_offset = NET_IP_ALIGN + XDP_PACKET_HEADROOM;
+		bp->rx_dma_offset = XDP_PACKET_HEADROOM;
 	} else {
 		bp->rx_offset = BNXT_RX_OFFSET;
 		bp->rx_dma_offset = BNXT_RX_DMA_OFFSET;
@@ -2560,7 +2581,7 @@ static int bnxt_calc_nr_ring_pages(u32 ring_size, int desc_per_pg)
 	return pages;
 }
 
-static void bnxt_set_tpa_flags(struct bnxt *bp)
+void bnxt_set_tpa_flags(struct bnxt *bp)
 {
 	bp->flags &= ~BNXT_FLAG_TPA;
 	if (bp->flags & BNXT_FLAG_NO_AGG_RINGS)
@@ -7107,6 +7128,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
+	.ndo_xdp		= bnxt_xdp,
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -7131,6 +7153,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, bp->bar0);
 	kfree(bp->edev);
 	bp->edev = NULL;
+	if (bp->xdp_prog)
+		bpf_prog_put(bp->xdp_prog);
 	free_netdev(dev);
 
 	pci_release_regions(pdev);
