@@ -622,82 +622,6 @@ static void had_prog_dip(struct snd_pcm_substream *substream,
 	had_write_register(intelhaddata, AUD_CNTL_ST, ctrl_state.regval);
 }
 
-/*
- * Programs buffer address and length registers
- * This function programs ring buffer address and length into registers.
- */
-static int snd_intelhad_prog_buffer(struct snd_pcm_substream *substream,
-				    struct snd_intelhad *intelhaddata,
-				    int start, int end)
-{
-	u32 ring_buf_addr, ring_buf_size, period_bytes;
-	u8 i, num_periods;
-
-	ring_buf_addr = substream->runtime->dma_addr;
-	ring_buf_size = snd_pcm_lib_buffer_bytes(substream);
-	intelhaddata->stream_info.ring_buf_size = ring_buf_size;
-	period_bytes = frames_to_bytes(substream->runtime,
-				substream->runtime->period_size);
-	num_periods = substream->runtime->periods;
-
-	/*
-	 * buffer addr should  be 64 byte aligned, period bytes
-	 * will be used to calculate addr offset
-	 */
-	period_bytes &= ~0x3F;
-
-	/* Hardware supports MAX_PERIODS buffers */
-	if (end >= HAD_MAX_PERIODS)
-		return -EINVAL;
-
-	for (i = start; i <= end; i++) {
-		/* Program the buf registers with addr and len */
-		intelhaddata->buf_info[i].buf_addr = ring_buf_addr +
-							 (i * period_bytes);
-		if (i < num_periods-1)
-			intelhaddata->buf_info[i].buf_size = period_bytes;
-		else
-			intelhaddata->buf_info[i].buf_size = ring_buf_size -
-							(i * period_bytes);
-
-		had_write_register(intelhaddata,
-				   AUD_BUF_A_ADDR + (i * HAD_REG_WIDTH),
-					intelhaddata->buf_info[i].buf_addr |
-					BIT(0) | BIT(1));
-		had_write_register(intelhaddata,
-				   AUD_BUF_A_LENGTH + (i * HAD_REG_WIDTH),
-					period_bytes);
-		intelhaddata->buf_info[i].is_valid = true;
-	}
-	dev_dbg(intelhaddata->dev, "%s:buf[%d-%d] addr=%#x  and size=%d\n",
-		__func__, start, end,
-		intelhaddata->buf_info[start].buf_addr,
-		intelhaddata->buf_info[start].buf_size);
-	intelhaddata->valid_buf_cnt = num_periods;
-	return 0;
-}
-
-static int snd_intelhad_read_len(struct snd_intelhad *intelhaddata)
-{
-	int i, retval = 0;
-	u32 len[4];
-
-	for (i = 0; i < 4 ; i++) {
-		had_read_register(intelhaddata,
-				  AUD_BUF_A_LENGTH + (i * HAD_REG_WIDTH),
-				  &len[i]);
-		if (!len[i])
-			retval++;
-	}
-	if (retval != 1) {
-		for (i = 0; i < 4 ; i++)
-			dev_dbg(intelhaddata->dev, "buf[%d] size=%d\n",
-				i, len[i]);
-	}
-
-	return retval;
-}
-
 static int had_calculate_maud_value(u32 aud_samp_freq, u32 link_rate)
 {
 	u32 maud_val;
@@ -885,33 +809,217 @@ static int had_prog_n(u32 aud_samp_freq, u32 *n_param,
 	return 0;
 }
 
+/*
+ * PCM ring buffer handling
+ *
+ * The hardware provides a ring buffer with the fixed 4 buffer descriptors
+ * (BDs).  The driver maps these 4 BDs onto the PCM ring buffer.  The mapping
+ * moves at each period elapsed.  The below illustrates how it works:
+ *
+ * At time=0
+ *  PCM | 0 | 1 | 2 | 3 | 4 | 5 | .... |n-1|
+ *  BD  | 0 | 1 | 2 | 3 |
+ *
+ * At time=1 (period elapsed)
+ *  PCM | 0 | 1 | 2 | 3 | 4 | 5 | .... |n-1|
+ *  BD      | 1 | 2 | 3 | 0 |
+ *
+ * At time=2 (second period elapsed)
+ *  PCM | 0 | 1 | 2 | 3 | 4 | 5 | .... |n-1|
+ *  BD          | 2 | 3 | 0 | 1 |
+ *
+ * The bd_head field points to the index of the BD to be read.  It's also the
+ * position to be filled at next.  The pcm_head and the pcm_filled fields
+ * point to the indices of the current position and of the next position to
+ * be filled, respectively.  For PCM buffer there are both _head and _filled
+ * because they may be difference when nperiods > 4.  For example, in the
+ * example above at t=1, bd_head=1 and pcm_head=1 while pcm_filled=5:
+ *
+ * pcm_head (=1) --v               v-- pcm_filled (=5)
+ *       PCM | 0 | 1 | 2 | 3 | 4 | 5 | .... |n-1|
+ *       BD      | 1 | 2 | 3 | 0 |
+ *  bd_head (=1) --^               ^-- next to fill (= bd_head)
+ *
+ * For nperiods < 4, the remaining BDs out of 4 are marked as invalid, so that
+ * the hardware skips those BDs in the loop.
+ */
+
+#define AUD_BUF_ADDR(x)		(AUD_BUF_A_ADDR + (x) * HAD_REG_WIDTH)
+#define AUD_BUF_LEN(x)		(AUD_BUF_A_LENGTH + (x) * HAD_REG_WIDTH)
+
+/* Set up a buffer descriptor at the "filled" position */
+static void had_prog_bd(struct snd_pcm_substream *substream,
+			struct snd_intelhad *intelhaddata)
+{
+	int idx = intelhaddata->bd_head;
+	int ofs = intelhaddata->pcmbuf_filled * intelhaddata->period_bytes;
+	u32 addr = substream->runtime->dma_addr + ofs;
+
+	addr |= AUD_BUF_VALID | AUD_BUF_INTR_EN;
+	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), addr);
+	had_write_register(intelhaddata, AUD_BUF_LEN(idx),
+			   intelhaddata->period_bytes);
+
+	/* advance the indices to the next */
+	intelhaddata->bd_head++;
+	intelhaddata->bd_head %= intelhaddata->num_bds;
+	intelhaddata->pcmbuf_filled++;
+	intelhaddata->pcmbuf_filled %= substream->runtime->periods;
+}
+
+/* invalidate a buffer descriptor with the given index */
+static void had_invalidate_bd(struct snd_intelhad *intelhaddata,
+			      int idx)
+{
+	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), 0);
+	had_write_register(intelhaddata, AUD_BUF_LEN(idx), 0);
+}
+
+/* Initial programming of ring buffer */
+static void had_init_ringbuf(struct snd_pcm_substream *substream,
+			     struct snd_intelhad *intelhaddata)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int i, num_periods;
+
+	num_periods = runtime->periods;
+	intelhaddata->num_bds = min(num_periods, HAD_NUM_OF_RING_BUFS);
+	intelhaddata->period_bytes =
+		frames_to_bytes(runtime, runtime->period_size);
+	WARN_ON(intelhaddata->period_bytes & 0x3f);
+
+	intelhaddata->bd_head = 0;
+	intelhaddata->pcmbuf_head = 0;
+	intelhaddata->pcmbuf_filled = 0;
+
+	for (i = 0; i < HAD_NUM_OF_RING_BUFS; i++) {
+		if (i < num_periods)
+			had_prog_bd(substream, intelhaddata);
+		else /* invalidate the rest */
+			had_invalidate_bd(intelhaddata, i);
+	}
+
+	intelhaddata->bd_head = 0; /* reset at head again before starting */
+}
+
+/* process a bd, advance to the next */
+static void had_advance_ringbuf(struct snd_pcm_substream *substream,
+				struct snd_intelhad *intelhaddata)
+{
+	int num_periods = substream->runtime->periods;
+
+	/* reprogram the next buffer */
+	had_prog_bd(substream, intelhaddata);
+
+	/* proceed to next */
+	intelhaddata->pcmbuf_head++;
+	intelhaddata->pcmbuf_head %= num_periods;
+}
+
+/* process the current BD(s);
+ * returns the current PCM buffer byte position, or -EPIPE for underrun.
+ */
+static int had_process_ringbuf(struct snd_pcm_substream *substream,
+			       struct snd_intelhad *intelhaddata)
+{
+	int len, processed;
+	unsigned long flags;
+
+	processed = 0;
+	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
+	for (;;) {
+		/* get the remaining bytes on the buffer */
+		had_read_register(intelhaddata,
+				  AUD_BUF_LEN(intelhaddata->bd_head),
+				  &len);
+		if (len < 0 || len > intelhaddata->period_bytes) {
+			dev_dbg(intelhaddata->dev, "Invalid buf length %d\n",
+				len);
+			len = -EPIPE;
+			goto out;
+		}
+
+		if (len > 0) /* OK, this is the current buffer */
+			break;
+
+		/* len=0 => already empty, check the next buffer */
+		if (++processed >= intelhaddata->num_bds) {
+			len = -EPIPE; /* all empty? - report underrun */
+			goto out;
+		}
+		had_advance_ringbuf(substream, intelhaddata);
+	}
+
+	len = intelhaddata->period_bytes - len;
+	len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
+ out:
+	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
+	return len;
+}
+
+/* called from irq handler */
+static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
+{
+	struct snd_pcm_substream *substream;
+
+	if (!intelhaddata->connected)
+		return; /* disconnected? - bail out */
+
+	substream = had_substream_get(intelhaddata);
+	if (!substream)
+		return; /* no stream? - bail out */
+
+	/* process or stop the stream */
+	if (had_process_ringbuf(substream, intelhaddata) < 0)
+		snd_pcm_stop_xrun(substream);
+	else
+		snd_pcm_period_elapsed(substream);
+
+	had_substream_put(intelhaddata);
+}
+
 #define MAX_CNT			0xFF
 
-static void snd_intelhad_handle_underrun(struct snd_intelhad *intelhaddata)
+/*
+ * The interrupt status 'sticky' bits might not be cleared by
+ * setting '1' to that bit once...
+ */
+static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 {
-	u32 hdmi_status = 0, i = 0;
+	int i;
+	u32 val;
+
+	for (i = 0; i < MAX_CNT; i++) {
+		/* clear bit30, 31 AUD_HDMI_STATUS */
+		had_read_register(intelhaddata, AUD_HDMI_STATUS, &val);
+		if (!(val & AUD_CONFIG_MASK_UNDERRUN))
+			return;
+		had_write_register(intelhaddata, AUD_HDMI_STATUS, val);
+	}
+	dev_err(intelhaddata->dev, "Unable to clear UNDERRUN bits\n");
+}
+
+/* called from irq handler */
+static void had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
+{
+	struct snd_pcm_substream *substream;
 
 	/* Handle Underrun interrupt within Audio Unit */
 	had_write_register(intelhaddata, AUD_CONFIG, 0);
 	/* Reset buffer pointers */
 	had_reset_audio(intelhaddata);
-	/*
-	 * The interrupt status 'sticky' bits might not be cleared by
-	 * setting '1' to that bit once...
-	 */
-	do { /* clear bit30, 31 AUD_HDMI_STATUS */
-		had_read_register(intelhaddata, AUD_HDMI_STATUS,
-				  &hdmi_status);
-		dev_dbg(intelhaddata->dev, "HDMI status =0x%x\n", hdmi_status);
-		if (hdmi_status & AUD_CONFIG_MASK_UNDERRUN) {
-			i++;
-			had_write_register(intelhaddata,
-					   AUD_HDMI_STATUS, hdmi_status);
-		} else
-			break;
-	} while (i < MAX_CNT);
-	if (i >= MAX_CNT)
-		dev_err(intelhaddata->dev, "Unable to clear UNDERRUN bits\n");
+
+	wait_clear_underrun_bit(intelhaddata);
+
+	if (!intelhaddata->connected)
+		return; /* disconnected? - bail out */
+
+	/* Report UNDERRUN error to above layers */
+	substream = had_substream_get(intelhaddata);
+	if (substream) {
+		snd_pcm_stop_xrun(substream);
+		had_substream_put(intelhaddata);
+	}
 }
 
 /*
@@ -956,11 +1064,6 @@ static int had_pcm_open(struct snd_pcm_substream *substream)
 	intelhaddata->stream_info.substream = substream;
 	intelhaddata->stream_info.substream_refcount++;
 	spin_unlock_irq(&intelhaddata->had_spinlock);
-
-	/* these are cleared in prepare callback, but just to be sure */
-	intelhaddata->curr_buf = 0;
-	intelhaddata->underrun_count = 0;
-	intelhaddata->stream_info.buffer_rendered = 0;
 
 	return retval;
  error:
@@ -1123,10 +1226,6 @@ static int had_pcm_prepare(struct snd_pcm_substream *substream)
 	dev_dbg(intelhaddata->dev, "rate=%d\n", runtime->rate);
 	dev_dbg(intelhaddata->dev, "channels=%d\n", runtime->channels);
 
-	intelhaddata->curr_buf = 0;
-	intelhaddata->underrun_count = 0;
-	intelhaddata->stream_info.buffer_rendered = 0;
-
 	/* Get N value in KHz */
 	disp_samp_freq = intelhaddata->tmds_clock_speed;
 
@@ -1148,8 +1247,7 @@ static int had_pcm_prepare(struct snd_pcm_substream *substream)
 	retval = had_init_audio_ctrl(substream, intelhaddata);
 
 	/* Prog buffer address */
-	retval = snd_intelhad_prog_buffer(substream, intelhaddata,
-			HAD_BUF_TYPE_A, HAD_BUF_TYPE_D);
+	had_init_ringbuf(substream, intelhaddata);
 
 	/*
 	 * Program channel mapping in following order:
@@ -1168,48 +1266,17 @@ prep_end:
 static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_intelhad *intelhaddata;
-	u32 bytes_rendered = 0;
-	u32 t;
-	int buf_id;
+	int len;
 
 	intelhaddata = snd_pcm_substream_chip(substream);
 
 	if (!intelhaddata->connected)
 		return SNDRV_PCM_POS_XRUN;
 
-	/* Use a hw register to calculate sub-period position reports.
-	 * This makes PulseAudio happier.
-	 */
-
-	buf_id = intelhaddata->curr_buf % 4;
-	had_read_register(intelhaddata,
-			  AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH), &t);
-
-	if ((t == 0) || (t == ((u32)-1L))) {
-		intelhaddata->underrun_count++;
-		dev_dbg(intelhaddata->dev,
-			"discovered buffer done for buf %d, count = %d\n",
-			 buf_id, intelhaddata->underrun_count);
-
-		if (intelhaddata->underrun_count > (HAD_MIN_PERIODS/2)) {
-			dev_dbg(intelhaddata->dev,
-				"assume audio_codec_reset, underrun = %d - do xrun\n",
-				 intelhaddata->underrun_count);
-			return SNDRV_PCM_POS_XRUN;
-		}
-	} else {
-		/* Reset Counter */
-		intelhaddata->underrun_count = 0;
-	}
-
-	t = intelhaddata->buf_info[buf_id].buf_size - t;
-
-	if (intelhaddata->stream_info.buffer_rendered)
-		div_u64_rem(intelhaddata->stream_info.buffer_rendered,
-			intelhaddata->stream_info.ring_buf_size,
-			&(bytes_rendered));
-
-	return bytes_to_frames(substream->runtime, bytes_rendered + t);
+	len = had_process_ringbuf(substream, intelhaddata);
+	if (len < 0)
+		return SNDRV_PCM_POS_XRUN;
+	return bytes_to_frames(substream->runtime, len);
 }
 
 /*
@@ -1278,179 +1345,9 @@ out:
 	return retval;
 }
 
-static inline int had_chk_intrmiss(struct snd_intelhad *intelhaddata,
-		enum intel_had_aud_buf_type buf_id)
-{
-	int i, intr_count = 0;
-	enum intel_had_aud_buf_type buff_done;
-	u32 buf_size, buf_addr;
-
-	buff_done = buf_id;
-
-	intr_count = snd_intelhad_read_len(intelhaddata);
-	if (intr_count > 1) {
-		/* In case of active playback */
-		dev_err(intelhaddata->dev,
-			"Driver detected %d missed buffer done interrupt(s)\n",
-			(intr_count - 1));
-		if (intr_count > 3)
-			return intr_count;
-
-		buf_id += (intr_count - 1);
-		/* Reprogram registers*/
-		for (i = buff_done; i < buf_id; i++) {
-			int j = i % 4;
-
-			buf_size = intelhaddata->buf_info[j].buf_size;
-			buf_addr = intelhaddata->buf_info[j].buf_addr;
-			had_write_register(intelhaddata,
-					   AUD_BUF_A_LENGTH +
-					   (j * HAD_REG_WIDTH), buf_size);
-			had_write_register(intelhaddata,
-					   AUD_BUF_A_ADDR+(j * HAD_REG_WIDTH),
-					   (buf_addr | BIT(0) | BIT(1)));
-		}
-		buf_id = buf_id % 4;
-		intelhaddata->buff_done = buf_id;
-	}
-
-	return intr_count;
-}
-
-/* called from irq handler */
-static int had_process_buffer_done(struct snd_intelhad *intelhaddata)
-{
-	u32 len = 1;
-	enum intel_had_aud_buf_type buf_id;
-	enum intel_had_aud_buf_type buff_done;
-	struct pcm_stream_info *stream;
-	struct snd_pcm_substream *substream;
-	u32 buf_size;
-	int intr_count;
-	unsigned long flags;
-
-	stream = &intelhaddata->stream_info;
-	intr_count = 1;
-
-	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
-	if (!intelhaddata->connected) {
-		spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
-		dev_dbg(intelhaddata->dev,
-			"%s:Device already disconnected\n", __func__);
-		return 0;
-	}
-	buf_id = intelhaddata->curr_buf;
-	intelhaddata->buff_done = buf_id;
-	buff_done = intelhaddata->buff_done;
-	buf_size = intelhaddata->buf_info[buf_id].buf_size;
-
-	/* Every debug statement has an implication
-	 * of ~5msec. Thus, avoid having >3 debug statements
-	 * for each buffer_done handling.
-	 */
-
-	/* Check for any intr_miss in case of active playback */
-	if (stream->running) {
-		intr_count = had_chk_intrmiss(intelhaddata, buf_id);
-		if (!intr_count || (intr_count > 3)) {
-			spin_unlock_irqrestore(&intelhaddata->had_spinlock,
-					       flags);
-			dev_err(intelhaddata->dev,
-				"HAD SW state in non-recoverable mode\n");
-			return 0;
-		}
-		buf_id += (intr_count - 1);
-		buf_id = buf_id % 4;
-	}
-
-	intelhaddata->buf_info[buf_id].is_valid = true;
-	if (intelhaddata->valid_buf_cnt-1 == buf_id) {
-		if (stream->running)
-			intelhaddata->curr_buf = HAD_BUF_TYPE_A;
-	} else
-		intelhaddata->curr_buf = buf_id + 1;
-
-	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
-
-	if (!intelhaddata->connected) {
-		dev_dbg(intelhaddata->dev, "HDMI cable plugged-out\n");
-		return 0;
-	}
-
-	/* Reprogram the registers with addr and length */
-	had_write_register(intelhaddata,
-			   AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH),
-			   buf_size);
-	had_write_register(intelhaddata,
-			   AUD_BUF_A_ADDR + (buf_id * HAD_REG_WIDTH),
-			   intelhaddata->buf_info[buf_id].buf_addr |
-			   BIT(0) | BIT(1));
-
-	had_read_register(intelhaddata,
-			  AUD_BUF_A_LENGTH + (buf_id * HAD_REG_WIDTH),
-			  &len);
-	dev_dbg(intelhaddata->dev, "%s:Enabled buf[%d]\n", __func__, buf_id);
-
-	/* In case of actual data,
-	 * report buffer_done to above ALSA layer
-	 */
-	substream = had_substream_get(intelhaddata);
-	if (substream) {
-		buf_size = intelhaddata->buf_info[buf_id].buf_size;
-		intelhaddata->stream_info.buffer_rendered +=
-			(intr_count * buf_size);
-		snd_pcm_period_elapsed(substream);
-		had_substream_put(intelhaddata);
-	}
-
-	return 0;
-}
-
-/* called from irq handler */
-static int had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
-{
-	enum intel_had_aud_buf_type buf_id;
-	struct pcm_stream_info *stream;
-	struct snd_pcm_substream *substream;
-	unsigned long flags;
-	int connected;
-
-	stream = &intelhaddata->stream_info;
-
-	spin_lock_irqsave(&intelhaddata->had_spinlock, flags);
-	buf_id = intelhaddata->curr_buf;
-	intelhaddata->buff_done = buf_id;
-	connected = intelhaddata->connected;
-	if (stream->running)
-		intelhaddata->curr_buf = HAD_BUF_TYPE_A;
-
-	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
-
-	dev_dbg(intelhaddata->dev, "Enter:%s buf_id=%d, stream_running=%d\n",
-			__func__, buf_id, stream->running);
-
-	snd_intelhad_handle_underrun(intelhaddata);
-
-	if (!connected) {
-		dev_dbg(intelhaddata->dev,
-			"%s:Device already disconnected\n", __func__);
-		return 0;
-	}
-
-	/* Report UNDERRUN error to above layers */
-	substream = had_substream_get(intelhaddata);
-	if (substream) {
-		snd_pcm_stop_xrun(substream);
-		had_substream_put(intelhaddata);
-	}
-
-	return 0;
-}
-
 /* process hot plug, called from wq with mutex locked */
 static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 {
-	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
 
 	spin_lock_irq(&intelhaddata->had_spinlock);
@@ -1460,16 +1357,11 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 		return;
 	}
 
-	buf_id = intelhaddata->curr_buf;
-	intelhaddata->buff_done = buf_id;
 	intelhaddata->connected = true;
 	dev_dbg(intelhaddata->dev,
 		"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
-
-	dev_dbg(intelhaddata->dev, "Processing HOT_PLUG, buf_id = %d\n",
-		buf_id);
 
 	/* Safety check */
 	substream = had_substream_get(intelhaddata);
@@ -1487,10 +1379,7 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 /* process hot unplug, called from wq with mutex locked */
 static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 {
-	enum intel_had_aud_buf_type buf_id;
 	struct snd_pcm_substream *substream;
-
-	buf_id = intelhaddata->curr_buf;
 
 	substream = had_substream_get(intelhaddata);
 
@@ -1862,13 +1751,12 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 
-	/* allocate dma pages for ALSA stream operations
-	 * memory allocated is based on size, not max value
-	 * thus using same argument for max & size
+	/* allocate dma pages;
+	 * try to allocate 600k buffer as default which is large enough
 	 */
 	snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_DEV, NULL,
-			HAD_MAX_BUFFER, HAD_MAX_BUFFER);
+			HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
 
 	/* create controls */
 	for (i = 0; i < ARRAY_SIZE(had_controls); i++) {

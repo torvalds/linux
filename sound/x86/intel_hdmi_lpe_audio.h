@@ -28,13 +28,13 @@
 #define HAD_MAX_CHANNEL		8
 #define HAD_NUM_OF_RING_BUFS	4
 
-/* Assume 192KHz, 8channel, 25msec period */
-#define HAD_MAX_BUFFER		(600*1024)
-#define HAD_MIN_BUFFER		(32*1024)
-#define HAD_MAX_PERIODS		4
-#define HAD_MIN_PERIODS		4
-#define HAD_MAX_PERIOD_BYTES	(HAD_MAX_BUFFER/HAD_MIN_PERIODS)
-#define HAD_MIN_PERIOD_BYTES	256
+/* max 20bit address, aligned to 64 */
+#define HAD_MAX_BUFFER		((1024 * 1024 - 1) & ~0x3f)
+#define HAD_DEFAULT_BUFFER	(600 * 1024) /* default prealloc size */
+#define HAD_MAX_PERIODS		256	/* arbitrary, but should suffice */
+#define HAD_MIN_PERIODS		2
+#define HAD_MAX_PERIOD_BYTES	((HAD_MAX_BUFFER / HAD_MIN_PERIODS) & ~0x3f)
+#define HAD_MIN_PERIOD_BYTES	1024	/* might be smaller */
 #define HAD_FIFO_SIZE		0 /* fifo not being used */
 #define MAX_SPEAKERS		8
 
@@ -81,14 +81,6 @@
 
 /* Naud Value */
 #define DP_NAUD_VAL					32768
-
-/* enum intel_had_aud_buf_type - HDMI controller ring buffer types */
-enum intel_had_aud_buf_type {
-	HAD_BUF_TYPE_A = 0,
-	HAD_BUF_TYPE_B = 1,
-	HAD_BUF_TYPE_C = 2,
-	HAD_BUF_TYPE_D = 3,
-};
 
 /* HDMI Controller register offsets - audio domain common */
 /* Base address for below regs = 0x65000 */
@@ -273,6 +265,9 @@ union aud_buf_addr {
 	} regx;
 	u32 regval;
 };
+
+#define AUD_BUF_VALID		(1U << 0)
+#define AUD_BUF_INTR_EN		(1U << 1)
 
 /* Length of Audio Buffer */
 union aud_buf_len {
