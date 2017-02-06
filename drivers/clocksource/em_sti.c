@@ -78,7 +78,7 @@ static int em_sti_enable(struct em_sti_priv *p)
 	int ret;
 
 	/* enable clock */
-	ret = clk_prepare_enable(p->clk);
+	ret = clk_enable(p->clk);
 	if (ret) {
 		dev_err(&p->pdev->dev, "cannot enable clock\n");
 		return ret;
@@ -107,7 +107,7 @@ static void em_sti_disable(struct em_sti_priv *p)
 	em_sti_write(p, STI_INTENCLR, 3);
 
 	/* stop clock */
-	clk_disable_unprepare(p->clk);
+	clk_disable(p->clk);
 }
 
 static u64 em_sti_count(struct em_sti_priv *p)
@@ -303,6 +303,7 @@ static int em_sti_probe(struct platform_device *pdev)
 	struct em_sti_priv *p;
 	struct resource *res;
 	int irq;
+	int ret;
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
@@ -323,6 +324,13 @@ static int em_sti_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
 
+	if (devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
+			     IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			     dev_name(&pdev->dev), p)) {
+		dev_err(&pdev->dev, "failed to request low IRQ\n");
+		return -ENOENT;
+	}
+
 	/* get hold of clock */
 	p->clk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(p->clk)) {
@@ -330,11 +338,10 @@ static int em_sti_probe(struct platform_device *pdev)
 		return PTR_ERR(p->clk);
 	}
 
-	if (devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
-			     IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			     dev_name(&pdev->dev), p)) {
-		dev_err(&pdev->dev, "failed to request low IRQ\n");
-		return -ENOENT;
+	ret = clk_prepare(p->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot prepare clock\n");
+		return ret;
 	}
 
 	raw_spin_lock_init(&p->lock);
