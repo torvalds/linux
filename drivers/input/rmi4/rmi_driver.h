@@ -93,6 +93,7 @@ bool rmi_is_physical_driver(struct device_driver *);
 int rmi_register_physical_driver(void);
 void rmi_unregister_physical_driver(void);
 void rmi_free_function_list(struct rmi_device *rmi_dev);
+struct rmi_function *rmi_find_function(struct rmi_device *rmi_dev, u8 number);
 int rmi_enable_sensor(struct rmi_device *rmi_dev);
 int rmi_scan_pdt(struct rmi_device *rmi_dev, void *ctx,
 		 int (*callback)(struct rmi_device *rmi_dev, void *ctx,
