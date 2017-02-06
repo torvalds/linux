@@ -842,8 +842,11 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 	if (!np)
 		np = of_node_get(of_root);
 	while (np && *path == '/') {
+		struct device_node *tmp = np;
+
 		path++; /* Increment past '/' delimiter */
 		np = __of_find_node_by_path(np, path);
+		of_node_put(tmp);
 		path = strchrnul(path, '/');
 		if (separator && separator < path)
 			break;
