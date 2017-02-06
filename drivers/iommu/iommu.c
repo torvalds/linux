@@ -205,7 +205,7 @@ iommu_insert_device_resv_regions(struct list_head *dev_resv_regions,
 				 struct list_head *group_resv_regions)
 {
 	struct iommu_resv_region *entry;
-	int ret;
+	int ret = 0;
 
 	list_for_each_entry(entry, dev_resv_regions, list) {
 		ret = iommu_insert_resv_region(entry, group_resv_regions);
