@@ -1004,7 +1004,6 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 	struct net_device *dev;
 	struct neigh_parms *p;
 	struct neighbour *n;
-	u32 dip;
 
 	switch (event) {
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -1039,7 +1038,6 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 			return NOTIFY_DONE;
 
 		mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-		dip = ntohl(*((__be32 *) n->primary_key));
 		neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
 		if (WARN_ON(!neigh_entry)) {
 			mlxsw_sp_port_dev_put(mlxsw_sp_port);
