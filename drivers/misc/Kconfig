@@ -499,10 +499,9 @@ config PANEL
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
 	  parallel port. This driver also features 4 and 6-key keypads. The LCD
 	  is accessible through the /dev/lcd char device (10, 156), and the
-	  keypad through /dev/keypad (10, 185). Both require misc device to be
-	  enabled. This code can either be compiled as a module, or linked into
-	  the kernel and started at boot. If you don't understand what all this
-	  is about, say N.
+	  keypad through /dev/keypad (10, 185). This code can either be
+	  compiled as a module, or linked into the kernel and started at boot.
+	  If you don't understand what all this is about, say N.
 
 config PANEL_PARPORT
 	int "Default parallel port number (0=LPT1)"
