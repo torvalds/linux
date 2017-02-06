@@ -2160,10 +2160,14 @@ static void i915_address_space_init(struct i915_address_space *vm,
 				    const char *name)
 {
 	i915_gem_timeline_init(dev_priv, &vm->timeline, name);
+
 	drm_mm_init(&vm->mm, vm->start, vm->total);
+	vm->mm.head_node.color = I915_COLOR_UNEVICTABLE;
+
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	INIT_LIST_HEAD(&vm->unbound_list);
+
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
 }
 
