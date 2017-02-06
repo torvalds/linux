@@ -357,8 +357,8 @@ bool dm_pp_get_clock_levels_by_type(
 				 * Than means the previous one is the highest
 				 * non-boosted one. */
 				DRM_INFO("DM_PPLIB: reducing engine clock level from %d to %d\n",
-						dc_clks->num_levels, i + 1);
-				dc_clks->num_levels = i;
+						dc_clks->num_levels, i);
+				dc_clks->num_levels = i > 0 ? i : 1;
 				break;
 			}
 		}
@@ -366,8 +366,8 @@ bool dm_pp_get_clock_levels_by_type(
 		for (i = 0; i < dc_clks->num_levels; i++) {
 			if (dc_clks->clocks_in_khz[i] > validation_clks.memory_max_clock) {
 				DRM_INFO("DM_PPLIB: reducing memory clock level from %d to %d\n",
-						dc_clks->num_levels, i + 1);
-				dc_clks->num_levels = i;
+						dc_clks->num_levels, i);
+				dc_clks->num_levels = i > 0 ? i : 1;
 				break;
 			}
 		}
