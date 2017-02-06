@@ -4,6 +4,7 @@
 #include <uapi/linux/sched.h>
 
 #include <linux/sched/prio.h>
+#include <linux/nodemask.h>
 
 #include <linux/mutex.h>
 #include <linux/plist.h>
@@ -21,7 +22,6 @@
 #include <linux/kcov.h>
 #include <linux/task_io_accounting.h>
 #include <linux/latencytop.h>
-#include <linux/topology.h>
 
 #include <asm/current.h>
 
@@ -1452,11 +1452,6 @@ static inline unsigned int task_cpu(const struct task_struct *p)
 #else
 	return task_thread_info(p)->cpu;
 #endif
-}
-
-static inline int task_node(const struct task_struct *p)
-{
-	return cpu_to_node(task_cpu(p));
 }
 
 extern void set_task_cpu(struct task_struct *p, unsigned int cpu);

@@ -1,6 +1,8 @@
 #ifndef _LINUX_SCHED_TOPOLOGY_H
 #define _LINUX_SCHED_TOPOLOGY_H
 
+#include <linux/topology.h>
+
 #include <linux/sched/idle.h>
 
 /*
@@ -215,5 +217,10 @@ static inline bool cpus_share_cache(int this_cpu, int that_cpu)
 }
 
 #endif	/* !CONFIG_SMP */
+
+static inline int task_node(const struct task_struct *p)
+{
+	return cpu_to_node(task_cpu(p));
+}
 
 #endif /* _LINUX_SCHED_TOPOLOGY_H */

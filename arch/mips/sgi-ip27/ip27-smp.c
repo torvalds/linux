@@ -8,6 +8,7 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/topology.h>
 #include <linux/nodemask.h>
 #include <asm/page.h>
 #include <asm/processor.h>
