@@ -896,7 +896,7 @@ static void mlxsw_sp_router_probe_unresolved_nexthops(struct work_struct *work)
 	rtnl_lock();
 	list_for_each_entry(neigh_entry, &mlxsw_sp->router.nexthop_neighs_list,
 			    nexthop_neighs_list_node)
-		if (!(neigh_entry->key.n->nud_state & NUD_VALID))
+		if (!neigh_entry->connected)
 			neigh_event_send(neigh_entry->key.n, NULL);
 	rtnl_unlock();
 
