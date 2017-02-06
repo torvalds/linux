@@ -2828,12 +2828,19 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	}
 
 	ret = i40e_add_del_fdir(vsi, input, true);
-free_input:
 	if (ret)
-		kfree(input);
-	else
-		i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
+		goto free_input;
 
+	/* Add the input filter to the fdir_input_list, possibly replacing
+	 * a previous filter. Do not free the input structure after adding it
+	 * to the list as this would cause a use-after-free bug.
+	 */
+	i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
+
+	return 0;
+
+free_input:
+	kfree(input);
 	return ret;
 }
 
