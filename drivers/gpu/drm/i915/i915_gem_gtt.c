@@ -3243,9 +3243,9 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	 * shrink the range used by drm_mm.
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	ggtt->base.total -= PAGE_SIZE;
+	ggtt->base.total -= I915_GTT_PAGE_SIZE;
 	i915_address_space_init(&ggtt->base, dev_priv, "[global]");
-	ggtt->base.total += PAGE_SIZE;
+	ggtt->base.total += I915_GTT_PAGE_SIZE;
 	if (!HAS_LLC(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
 	mutex_unlock(&dev_priv->drm.struct_mutex);
