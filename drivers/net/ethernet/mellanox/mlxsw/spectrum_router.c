@@ -614,7 +614,7 @@ struct mlxsw_sp_neigh_entry {
 	struct mlxsw_sp_neigh_key key;
 	u16 rif;
 	bool offloaded;
-	struct delayed_work dw;
+	struct work_struct work;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	unsigned char ha[ETH_ALEN];
 	struct list_head nexthop_list; /* list of nexthops using
@@ -659,7 +659,7 @@ mlxsw_sp_neigh_entry_create(struct neighbour *n, u16 rif)
 		return NULL;
 	neigh_entry->key.n = n;
 	neigh_entry->rif = rif;
-	INIT_DELAYED_WORK(&neigh_entry->dw, mlxsw_sp_router_neigh_update_hw);
+	INIT_WORK(&neigh_entry->work, mlxsw_sp_router_neigh_update_hw);
 	INIT_LIST_HEAD(&neigh_entry->nexthop_list);
 	return neigh_entry;
 }
@@ -935,7 +935,7 @@ mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry =
-		container_of(work, struct mlxsw_sp_neigh_entry, dw.work);
+		container_of(work, struct mlxsw_sp_neigh_entry, work);
 	struct neighbour *n = neigh_entry->key.n;
 	struct mlxsw_sp_port *mlxsw_sp_port = neigh_entry->mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -1052,7 +1052,7 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		 * work.
 		 */
 		neigh_clone(n);
-		if (!mlxsw_core_schedule_dw(&neigh_entry->dw, 0)) {
+		if (!mlxsw_core_schedule_work(&neigh_entry->work)) {
 			neigh_release(n);
 			mlxsw_sp_port_dev_put(mlxsw_sp_port);
 		}
