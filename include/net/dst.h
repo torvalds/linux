@@ -59,8 +59,6 @@ struct dst_entry {
 #define DST_XFRM_QUEUE		0x0100
 #define DST_METADATA		0x0200
 
-	unsigned short		pending_confirm;
-
 	short			error;
 
 	/* A non-zero value of dst->obsolete forces by-hand validation
@@ -78,6 +76,8 @@ struct dst_entry {
 #define DST_OBSOLETE_KILL	-2
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
+	unsigned short		__pad3;
+
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			tclassid;
 #else
@@ -440,22 +440,12 @@ static inline void dst_rcu_free(struct rcu_head *head)
 
 static inline void dst_confirm(struct dst_entry *dst)
 {
-	dst->pending_confirm = 1;
 }
 
 static inline int dst_neigh_output(struct dst_entry *dst, struct neighbour *n,
 				   struct sk_buff *skb)
 {
 	const struct hh_cache *hh;
-
-	if (dst->pending_confirm) {
-		unsigned long now = jiffies;
-
-		dst->pending_confirm = 0;
-		/* avoid dirtying neighbour */
-		if (n->confirmed != now)
-			n->confirmed = now;
-	}
 
 	hh = &n->hh;
 	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
