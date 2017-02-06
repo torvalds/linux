@@ -2238,6 +2238,7 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 
 	ring->space -= bytes;
 	GEM_BUG_ON(ring->space < 0);
+	GEM_BUG_ONLY(ring->advance = ring->tail + bytes);
 	return 0;
 }
 

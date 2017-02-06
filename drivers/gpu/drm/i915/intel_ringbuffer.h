@@ -144,6 +144,8 @@ struct intel_ring {
 
 	u32 head;
 	u32 tail;
+	GEM_BUG_ONLY_DECLARE(u32 advance);
+
 	int space;
 	int size;
 	int effective_size;
@@ -516,6 +518,7 @@ static inline void intel_ring_advance(struct intel_ring *ring)
 	 * reserved for the command packet (i.e. the value passed to
 	 * intel_ring_begin()).
 	 */
+	GEM_BUG_ONLY_ON(ring->tail != ring->advance);
 }
 
 static inline u32 intel_ring_offset(struct intel_ring *ring, void *addr)
