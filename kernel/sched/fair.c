@@ -5442,15 +5442,7 @@ static int sched_group_energy(struct energy_env *eenv)
 		 */
 		sd = rcu_dereference(per_cpu(sd_scs, cpu));
 
-		if (!sd)
-			/*
-			 * We most probably raced with hotplug; returning a
-			 * wrong energy estimation is better than entering an
-			 * infinite loop.
-			 */
-			return -EINVAL;
-
-		if (sd->parent)
+		if (sd && sd->parent)
 			sg_shared_cap = sd->parent->groups;
 
 		for_each_domain(cpu, sd) {
@@ -5505,6 +5497,14 @@ static int sched_group_energy(struct energy_env *eenv)
 
 			} while (sg = sg->next, sg != sd->groups);
 		}
+
+		/*
+		 * If we raced with hotplug and got an sd NULL-pointer;
+		 * returning a wrong energy estimation is better than
+		 * entering an infinite loop.
+		 */
+		if (cpumask_test_cpu(cpu, &visit_cpus))
+			return -EINVAL;
 next_cpu:
 		cpumask_clear_cpu(cpu, &visit_cpus);
 		continue;
