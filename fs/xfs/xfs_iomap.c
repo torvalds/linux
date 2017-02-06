@@ -995,37 +995,31 @@ xfs_file_iomap_begin(
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
-	if (xfs_is_reflink_inode(ip) &&
-	    (flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT)) {
-		shared = xfs_reflink_find_cow_mapping(ip, offset, &imap);
-		if (shared) {
-			xfs_iunlock(ip, lockmode);
-			goto alloc_done;
-		}
-		ASSERT(!isnullstartblock(imap.br_startblock));
-	}
-
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
 			       &nimaps, 0);
 	if (error)
 		goto out_unlock;
 
-	if ((flags & IOMAP_REPORT) ||
-	    (xfs_is_reflink_inode(ip) &&
-	     (flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT))) {
+	if (flags & IOMAP_REPORT) {
 		/* Trim the mapping to the nearest shared extent boundary. */
 		error = xfs_reflink_trim_around_shared(ip, &imap, &shared,
 				&trimmed);
 		if (error)
 			goto out_unlock;
-
-		ASSERT((flags & IOMAP_REPORT) || !shared);
 	}
 
 	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
-		error = xfs_reflink_reserve_cow(ip, &imap, &shared);
-		if (error)
-			goto out_unlock;
+		if (flags & IOMAP_DIRECT) {
+			/* may drop and re-acquire the ilock */
+			error = xfs_reflink_allocate_cow(ip, &imap, &shared,
+					&lockmode);
+			if (error)
+				goto out_unlock;
+		} else {
+			error = xfs_reflink_reserve_cow(ip, &imap, &shared);
+			if (error)
+				goto out_unlock;
+		}
 
 		end_fsb = imap.br_startoff + imap.br_blockcount;
 		length = XFS_FSB_TO_B(mp, end_fsb) - offset;
@@ -1054,7 +1048,6 @@ xfs_file_iomap_begin(
 		if (error)
 			return error;
 
-alloc_done:
 		iomap->flags = IOMAP_F_NEW;
 		trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
 	} else {
