@@ -2313,7 +2313,6 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 		dev_dbg(priv->dev, "phy found: id is: 0x%s\n",
 			phydev_name(slave->phy));
 		phy_start(slave->phy);
-		phy_read_status(slave->phy);
 	}
 	return 0;
 }
@@ -3119,7 +3118,6 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 			dev_dbg(dev, "phy found: id is: 0x%s\n",
 				phydev_name(slave->phy));
 			phy_start(slave->phy);
-			phy_read_status(slave->phy);
 		}
 	}
 }
