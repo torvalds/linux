@@ -73,6 +73,7 @@ static const char *amdgpu_asic_name[] = {
 	"STONEY",
 	"POLARIS10",
 	"POLARIS11",
+	"POLARIS12",
 	"LAST",
 };
 
@@ -1277,6 +1278,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)

@@ -1060,14 +1060,8 @@ static int device_add_attrs(struct device *dev)
 			goto err_remove_dev_groups;
 	}
 
-	error = device_create_file(dev, &dev_attr_deferred_probe);
-	if (error)
-		goto err_remove_online;
-
 	return 0;
 
- err_remove_online:
-	device_remove_file(dev, &dev_attr_online);
  err_remove_dev_groups:
 	device_remove_groups(dev, dev->groups);
  err_remove_type_groups:
@@ -1085,7 +1079,6 @@ static void device_remove_attrs(struct device *dev)
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
-	device_remove_file(dev, &dev_attr_deferred_probe);
 	device_remove_file(dev, &dev_attr_online);
 	device_remove_groups(dev, dev->groups);
 

@@ -26,7 +26,9 @@ static inline void __delay(unsigned long loops)
 	"	lp  1f			\n"
 	"	nop			\n"
 	"1:				\n"
-	: : "r"(loops));
+	:
+        : "r"(loops)
+        : "lp_count");
 }
 
 extern void __bad_udelay(void);

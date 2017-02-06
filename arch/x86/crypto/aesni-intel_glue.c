@@ -1020,7 +1020,8 @@ struct {
 	const char *basename;
 	struct simd_skcipher_alg *simd;
 } aesni_simd_skciphers2[] = {
-#if IS_ENABLED(CONFIG_CRYPTO_PCBC)
+#if (defined(MODULE) && IS_ENABLED(CONFIG_CRYPTO_PCBC)) || \
+    IS_BUILTIN(CONFIG_CRYPTO_PCBC)
 	{
 		.algname	= "pcbc(aes)",
 		.drvname	= "pcbc-aes-aesni",
