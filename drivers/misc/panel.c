@@ -1278,9 +1278,10 @@ static inline int handle_lcd_special_code(void)
 			lcd_write_cmd(LCD_CMD_FUNCTION_SET
 				      | LCD_CMD_DATA_LEN_8BITS
 				      | ((lcd.flags & LCD_FLAG_F)
-						      ? LCD_CMD_TWO_LINES : 0)
-				      | ((lcd.flags & LCD_FLAG_N)
 						      ? LCD_CMD_FONT_5X10_DOTS
+								      : 0)
+				      | ((lcd.flags & LCD_FLAG_N)
+						      ? LCD_CMD_TWO_LINES
 								      : 0));
 		/* check whether L flag was changed */
 		else if ((oldflags ^ lcd.flags) & (LCD_FLAG_L)) {
