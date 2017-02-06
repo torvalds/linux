@@ -241,7 +241,6 @@ static struct spi_driver slic_ds26522_driver = {
 	.driver = {
 		   .name = "ds26522",
 		   .bus = &spi_bus_type,
-		   .owner = THIS_MODULE,
 		   .of_match_table = slic_ds26522_match,
 		   },
 	.probe = slic_ds26522_probe,
