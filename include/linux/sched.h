@@ -224,8 +224,8 @@ struct task_cputime {
 #define prof_exp	stime
 #define sched_exp	sum_exec_runtime
 
-#ifdef CONFIG_SCHED_INFO
 struct sched_info {
+#ifdef CONFIG_SCHED_INFO
 	/* cumulative counters */
 	unsigned long pcount;	      /* # of times run on this cpu */
 	unsigned long long run_delay; /* time spent waiting on a runqueue */
@@ -233,8 +233,8 @@ struct sched_info {
 	/* timestamps */
 	unsigned long long last_arrival,/* when we last ran on a cpu */
 			   last_queued;	/* when we were last queued to run */
-};
 #endif /* CONFIG_SCHED_INFO */
+};
 
 /*
  * Integer metrics need fixed point arithmetic, e.g., sched/fair
@@ -309,8 +309,8 @@ struct sched_avg {
 	unsigned long load_avg, util_avg;
 };
 
-#ifdef CONFIG_SCHEDSTATS
 struct sched_statistics {
+#ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
 	u64			wait_count;
@@ -342,8 +342,8 @@ struct sched_statistics {
 	u64			nr_wakeups_affine_attempts;
 	u64			nr_wakeups_passive;
 	u64			nr_wakeups_idle;
-};
 #endif
+};
 
 struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
@@ -358,9 +358,7 @@ struct sched_entity {
 
 	u64			nr_migrations;
 
-#ifdef CONFIG_SCHEDSTATS
 	struct sched_statistics statistics;
-#endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	int			depth;
@@ -530,9 +528,7 @@ struct task_struct {
 	int rcu_tasks_idle_cpu;
 #endif /* #ifdef CONFIG_TASKS_RCU */
 
-#ifdef CONFIG_SCHED_INFO
 	struct sched_info sched_info;
-#endif
 
 	struct list_head tasks;
 #ifdef CONFIG_SMP
