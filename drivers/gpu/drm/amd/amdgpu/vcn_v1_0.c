@@ -539,49 +539,6 @@ static void vcn_v1_0_dec_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 }
 
 /**
- * vcn_v1_0_dec_ring_test_ring - register write test
- *
- * @ring: amdgpu_ring pointer
- *
- * Test if we can successfully write to the context register
- */
-static int vcn_v1_0_dec_ring_test_ring(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	uint32_t tmp = 0;
-	unsigned i;
-	int r;
-
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0xCAFEDEAD);
-	r = amdgpu_ring_alloc(ring, 3);
-	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
-			  ring->idx, r);
-		return r;
-	}
-	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID), 0));
-	amdgpu_ring_write(ring, 0xDEADBEEF);
-	amdgpu_ring_commit(ring);
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_CONTEXT_ID));
-		if (tmp == 0xDEADBEEF)
-			break;
-		DRM_UDELAY(1);
-	}
-
-	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n",
-			 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
-			  ring->idx, tmp);
-		r = -EINVAL;
-	}
-	return r;
-}
-
-/**
  * vcn_v1_0_dec_ring_emit_ib - execute indirect buffer
  *
  * @ring: amdgpu_ring pointer
@@ -732,7 +689,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.emit_fence = vcn_v1_0_dec_ring_emit_fence,
 	.emit_vm_flush = vcn_v1_0_dec_ring_emit_vm_flush,
 	.emit_hdp_invalidate = vcn_v1_0_dec_ring_emit_hdp_invalidate,
-	.test_ring = vcn_v1_0_dec_ring_test_ring,
+	.test_ring = amdgpu_vcn_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
