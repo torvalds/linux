@@ -1964,7 +1964,7 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 }
 
 struct mlxsw_sp_fib_event_work {
-	struct delayed_work dw;
+	struct work_struct work;
 	struct fib_entry_notifier_info fen_info;
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long event;
@@ -1973,7 +1973,7 @@ struct mlxsw_sp_fib_event_work {
 static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_fib_event_work *fib_work =
-		container_of(work, struct mlxsw_sp_fib_event_work, dw.work);
+		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
 	int err;
 
@@ -2014,7 +2014,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	if (WARN_ON(!fib_work))
 		return NOTIFY_BAD;
 
-	INIT_DELAYED_WORK(&fib_work->dw, mlxsw_sp_router_fib_event_work);
+	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
 	fib_work->mlxsw_sp = mlxsw_sp;
 	fib_work->event = event;
 
@@ -2029,7 +2029,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		break;
 	}
 
-	mlxsw_core_schedule_odw(&fib_work->dw, 0);
+	mlxsw_core_schedule_work(&fib_work->work);
 
 	return NOTIFY_DONE;
 }
