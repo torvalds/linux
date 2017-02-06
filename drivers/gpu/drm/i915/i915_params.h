@@ -40,7 +40,6 @@
 	func(int, enable_ppgtt); \
 	func(int, enable_execlists); \
 	func(int, enable_psr); \
-	func(unsigned int, alpha_support); \
 	func(int, disable_power_well); \
 	func(int, enable_ips); \
 	func(int, invert_brightness); \
@@ -52,6 +51,7 @@
 	func(int, edp_vswing); \
 	func(unsigned int, inject_load_failure); \
 	/* leave bools at the end to not create holes */ \
+	func(bool, alpha_support); \
 	func(bool, enable_cmd_parser); \
 	func(bool, enable_hangcheck); \
 	func(bool, fastboot); \
