@@ -360,7 +360,8 @@ execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 {
 	struct intel_context *ce = &rq->ctx->engine[rq->engine->id];
-	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
+	struct i915_hw_ppgtt *ppgtt =
+		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
 	reg_state[CTX_RING_TAIL+1] = rq->tail;
