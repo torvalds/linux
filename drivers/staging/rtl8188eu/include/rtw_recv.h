@@ -261,6 +261,8 @@ static inline u8 *recvframe_pull(struct recv_frame *precvframe, int sz)
 
 	if (precvframe == NULL)
 		return NULL;
+
+	skb_pull(precvframe->pkt, sz);
 	precvframe->rx_data += sz;
 	if (precvframe->rx_data > precvframe->rx_tail) {
 		precvframe->rx_data -= sz;
@@ -278,7 +280,7 @@ static inline u8 *recvframe_put(struct recv_frame *precvframe, int sz)
 
 	if (precvframe == NULL)
 		return NULL;
-
+	skb_put(precvframe->pkt, sz);
 	precvframe->rx_tail += sz;
 
 	if (precvframe->rx_tail > precvframe->pkt->end) {
@@ -299,6 +301,7 @@ static inline u8 *recvframe_pull_tail(struct recv_frame *precvframe, int sz)
 
 	if (precvframe == NULL)
 		return NULL;
+	skb_trim(precvframe->pkt, precvframe->pkt->len - sz);
 	precvframe->rx_tail -= sz;
 	if (precvframe->rx_tail < precvframe->rx_data) {
 		precvframe->rx_tail += sz;
