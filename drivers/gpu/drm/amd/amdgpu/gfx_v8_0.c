@@ -4872,10 +4872,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	uint64_t eop_gpu_addr;
-	bool is_kiq = false;
-
-	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
-		is_kiq = true;
+	bool is_kiq = (ring->funcs->type == AMDGPU_RING_TYPE_KIQ);
 
 	if (is_kiq) {
 		eop_gpu_addr = kiq->eop_gpu_addr;
