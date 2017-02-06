@@ -608,7 +608,7 @@ static inline int bnxt_alloc_rx_data(struct bnxt *bp,
 
 	rx_buf->data = data;
 	rx_buf->data_ptr = data + BNXT_RX_OFFSET;
-	dma_unmap_addr_set(rx_buf, mapping, mapping);
+	rx_buf->mapping = mapping;
 
 	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
 
@@ -628,8 +628,7 @@ static void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons,
 	prod_rx_buf->data = data;
 	prod_rx_buf->data_ptr = cons_rx_buf->data_ptr;
 
-	dma_unmap_addr_set(prod_rx_buf, mapping,
-			   dma_unmap_addr(cons_rx_buf, mapping));
+	prod_rx_buf->mapping = cons_rx_buf->mapping;
 
 	prod_bd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
 	cons_bd = &rxr->rx_desc_ring[RX_RING(cons)][RX_IDX(cons)];
@@ -816,7 +815,7 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp, struct bnxt_napi *bnapi,
 		 * a sw_prod index that equals the cons index, so we
 		 * need to clear the cons entry now.
 		 */
-		mapping = dma_unmap_addr(cons_rx_buf, mapping);
+		mapping = cons_rx_buf->mapping;
 		page = cons_rx_buf->page;
 		cons_rx_buf->page = NULL;
 
@@ -959,7 +958,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	prod_rx_buf->data_ptr = tpa_info->data_ptr;
 
 	mapping = tpa_info->mapping;
-	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
+	prod_rx_buf->mapping = mapping;
 
 	prod_bd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
 
@@ -968,7 +967,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	tpa_info->data = cons_rx_buf->data;
 	tpa_info->data_ptr = cons_rx_buf->data_ptr;
 	cons_rx_buf->data = NULL;
-	tpa_info->mapping = dma_unmap_addr(cons_rx_buf, mapping);
+	tpa_info->mapping = cons_rx_buf->mapping;
 
 	tpa_info->len =
 		le32_to_cpu(tpa_start->rx_tpa_start_cmp_len_flags_type) >>
@@ -1405,7 +1404,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	}
 
 	len = le32_to_cpu(rxcmp->rx_cmp_len_flags_type) >> RX_CMP_LEN_SHIFT;
-	dma_addr = dma_unmap_addr(rx_buf, mapping);
+	dma_addr = rx_buf->mapping;
 
 	if (len <= bp->rx_copy_thresh) {
 		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
@@ -1881,7 +1880,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 
 				dma_unmap_single(
 					&pdev->dev,
-					dma_unmap_addr(tpa_info, mapping),
+					tpa_info->mapping,
 					bp->rx_buf_use_size,
 					PCI_DMA_FROMDEVICE);
 
@@ -1898,8 +1897,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 			if (!data)
 				continue;
 
-			dma_unmap_single(&pdev->dev,
-					 dma_unmap_addr(rx_buf, mapping),
+			dma_unmap_single(&pdev->dev, rx_buf->mapping,
 					 bp->rx_buf_use_size,
 					 PCI_DMA_FROMDEVICE);
 
@@ -1916,8 +1914,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 			if (!page)
 				continue;
 
-			dma_unmap_page(&pdev->dev,
-				       dma_unmap_addr(rx_agg_buf, mapping),
+			dma_unmap_page(&pdev->dev, rx_agg_buf->mapping,
 				       BNXT_RX_PAGE_SIZE, PCI_DMA_FROMDEVICE);
 
 			rx_agg_buf->page = NULL;

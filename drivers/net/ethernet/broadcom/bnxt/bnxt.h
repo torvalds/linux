@@ -518,7 +518,7 @@ struct bnxt_sw_tx_bd {
 struct bnxt_sw_rx_bd {
 	void			*data;
 	u8			*data_ptr;
-	DEFINE_DMA_UNMAP_ADDR(mapping);
+	dma_addr_t		mapping;
 };
 
 struct bnxt_sw_rx_agg_bd {
