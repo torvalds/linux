@@ -110,6 +110,7 @@ struct pt_pmu {
 	struct pmu		pmu;
 	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	bool			vmx;
+	bool			branch_en_always_on;
 	unsigned long		max_nonturbo_ratio;
 	unsigned int		tsc_art_num;
 	unsigned int		tsc_art_den;
