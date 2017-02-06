@@ -2771,6 +2771,10 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 
+	/* Extended MAC field is not supported */
+	if (fsp->flow_type & FLOW_MAC_EXT)
+		return -EINVAL;
+
 	if (fsp->location >= (pf->hw.func_caps.fd_filters_best_effort +
 			      pf->hw.func_caps.fd_filters_guaranteed)) {
 		return -EINVAL;
