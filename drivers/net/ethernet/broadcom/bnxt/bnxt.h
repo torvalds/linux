@@ -566,6 +566,7 @@ struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
+	u16			txq_index;
 	void __iomem		*tx_doorbell;
 
 	struct tx_bd		*tx_desc_ring[MAX_TX_PAGES];
@@ -995,6 +996,7 @@ struct bnxt {
 
 	struct bnxt_rx_ring_info	*rx_ring;
 	struct bnxt_tx_ring_info	*tx_ring;
+	u16			*tx_ring_map;
 
 	struct sk_buff *	(*gro_func)(struct bnxt_tpa_info *, int, int,
 					    struct sk_buff *);

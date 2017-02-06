@@ -262,8 +262,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	txr = &bp->tx_ring[i];
 	txq = netdev_get_tx_queue(dev, i);
+	txr = &bp->tx_ring[bp->tx_ring_map[i]];
 	prod = txr->tx_prod;
 
 	free_size = bnxt_tx_avail(bp, txr);
@@ -509,8 +509,7 @@ tx_dma_error:
 static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 {
 	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
-	int index = txr - &bp->tx_ring[0];
-	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev, index);
+	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev, txr->txq_index);
 	u16 cons = txr->tx_cons;
 	struct pci_dev *pdev = bp->pdev;
 	int i;
@@ -2975,6 +2974,8 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 		bnxt_free_stats(bp);
 		bnxt_free_ring_grps(bp);
 		bnxt_free_vnics(bp);
+		kfree(bp->tx_ring_map);
+		bp->tx_ring_map = NULL;
 		kfree(bp->tx_ring);
 		bp->tx_ring = NULL;
 		kfree(bp->rx_ring);
@@ -3027,6 +3028,12 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		if (!bp->tx_ring)
 			return -ENOMEM;
 
+		bp->tx_ring_map = kcalloc(bp->tx_nr_rings, sizeof(u16),
+					  GFP_KERNEL);
+
+		if (!bp->tx_ring_map)
+			return -ENOMEM;
+
 		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 			j = 0;
 		else
@@ -3035,6 +3042,8 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		for (i = 0; i < bp->tx_nr_rings; i++, j++) {
 			bp->tx_ring[i].bnapi = bp->bnapi[j];
 			bp->bnapi[j]->tx_ring = &bp->tx_ring[i];
+			bp->tx_ring_map[i] = i;
+			bp->tx_ring[i].txq_index = i;
 		}
 
 		rc = bnxt_alloc_stats(bp);
