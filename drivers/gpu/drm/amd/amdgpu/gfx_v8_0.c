@@ -1379,11 +1379,9 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 {
 	int r = 0;
 
-	if (amdgpu_sriov_vf(adev)) {
-		r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
-		if (r)
-			return r;
-	}
+	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	if (r)
+		return r;
 
 	ring->adev = NULL;
 	ring->ring_obj = NULL;
@@ -1407,13 +1405,10 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 
 	return r;
 }
-
 static void gfx_v8_0_kiq_free_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq)
 {
-	if (amdgpu_sriov_vf(ring->adev))
-		amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
-
+	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
 	irq->data = NULL;
 }
