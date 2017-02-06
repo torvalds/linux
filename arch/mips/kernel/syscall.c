@@ -36,7 +36,6 @@
 #include <asm/sim.h>
 #include <asm/shmparam.h>
 #include <asm/sysmips.h>
-#include <linux/uaccess.h>
 #include <asm/switch_to.h>
 
 /*
