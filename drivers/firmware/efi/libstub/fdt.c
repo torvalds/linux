@@ -187,6 +187,7 @@ static efi_status_t update_fdt_memmap(void *fdt, struct efi_boot_memmap *map)
 struct exit_boot_struct {
 	efi_memory_desc_t *runtime_map;
 	int *runtime_entry_count;
+	void *new_fdt_addr;
 };
 
 static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
@@ -202,7 +203,7 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 	efi_get_virtmap(*map->map, *map->map_size, *map->desc_size,
 			p->runtime_map, p->runtime_entry_count);
 
-	return EFI_SUCCESS;
+	return update_fdt_memmap(p->new_fdt_addr, map);
 }
 
 /*
@@ -300,21 +301,12 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 
 	priv.runtime_map = runtime_map;
 	priv.runtime_entry_count = &runtime_entry_count;
+	priv.new_fdt_addr = (void *)*new_fdt_addr;
 	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
 					exit_boot_func);
 
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
-
-		status = update_fdt_memmap((void *)*new_fdt_addr, &map);
-		if (status != EFI_SUCCESS) {
-			/*
-			 * The kernel won't get far without the memory map, but
-			 * may still be able to print something meaningful so
-			 * return success here.
-			 */
-			return EFI_SUCCESS;
-		}
 
 		/* Install the new virtual address map */
 		svam = sys_table->runtime->set_virtual_address_map;
