@@ -328,8 +328,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		 * since efx_nic_eventq_read_ack() will have no effect if
 		 * interrupts have already been disabled.
 		 */
-		napi_complete_done(napi, spent);
-		efx_nic_eventq_read_ack(channel);
+		if (napi_complete_done(napi, spent))
+			efx_nic_eventq_read_ack(channel);
 	}
 
 	return spent;
