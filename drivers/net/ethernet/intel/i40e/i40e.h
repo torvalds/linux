@@ -377,6 +377,7 @@ struct i40e_pf {
 	 */
 	u16 fd_tcp4_filter_cnt;
 	u16 fd_udp4_filter_cnt;
+	u16 fd_sctp4_filter_cnt;
 	u16 fd_ip4_filter_cnt;
 
 	/* Flexible filter table values that need to be programmed into

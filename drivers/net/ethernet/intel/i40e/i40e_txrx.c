@@ -346,6 +346,80 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	return 0;
 }
 
+#define I40E_SCTPIP_DUMMY_PACKET_LEN 46
+/**
+ * i40e_add_del_fdir_sctpv4 - Add/Remove SCTPv4 Flow Director filters for
+ * a specific flow spec
+ * @vsi: pointer to the targeted VSI
+ * @fd_data: the flow director data required for the FDir descriptor
+ * @add: true adds a filter, false removes it
+ *
+ * Returns 0 if the filters were successfully added or removed
+ **/
+static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
+				    struct i40e_fdir_filter *fd_data,
+				    bool add)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct sctphdr *sctp;
+	struct iphdr *ip;
+	u8 *raw_packet;
+	int ret;
+	/* Dummy packet */
+	static char packet[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0,
+		0x45, 0, 0, 0x20, 0, 0, 0x40, 0, 0x40, 0x84, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	raw_packet = kzalloc(I40E_FDIR_MAX_RAW_PACKET_SIZE, GFP_KERNEL);
+	if (!raw_packet)
+		return -ENOMEM;
+	memcpy(raw_packet, packet, I40E_SCTPIP_DUMMY_PACKET_LEN);
+
+	ip = (struct iphdr *)(raw_packet + IP_HEADER_OFFSET);
+	sctp = (struct sctphdr *)(raw_packet + IP_HEADER_OFFSET
+	      + sizeof(struct iphdr));
+
+	ip->daddr = fd_data->dst_ip;
+	sctp->dest = fd_data->dst_port;
+	ip->saddr = fd_data->src_ip;
+	sctp->source = fd_data->src_port;
+
+	if (fd_data->flex_filter) {
+		u8 *payload = raw_packet + I40E_SCTPIP_DUMMY_PACKET_LEN;
+		__be16 pattern = fd_data->flex_word;
+		u16 off = fd_data->flex_offset;
+
+		*((__force __be16 *)(payload + off)) = pattern;
+	}
+
+	fd_data->pctype = I40E_FILTER_PCTYPE_NONF_IPV4_SCTP;
+	ret = i40e_program_fdir_filter(fd_data, raw_packet, pf, add);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
+			 fd_data->pctype, fd_data->fd_id, ret);
+		/* Free the packet buffer since it wasn't added to the ring */
+		kfree(raw_packet);
+		return -EOPNOTSUPP;
+	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
+		if (add)
+			dev_info(&pf->pdev->dev,
+				 "Filter OK for PCTYPE %d loc = %d\n",
+				 fd_data->pctype, fd_data->fd_id);
+		else
+			dev_info(&pf->pdev->dev,
+				 "Filter deleted for PCTYPE %d loc = %d\n",
+				 fd_data->pctype, fd_data->fd_id);
+	}
+
+	if (add)
+		pf->fd_sctp4_filter_cnt++;
+	else
+		pf->fd_sctp4_filter_cnt--;
+
+	return 0;
+}
+
 #define I40E_IP_DUMMY_PACKET_LEN 34
 /**
  * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
@@ -440,6 +514,9 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 	case UDP_V4_FLOW:
 		ret = i40e_add_del_fdir_udpv4(vsi, input, add);
 		break;
+	case SCTP_V4_FLOW:
+		ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
+		break;
 	case IP_USER_FLOW:
 		switch (input->ip4_proto) {
 		case IPPROTO_TCP:
@@ -447,6 +524,9 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 			break;
 		case IPPROTO_UDP:
 			ret = i40e_add_del_fdir_udpv4(vsi, input, add);
+			break;
+		case IPPROTO_SCTP:
+			ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
 			break;
 		case IPPROTO_IP:
 			ret = i40e_add_del_fdir_ipv4(vsi, input, add);

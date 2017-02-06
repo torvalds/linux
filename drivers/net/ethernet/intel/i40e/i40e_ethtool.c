@@ -2509,6 +2509,9 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	fsp->h_u.tcp_ip4_spec.ip4dst = rule->src_ip;
 
 	switch (rule->flow_type) {
+	case SCTP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_SCTP;
+		break;
 	case TCP_V4_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
 		break;
@@ -3336,6 +3339,10 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	int err;
 
 	switch (fsp->flow_type & ~FLOW_EXT) {
+	case SCTP_V4_FLOW:
+		index = I40E_FILTER_PCTYPE_NONF_IPV4_SCTP;
+		fdir_filter_count = &pf->fd_sctp4_filter_cnt;
+		break;
 	case TCP_V4_FLOW:
 		index = I40E_FILTER_PCTYPE_NONF_IPV4_TCP;
 		fdir_filter_count = &pf->fd_tcp4_filter_cnt;
@@ -3367,6 +3374,9 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	 * ip4dst fields.
 	 */
 	switch (fsp->flow_type & ~FLOW_EXT) {
+	case SCTP_V4_FLOW:
+		new_mask &= ~I40E_VERIFY_TAG_MASK;
+		/* Fall through */
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		tcp_ip4_spec = &fsp->m_u.tcp_ip4_spec;
