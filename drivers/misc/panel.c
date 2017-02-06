@@ -64,8 +64,6 @@
 #define LCD_MINOR		156
 #define KEYPAD_MINOR		185
 
-#define PANEL_VERSION		"0.9.5"
-
 #define LCD_MAXBYTES		256	/* max burst write */
 
 #define KEYPAD_BUFFER		64
@@ -1656,8 +1654,7 @@ static void lcd_init(void)
 	panel_lcd_print("\x1b[Lc\x1b[Lb\x1b[L*" CONFIG_PANEL_BOOT_MESSAGE);
 #endif
 #else
-	panel_lcd_print("\x1b[Lc\x1b[Lb\x1b[L*Linux-" UTS_RELEASE "\nPanel-"
-			PANEL_VERSION);
+	panel_lcd_print("\x1b[Lc\x1b[Lb\x1b[L*Linux-" UTS_RELEASE);
 #endif
 	lcd.addr.x = 0;
 	lcd.addr.y = 0;
@@ -2278,8 +2275,7 @@ static void panel_detach(struct parport *port)
 		}
 
 		if (lcd.enabled) {
-			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
-					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+			panel_lcd_print("\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
 			misc_deregister(&lcd_dev);
 			lcd.initialized = false;
 		}
@@ -2401,7 +2397,7 @@ static int __init panel_init_module(void)
 
 	if (!lcd.enabled && !keypad.enabled) {
 		/* no device enabled, let's exit */
-		pr_err("driver version " PANEL_VERSION " disabled.\n");
+		pr_err("panel driver disabled.\n");
 		return -ENODEV;
 	}
 
@@ -2412,12 +2408,10 @@ static int __init panel_init_module(void)
 	}
 
 	if (pprt)
-		pr_info("driver version " PANEL_VERSION
-			" registered on parport%d (io=0x%lx).\n", parport,
-			pprt->port->base);
+		pr_info("panel driver registered on parport%d (io=0x%lx).\n",
+			parport, pprt->port->base);
 	else
-		pr_info("driver version " PANEL_VERSION
-			" not yet registered\n");
+		pr_info("panel driver not yet registered\n");
 	return 0;
 }
 
