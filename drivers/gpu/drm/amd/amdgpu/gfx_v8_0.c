@@ -2116,17 +2116,6 @@ static int gfx_v8_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = gfx_v8_0_kiq_init(adev);
-	if (r) {
-		DRM_ERROR("Failed to init KIQ BOs!\n");
-		return r;
-	}
-
-	kiq = &adev->gfx.kiq;
-	r = gfx_v8_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
-	if (r)
-		return r;
-
 	/* set up the gfx ring */
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 		ring = &adev->gfx.gfx_ring[i];
@@ -2165,6 +2154,24 @@ static int gfx_v8_0_sw_init(void *handle)
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     irq_type);
+		if (r)
+			return r;
+	}
+
+	if (amdgpu_sriov_vf(adev)) {
+		r = gfx_v8_0_kiq_init(adev);
+		if (r) {
+			DRM_ERROR("Failed to init KIQ BOs!\n");
+			return r;
+		}
+
+		kiq = &adev->gfx.kiq;
+		r = gfx_v8_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
+		if (r)
+			return r;
+
+		/* create MQD for all compute queues as wel as KIQ for SRIOV case */
+		r = gfx_v8_0_compute_mqd_soft_init(adev);
 		if (r)
 			return r;
 	}
@@ -2210,9 +2217,13 @@ static int gfx_v8_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
-	gfx_v8_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
 
-	gfx_v8_0_kiq_fini(adev);
+	if (amdgpu_sriov_vf(adev)) {
+		gfx_v8_0_compute_mqd_soft_fini(adev);
+		gfx_v8_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
+		gfx_v8_0_kiq_fini(adev);
+	}
+
 	gfx_v8_0_mec_fini(adev);
 	gfx_v8_0_rlc_fini(adev);
 	gfx_v8_0_free_microcode(adev);
@@ -4900,69 +4911,36 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring,
 	return 0;
 }
 
-static void gfx_v8_0_kiq_free_queue(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring = NULL;
-	int i;
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		ring = &adev->gfx.compute_ring[i];
-		amdgpu_bo_free_kernel(&ring->mqd_obj, NULL, NULL);
-		ring->mqd_obj = NULL;
-	}
-
-	ring = &adev->gfx.kiq.ring;
-	amdgpu_bo_free_kernel(&ring->mqd_obj, NULL, NULL);
-	ring->mqd_obj = NULL;
-}
-
-static int gfx_v8_0_kiq_setup_queue(struct amdgpu_device *adev,
-				    struct amdgpu_ring *ring)
-{
-	struct vi_mqd *mqd;
-	u64 mqd_gpu_addr;
-	u32 *buf;
-	int r = 0;
-
-	r = amdgpu_bo_create_kernel(adev, sizeof(struct vi_mqd), PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-				    &mqd_gpu_addr, (void **)&buf);
-	if (r) {
-		dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
-		return r;
-	}
-
-	/* init the mqd struct */
-	memset(buf, 0, sizeof(struct vi_mqd));
-	mqd = (struct vi_mqd *)buf;
-
-	r = gfx_v8_0_kiq_init_queue(ring, mqd, mqd_gpu_addr);
-	if (r)
-		return r;
-
-	amdgpu_bo_kunmap(ring->mqd_obj);
-
-	return 0;
-}
-
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
-	int r, i;
+	int r = 0, i;
+
+	gfx_v8_0_cp_compute_enable(adev, true);
 
 	ring = &adev->gfx.kiq.ring;
-	r = gfx_v8_0_kiq_setup_queue(adev, ring);
-	if (r)
+	if (!amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr)) {
+		memset((void *)ring->mqd_ptr, 0, sizeof(struct vi_mqd));
+		r = gfx_v8_0_kiq_init_queue(ring, ring->mqd_ptr, ring->mqd_gpu_addr);
+		amdgpu_bo_kunmap(ring->mqd_obj);
+		if (r)
+			return r;
+	} else {
 		return r;
+	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
-		r = gfx_v8_0_kiq_setup_queue(adev, ring);
-		if (r)
+		if (!amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr)) {
+			memset((void *)ring->mqd_ptr, 0, sizeof(struct vi_mqd));
+			r = gfx_v8_0_kiq_init_queue(ring, ring->mqd_ptr, ring->mqd_gpu_addr);
+			amdgpu_bo_kunmap(ring->mqd_obj);
+			if (r)
 			return r;
+		} else {
+			return r;
+		}
 	}
-
-	gfx_v8_0_cp_compute_enable(adev, true);
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
@@ -5324,7 +5302,6 @@ static int gfx_v8_0_hw_fini(void *handle)
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 	if (amdgpu_sriov_vf(adev)) {
-		gfx_v8_0_kiq_free_queue(adev);
 		pr_debug("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
