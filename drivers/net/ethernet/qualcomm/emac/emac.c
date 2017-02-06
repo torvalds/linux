@@ -436,6 +436,10 @@ static void emac_init_adapter(struct emac_adapter *adpt)
 {
 	u32 reg;
 
+	adpt->rrd_size = EMAC_RRD_SIZE;
+	adpt->tpd_size = EMAC_TPD_SIZE;
+	adpt->rfd_size = EMAC_RFD_SIZE;
+
 	/* descriptors */
 	adpt->tx_desc_cnt = EMAC_DEF_TX_DESCS;
 	adpt->rx_desc_cnt = EMAC_DEF_RX_DESCS;
@@ -456,6 +460,9 @@ static void emac_init_adapter(struct emac_adapter *adpt)
 
 	/* others */
 	adpt->preamble = EMAC_PREAMBLE_DEF;
+
+	/* default to automatic flow control */
+	adpt->automatic = true;
 }
 
 /* Get the clock */
@@ -674,10 +681,6 @@ static int emac_probe(struct platform_device *pdev)
 
 	netdev->watchdog_timeo = EMAC_WATCHDOG_TIME;
 	netdev->irq = adpt->irq.irq;
-
-	adpt->rrd_size = EMAC_RRD_SIZE;
-	adpt->tpd_size = EMAC_TPD_SIZE;
-	adpt->rfd_size = EMAC_RFD_SIZE;
 
 	netdev->netdev_ops = &emac_netdev_ops;
 

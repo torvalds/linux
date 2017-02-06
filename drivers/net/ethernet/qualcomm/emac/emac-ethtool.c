@@ -148,16 +148,26 @@ static void emac_get_ringparam(struct net_device *netdev,
 static void emac_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *pause)
 {
-	struct phy_device *phydev = netdev->phydev;
+	struct emac_adapter *adpt = netdev_priv(netdev);
 
-	if (phydev) {
-		if (phydev->autoneg)
-			pause->autoneg = 1;
-		if (phydev->pause)
-			pause->rx_pause = 1;
-		if (phydev->pause != phydev->asym_pause)
-			pause->tx_pause = 1;
-	}
+	pause->autoneg = adpt->automatic ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	pause->rx_pause = adpt->rx_flow_control ? 1 : 0;
+	pause->tx_pause = adpt->tx_flow_control ? 1 : 0;;
+}
+
+static int emac_set_pauseparam(struct net_device *netdev,
+			       struct ethtool_pauseparam *pause)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+
+	adpt->automatic = pause->autoneg == AUTONEG_ENABLE;
+	adpt->rx_flow_control = pause->rx_pause != 0;
+	adpt->tx_flow_control = pause->tx_pause != 0;
+
+	if (netif_running(netdev))
+		return emac_reinit_locked(adpt);
+
+	return 0;
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {
@@ -172,7 +182,9 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ethtool_stats = emac_get_ethtool_stats,
 
 	.get_ringparam = emac_get_ringparam,
+
 	.get_pauseparam = emac_get_pauseparam,
+	.set_pauseparam = emac_set_pauseparam,
 
 	.nway_reset = emac_nway_reset,
 

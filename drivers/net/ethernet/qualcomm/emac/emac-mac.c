@@ -565,11 +565,19 @@ static void emac_mac_start(struct emac_adapter *adpt)
 
 	mac |= TXEN | RXEN;     /* enable RX/TX */
 
-	/* Configure MAC flow control to match the PHY's settings. */
-	if (phydev->pause)
-		mac |= RXFC;
-	if (phydev->pause != phydev->asym_pause)
-		mac |= TXFC;
+	/* Configure MAC flow control. If set to automatic, then match
+	 * whatever the PHY does. Otherwise, enable or disable it, depending
+	 * on what the user configured via ethtool.
+	 */
+	mac &= ~(RXFC | TXFC);
+
+	if (adpt->automatic) {
+		/* If it's set to automatic, then update our local values */
+		adpt->rx_flow_control = phydev->pause;
+		adpt->tx_flow_control = phydev->pause != phydev->asym_pause;
+	}
+	mac |= adpt->rx_flow_control ? RXFC : 0;
+	mac |= adpt->tx_flow_control ? TXFC : 0;
 
 	/* setup link speed */
 	mac &= ~SPEED_MASK;

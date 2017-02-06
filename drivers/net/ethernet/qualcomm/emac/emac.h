@@ -306,6 +306,13 @@ struct emac_adapter {
 
 	unsigned int			rxbuf_size;
 
+	/* Flow control / pause frames support. If automatic=True, do whatever
+	 * the PHY does. Otherwise, use tx_flow_control and rx_flow_control.
+	 */
+	bool				automatic;
+	bool				tx_flow_control;
+	bool				rx_flow_control;
+
 	/* Ring parameter */
 	u8				tpd_burst;
 	u8				rfd_burst;
