@@ -196,6 +196,42 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, vcn.idle_work.work);
+	unsigned fences = amdgpu_fence_count_emitted(&adev->vcn.ring_dec);
+
+	if (fences == 0) {
+		if (adev->pm.dpm_enabled) {
+			amdgpu_dpm_enable_uvd(adev, false);
+		} else {
+			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
+		}
+	} else {
+		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
+	}
+}
+
+void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
+
+	if (set_clocks) {
+		if (adev->pm.dpm_enabled) {
+			amdgpu_dpm_enable_uvd(adev, true);
+		} else {
+			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
+		}
+	}
+}
+
+void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring)
+{
+	schedule_delayed_work(&ring->adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
+}
+
 static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			       bool direct, struct dma_fence **fence)
 {
@@ -365,42 +401,6 @@ static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	return amdgpu_vcn_dec_send_msg(ring, bo, direct, fence);
 }
 
-static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
-{
-	struct amdgpu_device *adev =
-		container_of(work, struct amdgpu_device, vcn.idle_work.work);
-	unsigned fences = amdgpu_fence_count_emitted(&adev->vcn.ring_dec);
-
-	if (fences == 0) {
-		if (adev->pm.dpm_enabled) {
-			amdgpu_dpm_enable_uvd(adev, false);
-		} else {
-			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
-		}
-	} else {
-		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
-	}
-}
-
-void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
-
-	if (set_clocks) {
-		if (adev->pm.dpm_enabled) {
-			amdgpu_dpm_enable_uvd(adev, true);
-		} else {
-			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-		}
-	}
-}
-
-void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring)
-{
-	schedule_delayed_work(&ring->adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
-}
-
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence;
@@ -432,6 +432,40 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	dma_fence_put(fence);
 
 error:
+	return r;
+}
+
+int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t rptr = amdgpu_ring_get_rptr(ring);
+	unsigned i;
+	int r;
+
+	r = amdgpu_ring_alloc(ring, 16);
+	if (r) {
+		DRM_ERROR("amdgpu: vcn enc failed to lock ring %d (%d).\n",
+			  ring->idx, r);
+		return r;
+	}
+	amdgpu_ring_write(ring, VCE_CMD_END);
+	amdgpu_ring_commit(ring);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (amdgpu_ring_get_rptr(ring) != rptr)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i < adev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
+	} else {
+		DRM_ERROR("amdgpu: ring %d test failed\n",
+			  ring->idx);
+		r = -ETIMEDOUT;
+	}
+
 	return r;
 }
 
@@ -558,40 +592,6 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 
 err:
 	amdgpu_job_free(job);
-	return r;
-}
-
-int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
-	unsigned i;
-	int r;
-
-	r = amdgpu_ring_alloc(ring, 16);
-	if (r) {
-		DRM_ERROR("amdgpu: vcn enc failed to lock ring %d (%d).\n",
-			  ring->idx, r);
-		return r;
-	}
-	amdgpu_ring_write(ring, VCE_CMD_END);
-	amdgpu_ring_commit(ring);
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (amdgpu_ring_get_rptr(ring) != rptr)
-			break;
-		DRM_UDELAY(1);
-	}
-
-	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n",
-			 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed\n",
-			  ring->idx);
-		r = -ETIMEDOUT;
-	}
-
 	return r;
 }
 
