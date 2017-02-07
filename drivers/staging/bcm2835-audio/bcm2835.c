@@ -228,14 +228,13 @@ static struct platform_driver bcm2835_alsa0_driver = {
 
 static int bcm2835_alsa_device_init(void)
 {
-	int err;
-	err = platform_driver_register(&bcm2835_alsa0_driver);
-	if (err) {
-		pr_err("Error registering bcm2835_alsa0_driver %d .\n", err);
-		return err;
-	}
+	int retval;
 
-	return 0;
+	retval = platform_driver_register(&bcm2835_alsa0_driver);
+	if (retval)
+		pr_err("Error registering bcm2835_alsa0_driver %d .\n", retval);
+
+	return retval;
 }
 
 static void bcm2835_alsa_device_exit(void)
