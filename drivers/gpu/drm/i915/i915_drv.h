@@ -602,7 +602,7 @@ struct intel_limit;
 struct dpll;
 
 struct drm_i915_display_funcs {
-	int (*get_display_clock_speed)(struct drm_i915_private *dev_priv);
+	int (*get_cdclk)(struct drm_i915_private *dev_priv);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv, int plane);
 	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
 	int (*compute_intermediate_wm)(struct drm_device *dev,
