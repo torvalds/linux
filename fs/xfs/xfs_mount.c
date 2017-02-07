@@ -1085,6 +1085,7 @@ xfs_unmountfs(
 	 * any discard operation.
 	 */
 	xfs_extent_busy_wait_all(mp);
+	flush_workqueue(xfs_discard_wq);
 
 	/*
 	 * We now need to tell the world we are unmounting. This will allow
