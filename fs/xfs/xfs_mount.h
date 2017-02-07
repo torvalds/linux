@@ -384,6 +384,8 @@ typedef struct xfs_perag {
 	xfs_agino_t	pagl_rightrec;
 	spinlock_t	pagb_lock;	/* lock for pagb_tree */
 	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
+	unsigned int	pagb_gen;	/* generation count for pagb_tree */
+	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 

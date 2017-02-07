@@ -45,6 +45,7 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_extent_busy.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -213,6 +214,7 @@ xfs_initialize_perag(
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 		if (xfs_buf_hash_init(pag))
 			goto out_free_pag;
+		init_waitqueue_head(&pag->pagb_wait);
 
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_hash_destroy;
@@ -1077,6 +1079,12 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * Wait for all busy extents to be freed, including completion of
+	 * any discard operation.
+	 */
+	xfs_extent_busy_wait_all(mp);
 
 	/*
 	 * We now need to tell the world we are unmounting. This will allow
