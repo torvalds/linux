@@ -76,6 +76,8 @@ static u64 zswap_duplicate_entry;
 * tunables
 **********************************/
 
+#define ZSWAP_PARAM_UNSET ""
+
 /* Enable/disable zswap (disabled by default) */
 static bool zswap_enabled;
 static int zswap_enabled_param_set(const char *,
@@ -501,6 +503,17 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 	int ret;
 
+	if (!zswap_has_pool) {
+		/* if either are unset, pool initialization failed, and we
+		 * need both params to be set correctly before trying to
+		 * create a pool.
+		 */
+		if (!strcmp(type, ZSWAP_PARAM_UNSET))
+			return NULL;
+		if (!strcmp(compressor, ZSWAP_PARAM_UNSET))
+			return NULL;
+	}
+
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool) {
 		pr_err("pool alloc failed\n");
@@ -550,28 +563,40 @@ error:
 
 static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 {
-	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-		if (!strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
-			pr_err("default compressor %s not available\n",
-			       zswap_compressor);
-			return NULL;
-		}
+	bool has_comp, has_zpool;
+
+	has_comp = crypto_has_comp(zswap_compressor, 0, 0);
+	if (!has_comp && strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
 		pr_err("compressor %s not available, using default %s\n",
 		       zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT);
 		param_free_charp(&zswap_compressor);
 		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+		has_comp = crypto_has_comp(zswap_compressor, 0, 0);
 	}
-	if (!zpool_has_pool(zswap_zpool_type)) {
-		if (!strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
-			pr_err("default zpool %s not available\n",
-			       zswap_zpool_type);
-			return NULL;
-		}
+	if (!has_comp) {
+		pr_err("default compressor %s not available\n",
+		       zswap_compressor);
+		param_free_charp(&zswap_compressor);
+		zswap_compressor = ZSWAP_PARAM_UNSET;
+	}
+
+	has_zpool = zpool_has_pool(zswap_zpool_type);
+	if (!has_zpool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
 		pr_err("zpool %s not available, using default %s\n",
 		       zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT);
 		param_free_charp(&zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
+		has_zpool = zpool_has_pool(zswap_zpool_type);
 	}
+	if (!has_zpool) {
+		pr_err("default zpool %s not available\n",
+		       zswap_zpool_type);
+		param_free_charp(&zswap_zpool_type);
+		zswap_zpool_type = ZSWAP_PARAM_UNSET;
+	}
+
+	if (!has_comp || !has_zpool)
+		return NULL;
 
 	return zswap_pool_create(zswap_zpool_type, zswap_compressor);
 }
