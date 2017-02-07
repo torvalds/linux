@@ -66,7 +66,7 @@ static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
-phys_addr_t get_qe_base(void)
+static phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
 	int ret;
@@ -89,8 +89,6 @@ phys_addr_t get_qe_base(void)
 
 	return qebase;
 }
-
-EXPORT_SYMBOL(get_qe_base);
 
 void qe_reset(void)
 {

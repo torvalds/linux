@@ -464,25 +464,6 @@ struct qe_immap {
 } __attribute__ ((packed));
 
 extern struct qe_immap __iomem *qe_immr;
-extern phys_addr_t get_qe_base(void);
-
-/*
- * Returns the offset within the QE address space of the given pointer.
- *
- * Note that the QE does not support 36-bit physical addresses, so if
- * get_qe_base() returns a number above 4GB, the caller will probably fail.
- */
-static inline phys_addr_t immrbar_virt_to_phys(void *address)
-{
-	void *q = (void *)qe_immr;
-
-	/* Is it a MURAM address? */
-	if ((address >= q) && (address < (q + QE_IMMAP_SIZE)))
-		return get_qe_base() + (address - q);
-
-	/* It's an address returned by kmalloc */
-	return virt_to_phys(address);
-}
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_IMMAP_QE_H */
