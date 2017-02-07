@@ -11,11 +11,11 @@
 
 struct swap_slots_cache {
 	bool		lock_initialized;
-	struct mutex	alloc_lock;
+	struct mutex	alloc_lock; /* protects slots, nr, cur */
 	swp_entry_t	*slots;
 	int		nr;
 	int		cur;
-	spinlock_t	free_lock;
+	spinlock_t	free_lock;  /* protects slots_ret, n_ret */
 	swp_entry_t	*slots_ret;
 	int		n_ret;
 };
