@@ -2478,9 +2478,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_redirect_rqts(priv);
 	mlx5e_update_carrier(priv);
 	mlx5e_timestamp_init(priv);
-#ifdef CONFIG_RFS_ACCEL
-	priv->netdev->rx_cpu_rmap = priv->mdev->rmap;
-#endif
+
 	if (priv->profile->update_stats)
 		queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
 
@@ -4021,6 +4019,10 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 		mlx5_core_err(mdev, "alloc_etherdev_mqs() failed\n");
 		return NULL;
 	}
+
+#ifdef CONFIG_RFS_ACCEL
+	netdev->rx_cpu_rmap = mdev->rmap;
+#endif
 
 	profile->init(mdev, netdev, profile, ppriv);
 
