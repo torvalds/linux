@@ -878,8 +878,12 @@ int __init rpcauth_init_module(void)
 	err = rpc_init_generic_auth();
 	if (err < 0)
 		goto out2;
-	register_shrinker(&rpc_cred_shrinker);
+	err = register_shrinker(&rpc_cred_shrinker);
+	if (err < 0)
+		goto out3;
 	return 0;
+out3:
+	rpc_destroy_generic_auth();
 out2:
 	rpc_destroy_authunix();
 out1:
