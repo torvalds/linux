@@ -275,16 +275,11 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		struct drm_encoder *encoder);
 
 struct msm_dsi;
-enum msm_dsi_encoder_id {
-	MSM_DSI_VIDEO_ENCODER_ID = 0,
-	MSM_DSI_CMD_ENCODER_ID = 1,
-	MSM_DSI_ENCODER_NUM = 2
-};
 #ifdef CONFIG_DRM_MSM_DSI
 void __init msm_dsi_register(void);
 void __exit msm_dsi_unregister(void);
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
-		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM]);
+			 struct drm_encoder *encoder);
 #else
 static inline void __init msm_dsi_register(void)
 {
@@ -293,8 +288,8 @@ static inline void __exit msm_dsi_unregister(void)
 {
 }
 static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
-		struct drm_device *dev,
-		struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM])
+				       struct drm_device *dev,
+				       struct drm_encoder *encoder)
 {
 	return -EINVAL;
 }
@@ -318,6 +313,7 @@ static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
 static inline void msm_rd_dump_submit(struct msm_gem_submit *submit) {}
 #endif
 
+struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname);
 void msm_writel(u32 data, void __iomem *addr);
