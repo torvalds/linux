@@ -182,32 +182,36 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (rets == -EBUSY &&
-	    !mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, file)) {
-		rets = -ENOMEM;
+
+again:
+	mutex_unlock(&dev->device_lock);
+	if (wait_event_interruptible(cl->rx_wait,
+				     !list_empty(&cl->rd_completed) ||
+				     !mei_cl_is_connected(cl))) {
+		if (signal_pending(current))
+			return -EINTR;
+		return -ERESTARTSYS;
+	}
+	mutex_lock(&dev->device_lock);
+
+	if (!mei_cl_is_connected(cl)) {
+		rets = -ENODEV;
 		goto out;
 	}
 
-	do {
-		mutex_unlock(&dev->device_lock);
+	cb = mei_cl_read_cb(cl, file);
+	if (!cb) {
+		/*
+		 * For amthif all the waiters are woken up,
+		 * but only fp with matching cb->fp get the cb,
+		 * the others have to return to wait on read.
+		 */
+		if (cl == &dev->iamthif_cl)
+			goto again;
 
-		if (wait_event_interruptible(cl->rx_wait,
-					     (!list_empty(&cl->rd_completed)) ||
-					     (!mei_cl_is_connected(cl)))) {
-
-			if (signal_pending(current))
-				return -EINTR;
-			return -ERESTARTSYS;
-		}
-
-		mutex_lock(&dev->device_lock);
-		if (!mei_cl_is_connected(cl)) {
-			rets = -ENODEV;
-			goto out;
-		}
-
-		cb = mei_cl_read_cb(cl, file);
-	} while (!cb);
+		rets = 0;
+		goto out;
+	}
 
 copy_buffer:
 	/* now copy the data to user space */
