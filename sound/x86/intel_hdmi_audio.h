@@ -35,32 +35,50 @@
 #define PCM_INDEX		0
 #define MAX_PB_STREAMS		1
 #define MAX_CAP_STREAMS		0
-
-#define HDMI_INFO_FRAME_WORD1	0x000a0184
-#define DP_INFO_FRAME_WORD1	0x00441b84
-#define FIFO_THRESHOLD		0xFE
-#define DMA_FIFO_THRESHOLD	0x7
 #define BYTES_PER_WORD		0x4
+#define INTEL_HAD		"HdmiLpeAudio"
 
-/* Sampling rate as per IEC60958 Ver 3 */
-#define CH_STATUS_MAP_32KHZ	0x3
-#define CH_STATUS_MAP_44KHZ	0x0
-#define CH_STATUS_MAP_48KHZ	0x2
-#define CH_STATUS_MAP_88KHZ	0x8
-#define CH_STATUS_MAP_96KHZ	0xA
-#define CH_STATUS_MAP_176KHZ	0xC
-#define CH_STATUS_MAP_192KHZ	0xE
+/*
+ *	CEA speaker placement:
+ *
+ *	FL  FLC   FC   FRC   FR
+ *
+ *						LFE
+ *
+ *	RL  RLC   RC   RRC   RR
+ *
+ *	The Left/Right Surround channel _notions_ LS/RS in SMPTE 320M
+ *	corresponds to CEA RL/RR; The SMPTE channel _assignment_ C/LFE is
+ *	swapped to CEA LFE/FC.
+ */
+enum cea_speaker_placement {
+	FL  = (1 <<  0),        /* Front Left           */
+	FC  = (1 <<  1),        /* Front Center         */
+	FR  = (1 <<  2),        /* Front Right          */
+	FLC = (1 <<  3),        /* Front Left Center    */
+	FRC = (1 <<  4),        /* Front Right Center   */
+	RL  = (1 <<  5),        /* Rear Left            */
+	RC  = (1 <<  6),        /* Rear Center          */
+	RR  = (1 <<  7),        /* Rear Right           */
+	RLC = (1 <<  8),        /* Rear Left Center     */
+	RRC = (1 <<  9),        /* Rear Right Center    */
+	LFE = (1 << 10),        /* Low Frequency Effect */
+};
 
-#define MAX_SMPL_WIDTH_20	0x0
-#define MAX_SMPL_WIDTH_24	0x1
-#define SMPL_WIDTH_16BITS	0x1
-#define SMPL_WIDTH_24BITS	0x5
-#define CHANNEL_ALLOCATION	0x1F
-#define VALID_DIP_WORDS		3
-#define LAYOUT0			0
-#define LAYOUT1			1
-#define SWAP_LFE_CENTER		0x00fac4c8
-#define AUD_CONFIG_CH_MASK	0x70
+struct cea_channel_speaker_allocation {
+	int ca_index;
+	int speakers[8];
+
+	/* derived values, just for convenience */
+	int channels;
+	int spk_mask;
+};
+
+struct channel_map_table {
+	unsigned char map;              /* ALSA API channel map position */
+	unsigned char cea_slot;         /* CEA slot value */
+	int spk_mask;                   /* speaker position bit mask */
+};
 
 struct pcm_stream_info {
 	struct snd_pcm_substream *substream;

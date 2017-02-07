@@ -252,7 +252,8 @@ static void had_ack_irqs(struct snd_intelhad *ctx)
 /* Reset buffer pointers */
 static void had_reset_audio(struct snd_intelhad *intelhaddata)
 {
-	had_write_register(intelhaddata, AUD_HDMI_STATUS, 1);
+	had_write_register(intelhaddata, AUD_HDMI_STATUS,
+			   AUD_HDMI_STATUSG_MASK_FUNCRST);
 	had_write_register(intelhaddata, AUD_HDMI_STATUS, 0);
 }
 
@@ -989,7 +990,7 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 	for (i = 0; i < MAX_CNT; i++) {
 		/* clear bit30, 31 AUD_HDMI_STATUS */
 		had_read_register(intelhaddata, AUD_HDMI_STATUS, &val);
-		if (!(val & AUD_CONFIG_MASK_UNDERRUN))
+		if (!(val & AUD_HDMI_STATUS_MASK_UNDERRUN))
 			return;
 		had_write_register(intelhaddata, AUD_HDMI_STATUS, val);
 	}
