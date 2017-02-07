@@ -890,9 +890,8 @@ static bool _rtl8821ae_llt_table_init(struct ieee80211_hw *hw)
 static void _rtl8821ae_gen_refresh_led_state(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_led *pled0 = &pcipriv->ledctl.sw_led0;
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	if (rtlpriv->rtlhal.up_first_time)
@@ -3098,7 +3097,6 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	int params[] = {RTL_EEPROM_ID, EEPROM_VID, EEPROM_DID,
 			EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR,
 			EEPROM_CHANNELPLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
@@ -3193,7 +3191,7 @@ static void _rtl8821ae_read_adapter_info(struct ieee80211_hw *hw, bool b_pseudo_
 		"SWAS: bHwAntDiv = %x, TRxAntDivType = %x\n",
 		rtlefuse->antenna_div_cfg, rtlefuse->antenna_div_type);
 
-	pcipriv->ledctl.led_opendrain = true;
+	rtlpriv->ledctl.led_opendrain = true;
 
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
 		switch (rtlefuse->eeprom_oemid) {
@@ -3224,10 +3222,10 @@ exit:
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	pcipriv->ledctl.led_opendrain = true;
+	rtlpriv->ledctl.led_opendrain = true;
 	switch (rtlhal->oem_id) {
 	case RT_CID_819X_HP:
-		pcipriv->ledctl.led_opendrain = true;
+		rtlpriv->ledctl.led_opendrain = true;
 		break;
 	case RT_CID_819X_LENOVO:
 	case RT_CID_DEFAULT:

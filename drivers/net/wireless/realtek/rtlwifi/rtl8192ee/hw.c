@@ -735,9 +735,8 @@ static bool _rtl92ee_llt_table_init(struct ieee80211_hw *hw)
 static void _rtl92ee_gen_refresh_led_state(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_led *pled0 = &pcipriv->ledctl.sw_led0;
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 
 	if (rtlpriv->rtlhal.up_first_time)
 		return;
@@ -2166,10 +2165,9 @@ exit:
 static void _rtl92ee_hal_customized_behavior(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	pcipriv->ledctl.led_opendrain = true;
+	rtlpriv->ledctl.led_opendrain = true;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		 "RT Customized ID: 0x%02X\n", rtlhal->oem_id);

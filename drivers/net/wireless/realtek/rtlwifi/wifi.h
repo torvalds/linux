@@ -2583,6 +2583,7 @@ struct rtl_priv {
 	struct rtl_dm dm;
 	struct rtl_security sec;
 	struct rtl_efuse efuse;
+	struct rtl_led_ctl ledctl;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;
