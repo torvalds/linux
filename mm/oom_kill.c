@@ -408,7 +408,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 	if (oc->nodemask)
 		pr_cont("%*pbl", nodemask_pr_args(oc->nodemask));
 	else
-		pr_cont("(null)\n");
+		pr_cont("(null)");
 	pr_cont(",  order=%d, oom_score_adj=%hd\n",
 		oc->order, current->signal->oom_score_adj);
 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
