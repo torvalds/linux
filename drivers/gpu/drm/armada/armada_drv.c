@@ -49,20 +49,6 @@ void armada_drm_queue_unref_work(struct drm_device *dev,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-/* These are called under the vbl_lock. */
-static int armada_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_enable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
-	return 0;
-}
-
-static void armada_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_disable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
-}
-
 static struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_CREATE, armada_gem_create_ioctl,0),
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_MMAP, armada_gem_mmap_ioctl, 0),
@@ -87,8 +73,6 @@ static const struct file_operations armada_drm_fops = {
 
 static struct drm_driver armada_drm_driver = {
 	.lastclose		= armada_drm_lastclose,
-	.enable_vblank		= armada_drm_enable_vblank,
-	.disable_vblank		= armada_drm_disable_vblank,
 	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
