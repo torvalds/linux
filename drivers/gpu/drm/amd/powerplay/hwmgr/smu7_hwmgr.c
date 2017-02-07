@@ -3289,6 +3289,37 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
+		struct pp_gpu_power *query)
+{
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+			PPSMC_MSG_PmStatusLogStart),
+			"Failed to start pm status log!",
+			return -1);
+
+	msleep_interruptible(2000);
+
+	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
+			PPSMC_MSG_PmStatusLogSample),
+			"Failed to sample pm status log!",
+			return -1);
+
+	query->vddc_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_40);
+	query->vddci_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_49);
+	query->max_gpu_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_94);
+	query->average_gpu_power = cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC,
+			ixSMU_PM_STATUS_95);
+
+	return 0;
+}
+
 static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
 {
 	uint32_t sclk, mclk, activity_percent;
@@ -3325,6 +3356,8 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
 	case AMDGPU_PP_SENSOR_VCE_POWER:
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		return 0;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		return smu7_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
 	default:
 		return -EINVAL;
 	}
