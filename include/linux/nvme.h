@@ -579,6 +579,12 @@ struct nvme_write_zeroes_cmd {
 	__le16			appmask;
 };
 
+/* Features */
+
+struct nvme_feat_auto_pst {
+	__le64 entries[32];
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
