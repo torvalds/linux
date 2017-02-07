@@ -356,6 +356,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
+	DEBUGFS_ADD(rate_ctrl_alg);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD(misc);
 #ifdef CONFIG_PM
