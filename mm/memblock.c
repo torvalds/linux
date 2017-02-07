@@ -72,6 +72,10 @@ memblock_type_name(struct memblock_type *type)
 		return "memory";
 	else if (type == &memblock.reserved)
 		return "reserved";
+#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+	else if (type == &memblock.physmem)
+		return "physmem";
+#endif
 	else
 		return "unknown";
 }
