@@ -2061,6 +2061,8 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_LO               | 64
   MIPS  | KVM_REG_MIPS_PC               | 64
   MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO0     | 64
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYLO1     | 64
   MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
   MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
   MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
@@ -2071,9 +2073,11 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
   MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
   MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_INTCTL       | 32
   MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
   MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
   MIPS  | KVM_REG_MIPS_CP0_PRID         | 32
+  MIPS  | KVM_REG_MIPS_CP0_EBASE        | 64
   MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
@@ -2147,6 +2151,12 @@ MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
 patterns depending on whether they're 32-bit or 64-bit registers:
   0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
   0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+Note: KVM_REG_MIPS_CP0_ENTRYLO0 and KVM_REG_MIPS_CP0_ENTRYLO1 are the MIPS64
+versions of the EntryLo registers regardless of the word size of the host
+hardware, host kernel, guest, and whether XPA is present in the guest, i.e.
+with the RI and XI bits (if they exist) in bits 63 and 62 respectively, and
+the PFNX field starting at bit 30.
 
 MIPS KVM control registers (see above) have the following id bit patterns:
   0x7030 0000 0002 <reg:16>
