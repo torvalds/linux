@@ -188,7 +188,7 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt = NULL;
 
-	spin_lock_bh(&xprt->sc_ctxt_lock);
+	spin_lock(&xprt->sc_ctxt_lock);
 	xprt->sc_ctxt_used++;
 	if (list_empty(&xprt->sc_ctxts))
 		goto out_empty;
@@ -196,7 +196,7 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 	ctxt = list_first_entry(&xprt->sc_ctxts,
 				struct svc_rdma_op_ctxt, list);
 	list_del(&ctxt->list);
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
+	spin_unlock(&xprt->sc_ctxt_lock);
 
 out:
 	ctxt->count = 0;
@@ -208,15 +208,15 @@ out_empty:
 	/* Either pre-allocation missed the mark, or send
 	 * queue accounting is broken.
 	 */
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
+	spin_unlock(&xprt->sc_ctxt_lock);
 
 	ctxt = alloc_ctxt(xprt, GFP_NOIO);
 	if (ctxt)
 		goto out;
 
-	spin_lock_bh(&xprt->sc_ctxt_lock);
+	spin_lock(&xprt->sc_ctxt_lock);
 	xprt->sc_ctxt_used--;
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
+	spin_unlock(&xprt->sc_ctxt_lock);
 	WARN_ONCE(1, "svcrdma: empty RDMA ctxt list?\n");
 	return NULL;
 }
@@ -253,10 +253,10 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 		for (i = 0; i < ctxt->count; i++)
 			put_page(ctxt->pages[i]);
 
-	spin_lock_bh(&xprt->sc_ctxt_lock);
+	spin_lock(&xprt->sc_ctxt_lock);
 	xprt->sc_ctxt_used--;
 	list_add(&ctxt->list, &xprt->sc_ctxts);
-	spin_unlock_bh(&xprt->sc_ctxt_lock);
+	spin_unlock(&xprt->sc_ctxt_lock);
 }
 
 static void svc_rdma_destroy_ctxts(struct svcxprt_rdma *xprt)
@@ -921,14 +921,14 @@ struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_fastreg_mr *frmr = NULL;
 
-	spin_lock_bh(&rdma->sc_frmr_q_lock);
+	spin_lock(&rdma->sc_frmr_q_lock);
 	if (!list_empty(&rdma->sc_frmr_q)) {
 		frmr = list_entry(rdma->sc_frmr_q.next,
 				  struct svc_rdma_fastreg_mr, frmr_list);
 		list_del_init(&frmr->frmr_list);
 		frmr->sg_nents = 0;
 	}
-	spin_unlock_bh(&rdma->sc_frmr_q_lock);
+	spin_unlock(&rdma->sc_frmr_q_lock);
 	if (frmr)
 		return frmr;
 
@@ -941,10 +941,10 @@ void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 	if (frmr) {
 		ib_dma_unmap_sg(rdma->sc_cm_id->device,
 				frmr->sg, frmr->sg_nents, frmr->direction);
-		spin_lock_bh(&rdma->sc_frmr_q_lock);
+		spin_lock(&rdma->sc_frmr_q_lock);
 		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
-		spin_unlock_bh(&rdma->sc_frmr_q_lock);
+		spin_unlock(&rdma->sc_frmr_q_lock);
 	}
 }
 
@@ -1026,13 +1026,13 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		goto errout;
 	}
 	newxprt->sc_sq_cq = ib_alloc_cq(dev, newxprt, newxprt->sc_sq_depth,
-					0, IB_POLL_SOFTIRQ);
+					0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(newxprt->sc_sq_cq)) {
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
 	}
 	newxprt->sc_rq_cq = ib_alloc_cq(dev, newxprt, newxprt->sc_rq_depth,
-					0, IB_POLL_SOFTIRQ);
+					0, IB_POLL_WORKQUEUE);
 	if (IS_ERR(newxprt->sc_rq_cq)) {
 		dprintk("svcrdma: error creating RQ CQ for connect request\n");
 		goto errout;
