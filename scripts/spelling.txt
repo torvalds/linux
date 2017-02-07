@@ -89,6 +89,7 @@ amout||amount
 an union||a union
 an user||a user
 an userspace||a userspace
+an one||a one
 analysator||analyzer
 ang||and
 anniversery||anniversary
