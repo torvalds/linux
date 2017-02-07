@@ -2268,6 +2268,8 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 {
 	struct dlm_lock *lock, *next;
 	unsigned int freed = 0;
+       struct list_head *queue = NULL;
+       int i;
 
 	/* this node is the lockres master:
 	 * 1) remove any stale locks for the dead node
@@ -2280,31 +2282,18 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 	 * to force the DLM_UNLOCK_FREE_LOCK action so as to free the locks */
 
 	/* TODO: check pending_asts, pending_basts here */
-	list_for_each_entry_safe(lock, next, &res->granted, list) {
-		if (lock->ml.node == dead_node) {
-			list_del_init(&lock->list);
-			dlm_lock_put(lock);
-			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
-			dlm_lock_put(lock);
-			freed++;
-		}
-	}
-	list_for_each_entry_safe(lock, next, &res->converting, list) {
-		if (lock->ml.node == dead_node) {
-			list_del_init(&lock->list);
-			dlm_lock_put(lock);
-			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
-			dlm_lock_put(lock);
-			freed++;
-		}
-	}
-	list_for_each_entry_safe(lock, next, &res->blocked, list) {
-		if (lock->ml.node == dead_node) {
-			list_del_init(&lock->list);
-			dlm_lock_put(lock);
-			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
-			dlm_lock_put(lock);
-			freed++;
+       for (i = DLM_GRANTED_LIST; i <= DLM_BLOCKED_LIST; i++) {
+               queue = dlm_list_idx_to_ptr(res, i);
+               list_for_each_entry_safe(lock, next, queue, list) {
+                       if (lock->ml.node == dead_node) {
+                               list_del_init(&lock->list);
+                               dlm_lock_put(lock);
+                               /* Can't schedule DLM_UNLOCK_FREE_LOCK
+                                * do manually
+                                */
+                               dlm_lock_put(lock);
+                               freed++;
+                       }
 		}
 	}
 
