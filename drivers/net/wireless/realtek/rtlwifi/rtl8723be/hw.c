@@ -2020,6 +2020,37 @@ static void _rtl8723be_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		"eeprom_regulatory = 0x%x\n", rtlefuse->eeprom_regulatory);
 }
 
+static u8 _rtl8723be_read_package_type(struct ieee80211_hw *hw)
+{
+	u8 package_type;
+	u8 value;
+
+	efuse_power_switch(hw, false, true);
+	if (!efuse_one_byte_read(hw, 0x1FB, &value))
+		value = 0;
+	efuse_power_switch(hw, false, false);
+
+	switch (value & 0x7) {
+	case 0x4:
+		package_type = PACKAGE_TFBGA79;
+		break;
+	case 0x5:
+		package_type = PACKAGE_TFBGA90;
+		break;
+	case 0x6:
+		package_type = PACKAGE_QFN68;
+		break;
+	case 0x7:
+		package_type = PACKAGE_TFBGA80;
+		break;
+	default:
+		package_type = PACKAGE_DEFAULT;
+		break;
+	}
+
+	return package_type;
+}
+
 static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 					 bool pseudo_test)
 {
@@ -2077,6 +2108,8 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 	rtl8723be_read_bt_coexist_info_from_hwpg(hw,
 						 rtlefuse->autoload_failflag,
 						 hwinfo);
+
+	rtlhal->package_type = _rtl8723be_read_package_type(hw);
 
 	/* set channel plan from efuse */
 	rtlefuse->channel_plan = rtlefuse->eeprom_channelplan;

@@ -50,6 +50,8 @@ u8 rtl_get_hwpg_bt_exist(struct rtl_priv *rtlpriv);
 u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv);
 u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv);
 u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv);
+u8 rtl_get_hwpg_package_type(struct rtl_priv *rtlpriv);
+
 enum rt_media_status mgnt_link_status_query(struct ieee80211_hw *hw);
 
 #endif
