@@ -899,10 +899,13 @@ static void had_advance_ringbuf(struct snd_pcm_substream *substream,
 }
 
 /* process the current BD(s);
- * returns the current PCM buffer byte position, or -EPIPE for underrun.
+ * returns the number of processed BDs, zero if no BD was processed,
+ * or -EPIPE for underrun.
+ * When @pos_ret is non-NULL, the current PCM buffer byte position is stored.
  */
 static int had_process_ringbuf(struct snd_pcm_substream *substream,
-			       struct snd_intelhad *intelhaddata)
+			       struct snd_intelhad *intelhaddata,
+			       int *pos_ret)
 {
 	int len, processed;
 	unsigned long flags;
@@ -917,7 +920,7 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 		if (len < 0 || len > intelhaddata->period_bytes) {
 			dev_dbg(intelhaddata->dev, "Invalid buf length %d\n",
 				len);
-			len = -EPIPE;
+			processed = -EPIPE;
 			goto out;
 		}
 
@@ -926,23 +929,27 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 
 		/* len=0 => already empty, check the next buffer */
 		if (++processed >= intelhaddata->num_bds) {
-			len = -EPIPE; /* all empty? - report underrun */
+			processed = -EPIPE; /* all empty? - report underrun */
 			goto out;
 		}
 		had_advance_ringbuf(substream, intelhaddata);
 	}
 
-	len = intelhaddata->period_bytes - len;
-	len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
+	if (pos_ret) {
+		len = intelhaddata->period_bytes - len;
+		len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
+		*pos_ret = len;
+	}
  out:
 	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
-	return len;
+	return processed;
 }
 
 /* called from irq handler */
 static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
+	int processed;
 
 	if (!intelhaddata->connected)
 		return; /* disconnected? - bail out */
@@ -952,9 +959,10 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 		return; /* no stream? - bail out */
 
 	/* process or stop the stream */
-	if (had_process_ringbuf(substream, intelhaddata) < 0)
+	processed = had_process_ringbuf(substream, intelhaddata, NULL);
+	if (processed < 0)
 		snd_pcm_stop_xrun(substream);
-	else
+	else if (processed > 0)
 		snd_pcm_period_elapsed(substream);
 
 	had_substream_put(intelhaddata);
@@ -1254,8 +1262,7 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 	if (!intelhaddata->connected)
 		return SNDRV_PCM_POS_XRUN;
 
-	len = had_process_ringbuf(substream, intelhaddata);
-	if (len < 0)
+	if (had_process_ringbuf(substream, intelhaddata, &len) < 0)
 		return SNDRV_PCM_POS_XRUN;
 	return bytes_to_frames(substream->runtime, len);
 }
