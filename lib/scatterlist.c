@@ -394,17 +394,26 @@ int sg_alloc_table_from_pages(struct sg_table *sgt,
 	unsigned long offset, unsigned long size,
 	gfp_t gfp_mask)
 {
+	unsigned int chunk_pages;
 	unsigned int chunks;
 	unsigned int i;
 	unsigned int cur_page;
 	int ret;
 	struct scatterlist *s;
 
+	BUILD_BUG_ON(!typecheck(typeof(s->length), unsigned int));
+
 	/* compute number of contiguous chunks */
 	chunks = 1;
-	for (i = 1; i < n_pages; ++i)
-		if (page_to_pfn(pages[i]) != page_to_pfn(pages[i - 1]) + 1)
+	chunk_pages = 1;
+	for (i = 1; i < n_pages; ++i) {
+		if (page_to_pfn(pages[i]) != page_to_pfn(pages[i - 1]) + 1 ||
+		    chunk_pages >= UINT_MAX >> PAGE_SHIFT) {
 			++chunks;
+			chunk_pages = 0;
+		}
+		++chunk_pages;
+	}
 
 	ret = sg_alloc_table(sgt, chunks, gfp_mask);
 	if (unlikely(ret))
@@ -417,10 +426,15 @@ int sg_alloc_table_from_pages(struct sg_table *sgt,
 		unsigned int j;
 
 		/* look for the end of the current chunk */
-		for (j = cur_page + 1; j < n_pages; ++j)
+		chunk_pages = 1;
+		for (j = cur_page + 1; j < n_pages; ++j) {
 			if (page_to_pfn(pages[j]) !=
-			    page_to_pfn(pages[j - 1]) + 1)
+			    page_to_pfn(pages[j - 1]) + 1 ||
+			    chunk_pages >= UINT_MAX >> PAGE_SHIFT) {
 				break;
+			}
+			++chunk_pages;
+		}
 
 		chunk_size = ((j - cur_page) << PAGE_SHIFT) - offset;
 		sg_set_page(s, pages[cur_page], min(size, chunk_size), offset);
