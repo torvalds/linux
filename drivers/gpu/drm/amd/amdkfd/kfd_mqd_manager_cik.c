@@ -66,6 +66,12 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		m->compute_static_thread_mgmt_se3);
 }
 
+static void set_priority(struct cik_mqd *m, struct queue_properties *q)
+{
+	m->cp_hqd_pipe_priority = pipe_priority_map[q->priority];
+	m->cp_hqd_queue_priority = q->priority;
+}
+
 static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 					struct queue_properties *q)
 {
@@ -80,7 +86,6 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 
 	return mqd_mem_obj;
 }
-
 
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
@@ -131,8 +136,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	 * 1 = CS_MEDIUM (typically between HP3D and GFX
 	 * 2 = CS_HIGH (typically above HP3D)
 	 */
-	m->cp_hqd_pipe_priority = 1;
-	m->cp_hqd_queue_priority = 15;
+	set_priority(m, q);
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_iq_rptr = AQL_ENABLE;
@@ -230,6 +234,7 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
 
 	update_cu_mask(mm, mqd, q);
+	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 
@@ -354,6 +359,7 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 
+	set_priority(m, q);
 	return 0;
 }
 
