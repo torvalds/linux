@@ -269,11 +269,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	for (i = VENC_SYS, j = 0; i < NUM_MAX_VCODEC_REG_BASE; i++, j++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, j);
-		if (res == NULL) {
-			dev_err(&pdev->dev, "get memory resource failed.");
-			ret = -ENXIO;
-			goto err_res;
-		}
 		dev->reg_base[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR((__force void *)dev->reg_base[i])) {
 			ret = PTR_ERR((__force void *)dev->reg_base[i]);
