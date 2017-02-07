@@ -80,6 +80,20 @@ run              - set 0 to stop ksmd from running but keep merged pages,
                    Default: 0 (must be changed to 1 to activate KSM,
                                except if CONFIG_SYSFS is disabled)
 
+use_zero_pages   - specifies whether empty pages (i.e. allocated pages
+                   that only contain zeroes) should be treated specially.
+                   When set to 1, empty pages are merged with the kernel
+                   zero page(s) instead of with each other as it would
+                   happen normally. This can improve the performance on
+                   architectures with coloured zero pages, depending on
+                   the workload. Care should be taken when enabling this
+                   setting, as it can potentially degrade the performance
+                   of KSM for some workloads, for example if the checksums
+                   of pages candidate for merging match the checksum of
+                   an empty page. This setting can be changed at any time,
+                   it is only effective for pages merged after the change.
+                   Default: 0 (normal KSM behaviour as in earlier releases)
+
 The effectiveness of KSM and MADV_MERGEABLE is shown in /sys/kernel/mm/ksm/:
 
 pages_shared     - how many shared pages are being used
