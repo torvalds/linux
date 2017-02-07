@@ -34,6 +34,7 @@ struct zd1301_demod_platform_data {
 	int (*reg_write)(void *, u16, u8);
 };
 
+#if IS_REACHABLE(CONFIG_DVB_ZD1301_DEMOD)
 /**
  * zd1301_demod_get_dvb_frontend() - Get pointer to DVB frontend
  * @pdev: Pointer to platform device
@@ -51,5 +52,22 @@ struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *);
  */
 
 struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *);
+
+#else
+
+static inline struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *dev)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+
+	return NULL;
+}
+static inline struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *dev)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+
+	return NULL;
+}
+
+#endif
 
 #endif /* ZD1301_DEMOD_H */

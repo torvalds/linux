@@ -168,6 +168,10 @@ static int zd1301_frontend_attach(struct dvb_usb_adapter *adap)
 
 	adapter = zd1301_demod_get_i2c_adapter(pdev);
 	frontend = zd1301_demod_get_dvb_frontend(pdev);
+	if (!adapter || !frontend) {
+		ret = -ENODEV;
+		goto err_module_put_demod;
+	}
 
 	/* Add I2C tuner */
 	dev->mt2060_pdata.i2c_write_max = 9;
