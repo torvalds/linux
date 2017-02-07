@@ -144,6 +144,13 @@ static const char igb_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define IGB_TEST_LEN (sizeof(igb_gstrings_test) / ETH_GSTRING_LEN)
 
+static const char igb_priv_flags_strings[][ETH_GSTRING_LEN] = {
+#define IGB_PRIV_FLAGS_LEGACY_RX	BIT(0)
+	"legacy-rx",
+};
+
+#define IGB_PRIV_FLAGS_STR_LEN ARRAY_SIZE(igb_priv_flags_strings)
+
 static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -852,6 +859,8 @@ static void igb_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
+
+	drvinfo->n_priv_flags = IGB_PRIV_FLAGS_STR_LEN;
 }
 
 static void igb_get_ringparam(struct net_device *netdev,
@@ -2280,6 +2289,8 @@ static int igb_get_sset_count(struct net_device *netdev, int sset)
 		return IGB_STATS_LEN;
 	case ETH_SS_TEST:
 		return IGB_TEST_LEN;
+	case ETH_SS_PRIV_FLAGS:
+		return IGB_PRIV_FLAGS_STR_LEN;
 	default:
 		return -ENOTSUPP;
 	}
@@ -2384,6 +2395,10 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 		}
 		/* BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, igb_priv_flags_strings,
+		       IGB_PRIV_FLAGS_STR_LEN * ETH_GSTRING_LEN);
 		break;
 	}
 }
@@ -3397,6 +3412,37 @@ static int igb_set_channels(struct net_device *netdev,
 	return 0;
 }
 
+static u32 igb_get_priv_flags(struct net_device *netdev)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	u32 priv_flags = 0;
+
+	if (adapter->flags & IGB_FLAG_RX_LEGACY)
+		priv_flags |= IGB_PRIV_FLAGS_LEGACY_RX;
+
+	return priv_flags;
+}
+
+static int igb_set_priv_flags(struct net_device *netdev, u32 priv_flags)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	unsigned int flags = adapter->flags;
+
+	flags &= ~IGB_FLAG_RX_LEGACY;
+	if (priv_flags & IGB_PRIV_FLAGS_LEGACY_RX)
+		flags |= IGB_FLAG_RX_LEGACY;
+
+	if (flags != adapter->flags) {
+		adapter->flags = flags;
+
+		/* reset interface to repopulate queues */
+		if (netif_running(netdev))
+			igb_reinit_locked(adapter);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings		= igb_get_settings,
 	.set_settings		= igb_set_settings,
@@ -3435,6 +3481,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_rxfh		= igb_set_rxfh,
 	.get_channels		= igb_get_channels,
 	.set_channels		= igb_set_channels,
+	.get_priv_flags		= igb_get_priv_flags,
+	.set_priv_flags		= igb_set_priv_flags,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
