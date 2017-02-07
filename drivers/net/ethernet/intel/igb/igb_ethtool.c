@@ -1811,7 +1811,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IGB_RX_DESC(rx_ring, rx_ntc);
 
-	while (igb_test_staterr(rx_desc, E1000_RXD_STAT_DD)) {
+	while (rx_desc->wb.upper.length) {
 		/* check Rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
