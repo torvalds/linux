@@ -25,4 +25,6 @@ void reenable_swap_slots_cache_unlock(void);
 int enable_swap_slots_cache(void);
 int free_swap_slot(swp_entry_t entry);
 
+extern bool swap_slot_cache_enabled;
+
 #endif /* _LINUX_SWAP_SLOTS_H */
