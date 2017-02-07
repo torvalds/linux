@@ -160,19 +160,21 @@ struct net_bridge_vlan_group {
 	u16				pvid;
 };
 
-struct net_bridge_fdb_entry
-{
+struct net_bridge_fdb_entry {
 	struct hlist_node		hlist;
 	struct net_bridge_port		*dst;
 
-	unsigned long			updated;
-	unsigned long			used;
 	mac_addr			addr;
 	__u16				vlan_id;
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
 					added_by_external_learn:1;
+
+	/* write-heavy members should not affect lookups */
+	unsigned long			updated ____cacheline_aligned_in_smp;
+	unsigned long			used;
+
 	struct rcu_head			rcu;
 };
 
@@ -212,11 +214,15 @@ struct net_bridge_mdb_htable
 	u32				ver;
 };
 
-struct net_bridge_port
-{
+struct net_bridge_port {
 	struct net_bridge		*br;
 	struct net_device		*dev;
 	struct list_head		list;
+
+	unsigned long			flags;
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	struct net_bridge_vlan_group	__rcu *vlgrp;
+#endif
 
 	/* STP */
 	u8				priority;
@@ -238,8 +244,6 @@ struct net_bridge_port
 	struct kobject			kobj;
 	struct rcu_head			rcu;
 
-	unsigned long 			flags;
-
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_own_query	ip4_own_query;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -258,9 +262,6 @@ struct net_bridge_port
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll			*np;
-#endif
-#ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
 #ifdef CONFIG_NET_SWITCHDEV
 	int				offload_fwd_mark;
@@ -283,14 +284,21 @@ static inline struct net_bridge_port *br_port_get_rtnl(const struct net_device *
 		rtnl_dereference(dev->rx_handler_data) : NULL;
 }
 
-struct net_bridge
-{
+struct net_bridge {
 	spinlock_t			lock;
+	spinlock_t			hash_lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
-
 	struct pcpu_sw_netstats		__percpu *stats;
-	spinlock_t			hash_lock;
+	/* These fields are accessed on each packet */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	u8				vlan_enabled;
+	u8				vlan_stats_enabled;
+	__be16				vlan_proto;
+	u16				default_pvid;
+	struct net_bridge_vlan_group	__rcu *vlgrp;
+#endif
+
 	struct hlist_head		hash[BR_HASH_SIZE];
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	union {
@@ -308,6 +316,9 @@ struct net_bridge
 	bridge_id			designated_root;
 	bridge_id			bridge_id;
 	u32				root_path_cost;
+	unsigned char			topology_change;
+	unsigned char			topology_change_detected;
+	u16				root_port;
 	unsigned long			max_age;
 	unsigned long			hello_time;
 	unsigned long			forward_delay;
@@ -319,16 +330,12 @@ struct net_bridge
 
 	u8				group_addr[ETH_ALEN];
 	bool				group_addr_set;
-	u16				root_port;
 
 	enum {
 		BR_NO_STP, 		/* no spanning tree */
 		BR_KERNEL_STP,		/* old STP in kernel */
 		BR_USER_STP,		/* new RSTP in userspace */
 	} stp_enabled;
-
-	unsigned char			topology_change;
-	unsigned char			topology_change_detected;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	unsigned char			multicast_router;
@@ -374,20 +381,12 @@ struct net_bridge
 	struct timer_list		hello_timer;
 	struct timer_list		tcn_timer;
 	struct timer_list		topology_change_timer;
-	struct timer_list		gc_timer;
+	struct delayed_work		gc_work;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
 
 #ifdef CONFIG_NET_SWITCHDEV
 	int offload_fwd_mark;
-#endif
-
-#ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	struct net_bridge_vlan_group	__rcu *vlgrp;
-	u8				vlan_enabled;
-	u8				vlan_stats_enabled;
-	__be16				vlan_proto;
-	u16				default_pvid;
 #endif
 };
 
@@ -505,7 +504,7 @@ void br_fdb_find_delete_local(struct net_bridge *br,
 			      const unsigned char *addr, u16 vid);
 void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr);
 void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr);
-void br_fdb_cleanup(unsigned long arg);
+void br_fdb_cleanup(struct work_struct *work);
 void br_fdb_delete_by_port(struct net_bridge *br,
 			   const struct net_bridge_port *p, u16 vid, int do_all);
 struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
