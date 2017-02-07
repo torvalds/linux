@@ -308,7 +308,7 @@ void secondary_start_kernel(void)
 
 	/* Attach the new idle task to the global mm. */
 	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmgrab(mm);
 	current->active_mm = mm;
 
 	preempt_disable();

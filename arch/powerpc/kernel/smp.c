@@ -707,7 +707,7 @@ void start_secondary(void *unused)
 	unsigned int cpu = smp_processor_id();
 	int i, base;
 
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
