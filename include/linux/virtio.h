@@ -44,6 +44,12 @@ int virtqueue_add_inbuf(struct virtqueue *vq,
 			void *data,
 			gfp_t gfp);
 
+int virtqueue_add_inbuf_ctx(struct virtqueue *vq,
+			    struct scatterlist sg[], unsigned int num,
+			    void *data,
+			    void *ctx,
+			    gfp_t gfp);
+
 int virtqueue_add_sgs(struct virtqueue *vq,
 		      struct scatterlist *sgs[],
 		      unsigned int out_sgs,
@@ -58,6 +64,9 @@ bool virtqueue_kick_prepare(struct virtqueue *vq);
 bool virtqueue_notify(struct virtqueue *vq);
 
 void *virtqueue_get_buf(struct virtqueue *vq, unsigned int *len);
+
+void *virtqueue_get_buf_ctx(struct virtqueue *vq, unsigned int *len,
+			    void **ctx);
 
 void virtqueue_disable_cb(struct virtqueue *vq);
 
