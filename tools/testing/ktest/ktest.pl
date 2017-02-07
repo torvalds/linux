@@ -179,6 +179,7 @@ my $localversion;
 my $iteration = 0;
 my $successes = 0;
 my $stty_orig;
+my $run_command_status = 0;
 
 my $bisect_good;
 my $bisect_bad;
@@ -1736,11 +1737,8 @@ sub run_command {
     }
 
     waitpid($pid, 0);
-    my $failed = $?;
-
-    if ($hit_timeout) {
-	$failed = 1;
-    }
+    # shift 8 for real exit status
+    $run_command_status = $? >> 8;
 
     close(CMD);
     close(LOG) if ($dolog);
@@ -1755,13 +1753,17 @@ sub run_command {
 	doprint "[$delta seconds] ";
     }
 
-    if ($failed) {
+    if ($hit_timeout) {
+	$run_command_status = 1;
+    }
+
+    if ($run_command_status) {
 	doprint "FAILED!\n";
     } else {
 	doprint "SUCCESS\n";
     }
 
-    return !$failed;
+    return !$run_command_status;
 }
 
 sub run_ssh {
@@ -2578,16 +2580,15 @@ sub answer_bisect {
 }
 
 sub child_run_test {
-    my $failed = 0;
 
     # child should have no power
     $reboot_on_error = 0;
     $poweroff_on_error = 0;
     $die_on_failure = 1;
 
-    run_command $run_test, $testlog or $failed = 1;
+    run_command $run_test, $testlog;
 
-    exit $failed;
+    exit $run_command_status;
 }
 
 my $child_done;
@@ -3370,7 +3371,6 @@ sub config_bisect {
 
     save_config \%good_configs, $good_config;
     save_config \%bad_configs, $bad_config;
-
 
     if (defined($config_bisect_check) && $config_bisect_check ne "0") {
 	if ($config_bisect_check ne "good") {
