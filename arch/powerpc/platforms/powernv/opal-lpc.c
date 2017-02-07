@@ -18,7 +18,6 @@
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
-#include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/prom.h>
 #include <linux/uaccess.h>
