@@ -17,7 +17,7 @@ driver and currently works well under standard IDE subsystem. Actually it's
 one chip SSD. IO mode is ATA-like custom mode for the host that doesn't have
 IDE interface.
 
-Followings are brief descriptions about IO mode.
+Following are brief descriptions about IO mode.
 A. IO mode based on ATA protocol and uses some custom command. (read confirm,
 write confirm)
 B. IO mode uses SRAM bus interface.
