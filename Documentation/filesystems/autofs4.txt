@@ -65,7 +65,7 @@ directory is a mount trap only if the filesystem is mounted *direct*
 and the root is empty.
 
 Directories created in the root directory are mount traps only if the
-filesystem is mounted  *indirect* and they are empty.
+filesystem is mounted *indirect* and they are empty.
 
 Directories further down the tree depend on the *maxproto* mount
 option and particularly whether it is less than five or not.
@@ -352,7 +352,7 @@ Communicating with autofs: root directory ioctls
 ------------------------------------------------
 
 The root directory of an autofs filesystem will respond to a number of
-ioctls.   The process issuing the ioctl must have the CAP_SYS_ADMIN
+ioctls.  The process issuing the ioctl must have the CAP_SYS_ADMIN
 capability, or must be the automount daemon.
 
 The available ioctl commands are:
@@ -512,7 +512,7 @@ always be mounted "shared". e.g.
 
 > `mount --make-shared /autofs/mount/point`
 
-The automount daemon is only able to mange a single mount location for
+The automount daemon is only able to manage a single mount location for
 an autofs filesystem and if mounts on that are not 'shared', other
 locations will not behave as expected.  In particular access to those
 other locations will likely result in the `ELOOP` error
