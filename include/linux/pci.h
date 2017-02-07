@@ -940,32 +940,12 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 
 struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops);
 
-static inline int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
-{
-	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
-}
-static inline int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
-{
-	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
-}
-static inline int pci_read_config_dword(const struct pci_dev *dev, int where,
-					u32 *val)
-{
-	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
-}
-static inline int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val)
-{
-	return pci_bus_write_config_byte(dev->bus, dev->devfn, where, val);
-}
-static inline int pci_write_config_word(const struct pci_dev *dev, int where, u16 val)
-{
-	return pci_bus_write_config_word(dev->bus, dev->devfn, where, val);
-}
-static inline int pci_write_config_dword(const struct pci_dev *dev, int where,
-					 u32 val)
-{
-	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
-}
+int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val);
+int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val);
+int pci_read_config_dword(const struct pci_dev *dev, int where, u32 *val);
+int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val);
+int pci_write_config_word(const struct pci_dev *dev, int where, u16 val);
+int pci_write_config_dword(const struct pci_dev *dev, int where, u32 val);
 
 int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val);
 int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *val);
