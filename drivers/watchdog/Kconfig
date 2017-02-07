@@ -71,6 +71,14 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config SOFT_WATCHDOG_PRETIMEOUT
+	bool "Software watchdog pretimeout governor support"
+	depends on SOFT_WATCHDOG && WATCHDOG_PRETIMEOUT_GOV
+	help
+	  Enable this if you want to use pretimeout governors with the software
+	  watchdog. Be aware that governors might affect the watchdog because it
+	  is purely software, e.g. the panic governor will stall it!
+
 config DA9052_WATCHDOG
 	tristate "Dialog DA9052 Watchdog"
 	depends on PMIC_DA9052 || COMPILE_TEST
