@@ -3903,9 +3903,10 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
 
 	if (cpusets_enabled()) {
 		*alloc_mask |= __GFP_HARDWALL;
-		*alloc_flags |= ALLOC_CPUSET;
 		if (!ac->nodemask)
 			ac->nodemask = &cpuset_current_mems_allowed;
+		else
+			*alloc_flags |= ALLOC_CPUSET;
 	}
 
 	lockdep_trace_alloc(gfp_mask);
