@@ -239,7 +239,7 @@ static struct sctp_transport *sctp_addr_id2transport(struct sock *sk,
 	union sctp_addr *laddr = (union sctp_addr *)addr;
 	struct sctp_transport *transport;
 
-	if (sctp_verify_addr(sk, laddr, af->sockaddr_len))
+	if (!af || sctp_verify_addr(sk, laddr, af->sockaddr_len))
 		return NULL;
 
 	addr_asoc = sctp_endpoint_lookup_assoc(sctp_sk(sk)->ep,
