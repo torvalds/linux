@@ -1062,7 +1062,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	data->irq_memory = devm_kzalloc(dev, size * 4, GFP_KERNEL);
 	if (!data->irq_memory) {
 		dev_err(dev, "Failed to allocate memory for irq masks.\n");
-		return retval;
+		return -ENOMEM;
 	}
 
 	data->irq_status	= data->irq_memory + size * 0;
