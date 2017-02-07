@@ -122,14 +122,14 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 			if (!user)
 				break;
 
-			do_each_thread(g, p) {
+			for_each_process_thread(g, p) {
 				if (!uid_eq(task_uid(p), uid) ||
 				    !task_pid_vnr(p))
 					continue;
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
 					goto free_uid;
-			} while_each_thread(g, p);
+			}
 free_uid:
 			if (who)
 				free_uid(user);
@@ -222,7 +222,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 			if (!user)
 				break;
 
-			do_each_thread(g, p) {
+			for_each_process_thread(g, p) {
 				if (!uid_eq(task_uid(p), user->uid) ||
 				    !task_pid_vnr(p))
 					continue;
@@ -233,7 +233,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 					ret = tmpio;
 				else
 					ret = ioprio_best(ret, tmpio);
-			} while_each_thread(g, p);
+			}
 
 			if (who)
 				free_uid(user);
