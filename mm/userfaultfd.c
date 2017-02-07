@@ -206,6 +206,10 @@ retry:
 		if (!dst_vma->vm_userfaultfd_ctx.ctx)
 			goto out_unlock;
 
+		if (dst_start < dst_vma->vm_start ||
+		    dst_start + len > dst_vma->vm_end)
+			goto out_unlock;
+
 		err = -EINVAL;
 		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
 			goto out_unlock;
@@ -215,9 +219,6 @@ retry:
 		 * range is both valid and fully within a single existing vma.
 		 */
 		if (dst_vma->vm_flags & VM_SHARED)
-			goto out_unlock;
-		if (dst_start < dst_vma->vm_start ||
-		    dst_start + len > dst_vma->vm_end)
 			goto out_unlock;
 	}
 
@@ -385,11 +386,12 @@ retry:
 	if (!dst_vma->vm_userfaultfd_ctx.ctx)
 		goto out_unlock;
 
-	err = -EINVAL;
-	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
-		goto out_unlock;
 	if (dst_start < dst_vma->vm_start ||
 	    dst_start + len > dst_vma->vm_end)
+		goto out_unlock;
+
+	err = -EINVAL;
+	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
 		goto out_unlock;
 
 	/*
