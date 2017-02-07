@@ -135,7 +135,8 @@ static const struct snd_pcm_hardware had_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
-	.formats = (SNDRV_PCM_FMTBIT_S24_LE |
+	.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+		    SNDRV_PCM_FMTBIT_S24_LE |
 		    SNDRV_PCM_FMTBIT_S32_LE),
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
@@ -290,12 +291,10 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 			   AUD_CH_STATUS_0, ch_stat0.regval);
 
 	switch (substream->runtime->format) {
-#if 0 /* FIXME: not supported yet */
 	case SNDRV_PCM_FORMAT_S16_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_20;
 		ch_stat1.regx.wrd_len = SMPL_WIDTH_16BITS;
 		break;
-#endif
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_24;
@@ -335,6 +334,9 @@ static int had_init_audio_ctrl(struct snd_pcm_substream *substream,
 		cfg_val.regx.layout = LAYOUT0;
 	else
 		cfg_val.regx.layout = LAYOUT1;
+
+	if (substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+		cfg_val.regx.packet_mode = 1;
 
 	if (substream->runtime->format == SNDRV_PCM_FORMAT_S32_LE)
 		cfg_val.regx.left_align = 1;
