@@ -1538,19 +1538,13 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 
 }
 
-/* Check that the bundle accepts the flow and its components are
- * still valid.
- */
-
-static inline int xfrm_get_tos(const struct flowi *fl, int family)
+static int xfrm_get_tos(const struct flowi *fl, int family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	int tos;
+	struct xfrm_policy_afinfo *afinfo;
+	int tos = 0;
 
-	if (!afinfo)
-		return -EINVAL;
-
-	tos = afinfo->get_tos(fl);
+	afinfo = xfrm_policy_get_afinfo(family);
+	tos = afinfo ? afinfo->get_tos(fl) : 0;
 
 	xfrm_policy_put_afinfo(afinfo);
 
@@ -1705,9 +1699,6 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	xfrm_flowi_addr_get(fl, &saddr, &daddr, family);
 
 	tos = xfrm_get_tos(fl, family);
-	err = tos;
-	if (tos < 0)
-		goto put_states;
 
 	dst_hold(dst);
 
