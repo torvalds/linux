@@ -1238,7 +1238,7 @@ static int ipw2100_get_hw_features(struct ipw2100_priv *priv)
 }
 
 /*
- * Start firmware execution after power on and intialization
+ * Start firmware execution after power on and initialization
  * The sequence is:
  *  1. Release ARC
  *  2. Wait for f/w initialization completes;
@@ -1277,7 +1277,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	/* Release ARC - clear reset bit */
 	write_register(priv->net_dev, IPW_REG_RESET_REG, 0);
 
-	/* wait for f/w intialization complete */
+	/* wait for f/w initialization complete */
 	IPW_DEBUG_FW("Waiting for f/w initialization to complete...\n");
 	i = 5000;
 	do {

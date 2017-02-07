@@ -1467,7 +1467,7 @@ static void sas_end_device_release(struct device *dev)
 }
 
 /**
- * sas_rphy_initialize - common rphy intialization
+ * sas_rphy_initialize - common rphy initialization
  * @rphy:	rphy to initialise
  *
  * Used by both sas_end_device_alloc() and sas_expander_alloc() to
