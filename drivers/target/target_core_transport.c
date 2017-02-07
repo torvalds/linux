@@ -2592,39 +2592,38 @@ static void target_release_cmd_kref(struct kref *kref)
 	unsigned long flags;
 	bool fabric_stop;
 
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	if (se_sess) {
+		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 
-	spin_lock(&se_cmd->t_state_lock);
-	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
-		      (se_cmd->transport_state & CMD_T_ABORTED);
-	spin_unlock(&se_cmd->t_state_lock);
+		spin_lock(&se_cmd->t_state_lock);
+		fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
+			      (se_cmd->transport_state & CMD_T_ABORTED);
+		spin_unlock(&se_cmd->t_state_lock);
 
-	if (se_cmd->cmd_wait_set || fabric_stop) {
+		if (se_cmd->cmd_wait_set || fabric_stop) {
+			list_del_init(&se_cmd->se_cmd_list);
+			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+			target_free_cmd_mem(se_cmd);
+			complete(&se_cmd->cmd_wait_comp);
+			return;
+		}
 		list_del_init(&se_cmd->se_cmd_list);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-		target_free_cmd_mem(se_cmd);
-		complete(&se_cmd->cmd_wait_comp);
-		return;
 	}
-	list_del_init(&se_cmd->se_cmd_list);
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 
 	target_free_cmd_mem(se_cmd);
 	se_cmd->se_tfo->release_cmd(se_cmd);
 }
 
-/* target_put_sess_cmd - Check for active I/O shutdown via kref_put
- * @se_cmd:	command descriptor to drop
+/**
+ * target_put_sess_cmd - decrease the command reference count
+ * @se_cmd:	command to drop a reference from
+ *
+ * Returns 1 if and only if this target_put_sess_cmd() call caused the
+ * refcount to drop to zero. Returns zero otherwise.
  */
 int target_put_sess_cmd(struct se_cmd *se_cmd)
 {
-	struct se_session *se_sess = se_cmd->se_sess;
-
-	if (!se_sess) {
-		target_free_cmd_mem(se_cmd);
-		se_cmd->se_tfo->release_cmd(se_cmd);
-		return 1;
-	}
 	return kref_put(&se_cmd->cmd_kref, target_release_cmd_kref);
 }
 EXPORT_SYMBOL(target_put_sess_cmd);
