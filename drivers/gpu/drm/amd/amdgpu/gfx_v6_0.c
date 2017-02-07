@@ -1710,6 +1710,9 @@ static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 		gb_addr_config |= 2 << GB_ADDR_CONFIG__ROW_SIZE__SHIFT;
 		break;
 	}
+	gb_addr_config &= ~GB_ADDR_CONFIG__NUM_SHADER_ENGINES_MASK;
+	if (adev->gfx.config.max_shader_engines == 2)
+		gb_addr_config |= 1 << GB_ADDR_CONFIG__NUM_SHADER_ENGINES__SHIFT;
 	adev->gfx.config.gb_addr_config = gb_addr_config;
 
 	WREG32(mmGB_ADDR_CONFIG, gb_addr_config);
