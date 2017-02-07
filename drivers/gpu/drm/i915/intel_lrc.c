@@ -1352,7 +1352,20 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
 	struct execlist_port *port = engine->execlist_port;
-	struct intel_context *ce = &request->ctx->engine[engine->id];
+	struct intel_context *ce;
+
+	/* If the request was innocent, we leave the request in the ELSP
+	 * and will try to replay it on restarting. The context image may
+	 * have been corrupted by the reset, in which case we may have
+	 * to service a new GPU hang, but more likely we can continue on
+	 * without impact.
+	 *
+	 * If the request was guilty, we presume the context is corrupt
+	 * and have to at least restore the RING register in the context
+	 * image back to the expected values to skip over the guilty request.
+	 */
+	if (!request || request->fence.error != -EIO)
+		return;
 
 	/* We want a simple context + ring to execute the breadcrumb update.
 	 * We cannot rely on the context being intact across the GPU hang,
@@ -1361,6 +1374,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
+	ce = &request->ctx->engine[engine->id];
 	execlists_init_reg_state(ce->lrc_reg_state,
 				 request->ctx, engine, ce->ring);
 
