@@ -386,6 +386,7 @@ efficently||efficiently
 ehther||ether
 eigth||eight
 eletronic||electronic
+embeded||embedded
 enabledi||enabled
 enchanced||enhanced
 encorporating||incorporating

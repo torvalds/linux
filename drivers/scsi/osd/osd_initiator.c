@@ -1677,7 +1677,7 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	} else {
 		/* TODO: I think that for the GET_ATTR command these 2 should
-		 * be reversed to keep them in execution order (for embeded
+		 * be reversed to keep them in execution order (for embedded
 		 * targets with low memory footprint)
 		 */
 		ret = _osd_req_finalize_set_attr_list(or);

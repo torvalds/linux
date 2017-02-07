@@ -1065,7 +1065,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	 * sequencer is not allocated in our driver's tagset and it's
 	 * triggered to be freed by blk_cleanup_queue(). So we need to
 	 * always mark it as signaled to ensure that the "wr_cqe", which is
-	 * embeded in request's payload, is not freed when __ib_process_cq()
+	 * embedded in request's payload, is not freed when __ib_process_cq()
 	 * calls wr_cqe->done().
 	 */
 	if ((++queue->sig_count % 32) == 0 || flush)
