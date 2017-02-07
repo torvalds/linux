@@ -9,6 +9,7 @@
  */
 
 #include "affs.h"
+#include <linux/exportfs.h>
 
 typedef int (*toupper_t)(int);
 
@@ -465,3 +466,42 @@ done:
 	affs_brelse(bh);
 	return retval;
 }
+
+static struct inode *affs_nfs_get_inode(struct super_block *sb, u64 ino,
+					u32 generation)
+{
+	struct inode *inode;
+
+	if (!affs_validblock(sb, ino))
+		return ERR_PTR(-ESTALE);
+
+	inode = affs_iget(sb, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	if (generation && inode->i_generation != generation) {
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+
+	return inode;
+}
+
+static struct dentry *affs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+					int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    affs_nfs_get_inode);
+}
+
+static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
+					int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    affs_nfs_get_inode);
+}
+
+const struct export_operations affs_export_ops = {
+	.fh_to_dentry = affs_fh_to_dentry,
+	.fh_to_parent = affs_fh_to_parent,
+};
