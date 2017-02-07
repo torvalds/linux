@@ -133,9 +133,9 @@ struct alloc_context {
  * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
  */
 static inline unsigned long
-__find_buddy_index(unsigned long page_idx, unsigned int order)
+__find_buddy_pfn(unsigned long page_pfn, unsigned int order)
 {
-	return page_idx ^ (1 << order);
+	return page_pfn ^ (1 << order);
 }
 
 extern struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
