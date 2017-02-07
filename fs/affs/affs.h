@@ -212,6 +212,12 @@ extern const struct address_space_operations	 affs_aops_ofs;
 extern const struct dentry_operations	 affs_dentry_operations;
 extern const struct dentry_operations	 affs_intl_dentry_operations;
 
+static inline bool affs_validblock(struct super_block *sb, int block)
+{
+	return(block >= AFFS_SB(sb)->s_reserved &&
+	       block < AFFS_SB(sb)->s_partition_size);
+}
+
 static inline void
 affs_set_blocksize(struct super_block *sb, int size)
 {
@@ -221,7 +227,7 @@ static inline struct buffer_head *
 affs_bread(struct super_block *sb, int block)
 {
 	pr_debug("%s: %d\n", __func__, block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size)
+	if (affs_validblock(sb, block))
 		return sb_bread(sb, block);
 	return NULL;
 }
@@ -229,7 +235,7 @@ static inline struct buffer_head *
 affs_getblk(struct super_block *sb, int block)
 {
 	pr_debug("%s: %d\n", __func__, block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size)
+	if (affs_validblock(sb, block))
 		return sb_getblk(sb, block);
 	return NULL;
 }
@@ -238,7 +244,7 @@ affs_getzeroblk(struct super_block *sb, int block)
 {
 	struct buffer_head *bh;
 	pr_debug("%s: %d\n", __func__, block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size) {
+	if (affs_validblock(sb, block)) {
 		bh = sb_getblk(sb, block);
 		lock_buffer(bh);
 		memset(bh->b_data, 0 , sb->s_blocksize);
@@ -253,7 +259,7 @@ affs_getemptyblk(struct super_block *sb, int block)
 {
 	struct buffer_head *bh;
 	pr_debug("%s: %d\n", __func__, block);
-	if (block >= AFFS_SB(sb)->s_reserved && block < AFFS_SB(sb)->s_partition_size) {
+	if (affs_validblock(sb, block)) {
 		bh = sb_getblk(sb, block);
 		wait_on_buffer(bh);
 		set_buffer_uptodate(bh);
