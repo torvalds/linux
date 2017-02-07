@@ -186,12 +186,7 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte)
 {
-	/*
-	 * When handling numa faults, we already have the pte marked
-	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
-	 * Hence we can use set_pte_at for them.
-	 */
-	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+	VM_WARN_ON(pte_present(*ptep));
 
 	/*
 	 * Add the pte bit when tryint set a pte
