@@ -1248,43 +1248,6 @@ static void kvmgt_page_track_flush_slot(struct kvm *kvm,
 	spin_unlock(&kvm->mmu_lock);
 }
 
-static bool kvmgt_check_guest(void)
-{
-	unsigned int eax, ebx, ecx, edx;
-	char s[12];
-	unsigned int *i;
-
-	eax = KVM_CPUID_SIGNATURE;
-	ebx = ecx = edx = 0;
-
-	asm volatile ("cpuid"
-		      : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-		      :
-		      : "cc", "memory");
-	i = (unsigned int *)s;
-	i[0] = ebx;
-	i[1] = ecx;
-	i[2] = edx;
-
-	return !strncmp(s, "KVMKVMKVM", strlen("KVMKVMKVM"));
-}
-
-/**
- * NOTE:
- * It's actually impossible to check if we are running in KVM host,
- * since the "KVM host" is simply native. So we only dectect guest here.
- */
-static int kvmgt_detect_host(void)
-{
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped) {
-		gvt_err("Hardware IOMMU compatibility not yet supported, try to boot with intel_iommu=igfx_off\n");
-		return -ENODEV;
-	}
-#endif
-	return kvmgt_check_guest() ? -ENODEV : 0;
-}
-
 static bool __kvmgt_vgpu_exist(struct intel_vgpu *vgpu, struct kvm *kvm)
 {
 	struct intel_vgpu *itr;
@@ -1459,7 +1422,6 @@ static unsigned long kvmgt_virt_to_pfn(void *addr)
 }
 
 struct intel_gvt_mpt kvmgt_mpt = {
-	.detect_host = kvmgt_detect_host,
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,
 	.attach_vgpu = kvmgt_attach_vgpu,
