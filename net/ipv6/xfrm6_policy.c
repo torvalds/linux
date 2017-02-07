@@ -289,7 +289,7 @@ static struct dst_ops xfrm6_dst_ops_template = {
 	.gc_thresh =		INT_MAX,
 };
 
-static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
+static const struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.dst_ops =		&xfrm6_dst_ops_template,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr =		xfrm6_get_saddr,

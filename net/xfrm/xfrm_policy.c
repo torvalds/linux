@@ -45,7 +45,7 @@ struct xfrm_flo {
 };
 
 static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
-static struct xfrm_policy_afinfo __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
+static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
 
 static struct kmem_cache *xfrm_dst_cache __read_mostly;
@@ -122,7 +122,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 						  const xfrm_address_t *daddr,
 						  int family)
 {
-	struct xfrm_policy_afinfo *afinfo;
+	const struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
 
 	afinfo = xfrm_policy_get_afinfo(family);
@@ -1426,7 +1426,7 @@ xfrm_get_saddr(struct net *net, int oif, xfrm_address_t *local,
 	       xfrm_address_t *remote, unsigned short family)
 {
 	int err;
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
@@ -1535,7 +1535,7 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 
 static int xfrm_get_tos(const struct flowi *fl, int family)
 {
-	struct xfrm_policy_afinfo *afinfo;
+	const struct xfrm_policy_afinfo *afinfo;
 	int tos = 0;
 
 	afinfo = xfrm_policy_get_afinfo(family);
@@ -1598,7 +1598,7 @@ static const struct flow_cache_ops xfrm_bundle_fc_ops = {
 
 static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	struct dst_ops *dst_ops;
 	struct xfrm_dst *xdst;
 
@@ -1635,7 +1635,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 				 int nfheader_len)
 {
-	struct xfrm_policy_afinfo *afinfo =
+	const struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(dst->ops->family);
 	int err;
 
@@ -1652,7 +1652,7 @@ static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 				const struct flowi *fl)
 {
-	struct xfrm_policy_afinfo *afinfo =
+	const struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(xdst->u.dst.ops->family);
 	int err;
 
@@ -2201,7 +2201,7 @@ error:
 static struct dst_entry *make_blackhole(struct net *net, u16 family,
 					struct dst_entry *dst_orig)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	struct dst_entry *ret;
 
 	if (!afinfo) {
@@ -2452,7 +2452,7 @@ xfrm_policy_ok(const struct xfrm_tmpl *tmpl, const struct sec_path *sp, int star
 int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	int err;
 
 	if (unlikely(afinfo == NULL))
