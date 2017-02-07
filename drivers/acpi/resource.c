@@ -393,7 +393,7 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 	}
 
 	/*
-	 * In IO-APIC mode, use overrided attribute. Two reasons:
+	 * In IO-APIC mode, use overridden attribute. Two reasons:
 	 * 1. BIOS bug in DSDT
 	 * 2. BIOS uses IO-APIC mode Interrupt Source Override
 	 *
