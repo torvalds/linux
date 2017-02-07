@@ -592,7 +592,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 			list_for_each_entry(trans,
 			    &asoc->peer.transport_addr_list, transports) {
 				/* Clear the source and route cache */
-				dst_release(trans->dst);
+				sctp_transport_dst_release(trans);
 				trans->cwnd = min(4*asoc->pathmtu, max_t(__u32,
 				    2*asoc->pathmtu, 4380));
 				trans->ssthresh = asoc->peer.i.a_rwnd;
@@ -843,7 +843,7 @@ skip_mkasconf:
 		 */
 		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
 					transports) {
-			dst_release(transport->dst);
+			sctp_transport_dst_release(transport);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));
 		}

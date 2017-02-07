@@ -33,6 +33,8 @@ struct dst_ops {
 	struct neighbour *	(*neigh_lookup)(const struct dst_entry *dst,
 						struct sk_buff *skb,
 						const void *daddr);
+	void			(*confirm_neigh)(const struct dst_entry *dst,
+						 const void *daddr);
 
 	struct kmem_cache	*kmem_cachep;
 
