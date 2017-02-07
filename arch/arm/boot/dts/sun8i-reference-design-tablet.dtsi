@@ -130,7 +130,7 @@
 	};
 };
 
-#include "axp22x.dtsi"
+#include "axp223.dtsi"
 
 &reg_aldo1 {
 	regulator-always-on;
@@ -212,6 +212,10 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &r_uart {

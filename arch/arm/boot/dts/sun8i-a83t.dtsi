@@ -171,6 +171,7 @@
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			uart0_pins_a: uart0@0 {

@@ -582,12 +582,21 @@
 				       "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_pins_a: mmc2@0 {
 				pins = "PC6", "PC7", "PC8", "PC9",
 				       "PC10", "PC11", "PC12", "PC13",
 				       "PC14", "PC15";
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
+			};
+
+			mmc2_4bit_pins_a: mmc2-4bit@0 {
+				pins = "PC6", "PC7", "PC8", "PC9",
+				       "PC10", "PC11";
 				function = "mmc2";
 				drive-strength = <30>;
 				bias-pull-up;

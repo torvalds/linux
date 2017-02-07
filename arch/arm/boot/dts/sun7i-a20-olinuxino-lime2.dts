@@ -112,57 +112,9 @@
 	status = "okay";
 
 	axp209: pmic@34 {
-		compatible = "x-powers,axp209";
 		reg = <0x34>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-
-		interrupt-controller;
-		#interrupt-cells = <1>;
-
-		acin-supply = <&reg_axp_ipsout>;
-		vin2-supply = <&reg_axp_ipsout>;
-		vin3-supply = <&reg_axp_ipsout>;
-		ldo24in-supply = <&reg_axp_ipsout>;
-		ldo3in-supply = <&reg_axp_ipsout>;
-
-		regulators {
-			vdd_rtc: ldo1 {
-				regulator-min-microvolt = <1300000>;
-				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-			};
-
-			avcc: ldo2 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			vcc_csi0: ldo3 {
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <3500000>;
-				regulator-always-on;
-			};
-
-			vcc_csi1: ldo4 {
-				regulator-min-microvolt = <1250000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			vdd_cpu: dcdc2 {
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <2275000>;
-				regulator-always-on;
-			};
-
-			vdd_int: dcdc3 {
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <3500000>;
-				regulator-always-on;
-			};
-		};
 	};
 };
 
@@ -234,6 +186,48 @@
 	pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
 	gpio = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+#include "axp209.dtsi"
+
+&reg_dcdc2 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-int-dll";
+};
+
+&reg_ldo1 {
+	regulator-always-on;
+	regulator-min-microvolt = <1300000>;
+	regulator-max-microvolt = <1300000>;
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
+};
+
+&reg_ldo3 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "vddio-csi0";
+};
+
+&reg_ldo4 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "vddio-csi1";
 };
 
 &reg_usb0_vbus {

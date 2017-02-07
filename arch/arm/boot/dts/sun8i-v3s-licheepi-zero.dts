@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Marcus Cooper <codekipper@gmail.com>
+ * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,15 +41,12 @@
  */
 
 /dts-v1/;
-#include "sun6i-a31.dtsi"
+#include "sun8i-v3s.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-
 / {
-	model = "Mele I7 Quad top set box";
-	compatible = "mele,i7", "allwinner,sun6i-a31";
+	model = "Lichee Pi Zero";
+	compatible = "licheepi,licheepi-zero", "allwinner,sun8i-v3s";
 
 	aliases {
 		serial0 = &uart0;
@@ -61,114 +58,46 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_i7>;
 
-		blue {
-			label = "i7:blue:usr";
-			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "On-board SPDIF";
-		simple-audio-card,cpu {
-			sound-dai = <&spdif>;
+		blue_led {
+			label = "licheepi:blue:usr";
+			gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
 		};
 
-		simple-audio-card,codec {
-			sound-dai = <&spdif_out>;
+		green_led {
+			label = "licheepi:green:usr";
+			gpios = <&pio 6 0 GPIO_ACTIVE_LOW>; /* PG0 */
+			default-state = "on";
+		};
+
+		red_led {
+			label = "licheepi:red:usr";
+			gpios = <&pio 6 2 GPIO_ACTIVE_LOW>; /* PG2 */
 		};
 	};
-
-	spdif_out: spdif-out {
-		#sound-dai-cells = <0>;
-		compatible = "linux,spdif-dit";
-	};
-};
-
-&codec {
-	allwinner,audio-routing =
-		"Headphone", "HP";
-	status = "okay";
-};
-
-&ehci0 {
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&gmac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
-	phy-mode = "mii";
-	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
-};
-
-&ir {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
-	status = "okay";
 };
 
 &mmc0 {
+	pinctrl-0 = <&mmc0_pins_a>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_i7>;
-	vmmc-supply = <&reg_vcc3v3>;
+	broken-cd;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
-	cd-inverted;
-	status = "okay";
-};
-
-&pio {
-	led_pins_i7: led_pins@0 {
-		pins = "PH13";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_i7: mmc0_cd_pin@0 {
-		pins = "PH22";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb1_vbus_pin_i7: usb1_vbus_pin@0 {
-		pins = "PC27";
-		function = "gpio_out";
-	};
-};
-
-&reg_usb1_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb1_vbus_pin_i7>;
-	gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&spdif {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_pins_a>;
-	spdif-out = "okay";
+	vmmc-supply = <&reg_vcc3v3>;
 	status = "okay";
 };
 
 &uart0 {
-	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usb_otg {
+	dr_mode = "otg";
 	status = "okay";
 };
 
 &usbphy {
-	usb1_vbus-supply = <&reg_usb1_vbus>;
+	usb0_id_det-gpio = <&pio 5 6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
