@@ -2813,7 +2813,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int offset = 0;
 	struct packet_sock *po = pkt_sk(sk);
-	int hlen, tlen;
+	int hlen, tlen, linear;
 	int extra_len = 0;
 
 	/*
@@ -2874,8 +2874,9 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	err = -ENOBUFS;
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
-	skb = packet_alloc_skb(sk, hlen + tlen, hlen, len,
-			       __virtio16_to_cpu(vio_le(), vnet_hdr.hdr_len),
+	linear = __virtio16_to_cpu(vio_le(), vnet_hdr.hdr_len);
+	linear = max(linear, min_t(int, len, dev->hard_header_len));
+	skb = packet_alloc_skb(sk, hlen + tlen, hlen, len, linear,
 			       msg->msg_flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out_unlock;
