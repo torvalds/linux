@@ -434,6 +434,25 @@ static void atmel_hlcdc_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(state);
 }
 
+static int atmel_hlcdc_crtc_enable_vblank(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+	struct regmap *regmap = crtc->dc->hlcdc->regmap;
+
+	/* Enable SOF (Start Of Frame) interrupt for vblank counting */
+	regmap_write(regmap, ATMEL_HLCDC_IER, ATMEL_HLCDC_SOF);
+
+	return 0;
+}
+
+static void atmel_hlcdc_crtc_disable_vblank(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+	struct regmap *regmap = crtc->dc->hlcdc->regmap;
+
+	regmap_write(regmap, ATMEL_HLCDC_IDR, ATMEL_HLCDC_SOF);
+}
+
 static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_config = drm_atomic_helper_set_config,
@@ -441,6 +460,8 @@ static const struct drm_crtc_funcs atmel_hlcdc_crtc_funcs = {
 	.reset = atmel_hlcdc_crtc_reset,
 	.atomic_duplicate_state =  atmel_hlcdc_crtc_duplicate_state,
 	.atomic_destroy_state = atmel_hlcdc_crtc_destroy_state,
+	.enable_vblank = atmel_hlcdc_crtc_enable_vblank,
+	.disable_vblank = atmel_hlcdc_crtc_disable_vblank,
 };
 
 int atmel_hlcdc_crtc_create(struct drm_device *dev)

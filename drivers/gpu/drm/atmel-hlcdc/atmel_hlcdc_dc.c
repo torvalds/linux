@@ -720,25 +720,6 @@ static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
-static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev,
-					unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	/* Enable SOF (Start Of Frame) interrupt for vblank counting */
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, ATMEL_HLCDC_SOF);
-
-	return 0;
-}
-
-static void atmel_hlcdc_dc_disable_vblank(struct drm_device *dev,
-					  unsigned int pipe)
-{
-	struct atmel_hlcdc_dc *dc = dev->dev_private;
-
-	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IDR, ATMEL_HLCDC_SOF);
-}
-
 static const struct file_operations fops = {
 	.owner              = THIS_MODULE,
 	.open               = drm_open,
@@ -760,8 +741,6 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.irq_preinstall = atmel_hlcdc_dc_irq_uninstall,
 	.irq_postinstall = atmel_hlcdc_dc_irq_postinstall,
 	.irq_uninstall = atmel_hlcdc_dc_irq_uninstall,
-	.enable_vblank = atmel_hlcdc_dc_enable_vblank,
-	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
