@@ -476,10 +476,45 @@ static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev,
+					 bool enable)
+{
+	unsigned long flags;
+	u32 ldintr;
+
+	/* Be careful not to acknowledge any pending interrupt. */
+	spin_lock_irqsave(&sdev->irq_lock, flags);
+	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
+	if (enable)
+		ldintr |= LDINTR_VEE;
+	else
+		ldintr &= ~LDINTR_VEE;
+	lcdc_write(sdev, LDINTR, ldintr);
+	spin_unlock_irqrestore(&sdev->irq_lock, flags);
+}
+
+static int shmob_drm_enable_vblank(struct drm_crtc *crtc)
+{
+	struct shmob_drm_device *sdev = crtc->dev->dev_private;
+
+	shmob_drm_crtc_enable_vblank(sdev, true);
+
+	return 0;
+}
+
+static void shmob_drm_disable_vblank(struct drm_crtc *crtc)
+{
+	struct shmob_drm_device *sdev = crtc->dev->dev_private;
+
+	shmob_drm_crtc_enable_vblank(sdev, false);
+}
+
 static const struct drm_crtc_funcs crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = shmob_drm_crtc_page_flip,
+	.enable_vblank = shmob_drm_enable_vblank,
+	.disable_vblank = shmob_drm_disable_vblank,
 };
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev)
@@ -592,22 +627,6 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 
 	return 0;
-}
-
-void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev, bool enable)
-{
-	unsigned long flags;
-	u32 ldintr;
-
-	/* Be careful not to acknowledge any pending interrupt. */
-	spin_lock_irqsave(&sdev->irq_lock, flags);
-	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
-	if (enable)
-		ldintr |= LDINTR_VEE;
-	else
-		ldintr &= ~LDINTR_VEE;
-	lcdc_write(sdev, LDINTR, ldintr);
-	spin_unlock_irqrestore(&sdev->irq_lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
