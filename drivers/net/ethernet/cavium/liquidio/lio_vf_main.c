@@ -1632,7 +1632,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 
 	/* force enable interrupt if reg cnts are high to avoid wraparound */
 	if ((work_done < budget && tx_done) ||
-	    (iq->pkt_in_done >= MAX_REG_CNT) ||
+	    (iq && iq->pkt_in_done >= MAX_REG_CNT) ||
 	    (droq->pkt_count >= MAX_REG_CNT)) {
 		tx_done = 1;
 		napi_complete_done(napi, work_done);
