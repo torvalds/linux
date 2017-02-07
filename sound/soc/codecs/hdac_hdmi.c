@@ -448,6 +448,9 @@ static int hdac_hdmi_query_port_connlist(struct hdac_ext_device *hdac,
 		return -EINVAL;
 	}
 
+	if (hdac_hdmi_port_select_set(hdac, port) < 0)
+		return -EIO;
+
 	port->num_mux_nids = snd_hdac_get_connections(&hdac->hdac, pin->nid,
 			port->mux_nids, HDA_MAX_CONNECTIONS);
 	if (port->num_mux_nids == 0)
@@ -687,6 +690,10 @@ static int hdac_hdmi_pin_output_widget_event(struct snd_soc_dapm_widget *w,
 	if (!pcm)
 		return -EIO;
 
+	/* set the device if pin is mst_capable */
+	if (hdac_hdmi_port_select_set(edev, port) < 0)
+		return -EIO;
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		hdac_hdmi_set_power_state(edev, port->pin->nid, AC_PWRST_D0);
@@ -775,6 +782,11 @@ static int hdac_hdmi_pin_mux_widget_event(struct snd_soc_dapm_widget *w,
 		kc  = w->kcontrols[0];
 
 	mux_idx = dapm_kcontrol_get_value(kc);
+
+	/* set the device if pin is mst_capable */
+	if (hdac_hdmi_port_select_set(edev, port) < 0)
+		return -EIO;
+
 	if (mux_idx > 0) {
 		snd_hdac_codec_write(&edev->hdac, port->pin->nid, 0,
 			AC_VERB_SET_CONNECT_SEL, (mux_idx - 1));
