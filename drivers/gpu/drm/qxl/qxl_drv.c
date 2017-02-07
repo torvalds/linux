@@ -247,21 +247,6 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
-static u32 qxl_noop_get_vblank_counter(struct drm_device *dev,
-				       unsigned int pipe)
-{
-	return 0;
-}
-
-static int qxl_noop_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void qxl_noop_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-}
-
 static const struct dev_pm_ops qxl_pm_ops = {
 	.suspend = qxl_pm_suspend,
 	.resume = qxl_pm_resume,
@@ -281,9 +266,6 @@ static struct pci_driver qxl_pci_driver = {
 static struct drm_driver qxl_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.get_vblank_counter = qxl_noop_get_vblank_counter,
-	.enable_vblank = qxl_noop_enable_vblank,
-	.disable_vblank = qxl_noop_disable_vblank,
 
 	.set_busid = drm_pci_set_busid,
 

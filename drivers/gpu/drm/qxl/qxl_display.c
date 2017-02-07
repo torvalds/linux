@@ -548,6 +548,19 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 	return 0;
 }
 
+static u32 qxl_noop_get_vblank_counter(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static int qxl_noop_enable_vblank(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static void qxl_noop_disable_vblank(struct drm_crtc *crtc)
+{
+}
 
 static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.cursor_set2 = qxl_crtc_cursor_set2,
@@ -555,6 +568,9 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = qxl_crtc_destroy,
 	.page_flip = qxl_crtc_page_flip,
+	.get_vblank_counter = qxl_noop_get_vblank_counter,
+	.enable_vblank = qxl_noop_enable_vblank,
+	.disable_vblank = qxl_noop_disable_vblank,
 };
 
 void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
