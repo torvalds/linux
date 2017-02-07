@@ -397,9 +397,9 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_device,
 	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
-		dev_warn_ratelimited(cpufreq_device->cpu_dev,
-				     "Failed to get voltage for frequency %lu: %ld\n",
-				     freq_hz, IS_ERR(opp) ? PTR_ERR(opp) : 0);
+		dev_err_ratelimited(cpufreq_device->cpu_dev,
+				    "Failed to get voltage for frequency %lu: %ld\n",
+				    freq_hz, IS_ERR(opp) ? PTR_ERR(opp) : 0);
 		return -EINVAL;
 	}
 
@@ -691,9 +691,9 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 
 	*state = cpufreq_cooling_get_level(cpu, target_freq);
 	if (*state == THERMAL_CSTATE_INVALID) {
-		dev_warn_ratelimited(&cdev->device,
-				     "Failed to convert %dKHz for cpu %d into a cdev state\n",
-				     target_freq, cpu);
+		dev_err_ratelimited(&cdev->device,
+				    "Failed to convert %dKHz for cpu %d into a cdev state\n",
+				    target_freq, cpu);
 		return -EINVAL;
 	}
 
