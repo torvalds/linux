@@ -2624,6 +2624,7 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 		smu7_force_clock_level(hwmgr, PP_SCLK, 1<<sclk_mask);
 		smu7_force_clock_level(hwmgr, PP_MCLK, 1<<mclk_mask);
 		smu7_force_clock_level(hwmgr, PP_PCIE, 1<<pcie_mask);
+
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 		hwmgr->dpm_level = level;
@@ -2633,9 +2634,9 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 		break;
 	}
 
-	if (level & (AMD_DPM_FORCED_LEVEL_PROFILE_PEAK | AMD_DPM_FORCED_LEVEL_HIGH))
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
 		smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
-	else
+	else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
 		smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
 
 	return 0;
