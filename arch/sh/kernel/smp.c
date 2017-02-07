@@ -179,7 +179,7 @@ asmlinkage void start_secondary(void)
 
 	enable_mmu();
 	mmgrab(mm);
-	atomic_inc(&mm->mm_users);
+	mmget(mm);
 	current->active_mm = mm;
 #ifdef CONFIG_MMU
 	enter_lazy_tlb(mm, current);
