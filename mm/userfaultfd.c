@@ -274,7 +274,7 @@ retry:
 
 			err = copy_huge_page_from_user(page,
 						(const void __user *)src_addr,
-						pages_per_huge_page(h));
+						pages_per_huge_page(h), true);
 			if (unlikely(err)) {
 				err = -EFAULT;
 				goto out;
