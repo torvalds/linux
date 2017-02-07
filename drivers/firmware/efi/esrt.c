@@ -254,7 +254,7 @@ void __init efi_esrt_init(void)
 
 	rc = efi_mem_desc_lookup(efi.esrt, &md);
 	if (rc < 0) {
-		pr_err("ESRT header is not in the memory map.\n");
+		pr_warn("ESRT header is not in the memory map.\n");
 		return;
 	}
 
