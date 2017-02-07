@@ -542,11 +542,6 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
 
-	/* clear, ack, enable all interrupts */
-	writel(0, host->regs + SD_EMMC_IRQ_EN);
-	writel(IRQ_EN_MASK, host->regs + SD_EMMC_STATUS);
-	writel(IRQ_EN_MASK, host->regs + SD_EMMC_IRQ_EN);
-
 	host->mrq = mrq;
 
 	if (mrq->sbc)
@@ -775,6 +770,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	/* clear, ack, enable all interrupts */
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	writel(IRQ_EN_MASK, host->regs + SD_EMMC_STATUS);
+	writel(IRQ_EN_MASK, host->regs + SD_EMMC_IRQ_EN);
 
 	ret = devm_request_threaded_irq(&pdev->dev, host->irq,
 					meson_mmc_irq, meson_mmc_irq_thread,
@@ -811,6 +807,9 @@ static int meson_mmc_remove(struct platform_device *pdev)
 
 	if (WARN_ON(!host))
 		return 0;
+
+	/* disable interrupts */
+	writel(0, host->regs + SD_EMMC_IRQ_EN);
 
 	if (host->bounce_buf)
 		dma_free_coherent(host->dev, host->bounce_buf_size,
