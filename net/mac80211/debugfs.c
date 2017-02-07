@@ -249,11 +249,18 @@ static ssize_t misc_read(struct file *file, char __user *user_buf,
 	struct ieee80211_local *local = file->private_data;
 	/* Max len of each line is 16 characters, plus 9 for 'pending:\n' */
 	size_t bufsz = IEEE80211_MAX_QUEUES * 16 + 9;
-	char *buf = kzalloc(bufsz, GFP_KERNEL);
-	char *pos = buf, *end = buf + bufsz - 1;
+	char *buf;
+	char *pos, *end;
 	ssize_t rv;
 	int i;
 	int ln;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = buf;
+	end = buf + bufsz - 1;
 
 	pos += scnprintf(pos, end - pos, "pending:\n");
 
