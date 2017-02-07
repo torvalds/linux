@@ -408,6 +408,12 @@
 				};
 		};
 
+		socfpga_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <0xf>;
+			snps,rd_osr_lmt = <0xf>;
+			snps,blen = <0 0 0 0 16 0 0>;
+		};
+
 		gmac0: ethernet@ff800000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.72a", "snps,dwmac";
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
@@ -424,6 +430,7 @@
 			clock-names = "stmmaceth";
 			resets = <&rst EMAC0_RESET>;
 			reset-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -443,6 +450,7 @@
 			clock-names = "stmmaceth";
 			resets = <&rst EMAC1_RESET>;
 			reset-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -460,6 +468,7 @@
 			rx-fifo-depth = <16384>;
 			clocks = <&l4_mp_clk>;
 			clock-names = "stmmaceth";
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
