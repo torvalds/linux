@@ -1155,6 +1155,11 @@ static void check_unmap(struct dma_debug_entry *ref)
 			   dir2name[ref->direction]);
 	}
 
+	/*
+	 * Drivers should use dma_mapping_error() to check the returned
+	 * addresses of dma_map_single() and dma_map_page().
+	 * If not, print this warning message. See Documentation/DMA-API.txt.
+	 */
 	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
 		err_printk(ref->dev, entry,
 			   "DMA-API: device driver failed to check map error"
