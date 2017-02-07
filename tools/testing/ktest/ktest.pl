@@ -1412,6 +1412,10 @@ sub dodie {
 	    system("stty $stty_orig");
     }
 
+    if (defined($post_test)) {
+	run_command $post_test;
+    }
+
     die @_, "\n";
 }
 
@@ -1624,10 +1628,6 @@ sub save_logs {
 
 sub fail {
 
-	if (defined($post_test)) {
-		run_command $post_test;
-	}
-
 	if ($die_on_failure) {
 		dodie @_;
 	}
@@ -1659,6 +1659,10 @@ sub fail {
 	if (defined($store_failures)) {
 	    save_logs "fail", $store_failures;
         }
+
+	if (defined($post_test)) {
+		run_command $post_test;
+	}
 
 	return 1;
 }
@@ -2489,10 +2493,6 @@ sub halt {
 sub success {
     my ($i) = @_;
 
-    if (defined($post_test)) {
-	run_command $post_test;
-    }
-
     $successes++;
 
     my $name = "";
@@ -2516,6 +2516,10 @@ sub success {
     if ($i != $opt{"NUM_TESTS"} && !do_not_reboot) {
 	doprint "Reboot and wait $sleep_time seconds\n";
 	reboot_to_good $sleep_time;
+    }
+
+    if (defined($post_test)) {
+	run_command $post_test;
     }
 }
 
