@@ -32,6 +32,7 @@
  */
 #define UNX_MAXNODENAME	__NEW_UTS_LEN
 #define UNX_CALLSLACK	(21 + XDR_QUADLEN(UNX_MAXNODENAME))
+#define UNX_NGROUPS	16
 
 struct rpcsec_gss_info;
 
