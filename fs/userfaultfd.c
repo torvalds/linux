@@ -778,6 +778,10 @@ void userfaultfd_exit(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma = mm->mmap;
 
+	/*
+	 * We can do the vma walk without locking because the caller
+	 * (exit_mm) knows it now has exclusive access
+	 */
 	while (vma) {
 		struct userfaultfd_ctx *ctx = vma->vm_userfaultfd_ctx.ctx;
 
