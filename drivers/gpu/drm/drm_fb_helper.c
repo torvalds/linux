@@ -63,7 +63,8 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * drm_fb_helper_init(), drm_fb_helper_single_add_all_connectors() and
  * drm_fb_helper_initial_config(). Drivers with fancier requirements than the
  * default behaviour can override the third step with their own code.
- * Teardown is done with drm_fb_helper_fini().
+ * Teardown is done with drm_fb_helper_fini() after the fbdev device is
+ * unregisters using drm_fb_helper_unregister_fbi().
  *
  * At runtime drivers should restore the fbdev console by calling
  * drm_fb_helper_restore_fbdev_mode_unlocked() from their &drm_driver.lastclose
@@ -709,7 +710,7 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 EXPORT_SYMBOL(drm_fb_helper_prepare);
 
 /**
- * drm_fb_helper_init - initialize a drm_fb_helper structure
+ * drm_fb_helper_init - initialize a &struct drm_fb_helper
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
  * @max_conn_count: max connector count
@@ -823,7 +824,8 @@ EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A wrapper around unregister_framebuffer, to release the fb_info
- * framebuffer device
+ * framebuffer device. This must be called before releasing all resources for
+ * @fb_helper by calling drm_fb_helper_fini().
  */
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 {
@@ -855,6 +857,13 @@ void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_release_fbi);
 
+/**
+ * drm_fb_helper_fini - finialize a &struct drm_fb_helper
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * This cleans up all remaining resources associated with @fb_helper. Must be
+ * called after drm_fb_helper_unlink_fbi() was called.
+ */
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
 	if (!drm_fbdev_emulation)
