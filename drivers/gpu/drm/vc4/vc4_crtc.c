@@ -654,9 +654,8 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static int vc4_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
@@ -664,9 +663,8 @@ int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id)
 	return 0;
 }
 
-void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id)
+static void vc4_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc = drm_crtc_from_index(dev, crtc_id);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
@@ -857,6 +855,8 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
 	.gamma_set = vc4_crtc_gamma_set,
+	.enable_vblank = vc4_enable_vblank,
+	.disable_vblank = vc4_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {

@@ -137,8 +137,6 @@ static struct drm_driver vc4_drm_driver = {
 	.irq_postinstall = vc4_irq_postinstall,
 	.irq_uninstall = vc4_irq_uninstall,
 
-	.enable_vblank = vc4_enable_vblank,
-	.disable_vblank = vc4_disable_vblank,
 	.get_scanout_position = vc4_crtc_get_scanoutpos,
 	.get_vblank_timestamp = vc4_crtc_get_vblank_timestamp,
 
