@@ -690,7 +690,7 @@ struct iwl_error_resp {
 					  (_color << FW_CTXT_COLOR_POS))
 
 /* Possible actions on PHYs, MACs and Bindings */
-enum {
+enum iwl_phy_ctxt_action {
 	FW_CTXT_ACTION_STUB = 0,
 	FW_CTXT_ACTION_ADD,
 	FW_CTXT_ACTION_MODIFY,
