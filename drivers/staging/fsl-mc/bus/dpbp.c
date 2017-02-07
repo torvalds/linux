@@ -183,6 +183,7 @@ int dpbp_is_enabled(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
+EXPORT_SYMBOL(dpbp_is_enabled);
 
 /**
  * dpbp_reset() - Reset the DPBP, returns the object to initial state.
@@ -205,6 +206,7 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
+EXPORT_SYMBOL(dpbp_reset);
 
 /**
  * dpbp_get_attributes - Retrieve DPBP attributes.
@@ -274,3 +276,4 @@ int dpbp_get_api_version(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
+EXPORT_SYMBOL(dpbp_get_api_version);
