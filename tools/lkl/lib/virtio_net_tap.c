@@ -34,13 +34,15 @@ struct lkl_netdev *lkl_netdev_tap_init(const char *path, int offload,
 	if (offload & (BIT(LKL_VIRTIO_NET_F_GUEST_TSO4) |
 	    BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)))
 		tap_arg |= TUN_F_TSO4 | TUN_F_CSUM;
+	if (offload & (BIT(LKL_VIRTIO_NET_F_GUEST_TSO6)))
+		tap_arg |= TUN_F_TSO6 | TUN_F_CSUM;
 
 	if (tap_arg || (offload & (BIT(LKL_VIRTIO_NET_F_CSUM) |
-	    BIT(LKL_VIRTIO_NET_F_HOST_TSO4)))) {
+				   BIT(LKL_VIRTIO_NET_F_HOST_TSO4) |
+				   BIT(LKL_VIRTIO_NET_F_HOST_TSO6)))) {
 		ifr->ifr_flags |= IFF_VNET_HDR;
 		vnet_hdr_sz = sizeof(struct lkl_virtio_net_hdr_v1);
 	}
-
 
 	fd = open(path, O_RDWR|O_NONBLOCK);
 	if (fd < 0) {
