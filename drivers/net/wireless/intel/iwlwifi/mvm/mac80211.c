@@ -1210,8 +1210,6 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
 	iwl_mvm_del_aux_sta(mvm);
 
-	iwl_free_fw_paging(mvm);
-
 	/*
 	 * Clear IN_HW_RESTART flag when stopping the hw (as restart_complete()
 	 * won't be called in this case).
@@ -2106,22 +2104,6 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unbind;
 
-	/* enable the multicast queue, now that we have a station for it */
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		unsigned int wdg_timeout =
-			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
-		struct iwl_trans_txq_scd_cfg cfg = {
-			.fifo = IWL_MVM_TX_FIFO_MCAST,
-			.sta_id = mvmvif->bcast_sta.sta_id,
-			.tid = IWL_MAX_TID_COUNT,
-			.aggregate = false,
-			.frame_limit = IWL_FRAME_LIMIT,
-		};
-
-		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0,
-				   &cfg, wdg_timeout);
-	}
-
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
 
@@ -2554,6 +2536,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	int ret;
 
 	IWL_DEBUG_MAC80211(mvm, "station %pM state change %d->%d\n",
@@ -2582,8 +2565,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	if (old_state == IEEE80211_STA_NONE &&
 	    new_state == IEEE80211_STA_NOTEXIST &&
 	    iwl_mvm_is_dqa_supported(mvm)) {
-		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-
 		iwl_mvm_purge_deferred_tx_frames(mvm, mvm_sta);
 		flush_work(&mvm->add_stream_wk);
 
@@ -2594,6 +2575,9 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	}
 
 	mutex_lock(&mvm->mutex);
+	/* track whether or not the station is associated */
+	mvm_sta->associated = new_state >= IEEE80211_STA_ASSOC;
+
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
 		/*

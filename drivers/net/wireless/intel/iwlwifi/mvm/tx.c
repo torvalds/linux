@@ -202,7 +202,6 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 			struct iwl_tx_cmd *tx_cmd,
 			struct ieee80211_tx_info *info, u8 sta_id)
 {
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
 	u32 tx_flags = le32_to_cpu(tx_cmd->tx_flags);
@@ -284,9 +283,8 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_flags |= TX_CMD_FLG_WRITE_TX_POWER;
 
 	tx_cmd->tx_flags = cpu_to_le32(tx_flags);
-	/* Total # bytes to be transmitted */
-	tx_cmd->len = cpu_to_le16((u16)skb->len +
-		(uintptr_t)skb_info->driver_data[0]);
+	/* Total # bytes to be transmitted - PCIe code will adjust for A-MSDU */
+	tx_cmd->len = cpu_to_le16((u16)skb->len);
 	tx_cmd->life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
 	tx_cmd->sta_id = sta_id;
 
@@ -466,7 +464,6 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		      struct ieee80211_sta *sta, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct iwl_device_cmd *dev_cmd;
 	struct iwl_tx_cmd *tx_cmd;
 
@@ -486,12 +483,18 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	iwl_mvm_set_tx_cmd_rate(mvm, tx_cmd, info, sta, hdr->frame_control);
 
+	return dev_cmd;
+}
+
+static void iwl_mvm_skb_prepare_status(struct sk_buff *skb,
+				       struct iwl_device_cmd *cmd)
+{
+	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
+
 	memset(&skb_info->status, 0, sizeof(skb_info->status));
 	memset(skb_info->driver_data, 0, sizeof(skb_info->driver_data));
 
-	skb_info->driver_data[1] = dev_cmd;
-
-	return dev_cmd;
+	skb_info->driver_data[1] = cmd;
 }
 
 static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
@@ -543,9 +546,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	 * queue. STATION (HS2.0) uses the auxiliary context of the FW,
 	 * and hence needs to be sent on the aux queue
 	 */
-	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
+	if (skb_info->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
 	    skb_info->control.vif->type == NL80211_IFTYPE_STATION)
-		IEEE80211_SKB_CB(skb)->hw_queue = mvm->aux_queue;
+		skb_info->hw_queue = mvm->aux_queue;
 
 	memcpy(&info, skb->cb, sizeof(info));
 
@@ -557,9 +560,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			  info.hw_queue != info.control.vif->cab_queue)))
 		return -1;
 
-	/* This holds the amsdu headers length */
-	skb_info->driver_data[0] = (void *)(uintptr_t)0;
-
 	queue = info.hw_queue;
 
 	/*
@@ -570,9 +570,10 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	 * (this is not possible for unicast packets as a TLDS discovery
 	 * response are sent without a station entry); otherwise use the
 	 * AUX station.
-	 * In DQA mode, if vif is of type STATION and frames are not multicast,
-	 * they should be sent from the BSS queue. For example, TDLS setup
-	 * frames should be sent on this queue, as they go through the AP.
+	 * In DQA mode, if vif is of type STATION and frames are not multicast
+	 * or offchannel, they should be sent from the BSS queue.
+	 * For example, TDLS setup frames should be sent on this queue,
+	 * as they go through the AP.
 	 */
 	sta_id = mvm->aux_sta.sta_id;
 	if (info.control.vif) {
@@ -594,7 +595,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			if (ap_sta_id != IWL_MVM_STATION_COUNT)
 				sta_id = ap_sta_id;
 		} else if (iwl_mvm_is_dqa_supported(mvm) &&
-			   info.control.vif->type == NL80211_IFTYPE_STATION) {
+			   info.control.vif->type == NL80211_IFTYPE_STATION &&
+			   queue != mvm->aux_queue) {
 			queue = IWL_MVM_DQA_BSS_CLIENT_QUEUE;
 		}
 	}
@@ -604,6 +606,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, &info, hdrlen, NULL, sta_id);
 	if (!dev_cmd)
 		return -1;
+
+	/* From now on, we cannot access info->control */
+	iwl_mvm_skb_prepare_status(skb, dev_cmd);
 
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 
@@ -641,7 +646,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	unsigned int num_subframes, tcp_payload_len, subf_len, max_amsdu_len;
 	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
 	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
-	u16 amsdu_add, snap_ip_tcp, pad, i = 0;
+	u16 snap_ip_tcp, pad, i = 0;
 	unsigned int dbg_max_amsdu_len;
 	netdev_features_t netdev_features = NETIF_F_CSUM_MASK | NETIF_F_SG;
 	u8 *qc, tid, txf;
@@ -743,21 +748,6 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* This skb fits in one single A-MSDU */
 	if (num_subframes * mss >= tcp_payload_len) {
-		struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
-
-		/*
-		 * Compute the length of all the data added for the A-MSDU.
-		 * This will be used to compute the length to write in the TX
-		 * command. We have: SNAP + IP + TCP for n -1 subframes and
-		 * ETH header for n subframes. Note that the original skb
-		 * already had one set of SNAP / IP / TCP headers.
-		 */
-		num_subframes = DIV_ROUND_UP(tcp_payload_len, mss);
-		amsdu_add = num_subframes * sizeof(struct ethhdr) +
-			(num_subframes - 1) * (snap_ip_tcp + pad);
-		/* This holds the amsdu headers length */
-		skb_info->driver_data[0] = (void *)(uintptr_t)amsdu_add;
-
 		__skb_queue_tail(mpdus_skb, skb);
 		return 0;
 	}
@@ -796,14 +786,6 @@ segment:
 			ip_hdr(tmp)->id = htons(ip_base_id + i * num_subframes);
 
 		if (tcp_payload_len > mss) {
-			struct ieee80211_tx_info *skb_info =
-				IEEE80211_SKB_CB(tmp);
-
-			num_subframes = DIV_ROUND_UP(tcp_payload_len, mss);
-			amsdu_add = num_subframes * sizeof(struct ethhdr) +
-				(num_subframes - 1) * (snap_ip_tcp + pad);
-			skb_info->driver_data[0] =
-				(void *)(uintptr_t)amsdu_add;
 			skb_shinfo(tmp)->gso_size = mss;
 		} else {
 			qc = ieee80211_get_qos_ctl((void *)tmp->data);
@@ -915,7 +897,6 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		goto drop;
 
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
-	/* From now on, we cannot access info->control */
 
 	/*
 	 * we handle that entirely ourselves -- for uAPSD the firmware
@@ -926,6 +907,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_lock(&mvmsta->lock);
 
+	/* nullfunc frames should go to the MGMT queue regardless of QOS,
+	 * the condition of !ieee80211_is_qos_nullfunc(fc) keeps the default
+	 * assignment of MGMT TID
+	 */
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		u8 *qc = NULL;
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -938,27 +923,13 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		is_ampdu = info->flags & IEEE80211_TX_CTL_AMPDU;
-	} else if (iwl_mvm_is_dqa_supported(mvm) &&
-		   (ieee80211_is_qos_nullfunc(fc) ||
-		    ieee80211_is_nullfunc(fc))) {
-		/*
-		 * nullfunc frames should go to the MGMT queue regardless of QOS
-		 */
-		tid = IWL_MAX_TID_COUNT;
+		if (WARN_ON_ONCE(is_ampdu &&
+				 mvmsta->tid_data[tid].state != IWL_AGG_ON))
+			goto drop_unlock_sta;
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
+	if (iwl_mvm_is_dqa_supported(mvm) || is_ampdu)
 		txq_id = mvmsta->tid_data[tid].txq_id;
-
-		if (ieee80211_is_mgmt(fc))
-			tx_cmd->tid_tspec = IWL_TID_NON_QOS;
-	}
-
-	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, hdrlen);
-
-	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
-
 	if (sta->tdls && !iwl_mvm_is_dqa_supported(mvm)) {
 		/* default to TID 0 for non-QoS packets */
 		u8 tdls_tid = tid == IWL_MAX_TID_COUNT ? 0 : tid;
@@ -966,11 +937,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		txq_id = mvmsta->hw_queue[tid_to_mac80211_ac[tdls_tid]];
 	}
 
-	if (is_ampdu) {
-		if (WARN_ON_ONCE(mvmsta->tid_data[tid].state != IWL_AGG_ON))
-			goto drop_unlock_sta;
-		txq_id = mvmsta->tid_data[tid].txq_id;
-	}
+	/* Copy MAC header from skb into command buffer */
+	memcpy(tx_cmd->hdr, hdr, hdrlen);
+
+	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
 	/* Check if TXQ needs to be allocated or re-activated */
 	if (unlikely(txq_id == IEEE80211_INVAL_HW_QUEUE ||
@@ -1022,6 +992,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
 		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));
 
+	/* From now on, we cannot access info->control */
+	iwl_mvm_skb_prepare_status(skb, dev_cmd);
+
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
@@ -1031,7 +1004,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	spin_unlock(&mvmsta->lock);
 
 	/* Increase pending frames count if this isn't AMPDU */
-	if (!is_ampdu)
+	if ((iwl_mvm_is_dqa_supported(mvm) &&
+	     mvmsta->tid_data[tx_cmd->tid_tspec].state != IWL_AGG_ON &&
+	     mvmsta->tid_data[tx_cmd->tid_tspec].state != IWL_AGG_STARTING) ||
+	    (!iwl_mvm_is_dqa_supported(mvm) && !is_ampdu))
 		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
@@ -1047,7 +1023,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_info info;
 	struct sk_buff_head mpdus_skbs;
 	unsigned int payload_len;
@@ -1060,9 +1035,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
-
-	/* This holds the amsdu headers length */
-	skb_info->driver_data[0] = (void *)(uintptr_t)0;
 
 	if (!skb_is_gso(skb))
 		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta);

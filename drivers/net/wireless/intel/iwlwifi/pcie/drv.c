@@ -533,7 +533,7 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0xA370, 0x1030, iwl9560_2ac_cfg)},
 
 /* a000 Series */
-	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwla000_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwla000_2ac_cfg_hr)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -673,11 +673,17 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			cfg = &iwl9000lc_2ac_cfg;
 			iwl_trans->cfg = cfg;
 		}
+
+		if (cfg == &iwla000_2ac_cfg_hr &&
+		    iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF) {
+			cfg = &iwla000_2ac_cfg_jf;
+			iwl_trans->cfg = cfg;
+		}
 	}
 #endif
 
 	pci_set_drvdata(pdev, iwl_trans);
-	iwl_trans->drv = iwl_drv_start(iwl_trans, cfg);
+	iwl_trans->drv = iwl_drv_start(iwl_trans);
 
 	if (IS_ERR(iwl_trans->drv)) {
 		ret = PTR_ERR(iwl_trans->drv);
@@ -778,13 +784,14 @@ static int iwl_pci_resume(struct device *device)
 
 	/*
 	 * Enable rfkill interrupt (in order to keep track of
-	 * the rfkill status)
+	 * the rfkill status). Must be locked to avoid processing
+	 * a possible rfkill interrupt between reading the state
+	 * and calling iwl_trans_pcie_rf_kill() with it.
 	 */
+	mutex_lock(&trans_pcie->mutex);
 	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
-
-	mutex_lock(&trans_pcie->mutex);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 	mutex_unlock(&trans_pcie->mutex);
 

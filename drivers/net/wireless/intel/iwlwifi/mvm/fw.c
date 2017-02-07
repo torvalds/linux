@@ -214,6 +214,10 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 	memcpy(page_address(mvm->fw_paging_db[0].fw_paging_block),
 	       image->sec[sec_idx].data,
 	       mvm->fw_paging_db[0].fw_paging_size);
+	dma_sync_single_for_device(mvm->trans->dev,
+				   mvm->fw_paging_db[0].fw_paging_phys,
+				   mvm->fw_paging_db[0].fw_paging_size,
+				   DMA_BIDIRECTIONAL);
 
 	IWL_DEBUG_FW(mvm,
 		     "Paging: copied %d CSS bytes to first block\n",
@@ -228,9 +232,16 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 	 * loop stop at num_of_paging_blk since that last block is not full.
 	 */
 	for (idx = 1; idx < mvm->num_of_paging_blk; idx++) {
-		memcpy(page_address(mvm->fw_paging_db[idx].fw_paging_block),
+		struct iwl_fw_paging *block = &mvm->fw_paging_db[idx];
+
+		memcpy(page_address(block->fw_paging_block),
 		       image->sec[sec_idx].data + offset,
-		       mvm->fw_paging_db[idx].fw_paging_size);
+		       block->fw_paging_size);
+		dma_sync_single_for_device(mvm->trans->dev,
+					   block->fw_paging_phys,
+					   block->fw_paging_size,
+					   DMA_BIDIRECTIONAL);
+
 
 		IWL_DEBUG_FW(mvm,
 			     "Paging: copied %d paging bytes to block %d\n",
@@ -242,9 +253,15 @@ static int iwl_fill_paging_mem(struct iwl_mvm *mvm, const struct fw_img *image)
 
 	/* copy the last paging block */
 	if (mvm->num_of_pages_in_last_blk > 0) {
-		memcpy(page_address(mvm->fw_paging_db[idx].fw_paging_block),
+		struct iwl_fw_paging *block = &mvm->fw_paging_db[idx];
+
+		memcpy(page_address(block->fw_paging_block),
 		       image->sec[sec_idx].data + offset,
 		       FW_PAGING_SIZE * mvm->num_of_pages_in_last_blk);
+		dma_sync_single_for_device(mvm->trans->dev,
+					   block->fw_paging_phys,
+					   block->fw_paging_size,
+					   DMA_BIDIRECTIONAL);
 
 		IWL_DEBUG_FW(mvm,
 			     "Paging: copied %d pages in the last block %d\n",
@@ -444,80 +461,60 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_mvm *mvm =
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
-	struct mvm_alive_resp_ver1 *palive1;
-	struct mvm_alive_resp_ver2 *palive2;
+	struct mvm_alive_resp_v3 *palive3;
 	struct mvm_alive_resp *palive;
+	struct iwl_umac_alive *umac;
+	struct iwl_lmac_alive *lmac1;
+	struct iwl_lmac_alive *lmac2 = NULL;
+	u16 status;
 
-	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive1)) {
-		palive1 = (void *)pkt->data;
-
-		mvm->support_umac_log = false;
-		mvm->error_event_table =
-			le32_to_cpu(palive1->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive1->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive1->scd_base_ptr);
-
-		alive_data->valid = le16_to_cpu(palive1->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive1->status), palive1->ver_type,
-			     palive1->ver_subtype, palive1->flags);
-	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive2)) {
-		palive2 = (void *)pkt->data;
-
-		mvm->error_event_table =
-			le32_to_cpu(palive2->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive2->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive2->scd_base_ptr);
-		mvm->umac_error_event_table =
-			le32_to_cpu(palive2->error_info_addr);
-		mvm->sf_space.addr = le32_to_cpu(palive2->st_fwrd_addr);
-		mvm->sf_space.size = le32_to_cpu(palive2->st_fwrd_size);
-
-		alive_data->valid = le16_to_cpu(palive2->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		if (mvm->umac_error_event_table)
-			mvm->support_umac_log = true;
-
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive2->status), palive2->ver_type,
-			     palive2->ver_subtype, palive2->flags);
-
-		IWL_DEBUG_FW(mvm,
-			     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			     palive2->umac_major, palive2->umac_minor);
-	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
 		palive = (void *)pkt->data;
-
-		mvm->error_event_table =
-			le32_to_cpu(palive->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
-		mvm->umac_error_event_table =
-			le32_to_cpu(palive->error_info_addr);
-		mvm->sf_space.addr = le32_to_cpu(palive->st_fwrd_addr);
-		mvm->sf_space.size = le32_to_cpu(palive->st_fwrd_size);
-
-		alive_data->valid = le16_to_cpu(palive->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		if (mvm->umac_error_event_table)
-			mvm->support_umac_log = true;
-
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER3 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive->status), palive->ver_type,
-			     palive->ver_subtype, palive->flags);
-
-		IWL_DEBUG_FW(mvm,
-			     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			     le32_to_cpu(palive->umac_major),
-			     le32_to_cpu(palive->umac_minor));
+		umac = &palive->umac_data;
+		lmac1 = &palive->lmac_data[0];
+		lmac2 = &palive->lmac_data[1];
+		status = le16_to_cpu(palive->status);
+	} else {
+		palive3 = (void *)pkt->data;
+		umac = &palive3->umac_data;
+		lmac1 = &palive3->lmac_data;
+		status = le16_to_cpu(palive3->status);
 	}
+
+	mvm->error_event_table[0] = le32_to_cpu(lmac1->error_event_table_ptr);
+	if (lmac2)
+		mvm->error_event_table[1] =
+			le32_to_cpu(lmac2->error_event_table_ptr);
+	mvm->log_event_table = le32_to_cpu(lmac1->log_event_table_ptr);
+	mvm->sf_space.addr = le32_to_cpu(lmac1->st_fwrd_addr);
+	mvm->sf_space.size = le32_to_cpu(lmac1->st_fwrd_size);
+
+	mvm->umac_error_event_table = le32_to_cpu(umac->error_info_addr);
+
+	alive_data->scd_base_addr = le32_to_cpu(lmac1->scd_base_ptr);
+	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
+	if (mvm->umac_error_event_table)
+		mvm->support_umac_log = true;
+
+	IWL_DEBUG_FW(mvm,
+		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
+		     status, lmac1->ver_type, lmac1->ver_subtype);
+
+	if (lmac2)
+		IWL_DEBUG_FW(mvm, "Alive ucode CDB\n");
+
+	IWL_DEBUG_FW(mvm,
+		     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+		     le32_to_cpu(umac->umac_major),
+		     le32_to_cpu(umac->umac_minor));
+
+	return true;
+}
+
+static bool iwl_wait_init_complete(struct iwl_notif_wait_data *notif_wait,
+				   struct iwl_rx_packet *pkt, void *data)
+{
+	WARN_ON(pkt->hdr.cmd != INIT_COMPLETE_NOTIF);
 
 	return true;
 }
@@ -537,6 +534,48 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 	return false;
 }
 
+static int iwl_mvm_init_paging(struct iwl_mvm *mvm)
+{
+	const struct fw_img *fw = &mvm->fw->img[mvm->cur_ucode];
+	int ret;
+
+	/*
+	 * Configure and operate fw paging mechanism.
+	 * The driver configures the paging flow only once.
+	 * The CPU2 paging image is included in the IWL_UCODE_INIT image.
+	 */
+	if (!fw->paging_mem_size)
+		return 0;
+
+	/*
+	 * When dma is not enabled, the driver needs to copy / write
+	 * the downloaded / uploaded page to / from the smem.
+	 * This gets the location of the place were the pages are
+	 * stored.
+	 */
+	if (!is_device_dma_capable(mvm->trans->dev)) {
+		ret = iwl_trans_get_paging_item(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "failed to get FW paging item\n");
+			return ret;
+		}
+	}
+
+	ret = iwl_save_fw_paging(mvm, fw);
+	if (ret) {
+		IWL_ERR(mvm, "failed to save the FW paging image\n");
+		return ret;
+	}
+
+	ret = iwl_send_paging_cmd(mvm, fw);
+	if (ret) {
+		IWL_ERR(mvm, "failed to send the paging cmd\n");
+		iwl_free_fw_paging(mvm);
+		return ret;
+	}
+
+	return 0;
+}
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					 enum iwl_ucode_type ucode_type)
 {
@@ -606,40 +645,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	}
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
-
-	/*
-	 * configure and operate fw paging mechanism.
-	 * driver configures the paging flow only once, CPU2 paging image
-	 * included in the IWL_UCODE_INIT image.
-	 */
-	if (fw->paging_mem_size) {
-		/*
-		 * When dma is not enabled, the driver needs to copy / write
-		 * the downloaded / uploaded page to / from the smem.
-		 * This gets the location of the place were the pages are
-		 * stored.
-		 */
-		if (!is_device_dma_capable(mvm->trans->dev)) {
-			ret = iwl_trans_get_paging_item(mvm);
-			if (ret) {
-				IWL_ERR(mvm, "failed to get FW paging item\n");
-				return ret;
-			}
-		}
-
-		ret = iwl_save_fw_paging(mvm, fw);
-		if (ret) {
-			IWL_ERR(mvm, "failed to save the FW paging image\n");
-			return ret;
-		}
-
-		ret = iwl_send_paging_cmd(mvm, fw);
-		if (ret) {
-			IWL_ERR(mvm, "failed to send the paging cmd\n");
-			iwl_free_fw_paging(mvm);
-			return ret;
-		}
-	}
 
 	/*
 	 * Note: all the queues are enabled as part of the interface
@@ -795,6 +800,75 @@ out:
 		mvm->nvm_data->bands[0].bitrates->hw_value = 10;
 	}
 
+	return ret;
+}
+
+int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
+{
+	struct iwl_notification_wait init_wait;
+	struct iwl_nvm_access_complete_cmd nvm_complete = {};
+	static const u16 init_complete[] = {
+		INIT_COMPLETE_NOTIF,
+	};
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_init_notification_wait(&mvm->notif_wait,
+				   &init_wait,
+				   init_complete,
+				   ARRAY_SIZE(init_complete),
+				   iwl_wait_init_complete,
+				   NULL);
+
+	/* Will also start the device */
+	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+		goto error;
+	}
+
+	/* TODO: remove when integrating context info */
+	ret = iwl_mvm_init_paging(mvm);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to init paging: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* Read the NVM only at driver load time, no need to do this twice */
+	if (read_nvm) {
+		/* Read nvm */
+		ret = iwl_nvm_init(mvm, true);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			goto error;
+		}
+	}
+
+	/* In case we read the NVM from external file, load it to the NIC */
+	if (mvm->nvm_file_name)
+		iwl_mvm_load_nvm_to_nic(mvm);
+
+	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
+	if (WARN_ON(ret))
+		goto error;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						NVM_ACCESS_COMPLETE), 0,
+				   sizeof(nvm_complete), &nvm_complete);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run complete NVM access: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* We wait for the INIT complete notification */
+	return iwl_wait_notification(&mvm->notif_wait, &init_wait,
+				     MVM_UCODE_ALIVE_TIMEOUT);
+
+error:
+	iwl_remove_notification(&mvm->notif_wait, &init_wait);
 	return ret;
 }
 
@@ -1058,6 +1132,43 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 	return ret;
 }
 
+static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return iwl_run_unified_mvm_ucode(mvm, false);
+
+	ret = iwl_run_init_mvm_ucode(mvm, false);
+
+	if (iwlmvm_mod_params.init_dbg)
+		return 0;
+
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+		/* this can't happen */
+		if (WARN_ON(ret > 0))
+			ret = -ERFKILL;
+		return ret;
+	}
+
+	/*
+	 * Stop and start the transport without entering low power
+	 * mode. This will save the state of other components on the
+	 * device that are triggered by the INIT firwmare (MFUART).
+	 */
+	_iwl_trans_stop_device(mvm->trans, false);
+	ret = _iwl_trans_start_hw(mvm->trans, false);
+	if (ret)
+		return ret;
+
+	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
+	if (ret)
+		return ret;
+
+	return iwl_mvm_init_paging(mvm);
+}
+
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
@@ -1070,35 +1181,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	/*
-	 * If we haven't completed the run of the init ucode during
-	 * module loading, load init ucode now
-	 * (for example, if we were in RFKILL)
-	 */
-	ret = iwl_run_init_mvm_ucode(mvm, false);
-
-	if (iwlmvm_mod_params.init_dbg)
-		return 0;
-
-	if (ret) {
-		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
-		/* this can't happen */
-		if (WARN_ON(ret > 0))
-			ret = -ERFKILL;
-		goto error;
-	}
-
-	/*
-	 * Stop and start the transport without entering low power
-	 * mode. This will save the state of other components on the
-	 * device that are triggered by the INIT firwmare (MFUART).
-	 */
-	_iwl_trans_stop_device(mvm->trans, false);
-	ret = _iwl_trans_start_hw(mvm->trans, false);
-	if (ret)
-		goto error;
-
-	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
+	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
 		goto error;
@@ -1125,13 +1208,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	/* Send phy db control command and then phy db calibration*/
-	ret = iwl_send_phy_db_data(mvm->phy_db);
-	if (ret)
-		goto error;
+	if (!iwl_mvm_has_new_tx_api(mvm)) {
+		ret = iwl_send_phy_db_data(mvm->phy_db);
+		if (ret)
+			goto error;
 
-	ret = iwl_send_phy_cfg_cmd(mvm);
-	if (ret)
-		goto error;
+		ret = iwl_send_phy_cfg_cmd(mvm);
+		if (ret)
+			goto error;
+	}
 
 	/* Init RSS configuration */
 	if (iwl_mvm_has_new_rx_api(mvm)) {
@@ -1311,10 +1396,19 @@ void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
 
-	IWL_DEBUG_INFO(mvm,
-		       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x\n",
-		       le32_to_cpu(mfuart_notif->installed_ver),
-		       le32_to_cpu(mfuart_notif->external_ver),
-		       le32_to_cpu(mfuart_notif->status),
-		       le32_to_cpu(mfuart_notif->duration));
+	if (iwl_rx_packet_payload_len(pkt) == sizeof(*mfuart_notif))
+		IWL_DEBUG_INFO(mvm,
+			       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x, image size: 0x%08x\n",
+			       le32_to_cpu(mfuart_notif->installed_ver),
+			       le32_to_cpu(mfuart_notif->external_ver),
+			       le32_to_cpu(mfuart_notif->status),
+			       le32_to_cpu(mfuart_notif->duration),
+			       le32_to_cpu(mfuart_notif->image_size));
+	else
+		IWL_DEBUG_INFO(mvm,
+			       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x\n",
+			       le32_to_cpu(mfuart_notif->installed_ver),
+			       le32_to_cpu(mfuart_notif->external_ver),
+			       le32_to_cpu(mfuart_notif->status),
+			       le32_to_cpu(mfuart_notif->duration));
 }
