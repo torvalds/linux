@@ -189,12 +189,13 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	struct mlx5e_channel *c;
-	int n, tc, err, num_sqs = 0;
+	int n, tc, num_sqs = 0;
+	int err = -ENOMEM;
 	u16 *sqs;
 
 	sqs = kcalloc(priv->channels.num * priv->channels.params.num_tc, sizeof(u16), GFP_KERNEL);
 	if (!sqs)
-		return -ENOMEM;
+		goto out;
 
 	for (n = 0; n < priv->channels.num; n++) {
 		c = priv->channels.c[n];
@@ -203,8 +204,11 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	}
 
 	err = mlx5_eswitch_sqs2vport_start(esw, rep, sqs, num_sqs);
-
 	kfree(sqs);
+
+out:
+	if (err)
+		netdev_warn(priv->netdev, "Failed to add SQs FWD rules %d\n", err);
 	return err;
 }
 
