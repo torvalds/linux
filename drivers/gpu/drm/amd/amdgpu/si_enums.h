@@ -144,7 +144,7 @@
 
 #define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x02010002
-#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
+#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02011003
 
 #define PACKET3(op, n)  ((RADEON_PACKET_TYPE3 << 30) |                  \
                          (((op) & 0xFF) << 8) |                         \
