@@ -195,11 +195,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	}
 
 	if (dst) {
+		unsigned long now = jiffies;
+
 		if (dst->is_local)
 			return br_pass_frame_up(skb);
 
-		if (jiffies != dst->used)
-			dst->used = jiffies;
+		if (now != dst->used)
+			dst->used = now;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)

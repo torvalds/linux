@@ -592,13 +592,15 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				br_warn(br, "received packet on %s with own address as source address (addr:%pM, vlan:%u)\n",
 					source->dev->name, addr, vid);
 		} else {
+			unsigned long now = jiffies;
+
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {
 				fdb->dst = source;
 				fdb_modified = true;
 			}
-			if (jiffies != fdb->updated)
-				fdb->updated = jiffies;
+			if (now != fdb->updated)
+				fdb->updated = now;
 			if (unlikely(added_by_user))
 				fdb->added_by_user = 1;
 			if (unlikely(fdb_modified))
