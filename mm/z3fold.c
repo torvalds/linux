@@ -166,9 +166,12 @@ static void free_z3fold_page(struct page *page)
 
 static void release_z3fold_page(struct kref *ref)
 {
-	struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
-						refcount);
-	struct page *page = virt_to_page(zhdr);
+	struct z3fold_header *zhdr;
+	struct page *page;
+
+	zhdr = container_of(ref, struct z3fold_header, refcount);
+	page = virt_to_page(zhdr);
+
 	if (!list_empty(&zhdr->buddy))
 		list_del(&zhdr->buddy);
 	if (!list_empty(&page->lru))
@@ -187,7 +190,6 @@ static inline void z3fold_page_unlock(struct z3fold_header *zhdr)
 {
 	spin_unlock(&zhdr->page_lock);
 }
-
 
 /*
  * Encodes the handle of a particular buddy within a z3fold page
