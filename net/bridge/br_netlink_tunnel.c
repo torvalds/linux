@@ -127,7 +127,7 @@ static int br_fill_vlan_tinfo_range(struct sk_buff *skb,
 {
 	int err;
 
-	if (vtbegin && vtend && (vtend->vid - vtbegin->vid) > 0) {
+	if (vtend && (vtend->vid - vtbegin->vid) > 0) {
 		/* add range to skb */
 		err = br_fill_vlan_tinfo(skb, vtbegin->vid,
 					 vtbegin->tinfo.tunnel_id,
