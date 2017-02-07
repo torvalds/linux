@@ -273,13 +273,8 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	rxe_init_task(rxe, &qp->comp.task, qp,
 		      rxe_completer, "comp");
 
-	init_timer(&qp->rnr_nak_timer);
-	qp->rnr_nak_timer.function = rnr_nak_timer;
-	qp->rnr_nak_timer.data = (unsigned long)qp;
-
-	init_timer(&qp->retrans_timer);
-	qp->retrans_timer.function = retransmit_timer;
-	qp->retrans_timer.data = (unsigned long)qp;
+	setup_timer(&qp->rnr_nak_timer, rnr_nak_timer, (unsigned long)qp);
+	setup_timer(&qp->retrans_timer, retransmit_timer, (unsigned long)qp);
 	qp->qp_timeout_jiffies = 0; /* Can't be set for UD/UC in modify_qp */
 
 	return 0;
