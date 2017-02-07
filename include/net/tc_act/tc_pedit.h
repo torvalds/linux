@@ -5,6 +5,7 @@
 
 struct tcf_pedit_key_ex {
 	enum pedit_header_type htype;
+	enum pedit_cmd cmd;
 };
 
 struct tcf_pedit {

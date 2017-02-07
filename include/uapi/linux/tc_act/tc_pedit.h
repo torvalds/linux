@@ -20,6 +20,7 @@ enum {
                                                                                 
 enum {
 	TCA_PEDIT_KEY_EX_HTYPE = 1,
+	TCA_PEDIT_KEY_EX_CMD = 2,
 	__TCA_PEDIT_KEY_EX_MAX
 };
 #define TCA_PEDIT_KEY_EX_MAX (__TCA_PEDIT_KEY_EX_MAX - 1)
@@ -37,6 +38,13 @@ enum pedit_header_type {
 	__PEDIT_HDR_TYPE_MAX,
 };
 #define TCA_PEDIT_HDR_TYPE_MAX (__PEDIT_HDR_TYPE_MAX - 1)
+
+enum pedit_cmd {
+	TCA_PEDIT_KEY_EX_CMD_SET = 0,
+	TCA_PEDIT_KEY_EX_CMD_ADD = 1,
+	__PEDIT_CMD_MAX,
+};
+#define TCA_PEDIT_CMD_MAX (__PEDIT_CMD_MAX - 1)
 
 struct tc_pedit_key {
 	__u32           mask;  /* AND */

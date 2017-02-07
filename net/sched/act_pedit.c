@@ -36,6 +36,7 @@ static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 
 static const struct nla_policy pedit_key_ex_policy[TCA_PEDIT_KEY_EX_MAX + 1] = {
 	[TCA_PEDIT_KEY_EX_HTYPE]  = { .type = NLA_U16 },
+	[TCA_PEDIT_KEY_EX_CMD]	  = { .type = NLA_U16 },
 };
 
 static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
@@ -75,14 +76,17 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		if (err)
 			goto err_out;
 
-		if (!tb[TCA_PEDIT_KEY_EX_HTYPE]) {
+		if (!tb[TCA_PEDIT_KEY_EX_HTYPE] ||
+		    !tb[TCA_PEDIT_KEY_EX_CMD]) {
 			err = -EINVAL;
 			goto err_out;
 		}
 
 		k->htype = nla_get_u16(tb[TCA_PEDIT_KEY_EX_HTYPE]);
+		k->cmd = nla_get_u16(tb[TCA_PEDIT_KEY_EX_CMD]);
 
-		if (k->htype > TCA_PEDIT_HDR_TYPE_MAX) {
+		if (k->htype > TCA_PEDIT_HDR_TYPE_MAX ||
+		    k->cmd > TCA_PEDIT_CMD_MAX) {
 			err = -EINVAL;
 			goto err_out;
 		}
@@ -110,7 +114,8 @@ static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
 
 		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
 
-		if (nla_put_u16(skb, TCA_PEDIT_KEY_EX_HTYPE, keys_ex->htype)) {
+		if (nla_put_u16(skb, TCA_PEDIT_KEY_EX_HTYPE, keys_ex->htype) ||
+		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd)) {
 			nlmsg_trim(skb, keys_start);
 			return -EINVAL;
 		}
@@ -280,15 +285,19 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 		struct tc_pedit_key *tkey = p->tcfp_keys;
 		struct tcf_pedit_key_ex *tkey_ex = p->tcfp_keys_ex;
 		enum pedit_header_type htype = TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK;
+		enum pedit_cmd cmd = TCA_PEDIT_KEY_EX_CMD_SET;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
 			u32 *ptr, _data;
 			int offset = tkey->off;
 			int hoffset;
+			u32 val;
 			int rc;
 
 			if (tkey_ex) {
 				htype = tkey_ex->htype;
+				cmd = tkey_ex->cmd;
+
 				tkey_ex++;
 			}
 
@@ -330,7 +339,20 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 			if (!ptr)
 				goto bad;
 			/* just do it, baby */
-			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
+			switch (cmd) {
+			case TCA_PEDIT_KEY_EX_CMD_SET:
+				val = tkey->val;
+				break;
+			case TCA_PEDIT_KEY_EX_CMD_ADD:
+				val = (*ptr + tkey->val) & ~tkey->mask;
+				break;
+			default:
+				pr_info("tc filter pedit bad command (%d)\n",
+					cmd);
+				goto bad;
+			}
+
+			*ptr = ((*ptr & tkey->mask) ^ val);
 			if (ptr == &_data)
 				skb_store_bits(skb, hoffset + offset, ptr, 4);
 		}
