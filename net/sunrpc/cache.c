@@ -1600,21 +1600,12 @@ static const struct file_operations cache_flush_operations_procfs = {
 	.llseek		= no_llseek,
 };
 
-static void remove_cache_proc_entries(struct cache_detail *cd, struct net *net)
+static void remove_cache_proc_entries(struct cache_detail *cd)
 {
-	struct sunrpc_net *sn;
-
-	if (cd->u.procfs.proc_ent == NULL)
-		return;
-	if (cd->u.procfs.flush_ent)
-		remove_proc_entry("flush", cd->u.procfs.proc_ent);
-	if (cd->u.procfs.channel_ent)
-		remove_proc_entry("channel", cd->u.procfs.proc_ent);
-	if (cd->u.procfs.content_ent)
-		remove_proc_entry("content", cd->u.procfs.proc_ent);
-	cd->u.procfs.proc_ent = NULL;
-	sn = net_generic(net, sunrpc_net_id);
-	remove_proc_entry(cd->name, sn->proc_net_rpc);
+	if (cd->procfs) {
+		proc_remove(cd->procfs);
+		cd->procfs = NULL;
+	}
 }
 
 #ifdef CONFIG_PROC_FS
@@ -1624,38 +1615,30 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 	struct sunrpc_net *sn;
 
 	sn = net_generic(net, sunrpc_net_id);
-	cd->u.procfs.proc_ent = proc_mkdir(cd->name, sn->proc_net_rpc);
-	if (cd->u.procfs.proc_ent == NULL)
+	cd->procfs = proc_mkdir(cd->name, sn->proc_net_rpc);
+	if (cd->procfs == NULL)
 		goto out_nomem;
-	cd->u.procfs.channel_ent = NULL;
-	cd->u.procfs.content_ent = NULL;
 
 	p = proc_create_data("flush", S_IFREG|S_IRUSR|S_IWUSR,
-			     cd->u.procfs.proc_ent,
-			     &cache_flush_operations_procfs, cd);
-	cd->u.procfs.flush_ent = p;
+			     cd->procfs, &cache_flush_operations_procfs, cd);
 	if (p == NULL)
 		goto out_nomem;
 
 	if (cd->cache_request || cd->cache_parse) {
 		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
-				     cd->u.procfs.proc_ent,
-				     &cache_file_operations_procfs, cd);
-		cd->u.procfs.channel_ent = p;
+				cd->procfs, &cache_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
 	if (cd->cache_show) {
 		p = proc_create_data("content", S_IFREG|S_IRUSR,
-				cd->u.procfs.proc_ent,
-				&content_file_operations_procfs, cd);
-		cd->u.procfs.content_ent = p;
+				cd->procfs, &content_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
 	return 0;
 out_nomem:
-	remove_cache_proc_entries(cd, net);
+	remove_cache_proc_entries(cd);
 	return -ENOMEM;
 }
 #else /* CONFIG_PROC_FS */
@@ -1684,7 +1667,7 @@ EXPORT_SYMBOL_GPL(cache_register_net);
 
 void cache_unregister_net(struct cache_detail *cd, struct net *net)
 {
-	remove_cache_proc_entries(cd, net);
+	remove_cache_proc_entries(cd);
 	sunrpc_destroy_cache_detail(cd);
 }
 EXPORT_SYMBOL_GPL(cache_unregister_net);
@@ -1843,15 +1826,17 @@ int sunrpc_cache_register_pipefs(struct dentry *parent,
 	struct dentry *dir = rpc_create_cache_dir(parent, name, umode, cd);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
-	cd->u.pipefs.dir = dir;
+	cd->pipefs = dir;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_register_pipefs);
 
 void sunrpc_cache_unregister_pipefs(struct cache_detail *cd)
 {
-	rpc_remove_cache_dir(cd->u.pipefs.dir);
-	cd->u.pipefs.dir = NULL;
+	if (cd->pipefs) {
+		rpc_remove_cache_dir(cd->pipefs);
+		cd->pipefs = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
 
