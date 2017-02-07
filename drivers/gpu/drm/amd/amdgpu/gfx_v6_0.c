@@ -1551,17 +1551,15 @@ static u32 gfx_v6_0_get_cu_enabled(struct amdgpu_device *adev)
 }
 
 
-static void gfx_v6_0_setup_spi(struct amdgpu_device *adev,
-			 u32 se_num, u32 sh_per_se,
-			 u32 cu_per_sh)
+static void gfx_v6_0_setup_spi(struct amdgpu_device *adev)
 {
 	int i, j, k;
 	u32 data, mask;
 	u32 active_cu = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < se_num; i++) {
-		for (j = 0; j < sh_per_se; j++) {
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
 			data = RREG32(mmSPI_STATIC_THREAD_MGMT_3);
 			active_cu = gfx_v6_0_get_cu_enabled(adev);
@@ -1732,9 +1730,7 @@ static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 
 	gfx_v6_0_setup_rb(adev);
 
-	gfx_v6_0_setup_spi(adev, adev->gfx.config.max_shader_engines,
-		     adev->gfx.config.max_sh_per_se,
-		     adev->gfx.config.max_cu_per_sh);
+	gfx_v6_0_setup_spi(adev);
 
 	gfx_v6_0_get_cu_info(adev);
 
