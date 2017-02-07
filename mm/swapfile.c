@@ -2591,6 +2591,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 
 	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
 		int cpu;
+		unsigned long ci, nr_cluster;
 
 		p->flags |= SWP_SOLIDSTATE;
 		/*
@@ -2598,13 +2599,17 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		 * SSD
 		 */
 		p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
+		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
 
-		cluster_info = vzalloc(DIV_ROUND_UP(maxpages,
-			SWAPFILE_CLUSTER) * sizeof(*cluster_info));
+		cluster_info = vzalloc(nr_cluster * sizeof(*cluster_info));
 		if (!cluster_info) {
 			error = -ENOMEM;
 			goto bad_swap;
 		}
+
+		for (ci = 0; ci < nr_cluster; ci++)
+			spin_lock_init(&((cluster_info + ci)->lock));
+
 		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
 		if (!p->percpu_cluster) {
 			error = -ENOMEM;
