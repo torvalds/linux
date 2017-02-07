@@ -56,6 +56,12 @@ CONFIG_DEBUG_SET_MODULE_RONX, which seek to make sure that code is not
 writable, data is not executable, and read-only data is neither writable
 nor executable.
 
+Most architectures have these options on by default and not user selectable.
+For some architectures like arm that wish to have these be selectable,
+the architecture Kconfig can select ARCH_OPTIONAL_KERNEL_RWX to enable
+a Kconfig prompt. CONFIG_ARCH_OPTIONAL_KERNEL_RWX_DEFAULT determines
+the default setting when ARCH_OPTIONAL_KERNEL_RWX is enabled.
+
 #### Function pointers and sensitive variables must not be writable
 
 Vast areas of kernel memory contain function pointers that are looked
