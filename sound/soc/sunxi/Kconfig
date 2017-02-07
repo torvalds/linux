@@ -22,7 +22,7 @@ config SND_SUN8I_CODEC
 
 config SND_SUN8I_CODEC_ANALOG
 	tristate "Allwinner sun8i Codec Analog Controls Support"
-	depends on MACH_SUN8I || COMPILE_TEST
+	depends on MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 	select REGMAP
 	help
 	  Say Y or M if you want to add support for the analog controls for
