@@ -195,11 +195,18 @@ static unsigned long section_active_mask(unsigned long pfn,
 	int idx_start, idx_size;
 	phys_addr_t start, size;
 
+	WARN_ON((pfn & ~PAGE_SECTION_MASK) + nr_pages > PAGES_PER_SECTION);
 	if (!nr_pages)
 		return 0;
 
+	/*
+	 * The size is the number of pages left in the section or
+	 * nr_pages, whichever is smaller. The size will be rounded up
+	 * to the next SECTION_ACTIVE_SIZE boundary, the start will be
+	 * rounded down.
+	 */
 	start = PFN_PHYS(pfn);
-	size = PFN_PHYS(min(nr_pages, PAGES_PER_SECTION
+	size = PFN_PHYS(min_not_zero(nr_pages, PAGES_PER_SECTION
 				- (pfn & ~PAGE_SECTION_MASK)));
 	size = ALIGN(size, SECTION_ACTIVE_SIZE);
 
@@ -207,7 +214,7 @@ static unsigned long section_active_mask(unsigned long pfn,
 	idx_size = section_active_index(size);
 
 	if (idx_size == 0)
-		return -1;
+		return ULONG_MAX; /* full section */
 	return ((1UL << idx_size) - 1) << idx_start;
 }
 
