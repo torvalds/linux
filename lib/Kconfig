@@ -103,8 +103,7 @@ config CRC32
 	  functions require M here.
 
 config CRC32_SELFTEST
-	bool "CRC32 perform self test on init"
-	default n
+	tristate "CRC32 perform self test on init"
 	depends on CRC32
 	help
 	  This option enables the CRC32 library functions to perform a
