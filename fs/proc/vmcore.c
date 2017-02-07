@@ -388,7 +388,7 @@ static int remap_oldmem_pfn_checked(struct vm_area_struct *vma,
 	}
 	return 0;
 fail:
-	do_munmap(vma->vm_mm, from, len);
+	do_munmap(vma->vm_mm, from, len, NULL);
 	return -EAGAIN;
 }
 
@@ -481,7 +481,7 @@ static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 
 	return 0;
 fail:
-	do_munmap(vma->vm_mm, vma->vm_start, len);
+	do_munmap(vma->vm_mm, vma->vm_start, len, NULL);
 	return -EAGAIN;
 }
 #else
