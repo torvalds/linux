@@ -198,11 +198,6 @@ u8 rtl_get_hwpg_bt_exist(struct rtl_priv *rtlpriv)
 	return rtlpriv->btcoexist.btc_info.btcoexist;
 }
 
-u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv)
-{
-	return rtlpriv->btcoexist.btc_info.bt_type;
-}
-
 MODULE_AUTHOR("Page He	<page_he@realsil.com.cn>");
 MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.FInger@lwfinger.net>");

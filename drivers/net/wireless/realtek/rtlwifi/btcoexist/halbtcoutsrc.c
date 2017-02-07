@@ -151,6 +151,11 @@ u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv)
 	return rtlpriv->btcoexist.btc_info.single_ant_path;
 }
 
+u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv)
+{
+	return rtlpriv->btcoexist.btc_info.bt_type;
+}
+
 u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
 {
 	u8 num;
