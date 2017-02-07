@@ -393,13 +393,20 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_device,
 
 	opp = dev_pm_opp_find_freq_exact(cpufreq_device->cpu_dev, freq_hz,
 					 true);
+	if (IS_ERR(opp)) {
+		dev_warn_ratelimited(cpufreq_device->cpu_dev,
+				     "Failed to find OPP for frequency %lu: %ld\n",
+				     freq_hz, PTR_ERR(opp));
+		return -EINVAL;
+	}
+
 	voltage = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
 		dev_err_ratelimited(cpufreq_device->cpu_dev,
-				    "Failed to get voltage for frequency %lu: %ld\n",
-				    freq_hz, IS_ERR(opp) ? PTR_ERR(opp) : 0);
+				    "Failed to get voltage for frequency %lu\n",
+				    freq_hz);
 		return -EINVAL;
 	}
 
