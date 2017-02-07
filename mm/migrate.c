@@ -74,8 +74,9 @@ int migrate_prep_local(void)
 	return 0;
 }
 
-bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+int isolate_movable_page(struct page *page, isolate_mode_t mode)
 {
+	int ret = -EBUSY;
 	struct address_space *mapping;
 
 	/*
@@ -95,8 +96,10 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	 * assumes anybody doesn't touch PG_lock of newly allocated page
 	 * so unconditionally grapping the lock ruins page's owner side.
 	 */
-	if (unlikely(!__PageMovable(page)))
+	if (unlikely(!__PageMovable(page))) {
+		ret = -EINVAL;
 		goto out_putpage;
+	}
 	/*
 	 * As movable pages are not isolated from LRU lists, concurrent
 	 * compaction threads can race against page migration functions
@@ -125,14 +128,14 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	__SetPageIsolated(page);
 	unlock_page(page);
 
-	return true;
+	return 0;
 
 out_no_isolated:
 	unlock_page(page);
 out_putpage:
 	put_page(page);
 out:
-	return false;
+	return ret;
 }
 
 /* It should be called on page which is PG_movable */
