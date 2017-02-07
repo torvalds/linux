@@ -74,9 +74,9 @@ int rvt_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		    u16 *out_mad_pkey_index)
 {
 	/*
-	 * MAD processing is quite different between hfi1 and qib. Therfore this
-	 * is expected to be provided by the driver. Other drivers in the future
-	 * may chose to implement this but it should not be made into a
+	 * MAD processing is quite different between hfi1 and qib. Therefore
+	 * this is expected to be provided by the driver. Other drivers in the
+	 * future may choose to implement this but it should not be made into a
 	 * requirement.
 	 */
 	if (ibport_num_to_idx(ibdev, port_num) < 0)
