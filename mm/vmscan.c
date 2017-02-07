@@ -1799,14 +1799,14 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		/*
 		 * If dirty pages are scanned that are not queued for IO, it
 		 * implies that flushers are not doing their job. This can
-		 * happen when memory pressure pushes dirty pages to the end
-		 * of the LRU without the dirty limits being breached. It can
-		 * also happen when the proportion of dirty pages grows not
-		 * through writes but through memory pressure reclaiming all
-		 * the clean cache. And in some cases, the flushers simply
-		 * cannot keep up with the allocation rate. Nudge the flusher
-		 * threads in case they are asleep, but also allow kswapd to
-		 * start writing pages during reclaim.
+		 * happen when memory pressure pushes dirty pages to the end of
+		 * the LRU before the dirty limits are breached and the dirty
+		 * data has expired. It can also happen when the proportion of
+		 * dirty pages grows not through writes but through memory
+		 * pressure reclaiming all the clean cache. And in some cases,
+		 * the flushers simply cannot keep up with the allocation
+		 * rate. Nudge the flusher threads in case they are asleep, but
+		 * also allow kswapd to start writing pages during reclaim.
 		 */
 		if (stat.nr_unqueued_dirty == nr_taken) {
 			wakeup_flusher_threads(0, WB_REASON_VMSCAN);
