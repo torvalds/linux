@@ -127,6 +127,7 @@ struct snd_intelhad {
 	int irq;
 	void __iomem *mmio_start;
 	unsigned int had_config_offset;
+	union aud_cfg aud_config;	/* AUD_CONFIG reg value cache */
 	struct work_struct hdmi_audio_wq;
 	struct mutex mutex; /* for protecting chmap and eld */
 };
