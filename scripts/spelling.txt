@@ -86,6 +86,7 @@ alue||value
 ambigious||ambiguous
 amoung||among
 amout||amount
+an union||a union
 an user||a user
 an userspace||a userspace
 analysator||analyzer
