@@ -179,7 +179,6 @@ static void release_memory_resource(struct resource *res)
 void get_page_bootmem(unsigned long info,  struct page *page,
 		      unsigned long type)
 {
-	page->lru.next = (struct list_head *)type;
 	page->freelist = (void *)type;
 	SetPagePrivate(page);
 	set_page_private(page, info);
