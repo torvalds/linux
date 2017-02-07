@@ -61,7 +61,7 @@ static int snd_bcm2835_create(struct snd_card *card,
 	*rchip = NULL;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
+	if (!chip)
 		return -ENOMEM;
 
 	chip->card = card;
