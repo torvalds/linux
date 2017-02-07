@@ -453,8 +453,8 @@ static struct dentry *affs_get_parent(struct dentry *child)
 	struct buffer_head *bh;
 
 	bh = affs_bread(child->d_sb, d_inode(child)->i_ino);
-	if (IS_ERR(bh))
-		return ERR_CAST(bh);
+	if (!bh)
+		return ERR_PTR(-EIO);
 
 	parent = affs_iget(child->d_sb,
 			   be32_to_cpu(AFFS_TAIL(child->d_sb, bh)->parent));
