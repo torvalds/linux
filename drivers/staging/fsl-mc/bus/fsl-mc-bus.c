@@ -537,7 +537,6 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		goto error_cleanup_dev;
 	}
 
-	(void)get_device(&mc_dev->dev);
 	dev_dbg(parent_dev, "added %s\n", dev_name(&mc_dev->dev));
 
 	*new_mc_dev = mc_dev;
