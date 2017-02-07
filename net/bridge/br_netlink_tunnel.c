@@ -229,14 +229,14 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 
 	memset(tinfo, 0, sizeof(*tinfo));
 
-	if (!tb[IFLA_BRIDGE_VLAN_TUNNEL_ID] ||
-	    !tb[IFLA_BRIDGE_VLAN_TUNNEL_VID])
-		return -EINVAL;
-
 	err = nla_parse_nested(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX,
 			       attr, vlan_tunnel_policy);
 	if (err < 0)
 		return err;
+
+	if (!tb[IFLA_BRIDGE_VLAN_TUNNEL_ID] ||
+	    !tb[IFLA_BRIDGE_VLAN_TUNNEL_VID])
+		return -EINVAL;
 
 	tun_id = nla_get_u32(tb[IFLA_BRIDGE_VLAN_TUNNEL_ID]);
 	vid = nla_get_u16(tb[IFLA_BRIDGE_VLAN_TUNNEL_VID]);
