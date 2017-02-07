@@ -59,9 +59,9 @@ static int			debug_objects_pool_min_level __read_mostly
 static struct debug_obj_descr	*descr_test  __read_mostly;
 
 /*
- * Track numbers of kmem_cache_alloc and kmem_cache_free done.
+ * Track numbers of kmem_cache_alloc()/free() calls done.
  */
-static int			debug_objects_alloc;
+static int			debug_objects_allocated;
 static int			debug_objects_freed;
 
 static void free_obj_work(struct work_struct *work);
@@ -111,7 +111,7 @@ static void fill_pool(void)
 
 		raw_spin_lock_irqsave(&pool_lock, flags);
 		hlist_add_head(&new->node, &obj_pool);
-		debug_objects_alloc++;
+		debug_objects_allocated++;
 		obj_pool_free++;
 		raw_spin_unlock_irqrestore(&pool_lock, flags);
 	}
@@ -783,8 +783,8 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "pool_min_free :%d\n", obj_pool_min_free);
 	seq_printf(m, "pool_used     :%d\n", obj_pool_used);
 	seq_printf(m, "pool_max_used :%d\n", obj_pool_max_used);
-	seq_printf(m, "objects_alloc :%d\n", debug_objects_alloc);
-	seq_printf(m, "objects_freed :%d\n", debug_objects_freed);
+	seq_printf(m, "objs_allocated:%d\n", debug_objects_allocated);
+	seq_printf(m, "objs_freed    :%d\n", debug_objects_freed);
 	return 0;
 }
 
