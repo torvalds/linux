@@ -656,9 +656,17 @@ xfs_extent_busy_wait_all(
 int
 xfs_extent_busy_ag_cmp(
 	void			*priv,
-	struct list_head	*a,
-	struct list_head	*b)
+	struct list_head	*l1,
+	struct list_head	*l2)
 {
-	return container_of(a, struct xfs_extent_busy, list)->agno -
-		container_of(b, struct xfs_extent_busy, list)->agno;
+	struct xfs_extent_busy	*b1 =
+		container_of(l1, struct xfs_extent_busy, list);
+	struct xfs_extent_busy	*b2 =
+		container_of(l2, struct xfs_extent_busy, list);
+	s32 diff;
+
+	diff = b1->agno - b2->agno;
+	if (!diff)
+		diff = b1->bno - b2->bno;
+	return diff;
 }
