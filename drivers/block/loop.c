@@ -186,7 +186,7 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 	 *
 	 * TODO: the above condition may be loosed in the future, and
 	 * direct I/O may be switched runtime at that time because most
-	 * of requests in sane appplications should be PAGE_SIZE algined
+	 * of requests in sane applications should be PAGE_SIZE aligned
 	 */
 	if (dio) {
 		if (queue_logical_block_size(lo->lo_queue) >= sb_bsize &&
