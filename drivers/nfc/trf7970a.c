@@ -1885,8 +1885,10 @@ static int trf7970a_power_up(struct trf7970a *trf)
 	usleep_range(5000, 6000);
 
 	if (!(trf->quirks & TRF7970A_QUIRK_EN2_MUST_STAY_LOW)) {
-		gpio_set_value(trf->en2_gpio, 1);
-		usleep_range(1000, 2000);
+		if (gpio_is_valid(trf->en2_gpio)) {
+			gpio_set_value(trf->en2_gpio, 1);
+			usleep_range(1000, 2000);
+		}
 	}
 
 	gpio_set_value(trf->en_gpio, 1);
@@ -1914,7 +1916,8 @@ static int trf7970a_power_down(struct trf7970a *trf)
 	}
 
 	gpio_set_value(trf->en_gpio, 0);
-	gpio_set_value(trf->en2_gpio, 0);
+	if (gpio_is_valid(trf->en2_gpio))
+		gpio_set_value(trf->en2_gpio, 0);
 
 	ret = regulator_disable(trf->regulator);
 	if (ret)
@@ -2032,15 +2035,14 @@ static int trf7970a_probe(struct spi_device *spi)
 
 	trf->en2_gpio = of_get_named_gpio(np, "ti,enable-gpios", 1);
 	if (!gpio_is_valid(trf->en2_gpio)) {
-		dev_err(trf->dev, "No EN2 GPIO property\n");
-		return trf->en2_gpio;
-	}
-
-	ret = devm_gpio_request_one(trf->dev, trf->en2_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN2");
-	if (ret) {
-		dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
-		return ret;
+		dev_info(trf->dev, "No EN2 GPIO property\n");
+	} else {
+		ret = devm_gpio_request_one(trf->dev, trf->en2_gpio,
+				GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN2");
+		if (ret) {
+			dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (of_property_read_bool(np, "en2-rf-quirk"))
