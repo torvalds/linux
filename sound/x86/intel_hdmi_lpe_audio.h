@@ -31,7 +31,7 @@
 #define HAD_MAX_BUFFER		((1024 * 1024 - 1) & ~0x3f)
 #define HAD_DEFAULT_BUFFER	(600 * 1024) /* default prealloc size */
 #define HAD_MAX_PERIODS		256	/* arbitrary, but should suffice */
-#define HAD_MIN_PERIODS		2
+#define HAD_MIN_PERIODS		1
 #define HAD_MAX_PERIOD_BYTES	((HAD_MAX_BUFFER / HAD_MIN_PERIODS) & ~0x3f)
 #define HAD_MIN_PERIOD_BYTES	1024	/* might be smaller */
 #define HAD_FIFO_SIZE		0 /* fifo not being used */

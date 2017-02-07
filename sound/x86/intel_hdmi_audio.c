@@ -822,6 +822,11 @@ static int had_prog_n(u32 aud_samp_freq, u32 *n_param,
  *
  * For nperiods < 4, the remaining BDs out of 4 are marked as invalid, so that
  * the hardware skips those BDs in the loop.
+ *
+ * An exceptional setup is the case with nperiods=1.  Since we have to update
+ * BDs after finishing one BD processing, we'd need at least two BDs, where
+ * both BDs point to the same content, the same address, the same size of the
+ * whole PCM buffer.
  */
 
 #define AUD_BUF_ADDR(x)		(AUD_BUF_A_ADDR + (x) * HAD_REG_WIDTH)
@@ -864,6 +869,8 @@ static void had_init_ringbuf(struct snd_pcm_substream *substream,
 
 	num_periods = runtime->periods;
 	intelhaddata->num_bds = min(num_periods, HAD_NUM_OF_RING_BUFS);
+	/* set the minimum 2 BDs for num_periods=1 */
+	intelhaddata->num_bds = max(intelhaddata->num_bds, 2U);
 	intelhaddata->period_bytes =
 		frames_to_bytes(runtime, runtime->period_size);
 	WARN_ON(intelhaddata->period_bytes & 0x3f);
@@ -873,7 +880,7 @@ static void had_init_ringbuf(struct snd_pcm_substream *substream,
 	intelhaddata->pcmbuf_filled = 0;
 
 	for (i = 0; i < HAD_NUM_OF_RING_BUFS; i++) {
-		if (i < num_periods)
+		if (i < intelhaddata->num_bds)
 			had_prog_bd(substream, intelhaddata);
 		else /* invalidate the rest */
 			had_invalidate_bd(intelhaddata, i);
@@ -1255,7 +1262,10 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 	len = had_process_ringbuf(substream, intelhaddata);
 	if (len < 0)
 		return SNDRV_PCM_POS_XRUN;
-	return bytes_to_frames(substream->runtime, len);
+	len = bytes_to_frames(substream->runtime, len);
+	/* wrapping may happen when periods=1 */
+	len %= substream->runtime->buffer_size;
+	return len;
 }
 
 /*
