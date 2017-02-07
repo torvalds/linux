@@ -2613,7 +2613,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle, name,
 				    namelen, target, dlm->node_num);
 	if (ret == -EEXIST) {
-		if(oldmle)
+		if (oldmle)
 			__dlm_put_mle(oldmle);
 
 		spin_unlock(&dlm->master_lock);
@@ -2622,10 +2622,11 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 		goto fail;
 	}
 
-	/* If an old one mle found, it should be put. if its type is BLOCK,
-	 * it should be put again. Because it had been unhasded from the map
+	/*
+	 * If an old mle is found, it should be put.  If its type is BLOCK,
+	 * it should be put again.  Because it has been unhasded from the map
 	 * in the function dlm_add_migration_mle.
-	 * otherwise the memory will be leaked. It will not found it again from
+	 * Otherwise the memory will be leaked.  It will not be found again from
 	 * the hash map.
 	 */
 	if (oldmle) {
@@ -2633,9 +2634,11 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 		__dlm_mle_detach_hb_events(dlm, oldmle);
 		__dlm_put_mle(oldmle);
 
-		/* if the type of the mle is BLOCK, should put it once for release.
-		 * otherwise memory leak may be caused because oldmle had been unhashed
-		 * from the hash map, it will not be found anymore.
+		/*
+		 * If the type of the mle is BLOCK, it should be put once for
+		 * release.  Otherwise a memory leak may be caused because
+		 * oldmle has been unhashed from the hash map and it will not
+		 * be found any more.
 		 */
 		if (oldmle->type == DLM_MLE_BLOCK)
 			__dlm_put_mle(oldmle);
@@ -3201,10 +3204,11 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	if (ret < 0)
 		kmem_cache_free(dlm_mle_cache, mle);
 
-	/* If an old one mle found, it should be put. if its type is BLOCK,
-	 * it should be put again. Because it had been unhasded from the map
-	 * in the function dlm_add_migration_mle.
-	 * otherwise the memory will be leaked. It will not found it again from
+	/*
+	 * If an old mle is found, it should be put.  If its type is BLOCK,
+	 * it should be put again because it has been unhashed from the map
+	 * in the dlm_add_migration_mle().
+	 * Otherwise the memory will be leaked.  It will not be found again from
 	 * the hash map.
 	 */
 	if (oldmle) {
