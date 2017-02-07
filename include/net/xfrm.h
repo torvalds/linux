@@ -349,13 +349,12 @@ struct xfrm_state_afinfo *xfrm_state_afinfo_get_rcu(unsigned int family);
 
 struct xfrm_input_afinfo {
 	unsigned int		family;
-	struct module		*owner;
 	int			(*callback)(struct sk_buff *skb, u8 protocol,
 					    int err);
 };
 
-int xfrm_input_register_afinfo(struct xfrm_input_afinfo *afinfo);
-int xfrm_input_unregister_afinfo(struct xfrm_input_afinfo *afinfo);
+int xfrm_input_register_afinfo(const struct xfrm_input_afinfo *afinfo);
+int xfrm_input_unregister_afinfo(const struct xfrm_input_afinfo *afinfo);
 
 void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
