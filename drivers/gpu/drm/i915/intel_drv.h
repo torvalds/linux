@@ -1246,12 +1246,19 @@ void intel_audio_codec_disable(struct intel_encoder *encoder);
 void i915_audio_component_init(struct drm_i915_private *dev_priv);
 void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);
 
+/* intel_cdclk.c */
+void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
+void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
+void intel_update_cdclk(struct drm_i915_private *dev_priv);
+void intel_update_rawclk(struct drm_i915_private *dev_priv);
+
 /* intel_display.c */
 enum transcoder intel_crtc_pch_transcoder(struct intel_crtc *crtc);
-void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv, int vco);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
 int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
+int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+			   const char *name, u32 reg);
 void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv);
 void lpt_disable_iclkip(struct drm_i915_private *dev_priv);
 extern const struct drm_plane_funcs intel_plane_funcs;
