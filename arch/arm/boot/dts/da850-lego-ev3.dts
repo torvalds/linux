@@ -123,6 +123,14 @@
 		pinctrl-0 = <&system_power_pin>;
 	};
 
+	sound {
+		compatible = "pwm-beeper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ehrpwm0b_pins>;
+		pwms = <&ehrpwm0 1 1000000 0>;
+		amp-supply = <&amp>;
+	};
+
 	/*
 	 * This is a 5V current limiting regulator that is shared by USB,
 	 * the sensor (input) ports, the motor (output) ports and the A/DC.
@@ -151,6 +159,18 @@
 		regulator-max-microvolt = <2500000>;
 		regulator-boot-on;
 		vin-supply = <&vcc5v>;
+	};
+
+	/*
+	 * This is the amplifier for the speaker.
+	 */
+	amp: regulator3 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&amp_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "amp";
+		gpio = <&gpio 111 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
@@ -206,6 +226,13 @@
 			0x40 0x00000080 0x000000f0
 			/* GP6[3] */
 			0x4c 0x00008000 0x0000f000
+		>;
+	};
+
+	amp_pins: pinmux_amp_pins {
+		pinctrl-single,bits = <
+			/* GP6[15] */
+			0x34 0x00000008 0x0000000f
 		>;
 	};
 };
@@ -314,6 +341,10 @@
 		spi-max-frequency = <10000000>;
 		vref-supply = <&adc_ref>;
 	};
+};
+
+&ehrpwm0 {
+	status = "okay";
 };
 
 &gpio {
