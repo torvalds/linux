@@ -8,6 +8,12 @@ fixes
 		git://git.kernel.org/pub/scm/linux/kernel/git/pchotard/sti tags/sti-dt-for-v4.10-rc
 	<no branch> (420a3879d694e5c3e734fb92151d19b2ec503e46)
 		git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux tags/at91-ab-4.10-soc
+	patch
+		MAINTAINERS: socfpga: update email for Dinh Nguyen
+	<no branch> (1a902f6b70c55171ca2419d946b85274e35c9757)
+		git://git.infradead.org/linux-mvebu tags/mvebu-fixes-4.10-1
+	patch
+		ARM: defconfigs: make NF_CT_PROTO_SCTP and NF_CT_PROTO_UDPLITE built-in
 
 next/fixes-non-critical
 	davinci/fixes-nc
@@ -46,6 +52,15 @@ next/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-cleanup-4.11
 	samsung/soc2
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-4.11-2
+	patch
+		ARM: ux500: cut some platform data
+		ARM: ep93xx: Disable TS-72xx watchdog before uncompressing
+	mvebu/soc-2
+		git://git.infradead.org/linux-mvebu tags/mvebu-soc-4.11-2
+	sunxi/core
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-core-for-4.11
+	<no branch> (902dcd14dae10e6ddc464d5034b1709d10c30d8e)
+		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/maintainers
 
 next/arm64
 	mvebu/defconfig64
@@ -114,6 +129,23 @@ next/dt
 	stm32/dt2
 		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-1-v2
 		contains depends/clk-stm32f4
+	patch
+		dt-bindings: arm,gic: Fix binding example for a virt-capable GIC
+		ARM: DTS: Fix register map for virt-capable GIC
+	mvebu/dt-3
+		git://git.infradead.org/linux-mvebu tags/mvebu-dt-4.11-3
+	stm32/dt-2
+		git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v4.11-2
+	ux500/dt-1
+		git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson tags/ux500-dt-1
+	samsung/dt-3
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt-4.11-3
+	socfpga/dt-2
+		git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_dts_for_v4.11_part_2
+	allwinner/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-dt-for-4.11
+	allwinner/dt-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-dt-for-4.11-2
 
 next/dt64
 	renesas/dt64
@@ -184,6 +216,8 @@ next/defconfig
 	patch
 		arm64: defconfig: enable CONFIG_MTD_BLOCK
 		arm64: defconfig: enable CONFIG_MTD_NAND and CONFIG_MTD_NAND_DENALI_DT
+	sunxi/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-defconfig-for-4.11
 
 next/drivers
 	at91/drivers
@@ -208,4 +242,9 @@ next/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/zte-pd-4.11
 	samsung/drivers2
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-2
-
+	drivers/reset-2
+		git://git.pengutronix.de/pza/linux tags/reset-for-4.11-2
+	samsung/drivers-soc-pm-domains
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pm-domains-4.11
+	samsung/drivers-soc-pmu-3
+		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-3
