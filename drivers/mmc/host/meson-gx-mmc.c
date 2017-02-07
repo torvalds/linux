@@ -132,6 +132,7 @@ struct meson_host {
 	struct clk_mux mux;
 	struct clk *mux_clk;
 	struct clk *mux_parent[MUX_CLK_NUM_PARENTS];
+	unsigned long current_clock;
 
 	struct clk_divider cfg_div;
 	struct clk *cfg_div_clk;
@@ -178,7 +179,7 @@ struct sd_emmc_desc {
 static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 {
 	struct mmc_host *mmc = host->mmc;
-	int ret = 0;
+	int ret;
 	u32 cfg;
 
 	if (clk_rate) {
@@ -188,7 +189,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 			clk_rate = mmc->f_min;
 	}
 
-	if (clk_rate == mmc->actual_clock)
+	if (clk_rate == host->current_clock)
 		return 0;
 
 	/* stop clock */
@@ -201,29 +202,34 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long clk_rate)
 	dev_dbg(host->dev, "change clock rate %u -> %lu\n",
 		mmc->actual_clock, clk_rate);
 
-	if (clk_rate == 0) {
+	if (!clk_rate) {
 		mmc->actual_clock = 0;
+		host->current_clock = 0;
+		/* return with clock being stopped */
 		return 0;
 	}
 
 	ret = clk_set_rate(host->cfg_div_clk, clk_rate);
-	if (ret)
-		dev_warn(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
-			 clk_rate, ret);
-	else if (clk_rate && clk_rate != clk_get_rate(host->cfg_div_clk))
-		dev_warn(host->dev, "divider requested rate %lu != actual rate %lu: ret=%d\n",
-			 clk_rate, clk_get_rate(host->cfg_div_clk), ret);
-	else
-		mmc->actual_clock = clk_rate;
-
-	/* (re)start clock, if non-zero */
-	if (!ret && clk_rate) {
-		cfg = readl(host->regs + SD_EMMC_CFG);
-		cfg &= ~CFG_STOP_CLOCK;
-		writel(cfg, host->regs + SD_EMMC_CFG);
+	if (ret) {
+		dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
+			clk_rate, ret);
+		return ret;
 	}
 
-	return ret;
+	mmc->actual_clock = clk_get_rate(host->cfg_div_clk);
+	host->current_clock = clk_rate;
+
+	if (clk_rate != mmc->actual_clock)
+		dev_dbg(host->dev,
+			"divider requested rate %lu != actual rate %u\n",
+			clk_rate, mmc->actual_clock);
+
+	/* (re)start clock */
+	cfg = readl(host->regs + SD_EMMC_CFG);
+	cfg &= ~CFG_STOP_CLOCK;
+	writel(cfg, host->regs + SD_EMMC_CFG);
+
+	return 0;
 }
 
 /*
