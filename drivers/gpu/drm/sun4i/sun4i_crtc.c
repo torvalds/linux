@@ -104,6 +104,28 @@ static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 	.enable		= sun4i_crtc_enable,
 };
 
+static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+	struct sun4i_drv *drv = scrtc->drv;
+
+	DRM_DEBUG_DRIVER("Enabling VBLANK on crtc %p\n", crtc);
+
+	sun4i_tcon_enable_vblank(drv->tcon, true);
+
+	return 0;
+}
+
+static void sun4i_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+	struct sun4i_drv *drv = scrtc->drv;
+
+	DRM_DEBUG_DRIVER("Disabling VBLANK on crtc %p\n", crtc);
+
+	sun4i_tcon_enable_vblank(drv->tcon, false);
+}
+
 static const struct drm_crtc_funcs sun4i_crtc_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
@@ -111,6 +133,8 @@ static const struct drm_crtc_funcs sun4i_crtc_funcs = {
 	.page_flip		= drm_atomic_helper_page_flip,
 	.reset			= drm_atomic_helper_crtc_reset,
 	.set_config		= drm_atomic_helper_set_config,
+	.enable_vblank		= sun4i_crtc_enable_vblank,
+	.disable_vblank		= sun4i_crtc_disable_vblank,
 };
 
 struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm)
