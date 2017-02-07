@@ -122,6 +122,7 @@ struct dsps_glue {
 	struct timer_list timer;	/* otg_workaround timer */
 	unsigned long last_timer;    /* last timer data for each instance */
 	bool sw_babble_enabled;
+	void __iomem *usbss_base;
 
 	struct dsps_context context;
 	struct debugfs_regset32 regset;
@@ -168,6 +169,13 @@ static void dsps_mod_timer_optional(struct dsps_glue *glue)
 
 	dsps_mod_timer(glue, -1);
 }
+
+/* USBSS  / USB AM335x */
+#define USBSS_IRQ_STATUS	0x28
+#define USBSS_IRQ_ENABLER	0x2c
+#define USBSS_IRQ_CLEARR	0x30
+
+#define USBSS_IRQ_PD_COMP	(1 << 2)
 
 /**
  * dsps_musb_enable - enable interrupts
@@ -641,14 +649,76 @@ static void dsps_read_fifo32(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	}
 }
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+static void dsps_dma_controller_callback(struct dma_controller *c)
+{
+	struct musb *musb = c->musb;
+	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
+	void __iomem *usbss_base = glue->usbss_base;
+	u32 status;
+
+	status = musb_readl(usbss_base, USBSS_IRQ_STATUS);
+	if (status & USBSS_IRQ_PD_COMP)
+		musb_writel(usbss_base, USBSS_IRQ_STATUS, USBSS_IRQ_PD_COMP);
+}
+
+static struct dma_controller *
+dsps_dma_controller_create(struct musb *musb, void __iomem *base)
+{
+	struct dma_controller *controller;
+	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
+	void __iomem *usbss_base = glue->usbss_base;
+
+	controller = cppi41_dma_controller_create(musb, base);
+	if (IS_ERR_OR_NULL(controller))
+		return controller;
+
+	musb_writel(usbss_base, USBSS_IRQ_ENABLER, USBSS_IRQ_PD_COMP);
+	controller->dma_callback = dsps_dma_controller_callback;
+
+	return controller;
+}
+
+static void dsps_dma_controller_destroy(struct dma_controller *c)
+{
+	struct musb *musb = c->musb;
+	struct dsps_glue *glue = dev_get_drvdata(musb->controller->parent);
+	void __iomem *usbss_base = glue->usbss_base;
+
+	musb_writel(usbss_base, USBSS_IRQ_CLEARR, USBSS_IRQ_PD_COMP);
+	cppi41_dma_controller_destroy(c);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static void dsps_dma_controller_suspend(struct dsps_glue *glue)
+{
+	void __iomem *usbss_base = glue->usbss_base;
+
+	musb_writel(usbss_base, USBSS_IRQ_CLEARR, USBSS_IRQ_PD_COMP);
+}
+
+static void dsps_dma_controller_resume(struct dsps_glue *glue)
+{
+	void __iomem *usbss_base = glue->usbss_base;
+
+	musb_writel(usbss_base, USBSS_IRQ_ENABLER, USBSS_IRQ_PD_COMP);
+}
+#endif
+#else /* CONFIG_USB_TI_CPPI41_DMA */
+#ifdef CONFIG_PM_SLEEP
+static void dsps_dma_controller_suspend(struct dsps_glue *glue) {}
+static void dsps_dma_controller_resume(struct dsps_glue *glue) {}
+#endif
+#endif /* CONFIG_USB_TI_CPPI41_DMA */
+
 static struct musb_platform_ops dsps_ops = {
 	.quirks		= MUSB_DMA_CPPI41 | MUSB_INDEXED_EP,
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
-	.dma_init	= cppi41_dma_controller_create,
-	.dma_exit	= cppi41_dma_controller_destroy,
+	.dma_init	= dsps_dma_controller_create,
+	.dma_exit	= dsps_dma_controller_destroy,
 #endif
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,
@@ -856,6 +926,9 @@ static int dsps_probe(struct platform_device *pdev)
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
+	glue->usbss_base = of_iomap(pdev->dev.parent->of_node, 0);
+	if (!glue->usbss_base)
+		return -ENXIO;
 
 	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL) {
 		ret = dsps_setup_optional_vbus_irq(pdev, glue);
@@ -950,6 +1023,8 @@ static int dsps_suspend(struct device *dev)
 	glue->context.tx_mode = musb_readl(mbase, wrp->tx_mode);
 	glue->context.rx_mode = musb_readl(mbase, wrp->rx_mode);
 
+	dsps_dma_controller_suspend(glue);
+
 	return 0;
 }
 
@@ -962,6 +1037,8 @@ static int dsps_resume(struct device *dev)
 
 	if (!musb)
 		return 0;
+
+	dsps_dma_controller_resume(glue);
 
 	mbase = musb->ctrl_base;
 	musb_writel(mbase, wrp->control, glue->context.control);
