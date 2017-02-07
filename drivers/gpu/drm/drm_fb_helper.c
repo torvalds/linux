@@ -848,6 +848,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation)
 		return;
 
+	cancel_work_sync(&fb_helper->dirty_work);
+
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
