@@ -8,9 +8,8 @@
 
 DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-		unsigned long address, unsigned int flags, pgoff_t pgoff,
-		pgoff_t max_pgoff, int result),
-	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result),
+		struct vm_fault *vmf, pgoff_t max_pgoff, int result),
+	TP_ARGS(inode, vma, vmf, max_pgoff, result),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_start)
@@ -29,9 +28,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 		__entry->vm_start = vma->vm_start;
 		__entry->vm_end = vma->vm_end;
 		__entry->vm_flags = vma->vm_flags;
-		__entry->address = address;
-		__entry->flags = flags;
-		__entry->pgoff = pgoff;
+		__entry->address = vmf->address;
+		__entry->flags = vmf->flags;
+		__entry->pgoff = vmf->pgoff;
 		__entry->max_pgoff = max_pgoff;
 		__entry->result = result;
 	),
@@ -54,9 +53,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 #define DEFINE_PMD_FAULT_EVENT(name) \
 DEFINE_EVENT(dax_pmd_fault_class, name, \
 	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-		unsigned long address, unsigned int flags, pgoff_t pgoff, \
+		struct vm_fault *vmf, \
 		pgoff_t max_pgoff, int result), \
-	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result))
+	TP_ARGS(inode, vma, vmf, max_pgoff, result))
 
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
