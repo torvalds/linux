@@ -3125,8 +3125,7 @@ void vm_stat_account(struct mm_struct *mm, vm_flags_t flags, long npages)
 		mm->data_vm += npages;
 }
 
-static int special_mapping_fault(struct vm_area_struct *vma,
-				 struct vm_fault *vmf);
+static int special_mapping_fault(struct vm_fault *vmf);
 
 /*
  * Having a close hook prevents vma merging regardless of flags.
@@ -3161,9 +3160,9 @@ static const struct vm_operations_struct legacy_special_mapping_vmops = {
 	.fault = special_mapping_fault,
 };
 
-static int special_mapping_fault(struct vm_area_struct *vma,
-				struct vm_fault *vmf)
+static int special_mapping_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	pgoff_t pgoff;
 	struct page **pages;
 
@@ -3173,7 +3172,7 @@ static int special_mapping_fault(struct vm_area_struct *vma,
 		struct vm_special_mapping *sm = vma->vm_private_data;
 
 		if (sm->fault)
-			return sm->fault(sm, vma, vmf);
+			return sm->fault(sm, vmf->vma, vmf);
 
 		pages = sm->pages;
 	}

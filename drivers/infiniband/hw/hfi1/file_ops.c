@@ -92,7 +92,7 @@ static unsigned int poll_next(struct file *, struct poll_table_struct *);
 static int user_event_ack(struct hfi1_ctxtdata *, int, unsigned long);
 static int set_ctxt_pkey(struct hfi1_ctxtdata *, unsigned, u16);
 static int manage_rcvq(struct hfi1_ctxtdata *, unsigned, int);
-static int vma_fault(struct vm_area_struct *, struct vm_fault *);
+static int vma_fault(struct vm_fault *);
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			    unsigned long arg);
 
@@ -695,7 +695,7 @@ done:
  * Local (non-chip) user memory is not mapped right away but as it is
  * accessed by the user-level code.
  */
-static int vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int vma_fault(struct vm_fault *vmf)
 {
 	struct page *page;
 

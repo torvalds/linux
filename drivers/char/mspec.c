@@ -191,12 +191,12 @@ mspec_close(struct vm_area_struct *vma)
  * Creates a mspec page and maps it to user space.
  */
 static int
-mspec_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+mspec_fault(struct vm_fault *vmf)
 {
 	unsigned long paddr, maddr;
 	unsigned long pfn;
 	pgoff_t index = vmf->pgoff;
-	struct vma_data *vdata = vma->vm_private_data;
+	struct vma_data *vdata = vmf->vma->vm_private_data;
 
 	maddr = (volatile unsigned long) vdata->maddr[index];
 	if (maddr == 0) {
@@ -227,7 +227,7 @@ mspec_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * be because another thread has installed the pte first, so it
 	 * is no problem.
 	 */
-	vm_insert_pfn(vma, vmf->address, pfn);
+	vm_insert_pfn(vmf->vma, vmf->address, pfn);
 
 	return VM_FAULT_NOPAGE;
 }

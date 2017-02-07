@@ -2043,12 +2043,12 @@ static void fuse_vma_close(struct vm_area_struct *vma)
  * - sync(2)
  * - try_to_free_pages() with order > PAGE_ALLOC_COSTLY_ORDER
  */
-static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int fuse_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	lock_page(page);
 	if (page->mapping != inode->i_mapping) {
 		unlock_page(page);

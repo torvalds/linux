@@ -265,10 +265,10 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
  * On s390 the fault handler is used for memory regions that can't be mapped
  * directly with remap_pfn_range().
  */
-static int mmap_vmcore_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int mmap_vmcore_fault(struct vm_fault *vmf)
 {
 #ifdef CONFIG_S390
-	struct address_space *mapping = vma->vm_file->f_mapping;
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	pgoff_t index = vmf->pgoff;
 	struct page *page;
 	loff_t offset;

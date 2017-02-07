@@ -39,10 +39,10 @@ static void relay_file_mmap_close(struct vm_area_struct *vma)
 /*
  * fault() vm_op implementation for relay file mapping.
  */
-static int relay_buf_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int relay_buf_fault(struct vm_fault *vmf)
 {
 	struct page *page;
-	struct rchan_buf *buf = vma->vm_private_data;
+	struct rchan_buf *buf = vmf->vma->vm_private_data;
 	pgoff_t pgoff = vmf->pgoff;
 
 	if (!buf)

@@ -926,8 +926,9 @@ again:
  *
  * 	Note: gru segments alway mmaped on GRU_GSEG_PAGESIZE boundaries.
  */
-int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int gru_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct gru_thread_state *gts;
 	unsigned long paddr, vaddr;
 	unsigned long expires;

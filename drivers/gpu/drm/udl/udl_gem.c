@@ -100,8 +100,9 @@ int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
-int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int udl_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct udl_gem_object *obj = to_udl_bo(vma->vm_private_data);
 	struct page *page;
 	unsigned int page_offset;

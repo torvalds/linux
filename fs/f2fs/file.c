@@ -32,11 +32,10 @@
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
-static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
-						struct vm_fault *vmf)
+static int f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
 	int err;
@@ -58,7 +57,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 
 	f2fs_balance_fs(sbi, dn.node_changed);
 
-	file_update_time(vma->vm_file);
+	file_update_time(vmf->vma->vm_file);
 	lock_page(page);
 	if (unlikely(page->mapping != inode->i_mapping ||
 			page_offset(page) > i_size_read(inode) ||

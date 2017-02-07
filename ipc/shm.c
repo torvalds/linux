@@ -374,12 +374,12 @@ void exit_shm(struct task_struct *task)
 	up_write(&shm_ids(ns).rwsem);
 }
 
-static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int shm_fault(struct vm_fault *vmf)
 {
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 
-	return sfd->vm_ops->fault(vma, vmf);
+	return sfd->vm_ops->fault(vmf);
 }
 
 #ifdef CONFIG_NUMA

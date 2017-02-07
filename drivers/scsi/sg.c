@@ -1187,8 +1187,9 @@ sg_fasync(int fd, struct file *filp, int mode)
 }
 
 static int
-sg_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+sg_vma_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	Sg_fd *sfp;
 	unsigned long offset, len, sa;
 	Sg_scatter_hold *rsv_schp;

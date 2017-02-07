@@ -1756,7 +1756,6 @@ int i915_gem_mmap_gtt_version(void)
 
 /**
  * i915_gem_fault - fault a page into the GTT
- * @area: CPU VMA in question
  * @vmf: fault info
  *
  * The fault handler is set up by drm_gem_mmap() when a object is GTT mapped
@@ -1773,9 +1772,10 @@ int i915_gem_mmap_gtt_version(void)
  * The current feature set supported by i915_gem_fault() and thus GTT mmaps
  * is exposed via I915_PARAM_MMAP_GTT_VERSION (see i915_gem_mmap_gtt_version).
  */
-int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
+int i915_gem_fault(struct vm_fault *vmf)
 {
 #define MIN_CHUNK_PAGES ((1 << 20) >> PAGE_SHIFT) /* 1 MiB */
+	struct vm_area_struct *area = vmf->vma;
 	struct drm_i915_gem_object *obj = to_intel_bo(area->vm_private_data);
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
