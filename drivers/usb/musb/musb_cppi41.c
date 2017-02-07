@@ -217,6 +217,10 @@ static void cppi41_dma_callback(void *private_data)
 	int is_hs = 0;
 	bool empty;
 
+	controller = cppi41_channel->controller;
+	if (controller->controller.dma_callback)
+		controller->controller.dma_callback(&controller->controller);
+
 	spin_lock_irqsave(&musb->lock, flags);
 
 	dmaengine_tx_status(cppi41_channel->dc, cppi41_channel->cookie,
@@ -249,8 +253,6 @@ static void cppi41_dma_callback(void *private_data)
 	 * We spin on HS (no longer than than 25us and setup a timer on
 	 * FS to check for the bit and complete the transfer.
 	 */
-	controller = cppi41_channel->controller;
-
 	if (is_host_active(musb)) {
 		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
 			is_hs = 1;
@@ -695,6 +697,7 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	controller->controller.channel_program = cppi41_dma_channel_program;
 	controller->controller.channel_abort = cppi41_dma_channel_abort;
 	controller->controller.is_compatible = cppi41_is_compatible;
+	controller->controller.musb = musb;
 
 	ret = cppi41_dma_controller_start(controller);
 	if (ret)
