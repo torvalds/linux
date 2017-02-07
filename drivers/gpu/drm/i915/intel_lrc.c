@@ -351,7 +351,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		execlists_context_status_change(port[0].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
 	desc[0] = execlists_update_context(port[0].request);
-	GEM_BUG_ONLY(port[0].context_id = upper_32_bits(desc[0]));
+	GEM_DEBUG_EXEC(port[0].context_id = upper_32_bits(desc[0]));
 	port[0].count++;
 
 	if (port[1].request) {
@@ -359,7 +359,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 		execlists_context_status_change(port[1].request,
 						INTEL_CONTEXT_SCHEDULE_IN);
 		desc[1] = execlists_update_context(port[1].request);
-		GEM_BUG_ONLY(port[1].context_id = upper_32_bits(desc[1]));
+		GEM_DEBUG_EXEC(port[1].context_id = upper_32_bits(desc[1]));
 		port[1].count = 1;
 	} else {
 		desc[1] = 0;
@@ -583,8 +583,8 @@ static void intel_lrc_irq_handler(unsigned long data)
 				continue;
 
 			/* Check the context/desc id for this event matches */
-			GEM_BUG_ONLY_ON(readl(buf + 2 * idx + 1) !=
-					port[0].context_id);
+			GEM_DEBUG_BUG_ON(readl(buf + 2 * idx + 1) !=
+					 port[0].context_id);
 
 			GEM_BUG_ON(port[0].count == 0);
 			if (--port[0].count == 0) {
