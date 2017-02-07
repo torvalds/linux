@@ -599,8 +599,10 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
 			break;
 		case 1000:
-			if (!(community->features & PINCTRL_FEATURE_1K_PD))
-				return -EINVAL;
+			if (!(community->features & PINCTRL_FEATURE_1K_PD)) {
+				ret = -EINVAL;
+				break;
+			}
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
 			break;
 		default:
