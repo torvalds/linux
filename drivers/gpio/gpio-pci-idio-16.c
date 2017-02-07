@@ -331,7 +331,7 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id idio_16_pci_dev_id[] = {
-	{ PCI_DEVICE(0x494F, 0x0F00) }, { 0 }
+	{ PCI_DEVICE(0x494F, 0x0DC8) }, { 0 }
 };
 MODULE_DEVICE_TABLE(pci, idio_16_pci_dev_id);
 
