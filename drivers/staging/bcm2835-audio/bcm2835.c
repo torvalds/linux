@@ -219,8 +219,7 @@ static struct platform_driver bcm2835_alsa0_driver = {
 	.suspend = snd_bcm2835_alsa_suspend,
 	.resume = snd_bcm2835_alsa_resume,
 #endif
-	.driver =
-	{
+	.driver = {
 		.name = "bcm2835_AUD0",
 		.owner = THIS_MODULE,
 		.of_match_table = snd_bcm2835_of_match_table,
