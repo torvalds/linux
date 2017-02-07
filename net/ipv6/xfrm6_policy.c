@@ -25,8 +25,6 @@
 #include <net/mip6.h>
 #endif
 
-static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
-
 static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 					  const xfrm_address_t *saddr,
 					  const xfrm_address_t *daddr)
@@ -292,7 +290,6 @@ static struct dst_ops xfrm6_dst_ops_template = {
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
-	.family =		AF_INET6,
 	.dst_ops =		&xfrm6_dst_ops_template,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr =		xfrm6_get_saddr,
@@ -305,7 +302,7 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 
 static int __init xfrm6_policy_init(void)
 {
-	return xfrm_policy_register_afinfo(&xfrm6_policy_afinfo);
+	return xfrm_policy_register_afinfo(&xfrm6_policy_afinfo, AF_INET6);
 }
 
 static void xfrm6_policy_fini(void)

@@ -280,7 +280,6 @@ struct net_device;
 struct xfrm_type;
 struct xfrm_dst;
 struct xfrm_policy_afinfo {
-	unsigned short		family;
 	struct dst_ops		*dst_ops;
 	struct dst_entry	*(*dst_lookup)(struct net *net,
 					       int tos, int oif,
@@ -302,8 +301,8 @@ struct xfrm_policy_afinfo {
 	struct dst_entry	*(*blackhole_route)(struct net *net, struct dst_entry *orig);
 };
 
-int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);
-void xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo);
+int xfrm_policy_register_afinfo(const struct xfrm_policy_afinfo *afinfo, int family);
+void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo);
 void km_policy_notify(struct xfrm_policy *xp, int dir,
 		      const struct km_event *c);
 void km_state_notify(struct xfrm_state *x, const struct km_event *c);

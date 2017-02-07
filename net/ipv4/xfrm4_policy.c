@@ -17,8 +17,6 @@
 #include <net/ip.h>
 #include <net/l3mdev.h>
 
-static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
-
 static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 					    int tos, int oif,
 					    const xfrm_address_t *saddr,
@@ -272,7 +270,6 @@ static struct dst_ops xfrm4_dst_ops_template = {
 };
 
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
-	.family = 		AF_INET,
 	.dst_ops =		&xfrm4_dst_ops_template,
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
@@ -376,7 +373,7 @@ static struct pernet_operations __net_initdata xfrm4_net_ops = {
 
 static void __init xfrm4_policy_init(void)
 {
-	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo);
+	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo, AF_INET);
 }
 
 void __init xfrm4_init(void)
