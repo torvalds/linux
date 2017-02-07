@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2015-2016	Intel Deutschland GmbH
+ * Copyright 2015-2017	Intel Deutschland GmbH
  */
 
 #include <linux/if.h>
@@ -3743,6 +3743,49 @@ static int nl80211_parse_beacon(struct nlattr *attrs[],
 	return 0;
 }
 
+static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
+					    const u8 *rates)
+{
+	int i;
+
+	if (!rates)
+		return;
+
+	for (i = 0; i < rates[1]; i++) {
+		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
+			params->ht_required = true;
+		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_VHT_PHY)
+			params->vht_required = true;
+	}
+}
+
+/*
+ * Since the nl80211 API didn't include, from the beginning, attributes about
+ * HT/VHT requirements/capabilities, we parse them out of the IEs for the
+ * benefit of drivers that rebuild IEs in the firmware.
+ */
+static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
+{
+	const struct cfg80211_beacon_data *bcn = &params->beacon;
+	size_t ies_len = bcn->beacon_ies_len;
+	const u8 *ies = bcn->beacon_ies;
+	const u8 *rates;
+	const u8 *cap;
+
+	rates = cfg80211_find_ie(WLAN_EID_SUPP_RATES, ies, ies_len);
+	nl80211_check_ap_rate_selectors(params, rates);
+
+	rates = cfg80211_find_ie(WLAN_EID_EXT_SUPP_RATES, ies, ies_len);
+	nl80211_check_ap_rate_selectors(params, rates);
+
+	cap = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies, ies_len);
+	if (cap && cap[1] >= sizeof(*params->ht_cap))
+		params->ht_cap = (void *)(cap + 2);
+	cap = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, ies, ies_len);
+	if (cap && cap[1] >= sizeof(*params->vht_cap))
+		params->vht_cap = (void *)(cap + 2);
+}
+
 static bool nl80211_get_ap_channel(struct cfg80211_registered_device *rdev,
 				   struct cfg80211_ap_settings *params)
 {
@@ -3970,6 +4013,8 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		if (IS_ERR(params.acl))
 			return PTR_ERR(params.acl);
 	}
+
+	nl80211_calculate_ap_params(&params);
 
 	wdev_lock(wdev);
 	err = rdev_start_ap(rdev, dev, &params);

@@ -1043,8 +1043,9 @@ struct ieee80211_mgmt {
 	} u;
 } __packed __aligned(2);
 
-/* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
+/* Supported rates membership selectors */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
+#define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
