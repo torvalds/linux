@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
 	  issues with the mapping of the EFI runtime regions into that
 	  table.
 
-config DEBUG_RODATA_TEST
-	bool "Testcase for the marking rodata read-only"
-	default y
-	---help---
-	  This option enables a testcase for the setting rodata read-only
-	  as well as for the change_page_attr() infrastructure.
-	  If in doubt, say "N"
-
 config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
 	select X86_PTDUMP_CORE
@@ -122,7 +114,7 @@ config DEBUG_SET_MODULE_RONX
 
 config DEBUG_NX_TEST
 	tristate "Testcase for the NX non-executable stack feature"
-	depends on DEBUG_KERNEL && m
+	depends on DEBUG_KERNEL && DEBUG_RODATA_TEST && m
 	---help---
 	  This option enables a testcase for the CPU NX capability
 	  and the software setup of this feature.
