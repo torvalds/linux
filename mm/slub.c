@@ -5703,8 +5703,7 @@ static void sysfs_slab_remove(struct kmem_cache *s)
 		return;
 
 #ifdef CONFIG_MEMCG
-	if (s->memcg_kset)
-		kset_unregister(s->memcg_kset);
+	kset_unregister(s->memcg_kset);
 #endif
 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
 	kobject_del(&s->kobj);
