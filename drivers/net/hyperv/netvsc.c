@@ -1254,6 +1254,9 @@ void netvsc_channel_cb(void *context)
 	    netvsc_channel_idle(net_device, q_idx))
 		return;
 
+	/* commit_rd_index() -> hv_signal_on_read() needs this. */
+	init_cached_read_index(channel);
+
 	while ((desc = get_next_pkt_raw(channel)) != NULL) {
 		netvsc_process_raw_pkt(device, channel, net_device,
 				       ndev, desc->trans_id, desc);

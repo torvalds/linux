@@ -2048,6 +2048,8 @@ static void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 			if (priv->tx_cq[t] && priv->tx_cq[t][i])
 				mlx4_en_destroy_cq(priv, &priv->tx_cq[t][i]);
 		}
+		kfree(priv->tx_ring[t]);
+		kfree(priv->tx_cq[t]);
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -2190,9 +2192,11 @@ static void mlx4_en_update_priv(struct mlx4_en_priv *dst,
 
 int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 				struct mlx4_en_priv *tmp,
-				struct mlx4_en_port_profile *prof)
+				struct mlx4_en_port_profile *prof,
+				bool carry_xdp_prog)
 {
-	int t;
+	struct bpf_prog *xdp_prog;
+	int i, t;
 
 	mlx4_en_copy_priv(tmp, priv, prof);
 
@@ -2206,6 +2210,23 @@ int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 		}
 		return -ENOMEM;
 	}
+
+	/* All rx_rings has the same xdp_prog.  Pick the first one. */
+	xdp_prog = rcu_dereference_protected(
+		priv->rx_ring[0]->xdp_prog,
+		lockdep_is_held(&priv->mdev->state_lock));
+
+	if (xdp_prog && carry_xdp_prog) {
+		xdp_prog = bpf_prog_add(xdp_prog, tmp->rx_ring_num);
+		if (IS_ERR(xdp_prog)) {
+			mlx4_en_free_resources(tmp);
+			return PTR_ERR(xdp_prog);
+		}
+		for (i = 0; i < tmp->rx_ring_num; i++)
+			rcu_assign_pointer(tmp->rx_ring[i]->xdp_prog,
+					   xdp_prog);
+	}
+
 	return 0;
 }
 
@@ -2220,7 +2241,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int t;
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
@@ -2253,11 +2273,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mlx4_en_free_resources(priv);
 	mutex_unlock(&mdev->state_lock);
-
-	for (t = 0; t < MLX4_EN_NUM_TX_TYPES; t++) {
-		kfree(priv->tx_ring[t]);
-		kfree(priv->tx_cq[t]);
-	}
 
 	free_netdev(dev);
 }
@@ -2761,7 +2776,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		en_warn(priv, "Reducing the number of TX rings, to not exceed the max total rings number.\n");
 	}
 
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, false);
 	if (err) {
 		if (prog)
 			bpf_prog_sub(prog, priv->rx_ring_num - 1);
@@ -3505,7 +3520,7 @@ int mlx4_en_reset_config(struct net_device *dev,
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
 	memcpy(&new_prof.hwtstamp_config, &ts_config, sizeof(ts_config));
 
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
 
