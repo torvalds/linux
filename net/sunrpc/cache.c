@@ -717,7 +717,7 @@ void cache_clean_deferred(void *owner)
 /*
  * communicate with user-space
  *
- * We have a magic /proc file - /proc/sunrpc/<cachename>/channel.
+ * We have a magic /proc file - /proc/net/rpc/<cachename>/channel.
  * On read, you get a full request, or block.
  * On write, an update request is processed.
  * Poll works if anything to read, and always allows write.
@@ -1272,7 +1272,7 @@ EXPORT_SYMBOL_GPL(qword_get);
 
 
 /*
- * support /proc/sunrpc/cache/$CACHENAME/content
+ * support /proc/net/rpc/$CACHENAME/content
  * as a seqfile.
  * We call ->cache_show passing NULL for the item to
  * get a header, then pass each real item in the cache
