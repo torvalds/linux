@@ -28,7 +28,8 @@
 #include "probe-file.h"
 #include "session.h"
 
-#define MAX_CMDLEN 256
+/* 4096 - 2 ('\n' + '\0') */
+#define MAX_CMDLEN 4094
 
 static void print_open_warning(int err, bool uprobe)
 {
