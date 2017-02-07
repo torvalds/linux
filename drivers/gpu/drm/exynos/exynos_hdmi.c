@@ -42,7 +42,6 @@
 
 #include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 
 #define HOTPLUG_DEBOUNCE_MS		1100
@@ -1657,6 +1656,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &hdata->encoder;
+	struct exynos_drm_crtc *exynos_crtc;
+	struct drm_crtc *crtc;
 	int ret, pipe;
 
 	hdata->drm_dev = drm_dev;
@@ -1668,7 +1669,9 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdata->phy_clk.enable = hdmiphy_clk_enable;
 
-	exynos_drm_crtc_from_pipe(drm_dev, pipe)->pipe_clk = &hdata->phy_clk;
+	crtc = drm_crtc_from_index(drm_dev, pipe);
+	exynos_crtc = to_exynos_crtc(crtc);
+	exynos_crtc->pipe_clk = &hdata->phy_clk;
 
 	encoder->possible_crtcs = 1 << pipe;
 
