@@ -935,7 +935,7 @@ static struct {
 	{"kmalloc-67108864", 67108864}
 };
 
-const char *get_kmalloc_cache_name(int index)
+const char * __init get_kmalloc_cache_name(int index)
 {
 	return kmalloc_info[index].name;
 }
