@@ -659,7 +659,7 @@ static void kmemcg_deactivate_rcufn(struct rcu_head *head)
 	 * initialized eariler.
 	 */
 	INIT_WORK(&s->memcg_params.deact_work, kmemcg_deactivate_workfn);
-	schedule_work(&s->memcg_params.deact_work);
+	queue_work(memcg_kmem_cache_wq, &s->memcg_params.deact_work);
 }
 
 /**
