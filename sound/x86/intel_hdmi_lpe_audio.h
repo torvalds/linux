@@ -57,7 +57,7 @@
 #define HAD_REG_WIDTH		0x08
 #define HAD_MAX_HW_BUFS		0x04
 #define HAD_MAX_DIP_WORDS		16
-#define INTEL_HAD		"IntelHdmiLpeAudio"
+#define INTEL_HAD		"HdmiLpeAudio"
 
 /* DP Link Rates */
 #define DP_2_7_GHZ			270000

@@ -136,8 +136,7 @@ static const struct snd_pcm_hardware had_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP|
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_BATCH),
-	.formats = (SNDRV_PCM_FMTBIT_S24 |
-		SNDRV_PCM_FMTBIT_U24),
+	.formats = SNDRV_PCM_FMTBIT_S24,
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
 		SNDRV_PCM_RATE_48000 |
@@ -239,17 +238,15 @@ static void had_enable_audio(struct snd_pcm_substream *substream,
 	had_write_register(intelhaddata, AUD_CONFIG, val);
 }
 
-/* enable / disable the audio interface */
-static void had_enable_audio_int(struct snd_intelhad *ctx, bool enable)
+/* forcibly ACKs to both BUFFER_DONE and BUFFER_UNDERRUN interrupts */
+static void had_ack_irqs(struct snd_intelhad *ctx)
 {
 	u32 status_reg;
 
-	if (enable) {
-		had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
-		status_reg |= HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
-		had_write_register(ctx, AUD_HDMI_STATUS, status_reg);
-		had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
-	}
+	had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
+	status_reg |= HDMI_AUDIO_BUFFER_DONE | HDMI_AUDIO_UNDERRUN;
+	had_write_register(ctx, AUD_HDMI_STATUS, status_reg);
+	had_read_register(ctx, AUD_HDMI_STATUS, &status_reg);
 }
 
 /* Reset buffer pointers */
@@ -1170,7 +1167,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		intelhaddata->stream_info.running = true;
 
 		/* Enable Audio */
-		had_enable_audio_int(intelhaddata, true);
+		had_ack_irqs(intelhaddata); /* FIXME: do we need this? */
 		had_enable_audio(substream, intelhaddata, true);
 		break;
 
@@ -1184,11 +1181,9 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		intelhaddata->stream_info.running = false;
 		spin_unlock(&intelhaddata->had_spinlock);
 		/* Disable Audio */
-		had_enable_audio_int(intelhaddata, false);
 		had_enable_audio(substream, intelhaddata, false);
 		/* Reset buffer pointers */
 		had_reset_audio(intelhaddata);
-		had_enable_audio_int(intelhaddata, false);
 		break;
 
 	default:
@@ -1393,7 +1388,6 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	}
 
 	/* Disable Audio */
-	had_enable_audio_int(intelhaddata, false);
 	had_enable_audio(substream, intelhaddata, false);
 
 	intelhaddata->connected = false;
@@ -1700,7 +1694,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->card = card;
 	ctx->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	strcpy(card->driver, INTEL_HAD);
-	strcpy(card->shortname, INTEL_HAD);
+	strcpy(card->shortname, "Intel HDMI/DP LPE Audio");
+	strcpy(card->longname, "Intel HDMI/DP LPE Audio");
 
 	ctx->irq = -1;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
@@ -1803,8 +1798,6 @@ static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 {
 	struct snd_intelhad *ctx = platform_get_drvdata(pdev);
 
-	if (ctx->connected)
-		had_enable_audio_int(ctx, false);
 	snd_card_free(ctx->card);
 	return 0;
 }
