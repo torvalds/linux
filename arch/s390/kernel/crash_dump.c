@@ -329,7 +329,11 @@ static void *nt_init_name(void *buf, Elf64_Word type, void *desc, int d_len,
 
 static inline void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len)
 {
-	return nt_init_name(buf, type, desc, d_len, KEXEC_CORE_NOTE_NAME);
+	const char *note_name = "LINUX";
+
+	if (type == NT_PRPSINFO || type == NT_PRSTATUS || type == NT_PRFPREG)
+		note_name = KEXEC_CORE_NOTE_NAME;
+	return nt_init_name(buf, type, desc, d_len, note_name);
 }
 
 /*
