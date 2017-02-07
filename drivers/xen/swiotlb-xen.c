@@ -680,3 +680,22 @@ xen_swiotlb_set_dma_mask(struct device *dev, u64 dma_mask)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_set_dma_mask);
+
+/*
+ * Create userspace mapping for the DMA-coherent memory.
+ * This function should be called with the pages from the current domain only,
+ * passing pages mapped from other domains would lead to memory corruption.
+ */
+int
+xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		     unsigned long attrs)
+{
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	if (__generic_dma_ops(dev)->mmap)
+		return __generic_dma_ops(dev)->mmap(dev, vma, cpu_addr,
+						    dma_addr, size, attrs);
+#endif
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+}
+EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mmap);
