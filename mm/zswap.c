@@ -185,6 +185,9 @@ static bool zswap_init_started;
 /* fatal error during init */
 static bool zswap_init_failed;
 
+/* init completed, but couldn't create the initial pool */
+static bool zswap_has_pool;
+
 /*********************************
 * helpers and fwd declarations
 **********************************/
@@ -424,7 +427,8 @@ static struct zswap_pool *__zswap_pool_current(void)
 	struct zswap_pool *pool;
 
 	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
-	WARN_ON(!pool);
+	WARN_ONCE(!pool && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
 
 	return pool;
 }
@@ -443,7 +447,7 @@ static struct zswap_pool *zswap_pool_current_get(void)
 	rcu_read_lock();
 
 	pool = __zswap_pool_current();
-	if (!pool || !zswap_pool_get(pool))
+	if (!zswap_pool_get(pool))
 		pool = NULL;
 
 	rcu_read_unlock();
@@ -459,7 +463,9 @@ static struct zswap_pool *zswap_pool_last_get(void)
 
 	list_for_each_entry_rcu(pool, &zswap_pools, list)
 		last = pool;
-	if (!WARN_ON(!last) && !zswap_pool_get(last))
+	WARN_ONCE(!last && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
+	if (!zswap_pool_get(last))
 		last = NULL;
 
 	rcu_read_unlock();
@@ -582,6 +588,9 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 
 static int __must_check zswap_pool_get(struct zswap_pool *pool)
 {
+	if (!pool)
+		return 0;
+
 	return kref_get_unless_zero(&pool->kref);
 }
 
@@ -639,7 +648,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	}
 
 	/* no change required */
-	if (!strcmp(s, *(char **)kp->arg))
+	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
 		return 0;
 
 	/* if this is load-time (pre-init) param setting,
@@ -685,6 +694,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	if (!ret) {
 		put_pool = zswap_pool_current();
 		list_add_rcu(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
 	} else if (pool) {
 		/* add the possibly pre-existing pool to the end of the pools
 		 * list; if it's new (and empty) then it'll be removed and
@@ -692,6 +702,15 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 		 */
 		list_add_tail_rcu(&pool->list, &zswap_pools);
 		put_pool = pool;
+	} else if (!zswap_has_pool) {
+		/* if initial pool creation failed, and this pool creation also
+		 * failed, maybe both compressor and zpool params were bad.
+		 * Allow changing this param, so pool creation will succeed
+		 * when the other param is changed. We already verified this
+		 * param is ok in the zpool_has_pool() or crypto_has_comp()
+		 * checks above.
+		 */
+		ret = param_set_charp(s, kp);
 	}
 
 	spin_unlock(&zswap_pools_lock);
@@ -722,6 +741,10 @@ static int zswap_enabled_param_set(const char *val,
 {
 	if (zswap_init_failed) {
 		pr_err("can't enable, initialization failed\n");
+		return -ENODEV;
+	}
+	if (!zswap_has_pool && zswap_init_started) {
+		pr_err("can't enable, no pool configured\n");
 		return -ENODEV;
 	}
 
@@ -1205,22 +1228,21 @@ static int __init init_zswap(void)
 		goto hp_fail;
 
 	pool = __zswap_pool_create_fallback();
-	if (!pool) {
+	if (pool) {
+		pr_info("loaded using pool %s/%s\n", pool->tfm_name,
+			zpool_get_type(pool->zpool));
+		list_add(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
+	} else {
 		pr_err("pool creation failed\n");
-		goto pool_fail;
+		zswap_enabled = false;
 	}
-	pr_info("loaded using pool %s/%s\n", pool->tfm_name,
-		zpool_get_type(pool->zpool));
-
-	list_add(&pool->list, &zswap_pools);
 
 	frontswap_register_ops(&zswap_frontswap_ops);
 	if (zswap_debugfs_init())
 		pr_warn("debugfs initialization failed\n");
 	return 0;
 
-pool_fail:
-	cpuhp_remove_state_nocalls(CPUHP_MM_ZSWP_POOL_PREPARE);
 hp_fail:
 	cpuhp_remove_state(CPUHP_MM_ZSWP_MEM_PREPARE);
 dstmem_fail:
