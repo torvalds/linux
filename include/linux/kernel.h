@@ -102,7 +102,7 @@
 /*
  * Divide positive or negative dividend by positive or negative divisor
  * and round to closest integer. Result is undefined for negative
- * divisors if dividends variable type is unsigned and for negative
+ * divisors if he dividend variable type is unsigned and for negative
  * dividends if the divisor variable type is unsigned.
  */
 #define DIV_ROUND_CLOSEST(x, divisor)(			\
