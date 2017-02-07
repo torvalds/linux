@@ -8,6 +8,7 @@
  * encapsulating the incoming packet in an IPv4/v6 header
  * and then XDP_TX it out.
  */
+#define KBUILD_MODNAME "foo"
 #include <uapi/linux/bpf.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>

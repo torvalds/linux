@@ -494,7 +494,7 @@ config NFT_CT
 	depends on NF_CONNTRACK
 	tristate "Netfilter nf_tables conntrack module"
 	help
-	  This option adds the "meta" expression that you can use to match
+	  This option adds the "ct" expression that you can use to match
 	  connection tracking information such as the flow state.
 
 config NFT_SET_RBTREE

@@ -2834,6 +2834,9 @@ static void __init prom_find_boot_cpu(void)
 
 	cpu_pkg = call_prom("instance-to-package", 1, 1, prom_cpu);
 
+	if (!PHANDLE_VALID(cpu_pkg))
+		return;
+
 	prom_getprop(cpu_pkg, "reg", &rval, sizeof(rval));
 	prom.cpu = be32_to_cpu(rval);
 

@@ -30,8 +30,9 @@
 
 #include "cec-priv.h"
 
-static int cec_report_features(struct cec_adapter *adap, unsigned int la_idx);
-static int cec_report_phys_addr(struct cec_adapter *adap, unsigned int la_idx);
+static void cec_fill_msg_report_features(struct cec_adapter *adap,
+					 struct cec_msg *msg,
+					 unsigned int la_idx);
 
 /*
  * 400 ms is the time it takes for one 16 byte message to be
@@ -288,10 +289,10 @@ static void cec_data_cancel(struct cec_data *data)
 
 	/* Mark it as an error */
 	data->msg.tx_ts = ktime_get_ns();
-	data->msg.tx_status = CEC_TX_STATUS_ERROR |
-			      CEC_TX_STATUS_MAX_RETRIES;
+	data->msg.tx_status |= CEC_TX_STATUS_ERROR |
+			       CEC_TX_STATUS_MAX_RETRIES;
+	data->msg.tx_error_cnt++;
 	data->attempts = 0;
-	data->msg.tx_error_cnt = 1;
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(data->adap, &data->msg, 1);
 
@@ -851,7 +852,7 @@ static const u8 cec_msg_size[256] = {
 	[CEC_MSG_REQUEST_ARC_TERMINATION] = 2 | DIRECTED,
 	[CEC_MSG_TERMINATE_ARC] = 2 | DIRECTED,
 	[CEC_MSG_REQUEST_CURRENT_LATENCY] = 4 | BCAST,
-	[CEC_MSG_REPORT_CURRENT_LATENCY] = 7 | BCAST,
+	[CEC_MSG_REPORT_CURRENT_LATENCY] = 6 | BCAST,
 	[CEC_MSG_CDC_MESSAGE] = 2 | BCAST,
 };
 
@@ -1250,30 +1251,49 @@ configured:
 		for (i = 1; i < las->num_log_addrs; i++)
 			las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	}
+	for (i = las->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++)
+		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	adap->is_configured = true;
 	adap->is_configuring = false;
 	cec_post_state_event(adap);
-	mutex_unlock(&adap->lock);
 
+	/*
+	 * Now post the Report Features and Report Physical Address broadcast
+	 * messages. Note that these are non-blocking transmits, meaning that
+	 * they are just queued up and once adap->lock is unlocked the main
+	 * thread will kick in and start transmitting these.
+	 *
+	 * If after this function is done (but before one or more of these
+	 * messages are actually transmitted) the CEC adapter is unconfigured,
+	 * then any remaining messages will be dropped by the main thread.
+	 */
 	for (i = 0; i < las->num_log_addrs; i++) {
+		struct cec_msg msg = {};
+
 		if (las->log_addr[i] == CEC_LOG_ADDR_INVALID ||
 		    (las->flags & CEC_LOG_ADDRS_FL_CDC_ONLY))
 			continue;
 
-		/*
-		 * Report Features must come first according
-		 * to CEC 2.0
-		 */
-		if (las->log_addr[i] != CEC_LOG_ADDR_UNREGISTERED)
-			cec_report_features(adap, i);
-		cec_report_phys_addr(adap, i);
+		msg.msg[0] = (las->log_addr[i] << 4) | 0x0f;
+
+		/* Report Features must come first according to CEC 2.0 */
+		if (las->log_addr[i] != CEC_LOG_ADDR_UNREGISTERED &&
+		    adap->log_addrs.cec_version >= CEC_OP_CEC_VERSION_2_0) {
+			cec_fill_msg_report_features(adap, &msg, i);
+			cec_transmit_msg_fh(adap, &msg, NULL, false);
+		}
+
+		/* Report Physical Address */
+		cec_msg_report_physical_addr(&msg, adap->phys_addr,
+					     las->primary_device_type[i]);
+		dprintk(2, "config: la %d pa %x.%x.%x.%x\n",
+			las->log_addr[i],
+			cec_phys_addr_exp(adap->phys_addr));
+		cec_transmit_msg_fh(adap, &msg, NULL, false);
 	}
-	for (i = las->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++)
-		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
-	mutex_lock(&adap->lock);
 	adap->kthread_config = NULL;
-	mutex_unlock(&adap->lock);
 	complete(&adap->config_completion);
+	mutex_unlock(&adap->lock);
 	return 0;
 
 unconfigure:
@@ -1526,52 +1546,32 @@ EXPORT_SYMBOL_GPL(cec_s_log_addrs);
 
 /* High-level core CEC message handling */
 
-/* Transmit the Report Features message */
-static int cec_report_features(struct cec_adapter *adap, unsigned int la_idx)
+/* Fill in the Report Features message */
+static void cec_fill_msg_report_features(struct cec_adapter *adap,
+					 struct cec_msg *msg,
+					 unsigned int la_idx)
 {
-	struct cec_msg msg = { };
 	const struct cec_log_addrs *las = &adap->log_addrs;
 	const u8 *features = las->features[la_idx];
 	bool op_is_dev_features = false;
 	unsigned int idx;
 
-	/* This is 2.0 and up only */
-	if (adap->log_addrs.cec_version < CEC_OP_CEC_VERSION_2_0)
-		return 0;
-
 	/* Report Features */
-	msg.msg[0] = (las->log_addr[la_idx] << 4) | 0x0f;
-	msg.len = 4;
-	msg.msg[1] = CEC_MSG_REPORT_FEATURES;
-	msg.msg[2] = adap->log_addrs.cec_version;
-	msg.msg[3] = las->all_device_types[la_idx];
+	msg->msg[0] = (las->log_addr[la_idx] << 4) | 0x0f;
+	msg->len = 4;
+	msg->msg[1] = CEC_MSG_REPORT_FEATURES;
+	msg->msg[2] = adap->log_addrs.cec_version;
+	msg->msg[3] = las->all_device_types[la_idx];
 
 	/* Write RC Profiles first, then Device Features */
 	for (idx = 0; idx < ARRAY_SIZE(las->features[0]); idx++) {
-		msg.msg[msg.len++] = features[idx];
+		msg->msg[msg->len++] = features[idx];
 		if ((features[idx] & CEC_OP_FEAT_EXT) == 0) {
 			if (op_is_dev_features)
 				break;
 			op_is_dev_features = true;
 		}
 	}
-	return cec_transmit_msg(adap, &msg, false);
-}
-
-/* Transmit the Report Physical Address message */
-static int cec_report_phys_addr(struct cec_adapter *adap, unsigned int la_idx)
-{
-	const struct cec_log_addrs *las = &adap->log_addrs;
-	struct cec_msg msg = { };
-
-	/* Report Physical Address */
-	msg.msg[0] = (las->log_addr[la_idx] << 4) | 0x0f;
-	cec_msg_report_physical_addr(&msg, adap->phys_addr,
-				     las->primary_device_type[la_idx]);
-	dprintk(2, "config: la %d pa %x.%x.%x.%x\n",
-		las->log_addr[la_idx],
-			cec_phys_addr_exp(adap->phys_addr));
-	return cec_transmit_msg(adap, &msg, false);
 }
 
 /* Transmit the Feature Abort message */
@@ -1777,9 +1777,10 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	case CEC_MSG_GIVE_FEATURES:
-		if (adap->log_addrs.cec_version >= CEC_OP_CEC_VERSION_2_0)
-			return cec_report_features(adap, la_idx);
-		return 0;
+		if (adap->log_addrs.cec_version < CEC_OP_CEC_VERSION_2_0)
+			return cec_feature_abort(adap, msg);
+		cec_fill_msg_report_features(adap, &tx_cec_msg, la_idx);
+		return cec_transmit_msg(adap, &tx_cec_msg, false);
 
 	default:
 		/*
