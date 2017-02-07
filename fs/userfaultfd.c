@@ -578,7 +578,7 @@ static int dup_fctx(struct userfaultfd_fork_ctx *fctx)
 	msg_init(&ewq.msg);
 
 	ewq.msg.event = UFFD_EVENT_FORK;
-	ewq.msg.arg.reserved.reserved1 = (__u64)fctx->new;
+	ewq.msg.arg.reserved.reserved1 = (unsigned long)fctx->new;
 
 	return userfaultfd_event_wait_completion(ctx, &ewq);
 }
@@ -832,7 +832,9 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
 			*msg = uwq->msg;
 
 			if (uwq->msg.event == UFFD_EVENT_FORK) {
-				fork_nctx = (struct userfaultfd_ctx *)uwq->msg.arg.reserved.reserved1;
+				fork_nctx = (struct userfaultfd_ctx *)
+					(unsigned long)
+					uwq->msg.arg.reserved.reserved1;
 				list_move(&uwq->wq.task_list, &fork_event);
 				spin_unlock(&ctx->event_wqh.lock);
 				ret = 0;
