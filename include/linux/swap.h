@@ -176,16 +176,17 @@ enum {
  * protected by swap_info_struct.lock.
  */
 struct swap_cluster_info {
-	unsigned long data;
+	spinlock_t lock;	/*
+				 * Protect swap_cluster_info fields
+				 * and swap_info_struct->swap_map
+				 * elements correspond to the swap
+				 * cluster
+				 */
+	unsigned int data:24;
+	unsigned int flags:8;
 };
-#define CLUSTER_COUNT_SHIFT		8
-#define CLUSTER_FLAG_MASK		((1UL << CLUSTER_COUNT_SHIFT) - 1)
-#define CLUSTER_COUNT_MASK		(~CLUSTER_FLAG_MASK)
-#define CLUSTER_FLAG_FREE		1 /* This cluster is free */
-#define CLUSTER_FLAG_NEXT_NULL		2 /* This cluster has no next cluster */
-/* cluster lock, protect cluster_info contents and sis->swap_map */
-#define CLUSTER_FLAG_LOCK_BIT		2
-#define CLUSTER_FLAG_LOCK		(1 << CLUSTER_FLAG_LOCK_BIT)
+#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
+#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
 
 /*
  * We assign a cluster to each CPU, so each CPU can allocate swap entry from

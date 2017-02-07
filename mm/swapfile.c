@@ -200,66 +200,66 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 #define LATENCY_LIMIT		256
 
 static inline void cluster_set_flag(struct swap_cluster_info *info,
-				    unsigned int flag)
+	unsigned int flag)
 {
-	info->data = (info->data & (CLUSTER_COUNT_MASK | CLUSTER_FLAG_LOCK)) |
-		(flag & ~CLUSTER_FLAG_LOCK);
+	info->flags = flag;
 }
 
 static inline unsigned int cluster_count(struct swap_cluster_info *info)
 {
-	return info->data >> CLUSTER_COUNT_SHIFT;
+	return info->data;
 }
 
 static inline void cluster_set_count(struct swap_cluster_info *info,
 				     unsigned int c)
 {
-	info->data = (c << CLUSTER_COUNT_SHIFT) | (info->data & CLUSTER_FLAG_MASK);
+	info->data = c;
 }
 
 static inline void cluster_set_count_flag(struct swap_cluster_info *info,
 					 unsigned int c, unsigned int f)
 {
-	info->data = (info->data & CLUSTER_FLAG_LOCK) |
-		(c << CLUSTER_COUNT_SHIFT) | (f & ~CLUSTER_FLAG_LOCK);
+	info->flags = f;
+	info->data = c;
 }
 
 static inline unsigned int cluster_next(struct swap_cluster_info *info)
 {
-	return cluster_count(info);
+	return info->data;
 }
 
 static inline void cluster_set_next(struct swap_cluster_info *info,
 				    unsigned int n)
 {
-	cluster_set_count(info, n);
+	info->data = n;
 }
 
 static inline void cluster_set_next_flag(struct swap_cluster_info *info,
 					 unsigned int n, unsigned int f)
 {
-	cluster_set_count_flag(info, n, f);
+	info->flags = f;
+	info->data = n;
 }
 
 static inline bool cluster_is_free(struct swap_cluster_info *info)
 {
-	return info->data & CLUSTER_FLAG_FREE;
+	return info->flags & CLUSTER_FLAG_FREE;
 }
 
 static inline bool cluster_is_null(struct swap_cluster_info *info)
 {
-	return info->data & CLUSTER_FLAG_NEXT_NULL;
+	return info->flags & CLUSTER_FLAG_NEXT_NULL;
 }
 
 static inline void cluster_set_null(struct swap_cluster_info *info)
 {
-	cluster_set_next_flag(info, 0, CLUSTER_FLAG_NEXT_NULL);
+	info->flags = CLUSTER_FLAG_NEXT_NULL;
+	info->data = 0;
 }
 
-/* Protect swap_cluster_info fields and si->swap_map */
 static inline void __lock_cluster(struct swap_cluster_info *ci)
 {
-	bit_spin_lock(CLUSTER_FLAG_LOCK_BIT, &ci->data);
+	spin_lock(&ci->lock);
 }
 
 static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
@@ -278,7 +278,7 @@ static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si
 static inline void unlock_cluster(struct swap_cluster_info *ci)
 {
 	if (ci)
-		bit_spin_unlock(CLUSTER_FLAG_LOCK_BIT, &ci->data);
+		spin_unlock(&ci->lock);
 }
 
 static inline struct swap_cluster_info *lock_cluster_or_swap_info(
