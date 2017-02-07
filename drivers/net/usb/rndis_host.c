@@ -383,7 +383,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
 	dev_dbg(&intf->dev,
-		"hard mtu %u (%u from dev), rx buflen %Zu, align %d\n",
+		"hard mtu %u (%u from dev), rx buflen %zu, align %d\n",
 		dev->hard_mtu, tmp, dev->rx_urb_size,
 		1 << le32_to_cpu(u.init_c->packet_alignment));
 

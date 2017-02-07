@@ -1260,7 +1260,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	return 0;
 
 err_short_len:
-	svc_printk(rqstp, "short len %Zd, dropping request\n",
+	svc_printk(rqstp, "short len %zd, dropping request\n",
 			argv->iov_len);
 	goto close;
 

@@ -422,7 +422,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			return -ENOMEM;
 		}
 
-		printk(KERN_INFO "%s() firmware read %Zu bytes.\n",
+		printk(KERN_INFO "%s() firmware read %zu bytes.\n",
 			__func__, fw->size);
 
 		if (fw->size != fwlength) {

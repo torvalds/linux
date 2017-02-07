@@ -1037,7 +1037,7 @@ release_io:
 	clear_bit(LOCK_IO, &dev->flags);
 	wake_up_interruptible(&dev->ioq);
 
-	DEBUGP(2, dev, "<- cmm_read returns: rc = %Zi\n",
+	DEBUGP(2, dev, "<- cmm_read returns: rc = %zi\n",
 	       (rc < 0 ? rc : count));
 	return rc < 0 ? rc : count;
 }
