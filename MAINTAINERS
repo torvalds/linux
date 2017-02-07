@@ -2620,7 +2620,7 @@ M:	Lee Jones <lee@kernel.org>
 M:	Eric Anholt <eric@anholt.net>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
+T:	git git://github.com/anholt/linux
 S:	Maintained
 N:	bcm2835
 F:	drivers/staging/vc04_services
