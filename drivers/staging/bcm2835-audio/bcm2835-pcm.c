@@ -130,7 +130,7 @@ static int snd_bcm2835_playback_open_generic(
 		err = -EBUSY;
 		goto out;
 	}
-	if (idx > MAX_SUBSTREAMS) {
+	if (idx >= MAX_SUBSTREAMS) {
 		audio_error
 			("substream(%d) device doesn't exist max(%d) substreams allowed\n",
 			idx, MAX_SUBSTREAMS);
