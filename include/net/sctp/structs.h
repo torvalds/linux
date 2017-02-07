@@ -374,7 +374,7 @@ typedef struct sctp_sender_hb_info {
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} __packed sctp_sender_hb_info_t;
+} sctp_sender_hb_info_t;
 
 struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp);
 void sctp_stream_free(struct sctp_stream *stream);
