@@ -1613,7 +1613,7 @@ static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int hdmi_lpe_audio_suspend(struct device *dev)
+static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad *ctx = dev_get_drvdata(dev);
 	int err;
@@ -1624,7 +1624,7 @@ static int hdmi_lpe_audio_suspend(struct device *dev)
 	return err;
 }
 
-static int hdmi_lpe_audio_resume(struct device *dev)
+static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 {
 	struct snd_intelhad *ctx = dev_get_drvdata(dev);
 
