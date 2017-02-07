@@ -143,7 +143,16 @@ struct vf_data_storage {
 #define IGB_RXBUFFER_256	256
 #define IGB_RXBUFFER_2048	2048
 #define IGB_RX_HDR_LEN		IGB_RXBUFFER_256
+#define IGB_TS_HDR_LEN		16
 #define IGB_RX_BUFSZ		IGB_RXBUFFER_2048
+
+#define IGB_SKB_PAD		(NET_SKB_PAD + NET_IP_ALIGN)
+#if (PAGE_SIZE < 8192)
+#define IGB_MAX_FRAME_BUILD_SKB \
+	(SKB_WITH_OVERHEAD(IGB_RXBUFFER_2048) - IGB_SKB_PAD - IGB_TS_HDR_LEN)
+#else
+#define IGB_MAX_FRAME_BUILD_SKB (IGB_RXBUFFER_2048 - IGB_TS_HDR_LEN)
+#endif
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IGB_RX_BUFFER_WRITE	16 /* Must be power of 2 */
@@ -561,7 +570,6 @@ struct igb_adapter {
 #define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT	19
-#define IGB_TS_HDR_LEN		16
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
