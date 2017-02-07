@@ -5134,7 +5134,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 
 		/* quick bounds check (BCAST result impossible) */
 		BUILD_BUG_ON(EFX_EF10_BCAST != 0);
-		if (encap_type > ARRAY_SIZE(map) || map[encap_type] == 0) {
+		if (encap_type >= ARRAY_SIZE(map) || map[encap_type] == 0) {
 			WARN_ON(1);
 			return -EINVAL;
 		}
