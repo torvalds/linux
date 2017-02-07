@@ -78,6 +78,7 @@ unsigned long calculate_alignment(unsigned long flags,
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);
 void create_kmalloc_caches(unsigned long);
+const char *get_kmalloc_cache_name(int index);
 
 /* Find the kmalloc slab corresponding for a certain size */
 struct kmem_cache *kmalloc_slab(size_t, gfp_t);

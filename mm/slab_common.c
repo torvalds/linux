@@ -935,6 +935,11 @@ static struct {
 	{"kmalloc-67108864", 67108864}
 };
 
+const char *get_kmalloc_cache_name(int index)
+{
+	return kmalloc_info[index].name;
+}
+
 /*
  * Patch up the size_index table if we have strange large alignment
  * requirements for the kmalloc array. This is only the case for
