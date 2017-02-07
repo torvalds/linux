@@ -594,7 +594,6 @@ void igb_configure_rx_ring(struct igb_adapter *, struct igb_ring *);
 void igb_setup_tctl(struct igb_adapter *);
 void igb_setup_rctl(struct igb_adapter *);
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
-void igb_unmap_and_free_tx_resource(struct igb_ring *, struct igb_tx_buffer *);
 void igb_alloc_rx_buffers(struct igb_ring *, u16);
 void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 bool igb_has_link(struct igb_adapter *adapter);

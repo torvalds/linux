@@ -1833,7 +1833,16 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 
 		/* unmap buffer on Tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
-		igb_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
+
+		/* Free all the Tx ring sk_buffs */
+		dev_kfree_skb_any(tx_buffer_info->skb);
+
+		/* unmap skb header data */
+		dma_unmap_single(tx_ring->dev,
+				 dma_unmap_addr(tx_buffer_info, dma),
+				 dma_unmap_len(tx_buffer_info, len),
+				 DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_buffer_info, len, 0);
 
 		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
