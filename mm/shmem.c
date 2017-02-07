@@ -2214,17 +2214,17 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	pte_t _dst_pte, *dst_pte;
 	int ret;
 
-	if (!*pagep) {
-		ret = -ENOMEM;
-		if (shmem_acct_block(info->flags, 1))
-			goto out;
-		if (sbinfo->max_blocks) {
-			if (percpu_counter_compare(&sbinfo->used_blocks,
-						   sbinfo->max_blocks) >= 0)
-				goto out_unacct_blocks;
-			percpu_counter_inc(&sbinfo->used_blocks);
-		}
+	ret = -ENOMEM;
+	if (shmem_acct_block(info->flags, 1))
+		goto out;
+	if (sbinfo->max_blocks) {
+		if (percpu_counter_compare(&sbinfo->used_blocks,
+					   sbinfo->max_blocks) >= 0)
+			goto out_unacct_blocks;
+		percpu_counter_inc(&sbinfo->used_blocks);
+	}
 
+	if (!*pagep) {
 		page = shmem_alloc_page(gfp, info, pgoff);
 		if (!page)
 			goto out_dec_used_blocks;
@@ -2237,6 +2237,9 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 		/* fallback to copy_from_user outside mmap_sem */
 		if (unlikely(ret)) {
 			*pagep = page;
+			if (sbinfo->max_blocks)
+				percpu_counter_add(&sbinfo->used_blocks, -1);
+			shmem_unacct_blocks(info->flags, 1);
 			/* don't free the page */
 			return -EFAULT;
 		}
