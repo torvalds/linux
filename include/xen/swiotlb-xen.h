@@ -2,6 +2,7 @@
 #define __LINUX_SWIOTLB_XEN_H
 
 #include <linux/dma-direction.h>
+#include <linux/scatterlist.h>
 #include <linux/swiotlb.h>
 
 extern int xen_swiotlb_init(int verbose, bool early);
@@ -60,4 +61,9 @@ extern int
 xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		     unsigned long attrs);
+
+extern int
+xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
+			void *cpu_addr, dma_addr_t handle, size_t size,
+			unsigned long attrs);
 #endif /* __LINUX_SWIOTLB_XEN_H */
