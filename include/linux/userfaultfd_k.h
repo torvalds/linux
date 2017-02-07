@@ -61,10 +61,10 @@ extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
 					unsigned long from, unsigned long to,
 					unsigned long len);
 
-extern void madvise_userfault_dontneed(struct vm_area_struct *vma,
-				       struct vm_area_struct **prev,
-				       unsigned long start,
-				       unsigned long end);
+extern void userfaultfd_remove(struct vm_area_struct *vma,
+			       struct vm_area_struct **prev,
+			       unsigned long start,
+			       unsigned long end);
 
 #else /* CONFIG_USERFAULTFD */
 
@@ -112,10 +112,10 @@ static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
 {
 }
 
-static inline void madvise_userfault_dontneed(struct vm_area_struct *vma,
-					      struct vm_area_struct **prev,
-					      unsigned long start,
-					      unsigned long end)
+static inline void userfaultfd_remove(struct vm_area_struct *vma,
+				      struct vm_area_struct **prev,
+				      unsigned long start,
+				      unsigned long end)
 {
 }
 #endif /* CONFIG_USERFAULTFD */
