@@ -1213,6 +1213,10 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 	mac->current_ampdu_density = 7;
 	mac->current_ampdu_factor = 3;
 
+	/*Retry Limit*/
+	mac->retry_short = 7;
+	mac->retry_long = 7;
+
 	/*QOS*/
 	rtlpci->acm_method = EACMWAY2_SW;
 
@@ -1813,6 +1817,7 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
+	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 
 	int err;
 
@@ -1830,6 +1835,8 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 			 "Failed to config hardware!\n");
 		return err;
 	}
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RETRY_LIMIT,
+			&rtlmac->retry_long);
 
 	rtlpriv->cfg->ops->enable_interrupt(hw);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "enable_interrupt OK\n");
