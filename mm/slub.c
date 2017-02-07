@@ -4127,6 +4127,7 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
 	}
 	slab_init_memcg_params(s);
 	list_add(&s->list, &slab_caches);
+	memcg_link_cache(s);
 	return s;
 }
 
