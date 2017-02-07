@@ -775,10 +775,9 @@ unlock:
 	mutex_unlock(&instance->vchi_mutex);
 
 	/* Stop the audio service */
-	if (instance) {
-		vc_vchi_audio_deinit(instance);
-		alsa_stream->instance = NULL;
-	}
+	vc_vchi_audio_deinit(instance);
+	alsa_stream->instance = NULL;
+
 	LOG_DBG(" .. OUT\n");
 	return ret;
 }
