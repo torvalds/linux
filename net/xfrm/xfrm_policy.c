@@ -2883,34 +2883,25 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_policy_register_afinfo);
 
-int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
+void xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
-	int err = 0;
-	if (unlikely(afinfo == NULL))
-		return -EINVAL;
+	struct dst_ops *dst_ops = afinfo->dst_ops;
+
 	if (unlikely(afinfo->family >= NPROTO))
-		return -EAFNOSUPPORT;
-	spin_lock(&xfrm_policy_afinfo_lock);
-	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
-		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
-			err = -EINVAL;
-		else
-			RCU_INIT_POINTER(xfrm_policy_afinfo[afinfo->family],
+		return;
+
+	if (likely(xfrm_policy_afinfo[afinfo->family] != afinfo)) {
+		RCU_INIT_POINTER(xfrm_policy_afinfo[afinfo->family],
 					 NULL);
 	}
-	spin_unlock(&xfrm_policy_afinfo_lock);
-	if (!err) {
-		struct dst_ops *dst_ops = afinfo->dst_ops;
 
-		synchronize_rcu();
+	synchronize_rcu();
 
-		dst_ops->kmem_cachep = NULL;
-		dst_ops->check = NULL;
-		dst_ops->negative_advice = NULL;
-		dst_ops->link_failure = NULL;
-		afinfo->garbage_collect = NULL;
-	}
-	return err;
+	dst_ops->kmem_cachep = NULL;
+	dst_ops->check = NULL;
+	dst_ops->negative_advice = NULL;
+	dst_ops->link_failure = NULL;
+	afinfo->garbage_collect = NULL;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 

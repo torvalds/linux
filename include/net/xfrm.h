@@ -304,7 +304,7 @@ struct xfrm_policy_afinfo {
 };
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);
-int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo);
+void xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo);
 void km_policy_notify(struct xfrm_policy *xp, int dir,
 		      const struct km_event *c);
 void km_state_notify(struct xfrm_state *x, const struct km_event *c);
