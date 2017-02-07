@@ -152,7 +152,7 @@ static void emac_get_pauseparam(struct net_device *netdev,
 
 	pause->autoneg = adpt->automatic ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	pause->rx_pause = adpt->rx_flow_control ? 1 : 0;
-	pause->tx_pause = adpt->tx_flow_control ? 1 : 0;;
+	pause->tx_pause = adpt->tx_flow_control ? 1 : 0;
 }
 
 static int emac_set_pauseparam(struct net_device *netdev,
