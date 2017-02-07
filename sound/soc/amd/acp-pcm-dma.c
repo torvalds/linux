@@ -506,7 +506,7 @@ static int acp_init(void __iomem *acp_mmio)
 	return 0;
 }
 
-/* Deintialize ACP */
+/* Deinitialize ACP */
 static int acp_deinit(void __iomem *acp_mmio)
 {
 	u32 val;

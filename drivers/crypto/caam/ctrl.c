@@ -269,7 +269,7 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 		/*
 		 * If the corresponding bit is set, then it means the state
 		 * handle was initialized by us, and thus it needs to be
-		 * deintialized as well
+		 * deinitialized as well
 		 */
 		if ((1 << sh_idx) & state_handle_mask) {
 			/*

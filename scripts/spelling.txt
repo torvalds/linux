@@ -322,6 +322,9 @@ defintion||definition
 defintions||definitions
 defualt||default
 defult||default
+deintializing||deinitializing
+deintialize||deinitialize
+deintialized||deinitialized
 deivce||device
 delared||declared
 delare||declare

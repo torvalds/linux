@@ -516,7 +516,7 @@ err:
 
 /**
  * rsi_disconnect() - This function performs the reverse of the probe function,
- *		      it deintialize the driver structure.
+ *		      it deinitialize the driver structure.
  * @pfunction: Pointer to the USB interface structure.
  *
  * Return: None.
