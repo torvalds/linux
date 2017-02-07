@@ -276,7 +276,7 @@ static int ext4_dax_fault(struct vm_fault *vmf)
 }
 
 static int
-ext4_dax_pmd_fault(struct vm_fault *vmf)
+ext4_dax_huge_fault(struct vm_fault *vmf)
 {
 	int result;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -288,7 +288,7 @@ ext4_dax_pmd_fault(struct vm_fault *vmf)
 		file_update_time(vmf->vma->vm_file);
 	}
 	down_read(&EXT4_I(inode)->i_mmap_sem);
-	result = dax_iomap_pmd_fault(vmf, &ext4_iomap_ops);
+	result = dax_iomap_fault(vmf, &ext4_iomap_ops);
 	up_read(&EXT4_I(inode)->i_mmap_sem);
 	if (write)
 		sb_end_pagefault(sb);
@@ -328,7 +328,7 @@ static int ext4_dax_pfn_mkwrite(struct vm_fault *vmf)
 
 static const struct vm_operations_struct ext4_dax_vm_ops = {
 	.fault		= ext4_dax_fault,
-	.pmd_fault	= ext4_dax_pmd_fault,
+	.huge_fault	= ext4_dax_fault,
 	.page_mkwrite	= ext4_dax_fault,
 	.pfn_mkwrite	= ext4_dax_pfn_mkwrite,
 };

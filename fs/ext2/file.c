@@ -133,7 +133,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_fault *vmf)
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
 	/*
-	 * .pmd_fault is not supported for DAX because allocation in ext2
+	 * .huge_fault is not supported for DAX because allocation in ext2
 	 * cannot be reliably aligned to huge page sizes and so pmd faults
 	 * will always fail and fail back to regular faults.
 	 */
