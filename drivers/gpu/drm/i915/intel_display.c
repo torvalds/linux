@@ -135,7 +135,7 @@ struct intel_limit {
 };
 
 /* returns HPLL frequency in kHz */
-static int valleyview_get_vco(struct drm_i915_private *dev_priv)
+int vlv_get_hpll_vco(struct drm_i915_private *dev_priv)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
@@ -171,7 +171,7 @@ int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg)
 {
 	if (dev_priv->hpll_freq == 0)
-		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
+		dev_priv->hpll_freq = vlv_get_hpll_vco(dev_priv);
 
 	return vlv_get_cck_clock(dev_priv, name, reg,
 				 dev_priv->hpll_freq);
@@ -12413,7 +12413,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
 		if (!intel_state->cdclk_pll_vco)
-			intel_state->cdclk_pll_vco = dev_priv->cdclk_pll.vco;
+			intel_state->cdclk_pll_vco = dev_priv->cdclk.hw.vco;
 		if (!intel_state->cdclk_pll_vco)
 			intel_state->cdclk_pll_vco = dev_priv->skl_preferred_vco_freq;
 
@@ -12433,8 +12433,8 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 		}
 
 		/* All pipes must be switched off while we change the cdclk. */
-		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
-		    intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco) {
+		if (intel_state->dev_cdclk != dev_priv->cdclk.hw.cdclk ||
+		    intel_state->cdclk_pll_vco != dev_priv->cdclk.hw.vco) {
 			ret = intel_modeset_all_pipes(state);
 			if (ret < 0)
 				return ret;
@@ -12869,8 +12869,8 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 		if (dev_priv->display.modeset_commit_cdclk &&
-		    (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
-		     intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco))
+		    (intel_state->dev_cdclk != dev_priv->cdclk.hw.cdclk ||
+		     intel_state->cdclk_pll_vco != dev_priv->cdclk.hw.vco))
 			dev_priv->display.modeset_commit_cdclk(state);
 
 		/*
@@ -14855,7 +14855,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	intel_update_cdclk(dev_priv);
 
-	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
+	dev_priv->atomic_cdclk_freq = dev_priv->cdclk.hw.cdclk;
 
 	intel_init_clock_gating(dev_priv);
 }
@@ -15031,7 +15031,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_update_czclk(dev_priv);
 	intel_update_cdclk(dev_priv);
-	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
+	dev_priv->atomic_cdclk_freq = dev_priv->cdclk.hw.cdclk;
 
 	intel_shared_dpll_init(dev);
 

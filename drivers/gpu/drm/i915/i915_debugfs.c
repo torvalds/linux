@@ -1281,7 +1281,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_puts(m, "no P-state info available\n");
 	}
 
-	seq_printf(m, "Current CD clock frequency: %d kHz\n", dev_priv->cdclk_freq);
+	seq_printf(m, "Current CD clock frequency: %d kHz\n", dev_priv->cdclk.hw.cdclk);
 	seq_printf(m, "Max CD clock frequency: %d kHz\n", dev_priv->max_cdclk_freq);
 	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
 

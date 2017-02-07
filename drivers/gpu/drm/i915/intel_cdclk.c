@@ -51,37 +51,44 @@
  * dividers can be programmed correctly.
  */
 
-static int fixed_133mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_133mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 133333;
+	cdclk_state->cdclk = 133333;
 }
 
-static int fixed_200mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_200mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 200000;
+	cdclk_state->cdclk = 200000;
 }
 
-static int fixed_266mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_266mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 266667;
+	cdclk_state->cdclk = 266667;
 }
 
-static int fixed_333mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_333mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 333333;
+	cdclk_state->cdclk = 333333;
 }
 
-static int fixed_400mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_400mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 400000;
+	cdclk_state->cdclk = 400000;
 }
 
-static int fixed_450mhz_get_cdclk(struct drm_i915_private *dev_priv)
+static void fixed_450mhz_get_cdclk(struct drm_i915_private *dev_priv,
+				   struct intel_cdclk_state *cdclk_state)
 {
-	return 450000;
+	cdclk_state->cdclk = 450000;
 }
 
-static int i85x_get_cdclk(struct drm_i915_private *dev_priv)
+static void i85x_get_cdclk(struct drm_i915_private *dev_priv,
+			   struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 hpllcc = 0;
@@ -91,8 +98,10 @@ static int i85x_get_cdclk(struct drm_i915_private *dev_priv)
 	 * encoding is different :(
 	 * FIXME is this the right way to detect 852GM/852GMV?
 	 */
-	if (pdev->revision == 0x1)
-		return 133333;
+	if (pdev->revision == 0x1) {
+		cdclk_state->cdclk = 133333;
+		return;
+	}
 
 	pci_bus_read_config_word(pdev->bus,
 				 PCI_DEVFN(0, 3), HPLLCC, &hpllcc);
@@ -104,56 +113,67 @@ static int i85x_get_cdclk(struct drm_i915_private *dev_priv)
 	case GC_CLOCK_133_200:
 	case GC_CLOCK_133_200_2:
 	case GC_CLOCK_100_200:
-		return 200000;
+		cdclk_state->cdclk = 200000;
+		break;
 	case GC_CLOCK_166_250:
-		return 250000;
+		cdclk_state->cdclk = 250000;
+		break;
 	case GC_CLOCK_100_133:
-		return 133333;
+		cdclk_state->cdclk = 133333;
+		break;
 	case GC_CLOCK_133_266:
 	case GC_CLOCK_133_266_2:
 	case GC_CLOCK_166_266:
-		return 266667;
+		cdclk_state->cdclk = 266667;
+		break;
 	}
-
-	/* Shouldn't happen */
-	return 0;
 }
 
-static int i915gm_get_cdclk(struct drm_i915_private *dev_priv)
+static void i915gm_get_cdclk(struct drm_i915_private *dev_priv,
+			     struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
 
-	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
-		return 133333;
+	if (gcfgc & GC_LOW_FREQUENCY_ENABLE) {
+		cdclk_state->cdclk = 133333;
+		return;
+	}
 
 	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 	case GC_DISPLAY_CLOCK_333_320_MHZ:
-		return 333333;
+		cdclk_state->cdclk = 333333;
+		break;
 	default:
 	case GC_DISPLAY_CLOCK_190_200_MHZ:
-		return 190000;
+		cdclk_state->cdclk = 190000;
+		break;
 	}
 }
 
-static int i945gm_get_cdclk(struct drm_i915_private *dev_priv)
+static void i945gm_get_cdclk(struct drm_i915_private *dev_priv,
+			     struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
 
-	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
-		return 133333;
+	if (gcfgc & GC_LOW_FREQUENCY_ENABLE) {
+		cdclk_state->cdclk = 133333;
+		return;
+	}
 
 	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 	case GC_DISPLAY_CLOCK_333_320_MHZ:
-		return 320000;
+		cdclk_state->cdclk = 320000;
+		break;
 	default:
 	case GC_DISPLAY_CLOCK_190_200_MHZ:
-		return 200000;
+		cdclk_state->cdclk = 200000;
+		break;
 	}
 }
 
@@ -225,7 +245,8 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	return vco;
 }
 
-static int g33_get_cdclk(struct drm_i915_private *dev_priv)
+static void g33_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	static const uint8_t div_3200[] = { 12, 10,  8,  7, 5, 16 };
@@ -233,8 +254,10 @@ static int g33_get_cdclk(struct drm_i915_private *dev_priv)
 	static const uint8_t div_4800[] = { 20, 14, 12, 10, 8, 24 };
 	static const uint8_t div_5333[] = { 20, 16, 12, 12, 8, 28 };
 	const uint8_t *div_table;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
+	unsigned int cdclk_sel;
 	uint16_t tmp = 0;
+
+	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
 	pci_read_config_word(pdev, GCFGC, &tmp);
 
@@ -243,7 +266,7 @@ static int g33_get_cdclk(struct drm_i915_private *dev_priv)
 	if (cdclk_sel >= ARRAY_SIZE(div_3200))
 		goto fail;
 
-	switch (vco) {
+	switch (cdclk_state->vco) {
 	case 3200000:
 		div_table = div_3200;
 		break;
@@ -260,15 +283,18 @@ static int g33_get_cdclk(struct drm_i915_private *dev_priv)
 		goto fail;
 	}
 
-	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
+	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco,
+					       div_table[cdclk_sel]);
+	return;
 
 fail:
 	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%08x\n",
-		  vco, tmp);
-	return 190476;
+		  cdclk_state->vco, tmp);
+	cdclk_state->cdclk = 190476;
 }
 
-static int pnv_get_cdclk(struct drm_i915_private *dev_priv)
+static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 gcfgc = 0;
@@ -277,31 +303,40 @@ static int pnv_get_cdclk(struct drm_i915_private *dev_priv)
 
 	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 	case GC_DISPLAY_CLOCK_267_MHZ_PNV:
-		return 266667;
+		cdclk_state->cdclk = 266667;
+		break;
 	case GC_DISPLAY_CLOCK_333_MHZ_PNV:
-		return 333333;
+		cdclk_state->cdclk = 333333;
+		break;
 	case GC_DISPLAY_CLOCK_444_MHZ_PNV:
-		return 444444;
+		cdclk_state->cdclk = 444444;
+		break;
 	case GC_DISPLAY_CLOCK_200_MHZ_PNV:
-		return 200000;
+		cdclk_state->cdclk = 200000;
+		break;
 	default:
 		DRM_ERROR("Unknown pnv display core clock 0x%04x\n", gcfgc);
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
-		return 133333;
+		cdclk_state->cdclk = 133333;
+		break;
 	case GC_DISPLAY_CLOCK_167_MHZ_PNV:
-		return 166667;
+		cdclk_state->cdclk = 166667;
+		break;
 	}
 }
 
-static int i965gm_get_cdclk(struct drm_i915_private *dev_priv)
+static void i965gm_get_cdclk(struct drm_i915_private *dev_priv,
+			     struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	static const uint8_t div_3200[] = { 16, 10,  8 };
 	static const uint8_t div_4000[] = { 20, 12, 10 };
 	static const uint8_t div_5333[] = { 24, 16, 14 };
 	const uint8_t *div_table;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
+	unsigned int cdclk_sel;
 	uint16_t tmp = 0;
+
+	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
 	pci_read_config_word(pdev, GCFGC, &tmp);
 
@@ -310,7 +345,7 @@ static int i965gm_get_cdclk(struct drm_i915_private *dev_priv)
 	if (cdclk_sel >= ARRAY_SIZE(div_3200))
 		goto fail;
 
-	switch (vco) {
+	switch (cdclk_state->vco) {
 	case 3200000:
 		div_table = div_3200;
 		break;
@@ -324,53 +359,62 @@ static int i965gm_get_cdclk(struct drm_i915_private *dev_priv)
 		goto fail;
 	}
 
-	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
+	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco,
+					       div_table[cdclk_sel]);
+	return;
 
 fail:
 	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%04x\n",
-		  vco, tmp);
-	return 200000;
+		  cdclk_state->vco, tmp);
+	cdclk_state->cdclk = 200000;
 }
 
-static int gm45_get_cdclk(struct drm_i915_private *dev_priv)
+static void gm45_get_cdclk(struct drm_i915_private *dev_priv,
+			   struct intel_cdclk_state *cdclk_state)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
+	unsigned int cdclk_sel;
 	uint16_t tmp = 0;
+
+	cdclk_state->vco = intel_hpll_vco(dev_priv);
 
 	pci_read_config_word(pdev, GCFGC, &tmp);
 
 	cdclk_sel = (tmp >> 12) & 0x1;
 
-	switch (vco) {
+	switch (cdclk_state->vco) {
 	case 2666667:
 	case 4000000:
 	case 5333333:
-		return cdclk_sel ? 333333 : 222222;
+		cdclk_state->cdclk = cdclk_sel ? 333333 : 222222;
+		break;
 	case 3200000:
-		return cdclk_sel ? 320000 : 228571;
+		cdclk_state->cdclk = cdclk_sel ? 320000 : 228571;
+		break;
 	default:
 		DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u, CFGC=0x%04x\n",
-			  vco, tmp);
-		return 222222;
+			  cdclk_state->vco, tmp);
+		cdclk_state->cdclk = 222222;
+		break;
 	}
 }
 
-static int hsw_get_cdclk(struct drm_i915_private *dev_priv)
+static void hsw_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
 	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
 	if (lcpll & LCPLL_CD_SOURCE_FCLK)
-		return 800000;
+		cdclk_state->cdclk = 800000;
 	else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
-		return 450000;
+		cdclk_state->cdclk = 450000;
 	else if (freq == LCPLL_CLK_FREQ_450)
-		return 450000;
+		cdclk_state->cdclk = 450000;
 	else if (IS_HSW_ULT(dev_priv))
-		return 337500;
+		cdclk_state->cdclk = 337500;
 	else
-		return 540000;
+		cdclk_state->cdclk = 540000;
 }
 
 static int vlv_calc_cdclk(struct drm_i915_private *dev_priv,
@@ -396,10 +440,13 @@ static int vlv_calc_cdclk(struct drm_i915_private *dev_priv,
 		return 200000;
 }
 
-static int vlv_get_cdclk(struct drm_i915_private *dev_priv)
+static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
-	return vlv_get_cck_clock_hpll(dev_priv, "cdclk",
-				      CCK_DISPLAY_CLOCK_CONTROL);
+	cdclk_state->vco = vlv_get_hpll_vco(dev_priv);
+	cdclk_state->cdclk = vlv_get_cck_clock(dev_priv, "cdclk",
+					       CCK_DISPLAY_CLOCK_CONTROL,
+					       cdclk_state->vco);
 }
 
 static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
@@ -411,7 +458,7 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	else
 		default_credits = PFI_CREDIT(8);
 
-	if (dev_priv->cdclk_freq >= dev_priv->czclk_freq) {
+	if (dev_priv->cdclk.hw.cdclk >= dev_priv->czclk_freq) {
 		/* CHV suggested value is 31 or 63 */
 		if (IS_CHERRYVIEW(dev_priv))
 			credits = PFI_CREDIT_63;
@@ -442,8 +489,6 @@ static void vlv_set_cdclk(struct drm_device *dev, int cdclk)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
-
-	WARN_ON(dev_priv->display.get_cdclk(dev_priv) != dev_priv->cdclk_freq);
 
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
 		cmd = 2;
@@ -508,8 +553,6 @@ static void chv_set_cdclk(struct drm_device *dev, int cdclk)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
 
-	WARN_ON(dev_priv->display.get_cdclk(dev_priv) != dev_priv->cdclk_freq);
-
 	switch (cdclk) {
 	case 333333:
 	case 320000:
@@ -555,23 +598,24 @@ static int bdw_calc_cdclk(int max_pixclk)
 		return 337500;
 }
 
-static int bdw_get_cdclk(struct drm_i915_private *dev_priv)
+static void bdw_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
 	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
 	if (lcpll & LCPLL_CD_SOURCE_FCLK)
-		return 800000;
+		cdclk_state->cdclk = 800000;
 	else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
-		return 450000;
+		cdclk_state->cdclk = 450000;
 	else if (freq == LCPLL_CLK_FREQ_450)
-		return 450000;
+		cdclk_state->cdclk = 450000;
 	else if (freq == LCPLL_CLK_FREQ_54O_BDW)
-		return 540000;
+		cdclk_state->cdclk = 540000;
 	else if (freq == LCPLL_CLK_FREQ_337_5_BDW)
-		return 337500;
+		cdclk_state->cdclk = 337500;
 	else
-		return 675000;
+		cdclk_state->cdclk = 675000;
 }
 
 static void bdw_set_cdclk(struct drm_device *dev, int cdclk)
@@ -648,9 +692,9 @@ static void bdw_set_cdclk(struct drm_device *dev, int cdclk)
 
 	intel_update_cdclk(dev_priv);
 
-	WARN(cdclk != dev_priv->cdclk_freq,
+	WARN(cdclk != dev_priv->cdclk.hw.cdclk,
 	     "cdclk requested %d kHz but got %d kHz\n",
-	     cdclk, dev_priv->cdclk_freq);
+	     cdclk, dev_priv->cdclk.hw.cdclk);
 }
 
 static int skl_calc_cdclk(int max_pixclk, int vco)
@@ -676,12 +720,13 @@ static int skl_calc_cdclk(int max_pixclk, int vco)
 	}
 }
 
-static void skl_dpll0_update(struct drm_i915_private *dev_priv)
+static void skl_dpll0_update(struct drm_i915_private *dev_priv,
+			     struct intel_cdclk_state *cdclk_state)
 {
 	u32 val;
 
-	dev_priv->cdclk_pll.ref = 24000;
-	dev_priv->cdclk_pll.vco = 0;
+	cdclk_state->ref = 24000;
+	cdclk_state->vco = 0;
 
 	val = I915_READ(LCPLL1_CTL);
 	if ((val & LCPLL_PLL_ENABLE) == 0)
@@ -703,11 +748,11 @@ static void skl_dpll0_update(struct drm_i915_private *dev_priv)
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, SKL_DPLL0):
-		dev_priv->cdclk_pll.vco = 8100000;
+		cdclk_state->vco = 8100000;
 		break;
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, SKL_DPLL0):
-		dev_priv->cdclk_pll.vco = 8640000;
+		cdclk_state->vco = 8640000;
 		break;
 	default:
 		MISSING_CASE(val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
@@ -715,46 +760,57 @@ static void skl_dpll0_update(struct drm_i915_private *dev_priv)
 	}
 }
 
-static int skl_get_cdclk(struct drm_i915_private *dev_priv)
+static void skl_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	u32 cdctl;
 
-	skl_dpll0_update(dev_priv);
+	skl_dpll0_update(dev_priv, cdclk_state);
 
-	if (dev_priv->cdclk_pll.vco == 0)
-		return dev_priv->cdclk_pll.ref;
+	cdclk_state->cdclk = cdclk_state->ref;
+
+	if (cdclk_state->vco == 0)
+		return;
 
 	cdctl = I915_READ(CDCLK_CTL);
 
-	if (dev_priv->cdclk_pll.vco == 8640000) {
+	if (cdclk_state->vco == 8640000) {
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:
-			return 432000;
+			cdclk_state->cdclk = 432000;
+			break;
 		case CDCLK_FREQ_337_308:
-			return 308571;
+			cdclk_state->cdclk = 308571;
+			break;
 		case CDCLK_FREQ_540:
-			return 540000;
+			cdclk_state->cdclk = 540000;
+			break;
 		case CDCLK_FREQ_675_617:
-			return 617143;
+			cdclk_state->cdclk = 617143;
+			break;
 		default:
 			MISSING_CASE(cdctl & CDCLK_FREQ_SEL_MASK);
+			break;
 		}
 	} else {
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:
-			return 450000;
+			cdclk_state->cdclk = 450000;
+			break;
 		case CDCLK_FREQ_337_308:
-			return 337500;
+			cdclk_state->cdclk = 337500;
+			break;
 		case CDCLK_FREQ_540:
-			return 540000;
+			cdclk_state->cdclk = 540000;
+			break;
 		case CDCLK_FREQ_675_617:
-			return 675000;
+			cdclk_state->cdclk = 675000;
+			break;
 		default:
 			MISSING_CASE(cdctl & CDCLK_FREQ_SEL_MASK);
+			break;
 		}
 	}
-
-	return dev_priv->cdclk_pll.ref;
 }
 
 /* convert from kHz to .1 fixpoint MHz with -1MHz offset */
@@ -817,7 +873,7 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 				    5))
 		DRM_ERROR("DPLL0 not locked\n");
 
-	dev_priv->cdclk_pll.vco = vco;
+	dev_priv->cdclk.hw.vco = vco;
 
 	/* We'll want to keep using the current vco from now on. */
 	skl_set_preferred_cdclk_vco(dev_priv, vco);
@@ -831,7 +887,7 @@ static void skl_dpll0_disable(struct drm_i915_private *dev_priv)
 				   1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
 
-	dev_priv->cdclk_pll.vco = 0;
+	dev_priv->cdclk.hw.vco = 0;
 }
 
 static void skl_set_cdclk(struct drm_i915_private *dev_priv,
@@ -881,11 +937,11 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	if (dev_priv->cdclk_pll.vco != 0 &&
-	    dev_priv->cdclk_pll.vco != vco)
+	if (dev_priv->cdclk.hw.vco != 0 &&
+	    dev_priv->cdclk.hw.vco != vco)
 		skl_dpll0_disable(dev_priv);
 
-	if (dev_priv->cdclk_pll.vco != vco)
+	if (dev_priv->cdclk.hw.vco != vco)
 		skl_dpll0_enable(dev_priv, vco);
 
 	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
@@ -913,8 +969,8 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 
 	intel_update_cdclk(dev_priv);
 	/* Is PLL enabled and locked ? */
-	if (dev_priv->cdclk_pll.vco == 0 ||
-	    dev_priv->cdclk_freq == dev_priv->cdclk_pll.ref)
+	if (dev_priv->cdclk.hw.vco == 0 ||
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -925,7 +981,7 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	cdctl = I915_READ(CDCLK_CTL);
 	expected = (cdctl & CDCLK_FREQ_SEL_MASK) |
-		skl_cdclk_decimal(dev_priv->cdclk_freq);
+		skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk);
 	if (cdctl == expected)
 		/* All well; nothing to sanitize */
 		return;
@@ -934,9 +990,9 @@ sanitize:
 	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	/* force cdclk programming */
-	dev_priv->cdclk_freq = 0;
+	dev_priv->cdclk.hw.cdclk = 0;
 	/* force full PLL disable + enable */
-	dev_priv->cdclk_pll.vco = -1;
+	dev_priv->cdclk.hw.vco = -1;
 }
 
 /**
@@ -954,14 +1010,15 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 
 	skl_sanitize_cdclk(dev_priv);
 
-	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0) {
+	if (dev_priv->cdclk.hw.cdclk != 0 &&
+	    dev_priv->cdclk.hw.vco != 0) {
 		/*
 		 * Use the current vco as our initial
 		 * guess as to what the preferred vco is.
 		 */
 		if (dev_priv->skl_preferred_vco_freq == 0)
 			skl_set_preferred_cdclk_vco(dev_priv,
-						    dev_priv->cdclk_pll.vco);
+						    dev_priv->cdclk.hw.vco);
 		return;
 	}
 
@@ -982,7 +1039,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
  */
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	skl_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref, 0);
+	skl_set_cdclk(dev_priv, dev_priv->cdclk.hw.ref, 0);
 }
 
 static int bxt_calc_cdclk(int max_pixclk)
@@ -1013,7 +1070,7 @@ static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
 
-	if (cdclk == dev_priv->cdclk_pll.ref)
+	if (cdclk == dev_priv->cdclk.hw.ref)
 		return 0;
 
 	switch (cdclk) {
@@ -1030,14 +1087,14 @@ static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 		break;
 	}
 
-	return dev_priv->cdclk_pll.ref * ratio;
+	return dev_priv->cdclk.hw.ref * ratio;
 }
 
 static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
 
-	if (cdclk == dev_priv->cdclk_pll.ref)
+	if (cdclk == dev_priv->cdclk.hw.ref)
 		return 0;
 
 	switch (cdclk) {
@@ -1050,15 +1107,16 @@ static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 		break;
 	}
 
-	return dev_priv->cdclk_pll.ref * ratio;
+	return dev_priv->cdclk.hw.ref * ratio;
 }
 
-static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
+static void bxt_de_pll_update(struct drm_i915_private *dev_priv,
+			      struct intel_cdclk_state *cdclk_state)
 {
 	u32 val;
 
-	dev_priv->cdclk_pll.ref = 19200;
-	dev_priv->cdclk_pll.vco = 0;
+	cdclk_state->ref = 19200;
+	cdclk_state->vco = 0;
 
 	val = I915_READ(BXT_DE_PLL_ENABLE);
 	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
@@ -1068,20 +1126,21 @@ static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
 		return;
 
 	val = I915_READ(BXT_DE_PLL_CTL);
-	dev_priv->cdclk_pll.vco = (val & BXT_DE_PLL_RATIO_MASK) *
-		dev_priv->cdclk_pll.ref;
+	cdclk_state->vco = (val & BXT_DE_PLL_RATIO_MASK) * cdclk_state->ref;
 }
 
-static int bxt_get_cdclk(struct drm_i915_private *dev_priv)
+static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state)
 {
 	u32 divider;
-	int div, vco;
+	int div;
 
-	bxt_de_pll_update(dev_priv);
+	bxt_de_pll_update(dev_priv, cdclk_state);
 
-	vco = dev_priv->cdclk_pll.vco;
-	if (vco == 0)
-		return dev_priv->cdclk_pll.ref;
+	cdclk_state->cdclk = cdclk_state->ref;
+
+	if (cdclk_state->vco == 0)
+		return;
 
 	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
 
@@ -1101,10 +1160,10 @@ static int bxt_get_cdclk(struct drm_i915_private *dev_priv)
 		break;
 	default:
 		MISSING_CASE(divider);
-		return dev_priv->cdclk_pll.ref;
+		return;
 	}
 
-	return DIV_ROUND_CLOSEST(vco, div);
+	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco, div);
 }
 
 static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
@@ -1117,12 +1176,12 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 				    1))
 		DRM_ERROR("timeout waiting for DE PLL unlock\n");
 
-	dev_priv->cdclk_pll.vco = 0;
+	dev_priv->cdclk.hw.vco = 0;
 }
 
 static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 {
-	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk_pll.ref);
+	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk.hw.ref);
 	u32 val;
 
 	val = I915_READ(BXT_DE_PLL_CTL);
@@ -1140,7 +1199,7 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 				    1))
 		DRM_ERROR("timeout waiting for DE PLL lock\n");
 
-	dev_priv->cdclk_pll.vco = vco;
+	dev_priv->cdclk.hw.vco = vco;
 }
 
 static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
@@ -1168,7 +1227,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
 		break;
 	default:
-		WARN_ON(cdclk != dev_priv->cdclk_pll.ref);
+		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
 		WARN_ON(vco != 0);
 
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
@@ -1187,11 +1246,11 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (dev_priv->cdclk_pll.vco != 0 &&
-	    dev_priv->cdclk_pll.vco != vco)
+	if (dev_priv->cdclk.hw.vco != 0 &&
+	    dev_priv->cdclk.hw.vco != vco)
 		bxt_de_pll_disable(dev_priv);
 
-	if (dev_priv->cdclk_pll.vco != vco)
+	if (dev_priv->cdclk.hw.vco != vco)
 		bxt_de_pll_enable(dev_priv, vco);
 
 	val = divider | skl_cdclk_decimal(cdclk);
@@ -1228,8 +1287,8 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 
 	intel_update_cdclk(dev_priv);
 
-	if (dev_priv->cdclk_pll.vco == 0 ||
-	    dev_priv->cdclk_freq == dev_priv->cdclk_pll.ref)
+	if (dev_priv->cdclk.hw.vco == 0 ||
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -1247,12 +1306,12 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	cdctl &= ~BXT_CDCLK_CD2X_PIPE_NONE;
 
 	expected = (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) |
-		   skl_cdclk_decimal(dev_priv->cdclk_freq);
+		skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk);
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 	 * enable otherwise.
 	 */
-	if (dev_priv->cdclk_freq >= 500000)
+	if (dev_priv->cdclk.hw.cdclk >= 500000)
 		expected |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 	if (cdctl == expected)
@@ -1263,10 +1322,10 @@ sanitize:
 	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	/* force cdclk programming */
-	dev_priv->cdclk_freq = 0;
+	dev_priv->cdclk.hw.cdclk = 0;
 
 	/* force full PLL disable + enable */
-	dev_priv->cdclk_pll.vco = -1;
+	dev_priv->cdclk.hw.vco = -1;
 }
 
 /**
@@ -1284,7 +1343,8 @@ void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 
 	bxt_sanitize_cdclk(dev_priv);
 
-	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0)
+	if (dev_priv->cdclk.hw.cdclk != 0 &&
+	    dev_priv->cdclk.hw.vco != 0)
 		return;
 
 	/*
@@ -1312,7 +1372,21 @@ void bxt_init_cdclk(struct drm_i915_private *dev_priv)
  */
 void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	bxt_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref, 0);
+	bxt_set_cdclk(dev_priv, dev_priv->cdclk.hw.ref, 0);
+}
+
+/**
+ * intel_cdclk_state_compare - Determine if two CDCLK states differ
+ * @a: first CDCLK state
+ * @b: second CDCLK state
+ *
+ * Returns:
+ * True if the CDCLK states are identical, false if they differ.
+ */
+bool intel_cdclk_state_compare(const struct intel_cdclk_state *a,
+			       const struct intel_cdclk_state *b)
+{
+	return memcmp(a, b, sizeof(*a)) == 0;
 }
 
 static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
@@ -1620,7 +1694,7 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 		dev_priv->max_cdclk_freq = 400000;
 	} else {
 		/* otherwise assume cdclk is fixed */
-		dev_priv->max_cdclk_freq = dev_priv->cdclk_freq;
+		dev_priv->max_cdclk_freq = dev_priv->cdclk.hw.cdclk;
 	}
 
 	dev_priv->max_dotclk_freq = intel_compute_max_dotclk(dev_priv);
@@ -1640,15 +1714,11 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_cdclk(struct drm_i915_private *dev_priv)
 {
-	dev_priv->cdclk_freq = dev_priv->display.get_cdclk(dev_priv);
+	dev_priv->display.get_cdclk(dev_priv, &dev_priv->cdclk.hw);
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
-				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco,
-				 dev_priv->cdclk_pll.ref);
-	else
-		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
-				 dev_priv->cdclk_freq);
+	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
+			 dev_priv->cdclk.hw.cdclk, dev_priv->cdclk.hw.vco,
+			 dev_priv->cdclk.hw.ref);
 
 	/*
 	 * 9:0 CMBUS [sic] CDCLK frequency (cdfreq):
@@ -1658,7 +1728,7 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GMBUSFREQ_VLV,
-			   DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
+			   DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
 }
 
 static int pch_rawclk(struct drm_i915_private *dev_priv)

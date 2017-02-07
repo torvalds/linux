@@ -600,9 +600,11 @@ struct intel_initial_plane_config;
 struct intel_crtc;
 struct intel_limit;
 struct dpll;
+struct intel_cdclk_state;
 
 struct drm_i915_display_funcs {
-	int (*get_cdclk)(struct drm_i915_private *dev_priv);
+	void (*get_cdclk)(struct drm_i915_private *dev_priv,
+			  struct intel_cdclk_state *cdclk_state);
 	int (*get_fifo_size)(struct drm_i915_private *dev_priv, int plane);
 	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
 	int (*compute_intermediate_wm)(struct drm_device *dev,
@@ -2060,6 +2062,10 @@ struct i915_oa_ops {
 	bool (*oa_buffer_is_empty)(struct drm_i915_private *dev_priv);
 };
 
+struct intel_cdclk_state {
+	unsigned int cdclk, vco, ref;
+};
+
 struct drm_i915_private {
 	struct drm_device drm;
 
@@ -2164,7 +2170,7 @@ struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_preferred_vco_freq;
-	unsigned int cdclk_freq, max_cdclk_freq;
+	unsigned int max_cdclk_freq;
 
 	/*
 	 * For reading holding any crtc lock is sufficient,
@@ -2178,8 +2184,8 @@ struct drm_i915_private {
 	unsigned int czclk_freq;
 
 	struct {
-		unsigned int vco, ref;
-	} cdclk_pll;
+		struct intel_cdclk_state hw;
+	} cdclk;
 
 	/**
 	 * wq - Driver workqueue for GEM.

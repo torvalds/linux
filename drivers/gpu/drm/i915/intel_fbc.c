@@ -817,7 +817,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
-	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk_freq * 95 / 100) {
+	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk.hw.cdclk * 95 / 100) {
 		fbc->no_fbc_reason = "pixel rate is too big";
 		return false;
 	}

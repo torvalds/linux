@@ -1251,10 +1251,13 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
+bool intel_cdclk_state_compare(const struct intel_cdclk_state *a,
+			       const struct intel_cdclk_state *b);
 
 /* intel_display.c */
 enum transcoder intel_crtc_pch_transcoder(struct intel_crtc *crtc);
 void intel_update_rawclk(struct drm_i915_private *dev_priv);
+int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
 int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,

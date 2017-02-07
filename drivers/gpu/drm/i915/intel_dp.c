@@ -918,7 +918,7 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * divide by 2000 and use that
 	 */
 	if (intel_dig_port->port == PORT_A)
-		return DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 2000);
+		return DIV_ROUND_CLOSEST(dev_priv->cdclk.hw.cdclk, 2000);
 	else
 		return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
 }

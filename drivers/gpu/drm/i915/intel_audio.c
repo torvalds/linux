@@ -734,7 +734,7 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
 		return -ENODEV;
 
-	return dev_priv->cdclk_freq;
+	return dev_priv->cdclk.hw.cdclk;
 }
 
 /*
