@@ -430,6 +430,7 @@ expecially||especially
 explicite||explicit
 explicitely||explicitly
 explict||explicit
+explictely||explicitly
 explictly||explicitly
 expresion||expression
 exprimental||experimental
