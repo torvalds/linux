@@ -139,7 +139,7 @@ static int snd_bcm2835_alsa_probe_dt(struct platform_device *pdev)
 
 	err = snd_card_register(card);
 	if (err) {
-		dev_err(dev, "Failed to register bcm2835 ALSA card \n");
+		dev_err(dev, "Failed to register bcm2835 ALSA card\n");
 		goto err_free;
 	}
 
