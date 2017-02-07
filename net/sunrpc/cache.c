@@ -1427,20 +1427,11 @@ static ssize_t read_flush(struct file *file, char __user *buf,
 			  struct cache_detail *cd)
 {
 	char tbuf[22];
-	unsigned long p = *ppos;
 	size_t len;
 
-	snprintf(tbuf, sizeof(tbuf), "%lu\n", convert_to_wallclock(cd->flush_time));
-	len = strlen(tbuf);
-	if (p >= len)
-		return 0;
-	len -= p;
-	if (len > count)
-		len = count;
-	if (copy_to_user(buf, (void*)(tbuf+p), len))
-		return -EFAULT;
-	*ppos += len;
-	return len;
+	len = snprintf(tbuf, sizeof(tbuf), "%lu\n",
+			convert_to_wallclock(cd->flush_time));
+	return simple_read_from_buffer(buf, count, ppos, tbuf, len);
 }
 
 static ssize_t write_flush(struct file *file, const char __user *buf,
