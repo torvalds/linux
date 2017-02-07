@@ -1206,7 +1206,7 @@ unsigned long do_mmap(struct file *file,
 			vm_flags_t vm_flags,
 			unsigned long pgoff,
 			unsigned long *populate,
-			struct list_head *uf_unused)
+			struct list_head *uf)
 {
 	struct vm_area_struct *vma;
 	struct vm_region *region;
