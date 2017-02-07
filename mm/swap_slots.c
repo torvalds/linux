@@ -303,7 +303,16 @@ swp_entry_t get_swap_page(void)
 	swp_entry_t entry, *pentry;
 	struct swap_slots_cache *cache;
 
-	cache = this_cpu_ptr(&swp_slots);
+	/*
+	 * Preemption is allowed here, because we may sleep
+	 * in refill_swap_slots_cache().  But it is safe, because
+	 * accesses to the per-CPU data structure are protected by the
+	 * mutex cache->alloc_lock.
+	 *
+	 * The alloc path here does not touch cache->slots_ret
+	 * so cache->free_lock is not taken.
+	 */
+	cache = raw_cpu_ptr(&swp_slots);
 
 	entry.val = 0;
 	if (check_cache_active()) {
