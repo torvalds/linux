@@ -163,7 +163,7 @@ static int snd_bcm2835_alsa_remove(struct platform_device *pdev)
 
 	drv_data = platform_get_drvdata(pdev);
 
-	if (drv_data == (void *) g_card) {
+	if (drv_data == (void *)g_card) {
 		/* This is the card device */
 		snd_card_free((struct snd_card *)drv_data);
 		g_card = NULL;
