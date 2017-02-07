@@ -139,6 +139,19 @@
 		enable-active-high;
 		regulator-boot-on;
 	};
+
+	/*
+	 * This is a simple voltage divider on VCC5V to provide a 2.5V
+	 * reference signal to the ADC.
+	 */
+	adc_ref: regulator2 {
+		compatible = "regulator-fixed";
+		regulator-name = "adc ref";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v>;
+	};
 };
 
 &pmx_core {
@@ -292,6 +305,14 @@
 				reg = <0xcb0000 0x2f0000>;
 			};
 		};
+	};
+
+	adc: adc@3 {
+		compatible = "ti,ads7957";
+		reg = <3>;
+		#io-channel-cells = <1>;
+		spi-max-frequency = <10000000>;
+		vref-supply = <&adc_ref>;
 	};
 };
 
