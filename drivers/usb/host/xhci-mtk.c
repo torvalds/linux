@@ -559,10 +559,17 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(mtk->sys_clk);
 	}
 
+	/*
+	 * reference clock is usually a "fixed-clock", make it optional
+	 * for backward compatibility and ignore the error if it does
+	 * not exist.
+	 */
 	mtk->ref_clk = devm_clk_get(dev, "ref_ck");
 	if (IS_ERR(mtk->ref_clk)) {
-		dev_err(dev, "fail to get ref_ck\n");
-		return PTR_ERR(mtk->ref_clk);
+		if (PTR_ERR(mtk->ref_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		mtk->ref_clk = NULL;
 	}
 
 	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
