@@ -7385,12 +7385,12 @@ static int valleyview_get_cdclk(struct drm_i915_private *dev_priv)
 				      CCK_DISPLAY_CLOCK_CONTROL);
 }
 
-static int ilk_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_450mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 450000;
 }
 
-static int i945_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_400mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 400000;
 }
@@ -7415,12 +7415,12 @@ static int i945gm_get_cdclk(struct drm_i915_private *dev_priv)
 	}
 }
 
-static int i915_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_333mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 333333;
 }
 
-static int i9xx_misc_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_200mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 200000;
 }
@@ -7470,7 +7470,7 @@ static int i915gm_get_cdclk(struct drm_i915_private *dev_priv)
 	}
 }
 
-static int i865_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_266mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 266667;
 }
@@ -7513,7 +7513,7 @@ static int i85x_get_cdclk(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int i830_get_cdclk(struct drm_i915_private *dev_priv)
+static int fixed_133mhz_get_cdclk(struct drm_i915_private *dev_priv)
 {
 	return 133333;
 }
@@ -16249,34 +16249,39 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = haswell_get_cdclk;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.get_cdclk = valleyview_get_cdclk;
+	else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
+		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
 	else if (IS_GEN5(dev_priv))
-		dev_priv->display.get_cdclk = ilk_get_cdclk;
-	else if (IS_I945G(dev_priv) || IS_I965G(dev_priv) ||
-		 IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
-		dev_priv->display.get_cdclk = i945_get_cdclk;
+		dev_priv->display.get_cdclk = fixed_450mhz_get_cdclk;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_cdclk = gm45_get_cdclk;
+	else if (IS_G4X(dev_priv))
+		dev_priv->display.get_cdclk = g33_get_cdclk;
 	else if (IS_I965GM(dev_priv))
 		dev_priv->display.get_cdclk = i965gm_get_cdclk;
+	else if (IS_I965G(dev_priv))
+		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
 	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.get_cdclk = pnv_get_cdclk;
-	else if (IS_G33(dev_priv) || IS_G4X(dev_priv))
+	else if (IS_G33(dev_priv))
 		dev_priv->display.get_cdclk = g33_get_cdclk;
-	else if (IS_I915G(dev_priv))
-		dev_priv->display.get_cdclk = i915_get_cdclk;
-	else if (IS_I845G(dev_priv))
-		dev_priv->display.get_cdclk = i9xx_misc_get_cdclk;
 	else if (IS_I945GM(dev_priv))
 		dev_priv->display.get_cdclk = i945gm_get_cdclk;
+	else if (IS_I945G(dev_priv))
+		dev_priv->display.get_cdclk = fixed_400mhz_get_cdclk;
 	else if (IS_I915GM(dev_priv))
 		dev_priv->display.get_cdclk = i915gm_get_cdclk;
+	else if (IS_I915G(dev_priv))
+		dev_priv->display.get_cdclk = fixed_333mhz_get_cdclk;
 	else if (IS_I865G(dev_priv))
-		dev_priv->display.get_cdclk = i865_get_cdclk;
+		dev_priv->display.get_cdclk = fixed_266mhz_get_cdclk;
 	else if (IS_I85X(dev_priv))
 		dev_priv->display.get_cdclk = i85x_get_cdclk;
+	else  if (IS_I845G(dev_priv))
+		dev_priv->display.get_cdclk = fixed_200mhz_get_cdclk;
 	else { /* 830 */
 		WARN(!IS_I830(dev_priv), "Unknown platform. Assuming 133 MHz CDCLK\n");
-		dev_priv->display.get_cdclk = i830_get_cdclk;
+		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
 	}
 
 	if (IS_GEN5(dev_priv)) {
