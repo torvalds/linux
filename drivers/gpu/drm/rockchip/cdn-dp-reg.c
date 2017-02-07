@@ -592,7 +592,7 @@ static int cdn_dp_get_msa_misc(struct video_info *video,
 			       struct drm_display_mode *mode)
 {
 	u32 msa_misc;
-	u8 val[2];
+	u8 val[2] = {0};
 
 	switch (video->color_fmt) {
 	case PXL_RGB:
