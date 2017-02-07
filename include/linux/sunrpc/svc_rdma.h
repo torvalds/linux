@@ -141,7 +141,8 @@ struct svcxprt_rdma {
 	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */
 	unsigned int	     sc_rq_depth;	/* Depth of RQ */
-	u32		     sc_max_requests;	/* Forward credits */
+	__be32		     sc_fc_credits;	/* Forward credits */
+	u32		     sc_max_requests;	/* Max requests */
 	u32		     sc_max_bc_requests;/* Backward credits */
 	int                  sc_max_req_size;	/* Size of each RQ WR buf */
 
@@ -214,10 +215,6 @@ extern void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *, int);
 extern void svc_rdma_xdr_encode_reply_array(struct rpcrdma_write_array *, int);
 extern void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *, int,
 					    __be32, __be64, u32);
-extern void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *,
-					     struct rpcrdma_msg *,
-					     struct rpcrdma_msg *,
-					     enum rpcrdma_proc);
 extern unsigned int svc_rdma_xdr_get_reply_hdr_len(__be32 *rdma_resp);
 
 /* svc_rdma_recvfrom.c */

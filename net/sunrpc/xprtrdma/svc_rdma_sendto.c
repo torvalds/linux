@@ -560,12 +560,12 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	struct rpcrdma_msg *rdma_argp;
 	struct rpcrdma_msg *rdma_resp;
 	struct rpcrdma_write_array *wr_ary, *rp_ary;
-	enum rpcrdma_proc reply_type;
 	int ret;
 	int inline_bytes;
 	struct page *res_page;
 	struct svc_rdma_req_map *vec;
 	u32 inv_rkey;
+	__be32 *p;
 
 	dprintk("svcrdma: sending response for rqstp=%p\n", rqstp);
 
@@ -597,12 +597,17 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	if (!res_page)
 		goto err0;
 	rdma_resp = page_address(res_page);
-	if (rp_ary)
-		reply_type = RDMA_NOMSG;
-	else
-		reply_type = RDMA_MSG;
-	svc_rdma_xdr_encode_reply_header(rdma, rdma_argp,
-					 rdma_resp, reply_type);
+
+	p = &rdma_resp->rm_xid;
+	*p++ = rdma_argp->rm_xid;
+	*p++ = rdma_argp->rm_vers;
+	*p++ = rdma->sc_fc_credits;
+	*p++ = rp_ary ? rdma_nomsg : rdma_msg;
+
+	/* Start with empty chunks */
+	*p++ = xdr_zero;
+	*p++ = xdr_zero;
+	*p   = xdr_zero;
 
 	/* Send any write-chunk data and build resp write-list */
 	if (wr_ary) {

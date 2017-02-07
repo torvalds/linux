@@ -249,7 +249,7 @@ int svc_rdma_xdr_encode_error(struct svcxprt_rdma *xprt,
 
 	*va++ = rmsgp->rm_xid;
 	*va++ = rmsgp->rm_vers;
-	*va++ = cpu_to_be32(xprt->sc_max_requests);
+	*va++ = xprt->sc_fc_credits;
 	*va++ = rdma_error;
 	*va++ = cpu_to_be32(err);
 	if (err == ERR_VERS) {
@@ -328,20 +328,4 @@ void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *ary,
 	seg->rs_handle = rs_handle;
 	seg->rs_offset = rs_offset;
 	seg->rs_length = cpu_to_be32(write_len);
-}
-
-void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *xprt,
-				  struct rpcrdma_msg *rdma_argp,
-				  struct rpcrdma_msg *rdma_resp,
-				  enum rpcrdma_proc rdma_type)
-{
-	rdma_resp->rm_xid = rdma_argp->rm_xid;
-	rdma_resp->rm_vers = rdma_argp->rm_vers;
-	rdma_resp->rm_credit = cpu_to_be32(xprt->sc_max_requests);
-	rdma_resp->rm_type = cpu_to_be32(rdma_type);
-
-	/* Encode <nul> chunks lists */
-	rdma_resp->rm_body.rm_chunks[0] = xdr_zero;
-	rdma_resp->rm_body.rm_chunks[1] = xdr_zero;
-	rdma_resp->rm_body.rm_chunks[2] = xdr_zero;
 }
