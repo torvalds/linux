@@ -1325,21 +1325,19 @@ static u32 gfx_v6_0_create_bitmask(u32 bit_width)
 	return (u32)(((u64)1 << bit_width) - 1);
 }
 
-static u32 gfx_v6_0_get_rb_disabled(struct amdgpu_device *adev,
-				    u32 max_rb_num_per_se,
-				    u32 sh_per_se)
+static u32 gfx_v6_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32(mmCC_RB_BACKEND_DISABLE);
-	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
-	data |= RREG32(mmGC_USER_RB_BACKEND_DISABLE);
+	data = RREG32(mmCC_RB_BACKEND_DISABLE) |
+		RREG32(mmGC_USER_RB_BACKEND_DISABLE);
 
-	data >>= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
+	data = REG_GET_FIELD(data, GC_USER_RB_BACKEND_DISABLE, BACKEND_DISABLE);
 
-	mask = gfx_v6_0_create_bitmask(max_rb_num_per_se / sh_per_se);
+	mask = gfx_v6_0_create_bitmask(adev->gfx.config.max_backends_per_se/
+					adev->gfx.config.max_sh_per_se);
 
-	return data & mask;
+	return ~data & mask;
 }
 
 static void gfx_v6_0_raster_config(struct amdgpu_device *adev, u32 *rconf)
@@ -1468,68 +1466,55 @@ static void gfx_v6_0_write_harvested_raster_configs(struct amdgpu_device *adev,
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 }
 
-static void gfx_v6_0_setup_rb(struct amdgpu_device *adev,
-			      u32 se_num, u32 sh_per_se,
-			      u32 max_rb_num_per_se)
+static void gfx_v6_0_setup_rb(struct amdgpu_device *adev)
 {
 	int i, j;
-	u32 data, mask;
-	u32 disabled_rbs = 0;
-	u32 enabled_rbs = 0;
+	u32 data;
+	u32 raster_config = 0;
+	u32 active_rbs = 0;
+	u32 rb_bitmap_width_per_sh = adev->gfx.config.max_backends_per_se /
+					adev->gfx.config.max_sh_per_se;
 	unsigned num_rb_pipes;
 
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < se_num; i++) {
-		for (j = 0; j < sh_per_se; j++) {
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
-			data = gfx_v6_0_get_rb_disabled(adev, max_rb_num_per_se, sh_per_se);
-			disabled_rbs |= data << ((i * sh_per_se + j) * 2);
+			data = gfx_v6_0_get_rb_active_bitmap(adev);
+			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
+					rb_bitmap_width_per_sh);
 		}
 	}
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
 
-	mask = 1;
-	for (i = 0; i < max_rb_num_per_se * se_num; i++) {
-		if (!(disabled_rbs & mask))
-			enabled_rbs |= mask;
-		mask <<= 1;
-	}
-
-	adev->gfx.config.backend_enable_mask = enabled_rbs;
-	adev->gfx.config.num_rbs = hweight32(enabled_rbs);
+	adev->gfx.config.backend_enable_mask = active_rbs;
+	adev->gfx.config.num_rbs = hweight32(active_rbs);
 
 	num_rb_pipes = min_t(unsigned, adev->gfx.config.max_backends_per_se *
 			     adev->gfx.config.max_shader_engines, 16);
 
-	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < se_num; i++) {
-		gfx_v6_0_select_se_sh(adev, i, 0xffffffff, 0xffffffff);
-		data = 0;
-		for (j = 0; j < sh_per_se; j++) {
-			switch (enabled_rbs & 3) {
-			case 1:
-				data |= (RASTER_CONFIG_RB_MAP_0 << (i * sh_per_se + j) * 2);
-				break;
-			case 2:
-				data |= (RASTER_CONFIG_RB_MAP_3 << (i * sh_per_se + j) * 2);
-				break;
-			case 3:
-			default:
-				data |= (RASTER_CONFIG_RB_MAP_2 << (i * sh_per_se + j) * 2);
-				break;
-			}
-			enabled_rbs >>= 2;
-		}
-		gfx_v6_0_raster_config(adev, &data);
+	gfx_v6_0_raster_config(adev, &raster_config);
 
-		if (!adev->gfx.config.backend_enable_mask ||
-				adev->gfx.config.num_rbs >= num_rb_pipes)
-			WREG32(mmPA_SC_RASTER_CONFIG, data);
-		else
-			gfx_v6_0_write_harvested_raster_configs(adev, data,
-								adev->gfx.config.backend_enable_mask,
-								num_rb_pipes);
+	if (!adev->gfx.config.backend_enable_mask ||
+			adev->gfx.config.num_rbs >= num_rb_pipes) {
+		WREG32(mmPA_SC_RASTER_CONFIG, raster_config);
+	} else {
+		gfx_v6_0_write_harvested_raster_configs(adev, raster_config,
+							adev->gfx.config.backend_enable_mask,
+							num_rb_pipes);
+	}
+
+	/* cache the values for userspace */
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
+			adev->gfx.config.rb_config[i][j].rb_backend_disable =
+				RREG32(mmCC_RB_BACKEND_DISABLE);
+			adev->gfx.config.rb_config[i][j].user_rb_backend_disable =
+				RREG32(mmGC_USER_RB_BACKEND_DISABLE);
+			adev->gfx.config.rb_config[i][j].raster_config =
+				RREG32(mmPA_SC_RASTER_CONFIG);
+		}
 	}
 	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
@@ -1735,9 +1720,7 @@ static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
 #endif
 	gfx_v6_0_tiling_mode_table_init(adev);
 
-	gfx_v6_0_setup_rb(adev, adev->gfx.config.max_shader_engines,
-		    adev->gfx.config.max_sh_per_se,
-		    adev->gfx.config.max_backends_per_se);
+	gfx_v6_0_setup_rb(adev);
 
 	gfx_v6_0_setup_spi(adev, adev->gfx.config.max_shader_engines,
 		     adev->gfx.config.max_sh_per_se,
