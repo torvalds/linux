@@ -1325,26 +1325,44 @@ sub wait_for_monitor;
 
 sub reboot {
     my ($time) = @_;
+    my $powercycle = 0;
 
-    # Make sure everything has been written to disk
-    run_ssh("sync");
+    # test if the machine can be connected to within 5 seconds
+    my $stat = run_ssh("echo check machine status", 5);
+    if (!$stat) {
+	doprint("power cycle\n");
+	$powercycle = 1;
+    }
 
-    if (defined($time)) {
+    if ($powercycle) {
+	run_command "$power_cycle";
+
 	start_monitor;
 	# flush out current monitor
 	# May contain the reboot success line
 	wait_for_monitor 1;
-    }
 
-    # try to reboot normally
-    if (run_command $reboot) {
-	if (defined($powercycle_after_reboot)) {
-	    sleep $powercycle_after_reboot;
+    } else {
+	# Make sure everything has been written to disk
+	run_ssh("sync");
+
+	if (defined($time)) {
+	    start_monitor;
+	    # flush out current monitor
+	    # May contain the reboot success line
+	    wait_for_monitor 1;
+	}
+
+	# try to reboot normally
+	if (run_command $reboot) {
+	    if (defined($powercycle_after_reboot)) {
+		sleep $powercycle_after_reboot;
+		run_command "$power_cycle";
+	    }
+	} else {
+	    # nope? power cycle it.
 	    run_command "$power_cycle";
 	}
-    } else {
-	# nope? power cycle it.
-	run_command "$power_cycle";
     }
 
     if (defined($time)) {
