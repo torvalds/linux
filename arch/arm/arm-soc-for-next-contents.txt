@@ -59,8 +59,10 @@ next/soc
 		git://git.infradead.org/linux-mvebu tags/mvebu-soc-4.11-2
 	sunxi/core
 		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-core-for-4.11
-	<no branch> (902dcd14dae10e6ddc464d5034b1709d10c30d8e)
+	brcm/maintainers
 		http://github.com/Broadcom/stblinux tags/arm-soc/for-4.11/maintainers
+	patch
+		ARM: ux500: remove deleted file from Makefile
 
 next/arm64
 	mvebu/defconfig64
@@ -248,3 +250,4 @@ next/drivers
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pm-domains-4.11
 	samsung/drivers-soc-pmu-3
 		git://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-soc-pmu-4.11-3
+
