@@ -26,13 +26,6 @@ static __be32 get_saddr(__be32 addr)
 	return addr;
 }
 
-static bool fib4_is_local(const struct sk_buff *skb)
-{
-	const struct rtable *rt = skb_rtable(skb);
-
-	return rt && (rt->rt_flags & RTCF_LOCAL);
-}
-
 #define DSCP_BITS     0xfc
 
 void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
@@ -95,8 +88,10 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	else
 		oif = NULL;
 
-	if (nft_hook(pkt) == NF_INET_PRE_ROUTING && fib4_is_local(pkt->skb)) {
-		nft_fib_store_result(dest, priv->result, pkt, LOOPBACK_IFINDEX);
+	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
+	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {
+		nft_fib_store_result(dest, priv->result, pkt,
+				     nft_in(pkt)->ifindex);
 		return;
 	}
 
@@ -131,7 +126,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	switch (res.type) {
 	case RTN_UNICAST:
 		break;
-	case RTN_LOCAL:	/* should not appear here, see fib4_is_local() above */
+	case RTN_LOCAL: /* Should not see RTN_LOCAL here */
 		return;
 	default:
 		break;

@@ -745,6 +745,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_minors;
 
+	dev->registered = true;
+
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, flags);
 		if (ret)
@@ -784,6 +786,8 @@ void drm_dev_unregister(struct drm_device *dev)
 	struct drm_map_list *r_list, *list_temp;
 
 	drm_lastclose(dev);
+
+	dev->registered = false;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_modeset_unregister_all(dev);
