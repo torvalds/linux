@@ -582,29 +582,6 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 	get_online_cpus();
 	get_online_mems();
 
-#ifdef CONFIG_SLUB
-	/*
-	 * In case of SLUB, we need to disable empty slab caching to
-	 * avoid pinning the offline memory cgroup by freeable kmem
-	 * pages charged to it. SLAB doesn't need this, as it
-	 * periodically purges unused slabs.
-	 */
-	mutex_lock(&slab_mutex);
-	list_for_each_entry(s, &slab_caches, list) {
-		c = is_root_cache(s) ? cache_from_memcg_idx(s, idx) : NULL;
-		if (c) {
-			c->cpu_partial = 0;
-			c->min_partial = 0;
-		}
-	}
-	mutex_unlock(&slab_mutex);
-	/*
-	 * kmem_cache->cpu_partial is checked locklessly (see
-	 * put_cpu_partial()). Make sure the change is visible.
-	 */
-	synchronize_sched();
-#endif
-
 	mutex_lock(&slab_mutex);
 	list_for_each_entry(s, &slab_caches, list) {
 		if (!is_root_cache(s))
@@ -616,7 +593,7 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 		if (!c)
 			continue;
 
-		__kmem_cache_shrink(c);
+		__kmem_cache_shrink(c, true);
 		arr->entries[idx] = NULL;
 	}
 	mutex_unlock(&slab_mutex);
@@ -787,7 +764,7 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
 	get_online_cpus();
 	get_online_mems();
 	kasan_cache_shrink(cachep);
-	ret = __kmem_cache_shrink(cachep);
+	ret = __kmem_cache_shrink(cachep, false);
 	put_online_mems();
 	put_online_cpus();
 	return ret;
