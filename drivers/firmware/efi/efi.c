@@ -310,7 +310,6 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 
 		early_memunmap(md, sizeof (*md));
 	}
-	pr_err_once("requested map not found.\n");
 	return -ENOENT;
 }
 
