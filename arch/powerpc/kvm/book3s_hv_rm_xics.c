@@ -36,7 +36,7 @@ EXPORT_SYMBOL(kvm_irq_bypass);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
-static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu);
+static int xics_opal_set_server(unsigned int hw_irq, int server_cpu);
 
 /* -- ICS routines -- */
 static void ics_rm_check_resend(struct kvmppc_xics *xics,
@@ -728,7 +728,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 			++vcpu->stat.pthru_host;
 			if (state->intr_cpu != pcpu) {
 				++vcpu->stat.pthru_bad_aff;
-				xics_opal_rm_set_server(state->host_irq, pcpu);
+				xics_opal_set_server(state->host_irq, pcpu);
 			}
 			state->intr_cpu = -1;
 		}
@@ -756,16 +756,16 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 	if (xics_phys) {
 		_stwcix(xics_phys + XICS_XIRR, xirr);
 	} else {
-		rc = opal_rm_int_eoi(be32_to_cpu(xirr));
+		rc = opal_int_eoi(be32_to_cpu(xirr));
 		*again = rc > 0;
 	}
 }
 
-static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu)
+static int xics_opal_set_server(unsigned int hw_irq, int server_cpu)
 {
 	unsigned int mangle_cpu = get_hard_smp_processor_id(server_cpu) << 2;
 
-	return opal_rm_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
+	return opal_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
 }
 
 /*
