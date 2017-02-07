@@ -704,17 +704,21 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
 		zswap_pool_debug("using existing", pool);
+		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
-	} else {
-		spin_unlock(&zswap_pools_lock);
-		pool = zswap_pool_create(type, compressor);
-		spin_lock(&zswap_pools_lock);
 	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!pool)
+		pool = zswap_pool_create(type, compressor);
 
 	if (pool)
 		ret = param_set_charp(s, kp);
 	else
 		ret = -EINVAL;
+
+	spin_lock(&zswap_pools_lock);
 
 	if (!ret) {
 		put_pool = zswap_pool_current();
@@ -727,7 +731,11 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 		 */
 		list_add_tail_rcu(&pool->list, &zswap_pools);
 		put_pool = pool;
-	} else if (!zswap_has_pool) {
+	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!zswap_has_pool && !pool) {
 		/* if initial pool creation failed, and this pool creation also
 		 * failed, maybe both compressor and zpool params were bad.
 		 * Allow changing this param, so pool creation will succeed
@@ -737,8 +745,6 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 		 */
 		ret = param_set_charp(s, kp);
 	}
-
-	spin_unlock(&zswap_pools_lock);
 
 	/* drop the ref from either the old current pool,
 	 * or the new pool we failed to add
