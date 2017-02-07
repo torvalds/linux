@@ -208,7 +208,6 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 	struct exynos_drm_fbdev *fbdev;
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
-	unsigned int num_crtc;
 	int ret;
 
 	if (!dev->mode_config.num_crtc || !dev->mode_config.num_connector)
@@ -225,9 +224,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
 
-	num_crtc = dev->mode_config.num_crtc;
-
-	ret = drm_fb_helper_init(dev, helper, num_crtc, MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize drm fb helper.\n");
 		goto err_init;

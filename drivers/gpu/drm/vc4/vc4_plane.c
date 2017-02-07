@@ -514,9 +514,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	if (lbm_size) {
 		if (!vc4_state->lbm.allocated) {
 			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-			ret = drm_mm_insert_node(&vc4->hvs->lbm_mm,
-						 &vc4_state->lbm,
-						 lbm_size, 32, 0);
+			ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+							 &vc4_state->lbm,
+							 lbm_size, 32, 0, 0);
 			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 		} else {
 			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);

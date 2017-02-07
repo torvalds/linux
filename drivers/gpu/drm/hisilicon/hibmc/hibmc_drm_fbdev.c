@@ -200,8 +200,7 @@ int hibmc_fbdev_init(struct hibmc_drm_private *priv)
 			      &hibmc_fbdev_helper_funcs);
 
 	/* Now just one crtc and one channel */
-	ret = drm_fb_helper_init(priv->dev,
-				 &hifbdev->helper, 1, 1);
+	ret = drm_fb_helper_init(priv->dev, &hifbdev->helper, 1);
 	if (ret) {
 		DRM_ERROR("failed to initialize fb helper: %d\n", ret);
 		return ret;
