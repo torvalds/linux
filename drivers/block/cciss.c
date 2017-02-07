@@ -4074,41 +4074,27 @@ clean_up:
 
 static void cciss_interrupt_mode(ctlr_info_t *h)
 {
-#ifdef CONFIG_PCI_MSI
-	int err;
-	struct msix_entry cciss_msix_entries[4] = { {0, 0}, {0, 1},
-	{0, 2}, {0, 3}
-	};
+	int ret;
 
 	/* Some boards advertise MSI but don't really support it */
 	if ((h->board_id == 0x40700E11) || (h->board_id == 0x40800E11) ||
 	    (h->board_id == 0x40820E11) || (h->board_id == 0x40830E11))
 		goto default_int_mode;
 
-	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
-		err = pci_enable_msix_exact(h->pdev, cciss_msix_entries, 4);
-		if (!err) {
-			h->intr[0] = cciss_msix_entries[0].vector;
-			h->intr[1] = cciss_msix_entries[1].vector;
-			h->intr[2] = cciss_msix_entries[2].vector;
-			h->intr[3] = cciss_msix_entries[3].vector;
-			h->msix_vector = 1;
-			return;
-		} else {
-			dev_warn(&h->pdev->dev,
-				"MSI-X init failed %d\n", err);
-		}
+	ret = pci_alloc_irq_vectors(h->pdev, 4, 4, PCI_IRQ_MSIX);
+	if (ret >= 0)   {
+		h->intr[0] = pci_irq_vector(h->pdev, 0);
+		h->intr[1] = pci_irq_vector(h->pdev, 1);
+		h->intr[2] = pci_irq_vector(h->pdev, 2);
+		h->intr[3] = pci_irq_vector(h->pdev, 3);
+		return;
 	}
-	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSI)) {
-		if (!pci_enable_msi(h->pdev))
-			h->msi_vector = 1;
-		else
-			dev_warn(&h->pdev->dev, "MSI init failed\n");
-	}
+
+	ret = pci_alloc_irq_vectors(h->pdev, 1, 1, PCI_IRQ_MSI);
+
 default_int_mode:
-#endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-	h->intr[h->intr_mode] = h->pdev->irq;
+	h->intr[h->intr_mode] = pci_irq_vector(h->pdev, 0);
 	return;
 }
 
@@ -4888,7 +4874,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 	irqreturn_t (*msixhandler)(int, void *),
 	irqreturn_t (*intxhandler)(int, void *))
 {
-	if (h->msix_vector || h->msi_vector) {
+	if (h->pdev->msi_enabled || h->pdev->msix_enabled) {
 		if (!request_irq(h->intr[h->intr_mode], msixhandler,
 				0, h->devname, h))
 			return 0;
@@ -4934,12 +4920,7 @@ static void cciss_undo_allocations_after_kdump_soft_reset(ctlr_info_t *h)
 	int ctlr = h->ctlr;
 
 	free_irq(h->intr[h->intr_mode], h);
-#ifdef CONFIG_PCI_MSI
-	if (h->msix_vector)
-		pci_disable_msix(h->pdev);
-	else if (h->msi_vector)
-		pci_disable_msi(h->pdev);
-#endif /* CONFIG_PCI_MSI */
+	pci_free_irq_vectors(h->pdev);
 	cciss_free_sg_chain_blocks(h->cmd_sg_list, h->nr_cmds);
 	cciss_free_scatterlists(h);
 	cciss_free_cmd_pool(h);
@@ -5295,12 +5276,7 @@ static void cciss_remove_one(struct pci_dev *pdev)
 
 	cciss_shutdown(pdev);
 
-#ifdef CONFIG_PCI_MSI
-	if (h->msix_vector)
-		pci_disable_msix(h->pdev);
-	else if (h->msi_vector)
-		pci_disable_msi(h->pdev);
-#endif				/* CONFIG_PCI_MSI */
+	pci_free_irq_vectors(h->pdev);
 
 	iounmap(h->transtable);
 	iounmap(h->cfgtable);
