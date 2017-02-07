@@ -965,11 +965,6 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			sparse->areas[0].offset =
 					PAGE_ALIGN(vgpu_aperture_offset(vgpu));
 			sparse->areas[0].size = vgpu_aperture_sz(vgpu);
-			if (!caps.buf) {
-				kfree(caps.buf);
-				caps.buf = NULL;
-				caps.size = 0;
-			}
 			break;
 
 		case VFIO_PCI_BAR3_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
