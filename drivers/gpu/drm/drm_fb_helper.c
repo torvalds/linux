@@ -781,7 +781,9 @@ EXPORT_SYMBOL(drm_fb_helper_init);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A helper to alloc fb_info and the members cmap and apertures. Called
- * by the driver within the fb_probe fb_helper callback function.
+ * by the driver within the fb_probe fb_helper callback function. Drivers do not
+ * need to release the allocated fb_info structure themselves, this is
+ * automatically done when calling drm_fb_helper_fini().
  *
  * RETURNS:
  * fb_info pointer if things went okay, pointer containing error code
@@ -835,29 +837,6 @@ void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
 
 /**
- * drm_fb_helper_release_fbi - dealloc fb_info and its members
- * @fb_helper: driver-allocated fbdev helper
- *
- * A helper to free memory taken by fb_info and the members cmap and
- * apertures
- */
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
-{
-	if (fb_helper) {
-		struct fb_info *info = fb_helper->fbdev;
-
-		if (info) {
-			if (info->cmap.len)
-				fb_dealloc_cmap(&info->cmap);
-			framebuffer_release(info);
-		}
-
-		fb_helper->fbdev = NULL;
-	}
-}
-EXPORT_SYMBOL(drm_fb_helper_release_fbi);
-
-/**
  * drm_fb_helper_fini - finialize a &struct drm_fb_helper
  * @fb_helper: driver-allocated fbdev helper
  *
@@ -866,8 +845,18 @@ EXPORT_SYMBOL(drm_fb_helper_release_fbi);
  */
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
-	if (!drm_fbdev_emulation)
+	struct fb_info *info;
+
+	if (!drm_fbdev_emulation || !fb_helper)
 		return;
+
+	info = fb_helper->fbdev;
+	if (info) {
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+	}
+	fb_helper->fbdev = NULL;
 
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {

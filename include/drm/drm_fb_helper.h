@@ -249,7 +249,6 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
@@ -352,9 +351,6 @@ drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
 }
 
 static inline void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
-{
-}
-static inline void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
 {
 }
 

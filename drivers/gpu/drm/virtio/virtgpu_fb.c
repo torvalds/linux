@@ -320,7 +320,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	ret = virtio_gpu_framebuffer_init(dev, &vfbdev->vgfb,
 					  &mode_cmd, &obj->gem_base);
 	if (ret)
-		goto err_fb_init;
+		goto err_fb_alloc;
 
 	fb = &vfbdev->vgfb.base;
 
@@ -341,8 +341,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	info->fix.mmio_len = 0;
 	return 0;
 
-err_fb_init:
-	drm_fb_helper_release_fbi(helper);
 err_fb_alloc:
 	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
 err_obj_attach:
@@ -357,7 +355,6 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 	struct virtio_gpu_framebuffer *vgfb = &vgfbdev->vgfb;
 
 	drm_fb_helper_unregister_fbi(&vgfbdev->helper);
-	drm_fb_helper_release_fbi(&vgfbdev->helper);
 
 	if (vgfb->obj)
 		vgfb->obj = NULL;

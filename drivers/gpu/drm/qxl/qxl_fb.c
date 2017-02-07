@@ -305,7 +305,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
-		goto out_destroy_fbi;
+		goto out_unref;
 	}
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -320,8 +320,6 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 		 fb->format->depth, fb->pitches[0], fb->width, fb->height);
 	return 0;
 
-out_destroy_fbi:
-	drm_fb_helper_release_fbi(&qfbdev->helper);
 out_unref:
 	if (qbo) {
 		ret = qxl_bo_reserve(qbo, false);
@@ -363,7 +361,6 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 	struct qxl_framebuffer *qfb = &qfbdev->qfb;
 
 	drm_fb_helper_unregister_fbi(&qfbdev->helper);
-	drm_fb_helper_release_fbi(&qfbdev->helper);
 
 	if (qfb->obj) {
 		qxlfb_destroy_pinned_object(qfb->obj);

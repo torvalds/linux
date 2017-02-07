@@ -253,7 +253,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (IS_ERR(vaddr)) {
 		DRM_ERROR("Failed to remap framebuffer into virtual memory\n");
 		ret = PTR_ERR(vaddr);
-		goto out_destroy_fbi;
+		goto out_unpin;
 	}
 	info->screen_base = vaddr;
 	info->screen_size = vma->node.size;
@@ -281,8 +281,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
 
-out_destroy_fbi:
-	drm_fb_helper_release_fbi(helper);
 out_unpin:
 	intel_unpin_fb_vma(vma);
 out_unlock:
@@ -543,7 +541,6 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	 */
 
 	drm_fb_helper_unregister_fbi(&ifbdev->helper);
-	drm_fb_helper_release_fbi(&ifbdev->helper);
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
