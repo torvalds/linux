@@ -225,10 +225,17 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		return PTR_ERR(ssusb->sys_clk);
 	}
 
+	/*
+	 * reference clock is usually a "fixed-clock", make it optional
+	 * for backward compatibility and ignore the error if it does
+	 * not exist.
+	 */
 	ssusb->ref_clk = devm_clk_get(dev, "ref_ck");
 	if (IS_ERR(ssusb->ref_clk)) {
-		dev_err(dev, "failed to get ref clock\n");
-		return PTR_ERR(ssusb->ref_clk);
+		if (PTR_ERR(ssusb->ref_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		ssusb->ref_clk = NULL;
 	}
 
 	ssusb->num_phys = of_count_phandle_with_args(node,
