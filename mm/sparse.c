@@ -173,8 +173,8 @@ static int __init section_active_index(phys_addr_t phys)
 	return (phys & ~(PA_SECTION_MASK)) / SECTION_ACTIVE_SIZE;
 }
 
-static unsigned long __init section_active_mask(unsigned long pfn,
-						unsigned long nr_pages)
+static unsigned long section_active_mask(unsigned long pfn,
+					 unsigned long nr_pages)
 {
 	int idx_start, idx_size;
 	phys_addr_t start, size;
