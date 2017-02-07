@@ -1813,7 +1813,7 @@ static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 	return actual_temp;
 }
 
-static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -1841,7 +1841,7 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		if (sclk_index < NUM_SCLK_LEVELS) {
 			sclk = table->entries[sclk_index].clk;
-			*value = sclk;
+			*((uint32_t *)value) = sclk;
 			return 0;
 		}
 		return -EINVAL;
@@ -1849,13 +1849,13 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
 			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
 		vddnb = cz_convert_8Bit_index_to_voltage(hwmgr, tmp);
-		*value = vddnb;
+		*((uint32_t *)value) = vddnb;
 		return 0;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
 			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
 		vddgfx = cz_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
-		*value = vddgfx;
+		*((uint32_t *)value) = vddgfx;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_VCLK:
 		if (!cz_hwmgr->uvd_power_gated) {
@@ -1863,11 +1863,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				vclk = uvd_table->entries[uvd_index].vclk;
-				*value = vclk;
+				*((uint32_t *)value) = vclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_DCLK:
 		if (!cz_hwmgr->uvd_power_gated) {
@@ -1875,11 +1875,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				dclk = uvd_table->entries[uvd_index].dclk;
-				*value = dclk;
+				*((uint32_t *)value) = dclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_ECCLK:
 		if (!cz_hwmgr->vce_power_gated) {
@@ -1887,11 +1887,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 				return -EINVAL;
 			} else {
 				ecclk = vce_table->entries[vce_index].ecclk;
-				*value = ecclk;
+				*((uint32_t *)value) = ecclk;
 				return 0;
 			}
 		}
-		*value = 0;
+		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
@@ -1901,16 +1901,16 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		} else {
 			activity_percent = 50;
 		}
-		*value = activity_percent;
+		*((uint32_t *)value) = activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*value = cz_hwmgr->uvd_power_gated ? 0 : 1;
+		*((uint32_t *)value) = cz_hwmgr->uvd_power_gated ? 0 : 1;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*value = cz_hwmgr->vce_power_gated ? 0 : 1;
+		*((uint32_t *)value) = cz_hwmgr->vce_power_gated ? 0 : 1;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		*value = cz_thermal_get_temperature(hwmgr);
+		*((uint32_t *)value) = cz_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
 		return -EINVAL;

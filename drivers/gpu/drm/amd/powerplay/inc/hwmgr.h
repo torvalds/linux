@@ -355,7 +355,7 @@ struct pp_hwmgr_func {
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
-	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
+	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, void *value);
 	int (*request_firmware)(struct pp_hwmgr *hwmgr);
 	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,

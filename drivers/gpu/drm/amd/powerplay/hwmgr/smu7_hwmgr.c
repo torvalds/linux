@@ -3289,7 +3289,7 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
 {
 	uint32_t sclk, mclk, activity_percent;
 	uint32_t offset;
@@ -3299,12 +3299,12 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
 		sclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-		*value = sclk;
+		*((uint32_t *)value) = sclk;
 		return 0;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
 		mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
-		*value = mclk;
+		*((uint32_t *)value) = mclk;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		offset = data->soft_regs_start + smum_get_offsetof(hwmgr->smumgr,
@@ -3314,16 +3314,16 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
 		activity_percent += 0x80;
 		activity_percent >>= 8;
-		*value = activity_percent > 100 ? 100 : activity_percent;
+		*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		*value = smu7_thermal_get_temperature(hwmgr);
+		*((uint32_t *)value) = smu7_thermal_get_temperature(hwmgr);
 		return 0;
 	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*value = data->uvd_power_gated ? 0 : 1;
+		*((uint32_t *)value) = data->uvd_power_gated ? 0 : 1;
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*value = data->vce_power_gated ? 0 : 1;
+		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		return 0;
 	default:
 		return -EINVAL;
