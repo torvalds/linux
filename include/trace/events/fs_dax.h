@@ -7,9 +7,9 @@
 #include <linux/tracepoint.h>
 
 DECLARE_EVENT_CLASS(dax_pmd_fault_class,
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-		struct vm_fault *vmf, pgoff_t max_pgoff, int result),
-	TP_ARGS(inode, vma, vmf, max_pgoff, result),
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+		pgoff_t max_pgoff, int result),
+	TP_ARGS(inode, vmf, max_pgoff, result),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_start)
@@ -25,9 +25,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
-		__entry->vm_start = vma->vm_start;
-		__entry->vm_end = vma->vm_end;
-		__entry->vm_flags = vma->vm_flags;
+		__entry->vm_start = vmf->vma->vm_start;
+		__entry->vm_end = vmf->vma->vm_end;
+		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
 		__entry->flags = vmf->flags;
 		__entry->pgoff = vmf->pgoff;
@@ -52,19 +52,18 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 
 #define DEFINE_PMD_FAULT_EVENT(name) \
 DEFINE_EVENT(dax_pmd_fault_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-		struct vm_fault *vmf, \
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
 		pgoff_t max_pgoff, int result), \
-	TP_ARGS(inode, vma, vmf, max_pgoff, result))
+	TP_ARGS(inode, vmf, max_pgoff, result))
 
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
 DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
 
 DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-		unsigned long address, struct page *zero_page,
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+		struct page *zero_page,
 		void *radix_entry),
-	TP_ARGS(inode, vma, address, zero_page, radix_entry),
+	TP_ARGS(inode, vmf, zero_page, radix_entry),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_flags)
@@ -76,8 +75,8 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
-		__entry->vm_flags = vma->vm_flags;
-		__entry->address = address;
+		__entry->vm_flags = vmf->vma->vm_flags;
+		__entry->address = vmf->address;
 		__entry->zero_page = zero_page;
 		__entry->radix_entry = radix_entry;
 	),
@@ -95,19 +94,17 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 
 #define DEFINE_PMD_LOAD_HOLE_EVENT(name) \
 DEFINE_EVENT(dax_pmd_load_hole_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-		unsigned long address, struct page *zero_page, \
-		void *radix_entry), \
-	TP_ARGS(inode, vma, address, zero_page, radix_entry))
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
+		struct page *zero_page, void *radix_entry), \
+	TP_ARGS(inode, vmf, zero_page, radix_entry))
 
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
 
 DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-		unsigned long address, int write, long length, pfn_t pfn,
-		void *radix_entry),
-	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry),
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
+		long length, pfn_t pfn, void *radix_entry),
+	TP_ARGS(inode, vmf, length, pfn, radix_entry),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_flags)
@@ -121,9 +118,9 @@ DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 	TP_fast_assign(
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = inode->i_ino;
-		__entry->vm_flags = vma->vm_flags;
-		__entry->address = address;
-		__entry->write = write;
+		__entry->vm_flags = vmf->vma->vm_flags;
+		__entry->address = vmf->address;
+		__entry->write = vmf->flags & FAULT_FLAG_WRITE;
 		__entry->length = length;
 		__entry->pfn_val = pfn.val;
 		__entry->radix_entry = radix_entry;
@@ -146,10 +143,9 @@ DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 
 #define DEFINE_PMD_INSERT_MAPPING_EVENT(name) \
 DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
-	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-		unsigned long address, int write, long length, pfn_t pfn, \
-		void *radix_entry), \
-	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry))
+	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
+		long length, pfn_t pfn, void *radix_entry), \
+	TP_ARGS(inode, vmf, length, pfn, radix_entry))
 
 DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
 DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
