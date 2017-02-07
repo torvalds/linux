@@ -185,6 +185,7 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 			return ret;
 	}
 
+	trace_i915_vma_bind(vma, bind_flags);
 	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
 	if (ret)
 		return ret;
