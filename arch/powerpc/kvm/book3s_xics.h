@@ -31,16 +31,19 @@
 /* Priority value to use for disabling an interrupt */
 #define MASKED	0xff
 
+#define PQ_PRESENTED	1
+#define PQ_QUEUED	2
+
 /* State for one irq source */
 struct ics_irq_state {
 	u32 number;
 	u32 server;
+	u32 pq_state;
 	u8  priority;
 	u8  saved_priority;
 	u8  resend;
 	u8  masked_pending;
 	u8  lsi;		/* level-sensitive interrupt */
-	u8  asserted; /* Only for LSI */
 	u8  exists;
 	int intr_cpu;
 	u32 host_irq;
@@ -73,7 +76,6 @@ struct kvmppc_icp {
 	 */
 #define XICS_RM_KICK_VCPU	0x1
 #define XICS_RM_CHECK_RESEND	0x2
-#define XICS_RM_REJECT		0x4
 #define XICS_RM_NOTIFY_EOI	0x8
 	u32 rm_action;
 	struct kvm_vcpu *rm_kick_target;
@@ -84,7 +86,6 @@ struct kvmppc_icp {
 	/* Counters for each reason we exited real mode */
 	unsigned long n_rm_kick_vcpu;
 	unsigned long n_rm_check_resend;
-	unsigned long n_rm_reject;
 	unsigned long n_rm_notify_eoi;
 	/* Counters for handling ICP processing in real mode */
 	unsigned long n_check_resend;
