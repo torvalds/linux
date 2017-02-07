@@ -752,7 +752,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	error = dprc_get_container_id(mc_io, 0, &container_id);
 	if (error < 0) {
 		dev_err(&pdev->dev,
-			"dpmng_get_container_id() failed: %d\n", error);
+			"dprc_get_container_id() failed: %d\n", error);
 		goto error_cleanup_mc_io;
 	}
 
