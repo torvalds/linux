@@ -332,7 +332,7 @@ EXCEPTION_ENTRY(_alignment_handler)
 
 #if 0
 EXCEPTION_ENTRY(_alignment_handler)
-//        l.mfspr r2,r0,SPR_EEAR_BASE     /* Load the efective addres */
+//        l.mfspr r2,r0,SPR_EEAR_BASE     /* Load the effective address */
 	l.addi	r2,r4,0
 //        l.mfspr r5,r0,SPR_EPCR_BASE     /* Load the insn address */
 	l.lwz   r5,PT_PC(r1)
