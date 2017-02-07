@@ -4,6 +4,8 @@
  * Jan 23 2005  Matt Mackall <mpm@selenic.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/export.h>
 #include <linux/sort.h>
@@ -102,41 +104,46 @@ void sort(void *base, size_t num, size_t size,
 
 EXPORT_SYMBOL(sort);
 
-#if 0
+#ifdef CONFIG_TEST_SORT
 #include <linux/slab.h>
+#include <linux/module.h>
 /* a simple boot-time regression test */
 
-int cmpint(const void *a, const void *b)
+#define TEST_LEN 1000
+
+static int __init cmpint(const void *a, const void *b)
 {
 	return *(int *)a - *(int *)b;
 }
 
-static int sort_test(void)
+static int __init test_sort_init(void)
 {
-	int *a, i, r = 1;
+	int *a, i, r = 1, err = -ENOMEM;
 
-	a = kmalloc(1000 * sizeof(int), GFP_KERNEL);
-	BUG_ON(!a);
+	a = kmalloc_array(TEST_LEN, sizeof(*a), GFP_KERNEL);
+	if (!a)
+		return err;
 
-	printk("testing sort()\n");
-
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < TEST_LEN; i++) {
 		r = (r * 725861) % 6599;
 		a[i] = r;
 	}
 
-	sort(a, 1000, sizeof(int), cmpint, NULL);
+	sort(a, TEST_LEN, sizeof(*a), cmpint, NULL);
 
-	for (i = 0; i < 999; i++)
+	err = -EINVAL;
+	for (i = 0; i < TEST_LEN-1; i++)
 		if (a[i] > a[i+1]) {
-			printk("sort() failed!\n");
-			break;
+			pr_err("test has failed\n");
+			goto exit;
 		}
-
+	err = 0;
+	pr_info("test passed\n");
+exit:
 	kfree(a);
-
-	return 0;
+	return err;
 }
 
-module_init(sort_test);
+module_init(test_sort_init);
+MODULE_LICENSE("GPL");
 #endif
