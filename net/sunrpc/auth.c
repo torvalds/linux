@@ -648,9 +648,6 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	cred->cr_magic = RPCAUTH_CRED_MAGIC;
-#endif
 	cred->cr_uid = acred->uid;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
