@@ -219,7 +219,7 @@ static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 {
 	struct net *net = container_of(ops, struct net, xfrm.xfrm4_dst_ops);
 
-	xfrm4_policy_afinfo.garbage_collect(net);
+	xfrm_garbage_collect_deferred(net);
 	return (dst_entries_get_slow(ops) > ops->gc_thresh * 2);
 }
 
