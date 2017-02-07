@@ -50,7 +50,7 @@ static int snd_bcm2835_dev_free(struct snd_device *device)
  */
 static int snd_bcm2835_create(struct snd_card *card,
 	struct platform_device *pdev,
-	struct bcm2835_chip ** rchip)
+	struct bcm2835_chip **rchip)
 {
 	struct bcm2835_chip *chip;
 	int err;
