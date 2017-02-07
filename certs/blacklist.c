@@ -140,7 +140,7 @@ int is_hash_blacklisted(const u8 *hash, size_t hash_len, const char *type)
 EXPORT_SYMBOL_GPL(is_hash_blacklisted);
 
 /*
- * Intialise the blacklist
+ * Initialise the blacklist
  */
 static int __init blacklist_init(void)
 {
