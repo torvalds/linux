@@ -216,7 +216,9 @@ static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		if (pte_swp_soft_dirty(*pvmw.pte))
 			pte = pte_mksoft_dirty(pte);
 
-		/* Recheck VMA as permissions can change since migration started  */
+		/*
+		 * Recheck VMA as permissions can change since migration started
+		 */
 		entry = pte_to_swp_entry(*pvmw.pte);
 		if (is_write_migration_entry(entry))
 			pte = maybe_mkwrite(pte, vma);
