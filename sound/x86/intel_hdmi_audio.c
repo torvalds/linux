@@ -1694,7 +1694,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	ctx->card = card;
 	ctx->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	strcpy(card->driver, INTEL_HAD);
-	strcpy(card->shortname, INTEL_HAD);
+	strcpy(card->shortname, "Intel HDMI/DP LPE Audio");
+	strcpy(card->longname, "Intel HDMI/DP LPE Audio");
 
 	ctx->irq = -1;
 	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
