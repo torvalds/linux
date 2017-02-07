@@ -2245,6 +2245,10 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 		*pagep = NULL;
 	}
 
+	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
+	__SetPageLocked(page);
+	__SetPageSwapBacked(page);
+
 	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
 	if (ret)
 		goto out_release;
@@ -2294,6 +2298,7 @@ out_release_uncharge_unlock:
 out_release_uncharge:
 	mem_cgroup_cancel_charge(page, memcg, false);
 out_release:
+	unlock_page(page);
 	put_page(page);
 out_dec_used_blocks:
 	if (sbinfo->max_blocks)
