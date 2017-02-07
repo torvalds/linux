@@ -4,6 +4,7 @@
 config XFRM
        bool
        depends on NET
+       select GRO_CELLS
 
 config XFRM_ALGO
 	tristate
