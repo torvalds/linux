@@ -1246,7 +1246,7 @@ static void lapic_setup_esr(void)
 /**
  * setup_local_APIC - setup the local APIC
  *
- * Used to setup local APIC while initializing BSP or bringin up APs.
+ * Used to setup local APIC while initializing BSP or bringing up APs.
  * Always called with preemption disabled.
  */
 void setup_local_APIC(void)
