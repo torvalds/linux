@@ -30,6 +30,11 @@ LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
 struct kmem_cache *kmem_cache;
 
+static LIST_HEAD(slab_caches_to_rcu_destroy);
+static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
+static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
+		    slab_caches_to_rcu_destroy_workfn);
+
 /*
  * Set of flags that will prevent slab merging
  */
@@ -215,6 +220,11 @@ int memcg_update_all_caches(int num_memcgs)
 	mutex_unlock(&slab_mutex);
 	return ret;
 }
+
+static void unlink_memcg_cache(struct kmem_cache *s)
+{
+	list_del(&s->memcg_params.list);
+}
 #else
 static inline int init_memcg_params(struct kmem_cache *s,
 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
@@ -223,6 +233,10 @@ static inline int init_memcg_params(struct kmem_cache *s,
 }
 
 static inline void destroy_memcg_params(struct kmem_cache *s)
+{
+}
+
+static inline void unlink_memcg_cache(struct kmem_cache *s)
 {
 }
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
@@ -461,33 +475,59 @@ out_unlock:
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
-static int shutdown_cache(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
 {
-	if (__kmem_cache_shutdown(s) != 0)
-		return -EBUSY;
-
-	if (s->flags & SLAB_DESTROY_BY_RCU)
-		*need_rcu_barrier = true;
-
-	list_move(&s->list, release);
-	return 0;
-}
-
-static void release_caches(struct list_head *release, bool need_rcu_barrier)
-{
+	LIST_HEAD(to_destroy);
 	struct kmem_cache *s, *s2;
 
-	if (need_rcu_barrier)
-		rcu_barrier();
+	/*
+	 * On destruction, SLAB_DESTROY_BY_RCU kmem_caches are put on the
+	 * @slab_caches_to_rcu_destroy list.  The slab pages are freed
+	 * through RCU and and the associated kmem_cache are dereferenced
+	 * while freeing the pages, so the kmem_caches should be freed only
+	 * after the pending RCU operations are finished.  As rcu_barrier()
+	 * is a pretty slow operation, we batch all pending destructions
+	 * asynchronously.
+	 */
+	mutex_lock(&slab_mutex);
+	list_splice_init(&slab_caches_to_rcu_destroy, &to_destroy);
+	mutex_unlock(&slab_mutex);
 
-	list_for_each_entry_safe(s, s2, release, list) {
+	if (list_empty(&to_destroy))
+		return;
+
+	rcu_barrier();
+
+	list_for_each_entry_safe(s, s2, &to_destroy, list) {
 #ifdef SLAB_SUPPORTS_SYSFS
 		sysfs_slab_release(s);
 #else
 		slab_kmem_cache_release(s);
 #endif
 	}
+}
+
+static int shutdown_cache(struct kmem_cache *s)
+{
+	if (__kmem_cache_shutdown(s) != 0)
+		return -EBUSY;
+
+	list_del(&s->list);
+	if (!is_root_cache(s))
+		unlink_memcg_cache(s);
+
+	if (s->flags & SLAB_DESTROY_BY_RCU) {
+		list_add_tail(&s->list, &slab_caches_to_rcu_destroy);
+		schedule_work(&slab_caches_to_rcu_destroy_work);
+	} else {
+#ifdef SLAB_SUPPORTS_SYSFS
+		sysfs_slab_release(s);
+#else
+		slab_kmem_cache_release(s);
+#endif
+	}
+
+	return 0;
 }
 
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
@@ -602,22 +642,8 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 	put_online_cpus();
 }
 
-static int __shutdown_memcg_cache(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
-{
-	BUG_ON(is_root_cache(s));
-
-	if (shutdown_cache(s, release, need_rcu_barrier))
-		return -EBUSY;
-
-	list_del(&s->memcg_params.list);
-	return 0;
-}
-
 void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 {
-	LIST_HEAD(release);
-	bool need_rcu_barrier = false;
 	struct kmem_cache *s, *s2;
 
 	get_online_cpus();
@@ -631,18 +657,15 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 		 * The cgroup is about to be freed and therefore has no charges
 		 * left. Hence, all its caches must be empty by now.
 		 */
-		BUG_ON(__shutdown_memcg_cache(s, &release, &need_rcu_barrier));
+		BUG_ON(shutdown_cache(s));
 	}
 	mutex_unlock(&slab_mutex);
 
 	put_online_mems();
 	put_online_cpus();
-
-	release_caches(&release, need_rcu_barrier);
 }
 
-static int shutdown_memcg_caches(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static int shutdown_memcg_caches(struct kmem_cache *s)
 {
 	struct memcg_cache_array *arr;
 	struct kmem_cache *c, *c2;
@@ -661,7 +684,7 @@ static int shutdown_memcg_caches(struct kmem_cache *s,
 		c = arr->entries[i];
 		if (!c)
 			continue;
-		if (__shutdown_memcg_cache(c, release, need_rcu_barrier))
+		if (shutdown_cache(c))
 			/*
 			 * The cache still has objects. Move it to a temporary
 			 * list so as not to try to destroy it for a second
@@ -684,7 +707,7 @@ static int shutdown_memcg_caches(struct kmem_cache *s,
 	 */
 	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
 				 memcg_params.list)
-		__shutdown_memcg_cache(c, release, need_rcu_barrier);
+		shutdown_cache(c);
 
 	list_splice(&busy, &s->memcg_params.list);
 
@@ -697,8 +720,7 @@ static int shutdown_memcg_caches(struct kmem_cache *s,
 	return 0;
 }
 #else
-static inline int shutdown_memcg_caches(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static inline int shutdown_memcg_caches(struct kmem_cache *s)
 {
 	return 0;
 }
@@ -714,8 +736,6 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	LIST_HEAD(release);
-	bool need_rcu_barrier = false;
 	int err;
 
 	if (unlikely(!s))
@@ -731,9 +751,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	if (s->refcount)
 		goto out_unlock;
 
-	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
+	err = shutdown_memcg_caches(s);
 	if (!err)
-		err = shutdown_cache(s, &release, &need_rcu_barrier);
+		err = shutdown_cache(s);
 
 	if (err) {
 		pr_err("kmem_cache_destroy %s: Slab cache still has objects\n",
@@ -745,8 +765,6 @@ out_unlock:
 
 	put_online_mems();
 	put_online_cpus();
-
-	release_caches(&release, need_rcu_barrier);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
