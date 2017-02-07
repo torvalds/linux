@@ -1053,7 +1053,7 @@ config ARCH_SUPPORTS_BIG_ENDIAN
 
 config DEBUG_ALIGN_RODATA
 	bool "Make rodata strictly non-executable"
-	depends on DEBUG_RODATA
+	depends on STRICT_KERNEL_RWX
 	default y
 	help
 	  If this is set, rodata will be made explicitly non-executable. This

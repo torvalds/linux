@@ -38,7 +38,7 @@
 
 #include "power.h"
 
-#ifdef CONFIG_DEBUG_RODATA
+#ifdef CONFIG_STRICT_KERNEL_RWX
 static bool hibernate_restore_protection;
 static bool hibernate_restore_protection_active;
 
@@ -73,7 +73,7 @@ static inline void hibernate_restore_protection_begin(void) {}
 static inline void hibernate_restore_protection_end(void) {}
 static inline void hibernate_restore_protect_page(void *page_address) {}
 static inline void hibernate_restore_unprotect_page(void *page_address) {}
-#endif /* CONFIG_DEBUG_RODATA */
+#endif /* CONFIG_STRICT_KERNEL_RWX */
 
 static int swsusp_page_is_free(struct page *);
 static void swsusp_set_page_forbidden(struct page *);

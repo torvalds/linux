@@ -572,7 +572,7 @@ void __init mem_init(void)
 	}
 }
 
-#ifdef CONFIG_DEBUG_RODATA
+#ifdef CONFIG_STRICT_KERNEL_RWX
 struct section_perm {
 	const char *name;
 	unsigned long start;
@@ -741,7 +741,7 @@ void set_kernel_text_ro(void)
 
 #else
 static inline void fix_kernmem_perms(void) { }
-#endif /* CONFIG_DEBUG_RODATA */
+#endif /* CONFIG_STRICT_KERNEL_RWX */
 
 void free_tcmmem(void)
 {
