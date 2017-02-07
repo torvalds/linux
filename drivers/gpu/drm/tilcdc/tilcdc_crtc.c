@@ -695,6 +695,15 @@ static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int tilcdc_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static void tilcdc_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+}
+
 static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.destroy        = tilcdc_crtc_destroy,
 	.set_config     = drm_atomic_helper_set_config,
@@ -702,6 +711,8 @@ static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.reset		= drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank	= tilcdc_crtc_enable_vblank,
+	.disable_vblank	= tilcdc_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
