@@ -3974,7 +3974,7 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 		return;
 	}
 
-	IPW_DEBUG_ASSOC("Disassocation attempt from %pM "
+	IPW_DEBUG_ASSOC("Disassociation attempt from %pM "
 			"on channel %d.\n",
 			priv->assoc_request.bssid,
 			priv->assoc_request.channel);
