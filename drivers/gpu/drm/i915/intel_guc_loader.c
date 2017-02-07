@@ -520,10 +520,6 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 
 	guc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
-	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
-		intel_uc_fw_status_repr(guc_fw->fetch_status),
-		intel_uc_fw_status_repr(guc_fw->load_status));
-
 	intel_guc_auth_huc(dev_priv);
 
 	if (i915.enable_guc_submission) {
@@ -535,6 +531,11 @@ int intel_guc_setup(struct drm_i915_private *dev_priv)
 			goto fail;
 		guc_interrupts_capture(dev_priv);
 	}
+
+	DRM_INFO("GuC %s (firmware %s [version %u.%u])\n",
+		 i915.enable_guc_submission ? "submission enabled" : "loaded",
+		 guc_fw->path,
+		 guc_fw->major_ver_found, guc_fw->minor_ver_found);
 
 	return 0;
 
