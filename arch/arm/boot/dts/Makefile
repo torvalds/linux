@@ -976,6 +976,8 @@ dtb-$(CONFIG_MACH_ARMADA_39X) += \
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
+	armada-xp-db-dxbc2.dtb \
+	armada-xp-db-xc3-24g4xg.dtb \
 	armada-xp-gp.dtb \
 	armada-xp-lenovo-ix4-300d.dtb \
 	armada-xp-linksys-mamba.dtb \
