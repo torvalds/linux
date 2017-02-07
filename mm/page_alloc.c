@@ -3915,14 +3915,6 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
 	if (should_fail_alloc_page(gfp_mask, order))
 		return false;
 
-	/*
-	 * Check the zones suitable for the gfp_mask contain at least one
-	 * valid zone. It's possible to have an empty zonelist as a result
-	 * of __GFP_THISNODE and a memoryless node
-	 */
-	if (unlikely(!ac->zonelist->_zonerefs->zone))
-		return false;
-
 	if (IS_ENABLED(CONFIG_CMA) && ac->migratetype == MIGRATE_MOVABLE)
 		*alloc_flags |= ALLOC_CMA;
 
@@ -3962,22 +3954,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		return NULL;
 
 	finalise_ac(gfp_mask, order, &ac);
-	if (!ac.preferred_zoneref->zone) {
-		page = NULL;
-		/*
-		 * This might be due to race with cpuset_current_mems_allowed
-		 * update, so make sure we retry with original nodemask in the
-		 * slow path.
-		 */
-		goto no_zone;
-	}
 
 	/* First allocation attempt */
 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
 	if (likely(page))
 		goto out;
 
-no_zone:
 	/*
 	 * Runtime PM, block IO and its error handling path can deadlock
 	 * because I/O on the device might not complete.
