@@ -95,6 +95,9 @@ struct hdac_hdmi_port {
 	int num_mux_nids;
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
 	struct hdac_hdmi_eld eld;
+	const char *jack_pin;
+	struct snd_soc_dapm_context *dapm;
+	const char *output_pin;
 };
 
 struct hdac_hdmi_pcm {
@@ -149,6 +152,11 @@ static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
 {
 	struct hdac_ext_device *edev = port->pin->edev;
 
+	if (is_connect)
+		snd_soc_dapm_enable_pin(port->dapm, port->jack_pin);
+	else
+		snd_soc_dapm_disable_pin(port->dapm, port->jack_pin);
+
 	if (is_connect) {
 		/*
 		 * Report Jack connect event when a device is connected
@@ -174,6 +182,8 @@ static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
 		if (pcm->jack_event > 0)
 			pcm->jack_event--;
 	}
+
+	snd_soc_dapm_sync(port->dapm);
 }
 
 /* MST supported verbs */
@@ -1059,6 +1069,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 					SND_SOC_DAPM_POST_PMD);
 			if (ret < 0)
 				return ret;
+			pin->ports[j].output_pin = widgets[i].name;
 			i++;
 		}
 	}
@@ -1556,6 +1567,125 @@ static struct snd_pcm *hdac_hdmi_get_pcm_from_id(struct snd_soc_card *card,
 
 	return NULL;
 }
+
+/* create jack pin kcontrols */
+static int create_fill_jack_kcontrols(struct snd_soc_card *card,
+				    struct hdac_ext_device *edev)
+{
+	struct hdac_hdmi_pin *pin;
+	struct snd_kcontrol_new *kc;
+	char kc_name[NAME_SIZE], xname[NAME_SIZE];
+	char *name;
+	int i = 0, j;
+	struct snd_soc_codec *codec = edev->scodec;
+	struct hdac_hdmi_priv *hdmi = edev->private_data;
+
+	kc = devm_kcalloc(codec->dev, hdmi->num_ports,
+				sizeof(*kc), GFP_KERNEL);
+
+	if (!kc)
+		return -ENOMEM;
+
+	list_for_each_entry(pin, &hdmi->pin_list, head) {
+		for (j = 0; j < pin->num_ports; j++) {
+			snprintf(xname, sizeof(xname), "hif%d-%d Jack",
+						pin->nid, pin->ports[j].id);
+			name = devm_kstrdup(codec->dev, xname, GFP_KERNEL);
+			if (!name)
+				return -ENOMEM;
+			snprintf(kc_name, sizeof(kc_name), "%s Switch", xname);
+			kc[i].name = devm_kstrdup(codec->dev, kc_name,
+							GFP_KERNEL);
+			if (!kc[i].name)
+				return -ENOMEM;
+
+			kc[i].private_value = (unsigned long)name;
+			kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+			kc[i].access = 0;
+			kc[i].info = snd_soc_dapm_info_pin_switch;
+			kc[i].put = snd_soc_dapm_put_pin_switch;
+			kc[i].get = snd_soc_dapm_get_pin_switch;
+			i++;
+		}
+	}
+
+	return snd_soc_add_card_controls(card, kc, i);
+}
+
+int hdac_hdmi_jack_port_init(struct snd_soc_codec *codec,
+			struct snd_soc_dapm_context *dapm)
+{
+	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	struct hdac_hdmi_pin *pin;
+	struct snd_soc_dapm_widget *widgets;
+	struct snd_soc_dapm_route *route;
+	char w_name[NAME_SIZE];
+	int i = 0, j, ret;
+
+	widgets = devm_kcalloc(dapm->dev, hdmi->num_ports,
+				sizeof(*widgets), GFP_KERNEL);
+
+	if (!widgets)
+		return -ENOMEM;
+
+	route = devm_kcalloc(dapm->dev, hdmi->num_ports,
+				sizeof(*route), GFP_KERNEL);
+	if (!route)
+		return -ENOMEM;
+
+	/* create Jack DAPM widget */
+	list_for_each_entry(pin, &hdmi->pin_list, head) {
+		for (j = 0; j < pin->num_ports; j++) {
+			snprintf(w_name, sizeof(w_name), "hif%d-%d Jack",
+						pin->nid, pin->ports[j].id);
+
+			ret = hdac_hdmi_fill_widget_info(dapm->dev, &widgets[i],
+					snd_soc_dapm_spk, NULL,
+					w_name, NULL, NULL, 0, NULL, 0);
+			if (ret < 0)
+				return ret;
+
+			pin->ports[j].jack_pin = widgets[i].name;
+			pin->ports[j].dapm = dapm;
+
+			/* add to route from Jack widget to output */
+			hdac_hdmi_fill_route(&route[i], pin->ports[j].jack_pin,
+					NULL, pin->ports[j].output_pin, NULL);
+
+			i++;
+		}
+	}
+
+	/* Add Route from Jack widget to the output widget */
+	ret = snd_soc_dapm_new_controls(dapm, widgets, hdmi->num_ports);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dapm_add_routes(dapm, route, hdmi->num_ports);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dapm_new_widgets(dapm->card);
+	if (ret < 0)
+		return ret;
+
+	/* Add Jack Pin switch Kcontrol */
+	ret = create_fill_jack_kcontrols(dapm->card, edev);
+
+	if (ret < 0)
+		return ret;
+
+	/* default set the Jack Pin switch to OFF */
+	list_for_each_entry(pin, &hdmi->pin_list, head) {
+		for (j = 0; j < pin->num_ports; j++)
+			snd_soc_dapm_disable_pin(pin->ports[j].dapm,
+						pin->ports[j].jack_pin);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hdac_hdmi_jack_port_init);
 
 int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device,
 				struct snd_soc_jack *jack)
