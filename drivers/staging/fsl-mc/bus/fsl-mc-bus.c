@@ -430,7 +430,7 @@ static void fsl_mc_device_release(struct device *dev)
 		mc_bus = to_fsl_mc_bus(mc_dev);
 
 	if (mc_bus)
-		devm_kfree(mc_dev->dev.parent, mc_bus);
+		kfree(mc_bus);
 	else
 		kmem_cache_free(mc_dev_cache, mc_dev);
 }
@@ -457,7 +457,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		/*
 		 * Allocate an MC bus device object:
 		 */
-		mc_bus = devm_kzalloc(parent_dev, sizeof(*mc_bus), GFP_KERNEL);
+		mc_bus = kzalloc(sizeof(*mc_bus), GFP_KERNEL);
 		if (!mc_bus)
 			return -ENOMEM;
 
@@ -562,7 +562,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 error_cleanup_dev:
 	kfree(mc_dev->regions);
 	if (mc_bus)
-		devm_kfree(parent_dev, mc_bus);
+		kfree(mc_bus);
 	else
 		kmem_cache_free(mc_dev_cache, mc_dev);
 
