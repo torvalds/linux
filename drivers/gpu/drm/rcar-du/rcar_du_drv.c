@@ -259,7 +259,6 @@ static struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
 				| DRIVER_ATOMIC,
 	.lastclose		= rcar_du_lastclose,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

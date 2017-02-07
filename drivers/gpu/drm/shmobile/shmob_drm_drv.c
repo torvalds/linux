@@ -256,7 +256,6 @@ static struct drm_driver shmob_drm_driver = {
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
 	.irq_handler		= shmob_drm_irq,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= shmob_drm_enable_vblank,
 	.disable_vblank		= shmob_drm_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

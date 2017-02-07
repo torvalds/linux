@@ -263,7 +263,6 @@ static struct drm_driver exynos_drm_driver = {
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,

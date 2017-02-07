@@ -213,7 +213,6 @@ static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
 	.lastclose = malidp_lastclose,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = malidp_enable_vblank,
 	.disable_vblank = malidp_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

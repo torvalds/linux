@@ -84,7 +84,6 @@ static struct drm_driver hibmc_driver = {
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= hibmc_enable_vblank,
 	.disable_vblank		= hibmc_disable_vblank,
 	.gem_free_object_unlocked = hibmc_gem_free_object,

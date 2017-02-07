@@ -278,7 +278,6 @@ static struct drm_driver hdlcd_driver = {
 	.irq_preinstall = hdlcd_irq_preinstall,
 	.irq_postinstall = hdlcd_irq_postinstall,
 	.irq_uninstall = hdlcd_irq_uninstall,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = hdlcd_enable_vblank,
 	.disable_vblank = hdlcd_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

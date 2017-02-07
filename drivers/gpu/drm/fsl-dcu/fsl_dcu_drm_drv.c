@@ -203,7 +203,6 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
 	.irq_handler		= fsl_dcu_drm_irq,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= fsl_dcu_drm_enable_vblank,
 	.disable_vblank		= fsl_dcu_drm_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

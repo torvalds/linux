@@ -341,7 +341,6 @@ static struct drm_driver mxsfb_driver = {
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_preinstall,
 	.irq_uninstall		= mxsfb_irq_preinstall,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
 	.gem_free_object	= drm_gem_cma_free_object,

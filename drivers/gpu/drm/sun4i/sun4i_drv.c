@@ -92,7 +92,6 @@ static struct drm_driver sun4i_drv_driver = {
 	/* Frame Buffer Operations */
 
 	/* VBlank Operations */
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= sun4i_drv_enable_vblank,
 	.disable_vblank		= sun4i_drv_disable_vblank,
 };

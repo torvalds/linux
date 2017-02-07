@@ -129,7 +129,6 @@ static struct drm_driver meson_driver = {
 	/* Vblank */
 	.enable_vblank		= meson_enable_vblank,
 	.disable_vblank		= meson_disable_vblank,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 
 	/* IRQ */
 	.irq_handler		= meson_irq,

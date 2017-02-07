@@ -87,7 +87,6 @@ static const struct file_operations armada_drm_fops = {
 
 static struct drm_driver armada_drm_driver = {
 	.lastclose		= armada_drm_lastclose,
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
 	.gem_free_object_unlocked = armada_gem_free_object,
