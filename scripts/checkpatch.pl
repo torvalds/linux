@@ -2134,7 +2134,7 @@ sub process {
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
 	my $has_commit_log = 0;		#Encountered lines before patch
-       my $commit_log_possible_stack_dump = 0;
+	my $commit_log_possible_stack_dump = 0;
 	my $commit_log_long_line = 0;
 	my $commit_log_has_diff = 0;
 	my $reported_maintainer_file = 0;
@@ -2154,6 +2154,7 @@ sub process {
 	my $realline = 0;
 	my $realcnt = 0;
 	my $here = '';
+	my $context_function;		#undef'd unless there's a known function
 	my $in_comment = 0;
 	my $comment_edge = 0;
 	my $first_line = 0;
@@ -2192,7 +2193,8 @@ sub process {
 			}
 			#next;
 		}
-		if ($rawline=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
+		if ($rawline=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@(.*)/) {
+			my $context = $4;
 			$realline=$1-1;
 			if (defined $2) {
 				$realcnt=$3+1;
@@ -2200,6 +2202,12 @@ sub process {
 				$realcnt=1+1;
 			}
 			$in_comment = 0;
+
+			if ($context =~ /\b(\w+)\s*\(/) {
+				$context_function = $1;
+			} else {
+				undef $context_function;
+			}
 
 			# Guestimate if this is a continuing comment.  Run
 			# the context looking for a comment "edge".  If this
@@ -5155,6 +5163,16 @@ sub process {
 		if ($prevrawline =~ /[^\\]\w"$/ && $rawline =~ /^\+[\t ]+"\w/) {
 			WARN('MISSING_SPACE',
 			     "break quoted strings at a space character\n" . $hereprev);
+		}
+
+#check for an embedded function name in a string when the function is known
+# as part of a diff.  This does not work for -f --file checking as it
+#depends on patch context providing the function name
+		if ($line =~ /^\+.*$String/ &&
+		    defined($context_function) &&
+		    get_quoted_string($line, $rawline) =~ /\b$context_function\b/) {
+			WARN("EMBEDDED_FUNCTION_NAME",
+			     "Prefer using \"%s\", __func__ to embedded function names\n" . $herecurr);
 		}
 
 # check for spaces before a quoted newline
