@@ -35,9 +35,7 @@ only one way to cause the system to go into the Suspend-To-RAM state (write
 The default suspend mode (ie. the one to be used without writing anything into
 /sys/power/mem_sleep) is either "deep" (if Suspend-To-RAM is supported) or
 "s2idle", but it can be overridden by the value of the "mem_sleep_default"
-parameter in the kernel command line.  On some ACPI-based systems, depending on
-the information in the FADT, the default may be "s2idle" even if Suspend-To-RAM
-is supported.
+parameter in the kernel command line.
 
 The properties of all of the sleep states are described below.
 

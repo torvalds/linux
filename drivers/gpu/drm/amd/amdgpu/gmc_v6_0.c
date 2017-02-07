@@ -254,6 +254,9 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	}
 	WREG32(mmHDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
+	if (adev->mode_info.num_crtc)
+		amdgpu_display_set_vga_render_state(adev, false);
+
 	gmc_v6_0_mc_stop(adev, &save);
 
 	if (gmc_v6_0_wait_for_idle((void *)adev)) {
@@ -283,7 +286,6 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
 	gmc_v6_0_mc_resume(adev, &save);
-	amdgpu_display_set_vga_render_state(adev, false);
 }
 
 static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
