@@ -1588,7 +1588,7 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 {
 	struct regulator_dev *rdev;
 	struct regulator *regulator;
-	const char *devname = NULL;
+	const char *devname = dev ? dev_name(dev) : "deviceless";
 	int ret;
 
 	if (get_type >= MAX_GET_TYPE) {
@@ -1601,45 +1601,47 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (dev)
-		devname = dev_name(dev);
-
 	rdev = regulator_dev_lookup(dev, id);
-	if (!IS_ERR(rdev))
-		goto found;
+	if (IS_ERR(rdev)) {
+		ret = PTR_ERR(rdev);
 
-	ret = PTR_ERR(rdev);
-	regulator = ERR_PTR(ret);
+		/*
+		 * If regulator_dev_lookup() fails with error other
+		 * than -ENODEV our job here is done, we simply return it.
+		 */
+		if (ret != -ENODEV)
+			return ERR_PTR(ret);
 
-	/*
-	 * If we have return value from dev_lookup fail, we do not expect to
-	 * succeed, so, quit with appropriate error value
-	 */
-	if (ret && ret != -ENODEV)
-		return regulator;
+		if (!have_full_constraints()) {
+			dev_warn(dev,
+				 "incomplete constraints, dummy supplies not allowed\n");
+			return ERR_PTR(-ENODEV);
+		}
 
-	if (!devname)
-		devname = "deviceless";
+		switch (get_type) {
+		case NORMAL_GET:
+			/*
+			 * Assume that a regulator is physically present and
+			 * enabled, even if it isn't hooked up, and just
+			 * provide a dummy.
+			 */
+			dev_warn(dev,
+				 "%s supply %s not found, using dummy regulator\n",
+				 devname, id);
+			rdev = dummy_regulator_rdev;
+			get_device(&rdev->dev);
+			break;
 
-	/*
-	 * Assume that a regulator is physically present and enabled
-	 * even if it isn't hooked up and just provide a dummy.
-	 */
-	if (have_full_constraints() && get_type == NORMAL_GET) {
-		pr_warn("%s supply %s not found, using dummy regulator\n",
-			devname, id);
+		case EXCLUSIVE_GET:
+			dev_warn(dev,
+				 "dummy supplies not allowed for exclusive requests\n");
+			/* fall through */
 
-		rdev = dummy_regulator_rdev;
-		get_device(&rdev->dev);
-		goto found;
-	/* Don't log an error when called from regulator_get_optional() */
-	} else if (!have_full_constraints() || get_type == EXCLUSIVE_GET) {
-		dev_warn(dev, "dummy supplies not allowed\n");
+		default:
+			return ERR_PTR(-ENODEV);
+		}
 	}
 
-	return regulator;
-
-found:
 	if (rdev->exclusive) {
 		regulator = ERR_PTR(-EPERM);
 		put_device(&rdev->dev);
