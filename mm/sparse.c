@@ -807,23 +807,24 @@ static void section_deactivate(struct pglist_data *pgdat, unsigned long pfn,
 	unsigned long mask = section_active_mask(pfn, nr_pages), flags;
 
 	pgdat_resize_lock(pgdat, &flags);
-	if (!ms->usage) {
-		mask = 0;
-	} else if ((ms->usage->map_active & mask) != mask) {
-		WARN(1, "section already deactivated active: %#lx mask: %#lx\n",
-				ms->usage->map_active, mask);
-		mask = 0;
-	} else {
-		early_section = is_early_section(ms);
-		ms->usage->map_active ^= mask;
-		if (ms->usage->map_active == 0) {
-			usage = ms->usage;
-			ms->usage = NULL;
-			memmap = sparse_decode_mem_map(ms->section_mem_map,
-					section_nr);
-			ms->section_mem_map = 0;
-		}
+	if (!ms->usage ||
+	    WARN((ms->usage->map_active & mask) != mask,
+		 "section already deactivated active: %#lx mask: %#lx\n",
+			ms->usage->map_active, mask)) {
+		pgdat_resize_unlock(pgdat, &flags);
+		return;
 	}
+
+	early_section = is_early_section(ms);
+	ms->usage->map_active ^= mask;
+	if (ms->usage->map_active == 0) {
+		usage = ms->usage;
+		ms->usage = NULL;
+		memmap = sparse_decode_mem_map(ms->section_mem_map,
+				section_nr);
+		ms->section_mem_map = 0;
+	}
+
 	pgdat_resize_unlock(pgdat, &flags);
 
 	/*
