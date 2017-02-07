@@ -146,6 +146,11 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 	return chnl;
 }
 
+u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv)
+{
+	return rtlpriv->btcoexist.btc_info.single_ant_path;
+}
+
 static void halbtc_leave_lps(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv;

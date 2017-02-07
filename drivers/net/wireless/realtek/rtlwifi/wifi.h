@@ -2454,6 +2454,7 @@ struct rtl_btc_info {
 	u8 bt_type;
 	u8 btcoexist;
 	u8 ant_num;
+	u8 single_ant_path;
 };
 
 struct bt_coexist_info {
