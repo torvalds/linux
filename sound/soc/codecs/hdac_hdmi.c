@@ -102,7 +102,7 @@ struct hdac_hdmi_pcm {
 	int pcm_id;
 	struct list_head port_list;
 	struct hdac_hdmi_cvt *cvt;
-	struct snd_jack *jack;
+	struct snd_soc_jack *jack;
 	int stream_tag;
 	int channels;
 	int format;
@@ -159,7 +159,8 @@ static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
 			dev_dbg(&edev->hdac.dev,
 					"jack report for pcm=%d\n",
 					pcm->pcm_id);
-			snd_jack_report(pcm->jack, SND_JACK_AVOUT);
+			snd_soc_jack_report(pcm->jack, SND_JACK_AVOUT,
+						SND_JACK_AVOUT);
 		}
 		pcm->jack_event++;
 	} else {
@@ -169,7 +170,7 @@ static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
 		 * to multiple ports.
 		 */
 		if (pcm->jack_event == 1)
-			snd_jack_report(pcm->jack, 0);
+			snd_soc_jack_report(pcm->jack, 0, SND_JACK_AVOUT);
 		if (pcm->jack_event > 0)
 			pcm->jack_event--;
 	}
@@ -1556,13 +1557,11 @@ static struct snd_pcm *hdac_hdmi_get_pcm_from_id(struct snd_soc_card *card,
 	return NULL;
 }
 
-int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device)
+int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device,
+				struct snd_soc_jack *jack)
 {
-	char jack_name[NAME_SIZE];
 	struct snd_soc_codec *codec = dai->codec;
 	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(&codec->component);
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm;
 	struct snd_pcm *snd_pcm;
@@ -1578,6 +1577,7 @@ int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device)
 	pcm->pcm_id = device;
 	pcm->cvt = hdmi->dai_map[dai->id].cvt;
 	pcm->jack_event = 0;
+	pcm->jack = jack;
 	mutex_init(&pcm->lock);
 	INIT_LIST_HEAD(&pcm->port_list);
 	snd_pcm = hdac_hdmi_get_pcm_from_id(dai->component->card, device);
@@ -1594,10 +1594,7 @@ int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device)
 
 	list_add_tail(&pcm->head, &hdmi->pcm_list);
 
-	sprintf(jack_name, "HDMI/DP, pcm=%d Jack", device);
-
-	return snd_jack_new(dapm->card->snd_card, jack_name,
-		SND_JACK_AVOUT,	&pcm->jack, true, false);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hdac_hdmi_jack_init);
 
