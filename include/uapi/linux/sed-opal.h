@@ -48,37 +48,38 @@ enum opal_lock_state {
 };
 
 struct opal_key {
-	uint8_t	lr;
-	uint8_t	key_len;
-	char 	key[OPAL_KEY_MAX];
+	__u8 lr;
+	__u8 key_len;
+	__u8 __align[6];
+	__u8 key[OPAL_KEY_MAX];
 };
 
 struct opal_lr_act {
-	int sum;
-	uint8_t num_lrs;
-	uint8_t lr[OPAL_MAX_LRS];
 	struct opal_key key;
+	__u32 sum;
+	__u8    num_lrs;
+	__u8 lr[OPAL_MAX_LRS];
+	__u8 align[2]; /* Align to 8 byte boundary */
 };
 
 struct opal_session_info {
-	int sum;
-	enum opal_user who;
+	__u32 sum;
+	__u32 who;
 	struct opal_key opal_key;
-	uint8_t __align[2];
 };
 
 struct opal_user_lr_setup {
-	size_t range_start;
-	size_t range_length;
-	int    RLE; /* Read Lock enabled */
-	int    WLE; /* Write Lock Enabled */
+	__u64 range_start;
+	__u64 range_length;
+	__u32 RLE; /* Read Lock enabled */
+	__u32 WLE; /* Write Lock Enabled */
 	struct opal_session_info session;
-	uint8_t __align[4];
 };
 
 struct opal_lock_unlock {
-	enum opal_lock_state l_state;
 	struct opal_session_info session;
+	__u32 l_state;
+	__u8 __align[4];
 };
 
 struct opal_new_pw {
@@ -97,9 +98,9 @@ struct opal_new_pw {
 };
 
 struct opal_mbr_data {
-	u8 enable_disable;
 	struct opal_key key;
-	uint8_t __align[5];
+	__u8 enable_disable;
+	__u8 __align[7];
 };
 
 #define IOC_OPAL_SAVE		    _IOW('p', 220, struct opal_lock_unlock)
