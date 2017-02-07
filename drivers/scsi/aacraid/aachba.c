@@ -1798,7 +1798,7 @@ int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan)
 	struct sgmap64 *sg64;
 	dma_addr_t addr;
 	u32 vbus, vid;
-	u32 rcode = 0;
+	int rcode = 0;
 
 	/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
 	fibsize = sizeof(struct aac_srb) - sizeof(struct sgentry)
