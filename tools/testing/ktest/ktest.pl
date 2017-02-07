@@ -1668,19 +1668,18 @@ sub fail {
 }
 
 sub run_command {
-    my ($command, $redirect) = @_;
+    my ($command, $redirect, $timeout) = @_;
     my $start_time;
     my $end_time;
     my $dolog = 0;
     my $dord = 0;
     my $pid;
 
-    $start_time = time;
-
     $command =~ s/\$SSH_USER/$ssh_user/g;
     $command =~ s/\$MACHINE/$machine/g;
 
     doprint("$command ... ");
+    $start_time = time;
 
     $pid = open(CMD, "$command 2>&1 |") or
 	(fail "unable to exec $command" and return 0);
@@ -1697,13 +1696,33 @@ sub run_command {
 	$dord = 1;
     }
 
-    while (<CMD>) {
-	print LOG if ($dolog);
-	print RD  if ($dord);
+    my $hit_timeout = 0;
+
+    while (1) {
+	my $fp = \*CMD;
+	if (defined($timeout)) {
+	    doprint "timeout = $timeout\n";
+	}
+	my $line = wait_for_input($fp, $timeout);
+	if (!defined($line)) {
+	    my $now = time;
+	    if (defined($timeout) && (($now - $start_time) >= $timeout)) {
+		doprint "Hit timeout of $timeout, killing process\n";
+		$hit_timeout = 1;
+		kill 9, $pid;
+	    }
+	    last;
+	}
+	print LOG $line if ($dolog);
+	print RD $line if ($dord);
     }
 
     waitpid($pid, 0);
     my $failed = $?;
+
+    if ($hit_timeout) {
+	$failed = 1;
+    }
 
     close(CMD);
     close(LOG) if ($dolog);
@@ -1728,11 +1747,11 @@ sub run_command {
 }
 
 sub run_ssh {
-    my ($cmd) = @_;
+    my ($cmd, $timeout) = @_;
     my $cp_exec = $ssh_exec;
 
     $cp_exec =~ s/\$SSH_COMMAND/$cmd/g;
-    return run_command "$cp_exec";
+    return run_command "$cp_exec", undef , $timeout;
 }
 
 sub run_scp {
