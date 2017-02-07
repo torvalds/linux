@@ -266,7 +266,6 @@ static inline struct page *find_get_page_flags(struct address_space *mapping,
 
 /**
  * find_lock_page - locate, pin and lock a pagecache page
- * pagecache_get_page - find and get a page reference
  * @mapping: the address_space to search
  * @offset: the page index
  *
