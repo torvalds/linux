@@ -52,7 +52,10 @@ static int			debug_objects_fixups __read_mostly;
 static int			debug_objects_warnings __read_mostly;
 static int			debug_objects_enabled __read_mostly
 				= CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT;
-
+static int			debug_objects_pool_size __read_mostly
+				= ODEBUG_POOL_SIZE;
+static int			debug_objects_pool_min_level __read_mostly
+				= ODEBUG_POOL_MIN_LEVEL;
 static struct debug_obj_descr	*descr_test  __read_mostly;
 
 /*
@@ -94,13 +97,13 @@ static void fill_pool(void)
 	struct debug_obj *new;
 	unsigned long flags;
 
-	if (likely(obj_pool_free >= ODEBUG_POOL_MIN_LEVEL))
+	if (likely(obj_pool_free >= debug_objects_pool_min_level))
 		return;
 
 	if (unlikely(!obj_cache))
 		return;
 
-	while (obj_pool_free < ODEBUG_POOL_MIN_LEVEL) {
+	while (obj_pool_free < debug_objects_pool_min_level) {
 
 		new = kmem_cache_zalloc(obj_cache, gfp);
 		if (!new)
@@ -176,7 +179,7 @@ static void free_obj_work(struct work_struct *work)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&pool_lock, flags);
-	while (obj_pool_free > ODEBUG_POOL_SIZE) {
+	while (obj_pool_free > debug_objects_pool_size) {
 		obj = hlist_entry(obj_pool.first, typeof(*obj), node);
 		hlist_del(&obj->node);
 		obj_pool_free--;
@@ -206,7 +209,7 @@ static void free_object(struct debug_obj *obj)
 	 * schedule work when the pool is filled and the cache is
 	 * initialized:
 	 */
-	if (obj_pool_free > ODEBUG_POOL_SIZE && obj_cache)
+	if (obj_pool_free > debug_objects_pool_size && obj_cache)
 		sched = 1;
 	hlist_add_head(&obj->node, &obj_pool);
 	obj_pool_free++;
@@ -1126,4 +1129,11 @@ void __init debug_objects_mem_init(void)
 		pr_warn("out of memory.\n");
 	} else
 		debug_objects_selftest();
+
+	/*
+	 * Increase the thresholds for allocating and freeing objects
+	 * according to the number of possible CPUs available in the system.
+	 */
+	debug_objects_pool_size += num_possible_cpus() * 32;
+	debug_objects_pool_min_level += num_possible_cpus() * 4;
 }
