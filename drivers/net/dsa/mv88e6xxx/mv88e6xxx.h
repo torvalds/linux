@@ -58,6 +58,9 @@
 #define PORT_STATUS_CMODE_100BASE_X	0x8
 #define PORT_STATUS_CMODE_1000BASE_X	0x9
 #define PORT_STATUS_CMODE_SGMII		0xa
+#define PORT_STATUS_CMODE_2500BASEX	0xb
+#define PORT_STATUS_CMODE_XAUI		0xc
+#define PORT_STATUS_CMODE_RXAUI		0xd
 #define PORT_PCS_CTRL		0x01
 #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
 #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
@@ -837,6 +840,12 @@ struct mv88e6xxx_ops {
 
 	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
+
+	/* CMODE control what PHY mode the MAC will use, eg. SGMII, RGMII, etc.
+	 * Some chips allow this to be configured on specific ports.
+	 */
+	int (*port_set_cmode)(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
