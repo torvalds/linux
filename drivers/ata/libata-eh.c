@@ -549,6 +549,7 @@ enum blk_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 	DPRINTK("EXIT, ret=%d\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL(ata_scsi_timed_out);
 
 static void ata_eh_unload(struct ata_port *ap)
 {
