@@ -711,6 +711,8 @@ occure||occurred
 occured||occurred
 occuring||occurring
 offet||offset
+omited||omitted
+omiting||omitting
 omitt||omit
 ommiting||omitting
 ommitted||omitted
