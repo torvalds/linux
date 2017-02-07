@@ -34,6 +34,7 @@
 #include <linux/frontswap.h>
 #include <linux/swapfile.h>
 #include <linux/export.h>
+#include <linux/swap_slots.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -859,14 +860,6 @@ noswap:
 	return n_ret;
 }
 
-swp_entry_t get_swap_page(void)
-{
-	swp_entry_t entry;
-
-	get_swap_pages(1, &entry);
-	return entry;
-}
-
 /* The only caller of this function is now suspend routine */
 swp_entry_t get_swap_page_of_type(int type)
 {
@@ -1057,7 +1050,7 @@ void swap_free(swp_entry_t entry)
 	p = _swap_info_get(entry);
 	if (p) {
 		if (!__swap_entry_free(p, entry, 1))
-			swapcache_free_entries(&entry, 1);
+			free_swap_slot(entry);
 	}
 }
 
@@ -1071,7 +1064,7 @@ void swapcache_free(swp_entry_t entry)
 	p = _swap_info_get(entry);
 	if (p) {
 		if (!__swap_entry_free(p, entry, SWAP_HAS_CACHE))
-			swapcache_free_entries(&entry, 1);
+			free_swap_slot(entry);
 	}
 }
 
@@ -1293,7 +1286,7 @@ int free_swap_and_cache(swp_entry_t entry)
 				page = NULL;
 			}
 		} else if (!count)
-			swapcache_free_entries(&entry, 1);
+			free_swap_slot(entry);
 	}
 	if (page) {
 		/*
@@ -2119,6 +2112,17 @@ static void reinsert_swap_info(struct swap_info_struct *p)
 	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info);
 	spin_unlock(&p->lock);
 	spin_unlock(&swap_lock);
+}
+
+bool has_usable_swap(void)
+{
+	bool ret = true;
+
+	spin_lock(&swap_lock);
+	if (plist_head_empty(&swap_active_head))
+		ret = false;
+	spin_unlock(&swap_lock);
+	return ret;
 }
 
 SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
