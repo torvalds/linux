@@ -120,10 +120,9 @@ struct drm_driver {
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for the
 	 * CRTC specified with the pipe argument.  If a device doesn't have a
-	 * hardware counter, the driver can simply use
-	 * drm_vblank_no_hw_counter() function. The DRM core will account for
-	 * missed vblank events while interrupts where disabled based on system
-	 * timestamps.
+	 * hardware counter, the driver can simply leave the hook as NULL.
+	 * The DRM core will account for missed vblank events while interrupts
+	 * where disabled based on system timestamps.
 	 *
 	 * Wraparound handling and loss of events due to modesetting is dealt
 	 * with in the DRM core code, as long as drivers call

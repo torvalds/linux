@@ -89,6 +89,16 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 	write_sequnlock(&vblank->seqlock);
 }
 
+/*
+ * "No hw counter" fallback implementation of .get_vblank_counter() hook,
+ * if there is no useable hardware frame counter available.
+ */
+static u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
+{
+	WARN_ON_ONCE(dev->max_vblank_count != 0);
+	return 0;
+}
+
 static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -1748,21 +1758,3 @@ bool drm_crtc_handle_vblank(struct drm_crtc *crtc)
 	return drm_handle_vblank(crtc->dev, drm_crtc_index(crtc));
 }
 EXPORT_SYMBOL(drm_crtc_handle_vblank);
-
-/**
- * drm_vblank_no_hw_counter - "No hw counter" implementation of .get_vblank_counter()
- * @dev: DRM device
- * @pipe: CRTC for which to read the counter
- *
- * Drivers can plug this into the .get_vblank_counter() function if
- * there is no useable hardware frame counter available.
- *
- * Returns:
- * 0
- */
-u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
-{
-	WARN_ON_ONCE(dev->max_vblank_count != 0);
-	return 0;
-}
-EXPORT_SYMBOL(drm_vblank_no_hw_counter);
