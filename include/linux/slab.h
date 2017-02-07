@@ -565,6 +565,8 @@ struct memcg_cache_array {
  * @memcg:	Pointer to the memcg this cache belongs to.
  *
  * @children_node: List node for @root_cache->children list.
+ *
+ * @kmem_caches_node: List node for @memcg->kmem_caches list.
  */
 struct memcg_cache_params {
 	struct kmem_cache *root_cache;
@@ -576,6 +578,7 @@ struct memcg_cache_params {
 		struct {
 			struct mem_cgroup *memcg;
 			struct list_head children_node;
+			struct list_head kmem_caches_node;
 		};
 	};
 };
