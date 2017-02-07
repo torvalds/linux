@@ -13,6 +13,7 @@ Linux GPU Driver Developer's Guide
    i915
    vga-switcheroo
    vgaarbiter
+   todo
 
 .. only::  subproject and html
 

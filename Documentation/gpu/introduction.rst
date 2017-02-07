@@ -50,3 +50,13 @@ names are "Notes" with information for dangerous or tricky corner cases,
 and "FIXME" where the interface could be cleaned up.
 
 Also read the :ref:`guidelines for the kernel documentation at large <doc_guide>`.
+
+Getting Started
+===============
+
+Developers interested in helping out with the DRM subsystem are very welcome.
+Often people will resort to sending in patches for various issues reported by
+checkpatch or sparse. We welcome such contributions.
+
+Anyone looking to kick it up a notch can find a list of janitorial tasks on
+the :ref:`TODO list <todo>`.
