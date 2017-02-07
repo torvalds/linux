@@ -135,7 +135,8 @@ static const struct snd_pcm_hardware had_pcm_hardware = {
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
-	.formats = SNDRV_PCM_FMTBIT_S24,
+	.formats = (SNDRV_PCM_FMTBIT_S24_LE |
+		    SNDRV_PCM_FMTBIT_S32_LE),
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
 		SNDRV_PCM_RATE_48000 |
@@ -249,7 +250,6 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	union aud_cfg cfg_val = {.regval = 0};
 	union aud_ch_status_0 ch_stat0 = {.regval = 0};
 	union aud_ch_status_1 ch_stat1 = {.regval = 0};
-	int format;
 
 	ch_stat0.regx.lpcm_id = (intelhaddata->aes_bits &
 					  IEC958_AES0_NONAUDIO) >> 1;
@@ -289,17 +289,20 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	had_write_register(intelhaddata,
 			   AUD_CH_STATUS_0, ch_stat0.regval);
 
-	format = substream->runtime->format;
-
-	if (format == SNDRV_PCM_FORMAT_S16_LE) {
+	switch (substream->runtime->format) {
+#if 0 /* FIXME: not supported yet */
+	case SNDRV_PCM_FORMAT_S16_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_20;
 		ch_stat1.regx.wrd_len = SMPL_WIDTH_16BITS;
-	} else if (format == SNDRV_PCM_FORMAT_S24_LE) {
+		break;
+#endif
+	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
 		ch_stat1.regx.max_wrd_len = MAX_SMPL_WIDTH_24;
 		ch_stat1.regx.wrd_len = SMPL_WIDTH_24BITS;
-	} else {
-		ch_stat1.regx.max_wrd_len = 0;
-		ch_stat1.regx.wrd_len = 0;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	had_write_register(intelhaddata,
@@ -332,6 +335,9 @@ static int had_init_audio_ctrl(struct snd_pcm_substream *substream,
 		cfg_val.regx.layout = LAYOUT0;
 	else
 		cfg_val.regx.layout = LAYOUT1;
+
+	if (substream->runtime->format == SNDRV_PCM_FORMAT_S32_LE)
+		cfg_val.regx.left_align = 1;
 
 	cfg_val.regx.val_bit = 1;
 
@@ -1047,6 +1053,10 @@ static int had_pcm_open(struct snd_pcm_substream *substream)
 	 */
 	retval = snd_pcm_hw_constraint_step(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64);
+	if (retval < 0)
+		goto error;
+
+	retval = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 	if (retval < 0)
 		goto error;
 
