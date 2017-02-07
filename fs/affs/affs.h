@@ -138,9 +138,9 @@ extern int	affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh);
 extern int	affs_remove_header(struct dentry *dentry);
 extern u32	affs_checksum_block(struct super_block *sb, struct buffer_head *bh);
 extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
-extern void	secs_to_datestamp(time64_t secs, struct affs_date *ds);
-extern umode_t	prot_to_mode(u32 prot);
-extern void	mode_to_prot(struct inode *inode);
+extern void	affs_secs_to_datestamp(time64_t secs, struct affs_date *ds);
+extern umode_t	affs_prot_to_mode(u32 prot);
+extern void	affs_mode_to_prot(struct inode *inode);
 __printf(3, 4)
 extern void	affs_error(struct super_block *sb, const char *function,
 			   const char *fmt, ...);

@@ -272,7 +272,7 @@ affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 		return -ENOSPC;
 
 	inode->i_mode = mode;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 	mark_inode_dirty(inode);
 
 	inode->i_op = &affs_file_inode_operations;
@@ -302,7 +302,7 @@ affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		return -ENOSPC;
 
 	inode->i_mode = S_IFDIR | mode;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 
 	inode->i_op = &affs_dir_inode_operations;
 	inode->i_fop = &affs_dir_operations;
@@ -348,7 +348,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	inode_nohighmem(inode);
 	inode->i_data.a_ops = &affs_symlink_aops;
 	inode->i_mode = S_IFLNK | 0777;
-	mode_to_prot(inode);
+	affs_mode_to_prot(inode);
 
 	error = -EIO;
 	bh = affs_bread(sb, inode->i_ino);
