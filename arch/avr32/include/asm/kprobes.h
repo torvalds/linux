@@ -11,10 +11,14 @@
 #ifndef __ASM_AVR32_KPROBES_H
 #define __ASM_AVR32_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
+#define BREAKPOINT_INSTRUCTION	0xd673	/* breakpoint */
+
+#ifdef CONFIG_KPROBES
 #include <linux/types.h>
 
 typedef u16	kprobe_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0xd673	/* breakpoint */
 #define MAX_INSN_SIZE		2
 #define MAX_STACK_SIZE		64	/* 32 would probably be OK */
 
@@ -46,4 +50,5 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 
 #define flush_insn_slot(p)	do { } while (0)
 
+#endif /* CONFIG_KPROBES */
 #endif /* __ASM_AVR32_KPROBES_H */
