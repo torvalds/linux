@@ -561,7 +561,7 @@ mlxsw_sp_acl_tcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
 }
 
-#define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (-1UL)
+#define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
 
 static int
 mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
