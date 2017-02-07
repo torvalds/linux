@@ -17,6 +17,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/personality.h>	/* For READ_IMPLIES_EXEC */
+
 #ifndef CONFIG_MMU
 
 #include <asm/page-nommu.h>
