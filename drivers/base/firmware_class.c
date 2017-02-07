@@ -558,9 +558,6 @@ static void fw_load_abort(struct firmware_priv *fw_priv)
 	struct firmware_buf *buf = fw_priv->buf;
 
 	__fw_load_abort(buf);
-
-	/* avoid user action after loading abort */
-	fw_priv->buf = NULL;
 }
 
 static LIST_HEAD(pending_fw_head);
@@ -713,7 +710,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 	mutex_lock(&fw_lock);
 	fw_buf = fw_priv->buf;
-	if (!fw_buf)
+	if (fw_state_is_aborted(&fw_buf->fw_st))
 		goto out;
 
 	switch (loading) {

@@ -1099,7 +1099,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
 	new_prof.tx_ring_size = tx_size;
 	new_prof.rx_ring_size = rx_size;
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
 
@@ -1732,8 +1732,6 @@ static void mlx4_en_get_channels(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	memset(channel, 0, sizeof(*channel));
-
 	channel->max_rx = MAX_RX_RINGS;
 	channel->max_tx = MLX4_EN_MAX_TX_RING_P_UP;
 
@@ -1752,10 +1750,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	int xdp_count;
 	int err = 0;
 
-	if (channel->other_count || channel->combined_count ||
-	    channel->tx_count > MLX4_EN_MAX_TX_RING_P_UP ||
-	    channel->rx_count > MAX_RX_RINGS ||
-	    !channel->tx_count || !channel->rx_count)
+	if (!channel->tx_count || !channel->rx_count)
 		return -EINVAL;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
@@ -1779,7 +1774,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	new_prof.tx_ring_num[TX_XDP] = xdp_count;
 	new_prof.rx_ring_num = channel->rx_count;
 
-	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, true);
 	if (err)
 		goto out;
 

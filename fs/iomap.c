@@ -114,6 +114,9 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 
 	BUG_ON(pos + len > iomap->offset + iomap->length);
 
+	if (fatal_signal_pending(current))
+		return -EINTR;
+
 	page = grab_cache_page_write_begin(inode->i_mapping, index, flags);
 	if (!page)
 		return -ENOMEM;

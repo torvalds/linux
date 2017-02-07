@@ -90,21 +90,36 @@ void __init smp_cpus_done(unsigned int max_cpus)
  */
 static volatile int wake_flag;
 
+#ifdef CONFIG_ISA_ARCOMPACT
+
+#define __boot_read(f)		f
+#define __boot_write(f, v)	f = v
+
+#else
+
+#define __boot_read(f)		arc_read_uncached_32(&f)
+#define __boot_write(f, v)	arc_write_uncached_32(&f, v)
+
+#endif
+
 static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 {
 	BUG_ON(cpu == 0);
-	wake_flag = cpu;
+
+	__boot_write(wake_flag, cpu);
 }
 
 void arc_platform_smp_wait_to_boot(int cpu)
 {
-	while (wake_flag != cpu)
+	/* for halt-on-reset, we've waited already */
+	if (IS_ENABLED(CONFIG_ARC_SMP_HALT_ON_RESET))
+		return;
+
+	while (__boot_read(wake_flag) != cpu)
 		;
 
-	wake_flag = 0;
-	__asm__ __volatile__("j @first_lines_of_secondary	\n");
+	__boot_write(wake_flag, 0);
 }
-
 
 const char *arc_platform_smp_cpuinfo(void)
 {

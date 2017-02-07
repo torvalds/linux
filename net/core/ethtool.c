@@ -1405,9 +1405,12 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (regs.len > reglen)
 		regs.len = reglen;
 
-	regbuf = vzalloc(reglen);
-	if (reglen && !regbuf)
-		return -ENOMEM;
+	regbuf = NULL;
+	if (reglen) {
+		regbuf = vzalloc(reglen);
+		if (!regbuf)
+			return -ENOMEM;
+	}
 
 	ops->get_regs(dev, &regs, regbuf);
 
@@ -1712,7 +1715,7 @@ static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
 static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
-	struct ethtool_channels channels, max;
+	struct ethtool_channels channels, max = { .cmd = ETHTOOL_GCHANNELS };
 	u32 max_rx_in_use = 0;
 
 	if (!dev->ethtool_ops->set_channels || !dev->ethtool_ops->get_channels)

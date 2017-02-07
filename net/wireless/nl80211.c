@@ -4615,6 +4615,15 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 		break;
 	}
 
+	/*
+	 * Older kernel versions ignored this attribute entirely, so don't
+	 * reject attempts to update it but mark it as unused instead so the
+	 * driver won't look at the data.
+	 */
+	if (statype != CFG80211_STA_AP_CLIENT_UNASSOC &&
+	    statype != CFG80211_STA_TDLS_PEER_SETUP)
+		params->opmode_notif_used = false;
+
 	return 0;
 }
 EXPORT_SYMBOL(cfg80211_check_station_change);
@@ -4852,6 +4861,12 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		params.local_pm = pm;
+	}
+
+	if (info->attrs[NL80211_ATTR_OPMODE_NOTIF]) {
+		params.opmode_notif_used = true;
+		params.opmode_notif =
+			nla_get_u8(info->attrs[NL80211_ATTR_OPMODE_NOTIF]);
 	}
 
 	/* Include parameters for TDLS peer (will check later) */
@@ -5901,6 +5916,7 @@ do {									    \
 			break;
 		}
 		cfg->ht_opmode = ht_opmode;
+		mask |= (1 << (NL80211_MESHCONF_HT_OPMODE - 1));
 	}
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHWMPactivePathToRootTimeout,
 				  1, 65535, mask,

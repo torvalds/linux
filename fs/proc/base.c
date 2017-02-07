@@ -3179,6 +3179,8 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 	     iter.tgid += 1, iter = next_tgid(ns, iter)) {
 		char name[PROC_NUMBUF];
 		int len;
+
+		cond_resched();
 		if (!has_pid_permissions(ns, iter.task, 2))
 			continue;
 

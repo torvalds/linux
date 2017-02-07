@@ -322,7 +322,7 @@ int mlx5_cmd_update_fte(struct mlx5_core_dev *dev,
 						flow_table_properties_nic_receive.
 						flow_modify_en);
 	if (!atomic_mod_cap)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	opmod = 1;
 
 	return	mlx5_cmd_set_fte(dev, opmod, modify_mask, ft, group_id, fte);

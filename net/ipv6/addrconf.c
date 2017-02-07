@@ -3386,9 +3386,15 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			}
 
 			if (idev) {
-				if (idev->if_flags & IF_READY)
-					/* device is already configured. */
+				if (idev->if_flags & IF_READY) {
+					/* device is already configured -
+					 * but resend MLD reports, we might
+					 * have roamed and need to update
+					 * multicast snooping switches
+					 */
+					ipv6_mc_up(idev);
 					break;
+				}
 				idev->if_flags |= IF_READY;
 			}
 
@@ -5540,8 +5546,7 @@ static void addrconf_disable_change(struct net *net, __s32 newf)
 	struct net_device *dev;
 	struct inet6_dev *idev;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
 		idev = __in6_dev_get(dev);
 		if (idev) {
 			int changed = (!idev->cnf.disable_ipv6) ^ (!newf);
@@ -5550,7 +5555,6 @@ static void addrconf_disable_change(struct net *net, __s32 newf)
 				dev_disable_change(idev);
 		}
 	}
-	rcu_read_unlock();
 }
 
 static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)

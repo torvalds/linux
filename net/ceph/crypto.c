@@ -214,7 +214,7 @@ static int ceph_aes_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	SKCIPHER_REQUEST_ON_STACK(req, key->tfm);
 	struct sg_table sgt;
 	struct scatterlist prealloc_sg;
-	char iv[AES_BLOCK_SIZE];
+	char iv[AES_BLOCK_SIZE] __aligned(8);
 	int pad_byte = AES_BLOCK_SIZE - (in_len & (AES_BLOCK_SIZE - 1));
 	int crypt_len = encrypt ? in_len + pad_byte : in_len;
 	int ret;
