@@ -1525,19 +1525,29 @@ static void gmc_v6_0_init_compute_vmid(struct amdgpu_device *adev)
 }
 */
 
-static u32 gfx_v6_0_get_cu_enabled(struct amdgpu_device *adev, u32 cu_per_sh)
+static void gfx_v6_0_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
+						 u32 bitmap)
+{
+	u32 data;
+
+	if (!bitmap)
+		return;
+
+	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
+	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
+
+	WREG32(mmGC_USER_SHADER_ARRAY_CONFIG, data);
+}
+
+static u32 gfx_v6_0_get_cu_enabled(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG);
-	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
-	data |= RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
+	data = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG) |
+		RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
 
-	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
-
-	mask = gfx_v6_0_create_bitmask(cu_per_sh);
-
-	return ~data & mask;
+	mask = gfx_v6_0_create_bitmask(adev->gfx.config.max_cu_per_sh);
+	return ~REG_GET_FIELD(data, CC_GC_SHADER_ARRAY_CONFIG, INACTIVE_CUS) & mask;
 }
 
 
@@ -1554,7 +1564,7 @@ static void gfx_v6_0_setup_spi(struct amdgpu_device *adev,
 		for (j = 0; j < sh_per_se; j++) {
 			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
 			data = RREG32(mmSPI_STATIC_THREAD_MGMT_3);
-			active_cu = gfx_v6_0_get_cu_enabled(adev, cu_per_sh);
+			active_cu = gfx_v6_0_get_cu_enabled(adev);
 
 			mask = 1;
 			for (k = 0; k < 16; k++) {
@@ -2924,61 +2934,16 @@ static void gfx_v6_0_enable_gfx_cgpg(struct amdgpu_device *adev,
 	}
 }
 
-static u32 gfx_v6_0_get_cu_active_bitmap(struct amdgpu_device *adev,
-					 u32 se, u32 sh)
-{
-
-	u32 mask = 0, tmp, tmp1;
-	int i;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	gfx_v6_0_select_se_sh(adev, se, sh, 0xffffffff);
-	tmp = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG);
-	tmp1 = RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
-	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
-
-	tmp &= 0xffff0000;
-
-	tmp |= tmp1;
-	tmp >>= 16;
-
-	for (i = 0; i < adev->gfx.config.max_cu_per_sh; i ++) {
-		mask <<= 1;
-		mask |= 1;
-	}
-
-	return (~tmp) & mask;
-}
-
 static void gfx_v6_0_init_ao_cu_mask(struct amdgpu_device *adev)
 {
-	u32 i, j, k, active_cu_number = 0;
+	u32 tmp;
 
-	u32 mask, counter, cu_bitmap;
-	u32 tmp = 0;
+	WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
 
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			mask = 1;
-			cu_bitmap = 0;
-			counter  = 0;
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
-				if (gfx_v6_0_get_cu_active_bitmap(adev, i, j) & mask) {
-					if (counter < 2)
-						cu_bitmap |= mask;
-					counter++;
-				}
-				mask <<= 1;
-			}
-
-			active_cu_number += counter;
-			tmp |= (cu_bitmap << (i * 16 + j * 8));
-		}
-	}
-
-	WREG32(mmRLC_PG_AO_CU_MASK, tmp);
-	WREG32_FIELD(RLC_MAX_PG_CU, MAX_POWERED_UP_CU, active_cu_number);
+	tmp = RREG32(mmRLC_MAX_PG_CU);
+	tmp &= ~RLC_MAX_PG_CU__MAX_POWERED_UP_CU_MASK;
+	tmp |= (adev->gfx.cu_info.number << RLC_MAX_PG_CU__MAX_POWERED_UP_CU__SHIFT);
+	WREG32(mmRLC_MAX_PG_CU, tmp);
 }
 
 static void gfx_v6_0_enable_gfx_static_mgpg(struct amdgpu_device *adev,
@@ -3753,18 +3718,26 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
 	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
+	unsigned disable_masks[4 * 2];
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
+	amdgpu_gfx_parse_disable_cu(disable_masks, 4, 2);
+
+	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			mask = 1;
 			ao_bitmap = 0;
 			counter = 0;
-			bitmap = gfx_v6_0_get_cu_active_bitmap(adev, i, j);
+			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
+			if (i < 4 && j < 2)
+				gfx_v6_0_set_user_cu_inactive_bitmap(
+					adev, disable_masks[i * 2 + j]);
+			bitmap = gfx_v6_0_get_cu_enabled(adev);
 			cu_info->bitmap[i][j] = bitmap;
 
-			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
+			for (k = 0; k < 16; k++) {
 				if (bitmap & mask) {
 					if (counter < 2)
 						ao_bitmap |= mask;
@@ -3776,6 +3749,9 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 			ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
 		}
 	}
+
+	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
