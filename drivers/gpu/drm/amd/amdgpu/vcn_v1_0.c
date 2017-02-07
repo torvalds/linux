@@ -489,6 +489,23 @@ static void vcn_v1_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 }
 
 /**
+ * vcn_v1_0_dec_ring_insert_start - insert a start command
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Write a start command to the ring.
+ */
+static void vcn_v1_0_dec_ring_insert_start(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring,
+		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
+	amdgpu_ring_write(ring, VCN_CMD_PACKET_START << 1);
+}
+
+/**
  * vcn_v1_0_dec_ring_emit_fence - emit an fence & trap command
  *
  * @ring: amdgpu_ring pointer
@@ -683,7 +700,8 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.emit_frame_size =
 		2 + /* vcn_v1_0_dec_ring_emit_hdp_invalidate */
 		34 * AMDGPU_MAX_VMHUBS + /* vcn_v1_0_dec_ring_emit_vm_flush */
-		14 + 14, /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+		4,
 	.emit_ib_size = 8, /* vcn_v1_0_dec_ring_emit_ib */
 	.emit_ib = vcn_v1_0_dec_ring_emit_ib,
 	.emit_fence = vcn_v1_0_dec_ring_emit_fence,
@@ -692,6 +710,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.test_ring = amdgpu_vcn_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_start = vcn_v1_0_dec_ring_insert_start,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
 	.end_use = amdgpu_vcn_ring_end_use,
