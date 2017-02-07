@@ -133,7 +133,8 @@ static const struct channel_map_table map_tables[] = {
 static const struct snd_pcm_hardware had_pcm_hardware = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP |
-		SNDRV_PCM_INFO_MMAP_VALID),
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
 	.formats = SNDRV_PCM_FMTBIT_S24,
 	.rates = SNDRV_PCM_RATE_32000 |
 		SNDRV_PCM_RATE_44100 |
@@ -840,7 +841,9 @@ static void had_prog_bd(struct snd_pcm_substream *substream,
 	int ofs = intelhaddata->pcmbuf_filled * intelhaddata->period_bytes;
 	u32 addr = substream->runtime->dma_addr + ofs;
 
-	addr |= AUD_BUF_VALID | AUD_BUF_INTR_EN;
+	addr |= AUD_BUF_VALID;
+	if (!substream->runtime->no_period_wakeup)
+		addr |= AUD_BUF_INTR_EN;
 	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), addr);
 	had_write_register(intelhaddata, AUD_BUF_LEN(idx),
 			   intelhaddata->period_bytes);
