@@ -218,7 +218,7 @@ extern void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *,
 					     struct rpcrdma_msg *,
 					     struct rpcrdma_msg *,
 					     enum rpcrdma_proc);
-extern int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *);
+extern unsigned int svc_rdma_xdr_get_reply_hdr_len(__be32 *rdma_resp);
 
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);

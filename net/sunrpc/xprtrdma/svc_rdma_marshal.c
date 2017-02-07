@@ -260,32 +260,35 @@ int svc_rdma_xdr_encode_error(struct svcxprt_rdma *xprt,
 	return (int)((unsigned long)va - (unsigned long)startp);
 }
 
-int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *rmsgp)
+/**
+ * svc_rdma_xdr_get_reply_hdr_length - Get length of Reply transport header
+ * @rdma_resp: buffer containing Reply transport header
+ *
+ * Returns length of transport header, in bytes.
+ */
+unsigned int svc_rdma_xdr_get_reply_hdr_len(__be32 *rdma_resp)
 {
-	struct rpcrdma_write_array *wr_ary;
+	unsigned int nsegs;
+	__be32 *p;
 
-	/* There is no read-list in a reply */
+	p = rdma_resp;
 
-	/* skip write list */
-	wr_ary = (struct rpcrdma_write_array *)
-		&rmsgp->rm_body.rm_chunks[1];
-	if (wr_ary->wc_discrim)
-		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_array[be32_to_cpu(wr_ary->wc_nchunks)].
-			wc_target.rs_length;
-	else
-		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_nchunks;
+	/* RPC-over-RDMA V1 replies never have a Read list. */
+	p += rpcrdma_fixed_maxsz + 1;
 
-	/* skip reply array */
-	if (wr_ary->wc_discrim)
-		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_array[be32_to_cpu(wr_ary->wc_nchunks)];
-	else
-		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_nchunks;
+	/* Skip Write list. */
+	while (*p++ != xdr_zero) {
+		nsegs = be32_to_cpup(p++);
+		p += nsegs * rpcrdma_segment_maxsz;
+	}
 
-	return (unsigned long) wr_ary - (unsigned long) rmsgp;
+	/* Skip Reply chunk. */
+	if (*p++ != xdr_zero) {
+		nsegs = be32_to_cpup(p++);
+		p += nsegs * rpcrdma_segment_maxsz;
+	}
+
+	return (unsigned long)p - (unsigned long)rdma_resp;
 }
 
 void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *rmsgp, int chunks)

@@ -476,7 +476,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 
 	/* Prepare the SGE for the RPCRDMA Header */
 	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
-	ctxt->sge[0].length = svc_rdma_xdr_get_reply_hdr_len(rdma_resp);
+	ctxt->sge[0].length =
+	    svc_rdma_xdr_get_reply_hdr_len((__be32 *)rdma_resp);
 	ctxt->sge[0].addr =
 	    ib_dma_map_page(rdma->sc_cm_id->device, page, 0,
 			    ctxt->sge[0].length, DMA_TO_DEVICE);
