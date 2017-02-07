@@ -130,6 +130,9 @@ struct drm_driver {
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
 	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.get_vblank_counter instead.
+	 *
 	 * Returns:
 	 *
 	 * Raw vblank counter value.
@@ -141,6 +144,9 @@ struct drm_driver {
 	 *
 	 * Enable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.enable_vblank instead.
 	 *
 	 * Returns:
 	 *
@@ -154,6 +160,9 @@ struct drm_driver {
 	 *
 	 * Disable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.disable_vblank instead.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 
