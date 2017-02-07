@@ -168,13 +168,13 @@ void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
 	}
 }
 
-static int section_active_index(phys_addr_t phys)
+static int __init section_active_index(phys_addr_t phys)
 {
 	return (phys & ~(PA_SECTION_MASK)) / SECTION_ACTIVE_SIZE;
 }
 
-static unsigned long section_active_mask(unsigned long pfn,
-		unsigned long nr_pages)
+static unsigned long __init section_active_mask(unsigned long pfn,
+						unsigned long nr_pages)
 {
 	int idx_start, idx_size;
 	phys_addr_t start, size;
@@ -195,7 +195,7 @@ static unsigned long section_active_mask(unsigned long pfn,
 	return ((1UL << idx_size) - 1) << idx_start;
 }
 
-void section_active_init(unsigned long pfn, unsigned long nr_pages)
+void __init section_active_init(unsigned long pfn, unsigned long nr_pages)
 {
 	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
 	int i, start_sec = pfn_to_section_nr(pfn);
