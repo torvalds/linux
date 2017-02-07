@@ -483,47 +483,5 @@ int LZ4_decompress_fast_usingDict(const char *source, char *dest,
 }
 EXPORT_SYMBOL(LZ4_decompress_fast_usingDict);
 
-/*-******************************
- *	For backwards compatibility
- ********************************/
-int lz4_decompress_unknownoutputsize(const unsigned char *src,
-	size_t src_len, unsigned char *dest, size_t *dest_len) {
-	*dest_len = LZ4_decompress_safe(src, dest,
-		src_len, *dest_len);
-
-	/*
-	 * Prior lz4_decompress_unknownoutputsize will return
-	 * 0 for success and a negative result for error
-	 * new LZ4_decompress_safe returns
-	 * - the length of data read on success
-	 * - and also a negative result on error
-	 * meaning when result > 0, we just return 0 here
-	 */
-	if (src_len > 0)
-		return 0;
-	else
-		return -1;
-}
-EXPORT_SYMBOL(lz4_decompress_unknownoutputsize);
-
-int lz4_decompress(const unsigned char *src, size_t *src_len,
-	unsigned char *dest, size_t actual_dest_len) {
-	*src_len = LZ4_decompress_fast(src, dest, actual_dest_len);
-
-	/*
-	 * Prior lz4_decompress will return
-	 * 0 for success and a negative result for error
-	 * new LZ4_decompress_fast returns
-	 * - the length of data read on success
-	 * - and also a negative result on error
-	 * meaning when result > 0, we just return 0 here
-	 */
-	if (*src_len > 0)
-		return 0;
-	else
-		return -1;
-}
-EXPORT_SYMBOL(lz4_decompress);
-
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("LZ4 decompressor");
