@@ -99,7 +99,8 @@ static bool musb_is_tx_fifo_empty(struct musb_hw_ep *hw_ep)
 	return true;
 }
 
-static void cppi41_dma_callback(void *private_data);
+static void cppi41_dma_callback(void *private_data,
+				const struct dmaengine_result *result);
 
 static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 {
@@ -154,7 +155,7 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 		if (WARN_ON(!dma_desc))
 			return;
 
-		dma_desc->callback = cppi41_dma_callback;
+		dma_desc->callback_result = cppi41_dma_callback;
 		dma_desc->callback_param = &cppi41_channel->channel;
 		cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
 		trace_musb_cppi41_cont(cppi41_channel);
@@ -204,7 +205,8 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 	return ret;
 }
 
-static void cppi41_dma_callback(void *private_data)
+static void cppi41_dma_callback(void *private_data,
+				const struct dmaengine_result *result)
 {
 	struct dma_channel *channel = private_data;
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
@@ -220,6 +222,9 @@ static void cppi41_dma_callback(void *private_data)
 	controller = cppi41_channel->controller;
 	if (controller->controller.dma_callback)
 		controller->controller.dma_callback(&controller->controller);
+
+	if (result->result == DMA_TRANS_ABORTED)
+		return;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -403,7 +408,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	if (!dma_desc)
 		return false;
 
-	dma_desc->callback = cppi41_dma_callback;
+	dma_desc->callback_result = cppi41_dma_callback;
 	dma_desc->callback_param = channel;
 	cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
 	cppi41_channel->channel.rx_packet_done = false;
