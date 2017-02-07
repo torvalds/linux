@@ -281,10 +281,10 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
 #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
 
-#define FAULT_FLAG_SIZE_MASK	0x700	/* Support up to 8-level page tables */
-#define FAULT_FLAG_SIZE_PTE	0x000	/* First level (eg 4k) */
-#define FAULT_FLAG_SIZE_PMD	0x100	/* Second level (eg 2MB) */
-#define FAULT_FLAG_SIZE_PUD	0x200	/* Third level (eg 1GB) */
+#define FAULT_FLAG_SIZE_MASK	0x7000	/* Support up to 8-level page tables */
+#define FAULT_FLAG_SIZE_PTE	0x0000	/* First level (eg 4k) */
+#define FAULT_FLAG_SIZE_PMD	0x1000	/* Second level (eg 2MB) */
+#define FAULT_FLAG_SIZE_PUD	0x2000	/* Third level (eg 1GB) */
 
 #define FAULT_FLAG_TRACE \
 	{ FAULT_FLAG_WRITE,		"WRITE" }, \

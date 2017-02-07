@@ -3620,6 +3620,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 		ret = create_huge_pmd(&vmf);
 		if (!(ret & VM_FAULT_FALLBACK))
 			return ret;
+		/* fall through path, remove PMD flag */
+		vmf.flags &= ~FAULT_FLAG_SIZE_PMD;
 	} else {
 		pmd_t orig_pmd = *vmf.pmd;
 
@@ -3634,6 +3636,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 				ret = wp_huge_pmd(&vmf, orig_pmd);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
+				/* fall through path, remove PUD flag */
+				vmf.flags &= ~FAULT_FLAG_SIZE_PUD;
 			} else {
 				huge_pmd_set_accessed(&vmf, orig_pmd);
 				return 0;
