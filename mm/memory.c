@@ -4172,7 +4172,7 @@ long copy_huge_page_from_user(struct page *dst_page,
 				(const void __user *)(src + i * PAGE_SIZE),
 				PAGE_SIZE);
 		if (allow_pagefault)
-			kunmap(page_kaddr + i);
+			kunmap(dst_page + i);
 		else
 			kunmap_atomic(page_kaddr);
 
