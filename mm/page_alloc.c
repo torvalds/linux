@@ -4368,6 +4368,9 @@ void show_free_areas(unsigned int filter)
 		global_page_state(NR_FREE_CMA_PAGES));
 
 	for_each_online_pgdat(pgdat) {
+		if (skip_free_areas_node(filter, pgdat->node_id))
+			continue;
+
 		printk("Node %d"
 			" active_anon:%lukB"
 			" inactive_anon:%lukB"
