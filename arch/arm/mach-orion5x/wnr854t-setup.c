@@ -124,7 +124,7 @@ static void __init wnr854t_init(void)
 	 * Configure peripherals.
 	 */
 	orion5x_eth_init(&wnr854t_eth_data);
-	orion5x_eth_switch_init(&wnr854t_switch_plat_data);
+	orion5x_eth_switch_init(&wnr854t_switch_chip_data);
 	orion5x_uart0_init();
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,

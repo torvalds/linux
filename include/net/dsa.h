@@ -45,6 +45,11 @@ struct dsa_chip_data {
 	struct device	*host_dev;
 	int		sw_addr;
 
+	/*
+	 * Reference to network devices
+	 */
+	struct device	*netdev[DSA_MAX_PORTS];
+
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
 
@@ -170,6 +175,7 @@ struct dsa_mall_tc_entry {
 struct dsa_port {
 	struct dsa_switch	*ds;
 	unsigned int		index;
+	const char		*name;
 	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
@@ -445,6 +451,7 @@ struct dsa_switch_driver {
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
+struct net_device *dsa_dev_to_net_device(struct device *dev);
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {

@@ -886,6 +886,25 @@ void mdio_bus_exit(void);
 
 extern struct bus_type mdio_bus_type;
 
+struct mdio_board_info {
+	const char	*bus_id;
+	char		modalias[MDIO_NAME_SIZE];
+	int		mdio_addr;
+	const void	*platform_data;
+};
+
+#if IS_ENABLED(CONFIG_PHYLIB)
+int mdiobus_register_board_info(const struct mdio_board_info *info,
+				unsigned int n);
+#else
+static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
+					      unsigned int n)
+{
+	return 0;
+}
+#endif
+
+
 /**
  * module_phy_driver() - Helper macro for registering PHY drivers
  * @__phy_drivers: array of PHY drivers to register
