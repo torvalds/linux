@@ -157,8 +157,7 @@ static struct svc_rdma_op_ctxt *alloc_ctxt(struct svcxprt_rdma *xprt,
 	ctxt = kmalloc(sizeof(*ctxt), flags);
 	if (ctxt) {
 		ctxt->xprt = xprt;
-		INIT_LIST_HEAD(&ctxt->free);
-		INIT_LIST_HEAD(&ctxt->dto_q);
+		INIT_LIST_HEAD(&ctxt->list);
 	}
 	return ctxt;
 }
@@ -180,7 +179,7 @@ static bool svc_rdma_prealloc_ctxts(struct svcxprt_rdma *xprt)
 			dprintk("svcrdma: No memory for RDMA ctxt\n");
 			return false;
 		}
-		list_add(&ctxt->free, &xprt->sc_ctxts);
+		list_add(&ctxt->list, &xprt->sc_ctxts);
 	}
 	return true;
 }
@@ -195,8 +194,8 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 		goto out_empty;
 
 	ctxt = list_first_entry(&xprt->sc_ctxts,
-				struct svc_rdma_op_ctxt, free);
-	list_del_init(&ctxt->free);
+				struct svc_rdma_op_ctxt, list);
+	list_del(&ctxt->list);
 	spin_unlock_bh(&xprt->sc_ctxt_lock);
 
 out:
@@ -256,7 +255,7 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 
 	spin_lock_bh(&xprt->sc_ctxt_lock);
 	xprt->sc_ctxt_used--;
-	list_add(&ctxt->free, &xprt->sc_ctxts);
+	list_add(&ctxt->list, &xprt->sc_ctxts);
 	spin_unlock_bh(&xprt->sc_ctxt_lock);
 }
 
@@ -266,8 +265,8 @@ static void svc_rdma_destroy_ctxts(struct svcxprt_rdma *xprt)
 		struct svc_rdma_op_ctxt *ctxt;
 
 		ctxt = list_first_entry(&xprt->sc_ctxts,
-					struct svc_rdma_op_ctxt, free);
-		list_del(&ctxt->free);
+					struct svc_rdma_op_ctxt, list);
+		list_del(&ctxt->list);
 		kfree(ctxt);
 	}
 }
@@ -404,7 +403,7 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	/* All wc fields are now known to be valid */
 	ctxt->byte_len = wc->byte_len;
 	spin_lock(&xprt->sc_rq_dto_lock);
-	list_add_tail(&ctxt->dto_q, &xprt->sc_rq_dto_q);
+	list_add_tail(&ctxt->list, &xprt->sc_rq_dto_q);
 	spin_unlock(&xprt->sc_rq_dto_lock);
 
 	set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
@@ -525,7 +524,7 @@ void svc_rdma_wc_read(struct ib_cq *cq, struct ib_wc *wc)
 
 		read_hdr = ctxt->read_hdr;
 		spin_lock(&xprt->sc_rq_dto_lock);
-		list_add_tail(&read_hdr->dto_q,
+		list_add_tail(&read_hdr->list,
 			      &xprt->sc_read_complete_q);
 		spin_unlock(&xprt->sc_rq_dto_lock);
 
@@ -1213,20 +1212,18 @@ static void __svc_rdma_free(struct work_struct *work)
 	 */
 	while (!list_empty(&rdma->sc_read_complete_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
-		ctxt = list_entry(rdma->sc_read_complete_q.next,
-				  struct svc_rdma_op_ctxt,
-				  dto_q);
-		list_del_init(&ctxt->dto_q);
+		ctxt = list_first_entry(&rdma->sc_read_complete_q,
+					struct svc_rdma_op_ctxt, list);
+		list_del(&ctxt->list);
 		svc_rdma_put_context(ctxt, 1);
 	}
 
 	/* Destroy queued, but not processed recv completions */
 	while (!list_empty(&rdma->sc_rq_dto_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
-		ctxt = list_entry(rdma->sc_rq_dto_q.next,
-				  struct svc_rdma_op_ctxt,
-				  dto_q);
-		list_del_init(&ctxt->dto_q);
+		ctxt = list_first_entry(&rdma->sc_rq_dto_q,
+					struct svc_rdma_op_ctxt, list);
+		list_del(&ctxt->list);
 		svc_rdma_put_context(ctxt, 1);
 	}
 
