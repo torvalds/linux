@@ -419,6 +419,22 @@ bool fsl_mc_is_root_dprc(struct device *dev)
 	return dev == root_dprc_dev;
 }
 
+static void fsl_mc_device_release(struct device *dev)
+{
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	struct fsl_mc_bus *mc_bus = NULL;
+
+	kfree(mc_dev->regions);
+
+	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+		mc_bus = to_fsl_mc_bus(mc_dev);
+
+	if (mc_bus)
+		devm_kfree(mc_dev->dev.parent, mc_bus);
+	else
+		kmem_cache_free(mc_dev_cache, mc_dev);
+}
+
 /**
  * Add a newly discovered fsl-mc device to be visible in Linux
  */
@@ -460,6 +476,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 	device_initialize(&mc_dev->dev);
 	mc_dev->dev.parent = parent_dev;
 	mc_dev->dev.bus = &fsl_mc_bus_type;
+	mc_dev->dev.release = fsl_mc_device_release;
 	dev_set_name(&mc_dev->dev, "%s.%d", obj_desc->type, obj_desc->id);
 
 	if (strcmp(obj_desc->type, "dprc") == 0) {
@@ -561,23 +578,11 @@ EXPORT_SYMBOL_GPL(fsl_mc_device_add);
  */
 void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 {
-	struct fsl_mc_bus *mc_bus = NULL;
-
-	kfree(mc_dev->regions);
-
 	/*
 	 * The device-specific remove callback will get invoked by device_del()
 	 */
 	device_del(&mc_dev->dev);
 	put_device(&mc_dev->dev);
-
-	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
-		mc_bus = to_fsl_mc_bus(mc_dev);
-
-	if (mc_bus)
-		devm_kfree(mc_dev->dev.parent, mc_bus);
-	else
-		kmem_cache_free(mc_dev_cache, mc_dev);
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_remove);
 
