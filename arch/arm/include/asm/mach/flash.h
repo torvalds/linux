@@ -22,7 +22,7 @@ struct mtd_info;
  * set_vpp:	method called to enable or disable VPP
  * mmcontrol:	method called to enable or disable Sync. Burst Read in OneNAND
  * parts:	optional array of mtd_partitions for static partitioning
- * nr_parts:	number of mtd_partitions for static partitoning
+ * nr_parts:	number of mtd_partitions for static partitioning
  */
 struct flash_platform_data {
 	const char	*map_name;

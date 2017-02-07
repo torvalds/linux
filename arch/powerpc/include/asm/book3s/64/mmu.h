@@ -30,7 +30,7 @@ extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
 #ifndef __ASSEMBLY__
 /*
- * ISA 3.0 partiton and process table entry format
+ * ISA 3.0 partition and process table entry format
  */
 struct prtb_entry {
 	__be64 prtb0;

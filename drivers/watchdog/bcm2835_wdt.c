@@ -37,9 +37,9 @@
 #define PM_RSTC_RESET			0x00000102
 
 /*
- * The Raspberry Pi firmware uses the RSTS register to know which partiton
- * to boot from. The partiton value is spread into bits 0, 2, 4, 6, 8, 10.
- * Partiton 63 is a special partition used by the firmware to indicate halt.
+ * The Raspberry Pi firmware uses the RSTS register to know which partition
+ * to boot from. The partition value is spread into bits 0, 2, 4, 6, 8, 10.
+ * Partition 63 is a special partition used by the firmware to indicate halt.
  */
 #define PM_RSTS_RASPBERRYPI_HALT	0x555
 
