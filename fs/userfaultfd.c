@@ -574,7 +574,8 @@ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
 			ret = POLLIN;
 		return ret;
 	default:
-		BUG();
+		WARN_ON_ONCE(1);
+		return POLLERR;
 	}
 }
 
