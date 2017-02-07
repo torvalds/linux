@@ -613,7 +613,7 @@
 		gic: interrupt-controller@01c41000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c41000 0x1000>,
-			      <0x01c42000 0x1000>,
+			      <0x01c42000 0x2000>,
 			      <0x01c44000 0x2000>,
 			      <0x01c46000 0x2000>;
 			interrupt-controller;
@@ -696,6 +696,7 @@
 				       "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc1_pins: mmc1 {
@@ -703,6 +704,7 @@
 						 "PG4", "PG5";
 				function = "mmc1";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_8bit_pins: mmc2_8bit {
@@ -712,6 +714,7 @@
 				       "PC16";
 				function = "mmc2";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			uart0_pins_a: uart0@0 {

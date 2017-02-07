@@ -871,6 +871,7 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			num-cs = <4>;
 		};
 
 		spi1: spi@01c06000 {
@@ -885,6 +886,7 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			num-cs = <1>;
 		};
 
 		emac: ethernet@01c0b000 {
@@ -1037,6 +1039,7 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			num-cs = <1>;
 		};
 
 		ahci: sata@01c18000 {
@@ -1079,6 +1082,7 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			num-cs = <1>;
 		};
 
 		pio: pinctrl@01c20800 {
@@ -1179,6 +1183,7 @@
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
@@ -1200,6 +1205,7 @@
 				       "PI7", "PI8", "PI9";
 				function = "mmc3";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			ps20_pins_a: ps20@0 {
@@ -1613,9 +1619,9 @@
 		};
 
 		gic: interrupt-controller@01c81000 {
-			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400", "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

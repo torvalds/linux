@@ -69,6 +69,29 @@
 			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board SPDIF";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&codec {
+	allwinner,audio-routing =
+		"Headphone", "HP";
+	status = "okay";
 };
 
 &ehci0 {
@@ -129,6 +152,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_vbus_pin_i7>;
 	gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_pins_a>;
+	spdif-out = "okay";
 	status = "okay";
 };
 

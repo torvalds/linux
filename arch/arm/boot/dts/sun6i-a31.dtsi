@@ -548,6 +548,7 @@
 						 "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc1_pins_a: mmc1@0 {
@@ -555,6 +556,7 @@
 						 "PG4", "PG5";
 				function = "mmc1";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_pins_a: mmc2@0 {
@@ -572,6 +574,7 @@
 						 "PC24";
 				function = "mmc2";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc3_8bit_emmc_pins: mmc3@1 {
@@ -581,6 +584,12 @@
 						 "PC24";
 				function = "mmc3";
 				drive-strength = <40>;
+				bias-pull-up;
+			};
+
+			spdif_pins_a: spdif@0 {
+				pins = "PH28";
+				function = "spdif";
 			};
 
 			uart0_pins_a: uart0@0 {
@@ -603,6 +612,19 @@
 		wdt1: watchdog@01c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
+		};
+
+		spdif: spdif@01c21000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun6i-a31-spdif";
+			reg = <0x01c21000 0x400>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_APB1_SPDIF>, <&ccu CLK_SPDIF>;
+			resets = <&ccu RST_APB1_SPDIF>;
+			clock-names = "apb", "spdif";
+			dmas = <&dma 2>, <&dma 2>;
+			dma-names = "rx", "tx";
+			status = "disabled";
 		};
 
 		lradc: lradc@01c22800 {
@@ -844,7 +866,7 @@
 		gic: interrupt-controller@01c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

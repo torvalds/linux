@@ -1194,7 +1194,7 @@
 		#address-cells = <0>;
 
 		reg = <0xffc01000 0x1000>,
-		      <0xffc02000 0x1000>,
+		      <0xffc02000 0x2000>,
 		      <0xffc04000 0x2000>,
 		      <0xffc06000 0x2000>;
 		interrupts = <GIC_PPI 9 0xf04>;

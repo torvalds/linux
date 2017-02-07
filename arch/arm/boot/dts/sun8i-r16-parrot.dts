@@ -84,6 +84,14 @@
 
 };
 
+&codec {
+	status = "okay";
+};
+
+&dai {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -201,7 +209,7 @@
 	};
 };
 
-#include "axp22x.dtsi"
+#include "axp223.dtsi"
 
 &reg_aldo1 {
 	regulator-always-on;
@@ -314,6 +322,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_vbus_pin_parrot>;
 	gpio = <&pio 3 12 GPIO_ACTIVE_HIGH>; /* PD12 */
+	status = "okay";
+};
+
+&sound {
 	status = "okay";
 };
 
