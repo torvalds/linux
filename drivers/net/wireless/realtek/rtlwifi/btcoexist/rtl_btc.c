@@ -178,17 +178,6 @@ struct rtl_btc_ops *rtl_btc_get_ops_pointer(void)
 }
 EXPORT_SYMBOL(rtl_btc_get_ops_pointer);
 
-u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
-{
-	u8 num;
-
-	if (rtlpriv->btcoexist.btc_info.ant_num == ANT_X2)
-		num = 2;
-	else
-		num = 1;
-
-	return num;
-}
 
 enum rt_media_status mgnt_link_status_query(struct ieee80211_hw *hw)
 {
