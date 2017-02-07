@@ -176,7 +176,7 @@ f2fs. Each file shows the whole f2fs information.
 SYSFS ENTRIES
 ================================================================================
 
-Information about mounted f2f2 file systems can be found in
+Information about mounted f2fs file systems can be found in
 /sys/fs/f2fs.  Each mounted filesystem will have a directory in
 /sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
 The files in each per-device directory are shown in table below.
