@@ -156,8 +156,6 @@ enum {
 	AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD,
 };
 
-#define AUTOFS_IOCTL 0x93
-
 #define AUTOFS_DEV_IOCTL_VERSION \
 	_IOWR(AUTOFS_IOCTL, \
 	      AUTOFS_DEV_IOCTL_VERSION_CMD, struct autofs_dev_ioctl)
