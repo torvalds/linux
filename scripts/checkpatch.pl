@@ -5287,6 +5287,12 @@ sub process {
 			}
 		}
 
+# check for logging continuations
+		if ($line =~ /\bprintk\s*\(\s*KERN_CONT\b|\bpr_cont\s*\(/) {
+			WARN("LOGGING_CONTINUATION",
+			     "Avoid logging continuation uses where feasible\n" . $herecurr);
+		}
+
 # check for mask then right shift without a parentheses
 		if ($^V && $^V ge 5.10.0 &&
 		    $line =~ /$LvalOrFunc\s*\&\s*($LvalOrFunc)\s*>>/ &&
