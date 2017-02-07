@@ -1824,7 +1824,7 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		  unsigned int *out_len, int block);
 #endif
 
-extern struct fscrypt_operations ubifs_crypt_operations;
+extern const struct fscrypt_operations ubifs_crypt_operations;
 
 static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
 {

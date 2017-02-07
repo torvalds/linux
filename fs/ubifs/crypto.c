@@ -77,7 +77,7 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	return 0;
 }
 
-struct fscrypt_operations ubifs_crypt_operations = {
+const struct fscrypt_operations ubifs_crypt_operations = {
 	.flags			= FS_CFLG_OWN_PAGES,
 	.key_prefix		= "ubifs:",
 	.get_context		= ubifs_crypt_get_context,

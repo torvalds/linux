@@ -1173,7 +1173,7 @@ static unsigned ext4_max_namelen(struct inode *inode)
 		EXT4_NAME_LEN;
 }
 
-static struct fscrypt_operations ext4_cryptops = {
+static const struct fscrypt_operations ext4_cryptops = {
 	.key_prefix		= "ext4:",
 	.get_context		= ext4_get_context,
 	.prepare_context	= ext4_prepare_context,
@@ -1184,7 +1184,7 @@ static struct fscrypt_operations ext4_cryptops = {
 	.max_namelen		= ext4_max_namelen,
 };
 #else
-static struct fscrypt_operations ext4_cryptops = {
+static const struct fscrypt_operations ext4_cryptops = {
 	.is_encrypted		= ext4_encrypted_inode,
 };
 #endif
