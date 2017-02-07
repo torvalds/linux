@@ -49,8 +49,8 @@ static int snd_bcm2835_dev_free(struct snd_device *device)
  * (see "Management of Cards and Components")
  */
 static int snd_bcm2835_create(struct snd_card *card,
-	struct platform_device *pdev,
-	struct bcm2835_chip **rchip)
+			      struct platform_device *pdev,
+			      struct bcm2835_chip **rchip)
 {
 	struct bcm2835_chip *chip;
 	int err;
@@ -85,7 +85,7 @@ static int snd_bcm2835_alsa_probe_dt(struct platform_device *pdev)
 	int err, i;
 
 	err = of_property_read_u32(dev->of_node, "brcm,pwm-channels",
-		&numchans);
+				   &numchans);
 	if (err) {
 		dev_err(dev, "Failed to get DT property 'brcm,pwm-channels'");
 		return err;
@@ -94,7 +94,7 @@ static int snd_bcm2835_alsa_probe_dt(struct platform_device *pdev)
 	if (numchans == 0 || numchans > MAX_SUBSTREAMS) {
 		numchans = MAX_SUBSTREAMS;
 		dev_warn(dev, "Illegal 'brcm,pwm-channels' value, will use %u\n",
-			numchans);
+			 numchans);
 	}
 
 	err = snd_card_new(&pdev->dev, -1, NULL, THIS_MODULE, 0, &card);
@@ -194,7 +194,7 @@ static int snd_bcm2835_alsa_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 
 static int snd_bcm2835_alsa_suspend(struct platform_device *pdev,
-	pm_message_t state)
+				    pm_message_t state)
 {
 	return 0;
 }
