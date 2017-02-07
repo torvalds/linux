@@ -111,25 +111,6 @@ static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static int malidp_enable_vblank(struct drm_device *drm, unsigned int crtc)
-{
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
-	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
-			     hwdev->map.de_irq_map.vsync_irq);
-	return 0;
-}
-
-static void malidp_disable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct malidp_drm *malidp = drm->dev_private;
-	struct malidp_hw_device *hwdev = malidp->dev;
-
-	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
-			      hwdev->map.de_irq_map.vsync_irq);
-}
-
 static int malidp_init(struct drm_device *drm)
 {
 	int ret;
@@ -213,8 +194,6 @@ static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
 	.lastclose = malidp_lastclose,
-	.enable_vblank = malidp_enable_vblank,
-	.disable_vblank = malidp_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,

@@ -167,6 +167,25 @@ static const struct drm_crtc_helper_funcs malidp_crtc_helper_funcs = {
 	.atomic_check = malidp_crtc_atomic_check,
 };
 
+static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
+
+	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
+			     hwdev->map.de_irq_map.vsync_irq);
+	return 0;
+}
+
+static void malidp_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
+	struct malidp_hw_device *hwdev = malidp->dev;
+
+	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
+			      hwdev->map.de_irq_map.vsync_irq);
+}
+
 static const struct drm_crtc_funcs malidp_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -174,6 +193,8 @@ static const struct drm_crtc_funcs malidp_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = malidp_crtc_enable_vblank,
+	.disable_vblank = malidp_crtc_disable_vblank,
 };
 
 int malidp_crtc_init(struct drm_device *drm)
