@@ -528,6 +528,13 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 	} else {
 		rk_hdmi_property.defaultmode = HDMI_VIDEO_DEFAULT_MODE;
 	}
+	if (!of_property_read_u32(np, "rockchip,defaultdepth", &val) &&
+	    (val > 0)) {
+		pr_info("default depth is %d\n", val);
+		rk_hdmi_property.defaultdepth = val;
+	} else {
+		rk_hdmi_property.defaultdepth = HDMI_VIDEO_DEFAULT_COLORDEPTH;
+	}
 	if (of_get_property(np, "rockchip,phy_table", &val)) {
 		hdmi_dev->phy_table = kmalloc(val, GFP_KERNEL);
 		if (!hdmi_dev->phy_table) {

@@ -440,6 +440,7 @@ struct hdmi_property {
 	int display;
 	int feature;
 	int defaultmode;
+	int defaultdepth;
 	void *priv;
 };
 

@@ -639,7 +639,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 		hdmi->vic = hdmi->property->defaultmode;
 	}
 	hdmi->colormode = HDMI_VIDEO_DEFAULT_COLORMODE;
-	hdmi->colordepth = HDMI_VIDEO_DEFAULT_COLORDEPTH;
+	hdmi->colordepth = hdmi->property->defaultdepth;
 	hdmi->colorimetry = HDMI_COLORIMETRY_NO_DATA;
 	hdmi->mode_3d = HDMI_3D_NONE;
 	hdmi->audio.type = HDMI_AUDIO_DEFAULT_TYPE;
