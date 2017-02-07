@@ -612,9 +612,6 @@ static int br_afspec(struct net_bridge *br,
 				return err;
 			break;
 		}
-
-		if (err)
-			return err;
 	}
 
 	return err;
