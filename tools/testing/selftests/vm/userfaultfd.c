@@ -625,6 +625,86 @@ static int faulting_process(void)
 	return 0;
 }
 
+static int uffdio_zeropage(int ufd, unsigned long offset)
+{
+	struct uffdio_zeropage uffdio_zeropage;
+	int ret;
+	unsigned long has_zeropage = EXPECTED_IOCTLS & (1 << _UFFDIO_ZEROPAGE);
+
+	if (offset >= nr_pages * page_size)
+		fprintf(stderr, "unexpected offset %lu\n",
+			offset), exit(1);
+	uffdio_zeropage.range.start = (unsigned long) area_dst + offset;
+	uffdio_zeropage.range.len = page_size;
+	uffdio_zeropage.mode = 0;
+	ret = ioctl(ufd, UFFDIO_ZEROPAGE, &uffdio_zeropage);
+	if (ret) {
+		/* real retval in ufdio_zeropage.zeropage */
+		if (has_zeropage) {
+			if (uffdio_zeropage.zeropage == -EEXIST)
+				fprintf(stderr, "UFFDIO_ZEROPAGE -EEXIST\n"),
+					exit(1);
+			else
+				fprintf(stderr, "UFFDIO_ZEROPAGE error %Ld\n",
+					uffdio_zeropage.zeropage), exit(1);
+		} else {
+			if (uffdio_zeropage.zeropage != -EINVAL)
+				fprintf(stderr,
+					"UFFDIO_ZEROPAGE not -EINVAL %Ld\n",
+					uffdio_zeropage.zeropage), exit(1);
+		}
+	} else if (has_zeropage) {
+		if (uffdio_zeropage.zeropage != page_size) {
+			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
+				uffdio_zeropage.zeropage), exit(1);
+		} else
+			return 1;
+	} else {
+		fprintf(stderr,
+			"UFFDIO_ZEROPAGE succeeded %Ld\n",
+			uffdio_zeropage.zeropage), exit(1);
+	}
+
+	return 0;
+}
+
+/* exercise UFFDIO_ZEROPAGE */
+static int userfaultfd_zeropage_test(void)
+{
+	struct uffdio_register uffdio_register;
+	unsigned long expected_ioctls;
+
+	printf("testing UFFDIO_ZEROPAGE: ");
+	fflush(stdout);
+
+	if (release_pages(area_dst))
+		return 1;
+
+	if (userfaultfd_open(0) < 0)
+		return 1;
+	uffdio_register.range.start = (unsigned long) area_dst;
+	uffdio_register.range.len = nr_pages * page_size;
+	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
+	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+		fprintf(stderr, "register failure\n"), exit(1);
+
+	expected_ioctls = EXPECTED_IOCTLS;
+	if ((uffdio_register.ioctls & expected_ioctls) !=
+	    expected_ioctls)
+		fprintf(stderr,
+			"unexpected missing ioctl for anon memory\n"),
+			exit(1);
+
+	if (uffdio_zeropage(uffd, 0)) {
+		if (my_bcmp(area_dst, zeropage, page_size))
+			fprintf(stderr, "zeropage is not zero\n"), exit(1);
+	}
+
+	close(uffd);
+	printf("done.\n");
+	return 0;
+}
+
 static int userfaultfd_events_test(void)
 {
 	struct uffdio_register uffdio_register;
@@ -853,7 +933,7 @@ static int userfaultfd_stress(void)
 		return err;
 
 	close(uffd);
-	return userfaultfd_events_test();
+	return userfaultfd_zeropage_test() || userfaultfd_events_test();
 }
 
 #ifndef HUGETLB_TEST
