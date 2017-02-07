@@ -366,15 +366,15 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 TRACE_EVENT(mm_vmscan_lru_shrink_active,
 
 	TP_PROTO(int nid, unsigned long nr_taken,
-		unsigned long nr_activate, unsigned long nr_deactivated,
+		unsigned long nr_active, unsigned long nr_deactivated,
 		unsigned long nr_referenced, int priority, int file),
 
-	TP_ARGS(nid, nr_taken, nr_activate, nr_deactivated, nr_referenced, priority, file),
+	TP_ARGS(nid, nr_taken, nr_active, nr_deactivated, nr_referenced, priority, file),
 
 	TP_STRUCT__entry(
 		__field(int, nid)
 		__field(unsigned long, nr_taken)
-		__field(unsigned long, nr_activate)
+		__field(unsigned long, nr_active)
 		__field(unsigned long, nr_deactivated)
 		__field(unsigned long, nr_referenced)
 		__field(int, priority)
@@ -384,17 +384,17 @@ TRACE_EVENT(mm_vmscan_lru_shrink_active,
 	TP_fast_assign(
 		__entry->nid = nid;
 		__entry->nr_taken = nr_taken;
-		__entry->nr_activate = nr_activate;
+		__entry->nr_active = nr_active;
 		__entry->nr_deactivated = nr_deactivated;
 		__entry->nr_referenced = nr_referenced;
 		__entry->priority = priority;
 		__entry->reclaim_flags = trace_shrink_flags(file);
 	),
 
-	TP_printk("nid=%d nr_taken=%ld nr_activated=%ld nr_deactivated=%ld nr_referenced=%ld priority=%d flags=%s",
+	TP_printk("nid=%d nr_taken=%ld nr_active=%ld nr_deactivated=%ld nr_referenced=%ld priority=%d flags=%s",
 		__entry->nid,
 		__entry->nr_taken,
-		__entry->nr_activate, __entry->nr_deactivated, __entry->nr_referenced,
+		__entry->nr_active, __entry->nr_deactivated, __entry->nr_referenced,
 		__entry->priority,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
