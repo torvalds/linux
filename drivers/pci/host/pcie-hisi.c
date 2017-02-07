@@ -26,8 +26,8 @@
 
 #if defined(CONFIG_PCI_HISI) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
-static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
-				  int size, u32 *val)
+static int hisi_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+			     int size, u32 *val)
 {
 	struct pci_config_window *cfg = bus->sysdata;
 	int dev = PCI_SLOT(devfn);
@@ -44,8 +44,8 @@ static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	return pci_generic_config_read(bus, devfn, where, size, val);
 }
 
-static int hisi_pcie_acpi_wr_conf(struct pci_bus *bus, u32 devfn,
-				  int where, int size, u32 val)
+static int hisi_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
+			     int where, int size, u32 val)
 {
 	struct pci_config_window *cfg = bus->sysdata;
 	int dev = PCI_SLOT(devfn);
@@ -112,8 +112,8 @@ struct pci_ecam_ops hisi_pcie_ops = {
 	.init         =  hisi_pcie_init,
 	.pci_ops      = {
 		.map_bus    = hisi_pcie_map_bus,
-		.read       = hisi_pcie_acpi_rd_conf,
-		.write      = hisi_pcie_acpi_wr_conf,
+		.read       = hisi_pcie_rd_conf,
+		.write      = hisi_pcie_wr_conf,
 	}
 };
 
@@ -358,8 +358,8 @@ struct pci_ecam_ops hisi_pcie_platform_ops = {
 	.init         =  hisi_pcie_platform_init,
 	.pci_ops      = {
 		.map_bus    = hisi_pcie_map_bus,
-		.read       = hisi_pcie_acpi_rd_conf,
-		.write      = hisi_pcie_acpi_wr_conf,
+		.read       = hisi_pcie_rd_conf,
+		.write      = hisi_pcie_wr_conf,
 	}
 };
 
