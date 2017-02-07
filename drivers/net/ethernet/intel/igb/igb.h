@@ -148,6 +148,9 @@ struct vf_data_storage {
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IGB_RX_BUFFER_WRITE	16 /* Must be power of 2 */
 
+#define IGB_RX_DMA_ATTR \
+	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+
 #define AUTO_ALL_MODES		0
 #define IGB_EEPROM_APME		0x0400
 

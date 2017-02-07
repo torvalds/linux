@@ -3963,7 +3963,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 				     buffer_info->dma,
 				     PAGE_SIZE,
 				     DMA_FROM_DEVICE,
-				     DMA_ATTR_SKIP_CPU_SYNC);
+				     IGB_RX_DMA_ATTR);
 		__page_frag_cache_drain(buffer_info->page,
 					buffer_info->pagecnt_bias);
 
@@ -6990,7 +6990,7 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
 		 */
 		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
 				     PAGE_SIZE, DMA_FROM_DEVICE,
-				     DMA_ATTR_SKIP_CPU_SYNC);
+				     IGB_RX_DMA_ATTR);
 		__page_frag_cache_drain(page, rx_buffer->pagecnt_bias);
 	}
 
@@ -7250,7 +7250,7 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
 
 	/* map page for use */
 	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
-				 DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+				 DMA_FROM_DEVICE, IGB_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
