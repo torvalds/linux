@@ -314,6 +314,7 @@ struct igb_q_vector {
 
 enum e1000_ring_flags_t {
 	IGB_RING_FLAG_RX_3K_BUFFER,
+	IGB_RING_FLAG_RX_BUILD_SKB_ENABLED,
 	IGB_RING_FLAG_RX_SCTP_CSUM,
 	IGB_RING_FLAG_RX_LB_VLAN_BSWAP,
 	IGB_RING_FLAG_TX_CTX_IDX,
@@ -327,11 +328,21 @@ enum e1000_ring_flags_t {
 #define clear_ring_uses_large_buffer(ring) \
 	clear_bit(IGB_RING_FLAG_RX_3K_BUFFER, &(ring)->flags)
 
+#define ring_uses_build_skb(ring) \
+	test_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+#define set_ring_build_skb_enabled(ring) \
+	set_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+#define clear_ring_build_skb_enabled(ring) \
+	clear_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+
 static inline unsigned int igb_rx_bufsz(struct igb_ring *ring)
 {
 #if (PAGE_SIZE < 8192)
 	if (ring_uses_large_buffer(ring))
 		return IGB_RXBUFFER_3072;
+
+	if (ring_uses_build_skb(ring))
+		return IGB_MAX_FRAME_BUILD_SKB + IGB_TS_HDR_LEN;
 #endif
 	return IGB_RXBUFFER_2048;
 }
