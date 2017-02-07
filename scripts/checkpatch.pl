@@ -5208,6 +5208,12 @@ sub process {
 				     "\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
 				last;
 			}
+			# check for %Z
+			if ($string =~ /(?<!%)%[\*\d\.\$]*Z[diouxX]/) {
+				WARN("PRINTF_Z",
+				     "%Z is non-standard C, use %z\n" . $herecurr);
+				last;
+			}
 			if ($string =~ /0x%[\*\d\.\$\Llzth]*[udi]/) {
 				ERROR("PRINTF_0xDECIMAL",
 				      "Prefixing 0x with decimal output is defective\n" . $herecurr);
