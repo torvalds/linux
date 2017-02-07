@@ -15,6 +15,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/moduleparam.h>
 #include "wil6210.h"
 #include "wmi.h"
 
