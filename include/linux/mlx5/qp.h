@@ -221,14 +221,26 @@ enum {
 	MLX5_ETH_WQE_L4_CSUM            = 1 << 7,
 };
 
+enum {
+	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
+};
+
 struct mlx5_wqe_eth_seg {
 	u8              rsvd0[4];
 	u8              cs_flags;
 	u8              rsvd1;
 	__be16          mss;
 	__be32          rsvd2;
-	__be16          inline_hdr_sz;
-	u8              inline_hdr_start[2];
+	union {
+		struct {
+			__be16 sz;
+			u8     start[2];
+		} inline_hdr;
+		struct {
+			__be16 type;
+			__be16 vlan_tci;
+		} insert;
+	};
 };
 
 struct mlx5_wqe_xrc_seg {
