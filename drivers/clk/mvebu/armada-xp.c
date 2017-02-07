@@ -232,16 +232,3 @@ static void __init axp_clk_init(struct device_node *np)
 		mvebu_clk_gating_setup(cgnp, axp_gating_desc);
 }
 CLK_OF_DECLARE(axp_clk, "marvell,armada-xp-core-clock", axp_clk_init);
-
-static void __init mv98dx3236_clk_init(struct device_node *np)
-{
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,armada-xp-gating-clock");
-
-	mvebu_coreclk_setup(np, &mv98dx3236_coreclks);
-
-	if (cgnp)
-		mvebu_clk_gating_setup(cgnp, mv98dx3236_gating_desc);
-}
-CLK_OF_DECLARE(mv98dx3236_clk, "marvell,mv98dx3236-core-clock",
-	       mv98dx3236_clk_init);
