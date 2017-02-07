@@ -13,26 +13,6 @@
 
 typedef int (*toupper_t)(int);
 
-static int	 affs_toupper(int ch);
-static int	 affs_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_compare_dentry(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name);
-static int	 affs_intl_toupper(int ch);
-static int	 affs_intl_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_intl_compare_dentry(const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name);
-
-const struct dentry_operations affs_dentry_operations = {
-	.d_hash		= affs_hash_dentry,
-	.d_compare	= affs_compare_dentry,
-};
-
-const struct dentry_operations affs_intl_dentry_operations = {
-	.d_hash		= affs_intl_hash_dentry,
-	.d_compare	= affs_intl_compare_dentry,
-};
-
-
 /* Simple toupper() for DOS\1 */
 
 static int
@@ -504,4 +484,14 @@ static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
 const struct export_operations affs_export_ops = {
 	.fh_to_dentry = affs_fh_to_dentry,
 	.fh_to_parent = affs_fh_to_parent,
+};
+
+const struct dentry_operations affs_dentry_operations = {
+	.d_hash		= affs_hash_dentry,
+	.d_compare	= affs_compare_dentry,
+};
+
+const struct dentry_operations affs_intl_dentry_operations = {
+	.d_hash		= affs_intl_hash_dentry,
+	.d_compare	= affs_intl_compare_dentry,
 };
