@@ -604,7 +604,7 @@ libaries||libraries
 libary||library
 librairies||libraries
 libraris||libraries
-licenceing||licensing
+licenceing||licencing
 loggging||logging
 loggin||login
 logile||logfile
