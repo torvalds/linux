@@ -278,24 +278,13 @@ static void complexmode_enter(struct sem_array *sma)
 		return;
 	}
 
-	/* We need a full barrier after seting complex_mode:
-	 * The write to complex_mode must be visible
-	 * before we read the first sem->lock spinlock state.
-	 */
-	smp_store_mb(sma->complex_mode, true);
+	sma->complex_mode = true;
 
 	for (i = 0; i < sma->sem_nsems; i++) {
 		sem = sma->sem_base + i;
-		spin_unlock_wait(&sem->lock);
+		spin_lock(&sem->lock);
+		spin_unlock(&sem->lock);
 	}
-	/*
-	 * spin_unlock_wait() is not a memory barriers, it is only a
-	 * control barrier. The code must pair with spin_unlock(&sem->lock),
-	 * thus just the control barrier is insufficient.
-	 *
-	 * smp_rmb() is sufficient, as writes cannot pass the control barrier.
-	 */
-	smp_rmb();
 }
 
 /*
@@ -360,14 +349,6 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		 * Acquire the per-semaphore lock.
 		 */
 		spin_lock(&sem->lock);
-
-		/*
-		 * See 51d7d5205d33
-		 * ("powerpc: Add smp_mb() to arch_spin_is_locked()"):
-		 * A full barrier is required: the write of sem->lock
-		 * must be visible before the read is executed
-		 */
-		smp_mb();
 
 		if (!smp_load_acquire(&sma->complex_mode)) {
 			/* fast path successful! */
