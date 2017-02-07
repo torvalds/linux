@@ -991,6 +991,10 @@ suspeneded||suspended
 suspicously||suspiciously
 swaping||swapping
 switchs||switches
+swith||switch
+swithable||switchable
+swithed||switched
+swithing||switching
 symetric||symmetric
 synax||syntax
 synchonized||synchronized
