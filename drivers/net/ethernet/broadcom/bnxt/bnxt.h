@@ -416,6 +416,11 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
 
+#define BNXT_MAX_MTU		9500
+#define BNXT_MAX_PAGE_MODE_MTU	\
+	((unsigned int)PAGE_SIZE - VLAN_ETH_HLEN - NET_IP_ALIGN -	\
+	 XDP_PACKET_HEADROOM)
+
 #define BNXT_MIN_PKT_SIZE	52
 
 #define BNXT_NUM_TESTS(bp)	0
@@ -507,17 +512,25 @@ struct rx_tpa_end_cmp_ext {
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
 
+#define BNXT_RX_EVENT	1
+#define BNXT_AGG_EVENT	2
+#define BNXT_TX_EVENT	4
+
 struct bnxt_sw_tx_bd {
 	struct sk_buff		*skb;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	u8			is_gso;
 	u8			is_push;
-	unsigned short		nr_frags;
+	union {
+		unsigned short		nr_frags;
+		u16			rx_prod;
+	};
 };
 
 struct bnxt_sw_rx_bd {
-	u8			*data;
-	DEFINE_DMA_UNMAP_ADDR(mapping);
+	void			*data;
+	u8			*data_ptr;
+	dma_addr_t		mapping;
 };
 
 struct bnxt_sw_rx_agg_bd {
@@ -558,6 +571,7 @@ struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
+	u16			txq_index;
 	void __iomem		*tx_doorbell;
 
 	struct tx_bd		*tx_desc_ring[MAX_TX_PAGES];
@@ -576,7 +590,8 @@ struct bnxt_tx_ring_info {
 };
 
 struct bnxt_tpa_info {
-	u8			*data;
+	void			*data;
+	u8			*data_ptr;
 	dma_addr_t		mapping;
 	u16			len;
 	unsigned short		gso_type;
@@ -607,6 +622,8 @@ struct bnxt_rx_ring_info {
 	u16			rx_next_cons;
 	void __iomem		*rx_doorbell;
 	void __iomem		*rx_agg_doorbell;
+
+	struct bpf_prog		*xdp_prog;
 
 	struct rx_bd		*rx_desc_ring[MAX_RX_PAGES];
 	struct bnxt_sw_rx_bd	*rx_buf_ring;
@@ -653,6 +670,11 @@ struct bnxt_napi {
 	struct bnxt_cp_ring_info	cp_ring;
 	struct bnxt_rx_ring_info	*rx_ring;
 	struct bnxt_tx_ring_info	*tx_ring;
+
+	void			(*tx_int)(struct bnxt *, struct bnxt_napi *,
+					  int);
+	u32			flags;
+#define BNXT_NAPI_FLAG_XDP	0x1
 
 	bool			in_reset;
 };
@@ -965,6 +987,7 @@ struct bnxt {
 	#define BNXT_FLAG_ROCE_CAP	(BNXT_FLAG_ROCEV1_CAP |	\
 					 BNXT_FLAG_ROCEV2_CAP)
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
+	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -976,6 +999,7 @@ struct bnxt {
 #define BNXT_NPAR(bp)		((bp)->port_partition_type)
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
+#define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);
@@ -984,12 +1008,21 @@ struct bnxt {
 
 	struct bnxt_rx_ring_info	*rx_ring;
 	struct bnxt_tx_ring_info	*tx_ring;
+	u16			*tx_ring_map;
 
 	struct sk_buff *	(*gro_func)(struct bnxt_tpa_info *, int, int,
 					    struct sk_buff *);
 
+	struct sk_buff *	(*rx_skb_func)(struct bnxt *,
+					       struct bnxt_rx_ring_info *,
+					       u16, void *, u8 *, dma_addr_t,
+					       unsigned int);
+
 	u32			rx_buf_size;
 	u32			rx_buf_use_size;	/* useable size */
+	u16			rx_offset;
+	u16			rx_dma_offset;
+	enum dma_data_direction	rx_dir;
 	u32			rx_ring_size;
 	u32			rx_agg_ring_size;
 	u32			rx_copy_thresh;
@@ -1005,6 +1038,7 @@ struct bnxt {
 	int			tx_nr_pages;
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
+	int			tx_nr_rings_xdp;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1140,6 +1174,8 @@ struct bnxt {
 
 	u8			num_leds;
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
+
+	struct bpf_prog		*xdp_prog;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1159,7 +1195,23 @@ struct bnxt {
 #define SFF_MODULE_ID_QSFP28			0x11
 #define BNXT_MAX_PHY_I2C_RESP_SIZE		64
 
+static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
+{
+	/* Tell compiler to fetch tx indices from memory. */
+	barrier();
+
+	return bp->tx_ring_size -
+		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
+}
+
+extern const u16 bnxt_lhint_arr[];
+
+int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
+		       u16 prod, gfp_t gfp);
+void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons, void *data);
+void bnxt_set_tpa_flags(struct bnxt *bp);
 void bnxt_set_ring_params(struct bnxt *);
+int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);
 int _hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message(struct bnxt *, void *, u32, int);
@@ -1168,7 +1220,6 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
 				     int bmap_size);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
-int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings);
 int bnxt_hwrm_set_coal(struct bnxt *);
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp);
 void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max);
@@ -1182,6 +1233,7 @@ int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_close_nic(struct bnxt *, bool, bool);
+int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 void bnxt_restore_pf_fw_resources(struct bnxt *bp);
