@@ -32,6 +32,7 @@
 #define DP83867_CFG3		0x1e
 
 /* Extended Registers */
+#define DP83867_CFG4            0x0031
 #define DP83867_RGMIICTL	0x0032
 #define DP83867_RGMIIDCTL	0x0086
 #define DP83867_IO_MUX_CFG	0x0170
@@ -70,11 +71,21 @@
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX	0x0
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN	0x1f
 
+/* CFG4 bits */
+#define DP83867_CFG4_PORT_MIRROR_EN              BIT(0)
+
+enum {
+	DP83867_PORT_MIRROING_KEEP,
+	DP83867_PORT_MIRROING_EN,
+	DP83867_PORT_MIRROING_DIS,
+};
+
 struct dp83867_private {
 	int rx_id_delay;
 	int tx_id_delay;
 	int fifo_depth;
 	int io_impedance;
+	int port_mirroring;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -111,6 +122,24 @@ static int dp83867_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, MII_DP83867_MICR, micr_status);
 }
 
+static int dp83867_config_port_mirroring(struct phy_device *phydev)
+{
+	struct dp83867_private *dp83867 =
+		(struct dp83867_private *)phydev->priv;
+	u16 val;
+
+	val = phy_read_mmd_indirect(phydev, DP83867_CFG4, DP83867_DEVADDR);
+
+	if (dp83867->port_mirroring == DP83867_PORT_MIRROING_EN)
+		val |= DP83867_CFG4_PORT_MIRROR_EN;
+	else
+		val &= ~DP83867_CFG4_PORT_MIRROR_EN;
+
+	phy_write_mmd_indirect(phydev, DP83867_CFG4, DP83867_DEVADDR, val);
+
+	return 0;
+}
+
 #ifdef CONFIG_OF_MDIO
 static int dp83867_of_init(struct phy_device *phydev)
 {
@@ -143,6 +172,12 @@ static int dp83867_of_init(struct phy_device *phydev)
 	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	     phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID))
 		return ret;
+
+	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
+		dp83867->port_mirroring = DP83867_PORT_MIRROING_EN;
+
+	if (of_property_read_bool(of_node, "enet-phy-lane-no-swap"))
+		dp83867->port_mirroring = DP83867_PORT_MIRROING_DIS;
 
 	return of_property_read_u32(of_node, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
@@ -227,6 +262,9 @@ static int dp83867_config_init(struct phy_device *phydev)
 		val |= BIT(7);
 		phy_write(phydev, DP83867_CFG3, val);
 	}
+
+	if (dp83867->port_mirroring != DP83867_PORT_MIRROING_KEEP)
+		dp83867_config_port_mirroring(phydev);
 
 	return 0;
 }
