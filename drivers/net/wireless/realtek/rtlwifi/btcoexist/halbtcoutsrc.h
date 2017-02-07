@@ -263,6 +263,7 @@ enum btc_set_type {
 	/* type trigger some action */
 	BTC_SET_ACT_GET_BT_RSSI,
 	BTC_SET_ACT_AGGREGATE_CTRL,
+	BTC_SET_ACT_ANTPOSREGRISTRY_CTRL,
 
 	/********* for 1Ant **********/
 	/* type bool */
