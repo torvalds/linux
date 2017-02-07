@@ -212,30 +212,13 @@ static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
  * bad audio. The fix is to always write the AUD_CONFIG[6:4] with
  * appropriate value when doing read-modify of AUD_CONFIG register.
  */
-static void had_enable_audio(struct snd_pcm_substream *substream,
-			     struct snd_intelhad *intelhaddata,
+static void had_enable_audio(struct snd_intelhad *intelhaddata,
 			     bool enable)
 {
-	union aud_cfg cfg_val = {.regval = 0};
-	u8 channels;
-	u32 mask, val;
-
-	/*
-	 * If substream is NULL, there is no active stream.
-	 * In this case just set channels to 2
-	 */
-	channels = substream ? substream->runtime->channels : 2;
-	dev_dbg(intelhaddata->dev, "enable %d, ch=%d\n", enable, channels);
-
-	cfg_val.regx.num_ch = channels - 2;
-	if (enable)
-		cfg_val.regx.aud_en = 1;
-	mask = AUD_CONFIG_CH_MASK | 1;
-
-	had_read_register(intelhaddata, AUD_CONFIG, &val);
-	val &= ~mask;
-	val |= cfg_val.regval;
-	had_write_register(intelhaddata, AUD_CONFIG, val);
+	/* update the cached value */
+	intelhaddata->aud_config.regx.aud_en = enable;
+	had_write_register(intelhaddata, AUD_CONFIG,
+			   intelhaddata->aud_config.regval);
 }
 
 /* forcibly ACKs to both BUFFER_DONE and BUFFER_UNDERRUN interrupts */
@@ -252,7 +235,8 @@ static void had_ack_irqs(struct snd_intelhad *ctx)
 /* Reset buffer pointers */
 static void had_reset_audio(struct snd_intelhad *intelhaddata)
 {
-	had_write_register(intelhaddata, AUD_HDMI_STATUS, 1);
+	had_write_register(intelhaddata, AUD_HDMI_STATUS,
+			   AUD_HDMI_STATUSG_MASK_FUNCRST);
 	had_write_register(intelhaddata, AUD_HDMI_STATUS, 0);
 }
 
@@ -359,6 +343,7 @@ static int had_init_audio_ctrl(struct snd_pcm_substream *substream,
 	}
 
 	had_write_register(intelhaddata, AUD_CONFIG, cfg_val.regval);
+	intelhaddata->aud_config = cfg_val;
 	return 0;
 }
 
@@ -914,10 +899,13 @@ static void had_advance_ringbuf(struct snd_pcm_substream *substream,
 }
 
 /* process the current BD(s);
- * returns the current PCM buffer byte position, or -EPIPE for underrun.
+ * returns the number of processed BDs, zero if no BD was processed,
+ * or -EPIPE for underrun.
+ * When @pos_ret is non-NULL, the current PCM buffer byte position is stored.
  */
 static int had_process_ringbuf(struct snd_pcm_substream *substream,
-			       struct snd_intelhad *intelhaddata)
+			       struct snd_intelhad *intelhaddata,
+			       int *pos_ret)
 {
 	int len, processed;
 	unsigned long flags;
@@ -932,7 +920,7 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 		if (len < 0 || len > intelhaddata->period_bytes) {
 			dev_dbg(intelhaddata->dev, "Invalid buf length %d\n",
 				len);
-			len = -EPIPE;
+			processed = -EPIPE;
 			goto out;
 		}
 
@@ -941,23 +929,27 @@ static int had_process_ringbuf(struct snd_pcm_substream *substream,
 
 		/* len=0 => already empty, check the next buffer */
 		if (++processed >= intelhaddata->num_bds) {
-			len = -EPIPE; /* all empty? - report underrun */
+			processed = -EPIPE; /* all empty? - report underrun */
 			goto out;
 		}
 		had_advance_ringbuf(substream, intelhaddata);
 	}
 
-	len = intelhaddata->period_bytes - len;
-	len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
+	if (pos_ret) {
+		len = intelhaddata->period_bytes - len;
+		len += intelhaddata->period_bytes * intelhaddata->pcmbuf_head;
+		*pos_ret = len;
+	}
  out:
 	spin_unlock_irqrestore(&intelhaddata->had_spinlock, flags);
-	return len;
+	return processed;
 }
 
 /* called from irq handler */
 static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 {
 	struct snd_pcm_substream *substream;
+	int processed;
 
 	if (!intelhaddata->connected)
 		return; /* disconnected? - bail out */
@@ -967,9 +959,10 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 		return; /* no stream? - bail out */
 
 	/* process or stop the stream */
-	if (had_process_ringbuf(substream, intelhaddata) < 0)
+	processed = had_process_ringbuf(substream, intelhaddata, NULL);
+	if (processed < 0)
 		snd_pcm_stop_xrun(substream);
-	else
+	else if (processed > 0)
 		snd_pcm_period_elapsed(substream);
 
 	had_substream_put(intelhaddata);
@@ -989,7 +982,7 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 	for (i = 0; i < MAX_CNT; i++) {
 		/* clear bit30, 31 AUD_HDMI_STATUS */
 		had_read_register(intelhaddata, AUD_HDMI_STATUS, &val);
-		if (!(val & AUD_CONFIG_MASK_UNDERRUN))
+		if (!(val & AUD_HDMI_STATUS_MASK_UNDERRUN))
 			return;
 		had_write_register(intelhaddata, AUD_HDMI_STATUS, val);
 	}
@@ -1003,6 +996,7 @@ static void had_process_buffer_underrun(struct snd_intelhad *intelhaddata)
 
 	/* Handle Underrun interrupt within Audio Unit */
 	had_write_register(intelhaddata, AUD_CONFIG, 0);
+	intelhaddata->aud_config.regval = 0;
 	/* Reset buffer pointers */
 	had_reset_audio(intelhaddata);
 
@@ -1168,7 +1162,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		/* Enable Audio */
 		had_ack_irqs(intelhaddata); /* FIXME: do we need this? */
-		had_enable_audio(substream, intelhaddata, true);
+		had_enable_audio(intelhaddata, true);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1181,7 +1175,7 @@ static int had_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		intelhaddata->stream_info.running = false;
 		spin_unlock(&intelhaddata->had_spinlock);
 		/* Disable Audio */
-		had_enable_audio(substream, intelhaddata, false);
+		had_enable_audio(intelhaddata, false);
 		/* Reset buffer pointers */
 		had_reset_audio(intelhaddata);
 		break;
@@ -1268,8 +1262,7 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 	if (!intelhaddata->connected)
 		return SNDRV_PCM_POS_XRUN;
 
-	len = had_process_ringbuf(substream, intelhaddata);
-	if (len < 0)
+	if (had_process_ringbuf(substream, intelhaddata, &len) < 0)
 		return SNDRV_PCM_POS_XRUN;
 	return bytes_to_frames(substream->runtime, len);
 }
@@ -1314,7 +1307,7 @@ static int had_process_mode_change(struct snd_intelhad *intelhaddata)
 		return 0;
 
 	/* Disable Audio */
-	had_enable_audio(substream, intelhaddata, false);
+	had_enable_audio(intelhaddata, false);
 
 	/* Update CTS value */
 	disp_samp_freq = intelhaddata->tmds_clock_speed;
@@ -1333,7 +1326,7 @@ static int had_process_mode_change(struct snd_intelhad *intelhaddata)
 		     n_param, intelhaddata);
 
 	/* Enable Audio */
-	had_enable_audio(substream, intelhaddata, true);
+	had_enable_audio(intelhaddata, true);
 
 out:
 	had_substream_put(intelhaddata);
@@ -1388,7 +1381,7 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 	}
 
 	/* Disable Audio */
-	had_enable_audio(substream, intelhaddata, false);
+	had_enable_audio(intelhaddata, false);
 
 	intelhaddata->connected = false;
 	dev_dbg(intelhaddata->dev,
@@ -1613,7 +1606,7 @@ static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int hdmi_lpe_audio_suspend(struct device *dev)
+static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad *ctx = dev_get_drvdata(dev);
 	int err;
@@ -1624,7 +1617,7 @@ static int hdmi_lpe_audio_suspend(struct device *dev)
 	return err;
 }
 
-static int hdmi_lpe_audio_resume(struct device *dev)
+static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 {
 	struct snd_intelhad *ctx = dev_get_drvdata(dev);
 
