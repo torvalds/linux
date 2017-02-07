@@ -21,6 +21,7 @@
  * Copyright (C) IBM Corporation, 2010-2011
  * Author:     Srikar Dronamraju
  */
+#define pr_fmt(fmt)	"trace_probe: " fmt
 
 #include "trace_probe.h"
 
