@@ -546,6 +546,12 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			if (card->ext_csd.man_bkops_en)
 				pr_debug("%s: MAN_BKOPS_EN bit is set\n",
 					mmc_hostname(card->host));
+			card->ext_csd.auto_bkops_en =
+					(ext_csd[EXT_CSD_BKOPS_EN] &
+						EXT_CSD_AUTO_BKOPS_MASK);
+			if (card->ext_csd.auto_bkops_en)
+				pr_debug("%s: AUTO_BKOPS_EN bit is set\n",
+					mmc_hostname(card->host));
 		}
 
 		/* check whether the eMMC card supports HPI */
