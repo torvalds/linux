@@ -37,12 +37,16 @@ void s5p_mfc_init_regs(struct s5p_mfc_dev *dev)
 		dev->mfc_regs = s5p_mfc_init_regs_v6_plus(dev);
 }
 
-int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
-					struct s5p_mfc_priv_buf *b)
+int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
+			   struct s5p_mfc_priv_buf *b)
 {
+	struct device *mem_dev = dev->mem_dev[mem_ctx];
+	dma_addr_t base = dev->dma_base[mem_ctx];
+
 	mfc_debug(3, "Allocating priv: %zu\n", b->size);
 
-	b->virt = dma_alloc_coherent(dev, b->size, &b->dma, GFP_KERNEL);
+	b->ctx = mem_ctx;
+	b->virt = dma_alloc_coherent(mem_dev, b->size, &b->dma, GFP_KERNEL);
 
 	if (!b->virt) {
 		mfc_err("Allocating private buffer of size %zu failed\n",
@@ -53,7 +57,7 @@ int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 	if (b->dma < base) {
 		mfc_err("Invalid memory configuration - buffer (%pad) is below base memory address(%pad)\n",
 			&b->dma, &base);
-		dma_free_coherent(dev, b->size, b->virt, b->dma);
+		dma_free_coherent(mem_dev, b->size, b->virt, b->dma);
 		return -ENOMEM;
 	}
 
@@ -61,11 +65,13 @@ int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 	return 0;
 }
 
-void s5p_mfc_release_priv_buf(struct device *dev,
-						struct s5p_mfc_priv_buf *b)
+void s5p_mfc_release_priv_buf(struct s5p_mfc_dev *dev,
+			      struct s5p_mfc_priv_buf *b)
 {
+	struct device *mem_dev = dev->mem_dev[b->ctx];
+
 	if (b->virt) {
-		dma_free_coherent(dev, b->size, b->virt, b->dma);
+		dma_free_coherent(mem_dev, b->size, b->virt, b->dma);
 		b->virt = NULL;
 		b->dma = 0;
 		b->size = 0;

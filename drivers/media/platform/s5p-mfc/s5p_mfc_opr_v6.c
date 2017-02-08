@@ -239,8 +239,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 
 	/* Allocate only if memory from bank 1 is necessary */
 	if (ctx->bank1.size > 0) {
-		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev[BANK1_CTX],
-					dev->dma_base[BANK1_CTX], &ctx->bank1);
+		ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->bank1);
 		if (ret) {
 			mfc_err("Failed to allocate Bank1 memory\n");
 			return ret;
@@ -253,7 +252,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 /* Release buffers allocated for codec */
 static void s5p_mfc_release_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 {
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev[BANK1_CTX], &ctx->bank1);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->bank1);
 }
 
 /* Allocate memory for instance data buffer */
@@ -292,8 +291,7 @@ static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 		break;
 	}
 
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev[BANK1_CTX],
-				     dev->dma_base[BANK1_CTX], &ctx->ctx);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->ctx);
 	if (ret) {
 		mfc_err("Failed to allocate instance buffer\n");
 		return ret;
@@ -310,7 +308,7 @@ static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 /* Release instance buffer */
 static void s5p_mfc_release_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 {
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev[BANK1_CTX], &ctx->ctx);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->ctx);
 }
 
 /* Allocate context buffers for SYS_INIT */
@@ -322,8 +320,7 @@ static int s5p_mfc_alloc_dev_context_buffer_v6(struct s5p_mfc_dev *dev)
 	mfc_debug_enter();
 
 	dev->ctx_buf.size = buf_size->dev_ctx;
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev[BANK1_CTX],
-				     dev->dma_base[BANK1_CTX], &dev->ctx_buf);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &dev->ctx_buf);
 	if (ret) {
 		mfc_err("Failed to allocate device context buffer\n");
 		return ret;
@@ -340,7 +337,7 @@ static int s5p_mfc_alloc_dev_context_buffer_v6(struct s5p_mfc_dev *dev)
 /* Release context buffers for SYS_INIT */
 static void s5p_mfc_release_dev_context_buffer_v6(struct s5p_mfc_dev *dev)
 {
-	s5p_mfc_release_priv_buf(dev->mem_dev[BANK1_CTX], &dev->ctx_buf);
+	s5p_mfc_release_priv_buf(dev, &dev->ctx_buf);
 }
 
 static int calc_plane(int width, int height)

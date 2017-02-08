@@ -240,12 +240,14 @@ struct s5p_mfc_variant {
  *			buffer accessed by driver
  * @dma:		DMA address, only valid when kernel DMA API used
  * @size:		size of the buffer
+ * @ctx:		memory context (bank) used for this allocation
  */
 struct s5p_mfc_priv_buf {
 	unsigned long	ofs;
 	void		*virt;
 	dma_addr_t	dma;
 	size_t		size;
+	unsigned int	ctx;
 };
 
 /**
