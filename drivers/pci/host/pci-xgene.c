@@ -635,7 +635,7 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 	struct device_node *dn = dev->of_node;
 	struct xgene_pcie_port *port;
 	resource_size_t iobase = 0;
-	struct pci_bus *bus;
+	struct pci_bus *bus, *child;
 	int ret;
 	LIST_HEAD(res);
 
@@ -678,6 +678,8 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 	return 0;
 
