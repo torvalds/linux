@@ -1915,18 +1915,18 @@ TRACE_EVENT(rdev_start_nan,
 		WIPHY_ENTRY
 		WDEV_ENTRY
 		__field(u8, master_pref)
-		__field(u8, dual);
+		__field(u8, bands);
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
 		__entry->master_pref = conf->master_pref;
-		__entry->dual = conf->dual;
+		__entry->bands = conf->bands;
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT
-		  ", master preference: %u, dual: %d",
+		  ", master preference: %u, bands: 0x%0x",
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->master_pref,
-		  __entry->dual)
+		  __entry->bands)
 );
 
 TRACE_EVENT(rdev_nan_change_conf,
@@ -1937,20 +1937,20 @@ TRACE_EVENT(rdev_nan_change_conf,
 		WIPHY_ENTRY
 		WDEV_ENTRY
 		__field(u8, master_pref)
-		__field(u8, dual);
+		__field(u8, bands);
 		__field(u32, changes);
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
 		__entry->master_pref = conf->master_pref;
-		__entry->dual = conf->dual;
+		__entry->bands = conf->bands;
 		__entry->changes = changes;
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT
-		  ", master preference: %u, dual: %d, changes: %x",
+		  ", master preference: %u, bands: 0x%0x, changes: %x",
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->master_pref,
-		  __entry->dual, __entry->changes)
+		  __entry->bands, __entry->changes)
 );
 
 DEFINE_EVENT(wiphy_wdev_evt, rdev_stop_nan,

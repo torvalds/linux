@@ -398,7 +398,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	},
 	[NL80211_ATTR_MU_MIMO_FOLLOW_MAC_ADDR] = { .len = ETH_ALEN },
 	[NL80211_ATTR_NAN_MASTER_PREF] = { .type = NLA_U8 },
-	[NL80211_ATTR_NAN_DUAL] = { .type = NLA_U8 },
+	[NL80211_ATTR_BANDS] = { .type = NLA_U32 },
 	[NL80211_ATTR_NAN_FUNC] = { .type = NLA_NESTED },
 	[NL80211_ATTR_FILS_KEK] = { .type = NLA_BINARY,
 				    .len = FILS_MAX_KEK_LEN },
@@ -1885,6 +1885,10 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 				break;
 			}
 		}
+
+		if (nla_put_u32(msg, NL80211_ATTR_BANDS,
+				rdev->wiphy.nan_supported_bands))
+			goto nla_put_failure;
 
 		/* done */
 		state->split_start = 0;
@@ -10777,15 +10781,22 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL80211_ATTR_NAN_MASTER_PREF])
 		return -EINVAL;
 
-	if (!info->attrs[NL80211_ATTR_NAN_DUAL])
-		return -EINVAL;
-
 	conf.master_pref =
 		nla_get_u8(info->attrs[NL80211_ATTR_NAN_MASTER_PREF]);
 	if (!conf.master_pref)
 		return -EINVAL;
 
-	conf.dual = nla_get_u8(info->attrs[NL80211_ATTR_NAN_DUAL]);
+	if (info->attrs[NL80211_ATTR_BANDS]) {
+		u32 bands = nla_get_u32(info->attrs[NL80211_ATTR_BANDS]);
+
+		if (bands & ~(u32)wdev->wiphy->nan_supported_bands)
+			return -EOPNOTSUPP;
+
+		if (bands && !(bands & BIT(NL80211_BAND_2GHZ)))
+			return -EINVAL;
+
+		conf.bands = bands;
+	}
 
 	err = rdev_start_nan(rdev, wdev, &conf);
 	if (err)
@@ -11150,9 +11161,17 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 		changed |= CFG80211_NAN_CONF_CHANGED_PREF;
 	}
 
-	if (info->attrs[NL80211_ATTR_NAN_DUAL]) {
-		conf.dual = nla_get_u8(info->attrs[NL80211_ATTR_NAN_DUAL]);
-		changed |= CFG80211_NAN_CONF_CHANGED_DUAL;
+	if (info->attrs[NL80211_ATTR_BANDS]) {
+		u32 bands = nla_get_u32(info->attrs[NL80211_ATTR_BANDS]);
+
+		if (bands & ~(u32)wdev->wiphy->nan_supported_bands)
+			return -EOPNOTSUPP;
+
+		if (bands && !(bands & BIT(NL80211_BAND_2GHZ)))
+			return -EINVAL;
+
+		conf.bands = bands;
+		changed |= CFG80211_NAN_CONF_CHANGED_BANDS;
 	}
 
 	if (!changed)
