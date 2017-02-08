@@ -178,7 +178,6 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t ret;
-	bool overwrite = false;
 
 	inode_lock(inode);
 	ret = ext4_write_checks(iocb, from);
@@ -191,16 +190,9 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out;
 
-	if (ext4_overwrite_io(inode, iocb->ki_pos, iov_iter_count(from))) {
-		overwrite = true;
-		downgrade_write(&inode->i_rwsem);
-	}
 	ret = dax_iomap_rw(iocb, from, &ext4_iomap_ops);
 out:
-	if (!overwrite)
-		inode_unlock(inode);
-	else
-		inode_unlock_shared(inode);
+	inode_unlock(inode);
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
 	return ret;
