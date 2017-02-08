@@ -1400,11 +1400,11 @@ void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
  */
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
-			    enum rt2x00_dump_type type, struct sk_buff *skb);
+			    enum rt2x00_dump_type type, struct queue_entry *entry);
 #else
 static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 					  enum rt2x00_dump_type type,
-					  struct sk_buff *skb)
+					  struct queue_entry *entry)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

@@ -363,7 +363,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Send frame to debugfs immediately, after this call is completed
 	 * we are going to overwrite the skb->cb array.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
 
 	/*
 	 * Determine if the frame has been successfully transmitted and
@@ -772,7 +772,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	 */
 	rt2x00link_update_stats(rt2x00dev, entry->skb, &rxdesc);
 	rt2x00debug_update_crypto(rt2x00dev, &rxdesc);
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry);
 
 	/*
 	 * Initialize RX status information, and send frame
