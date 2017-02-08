@@ -54,6 +54,27 @@ bool is_offset_in_branch_range(long offset)
 	return (offset >= -0x2000000 && offset <= 0x1fffffc && !(offset & 0x3));
 }
 
+/*
+ * Helper to check if a given instruction is a conditional branch
+ * Derived from the conditional checks in analyse_instr()
+ */
+bool __kprobes is_conditional_branch(unsigned int instr)
+{
+	unsigned int opcode = instr >> 26;
+
+	if (opcode == 16)       /* bc, bca, bcl, bcla */
+		return true;
+	if (opcode == 19) {
+		switch ((instr >> 1) & 0x3ff) {
+		case 16:        /* bclr, bclrl */
+		case 528:       /* bcctr, bcctrl */
+		case 560:       /* bctar, bctarl */
+			return true;
+		}
+	}
+	return false;
+}
+
 unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags)
 {
