@@ -261,9 +261,9 @@ void stmmac_set_mac(void __iomem *ioaddr, bool enable)
 	u32 value = readl(ioaddr + MAC_CTRL_REG);
 
 	if (enable)
-		value |= MAC_RNABLE_RX | MAC_ENABLE_TX;
+		value |= MAC_ENABLE_RX | MAC_ENABLE_TX;
 	else
-		value &= ~(MAC_ENABLE_TX | MAC_RNABLE_RX);
+		value &= ~(MAC_ENABLE_TX | MAC_ENABLE_RX);
 
 	writel(value, ioaddr + MAC_CTRL_REG);
 }
