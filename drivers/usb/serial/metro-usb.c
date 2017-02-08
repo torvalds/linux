@@ -163,8 +163,6 @@ exit:
 
 static void metrousb_cleanup(struct usb_serial_port *port)
 {
-	dev_dbg(&port->dev, "%s\n", __func__);
-
 	usb_kill_urb(port->interrupt_in_urb);
 
 	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
@@ -176,8 +174,6 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
 	int result = 0;
-
-	dev_dbg(&port->dev, "%s\n", __func__);
 
 	/* Make sure the urb is initialized. */
 	if (!port->interrupt_in_urb) {
@@ -218,8 +214,6 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 			__func__, result);
 		goto exit;
 	}
-
-	dev_dbg(&port->dev, "%s - port open\n", __func__);
 exit:
 	return result;
 }
@@ -281,8 +275,6 @@ static void metrousb_throttle(struct tty_struct *tty)
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
-
 	/* Set the private information for the port to stop reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	metro_priv->throttled = 1;
@@ -295,8 +287,6 @@ static int metrousb_tiocmget(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	control_state = metro_priv->control_state;
@@ -340,8 +330,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	unsigned long flags = 0;
 	int result = 0;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	/* Set the private information for the port to resume reading data. */
 	spin_lock_irqsave(&metro_priv->lock, flags);
