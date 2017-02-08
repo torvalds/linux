@@ -1105,6 +1105,11 @@ static struct device *s5p_mfc_alloc_memdev(struct device *dev,
 static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 {
 	struct device *dev = &mfc_dev->plat_dev->dev;
+	void *bank2_virt;
+	dma_addr_t bank2_dma_addr;
+	unsigned long align_size = 1 << MFC_BASE_ALIGN_ORDER;
+	struct s5p_mfc_priv_buf *fw_buf = &mfc_dev->fw_buf;
+	int ret;
 
 	/*
 	 * When IOMMU is available, we cannot use the default configuration,
@@ -1117,14 +1122,21 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 	if (exynos_is_iommu_available(dev)) {
 		int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
 						 S5P_MFC_IOMMU_DMA_SIZE);
-		if (ret == 0) {
-			mfc_dev->mem_dev[BANK1_CTX] =
-				mfc_dev->mem_dev[BANK2_CTX] = dev;
-			vb2_dma_contig_set_max_seg_size(dev,
-							DMA_BIT_MASK(32));
+		if (ret)
+			return ret;
+
+		mfc_dev->mem_dev[BANK1_CTX] = mfc_dev->mem_dev[BANK2_CTX] = dev;
+		ret = s5p_mfc_alloc_firmware(mfc_dev);
+		if (ret) {
+			exynos_unconfigure_iommu(dev);
+			return ret;
 		}
 
-		return ret;
+		mfc_dev->dma_base[BANK1_CTX] = fw_buf->dma;
+		mfc_dev->dma_base[BANK2_CTX] = fw_buf->dma;
+		vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
+		return 0;
 	}
 
 	/*
@@ -1142,6 +1154,35 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 		return -ENODEV;
 	}
 
+	/* Allocate memory for firmware and initialize both banks addresses */
+	ret = s5p_mfc_alloc_firmware(mfc_dev);
+	if (ret) {
+		device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+		return ret;
+	}
+
+	mfc_dev->dma_base[BANK1_CTX] = fw_buf->dma;
+
+	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK2_CTX], align_size,
+					&bank2_dma_addr, GFP_KERNEL);
+	if (!bank2_virt) {
+		mfc_err("Allocating bank2 base failed\n");
+		s5p_mfc_release_firmware(mfc_dev);
+		device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+		return -ENOMEM;
+	}
+
+	/* Valid buffers passed to MFC encoder with LAST_FRAME command
+	 * should not have address of bank2 - MFC will treat it as a null frame.
+	 * To avoid such situation we set bank2 address below the pool address.
+	 */
+	mfc_dev->dma_base[BANK2_CTX] = bank2_dma_addr - align_size;
+
+	dma_free_coherent(mfc_dev->mem_dev[BANK2_CTX], align_size, bank2_virt,
+			  bank2_dma_addr);
+
 	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK1_CTX],
 					DMA_BIT_MASK(32));
 	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK2_CTX],
@@ -1153,6 +1194,8 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 {
 	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	s5p_mfc_release_firmware(mfc_dev);
 
 	if (exynos_is_iommu_available(dev)) {
 		exynos_unconfigure_iommu(dev);
@@ -1230,10 +1273,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->watchdog_timer.data = (unsigned long)dev;
 	dev->watchdog_timer.function = s5p_mfc_watchdog;
 
-	ret = s5p_mfc_alloc_firmware(dev);
-	if (ret)
-		goto err_res;
-
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
 		goto err_v4l2_dev_reg;
@@ -1308,8 +1347,6 @@ err_enc_alloc:
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2_dev_reg:
-	s5p_mfc_release_firmware(dev);
-err_res:
 	s5p_mfc_final_pm(dev);
 err_dma:
 	s5p_mfc_unconfigure_dma_memory(dev);
@@ -1351,7 +1388,6 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	video_device_release(dev->vfd_enc);
 	video_device_release(dev->vfd_dec);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	s5p_mfc_release_firmware(dev);
 	s5p_mfc_unconfigure_dma_memory(dev);
 
 	s5p_mfc_final_pm(dev);

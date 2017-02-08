@@ -26,9 +26,6 @@
 /* Allocate memory for firmware */
 int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 {
-	void *bank2_virt;
-	dma_addr_t bank2_dma_addr;
-	unsigned int align_size = 1 << MFC_BASE_ALIGN_ORDER;
 	struct s5p_mfc_priv_buf *fw_buf = &dev->fw_buf;
 
 	fw_buf->size = dev->variant->buf_size->fw;
@@ -44,35 +41,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		return -ENOMEM;
 	}
-	dev->dma_base[BANK1_CTX] = fw_buf->dma;
 
-	if (HAS_PORTNUM(dev) && IS_TWOPORT(dev)) {
-		bank2_virt = dma_alloc_coherent(dev->mem_dev[BANK2_CTX],
-				       align_size, &bank2_dma_addr, GFP_KERNEL);
-
-		if (!bank2_virt) {
-			mfc_err("Allocating bank2 base failed\n");
-			dma_free_coherent(dev->mem_dev[BANK1_CTX], fw_buf->size,
-					  fw_buf->virt, fw_buf->dma);
-			fw_buf->virt = NULL;
-			return -ENOMEM;
-		}
-
-		/* Valid buffers passed to MFC encoder with LAST_FRAME command
-		 * should not have address of bank2 - MFC will treat it as a null frame.
-		 * To avoid such situation we set bank2 address below the pool address.
-		 */
-		dev->dma_base[BANK2_CTX] = bank2_dma_addr - align_size;
-
-		dma_free_coherent(dev->mem_dev[BANK2_CTX], align_size,
-				  bank2_virt, bank2_dma_addr);
-
-	} else {
-		/* In this case bank2 can point to the same address as bank1.
-		 * Firmware will always occupy the beginning of this area so it is
-		 * impossible having a video frame buffer with zero address. */
-		dev->dma_base[BANK2_CTX] = dev->dma_base[BANK1_CTX];
-	}
 	return 0;
 }
 
