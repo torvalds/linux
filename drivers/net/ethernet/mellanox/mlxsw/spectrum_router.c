@@ -1398,12 +1398,13 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 
 	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
+	nh->neigh_entry = NULL;
 
 	/* If that is the last nexthop connected to that neigh, remove from
 	 * nexthop_neighs_list
 	 */
-	if (list_empty(&nh->neigh_entry->nexthop_list))
-		list_del(&nh->neigh_entry->nexthop_neighs_list_node);
+	if (list_empty(&neigh_entry->nexthop_list))
+		list_del(&neigh_entry->nexthop_neighs_list_node);
 
 	if (!neigh_entry->connected && list_empty(&neigh_entry->nexthop_list))
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
