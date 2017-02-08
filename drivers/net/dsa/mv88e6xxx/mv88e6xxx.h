@@ -662,8 +662,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT |		\
 	 MV88E6XXX_FLAGS_SERDES)
 
-struct mv88e6xxx_ops;
-
 #define MV88E6XXX_FLAGS_FAMILY_6390	\
 	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
@@ -672,6 +670,8 @@ struct mv88e6xxx_ops;
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
+
+struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
