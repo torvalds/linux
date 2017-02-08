@@ -255,6 +255,7 @@ struct mlxsw_sp_router {
 	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
 	struct rhashtable nexthop_group_ht;
+	struct rhashtable nexthop_ht;
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */

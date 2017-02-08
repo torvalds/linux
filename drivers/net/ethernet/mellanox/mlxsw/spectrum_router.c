@@ -1090,11 +1090,17 @@ static void mlxsw_sp_neigh_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&mlxsw_sp->router.neigh_ht);
 }
 
+struct mlxsw_sp_nexthop_key {
+	struct fib_nh *fib_nh;
+};
+
 struct mlxsw_sp_nexthop {
 	struct list_head neigh_list_node; /* member of neigh entry list */
 	struct mlxsw_sp_nexthop_group *nh_grp; /* pointer back to the group
 						* this belongs to
 						*/
+	struct rhash_head ht_node;
+	struct mlxsw_sp_nexthop_key key;
 	u8 should_offload:1, /* set indicates this neigh is connected and
 			      * should be put to KVD linear area of this group.
 			      */
@@ -1150,6 +1156,26 @@ mlxsw_sp_nexthop_group_lookup(struct mlxsw_sp *mlxsw_sp,
 {
 	return rhashtable_lookup_fast(&mlxsw_sp->router.nexthop_group_ht, &key,
 				      mlxsw_sp_nexthop_group_ht_params);
+}
+
+static const struct rhashtable_params mlxsw_sp_nexthop_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_nexthop, key),
+	.head_offset = offsetof(struct mlxsw_sp_nexthop, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_nexthop_key),
+};
+
+static int mlxsw_sp_nexthop_insert(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_nexthop *nh)
+{
+	return rhashtable_insert_fast(&mlxsw_sp->router.nexthop_ht,
+				      &nh->ht_node, mlxsw_sp_nexthop_ht_params);
+}
+
+static void mlxsw_sp_nexthop_remove(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_nexthop *nh)
+{
+	rhashtable_remove_fast(&mlxsw_sp->router.nexthop_ht, &nh->ht_node,
+			       mlxsw_sp_nexthop_ht_params);
 }
 
 static int mlxsw_sp_adj_index_mass_update_vr(struct mlxsw_sp *mlxsw_sp,
@@ -1384,6 +1410,12 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	struct net_device *dev = fib_nh->nh_dev;
 	struct neighbour *n;
 	u8 nud_state, dead;
+	int err;
+
+	nh->key.fib_nh = fib_nh;
+	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
+	if (err)
+		return err;
 
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be detructed before the nexthop entry is finished.
@@ -1393,16 +1425,18 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, dev);
 	if (!n) {
 		n = neigh_create(&arp_tbl, &fib_nh->nh_gw, dev);
-		if (IS_ERR(n))
-			return PTR_ERR(n);
+		if (IS_ERR(n)) {
+			err = PTR_ERR(n);
+			goto err_neigh_create;
+		}
 		neigh_event_send(n, NULL);
 	}
 	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
 	if (!neigh_entry) {
 		neigh_entry = mlxsw_sp_neigh_entry_create(mlxsw_sp, n);
 		if (IS_ERR(neigh_entry)) {
-			neigh_release(n);
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_neigh_entry_create;
 		}
 	}
 
@@ -1423,6 +1457,12 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	__mlxsw_sp_nexthop_neigh_update(nh, !(nud_state & NUD_VALID && !dead));
 
 	return 0;
+
+err_neigh_entry_create:
+	neigh_release(n);
+err_neigh_create:
+	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
+	return err;
 }
 
 static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
@@ -1445,6 +1485,8 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
 
 	neigh_release(n);
+
+	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 }
 
 static struct mlxsw_sp_nexthop_group *
@@ -2052,6 +2094,11 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
+	err = rhashtable_init(&mlxsw_sp->router.nexthop_ht,
+			      &mlxsw_sp_nexthop_ht_params);
+	if (err)
+		goto err_nexthop_ht_init;
+
 	err = rhashtable_init(&mlxsw_sp->router.nexthop_group_ht,
 			      &mlxsw_sp_nexthop_group_ht_params);
 	if (err)
@@ -2081,6 +2128,8 @@ err_neigh_init:
 err_vrs_init:
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
 err_nexthop_group_ht_init:
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
+err_nexthop_ht_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	return err;
 }
@@ -2091,5 +2140,6 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
 	__mlxsw_sp_router_fini(mlxsw_sp);
 }
