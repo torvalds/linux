@@ -742,4 +742,11 @@ struct sctp_strreset_tsnreq {
 	__u32 request_seq;
 };
 
+struct sctp_strreset_addstrm {
+	sctp_paramhdr_t param_hdr;
+	__u32 request_seq;
+	__u16 number_of_streams;
+	__u16 reserved;
+};
+
 #endif /* __LINUX_SCTP_H__ */
