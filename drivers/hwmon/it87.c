@@ -1360,6 +1360,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
+	it87_update_pwm_ctrl(data, nr);
 	if (has_newer_autopwm(data)) {
 		/*
 		 * If we are in automatic mode, the PWM duty cycle register
@@ -1472,6 +1473,7 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 	}
 
 	mutex_lock(&data->update_lock);
+	it87_update_pwm_ctrl(data, nr);
 	data->pwm_temp_map[nr] = reg;
 	/*
 	 * If we are in automatic mode, write the temp mapping immediately;
