@@ -187,7 +187,7 @@ static void print_pkt(unsigned char *buf, int len)
 
 static inline u32 stmmac_tx_avail(struct stmmac_priv *priv)
 {
-	unsigned avail;
+	u32 avail;
 
 	if (priv->dirty_tx > priv->cur_tx)
 		avail = priv->dirty_tx - priv->cur_tx - 1;
@@ -199,7 +199,7 @@ static inline u32 stmmac_tx_avail(struct stmmac_priv *priv)
 
 static inline u32 stmmac_rx_dirty(struct stmmac_priv *priv)
 {
-	unsigned dirty;
+	u32 dirty;
 
 	if (priv->dirty_rx <= priv->cur_rx)
 		dirty = priv->cur_rx - priv->dirty_rx;
