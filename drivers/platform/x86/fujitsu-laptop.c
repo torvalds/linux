@@ -178,8 +178,6 @@ struct fujitsu_laptop {
 
 static struct fujitsu_laptop *fujitsu_laptop;
 
-static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event);
-
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
 static int logolamp_set(struct led_classdev *cdev,
@@ -226,8 +224,6 @@ static struct led_classdev eco_led = {
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 static u32 dbg_level = 0x03;
 #endif
-
-static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event);
 
 /* Fujitsu ACPI interface function */
 
