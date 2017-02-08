@@ -108,6 +108,8 @@ struct mlxsw_sp_fid {
 };
 
 struct mlxsw_sp_rif {
+	struct list_head nexthop_list;
+	struct list_head neigh_list;
 	struct net_device *dev;
 	unsigned int ref_count;
 	struct mlxsw_sp_fid *f;
@@ -602,6 +604,8 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
+void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_rif *r);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
