@@ -125,14 +125,34 @@ void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *r_xprt)
 /* The client can send a request inline as long as the RPCRDMA header
  * plus the RPC call fit under the transport's inline limit. If the
  * combined call message size exceeds that limit, the client must use
- * the read chunk list for this operation.
+ * a Read chunk for this operation.
+ *
+ * A Read chunk is also required if sending the RPC call inline would
+ * exceed this device's max_sge limit.
  */
 static bool rpcrdma_args_inline(struct rpcrdma_xprt *r_xprt,
 				struct rpc_rqst *rqst)
 {
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct xdr_buf *xdr = &rqst->rq_snd_buf;
+	unsigned int count, remaining, offset;
 
-	return rqst->rq_snd_buf.len <= ia->ri_max_inline_write;
+	if (xdr->len > r_xprt->rx_ia.ri_max_inline_write)
+		return false;
+
+	if (xdr->page_len) {
+		remaining = xdr->page_len;
+		offset = xdr->page_base & ~PAGE_MASK;
+		count = 0;
+		while (remaining) {
+			remaining -= min_t(unsigned int,
+					   PAGE_SIZE - offset, remaining);
+			offset = 0;
+			if (++count > r_xprt->rx_ia.ri_max_send_sges)
+				return false;
+		}
+	}
+
+	return true;
 }
 
 /* The client can't know how large the actual reply will be. Thus it
