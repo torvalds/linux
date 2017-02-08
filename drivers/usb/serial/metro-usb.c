@@ -135,23 +135,8 @@ static void metrousb_read_int_callback(struct urb *urb)
 	throttled = metro_priv->throttled;
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
-	/* Continue trying to read if set. */
-	if (!throttled) {
-		usb_fill_int_urb(port->interrupt_in_urb, port->serial->dev,
-				 usb_rcvintpipe(port->serial->dev, port->interrupt_in_endpointAddress),
-				 port->interrupt_in_urb->transfer_buffer,
-				 port->interrupt_in_urb->transfer_buffer_length,
-				 metrousb_read_int_callback, port, 1);
-
-		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
-
-		if (result)
-			dev_err(&port->dev,
-				"%s - failed submitting interrupt in urb, error code=%d\n",
-				__func__, result);
-	}
-	return;
-
+	if (throttled)
+		return;
 exit:
 	/* Try to resubmit the urb. */
 	result = usb_submit_urb(urb, GFP_ATOMIC);
@@ -337,7 +322,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 
 	/* Submit the urb to read from the port. */
-	port->interrupt_in_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
 		dev_err(tty->dev,
