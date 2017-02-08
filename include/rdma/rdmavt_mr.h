@@ -52,6 +52,7 @@
  * For Memory Regions. This stuff should probably be moved into rdmavt/mr.h once
  * drivers no longer need access to the MR directly.
  */
+#include <linux/percpu-refcount.h>
 
 /*
  * A segment is a linear region of low physical memory.
@@ -79,11 +80,11 @@ struct rvt_mregion {
 	int access_flags;
 	u32 max_segs;           /* number of rvt_segs in all the arrays */
 	u32 mapsz;              /* size of the map array */
+	atomic_t lkey_invalid;	/* true if current lkey is invalid */
 	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
 	u8  lkey_published;     /* in global table */
-	atomic_t lkey_invalid;	/* true if current lkey is invalid */
+	struct percpu_ref refcount;
 	struct completion comp; /* complete when refcount goes to zero */
-	atomic_t refcount;
 	struct rvt_segarray *map[0];    /* the segments */
 };
 
@@ -123,13 +124,12 @@ struct rvt_sge_state {
 
 static inline void rvt_put_mr(struct rvt_mregion *mr)
 {
-	if (unlikely(atomic_dec_and_test(&mr->refcount)))
-		complete(&mr->comp);
+	percpu_ref_put(&mr->refcount);
 }
 
 static inline void rvt_get_mr(struct rvt_mregion *mr)
 {
-	atomic_inc(&mr->refcount);
+	percpu_ref_get(&mr->refcount);
 }
 
 static inline void rvt_put_ss(struct rvt_sge_state *ss)
