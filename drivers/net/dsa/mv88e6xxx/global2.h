@@ -46,6 +46,8 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
 int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
+extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
+
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
 static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
@@ -124,6 +126,8 @@ static inline int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
 }
+
+static const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
