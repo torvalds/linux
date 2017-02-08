@@ -612,12 +612,23 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 				  struct intel_crtc_state *old_crtc_state,
 				  struct drm_connector_state *old_conn_state)
 {
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
 
 	intel_panel_disable_backlight(intel_dsi->attached_connector);
+
+	/*
+	 * Disable Device ready before the port shutdown in order
+	 * to avoid split screen
+	 */
+	if (IS_BROXTON(dev_priv)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			I915_WRITE(MIPI_DEVICE_READY(port), 0);
+	}
 
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
