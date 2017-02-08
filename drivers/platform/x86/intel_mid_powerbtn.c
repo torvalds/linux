@@ -64,7 +64,7 @@ static int mid_pbstat(struct mid_pb_ddata *ddata, int *value)
 	int ret;
 	u8 pbstat;
 
-	ret = intel_msic_reg_read(ddata->pbstat_addr, &pbstat);
+	ret = intel_scu_ipc_ioread8(ddata->pbstat_addr, &pbstat);
 	if (ret)
 		return ret;
 
@@ -76,7 +76,7 @@ static int mid_pbstat(struct mid_pb_ddata *ddata, int *value)
 
 static int mid_irq_ack(struct mid_pb_ddata *ddata)
 {
-	return intel_msic_reg_update(ddata->mirqlvl1_addr, 0, MSIC_PWRBTNM);
+	return intel_scu_ipc_update_register(ddata->mirqlvl1_addr, 0, MSIC_PWRBTNM);
 }
 
 static int mrfld_setup(struct mid_pb_ddata *ddata)
