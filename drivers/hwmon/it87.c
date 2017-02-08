@@ -2600,7 +2600,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 		/* Check for pwm4 */
 		reg = superio_inb(sioaddr, IT87_SIO_GPIO4_REG);
-		if (!(reg & BIT(2)))
+		if (reg & BIT(2))
 			sio_data->skip_pwm |= BIT(3);
 
 		/* Check for pwm2, fan2 */
