@@ -145,6 +145,29 @@ static void emac_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = adpt->tx_desc_cnt;
 }
 
+static int emac_set_ringparam(struct net_device *netdev,
+			      struct ethtool_ringparam *ring)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+
+	/* We don't have separate queues/rings for small/large frames, so
+	 * reject any attempt to specify those values separately.
+	 */
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
+		return -EINVAL;
+
+	adpt->tx_desc_cnt =
+		clamp_val(ring->tx_pending, EMAC_MIN_TX_DESCS, EMAC_MAX_TX_DESCS);
+
+	adpt->rx_desc_cnt =
+		clamp_val(ring->rx_pending, EMAC_MIN_RX_DESCS, EMAC_MAX_RX_DESCS);
+
+	if (netif_running(netdev))
+		return emac_reinit_locked(adpt);
+
+	return 0;
+}
+
 static void emac_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *pause)
 {
@@ -219,6 +242,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ethtool_stats = emac_get_ethtool_stats,
 
 	.get_ringparam = emac_get_ringparam,
+	.set_ringparam = emac_set_ringparam,
 
 	.get_pauseparam = emac_get_pauseparam,
 	.set_pauseparam = emac_set_pauseparam,
