@@ -1192,7 +1192,7 @@ MODULE_DEVICE_TABLE(acpi, fujitsu_ids);
 
 static int __init fujitsu_init(void)
 {
-	int ret, result, max_brightness;
+	int ret, max_brightness;
 
 	if (acpi_disabled)
 		return -ENODEV;
@@ -1207,11 +1207,9 @@ static int __init fujitsu_init(void)
 	fujitsu_bl->keycode5 = KEY_RFKILL;
 	dmi_check_system(fujitsu_dmi_table);
 
-	result = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
-	if (result < 0) {
-		ret = -ENODEV;
+	ret = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
+	if (ret)
 		goto fail_acpi;
-	}
 
 	/* Register platform stuff */
 
@@ -1264,11 +1262,9 @@ static int __init fujitsu_init(void)
 		goto fail_laptop;
 	}
 
-	result = acpi_bus_register_driver(&acpi_fujitsu_laptop_driver);
-	if (result < 0) {
-		ret = -ENODEV;
+	ret = acpi_bus_register_driver(&acpi_fujitsu_laptop_driver);
+	if (ret)
 		goto fail_laptop1;
-	}
 
 	/* Sync backlight power status (needs FUJ02E3 device, hence deferred) */
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
