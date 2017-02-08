@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
+#include <linux/nmi.h>
 #include <linux/profile.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/clock.h>

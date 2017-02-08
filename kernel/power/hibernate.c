@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/pm.h>
+#include <linux/nmi.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>

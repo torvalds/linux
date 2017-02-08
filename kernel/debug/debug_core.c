@@ -49,6 +49,7 @@
 #include <linux/init.h>
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
+#include <linux/nmi.h>
 #include <linux/pid.h>
 #include <linux/smp.h>
 #include <linux/mm.h>

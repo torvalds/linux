@@ -16,6 +16,7 @@
 #include <linux/profile.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/nmi.h>
 #include <linux/interrupt.h>
 #include <linux/efi.h>
 #include <linux/timex.h>
