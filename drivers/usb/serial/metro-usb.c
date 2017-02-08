@@ -165,7 +165,6 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dev_dbg(&port->dev, "%s\n", __func__);
 
-	usb_unlink_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
 	metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
