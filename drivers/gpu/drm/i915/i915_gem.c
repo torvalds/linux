@@ -2758,7 +2758,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	engine->reset_hw(engine, request);
 }
 
-void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
+void i915_gem_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -2778,6 +2778,11 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 		if (INTEL_GEN(dev_priv) >= 6)
 			gen6_rps_busy(dev_priv);
 	}
+}
+
+void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
+{
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 }
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
