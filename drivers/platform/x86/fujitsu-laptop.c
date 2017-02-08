@@ -631,15 +631,6 @@ static struct platform_driver fujitsu_pf_driver = {
 static void __init dmi_check_cb_common(const struct dmi_system_id *id)
 {
 	pr_info("Identified laptop model '%s'\n", id->ident);
-	if (use_alt_lcd_levels == -1) {
-		if (acpi_has_method(NULL,
-				"\\_SB.PCI0.LPCB.FJEX.SBL2"))
-			use_alt_lcd_levels = 1;
-		else
-			use_alt_lcd_levels = 0;
-		vdbg_printk(FUJLAPTOP_DBG_TRACE, "auto-detected usealt as "
-			"%i\n", use_alt_lcd_levels);
-	}
 }
 
 static int __init dmi_check_cb_s6410(const struct dmi_system_id *id)
@@ -749,6 +740,15 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 		    (acpi_evaluate_object
 		     (device->handle, METHOD_NAME__INI, NULL, NULL)))
 			pr_err("_INI Method failed\n");
+	}
+
+	if (use_alt_lcd_levels == -1) {
+		if (acpi_has_method(NULL, "\\_SB.PCI0.LPCB.FJEX.SBL2"))
+			use_alt_lcd_levels = 1;
+		else
+			use_alt_lcd_levels = 0;
+		vdbg_printk(FUJLAPTOP_DBG_TRACE, "auto-detected usealt as %i\n",
+			    use_alt_lcd_levels);
 	}
 
 	/* do config (detect defaults) */
