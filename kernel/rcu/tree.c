@@ -199,7 +199,7 @@ static const int gp_cleanup_delay;
 
 /*
  * Number of grace periods between delays, normalized by the duration of
- * the delay.  The longer the the delay, the more the grace periods between
+ * the delay.  The longer the delay, the more the grace periods between
  * each delay.  The reason for this normalization is that it means that,
  * for non-zero delays, the overall slowdown of grace periods is constant
  * regardless of the duration of the delay.  This arrangement balances
