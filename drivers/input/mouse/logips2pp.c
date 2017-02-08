@@ -88,15 +88,13 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 				    (packet[1] >> 4) | (packet[0] & 0x30));
 			break;
 		}
+
+		psmouse_report_standard_buttons(dev, packet[0]);
+
 	} else {
 		/* Standard PS/2 motion data */
-		input_report_rel(dev, REL_X, packet[1] ? (int) packet[1] - (int) ((packet[0] << 4) & 0x100) : 0);
-		input_report_rel(dev, REL_Y, packet[2] ? (int) ((packet[0] << 3) & 0x100) - (int) packet[2] : 0);
+		psmouse_report_standard_packet(dev, packet);
 	}
-
-	input_report_key(dev, BTN_LEFT,    packet[0]       & 1);
-	input_report_key(dev, BTN_MIDDLE, (packet[0] >> 2) & 1);
-	input_report_key(dev, BTN_RIGHT,  (packet[0] >> 1) & 1);
 
 	input_sync(dev);
 

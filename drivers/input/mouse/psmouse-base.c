@@ -116,11 +116,28 @@ static DEFINE_MUTEX(psmouse_mutex);
 
 static struct workqueue_struct *kpsmoused_wq;
 
-static void psmouse_report_standard_buttons(struct input_dev *dev, u8 buttons)
+void psmouse_report_standard_buttons(struct input_dev *dev, u8 buttons)
 {
 	input_report_key(dev, BTN_LEFT,   buttons & BIT(0));
 	input_report_key(dev, BTN_MIDDLE, buttons & BIT(2));
 	input_report_key(dev, BTN_RIGHT,  buttons & BIT(1));
+}
+
+void psmouse_report_standard_motion(struct input_dev *dev, u8 *packet)
+{
+	int x, y;
+
+	x = packet[1] ? packet[1] - ((packet[0] << 4) & 0x100) : 0;
+	y = packet[2] ? packet[2] - ((packet[0] << 3) & 0x100) : 0;
+
+	input_report_rel(dev, REL_X, x);
+	input_report_rel(dev, REL_Y, -y);
+}
+
+void psmouse_report_standard_packet(struct input_dev *dev, u8 *packet)
+{
+	psmouse_report_standard_buttons(dev, packet[0]);
+	psmouse_report_standard_motion(dev, packet);
 }
 
 /*
@@ -195,11 +212,8 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 	}
 
 	/* Generic PS/2 Mouse */
-	psmouse_report_standard_buttons(dev,
-					packet[0] | psmouse->extra_buttons);
-
-	input_report_rel(dev, REL_X, packet[1] ? (int) packet[1] - (int) ((packet[0] << 4) & 0x100) : 0);
-	input_report_rel(dev, REL_Y, packet[2] ? (int) ((packet[0] << 3) & 0x100) - (int) packet[2] : 0);
+	packet[0] |= psmouse->extra_buttons;
+	psmouse_report_standard_packet(dev, packet);
 
 	input_sync(dev);
 

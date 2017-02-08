@@ -140,6 +140,10 @@ int psmouse_activate(struct psmouse *psmouse);
 int psmouse_deactivate(struct psmouse *psmouse);
 bool psmouse_matches_pnp_id(struct psmouse *psmouse, const char * const ids[]);
 
+void psmouse_report_standard_buttons(struct input_dev *, u8 buttons);
+void psmouse_report_standard_motion(struct input_dev *, u8 *packet);
+void psmouse_report_standard_packet(struct input_dev *, u8 *packet);
+
 struct psmouse_attribute {
 	struct device_attribute dattr;
 	void *data;

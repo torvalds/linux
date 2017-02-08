@@ -710,7 +710,6 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	unsigned char button_status = 0, lscroll = 0, rscroll = 0;
 	unsigned short abs_x, abs_y, fgrs = 0;
-	int rel_x, rel_y;
 
 	if (psmouse->pktcnt < 4)
 		return PSMOUSE_GOOD_DATA;
@@ -840,15 +839,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		/*
 		 * Standard PS/2 Mouse
 		 */
-		input_report_key(dev, BTN_LEFT, packet[0] & 1);
-		input_report_key(dev, BTN_MIDDLE, (packet[0] >> 2) & 1);
-		input_report_key(dev, BTN_RIGHT, (packet[0] >> 1) & 1);
-
-		rel_x = packet[1] ? (int)packet[1] - (int)((packet[0] << 4) & 0x100) : 0;
-		rel_y = packet[2] ? (int)((packet[0] << 3) & 0x100) - (int)packet[2] : 0;
-
-		input_report_rel(dev, REL_X, rel_x);
-		input_report_rel(dev, REL_Y, rel_y);
+		psmouse_report_standard_packet(dev, packet);
 		break;
 	}
 
