@@ -1793,9 +1793,7 @@ out:
 
 /*
  * Clean up any old requests for the just-ended grace period.  Also return
- * whether any additional grace periods have been requested.  Also invoke
- * rcu_nocb_gp_cleanup() in order to wake up any no-callbacks kthreads
- * waiting for this grace period to complete.
+ * whether any additional grace periods have been requested.
  */
 static int rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
