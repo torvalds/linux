@@ -2528,7 +2528,7 @@ static void cfq_remove_request(struct request *rq)
 	}
 }
 
-static int cfq_merge(struct request_queue *q, struct request **req,
+static enum elv_merge cfq_merge(struct request_queue *q, struct request **req,
 		     struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
@@ -2544,7 +2544,7 @@ static int cfq_merge(struct request_queue *q, struct request **req,
 }
 
 static void cfq_merged_request(struct request_queue *q, struct request *req,
-			       int type)
+			       enum elv_merge type)
 {
 	if (type == ELEVATOR_FRONT_MERGE) {
 		struct cfq_queue *cfqq = RQ_CFQQ(req);

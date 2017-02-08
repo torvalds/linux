@@ -100,6 +100,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 			     struct bio *bio);
 bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 			    struct bio *bio);
+bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
+		struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			    unsigned int *request_count,
 			    struct request **same_queue_rq);
@@ -215,7 +217,7 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 void blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
-int blk_try_merge(struct request *rq, struct bio *bio);
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 
@@ -254,6 +256,13 @@ static inline int blk_do_io_stat(struct request *rq)
 	return rq->rq_disk &&
 	       (rq->rq_flags & RQF_IO_STAT) &&
 		!blk_rq_is_passthrough(rq);
+}
+
+static inline void req_set_nomerge(struct request_queue *q, struct request *req)
+{
+	req->cmd_flags |= REQ_NOMERGE;
+	if (req == q->last_merge)
+		q->last_merge = NULL;
 }
 
 /*

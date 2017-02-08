@@ -121,7 +121,7 @@ static void deadline_remove_request(struct request_queue *q, struct request *rq)
 }
 
 static void dd_request_merged(struct request_queue *q, struct request *req,
-			      int type)
+			      enum elv_merge type)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
