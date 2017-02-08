@@ -441,9 +441,8 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	/* Clear the screen if we could not give reset at probe time */
-	if (!par->reset)
-		ssd1307fb_update_display(par);
+	/* Clear the screen */
+	ssd1307fb_update_display(par);
 
 	/* Turn on the display */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
