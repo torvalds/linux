@@ -853,6 +853,10 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	struct ib_header hdr;
 	struct ib_other_headers *ohdr;
 	unsigned long flags;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	/* clear the defer count */
+	priv->r_adefered = 0;
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->s_flags & RVT_S_RESP_PENDING)
