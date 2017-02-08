@@ -576,7 +576,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	struct ib_header *hdr = packet->hdr;
 	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
-	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct rvt_dev_info *rdi = &ppd->dd->verbs_dev.rdi;
 	opcode_handler packet_handler;
 	unsigned long flags;
@@ -1910,7 +1910,7 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)
 {
-	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = packet->hdr;
 	struct rvt_qp *qp = packet->qp;

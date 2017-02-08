@@ -672,7 +672,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 src_qp;
 	u16 dlid, pkey;
 	int mgmt_pkey_idx = -1;
-	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = packet->hdr;
 	u32 rcv_flags = packet->rcv_flags;

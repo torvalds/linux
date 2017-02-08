@@ -296,7 +296,7 @@ bail_no_tx:
  */
 void hfi1_uc_rcv(struct hfi1_packet *packet)
 {
-	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct ib_header *hdr = packet->hdr;
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;

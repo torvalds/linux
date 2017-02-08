@@ -841,7 +841,7 @@ bail_no_tx:
 void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 		      int is_fecn)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	u64 pbc, pbc_flags = 0;
 	u16 lrh0;
@@ -1326,7 +1326,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	if (aeth >> 29)
 		ack_psn--;
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
-	ibp = to_iport(qp->ibqp.device, qp->port_num);
+	ibp = rcd_to_iport(rcd);
 
 	/*
 	 * The MSN might be for a later WQE than the PSN indicates so
@@ -1791,7 +1791,7 @@ static noinline int rc_rcv_error(struct ib_other_headers *ohdr, void *data,
 				 struct rvt_qp *qp, u32 opcode, u32 psn,
 				 int diff, struct hfi1_ctxtdata *rcd)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct rvt_ack_entry *e;
 	unsigned long flags;
 	u8 i, prev;
@@ -2100,7 +2100,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct ib_other_headers *ohdr = packet->ohdr;
 	u32 bth0, opcode;
 	u32 hdrsize = packet->hlen;
@@ -2552,7 +2552,7 @@ void hfi1_rc_hdrerr(
 {
 	int has_grh = rcv_flags & HFI1_HAS_GRH;
 	struct ib_other_headers *ohdr;
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	int diff;
 	u32 opcode;
 	u32 psn, bth0;

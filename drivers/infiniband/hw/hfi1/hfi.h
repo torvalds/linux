@@ -1584,6 +1584,11 @@ static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 	return &dd->pport[pidx].ibport_data;
 }
 
+static inline struct hfi1_ibport *rcd_to_iport(struct hfi1_ctxtdata *rcd)
+{
+	return &rcd->ppd->ibport_data;
+}
+
 void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp);
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,

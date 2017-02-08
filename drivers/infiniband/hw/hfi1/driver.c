@@ -284,7 +284,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
-	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 
@@ -599,7 +599,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 	while (1) {
 		struct hfi1_devdata *dd = rcd->dd;
-		struct hfi1_ibport *ibp = &rcd->ppd->ibport_data;
+		struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
