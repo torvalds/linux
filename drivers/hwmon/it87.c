@@ -296,6 +296,7 @@ struct it87_devices {
 #define FEAT_SIX_PWM		BIT(14)	/* Chip supports 6 pwm chn */
 #define FEAT_PWM_FREQ2		BIT(15)	/* Separate pwm freq 2 */
 #define FEAT_SIX_TEMP		BIT(16)	/* Up to 6 temp sensors */
+#define FEAT_VIN3_5V		BIT(17)	/* VIN3 connected to +5V */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -433,7 +434,7 @@ static const struct it87_devices it87_devices[] = {
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
-		  | FEAT_SIX_TEMP,
+		  | FEAT_SIX_TEMP | FEAT_VIN3_5V,
 		.peci_mask = 0x07,
 	},
 	[it8628] = {
@@ -442,7 +443,7 @@ static const struct it87_devices it87_devices[] = {
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
-		  | FEAT_SIX_TEMP,
+		  | FEAT_SIX_TEMP | FEAT_VIN3_5V,
 		.peci_mask = 0x07,
 	},
 };
@@ -468,6 +469,7 @@ static const struct it87_devices it87_devices[] = {
 #define has_six_pwm(data)	((data)->features & FEAT_SIX_PWM)
 #define has_pwm_freq2(data)	((data)->features & FEAT_PWM_FREQ2)
 #define has_six_temp(data)	((data)->features & FEAT_SIX_TEMP)
+#define has_vin3_5v(data)	((data)->features & FEAT_VIN3_5V)
 
 struct it87_sio_data {
 	enum chips type;
@@ -1926,7 +1928,9 @@ static ssize_t show_label(struct device *dev, struct device_attribute *attr,
 	int nr = to_sensor_dev_attr(attr)->index;
 	const char *label;
 
-	if (has_12mv_adc(data) || has_10_9mv_adc(data))
+	if (has_vin3_5v(data) && nr == 0)
+		label = labels[0];
+	else if (has_12mv_adc(data) || has_10_9mv_adc(data))
 		label = labels_it8721[nr];
 	else
 		label = labels[nr];
