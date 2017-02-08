@@ -428,7 +428,7 @@
 
 &cdn_dp {
 	status = "okay";
-	extcon = <&fusb0>;
+	extcon = <&fusb0>, <&fusb1>;
 };
 
 &dp_in_vopb {
