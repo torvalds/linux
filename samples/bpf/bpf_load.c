@@ -328,6 +328,8 @@ int load_bpf_file(char *path)
 
 	/* load programs that need map fixup (relocations) */
 	for (i = 1; i < ehdr.e_shnum; i++) {
+		if (processed_sec[i])
+			continue;
 
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
