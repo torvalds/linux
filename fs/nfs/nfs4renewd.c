@@ -153,7 +153,7 @@ void nfs4_set_lease_period(struct nfs_client *clp,
 	spin_unlock(&clp->cl_lock);
 
 	/* Cap maximum reconnect timeout at 1/2 lease period */
-	rpc_cap_max_reconnect_timeout(clp->cl_rpcclient, lease >> 1);
+	rpc_set_connect_timeout(clp->cl_rpcclient, lease, lease >> 1);
 }
 
 /*

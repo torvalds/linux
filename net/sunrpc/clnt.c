@@ -2747,17 +2747,19 @@ rpc_xprt_set_connect_timeout(struct rpc_clnt *clnt,
 }
 
 void
-rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt, unsigned long timeo)
+rpc_set_connect_timeout(struct rpc_clnt *clnt,
+		unsigned long connect_timeout,
+		unsigned long reconnect_timeout)
 {
 	struct connect_timeout_data timeout = {
-		.connect_timeout = timeo,
-		.reconnect_timeout = timeo,
+		.connect_timeout = connect_timeout,
+		.reconnect_timeout = reconnect_timeout,
 	};
 	rpc_clnt_iterate_for_each_xprt(clnt,
 			rpc_xprt_set_connect_timeout,
 			&timeout);
 }
-EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
+EXPORT_SYMBOL_GPL(rpc_set_connect_timeout);
 
 void rpc_clnt_xprt_switch_put(struct rpc_clnt *clnt)
 {
