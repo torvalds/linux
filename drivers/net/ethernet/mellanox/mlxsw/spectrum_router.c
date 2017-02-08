@@ -1407,30 +1407,16 @@ mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_nexthop_group *nh_grp,
-				 struct mlxsw_sp_nexthop *nh,
-				 struct fib_nh *fib_nh)
+static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
-	struct net_device *dev = fib_nh->nh_dev;
-	struct mlxsw_sp_rif *r;
+	struct fib_nh *fib_nh = nh->key.fib_nh;
 	struct neighbour *n;
 	u8 nud_state, dead;
 	int err;
 
-	nh->nh_grp = nh_grp;
-	nh->key.fib_nh = fib_nh;
-	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
-	if (err)
-		return err;
-
-	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!r)
-		return 0;
-	nh->r = r;
-
-	if (!nh_grp->gateway)
+	if (!nh->nh_grp->gateway)
 		return 0;
 
 	/* Take a reference of neigh here ensuring that neigh would
@@ -1438,13 +1424,11 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
-	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, dev);
+	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, fib_nh->nh_dev);
 	if (!n) {
-		n = neigh_create(&arp_tbl, &fib_nh->nh_gw, dev);
-		if (IS_ERR(n)) {
-			err = PTR_ERR(n);
-			goto err_neigh_create;
-		}
+		n = neigh_create(&arp_tbl, &fib_nh->nh_gw, fib_nh->nh_dev);
+		if (IS_ERR(n))
+			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
 	}
 	neigh_entry = mlxsw_sp_neigh_entry_lookup(mlxsw_sp, n);
@@ -1475,19 +1459,18 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 
 err_neigh_entry_create:
 	neigh_release(n);
-err_neigh_create:
-	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 	return err;
 }
 
-static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_nexthop *nh)
+static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
-	struct neighbour *n = neigh_entry->key.n;
+	struct neighbour *n;
 
 	if (!neigh_entry)
-		goto out;
+		return;
+	n = neigh_entry->key.n;
 
 	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
@@ -1503,8 +1486,43 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
 
 	neigh_release(n);
+}
 
-out:
+static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_nexthop_group *nh_grp,
+				 struct mlxsw_sp_nexthop *nh,
+				 struct fib_nh *fib_nh)
+{
+	struct net_device *dev = fib_nh->nh_dev;
+	struct mlxsw_sp_rif *r;
+	int err;
+
+	nh->nh_grp = nh_grp;
+	nh->key.fib_nh = fib_nh;
+	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
+	if (err)
+		return err;
+
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!r)
+		return 0;
+	nh->r = r;
+
+	err = mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+	if (err)
+		goto err_nexthop_neigh_init;
+
+	return 0;
+
+err_nexthop_neigh_init:
+	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
+	return err;
+}
+
+static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_nexthop *nh)
+{
+	mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 }
 
