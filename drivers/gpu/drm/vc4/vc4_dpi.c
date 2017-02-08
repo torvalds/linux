@@ -144,17 +144,6 @@ static const struct {
 	DPI_REG(DPI_ID),
 };
 
-static void vc4_dpi_dump_regs(struct vc4_dpi *dpi)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dpi_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 dpi_regs[i].reg, dpi_regs[i].name,
-			 DPI_READ(dpi_regs[i].reg));
-	}
-}
-
 #ifdef CONFIG_DEBUG_FS
 int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
 {
@@ -415,8 +404,6 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dpi->regs))
 		return PTR_ERR(dpi->regs);
-
-	vc4_dpi_dump_regs(dpi);
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
