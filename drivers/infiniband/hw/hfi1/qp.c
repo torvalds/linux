@@ -961,17 +961,20 @@ int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 void notify_error_qp(struct rvt_qp *qp)
 {
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock(&dev->iowait_lock);
-	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
-		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
-		list_del_init(&priv->s_iowait.list);
-		priv->s_iowait.lock = NULL;
-		rvt_put_qp(qp);
+	if (lock) {
+		write_seqlock(lock);
+		if (!list_empty(&priv->s_iowait.list) &&
+		    !(qp->s_flags & RVT_S_BUSY)) {
+			qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
+			list_del_init(&priv->s_iowait.list);
+			priv->s_iowait.lock = NULL;
+			rvt_put_qp(qp);
+		}
+		write_sequnlock(lock);
 	}
-	write_sequnlock(&dev->iowait_lock);
 
 	if (!(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_hdrwords = 0;
