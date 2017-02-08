@@ -1,7 +1,7 @@
 #ifndef _LINUX_SCHED_STAT_H
 #define _LINUX_SCHED_STAT_H
 
-#include <linux/sched.h>
+#include <linux/percpu.h>
 
 /*
  * Various counters maintained by the scheduler and fork(),
