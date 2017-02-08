@@ -653,6 +653,7 @@ struct rvt_dev_info;
 void rvt_comm_est(struct rvt_qp *qp);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
+unsigned long rvt_rnr_tbl_to_usec(u32 index);
 enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);
 void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth);
 void rvt_del_timers_sync(struct rvt_qp *qp);

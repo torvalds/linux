@@ -1954,6 +1954,17 @@ void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err)
 }
 EXPORT_SYMBOL(rvt_rc_error);
 
+/*
+ *  rvt_rnr_tbl_to_usec - return index into ib_rvt_rnr_table
+ *  @index - the index
+ *  return usec from an index into ib_rvt_rnr_table
+ */
+unsigned long rvt_rnr_tbl_to_usec(u32 index)
+{
+	return ib_rvt_rnr_table[(index & RVT_AETH_CREDIT_MASK)];
+}
+EXPORT_SYMBOL(rvt_rnr_tbl_to_usec);
+
 static inline unsigned long rvt_aeth_to_usec(u32 aeth)
 {
 	return ib_rvt_rnr_table[(aeth >> RVT_AETH_CREDIT_SHIFT) &
