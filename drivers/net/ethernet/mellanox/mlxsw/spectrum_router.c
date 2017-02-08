@@ -1696,7 +1696,7 @@ static int mlxsw_sp_fib_entry_op4_remote(struct mlxsw_sp *mlxsw_sp,
 	 * with provided ECMP size. Otherwise, setup trap and pass
 	 * traffic to kernel.
 	 */
-	if (fib_entry->nh_group->adj_index_valid) {
+	if (mlxsw_sp_fib_entry_should_offload(fib_entry)) {
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
 		adjacency_index = fib_entry->nh_group->adj_index;
 		ecmp_size = fib_entry->nh_group->ecmp_size;
