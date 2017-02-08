@@ -88,12 +88,6 @@ enum hrtimer_restart {
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
  * @is_rel:	Set if the timer was armed relative
- * @start_pid:  timer statistics field to store the pid of the task which
- *		started the timer
- * @start_site:	timer statistics field to store the site where the timer
- *		was started
- * @start_comm: timer statistics field to store the name of the process which
- *		started the timer
  *
  * The hrtimer structure must be initialized by hrtimer_init()
  */
@@ -104,11 +98,6 @@ struct hrtimer {
 	struct hrtimer_clock_base	*base;
 	u8				state;
 	u8				is_rel;
-#ifdef CONFIG_TIMER_STATS
-	int				start_pid;
-	void				*start_site;
-	char				start_comm[16];
-#endif
 };
 
 /**
