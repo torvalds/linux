@@ -152,9 +152,9 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node) {
-
 		if (data->reset_gpio < 0) {
 			struct device_node *np = priv->device->of_node;
+
 			if (!np)
 				return 0;
 
@@ -221,7 +221,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		return 0;
 
 	new_bus = mdiobus_alloc();
-	if (new_bus == NULL)
+	if (!new_bus)
 		return -ENOMEM;
 
 	if (mdio_bus_data->irqs)
@@ -258,6 +258,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
+
 		if (phydev) {
 			int act = 0;
 			char irq_num[4];
@@ -267,7 +268,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 * If an IRQ was provided to be assigned after
 			 * the bus probe, do it here.
 			 */
-			if ((mdio_bus_data->irqs == NULL) &&
+			if ((!mdio_bus_data->irqs) &&
 			    (mdio_bus_data->probed_phy_irq > 0)) {
 				new_bus->irq[addr] =
 					mdio_bus_data->probed_phy_irq;
