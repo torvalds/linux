@@ -1584,7 +1584,8 @@ void intel_dsi_init(struct drm_i915_private *dev_priv)
 	 * In case of BYT with CRC PMIC, we need to use GPIO for
 	 * Panel control.
 	 */
-	if (dev_priv->vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    (dev_priv->vbt.dsi.config->pwm_blc == PPS_BLC_PMIC)) {
 		intel_dsi->gpio_panel =
 			gpiod_get(dev->dev, "panel", GPIOD_OUT_HIGH);
 
