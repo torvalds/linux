@@ -33,6 +33,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/anon_inodes.h>

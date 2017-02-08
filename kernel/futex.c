@@ -62,6 +62,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/wake_q.h>
+#include <linux/sched/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/freezer.h>
 #include <linux/bootmem.h>

@@ -18,6 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/tsacct_kern.h>
 #include <linux/acct.h>
 #include <linux/jiffies.h>

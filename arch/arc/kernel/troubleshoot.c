@@ -13,6 +13,8 @@
 #include <linux/fs_struct.h>
 #include <linux/proc_fs.h>
 #include <linux/file.h>
+#include <linux/sched/mm.h>
+
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
 

@@ -15,6 +15,7 @@
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 
 #include <asm/setup.h>
 #include <asm/traps.h>

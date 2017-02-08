@@ -32,6 +32,7 @@
 #include <linux/debugfs.h>
 #include <linux/rbtree.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>

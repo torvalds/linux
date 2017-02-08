@@ -17,6 +17,8 @@
  */
 #include <linux/dma_remapping.h>
 #include <linux/pagemap.h>
+#include <linux/sched/mm.h>
+
 #include "scif_main.h"
 #include "scif_map.h"
 

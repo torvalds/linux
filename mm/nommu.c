@@ -17,6 +17,7 @@
 
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/vmacache.h>
 #include <linux/mman.h>
 #include <linux/swap.h>

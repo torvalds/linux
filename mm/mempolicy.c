@@ -73,6 +73,7 @@
 #include <linux/hugetlb.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/nodemask.h>
 #include <linux/cpuset.h>
 #include <linux/slab.h>

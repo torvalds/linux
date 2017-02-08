@@ -47,6 +47,7 @@
 #include <linux/namei.h>
 #include <linux/parser.h>
 #include <linux/sched/clock.h>
+#include <linux/sched/mm.h>
 
 #include "internal.h"
 

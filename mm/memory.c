@@ -40,6 +40,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
