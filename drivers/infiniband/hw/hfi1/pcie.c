@@ -663,12 +663,12 @@ MODULE_PARM_DESC(pcie_retry, "Driver will try this many times to reach requested
 
 #define UNSET_PSET 255
 #define DEFAULT_DISCRETE_PSET 2	/* discrete HFI */
-#define DEFAULT_MCP_PSET 4	/* MCP HFI */
+#define DEFAULT_MCP_PSET 6	/* MCP HFI */
 static uint pcie_pset = UNSET_PSET;
 module_param(pcie_pset, uint, S_IRUGO);
 MODULE_PARM_DESC(pcie_pset, "PCIe Eq Pset value to use, range is 0-10");
 
-static uint pcie_ctle = 1; /* discrete on, integrated off */
+static uint pcie_ctle = 3; /* discrete on, integrated on */
 module_param(pcie_ctle, uint, S_IRUGO);
 MODULE_PARM_DESC(pcie_ctle, "PCIe static CTLE mode, bit 0 - discrete on/off, bit 1 - integrated on/off");
 
