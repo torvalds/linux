@@ -40,6 +40,7 @@
 #include <linux/bitops.h>
 #include <linux/in6.h>
 #include <linux/notifier.h>
+#include <linux/inetdevice.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -1548,6 +1549,7 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 				 struct fib_nh *fib_nh)
 {
 	struct net_device *dev = fib_nh->nh_dev;
+	struct in_device *in_dev;
 	struct mlxsw_sp_rif *r;
 	int err;
 
@@ -1556,6 +1558,11 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
 	if (err)
 		return err;
+
+	in_dev = __in_dev_get_rtnl(dev);
+	if (in_dev && IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+	    fib_nh->nh_flags & RTNH_F_LINKDOWN)
+		return 0;
 
 	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
 	if (!r)
@@ -1660,8 +1667,10 @@ mlxsw_sp_nexthop_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 
 err_nexthop_group_insert:
 err_nexthop_init:
-	for (i--; i >= 0; i--)
+	for (i--; i >= 0; i--) {
+		nh = &nh_grp->nexthops[i];
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
+	}
 	kfree(nh_grp);
 	return ERR_PTR(err);
 }
