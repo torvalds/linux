@@ -972,7 +972,9 @@ static u16 rs_get_adjacent_rate(struct iwl_mvm *mvm, u8 index, u16 rate_mask,
 
 		/* Find the previous rate that is in the rate mask */
 		i = index - 1;
-		for (mask = (1 << i); i >= 0; i--, mask >>= 1) {
+		if (i >= 0)
+			mask = BIT(i);
+		for (; i >= 0; i--, mask >>= 1) {
 			if (rate_mask & mask) {
 				low = i;
 				break;
@@ -3616,6 +3618,8 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 	} else if (rate & RATE_MCS_HT_MSK) {
 		type = "HT";
 		mcs = rate & RATE_HT_MCS_INDEX_MSK;
+		nss = ((rate & RATE_HT_MCS_NSS_MSK)
+		       >> RATE_HT_MCS_NSS_POS) + 1;
 	} else {
 		type = "Unknown"; /* shouldn't happen */
 	}

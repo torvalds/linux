@@ -506,15 +506,17 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	switch (info->control.vif->type) {
 	case NL80211_IFTYPE_AP:
 		/*
-		 * handle legacy hostapd as well, where station may be added
-		 * only after assoc.
+		 * Handle legacy hostapd as well, where station may be added
+		 * only after assoc. Take care of the case where we send a
+		 * deauth to a station that we don't have.
 		 */
-		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc))
+		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
+		    ieee80211_is_deauth(fc))
 			return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
 
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "fc=0x%02x", le16_to_cpu(fc));
 		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
@@ -1274,8 +1276,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		memset(&info->status, 0, sizeof(info->status));
 
-		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
-
 		/* inform mac80211 about what happened with the frame */
 		switch (status & TX_STATUS_MSK) {
 		case TX_STATUS_SUCCESS:
@@ -1298,10 +1298,11 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			(void *)(uintptr_t)le32_to_cpu(tx_resp->initial_rate);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= mvm->first_agg_queue &&
+		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK) &&
 		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
 		/* W/A FW bug: seq_ctl is wrong when the status isn't success */
 		if (status != TX_STATUS_SUCCESS) {
@@ -1336,7 +1337,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status(mvm->hw, skb);
 	}
 
-	if (txq_id >= mvm->first_agg_queue) {
+	if (iwl_mvm_is_dqa_supported(mvm) || txq_id >= mvm->first_agg_queue) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which

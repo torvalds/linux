@@ -2008,16 +2008,16 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		if (fw_has_capa(&mvm->fw->ucode_capa,
 				IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 			iwl_mvm_config_scan(mvm);
-	} else if (changes & BSS_CHANGED_BEACON_INFO) {
+	}
+
+	if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
-		 * We received a beacon _after_ association so
+		 * We received a beacon from the associated AP so
 		 * remove the session protection.
 		 */
 		iwl_mvm_remove_time_event(mvm, mvmvif,
 					  &mvmvif->time_event_data);
-	}
 
-	if (changes & BSS_CHANGED_BEACON_INFO) {
 		iwl_mvm_sf_update(mvm, vif, false);
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
 	}
@@ -2627,11 +2627,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 			mvmvif->ap_assoc_sta_count++;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		}
+
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
+				     true);
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
-		if (ret == 0)
-			iwl_mvm_rs_rate_init(mvm, sta,
-					     mvmvif->phy_ctxt->channel->band,
-					     true);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 
