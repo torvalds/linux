@@ -84,6 +84,32 @@
 	};
 };
 
+&spi_nor {
+	status = "okay";
+	spi-max-frequency = <62500000>;
+	m25p,default-addr-width = <3>;
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	partition@0 {
+		label = "boot";
+		reg = <0x00000000 0x000d0000>;
+	};
+	partition@d000 {
+		label = "env";
+		reg = <0x000d0000 0x00030000>;
+	};
+	partition@100000 {
+		label = "system";
+		reg = <0x00100000 0x00600000>;
+	};
+	partition@700000 {
+		label = "rootfs";
+		reg = <0x00700000 0x00900000>;
+	};
+};
+
 &uart0 {
 	clock-frequency = <62499840>;
 };
