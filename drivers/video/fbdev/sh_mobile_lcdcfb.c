@@ -2782,8 +2782,10 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 		priv->forced_fourcc = pdata->ch[0].fourcc;
 
 	priv->base = ioremap_nocache(res->start, resource_size(res));
-	if (!priv->base)
+	if (!priv->base) {
+		error = -ENOMEM;
 		goto err1;
+	}
 
 	error = sh_mobile_lcdc_setup_clocks(priv, pdata->clock_source);
 	if (error) {
