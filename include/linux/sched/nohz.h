@@ -1,8 +1,6 @@
 #ifndef _LINUX_SCHED_NOHZ_H
 #define _LINUX_SCHED_NOHZ_H
 
-#include <linux/sched.h>
-
 /*
  * This is the interface between the scheduler and nohz/dyntics:
  */
