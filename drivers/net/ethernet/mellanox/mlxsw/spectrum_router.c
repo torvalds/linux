@@ -1721,7 +1721,7 @@ mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	}
 
-	if (fi->fib_scope != RT_SCOPE_UNIVERSE) {
+	if (fi->fib_nh->nh_scope != RT_SCOPE_LINK) {
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
 		fib_entry->rif = r->rif;
 	} else {
