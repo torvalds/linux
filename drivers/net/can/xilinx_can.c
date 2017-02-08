@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2012 - 2014 Xilinx, Inc.
  * Copyright (C) 2009 PetaLogix. All rights reserved.
+ * Copyright (C) 2017 Sandvik Mining and Construction Oy
  *
  * Description:
  * This driver is developed for Axi CAN IP and for Zynq CANPS Controller.
@@ -530,6 +531,123 @@ static int xcan_rx(struct net_device *ndev)
 }
 
 /**
+ * xcan_current_error_state - Get current error state from HW
+ * @ndev:	Pointer to net_device structure
+ *
+ * Checks the current CAN error state from the HW. Note that this
+ * only checks for ERROR_PASSIVE and ERROR_WARNING.
+ *
+ * Return:
+ * ERROR_PASSIVE or ERROR_WARNING if either is active, ERROR_ACTIVE
+ * otherwise.
+ */
+static enum can_state xcan_current_error_state(struct net_device *ndev)
+{
+	struct xcan_priv *priv = netdev_priv(ndev);
+	u32 status = priv->read_reg(priv, XCAN_SR_OFFSET);
+
+	if ((status & XCAN_SR_ESTAT_MASK) == XCAN_SR_ESTAT_MASK)
+		return CAN_STATE_ERROR_PASSIVE;
+	else if (status & XCAN_SR_ERRWRN_MASK)
+		return CAN_STATE_ERROR_WARNING;
+	else
+		return CAN_STATE_ERROR_ACTIVE;
+}
+
+/**
+ * xcan_set_error_state - Set new CAN error state
+ * @ndev:	Pointer to net_device structure
+ * @new_state:	The new CAN state to be set
+ * @cf:		Error frame to be populated or NULL
+ *
+ * Set new CAN error state for the device, updating statistics and
+ * populating the error frame if given.
+ */
+static void xcan_set_error_state(struct net_device *ndev,
+				 enum can_state new_state,
+				 struct can_frame *cf)
+{
+	struct xcan_priv *priv = netdev_priv(ndev);
+	u32 ecr = priv->read_reg(priv, XCAN_ECR_OFFSET);
+	u32 txerr = ecr & XCAN_ECR_TEC_MASK;
+	u32 rxerr = (ecr & XCAN_ECR_REC_MASK) >> XCAN_ESR_REC_SHIFT;
+
+	priv->can.state = new_state;
+
+	if (cf) {
+		cf->can_id |= CAN_ERR_CRTL;
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
+	}
+
+	switch (new_state) {
+	case CAN_STATE_ERROR_PASSIVE:
+		priv->can.can_stats.error_passive++;
+		if (cf)
+			cf->data[1] = (rxerr > 127) ?
+					CAN_ERR_CRTL_RX_PASSIVE :
+					CAN_ERR_CRTL_TX_PASSIVE;
+		break;
+	case CAN_STATE_ERROR_WARNING:
+		priv->can.can_stats.error_warning++;
+		if (cf)
+			cf->data[1] |= (txerr > rxerr) ?
+					CAN_ERR_CRTL_TX_WARNING :
+					CAN_ERR_CRTL_RX_WARNING;
+		break;
+	case CAN_STATE_ERROR_ACTIVE:
+		if (cf)
+			cf->data[1] |= CAN_ERR_CRTL_ACTIVE;
+		break;
+	default:
+		/* non-ERROR states are handled elsewhere */
+		WARN_ON(1);
+		break;
+	}
+}
+
+/**
+ * xcan_update_error_state_after_rxtx - Update CAN error state after RX/TX
+ * @ndev:	Pointer to net_device structure
+ *
+ * If the device is in a ERROR-WARNING or ERROR-PASSIVE state, check if
+ * the performed RX/TX has caused it to drop to a lesser state and set
+ * the interface state accordingly.
+ */
+static void xcan_update_error_state_after_rxtx(struct net_device *ndev)
+{
+	struct xcan_priv *priv = netdev_priv(ndev);
+	enum can_state old_state = priv->can.state;
+	enum can_state new_state;
+
+	/* changing error state due to successful frame RX/TX can only
+	 * occur from these states
+	 */
+	if (old_state != CAN_STATE_ERROR_WARNING &&
+	    old_state != CAN_STATE_ERROR_PASSIVE)
+		return;
+
+	new_state = xcan_current_error_state(ndev);
+
+	if (new_state != old_state) {
+		struct sk_buff *skb;
+		struct can_frame *cf;
+
+		skb = alloc_can_err_skb(ndev, &cf);
+
+		xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
+
+		if (skb) {
+			struct net_device_stats *stats = &ndev->stats;
+
+			stats->rx_packets++;
+			stats->rx_bytes += cf->can_dlc;
+			netif_rx(skb);
+		}
+	}
+}
+
+/**
  * xcan_err_interrupt - error frame Isr
  * @ndev:	net_device pointer
  * @isr:	interrupt status register value
@@ -544,16 +662,12 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf;
 	struct sk_buff *skb;
-	u32 err_status, status, txerr = 0, rxerr = 0;
+	u32 err_status;
 
 	skb = alloc_can_err_skb(ndev, &cf);
 
 	err_status = priv->read_reg(priv, XCAN_ESR_OFFSET);
 	priv->write_reg(priv, XCAN_ESR_OFFSET, err_status);
-	txerr = priv->read_reg(priv, XCAN_ECR_OFFSET) & XCAN_ECR_TEC_MASK;
-	rxerr = ((priv->read_reg(priv, XCAN_ECR_OFFSET) &
-			XCAN_ECR_REC_MASK) >> XCAN_ESR_REC_SHIFT);
-	status = priv->read_reg(priv, XCAN_SR_OFFSET);
 
 	if (isr & XCAN_IXR_BSOFF_MASK) {
 		priv->can.state = CAN_STATE_BUS_OFF;
@@ -563,28 +677,10 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 		can_bus_off(ndev);
 		if (skb)
 			cf->can_id |= CAN_ERR_BUSOFF;
-	} else if ((status & XCAN_SR_ESTAT_MASK) == XCAN_SR_ESTAT_MASK) {
-		priv->can.state = CAN_STATE_ERROR_PASSIVE;
-		priv->can.can_stats.error_passive++;
-		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (rxerr > 127) ?
-					CAN_ERR_CRTL_RX_PASSIVE :
-					CAN_ERR_CRTL_TX_PASSIVE;
-			cf->data[6] = txerr;
-			cf->data[7] = rxerr;
-		}
-	} else if (status & XCAN_SR_ERRWRN_MASK) {
-		priv->can.state = CAN_STATE_ERROR_WARNING;
-		priv->can.can_stats.error_warning++;
-		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] |= (txerr > rxerr) ?
-					CAN_ERR_CRTL_TX_WARNING :
-					CAN_ERR_CRTL_RX_WARNING;
-			cf->data[6] = txerr;
-			cf->data[7] = rxerr;
-		}
+	} else {
+		enum can_state new_state = xcan_current_error_state(ndev);
+
+		xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
 	}
 
 	/* Check for Arbitration lost interrupt */
@@ -713,8 +809,10 @@ static int xcan_rx_poll(struct napi_struct *napi, int quota)
 		isr = priv->read_reg(priv, XCAN_ISR_OFFSET);
 	}
 
-	if (work_done)
+	if (work_done) {
 		can_led_event(ndev, CAN_LED_EVENT_RX);
+		xcan_update_error_state_after_rxtx(ndev);
+	}
 
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
@@ -745,6 +843,7 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 		isr = priv->read_reg(priv, XCAN_ISR_OFFSET);
 	}
 	can_led_event(ndev, CAN_LED_EVENT_TX);
+	xcan_update_error_state_after_rxtx(ndev);
 	netif_wake_queue(ndev);
 }
 
