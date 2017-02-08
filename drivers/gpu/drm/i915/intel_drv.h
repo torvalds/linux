@@ -933,6 +933,7 @@ struct intel_dp {
 	bool has_audio;
 	bool detect_done;
 	bool channel_eq_status;
+	bool reset_link_params;
 	enum hdmi_force_audio force_audio;
 	bool limited_color_range;
 	bool color_range_auto;
