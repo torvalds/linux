@@ -230,7 +230,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		memset((void *)ring->ring, 0, ring->ring_size);
+		amdgpu_ring_clear_ring(ring);
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->max_dw = max_dw;

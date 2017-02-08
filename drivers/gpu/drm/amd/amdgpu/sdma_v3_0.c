@@ -615,6 +615,7 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
+		amdgpu_ring_clear_ring(ring);
 		wb_offset = (ring->rptr_offs * 4);
 
 		mutex_lock(&adev->srbm_mutex);

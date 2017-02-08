@@ -4515,6 +4515,7 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	}
 
 	/* start the ring */
+	amdgpu_ring_clear_ring(ring);
 	gfx_v8_0_cp_gfx_start(adev);
 	ring->ready = true;
 	r = amdgpu_ring_test_ring(ring);
