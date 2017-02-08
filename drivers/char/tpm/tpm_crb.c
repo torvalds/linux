@@ -121,6 +121,25 @@ static int __maybe_unused crb_go_idle(struct device *dev, struct crb_priv *priv)
 	return 0;
 }
 
+static bool crb_wait_for_reg_32(u32 __iomem *reg, u32 mask, u32 value,
+				unsigned long timeout)
+{
+	ktime_t start;
+	ktime_t stop;
+
+	start = ktime_get();
+	stop = ktime_add(start, ms_to_ktime(timeout));
+
+	do {
+		if ((ioread32(reg) & mask) == value)
+			return true;
+
+		usleep_range(50, 100);
+	} while (ktime_before(ktime_get(), stop));
+
+	return false;
+}
+
 /**
  * crb_cmd_ready - request tpm crb device to enter ready state
  *
@@ -138,24 +157,14 @@ static int __maybe_unused crb_go_idle(struct device *dev, struct crb_priv *priv)
 static int __maybe_unused crb_cmd_ready(struct device *dev,
 					struct crb_priv *priv)
 {
-	ktime_t stop, start;
-	u32 req;
-
 	if (priv->flags & CRB_FL_ACPI_START)
 		return 0;
 
 	iowrite32(CRB_CTRL_REQ_CMD_READY, &priv->regs_t->ctrl_req);
-
-	start = ktime_get();
-	stop = ktime_add(start, ms_to_ktime(TPM2_TIMEOUT_C));
-	do {
-		req = ioread32(&priv->regs_t->ctrl_req);
-		if (!(req & CRB_CTRL_REQ_CMD_READY))
-			return 0;
-		usleep_range(50, 100);
-	} while (ktime_before(ktime_get(), stop));
-
-	if (ioread32(&priv->regs_t->ctrl_req) & CRB_CTRL_REQ_CMD_READY) {
+	if (!crb_wait_for_reg_32(&priv->regs_t->ctrl_req,
+				 CRB_CTRL_REQ_CMD_READY /* mask */,
+				 0, /* value */
+				 TPM2_TIMEOUT_C)) {
 		dev_warn(dev, "cmdReady timed out\n");
 		return -ETIME;
 	}
