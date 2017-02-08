@@ -186,5 +186,12 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
+static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
+{
+	int i = 0;
+	while (i <= ring->ptr_mask)
+		ring->ring[i++] = ring->funcs->nop;
+
+}
 
 #endif
