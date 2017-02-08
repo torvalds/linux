@@ -6811,9 +6811,18 @@ cpu_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (IS_ERR(tg))
 		return ERR_PTR(-ENOMEM);
 
-	sched_online_group(tg, parent);
-
 	return &tg->css;
+}
+
+/* Expose task group only after completing cgroup initialization */
+static int cpu_cgroup_css_online(struct cgroup_subsys_state *css)
+{
+	struct task_group *tg = css_tg(css);
+	struct task_group *parent = css_tg(css->parent);
+
+	if (parent)
+		sched_online_group(tg, parent);
+	return 0;
 }
 
 static void cpu_cgroup_css_released(struct cgroup_subsys_state *css)
@@ -7221,6 +7230,7 @@ static struct cftype cpu_files[] = {
 
 struct cgroup_subsys cpu_cgrp_subsys = {
 	.css_alloc	= cpu_cgroup_css_alloc,
+	.css_online	= cpu_cgroup_css_online,
 	.css_released	= cpu_cgroup_css_released,
 	.css_free	= cpu_cgroup_css_free,
 	.fork		= cpu_cgroup_fork,
