@@ -1,8 +1,6 @@
 #ifndef _LINUX_SCHED_HOTPLUG_H
 #define _LINUX_SCHED_HOTPLUG_H
 
-#include <linux/sched.h>
-
 /*
  * Scheduler interfaces for hotplug CPU support:
  */
