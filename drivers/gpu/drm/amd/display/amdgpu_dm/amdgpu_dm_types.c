@@ -535,6 +535,8 @@ static void fill_plane_attributes_from_fb(
 			adev->gfx.config.gb_addr_config_fields.num_se;
 		surface->tiling_info.gfx9.max_compressed_frags =
 			adev->gfx.config.gb_addr_config_fields.max_compress_frags;
+		surface->tiling_info.gfx9.num_rb_per_se =
+			adev->gfx.config.gb_addr_config_fields.num_rb_per_se;
 		surface->tiling_info.gfx9.swizzle =
 			AMDGPU_TILING_GET(tiling_flags, SWIZZLE_MODE);
 		surface->tiling_info.gfx9.shaderEnable = 1;
