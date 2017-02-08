@@ -709,10 +709,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 	return 0;
 
 failed_marshal:
-	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
-		__func__, rc);
-	if (rc == -EIO)
-		r_xprt->rx_stats.failed_marshal_count++;
 	if (rc != -ENOTCONN)
 		return rc;
 drop_connection:

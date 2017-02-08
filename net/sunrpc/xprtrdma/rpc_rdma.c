@@ -759,13 +759,13 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	iptr = headerp->rm_body.rm_chunks;
 	iptr = rpcrdma_encode_read_list(r_xprt, req, rqst, iptr, rtype);
 	if (IS_ERR(iptr))
-		goto out_unmap;
+		goto out_err;
 	iptr = rpcrdma_encode_write_list(r_xprt, req, rqst, iptr, wtype);
 	if (IS_ERR(iptr))
-		goto out_unmap;
+		goto out_err;
 	iptr = rpcrdma_encode_reply_chunk(r_xprt, req, rqst, iptr, wtype);
 	if (IS_ERR(iptr))
-		goto out_unmap;
+		goto out_err;
 	hdrlen = (unsigned char *)iptr - (unsigned char *)headerp;
 
 	dprintk("RPC: %5u %s: %s/%s: hdrlen %zd rpclen %zd\n",
@@ -776,12 +776,14 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req, hdrlen,
 				       &rqst->rq_snd_buf, rtype)) {
 		iptr = ERR_PTR(-EIO);
-		goto out_unmap;
+		goto out_err;
 	}
 	return 0;
 
-out_unmap:
-	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
+out_err:
+	pr_err("rpcrdma: rpcrdma_marshal_req failed, status %ld\n",
+	       PTR_ERR(iptr));
+	r_xprt->rx_stats.failed_marshal_count++;
 	return PTR_ERR(iptr);
 }
 
