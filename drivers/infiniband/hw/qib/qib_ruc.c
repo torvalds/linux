@@ -38,44 +38,6 @@
 #include "qib_mad.h"
 
 /*
- * Convert the AETH RNR timeout code into the number of microseconds.
- */
-const u32 ib_qib_rnr_table[32] = {
-	655360,	/* 00: 655.36 */
-	10,	/* 01:    .01 */
-	20,	/* 02     .02 */
-	30,	/* 03:    .03 */
-	40,	/* 04:    .04 */
-	60,	/* 05:    .06 */
-	80,	/* 06:    .08 */
-	120,	/* 07:    .12 */
-	160,	/* 08:    .16 */
-	240,	/* 09:    .24 */
-	320,	/* 0A:    .32 */
-	480,	/* 0B:    .48 */
-	640,	/* 0C:    .64 */
-	960,	/* 0D:    .96 */
-	1280,	/* 0E:   1.28 */
-	1920,	/* 0F:   1.92 */
-	2560,	/* 10:   2.56 */
-	3840,	/* 11:   3.84 */
-	5120,	/* 12:   5.12 */
-	7680,	/* 13:   7.68 */
-	10240,	/* 14:  10.24 */
-	15360,	/* 15:  15.36 */
-	20480,	/* 16:  20.48 */
-	30720,	/* 17:  30.72 */
-	40960,	/* 18:  40.96 */
-	61440,	/* 19:  61.44 */
-	81920,	/* 1A:  81.92 */
-	122880,	/* 1B: 122.88 */
-	163840,	/* 1C: 163.84 */
-	245760,	/* 1D: 245.76 */
-	327680,	/* 1E: 327.68 */
-	491520	/* 1F: 491.52 */
-};
-
-/*
  * Validate a RWQE and fill in the SGE state.
  * Return 1 if OK.
  */
@@ -599,11 +561,8 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
-	sqp->s_flags |= RVT_S_WAIT_RNR;
-	sqp->s_timer.function = qib_rc_rnr_retry;
-	sqp->s_timer.expires = jiffies +
-		usecs_to_jiffies(ib_qib_rnr_table[qp->r_min_rnr_timer]);
-	add_timer(&sqp->s_timer);
+	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
+				RVT_AETH_CREDIT_SHIFT);
 	goto clr_busy;
 
 op_err:

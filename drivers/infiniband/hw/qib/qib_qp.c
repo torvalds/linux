@@ -351,7 +351,6 @@ void qib_stop_send_queue(struct rvt_qp *qp)
 	struct qib_qp_priv *priv = qp->priv;
 
 	cancel_work_sync(&priv->s_work);
-	del_timer_sync(&qp->s_timer);
 }
 
 void qib_quiesce_qp(struct rvt_qp *qp)
