@@ -3178,6 +3178,7 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 	u64 now = cfs_rq_clock_task(cfs_rq);
 	int cpu = cpu_of(rq_of(cfs_rq));
 	int decayed;
+	void *ptr = NULL;
 
 	/*
 	 * Track task load average for carrying it to new CPU after migrated, and
@@ -3195,8 +3196,12 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 	if (decayed && (flags & UPDATE_TG))
 		update_tg_load_avg(cfs_rq, 0);
 
-	if (entity_is_task(se))
-		trace_sched_load_avg_task(task_of(se), &se->avg);
+	if (entity_is_task(se)) {
+#ifdef CONFIG_SCHED_WALT
+		ptr = (void *)&(task_of(se)->ravg);
+#endif
+		trace_sched_load_avg_task(task_of(se), &se->avg, ptr);
+	}
 }
 
 /**
