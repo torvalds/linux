@@ -48,6 +48,9 @@
 					+ 1				\
 					+ 1)
 
+#define TRACKSTICK_RANGE_START		3
+#define TRACKSTICK_RANGE_END		6
+
 struct rmi_f30_ctrl_data {
 	int address;
 	int length;
@@ -76,6 +79,9 @@ struct f30_data {
 	u16 *gpioled_key_map;
 
 	struct input_dev *input;
+
+	struct rmi_function *f03;
+	bool trackstick_buttons;
 };
 
 static int rmi_f30_read_control_parameters(struct rmi_function *fn,
@@ -100,13 +106,20 @@ static void rmi_f30_report_button(struct rmi_function *fn,
 {
 	unsigned int reg_num = button >> 3;
 	unsigned int bit_num = button & 0x07;
+	u16 key_code = f30->gpioled_key_map[button];
 	bool key_down = !(f30->data_regs[reg_num] & BIT(bit_num));
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev,
-		"%s: call input report key (0x%04x) value (0x%02x)",
-		__func__, f30->gpioled_key_map[button], key_down);
+	if (f30->trackstick_buttons &&
+	    button >= TRACKSTICK_RANGE_START &&
+	    button <= TRACKSTICK_RANGE_END) {
+		rmi_f03_overwrite_button(f30->f03, key_code, key_down);
+	} else {
+		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+			"%s: call input report key (0x%04x) value (0x%02x)",
+			__func__, key_code, key_down);
 
-	input_report_key(f30->input, f30->gpioled_key_map[button], key_down);
+		input_report_key(f30->input, key_code, key_down);
+	}
 }
 
 static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
@@ -138,10 +151,13 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		}
 	}
 
-	if (f30->has_gpio)
+	if (f30->has_gpio) {
 		for (i = 0; i < f30->gpioled_count; i++)
 			if (f30->gpioled_key_map[i] != KEY_RESERVED)
 				rmi_f30_report_button(fn, f30, i);
+		if (f30->trackstick_buttons)
+			rmi_f03_commit_buttons(f30->f03);
+	}
 
 	return 0;
 }
@@ -153,6 +169,12 @@ static int rmi_f30_config(struct rmi_function *fn)
 	const struct rmi_device_platform_data *pdata =
 				rmi_get_platform_data(fn->rmi_dev);
 	int error;
+
+	if (pdata->f30_data.trackstick_buttons) {
+		/* Try [re-]establish link to F03. */
+		f30->f03 = rmi_find_function(fn->rmi_dev, 0x03);
+		f30->trackstick_buttons = f30->f03 != NULL;
+	}
 
 	if (pdata->f30_data.disable) {
 		drv->clear_irq_bits(fn->rmi_dev, fn->irq_mask);
@@ -203,6 +225,8 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 					rmi_get_platform_data(fn->rmi_dev);
 	struct input_dev *input = f30->input;
 	unsigned int button = BTN_LEFT;
+	unsigned int trackstick_button = BTN_LEFT;
+	bool button_mapped = false;
 	int i;
 
 	f30->gpioled_key_map = devm_kcalloc(&fn->dev,
@@ -215,25 +239,29 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 	}
 
 	for (i = 0; i < f30->gpioled_count; i++) {
-		if (rmi_f30_is_valid_button(i, f30->ctrl)) {
+		if (!rmi_f30_is_valid_button(i, f30->ctrl))
+			continue;
+
+		if (pdata->f30_data.trackstick_buttons &&
+		    i >= TRACKSTICK_RANGE_START && i < TRACKSTICK_RANGE_END) {
+			f30->gpioled_key_map[i] = trackstick_button++;
+		} else if (!pdata->f30_data.buttonpad || !button_mapped) {
 			f30->gpioled_key_map[i] = button;
 			input_set_capability(input, EV_KEY, button++);
-
-			/*
-			 * buttonpad might be given by
-			 * f30->has_mech_mouse_btns, but I am
-			 * not sure, so use only the pdata info
-			 */
-			if (pdata->f30_data.buttonpad) {
-				__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
-				break;
-			}
+			button_mapped = true;
 		}
 	}
 
 	input->keycode = f30->gpioled_key_map;
 	input->keycodesize = sizeof(f30->gpioled_key_map[0]);
 	input->keycodemax = f30->gpioled_count;
+
+	/*
+	 * Buttonpad could be also inferred from f30->has_mech_mouse_btns,
+	 * but I am not sure, so use only the pdata info.
+	 */
+	if (pdata->f30_data.buttonpad)
+		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	return 0;
 }

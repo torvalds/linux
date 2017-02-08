@@ -107,6 +107,19 @@ int rmi_initial_reset(struct rmi_device *rmi_dev, void *ctx,
 
 const char *rmi_f01_get_product_ID(struct rmi_function *fn);
 
+#ifdef CONFIG_RMI4_F03
+int rmi_f03_overwrite_button(struct rmi_function *fn, unsigned int button,
+			     int value);
+void rmi_f03_commit_buttons(struct rmi_function *fn);
+#else
+static inline int rmi_f03_overwrite_button(struct rmi_function *fn,
+					   unsigned int button, int value)
+{
+	return 0;
+}
+static inline void rmi_f03_commit_buttons(struct rmi_function *fn) {}
+#endif
+
 #ifdef CONFIG_RMI4_F34
 int rmi_f34_create_sysfs(struct rmi_device *rmi_dev);
 void rmi_f34_remove_sysfs(struct rmi_device *rmi_dev);
