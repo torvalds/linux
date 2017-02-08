@@ -265,6 +265,7 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct device *const dev = &pdev->dev;
 	struct idio_16_gpio *idio16gpio;
 	int err;
+	const size_t pci_bar_index = 2;
 	const char *const name = pci_name(pdev);
 
 	idio16gpio = devm_kzalloc(dev, sizeof(*idio16gpio), GFP_KERNEL);
@@ -277,13 +278,13 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
-	err = pcim_iomap_regions(pdev, 0x1, name);
+	err = pcim_iomap_regions(pdev, BIT(pci_bar_index), name);
 	if (err) {
 		dev_err(dev, "Unable to map PCI I/O addresses (%d)\n", err);
 		return err;
 	}
 
-	idio16gpio->reg = pcim_iomap_table(pdev)[0];
+	idio16gpio->reg = pcim_iomap_table(pdev)[pci_bar_index];
 
 	/* Deactivate input filters */
 	iowrite8(0, &idio16gpio->reg->filter_ctl);
