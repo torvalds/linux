@@ -131,3 +131,9 @@
 	vsel-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	fcs,suspend-voltage-selector = <0>;
 };
+
+&rockchip_suspend {
+	rockchip,power-ctrl =
+		<&gpio1 18 GPIO_ACTIVE_LOW>,
+		<&gpio1 14 GPIO_ACTIVE_HIGH>;
+};
