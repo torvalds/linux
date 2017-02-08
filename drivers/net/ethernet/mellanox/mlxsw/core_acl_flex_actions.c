@@ -356,9 +356,9 @@ int mlxsw_afa_block_commit(struct mlxsw_afa_block *block)
 {
 	struct mlxsw_afa_set *set = block->cur_set;
 	struct mlxsw_afa_set *prev_set;
-	int err;
 
 	block->cur_set = NULL;
+	block->finished = true;
 
 	/* Go over all linked sets starting from last
 	 * and try to find existing set in the hash table.
@@ -368,10 +368,12 @@ int mlxsw_afa_block_commit(struct mlxsw_afa_block *block)
 	do {
 		prev_set = set->prev;
 		set = mlxsw_afa_set_get(block->afa, set);
-		if (IS_ERR(set)) {
-			err = PTR_ERR(set);
-			goto rollback;
-		}
+		if (IS_ERR(set))
+			/* No rollback is needed since the chain is
+			 * in consistent state and mlxsw_afa_block_destroy
+			 * will take care of putting it away.
+			 */
+			return PTR_ERR(set);
 		if (prev_set) {
 			prev_set->next = set;
 			mlxsw_afa_set_next_set(prev_set, set->kvdl_index);
@@ -380,13 +382,7 @@ int mlxsw_afa_block_commit(struct mlxsw_afa_block *block)
 	} while (prev_set);
 
 	block->first_set = set;
-	block->finished = true;
 	return 0;
-
-rollback:
-	while ((set = set->next))
-		mlxsw_afa_set_put(block->afa, set);
-	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_commit);
 
