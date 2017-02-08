@@ -32,30 +32,11 @@ int pci_msi_ignore_mask;
 #define msix_table_size(flags)	((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
-static struct irq_domain *pci_msi_default_domain;
-static DEFINE_MUTEX(pci_msi_domain_lock);
-
-struct irq_domain * __weak arch_get_pci_msi_domain(struct pci_dev *dev)
-{
-	return pci_msi_default_domain;
-}
-
-static struct irq_domain *pci_msi_get_domain(struct pci_dev *dev)
-{
-	struct irq_domain *domain;
-
-	domain = dev_get_msi_domain(&dev->dev);
-	if (domain)
-		return domain;
-
-	return arch_get_pci_msi_domain(dev);
-}
-
 static int pci_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct irq_domain *domain;
 
-	domain = pci_msi_get_domain(dev);
+	domain = dev_get_msi_domain(&dev->dev);
 	if (domain && irq_domain_is_hierarchy(domain))
 		return pci_msi_domain_alloc_irqs(domain, dev, nvec, type);
 
@@ -66,7 +47,7 @@ static void pci_msi_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct irq_domain *domain;
 
-	domain = pci_msi_get_domain(dev);
+	domain = dev_get_msi_domain(&dev->dev);
 	if (domain && irq_domain_is_hierarchy(domain))
 		pci_msi_domain_free_irqs(domain, dev);
 	else
@@ -1497,33 +1478,6 @@ int pci_msi_domain_alloc_irqs(struct irq_domain *domain, struct pci_dev *dev,
 void pci_msi_domain_free_irqs(struct irq_domain *domain, struct pci_dev *dev)
 {
 	msi_domain_free_irqs(domain, &dev->dev);
-}
-
-/**
- * pci_msi_create_default_irq_domain - Create a default MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
- * @info:	MSI domain info
- * @parent:	Parent irq domain
- *
- * Returns: A domain pointer or NULL in case of failure. If successful
- * the default PCI/MSI irqdomain pointer is updated.
- */
-struct irq_domain *pci_msi_create_default_irq_domain(struct fwnode_handle *fwnode,
-		struct msi_domain_info *info, struct irq_domain *parent)
-{
-	struct irq_domain *domain;
-
-	mutex_lock(&pci_msi_domain_lock);
-	if (pci_msi_default_domain) {
-		pr_err("PCI: default irq domain for PCI MSI has already been created.\n");
-		domain = NULL;
-	} else {
-		domain = pci_msi_create_irq_domain(fwnode, info, parent);
-		pci_msi_default_domain = domain;
-	}
-	mutex_unlock(&pci_msi_domain_lock);
-
-	return domain;
 }
 
 static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
