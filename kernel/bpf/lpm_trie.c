@@ -394,10 +394,21 @@ static int trie_delete_elem(struct bpf_map *map, void *key)
 	return -ENOSYS;
 }
 
+#define LPM_DATA_SIZE_MAX	256
+#define LPM_DATA_SIZE_MIN	1
+
+#define LPM_VAL_SIZE_MAX	(KMALLOC_MAX_SIZE - LPM_DATA_SIZE_MAX - \
+				 sizeof(struct lpm_trie_node))
+#define LPM_VAL_SIZE_MIN	1
+
+#define LPM_KEY_SIZE(X)		(sizeof(struct bpf_lpm_trie_key) + (X))
+#define LPM_KEY_SIZE_MAX	LPM_KEY_SIZE(LPM_DATA_SIZE_MAX)
+#define LPM_KEY_SIZE_MIN	LPM_KEY_SIZE(LPM_DATA_SIZE_MIN)
+
 static struct bpf_map *trie_alloc(union bpf_attr *attr)
 {
-	size_t cost, cost_per_node;
 	struct lpm_trie *trie;
+	u64 cost = sizeof(*trie), cost_per_node;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -406,9 +417,10 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 ||
 	    attr->map_flags != BPF_F_NO_PREALLOC ||
-	    attr->key_size < sizeof(struct bpf_lpm_trie_key) + 1   ||
-	    attr->key_size > sizeof(struct bpf_lpm_trie_key) + 256 ||
-	    attr->value_size == 0)
+	    attr->key_size < LPM_KEY_SIZE_MIN ||
+	    attr->key_size > LPM_KEY_SIZE_MAX ||
+	    attr->value_size < LPM_VAL_SIZE_MIN ||
+	    attr->value_size > LPM_VAL_SIZE_MAX)
 		return ERR_PTR(-EINVAL);
 
 	trie = kzalloc(sizeof(*trie), GFP_USER | __GFP_NOWARN);
@@ -426,18 +438,24 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 
 	cost_per_node = sizeof(struct lpm_trie_node) +
 			attr->value_size + trie->data_size;
-	cost = sizeof(*trie) + attr->max_entries * cost_per_node;
+	cost += (u64) attr->max_entries * cost_per_node;
+	if (cost >= U32_MAX - PAGE_SIZE) {
+		ret = -E2BIG;
+		goto out_err;
+	}
+
 	trie->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
 	ret = bpf_map_precharge_memlock(trie->map.pages);
-	if (ret) {
-		kfree(trie);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto out_err;
 
 	raw_spin_lock_init(&trie->lock);
 
 	return &trie->map;
+out_err:
+	kfree(trie);
+	return ERR_PTR(ret);
 }
 
 static void trie_free(struct bpf_map *map)
