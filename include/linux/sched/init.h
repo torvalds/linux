@@ -1,8 +1,6 @@
 #ifndef _LINUX_SCHED_INIT_H
 #define _LINUX_SCHED_INIT_H
 
-#include <linux/sched.h>
-
 /*
  * Scheduler init related prototypes:
  */
