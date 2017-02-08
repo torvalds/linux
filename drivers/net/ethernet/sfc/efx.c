@@ -23,12 +23,15 @@
 #include <linux/aer.h>
 #include <linux/interrupt.h>
 #include "net_driver.h"
+#include <net/gre.h>
+#include <net/udp_tunnel.h>
 #include "efx.h"
 #include "nic.h"
 #include "selftest.h"
 #include "sriov.h"
 
 #include "mcdi.h"
+#include "mcdi_pcol.h"
 #include "workarounds.h"
 
 /**************************************************************************
@@ -87,6 +90,21 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
 	[RESET_TYPE_MCDI_TIMEOUT]	= "MCDI_TIMEOUT (FLR)",
 };
+
+/* UDP tunnel type names */
+static const char *const efx_udp_tunnel_type_names[] = {
+	[TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN] = "vxlan",
+	[TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE] = "geneve",
+};
+
+void efx_get_udp_tunnel_type_name(u16 type, char *buf, size_t buflen)
+{
+	if (type < ARRAY_SIZE(efx_udp_tunnel_type_names) &&
+	    efx_udp_tunnel_type_names[type] != NULL)
+		snprintf(buf, buflen, "%s", efx_udp_tunnel_type_names[type]);
+	else
+		snprintf(buf, buflen, "type %d", type);
+}
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
  * queued onto this work queue. This is not a per-nic work queue, because
@@ -2336,6 +2354,52 @@ static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vi
 		return -EOPNOTSUPP;
 }
 
+static int efx_udp_tunnel_type_map(enum udp_parsable_tunnel_type in)
+{
+	switch (in) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		return TUNNEL_ENCAP_UDP_PORT_ENTRY_VXLAN;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		return TUNNEL_ENCAP_UDP_PORT_ENTRY_GENEVE;
+	default:
+		return -1;
+	}
+}
+
+static void efx_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_udp_tunnel tnl;
+	int efx_tunnel_type;
+
+	efx_tunnel_type = efx_udp_tunnel_type_map(ti->type);
+	if (efx_tunnel_type < 0)
+		return;
+
+	tnl.type = (u16)efx_tunnel_type;
+	tnl.port = ti->port;
+
+	if (efx->type->udp_tnl_add_port)
+		(void)efx->type->udp_tnl_add_port(efx, tnl);
+}
+
+static void efx_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti)
+{
+	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_udp_tunnel tnl;
+	int efx_tunnel_type;
+
+	efx_tunnel_type = efx_udp_tunnel_type_map(ti->type);
+	if (efx_tunnel_type < 0)
+		return;
+
+	tnl.type = (u16)efx_tunnel_type;
+	tnl.port = ti->port;
+
+	if (efx->type->udp_tnl_add_port)
+		(void)efx->type->udp_tnl_del_port(efx, tnl);
+}
+
 static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
@@ -2366,6 +2430,8 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif
+	.ndo_udp_tunnel_add	= efx_udp_tunnel_add,
+	.ndo_udp_tunnel_del	= efx_udp_tunnel_del,
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -2604,6 +2670,9 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
+
+	if (efx->type->udp_tnl_push_ports)
+		efx->type->udp_tnl_push_ports(efx);
 
 	return 0;
 
@@ -3260,6 +3329,9 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		netif_notice(efx, probe, efx->net_dev,
 			     "PCIE error reporting unavailable (%d).\n",
 			     rc);
+
+	if (efx->type->udp_tnl_push_ports)
+		efx->type->udp_tnl_push_ports(efx);
 
 	return 0;
 
