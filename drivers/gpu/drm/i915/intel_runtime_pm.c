@@ -1249,7 +1249,7 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
-#define POWER_DOMAIN_MASK (BIT(POWER_DOMAIN_NUM) - 1)
+#define POWER_DOMAIN_MASK (GENMASK(POWER_DOMAIN_NUM - 1, 0))
 
 static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
 						 int power_well_id)

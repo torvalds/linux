@@ -234,7 +234,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	 */
-	sseu->subslice_mask = BIT(ss_max) - 1;
+	sseu->subslice_mask = GENMASK(ss_max - 1, 0);
 	sseu->subslice_mask &= ~((fuse2 & GEN8_F2_SS_DIS_MASK) >>
 				 GEN8_F2_SS_DIS_SHIFT);
 
