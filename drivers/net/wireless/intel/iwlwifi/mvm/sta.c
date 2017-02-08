@@ -223,7 +223,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
 			add_sta_cmd.uapsd_acs |= BIT(AC_VO);
 		add_sta_cmd.uapsd_acs |= add_sta_cmd.uapsd_acs << 4;
-		add_sta_cmd.sp_length = sta->max_sp;
+		add_sta_cmd.sp_length = sta->max_sp ? sta->max_sp * 2 : 128;
 	}
 
 	status = ADD_STA_SUCCESS;
