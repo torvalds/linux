@@ -1355,6 +1355,36 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 	return ret;
 }
 
+static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
+				 enum fib_event_type event_type)
+{
+	struct in_device *in_dev = __in_dev_get_rtnl(fib_nh->nh_dev);
+	struct fib_nh_notifier_info info = {
+		.fib_nh = fib_nh,
+	};
+
+	switch (event_type) {
+	case FIB_EVENT_NH_ADD:
+		if (fib_nh->nh_flags & RTNH_F_DEAD)
+			break;
+		if (IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		    fib_nh->nh_flags & RTNH_F_LINKDOWN)
+			break;
+		return call_fib_notifiers(dev_net(fib_nh->nh_dev), event_type,
+					  &info.info);
+	case FIB_EVENT_NH_DEL:
+		if ((IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		     fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
+		    (fib_nh->nh_flags & RTNH_F_DEAD))
+			return call_fib_notifiers(dev_net(fib_nh->nh_dev),
+						  event_type, &info.info);
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 /* Event              force Flags           Description
  * NETDEV_CHANGE      0     LINKDOWN        Carrier OFF, not for scope host
  * NETDEV_DOWN        0     LINKDOWN|DEAD   Link down, not for scope host
@@ -1396,6 +1426,8 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 					nexthop_nh->nh_flags |= RTNH_F_LINKDOWN;
 					break;
 				}
+				call_fib_nh_notifiers(nexthop_nh,
+						      FIB_EVENT_NH_DEL);
 				dead++;
 			}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1550,6 +1582,7 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 				continue;
 			alive++;
 			nexthop_nh->nh_flags &= ~nh_flags;
+			call_fib_nh_notifiers(nexthop_nh, FIB_EVENT_NH_ADD);
 		} endfor_nexthops(fi)
 
 		if (alive > 0) {
