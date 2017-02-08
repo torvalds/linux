@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/sched/loadavg.h>
 #include <linux/cpuset.h>
 #include <linux/delayacct.h>
 #include <linux/init_task.h>

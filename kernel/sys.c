@@ -49,6 +49,7 @@
 #include <linux/binfmts.h>
 
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/rcupdate.h>
 #include <linux/uidgid.h>
 #include <linux/cred.h>

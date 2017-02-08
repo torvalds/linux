@@ -3,6 +3,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/seq_file.h>
 #include <linux/seqlock.h>
 #include <linux/time.h>
