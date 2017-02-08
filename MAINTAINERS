@@ -2671,12 +2671,14 @@ F:	arch/mips/include/asm/mach-bcm47xx/*
 BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
+M:	Jon Mason <jonmason@broadcom.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
 F:	arch/arm/mach-bcm/bcm_5301x.c
 F:	arch/arm/boot/dts/bcm5301x*.dtsi
 F:	arch/arm/boot/dts/bcm470*
+F:	arch/arm/boot/dts/bcm953012*
 
 BROADCOM BCM53573 ARM ARCHITECTURE
 M:	Rafał Miłecki <rafal@milecki.pl>
