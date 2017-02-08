@@ -411,7 +411,7 @@ void stmmac_remove_config_dt(struct platform_device *pdev,
 struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EINVAL);
 }
 
 void stmmac_remove_config_dt(struct platform_device *pdev,
