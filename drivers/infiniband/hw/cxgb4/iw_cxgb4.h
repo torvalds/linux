@@ -45,6 +45,7 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 
@@ -107,6 +108,7 @@ struct c4iw_dev_ucontext {
 	struct list_head qpids;
 	struct list_head cqids;
 	struct mutex lock;
+	struct kref kref;
 };
 
 enum c4iw_rdev_flags {
@@ -183,6 +185,7 @@ struct c4iw_rdev {
 	atomic_t wr_log_idx;
 	struct wr_log_entry *wr_log;
 	int wr_log_size;
+	struct workqueue_struct *free_workq;
 };
 
 static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
@@ -480,8 +483,8 @@ struct c4iw_qp {
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
-	struct completion rq_drained;
-	struct completion sq_drained;
+	struct work_struct free_work;
+	struct c4iw_ucontext *ucontext;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -495,11 +498,24 @@ struct c4iw_ucontext {
 	u32 key;
 	spinlock_t mmap_lock;
 	struct list_head mmaps;
+	struct kref kref;
 };
 
 static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)
 {
 	return container_of(c, struct c4iw_ucontext, ibucontext);
+}
+
+void _c4iw_free_ucontext(struct kref *kref);
+
+static inline void c4iw_put_ucontext(struct c4iw_ucontext *ucontext)
+{
+	kref_put(&ucontext->kref, _c4iw_free_ucontext);
+}
+
+static inline void c4iw_get_ucontext(struct c4iw_ucontext *ucontext)
+{
+	kref_get(&ucontext->kref);
 }
 
 struct c4iw_mm_entry {
@@ -614,6 +630,8 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	}
 	return IB_QPS_ERR;
 }
+
+#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
 
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
@@ -997,8 +1015,6 @@ extern int c4iw_wr_log;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
 extern int use_dsgl;
-void c4iw_drain_rq(struct ib_qp *qp);
-void c4iw_drain_sq(struct ib_qp *qp);
 void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 
 #endif

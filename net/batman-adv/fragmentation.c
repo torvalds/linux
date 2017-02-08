@@ -474,7 +474,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = -EINVAL;
-		goto put_primary_if;
+		goto free_skb;
 	}
 
 	/* Create one header to be copied to all fragments */
@@ -502,7 +502,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 		skb_fragment = batadv_frag_create(skb, &frag_header, mtu);
 		if (!skb_fragment) {
 			ret = -ENOMEM;
-			goto free_skb;
+			goto put_primary_if;
 		}
 
 		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
@@ -511,7 +511,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 		ret = batadv_send_unicast_skb(skb_fragment, neigh_node);
 		if (ret != NET_XMIT_SUCCESS) {
 			ret = NET_XMIT_DROP;
-			goto free_skb;
+			goto put_primary_if;
 		}
 
 		frag_header.no++;
@@ -519,7 +519,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 		/* The initial check in this function should cover this case */
 		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1) {
 			ret = -EINVAL;
-			goto free_skb;
+			goto put_primary_if;
 		}
 	}
 
@@ -527,7 +527,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	if (batadv_skb_head_push(skb, header_size) < 0 ||
 	    pskb_expand_head(skb, header_size + ETH_HLEN, 0, GFP_ATOMIC) < 0) {
 		ret = -ENOMEM;
-		goto free_skb;
+		goto put_primary_if;
 	}
 
 	memcpy(skb->data, &frag_header, header_size);
