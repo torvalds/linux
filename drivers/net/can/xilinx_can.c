@@ -703,7 +703,8 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 	} else {
 		enum can_state new_state = xcan_current_error_state(ndev);
 
-		xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
+		if (new_state != priv->can.state)
+			xcan_set_error_state(ndev, new_state, skb ? cf : NULL);
 	}
 
 	/* Check for Arbitration lost interrupt */
