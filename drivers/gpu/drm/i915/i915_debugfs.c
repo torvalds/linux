@@ -2822,15 +2822,10 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 		seq_printf(m, "%-25s %d\n", power_well->name,
 			   power_well->count);
 
-		for (power_domain = 0; power_domain < POWER_DOMAIN_NUM;
-		     power_domain++) {
-			if (!(BIT(power_domain) & power_well->domains))
-				continue;
-
+		for_each_power_domain(power_domain, power_well->domains)
 			seq_printf(m, "  %-23s %d\n",
 				 intel_display_power_domain_str(power_domain),
 				 power_domains->domain_use_count[power_domain]);
-		}
 	}
 
 	mutex_unlock(&power_domains->lock);
