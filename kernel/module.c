@@ -4170,22 +4170,23 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
 	struct module *mod;
 
 	preempt_disable();
-	list_for_each_entry_rcu(mod, &modules, list) {
-		if (mod->state == MODULE_STATE_UNFORMED)
-			continue;
-		if (mod->num_exentries == 0)
-			continue;
+	mod = __module_address(addr);
+	if (!mod)
+		goto out;
 
-		e = search_extable(mod->extable,
-				   mod->extable + mod->num_exentries - 1,
-				   addr);
-		if (e)
-			break;
-	}
+	if (!mod->num_exentries)
+		goto out;
+
+	e = search_extable(mod->extable,
+			   mod->extable + mod->num_exentries - 1,
+			   addr);
+out:
 	preempt_enable();
 
-	/* Now, if we found one, we are running inside it now, hence
-	   we cannot unload the module, hence no refcnt needed. */
+	/*
+	 * Now, if we found one, we are running inside it now, hence
+	 * we cannot unload the module, hence no refcnt needed.
+	 */
 	return e;
 }
 
