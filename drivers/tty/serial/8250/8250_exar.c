@@ -24,11 +24,15 @@
 
 #include "8250.h"
 
-#define PCI_DEVICE_ID_COMMTECH_4224PCIE	0x0020
-#define PCI_DEVICE_ID_COMMTECH_4228PCIE	0x0021
-#define PCI_DEVICE_ID_COMMTECH_4222PCIE	0x0022
-#define PCI_DEVICE_ID_EXAR_XR17V4358	0x4358
-#define PCI_DEVICE_ID_EXAR_XR17V8358	0x8358
+#define PCI_DEVICE_ID_COMMTECH_4224PCI335	0x0002
+#define PCI_DEVICE_ID_COMMTECH_4222PCI335	0x0004
+#define PCI_DEVICE_ID_COMMTECH_2324PCI335	0x000a
+#define PCI_DEVICE_ID_COMMTECH_2328PCI335	0x000b
+#define PCI_DEVICE_ID_COMMTECH_4224PCIE		0x0020
+#define PCI_DEVICE_ID_COMMTECH_4228PCIE		0x0021
+#define PCI_DEVICE_ID_COMMTECH_4222PCIE		0x0022
+#define PCI_DEVICE_ID_EXAR_XR17V4358		0x4358
+#define PCI_DEVICE_ID_EXAR_XR17V8358		0x8358
 
 #define UART_EXAR_MPIOINT_7_0	0x8f	/* MPIOINT[7:0] */
 #define UART_EXAR_MPIOLVL_7_0	0x90	/* MPIOLVL[7:0] */
@@ -79,6 +83,55 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
 	port->port.membase = pcim_iomap_table(pcidev)[bar] + offset;
 	port->port.regshift = board->reg_shift;
+
+	return 0;
+}
+
+static int
+pci_fastcom335_setup(struct exar8250 *priv, struct pci_dev *pcidev,
+		     struct uart_8250_port *port, int idx)
+{
+	unsigned int offset = idx * 0x200;
+	unsigned int baud = 1843200;
+	u8 __iomem *p;
+	int err;
+
+	port->port.flags |= UPF_EXAR_EFR;
+	port->port.uartclk = baud * 16;
+
+	err = default_setup(priv, pcidev, idx, offset, port);
+	if (err)
+		return err;
+
+	p = port->port.membase;
+
+	writeb(0x00, p + UART_EXAR_8XMODE);
+	writeb(UART_FCTR_EXAR_TRGD, p + UART_EXAR_FCTR);
+	writeb(32, p + UART_EXAR_TXTRG);
+	writeb(32, p + UART_EXAR_RXTRG);
+
+	/*
+	 * Setup Multipurpose Input/Output pins.
+	 */
+	if (idx == 0) {
+		switch (pcidev->device) {
+		case PCI_DEVICE_ID_COMMTECH_4222PCI335:
+		case PCI_DEVICE_ID_COMMTECH_4224PCI335:
+			writeb(0x78, p + UART_EXAR_MPIOLVL_7_0);
+			writeb(0x00, p + UART_EXAR_MPIOINV_7_0);
+			writeb(0x00, p + UART_EXAR_MPIOSEL_7_0);
+			break;
+		case PCI_DEVICE_ID_COMMTECH_2324PCI335:
+		case PCI_DEVICE_ID_COMMTECH_2328PCI335:
+			writeb(0x00, p + UART_EXAR_MPIOLVL_7_0);
+			writeb(0xc0, p + UART_EXAR_MPIOINV_7_0);
+			writeb(0xc0, p + UART_EXAR_MPIOSEL_7_0);
+			break;
+		}
+		writeb(0x00, p + UART_EXAR_MPIOINT_7_0);
+		writeb(0x00, p + UART_EXAR_MPIO3T_7_0);
+		writeb(0x00, p + UART_EXAR_MPIOOD_7_0);
+	}
 
 	return 0;
 }
@@ -291,6 +344,21 @@ static int __maybe_unused exar_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
 
+static const struct exar8250_board pbn_fastcom335_2 = {
+	.num_ports	= 2,
+	.setup		= pci_fastcom335_setup,
+};
+
+static const struct exar8250_board pbn_fastcom335_4 = {
+	.num_ports	= 4,
+	.setup		= pci_fastcom335_setup,
+};
+
+static const struct exar8250_board pbn_fastcom335_8 = {
+	.num_ports	= 8,
+	.setup		= pci_fastcom335_setup,
+};
+
 static const struct exar8250_board pbn_connect = {
 	.setup		= pci_connect_tech_setup,
 };
@@ -375,6 +443,11 @@ static struct pci_device_id exar_pci_tbl[] = {
 	EXAR_DEVICE(COMMTECH, COMMTECH_4222PCIE, pbn_exar_XR17V35x),
 	EXAR_DEVICE(COMMTECH, COMMTECH_4224PCIE, pbn_exar_XR17V35x),
 	EXAR_DEVICE(COMMTECH, COMMTECH_4228PCIE, pbn_exar_XR17V35x),
+
+	EXAR_DEVICE(COMMTECH, COMMTECH_4222PCI335, pbn_fastcom335_2),
+	EXAR_DEVICE(COMMTECH, COMMTECH_4224PCI335, pbn_fastcom335_4),
+	EXAR_DEVICE(COMMTECH, COMMTECH_2324PCI335, pbn_fastcom335_4),
+	EXAR_DEVICE(COMMTECH, COMMTECH_2328PCI335, pbn_fastcom335_8),
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, exar_pci_tbl);
