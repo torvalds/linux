@@ -192,7 +192,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 			      sizeof(grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;
 	} else {
-		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
+		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
 	}
 	ssge.sg_list = swqe->sg_list + 1;
 	ssge.sge = *swqe->sg_list;
@@ -815,7 +815,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			      sizeof(struct ib_grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;
 	} else {
-		hfi1_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
+		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
 	}
 	hfi1_copy_sge(&qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh),
 		      true, false);

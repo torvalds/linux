@@ -141,4 +141,54 @@ static inline void rvt_put_ss(struct rvt_sge_state *ss)
 	}
 }
 
+static inline u32 rvt_get_sge_length(struct rvt_sge *sge, u32 length)
+{
+	u32 len = sge->length;
+
+	if (len > length)
+		len = length;
+	if (len > sge->sge_length)
+		len = sge->sge_length;
+
+	return len;
+}
+
+static inline void rvt_update_sge(struct rvt_sge_state *ss, u32 length,
+				  bool release)
+{
+	struct rvt_sge *sge = &ss->sge;
+
+	sge->vaddr += length;
+	sge->length -= length;
+	sge->sge_length -= length;
+	if (sge->sge_length == 0) {
+		if (release)
+			rvt_put_mr(sge->mr);
+		if (--ss->num_sge)
+			*sge = *ss->sg_list++;
+	} else if (sge->length == 0 && sge->mr->lkey) {
+		if (++sge->n >= RVT_SEGSZ) {
+			if (++sge->m >= sge->mr->mapsz)
+				return;
+			sge->n = 0;
+		}
+		sge->vaddr = sge->mr->map[sge->m]->segs[sge->n].vaddr;
+		sge->length = sge->mr->map[sge->m]->segs[sge->n].length;
+	}
+}
+
+static inline void rvt_skip_sge(struct rvt_sge_state *ss, u32 length,
+				bool release)
+{
+	struct rvt_sge *sge = &ss->sge;
+
+	while (length) {
+		u32 len = rvt_get_sge_length(sge, length);
+
+		WARN_ON_ONCE(len == 0);
+		rvt_update_sge(ss, len, release);
+		length -= len;
+	}
+}
+
 #endif          /* DEF_RDMAVT_INCMRH */

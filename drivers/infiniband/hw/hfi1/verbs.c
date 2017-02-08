@@ -462,12 +462,8 @@ void hfi1_copy_sge(
 
 again:
 	while (length) {
-		u32 len = sge->length;
+		u32 len = rvt_get_sge_length(sge, length);
 
-		if (len > length)
-			len = length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
 		WARN_ON_ONCE(len == 0);
 		if (unlikely(in_last)) {
 			/* enforce byte transfer ordering */
@@ -478,25 +474,7 @@ again:
 		} else {
 			memcpy(sge->vaddr, data, len);
 		}
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (release)
-				rvt_put_mr(sge->mr);
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
+		rvt_update_sge(ss, len, release);
 		data += len;
 		length -= len;
 	}
@@ -506,46 +484,6 @@ again:
 		in_last = true;
 		length = 8;
 		goto again;
-	}
-}
-
-/**
- * hfi1_skip_sge - skip over SGE memory
- * @ss: the SGE state
- * @length: the number of bytes to skip
- */
-void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, bool release)
-{
-	struct rvt_sge *sge = &ss->sge;
-
-	while (length) {
-		u32 len = sge->length;
-
-		if (len > length)
-			len = length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
-		WARN_ON_ONCE(len == 0);
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (release)
-				rvt_put_mr(sge->mr);
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
-		length -= len;
 	}
 }
 
@@ -690,27 +628,6 @@ static void mem_timer(unsigned long data)
 		hfi1_qp_wakeup(qp, RVT_S_WAIT_KMEM);
 }
 
-void update_sge(struct rvt_sge_state *ss, u32 length)
-{
-	struct rvt_sge *sge = &ss->sge;
-
-	sge->vaddr += length;
-	sge->length -= length;
-	sge->sge_length -= length;
-	if (sge->sge_length == 0) {
-		if (--ss->num_sge)
-			*sge = *ss->sg_list++;
-	} else if (sge->length == 0 && sge->mr->lkey) {
-		if (++sge->n >= RVT_SEGSZ) {
-			if (++sge->m >= sge->mr->mapsz)
-				return;
-			sge->n = 0;
-		}
-		sge->vaddr = sge->mr->map[sge->m]->segs[sge->n].vaddr;
-		sge->length = sge->mr->map[sge->m]->segs[sge->n].length;
-	}
-}
-
 /*
  * This is called with progress side lock held.
  */
@@ -799,7 +716,7 @@ static noinline int build_verbs_ulp_payload(
 			len);
 		if (ret)
 			goto bail_txadd;
-		update_sge(ss, len);
+		rvt_update_sge(ss, len, false);
 		length -= len;
 	}
 	return ret;
@@ -1074,7 +991,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 				if (slen > len)
 					slen = len;
-				update_sge(ss, slen);
+				rvt_update_sge(ss, slen, false);
 				seg_pio_copy_mid(pbuf, addr, slen);
 				len -= slen;
 			}

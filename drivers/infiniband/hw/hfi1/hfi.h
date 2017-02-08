@@ -1797,8 +1797,6 @@ int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
 
-void update_sge(struct rvt_sge_state *ss, u32 length);
-
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
