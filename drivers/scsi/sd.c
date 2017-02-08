@@ -3084,7 +3084,7 @@ struct sd_devt {
 	struct disk_devt disk_devt;
 };
 
-void sd_devt_release(struct disk_devt *disk_devt)
+static void sd_devt_release(struct disk_devt *disk_devt)
 {
 	struct sd_devt *sd_devt = container_of(disk_devt, struct sd_devt,
 			disk_devt);
