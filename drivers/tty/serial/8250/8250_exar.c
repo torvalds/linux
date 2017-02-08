@@ -34,6 +34,19 @@
 #define PCI_DEVICE_ID_EXAR_XR17V4358		0x4358
 #define PCI_DEVICE_ID_EXAR_XR17V8358		0x8358
 
+#define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
+
+#define UART_EXAR_FCTR		0x08	/* Feature Control Register */
+#define UART_FCTR_EXAR_IRDA	0x10	/* IrDa data encode select */
+#define UART_FCTR_EXAR_485	0x20	/* Auto 485 half duplex dir ctl */
+#define UART_FCTR_EXAR_TRGA	0x00	/* FIFO trigger table A */
+#define UART_FCTR_EXAR_TRGB	0x60	/* FIFO trigger table B */
+#define UART_FCTR_EXAR_TRGC	0x80	/* FIFO trigger table C */
+#define UART_FCTR_EXAR_TRGD	0xc0	/* FIFO trigger table D programmable */
+
+#define UART_EXAR_TXTRG		0x0a	/* Tx FIFO trigger level write-only */
+#define UART_EXAR_RXTRG		0x0b	/* Rx FIFO trigger level write-only */
+
 #define UART_EXAR_MPIOINT_7_0	0x8f	/* MPIOINT[7:0] */
 #define UART_EXAR_MPIOLVL_7_0	0x90	/* MPIOLVL[7:0] */
 #define UART_EXAR_MPIO3T_7_0	0x91	/* MPIO3T[7:0] */

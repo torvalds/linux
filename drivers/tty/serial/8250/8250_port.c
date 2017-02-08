@@ -45,6 +45,12 @@
 #include "8250.h"
 
 /*
+ * These are definitions for the Exar XR17V35X and XR17(C|D)15X
+ */
+#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
+#define UART_EXAR_DVID		0x8d	/* Device identification */
+
+/*
  * Debugging.
  */
 #if 0
