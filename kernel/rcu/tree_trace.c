@@ -41,6 +41,7 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/prefetch.h>
 
 #define RCU_TREE_NONCORE
 #include "tree.h"
@@ -128,17 +129,15 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 	seq_printf(m, " of=%lu", rdp->offline_fqs);
 	rcu_nocb_q_lengths(rdp, &ql, &qll);
-	qll += rdp->qlen_lazy;
-	ql += rdp->qlen;
+	qll += rcu_segcblist_n_lazy_cbs(&rdp->cblist);
+	ql += rcu_segcblist_n_cbs(&rdp->cblist);
 	seq_printf(m, " ql=%ld/%ld qs=%c%c%c%c",
 		   qll, ql,
-		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
-			rdp->nxttail[RCU_NEXT_TAIL]],
-		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
-			rdp->nxttail[RCU_NEXT_READY_TAIL]],
-		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
-			rdp->nxttail[RCU_WAIT_TAIL]],
-		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]]);
+		   ".N"[!rcu_segcblist_segempty(&rdp->cblist, RCU_NEXT_TAIL)],
+		   ".R"[!rcu_segcblist_segempty(&rdp->cblist,
+						RCU_NEXT_READY_TAIL)],
+		   ".W"[!rcu_segcblist_segempty(&rdp->cblist, RCU_WAIT_TAIL)],
+		   ".D"[!rcu_segcblist_segempty(&rdp->cblist, RCU_DONE_TAIL)]);
 #ifdef CONFIG_RCU_BOOST
 	seq_printf(m, " kt=%d/%c ktl=%x",
 		   per_cpu(rcu_cpu_has_work, rdp->cpu),
@@ -276,7 +275,9 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
-		   READ_ONCE(rsp->n_force_qs_lh), rsp->qlen_lazy, rsp->qlen);
+		   READ_ONCE(rsp->n_force_qs_lh),
+		   rcu_cblist_n_lazy_cbs(&rsp->orphan_done),
+		   rcu_cblist_n_cbs(&rsp->orphan_done));
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
 			seq_puts(m, "\n");
