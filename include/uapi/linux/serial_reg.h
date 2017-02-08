@@ -374,8 +374,8 @@
 #define UART_EXAR_DVID		0x8d	/* Device identification */
 
 #define UART_EXAR_FCTR		0x08	/* Feature Control Register */
-#define UART_FCTR_EXAR_IRDA	0x08	/* IrDa data encode select */
-#define UART_FCTR_EXAR_485	0x10	/* Auto 485 half duplex dir ctl */
+#define UART_FCTR_EXAR_IRDA	0x10	/* IrDa data encode select */
+#define UART_FCTR_EXAR_485	0x20	/* Auto 485 half duplex dir ctl */
 #define UART_FCTR_EXAR_TRGA	0x00	/* FIFO trigger table A */
 #define UART_FCTR_EXAR_TRGB	0x60	/* FIFO trigger table B */
 #define UART_FCTR_EXAR_TRGC	0x80	/* FIFO trigger table C */
