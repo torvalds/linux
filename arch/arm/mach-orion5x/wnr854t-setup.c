@@ -106,11 +106,6 @@ static struct dsa_chip_data wnr854t_switch_chip_data = {
 	.port_names[7] = "lan2",
 };
 
-static struct dsa_platform_data __initdata wnr854t_switch_plat_data = {
-	.nr_chips	= 1,
-	.chip		= &wnr854t_switch_chip_data,
-};
-
 static void __init wnr854t_init(void)
 {
 	/*
