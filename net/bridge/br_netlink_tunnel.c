@@ -30,18 +30,18 @@ static size_t __get_vlan_tinfo_size(void)
 		  nla_total_size(sizeof(u16)); /* IFLA_BRIDGE_VLAN_TUNNEL_FLAGS */
 }
 
-static bool vlan_tunnel_id_isrange(struct net_bridge_vlan *v,
-				   struct net_bridge_vlan *v_end)
+static bool vlan_tunid_inrange(struct net_bridge_vlan *v_curr,
+			       struct net_bridge_vlan *v_last)
 {
-	__be32 tunid_curr = tunnel_id_to_key32(v->tinfo.tunnel_id);
-	__be32 tunid_end = tunnel_id_to_key32(v_end->tinfo.tunnel_id);
+	__be32 tunid_curr = tunnel_id_to_key32(v_curr->tinfo.tunnel_id);
+	__be32 tunid_last = tunnel_id_to_key32(v_last->tinfo.tunnel_id);
 
-	return (be32_to_cpu(tunid_curr) - be32_to_cpu(tunid_end)) == 1;
+	return (be32_to_cpu(tunid_curr) - be32_to_cpu(tunid_last)) == 1;
 }
 
 static int __get_num_vlan_tunnel_infos(struct net_bridge_vlan_group *vg)
 {
-	struct net_bridge_vlan *v, *v_start = NULL, *v_end = NULL;
+	struct net_bridge_vlan *v, *vtbegin = NULL, *vtend = NULL;
 	int num_tinfos = 0;
 
 	/* Count number of vlan infos */
@@ -50,27 +50,25 @@ static int __get_num_vlan_tunnel_infos(struct net_bridge_vlan_group *vg)
 		if (!br_vlan_should_use(v) || !v->tinfo.tunnel_id)
 			continue;
 
-		if (!v_start) {
+		if (!vtbegin) {
 			goto initvars;
-		} else if ((v->vid - v_end->vid) == 1 &&
-			   vlan_tunnel_id_isrange(v_end, v) == 1) {
-			v_end = v;
+		} else if ((v->vid - vtend->vid) == 1 &&
+			   vlan_tunid_inrange(v, vtend)) {
+			vtend = v;
 			continue;
 		} else {
-			if ((v_end->vid - v->vid) > 0 &&
-			    vlan_tunnel_id_isrange(v_end, v) > 0)
+			if ((vtend->vid - vtbegin->vid) > 0)
 				num_tinfos += 2;
 			else
 				num_tinfos += 1;
 		}
 initvars:
-		v_start = v;
-		v_end = v;
+		vtbegin = v;
+		vtend = v;
 	}
 
-	if (v_start) {
-		if ((v_end->vid - v->vid) > 0 &&
-		    vlan_tunnel_id_isrange(v_end, v) > 0)
+	if (vtbegin && vtend) {
+		if ((vtend->vid - vtbegin->vid) > 0)
 			num_tinfos += 2;
 		else
 			num_tinfos += 1;
@@ -171,7 +169,7 @@ int br_fill_vlan_tunnel_info(struct sk_buff *skb,
 		if (!vtbegin) {
 			goto initvars;
 		} else if ((v->vid - vtend->vid) == 1 &&
-			    vlan_tunnel_id_isrange(v, vtend)) {
+			    vlan_tunid_inrange(v, vtend)) {
 			vtend = v;
 			continue;
 		} else {
