@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/sched/loadavg.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/debug.h>
 #include <linux/sysrq.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>

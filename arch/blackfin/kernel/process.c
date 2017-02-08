@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/tick.h>
 #include <linux/fs.h>
 #include <linux/err.h>

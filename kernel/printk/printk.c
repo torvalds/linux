@@ -46,6 +46,7 @@
 #include <linux/ctype.h>
 #include <linux/uio.h>
 #include <linux/sched/clock.h>
+#include <linux/sched/debug.h>
 
 #include <linux/uaccess.h>
 #include <asm/sections.h>

@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/file.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>

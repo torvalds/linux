@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>	/* for SIGBUS */
 #include <linux/sched.h>	/* schow_regs(), force_sig() */
+#include <linux/sched/debug.h>
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>

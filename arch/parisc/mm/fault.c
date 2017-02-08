@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>

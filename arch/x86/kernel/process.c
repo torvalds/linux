@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/idle.h>
+#include <linux/sched/debug.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/pm.h>

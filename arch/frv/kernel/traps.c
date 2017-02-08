@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/signal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

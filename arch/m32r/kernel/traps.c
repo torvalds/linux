@@ -14,6 +14,7 @@
 #include <linux/kallsyms.h>
 #include <linux/stddef.h>
 #include <linux/ptrace.h>
+#include <linux/sched/debug.h>
 #include <linux/mm.h>
 #include <asm/page.h>
 #include <asm/processor.h>

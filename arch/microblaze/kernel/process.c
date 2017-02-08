@@ -11,6 +11,7 @@
 #include <linux/cpu.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/bitops.h>

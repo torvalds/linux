@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched.h>  /* for jiffies */
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/smp.h>

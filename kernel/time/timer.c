@@ -41,6 +41,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/nohz.h>
+#include <linux/sched/debug.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
 

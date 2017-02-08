@@ -16,6 +16,8 @@
 
 #include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>

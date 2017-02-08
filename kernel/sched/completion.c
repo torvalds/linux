@@ -12,6 +12,7 @@
  */
 
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/completion.h>
 
 /**

@@ -4,6 +4,7 @@
  *  Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>
  */
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/stacktrace.h>
 #include <linux/export.h>
 #include <asm/stacktrace.h>

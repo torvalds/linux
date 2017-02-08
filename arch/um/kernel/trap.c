@@ -8,6 +8,7 @@
 #include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/sched/debug.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>

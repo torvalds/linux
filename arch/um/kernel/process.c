@@ -17,6 +17,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>

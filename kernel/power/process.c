@@ -12,6 +12,7 @@
 #include <linux/oom.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
+#include <linux/sched/debug.h>
 #include <linux/syscalls.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>

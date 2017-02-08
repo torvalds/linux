@@ -15,6 +15,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/wake_q.h>
+#include <linux/sched/debug.h>
 #include <linux/osq_lock.h>
 
 #include "rwsem.h"

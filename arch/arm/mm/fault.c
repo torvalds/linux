@@ -17,6 +17,7 @@
 #include <linux/uaccess.h>
 #include <linux/page-flags.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 

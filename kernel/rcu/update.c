@@ -37,6 +37,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>

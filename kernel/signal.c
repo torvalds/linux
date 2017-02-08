@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/sched/user.h>
+#include <linux/sched/debug.h>
 #include <linux/fs.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>

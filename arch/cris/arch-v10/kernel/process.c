@@ -11,6 +11,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
