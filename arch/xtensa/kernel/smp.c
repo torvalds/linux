@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
+#include <linux/sched/hotplug.h>
 #include <linux/reboot.h>
 #include <linux/seq_file.h>
 #include <linux/smp.h>

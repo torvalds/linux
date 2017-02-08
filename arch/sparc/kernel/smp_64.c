@@ -6,6 +6,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/threads.h>

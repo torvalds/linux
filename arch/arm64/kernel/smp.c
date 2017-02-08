@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
