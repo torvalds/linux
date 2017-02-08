@@ -208,6 +208,7 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 
 	/* Default settings for RPC-over-RDMA Version One */
 	r_xprt->rx_ia.ri_reminv_expected = false;
+	r_xprt->rx_ia.ri_implicit_roundup = xprt_rdma_pad_optimize;
 	rsize = RPCRDMA_V1_DEF_INLINE_SIZE;
 	wsize = RPCRDMA_V1_DEF_INLINE_SIZE;
 
