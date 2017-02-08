@@ -150,15 +150,30 @@ struct event_return_value {
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
 #define ACER_WMID3_GDS_TOUCHPAD		(1<<1)	/* Touchpad */
 
-struct lm_input_params {
+/* Hotkey Customized Setting and Acer Application Status.
+ * Set Device Default Value and Report Acer Application Status.
+ * When Acer Application starts, it will run this method to inform
+ * BIOS/EC that Acer Application is on.
+ * App Status
+ *	Bit[0]: Launch Manager Status
+ *	Bit[1]: ePM Status
+ *	Bit[2]: Device Control Status
+ *	Bit[3]: Acer Power Button Utility Status
+ *	Bit[4]: RF Button Status
+ *	Bit[5]: ODD PM Status
+ *	Bit[6]: Device Default Value Control
+ *	Bit[7]: Hall Sensor Application Status
+ */
+struct func_input_params {
 	u8 function_num;        /* Function Number */
 	u16 commun_devices;     /* Communication type devices default status */
 	u16 devices;            /* Other type devices default status */
-	u8 lm_status;           /* Launch Manager Status */
-	u16 reserved;
+	u8 app_status;          /* Acer Device Status. LM, ePM, RF Button... */
+	u8 app_mask;		/* Bit mask to app_status */
+	u8 reserved;
 } __attribute__((packed));
 
-struct lm_return_value {
+struct func_return_value {
 	u8 error_code;          /* Error Code */
 	u8 ec_return_value;     /* EC Return Value */
 	u16 reserved;
@@ -1769,13 +1784,13 @@ static void acer_wmi_notify(u32 value, void *context)
 }
 
 static acpi_status __init
-wmid3_set_lm_mode(struct lm_input_params *params,
-		  struct lm_return_value *return_value)
+wmid3_set_function_mode(struct func_input_params *params,
+			struct func_return_value *return_value)
 {
 	acpi_status status;
 	union acpi_object *obj;
 
-	struct acpi_buffer input = { sizeof(struct lm_input_params), params };
+	struct acpi_buffer input = { sizeof(struct func_input_params), params };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &input, &output);
@@ -1796,7 +1811,7 @@ wmid3_set_lm_mode(struct lm_input_params *params,
 		return AE_ERROR;
 	}
 
-	*return_value = *((struct lm_return_value *)obj->buffer.pointer);
+	*return_value = *((struct func_return_value *)obj->buffer.pointer);
 	kfree(obj);
 
 	return status;
@@ -1804,16 +1819,17 @@ wmid3_set_lm_mode(struct lm_input_params *params,
 
 static int __init acer_wmi_enable_ec_raw(void)
 {
-	struct lm_return_value return_value;
+	struct func_return_value return_value;
 	acpi_status status;
-	struct lm_input_params params = {
+	struct func_input_params params = {
 		.function_num = 0x1,
 		.commun_devices = 0xFFFF,
 		.devices = 0xFFFF,
-		.lm_status = 0x00,            /* Launch Manager Deactive */
+		.app_status = 0x00,		/* Launch Manager Deactive */
+		.app_mask = 0x01,
 	};
 
-	status = wmid3_set_lm_mode(&params, &return_value);
+	status = wmid3_set_function_mode(&params, &return_value);
 
 	if (return_value.error_code || return_value.ec_return_value)
 		pr_warn("Enabling EC raw mode failed: 0x%x - 0x%x\n",
@@ -1827,19 +1843,42 @@ static int __init acer_wmi_enable_ec_raw(void)
 
 static int __init acer_wmi_enable_lm(void)
 {
-	struct lm_return_value return_value;
+	struct func_return_value return_value;
 	acpi_status status;
-	struct lm_input_params params = {
+	struct func_input_params params = {
 		.function_num = 0x1,
 		.commun_devices = 0xFFFF,
 		.devices = 0xFFFF,
-		.lm_status = 0x01,            /* Launch Manager Active */
+		.app_status = 0x01,            /* Launch Manager Active */
+		.app_mask = 0x01,
 	};
 
-	status = wmid3_set_lm_mode(&params, &return_value);
+	status = wmid3_set_function_mode(&params, &return_value);
 
 	if (return_value.error_code || return_value.ec_return_value)
 		pr_warn("Enabling Launch Manager failed: 0x%x - 0x%x\n",
+			return_value.error_code,
+			return_value.ec_return_value);
+
+	return status;
+}
+
+static int __init acer_wmi_enable_rf_button(void)
+{
+	struct func_return_value return_value;
+	acpi_status status;
+	struct func_input_params params = {
+		.function_num = 0x1,
+		.commun_devices = 0xFFFF,
+		.devices = 0xFFFF,
+		.app_status = 0x10,            /* RF Button Active */
+		.app_mask = 0x10,
+	};
+
+	status = wmid3_set_function_mode(&params, &return_value);
+
+	if (return_value.error_code || return_value.ec_return_value)
+		pr_warn("Enabling RF Button failed: 0x%x - 0x%x\n",
 			return_value.error_code,
 			return_value.ec_return_value);
 
@@ -2229,6 +2268,9 @@ static int __init acer_wmi_init(void)
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
 
 	if (wmi_has_guid(WMID_GUID3)) {
+		if (ACPI_FAILURE(acer_wmi_enable_rf_button()))
+			pr_warn("Cannot enable RF Button Driver\n");
+
 		if (ec_raw_mode) {
 			if (ACPI_FAILURE(acer_wmi_enable_ec_raw())) {
 				pr_err("Cannot enable EC raw mode\n");
