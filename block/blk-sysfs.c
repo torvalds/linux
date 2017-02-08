@@ -121,6 +121,12 @@ static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
 	return queue_var_show(queue_max_segments(q), (page));
 }
 
+static ssize_t queue_max_discard_segments_show(struct request_queue *q,
+		char *page)
+{
+	return queue_var_show(queue_max_discard_segments(q), (page));
+}
+
 static ssize_t queue_max_integrity_segments_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(q->limits.max_integrity_segments, (page));
@@ -545,6 +551,11 @@ static struct queue_sysfs_entry queue_max_segments_entry = {
 	.show = queue_max_segments_show,
 };
 
+static struct queue_sysfs_entry queue_max_discard_segments_entry = {
+	.attr = {.name = "max_discard_segments", .mode = S_IRUGO },
+	.show = queue_max_discard_segments_show,
+};
+
 static struct queue_sysfs_entry queue_max_integrity_segments_entry = {
 	.attr = {.name = "max_integrity_segments", .mode = S_IRUGO },
 	.show = queue_max_integrity_segments_show,
@@ -697,6 +708,7 @@ static struct attribute *default_attrs[] = {
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
 	&queue_max_segments_entry.attr,
+	&queue_max_discard_segments_entry.attr,
 	&queue_max_integrity_segments_entry.attr,
 	&queue_max_segment_size_entry.attr,
 	&queue_iosched_entry.attr,

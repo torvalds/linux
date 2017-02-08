@@ -331,6 +331,7 @@ struct queue_limits {
 	unsigned short		logical_block_size;
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
+	unsigned short		max_discard_segments;
 
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
@@ -1146,6 +1147,8 @@ extern void blk_queue_bounce_limit(struct request_queue *, u64);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_segments(struct request_queue *, unsigned short);
+extern void blk_queue_max_discard_segments(struct request_queue *,
+		unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors);
@@ -1189,11 +1192,29 @@ extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
 
+/*
+ * Number of physical segments as sent to the device.
+ *
+ * Normally this is the number of discontiguous data segments sent by the
+ * submitter.  But for data-less command like discard we might have no
+ * actual data segments submitted, but the driver might have to add it's
+ * own special payload.  In that case we still return 1 here so that this
+ * special payload will be mapped.
+ */
 static inline unsigned short blk_rq_nr_phys_segments(struct request *rq)
 {
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		return 1;
 	return rq->nr_phys_segments;
+}
+
+/*
+ * Number of discard segments (or ranges) the driver needs to fill in.
+ * Each discard bio merged into a request is counted as one segment.
+ */
+static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
+{
+	return max_t(unsigned short, rq->nr_phys_segments, 1);
 }
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
@@ -1382,6 +1403,11 @@ static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
 static inline unsigned short queue_max_segments(struct request_queue *q)
 {
 	return q->limits.max_segments;
+}
+
+static inline unsigned short queue_max_discard_segments(struct request_queue *q)
+{
+	return q->limits.max_discard_segments;
 }
 
 static inline unsigned int queue_max_segment_size(struct request_queue *q)

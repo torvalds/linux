@@ -16,6 +16,7 @@ enum elv_merge {
 	ELEVATOR_NO_MERGE	= 0,
 	ELEVATOR_FRONT_MERGE	= 1,
 	ELEVATOR_BACK_MERGE	= 2,
+	ELEVATOR_DISCARD_MERGE	= 3,
 };
 
 typedef enum elv_merge (elevator_merge_fn) (struct request_queue *, struct request **,
