@@ -184,6 +184,13 @@
 		};
 	};
 
+	sound {
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&i2s2>;
+		rockchip,codec = <&cdn_dp>;
+		status = "okay";
+	};
+
 	spdif-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,spdif";
@@ -445,6 +452,7 @@
 };
 
 &i2s2 {
+	status = "okay";
 	#sound-dai-cells = <0>;
 };
 
