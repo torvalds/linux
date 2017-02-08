@@ -263,7 +263,10 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
-		val = dev->rx_resolution / 1000;
+		if (!dev->rx_resolution)
+			return -ENOTTY;
+
+		val = dev->rx_resolution;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
@@ -370,8 +373,11 @@ static int ir_lirc_register(struct rc_dev *dev)
 	if (rc)
 		goto rbuf_init_failed;
 
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		features |= LIRC_CAN_REC_MODE2;
+		if (dev->rx_resolution)
+			features |= LIRC_CAN_GET_REC_RESOLUTION;
+	}
 	if (dev->tx_ir) {
 		features |= LIRC_CAN_SEND_PULSE;
 		if (dev->s_tx_mask)
