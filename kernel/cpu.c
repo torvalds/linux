@@ -7,7 +7,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/notifier.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/unistd.h>
 #include <linux/cpu.h>
 #include <linux/oom.h>

@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/limits.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mman.h>
 #include <linux/compat.h>
 

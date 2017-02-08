@@ -24,7 +24,7 @@
 #include <linux/tracepoint.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/static_key.h>
 
 extern struct tracepoint * const __start___tracepoints_ptrs[];

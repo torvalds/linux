@@ -27,6 +27,7 @@
 
 #include <linux/kernel.h>
 #include <linux/timer.h>
+#include <linux/sched/signal.h>
 #include <linux/syscalls.h>
 #include <linux/ratelimit.h>
 

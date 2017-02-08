@@ -11,7 +11,7 @@
 #include <linux/thread_info.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>

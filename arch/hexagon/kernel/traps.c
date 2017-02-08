@@ -19,7 +19,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/kdebug.h>

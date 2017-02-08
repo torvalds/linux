@@ -8,7 +8,7 @@
 #define _LINUX_TASKSTATS_KERN_H
 
 #include <linux/taskstats.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_TASKSTATS

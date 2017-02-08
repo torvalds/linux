@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
 #include <linux/idr.h>
 #include <linux/tcp.h>        /* TCP_NODELAY */
 #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */

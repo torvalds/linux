@@ -19,6 +19,7 @@
 #include <linux/ctype.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <net/sock.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>

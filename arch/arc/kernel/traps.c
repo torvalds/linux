@@ -13,7 +13,7 @@
  * Rahul Trivedi: Codito Technologies 2004
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>

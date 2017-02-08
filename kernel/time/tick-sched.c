@@ -18,7 +18,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
 #include <linux/profile.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/irq_work.h>

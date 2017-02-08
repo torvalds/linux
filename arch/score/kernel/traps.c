@@ -24,7 +24,7 @@
  */
 
 #include <linux/extable.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>

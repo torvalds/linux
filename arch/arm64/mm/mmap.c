@@ -22,7 +22,7 @@
 #include <linux/mman.h>
 #include <linux/export.h>
 #include <linux/shm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/io.h>
 #include <linux/personality.h>
 #include <linux/random.h>

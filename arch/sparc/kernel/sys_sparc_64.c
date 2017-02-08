@@ -7,7 +7,7 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>

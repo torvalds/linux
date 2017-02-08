@@ -34,6 +34,8 @@
  */
 
 #include <linux/export.h>
+#include <linux/sched/signal.h>
+
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
