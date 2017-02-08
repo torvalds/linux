@@ -226,8 +226,6 @@ struct task_cputime {
 #define prof_exp	stime
 #define sched_exp	sum_exec_runtime
 
-#include <linux/rwsem.h>
-
 #ifdef CONFIG_SCHED_INFO
 struct sched_info {
 	/* cumulative counters */
