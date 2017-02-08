@@ -10,6 +10,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/nohz.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/sched/deadline.h>
 #include <linux/kernel_stat.h>

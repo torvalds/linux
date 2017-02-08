@@ -47,6 +47,7 @@
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/deadline.h>
+#include <linux/sched/nohz.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
 
