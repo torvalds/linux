@@ -259,10 +259,13 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	unsigned long freed;
 
+	intel_runtime_pm_get(dev_priv);
 	freed = i915_gem_shrink(dev_priv, -1UL,
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_ACTIVE);
+	intel_runtime_pm_put(dev_priv);
+
 	rcu_barrier(); /* wait until our RCU delayed slab frees are completed */
 
 	return freed;
@@ -380,9 +383,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
 
-	intel_runtime_pm_get(dev_priv);
 	freed_pages = i915_gem_shrink_all(dev_priv);
-	intel_runtime_pm_put(dev_priv);
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not

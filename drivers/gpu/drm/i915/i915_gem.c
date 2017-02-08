@@ -4648,13 +4648,9 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_get(dev_priv);
-
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_gem_shrink_all(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
