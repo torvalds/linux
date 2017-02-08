@@ -12,6 +12,7 @@
  *
  *  Supports: IT8603E  Super I/O chip w/LPC interface
  *            IT8620E  Super I/O chip w/LPC interface
+ *            IT8622E  Super I/O chip w/LPC interface
  *            IT8623E  Super I/O chip w/LPC interface
  *            IT8628E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
@@ -70,7 +71,7 @@
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8732,
 	     it8771, it8772, it8781, it8782, it8783, it8786, it8790, it8603,
-	     it8620, it8628 };
+	     it8620, it8622, it8628 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -160,6 +161,7 @@ static inline void superio_exit(int ioreg)
 #define IT8790E_DEVID 0x8790
 #define IT8603E_DEVID 0x8603
 #define IT8620E_DEVID 0x8620
+#define IT8622E_DEVID 0x8622
 #define IT8623E_DEVID 0x8623
 #define IT8628E_DEVID 0x8628
 #define IT87_ACT_REG  0x30
@@ -435,6 +437,15 @@ static const struct it87_devices it87_devices[] = {
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
 		  | FEAT_SIX_TEMP | FEAT_VIN3_5V,
+		.peci_mask = 0x07,
+	},
+	[it8622] = {
+		.name = "it8622",
+		.suffix = "E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
+		  | FEAT_IN7_INTERNAL | FEAT_PWM_FREQ2 | FEAT_AVCC3
+		  | FEAT_VIN3_5V,
 		.peci_mask = 0x07,
 	},
 	[it8628] = {
@@ -2417,6 +2428,9 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		break;
 	case IT8620E_DEVID:
 		sio_data->type = it8620;
+		break;
+	case IT8622E_DEVID:
+		sio_data->type = it8622;
 		break;
 	case IT8628E_DEVID:
 		sio_data->type = it8628;
