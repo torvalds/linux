@@ -260,15 +260,6 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 #define PSN_MODIFY_MASK 0xFFFFFF
 
 /*
- * Compare the lower 24 bits of the msn values.
- * Returns an integer <, ==, or > than zero.
- */
-static inline int cmp_msn(u32 a, u32 b)
-{
-	return (((int)a) - ((int)b)) << 8;
-}
-
-/*
  * Compare two PSNs
  * Returns an integer <, ==, or > than zero.
  */

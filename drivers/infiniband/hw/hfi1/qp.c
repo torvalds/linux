@@ -79,43 +79,6 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
 }
 
-/*
- * Convert the AETH credit code into the number of credits.
- */
-static const u16 credit_table[31] = {
-	0,                      /* 0 */
-	1,                      /* 1 */
-	2,                      /* 2 */
-	3,                      /* 3 */
-	4,                      /* 4 */
-	6,                      /* 5 */
-	8,                      /* 6 */
-	12,                     /* 7 */
-	16,                     /* 8 */
-	24,                     /* 9 */
-	32,                     /* A */
-	48,                     /* B */
-	64,                     /* C */
-	96,                     /* D */
-	128,                    /* E */
-	192,                    /* F */
-	256,                    /* 10 */
-	384,                    /* 11 */
-	512,                    /* 12 */
-	768,                    /* 13 */
-	1024,                   /* 14 */
-	1536,                   /* 15 */
-	2048,                   /* 16 */
-	3072,                   /* 17 */
-	4096,                   /* 18 */
-	6144,                   /* 19 */
-	8192,                   /* 1A */
-	12288,                  /* 1B */
-	16384,                  /* 1C */
-	24576,                  /* 1D */
-	32768                   /* 1E */
-};
-
 const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
 	.length = sizeof(struct ib_rdma_wr),
@@ -340,68 +303,6 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 }
 
 /**
- * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 hfi1_compute_aeth(struct rvt_qp *qp)
-{
-	u32 aeth = qp->r_msn & HFI1_MSN_MASK;
-
-	if (qp->ibqp.srq) {
-		/*
-		 * Shared receive queues don't generate credits.
-		 * Set the credit field to the invalid value.
-		 */
-		aeth |= HFI1_AETH_CREDIT_INVAL << HFI1_AETH_CREDIT_SHIFT;
-	} else {
-		u32 min, max, x;
-		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
-		u32 head;
-		u32 tail;
-
-		/* sanity check pointers before trusting them */
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		/*
-		 * Compute the number of credits available (RWQEs).
-		 * There is a small chance that the pair of reads are
-		 * not atomic, which is OK, since the fuzziness is
-		 * resolved as further ACKs go out.
-		 */
-		credits = head - tail;
-		if ((int)credits < 0)
-			credits += qp->r_rq.size;
-		/*
-		 * Binary search the credit table to find the code to
-		 * use.
-		 */
-		min = 0;
-		max = 31;
-		for (;;) {
-			x = (min + max) / 2;
-			if (credit_table[x] == credits)
-				break;
-			if (credit_table[x] > credits) {
-				max = x;
-			} else {
-				if (min == x)
-					break;
-				min = x;
-			}
-		}
-		aeth |= x << HFI1_AETH_CREDIT_SHIFT;
-	}
-	return cpu_to_be32(aeth);
-}
-
-/**
  * _hfi1_schedule_send - schedule progress
  * @qp: the QP
  *
@@ -455,44 +356,6 @@ void hfi1_schedule_send(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	if (hfi1_send_ok(qp))
 		_hfi1_schedule_send(qp);
-}
-
-/**
- * hfi1_get_credit - handle credit in aeth
- * @qp: the qp
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void hfi1_get_credit(struct rvt_qp *qp, u32 aeth)
-{
-	u32 credit = (aeth >> HFI1_AETH_CREDIT_SHIFT) & HFI1_AETH_CREDIT_MASK;
-
-	lockdep_assert_held(&qp->s_lock);
-	/*
-	 * If the credit is invalid, we can send
-	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
-	 */
-	if (credit == HFI1_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
-	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & HFI1_MSN_MASK;
-		if (cmp_msn(credit, qp->s_lsn) > 0) {
-			qp->s_lsn = credit;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
-	}
 }
 
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)

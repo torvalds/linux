@@ -71,14 +71,6 @@ static inline void clear_ahg(struct rvt_qp *qp)
 }
 
 /**
- * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 hfi1_compute_aeth(struct rvt_qp *qp);
-
-/**
  * hfi1_create_qp - create a queue pair for a device
  * @ibpd: the protection domain who's device we create the queue pair for
  * @init_attr: the attributes of the queue pair
@@ -91,14 +83,6 @@ __be32 hfi1_compute_aeth(struct rvt_qp *qp);
 struct ib_qp *hfi1_create_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *init_attr,
 			     struct ib_udata *udata);
-/**
- * hfi1_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void hfi1_get_credit(struct rvt_qp *qp, u32 aeth);
 
 /**
  * hfi1_qp_wakeup - wake up on the indicated event

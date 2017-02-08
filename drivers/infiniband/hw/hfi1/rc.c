@@ -284,7 +284,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
 				e->sent = 1;
 			}
-			ohdr->u.aeth = hfi1_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_rdma_psn = e->psn;
 			bth2 = mask_psn(qp->s_ack_rdma_psn++);
@@ -293,7 +293,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 			ps->s_txreq->ss = NULL;
 			len = 0;
 			qp->s_ack_state = OP(ATOMIC_ACKNOWLEDGE);
-			ohdr->u.at.aeth = hfi1_compute_aeth(qp);
+			ohdr->u.at.aeth = rvt_compute_aeth(qp);
 			ib_u64_put(e->atomic_data, &ohdr->u.at.atomic_ack_eth);
 			hwords += sizeof(ohdr->u.at) / sizeof(u32);
 			bth2 = mask_psn(e->psn);
@@ -315,7 +315,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 			len = pmtu;
 			middle = HFI1_CAP_IS_KSET(SDMA_AHG);
 		} else {
-			ohdr->u.aeth = hfi1_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
 			e = &qp->s_ack_queue[qp->s_tail_ack_queue];
@@ -338,11 +338,11 @@ normal:
 		ps->s_txreq->ss = NULL;
 		if (qp->s_nak_state)
 			ohdr->u.aeth =
-				cpu_to_be32((qp->r_msn & HFI1_MSN_MASK) |
+				cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
 					    (qp->s_nak_state <<
-					     HFI1_AETH_CREDIT_SHIFT));
+					     RVT_AETH_CREDIT_SHIFT));
 		else
-			ohdr->u.aeth = hfi1_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 		hwords++;
 		len = 0;
 		bth0 = OP(ACKNOWLEDGE) << 24;
@@ -519,7 +519,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
+			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
 				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
 				goto bail;
 			}
@@ -556,7 +556,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
+			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
 				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
 				goto bail;
 			}
@@ -885,11 +885,11 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	if (qp->r_nak_state)
-		ohdr->u.aeth = cpu_to_be32((qp->r_msn & HFI1_MSN_MASK) |
+		ohdr->u.aeth = cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
 					    (qp->r_nak_state <<
-					     HFI1_AETH_CREDIT_SHIFT));
+					     RVT_AETH_CREDIT_SHIFT));
 	else
-		ohdr->u.aeth = hfi1_compute_aeth(qp);
+		ohdr->u.aeth = rvt_compute_aeth(qp);
 	sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
 	/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
 	pbc_flags |= ((!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT);
@@ -1323,7 +1323,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	 * request but will include an ACK'ed request(s).
 	 */
 	ack_psn = psn;
-	if (aeth >> 29)
+	if (aeth >> RVT_AETH_NAK_SHIFT)
 		ack_psn--;
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	ibp = rcd_to_iport(rcd);
@@ -1403,7 +1403,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			break;
 	}
 
-	switch (aeth >> 29) {
+	switch (aeth >> RVT_AETH_NAK_SHIFT) {
 	case 0:         /* ACK */
 		this_cpu_inc(*ibp->rvp.rc_acks);
 		if (qp->s_acked != qp->s_tail) {
@@ -1430,7 +1430,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			qp->s_flags &= ~RVT_S_WAIT_ACK;
 			hfi1_schedule_send(qp);
 		}
-		hfi1_get_credit(qp, aeth);
+		rvt_get_credit(qp, aeth);
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
 		qp->s_retry = qp->s_retry_cnt;
 		update_last_psn(qp, psn);
@@ -1459,8 +1459,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		qp->s_flags &= ~(RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_ACK);
 		hfi1_stop_rc_timers(qp);
 		to =
-			ib_hfi1_rnr_table[(aeth >> HFI1_AETH_CREDIT_SHIFT) &
-					   HFI1_AETH_CREDIT_MASK];
+			ib_hfi1_rnr_table[(aeth >> RVT_AETH_CREDIT_SHIFT) &
+					   RVT_AETH_CREDIT_MASK];
 		hfi1_add_rnr_timer(qp, to);
 		return 0;
 
@@ -1469,8 +1469,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			goto bail_stop;
 		/* The last valid PSN is the previous PSN. */
 		update_last_psn(qp, psn - 1);
-		switch ((aeth >> HFI1_AETH_CREDIT_SHIFT) &
-			HFI1_AETH_CREDIT_MASK) {
+		switch ((aeth >> RVT_AETH_CREDIT_SHIFT) &
+			RVT_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
 			ibp->rvp.n_seq_naks++;
 			/*
@@ -1600,8 +1600,8 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 		/* Update credits for "ghost" ACKs */
 		if (diff == 0 && opcode == OP(ACKNOWLEDGE)) {
 			aeth = be32_to_cpu(ohdr->u.aeth);
-			if ((aeth >> 29) == 0)
-				hfi1_get_credit(qp, aeth);
+			if ((aeth >> RVT_AETH_NAK_SHIFT) == 0)
+				rvt_get_credit(qp, aeth);
 		}
 		goto ack_done;
 	}

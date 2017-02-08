@@ -270,8 +270,6 @@ int qib_snapshot_counters(struct qib_pportdata *ppd, u64 *swords,
 int qib_get_counters(struct qib_pportdata *ppd,
 		     struct qib_verbs_counters *cntrs);
 
-__be32 qib_compute_aeth(struct rvt_qp *qp);
-
 /*
  * Functions provided by qib driver for rdmavt to use
  */
@@ -293,8 +291,6 @@ int qib_qp_iter_next(struct qib_qp_iter *iter);
 void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
 
 #endif
-
-void qib_get_credit(struct rvt_qp *qp, u32 aeth);
 
 unsigned qib_pkt_delay(u32 plen, u8 snd_mult, u8 rcv_mult);
 

@@ -144,7 +144,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
 				e->sent = 1;
 			}
-			ohdr->u.aeth = qib_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_rdma_psn = e->psn;
 			bth2 = qp->s_ack_rdma_psn++ & QIB_PSN_MASK;
@@ -153,7 +153,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 			qp->s_cur_sge = NULL;
 			len = 0;
 			qp->s_ack_state = OP(ATOMIC_ACKNOWLEDGE);
-			ohdr->u.at.aeth = qib_compute_aeth(qp);
+			ohdr->u.at.aeth = rvt_compute_aeth(qp);
 			ib_u64_put(e->atomic_data, &ohdr->u.at.atomic_ack_eth);
 			hwords += sizeof(ohdr->u.at) / sizeof(u32);
 			bth2 = e->psn & QIB_PSN_MASK;
@@ -174,7 +174,7 @@ static int qib_make_rc_ack(struct qib_ibdev *dev, struct rvt_qp *qp,
 		if (len > pmtu)
 			len = pmtu;
 		else {
-			ohdr->u.aeth = qib_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 			hwords++;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
 			e = &qp->s_ack_queue[qp->s_tail_ack_queue];
@@ -197,11 +197,11 @@ normal:
 		qp->s_cur_sge = NULL;
 		if (qp->s_nak_state)
 			ohdr->u.aeth =
-				cpu_to_be32((qp->r_msn & QIB_MSN_MASK) |
+				cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
 					    (qp->s_nak_state <<
-					     QIB_AETH_CREDIT_SHIFT));
+					     RVT_AETH_CREDIT_SHIFT));
 		else
-			ohdr->u.aeth = qib_compute_aeth(qp);
+			ohdr->u.aeth = rvt_compute_aeth(qp);
 		hwords++;
 		len = 0;
 		bth0 = OP(ACKNOWLEDGE) << 24;
@@ -331,7 +331,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		case IB_WR_SEND_WITH_IMM:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    qib_cmp24(wqe->ssn, qp->s_lsn + 1) > 0) {
+			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
 				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
 				goto bail;
 			}
@@ -362,7 +362,7 @@ int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags)
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    qib_cmp24(wqe->ssn, qp->s_lsn + 1) > 0) {
+			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
 				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
 				goto bail;
 			}
@@ -658,11 +658,11 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	if (qp->r_nak_state)
-		ohdr->u.aeth = cpu_to_be32((qp->r_msn & QIB_MSN_MASK) |
+		ohdr->u.aeth = cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
 					    (qp->r_nak_state <<
-					     QIB_AETH_CREDIT_SHIFT));
+					     RVT_AETH_CREDIT_SHIFT));
 	else
-		ohdr->u.aeth = qib_compute_aeth(qp);
+		ohdr->u.aeth = rvt_compute_aeth(qp);
 	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
 		qp->remote_ah_attr.sl << 4;
 	hdr.lrh[0] = cpu_to_be16(lrh0);
@@ -1098,7 +1098,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	 * request but will include an ACK'ed request(s).
 	 */
 	ack_psn = psn;
-	if (aeth >> 29)
+	if (aeth >> RVT_AETH_NAK_SHIFT)
 		ack_psn--;
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
@@ -1178,7 +1178,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			break;
 	}
 
-	switch (aeth >> 29) {
+	switch (aeth >> RVT_AETH_NAK_SHIFT) {
 	case 0:         /* ACK */
 		this_cpu_inc(*ibp->rvp.rc_acks);
 		if (qp->s_acked != qp->s_tail) {
@@ -1201,7 +1201,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			qp->s_flags &= ~RVT_S_WAIT_ACK;
 			qib_schedule_send(qp);
 		}
-		qib_get_credit(qp, aeth);
+		rvt_get_credit(qp, aeth);
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
 		qp->s_retry = qp->s_retry_cnt;
 		update_last_psn(qp, psn);
@@ -1232,8 +1232,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		qp->s_flags |= RVT_S_WAIT_RNR;
 		qp->s_timer.function = qib_rc_rnr_retry;
 		qp->s_timer.expires = jiffies + usecs_to_jiffies(
-			ib_qib_rnr_table[(aeth >> QIB_AETH_CREDIT_SHIFT) &
-					   QIB_AETH_CREDIT_MASK]);
+			ib_qib_rnr_table[(aeth >> RVT_AETH_CREDIT_SHIFT) &
+					   RVT_AETH_CREDIT_MASK]);
 		add_timer(&qp->s_timer);
 		goto bail;
 
@@ -1242,8 +1242,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			goto bail;
 		/* The last valid PSN is the previous PSN. */
 		update_last_psn(qp, psn - 1);
-		switch ((aeth >> QIB_AETH_CREDIT_SHIFT) &
-			QIB_AETH_CREDIT_MASK) {
+		switch ((aeth >> RVT_AETH_CREDIT_SHIFT) &
+			RVT_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
 			ibp->rvp.n_seq_naks++;
 			/*
@@ -1400,8 +1400,8 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		/* Update credits for "ghost" ACKs */
 		if (diff == 0 && opcode == OP(ACKNOWLEDGE)) {
 			aeth = be32_to_cpu(ohdr->u.aeth);
-			if ((aeth >> 29) == 0)
-				qib_get_credit(qp, aeth);
+			if ((aeth >> RVT_AETH_NAK_SHIFT) == 0)
+				rvt_get_credit(qp, aeth);
 		}
 		goto ack_done;
 	}

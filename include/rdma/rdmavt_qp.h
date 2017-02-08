@@ -582,6 +582,37 @@ static inline void rvt_qp_swqe_complete(
 	}
 }
 
+#define RVT_AETH_CREDIT_SHIFT	24
+#define RVT_AETH_CREDIT_MASK	0x1F
+#define RVT_AETH_NAK_SHIFT	29
+#define RVT_MSN_MASK		0xFFFFFF
+
+/*
+ * Compare the lower 24 bits of the msn values.
+ * Returns an integer <, ==, or > than zero.
+ */
+static inline int rvt_cmp_msn(u32 a, u32 b)
+{
+	return (((int)a) - ((int)b)) << 8;
+}
+
+/**
+ * rvt_compute_aeth - compute the AETH (syndrome + MSN)
+ * @qp: the queue pair to compute the AETH for
+ *
+ * Returns the AETH.
+ */
+__be32 rvt_compute_aeth(struct rvt_qp *qp);
+
+/**
+ * rvt_get_credit - flush the send work queue of a QP
+ * @qp: the qp who's send work queue to flush
+ * @aeth: the Acknowledge Extended Transport Header
+ *
+ * The QP s_lock should be held.
+ */
+void rvt_get_credit(struct rvt_qp *qp, u32 aeth);
+
 /**
  * @qp - the qp pair
  * @len - the length
