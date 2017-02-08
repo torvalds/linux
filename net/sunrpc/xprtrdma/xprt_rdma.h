@@ -354,6 +354,22 @@ rpcr_to_rdmar(struct rpc_rqst *rqst)
 	return rqst->rq_xprtdata;
 }
 
+static inline void
+rpcrdma_push_mw(struct rpcrdma_mw *mw, struct list_head *list)
+{
+	list_add_tail(&mw->mw_list, list);
+}
+
+static inline struct rpcrdma_mw *
+rpcrdma_pop_mw(struct list_head *list)
+{
+	struct rpcrdma_mw *mw;
+
+	mw = list_first_entry(list, struct rpcrdma_mw, mw_list);
+	list_del(&mw->mw_list);
+	return mw;
+}
+
 /*
  * struct rpcrdma_buffer -- holds list/queue of pre-registered memory for
  * inline requests/replies, and client/server credits.
