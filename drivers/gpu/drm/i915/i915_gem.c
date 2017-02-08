@@ -2643,6 +2643,15 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *request;
 
+		/* Prevent request submission to the hardware until we have
+		 * completed the reset in i915_gem_reset_finish(). If a request
+		 * is completed by one engine, it may then queue a request
+		 * to a second via its engine->irq_tasklet *just* as we are
+		 * calling engine->init_hw() and also writing the ELSP.
+		 * Turning off the engine->irq_tasklet until the reset is over
+		 * prevents the race.
+		 */
+		tasklet_disable(&engine->irq_tasklet);
 		tasklet_kill(&engine->irq_tasklet);
 
 		if (engine_stalled(engine)) {
@@ -2782,7 +2791,13 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 {
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	for_each_engine(engine, dev_priv, id)
+		tasklet_enable(&engine->irq_tasklet);
 }
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
