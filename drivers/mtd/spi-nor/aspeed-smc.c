@@ -723,17 +723,13 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	controller->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(controller->regs)) {
-		dev_err(dev, "Cannot remap controller address.\n");
+	if (IS_ERR(controller->regs))
 		return PTR_ERR(controller->regs);
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	controller->ahb_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(controller->ahb_base)) {
-		dev_err(dev, "Cannot remap controller address.\n");
+	if (IS_ERR(controller->ahb_base))
 		return PTR_ERR(controller->ahb_base);
-	}
 
 	ret = aspeed_smc_setup_flash(controller, np, res);
 	if (ret)
