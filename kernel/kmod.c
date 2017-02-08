@@ -20,6 +20,7 @@
 */
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>

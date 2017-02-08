@@ -11,6 +11,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>

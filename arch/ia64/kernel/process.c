@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/hotplug.h>
+#include <linux/sched/task.h>
 #include <linux/stddef.h>
 #include <linux/thread_info.h>
 #include <linux/unistd.h>

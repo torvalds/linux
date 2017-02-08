@@ -74,6 +74,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/export.h>

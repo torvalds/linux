@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
+#include <linux/sched/task.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>

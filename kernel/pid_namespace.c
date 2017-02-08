@@ -19,6 +19,7 @@
 #include <linux/proc_ns.h>
 #include <linux/reboot.h>
 #include <linux/export.h>
+#include <linux/sched/task.h>
 
 struct pid_cache {
 	int nr_ids;

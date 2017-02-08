@@ -7,6 +7,7 @@
  */
 #include <uapi/linux/sched/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/err.h>

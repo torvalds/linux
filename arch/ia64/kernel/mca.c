@@ -74,6 +74,7 @@
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bootmem.h>

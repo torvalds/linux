@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/cred.h>
 #include <linux/security.h>
 #include <linux/types.h>

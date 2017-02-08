@@ -62,6 +62,7 @@
 #include <linux/mman.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/numa_balancing.h>
+#include <linux/sched/task.h>
 #include <linux/proc_fs.h>
 #include <linux/ioport.h>
 #include <linux/uaccess.h>

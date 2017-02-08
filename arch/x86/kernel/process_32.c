@@ -12,6 +12,7 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

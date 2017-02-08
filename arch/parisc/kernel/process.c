@@ -44,6 +44,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
