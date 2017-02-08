@@ -52,6 +52,38 @@
 	};
 };
 
+&nand {
+	nandcs@0 {
+		compatible = "brcm,nandcs";
+		reg = <0>;
+		nand-on-flash-bbt;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partition@0 {
+			label = "nboot";
+			reg = <0x00000000 0x00200000>;
+			read-only;
+		};
+		partition@200000 {
+			label = "nenv";
+			reg = <0x00200000 0x00400000>;
+		};
+		partition@600000 {
+			label = "nsystem";
+			reg = <0x00600000 0x00a00000>;
+		};
+		partition@1000000 {
+			label = "nrootfs";
+			reg = <0x01000000 0x07000000>;
+		};
+	};
+};
+
 &uart0 {
 	clock-frequency = <62499840>;
 };
