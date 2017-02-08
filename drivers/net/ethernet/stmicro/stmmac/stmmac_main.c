@@ -1682,10 +1682,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* Copy the MAC addr into the HW  */
 	priv->hw->mac->set_umac_addr(priv->hw, dev->dev_addr, 0);
 
-	/* If required, perform hw setup of the bus. */
-	if (priv->plat->bus_setup)
-		priv->plat->bus_setup(priv->ioaddr);
-
 	/* PS and related bits will be programmed according to the speed */
 	if (priv->hw->pcs) {
 		int speed = priv->plat->mac_port_sel_speed;
