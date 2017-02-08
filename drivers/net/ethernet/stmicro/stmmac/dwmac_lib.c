@@ -102,7 +102,7 @@ static void show_tx_process_state(unsigned int status)
 		pr_debug("- TX (Stopped): Reset or Stop command\n");
 		break;
 	case 1:
-		pr_debug("- TX (Running):Fetching the Tx desc\n");
+		pr_debug("- TX (Running): Fetching the Tx desc\n");
 		break;
 	case 2:
 		pr_debug("- TX (Running): Waiting for end of tx\n");
@@ -136,7 +136,7 @@ static void show_rx_process_state(unsigned int status)
 		pr_debug("- RX (Running): Fetching the Rx desc\n");
 		break;
 	case 2:
-		pr_debug("- RX (Running):Checking for end of pkt\n");
+		pr_debug("- RX (Running): Checking for end of pkt\n");
 		break;
 	case 3:
 		pr_debug("- RX (Running): Waiting for Rx pkt\n");
@@ -246,7 +246,7 @@ void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 	unsigned long data;
 
 	data = (addr[5] << 8) | addr[4];
-	/* For MAC Addr registers se have to set the Address Enable (AE)
+	/* For MAC Addr registers we have to set the Address Enable (AE)
 	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
