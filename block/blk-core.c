@@ -1511,12 +1511,11 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 {
 	struct blk_plug *plug;
 	struct request *rq;
-	bool ret = false;
 	struct list_head *plug_list;
 
 	plug = current->plug;
 	if (!plug)
-		goto out;
+		return false;
 	*request_count = 0;
 
 	if (q->mq_ops)
@@ -1525,7 +1524,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		plug_list = &plug->list;
 
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
-		int el_ret;
+		bool merged = false;
 
 		if (rq->q == q) {
 			(*request_count)++;
@@ -1541,19 +1540,22 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
 
-		el_ret = blk_try_merge(rq, bio);
-		if (el_ret == ELEVATOR_BACK_MERGE) {
-			ret = bio_attempt_back_merge(q, rq, bio);
-			if (ret)
-				break;
-		} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-			ret = bio_attempt_front_merge(q, rq, bio);
-			if (ret)
-				break;
+		switch (blk_try_merge(rq, bio)) {
+		case ELEVATOR_BACK_MERGE:
+			merged = bio_attempt_back_merge(q, rq, bio);
+			break;
+		case ELEVATOR_FRONT_MERGE:
+			merged = bio_attempt_front_merge(q, rq, bio);
+			break;
+		default:
+			break;
 		}
+
+		if (merged)
+			return true;
 	}
-out:
-	return ret;
+
+	return false;
 }
 
 unsigned int blk_plug_queued_count(struct request_queue *q)
@@ -1595,7 +1597,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	struct blk_plug *plug;
-	int el_ret, where = ELEVATOR_INSERT_SORT;
+	int where = ELEVATOR_INSERT_SORT;
 	struct request *req, *free;
 	unsigned int request_count = 0;
 	unsigned int wb_acct;
@@ -1633,27 +1635,29 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	el_ret = elv_merge(q, &req, bio);
-	if (el_ret == ELEVATOR_BACK_MERGE) {
-		if (bio_attempt_back_merge(q, req, bio)) {
-			elv_bio_merged(q, req, bio);
-			free = attempt_back_merge(q, req);
-			if (!free)
-				elv_merged_request(q, req, el_ret);
-			else
-				__blk_put_request(q, free);
-			goto out_unlock;
-		}
-	} else if (el_ret == ELEVATOR_FRONT_MERGE) {
-		if (bio_attempt_front_merge(q, req, bio)) {
-			elv_bio_merged(q, req, bio);
-			free = attempt_front_merge(q, req);
-			if (!free)
-				elv_merged_request(q, req, el_ret);
-			else
-				__blk_put_request(q, free);
-			goto out_unlock;
-		}
+	switch (elv_merge(q, &req, bio)) {
+	case ELEVATOR_BACK_MERGE:
+		if (!bio_attempt_back_merge(q, req, bio))
+			break;
+		elv_bio_merged(q, req, bio);
+		free = attempt_back_merge(q, req);
+		if (free)
+			__blk_put_request(q, free);
+		else
+			elv_merged_request(q, req, ELEVATOR_BACK_MERGE);
+		goto out_unlock;
+	case ELEVATOR_FRONT_MERGE:
+		if (!bio_attempt_front_merge(q, req, bio))
+			break;
+		elv_bio_merged(q, req, bio);
+		free = attempt_front_merge(q, req);
+		if (free)
+			__blk_put_request(q, free);
+		else
+			elv_merged_request(q, req, ELEVATOR_FRONT_MERGE);
+		goto out_unlock;
+	default:
+		break;
 	}
 
 get_rq:

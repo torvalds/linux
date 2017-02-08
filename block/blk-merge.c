@@ -801,7 +801,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	return true;
 }
 
-int blk_try_merge(struct request *rq, struct bio *bio)
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio)
 {
 	if (blk_rq_pos(rq) + blk_rq_sectors(rq) == bio->bi_iter.bi_sector)
 		return ELEVATOR_BACK_MERGE;

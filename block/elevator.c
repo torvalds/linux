@@ -427,11 +427,11 @@ void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL(elv_dispatch_add_tail);
 
-int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
+enum elv_merge elv_merge(struct request_queue *q, struct request **req,
+		struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
 	struct request *__rq;
-	int ret;
 
 	/*
 	 * Levels of merges:
@@ -446,7 +446,8 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	 * First try one-hit cache.
 	 */
 	if (q->last_merge && elv_bio_merge_ok(q->last_merge, bio)) {
-		ret = blk_try_merge(q->last_merge, bio);
+		enum elv_merge ret = blk_try_merge(q->last_merge, bio);
+
 		if (ret != ELEVATOR_NO_MERGE) {
 			*req = q->last_merge;
 			return ret;
@@ -514,7 +515,8 @@ bool elv_attempt_insert_merge(struct request_queue *q, struct request *rq)
 	return ret;
 }
 
-void elv_merged_request(struct request_queue *q, struct request *rq, int type)
+void elv_merged_request(struct request_queue *q, struct request *rq,
+		enum elv_merge type)
 {
 	struct elevator_queue *e = q->elevator;
 

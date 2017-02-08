@@ -120,12 +120,11 @@ static void deadline_remove_request(struct request_queue *q, struct request *rq)
 	deadline_del_rq_rb(dd, rq);
 }
 
-static int
+static enum elv_merge
 deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct request *__rq;
-	int ret;
 
 	/*
 	 * check for front merge
@@ -138,20 +137,17 @@ deadline_merge(struct request_queue *q, struct request **req, struct bio *bio)
 			BUG_ON(sector != blk_rq_pos(__rq));
 
 			if (elv_bio_merge_ok(__rq, bio)) {
-				ret = ELEVATOR_FRONT_MERGE;
-				goto out;
+				*req = __rq;
+				return ELEVATOR_FRONT_MERGE;
 			}
 		}
 	}
 
 	return ELEVATOR_NO_MERGE;
-out:
-	*req = __rq;
-	return ret;
 }
 
 static void deadline_merged_request(struct request_queue *q,
-				    struct request *req, int type)
+				    struct request *req, enum elv_merge type)
 {
 	struct deadline_data *dd = q->elevator->elevator_data;
 
