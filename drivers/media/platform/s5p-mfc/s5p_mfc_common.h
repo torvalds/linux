@@ -33,8 +33,9 @@
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE	(1 << 30)
 
-#define MFC_BANK1_ALLOC_CTX	0
-#define MFC_BANK2_ALLOC_CTX	1
+#define BANK1_CTX	0
+#define BANK2_CTX	1
+#define BANK_CTX_NUM	2
 
 #define MFC_BANK1_ALIGN_ORDER	13
 #define MFC_BANK2_ALIGN_ORDER	13
@@ -254,8 +255,7 @@ struct s5p_mfc_priv_buf {
  * @vfd_dec:		video device for decoding
  * @vfd_enc:		video device for encoding
  * @plat_dev:		platform device
- * @mem_dev_l:		child device of the left memory bank (0)
- * @mem_dev_r:		child device of the right memory bank (1)
+ * @mem_dev[]:		child devices of the memory banks
  * @regs_base:		base address of the MFC hw registers
  * @irq:		irq resource
  * @dec_ctrl_handler:	control framework handler for decoding
@@ -297,8 +297,7 @@ struct s5p_mfc_dev {
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
 	struct platform_device	*plat_dev;
-	struct device		*mem_dev_l;
-	struct device		*mem_dev_r;
+	struct device		*mem_dev[BANK_CTX_NUM];
 	void __iomem		*regs_base;
 	int			irq;
 	struct v4l2_ctrl_handler dec_ctrl_handler;
