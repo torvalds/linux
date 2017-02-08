@@ -594,11 +594,6 @@ static inline void rvt_qp_swqe_complete(
 	}
 }
 
-#define RVT_AETH_CREDIT_SHIFT	24
-#define RVT_AETH_CREDIT_MASK	0x1F
-#define RVT_AETH_NAK_SHIFT	29
-#define RVT_MSN_MASK		0xFFFFFF
-
 /*
  * Compare the lower 24 bits of the msn values.
  * Returns an integer <, ==, or > than zero.

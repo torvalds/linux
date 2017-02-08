@@ -187,9 +187,9 @@ normal:
 		qp->s_cur_sge = NULL;
 		if (qp->s_nak_state)
 			ohdr->u.aeth =
-				cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
+				cpu_to_be32((qp->r_msn & IB_MSN_MASK) |
 					    (qp->s_nak_state <<
-					     RVT_AETH_CREDIT_SHIFT));
+					     IB_AETH_CREDIT_SHIFT));
 		else
 			ohdr->u.aeth = rvt_compute_aeth(qp);
 		hwords++;
@@ -648,9 +648,9 @@ void qib_send_rc_ack(struct rvt_qp *qp)
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	if (qp->r_nak_state)
-		ohdr->u.aeth = cpu_to_be32((qp->r_msn & RVT_MSN_MASK) |
+		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IB_MSN_MASK) |
 					    (qp->r_nak_state <<
-					     RVT_AETH_CREDIT_SHIFT));
+					     IB_AETH_CREDIT_SHIFT));
 	else
 		ohdr->u.aeth = rvt_compute_aeth(qp);
 	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
@@ -1042,7 +1042,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	 * request but will include an ACK'ed request(s).
 	 */
 	ack_psn = psn;
-	if (aeth >> RVT_AETH_NAK_SHIFT)
+	if (aeth >> IB_AETH_NAK_SHIFT)
 		ack_psn--;
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
@@ -1122,7 +1122,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			break;
 	}
 
-	switch (aeth >> RVT_AETH_NAK_SHIFT) {
+	switch (aeth >> IB_AETH_NAK_SHIFT) {
 	case 0:         /* ACK */
 		this_cpu_inc(*ibp->rvp.rc_acks);
 		if (qp->s_acked != qp->s_tail) {
@@ -1185,8 +1185,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			goto bail;
 		/* The last valid PSN is the previous PSN. */
 		update_last_psn(qp, psn - 1);
-		switch ((aeth >> RVT_AETH_CREDIT_SHIFT) &
-			RVT_AETH_CREDIT_MASK) {
+		switch ((aeth >> IB_AETH_CREDIT_SHIFT) &
+			IB_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
 			ibp->rvp.n_seq_naks++;
 			/*
@@ -1341,7 +1341,7 @@ static void qib_rc_rcv_resp(struct qib_ibport *ibp,
 		/* Update credits for "ghost" ACKs */
 		if (diff == 0 && opcode == OP(ACKNOWLEDGE)) {
 			aeth = be32_to_cpu(ohdr->u.aeth);
-			if ((aeth >> RVT_AETH_NAK_SHIFT) == 0)
+			if ((aeth >> IB_AETH_NAK_SHIFT) == 0)
 				rvt_get_credit(qp, aeth);
 		}
 		goto ack_done;

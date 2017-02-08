@@ -51,6 +51,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_hdrs.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
@@ -1961,14 +1962,14 @@ EXPORT_SYMBOL(rvt_rc_error);
  */
 unsigned long rvt_rnr_tbl_to_usec(u32 index)
 {
-	return ib_rvt_rnr_table[(index & RVT_AETH_CREDIT_MASK)];
+	return ib_rvt_rnr_table[(index & IB_AETH_CREDIT_MASK)];
 }
 EXPORT_SYMBOL(rvt_rnr_tbl_to_usec);
 
 static inline unsigned long rvt_aeth_to_usec(u32 aeth)
 {
-	return ib_rvt_rnr_table[(aeth >> RVT_AETH_CREDIT_SHIFT) &
-				  RVT_AETH_CREDIT_MASK];
+	return ib_rvt_rnr_table[(aeth >> IB_AETH_CREDIT_SHIFT) &
+				  IB_AETH_CREDIT_MASK];
 }
 
 /*

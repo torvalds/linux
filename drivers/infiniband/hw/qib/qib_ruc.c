@@ -562,7 +562,7 @@ rnr_nak:
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
 	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
-				RVT_AETH_CREDIT_SHIFT);
+				IB_AETH_CREDIT_SHIFT);
 	goto clr_busy;
 
 op_err:

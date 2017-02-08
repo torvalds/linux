@@ -46,8 +46,7 @@
  */
 
 #include <rdma/rdma_vt.h>
-
-#define RVT_AETH_CREDIT_INVAL	RVT_AETH_CREDIT_MASK
+#include <rdma/ib_hdrs.h>
 
 /*
  * Convert the AETH credit code into the number of credits.
@@ -94,14 +93,14 @@ static const u16 credit_table[31] = {
  */
 __be32 rvt_compute_aeth(struct rvt_qp *qp)
 {
-	u32 aeth = qp->r_msn & RVT_MSN_MASK;
+	u32 aeth = qp->r_msn & IB_MSN_MASK;
 
 	if (qp->ibqp.srq) {
 		/*
 		 * Shared receive queues don't generate credits.
 		 * Set the credit field to the invalid value.
 		 */
-		aeth |= RVT_AETH_CREDIT_INVAL << RVT_AETH_CREDIT_SHIFT;
+		aeth |= IB_AETH_CREDIT_INVAL << IB_AETH_CREDIT_SHIFT;
 	} else {
 		u32 min, max, x;
 		u32 credits;
@@ -143,7 +142,7 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp)
 				min = x;
 			}
 		}
-		aeth |= x << RVT_AETH_CREDIT_SHIFT;
+		aeth |= x << IB_AETH_CREDIT_SHIFT;
 	}
 	return cpu_to_be32(aeth);
 }
@@ -159,7 +158,7 @@ EXPORT_SYMBOL(rvt_compute_aeth);
 void rvt_get_credit(struct rvt_qp *qp, u32 aeth)
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
-	u32 credit = (aeth >> RVT_AETH_CREDIT_SHIFT) & RVT_AETH_CREDIT_MASK;
+	u32 credit = (aeth >> IB_AETH_CREDIT_SHIFT) & IB_AETH_CREDIT_MASK;
 
 	lockdep_assert_held(&qp->s_lock);
 	/*
@@ -167,7 +166,7 @@ void rvt_get_credit(struct rvt_qp *qp, u32 aeth)
 	 * as many packets as we like.  Otherwise, we have to
 	 * honor the credit field.
 	 */
-	if (credit == RVT_AETH_CREDIT_INVAL) {
+	if (credit == IB_AETH_CREDIT_INVAL) {
 		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
 			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
 			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
@@ -177,7 +176,7 @@ void rvt_get_credit(struct rvt_qp *qp, u32 aeth)
 		}
 	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
 		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & RVT_MSN_MASK;
+		credit = (aeth + credit_table[credit]) & IB_MSN_MASK;
 		if (rvt_cmp_msn(credit, qp->s_lsn) > 0) {
 			qp->s_lsn = credit;
 			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
