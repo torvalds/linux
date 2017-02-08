@@ -109,6 +109,7 @@ asmlinkage void __arm_smccc_smc(unsigned long a0, unsigned long a1,
  * __arm_smccc_hvc() - make HVC calls
  * @a0-a7: arguments passed in registers 0 to 7
  * @res: result values from registers 0 to 3
+ * @quirk: points to an arm_smccc_quirk, or NULL when no quirks are required.
  *
  * This function is used to make HVC calls following SMC Calling
  * Convention.  The content of the supplied param are copied to registers 0
