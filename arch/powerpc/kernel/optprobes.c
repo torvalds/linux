@@ -72,12 +72,11 @@ static unsigned long can_optimize(struct kprobe *p)
 
 	/*
 	 * kprobe placed for kretprobe during boot time
-	 * is not optimizing now.
-	 *
-	 * TODO: Optimize kprobe in kretprobe_trampoline
+	 * has a 'nop' instruction, which can be emulated.
+	 * So further checks can be skipped.
 	 */
 	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
-		return 0;
+		return (unsigned long)p->addr + sizeof(kprobe_opcode_t);
 
 	/*
 	 * We only support optimizing kernel addresses, but not
