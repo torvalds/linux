@@ -1076,8 +1076,11 @@ static ssize_t rx_trigger_store(struct device *dev,
 
 	if (kstrtol(buf, 0, &r) == -EINVAL)
 		return -EINVAL;
+
 	sci->rx_trigger = scif_set_rtrg(port, r);
-	scif_set_rtrg(port, 1);
+	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
+		scif_set_rtrg(port, 1);
+
 	return count;
 }
 
@@ -2179,7 +2182,11 @@ static void sci_reset(struct uart_port *port)
 			setup_timer(&s->rx_fifo_timer, rx_fifo_timer_fn,
 				    (unsigned long)s);
 		} else {
-			scif_set_rtrg(port, s->rx_trigger);
+			if (port->type == PORT_SCIFA ||
+			    port->type == PORT_SCIFB)
+				scif_set_rtrg(port, 1);
+			else
+				scif_set_rtrg(port, s->rx_trigger);
 		}
 	}
 }
