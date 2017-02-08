@@ -20,13 +20,13 @@
   Maintainer: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/io.h>
 #include <linux/mii.h>
-#include <linux/phy.h>
-#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
-#include <asm/io.h>
+#include <linux/phy.h>
+#include <linux/slab.h>
 
 #include "stmmac.h"
 
