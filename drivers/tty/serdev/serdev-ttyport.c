@@ -97,6 +97,8 @@ static int ttyport_open(struct serdev_controller *ctrl)
 	struct ktermios ktermios;
 
 	tty = tty_init_dev(serport->tty_drv, serport->tty_idx);
+	if (IS_ERR(tty))
+		return PTR_ERR(tty);
 	serport->tty = tty;
 
 	serport->port->client_ops = &client_ops;
