@@ -2013,8 +2013,14 @@ static void pg_to_raw_osds(struct ceph_osdmap *osdmap,
 		return;
 	}
 
-	len = do_crush(osdmap, ruleno, pps, raw->osds,
-		       min_t(int, pi->size, ARRAY_SIZE(raw->osds)),
+	if (pi->size > ARRAY_SIZE(raw->osds)) {
+		pr_err_ratelimited("pool %lld ruleset %d type %d too wide: size %d > %zu\n",
+		       pi->id, pi->crush_ruleset, pi->type, pi->size,
+		       ARRAY_SIZE(raw->osds));
+		return;
+	}
+
+	len = do_crush(osdmap, ruleno, pps, raw->osds, pi->size,
 		       osdmap->osd_weight, osdmap->max_osd);
 	if (len < 0) {
 		pr_err("error %d from crush rule %d: pool %lld ruleset %d type %d size %d\n",
