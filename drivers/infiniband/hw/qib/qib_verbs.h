@@ -326,8 +326,6 @@ void qib_rc_rnr_retry(unsigned long arg);
 
 void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
-void qib_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
-
 int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
 
 void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,

@@ -327,8 +327,6 @@ void hfi1_stop_rc_timers(struct rvt_qp *qp);
 
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
-void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
-
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
 int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey);

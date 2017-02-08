@@ -784,19 +784,6 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->pid);
 }
 
-void qp_comm_est(struct rvt_qp *qp)
-{
-	qp->r_flags |= RVT_R_COMM_EST;
-	if (qp->ibqp.event_handler) {
-		struct ib_event ev;
-
-		ev.device = qp->ibqp.device;
-		ev.element.qp = &qp->ibqp;
-		ev.event = IB_EVENT_COMM_EST;
-		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-	}
-}
-
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		    gfp_t gfp)
 {

@@ -131,12 +131,6 @@ int qp_iter_next(struct qp_iter *iter);
  */
 void qp_iter_print(struct seq_file *s, struct qp_iter *iter);
 
-/**
- * qp_comm_est - handle trap with QP established
- * @qp: the QP
- */
-void qp_comm_est(struct rvt_qp *qp);
-
 void _hfi1_schedule_send(struct rvt_qp *qp);
 void hfi1_schedule_send(struct rvt_qp *qp);
 
