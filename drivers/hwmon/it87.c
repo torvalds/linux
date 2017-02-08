@@ -1300,25 +1300,35 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 			it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
 					 data->fan_main_ctrl);
 		} else {
+			u8 ctrl;
+
 			/* No on/off mode, set maximum pwm value */
 			data->pwm_duty[nr] = pwm_to_reg(data, 0xff);
 			it87_write_value(data, IT87_REG_PWM_DUTY[nr],
 					 data->pwm_duty[nr]);
 			/* and set manual mode */
-			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
-					     data->pwm_temp_map[nr] :
-					     data->pwm_duty[nr];
-			it87_write_value(data, IT87_REG_PWM[nr],
-					 data->pwm_ctrl[nr]);
+			if (has_newer_autopwm(data)) {
+				ctrl = (data->pwm_ctrl[nr] & 0x7c) |
+					data->pwm_temp_map[nr];
+			} else {
+				ctrl = data->pwm_duty[nr];
+			}
+			data->pwm_ctrl[nr] = ctrl;
+			it87_write_value(data, IT87_REG_PWM[nr], ctrl);
 		}
 	} else {
-		if (val == 1)				/* Manual mode */
-			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
-					     data->pwm_temp_map[nr] :
-					     data->pwm_duty[nr];
-		else					/* Automatic mode */
-			data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
-		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
+		u8 ctrl;
+
+		if (has_newer_autopwm(data)) {
+			ctrl = (data->pwm_ctrl[nr] & 0x7c) |
+				data->pwm_temp_map[nr];
+			if (val != 1)
+				ctrl |= 0x80;
+		} else {
+			ctrl = (val == 1 ? data->pwm_duty[nr] : 0x80);
+		}
+		data->pwm_ctrl[nr] = ctrl;
+		it87_write_value(data, IT87_REG_PWM[nr], ctrl);
 
 		if (data->type != it8603 && nr < 3) {
 			/* set SmartGuardian mode */
@@ -1462,7 +1472,8 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 	 * otherwise, just store it for later use.
 	 */
 	if (data->pwm_ctrl[nr] & 0x80) {
-		data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
+		data->pwm_ctrl[nr] = (data->pwm_ctrl[nr] & 0xfc) |
+						data->pwm_temp_map[nr];
 		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
 	}
 	mutex_unlock(&data->update_lock);
