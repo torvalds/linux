@@ -111,7 +111,7 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 			stats->collisions++;
 		}
 		if (unlikely(rdes0 & RDES0_CRC_ERROR)) {
-			x->rx_crc++;
+			x->rx_crc_errors++;
 			stats->rx_crc_errors++;
 		}
 		ret = discard_frame;
