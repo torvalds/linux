@@ -714,8 +714,6 @@ static struct drm_driver omap_drm_driver = {
 		DRIVER_ATOMIC,
 	.open = dev_open,
 	.lastclose = dev_lastclose,
-	.enable_vblank = omap_irq_enable_vblank,
-	.disable_vblank = omap_irq_disable_vblank,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 #endif

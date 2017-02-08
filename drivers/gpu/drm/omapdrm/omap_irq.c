@@ -101,16 +101,17 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
  * Zero on success, appropriate errno if the given @crtc's vblank
  * interrupt cannot be enabled.
  */
-int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int omap_irq_enable_vblank(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = priv->crtcs[pipe];
 	unsigned long flags;
+	enum omap_channel channel = omap_crtc_channel(crtc);
 
-	DBG("dev=%p, crtc=%u", dev, pipe);
+	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask |= dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
+	priv->irq_mask |= dispc_mgr_get_vsync_irq(channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
@@ -126,16 +127,17 @@ int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe)
  * a hardware vblank counter, this routine should be a no-op, since
  * interrupts will have to stay on to keep the count accurate.
  */
-void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void omap_irq_disable_vblank(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_crtc *crtc = priv->crtcs[pipe];
 	unsigned long flags;
+	enum omap_channel channel = omap_crtc_channel(crtc);
 
-	DBG("dev=%p, crtc=%u", dev, pipe);
+	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask &= ~dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
+	priv->irq_mask &= ~dispc_mgr_get_vsync_irq(channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 }
