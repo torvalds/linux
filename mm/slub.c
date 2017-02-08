@@ -1419,6 +1419,10 @@ static int init_cache_random_seq(struct kmem_cache *s)
 	int err;
 	unsigned long i, count = oo_objects(s->oo);
 
+	/* Bailout if already initialised */
+	if (s->random_seq)
+		return 0;
+
 	err = cache_random_seq_create(s, count, GFP_KERNEL);
 	if (err) {
 		pr_err("SLUB: Unable to initialize free list for %s\n",
