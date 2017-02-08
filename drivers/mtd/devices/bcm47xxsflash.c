@@ -105,15 +105,33 @@ static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
 {
 	struct bcm47xxsflash *b47s = mtd->priv;
+	size_t orig_len = len;
 
 	/* Check address range */
 	if ((from + len) > mtd->size)
 		return -EINVAL;
 
-	memcpy_fromio(buf, b47s->window + from, len);
-	*retlen = len;
+	/* Read as much as possible using fast MMIO window */
+	if (from < BCM47XXSFLASH_WINDOW_SZ) {
+		size_t memcpy_len;
 
-	return len;
+		memcpy_len = min(len, (size_t)(BCM47XXSFLASH_WINDOW_SZ - from));
+		memcpy_fromio(buf, b47s->window + from, memcpy_len);
+		from += memcpy_len;
+		len -= memcpy_len;
+		buf += memcpy_len;
+	}
+
+	/* Use indirect access for content out of the window */
+	for (; len; len--) {
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, from++);
+		bcm47xxsflash_cmd(b47s, OPCODE_ST_READ4B);
+		*buf++ = b47s->cc_read(b47s, BCMA_CC_FLASHDATA);
+	}
+
+	*retlen = orig_len;
+
+	return orig_len;
 }
 
 static int bcm47xxsflash_write_st(struct mtd_info *mtd, u32 offset, size_t len,
