@@ -238,8 +238,8 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 		vma ? ',':'\n');
 
 	if (vma)
-		pr_warn(KERN_CONT " vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-				vma->vm_start, vma->vm_end);
+		pr_cont(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+			vma->vm_start, vma->vm_end);
 
 	show_regs(regs);
 }
