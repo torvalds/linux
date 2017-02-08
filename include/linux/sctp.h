@@ -721,7 +721,7 @@ struct sctp_infox {
 struct sctp_reconf_chunk {
 	sctp_chunkhdr_t chunk_hdr;
 	__u8 params[0];
-} __packed;
+};
 
 struct sctp_strreset_outreq {
 	sctp_paramhdr_t param_hdr;
@@ -729,12 +729,12 @@ struct sctp_strreset_outreq {
 	__u32 response_seq;
 	__u32 send_reset_at_tsn;
 	__u16 list_of_streams[0];
-} __packed;
+};
 
 struct sctp_strreset_inreq {
 	sctp_paramhdr_t param_hdr;
 	__u32 request_seq;
 	__u16 list_of_streams[0];
-} __packed;
+};
 
 #endif /* __LINUX_SCTP_H__ */
