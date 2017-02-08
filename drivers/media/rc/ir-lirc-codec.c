@@ -253,6 +253,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 					       val);
 
 	case LIRC_SET_REC_CARRIER_RANGE:
+		if (!dev->s_rx_carrier_range)
+			return -ENOTTY;
+
 		if (val <= 0)
 			return -EINVAL;
 
@@ -308,6 +311,9 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (!dev->timeout)
+			return -ENOTTY;
+
 		lirc->send_timeout_reports = !!val;
 		break;
 
