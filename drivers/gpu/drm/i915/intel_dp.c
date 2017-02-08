@@ -2832,6 +2832,9 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	enum pipe pipe = intel_dp->pps_pipe;
 	i915_reg_t pp_on_reg = PP_ON_DELAYS(pipe);
 
+	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
+		return;
+
 	edp_panel_vdd_off_sync(intel_dp);
 
 	/*
@@ -2858,9 +2861,6 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 	struct intel_encoder *encoder;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
-
-	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
-		return;
 
 	for_each_intel_encoder(dev, encoder) {
 		struct intel_dp *intel_dp;
