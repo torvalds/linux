@@ -118,6 +118,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_ENABLE_STREAM_RESET	118
 #define SCTP_RESET_STREAMS	119
 #define SCTP_RESET_ASSOC	120
+#define SCTP_ADD_STREAMS	121
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -1025,6 +1026,12 @@ struct sctp_reset_streams {
 	uint16_t srs_flags;
 	uint16_t srs_number_streams;	/* 0 == ALL */
 	uint16_t srs_stream_list[];	/* list if srs_num_streams is not 0 */
+};
+
+struct sctp_add_streams {
+	sctp_assoc_t sas_assoc_id;
+	uint16_t sas_instrms;
+	uint16_t sas_outstrms;
 };
 
 #endif /* _UAPI_SCTP_H */
