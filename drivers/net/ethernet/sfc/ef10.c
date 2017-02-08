@@ -3339,9 +3339,26 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 							 rx_l3_class, rx_l4_class,
 							 rx_encap_hdr, event);
 	} else {
-		if (rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
-		    rx_l4_class == ESE_DZ_L4_CLASS_UDP)
-			flags |= EFX_RX_PKT_CSUMMED;
+		bool tcpudp = rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
+			      rx_l4_class == ESE_DZ_L4_CLASS_UDP;
+
+		switch (rx_encap_hdr) {
+		case ESE_EZ_ENCAP_HDR_VXLAN: /* VxLAN or GENEVE */
+			flags |= EFX_RX_PKT_CSUMMED; /* outer UDP csum */
+			if (tcpudp)
+				flags |= EFX_RX_PKT_CSUM_LEVEL; /* inner L4 */
+			break;
+		case ESE_EZ_ENCAP_HDR_GRE:
+		case ESE_EZ_ENCAP_HDR_NONE:
+			if (tcpudp)
+				flags |= EFX_RX_PKT_CSUMMED;
+			break;
+		default:
+			netdev_WARN(efx->net_dev,
+				    "unknown encapsulation type: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		}
 	}
 
 	if (rx_l4_class == ESE_DZ_L4_CLASS_TCP)

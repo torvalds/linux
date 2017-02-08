@@ -307,6 +307,7 @@ struct efx_rx_buffer {
 #define EFX_RX_PKT_DISCARD	0x0004
 #define EFX_RX_PKT_TCP		0x0040
 #define EFX_RX_PKT_PREFIX_LEN	0x0080	/* length is in prefix only */
+#define EFX_RX_PKT_CSUM_LEVEL	0x0200
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
