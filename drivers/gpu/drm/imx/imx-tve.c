@@ -98,6 +98,8 @@
 /* TVE_TST_MODE_REG */
 #define TVE_TVDAC_TEST_MODE_MASK	(0x7 << 0)
 
+#define IMX_TVE_DAC_VOLTAGE	2750000
+
 enum {
 	TVE_MODE_TVOUT,
 	TVE_MODE_VGA,
@@ -621,9 +623,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
-		ret = regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
-		if (ret)
-			return ret;
+		if (regulator_get_voltage(tve->dac_reg) != IMX_TVE_DAC_VOLTAGE)
+			dev_warn(dev, "dac voltage is not %d uV\n", IMX_TVE_DAC_VOLTAGE);
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;
