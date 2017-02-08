@@ -7,13 +7,13 @@ void ddk750_set_dpms(DPMS_t state)
 	unsigned int value;
 
 	if (sm750_get_chip_type() == SM750LE) {
-		value = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_DPMS_MASK;
+		value = peek32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_DPMS_MASK;
 		value |= (state << CRT_DISPLAY_CTRL_DPMS_SHIFT);
-		POKE32(CRT_DISPLAY_CTRL, value);
+		poke32(CRT_DISPLAY_CTRL, value);
 	} else {
-		value = PEEK32(SYSTEM_CTRL);
+		value = peek32(SYSTEM_CTRL);
 		value = (value & ~SYSTEM_CTRL_DPMS_MASK) | state;
-		POKE32(SYSTEM_CTRL, value);
+		poke32(SYSTEM_CTRL, value);
 	}
 }
 
@@ -21,7 +21,7 @@ static unsigned int get_power_mode(void)
 {
 	if (sm750_get_chip_type() == SM750LE)
 		return 0;
-	return PEEK32(POWER_MODE_CTRL) & POWER_MODE_CTRL_MODE_MASK;
+	return peek32(POWER_MODE_CTRL) & POWER_MODE_CTRL_MODE_MASK;
 }
 
 
@@ -33,7 +33,7 @@ void sm750_set_power_mode(unsigned int mode)
 {
 	unsigned int ctrl = 0;
 
-	ctrl = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
+	ctrl = peek32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
 
 	if (sm750_get_chip_type() == SM750LE)
 		return;
@@ -69,15 +69,15 @@ void sm750_set_power_mode(unsigned int mode)
 	}
 
 	/* Program new power mode. */
-	POKE32(POWER_MODE_CTRL, ctrl);
+	poke32(POWER_MODE_CTRL, ctrl);
 }
 
 void sm750_set_current_gate(unsigned int gate)
 {
 	if (get_power_mode() == POWER_MODE_CTRL_MODE_MODE1)
-		POKE32(MODE1_GATE, gate);
+		poke32(MODE1_GATE, gate);
 	else
-		POKE32(MODE0_GATE, gate);
+		poke32(MODE0_GATE, gate);
 }
 
 
@@ -89,7 +89,7 @@ void sm750_enable_2d_engine(unsigned int enable)
 {
 	u32 gate;
 
-	gate = PEEK32(CURRENT_GATE);
+	gate = peek32(CURRENT_GATE);
 	if (enable)
 		gate |= (CURRENT_GATE_DE | CURRENT_GATE_CSC);
 	else
@@ -103,7 +103,7 @@ void sm750_enable_dma(unsigned int enable)
 	u32 gate;
 
 	/* Enable DMA Gate */
-	gate = PEEK32(CURRENT_GATE);
+	gate = peek32(CURRENT_GATE);
 	if (enable)
 		gate |= CURRENT_GATE_DMA;
 	else
@@ -120,7 +120,7 @@ void sm750_enable_gpio(unsigned int enable)
 	u32 gate;
 
 	/* Enable GPIO Gate */
-	gate = PEEK32(CURRENT_GATE);
+	gate = peek32(CURRENT_GATE);
 	if (enable)
 		gate |= CURRENT_GATE_GPIO;
 	else
@@ -137,7 +137,7 @@ void sm750_enable_i2c(unsigned int enable)
 	u32 gate;
 
 	/* Enable I2C Gate */
-	gate = PEEK32(CURRENT_GATE);
+	gate = peek32(CURRENT_GATE);
 	if (enable)
 		gate |= CURRENT_GATE_I2C;
 	else

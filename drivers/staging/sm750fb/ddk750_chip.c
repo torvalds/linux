@@ -38,7 +38,7 @@ static unsigned int get_mxclk_freq(void)
 	if (sm750_get_chip_type() == SM750LE)
 		return MHz(130);
 
-	pll_reg = PEEK32(MXCLK_PLL_CTRL);
+	pll_reg = peek32(MXCLK_PLL_CTRL);
 	M = (pll_reg & PLL_CTRL_M_MASK) >> PLL_CTRL_M_SHIFT;
 	N = (pll_reg & PLL_CTRL_N_MASK) >> PLL_CTRL_M_SHIFT;
 	OD = (pll_reg & PLL_CTRL_OD_MASK) >> PLL_CTRL_OD_SHIFT;
@@ -78,7 +78,7 @@ static void set_chip_clock(unsigned int frequency)
 		ulActualMxClk = sm750_calc_pll_value(frequency, &pll);
 
 		/* Master Clock Control: MXCLK_PLL */
-		POKE32(MXCLK_PLL_CTRL, sm750_format_pll_reg(&pll));
+		poke32(MXCLK_PLL_CTRL, sm750_format_pll_reg(&pll));
 	}
 }
 
@@ -105,7 +105,7 @@ static void set_memory_clock(unsigned int frequency)
 		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
+		reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
 		switch (divisor) {
 		default:
 		case 1:
@@ -157,7 +157,7 @@ static void set_master_clock(unsigned int frequency)
 		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
-		reg = PEEK32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
+		reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
 		switch (divisor) {
 		default:
 		case 3:
@@ -188,12 +188,12 @@ unsigned int ddk750_get_vm_size(void)
 		return SZ_64M;
 
 	/* for 750,always use power mode0*/
-	reg = PEEK32(MODE0_GATE);
+	reg = peek32(MODE0_GATE);
 	reg |= MODE0_GATE_GPIO;
-	POKE32(MODE0_GATE, reg);
+	poke32(MODE0_GATE, reg);
 
 	/* get frame buffer size from GPIO */
-	reg = PEEK32(MISC_CTRL) & MISC_CTRL_LOCALMEM_SIZE_MASK;
+	reg = peek32(MISC_CTRL) & MISC_CTRL_LOCALMEM_SIZE_MASK;
 	switch (reg) {
 	case MISC_CTRL_LOCALMEM_SIZE_8M:
 		data = SZ_8M;  break; /* 8  Mega byte */
@@ -219,15 +219,15 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	sm750_set_power_mode(pInitParam->powerMode);
 
 	/* Enable display power gate & LOCALMEM power gate*/
-	reg = PEEK32(CURRENT_GATE);
+	reg = peek32(CURRENT_GATE);
 	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
 	sm750_set_current_gate(reg);
 
 	if (sm750_get_chip_type() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
-		reg = PEEK32(VGA_CONFIGURATION);
+		reg = peek32(VGA_CONFIGURATION);
 		reg |= (VGA_CONFIGURATION_PLL | VGA_CONFIGURATION_MODE);
-		POKE32(VGA_CONFIGURATION, reg);
+		poke32(VGA_CONFIGURATION, reg);
 	} else {
 #if defined(__i386__) || defined(__x86_64__)
 		/* set graphic mode via IO method */
@@ -252,36 +252,36 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	 * The memory should be resetted after changing the MXCLK.
 	 */
 	if (pInitParam->resetMemory == 1) {
-		reg = PEEK32(MISC_CTRL);
+		reg = peek32(MISC_CTRL);
 		reg &= ~MISC_CTRL_LOCALMEM_RESET;
-		POKE32(MISC_CTRL, reg);
+		poke32(MISC_CTRL, reg);
 
 		reg |= MISC_CTRL_LOCALMEM_RESET;
-		POKE32(MISC_CTRL, reg);
+		poke32(MISC_CTRL, reg);
 	}
 
 	if (pInitParam->setAllEngOff == 1) {
 		sm750_enable_2d_engine(0);
 
 		/* Disable Overlay, if a former application left it on */
-		reg = PEEK32(VIDEO_DISPLAY_CTRL);
+		reg = peek32(VIDEO_DISPLAY_CTRL);
 		reg &= ~DISPLAY_CTRL_PLANE;
-		POKE32(VIDEO_DISPLAY_CTRL, reg);
+		poke32(VIDEO_DISPLAY_CTRL, reg);
 
 		/* Disable video alpha, if a former application left it on */
-		reg = PEEK32(VIDEO_ALPHA_DISPLAY_CTRL);
+		reg = peek32(VIDEO_ALPHA_DISPLAY_CTRL);
 		reg &= ~DISPLAY_CTRL_PLANE;
-		POKE32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
+		poke32(VIDEO_ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable alpha plane, if a former application left it on */
-		reg = PEEK32(ALPHA_DISPLAY_CTRL);
+		reg = peek32(ALPHA_DISPLAY_CTRL);
 		reg &= ~DISPLAY_CTRL_PLANE;
-		POKE32(ALPHA_DISPLAY_CTRL, reg);
+		poke32(ALPHA_DISPLAY_CTRL, reg);
 
 		/* Disable DMA Channel, if a former application left it on */
-		reg = PEEK32(DMA_ABORT_INTERRUPT);
+		reg = peek32(DMA_ABORT_INTERRUPT);
 		reg |= DMA_ABORT_INTERRUPT_ABORT_1;
-		POKE32(DMA_ABORT_INTERRUPT, reg);
+		poke32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */
 		sm750_enable_dma(0);
