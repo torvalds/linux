@@ -29,21 +29,22 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	void *bank2_virt;
 	dma_addr_t bank2_dma_addr;
 	unsigned int align_size = 1 << MFC_BASE_ALIGN_ORDER;
+	struct s5p_mfc_priv_buf *fw_buf = &dev->fw_buf;
 
-	dev->fw_size = dev->variant->buf_size->fw;
+	fw_buf->size = dev->variant->buf_size->fw;
 
-	if (dev->fw_virt_addr) {
+	if (fw_buf->virt) {
 		mfc_err("Attempting to allocate firmware when it seems that it is already loaded\n");
 		return -ENOMEM;
 	}
 
-	dev->fw_virt_addr = dma_alloc_coherent(dev->mem_dev[BANK1_CTX],
-					dev->fw_size, &dev->dma_base[BANK1_CTX],
-					GFP_KERNEL);
-	if (!dev->fw_virt_addr) {
+	fw_buf->virt = dma_alloc_coherent(dev->mem_dev[BANK1_CTX], fw_buf->size,
+					 &fw_buf->dma, GFP_KERNEL);
+	if (!fw_buf->virt) {
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		return -ENOMEM;
 	}
+	dev->dma_base[BANK1_CTX] = fw_buf->dma;
 
 	if (HAS_PORTNUM(dev) && IS_TWOPORT(dev)) {
 		bank2_virt = dma_alloc_coherent(dev->mem_dev[BANK2_CTX],
@@ -51,10 +52,9 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 
 		if (!bank2_virt) {
 			mfc_err("Allocating bank2 base failed\n");
-			dma_free_coherent(dev->mem_dev[BANK1_CTX], dev->fw_size,
-					  dev->fw_virt_addr,
-					  dev->dma_base[BANK1_CTX]);
-			dev->fw_virt_addr = NULL;
+			dma_free_coherent(dev->mem_dev[BANK1_CTX], fw_buf->size,
+					  fw_buf->virt, fw_buf->dma);
+			fw_buf->virt = NULL;
 			return -ENOMEM;
 		}
 
@@ -101,17 +101,17 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
 		return -EINVAL;
 	}
-	if (fw_blob->size > dev->fw_size) {
+	if (fw_blob->size > dev->fw_buf.size) {
 		mfc_err("MFC firmware is too big to be loaded\n");
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
-	if (!dev->fw_virt_addr) {
+	if (!dev->fw_buf.virt) {
 		mfc_err("MFC firmware is not allocated\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
 	}
-	memcpy(dev->fw_virt_addr, fw_blob->data, fw_blob->size);
+	memcpy(dev->fw_buf.virt, fw_blob->data, fw_blob->size);
 	wmb();
 	release_firmware(fw_blob);
 	mfc_debug_leave();
@@ -123,11 +123,11 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	if (!dev->fw_virt_addr)
+	if (!dev->fw_buf.virt)
 		return -EINVAL;
-	dma_free_coherent(dev->mem_dev[BANK1_CTX], dev->fw_size,
-			  dev->fw_virt_addr, dev->dma_base[BANK1_CTX]);
-	dev->fw_virt_addr = NULL;
+	dma_free_coherent(dev->mem_dev[BANK1_CTX], dev->fw_buf.size,
+			  dev->fw_buf.virt, dev->fw_buf.dma);
+	dev->fw_buf.virt = NULL;
 	return 0;
 }
 
@@ -246,7 +246,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	int ret;
 
 	mfc_debug_enter();
-	if (!dev->fw_virt_addr) {
+	if (!dev->fw_buf.virt) {
 		mfc_err("Firmware memory is not allocated.\n");
 		return -EINVAL;
 	}

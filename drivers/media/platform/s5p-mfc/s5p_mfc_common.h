@@ -314,8 +314,7 @@ struct s5p_mfc_dev {
 	int int_type;
 	unsigned int int_err;
 	wait_queue_head_t queue;
-	size_t fw_size;
-	void *fw_virt_addr;
+	struct s5p_mfc_priv_buf fw_buf;
 	dma_addr_t dma_base[BANK_CTX_NUM];
 	unsigned long hw_lock;
 	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
