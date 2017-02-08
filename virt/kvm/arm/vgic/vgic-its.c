@@ -244,6 +244,8 @@ static struct its_ite *find_ite(struct vgic_its *its, u32 device_id,
 
 #define VITS_TYPER_IDBITS 16
 #define VITS_TYPER_DEVBITS 16
+#define VITS_DTE_MAX_DEVID_OFFSET	(BIT(14) - 1)
+#define VITS_ITE_MAX_EVENTID_OFFSET	(BIT(16) - 1)
 
 /*
  * Finds and returns a collection in the ITS collection table.
@@ -1725,6 +1727,96 @@ int vgic_its_attr_regs_access(struct kvm_device *dev,
 	unlock_all_vcpus(dev->kvm);
 out:
 	mutex_unlock(&dev->kvm->lock);
+	return ret;
+}
+
+u32 compute_next_devid_offset(struct list_head *h, struct its_device *dev)
+{
+	struct its_device *next;
+	u32 next_offset;
+
+	if (list_is_last(&dev->dev_list, h))
+		return 0;
+	next = list_next_entry(dev, dev_list);
+	next_offset = next->device_id - dev->device_id;
+
+	return min_t(u32, next_offset, VITS_DTE_MAX_DEVID_OFFSET);
+}
+
+u32 compute_next_eventid_offset(struct list_head *h, struct its_ite *ite)
+{
+	struct its_ite *next;
+	u32 next_offset;
+
+	if (list_is_last(&ite->ite_list, h))
+		return 0;
+	next = list_next_entry(ite, ite_list);
+	next_offset = next->event_id - ite->event_id;
+
+	return min_t(u32, next_offset, VITS_ITE_MAX_EVENTID_OFFSET);
+}
+
+/**
+ * entry_fn_t - Callback called on a table entry restore path
+ * @its: its handle
+ * @id: id of the entry
+ * @entry: pointer to the entry
+ * @opaque: pointer to an opaque data
+ *
+ * Return: < 0 on error, 0 if last element was identified, id offset to next
+ * element otherwise
+ */
+typedef int (*entry_fn_t)(struct vgic_its *its, u32 id, void *entry,
+			  void *opaque);
+
+/**
+ * scan_its_table - Scan a contiguous table in guest RAM and applies a function
+ * to each entry
+ *
+ * @its: its handle
+ * @base: base gpa of the table
+ * @size: size of the table in bytes
+ * @esz: entry size in bytes
+ * @start_id: the ID of the first entry in the table
+ * (non zero for 2d level tables)
+ * @fn: function to apply on each entry
+ *
+ * Return: < 0 on error, 0 if last element was identified, 1 otherwise
+ * (the last element may not be found on second level tables)
+ */
+int scan_its_table(struct vgic_its *its, gpa_t base, int size, int esz,
+		   int start_id, entry_fn_t fn, void *opaque)
+{
+	void *entry = kzalloc(esz, GFP_KERNEL);
+	struct kvm *kvm = its->dev->kvm;
+	unsigned long len = size;
+	int id = start_id;
+	gpa_t gpa = base;
+	int ret;
+
+	while (len > 0) {
+		int next_offset;
+		size_t byte_offset;
+
+		ret = kvm_read_guest(kvm, gpa, entry, esz);
+		if (ret)
+			goto out;
+
+		next_offset = fn(its, id, entry, opaque);
+		if (next_offset <= 0) {
+			ret = next_offset;
+			goto out;
+		}
+
+		byte_offset = next_offset * esz;
+		id += next_offset;
+		gpa += byte_offset;
+		len -= byte_offset;
+	}
+	ret =  1;
+
+out:
+	kfree(entry);
 	return ret;
 }
 
