@@ -1559,16 +1559,10 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	/* Hookup PHB Memory resources */
 	for (i = 0; i < 3; ++i) {
 		res = &hose->mem_resources[i];
-		if (!res->flags) {
-			if (i == 0)
-				printk(KERN_ERR "PCI: Memory resource 0 not set for "
-				       "host bridge %s (domain %d)\n",
-				       hose->dn->full_name, hose->global_number);
+		if (!res->flags)
 			continue;
-		}
+
 		offset = hose->mem_offset[i];
-
-
 		pr_debug("PCI: PHB MEM resource %d = %pR off 0x%08llx\n", i,
 			 res, (unsigned long long)offset);
 
