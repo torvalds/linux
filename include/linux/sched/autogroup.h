@@ -1,9 +1,8 @@
 #ifndef _LINUX_SCHED_AUTOGROUP_H
 #define _LINUX_SCHED_AUTOGROUP_H
 
-#include <linux/sched.h>
-
 struct signal_struct;
+struct task_struct;
 struct task_group;
 struct seq_file;
 
