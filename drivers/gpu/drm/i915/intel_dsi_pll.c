@@ -416,11 +416,7 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	rx_div_lower = rx_div & RX_DIVIDER_BIT_1_2;
 	rx_div_upper = (rx_div & RX_DIVIDER_BIT_3_4) >> 2;
 
-	/* As per bpsec program the 8/3X clock divider to the below value */
-	if (dev_priv->vbt.dsi.config->is_cmd_mode)
-		mipi_8by3_divider = 0x2;
-	else
-		mipi_8by3_divider = 0x3;
+	mipi_8by3_divider = 0x2;
 
 	tmp |= BXT_MIPI_8X_BY3_DIVIDER(port, mipi_8by3_divider);
 	tmp |= BXT_MIPI_TX_ESCLK_DIVIDER(port, tx_div);
