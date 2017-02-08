@@ -469,13 +469,18 @@ struct efx_channel {
 	u32 *rps_flow_id;
 #endif
 
-	unsigned n_rx_tobe_disc;
-	unsigned n_rx_ip_hdr_chksum_err;
-	unsigned n_rx_tcp_udp_chksum_err;
-	unsigned n_rx_mcast_mismatch;
-	unsigned n_rx_frm_trunc;
-	unsigned n_rx_overlength;
-	unsigned n_skbuff_leaks;
+	unsigned int n_rx_tobe_disc;
+	unsigned int n_rx_ip_hdr_chksum_err;
+	unsigned int n_rx_tcp_udp_chksum_err;
+	unsigned int n_rx_outer_ip_hdr_chksum_err;
+	unsigned int n_rx_outer_tcp_udp_chksum_err;
+	unsigned int n_rx_inner_ip_hdr_chksum_err;
+	unsigned int n_rx_inner_tcp_udp_chksum_err;
+	unsigned int n_rx_eth_crc_err;
+	unsigned int n_rx_mcast_mismatch;
+	unsigned int n_rx_frm_trunc;
+	unsigned int n_rx_overlength;
+	unsigned int n_skbuff_leaks;
 	unsigned int n_rx_nodesc_trunc;
 	unsigned int n_rx_merge_events;
 	unsigned int n_rx_merge_packets;

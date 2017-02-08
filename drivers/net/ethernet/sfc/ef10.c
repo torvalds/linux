@@ -3154,13 +3154,103 @@ static void efx_ef10_handle_rx_abort(struct efx_rx_queue *rx_queue)
 	++efx_rx_queue_channel(rx_queue)->n_rx_nodesc_trunc;
 }
 
+static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
+					   unsigned int n_packets,
+					   unsigned int rx_encap_hdr,
+					   unsigned int rx_l3_class,
+					   unsigned int rx_l4_class,
+					   const efx_qword_t *event)
+{
+	struct efx_nic *efx = channel->efx;
+
+	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_ECRC_ERR)) {
+		if (!efx->loopback_selftest)
+			channel->n_rx_eth_crc_err += n_packets;
+		return EFX_RX_PKT_DISCARD;
+	}
+	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_IPCKSUM_ERR)) {
+		if (unlikely(rx_encap_hdr != ESE_EZ_ENCAP_HDR_VXLAN &&
+			     rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
+			     rx_l3_class != ESE_DZ_L3_CLASS_IP4_FRAG &&
+			     rx_l3_class != ESE_DZ_L3_CLASS_IP6 &&
+			     rx_l3_class != ESE_DZ_L3_CLASS_IP6_FRAG))
+			netdev_WARN(efx->net_dev,
+				    "invalid class for RX_IPCKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		if (!efx->loopback_selftest)
+			*(rx_encap_hdr ?
+			  &channel->n_rx_outer_ip_hdr_chksum_err :
+			  &channel->n_rx_ip_hdr_chksum_err) += n_packets;
+		return 0;
+	}
+	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_TCPUDP_CKSUM_ERR)) {
+		if (unlikely(rx_encap_hdr != ESE_EZ_ENCAP_HDR_VXLAN &&
+			     ((rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
+			       rx_l3_class != ESE_DZ_L3_CLASS_IP6) ||
+			      (rx_l4_class != ESE_DZ_L4_CLASS_TCP &&
+			       rx_l4_class != ESE_DZ_L4_CLASS_UDP))))
+			netdev_WARN(efx->net_dev,
+				    "invalid class for RX_TCPUDP_CKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		if (!efx->loopback_selftest)
+			*(rx_encap_hdr ?
+			  &channel->n_rx_outer_tcp_udp_chksum_err :
+			  &channel->n_rx_tcp_udp_chksum_err) += n_packets;
+		return 0;
+	}
+	if (EFX_QWORD_FIELD(*event, ESF_EZ_RX_IP_INNER_CHKSUM_ERR)) {
+		if (unlikely(!rx_encap_hdr))
+			netdev_WARN(efx->net_dev,
+				    "invalid encapsulation type for RX_IP_INNER_CHKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		else if (unlikely(rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
+				  rx_l3_class != ESE_DZ_L3_CLASS_IP4_FRAG &&
+				  rx_l3_class != ESE_DZ_L3_CLASS_IP6 &&
+				  rx_l3_class != ESE_DZ_L3_CLASS_IP6_FRAG))
+			netdev_WARN(efx->net_dev,
+				    "invalid class for RX_IP_INNER_CHKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		if (!efx->loopback_selftest)
+			channel->n_rx_inner_ip_hdr_chksum_err += n_packets;
+		return 0;
+	}
+	if (EFX_QWORD_FIELD(*event, ESF_EZ_RX_TCP_UDP_INNER_CHKSUM_ERR)) {
+		if (unlikely(!rx_encap_hdr))
+			netdev_WARN(efx->net_dev,
+				    "invalid encapsulation type for RX_TCP_UDP_INNER_CHKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		else if (unlikely((rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
+				   rx_l3_class != ESE_DZ_L3_CLASS_IP6) ||
+				  (rx_l4_class != ESE_DZ_L4_CLASS_TCP &&
+				   rx_l4_class != ESE_DZ_L4_CLASS_UDP)))
+			netdev_WARN(efx->net_dev,
+				    "invalid class for RX_TCP_UDP_INNER_CHKSUM_ERR: event="
+				    EFX_QWORD_FMT "\n",
+				    EFX_QWORD_VAL(*event));
+		if (!efx->loopback_selftest)
+			channel->n_rx_inner_tcp_udp_chksum_err += n_packets;
+		return 0;
+	}
+
+	WARN_ON(1); /* No error bits were recognised */
+	return 0;
+}
+
 static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 				    const efx_qword_t *event)
 {
-	unsigned int rx_bytes, next_ptr_lbits, rx_queue_label, rx_l4_class;
+	unsigned int rx_bytes, next_ptr_lbits, rx_queue_label;
+	unsigned int rx_l3_class, rx_l4_class, rx_encap_hdr;
 	unsigned int n_descs, n_packets, i;
 	struct efx_nic *efx = channel->efx;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_rx_queue *rx_queue;
+	efx_qword_t errors;
 	bool rx_cont;
 	u16 flags = 0;
 
@@ -3171,8 +3261,14 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	rx_bytes = EFX_QWORD_FIELD(*event, ESF_DZ_RX_BYTES);
 	next_ptr_lbits = EFX_QWORD_FIELD(*event, ESF_DZ_RX_DSC_PTR_LBITS);
 	rx_queue_label = EFX_QWORD_FIELD(*event, ESF_DZ_RX_QLABEL);
+	rx_l3_class = EFX_QWORD_FIELD(*event, ESF_DZ_RX_L3_CLASS);
 	rx_l4_class = EFX_QWORD_FIELD(*event, ESF_DZ_RX_L4_CLASS);
 	rx_cont = EFX_QWORD_FIELD(*event, ESF_DZ_RX_CONT);
+	rx_encap_hdr =
+		nic_data->datapath_caps &
+			(1 << MC_CMD_GET_CAPABILITIES_OUT_VXLAN_NVGRE_LBN) ?
+		EFX_QWORD_FIELD(*event, ESF_EZ_RX_ENCAP_HDR) :
+		ESE_EZ_ENCAP_HDR_NONE;
 
 	if (EFX_QWORD_FIELD(*event, ESF_DZ_RX_DROP_EVENT))
 		netdev_WARN(efx->net_dev, "saw RX_DROP_EVENT: event="
@@ -3232,17 +3328,20 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 		n_packets = 1;
 	}
 
-	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_RX_ECRC_ERR)))
-		flags |= EFX_RX_PKT_DISCARD;
-
-	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_RX_IPCKSUM_ERR))) {
-		channel->n_rx_ip_hdr_chksum_err += n_packets;
-	} else if (unlikely(EFX_QWORD_FIELD(*event,
-					    ESF_DZ_RX_TCPUDP_CKSUM_ERR))) {
-		channel->n_rx_tcp_udp_chksum_err += n_packets;
-	} else if (rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
-		   rx_l4_class == ESE_DZ_L4_CLASS_UDP) {
-		flags |= EFX_RX_PKT_CSUMMED;
+	EFX_POPULATE_QWORD_5(errors, ESF_DZ_RX_ECRC_ERR, 1,
+				     ESF_DZ_RX_IPCKSUM_ERR, 1,
+				     ESF_DZ_RX_TCPUDP_CKSUM_ERR, 1,
+				     ESF_EZ_RX_IP_INNER_CHKSUM_ERR, 1,
+				     ESF_EZ_RX_TCP_UDP_INNER_CHKSUM_ERR, 1);
+	EFX_AND_QWORD(errors, *event, errors);
+	if (unlikely(!EFX_QWORD_IS_ZERO(errors))) {
+		flags |= efx_ef10_handle_rx_event_errors(channel, n_packets,
+							 rx_l3_class, rx_l4_class,
+							 rx_encap_hdr, event);
+	} else {
+		if (rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
+		    rx_l4_class == ESE_DZ_L4_CLASS_UDP)
+			flags |= EFX_RX_PKT_CSUMMED;
 	}
 
 	if (rx_l4_class == ESE_DZ_L4_CLASS_TCP)
