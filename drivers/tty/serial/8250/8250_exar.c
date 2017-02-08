@@ -283,10 +283,16 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	priv->board = board;
 
+	pci_set_master(pcidev);
+
+	rc = pci_alloc_irq_vectors(pcidev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (rc < 0)
+		return rc;
+
 	memset(&uart, 0, sizeof(uart));
 	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ
 			  | UPF_EXAR_EFR;
-	uart.port.irq = pcidev->irq;
+	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
