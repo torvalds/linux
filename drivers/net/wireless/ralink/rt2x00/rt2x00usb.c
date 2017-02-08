@@ -824,10 +824,6 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	if (retval)
 		goto exit_free_device;
 
-	retval = rt2x00lib_probe_dev(rt2x00dev);
-	if (retval)
-		goto exit_free_reg;
-
 	rt2x00dev->anchor = devm_kmalloc(&usb_dev->dev,
 					sizeof(struct usb_anchor),
 					GFP_KERNEL);
@@ -835,9 +831,16 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 		retval = -ENOMEM;
 		goto exit_free_reg;
 	}
-
 	init_usb_anchor(rt2x00dev->anchor);
+
+	retval = rt2x00lib_probe_dev(rt2x00dev);
+	if (retval)
+		goto exit_free_anchor;
+
 	return 0;
+
+exit_free_anchor:
+	usb_kill_anchored_urbs(rt2x00dev->anchor);
 
 exit_free_reg:
 	rt2x00usb_free_reg(rt2x00dev);
