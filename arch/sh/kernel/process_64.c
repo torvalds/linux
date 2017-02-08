@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <asm/syscalls.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>

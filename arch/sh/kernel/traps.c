@@ -5,6 +5,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kernel.h>

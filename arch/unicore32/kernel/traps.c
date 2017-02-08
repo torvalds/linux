@@ -16,6 +16,7 @@
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/spinlock.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>

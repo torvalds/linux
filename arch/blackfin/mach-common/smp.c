@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/clockchips.h>

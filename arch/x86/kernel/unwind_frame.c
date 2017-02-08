@@ -1,5 +1,6 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <asm/ptrace.h>
 #include <asm/bitops.h>
 #include <asm/stacktrace.h>

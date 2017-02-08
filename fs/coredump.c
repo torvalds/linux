@@ -18,6 +18,7 @@
 #include <linux/coredump.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/utsname.h>
 #include <linux/pid_namespace.h>
 #include <linux/module.h>

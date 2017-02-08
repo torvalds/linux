@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>

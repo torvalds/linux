@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/export.h>
 #include <linux/stackprotector.h>
 #include <asm/fpu.h>

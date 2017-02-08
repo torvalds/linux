@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/elfcore.h>
 #include <linux/kallsyms.h>

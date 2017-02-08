@@ -18,6 +18,7 @@
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
 #include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/syscalls.h>
 

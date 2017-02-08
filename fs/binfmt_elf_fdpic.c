@@ -15,6 +15,8 @@
 #include <linux/fs.h>
 #include <linux/stat.h>
 #include <linux/sched.h>
+#include <linux/sched/coredump.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/errno.h>
@@ -35,7 +37,6 @@
 #include <linux/elf-fdpic.h>
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
-#include <linux/sched/coredump.h>
 #include <linux/dax.h>
 
 #include <linux/uaccess.h>
