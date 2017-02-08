@@ -716,8 +716,11 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 		if (cmd == MC_CMD_REBOOT && rc == -EIO) {
 			/* Don't reset if MC_CMD_REBOOT returns EIO */
 		} else if (rc == -EIO || rc == -EINTR) {
-			netif_err(efx, hw, efx->net_dev, "MC fatal error %d\n",
-				  -rc);
+			netif_err(efx, hw, efx->net_dev, "MC reboot detected\n");
+			netif_dbg(efx, hw, efx->net_dev, "MC rebooted during command %d rc %d\n",
+				  cmd, -rc);
+			if (efx->type->mcdi_reboot_detected)
+				efx->type->mcdi_reboot_detected(efx);
 			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 		} else if (proxy_handle && (rc == -EPROTO) &&
 			   efx_mcdi_get_proxy_handle(efx, hdr_len, data_len,
