@@ -170,6 +170,43 @@ static int emac_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
+/* Selected registers that might want to track during runtime. */
+static const u16 emac_regs[] = {
+	EMAC_DMA_MAS_CTRL,
+	EMAC_MAC_CTRL,
+	EMAC_TXQ_CTRL_0,
+	EMAC_RXQ_CTRL_0,
+	EMAC_DMA_CTRL,
+	EMAC_INT_MASK,
+	EMAC_AXI_MAST_CTRL,
+	EMAC_CORE_HW_VERSION,
+	EMAC_MISC_CTRL,
+};
+
+/* Every time emac_regs[] above is changed, increase this version number. */
+#define EMAC_REGS_VERSION	0
+
+#define EMAC_MAX_REG_SIZE	ARRAY_SIZE(emac_regs)
+
+static void emac_get_regs(struct net_device *netdev,
+			  struct ethtool_regs *regs, void *buff)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+	u32 *val = buff;
+	unsigned int i;
+
+	regs->version = EMAC_REGS_VERSION;
+	regs->len = EMAC_MAX_REG_SIZE * sizeof(u32);
+
+	for (i = 0; i < EMAC_MAX_REG_SIZE; i++)
+		val[i] = readl(adpt->base + emac_regs[i]);
+}
+
+static int emac_get_regs_len(struct net_device *netdev)
+{
+	return EMAC_MAX_REG_SIZE * sizeof(32);
+}
+
 static const struct ethtool_ops emac_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
@@ -189,6 +226,9 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.nway_reset = emac_nway_reset,
 
 	.get_link = ethtool_op_get_link,
+
+	.get_regs_len    = emac_get_regs_len,
+	.get_regs        = emac_get_regs,
 };
 
 void emac_set_ethtool_ops(struct net_device *netdev)
