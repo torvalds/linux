@@ -38,8 +38,8 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 	}
 
 	dev->fw_virt_addr = dma_alloc_coherent(dev->mem_dev[BANK1_CTX],
-					dev->fw_size, &dev->bank1, GFP_KERNEL);
-
+					dev->fw_size, &dev->dma_base[BANK1_CTX],
+					GFP_KERNEL);
 	if (!dev->fw_virt_addr) {
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		return -ENOMEM;
@@ -52,7 +52,8 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		if (!bank2_virt) {
 			mfc_err("Allocating bank2 base failed\n");
 			dma_free_coherent(dev->mem_dev[BANK1_CTX], dev->fw_size,
-					  dev->fw_virt_addr, dev->bank1);
+					  dev->fw_virt_addr,
+					  dev->dma_base[BANK1_CTX]);
 			dev->fw_virt_addr = NULL;
 			return -ENOMEM;
 		}
@@ -61,7 +62,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		 * should not have address of bank2 - MFC will treat it as a null frame.
 		 * To avoid such situation we set bank2 address below the pool address.
 		 */
-		dev->bank2 = bank2_dma_addr - align_size;
+		dev->dma_base[BANK2_CTX] = bank2_dma_addr - align_size;
 
 		dma_free_coherent(dev->mem_dev[BANK2_CTX], align_size,
 				  bank2_virt, bank2_dma_addr);
@@ -70,7 +71,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		/* In this case bank2 can point to the same address as bank1.
 		 * Firmware will always occupy the beginning of this area so it is
 		 * impossible having a video frame buffer with zero address. */
-		dev->bank2 = dev->bank1;
+		dev->dma_base[BANK2_CTX] = dev->dma_base[BANK1_CTX];
 	}
 	return 0;
 }
@@ -125,7 +126,7 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	if (!dev->fw_virt_addr)
 		return -EINVAL;
 	dma_free_coherent(dev->mem_dev[BANK1_CTX], dev->fw_size,
-			  dev->fw_virt_addr, dev->bank1);
+			  dev->fw_virt_addr, dev->dma_base[BANK1_CTX]);
 	dev->fw_virt_addr = NULL;
 	return 0;
 }
@@ -211,13 +212,17 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
-		mfc_write(dev, dev->bank1, S5P_FIMV_RISC_BASE_ADDRESS_V6);
-		mfc_debug(2, "Base Address : %pad\n", &dev->bank1);
+		mfc_write(dev, dev->dma_base[BANK1_CTX],
+			  S5P_FIMV_RISC_BASE_ADDRESS_V6);
+		mfc_debug(2, "Base Address : %pad\n",
+			  &dev->dma_base[BANK1_CTX]);
 	} else {
-		mfc_write(dev, dev->bank1, S5P_FIMV_MC_DRAMBASE_ADR_A);
-		mfc_write(dev, dev->bank2, S5P_FIMV_MC_DRAMBASE_ADR_B);
+		mfc_write(dev, dev->dma_base[BANK1_CTX],
+			  S5P_FIMV_MC_DRAMBASE_ADR_A);
+		mfc_write(dev, dev->dma_base[BANK2_CTX],
+			  S5P_FIMV_MC_DRAMBASE_ADR_B);
 		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
-				&dev->bank1, &dev->bank2);
+			  &dev->dma_base[BANK1_CTX], &dev->dma_base[BANK2_CTX]);
 	}
 }
 
