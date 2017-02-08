@@ -157,27 +157,23 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	if (board->has_slave && idx >= 8)
 		port->port.uartclk /= 2;
 
-	p = pci_ioremap_bar(pcidev, 0);
-	if (!p)
-		return -ENOMEM;
+	ret = default_setup(priv, pcidev, idx, offset, port);
+	if (ret)
+		return ret;
 
-	/* Setup Multipurpose Input/Output pins. */
-	if (idx == 0)
-		setup_gpio(p);
+	p = port->port.membase;
 
 	writeb(0x00, p + UART_EXAR_8XMODE);
 	writeb(UART_FCTR_EXAR_TRGD, p + UART_EXAR_FCTR);
 	writeb(128, p + UART_EXAR_TXTRG);
 	writeb(128, p + UART_EXAR_RXTRG);
-	iounmap(p);
 
-	ret = default_setup(priv, pcidev, idx, offset, port);
-	if (ret)
-		return ret;
+	if (idx == 0) {
+		/* Setup Multipurpose Input/Output pins. */
+		setup_gpio(p);
 
-	if (idx == 0)
-		port->port.private_data =
-			xr17v35x_register_gpio(pcidev);
+		port->port.private_data = xr17v35x_register_gpio(pcidev);
+	}
 
 	return 0;
 }
