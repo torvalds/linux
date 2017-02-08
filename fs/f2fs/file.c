@@ -142,8 +142,6 @@ static inline bool need_do_checkpoint(struct inode *inode)
 		need_cp = true;
 	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
 		need_cp = true;
-	else if (F2FS_I(inode)->xattr_ver == cur_cp_version(F2FS_CKPT(sbi)))
-		need_cp = true;
 	else if (test_opt(sbi, FASTBOOT))
 		need_cp = true;
 	else if (sbi->active_logs == 2)
@@ -169,7 +167,6 @@ static void try_to_fix_pino(struct inode *inode)
 	nid_t pino;
 
 	down_write(&fi->i_sem);
-	fi->xattr_ver = 0;
 	if (file_wrong_pino(inode) && inode->i_nlink == 1 &&
 			get_parent_ino(inode, &pino)) {
 		f2fs_i_pino_write(inode, pino);

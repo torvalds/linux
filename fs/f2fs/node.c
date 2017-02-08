@@ -971,9 +971,6 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
 
 	f2fs_i_xnid_write(inode, 0);
 
-	/* need to do checkpoint during fsync */
-	F2FS_I(inode)->xattr_ver = cur_cp_version(F2FS_CKPT(sbi));
-
 	set_new_dnode(&dn, inode, page, npage, nid);
 
 	if (page)
@@ -2054,18 +2051,18 @@ update_inode:
 	f2fs_put_page(ipage, 1);
 }
 
-void recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
+int recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t prev_xnid = F2FS_I(inode)->i_xattr_nid;
 	nid_t new_xnid = nid_of_node(page);
 	struct node_info ni;
+	struct page *xpage;
 
-	/* 1: invalidate the previous xattr nid */
 	if (!prev_xnid)
 		goto recover_xnid;
 
-	/* Deallocate node address */
+	/* 1: invalidate the previous xattr nid */
 	get_node_info(sbi, prev_xnid, &ni);
 	f2fs_bug_on(sbi, ni.blk_addr == NULL_ADDR);
 	invalidate_blocks(sbi, ni.blk_addr);
@@ -2073,19 +2070,27 @@ void recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 	set_node_addr(sbi, &ni, NULL_ADDR, false);
 
 recover_xnid:
-	/* 2: allocate new xattr nid */
+	/* 2: update xattr nid in inode */
+	remove_free_nid(sbi, new_xnid);
+	f2fs_i_xnid_write(inode, new_xnid);
 	if (unlikely(!inc_valid_node_count(sbi, inode)))
 		f2fs_bug_on(sbi, 1);
+	update_inode_page(inode);
 
-	remove_free_nid(sbi, new_xnid);
+	/* 3: update and set xattr node page dirty */
+	xpage = grab_cache_page(NODE_MAPPING(sbi), new_xnid);
+	if (!xpage)
+		return -ENOMEM;
+
+	memcpy(F2FS_NODE(xpage), F2FS_NODE(page), PAGE_SIZE);
+
 	get_node_info(sbi, new_xnid, &ni);
 	ni.ino = inode->i_ino;
 	set_node_addr(sbi, &ni, NEW_ADDR, false);
-	f2fs_i_xnid_write(inode, new_xnid);
+	set_page_dirty(xpage);
+	f2fs_put_page(xpage, 1);
 
-	/* 3: update xattr blkaddr */
-	refresh_sit_entry(sbi, NEW_ADDR, blkaddr);
-	set_node_addr(sbi, &ni, blkaddr, false);
+	return 0;
 }
 
 int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)

@@ -458,8 +458,6 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	set_page_dirty(xpage);
 	f2fs_put_page(xpage, 1);
 
-	/* need to checkpoint during fsync */
-	F2FS_I(inode)->xattr_ver = cur_cp_version(F2FS_CKPT(sbi));
 	return 0;
 }
 
