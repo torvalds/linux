@@ -335,6 +335,8 @@ struct rvt_driver_provided {
 	/* Notify driver a mad agent has been removed */
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
+	/* Notify driver to restart rc */
+	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
 };
 
 struct rvt_dev_info {
@@ -481,6 +483,23 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 				break;
 	}
 	return qp;
+}
+
+/**
+ * rvt_mod_retry_timer - mod a retry timer
+ * @qp - the QP
+ * Modify a potentially already running retry timer
+ */
+static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+{
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_TIMER;
+	/* 4.096 usec. * (1 << qp->timeout) */
+	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
+		  rdi->busy_jiffies);
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);

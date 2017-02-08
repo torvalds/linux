@@ -370,6 +370,7 @@ struct rvt_qp {
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
+	struct hrtimer s_rnr_timer;
 
 	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
@@ -641,5 +642,10 @@ struct rvt_dev_info;
 void rvt_comm_est(struct rvt_qp *qp);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
+enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);
+void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth);
+void rvt_del_timers_sync(struct rvt_qp *qp);
+void rvt_stop_rc_timers(struct rvt_qp *qp);
+void rvt_add_retry_timer(struct rvt_qp *qp);
 
 #endif          /* DEF_RDMAVT_INCQP_H */
