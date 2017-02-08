@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/stat.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/fs.h>

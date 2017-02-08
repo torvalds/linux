@@ -5,6 +5,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/time.h>
