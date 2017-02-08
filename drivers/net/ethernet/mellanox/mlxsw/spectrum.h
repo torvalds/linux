@@ -108,6 +108,8 @@ struct mlxsw_sp_fid {
 };
 
 struct mlxsw_sp_rif {
+	struct list_head nexthop_list;
+	struct list_head neigh_list;
 	struct net_device *dev;
 	unsigned int ref_count;
 	struct mlxsw_sp_fid *f;
@@ -254,13 +256,14 @@ struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
 	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
+	struct rhashtable nexthop_group_ht;
+	struct rhashtable nexthop_ht;
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
 	} neighs_update;
 	struct delayed_work nexthop_probe_dw;
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
-	struct list_head nexthop_group_list;
 	struct list_head nexthop_neighs_list;
 	bool aborted;
 };
@@ -601,6 +604,8 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
+void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_rif *r);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);

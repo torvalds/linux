@@ -127,11 +127,10 @@ struct mlxsw_sp_fib_entry {
 	struct mlxsw_sp_fib_key key;
 	enum mlxsw_sp_fib_entry_type type;
 	unsigned int ref_count;
-	u16 rif; /* used for action local */
 	struct mlxsw_sp_vr *vr;
-	struct fib_info *fi;
 	struct list_head nexthop_group_node;
 	struct mlxsw_sp_nexthop_group *nh_group;
+	bool offloaded;
 };
 
 struct mlxsw_sp_fib {
@@ -610,6 +609,7 @@ struct mlxsw_sp_neigh_key {
 };
 
 struct mlxsw_sp_neigh_entry {
+	struct list_head rif_list_node;
 	struct rhash_head ht_node;
 	struct mlxsw_sp_neigh_key key;
 	u16 rif;
@@ -686,6 +686,8 @@ mlxsw_sp_neigh_entry_create(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 	if (err)
 		goto err_neigh_entry_insert;
 
+	list_add(&neigh_entry->rif_list_node, &r->neigh_list);
+
 	return neigh_entry;
 
 err_neigh_entry_insert:
@@ -697,6 +699,7 @@ static void
 mlxsw_sp_neigh_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_neigh_entry *neigh_entry)
 {
+	list_del(&neigh_entry->rif_list_node);
 	mlxsw_sp_neigh_entry_remove(mlxsw_sp, neigh_entry);
 	mlxsw_sp_neigh_entry_free(neigh_entry);
 }
@@ -1090,11 +1093,40 @@ static void mlxsw_sp_neigh_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&mlxsw_sp->router.neigh_ht);
 }
 
+static int mlxsw_sp_neigh_rif_flush(struct mlxsw_sp *mlxsw_sp,
+				    const struct mlxsw_sp_rif *r)
+{
+	char rauht_pl[MLXSW_REG_RAUHT_LEN];
+
+	mlxsw_reg_rauht_pack(rauht_pl, MLXSW_REG_RAUHT_OP_WRITE_DELETE_ALL,
+			     r->rif, r->addr);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
+}
+
+static void mlxsw_sp_neigh_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_rif *r)
+{
+	struct mlxsw_sp_neigh_entry *neigh_entry, *tmp;
+
+	mlxsw_sp_neigh_rif_flush(mlxsw_sp, r);
+	list_for_each_entry_safe(neigh_entry, tmp, &r->neigh_list,
+				 rif_list_node)
+		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
+}
+
+struct mlxsw_sp_nexthop_key {
+	struct fib_nh *fib_nh;
+};
+
 struct mlxsw_sp_nexthop {
 	struct list_head neigh_list_node; /* member of neigh entry list */
+	struct list_head rif_list_node;
 	struct mlxsw_sp_nexthop_group *nh_grp; /* pointer back to the group
 						* this belongs to
 						*/
+	struct rhash_head ht_node;
+	struct mlxsw_sp_nexthop_key key;
+	struct mlxsw_sp_rif *r;
 	u8 should_offload:1, /* set indicates this neigh is connected and
 			      * should be put to KVD linear area of this group.
 			      */
@@ -1107,15 +1139,80 @@ struct mlxsw_sp_nexthop {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
 };
 
+struct mlxsw_sp_nexthop_group_key {
+	struct fib_info *fi;
+};
+
 struct mlxsw_sp_nexthop_group {
-	struct list_head list; /* node in mlxsw->router.nexthop_group_list */
+	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
-	u8 adj_index_valid:1;
+	struct mlxsw_sp_nexthop_group_key key;
+	u8 adj_index_valid:1,
+	   gateway:1; /* routes using the group use a gateway */
 	u32 adj_index;
 	u16 ecmp_size;
 	u16 count;
 	struct mlxsw_sp_nexthop nexthops[0];
+#define nh_rif	nexthops[0].r
 };
+
+static const struct rhashtable_params mlxsw_sp_nexthop_group_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_nexthop_group, key),
+	.head_offset = offsetof(struct mlxsw_sp_nexthop_group, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_nexthop_group_key),
+};
+
+static int mlxsw_sp_nexthop_group_insert(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	return rhashtable_insert_fast(&mlxsw_sp->router.nexthop_group_ht,
+				      &nh_grp->ht_node,
+				      mlxsw_sp_nexthop_group_ht_params);
+}
+
+static void mlxsw_sp_nexthop_group_remove(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	rhashtable_remove_fast(&mlxsw_sp->router.nexthop_group_ht,
+			       &nh_grp->ht_node,
+			       mlxsw_sp_nexthop_group_ht_params);
+}
+
+static struct mlxsw_sp_nexthop_group *
+mlxsw_sp_nexthop_group_lookup(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_nexthop_group_key key)
+{
+	return rhashtable_lookup_fast(&mlxsw_sp->router.nexthop_group_ht, &key,
+				      mlxsw_sp_nexthop_group_ht_params);
+}
+
+static const struct rhashtable_params mlxsw_sp_nexthop_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_nexthop, key),
+	.head_offset = offsetof(struct mlxsw_sp_nexthop, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_nexthop_key),
+};
+
+static int mlxsw_sp_nexthop_insert(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_nexthop *nh)
+{
+	return rhashtable_insert_fast(&mlxsw_sp->router.nexthop_ht,
+				      &nh->ht_node, mlxsw_sp_nexthop_ht_params);
+}
+
+static void mlxsw_sp_nexthop_remove(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_nexthop *nh)
+{
+	rhashtable_remove_fast(&mlxsw_sp->router.nexthop_ht, &nh->ht_node,
+			       mlxsw_sp_nexthop_ht_params);
+}
+
+static struct mlxsw_sp_nexthop *
+mlxsw_sp_nexthop_lookup(struct mlxsw_sp *mlxsw_sp,
+			struct mlxsw_sp_nexthop_key key)
+{
+	return rhashtable_lookup_fast(&mlxsw_sp->router.nexthop_ht, &key,
+				      mlxsw_sp_nexthop_ht_params);
+}
 
 static int mlxsw_sp_adj_index_mass_update_vr(struct mlxsw_sp *mlxsw_sp,
 					     struct mlxsw_sp_vr *vr,
@@ -1231,6 +1328,11 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	int i;
 	int err;
 
+	if (!nh_grp->gateway) {
+		mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
+		return;
+	}
+
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 
@@ -1340,24 +1442,45 @@ mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_nexthop_group *nh_grp,
-				 struct mlxsw_sp_nexthop *nh,
-				 struct fib_nh *fib_nh)
+static void mlxsw_sp_nexthop_rif_init(struct mlxsw_sp_nexthop *nh,
+				      struct mlxsw_sp_rif *r)
+{
+	if (nh->r)
+		return;
+
+	nh->r = r;
+	list_add(&nh->rif_list_node, &r->nexthop_list);
+}
+
+static void mlxsw_sp_nexthop_rif_fini(struct mlxsw_sp_nexthop *nh)
+{
+	if (!nh->r)
+		return;
+
+	list_del(&nh->rif_list_node);
+	nh->r = NULL;
+}
+
+static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
-	struct net_device *dev = fib_nh->nh_dev;
+	struct fib_nh *fib_nh = nh->key.fib_nh;
 	struct neighbour *n;
 	u8 nud_state, dead;
+	int err;
+
+	if (!nh->nh_grp->gateway || nh->neigh_entry)
+		return 0;
 
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be detructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
-	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, dev);
+	n = neigh_lookup(&arp_tbl, &fib_nh->nh_gw, fib_nh->nh_dev);
 	if (!n) {
-		n = neigh_create(&arp_tbl, &fib_nh->nh_gw, dev);
+		n = neigh_create(&arp_tbl, &fib_nh->nh_gw, fib_nh->nh_dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
@@ -1366,8 +1489,8 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	if (!neigh_entry) {
 		neigh_entry = mlxsw_sp_neigh_entry_create(mlxsw_sp, n);
 		if (IS_ERR(neigh_entry)) {
-			neigh_release(n);
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_neigh_entry_create;
 		}
 	}
 
@@ -1378,7 +1501,6 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 		list_add_tail(&neigh_entry->nexthop_neighs_list_node,
 			      &mlxsw_sp->router.nexthop_neighs_list);
 
-	nh->nh_grp = nh_grp;
 	nh->neigh_entry = neigh_entry;
 	list_add_tail(&nh->neigh_list_node, &neigh_entry->nexthop_list);
 	read_lock_bh(&n->lock);
@@ -1388,27 +1510,120 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	__mlxsw_sp_nexthop_neigh_update(nh, !(nud_state & NUD_VALID && !dead));
 
 	return 0;
+
+err_neigh_entry_create:
+	neigh_release(n);
+	return err;
 }
 
-static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_nexthop *nh)
+static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop *nh)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
-	struct neighbour *n = neigh_entry->key.n;
+	struct neighbour *n;
+
+	if (!neigh_entry)
+		return;
+	n = neigh_entry->key.n;
 
 	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
+	nh->neigh_entry = NULL;
 
 	/* If that is the last nexthop connected to that neigh, remove from
 	 * nexthop_neighs_list
 	 */
-	if (list_empty(&nh->neigh_entry->nexthop_list))
-		list_del(&nh->neigh_entry->nexthop_neighs_list_node);
+	if (list_empty(&neigh_entry->nexthop_list))
+		list_del(&neigh_entry->nexthop_neighs_list_node);
 
 	if (!neigh_entry->connected && list_empty(&neigh_entry->nexthop_list))
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
 
 	neigh_release(n);
+}
+
+static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_nexthop_group *nh_grp,
+				 struct mlxsw_sp_nexthop *nh,
+				 struct fib_nh *fib_nh)
+{
+	struct net_device *dev = fib_nh->nh_dev;
+	struct mlxsw_sp_rif *r;
+	int err;
+
+	nh->nh_grp = nh_grp;
+	nh->key.fib_nh = fib_nh;
+	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
+	if (err)
+		return err;
+
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!r)
+		return 0;
+	mlxsw_sp_nexthop_rif_init(nh, r);
+
+	err = mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+	if (err)
+		goto err_nexthop_neigh_init;
+
+	return 0;
+
+err_nexthop_neigh_init:
+	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
+	return err;
+}
+
+static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_nexthop *nh)
+{
+	mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_rif_fini(nh);
+	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
+}
+
+static void mlxsw_sp_nexthop_event(struct mlxsw_sp *mlxsw_sp,
+				   unsigned long event, struct fib_nh *fib_nh)
+{
+	struct mlxsw_sp_nexthop_key key;
+	struct mlxsw_sp_nexthop *nh;
+	struct mlxsw_sp_rif *r;
+
+	if (mlxsw_sp->router.aborted)
+		return;
+
+	key.fib_nh = fib_nh;
+	nh = mlxsw_sp_nexthop_lookup(mlxsw_sp, key);
+	if (WARN_ON_ONCE(!nh))
+		return;
+
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, fib_nh->nh_dev);
+	if (!r)
+		return;
+
+	switch (event) {
+	case FIB_EVENT_NH_ADD:
+		mlxsw_sp_nexthop_rif_init(nh, r);
+		mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+		break;
+	case FIB_EVENT_NH_DEL:
+		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
+		mlxsw_sp_nexthop_rif_fini(nh);
+		break;
+	}
+
+	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
+}
+
+static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
+					   struct mlxsw_sp_rif *r)
+{
+	struct mlxsw_sp_nexthop *nh, *tmp;
+
+	list_for_each_entry_safe(nh, tmp, &r->nexthop_list, rif_list_node) {
+		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
+		mlxsw_sp_nexthop_rif_fini(nh);
+		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
+	}
 }
 
 static struct mlxsw_sp_nexthop_group *
@@ -1427,7 +1642,9 @@ mlxsw_sp_nexthop_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&nh_grp->fib_list);
+	nh_grp->gateway = fi->fib_nh->nh_scope == RT_SCOPE_LINK;
 	nh_grp->count = fi->fib_nhs;
+	nh_grp->key.fi = fi;
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 		fib_nh = &fi->fib_nh[i];
@@ -1435,10 +1652,13 @@ mlxsw_sp_nexthop_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 		if (err)
 			goto err_nexthop_init;
 	}
-	list_add_tail(&nh_grp->list, &mlxsw_sp->router.nexthop_group_list);
+	err = mlxsw_sp_nexthop_group_insert(mlxsw_sp, nh_grp);
+	if (err)
+		goto err_nexthop_group_insert;
 	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
 	return nh_grp;
 
+err_nexthop_group_insert:
 err_nexthop_init:
 	for (i--; i >= 0; i--)
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
@@ -1453,7 +1673,7 @@ mlxsw_sp_nexthop_group_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nexthop *nh;
 	int i;
 
-	list_del(&nh_grp->list);
+	mlxsw_sp_nexthop_group_remove(mlxsw_sp, nh_grp);
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
@@ -1463,59 +1683,15 @@ mlxsw_sp_nexthop_group_destroy(struct mlxsw_sp *mlxsw_sp,
 	kfree(nh_grp);
 }
 
-static bool mlxsw_sp_nexthop_match(struct mlxsw_sp_nexthop *nh,
-				   struct fib_info *fi)
-{
-	int i;
-
-	for (i = 0; i < fi->fib_nhs; i++) {
-		struct fib_nh *fib_nh = &fi->fib_nh[i];
-		struct neighbour *n = nh->neigh_entry->key.n;
-
-		if (memcmp(n->primary_key, &fib_nh->nh_gw,
-			   sizeof(fib_nh->nh_gw)) == 0 &&
-		    n->dev == fib_nh->nh_dev)
-			return true;
-	}
-	return false;
-}
-
-static bool mlxsw_sp_nexthop_group_match(struct mlxsw_sp_nexthop_group *nh_grp,
-					 struct fib_info *fi)
-{
-	int i;
-
-	if (nh_grp->count != fi->fib_nhs)
-		return false;
-	for (i = 0; i < nh_grp->count; i++) {
-		struct mlxsw_sp_nexthop *nh = &nh_grp->nexthops[i];
-
-		if (!mlxsw_sp_nexthop_match(nh, fi))
-			return false;
-	}
-	return true;
-}
-
-static struct mlxsw_sp_nexthop_group *
-mlxsw_sp_nexthop_group_find(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
-{
-	struct mlxsw_sp_nexthop_group *nh_grp;
-
-	list_for_each_entry(nh_grp, &mlxsw_sp->router.nexthop_group_list,
-			    list) {
-		if (mlxsw_sp_nexthop_group_match(nh_grp, fi))
-			return nh_grp;
-	}
-	return NULL;
-}
-
 static int mlxsw_sp_nexthop_group_get(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_fib_entry *fib_entry,
 				      struct fib_info *fi)
 {
+	struct mlxsw_sp_nexthop_group_key key;
 	struct mlxsw_sp_nexthop_group *nh_grp;
 
-	nh_grp = mlxsw_sp_nexthop_group_find(mlxsw_sp, fi);
+	key.fi = fi;
+	nh_grp = mlxsw_sp_nexthop_group_lookup(mlxsw_sp, key);
 	if (!nh_grp) {
 		nh_grp = mlxsw_sp_nexthop_group_create(mlxsw_sp, fi);
 		if (IS_ERR(nh_grp))
@@ -1537,6 +1713,72 @@ static void mlxsw_sp_nexthop_group_put(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop_group_destroy(mlxsw_sp, nh_grp);
 }
 
+static bool
+mlxsw_sp_fib_entry_should_offload(const struct mlxsw_sp_fib_entry *fib_entry)
+{
+	struct mlxsw_sp_nexthop_group *nh_group = fib_entry->nh_group;
+
+	switch (fib_entry->type) {
+	case MLXSW_SP_FIB_ENTRY_TYPE_REMOTE:
+		return !!nh_group->adj_index_valid;
+	case MLXSW_SP_FIB_ENTRY_TYPE_LOCAL:
+		return !!nh_group->nh_rif;
+	default:
+		return false;
+	}
+}
+
+static void mlxsw_sp_fib_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
+{
+	fib_entry->offloaded = true;
+
+	switch (fib_entry->vr->proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		fib_info_offload_inc(fib_entry->nh_group->key.fi);
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		WARN_ON_ONCE(1);
+	}
+}
+
+static void
+mlxsw_sp_fib_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
+{
+	switch (fib_entry->vr->proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		fib_info_offload_dec(fib_entry->nh_group->key.fi);
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		WARN_ON_ONCE(1);
+	}
+
+	fib_entry->offloaded = false;
+}
+
+static void
+mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
+				   enum mlxsw_reg_ralue_op op, int err)
+{
+	switch (op) {
+	case MLXSW_REG_RALUE_OP_WRITE_DELETE:
+		if (!fib_entry->offloaded)
+			return;
+		return mlxsw_sp_fib_entry_offload_unset(fib_entry);
+	case MLXSW_REG_RALUE_OP_WRITE_WRITE:
+		if (err)
+			return;
+		if (mlxsw_sp_fib_entry_should_offload(fib_entry) &&
+		    !fib_entry->offloaded)
+			mlxsw_sp_fib_entry_offload_set(fib_entry);
+		else if (!mlxsw_sp_fib_entry_should_offload(fib_entry) &&
+			 fib_entry->offloaded)
+			mlxsw_sp_fib_entry_offload_unset(fib_entry);
+		return;
+	default:
+		return;
+	}
+}
+
 static int mlxsw_sp_fib_entry_op4_remote(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib_entry *fib_entry,
 					 enum mlxsw_reg_ralue_op op)
@@ -1553,7 +1795,7 @@ static int mlxsw_sp_fib_entry_op4_remote(struct mlxsw_sp *mlxsw_sp,
 	 * with provided ECMP size. Otherwise, setup trap and pass
 	 * traffic to kernel.
 	 */
-	if (fib_entry->nh_group->adj_index_valid) {
+	if (mlxsw_sp_fib_entry_should_offload(fib_entry)) {
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
 		adjacency_index = fib_entry->nh_group->adj_index;
 		ecmp_size = fib_entry->nh_group->ecmp_size;
@@ -1574,16 +1816,26 @@ static int mlxsw_sp_fib_entry_op4_local(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_fib_entry *fib_entry,
 					enum mlxsw_reg_ralue_op op)
 {
+	struct mlxsw_sp_rif *r = fib_entry->nh_group->nh_rif;
+	enum mlxsw_reg_ralue_trap_action trap_action;
 	char ralue_pl[MLXSW_REG_RALUE_LEN];
 	u32 *p_dip = (u32 *) fib_entry->key.addr;
 	struct mlxsw_sp_vr *vr = fib_entry->vr;
+	u16 trap_id = 0;
+	u16 rif = 0;
+
+	if (mlxsw_sp_fib_entry_should_offload(fib_entry)) {
+		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
+		rif = r->rif;
+	} else {
+		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_TRAP;
+		trap_id = MLXSW_TRAP_ID_RTR_INGRESS0;
+	}
 
 	mlxsw_reg_ralue_pack4(ralue_pl,
 			      (enum mlxsw_reg_ralxx_protocol) vr->proto, op,
 			      vr->id, fib_entry->key.prefix_len, *p_dip);
-	mlxsw_reg_ralue_act_local_pack(ralue_pl,
-				       MLXSW_REG_RALUE_TRAP_ACTION_NOP, 0,
-				       fib_entry->rif);
+	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, trap_id, rif);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
 
@@ -1621,13 +1873,17 @@ static int mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_fib_entry *fib_entry,
 				 enum mlxsw_reg_ralue_op op)
 {
+	int err = -EINVAL;
+
 	switch (fib_entry->vr->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		return mlxsw_sp_fib_entry_op4(mlxsw_sp, fib_entry, op);
+		err = mlxsw_sp_fib_entry_op4(mlxsw_sp, fib_entry, op);
+		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
-		return -EINVAL;
+		return err;
 	}
-	return -EINVAL;
+	mlxsw_sp_fib_entry_offload_refresh(fib_entry, op, err);
+	return err;
 }
 
 static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
@@ -1645,14 +1901,11 @@ static int mlxsw_sp_fib_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
-				const struct fib_entry_notifier_info *fen_info,
-				struct mlxsw_sp_fib_entry *fib_entry)
+mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
+			     const struct fib_entry_notifier_info *fen_info,
+			     struct mlxsw_sp_fib_entry *fib_entry)
 {
 	struct fib_info *fi = fen_info->fi;
-	struct mlxsw_sp_rif *r = NULL;
-	int nhsel;
-	int err;
 
 	if (fen_info->type == RTN_LOCAL || fen_info->type == RTN_BROADCAST) {
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
@@ -1660,50 +1913,11 @@ mlxsw_sp_router_fib4_entry_init(struct mlxsw_sp *mlxsw_sp,
 	}
 	if (fen_info->type != RTN_UNICAST)
 		return -EINVAL;
-
-	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-		const struct fib_nh *nh = &fi->fib_nh[nhsel];
-
-		if (!nh->nh_dev)
-			continue;
-		r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, nh->nh_dev);
-		if (!r) {
-			/* In case router interface is not found for
-			 * at least one of the nexthops, that means
-			 * the nexthop points to some device unrelated
-			 * to us. Set trap and pass the packets for
-			 * this prefix to kernel.
-			 */
-			break;
-		}
-	}
-
-	if (!r) {
-		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
-		return 0;
-	}
-
-	if (fi->fib_scope != RT_SCOPE_UNIVERSE) {
+	if (fi->fib_nh->nh_scope != RT_SCOPE_LINK)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
-		fib_entry->rif = r->rif;
-	} else {
+	else
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
-		err = mlxsw_sp_nexthop_group_get(mlxsw_sp, fib_entry, fi);
-		if (err)
-			return err;
-	}
-	fib_info_offload_inc(fen_info->fi);
 	return 0;
-}
-
-static void
-mlxsw_sp_router_fib4_entry_fini(struct mlxsw_sp *mlxsw_sp,
-				struct mlxsw_sp_fib_entry *fib_entry)
-{
-	if (fib_entry->type != MLXSW_SP_FIB_ENTRY_TYPE_TRAP)
-		fib_info_offload_dec(fib_entry->fi);
-	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_REMOTE)
-		mlxsw_sp_nexthop_group_put(mlxsw_sp, fib_entry);
 }
 
 static struct mlxsw_sp_fib_entry *
@@ -1736,16 +1950,20 @@ mlxsw_sp_fib_entry_get(struct mlxsw_sp *mlxsw_sp,
 		goto err_fib_entry_create;
 	}
 	fib_entry->vr = vr;
-	fib_entry->fi = fi;
 	fib_entry->ref_count = 1;
 
-	err = mlxsw_sp_router_fib4_entry_init(mlxsw_sp, fen_info, fib_entry);
+	err = mlxsw_sp_fib4_entry_type_set(mlxsw_sp, fen_info, fib_entry);
 	if (err)
-		goto err_fib4_entry_init;
+		goto err_fib4_entry_type_set;
+
+	err = mlxsw_sp_nexthop_group_get(mlxsw_sp, fib_entry, fi);
+	if (err)
+		goto err_nexthop_group_get;
 
 	return fib_entry;
 
-err_fib4_entry_init:
+err_nexthop_group_get:
+err_fib4_entry_type_set:
 	mlxsw_sp_fib_entry_destroy(fib_entry);
 err_fib_entry_create:
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
@@ -1776,7 +1994,7 @@ static void mlxsw_sp_fib_entry_put(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_vr *vr = fib_entry->vr;
 
 	if (--fib_entry->ref_count == 0) {
-		mlxsw_sp_router_fib4_entry_fini(mlxsw_sp, fib_entry);
+		mlxsw_sp_nexthop_group_put(mlxsw_sp, fib_entry);
 		mlxsw_sp_fib_entry_destroy(fib_entry);
 	}
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
@@ -1922,6 +2140,28 @@ static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set abort trap.\n");
 }
 
+static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
+{
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	int err;
+
+	mlxsw_reg_ritr_rif_pack(ritr_pl, rif);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+	if (WARN_ON_ONCE(err))
+		return err;
+
+	mlxsw_reg_ritr_enable_set(ritr_pl, false);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_rif *r)
+{
+	mlxsw_sp_router_rif_disable(mlxsw_sp, r->rif);
+	mlxsw_sp_nexthop_rif_gone_sync(mlxsw_sp, r);
+	mlxsw_sp_neigh_rif_gone_sync(mlxsw_sp, r);
+}
+
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
@@ -1966,7 +2206,10 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 
 struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
-	struct fib_entry_notifier_info fen_info;
+	union {
+		struct fib_entry_notifier_info fen_info;
+		struct fib_nh_notifier_info fnh_info;
+	};
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long event;
 };
@@ -1994,6 +2237,12 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
 		mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		break;
+	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_DEL:
+		mlxsw_sp_nexthop_event(mlxsw_sp, fib_work->event,
+				       fib_work->fnh_info.fib_nh);
+		fib_info_put(fib_work->fnh_info.fib_nh->nh_parent);
 		break;
 	}
 	rtnl_unlock();
@@ -2028,6 +2277,11 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
 		break;
+	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_DEL:
+		memcpy(&fib_work->fnh_info, ptr, sizeof(fib_work->fnh_info));
+		fib_info_hold(fib_work->fnh_info.fib_nh->nh_parent);
+		break;
 	}
 
 	mlxsw_core_schedule_work(&fib_work->work);
@@ -2052,10 +2306,19 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	int err;
 
 	INIT_LIST_HEAD(&mlxsw_sp->router.nexthop_neighs_list);
-	INIT_LIST_HEAD(&mlxsw_sp->router.nexthop_group_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
 		return err;
+
+	err = rhashtable_init(&mlxsw_sp->router.nexthop_ht,
+			      &mlxsw_sp_nexthop_ht_params);
+	if (err)
+		goto err_nexthop_ht_init;
+
+	err = rhashtable_init(&mlxsw_sp->router.nexthop_group_ht,
+			      &mlxsw_sp_nexthop_group_ht_params);
+	if (err)
+		goto err_nexthop_group_ht_init;
 
 	mlxsw_sp_lpm_init(mlxsw_sp);
 	err = mlxsw_sp_vrs_init(mlxsw_sp);
@@ -2079,6 +2342,10 @@ err_register_fib_notifier:
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
+err_nexthop_group_ht_init:
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
+err_nexthop_ht_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	return err;
 }
@@ -2088,5 +2355,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	unregister_fib_notifier(&mlxsw_sp->fib_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
+	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
 	__mlxsw_sp_router_fini(mlxsw_sp);
 }

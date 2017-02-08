@@ -3473,6 +3473,8 @@ mlxsw_sp_rif_alloc(u16 rif, struct net_device *l3_dev, struct mlxsw_sp_fid *f)
 	if (!r)
 		return NULL;
 
+	INIT_LIST_HEAD(&r->nexthop_list);
+	INIT_LIST_HEAD(&r->neigh_list);
 	ether_addr_copy(r->addr, l3_dev->dev_addr);
 	r->mtu = l3_dev->mtu;
 	r->ref_count = 1;
@@ -3540,6 +3542,8 @@ static void mlxsw_sp_vport_rif_sp_destroy(struct mlxsw_sp_port *mlxsw_sp_vport,
 	struct mlxsw_sp_fid *f = r->f;
 	u16 fid = f->fid;
 	u16 rif = r->rif;
+
+	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, r);
 
 	mlxsw_sp->rifs[rif] = NULL;
 	f->r = NULL;
@@ -3769,6 +3773,8 @@ void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct net_device *l3_dev = r->dev;
 	struct mlxsw_sp_fid *f = r->f;
 	u16 rif = r->rif;
+
+	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, r);
 
 	mlxsw_sp->rifs[rif] = NULL;
 	f->r = NULL;
