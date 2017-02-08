@@ -320,9 +320,9 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	u64 sdata;
 	atomic64_t *maddr;
 	enum ib_wc_status send_status;
-	int release;
+	bool release;
 	int ret;
-	int copy_last = 0;
+	bool copy_last = false;
 	int local_ops = 0;
 
 	rcu_read_lock();
@@ -386,7 +386,7 @@ again:
 	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
-	release = 1;
+	release = true;
 	sqp->s_sge.sge = wqe->sg_list[0];
 	sqp->s_sge.sg_list = wqe->sg_list + 1;
 	sqp->s_sge.num_sge = wqe->wr.num_sge;
@@ -437,7 +437,7 @@ send:
 		/* skip copy_last set and qp_access_flags recheck */
 		goto do_write;
 	case IB_WR_RDMA_WRITE:
-		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
+		copy_last = rvt_is_user_qp(qp);
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
 			goto inv_err;
 do_write:
@@ -461,7 +461,7 @@ do_write:
 					  wqe->rdma_wr.rkey,
 					  IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
-		release = 0;
+		release = false;
 		sqp->s_sge.sg_list = NULL;
 		sqp->s_sge.num_sge = 1;
 		qp->r_sge.sge = wqe->sg_list[0];

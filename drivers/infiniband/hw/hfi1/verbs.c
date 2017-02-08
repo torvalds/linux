@@ -291,7 +291,7 @@ static void wss_insert(void *address)
 /*
  * Is the working set larger than the threshold?
  */
-static inline int wss_exceeds_threshold(void)
+static inline bool wss_exceeds_threshold(void)
 {
 	return atomic_read(&wss.total_count) >= wss.threshold;
 }
@@ -419,18 +419,19 @@ __be64 ib_hfi1_sys_image_guid;
  * @ss: the SGE state
  * @data: the data to copy
  * @length: the length of the data
+ * @release: boolean to release MR
  * @copy_last: do a separate copy of the last 8 bytes
  */
 void hfi1_copy_sge(
 	struct rvt_sge_state *ss,
 	void *data, u32 length,
-	int release,
-	int copy_last)
+	bool release,
+	bool copy_last)
 {
 	struct rvt_sge *sge = &ss->sge;
-	int in_last = 0;
 	int i;
-	int cacheless_copy = 0;
+	bool in_last = false;
+	bool cacheless_copy = false;
 
 	if (sge_copy_mode == COPY_CACHELESS) {
 		cacheless_copy = length >= PAGE_SIZE;
@@ -454,8 +455,8 @@ void hfi1_copy_sge(
 		if (length > 8) {
 			length -= 8;
 		} else {
-			copy_last = 0;
-			in_last = 1;
+			copy_last = false;
+			in_last = true;
 		}
 	}
 
@@ -501,8 +502,8 @@ again:
 	}
 
 	if (copy_last) {
-		copy_last = 0;
-		in_last = 1;
+		copy_last = false;
+		in_last = true;
 		length = 8;
 		goto again;
 	}
@@ -513,7 +514,7 @@ again:
  * @ss: the SGE state
  * @length: the number of bytes to skip
  */
-void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release)
+void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, bool release)
 {
 	struct rvt_sge *sge = &ss->sge;
 

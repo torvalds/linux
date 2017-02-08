@@ -468,6 +468,15 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 }
 
 /**
+ * rvt_is_user_qp - return if this is user mode QP
+ * @qp - the target QP
+ */
+static inline bool rvt_is_user_qp(struct rvt_qp *qp)
+{
+	return !!qp->pid;
+}
+
+/**
  * rvt_get_qp - get a QP reference
  * @qp - the QP to hold
  */
