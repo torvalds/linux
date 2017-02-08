@@ -895,7 +895,7 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 	u32 opcode;
 	u32 psn;
 
-	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_SEND_OR_FLUSH_OR_RECV_OK))
 		return;
 
 	/* Find out where the BTH is */
