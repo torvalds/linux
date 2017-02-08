@@ -117,6 +117,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_PR_ASSOC_STATUS	115
 #define SCTP_ENABLE_STREAM_RESET	118
 #define SCTP_RESET_STREAMS	119
+#define SCTP_RESET_ASSOC	120
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000

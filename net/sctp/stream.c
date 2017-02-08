@@ -177,3 +177,43 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 out:
 	return retval;
 }
+
+int sctp_send_reset_assoc(struct sctp_association *asoc)
+{
+	struct sctp_chunk *chunk = NULL;
+	int retval;
+	__u16 i;
+
+	if (!asoc->peer.reconf_capable ||
+	    !(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
+		return -ENOPROTOOPT;
+
+	if (asoc->strreset_outstanding)
+		return -EINPROGRESS;
+
+	chunk = sctp_make_strreset_tsnreq(asoc);
+	if (!chunk)
+		return -ENOMEM;
+
+	/* Block further xmit of data until this request is completed */
+	for (i = 0; i < asoc->stream->outcnt; i++)
+		asoc->stream->out[i].state = SCTP_STREAM_CLOSED;
+
+	asoc->strreset_chunk = chunk;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	retval = sctp_send_reconf(asoc, chunk);
+	if (retval) {
+		sctp_chunk_put(asoc->strreset_chunk);
+		asoc->strreset_chunk = NULL;
+
+		for (i = 0; i < asoc->stream->outcnt; i++)
+			asoc->stream->out[i].state = SCTP_STREAM_OPEN;
+
+		return retval;
+	}
+
+	asoc->strreset_outstanding = 1;
+
+	return 0;
+}

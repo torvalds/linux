@@ -198,6 +198,7 @@ int sctp_offload_init(void);
  */
 int sctp_send_reset_streams(struct sctp_association *asoc,
 			    struct sctp_reset_streams *params);
+int sctp_send_reset_assoc(struct sctp_association *asoc);
 
 /*
  * Module global variables
