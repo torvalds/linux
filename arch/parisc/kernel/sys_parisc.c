@@ -31,6 +31,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/shm.h>
 #include <linux/syscalls.h>
 #include <linux/utsname.h>

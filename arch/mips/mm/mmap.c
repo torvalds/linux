@@ -14,6 +14,7 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 EXPORT_SYMBOL(shm_align_mask);

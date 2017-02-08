@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <linux/limits.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <asm/elf.h>
 
 struct va_alignment __read_mostly va_align = {
