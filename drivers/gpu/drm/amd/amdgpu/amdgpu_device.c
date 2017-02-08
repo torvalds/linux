@@ -1835,8 +1835,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* Get a log2 for easy divisions. */
 	adev->mm_stats.log2_max_MBps = ilog2(max(1u, max_MBps));
 
-	amdgpu_fbdev_init(adev);
-
 	r = amdgpu_ib_pool_init(adev);
 	if (r) {
 		dev_err(adev->dev, "IB initialization failed (%d).\n", r);
@@ -1846,6 +1844,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
+
+	amdgpu_fbdev_init(adev);
 
 	r = amdgpu_gem_debugfs_init(adev);
 	if (r) {
