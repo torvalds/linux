@@ -1121,7 +1121,8 @@ struct mlxsw_sp_nexthop_group {
 	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
 	struct mlxsw_sp_nexthop_group_key key;
-	u8 adj_index_valid:1;
+	u8 adj_index_valid:1,
+	   gateway:1; /* routes using the group use a gateway */
 	u32 adj_index;
 	u16 ecmp_size;
 	u16 count;
@@ -1291,6 +1292,11 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	int ret;
 	int i;
 	int err;
+
+	if (!nh_grp->gateway) {
+		mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
+		return;
+	}
 
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
@@ -1505,6 +1511,7 @@ mlxsw_sp_nexthop_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&nh_grp->fib_list);
+	nh_grp->gateway = fi->fib_nh->nh_scope == RT_SCOPE_LINK;
 	nh_grp->count = fi->fib_nhs;
 	nh_grp->key.fi = fi;
 	for (i = 0; i < nh_grp->count; i++) {
