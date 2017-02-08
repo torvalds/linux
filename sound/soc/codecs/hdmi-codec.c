@@ -32,6 +32,7 @@ struct hdmi_device {
 };
 #define pos_to_hdmi_device(pos)	container_of((pos), struct hdmi_device, list)
 LIST_HEAD(hdmi_device_list);
+static DEFINE_MUTEX(hdmi_mutex);
 
 #define DAI_NAME_SIZE 16
 
@@ -794,6 +795,7 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hd = NULL;
+	mutex_lock(&hdmi_mutex);
 	list_for_each(pos, &hdmi_device_list) {
 		struct hdmi_device *tmp = pos_to_hdmi_device(pos);
 
@@ -805,13 +807,16 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 
 	if (!hd) {
 		hd = devm_kzalloc(dev, sizeof(*hd), GFP_KERNEL);
-		if (!hd)
+		if (!hd) {
+			mutex_unlock(&hdmi_mutex);
 			return -ENOMEM;
+		}
 
 		hd->dev = dev->parent;
 
 		list_add_tail(&hd->list, &hdmi_device_list);
 	}
+	mutex_unlock(&hdmi_mutex);
 
 	if (hd->cnt >= ARRAY_SIZE(hdmi_dai_name)) {
 		dev_err(dev, "too many hdmi codec are deteced\n");
@@ -853,11 +858,25 @@ static int hdmi_codec_probe(struct platform_device *pdev)
 
 static int hdmi_codec_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct list_head *pos;
 	struct hdmi_codec_priv *hcp;
 
-	hcp = dev_get_drvdata(&pdev->dev);
+	mutex_lock(&hdmi_mutex);
+	list_for_each(pos, &hdmi_device_list) {
+		struct hdmi_device *tmp = pos_to_hdmi_device(pos);
+
+		if (tmp->dev == dev->parent) {
+			list_del(pos);
+			break;
+		}
+	}
+	mutex_unlock(&hdmi_mutex);
+
+	hcp = dev_get_drvdata(dev);
 	kfree(hcp->chmap_info);
-	snd_soc_unregister_codec(&pdev->dev);
+	snd_soc_unregister_codec(dev);
+
 	return 0;
 }
 
