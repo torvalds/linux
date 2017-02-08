@@ -226,8 +226,10 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	if (len && n == RPCRDMA_MAX_SEGS)
 		goto out_overflow;
 
-	/* When encoding the read list, the tail is always sent inline */
-	if (type == rpcrdma_readch)
+	/* When encoding a Read chunk, the tail iovec contains an
+	 * XDR pad and may be omitted.
+	 */
+	if (type == rpcrdma_readch && xprt_rdma_pad_optimize)
 		return n;
 
 	/* When encoding the Write list, some servers need to see an extra
@@ -238,10 +240,6 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 		return n;
 
 	if (xdrbuf->tail[0].iov_len) {
-		/* the rpcrdma protocol allows us to omit any trailing
-		 * xdr pad bytes, saving the server an RDMA operation. */
-		if (xdrbuf->tail[0].iov_len < 4 && xprt_rdma_pad_optimize)
-			return n;
 		n = rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, n);
 		if (n == RPCRDMA_MAX_SEGS)
 			goto out_overflow;
