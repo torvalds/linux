@@ -1903,8 +1903,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 
 	rt2x00_desc_read(txd, 5, &word);
 	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, entry->queue->qid);
-	rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE,
-			   skbdesc->entry->entry_idx);
+	rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE, entry->entry_idx);
 	rt2x00_set_field32(&word, TXD_W5_TX_POWER,
 			   TXPOWER_TO_DEV(entry->queue->rt2x00dev->tx_power));
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
