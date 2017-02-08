@@ -60,6 +60,7 @@
 #include <linux/mmu_context.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/string.h>
 
 #include "hfi.h"
 #include "sdma.h"
@@ -725,30 +726,28 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	 */
 	if (req_opcode(req->info.ctrl) == EXPECTED) {
 		u16 ntids = iovec[idx].iov_len / sizeof(*req->tids);
+		u32 *tmp;
 
 		if (!ntids || ntids > MAX_TID_PAIR_ENTRIES) {
 			ret = -EINVAL;
 			goto free_req;
 		}
-		req->tids = kcalloc(ntids, sizeof(*req->tids), GFP_KERNEL);
-		if (!req->tids) {
-			ret = -ENOMEM;
-			goto free_req;
-		}
+
 		/*
 		 * We have to copy all of the tids because they may vary
 		 * in size and, therefore, the TID count might not be
 		 * equal to the pkt count. However, there is no way to
 		 * tell at this point.
 		 */
-		ret = copy_from_user(req->tids, iovec[idx].iov_base,
-				     ntids * sizeof(*req->tids));
-		if (ret) {
+		tmp = memdup_user(iovec[idx].iov_base,
+				  ntids * sizeof(*req->tids));
+		if (IS_ERR(tmp)) {
+			ret = PTR_ERR(tmp);
 			SDMA_DBG(req, "Failed to copy %d TIDs (%d)",
 				 ntids, ret);
-			ret = -EFAULT;
 			goto free_req;
 		}
+		req->tids = tmp;
 		req->n_tids = ntids;
 		idx++;
 	}
