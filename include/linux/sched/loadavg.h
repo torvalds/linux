@@ -1,8 +1,6 @@
 #ifndef _LINUX_SCHED_LOADAVG_H
 #define _LINUX_SCHED_LOADAVG_H
 
-#include <linux/sched.h>
-
 /*
  * These are the constant used to fake the fixed-point load-average
  * counting. Some notes:
