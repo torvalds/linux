@@ -176,7 +176,10 @@ static inline int lwtunnel_valid_encap_type(u16 encap_type)
 }
 static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len)
 {
-	return -EOPNOTSUPP;
+	/* return 0 since we are not walking attr looking for
+	 * RTA_ENCAP_TYPE attribute on nexthops.
+	 */
+	return 0;
 }
 
 static inline int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
