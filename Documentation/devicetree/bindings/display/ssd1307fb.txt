@@ -16,6 +16,7 @@ Required properties:
 Optional properties:
   - reset-gpios: The GPIO used to reset the OLED display, if available. See
                  Documentation/devicetree/bindings/gpio/gpio.txt for details.
+  - vbat-supply: The supply for VBAT
   - solomon,segment-no-remap: Display needs normal (non-inverted) data column
                               to segment mapping
   - solomon,com-seq: Display uses sequential COM pin configuration
