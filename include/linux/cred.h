@@ -18,8 +18,8 @@
 #include <linux/selinux.h>
 #include <linux/atomic.h>
 #include <linux/uidgid.h>
+#include <linux/sched/user.h>
 
-struct user_struct;
 struct cred;
 struct inode;
 

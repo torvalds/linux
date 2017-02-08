@@ -15,6 +15,7 @@
 #include <linux/sched/autogroup.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
+#include <linux/sched/user.h>
 #include <linux/init.h>
 #include <linux/unistd.h>
 #include <linux/module.h>
