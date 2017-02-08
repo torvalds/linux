@@ -323,7 +323,6 @@ goldfish_sync_fence_create(struct goldfish_sync_timeline_obj *obj,
 	return fd;
 
 err_cleanup_fd_pt:
-	fput(sync_file_obj->file);
 	put_unused_fd(fd);
 err_cleanup_pt:
 	fence_put(&syncpt->base);
