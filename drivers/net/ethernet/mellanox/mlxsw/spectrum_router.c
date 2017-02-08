@@ -128,7 +128,6 @@ struct mlxsw_sp_fib_entry {
 	enum mlxsw_sp_fib_entry_type type;
 	unsigned int ref_count;
 	struct mlxsw_sp_vr *vr;
-	struct fib_info *fi;
 	struct list_head nexthop_group_node;
 	struct mlxsw_sp_nexthop_group *nh_group;
 };
@@ -1755,7 +1754,7 @@ mlxsw_sp_router_fib4_entry_fini(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_fib_entry *fib_entry)
 {
 	if (fib_entry->type != MLXSW_SP_FIB_ENTRY_TYPE_TRAP)
-		fib_info_offload_dec(fib_entry->fi);
+		fib_info_offload_dec(fib_entry->nh_group->key.fi);
 }
 
 static struct mlxsw_sp_fib_entry *
@@ -1788,7 +1787,6 @@ mlxsw_sp_fib_entry_get(struct mlxsw_sp *mlxsw_sp,
 		goto err_fib_entry_create;
 	}
 	fib_entry->vr = vr;
-	fib_entry->fi = fi;
 	fib_entry->ref_count = 1;
 
 	err = mlxsw_sp_router_fib4_entry_init(mlxsw_sp, fen_info, fib_entry);
