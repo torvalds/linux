@@ -486,14 +486,14 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	struct beacon_data *presp, *old_presp;
 	struct cfg80211_bss *cbss;
 	const struct cfg80211_bss_ies *ies;
-	u16 capability = 0;
+	u16 capability = WLAN_CAPABILITY_IBSS;
 	u64 tsf;
 	int ret = 0;
 
 	sdata_assert_lock(sdata);
 
 	if (ifibss->privacy)
-		capability = WLAN_CAPABILITY_PRIVACY;
+		capability |= WLAN_CAPABILITY_PRIVACY;
 
 	cbss = cfg80211_get_bss(sdata->local->hw.wiphy, ifibss->chandef.chan,
 				ifibss->bssid, ifibss->ssid,
