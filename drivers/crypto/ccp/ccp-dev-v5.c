@@ -284,8 +284,7 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	CCP_AES_ENCRYPT(&function) = op->u.aes.action;
 	CCP_AES_MODE(&function) = op->u.aes.mode;
 	CCP_AES_TYPE(&function) = op->u.aes.type;
-	if (op->u.aes.mode == CCP_AES_MODE_CFB)
-		CCP_AES_SIZE(&function) = 0x7f;
+	CCP_AES_SIZE(&function) = op->u.aes.size;
 
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 

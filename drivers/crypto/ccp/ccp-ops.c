@@ -692,6 +692,14 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			goto e_ctx;
 		}
 	}
+	switch (aes->mode) {
+	case CCP_AES_MODE_CFB: /* CFB128 only */
+	case CCP_AES_MODE_CTR:
+		op.u.aes.size = AES_BLOCK_SIZE * BITS_PER_BYTE - 1;
+		break;
+	default:
+		op.u.aes.size = 0;
+	}
 
 	/* Prepare the input and output data workareas. For in-place
 	 * operations we need to set the dma direction to BIDIRECTIONAL
