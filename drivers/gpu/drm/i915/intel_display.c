@@ -14346,8 +14346,7 @@ u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
 		 *  pixels and 32K bytes."
 		 */
 		return min(8192 * cpp, 32768);
-	} else if (gen >= 5 && !IS_VALLEYVIEW(dev_priv) &&
-		   !IS_CHERRYVIEW(dev_priv)) {
+	} else if (gen >= 5 && !HAS_GMCH_DISPLAY(dev_priv)) {
 		return 32*1024;
 	} else if (gen >= 4) {
 		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
