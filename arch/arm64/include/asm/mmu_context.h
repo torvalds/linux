@@ -19,6 +19,10 @@
 #ifndef __ASM_MMU_CONTEXT_H
 #define __ASM_MMU_CONTEXT_H
 
+#define FALKOR_RESERVED_ASID	1
+
+#ifndef __ASSEMBLY__
+
 #include <linux/compiler.h>
 #include <linux/sched.h>
 
@@ -220,4 +224,6 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 void verify_cpu_asid_bits(void);
 
-#endif
+#endif /* !__ASSEMBLY__ */
+
+#endif /* !__ASM_MMU_CONTEXT_H */
