@@ -686,6 +686,54 @@ const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {
 	.irq_free = mv88e6097_watchdog_free,
 };
 
+static int mv88e6390_watchdog_setup(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g2_update(chip, GLOBAL2_WDOG_CONTROL,
+				   GLOBAL2_WDOG_INT_ENABLE |
+				   GLOBAL2_WDOG_CUT_THROUGH |
+				   GLOBAL2_WDOG_QUEUE_CONTROLLER |
+				   GLOBAL2_WDOG_EGRESS |
+				   GLOBAL2_WDOG_FORCE_IRQ);
+}
+
+static int mv88e6390_watchdog_action(struct mv88e6xxx_chip *chip, int irq)
+{
+	int err;
+	u16 reg;
+
+	mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL, GLOBAL2_WDOG_EVENT);
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+
+	dev_info(chip->dev, "Watchdog event: 0x%04x",
+		 reg & GLOBAL2_WDOG_DATA_MASK);
+
+	mv88e6xxx_g2_write(chip, GLOBAL2_WDOG_CONTROL, GLOBAL2_WDOG_HISTORY);
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_WDOG_CONTROL, &reg);
+
+	dev_info(chip->dev, "Watchdog history: 0x%04x",
+		 reg & GLOBAL2_WDOG_DATA_MASK);
+
+	/* Trigger a software reset to try to recover the switch */
+	if (chip->info->ops->reset)
+		chip->info->ops->reset(chip);
+
+	mv88e6390_watchdog_setup(chip);
+
+	return IRQ_HANDLED;
+}
+
+static void mv88e6390_watchdog_free(struct mv88e6xxx_chip *chip)
+{
+	mv88e6xxx_g2_update(chip, GLOBAL2_WDOG_CONTROL,
+			    GLOBAL2_WDOG_INT_ENABLE);
+}
+
+const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {
+	.irq_action = mv88e6390_watchdog_action,
+	.irq_setup = mv88e6390_watchdog_setup,
+	.irq_free = mv88e6390_watchdog_free,
+};
+
 static irqreturn_t mv88e6xxx_g2_watchdog_thread_fn(int irq, void *dev_id)
 {
 	struct mv88e6xxx_chip *chip = dev_id;
