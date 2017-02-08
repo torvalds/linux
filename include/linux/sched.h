@@ -172,8 +172,6 @@ struct uts_namespace;
 
 extern cpumask_var_t cpu_isolated_map;
 
-extern int runqueue_is_locked(int cpu);
-
 extern void scheduler_tick(void);
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
