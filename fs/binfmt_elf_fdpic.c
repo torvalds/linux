@@ -35,6 +35,7 @@
 #include <linux/elf-fdpic.h>
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
+#include <linux/sched/coredump.h>
 #include <linux/dax.h>
 
 #include <linux/uaccess.h>

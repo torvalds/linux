@@ -9,6 +9,7 @@
 
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/coredump.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
 #include <linux/mmu_notifier.h>

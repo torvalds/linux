@@ -52,6 +52,7 @@
 #include <linux/sched/autogroup.h>
 #include <linux/sched/loadavg.h>
 #include <linux/sched/mm.h>
+#include <linux/sched/coredump.h>
 #include <linux/rcupdate.h>
 #include <linux/uidgid.h>
 #include <linux/cred.h>
