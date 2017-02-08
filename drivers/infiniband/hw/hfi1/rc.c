@@ -57,133 +57,6 @@
 /* cut down ridiculously long IB macro names */
 #define OP(x) RC_OP(x)
 
-/**
- * hfi1_add_retry_timer - add/start a retry timer
- * @qp - the QP
- *
- * add a retry timer on the QP
- */
-static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
-{
-	struct ib_qp *ibqp = &qp->ibqp;
-	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
-
-	lockdep_assert_held(&qp->s_lock);
-	qp->s_flags |= RVT_S_TIMER;
-	/* 4.096 usec. * (1 << qp->timeout) */
-	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
-			      rdi->busy_jiffies;
-	add_timer(&qp->s_timer);
-}
-
-/**
- * hfi1_add_rnr_timer - add/start an rnr timer
- * @qp - the QP
- * @to - timeout in usecs
- *
- * add an rnr timer on the QP
- */
-void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	lockdep_assert_held(&qp->s_lock);
-	qp->s_flags |= RVT_S_WAIT_RNR;
-	priv->s_rnr_timer.expires = jiffies + usecs_to_jiffies(to);
-	add_timer(&priv->s_rnr_timer);
-}
-
-/**
- * hfi1_mod_retry_timer - mod a retry timer
- * @qp - the QP
- *
- * Modify a potentially already running retry
- * timer
- */
-static inline void hfi1_mod_retry_timer(struct rvt_qp *qp)
-{
-	struct ib_qp *ibqp = &qp->ibqp;
-	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
-
-	lockdep_assert_held(&qp->s_lock);
-	qp->s_flags |= RVT_S_TIMER;
-	/* 4.096 usec. * (1 << qp->timeout) */
-	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
-		  rdi->busy_jiffies);
-}
-
-/**
- * hfi1_stop_retry_timer - stop a retry timer
- * @qp - the QP
- *
- * stop a retry timer and return if the timer
- * had been pending.
- */
-static inline int hfi1_stop_retry_timer(struct rvt_qp *qp)
-{
-	int rval = 0;
-
-	lockdep_assert_held(&qp->s_lock);
-	/* Remove QP from retry */
-	if (qp->s_flags & RVT_S_TIMER) {
-		qp->s_flags &= ~RVT_S_TIMER;
-		rval = del_timer(&qp->s_timer);
-	}
-	return rval;
-}
-
-/**
- * hfi1_stop_rc_timers - stop all timers
- * @qp - the QP
- *
- * stop any pending timers
- */
-void hfi1_stop_rc_timers(struct rvt_qp *qp)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	lockdep_assert_held(&qp->s_lock);
-	/* Remove QP from all timers */
-	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
-		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
-		del_timer(&qp->s_timer);
-		del_timer(&priv->s_rnr_timer);
-	}
-}
-
-/**
- * hfi1_stop_rnr_timer - stop an rnr timer
- * @qp - the QP
- *
- * stop an rnr timer and return if the timer
- * had been pending.
- */
-static inline int hfi1_stop_rnr_timer(struct rvt_qp *qp)
-{
-	int rval = 0;
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	lockdep_assert_held(&qp->s_lock);
-	/* Remove QP from rnr timer */
-	if (qp->s_flags & RVT_S_WAIT_RNR) {
-		qp->s_flags &= ~RVT_S_WAIT_RNR;
-		rval = del_timer(&priv->s_rnr_timer);
-	}
-	return rval;
-}
-
-/**
- * hfi1_del_timers_sync - wait for any timeout routines to exit
- * @qp - the QP
- */
-void hfi1_del_timers_sync(struct rvt_qp *qp)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	del_timer_sync(&qp->s_timer);
-	del_timer_sync(&priv->s_rnr_timer);
-}
-
 static u32 restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe,
 		       u32 psn, u32 pmtu)
 {
@@ -1043,7 +916,7 @@ done:
  * Back up requester to resend the last un-ACKed request.
  * The QP r_lock and s_lock should be held and interrupts disabled.
  */
-static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
+void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 {
 	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	struct hfi1_ibport *ibp;
@@ -1077,44 +950,6 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 	if (wait)
 		qp->s_flags |= RVT_S_SEND_ONE;
 	reset_psn(qp, psn);
-}
-
-/*
- * This is called from s_timer for missing responses.
- */
-void hfi1_rc_timeout(unsigned long arg)
-{
-	struct rvt_qp *qp = (struct rvt_qp *)arg;
-	struct hfi1_ibport *ibp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qp->r_lock, flags);
-	spin_lock(&qp->s_lock);
-	if (qp->s_flags & RVT_S_TIMER) {
-		ibp = to_iport(qp->ibqp.device, qp->port_num);
-		ibp->rvp.n_rc_timeouts++;
-		qp->s_flags &= ~RVT_S_TIMER;
-		del_timer(&qp->s_timer);
-		trace_hfi1_timeout(qp, qp->s_last_psn + 1);
-		restart_rc(qp, qp->s_last_psn + 1, 1);
-		hfi1_schedule_send(qp);
-	}
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irqrestore(&qp->r_lock, flags);
-}
-
-/*
- * This is called from s_timer for RNR timeouts.
- */
-void hfi1_rc_rnr_retry(unsigned long arg)
-{
-	struct rvt_qp *qp = (struct rvt_qp *)arg;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qp->s_lock, flags);
-	hfi1_stop_rnr_timer(qp);
-	hfi1_schedule_send(qp);
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /*
@@ -1183,7 +1018,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 	    !(qp->s_flags &
 		(RVT_S_TIMER | RVT_S_WAIT_RNR | RVT_S_WAIT_PSN)) &&
 		(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
-		hfi1_add_retry_timer(qp);
+		rvt_add_retry_timer(qp);
 
 	while (qp->s_last != qp->s_acked) {
 		u32 s_last;
@@ -1313,7 +1148,6 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	int ret = 0;
 	u32 ack_psn;
 	int diff;
-	unsigned long to;
 
 	lockdep_assert_held(&qp->s_lock);
 	/*
@@ -1362,7 +1196,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			/* Retry this request. */
 			if (!(qp->r_flags & RVT_R_RDMAR_SEQ)) {
 				qp->r_flags |= RVT_R_RDMAR_SEQ;
-				restart_rc(qp, qp->s_last_psn + 1, 0);
+				hfi1_restart_rc(qp, qp->s_last_psn + 1, 0);
 				if (list_empty(&qp->rspwait)) {
 					qp->r_flags |= RVT_R_RSP_SEND;
 					rvt_get_qp(qp);
@@ -1411,7 +1245,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			 * We are expecting more ACKs so
 			 * mod the retry timer.
 			 */
-			hfi1_mod_retry_timer(qp);
+			rvt_mod_retry_timer(qp);
 			/*
 			 * We can stop re-sending the earlier packets and
 			 * continue with the next packet the receiver wants.
@@ -1420,7 +1254,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 				reset_psn(qp, psn + 1);
 		} else {
 			/* No more acks - kill all timers */
-			hfi1_stop_rc_timers(qp);
+			rvt_stop_rc_timers(qp);
 			if (cmp_psn(qp->s_psn, psn) <= 0) {
 				qp->s_state = OP(SEND_LAST);
 				qp->s_psn = psn + 1;
@@ -1457,11 +1291,8 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 		reset_psn(qp, psn);
 
 		qp->s_flags &= ~(RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_ACK);
-		hfi1_stop_rc_timers(qp);
-		to =
-			ib_hfi1_rnr_table[(aeth >> RVT_AETH_CREDIT_SHIFT) &
-					   RVT_AETH_CREDIT_MASK];
-		hfi1_add_rnr_timer(qp, to);
+		rvt_stop_rc_timers(qp);
+		rvt_add_rnr_timer(qp, aeth);
 		return 0;
 
 	case 3:         /* NAK */
@@ -1479,7 +1310,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 			 * RDMA READ response which terminates the RDMA
 			 * READ.
 			 */
-			restart_rc(qp, psn, 0);
+			hfi1_restart_rc(qp, psn, 0);
 			hfi1_schedule_send(qp);
 			break;
 
@@ -1518,7 +1349,7 @@ reserved:
 	}
 	/* cannot be reached  */
 bail_stop:
-	hfi1_stop_rc_timers(qp);
+	rvt_stop_rc_timers(qp);
 	return ret;
 }
 
@@ -1533,7 +1364,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct hfi1_ibport *ibp, u32 psn,
 
 	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from retry timer */
-	hfi1_stop_rc_timers(qp);
+	rvt_stop_rc_timers(qp);
 
 	wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 
@@ -1547,7 +1378,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct hfi1_ibport *ibp, u32 psn,
 
 	ibp->rvp.n_rdma_seq++;
 	qp->r_flags |= RVT_R_RDMAR_SEQ;
-	restart_rc(qp, qp->s_last_psn + 1, 0);
+	hfi1_restart_rc(qp, qp->s_last_psn + 1, 0);
 	if (list_empty(&qp->rspwait)) {
 		qp->r_flags |= RVT_R_RSP_SEND;
 		rvt_get_qp(qp);
@@ -1661,8 +1492,7 @@ read_middle:
 		 * We got a response so update the timeout.
 		 * 4.096 usec. * (1 << qp->timeout)
 		 */
-		qp->s_flags |= RVT_S_TIMER;
-		mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies);
+		rvt_mod_retry_timer(qp);
 		if (qp->s_flags & RVT_S_WAIT_ACK) {
 			qp->s_flags &= ~RVT_S_WAIT_ACK;
 			hfi1_schedule_send(qp);

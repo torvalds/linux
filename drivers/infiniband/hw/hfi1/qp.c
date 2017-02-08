@@ -671,8 +671,6 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		iowait_sleep,
 		iowait_wakeup,
 		iowait_sdma_drained);
-	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
-	qp->s_timer.function = hfi1_rc_timeout;
 	return priv;
 }
 
@@ -713,7 +711,6 @@ void flush_qp_waiters(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
-	hfi1_stop_rc_timers(qp);
 }
 
 void stop_send_queue(struct rvt_qp *qp)
@@ -721,7 +718,6 @@ void stop_send_queue(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	cancel_work_sync(&priv->s_iowait.iowork);
-	hfi1_del_timers_sync(qp);
 }
 
 void quiesce_qp(struct rvt_qp *qp)

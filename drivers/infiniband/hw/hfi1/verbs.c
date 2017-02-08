@@ -1845,6 +1845,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
 	dd->verbs_dev.rdi.driver_f.check_modify_qp = hfi1_check_modify_qp;
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
+	dd->verbs_dev.rdi.driver_f.notify_restart_rc = hfi1_restart_rc;
 	dd->verbs_dev.rdi.driver_f.check_send_wqe = hfi1_check_send_wqe;
 
 	/* completeion queue */

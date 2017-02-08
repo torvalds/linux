@@ -127,7 +127,6 @@ struct hfi1_qp_priv {
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
-	struct timer_list s_rnr_timer;
 	struct rvt_qp *owner;
 };
 
@@ -310,12 +309,6 @@ u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
-void hfi1_rc_rnr_retry(unsigned long arg);
-void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to);
-void hfi1_rc_timeout(unsigned long arg);
-void hfi1_del_timers_sync(struct rvt_qp *qp);
-void hfi1_stop_rc_timers(struct rvt_qp *qp);
-
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
@@ -331,7 +324,7 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
-
+void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 extern const u32 rc_only_opcode;
