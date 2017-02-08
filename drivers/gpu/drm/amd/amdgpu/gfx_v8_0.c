@@ -4076,10 +4076,8 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 	data = mmRLC_SRM_INDEX_CNTL_DATA_0;
 	for (i = 0; i < sizeof(unique_indices) / sizeof(int); i++) {
 		if (unique_indices[i] != 0) {
-			amdgpu_mm_wreg(adev, temp + i,
-					unique_indices[i] & 0x3FFFF, false);
-			amdgpu_mm_wreg(adev, data + i,
-					unique_indices[i] >> 20, false);
+			WREG32(temp + i, unique_indices[i] & 0x3FFFF);
+			WREG32(data + i, unique_indices[i] >> 20);
 		}
 	}
 	kfree(register_list_format);
