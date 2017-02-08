@@ -129,74 +129,12 @@ void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length, int release)
 	struct rvt_sge *sge = &ss->sge;
 
 	while (length) {
-		u32 len = sge->length;
+		u32 len = rvt_get_sge_length(sge, length);
 
-		if (len > length)
-			len = length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
-		BUG_ON(len == 0);
+		WARN_ON_ONCE(len == 0);
 		memcpy(sge->vaddr, data, len);
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (release)
-				rvt_put_mr(sge->mr);
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
+		rvt_update_sge(ss, len, release);
 		data += len;
-		length -= len;
-	}
-}
-
-/**
- * qib_skip_sge - skip over SGE memory - XXX almost dup of prev func
- * @ss: the SGE state
- * @length: the number of bytes to skip
- */
-void qib_skip_sge(struct rvt_sge_state *ss, u32 length, int release)
-{
-	struct rvt_sge *sge = &ss->sge;
-
-	while (length) {
-		u32 len = sge->length;
-
-		if (len > length)
-			len = length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
-		BUG_ON(len == 0);
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (release)
-				rvt_put_mr(sge->mr);
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
 		length -= len;
 	}
 }
@@ -468,27 +406,6 @@ static void mem_timer(unsigned long data)
 	}
 }
 
-static void update_sge(struct rvt_sge_state *ss, u32 length)
-{
-	struct rvt_sge *sge = &ss->sge;
-
-	sge->vaddr += length;
-	sge->length -= length;
-	sge->sge_length -= length;
-	if (sge->sge_length == 0) {
-		if (--ss->num_sge)
-			*sge = *ss->sg_list++;
-	} else if (sge->length == 0 && sge->mr->lkey) {
-		if (++sge->n >= RVT_SEGSZ) {
-			if (++sge->m >= sge->mr->mapsz)
-				return;
-			sge->n = 0;
-		}
-		sge->vaddr = sge->mr->map[sge->m]->segs[sge->n].vaddr;
-		sge->length = sge->mr->map[sge->m]->segs[sge->n].length;
-	}
-}
-
 #ifdef __LITTLE_ENDIAN
 static inline u32 get_upper_bits(u32 data, u32 shift)
 {
@@ -646,11 +563,11 @@ static void copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
 				data = clear_upper_bytes(v, extra, 0);
 			}
 		}
-		update_sge(ss, len);
+		rvt_update_sge(ss, len, false);
 		length -= len;
 	}
 	/* Update address before sending packet. */
-	update_sge(ss, length);
+	rvt_update_sge(ss, length, false);
 	if (flush_wc) {
 		/* must flush early everything before trigger word */
 		qib_flush_wc();
@@ -1069,7 +986,7 @@ static int qib_verbs_send_pio(struct rvt_qp *qp, struct ib_header *ibhdr,
 		u32 *addr = (u32 *) ss->sge.vaddr;
 
 		/* Update address before sending packet. */
-		update_sge(ss, len);
+		rvt_update_sge(ss, len, false);
 		if (flush_wc) {
 			qib_pio_copy(piobuf, addr, dwords - 1);
 			/* must flush early everything before trigger word */

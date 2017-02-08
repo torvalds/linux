@@ -304,8 +304,6 @@ int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
 		  int release);
 
-void qib_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
-
 void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
