@@ -1,7 +1,8 @@
 #ifndef _LINUX_SCHED_USER_H
 #define _LINUX_SCHED_USER_H
 
-#include <linux/sched.h>
+#include <linux/uidgid.h>
+#include <linux/atomic.h>
 
 struct key;
 
