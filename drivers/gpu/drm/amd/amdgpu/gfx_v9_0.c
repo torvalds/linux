@@ -323,6 +323,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
 	const struct gfx_firmware_header_v1_0 *cp_hdr;
+	const struct rlc_firmware_header_v2_0 *rlc_hdr;
+	unsigned int *tmp = NULL;
+	unsigned int i = 0;
 
 	DRM_DEBUG("\n");
 
@@ -375,9 +378,46 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.rlc_fw);
-	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.rlc_fw->data;
-	adev->gfx.rlc_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
-	adev->gfx.rlc_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
+	rlc_hdr = (const struct rlc_firmware_header_v2_0 *)adev->gfx.rlc_fw->data;
+	adev->gfx.rlc_fw_version = le32_to_cpu(rlc_hdr->header.ucode_version);
+	adev->gfx.rlc_feature_version = le32_to_cpu(rlc_hdr->ucode_feature_version);
+	adev->gfx.rlc.save_and_restore_offset =
+			le32_to_cpu(rlc_hdr->save_and_restore_offset);
+	adev->gfx.rlc.clear_state_descriptor_offset =
+			le32_to_cpu(rlc_hdr->clear_state_descriptor_offset);
+	adev->gfx.rlc.avail_scratch_ram_locations =
+			le32_to_cpu(rlc_hdr->avail_scratch_ram_locations);
+	adev->gfx.rlc.reg_restore_list_size =
+			le32_to_cpu(rlc_hdr->reg_restore_list_size);
+	adev->gfx.rlc.reg_list_format_start =
+			le32_to_cpu(rlc_hdr->reg_list_format_start);
+	adev->gfx.rlc.reg_list_format_separate_start =
+			le32_to_cpu(rlc_hdr->reg_list_format_separate_start);
+	adev->gfx.rlc.starting_offsets_start =
+			le32_to_cpu(rlc_hdr->starting_offsets_start);
+	adev->gfx.rlc.reg_list_format_size_bytes =
+			le32_to_cpu(rlc_hdr->reg_list_format_size_bytes);
+	adev->gfx.rlc.reg_list_size_bytes =
+			le32_to_cpu(rlc_hdr->reg_list_size_bytes);
+	adev->gfx.rlc.register_list_format =
+			kmalloc(adev->gfx.rlc.reg_list_format_size_bytes +
+				adev->gfx.rlc.reg_list_size_bytes, GFP_KERNEL);
+	if (!adev->gfx.rlc.register_list_format) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
+			le32_to_cpu(rlc_hdr->reg_list_format_array_offset_bytes));
+	for (i = 0 ; i < (rlc_hdr->reg_list_format_size_bytes >> 2); i++)
+		adev->gfx.rlc.register_list_format[i] =	le32_to_cpu(tmp[i]);
+
+	adev->gfx.rlc.register_restore = adev->gfx.rlc.register_list_format + i;
+
+	tmp = (unsigned int *)((uintptr_t)rlc_hdr +
+			le32_to_cpu(rlc_hdr->reg_list_array_offset_bytes));
+	for (i = 0 ; i < (rlc_hdr->reg_list_size_bytes >> 2); i++)
+		adev->gfx.rlc.register_restore[i] = le32_to_cpu(tmp[i]);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
 	err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
