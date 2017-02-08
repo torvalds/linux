@@ -1117,9 +1117,13 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 	if (exynos_is_iommu_available(dev)) {
 		int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
 						 S5P_MFC_IOMMU_DMA_SIZE);
-		if (ret == 0)
+		if (ret == 0) {
 			mfc_dev->mem_dev[BANK1_CTX] =
 				mfc_dev->mem_dev[BANK2_CTX] = dev;
+			vb2_dma_contig_set_max_seg_size(dev,
+							DMA_BIT_MASK(32));
+		}
+
 		return ret;
 	}
 
@@ -1138,6 +1142,11 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 		return -ENODEV;
 	}
 
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK1_CTX],
+					DMA_BIT_MASK(32));
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK2_CTX],
+					DMA_BIT_MASK(32));
+
 	return 0;
 }
 
@@ -1147,11 +1156,14 @@ static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 
 	if (exynos_is_iommu_available(dev)) {
 		exynos_unconfigure_iommu(dev);
+		vb2_dma_contig_clear_max_seg_size(dev);
 		return;
 	}
 
 	device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
 	device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK1_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK2_CTX]);
 }
 
 /* MFC probe function */
@@ -1208,11 +1220,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get mfc clock source\n");
 		goto err_dma;
 	}
-
-	vb2_dma_contig_set_max_seg_size(dev->mem_dev[BANK1_CTX],
-					DMA_BIT_MASK(32));
-	vb2_dma_contig_set_max_seg_size(dev->mem_dev[BANK2_CTX],
-					DMA_BIT_MASK(32));
 
 	mutex_init(&dev->mfc_mutex);
 	init_waitqueue_head(&dev->queue);
@@ -1346,8 +1353,6 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 	s5p_mfc_release_firmware(dev);
 	s5p_mfc_unconfigure_dma_memory(dev);
-	vb2_dma_contig_clear_max_seg_size(dev->mem_dev[BANK1_CTX]);
-	vb2_dma_contig_clear_max_seg_size(dev->mem_dev[BANK2_CTX]);
 
 	s5p_mfc_final_pm(dev);
 	return 0;
