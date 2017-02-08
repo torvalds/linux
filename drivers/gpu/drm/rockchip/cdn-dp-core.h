@@ -19,6 +19,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
+#ifdef CONFIG_SWITCH
+#include <linux/switch.h>
+#endif
 #include "rockchip_drm_drv.h"
 
 #define MAX_PHY		2
@@ -107,5 +110,8 @@ struct cdn_dp_device {
 
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	bool sink_has_audio;
+#ifdef CONFIG_SWITCH
+	struct switch_dev switchdev;
+#endif
 };
 #endif  /* _CDN_DP_CORE_H */

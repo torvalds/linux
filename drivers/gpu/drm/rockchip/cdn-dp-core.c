@@ -693,8 +693,13 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 	}
 out:
 	mutex_unlock(&dp->lock);
-	if (!ret)
+	if (!ret) {
+#ifdef CONFIG_SWITCH
+		switch_set_state(&dp->switchdev, 1);
+#else
 		hdmi_event_connect(dp->dev);
+#endif
+	}
 }
 
 static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
@@ -711,7 +716,11 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 		}
 	}
 	mutex_unlock(&dp->lock);
+#ifdef CONFIG_SWITCH
+	switch_set_state(&dp->switchdev, 0);
+#else
 	hdmi_event_disconnect(dp->dev);
+#endif
 
 	/*
 	 * In the following 2 cases, we need to run the event_work to re-enable
@@ -1109,6 +1118,11 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	drm_connector_helper_add(connector, &cdn_dp_connector_helper_funcs);
 
+#ifdef CONFIG_SWITCH
+	dp->switchdev.name = "hdmi";
+	switch_dev_register(&dp->switchdev);
+#endif
+
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("failed to attach connector and encoder\n");
@@ -1149,6 +1163,10 @@ static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &dp->encoder;
 	struct drm_connector *connector = &dp->connector;
+
+#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&dp->switchdev);
+#endif
 
 	cancel_work_sync(&dp->event_work);
 	platform_device_unregister(dp->audio_pdev);
