@@ -366,32 +366,19 @@ static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	/* Exit Low power state in 4 steps*/
+	/* Enable MIPI PHY transparent latch */
 	for_each_dsi_port(port, intel_dsi->ports) {
-
-		/* 1. Enable MIPI PHY transparent latch */
 		val = I915_READ(BXT_MIPI_PORT_CTRL(port));
 		I915_WRITE(BXT_MIPI_PORT_CTRL(port), val | LP_OUTPUT_HOLD);
 		usleep_range(2000, 2500);
+	}
 
-		/* 2. Enter ULPS */
+	/* Clear ULPS and set device ready */
+	for_each_dsi_port(port, intel_dsi->ports) {
 		val = I915_READ(MIPI_DEVICE_READY(port));
 		val &= ~ULPS_STATE_MASK;
-		val |= (ULPS_STATE_ENTER | DEVICE_READY);
 		I915_WRITE(MIPI_DEVICE_READY(port), val);
-		/* at least 2us - relaxed for hrtimer subsystem optimization */
-		usleep_range(10, 50);
-
-		/* 3. Exit ULPS */
-		val = I915_READ(MIPI_DEVICE_READY(port));
-		val &= ~ULPS_STATE_MASK;
-		val |= (ULPS_STATE_EXIT | DEVICE_READY);
-		I915_WRITE(MIPI_DEVICE_READY(port), val);
-		usleep_range(1000, 1500);
-
-		/* Clear ULPS and set device ready */
-		val = I915_READ(MIPI_DEVICE_READY(port));
-		val &= ~ULPS_STATE_MASK;
+		usleep_range(2000, 2500);
 		val |= DEVICE_READY;
 		I915_WRITE(MIPI_DEVICE_READY(port), val);
 	}
