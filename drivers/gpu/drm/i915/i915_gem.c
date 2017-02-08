@@ -4367,11 +4367,24 @@ static void init_unused_rings(struct drm_i915_private *dev_priv)
 	}
 }
 
-int
-i915_gem_init_hw(struct drm_i915_private *dev_priv)
+static int __i915_gem_restart_engines(void *data)
 {
+	struct drm_i915_private *i915 = data;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	int err;
+
+	for_each_engine(engine, i915, id) {
+		err = engine->init_hw(engine);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int i915_gem_init_hw(struct drm_i915_private *dev_priv)
+{
 	int ret;
 
 	dev_priv->gt.last_init_time = ktime_get();
@@ -4417,11 +4430,9 @@ i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	}
 
 	/* Need to do basic initialisation of all rings first: */
-	for_each_engine(engine, dev_priv, id) {
-		ret = engine->init_hw(engine);
-		if (ret)
-			goto out;
-	}
+	ret = __i915_gem_restart_engines(dev_priv);
+	if (ret)
+		goto out;
 
 	intel_mocs_init_l3cc_table(dev_priv);
 
