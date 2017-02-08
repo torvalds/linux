@@ -1,7 +1,6 @@
 #ifndef _LINUX_SCHED_COREDUMP_H
 #define _LINUX_SCHED_COREDUMP_H
 
-#include <linux/sched.h>
 #include <linux/mm_types.h>
 
 #define SUID_DUMP_DISABLE	0	/* No setuid dumping */
