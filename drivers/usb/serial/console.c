@@ -143,6 +143,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty->driver = usb_serial_tty_driver;
 			tty->index = co->index;
 			init_ldsem(&tty->ldisc_sem);
+			spin_lock_init(&tty->files_lock);
 			INIT_LIST_HEAD(&tty->tty_files);
 			kref_get(&tty->driver->kref);
 			__module_get(tty->driver->owner);
