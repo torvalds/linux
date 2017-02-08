@@ -97,6 +97,11 @@
 /* FUNC interface - responses */
 #define UNSUPPORTED_CMD 0x80000000
 
+/* FUNC interface - status flags */
+#define FLAG_RFKILL	0x020
+#define FLAG_LID	0x100
+#define FLAG_DOCK	0x200
+
 #if IS_ENABLED(CONFIG_LEDS_CLASS)
 /* FUNC interface - LED control */
 #define FUNC_LED_OFF	0x1
@@ -567,9 +572,9 @@ static ssize_t
 show_lid_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (!(fujitsu_laptop->flags_supported & 0x100))
+	if (!(fujitsu_laptop->flags_supported & FLAG_LID))
 		return sprintf(buf, "unknown\n");
-	if (fujitsu_laptop->flags_state & 0x100)
+	if (fujitsu_laptop->flags_state & FLAG_LID)
 		return sprintf(buf, "open\n");
 	else
 		return sprintf(buf, "closed\n");
@@ -579,9 +584,9 @@ static ssize_t
 show_dock_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (!(fujitsu_laptop->flags_supported & 0x200))
+	if (!(fujitsu_laptop->flags_supported & FLAG_DOCK))
 		return sprintf(buf, "unknown\n");
-	if (fujitsu_laptop->flags_state & 0x200)
+	if (fujitsu_laptop->flags_state & FLAG_DOCK)
 		return sprintf(buf, "docked\n");
 	else
 		return sprintf(buf, "undocked\n");
@@ -591,9 +596,9 @@ static ssize_t
 show_radios_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (!(fujitsu_laptop->flags_supported & 0x20))
+	if (!(fujitsu_laptop->flags_supported & FLAG_RFKILL))
 		return sprintf(buf, "unknown\n");
-	if (fujitsu_laptop->flags_state & 0x20)
+	if (fujitsu_laptop->flags_state & FLAG_RFKILL)
 		return sprintf(buf, "on\n");
 	else
 		return sprintf(buf, "killed\n");
