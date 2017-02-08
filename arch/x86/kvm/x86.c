@@ -2672,6 +2672,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_DISABLE_QUIRKS:
 	case KVM_CAP_SET_BOOT_CPU_ID:
  	case KVM_CAP_SPLIT_IRQCHIP:
+	case KVM_CAP_IMMEDIATE_EXIT:
 #ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_PCI_2_3:
@@ -7202,7 +7203,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	} else
 		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
-	r = vcpu_run(vcpu);
+	if (kvm_run->immediate_exit)
+		r = -EINTR;
+	else
+		r = vcpu_run(vcpu);
 
 out:
 	post_kvm_run_save(vcpu);

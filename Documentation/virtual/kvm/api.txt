@@ -3389,7 +3389,18 @@ struct kvm_run {
 Request that KVM_RUN return when it becomes possible to inject external
 interrupts into the guest.  Useful in conjunction with KVM_INTERRUPT.
 
-	__u8 padding1[7];
+	__u8 immediate_exit;
+
+This field is polled once when KVM_RUN starts; if non-zero, KVM_RUN
+exits immediately, returning -EINTR.  In the common scenario where a
+signal is used to "kick" a VCPU out of KVM_RUN, this field can be used
+to avoid usage of KVM_SET_SIGNAL_MASK, which has worse scalability.
+Rather than blocking the signal outside KVM_RUN, userspace can set up
+a signal handler that sets run->immediate_exit to a non-zero value.
+
+This field is ignored if KVM_CAP_IMMEDIATE_EXIT is not available.
+
+	__u8 padding1[6];
 
 	/* out */
 	__u32 exit_reason;
