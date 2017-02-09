@@ -145,6 +145,29 @@ static void emac_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = adpt->tx_desc_cnt;
 }
 
+static int emac_set_ringparam(struct net_device *netdev,
+			      struct ethtool_ringparam *ring)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+
+	/* We don't have separate queues/rings for small/large frames, so
+	 * reject any attempt to specify those values separately.
+	 */
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
+		return -EINVAL;
+
+	adpt->tx_desc_cnt =
+		clamp_val(ring->tx_pending, EMAC_MIN_TX_DESCS, EMAC_MAX_TX_DESCS);
+
+	adpt->rx_desc_cnt =
+		clamp_val(ring->rx_pending, EMAC_MIN_RX_DESCS, EMAC_MAX_RX_DESCS);
+
+	if (netif_running(netdev))
+		return emac_reinit_locked(adpt);
+
+	return 0;
+}
+
 static void emac_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *pause)
 {
@@ -170,6 +193,43 @@ static int emac_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
+/* Selected registers that might want to track during runtime. */
+static const u16 emac_regs[] = {
+	EMAC_DMA_MAS_CTRL,
+	EMAC_MAC_CTRL,
+	EMAC_TXQ_CTRL_0,
+	EMAC_RXQ_CTRL_0,
+	EMAC_DMA_CTRL,
+	EMAC_INT_MASK,
+	EMAC_AXI_MAST_CTRL,
+	EMAC_CORE_HW_VERSION,
+	EMAC_MISC_CTRL,
+};
+
+/* Every time emac_regs[] above is changed, increase this version number. */
+#define EMAC_REGS_VERSION	0
+
+#define EMAC_MAX_REG_SIZE	ARRAY_SIZE(emac_regs)
+
+static void emac_get_regs(struct net_device *netdev,
+			  struct ethtool_regs *regs, void *buff)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+	u32 *val = buff;
+	unsigned int i;
+
+	regs->version = EMAC_REGS_VERSION;
+	regs->len = EMAC_MAX_REG_SIZE * sizeof(u32);
+
+	for (i = 0; i < EMAC_MAX_REG_SIZE; i++)
+		val[i] = readl(adpt->base + emac_regs[i]);
+}
+
+static int emac_get_regs_len(struct net_device *netdev)
+{
+	return EMAC_MAX_REG_SIZE * sizeof(32);
+}
+
 static const struct ethtool_ops emac_ethtool_ops = {
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
@@ -182,6 +242,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ethtool_stats = emac_get_ethtool_stats,
 
 	.get_ringparam = emac_get_ringparam,
+	.set_ringparam = emac_set_ringparam,
 
 	.get_pauseparam = emac_get_pauseparam,
 	.set_pauseparam = emac_set_pauseparam,
@@ -189,6 +250,9 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.nway_reset = emac_nway_reset,
 
 	.get_link = ethtool_op_get_link,
+
+	.get_regs_len    = emac_get_regs_len,
+	.get_regs        = emac_get_regs,
 };
 
 void emac_set_ethtool_ops(struct net_device *netdev)
