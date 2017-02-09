@@ -405,8 +405,11 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 			&bo->placement, page_align, !kernel, NULL,
 			acc_size, sg, resv ? resv : &bo->tbo.ttm_resv,
 			&amdgpu_ttm_bo_destroy);
-	if (unlikely(r != 0))
+	if (unlikely(r != 0)) {
+		if (!resv)
+			ww_mutex_unlock(&bo->tbo.resv->lock);
 		return r;
+	}
 
 	bo->tbo.priority = ilog2(bo->tbo.num_pages);
 	if (kernel)
