@@ -5095,8 +5095,6 @@ static int kbdlight_set_level(int level)
 	return 0;
 }
 
-static int kbdlight_set_level_and_update(int level);
-
 static int kbdlight_get_level(void)
 {
 	int status = 0;
@@ -5164,7 +5162,7 @@ static void kbdlight_set_worker(struct work_struct *work)
 			container_of(work, struct tpacpi_led_classdev, work);
 
 	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		kbdlight_set_level_and_update(data->new_state);
+		kbdlight_set_level(data->new_state);
 }
 
 static void kbdlight_sysfs_set(struct led_classdev *led_cdev,
