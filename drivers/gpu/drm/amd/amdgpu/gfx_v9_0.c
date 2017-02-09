@@ -1665,8 +1665,6 @@ static u32 gfx_v9_0_get_csb_size(struct amdgpu_device *adev)
 				return 0;
 		}
 	}
-	/* pa_sc_raster_config/pa_sc_raster_config1 */
-	count += 4;
 	/* end clear state */
 	count += 2;
 	/* clear state */
