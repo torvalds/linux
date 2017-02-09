@@ -487,7 +487,6 @@ static int whiteheat_ioctl(struct tty_struct *tty,
 		serstruct.type = PORT_16654;
 		serstruct.line = port->minor;
 		serstruct.port = port->port_number;
-		serstruct.flags = ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 		serstruct.xmit_fifo_size = kfifo_size(&port->write_fifo);
 		serstruct.custom_divisor = 0;
 		serstruct.baud_base = 460800;
