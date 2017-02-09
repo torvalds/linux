@@ -529,3 +529,66 @@ int lkl_if_del_ip(int ifindex, int af, void *addr, unsigned int netprefix_len)
 	return ipaddr_modify(LKL_RTM_DELADDR, 0, ifindex, af,
 			     addr, netprefix_len);
 }
+
+static int qdisc_add(int cmd, int flags, int ifindex,
+		     char *root, char *type)
+{
+	struct {
+		struct lkl_nlmsghdr n;
+		struct lkl_tcmsg tc;
+		char buf[64*1024];
+	} req = {
+		.n.nlmsg_len = LKL_NLMSG_LENGTH(sizeof(struct lkl_tcmsg)),
+		.n.nlmsg_flags = LKL_NLM_F_REQUEST|flags,
+		.n.nlmsg_type = cmd,
+		.tc.tcm_family = LKL_AF_UNSPEC,
+	};
+	int err, fd;
+
+	if (!root || !type) {
+		lkl_printf("root and type arguments\n");
+		return -1;
+	}
+
+	if (strcmp(root, "root") == 0)
+		req.tc.tcm_parent = LKL_TC_H_ROOT;
+	req.tc.tcm_ifindex = ifindex;
+
+	fd = netlink_sock(0);
+	if (fd < 0)
+		return fd;
+
+	// create the qdisc attribute
+	addattr_l(&req.n, sizeof(req), LKL_TCA_KIND, type, 2);
+
+	err = rtnl_talk(fd, &req.n);
+	lkl_sys_close(fd);
+	return err;
+}
+
+int lkl_qdisc_add(int ifindex, char *root, char *type)
+{
+	return qdisc_add(LKL_RTM_NEWQDISC, LKL_NLM_F_CREATE | LKL_NLM_F_EXCL,
+			 ifindex, root, type);
+}
+
+/* Add a qdisc entry for an interface in the form of
+ * "root|type;root|type;..."
+ */
+void lkl_qdisc_parse_add(int ifindex, char *entries)
+{
+	char *token = NULL;
+	char *root = NULL, *type = NULL;
+	int ret = 0;
+
+	for (token = strtok(entries, ";"); token; token = strtok(NULL, ";")) {
+		root = strtok(token, "|");
+		type = strtok(NULL, "|");
+		ret = lkl_qdisc_add(ifindex, root, type);
+		if (ret) {
+			fprintf(stderr, "Failed to add qdisc entry: %s\n",
+				lkl_strerror(ret));
+			return;
+		}
+	}
+}
