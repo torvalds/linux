@@ -15,6 +15,10 @@ extern "C" {
 #undef class
 #endif
 
+#if defined(__MINGW32__)
+#define strtok_r strtok_s
+#endif
+
 #if __LKL__BITS_PER_LONG == 64
 #define lkl_sys_stat lkl_sys_newstat
 #define lkl_sys_lstat lkl_sys_newlstat
@@ -478,6 +482,21 @@ int lkl_qdisc_add(int ifindex, char *root, char *type);
  *            "root|type;root|type;..."
  */
 void lkl_qdisc_parse_add(int ifindex, char *entries);
+
+/**
+ * lkl_sysctl - write a sysctl value
+ *
+ * @path - the path to an sysctl entry (e.g., "net.ipv4.tcp_wmem");
+ * @value - the value of the sysctl (e.g., "4096 87380 2147483647")
+ */
+int lkl_sysctl(const char *path, const char *value);
+
+/**
+ * lkl_sysctl_parse_write - Configure sysctl parameters with strings
+ *
+ * @sysctls - Configure sysctl parameters as the form of "key=value;..."
+ */
+void lkl_sysctl_parse_write(const char *sysctls);
 
 #ifdef __cplusplus
 }
