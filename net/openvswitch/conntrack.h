@@ -76,14 +76,14 @@ static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 				   struct sw_flow_key *key)
 {
-	key->ct.state = 0;
-	key->ct.zone = 0;
+	key->ct_state = 0;
+	key->ct_zone = 0;
 	key->ct.mark = 0;
 	memset(&key->ct.labels, 0, sizeof(key->ct.labels));
-	/* Clear 'ct.orig_proto' to mark the non-existence of original
+	/* Clear 'ct_orig_proto' to mark the non-existence of original
 	 * direction key fields.
 	 */
-	key->ct.orig_proto = 0;
+	key->ct_orig_proto = 0;
 }
 
 static inline int ovs_ct_put_key(const struct sw_flow_key *swkey,

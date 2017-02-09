@@ -1072,14 +1072,14 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 			return -EINVAL;
 		}
 
-		SW_FLOW_KEY_PUT(match, ct.state, ct_state, is_mask);
+		SW_FLOW_KEY_PUT(match, ct_state, ct_state, is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_STATE);
 	}
 	if (*attrs & (1 << OVS_KEY_ATTR_CT_ZONE) &&
 	    ovs_ct_verify(net, OVS_KEY_ATTR_CT_ZONE)) {
 		u16 ct_zone = nla_get_u16(a[OVS_KEY_ATTR_CT_ZONE]);
 
-		SW_FLOW_KEY_PUT(match, ct.zone, ct_zone, is_mask);
+		SW_FLOW_KEY_PUT(match, ct_zone, ct_zone, is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_ZONE);
 	}
 	if (*attrs & (1 << OVS_KEY_ATTR_CT_MARK) &&
@@ -1107,7 +1107,7 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 		SW_FLOW_KEY_PUT(match, ipv4.ct_orig.dst, ct->ipv4_dst, is_mask);
 		SW_FLOW_KEY_PUT(match, ct.orig_tp.src, ct->src_port, is_mask);
 		SW_FLOW_KEY_PUT(match, ct.orig_tp.dst, ct->dst_port, is_mask);
-		SW_FLOW_KEY_PUT(match, ct.orig_proto, ct->ipv4_proto, is_mask);
+		SW_FLOW_KEY_PUT(match, ct_orig_proto, ct->ipv4_proto, is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4);
 	}
 	if (*attrs & (1ULL << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6)) {
@@ -1123,7 +1123,7 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 				   is_mask);
 		SW_FLOW_KEY_PUT(match, ct.orig_tp.src, ct->src_port, is_mask);
 		SW_FLOW_KEY_PUT(match, ct.orig_tp.dst, ct->dst_port, is_mask);
-		SW_FLOW_KEY_PUT(match, ct.orig_proto, ct->ipv6_proto, is_mask);
+		SW_FLOW_KEY_PUT(match, ct_orig_proto, ct->ipv6_proto, is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6);
 	}
 
@@ -1564,6 +1564,9 @@ int ovs_nla_get_flow_metadata(struct net *net,
 	memset(&match, 0, sizeof(match));
 	match.key = key;
 
+	key->ct_state = 0;
+	key->ct_zone = 0;
+	key->ct_orig_proto = 0;
 	memset(&key->ct, 0, sizeof(key->ct));
 	memset(&key->ipv4.ct_orig, 0, sizeof(key->ipv4.ct_orig));
 	memset(&key->ipv6.ct_orig, 0, sizeof(key->ipv6.ct_orig));
