@@ -3437,8 +3437,11 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 					 bdev, &epd->bio, max_nr,
 					 end_bio_extent_writepage,
 					 0, 0, 0, false);
-		if (ret)
+		if (ret) {
 			SetPageError(page);
+			if (PageWriteback(page))
+				end_page_writeback(page);
+		}
 
 		cur = cur + iosize;
 		pg_offset += iosize;
@@ -3754,7 +3757,8 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 		epd->bio_flags = bio_flags;
 		if (ret) {
 			set_btree_ioerr(p);
-			end_page_writeback(p);
+			if (PageWriteback(p))
+				end_page_writeback(p);
 			if (atomic_sub_and_test(num_pages - i, &eb->io_pages))
 				end_extent_buffer_writeback(eb);
 			ret = -EIO;
