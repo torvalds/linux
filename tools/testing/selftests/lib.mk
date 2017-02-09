@@ -51,7 +51,7 @@ clean:
 	$(RM) -r $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES) $(EXTRA_CLEAN)
 
 $(OUTPUT)/%:%.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $< -o $@
+	$(LINK.c) $^ $(LDLIBS) -o $@
 
 $(OUTPUT)/%.o:%.S
 	$(CC) $(ASFLAGS) -c $< -o $@
