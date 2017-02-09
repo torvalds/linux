@@ -197,11 +197,18 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_BASIC,
 						  f->mask);
-		ip_proto = key->ip_proto;
+		u16 n_proto_key = ntohs(key->n_proto);
+		u16 n_proto_mask = ntohs(mask->n_proto);
+
+		if (n_proto_key == ETH_P_ALL) {
+			n_proto_key = 0;
+			n_proto_mask = 0;
+		}
 		mlxsw_sp_acl_rulei_keymask_u32(rulei,
 					       MLXSW_AFK_ELEMENT_ETHERTYPE,
-					       ntohs(key->n_proto),
-					       ntohs(mask->n_proto));
+					       n_proto_key, n_proto_mask);
+
+		ip_proto = key->ip_proto;
 		mlxsw_sp_acl_rulei_keymask_u32(rulei,
 					       MLXSW_AFK_ELEMENT_IP_PROTO,
 					       key->ip_proto, mask->ip_proto);
