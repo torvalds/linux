@@ -401,13 +401,15 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	if (!pq)
 		goto pq_nomem;
 
-	memsize = sizeof(*pq->reqs) * hfi1_sdma_comp_ring_size;
-	pq->reqs = kzalloc(memsize, GFP_KERNEL);
+	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
+			   sizeof(*pq->reqs),
+			   GFP_KERNEL);
 	if (!pq->reqs)
 		goto pq_reqs_nomem;
 
-	memsize = BITS_TO_LONGS(hfi1_sdma_comp_ring_size) * sizeof(long);
-	pq->req_in_use = kzalloc(memsize, GFP_KERNEL);
+	pq->req_in_use = kcalloc(BITS_TO_LONGS(hfi1_sdma_comp_ring_size),
+				 sizeof(*pq->req_in_use),
+				 GFP_KERNEL);
 	if (!pq->req_in_use)
 		goto pq_reqs_no_in_use;
 
