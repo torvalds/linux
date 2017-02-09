@@ -298,7 +298,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->open = st_rc_open;
 	rdev->close = st_rc_close;
 	rdev->driver_name = IR_ST_NAME;
-	rdev->map_name = RC_MAP_LIRC;
+	rdev->map_name = RC_MAP_EMPTY;
 	rdev->input_name = "ST Remote Control Receiver";
 
 	ret = rc_register_device(rdev);
