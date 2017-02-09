@@ -127,7 +127,7 @@ struct goldfish_sync_guestcmd {
 	uint64_t guest_timeline_handle;
 };
 
-#define GOLDFISH_SYNC_MAX_CMDS 64
+#define GOLDFISH_SYNC_MAX_CMDS 32
 
 struct goldfish_sync_state {
 	char __iomem *reg_base;
