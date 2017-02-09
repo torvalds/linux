@@ -315,8 +315,9 @@ replay:
 					err = -EINVAL;
 					goto errout;
 				}
-			} else
+			} else {
 				tp = NULL;
+			}
 			break;
 		}
 	}
