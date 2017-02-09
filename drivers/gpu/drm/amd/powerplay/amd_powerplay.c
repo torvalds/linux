@@ -880,7 +880,8 @@ static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
 	return hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
 }
 
-static int pp_dpm_read_sensor(void *handle, int idx, void *value)
+static int pp_dpm_read_sensor(void *handle, int idx,
+			      void *value, int *size)
 {
 	struct pp_hwmgr *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -898,7 +899,7 @@ static int pp_dpm_read_sensor(void *handle, int idx, void *value)
 		return 0;
 	}
 
-	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
+	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value, size);
 }
 
 static struct amd_vce_state*

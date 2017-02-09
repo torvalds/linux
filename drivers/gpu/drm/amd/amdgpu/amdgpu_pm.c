@@ -1534,6 +1534,7 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 {
 	uint32_t value;
 	struct pp_gpu_power query = {0};
+	int size;
 
 	/* sanity check PP is enabled */
 	if (!(adev->powerplay.pp_funcs &&
@@ -1541,16 +1542,18 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	      return -EINVAL;
 
 	/* GPU Clocks */
+	size = sizeof(value);
 	seq_printf(m, "GFX Clocks and Power:\n");
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK, (void *)&value, &size))
 		seq_printf(m, "\t%u MHz (MCLK)\n", value/100);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK, (void *)&value, &size))
 		seq_printf(m, "\t%u MHz (SCLK)\n", value/100);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX, (void *)&value, &size))
 		seq_printf(m, "\t%u mV (VDDGFX)\n", value);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value, &size))
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER, (void *)&query)) {
+	size = sizeof(query);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER, (void *)&query, &size)) {
 		seq_printf(m, "\t%u.%u W (VDDC)\n", query.vddc_power >> 8,
 				query.vddc_power & 0xff);
 		seq_printf(m, "\t%u.%u W (VDDCI)\n", query.vddci_power >> 8,
@@ -1560,38 +1563,39 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 		seq_printf(m, "\t%u.%u W (average GPU)\n", query.average_gpu_power >> 8,
 				query.average_gpu_power & 0xff);
 	}
+	size = sizeof(value);
 	seq_printf(m, "\n");
 
 	/* GPU Temp */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_TEMP, (void *)&value, &size))
 		seq_printf(m, "GPU Temperature: %u C\n", value/1000);
 
 	/* GPU Load */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, (void *)&value))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD, (void *)&value, &size))
 		seq_printf(m, "GPU Load: %u %%\n", value);
 	seq_printf(m, "\n");
 
 	/* UVD clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value)) {
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_POWER, (void *)&value, &size)) {
 		if (!value) {
 			seq_printf(m, "UVD: Disabled\n");
 		} else {
 			seq_printf(m, "UVD: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value))
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_DCLK, (void *)&value, &size))
 				seq_printf(m, "\t%u MHz (DCLK)\n", value/100);
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value))
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_UVD_VCLK, (void *)&value, &size))
 				seq_printf(m, "\t%u MHz (VCLK)\n", value/100);
 		}
 	}
 	seq_printf(m, "\n");
 
 	/* VCE clocks */
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value)) {
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_POWER, (void *)&value, &size)) {
 		if (!value) {
 			seq_printf(m, "VCE: Disabled\n");
 		} else {
 			seq_printf(m, "VCE: Enabled\n");
-			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value))
+			if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCE_ECCLK, (void *)&value, &size))
 				seq_printf(m, "\t%u MHz (ECCLK)\n", value/100);
 		}
 	}

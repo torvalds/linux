@@ -3106,24 +3106,36 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
-	int idx, r;
-	int32_t value;
+	int idx, x, outsize, r, valuesize;
+	uint32_t values[16];
 
-	if (size != 4 || *pos & 0x3)
+	if (size & 3 || *pos & 0x3)
 		return -EINVAL;
 
 	/* convert offset to sensor number */
 	idx = *pos >> 2;
 
+	valuesize = sizeof(values);
 	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
-		r = adev->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, idx, &value);
+		r = adev->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, idx, &values[0], &valuesize);
 	else
 		return -EINVAL;
 
-	if (!r)
-		r = put_user(value, (int32_t *)buf);
+	if (size > valuesize)
+		return -EINVAL;
 
-	return !r ? 4 : r;
+	outsize = 0;
+	x = 0;
+	if (!r) {
+		while (size) {
+			r = put_user(values[x++], (int32_t *)buf);
+			buf += 4;
+			size -= 4;
+			outsize += 4;
+		}
+	}
+
+	return !r ? outsize : r;
 }
 
 static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,

@@ -1813,7 +1813,8 @@ static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 	return actual_temp;
 }
 
-static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
+static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
+			  void *value, int *size)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -1836,6 +1837,11 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, void *value)
 	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
 	uint16_t vddnb, vddgfx;
 	int result;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+	*size = 4;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:

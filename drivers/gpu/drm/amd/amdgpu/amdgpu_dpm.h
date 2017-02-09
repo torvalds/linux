@@ -290,9 +290,9 @@ struct amdgpu_dpm_funcs {
 #define amdgpu_dpm_vblank_too_short(adev) (adev)->pm.funcs->vblank_too_short((adev))
 #define amdgpu_dpm_enable_bapm(adev, e) (adev)->pm.funcs->enable_bapm((adev), (e))
 
-#define amdgpu_dpm_read_sensor(adev, idx, value) \
+#define amdgpu_dpm_read_sensor(adev, idx, value, size) \
 	((adev)->pp_enabled ? \
-		(adev)->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, (idx), (value)) : \
+		(adev)->powerplay.pp_funcs->read_sensor(adev->powerplay.pp_handle, (idx), (value), (size)) : \
 		-EINVAL)
 
 #define amdgpu_dpm_get_temperature(adev) \
