@@ -202,7 +202,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	spin_lock_init(&rtc->lock);
 
 	rtc->base = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (!rtc->base) {
+	if (IS_ERR(rtc->base)) {
 		pr_crit("Can't map RTC registers");
 		return;
 	}
