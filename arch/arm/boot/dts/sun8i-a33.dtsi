@@ -100,6 +100,22 @@
 		status = "disabled";
 	};
 
+	mali_opp_table: gpu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp@144000000 {
+			opp-hz = /bits/ 64 <144000000>;
+		};
+
+		opp@240000000 {
+			opp-hz = /bits/ 64 <240000000>;
+		};
+
+		opp@384000000 {
+			opp-hz = /bits/ 64 <384000000>;
+		};
+	};
+
 	memory {
 		reg = <0x40000000 0x80000000>;
 	};
@@ -310,6 +326,10 @@
 
 &ccu {
 	compatible = "allwinner,sun8i-a33-ccu";
+};
+
+&mali {
+	operating-points-v2 = <&mali_opp_table>;
 };
 
 &pio {
