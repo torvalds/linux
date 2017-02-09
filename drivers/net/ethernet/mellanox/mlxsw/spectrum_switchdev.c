@@ -219,8 +219,9 @@ err_flood_bm_set:
 	return err;
 }
 
-static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				      bool set)
+static int mlxsw_sp_port_flood_table_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					 enum mlxsw_sp_flood_table table,
+					 bool set)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
 	u16 vid, last_visited_vid;
@@ -231,15 +232,12 @@ static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
 
 		return __mlxsw_sp_port_flood_table_set(mlxsw_sp_port, vfid,
-						       vfid,
-						       MLXSW_SP_FLOOD_TABLE_UC,
-						       set);
+						       vfid, table, set);
 	}
 
 	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID) {
 		err = __mlxsw_sp_port_flood_table_set(mlxsw_sp_port, vid, vid,
-						      MLXSW_SP_FLOOD_TABLE_UC,
-						      set);
+						      table, set);
 		if (err) {
 			last_visited_vid = vid;
 			goto err_port_flood_set;
@@ -250,8 +248,8 @@ static int mlxsw_sp_port_uc_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 err_port_flood_set:
 	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, last_visited_vid)
-		__mlxsw_sp_port_flood_table_set(mlxsw_sp_port, vid, vid,
-						MLXSW_SP_FLOOD_TABLE_UC, !set);
+		__mlxsw_sp_port_flood_table_set(mlxsw_sp_port, vid, vid, table,
+						!set);
 	netdev_err(dev, "Failed to configure unicast flooding\n");
 	return err;
 }
@@ -311,8 +309,9 @@ static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		return 0;
 
 	if ((uc_flood ^ brport_flags) & BR_FLOOD) {
-		err = mlxsw_sp_port_uc_flood_set(mlxsw_sp_port,
-						 !mlxsw_sp_port->uc_flood);
+		err = mlxsw_sp_port_flood_table_set(mlxsw_sp_port,
+						    MLXSW_SP_FLOOD_TABLE_UC,
+						    !mlxsw_sp_port->uc_flood);
 		if (err)
 			return err;
 	}
@@ -332,8 +331,9 @@ static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 err_port_learning_set:
 	if ((uc_flood ^ brport_flags) & BR_FLOOD)
-		mlxsw_sp_port_uc_flood_set(mlxsw_sp_port,
-					   mlxsw_sp_port->uc_flood);
+		mlxsw_sp_port_flood_table_set(mlxsw_sp_port,
+					      MLXSW_SP_FLOOD_TABLE_UC,
+					      mlxsw_sp_port->uc_flood);
 	return err;
 }
 
