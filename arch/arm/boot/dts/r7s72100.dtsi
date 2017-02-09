@@ -501,6 +501,7 @@
 		clocks = <&mstp12_clks R7S72100_CLK_SDHI00>,
 			 <&mstp12_clks R7S72100_CLK_SDHI01>;
 		clock-names = "core", "cd";
+		power-domains = <&cpg_clocks>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
 		status = "disabled";
@@ -516,6 +517,7 @@
 		clocks = <&mstp12_clks R7S72100_CLK_SDHI10>,
 			 <&mstp12_clks R7S72100_CLK_SDHI11>;
 		clock-names = "core", "cd";
+		power-domains = <&cpg_clocks>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
 		status = "disabled";
