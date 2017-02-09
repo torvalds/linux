@@ -293,9 +293,10 @@ replay:
 
 	/* And the last stroke */
 	chain = cops->tcf_chain(q, cl);
-	err = -EINVAL;
-	if (chain == NULL)
+	if (chain == NULL) {
+		err = -EINVAL;
 		goto errout;
+	}
 	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
 		tfilter_notify_chain(net, skb, n, chain, RTM_DELTFILTER);
 		tcf_destroy_chain(chain);
@@ -310,8 +311,10 @@ replay:
 		if (tp->prio >= prio) {
 			if (tp->prio == prio) {
 				if (!nprio ||
-				    (tp->protocol != protocol && protocol))
+				    (tp->protocol != protocol && protocol)) {
+					err = -EINVAL;
 					goto errout;
+				}
 			} else
 				tp = NULL;
 			break;
@@ -321,13 +324,16 @@ replay:
 	if (tp == NULL) {
 		/* Proto-tcf does not exist, create new one */
 
-		if (tca[TCA_KIND] == NULL || !protocol)
+		if (tca[TCA_KIND] == NULL || !protocol) {
+			err = -EINVAL;
 			goto errout;
+		}
 
-		err = -ENOENT;
 		if (n->nlmsg_type != RTM_NEWTFILTER ||
-		    !(n->nlmsg_flags & NLM_F_CREATE))
+		    !(n->nlmsg_flags & NLM_F_CREATE)) {
+			err = -ENOENT;
 			goto errout;
+		}
 
 		if (!nprio)
 			nprio = TC_H_MAJ(tcf_auto_prio(rtnl_dereference(*back)));
@@ -339,8 +345,10 @@ replay:
 			goto errout;
 		}
 		tp_created = 1;
-	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind))
+	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
+		err = -EINVAL;
 		goto errout;
+	}
 
 	fh = tp->ops->get(tp, t->tcm_handle);
 
@@ -357,17 +365,18 @@ replay:
 			goto errout;
 		}
 
-		err = -ENOENT;
 		if (n->nlmsg_type != RTM_NEWTFILTER ||
-		    !(n->nlmsg_flags & NLM_F_CREATE))
+		    !(n->nlmsg_flags & NLM_F_CREATE)) {
+			err = -ENOENT;
 			goto errout;
+		}
 	} else {
 		switch (n->nlmsg_type) {
 		case RTM_NEWTFILTER:
-			err = -EEXIST;
 			if (n->nlmsg_flags & NLM_F_EXCL) {
 				if (tp_created)
 					tcf_proto_destroy(tp, true);
+				err = -EEXIST;
 				goto errout;
 			}
 			break;
