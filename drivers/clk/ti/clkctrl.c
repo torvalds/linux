@@ -415,6 +415,11 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	addrp = of_get_address(node, 0, NULL, NULL);
 	addr = (u32)of_translate_address(node, addrp);
 
+#ifdef CONFIG_ARCH_OMAP4
+	if (of_machine_is_compatible("ti,omap4"))
+		data = omap4_clkctrl_data;
+#endif
+
 	while (data->addr) {
 		if (addr == data->addr)
 			break;

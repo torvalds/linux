@@ -228,6 +228,8 @@ struct omap_clkctrl_data {
 	const struct omap_clkctrl_reg_data *regs;
 };
 
+extern const struct omap_clkctrl_data omap4_clkctrl_data[];
+
 #define CLKF_SW_SUP	BIT(0)
 #define CLKF_HW_SUP	BIT(1)
 #define CLKF_NO_IDLEST	BIT(2)
