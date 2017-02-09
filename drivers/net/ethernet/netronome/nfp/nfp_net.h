@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -770,8 +770,7 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 }
 
 /* Globals */
-extern const char nfp_net_driver_name[];
-extern const char nfp_net_driver_version[];
+extern const char nfp_driver_version[];
 
 /* Prototypes */
 void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
@@ -795,7 +794,7 @@ int
 nfp_net_ring_reconfig(struct nfp_net *nn, struct bpf_prog **xdp_prog,
 		      struct nfp_net_ring_set *rx, struct nfp_net_ring_set *tx);
 
-#ifdef CONFIG_NFP_NET_DEBUG
+#ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
 void nfp_net_debugfs_adapter_add(struct nfp_net *nn);
@@ -816,7 +815,7 @@ static inline void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
 {
 }
-#endif /* CONFIG_NFP_NET_DEBUG */
+#endif /* CONFIG_NFP_DEBUG */
 
 void nfp_net_filter_stats_timer(unsigned long data);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);

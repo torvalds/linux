@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -46,8 +46,8 @@
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
-const char nfp_net_driver_name[] = "nfp_netvf";
-const char nfp_net_driver_version[] = "0.1";
+static const char nfp_net_driver_name[] = "nfp_netvf";
+
 #define PCI_DEVICE_NFP6000VF		0x6003
 static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_NFP6000VF,
@@ -315,39 +315,9 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_driver nfp_netvf_pci_driver = {
+struct pci_driver nfp_netvf_pci_driver = {
 	.name        = nfp_net_driver_name,
 	.id_table    = nfp_netvf_pci_device_ids,
 	.probe       = nfp_netvf_pci_probe,
 	.remove      = nfp_netvf_pci_remove,
 };
-
-static int __init nfp_netvf_init(void)
-{
-	int err;
-
-	pr_info("%s: NFP VF Network driver, Copyright (C) 2014-2015 Netronome Systems\n",
-		nfp_net_driver_name);
-
-	nfp_net_debugfs_create();
-	err = pci_register_driver(&nfp_netvf_pci_driver);
-	if (err) {
-		nfp_net_debugfs_destroy();
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit nfp_netvf_exit(void)
-{
-	pci_unregister_driver(&nfp_netvf_pci_driver);
-	nfp_net_debugfs_destroy();
-}
-
-module_init(nfp_netvf_init);
-module_exit(nfp_netvf_exit);
-
-MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("NFP VF network device driver");
