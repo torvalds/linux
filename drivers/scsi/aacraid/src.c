@@ -410,8 +410,8 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
 		init->r8.host_elapsed_seconds = cpu_to_le32(get_seconds());
 		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
-			(u32)(ulong)dev->init_pa,
-			(u32)((ulong)dev->init_pa>>32),
+			lower_32_bits(dev->init_pa),
+			upper_32_bits(dev->init_pa),
 			sizeof(struct _r8) +
 			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq),
 			0, 0, 0, NULL, NULL, NULL, NULL, NULL);
@@ -563,7 +563,7 @@ static int aac_src_deliver_message(struct fib *fib)
 			fib->hw_fib_va->header.SenderFibAddress =
 				cpu_to_le32((u32)address);
 			fib->hw_fib_va->header.u.TimeStamp = 0;
-			WARN_ON(((u32)(((address) >> 16) >> 16)) != 0L);
+			WARN_ON(upper_32_bits(address) != 0L);
 		} else {
 			/* Calculate the amount to the fibsize bits */
 			fibsize = (sizeof(struct aac_fib_xporthdr) +
