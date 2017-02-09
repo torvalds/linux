@@ -43,27 +43,29 @@ struct clk_iomap {
 
 static struct clk_iomap *clk_memmaps[CLK_MAX_MEMMAPS];
 
-static void clk_memmap_writel(u32 val, void __iomem *reg)
+static void clk_memmap_writel(u32 val, const struct clk_omap_reg *reg)
 {
-	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
-	struct clk_iomap *io = clk_memmaps[r->index];
+	struct clk_iomap *io = clk_memmaps[reg->index];
 
-	if (io->regmap)
-		regmap_write(io->regmap, r->offset, val);
+	if (reg->ptr)
+		writel_relaxed(val, reg->ptr);
+	else if (io->regmap)
+		regmap_write(io->regmap, reg->offset, val);
 	else
-		writel_relaxed(val, io->mem + r->offset);
+		writel_relaxed(val, io->mem + reg->offset);
 }
 
-static u32 clk_memmap_readl(void __iomem *reg)
+static u32 clk_memmap_readl(const struct clk_omap_reg *reg)
 {
 	u32 val;
-	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
-	struct clk_iomap *io = clk_memmaps[r->index];
+	struct clk_iomap *io = clk_memmaps[reg->index];
 
-	if (io->regmap)
-		regmap_read(io->regmap, r->offset, &val);
+	if (reg->ptr)
+		val = readl_relaxed(reg->ptr);
+	else if (io->regmap)
+		regmap_read(io->regmap, reg->offset, &val);
 	else
-		val = readl_relaxed(io->mem + r->offset);
+		val = readl_relaxed(io->mem + reg->offset);
 
 	return val;
 }
@@ -162,19 +164,17 @@ int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
  * ti_clk_get_reg_addr - get register address for a clock register
  * @node: device node for the clock
  * @index: register index from the clock node
+ * @reg: pointer to target register struct
  *
- * Builds clock register address from device tree information. This
- * is a struct of type clk_omap_reg. Returns a pointer to the register
- * address, or a pointer error value in failure.
+ * Builds clock register address from device tree information, and returns
+ * the data via the provided output pointer @reg. Returns 0 on success,
+ * negative error value on failure.
  */
-void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
+int ti_clk_get_reg_addr(struct device_node *node, int index,
+			struct clk_omap_reg *reg)
 {
-	struct clk_omap_reg *reg;
 	u32 val;
-	u32 tmp;
 	int i;
-
-	reg = (struct clk_omap_reg *)&tmp;
 
 	for (i = 0; i < CLK_MAX_MEMMAPS; i++) {
 		if (clocks_node_ptr[i] == node->parent)
@@ -183,19 +183,20 @@ void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 
 	if (i == CLK_MAX_MEMMAPS) {
 		pr_err("clk-provider not found for %s!\n", node->name);
-		return IOMEM_ERR_PTR(-ENOENT);
+		return -ENOENT;
 	}
 
 	reg->index = i;
 
 	if (of_property_read_u32_index(node, "reg", index, &val)) {
 		pr_err("%s must have reg[%d]!\n", node->name, index);
-		return IOMEM_ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	reg->offset = val;
+	reg->ptr = NULL;
 
-	return (__force void __iomem *)tmp;
+	return 0;
 }
 
 /**

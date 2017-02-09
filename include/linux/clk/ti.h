@@ -19,6 +19,18 @@
 #include <linux/clkdev.h>
 
 /**
+ * struct clk_omap_reg - OMAP register declaration
+ * @offset: offset from the master IP module base address
+ * @index: index of the master IP module
+ */
+struct clk_omap_reg {
+	void __iomem *ptr;
+	u16 offset;
+	u8 index;
+	u8 flags;
+};
+
+/**
  * struct dpll_data - DPLL registers and integration data
  * @mult_div1_reg: register containing the DPLL M and N bitfields
  * @mult_mask: mask of the DPLL M bitfield in @mult_div1_reg
@@ -67,12 +79,12 @@
  * can be placed into read-only space.
  */
 struct dpll_data {
-	void __iomem		*mult_div1_reg;
+	struct clk_omap_reg	mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
 	struct clk_hw		*clk_bypass;
 	struct clk_hw		*clk_ref;
-	void __iomem		*control_reg;
+	struct clk_omap_reg	control_reg;
 	u32			enable_mask;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
@@ -84,8 +96,8 @@ struct dpll_data {
 	u16			max_divider;
 	unsigned long		max_rate;
 	u8			modes;
-	void __iomem		*autoidle_reg;
-	void __iomem		*idlest_reg;
+	struct clk_omap_reg	autoidle_reg;
+	struct clk_omap_reg	idlest_reg;
 	u32			autoidle_mask;
 	u32			freqsel_mask;
 	u32			idlest_mask;
@@ -113,10 +125,10 @@ struct clk_hw_omap;
  */
 struct clk_hw_omap_ops {
 	void	(*find_idlest)(struct clk_hw_omap *oclk,
-			       void __iomem **idlest_reg,
+			       struct clk_omap_reg *idlest_reg,
 			       u8 *idlest_bit, u8 *idlest_val);
 	void	(*find_companion)(struct clk_hw_omap *oclk,
-				  void __iomem **other_reg,
+				  struct clk_omap_reg *other_reg,
 				  u8 *other_bit);
 	void	(*allow_idle)(struct clk_hw_omap *oclk);
 	void	(*deny_idle)(struct clk_hw_omap *oclk);
@@ -139,10 +151,10 @@ struct clk_hw_omap {
 	struct list_head	node;
 	unsigned long		fixed_rate;
 	u8			fixed_div;
-	void __iomem		*enable_reg;
+	struct clk_omap_reg	enable_reg;
 	u8			enable_bit;
 	u8			flags;
-	void __iomem		*clksel_reg;
+	struct clk_omap_reg	clksel_reg;
 	struct dpll_data	*dpll_data;
 	const char		*clkdm_name;
 	struct clockdomain	*clkdm;
@@ -196,16 +208,6 @@ enum {
 };
 
 /**
- * struct clk_omap_reg - OMAP register declaration
- * @offset: offset from the master IP module base address
- * @index: index of the master IP module
- */
-struct clk_omap_reg {
-	u16 offset;
-	u16 index;
-};
-
-/**
  * struct ti_clk_ll_ops - low-level ops for clocks
  * @clk_readl: pointer to register read function
  * @clk_writel: pointer to register write function
@@ -222,16 +224,16 @@ struct clk_omap_reg {
  * operations not provided directly by clock drivers.
  */
 struct ti_clk_ll_ops {
-	u32	(*clk_readl)(void __iomem *reg);
-	void	(*clk_writel)(u32 val, void __iomem *reg);
+	u32	(*clk_readl)(const struct clk_omap_reg *reg);
+	void	(*clk_writel)(u32 val, const struct clk_omap_reg *reg);
 	int	(*clkdm_clk_enable)(struct clockdomain *clkdm, struct clk *clk);
 	int	(*clkdm_clk_disable)(struct clockdomain *clkdm,
 				     struct clk *clk);
 	struct clockdomain * (*clkdm_lookup)(const char *name);
 	int	(*cm_wait_module_ready)(u8 part, s16 prcm_mod, u16 idlest_reg,
 					u8 idlest_shift);
-	int	(*cm_split_idlest_reg)(void __iomem *idlest_reg, s16 *prcm_inst,
-				       u8 *idlest_reg_id);
+	int	(*cm_split_idlest_reg)(struct clk_omap_reg *idlest_reg,
+				       s16 *prcm_inst, u8 *idlest_reg_id);
 };
 
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)

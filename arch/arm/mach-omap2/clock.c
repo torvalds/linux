@@ -54,7 +54,7 @@ u16 cpu_mask;
 #define OMAP3PLUS_DPLL_FINT_MIN		32000
 #define OMAP3PLUS_DPLL_FINT_MAX		52000000
 
-static struct ti_clk_ll_ops omap_clk_ll_ops = {
+struct ti_clk_ll_ops omap_clk_ll_ops = {
 	.clkdm_clk_enable = clkdm_clk_enable,
 	.clkdm_clk_disable = clkdm_clk_disable,
 	.clkdm_lookup = clkdm_lookup,

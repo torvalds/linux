@@ -18,7 +18,7 @@
 
 struct clk_omap_divider {
 	struct clk_hw		hw;
-	void __iomem		*reg;
+	struct clk_omap_reg	reg;
 	u8			shift;
 	u8			width;
 	u8			flags;
@@ -29,7 +29,7 @@ struct clk_omap_divider {
 
 struct clk_omap_mux {
 	struct clk_hw		hw;
-	void __iomem		*reg;
+	struct clk_omap_reg	reg;
 	u32			*table;
 	u32			mask;
 	u8			shift;
@@ -228,7 +228,8 @@ void ti_clk_patch_legacy_clks(struct ti_clk **patch);
 struct clk *ti_clk_register_clk(struct ti_clk *setup);
 int ti_clk_register_legacy_clks(struct ti_clk_alias *clks);
 
-void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index);
+int ti_clk_get_reg_addr(struct device_node *node, int index,
+			struct clk_omap_reg *reg);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
 int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 		      ti_of_clk_init_cb_t func);
@@ -263,10 +264,10 @@ int omap2_dflt_clk_enable(struct clk_hw *hw);
 void omap2_dflt_clk_disable(struct clk_hw *hw);
 int omap2_dflt_clk_is_enabled(struct clk_hw *hw);
 void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
-				   void __iomem **other_reg,
+				   struct clk_omap_reg *other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
-				void __iomem **idlest_reg,
+				struct clk_omap_reg *idlest_reg,
 				u8 *idlest_bit, u8 *idlest_val);
 
 void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);

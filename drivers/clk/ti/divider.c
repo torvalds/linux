@@ -100,7 +100,7 @@ static unsigned long ti_clk_divider_recalc_rate(struct clk_hw *hw,
 	struct clk_omap_divider *divider = to_clk_omap_divider(hw);
 	unsigned int div, val;
 
-	val = ti_clk_ll_ops->clk_readl(divider->reg) >> divider->shift;
+	val = ti_clk_ll_ops->clk_readl(&divider->reg) >> divider->shift;
 	val &= div_mask(divider);
 
 	div = _get_div(divider, val);
@@ -257,11 +257,11 @@ static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
 		val = div_mask(divider) << (divider->shift + 16);
 	} else {
-		val = ti_clk_ll_ops->clk_readl(divider->reg);
+		val = ti_clk_ll_ops->clk_readl(&divider->reg);
 		val &= ~(div_mask(divider) << divider->shift);
 	}
 	val |= value << divider->shift;
-	ti_clk_ll_ops->clk_writel(val, divider->reg);
+	ti_clk_ll_ops->clk_writel(val, &divider->reg);
 
 	return 0;
 }
@@ -274,7 +274,8 @@ const struct clk_ops ti_clk_divider_ops = {
 
 static struct clk *_register_divider(struct device *dev, const char *name,
 				     const char *parent_name,
-				     unsigned long flags, void __iomem *reg,
+				     unsigned long flags,
+				     struct clk_omap_reg *reg,
 				     u8 shift, u8 width, u8 clk_divider_flags,
 				     const struct clk_div_table *table)
 {
@@ -303,7 +304,7 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	init.num_parents = (parent_name ? 1 : 0);
 
 	/* struct clk_divider assignments */
-	div->reg = reg;
+	memcpy(&div->reg, reg, sizeof(*reg));
 	div->shift = shift;
 	div->width = width;
 	div->flags = clk_divider_flags;
@@ -561,14 +562,15 @@ static int _get_divider_width(struct device_node *node,
 }
 
 static int __init ti_clk_divider_populate(struct device_node *node,
-	void __iomem **reg, const struct clk_div_table **table,
+	struct clk_omap_reg *reg, const struct clk_div_table **table,
 	u32 *flags, u8 *div_flags, u8 *width, u8 *shift)
 {
 	u32 val;
+	int ret;
 
-	*reg = ti_clk_get_reg_addr(node, 0);
-	if (IS_ERR(*reg))
-		return PTR_ERR(*reg);
+	ret = ti_clk_get_reg_addr(node, 0, reg);
+	if (ret)
+		return ret;
 
 	if (!of_property_read_u32(node, "ti,bit-shift", &val))
 		*shift = val;
@@ -607,7 +609,7 @@ static void __init of_ti_divider_clk_setup(struct device_node *node)
 {
 	struct clk *clk;
 	const char *parent_name;
-	void __iomem *reg;
+	struct clk_omap_reg reg;
 	u8 clk_divider_flags = 0;
 	u8 width = 0;
 	u8 shift = 0;
@@ -620,7 +622,7 @@ static void __init of_ti_divider_clk_setup(struct device_node *node)
 				    &clk_divider_flags, &width, &shift))
 		goto cleanup;
 
-	clk = _register_divider(NULL, node->name, parent_name, flags, reg,
+	clk = _register_divider(NULL, node->name, parent_name, flags, &reg,
 				shift, width, clk_divider_flags, table);
 
 	if (!IS_ERR(clk)) {
