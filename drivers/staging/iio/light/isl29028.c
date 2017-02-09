@@ -656,7 +656,8 @@ static int __maybe_unused isl29028_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops isl29028_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(isl29028_suspend, isl29028_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(isl29028_suspend, isl29028_resume, NULL)
 };
 
