@@ -147,6 +147,20 @@ static void ovs_ct_get_labels(const struct nf_conn *ct,
 		memset(labels, 0, OVS_CT_LABELS_LEN);
 }
 
+static void __ovs_ct_update_key_orig_tp(struct sw_flow_key *key,
+					const struct nf_conntrack_tuple *orig,
+					u8 icmp_proto)
+{
+	key->ct.orig_proto = orig->dst.protonum;
+	if (orig->dst.protonum == icmp_proto) {
+		key->ct.orig_tp.src = htons(orig->dst.u.icmp.type);
+		key->ct.orig_tp.dst = htons(orig->dst.u.icmp.code);
+	} else {
+		key->ct.orig_tp.src = orig->src.u.all;
+		key->ct.orig_tp.dst = orig->dst.u.all;
+	}
+}
+
 static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 				const struct nf_conntrack_zone *zone,
 				const struct nf_conn *ct)
@@ -155,6 +169,35 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
 	key->ct.zone = zone->id;
 	key->ct.mark = ovs_ct_get_mark(ct);
 	ovs_ct_get_labels(ct, &key->ct.labels);
+
+	if (ct) {
+		const struct nf_conntrack_tuple *orig;
+
+		/* Use the master if we have one. */
+		if (ct->master)
+			ct = ct->master;
+		orig = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+
+		/* IP version must match with the master connection. */
+		if (key->eth.type == htons(ETH_P_IP) &&
+		    nf_ct_l3num(ct) == NFPROTO_IPV4) {
+			key->ipv4.ct_orig.src = orig->src.u3.ip;
+			key->ipv4.ct_orig.dst = orig->dst.u3.ip;
+			__ovs_ct_update_key_orig_tp(key, orig, IPPROTO_ICMP);
+			return;
+		} else if (key->eth.type == htons(ETH_P_IPV6) &&
+			   !sw_flow_key_is_nd(key) &&
+			   nf_ct_l3num(ct) == NFPROTO_IPV6) {
+			key->ipv6.ct_orig.src = orig->src.u3.in6;
+			key->ipv6.ct_orig.dst = orig->dst.u3.in6;
+			__ovs_ct_update_key_orig_tp(key, orig, NEXTHDR_ICMP);
+			return;
+		}
+	}
+	/* Clear 'ct.orig_proto' to mark the non-existence of conntrack
+	 * original direction key fields.
+	 */
+	key->ct.orig_proto = 0;
 }
 
 /* Update 'key' based on skb->_nfct.  If 'post_ct' is true, then OVS has
@@ -208,23 +251,54 @@ void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 	ovs_ct_update_key(skb, NULL, key, false, false);
 }
 
-int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
+#define IN6_ADDR_INITIALIZER(ADDR) \
+	{ (ADDR).s6_addr32[0], (ADDR).s6_addr32[1], \
+	  (ADDR).s6_addr32[2], (ADDR).s6_addr32[3] }
+
+int ovs_ct_put_key(const struct sw_flow_key *swkey,
+		   const struct sw_flow_key *output, struct sk_buff *skb)
 {
-	if (nla_put_u32(skb, OVS_KEY_ATTR_CT_STATE, key->ct.state))
+	if (nla_put_u32(skb, OVS_KEY_ATTR_CT_STATE, output->ct.state))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
-	    nla_put_u16(skb, OVS_KEY_ATTR_CT_ZONE, key->ct.zone))
+	    nla_put_u16(skb, OVS_KEY_ATTR_CT_ZONE, output->ct.zone))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_MARK) &&
-	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, key->ct.mark))
+	    nla_put_u32(skb, OVS_KEY_ATTR_CT_MARK, output->ct.mark))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-	    nla_put(skb, OVS_KEY_ATTR_CT_LABELS, sizeof(key->ct.labels),
-		    &key->ct.labels))
+	    nla_put(skb, OVS_KEY_ATTR_CT_LABELS, sizeof(output->ct.labels),
+		    &output->ct.labels))
 		return -EMSGSIZE;
+
+	if (swkey->ct.orig_proto) {
+		if (swkey->eth.type == htons(ETH_P_IP)) {
+			struct ovs_key_ct_tuple_ipv4 orig = {
+				output->ipv4.ct_orig.src,
+				output->ipv4.ct_orig.dst,
+				output->ct.orig_tp.src,
+				output->ct.orig_tp.dst,
+				output->ct.orig_proto,
+			};
+			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4,
+				    sizeof(orig), &orig))
+				return -EMSGSIZE;
+		} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
+			struct ovs_key_ct_tuple_ipv6 orig = {
+				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.src),
+				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.dst),
+				output->ct.orig_tp.src,
+				output->ct.orig_tp.dst,
+				output->ct.orig_proto,
+			};
+			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6,
+				    sizeof(orig), &orig))
+				return -EMSGSIZE;
+		}
+	}
 
 	return 0;
 }

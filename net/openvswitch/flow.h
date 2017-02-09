@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2014 Nicira, Inc.
+ * Copyright (c) 2007-2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -107,10 +107,16 @@ struct sw_flow_key {
 				__be32 src;	/* IP source address. */
 				__be32 dst;	/* IP destination address. */
 			} addr;
-			struct {
-				u8 sha[ETH_ALEN];	/* ARP source hardware address. */
-				u8 tha[ETH_ALEN];	/* ARP target hardware address. */
-			} arp;
+			union {
+				struct {
+					__be32 src;
+					__be32 dst;
+				} ct_orig;	/* Conntrack original direction fields. */
+				struct {
+					u8 sha[ETH_ALEN];	/* ARP source hardware address. */
+					u8 tha[ETH_ALEN];	/* ARP target hardware address. */
+				} arp;
+			};
 		} ipv4;
 		struct {
 			struct {
@@ -118,22 +124,43 @@ struct sw_flow_key {
 				struct in6_addr dst;	/* IPv6 destination address. */
 			} addr;
 			__be32 label;			/* IPv6 flow label. */
-			struct {
-				struct in6_addr target;	/* ND target address. */
-				u8 sll[ETH_ALEN];	/* ND source link layer address. */
-				u8 tll[ETH_ALEN];	/* ND target link layer address. */
-			} nd;
+			union {
+				struct {
+					struct in6_addr src;
+					struct in6_addr dst;
+				} ct_orig;	/* Conntrack original direction fields. */
+				struct {
+					struct in6_addr target;	/* ND target address. */
+					u8 sll[ETH_ALEN];	/* ND source link layer address. */
+					u8 tll[ETH_ALEN];	/* ND target link layer address. */
+				} nd;
+			};
 		} ipv6;
 	};
 	struct {
 		/* Connection tracking fields. */
+		u8 state;
+		u8 orig_proto;		/* CT orig tuple IP protocol. */
 		u16 zone;
 		u32 mark;
-		u8 state;
+		struct {
+			__be16 src;	/* CT orig tuple tp src port. */
+			__be16 dst;	/* CT orig tuple tp dst port. */
+		} orig_tp;
+
 		struct ovs_key_ct_labels labels;
 	} ct;
 
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
+
+static inline bool sw_flow_key_is_nd(const struct sw_flow_key *key)
+{
+	return key->eth.type == htons(ETH_P_IPV6) &&
+		key->ip.proto == NEXTHDR_ICMP &&
+		key->tp.dst == 0 &&
+		(key->tp.src == htons(NDISC_NEIGHBOUR_SOLICITATION) ||
+		 key->tp.src == htons(NDISC_NEIGHBOUR_ADVERTISEMENT));
+}
 
 struct sw_flow_key_range {
 	unsigned short int start;
