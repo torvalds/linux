@@ -83,6 +83,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	u32 tx_bar_sz, rx_bar_sz;
 	int tx_bar_no, rx_bar_no;
 	u8 __iomem *ctrl_bar;
+	struct dentry *ddir;
 	struct nfp_net *nn;
 	u32 startq;
 	int stride;
@@ -260,7 +261,9 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, nn);
 
 	nfp_net_info(nn);
-	nfp_net_debugfs_adapter_add(nn);
+	ddir = nfp_net_debugfs_device_add(pdev);
+	nfp_net_debugfs_port_add(nn, ddir, 0);
+	nn->debugfs_dir = ddir;
 
 	return 0;
 
@@ -293,7 +296,7 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	/* Note, the order is slightly different from above as we need
 	 * to keep the nn pointer around till we have freed everything.
 	 */
-	nfp_net_debugfs_adapter_del(nn);
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 
 	nfp_net_netdev_clean(nn->netdev);
 
