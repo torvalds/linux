@@ -319,20 +319,17 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	return clk;
 }
 
-static struct clk_div_table *
-_get_div_table_from_setup(struct ti_clk_divider *setup, u8 *width)
+int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
+			      u8 flags, u8 *width,
+			      const struct clk_div_table **table)
 {
 	int valid_div = 0;
-	struct clk_div_table *table;
-	int i;
-	int div;
 	u32 val;
-	u8 flags;
+	int div;
+	int i;
+	struct clk_div_table *tmp;
 
-	if (!setup->num_dividers) {
-		/* Clk divider table not provided, determine min/max divs */
-		flags = setup->flags;
-
+	if (!div_table) {
 		if (flags & CLKF_INDEX_STARTS_AT_ONE)
 			val = 1;
 		else
@@ -340,7 +337,7 @@ _get_div_table_from_setup(struct ti_clk_divider *setup, u8 *width)
 
 		div = 1;
 
-		while (div < setup->max_div) {
+		while (div < max_div) {
 			if (flags & CLKF_INDEX_POWER_OF_TWO)
 				div <<= 1;
 			else
@@ -349,30 +346,52 @@ _get_div_table_from_setup(struct ti_clk_divider *setup, u8 *width)
 		}
 
 		*width = fls(val);
+		*table = NULL;
 
-		return NULL;
+		return 0;
 	}
 
-	for (i = 0; i < setup->num_dividers; i++)
-		if (setup->dividers[i])
-			valid_div++;
+	i = 0;
 
-	table = kzalloc(sizeof(*table) * (valid_div + 1), GFP_KERNEL);
-	if (!table)
-		return ERR_PTR(-ENOMEM);
+	while (!num_dividers || i < num_dividers) {
+		if (div_table[i] == -1)
+			break;
+		if (div_table[i])
+			valid_div++;
+		i++;
+	}
+
+	num_dividers = i;
+
+	tmp = kzalloc(sizeof(*tmp) * (valid_div + 1), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
 	valid_div = 0;
 	*width = 0;
 
-	for (i = 0; i < setup->num_dividers; i++)
-		if (setup->dividers[i]) {
-			table[valid_div].div = setup->dividers[i];
-			table[valid_div].val = i;
+	for (i = 0; i < num_dividers; i++)
+		if (div_table[i] > 0) {
+			tmp[valid_div].div = div_table[i];
+			tmp[valid_div].val = i;
 			valid_div++;
 			*width = i;
 		}
 
 	*width = fls(*width);
+	*table = tmp;
+
+	return 0;
+}
+
+static const struct clk_div_table *
+_get_div_table_from_setup(struct ti_clk_divider *setup, u8 *width)
+{
+	const struct clk_div_table *table = NULL;
+
+	ti_clk_parse_divider_data(setup->dividers, setup->num_dividers,
+				  setup->max_div, setup->flags, width,
+				  &table);
 
 	return table;
 }
@@ -414,7 +433,7 @@ struct clk *ti_clk_register_divider(struct ti_clk *setup)
 	u8 width;
 	u32 flags = 0;
 	u8 div_flags = 0;
-	struct clk_div_table *table;
+	const struct clk_div_table *table;
 	struct clk *clk;
 
 	div = setup->data;
