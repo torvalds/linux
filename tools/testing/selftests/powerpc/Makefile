@@ -62,7 +62,8 @@ endef
 clean:
 	@for TARGET in $(SUB_DIRS); do \
 		BUILD_TARGET=$$OUTPUT/$$TARGET;	\
-		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\ done;
+		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET clean; \
+	done;
 	rm -f tags
 
 tags:
