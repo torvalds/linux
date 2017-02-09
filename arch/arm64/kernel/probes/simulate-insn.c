@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 
+#include <asm/ptrace.h>
+
 #include "simulate-insn.h"
 
 #define bbl_displacement(insn)		\
@@ -36,30 +38,22 @@
 
 static inline void set_x_reg(struct pt_regs *regs, int reg, u64 val)
 {
-	if (reg < 31)
-		regs->regs[reg] = val;
+	pt_regs_write_reg(regs, reg, val);
 }
 
 static inline void set_w_reg(struct pt_regs *regs, int reg, u64 val)
 {
-	if (reg < 31)
-		regs->regs[reg] = lower_32_bits(val);
+	pt_regs_write_reg(regs, reg, lower_32_bits(val));
 }
 
 static inline u64 get_x_reg(struct pt_regs *regs, int reg)
 {
-	if (reg < 31)
-		return regs->regs[reg];
-	else
-		return 0;
+	return pt_regs_read_reg(regs, reg);
 }
 
 static inline u32 get_w_reg(struct pt_regs *regs, int reg)
 {
-	if (reg < 31)
-		return lower_32_bits(regs->regs[reg]);
-	else
-		return 0;
+	return lower_32_bits(pt_regs_read_reg(regs, reg));
 }
 
 static bool __kprobes check_cbz(u32 opcode, struct pt_regs *regs)
