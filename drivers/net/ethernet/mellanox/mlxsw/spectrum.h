@@ -55,7 +55,7 @@
 #include "core_acl_flex_actions.h"
 
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
-#define MLXSW_SP_VFID_MAX 6656	/* Bridged VLAN interfaces */
+#define MLXSW_SP_VFID_MAX 1024	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
 #define MLXSW_SP_INVALID_RIF 0xffff
