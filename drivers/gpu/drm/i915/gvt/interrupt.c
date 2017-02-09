@@ -176,26 +176,15 @@ int intel_vgpu_reg_imr_handler(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
-	u32 changed, masked, unmasked;
 	u32 imr = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IMR %x with val %x\n",
-		reg, imr);
-
-	gvt_dbg_irq("old vIMR %x\n", vgpu_vreg(vgpu, reg));
-
-	/* figure out newly masked/unmasked bits */
-	changed = vgpu_vreg(vgpu, reg) ^ imr;
-	masked = (vgpu_vreg(vgpu, reg) & changed) ^ changed;
-	unmasked = masked ^ changed;
-
-	gvt_dbg_irq("changed %x, masked %x, unmasked %x\n",
-		changed, masked, unmasked);
+	gvt_dbg_irq("write IMR %x, new %08x, old %08x, changed %08x\n",
+		    reg, imr, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ imr);
 
 	vgpu_vreg(vgpu, reg) = imr;
 
 	ops->check_pending_irq(vgpu);
-	gvt_dbg_irq("IRQ: new vIMR %x\n", vgpu_vreg(vgpu, reg));
+
 	return 0;
 }
 
@@ -217,14 +206,11 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
-	u32 changed, enabled, disabled;
 	u32 ier = *(u32 *)p_data;
 	u32 virtual_ier = vgpu_vreg(vgpu, reg);
 
-	gvt_dbg_irq("write master irq reg %x with val %x\n",
-		reg, ier);
-
-	gvt_dbg_irq("old vreg %x\n", vgpu_vreg(vgpu, reg));
+	gvt_dbg_irq("write MASTER_IRQ %x, new %08x, old %08x, changed %08x\n",
+		    reg, ier, virtual_ier, virtual_ier ^ ier);
 
 	/*
 	 * GEN8_MASTER_IRQ is a special irq register,
@@ -236,16 +222,8 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 	vgpu_vreg(vgpu, reg) &= ~GEN8_MASTER_IRQ_CONTROL;
 	vgpu_vreg(vgpu, reg) |= ier;
 
-	/* figure out newly enabled/disable bits */
-	changed = virtual_ier ^ ier;
-	enabled = (virtual_ier & changed) ^ changed;
-	disabled = enabled ^ changed;
-
-	gvt_dbg_irq("changed %x, enabled %x, disabled %x\n",
-			changed, enabled, disabled);
-
 	ops->check_pending_irq(vgpu);
-	gvt_dbg_irq("new vreg %x\n", vgpu_vreg(vgpu, reg));
+
 	return 0;
 }
 
@@ -268,21 +246,11 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct intel_gvt_irq_ops *ops = gvt->irq.ops;
 	struct intel_gvt_irq_info *info;
-	u32 changed, enabled, disabled;
 	u32 ier = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IER %x with val %x\n",
-		reg, ier);
+	gvt_dbg_irq("write IER %x, new %08x, old %08x, changed %08x\n",
+		    reg, ier, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ ier);
 
-	gvt_dbg_irq("old vIER %x\n", vgpu_vreg(vgpu, reg));
-
-	/* figure out newly enabled/disable bits */
-	changed = vgpu_vreg(vgpu, reg) ^ ier;
-	enabled = (vgpu_vreg(vgpu, reg) & changed) ^ changed;
-	disabled = enabled ^ changed;
-
-	gvt_dbg_irq("changed %x, enabled %x, disabled %x\n",
-			changed, enabled, disabled);
 	vgpu_vreg(vgpu, reg) = ier;
 
 	info = regbase_to_irq_info(gvt, ier_to_regbase(reg));
@@ -293,7 +261,7 @@ int intel_vgpu_reg_ier_handler(struct intel_vgpu *vgpu,
 		update_upstream_irq(vgpu, info);
 
 	ops->check_pending_irq(vgpu);
-	gvt_dbg_irq("new vIER %x\n", vgpu_vreg(vgpu, reg));
+
 	return 0;
 }
 
@@ -317,7 +285,8 @@ int intel_vgpu_reg_iir_handler(struct intel_vgpu *vgpu, unsigned int reg,
 		iir_to_regbase(reg));
 	u32 iir = *(u32 *)p_data;
 
-	gvt_dbg_irq("write IIR %x with val %x\n", reg, iir);
+	gvt_dbg_irq("write IIR %x, new %08x, old %08x, changed %08x\n",
+		    reg, iir, vgpu_vreg(vgpu, reg), vgpu_vreg(vgpu, reg) ^ iir);
 
 	if (WARN_ON(!info))
 		return -EINVAL;
