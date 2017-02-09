@@ -656,7 +656,7 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 	if (cq->queue[prev_cidx].bits_type_ts != cq->bits_type_ts) {
 		ret = -EOVERFLOW;
 		cq->error = 1;
-		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+		pr_err("cq overflow cqid %u\n", cq->cqid);
 		BUG_ON(1);
 	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
 

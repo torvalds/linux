@@ -293,10 +293,8 @@ int c4iw_pblpool_create(struct c4iw_rdev *rdev)
 			PDBG("%s failed to add PBL chunk (%x/%x)\n",
 			     __func__, pbl_start, pbl_chunk);
 			if (pbl_chunk <= 1024 << MIN_PBL_SHIFT) {
-				printk(KERN_WARNING MOD
-				       "Failed to add all PBL chunks (%x/%x)\n",
-				       pbl_start,
-				       pbl_top - pbl_start);
+				pr_warn("Failed to add all PBL chunks (%x/%x)\n",
+					pbl_start, pbl_top - pbl_start);
 				return 0;
 			}
 			pbl_chunk >>= 1;
@@ -326,7 +324,7 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 	unsigned long addr = gen_pool_alloc(rdev->rqt_pool, size << 6);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size << 6);
 	if (!addr)
-		pr_warn_ratelimited(MOD "%s: Out of RQT memory\n",
+		pr_warn_ratelimited("%s: Out of RQT memory\n",
 				    pci_name(rdev->lldi.pdev));
 	mutex_lock(&rdev->stats.lock);
 	if (addr) {
@@ -366,9 +364,8 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 			PDBG("%s failed to add RQT chunk (%x/%x)\n",
 			     __func__, rqt_start, rqt_chunk);
 			if (rqt_chunk <= 1024 << MIN_RQT_SHIFT) {
-				printk(KERN_WARNING MOD
-				       "Failed to add all RQT chunks (%x/%x)\n",
-				       rqt_start, rqt_top - rqt_start);
+				pr_warn("Failed to add all RQT chunks (%x/%x)\n",
+					rqt_start, rqt_top - rqt_start);
 				return 0;
 			}
 			rqt_chunk >>= 1;
@@ -432,9 +429,8 @@ int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev)
 			PDBG("%s failed to add OCQP chunk (%x/%x)\n",
 			     __func__, start, chunk);
 			if (chunk <= 1024 << MIN_OCQP_SHIFT) {
-				printk(KERN_WARNING MOD
-				       "Failed to add all OCQP chunks (%x/%x)\n",
-				       start, top - start);
+				pr_warn("Failed to add all OCQP chunks (%x/%x)\n",
+					start, top - start);
 				return 0;
 			}
 			chunk >>= 1;

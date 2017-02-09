@@ -64,6 +64,12 @@
 #define DRV_NAME "iw_cxgb4"
 #define MOD DRV_NAME ":"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 extern int c4iw_debug;
 #define PDBG(fmt, args...) \
 do { \

@@ -124,8 +124,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 	spin_lock_irq(&dev->lock);
 	qhp = get_qhp(dev, CQE_QPID(err_cqe));
 	if (!qhp) {
-		printk(KERN_ERR MOD "BAD AE qpid 0x%x opcode %d "
-		       "status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+		pr_err("BAD AE qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       CQE_QPID(err_cqe),
 		       CQE_OPCODE(err_cqe), CQE_STATUS(err_cqe),
 		       CQE_TYPE(err_cqe), CQE_WRID_HI(err_cqe),
@@ -140,8 +139,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		cqid = qhp->attr.rcq;
 	chp = get_chp(dev, cqid);
 	if (!chp) {
-		printk(KERN_ERR MOD "BAD AE cqid 0x%x qpid 0x%x opcode %d "
-		       "status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+		pr_err("BAD AE cqid 0x%x qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       cqid, CQE_QPID(err_cqe),
 		       CQE_OPCODE(err_cqe), CQE_STATUS(err_cqe),
 		       CQE_TYPE(err_cqe), CQE_WRID_HI(err_cqe),
@@ -165,7 +163,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 
 	/* Completion Events */
 	case T4_ERR_SUCCESS:
-		printk(KERN_ERR MOD "AE with status 0!\n");
+		pr_err("AE with status 0!\n");
 		break;
 
 	case T4_ERR_STAG:
@@ -207,7 +205,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		break;
 
 	default:
-		printk(KERN_ERR MOD "Unknown T4 status 0x%x QPID 0x%x\n",
+		pr_err("Unknown T4 status 0x%x QPID 0x%x\n",
 		       CQE_STATUS(err_cqe), qhp->wq.sq.qid);
 		post_qp_event(dev, chp, qhp, err_cqe, IB_EVENT_QP_FATAL);
 		break;

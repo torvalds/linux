@@ -467,7 +467,7 @@ static struct net_device *get_real_dev(struct net_device *egress_dev)
 
 static void arp_failure_discard(void *handle, struct sk_buff *skb)
 {
-	pr_err(MOD "ARP failure\n");
+	pr_err("ARP failure\n");
 	kfree_skb(skb);
 }
 
@@ -528,7 +528,7 @@ static void pass_accept_rpl_arp_failure(void *handle, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep = handle;
 
-	pr_err(MOD "ARP failure during accept - tid %u -dropping connection\n",
+	pr_err("ARP failure during accept - tid %u - dropping connection\n",
 	       ep->hwtid);
 
 	__state_set(&ep->com, DEAD);
@@ -542,7 +542,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep = handle;
 
-	printk(KERN_ERR MOD "ARP failure during connect\n");
+	pr_err("ARP failure during connect\n");
 	connect_reply_upcall(ep, -EHOSTUNREACH);
 	__state_set(&ep->com, DEAD);
 	if (ep->com.remote_addr.ss_family == AF_INET6) {
@@ -724,8 +724,7 @@ static int send_connect(struct c4iw_ep *ep)
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - failed to alloc skb.\n",
-		       __func__);
+		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
@@ -1023,7 +1022,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - cannot alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
@@ -1103,7 +1102,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - cannot alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
@@ -1379,7 +1378,7 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	PDBG("%s ep %p tid %u credits %u\n", __func__, ep, ep->hwtid, credits);
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		printk(KERN_ERR MOD "update_rx_credits - cannot alloc skb!\n");
+		pr_err("update_rx_credits - cannot alloc skb!\n");
 		return 0;
 	}
 
@@ -1454,8 +1453,8 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	/* Validate MPA header. */
 	if (mpa->revision > mpa_rev) {
-		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
-		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
+		pr_err("%s MPA version mismatch. Local = %d, Received = %d\n",
+		       __func__, mpa_rev, mpa->revision);
 		err = -EPROTO;
 		goto err_stop_timer;
 	}
@@ -1610,7 +1609,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * supports, generate TERM message
 	 */
 	if (rtr_mismatch) {
-		printk(KERN_ERR "%s: RTR mismatch, sending TERM\n", __func__);
+		pr_err("%s: RTR mismatch, sending TERM\n", __func__);
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_NOMATCH_RTR;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
@@ -1629,8 +1628,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * initiator ORD.
 	 */
 	if (insuff_ird) {
-		printk(KERN_ERR "%s: Insufficient IRD, sending TERM\n",
-				__func__);
+		pr_err("%s: Insufficient IRD, sending TERM\n", __func__);
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_INSUFF_IRD;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
@@ -1701,8 +1699,8 @@ static int process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * Validate MPA Header.
 	 */
 	if (mpa->revision > mpa_rev) {
-		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
-		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
+		pr_err("%s MPA version mismatch. Local = %d, Received = %d\n",
+		       __func__, mpa_rev, mpa->revision);
 		goto err_stop_timer;
 	}
 
@@ -1866,7 +1864,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = get_ep_from_tid(dev, tid);
 	if (!ep) {
-		printk(KERN_WARNING MOD "Abort rpl to freed endpoint\n");
+		pr_warn("Abort rpl to freed endpoint\n");
 		return 0;
 	}
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
@@ -1878,8 +1876,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		release = 1;
 		break;
 	default:
-		printk(KERN_ERR "%s ep %p state %d\n",
-		     __func__, ep, ep->com.state);
+		pr_err("%s ep %p state %d\n", __func__, ep, ep->com.state);
 		break;
 	}
 	mutex_unlock(&ep->com.mutex);
@@ -2124,7 +2121,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	 */
 	ep->atid = cxgb4_alloc_atid(ep->com.dev->rdev.lldi.tids, ep);
 	if (ep->atid == -1) {
-		pr_err("%s - cannot alloc atid.\n", __func__);
+		pr_err("%s - cannot alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -2151,7 +2148,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 		ra = (__u8 *)&raddr6->sin6_addr;
 	}
 	if (!ep->dst) {
-		pr_err("%s - cannot find route.\n", __func__);
+		pr_err("%s - cannot find route\n", __func__);
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
@@ -2159,7 +2156,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 			ep->com.dev->rdev.lldi.adapter_type,
 			ep->com.cm_id->tos);
 	if (err) {
-		pr_err("%s - cannot alloc l2e.\n", __func__);
+		pr_err("%s - cannot alloc l2e\n", __func__);
 		goto fail4;
 	}
 
@@ -2493,15 +2490,13 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 				 &parent_ep->com.local_addr)->sin6_scope_id);
 	}
 	if (!dst) {
-		printk(KERN_ERR MOD "%s - failed to find dst entry!\n",
-		       __func__);
+		pr_err("%s - failed to find dst entry!\n", __func__);
 		goto reject;
 	}
 
 	child_ep = alloc_ep(sizeof(*child_ep), GFP_KERNEL);
 	if (!child_ep) {
-		printk(KERN_ERR MOD "%s - failed to allocate ep entry!\n",
-		       __func__);
+		pr_err("%s - failed to allocate ep entry!\n", __func__);
 		dst_release(dst);
 		goto reject;
 	}
@@ -2509,8 +2504,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	err = import_ep(child_ep, iptype, peer_ip, dst, dev, false,
 			parent_ep->com.dev->rdev.lldi.adapter_type, tos);
 	if (err) {
-		printk(KERN_ERR MOD "%s - failed to allocate l2t entry!\n",
-		       __func__);
+		pr_err("%s - failed to allocate l2t entry!\n", __func__);
 		dst_release(dst);
 		kfree(child_ep);
 		goto reject;
@@ -2797,9 +2791,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 				     ep->com.qp, C4IW_QP_ATTR_NEXT_STATE,
 				     &attrs, 1);
 			if (ret)
-				printk(KERN_ERR MOD
-				       "%s - qp <- error failed!\n",
-				       __func__);
+				pr_err("%s - qp <- error failed!\n", __func__);
 		}
 		peer_abort_upcall(ep);
 		break;
@@ -2918,13 +2910,13 @@ static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 	BUG_ON(!ep);
 
 	if (ep && ep->com.qp) {
-		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n", tid,
-		       ep->com.qp->wq.sq.qid);
+		pr_warn("TERM received tid %u qpid %u\n",
+			tid, ep->com.qp->wq.sq.qid);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 	} else
-		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n", tid);
+		pr_warn("TERM received tid %u no ep/qp\n", tid);
 	c4iw_put_ep(&ep->com);
 
 	return 0;
@@ -3188,7 +3180,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
+		pr_err("%s - cannot alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -3228,7 +3220,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	 */
 	ep->atid = cxgb4_alloc_atid(dev->rdev.lldi.tids, ep);
 	if (ep->atid == -1) {
-		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
+		pr_err("%s - cannot alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -3292,7 +3284,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					   raddr6->sin6_scope_id);
 	}
 	if (!ep->dst) {
-		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
+		pr_err("%s - cannot find route\n", __func__);
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
@@ -3300,7 +3292,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	err = import_ep(ep, iptype, ra, ep->dst, ep->com.dev, true,
 			ep->com.dev->rdev.lldi.adapter_type, cm_id->tos);
 	if (err) {
-		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
+		pr_err("%s - cannot alloc l2e\n", __func__);
 		goto fail4;
 	}
 
@@ -3414,7 +3406,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
+		pr_err("%s - cannot alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto fail1;
 	}
@@ -3439,7 +3431,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 					    cm_id->m_local_addr.ss_family, ep);
 
 	if (ep->stid == -1) {
-		printk(KERN_ERR MOD "%s - cannot alloc stid.\n", __func__);
+		pr_err("%s - cannot alloc stid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -3600,8 +3592,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 						     C4IW_QP_ATTR_NEXT_STATE,
 						     &attrs, 1);
 				if (ret)
-					pr_err(MOD
-					       "%s - qp <- error failed!\n",
+					pr_err("%s - qp <- error failed!\n",
 					       __func__);
 			}
 			fatal = 1;
@@ -4157,8 +4148,8 @@ static int set_tcb_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct cpl_set_tcb_rpl *rpl = cplhdr(skb);
 
 	if (rpl->status != CPL_ERR_NONE) {
-		printk(KERN_ERR MOD "Unexpected SET_TCB_RPL status %u "
-		       "for tid %u\n", rpl->status, GET_TID(rpl));
+		pr_err("Unexpected SET_TCB_RPL status %u for tid %u\n",
+		       rpl->status, GET_TID(rpl));
 	}
 	kfree_skb(skb);
 	return 0;
@@ -4186,8 +4177,8 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 		sched(dev, skb);
 		break;
 	default:
-		printk(KERN_ERR MOD "%s unexpected fw6 msg type %u\n", __func__,
-		       rpl->type);
+		pr_err("%s unexpected fw6 msg type %u\n",
+		       __func__, rpl->type);
 		kfree_skb(skb);
 		break;
 	}
@@ -4203,8 +4194,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 	ep = get_ep_from_tid(dev, tid);
 	/* This EP will be dereferenced in peer_abort() */
 	if (!ep) {
-		printk(KERN_WARNING MOD
-		       "Abort on non-existent endpoint, tid %d\n", tid);
+		pr_warn("Abort on non-existent endpoint, tid %d\n", tid);
 		kfree_skb(skb);
 		return 0;
 	}

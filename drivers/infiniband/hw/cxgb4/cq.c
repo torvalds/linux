@@ -159,7 +159,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 				      &cq->bar2_qid,
 				      user ? &cq->bar2_pa : NULL);
 	if (user && !cq->bar2_pa) {
-		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
+		pr_warn("%s: cqid %u not in BAR2 range\n",
 			pci_name(rdev->lldi.pdev), cq->cqid);
 		ret = -EINVAL;
 		goto err4;
@@ -766,8 +766,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->opcode = IB_WC_SEND;
 			break;
 		default:
-			printk(KERN_ERR MOD "Unexpected opcode %d "
-			       "in the CQE received for QPID=0x%0x\n",
+			pr_err("Unexpected opcode %d in the CQE received for QPID=0x%0x\n",
 			       CQE_OPCODE(&cqe), CQE_QPID(&cqe));
 			ret = -EINVAL;
 			goto out;
@@ -822,8 +821,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			wc->status = IB_WC_WR_FLUSH_ERR;
 			break;
 		default:
-			printk(KERN_ERR MOD
-			       "Unexpected cqe_status 0x%x for QPID=0x%0x\n",
+			pr_err("Unexpected cqe_status 0x%x for QPID=0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
 			wc->status = IB_WC_FATAL_ERR;
 		}
