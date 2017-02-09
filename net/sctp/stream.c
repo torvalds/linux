@@ -136,8 +136,10 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 				goto out;
 
 	chunk = sctp_make_strreset_req(asoc, str_nums, str_list, out, in);
-	if (!chunk)
+	if (!chunk) {
+		retval = -ENOMEM;
 		goto out;
+	}
 
 	if (out) {
 		if (str_nums)
@@ -149,7 +151,6 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 				stream->out[i].state = SCTP_STREAM_CLOSED;
 	}
 
-	asoc->strreset_outstanding = out + in;
 	asoc->strreset_chunk = chunk;
 	sctp_chunk_hold(asoc->strreset_chunk);
 
@@ -157,7 +158,138 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 	if (retval) {
 		sctp_chunk_put(asoc->strreset_chunk);
 		asoc->strreset_chunk = NULL;
+		if (!out)
+			goto out;
+
+		if (str_nums)
+			for (i = 0; i < str_nums; i++)
+				stream->out[str_list[i]].state =
+						       SCTP_STREAM_OPEN;
+		else
+			for (i = 0; i < stream->outcnt; i++)
+				stream->out[i].state = SCTP_STREAM_OPEN;
+
+		goto out;
 	}
+
+	asoc->strreset_outstanding = out + in;
+
+out:
+	return retval;
+}
+
+int sctp_send_reset_assoc(struct sctp_association *asoc)
+{
+	struct sctp_chunk *chunk = NULL;
+	int retval;
+	__u16 i;
+
+	if (!asoc->peer.reconf_capable ||
+	    !(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
+		return -ENOPROTOOPT;
+
+	if (asoc->strreset_outstanding)
+		return -EINPROGRESS;
+
+	chunk = sctp_make_strreset_tsnreq(asoc);
+	if (!chunk)
+		return -ENOMEM;
+
+	/* Block further xmit of data until this request is completed */
+	for (i = 0; i < asoc->stream->outcnt; i++)
+		asoc->stream->out[i].state = SCTP_STREAM_CLOSED;
+
+	asoc->strreset_chunk = chunk;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	retval = sctp_send_reconf(asoc, chunk);
+	if (retval) {
+		sctp_chunk_put(asoc->strreset_chunk);
+		asoc->strreset_chunk = NULL;
+
+		for (i = 0; i < asoc->stream->outcnt; i++)
+			asoc->stream->out[i].state = SCTP_STREAM_OPEN;
+
+		return retval;
+	}
+
+	asoc->strreset_outstanding = 1;
+
+	return 0;
+}
+
+int sctp_send_add_streams(struct sctp_association *asoc,
+			  struct sctp_add_streams *params)
+{
+	struct sctp_stream *stream = asoc->stream;
+	struct sctp_chunk *chunk = NULL;
+	int retval = -ENOMEM;
+	__u32 outcnt, incnt;
+	__u16 out, in;
+
+	if (!asoc->peer.reconf_capable ||
+	    !(asoc->strreset_enable & SCTP_ENABLE_CHANGE_ASSOC_REQ)) {
+		retval = -ENOPROTOOPT;
+		goto out;
+	}
+
+	if (asoc->strreset_outstanding) {
+		retval = -EINPROGRESS;
+		goto out;
+	}
+
+	out = params->sas_outstrms;
+	in  = params->sas_instrms;
+	outcnt = stream->outcnt + out;
+	incnt = stream->incnt + in;
+	if (outcnt > SCTP_MAX_STREAM || incnt > SCTP_MAX_STREAM ||
+	    (!out && !in)) {
+		retval = -EINVAL;
+		goto out;
+	}
+
+	if (out) {
+		struct sctp_stream_out *streamout;
+
+		streamout = krealloc(stream->out, outcnt * sizeof(*streamout),
+				     GFP_KERNEL);
+		if (!streamout)
+			goto out;
+
+		memset(streamout + stream->outcnt, 0, out * sizeof(*streamout));
+		stream->out = streamout;
+	}
+
+	if (in) {
+		struct sctp_stream_in *streamin;
+
+		streamin = krealloc(stream->in, incnt * sizeof(*streamin),
+				    GFP_KERNEL);
+		if (!streamin)
+			goto out;
+
+		memset(streamin + stream->incnt, 0, in * sizeof(*streamin));
+		stream->in = streamin;
+	}
+
+	chunk = sctp_make_strreset_addstrm(asoc, out, in);
+	if (!chunk)
+		goto out;
+
+	asoc->strreset_chunk = chunk;
+	sctp_chunk_hold(asoc->strreset_chunk);
+
+	retval = sctp_send_reconf(asoc, chunk);
+	if (retval) {
+		sctp_chunk_put(asoc->strreset_chunk);
+		asoc->strreset_chunk = NULL;
+		goto out;
+	}
+
+	stream->incnt = incnt;
+	stream->outcnt = outcnt;
+
+	asoc->strreset_outstanding = !!out + !!in;
 
 out:
 	return retval;
