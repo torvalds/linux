@@ -271,6 +271,12 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 	struct panel_simple *p = to_panel_simple(panel);
 	int num = 0;
 
+	/* add device node plane modes */
+	num += panel_simple_of_get_native_mode(p);
+
+	/* add hard-coded panel modes */
+	num += panel_simple_get_fixed_modes(p);
+
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
 		struct edid *edid = drm_get_edid(panel->connector, p->ddc);
@@ -280,12 +286,6 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 			kfree(edid);
 		}
 	}
-
-	/* add hard-coded panel modes */
-	num += panel_simple_get_fixed_modes(p);
-
-	/* add device node plane modes */
-	num += panel_simple_of_get_native_mode(p);
 
 	return num;
 }
