@@ -803,11 +803,11 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 		rail->svc = svc;
 
 		dir = debugfs_create_dir(fname, dent);
-		debugfs_create_file("voltage_now", S_IRUGO, dir, rail,
+		debugfs_create_file("voltage_now", 0444, dir, rail,
 				    &pwrmon_debugfs_voltage_fops);
-		debugfs_create_file("current_now", S_IRUGO, dir, rail,
+		debugfs_create_file("current_now", 0444, dir, rail,
 				    &pwrmon_debugfs_current_fops);
-		debugfs_create_file("power_now", S_IRUGO, dir, rail,
+		debugfs_create_file("power_now", 0444, dir, rail,
 				    &pwrmon_debugfs_power_fops);
 	}
 
