@@ -39,10 +39,59 @@
 #ifndef NFP_MAIN_H
 #define NFP_MAIN_H
 
+#include <linux/list.h>
 #include <linux/types.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
 
+struct dentry;
+struct pci_dev;
+
+struct nfp_cpp;
+struct nfp_cpp_area;
+struct nfp_eth_table;
+
+/**
+ * struct nfp_pf - NFP PF-specific device structure
+ * @pdev:		Backpointer to PCI device
+ * @cpp:		Pointer to the CPP handle
+ * @ctrl_area:		Pointer to the CPP area for the control BAR
+ * @tx_area:		Pointer to the CPP area for the TX queues
+ * @rx_area:		Pointer to the CPP area for the FL/RX queues
+ * @irq_entries:	Array of MSI-X entries for all ports
+ * @num_vfs:		Number of SR-IOV VFs enabled
+ * @fw_loaded:		Is the firmware loaded?
+ * @eth_tbl:		NSP ETH table
+ * @ddir:		Per-device debugfs directory
+ * @num_ports:		Number of adapter ports
+ * @ports:		Linked list of port structures (struct nfp_net)
+ */
+struct nfp_pf {
+	struct pci_dev *pdev;
+
+	struct nfp_cpp *cpp;
+
+	struct nfp_cpp_area *ctrl_area;
+	struct nfp_cpp_area *tx_area;
+	struct nfp_cpp_area *rx_area;
+
+	struct msix_entry *irq_entries;
+
+	unsigned int num_vfs;
+
+	bool fw_loaded;
+
+	struct nfp_eth_table *eth_tbl;
+
+	struct dentry *ddir;
+
+	unsigned int num_ports;
+	struct list_head ports;
+};
+
 extern struct pci_driver nfp_netvf_pci_driver;
+
+int nfp_net_pci_probe(struct nfp_pf *pf);
+void nfp_net_pci_remove(struct nfp_pf *pf);
 
 #endif /* NFP_MAIN_H */

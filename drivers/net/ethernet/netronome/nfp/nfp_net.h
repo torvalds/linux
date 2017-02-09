@@ -43,6 +43,7 @@
 #define _NFP_NET_H_
 
 #include <linux/interrupt.h>
+#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
@@ -434,20 +435,13 @@ struct nfp_stat_pair {
  * struct nfp_net - NFP network device structure
  * @pdev:               Backpointer to PCI device
  * @netdev:             Backpointer to net_device structure
- * @nfp_fallback:       Is the driver used in fallback mode?
  * @is_vf:              Is the driver attached to a VF?
- * @fw_loaded:          Is the firmware loaded?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
  * @xdp_prog:		Installed XDP program
- * @cpp:                Pointer to the CPP handle
- * @nfp_dev_cpp:        Pointer to the NFP Device handle
- * @ctrl_area:          Pointer to the CPP area for the control BAR
- * @tx_area:            Pointer to the CPP area for the TX queues
- * @rx_area:            Pointer to the CPP area for the FL/RX queues
  * @fw_ver:             Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
@@ -497,14 +491,13 @@ struct nfp_stat_pair {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
+ * @port_list:		Entry on device port list
  */
 struct nfp_net {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
-	unsigned nfp_fallback:1;
 	unsigned is_vf:1;
-	unsigned fw_loaded:1;
 	unsigned bpf_offload_skip_sw:1;
 	unsigned bpf_offload_xdp:1;
 
@@ -517,18 +510,6 @@ struct nfp_net {
 
 	struct nfp_net_tx_ring *tx_rings;
 	struct nfp_net_rx_ring *rx_rings;
-
-#ifdef CONFIG_PCI_IOV
-	unsigned int num_vfs;
-	struct vf_data_storage *vfinfo;
-	int vf_rate_link_speed;
-#endif
-
-	struct nfp_cpp *cpp;
-	struct platform_device *nfp_dev_cpp;
-	struct nfp_cpp_area *ctrl_area;
-	struct nfp_cpp_area *tx_area;
-	struct nfp_cpp_area *rx_area;
 
 	struct nfp_net_fw_version fw_ver;
 	u32 cap;
@@ -592,11 +573,12 @@ struct nfp_net {
 	u8 __iomem *qcp_cfg;
 
 	u8 __iomem *ctrl_bar;
-	u8 __iomem *q_bar;
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
 
 	struct dentry *debugfs_dir;
+
+	struct list_head port_list;
 };
 
 struct nfp_net_ring_set {
