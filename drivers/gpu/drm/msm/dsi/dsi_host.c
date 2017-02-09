@@ -1743,6 +1743,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host->rx_buf = devm_kzalloc(&pdev->dev, SZ_4K, GFP_KERNEL);
 	if (!msm_host->rx_buf) {
+		ret = -ENOMEM;
 		pr_err("%s: alloc rx temp buf failed\n", __func__);
 		goto fail;
 	}
