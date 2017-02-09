@@ -202,6 +202,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
+	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
 };
 
