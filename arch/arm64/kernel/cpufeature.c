@@ -1214,7 +1214,7 @@ static int emulate_mrs(struct pt_regs *regs, u32 insn)
 	rc = emulate_sys_reg(sys_reg, &val);
 	if (!rc) {
 		dst = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RT, insn);
-		regs->user_regs.regs[dst] = val;
+		pt_regs_write_reg(regs, dst, val);
 		regs->pc += 4;
 	}
 
