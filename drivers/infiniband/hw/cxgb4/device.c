@@ -812,23 +812,20 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	PDBG("%s dev %s stag start 0x%0x size 0x%0x num stags %d "
-	     "pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x "
-	     "qp qid start %u size %u cq qid start %u size %u\n",
-	     __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
-	     rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
-	     rdev->lldi.vr->pbl.start,
-	     rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
-	     rdev->lldi.vr->rq.size,
-	     rdev->lldi.vr->qp.start,
-	     rdev->lldi.vr->qp.size,
-	     rdev->lldi.vr->cq.start,
-	     rdev->lldi.vr->cq.size);
-	PDBG("udb %pR db_reg %p gts_reg %p "
-	     "qpmask 0x%x cqmask 0x%x\n",
-		&rdev->lldi.pdev->resource[2],
-	     rdev->lldi.db_reg, rdev->lldi.gts_reg,
-	     rdev->qpmask, rdev->cqmask);
+	pr_debug("%s dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+		 __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
+		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
+		 rdev->lldi.vr->pbl.start,
+		 rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
+		 rdev->lldi.vr->rq.size,
+		 rdev->lldi.vr->qp.start,
+		 rdev->lldi.vr->qp.size,
+		 rdev->lldi.vr->cq.start,
+		 rdev->lldi.vr->cq.size);
+	pr_debug("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
+		 &rdev->lldi.pdev->resource[2],
+		 rdev->lldi.db_reg, rdev->lldi.gts_reg,
+		 rdev->qpmask, rdev->cqmask);
 
 	if (c4iw_num_stags(rdev) == 0)
 		return -EINVAL;
@@ -935,7 +932,7 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 
 static void c4iw_remove(struct uld_ctx *ctx)
 {
-	PDBG("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	pr_debug("%s c4iw_dev %p\n", __func__,  ctx->dev);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -969,9 +966,9 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp->rdev.lldi = *infop;
 
 	/* init various hw-queue params based on lld info */
-	PDBG("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
-	     __func__, devp->rdev.lldi.sge_ingpadboundary,
-	     devp->rdev.lldi.sge_egrstatuspagesize);
+	pr_debug("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
+		 __func__, devp->rdev.lldi.sge_ingpadboundary,
+		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
 		devp->rdev.lldi.sge_ingpadboundary > 64 ? 2 : 1;
@@ -1017,10 +1014,9 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		}
 	}
 
-	PDBG(KERN_INFO MOD "ocq memory: "
-	       "hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
-	       devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
-	       devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
+	pr_debug("ocq memory: hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
+		 devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
+		 devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
 
 	ret = c4iw_rdev_open(&devp->rdev);
 	if (ret) {
@@ -1070,17 +1066,17 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	}
 	ctx->lldi = *infop;
 
-	PDBG("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
-	     __func__, pci_name(ctx->lldi.pdev),
-	     ctx->lldi.nchan, ctx->lldi.nrxq,
-	     ctx->lldi.ntxq, ctx->lldi.nports);
+	pr_debug("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
+		 __func__, pci_name(ctx->lldi.pdev),
+		 ctx->lldi.nchan, ctx->lldi.nrxq,
+		 ctx->lldi.ntxq, ctx->lldi.nports);
 
 	mutex_lock(&dev_mutex);
 	list_add_tail(&ctx->entry, &uld_ctx_list);
 	mutex_unlock(&dev_mutex);
 
 	for (i = 0; i < ctx->lldi.nrxq; i++)
-		PDBG("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
+		pr_debug("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
 out:
 	return ctx;
 }
@@ -1204,7 +1200,7 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
 	struct uld_ctx *ctx = handle;
 
-	PDBG("%s new_state %u\n", __func__, new_state);
+	pr_debug("%s new_state %u\n", __func__, new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
 		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
