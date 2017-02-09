@@ -1332,8 +1332,11 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (ret)
 		goto out_detach;
 
-	if (resv_msi && iommu_get_msi_cookie(domain->domain, resv_msi_base))
-		goto out_detach;
+	if (resv_msi) {
+		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
+		if (ret)
+			goto out_detach;
+	}
 
 	list_add(&domain->next, &iommu->domain_list);
 
