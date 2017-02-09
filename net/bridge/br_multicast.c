@@ -47,6 +47,7 @@ static void br_ip4_multicast_leave_group(struct net_bridge *br,
 					 __u16 vid,
 					 const unsigned char *src);
 
+static void __del_port_router(struct net_bridge_port *p);
 #if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_leave_group(struct net_bridge *br,
 					 struct net_bridge_port *port,
@@ -850,16 +851,10 @@ static void br_multicast_router_expired(unsigned long data)
 	spin_lock(&br->multicast_lock);
 	if (port->multicast_router == MDB_RTR_TYPE_DISABLED ||
 	    port->multicast_router == MDB_RTR_TYPE_PERM ||
-	    timer_pending(&port->multicast_router_timer) ||
-	    hlist_unhashed(&port->rlist))
+	    timer_pending(&port->multicast_router_timer))
 		goto out;
 
-	hlist_del_init_rcu(&port->rlist);
-	br_rtr_notify(br->dev, port, RTM_DELMDB);
-	/* Don't allow timer refresh if the router expired */
-	if (port->multicast_router == MDB_RTR_TYPE_TEMP)
-		port->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
-
+	__del_port_router(port);
 out:
 	spin_unlock(&br->multicast_lock);
 }
@@ -1101,13 +1096,8 @@ void br_multicast_disable_port(struct net_bridge_port *port)
 		if (!(pg->flags & MDB_PG_FLAGS_PERMANENT))
 			br_multicast_del_pg(br, pg);
 
-	if (!hlist_unhashed(&port->rlist)) {
-		hlist_del_init_rcu(&port->rlist);
-		br_rtr_notify(br->dev, port, RTM_DELMDB);
-		/* Don't allow timer refresh if disabling */
-		if (port->multicast_router == MDB_RTR_TYPE_TEMP)
-			port->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
-	}
+	__del_port_router(port);
+
 	del_timer(&port->multicast_router_timer);
 	del_timer(&port->ip4_own_query.timer);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -2059,6 +2049,10 @@ static void __del_port_router(struct net_bridge_port *p)
 		return;
 	hlist_del_init_rcu(&p->rlist);
 	br_rtr_notify(p->br->dev, p, RTM_DELMDB);
+
+	/* don't allow timer refresh */
+	if (p->multicast_router == MDB_RTR_TYPE_TEMP)
+		p->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 }
 
 int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
